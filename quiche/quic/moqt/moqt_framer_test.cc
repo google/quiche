@@ -427,7 +427,7 @@ TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
       }
       buffer = framer_.SerializeSubscribe(subscribe);
       // Go to the filter type.
-      const uint8_t* read = BufferAtOffset(buffer, 16);
+      const uint8_t* read = BufferAtOffset(buffer, 17);
       EXPECT_EQ(static_cast<MoqtFilterType>(*read), expected_filter_type);
       EXPECT_GT(buffer.size(), 0);
     }
@@ -486,7 +486,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateEndGroupOnly) {
   quiche::QuicheBuffer buffer;
   buffer = framer_.SerializeSubscribeUpdate(subscribe_update);
   EXPECT_GT(buffer.size(), 0);
-  const uint8_t* end_group = BufferAtOffset(buffer, 5);
+  const uint8_t* end_group = BufferAtOffset(buffer, 6);
   EXPECT_EQ(*end_group, 5);
 }
 
@@ -501,7 +501,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateIncrementsEnd) {
   quiche::QuicheBuffer buffer;
   buffer = framer_.SerializeSubscribeUpdate(subscribe_update);
   EXPECT_GT(buffer.size(), 0);
-  const uint8_t* end_group = BufferAtOffset(buffer, 5);
+  const uint8_t* end_group = BufferAtOffset(buffer, 6);
   EXPECT_EQ(*end_group, 5);
 }
 

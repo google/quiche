@@ -159,7 +159,7 @@ class QUICHE_EXPORT MoqtControlParser {
   bool parsing_error_ = false;
 
   std::optional<uint64_t> message_type_;
-  std::optional<uint64_t> message_size_;
+  std::optional<uint16_t> message_size_;
 
   uint64_t max_auth_token_cache_size_ = 0;
   uint64_t auth_token_cache_size_ = 0;

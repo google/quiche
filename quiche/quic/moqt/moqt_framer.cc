@@ -160,17 +160,17 @@ template <typename... Ts>
 QuicheBuffer SerializeControlMessage(MoqtMessageType type, Ts... data) {
   uint64_t message_type = static_cast<uint64_t>(type);
   size_t payload_size = quiche::ComputeLengthOnWire(data...);
-  size_t buffer_size =
-      payload_size + quiche::ComputeLengthOnWire(WireVarInt62(message_type),
-                                                 WireVarInt62(payload_size));
+  size_t buffer_size = sizeof(uint16_t) + payload_size +
+                       quiche::ComputeLengthOnWire(WireVarInt62(message_type));
   if (buffer_size == 0) {
     return QuicheBuffer();
   }
 
   QuicheBuffer buffer(quiche::SimpleBufferAllocator::Get(), buffer_size);
   quiche::QuicheDataWriter writer(buffer.size(), buffer.data());
-  absl::Status status = SerializeIntoWriter(
-      writer, WireVarInt62(message_type), WireVarInt62(payload_size), data...);
+  absl::Status status =
+      SerializeIntoWriter(writer, WireVarInt62(message_type),
+                          quiche::WireUint16(payload_size), data...);
   if (!status.ok() || writer.remaining() != 0) {
     QUICHE_BUG(moqt_failed_serialization)
         << "Failed to serialize MoQT frame: " << status;

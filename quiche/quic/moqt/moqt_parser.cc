@@ -179,7 +179,6 @@ void MoqtControlParser::ReadAndDispatchMessages() {
   auto on_return = absl::MakeCleanup([&] { processing_ = false; });
   while (!no_more_data_) {
     bool fin_read = false;
-
     // Read the message type.
     if (!message_type_.has_value()) {
       message_type_ = ReadVarInt62FromStream(stream_, fin_read);
@@ -195,15 +194,23 @@ void MoqtControlParser::ReadAndDispatchMessages() {
 
     // Read the message length.
     if (!message_size_.has_value()) {
-      message_size_ = ReadVarInt62FromStream(stream_, fin_read);
-      if (fin_read) {
+      if (stream_.ReadableBytes() < 2) {
+        return;
+      }
+      std::array<char, 2> size_bytes;
+      quiche::ReadStream::ReadResult result =
+          stream_.Read(absl::MakeSpan(size_bytes));
+      if (result.bytes_read != 2) {
+        ParseError(MoqtError::kInternalError,
+                   "Stream returned incorrect ReadableBytes");
+        return;
+      }
+      if (result.fin) {
         ParseError("FIN on control stream");
         return;
       }
-      if (!message_size_.has_value()) {
-        return;
-      }
-
+      message_size_ = static_cast<uint16_t>(size_bytes[0]) << 8 |
+                      static_cast<uint16_t>(size_bytes[1]);
       if (*message_size_ > kMaxMessageHeaderSize) {
         ParseError(MoqtError::kInternalError,
                    absl::StrCat("Cannot parse control messages more than ",
