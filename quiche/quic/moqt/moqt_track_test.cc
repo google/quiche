@@ -54,6 +54,8 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
       /*full_track_name=*/FullTrackName("foo", "bar"),
       /*subscriber_priority=*/128,
       /*group_order=*/std::nullopt,
+      /*forward=*/true,
+      /*filter_type=*/MoqtFilterType::kAbsoluteStart,
       /*start=*/Location(2, 0),
       std::nullopt,
       VersionSpecificParameters(),
@@ -78,7 +80,7 @@ TEST_F(SubscribeRemoteTrackTest, UpdateDataStreamType) {
 
 TEST_F(SubscribeRemoteTrackTest, AllowError) {
   EXPECT_TRUE(track_.ErrorIsAllowed());
-  EXPECT_EQ(track_.GetSubscribe().subscribe_id, subscribe_.subscribe_id);
+  EXPECT_EQ(track_.GetSubscribe().request_id, subscribe_.request_id);
   track_.OnObjectOrOk();
   EXPECT_FALSE(track_.ErrorIsAllowed());
 }

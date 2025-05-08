@@ -465,7 +465,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSubscribe>(values);
-    if (cast.subscribe_id != subscribe_.subscribe_id) {
+    if (cast.request_id != subscribe_.request_id) {
       QUIC_LOG(INFO) << "SUBSCRIBE subscribe ID mismatch";
       return false;
     }
@@ -485,6 +485,14 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE group order mismatch";
       return false;
     }
+    if (cast.forward != subscribe_.forward) {
+      QUIC_LOG(INFO) << "SUBSCRIBE forward mismatch";
+      return false;
+    }
+    if (cast.filter_type != subscribe_.filter_type) {
+      QUIC_LOG(INFO) << "SUBSCRIBE filter type mismatch";
+      return false;
+    }
     if (cast.start != subscribe_.start) {
       QUIC_LOG(INFO) << "SUBSCRIBE start mismatch";
       return false;
@@ -501,7 +509,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvvv---v------vvvvv--vv-----");
+    ExpandVarintsImpl("vvvv---v-------vvvvv--vv-----");
   }
 
   MessageStructuredData structured_data() const override {
@@ -509,15 +517,16 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[31] = {
-      0x03, 0x00, 0x1c, 0x01, 0x02,  // id and alias
+  uint8_t raw_packet_[32] = {
+      0x03, 0x00, 0x1d, 0x01, 0x02,  // id and alias
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x20,                          // subscriber priority = 0x20
       0x02,                          // group order = descending
+      0x01,                          // forward = true
       0x03,                          // Filter type: Absolute Start
-      0x04,                          // start_group = 4 (relative previous)
-      0x01,                          // start_object = 1 (absolute)
+      0x04,                          // start_group = 4
+      0x01,                          // start_object = 1
       // No EndGroup or EndObject
       0x02,                                      // 2 parameters
       0x02, 0x67, 0x10,                          // delivery_timeout = 10000 ms
@@ -530,6 +539,8 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       /*full_track_name=*/FullTrackName({"foo", "abcd"}),
       /*subscriber_priority=*/0x20,
       /*group_order=*/MoqtDeliveryOrder::kDescending,
+      /*forward=*/true,
+      /*filter_type=*/MoqtFilterType::kAbsoluteStart,
       /*start=*/Location(4, 1),
       /*end_group=*/std::nullopt,
       VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),

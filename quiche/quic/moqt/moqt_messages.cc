@@ -111,22 +111,6 @@ SubscribeErrorCode StatusToSubscribeErrorCode(absl::Status status) {
   }
 }
 
-MoqtFilterType GetFilterType(const MoqtSubscribe& message) {
-  if (message.start.has_value()) {
-    if (message.end_group.has_value()) {
-      if (*message.end_group < message.start->group) {
-        return MoqtFilterType::kNone;
-      }
-      return MoqtFilterType::kAbsoluteRange;
-    }
-    return MoqtFilterType::kAbsoluteStart;
-  }
-  if (message.end_group.has_value()) {
-    return MoqtFilterType::kNone;  // End group without start is invalid.
-  }
-  return MoqtFilterType::kLatestObject;
-}
-
 MoqtError ValidateSetupParameters(const KeyValuePairList& parameters,
                                   bool webtrans,
                                   quic::Perspective perspective) {

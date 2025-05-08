@@ -518,32 +518,24 @@ struct QUICHE_EXPORT MoqtObject {
 
 enum class QUICHE_EXPORT MoqtFilterType : uint64_t {
   kNone = 0x0,
+  kNextGroupStart = 0x1,
   kLatestObject = 0x2,
   kAbsoluteStart = 0x3,
   kAbsoluteRange = 0x4,
 };
 
 struct QUICHE_EXPORT MoqtSubscribe {
-  uint64_t subscribe_id;
+  uint64_t request_id;
   uint64_t track_alias;
   FullTrackName full_track_name;
   MoqtPriority subscriber_priority;
   std::optional<MoqtDeliveryOrder> group_order;
-
-  // The combinations of these that have values indicate the filter type.
-  // (none): KLatestObject
-  // start: kAbsoluteStart
-  // start, end_group: kAbsoluteRange (request whole last group)
-  // All other combinations are invalid.
+  bool forward;
+  MoqtFilterType filter_type;
   std::optional<Location> start;
   std::optional<uint64_t> end_group;
-  // If the mode is kNone, the these are std::nullopt.
   VersionSpecificParameters parameters;
 };
-
-// Deduce the filter type from the combination of group and object IDs. Returns
-// kNone if the state of the subscribe is invalid.
-MoqtFilterType GetFilterType(const MoqtSubscribe& message);
 
 struct QUICHE_EXPORT MoqtSubscribeOk {
   uint64_t subscribe_id;

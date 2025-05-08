@@ -402,23 +402,30 @@ size_t MoqtControlParser::ProcessServerSetup(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
   MoqtSubscribe subscribe;
   uint64_t filter, group, object;
-  uint8_t group_order;
+  uint8_t group_order, forward;
   absl::string_view track_name;
-  if (!reader.ReadVarInt62(&subscribe.subscribe_id) ||
+  if (!reader.ReadVarInt62(&subscribe.request_id) ||
       !reader.ReadVarInt62(&subscribe.track_alias) ||
       !ReadTrackNamespace(reader, subscribe.full_track_name) ||
       !reader.ReadStringPieceVarInt62(&track_name) ||
       !reader.ReadUInt8(&subscribe.subscriber_priority) ||
-      !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&filter)) {
+      !reader.ReadUInt8(&group_order) || !reader.ReadUInt8(&forward) ||
+      !reader.ReadVarInt62(&filter)) {
     return 0;
   }
   subscribe.full_track_name.AddElement(track_name);
   if (!ParseDeliveryOrder(group_order, subscribe.group_order)) {
-    ParseError("Invalid group order value in SUBSCRIBE message");
+    ParseError("Invalid group order value in SUBSCRIBE");
     return 0;
   }
-  MoqtFilterType filter_type = static_cast<MoqtFilterType>(filter);
-  switch (filter_type) {
+  if (forward > 1) {
+    ParseError("Invalid forward value in SUBSCRIBE");
+    return 0;
+  }
+  subscribe.forward = (forward == 1);
+  subscribe.filter_type = static_cast<MoqtFilterType>(filter);
+  switch (subscribe.filter_type) {
+    case MoqtFilterType::kNextGroupStart:
     case MoqtFilterType::kLatestObject:
       break;
     case MoqtFilterType::kAbsoluteStart:
@@ -427,7 +434,7 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
         return 0;
       }
       subscribe.start = Location(group, object);
-      if (filter_type == MoqtFilterType::kAbsoluteStart) {
+      if (subscribe.filter_type == MoqtFilterType::kAbsoluteStart) {
         break;
       }
       if (!reader.ReadVarInt62(&group)) {

@@ -116,7 +116,7 @@ class SubscribeRemoteTrack : public RemoteTrack {
     virtual void OnSubscribeDone(FullTrackName full_track_name) = 0;
   };
   SubscribeRemoteTrack(const MoqtSubscribe& subscribe, Visitor* visitor)
-      : RemoteTrack(subscribe.full_track_name, subscribe.subscribe_id,
+      : RemoteTrack(subscribe.full_track_name, subscribe.request_id,
                     SubscribeWindow(subscribe.start.value_or(Location()),
                                     subscribe.end_group)),
         track_alias_(subscribe.track_alias),

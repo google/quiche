@@ -402,35 +402,24 @@ TEST_F(MoqtFramerSimpleTest, DatagramStatus) {
 }
 
 TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
-  for (std::optional<Location> start :
-       {std::optional<Location>(),
-        std::optional<Location>(std::in_place, 4, 0)}) {
-    for (std::optional<uint64_t> end_group :
-         {std::optional<uint64_t>(), std::optional<uint64_t>(7)}) {
-      MoqtSubscribe subscribe = {
-          /*subscribe_id=*/3,
-          /*track_alias=*/4,
-          /*full_track_name=*/FullTrackName({"foo", "abcd"}),
-          /*subscriber_priority=*/0x20,
-          /*group_order=*/std::nullopt,
-          start,
-          end_group,
-          VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
-      };
-      quiche::QuicheBuffer buffer;
-      MoqtFilterType expected_filter_type = GetFilterType(subscribe);
-      if (expected_filter_type == MoqtFilterType::kNone) {
-        EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribe(subscribe),
-                        "Invalid object range");
-        EXPECT_EQ(buffer.size(), 0);
-        continue;
-      }
-      buffer = framer_.SerializeSubscribe(subscribe);
-      // Go to the filter type.
-      const uint8_t* read = BufferAtOffset(buffer, 17);
-      EXPECT_EQ(static_cast<MoqtFilterType>(*read), expected_filter_type);
-      EXPECT_GT(buffer.size(), 0);
-    }
+  for (auto filter :
+       {MoqtFilterType::kNextGroupStart, MoqtFilterType::kLatestObject,
+        MoqtFilterType::kAbsoluteStart, MoqtFilterType::kAbsoluteRange}) {
+    MoqtSubscribe subscribe = {
+        /*subscribe_id=*/3,
+        /*track_alias=*/4,
+        /*full_track_name=*/FullTrackName({"foo", "abcd"}),
+        /*subscriber_priority=*/0x20,
+        /*group_order=*/std::nullopt,
+        /*forward=*/true,
+        /*filter_type=*/filter,
+        /*start=*/std::make_optional<Location>(4, 1),
+        /*end_group=*/std::make_optional<uint64_t>(6ULL),
+        VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
+    };
+    quiche::QuicheBuffer buffer;
+    buffer = framer_.SerializeSubscribe(subscribe);
+    EXPECT_GT(buffer.size(), 0);
   }
 }
 
@@ -441,13 +430,15 @@ TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
       /*full_track_name=*/FullTrackName({"foo", "abcd"}),
       /*subscriber_priority=*/0x20,
       /*group_order=*/std::nullopt,
-      /*start=*/Location(4, 3),
-      /*end_group=*/3,
+      /*forward=*/true,
+      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
+      /*start=*/std::make_optional<Location>(4, 3),
+      /*end_group=*/std::make_optional<uint64_t>(3ULL),
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
   };
   quiche::QuicheBuffer buffer;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeSubscribe(subscribe),
-                  "Invalid object range");
+  EXPECT_QUICHE_BUG(buffer = framer_.SerializeSubscribe(subscribe),
+                    "Invalid object range");
   EXPECT_EQ(buffer.size(), 0);
 }
 

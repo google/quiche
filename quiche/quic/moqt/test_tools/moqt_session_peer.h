@@ -91,7 +91,7 @@ class MoqtSessionPeer {
                                              track.get());
     session->subscribe_by_name_.try_emplace(subscribe.full_track_name,
                                             track.get());
-    session->upstream_by_id_.try_emplace(subscribe.subscribe_id,
+    session->upstream_by_id_.try_emplace(subscribe.request_id,
                                          std::move(track));
   }
 
@@ -102,7 +102,9 @@ class MoqtSessionPeer {
     MoqtSubscribe subscribe;
     subscribe.full_track_name = publisher->GetTrackName();
     subscribe.track_alias = track_alias;
-    subscribe.subscribe_id = subscribe_id;
+    subscribe.request_id = subscribe_id;
+    subscribe.forward = true;
+    subscribe.filter_type = MoqtFilterType::kAbsoluteStart;
     subscribe.start = Location(start_group, start_object);
     subscribe.subscriber_priority = 0x80;
     session->published_subscriptions_.emplace(
@@ -145,6 +147,10 @@ class MoqtSessionPeer {
 
   static void set_next_request_id(MoqtSession* session, uint64_t id) {
     session->next_request_id_ = id;
+  }
+
+  static void set_next_incoming_request_id(MoqtSession* session, uint64_t id) {
+    session->next_incoming_request_id_ = id;
   }
 
   static void set_peer_max_request_id(MoqtSession* session, uint64_t id) {
