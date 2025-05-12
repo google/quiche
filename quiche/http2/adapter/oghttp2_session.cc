@@ -187,13 +187,6 @@ bool StatusIs1xx(absl::string_view status) {
   return status.size() == 3 && status[0] == '1';
 }
 
-// Returns the upper bound on HPACK encoder table capacity. If not specified in
-// the Options, a reasonable default upper bound is used.
-uint32_t HpackCapacityBound(const OgHttp2Session::Options& o) {
-  return o.max_hpack_encoding_table_capacity.value_or(
-      kMaximumHpackTableCapacity);
-}
-
 bool IsNonAckSettings(const spdy::SpdyFrameIR& frame) {
   return frame.frame_type() == spdy::SpdyFrameType::SETTINGS &&
          !reinterpret_cast<const SpdySettingsIR&>(frame).is_ack();
@@ -381,7 +374,7 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
       max_outbound_concurrent_streams_(
           options.remote_max_concurrent_streams.value_or(100u)) {
   decoder_.set_visitor(&receive_logger_);
-  if (options_.max_header_list_bytes) {
+  if (options_.max_header_list_bytes.has_value()) {
     // Limit buffering of encoded HPACK data to 2x the decoded limit.
     decoder_.GetHpackDecoder().set_max_decode_buffer_size_bytes(
         2 * *options_.max_header_list_bytes);
@@ -389,9 +382,9 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
     decoder_.GetHpackDecoder().set_max_header_block_bytes(
         4 * *options_.max_header_list_bytes);
   }
-  if (IsServerSession()) {
-    remaining_preface_ = {spdy::kHttp2ConnectionHeaderPrefix,
-                          spdy::kHttp2ConnectionHeaderPrefixSize};
+  if (options_.max_hpack_encoding_table_capacity.has_value()) {
+    framer_.GetHpackEncoder()->SetHeaderTableSizeBound(
+        *options_.max_hpack_encoding_table_capacity);
   }
   if (options_.max_header_field_size.has_value()) {
     headers_handler_.SetMaxFieldSize(*options_.max_header_field_size);
@@ -401,6 +394,10 @@ OgHttp2Session::OgHttp2Session(Http2VisitorInterface& visitor, Options options)
     // As seen in https://github.com/envoyproxy/envoy/issues/32611, some HTTP/2
     // endpoints don't properly handle multiple `Cookie` header fields.
     framer_.GetHpackEncoder()->DisableCookieCrumbling();
+  }
+  if (IsServerSession()) {
+    remaining_preface_ = {spdy::kHttp2ConnectionHeaderPrefix,
+                          spdy::kHttp2ConnectionHeaderPrefixSize};
   }
 }
 
@@ -1309,7 +1306,7 @@ void OgHttp2Session::OnSettings() {
 void OgHttp2Session::OnSetting(spdy::SpdySettingsId id, uint32_t value) {
   switch (id) {
     case HEADER_TABLE_SIZE:
-      value = std::min(value, HpackCapacityBound(options_));
+      value = std::min(value, kMaximumHpackTableCapacity);
       if (value < framer_.GetHpackEncoder()->CurrentHeaderTableSizeSetting()) {
         // Safe to apply a smaller table capacity immediately.
         QUICHE_VLOG(3) << TracePerspectiveAsString(options_.perspective)

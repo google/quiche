@@ -395,8 +395,8 @@ TEST(OgHttp2SessionTest, ClientWithMaxDynamicTableSizeZero) {
                         true, nullptr);
   int result = session.Send();
   ASSERT_EQ(result, 0);
-  // BUG: the encoder table size should not have grown beyond zero.
-  EXPECT_LT(0, session.GetHpackEncoderDynamicTableSize());
+  // The encoder table size should not have grown beyond zero.
+  EXPECT_EQ(session.GetHpackEncoderDynamicTableSize(), 0);
 }
 
 TEST(OgHttp2SessionTest, ClientSubmitRequestWithLargePayload) {
@@ -799,6 +799,32 @@ TEST(OgHttp2SessionTest, ServerEnqueuesSettingsOnce) {
   int result = session.Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
+}
+
+// Demonstrates that the dynamic table size setting interpreted from the peer
+// won't exceed the hardcoded 64kB upper bound.
+TEST(OgHttp2SessionTest, ServerDynamicTableSizeAboveUpperBound) {
+  TestVisitor visitor;
+  OgHttp2Session::Options options;
+  options.perspective = Perspective::kServer;
+  OgHttp2Session session(visitor, options);
+
+  const std::string frames =
+      TestFrameSequence()
+          .ClientPreface({{HEADER_TABLE_SIZE, 100u * 1024u}})
+          .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  // Although the peer adverised 100kB, the server interprets the setting value
+  // with a 64kB upper bound.
+  EXPECT_CALL(visitor, OnSetting(Http2Setting{HEADER_TABLE_SIZE, 64u * 1024u}));
+  EXPECT_CALL(visitor, OnSettingsEnd());
+
+  const int64_t result = session.ProcessBytes(frames);
+  EXPECT_EQ(frames.size(), static_cast<size_t>(result));
 }
 
 TEST(OgHttp2SessionTest, ServerSubmitResponse) {
