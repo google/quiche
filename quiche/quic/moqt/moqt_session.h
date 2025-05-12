@@ -44,6 +44,10 @@ namespace test {
 class MoqtSessionPeer;
 }
 
+inline constexpr MoqtPriority kDefaultSubscriberPriority = 0x80;
+inline constexpr quic::QuicTimeDelta kDefaultGoAwayTimeout =
+    quic::QuicTime::Delta::FromSeconds(10);
+
 struct SubscriptionWithQueuedStream {
   webtransport::SendOrder send_order;
   uint64_t subscription_id;
@@ -126,7 +130,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   bool SubscribeCurrentObject(const FullTrackName& name,
                               SubscribeRemoteTrack::Visitor* visitor,
                               VersionSpecificParameters parameters) override;
-  // TODO(martinduke): SubscribeNextGroup
+  bool SubscribeNextGroup(const FullTrackName& name,
+                          SubscribeRemoteTrack::Visitor* visitor,
+                          VersionSpecificParameters parameters) override;
   // Returns false if the subscription is not found. The session immediately
   // destroys all subscription state.
   void Unsubscribe(const FullTrackName& name);

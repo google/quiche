@@ -55,6 +55,11 @@ class MockMoqtSession : public MoqtSessionInterface {
                SubscribeRemoteTrack::Visitor* visitor,
                VersionSpecificParameters parameters),
               (override));
+  MOCK_METHOD(bool, SubscribeNextGroup,
+              (const FullTrackName& name,
+               SubscribeRemoteTrack::Visitor* visitor,
+               VersionSpecificParameters parameters),
+              (override));
   MOCK_METHOD(void, Unsubscribe, (const FullTrackName& name), (override));
   MOCK_METHOD(bool, Fetch,
               (const FullTrackName& name, FetchResponseCallback callback,

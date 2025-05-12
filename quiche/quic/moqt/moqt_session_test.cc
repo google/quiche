@@ -697,6 +697,43 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
   stream_input->OnSubscribeOkMessage(ok);
 }
 
+TEST_F(MoqtSessionTest, SubscribeNextGroupWithOk) {
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream_));
+  MoqtSubscribe subscribe = {
+      /*request_id=*/0,
+      /*track_alias=*/0,
+      FullTrackName("foo", "bar"),
+      kDefaultSubscriberPriority,
+      /*group_order=*/std::nullopt,
+      /*forward=*/true,
+      MoqtFilterType::kNextGroupStart,
+      std::nullopt,
+      std::nullopt,
+      VersionSpecificParameters(),
+  };
+  subscribe.filter_type = MoqtFilterType::kNextGroupStart;
+  EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(subscribe), _));
+  session_.SubscribeNextGroup(FullTrackName("foo", "bar"),
+                              &remote_track_visitor,
+                              VersionSpecificParameters());
+
+  MoqtSubscribeOk ok = {
+      /*request_id=*/0,
+      /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
+  };
+  EXPECT_CALL(remote_track_visitor, OnReply(_, _, _))
+      .WillOnce([&](const FullTrackName& ftn,
+                    std::optional<Location> /*largest_id*/,
+                    std::optional<absl::string_view> error_message) {
+        EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
+        EXPECT_FALSE(error_message.has_value());
+      });
+  stream_input->OnSubscribeOkMessage(ok);
+}
+
 TEST_F(MoqtSessionTest, MaxRequestIdChangesResponse) {
   MoqtSessionPeer::set_next_request_id(&session_, kDefaultInitialMaxRequestId);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;

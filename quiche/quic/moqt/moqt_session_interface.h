@@ -61,6 +61,10 @@ class MoqtSessionInterface {
   virtual bool SubscribeCurrentObject(const FullTrackName& name,
                                       SubscribeRemoteTrack::Visitor* visitor,
                                       VersionSpecificParameters parameters) = 0;
+  // Start with the first group after the current Largest Group/Object ID.
+  virtual bool SubscribeNextGroup(const FullTrackName& name,
+                                  SubscribeRemoteTrack::Visitor* visitor,
+                                  VersionSpecificParameters parameters) = 0;
 
   // Sends an UNSUBSCRIBE message and removes all of the state related to the
   // subscription.  Returns false if the subscription is not found.

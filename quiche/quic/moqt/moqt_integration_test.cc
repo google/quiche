@@ -520,7 +520,7 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentObjectOk) {
   EXPECT_TRUE(success);
 }
 
-TEST_F(MoqtIntegrationTest, SubscribeCurrentGroupOk) {
+TEST_F(MoqtIntegrationTest, SubscribeNextGroupOk) {
   EstablishSession();
   FullTrackName full_track_name("foo", "bar");
 
@@ -539,8 +539,8 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentGroupOk) {
       });
   EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });
-  client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor,
-                                             VersionSpecificParameters());
+  client_->session()->SubscribeNextGroup(full_track_name, &client_visitor,
+                                         VersionSpecificParameters());
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return received_ok; });
   EXPECT_TRUE(success);

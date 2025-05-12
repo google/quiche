@@ -57,10 +57,6 @@ namespace {
 
 using ::quic::Perspective;
 
-constexpr MoqtPriority kDefaultSubscriberPriority = 0x80;
-constexpr quic::QuicTimeDelta kDefaultGoAwayTimeout =
-    quic::QuicTime::Delta::FromSeconds(10);
-
 // WebTransport lets applications split a session into multiple send groups
 // that have equal weight for scheduling. We don't have a use for that, so the
 // send group is always the same.
@@ -378,6 +374,21 @@ bool MoqtSession::SubscribeCurrentObject(const FullTrackName& name,
   message.group_order = std::nullopt;
   message.forward = true;
   message.filter_type = MoqtFilterType::kLatestObject;
+  message.start = std::nullopt;
+  message.end_group = std::nullopt;
+  message.parameters = parameters;
+  return Subscribe(message, visitor);
+}
+
+bool MoqtSession::SubscribeNextGroup(const FullTrackName& name,
+                                     SubscribeRemoteTrack::Visitor* visitor,
+                                     VersionSpecificParameters parameters) {
+  MoqtSubscribe message;
+  message.full_track_name = name;
+  message.subscriber_priority = kDefaultSubscriberPriority;
+  message.group_order = std::nullopt;
+  message.forward = true;
+  message.filter_type = MoqtFilterType::kNextGroupStart;
   message.start = std::nullopt;
   message.end_group = std::nullopt;
   message.parameters = parameters;
