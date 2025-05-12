@@ -371,6 +371,34 @@ TEST(OgHttp2SessionTest, ClientHeaderCompression) {
             wire_sizes[CompressionOption::DISABLE_COMPRESSION]);
 }
 
+TEST(OgHttp2SessionTest, ClientWithMaxDynamicTableSizeZero) {
+  TestVisitor visitor;
+  testing::InSequence seq;
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, _, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, _, _, 0x5, 0));
+
+  OgHttp2Session::Options options;
+  options.perspective = Perspective::kClient;
+  // Sets the optional option to zero.
+  options.max_hpack_encoding_table_capacity = 0;
+  OgHttp2Session session(visitor, options);
+
+  constexpr absl::string_view kValue = "toast toast toast feed meeeee";
+  session.SubmitRequest(ToHeaders({{":method", "POST"},
+                                   {":scheme", "http"},
+                                   {":authority", "example.com"},
+                                   {":path", "/this/is/request/one"},
+                                   {"food", kValue},
+                                   {"food", kValue}}),
+                        true, nullptr);
+  int result = session.Send();
+  ASSERT_EQ(result, 0);
+  // BUG: the encoder table size should not have grown beyond zero.
+  EXPECT_LT(0, session.GetHpackEncoderDynamicTableSize());
+}
+
 TEST(OgHttp2SessionTest, ClientSubmitRequestWithLargePayload) {
   TestVisitor visitor;
   OgHttp2Session::Options options;
