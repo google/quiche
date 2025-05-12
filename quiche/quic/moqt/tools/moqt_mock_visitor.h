@@ -74,7 +74,7 @@ class MockTrackPublisher : public MoqtTrackPublisher {
               (override));
   MOCK_METHOD(absl::StatusOr<MoqtTrackStatusCode>, GetTrackStatus, (),
               (const, override));
-  MOCK_METHOD(Location, GetLargestSequence, (), (const, override));
+  MOCK_METHOD(Location, GetLargestLocation, (), (const, override));
   MOCK_METHOD(MoqtForwardingPreference, GetForwardingPreference, (),
               (const, override));
   MOCK_METHOD(MoqtPriority, GetPublisherPriority, (), (const, override));

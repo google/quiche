@@ -66,7 +66,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
     listeners_.erase(listener);
   }
   absl::StatusOr<MoqtTrackStatusCode> GetTrackStatus() const override;
-  Location GetLargestSequence() const override;
+  Location GetLargestLocation() const override;
   MoqtForwardingPreference GetForwardingPreference() const override {
     return forwarding_preference_;
   }

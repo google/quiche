@@ -275,7 +275,7 @@ absl::StatusOr<MoqtTrackStatusCode> MoqtLiveRelayQueue::GetTrackStatus() const {
   return MoqtTrackStatusCode::kInProgress;
 }
 
-Location MoqtLiveRelayQueue::GetLargestSequence() const {
+Location MoqtLiveRelayQueue::GetLargestLocation() const {
   return Location{next_sequence_.group, next_sequence_.object - 1};
 }
 

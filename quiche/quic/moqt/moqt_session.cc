@@ -988,10 +988,10 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
 
 void MoqtSession::ControlStream::OnSubscribeOkMessage(
     const MoqtSubscribeOk& message) {
-  RemoteTrack* track = session_->RemoteTrackById(message.subscribe_id);
+  RemoteTrack* track = session_->RemoteTrackById(message.request_id);
   if (track == nullptr) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
-                    << "subscribe_id = " << message.subscribe_id
+                    << "subscribe_id = " << message.request_id
                     << " but no track exists";
     // Subscription state might have been destroyed for internal reasons.
     return;
@@ -1001,25 +1001,25 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
                     "Received SUBSCRIBE_OK for a FETCH");
     return;
   }
-  if (message.largest_id.has_value()) {
+  if (message.largest_location.has_value()) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
-                    << "subscribe_id = " << message.subscribe_id << " "
+                    << "subscribe_id = " << message.request_id << " "
                     << track->full_track_name()
-                    << " largest_id = " << *message.largest_id;
+                    << " largest_id = " << *message.largest_location;
   } else {
     QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
-                    << "subscribe_id = " << message.subscribe_id << " "
+                    << "subscribe_id = " << message.request_id << " "
                     << track->full_track_name();
   }
   SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
   subscribe->OnObjectOrOk();
   // TODO(martinduke): Handle expires field.
-  if (message.largest_id.has_value()) {
-    subscribe->TruncateStart(message.largest_id->next());
+  if (message.largest_location.has_value()) {
+    subscribe->TruncateStart(message.largest_location->next());
   }
   if (subscribe->visitor() != nullptr) {
-    subscribe->visitor()->OnReply(track->full_track_name(), message.largest_id,
-                                  std::nullopt);
+    subscribe->visitor()->OnReply(track->full_track_name(),
+                                  message.largest_location, std::nullopt);
   }
 }
 
@@ -1801,18 +1801,18 @@ void MoqtSession::PublishedSubscription::set_subscriber_priority(
 };
 
 void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
-  std::optional<Location> largest_id;
+  std::optional<Location> largest_location;
   ControlStream* stream = session_->GetControlStream();
   if (PublisherHasData(*track_publisher_)) {
-    largest_id = track_publisher_->GetLargestSequence();
-    QUICHE_CHECK(largest_id.has_value());
+    largest_location = track_publisher_->GetLargestLocation();
+    QUICHE_CHECK(largest_location.has_value());
     if (forward_) {
       switch (filter_type_) {
         case MoqtFilterType::kLatestObject:
-          window_ = SubscribeWindow(largest_id->next());
+          window_ = SubscribeWindow(largest_location->next());
           break;
         case MoqtFilterType::kNextGroupStart:
-          window_ = SubscribeWindow(Location(largest_id->group + 1, 0));
+          window_ = SubscribeWindow(Location(largest_location->group + 1, 0));
           break;
         default:
           break;
@@ -1824,9 +1824,9 @@ void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
     window_ = SubscribeWindow(Location(0, 0));
   }
   MoqtSubscribeOk subscribe_ok;
-  subscribe_ok.subscribe_id = request_id_;
+  subscribe_ok.request_id = request_id_;
   subscribe_ok.group_order = track_publisher_->GetDeliveryOrder();
-  subscribe_ok.largest_id = largest_id;
+  subscribe_ok.largest_location = largest_location;
   // TODO(martinduke): Support sending DELIVERY_TIMEOUT parameter as the
   // publisher.
   stream->SendOrBufferMessage(

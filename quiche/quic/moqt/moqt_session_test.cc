@@ -99,7 +99,7 @@ static std::shared_ptr<MockTrackPublisher> SetupPublisher(
       .WillByDefault(Return(MoqtTrackStatusCode::kInProgress));
   ON_CALL(*publisher, GetForwardingPreference())
       .WillByDefault(Return(forwarding_preference));
-  ON_CALL(*publisher, GetLargestSequence())
+  ON_CALL(*publisher, GetLargestLocation())
       .WillByDefault(Return(largest_sequence));
   return publisher;
 }
@@ -137,7 +137,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
   void SetLargestId(MockTrackPublisher* publisher, Location largest_id) {
     ON_CALL(*publisher, GetTrackStatus())
         .WillByDefault(Return(MoqtTrackStatusCode::kInProgress));
-    ON_CALL(*publisher, GetLargestSequence()).WillByDefault(Return(largest_id));
+    ON_CALL(*publisher, GetLargestLocation()).WillByDefault(Return(largest_id));
   }
 
   // The publisher receives SUBSCRIBE and synchronously announces it will
@@ -161,7 +161,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
         /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
         /*group_order=*/MoqtDeliveryOrder::kAscending,
         (*track_status == MoqtTrackStatusCode::kInProgress)
-            ? std::make_optional(publisher->GetLargestSequence())
+            ? std::make_optional(publisher->GetLargestLocation())
             : std::optional<Location>(),
         /*parameters=*/VersionSpecificParameters(),
     };
@@ -689,7 +689,7 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
   };
   EXPECT_CALL(remote_track_visitor, OnReply(_, _, _))
       .WillOnce([&](const FullTrackName& ftn,
-                    std::optional<Location> /*largest_id*/,
+                    std::optional<Location> /*largest_location*/,
                     std::optional<absl::string_view> error_message) {
         EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
         EXPECT_FALSE(error_message.has_value());
@@ -726,7 +726,7 @@ TEST_F(MoqtSessionTest, SubscribeNextGroupWithOk) {
   };
   EXPECT_CALL(remote_track_visitor, OnReply(_, _, _))
       .WillOnce([&](const FullTrackName& ftn,
-                    std::optional<Location> /*largest_id*/,
+                    std::optional<Location> /*largest_location*/,
                     std::optional<absl::string_view> error_message) {
         EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
         EXPECT_FALSE(error_message.has_value());
@@ -1087,7 +1087,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
       /*request_id=*/1,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/std::nullopt,
+      /*largest_location=*/std::nullopt,
   };
   webtransport::test::MockStream mock_control_stream;
   std::unique_ptr<MoqtControlParserVisitor> control_stream =
@@ -3204,7 +3204,7 @@ TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithOpenStreams) {
       /*request_id=*/0,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(10000),
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/std::nullopt,
+      /*largest_location=*/std::nullopt,
       /*parameters=*/VersionSpecificParameters(),
   };
   stream_input->OnSubscribeOkMessage(ok);
@@ -3262,7 +3262,7 @@ TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithClosedStreams) {
       /*request_id=*/0,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(10000),
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/std::nullopt,
+      /*largest_location=*/std::nullopt,
       /*parameters=*/VersionSpecificParameters(),
   };
   stream_input->OnSubscribeOkMessage(ok);
@@ -3317,7 +3317,7 @@ TEST_F(MoqtSessionTest, SubscribeDoneTimeout) {
       /*request_id=*/0,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(10000),
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/std::nullopt,
+      /*largest_location=*/std::nullopt,
       /*parameters=*/VersionSpecificParameters(),
   };
   stream_input->OnSubscribeOkMessage(ok);

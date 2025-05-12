@@ -482,17 +482,17 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
         << "Serializing invalid MoQT parameters";
     return quiche::QuicheBuffer();
   }
-  if (message.largest_id.has_value()) {
+  if (message.largest_location.has_value()) {
     return SerializeControlMessage(
-        MoqtMessageType::kSubscribeOk, WireVarInt62(message.subscribe_id),
+        MoqtMessageType::kSubscribeOk, WireVarInt62(message.request_id),
         WireVarInt62(message.expires.ToMilliseconds()),
         WireDeliveryOrder(message.group_order), WireUint8(1),
-        WireVarInt62(message.largest_id->group),
-        WireVarInt62(message.largest_id->object),
+        WireVarInt62(message.largest_location->group),
+        WireVarInt62(message.largest_location->object),
         WireKeyValuePairList(parameters));
   }
   return SerializeControlMessage(
-      MoqtMessageType::kSubscribeOk, WireVarInt62(message.subscribe_id),
+      MoqtMessageType::kSubscribeOk, WireVarInt62(message.request_id),
       WireVarInt62(message.expires.ToMilliseconds()),
       WireDeliveryOrder(message.group_order), WireUint8(0),
       WireKeyValuePairList(parameters));

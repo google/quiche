@@ -61,7 +61,7 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
 
   void GetObjectsFromPast(const SubscribeWindow& window) {
     std::vector<Location> objects =
-        GetCachedObjectsInRange(Location(0, 0), GetLargestSequence());
+        GetCachedObjectsInRange(Location(0, 0), GetLargestLocation());
     for (Location object : objects) {
       if (window.InWindow(object)) {
         OnNewObjectAvailable(object);

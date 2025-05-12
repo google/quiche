@@ -118,10 +118,10 @@ absl::StatusOr<MoqtTrackStatusCode> MoqtOutgoingQueue::GetTrackStatus() const {
   return MoqtTrackStatusCode::kInProgress;
 }
 
-Location MoqtOutgoingQueue::GetLargestSequence() const {
+Location MoqtOutgoingQueue::GetLargestLocation() const {
   if (queue_.empty()) {
-    QUICHE_BUG(MoqtOutgoingQueue_GetLargestSequence_not_begun)
-        << "Calling GetLargestSequence() on a track that hasn't begun";
+    QUICHE_BUG(MoqtOutgoingQueue_GetLargestLocation_not_begun)
+        << "Calling GetLargestLocation() on a track that hasn't begun";
     return Location{0, 0};
   }
   return Location{current_group_id_, queue_.back().size() - 1};

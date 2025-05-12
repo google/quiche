@@ -472,7 +472,7 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
   uint64_t milliseconds;
   uint8_t group_order;
   uint8_t content_exists;
-  if (!reader.ReadVarInt62(&subscribe_ok.subscribe_id) ||
+  if (!reader.ReadVarInt62(&subscribe_ok.request_id) ||
       !reader.ReadVarInt62(&milliseconds) || !reader.ReadUInt8(&group_order) ||
       !reader.ReadUInt8(&content_exists)) {
     return 0;
@@ -488,9 +488,9 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
   subscribe_ok.expires = quic::QuicTimeDelta::FromMilliseconds(milliseconds);
   subscribe_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
   if (content_exists) {
-    subscribe_ok.largest_id = Location();
-    if (!reader.ReadVarInt62(&subscribe_ok.largest_id->group) ||
-        !reader.ReadVarInt62(&subscribe_ok.largest_id->object)) {
+    subscribe_ok.largest_location = Location();
+    if (!reader.ReadVarInt62(&subscribe_ok.largest_location->group) ||
+        !reader.ReadVarInt62(&subscribe_ok.largest_location->object)) {
       return 0;
     }
   }

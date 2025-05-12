@@ -52,7 +52,7 @@ class MockMoqtSession::LoopbackObjectListener : public MoqtObjectListener {
   void OnSubscribeAccepted() override {
     visitor_->OnReply(name_,
                       HasObjects()
-                          ? std::make_optional(publisher_->GetLargestSequence())
+                          ? std::make_optional(publisher_->GetLargestLocation())
                           : std::nullopt,
                       std::nullopt);
   }
@@ -209,7 +209,7 @@ MockMoqtSession::MockMoqtSession(MoqtPublisher* publisher)
             return Fetch(name, std::move(callback), Location(0, 0), 0, 0,
                          priority, delivery_order, std::move(parameters));
           }
-          Location largest = track_publisher->get()->GetLargestSequence();
+          Location largest = track_publisher->get()->GetLargestLocation();
           uint64_t start_group = largest.group >= num_previous_groups
                                      ? largest.group - num_previous_groups + 1
                                      : 0;

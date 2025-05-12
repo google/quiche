@@ -556,7 +556,7 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSubscribeOk>(values);
-    if (cast.subscribe_id != subscribe_ok_.subscribe_id) {
+    if (cast.request_id != subscribe_ok_.request_id) {
       QUIC_LOG(INFO) << "SUBSCRIBE OK subscribe ID mismatch";
       return false;
     }
@@ -568,7 +568,7 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE OK group order mismatch";
       return false;
     }
-    if (cast.largest_id != subscribe_ok_.largest_id) {
+    if (cast.largest_location != subscribe_ok_.largest_location) {
       QUIC_LOG(INFO) << "SUBSCRIBE OK largest ID mismatch";
       return false;
     }
@@ -597,19 +597,19 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[16] = {
-      0x04, 0x00, 0x0d, 0x01, 0x03,  // subscribe_id = 1, expires = 3
+      0x04, 0x00, 0x0d, 0x01, 0x03,  // request_id = 1, expires = 3
       0x02, 0x01,                    // group_order = 2, content exists
-      0x0c, 0x14,        // largest_group_id = 12, largest_object_id = 20,
-      0x02,              // 2 parameters
-      0x02, 0x67, 0x10,  // delivery_timeout = 10000
-      0x04, 0x67, 0x10,  // max_cache_duration = 10000
+      0x0c, 0x14,                    // largest_location = (12, 20)
+      0x02,                          // 2 parameters
+      0x02, 0x67, 0x10,              // delivery_timeout = 10000
+      0x04, 0x67, 0x10,              // max_cache_duration = 10000
   };
 
   MoqtSubscribeOk subscribe_ok_ = {
-      /*subscribe_id=*/1,
+      /*request_id=*/1,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(3),
       /*group_order=*/MoqtDeliveryOrder::kDescending,
-      /*largest_id=*/Location(12, 20),
+      /*largest_location=*/Location(12, 20),
       VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
                                 quic::QuicTimeDelta::FromMilliseconds(10000)),
   };
