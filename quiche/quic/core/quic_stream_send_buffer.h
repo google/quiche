@@ -5,13 +5,18 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_H_
 #define QUICHE_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_H_
 
+#include <cstddef>
+#include <cstdint>
+
+#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "quiche/quic/core/frames/quic_stream_frame.h"
+#include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/core/quic_interval_deque.h"
 #include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
-#include "quiche/common/quiche_circular_deque.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 
 namespace quic {
 
@@ -148,25 +153,21 @@ class QUICHE_EXPORT QuicStreamSendBuffer {
   QuicIntervalDeque<BufferedSlice> interval_deque_;
 
   // Offset of next inserted byte.
-  QuicStreamOffset stream_offset_;
+  QuicStreamOffset stream_offset_ = 0;
 
   quiche::QuicheBufferAllocator* allocator_;
 
   // Bytes that have been consumed by the stream.
-  uint64_t stream_bytes_written_;
+  uint64_t stream_bytes_written_ = 0;
 
   // Bytes that have been consumed and are waiting to be acked.
-  uint64_t stream_bytes_outstanding_;
+  uint64_t stream_bytes_outstanding_ = 0;
 
   // Offsets of data that has been acked.
   QuicIntervalSet<QuicStreamOffset> bytes_acked_;
 
   // Data considered as lost and needs to be retransmitted.
   QuicIntervalSet<QuicStreamOffset> pending_retransmissions_;
-
-  // Index of slice which contains data waiting to be written for the first
-  // time. -1 if send buffer is empty or all data has been written.
-  int32_t write_index_;
 };
 
 }  // namespace quic

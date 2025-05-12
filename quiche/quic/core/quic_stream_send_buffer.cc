@@ -5,16 +5,21 @@
 #include "quiche/quic/core/quic_stream_send_buffer.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <utility>
 
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_interval.h"
-#include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_interval_set.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 
 namespace quic {
 
@@ -50,11 +55,7 @@ bool StreamPendingRetransmission::operator==(
 
 QuicStreamSendBuffer::QuicStreamSendBuffer(
     quiche::QuicheBufferAllocator* allocator)
-    : stream_offset_(0),
-      allocator_(allocator),
-      stream_bytes_written_(0),
-      stream_bytes_outstanding_(0),
-      write_index_(-1) {}
+    : allocator_(allocator) {}
 
 QuicStreamSendBuffer::~QuicStreamSendBuffer() {}
 

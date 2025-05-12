@@ -10,7 +10,6 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_writer.h"
-#include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
