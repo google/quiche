@@ -623,8 +623,8 @@ class QUICHE_NO_EXPORT SubscribeErrorMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSubscribeError>(values);
-    if (cast.subscribe_id != subscribe_error_.subscribe_id) {
-      QUIC_LOG(INFO) << "SUBSCRIBE ERROR subscribe_id mismatch";
+    if (cast.request_id != subscribe_error_.request_id) {
+      QUIC_LOG(INFO) << "SUBSCRIBE ERROR request_id mismatch";
       return false;
     }
     if (cast.error_code != subscribe_error_.error_code) {
@@ -651,15 +651,15 @@ class QUICHE_NO_EXPORT SubscribeErrorMessage : public TestMessageBase {
  private:
   uint8_t raw_packet_[10] = {
       0x05, 0x00, 0x07,
-      0x02,                    // subscribe_id = 2
+      0x02,                    // request_id = 2
       0x05,                    // error_code = 5
       0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
       0x04,                    // track_alias = 4
   };
 
   MoqtSubscribeError subscribe_error_ = {
-      /*subscribe_id=*/2,
-      /*subscribe=*/SubscribeErrorCode::kInvalidRange,
+      /*request_id=*/2,
+      /*error_code=*/RequestErrorCode::kInvalidRange,
       /*reason_phrase=*/"bar",
       /*track_alias=*/4,
   };
@@ -910,7 +910,7 @@ class QUICHE_NO_EXPORT AnnounceErrorMessage : public TestMessageBase {
 
   MoqtAnnounceError announce_error_ = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/SubscribeErrorCode::kNotSupported,
+      /*error_code=*/RequestErrorCode::kNotSupported,
       /*reason_phrase=*/"bar",
   };
 };
@@ -954,7 +954,7 @@ class QUICHE_NO_EXPORT AnnounceCancelMessage : public TestMessageBase {
 
   MoqtAnnounceCancel announce_cancel_ = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/SubscribeErrorCode::kNotSupported,
+      /*error_code=*/RequestErrorCode::kNotSupported,
       /*reason_phrase=*/"bar",
   };
 };
@@ -1227,7 +1227,7 @@ class QUICHE_NO_EXPORT SubscribeAnnouncesErrorMessage : public TestMessageBase {
 
   MoqtSubscribeAnnouncesError subscribe_namespace_error_ = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/SubscribeErrorCode::kUnauthorized,
+      /*error_code=*/RequestErrorCode::kUnauthorized,
       /*reason_phrase=*/"bar",
   };
 };
@@ -1625,7 +1625,7 @@ class QUICHE_NO_EXPORT FetchErrorMessage : public TestMessageBase {
 
   MoqtFetchError fetch_error_ = {
       /*subscribe_id =*/1,
-      /*error_code=*/SubscribeErrorCode::kUnauthorized,
+      /*error_code=*/RequestErrorCode::kUnauthorized,
       /*reason_phrase=*/"bar",
   };
 };

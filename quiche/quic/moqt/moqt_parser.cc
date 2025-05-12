@@ -514,13 +514,13 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessSubscribeError(quic::QuicDataReader& reader) {
   MoqtSubscribeError subscribe_error;
   uint64_t error_code;
-  if (!reader.ReadVarInt62(&subscribe_error.subscribe_id) ||
+  if (!reader.ReadVarInt62(&subscribe_error.request_id) ||
       !reader.ReadVarInt62(&error_code) ||
       !reader.ReadStringVarInt62(subscribe_error.reason_phrase) ||
       !reader.ReadVarInt62(&subscribe_error.track_alias)) {
     return 0;
   }
-  subscribe_error.error_code = static_cast<SubscribeErrorCode>(error_code);
+  subscribe_error.error_code = static_cast<RequestErrorCode>(error_code);
   visitor_.OnSubscribeErrorMessage(subscribe_error);
   return reader.PreviouslyReadPayload().length();
 }
@@ -623,7 +623,7 @@ size_t MoqtControlParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
       !reader.ReadStringVarInt62(announce_error.reason_phrase)) {
     return 0;
   }
-  announce_error.error_code = static_cast<SubscribeErrorCode>(error_code);
+  announce_error.error_code = static_cast<RequestErrorCode>(error_code);
   visitor_.OnAnnounceErrorMessage(announce_error);
   return reader.PreviouslyReadPayload().length();
 }
@@ -638,7 +638,7 @@ size_t MoqtControlParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
       !reader.ReadStringVarInt62(announce_cancel.reason_phrase)) {
     return 0;
   }
-  announce_cancel.error_code = static_cast<SubscribeErrorCode>(error_code);
+  announce_cancel.error_code = static_cast<RequestErrorCode>(error_code);
   visitor_.OnAnnounceCancelMessage(announce_cancel);
   return reader.PreviouslyReadPayload().length();
 }
@@ -766,7 +766,7 @@ size_t MoqtControlParser::ProcessSubscribeAnnouncesError(
     return 0;
   }
   subscribe_namespace_error.error_code =
-      static_cast<SubscribeErrorCode>(error_code);
+      static_cast<RequestErrorCode>(error_code);
   visitor_.OnSubscribeAnnouncesErrorMessage(subscribe_namespace_error);
   return reader.PreviouslyReadPayload().length();
 }
@@ -906,7 +906,7 @@ size_t MoqtControlParser::ProcessFetchError(quic::QuicDataReader& reader) {
       !reader.ReadStringVarInt62(fetch_error.reason_phrase)) {
     return 0;
   }
-  fetch_error.error_code = static_cast<SubscribeErrorCode>(error_code);
+  fetch_error.error_code = static_cast<RequestErrorCode>(error_code);
   visitor_.OnFetchErrorMessage(fetch_error);
   return reader.PreviouslyReadPayload().length();
 }

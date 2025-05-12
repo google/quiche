@@ -241,28 +241,29 @@ struct VersionSpecificParameters {
 
 // Used for SUBSCRIBE_ERROR, ANNOUNCE_ERROR, ANNOUNCE_CANCEL,
 // SUBSCRIBE_ANNOUNCES_ERROR, and FETCH_ERROR.
-// TODO(martinduke): Create aliases like FetchErrorCode, etc. to hide the fact
-// that these are all the same enum.
-enum class QUICHE_EXPORT SubscribeErrorCode : uint64_t {
+enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kInternalError = 0x0,
   kUnauthorized = 0x1,
   kTimeout = 0x2,
   kNotSupported = 0x3,
-  kDoesNotExist = 0x4,     // Can also mean "not interested" or "unknown".
-  kInvalidRange = 0x5,     // SUBSCRIBE_ERROR and FETCH_ERROR only.
-  kRetryTrackAlias = 0x6,  // SUBSCRIBE_ERROR only.
+  kTrackDoesNotExist = 0x4,          // SUBSCRIBE_ERROR and FETCH_ERROR only.
+  kUninterested = 0x4,               // ANNOUNCE_ERROR and ANNOUNCE_CANCEL only.
+  kNamespacePrefixUnknown = 0x4,     // SUBSCRIBE_ANNOUNCES_ERROR only.
+  kInvalidRange = 0x5,               // SUBSCRIBE_ERROR and FETCH_ERROR only.
+  kNamespacePrefixOverlap = 0x5,     // SUBSCRIBE_ANNOUNCES_ERROR only.
+  kRetryTrackAlias = 0x6,            // SUBSCRIBE_ERROR only.
+  kNoObjects = 0x6,                  // FETCH_ERROR only.
+  kInvalidJoiningSubscribeId = 0x7,  // FETCH_ERROR only.
   kMalformedAuthToken = 0x10,
   kUnknownAuthTokenAlias = 0x11,
   kExpiredAuthToken = 0x12,
 };
 
 struct MoqtSubscribeErrorReason {
-  SubscribeErrorCode error_code;
+  RequestErrorCode error_code;
   std::string reason_phrase;
 };
 using MoqtAnnounceErrorReason = MoqtSubscribeErrorReason;
-
-SubscribeErrorCode StatusToSubscribeErrorCode(absl::Status status);
 
 // Full track name represents a tuple of name elements. All higher order
 // elements MUST be present, but lower-order ones (like the name) can be
@@ -548,8 +549,8 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
 };
 
 struct QUICHE_EXPORT MoqtSubscribeError {
-  uint64_t subscribe_id;
-  SubscribeErrorCode error_code;
+  uint64_t request_id;
+  RequestErrorCode error_code;
   std::string reason_phrase;
   uint64_t track_alias;
 };
@@ -594,7 +595,7 @@ struct QUICHE_EXPORT MoqtAnnounceOk {
 
 struct QUICHE_EXPORT MoqtAnnounceError {
   FullTrackName track_namespace;
-  SubscribeErrorCode error_code;
+  RequestErrorCode error_code;
   std::string reason_phrase;
 };
 
@@ -633,7 +634,7 @@ struct QUICHE_EXPORT MoqtTrackStatus {
 
 struct QUICHE_EXPORT MoqtAnnounceCancel {
   FullTrackName track_namespace;
-  SubscribeErrorCode error_code;
+  RequestErrorCode error_code;
   std::string reason_phrase;
 };
 
@@ -657,7 +658,7 @@ struct QUICHE_EXPORT MoqtSubscribeAnnouncesOk {
 
 struct QUICHE_EXPORT MoqtSubscribeAnnouncesError {
   FullTrackName track_namespace;
-  SubscribeErrorCode error_code;
+  RequestErrorCode error_code;
   std::string reason_phrase;
 };
 
@@ -709,7 +710,7 @@ struct QUICHE_EXPORT MoqtFetchOk {
 
 struct QUICHE_EXPORT MoqtFetchError {
   uint64_t subscribe_id;
-  SubscribeErrorCode error_code;
+  RequestErrorCode error_code;
   std::string reason_phrase;
 };
 
@@ -727,6 +728,11 @@ struct QUICHE_EXPORT MoqtObjectAck {
   // Positive if the object has been received before the deadline.
   quic::QuicTimeDelta delta_from_deadline = quic::QuicTimeDelta::Zero();
 };
+
+RequestErrorCode StatusToRequestErrorCode(absl::Status status);
+absl::StatusCode RequestErrorCodeToStatusCode(RequestErrorCode error_code);
+absl::Status RequestErrorCodeToStatus(RequestErrorCode error_code,
+                                      absl::string_view reason_phrase);
 
 // Returns an error if the parameters are malformed or otherwise violate the
 // spec. |perspective| is the consumer of the message, not the sender.

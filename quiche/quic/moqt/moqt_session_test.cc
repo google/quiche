@@ -379,7 +379,7 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndCancel) {
 
   MoqtAnnounceCancel cancel = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/SubscribeErrorCode::kInternalError,
+      /*error_code=*/RequestErrorCode::kInternalError,
       /*reason_phrase=*/"Test error",
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
@@ -387,7 +387,7 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndCancel) {
                     std::optional<MoqtAnnounceErrorReason> error) {
         EXPECT_EQ(track_namespace, FullTrackName{"foo"});
         ASSERT_TRUE(error.has_value());
-        EXPECT_EQ(error->error_code, SubscribeErrorCode::kInternalError);
+        EXPECT_EQ(error->error_code, RequestErrorCode::kInternalError);
         EXPECT_EQ(error->reason_phrase, "Test error");
       });
   stream_input->OnAnnounceCancelMessage(cancel);
@@ -444,7 +444,7 @@ TEST_F(MoqtSessionTest, AnnounceWithError) {
 
   MoqtAnnounceError error = {
       /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/SubscribeErrorCode::kInternalError,
+      /*error_code=*/RequestErrorCode::kInternalError,
       /*reason_phrase=*/"Test error",
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
@@ -452,7 +452,7 @@ TEST_F(MoqtSessionTest, AnnounceWithError) {
                     std::optional<MoqtAnnounceErrorReason> error) {
         EXPECT_EQ(track_namespace, FullTrackName{"foo"});
         ASSERT_TRUE(error.has_value());
-        EXPECT_EQ(error->error_code, SubscribeErrorCode::kInternalError);
+        EXPECT_EQ(error->error_code, RequestErrorCode::kInternalError);
         EXPECT_EQ(error->reason_phrase, "Test error");
       });
   stream_input->OnAnnounceErrorMessage(error);
@@ -491,8 +491,7 @@ TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsError) {
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeError), _));
   listener->OnSubscribeRejected(
-      MoqtSubscribeErrorReason(SubscribeErrorCode::kInternalError,
-                               "Test error"),
+      MoqtSubscribeErrorReason(RequestErrorCode::kInternalError, "Test error"),
       request.track_alias);
   EXPECT_EQ(MoqtSessionPeer::GetSubscription(&session_, 1), nullptr);
 }
@@ -800,7 +799,7 @@ TEST_F(MoqtSessionTest, SubscribeWithError) {
 
   MoqtSubscribeError error = {
       /*request_id=*/0,
-      /*error_code=*/SubscribeErrorCode::kInvalidRange,
+      /*error_code=*/RequestErrorCode::kInvalidRange,
       /*reason_phrase=*/"deadbeef",
       /*track_alias=*/2,
   };
@@ -874,10 +873,10 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenAnnounceCancel) {
   stream_input->OnAnnounceMessage(announce);
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(MoqtAnnounceCancel{
-                         track_namespace, SubscribeErrorCode::kInternalError,
+                         track_namespace, RequestErrorCode::kInternalError,
                          "deadbeef"}),
                      _));
-  session_.CancelAnnounce(track_namespace, SubscribeErrorCode::kInternalError,
+  session_.CancelAnnounce(track_namespace, RequestErrorCode::kInternalError,
                           "deadbeef");
 }
 
@@ -893,7 +892,7 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithError) {
       *parameters,
   };
   MoqtAnnounceErrorReason error = {
-      SubscribeErrorCode::kNotSupported,
+      RequestErrorCode::kNotSupported,
       "deadbeef",
   };
   EXPECT_CALL(session_callbacks_.incoming_announce_callback,
@@ -918,7 +917,7 @@ TEST_F(MoqtSessionTest, SubscribeAnnouncesLifeCycle) {
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnounces), _));
   session_.SubscribeAnnounces(
       track_namespace,
-      [&](const FullTrackName& ftn, std::optional<SubscribeErrorCode> error,
+      [&](const FullTrackName& ftn, std::optional<RequestErrorCode> error,
           absl::string_view reason) {
         got_callback = true;
         EXPECT_EQ(track_namespace, ftn);
@@ -949,18 +948,18 @@ TEST_F(MoqtSessionTest, SubscribeAnnouncesError) {
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnounces), _));
   session_.SubscribeAnnounces(
       track_namespace,
-      [&](const FullTrackName& ftn, std::optional<SubscribeErrorCode> error,
+      [&](const FullTrackName& ftn, std::optional<RequestErrorCode> error,
           absl::string_view reason) {
         got_callback = true;
         EXPECT_EQ(track_namespace, ftn);
         ASSERT_TRUE(error.has_value());
-        EXPECT_EQ(*error, SubscribeErrorCode::kInvalidRange);
+        EXPECT_EQ(*error, RequestErrorCode::kInvalidRange);
         EXPECT_EQ(reason, "deadbeef");
       },
       VersionSpecificParameters());
   MoqtSubscribeAnnouncesError error = {
       /*track_namespace=*/track_namespace,
-      /*error_code=*/SubscribeErrorCode::kInvalidRange,
+      /*error_code=*/RequestErrorCode::kInvalidRange,
       /*reason_phrase=*/"deadbeef",
   };
   stream_input->OnSubscribeAnnouncesErrorMessage(error);
@@ -1130,7 +1129,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
   // SUBSCRIBE_ERROR arrives
   MoqtSubscribeError subscribe_error = {
       /*request_id=*/1,
-      /*error_code=*/SubscribeErrorCode::kRetryTrackAlias,
+      /*error_code=*/RequestErrorCode::kRetryTrackAlias,
       /*reason_phrase=*/"foo",
       /*track_alias =*/3,
   };
@@ -1152,7 +1151,7 @@ TEST_F(MoqtSessionTest, SubscribeErrorWithTrackAlias) {
   // SUBSCRIBE_ERROR arrives
   MoqtSubscribeError subscribe_error = {
       /*request_id=*/1,
-      /*error_code=*/SubscribeErrorCode::kRetryTrackAlias,
+      /*error_code=*/RequestErrorCode::kRetryTrackAlias,
       /*reason_phrase=*/"foo",
       /*track_alias =*/3,
   };
@@ -1172,7 +1171,7 @@ TEST_F(MoqtSessionTest, SubscribeErrorWithBadTrackAlias) {
   // SUBSCRIBE_ERROR arrives
   MoqtSubscribeError subscribe_error = {
       /*request_id=*/1,
-      /*error_code=*/SubscribeErrorCode::kRetryTrackAlias,
+      /*error_code=*/RequestErrorCode::kRetryTrackAlias,
       /*reason_phrase=*/"foo",
       /*track_alias =*/2,
   };
@@ -2289,7 +2288,7 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeError) {
 
   MoqtFetchError expected_error;
   expected_error.subscribe_id = fetch.fetch_id;
-  expected_error.error_code = SubscribeErrorCode::kDoesNotExist;
+  expected_error.error_code = RequestErrorCode::kTrackDoesNotExist;
   expected_error.reason_phrase = "foo";
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(expected_error), _));
@@ -2392,7 +2391,7 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetchBadSubscribeId) {
   fetch.joining_fetch = {1, 2};
   MoqtFetchError expected_error = {
       /*request_id=*/1,
-      /*error_code=*/SubscribeErrorCode::kDoesNotExist,
+      /*error_code=*/RequestErrorCode::kTrackDoesNotExist,
       /*reason_phrase=*/"Joining Fetch for non-existent subscribe",
   };
   EXPECT_CALL(mock_stream_,
@@ -2538,7 +2537,7 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithError) {
   EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
               Call(_, parameters))
       .WillOnce(Return(
-          MoqtSubscribeErrorReason{SubscribeErrorCode::kUnauthorized, "foo"}));
+          MoqtSubscribeErrorReason{RequestErrorCode::kUnauthorized, "foo"}));
   EXPECT_CALL(
       control_stream,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesError),
@@ -2588,12 +2587,12 @@ TEST_F(MoqtSessionTest, FetchThenError) {
       VersionSpecificParameters());
   MoqtFetchError error = {
       /*request_id=*/0,
-      /*error_code=*/SubscribeErrorCode::kUnauthorized,
+      /*error_code=*/RequestErrorCode::kUnauthorized,
       /*reason_phrase=*/"No username provided",
   };
   stream_input->OnFetchErrorMessage(error);
   ASSERT_NE(fetch_task, nullptr);
-  EXPECT_TRUE(absl::IsUnauthenticated(fetch_task->GetStatus()));
+  EXPECT_TRUE(absl::IsPermissionDenied(fetch_task->GetStatus()));
   EXPECT_EQ(fetch_task->GetStatus().message(), "No username provided");
 }
 
@@ -3070,7 +3069,7 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
   EXPECT_FALSE(session_.SubscribeAnnounces(
       FullTrackName{"foo"},
       +[](FullTrackName /*track_namespace*/,
-          std::optional<SubscribeErrorCode> /*error*/,
+          std::optional<RequestErrorCode> /*error*/,
           absl::string_view /*reason*/) {},
       VersionSpecificParameters()));
   session_.Announce(
@@ -3131,7 +3130,7 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   EXPECT_FALSE(session_.SubscribeAnnounces(
       FullTrackName{"foo"},
       +[](FullTrackName /*track_namespace*/,
-          std::optional<SubscribeErrorCode> /*error*/,
+          std::optional<RequestErrorCode> /*error*/,
           absl::string_view /*reason*/) {},
       VersionSpecificParameters()));
   session_.Announce(

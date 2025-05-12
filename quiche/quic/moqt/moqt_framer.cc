@@ -501,7 +501,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeError(
     const MoqtSubscribeError& message) {
   return SerializeControlMessage(
-      MoqtMessageType::kSubscribeError, WireVarInt62(message.subscribe_id),
+      MoqtMessageType::kSubscribeError, WireVarInt62(message.request_id),
       WireVarInt62(message.error_code),
       WireStringWithVarInt62Length(message.reason_phrase),
       WireVarInt62(message.track_alias));

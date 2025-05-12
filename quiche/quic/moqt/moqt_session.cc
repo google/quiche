@@ -287,7 +287,7 @@ void MoqtSession::Announce(FullTrackName track_namespace,
     std::move(announce_callback)(
         track_namespace,
         MoqtAnnounceErrorReason{
-            SubscribeErrorCode::kInternalError,
+            RequestErrorCode::kInternalError,
             "ANNOUNCE message already outstanding for namespace"});
     return;
   }
@@ -319,7 +319,7 @@ bool MoqtSession::Unannounce(FullTrackName track_namespace) {
 }
 
 void MoqtSession::CancelAnnounce(FullTrackName track_namespace,
-                                 SubscribeErrorCode code,
+                                 RequestErrorCode code,
                                  absl::string_view reason) {
   MoqtAnnounceCancel message{track_namespace, code, std::string(reason)};
 
@@ -913,10 +913,10 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
 }
 
 void MoqtSession::ControlStream::SendSubscribeError(
-    uint64_t subscribe_id, SubscribeErrorCode error_code,
+    uint64_t request_id, RequestErrorCode error_code,
     absl::string_view reason_phrase, uint64_t track_alias) {
   MoqtSubscribeError subscribe_error;
-  subscribe_error.subscribe_id = subscribe_id;
+  subscribe_error.request_id = request_id;
   subscribe_error.error_code = error_code;
   subscribe_error.reason_phrase = reason_phrase;
   subscribe_error.track_alias = track_alias;
@@ -925,7 +925,7 @@ void MoqtSession::ControlStream::SendSubscribeError(
 }
 
 void MoqtSession::ControlStream::SendFetchError(
-    uint64_t subscribe_id, SubscribeErrorCode error_code,
+    uint64_t subscribe_id, RequestErrorCode error_code,
     absl::string_view reason_phrase) {
   MoqtFetchError fetch_error;
   fetch_error.subscribe_id = subscribe_id;
@@ -943,7 +943,7 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
                   << message.full_track_name;
   if (session_->sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE after GOAWAY";
-    SendSubscribeError(message.request_id, SubscribeErrorCode::kUnauthorized,
+    SendSubscribeError(message.request_id, RequestErrorCode::kUnauthorized,
                        "SUBSCRIBE after GOAWAY", message.track_alias);
     return;
   }
@@ -959,7 +959,7 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     QUIC_DLOG(INFO) << ENDPOINT << "SUBSCRIBE for " << track_name
                     << " rejected by the application: "
                     << track_publisher.status();
-    SendSubscribeError(message.request_id, SubscribeErrorCode::kDoesNotExist,
+    SendSubscribeError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
                        track_publisher.status().message(), message.track_alias);
     return;
   }
@@ -1025,10 +1025,10 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
 
 void MoqtSession::ControlStream::OnSubscribeErrorMessage(
     const MoqtSubscribeError& message) {
-  RemoteTrack* track = session_->RemoteTrackById(message.subscribe_id);
+  RemoteTrack* track = session_->RemoteTrackById(message.request_id);
   if (track == nullptr) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_ERROR for "
-                    << "subscribe_id = " << message.subscribe_id
+                    << "subscribe_id = " << message.request_id
                     << " but no track exists";
     // Subscription state might have been destroyed for internal reasons.
     return;
@@ -1044,7 +1044,7 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
     return;
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_ERROR for "
-                  << "subscribe_id = " << message.subscribe_id << " ("
+                  << "subscribe_id = " << message.request_id << " ("
                   << track->full_track_name() << ")"
                   << ", error = " << static_cast<int>(message.error_code)
                   << " (" << message.reason_phrase << ")";
@@ -1053,7 +1053,7 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
   // an error due to a duplicate track name. The other entries for this
   // subscribe will be deleted after calling Subscribe().
   session_->subscribe_by_name_.erase(subscribe->full_track_name());
-  if (message.error_code == SubscribeErrorCode::kRetryTrackAlias) {
+  if (message.error_code == RequestErrorCode::kRetryTrackAlias) {
     // Automatically resubscribe with new alias.
     MoqtSubscribe& subscribe_message = subscribe->GetSubscribe();
     session_->Subscribe(subscribe_message, subscribe->visitor(),
@@ -1110,7 +1110,7 @@ void MoqtSession::ControlStream::OnAnnounceMessage(
     QUIC_DLOG(INFO) << ENDPOINT << "Received an ANNOUNCE after GOAWAY";
     MoqtAnnounceError error;
     error.track_namespace = message.track_namespace;
-    error.error_code = SubscribeErrorCode::kUnauthorized;
+    error.error_code = RequestErrorCode::kUnauthorized;
     error.reason_phrase = "ANNOUNCE after GOAWAY";
     SendOrBufferMessage(session_->framer_.SerializeAnnounceError(error));
     return;
@@ -1205,7 +1205,7 @@ void MoqtSession::ControlStream::OnSubscribeAnnouncesMessage(
                     << "Received a SUBSCRIBE_ANNOUNCES after GOAWAY";
     MoqtSubscribeAnnouncesError error;
     error.track_namespace = message.track_namespace;
-    error.error_code = SubscribeErrorCode::kUnauthorized;
+    error.error_code = RequestErrorCode::kUnauthorized;
     error.reason_phrase = "SUBSCRIBE_ANNOUNCES after GOAWAY";
     SendOrBufferMessage(
         session_->framer_.SerializeSubscribeAnnouncesError(error));
@@ -1288,7 +1288,7 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
   }
   if (session_->sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received a FETCH after GOAWAY";
-    SendFetchError(message.fetch_id, SubscribeErrorCode::kUnauthorized,
+    SendFetchError(message.fetch_id, RequestErrorCode::kUnauthorized,
                    "FETCH after GOAWAY");
     return;
   }
@@ -1303,7 +1303,7 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
       QUIC_DLOG(INFO) << ENDPOINT << "Received a JOINING_FETCH for "
                       << "subscribe_id " << joining_subscribe_id
                       << " that does not exist";
-      SendFetchError(message.fetch_id, SubscribeErrorCode::kDoesNotExist,
+      SendFetchError(message.fetch_id, RequestErrorCode::kTrackDoesNotExist,
                      "Joining Fetch for non-existent subscribe");
       return;
     }
@@ -1342,7 +1342,7 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
     QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
                     << " rejected by the application: "
                     << track_publisher.status();
-    SendFetchError(message.fetch_id, SubscribeErrorCode::kDoesNotExist,
+    SendFetchError(message.fetch_id, RequestErrorCode::kTrackDoesNotExist,
                    track_publisher.status().message());
     return;
   }
@@ -1354,7 +1354,7 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
   if (!fetch->GetStatus().ok()) {
     QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
                     << " could not initialize the task";
-    SendFetchError(message.fetch_id, SubscribeErrorCode::kInvalidRange,
+    SendFetchError(message.fetch_id, RequestErrorCode::kInvalidRange,
                    fetch->GetStatus().message());
     return;
   }
@@ -1365,7 +1365,7 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
   if (!result.second) {  // Emplace failed.
     QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
                     << " could not be added to the session";
-    SendFetchError(message.fetch_id, SubscribeErrorCode::kInternalError,
+    SendFetchError(message.fetch_id, RequestErrorCode::kInternalError,
                    "Could not initialize FETCH state");
   }
   MoqtFetchTask* fetch_task = result.first->second->fetch_task();
@@ -1466,30 +1466,8 @@ void MoqtSession::ControlStream::OnFetchErrorMessage(
                   << ", error = " << static_cast<int>(message.error_code)
                   << " (" << message.reason_phrase << ")";
   UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
-  absl::Status status;
-  switch (message.error_code) {
-    case SubscribeErrorCode::kInternalError:
-      status = absl::InternalError(message.reason_phrase);
-      break;
-    case SubscribeErrorCode::kInvalidRange:
-      status = absl::OutOfRangeError(message.reason_phrase);
-      break;
-    case SubscribeErrorCode::kDoesNotExist:
-      status = absl::NotFoundError(message.reason_phrase);
-      break;
-    case SubscribeErrorCode::kUnauthorized:
-      status = absl::UnauthenticatedError(message.reason_phrase);
-      break;
-    case SubscribeErrorCode::kTimeout:
-      status = absl::DeadlineExceededError(message.reason_phrase);
-      break;
-    case SubscribeErrorCode::kNotSupported:
-      status = absl::UnavailableError(message.reason_phrase);
-      break;
-    default:
-      status = absl::UnknownError(message.reason_phrase);
-      break;
-  }
+  absl::Status status =
+      RequestErrorCodeToStatus(message.error_code, message.reason_phrase);
   fetch->OnFetchResult(Location(0, 0), status, nullptr);
   session_->upstream_by_id_.erase(message.subscribe_id);
 }

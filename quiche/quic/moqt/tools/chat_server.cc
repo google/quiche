@@ -39,7 +39,7 @@ ChatServer::ChatServerSessionHandler::OnIncomingAnnounce(
                                                 GetChatId(track_namespace));
   if (!track_name_.has_value()) {
     std::cout << "Malformed ANNOUNCE namespace\n";
-    return MoqtAnnounceErrorReason(SubscribeErrorCode::kDoesNotExist,
+    return MoqtAnnounceErrorReason(RequestErrorCode::kTrackDoesNotExist,
                                    "Not a valid namespace for this chat.");
   }
   if (!parameters.has_value()) {
@@ -96,7 +96,7 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
         if (!IsValidChatNamespace(chat_namespace)) {
           std::cout << "Not a valid moq-chat namespace.\n";
           return std::make_optional(
-              MoqtSubscribeErrorReason{SubscribeErrorCode::kDoesNotExist,
+              MoqtSubscribeErrorReason{RequestErrorCode::kTrackDoesNotExist,
                                        "Not a valid namespace for this chat."});
         }
         if (!parameters.has_value()) {

@@ -27,7 +27,7 @@ using MoqtOutgoingAnnounceCallback = quiche::MultiUseCallback<void(
     std::optional<MoqtAnnounceErrorReason> error)>;
 
 using MoqtOutgoingSubscribeAnnouncesCallback = quiche::SingleUseCallback<void(
-    FullTrackName track_namespace, std::optional<SubscribeErrorCode> error,
+    FullTrackName track_namespace, std::optional<RequestErrorCode> error,
     absl::string_view reason)>;
 
 class MoqtSessionInterface {

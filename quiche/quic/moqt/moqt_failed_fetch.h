@@ -27,7 +27,7 @@ class MoqtFailedFetch : public MoqtFetchTask {
   void SetFetchResponseCallback(FetchResponseCallback callback) {
     MoqtFetchError error;
     error.subscribe_id = 0;
-    error.error_code = StatusToSubscribeErrorCode(status_);
+    error.error_code = StatusToRequestErrorCode(status_);
     error.reason_phrase = status_.message();
     std::move(callback)(error);
   }

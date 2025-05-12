@@ -50,7 +50,7 @@ inline std::optional<MoqtAnnounceErrorReason> DefaultIncomingAnnounceCallback(
     const FullTrackName& /*track_namespace*/,
     std::optional<VersionSpecificParameters> /*parameters*/) {
   return std::optional(MoqtAnnounceErrorReason{
-      SubscribeErrorCode::kNotSupported,
+      RequestErrorCode::kNotSupported,
       "This endpoint does not accept incoming ANNOUNCE messages"});
 };
 
@@ -59,7 +59,7 @@ DefaultIncomingSubscribeAnnouncesCallback(
     const FullTrackName& track_namespace,
     std::optional<VersionSpecificParameters> /*parameters*/) {
   return MoqtSubscribeErrorReason{
-      SubscribeErrorCode::kUnauthorized,
+      RequestErrorCode::kNotSupported,
       "This endpoint does not support incoming SUBSCRIBE_ANNOUNCES messages"};
 }
 

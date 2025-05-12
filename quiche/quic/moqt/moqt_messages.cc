@@ -92,24 +92,62 @@ MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
   return static_cast<MoqtObjectStatus>(integer);
 }
 
-SubscribeErrorCode StatusToSubscribeErrorCode(absl::Status status) {
+RequestErrorCode StatusToRequestErrorCode(absl::Status status) {
   QUICHE_DCHECK(!status.ok());
   switch (status.code()) {
     case absl::StatusCode::kPermissionDenied:
-    case absl::StatusCode::kUnauthenticated:
-      return SubscribeErrorCode::kUnauthorized;
+      return RequestErrorCode::kUnauthorized;
     case absl::StatusCode::kDeadlineExceeded:
-      return SubscribeErrorCode::kTimeout;
-    case absl::StatusCode::kUnavailable:
-      return SubscribeErrorCode::kNotSupported;
+      return RequestErrorCode::kTimeout;
+    case absl::StatusCode::kUnimplemented:
+      return RequestErrorCode::kNotSupported;
     case absl::StatusCode::kNotFound:
-      return SubscribeErrorCode::kDoesNotExist;
+      return RequestErrorCode::kTrackDoesNotExist;
     case absl::StatusCode::kOutOfRange:
-      return SubscribeErrorCode::kInvalidRange;
+      return RequestErrorCode::kInvalidRange;
+    case absl::StatusCode::kInvalidArgument:
+      return RequestErrorCode::kInvalidJoiningSubscribeId;
+    case absl::StatusCode::kUnauthenticated:
+      return RequestErrorCode::kExpiredAuthToken;
     default:
-      return SubscribeErrorCode::kInternalError;
+      return RequestErrorCode::kInternalError;
   }
 }
+
+absl::StatusCode RequestErrorCodeToStatusCode(RequestErrorCode error_code) {
+  switch (error_code) {
+    case RequestErrorCode::kInternalError:
+      return absl::StatusCode::kInternal;
+    case RequestErrorCode::kUnauthorized:
+      return absl::StatusCode::kPermissionDenied;
+    case RequestErrorCode::kTimeout:
+      return absl::StatusCode::kDeadlineExceeded;
+    case RequestErrorCode::kNotSupported:
+      return absl::StatusCode::kUnimplemented;
+    case RequestErrorCode::kTrackDoesNotExist:
+      // Equivalently, kUninterested and kNamespacePrefixUnknown.
+      return absl::StatusCode::kNotFound;
+    case RequestErrorCode::kInvalidRange:
+      // Equivalently, kNamespacePrefixOverlap.
+      return absl::StatusCode::kOutOfRange;
+    case RequestErrorCode::kNoObjects:
+      // Equivalently, kRetryTrackAlias.
+      return absl::StatusCode::kNotFound;
+    case RequestErrorCode::kInvalidJoiningSubscribeId:
+    case RequestErrorCode::kMalformedAuthToken:
+    case RequestErrorCode::kUnknownAuthTokenAlias:
+      return absl::StatusCode::kInvalidArgument;
+    case RequestErrorCode::kExpiredAuthToken:
+      return absl::StatusCode::kUnauthenticated;
+    default:
+      return absl::StatusCode::kUnknown;
+  }
+}
+
+absl::Status RequestErrorCodeToStatus(RequestErrorCode error_code,
+                                      absl::string_view reason_phrase) {
+  return absl::Status(RequestErrorCodeToStatusCode(error_code), reason_phrase);
+};
 
 MoqtError ValidateSetupParameters(const KeyValuePairList& parameters,
                                   bool webtrans,

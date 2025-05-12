@@ -110,7 +110,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   bool Unannounce(FullTrackName track_namespace);
   // Allows the subscriber to declare it will not subscribe to |track_namespace|
   // anymore.
-  void CancelAnnounce(FullTrackName track_namespace, SubscribeErrorCode code,
+  void CancelAnnounce(FullTrackName track_namespace, RequestErrorCode code,
                       absl::string_view reason_phrase);
 
   // Returns true if SUBSCRIBE was sent. If there is already a subscription to
@@ -275,14 +275,13 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // control credit.
     void SendOrBufferMessage(quiche::QuicheBuffer message, bool fin = false);
 
-    void SendSubscribeError(uint64_t subscribe_id,
-                            SubscribeErrorCode error_code,
+    void SendSubscribeError(uint64_t request_id, RequestErrorCode error_code,
                             absl::string_view reason_phrase,
                             uint64_t track_alias);
 
    private:
     friend class test::MoqtSessionPeer;
-    void SendFetchError(uint64_t subscribe_id, SubscribeErrorCode error_code,
+    void SendFetchError(uint64_t subscribe_id, RequestErrorCode error_code,
                         absl::string_view reason_phrase);
 
     MoqtSession* session_;
