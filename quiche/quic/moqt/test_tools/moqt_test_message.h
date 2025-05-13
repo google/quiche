@@ -753,7 +753,7 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSubscribeUpdate>(values);
-    if (cast.subscribe_id != subscribe_update_.subscribe_id) {
+    if (cast.request_id != subscribe_update_.request_id) {
       QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE subscribe ID mismatch";
       return false;
     }
@@ -769,6 +769,10 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE subscriber priority mismatch";
       return false;
     }
+    if (cast.forward != subscribe_update_.forward) {
+      QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE forward mismatch";
+      return false;
+    }
     if (cast.parameters != subscribe_update_.parameters) {
       QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE parameter mismatch";
       return false;
@@ -776,25 +780,26 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv-vv--"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv--vv--"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_update_);
   }
 
  private:
-  uint8_t raw_packet_[12] = {
-      0x02, 0x00, 0x09, 0x02, 0x03, 0x01, 0x05,  // start and end sequences
-      0xaa,                                      // subscriber_priority
+  uint8_t raw_packet_[13] = {
+      0x02, 0x00, 0x0a, 0x02, 0x03, 0x01, 0x05,  // start and end sequences
+      0xaa, 0x01,                                // subscriber_priority, forward
       0x01,                                      // 1 parameter
       0x02, 0x67, 0x10,                          // delivery_timeout = 10000
   };
 
   MoqtSubscribeUpdate subscribe_update_ = {
-      /*subscribe_id=*/2,
+      /*request_id=*/2,
       /*start=*/Location(3, 1),
       /*end_group=*/4,
       /*subscriber_priority=*/0xaa,
+      /*forward=*/true,
       VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
                                 quic::QuicTimeDelta::Infinite()),
   };

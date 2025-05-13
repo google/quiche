@@ -472,6 +472,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateEndGroupOnly) {
       /*start=*/Location(4, 3),
       /*end_group=*/4,
       /*subscriber_priority=*/0xaa,
+      /*forward=*/true,
       VersionSpecificParameters(),
   };
   quiche::QuicheBuffer buffer;
@@ -487,6 +488,7 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateIncrementsEnd) {
       /*start=*/Location(4, 3),
       /*end_group=*/4,
       /*subscriber_priority=*/0xaa,
+      /*forward=*/true,
       VersionSpecificParameters(),
   };
   quiche::QuicheBuffer buffer;

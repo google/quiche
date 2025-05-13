@@ -733,6 +733,68 @@ TEST_F(MoqtSessionTest, SubscribeNextGroupWithOk) {
   stream_input->OnSubscribeOkMessage(ok);
 }
 
+TEST_F(MoqtSessionTest, OutgoingSubscribeUpdate) {
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  EXPECT_CALL(mock_session_, GetStreamById)
+      .WillRepeatedly(Return(&mock_stream_));
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
+  session_.SubscribeAbsolute(FullTrackName("foo", "bar"), 1, 0, 10,
+                             &remote_track_visitor,
+                             VersionSpecificParameters());
+  MoqtSubscribeOk ok = {
+      /*request_id=*/0,
+      /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
+  };
+  EXPECT_CALL(remote_track_visitor, OnReply);
+  stream_input->OnSubscribeOkMessage(ok);
+  EXPECT_CALL(
+      mock_stream_,
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeUpdate), _));
+  EXPECT_TRUE(session_.SubscribeUpdate(
+      FullTrackName("foo", "bar"), Location(2, 1), 9, std::nullopt,
+      std::nullopt, VersionSpecificParameters()));
+  SubscribeRemoteTrack* track = MoqtSessionPeer::remote_track(&session_, 0);
+  EXPECT_FALSE(track->InWindow(Location(2, 0)));
+  EXPECT_TRUE(track->InWindow(Location(2, 1)));
+  EXPECT_TRUE(track->InWindow(Location(9, UINT64_MAX)));
+  EXPECT_FALSE(track->InWindow(Location(10, 0)));
+}
+
+TEST_F(MoqtSessionTest, OutgoingSubscribeUpdateInvalid) {
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  EXPECT_CALL(mock_session_, GetStreamById)
+      .WillRepeatedly(Return(&mock_stream_));
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
+  session_.SubscribeAbsolute(FullTrackName("foo", "bar"), 1, 0, 10,
+                             &remote_track_visitor,
+                             VersionSpecificParameters());
+  MoqtSubscribeOk ok = {
+      /*request_id=*/0,
+      /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
+  };
+  EXPECT_CALL(remote_track_visitor, OnReply);
+  stream_input->OnSubscribeOkMessage(ok);
+  EXPECT_CALL(
+      mock_stream_,
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeUpdate), _))
+      .Times(0);
+  EXPECT_FALSE(session_.SubscribeUpdate(
+      FullTrackName("foo", "bar"), Location(0, 0), 10, std::nullopt,
+      std::nullopt, VersionSpecificParameters()));
+  EXPECT_FALSE(session_.SubscribeUpdate(
+      FullTrackName("foo", "bar"), Location(1, 0), 11, std::nullopt,
+      std::nullopt, VersionSpecificParameters()));
+  EXPECT_FALSE(session_.SubscribeUpdate(
+      FullTrackName("foo", "bar"), Location(7, 0), 6, std::nullopt,
+      std::nullopt, VersionSpecificParameters()));
+}
+
 TEST_F(MoqtSessionTest, MaxRequestIdChangesResponse) {
   MoqtSessionPeer::set_next_request_id(&session_, kDefaultInitialMaxRequestId);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;

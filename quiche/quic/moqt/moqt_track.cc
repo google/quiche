@@ -120,12 +120,13 @@ UpstreamFetch::~UpstreamFetch() {
   }
 }
 
-void UpstreamFetch::OnFetchResult(Location largest_id, absl::Status status,
+void UpstreamFetch::OnFetchResult(Location largest_location,
+                                  absl::Status status,
                                   TaskDestroyedCallback callback) {
-  auto task = std::make_unique<UpstreamFetchTask>(largest_id, status,
+  auto task = std::make_unique<UpstreamFetchTask>(largest_location, status,
                                                   std::move(callback));
   task_ = task->weak_ptr();
-  window().TruncateEnd(largest_id);
+  window_mutable().TruncateEnd(largest_location);
   std::move(ok_callback_)(std::move(task));
   if (can_read_callback_) {
     task_.GetIfAvailable()->set_can_read_callback(
@@ -169,7 +170,7 @@ UpstreamFetch::UpstreamFetchTask::GetNextObject(PublishedObject& output) {
   output.status = next_object_->object_status;
   output.publisher_priority = next_object_->publisher_priority;
   output.fin_after_this = false;
-  if (output.sequence == largest_id_) {  // This is the last object.
+  if (output.sequence == largest_location_) {  // This is the last object.
     eof_ = true;
   }
   next_object_.reset();

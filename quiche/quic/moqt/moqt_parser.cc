@@ -551,10 +551,12 @@ size_t MoqtControlParser::ProcessSubscribeDone(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
   MoqtSubscribeUpdate subscribe_update;
   uint64_t start_group, start_object, end_group;
-  if (!reader.ReadVarInt62(&subscribe_update.subscribe_id) ||
+  uint8_t forward;
+  if (!reader.ReadVarInt62(&subscribe_update.request_id) ||
       !reader.ReadVarInt62(&start_group) ||
       !reader.ReadVarInt62(&start_object) || !reader.ReadVarInt62(&end_group) ||
-      !reader.ReadUInt8(&subscribe_update.subscriber_priority)) {
+      !reader.ReadUInt8(&subscribe_update.subscriber_priority) ||
+      !reader.ReadUInt8(&forward)) {
     return 0;
   }
   KeyValuePairList parameters;
@@ -578,6 +580,11 @@ size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
       return 0;
     }
   }
+  if (forward > 1) {
+    ParseError("Invalid forward value in SUBSCRIBE_UPDATE");
+    return 0;
+  }
+  subscribe_update.forward = (forward == 1);
   visitor_.OnSubscribeUpdateMessage(subscribe_update);
   return reader.PreviouslyReadPayload().length();
 }

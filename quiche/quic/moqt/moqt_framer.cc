@@ -534,10 +534,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeUpdate(
   uint64_t end_group =
       message.end_group.has_value() ? *message.end_group + 1 : 0;
   return SerializeControlMessage(
-      MoqtMessageType::kSubscribeUpdate, WireVarInt62(message.subscribe_id),
+      MoqtMessageType::kSubscribeUpdate, WireVarInt62(message.request_id),
       WireVarInt62(message.start.group), WireVarInt62(message.start.object),
       WireVarInt62(end_group), WireUint8(message.subscriber_priority),
-      WireKeyValuePairList(parameters));
+      WireBoolean(message.forward), WireKeyValuePairList(parameters));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeAnnounce(

@@ -395,6 +395,45 @@ bool MoqtSession::SubscribeNextGroup(const FullTrackName& name,
   return Subscribe(message, visitor);
 }
 
+bool MoqtSession::SubscribeUpdate(
+    const FullTrackName& name, std::optional<Location> start,
+    std::optional<uint64_t> end_group,
+    std::optional<MoqtPriority> subscriber_priority,
+    std::optional<bool> forward, VersionSpecificParameters parameters) {
+  auto it = subscribe_by_name_.find(name);
+  if (it == subscribe_by_name_.end()) {
+    return false;
+  }
+  SubscribeRemoteTrack* track = it->second;
+  MoqtSubscribeUpdate subscribe_update;
+  subscribe_update.request_id = track->request_id();
+  subscribe_update.start = start.value_or(track->window().start());
+  subscribe_update.end_group = end_group.value_or(track->window().end().group);
+  if (subscribe_update.end_group == UINT64_MAX) {
+    subscribe_update.end_group = std::nullopt;
+  }
+  subscribe_update.subscriber_priority =
+      subscriber_priority.value_or(track->subscriber_priority());
+  subscribe_update.forward = forward.value_or(track->forward());
+  subscribe_update.parameters = parameters;
+  if (subscribe_update.start < track->window().start() ||
+      (subscribe_update.end_group.has_value() &&
+       (*subscribe_update.end_group > track->window().end().group ||
+        *subscribe_update.end_group < subscribe_update.start.group))) {
+    // Invalid range.
+    return false;
+  }
+  // Input is valid. Update subscription properties.
+  track->TruncateStart(subscribe_update.start);
+  if (subscribe_update.end_group.has_value()) {
+    track->TruncateEnd(*subscribe_update.end_group);
+  }
+  track->set_subscriber_priority(subscribe_update.subscriber_priority);
+  track->set_forward(subscribe_update.forward);
+  SendControlMessage(framer_.SerializeSubscribeUpdate(subscribe_update));
+  return true;
+};
+
 void MoqtSession::Unsubscribe(const FullTrackName& name) {
   SubscribeRemoteTrack* track = RemoteTrackByName(name);
   if (track == nullptr) {
@@ -402,7 +441,7 @@ void MoqtSession::Unsubscribe(const FullTrackName& name) {
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Sent UNSUBSCRIBE message for " << name;
   MoqtUnsubscribe message;
-  message.subscribe_id = track->subscribe_id();
+  message.subscribe_id = track->request_id();
   SendControlMessage(framer_.SerializeUnsubscribe(message));
   DestroySubscription(track);
 }
@@ -1063,7 +1102,7 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
                                   message.reason_phrase);
   }
   session_->subscribe_by_alias_.erase(subscribe->track_alias());
-  session_->upstream_by_id_.erase(subscribe->subscribe_id());
+  session_->upstream_by_id_.erase(subscribe->request_id());
 }
 
 void MoqtSession::ControlStream::OnUnsubscribeMessage(
@@ -1095,7 +1134,7 @@ void MoqtSession::ControlStream::OnSubscribeDoneMessage(
 
 void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
     const MoqtSubscribeUpdate& message) {
-  auto it = session_->published_subscriptions_.find(message.subscribe_id);
+  auto it = session_->published_subscriptions_.find(message.request_id);
   if (it == session_->published_subscriptions_.end()) {
     return;
   }

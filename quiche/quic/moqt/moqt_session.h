@@ -115,9 +115,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   // Returns true if SUBSCRIBE was sent. If there is already a subscription to
   // the track, the message will still be sent. However, the visitor will be
-  // ignored.
+  // ignored. If |visitor| is nullptr, forward will be set to false.
   // Subscribe from (start_group, start_object) to the end of the track.
-  // TODO(martinduke): Allow setting forward = false.
   bool SubscribeAbsolute(const FullTrackName& name, uint64_t start_group,
                          uint64_t start_object,
                          SubscribeRemoteTrack::Visitor* visitor,
@@ -133,6 +132,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   bool SubscribeNextGroup(const FullTrackName& name,
                           SubscribeRemoteTrack::Visitor* visitor,
                           VersionSpecificParameters parameters) override;
+  bool SubscribeUpdate(const FullTrackName& name, std::optional<Location> start,
+                       std::optional<uint64_t> end_group,
+                       std::optional<MoqtPriority> subscriber_priority,
+                       std::optional<bool> forward,
+                       VersionSpecificParameters parameters) override;
   // Returns false if the subscription is not found. The session immediately
   // destroys all subscription state.
   void Unsubscribe(const FullTrackName& name);

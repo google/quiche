@@ -912,8 +912,8 @@ TEST_F(MoqtMessageSpecificTest, SubscribeUpdateHasAuthorizationToken) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
   char subscribe_update[] = {
-      0x02, 0x00, 0x0d, 0x02, 0x03, 0x01, 0x05,  // start and end sequences
-      0xaa,                                      // priority = 0xaa
+      0x02, 0x00, 0x0e, 0x02, 0x03, 0x01, 0x05,  // start and end sequences
+      0xaa, 0x01,                                // priority, forward
       0x01,                                      // 1 parameter
       0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_token = "bar"
   };
@@ -1184,8 +1184,8 @@ TEST_F(MoqtMessageSpecificTest, SubscribeUpdateExactlyOneObject) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char subscribe_update[] = {
-      0x02, 0x00, 0x06, 0x02, 0x03, 0x01, 0x04,  // start and end sequences
-      0x20,                                      // priority
+      0x02, 0x00, 0x07, 0x02, 0x03, 0x01, 0x04,  // start and end sequences
+      0x20, 0x01,                                // priority, forward
       0x00,                                      // No parameters
   };
   stream.Receive(absl::string_view(subscribe_update, sizeof(subscribe_update)),
@@ -1198,8 +1198,8 @@ TEST_F(MoqtMessageSpecificTest, SubscribeUpdateEndGroupTooLow) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char subscribe_update[] = {
-      0x02, 0x00, 0x08, 0x02, 0x03, 0x01, 0x03,  // start and end sequences
-      0x20,                                      // priority
+      0x02, 0x00, 0x09, 0x02, 0x03, 0x01, 0x03,  // start and end sequences
+      0x20, 0x01,                                // priority, forward
       0x01,                                      // 1 parameter
       0x02, 0x20,                                // delivery_timeout = 32 ms
   };

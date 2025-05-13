@@ -65,7 +65,7 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
 
 TEST_F(SubscribeRemoteTrackTest, Queries) {
   EXPECT_EQ(track_.full_track_name(), FullTrackName("foo", "bar"));
-  EXPECT_EQ(track_.subscribe_id(), 1);
+  EXPECT_EQ(track_.request_id(), 1);
   EXPECT_EQ(track_.track_alias(), 2);
   EXPECT_EQ(track_.visitor(), &visitor_);
   EXPECT_FALSE(track_.is_fetch());
@@ -101,7 +101,7 @@ class UpstreamFetchTest : public quic::test::QuicTest {
         }) {}
 
   MoqtFetch fetch_message_ = {
-      /*fetch_id=*/1,
+      /*request_id=*/1,
       /*subscriber_priority=*/128,
       /*group_order=*/std::nullopt,
       /*joining_fetch=*/std::nullopt,
@@ -117,7 +117,7 @@ class UpstreamFetchTest : public quic::test::QuicTest {
 };
 
 TEST_F(UpstreamFetchTest, Queries) {
-  EXPECT_EQ(fetch_.subscribe_id(), 1);
+  EXPECT_EQ(fetch_.request_id(), 1);
   EXPECT_EQ(fetch_.full_track_name(), FullTrackName("foo", "bar"));
   EXPECT_FALSE(
       fetch_.CheckDataStreamType(MoqtDataStreamType::kStreamHeaderSubgroup));

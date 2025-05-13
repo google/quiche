@@ -66,6 +66,14 @@ class MoqtSessionInterface {
                                   SubscribeRemoteTrack::Visitor* visitor,
                                   VersionSpecificParameters parameters) = 0;
 
+  // If an argument is nullopt, there is no change to the current value.
+  virtual bool SubscribeUpdate(const FullTrackName& name,
+                               std::optional<Location> start,
+                               std::optional<uint64_t> end_group,
+                               std::optional<MoqtPriority> subscriber_priority,
+                               std::optional<bool> forward,
+                               VersionSpecificParameters parameters) = 0;
+
   // Sends an UNSUBSCRIBE message and removes all of the state related to the
   // subscription.  Returns false if the subscription is not found.
   virtual void Unsubscribe(const FullTrackName& name) = 0;

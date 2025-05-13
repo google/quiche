@@ -577,10 +577,11 @@ struct QUICHE_EXPORT MoqtSubscribeDone {
 };
 
 struct QUICHE_EXPORT MoqtSubscribeUpdate {
-  uint64_t subscribe_id;
+  uint64_t request_id;
   Location start;
   std::optional<uint64_t> end_group;
   MoqtPriority subscriber_priority;
+  bool forward;
   VersionSpecificParameters parameters;
 };
 
