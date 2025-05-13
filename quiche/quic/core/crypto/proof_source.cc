@@ -18,8 +18,9 @@ CryptoBuffers::~CryptoBuffers() {
   }
 }
 
-ProofSource::Chain::Chain(const std::vector<std::string>& certs)
-    : certs(certs) {}
+ProofSource::Chain::Chain(const std::vector<std::string>& certs,
+                          const std::string& trust_anchor_id)
+    : certs(certs), trust_anchor_id(trust_anchor_id) {}
 
 ProofSource::Chain::~Chain() {}
 

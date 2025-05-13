@@ -235,6 +235,12 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
                                       absl::string_view context,
                                       size_t result_len,
                                       std::string* result) = 0;
+
+    // Returns true if the server indicated during the handshake that it
+    // provided a certificate which matched one of the client-advertised trust
+    // anchor IDs
+    // (https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html#name-overview).
+    virtual bool MatchedTrustAnchorIdForTesting() const = 0;
   };
 
   // ProofHandler is an interface that handles callbacks from the crypto
@@ -306,6 +312,8 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
   bool ExportKeyingMaterial(absl::string_view label, absl::string_view context,
                             size_t result_len, std::string* result) override;
   std::string chlo_hash() const;
+
+  bool MatchedTrustAnchorIdForTesting() const;
 
  protected:
   void set_handshaker(std::unique_ptr<HandshakerInterface> handshaker) {

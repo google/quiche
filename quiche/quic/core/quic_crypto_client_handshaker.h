@@ -75,6 +75,7 @@ class QUICHE_EXPORT QuicCryptoClientHandshaker
     QUICHE_NOTREACHED();
     return false;
   }
+  bool MatchedTrustAnchorIdForTesting() const override { return false; }
 
   // From QuicCryptoHandshaker
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;

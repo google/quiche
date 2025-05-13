@@ -860,6 +860,12 @@ struct QUICHE_EXPORT QuicSSLConfig {
   // As a client, whether ECH GREASE is enabled. If `ech_config_list` is
   // not empty, this value does nothing.
   bool ech_grease_enabled = false;
+  // If non-empty, the TLS Trust Anchor IDs to send in the TLS handshake. (See
+  // https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html.)
+  // The value should be a series of Trust Anchor IDs in wire format (a series
+  // of non-empty, 8-bit length-prefixed strings). If empty, the Trust Anchor
+  // IDs extension will not be sent.
+  std::string trust_anchor_ids;
 };
 
 QUICHE_EXPORT bool operator==(const QuicSSLConfig& lhs,

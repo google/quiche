@@ -1098,7 +1098,8 @@ void TlsServerHandshaker::OnSelectCertificateDone(
         local_config != nullptr) {
       if (local_config->chain && !local_config->chain->certs.empty()) {
         tls_connection_.SetCertChain(
-            local_config->chain->ToCryptoBuffers().value);
+            local_config->chain->ToCryptoBuffers().value,
+            local_config->chain->trust_anchor_id);
         select_cert_status_ = QUIC_SUCCESS;
       } else {
         QUIC_DLOG(ERROR) << "No certs provided for host '"

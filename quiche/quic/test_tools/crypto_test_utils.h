@@ -75,7 +75,8 @@ struct FakeClientOptions {
 
 // Returns a QuicCryptoServerConfig that is in a reasonable configuration to
 // pass into HandshakeWithFakeServer.
-std::unique_ptr<QuicCryptoServerConfig> CryptoServerConfigForTesting();
+std::unique_ptr<QuicCryptoServerConfig> CryptoServerConfigForTesting(
+    const std::string& trust_anchor_id = "");
 
 // returns: the number of client hellos that the client sent.
 int HandshakeWithFakeServer(QuicConfig* server_quic_config,
@@ -170,8 +171,12 @@ void AdvanceHandshake(
 // Returns the value for the tag |tag| in the tag value map of |message|.
 std::string GetValueForTag(const CryptoHandshakeMessage& message, QuicTag tag);
 
-// Returns a new |ProofSource| that serves up test certificates.
-std::unique_ptr<ProofSource> ProofSourceForTesting();
+// Returns a new |ProofSource| that serves up test certificates. If
+// |trust_anchor_id| is provided, test certificates will be associated
+// with it as described at
+// https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html#section-4.1.
+std::unique_ptr<ProofSource> ProofSourceForTesting(
+    const std::string& trust_anchor_id = "");
 
 // Returns a new |ProofVerifier| that uses the QUIC testing root CA.
 std::unique_ptr<ProofVerifier> ProofVerifierForTesting();
