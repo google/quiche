@@ -95,6 +95,8 @@ void TlsServerConnection::SetCertChain(
           trust_anchor_id.size());
       SSL_CREDENTIAL_set_must_match_issuer(credential, 1);
     }
+#else
+    (void)trust_anchor_id;  // Suppress unused parameter error.
 #endif
     SSL_add1_credential(ssl(), credential);
     SSL_CREDENTIAL_free(credential);
