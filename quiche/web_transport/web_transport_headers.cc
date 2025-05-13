@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -104,6 +105,31 @@ absl::StatusOr<std::string> SerializeSubprotocolResponseHeader(
     return absl::InvalidArgumentError("Invalid token value supplied");
   }
   return std::string(subprotocol);
+}
+
+bool ValidateSubprotocolName(absl::string_view name) {
+  return !name.empty() && quiche::structured_headers::IsValidToken(name);
+}
+
+template <typename S>
+bool ValidateSubprotocolListBase(absl::Span<const S> list) {
+  absl::flat_hash_set<absl::string_view> examined;
+  for (const absl::string_view name : list) {
+    if (!ValidateSubprotocolName(name)) {
+      return false;
+    }
+    auto [it, added] = examined.insert(name);
+    if (!added) {
+      return false;
+    }
+  }
+  return true;
+}
+bool ValidateSubprotocolList(absl::Span<const absl::string_view> list) {
+  return ValidateSubprotocolListBase(list);
+}
+bool ValidateSubprotocolList(absl::Span<const std::string> list) {
+  return ValidateSubprotocolListBase(list);
 }
 
 absl::StatusOr<WebTransportInitHeader> ParseInitHeader(

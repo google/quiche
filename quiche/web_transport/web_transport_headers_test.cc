@@ -4,7 +4,12 @@
 
 #include "quiche/web_transport/web_transport_headers.h"
 
+#include <initializer_list>
+#include <string>
+#include <vector>
+
 #include "absl/status/status.h"
+#include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
@@ -117,6 +122,29 @@ TEST(WebTransportHeaders, SerializeInitHeader) {
   test_header.initial_outgoing_bidi_limit = 400;
   EXPECT_THAT(SerializeInitHeader(test_header),
               IsOkAndHolds("u=100, bl=200, br=400"));
+}
+
+// Helper to sidestep the fact that calling ValidateSubprotocolList directly
+// with an initializer list is ambiguous.
+bool ValidateSubprotocolListHelper(
+    std::initializer_list<absl::string_view> list) {
+  return ValidateSubprotocolList(list);
+}
+
+TEST(WebTransportHeaders, ValidateSubprotocolName) {
+  EXPECT_TRUE(ValidateSubprotocolName("test"));
+  EXPECT_FALSE(ValidateSubprotocolName("123"));
+  EXPECT_FALSE(ValidateSubprotocolName(""));
+
+  EXPECT_TRUE(ValidateSubprotocolListHelper({}));
+  EXPECT_TRUE(ValidateSubprotocolListHelper({"a", "b", "c"}));
+  EXPECT_FALSE(ValidateSubprotocolListHelper({"a", "1", "c"}));
+  EXPECT_FALSE(ValidateSubprotocolListHelper({"a", "b", "a"}));
+
+  std::vector<std::string> vec = {"a", "b"};
+  EXPECT_TRUE(ValidateSubprotocolList(vec));
+  vec.push_back("b");
+  EXPECT_FALSE(ValidateSubprotocolList(vec));
 }
 
 }  // namespace
