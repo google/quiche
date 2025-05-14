@@ -11,11 +11,13 @@
 
 #include "absl/cleanup/cleanup.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_default_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_udp_socket.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_system_event_loop.h"
 
@@ -99,10 +101,19 @@ bool QuicClientDefaultNetworkHelper::CreateUDPSocketAndBind(
                     << strerror(errno);
   }
 
-  if (event_loop_->RegisterSocket(
-          fd, kSocketEventReadable | kSocketEventWritable, this)) {
-    fd_address_map_[fd] = client_address;
+  if (RegisterSocket(fd, kSocketEventReadable | kSocketEventWritable,
+                     client_address)) {
     std::move(closer).Cancel();
+    return true;
+  }
+  return false;
+}
+
+bool QuicClientDefaultNetworkHelper::RegisterSocket(
+    SocketFd fd, QuicSocketEventMask event_mask,
+    QuicSocketAddress client_address) {
+  if (event_loop_->RegisterSocket(fd, event_mask, this)) {
+    fd_address_map_[fd] = client_address;
     return true;
   }
   return false;

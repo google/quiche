@@ -15,6 +15,7 @@
 #include "quiche/quic/core/quic_default_packet_writer.h"
 #include "quiche/quic/core/quic_packet_reader.h"
 #include "quiche/quic/core/quic_udp_socket.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_client_base.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 
@@ -130,6 +131,13 @@ class QuicClientDefaultNetworkHelper : public QuicClientBase::NetworkHelper,
 
   // Actually clean up |fd|.
   virtual void CleanUpUDPSocketImpl(SocketFd fd);
+
+ protected:
+  // For use by subclasses, registers the provided socket with the event loop
+  // and records it in the address map. Returns true if registration was
+  // successful, false otherwise.
+  bool RegisterSocket(SocketFd fd, QuicSocketEventMask event_mask,
+                      QuicSocketAddress client_address);
 
  private:
   // Listens for events on the client socket.
