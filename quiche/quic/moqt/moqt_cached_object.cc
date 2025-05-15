@@ -6,7 +6,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace moqt {
 
