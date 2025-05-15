@@ -25,7 +25,7 @@
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace quic {
 

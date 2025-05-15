@@ -32,8 +32,8 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
 namespace moqt::moq_chat {

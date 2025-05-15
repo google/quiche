@@ -24,9 +24,9 @@
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/common/masque/connect_udp_datagram_payload.h"
 #include "quiche/common/platform/api/quiche_googleurl.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_url_utils.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace quic::test {
 namespace {
