@@ -23,8 +23,8 @@
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/core/web_transport_stats.h"
 #include "quiche/common/http/http_header_block.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic {
