@@ -65,7 +65,7 @@ MultivaluedHeadersSet* buildMultivaluedHeaders() {
   return multivalued_headers;
 }
 
-std::array<bool, 256> buildInvalidHeaderKeyCharLookupTable() {
+constexpr std::array<bool, 256> buildInvalidHeaderKeyCharLookupTable() {
   std::array<bool, 256> invalidCharTable;
   invalidCharTable.fill(false);
   for (uint8_t c : kInvalidHeaderKeyCharList) {
@@ -74,7 +74,8 @@ std::array<bool, 256> buildInvalidHeaderKeyCharLookupTable() {
   return invalidCharTable;
 }
 
-std::array<bool, 256> buildInvalidHeaderKeyCharLookupTableAllowDoubleQuote() {
+constexpr std::array<bool, 256>
+buildInvalidHeaderKeyCharLookupTableAllowDoubleQuote() {
   std::array<bool, 256> invalidCharTable;
   invalidCharTable.fill(false);
   for (uint8_t c : kInvalidHeaderKeyCharListAllowDoubleQuote) {
@@ -83,7 +84,7 @@ std::array<bool, 256> buildInvalidHeaderKeyCharLookupTableAllowDoubleQuote() {
   return invalidCharTable;
 }
 
-std::array<bool, 256> buildInvalidCharLookupTable() {
+constexpr std::array<bool, 256> buildInvalidCharLookupTable() {
   std::array<bool, 256> invalidCharTable;
   invalidCharTable.fill(false);
   for (uint8_t c : kInvalidHeaderCharList) {
@@ -92,7 +93,7 @@ std::array<bool, 256> buildInvalidCharLookupTable() {
   return invalidCharTable;
 }
 
-std::array<bool, 256> buildInvalidPathCharLookupTable() {
+constexpr std::array<bool, 256> buildInvalidPathCharLookupTable() {
   std::array<bool, 256> invalidCharTable;
   invalidCharTable.fill(true);
   for (uint8_t c : kValidPathCharList) {
@@ -101,7 +102,7 @@ std::array<bool, 256> buildInvalidPathCharLookupTable() {
   return invalidCharTable;
 }
 
-std::array<bool, 256> buildInvalidQueryCharLookupTable() {
+constexpr std::array<bool, 256> buildInvalidQueryCharLookupTable() {
   std::array<bool, 256> invalidCharTable;
   invalidCharTable.fill(true);
   for (uint8_t c : kValidQueryCharList) {
