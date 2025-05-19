@@ -36,7 +36,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_server_on_wire_ping, true, 
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_version_rfcv2, false, false, "When true, support RFC9369.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fin_before_completed_http_headers, false, true, "If true, close the connection with error if FIN is received before finish receiving the whole HTTP headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_timeouts, true, true, "If true, postpone setting handshake timeout to infinite to handshake complete.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_heapless_obfuscator, false, false, "If true, generates QUIC initial obfuscators with no heap allocations.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_heapless_obfuscator, false, true, "If true, generates QUIC initial obfuscators with no heap allocations.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_heapless_static_parser, false, false, "If true, stops parsing immediately on unknown version, to avoid a potential malloc when parsing the connection ID")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_ignore_gquic_probing, true, true, "If true, QUIC server will not respond to gQUIC probing packet(PING + PADDING) but treat it as a regular packet.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_limit_new_streams_per_loop_2, true, true, "If true, when the peer sends connection options \\\'SLP1\\\', \\\'SLP2\\\' and \\\'SLPF\\\', internet facing GFEs will only allow a limited number of new requests to be processed per event loop, and postpone the rest to the following event loops. Also guard QuicConnection to iterate through all decrypters at each encryption level to get cipher id for a request.")
