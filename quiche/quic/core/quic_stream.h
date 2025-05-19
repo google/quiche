@@ -39,8 +39,8 @@
 #include "quiche/quic/core/session_notifier_interface.h"
 #include "quiche/quic/core/stream_delegate_interface.h"
 #include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace quic {
 

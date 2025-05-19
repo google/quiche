@@ -22,7 +22,7 @@
 #include "quiche/quic/test_tools/quic_config_peer.h"
 #include "quiche/quic/test_tools/quic_sent_packet_manager_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
-#include "quiche/common/platform/api/quiche_mem_slice.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 using testing::_;
 using testing::AnyNumber;
