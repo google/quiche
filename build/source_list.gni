@@ -31,7 +31,6 @@ quiche_core_hdrs = [
     "src/quiche/common/platform/api/quiche_iovec.h",
     "src/quiche/common/platform/api/quiche_logging.h",
     "src/quiche/common/platform/api/quiche_lower_case_string.h",
-    "src/quiche/common/platform/api/quiche_mem_slice.h",
     "src/quiche/common/platform/api/quiche_reference_counted.h",
     "src/quiche/common/platform/api/quiche_server_stats.h",
     "src/quiche/common/platform/api/quiche_stack_trace.h",

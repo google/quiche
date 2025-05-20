@@ -30,7 +30,6 @@
     "quiche/common/platform/api/quiche_iovec.h",
     "quiche/common/platform/api/quiche_logging.h",
     "quiche/common/platform/api/quiche_lower_case_string.h",
-    "quiche/common/platform/api/quiche_mem_slice.h",
     "quiche/common/platform/api/quiche_reference_counted.h",
     "quiche/common/platform/api/quiche_server_stats.h",
     "quiche/common/platform/api/quiche_stack_trace.h",

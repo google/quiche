@@ -1,6 +1,0 @@
-#ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_MEM_SLICE_H_
-#define QUICHE_COMMON_PLATFORM_API_QUICHE_MEM_SLICE_H_
-
-#include "quiche/common/quiche_mem_slice.h"
-
-#endif  // QUICHE_COMMON_PLATFORM_API_QUICHE_MEM_SLICE_H_
