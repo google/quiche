@@ -4,19 +4,20 @@
 
 #include "quiche/quic/core/crypto/crypto_utils.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
-#include "absl/base/macros.h"
-#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "openssl/err.h"
 #include "openssl/ssl.h"
-#include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/test_tools/quic_test_utils.h"
-#include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
 namespace test {
@@ -362,6 +363,26 @@ TEST_F(CryptoUtilsTest, GetSSLErrorStack) {
               AllOf(HasSubstr(error_location), HasSubstr("WRONG_SSL_VERSION")));
   EXPECT_TRUE(CryptoUtils::GetSSLErrorStack().empty());
   ERR_clear_error();
+}
+
+// The heapless version of GenerateNextKeyPhaseSecret is sometimes called so
+// that the output is written into the memory that contains the input. This
+// test verifies that the result is no different than if the output goes
+// elsewhere.
+TEST_F(CryptoUtilsTest, NextKeyPhaseOnItself) {
+  std::vector<uint8_t> start_secret = {1, 2,  3,  4,  5,  6,  7,  8,
+                                       9, 10, 11, 12, 13, 14, 15, 16};
+  std::vector<uint8_t> separate_result;
+  separate_result.resize(start_secret.size());
+  CryptoUtils::GenerateNextKeyPhaseSecret(
+      EVP_sha256(), ParsedQuicVersion::RFCv1(),
+      absl::Span<const uint8_t>(start_secret),
+      absl::Span<uint8_t>(separate_result));
+  CryptoUtils::GenerateNextKeyPhaseSecret(
+      EVP_sha256(), ParsedQuicVersion::RFCv1(),
+      absl::Span<const uint8_t>(start_secret),
+      absl::Span<uint8_t>(start_secret));
+  EXPECT_EQ(separate_result, start_secret);
 }
 
 }  // namespace

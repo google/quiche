@@ -50,6 +50,9 @@ namespace quic {
 
 namespace {
 
+inline constexpr size_t kMaxKeySize = 32;
+inline constexpr size_t kMaxIVSize = 12;
+
 // Implements the HKDF-Expand-Label function as defined in section 7.1 of RFC
 // 8446. The HKDF-Expand-Label function takes 4 explicit arguments (Secret,
 // Label, Context, and Length), as well as implicit PRF which is the hash
@@ -97,6 +100,10 @@ bool HkdfExpandLabel(const EVP_MD* prf, absl::Span<const uint8_t> secret,
 std::vector<uint8_t> HkdfExpandLabel(const EVP_MD* prf,
                                      absl::Span<const uint8_t> secret,
                                      const std::string& label, size_t out_len) {
+  if (GetQuicReloadableFlag(quic_heapless_key_derivation)) {
+    // This value should be zero; the flag should eliminate all paths to here.
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_key_derivation, 1, 10);
+  }
   bssl::ScopedCBB quic_hkdf_label;
   CBB inner_label;
   const char label_prefix[] = "tls13 ";
@@ -158,6 +165,10 @@ absl::string_view GetLabelForVersion(const ParsedQuicVersion& version,
 // TODO(martinduke): Delete this.
 std::string getLabelForVersion(const ParsedQuicVersion& version,
                                const absl::string_view& predicate) {
+  if (GetQuicReloadableFlag(quic_heapless_key_derivation)) {
+    // This value should be zero; the flag should eliminate all paths to here.
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_key_derivation, 2, 10);
+  }
   static_assert(SupportedVersions().size() == 4u,
                 "Supported versions out of sync with HKDF labels");
   if (version == ParsedQuicVersion::RFCv2()) {
@@ -174,7 +185,7 @@ void CryptoUtils::InitializeCrypterSecrets(const EVP_MD* prf,
                                            QuicCrypter* crypter) {
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 4, 7);
   SetKeyAndIVHeapless(prf, pp_secret, version, crypter);
-  uint8_t header_protection_key[16];
+  uint8_t header_protection_key[kMaxKeySize];
   QUIC_BUG_IF(quic_bug_hp_length_mismatch,
               crypter->GetKeySize() > sizeof(header_protection_key))
       << "HP length does not match crypter";
@@ -189,6 +200,10 @@ void CryptoUtils::InitializeCrypterSecrets(const EVP_MD* prf,
 void CryptoUtils::InitializeCrypterSecrets(
     const EVP_MD* prf, const std::vector<uint8_t>& pp_secret,
     const ParsedQuicVersion& version, QuicCrypter* crypter) {
+  if (GetQuicReloadableFlag(quic_heapless_key_derivation)) {
+    // This value should be zero; the flag should eliminate all paths to here.
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_key_derivation, 3, 10);
+  }
   SetKeyAndIV(prf, pp_secret, version, crypter);
   std::vector<uint8_t> header_protection_key = GenerateHeaderProtectionKey(
       prf, pp_secret, version, crypter->GetKeySize());
@@ -203,7 +218,7 @@ void CryptoUtils::SetKeyAndIVHeapless(const EVP_MD* prf,
                                       const ParsedQuicVersion& version,
                                       QuicCrypter* crypter) {
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 5, 7);
-  uint8_t key[16];
+  uint8_t key[kMaxKeySize];
   QUIC_BUG_IF(quic_bug_key_length_mismatch, crypter->GetKeySize() > sizeof(key))
       << "Key length does not match crypter";
 
@@ -214,7 +229,7 @@ void CryptoUtils::SetKeyAndIVHeapless(const EVP_MD* prf,
       absl::Span<char>(version_label_raw, kMaxVersionLabelLength));
   HkdfExpandLabel(prf, pp_secret, version_label,
                   absl::Span<uint8_t>(key, crypter->GetKeySize()));
-  uint8_t iv[12];
+  uint8_t iv[kMaxIVSize];
   QUIC_BUG_IF(quic_bug_iv_length_mismatch, crypter->GetIVSize() > sizeof(iv))
       << "IV length does not match crypter";
   constexpr absl::string_view kIvPredicate = "iv";
@@ -233,6 +248,10 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
                               absl::Span<const uint8_t> pp_secret,
                               const ParsedQuicVersion& version,
                               QuicCrypter* crypter) {
+  if (GetQuicReloadableFlag(quic_heapless_key_derivation)) {
+    // This value should be zero; the flag should eliminate all paths to here.
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_key_derivation, 4, 10);
+  }
   std::vector<uint8_t> key =
       HkdfExpandLabel(prf, pp_secret, getLabelForVersion(version, "key"),
                       crypter->GetKeySize());
@@ -260,6 +279,10 @@ bool CryptoUtils::GenerateHeaderProtectionKey(
 std::vector<uint8_t> CryptoUtils::GenerateHeaderProtectionKey(
     const EVP_MD* prf, absl::Span<const uint8_t> pp_secret,
     const ParsedQuicVersion& version, size_t out_len) {
+  if (GetQuicReloadableFlag(quic_heapless_key_derivation)) {
+    // This value should be zero; the flag should eliminate all paths to here.
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_key_derivation, 5, 10);
+  }
   return HkdfExpandLabel(prf, pp_secret, getLabelForVersion(version, "hp"),
                          out_len);
 }
@@ -280,6 +303,10 @@ bool CryptoUtils::GenerateNextKeyPhaseSecret(
 std::vector<uint8_t> CryptoUtils::GenerateNextKeyPhaseSecret(
     const EVP_MD* prf, const ParsedQuicVersion& version,
     const std::vector<uint8_t>& current_secret) {
+  if (GetQuicReloadableFlag(quic_heapless_key_derivation)) {
+    // This value should be zero; the flag should eliminate all paths to here.
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_key_derivation, 6, 10);
+  }
   return HkdfExpandLabel(prf, current_secret, getLabelForVersion(version, "ku"),
                          current_secret.size());
 }

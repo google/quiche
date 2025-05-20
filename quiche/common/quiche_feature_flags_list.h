@@ -36,6 +36,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_server_on_wire_ping, true, 
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_version_rfcv2, false, false, "When true, support RFC9369.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fin_before_completed_http_headers, false, true, "If true, close the connection with error if FIN is received before finish receiving the whole HTTP headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_timeouts, true, true, "If true, postpone setting handshake timeout to infinite to handshake complete.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_heapless_key_derivation, false, false, "If true, QUIC key derivation uses heapless crypto utils.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_heapless_obfuscator, false, true, "If true, generates QUIC initial obfuscators with no heap allocations.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_heapless_static_parser, false, false, "If true, stops parsing immediately on unknown version, to avoid a potential malloc when parsing the connection ID")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_ignore_gquic_probing, true, true, "If true, QUIC server will not respond to gQUIC probing packet(PING + PADDING) but treat it as a regular packet.")
