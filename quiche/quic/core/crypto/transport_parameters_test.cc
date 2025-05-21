@@ -645,7 +645,6 @@ TEST_P(TransportParametersTest, ParseClientParams) {
             new_params.initial_max_streams_uni.value());
   EXPECT_EQ(kAckDelayExponentForTest, new_params.ack_delay_exponent.value());
   EXPECT_EQ(kMaxAckDelayForTest, new_params.max_ack_delay.value());
-  EXPECT_EQ(0, new_params.min_ack_delay_us.value());
   EXPECT_EQ(kMinAckDelayUsForTest, *new_params.min_ack_delay_us_draft10);
   EXPECT_EQ(kFakeDisableMigration, new_params.disable_active_migration);
   EXPECT_EQ(kFakeReliableStreamReset, new_params.reliable_stream_reset);
@@ -917,7 +916,6 @@ TEST_P(TransportParametersTest, ParseServerParams) {
             new_params.initial_max_streams_uni.value());
   EXPECT_EQ(kAckDelayExponentForTest, new_params.ack_delay_exponent.value());
   EXPECT_EQ(kMaxAckDelayForTest, new_params.max_ack_delay.value());
-  EXPECT_EQ(0, new_params.min_ack_delay_us.value());
   EXPECT_EQ(kMinAckDelayUsForTest, *new_params.min_ack_delay_us_draft10);
   EXPECT_EQ(kFakeDisableMigration, new_params.disable_active_migration);
   EXPECT_EQ(kFakeReliableStreamReset, new_params.reliable_stream_reset);
@@ -1050,7 +1048,6 @@ TEST_P(TransportParametersTest, SerializationOrderIsRandom) {
   orig_params.initial_max_streams_uni.set_value(kFakeInitialMaxStreamsUni);
   orig_params.ack_delay_exponent.set_value(kAckDelayExponentForTest);
   orig_params.max_ack_delay.set_value(kMaxAckDelayForTest);
-  orig_params.min_ack_delay_us.set_value(0);
   orig_params.min_ack_delay_us_draft10 = kMinAckDelayUsForTest;
   orig_params.disable_active_migration = kFakeDisableMigration;
   orig_params.reliable_stream_reset = kFakeReliableStreamReset;
@@ -1096,7 +1093,6 @@ TEST_P(TransportParametersTest, Degrease) {
   orig_params.initial_max_streams_uni.set_value(kFakeInitialMaxStreamsUni);
   orig_params.ack_delay_exponent.set_value(kAckDelayExponentForTest);
   orig_params.max_ack_delay.set_value(kMaxAckDelayForTest);
-  orig_params.min_ack_delay_us.set_value(0);
   orig_params.min_ack_delay_us_draft10 = kMinAckDelayUsForTest;
   orig_params.disable_active_migration = kFakeDisableMigration;
   orig_params.reliable_stream_reset = kFakeReliableStreamReset;
@@ -1156,7 +1152,6 @@ class TransportParametersTicketSerializationTest : public QuicTest {
         kFakeInitialMaxStreamsUni);
     original_params_.ack_delay_exponent.set_value(kAckDelayExponentForTest);
     original_params_.max_ack_delay.set_value(kMaxAckDelayForTest);
-    original_params_.min_ack_delay_us.set_value(0);
     original_params_.min_ack_delay_us_draft10 = kMinAckDelayUsForTest;
     original_params_.disable_active_migration = kFakeDisableMigration;
     original_params_.reliable_stream_reset = kFakeReliableStreamReset;

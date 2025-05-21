@@ -12,16 +12,15 @@
 #include <utility>
 #include <vector>
 
-#include "quiche/quic/core/congestion_control/general_loss_algorithm.h"
 #include "quiche/quic/core/congestion_control/pacing_sender.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
-#include "quiche/quic/core/proto/cached_network_parameters_proto.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_tag.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_transmission_info.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -124,9 +123,9 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   }
   if (GetQuicReloadableFlag(quic_can_send_ack_frequency) &&
       perspective == Perspective::IS_SERVER) {
-    if (config.HasReceivedMinAckDelayMs()) {
-      peer_min_ack_delay_ =
-          QuicTime::Delta::FromMilliseconds(config.ReceivedMinAckDelayMs());
+    if (config.HasReceivedMinAckDelayDraft10Ms()) {
+      peer_min_ack_delay_ = QuicTime::Delta::FromMilliseconds(
+          config.ReceivedMinAckDelayDraft10Ms());
     }
     if (config.HasClientSentConnectionOption(kAFF1, perspective)) {
       use_smoothed_rtt_in_ack_delay_ = true;

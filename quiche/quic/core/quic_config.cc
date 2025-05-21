@@ -448,7 +448,6 @@ QuicConfig::QuicConfig()
       alternate_server_address_ipv4_(kASAD, PRESENCE_OPTIONAL),
       stateless_reset_token_(kSRST, PRESENCE_OPTIONAL),
       max_ack_delay_ms_(kMAD, PRESENCE_OPTIONAL),
-      min_ack_delay_ms_(0, PRESENCE_OPTIONAL),
       min_ack_delay_ms_draft10_(0, PRESENCE_OPTIONAL),
       ack_delay_exponent_(kADE, PRESENCE_OPTIONAL),
       max_udp_payload_size_(0, PRESENCE_OPTIONAL),
@@ -646,12 +645,12 @@ uint64_t QuicConfig::GetMinAckDelayDraft10ToSendMs() const {
   return min_ack_delay_ms_draft10_.GetSendValue();
 }
 
-bool QuicConfig::HasReceivedMinAckDelayMs() const {
-  return min_ack_delay_ms_.HasReceivedValue();
+bool QuicConfig::HasReceivedMinAckDelayDraft10Ms() const {
+  return min_ack_delay_ms_draft10_.HasReceivedValue();
 }
 
-uint32_t QuicConfig::ReceivedMinAckDelayMs() const {
-  return min_ack_delay_ms_.GetReceivedValue();
+uint32_t QuicConfig::ReceivedMinAckDelayDraft10Ms() const {
+  return min_ack_delay_ms_draft10_.GetReceivedValue();
 }
 
 void QuicConfig::SetAckDelayExponentToSend(uint32_t exponent) {
@@ -1229,10 +1228,6 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   params->initial_max_streams_uni.set_value(
       GetMaxUnidirectionalStreamsToSend());
   params->max_ack_delay.set_value(GetMaxAckDelayToSendMs());
-  if (min_ack_delay_ms_.HasSendValue()) {
-    params->min_ack_delay_us.set_value(min_ack_delay_ms_.GetSendValue() *
-                                       kNumMicrosPerMilli);
-  }
   if (min_ack_delay_ms_draft10_.HasSendValue()) {
     params->min_ack_delay_us_draft10 =
         min_ack_delay_ms_draft10_.GetSendValue() * kNumMicrosPerMilli;
@@ -1391,22 +1386,6 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
             *reinterpret_cast<const StatelessResetToken*>(
                 &params.preferred_address->stateless_reset_token.front()));
       }
-    }
-    if (params.min_ack_delay_us.value() > 0 &&
-        params.min_ack_delay_us_draft10.has_value()) {
-      *error_details =
-          "Two versions of MinAckDelay. ACK_FREQUENCY frames are "
-          "ambiguous.";
-      return IETF_QUIC_PROTOCOL_VIOLATION;
-    }
-    if (params.min_ack_delay_us.value() != 0) {
-      if (params.min_ack_delay_us.value() >
-          params.max_ack_delay.value() * kNumMicrosPerMilli) {
-        *error_details = "MinAckDelay is greater than MaxAckDelay.";
-        return IETF_QUIC_PROTOCOL_VIOLATION;
-      }
-      min_ack_delay_ms_.SetReceivedValue(params.min_ack_delay_us.value() /
-                                         kNumMicrosPerMilli);
     }
     if (params.min_ack_delay_us_draft10.has_value()) {
       if (*params.min_ack_delay_us_draft10 >

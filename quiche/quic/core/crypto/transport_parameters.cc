@@ -76,9 +76,8 @@ enum TransportParameters::TransportParameterId : uint64_t {
   kGoogleQuicVersion =
       0x4752,  // Used to transmit version and supported_versions.
 
-  kMinAckDelay = 0xDE1A,             // draft-iyengar-quic-delayed-ack.
-  kMinAckDelayDraft10 = 0xFF04DE1B,  // draft-ietf-quic-delayed-ack-10.
-  kVersionInformation = 0x11,  // RFC 9368.
+  kMinAckDelayDraft10 = 0xFF04DE1B,  // draft-ietf-quic-delayed-ack-10 and -11.
+  kVersionInformation = 0x11,        // RFC 9368.
 
   // draft-ietf-quic-reliable-stream-reset.
   kReliableStreamReset = 0x17F7586D2CB571,
@@ -149,7 +148,6 @@ std::string TransportParameterIdToString(
       return "google_connection_options";
     case TransportParameters::kGoogleQuicVersion:
       return "google-version";
-    case TransportParameters::kMinAckDelay:
     case TransportParameters::kMinAckDelayDraft10:
       return "min_ack_delay_us";
     case TransportParameters::kVersionInformation:
@@ -228,7 +226,6 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kInitialRoundTripTime:
     case TransportParameters::kGoogleConnectionOptions:
     case TransportParameters::kGoogleQuicVersion:
-    case TransportParameters::kMinAckDelay:
     case TransportParameters::kMinAckDelayDraft10:
     case TransportParameters::kReliableStreamReset:
     case TransportParameters::kVersionInformation:
@@ -448,7 +445,6 @@ std::string TransportParameters::ToString() const {
   rv += initial_max_streams_uni.ToString(/*for_use_in_list=*/true);
   rv += ack_delay_exponent.ToString(/*for_use_in_list=*/true);
   rv += max_ack_delay.ToString(/*for_use_in_list=*/true);
-  rv += min_ack_delay_us.ToString(/*for_use_in_list=*/true);
   if (min_ack_delay_us_draft10.has_value()) {
     absl::StrAppend(&rv, " ", TransportParameterIdToString(kMinAckDelayDraft10),
                     " ", *min_ack_delay_us_draft10);
@@ -527,8 +523,6 @@ TransportParameters::TransportParameters()
                          kMaxAckDelayExponentTransportParam),
       max_ack_delay(kMaxAckDelay, kDefaultMaxAckDelayTransportParam, 0,
                     kMaxMaxAckDelayTransportParam),
-      min_ack_delay_us(kMinAckDelay, 0, 0,
-                       kMaxMaxAckDelayTransportParam * kNumMicrosPerMilli),
       disable_active_migration(false),
       active_connection_id_limit(kActiveConnectionIdLimit,
                                  kDefaultActiveConnectionIdLimitTransportParam,
@@ -562,7 +556,6 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       initial_max_streams_uni(other.initial_max_streams_uni),
       ack_delay_exponent(other.ack_delay_exponent),
       max_ack_delay(other.max_ack_delay),
-      min_ack_delay_us(other.min_ack_delay_us),
       min_ack_delay_us_draft10(other.min_ack_delay_us_draft10),
       disable_active_migration(other.disable_active_migration),
       active_connection_id_limit(other.active_connection_id_limit),
@@ -603,7 +596,6 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
             rhs.initial_max_streams_uni.value() &&
         ack_delay_exponent.value() == rhs.ack_delay_exponent.value() &&
         max_ack_delay.value() == rhs.max_ack_delay.value() &&
-        min_ack_delay_us.value() == rhs.min_ack_delay_us.value() &&
         min_ack_delay_us_draft10 == rhs.min_ack_delay_us_draft10 &&
         disable_active_migration == rhs.disable_active_migration &&
         active_connection_id_limit.value() ==
@@ -697,6 +689,12 @@ bool TransportParameters::AreValid(std::string* error_details) const {
     *error_details = "Server cannot send initial round trip time";
     return false;
   }
+  if (min_ack_delay_us_draft10.has_value() &&
+      (*min_ack_delay_us_draft10 >
+       (max_ack_delay.value() * kNumMicrosPerMilli))) {
+    *error_details = "min_ack_delay cannot be larger than max_ack_delay";
+    return false;
+  }
   if (version_information.has_value()) {
     const QuicVersionLabel& chosen_version =
         version_information->chosen_version;
@@ -728,7 +726,7 @@ bool TransportParameters::AreValid(std::string* error_details) const {
       initial_max_stream_data_uni.IsValid() &&
       initial_max_streams_bidi.IsValid() && initial_max_streams_uni.IsValid() &&
       ack_delay_exponent.IsValid() && max_ack_delay.IsValid() &&
-      min_ack_delay_us.IsValid() && active_connection_id_limit.IsValid() &&
+      active_connection_id_limit.IsValid() &&
       max_datagram_frame_size.IsValid() && initial_round_trip_time_us.IsValid();
   if (!ok) {
     *error_details = "Invalid transport parameters " + this->ToString();
@@ -795,7 +793,6 @@ bool SerializeTransportParameters(const TransportParameters& in,
       kIntegerParameterLength +           // initial_max_streams_uni
       kIntegerParameterLength +           // ack_delay_exponent
       kIntegerParameterLength +           // max_ack_delay
-      kIntegerParameterLength +           // min_ack_delay_us
       kIntegerParameterLength +           // min_ack_delay_us_draft10
       kTypeAndValueLength +               // disable_active_migration
       kPreferredAddressParameterLength +  // preferred_address
@@ -823,7 +820,6 @@ bool SerializeTransportParameters(const TransportParameters& in,
       TransportParameters::kInitialMaxStreamsUni,
       TransportParameters::kAckDelayExponent,
       TransportParameters::kMaxAckDelay,
-      TransportParameters::kMinAckDelay,
       TransportParameters::kMinAckDelayDraft10,
       TransportParameters::kActiveConnectionIdLimit,
       TransportParameters::kMaxDatagramFrameSize,
@@ -1026,10 +1022,6 @@ bool SerializeTransportParameters(const TransportParameters& in,
               << "Failed to write max_ack_delay for " << in;
           return false;
         }
-      } break;
-      // min_ack_delay_us
-      case TransportParameters::kMinAckDelay: {
-        QUICHE_DCHECK(in.min_ack_delay_us.value() == 0);
       } break;
       // min_ack_delay_us_draft10
       case TransportParameters::kMinAckDelayDraft10: {
@@ -1608,10 +1600,6 @@ bool ParseTransportParameters(ParsedQuicVersion version,
           out->version_information->other_versions.push_back(other_version);
         }
       } break;
-      case TransportParameters::kMinAckDelay:
-        parse_success =
-            out->min_ack_delay_us.Read(&value_reader, error_details);
-        break;
       case TransportParameters::kMinAckDelayDraft10: {
         if (out->min_ack_delay_us_draft10.has_value()) {
           *error_details = "Received a second min_ack_delay_us_draft10";

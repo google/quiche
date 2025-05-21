@@ -223,9 +223,6 @@ struct QUICHE_EXPORT TransportParameters {
   // delay sending acknowledgments.
   IntegerParameter max_ack_delay;
 
-  // Minimum amount of time in microseconds by which the endpoint will
-  // delay sending acknowledgments. Used to enable sender control of ack delay.
-  IntegerParameter min_ack_delay_us;
   // There is no "default" value for this. If it is not nullopt, it should be
   // sent regardless of the default value. Even if the incoming value matches
   // the default, it indicates readiness to receive ACK_FREQUENCY and

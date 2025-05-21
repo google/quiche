@@ -481,8 +481,8 @@ class QUICHE_EXPORT QuicConfig {
   void SetMinAckDelayDraft10Ms(uint64_t min_ack_delay_ms);
   bool HasMinAckDelayDraft10ToSend() const;
   uint64_t GetMinAckDelayDraft10ToSendMs() const;
-  bool HasReceivedMinAckDelayMs() const;
-  uint32_t ReceivedMinAckDelayMs() const;
+  bool HasReceivedMinAckDelayDraft10Ms() const;
+  uint32_t ReceivedMinAckDelayDraft10Ms() const;
 
   void SetAckDelayExponentToSend(uint32_t exponent);
   uint32_t GetAckDelayExponentToSend() const;
@@ -668,9 +668,9 @@ class QUICHE_EXPORT QuicConfig {
   // Uses the max_ack_delay transport parameter in IETF QUIC.
   QuicFixedUint32 max_ack_delay_ms_;
 
-  // Minimum ack delay. Used to enable sender control of max_ack_delay.
-  // Uses the min_ack_delay transport parameter in IETF QUIC extension.
-  QuicFixedUint32 min_ack_delay_ms_;
+  // Minimum ack delay. Used to enable sender control of min_ack_delay.
+  // Uses the min_ack_delay transport parameter in IETF QUIC extension,
+  // draft-10 through -11.
   QuicFixedUint62 min_ack_delay_ms_draft10_;
 
   // The sent exponent is the exponent that this node uses when serializing an

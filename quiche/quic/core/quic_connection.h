@@ -1315,14 +1315,6 @@ class QUICHE_EXPORT QuicConnection
       std::unique_ptr<QuicPathValidator::ResultDelegate> result_delegate,
       PathValidationReason reason);
 
-  bool can_receive_ack_frequency_frame() const {
-    return can_receive_ack_frequency_frame_;
-  }
-
-  void set_can_receive_ack_frequency_frame() {
-    can_receive_ack_frequency_frame_ = true;
-  }
-
   void set_can_receive_ack_frequency_immediate_ack(bool can_receive) {
     can_receive_ack_frequency_immediate_ack_ = can_receive;
   }
@@ -2476,7 +2468,6 @@ class QUICHE_EXPORT QuicConnection
       GetQuicFlag(quic_anti_amplification_factor);
 
   // True if AckFrequencyFrame is supported.
-  bool can_receive_ack_frequency_frame_ = false;
   bool can_receive_ack_frequency_immediate_ack_ = false;
 
   // Indicate whether coalescing is done.

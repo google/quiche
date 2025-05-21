@@ -2112,7 +2112,7 @@ bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
     return false;
   }
 
-  if (!can_receive_ack_frequency_frame_) {
+  if (!can_receive_ack_frequency_immediate_ack_) {
     QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Get unexpected AckFrequencyFrame.";
     return false;
   }

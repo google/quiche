@@ -3584,7 +3584,7 @@ TEST_P(QuicConnectionTest, AckFrequencyUpdatedFromAckFrequencyFrame) {
   if (!GetParam().version.HasIetfQuicFrames()) {
     return;
   }
-  connection_.set_can_receive_ack_frequency_frame();
+  connection_.set_can_receive_ack_frequency_immediate_ack(true);
 
   // Expect 13 acks, every 3rd packet including the first packet with
   // AckFrequencyFrame.
@@ -15799,7 +15799,6 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   connection_.CreateConnectionIdManager();
   QuicConnectionPeer::GetSelfIssuedConnectionIdManager(&connection_)
       ->MaybeSendNewConnectionIds();
-  connection_.set_can_receive_ack_frequency_frame();
   connection_.set_can_receive_ack_frequency_immediate_ack(true);
 
   QuicAckFrame ack_frame = InitAckFrame(1);
