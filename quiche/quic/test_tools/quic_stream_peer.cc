@@ -7,6 +7,7 @@
 #include <list>
 
 #include "quiche/quic/core/quic_stream.h"
+#include "quiche/quic/core/quic_stream_send_buffer_base.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/test_tools/quic_flow_controller_peer.h"
 #include "quiche/quic/test_tools/quic_stream_send_buffer_peer.h"
@@ -22,10 +23,7 @@ void QuicStreamPeer::SetWriteSideClosed(bool value, QuicStream* stream) {
 // static
 void QuicStreamPeer::SetStreamBytesWritten(
     QuicStreamOffset stream_bytes_written, QuicStream* stream) {
-  stream->send_buffer_.stream_bytes_written_ = stream_bytes_written;
-  stream->send_buffer_.stream_bytes_outstanding_ = stream_bytes_written;
-  QuicStreamSendBufferPeer::SetStreamOffset(&stream->send_buffer_,
-                                            stream_bytes_written);
+  stream->send_buffer_->SetStreamOffsetForTest(stream_bytes_written);
 }
 
 // static
@@ -101,8 +99,8 @@ QuicSession* QuicStreamPeer::session(QuicStream* stream) {
 }
 
 // static
-QuicStreamSendBuffer& QuicStreamPeer::SendBuffer(QuicStream* stream) {
-  return stream->send_buffer_;
+QuicStreamSendBufferBase& QuicStreamPeer::SendBuffer(QuicStream* stream) {
+  return stream->send_buffer();
 }
 
 // static
