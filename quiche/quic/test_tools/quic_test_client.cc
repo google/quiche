@@ -144,9 +144,6 @@ void MockableQuicClientDefaultNetworkHelper::ProcessPacket(
     const QuicSocketAddress& peer_address, const QuicReceivedPacket& packet) {
   QuicClientDefaultNetworkHelper::ProcessPacket(self_address, peer_address,
                                                 packet);
-  if (track_last_incoming_packet_) {
-    last_incoming_packet_ = packet.Clone();
-  }
 }
 
 SocketFd MockableQuicClientDefaultNetworkHelper::CreateUDPSocket(
@@ -177,16 +174,6 @@ MockableQuicClientDefaultNetworkHelper::CreateQuicPacketWriter() {
 void MockableQuicClientDefaultNetworkHelper::set_socket_fd_configurator(
     quiche::MultiUseCallback<void(SocketFd)> socket_fd_configurator) {
   socket_fd_configurator_ = std::move(socket_fd_configurator);
-}
-
-const QuicReceivedPacket*
-MockableQuicClientDefaultNetworkHelper::last_incoming_packet() {
-  return last_incoming_packet_.get();
-}
-
-void MockableQuicClientDefaultNetworkHelper::set_track_last_incoming_packet(
-    bool track) {
-  track_last_incoming_packet_ = track;
 }
 
 void MockableQuicClientDefaultNetworkHelper::UseWriter(
@@ -265,12 +252,6 @@ QuicConnectionId MockableQuicClient::GetClientConnectionId() {
   return QuicDefaultClient::GetClientConnectionId();
 }
 
-void MockableQuicClient::UseClientConnectionId(
-    QuicConnectionId client_connection_id) {
-  client_connection_id_overridden_ = true;
-  override_client_connection_id_ = client_connection_id;
-}
-
 void MockableQuicClient::UseClientConnectionIdLength(
     int client_connection_id_length) {
   override_client_connection_id_length_ = client_connection_id_length;
@@ -285,14 +266,6 @@ void MockableQuicClient::set_peer_address(const QuicSocketAddress& address) {
   if (client_session() != nullptr) {
     client_session()->connection()->AddKnownServerAddress(address);
   }
-}
-
-const QuicReceivedPacket* MockableQuicClient::last_incoming_packet() {
-  return mockable_network_helper()->last_incoming_packet();
-}
-
-void MockableQuicClient::set_track_last_incoming_packet(bool track) {
-  mockable_network_helper()->set_track_last_incoming_packet(track);
 }
 
 QuicTestClient::QuicTestClient(
@@ -748,12 +721,6 @@ void QuicTestClient::UseConnectionIdLength(
     uint8_t server_connection_id_length) {
   QUICHE_DCHECK(!connected());
   client_->set_server_connection_id_length(server_connection_id_length);
-}
-
-void QuicTestClient::UseClientConnectionId(
-    QuicConnectionId client_connection_id) {
-  QUICHE_DCHECK(!connected());
-  client_->UseClientConnectionId(client_connection_id);
 }
 
 void QuicTestClient::UseClientConnectionIdLength(

@@ -46,20 +46,12 @@ class MockableQuicClientDefaultNetworkHelper
   void set_socket_fd_configurator(
       quiche::MultiUseCallback<void(SocketFd)> socket_fd_configurator);
 
-  const QuicReceivedPacket* last_incoming_packet();
-
-  void set_track_last_incoming_packet(bool track);
-
   void UseWriter(QuicPacketWriterWrapper* writer);
 
   void set_peer_address(const QuicSocketAddress& address);
 
  private:
   QuicPacketWriterWrapper* test_writer_ = nullptr;
-  // The last incoming packet, iff |track_last_incoming_packet_| is true.
-  std::unique_ptr<QuicReceivedPacket> last_incoming_packet_;
-  // If true, copy each packet from ProcessPacket into |last_incoming_packet_|
-  bool track_last_incoming_packet_ = false;
   // If set, |socket_fd_configurator_| will be called after a socket fd is
   // created.
   quiche::MultiUseCallback<void(SocketFd)> socket_fd_configurator_;
@@ -96,15 +88,10 @@ class MockableQuicClient : public QuicDefaultClient {
   ~MockableQuicClient() override;
 
   QuicConnectionId GetClientConnectionId() override;
-  void UseClientConnectionId(QuicConnectionId client_connection_id);
   void UseClientConnectionIdLength(int client_connection_id_length);
 
   void UseWriter(QuicPacketWriterWrapper* writer);
   void set_peer_address(const QuicSocketAddress& address);
-  // The last incoming packet, iff |track_last_incoming_packet| is true.
-  const QuicReceivedPacket* last_incoming_packet();
-  // If true, copy each packet from ProcessPacket into |last_incoming_packet|
-  void set_track_last_incoming_packet(bool track);
 
   // Casts the network helper to a MockableQuicClientDefaultNetworkHelper.
   MockableQuicClientDefaultNetworkHelper* mockable_network_helper();
