@@ -104,11 +104,6 @@ class QuicSpdyClientBase : public QuicClientBase,
   }
   bool enable_web_transport() const { return enable_web_transport_; }
 
-  void set_use_datagram_contexts(bool use_datagram_contexts) {
-    use_datagram_contexts_ = use_datagram_contexts;
-  }
-  bool use_datagram_contexts() const { return use_datagram_contexts_; }
-
   // QuicClientBase methods.
   bool goaway_received() const override;
   bool EarlyDataAccepted() override;
@@ -162,7 +157,6 @@ class QuicSpdyClientBase : public QuicClientBase,
 
   bool drop_response_body_ = false;
   bool enable_web_transport_ = false;
-  bool use_datagram_contexts_ = false;
   // If not zero, used to set client's max inbound header size before session
   // initialize.
   size_t max_inbound_header_list_size_ = 0;
