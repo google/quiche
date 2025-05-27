@@ -73,14 +73,6 @@ int QboneClient::GetNumReceivedServerConfigUpdatesFromSession() {
   return qbone_session()->GetNumReceivedServerConfigUpdates();
 }
 
-void QboneClient::ResendSavedData() {
-  // no op.
-}
-
-void QboneClient::ClearDataToResend() {
-  // no op.
-}
-
 bool QboneClient::HasActiveRequests() {
   return qbone_session()->HasActiveRequests();
 }

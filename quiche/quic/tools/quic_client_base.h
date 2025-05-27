@@ -364,12 +364,6 @@ class QuicClientBase : public QuicSession::Visitor {
   // The number of server config updates received.
   virtual int GetNumReceivedServerConfigUpdatesFromSession() = 0;
 
-  // If this client supports buffering data, resend it.
-  virtual void ResendSavedData() = 0;
-
-  // If this client supports buffering data, clear it.
-  virtual void ClearDataToResend() = 0;
-
   // Takes ownership of |connection|. If you override this function,
   // you probably want to call ResetSession() in your destructor.
   // TODO(rch): Change the connection parameter to take in a

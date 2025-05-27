@@ -51,12 +51,6 @@ class QboneClient : public QuicClientBase, public QboneClientInterface {
   int GetNumSentClientHellosFromSession() override;
   int GetNumReceivedServerConfigUpdatesFromSession() override;
 
-  // This client does not resend saved data. This will be a no-op.
-  void ResendSavedData() override;
-
-  // This client does not resend saved data. This will be a no-op.
-  void ClearDataToResend() override;
-
   // Takes ownership of |connection|.
   std::unique_ptr<QuicSession> CreateQuicClientSession(
       const ParsedQuicVersionVector& supported_versions,

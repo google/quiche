@@ -200,9 +200,6 @@ void QuicClientBase::StartConnect() {
   if (connected_or_attempting_connect()) {
     // Clear queued up data if client can not try to connect with a different
     // version.
-    if (!can_reconnect_with_different_version) {
-      ClearDataToResend();
-    }
     // Before we destroy the last session and create a new one, gather its stats
     // and update the stats for the overall connection.
     UpdateStats();
@@ -252,8 +249,6 @@ void QuicClientBase::Disconnect() {
         QUIC_PEER_GOING_AWAY, "Client disconnecting",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
   }
-
-  ClearDataToResend();
 
   network_helper_->CleanUpAllUDPSockets();
 }

@@ -124,10 +124,6 @@ class QuicSpdyClientBase : public QuicClientBase,
       const quic::ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection) override;
 
-  void ClearDataToResend() override {}
-
-  void ResendSavedData() override {}
-
   bool HasActiveRequests() override;
 
  private:
