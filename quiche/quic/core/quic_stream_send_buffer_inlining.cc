@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/core/quic_stream_send_buffer.h"
+#include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 
 #include <algorithm>
 #include <cstddef>
@@ -27,36 +27,50 @@ namespace quic {
 namespace {
 
 struct CompareOffset {
-  bool operator()(const BufferedSlice& slice, QuicStreamOffset offset) const {
-    return slice.offset + slice.slice.length() < offset;
+  bool operator()(const BufferedSliceInlining& slice,
+                  QuicStreamOffset offset) const {
+    return slice.offset + slice.slice.size() < offset;
   }
 };
 
+constexpr bool WillInline(absl::string_view data) {
+  return data.size() <= kSendBufferMaxInlinedSize;
+}
+
 }  // namespace
 
-BufferedSlice::BufferedSlice(quiche::QuicheMemSlice mem_slice,
-                             QuicStreamOffset offset)
-    : slice(std::move(mem_slice)), offset(offset) {}
+BufferedSliceInlining::BufferedSliceInlining(absl::string_view slice,
+                                             QuicStreamOffset offset)
+    : slice(slice), offset(offset) {}
 
-BufferedSlice::BufferedSlice(BufferedSlice&& other) = default;
+BufferedSliceInlining::BufferedSliceInlining(BufferedSliceInlining&& other) =
+    default;
 
-BufferedSlice& BufferedSlice::operator=(BufferedSlice&& other) = default;
+BufferedSliceInlining& BufferedSliceInlining::operator=(
+    BufferedSliceInlining&& other) = default;
 
-BufferedSlice::~BufferedSlice() {}
+BufferedSliceInlining::~BufferedSliceInlining() {}
 
-QuicInterval<std::size_t> BufferedSlice::interval() const {
-  const std::size_t length = slice.length();
+QuicInterval<std::size_t> BufferedSliceInlining::interval() const {
+  const std::size_t length = slice.size();
   return QuicInterval<std::size_t>(offset, offset + length);
 }
 
-QuicStreamSendBuffer::QuicStreamSendBuffer(
+QuicStreamSendBufferInlining::QuicStreamSendBufferInlining(
     quiche::QuicheBufferAllocator* allocator)
     : allocator_(allocator) {}
 
-void QuicStreamSendBuffer::SaveStreamData(absl::string_view data) {
+void QuicStreamSendBufferInlining::SaveStreamData(absl::string_view data) {
   QUIC_DVLOG(2) << "Save stream data offset " << stream_offset_ << " length "
                 << data.length();
   QUICHE_DCHECK(!data.empty());
+
+  if (WillInline(data)) {
+    // Skip memory allocation for inlined writes.
+    SaveMemSlice(quiche::QuicheMemSlice(
+        data.data(), data.size(), +[](absl::string_view) {}));
+    return;
+  }
 
   // Latch the maximum data slice size.
   const QuicByteCount max_data_slice_size =
@@ -72,20 +86,27 @@ void QuicStreamSendBuffer::SaveStreamData(absl::string_view data) {
   }
 }
 
-void QuicStreamSendBuffer::SaveMemSlice(quiche::QuicheMemSlice slice) {
+void QuicStreamSendBufferInlining::SaveMemSlice(quiche::QuicheMemSlice slice) {
   QUIC_DVLOG(2) << "Save slice offset " << stream_offset_ << " length "
                 << slice.length();
   if (slice.empty()) {
     QUIC_BUG(quic_bug_10853_1) << "Try to save empty MemSlice to send buffer.";
     return;
   }
-  size_t length = slice.length();
-  BufferedSlice bs = BufferedSlice(std::move(slice), stream_offset_);
-  interval_deque_.PushBack(std::move(bs));
-  stream_offset_ += length;
+  const absl::string_view data = slice.AsStringView();
+  const bool is_inlined = WillInline(data);
+  interval_deque_.PushBack(BufferedSliceInlining(data, stream_offset_));
+  QUICHE_DCHECK_EQ(interval_deque_.DataAt(stream_offset_)->slice.IsInlined(),
+                   is_inlined);
+  if (!is_inlined) {
+    auto [it, success] =
+        owned_slices_.emplace(stream_offset_, std::move(slice));
+    QUICHE_DCHECK(success);
+  }
+  stream_offset_ += data.size();
 }
 
-QuicByteCount QuicStreamSendBuffer::SaveMemSliceSpan(
+QuicByteCount QuicStreamSendBufferInlining::SaveMemSliceSpan(
     absl::Span<quiche::QuicheMemSlice> span) {
   QuicByteCount total = 0;
   for (quiche::QuicheMemSlice& slice : span) {
@@ -99,9 +120,9 @@ QuicByteCount QuicStreamSendBuffer::SaveMemSliceSpan(
   return total;
 }
 
-bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
-                                           QuicByteCount data_length,
-                                           QuicDataWriter* writer) {
+bool QuicStreamSendBufferInlining::WriteStreamData(QuicStreamOffset offset,
+                                                   QuicByteCount data_length,
+                                                   QuicDataWriter* writer) {
   // The iterator returned from |interval_deque_| will automatically advance
   // the internal write index for the QuicIntervalDeque. The incrementing is
   // done in operator++.
@@ -113,7 +134,7 @@ bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
 
     QuicByteCount slice_offset = offset - slice_it->offset;
     QuicByteCount available_bytes_in_slice =
-        slice_it->slice.length() - slice_offset;
+        slice_it->slice.size() - slice_offset;
     QuicByteCount copy_length = std::min(data_length, available_bytes_in_slice);
     if (!writer->WriteBytes(slice_it->slice.data() + slice_offset,
                             copy_length)) {
@@ -126,8 +147,8 @@ bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
   return data_length == 0;
 }
 
-bool QuicStreamSendBuffer::FreeMemSlices(QuicStreamOffset start,
-                                         QuicStreamOffset end) {
+bool QuicStreamSendBufferInlining::FreeMemSlices(QuicStreamOffset start,
+                                                 QuicStreamOffset end) {
   auto it = interval_deque_.DataBegin();
   if (it == interval_deque_.DataEnd() || it->slice.empty()) {
     QUIC_BUG(quic_bug_10853_4)
@@ -154,41 +175,56 @@ bool QuicStreamSendBuffer::FreeMemSlices(QuicStreamOffset start,
       break;
     }
     if (!it->slice.empty() &&
-        bytes_acked().Contains(it->offset, it->offset + it->slice.length())) {
-      it->slice.Reset();
+        bytes_acked().Contains(it->offset, it->offset + it->slice.size())) {
+      ClearSlice(*it);
     }
   }
   return true;
 }
 
-void QuicStreamSendBuffer::CleanUpBufferedSlices() {
+void QuicStreamSendBufferInlining::CleanUpBufferedSlices() {
   while (!interval_deque_.Empty() &&
          interval_deque_.DataBegin()->slice.empty()) {
     interval_deque_.PopFront();
   }
 }
 
-size_t QuicStreamSendBuffer::size() const { return interval_deque_.Size(); }
+size_t QuicStreamSendBufferInlining::size() const {
+  return interval_deque_.Size();
+}
 
-void QuicStreamSendBuffer::SetStreamOffsetForTest(QuicStreamOffset new_offset) {
+void QuicStreamSendBufferInlining::SetStreamOffsetForTest(
+    QuicStreamOffset new_offset) {
   QuicStreamSendBufferBase::SetStreamOffsetForTest(new_offset);
   stream_offset_ = new_offset;
 }
 
-absl::string_view QuicStreamSendBuffer::LatestWriteForTest() {
+absl::string_view QuicStreamSendBufferInlining::LatestWriteForTest() {
   absl::string_view last_slice = "";
   for (auto it = interval_deque_.DataBegin(); it != interval_deque_.DataEnd();
        ++it) {
-    last_slice = it->slice.AsStringView();
+    last_slice = it->slice.view();
   }
   return last_slice;
 }
 
-QuicByteCount QuicStreamSendBuffer::TotalDataBufferedForTest() {
+void QuicStreamSendBufferInlining::ClearSlice(BufferedSliceInlining& slice) {
+  if (slice.slice.empty()) {
+    return;
+  }
+  const bool was_inlined = slice.slice.IsInlined();
+  slice.slice.clear();
+  if (!was_inlined) {
+    bool deleted = owned_slices_.erase(slice.offset);
+    QUICHE_DCHECK(deleted);
+  }
+}
+
+QuicByteCount QuicStreamSendBufferInlining::TotalDataBufferedForTest() {
   QuicByteCount length = 0;
   for (auto slice = interval_deque_.DataBegin();
        slice != interval_deque_.DataEnd(); ++slice) {
-    length += slice->slice.length();
+    length += slice->slice.size();
   }
   return length;
 }

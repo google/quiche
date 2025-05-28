@@ -2,14 +2,15 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_H_
-#define QUICHE_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_H_
+#ifndef QUICHE_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_INLINING_H_
+#define QUICHE_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_INLINING_H_
 
 #include <cstddef>
-#include <cstdint>
 
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/quic/core/quic_inlined_string_view.h"
 #include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/core/quic_interval_deque.h"
 #include "quiche/quic/core/quic_stream_send_buffer_base.h"
@@ -26,38 +27,44 @@ class QuicStreamSendBufferPeer;
 
 class QuicDataWriter;
 
-// BufferedSlice comprises information of a piece of stream data stored in
-// contiguous memory space. Please note, BufferedSlice is constructed when
-// stream data is saved in send buffer and is removed when stream data is fully
-// acked. It is move-only.
-struct QUICHE_EXPORT BufferedSlice {
-  BufferedSlice(quiche::QuicheMemSlice mem_slice, QuicStreamOffset offset);
-  BufferedSlice(BufferedSlice&& other);
-  BufferedSlice& operator=(BufferedSlice&& other);
+constexpr size_t kSendBufferMaxInlinedSize = 15;
 
-  BufferedSlice(const BufferedSlice& other) = delete;
-  BufferedSlice& operator=(const BufferedSlice& other) = delete;
-  ~BufferedSlice();
+// BufferedSliceInlining is an entry in the send buffer.  It contains a pointer
+// to the buffered data (or data itself, if it is inlined), the size of the data
+// and the offset in the buffer.
+//
+// BufferedSliceInlining does not own contents of the slice; those are freed
+// separately. Since we perform a search over an array of BufferedSliceInlining,
+// it is important for this data structure to be compact.
+struct QUICHE_EXPORT BufferedSliceInlining {
+  BufferedSliceInlining(absl::string_view slice, QuicStreamOffset offset);
+  BufferedSliceInlining(BufferedSliceInlining&& other);
+  BufferedSliceInlining& operator=(BufferedSliceInlining&& other);
+
+  BufferedSliceInlining(const BufferedSliceInlining& other) = delete;
+  BufferedSliceInlining& operator=(const BufferedSliceInlining& other) = delete;
+  ~BufferedSliceInlining();
 
   // Return an interval representing the offset and length.
   QuicInterval<std::size_t> interval() const;
 
   // Stream data of this data slice.
-  quiche::QuicheMemSlice slice;
+  QuicInlinedStringView<kSendBufferMaxInlinedSize + 1> slice;
+
   // Location of this data slice in the stream.
   QuicStreamOffset offset;
 };
 
-// QuicStreamSendBuffer contains a list of QuicStreamDataSlices. New data slices
-// are added to the tail of the list. Data slices are removed from the head of
-// the list when they get fully acked. Stream data can be retrieved and acked
-// across slice boundaries. Stream data must be saved before being written, and
-// it cannot be written after it is marked as acked. Stream data can be written
-// out-of-order within those bounds, but note that in-order wites are O(1)
-// whereas out-of-order writes are O(log(n)), see QuicIntervalDeque for details.
-class QUICHE_EXPORT QuicStreamSendBuffer : public QuicStreamSendBufferBase {
+// QuicStreamSendBuffer contains all of the outstanding (provided by the
+// application and not yet acknowledged by the peer) stream data.  Internally it
+// is a circular deque of (potentially inlined) QuicheMemSlices, indexed by the
+// offset in the stream.  The stream can be accessed randomly in O(log(n)) time,
+// though if the offsets are accessed sequentially, the access will be O(1).
+class QUICHE_EXPORT QuicStreamSendBufferInlining
+    : public QuicStreamSendBufferBase {
  public:
-  explicit QuicStreamSendBuffer(quiche::QuicheBufferAllocator* allocator);
+  explicit QuicStreamSendBufferInlining(
+      quiche::QuicheBufferAllocator* allocator);
 
   // Save |data| to send buffer.
   void SaveStreamData(absl::string_view data) override;
@@ -96,14 +103,24 @@ class QUICHE_EXPORT QuicStreamSendBuffer : public QuicStreamSendBufferBase {
   // Cleanup acked data from the start of the interval.
   void CleanUpBufferedSlices() override;
 
-  QuicIntervalDeque<BufferedSlice> interval_deque_;
+  // Frees an individual buffered slice.
+  void ClearSlice(BufferedSliceInlining& slice);
+
+  // Contains actual stream data.
+  QuicIntervalDeque<BufferedSliceInlining> interval_deque_;
 
   // Offset of next inserted byte.
   QuicStreamOffset stream_offset_ = 0;
+
+  // For slices that are not inlined, contains a map from the offset of the
+  // slice in the buffer to the slice release callback.  Those are stored
+  // separately from `interval_deque_`, since the callbacks themselves can be
+  // quite large, and for many slices, those would not be present.
+  absl::flat_hash_map<QuicStreamOffset, quiche::QuicheMemSlice> owned_slices_;
 
   quiche::QuicheBufferAllocator* allocator_;
 };
 
 }  // namespace quic
 
-#endif  // QUICHE_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_H_
+#endif  // QUICHE_QUIC_CORE_QUIC_STREAM_SEND_BUFFER_INLINING_H_

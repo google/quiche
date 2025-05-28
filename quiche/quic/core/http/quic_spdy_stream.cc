@@ -430,6 +430,8 @@ bool QuicSpdyStream::WriteDataFrameHeader(QuicByteCount data_length,
       send_buffer().stream_offset() + header.size());
   QUIC_DVLOG(1) << ENDPOINT << "Stream " << id()
                 << " is writing DATA frame header of length " << header.size();
+  // TODO: b/417402601 - once we always use inlining send buffer, the code below
+  // should always use WriteOrBufferData.
   if (can_write) {
     // Save one copy and allocation if send buffer can accomodate the header.
     quiche::QuicheMemSlice header_slice(std::move(header));

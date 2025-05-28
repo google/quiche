@@ -29,13 +29,8 @@ const BufferedSlice* QuicStreamSendBufferPeer::CurrentWriteSlice(
 
 // static
 QuicByteCount QuicStreamSendBufferPeer::TotalLength(
-    QuicStreamSendBuffer* send_buffer) {
-  QuicByteCount length = 0;
-  for (auto slice = send_buffer->interval_deque_.DataBegin();
-       slice != send_buffer->interval_deque_.DataEnd(); ++slice) {
-    length += slice->slice.length();
-  }
-  return length;
+    QuicStreamSendBufferBase* send_buffer) {
+  return send_buffer->TotalDataBufferedForTest();
 }
 
 // static

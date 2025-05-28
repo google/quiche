@@ -114,6 +114,7 @@ class QUICHE_EXPORT QuicStreamSendBufferBase {
 
   virtual void SetStreamOffsetForTest(QuicStreamOffset new_offset);
   virtual absl::string_view LatestWriteForTest() = 0;
+  virtual QuicByteCount TotalDataBufferedForTest() = 0;
 
  private:
   friend class test::QuicStreamSendBufferPeer;

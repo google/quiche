@@ -5,17 +5,35 @@
 #include "quiche/quic/core/quic_stream.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
+#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
+#include "quiche/http2/core/spdy_protocol.h"
+#include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
+#include "quiche/quic/core/frames/quic_rst_stream_frame.h"
+#include "quiche/quic/core/frames/quic_stream_frame.h"
+#include "quiche/quic/core/frames/quic_window_update_frame.h"
+#include "quiche/quic/core/quic_ack_listener_interface.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_flow_controller.h"
+#include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_stream_priority.h"
+#include "quiche/quic/core/quic_stream_send_buffer.h"
+#include "quiche/quic/core/quic_stream_send_buffer_base.h"
+#include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
+#include "quiche/quic/core/quic_stream_sequencer.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -24,6 +42,8 @@
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_reference_counted.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
 
 using spdy::SpdyPriority;
@@ -107,6 +127,17 @@ QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
   }
 
   return DefaultFlowControlWindow(version);
+}
+
+std::unique_ptr<QuicStreamSendBufferBase> CreateSendBuffer(
+    QuicSession* session) {
+  quiche::QuicheBufferAllocator* allocator =
+      session->connection()->helper()->GetStreamSendBufferAllocator();
+  if (GetQuicReloadableFlag(quic_use_inlining_send_buffer2)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_use_inlining_send_buffer2);
+    return std::make_unique<QuicStreamSendBufferInlining>(allocator);
+  }
+  return std::make_unique<QuicStreamSendBuffer>(allocator);
 }
 
 }  // namespace
@@ -387,8 +418,7 @@ QuicStream::QuicStream(QuicStreamId id, QuicSession* session,
       stream_contributes_to_connection_flow_control_(true),
       busy_counter_(0),
       add_random_padding_after_fin_(false),
-      send_buffer_(std::make_unique<QuicStreamSendBuffer>(
-          session->connection()->helper()->GetStreamSendBufferAllocator())),
+      send_buffer_(CreateSendBuffer(session)),
       buffered_data_threshold_(GetQuicFlag(quic_buffered_data_threshold)),
       is_static_(is_static),
       deadline_(QuicTime::Zero()),
