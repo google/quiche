@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_unacked_packet_map.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <limits>
 #include <type_traits>
@@ -18,6 +19,7 @@
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
 namespace quic {
@@ -728,6 +730,11 @@ int32_t QuicUnackedPacketMap::GetLastPacketContent() const {
     content |= GetFrameTypeBitfield(ACK_FRAME);
   }
   return content;
+}
+
+void QuicUnackedPacketMap::ReserveInitialCapacity(size_t initial_capacity) {
+  const size_t flag_capacity = GetQuicFlag(quic_preallocate_unacked_packets);
+  unacked_packets_.reserve(std::max(initial_capacity, flag_capacity));
 }
 
 }  // namespace quic

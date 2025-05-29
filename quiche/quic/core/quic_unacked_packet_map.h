@@ -257,9 +257,7 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
     return supports_multiple_packet_number_spaces_;
   }
 
-  void ReserveInitialCapacity(size_t initial_capacity) {
-    unacked_packets_.reserve(initial_capacity);
-  }
+  void ReserveInitialCapacity(size_t initial_capacity);
 
   std::string DebugString() const {
     return absl::StrCat(

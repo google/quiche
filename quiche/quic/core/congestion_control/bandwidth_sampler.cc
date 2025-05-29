@@ -5,6 +5,7 @@
 #include "quiche/quic/core/congestion_control/bandwidth_sampler.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <ostream>
 
 #include "quiche/quic/core/quic_types.h"
@@ -148,7 +149,13 @@ BandwidthSampler::BandwidthSampler(
       max_ack_height_tracker_(max_height_tracker_window_length),
       total_bytes_acked_after_last_ack_event_(0),
       overestimate_avoidance_(false),
-      limit_max_ack_height_tracker_by_send_rate_(false) {}
+      limit_max_ack_height_tracker_by_send_rate_(false) {
+  const size_t preallocate_count =
+      GetQuicFlag(quic_preallocate_unacked_packets);
+  if (preallocate_count > 0) {
+    connection_state_map_.Reserve(preallocate_count);
+  }
+}
 
 BandwidthSampler::BandwidthSampler(const BandwidthSampler& other)
     : total_bytes_sent_(other.total_bytes_sent_),

@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_PACKET_NUMBER_INDEXED_QUEUE_H_
 #define QUICHE_QUIC_CORE_PACKET_NUMBER_INDEXED_QUEUE_H_
 
+#include <cstddef>
+
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_types.h"
@@ -90,6 +92,9 @@ class QUICHE_NO_EXPORT PacketNumberIndexedQueue {
     }
     return first_packet_ + entries_.size() - 1;
   }
+
+  // Reserves the specified memory capacity in the underlying deque.
+  void Reserve(size_t capacity) { entries_.reserve(capacity); }
 
  private:
   // Wrapper around T used to mark whether the entry is actually in the map.

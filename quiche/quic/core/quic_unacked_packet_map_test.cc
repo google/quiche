@@ -760,7 +760,7 @@ TEST_P(QuicUnackedPacketMapTest, LargestSentPacketMultiplePacketNumberSpaces) {
   EXPECT_FALSE(unacked_packets_.GetLastPacketContent() & (1 << ACK_FRAME));
 }
 
-TEST_P(QuicUnackedPacketMapTest, ReserveInitialCapacityTest) {
+TEST_P(QuicUnackedPacketMapTest, ReserveInitialCapacity) {
   QuicUnackedPacketMap unacked_packets(GetParam());
   ASSERT_EQ(QuicUnackedPacketMapPeer::GetCapacity(unacked_packets), 0u);
   unacked_packets.ReserveInitialCapacity(16);
@@ -769,6 +769,18 @@ TEST_P(QuicUnackedPacketMapTest, ReserveInitialCapacityTest) {
   unacked_packets.AddSentPacket(&packet, TransmissionType::NOT_RETRANSMISSION,
                                 now_, true, true, ECN_NOT_ECT);
   ASSERT_EQ(QuicUnackedPacketMapPeer::GetCapacity(unacked_packets), 16u);
+}
+
+TEST_P(QuicUnackedPacketMapTest, ReserveInitialCapacityViaFlag) {
+  SetQuicFlag(quic_preallocate_unacked_packets, 1024);
+  QuicUnackedPacketMap unacked_packets(GetParam());
+  ASSERT_EQ(QuicUnackedPacketMapPeer::GetCapacity(unacked_packets), 0u);
+  unacked_packets.ReserveInitialCapacity(16);
+  QuicStreamId stream_id(1);
+  SerializedPacket packet(CreateRetransmittablePacketForStream(1, stream_id));
+  unacked_packets.AddSentPacket(&packet, TransmissionType::NOT_RETRANSMISSION,
+                                now_, true, true, ECN_NOT_ECT);
+  ASSERT_EQ(QuicUnackedPacketMapPeer::GetCapacity(unacked_packets), 1024u);
 }
 
 TEST_P(QuicUnackedPacketMapTest, DebugString) {
