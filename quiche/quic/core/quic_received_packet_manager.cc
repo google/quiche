@@ -12,6 +12,7 @@
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection_stats.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
@@ -45,17 +46,14 @@ QuicReceivedPacketManager::QuicReceivedPacketManager(QuicConnectionStats* stats)
       stats_(stats),
       num_retransmittable_packets_received_since_last_ack_sent_(0),
       min_received_before_ack_decimation_(kMinReceivedBeforeAckDecimation),
-      ack_frequency_(kDefaultRetransmittablePacketsBeforeAck),
       ack_decimation_delay_(GetQuicFlag(quic_ack_decimation_delay)),
       unlimited_ack_decimation_(false),
       one_immediate_ack_(false),
-      ignore_order_(false),
       local_max_ack_delay_(
           QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs())),
       ack_timeout_(QuicTime::Zero()),
       time_of_previous_received_packet_(QuicTime::Zero()),
-      was_last_packet_missing_(false),
-      last_ack_frequency_frame_sequence_number_(-1) {}
+      was_last_packet_missing_(false) {}
 
 QuicReceivedPacketManager::~QuicReceivedPacketManager() {}
 
@@ -294,11 +292,12 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     return;
   }
 
-  if (!ignore_order_ && was_last_packet_missing_ &&
-      last_sent_largest_acked_.IsInitialized() &&
+  // TODO(martinduke): If a missing packet is received, do we send it when
+  // reordering_threshold_ == 0?
+  if (was_last_packet_missing_ && last_sent_largest_acked_.IsInitialized() &&
       last_received_packet_number < last_sent_largest_acked_) {
-    // Only ack immediately if an ACK frame was sent with a larger largest acked
-    // than the newly received packet number.
+    // Ack immediately if an ACK frame was sent with a larger largest acked than
+    // the newly received packet number.
     ack_timeout_ = now;
     return;
   }
@@ -322,7 +321,7 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     return;
   }
 
-  if (!ignore_order_ && HasNewMissingPackets()) {
+  if (reordering_threshold_ == 1 && HasNewMissingPackets()) {  // Fast path.
     ack_timeout_ = now;
     return;
   }
@@ -384,15 +383,14 @@ bool QuicReceivedPacketManager::IsAckFrameEmpty() const {
 
 void QuicReceivedPacketManager::OnAckFrequencyFrame(
     const QuicAckFrequencyFrame& frame) {
-  int64_t new_sequence_number = frame.sequence_number;
-  if (new_sequence_number <= last_ack_frequency_frame_sequence_number_) {
+  if (frame.sequence_number < next_ack_frequency_frame_sequence_number_) {
     // Ignore old ACK_FREQUENCY frames.
     return;
   }
-  last_ack_frequency_frame_sequence_number_ = new_sequence_number;
-  ack_frequency_ = frame.packet_tolerance;
-  local_max_ack_delay_ = frame.max_ack_delay;
-  ignore_order_ = frame.ignore_order;
+  next_ack_frequency_frame_sequence_number_ = frame.sequence_number + 1;
+  ack_frequency_ = frame.ack_eliciting_threshold + 1;
+  local_max_ack_delay_ = frame.requested_max_ack_delay;
+  reordering_threshold_ = frame.reordering_threshold;
 }
 
 }  // namespace quic

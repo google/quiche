@@ -2530,6 +2530,9 @@ class QUICHE_EXPORT QuicConnection
 
   QuicTime::Delta multi_port_probing_interval_;
 
+  // The minimum ack delay time advertised to the peer via transport parameter.
+  QuicTime::Delta local_min_ack_delay_ = QuicTime::Delta::Zero();
+
   std::unique_ptr<MultiPortStats> multi_port_stats_;
 
   // If true, connection will migrate to multi-port path upon path degrading.

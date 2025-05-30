@@ -137,11 +137,12 @@ void QuicControlFrameManager::WriteOrBufferAckFrequency(
   QuicControlFrameId control_frame_id = ++last_control_frame_id_;
   // Using the control_frame_id for sequence_number here leaves gaps in
   // sequence_number.
-  WriteOrBufferQuicFrame(
-      QuicFrame(new QuicAckFrequencyFrame(control_frame_id,
-                                          /*sequence_number=*/control_frame_id,
-                                          ack_frequency_frame.packet_tolerance,
-                                          ack_frequency_frame.max_ack_delay)));
+  WriteOrBufferQuicFrame(QuicFrame(
+      new QuicAckFrequencyFrame(control_frame_id,
+                                /*sequence_number=*/control_frame_id,
+                                ack_frequency_frame.ack_eliciting_threshold,
+                                ack_frequency_frame.requested_max_ack_delay,
+                                ack_frequency_frame.reordering_threshold)));
 }
 
 void QuicControlFrameManager::WriteOrBufferNewConnectionId(

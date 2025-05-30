@@ -543,17 +543,17 @@ TEST_F(QuicReceivedPacketManagerTest,
   EXPECT_FALSE(HasPendingAck());
 
   QuicAckFrequencyFrame frame;
-  frame.max_ack_delay = QuicTime::Delta::FromMilliseconds(10);
-  frame.packet_tolerance = 5;
+  frame.requested_max_ack_delay = QuicTime::Delta::FromMilliseconds(10);
+  frame.ack_eliciting_threshold = 4;
   received_manager_.OnAckFrequencyFrame(frame);
 
   for (int i = 1; i <= 50; ++i) {
     RecordPacketReceipt(i, clock_.ApproximateNow());
     MaybeUpdateAckTimeout(kInstigateAck, i);
-    if (i % frame.packet_tolerance == 0) {
+    if (i % (frame.ack_eliciting_threshold + 1) == 0) {
       CheckAckTimeout(clock_.ApproximateNow());
     } else {
-      CheckAckTimeout(clock_.ApproximateNow() + frame.max_ack_delay);
+      CheckAckTimeout(clock_.ApproximateNow() + frame.requested_max_ack_delay);
     }
   }
 }
@@ -563,9 +563,9 @@ TEST_F(QuicReceivedPacketManagerTest,
   EXPECT_FALSE(HasPendingAck());
 
   QuicAckFrequencyFrame frame;
-  frame.max_ack_delay = kDelayedAckTime;
-  frame.packet_tolerance = 2;
-  frame.ignore_order = true;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 1;
+  frame.reordering_threshold = 0;
   received_manager_.OnAckFrequencyFrame(frame);
 
   RecordPacketReceipt(4, clock_.ApproximateNow());
@@ -578,27 +578,27 @@ TEST_F(QuicReceivedPacketManagerTest,
 
   RecordPacketReceipt(3, clock_.ApproximateNow());
   MaybeUpdateAckTimeout(kInstigateAck, 3);
-  // Don't ack as ignore_order is set by AckFrequencyFrame.
-  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
-
-  RecordPacketReceipt(2, clock_.ApproximateNow());
-  MaybeUpdateAckTimeout(kInstigateAck, 2);
-  // Immediate ack is sent as this is the 2nd packet of every two packets.
+  // Ack, since missing packets are always acknowledged.
   CheckAckTimeout(clock_.ApproximateNow());
 
-  RecordPacketReceipt(1, clock_.ApproximateNow());
-  MaybeUpdateAckTimeout(kInstigateAck, 1);
-  // Don't ack as ignore_order is set by AckFrequencyFrame.
+  RecordPacketReceipt(7, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 10);
+  // No ack, as the frame says to ignore ordering.
   CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+
+  RecordPacketReceipt(1, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 11);
+  // It's the second packet in a row, ack it.
+  CheckAckTimeout(clock_.ApproximateNow());
 }
 
 TEST_F(QuicReceivedPacketManagerTest,
-       DisableMissingPaketsAckByIgnoreOrderFromAckFrequencyFrame) {
+       DisableMissingPacketsAckByIgnoreOrderFromAckFrequencyFrame) {
   EXPECT_FALSE(HasPendingAck());
   QuicAckFrequencyFrame frame;
-  frame.max_ack_delay = kDelayedAckTime;
-  frame.packet_tolerance = 2;
-  frame.ignore_order = true;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 1;
+  frame.reordering_threshold = 0;
   received_manager_.OnAckFrequencyFrame(frame);
 
   RecordPacketReceipt(1, clock_.ApproximateNow());
@@ -622,8 +622,7 @@ TEST_F(QuicReceivedPacketManagerTest,
 
   RecordPacketReceipt(7, clock_.ApproximateNow());
   MaybeUpdateAckTimeout(kInstigateAck, 7);
-  // Don't ack even if packet 6 is newly missing as ignore_order is set by
-  // AckFrequencyFrame.
+  // Don't ack as AckFrequencyFrame says to ignore ordering.
   CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
 }
 
@@ -632,9 +631,9 @@ TEST_F(QuicReceivedPacketManagerTest,
   EXPECT_FALSE(HasPendingAck());
 
   QuicAckFrequencyFrame frame;
-  frame.max_ack_delay = kDelayedAckTime;
-  frame.packet_tolerance = 3;
-  frame.ignore_order = true;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 2;
+  frame.reordering_threshold = 0;
   received_manager_.OnAckFrequencyFrame(frame);
 
   // Process all the packets in order so there aren't missing packets.

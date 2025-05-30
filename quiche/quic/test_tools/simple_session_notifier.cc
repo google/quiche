@@ -4,13 +4,13 @@
 
 #include "quiche/quic/test_tools/simple_session_notifier.h"
 
+#include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 #include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
-#include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
 
@@ -170,11 +170,12 @@ void SimpleSessionNotifier::WriteOrBufferAckFrequency(
   const bool had_buffered_data =
       HasBufferedStreamData() || HasBufferedControlFrames();
   QuicControlFrameId control_frame_id = ++last_control_frame_id_;
-  control_frames_.emplace_back((
-      QuicFrame(new QuicAckFrequencyFrame(control_frame_id,
-                                          /*sequence_number=*/control_frame_id,
-                                          ack_frequency_frame.packet_tolerance,
-                                          ack_frequency_frame.max_ack_delay))));
+  control_frames_.emplace_back((QuicFrame(
+      new QuicAckFrequencyFrame(control_frame_id,
+                                /*sequence_number=*/control_frame_id,
+                                ack_frequency_frame.ack_eliciting_threshold,
+                                ack_frequency_frame.requested_max_ack_delay,
+                                ack_frequency_frame.reordering_threshold))));
   if (had_buffered_data) {
     QUIC_DLOG(WARNING) << "Connection is write blocked";
     return;

@@ -421,8 +421,9 @@ TEST_F(QuicControlFrameManagerTest, RetransmitControlFrame) {
 TEST_F(QuicControlFrameManagerTest, SendAndAckAckFrequencyFrame) {
   // Send AckFrequencyFrame
   QuicAckFrequencyFrame frame_to_send;
-  frame_to_send.packet_tolerance = 10;
-  frame_to_send.max_ack_delay = QuicTime::Delta::FromMilliseconds(24);
+  frame_to_send.ack_eliciting_threshold = 10;
+  frame_to_send.requested_max_ack_delay = QuicTime::Delta::FromMilliseconds(24);
+  frame_to_send.reordering_threshold = 3;
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
   manager_->WriteOrBufferAckFrequency(frame_to_send);

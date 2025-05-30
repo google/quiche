@@ -628,10 +628,10 @@ size_t QuicFramer::GetAckFrequencyFrameSize(
     const QuicAckFrequencyFrame& frame) {
   return QuicDataWriter::GetVarInt62Len(IETF_ACK_FREQUENCY) +
          QuicDataWriter::GetVarInt62Len(frame.sequence_number) +
-         QuicDataWriter::GetVarInt62Len(frame.packet_tolerance) +
-         QuicDataWriter::GetVarInt62Len(frame.max_ack_delay.ToMicroseconds()) +
-         // One byte for encoding boolean
-         1;
+         QuicDataWriter::GetVarInt62Len(frame.ack_eliciting_threshold) +
+         QuicDataWriter::GetVarInt62Len(
+             frame.requested_max_ack_delay.ToMicroseconds()) +
+         QuicDataWriter::GetVarInt62Len(frame.reordering_threshold);
 }
 
 // static
@@ -3391,12 +3391,8 @@ bool QuicFramer::ProcessAckFrequencyFrame(QuicDataReader* reader,
     return false;
   }
 
-  if (!reader->ReadVarInt62(&frame->packet_tolerance)) {
+  if (!reader->ReadVarInt62(&frame->ack_eliciting_threshold)) {
     set_detailed_error("Unable to read packet tolerance.");
-    return false;
-  }
-  if (frame->packet_tolerance == 0) {
-    set_detailed_error("Invalid packet tolerance.");
     return false;
   }
   uint64_t max_ack_delay_us;
@@ -3409,19 +3405,13 @@ bool QuicFramer::ProcessAckFrequencyFrame(QuicDataReader* reader,
     set_detailed_error("Invalid max_ack_delay_us.");
     return false;
   }
-  frame->max_ack_delay = QuicTime::Delta::FromMicroseconds(max_ack_delay_us);
+  frame->requested_max_ack_delay =
+      QuicTime::Delta::FromMicroseconds(max_ack_delay_us);
 
-  uint8_t ignore_order;
-  if (!reader->ReadUInt8(&ignore_order)) {
-    set_detailed_error("Unable to read ignore_order.");
+  if (!reader->ReadVarInt62(&frame->reordering_threshold)) {
+    set_detailed_error("Unable to read reordering_threshold.");
     return false;
   }
-  if (ignore_order > 1) {
-    set_detailed_error("Invalid ignore_order.");
-    return false;
-  }
-  frame->ignore_order = ignore_order;
-
   return true;
 }
 
@@ -5270,17 +5260,17 @@ bool QuicFramer::AppendAckFrequencyFrame(const QuicAckFrequencyFrame& frame,
     set_detailed_error("Writing sequence number failed.");
     return false;
   }
-  if (!writer->WriteVarInt62(frame.packet_tolerance)) {
+  if (!writer->WriteVarInt62(frame.ack_eliciting_threshold)) {
     set_detailed_error("Writing packet tolerance failed.");
     return false;
   }
-  if (!writer->WriteVarInt62(
-          static_cast<uint64_t>(frame.max_ack_delay.ToMicroseconds()))) {
+  if (!writer->WriteVarInt62(static_cast<uint64_t>(
+          frame.requested_max_ack_delay.ToMicroseconds()))) {
     set_detailed_error("Writing max_ack_delay_us failed.");
     return false;
   }
-  if (!writer->WriteUInt8(static_cast<uint8_t>(frame.ignore_order))) {
-    set_detailed_error("Writing ignore_order failed.");
+  if (!writer->WriteVarInt62(frame.reordering_threshold)) {
+    set_detailed_error("Writing reordering_threshold failed.");
     return false;
   }
 

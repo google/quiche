@@ -637,6 +637,7 @@ bool QuicSentPacketManager::CanSendAckFrequency() const {
   return !peer_min_ack_delay_.IsInfinite() && handshake_finished_;
 }
 
+// TODO(martinduke): Update to include reordering threshold.
 QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
     const {
   QuicAckFrequencyFrame frame;
@@ -647,15 +648,16 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
   }
 
   QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 1, 3);
-  frame.packet_tolerance = kMaxRetransmittablePacketsBeforeAck;
+  frame.ack_eliciting_threshold = kMaxRetransmittablePacketsBeforeAck;
   auto rtt = use_smoothed_rtt_in_ack_delay_ ? rtt_stats_.SmoothedOrInitialRtt()
                                             : rtt_stats_.MinOrInitialRtt();
-  frame.max_ack_delay = rtt * kPeerAckDecimationDelay;
-  frame.max_ack_delay = std::max(frame.max_ack_delay, peer_min_ack_delay_);
+  frame.requested_max_ack_delay = rtt * kPeerAckDecimationDelay;
+  frame.requested_max_ack_delay =
+      std::max(frame.requested_max_ack_delay, peer_min_ack_delay_);
   // TODO(haoyuewang) Remove this once kDefaultMinAckDelayTimeMs is updated to
   // 5 ms on the client side.
-  frame.max_ack_delay =
-      std::max(frame.max_ack_delay,
+  frame.requested_max_ack_delay =
+      std::max(frame.requested_max_ack_delay,
                QuicTime::Delta::FromMilliseconds(kDefaultMinAckDelayTimeMs));
   return frame;
 }
@@ -1611,10 +1613,11 @@ QuicTime::Delta QuicSentPacketManager::GetPtoDelay() const {
 
 void QuicSentPacketManager::OnAckFrequencyFrameSent(
     const QuicAckFrequencyFrame& ack_frequency_frame) {
-  in_use_sent_ack_delays_.emplace_back(ack_frequency_frame.max_ack_delay,
-                                       ack_frequency_frame.sequence_number);
-  if (ack_frequency_frame.max_ack_delay > peer_max_ack_delay_) {
-    peer_max_ack_delay_ = ack_frequency_frame.max_ack_delay;
+  in_use_sent_ack_delays_.emplace_back(
+      ack_frequency_frame.requested_max_ack_delay,
+      ack_frequency_frame.sequence_number);
+  if (ack_frequency_frame.requested_max_ack_delay > peer_max_ack_delay_) {
+    peer_max_ack_delay_ = ack_frequency_frame.requested_max_ack_delay;
   }
 }
 

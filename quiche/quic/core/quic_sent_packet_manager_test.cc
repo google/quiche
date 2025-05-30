@@ -2845,7 +2845,7 @@ SerializedPacket MakePacketWithAckFrequencyFrame(
     int packet_number, int ack_frequency_sequence_number,
     QuicTime::Delta max_ack_delay) {
   auto* ack_frequency_frame = new QuicAckFrequencyFrame();
-  ack_frequency_frame->max_ack_delay = max_ack_delay;
+  ack_frequency_frame->requested_max_ack_delay = max_ack_delay;
   ack_frequency_frame->sequence_number = ack_frequency_sequence_number;
   SerializedPacket packet(QuicPacketNumber(packet_number),
                           PACKET_4BYTE_PACKET_NUMBER, nullptr, kDefaultLength,
@@ -3074,10 +3074,10 @@ TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrame) {
       /*now=*/QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(24));
 
   auto frame = manager_.GetUpdatedAckFrequencyFrame();
-  EXPECT_EQ(frame.max_ack_delay,
+  EXPECT_EQ(frame.requested_max_ack_delay,
             std::max(rtt_stats->min_rtt() * 0.25,
                      QuicTime::Delta::FromMilliseconds(1u)));
-  EXPECT_EQ(frame.packet_tolerance, 10u);
+  EXPECT_EQ(frame.ack_eliciting_threshold, 10u);
 }
 
 TEST_F(QuicSentPacketManagerTest, SmoothedRttIgnoreAckDelay) {
@@ -3216,7 +3216,7 @@ TEST_F(QuicSentPacketManagerTest, BuildAckFrequencyFrameWithSRTT) {
       /*now=*/QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(24));
 
   auto frame = manager_.GetUpdatedAckFrequencyFrame();
-  EXPECT_EQ(frame.max_ack_delay,
+  EXPECT_EQ(frame.requested_max_ack_delay,
             std::max(rtt_stats->SmoothedOrInitialRtt() * 0.25,
                      QuicTime::Delta::FromMilliseconds(1u)));
 }

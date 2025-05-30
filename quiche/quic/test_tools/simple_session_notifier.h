@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_TEST_TOOLS_SIMPLE_SESSION_NOTIFIER_H_
 
 #include "absl/container/flat_hash_map.h"
+#include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/session_notifier_interface.h"
-#include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 

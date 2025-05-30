@@ -4,8 +4,6 @@
 
 #include "quiche/quic/core/quic_connection.h"
 
-#include <errno.h>
-
 #include <algorithm>
 #include <cstdint>
 #include <memory>
@@ -3592,7 +3590,7 @@ TEST_P(QuicConnectionTest, AckFrequencyUpdatedFromAckFrequencyFrame) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
   QuicAckFrequencyFrame ack_frequency_frame;
-  ack_frequency_frame.packet_tolerance = 3;
+  ack_frequency_frame.ack_eliciting_threshold = 2;
   ProcessFramePacketAtLevel(1, QuicFrame(&ack_frequency_frame),
                             ENCRYPTION_FORWARD_SECURE);
 
@@ -13299,8 +13297,8 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrame) {
   // Send packet 101.
   SendStreamDataToPeer(/*id=*/1, "bar", /*offset=*/3, NO_FIN, nullptr);
 
-  EXPECT_EQ(captured_frame.packet_tolerance, 10u);
-  EXPECT_EQ(captured_frame.max_ack_delay,
+  EXPECT_EQ(captured_frame.ack_eliciting_threshold, 10u);
+  EXPECT_EQ(captured_frame.requested_max_ack_delay,
             QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs()));
 
   // Sending packet 102 does not trigger sending another AckFrequencyFrame.
@@ -13339,8 +13337,8 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrameUponHandshakeCompletion) {
 
   connection_.OnHandshakeComplete();
 
-  EXPECT_EQ(captured_frame.packet_tolerance, 2u);
-  EXPECT_EQ(captured_frame.max_ack_delay,
+  EXPECT_EQ(captured_frame.ack_eliciting_threshold, 2u);
+  EXPECT_EQ(captured_frame.requested_max_ack_delay,
             QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs()));
 }
 

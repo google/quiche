@@ -327,12 +327,13 @@ TEST_F(QuicFramesTest, HandshakeDoneFrameToString) {
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
 
-TEST_F(QuicFramesTest, QuicAckFreuqncyFrameToString) {
+TEST_F(QuicFramesTest, QuicAckFrequencyFrameToString) {
   QuicAckFrequencyFrame ack_frequency_frame;
   ack_frequency_frame.sequence_number = 1;
-  ack_frequency_frame.packet_tolerance = 2;
-  ack_frequency_frame.max_ack_delay = QuicTime::Delta::FromMilliseconds(25);
-  ack_frequency_frame.ignore_order = false;
+  ack_frequency_frame.ack_eliciting_threshold = 2;
+  ack_frequency_frame.requested_max_ack_delay =
+      QuicTime::Delta::FromMilliseconds(25);
+  ack_frequency_frame.reordering_threshold = false;
   QuicFrame frame(&ack_frequency_frame);
   ASSERT_EQ(ACK_FREQUENCY_FRAME, frame.type);
   SetControlFrameId(6, &frame);
@@ -340,8 +341,8 @@ TEST_F(QuicFramesTest, QuicAckFreuqncyFrameToString) {
   std::ostringstream stream;
   stream << *frame.ack_frequency_frame;
   EXPECT_EQ(
-      "{ control_frame_id: 6, sequence_number: 1, packet_tolerance: 2, "
-      "max_ack_delay_ms: 25, ignore_order: 0 }\n",
+      "{ control_frame_id: 6, sequence_number: 1, ack_eliciting_threshold: 2, "
+      "requested_max_ack_delay_ms: 25, reordering_threshold: 0 }\n",
       stream.str());
   EXPECT_TRUE(IsControlFrame(frame.type));
 }
