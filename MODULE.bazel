@@ -10,17 +10,17 @@ bazel_dep(name = "bazel_skylib", version = "1.7.1")
 # Last updated 2025-02-25
 bazel_dep(name = "rules_cc", version = "0.1.1")
 
-# Last updated 2025-02-25
-bazel_dep(name = "abseil-cpp", repo_name = "com_google_absl", version = "20250127.0")
+# Last updated 2025-05-29
+bazel_dep(name = "abseil-cpp", version = "20250512.0", repo_name = "com_google_absl")
 
-# Last updated 2025-02-25
-bazel_dep(name = "protobuf", repo_name = "com_google_protobuf", version = "29.3")
+# Last updated 2025-05-29
+bazel_dep(name = "protobuf", version = "31.1", repo_name = "com_google_protobuf")
 
 # Last updated 2025-05-01
 bazel_dep(name = "boringssl", version = "0.20250415.0")
 
 # Last updated 2025-02-25
-bazel_dep(name = "googletest", repo_name = "com_google_googletest", version = "1.16.0")
+bazel_dep(name = "googletest", version = "1.16.0", repo_name = "com_google_googletest")
 
 # Last updated 2025-02-25
 bazel_dep(name = "re2", version = "2024-07-02.bcr.1")
