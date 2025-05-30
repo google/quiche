@@ -7,11 +7,13 @@
 #include <netinet/in.h>
 #include <stdint.h>
 
+#include <cerrno>
 #include <cstddef>
 #include <sstream>
 #include <string>
 #include <vector>
 
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_mock_syscall_wrapper.h"
 #include "quiche/common/quiche_circular_deque.h"
@@ -19,6 +21,7 @@
 using testing::_;
 using testing::InSequence;
 using testing::Invoke;
+using testing::SetErrnoAndReturn;
 
 namespace quic {
 namespace test {
@@ -321,6 +324,16 @@ TEST_F(QuicLinuxSocketUtilsTest, WriteMultiplePackets_WriteSuccess) {
                                  buffered_writes.cend(), &num_packets_sent));
     EXPECT_EQ(expected_num_packets_sent, num_packets_sent);
   }
+}
+
+TEST_F(QuicLinuxSocketUtilsTest, WriteReturnsEnobufs) {
+  QuicMsgHdr hdr(nullptr, 0, nullptr, 0);
+  EXPECT_CALL(mock_syscalls_, Sendmsg)
+      .WillRepeatedly(SetErrnoAndReturn(ENOBUFS, -1));
+  EXPECT_EQ(WriteResult(WRITE_STATUS_BLOCKED, ENOBUFS),
+            QuicLinuxSocketUtils::WritePacket(/*fd=*/1, hdr, true));
+  EXPECT_EQ(WriteResult(WRITE_STATUS_ERROR, ENOBUFS),
+            QuicLinuxSocketUtils::WritePacket(/*fd=*/1, hdr, false));
 }
 
 }  // namespace

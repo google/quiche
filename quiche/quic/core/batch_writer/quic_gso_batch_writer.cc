@@ -12,7 +12,7 @@
 
 #include "quiche/quic/core/flow_label.h"
 #include "quiche/quic/core/quic_linux_socket_utils.h"
-#include "quiche/quic/platform/api/quic_server_stats.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 
 namespace quic {
 
@@ -32,7 +32,8 @@ QuicGsoBatchWriter::QuicGsoBatchWriter(int fd,
       supports_release_time_(
           GetQuicRestartFlag(quic_support_release_time_for_gso) &&
           QuicLinuxSocketUtils::EnableReleaseTime(fd,
-                                                  clockid_for_release_time)) {
+                                                  clockid_for_release_time)),
+      enobufs_blocked_(GetQuicReloadableFlag(quic_enobufs_blocked)) {
   if (supports_release_time_) {
     QUIC_RESTART_FLAG_COUNT(quic_support_release_time_for_gso);
   }

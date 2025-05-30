@@ -281,7 +281,8 @@ class QUICHE_EXPORT QuicLinuxSocketUtils {
                                 cmsghdr* cmsg);
 
   // Writes the packet in |hdr| to the socket, using ::sendmsg.
-  static WriteResult WritePacket(int fd, const QuicMsgHdr& hdr);
+  static WriteResult WritePacket(int fd, const QuicMsgHdr& hdr,
+                                 bool enobufs_blocked);
 
   // Writes the packets in |mhdr| to the socket, using ::sendmmsg if available.
   static WriteResult WriteMultiplePackets(int fd, QuicMMsgHdr* mhdr,
