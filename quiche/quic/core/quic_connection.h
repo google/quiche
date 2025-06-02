@@ -1453,7 +1453,7 @@ class QUICHE_EXPORT QuicConnection
     return last_received_packet_info_.flow_label;
   }
 
-  void EnableBlackholeAvoidanceViaFlowLabel() {
+  virtual void EnableBlackholeAvoidanceViaFlowLabel() {
     GenerateNewOutgoingFlowLabel();
     enable_black_hole_avoidance_via_flow_label_ = true;
     QUIC_CODE_COUNT(quic_black_hole_avoidance_via_flow_label_enabled);
