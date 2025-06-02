@@ -218,6 +218,17 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(kRNIB, perspective)) {
     pacing_sender_.set_remove_non_initial_burst();
   }
+  // Path degradation experiments
+  if (config.HasClientRequestedIndependentOption(kPDE2, perspective)) {
+    num_ptos_for_path_degrading_ = 2;
+  }
+  if (config.HasClientRequestedIndependentOption(kPDE3, perspective)) {
+    num_ptos_for_path_degrading_ = 3;
+  }
+  // kPDE4 is the default. We have the experiments with kPDE4.
+  if (config.HasClientRequestedIndependentOption(kPDE5, perspective)) {
+    num_ptos_for_path_degrading_ = 5;
+  }
   send_algorithm_->SetFromConfig(config, perspective);
   loss_algorithm_->SetFromConfig(config, perspective);
 

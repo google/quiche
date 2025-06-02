@@ -3556,6 +3556,30 @@ TEST_F(QuicSentPacketManagerTest, EcnAckedButNoMarksReported) {
                                    ENCRYPTION_FORWARD_SECURE, ecn_counts));
 }
 
+// Test that the path degrading delay is set correctly when the path degrading
+// connection option is set.
+TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayUsingPTO) {
+  QuicConfig client_config;
+  QuicTagVector all_path_dergradation_options = {kPDE2, kPDE3, kPDE5};
+  uint8_t pto_count = 2;
+  for (QuicTag current_dergradation_option : all_path_dergradation_options) {
+    QuicTagVector client_options;
+    client_options.push_back(current_dergradation_option);
+    QuicSentPacketManagerPeer::SetPerspective(&manager_,
+                                              Perspective::IS_CLIENT);
+    client_config.SetClientConnectionOptions(client_options);
+    EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+    EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+    manager_.SetFromConfig(client_config);
+    QuicTime::Delta expected_delay = pto_count * manager_.GetPtoDelay();
+    EXPECT_EQ(expected_delay, manager_.GetPathDegradingDelay());
+    pto_count++;
+    if (pto_count == 4) {
+      pto_count++;
+    }
+  }
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

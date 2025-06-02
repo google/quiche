@@ -520,6 +520,11 @@ DEFINE_STATIC_QUIC_TAG(FPPE);
 // Fix timeouts experiment.
 DEFINE_STATIC_QUIC_TAG(FTOE);
 
+// Path degradation experiments.
+DEFINE_STATIC_QUIC_TAG(PDE2);  // 2 PTOs for path degradation.
+DEFINE_STATIC_QUIC_TAG(PDE3);  // 3 PTOs for path degradation.
+DEFINE_STATIC_QUIC_TAG(PDE5);  // 5 PTOs for path degradation.
+
 #undef DEFINE_STATIC_QUIC_TAG
 
 // These tags have a special form so that they appear either at the beginning
