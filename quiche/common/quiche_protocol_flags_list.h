@@ -281,7 +281,7 @@ QUICHE_PROTOCOL_FLAG(
     "Alarm update granularity used by the QUICHE multiplexer alarm")
 
 QUICHE_PROTOCOL_FLAG(
-    size_t, quic_preallocate_unacked_packets, 0,
+    uint32_t, quic_preallocate_unacked_packets, 0,
     "Preallocate the specified number of entries in the unacked packet map.  "
     "If QuicConnection::GetUnackedMapInitialCapacity() already specifies a "
     "number, the larger of two applies.")
