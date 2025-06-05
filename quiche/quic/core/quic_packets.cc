@@ -160,23 +160,23 @@ size_t GetStartOfEncryptedData(
 
 QuicPacketHeader::QuicPacketHeader()
     : destination_connection_id(EmptyQuicConnectionId()),
+      possible_stateless_reset_token({}),
+      packet_number_length(PACKET_4BYTE_PACKET_NUMBER),
+      form(GOOGLE_QUIC_PACKET),
+      type_byte(0),
       destination_connection_id_included(CONNECTION_ID_PRESENT),
-      source_connection_id(EmptyQuicConnectionId()),
       source_connection_id_included(CONNECTION_ID_ABSENT),
       reset_flag(false),
       version_flag(false),
       has_possible_stateless_reset_token(false),
-      packet_number_length(PACKET_4BYTE_PACKET_NUMBER),
-      type_byte(0),
       version(UnsupportedQuicVersion()),
-      nonce(nullptr),
-      form(GOOGLE_QUIC_PACKET),
-      long_packet_type(INITIAL),
-      possible_stateless_reset_token({}),
-      retry_token_length_length(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0),
+      source_connection_id(EmptyQuicConnectionId()),
+      remaining_packet_length(0),
       retry_token(absl::string_view()),
+      nonce(nullptr),
+      long_packet_type(INITIAL),
       length_length(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0),
-      remaining_packet_length(0) {}
+      retry_token_length_length(quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0) {}
 
 QuicPacketHeader::QuicPacketHeader(const QuicPacketHeader& other) = default;
 
