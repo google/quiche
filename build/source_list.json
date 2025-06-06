@@ -1559,6 +1559,7 @@
     "quiche/quic/moqt/moqt_track.h",
     "quiche/quic/moqt/test_tools/mock_moqt_session.h",
     "quiche/quic/moqt/test_tools/moqt_framer_utils.h",
+    "quiche/quic/moqt/test_tools/moqt_parser_test_visitor.h",
     "quiche/quic/moqt/test_tools/moqt_session_peer.h",
     "quiche/quic/moqt/test_tools/moqt_simulator_harness.h",
     "quiche/quic/moqt/test_tools/moqt_test_message.h",
