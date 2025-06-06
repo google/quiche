@@ -772,6 +772,7 @@ quiche_tool_support_srcs = [
 ]
 quiche_test_support_hdrs = [
     "src/quiche/common/platform/api/quiche_expect_bug.h",
+    "src/quiche/common/platform/api/quiche_fuzztest.h",
     "src/quiche/common/platform/api/quiche_test.h",
     "src/quiche/common/platform/api/quiche_test_loopback.h",
     "src/quiche/common/platform/api/quiche_test_output.h",
@@ -1513,6 +1514,7 @@ default_platform_impl_tool_support_srcs = [
 ]
 default_platform_impl_test_support_hdrs = [
     "src/quiche/common/platform/default/quiche_platform_impl/quiche_expect_bug_impl.h",
+    "src/quiche/common/platform/default/quiche_platform_impl/quiche_fuzztest_impl.h",
     "src/quiche/common/platform/default/quiche_platform_impl/quiche_test_impl.h",
     "src/quiche/common/platform/default/quiche_platform_impl/quiche_test_loopback_impl.h",
     "src/quiche/common/platform/default/quiche_platform_impl/quiche_test_output_impl.h",
