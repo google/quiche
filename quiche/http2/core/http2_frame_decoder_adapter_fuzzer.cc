@@ -1,4 +1,4 @@
-#include "fuzztest/fuzztest.h"
+#include "testing/fuzzing/fuzztest.h"
 #include "quiche/http2/core/http2_frame_decoder_adapter.h"
 #include "quiche/http2/core/spdy_no_op_visitor.h"
 
