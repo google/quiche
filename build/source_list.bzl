@@ -1584,6 +1584,7 @@ moqt_srcs = [
     "quic/moqt/moqt_outgoing_queue.cc",
     "quic/moqt/moqt_outgoing_queue_test.cc",
     "quic/moqt/moqt_parser.cc",
+    "quic/moqt/moqt_parser_fuzz_test.cc",
     "quic/moqt/moqt_parser_test.cc",
     "quic/moqt/moqt_priority.cc",
     "quic/moqt/moqt_priority_test.cc",

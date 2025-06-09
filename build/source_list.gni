@@ -1588,6 +1588,7 @@ moqt_srcs = [
     "src/quiche/quic/moqt/moqt_outgoing_queue.cc",
     "src/quiche/quic/moqt/moqt_outgoing_queue_test.cc",
     "src/quiche/quic/moqt/moqt_parser.cc",
+    "src/quiche/quic/moqt/moqt_parser_fuzz_test.cc",
     "src/quiche/quic/moqt/moqt_parser_test.cc",
     "src/quiche/quic/moqt/moqt_priority.cc",
     "src/quiche/quic/moqt/moqt_priority_test.cc",

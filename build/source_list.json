@@ -1587,6 +1587,7 @@
     "quiche/quic/moqt/moqt_outgoing_queue.cc",
     "quiche/quic/moqt/moqt_outgoing_queue_test.cc",
     "quiche/quic/moqt/moqt_parser.cc",
+    "quiche/quic/moqt/moqt_parser_fuzz_test.cc",
     "quiche/quic/moqt/moqt_parser_test.cc",
     "quiche/quic/moqt/moqt_priority.cc",
     "quiche/quic/moqt/moqt_priority_test.cc",
