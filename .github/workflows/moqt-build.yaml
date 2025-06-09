@@ -1,0 +1,95 @@
+name: Build MoQT Library
+
+on:
+  push:
+    branches: [ shiguredo, main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    name: Build MoQT on macOS
+    runs-on: macos-15
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Bazelisk
+      uses: bazelbuild/setup-bazelisk@v3
+      
+    - name: Cache Bazel
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/bazel
+          ~/.cache/bazelisk
+        key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-bazel-
+    
+    - name: Build MoQT library
+      run: |
+        echo "Building MoQT library for macOS ARM64..."
+        bazel build //quiche:moqt --config=macos --jobs=4 --compilation_mode=opt
+        
+    - name: Verify build output
+      run: |
+        echo "Checking build output..."
+        ls -la bazel-bin/quiche/libmoqt.a
+        file bazel-bin/quiche/libmoqt.a
+        lipo -info bazel-bin/quiche/libmoqt.a
+        
+    - name: Prepare artifacts
+      run: |
+        mkdir -p artifacts/lib
+        mkdir -p artifacts/include
+        
+        # Copy library
+        cp bazel-bin/quiche/libmoqt.a artifacts/lib/
+        
+        # Copy MoQT headers
+        find quiche/quic/moqt -name "*.h" \
+          -not -path "*/test_tools/*" \
+          -not -path "*/tools/*" \
+          -exec cp --parents {} artifacts/include/ \;
+        
+        # Create info file
+        cat > artifacts/BUILD_INFO.txt <<EOF
+        MoQT Library Build Information
+        ==============================
+        Build Date: $(date -u)
+        Git Commit: $(git rev-parse HEAD)
+        Git Branch: $(git rev-parse --abbrev-ref HEAD)
+        Platform: macOS ARM64
+        Compiler: $(bazel version | grep "Build label:")
+        C++ Standard: C++20
+        
+        Library: lib/libmoqt.a
+        Headers: include/quiche/quic/moqt/
+        EOF
+        
+        # Copy build instructions
+        cp MOQT_BUILD_INSTRUCTIONS.md artifacts/
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: moqt-macos-arm64
+        path: artifacts/
+        retention-days: 30
+        
+    - name: Generate artifact summary
+      run: |
+        echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Platform**: macOS 15 (ARM64)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Library**: \`libmoqt.a\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Size**: $(ls -lh bazel-bin/quiche/libmoqt.a | awk '{print $5}')" >> $GITHUB_STEP_SUMMARY
+        echo "- **Architecture**: $(lipo -info bazel-bin/quiche/libmoqt.a | cut -d':' -f3)" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Included Files" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        find artifacts -type f | sort | sed 's/^artifacts\///' >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
