@@ -1,14 +1,25 @@
-# MoQT Library Build Instructions for macOS ARM64
+# MoQT Library Build Instructions
 
-## 前提条件
+このドキュメントでは、MoQTライブラリをmacOS ARM64およびUbuntu 24.04 ARM64でビルドする手順を説明します。
+
+## macOS ARM64向けビルド手順
+
+### 前提条件
 
 - macOS (Apple Silicon/ARM64)
 - Xcode Command Line Tools
 - Homebrew
 
-## ビルド手順
+### Ubuntu 24.04 ARM64向けビルド手順
 
-### 1. Bazelのインストール
+#### 前提条件
+
+- Ubuntu 24.04 (ARM64)
+- インターネット接続
+
+### macOS向けビルド手順
+
+#### 1. Bazelのインストール
 
 Bazeliskを使用してBazelをインストールします：
 
@@ -20,7 +31,7 @@ brew unlink bazel 2>/dev/null || true
 brew install bazelisk
 ```
 
-### 2. ソースコードの準備
+#### 2. ソースコードの準備
 
 ```bash
 # リポジトリをクローン（既にある場合はスキップ）
@@ -28,7 +39,7 @@ git clone https://github.com/google/quiche.git
 cd quiche
 ```
 
-### 3. BUILD.bazelファイルの修正
+#### 3. BUILD.bazelファイルの修正
 
 `quiche/BUILD.bazel`ファイルを編集して、MoQTライブラリのターゲットを追加します。
 
@@ -94,7 +105,7 @@ alias(
 )
 ```
 
-### 4. C++20の有効化
+#### 4. C++20の有効化
 
 `.bazelrc`ファイルを編集して、C++17をC++20に変更：
 
@@ -103,7 +114,7 @@ alias(
 sed -i '' 's/std=c++17/std=c++20/g' .bazelrc
 ```
 
-### 5. MoQTライブラリのビルド
+#### 5. MoQTライブラリのビルド
 
 ```bash
 # MoQTライブラリをビルド
@@ -119,7 +130,7 @@ Target //quiche:moqt up-to-date:
 INFO: Build completed successfully
 ```
 
-## ビルド成果物
+### ビルド成果物（macOS）
 
 ビルド後、以下の場所にライブラリが生成されます：
 
@@ -131,6 +142,74 @@ INFO: Build completed successfully
 ```bash
 lipo -info bazel-bin/quiche/libmoqt.a
 # 出力: Non-fat file: bazel-bin/quiche/libmoqt.a is architecture: arm64
+```
+
+## Ubuntu 24.04 ARM64向けビルド手順
+
+### 1. 必要なパッケージのインストール
+
+```bash
+# パッケージリストを更新
+sudo apt update
+
+# 基本的な開発ツールをインストール
+sudo apt install -y build-essential python3 python3-pip git curl
+```
+
+### 2. Bazeliskのインストール
+
+```bash
+# Bazelisk (ARM64版) をダウンロード
+curl -L https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 -o bazelisk
+
+# 実行権限を付与
+chmod +x bazelisk
+
+# システムパスに移動
+sudo mv bazelisk /usr/local/bin/bazel
+
+# バージョン確認
+bazel version
+```
+
+### 3. ソースコードの準備
+
+```bash
+# リポジトリをクローン（既にある場合はスキップ）
+git clone https://github.com/google/quiche.git
+cd quiche
+```
+
+### 4. MoQTライブラリのビルド
+
+Ubuntu版では、BUILD.bazelファイルとC++20の設定は既に適切に設定されているため、直接ビルドできます：
+
+```bash
+# MoQTライブラリをビルド
+bazel build //quiche:moqt --jobs=8
+```
+
+ビルドには数分かかります。成功すると以下のようなメッセージが表示されます：
+
+```
+INFO: Found 1 target...
+Target //quiche:moqt up-to-date:
+  bazel-bin/quiche/libmoqt.a
+INFO: Build completed successfully
+```
+
+### ビルド成果物（Ubuntu）
+
+ビルド後、以下の場所にライブラリが生成されます：
+
+- **ライブラリファイル**: `bazel-bin/quiche/libmoqt.a`
+- **アーキテクチャ**: arm64
+- **サイズ**: 約13.9MB
+
+アーキテクチャの確認：
+```bash
+file bazel-bin/quiche/libmoqt.a
+# 出力: bazel-bin/quiche/libmoqt.a: current ar archive
 ```
 
 ## ライブラリの使用方法
@@ -189,8 +268,14 @@ cc_binary(
 
 MoQTライブラリを再ビルドする場合：
 
+**macOS:**
 ```bash
 bazel build //quiche:moqt --config=macos --jobs=8
+```
+
+**Ubuntu:**
+```bash
+bazel build //quiche:moqt --jobs=8
 ```
 
 ## トラブルシューティング
@@ -213,9 +298,22 @@ bazel build //quiche:moqt --config=macos --jobs=8
    - `--jobs`オプションでビルド並列数を調整
    - より長いタイムアウトが必要な場合は`--local_cpu_resources`を使用
 
+### Ubuntu固有のトラブルシューティング
+
+1. **パッケージの依存関係エラー**
+   - 必要に応じて追加のパッケージをインストール: `sudo apt install -y clang libc++-dev`
+
+2. **メモリ不足**
+   - `--jobs`オプションで並列ビルド数を減らす（例: `--jobs=4`）
+   - スワップ領域を増やす
+
+3. **ディスク容量不足**
+   - Bazelキャッシュをクリア: `bazel clean`
+   - 十分なディスク容量（最低10GB推奨）を確保
+
 ## 注意事項
 
 - このライブラリはC++20でビルドされています
-- macOS ARM64 (Apple Silicon) 専用です
+- macOS ARM64 (Apple Silicon) およびUbuntu 24.04 ARM64をサポートしています
 - 依存関係が多いため、プロジェクトへの統合時は注意してください
-- `.a`ファイルは静的ライブラリです（macOSでも`.a`拡張子を使用）
+- `.a`ファイルは静的ライブラリです
