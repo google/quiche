@@ -8,6 +8,200 @@ on:
   workflow_dispatch:
 
 jobs:
+  build-ubuntu-x64:
+    name: Build MoQT on Ubuntu x86_64
+    runs-on: ubuntu-24.04
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential python3 python3-pip git curl
+        
+    - name: Setup Bazelisk
+      run: |
+        # Download Bazelisk for Linux x86_64
+        curl -L https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-amd64 -o bazelisk
+        chmod +x bazelisk
+        sudo mv bazelisk /usr/local/bin/bazel
+        
+        # Verify installation
+        bazel version
+        
+    - name: Cache Bazel
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/bazel
+          ~/.cache/bazelisk
+        key: ${{ runner.os }}-x64-bazel-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-x64-bazel-
+    
+    - name: Build MoQT library
+      run: |
+        echo "Building MoQT library for Ubuntu x86_64..."
+        bazel build //quiche:moqt --jobs=4 --compilation_mode=opt
+        
+    - name: Verify build output
+      run: |
+        echo "Checking build output..."
+        ls -la bazel-bin/quiche/libmoqt.a
+        file bazel-bin/quiche/libmoqt.a
+        
+    - name: Prepare artifacts
+      run: |
+        mkdir -p artifacts/lib
+        mkdir -p artifacts/include
+        
+        # Copy library
+        cp bazel-bin/quiche/libmoqt.a artifacts/lib/
+        
+        # Copy MoQT headers
+        find quiche/quic/moqt -name "*.h" \
+          -not -path "*/test_tools/*" \
+          -not -path "*/tools/*" \
+          -exec cp --parents {} artifacts/include/ \;
+        
+        # Create info file
+        cat > artifacts/BUILD_INFO.txt <<EOF
+        MoQT Library Build Information
+        ==============================
+        Build Date: $(date -u)
+        Git Commit: $(git rev-parse HEAD)
+        Git Branch: $(git rev-parse --abbrev-ref HEAD)
+        Platform: Ubuntu 24.04 x86_64
+        Compiler: $(bazel version | grep "Build label:")
+        C++ Standard: C++20
+        
+        Library: lib/libmoqt.a
+        Headers: include/quiche/quic/moqt/
+        EOF
+        
+        # Copy build instructions
+        cp MOQT_BUILD_INSTRUCTIONS.md artifacts/
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: moqt-ubuntu-x64
+        path: artifacts/
+        retention-days: 30
+        
+    - name: Generate artifact summary
+      run: |
+        echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Platform**: Ubuntu 24.04 (x86_64)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Library**: \`libmoqt.a\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Size**: $(ls -lh bazel-bin/quiche/libmoqt.a | awk '{print $5}')" >> $GITHUB_STEP_SUMMARY
+        echo "- **Architecture**: $(file bazel-bin/quiche/libmoqt.a | awk -F: '{print $2}')" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Included Files" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        find artifacts -type f | sort | sed 's/^artifacts\///' >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  build-ubuntu:
+    name: Build MoQT on Ubuntu ARM64
+    runs-on: ubuntu-24.04-arm
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Install dependencies
+      run: |
+        sudo apt update
+        sudo apt install -y build-essential python3 python3-pip git curl
+        
+    - name: Setup Bazelisk
+      run: |
+        # Download Bazelisk for Linux ARM64
+        curl -L https://github.com/bazelbuild/bazelisk/releases/latest/download/bazelisk-linux-arm64 -o bazelisk
+        chmod +x bazelisk
+        sudo mv bazelisk /usr/local/bin/bazel
+        
+        # Verify installation
+        bazel version
+        
+    - name: Cache Bazel
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/bazel
+          ~/.cache/bazelisk
+        key: ${{ runner.os }}-arm64-bazel-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock') }}
+        restore-keys: |
+          ${{ runner.os }}-arm64-bazel-
+    
+    - name: Build MoQT library
+      run: |
+        echo "Building MoQT library for Ubuntu ARM64..."
+        bazel build //quiche:moqt --jobs=4 --compilation_mode=opt
+        
+    - name: Verify build output
+      run: |
+        echo "Checking build output..."
+        ls -la bazel-bin/quiche/libmoqt.a
+        file bazel-bin/quiche/libmoqt.a
+        
+    - name: Prepare artifacts
+      run: |
+        mkdir -p artifacts/lib
+        mkdir -p artifacts/include
+        
+        # Copy library
+        cp bazel-bin/quiche/libmoqt.a artifacts/lib/
+        
+        # Copy MoQT headers
+        find quiche/quic/moqt -name "*.h" \
+          -not -path "*/test_tools/*" \
+          -not -path "*/tools/*" \
+          -exec cp --parents {} artifacts/include/ \;
+        
+        # Create info file
+        cat > artifacts/BUILD_INFO.txt <<EOF
+        MoQT Library Build Information
+        ==============================
+        Build Date: $(date -u)
+        Git Commit: $(git rev-parse HEAD)
+        Git Branch: $(git rev-parse --abbrev-ref HEAD)
+        Platform: Ubuntu 24.04 ARM64
+        Compiler: $(bazel version | grep "Build label:")
+        C++ Standard: C++20
+        
+        Library: lib/libmoqt.a
+        Headers: include/quiche/quic/moqt/
+        EOF
+        
+        # Copy build instructions
+        cp MOQT_BUILD_INSTRUCTIONS.md artifacts/
+        
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: moqt-ubuntu-arm64
+        path: artifacts/
+        retention-days: 30
+        
+    - name: Generate artifact summary
+      run: |
+        echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "- **Platform**: Ubuntu 24.04 (ARM64)" >> $GITHUB_STEP_SUMMARY
+        echo "- **Library**: \`libmoqt.a\`" >> $GITHUB_STEP_SUMMARY
+        echo "- **Size**: $(ls -lh bazel-bin/quiche/libmoqt.a | awk '{print $5}')" >> $GITHUB_STEP_SUMMARY
+        echo "- **Architecture**: $(file bazel-bin/quiche/libmoqt.a | awk -F: '{print $2}')" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### Included Files" >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+        find artifacts -type f | sort | sed 's/^artifacts\///' >> $GITHUB_STEP_SUMMARY
+        echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
   build-macos:
     name: Build MoQT on macOS
     runs-on: macos-15
