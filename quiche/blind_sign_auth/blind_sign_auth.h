@@ -38,6 +38,29 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
                  ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
                  SignedTokenCallback callback) override;
 
+  // Returns an attestation challenge in a callback.
+  // GetAttestationTokens callbacks will run on the same thread as the
+  // BlindSignMessageInterface callbacks.
+  // Callers can make multiple concurrent requests to GetTokens.
+  // AttestationDataCallback should call AttestAndSign with a separate callback
+  // in order to complete the token issuance protocol.
+  void GetAttestationTokens(int num_tokens, ProxyLayer layer,
+                            AttestationDataCallback callback) override;
+
+  // Returns signed unblinded tokens and their expiration time in a callback.
+  // Tokens are single-use and restricted to the PI use case.
+  // The GetTokens callback will run on the same thread as the
+  // BlindSignMessageInterface callbacks.
+  // This function should be called after the caller has generated
+  // AttestationData using Keystore and the challenge returned in
+  // AttestationDataCallback. If a token challenge is provided, it will be used
+  // in creating the token. Otherwise a default challenge will be used
+  // containing the issuer hostname.
+  void AttestAndSign(int num_tokens, ProxyLayer layer,
+                     std::string attestation_data,
+                     std::optional<std::string> token_challenge,
+                     SignedTokenCallback callback) override;
+
  private:
   void GetInitialDataCallback(
       std::optional<std::string> oauth_token, int num_tokens,

@@ -368,7 +368,27 @@ privacy::ppn::ProxyLayer BlindSignAuth::QuicheProxyLayerToPpnProxyLayer(
     case ProxyLayer::kProxyB: {
       return privacy::ppn::ProxyLayer::PROXY_B;
     }
+    case ProxyLayer::kTerminalLayer: {
+      return privacy::ppn::ProxyLayer::TERMINAL_LAYER;
+    }
   }
+}
+
+void BlindSignAuth::GetAttestationTokens(int /*num_tokens*/,
+                                         ProxyLayer /*layer*/,
+                                         AttestationDataCallback callback) {
+  // TODO(b/421236538): Implement GetAttestationTokens.
+  std::move(callback)(
+      absl::UnimplementedError("GetAttestationTokens is not implemented"));
+}
+
+void BlindSignAuth::AttestAndSign(
+    int /*num_tokens*/, ProxyLayer /*layer*/, std::string /*attestation_data*/,
+    std::optional<std::string> /*token_challenge*/,
+    SignedTokenCallback callback) {
+  // TODO(b/421236538): Implement AttestAndSign.
+  std::move(callback)(
+      absl::UnimplementedError("AttestAndSign is not implemented"));
 }
 
 std::string BlindSignAuth::ConvertBase64ToWebSafeBase64(
@@ -392,6 +412,9 @@ std::string BlindSignAuthServiceTypeToString(
       // TODO(b/280621504): Change this once we have a more specific service
       // type.
       return "chromeipblinding";
+    }
+    case BlindSignAuthServiceType::kPrivateAratea: {
+      return "pixel_private_aratea";
     }
   }
 }

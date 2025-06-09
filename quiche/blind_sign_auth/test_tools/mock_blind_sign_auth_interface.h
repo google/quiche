@@ -22,6 +22,15 @@ class QUICHE_NO_EXPORT MockBlindSignAuthInterface
                ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
                SignedTokenCallback callback),
               (override));
+  MOCK_METHOD(void, GetAttestationTokens,
+              (int num_tokens, ProxyLayer layer,
+               AttestationDataCallback callback),
+              (override));
+  MOCK_METHOD(void, AttestAndSign,
+              (int num_tokens, ProxyLayer layer, std::string attestation_data,
+               std::optional<std::string> token_challenge,
+               SignedTokenCallback callback),
+              (override));
 };
 
 }  // namespace quiche::test
