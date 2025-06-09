@@ -10,6 +10,10 @@ bazel_dep(name = "bazel_skylib", version = "1.7.1")
 # Last updated 2025-02-25
 bazel_dep(name = "rules_cc", version = "0.1.1")
 
+# Android NDK support - Added 2025-06-09
+bazel_dep(name = "rules_android_ndk", version = "0.1.2")
+bazel_dep(name = "platforms", version = "0.0.10")
+
 # Last updated 2025-05-29
 bazel_dep(name = "abseil-cpp", version = "20250512.0", repo_name = "com_google_absl")
 
@@ -42,3 +46,8 @@ http_archive(
     sha256 = "1d2c507cc31e109ecb41ba1fe766f5ff0f5974c3ba8d0919b3d22668f7e89305",  # Last updated 2023-07-06
     urls = ["https://storage.googleapis.com/quiche-envoy-integration/googleurl-5573f9aa120f3fbd378ca1b2565bbf7d223cd542.tar.gz"],
 )
+
+# Android NDK configuration
+android_ndk_repository_extension = use_extension("@rules_android_ndk//:extension.bzl", "android_ndk_repository_extension")
+use_repo(android_ndk_repository_extension, "androidndk")
+register_toolchains("@androidndk//:all")

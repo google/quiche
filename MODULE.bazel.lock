@@ -1,6 +1,6 @@
 {
   "lockFileVersion": 3,
-  "moduleFileHash": "9b770b5b5e5d0f3242b44b5f437e71bcae9493d6e0f8af7cabe454cd99292bbe",
+  "moduleFileHash": "b5a1ae408cbf784daa3270a7a17938e843d2ef5477995cfb271fc74f2a5f9ff9",
   "flags": {
     "cmdRegistries": [
       "https://bcr.bazel.build/"
@@ -22,7 +22,9 @@
       "key": "<root>",
       "repoName": "quiche",
       "executionPlatformsToRegister": [],
-      "toolchainsToRegister": [],
+      "toolchainsToRegister": [
+        "@androidndk//:all"
+      ],
       "extensionUsages": [
         {
           "extensionBzlFile": "//:MODULE.bazel",
@@ -52,7 +54,7 @@
               "devDependency": false,
               "location": {
                 "file": "@@//:MODULE.bazel",
-                "line": 33,
+                "line": 37,
                 "column": 13
               }
             },
@@ -68,11 +70,28 @@
               "devDependency": false,
               "location": {
                 "file": "@@//:MODULE.bazel",
-                "line": 40,
+                "line": 44,
                 "column": 13
               }
             }
           ],
+          "hasDevUseExtension": false,
+          "hasNonDevUseExtension": true
+        },
+        {
+          "extensionBzlFile": "@rules_android_ndk//:extension.bzl",
+          "extensionName": "android_ndk_repository_extension",
+          "usingModule": "<root>",
+          "location": {
+            "file": "@@//:MODULE.bazel",
+            "line": 51,
+            "column": 49
+          },
+          "imports": {
+            "androidndk": "androidndk"
+          },
+          "devImports": [],
+          "tags": [],
           "hasDevUseExtension": false,
           "hasNonDevUseExtension": true
         }
@@ -80,6 +99,8 @@
       "deps": {
         "bazel_skylib": "bazel_skylib@1.7.1",
         "rules_cc": "rules_cc@0.1.1",
+        "rules_android_ndk": "rules_android_ndk@0.1.2",
+        "platforms": "platforms@0.0.11",
         "com_google_absl": "abseil-cpp@20250512.0",
         "com_google_protobuf": "protobuf@31.1",
         "boringssl": "boringssl@0.20250415.0",
@@ -173,6 +194,82 @@
             "https://bcr.bazel.build/modules/rules_cc/0.1.1/patches/module_dot_bazel_version.patch": "sha256-2WyM/DEOM/Dj9MQU0Jl79eQ0Ju3QHGsgIuLO1OIwdt4="
           },
           "remote_patch_strip": 1
+        }
+      }
+    },
+    "rules_android_ndk@0.1.2": {
+      "name": "rules_android_ndk",
+      "version": "0.1.2",
+      "key": "rules_android_ndk@0.1.2",
+      "repoName": "rules_android_ndk",
+      "executionPlatformsToRegister": [],
+      "toolchainsToRegister": [],
+      "extensionUsages": [],
+      "deps": {
+        "platforms": "platforms@0.0.11",
+        "bazel_tools": "bazel_tools@_",
+        "local_config_platform": "local_config_platform@_"
+      },
+      "repoSpec": {
+        "bzlFile": "@bazel_tools//tools/build_defs/repo:http.bzl",
+        "ruleClassName": "http_archive",
+        "attributes": {
+          "name": "rules_android_ndk~0.1.2",
+          "urls": [
+            "https://github.com/bazelbuild/rules_android_ndk/releases/download/v0.1.2/rules_android_ndk-v0.1.2.tar.gz"
+          ],
+          "integrity": "sha256-Za7f8M1yi+45T2+45lujnExe+xGym3ZjVpItSnTGI/U=",
+          "strip_prefix": "rules_android_ndk-0.1.2",
+          "remote_patches": {
+            "https://bcr.bazel.build/modules/rules_android_ndk/0.1.2/patches/module_dot_bazel_version.patch": "sha256-IDEFQWKtCrA0XUZBoJ6eQJ8nAjxdF7CjKOr+LcrgdC0="
+          },
+          "remote_patch_strip": 1
+        }
+      }
+    },
+    "platforms@0.0.11": {
+      "name": "platforms",
+      "version": "0.0.11",
+      "key": "platforms@0.0.11",
+      "repoName": "platforms",
+      "executionPlatformsToRegister": [],
+      "toolchainsToRegister": [],
+      "extensionUsages": [
+        {
+          "extensionBzlFile": "@platforms//host:extension.bzl",
+          "extensionName": "host_platform",
+          "usingModule": "platforms@0.0.11",
+          "location": {
+            "file": "https://bcr.bazel.build/modules/platforms/0.0.11/MODULE.bazel",
+            "line": 9,
+            "column": 30
+          },
+          "imports": {
+            "host_platform": "host_platform"
+          },
+          "devImports": [],
+          "tags": [],
+          "hasDevUseExtension": false,
+          "hasNonDevUseExtension": true
+        }
+      ],
+      "deps": {
+        "rules_license": "rules_license@1.0.0",
+        "bazel_tools": "bazel_tools@_",
+        "local_config_platform": "local_config_platform@_"
+      },
+      "repoSpec": {
+        "bzlFile": "@bazel_tools//tools/build_defs/repo:http.bzl",
+        "ruleClassName": "http_archive",
+        "attributes": {
+          "name": "platforms",
+          "urls": [
+            "https://github.com/bazelbuild/platforms/releases/download/0.0.11/platforms-0.0.11.tar.gz"
+          ],
+          "integrity": "sha256-KXQuhydYCbXlmNwvBNhpYMx6VbMGfZciHJq7yZJr/w8=",
+          "strip_prefix": "",
+          "remote_patches": {},
+          "remote_patch_strip": 0
         }
       }
     },
@@ -690,52 +787,6 @@
       "deps": {
         "platforms": "platforms@0.0.11",
         "bazel_tools": "bazel_tools@_"
-      }
-    },
-    "platforms@0.0.11": {
-      "name": "platforms",
-      "version": "0.0.11",
-      "key": "platforms@0.0.11",
-      "repoName": "platforms",
-      "executionPlatformsToRegister": [],
-      "toolchainsToRegister": [],
-      "extensionUsages": [
-        {
-          "extensionBzlFile": "@platforms//host:extension.bzl",
-          "extensionName": "host_platform",
-          "usingModule": "platforms@0.0.11",
-          "location": {
-            "file": "https://bcr.bazel.build/modules/platforms/0.0.11/MODULE.bazel",
-            "line": 9,
-            "column": 30
-          },
-          "imports": {
-            "host_platform": "host_platform"
-          },
-          "devImports": [],
-          "tags": [],
-          "hasDevUseExtension": false,
-          "hasNonDevUseExtension": true
-        }
-      ],
-      "deps": {
-        "rules_license": "rules_license@1.0.0",
-        "bazel_tools": "bazel_tools@_",
-        "local_config_platform": "local_config_platform@_"
-      },
-      "repoSpec": {
-        "bzlFile": "@bazel_tools//tools/build_defs/repo:http.bzl",
-        "ruleClassName": "http_archive",
-        "attributes": {
-          "name": "platforms",
-          "urls": [
-            "https://github.com/bazelbuild/platforms/releases/download/0.0.11/platforms-0.0.11.tar.gz"
-          ],
-          "integrity": "sha256-KXQuhydYCbXlmNwvBNhpYMx6VbMGfZciHJq7yZJr/w8=",
-          "strip_prefix": "",
-          "remote_patches": {},
-          "remote_patch_strip": 0
-        }
       }
     },
     "rules_license@1.0.0": {
@@ -2270,6 +2321,22 @@
             "ruleClassName": "host_platform_repo",
             "attributes": {
               "name": "platforms~host_platform~host_platform"
+            }
+          }
+        }
+      }
+    },
+    "@@rules_android_ndk~0.1.2//:extension.bzl%android_ndk_repository_extension": {
+      "general": {
+        "bzlTransitiveDigest": "oV/TPZWCXAAcpJG/DBV/lNiWCISUTk5ba0KRjUb7adg=",
+        "accumulatedFileDigests": {},
+        "envVariables": {},
+        "generatedRepoSpecs": {
+          "androidndk": {
+            "bzlFile": "@@rules_android_ndk~0.1.2//:rules.bzl",
+            "ruleClassName": "android_ndk_repository",
+            "attributes": {
+              "name": "rules_android_ndk~0.1.2~android_ndk_repository_extension~androidndk"
             }
           }
         }
