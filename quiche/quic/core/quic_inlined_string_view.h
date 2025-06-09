@@ -47,7 +47,7 @@ class QUICHE_NO_EXPORT QuicInlinedStringView {
       return;
     }
 
-    QUICHE_DCHECK_EQ(source.size() & (~kLengthMask), 0);
+    QUICHE_DCHECK_EQ(source.size() & (~kLengthMask), size_t{0});
     if (source.size() > kMaxInlinedSize) {
       ViewRep rep;
       rep.data = source.data();
@@ -97,7 +97,7 @@ class QUICHE_NO_EXPORT QuicInlinedStringView {
   // 32-bit platforms.
   static constexpr size_t kLengthMask =
       sizeof(size_t) > 4 ? ((std::numeric_limits<size_t>::max() << 8) >> 8)
-                         : 0xffffffff;
+                         : std::numeric_limits<size_t>::max();
   static constexpr size_t kNotInlinedMarker = 0xff;
 
 #if defined(__x86_64__)
