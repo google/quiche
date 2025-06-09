@@ -28,6 +28,12 @@ bazel_dep(name = "re2", version = "2024-07-02.bcr.1")
 # Last updated 2025-02-25
 bazel_dep(name = "zlib", version = "1.3.1.bcr.5")
 
+# Last updated 2025-06-06
+bazel_dep(name = "fuzztest", version = "20250214.0")
+# Prevent fuzztest from pulling in a version of riegeli with compilation errors
+# (riegeli version "0.0.0-20240606-973b6f0").
+bazel_dep(name = "riegeli", version = "0.0.0-20241218-3385e3c")
+
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 
 http_archive(
