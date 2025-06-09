@@ -16,18 +16,17 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
       
-    - name: Setup Bazelisk
-      uses: bazelbuild/setup-bazelisk@v3
-      
-    - name: Cache Bazel
-      uses: actions/cache@v4
+    - name: Setup Bazel
+      uses: bazel-contrib/setup-bazel@0.15.0
       with:
-        path: |
-          ~/.cache/bazel
-          ~/.cache/bazelisk
-        key: ${{ runner.os }}-bazel-${{ hashFiles('.bazelversion', 'MODULE.bazel', 'MODULE.bazel.lock') }}
-        restore-keys: |
-          ${{ runner.os }}-bazel-
+        # Bazelisk will download Bazel based on .bazelversion
+        bazelisk-version: latest
+        # Avoid downloading Bazel every time.
+        bazelisk-cache: true
+        # Store build cache per workflow.
+        disk-cache: ${{ github.workflow }}
+        # Share repository cache between workflows.
+        repository-cache: true
     
     - name: Build MoQT library
       run: |
