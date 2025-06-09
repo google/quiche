@@ -21,6 +21,8 @@ load(
     "io_tool_support_srcs",
     "masque_support_hdrs",
     "masque_support_srcs",
+    "moqt_hdrs",
+    "moqt_srcs",
     "oblivious_http_hdrs",
     "oblivious_http_srcs",
     "quiche_core_hdrs",
@@ -378,6 +380,42 @@ cc_library(
 )
 
 cc_library(
+    name = "moqt",
+    srcs = [src for src in moqt_srcs 
+            if not src.endswith("_test.cc") 
+            and not src.startswith("quic/moqt/test_tools/") 
+            and not src.startswith("quic/moqt/tools/")],
+    hdrs = [hdr for hdr in moqt_hdrs 
+            if not hdr.startswith("quic/moqt/test_tools/") 
+            and not hdr.startswith("quic/moqt/tools/")],
+    deps = [
+        ":io_tool_support",
+        ":quiche_core",
+        ":quiche_tool_support",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/container:fixed_array",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/synchronization",
+        "@com_google_absl//absl/types:span",
+        "@com_google_absl//absl/types:variant",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+cc_library(
     name = "io_test_support",
     testonly = 1,
     srcs = io_test_support_srcs,
@@ -560,5 +598,11 @@ alias(
 alias(
     name = "quiche_unstable_api_test_support",
     actual = ":quiche_test_support",
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "moqt_unstable_api",
+    actual = ":moqt",
     visibility = ["//visibility:public"],
 )

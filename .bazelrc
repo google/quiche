@@ -1,7 +1,7 @@
 # Automatically detect host platform to pick config
 common --enable_platform_specific_config
 
-build --cxxopt=-std=c++17
+build --cxxopt=-std=c++20
 build --cxxopt=-fno-rtti
 
 # Enable Abseil/Googletest integration

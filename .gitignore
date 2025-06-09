@@ -1,0 +1,19 @@
+# Bazel build outputs
+bazel-bin
+bazel-google-quiche
+bazel-out
+bazel-testlogs
+bazel-quiche
+
+# Bazel cache
+.bazelrc.user
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
