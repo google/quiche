@@ -293,6 +293,9 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   QuicStreamOffset NumBytesConsumed() const {
     return sequencer()->NumBytesConsumed();
   }
+  QuicStreamOffset send_window_offset() const {
+    return flow_controller_->send_window_offset();
+  }
 
   // Called when endpoint receives a frame which could increase the highest
   // offset.
