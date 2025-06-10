@@ -654,8 +654,6 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       peer_creator_.SetEncrypter(level,
                                  std::make_unique<TaggingEncrypter>(level));
     }
-    QuicFramerPeer::SetLastSerializedServerConnectionId(
-        QuicConnectionPeer::GetFramer(&connection_), connection_id_);
     QuicFramerPeer::SetLastWrittenPacketNumberLength(
         QuicConnectionPeer::GetFramer(&connection_), packet_number_length_);
     QuicStreamId stream_id;

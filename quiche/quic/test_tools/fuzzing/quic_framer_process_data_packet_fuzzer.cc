@@ -201,10 +201,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
                              receiver_perspective,
                              kQuicDefaultConnectionIdLength);
   SetupFramer(&receiver_framer, &receiver_framer_visitor);
-  if (receiver_perspective == Perspective::IS_CLIENT) {
-    QuicFramerPeer::SetLastSerializedServerConnectionId(
-        &receiver_framer, header.source_connection_id);
-  }
 
   std::array<char, kEthernetMTU> packet_buffer;
   while (data_provider.remaining_bytes() > 16) {

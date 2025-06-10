@@ -20,8 +20,6 @@ class QuicFramerPeer {
   static uint64_t CalculatePacketNumberFromWire(
       QuicFramer* framer, QuicPacketNumberLength packet_number_length,
       QuicPacketNumber last_packet_number, uint64_t packet_number);
-  static void SetLastSerializedServerConnectionId(
-      QuicFramer* framer, QuicConnectionId server_connection_id);
   static void SetLastWrittenPacketNumberLength(QuicFramer* framer,
                                                size_t packet_number_length);
   static void SetLargestPacketNumber(QuicFramer* framer,

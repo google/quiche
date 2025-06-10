@@ -21,12 +21,6 @@ uint64_t QuicFramerPeer::CalculatePacketNumberFromWire(
 }
 
 // static
-void QuicFramerPeer::SetLastSerializedServerConnectionId(
-    QuicFramer* framer, QuicConnectionId server_connection_id) {
-  framer->last_serialized_server_connection_id_ = server_connection_id;
-}
-
-// static
 void QuicFramerPeer::SetLastWrittenPacketNumberLength(
     QuicFramer* framer, size_t packet_number_length) {
   framer->last_written_packet_number_length_ = packet_number_length;

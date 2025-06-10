@@ -105,13 +105,9 @@ void MovePackets(const QuicConnection& source_conn,
   QUICHE_CHECK(!packets.empty());
 
   SimpleQuicFramer framer(source_conn.supported_versions(), dest_perspective);
-  QuicFramerPeer::SetLastSerializedServerConnectionId(framer.framer(),
-                                                      TestConnectionId());
 
   SimpleQuicFramer null_encryption_framer(source_conn.supported_versions(),
                                           dest_perspective);
-  QuicFramerPeer::SetLastSerializedServerConnectionId(
-      null_encryption_framer.framer(), TestConnectionId());
 
   for (const QuicEncryptedPacket* const packet : packets) {
     if (!dest_conn.connected()) {

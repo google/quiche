@@ -1294,8 +1294,6 @@ TestPacketWriter::TestPacketWriter(ParsedQuicVersion version, MockClock* clock,
       framer_(SupportedVersions(version_),
               QuicUtils::InvertPerspective(perspective)),
       clock_(clock) {
-  QuicFramerPeer::SetLastSerializedServerConnectionId(framer_.framer(),
-                                                      TestConnectionId());
   framer_.framer()->SetInitialObfuscators(TestConnectionId());
 
   for (int i = 0; i < 128; ++i) {

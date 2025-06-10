@@ -1425,8 +1425,6 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToClient) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
-  QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
-                                                      TestConnectionId(0x33));
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   framer_.SetExpectedClientConnectionIdLength(kQuicDefaultConnectionIdLength);
   // clang-format off
@@ -1483,8 +1481,6 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToServer) {
 
 TEST_P(QuicFramerTest, PacketHeaderWith0ByteConnectionId) {
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
-  QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
-                                                      FramerTestConnectionId());
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
 
   // clang-format off
@@ -5088,8 +5084,6 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacket) {
   };
   // clang-format on
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
-  QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
-                                                      TestConnectionId(0x33));
   decrypter_ = new test::TestDecrypter();
   if (framer_.version().KnowsWhichDecrypterToUse()) {
     framer_.InstallDecrypter(
@@ -5127,8 +5121,6 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
       0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
   };
   // clang-format on
-  QuicFramerPeer::SetLastSerializedServerConnectionId(&framer_,
-                                                      TestConnectionId(0x33));
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   decrypter_ = new test::TestDecrypter();
   if (framer_.version().KnowsWhichDecrypterToUse()) {
