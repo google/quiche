@@ -199,7 +199,7 @@ std::string QuicAlarmSlotName(QuicAlarmSlot slot) {
 }
 
 QuicAlarmMultiplexer::QuicAlarmMultiplexer(
-    QuicConnectionAlarmsDelegate* /*absl_nonnull*/ connection,
+    QuicConnectionAlarmsDelegate* absl_nonnull connection,
     QuicConnectionArena& arena, QuicAlarmFactory& alarm_factory)
     : deadlines_({QuicTime::Zero(), QuicTime::Zero(), QuicTime::Zero(),
                   QuicTime::Zero(), QuicTime::Zero(), QuicTime::Zero(),

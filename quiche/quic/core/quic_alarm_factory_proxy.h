@@ -19,7 +19,7 @@ namespace quic {
 // QuicAlarmFactoryProxy passes calls to the specified unowned QuicAlarmFactory.
 class QUICHE_EXPORT QuicAlarmFactoryProxy : public QuicAlarmFactory {
  public:
-  explicit QuicAlarmFactoryProxy(QuicAlarmFactory* /*absl_nonnull*/ alarm_factory)
+  explicit QuicAlarmFactoryProxy(QuicAlarmFactory* absl_nonnull alarm_factory)
       : alarm_factory_(*alarm_factory) {}
 
   QuicAlarm* CreateAlarm(QuicAlarm::Delegate* delegate) override {

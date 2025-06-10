@@ -323,7 +323,7 @@ class QUICHE_EXPORT QuicTimeWaitListManager
       connection_id_data_map_;
 
   // Find data for the given connection_id. Returns nullptr if not found.
-  ConnectionIdData* /*absl_nullable*/ FindConnectionIdData(
+  ConnectionIdData* absl_nullable FindConnectionIdData(
       const QuicConnectionId& connection_id);
 
   // Pending termination packets that need to be sent out to the peer when we

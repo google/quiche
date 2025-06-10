@@ -93,7 +93,7 @@ QuicTimeWaitListManager::~QuicTimeWaitListManager() {
   connection_id_clean_up_alarm_->Cancel();
 }
 
-QuicTimeWaitListManager::ConnectionIdData* /*absl_nullable*/
+QuicTimeWaitListManager::ConnectionIdData* absl_nullable
 QuicTimeWaitListManager::FindConnectionIdData(
     const QuicConnectionId& connection_id) {
   auto it = connection_id_data_map_.find(connection_id);

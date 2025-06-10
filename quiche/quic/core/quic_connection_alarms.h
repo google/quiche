@@ -89,7 +89,7 @@ class QUICHE_EXPORT QuicAlarmMultiplexer {
   static constexpr size_t kNumberOfSlots =
       static_cast<size_t>(QuicAlarmSlot::kSlotCount);
 
-  QuicAlarmMultiplexer(QuicConnectionAlarmsDelegate* /*absl_nonnull*/ connection,
+  QuicAlarmMultiplexer(QuicConnectionAlarmsDelegate* absl_nonnull connection,
                        QuicConnectionArena& arena,
                        QuicAlarmFactory& alarm_factory);
 

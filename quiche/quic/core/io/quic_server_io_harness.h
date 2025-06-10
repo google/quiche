@@ -33,8 +33,8 @@ class QuicServerIoHarness : public QuicSocketEventListener {
   // descriptor.  Does not create a packet writer; the caller has to either call
   // InitializeWriter() manually, or provide their own writer.
   static absl::StatusOr<std::unique_ptr<QuicServerIoHarness>> Create(
-      QuicEventLoop* /*absl_nonnull*/ event_loop,
-      QuicDispatcher* /*absl_nonnull*/ dispatcher, SocketFd fd);
+      QuicEventLoop* absl_nonnull event_loop,
+      QuicDispatcher* absl_nonnull dispatcher, SocketFd fd);
 
   ~QuicServerIoHarness();
   QuicServerIoHarness(const QuicServerIoHarness&) = delete;

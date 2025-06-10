@@ -53,7 +53,7 @@ class QUICHE_NO_EXPORT QuicheWeakPtr final {
 
   // Returns the pointer to the underlying object if it is alive, or nullptr
   // otherwise.
-  T* /*absl_nullable*/ GetIfAvailable() const {
+  T* absl_nullable GetIfAvailable() const {
     return control_block_ != nullptr ? control_block_->Get() : nullptr;
   }
 
@@ -70,20 +70,20 @@ class QUICHE_NO_EXPORT QuicheWeakPtr final {
   // contained pointer is set to nullptr.
   class ControlBlock {
    public:
-    explicit ControlBlock(T* /*absl_nonnull*/ object) : object_(object) {}
+    explicit ControlBlock(T* absl_nonnull object) : object_(object) {}
 
-    T* /*absl_nullable*/ Get() const { return object_; }
+    T* absl_nullable Get() const { return object_; }
     void Clear() { object_ = nullptr; }
     bool IsValid() const { return object_ != nullptr; }
 
    private:
-    T* /*absl_nullable*/ object_;
+    T* absl_nullable object_;
   };
 
   explicit QuicheWeakPtr(std::shared_ptr<ControlBlock> block)
       : control_block_(std::move(block)) {}
 
-  /*absl_nullable*/ std::shared_ptr<ControlBlock> control_block_ = nullptr;
+  absl_nullable std::shared_ptr<ControlBlock> control_block_ = nullptr;
 };
 
 // QuicheWeakPtrFactory generates weak pointers to the parent object, and cleans
@@ -92,7 +92,7 @@ class QUICHE_NO_EXPORT QuicheWeakPtr final {
 template <typename T>
 class QUICHE_NO_EXPORT QuicheWeakPtrFactory final {
  public:
-  explicit QuicheWeakPtrFactory(T* /*absl_nonnull*/ object)
+  explicit QuicheWeakPtrFactory(T* absl_nonnull object)
       : control_block_(std::make_shared<ControlBlock>(object)) {}
   ~QuicheWeakPtrFactory() { control_block_->Clear(); }
 
@@ -110,7 +110,7 @@ class QUICHE_NO_EXPORT QuicheWeakPtrFactory final {
 
  private:
   using ControlBlock = typename QuicheWeakPtr<T>::ControlBlock;
-  /*absl_nonnull*/ std::shared_ptr<ControlBlock> control_block_;
+  absl_nonnull std::shared_ptr<ControlBlock> control_block_;
 };
 
 }  // namespace quiche

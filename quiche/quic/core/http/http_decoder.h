@@ -135,7 +135,7 @@ class QUICHE_EXPORT HttpDecoder {
   };
 
   // |visitor| must be non-null, and must outlive HttpDecoder.
-  explicit HttpDecoder(Visitor* /*absl_nonnull*/ visitor);
+  explicit HttpDecoder(Visitor* absl_nonnull visitor);
 
   ~HttpDecoder();
 
