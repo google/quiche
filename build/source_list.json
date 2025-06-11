@@ -1316,6 +1316,7 @@
     "quiche/quic/core/quic_framer_test.cc",
     "quiche/quic/core/quic_generic_session_test.cc",
     "quiche/quic/core/quic_idle_network_detector_test.cc",
+    "quiche/quic/core/quic_inlined_string_view_fuzz_test.cc",
     "quiche/quic/core/quic_inlined_string_view_test.cc",
     "quiche/quic/core/quic_interval_deque_test.cc",
     "quiche/quic/core/quic_interval_set_test.cc",
