@@ -383,6 +383,9 @@ void MasqueClientSession::SendPacket(
                 << " compressed with stream ID " << connect_udp->stream()->id()
                 << " and got message status "
                 << MessageStatusToString(message_status);
+  QUIC_DVLOG(2) << "Contents of outgoing HTTP Datagram of length "
+                << http_payload.size() << ":" << std::endl
+                << quiche::QuicheTextUtils::HexDump(http_payload);
 }
 
 void MasqueClientSession::CloseConnectUdpStream(

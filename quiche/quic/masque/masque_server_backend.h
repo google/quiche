@@ -14,6 +14,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "openssl/curve25519.h"
+#include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_export.h"
@@ -36,6 +37,7 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
     virtual std::unique_ptr<QuicBackendResponse> HandleMasqueRequest(
         const quiche::HttpHeaderBlock& request_headers,
         QuicSimpleServerBackend::RequestHandler* request_handler) = 0;
+    virtual QuicSpdySession* GetQuicSpdySession() = 0;
     virtual ~BackendClient() = default;
   };
 
@@ -59,11 +61,10 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
       QuicSimpleServerBackend::RequestHandler* request_handler) override;
 
   // Register backend client that can handle MASQUE requests.
-  void RegisterBackendClient(QuicConnectionId connection_id,
-                             BackendClient* backend_client);
+  void RegisterBackendClient(BackendClient* backend_client);
 
   // Unregister backend client.
-  void RemoveBackendClient(QuicConnectionId connection_id);
+  void RemoveBackendClient(BackendClient* backend_client);
 
   // Provides a unique client IP address for each CONNECT-IP client.
   QuicIpAddress GetNextClientIpAddress();
@@ -106,9 +107,7 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
     BackendClient* backend_client;
     std::vector<std::unique_ptr<QuicBackendResponse>> responses;
   };
-  absl::flat_hash_map<QuicConnectionId, BackendClientState,
-                      QuicConnectionIdHash>
-      backend_client_states_;
+  std::vector<BackendClientState> backend_client_states_;
   uint8_t connect_ip_next_client_ip_[4];
   struct QUIC_NO_EXPORT ConcealedAuthCredential {
     std::string key_id;

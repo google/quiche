@@ -81,15 +81,22 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
     }
   }
 
-  auto it = backend_client_states_.find(request_handler->connection_id());
-  if (it == backend_client_states_.end()) {
+  BackendClient* backend_client = nullptr;
+  std::vector<std::unique_ptr<QuicBackendResponse>>* responses = nullptr;
+  for (BackendClientState& state : backend_client_states_) {
+    if (state.backend_client->GetQuicSpdySession() !=
+        request_handler->GetStream()->spdy_session()) {
+      continue;
+    }
+    backend_client = state.backend_client;
+    responses = &state.responses;
+  }
+  if (backend_client == nullptr) {
     QUIC_LOG(ERROR) << "Could not find backend client for "
                     << request_handler->connection_id()
                     << request_headers.DebugString();
     return false;
   }
-
-  BackendClient* backend_client = it->second.backend_client;
 
   std::unique_ptr<QuicBackendResponse> response =
       backend_client->HandleMasqueRequest(request_headers, request_handler);
@@ -105,7 +112,7 @@ bool MasqueServerBackend::MaybeHandleMasqueRequest(
                   << request_headers.DebugString();
 
   request_handler->OnResponseBackendComplete(response.get());
-  it->second.responses.emplace_back(std::move(response));
+  responses->emplace_back(std::move(response));
 
   return true;
 }
@@ -143,19 +150,23 @@ void MasqueServerBackend::CloseBackendResponseStream(
   QuicMemoryCacheBackend::CloseBackendResponseStream(request_handler);
 }
 
-void MasqueServerBackend::RegisterBackendClient(QuicConnectionId connection_id,
-                                                BackendClient* backend_client) {
-  QUIC_DLOG(INFO) << "Registering backend client for " << connection_id;
-  QUIC_BUG_IF(quic_bug_12005_1, backend_client_states_.find(connection_id) !=
-                                    backend_client_states_.end())
-      << connection_id << " already in backend clients map";
-  backend_client_states_[connection_id] =
-      BackendClientState{backend_client, {}};
+void MasqueServerBackend::RegisterBackendClient(BackendClient* backend_client) {
+  QUIC_DLOG(INFO) << "Registering backend client for "
+                  << backend_client->GetQuicSpdySession()->connection_id();
+  backend_client_states_.push_back(BackendClientState{backend_client, {}});
 }
 
-void MasqueServerBackend::RemoveBackendClient(QuicConnectionId connection_id) {
-  QUIC_DLOG(INFO) << "Removing backend client for " << connection_id;
-  backend_client_states_.erase(connection_id);
+void MasqueServerBackend::RemoveBackendClient(BackendClient* backend_client) {
+  QUIC_DLOG(INFO) << "Removing backend client for "
+                  << backend_client->GetQuicSpdySession()->connection_id();
+  backend_client_states_.erase(
+      std::remove_if(backend_client_states_.begin(),
+                     backend_client_states_.end(),
+                     [backend_client](BackendClientState& state) {
+                       return state.backend_client->GetQuicSpdySession() ==
+                              backend_client->GetQuicSpdySession();
+                     }),
+      backend_client_states_.end());
 }
 
 QuicIpAddress MasqueServerBackend::GetNextClientIpAddress() {

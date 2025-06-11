@@ -76,6 +76,7 @@ class QUIC_NO_EXPORT MasqueServerSession
   std::unique_ptr<QuicBackendResponse> HandleMasqueRequest(
       const quiche::HttpHeaderBlock& request_headers,
       QuicSimpleServerBackend::RequestHandler* request_handler) override;
+  QuicSpdySession* GetQuicSpdySession() override;
 
   // From QuicSocketEventListener.
   void OnSocketEvent(QuicEventLoop* event_loop, QuicUdpSocketFd fd,

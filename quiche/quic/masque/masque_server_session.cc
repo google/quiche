@@ -163,7 +163,7 @@ MasqueServerSession::MasqueServerSession(
   // TODO(b/181606597) Remove this workaround once we use PMTUD.
   connection->SetMaxPacketLength(kDefaultMaxPacketSizeForTunnels);
 
-  masque_server_backend_->RegisterBackendClient(connection_id(), this);
+  masque_server_backend_->RegisterBackendClient(this);
   QUICHE_DCHECK_NE(event_loop_, nullptr);
 
   // We don't currently use `masque_mode_` but will in the future. To silence
@@ -185,7 +185,7 @@ void MasqueServerSession::OnConnectionClosed(
     const QuicConnectionCloseFrame& frame, ConnectionCloseSource source) {
   QuicSimpleServerSession::OnConnectionClosed(frame, source);
   QUIC_DLOG(INFO) << "Closing connection for " << connection_id();
-  masque_server_backend_->RemoveBackendClient(connection_id());
+  masque_server_backend_->RemoveBackendClient(this);
   // Clearing this state will close all sockets.
   connect_udp_server_states_.clear();
 }
@@ -698,6 +698,8 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
 
   return response;
 }
+
+QuicSpdySession* MasqueServerSession::GetQuicSpdySession() { return this; }
 
 void MasqueServerSession::OnSocketEvent(QuicEventLoop* /*event_loop*/,
                                         QuicUdpSocketFd fd,
