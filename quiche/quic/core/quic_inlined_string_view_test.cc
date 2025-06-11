@@ -70,5 +70,29 @@ TEST(QuicInlinedStringViewTest, CopyConstructor) {
             reinterpret_cast<uintptr_t>(view_external_copy.data()));
 }
 
+TEST(QuicInlinedStringViewTest, IsEmptyAfterClear) {
+  QuicInlinedStringView<24> view("foo");
+  view.clear();
+  ASSERT_TRUE(view.empty());
+  ASSERT_EQ(view.size(), 0);
+  ASSERT_TRUE(view.IsInlined());
+}
+
+TEST(QuicInlinedStringViewTest,
+     NonEmptyStringHasDifferentDataPointerWhenInlined) {
+  absl::string_view view = "foo";
+  QuicInlinedStringView<24> quic_view(view);
+  EXPECT_TRUE(quic_view.IsInlined());
+  EXPECT_NE(view.data(), quic_view.data());
+}
+
+TEST(QuicInlinedStringViewTest,
+     NonEmptyStringHasSameDataPointerWhenNotInlined) {
+  std::string big_string(300, 'a');
+  QuicInlinedStringView<24> quic_view(big_string);
+  EXPECT_FALSE(quic_view.IsInlined());
+  EXPECT_EQ(quic_view.data(), big_string.data());
+}
+
 }  // namespace
 }  // namespace quic

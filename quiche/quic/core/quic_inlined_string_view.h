@@ -18,25 +18,28 @@
 namespace quic {
 
 // QuicInlinedStringView<kSize> is a class that is similar to absl::string_view,
-// with a notable distinction that it can inline up to `kSize` characters
-// (between 15 and 127).
+// with a notable distinction that it can inline up to `kSize - 1` characters
+// (between 15 and 253 characters).
 //
 // Important use notes:
 // - QuicInlinedStringView makes no assumptions about ownership of non-inlined
 //   data; its primary purpose is to be a building block for other data
 //   structures.
 // - Unlike a regular string_view, the data pointer for QuicInlinedStringView
-//   will start pointing to a different location if inlined.
-// - The string will be inlined iff its size is strictly below kSize; this is
-//   a guaranteeed API behavior.
+//   will start pointing to a different location if the string is inlined and
+//   non-empty. For empty strings, the data pointer is always nullptr.
+// - The string will be inlined iff its size is strictly below kSize; this is a
+//   guaranteed API behavior.
 template <size_t kSize>
 class QUICHE_NO_EXPORT QuicInlinedStringView {
  public:
-  // The largest size of a string that can be inlined.
+  // The largest size of a string that can be inlined by
+  // `QuicInlinedStringView<kSize>`.
   static constexpr size_t kMaxInlinedSize = kSize - 1;
+  static constexpr size_t kBufferSize = kSize;
 
   static_assert(kSize >= 16);
-  static_assert(kSize < 255);
+  static_assert(kSize <= 254);
 
   QuicInlinedStringView() { clear(); }
   explicit QuicInlinedStringView(absl::string_view source) {
