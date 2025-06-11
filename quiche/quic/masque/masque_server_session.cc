@@ -740,7 +740,8 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
 
   QUICHE_DCHECK(expected_target_server_address.IsInitialized());
   QUIC_DVLOG(1) << "Received readable event on fd " << fd << " (mask " << events
-                << ") stream ID " << it->stream()->id() << " server "
+                << ") stream ID " << it->stream()->id()
+                << (is_bind ? " (bind)" : "") << " server "
                 << expected_target_server_address;
   QuicUdpSocketApi socket_api;
   QuicUdpPacketInfoBitMask packet_info_interested(
@@ -754,10 +755,6 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
       max_datagram_header_size + kMaxIncomingPacketSize;
 
   char packet_buffer[packet_buffer_size];
-
-  if (!is_bind) {
-    packet_buffer[0] = 0;  // Context ID = 0 for non-bind.
-  }
 
   char control_buffer[kDefaultUdpPacketControlBufferSize];
   while (true) {
@@ -845,6 +842,10 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
         writer.WriteStringPiece(peer_address.host().ToPackedString());
         writer.WriteUInt16(peer_address.port());
       }
+    } else {
+      QuicDataWriter writer(final_header_length,
+                            udp_payload_read_pos - final_header_length);
+      writer.WriteVarInt62(/*context_id=*/0);
     }
 
     // The packet is valid, send it to the client in a DATAGRAM frame.
@@ -857,7 +858,10 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
                   << " with stream ID " << it->stream()->id()
                   << " and got message status "
                   << MessageStatusToString(message_status)
-                  << "message size with header: " << message.size();
+                  << " message size with header: " << message.size();
+    QUIC_DVLOG(2) << "Contents of outgoing HTTP Datagram of length "
+                  << message.size() << ":" << std::endl
+                  << quiche::QuicheTextUtils::HexDump(message);
   }
   return true;
 }
@@ -1070,8 +1074,10 @@ void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
   WriteResult write_result = socket_api.WritePacket(
       fd_, http_payload.data(), http_payload.length(), packet_info);
   QUIC_DVLOG(1) << "Wrote packet of length " << http_payload.length() << " to "
-                << target_address << " with result " << write_result
-                << "payload:" << http_payload;
+                << target_address << " with result " << write_result;
+  QUIC_DVLOG(2) << "Contents of outgoing UDP packet of length "
+                << http_payload.length() << ":" << std::endl
+                << quiche::QuicheTextUtils::HexDump(http_payload);
 }
 
 bool MasqueServerSession::ConnectUdpServerState::OnCompressionAssignCapsule(
