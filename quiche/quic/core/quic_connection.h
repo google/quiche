@@ -1525,11 +1525,6 @@ class QUICHE_EXPORT QuicConnection
   //      change.
   virtual QuicSocketAddress GetEffectivePeerAddressFromCurrentPacket() const;
 
-  // Selects and updates the version of the protocol being used by selecting a
-  // version from |available_versions| which is also supported. Returns true if
-  // such a version exists, false otherwise.
-  bool SelectMutualVersion(const ParsedQuicVersionVector& available_versions);
-
   // Returns the current per-packet options for the connection.
   PerPacketOptions* per_packet_options() { return per_packet_options_; }
 

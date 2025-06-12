@@ -748,25 +748,6 @@ QuicBandwidth QuicConnection::ApplicationDrivenPacingRate() const {
   return sent_packet_manager_.ApplicationDrivenPacingRate();
 }
 
-bool QuicConnection::SelectMutualVersion(
-    const ParsedQuicVersionVector& available_versions) {
-  // Try to find the highest mutual version by iterating over supported
-  // versions, starting with the highest, and breaking out of the loop once we
-  // find a matching version in the provided available_versions vector.
-  const ParsedQuicVersionVector& supported_versions =
-      framer_.supported_versions();
-  for (size_t i = 0; i < supported_versions.size(); ++i) {
-    const ParsedQuicVersion& version = supported_versions[i];
-    if (std::find(available_versions.begin(), available_versions.end(),
-                  version) != available_versions.end()) {
-      framer_.set_version(version);
-      return true;
-    }
-  }
-
-  return false;
-}
-
 void QuicConnection::OnError(QuicFramer* framer) {
   // Packets that we can not or have not decrypted are dropped.
   // TODO(rch): add stats to measure this.

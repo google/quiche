@@ -532,7 +532,6 @@ class TestConnection : public QuicConnection {
 
   using QuicConnection::active_effective_peer_migration_type;
   using QuicConnection::IsCurrentPacketConnectivityProbing;
-  using QuicConnection::SelectMutualVersion;
   using QuicConnection::set_defer_send_in_response_to_packets;
 
  protected:
@@ -7047,32 +7046,6 @@ TEST_P(QuicConnectionTest, ProcessFramesIfPacketClosedConnection) {
   EXPECT_EQ(1, connection_close_frame_count_);
   EXPECT_THAT(saved_connection_close_frame_.quic_error_code,
               IsError(QUIC_PEER_GOING_AWAY));
-}
-
-TEST_P(QuicConnectionTest, SelectMutualVersion) {
-  connection_.SetSupportedVersions(AllSupportedVersions());
-  // Set the connection to speak the lowest quic version.
-  connection_.set_version(QuicVersionMin());
-  EXPECT_EQ(QuicVersionMin(), connection_.version());
-
-  // Pass in available versions which includes a higher mutually supported
-  // version.  The higher mutually supported version should be selected.
-  ParsedQuicVersionVector supported_versions = AllSupportedVersions();
-  EXPECT_TRUE(connection_.SelectMutualVersion(supported_versions));
-  EXPECT_EQ(QuicVersionMax(), connection_.version());
-
-  // Expect that the lowest version is selected.
-  // Ensure the lowest supported version is less than the max, unless they're
-  // the same.
-  ParsedQuicVersionVector lowest_version_vector;
-  lowest_version_vector.push_back(QuicVersionMin());
-  EXPECT_TRUE(connection_.SelectMutualVersion(lowest_version_vector));
-  EXPECT_EQ(QuicVersionMin(), connection_.version());
-
-  // Shouldn't be able to find a mutually supported version.
-  ParsedQuicVersionVector unsupported_version;
-  unsupported_version.push_back(UnsupportedQuicVersion());
-  EXPECT_FALSE(connection_.SelectMutualVersion(unsupported_version));
 }
 
 TEST_P(QuicConnectionTest, ConnectionCloseWhenWritable) {
