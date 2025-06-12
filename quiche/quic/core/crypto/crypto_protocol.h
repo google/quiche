@@ -525,6 +525,10 @@ DEFINE_STATIC_QUIC_TAG(PDE2);  // 2 PTOs for path degradation.
 DEFINE_STATIC_QUIC_TAG(PDE3);  // 3 PTOs for path degradation.
 DEFINE_STATIC_QUIC_TAG(PDE5);  // 5 PTOs for path degradation.
 
+// Experiment for explicit connection close packet for silent idle timeout from
+// server.
+DEFINE_STATIC_QUIC_TAG(ECCP);
+
 #undef DEFINE_STATIC_QUIC_TAG
 
 // These tags have a special form so that they appear either at the beginning
