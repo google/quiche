@@ -7,8 +7,7 @@
 #ifndef QUICHE_QUIC_CORE_CONGESTION_CONTROL_SEND_ALGORITHM_INTERFACE_H_
 #define QUICHE_QUIC_CORE_CONGESTION_CONTROL_SEND_ALGORITHM_INTERFACE_H_
 
-#include <algorithm>
-#include <map>
+#include <cstdint>
 #include <string>
 
 #include "quiche/quic/core/crypto/quic_random.h"
@@ -16,11 +15,12 @@
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection_stats.h"
-#include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_unacked_packet_map.h"
-#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 
