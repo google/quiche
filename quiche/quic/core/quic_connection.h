@@ -1357,6 +1357,8 @@ class QUICHE_EXPORT QuicConnection
 
   bool HasPendingPathValidation() const;
 
+  bool HasUnusedConnectionId() const;
+
   QuicPathValidationContext* GetPathValidationContext() const;
 
   void CancelPathValidation();
@@ -2567,6 +2569,12 @@ class QUICHE_EXPORT QuicConnection
   // If true, connection will migrate to multi-port path upon path degrading.
   bool multi_port_migration_enabled_ = false;
 
+  // If true, connection will probe for multi-port path on RTO. This is only
+  // used on the client side. If false, connection will probe for multi-port
+  // path on receiving a new connection ID frame. See OnNewConnectionIdFrame()
+  // for more details.
+  bool multi_port_probing_on_rto_ = false;
+
   // Client side only.
   bool active_migration_disabled_ = false;
 
@@ -2632,7 +2640,6 @@ class QUICHE_EXPORT QuicConnection
   bool enable_black_hole_avoidance_via_flow_label_ = false;
   // If true, fixes a off-by-one error in the least unacked packet calculation.
   bool least_unacked_plus_1_;
-
   const bool quic_limit_new_streams_per_loop_2_ =
       GetQuicReloadableFlag(quic_limit_new_streams_per_loop_2);
 

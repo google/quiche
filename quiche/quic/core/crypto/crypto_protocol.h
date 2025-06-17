@@ -524,6 +524,7 @@ DEFINE_STATIC_QUIC_TAG(FTOE);
 DEFINE_STATIC_QUIC_TAG(PDE2);  // 2 PTOs for path degradation.
 DEFINE_STATIC_QUIC_TAG(PDE3);  // 3 PTOs for path degradation.
 DEFINE_STATIC_QUIC_TAG(PDE5);  // 5 PTOs for path degradation.
+DEFINE_STATIC_QUIC_TAG(MPR1);  // Probe for multi-port path on RTO.
 
 // Experiment for explicit connection close packet for silent idle timeout from
 // server.

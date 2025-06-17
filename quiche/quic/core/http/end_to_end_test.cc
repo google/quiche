@@ -5771,6 +5771,110 @@ TEST_P(EndToEndTest, ClientMultiPortConnection) {
   stream->Reset(QuicRstStreamErrorCode::QUIC_STREAM_NO_ERROR);
 }
 
+TEST_P(EndToEndTest, ClientMultiPortProbeOnRto) {
+  client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC, kMPR1});
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
+  ASSERT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+
+  QuicConnection* client_connection = GetClientConnection();
+  QuicSpdyClientStream* stream = client_->GetOrCreateStream();
+  ASSERT_TRUE(stream);
+
+  // Increase the probing frequency to speed up this test.
+  client_connection->SetMultiPortProbingInterval(
+      QuicTime::Delta::FromMilliseconds(100));
+
+  SendSynchronousFooRequestAndCheckResponse();
+
+  // Verify that no multiport connection is established before RTO.
+  EXPECT_TRUE(QuicConnectionPeer::GetServerConnectionIdOnAlternativePath(
+                  client_connection)
+                  .IsEmpty() ||
+              client_connection->GetStats().pto_count > 0);
+
+  // If no multiport connection is established, simulate a RTO and verify that
+  // the probing on RTO is triggered.
+  if (client_connection->multi_port_stats()->num_multi_port_paths_created ==
+      0) {
+    server_writer_->set_fake_packet_loss_percentage(100);
+    EXPECT_TRUE(client_->WaitUntil(
+        1000, [&]() { return client_->client()->HasPendingPathValidation(); }));
+    server_writer_->set_fake_packet_loss_percentage(0);
+    // Now wait for path validation to complete.
+    EXPECT_TRUE(client_->WaitUntil(2000, [&]() {
+      return !client_->client()->HasPendingPathValidation();
+    }));
+  }
+
+  // Verify that a multiport connection is established.
+  EXPECT_EQ(client_connection->multi_port_stats()->num_multi_port_paths_created,
+            1);
+
+  // Verify that the probing is triggered after multiport connection is
+  // established.
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return 1u == client_connection->GetStats().num_path_response_received;
+  }));
+
+  // Verify that the alternative path keeps sending probes periodically.
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return 2u == client_connection->GetStats().num_path_response_received;
+  }));
+
+  // This will cause the next periodic probing to fail.
+  server_writer_->set_fake_packet_loss_percentage(100);
+  EXPECT_TRUE(client_->WaitUntil(
+      1000, [&]() { return client_->client()->HasPendingPathValidation(); }));
+  // Now wait for path validation to timeout.
+  EXPECT_TRUE(client_->WaitUntil(
+      2000, [&]() { return !client_->client()->HasPendingPathValidation(); }));
+  server_writer_->set_fake_packet_loss_percentage(0);
+  // Verify no new path response received on alternate path
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return 2u == client_connection->GetStats().num_path_response_received;
+  }));
+
+  // Verify that the previous path is retired after path validation times out.
+  EXPECT_TRUE(client_->WaitUntil(1000, [&]() {
+    return 1u == client_connection->GetStats().num_retire_connection_id_sent;
+  }));
+
+  // Wait for new connection id to be received before new multiport connection
+  // is established.
+  WaitForNewConnectionIds();
+
+  // Send another request to make sure the server will have a chance to
+  // establish new multiport connection on RTO.
+  SendSynchronousFooRequestAndCheckResponse();
+
+  // Simulate another RTO and verify that the probing on RTO is triggered again.
+  server_writer_->set_fake_packet_loss_percentage(100);
+
+  // Verify that a new multiport connection is established on RTO.
+  EXPECT_TRUE(client_->WaitUntil(2000, [&]() {
+    return client_connection->multi_port_stats()
+               ->num_multi_port_paths_created == 2;
+  }));
+  EXPECT_TRUE(client_->WaitUntil(
+      2000, [&]() { return client_->client()->HasPendingPathValidation(); }));
+  server_writer_->set_fake_packet_loss_percentage(0);
+  // Now wait for path validation to complete.
+  EXPECT_TRUE(client_->WaitUntil(
+      1000, [&]() { return !client_->client()->HasPendingPathValidation(); }));
+
+  // Verify new path is validated after establishing a new multiport connection.
+  // Sometimes the path validation is trigerred more than 3 times.
+  EXPECT_TRUE(client_->WaitUntil(2000, [&]() {
+    return 3u >= client_connection->GetStats().num_path_response_received;
+  }));
+
+  stream->Reset(QuicRstStreamErrorCode::QUIC_STREAM_NO_ERROR);
+}
+
 TEST_P(EndToEndTest, ClientPortMigrationOnPathDegrading) {
   connect_to_server_on_initialize_ = false;
   Initialize();
