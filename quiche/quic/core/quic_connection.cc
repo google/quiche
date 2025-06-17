@@ -5830,27 +5830,17 @@ void QuicConnection::MaybeStartIetfPeerMigration() {
 
 void QuicConnection::PostProcessAfterAckFrame(bool acked_new_packet) {
   if (!packet_creator_.has_ack()) {
-    if (least_unacked_plus_1_) {
-      QuicPacketNumber largest_packet_peer_knows_is_acked =
-          SupportsMultiplePacketNumberSpaces()
-              ? sent_packet_manager_.GetLargestPacketPeerKnowsIsAcked(
-                    last_received_packet_info_.decrypted_level)
-              : sent_packet_manager_.largest_packet_peer_knows_is_acked();
-      if (largest_packet_peer_knows_is_acked.IsInitialized()) {
-        QUIC_RELOADABLE_FLAG_COUNT(quic_least_unacked_plus_1);
-        ++largest_packet_peer_knows_is_acked;
-      }
-      uber_received_packet_manager_.DontWaitForPacketsBefore(
-          last_received_packet_info_.decrypted_level,
-          largest_packet_peer_knows_is_acked);
-    } else {
-      uber_received_packet_manager_.DontWaitForPacketsBefore(
-          last_received_packet_info_.decrypted_level,
-          SupportsMultiplePacketNumberSpaces()
-              ? sent_packet_manager_.GetLargestPacketPeerKnowsIsAcked(
-                    last_received_packet_info_.decrypted_level)
-              : sent_packet_manager_.largest_packet_peer_knows_is_acked());
+    QuicPacketNumber largest_packet_peer_knows_is_acked =
+        sent_packet_manager_.GetLargestPacketPeerKnowsIsAcked(
+            last_received_packet_info_.decrypted_level);
+    if (least_unacked_plus_1_ &&
+        largest_packet_peer_knows_is_acked.IsInitialized()) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_least_unacked_plus_1);
+      ++largest_packet_peer_knows_is_acked;
     }
+    uber_received_packet_manager_.DontWaitForPacketsBefore(
+        last_received_packet_info_.decrypted_level,
+        largest_packet_peer_knows_is_acked);
   }
   // Always reset the retransmission alarm when an ack comes in, since we now
   // have a better estimate of the current rtt than when it was set.

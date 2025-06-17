@@ -728,7 +728,8 @@ TEST_F(QuicSentPacketManagerTest, GetLeastUnackedUnacked) {
 }
 
 TEST_F(QuicSentPacketManagerTest, AckAckAndUpdateRtt) {
-  EXPECT_FALSE(manager_.largest_packet_peer_knows_is_acked().IsInitialized());
+  EXPECT_FALSE(manager_.GetLargestPacketPeerKnowsIsAcked(ENCRYPTION_INITIAL)
+                   .IsInitialized());
   SendDataPacket(1);
   SendAckPacket(2, 1);
 
@@ -741,7 +742,8 @@ TEST_F(QuicSentPacketManagerTest, AckAckAndUpdateRtt) {
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
                                    ENCRYPTION_INITIAL, kEmptyCounts));
-  EXPECT_EQ(QuicPacketNumber(1), manager_.largest_packet_peer_knows_is_acked());
+  EXPECT_EQ(QuicPacketNumber(1),
+            manager_.GetLargestPacketPeerKnowsIsAcked(ENCRYPTION_INITIAL));
 
   SendAckPacket(3, 3);
 
@@ -755,7 +757,7 @@ TEST_F(QuicSentPacketManagerTest, AckAckAndUpdateRtt) {
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
                                    ENCRYPTION_INITIAL, kEmptyCounts));
   EXPECT_EQ(QuicPacketNumber(3u),
-            manager_.largest_packet_peer_knows_is_acked());
+            manager_.GetLargestPacketPeerKnowsIsAcked(ENCRYPTION_INITIAL));
 }
 
 TEST_F(QuicSentPacketManagerTest, Rtt) {

@@ -1576,9 +1576,11 @@ QuicPacketNumber QuicSentPacketManager::GetLeastPacketAwaitedByPeer(
 
 QuicPacketNumber QuicSentPacketManager::GetLargestPacketPeerKnowsIsAcked(
     EncryptionLevel decrypted_packet_level) const {
-  QUICHE_DCHECK(supports_multiple_packet_number_spaces());
-  return largest_packets_peer_knows_is_acked_[QuicUtils::GetPacketNumberSpace(
-      decrypted_packet_level)];
+  if (supports_multiple_packet_number_spaces()) {
+    return largest_packets_peer_knows_is_acked_[QuicUtils::GetPacketNumberSpace(
+        decrypted_packet_level)];
+  }
+  return largest_packet_peer_knows_is_acked_;
 }
 
 QuicTime::Delta

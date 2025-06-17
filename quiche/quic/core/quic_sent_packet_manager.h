@@ -437,11 +437,6 @@ class QUICHE_EXPORT QuicSentPacketManager {
     return initial_congestion_window_;
   }
 
-  QuicPacketNumber largest_packet_peer_knows_is_acked() const {
-    QUICHE_DCHECK(!supports_multiple_packet_number_spaces());
-    return largest_packet_peer_knows_is_acked_;
-  }
-
   size_t pending_timer_transmission_count() const {
     return pending_timer_transmission_count_;
   }
