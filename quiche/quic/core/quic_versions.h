@@ -136,6 +136,7 @@ enum QuicTransportVersion {
   // version negotiation when proposed by clients and to prevent client
   // ossification when sent by servers.
   QUIC_VERSION_RESERVED_FOR_NEGOTIATION = 999,
+  QUIC_VERSION_MAX_VALUE = QUIC_VERSION_RESERVED_FOR_NEGOTIATION,
 };
 
 // Helper function which translates from a QuicTransportVersion to a string.

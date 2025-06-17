@@ -6,12 +6,16 @@
 
 #include <cstddef>
 #include <sstream>
+#include <string>
 
 #include "absl/algorithm/container.h"
 #include "absl/base/macros.h"
+#include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
 
 namespace quic {
 namespace test {
@@ -351,6 +355,23 @@ TEST(QuicVersionsTest, ParsedQuicVersionToString) {
   std::ostringstream os;
   os << versions_vector;
   EXPECT_EQ("0,Q046", os.str());
+}
+
+void ParseSerializeParseIdentityProperty(absl::string_view input) {
+  ParsedQuicVersionVector parsed = ParseQuicVersionVectorString(input);
+  std::string serialized = ParsedQuicVersionVectorToString(parsed);
+  ParsedQuicVersionVector parsed2 = ParseQuicVersionVectorString(serialized);
+  EXPECT_EQ(parsed, parsed2);
+}
+FUZZ_TEST(QuicVersionsFuzzTest, ParseSerializeParseIdentityProperty);
+
+// Regression test for an invalid enum cast to `QuicTransportVersion` in
+// `ParseQuicVersionString()`, detected by UndefinedBehaviorSanitizer.
+TEST(QuicVersionsTest, ParseSerializeParseIdentityPropertyRegression) {
+  static constexpr int kInvalidVersion = 99999;
+  static_assert(kInvalidVersion > QuicTransportVersion::QUIC_VERSION_MAX_VALUE);
+  EXPECT_EQ(UnsupportedQuicVersion(),
+            ParseQuicVersionString(absl::StrCat(kInvalidVersion)));
 }
 
 TEST(QuicVersionsTest, FilterSupportedVersionsAllVersions) {

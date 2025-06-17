@@ -386,7 +386,8 @@ ParsedQuicVersion ParseQuicVersionString(absl::string_view version_string) {
   }
   int quic_version_number = 0;
   if (absl::SimpleAtoi(version_string, &quic_version_number) &&
-      quic_version_number > 0) {
+      quic_version_number > 0 &&
+      quic_version_number <= QuicTransportVersion::QUIC_VERSION_MAX_VALUE) {
     QuicTransportVersion transport_version =
         static_cast<QuicTransportVersion>(quic_version_number);
     if (!ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO, transport_version)) {
