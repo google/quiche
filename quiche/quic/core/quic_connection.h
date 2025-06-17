@@ -2630,7 +2630,8 @@ class QUICHE_EXPORT QuicConnection
   // If true then flow labels will be changed when a PTO fires, or when
   // a PTO'd packet from a peer is detected.
   bool enable_black_hole_avoidance_via_flow_label_ = false;
-
+  // If true, fixes a off-by-one error in the least unacked packet calculation.
+  bool least_unacked_plus_1_;
 
   const bool quic_limit_new_streams_per_loop_2_ =
       GetQuicReloadableFlag(quic_limit_new_streams_per_loop_2);

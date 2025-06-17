@@ -882,7 +882,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       if (connection_.version().KnowsWhichDecrypterToUse()) {
         connection_.InstallDecrypter(
             level, std::make_unique<StrictTaggingDecrypter>(level));
-      } else {
+      } else if (level != connection_.last_decrypted_level()) {
         connection_.SetAlternativeDecrypter(
             level, std::make_unique<StrictTaggingDecrypter>(level), false);
       }
@@ -17917,6 +17917,50 @@ TEST_P(QuicConnectionTest, ConfigEnablesAckFrequency) {
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
   connection_.SetFromConfig(config);
   EXPECT_TRUE(QuicConnectionPeer::CanReceiveAckFrequencyFrames(&connection_));
+}
+
+// Regression test for b/424538505.
+TEST_P(QuicConnectionTest, LeastUnackedOffByOne) {
+  QuicPacketNumber largest_packet_sent;
+  EXPECT_CALL(connection_, OnSerializedPacket)
+      .WillOnce(Invoke([&](SerializedPacket packet) {
+        largest_packet_sent = packet.packet_number;
+        connection_.QuicConnection::OnSerializedPacket(std::move(packet));
+      }));
+  ProcessPacket(1);
+  ProcessPacket(2);
+  EXPECT_TRUE(largest_packet_sent.IsInitialized());
+  const QuicAckFrame& local_ack_frame_1 = writer_->ack_frames()[0];
+  EXPECT_EQ(local_ack_frame_1.largest_acked, QuicPacketNumber(2));
+  EXPECT_EQ(local_ack_frame_1.packets.NumIntervals(), 1);
+
+  QuicAckFrame peer_ack_frame;
+  peer_ack_frame.largest_acked = largest_packet_sent;
+  peer_ack_frame.ack_delay_time = QuicTime::Delta::Zero();
+  peer_ack_frame.packets.Add(largest_packet_sent);
+  QuicFrames peer_frames;
+  // Add a PING frame to make it ack-eliciting.
+  peer_frames.push_back(QuicFrame(QuicPingFrame()));
+  peer_frames.push_back(QuicFrame(&peer_ack_frame));
+  // When connection_ receives packet 4, it includes an ACK of (locally-sent)
+  // packet 1. Packet 1 included an ACK of (locally-received) packets 1 and 2.
+  // When packet 4 is received, the local connection is therefore confident that
+  // the peer knows that both packets 1 & 2 have been ACK'd and so it can stop
+  // ACK'ing them.
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent);
+  EXPECT_CALL(connection_, OnSerializedPacket);
+  // Create a packet number gap so that there will be two ranges if the first
+  // range is not removed.
+  ProcessFramesPacketAtLevel(4, peer_frames, ENCRYPTION_FORWARD_SECURE);
+  const QuicAckFrame& local_ack_frame_2 = writer_->ack_frames()[0];
+  EXPECT_EQ(local_ack_frame_2.largest_acked, QuicPacketNumber(4));
+  if (GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
+    EXPECT_EQ(local_ack_frame_2.packets.NumIntervals(), 1);
+    EXPECT_EQ(local_ack_frame_2.packets.Min(), QuicPacketNumber(4));
+  } else {
+    EXPECT_EQ(local_ack_frame_2.packets.NumIntervals(), 2);
+    EXPECT_EQ(local_ack_frame_2.packets.Min(), QuicPacketNumber(2));
+  }
 }
 
 }  // namespace
