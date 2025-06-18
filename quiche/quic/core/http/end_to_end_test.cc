@@ -444,6 +444,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     return client_session->connection();
   }
 
+  // Must be called while `server_thread_` is paused.
   QuicConnection* GetServerConnection() {
     QuicSpdySession* server_session = GetServerSession();
     if (server_session == nullptr) {
@@ -453,6 +454,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     return server_session->connection();
   }
 
+  // Must be called while `server_thread_` is paused.
   QuicSpdySession* GetServerSession() {
     QuicDispatcher* dispatcher = GetDispatcher();
     if (dispatcher == nullptr) {
@@ -468,7 +470,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
         QuicDispatcherPeer::GetFirstSessionIfAny(dispatcher));
   }
 
-  // Must be called while server_thread_ is paused.
+  // Must be called while `server_thread_` is paused.
   QuicDispatcher* GetDispatcher() {
     if (!server_thread_) {
       ADD_FAILURE() << "Missing server thread";
@@ -482,7 +484,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     return QuicServerPeer::GetDispatcher(quic_server);
   }
 
-  // Must be called while server_thread_ is paused.
+  // Must be called while `server_thread_` is paused.
   const QuicDispatcherStats& GetDispatcherStats() {
     return GetDispatcher()->stats();
   }
@@ -7287,7 +7289,9 @@ TEST_P(EndToEndTest, BlockServerUntilSettingsReceived) {
 
   SendSynchronousFooRequestAndCheckResponse();
 
+  server_thread_->Pause();
   QuicSpdySession* server_session = GetServerSession();
+  server_thread_->Resume();
   EXPECT_FALSE(GetClientSession()->ShouldBufferRequestsUntilSettings());
   server_thread_->ScheduleAndWaitForCompletion([server_session] {
     EXPECT_TRUE(server_session->ShouldBufferRequestsUntilSettings());
@@ -8191,25 +8195,27 @@ TEST_P(EndToEndTest, ClientReportsEct1) {
   // Wait for handshake to complete, so that we can manipulate the server
   // connection without race conditions.
   server_thread_->WaitForCryptoHandshakeConfirmed();
+  server_thread_->Pause();
   QuicConnection* server_connection = GetServerConnection();
   QuicConnectionPeer::DisableEcnCodepointValidation(server_connection);
   QuicEcnCounts* ecn = QuicSentPacketManagerPeer::GetPeerEcnCounts(
       QuicConnectionPeer::GetSentPacketManager(server_connection),
       APPLICATION_DATA);
   EXPECT_TRUE(server_connection->set_ecn_codepoint(ECN_ECT1));
+  server_thread_->Resume();
   client_->SendSynchronousRequest("/foo");
   // A second request provides a packet for the client ACKs to go with.
   client_->SendSynchronousRequest("/foo");
-  server_thread_->Pause();
-  EXPECT_EQ(ecn->ect0, 0);
-  EXPECT_EQ(ecn->ce, 0);
-  if (!VersionHasIetfQuicFrames(version_.transport_version)) {
-    EXPECT_EQ(ecn->ect1, 0);
-  } else {
-    EXPECT_GT(ecn->ect1, 0);
-  }
-  server_connection->set_per_packet_options(nullptr);
-  server_thread_->Resume();
+
+  server_thread_->ScheduleAndWaitForCompletion([&] {
+    EXPECT_EQ(ecn->ce, 0);
+    if (!VersionHasIetfQuicFrames(version_.transport_version)) {
+      EXPECT_EQ(ecn->ect1, 0);
+    } else {
+      EXPECT_GT(ecn->ect1, 0);
+    }
+  });
+
   client_->Disconnect();
 }
 
