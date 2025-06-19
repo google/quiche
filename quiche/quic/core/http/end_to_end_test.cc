@@ -5871,7 +5871,7 @@ TEST_P(EndToEndTest, ClientMultiPortProbeOnRto) {
   // Verify new path is validated after establishing a new multiport connection.
   // Sometimes the path validation is trigerred more than 3 times.
   EXPECT_TRUE(client_->WaitUntil(2000, [&]() {
-    return 3u >= client_connection->GetStats().num_path_response_received;
+    return 3u <= client_connection->GetStats().num_path_response_received;
   }));
 
   stream->Reset(QuicRstStreamErrorCode::QUIC_STREAM_NO_ERROR);
