@@ -7327,7 +7327,7 @@ TEST_P(EndToEndTest, WebTransportSessionProtocolNegotiation) {
 
   WebTransportHttp3* session = CreateWebTransportSession(
       "/selected-subprotocol", /*wait_for_server_response=*/true,
-      {{webtransport::kSubprotocolRequestHeader, "a, b, c, d"},
+      {{webtransport::kSubprotocolRequestHeader, R"("a", "b", "c", "d")"},
        {"subprotocol-index", "1"}});
   ASSERT_NE(session, nullptr);
   NiceMock<MockWebTransportSessionVisitor>& visitor =

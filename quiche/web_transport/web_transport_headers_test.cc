@@ -22,27 +22,30 @@ using ::testing::ElementsAre;
 using ::testing::HasSubstr;
 
 TEST(WebTransportHeaders, ParseSubprotocolRequestHeader) {
-  EXPECT_THAT(ParseSubprotocolRequestHeader("test"),
-              IsOkAndHolds(ElementsAre("test")));
-  EXPECT_THAT(ParseSubprotocolRequestHeader("moqt-draft01, moqt-draft02"),
-              IsOkAndHolds(ElementsAre("moqt-draft01", "moqt-draft02")));
-  EXPECT_THAT(ParseSubprotocolRequestHeader("moqt-draft01; a=b, moqt-draft02"),
-              IsOkAndHolds(ElementsAre("moqt-draft01", "moqt-draft02")));
-  EXPECT_THAT(ParseSubprotocolRequestHeader("moqt-draft01, moqt-draft02; a=b"),
-              IsOkAndHolds(ElementsAre("moqt-draft01", "moqt-draft02")));
   EXPECT_THAT(ParseSubprotocolRequestHeader("\"test\""),
+              IsOkAndHolds(ElementsAre("test")));
+  EXPECT_THAT(
+      ParseSubprotocolRequestHeader(R"("moqt-draft01", "moqt-draft02")"),
+      IsOkAndHolds(ElementsAre("moqt-draft01", "moqt-draft02")));
+  EXPECT_THAT(
+      ParseSubprotocolRequestHeader(R"("moqt-draft01"; a=b, "moqt-draft02")"),
+      IsOkAndHolds(ElementsAre("moqt-draft01", "moqt-draft02")));
+  EXPECT_THAT(
+      ParseSubprotocolRequestHeader(R"("moqt-draft01", "moqt-draft02"; a=b)"),
+      IsOkAndHolds(ElementsAre("moqt-draft01", "moqt-draft02")));
+  EXPECT_THAT(ParseSubprotocolRequestHeader("test"),
               StatusIs(absl::StatusCode::kInvalidArgument,
-                       HasSubstr("found string instead")));
+                       HasSubstr("found token instead")));
   EXPECT_THAT(ParseSubprotocolRequestHeader("42"),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("found integer instead")));
-  EXPECT_THAT(ParseSubprotocolRequestHeader("a, (b)"),
+  EXPECT_THAT(ParseSubprotocolRequestHeader("\"a\", (b)"),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("found a nested list instead")));
-  EXPECT_THAT(ParseSubprotocolRequestHeader("a, (b c)"),
+  EXPECT_THAT(ParseSubprotocolRequestHeader("\"a\", (b c)"),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("found a nested list instead")));
-  EXPECT_THAT(ParseSubprotocolRequestHeader("foo, ?1, bar"),
+  EXPECT_THAT(ParseSubprotocolRequestHeader("\"foo\", ?1, bar"),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("found boolean instead")));
   EXPECT_THAT(ParseSubprotocolRequestHeader("(a"),
@@ -52,19 +55,19 @@ TEST(WebTransportHeaders, ParseSubprotocolRequestHeader) {
 
 TEST(WebTransportHeaders, SerializeSubprotocolRequestHeader) {
   EXPECT_THAT(SerializeSubprotocolRequestHeader({"test"}),
-              IsOkAndHolds("test"));
+              IsOkAndHolds(R"("test")"));
   EXPECT_THAT(SerializeSubprotocolRequestHeader({"foo", "bar"}),
-              IsOkAndHolds("foo, bar"));
-  EXPECT_THAT(SerializeSubprotocolRequestHeader({"moqt-draft01", "a/b/c"}),
-              IsOkAndHolds("moqt-draft01, a/b/c"));
-  EXPECT_THAT(
-      SerializeSubprotocolRequestHeader({"abcd", "0123", "efgh"}),
-      StatusIs(absl::StatusCode::kInvalidArgument, "Invalid token: 0123"));
+              IsOkAndHolds(R"("foo", "bar")"));
+  EXPECT_THAT(SerializeSubprotocolRequestHeader({"a\"b", "a/b/c"}),
+              IsOkAndHolds(R"("a\"b", "a/b/c")"));
+  EXPECT_THAT(SerializeSubprotocolRequestHeader({"abcd", "\n", "efgh"}),
+              StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST(WebTransportHeader, ParseSubprotocolResponseHeader) {
-  EXPECT_THAT(ParseSubprotocolResponseHeader("foo"), IsOkAndHolds("foo"));
-  EXPECT_THAT(ParseSubprotocolResponseHeader("foo; a=b"), IsOkAndHolds("foo"));
+  EXPECT_THAT(ParseSubprotocolResponseHeader("\"foo\""), IsOkAndHolds("foo"));
+  EXPECT_THAT(ParseSubprotocolResponseHeader("\"foo\"; a=b"),
+              IsOkAndHolds("foo"));
   EXPECT_THAT(
       ParseSubprotocolResponseHeader("1234"),
       StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("found integer")));
@@ -74,10 +77,11 @@ TEST(WebTransportHeader, ParseSubprotocolResponseHeader) {
 }
 
 TEST(WebTransportHeader, SerializeSubprotocolResponseHeader) {
-  EXPECT_THAT(SerializeSubprotocolResponseHeader("foo"), IsOkAndHolds("foo"));
+  EXPECT_THAT(SerializeSubprotocolResponseHeader("foo"),
+              IsOkAndHolds("\"foo\""));
   EXPECT_THAT(SerializeSubprotocolResponseHeader("moqt-draft01"),
-              IsOkAndHolds("moqt-draft01"));
-  EXPECT_THAT(SerializeSubprotocolResponseHeader("123abc"),
+              IsOkAndHolds("\"moqt-draft01\""));
+  EXPECT_THAT(SerializeSubprotocolResponseHeader("\xff"),
               StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
@@ -133,12 +137,13 @@ bool ValidateSubprotocolListHelper(
 
 TEST(WebTransportHeaders, ValidateSubprotocolName) {
   EXPECT_TRUE(ValidateSubprotocolName("test"));
-  EXPECT_FALSE(ValidateSubprotocolName("123"));
+  EXPECT_TRUE(ValidateSubprotocolName("123"));
+  EXPECT_FALSE(ValidateSubprotocolName("\n"));
   EXPECT_FALSE(ValidateSubprotocolName(""));
 
   EXPECT_TRUE(ValidateSubprotocolListHelper({}));
   EXPECT_TRUE(ValidateSubprotocolListHelper({"a", "b", "c"}));
-  EXPECT_FALSE(ValidateSubprotocolListHelper({"a", "1", "c"}));
+  EXPECT_FALSE(ValidateSubprotocolListHelper({"a", "\n", "c"}));
   EXPECT_FALSE(ValidateSubprotocolListHelper({"a", "b", "a"}));
 
   std::vector<std::string> vec = {"a", "b"};

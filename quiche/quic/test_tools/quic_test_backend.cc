@@ -183,10 +183,18 @@ QuicTestBackend::ProcessWebTransportRequest(
         return response;
       }
     }
+    absl::StatusOr<std::string> response_subprotocol =
+        webtransport::SerializeSubprotocolResponseHeader(
+            (*subprotocols)[subprotocol_index]);
+    if (!response_subprotocol.ok()) {
+      WebTransportResponse response;
+      response.response_headers[":status"] = "400";
+      return response;
+    }
     WebTransportResponse response;
     response.response_headers[":status"] = "200";
     response.response_headers[webtransport::kSubprotocolResponseHeader] =
-        (*subprotocols)[subprotocol_index];
+        *response_subprotocol;
     response.visitor = std::make_unique<SubprotocolStreamVisitor>(session);
     return response;
   }

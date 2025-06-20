@@ -11,12 +11,13 @@
 #include <utility>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
-#include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/common/quiche_status_utils.h"
@@ -70,7 +71,7 @@ absl::StatusOr<std::vector<std::string>> ParseSubprotocolRequestHeader(
   std::vector<std::string> result;
   result.reserve(parsed->size());
   for (ParameterizedMember& member : *parsed) {
-    QUICHE_RETURN_IF_ERROR(CheckMemberType(member, Item::kTokenType));
+    QUICHE_RETURN_IF_ERROR(CheckMemberType(member, Item::kStringType));
     result.push_back(std::move(member.member[0].item).TakeString());
   }
   return result;
@@ -78,14 +79,18 @@ absl::StatusOr<std::vector<std::string>> ParseSubprotocolRequestHeader(
 
 absl::StatusOr<std::string> SerializeSubprotocolRequestHeader(
     absl::Span<const std::string> subprotocols) {
-  // Serialize tokens manually via a simple StrJoin call; this lets us provide
-  // better error messages, and is probably more efficient too.
-  for (const std::string& token : subprotocols) {
-    if (!quiche::structured_headers::IsValidToken(token)) {
-      return absl::InvalidArgumentError(absl::StrCat("Invalid token: ", token));
-    }
+  quiche::structured_headers::List list;
+  list.reserve(subprotocols.size());
+  for (const std::string& subprotocol : subprotocols) {
+    list.push_back(ParameterizedMember(Item(subprotocol), {}));
   }
-  return absl::StrJoin(subprotocols, ", ");
+
+  std::optional<std::string> serialized =
+      quiche::structured_headers::SerializeList(list);
+  if (!serialized.has_value()) {
+    return absl::InvalidArgumentError("Invalid subprotocol list supplied");
+  }
+  return *std::move(serialized);
 }
 
 absl::StatusOr<std::string> ParseSubprotocolResponseHeader(
@@ -95,20 +100,24 @@ absl::StatusOr<std::string> ParseSubprotocolResponseHeader(
   if (!parsed.has_value()) {
     return absl::InvalidArgumentError("Failed to parse sf-item");
   }
-  QUICHE_RETURN_IF_ERROR(CheckItemType(*parsed, Item::kTokenType));
+  QUICHE_RETURN_IF_ERROR(CheckItemType(*parsed, Item::kStringType));
   return std::move(parsed->item).TakeString();
 }
 
 absl::StatusOr<std::string> SerializeSubprotocolResponseHeader(
     absl::string_view subprotocol) {
-  if (!quiche::structured_headers::IsValidToken(subprotocol)) {
-    return absl::InvalidArgumentError("Invalid token value supplied");
+  Item item(std::string(subprotocol), Item::kStringType);
+  std::optional<std::string> serialized =
+      quiche::structured_headers::SerializeItem(item);
+  if (!serialized.has_value()) {
+    return absl::InvalidArgumentError("Invalid subprotocol name supplied");
   }
-  return std::string(subprotocol);
+  return *std::move(serialized);
 }
 
 bool ValidateSubprotocolName(absl::string_view name) {
-  return !name.empty() && quiche::structured_headers::IsValidToken(name);
+  return !name.empty() &&
+         absl::c_all_of(name, [](char c) { return absl::ascii_isprint(c); });
 }
 
 template <typename S>
