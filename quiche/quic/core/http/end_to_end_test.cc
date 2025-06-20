@@ -3890,6 +3890,30 @@ TEST_P(EndToEndTest, NegotiatedInitialCongestionWindow) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, NegotiatedDoubledInitialCongestionWindow) {
+  SetQuicReloadableFlag(quic_allow_client_enabled_2x_initial_cwnd, true);
+  client_extra_copts_.push_back(kIW2X);
+
+  ASSERT_TRUE(Initialize());
+
+  // Values are exchanged during crypto handshake, so wait for that to finish.
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  server_thread_->WaitForCryptoHandshakeConfirmed();
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  ASSERT_NE(server_connection, nullptr);
+  EXPECT_EQ(
+      server_connection->sent_packet_manager().initial_congestion_window(),
+      kInitialCongestionWindow * 2);
+  server_thread_->Resume();
+
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_NE(client_connection, nullptr);
+  EXPECT_EQ(
+      client_connection->sent_packet_manager().initial_congestion_window(),
+      kInitialCongestionWindow);
+}
+
 TEST_P(EndToEndTest, DifferentFlowControlWindows) {
   // Client and server can set different initial flow control receive windows.
   // These are sent in CHLO/SHLO. Tests that these values are exchanged properly

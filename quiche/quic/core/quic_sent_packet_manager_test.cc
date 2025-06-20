@@ -2121,6 +2121,51 @@ TEST_F(QuicSentPacketManagerTest, IW10ForUpAndDown) {
   EXPECT_EQ(10u, manager_.initial_congestion_window());
 }
 
+TEST_F(QuicSentPacketManagerTest, ServerCongestionWindowDoubledWithIW2X) {
+  SetQuicReloadableFlag(quic_allow_client_enabled_2x_initial_cwnd, true);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, {kIW2X});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, SetInitialCongestionWindowInPackets(
+                                    kInitialCongestionWindow * 2));
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+
+  EXPECT_EQ(manager_.initial_congestion_window(), kInitialCongestionWindow * 2);
+}
+
+TEST_F(QuicSentPacketManagerTest,
+       ServerCongestionWindowIsDefaultWithIW2XAndNoFlag) {
+  SetQuicReloadableFlag(quic_allow_client_enabled_2x_initial_cwnd, false);
+  QuicConfig config;
+  QuicConfigPeer::SetReceivedConnectionOptions(&config, {kIW2X});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, SetInitialCongestionWindowInPackets(_))
+      .Times(0);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+
+  EXPECT_EQ(manager_.initial_congestion_window(), kInitialCongestionWindow);
+}
+
+TEST_F(QuicSentPacketManagerTest,
+       ClientCongestionWindowIsDefaultWithIW2XAndNoFlag) {
+  QuicSentPacketManagerPeer::SetPerspective(&manager_, Perspective::IS_CLIENT);
+  SetQuicReloadableFlag(quic_allow_client_enabled_2x_initial_cwnd, false);
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kIW2X});
+  config.SetClientConnectionOptions({});
+
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_,
+              SetInitialCongestionWindowInPackets(kInitialCongestionWindow * 2))
+      .Times(0);
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+  manager_.SetFromConfig(config);
+
+  EXPECT_EQ(manager_.initial_congestion_window(), kInitialCongestionWindow);
+}
+
 TEST_F(QuicSentPacketManagerTest, ClientMultiplePacketNumberSpacePtoTimeout) {
   manager_.EnableMultiplePacketNumberSpacesSupport();
   EXPECT_CALL(*send_algorithm_, PacingRate(_))
