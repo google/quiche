@@ -136,11 +136,14 @@ class QUICHE_EXPORT MoqtControlParser {
   void ParseError(absl::string_view reason);
   void ParseError(MoqtError error, absl::string_view reason);
 
-  // Parses a message that a track namespace but not name. The last element of
-  // |full_track_name| will be set to the empty string. Returns false if it
-  // could not parse the full namespace field.
+  // Reads a TrackNamespace from the reader. Returns false if the namespace is
+  // too large. Sets a ParseError if the namespace is malformed.
   bool ReadTrackNamespace(quic::QuicDataReader& reader,
-                          FullTrackName& full_track_name);
+                          TrackNamespace& track_namespace);
+  // Reads a FullTrackName from the reader. Returns false if the name is too
+  // large. Sets a ParseError if the name is malformed.
+  bool ReadFullTrackName(quic::QuicDataReader& reader,
+                         FullTrackName& full_track_name);
   // Translates raw key/value pairs into semantically meaningful formats.
   // The spec defines many encoding errors in AUTHORIZATION TOKEN as
   // request level. This treats them as session-level, unless they are a result

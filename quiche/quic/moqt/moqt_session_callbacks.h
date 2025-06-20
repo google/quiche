@@ -33,7 +33,7 @@ using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
 // ANNOUNCE sets a value for |parameters|, UNANNOUNCE does not.
 using MoqtIncomingAnnounceCallback =
     quiche::MultiUseCallback<std::optional<MoqtAnnounceErrorReason>(
-        const FullTrackName& track_namespace,
+        const TrackNamespace& track_namespace,
         const std::optional<VersionSpecificParameters>& parameters)>;
 
 // Called whenever SUBSCRIBE_ANNOUNCES or UNSUBSCRIBE_ANNOUNCES is received from
@@ -43,11 +43,11 @@ using MoqtIncomingAnnounceCallback =
 // UNSUBSCRIBE_ANNOUNCES does not.
 using MoqtIncomingSubscribeAnnouncesCallback =
     quiche::MultiUseCallback<std::optional<MoqtSubscribeErrorReason>(
-        const FullTrackName& track_namespace,
+        const TrackNamespace& track_namespace,
         std::optional<VersionSpecificParameters> parameters)>;
 
 inline std::optional<MoqtAnnounceErrorReason> DefaultIncomingAnnounceCallback(
-    const FullTrackName& /*track_namespace*/,
+    const TrackNamespace& /*track_namespace*/,
     std::optional<VersionSpecificParameters> /*parameters*/) {
   return std::optional(MoqtAnnounceErrorReason{
       RequestErrorCode::kNotSupported,
@@ -56,7 +56,7 @@ inline std::optional<MoqtAnnounceErrorReason> DefaultIncomingAnnounceCallback(
 
 inline std::optional<MoqtSubscribeErrorReason>
 DefaultIncomingSubscribeAnnouncesCallback(
-    const FullTrackName& track_namespace,
+    const TrackNamespace& track_namespace,
     std::optional<VersionSpecificParameters> /*parameters*/) {
   return MoqtSubscribeErrorReason{
       RequestErrorCode::kNotSupported,

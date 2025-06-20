@@ -7,7 +7,6 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -307,29 +306,71 @@ std::string MoqtForwardingPreferenceToString(
   return "Unknown preference " + std::to_string(static_cast<int>(preference));
 }
 
-std::string FullTrackName::ToString() const {
+TrackNamespace::TrackNamespace(absl::Span<const absl::string_view> elements)
+    : tuple_(elements.begin(), elements.end()) {
+  if (std::size(elements) > kMaxNamespaceElements) {
+    tuple_.clear();
+    QUICHE_BUG(Moqt_namespace_too_large_01)
+        << "Constructing a namespace that is too large.";
+    return;
+  }
+  for (auto it : elements) {
+    length_ += it.size();
+    if (length_ > kMaxFullTrackNameSize) {
+      tuple_.clear();
+      QUICHE_BUG(Moqt_namespace_too_large_02)
+          << "Constructing a namespace that is too large.";
+      return;
+    }
+  }
+}
+
+bool TrackNamespace::InNamespace(const TrackNamespace& other) const {
+  if (tuple_.size() < other.tuple_.size()) {
+    return false;
+  }
+  for (int i = 0; i < other.tuple_.size(); ++i) {
+    if (tuple_[i] != other.tuple_[i]) {
+      return false;
+    }
+  }
+  return true;
+}
+
+void TrackNamespace::AddElement(absl::string_view element) {
+  if (!CanAddElement(element)) {
+    QUICHE_BUG(Moqt_namespace_too_large_03)
+        << "Constructing a namespace that is too large.";
+    return;
+  }
+  length_ += element.length();
+  tuple_.push_back(std::string(element));
+}
+
+std::string TrackNamespace::ToString() const {
   std::vector<std::string> bits;
   bits.reserve(tuple_.size());
   for (absl::string_view raw_bit : tuple_) {
     bits.push_back(absl::StrCat("\"", absl::CHexEscape(raw_bit), "\""));
   }
-  return absl::StrCat("{", absl::StrJoin(bits, ", "), "}");
+  return absl::StrCat("{", absl::StrJoin(bits, "::"), "}");
 }
 
-bool FullTrackName::operator==(const FullTrackName& other) const {
-  if (tuple_.size() != other.tuple_.size()) {
+bool TrackNamespace::operator==(const TrackNamespace& other) const {
+  if (number_of_elements() != other.number_of_elements()) {
     return false;
   }
   return absl::c_equal(tuple_, other.tuple_);
 }
-bool FullTrackName::operator<(const FullTrackName& other) const {
+
+bool TrackNamespace::operator<(const TrackNamespace& other) const {
   return absl::c_lexicographical_compare(tuple_, other.tuple_);
 }
-FullTrackName::FullTrackName(absl::Span<const absl::string_view> elements)
-    : tuple_(elements.begin(), elements.end()) {
-  QUICHE_BUG_IF(Moqt_namespace_too_large_03,
-                std::size(elements) > (kMaxNamespaceElements + 1))
-      << "Constructing a namespace that is too large.";
+
+void FullTrackName::set_name(absl::string_view name) {
+  QUIC_BUG_IF(Moqt_name_too_large_03, !CanAddName(name))
+      << "Setting a name that is too large.";
+  name_ = name;
 }
 
 absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,

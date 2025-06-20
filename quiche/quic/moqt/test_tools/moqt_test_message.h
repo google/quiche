@@ -536,7 +536,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   MoqtSubscribe subscribe_ = {
       /*subscribe_id=*/1,
       /*track_alias=*/2,
-      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
+      FullTrackName("foo", "abcd"),
       /*subscriber_priority=*/0x20,
       /*group_order=*/MoqtDeliveryOrder::kDescending,
       /*forward=*/true,
@@ -839,7 +839,7 @@ class QUICHE_NO_EXPORT AnnounceMessage : public TestMessageBase {
   };
 
   MoqtAnnounce announce_ = {
-      /*track_namespace=*/FullTrackName{"foo"},
+      TrackNamespace{"foo"},
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
   };
 };
@@ -872,7 +872,7 @@ class QUICHE_NO_EXPORT AnnounceOkMessage : public TestMessageBase {
   };
 
   MoqtAnnounceOk announce_ok_ = {
-      /*track_namespace=*/FullTrackName{"foo"},
+      TrackNamespace("foo"),
   };
 };
 
@@ -914,8 +914,8 @@ class QUICHE_NO_EXPORT AnnounceErrorMessage : public TestMessageBase {
   };
 
   MoqtAnnounceError announce_error_ = {
-      /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/RequestErrorCode::kNotSupported,
+      TrackNamespace("foo"),
+      RequestErrorCode::kNotSupported,
       /*reason_phrase=*/"bar",
   };
 };
@@ -958,8 +958,8 @@ class QUICHE_NO_EXPORT AnnounceCancelMessage : public TestMessageBase {
   };
 
   MoqtAnnounceCancel announce_cancel_ = {
-      /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/RequestErrorCode::kNotSupported,
+      TrackNamespace("foo"),
+      RequestErrorCode::kNotSupported,
       /*reason_phrase=*/"bar",
   };
 };
@@ -999,7 +999,7 @@ class QUICHE_NO_EXPORT TrackStatusRequestMessage : public TestMessageBase {
   };
 
   MoqtTrackStatusRequest track_status_request_ = {
-      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
+      FullTrackName("foo", "abcd"),
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
   };
 };
@@ -1031,7 +1031,7 @@ class QUICHE_NO_EXPORT UnannounceMessage : public TestMessageBase {
   };
 
   MoqtUnannounce unannounce_ = {
-      /*track_namespace=*/FullTrackName{"foo"},
+      TrackNamespace("foo"),
   };
 };
 
@@ -1084,7 +1084,7 @@ class QUICHE_NO_EXPORT TrackStatusMessage : public TestMessageBase {
   };
 
   MoqtTrackStatus track_status_ = {
-      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
+      FullTrackName("foo", "abcd"),
       /*status_code=*/MoqtTrackStatusCode::kInProgress,
       /*last_group=*/12,
       /*last_object=*/20,
@@ -1157,7 +1157,7 @@ class QUICHE_NO_EXPORT SubscribeAnnouncesMessage : public TestMessageBase {
   };
 
   MoqtSubscribeAnnounces subscribe_namespace_ = {
-      /*track_namespace=*/FullTrackName{"foo"},
+      TrackNamespace("foo"),
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
   };
 };
@@ -1189,7 +1189,7 @@ class QUICHE_NO_EXPORT SubscribeAnnouncesOkMessage : public TestMessageBase {
   };
 
   MoqtSubscribeAnnouncesOk subscribe_namespace_ok_ = {
-      /*track_namespace=*/FullTrackName{"foo"},
+      TrackNamespace("foo"),
   };
 };
 
@@ -1231,7 +1231,7 @@ class QUICHE_NO_EXPORT SubscribeAnnouncesErrorMessage : public TestMessageBase {
   };
 
   MoqtSubscribeAnnouncesError subscribe_namespace_error_ = {
-      /*track_namespace=*/FullTrackName{"foo"},
+      TrackNamespace("foo"),
       /*error_code=*/RequestErrorCode::kUnauthorized,
       /*reason_phrase=*/"bar",
   };
@@ -1264,7 +1264,7 @@ class QUICHE_NO_EXPORT UnsubscribeAnnouncesMessage : public TestMessageBase {
   };
 
   MoqtUnsubscribeAnnounces unsubscribe_namespace_ = {
-      /*track_namespace=*/FullTrackName{"foo"},
+      TrackNamespace("foo"),
   };
 };
 
@@ -1404,7 +1404,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
       /*subscriber_priority=*/2,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*joining_fetch=*/std::optional<JoiningFetch>(),
-      /*full_track_name=*/FullTrackName{"foo", "bar"},
+      FullTrackName("foo", "bar"),
       /*start_object=*/Location{1, 2},
       /*end_group=*/5,
       /*end_object=*/6,
@@ -1503,7 +1503,7 @@ class QUICHE_NO_EXPORT JoiningFetchMessage : public TestMessageBase {
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*joining_fetch=*/JoiningFetch{2, 2},
       /* the next four are ignored for joining fetches*/
-      /*full_track_name=*/FullTrackName{"foo", "bar"},
+      FullTrackName("foo", "bar"),
       /*start_object=*/Location{1, 2},
       /*end_group=*/5,
       /*end_object=*/6,

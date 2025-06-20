@@ -95,22 +95,22 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   quic::Perspective perspective() const { return parameters_.perspective; }
 
   // Returns true if message was sent.
-  bool SubscribeAnnounces(FullTrackName track_namespace,
+  bool SubscribeAnnounces(TrackNamespace track_namespace,
                           MoqtOutgoingSubscribeAnnouncesCallback callback,
                           VersionSpecificParameters parameters);
-  bool UnsubscribeAnnounces(FullTrackName track_namespace);
+  bool UnsubscribeAnnounces(TrackNamespace track_namespace);
 
   // Send an ANNOUNCE message for |track_namespace|, and call
   // |announce_callback| when the response arrives. Will fail immediately if
   // there is already an unresolved ANNOUNCE for that namespace.
-  void Announce(FullTrackName track_namespace,
+  void Announce(TrackNamespace track_namespace,
                 MoqtOutgoingAnnounceCallback announce_callback,
                 VersionSpecificParameters parameters);
   // Returns true if message was sent, false if there is no ANNOUNCE to cancel.
-  bool Unannounce(FullTrackName track_namespace);
+  bool Unannounce(TrackNamespace track_namespace);
   // Allows the subscriber to declare it will not subscribe to |track_namespace|
   // anymore.
-  void CancelAnnounce(FullTrackName track_namespace, RequestErrorCode code,
+  void CancelAnnounce(TrackNamespace track_namespace, RequestErrorCode code,
                       absl::string_view reason_phrase);
 
   // Returns true if SUBSCRIBE was sent. If there is already a subscription to
@@ -737,13 +737,13 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // Indexed by track namespace. If the value is not nullptr, no OK or ERROR
   // has been received. The entry is deleted after sending UNANNOUNCE or
   // receiving ANNOUNCE_CANCEL.
-  absl::flat_hash_map<FullTrackName, MoqtOutgoingAnnounceCallback>
+  absl::flat_hash_map<TrackNamespace, MoqtOutgoingAnnounceCallback>
       outgoing_announces_;
   // The value is nullptr after OK or ERROR is received. The entry is deleted
   // when sending UNSUBSCRIBE_ANNOUNCES, to make sure the application doesn't
   // unsubscribe from something that it isn't subscribed to. ANNOUNCEs that
   // result from this subscription use incoming_announce_callback.
-  absl::flat_hash_map<FullTrackName, MoqtOutgoingSubscribeAnnouncesCallback>
+  absl::flat_hash_map<TrackNamespace, MoqtOutgoingSubscribeAnnouncesCallback>
       outgoing_subscribe_announces_;
 
   // The minimum request ID the peer can use that is monotonically increasing.

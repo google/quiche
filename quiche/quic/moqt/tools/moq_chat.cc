@@ -17,12 +17,12 @@ namespace moqt::moq_chat {
 
 bool IsValidPath(absl::string_view path) { return path == kWebtransPath; }
 
-bool IsValidNamespace(const FullTrackName& track_namespace) {
-  return track_namespace.tuple().size() == kFullPathLength - 1 &&
+bool IsValidNamespace(const TrackNamespace& track_namespace) {
+  return track_namespace.number_of_elements() == kFullPathLength - 1 &&
          track_namespace.tuple()[0] == kBasePath;
 }
 
-bool IsValidChatNamespace(const FullTrackName& track_namespace) {
+bool IsValidChatNamespace(const TrackNamespace& track_namespace) {
   return track_namespace.tuple().size() == 2 &&
          track_namespace.tuple()[0] == kBasePath;
 }
@@ -30,47 +30,50 @@ bool IsValidChatNamespace(const FullTrackName& track_namespace) {
 FullTrackName ConstructTrackName(absl::string_view chat_id,
                                  absl::string_view username,
                                  absl::string_view device_id) {
-  return FullTrackName{kBasePath,
-                       chat_id,
-                       username,
-                       device_id,
-                       absl::StrCat(ToUnixSeconds(::absl::Now())),
-                       kNameField};
+  return FullTrackName(
+      TrackNamespace({kBasePath, chat_id, username, device_id,
+                      absl::StrCat(ToUnixSeconds(::absl::Now()))}),
+      kNameField);
 }
 
 std::optional<FullTrackName> ConstructTrackNameFromNamespace(
-    const FullTrackName& track_namespace, absl::string_view chat_id) {
-  if (track_namespace.tuple().size() != kFullPathLength - 1) {
+    const TrackNamespace& track_namespace, absl::string_view chat_id) {
+  if (track_namespace.number_of_elements() != kFullPathLength - 1) {
     return std::nullopt;
   }
   if (track_namespace.tuple()[0] != kBasePath ||
       track_namespace.tuple()[1] != chat_id) {
     return std::nullopt;
   }
-  FullTrackName track_name = track_namespace;
-  track_name.AddElement(kNameField);
-  return track_name;
+  return FullTrackName(track_namespace, kNameField);
 }
 
+absl::string_view GetUsername(const TrackNamespace& track_namespace) {
+  QUICHE_DCHECK(track_namespace.number_of_elements() > 2);
+  return track_namespace.tuple()[2];
+}
 absl::string_view GetUsername(const FullTrackName& track_name) {
-  QUICHE_DCHECK(track_name.tuple().size() > 2);
-  return track_name.tuple()[2];
+  return GetUsername(track_name.track_namespace());
 }
 
+absl::string_view GetChatId(const TrackNamespace& track_namespace) {
+  QUICHE_DCHECK(track_namespace.number_of_elements() > 1);
+  return track_namespace.tuple()[1];
+}
 absl::string_view GetChatId(const FullTrackName& track_name) {
-  QUICHE_DCHECK(track_name.tuple().size() > 1);
-  return track_name.tuple()[1];
+  return GetChatId(track_name.track_namespace());
 }
 
-FullTrackName GetUserNamespace(const FullTrackName& track_name) {
-  QUICHE_DCHECK(track_name.tuple().size() == kFullPathLength);
-  FullTrackName track_namespace = track_name;
-  track_namespace.NameToNamespace();
-  return track_namespace;
+const TrackNamespace& GetUserNamespace(const FullTrackName& track_name) {
+  return track_name.track_namespace();
 }
 
-FullTrackName GetChatNamespace(const FullTrackName& track_name) {
-  return FullTrackName{track_name.tuple()[0], track_name.tuple()[1]};
+TrackNamespace GetChatNamespace(const TrackNamespace& track_namespace) {
+  return TrackNamespace(
+      {track_namespace.tuple()[0], track_namespace.tuple()[1]});
+}
+TrackNamespace GetChatNamespace(const FullTrackName& track_name) {
+  return GetChatNamespace(track_name.track_namespace());
 }
 
 }  // namespace moqt::moq_chat

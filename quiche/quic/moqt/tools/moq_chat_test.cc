@@ -26,42 +26,38 @@ TEST_F(MoqChatTest, ConstructNameForUser) {
   EXPECT_EQ(GetChatId(name), "chat-id");
   EXPECT_EQ(GetUsername(name), "user");
   // Check that the namespace passes validation.
-  name.NameToNamespace();
-  EXPECT_TRUE(ConstructTrackNameFromNamespace(name, "chat-id").has_value());
+  EXPECT_TRUE(ConstructTrackNameFromNamespace(GetUserNamespace(name), "chat-id")
+                  .has_value());
 }
 
 TEST_F(MoqChatTest, InvalidNamespace) {
-  FullTrackName track_namespace{kBasePath, "chat-id", "username", "device",
-                                "timestamp"};
+  TrackNamespace track_namespace(
+      {kBasePath, "chat-id", "username", "device", "timestamp"});
   // Wrong chat ID.
   EXPECT_FALSE(
       ConstructTrackNameFromNamespace(track_namespace, "chat-id2").has_value());
-  // Namespace includes name
-  track_namespace.AddElement("chat");
-  EXPECT_FALSE(
-      ConstructTrackNameFromNamespace(track_namespace, "chat-id").has_value());
-  track_namespace.NameToNamespace();  // Restore to correct value.
   // Namespace too short.
-  track_namespace.NameToNamespace();
+  TrackNamespace short_base_path({"moq-chat2", "chat-id", "user", "device"});
   EXPECT_FALSE(
-      ConstructTrackNameFromNamespace(track_namespace, "chat-id").has_value());
+      ConstructTrackNameFromNamespace(short_base_path, "chat-id").has_value());
   track_namespace.AddElement("chat");  // Restore to correct value.
   // Base Path is wrong.
-  FullTrackName bad_base_path{"moq-chat2", "chat-id", "user", "device",
-                              "timestamp"};
+  TrackNamespace bad_base_path(
+      {"moq-chat2", "chat-id", "user", "device", "timestamp"});
   EXPECT_FALSE(
       ConstructTrackNameFromNamespace(bad_base_path, "chat-id").has_value());
 }
 
 TEST_F(MoqChatTest, Queries) {
-  FullTrackName local_name{kBasePath, "chat-id",   "user",
-                           "device",  "timestamp", kNameField};
+  FullTrackName local_name(
+      TrackNamespace({kBasePath, "chat-id", "user", "device", "timestamp"}),
+      kNameField);
   EXPECT_EQ(GetChatId(local_name), "chat-id");
   EXPECT_EQ(GetUsername(local_name), "user");
-  FullTrackName track_namespace{"moq-chat", "chat-id", "user", "device",
-                                "timestamp"};
+  TrackNamespace track_namespace(
+      {"moq-chat", "chat-id", "user", "device", "timestamp"});
   EXPECT_EQ(GetUserNamespace(local_name), track_namespace);
-  FullTrackName chat_namespace{"moq-chat", "chat-id"};
+  TrackNamespace chat_namespace({kBasePath, "chat-id"});
   EXPECT_EQ(GetChatNamespace(local_name), chat_namespace);
 }
 

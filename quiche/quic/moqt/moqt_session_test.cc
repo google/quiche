@@ -354,7 +354,7 @@ TEST_F(MoqtSessionTest, AddLocalTrack) {
 
 TEST_F(MoqtSessionTest, AnnounceWithOkAndCancel) {
   testing::MockFunction<void(
-      FullTrackName track_namespace,
+      TrackNamespace track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_resolved_callback;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -362,42 +362,42 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndCancel) {
   EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kAnnounce), _));
-  session_.Announce(FullTrackName{"foo"},
+  session_.Announce(TrackNamespace("foo"),
                     announce_resolved_callback.AsStdFunction(),
                     VersionSpecificParameters());
 
   MoqtAnnounceOk ok = {
-      /*track_namespace=*/FullTrackName{"foo"},
+      TrackNamespace("foo"),
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
-      .WillOnce([&](FullTrackName track_namespace,
+      .WillOnce([&](TrackNamespace track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
-        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
+        EXPECT_EQ(track_namespace, TrackNamespace("foo"));
         EXPECT_FALSE(error.has_value());
       });
   stream_input->OnAnnounceOkMessage(ok);
 
   MoqtAnnounceCancel cancel = {
-      /*track_namespace=*/FullTrackName{"foo"},
-      /*error_code=*/RequestErrorCode::kInternalError,
+      TrackNamespace("foo"),
+      RequestErrorCode::kInternalError,
       /*reason_phrase=*/"Test error",
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
-      .WillOnce([&](FullTrackName track_namespace,
+      .WillOnce([&](TrackNamespace track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
-        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
+        EXPECT_EQ(track_namespace, TrackNamespace("foo"));
         ASSERT_TRUE(error.has_value());
         EXPECT_EQ(error->error_code, RequestErrorCode::kInternalError);
         EXPECT_EQ(error->reason_phrase, "Test error");
       });
   stream_input->OnAnnounceCancelMessage(cancel);
   // State is gone.
-  EXPECT_FALSE(session_.Unannounce(FullTrackName{"foo"}));
+  EXPECT_FALSE(session_.Unannounce(TrackNamespace("foo")));
 }
 
 TEST_F(MoqtSessionTest, AnnounceWithOkAndUnannounce) {
   testing::MockFunction<void(
-      FullTrackName track_namespace,
+      TrackNamespace track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_resolved_callback;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -405,17 +405,17 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndUnannounce) {
   EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kAnnounce), _));
-  session_.Announce(FullTrackName{"foo"},
+  session_.Announce(TrackNamespace{"foo"},
                     announce_resolved_callback.AsStdFunction(),
                     VersionSpecificParameters());
 
   MoqtAnnounceOk ok = {
-      /*track_namespace=*/FullTrackName{"foo"},
+      TrackNamespace{"foo"},
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
-      .WillOnce([&](FullTrackName track_namespace,
+      .WillOnce([&](TrackNamespace track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
-        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
+        EXPECT_EQ(track_namespace, TrackNamespace{"foo"});
         EXPECT_FALSE(error.has_value());
       });
   stream_input->OnAnnounceOkMessage(ok);
@@ -423,14 +423,14 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndUnannounce) {
   EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kUnannounce), _));
-  session_.Unannounce(FullTrackName{"foo"});
+  session_.Unannounce(TrackNamespace{"foo"});
   // State is gone.
-  EXPECT_FALSE(session_.Unannounce(FullTrackName{"foo"}));
+  EXPECT_FALSE(session_.Unannounce(TrackNamespace{"foo"}));
 }
 
 TEST_F(MoqtSessionTest, AnnounceWithError) {
   testing::MockFunction<void(
-      FullTrackName track_namespace,
+      TrackNamespace track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_resolved_callback;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -438,26 +438,26 @@ TEST_F(MoqtSessionTest, AnnounceWithError) {
   EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kAnnounce), _));
-  session_.Announce(FullTrackName{"foo"},
+  session_.Announce(TrackNamespace{"foo"},
                     announce_resolved_callback.AsStdFunction(),
                     VersionSpecificParameters());
 
   MoqtAnnounceError error = {
-      /*track_namespace=*/FullTrackName{"foo"},
+      /*track_namespace=*/TrackNamespace{"foo"},
       /*error_code=*/RequestErrorCode::kInternalError,
       /*reason_phrase=*/"Test error",
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
-      .WillOnce([&](FullTrackName track_namespace,
+      .WillOnce([&](TrackNamespace track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
-        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
+        EXPECT_EQ(track_namespace, TrackNamespace{"foo"});
         ASSERT_TRUE(error.has_value());
         EXPECT_EQ(error->error_code, RequestErrorCode::kInternalError);
         EXPECT_EQ(error->reason_phrase, "Test error");
       });
   stream_input->OnAnnounceErrorMessage(error);
   // State is gone.
-  EXPECT_FALSE(session_.Unannounce(FullTrackName{"foo"}));
+  EXPECT_FALSE(session_.Unannounce(TrackNamespace{"foo"}));
 }
 
 TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsOk) {
@@ -890,7 +890,7 @@ TEST_F(MoqtSessionTest, Unsubscribe) {
 }
 
 TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenUnannounce) {
-  FullTrackName track_namespace{"foo"};
+  TrackNamespace track_namespace{"foo"};
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   auto parameters = std::make_optional<VersionSpecificParameters>(
@@ -916,7 +916,7 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenUnannounce) {
 }
 
 TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenAnnounceCancel) {
-  FullTrackName track_namespace{"foo"};
+  TrackNamespace track_namespace{"foo"};
 
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
@@ -943,7 +943,7 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenAnnounceCancel) {
 }
 
 TEST_F(MoqtSessionTest, ReplyToAnnounceWithError) {
-  FullTrackName track_namespace{"foo"};
+  TrackNamespace track_namespace{"foo"};
 
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
@@ -971,18 +971,17 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithError) {
 TEST_F(MoqtSessionTest, SubscribeAnnouncesLifeCycle) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  FullTrackName track_namespace("foo", "bar");
-  track_namespace.NameToNamespace();
+  TrackNamespace track_namespace("foo");
   bool got_callback = false;
   EXPECT_CALL(
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnounces), _));
   session_.SubscribeAnnounces(
       track_namespace,
-      [&](const FullTrackName& ftn, std::optional<RequestErrorCode> error,
+      [&](const TrackNamespace& ns, std::optional<RequestErrorCode> error,
           absl::string_view reason) {
         got_callback = true;
-        EXPECT_EQ(track_namespace, ftn);
+        EXPECT_EQ(track_namespace, ns);
         EXPECT_FALSE(error.has_value());
         EXPECT_EQ(reason, "");
       },
@@ -1002,26 +1001,25 @@ TEST_F(MoqtSessionTest, SubscribeAnnouncesLifeCycle) {
 TEST_F(MoqtSessionTest, SubscribeAnnouncesError) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  FullTrackName track_namespace("foo", "bar");
-  track_namespace.NameToNamespace();
+  TrackNamespace track_namespace("foo");
   bool got_callback = false;
   EXPECT_CALL(
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnounces), _));
   session_.SubscribeAnnounces(
       track_namespace,
-      [&](const FullTrackName& ftn, std::optional<RequestErrorCode> error,
+      [&](const TrackNamespace& ns, std::optional<RequestErrorCode> error,
           absl::string_view reason) {
         got_callback = true;
-        EXPECT_EQ(track_namespace, ftn);
+        EXPECT_EQ(track_namespace, ns);
         ASSERT_TRUE(error.has_value());
         EXPECT_EQ(*error, RequestErrorCode::kInvalidRange);
         EXPECT_EQ(reason, "deadbeef");
       },
       VersionSpecificParameters());
   MoqtSubscribeAnnouncesError error = {
-      /*track_namespace=*/track_namespace,
-      /*error_code=*/RequestErrorCode::kInvalidRange,
+      track_namespace,
+      RequestErrorCode::kInvalidRange,
       /*reason_phrase=*/"deadbeef",
   };
   stream_input->OnSubscribeAnnouncesErrorMessage(error);
@@ -2559,7 +2557,7 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
 }
 
 TEST_F(MoqtSessionTest, IncomingSubscribeAnnounces) {
-  FullTrackName track_namespace = FullTrackName{"foo"};
+  TrackNamespace track_namespace = TrackNamespace{"foo"};
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   MoqtSubscribeAnnounces announces = {
@@ -2577,7 +2575,7 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnounces) {
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesOk), _));
   stream_input->OnSubscribeAnnouncesMessage(announces);
   MoqtUnsubscribeAnnounces unsubscribe_announces = {
-      /*track_namespace=*/FullTrackName{"foo"},
+      TrackNamespace{"foo"},
   };
   EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
               Call(track_namespace, std::optional<VersionSpecificParameters>()))
@@ -2586,7 +2584,7 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnounces) {
 }
 
 TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithError) {
-  FullTrackName track_namespace = FullTrackName{"foo"};
+  TrackNamespace track_namespace{"foo"};
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   MoqtSubscribeAnnounces announces = {
@@ -3129,18 +3127,18 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
                                                &remote_track_visitor,
                                                VersionSpecificParameters()));
   EXPECT_FALSE(session_.SubscribeAnnounces(
-      FullTrackName{"foo"},
-      +[](FullTrackName /*track_namespace*/,
+      TrackNamespace{"foo"},
+      +[](TrackNamespace /*track_namespace*/,
           std::optional<RequestErrorCode> /*error*/,
           absl::string_view /*reason*/) {},
       VersionSpecificParameters()));
   session_.Announce(
-      FullTrackName{"foo"},
-      +[](FullTrackName /*track_namespace*/,
+      TrackNamespace{"foo"},
+      +[](TrackNamespace /*track_namespace*/,
           std::optional<MoqtAnnounceErrorReason> /*error*/) {},
       VersionSpecificParameters());
   EXPECT_FALSE(session_.Fetch(
-      FullTrackName{"foo", "bar"},
+      FullTrackName{TrackNamespace("foo"), "bar"},
       +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, Location(0, 0), 5,
       std::nullopt, 127, std::nullopt, VersionSpecificParameters()));
   // Error on additional GOAWAY.
@@ -3171,7 +3169,7 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kAnnounceError), _));
   stream_input->OnAnnounceMessage(
-      MoqtAnnounce(FullTrackName("foo", "bar"), VersionSpecificParameters()));
+      MoqtAnnounce(TrackNamespace("foo"), VersionSpecificParameters()));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kFetchError), _));
   MoqtFetch fetch = DefaultFetch();
@@ -3182,26 +3180,26 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesError),
              _));
   stream_input->OnSubscribeAnnouncesMessage(
-      MoqtSubscribeAnnounces(FullTrackName("foo", "bar")));
+      MoqtSubscribeAnnounces(TrackNamespace("foo")));
   // Block all outgoing SUBSCRIBE, ANNOUNCE, GOAWAY,etc.
   EXPECT_CALL(mock_stream_, Writev).Times(0);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
-  EXPECT_FALSE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
-                                               &remote_track_visitor,
-                                               VersionSpecificParameters()));
+  EXPECT_FALSE(session_.SubscribeCurrentObject(
+      FullTrackName(TrackNamespace("foo"), "bar"), &remote_track_visitor,
+      VersionSpecificParameters()));
   EXPECT_FALSE(session_.SubscribeAnnounces(
-      FullTrackName{"foo"},
-      +[](FullTrackName /*track_namespace*/,
+      TrackNamespace{"foo"},
+      +[](TrackNamespace /*track_namespace*/,
           std::optional<RequestErrorCode> /*error*/,
           absl::string_view /*reason*/) {},
       VersionSpecificParameters()));
   session_.Announce(
-      FullTrackName{"foo"},
-      +[](FullTrackName /*track_namespace*/,
+      TrackNamespace{"foo"},
+      +[](TrackNamespace /*track_namespace*/,
           std::optional<MoqtAnnounceErrorReason> /*error*/) {},
       VersionSpecificParameters());
   EXPECT_FALSE(session_.Fetch(
-      FullTrackName{"foo", "bar"},
+      FullTrackName(TrackNamespace("foo"), "bar"),
       +[](std::unique_ptr<MoqtFetchTask> /*fetch_task*/) {}, Location(0, 0), 5,
       std::nullopt, 127, std::nullopt, VersionSpecificParameters()));
   session_.GoAway("");

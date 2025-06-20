@@ -39,7 +39,7 @@
 namespace moqt::moq_chat {
 
 std::optional<MoqtAnnounceErrorReason> ChatClient::OnIncomingAnnounce(
-    const moqt::FullTrackName& track_namespace,
+    const moqt::TrackNamespace& track_namespace,
     std::optional<VersionSpecificParameters> parameters) {
   if (track_namespace == GetUserNamespace(my_track_name_)) {
     // Ignore ANNOUNCE for my own track.
@@ -217,7 +217,7 @@ bool ChatClient::AnnounceAndSubscribeAnnounces() {
   publisher_.Add(queue_);
   session_->set_publisher(&publisher_);
   MoqtOutgoingAnnounceCallback announce_callback =
-      [this](FullTrackName track_namespace,
+      [this](TrackNamespace track_namespace,
              std::optional<MoqtAnnounceErrorReason> reason) {
         if (reason.has_value()) {
           std::cout << "ANNOUNCE rejected, " << reason->reason_phrase << "\n";
@@ -236,7 +236,7 @@ bool ChatClient::AnnounceAndSubscribeAnnounces() {
   // Send SUBSCRIBE_ANNOUNCE. Pop 3 levels of namespace to get to {moq-chat,
   // chat-id}
   MoqtOutgoingSubscribeAnnouncesCallback subscribe_announces_callback =
-      [this](FullTrackName track_namespace,
+      [this](TrackNamespace track_namespace,
              std::optional<RequestErrorCode> error, absl::string_view reason) {
         if (error.has_value()) {
           std::cout << "SUBSCRIBE_ANNOUNCES rejected, " << reason << "\n";

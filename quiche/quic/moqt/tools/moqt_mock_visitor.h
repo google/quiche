@@ -31,10 +31,10 @@ struct MockSessionCallbacks {
   testing::MockFunction<void(absl::string_view)> session_terminated_callback;
   testing::MockFunction<void()> session_deleted_callback;
   testing::MockFunction<std::optional<MoqtAnnounceErrorReason>(
-      const FullTrackName&, std::optional<VersionSpecificParameters>)>
+      const TrackNamespace&, std::optional<VersionSpecificParameters>)>
       incoming_announce_callback;
   testing::MockFunction<std::optional<MoqtSubscribeErrorReason>(
-      FullTrackName, std::optional<VersionSpecificParameters>)>
+      TrackNamespace, std::optional<VersionSpecificParameters>)>
       incoming_subscribe_announces_callback;
 
   MockSessionCallbacks() {

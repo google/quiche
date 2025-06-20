@@ -23,11 +23,11 @@ namespace moqt {
 // after calling this callback. Alternatively, the application can call
 // Unannounce() to delete the state.
 using MoqtOutgoingAnnounceCallback = quiche::MultiUseCallback<void(
-    FullTrackName track_namespace,
+    TrackNamespace track_namespace,
     std::optional<MoqtAnnounceErrorReason> error)>;
 
 using MoqtOutgoingSubscribeAnnouncesCallback = quiche::SingleUseCallback<void(
-    FullTrackName track_namespace, std::optional<RequestErrorCode> error,
+    TrackNamespace track_namespace, std::optional<RequestErrorCode> error,
     absl::string_view reason)>;
 
 class MoqtSessionInterface {

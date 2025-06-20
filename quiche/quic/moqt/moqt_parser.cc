@@ -403,17 +403,14 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
   MoqtSubscribe subscribe;
   uint64_t filter, group, object;
   uint8_t group_order, forward;
-  absl::string_view track_name;
   if (!reader.ReadVarInt62(&subscribe.request_id) ||
       !reader.ReadVarInt62(&subscribe.track_alias) ||
-      !ReadTrackNamespace(reader, subscribe.full_track_name) ||
-      !reader.ReadStringPieceVarInt62(&track_name) ||
+      !ReadFullTrackName(reader, subscribe.full_track_name) ||
       !reader.ReadUInt8(&subscribe.subscriber_priority) ||
       !reader.ReadUInt8(&group_order) || !reader.ReadUInt8(&forward) ||
       !reader.ReadVarInt62(&filter)) {
     return 0;
   }
-  subscribe.full_track_name.AddElement(track_name);
   if (!ParseDeliveryOrder(group_order, subscribe.group_order)) {
     ParseError("Invalid group order value in SUBSCRIBE");
     return 0;
@@ -653,14 +650,9 @@ size_t MoqtControlParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessTrackStatusRequest(
     quic::QuicDataReader& reader) {
   MoqtTrackStatusRequest track_status_request;
-  if (!ReadTrackNamespace(reader, track_status_request.full_track_name)) {
+  if (!ReadFullTrackName(reader, track_status_request.full_track_name)) {
     return 0;
   }
-  absl::string_view name;
-  if (!reader.ReadStringPieceVarInt62(&name)) {
-    return 0;
-  }
-  track_status_request.full_track_name.AddElement(name);
   KeyValuePairList parameters;
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
@@ -689,14 +681,9 @@ size_t MoqtControlParser::ProcessUnannounce(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessTrackStatus(quic::QuicDataReader& reader) {
   MoqtTrackStatus track_status;
-  if (!ReadTrackNamespace(reader, track_status.full_track_name)) {
+  if (!ReadFullTrackName(reader, track_status.full_track_name)) {
     return 0;
   }
-  absl::string_view name;
-  if (!reader.ReadStringPieceVarInt62(&name)) {
-    return 0;
-  }
-  track_status.full_track_name.AddElement(name);
   uint64_t value;
   if (!reader.ReadVarInt62(&value) ||
       !reader.ReadVarInt62(&track_status.last_group) ||
@@ -799,7 +786,6 @@ size_t MoqtControlParser::ProcessMaxRequestId(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
   MoqtFetch fetch;
-  absl::string_view track_name;
   uint8_t group_order;
   uint64_t end_object;
   uint64_t type;
@@ -826,16 +812,13 @@ size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
     }
     case FetchType::kStandalone: {
       fetch.joining_fetch = std::nullopt;
-      if (!ReadTrackNamespace(reader, fetch.full_track_name) ||
-          !reader.ReadStringPieceVarInt62(&track_name) ||
+      if (!ReadFullTrackName(reader, fetch.full_track_name) ||
           !reader.ReadVarInt62(&fetch.start_object.group) ||
           !reader.ReadVarInt62(&fetch.start_object.object) ||
           !reader.ReadVarInt62(&fetch.end_group) ||
           !reader.ReadVarInt62(&end_object)) {
         return 0;
       }
-      // Elements that have to be translated from the literal value.
-      fetch.full_track_name.AddElement(track_name);
       fetch.end_object =
           end_object == 0 ? std::optional<uint64_t>() : (end_object - 1);
       if (fetch.end_group < fetch.start_object.group ||
@@ -957,8 +940,8 @@ void MoqtControlParser::ParseError(MoqtError error_code,
 }
 
 bool MoqtControlParser::ReadTrackNamespace(quic::QuicDataReader& reader,
-                                           FullTrackName& full_track_name) {
-  QUICHE_DCHECK(full_track_name.empty());
+                                           TrackNamespace& track_namespace) {
+  QUICHE_DCHECK(!track_namespace.IsValid());
   uint64_t num_elements;
   if (!reader.ReadVarInt62(&num_elements)) {
     return false;
@@ -973,8 +956,31 @@ bool MoqtControlParser::ReadTrackNamespace(quic::QuicDataReader& reader,
     if (!reader.ReadStringPieceVarInt62(&element)) {
       return false;
     }
-    full_track_name.AddElement(element);
+    if (!track_namespace.CanAddElement(element)) {
+      ParseError(MoqtError::kProtocolViolation, "Full track name is too large");
+      return false;
+    }
+    track_namespace.AddElement(element);
   }
+  QUICHE_DCHECK(track_namespace.IsValid());
+  return true;
+}
+
+bool MoqtControlParser::ReadFullTrackName(quic::QuicDataReader& reader,
+                                          FullTrackName& full_track_name) {
+  QUICHE_DCHECK(!full_track_name.IsValid());
+  if (!ReadTrackNamespace(reader, full_track_name.track_namespace())) {
+    return false;
+  }
+  absl::string_view name;
+  if (!reader.ReadStringPieceVarInt62(&name)) {
+    return false;
+  }
+  if (!full_track_name.CanAddName(name)) {
+    ParseError(MoqtError::kProtocolViolation, "Full track name is too large");
+    return false;
+  }
+  full_track_name.set_name(name);
   return true;
 }
 

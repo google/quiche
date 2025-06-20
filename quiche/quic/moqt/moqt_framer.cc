@@ -111,33 +111,44 @@ class WireKeyValuePairList {
   const KeyValuePairList& list_;
 };
 
-class WireFullTrackName {
+class WireTrackNamespace {
  public:
-  using DataType = FullTrackName;
-
-  // If |includes_name| is true, the last element in the tuple is the track
-  // name and is therefore not counted in the prefix of the namespace tuple.
-  WireFullTrackName(const FullTrackName& name, bool includes_name)
-      : name_(name), includes_name_(includes_name) {}
+  WireTrackNamespace(const TrackNamespace& name) : namespace_(name) {}
 
   size_t GetLengthOnWire() {
     return quiche::ComputeLengthOnWire(
-        WireVarInt62(num_elements()),
-        WireSpan<WireStringWithVarInt62Length, std::string>(name_.tuple()));
+        WireVarInt62(namespace_.number_of_elements()),
+        WireSpan<WireStringWithVarInt62Length, std::string>(
+            namespace_.tuple()));
   }
   absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
     return quiche::SerializeIntoWriter(
-        writer, WireVarInt62(num_elements()),
-        WireSpan<WireStringWithVarInt62Length, std::string>(name_.tuple()));
+        writer, WireVarInt62(namespace_.number_of_elements()),
+        WireSpan<WireStringWithVarInt62Length, std::string>(
+            namespace_.tuple()));
   }
 
  private:
-  size_t num_elements() const {
-    return includes_name_ ? (name_.tuple().size() - 1) : name_.tuple().size();
+  const TrackNamespace& namespace_;
+};
+
+class WireFullTrackName {
+ public:
+  WireFullTrackName(const FullTrackName& name) : name_(name) {}
+
+  size_t GetLengthOnWire() {
+    return quiche::ComputeLengthOnWire(
+        WireTrackNamespace(name_.track_namespace()),
+        WireStringWithVarInt62Length(name_.name()));
+  }
+  absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
+    return quiche::SerializeIntoWriter(
+        writer, WireTrackNamespace(name_.track_namespace()),
+        WireStringWithVarInt62Length(name_.name()));
   }
 
+ private:
   const FullTrackName& name_;
-  const bool includes_name_;
 };
 
 // Serializes data into buffer using the default allocator.  Invokes QUICHE_BUG
@@ -432,7 +443,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
       return SerializeControlMessage(
           MoqtMessageType::kSubscribe, WireVarInt62(message.request_id),
           WireVarInt62(message.track_alias),
-          WireFullTrackName(message.full_track_name, true),
+          WireFullTrackName(message.full_track_name),
           WireUint8(message.subscriber_priority),
           WireDeliveryOrder(message.group_order), WireBoolean(message.forward),
           WireVarInt62(message.filter_type), WireKeyValuePairList(parameters));
@@ -443,7 +454,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
       return SerializeControlMessage(
           MoqtMessageType::kSubscribe, WireVarInt62(message.request_id),
           WireVarInt62(message.track_alias),
-          WireFullTrackName(message.full_track_name, true),
+          WireFullTrackName(message.full_track_name),
           WireUint8(message.subscriber_priority),
           WireDeliveryOrder(message.group_order), WireBoolean(message.forward),
           WireVarInt62(message.filter_type), WireVarInt62(message.start->group),
@@ -460,7 +471,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
       return SerializeControlMessage(
           MoqtMessageType::kSubscribe, WireVarInt62(message.request_id),
           WireVarInt62(message.track_alias),
-          WireFullTrackName(message.full_track_name, true),
+          WireFullTrackName(message.full_track_name),
           WireUint8(message.subscriber_priority),
           WireDeliveryOrder(message.group_order), WireBoolean(message.forward),
           WireVarInt62(message.filter_type), WireVarInt62(message.start->group),
@@ -550,24 +561,22 @@ quiche::QuicheBuffer MoqtFramer::SerializeAnnounce(
         << "Serializing invalid MoQT parameters";
     return quiche::QuicheBuffer();
   }
-  return SerializeControlMessage(
-      MoqtMessageType::kAnnounce,
-      WireFullTrackName(message.track_namespace, false),
-      WireKeyValuePairList(parameters));
+  return SerializeControlMessage(MoqtMessageType::kAnnounce,
+                                 WireTrackNamespace(message.track_namespace),
+                                 WireKeyValuePairList(parameters));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeAnnounceOk(
     const MoqtAnnounceOk& message) {
-  return SerializeControlMessage(
-      MoqtMessageType::kAnnounceOk,
-      WireFullTrackName(message.track_namespace, false));
+  return SerializeControlMessage(MoqtMessageType::kAnnounceOk,
+                                 WireTrackNamespace(message.track_namespace));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeAnnounceError(
     const MoqtAnnounceError& message) {
   return SerializeControlMessage(
       MoqtMessageType::kAnnounceError,
-      WireFullTrackName(message.track_namespace, false),
+      WireTrackNamespace(message.track_namespace),
       WireVarInt62(message.error_code),
       WireStringWithVarInt62Length(message.reason_phrase));
 }
@@ -576,7 +585,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeAnnounceCancel(
     const MoqtAnnounceCancel& message) {
   return SerializeControlMessage(
       MoqtMessageType::kAnnounceCancel,
-      WireFullTrackName(message.track_namespace, false),
+      WireTrackNamespace(message.track_namespace),
       WireVarInt62(message.error_code),
       WireStringWithVarInt62Length(message.reason_phrase));
 }
@@ -591,17 +600,15 @@ quiche::QuicheBuffer MoqtFramer::SerializeTrackStatusRequest(
         << "Serializing invalid MoQT parameters";
     return quiche::QuicheBuffer();
   }
-  return SerializeControlMessage(
-      MoqtMessageType::kTrackStatusRequest,
-      WireFullTrackName(message.full_track_name, true),
-      WireKeyValuePairList(parameters));
+  return SerializeControlMessage(MoqtMessageType::kTrackStatusRequest,
+                                 WireFullTrackName(message.full_track_name),
+                                 WireKeyValuePairList(parameters));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeUnannounce(
     const MoqtUnannounce& message) {
-  return SerializeControlMessage(
-      MoqtMessageType::kUnannounce,
-      WireFullTrackName(message.track_namespace, false));
+  return SerializeControlMessage(MoqtMessageType::kUnannounce,
+                                 WireTrackNamespace(message.track_namespace));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(
@@ -615,8 +622,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(
     return quiche::QuicheBuffer();
   }
   return SerializeControlMessage(
-      MoqtMessageType::kTrackStatus,
-      WireFullTrackName(message.full_track_name, true),
+      MoqtMessageType::kTrackStatus, WireFullTrackName(message.full_track_name),
       WireVarInt62(message.status_code), WireVarInt62(message.last_group),
       WireVarInt62(message.last_object), WireKeyValuePairList(parameters));
 }
@@ -637,33 +643,30 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeAnnounces(
         << "Serializing invalid MoQT parameters";
     return quiche::QuicheBuffer();
   }
-  return SerializeControlMessage(
-      MoqtMessageType::kSubscribeAnnounces,
-      WireFullTrackName(message.track_namespace, false),
-      WireKeyValuePairList(parameters));
+  return SerializeControlMessage(MoqtMessageType::kSubscribeAnnounces,
+                                 WireTrackNamespace(message.track_namespace),
+                                 WireKeyValuePairList(parameters));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeAnnouncesOk(
     const MoqtSubscribeAnnouncesOk& message) {
-  return SerializeControlMessage(
-      MoqtMessageType::kSubscribeAnnouncesOk,
-      WireFullTrackName(message.track_namespace, false));
+  return SerializeControlMessage(MoqtMessageType::kSubscribeAnnouncesOk,
+                                 WireTrackNamespace(message.track_namespace));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeAnnouncesError(
     const MoqtSubscribeAnnouncesError& message) {
   return SerializeControlMessage(
       MoqtMessageType::kSubscribeAnnouncesError,
-      WireFullTrackName(message.track_namespace, false),
+      WireTrackNamespace(message.track_namespace),
       WireVarInt62(message.error_code),
       WireStringWithVarInt62Length(message.reason_phrase));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribeAnnounces(
     const MoqtUnsubscribeAnnounces& message) {
-  return SerializeControlMessage(
-      MoqtMessageType::kUnsubscribeAnnounces,
-      WireFullTrackName(message.track_namespace, false));
+  return SerializeControlMessage(MoqtMessageType::kUnsubscribeAnnounces,
+                                 WireTrackNamespace(message.track_namespace));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeMaxRequestId(
@@ -703,7 +706,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
       WireUint8(message.subscriber_priority),
       WireDeliveryOrder(message.group_order),
       WireVarInt62(FetchType::kStandalone),
-      WireFullTrackName(message.full_track_name, true),
+      WireFullTrackName(message.full_track_name),
       WireVarInt62(message.start_object.group),
       WireVarInt62(message.start_object.object),
       WireVarInt62(message.end_group),

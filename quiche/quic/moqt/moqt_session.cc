@@ -89,6 +89,7 @@ class DefaultPublisher : public MoqtPublisher {
 
   absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> GetTrack(
       const FullTrackName& track_name) override {
+    QUICHE_DCHECK(track_name.IsValid());
     return absl::NotFoundError("No tracks published");
   }
 };
@@ -249,9 +250,10 @@ void MoqtSession::Error(MoqtError code, absl::string_view error) {
 }
 
 bool MoqtSession::SubscribeAnnounces(
-    FullTrackName track_namespace,
+    TrackNamespace track_namespace,
     MoqtOutgoingSubscribeAnnouncesCallback callback,
     VersionSpecificParameters parameters) {
+  QUICHE_DCHECK(track_namespace.IsValid());
   if (received_goaway_ || sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Tried to send SUBSCRIBE_ANNOUNCES after GOAWAY";
@@ -267,7 +269,8 @@ bool MoqtSession::SubscribeAnnounces(
   return true;
 }
 
-bool MoqtSession::UnsubscribeAnnounces(FullTrackName track_namespace) {
+bool MoqtSession::UnsubscribeAnnounces(TrackNamespace track_namespace) {
+  QUICHE_DCHECK(track_namespace.IsValid());
   if (!outgoing_subscribe_announces_.contains(track_namespace)) {
     return false;
   }
@@ -280,9 +283,10 @@ bool MoqtSession::UnsubscribeAnnounces(FullTrackName track_namespace) {
   return true;
 }
 
-void MoqtSession::Announce(FullTrackName track_namespace,
+void MoqtSession::Announce(TrackNamespace track_namespace,
                            MoqtOutgoingAnnounceCallback announce_callback,
                            VersionSpecificParameters parameters) {
+  QUICHE_DCHECK(track_namespace.IsValid());
   if (outgoing_announces_.contains(track_namespace)) {
     std::move(announce_callback)(
         track_namespace,
@@ -304,7 +308,8 @@ void MoqtSession::Announce(FullTrackName track_namespace,
   outgoing_announces_[track_namespace] = std::move(announce_callback);
 }
 
-bool MoqtSession::Unannounce(FullTrackName track_namespace) {
+bool MoqtSession::Unannounce(TrackNamespace track_namespace) {
+  QUICHE_DCHECK(track_namespace.IsValid());
   auto it = outgoing_announces_.find(track_namespace);
   if (it == outgoing_announces_.end()) {
     return false;  // Could have been destroyed by ANNOUNCE_CANCEL.
@@ -318,9 +323,10 @@ bool MoqtSession::Unannounce(FullTrackName track_namespace) {
   return true;
 }
 
-void MoqtSession::CancelAnnounce(FullTrackName track_namespace,
+void MoqtSession::CancelAnnounce(TrackNamespace track_namespace,
                                  RequestErrorCode code,
                                  absl::string_view reason) {
+  QUICHE_DCHECK(track_namespace.IsValid());
   MoqtAnnounceCancel message{track_namespace, code, std::string(reason)};
 
   SendControlMessage(framer_.SerializeAnnounceCancel(message));
@@ -332,6 +338,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
                                     SubscribeRemoteTrack::Visitor* visitor,
                                     VersionSpecificParameters parameters) {
+  QUICHE_DCHECK(name.IsValid());
   MoqtSubscribe message;
   message.full_track_name = name;
   message.subscriber_priority = kDefaultSubscriberPriority;
@@ -349,6 +356,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t end_group,
                                     SubscribeRemoteTrack::Visitor* visitor,
                                     VersionSpecificParameters parameters) {
+  QUICHE_DCHECK(name.IsValid());
   if (end_group < start_group) {
     QUIC_DLOG(ERROR) << "Subscription end is before beginning";
     return false;
@@ -368,6 +376,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
 bool MoqtSession::SubscribeCurrentObject(const FullTrackName& name,
                                          SubscribeRemoteTrack::Visitor* visitor,
                                          VersionSpecificParameters parameters) {
+  QUICHE_DCHECK(name.IsValid());
   MoqtSubscribe message;
   message.full_track_name = name;
   message.subscriber_priority = kDefaultSubscriberPriority;
@@ -383,6 +392,7 @@ bool MoqtSession::SubscribeCurrentObject(const FullTrackName& name,
 bool MoqtSession::SubscribeNextGroup(const FullTrackName& name,
                                      SubscribeRemoteTrack::Visitor* visitor,
                                      VersionSpecificParameters parameters) {
+  QUICHE_DCHECK(name.IsValid());
   MoqtSubscribe message;
   message.full_track_name = name;
   message.subscriber_priority = kDefaultSubscriberPriority;
@@ -400,10 +410,12 @@ bool MoqtSession::SubscribeUpdate(
     std::optional<uint64_t> end_group,
     std::optional<MoqtPriority> subscriber_priority,
     std::optional<bool> forward, VersionSpecificParameters parameters) {
+  QUICHE_DCHECK(name.IsValid());
   auto it = subscribe_by_name_.find(name);
   if (it == subscribe_by_name_.end()) {
     return false;
   }
+  QUICHE_DCHECK(name.IsValid());
   SubscribeRemoteTrack* track = it->second;
   MoqtSubscribeUpdate subscribe_update;
   subscribe_update.request_id = track->request_id();
@@ -435,10 +447,12 @@ bool MoqtSession::SubscribeUpdate(
 };
 
 void MoqtSession::Unsubscribe(const FullTrackName& name) {
+  QUICHE_DCHECK(name.IsValid());
   SubscribeRemoteTrack* track = RemoteTrackByName(name);
   if (track == nullptr) {
     return;
   }
+  QUICHE_DCHECK(name.IsValid());
   QUIC_DLOG(INFO) << ENDPOINT << "Sent UNSUBSCRIBE message for " << name;
   MoqtUnsubscribe message;
   message.subscribe_id = track->request_id();
@@ -452,6 +466,7 @@ bool MoqtSession::Fetch(const FullTrackName& name,
                         MoqtPriority priority,
                         std::optional<MoqtDeliveryOrder> delivery_order,
                         VersionSpecificParameters parameters) {
+  QUICHE_DCHECK(name.IsValid());
   if (next_request_id_ >= peer_max_request_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH with ID "
                     << next_request_id_
@@ -485,6 +500,7 @@ bool MoqtSession::JoiningFetch(const FullTrackName& name,
                                SubscribeRemoteTrack::Visitor* visitor,
                                uint64_t num_previous_groups,
                                VersionSpecificParameters parameters) {
+  QUICHE_DCHECK(name.IsValid());
   return JoiningFetch(
       name, visitor,
       [this, id = next_request_id_](std::unique_ptr<MoqtFetchTask> fetch_task) {
@@ -509,6 +525,7 @@ bool MoqtSession::JoiningFetch(const FullTrackName& name,
                                MoqtPriority priority,
                                std::optional<MoqtDeliveryOrder> delivery_order,
                                VersionSpecificParameters parameters) {
+  QUICHE_DCHECK(name.IsValid());
   if ((next_request_id_ + 2) >= peer_max_request_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send JOINING_FETCH with ID "
                     << (next_request_id_ + 2)
@@ -789,6 +806,7 @@ RemoteTrack* MoqtSession::RemoteTrackById(uint64_t subscribe_id) {
 
 SubscribeRemoteTrack* MoqtSession::RemoteTrackByName(
     const FullTrackName& name) {
+  QUICHE_DCHECK(name.IsValid());
   auto it = subscribe_by_name_.find(name);
   if (it == subscribe_by_name_.end()) {
     return nullptr;

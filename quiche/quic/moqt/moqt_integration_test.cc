@@ -139,20 +139,20 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessThenUnannounce) {
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   EXPECT_CALL(server_callbacks_.incoming_announce_callback,
-              Call(FullTrackName{"foo"}, parameters))
+              Call(TrackNamespace{"foo"}, parameters))
       .WillOnce(Return(std::nullopt));
   testing::MockFunction<void(
-      FullTrackName track_namespace,
+      TrackNamespace track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_callback;
-  client_->session()->Announce(FullTrackName{"foo"},
+  client_->session()->Announce(TrackNamespace{"foo"},
                                announce_callback.AsStdFunction(), *parameters);
   bool matches = false;
   EXPECT_CALL(announce_callback, Call(_, _))
-      .WillOnce([&](FullTrackName track_namespace,
+      .WillOnce([&](TrackNamespace track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
         matches = true;
-        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
+        EXPECT_EQ(track_namespace, TrackNamespace{"foo"});
         EXPECT_FALSE(error.has_value());
       });
   bool success =
@@ -160,14 +160,14 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessThenUnannounce) {
   EXPECT_TRUE(success);
   matches = false;
   EXPECT_CALL(server_callbacks_.incoming_announce_callback, Call(_, _))
-      .WillOnce([&](FullTrackName name,
+      .WillOnce([&](TrackNamespace name,
                     std::optional<VersionSpecificParameters> parameters) {
         matches = true;
-        EXPECT_EQ(name, FullTrackName{"foo"});
+        EXPECT_EQ(name, TrackNamespace{"foo"});
         EXPECT_FALSE(parameters.has_value());
         return std::nullopt;
       });
-  client_->session()->Unannounce(FullTrackName{"foo"});
+  client_->session()->Unannounce(TrackNamespace{"foo"});
   success = test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
   EXPECT_TRUE(success);
 }
@@ -177,20 +177,20 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessThenCancel) {
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   EXPECT_CALL(server_callbacks_.incoming_announce_callback,
-              Call(FullTrackName{"foo"}, parameters))
+              Call(TrackNamespace{"foo"}, parameters))
       .WillOnce(Return(std::nullopt));
   testing::MockFunction<void(
-      FullTrackName track_namespace,
+      TrackNamespace track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_callback;
-  client_->session()->Announce(FullTrackName{"foo"},
+  client_->session()->Announce(TrackNamespace{"foo"},
                                announce_callback.AsStdFunction(), *parameters);
   bool matches = false;
   EXPECT_CALL(announce_callback, Call(_, _))
-      .WillOnce([&](FullTrackName track_namespace,
+      .WillOnce([&](TrackNamespace track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
         matches = true;
-        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
+        EXPECT_EQ(track_namespace, TrackNamespace{"foo"});
         EXPECT_FALSE(error.has_value());
       });
   bool success =
@@ -198,16 +198,17 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessThenCancel) {
   EXPECT_TRUE(success);
   matches = false;
   EXPECT_CALL(announce_callback, Call(_, _))
-      .WillOnce([&](FullTrackName track_namespace,
+      .WillOnce([&](TrackNamespace track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
         matches = true;
-        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
+        EXPECT_EQ(track_namespace, TrackNamespace{"foo"});
         ASSERT_TRUE(error.has_value());
         EXPECT_EQ(error->error_code, RequestErrorCode::kInternalError);
         EXPECT_EQ(error->reason_phrase, "internal error");
       });
-  server_->session()->CancelAnnounce(
-      FullTrackName{"foo"}, RequestErrorCode::kInternalError, "internal error");
+  server_->session()->CancelAnnounce(TrackNamespace{"foo"},
+                                     RequestErrorCode::kInternalError,
+                                     "internal error");
   success = test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
   EXPECT_TRUE(success);
 }
@@ -217,22 +218,21 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSubscribeInResponse) {
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   EXPECT_CALL(server_callbacks_.incoming_announce_callback,
-              Call(FullTrackName{"foo"}, parameters))
+              Call(TrackNamespace{"foo"}, parameters))
       .WillOnce(Return(std::nullopt));
   MockSubscribeRemoteTrackVisitor server_visitor;
   testing::MockFunction<void(
-      FullTrackName track_namespace,
+      TrackNamespace track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_callback;
-  client_->session()->Announce(FullTrackName{"foo"},
+  client_->session()->Announce(TrackNamespace{"foo"},
                                announce_callback.AsStdFunction(), *parameters);
   bool matches = false;
   EXPECT_CALL(announce_callback, Call(_, _))
-      .WillOnce([&](FullTrackName track_namespace,
+      .WillOnce([&](TrackNamespace track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
-        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
-        FullTrackName track_name = track_namespace;
-        track_name.AddElement("/catalog");
+        EXPECT_EQ(track_namespace, TrackNamespace{"foo"});
+        FullTrackName track_name(track_namespace, "/catalog");
         EXPECT_FALSE(error.has_value());
         server_->session()->SubscribeCurrentObject(track_name, &server_visitor,
                                                    VersionSpecificParameters());
@@ -254,10 +254,9 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
       AuthTokenType::kOutOfBand, "foo");
   MockSubscribeRemoteTrackVisitor server_visitor;
   EXPECT_CALL(server_callbacks_.incoming_announce_callback, Call(_, parameters))
-      .WillOnce([&](const FullTrackName& track_namespace,
+      .WillOnce([&](const TrackNamespace& track_namespace,
                     std::optional<VersionSpecificParameters> /*parameters*/) {
-        FullTrackName track_name = track_namespace;
-        track_name.AddElement("data");
+        FullTrackName track_name(track_namespace, "data");
         server_->session()->SubscribeAbsolute(
             track_name, /*start_group=*/0, /*start_object=*/0, &server_visitor,
             VersionSpecificParameters());
@@ -274,8 +273,8 @@ TEST_F(MoqtIntegrationTest, AnnounceSuccessSendDataInResponse) {
     received_subscribe_ok = true;
   });
   client_->session()->Announce(
-      FullTrackName{"test"},
-      [](FullTrackName, std::optional<MoqtAnnounceErrorReason>) {},
+      TrackNamespace{"test"},
+      [](TrackNamespace, std::optional<MoqtAnnounceErrorReason>) {},
       *parameters);
   bool success = test_harness_.RunUntilWithDefaultTimeout(
       [&]() { return received_subscribe_ok; });
@@ -447,18 +446,18 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
 TEST_F(MoqtIntegrationTest, AnnounceFailure) {
   EstablishSession();
   testing::MockFunction<void(
-      FullTrackName track_namespace,
+      TrackNamespace track_namespace,
       std::optional<MoqtAnnounceErrorReason> error_message)>
       announce_callback;
-  client_->session()->Announce(FullTrackName{"foo"},
+  client_->session()->Announce(TrackNamespace{"foo"},
                                announce_callback.AsStdFunction(),
                                VersionSpecificParameters());
   bool matches = false;
   EXPECT_CALL(announce_callback, Call(_, _))
-      .WillOnce([&](FullTrackName track_namespace,
+      .WillOnce([&](TrackNamespace track_namespace,
                     std::optional<MoqtAnnounceErrorReason> error) {
         matches = true;
-        EXPECT_EQ(track_namespace, FullTrackName{"foo"});
+        EXPECT_EQ(track_namespace, TrackNamespace{"foo"});
         ASSERT_TRUE(error.has_value());
         EXPECT_EQ(error->error_code, RequestErrorCode::kNotSupported);
       });

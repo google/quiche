@@ -64,8 +64,9 @@ class ChatServer {
       it_ = it;
     }
 
-    void AnnounceIfSubscribed(FullTrackName track_namespace) {
-      for (const FullTrackName& subscribed_namespace : subscribed_namespaces_) {
+    void AnnounceIfSubscribed(TrackNamespace track_namespace) {
+      for (const TrackNamespace& subscribed_namespace :
+           subscribed_namespaces_) {
         if (track_namespace.InNamespace(subscribed_namespace)) {
           session_->Announce(
               track_namespace,
@@ -78,8 +79,9 @@ class ChatServer {
       }
     }
 
-    void UnannounceIfSubscribed(FullTrackName track_namespace) {
-      for (const FullTrackName& subscribed_namespace : subscribed_namespaces_) {
+    void UnannounceIfSubscribed(TrackNamespace track_namespace) {
+      for (const TrackNamespace& subscribed_namespace :
+           subscribed_namespaces_) {
         if (track_namespace.InNamespace(subscribed_namespace)) {
           session_->Unannounce(track_namespace);
           return;
@@ -90,10 +92,10 @@ class ChatServer {
    private:
     // Callback for incoming announces.
     std::optional<MoqtAnnounceErrorReason> OnIncomingAnnounce(
-        const moqt::FullTrackName& track_namespace,
+        const moqt::TrackNamespace& track_namespace,
         std::optional<VersionSpecificParameters> parameters);
     void OnOutgoingAnnounceReply(
-        FullTrackName track_namespace,
+        TrackNamespace track_namespace,
         std::optional<MoqtAnnounceErrorReason> error_message);
 
     MoqtSession* session_;  // Not owned.
@@ -101,7 +103,7 @@ class ChatServer {
     // in theory there could be multiple users on one session.
     std::optional<FullTrackName> track_name_;
     ChatServer* server_;  // Not owned.
-    absl::flat_hash_set<FullTrackName> subscribed_namespaces_;
+    absl::flat_hash_set<TrackNamespace> subscribed_namespaces_;
     // The iterator of this entry in ChatServer::sessions_, so it can destroy
     // itself later.
     std::list<ChatServerSessionHandler>::const_iterator it_;
