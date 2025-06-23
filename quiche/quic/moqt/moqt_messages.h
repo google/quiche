@@ -608,10 +608,10 @@ enum class QUICHE_EXPORT SubscribeDoneCode : uint64_t {
 };
 
 struct QUICHE_EXPORT MoqtSubscribeDone {
-  uint64_t subscribe_id;
+  uint64_t request_id;
   SubscribeDoneCode status_code;
   uint64_t stream_count;
-  std::string reason_phrase;
+  std::string error_reason;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeUpdate {

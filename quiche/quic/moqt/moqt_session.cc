@@ -627,9 +627,9 @@ void MoqtSession::GoAwayTimeoutDelegate::OnAlarm() {
                   "Peer did not close session after GOAWAY");
 }
 
-bool MoqtSession::SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
-                                  absl::string_view reason_phrase) {
-  auto it = published_subscriptions_.find(subscribe_id);
+bool MoqtSession::SubscribeIsDone(uint64_t request_id, SubscribeDoneCode code,
+                                  absl::string_view error_reason) {
+  auto it = published_subscriptions_.find(request_id);
   if (it == published_subscriptions_.end()) {
     return false;
   }
@@ -639,10 +639,10 @@ bool MoqtSession::SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
       subscription.GetAllStreams();
 
   MoqtSubscribeDone subscribe_done;
-  subscribe_done.subscribe_id = subscribe_id;
+  subscribe_done.request_id = request_id;
   subscribe_done.status_code = code;
   subscribe_done.stream_count = subscription.streams_opened();
-  subscribe_done.reason_phrase = reason_phrase;
+  subscribe_done.error_reason = error_reason;
   SendControlMessage(framer_.SerializeSubscribeDone(subscribe_done));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_DONE message for "
                   << subscription.publisher().GetTrackName();
@@ -1136,7 +1136,7 @@ void MoqtSession::ControlStream::OnUnsubscribeMessage(
 
 void MoqtSession::ControlStream::OnSubscribeDoneMessage(
     const MoqtSubscribeDone& message) {
-  auto it = session_->upstream_by_id_.find(message.subscribe_id);
+  auto it = session_->upstream_by_id_.find(message.request_id);
   if (it == session_->upstream_by_id_.end()) {
     return;
   }

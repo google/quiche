@@ -534,10 +534,10 @@ size_t MoqtControlParser::ProcessUnsubscribe(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessSubscribeDone(quic::QuicDataReader& reader) {
   MoqtSubscribeDone subscribe_done;
   uint64_t value;
-  if (!reader.ReadVarInt62(&subscribe_done.subscribe_id) ||
+  if (!reader.ReadVarInt62(&subscribe_done.request_id) ||
       !reader.ReadVarInt62(&value) ||
       !reader.ReadVarInt62(&subscribe_done.stream_count) ||
-      !reader.ReadStringVarInt62(subscribe_done.reason_phrase)) {
+      !reader.ReadStringVarInt62(subscribe_done.error_reason)) {
     return 0;
   }
   subscribe_done.status_code = static_cast<SubscribeDoneCode>(value);

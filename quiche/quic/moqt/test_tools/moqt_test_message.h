@@ -704,8 +704,8 @@ class QUICHE_NO_EXPORT SubscribeDoneMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSubscribeDone>(values);
-    if (cast.subscribe_id != subscribe_done_.subscribe_id) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_DONE subscribe ID mismatch";
+    if (cast.request_id != subscribe_done_.request_id) {
+      QUIC_LOG(INFO) << "SUBSCRIBE_DONE request ID mismatch";
       return false;
     }
     if (cast.status_code != subscribe_done_.status_code) {
@@ -716,8 +716,8 @@ class QUICHE_NO_EXPORT SubscribeDoneMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE_DONE stream count mismatch";
       return false;
     }
-    if (cast.reason_phrase != subscribe_done_.reason_phrase) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_DONE reason phrase mismatch";
+    if (cast.error_reason != subscribe_done_.error_reason) {
+      QUIC_LOG(INFO) << "SUBSCRIBE_DONE error reason mismatch";
       return false;
     }
 
@@ -732,16 +732,16 @@ class QUICHE_NO_EXPORT SubscribeDoneMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[9] = {
-      0x0b, 0x00, 0x06, 0x02, 0x02,  // subscribe_id = 2, error_code = 2,
+      0x0b, 0x00, 0x06, 0x02, 0x02,  // request_id = 2, error_code = 2,
       0x05,                          // stream_count = 5
-      0x02, 0x68, 0x69,              // reason_phrase = "hi"
+      0x02, 0x68, 0x69,              // error_reason = "hi"
   };
 
   MoqtSubscribeDone subscribe_done_ = {
-      /*subscribe_id=*/2,
+      /*request_id=*/2,
       /*error_code=*/SubscribeDoneCode::kTrackEnded,
       /*stream_count=*/5,
-      /*reason_phrase=*/"hi",
+      /*error_reason=*/"hi",
   };
 };
 

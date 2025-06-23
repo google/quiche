@@ -614,8 +614,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   // Private members of MoqtSession.
   // Returns true if SUBSCRIBE_DONE was sent.
-  bool SubscribeIsDone(uint64_t subscribe_id, SubscribeDoneCode code,
-                       absl::string_view reason_phrase);
+  bool SubscribeIsDone(uint64_t request_id, SubscribeDoneCode code,
+                       absl::string_view error_reason);
   void MaybeDestroySubscription(SubscribeRemoteTrack* subscribe);
   void DestroySubscription(SubscribeRemoteTrack* subscribe);
 
