@@ -594,7 +594,7 @@ struct QUICHE_EXPORT MoqtSubscribeError {
 };
 
 struct QUICHE_EXPORT MoqtUnsubscribe {
-  uint64_t subscribe_id;
+  uint64_t request_id;
 };
 
 enum class QUICHE_EXPORT SubscribeDoneCode : uint64_t {

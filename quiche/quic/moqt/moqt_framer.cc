@@ -521,7 +521,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeError(
 quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribe(
     const MoqtUnsubscribe& message) {
   return SerializeControlMessage(MoqtMessageType::kUnsubscribe,
-                                 WireVarInt62(message.subscribe_id));
+                                 WireVarInt62(message.request_id));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeDone(

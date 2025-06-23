@@ -455,7 +455,7 @@ void MoqtSession::Unsubscribe(const FullTrackName& name) {
   QUICHE_DCHECK(name.IsValid());
   QUIC_DLOG(INFO) << ENDPOINT << "Sent UNSUBSCRIBE message for " << name;
   MoqtUnsubscribe message;
-  message.subscribe_id = track->request_id();
+  message.request_id = track->request_id();
   SendControlMessage(framer_.SerializeUnsubscribe(message));
   DestroySubscription(track);
 }
@@ -1125,7 +1125,7 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
 
 void MoqtSession::ControlStream::OnUnsubscribeMessage(
     const MoqtUnsubscribe& message) {
-  auto it = session_->published_subscriptions_.find(message.subscribe_id);
+  auto it = session_->published_subscriptions_.find(message.request_id);
   if (it == session_->published_subscriptions_.end()) {
     return;
   }

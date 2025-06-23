@@ -524,7 +524,7 @@ size_t MoqtControlParser::ProcessSubscribeError(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessUnsubscribe(quic::QuicDataReader& reader) {
   MoqtUnsubscribe unsubscribe;
-  if (!reader.ReadVarInt62(&unsubscribe.subscribe_id)) {
+  if (!reader.ReadVarInt62(&unsubscribe.request_id)) {
     return 0;
   }
   visitor_.OnUnsubscribeMessage(unsubscribe);

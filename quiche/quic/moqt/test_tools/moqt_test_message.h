@@ -673,8 +673,8 @@ class QUICHE_NO_EXPORT UnsubscribeMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtUnsubscribe>(values);
-    if (cast.subscribe_id != unsubscribe_.subscribe_id) {
-      QUIC_LOG(INFO) << "UNSUBSCRIBE subscribe ID mismatch";
+    if (cast.request_id != unsubscribe_.request_id) {
+      QUIC_LOG(INFO) << "UNSUBSCRIBE request ID mismatch";
       return false;
     }
     return true;
@@ -688,11 +688,11 @@ class QUICHE_NO_EXPORT UnsubscribeMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[4] = {
-      0x0a, 0x00, 0x01, 0x03,  // subscribe_id = 3
+      0x0a, 0x00, 0x01, 0x03,  // request_id = 3
   };
 
   MoqtUnsubscribe unsubscribe_ = {
-      /*subscribe_id=*/3,
+      /*request_id=*/3,
   };
 };
 
