@@ -228,7 +228,7 @@ QuicPacketNumberLength GetLongHeaderPacketNumberLength(uint8_t type) {
 // Used to get packet number space before packet gets decrypted.
 PacketNumberSpace GetPacketNumberSpace(const QuicPacketHeader& header) {
   switch (header.form) {
-    case GOOGLE_QUIC_PACKET:
+    case GOOGLE_QUIC_Q043_PACKET:
       QUIC_BUG(quic_bug_10850_5)
           << "Try to get packet number space of Google QUIC packet";
       break;
@@ -257,7 +257,7 @@ PacketNumberSpace GetPacketNumberSpace(const QuicPacketHeader& header) {
 
 EncryptionLevel GetEncryptionLevel(const QuicPacketHeader& header) {
   switch (header.form) {
-    case GOOGLE_QUIC_PACKET:
+    case GOOGLE_QUIC_Q043_PACKET:
       QUIC_BUG(quic_bug_10850_7)
           << "Cannot determine EncryptionLevel from Google QUIC header";
       break;
@@ -1728,7 +1728,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
                                        const QuicEncryptedPacket& packet,
                                        char* decrypted_buffer,
                                        size_t buffer_length) {
-  QUICHE_DCHECK_NE(GOOGLE_QUIC_PACKET, header->form);
+  QUICHE_DCHECK_NE(GOOGLE_QUIC_Q043_PACKET, header->form);
   QUICHE_DCHECK(!header->has_possible_stateless_reset_token);
   header->length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
   header->remaining_packet_length = 0;
@@ -4551,9 +4551,9 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
   bool key_phase;
   bool attempt_key_update = false;
   if (version().KnowsWhichDecrypterToUse()) {
-    if (header.form == GOOGLE_QUIC_PACKET) {
+    if (header.form == GOOGLE_QUIC_Q043_PACKET) {
       QUIC_BUG(quic_bug_10850_68)
-          << "Attempted to decrypt GOOGLE_QUIC_PACKET with a version that "
+          << "Attempted to decrypt GOOGLE_QUIC_Q043_PACKET with a version that "
              "knows which decrypter to use";
       return false;
     }
@@ -6710,7 +6710,7 @@ QuicErrorCode QuicFramer::ParsePublicHeaderGoogleQuic(
     bool* version_present, QuicVersionLabel* version_label,
     ParsedQuicVersion* parsed_version,
     absl::string_view* destination_connection_id, std::string* detailed_error) {
-  *format = GOOGLE_QUIC_PACKET;
+  *format = GOOGLE_QUIC_Q043_PACKET;
   *version_present = (*first_byte & PACKET_PUBLIC_FLAGS_VERSION) != 0;
   uint8_t destination_connection_id_length = 0;
   if ((*first_byte & PACKET_PUBLIC_FLAGS_8BYTE_CONNECTION_ID) != 0) {
@@ -6736,7 +6736,7 @@ QuicErrorCode QuicFramer::ParsePublicHeaderGoogleQuic(
     bool* version_present, QuicVersionLabel* version_label,
     ParsedQuicVersion* parsed_version,
     QuicConnectionId* destination_connection_id, std::string* detailed_error) {
-  *format = GOOGLE_QUIC_PACKET;
+  *format = GOOGLE_QUIC_Q043_PACKET;
   *version_present = (*first_byte & PACKET_PUBLIC_FLAGS_VERSION) != 0;
   uint8_t destination_connection_id_length = 0;
   if ((*first_byte & PACKET_PUBLIC_FLAGS_8BYTE_CONNECTION_ID) != 0) {

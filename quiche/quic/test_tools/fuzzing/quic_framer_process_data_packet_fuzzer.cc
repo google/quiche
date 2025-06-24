@@ -110,7 +110,7 @@ QuicSelfContainedPacketHeader ConsumeQuicPacketHeader(
 
   header.remaining_packet_length = 0;
 
-  if (header.form != quic::GOOGLE_QUIC_PACKET && header.version_flag) {
+  if (header.form != quic::GOOGLE_QUIC_Q043_PACKET && header.version_flag) {
     header.long_packet_type = static_cast<QuicLongHeaderType>(
         provider->ConsumeIntegralInRange<uint8_t>(
             // INITIAL, ZERO_RTT_PROTECTED, or HANDSHAKE.

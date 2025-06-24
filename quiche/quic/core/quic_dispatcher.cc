@@ -1081,8 +1081,8 @@ void QuicDispatcher::StatelesslyTerminateConnection(
                   << ", error_code:" << error_code
                   << ", error_details:" << error_details;
     time_wait_list_manager_->AddConnectionIdToTimeWait(
-        action, TimeWaitConnectionInfo(format != GOOGLE_QUIC_PACKET, nullptr,
-                                       {server_connection_id}));
+        action, TimeWaitConnectionInfo(format != GOOGLE_QUIC_Q043_PACKET,
+                                       nullptr, {server_connection_id}));
     return;
   }
 
@@ -1112,7 +1112,7 @@ void QuicDispatcher::StatelesslyTerminateConnection(
     }
     // This also adds the connection to time wait list.
     terminator.CloseConnection(error_code, error_details,
-                               format != GOOGLE_QUIC_PACKET,
+                               format != GOOGLE_QUIC_Q043_PACKET,
                                /*active_connection_ids=*/
                                std::move(active_connection_ids));
 
@@ -1137,11 +1137,11 @@ void QuicDispatcher::StatelesslyTerminateConnection(
   std::vector<std::unique_ptr<QuicEncryptedPacket>> termination_packets;
   termination_packets.push_back(QuicFramer::BuildVersionNegotiationPacket(
       server_connection_id, EmptyQuicConnectionId(),
-      /*ietf_quic=*/format != GOOGLE_QUIC_PACKET, use_length_prefix,
+      /*ietf_quic=*/format != GOOGLE_QUIC_Q043_PACKET, use_length_prefix,
       /*versions=*/{}));
   time_wait_list_manager()->AddConnectionIdToTimeWait(
       QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
-      TimeWaitConnectionInfo(/*ietf_quic=*/format != GOOGLE_QUIC_PACKET,
+      TimeWaitConnectionInfo(/*ietf_quic=*/format != GOOGLE_QUIC_Q043_PACKET,
                              &termination_packets, {server_connection_id}));
 }
 
@@ -1163,7 +1163,7 @@ void QuicDispatcher::OnExpiredPackets(
   StatelesslyTerminateConnection(
       self_address, peer_address, early_arrived_packets.original_connection_id,
       early_arrived_packets.ietf_quic ? IETF_QUIC_LONG_HEADER_PACKET
-                                      : GOOGLE_QUIC_PACKET,
+                                      : GOOGLE_QUIC_Q043_PACKET,
       /*version_flag=*/true,
       early_arrived_packets.version.HasLengthPrefixedConnectionIds(),
       early_arrived_packets.version, error_code,
@@ -1509,7 +1509,7 @@ void QuicDispatcher::MaybeResetPacketsWithNoVersion(
     QUIC_CODE_COUNT(quic_donot_send_reset_repeatedly);
     return;
   }
-  if (packet_info.form != GOOGLE_QUIC_PACKET) {
+  if (packet_info.form != GOOGLE_QUIC_Q043_PACKET) {
     // Drop IETF packets smaller than the minimal stateless reset length.
     if (packet_info.packet.length() <=
         QuicFramer::GetMinStatelessResetPacketLength()) {
@@ -1545,7 +1545,7 @@ void QuicDispatcher::MaybeResetPacketsWithNoVersion(
   time_wait_list_manager()->SendPublicReset(
       packet_info.self_address, packet_info.peer_address,
       packet_info.destination_connection_id,
-      packet_info.form != GOOGLE_QUIC_PACKET, packet_info.packet.length(),
+      packet_info.form != GOOGLE_QUIC_Q043_PACKET, packet_info.packet.length(),
       GetPerPacketContext());
 }
 
@@ -1561,9 +1561,10 @@ bool QuicDispatcher::MaybeSendVersionNegotiationPacket(
   }
   time_wait_list_manager()->SendVersionNegotiationPacket(
       packet_info.destination_connection_id, packet_info.source_connection_id,
-      packet_info.form != GOOGLE_QUIC_PACKET, packet_info.use_length_prefix,
-      GetSupportedVersions(), packet_info.self_address,
-      packet_info.peer_address, GetPerPacketContext());
+      packet_info.form != GOOGLE_QUIC_Q043_PACKET,
+      packet_info.use_length_prefix, GetSupportedVersions(),
+      packet_info.self_address, packet_info.peer_address,
+      GetPerPacketContext());
   return true;
 }
 

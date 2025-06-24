@@ -223,7 +223,7 @@ QuicAckFrame MakeAckFrameWithGaps(uint64_t gap_size, size_t max_num_gaps,
                                   uint64_t largest_acked);
 
 // Returns the encryption level that corresponds to the header type in
-// |header|. If the header is for GOOGLE_QUIC_PACKET instead of an
+// |header|. If the header is for GOOGLE_QUIC_Q043_PACKET instead of an
 // IETF-invariants packet, this function returns ENCRYPTION_INITIAL.
 EncryptionLevel HeaderToEncryptionLevel(const QuicPacketHeader& header);
 

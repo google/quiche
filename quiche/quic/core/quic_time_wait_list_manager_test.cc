@@ -157,7 +157,7 @@ class QuicTimeWaitListManagerTest : public QuicTest {
 
   void ProcessPacket(QuicConnectionId connection_id) {
     time_wait_list_manager_.ProcessPacket(
-        self_address_, peer_address_, connection_id, GOOGLE_QUIC_PACKET,
+        self_address_, peer_address_, connection_id, GOOGLE_QUIC_Q043_PACKET,
         kTestPacketSize, std::make_unique<QuicPerPacketContext>());
   }
 

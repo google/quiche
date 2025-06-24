@@ -240,7 +240,7 @@ std::string PacketHeaderFormatToString(PacketHeaderFormat format) {
   switch (format) {
     RETURN_STRING_LITERAL(IETF_QUIC_LONG_HEADER_PACKET);
     RETURN_STRING_LITERAL(IETF_QUIC_SHORT_HEADER_PACKET);
-    RETURN_STRING_LITERAL(GOOGLE_QUIC_PACKET);
+    RETURN_STRING_LITERAL(GOOGLE_QUIC_Q043_PACKET);
     default:
       return absl::StrCat("Unknown (", static_cast<int>(format), ")");
   }

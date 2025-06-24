@@ -3134,7 +3134,8 @@ bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
 
   if (!version_negotiated_) {
     if (perspective_ == Perspective::IS_CLIENT) {
-      QUICHE_DCHECK(!header.version_flag || header.form != GOOGLE_QUIC_PACKET);
+      QUICHE_DCHECK(!header.version_flag ||
+                    header.form != GOOGLE_QUIC_Q043_PACKET);
       version_negotiated_ = true;
       OnSuccessfulVersionNegotiation();
     }

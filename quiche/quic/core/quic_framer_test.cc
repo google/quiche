@@ -1228,7 +1228,7 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
-  PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  PacketHeaderFormat format = GOOGLE_QUIC_Q043_PACKET;
   QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   bool version_flag = false;
   absl::string_view destination_connection_id, source_connection_id;
@@ -1257,7 +1257,7 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
 TEST_P(QuicFramerTest, AllZeroPacketParsingFails) {
   unsigned char packet[1200] = {};
   QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
-  PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  PacketHeaderFormat format = GOOGLE_QUIC_Q043_PACKET;
   QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   bool version_flag = false;
   absl::string_view destination_connection_id, source_connection_id;
@@ -1323,7 +1323,7 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
   }
 
   uint8_t first_byte = 0x33;
-  PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  PacketHeaderFormat format = GOOGLE_QUIC_Q043_PACKET;
   bool version_present = false, has_length_prefix = false;
   QuicVersionLabel version_label = 0;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
@@ -1387,7 +1387,7 @@ TEST_P(QuicFramerTest, ParsePublicHeaderProxBadSourceConnectionIdLength) {
   size_t p_length = ABSL_ARRAYSIZE(packet);
 
   uint8_t first_byte = 0x33;
-  PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  PacketHeaderFormat format = GOOGLE_QUIC_Q043_PACKET;
   bool version_present = false, has_length_prefix = false;
   QuicVersionLabel version_label = 0;
   ParsedQuicVersion parsed_version = UnsupportedQuicVersion();
@@ -13619,7 +13619,7 @@ TEST_P(QuicFramerTest, DispatcherParseOldClientVersionNegotiationProbePacket) {
 
   QuicEncryptedPacket encrypted(reinterpret_cast<const char*>(packet),
                                 sizeof(packet));
-  PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  PacketHeaderFormat format = GOOGLE_QUIC_Q043_PACKET;
   QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   bool version_present = false, has_length_prefix = true;
   QuicVersionLabel version_label = 33;
@@ -13698,7 +13698,7 @@ TEST_P(QuicFramerTest, DispatcherParseClientVersionNegotiationProbePacket) {
 
   QuicEncryptedPacket encrypted(reinterpret_cast<const char*>(packet),
                                 sizeof(packet));
-  PacketHeaderFormat format = GOOGLE_QUIC_PACKET;
+  PacketHeaderFormat format = GOOGLE_QUIC_Q043_PACKET;
   QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   bool version_present = false, has_length_prefix = false;
   QuicVersionLabel version_label = 33;

@@ -137,7 +137,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
   const QuicSocketAddress& self_address = packet_info.self_address;
   const QuicSocketAddress& peer_address = packet_info.peer_address;
   const ParsedQuicVersion& version = packet_info.version;
-  const bool ietf_quic = packet_info.form != GOOGLE_QUIC_PACKET;
+  const bool ietf_quic = packet_info.form != GOOGLE_QUIC_Q043_PACKET;
   const bool is_chlo = parsed_chlo.has_value();
   const bool is_ietf_initial_packet =
       (version.IsKnown() && packet_info.form == IETF_QUIC_LONG_HEADER_PACKET &&
