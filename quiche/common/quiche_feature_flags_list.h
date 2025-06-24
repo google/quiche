@@ -39,7 +39,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enobufs_blocked, false, false, "If
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fin_before_completed_http_headers, false, true, "If true, close the connection with error if FIN is received before finish receiving the whole HTTP headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_timeouts, true, true, "If true, postpone setting handshake timeout to infinite to handshake complete.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_heapless_key_derivation, false, true, "If true, QUIC key derivation uses heapless crypto utils.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_heapless_obfuscator, true, true, "If true, generates QUIC initial obfuscators with no heap allocations.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_heapless_static_parser, true, true, "If true, stops parsing immediately on unknown version, to avoid a potential malloc when parsing the connection ID")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_ignore_gquic_probing, true, true, "If true, QUIC server will not respond to gQUIC probing packet(PING + PADDING) but treat it as a regular packet.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_least_unacked_plus_1, false, false, "If true, sets peer_least_packet_awaiting_ack to one more than the highest confirmed acknowledgment to fix an off-by-one error.")

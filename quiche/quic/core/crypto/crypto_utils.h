@@ -147,10 +147,6 @@ class QUICHE_EXPORT CryptoUtils {
   // as setting the key and IV on those crypters. For older versions of QUIC
   // that do not use the new IETF style ENCRYPTION_INITIAL obfuscators, this
   // function puts a NullEncrypter and NullDecrypter in |*crypters|.
-  static void CreateInitialObfuscatorsNew(Perspective perspective,
-                                          ParsedQuicVersion version,
-                                          QuicConnectionId connection_id,
-                                          CrypterPair* crypters);
   static void CreateInitialObfuscators(Perspective perspective,
                                        ParsedQuicVersion version,
                                        QuicConnectionId connection_id,

@@ -68,7 +68,6 @@ inline constexpr size_t kMaxIVSize = 12;
 // |out_len|, respectively. The resulting expanded secret is returned.
 bool HkdfExpandLabel(const EVP_MD* prf, absl::Span<const uint8_t> secret,
                      absl::string_view label, absl::Span<uint8_t> out) {
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 2, 7);
   constexpr absl::string_view kLabelPrefix = "tls13 ";
   constexpr size_t kMaxLabelLength = 10;  // "quicv2 key" is the longest
   QUICHE_DCHECK_LE(label.length(), kMaxLabelLength);
@@ -147,7 +146,6 @@ constexpr size_t kMaxVersionLabelLength = 10;
 absl::string_view GetLabelForVersion(const ParsedQuicVersion& version,
                                      absl::string_view predicate,
                                      absl::Span<char> out) {
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 3, 7);
   static_assert(SupportedVersions().size() == 4u,
                 "Supported versions out of sync with HKDF labels");
   QuicDataWriter writer(out.size(), out.data());
@@ -183,7 +181,6 @@ void CryptoUtils::InitializeCrypterSecrets(const EVP_MD* prf,
                                            absl::Span<const uint8_t> pp_secret,
                                            const ParsedQuicVersion& version,
                                            QuicCrypter* crypter) {
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 4, 7);
   SetKeyAndIVHeapless(prf, pp_secret, version, crypter);
   uint8_t header_protection_key[kMaxKeySize];
   QUIC_BUG_IF(quic_bug_hp_length_mismatch,
@@ -217,7 +214,6 @@ void CryptoUtils::SetKeyAndIVHeapless(const EVP_MD* prf,
                                       absl::Span<const uint8_t> pp_secret,
                                       const ParsedQuicVersion& version,
                                       QuicCrypter* crypter) {
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 5, 7);
   uint8_t key[kMaxKeySize];
   QUIC_BUG_IF(quic_bug_key_length_mismatch, crypter->GetKeySize() > sizeof(key))
       << "Key length does not match crypter";
@@ -267,7 +263,6 @@ void CryptoUtils::SetKeyAndIV(const EVP_MD* prf,
 bool CryptoUtils::GenerateHeaderProtectionKey(
     const EVP_MD* prf, absl::Span<const uint8_t> pp_secret,
     const ParsedQuicVersion& version, absl::Span<uint8_t> out) {
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 6, 7);
   char version_label_raw[kMaxVersionLabelLength];
   constexpr absl::string_view kHeaderProtectionPredicate = "hp";
   absl::string_view version_label = GetLabelForVersion(
@@ -291,7 +286,6 @@ std::vector<uint8_t> CryptoUtils::GenerateHeaderProtectionKey(
 bool CryptoUtils::GenerateNextKeyPhaseSecret(
     const EVP_MD* prf, const ParsedQuicVersion& version,
     const absl::Span<const uint8_t> current_secret, absl::Span<uint8_t> out) {
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 7, 7);
   char version_label_raw[kMaxVersionLabelLength];
   constexpr absl::string_view kKeyUpdatePredicate = "ku";
   absl::string_view version_label = GetLabelForVersion(
@@ -497,82 +491,21 @@ void CryptoUtils::PopulateInitialObfuscators(Perspective perspective,
 }
 
 // static
-void CryptoUtils::CreateInitialObfuscatorsNew(Perspective perspective,
-                                              ParsedQuicVersion version,
-                                              QuicConnectionId connection_id,
-                                              CrypterPair* crypters) {
+void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
+                                           ParsedQuicVersion version,
+                                           QuicConnectionId connection_id,
+                                           CrypterPair* crypters) {
   if (!version.UsesInitialObfuscators()) {
     crypters->encrypter = std::make_unique<NullEncrypter>(perspective);
     crypters->decrypter = std::make_unique<NullDecrypter>(perspective);
     return;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_obfuscator, 1, 7);
   crypters->encrypter = std::make_unique<Aes128GcmEncrypter>();
   crypters->decrypter = std::make_unique<Aes128GcmDecrypter>();
 
   PopulateInitialObfuscators(perspective, version, connection_id,
                              crypters->encrypter.get(),
                              crypters->decrypter.get());
-}
-// static
-void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
-                                           ParsedQuicVersion version,
-                                           QuicConnectionId connection_id,
-                                           CrypterPair* crypters) {
-  if (GetQuicReloadableFlag(quic_heapless_obfuscator)) {
-    CreateInitialObfuscatorsNew(perspective, version, connection_id, crypters);
-    return;
-  }
-  QUIC_DLOG(INFO) << "Creating "
-                  << (perspective == Perspective::IS_CLIENT ? "client"
-                                                            : "server")
-                  << " crypters for version " << version << " with CID "
-                  << connection_id;
-  if (!version.UsesInitialObfuscators()) {
-    crypters->encrypter = std::make_unique<NullEncrypter>(perspective);
-    crypters->decrypter = std::make_unique<NullDecrypter>(perspective);
-    return;
-  }
-  QUIC_BUG_IF(quic_bug_12871_1, !QuicUtils::IsConnectionIdValidForVersion(
-                                    connection_id, version.transport_version))
-      << "CreateTlsInitialCrypters: attempted to use connection ID "
-      << connection_id << " which is invalid with version " << version;
-  const EVP_MD* hash = EVP_sha256();
-
-  size_t salt_len;
-  const uint8_t* salt = InitialSaltForVersion(version, &salt_len);
-  std::vector<uint8_t> handshake_secret;
-  handshake_secret.resize(EVP_MAX_MD_SIZE);
-  size_t handshake_secret_len;
-  const bool hkdf_extract_success =
-      HKDF_extract(handshake_secret.data(), &handshake_secret_len, hash,
-                   reinterpret_cast<const uint8_t*>(connection_id.data()),
-                   connection_id.length(), salt, salt_len);
-  QUIC_BUG_IF(quic_bug_12871_2, !hkdf_extract_success)
-      << "HKDF_extract failed when creating initial crypters";
-  handshake_secret.resize(handshake_secret_len);
-
-  const std::string client_label = "client in";
-  const std::string server_label = "server in";
-  std::string encryption_label, decryption_label;
-  if (perspective == Perspective::IS_CLIENT) {
-    encryption_label = client_label;
-    decryption_label = server_label;
-  } else {
-    encryption_label = server_label;
-    decryption_label = client_label;
-  }
-  std::vector<uint8_t> encryption_secret = HkdfExpandLabel(
-      hash, handshake_secret, encryption_label, EVP_MD_size(hash));
-  crypters->encrypter = std::make_unique<Aes128GcmEncrypter>();
-  InitializeCrypterSecrets(hash, encryption_secret, version,
-                           crypters->encrypter.get());
-
-  std::vector<uint8_t> decryption_secret = HkdfExpandLabel(
-      hash, handshake_secret, decryption_label, EVP_MD_size(hash));
-  crypters->decrypter = std::make_unique<Aes128GcmDecrypter>();
-  InitializeCrypterSecrets(hash, decryption_secret, version,
-                           crypters->decrypter.get());
 }
 
 // static
