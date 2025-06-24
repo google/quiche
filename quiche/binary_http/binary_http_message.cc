@@ -24,8 +24,8 @@
 namespace quiche {
 namespace {
 
-constexpr uint8_t kKnownLengthRequestFraming = 0;
-constexpr uint8_t kKnownLengthResponseFraming = 1;
+constexpr uint64_t kKnownLengthRequestFraming = 0;
+constexpr uint64_t kKnownLengthResponseFraming = 1;
 
 bool ReadStringValue(quiche::QuicheDataReader& reader, std::string& data) {
   absl::string_view data_view;
@@ -270,7 +270,7 @@ absl::StatusOr<std::string> BinaryHttpResponse::EncodeAsKnownLength() const {
   std::string data;
   data.resize(EncodedSize());
   quiche::QuicheDataWriter writer(data.size(), data.data());
-  if (!writer.WriteUInt8(kKnownLengthResponseFraming)) {
+  if (!writer.WriteVarInt62(kKnownLengthResponseFraming)) {
     return absl::InvalidArgumentError("Failed to write framing indicator");
   }
   // Informational response
@@ -293,7 +293,7 @@ absl::StatusOr<std::string> BinaryHttpResponse::EncodeAsKnownLength() const {
 }
 
 size_t BinaryHttpResponse::EncodedSize() const {
-  size_t size = sizeof(kKnownLengthResponseFraming);
+  size_t size = QuicheDataWriter::GetVarInt62Len(kKnownLengthResponseFraming);
   for (const auto& informational : informational_response_control_data_) {
     size += informational.EncodedSize();
   }
@@ -363,8 +363,9 @@ size_t BinaryHttpRequest::EncodedControlDataSize() const {
 }
 
 size_t BinaryHttpRequest::EncodedSize() const {
-  return sizeof(kKnownLengthRequestFraming) + EncodedControlDataSize() +
-         EncodedKnownLengthFieldsAndBodySize() + num_padding_bytes();
+  return QuicheDataWriter::GetVarInt62Len(kKnownLengthRequestFraming) +
+         EncodedControlDataSize() + EncodedKnownLengthFieldsAndBodySize() +
+         num_padding_bytes();
 }
 
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-binary-message-06.html#name-known-length-messages
@@ -372,7 +373,7 @@ absl::StatusOr<std::string> BinaryHttpRequest::EncodeAsKnownLength() const {
   std::string data;
   data.resize(EncodedSize());
   quiche::QuicheDataWriter writer(data.size(), data.data());
-  if (!writer.WriteUInt8(kKnownLengthRequestFraming)) {
+  if (!writer.WriteVarInt62(kKnownLengthRequestFraming)) {
     return absl::InvalidArgumentError("Failed to encode framing indicator.");
   }
   if (const absl::Status status = EncodeControlData(writer); !status.ok()) {
@@ -390,8 +391,8 @@ absl::StatusOr<std::string> BinaryHttpRequest::EncodeAsKnownLength() const {
 absl::StatusOr<BinaryHttpRequest> BinaryHttpRequest::Create(
     absl::string_view data) {
   quiche::QuicheDataReader reader(data);
-  uint8_t framing;
-  if (!reader.ReadUInt8(&framing)) {
+  uint64_t framing;
+  if (!reader.ReadVarInt62(&framing)) {
     return absl::InvalidArgumentError("Missing framing indicator.");
   }
   if (framing == kKnownLengthRequestFraming) {
@@ -404,8 +405,8 @@ absl::StatusOr<BinaryHttpRequest> BinaryHttpRequest::Create(
 absl::StatusOr<BinaryHttpResponse> BinaryHttpResponse::Create(
     absl::string_view data) {
   quiche::QuicheDataReader reader(data);
-  uint8_t framing;
-  if (!reader.ReadUInt8(&framing)) {
+  uint64_t framing;
+  if (!reader.ReadVarInt62(&framing)) {
     return absl::InvalidArgumentError("Missing framing indicator.");
   }
   if (framing == kKnownLengthResponseFraming) {
