@@ -607,5 +607,12 @@ bool QuicConnectionPeer::CanReceiveAckFrequencyFrames(
   return connection->can_receive_ack_frequency_immediate_ack_;
 }
 
+// static
+uint8_t QuicConnectionPeer::GetNumPtosForRetransmittableOnWireTimeout(
+    const QuicConnection* connection) {
+  return connection->ping_manager_
+      .num_ptos_for_retransmittable_on_wire_timeout_;
+}
+
 }  // namespace test
 }  // namespace quic

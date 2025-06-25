@@ -253,6 +253,9 @@ class QuicConnectionPeer {
   static void OnForwardProgressMade(QuicConnection* connection);
 
   static bool CanReceiveAckFrequencyFrames(QuicConnection* connection);
+
+  static uint8_t GetNumPtosForRetransmittableOnWireTimeout(
+      const QuicConnection* connection);
 };
 
 }  // namespace test

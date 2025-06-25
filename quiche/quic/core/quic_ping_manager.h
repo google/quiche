@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_PING_MANAGER_H_
 #define QUICHE_QUIC_CORE_QUIC_PING_MANAGER_H_
 
+#include <cstdint>
+
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_connection_alarms.h"
@@ -43,7 +45,7 @@ class QUICHE_EXPORT QuicPingManager {
 
   // Called to set |alarm_|.
   void SetAlarm(QuicTime now, bool should_keep_alive,
-                bool has_in_flight_packets);
+                bool has_in_flight_packets, QuicTime::Delta pto_delay);
 
   // Called when |alarm_| fires.
   void OnAlarm();
@@ -66,13 +68,19 @@ class QUICHE_EXPORT QuicPingManager {
     consecutive_retransmittable_on_wire_count_ = 0;
   }
 
+  void set_num_ptos_for_retransmittable_on_wire_timeout(
+      uint8_t num_ptos_for_retransmittable_on_wire_timeout) {
+    num_ptos_for_retransmittable_on_wire_timeout_ =
+        num_ptos_for_retransmittable_on_wire_timeout;
+  }
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicPingManagerPeer;
 
   // Update |retransmittable_on_wire_deadline_| and |keep_alive_deadline_|.
   void UpdateDeadlines(QuicTime now, bool should_keep_alive,
-                       bool has_in_flight_packets);
+                       bool has_in_flight_packets, QuicTime::Delta pto_delay);
 
   // Get earliest deadline of |retransmittable_on_wire_deadline_| and
   // |keep_alive_deadline_|. Returns 0 if both deadlines are not initialized.
@@ -101,6 +109,8 @@ class QUICHE_EXPORT QuicPingManager {
   QuicTime keep_alive_deadline_ = QuicTime::Zero();
 
   QuicAlarmProxy alarm_;
+
+  uint8_t num_ptos_for_retransmittable_on_wire_timeout_ = 0;
 };
 
 }  // namespace quic

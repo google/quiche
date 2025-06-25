@@ -8587,6 +8587,40 @@ TEST_P(QuicConnectionTest, RetransmittableOnWirePingLimit) {
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 }
 
+// Make sure when enabled, the retransmittable on wire timeout is based on the
+// PTO.
+TEST_P(QuicConnectionTest, PtoBasedRetransmittableOnWireTimeout) {
+  if (!VersionHasIetfQuicFrames(connection_.version().transport_version)) {
+    return;
+  }
+
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+
+  // Enable the retransmittable on wire timeout for 3 different PTOs.
+  struct TestCase {
+    QuicTag timeout_tag;
+    uint8_t expected_pto_count;
+  };
+  static constexpr TestCase kTestCases[] = {
+      {kROW1, 1},
+      {kROW2, 2},
+      {kROW3, 3},
+  };
+
+  for (const auto& test_case : kTestCases) {
+    QuicConfig config;
+    QuicTagVector connection_options;
+    EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+    connection_options.push_back(test_case.timeout_tag);
+    config.SetClientConnectionOptions(connection_options);
+    connection_.SetFromConfig(config);
+    EXPECT_EQ(QuicConnectionPeer::GetNumPtosForRetransmittableOnWireTimeout(
+                  &connection_),
+              test_case.expected_pto_count);
+  }
+}
+
 TEST_P(QuicConnectionTest, ValidStatelessResetToken) {
   const StatelessResetToken kTestToken{0, 1, 0, 1, 0, 1, 0, 1,
                                        0, 1, 0, 1, 0, 1, 0, 1};

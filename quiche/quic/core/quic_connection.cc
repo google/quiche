@@ -549,6 +549,20 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       retransmittable_on_wire_behavior_ = SEND_RANDOM_BYTES;
     }
   }
+
+  // Set retransmittable-on-wire timeout to different PTO based values.
+  if (perspective_ == Perspective::IS_CLIENT && version().HasIetfQuicFrames()) {
+    if (config.HasClientRequestedIndependentOption(kROW1, perspective_)) {
+      ping_manager_.set_num_ptos_for_retransmittable_on_wire_timeout(1);
+    }
+    if (config.HasClientRequestedIndependentOption(kROW2, perspective_)) {
+      ping_manager_.set_num_ptos_for_retransmittable_on_wire_timeout(2);
+    }
+    if (config.HasClientRequestedIndependentOption(kROW3, perspective_)) {
+      ping_manager_.set_num_ptos_for_retransmittable_on_wire_timeout(3);
+    }
+  }
+
   if (config.HasClientRequestedIndependentOption(k3AFF, perspective_)) {
     anti_amplification_factor_ = 3;
   }
@@ -4892,7 +4906,8 @@ void QuicConnection::SetPingAlarm() {
   }
   ping_manager_.SetAlarm(clock_->ApproximateNow(),
                          visitor_->ShouldKeepConnectionAlive(),
-                         sent_packet_manager_.HasInFlightPackets());
+                         sent_packet_manager_.HasInFlightPackets(),
+                         sent_packet_manager_.GetPtoDelay());
 }
 
 void QuicConnection::SetRetransmissionAlarm() {
@@ -6580,9 +6595,9 @@ void QuicConnection::OnRetransmittableOnWireTimeout() {
     if (connected_) {
       // Always reset PING alarm with has_in_flight_packets=true. This is used
       // to avoid re-arming the alarm in retransmittable-on-wire mode.
-      ping_manager_.SetAlarm(clock_->ApproximateNow(),
-                             visitor_->ShouldKeepConnectionAlive(),
-                             /*has_in_flight_packets=*/true);
+      ping_manager_.SetAlarm(
+          clock_->ApproximateNow(), visitor_->ShouldKeepConnectionAlive(),
+          /*has_in_flight_packets=*/true, sent_packet_manager_.GetPtoDelay());
     }
     return;
   }
