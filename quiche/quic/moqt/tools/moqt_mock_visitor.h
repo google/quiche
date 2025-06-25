@@ -66,8 +66,6 @@ class MockTrackPublisher : public MoqtTrackPublisher {
 
   MOCK_METHOD(std::optional<PublishedObject>, GetCachedObject,
               (Location sequence), (const, override));
-  MOCK_METHOD(std::vector<Location>, GetCachedObjectsInRange,
-              (Location start, Location end), (const, override));
   MOCK_METHOD(void, AddObjectListener, (MoqtObjectListener * listener),
               (override));
   MOCK_METHOD(void, RemoveObjectListener, (MoqtObjectListener * listener),

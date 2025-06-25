@@ -147,11 +147,6 @@ class MoqtTrackPublisher {
   virtual std::optional<PublishedObject> GetCachedObject(
       Location sequence) const = 0;
 
-  // Returns a full list of objects available in the cache, to be used for
-  // SUBSCRIBEs with a backfill. Returned in order of worsening priority.
-  virtual std::vector<Location> GetCachedObjectsInRange(Location start,
-                                                        Location end) const = 0;
-
   // TODO: add an API to fetch past objects that are out of cache and might
   // require an upstream request to fill the relevant cache again. This is
   // currently done since the specification does not clearly describe how this

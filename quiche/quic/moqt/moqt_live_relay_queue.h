@@ -82,8 +82,6 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
   const FullTrackName& GetTrackName() const override { return track_; }
   std::optional<PublishedObject> GetCachedObject(
       Location sequence) const override;
-  std::vector<Location> GetCachedObjectsInRange(Location start,
-                                                Location end) const override;
   void AddObjectListener(MoqtObjectListener* listener) override {
     listeners_.insert(listener);
     listener->OnSubscribeAccepted();
@@ -120,6 +118,9 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
       listener->OnTrackPublisherGone();
     }
   }
+
+  std::vector<Location> GetCachedObjectsInRange(Location start,
+                                                Location end) const;
 
  private:
   // The number of recent groups to keep around for newly joined subscribers.
