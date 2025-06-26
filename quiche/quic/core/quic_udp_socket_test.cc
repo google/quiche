@@ -7,12 +7,13 @@
 #include <netinet/in.h>
 #include <stdint.h>
 
-#include <cstddef>
-#include <sstream>
-#include <string>
-#include <vector>
-
+#include "absl/base/optimization.h"
+#include "absl/strings/string_view.h"
+#include "quiche/quic/core/io/socket.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/quiche_ip_address.h"
 
 namespace quic {
 namespace test {
@@ -59,8 +60,12 @@ TEST_F(QuicUdpSocketTest, Basic) {
   read_result.packet_buffer = {&packet_buffer_[0], sizeof(packet_buffer_)};
   read_result.control_buffer = {&control_buffer_[0], sizeof(control_buffer_)};
 
-  socket_api.ReadPacket(server_socket, packet_info_interested, &read_result);
-  ASSERT_TRUE(read_result.ok);
+  // It's possible for `QuicUdpSocketApi::ReadPacket()` to temporarily fail when
+  // the expected packet is still traversing the kernel. On Posix, this results
+  // in the internal call to `recvmsg()` failing with errno `EAGAIN`.
+  do {
+    socket_api.ReadPacket(server_socket, packet_info_interested, &read_result);
+  } while (!read_result.ok);
   ASSERT_EQ(client_data,
             absl::string_view(read_result.packet_buffer.buffer,
                               read_result.packet_buffer.buffer_len));
@@ -72,8 +77,9 @@ TEST_F(QuicUdpSocketTest, Basic) {
   ASSERT_EQ(WRITE_STATUS_OK, write_result.status);
 
   read_result.Reset(sizeof(packet_buffer_));
-  socket_api.ReadPacket(client_socket, packet_info_interested, &read_result);
-  ASSERT_TRUE(read_result.ok);
+  do {
+    socket_api.ReadPacket(client_socket, packet_info_interested, &read_result);
+  } while (!read_result.ok);
   ASSERT_EQ(server_data,
             absl::string_view(read_result.packet_buffer.buffer,
                               read_result.packet_buffer.buffer_len));
@@ -114,6 +120,9 @@ TEST_F(QuicUdpSocketTest, FlowLabel) {
   read_result.packet_buffer = {&packet_buffer_[0], sizeof(packet_buffer_)};
   read_result.control_buffer = {&control_buffer_[0], sizeof(control_buffer_)};
 
+  // It's possible for `QuicUdpSocketApi::ReadPacket()` to temporarily fail when
+  // the expected packet is still traversing the kernel. On Posix, this results
+  // in the internal call to `recvmsg()` failing with errno `EAGAIN`.
   do {
     socket_api.ReadPacket(server_socket, packet_info_interested, &read_result);
   } while (!read_result.ok);
