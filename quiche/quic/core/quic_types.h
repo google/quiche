@@ -953,10 +953,7 @@ struct QUICHE_EXPORT QuicEcnCounts {
                            std::to_string(ce));
   }
 
-  bool operator==(const QuicEcnCounts& other) const {
-    return (this->ect0 == other.ect0 && this->ect1 == other.ect1 &&
-            this->ce == other.ce);
-  }
+  bool operator==(const QuicEcnCounts& other) const = default;
 
   QuicPacketCount ect0 = 0;
   QuicPacketCount ect1 = 0;
