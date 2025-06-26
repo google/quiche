@@ -117,9 +117,7 @@ class SubscribeRemoteTrack : public RemoteTrack {
     virtual void OnCanAckObjects(MoqtObjectAckFunction ack_function) = 0;
     // Called when an object fragment (or an entire object) is received.
     virtual void OnObjectFragment(const FullTrackName& full_track_name,
-                                  Location sequence,
-                                  MoqtPriority publisher_priority,
-                                  MoqtObjectStatus object_status,
+                                  const PublishedObjectMetadata& metadata,
                                   absl::string_view object,
                                   bool end_of_message) = 0;
     virtual void OnSubscribeDone(FullTrackName full_track_name) = 0;

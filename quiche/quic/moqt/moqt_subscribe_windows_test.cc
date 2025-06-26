@@ -34,16 +34,16 @@ TEST_F(SubscribeWindowTest, Queries) {
 }
 
 TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdSubgroup) {
-  SendStreamMap stream_map(MoqtForwardingPreference::kSubgroup);
-  stream_map.AddStream(Location{4, 0}, 2);
-  EXPECT_EQ(stream_map.GetStreamForSequence(Location(5, 0)), std::nullopt);
-  stream_map.AddStream(Location{5, 2}, 6);
-  EXPECT_QUIC_BUG(stream_map.AddStream(Location{5, 3}, 6),
+  SendStreamMap stream_map;
+  stream_map.AddStream(DataStreamIndex{4, 0}, 2);
+  EXPECT_EQ(stream_map.GetStreamFor(DataStreamIndex(5, 0)), std::nullopt);
+  stream_map.AddStream(DataStreamIndex{5, 0}, 6);
+  stream_map.AddStream(DataStreamIndex{5, 1}, 7);
+  EXPECT_QUIC_BUG(stream_map.AddStream(DataStreamIndex{5, 0}, 6),
                   "Stream already added");
-  EXPECT_EQ(stream_map.GetStreamForSequence(Location(4, 1)), 2);
-  EXPECT_EQ(stream_map.GetStreamForSequence(Location(5, 0)), 6);
-  stream_map.RemoveStream(Location{5, 1}, 6);
-  EXPECT_EQ(stream_map.GetStreamForSequence(Location(5, 2)), std::nullopt);
+  EXPECT_EQ(stream_map.GetStreamFor(DataStreamIndex(4, 0)), 2);
+  stream_map.RemoveStream(DataStreamIndex{5, 1}, 7);
+  EXPECT_EQ(stream_map.GetStreamFor(DataStreamIndex(5, 1)), std::nullopt);
 }
 
 TEST_F(SubscribeWindowTest, UpdateStartEnd) {

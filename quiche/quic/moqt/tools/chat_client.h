@@ -17,6 +17,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
@@ -98,9 +99,7 @@ class ChatClient {
     void OnCanAckObjects(MoqtObjectAckFunction) override {}
 
     void OnObjectFragment(const moqt::FullTrackName& full_track_name,
-                          Location sequence,
-                          moqt::MoqtPriority publisher_priority,
-                          moqt::MoqtObjectStatus status,
+                          const PublishedObjectMetadata& metadata,
                           absl::string_view object,
                           bool end_of_message) override;
 

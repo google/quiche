@@ -18,6 +18,7 @@
 #include "quiche/quic/moqt/moqt_live_relay_queue.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
@@ -149,9 +150,9 @@ void ChatServer::RemoteTrackVisitor::OnReply(
 }
 
 void ChatServer::RemoteTrackVisitor::OnObjectFragment(
-    const moqt::FullTrackName& full_track_name, moqt::Location sequence,
-    moqt::MoqtPriority /*publisher_priority*/, moqt::MoqtObjectStatus status,
-    absl::string_view object, bool end_of_message) {
+    const moqt::FullTrackName& full_track_name,
+    const PublishedObjectMetadata& metadata, absl::string_view object,
+    bool end_of_message) {
   if (!end_of_message) {
     std::cerr << "Error: received partial message despite requesting "
                  "buffering\n";
@@ -162,14 +163,14 @@ void ChatServer::RemoteTrackVisitor::OnObjectFragment(
               << full_track_name.ToString() << "\n";
     return;
   }
-  if (status != MoqtObjectStatus::kNormal) {
-    it->second->AddObject(sequence, status);
+  if (metadata.status != MoqtObjectStatus::kNormal) {
+    it->second->AddObject(metadata, "", /*fin=*/false);
     return;
   }
   if (!server_->WriteToFile(GetUsername(full_track_name), object)) {
     std::cout << GetUsername(full_track_name) << ": " << object << "\n\n";
   }
-  it->second->AddObject(sequence, object);
+  it->second->AddObject(metadata, object, /*fin=*/false);
 }
 
 ChatServer::ChatServer(std::unique_ptr<quic::ProofSource> proof_source,

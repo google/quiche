@@ -55,7 +55,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   // MoqtTrackPublisher implementation.
   const FullTrackName& GetTrackName() const override { return track_; }
   std::optional<PublishedObject> GetCachedObject(
-      Location sequence) const override;
+      uint64_t group, uint64_t subgroup, uint64_t min_object) const override;
   void AddObjectListener(MoqtObjectListener* listener) override {
     listeners_.insert(listener);
     listener->OnSubscribeAccepted();

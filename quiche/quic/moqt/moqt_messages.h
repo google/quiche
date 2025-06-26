@@ -12,6 +12,7 @@
 #include <initializer_list>
 #include <optional>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -366,21 +367,21 @@ class FullTrackName {
   std::string name_ = "";
 };
 
-// These are absolute sequence numbers.
+// Location as defined in
+// https://moq-wg.github.io/moq-transport/draft-ietf-moq-transport.html#location-structure
 struct Location {
-  uint64_t group;
-  uint64_t subgroup;
-  uint64_t object;
-  Location() : Location(0, 0) {}
-  // There is a lot of code from before subgroups. Assume there's one subgroup
-  // with ID 0 per group.
-  Location(uint64_t group, uint64_t object) : Location(group, 0, object) {}
-  Location(uint64_t group, uint64_t subgroup, uint64_t object)
-      : group(group), subgroup(subgroup), object(object) {}
+  uint64_t group = 0;
+  uint64_t object = 0;
+
+  Location() = default;
+  Location(uint64_t group, uint64_t object) : group(group), object(object) {}
+
   bool operator==(const Location& other) const {
     return group == other.group && object == other.object;
   }
-  // These are temporal ordering comparisons, so subgroup ID doesn't matter.
+
+  // Location order as described in
+  // https://moq-wg.github.io/moq-transport/draft-ietf-moq-transport.html#location-structure
   bool operator<(const Location& other) const {
     return group < other.group ||
            (group == other.group && object < other.object);
@@ -390,13 +391,10 @@ struct Location {
             (group == other.group && object <= other.object));
   }
   bool operator>(const Location& other) const { return !(*this <= other); }
-  Location& operator=(Location other) {
-    group = other.group;
-    subgroup = other.subgroup;
-    object = other.object;
-    return *this;
-  }
-  Location next() const { return Location{group, subgroup, object + 1}; }
+  bool operator>=(const Location& other) const { return !(*this < other); }
+
+  Location next() const { return Location(group, object + 1); }
+
   template <typename H>
   friend H AbslHashValue(H h, const Location& m);
 
@@ -730,7 +728,7 @@ struct QUICHE_EXPORT MoqtFetch {
   // and ranges. The session will populate them instead.
   std::optional<JoiningFetch> joining_fetch;
   FullTrackName full_track_name;
-  Location start_object;  // subgroup is ignored
+  Location start_object;
   uint64_t end_group;
   std::optional<uint64_t> end_object;
   VersionSpecificParameters parameters;
@@ -743,7 +741,7 @@ struct QUICHE_EXPORT MoqtFetchCancel {
 struct QUICHE_EXPORT MoqtFetchOk {
   uint64_t subscribe_id;
   MoqtDeliveryOrder group_order;
-  Location largest_id;  // subgroup is ignored
+  Location largest_id;
   VersionSpecificParameters parameters;
 };
 

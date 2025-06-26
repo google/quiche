@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_SESSION_H_
 #define QUICHE_QUIC_MOQT_MOQT_SESSION_H_
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -213,6 +214,15 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   struct Empty {};
 
+  struct NewStreamParameters {
+    DataStreamIndex index;
+    uint64_t first_object;
+
+    NewStreamParameters(uint64_t group, uint64_t subgroup,
+                        uint64_t first_object)
+        : index(group, subgroup), first_object(first_object) {}
+  };
+
   class QUICHE_EXPORT ControlStream : public webtransport::StreamVisitor,
                                       public MoqtControlParserVisitor {
    public:
@@ -364,10 +374,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
         MoqtSubscribeErrorReason reason,
         std::optional<uint64_t> track_alias = std::nullopt) override;
     // This is only called for objects that have just arrived.
-    void OnNewObjectAvailable(Location sequence) override;
+    void OnNewObjectAvailable(Location location, uint64_t subgroup) override;
     void OnTrackPublisherGone() override;
-    void OnNewFinAvailable(Location sequence) override;
-    void OnSubgroupAbandoned(Location sequence,
+    void OnNewFinAvailable(Location location, uint64_t subgroup) override;
+    void OnSubgroupAbandoned(uint64_t group, uint64_t subgroup,
                              webtransport::StreamErrorCode error_code) override;
     void OnGroupAbandoned(uint64_t group_id) override;
     void ProcessObjectAck(const MoqtObjectAck& message) {
@@ -386,6 +396,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     bool InWindow(Location sequence) {
       return forward_ && window_.has_value() && window_->InWindow(sequence);
     }
+    bool GroupInWindow(uint64_t group) {
+      return forward_ && window_.has_value() && window_->GroupInWindow(group);
+    }
     Location GetWindowStart() const {
       QUICHE_CHECK(window_.has_value());
       return window_->start();
@@ -393,38 +406,38 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtFilterType filter_type() const { return filter_type_; };
 
     void OnDataStreamCreated(webtransport::StreamId id,
-                             Location start_sequence);
+                             DataStreamIndex start_sequence);
     void OnDataStreamDestroyed(webtransport::StreamId id,
-                               Location end_sequence);
+                               DataStreamIndex end_sequence);
     void OnObjectSent(Location sequence);
 
     std::vector<webtransport::StreamId> GetAllStreams() const;
 
-    webtransport::SendOrder GetSendOrder(Location sequence) const;
+    webtransport::SendOrder GetSendOrder(Location sequence,
+                                         uint64_t subgroup) const;
 
-    void AddQueuedOutgoingDataStream(Location first_object);
+    void AddQueuedOutgoingDataStream(const NewStreamParameters& parameters);
     // Pops the pending outgoing data stream, with the highest send order.
     // The session keeps track of which subscribes have pending streams. This
     // function will trigger a QUICHE_DCHECK if called when there are no pending
     // streams.
-    Location NextQueuedOutgoingDataStream();
+    NewStreamParameters NextQueuedOutgoingDataStream();
 
     quic::QuicTimeDelta delivery_timeout() const { return delivery_timeout_; }
     void set_delivery_timeout(quic::QuicTimeDelta timeout) {
       delivery_timeout_ = timeout;
     }
 
-    void OnStreamTimeout(Location sequence) {
-      sequence.object = 0;
-      reset_subgroups_.insert(sequence);
+    void OnStreamTimeout(DataStreamIndex index) {
+      reset_subgroups_.insert(index);
       if (session_->alternate_delivery_timeout_) {
-        first_active_group_ = std::max(first_active_group_, sequence.group + 1);
+        first_active_group_ = std::max(first_active_group_, index.group + 1);
       }
     }
 
     uint64_t first_active_group() const { return first_active_group_; }
 
-    absl::flat_hash_set<Location>& reset_subgroups() {
+    absl::flat_hash_set<DataStreamIndex>& reset_subgroups() {
       return reset_subgroups_;
     }
 
@@ -461,7 +474,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     uint64_t first_active_group_ = 0;
     // If a stream has been reset due to delivery timeout, do not open a new
     // stream if more object arrive for it.
-    absl::flat_hash_set<Location> reset_subgroups_;
+    absl::flat_hash_set<DataStreamIndex> reset_subgroups_;
     // The min of DELIVERY_TIMEOUT from SUBSCRIBE and SUBSCRIBE_OK.
     quic::QuicTimeDelta delivery_timeout_ = quic::QuicTimeDelta::Infinite();
 
@@ -474,14 +487,14 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // Store the send order of queued outgoing data streams. Use a
     // subscriber_priority_ of zero to avoid having to update it, and call
     // FinalizeSendOrder() whenever delivering it to the MoqtSession.
-    absl::btree_multimap<webtransport::SendOrder, Location>
+    absl::btree_multimap<webtransport::SendOrder, NewStreamParameters>
         queued_outgoing_data_streams_;
   };
   class QUICHE_EXPORT OutgoingDataStream : public webtransport::StreamVisitor {
    public:
     OutgoingDataStream(MoqtSession* session, webtransport::Stream* stream,
                        PublishedSubscription& subscription,
-                       Location first_object);
+                       const NewStreamParameters& parameters);
     ~OutgoingDataStream();
 
     // webtransport::StreamVisitor implementation.
@@ -519,6 +532,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // alarm is already created.
     void CreateAndSetAlarm(quic::QuicTime deadline);
 
+    DataStreamIndex index() const { return index_; }
+
    private:
     friend class test::MoqtSessionPeer;
     friend class DeliveryTimeoutDelegate;
@@ -530,10 +545,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtSession* session_;
     webtransport::Stream* stream_;
     uint64_t subscription_id_;
-    // A Location with the minimum object ID that should go out next. The
-    // session doesn't know what the next object ID in the stream is because
-    // the next object could be in a different subgroup or simply be skipped.
-    Location next_object_;
+    DataStreamIndex index_;
+    // Minimum object ID that should go out next. The session doesn't know the
+    // exact ID of the next object in the stream because the next object could
+    // be in a different subgroup or simply be skipped.
+    uint64_t next_object_;
     bool stream_header_written_ = false;
     // If this data stream is for SUBSCRIBE, reset it if an object has been
     // excessively delayed per Section 7.1.1.2.
@@ -632,12 +648,12 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   // Opens a new data stream, or queues it if the session is flow control
   // blocked.
-  webtransport::Stream* OpenOrQueueDataStream(uint64_t subscription_id,
-                                              Location first_object);
+  webtransport::Stream* OpenOrQueueDataStream(
+      uint64_t subscription_id, const NewStreamParameters& parameters);
   // Same as above, except the session is required to be not flow control
   // blocked.
   webtransport::Stream* OpenDataStream(PublishedSubscription& subscription,
-                                       Location first_object);
+                                       const NewStreamParameters& parameters);
   // Returns false if creation failed.
   [[nodiscard]] bool OpenDataStream(std::shared_ptr<PublishedFetch> fetch,
                                     webtransport::SendOrder send_order);

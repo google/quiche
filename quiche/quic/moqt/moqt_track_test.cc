@@ -179,7 +179,8 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
     got_object = true;
     EXPECT_EQ(fetch_task_->GetNextObject(object),
               MoqtFetchTask::GetNextObjectResult::kSuccess);
-    EXPECT_EQ(object.sequence, Location(3, 0, 0));
+    EXPECT_EQ(object.metadata.location, Location(3, 0));
+    EXPECT_EQ(object.metadata.subgroup, 0);
     EXPECT_EQ(object.payload.AsStringView(), "foobar");
   });
   int got_read_callback = 0;

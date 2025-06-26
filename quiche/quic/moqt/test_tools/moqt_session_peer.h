@@ -20,6 +20,7 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/tools/moqt_mock_visitor.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
@@ -247,11 +248,10 @@ class MoqtSessionPeer {
   }
 
   static bool SubgroupHasBeenReset(MoqtObjectListener* subscription,
-                                   Location sequence) {
-    sequence.object = 0;
+                                   DataStreamIndex index) {
     return static_cast<MoqtSession::PublishedSubscription*>(subscription)
         ->reset_subgroups()
-        .contains(sequence);
+        .contains(index);
   }
 };
 

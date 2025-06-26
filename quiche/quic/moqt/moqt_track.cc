@@ -98,8 +98,7 @@ void SubscribeRemoteTrack::FetchObjects() {
     PublishedObject object;
     switch (fetch_task_->GetNextObject(object)) {
       case MoqtFetchTask::GetNextObjectResult::kSuccess:
-        visitor_->OnObjectFragment(full_track_name(), object.sequence,
-                                   object.publisher_priority, object.status,
+        visitor_->OnObjectFragment(full_track_name(), object.metadata,
                                    object.payload.AsStringView(), true);
         break;
       case MoqtFetchTask::GetNextObjectResult::kError:
@@ -164,13 +163,14 @@ UpstreamFetch::UpstreamFetchTask::GetNextObject(PublishedObject& output) {
     quiche::QuicheMemSlice message_slice(std::move(payload_));
     output.payload = std::move(message_slice);
   }
-  output.sequence =
-      Location(next_object_->group_id, next_object_->subgroup_id.value_or(0),
-               next_object_->object_id);
-  output.status = next_object_->object_status;
-  output.publisher_priority = next_object_->publisher_priority;
+  output.metadata.location =
+      Location(next_object_->group_id, next_object_->object_id);
+  output.metadata.subgroup = next_object_->subgroup_id.value_or(0);
+  output.metadata.status = next_object_->object_status;
+  output.metadata.publisher_priority = next_object_->publisher_priority;
   output.fin_after_this = false;
-  if (output.sequence == largest_location_) {  // This is the last object.
+  if (output.metadata.location ==
+      largest_location_) {  // This is the last object.
     eof_ = true;
   }
   next_object_.reset();

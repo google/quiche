@@ -65,33 +65,37 @@ void MoqtOutgoingQueue::AddRawObject(MoqtObjectStatus status,
   Location sequence{current_group_id_, queue_.back().size()};
   bool fin = forwarding_preference_ == MoqtForwardingPreference::kSubgroup &&
              status == MoqtObjectStatus::kEndOfGroup;
-  queue_.back().push_back(
-      CachedObject{sequence, status, publisher_priority_,
-                   std::make_shared<quiche::QuicheMemSlice>(std::move(payload)),
-                   clock_->ApproximateNow(), fin});
+  queue_.back().push_back(CachedObject{
+      PublishedObjectMetadata{sequence, 0, status, publisher_priority_,
+                              clock_->ApproximateNow()},
+      std::make_shared<quiche::QuicheMemSlice>(std::move(payload)), fin});
   for (MoqtObjectListener* listener : listeners_) {
-    listener->OnNewObjectAvailable(sequence);
+    listener->OnNewObjectAvailable(sequence, /*subgroup=*/0);
   }
 }
 
 std::optional<PublishedObject> MoqtOutgoingQueue::GetCachedObject(
-    Location sequence) const {
-  if (sequence.group < first_group_in_queue()) {
-    return PublishedObject{Location{sequence.group, sequence.object},
-                           MoqtObjectStatus::kGroupDoesNotExist,
-                           publisher_priority_, quiche::QuicheMemSlice(),
-                           clock_->ApproximateNow()};
+    uint64_t group, uint64_t subgroup, uint64_t object) const {
+  QUICHE_DCHECK_EQ(subgroup, 0u);
+  if (group < first_group_in_queue()) {
+    return PublishedObject{
+        PublishedObjectMetadata{Location(group, object),
+                                /*subgroup=*/0,
+                                MoqtObjectStatus::kGroupDoesNotExist,
+                                publisher_priority_, clock_->ApproximateNow()},
+        quiche::QuicheMemSlice{}};
   }
-  if (sequence.group > current_group_id_) {
+  if (group > current_group_id_) {
     return std::nullopt;
   }
-  const std::vector<CachedObject>& group =
-      queue_[sequence.group - first_group_in_queue()];
-  if (sequence.object >= group.size()) {
+  const std::vector<CachedObject>& group_objects =
+      queue_[group - first_group_in_queue()];
+  if (object >= group_objects.size()) {
     return std::nullopt;
   }
-  QUICHE_DCHECK(sequence == group[sequence.object].sequence);
-  return CachedObjectToPublishedObject(group[sequence.object]);
+  QUICHE_DCHECK(Location(group, object) ==
+                group_objects[object].metadata.location);
+  return CachedObjectToPublishedObject(group_objects[object]);
 }
 
 std::vector<Location> MoqtOutgoingQueue::GetCachedObjectsInRange(
@@ -100,8 +104,8 @@ std::vector<Location> MoqtOutgoingQueue::GetCachedObjectsInRange(
   SubscribeWindow window(start, end.group, end.object);
   for (const Group& group : queue_) {
     for (const CachedObject& object : group) {
-      if (window.InWindow(object.sequence)) {
-        sequences.push_back(object.sequence);
+      if (window.InWindow(object.metadata.location)) {
+        sequences.push_back(object.metadata.location);
       }
     }
   }
@@ -175,8 +179,8 @@ MoqtFetchTask::GetNextObjectResult MoqtOutgoingQueue::FetchTask::GetNextObject(
     MoqtFetchTask::GetNextObjectResult result = GetNextObjectInner(object);
     bool missing_object =
         result == kSuccess &&
-        (object.status == MoqtObjectStatus::kObjectDoesNotExist ||
-         object.status == MoqtObjectStatus::kGroupDoesNotExist);
+        (object.metadata.status == MoqtObjectStatus::kObjectDoesNotExist ||
+         object.metadata.status == MoqtObjectStatus::kGroupDoesNotExist);
     if (!missing_object) {
       return result;
     }
@@ -192,8 +196,8 @@ MoqtOutgoingQueue::FetchTask::GetNextObjectInner(PublishedObject& object) {
     return kEof;
   }
 
-  std::optional<PublishedObject> result =
-      queue_->GetCachedObject(objects_.front());
+  std::optional<PublishedObject> result = queue_->GetCachedObject(
+      objects_.front().group, 0, objects_.front().object);
   if (!result.has_value()) {
     status_ = absl::InternalError("Previously known object became unknown.");
     return kError;

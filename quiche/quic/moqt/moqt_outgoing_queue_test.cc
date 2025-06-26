@@ -46,16 +46,18 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
     AddObjectListener(this);
   }
 
-  void OnNewObjectAvailable(Location sequence) override {
-    std::optional<PublishedObject> object = GetCachedObject(sequence);
+  void OnNewObjectAvailable(Location sequence, uint64_t subgroup) override {
+    std::optional<PublishedObject> object =
+        GetCachedObject(sequence.group, subgroup, sequence.object);
     QUICHE_CHECK(object.has_value());
-    ASSERT_THAT(object->status, AnyOf(MoqtObjectStatus::kNormal,
-                                      MoqtObjectStatus::kEndOfGroup));
-    if (object->status == MoqtObjectStatus::kNormal) {
-      PublishObject(object->sequence.group, object->sequence.object,
+    ASSERT_THAT(object->metadata.status, AnyOf(MoqtObjectStatus::kNormal,
+                                               MoqtObjectStatus::kEndOfGroup));
+    if (object->metadata.status == MoqtObjectStatus::kNormal) {
+      PublishObject(object->metadata.location.group,
+                    object->metadata.location.object,
                     object->payload.AsStringView());
     } else {
-      CloseStreamForGroup(object->sequence.group);
+      CloseStreamForGroup(object->metadata.location.group);
     }
   }
 
@@ -64,14 +66,15 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
         GetCachedObjectsInRange(Location(0, 0), GetLargestLocation());
     for (Location object : objects) {
       if (window.InWindow(object)) {
-        OnNewObjectAvailable(object);
+        OnNewObjectAvailable(object, 0);
       }
     }
   }
 
-  MOCK_METHOD(void, OnNewFinAvailable, (Location sequence));
+  MOCK_METHOD(void, OnNewFinAvailable, (Location sequence, uint64_t subgroup));
   MOCK_METHOD(void, OnSubgroupAbandoned,
-              (Location sequence, webtransport::StreamErrorCode error_code));
+              (uint64_t group, uint64_t subgroup,
+               webtransport::StreamErrorCode error_code));
   MOCK_METHOD(void, OnGroupAbandoned, (uint64_t group_id));
   MOCK_METHOD(void, CloseStreamForGroup, (uint64_t group_id), ());
   MOCK_METHOD(void, PublishObject,
@@ -94,10 +97,10 @@ absl::StatusOr<std::vector<std::string>> FetchToVector(
     MoqtFetchTask::GetNextObjectResult result = fetch->GetNextObject(object);
     switch (result) {
       case MoqtFetchTask::kSuccess:
-        if (object.status == MoqtObjectStatus::kNormal) {
+        if (object.metadata.status == MoqtObjectStatus::kNormal) {
           objects.emplace_back(object.payload.AsStringView());
         } else {
-          EXPECT_EQ(object.status, MoqtObjectStatus::kEndOfGroup);
+          EXPECT_EQ(object.metadata.status, MoqtObjectStatus::kEndOfGroup);
         }
         continue;
       case MoqtFetchTask::kPending:
@@ -364,9 +367,9 @@ TEST(MoqtOutgoingQueue, ObjectIsTimestamped) {
   quic::QuicTime test_start = clock->ApproximateNow();
   TestMoqtOutgoingQueue queue;
   queue.AddObject(MemSliceFromString("a"), true);
-  std::optional<PublishedObject> object = queue.GetCachedObject(Location{0, 0});
+  std::optional<PublishedObject> object = queue.GetCachedObject(0, 0, 0);
   ASSERT_TRUE(object.has_value());
-  EXPECT_GE(object->arrival_time, test_start);
+  EXPECT_GE(object->metadata.arrival_time, test_start);
 }
 
 }  // namespace

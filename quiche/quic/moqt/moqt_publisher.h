@@ -9,7 +9,6 @@
 #include <memory>
 #include <optional>
 #include <variant>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -22,14 +21,19 @@
 
 namespace moqt {
 
+struct PublishedObjectMetadata {
+  Location location;
+  std::optional<uint64_t> subgroup;  // nullopt for datagrams
+  MoqtObjectStatus status;
+  MoqtPriority publisher_priority;
+  quic::QuicTime arrival_time = quic::QuicTime::Zero();
+};
+
 // PublishedObject is a description of an object that is sufficient to publish
 // it on a given track.
 struct PublishedObject {
-  Location sequence;
-  MoqtObjectStatus status;
-  MoqtPriority publisher_priority;
+  PublishedObjectMetadata metadata;
   quiche::QuicheMemSlice payload;
-  quic::QuicTime arrival_time = quic::QuicTime::Zero();
   bool fin_after_this = false;
 };
 
@@ -49,18 +53,20 @@ class MoqtObjectListener {
       MoqtSubscribeErrorReason reason,
       std::optional<uint64_t> track_alias = std::nullopt) = 0;
 
-  // Notifies that an object with the given sequence number has become
-  // available.  The object payload itself may be retrieved via GetCachedObject
-  // method of the associated track publisher.
-  virtual void OnNewObjectAvailable(Location sequence) = 0;
+  // Notifies that a new object is available on the track.  The object payload
+  // itself may be retrieved via GetCachedObject method of the associated track
+  // publisher.
+  virtual void OnNewObjectAvailable(Location sequence, uint64_t subgroup) = 0;
   // Notifies that a pure FIN has arrived following |sequence|. Should not be
   // called unless all objects have already been delivered. If not delivered,
   // instead set the fin_after_this flag in the PublishedObject.
-  virtual void OnNewFinAvailable(Location sequence) = 0;
+  virtual void OnNewFinAvailable(Location final_object_in_subgroup,
+                                 uint64_t subgroup_id) = 0;
   // Notifies that the a stream is being abandoned (via RESET_STREAM) before
   // all objects are delivered.
   virtual void OnSubgroupAbandoned(
-      Location sequence, webtransport::StreamErrorCode error_code) = 0;
+      uint64_t group, uint64_t subgroup,
+      webtransport::StreamErrorCode error_code) = 0;
 
   // No further object will be published for the given group, usually due to a
   // timeout. The owner of the Listener may want to reset the relevant streams.
@@ -130,7 +136,7 @@ class MoqtTrackPublisher {
 
   // GetCachedObject lets the MoQT stack access the objects that are available
   // in the track's built-in local cache. Retrieves the first object ID >=
-  // sequence.object that matches (sequence.group, sequence.subgroup).
+  // min_object that matches (sequence.group, sequence.subgroup).
   //
   // This implementation of MoQT does not store any objects within the MoQT
   // stack itself, at least until the object is fully serialized and passed to
@@ -145,13 +151,7 @@ class MoqtTrackPublisher {
   // otherwise, the corresponding QUIC streams will be stuck waiting for objects
   // that will never arrive.
   virtual std::optional<PublishedObject> GetCachedObject(
-      Location sequence) const = 0;
-
-  // TODO: add an API to fetch past objects that are out of cache and might
-  // require an upstream request to fill the relevant cache again. This is
-  // currently done since the specification does not clearly describe how this
-  // is supposed to be done, especially with respect to such things as
-  // backpressure.
+      uint64_t group, uint64_t subgroup, uint64_t min_object) const = 0;
 
   // Registers a listener with the track.  The listener will be notified of all
   // newly arriving objects. The pointer to the listener must be valid until

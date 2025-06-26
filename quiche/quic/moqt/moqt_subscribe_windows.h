@@ -7,10 +7,13 @@
 
 #include <cstdint>
 #include <optional>
+#include <tuple>
 #include <vector>
 
 #include "absl/container/btree_map.h"
+#include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -37,6 +40,7 @@ class QUICHE_EXPORT SubscribeWindow {
   bool InWindow(const Location& seq) const {
     return start_ <= seq && seq <= end_;
   }
+  bool GroupInWindow(uint64_t group) const;
   Location start() const { return start_; }
   Location end() const { return end_; }
 
@@ -55,47 +59,57 @@ class QUICHE_EXPORT SubscribeWindow {
   Location end_ = Location(UINT64_MAX, UINT64_MAX);
 };
 
-// ReducedSequenceIndex represents an index object such that if two sequence
-// numbers are mapped to the same stream, they will be mapped to the same index.
-class ReducedSequenceIndex {
- public:
-  ReducedSequenceIndex(Location sequence, MoqtForwardingPreference preference);
+// A tuple uniquely identifying a WebTransport data stream associated with a
+// subscription. By convention, if a DataStreamIndex is necessary for a datagram
+// track, `subgroup` is set to zero.
+struct DataStreamIndex {
+  uint64_t group = 0;
+  uint64_t subgroup = 0;
 
-  bool operator==(const ReducedSequenceIndex& other) const {
-    return sequence_ == other.sequence_;
+  DataStreamIndex() = default;
+  DataStreamIndex(uint64_t group, uint64_t subgroup)
+      : group(group), subgroup(subgroup) {}
+  explicit DataStreamIndex(const PublishedObject& object)
+      : group(object.metadata.location.group),
+        subgroup(object.metadata.subgroup.value_or(0)) {}
+
+  bool operator==(const DataStreamIndex& other) const {
+    return group == other.group && subgroup == other.subgroup;
   }
-  bool operator!=(const ReducedSequenceIndex& other) const {
-    return sequence_ != other.sequence_;
+
+  bool operator<(const DataStreamIndex& other) const {
+    return std::make_tuple(group, subgroup) <
+           std::make_tuple(other.group, other.subgroup);
   }
-  Location sequence() { return sequence_; }
+  bool operator<=(const DataStreamIndex& other) const {
+    return std::make_tuple(group, subgroup) <=
+           std::make_tuple(other.group, other.subgroup);
+  }
+  bool operator>(const DataStreamIndex& other) const {
+    return !(*this <= other);
+  }
 
   template <typename H>
-  friend H AbslHashValue(H h, const ReducedSequenceIndex& m) {
-    return H::combine(std::move(h), m.sequence_);
+  friend H AbslHashValue(H h, const DataStreamIndex& index) {
+    return H::combine(std::move(h), index.group, index.subgroup);
   }
-
- private:
-  Location sequence_;
 };
 
 // A map of outgoing data streams indexed by object sequence numbers.
 class QUICHE_EXPORT SendStreamMap {
  public:
-  explicit SendStreamMap(MoqtForwardingPreference forwarding_preference)
-      : forwarding_preference_(forwarding_preference) {}
+  SendStreamMap() = default;
 
-  std::optional<webtransport::StreamId> GetStreamForSequence(
-      Location sequence) const;
-  void AddStream(Location sequence, webtransport::StreamId stream_id);
-  void RemoveStream(Location sequence, webtransport::StreamId stream_id);
+  std::optional<webtransport::StreamId> GetStreamFor(
+      DataStreamIndex index) const;
+  void AddStream(DataStreamIndex index, webtransport::StreamId stream_id);
+  void RemoveStream(DataStreamIndex index, webtransport::StreamId stream_id);
   std::vector<webtransport::StreamId> GetAllStreams() const;
   std::vector<webtransport::StreamId> GetStreamsForGroup(
       uint64_t group_id) const;
 
  private:
-  using Group = absl::btree_map<uint64_t, webtransport::StreamId>;
-  absl::btree_map<uint64_t, Group> send_streams_;
-  MoqtForwardingPreference forwarding_preference_;
+  absl::btree_map<DataStreamIndex, webtransport::StreamId> send_streams_;
 };
 
 }  // namespace moqt

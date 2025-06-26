@@ -230,10 +230,14 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   SubscribeRemoteTrack::Visitor* visitor = track->visitor();
   if (visitor != nullptr) {
     // TODO(martinduke): Handle extension headers.
-    visitor->OnObjectFragment(track->full_track_name(),
-                              Location{message.group_id, 0, message.object_id},
-                              message.publisher_priority, message.object_status,
-                              *payload, true);
+    PublishedObjectMetadata metadata;
+    metadata.location = Location(message.group_id, message.object_id);
+    metadata.subgroup = std::nullopt;
+    metadata.status = message.object_status;
+    metadata.publisher_priority = message.publisher_priority;
+    metadata.arrival_time = callbacks_.clock->Now();
+    visitor->OnObjectFragment(track->full_track_name(), metadata, *payload,
+                              true);
   }
 }
 
@@ -592,7 +596,7 @@ void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
     switch (result) {
       case MoqtFetchTask::GetNextObjectResult::kSuccess:
         // Skip ObjectDoesNotExist in FETCH.
-        if (object.status == MoqtObjectStatus::kObjectDoesNotExist) {
+        if (object.metadata.status == MoqtObjectStatus::kObjectDoesNotExist) {
           QUIC_BUG(quic_bug_got_doesnotexist_in_fetch)
               << "Got ObjectDoesNotExist in FETCH";
           continue;
@@ -734,7 +738,7 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
 }
 
 webtransport::Stream* MoqtSession::OpenOrQueueDataStream(
-    uint64_t subscription_id, Location first_object) {
+    uint64_t subscription_id, const NewStreamParameters& parameters) {
   auto it = published_subscriptions_.find(subscription_id);
   if (it == published_subscriptions_.end()) {
     // It is possible that the subscription has been discarded while the stream
@@ -743,17 +747,18 @@ webtransport::Stream* MoqtSession::OpenOrQueueDataStream(
   }
   PublishedSubscription& subscription = *it->second;
   if (!session_->CanOpenNextOutgoingUnidirectionalStream()) {
-    subscription.AddQueuedOutgoingDataStream(first_object);
+    subscription.AddQueuedOutgoingDataStream(parameters);
     // The subscription will notify the session about how to update the
     // session's queue.
     // TODO: limit the number of streams in the queue.
     return nullptr;
   }
-  return OpenDataStream(subscription, first_object);
+  return OpenDataStream(subscription, parameters);
 }
 
 webtransport::Stream* MoqtSession::OpenDataStream(
-    PublishedSubscription& subscription, Location first_object) {
+    PublishedSubscription& subscription,
+    const NewStreamParameters& parameters) {
   webtransport::Stream* new_stream =
       session_->OpenOutgoingUnidirectionalStream();
   if (new_stream == nullptr) {
@@ -762,8 +767,8 @@ webtransport::Stream* MoqtSession::OpenDataStream(
     return nullptr;
   }
   new_stream->SetVisitor(std::make_unique<OutgoingDataStream>(
-      this, new_stream, subscription, first_object));
-  subscription.OnDataStreamCreated(new_stream->GetStreamId(), first_object);
+      this, new_stream, subscription, parameters));
+  subscription.OnDataStreamCreated(new_stream->GetStreamId(), parameters.index);
   return new_stream;
 }
 
@@ -833,10 +838,11 @@ void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
     }
     // Pop the item from the subscription's queue, which might update
     // subscribes_with_queued_outgoing_data_streams_.
-    Location next_queued_stream =
+    NewStreamParameters next_queued_stream =
         subscription->second->NextQueuedOutgoingDataStream();
     // Check if Group is too old.
-    if (next_queued_stream.group < subscription->second->first_active_group()) {
+    if (next_queued_stream.index.group <
+        subscription->second->first_active_group()) {
       // The stream is too old to be sent.
       continue;
     }
@@ -1381,8 +1387,7 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
       start_object = Location(0, 0);
     } else {
       start_object = Location(
-          fetch_end.group - message.joining_fetch->preceding_group_offset, 0,
-          0);
+          fetch_end.group - message.joining_fetch->preceding_group_offset, 0);
     }
     end_group = fetch_end.group;
     end_object = fetch_end.object - 1;
@@ -1611,12 +1616,14 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
     subscribe->OnObject(/*is_datagram=*/false);
     if (subscribe->visitor() != nullptr) {
       // TODO(martinduke): Send extension headers.
-      subscribe->visitor()->OnObjectFragment(
-          track->full_track_name(),
-          Location{message.group_id, message.subgroup_id.value_or(0),
-                   message.object_id},
-          message.publisher_priority, message.object_status, payload,
-          end_of_message);
+      PublishedObjectMetadata metadata;
+      metadata.location = Location(message.group_id, message.object_id);
+      metadata.subgroup = message.subgroup_id;
+      metadata.status = message.object_status;
+      metadata.publisher_priority = message.publisher_priority;
+      metadata.arrival_time = session_->callbacks_.clock->Now();
+      subscribe->visitor()->OnObjectFragment(track->full_track_name(), metadata,
+                                             payload, end_of_message);
     }
   } else {  // FETCH
     track->OnObjectOrOk();
@@ -1792,8 +1799,7 @@ SendStreamMap& MoqtSession::PublishedSubscription::stream_map() {
   if (!lazily_initialized_stream_map_.has_value()) {
     QUICHE_DCHECK(
         DoesTrackStatusImplyHavingData(*track_publisher_->GetTrackStatus()));
-    lazily_initialized_stream_map_.emplace(
-        track_publisher_->GetForwardingPreference());
+    lazily_initialized_stream_map_.emplace();
   }
   return *lazily_initialized_stream_map_;
 }
@@ -1878,12 +1884,12 @@ void MoqtSession::PublishedSubscription::OnSubscribeRejected(
 }
 
 void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
-    Location sequence) {
+    Location sequence, uint64_t subgroup) {
   if (!InWindow(sequence)) {
     return;
   }
-  if (reset_subgroups_.contains(
-          Location{sequence.group, sequence.subgroup, 0})) {
+  DataStreamIndex index(sequence.group, subgroup);
+  if (reset_subgroups_.contains(index)) {
     // This subgroup has already been reset, ignore.
     return;
   }
@@ -1917,12 +1923,14 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
   }
 
   std::optional<webtransport::StreamId> stream_id =
-      stream_map().GetStreamForSequence(sequence);
+      stream_map().GetStreamFor(index);
   webtransport::Stream* raw_stream = nullptr;
   if (stream_id.has_value()) {
     raw_stream = session_->session_->GetStreamById(*stream_id);
   } else {
-    raw_stream = session_->OpenOrQueueDataStream(request_id_, sequence);
+    raw_stream = session_->OpenOrQueueDataStream(
+        request_id_,
+        NewStreamParameters(sequence.group, subgroup, sequence.object));
   }
   if (raw_stream == nullptr) {
     return;
@@ -1938,18 +1946,20 @@ void MoqtSession::PublishedSubscription::OnTrackPublisherGone() {
                             "Publisher is gone");
 }
 
-void MoqtSession::PublishedSubscription::OnNewFinAvailable(Location sequence) {
-  if (!InWindow(sequence)) {
+// TODO(martinduke): Revise to check if the last object has been delivered.
+void MoqtSession::PublishedSubscription::OnNewFinAvailable(Location location,
+                                                           uint64_t subgroup) {
+  if (!GroupInWindow(location.group)) {
     return;
   }
-  if (reset_subgroups_.contains(
-          Location{sequence.group, sequence.subgroup, 0})) {
+  DataStreamIndex index(location.group, subgroup);
+  if (reset_subgroups_.contains(index)) {
     // This subgroup has already been reset, ignore.
     return;
   }
-  QUICHE_DCHECK_GE(sequence.group, first_active_group_);
+  QUICHE_DCHECK_GE(location.group, first_active_group_);
   std::optional<webtransport::StreamId> stream_id =
-      stream_map().GetStreamForSequence(sequence);
+      stream_map().GetStreamFor(index);
   if (!stream_id.has_value()) {
     return;
   }
@@ -1960,22 +1970,23 @@ void MoqtSession::PublishedSubscription::OnNewFinAvailable(Location sequence) {
   }
   OutgoingDataStream* stream =
       static_cast<OutgoingDataStream*>(raw_stream->visitor());
-  stream->Fin(sequence);
+  stream->Fin(location);
 }
 
 void MoqtSession::PublishedSubscription::OnSubgroupAbandoned(
-    Location sequence, webtransport::StreamErrorCode error_code) {
-  if (!InWindow(sequence)) {
+    uint64_t group, uint64_t subgroup,
+    webtransport::StreamErrorCode error_code) {
+  if (!GroupInWindow(group)) {
     return;
   }
-  if (reset_subgroups_.contains(
-          Location{sequence.group, sequence.subgroup, 0})) {
+  DataStreamIndex index(group, subgroup);
+  if (reset_subgroups_.contains(index)) {
     // This subgroup has already been reset, ignore.
     return;
   }
-  QUICHE_DCHECK_GE(sequence.group, first_active_group_);
+  QUICHE_DCHECK_GE(group, first_active_group_);
   std::optional<webtransport::StreamId> stream_id =
-      stream_map().GetStreamForSequence(sequence);
+      stream_map().GetStreamFor(index);
   if (!stream_id.has_value()) {
     return;
   }
@@ -2004,8 +2015,8 @@ void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
     raw_stream->ResetWithUserCode(kResetCodeTimedOut);
   }
   first_active_group_ = std::max(first_active_group_, group_id + 1);
-  absl::erase_if(reset_subgroups_, [&](const Location& sequence) {
-    return sequence.group < first_active_group_;
+  absl::erase_if(reset_subgroups_, [&](const DataStreamIndex& index) {
+    return index.group < first_active_group_;
   });
 }
 
@@ -2018,7 +2029,7 @@ MoqtSession::PublishedSubscription::GetAllStreams() const {
 }
 
 webtransport::SendOrder MoqtSession::PublishedSubscription::GetSendOrder(
-    Location sequence) const {
+    Location sequence, uint64_t subgroup) const {
   MoqtForwardingPreference forwarding_preference =
       track_publisher_->GetForwardingPreference();
 
@@ -2031,21 +2042,23 @@ webtransport::SendOrder MoqtSession::PublishedSubscription::GetSendOrder(
                                 delivery_order);
   }
   return SendOrderForStream(subscriber_priority_, publisher_priority,
-                            sequence.group, sequence.subgroup, delivery_order);
+                            sequence.group, subgroup, delivery_order);
 }
 
 // Returns the highest send order in the subscription.
 void MoqtSession::PublishedSubscription::AddQueuedOutgoingDataStream(
-    Location first_object) {
+    const NewStreamParameters& parameters) {
   std::optional<webtransport::SendOrder> start_send_order =
       queued_outgoing_data_streams_.empty()
           ? std::optional<webtransport::SendOrder>()
           : queued_outgoing_data_streams_.rbegin()->first;
-  webtransport::SendOrder send_order = GetSendOrder(first_object);
+  webtransport::SendOrder send_order =
+      GetSendOrder(Location(parameters.index.group, parameters.first_object),
+                   parameters.index.subgroup);
   // Zero out the subscriber priority bits, since these will be added when
   // updating the session.
   queued_outgoing_data_streams_.emplace(
-      UpdateSendOrderForSubscriberPriority(send_order, 0), first_object);
+      UpdateSendOrderForSubscriberPriority(send_order, 0), parameters);
   if (!start_send_order.has_value()) {
     session_->UpdateQueuedSendOrder(request_id_, std::nullopt, send_order);
   } else if (*start_send_order < send_order) {
@@ -2054,14 +2067,18 @@ void MoqtSession::PublishedSubscription::AddQueuedOutgoingDataStream(
   }
 }
 
-Location MoqtSession::PublishedSubscription::NextQueuedOutgoingDataStream() {
+MoqtSession::NewStreamParameters
+MoqtSession::PublishedSubscription::NextQueuedOutgoingDataStream() {
   QUICHE_DCHECK(!queued_outgoing_data_streams_.empty());
   if (queued_outgoing_data_streams_.empty()) {
-    return Location();
+    QUICHE_BUG(NextQueuedOutgoingDataStream_no_stream)
+        << "NextQueuedOutgoingDataStream called when there are no streams "
+           "pending.";
+    return NewStreamParameters(0, 0, 0);
   }
   auto it = queued_outgoing_data_streams_.rbegin();
   webtransport::SendOrder old_send_order = FinalizeSendOrder(it->first);
-  Location first_object = it->second;
+  NewStreamParameters first_stream = it->second;
   // converting a reverse iterator to an iterator involves incrementing it and
   // then taking base().
   queued_outgoing_data_streams_.erase((++it).base());
@@ -2075,16 +2092,16 @@ Location MoqtSession::PublishedSubscription::NextQueuedOutgoingDataStream() {
                                       new_send_order);
     }
   }
-  return first_object;
+  return first_stream;
 }
 
 void MoqtSession::PublishedSubscription::OnDataStreamCreated(
-    webtransport::StreamId id, Location start_sequence) {
+    webtransport::StreamId id, DataStreamIndex start_sequence) {
   ++streams_opened_;
   stream_map().AddStream(start_sequence, id);
 }
 void MoqtSession::PublishedSubscription::OnDataStreamDestroyed(
-    webtransport::StreamId id, Location end_sequence) {
+    webtransport::StreamId id, DataStreamIndex end_sequence) {
   stream_map().RemoveStream(end_sequence, id);
 }
 
@@ -2099,11 +2116,12 @@ void MoqtSession::PublishedSubscription::OnObjectSent(Location sequence) {
 
 MoqtSession::OutgoingDataStream::OutgoingDataStream(
     MoqtSession* session, webtransport::Stream* stream,
-    PublishedSubscription& subscription, Location first_object)
+    PublishedSubscription& subscription, const NewStreamParameters& parameters)
     : session_(session),
       stream_(stream),
       subscription_id_(subscription.request_id()),
-      next_object_(first_object),
+      index_(parameters.index),
+      next_object_(parameters.first_object),
       session_liveness_(session->liveness_token_) {
   UpdateSendOrder(subscription);
 }
@@ -2124,7 +2142,7 @@ MoqtSession::OutgoingDataStream::~OutgoingDataStream() {
   }
   auto it = session_->published_subscriptions_.find(subscription_id_);
   if (it != session_->published_subscriptions_.end()) {
-    it->second->OnDataStreamDestroyed(stream_->GetStreamId(), next_object_);
+    it->second->OnDataStreamDestroyed(stream_->GetStreamId(), index_);
   }
 }
 
@@ -2140,7 +2158,7 @@ void MoqtSession::OutgoingDataStream::DeliveryTimeoutDelegate::OnAlarm() {
   auto it = stream_->session_->published_subscriptions_.find(
       stream_->subscription_id_);
   if (it != stream_->session_->published_subscriptions_.end()) {
-    it->second->OnStreamTimeout(stream_->next_object_);
+    it->second->OnStreamTimeout(stream_->index());
   }
   stream_->stream_->ResetWithUserCode(kResetCodeTimedOut);
 }
@@ -2175,11 +2193,17 @@ void MoqtSession::OutgoingDataStream::SendObjects(
     PublishedSubscription& subscription) {
   while (stream_->CanWrite()) {
     std::optional<PublishedObject> object =
-        subscription.publisher().GetCachedObject(next_object_);
+        subscription.publisher().GetCachedObject(index_.group, index_.subgroup,
+                                                 next_object_);
     if (!object.has_value()) {
       break;
     }
-    if (!subscription.InWindow(next_object_)) {
+
+    QUICHE_DCHECK_EQ(object->metadata.location.group, index_.group);
+    QUICHE_DCHECK(object->metadata.subgroup == index_.subgroup);
+    QUICHE_DCHECK(subscription.publisher().GetForwardingPreference() ==
+                  MoqtForwardingPreference::kSubgroup);
+    if (!subscription.InWindow(object->metadata.location)) {
       // It is possible that the next object became irrelevant due to a
       // SUBSCRIBE_UPDATE.  Close the stream if so.
       bool success = stream_->SendFin();
@@ -2187,42 +2211,39 @@ void MoqtSession::OutgoingDataStream::SendObjects(
           << "Writing FIN failed despite CanWrite() being true.";
       return;
     }
+
     quic::QuicTimeDelta delivery_timeout = subscription.delivery_timeout();
     if (!session_->alternate_delivery_timeout_ &&
-        session_->callbacks_.clock->ApproximateNow() - object->arrival_time >
+        session_->callbacks_.clock->ApproximateNow() -
+                object->metadata.arrival_time >
             delivery_timeout) {
-      subscription.OnStreamTimeout(next_object_);
+      subscription.OnStreamTimeout(index_);
       stream_->ResetWithUserCode(kResetCodeTimedOut);
       return;
     }
-    QUICHE_DCHECK(next_object_ <= object->sequence);
-    MoqtTrackPublisher& publisher = subscription.publisher();
-    QUICHE_DCHECK(DoesTrackStatusImplyHavingData(*publisher.GetTrackStatus()));
-    MoqtForwardingPreference forwarding_preference =
-        publisher.GetForwardingPreference();
-    UpdateSendOrder(subscription);
-    if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
-      QUICHE_BUG(quic_bug_SendObjects_for_Datagram)
-          << "Datagram Track requesting SendObjects";
-      return;
-    }
-    next_object_ = object->sequence.next();
-    if (session_->WriteObjectToStream(
+
+    if (!session_->WriteObjectToStream(
             stream_, subscription.track_alias(), *object,
             MoqtDataStreamType::kStreamHeaderSubgroup, !stream_header_written_,
             object->fin_after_this)) {
-      stream_header_written_ = true;
-      subscription.OnObjectSent(object->sequence);
+      // WriteObjectToStream() closes the connection on error, meaning that
+      // there is no need to process the stream any further.
+      return;
     }
+    ++next_object_;
+    stream_header_written_ = true;
+    subscription.OnObjectSent(object->metadata.location);
+
     if (object->fin_after_this && !delivery_timeout.IsInfinite() &&
         !session_->alternate_delivery_timeout_) {
-      CreateAndSetAlarm(object->arrival_time + delivery_timeout);
+      CreateAndSetAlarm(object->metadata.arrival_time + delivery_timeout);
     }
   }
 }
 
 void MoqtSession::OutgoingDataStream::Fin(Location last_object) {
-  if (next_object_ <= last_object) {
+  QUICHE_DCHECK_EQ(last_object.group, index_.group);
+  if (next_object_ <= last_object.object) {
     // There is still data to send, do nothing.
     return;
   }
@@ -2248,11 +2269,11 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
   QUICHE_DCHECK(stream->CanWrite());
   MoqtObject header;
   header.track_alias = id;
-  header.group_id = object.sequence.group;
-  header.subgroup_id = object.sequence.subgroup;
-  header.object_id = object.sequence.object;
-  header.publisher_priority = object.publisher_priority;
-  header.object_status = object.status;
+  header.group_id = object.metadata.location.group;
+  header.subgroup_id = object.metadata.subgroup;
+  header.object_id = object.metadata.location.object;
+  header.publisher_priority = object.metadata.publisher_priority;
+  header.object_status = object.metadata.status;
   header.payload_length = object.payload.length();
 
   quiche::QuicheBuffer serialized_header =
@@ -2274,7 +2295,7 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
   }
 
   QUIC_DVLOG(1) << "Stream " << stream->GetStreamId() << " successfully wrote "
-                << object.sequence << ", fin = " << fin;
+                << object.metadata.location << ", fin = " << fin;
   return true;
 }
 
@@ -2299,7 +2320,7 @@ void MoqtSession::CancelFetch(uint64_t subscribe_id) {
 
 void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
   std::optional<PublishedObject> object =
-      track_publisher_->GetCachedObject(sequence);
+      track_publisher_->GetCachedObject(sequence.group, 0, sequence.object);
   if (!object.has_value()) {
     QUICHE_BUG(PublishedSubscription_SendDatagram_object_not_in_cache)
         << "Got notification about an object that is not in the cache";
@@ -2308,23 +2329,24 @@ void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
 
   MoqtObject header;
   header.track_alias = track_alias();
-  header.group_id = object->sequence.group;
-  header.object_id = object->sequence.object;
-  header.publisher_priority = object->publisher_priority;
-  header.object_status = object->status;
+  header.group_id = object->metadata.location.group;
+  header.object_id = object->metadata.location.object;
+  header.publisher_priority = object->metadata.publisher_priority;
+  header.object_status = object->metadata.status;
   header.subgroup_id = std::nullopt;
   header.payload_length = object->payload.length();
   quiche::QuicheBuffer datagram = session_->framer_.SerializeObjectDatagram(
       header, object->payload.AsStringView());
   session_->session_->SendOrQueueDatagram(datagram.AsStringView());
-  OnObjectSent(object->sequence);
+  OnObjectSent(object->metadata.location);
 }
 
 void MoqtSession::OutgoingDataStream::UpdateSendOrder(
     PublishedSubscription& subscription) {
-  stream_->SetPriority(
-      webtransport::StreamPriority{/*send_group_id=*/kMoqtSendGroupId,
-                                   subscription.GetSendOrder(next_object_)});
+  stream_->SetPriority(webtransport::StreamPriority{
+      /*send_group_id=*/kMoqtSendGroupId,
+      subscription.GetSendOrder(Location(index_.group, next_object_),
+                                index_.subgroup)});
 }
 
 void MoqtSession::OutgoingDataStream::CreateAndSetAlarm(

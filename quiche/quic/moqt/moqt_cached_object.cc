@@ -13,15 +13,12 @@ namespace moqt {
 moqt::PublishedObject CachedObjectToPublishedObject(
     const CachedObject& object) {
   PublishedObject result;
-  result.sequence = object.sequence;
-  result.status = object.status;
-  result.publisher_priority = object.publisher_priority;
+  result.metadata = object.metadata;
   if (object.payload != nullptr && !object.payload->empty()) {
     result.payload = quiche::QuicheMemSlice(
         object.payload->data(), object.payload->length(),
         [retained_pointer = object.payload](absl::string_view) {});
   }
-  result.arrival_time = object.arrival_time;
   result.fin_after_this = object.fin_after_this;
   return result;
 }

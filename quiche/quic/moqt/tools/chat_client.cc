@@ -25,6 +25,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
@@ -185,9 +186,9 @@ void ChatClient::RemoteTrackVisitor::OnReply(
 }
 
 void ChatClient::RemoteTrackVisitor::OnObjectFragment(
-    const FullTrackName& full_track_name, Location /*sequence*/,
-    MoqtPriority /*publisher_priority*/, MoqtObjectStatus /*status*/,
-    absl::string_view object, bool end_of_message) {
+    const FullTrackName& full_track_name,
+    const PublishedObjectMetadata& /*metadata*/, absl::string_view object,
+    bool end_of_message) {
   if (!end_of_message) {
     std::cerr << "Error: received partial message despite requesting "
                  "buffering\n";
