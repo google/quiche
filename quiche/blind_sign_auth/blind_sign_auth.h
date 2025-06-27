@@ -62,25 +62,57 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
                      SignedTokenCallback callback) override;
 
  private:
+  struct PrivacyPassContext {
+    bssl::UniquePtr<RSA> rsa_public_key;
+    anonymous_tokens::Extensions extensions;
+    absl::Time public_metadata_expiry_time;
+    anonymous_tokens::GeoHint geo_hint;
+    anonymous_tokens::AnonymousTokensUseCase use_case;
+    std::string token_key_id;
+    uint32_t key_version = 0;
+    std::string public_metadata_extensions_str;
+  };
+
+  struct GeneratedTokenRequests {
+    std::vector<std::unique_ptr<anonymous_tokens::
+                                    PrivacyPassRsaBssaPublicMetadataClient>>
+        privacy_pass_clients;
+    std::vector<std::string> privacy_pass_blinded_tokens_b64;
+  };
+
+  // Helper functions for GetTokens flow without device attestation.
   void GetInitialDataCallback(
       std::optional<std::string> oauth_token, int num_tokens,
       ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
       SignedTokenCallback callback,
       absl::StatusOr<BlindSignMessageResponse> response);
+
   void GeneratePrivacyPassTokens(
       privacy::ppn::GetInitialDataResponse initial_data_response,
       std::optional<std::string> oauth_token, int num_tokens,
       ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
       SignedTokenCallback callback);
+
   void PrivacyPassAuthAndSignCallback(
-      std::string encoded_extensions, absl::Time public_key_expiry_time,
-      anonymous_tokens::GeoHint geo_hint,
-      anonymous_tokens::AnonymousTokensUseCase use_case,
+      const PrivacyPassContext& pp_context,
       std::vector<std::unique_ptr<anonymous_tokens::
                                       PrivacyPassRsaBssaPublicMetadataClient>>
           privacy_pass_clients,
       SignedTokenCallback callback,
       absl::StatusOr<BlindSignMessageResponse> response);
+
+  absl::StatusOr<privacy::ppn::GetInitialDataResponse>
+  ParseGetInitialDataResponseMessage(
+      const absl::StatusOr<BlindSignMessageResponse>& response_statusor);
+
+  absl::StatusOr<PrivacyPassContext> CreatePrivacyPassContext(
+      const privacy::ppn::GetInitialDataResponse& initial_data_response);
+
+  absl::StatusOr<GeneratedTokenRequests> GenerateBlindedTokenRequests(
+      int num_tokens, const RSA& rsa_public_key,
+      absl::string_view token_challenge_str, absl::string_view token_key_id,
+      const anonymous_tokens::Extensions& extensions);
+
   privacy::ppn::ProxyLayer QuicheProxyLayerToPpnProxyLayer(
       quiche::ProxyLayer proxy_layer);
   // Replaces '+' and '/' with '-' and '_' in a Base64 string.
