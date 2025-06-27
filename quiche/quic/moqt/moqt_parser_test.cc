@@ -1313,10 +1313,22 @@ TEST_F(MoqtMessageSpecificTest, NamespaceTooLarge) {
   EXPECT_EQ(visitor_.parsing_error_, "Invalid number of namespace elements");
 }
 
-TEST_F(MoqtMessageSpecificTest, JoiningFetch) {
+TEST_F(MoqtMessageSpecificTest, RelativeJoiningFetch) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  JoiningFetchMessage message;
+  RelativeJoiningFetchMessage message;
+  stream.Receive(message.PacketSample(), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
+  EXPECT_TRUE(visitor_.last_message_.has_value() &&
+              message.EqualFieldValues(*visitor_.last_message_));
+}
+
+TEST_F(MoqtMessageSpecificTest, AbsoluteJoiningFetch) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  AbsoluteJoiningFetchMessage message;
   stream.Receive(message.PacketSample(), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);

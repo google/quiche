@@ -96,19 +96,17 @@ TEST_F(SubscribeRemoteTrackTest, Windows) {
 class UpstreamFetchTest : public quic::test::QuicTest {
  protected:
   UpstreamFetchTest()
-      : fetch_(fetch_message_, [&](std::unique_ptr<MoqtFetchTask> task) {
-          fetch_task_ = std::move(task);
-        }) {}
+      : fetch_(fetch_message_, std::get<StandaloneFetch>(fetch_message_.fetch),
+               [&](std::unique_ptr<MoqtFetchTask> task) {
+                 fetch_task_ = std::move(task);
+               }) {}
 
   MoqtFetch fetch_message_ = {
       /*request_id=*/1,
       /*subscriber_priority=*/128,
       /*group_order=*/std::nullopt,
-      /*joining_fetch=*/std::nullopt,
-      /*full_track_name=*/FullTrackName("foo", "bar"),
-      /*start_object=*/Location(1, 1),
-      /*end_group=*/3,
-      /*end_object=*/100,
+      /*fetch=*/
+      StandaloneFetch(FullTrackName("foo", "bar"), Location(1, 1), 3, 100),
       VersionSpecificParameters(),
   };
   // The pointer held by the application.

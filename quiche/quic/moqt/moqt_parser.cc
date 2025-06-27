@@ -787,7 +787,6 @@ size_t MoqtControlParser::ProcessMaxRequestId(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
   MoqtFetch fetch;
   uint8_t group_order;
-  uint64_t end_object;
   uint64_t type;
   if (!reader.ReadVarInt62(&fetch.fetch_id) ||
       !reader.ReadUInt8(&fetch.subscriber_priority) ||
@@ -799,32 +798,45 @@ size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
     return 0;
   }
   switch (static_cast<FetchType>(type)) {
-    case FetchType::kJoining: {
+    case FetchType::kAbsoluteJoining: {
       uint64_t joining_subscribe_id;
-      uint64_t preceding_group_offset;
+      uint64_t joining_start;
       if (!reader.ReadVarInt62(&joining_subscribe_id) ||
-          !reader.ReadVarInt62(&preceding_group_offset)) {
+          !reader.ReadVarInt62(&joining_start)) {
         return 0;
       }
-      fetch.joining_fetch =
-          JoiningFetch{joining_subscribe_id, preceding_group_offset};
+      fetch.fetch = JoiningFetchAbsolute{joining_subscribe_id, joining_start};
+      break;
+    }
+    case FetchType::kRelativeJoining: {
+      uint64_t joining_subscribe_id;
+      uint64_t joining_start;
+      if (!reader.ReadVarInt62(&joining_subscribe_id) ||
+          !reader.ReadVarInt62(&joining_start)) {
+        return 0;
+      }
+      fetch.fetch = JoiningFetchRelative{joining_subscribe_id, joining_start};
       break;
     }
     case FetchType::kStandalone: {
-      fetch.joining_fetch = std::nullopt;
-      if (!ReadFullTrackName(reader, fetch.full_track_name) ||
-          !reader.ReadVarInt62(&fetch.start_object.group) ||
-          !reader.ReadVarInt62(&fetch.start_object.object) ||
-          !reader.ReadVarInt62(&fetch.end_group) ||
+      fetch.fetch = StandaloneFetch();
+      StandaloneFetch& standalone_fetch =
+          std::get<StandaloneFetch>(fetch.fetch);
+      uint64_t end_object;
+      if (!ReadFullTrackName(reader, standalone_fetch.full_track_name) ||
+          !reader.ReadVarInt62(&standalone_fetch.start_object.group) ||
+          !reader.ReadVarInt62(&standalone_fetch.start_object.object) ||
+          !reader.ReadVarInt62(&standalone_fetch.end_group) ||
           !reader.ReadVarInt62(&end_object)) {
         return 0;
       }
-      fetch.end_object =
+      standalone_fetch.end_object =
           end_object == 0 ? std::optional<uint64_t>() : (end_object - 1);
-      if (fetch.end_group < fetch.start_object.group ||
-          (fetch.end_group == fetch.start_object.group &&
-           fetch.end_object.has_value() &&
-           *fetch.end_object < fetch.start_object.object)) {
+      if (standalone_fetch.end_group < standalone_fetch.start_object.group ||
+          (standalone_fetch.end_group == standalone_fetch.start_object.group &&
+           standalone_fetch.end_object.has_value() &&
+           *standalone_fetch.end_object <
+               standalone_fetch.start_object.object)) {
         ParseError("End object comes before start object in FETCH");
         return 0;
       }

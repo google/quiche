@@ -14,10 +14,10 @@
 #include <string>
 #include <tuple>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/container/btree_map.h"
-#include "absl/container/inlined_vector.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
@@ -709,28 +709,68 @@ struct QUICHE_EXPORT MoqtMaxRequestId {
 
 enum class QUICHE_EXPORT FetchType : uint64_t {
   kStandalone = 0x1,
-  kJoining = 0x2,
+  kRelativeJoining = 0x2,
+  kAbsoluteJoining = 0x3,
 };
 
-struct JoiningFetch {
-  JoiningFetch(uint64_t joining_subscribe_id, uint64_t preceding_group_offset)
+struct StandaloneFetch {
+  StandaloneFetch() = default;
+  StandaloneFetch(FullTrackName full_track_name, Location start_object,
+                  uint64_t end_group, std::optional<uint64_t> end_object)
+      : full_track_name(full_track_name),
+        start_object(start_object),
+        end_group(end_group),
+        end_object(end_object) {}
+  FullTrackName full_track_name;
+  Location start_object;  // subgroup is ignored
+  uint64_t end_group;
+  std::optional<uint64_t> end_object;
+  bool operator==(const StandaloneFetch& other) const {
+    return full_track_name == other.full_track_name &&
+           start_object == other.start_object && end_group == other.end_group &&
+           end_object == other.end_object;
+  }
+  bool operator!=(const StandaloneFetch& other) const {
+    return !(*this == other);
+  }
+};
+
+struct JoiningFetchRelative {
+  JoiningFetchRelative(uint64_t joining_subscribe_id, uint64_t joining_start)
       : joining_subscribe_id(joining_subscribe_id),
-        preceding_group_offset(preceding_group_offset) {}
+        joining_start(joining_start) {}
   uint64_t joining_subscribe_id;
-  uint64_t preceding_group_offset;
+  uint64_t joining_start;
+  bool operator==(const JoiningFetchRelative& other) const {
+    return joining_subscribe_id == other.joining_subscribe_id &&
+           joining_start == other.joining_start;
+  }
+  bool operator!=(const JoiningFetchRelative& other) const {
+    return !(*this == other);
+  }
+};
+
+struct JoiningFetchAbsolute {
+  JoiningFetchAbsolute(uint64_t joining_subscribe_id, uint64_t joining_start)
+      : joining_subscribe_id(joining_subscribe_id),
+        joining_start(joining_start) {}
+  uint64_t joining_subscribe_id;
+  uint64_t joining_start;
+  bool operator==(const JoiningFetchAbsolute& other) const {
+    return joining_subscribe_id == other.joining_subscribe_id &&
+           joining_start == other.joining_start;
+  }
+  bool operator!=(const JoiningFetchAbsolute& other) const {
+    return !(*this == other);
+  }
 };
 
 struct QUICHE_EXPORT MoqtFetch {
   uint64_t fetch_id;
   MoqtPriority subscriber_priority;
   std::optional<MoqtDeliveryOrder> group_order;
-  // If joining_fetch has a value, then the parser will not populate the name
-  // and ranges. The session will populate them instead.
-  std::optional<JoiningFetch> joining_fetch;
-  FullTrackName full_track_name;
-  Location start_object;
-  uint64_t end_group;
-  std::optional<uint64_t> end_object;
+  std::variant<StandaloneFetch, JoiningFetchRelative, JoiningFetchAbsolute>
+      fetch;
   VersionSpecificParameters parameters;
 };
 

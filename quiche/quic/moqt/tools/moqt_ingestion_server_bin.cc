@@ -155,8 +155,8 @@ class MoqtIngestionHandler {
         absl::StrSplit(track_list, ',', absl::AllowEmpty());
     for (absl::string_view track : tracks_to_subscribe) {
       FullTrackName full_track_name(track_namespace, track);
-      session_->JoiningFetch(full_track_name, &it->second, 0,
-                             VersionSpecificParameters());
+      session_->RelativeJoiningFetch(full_track_name, &it->second, 0,
+                                     VersionSpecificParameters());
     }
 
     return std::nullopt;

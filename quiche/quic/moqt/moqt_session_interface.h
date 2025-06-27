@@ -94,20 +94,21 @@ class MoqtSessionInterface {
   // in the FETCH will not be filled by with ObjectDoesNotExist. If the FETCH
   // fails for any reason, the application will not receive a notification; it
   // will just appear to be missing objects.
-  virtual bool JoiningFetch(const FullTrackName& name,
-                            SubscribeRemoteTrack::Visitor* visitor,
-                            uint64_t num_previous_groups,
-                            VersionSpecificParameters parameters) = 0;
+  virtual bool RelativeJoiningFetch(const FullTrackName& name,
+                                    SubscribeRemoteTrack::Visitor* visitor,
+                                    uint64_t num_previous_groups,
+                                    VersionSpecificParameters parameters) = 0;
 
   // Sends both a SUBSCRIBE and a joining FETCH, beginning `num_previous_groups`
   // groups before the current group.  `callback` acts the same way as the
   // callback for the regular Fetch() call.
-  virtual bool JoiningFetch(const FullTrackName& name,
-                            SubscribeRemoteTrack::Visitor* visitor,
-                            FetchResponseCallback callback,
-                            uint64_t num_previous_groups, MoqtPriority priority,
-                            std::optional<MoqtDeliveryOrder> delivery_order,
-                            VersionSpecificParameters parameters) = 0;
+  virtual bool RelativeJoiningFetch(
+      const FullTrackName& name, SubscribeRemoteTrack::Visitor* visitor,
+      FetchResponseCallback callback, uint64_t num_previous_groups,
+      MoqtPriority priority, std::optional<MoqtDeliveryOrder> delivery_order,
+      VersionSpecificParameters parameters) = 0;
+
+  // TODO(martinduke): Add an API for absolute joining fetch.
 
   // TODO: Add SubscribeAnnounces, UnsubscribeAnnounces method.
   // TODO: Add Announce, Unannounce method.

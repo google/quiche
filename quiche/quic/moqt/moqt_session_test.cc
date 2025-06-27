@@ -79,11 +79,8 @@ MoqtFetch DefaultFetch() {
       /*fetch_id=*/1,
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
-      /*joining_fetch=*/std::nullopt,
-      kDefaultTrackName(),
-      /*start=*/Location(0, 0),
-      /*end_group=*/1,
-      /*end_object=*/std::nullopt,
+      /*fetch=*/
+      StandaloneFetch(kDefaultTrackName(), Location(0, 0), 1, std::nullopt),
       /*parameters=*/VersionSpecificParameters(),
   };
   return fetch;
@@ -2442,7 +2439,7 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetch) {
   // Joining FETCH arrives. The resulting Fetch should begin at (2, 0).
   MoqtFetch fetch = DefaultFetch();
   fetch.fetch_id = 3;
-  fetch.joining_fetch = {1, 2};
+  fetch.fetch = JoiningFetchRelative(1, 2);
   EXPECT_CALL(*track, Fetch(Location(2, 0), 4, std::optional<uint64_t>(10), _))
       .WillOnce(Return(std::make_unique<MockFetchTask>()));
   stream_input->OnFetchMessage(fetch);
@@ -2452,7 +2449,7 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetchBadSubscribeId) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtFetch fetch = DefaultFetch();
-  fetch.joining_fetch = {1, 2};
+  fetch.fetch = JoiningFetchRelative(1, 2);
   MoqtFetchError expected_error = {
       /*request_id=*/1,
       /*error_code=*/RequestErrorCode::kTrackDoesNotExist,
@@ -2473,7 +2470,7 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetchNonLatestObject) {
 
   MoqtFetch fetch = DefaultFetch();
   fetch.fetch_id = 3;
-  fetch.joining_fetch = {1, 2};
+  fetch.fetch = JoiningFetchRelative(1, 2);
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
                            "Joining Fetch for non-LatestObject subscribe"))
@@ -2503,13 +2500,13 @@ TEST_F(MoqtSessionTest, SendJoiningFetch) {
       /*fetch_id=*/2,
       /*subscriber_priority=*/0x80,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*joining_fetch=*/JoiningFetch(0, 1),
+      /*fetch=*/JoiningFetchRelative(0, 1),
   };
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(expected_subscribe), _));
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(expected_fetch), _));
-  EXPECT_TRUE(session_.JoiningFetch(
+  EXPECT_TRUE(session_.RelativeJoiningFetch(
       expected_subscribe.full_track_name, &remote_track_visitor, nullptr, 1,
       0x80, MoqtDeliveryOrder::kAscending, VersionSpecificParameters()));
 }
@@ -2524,9 +2521,9 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kFetch), _));
-  EXPECT_TRUE(session_.JoiningFetch(FullTrackName("foo", "bar"),
-                                    &remote_track_visitor, 0,
-                                    VersionSpecificParameters()));
+  EXPECT_TRUE(session_.RelativeJoiningFetch(FullTrackName("foo", "bar"),
+                                            &remote_track_visitor, 0,
+                                            VersionSpecificParameters()));
 
   EXPECT_CALL(remote_track_visitor, OnReply).Times(1);
   stream_input->OnSubscribeOkMessage(

@@ -156,19 +156,19 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // in the FETCH will not be filled by with ObjectDoesNotExist. If the FETCH
   // fails for any reason, the application will not receive a notification; it
   // will just appear to be missing objects.
-  bool JoiningFetch(const FullTrackName& name,
-                    SubscribeRemoteTrack::Visitor* visitor,
-                    uint64_t num_previous_groups,
-                    VersionSpecificParameters parameters) override;
+  bool RelativeJoiningFetch(const FullTrackName& name,
+                            SubscribeRemoteTrack::Visitor* visitor,
+                            uint64_t num_previous_groups,
+                            VersionSpecificParameters parameters) override;
   // Sends both a SUBSCRIBE and a joining FETCH, beginning |num_previous_groups|
   // groups before the current group. The application provides |callback| to
   // fully control acceptance of Fetched objects.
-  bool JoiningFetch(const FullTrackName& name,
-                    SubscribeRemoteTrack::Visitor* visitor,
-                    FetchResponseCallback callback,
-                    uint64_t num_previous_groups, MoqtPriority priority,
-                    std::optional<MoqtDeliveryOrder> delivery_order,
-                    VersionSpecificParameters parameters) override;
+  bool RelativeJoiningFetch(const FullTrackName& name,
+                            SubscribeRemoteTrack::Visitor* visitor,
+                            FetchResponseCallback callback,
+                            uint64_t num_previous_groups, MoqtPriority priority,
+                            std::optional<MoqtDeliveryOrder> delivery_order,
+                            VersionSpecificParameters parameters) override;
 
   // Send a GOAWAY message to the peer. |new_session_uri| must be empty if
   // called by the client.

@@ -447,8 +447,8 @@ class MoqtSimulator {
     if (!parameters_.delivery_timeout.IsInfinite()) {
       subscription_parameters.delivery_timeout = parameters_.delivery_timeout;
     }
-    server_session()->JoiningFetch(TrackName(), &receiver_, 0,
-                                   subscription_parameters);
+    server_session()->RelativeJoiningFetch(TrackName(), &receiver_, 0,
+                                           subscription_parameters);
     simulator_.RunFor(parameters_.duration);
 
     // At the end, we wait for eight RTTs until the connection settles down.

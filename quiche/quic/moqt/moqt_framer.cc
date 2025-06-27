@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -676,13 +677,16 @@ quiche::QuicheBuffer MoqtFramer::SerializeMaxRequestId(
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
-  if (!message.joining_fetch.has_value() &&
-      (message.end_group < message.start_object.group ||
-       (message.end_group == message.start_object.group &&
-        message.end_object.has_value() &&
-        *message.end_object < message.start_object.object))) {
-    QUICHE_BUG(MoqtFramer_invalid_fetch) << "Invalid FETCH object range";
-    return quiche::QuicheBuffer();
+  if (std::holds_alternative<StandaloneFetch>(message.fetch)) {
+    const StandaloneFetch& standalone_fetch =
+        std::get<StandaloneFetch>(message.fetch);
+    if (standalone_fetch.end_group < standalone_fetch.start_object.group ||
+        (standalone_fetch.end_group == standalone_fetch.start_object.group &&
+         standalone_fetch.end_object.has_value() &&
+         *standalone_fetch.end_object < standalone_fetch.start_object.object)) {
+      QUICHE_BUG(MoqtFramer_invalid_fetch) << "Invalid FETCH object range";
+      return quiche::QuicheBuffer();
+    }
   }
   KeyValuePairList parameters;
   VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
@@ -691,28 +695,42 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
         << "Serializing invalid MoQT parameters";
     return quiche::QuicheBuffer();
   }
-  if (message.joining_fetch.has_value()) {
+  if (std::holds_alternative<StandaloneFetch>(message.fetch)) {
+    const StandaloneFetch& standalone_fetch =
+        std::get<StandaloneFetch>(message.fetch);
     return SerializeControlMessage(
         MoqtMessageType::kFetch, WireVarInt62(message.fetch_id),
         WireUint8(message.subscriber_priority),
         WireDeliveryOrder(message.group_order),
-        WireVarInt62(FetchType::kJoining),
-        WireVarInt62(message.joining_fetch->joining_subscribe_id),
-        WireVarInt62(message.joining_fetch->preceding_group_offset),
+        WireVarInt62(FetchType::kStandalone),
+        WireFullTrackName(standalone_fetch.full_track_name),
+        WireVarInt62(standalone_fetch.start_object.group),
+        WireVarInt62(standalone_fetch.start_object.object),
+        WireVarInt62(standalone_fetch.end_group),
+        WireVarInt62(standalone_fetch.end_object.has_value()
+                         ? *standalone_fetch.end_object + 1
+                         : 0),
         WireKeyValuePairList(parameters));
+  }
+  uint64_t subscribe_id;
+  uint64_t joining_start;
+  if (std::holds_alternative<JoiningFetchRelative>(message.fetch)) {
+    const JoiningFetchRelative& joining_fetch =
+        std::get<JoiningFetchRelative>(message.fetch);
+    subscribe_id = joining_fetch.joining_subscribe_id;
+    joining_start = joining_fetch.joining_start;
+  } else {
+    const JoiningFetchAbsolute& joining_fetch =
+        std::get<JoiningFetchAbsolute>(message.fetch);
+    subscribe_id = joining_fetch.joining_subscribe_id;
+    joining_start = joining_fetch.joining_start;
   }
   return SerializeControlMessage(
       MoqtMessageType::kFetch, WireVarInt62(message.fetch_id),
       WireUint8(message.subscriber_priority),
       WireDeliveryOrder(message.group_order),
-      WireVarInt62(FetchType::kStandalone),
-      WireFullTrackName(message.full_track_name),
-      WireVarInt62(message.start_object.group),
-      WireVarInt62(message.start_object.object),
-      WireVarInt62(message.end_group),
-      WireVarInt62(message.end_object.has_value() ? *message.end_object + 1
-                                                  : 0),
-      WireKeyValuePairList(parameters));
+      WireVarInt62(message.fetch.index() + 1), WireVarInt62(subscribe_id),
+      WireVarInt62(joining_start), WireKeyValuePairList(parameters));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeFetchCancel(

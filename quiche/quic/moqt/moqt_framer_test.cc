@@ -447,11 +447,13 @@ TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
       /*subscribe_id =*/1,
       /*subscriber_priority=*/2,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*joining_fetch=*/std::nullopt,
-      /*full_track_name=*/FullTrackName{"foo", "bar"},
-      /*start_object=*/Location{1, 2},
-      /*end_group=*/1,
-      /*end_object=*/1,
+      /*fetch=*/
+      StandaloneFetch{
+          FullTrackName("foo", "bar"),
+          /*start_object=*/Location{1, 2},
+          /*end_group=*/1,
+          /*end_object=*/1,
+      },
       /*parameters=*/
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
   };
@@ -459,8 +461,8 @@ TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
   EXPECT_QUIC_BUG(buffer = framer_.SerializeFetch(fetch),
                   "Invalid FETCH object range");
   EXPECT_EQ(buffer.size(), 0);
-  fetch.end_group = 0;
-  fetch.end_object = std::nullopt;
+  std::get<StandaloneFetch>(fetch.fetch).end_group = 0;
+  std::get<StandaloneFetch>(fetch.fetch).end_object = std::nullopt;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeFetch(fetch),
                   "Invalid FETCH object range");
   EXPECT_EQ(buffer.size(), 0);
@@ -498,8 +500,16 @@ TEST_F(MoqtFramerSimpleTest, SubscribeUpdateIncrementsEnd) {
   EXPECT_EQ(*end_group, 5);
 }
 
-TEST_F(MoqtFramerSimpleTest, JoiningFetch) {
-  JoiningFetchMessage message;
+TEST_F(MoqtFramerSimpleTest, RelativeJoiningFetch) {
+  RelativeJoiningFetchMessage message;
+  quiche::QuicheBuffer buffer =
+      framer_.SerializeFetch(std::get<MoqtFetch>(message.structured_data()));
+  EXPECT_EQ(buffer.size(), message.total_message_size());
+  EXPECT_EQ(buffer.AsStringView(), message.PacketSample());
+}
+
+TEST_F(MoqtFramerSimpleTest, AbsoluteJoiningFetch) {
+  AbsoluteJoiningFetchMessage message;
   quiche::QuicheBuffer buffer =
       framer_.SerializeFetch(std::get<MoqtFetch>(message.structured_data()));
   EXPECT_EQ(buffer.size(), message.total_message_size());
