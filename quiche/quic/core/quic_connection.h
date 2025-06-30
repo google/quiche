@@ -2498,100 +2498,100 @@ class QUICHE_EXPORT QuicConnection
   // Set to true as soon as the packet currently being processed has been
   // detected as a connectivity probing.
   // Always false outside the context of ProcessUdpPacket().
-  bool is_current_packet_connectivity_probing_ = false;
-  bool has_path_challenge_in_current_packet_ = false;
-  bool owns_writer_;
+  bool is_current_packet_connectivity_probing_ : 1 = false;
+  bool has_path_challenge_in_current_packet_ : 1 = false;
+  bool owns_writer_ : 1;
   // On the server, the connection ID is set when receiving the first packet.
   // This variable ensures we only set it this way once.
-  bool client_connection_id_is_set_ = false;
+  bool client_connection_id_is_set_ : 1 = false;
   // Whether we've already replaced our server connection ID due to receiving an
   // INITIAL packet with a different source connection ID. Only used on client.
-  bool server_connection_id_replaced_by_initial_ = false;
+  bool server_connection_id_replaced_by_initial_ : 1 = false;
   // Indicates whether connection version has been negotiated.
   // Always true for server connections.
-  bool version_negotiated_ = false;
+  bool version_negotiated_ : 1 = false;
   // True if Key Update is supported on this connection.
-  bool support_key_update_for_connection_ = false;
-  bool should_last_packet_instigate_acks_ = false;
+  bool support_key_update_for_connection_ : 1 = false;
+  bool should_last_packet_instigate_acks_ : 1 = false;
   // Indicates the retransmission alarm needs to be set.
-  bool pending_retransmission_alarm_ = false;
+  bool pending_retransmission_alarm_ : 1 = false;
   // If true, defer sending data in response to received packets to the
   // SendAlarm.
-  bool defer_send_in_response_to_packets_ = false;
+  bool defer_send_in_response_to_packets_ : 1 = false;
   // True by default.  False if we've received or sent an explicit connection
   // close.
-  bool connected_ = true;
+  bool connected_ : 1 = true;
   // True if the connection is in the CloseConnection stack.
-  bool in_close_connection_ = false;
+  bool in_close_connection_ : 1 = false;
   // Set to false if the connection should not send truncated connection IDs to
   // the peer, even if the peer supports it.
-  bool can_truncate_connection_ids_;
+  bool can_truncate_connection_ids_ : 1;
   // Indicates whether a write error is encountered currently. This is used to
   // avoid infinite write errors.
-  bool write_error_occurred_ = false;
+  bool write_error_occurred_ : 1 = false;
   // If true, bundle an ack-eliciting frame with an ACK if the PTO alarm have
   // previously fired.
-  bool bundle_retransmittable_with_pto_ack_ = false;
+  bool bundle_retransmittable_with_pto_ack_ : 1 = false;
   // True if the peer is unreachable on the current path.
-  bool is_path_degrading_ = false;
+  bool is_path_degrading_ : 1 = false;
   // True if the outgoing flow label has changed since the last foward progress.
-  bool flow_label_has_changed_ = false;
+  bool flow_label_has_changed_ : 1 = false;
   // True if an ack frame is being processed.
-  bool processing_ack_frame_ = false;
+  bool processing_ack_frame_ : 1 = false;
   // True if the writer supports release timestamp.
-  bool supports_release_time_ = false;
-  bool blackhole_detection_disabled_ = false;
-  const bool default_enable_5rto_blackhole_detection_ =
+  bool supports_release_time_ : 1 = false;
+  bool blackhole_detection_disabled_ : 1 = false;
+  const bool default_enable_5rto_blackhole_detection_ : 1 =
       GetQuicReloadableFlag(quic_default_enable_5rto_blackhole_detection2);
   // True if next packet is intended to consume remaining space in the
   // coalescer.
-  bool fill_coalesced_packet_ = false;
+  bool fill_coalesced_packet_ : 1 = false;
   // True if AckFrequencyFrame is supported.
-  bool can_receive_ack_frequency_immediate_ack_ = false;
+  bool can_receive_ack_frequency_immediate_ack_ : 1 = false;
   // Indicate whether coalescing is done.
-  bool coalescing_done_ = false;
+  bool coalescing_done_ : 1 = false;
   // Indicate whether any ENCRYPTION_HANDSHAKE packet has been sent.
-  bool handshake_packet_sent_ = false;
+  bool handshake_packet_sent_ : 1 = false;
   // Indicate whether to send an AckFrequencyFrame upon handshake completion.
   // The AckFrequencyFrame sent will updates client's max_ack_delay, which if
   // chosen properly can reduce the CPU and bandwidth usage for ACK frames.
-  bool send_ack_frequency_on_handshake_completion_ = false;
+  bool send_ack_frequency_on_handshake_completion_ : 1 = false;
   // Indicate whether AckFrequency frame has been sent.
-  bool ack_frequency_sent_ = false;
+  bool ack_frequency_sent_ : 1 = false;
   // True if a 0-RTT decrypter was or is installed at some point in the
   // connection's lifetime.
-  bool had_zero_rtt_decrypter_ = false;
+  bool had_zero_rtt_decrypter_ : 1 = false;
   // True after the first 1-RTT packet has successfully decrypted.
-  bool have_decrypted_first_one_rtt_packet_ = false;
+  bool have_decrypted_first_one_rtt_packet_ : 1 = false;
   // True if we are currently processing OnRetransmissionTimeout.
-  bool in_probe_time_out_ = false;
+  bool in_probe_time_out_ : 1 = false;
   // If true, upon seeing a new client address, validate the client address.
-  bool validate_client_addresses_ = false;
+  bool validate_client_addresses_ : 1 = false;
   // Indicates whether we should proactively validate peer address on a
   // PATH_CHALLENGE received.
-  bool should_proactively_validate_peer_address_on_path_challenge_ = false;
+  bool should_proactively_validate_peer_address_on_path_challenge_ : 1 = false;
   // If true, send connection close packet on INVALID_VERSION.
-  bool send_connection_close_for_invalid_version_ = false;
+  bool send_connection_close_for_invalid_version_ : 1 = false;
   // If true, disable liveness testing.
-  bool liveness_testing_disabled_ = false;
+  bool liveness_testing_disabled_ : 1 = false;
   // If true, connection will migrate to multi-port path upon path degrading.
-  bool multi_port_migration_enabled_ = false;
+  bool multi_port_migration_enabled_ : 1 = false;
   // If true, connection will probe for multi-port path on RTO. This is only
   // used on the client side. If false, connection will probe for multi-port
   // path on receiving a new connection ID frame. See OnNewConnectionIdFrame()
   // for more details.
-  bool multi_port_probing_on_rto_ = false;
+  bool multi_port_probing_on_rto_ : 1 = false;
   // Client side only.
-  bool active_migration_disabled_ = false;
-  const bool ignore_gquic_probing_ =
+  bool active_migration_disabled_ : 1 = false;
+  const bool ignore_gquic_probing_ : 1 =
       GetQuicReloadableFlag(quic_ignore_gquic_probing);
   // If true, kicks off validation of server_preferred_address_ once it is
   // received. Also, send all coalesced packets on both paths until handshake is
   // confirmed.
-  bool accelerated_server_preferred_address_ = false;
+  bool accelerated_server_preferred_address_ : 1 = false;
   // If true, throttle sending if next created packet will exceed amplification
   // limit.
-  const bool enforce_strict_amplification_factor_ =
+  const bool enforce_strict_amplification_factor_ : 1 =
       GetQuicFlag(quic_enforce_strict_amplification_factor);
   // Endpoints should never mark packets with Congestion Experienced (CE), as
   // this is only done by routers. Endpoints cannot send ECT(0) or ECT(1) if
@@ -2599,20 +2599,20 @@ class QUICHE_EXPORT QuicConnection
   // the spec, or ECN feedback doesn't conform to the spec. When true, the
   // connection will not verify that the requested codepoint adheres to these
   // policies. This is only accessible through QuicConnectionPeer.
-  bool disable_ecn_codepoint_validation_ = false;
+  bool disable_ecn_codepoint_validation_ : 1 = false;
   // True if the peer is expected to change their flow label in response to
   // a flow label change made by this connection.
-  bool expect_peer_flow_label_change_ = false;
+  bool expect_peer_flow_label_change_ : 1 = false;
   // If true then flow labels will be changed when a PTO fires, or when
   // a PTO'd packet from a peer is detected.
-  bool enable_black_hole_avoidance_via_flow_label_ = false;
+  bool enable_black_hole_avoidance_via_flow_label_ : 1 = false;
   // If true, fixes a off-by-one error in the least unacked packet calculation.
-  bool least_unacked_plus_1_;
-  const bool quic_limit_new_streams_per_loop_2_ =
+  bool least_unacked_plus_1_ : 1;
+  const bool quic_limit_new_streams_per_loop_2_ : 1 =
       GetQuicReloadableFlag(quic_limit_new_streams_per_loop_2);
-  const bool quic_test_peer_addr_change_after_normalize_ =
+  const bool quic_test_peer_addr_change_after_normalize_ : 1 =
       GetQuicReloadableFlag(quic_test_peer_addr_change_after_normalize);
-  const bool quic_fix_timeouts_ = GetQuicReloadableFlag(quic_fix_timeouts);
+  const bool quic_fix_timeouts_ : 1 = GetQuicReloadableFlag(quic_fix_timeouts);
 };
 
 }  // namespace quic
