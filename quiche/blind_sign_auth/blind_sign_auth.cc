@@ -45,7 +45,7 @@ std::string OmitDefault(T value) {
 constexpr absl::string_view kIssuerHostname =
     "https://ipprotection-ppissuer.googleapis.com";
 constexpr size_t kExpectedExtensionTypesSize = 5;
-constexpr std::array<uint16_t, kExpectedExtensionTypesSize>
+constexpr std::array<const uint16_t, kExpectedExtensionTypesSize>
     kExpectedExtensionTypes = {0x0001, 0x0002, 0xF001, 0xF002, 0xF003};
 
 using privacy::ppn::AuthAndSignRequest;
