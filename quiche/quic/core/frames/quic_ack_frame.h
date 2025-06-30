@@ -7,11 +7,10 @@
 
 #include <ostream>
 
-#include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/core/quic_interval_set.h"
+#include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 
@@ -80,6 +79,9 @@ class QUICHE_EXPORT PacketNumberQueue {
   const_iterator end() const;
   const_reverse_iterator rbegin() const;
   const_reverse_iterator rend() const;
+  // Returns the iterator to the first interval that contains or is greater than
+  // |packet_number|.
+  const_iterator LowerBound(QuicPacketNumber packet_number) const;
 
   friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                                 const PacketNumberQueue& q);

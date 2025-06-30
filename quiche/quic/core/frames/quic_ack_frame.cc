@@ -7,10 +7,9 @@
 #include <ostream>
 #include <utility>
 
-#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_interval.h"
+#include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_flag_utils.h"
 
 namespace quic {
 
@@ -148,6 +147,11 @@ PacketNumberQueue::const_reverse_iterator PacketNumberQueue::rbegin() const {
 
 PacketNumberQueue::const_reverse_iterator PacketNumberQueue::rend() const {
   return packet_number_intervals_.rend();
+}
+
+PacketNumberQueue::const_iterator PacketNumberQueue::LowerBound(
+    QuicPacketNumber packet_number) const {
+  return packet_number_intervals_.LowerBound(packet_number);
 }
 
 QuicPacketCount PacketNumberQueue::LastIntervalLength() const {

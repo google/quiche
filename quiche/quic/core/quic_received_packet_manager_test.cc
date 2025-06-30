@@ -11,6 +11,7 @@
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
@@ -578,18 +579,18 @@ TEST_F(QuicReceivedPacketManagerTest,
 
   RecordPacketReceipt(3, clock_.ApproximateNow());
   MaybeUpdateAckTimeout(kInstigateAck, 3);
-  // Ack, since missing packets are always acknowledged.
-  CheckAckTimeout(clock_.ApproximateNow());
-
-  RecordPacketReceipt(7, clock_.ApproximateNow());
-  MaybeUpdateAckTimeout(kInstigateAck, 10);
-  // No ack, as the frame says to ignore ordering.
+  // Don't ack as ignore_order is set by AckFrequencyFrame.
   CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
 
-  RecordPacketReceipt(1, clock_.ApproximateNow());
-  MaybeUpdateAckTimeout(kInstigateAck, 11);
-  // It's the second packet in a row, ack it.
+  RecordPacketReceipt(2, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 2);
+  // Immediate ack is sent as this is the 2nd packet of every two packets.
   CheckAckTimeout(clock_.ApproximateNow());
+
+  RecordPacketReceipt(1, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 1);
+  // Don't ack as ignore_order is set by AckFrequencyFrame.
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
 }
 
 TEST_F(QuicReceivedPacketManagerTest,
@@ -624,6 +625,100 @@ TEST_F(QuicReceivedPacketManagerTest,
   MaybeUpdateAckTimeout(kInstigateAck, 7);
   // Don't ack as AckFrequencyFrame says to ignore ordering.
   CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       AckFrequencyFrameChangesReorderingThreshold) {
+  EXPECT_FALSE(HasPendingAck());
+  QuicConfig config;
+  received_manager_.SetFromConfig(config, Perspective::IS_CLIENT);
+
+  QuicAckFrequencyFrame frame;
+  frame.sequence_number = 0;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 10;  // No non-reordering acks.
+  frame.reordering_threshold = 2;
+  received_manager_.OnAckFrequencyFrame(frame);
+  RecordPacketReceipt(0, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 0);
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+  // No ack after gap.
+  RecordPacketReceipt(2, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 2);
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+  // Hit the reordering threshold, send ACK.
+  RecordPacketReceipt(3, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 3);
+  CheckAckTimeout(clock_.ApproximateNow());
+  // Already reported, do not ack again.
+  RecordPacketReceipt(4, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 4);
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+  // Filling the hole is acked.
+  RecordPacketReceipt(1, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 1);
+  CheckAckTimeout(clock_.ApproximateNow());
+}
+
+// There is a different code path if there is no ACK range before the missing
+// packet.
+TEST_F(QuicReceivedPacketManagerTest, ReorderingThresholdNoRangeBeforeMissing) {
+  EXPECT_FALSE(HasPendingAck());
+  QuicConfig config;
+  received_manager_.SetFromConfig(config, Perspective::IS_CLIENT);
+
+  QuicAckFrequencyFrame frame;
+  frame.sequence_number = 0;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 10;  // No non-reordering acks.
+  frame.reordering_threshold = 2;
+  received_manager_.OnAckFrequencyFrame(frame);
+  if (GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
+    received_manager_.DontWaitForPacketsBefore(QuicPacketNumber(2));
+  } else {
+    received_manager_.DontWaitForPacketsBefore(QuicPacketNumber(1));
+  }
+  // No ack after gap.
+  RecordPacketReceipt(3, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 3);
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+  // Hit the reordering threshold, send ACK.
+  RecordPacketReceipt(4, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 4);
+  CheckAckTimeout(clock_.ApproximateNow());
+  // Second packet ignored.
+  RecordPacketReceipt(5, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 5);
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+  // Filling the hole is acked.
+  RecordPacketReceipt(2, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 2);
+  CheckAckTimeout(clock_.ApproximateNow());
+}
+
+TEST_F(QuicReceivedPacketManagerTest, MaxAckRangesPromptsAck) {
+  EXPECT_FALSE(HasPendingAck());
+  QuicConfig config;
+  received_manager_.SetFromConfig(config, Perspective::IS_CLIENT);
+
+  QuicAckFrequencyFrame frame;
+  frame.sequence_number = 0;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 1000;
+  frame.reordering_threshold = 1000;
+  received_manager_.OnAckFrequencyFrame(frame);
+  const int max_ack_ranges = 10;
+  received_manager_.set_max_ack_ranges(max_ack_ranges);
+  // create ack ranges
+  for (int i = 0; i < (max_ack_ranges - 1); ++i) {
+    RecordPacketReceipt(2 * i, clock_.ApproximateNow());
+    MaybeUpdateAckTimeout(kInstigateAck, 2 * i);
+    CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+  }
+  // Send the max, forcing an ack.
+  RecordPacketReceipt(max_ack_ranges * 2, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 2 * max_ack_ranges - 1);
+  CheckAckTimeout(clock_.ApproximateNow());
 }
 
 TEST_F(QuicReceivedPacketManagerTest,

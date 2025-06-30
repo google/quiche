@@ -11,6 +11,7 @@
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -85,6 +86,13 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
   // Returns true when there are new missing packets to be reported within 3
   // packets of the largest observed.
   virtual bool HasNewMissingPackets() const;
+
+  // Returns true if the lowest packet number beyond largest_acked_ is more
+  // than reordering_threshold_ behind largest_unacked. Used only when
+  // reordering_threshold_ > 1.
+  // TODO(martinduke): This code can be used for reordering_threshold_ == 1
+  // as well, once we have full confidence in it.
+  bool ReorderingExceedsThreshold() const;
 
   virtual bool ack_frame_updated() const;
 
@@ -224,6 +232,9 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
   // Because of an IMMEDIATE_ACK frame, the next call to MaybeUpdateAckTimeout
   // should set the ack timeout to now.
   bool ack_now_ = false;
+
+  // Latch for the flag.
+  bool least_unacked_plus_1_ = GetQuicReloadableFlag(quic_least_unacked_plus_1);
 
   // Last sent largest acked, which gets updated when ACK was successfully sent.
   QuicPacketNumber last_sent_largest_acked_;
