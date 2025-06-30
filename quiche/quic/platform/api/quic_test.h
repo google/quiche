@@ -5,8 +5,8 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_TEST_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_TEST_H_
 
-#include "quiche/quic/platform/api/quic_logging.h"
-#include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/quic/platform/api/quic_logging.h"  // IWYU pragma: export
+#include "quiche/common/platform/api/quiche_test.h"  // IWYU pragma: export
 
 namespace quic::test {
 
