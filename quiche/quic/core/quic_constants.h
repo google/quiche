@@ -8,10 +8,11 @@
 #include <stddef.h>
 
 #include <cstdint>
-#include <limits>
 
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 // Definitions of constant values used throughout the QUIC code.
 
@@ -300,6 +301,8 @@ inline constexpr QuicPacketCount kMaxRetransmittablePacketsBeforeAck = 10;
 inline constexpr QuicPacketCount kMinReceivedBeforeAckDecimation = 100;
 // Ask peer to use one quarter RTT delay when doing ack decimation.
 inline constexpr float kPeerAckDecimationDelay = 0.25;
+// Maximum number of consecutive sent nonretransmittable packets.
+inline constexpr QuicPacketCount kMaxConsecutiveNonRetransmittablePackets = 19;
 
 // The default alarm granularity assumed by QUIC code.
 inline constexpr QuicTime::Delta kAlarmGranularity =

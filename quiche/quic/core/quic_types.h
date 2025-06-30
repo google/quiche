@@ -8,9 +8,11 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
-#include <map>
+#include <functional>
 #include <optional>
 #include <ostream>
+#include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/container/inlined_vector.h"
@@ -20,9 +22,8 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/common/quiche_endian.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic {
@@ -77,7 +78,7 @@ struct QUICHE_EXPORT QuicConsumedData {
 
   // By default, gtest prints the raw bytes of an object. The bool data
   // member causes this object to have padding bytes, which causes the
-  // default gtest object printer to read uninitialize memory. So we need
+  // default gtest object printer to read uninitialized memory. So we need
   // to teach gtest how to print this object.
   QUICHE_EXPORT friend std::ostream& operator<<(std::ostream& os,
                                                 const QuicConsumedData& s);
@@ -228,7 +229,7 @@ QUICHE_EXPORT std::ostream& operator<<(
     std::ostream& os, const ConnectionCloseSource& connection_close_source);
 
 // Should a connection be closed silently or not.
-enum class ConnectionCloseBehavior {
+enum class ConnectionCloseBehavior : uint8_t {
   SILENT_CLOSE,
   SILENT_CLOSE_WITH_CONNECTION_CLOSE_PACKET_SERIALIZED,
   SEND_CONNECTION_CLOSE_PACKET
@@ -922,7 +923,7 @@ QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
 
 // The two bits in the IP header for Explicit Congestion Notification can take
 // one of four values.
-enum QuicEcnCodepoint {
+enum QuicEcnCodepoint : uint8_t {
   // The NOT-ECT codepoint, indicating the packet sender is not using (or the
   // network has disabled) ECN.
   ECN_NOT_ECT = 0,
