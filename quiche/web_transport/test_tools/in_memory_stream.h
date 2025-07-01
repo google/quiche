@@ -15,6 +15,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -34,7 +35,7 @@ class QUICHE_NO_EXPORT InMemoryStream : public Stream {
   bool SkipBytes(size_t bytes) override;
 
   // quiche::WriteStream implementation.
-  absl::Status Writev(absl::Span<const absl::string_view> data,
+  absl::Status Writev(absl::Span<quiche::QuicheMemSlice> data,
                       const quiche::StreamWriteOptions& options) override {
     QUICHE_NOTREACHED() << "Writev called on a read-only stream";
     return absl::UnimplementedError("Writev called on a read-only stream");

@@ -14,6 +14,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 
 namespace quiche::test {
@@ -24,22 +25,22 @@ class MockWriteStream : public quiche::WriteStream {
   MockWriteStream() {
     ON_CALL(*this, CanWrite()).WillByDefault(testing::Return(true));
     ON_CALL(*this, Writev(testing::_, testing::_))
-        .WillByDefault([&](absl::Span<const absl::string_view> data,
+        .WillByDefault([&](absl::Span<quiche::QuicheMemSlice> data,
                            const StreamWriteOptions& options) {
           return AppendToData(data, options);
         });
   }
 
   MOCK_METHOD(absl::Status, Writev,
-              (absl::Span<const absl::string_view> data,
+              (absl::Span<quiche::QuicheMemSlice> data,
                const StreamWriteOptions& options),
               (override));
   MOCK_METHOD(bool, CanWrite, (), (const, override));
 
-  absl::Status AppendToData(absl::Span<const absl::string_view> data,
+  absl::Status AppendToData(absl::Span<quiche::QuicheMemSlice> data,
                             const StreamWriteOptions& options) {
-    for (absl::string_view fragment : data) {
-      data_.append(fragment.data(), fragment.size());
+    for (const quiche::QuicheMemSlice& fragment : data) {
+      data_.append(fragment.data(), fragment.length());
     }
     ProcessOptions(options);
     return absl::OkStatus();

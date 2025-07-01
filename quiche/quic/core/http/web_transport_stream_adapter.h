@@ -23,6 +23,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -39,7 +40,7 @@ class QUICHE_EXPORT WebTransportStreamAdapter : public webtransport::Stream {
   // WebTransportStream implementation.
   ABSL_MUST_USE_RESULT ReadResult Read(absl::Span<char> output) override;
   ABSL_MUST_USE_RESULT ReadResult Read(std::string* output) override;
-  absl::Status Writev(absl::Span<const absl::string_view> data,
+  absl::Status Writev(absl::Span<quiche::QuicheMemSlice> data,
                       const quiche::StreamWriteOptions& options) override;
   bool CanWrite() const override;
   void AbruptlyTerminate(absl::Status error) override;

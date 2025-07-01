@@ -1272,9 +1272,10 @@ TEST_F(MoqtSessionTest, CreateOutgoingDataStreamAndSend) {
   bool correct_message = false;
   const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x00, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
-        correct_message = absl::StartsWith(data[0], kExpectedMessage);
+        correct_message =
+            absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin |= options.send_fin();
         return absl::OkStatus();
       });
@@ -1324,9 +1325,10 @@ TEST_F(MoqtSessionTest, FinDataStreamFromCache) {
   bool correct_message = false;
   const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x00, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
-        correct_message = absl::StartsWith(data[0], kExpectedMessage);
+        correct_message =
+            absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin = options.send_fin();
         return absl::OkStatus();
       });
@@ -1374,9 +1376,10 @@ TEST_F(MoqtSessionTest, GroupAbandoned) {
   bool correct_message = false;
   const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x00, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
-        correct_message = absl::StartsWith(data[0], kExpectedMessage);
+        correct_message =
+            absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin |= options.send_fin();
         return absl::OkStatus();
       });
@@ -1427,9 +1430,10 @@ TEST_F(MoqtSessionTest, LateFinDataStream) {
   bool correct_message = false;
   const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x00, 0x7f};
   EXPECT_CALL(mock_stream_, Writev)
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
-        correct_message = absl::StartsWith(data[0], kExpectedMessage);
+        correct_message =
+            absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin = options.send_fin();
         return absl::OkStatus();
       });
@@ -1447,7 +1451,7 @@ TEST_F(MoqtSessionTest, LateFinDataStream) {
   EXPECT_FALSE(fin);
   fin = false;
   EXPECT_CALL(mock_stream_, Writev)
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
         EXPECT_TRUE(data.empty());
         fin = options.send_fin();
@@ -1486,9 +1490,10 @@ TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
   bool correct_message = false;
   const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x7f, 0x00, 0x00};
   EXPECT_CALL(mock_stream_, Writev(_, _))
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
-        correct_message = absl::StartsWith(data[0], kExpectedMessage);
+        correct_message =
+            absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin = options.send_fin();
         return absl::OkStatus();
       });
@@ -1527,9 +1532,10 @@ TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
     return std::optional<PublishedObject>();
   });
   EXPECT_CALL(mock_stream_, Writev(_, _))
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
-        correct_message = absl::StartsWith(data[0], kExpectedMessage2);
+        correct_message =
+            absl::StartsWith(data[0].AsStringView(), kExpectedMessage2);
         fin = options.send_fin();
         return absl::OkStatus();
       });
@@ -1568,9 +1574,10 @@ TEST_F(MoqtSessionTest, PublisherAbandonsSubgroup) {
   bool correct_message = false;
   const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x7f, 0x00, 0x00};
   EXPECT_CALL(mock_stream_, Writev(_, _))
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
-        correct_message = absl::StartsWith(data[0], kExpectedMessage);
+        correct_message =
+            absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin = options.send_fin();
         return absl::OkStatus();
       });
@@ -2012,24 +2019,24 @@ TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
   EXPECT_CALL(mock_stream1, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream2, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream0, Writev(_, _))
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
         // The Group ID is the 3rd byte of the stream.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 0);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0].AsStringView()[2]), 0);
         return absl::OkStatus();
       });
   EXPECT_CALL(mock_stream1, Writev(_, _))
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
         // The Group ID is the 3rd byte of the stream.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 1);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0].AsStringView()[2]), 1);
         return absl::OkStatus();
       });
   EXPECT_CALL(mock_stream2, Writev(_, _))
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
         // The Group ID is the 3rd byte of the stream.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 2);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0].AsStringView()[2]), 2);
         return absl::OkStatus();
       });
   session_.OnCanCreateNewOutgoingUnidirectionalStream();
@@ -2114,12 +2121,12 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   EXPECT_CALL(*track1, GetCachedObject(0, 0, 1)).WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream0, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream0, Writev)
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
         // Check track alias is 14.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][1]), 14);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0].AsStringView()[1]), 14);
         // Check Group ID is 0
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 0);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0].AsStringView()[2]), 0);
         return absl::OkStatus();
       });
   session_.OnCanCreateNewOutgoingUnidirectionalStream();
@@ -2150,12 +2157,12 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   EXPECT_CALL(*track2, GetCachedObject(0, 0, 1)).WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream1, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream1, Writev(_, _))
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
         // Check track alias is 15.
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][1]), 15);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0].AsStringView()[1]), 15);
         // Check Group ID is 0
-        EXPECT_EQ(static_cast<const uint8_t>(data[0][2]), 0);
+        EXPECT_EQ(static_cast<const uint8_t>(data[0].AsStringView()[2]), 0);
         return absl::OkStatus();
       });
   session_.OnCanCreateNewOutgoingUnidirectionalStream();
@@ -2207,9 +2214,9 @@ void ExpectSendObject(MockFetchTask* fetch_task,
           Invoke([=](PublishedObject& /*output*/) { return second_result; }));
   if (second_result == MoqtFetchTask::GetNextObjectResult::kEof) {
     EXPECT_CALL(data_stream, Writev)
-        .WillOnce(Invoke([](absl::Span<const absl::string_view> data,
+        .WillOnce(Invoke([](absl::Span<quiche::QuicheMemSlice> data,
                             const quiche::StreamWriteOptions& options) {
-          quic::QuicDataReader reader(data[0]);
+          quic::QuicDataReader reader(data[0].AsStringView());
           uint64_t type;
           EXPECT_TRUE(reader.ReadVarInt62(&type));
           EXPECT_EQ(type, static_cast<uint64_t>(
@@ -2217,7 +2224,7 @@ void ExpectSendObject(MockFetchTask* fetch_task,
           EXPECT_FALSE(options.send_fin());  // fin_after_this is ignored.
           return absl::OkStatus();
         }))
-        .WillOnce(Invoke([](absl::Span<const absl::string_view> data,
+        .WillOnce(Invoke([](absl::Span<quiche::QuicheMemSlice> data,
                             const quiche::StreamWriteOptions& options) {
           EXPECT_TRUE(data.empty());
           EXPECT_TRUE(options.send_fin());
@@ -2226,9 +2233,9 @@ void ExpectSendObject(MockFetchTask* fetch_task,
     return;
   }
   EXPECT_CALL(data_stream, Writev)
-      .WillOnce(Invoke([](absl::Span<const absl::string_view> data,
+      .WillOnce(Invoke([](absl::Span<quiche::QuicheMemSlice> data,
                           const quiche::StreamWriteOptions& options) {
-        quic::QuicDataReader reader(data[0]);
+        quic::QuicDataReader reader(data[0].AsStringView());
         uint64_t type;
         EXPECT_TRUE(reader.ReadVarInt62(&type));
         EXPECT_EQ(type, static_cast<uint64_t>(
@@ -3460,10 +3467,10 @@ TEST_F(MoqtSessionTest, SubscribeUpdateClosesSubscription) {
   EXPECT_CALL(mock_session_, GetStreamById(4)).WillOnce(Return(&mock_stream_));
   bool correct_message = false;
   EXPECT_CALL(mock_stream_, Writev(_, _))
-      .WillOnce([&](absl::Span<const absl::string_view> data,
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
         correct_message = true;
-        EXPECT_EQ(*ExtractMessageType(data[0]),
+        EXPECT_EQ(*ExtractMessageType(data[0].AsStringView()),
                   MoqtMessageType::kSubscribeDone);
         return absl::OkStatus();
       });

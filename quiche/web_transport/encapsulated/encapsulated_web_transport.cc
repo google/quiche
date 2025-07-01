@@ -34,6 +34,7 @@
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_circular_deque.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_status_utils.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/vectorized_io_utils.h"
@@ -257,9 +258,10 @@ DatagramStatus EncapsulatedSession::SendOrQueueDatagram(
   // allows us to avoid a copy.
   quiche::QuicheBuffer buffer =
       quiche::SerializeDatagramCapsuleHeader(datagram.size(), allocator_);
-  std::array spans = {buffer.AsStringView(), datagram};
+  std::array spans = {quiche::QuicheMemSlice(std::move(buffer)),
+                      quiche::QuicheMemSlice::Copy(datagram)};
   absl::Status write_status =
-      writer_->Writev(absl::MakeConstSpan(spans), quiche::StreamWriteOptions());
+      writer_->Writev(absl::MakeSpan(spans), quiche::StreamWriteOptions());
   if (!write_status.ok()) {
     OnWriteError(write_status);
     return DatagramStatus{
@@ -611,8 +613,15 @@ bool EncapsulatedSession::InnerStream::SkipBytes(size_t bytes) {
 }
 
 absl::Status EncapsulatedSession::InnerStream::Writev(
-    const absl::Span<const absl::string_view> data,
+    const absl::Span<quiche::QuicheMemSlice> data,
     const quiche::StreamWriteOptions& options) {
+  // TODO: support zero copy.
+  std::vector<absl::string_view> views;
+  views.reserve(data.size());
+  for (const quiche::QuicheMemSlice& slice : data) {
+    views.push_back(slice.AsStringView());
+  }
+
   if (write_side_closed_) {
     return absl::FailedPreconditionError(
         "Trying to write into an already-closed stream");
@@ -636,7 +645,7 @@ absl::Status EncapsulatedSession::InnerStream::Writev(
                              !pending_write_.empty();
   if (write_blocked) {
     fin_buffered_ = options.send_fin();
-    for (absl::string_view chunk : data) {
+    for (absl::string_view chunk : views) {
       absl::StrAppend(&pending_write_, chunk);
     }
     absl::Status status = session_->scheduler_.Schedule(id_);
@@ -648,12 +657,12 @@ absl::Status EncapsulatedSession::InnerStream::Writev(
     return absl::OkStatus();
   }
 
-  size_t bytes_written = WriteInner(data, options.send_fin());
+  size_t bytes_written = WriteInner(views, options.send_fin());
   // TODO: handle partial writes when flow control requires those.
   QUICHE_DCHECK(bytes_written == 0 ||
-                bytes_written == quiche::TotalStringViewSpanSize(data));
+                bytes_written == quiche::TotalStringViewSpanSize(views));
   if (bytes_written == 0) {
-    for (absl::string_view chunk : data) {
+    for (absl::string_view chunk : views) {
       absl::StrAppend(&pending_write_, chunk);
     }
   }
@@ -700,12 +709,15 @@ size_t EncapsulatedSession::InnerStream::WriteInner(
   quiche::QuicheBuffer header =
       quiche::SerializeWebTransportStreamCapsuleHeader(id_, fin, total_size,
                                                        session_->allocator_);
-  std::vector<absl::string_view> views_to_write;
+  std::vector<quiche::QuicheMemSlice> views_to_write;
   views_to_write.reserve(data.size() + 1);
-  views_to_write.push_back(header.AsStringView());
-  absl::c_copy(data, std::back_inserter(views_to_write));
+  views_to_write.push_back(quiche::QuicheMemSlice(std::move(header)));
+  for (absl::string_view view : data) {
+    // TODO: support zero copy.
+    views_to_write.push_back(quiche::QuicheMemSlice::Copy(view));
+  }
   absl::Status write_status = session_->writer_->Writev(
-      views_to_write, quiche::kDefaultStreamWriteOptions);
+      absl::MakeSpan(views_to_write), quiche::kDefaultStreamWriteOptions);
   if (!write_status.ok()) {
     session_->OnWriteError(write_status);
     return 0;

@@ -17,6 +17,7 @@
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/test_tools/mock_streams.h"
@@ -46,10 +47,10 @@ class EncapsulatedWebTransportTest : public quiche::test::QuicheTest,
           ADD_FAILURE() << "Fatal session error: " << error;
         });
     ON_CALL(writer_, Writev(_, _))
-        .WillByDefault([&](absl::Span<const absl::string_view> data,
+        .WillByDefault([&](absl::Span<quiche::QuicheMemSlice> data,
                            const quiche::StreamWriteOptions& options) {
-          for (absl::string_view fragment : data) {
-            parser_.IngestCapsuleFragment(fragment);
+          for (const quiche::QuicheMemSlice& fragment : data) {
+            parser_.IngestCapsuleFragment(fragment.AsStringView());
           }
           writer_.ProcessOptions(options);
           return absl::OkStatus();
@@ -553,7 +554,7 @@ TEST_F(EncapsulatedWebTransportTest, WriteOnlyGarbageCollection) {
 
   quiche::StreamWriteOptions options;
   options.set_send_fin(true);
-  EXPECT_THAT(stream->Writev(absl::Span<const absl::string_view>(), options),
+  EXPECT_THAT(stream->Writev(absl::Span<quiche::QuicheMemSlice>(), options),
               StatusIs(absl::StatusCode::kOk));
   session->GarbageCollectStreams();
   EXPECT_TRUE(deleted);
@@ -619,7 +620,7 @@ TEST_F(EncapsulatedWebTransportTest, FinOnlyWrite) {
   options.set_send_fin(true);
   EXPECT_TRUE(stream->CanWrite());
   absl::Status status =
-      stream->Writev(absl::Span<const absl::string_view>(), options);
+      stream->Writev(absl::Span<quiche::QuicheMemSlice>(), options);
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kOk));
   EXPECT_FALSE(stream->CanWrite());
 }

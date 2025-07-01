@@ -36,6 +36,7 @@
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -670,7 +671,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // and metadata in |object|. Not for use with datagrams. Returns |true| if
   // the write was successful.
   bool WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
-                           const PublishedObject& object,
+                           const PublishedObjectMetadata& metadata,
+                           quiche::QuicheMemSlice payload,
                            MoqtDataStreamType type, bool is_first_on_stream,
                            bool fin);
 

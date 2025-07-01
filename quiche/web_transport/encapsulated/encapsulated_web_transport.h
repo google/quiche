@@ -25,6 +25,7 @@
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_circular_deque.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/web_transport/web_transport.h"
@@ -145,7 +146,7 @@ class QUICHE_EXPORT EncapsulatedSession
     bool SkipBytes(size_t bytes) override;
 
     // WriteStream implementation.
-    absl::Status Writev(absl::Span<const absl::string_view> data,
+    absl::Status Writev(absl::Span<quiche::QuicheMemSlice> data,
                         const quiche::StreamWriteOptions& options) override;
     bool CanWrite() const override;
 

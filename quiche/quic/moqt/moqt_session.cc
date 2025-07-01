@@ -598,7 +598,8 @@ void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
           continue;
         }
         if (fetch->session_->WriteObjectToStream(
-                stream_, fetch->fetch_id_, object,
+                stream_, fetch->fetch_id_, object.metadata,
+                std::move(object.payload),
                 MoqtDataStreamType::kStreamHeaderFetch, !stream_header_written_,
                 /*fin=*/false)) {
           stream_header_written_ = true;
@@ -1566,7 +1567,7 @@ void MoqtSession::ControlStream::SendOrBufferMessage(
   // down the connection if we've buffered too many control messages; otherwise,
   // there is potential for memory exhaustion attacks.
   options.set_buffer_unconditionally(true);
-  std::array<absl::string_view, 1> write_vector = {message.AsStringView()};
+  std::array write_vector = {quiche::QuicheMemSlice(std::move(message))};
   absl::Status success = stream_->Writev(absl::MakeSpan(write_vector), options);
   if (!success.ok()) {
     session_->Error(MoqtError::kInternalError,
@@ -2237,7 +2238,8 @@ void MoqtSession::OutgoingDataStream::SendObjects(
     }
 
     if (!session_->WriteObjectToStream(
-            stream_, subscription.track_alias(), *object,
+            stream_, subscription.track_alias(), object->metadata,
+            std::move(object->payload),
             MoqtDataStreamType::kStreamHeaderSubgroup, !stream_header_written_,
             object->fin_after_this)) {
       // WriteObjectToStream() closes the connection on error, meaning that
@@ -2277,28 +2279,30 @@ void MoqtSession::OutgoingDataStream::Fin(Location last_object) {
 }
 
 bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
-                                      const PublishedObject& object,
+                                      const PublishedObjectMetadata& metadata,
+                                      quiche::QuicheMemSlice payload,
                                       MoqtDataStreamType type,
                                       bool is_first_on_stream, bool fin) {
   QUICHE_DCHECK(stream->CanWrite());
   MoqtObject header;
   header.track_alias = id;
-  header.group_id = object.metadata.location.group;
-  header.subgroup_id = object.metadata.subgroup;
-  header.object_id = object.metadata.location.object;
-  header.publisher_priority = object.metadata.publisher_priority;
-  header.object_status = object.metadata.status;
-  header.payload_length = object.payload.length();
+  header.group_id = metadata.location.group;
+  header.subgroup_id = metadata.subgroup;
+  header.object_id = metadata.location.object;
+  header.publisher_priority = metadata.publisher_priority;
+  header.object_status = metadata.status;
+  header.payload_length = payload.length();
 
   quiche::QuicheBuffer serialized_header =
       framer_.SerializeObjectHeader(header, type, is_first_on_stream);
   // TODO(vasilvv): add a version of WebTransport write API that accepts
   // memslices so that we can avoid a copy here.
-  std::array<absl::string_view, 2> write_vector = {
-      serialized_header.AsStringView(), object.payload.AsStringView()};
+  std::array write_vector = {
+      quiche::QuicheMemSlice(std::move(serialized_header)), std::move(payload)};
   quiche::StreamWriteOptions options;
   options.set_send_fin(fin);
-  absl::Status write_status = stream->Writev(write_vector, options);
+  absl::Status write_status =
+      stream->Writev(absl::MakeSpan(write_vector), options);
   if (!write_status.ok()) {
     QUICHE_BUG(MoqtSession_WriteObjectToStream_write_failed)
         << "Writing into MoQT stream failed despite CanWrite() being true "
@@ -2309,7 +2313,7 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
   }
 
   QUIC_DVLOG(1) << "Stream " << stream->GetStreamId() << " successfully wrote "
-                << object.metadata.location << ", fin = " << fin;
+                << metadata.location << ", fin = " << fin;
   return true;
 }
 

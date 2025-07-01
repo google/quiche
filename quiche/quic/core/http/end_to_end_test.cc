@@ -116,6 +116,7 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
@@ -7651,11 +7652,13 @@ TEST_P(EndToEndTest, WebTransportSessionServerBidirectionalStream) {
   ASSERT_TRUE(stream != nullptr);
   // Test the full Writev() API.
   const std::string kLongString = std::string(16 * 1024, 'a');
-  std::vector<absl::string_view> write_vector = {"foo", "bar", "test",
-                                                 kLongString};
+  std::array write_vector = {quiche::QuicheMemSlice::Copy("foo"),
+                             quiche::QuicheMemSlice::Copy("bar"),
+                             quiche::QuicheMemSlice::Copy("test"),
+                             quiche::QuicheMemSlice::Copy(kLongString)};
   quiche::StreamWriteOptions options;
   options.set_send_fin(true);
-  QUICHE_EXPECT_OK(stream->Writev(absl::MakeConstSpan(write_vector), options));
+  QUICHE_EXPECT_OK(stream->Writev(absl::MakeSpan(write_vector), options));
 
   std::string received_data = ReadDataFromWebTransportStreamUntilFin(stream);
   EXPECT_EQ(received_data, absl::StrCat("foobartest", kLongString));

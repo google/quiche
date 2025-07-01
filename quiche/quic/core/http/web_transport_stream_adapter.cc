@@ -8,10 +8,8 @@
 #include <limits>
 #include <optional>
 #include <string>
-#include <utility>
 
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
@@ -21,15 +19,13 @@
 #include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
-#include "quiche/common/vectorized_io_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic {
@@ -69,7 +65,7 @@ WebTransportStream::ReadResult WebTransportStreamAdapter::Read(
 }
 
 absl::Status WebTransportStreamAdapter::Writev(
-    absl::Span<const absl::string_view> data,
+    absl::Span<quiche::QuicheMemSlice> data,
     const quiche::StreamWriteOptions& options) {
   if (data.empty() && !options.send_fin()) {
     return absl::InvalidArgumentError(
@@ -82,21 +78,10 @@ absl::Status WebTransportStreamAdapter::Writev(
     return initial_check_status;
   }
 
-  size_t total_size = quiche::TotalStringViewSpanSize(data);
-  quiche::QuicheMemSlice slice;
-  if (total_size > 0) {
-    quiche::QuicheBuffer buffer(
-        session_->connection()->helper()->GetStreamSendBufferAllocator(),
-        total_size);
-    size_t bytes_copied = quiche::GatherStringViewSpan(data, buffer.AsSpan());
-    QUICHE_DCHECK_EQ(total_size, bytes_copied);
-    slice = quiche::QuicheMemSlice(std::move(buffer));
-  }
+  size_t total_size = MemSliceSpanTotalSize(data);
   QuicConsumedData consumed = stream_->WriteMemSlices(
-      slice.empty() ? absl::Span<quiche::QuicheMemSlice>()
-                    : absl::MakeSpan(&slice, 1),
-      /*fin=*/options.send_fin(),
-      /*buffer_uncondtionally=*/options.buffer_unconditionally());
+      data, /*fin=*/options.send_fin(),
+      /*buffer_unconditionally=*/options.buffer_unconditionally());
 
   if (consumed.bytes_consumed == total_size) {
     return absl::OkStatus();
