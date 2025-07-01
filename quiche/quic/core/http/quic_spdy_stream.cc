@@ -1249,6 +1249,11 @@ void QuicSpdyStream::OnWebTransportStreamFrameType(
 
 bool QuicSpdyStream::OnMetadataFrameStart(QuicByteCount header_length,
                                           QuicByteCount payload_length) {
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnMetadataFrameStart(header_length,
+                                                         payload_length);
+  }
+
   if (metadata_visitor_ == nullptr) {
     return OnUnknownFrameStart(
         static_cast<uint64_t>(quic::HttpFrameType::METADATA), header_length,
@@ -1268,6 +1273,10 @@ bool QuicSpdyStream::OnMetadataFrameStart(QuicByteCount header_length,
 }
 
 bool QuicSpdyStream::OnMetadataFramePayload(absl::string_view payload) {
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnMetadataFramePayload(payload);
+  }
+
   if (metadata_visitor_ == nullptr) {
     return OnUnknownFramePayload(payload);
   }
@@ -1286,6 +1295,10 @@ bool QuicSpdyStream::OnMetadataFramePayload(absl::string_view payload) {
 }
 
 bool QuicSpdyStream::OnMetadataFrameEnd() {
+  if (spdy_session_->debug_visitor()) {
+    spdy_session_->debug_visitor()->OnMetadataFrameEnd();
+  }
+
   if (metadata_visitor_ == nullptr) {
     return OnUnknownFrameEnd();
   }

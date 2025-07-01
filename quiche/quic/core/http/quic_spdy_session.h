@@ -115,6 +115,12 @@ class QUICHE_EXPORT Http3DebugVisitor {
 
   // 0-RTT related events.
   virtual void OnSettingsFrameResumed(const SettingsFrame& /*frame*/) = 0;
+
+  // Metadata related events.
+  virtual void OnMetadataFrameStart(QuicByteCount /*header_length*/,
+                                    QuicByteCount /*payload_length*/) {}
+  virtual void OnMetadataFramePayload(absl::string_view /*payload*/) {}
+  virtual void OnMetadataFrameEnd() {}
 };
 
 // Whether HTTP Datagrams are supported on this session and if so which version
