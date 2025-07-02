@@ -2453,6 +2453,17 @@ TEST_P(QuicSessionTestClient, FailedToCreateStreamIfTooCloseToIdleTimeout) {
   EXPECT_TRUE(session_.CanOpenNextOutgoingBidirectionalStream());
 }
 
+TEST_P(QuicSessionTestClient, MinAckDelaySet) {
+  // IETF QUIC only feature.
+  if (!VersionHasIetfQuicFrames(transport_version())) {
+    return;
+  }
+  session_.config()->SetClientConnectionOptions({kAFIA});
+  session_.Initialize();
+  EXPECT_EQ(session_.config()->GetMinAckDelayDraft10ToSendMs(),
+            kDefaultMinAckDelayTimeMs);
+}
+
 TEST_P(QuicSessionTestServer, ZombieStreams) {
   CompleteHandshake();
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();

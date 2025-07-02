@@ -179,6 +179,10 @@ void QuicSession::Initialize() {
     } else if (config_.HasClientSentConnectionOption(kCHP2, perspective_)) {
       config_.SetDiscardLengthToSend(kDefaultMaxPacketSize * 2);
     }
+    if (config_.HasClientRequestedIndependentOption(kAFIA, perspective_) &&
+        connection_->version().HasIetfQuicFrames()) {
+      config_.SetMinAckDelayDraft10Ms(kDefaultMinAckDelayTimeMs);
+    }
   } else if (GetQuicReloadableFlag(quic_receive_ack_frequency) &&
              connection_->version().HasIetfQuicFrames()) {
     config_.SetMinAckDelayDraft10Ms(kDefaultMinAckDelayTimeMs);

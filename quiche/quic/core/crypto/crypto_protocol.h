@@ -217,6 +217,8 @@ DEFINE_STATIC_QUIC_TAG(AFF1);  // Use SRTT in building
                                // AckFrequencyFrame.
 DEFINE_STATIC_QUIC_TAG(AFF2);  // Send AckFrequencyFrame upon
                                // handshake completion.
+DEFINE_STATIC_QUIC_TAG(AFIA);  // Send MinAckDelay transport parameter to allow
+                               // receipt of ACK_FREQUENCY and IMMEDIATE_ACK
 DEFINE_STATIC_QUIC_TAG(SSLR);  // Slow Start Large Reduction.
 DEFINE_STATIC_QUIC_TAG(NPRR);  // Pace at unity instead of PRR
 DEFINE_STATIC_QUIC_TAG(5RTO);  // Close connection on 5 RTOs
