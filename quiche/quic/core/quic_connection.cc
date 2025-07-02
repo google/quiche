@@ -3259,7 +3259,6 @@ void QuicConnection::MaybeBundleOpportunistically(
           FirstSendingPacketNumber() + kMinReceivedBeforeAckDecimation;
 
   if (should_bundle_ack_frequency) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 3, 3);
     ack_frequency_sent_ = true;
     auto frame = sent_packet_manager_.GetUpdatedAckFrequencyFrame();
     visitor_->SendAckFrequency(frame);
@@ -4099,7 +4098,6 @@ void QuicConnection::OnHandshakeComplete() {
   }
   if (send_ack_frequency_on_handshake_completion_ &&
       sent_packet_manager_.CanSendAckFrequency()) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 2, 3);
     auto ack_frequency_frame =
         sent_packet_manager_.GetUpdatedAckFrequencyFrame();
     // This AckFrequencyFrame is meant to only update the max_ack_delay. All

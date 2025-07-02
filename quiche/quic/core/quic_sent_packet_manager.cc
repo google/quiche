@@ -131,16 +131,10 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     peer_max_ack_delay_ =
         QuicTime::Delta::FromMilliseconds(config.ReceivedMaxAckDelayMs());
   }
-  if (GetQuicReloadableFlag(quic_can_send_ack_frequency) &&
-      perspective == Perspective::IS_SERVER) {
-    if (config.HasReceivedMinAckDelayDraft10Ms()) {
-      peer_min_ack_delay_ = QuicTime::Delta::FromMilliseconds(
-          config.ReceivedMinAckDelayDraft10Ms());
-    }
-    if (config.HasClientSentConnectionOption(kAFF1, perspective)) {
-      use_smoothed_rtt_in_ack_delay_ = true;
-    }
-  }
+  // TODO(b/389762349): set peer_min_ack_delay_ if
+  // config.HasReceivedMinAckDelayDraft10Ms(). Set
+  // use_smoothed_rtt_in_ack_delay_ based on
+  // config.HasClientSentConnectionOption(kAFF1, perspective).
   if (config.HasClientSentConnectionOption(kMAD0, perspective)) {
     ignore_ack_delay_ = true;
   }
@@ -675,7 +669,6 @@ QuicAckFrequencyFrame QuicSentPacketManager::GetUpdatedAckFrequencyFrame()
     return frame;
   }
 
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_can_send_ack_frequency, 1, 3);
   frame.ack_eliciting_threshold = kMaxRetransmittablePacketsBeforeAck;
   auto rtt = use_smoothed_rtt_in_ack_delay_ ? rtt_stats_.SmoothedOrInitialRtt()
                                             : rtt_stats_.MinOrInitialRtt();

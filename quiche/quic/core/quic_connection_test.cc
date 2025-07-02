@@ -13267,11 +13267,13 @@ TEST_P(QuicConnectionTest, CloseConnectionOnIntegrityLimitAcrossKeyPhases) {
   TestConnectionCloseQuicErrorCode(QUIC_AEAD_LIMIT_REACHED);
 }
 
+// TODO(b/389762349): Re-enable these tests when sending AckFrequency is
+// restored.
+#if 0
 TEST_P(QuicConnectionTest, SendAckFrequencyFrame) {
   if (!version().HasIetfQuicFrames()) {
     return;
   }
-  SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
   set_perspective(Perspective::IS_SERVER);
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _, _, _))
       .Times(AnyNumber());
@@ -13314,7 +13316,6 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrameUponHandshakeCompletion) {
   if (!version().HasIetfQuicFrames()) {
     return;
   }
-  SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
   set_perspective(Perspective::IS_SERVER);
   EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _, _, _))
       .Times(AnyNumber());
@@ -13346,6 +13347,7 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrameUponHandshakeCompletion) {
   EXPECT_EQ(captured_frame.requested_max_ack_delay,
             QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs()));
 }
+#endif
 
 TEST_P(QuicConnectionTest, FastRecoveryOfLostServerHello) {
   if (!connection_.SupportsMultiplePacketNumberSpaces()) {
@@ -14322,12 +14324,14 @@ TEST_P(QuicConnectionTest, PeerMigrateBeforeHandshakeConfirm) {
   EXPECT_FALSE(connection_.connected());
 }
 
-// Regresstion test for b/175685916
+// TODO(b/389762349): Re-enable these tests when sending AckFrequency is
+// restored.
+#if 0
+// Regression test for b/175685916
 TEST_P(QuicConnectionTest, TryToFlushAckWithAckQueued) {
   if (!version().HasIetfQuicFrames()) {
     return;
   }
-  SetQuicReloadableFlag(quic_can_send_ack_frequency, true);
   set_perspective(Perspective::IS_SERVER);
 
   QuicConfig config;
@@ -14349,6 +14353,7 @@ TEST_P(QuicConnectionTest, TryToFlushAckWithAckQueued) {
                        &SimpleSessionNotifier::WriteOrBufferAckFrequency));
   QuicConnectionPeer::SendPing(&connection_);
 }
+#endif
 
 TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   set_perspective(Perspective::IS_SERVER);
