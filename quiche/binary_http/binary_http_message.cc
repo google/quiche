@@ -10,11 +10,13 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -26,6 +28,15 @@ namespace {
 
 constexpr uint64_t kKnownLengthRequestFraming = 0;
 constexpr uint64_t kKnownLengthResponseFraming = 1;
+constexpr uint64_t kIndeterminateLengthRequestFraming = 2;
+constexpr uint64_t kContentTerminator = 0;
+
+// A view of a field name and value. Used to pass around a field without owning
+// or copying the backing data.
+struct FieldView {
+  absl::string_view name;
+  absl::string_view value;
+};
 
 bool ReadStringValue(quiche::QuicheDataReader& reader, std::string& data) {
   absl::string_view data_view;
@@ -57,6 +68,21 @@ absl::StatusOr<BinaryHttpRequest::ControlData> DecodeControlData(
     return absl::InvalidArgumentError("Failed to read path.");
   }
   return control_data;
+}
+
+// Decodes a header/trailer name and value. This takes a length which represents
+// only the name length.
+absl::StatusOr<FieldView> DecodeField(QuicheDataReader& reader,
+                                      uint64_t name_length) {
+  absl::string_view name;
+  if (!reader.ReadStringPiece(&name, name_length)) {
+    return absl::OutOfRangeError("Not enough data to read field name.");
+  }
+  absl::string_view value;
+  if (!reader.ReadStringPieceVarInt62(&value)) {
+    return absl::OutOfRangeError("Not enough data to read field value.");
+  }
+  return FieldView{name, value};
 }
 
 absl::Status DecodeFields(quiche::QuicheDataReader& reader,
@@ -400,6 +426,184 @@ absl::StatusOr<BinaryHttpRequest> BinaryHttpRequest::Create(
   }
   return absl::UnimplementedError(
       absl::StrCat("Unsupported framing type ", framing));
+}
+
+absl::Status
+BinaryHttpRequest::IndeterminateLengthDecoder::DecodeContentTerminatedSection(
+    QuicheDataReader& reader) {
+  uint64_t length_or_content_terminator;
+  do {
+    if (!reader.ReadVarInt62(&length_or_content_terminator)) {
+      return absl::OutOfRangeError("Not enough data to read section.");
+    }
+    if (length_or_content_terminator != kContentTerminator) {
+      switch (current_section_) {
+        case MessageSection::kHeader: {
+          const absl::StatusOr<FieldView> field =
+              DecodeField(reader, length_or_content_terminator);
+          if (!field.ok()) {
+            return field.status();
+          }
+          message_section_handler_.OnHeader(field->name, field->value);
+          break;
+        }
+        case MessageSection::kBody: {
+          absl::string_view body_chunk;
+          if (!reader.ReadStringPiece(&body_chunk,
+                                      length_or_content_terminator)) {
+            return absl::OutOfRangeError("Failed to read body chunk.");
+          }
+          message_section_handler_.OnBodyChunk(body_chunk);
+          break;
+        }
+        case MessageSection::kTrailer: {
+          const absl::StatusOr<FieldView> field =
+              DecodeField(reader, length_or_content_terminator);
+          if (!field.ok()) {
+            return field.status();
+          }
+          message_section_handler_.OnTrailer(field->name, field->value);
+          break;
+        }
+        default:
+          return absl::InternalError(
+              "Unexpected section in DecodeContentTerminatedSection.");
+      }
+    }
+    // Either a section was successfully decoded or a content terminator was
+    // encountered, save the checkpoint.
+    SaveCheckpoint(reader);
+  } while (length_or_content_terminator != kContentTerminator);
+  return absl::OkStatus();
+}
+
+// Returns Ok status only if the decoding processes the Padding section
+// successfully or if the message is truncated properly. All other points of
+// return are errors.
+absl::Status
+BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
+    bool end_stream) {
+  QuicheDataReader reader(checkpoint_view_);
+  switch (current_section_) {
+    case MessageSection::kEnd:
+      return absl::InternalError("Decoder is invalid.");
+    case MessageSection::kControlData: {
+      uint64_t framing;
+      if (!reader.ReadVarInt62(&framing)) {
+        return absl::OutOfRangeError("Failed to read framing.");
+      }
+      if (framing != kIndeterminateLengthRequestFraming) {
+        return absl::InvalidArgumentError(
+            absl::StrFormat("Unsupported framing type: 0x%02x", framing));
+      }
+
+      const absl::StatusOr<BinaryHttpRequest::ControlData> control_data =
+          DecodeControlData(reader);
+      // Only fails if there is not enough data to read the entire control data.
+      if (!control_data.ok()) {
+        return absl::OutOfRangeError("Failed to read control data.");
+      }
+
+      message_section_handler_.OnControlData(control_data.value());
+      SaveCheckpoint(reader);
+      current_section_ = MessageSection::kHeader;
+    }
+      ABSL_FALLTHROUGH_INTENDED;
+    case MessageSection::kHeader: {
+      const absl::Status status = DecodeContentTerminatedSection(reader);
+      if (!status.ok()) {
+        return status;
+      }
+      message_section_handler_.OnHeadersDone();
+      current_section_ = MessageSection::kBody;
+    }
+      ABSL_FALLTHROUGH_INTENDED;
+    case MessageSection::kBody: {
+      if (!reader.IsDoneReading()) {
+        maybe_truncated_ = false;
+      }
+      // Body and trailers truncation is valid only if:
+      // 1. There is no data to read after the headers section.
+      // 2. This is signaled as the last piece of data (end_stream).
+      if (maybe_truncated_ && end_stream) {
+        message_section_handler_.OnBodyChunksDone();
+        message_section_handler_.OnTrailersDone();
+        return absl::OkStatus();
+      }
+
+      const absl::Status status = DecodeContentTerminatedSection(reader);
+      if (!status.ok()) {
+        return status;
+      }
+      message_section_handler_.OnBodyChunksDone();
+      current_section_ = MessageSection::kTrailer;
+      // Reset the truncation flag before entering the trailers section.
+      maybe_truncated_ = true;
+    }
+      ABSL_FALLTHROUGH_INTENDED;
+    case MessageSection::kTrailer: {
+      if (!reader.IsDoneReading()) {
+        maybe_truncated_ = false;
+      }
+      // Trailers truncation is valid only if:
+      // 1. There is no data to read after the body section.
+      // 2. This is signaled as the last piece of data (end_stream).
+      if (maybe_truncated_ && end_stream) {
+        message_section_handler_.OnTrailersDone();
+        return absl::OkStatus();
+      }
+
+      const absl::Status status = DecodeContentTerminatedSection(reader);
+      if (!status.ok()) {
+        return status;
+      }
+      message_section_handler_.OnTrailersDone();
+      current_section_ = MessageSection::kPadding;
+    }
+      ABSL_FALLTHROUGH_INTENDED;
+    case MessageSection::kPadding: {
+      if (!IsValidPadding(reader.PeekRemainingPayload())) {
+        return absl::InvalidArgumentError("Non-zero padding.");
+      }
+      return absl::OkStatus();
+    }
+  }
+}
+
+void BinaryHttpRequest::IndeterminateLengthDecoder::InitializeCheckpoint(
+    absl::string_view data) {
+  checkpoint_view_ = data;
+  // Prepend buffered data if present. This is the data from a previous call to
+  // Decode that could not finish because it needed this new data.
+  if (!buffer_.empty()) {
+    absl::StrAppend(&buffer_, data);
+    checkpoint_view_ = buffer_;
+  }
+}
+
+absl::Status BinaryHttpRequest::IndeterminateLengthDecoder::Decode(
+    absl::string_view data, bool end_stream) {
+  if (current_section_ == MessageSection::kEnd) {
+    return absl::InternalError("Decoder is invalid.");
+  }
+
+  InitializeCheckpoint(data);
+  absl::Status status = DecodeCheckpointData(end_stream);
+  if (end_stream) {
+    current_section_ = MessageSection::kEnd;
+    buffer_.clear();
+    return status;
+  }
+  if (absl::IsOutOfRange(status)) {
+    BufferCheckpoint();
+    return absl::OkStatus();
+  }
+  if (!status.ok()) {
+    current_section_ = MessageSection::kEnd;
+  }
+
+  buffer_.clear();
+  return status;
 }
 
 absl::StatusOr<BinaryHttpResponse> BinaryHttpResponse::Create(
