@@ -176,7 +176,7 @@ class QUICHE_EXPORT BinaryHttpRequest : public BinaryHttpMessage {
   // Provides a Decode method that can be called multiple times as data is
   // received. The relevant MessageSectionHandler method will be called when
   // its corresponding section is successfully decoded.
-  class IndeterminateLengthDecoder {
+  class QUICHE_EXPORT IndeterminateLengthDecoder {
    public:
     // The handler to invoke when a section is decoded successfully.
     class MessageSectionHandler {
