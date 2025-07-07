@@ -21,7 +21,6 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
-#include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -32,7 +31,6 @@
 namespace moqt {
 namespace {
 
-using ::quic::test::MemSliceFromString;
 using ::quiche::test::IsOkAndHolds;
 using ::quiche::test::StatusIs;
 using ::testing::AnyOf;
@@ -122,7 +120,7 @@ absl::StatusOr<std::vector<std::string>> FetchToVector(
 
 TEST(MoqtOutgoingQueue, FirstObjectNotKeyframe) {
   TestMoqtOutgoingQueue queue;
-  EXPECT_QUICHE_BUG(queue.AddObject(MemSliceFromString("a"), false),
+  EXPECT_QUICHE_BUG(queue.AddObject(quiche::QuicheMemSlice::Copy("a"), false),
                     "The first object");
 }
 
@@ -134,9 +132,9 @@ TEST(MoqtOutgoingQueue, SingleGroup) {
     EXPECT_CALL(queue, PublishObject(0, 1, "b"));
     EXPECT_CALL(queue, PublishObject(0, 2, "c"));
   }
-  queue.AddObject(MemSliceFromString("a"), true);
-  queue.AddObject(MemSliceFromString("b"), false);
-  queue.AddObject(MemSliceFromString("c"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("c"), false);
 }
 
 TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromZero) {
@@ -151,9 +149,9 @@ TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromZero) {
     EXPECT_CALL(queue, PublishObject(0, 1, "b"));
     EXPECT_CALL(queue, PublishObject(0, 2, "c"));
   }
-  queue.AddObject(MemSliceFromString("a"), true);
-  queue.AddObject(MemSliceFromString("b"), false);
-  queue.AddObject(MemSliceFromString("c"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("c"), false);
   queue.GetObjectsFromPast(SubscribeWindow(Location(0, 0)));
 }
 
@@ -168,9 +166,9 @@ TEST(MoqtOutgoingQueue, SingleGroupPastSubscribeFromMidGroup) {
     EXPECT_CALL(queue, PublishObject(0, 1, "b"));
     EXPECT_CALL(queue, PublishObject(0, 2, "c"));
   }
-  queue.AddObject(MemSliceFromString("a"), true);
-  queue.AddObject(MemSliceFromString("b"), false);
-  queue.AddObject(MemSliceFromString("c"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("c"), false);
   queue.GetObjectsFromPast(SubscribeWindow(Location(0, 1)));
 }
 
@@ -186,12 +184,12 @@ TEST(MoqtOutgoingQueue, TwoGroups) {
     EXPECT_CALL(queue, PublishObject(1, 1, "e"));
     EXPECT_CALL(queue, PublishObject(1, 2, "f"));
   }
-  queue.AddObject(MemSliceFromString("a"), true);
-  queue.AddObject(MemSliceFromString("b"), false);
-  queue.AddObject(MemSliceFromString("c"), false);
-  queue.AddObject(MemSliceFromString("d"), true);
-  queue.AddObject(MemSliceFromString("e"), false);
-  queue.AddObject(MemSliceFromString("f"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("c"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("d"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("e"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("f"), false);
 }
 
 TEST(MoqtOutgoingQueue, TwoGroupsPastSubscribe) {
@@ -213,12 +211,12 @@ TEST(MoqtOutgoingQueue, TwoGroupsPastSubscribe) {
     EXPECT_CALL(queue, PublishObject(1, 1, "e"));
     EXPECT_CALL(queue, PublishObject(1, 2, "f"));
   }
-  queue.AddObject(MemSliceFromString("a"), true);
-  queue.AddObject(MemSliceFromString("b"), false);
-  queue.AddObject(MemSliceFromString("c"), false);
-  queue.AddObject(MemSliceFromString("d"), true);
-  queue.AddObject(MemSliceFromString("e"), false);
-  queue.AddObject(MemSliceFromString("f"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("c"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("d"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("e"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("f"), false);
   queue.GetObjectsFromPast(SubscribeWindow(Location(0, 1)));
 }
 
@@ -241,16 +239,16 @@ TEST(MoqtOutgoingQueue, FiveGroups) {
     EXPECT_CALL(queue, PublishObject(4, 0, "i"));
     EXPECT_CALL(queue, PublishObject(4, 1, "j"));
   }
-  queue.AddObject(MemSliceFromString("a"), true);
-  queue.AddObject(MemSliceFromString("b"), false);
-  queue.AddObject(MemSliceFromString("c"), true);
-  queue.AddObject(MemSliceFromString("d"), false);
-  queue.AddObject(MemSliceFromString("e"), true);
-  queue.AddObject(MemSliceFromString("f"), false);
-  queue.AddObject(MemSliceFromString("g"), true);
-  queue.AddObject(MemSliceFromString("h"), false);
-  queue.AddObject(MemSliceFromString("i"), true);
-  queue.AddObject(MemSliceFromString("j"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("c"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("d"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("e"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("f"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("g"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("h"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("i"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("j"), false);
 }
 
 TEST(MoqtOutgoingQueue, FiveGroupsPastSubscribe) {
@@ -282,16 +280,16 @@ TEST(MoqtOutgoingQueue, FiveGroupsPastSubscribe) {
     EXPECT_CALL(queue, PublishObject(4, 0, "i"));
     EXPECT_CALL(queue, PublishObject(4, 1, "j"));
   }
-  queue.AddObject(MemSliceFromString("a"), true);
-  queue.AddObject(MemSliceFromString("b"), false);
-  queue.AddObject(MemSliceFromString("c"), true);
-  queue.AddObject(MemSliceFromString("d"), false);
-  queue.AddObject(MemSliceFromString("e"), true);
-  queue.AddObject(MemSliceFromString("f"), false);
-  queue.AddObject(MemSliceFromString("g"), true);
-  queue.AddObject(MemSliceFromString("h"), false);
-  queue.AddObject(MemSliceFromString("i"), true);
-  queue.AddObject(MemSliceFromString("j"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("c"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("d"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("e"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("f"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("g"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("h"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("i"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("j"), false);
   queue.GetObjectsFromPast(SubscribeWindow(Location(0, 0)));
 }
 
@@ -301,11 +299,11 @@ TEST(MoqtOutgoingQueue, Fetch) {
                                         MoqtDeliveryOrder::kAscending)),
               StatusIs(absl::StatusCode::kNotFound));
 
-  queue.AddObject(MemSliceFromString("a"), true);
-  queue.AddObject(MemSliceFromString("b"), false);
-  queue.AddObject(MemSliceFromString("c"), true);
-  queue.AddObject(MemSliceFromString("d"), false);
-  queue.AddObject(MemSliceFromString("e"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("c"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("d"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("e"), true);
 
   EXPECT_THAT(FetchToVector(queue.Fetch(Location{0, 0}, 2, 0,
                                         MoqtDeliveryOrder::kAscending)),
@@ -329,8 +327,8 @@ TEST(MoqtOutgoingQueue, Fetch) {
                                         MoqtDeliveryOrder::kAscending)),
               StatusIs(absl::StatusCode::kNotFound));
 
-  queue.AddObject(MemSliceFromString("f"), true);
-  queue.AddObject(MemSliceFromString("g"), false);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("f"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("g"), false);
   EXPECT_THAT(FetchToVector(queue.Fetch(Location{0, 0}, 0, 1,
                                         MoqtDeliveryOrder::kAscending)),
               StatusIs(absl::StatusCode::kNotFound));
@@ -347,11 +345,11 @@ TEST(MoqtOutgoingQueue, Fetch) {
 
 TEST(MoqtOutgoingQueue, ObjectsGoneWhileFetching) {
   TestMoqtOutgoingQueue queue;
-  queue.AddObject(MemSliceFromString("a"), true);
-  queue.AddObject(MemSliceFromString("b"), true);
-  queue.AddObject(MemSliceFromString("c"), true);
-  queue.AddObject(MemSliceFromString("d"), true);
-  queue.AddObject(MemSliceFromString("e"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("c"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("d"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("e"), true);
 
   EXPECT_THAT(FetchToVector(queue.Fetch(Location{0, 0}, 5, 0,
                                         MoqtDeliveryOrder::kAscending)),
@@ -359,10 +357,10 @@ TEST(MoqtOutgoingQueue, ObjectsGoneWhileFetching) {
   std::unique_ptr<MoqtFetchTask> deferred_fetch =
       queue.Fetch(Location{0, 0}, 5, 0, MoqtDeliveryOrder::kAscending);
 
-  queue.AddObject(MemSliceFromString("f"), true);
-  queue.AddObject(MemSliceFromString("g"), true);
-  queue.AddObject(MemSliceFromString("h"), true);
-  queue.AddObject(MemSliceFromString("i"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("f"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("g"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("h"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("i"), true);
 
   EXPECT_THAT(FetchToVector(std::move(deferred_fetch)),
               IsOkAndHolds(IsEmpty()));
@@ -372,7 +370,7 @@ TEST(MoqtOutgoingQueue, ObjectIsTimestamped) {
   quic::QuicDefaultClock* clock = quic::QuicDefaultClock::Get();
   quic::QuicTime test_start = clock->ApproximateNow();
   TestMoqtOutgoingQueue queue;
-  queue.AddObject(MemSliceFromString("a"), true);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
   std::optional<PublishedObject> object = queue.GetCachedObject(0, 0, 0);
   ASSERT_TRUE(object.has_value());
   EXPECT_GE(object->metadata.arrival_time, test_start);
