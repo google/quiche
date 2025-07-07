@@ -4,17 +4,16 @@
 
 #include "quiche/quic/core/crypto/cert_compressor.h"
 
+#include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_utils.h"
-#include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_flag_utils.h"
-#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include <zlib.h>
 
 namespace quic {
@@ -155,7 +154,7 @@ static const unsigned char kCommonCertSubstrings[] = {
 // the three types enumerated in |Type|.
 struct CertEntry {
  public:
-  enum Type {
+  enum Type : uint8_t {
     // Type 0 is reserved to mean "end of list" in the wire format.
 
     // COMPRESSED means that the certificate is included in the trailing zlib
@@ -168,8 +167,6 @@ struct CertEntry {
 
   Type type;
   uint64_t hash;
-  uint64_t set_hash;
-  uint32_t index;
 };
 
 // MatchCerts returns a vector of CertEntries describing how to most
@@ -332,6 +329,8 @@ bool ParseEntries(absl::string_view* in_out,
       break;
     }
 
+    // Casting out-of-range values to an enum can be undefined behavior. This
+    // cast is safe `CertEntry::Type`'s underlying type is fixed.
     entry.type = static_cast<CertEntry::Type>(type_byte);
 
     switch (entry.type) {
