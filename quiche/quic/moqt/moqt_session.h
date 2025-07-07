@@ -296,8 +296,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
    private:
     friend class test::MoqtSessionPeer;
-    void SendFetchError(uint64_t subscribe_id, RequestErrorCode error_code,
-                        absl::string_view reason_phrase);
+    void SendFetchError(uint64_t request_id, RequestErrorCode error_code,
+                        absl::string_view error_reason);
 
     MoqtSession* session_;
     webtransport::Stream* stream_;
@@ -562,9 +562,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   class QUICHE_EXPORT PublishedFetch {
    public:
-    PublishedFetch(uint64_t fetch_id, MoqtSession* session,
+    PublishedFetch(uint64_t request_id, MoqtSession* session,
                    std::unique_ptr<MoqtFetchTask> fetch)
-        : session_(session), fetch_(std::move(fetch)), fetch_id_(fetch_id) {}
+        : session_(session),
+          fetch_(std::move(fetch)),
+          request_id_(request_id) {}
 
     class FetchStreamVisitor : public webtransport::StreamVisitor {
      public:
@@ -577,7 +579,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       ~FetchStreamVisitor() {
         std::shared_ptr<PublishedFetch> fetch = fetch_.lock();
         if (fetch != nullptr) {
-          fetch->session()->incoming_fetches_.erase(fetch->fetch_id_);
+          fetch->session()->incoming_fetches_.erase(fetch->request_id_);
         }
       }
       // webtransport::StreamVisitor implementation.
@@ -597,13 +599,13 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     MoqtFetchTask* fetch_task() { return fetch_.get(); }
     MoqtSession* session() { return session_; }
-    uint64_t fetch_id() const { return fetch_id_; }
+    uint64_t request_id() const { return request_id_; }
     void SetStreamId(webtransport::StreamId id) { stream_id_ = id; }
 
    private:
     MoqtSession* session_;
     std::unique_ptr<MoqtFetchTask> fetch_;
-    uint64_t fetch_id_;
+    uint64_t request_id_;
     // Store the stream ID in case a FETCH_CANCEL requires a reset.
     std::optional<webtransport::StreamId> stream_id_;
   };

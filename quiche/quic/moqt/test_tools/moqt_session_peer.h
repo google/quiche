@@ -199,8 +199,8 @@ class MoqtSessionPeer {
     // Initialize the fetch task
     fetch->OnFetchResult(
         Location{4, 10}, absl::OkStatus(),
-        [=, session_ptr = session, fetch_id = fetch_message.fetch_id]() {
-          session_ptr->CancelFetch(fetch_id);
+        [=, session_ptr = session, request_id = fetch_message.request_id]() {
+          session_ptr->CancelFetch(request_id);
         });
     ;
     auto mock_session =

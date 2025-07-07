@@ -26,9 +26,9 @@ class MoqtFailedFetch : public MoqtFetchTask {
       ObjectsAvailableCallback /*callback*/) override {}
   void SetFetchResponseCallback(FetchResponseCallback callback) {
     MoqtFetchError error;
-    error.subscribe_id = 0;
+    error.request_id = 0;
     error.error_code = StatusToRequestErrorCode(status_);
-    error.reason_phrase = status_.message();
+    error.error_reason = status_.message();
     std::move(callback)(error);
   }
 

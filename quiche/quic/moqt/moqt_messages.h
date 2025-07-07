@@ -766,7 +766,7 @@ struct JoiningFetchAbsolute {
 };
 
 struct QUICHE_EXPORT MoqtFetch {
-  uint64_t fetch_id;
+  uint64_t request_id;
   MoqtPriority subscriber_priority;
   std::optional<MoqtDeliveryOrder> group_order;
   std::variant<StandaloneFetch, JoiningFetchRelative, JoiningFetchAbsolute>
@@ -774,21 +774,22 @@ struct QUICHE_EXPORT MoqtFetch {
   VersionSpecificParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtFetchCancel {
-  uint64_t subscribe_id;
-};
-
 struct QUICHE_EXPORT MoqtFetchOk {
-  uint64_t subscribe_id;
+  uint64_t request_id;
   MoqtDeliveryOrder group_order;
-  Location largest_id;
+  bool end_of_track;
+  Location end_location;
   VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtFetchError {
-  uint64_t subscribe_id;
+  uint64_t request_id;
   RequestErrorCode error_code;
-  std::string reason_phrase;
+  std::string error_reason;
+};
+
+struct QUICHE_EXPORT MoqtFetchCancel {
+  uint64_t request_id;
 };
 
 struct QUICHE_EXPORT MoqtRequestsBlocked {

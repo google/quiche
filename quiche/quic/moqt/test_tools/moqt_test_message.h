@@ -1309,8 +1309,8 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
   }
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetch>(values);
-    if (cast.fetch_id != fetch_.fetch_id) {
-      QUIC_LOG(INFO) << "FETCH fetch_id mismatch";
+    if (cast.request_id != fetch_.request_id) {
+      QUIC_LOG(INFO) << "FETCH request_id mismatch";
       return false;
     }
     if (cast.subscriber_priority != fetch_.subscriber_priority) {
@@ -1359,7 +1359,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
  private:
   uint8_t raw_packet_[28] = {
       0x16, 0x00, 0x19,
-      0x01,                          // fetch_id = 1
+      0x01,                          // request_id = 1
       0x02,                          // priority = kHigh
       0x01,                          // group_order = kAscending
       0x01,                          // type = kStandalone
@@ -1371,7 +1371,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
   };
 
   MoqtFetch fetch_ = {
-      /*fetch_id =*/1,
+      /*request_id=*/1,
       /*subscriber_priority=*/2,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*fetch =*/
@@ -1394,8 +1394,8 @@ class QUICHE_NO_EXPORT RelativeJoiningFetchMessage : public TestMessageBase {
   }
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetch>(values);
-    if (cast.fetch_id != fetch_.fetch_id) {
-      QUIC_LOG(INFO) << "FETCH fetch_id mismatch";
+    if (cast.request_id != fetch_.request_id) {
+      QUIC_LOG(INFO) << "FETCH request_id mismatch";
       return false;
     }
     if (cast.subscriber_priority != fetch_.subscriber_priority) {
@@ -1433,7 +1433,7 @@ class QUICHE_NO_EXPORT RelativeJoiningFetchMessage : public TestMessageBase {
  private:
   uint8_t raw_packet_[17] = {
       0x16, 0x00, 0x0e,
-      0x01,        // fetch_id = 1
+      0x01,        // request_id = 1
       0x02,        // priority = kHigh
       0x01,        // group_order = kAscending
       0x02,        // type = kRelativeJoining
@@ -1442,7 +1442,7 @@ class QUICHE_NO_EXPORT RelativeJoiningFetchMessage : public TestMessageBase {
   };
 
   MoqtFetch fetch_ = {
-      /*fetch_id =*/1,
+      /*request_id =*/1,
       /*subscriber_priority=*/2,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*fetch=*/JoiningFetchRelative{2, 2},
@@ -1459,8 +1459,8 @@ class QUICHE_NO_EXPORT AbsoluteJoiningFetchMessage : public TestMessageBase {
   }
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetch>(values);
-    if (cast.fetch_id != fetch_.fetch_id) {
-      QUIC_LOG(INFO) << "FETCH fetch_id mismatch";
+    if (cast.request_id != fetch_.request_id) {
+      QUIC_LOG(INFO) << "FETCH request_id mismatch";
       return false;
     }
     if (cast.subscriber_priority != fetch_.subscriber_priority) {
@@ -1498,7 +1498,7 @@ class QUICHE_NO_EXPORT AbsoluteJoiningFetchMessage : public TestMessageBase {
  private:
   uint8_t raw_packet_[17] = {
       0x16, 0x00, 0x0e,
-      0x01,        // fetch_id = 1
+      0x01,        // request_id = 1
       0x02,        // priority = kHigh
       0x01,        // group_order = kAscending
       0x03,        // type = kAbsoluteJoining
@@ -1507,11 +1507,110 @@ class QUICHE_NO_EXPORT AbsoluteJoiningFetchMessage : public TestMessageBase {
   };
 
   MoqtFetch fetch_ = {
-      /*fetch_id =*/1,
+      /*request_id=*/1,
       /*subscriber_priority=*/2,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*fetch=*/JoiningFetchAbsolute{2, 2},
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
+  };
+};
+
+class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
+ public:
+  FetchOkMessage() : TestMessageBase() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+  bool EqualFieldValues(MessageStructuredData& values) const override {
+    auto cast = std::get<MoqtFetchOk>(values);
+    if (cast.request_id != fetch_ok_.request_id) {
+      QUIC_LOG(INFO) << "FETCH_OK request_id mismatch";
+      return false;
+    }
+    if (cast.group_order != fetch_ok_.group_order) {
+      QUIC_LOG(INFO) << "FETCH_OK group_order mismatch";
+      return false;
+    }
+    if (cast.end_of_track != fetch_ok_.end_of_track) {
+      QUIC_LOG(INFO) << "FETCH_OK end_of_track mismatch";
+      return false;
+    }
+    if (cast.end_location != fetch_ok_.end_location) {
+      QUIC_LOG(INFO) << "FETCH_OK end_location mismatch";
+      return false;
+    }
+    if (cast.parameters != fetch_ok_.parameters) {
+      QUIC_LOG(INFO) << "FETCH_OK parameters mismatch";
+      return false;
+    }
+    return true;
+  }
+
+  void ExpandVarints() override { ExpandVarintsImpl("v--vvvvv---"); }
+
+  MessageStructuredData structured_data() const override {
+    return TestMessageBase::MessageStructuredData(fetch_ok_);
+  }
+
+ private:
+  uint8_t raw_packet_[12] = {
+      0x18, 0x00, 0x09,
+      0x01,                    // request_id = 1
+      0x01,                    // group_order = kAscending
+      0x00,                    // end_of_track = false
+      0x05, 0x04,              // end_location = 5, 4
+      0x01, 0x04, 0x67, 0x10,  // MaxCacheDuration = 10000
+  };
+
+  MoqtFetchOk fetch_ok_ = {
+      /*request_id =*/1,
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*end_of_track=*/false,
+      /*end_location=*/Location{5, 4},
+      VersionSpecificParameters(quic::QuicTimeDelta::Infinite(),
+                                quic::QuicTimeDelta::FromMilliseconds(10000)),
+  };
+};
+
+class QUICHE_NO_EXPORT FetchErrorMessage : public TestMessageBase {
+ public:
+  FetchErrorMessage() : TestMessageBase() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+  bool EqualFieldValues(MessageStructuredData& values) const override {
+    auto cast = std::get<MoqtFetchError>(values);
+    if (cast.request_id != fetch_error_.request_id) {
+      QUIC_LOG(INFO) << "FETCH_ERROR request_id mismatch";
+      return false;
+    }
+    if (cast.error_code != fetch_error_.error_code) {
+      QUIC_LOG(INFO) << "FETCH_ERROR group_order mismatch";
+      return false;
+    }
+    if (cast.error_reason != fetch_error_.error_reason) {
+      QUIC_LOG(INFO) << "FETCH_ERROR error_reason mismatch";
+      return false;
+    }
+    return true;
+  }
+
+  void ExpandVarints() override { ExpandVarintsImpl("vvv---"); }
+
+  MessageStructuredData structured_data() const override {
+    return TestMessageBase::MessageStructuredData(fetch_error_);
+  }
+
+ private:
+  uint8_t raw_packet_[9] = {
+      0x19, 0x00, 0x06,
+      0x01,                    // request_id = 1
+      0x01,                    // error_code = kUnauthorized
+      0x03, 0x62, 0x61, 0x72,  // error_reason = "bar"
+  };
+
+  MoqtFetchError fetch_error_ = {
+      /*request_id =*/1,
+      /*error_code=*/RequestErrorCode::kUnauthorized,
+      /*error_reason=*/"bar",
   };
 };
 
@@ -1522,7 +1621,7 @@ class QUICHE_NO_EXPORT FetchCancelMessage : public TestMessageBase {
   }
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetchCancel>(values);
-    if (cast.subscribe_id != fetch_cancel_.subscribe_id) {
+    if (cast.request_id != fetch_cancel_.request_id) {
       QUIC_LOG(INFO) << "FETCH_CANCEL subscribe_id mismatch";
       return false;
     }
@@ -1538,104 +1637,11 @@ class QUICHE_NO_EXPORT FetchCancelMessage : public TestMessageBase {
  private:
   uint8_t raw_packet_[4] = {
       0x17, 0x00, 0x01,
-      0x01,  // subscribe_id = 1
+      0x01,  // request_id = 1
   };
 
   MoqtFetchCancel fetch_cancel_ = {
-      /*subscribe_id =*/1,
-  };
-};
-
-class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
- public:
-  FetchOkMessage() : TestMessageBase() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-  }
-  bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtFetchOk>(values);
-    if (cast.subscribe_id != fetch_ok_.subscribe_id) {
-      QUIC_LOG(INFO) << "FETCH_OK subscribe_id mismatch";
-      return false;
-    }
-    if (cast.group_order != fetch_ok_.group_order) {
-      QUIC_LOG(INFO) << "FETCH_OK group_order mismatch";
-      return false;
-    }
-    if (cast.largest_id != fetch_ok_.largest_id) {
-      QUIC_LOG(INFO) << "FETCH_OK start_object mismatch";
-      return false;
-    }
-    if (cast.parameters != fetch_ok_.parameters) {
-      QUIC_LOG(INFO) << "FETCH_OK parameters mismatch";
-      return false;
-    }
-    return true;
-  }
-
-  void ExpandVarints() override { ExpandVarintsImpl("v-vvvvv---"); }
-
-  MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(fetch_ok_);
-  }
-
- private:
-  uint8_t raw_packet_[11] = {
-      0x18, 0x00, 0x08,
-      0x01,                    // subscribe_id = 1
-      0x01,                    // group_order = kAscending
-      0x05, 0x04,              // largest_object = 5, 4
-      0x01, 0x04, 0x67, 0x10,  // MaxCacheDuration = 10000
-  };
-
-  MoqtFetchOk fetch_ok_ = {
-      /*subscribe_id =*/1,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*start_object=*/Location{5, 4},
-      VersionSpecificParameters(quic::QuicTimeDelta::Infinite(),
-                                quic::QuicTimeDelta::FromMilliseconds(10000)),
-  };
-};
-
-class QUICHE_NO_EXPORT FetchErrorMessage : public TestMessageBase {
- public:
-  FetchErrorMessage() : TestMessageBase() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-  }
-  bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtFetchError>(values);
-    if (cast.subscribe_id != fetch_error_.subscribe_id) {
-      QUIC_LOG(INFO) << "FETCH_ERROR subscribe_id mismatch";
-      return false;
-    }
-    if (cast.error_code != fetch_error_.error_code) {
-      QUIC_LOG(INFO) << "FETCH_ERROR group_order mismatch";
-      return false;
-    }
-    if (cast.reason_phrase != fetch_error_.reason_phrase) {
-      QUIC_LOG(INFO) << "FETCH_ERROR reason_phrase mismatch";
-      return false;
-    }
-    return true;
-  }
-
-  void ExpandVarints() override { ExpandVarintsImpl("vvv---"); }
-
-  MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(fetch_error_);
-  }
-
- private:
-  uint8_t raw_packet_[9] = {
-      0x19, 0x00, 0x06,
-      0x01,                    // subscribe_id = 1
-      0x01,                    // error_code = kUnauthorized
-      0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
-  };
-
-  MoqtFetchError fetch_error_ = {
-      /*subscribe_id =*/1,
-      /*error_code=*/RequestErrorCode::kUnauthorized,
-      /*reason_phrase=*/"bar",
+      /*request_id =*/1,
   };
 };
 

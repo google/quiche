@@ -76,7 +76,7 @@ MoqtSubscribe DefaultSubscribe() {
 
 MoqtFetch DefaultFetch() {
   MoqtFetch fetch = {
-      /*fetch_id=*/1,
+      /*request_id=*/1,
       /*subscriber_priority=*/0x80,
       /*group_order=*/std::nullopt,
       /*fetch=*/
@@ -2264,9 +2264,10 @@ TEST_F(MoqtSessionTest, ProcessFetchGetEverythingFromUpstream) {
 
   // Compose and send the FETCH_OK.
   MoqtFetchOk expected_ok;
-  expected_ok.subscribe_id = fetch.fetch_id;
+  expected_ok.request_id = fetch.request_id;
   expected_ok.group_order = MoqtDeliveryOrder::kAscending;
-  expected_ok.largest_id = Location(1, 4);
+  expected_ok.end_of_track = false;
+  expected_ok.end_location = Location(1, 4);
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _));
   fetch_task->CallFetchResponseCallback(expected_ok);
   // Data arrives.
@@ -2288,9 +2289,10 @@ TEST_F(MoqtSessionTest, ProcessFetchWholeRangeIsPresent) {
   MockTrackPublisher* track = CreateTrackPublisher();
 
   MoqtFetchOk expected_ok;
-  expected_ok.subscribe_id = fetch.fetch_id;
+  expected_ok.request_id = fetch.request_id;
   expected_ok.group_order = MoqtDeliveryOrder::kAscending;
-  expected_ok.largest_id = Location(1, 4);
+  expected_ok.end_of_track = false;
+  expected_ok.end_location = Location(1, 4);
   auto fetch_task_ptr =
       std::make_unique<MockFetchTask>(expected_ok, std::nullopt, true);
   MockFetchTask* fetch_task = fetch_task_ptr.get();
@@ -2329,9 +2331,10 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeOk) {
   stream_input->OnFetchMessage(fetch);
 
   MoqtFetchOk expected_ok;
-  expected_ok.subscribe_id = fetch.fetch_id;
+  expected_ok.request_id = fetch.request_id;
   expected_ok.group_order = MoqtDeliveryOrder::kAscending;
-  expected_ok.largest_id = Location(1, 4);
+  expected_ok.end_of_track = false;
+  expected_ok.end_location = Location(1, 4);
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _));
   fetch_task->CallFetchResponseCallback(expected_ok);
 }
@@ -2355,9 +2358,9 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeError) {
   stream_input->OnFetchMessage(fetch);
 
   MoqtFetchError expected_error;
-  expected_error.subscribe_id = fetch.fetch_id;
+  expected_error.request_id = fetch.request_id;
   expected_error.error_code = RequestErrorCode::kTrackDoesNotExist;
-  expected_error.reason_phrase = "foo";
+  expected_error.error_reason = "foo";
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(expected_error), _));
   fetch_task->CallFetchResponseCallback(expected_error);
@@ -2370,7 +2373,7 @@ TEST_F(MoqtSessionTest, InvalidFetch) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   MoqtFetch fetch = DefaultFetch();
-  fetch.fetch_id = 1;  // Too low.
+  fetch.request_id = 1;  // Too low.
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
                            "Request ID not monotonically increasing"))
@@ -2445,7 +2448,7 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetch) {
 
   // Joining FETCH arrives. The resulting Fetch should begin at (2, 0).
   MoqtFetch fetch = DefaultFetch();
-  fetch.fetch_id = 3;
+  fetch.request_id = 3;
   fetch.fetch = JoiningFetchRelative(1, 2);
   EXPECT_CALL(*track, Fetch(Location(2, 0), 4, std::optional<uint64_t>(10), _))
       .WillOnce(Return(std::make_unique<MockFetchTask>()));
@@ -2476,7 +2479,7 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetchNonLatestObject) {
   ReceiveSubscribeSynchronousOk(track, subscribe, stream_input.get());
 
   MoqtFetch fetch = DefaultFetch();
-  fetch.fetch_id = 3;
+  fetch.request_id = 3;
   fetch.fetch = JoiningFetchRelative(1, 2);
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
@@ -2504,7 +2507,7 @@ TEST_F(MoqtSessionTest, SendJoiningFetch) {
       VersionSpecificParameters(),
   };
   MoqtFetch expected_fetch = {
-      /*fetch_id=*/2,
+      /*request_id=*/2,
       /*subscriber_priority=*/0x80,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*fetch=*/JoiningFetchRelative(0, 1),
@@ -2538,11 +2541,11 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
                       MoqtDeliveryOrder::kAscending, Location(2, 0),
                       VersionSpecificParameters()));
   stream_input->OnFetchOkMessage(MoqtFetchOk(2, MoqtDeliveryOrder::kAscending,
-                                             Location(2, 0),
+                                             false, Location(2, 0),
                                              VersionSpecificParameters()));
   // Packet arrives on FETCH stream.
   MoqtObject object = {
-      /*fetch_id=*/2,
+      /*request_id=*/2,
       /*group_id, object_id=*/0,
       0,
       /*publisher_priority=*/128,
@@ -2627,7 +2630,8 @@ TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {
   MoqtFetchOk ok = {
       /*request_id=*/0,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/Location(3, 25),
+      /*end_of_track=*/false,
+      /*end_location=*/Location(3, 25),
       VersionSpecificParameters(),
   };
   stream_input->OnFetchOkMessage(ok);
@@ -2726,7 +2730,8 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
   MoqtFetchOk ok = {
       /*request_id=*/0,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/Location(3, 25),
+      /*end_of_track=*/false,
+      /*end_location=*/Location(3, 25),
       VersionSpecificParameters(),
   };
   stream_input->OnFetchOkMessage(ok);
@@ -2796,7 +2801,8 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
   MoqtFetchOk ok = {
       /*request_id=*/0,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*largest_id=*/Location(3, 25),
+      /*end_of_track=*/false,
+      /*end_location=*/Location(3, 25),
       VersionSpecificParameters(),
   };
   stream_input->OnFetchOkMessage(ok);
@@ -3194,7 +3200,7 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kFetchError), _));
   MoqtFetch fetch = DefaultFetch();
-  fetch.fetch_id = 3;
+  fetch.request_id = 3;
   stream_input->OnFetchMessage(fetch);
   EXPECT_CALL(
       mock_stream_,

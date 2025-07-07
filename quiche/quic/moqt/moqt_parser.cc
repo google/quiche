@@ -788,7 +788,7 @@ size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
   MoqtFetch fetch;
   uint8_t group_order;
   uint64_t type;
-  if (!reader.ReadVarInt62(&fetch.fetch_id) ||
+  if (!reader.ReadVarInt62(&fetch.request_id) ||
       !reader.ReadUInt8(&fetch.subscriber_priority) ||
       !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&type)) {
     return 0;
@@ -862,28 +862,23 @@ size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessFetchCancel(quic::QuicDataReader& reader) {
-  MoqtFetchCancel fetch_cancel;
-  if (!reader.ReadVarInt62(&fetch_cancel.subscribe_id)) {
-    return 0;
-  }
-  visitor_.OnFetchCancelMessage(fetch_cancel);
-  return reader.PreviouslyReadPayload().length();
-}
-
 size_t MoqtControlParser::ProcessFetchOk(quic::QuicDataReader& reader) {
   MoqtFetchOk fetch_ok;
-  uint8_t group_order;
+  uint8_t group_order, end_of_track;
   KeyValuePairList parameters;
-  if (!reader.ReadVarInt62(&fetch_ok.subscribe_id) ||
-      !reader.ReadUInt8(&group_order) ||
-      !reader.ReadVarInt62(&fetch_ok.largest_id.group) ||
-      !reader.ReadVarInt62(&fetch_ok.largest_id.object) ||
+  if (!reader.ReadVarInt62(&fetch_ok.request_id) ||
+      !reader.ReadUInt8(&group_order) || !reader.ReadUInt8(&end_of_track) ||
+      !reader.ReadVarInt62(&fetch_ok.end_location.group) ||
+      !reader.ReadVarInt62(&fetch_ok.end_location.object) ||
       !ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
   if (group_order != 0x01 && group_order != 0x02) {
     ParseError("Invalid group order value in FETCH_OK");
+    return 0;
+  }
+  if (end_of_track > 0x01) {
+    ParseError("Invalid end of track value in FETCH_OK");
     return 0;
   }
   if (!ValidateVersionSpecificParameters(parameters,
@@ -892,6 +887,7 @@ size_t MoqtControlParser::ProcessFetchOk(quic::QuicDataReader& reader) {
     return 0;
   }
   fetch_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
+  fetch_ok.end_of_track = end_of_track == 1;
   if (!KeyValuePairListToVersionSpecificParameters(parameters,
                                                    fetch_ok.parameters)) {
     return 0;
@@ -903,13 +899,22 @@ size_t MoqtControlParser::ProcessFetchOk(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessFetchError(quic::QuicDataReader& reader) {
   MoqtFetchError fetch_error;
   uint64_t error_code;
-  if (!reader.ReadVarInt62(&fetch_error.subscribe_id) ||
+  if (!reader.ReadVarInt62(&fetch_error.request_id) ||
       !reader.ReadVarInt62(&error_code) ||
-      !reader.ReadStringVarInt62(fetch_error.reason_phrase)) {
+      !reader.ReadStringVarInt62(fetch_error.error_reason)) {
     return 0;
   }
   fetch_error.error_code = static_cast<RequestErrorCode>(error_code);
   visitor_.OnFetchErrorMessage(fetch_error);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessFetchCancel(quic::QuicDataReader& reader) {
+  MoqtFetchCancel fetch_cancel;
+  if (!reader.ReadVarInt62(&fetch_cancel.request_id)) {
+    return 0;
+  }
+  visitor_.OnFetchCancelMessage(fetch_cancel);
   return reader.PreviouslyReadPayload().length();
 }
 

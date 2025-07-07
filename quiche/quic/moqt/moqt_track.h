@@ -236,7 +236,7 @@ class UpstreamFetch : public RemoteTrack {
   UpstreamFetch(const MoqtFetch& fetch, const StandaloneFetch standalone,
                 FetchResponseCallback callback)
       : RemoteTrack(
-            standalone.full_track_name, fetch.fetch_id,
+            standalone.full_track_name, fetch.request_id,
             SubscribeWindow(standalone.start_object, standalone.end_group,
                             standalone.end_object),
             fetch.subscriber_priority),
@@ -247,7 +247,7 @@ class UpstreamFetch : public RemoteTrack {
   // Relative Joining Fetch constructor
   UpstreamFetch(const MoqtFetch& fetch, FullTrackName full_track_name,
                 FetchResponseCallback callback)
-      : RemoteTrack(full_track_name, fetch.fetch_id,
+      : RemoteTrack(full_track_name, fetch.request_id,
                     SubscribeWindow(Location(0, 0)), fetch.subscriber_priority),
         ok_callback_(std::move(callback)) {
     // Immediately set the data stream type.
@@ -258,7 +258,7 @@ class UpstreamFetch : public RemoteTrack {
                 JoiningFetchAbsolute absolute_joining,
                 FetchResponseCallback callback)
       : RemoteTrack(
-            full_track_name, fetch.fetch_id,
+            full_track_name, fetch.request_id,
             SubscribeWindow(Location(absolute_joining.joining_start, 0)),
             fetch.subscriber_priority),
         ok_callback_(std::move(callback)) {

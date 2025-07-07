@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -24,6 +25,7 @@
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -35,6 +37,7 @@ using ::quiche::test::IsOkAndHolds;
 using ::quiche::test::StatusIs;
 using ::testing::AnyOf;
 using ::testing::ElementsAre;
+using ::testing::Field;
 using ::testing::IsEmpty;
 
 class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
@@ -49,9 +52,12 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
   void OnNewObjectAvailable(Location sequence, uint64_t subgroup) override {
     std::optional<PublishedObject> object =
         GetCachedObject(sequence.group, subgroup, sequence.object);
-    QUICHE_CHECK(object.has_value());
-    ASSERT_THAT(object->metadata.status, AnyOf(MoqtObjectStatus::kNormal,
-                                               MoqtObjectStatus::kEndOfGroup));
+    ASSERT_THAT(object,
+                Optional(Field(&PublishedObject::metadata,
+                               Field(&PublishedObjectMetadata::status,
+                                     AnyOf(MoqtObjectStatus::kNormal,
+                                           MoqtObjectStatus::kEndOfGroup,
+                                           MoqtObjectStatus::kEndOfTrack)))));
     if (object->metadata.status == MoqtObjectStatus::kNormal) {
       PublishObject(object->metadata.location.group,
                     object->metadata.location.object,
@@ -370,6 +376,51 @@ TEST(MoqtOutgoingQueue, ObjectIsTimestamped) {
   std::optional<PublishedObject> object = queue.GetCachedObject(0, 0, 0);
   ASSERT_TRUE(object.has_value());
   EXPECT_GE(object->metadata.arrival_time, test_start);
+}
+
+TEST(MoqtOutgoingQueue, EndOfTrack) {
+  TestMoqtOutgoingQueue queue;
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);  // Create (0, 0)
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), true);  // Create (1, 0)
+  std::unique_ptr<MoqtFetchTask> fetch = queue.Fetch(
+      Location{0, 0}, 5, std::nullopt, MoqtDeliveryOrder::kAscending);
+  bool end_of_track = false;
+  Location end_location;
+  // end_of_track is false before Close() is called.
+  fetch->SetFetchResponseCallback(
+      [&end_of_track,
+       &end_location](std::variant<MoqtFetchOk, MoqtFetchError> arg) {
+        end_of_track = std::get<MoqtFetchOk>(arg).end_of_track;
+        end_location = std::get<MoqtFetchOk>(arg).end_location;
+      });
+  EXPECT_FALSE(end_of_track);
+  EXPECT_EQ(end_location, Location(1, 0));
+
+  queue.Close();  // Create (2, 0)
+  EXPECT_EQ(queue.GetLargestLocation(), Location(2, 0));
+  fetch = queue.Fetch(Location{0, 0}, 1, std::nullopt,
+                      MoqtDeliveryOrder::kAscending);
+  // end_of_track is false if the fetch does not include the last object.
+  fetch->SetFetchResponseCallback(
+      [&end_of_track,
+       &end_location](std::variant<MoqtFetchOk, MoqtFetchError> arg) {
+        end_of_track = std::get<MoqtFetchOk>(arg).end_of_track;
+        end_location = std::get<MoqtFetchOk>(arg).end_location;
+      });
+  EXPECT_FALSE(end_of_track);
+  EXPECT_EQ(end_location, Location(1, 1));
+
+  fetch = queue.Fetch(Location{0, 0}, 5, std::nullopt,
+                      MoqtDeliveryOrder::kAscending);
+  // end_of_track is true if the fetch includes the last object.
+  fetch->SetFetchResponseCallback(
+      [&end_of_track,
+       &end_location](std::variant<MoqtFetchOk, MoqtFetchError> arg) {
+        end_of_track = std::get<MoqtFetchOk>(arg).end_of_track;
+        end_location = std::get<MoqtFetchOk>(arg).end_location;
+      });
+  EXPECT_TRUE(end_of_track);
+  EXPECT_EQ(end_location, Location(2, 0));
 }
 
 }  // namespace

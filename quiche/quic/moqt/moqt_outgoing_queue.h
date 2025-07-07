@@ -123,7 +123,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
         MoqtFetchError error(0, StatusToRequestErrorCode(status_),
                              std::string(status_.message()));
         error.error_code = StatusToRequestErrorCode(status_);
-        error.reason_phrase = status_.message();
+        error.error_reason = status_.message();
         std::move(callback)(error);
         return;
       }
@@ -135,11 +135,13 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
       }
       MoqtFetchOk ok;
       ok.group_order = MoqtDeliveryOrder::kAscending;
-      ok.largest_id = *(objects_.crbegin());
-      if (objects_.size() > 1 && *(objects_.cbegin()) > ok.largest_id) {
+      ok.end_location = *(objects_.crbegin());
+      if (objects_.size() > 1 && *(objects_.cbegin()) > ok.end_location) {
         ok.group_order = MoqtDeliveryOrder::kDescending;
-        ok.largest_id = *(objects_.cbegin());
+        ok.end_location = *(objects_.cbegin());
       }
+      ok.end_of_track =
+          queue_->closed_ && ok.end_location == queue_->GetLargestLocation();
       std::move(callback)(ok);
     }
 
