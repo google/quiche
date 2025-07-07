@@ -1217,6 +1217,92 @@ TEST(OgHttp2SessionTest, ServerClosesStreamDuringOnEndStream) {
   EXPECT_EQ(result, frames.size());
 }
 
+TEST(OgHttp2SessionTest, ServerFreesMarkedBufferOnPartialDataFrameForResettedStream) {
+  // This is a regression test to validate server frees the marked window
+  // buffer when receiving a DATA frame of an already resetted stream.
+  TestVisitor visitor;
+  OgHttp2Session::Options options;
+  options.perspective = Perspective::kServer;
+  OgHttp2Session session(visitor, options);
+
+  const std::string frames = TestFrameSequence()
+                                 .ClientPreface()
+                                 .Headers(1,
+                                          {{":method", "POST"},
+                                           {":scheme", "https"},
+                                           {":authority", "example.com"},
+                                           {":path", "/"}},
+                                          /*fin=*/false)
+                                 // No WINDOW_UPDATE
+                                 .Data(1, "This is a small payload")
+                                 // No WINDOW_UPDATE
+                                 .Data(1, std::string(16384, 'a'))
+                                 // Should send WINDOW_UPDATE for connection
+                                 // only because stream is RST (see handling of
+                                 // first data payload l.1295)
+                                 .Data(1, std::string(16384, 'a'))
+                                 // No WINDOW_UPDATE
+                                 .Data(1, std::string(16384, 'a'))
+                                 .Serialize();
+  testing::InSequence s;
+
+  // Client preface (empty SETTINGS)
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  // Stream 1
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 0x4));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "POST"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/"));
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnFrameHeader(1, 23, DATA, 0));
+  EXPECT_CALL(visitor, OnBeginDataForStream(1, 23))
+      .WillOnce(testing::InvokeWithoutArgs([&session]() {
+        int res = session.SubmitResponse(/*stream_id=*/1,
+                                         ToHeaders({{":status", "200"}}),
+                                         /*end_stream=*/false);
+        EXPECT_EQ(res, 0);
+        int send_result = session.Send();
+        EXPECT_EQ(0, send_result);
+        return true;
+      }));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, _));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, _, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, _));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, _, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, _));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, _, 0));
+  EXPECT_CALL(visitor, OnDataForStream(1, "This is a small payload"))
+      // Server resets stream on reading the data
+      .WillOnce(testing::InvokeWithoutArgs([&session]() {
+        session.EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
+                    1, spdy::ERROR_CODE_CONNECT_ERROR));
+        int send_result = session.Send();
+        EXPECT_EQ(0, send_result);
+        return true;
+      }));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, _, _));
+  EXPECT_CALL(visitor, OnFrameSent(RST_STREAM, 1, _, _, spdy::ERROR_CODE_CONNECT_ERROR));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
+
+  // 1st big payload -> no WINDOW_UPDATE
+  EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0));
+
+  // 2nd big payload -> connection + stream WINDOW_UPDATE
+  EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(WINDOW_UPDATE, 0, _, _));
+  EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 0, _, _, 0));
+
+  // 3rd big payload -> stream WINDOW_UPDATE
+  EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0));
+
+  const int64_t result = session.ProcessBytes(frames);
+  EXPECT_EQ(result, frames.size());
+}
 }  // namespace test
 }  // namespace adapter
 }  // namespace http2

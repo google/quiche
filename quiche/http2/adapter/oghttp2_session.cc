@@ -1157,6 +1157,9 @@ void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
 
   auto iter = stream_map_.find(stream_id);
   if (iter == stream_map_.end()) {
+    // Release the data against flow control, even if the stream is unknown.
+    Consume(stream_id, len);
+    Send();
     return;
   }
   // Validate against the content-length if it exists.
@@ -1170,7 +1173,10 @@ void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
   }
   if (streams_reset_.contains(stream_id)) {
     // If the stream was unknown due to a protocol error, the visitor was
-    // informed in OnDataFrameHeader().
+    // informed in OnDataFrameHeader(). Because we marked the data at the
+    // beginning of this method, we release it here.
+    Consume(stream_id, len);
+    Send();
     return;
   }
 
