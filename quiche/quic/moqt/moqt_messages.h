@@ -661,11 +661,16 @@ inline bool DoesTrackStatusImplyHavingData(MoqtTrackStatusCode code) {
   return false;
 }
 
-struct QUICHE_EXPORT MoqtTrackStatus {
+struct QUICHE_EXPORT MoqtTrackStatusRequest {
+  uint64_t request_id;
   FullTrackName full_track_name;
+  VersionSpecificParameters parameters;
+};
+
+struct QUICHE_EXPORT MoqtTrackStatus {
+  uint64_t request_id;
   MoqtTrackStatusCode status_code;
-  uint64_t last_group;
-  uint64_t last_object;
+  Location largest_location;
   VersionSpecificParameters parameters;
 };
 
@@ -673,11 +678,6 @@ struct QUICHE_EXPORT MoqtAnnounceCancel {
   TrackNamespace track_namespace;
   RequestErrorCode error_code;
   std::string reason_phrase;
-};
-
-struct QUICHE_EXPORT MoqtTrackStatusRequest {
-  FullTrackName full_track_name;
-  VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtGoAway {

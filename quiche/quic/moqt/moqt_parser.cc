@@ -650,6 +650,9 @@ size_t MoqtControlParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessTrackStatusRequest(
     quic::QuicDataReader& reader) {
   MoqtTrackStatusRequest track_status_request;
+  if (!reader.ReadVarInt62(&track_status_request.request_id)) {
+    return 0;
+  }
   if (!ReadFullTrackName(reader, track_status_request.full_track_name)) {
     return 0;
   }
@@ -681,16 +684,14 @@ size_t MoqtControlParser::ProcessUnannounce(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessTrackStatus(quic::QuicDataReader& reader) {
   MoqtTrackStatus track_status;
-  if (!ReadFullTrackName(reader, track_status.full_track_name)) {
+  uint64_t status_code;
+  if (!reader.ReadVarInt62(&track_status.request_id) ||
+      !reader.ReadVarInt62(&status_code) ||
+      !reader.ReadVarInt62(&track_status.largest_location.group) ||
+      !reader.ReadVarInt62(&track_status.largest_location.object)) {
     return 0;
   }
-  uint64_t value;
-  if (!reader.ReadVarInt62(&value) ||
-      !reader.ReadVarInt62(&track_status.last_group) ||
-      !reader.ReadVarInt62(&track_status.last_object)) {
-    return 0;
-  }
-  track_status.status_code = static_cast<MoqtTrackStatusCode>(value);
+  track_status.status_code = static_cast<MoqtTrackStatusCode>(status_code);
   KeyValuePairList parameters;
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;

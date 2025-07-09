@@ -602,6 +602,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeTrackStatusRequest(
     return quiche::QuicheBuffer();
   }
   return SerializeControlMessage(MoqtMessageType::kTrackStatusRequest,
+                                 WireVarInt62(message.request_id),
                                  WireFullTrackName(message.full_track_name),
                                  WireKeyValuePairList(parameters));
 }
@@ -622,10 +623,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(
         << "Serializing invalid MoQT parameters";
     return quiche::QuicheBuffer();
   }
-  return SerializeControlMessage(
-      MoqtMessageType::kTrackStatus, WireFullTrackName(message.full_track_name),
-      WireVarInt62(message.status_code), WireVarInt62(message.last_group),
-      WireVarInt62(message.last_object), WireKeyValuePairList(parameters));
+  return SerializeControlMessage(MoqtMessageType::kTrackStatus,
+                                 WireVarInt62(message.request_id),
+                                 WireVarInt62(message.status_code),
+                                 WireVarInt62(message.largest_location.group),
+                                 WireVarInt62(message.largest_location.object),
+                                 WireKeyValuePairList(parameters));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {

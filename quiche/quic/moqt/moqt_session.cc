@@ -1231,6 +1231,34 @@ void MoqtSession::ControlStream::OnAnnounceCancelMessage(
   session_->outgoing_announces_.erase(it);
 }
 
+void MoqtSession::ControlStream::OnTrackStatusRequestMessage(
+    const MoqtTrackStatusRequest& message) {
+  if (!session_->ValidateRequestId(message.request_id)) {
+    return;
+  }
+  if (session_->sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Received a TRACK_STATUS_REQUEST after GOAWAY";
+    SendOrBufferMessage(session_->framer_.SerializeTrackStatus(
+        MoqtTrackStatus(message.request_id, MoqtTrackStatusCode::kDoesNotExist,
+                        Location(0, 0))));
+    return;
+  }
+  // TODO(martinduke): Handle authentication.
+  absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track =
+      session_->publisher_->GetTrack(message.full_track_name);
+  if (!track.ok()) {
+    SendOrBufferMessage(session_->framer_.SerializeTrackStatus(
+        MoqtTrackStatus(message.request_id, MoqtTrackStatusCode::kDoesNotExist,
+                        Location(0, 0))));
+    return;
+  }
+  session_->incoming_track_status_.emplace(
+      std::pair<uint64_t, DownstreamTrackStatus>(
+          message.request_id,
+          DownstreamTrackStatus(message.request_id, session_, track->get())));
+}
+
 void MoqtSession::ControlStream::OnUnannounceMessage(
     const MoqtUnannounce& message) {
   session_->callbacks_.incoming_announce_callback(message.track_namespace,

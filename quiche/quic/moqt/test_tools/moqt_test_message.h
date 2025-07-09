@@ -972,6 +972,10 @@ class QUICHE_NO_EXPORT TrackStatusRequestMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtTrackStatusRequest>(values);
+    if (cast.request_id != track_status_request_.request_id) {
+      QUIC_LOG(INFO) << "TRACK STATUS REQUEST request ID mismatch";
+      return false;
+    }
     if (cast.full_track_name != track_status_request_.full_track_name) {
       QUIC_LOG(INFO) << "TRACK STATUS REQUEST track name mismatch";
       return false;
@@ -983,22 +987,23 @@ class QUICHE_NO_EXPORT TrackStatusRequestMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vv---v----vvv-----"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv---v----vvv-----"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(track_status_request_);
   }
 
  private:
-  uint8_t raw_packet_[21] = {
-      0x0d, 0x00, 0x12, 0x01, 0x03, 0x66, 0x6f,
-      0x6f,                                      // track_namespace = "foo"
+  uint8_t raw_packet_[22] = {
+      0x0d, 0x00, 0x13, 0x02,                    // request_id = 2
+      0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
       0x01,                                      // 1 parameter
       0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
 
   MoqtTrackStatusRequest track_status_request_ = {
+      /*request_id=*/2,
       FullTrackName("foo", "abcd"),
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
   };
@@ -1043,20 +1048,16 @@ class QUICHE_NO_EXPORT TrackStatusMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtTrackStatus>(values);
-    if (cast.full_track_name != track_status_.full_track_name) {
-      QUIC_LOG(INFO) << "TRACK STATUS track name mismatch";
+    if (cast.request_id != track_status_.request_id) {
+      QUIC_LOG(INFO) << "TRACK STATUS request ID mismatch";
       return false;
     }
     if (cast.status_code != track_status_.status_code) {
       QUIC_LOG(INFO) << "TRACK STATUS code mismatch";
       return false;
     }
-    if (cast.last_group != track_status_.last_group) {
-      QUIC_LOG(INFO) << "TRACK STATUS last group mismatch";
-      return false;
-    }
-    if (cast.last_object != track_status_.last_object) {
-      QUIC_LOG(INFO) << "TRACK STATUS last object mismatch";
+    if (cast.largest_location != track_status_.largest_location) {
+      QUIC_LOG(INFO) << "TRACK STATUS largest location mismatch";
       return false;
     }
     if (cast.parameters != track_status_.parameters) {
@@ -1066,28 +1067,25 @@ class QUICHE_NO_EXPORT TrackStatusMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vv---v----vvvvv--v--"); }
+  void ExpandVarints() override { ExpandVarintsImpl("v-vvvv--v--"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(track_status_);
   }
 
  private:
-  uint8_t raw_packet_[23] = {
-      0x0e, 0x00, 0x14, 0x01, 0x03,
-      0x66, 0x6f, 0x6f,              // track_namespace = "foo"
-      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
-      0x00, 0x0c, 0x14,              // status, last_group, last_object
-      0x02,                          // 2 parameters
-      0x02, 0x67, 0x10,              // Delivery Timeout = 10000
-      0x04, 0x67, 0x10,              // Max Cache Duration = 10000
+  uint8_t raw_packet_[14] = {
+      0x0e, 0x00, 0x0b, 0x02,  // request_id = 2
+      0x00, 0x0c, 0x14,        // status, last_group, last_object
+      0x02,                    // 2 parameters
+      0x02, 0x67, 0x10,        // Delivery Timeout = 10000
+      0x04, 0x67, 0x10,        // Max Cache Duration = 10000
   };
 
   MoqtTrackStatus track_status_ = {
-      FullTrackName("foo", "abcd"),
+      /*request_id=*/2,
       /*status_code=*/MoqtTrackStatusCode::kInProgress,
-      /*last_group=*/12,
-      /*last_object=*/20,
+      /*largest_location=*/Location(12, 20),
       VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
                                 quic::QuicTimeDelta::FromMilliseconds(10000)),
   };
