@@ -1152,11 +1152,15 @@ void OgHttp2Session::OnDataFrameHeader(spdy::SpdyStreamId stream_id,
 
 void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
                                        const char* data, size_t len) {
-  // Count the data against flow control, even if the stream is unknown.
+  // Count the data against flow control, even if the stream is unknown, so that
+  // the connection flow control window is in sync with peer's.
   MarkDataBuffered(stream_id, len);
 
   auto iter = stream_map_.find(stream_id);
   if (iter == stream_map_.end()) {
+    // Mark the data consumed immediately as we are dropping them. This will
+    // allow the connection flow control window to shift.
+    Consume(stream_id, len);
     return;
   }
   // Validate against the content-length if it exists.
@@ -1171,6 +1175,9 @@ void OgHttp2Session::OnStreamFrameData(spdy::SpdyStreamId stream_id,
   if (streams_reset_.contains(stream_id)) {
     // If the stream was unknown due to a protocol error, the visitor was
     // informed in OnDataFrameHeader().
+    // Mark the data consumed immediately as we are dropping them. This will
+    // allow the connection flow control window to shift.
+    Consume(stream_id, len);
     return;
   }
 
