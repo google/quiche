@@ -720,7 +720,8 @@ size_t MoqtControlParser::ProcessGoAway(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessSubscribeAnnounces(
     quic::QuicDataReader& reader) {
   MoqtSubscribeAnnounces subscribe_announces;
-  if (!ReadTrackNamespace(reader, subscribe_announces.track_namespace)) {
+  if (!reader.ReadVarInt62(&subscribe_announces.request_id) ||
+      !ReadTrackNamespace(reader, subscribe_announces.track_namespace)) {
     return 0;
   }
   KeyValuePairList parameters;
@@ -743,7 +744,7 @@ size_t MoqtControlParser::ProcessSubscribeAnnounces(
 size_t MoqtControlParser::ProcessSubscribeAnnouncesOk(
     quic::QuicDataReader& reader) {
   MoqtSubscribeAnnouncesOk subscribe_namespace_ok;
-  if (!ReadTrackNamespace(reader, subscribe_namespace_ok.track_namespace)) {
+  if (!reader.ReadVarInt62(&subscribe_namespace_ok.request_id)) {
     return 0;
   }
   visitor_.OnSubscribeAnnouncesOkMessage(subscribe_namespace_ok);
@@ -754,9 +755,9 @@ size_t MoqtControlParser::ProcessSubscribeAnnouncesError(
     quic::QuicDataReader& reader) {
   MoqtSubscribeAnnouncesError subscribe_namespace_error;
   uint64_t error_code;
-  if (!ReadTrackNamespace(reader, subscribe_namespace_error.track_namespace) ||
+  if (!reader.ReadVarInt62(&subscribe_namespace_error.request_id) ||
       !reader.ReadVarInt62(&error_code) ||
-      !reader.ReadStringVarInt62(subscribe_namespace_error.reason_phrase)) {
+      !reader.ReadStringVarInt62(subscribe_namespace_error.error_reason)) {
     return 0;
   }
   subscribe_namespace_error.error_code =

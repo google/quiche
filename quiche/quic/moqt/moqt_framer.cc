@@ -648,6 +648,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeAnnounces(
     return quiche::QuicheBuffer();
   }
   return SerializeControlMessage(MoqtMessageType::kSubscribeAnnounces,
+                                 WireVarInt62(message.request_id),
                                  WireTrackNamespace(message.track_namespace),
                                  WireKeyValuePairList(parameters));
 }
@@ -655,16 +656,15 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeAnnounces(
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeAnnouncesOk(
     const MoqtSubscribeAnnouncesOk& message) {
   return SerializeControlMessage(MoqtMessageType::kSubscribeAnnouncesOk,
-                                 WireTrackNamespace(message.track_namespace));
+                                 WireVarInt62(message.request_id));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeAnnouncesError(
     const MoqtSubscribeAnnouncesError& message) {
   return SerializeControlMessage(
       MoqtMessageType::kSubscribeAnnouncesError,
-      WireTrackNamespace(message.track_namespace),
-      WireVarInt62(message.error_code),
-      WireStringWithVarInt62Length(message.reason_phrase));
+      WireVarInt62(message.request_id), WireVarInt62(message.error_code),
+      WireStringWithVarInt62Length(message.error_reason));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribeAnnounces(

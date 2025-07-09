@@ -264,13 +264,37 @@ bool MoqtSession::SubscribeAnnounces(
                     << "Tried to send SUBSCRIBE_ANNOUNCES after GOAWAY";
     return false;
   }
+  if (next_request_id_ >= peer_max_request_id_) {
+    if (!last_requests_blocked_sent_.has_value() ||
+        peer_max_request_id_ > *last_requests_blocked_sent_) {
+      MoqtRequestsBlocked requests_blocked;
+      requests_blocked.max_request_id = peer_max_request_id_;
+      SendControlMessage(framer_.SerializeRequestsBlocked(requests_blocked));
+      last_requests_blocked_sent_ = peer_max_request_id_;
+    }
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE_ANNOUNCES with ID "
+                    << next_request_id_
+                    << " which is greater than the maximum ID "
+                    << peer_max_request_id_;
+    return false;
+  }
+  if (outgoing_subscribe_announces_.contains(track_namespace)) {
+    std::move(callback)(
+        track_namespace, RequestErrorCode::kInternalError,
+        "SUBSCRIBE_ANNOUNCES already outstanding for namespace");
+    return false;
+  }
   MoqtSubscribeAnnounces message;
+  message.request_id = next_request_id_;
+  next_request_id_ += 2;
   message.track_namespace = track_namespace;
   message.parameters = parameters;
   SendControlMessage(framer_.SerializeSubscribeAnnounces(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_ANNOUNCES message for "
                   << message.track_namespace;
-  outgoing_subscribe_announces_[track_namespace] = std::move(callback);
+  pending_outgoing_subscribe_announces_[message.request_id] =
+      PendingSubscribeAnnouncesData{track_namespace, std::move(callback)};
+  outgoing_subscribe_announces_.emplace(track_namespace);
   return true;
 }
 
@@ -1322,14 +1346,17 @@ void MoqtSession::ControlStream::OnGoAwayMessage(const MoqtGoAway& message) {
 
 void MoqtSession::ControlStream::OnSubscribeAnnouncesMessage(
     const MoqtSubscribeAnnounces& message) {
+  if (!session_->ValidateRequestId(message.request_id)) {
+    return;
+  }
   // TODO(martinduke): Handle authentication.
   if (session_->sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Received a SUBSCRIBE_ANNOUNCES after GOAWAY";
     MoqtSubscribeAnnouncesError error;
-    error.track_namespace = message.track_namespace;
+    error.request_id = message.request_id;
     error.error_code = RequestErrorCode::kUnauthorized;
-    error.reason_phrase = "SUBSCRIBE_ANNOUNCES after GOAWAY";
+    error.error_reason = "SUBSCRIBE_ANNOUNCES after GOAWAY";
     SendOrBufferMessage(
         session_->framer_.SerializeSubscribeAnnouncesError(error));
     return;
@@ -1339,49 +1366,45 @@ void MoqtSession::ControlStream::OnSubscribeAnnouncesMessage(
           message.track_namespace, message.parameters);
   if (result.has_value()) {
     MoqtSubscribeAnnouncesError error;
-    error.track_namespace = message.track_namespace;
+    error.request_id = message.request_id;
     error.error_code = result->error_code;
-    error.reason_phrase = result->reason_phrase;
+    error.error_reason = result->reason_phrase;
     SendOrBufferMessage(
         session_->framer_.SerializeSubscribeAnnouncesError(error));
     return;
   }
   MoqtSubscribeAnnouncesOk ok;
-  ok.track_namespace = message.track_namespace;
+  ok.request_id = message.request_id;
   SendOrBufferMessage(session_->framer_.SerializeSubscribeAnnouncesOk(ok));
 }
 
 void MoqtSession::ControlStream::OnSubscribeAnnouncesOkMessage(
     const MoqtSubscribeAnnouncesOk& message) {
   auto it =
-      session_->outgoing_subscribe_announces_.find(message.track_namespace);
-  if (it == session_->outgoing_subscribe_announces_.end()) {
+      session_->pending_outgoing_subscribe_announces_.find(message.request_id);
+  if (it == session_->pending_outgoing_subscribe_announces_.end()) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received SUBSCRIBE_ANNOUNCES_OK for unknown request_id");
     return;  // UNSUBSCRIBE_ANNOUNCES may already have deleted the entry.
   }
-  if (it->second == nullptr) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Two responses to SUBSCRIBE_ANNOUNCES");
-    return;
-  }
-  std::move(it->second)(message.track_namespace, std::nullopt, "");
-  it->second = nullptr;
+  std::move(it->second.callback)(it->second.track_namespace, std::nullopt, "");
+  session_->pending_outgoing_subscribe_announces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnSubscribeAnnouncesErrorMessage(
     const MoqtSubscribeAnnouncesError& message) {
   auto it =
-      session_->outgoing_subscribe_announces_.find(message.track_namespace);
-  if (it == session_->outgoing_subscribe_announces_.end()) {
+      session_->pending_outgoing_subscribe_announces_.find(message.request_id);
+  if (it == session_->pending_outgoing_subscribe_announces_.end()) {
+    session_->Error(
+        MoqtError::kProtocolViolation,
+        "Received SUBSCRIBE_ANNOUNCES_ERROR for unknown request_id");
     return;  // UNSUBSCRIBE_ANNOUNCES may already have deleted the entry.
   }
-  if (it->second == nullptr) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Two responses to SUBSCRIBE_ANNOUNCES");
-    return;
-  }
-  std::move(it->second)(message.track_namespace, message.error_code,
-                        absl::string_view(message.reason_phrase));
-  session_->outgoing_subscribe_announces_.erase(it);
+  std::move(it->second.callback)(it->second.track_namespace, message.error_code,
+                                 absl::string_view(message.error_reason));
+  session_->outgoing_subscribe_announces_.erase(it->second.track_namespace);
+  session_->pending_outgoing_subscribe_announces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnUnsubscribeAnnouncesMessage(

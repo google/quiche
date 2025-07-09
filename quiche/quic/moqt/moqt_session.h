@@ -829,8 +829,13 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // when sending UNSUBSCRIBE_ANNOUNCES, to make sure the application doesn't
   // unsubscribe from something that it isn't subscribed to. ANNOUNCEs that
   // result from this subscription use incoming_announce_callback.
-  absl::flat_hash_map<TrackNamespace, MoqtOutgoingSubscribeAnnouncesCallback>
-      outgoing_subscribe_announces_;
+  struct PendingSubscribeAnnouncesData {
+    TrackNamespace track_namespace;
+    MoqtOutgoingSubscribeAnnouncesCallback callback;
+  };
+  absl::flat_hash_map<uint64_t, PendingSubscribeAnnouncesData>
+      pending_outgoing_subscribe_announces_;
+  absl::flat_hash_set<TrackNamespace> outgoing_subscribe_announces_;
 
   // The minimum request ID the peer can use that is monotonically increasing.
   uint64_t next_incoming_request_id_ = 0;

@@ -686,18 +686,19 @@ struct QUICHE_EXPORT MoqtGoAway {
 };
 
 struct QUICHE_EXPORT MoqtSubscribeAnnounces {
+  uint64_t request_id;
   TrackNamespace track_namespace;
   VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeAnnouncesOk {
-  TrackNamespace track_namespace;
+  uint64_t request_id;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeAnnouncesError {
-  TrackNamespace track_namespace;
+  uint64_t request_id;
   RequestErrorCode error_code;
-  std::string reason_phrase;
+  std::string error_reason;
 };
 
 struct QUICHE_EXPORT MoqtUnsubscribeAnnounces {
