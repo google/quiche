@@ -807,8 +807,8 @@ TEST_F(MoqtMessageSpecificTest, AnnounceAuthorizationTokenTwice) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
   char announce[] = {
-      0x06, 0x00, 0x14, 0x01, 0x03, 0x66, 0x6f,
-      0x6f,                                      // track_namespace = "foo"
+      0x06, 0x00, 0x15, 0x02, 0x01, 0x03, 0x66,
+      0x6f, 0x6f,                                // track_namespace = "foo"
       0x02,                                      // 2 params
       0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
       0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
@@ -822,8 +822,8 @@ TEST_F(MoqtMessageSpecificTest, AnnounceHasDeliveryTimeout) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
   char announce[] = {
-      0x06, 0x00, 0x10, 0x01, 0x03, 0x66, 0x6f,
-      0x6f,                                      // track_namespace = "foo"
+      0x06, 0x00, 0x11, 0x02, 0x01, 0x03, 0x66,
+      0x6f, 0x6f,                                // track_namespace = "foo"
       0x02,                                      // 2 params
       0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_info = "bar"
       0x02, 0x67, 0x10,                          // delivery_timeout = 10000
@@ -1268,22 +1268,22 @@ TEST_F(MoqtMessageSpecificTest, PaddingStream) {
 }
 
 // All messages with TrackNamespace use ReadTrackNamespace too check this. Use
-// ANNOUNCE_OK for the test because it's small.
+// ANNOUNCE.
 TEST_F(MoqtMessageSpecificTest, NamespaceTooSmall) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char announce_ok[] = {
-      0x07, 0x00, 0x03,  // type, length
-      0x01, 0x01, 'a',   // 1 namespace element
+  char announce[7] = {
+      0x06, 0x00, 0x04, 0x02,  // request_id = 2
+      0x01, 0x00,              // one empty namespace element
+      0x00,                    // no parameters
   };
-  stream.Receive(absl::string_view(announce_ok, sizeof(announce_ok)), false);
+  stream.Receive(absl::string_view(announce, sizeof(announce)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
-  announce_ok[2] -= 2;  // Remove one element.
-  announce_ok[3] = 0x00;
-  stream.Receive(absl::string_view(announce_ok, sizeof(announce_ok) - 2),
-                 false);
+  --announce[2];  // Remove one element.
+  --announce[4];
+  stream.Receive(absl::string_view(announce, sizeof(announce) - 1), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_EQ(visitor_.parsing_error_, "Invalid number of namespace elements");
@@ -1292,22 +1292,18 @@ TEST_F(MoqtMessageSpecificTest, NamespaceTooSmall) {
 TEST_F(MoqtMessageSpecificTest, NamespaceTooLarge) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char announce_ok[70] = {
-      0x07, 0x00, 0x41,  // type, length = 65
-      0x20,              // 32 namespace elements. This is the maximum.
+  char announce[39] = {
+      0x06, 0x00, 0x23, 0x02,  // type, length = 35, request_id = 2
+      0x20,                    // 32 namespace elements. This is the maximum.
   };
-  for (size_t i = 4; i < sizeof(announce_ok); i = i + 2) {
-    announce_ok[i] = 0x01;
-    announce_ok[i + 1] = 'a' + i;
-  }
-  stream.Receive(absl::string_view(announce_ok, sizeof(announce_ok) - 2),
-                 false);
+  // 32 empty namespace elements + no parameters.
+  stream.Receive(absl::string_view(announce, sizeof(announce) - 1), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
-  announce_ok[2] += 2;  // Add one element.
-  ++announce_ok[3];
-  stream.Receive(absl::string_view(announce_ok, sizeof(announce_ok)), false);
+  ++announce[2];  // Add one element.
+  ++announce[4];
+  stream.Receive(absl::string_view(announce, sizeof(announce)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_EQ(visitor_.parsing_error_, "Invalid number of namespace elements");

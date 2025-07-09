@@ -295,9 +295,22 @@ void MoqtSession::Announce(TrackNamespace track_namespace,
   if (outgoing_announces_.contains(track_namespace)) {
     std::move(announce_callback)(
         track_namespace,
-        MoqtAnnounceErrorReason{
-            RequestErrorCode::kInternalError,
-            "ANNOUNCE message already outstanding for namespace"});
+        MoqtAnnounceErrorReason{RequestErrorCode::kInternalError,
+                                "ANNOUNCE already outstanding for namespace"});
+    return;
+  }
+  if (next_request_id_ >= peer_max_request_id_) {
+    if (!last_requests_blocked_sent_.has_value() ||
+        peer_max_request_id_ > *last_requests_blocked_sent_) {
+      MoqtRequestsBlocked requests_blocked;
+      requests_blocked.max_request_id = peer_max_request_id_;
+      SendControlMessage(framer_.SerializeRequestsBlocked(requests_blocked));
+      last_requests_blocked_sent_ = peer_max_request_id_;
+    }
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send ANNOUNCE with ID "
+                    << next_request_id_
+                    << " which is greater than the maximum ID "
+                    << peer_max_request_id_;
     return;
   }
   if (received_goaway_ || sent_goaway_) {
@@ -305,11 +318,14 @@ void MoqtSession::Announce(TrackNamespace track_namespace,
     return;
   }
   MoqtAnnounce message;
+  message.request_id = next_request_id_;
+  next_request_id_ += 2;
   message.track_namespace = track_namespace;
   message.parameters = parameters;
   SendControlMessage(framer_.SerializeAnnounce(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent ANNOUNCE message for "
                   << message.track_namespace;
+  pending_outgoing_announces_[message.request_id] = track_namespace;
   outgoing_announces_[track_namespace] = std::move(announce_callback);
 }
 
@@ -1165,12 +1181,15 @@ void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
 
 void MoqtSession::ControlStream::OnAnnounceMessage(
     const MoqtAnnounce& message) {
+  if (!session_->ValidateRequestId(message.request_id)) {
+    return;
+  }
   if (session_->sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received an ANNOUNCE after GOAWAY";
     MoqtAnnounceError error;
-    error.track_namespace = message.track_namespace;
+    error.request_id = message.request_id;
     error.error_code = RequestErrorCode::kUnauthorized;
-    error.reason_phrase = "ANNOUNCE after GOAWAY";
+    error.error_reason = "ANNOUNCE after GOAWAY";
     SendOrBufferMessage(session_->framer_.SerializeAnnounceError(error));
     return;
   }
@@ -1179,14 +1198,14 @@ void MoqtSession::ControlStream::OnAnnounceMessage(
                                                       message.parameters);
   if (error.has_value()) {
     MoqtAnnounceError reply;
-    reply.track_namespace = message.track_namespace;
+    reply.request_id = message.request_id;
     reply.error_code = error->error_code;
-    reply.reason_phrase = error->reason_phrase;
+    reply.error_reason = error->reason_phrase;
     SendOrBufferMessage(session_->framer_.SerializeAnnounceError(reply));
     return;
   }
   MoqtAnnounceOk ok;
-  ok.track_namespace = message.track_namespace;
+  ok.request_id = message.request_id;
   SendOrBufferMessage(session_->framer_.SerializeAnnounceOk(ok));
 }
 
@@ -1194,24 +1213,41 @@ void MoqtSession::ControlStream::OnAnnounceMessage(
 // ERROR, we immediately destroy the state.
 void MoqtSession::ControlStream::OnAnnounceOkMessage(
     const MoqtAnnounceOk& message) {
-  auto it = session_->outgoing_announces_.find(message.track_namespace);
-  if (it == session_->outgoing_announces_.end()) {
-    return;  // State might have been destroyed due to UNANNOUNCE.
+  auto it = session_->pending_outgoing_announces_.find(message.request_id);
+  if (it == session_->pending_outgoing_announces_.end()) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received ANNOUNCE_OK for unknown request_id");
+    return;
   }
-  std::move(it->second)(message.track_namespace, std::nullopt);
+  TrackNamespace track_namespace = it->second;
+  session_->pending_outgoing_announces_.erase(it);
+  auto callback_it = session_->outgoing_announces_.find(track_namespace);
+  if (callback_it == session_->outgoing_announces_.end()) {
+    // It might have already been destroyed due to UNANNOUNCE.
+    return;
+  }
+  std::move(callback_it->second)(track_namespace, std::nullopt);
 }
 
 void MoqtSession::ControlStream::OnAnnounceErrorMessage(
     const MoqtAnnounceError& message) {
-  auto it = session_->outgoing_announces_.find(message.track_namespace);
-  if (it == session_->outgoing_announces_.end()) {
+  auto it = session_->pending_outgoing_announces_.find(message.request_id);
+  if (it == session_->pending_outgoing_announces_.end()) {
+    session_->Error(MoqtError::kProtocolViolation,
+                    "Received ANNOUNCE_ERROR for unknown request_id");
+    return;
+  }
+  TrackNamespace track_namespace = it->second;
+  session_->pending_outgoing_announces_.erase(it);
+  auto it2 = session_->outgoing_announces_.find(track_namespace);
+  if (it2 == session_->outgoing_announces_.end()) {
     return;  // State might have been destroyed due to UNANNOUNCE.
   }
-  std::move(it->second)(
-      message.track_namespace,
+  std::move(it2->second)(
+      track_namespace,
       MoqtAnnounceErrorReason{message.error_code,
-                              std::string(message.reason_phrase)});
-  session_->outgoing_announces_.erase(it);
+                              std::string(message.error_reason)});
+  session_->outgoing_announces_.erase(it2);
 }
 
 void MoqtSession::ControlStream::OnAnnounceCancelMessage(
@@ -1227,7 +1263,7 @@ void MoqtSession::ControlStream::OnAnnounceCancelMessage(
   std::move(it->second)(
       message.track_namespace,
       MoqtAnnounceErrorReason{message.error_code,
-                              std::string(message.reason_phrase)});
+                              std::string(message.error_reason)});
   session_->outgoing_announces_.erase(it);
 }
 

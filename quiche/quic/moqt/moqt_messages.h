@@ -622,22 +622,29 @@ struct QUICHE_EXPORT MoqtSubscribeUpdate {
 };
 
 struct QUICHE_EXPORT MoqtAnnounce {
+  uint64_t request_id;
   TrackNamespace track_namespace;
   VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtAnnounceOk {
-  TrackNamespace track_namespace;
+  uint64_t request_id;
 };
 
 struct QUICHE_EXPORT MoqtAnnounceError {
-  TrackNamespace track_namespace;
+  uint64_t request_id;
   RequestErrorCode error_code;
-  std::string reason_phrase;
+  std::string error_reason;
 };
 
 struct QUICHE_EXPORT MoqtUnannounce {
   TrackNamespace track_namespace;
+};
+
+struct QUICHE_EXPORT MoqtAnnounceCancel {
+  TrackNamespace track_namespace;
+  RequestErrorCode error_code;
+  std::string error_reason;
 };
 
 enum class QUICHE_EXPORT MoqtTrackStatusCode : uint64_t {
@@ -672,12 +679,6 @@ struct QUICHE_EXPORT MoqtTrackStatus {
   MoqtTrackStatusCode status_code;
   Location largest_location;
   VersionSpecificParameters parameters;
-};
-
-struct QUICHE_EXPORT MoqtAnnounceCancel {
-  TrackNamespace track_namespace;
-  RequestErrorCode error_code;
-  std::string reason_phrase;
 };
 
 struct QUICHE_EXPORT MoqtGoAway {

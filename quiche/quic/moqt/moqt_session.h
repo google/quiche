@@ -819,11 +819,12 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::flat_hash_map<FullTrackName, MoqtPublishingMonitorInterface*>
       monitoring_interfaces_for_published_tracks_;
 
-  // Indexed by track namespace. If the value is not nullptr, no OK or ERROR
-  // has been received. The entry is deleted after sending UNANNOUNCE or
-  // receiving ANNOUNCE_CANCEL.
+  // Outgoing ANNOUNCE for which no OK or ERROR has been received.
+  absl::flat_hash_map<uint64_t, TrackNamespace> pending_outgoing_announces_;
+  // All outgoing ANNOUNCE.
   absl::flat_hash_map<TrackNamespace, MoqtOutgoingAnnounceCallback>
       outgoing_announces_;
+
   // The value is nullptr after OK or ERROR is received. The entry is deleted
   // when sending UNSUBSCRIBE_ANNOUNCES, to make sure the application doesn't
   // unsubscribe from something that it isn't subscribed to. ANNOUNCEs that

@@ -588,7 +588,8 @@ size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessAnnounce(quic::QuicDataReader& reader) {
   MoqtAnnounce announce;
-  if (!ReadTrackNamespace(reader, announce.track_namespace)) {
+  if (!reader.ReadVarInt62(&announce.request_id) ||
+      !ReadTrackNamespace(reader, announce.track_namespace)) {
     return 0;
   }
   KeyValuePairList parameters;
@@ -610,7 +611,7 @@ size_t MoqtControlParser::ProcessAnnounce(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessAnnounceOk(quic::QuicDataReader& reader) {
   MoqtAnnounceOk announce_ok;
-  if (!ReadTrackNamespace(reader, announce_ok.track_namespace)) {
+  if (!reader.ReadVarInt62(&announce_ok.request_id)) {
     return 0;
   }
   visitor_.OnAnnounceOkMessage(announce_ok);
@@ -619,12 +620,10 @@ size_t MoqtControlParser::ProcessAnnounceOk(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
   MoqtAnnounceError announce_error;
-  if (!ReadTrackNamespace(reader, announce_error.track_namespace)) {
-    return 0;
-  }
   uint64_t error_code;
-  if (!reader.ReadVarInt62(&error_code) ||
-      !reader.ReadStringVarInt62(announce_error.reason_phrase)) {
+  if (!reader.ReadVarInt62(&announce_error.request_id) ||
+      !reader.ReadVarInt62(&error_code) ||
+      !reader.ReadStringVarInt62(announce_error.error_reason)) {
     return 0;
   }
   announce_error.error_code = static_cast<RequestErrorCode>(error_code);
@@ -639,7 +638,7 @@ size_t MoqtControlParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
   }
   uint64_t error_code;
   if (!reader.ReadVarInt62(&error_code) ||
-      !reader.ReadStringVarInt62(announce_cancel.reason_phrase)) {
+      !reader.ReadStringVarInt62(announce_cancel.error_reason)) {
     return 0;
   }
   announce_cancel.error_code = static_cast<RequestErrorCode>(error_code);

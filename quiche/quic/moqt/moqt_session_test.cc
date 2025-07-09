@@ -364,7 +364,7 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndCancel) {
                     VersionSpecificParameters());
 
   MoqtAnnounceOk ok = {
-      TrackNamespace("foo"),
+      /*request_id=*/0,
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
       .WillOnce([&](TrackNamespace track_namespace,
@@ -377,7 +377,7 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndCancel) {
   MoqtAnnounceCancel cancel = {
       TrackNamespace("foo"),
       RequestErrorCode::kInternalError,
-      /*reason_phrase=*/"Test error",
+      /*error_reason=*/"Test error",
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
       .WillOnce([&](TrackNamespace track_namespace,
@@ -407,7 +407,7 @@ TEST_F(MoqtSessionTest, AnnounceWithOkAndUnannounce) {
                     VersionSpecificParameters());
 
   MoqtAnnounceOk ok = {
-      TrackNamespace{"foo"},
+      /*request_id=*/0,
   };
   EXPECT_CALL(announce_resolved_callback, Call(_, _))
       .WillOnce([&](TrackNamespace track_namespace,
@@ -440,7 +440,7 @@ TEST_F(MoqtSessionTest, AnnounceWithError) {
                     VersionSpecificParameters());
 
   MoqtAnnounceError error = {
-      /*track_namespace=*/TrackNamespace{"foo"},
+      /*request_id=*/0,
       /*error_code=*/RequestErrorCode::kInternalError,
       /*reason_phrase=*/"Test error",
   };
@@ -893,15 +893,15 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenUnannounce) {
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   MoqtAnnounce announce = {
+      /*request_id=*/1,
       track_namespace,
       *parameters,
   };
   EXPECT_CALL(session_callbacks_.incoming_announce_callback,
               Call(track_namespace, parameters))
       .WillOnce(Return(std::nullopt));
-  EXPECT_CALL(
-      mock_stream_,
-      Writev(SerializedControlMessage(MoqtAnnounceOk{track_namespace}), _));
+  EXPECT_CALL(mock_stream_,
+              Writev(SerializedControlMessage(MoqtAnnounceOk{1}), _));
   stream_input->OnAnnounceMessage(announce);
   MoqtUnannounce unannounce = {
       track_namespace,
@@ -920,15 +920,15 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithOkThenAnnounceCancel) {
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   MoqtAnnounce announce = {
+      /*request_id=*/1,
       track_namespace,
       *parameters,
   };
   EXPECT_CALL(session_callbacks_.incoming_announce_callback,
               Call(track_namespace, parameters))
       .WillOnce(Return(std::nullopt));
-  EXPECT_CALL(
-      mock_stream_,
-      Writev(SerializedControlMessage(MoqtAnnounceOk{track_namespace}), _));
+  EXPECT_CALL(mock_stream_,
+              Writev(SerializedControlMessage(MoqtAnnounceOk{1}), _));
   stream_input->OnAnnounceMessage(announce);
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(MoqtAnnounceCancel{
@@ -947,6 +947,7 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithError) {
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
   MoqtAnnounce announce = {
+      /*request_id=*/1,
       track_namespace,
       *parameters,
   };
@@ -957,11 +958,10 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithError) {
   EXPECT_CALL(session_callbacks_.incoming_announce_callback,
               Call(track_namespace, parameters))
       .WillOnce(Return(error));
-  EXPECT_CALL(
-      mock_stream_,
-      Writev(SerializedControlMessage(MoqtAnnounceError{
-                 track_namespace, error.error_code, error.reason_phrase}),
-             _));
+  EXPECT_CALL(mock_stream_,
+              Writev(SerializedControlMessage(MoqtAnnounceError{
+                         1, error.error_code, error.reason_phrase}),
+                     _));
   stream_input->OnAnnounceMessage(announce);
 }
 
@@ -3196,11 +3196,11 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kAnnounceError), _));
   stream_input->OnAnnounceMessage(
-      MoqtAnnounce(TrackNamespace("foo"), VersionSpecificParameters()));
+      MoqtAnnounce(3, TrackNamespace("foo"), VersionSpecificParameters()));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kFetchError), _));
   MoqtFetch fetch = DefaultFetch();
-  fetch.request_id = 3;
+  fetch.request_id = 5;
   stream_input->OnFetchMessage(fetch);
   EXPECT_CALL(
       mock_stream_,

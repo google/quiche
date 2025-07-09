@@ -563,6 +563,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeAnnounce(
     return quiche::QuicheBuffer();
   }
   return SerializeControlMessage(MoqtMessageType::kAnnounce,
+                                 WireVarInt62(message.request_id),
                                  WireTrackNamespace(message.track_namespace),
                                  WireKeyValuePairList(parameters));
 }
@@ -570,16 +571,21 @@ quiche::QuicheBuffer MoqtFramer::SerializeAnnounce(
 quiche::QuicheBuffer MoqtFramer::SerializeAnnounceOk(
     const MoqtAnnounceOk& message) {
   return SerializeControlMessage(MoqtMessageType::kAnnounceOk,
-                                 WireTrackNamespace(message.track_namespace));
+                                 WireVarInt62(message.request_id));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeAnnounceError(
     const MoqtAnnounceError& message) {
   return SerializeControlMessage(
-      MoqtMessageType::kAnnounceError,
-      WireTrackNamespace(message.track_namespace),
+      MoqtMessageType::kAnnounceError, WireVarInt62(message.request_id),
       WireVarInt62(message.error_code),
-      WireStringWithVarInt62Length(message.reason_phrase));
+      WireStringWithVarInt62Length(message.error_reason));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeUnannounce(
+    const MoqtUnannounce& message) {
+  return SerializeControlMessage(MoqtMessageType::kUnannounce,
+                                 WireTrackNamespace(message.track_namespace));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeAnnounceCancel(
@@ -588,7 +594,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeAnnounceCancel(
       MoqtMessageType::kAnnounceCancel,
       WireTrackNamespace(message.track_namespace),
       WireVarInt62(message.error_code),
-      WireStringWithVarInt62Length(message.reason_phrase));
+      WireStringWithVarInt62Length(message.error_reason));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeTrackStatusRequest(
@@ -605,12 +611,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeTrackStatusRequest(
                                  WireVarInt62(message.request_id),
                                  WireFullTrackName(message.full_track_name),
                                  WireKeyValuePairList(parameters));
-}
-
-quiche::QuicheBuffer MoqtFramer::SerializeUnannounce(
-    const MoqtUnannounce& message) {
-  return SerializeControlMessage(MoqtMessageType::kUnannounce,
-                                 WireTrackNamespace(message.track_namespace));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(
