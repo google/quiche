@@ -1049,7 +1049,7 @@ class MockHttp3DebugVisitor : public Http3DebugVisitor {
               (override));
   MOCK_METHOD(void, OnHeadersFrameReceived, (QuicStreamId, QuicByteCount),
               (override));
-  MOCK_METHOD(void, OnHeadersDecoded, (QuicStreamId, QuicHeaderList),
+  MOCK_METHOD(void, OnHeadersDecoded, (QuicStreamId, const QuicHeaderList&),
               (override));
   MOCK_METHOD(void, OnUnknownFrameReceived,
               (QuicStreamId, uint64_t, QuicByteCount), (override));

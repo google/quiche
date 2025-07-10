@@ -93,7 +93,7 @@ class QUICHE_EXPORT Http3DebugVisitor {
       QuicStreamId /*stream_id*/,
       QuicByteCount /*compressed_headers_length*/) = 0;
   virtual void OnHeadersDecoded(QuicStreamId /*stream_id*/,
-                                QuicHeaderList /*headers*/) = 0;
+                                const QuicHeaderList& /*headers*/) = 0;
 
   // Incoming HTTP/3 frames of unknown type on any stream.
   virtual void OnUnknownFrameReceived(QuicStreamId /*stream_id*/,
