@@ -22,7 +22,8 @@ namespace quic {
 // Discards any incoming data.
 class WebTransportDiscardVisitor : public WebTransportStreamVisitor {
  public:
-  WebTransportDiscardVisitor(WebTransportStream* stream) : stream_(stream) {}
+  WebTransportDiscardVisitor(WebTransportStream* stream, bool bidi)
+      : stream_(stream), bidi_(bidi) {}
 
   void OnCanRead() override {
     std::string buffer;
@@ -30,6 +31,10 @@ class WebTransportDiscardVisitor : public WebTransportStreamVisitor {
     QUIC_DVLOG(2) << "Read " << result.bytes_read
                   << " bytes from WebTransport stream "
                   << stream_->GetStreamId() << ", fin: " << result.fin;
+    if (bidi_ && result.fin) {
+      absl::Status status = quiche::SendFinOnStream(*stream_);
+      QUICHE_DCHECK(status.ok()) << status;
+    }
   }
 
   void OnCanWrite() override {}
@@ -40,6 +45,7 @@ class WebTransportDiscardVisitor : public WebTransportStreamVisitor {
 
  private:
   WebTransportStream* stream_;
+  bool bidi_;
 };
 
 class DiscardWebTransportSessionVisitor : public WebTransportVisitor {
@@ -58,7 +64,8 @@ class DiscardWebTransportSessionVisitor : public WebTransportVisitor {
       if (stream == nullptr) {
         return;
       }
-      stream->SetVisitor(std::make_unique<WebTransportDiscardVisitor>(stream));
+      stream->SetVisitor(
+          std::make_unique<WebTransportDiscardVisitor>(stream, /*bidi=*/true));
       stream->visitor()->OnCanRead();
     }
   }
@@ -70,7 +77,8 @@ class DiscardWebTransportSessionVisitor : public WebTransportVisitor {
       if (stream == nullptr) {
         return;
       }
-      stream->SetVisitor(std::make_unique<WebTransportDiscardVisitor>(stream));
+      stream->SetVisitor(
+          std::make_unique<WebTransportDiscardVisitor>(stream, /*bidi=*/false));
       stream->visitor()->OnCanRead();
     }
   }

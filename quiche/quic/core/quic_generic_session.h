@@ -55,6 +55,7 @@ class QUICHE_EXPORT QuicGenericSessionBase : public QuicSession,
   ~QuicGenericSessionBase();
 
   // QuicSession implementation.
+  void Initialize() override;
   std::vector<std::string> GetAlpnsToOffer() const override {
     return std::vector<std::string>({alpn_});
   }

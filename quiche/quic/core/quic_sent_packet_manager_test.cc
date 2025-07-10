@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -3653,6 +3654,61 @@ TEST_F(QuicSentPacketManagerTest, GetPathDegradingDelayUsingPTO) {
       pto_count++;
     }
   }
+}
+
+static constexpr float kDefaultOverhead = 0.05f;
+
+TEST_F(QuicSentPacketManagerTest, DefaultOverhead) {
+  manager_.EnableOverheadMeasurement();
+  EXPECT_NEAR(manager_.GetOverheadEstimate(), kDefaultOverhead, 1e-6);
+}
+
+TEST_F(QuicSentPacketManagerTest, OverheadFromStreamFrames) {
+  manager_.EnableOverheadMeasurement();
+  EXPECT_CALL(*send_algorithm_, OnPacketSent).Times(AnyNumber());
+  std::string buffer(kDefaultLength / 2, '\0');
+  for (int i = 1; i < 1000; ++i) {
+    SerializedPacket packet(QuicPacketNumber(i), PACKET_4BYTE_PACKET_NUMBER,
+                            nullptr, kDefaultLength, false, false);
+    packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
+    packet.retransmittable_frames.push_back(
+        QuicFrame(QuicStreamFrame(kStreamId, false, 0, buffer)));
+    manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
+                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+  }
+  EXPECT_NEAR(manager_.GetOverheadEstimate(), 0.5, 0.01);
+}
+
+TEST_F(QuicSentPacketManagerTest, OverheadFromDatagramFrames) {
+  manager_.EnableOverheadMeasurement();
+  EXPECT_CALL(*send_algorithm_, OnPacketSent).Times(AnyNumber());
+  std::string buffer(kDefaultLength / 2, '\0');
+  for (int i = 1; i < 1000; ++i) {
+    SerializedPacket packet(QuicPacketNumber(i), PACKET_4BYTE_PACKET_NUMBER,
+                            nullptr, kDefaultLength, false, false);
+    packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
+    packet.retransmittable_frames.push_back(QuicFrame(
+        new QuicMessageFrame(i, quiche::QuicheMemSlice::Copy(buffer))));
+    manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
+                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+  }
+  EXPECT_NEAR(manager_.GetOverheadEstimate(), 0.5, 0.01);
+}
+
+TEST_F(QuicSentPacketManagerTest, IgnoreNon1RttFrames) {
+  manager_.EnableOverheadMeasurement();
+  EXPECT_CALL(*send_algorithm_, OnPacketSent).Times(AnyNumber());
+  std::string buffer(kDefaultLength / 2, '\0');
+  for (int i = 1; i < 1000; ++i) {
+    SerializedPacket packet(QuicPacketNumber(i), PACKET_4BYTE_PACKET_NUMBER,
+                            nullptr, kDefaultLength, false, false);
+    packet.encryption_level = ENCRYPTION_INITIAL;
+    packet.retransmittable_frames.push_back(
+        QuicFrame(QuicStreamFrame(kStreamId, false, 0, buffer)));
+    manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
+                          HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+  }
+  EXPECT_NEAR(manager_.GetOverheadEstimate(), kDefaultOverhead, 1e-6);
 }
 
 }  // namespace

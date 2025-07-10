@@ -7,6 +7,7 @@
 
 #include "quiche/quic/core/quic_generic_session.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstring>
 #include <memory>
@@ -14,16 +15,21 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_datagram_queue.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_stream.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -34,6 +40,8 @@
 #include "quiche/quic/test_tools/simulator/test_harness.h"
 #include "quiche/quic/test_tools/web_transport_test_tools.h"
 #include "quiche/quic/tools/web_transport_test_visitors.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/web_transport.h"
@@ -42,6 +50,24 @@ namespace quic::test {
 namespace {
 
 enum ServerType { kDiscardServer, kEchoServer };
+
+constexpr char kZeroes[8192] = {0};
+
+absl::Status SendZeroes(quiche::WriteStream& stream, int num_of_zeroes,
+                        bool fin = false) {
+  std::vector<quiche::QuicheMemSlice> slices;
+  slices.reserve(num_of_zeroes / sizeof(kZeroes) + 1);
+  int remaining = num_of_zeroes;
+  while (remaining > 0) {
+    size_t chunk_size = std::min<size_t>(remaining, sizeof(kZeroes));
+    slices.push_back(
+        quiche::QuicheMemSlice(kZeroes, chunk_size, +[](absl::string_view) {}));
+    remaining -= chunk_size;
+  }
+  quiche::StreamWriteOptions options;
+  options.set_send_fin(fin);
+  return stream.Writev(absl::MakeSpan(slices), options);
+}
 
 using quiche::test::StatusIs;
 using simulator::Simulator;
@@ -506,6 +532,60 @@ TEST_F(QuicGenericSessionTest, WriteWhenBufferFull) {
     }
   }
   EXPECT_EQ(total_received, 128u * 1024u + 2);
+}
+
+// Disable bandwidth measurement test in non-opt builds since it's slow.
+#if defined(NDEBUG)
+#define BANDWIDTH_MEASUREMENT_TEST BandwidthMeasurement
+#else
+#define BANDWIDTH_MEASUREMENT_TEST DISABLED_BandwidthMeasurement
+#endif
+
+// Verifies that the bandwidth estimation in the WebTransport stats API works,
+// and excludes framing overhead as expected.
+TEST_F(QuicGenericSessionTest, BANDWIDTH_MEASUREMENT_TEST) {
+  CreateDefaultEndpoints(kDiscardServer);
+  WireUpEndpoints();
+  RunHandshake();
+
+  // Warm up the connection.
+  webtransport::Stream* stream =
+      client_->session()->OpenOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  QUICHE_ASSERT_OK(SendZeroes(*stream, 1024 * 1024, /*fin=*/true));
+  bool finished = test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return stream->PeekNextReadableRegion().fin_next; });
+  ASSERT_TRUE(finished);
+
+  // Send the actual probe.
+  constexpr QuicByteCount kTestSize = 32 * 1024 * 1024;
+  stream = client_->session()->OpenOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  QUICHE_ASSERT_OK(SendZeroes(*stream, kTestSize, /*fin=*/true));
+
+  // Measure the simulated time it takes to finish a transfer.
+  const QuicTimeDelta timeout =
+      2 * simulator::TestHarness::kServerBandwidth.TransferTime(kTestSize);
+  const QuicTime start = test_harness_.simulator().GetClock()->Now();
+  finished = test_harness_.simulator().RunUntilOrTimeout(
+      [&]() { return stream->PeekNextReadableRegion().fin_next; }, timeout);
+  const QuicTime end = test_harness_.simulator().GetClock()->Now();
+  const QuicBandwidth effective_bandwidth =
+      QuicBandwidth::FromBytesAndTimeDelta(kTestSize, end - start);
+  const QuicBandwidth stats_bandwidth = QuicBandwidth::FromBitsPerSecond(
+      client_->session()->GetSessionStats().estimated_send_rate_bps);
+
+  // Allow up to 1.25% error (server link capacity is 4Mbps).
+  constexpr QuicBandwidth kMaxError = QuicBandwidth::FromKBitsPerSecond(50);
+  EXPECT_NEAR(effective_bandwidth.ToBitsPerSecond(),
+              stats_bandwidth.ToBitsPerSecond(), kMaxError.ToBitsPerSecond());
+  QUICHE_LOG(INFO) << "Stats-reported bandwidth estimate: " << stats_bandwidth;
+  QUICHE_LOG(INFO) << "Application-observed bandwidth: " << effective_bandwidth;
+  const QuicBandwidth error = stats_bandwidth - effective_bandwidth;
+  const float ratio = static_cast<float>(error.ToBitsPerSecond()) /
+                      static_cast<float>(effective_bandwidth.ToBitsPerSecond());
+  QUICHE_LOG(INFO) << "Error: " << error
+                   << absl::StrFormat(" (%.2f%%)", ratio * 100.0f);
 }
 
 }  // namespace

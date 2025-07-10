@@ -27,11 +27,18 @@ webtransport::SessionStats WebTransportStatsForQuicSession(
   result.min_rtt = rtt_stats->min_rtt().ToAbsl();
   result.smoothed_rtt = rtt_stats->smoothed_rtt().ToAbsl();
   result.rtt_variation = rtt_stats->mean_deviation().ToAbsl();
-  result.estimated_send_rate_bps = session.connection()
-                                       ->sent_packet_manager()
-                                       .BandwidthEstimate()
-                                       .ToBitsPerSecond();
   result.datagram_stats = WebTransportDatagramStatsForQuicSession(session);
+
+  // "This estimate excludes any framing overhead and represents the rate at
+  // which an application payload might be sent."
+  // https://w3c.github.io/webtransport/#web-transport-connection-stats
+  float adjustment =
+      1.0f - session.connection()->sent_packet_manager().GetOverheadEstimate();
+  result.estimated_send_rate_bps = adjustment * session.connection()
+                                                    ->sent_packet_manager()
+                                                    .BandwidthEstimate()
+                                                    .ToBitsPerSecond();
+
   return result;
 }
 

@@ -512,6 +512,14 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // kMinUntrustedInitialRoundTripTimeUs if not |trusted|.
   void SetInitialRtt(QuicTime::Delta rtt, bool trusted);
 
+  // Enables QUIC overhead measurement.
+  void EnableOverheadMeasurement() { measure_overhead_ = true; }
+
+  // Returns an estimate of overhead added by QUIC as a fraction of application
+  // payload sent to total data sent (total data includes everything inside UDP
+  // packets sent by QUIC, but excludes UDP headers and above).
+  float GetOverheadEstimate() const;
+
  private:
   friend class test::QuicConnectionPeer;
   friend class test::QuicSentPacketManagerPeer;
@@ -622,6 +630,9 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // Update counters for the number of ECN-marked packets sent.
   void RecordEcnMarkingSent(QuicEcnCodepoint ecn_codepoint,
                             EncryptionLevel level);
+
+  // Updates the QUIC overhead measurements if those are enabled.
+  void UpdateOverheadMeasurements(const SerializedPacket& packet);
 
   // Newly serialized retransmittable packets are added to this map, which
   // contains owning pointers to any contained frames.  If a packet is
@@ -738,6 +749,9 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // Whether to ignore the ack_delay in received ACKs.
   bool ignore_ack_delay_;
 
+  // Whether to record stats necessary for the QUIC overhead estimation.
+  bool measure_overhead_;
+
   // The total number of packets sent with ECT(0) or ECT(1) in each packet
   // number space over the life of the connection.
   QuicPacketCount ect0_packets_sent_[NUM_PACKET_NUMBER_SPACES] = {0, 0, 0};
@@ -745,6 +759,11 @@ class QUICHE_EXPORT QuicSentPacketManager {
 
   // Most recent ECN codepoint counts received in an ACK frame sent by the peer.
   QuicEcnCounts peer_ack_ecn_counts_[NUM_PACKET_NUMBER_SPACES];
+
+  // The numerator and denominator used for overhead measurements. Only recorded
+  // if `measure_overhead_` is true.
+  QuicByteCount overhead_good_bytes_ = 0;
+  QuicByteCount overhead_total_bytes_ = 0;
 
   std::optional<QuicTime::Delta> deferred_send_alarm_delay_;
 

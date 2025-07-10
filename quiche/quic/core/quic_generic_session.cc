@@ -97,6 +97,11 @@ QuicGenericSessionBase::~QuicGenericSessionBase() {
   }
 }
 
+void QuicGenericSessionBase::Initialize() {
+  QuicSession::Initialize();
+  connection()->sent_packet_manager().EnableOverheadMeasurement();
+}
+
 QuicStream* QuicGenericSessionBase::CreateIncomingStream(QuicStreamId id) {
   QUIC_DVLOG(1) << "Creating incoming QuicGenricStream " << id;
   QuicGenericStream* stream = CreateStream(id);

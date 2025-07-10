@@ -72,6 +72,15 @@ static const uint32_t kConservativeUnpacedBurst = 2;
 // The default number of PTOs to trigger path degrading.
 static const uint32_t kNumProbeTimeoutsForPathDegradingDelay = 4;
 
+// QUIC overhead returned if there is not enough data to provide an estimate. 5%
+// is roughly the number one can get from a simulated unit test.
+constexpr float kDefaultOverhead = 0.05f;
+
+// Minimum number of data bytes sent before the packet manager can provide an
+// estimate of the QUIC overhead.
+constexpr QuicByteCount kMinBytesForOverheadMeasurement =
+    kDefaultMaxPacketSize * 20;
+
 }  // namespace
 
 #define ENDPOINT                                                         \
@@ -106,7 +115,8 @@ QuicSentPacketManager::QuicSentPacketManager(
       one_rtt_packet_acked_(false),
       num_ptos_for_path_degrading_(kNumProbeTimeoutsForPathDegradingDelay),
       ignore_pings_(false),
-      ignore_ack_delay_(false) {
+      ignore_ack_delay_(false),
+      measure_overhead_(false) {
   SetSendAlgorithm(congestion_control_type);
 }
 
@@ -719,6 +729,8 @@ bool QuicSentPacketManager::OnPacketSent(
   if (pending_timer_transmission_count_ > 0) {
     --pending_timer_transmission_count_;
   }
+
+  UpdateOverheadMeasurements(packet);
 
   bool in_flight = has_retransmittable_data == HAS_RETRANSMITTABLE_DATA;
   if (ignore_pings_ && mutable_packet->retransmittable_frames.size() == 1 &&
@@ -1665,6 +1677,38 @@ void QuicSentPacketManager::OnAckFrequencyFrameAcked(
   peer_max_ack_delay_ = std::max_element(in_use_sent_ack_delays_.cbegin(),
                                          in_use_sent_ack_delays_.cend())
                             ->first;
+}
+
+float QuicSentPacketManager::GetOverheadEstimate() const {
+  // `overhead_total_bytes_` check is a defense-in-depth again divide-by-zero.
+  if (overhead_total_bytes_ < kMinBytesForOverheadMeasurement ||
+      overhead_good_bytes_ < kMinBytesForOverheadMeasurement) {
+    return kDefaultOverhead;
+  }
+
+  return 1.0f - static_cast<float>(overhead_good_bytes_) /
+                    static_cast<float>(overhead_total_bytes_);
+}
+
+void QuicSentPacketManager::UpdateOverheadMeasurements(
+    const SerializedPacket& packet) {
+  if (!measure_overhead_) {
+    return;
+  }
+  // Ignore packets with the long header.
+  if (packet.encryption_level != ENCRYPTION_FORWARD_SECURE) {
+    return;
+  }
+
+  overhead_total_bytes_ += packet.encrypted_length;
+  for (const QuicFrame& frame : packet.retransmittable_frames) {
+    if (frame.type == QuicFrameType::STREAM_FRAME) {
+      overhead_good_bytes_ += frame.stream_frame.data_length;
+    }
+    if (frame.type == QuicFrameType::MESSAGE_FRAME) {
+      overhead_good_bytes_ += frame.message_frame->message_length;
+    }
+  }
 }
 
 #undef ENDPOINT  // undef for jumbo builds

@@ -609,6 +609,10 @@ void QuicSpdySession::Initialize() {
   // Limit HPACK buffering to 2x header list size limit.
   h2_deframer_.GetHpackDecoder().set_max_decode_buffer_size_bytes(
       2 * max_inbound_header_list_size_);
+
+  if (ShouldNegotiateWebTransport()) {
+    connection()->sent_packet_manager().EnableOverheadMeasurement();
+  }
 }
 
 void QuicSpdySession::FillSettingsFrame() {
