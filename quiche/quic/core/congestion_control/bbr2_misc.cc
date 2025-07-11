@@ -156,11 +156,11 @@ void Bbr2NetworkModel::OnCongestionEventStart(
         congestion_event->prior_bytes_in_flight -
         congestion_event->bytes_acked - congestion_event->bytes_lost;
   } else {
-    QUIC_BUG(quic_bbr2_prior_in_flight_too_small)
-        << "prior_bytes_in_flight:" << congestion_event->prior_bytes_in_flight
-        << " is smaller than the sum of bytes_acked:"
-        << congestion_event->bytes_acked
-        << " and bytes_lost:" << congestion_event->bytes_lost;
+    QUIC_LOG(ERROR) << "prior_bytes_in_flight:"
+                    << congestion_event->prior_bytes_in_flight
+                    << " is smaller than the sum of bytes_acked:"
+                    << congestion_event->bytes_acked
+                    << " and bytes_lost:" << congestion_event->bytes_lost;
     congestion_event->bytes_in_flight = 0;
   }
 
