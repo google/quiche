@@ -290,6 +290,17 @@ class QUICHE_EXPORT Http2VisitorInterface {
     return {-1, false};
   }
 
+  // Invoked when this endpoint is no longer able to send data to the peer
+  // because the stream or connection flow control send window has been
+  // exhausted. A `stream_id` of zero indicates the connection level flow
+  // control window.
+  virtual void OnLocalFlowControlExhausted(Http2StreamId /*stream_id*/) {}
+
+  // Invoked when the peer is no longer able to send data to this endpoint
+  // because the flow control receive window has been exhausted. A `stream_id`
+  // of zero indicates the connection level flow control window.
+  virtual void OnRemoteFlowControlExhausted(Http2StreamId /*stream_id*/) {}
+
   // Invoked with an error message from the application.
   virtual void OnErrorDebug(absl::string_view message) = 0;
 

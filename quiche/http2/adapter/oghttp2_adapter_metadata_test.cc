@@ -385,6 +385,8 @@ TEST_P(MetadataApiTest, ClientSendsMetadataAfterFlowControlBlock) {
   // 4 DATA frames should saturate the default 64kB stream/connection flow
   // control window.
   EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id1, _, 0x0, 0)).Times(4);
+  EXPECT_CALL(visitor, OnLocalFlowControlExhausted(0));
+  EXPECT_CALL(visitor, OnLocalFlowControlExhausted(stream_id1));
 
   int result = adapter->Send();
   EXPECT_EQ(0, result);

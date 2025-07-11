@@ -68,11 +68,11 @@ class QUICHE_EXPORT WindowManager {
 
   void MaybeNotifyListener();
 
-  // The upper bound on the flow control window. The GFE attempts to maintain a
-  // window of this size at the peer as data is proxied through.
+  // The upper bound on the flow control window. This endpoint attempts to
+  // maintain a window of this size at the peer as data is proxied through.
   int64_t limit_;
 
-  // The current flow control window that has not been advertised to the peer
+  // The current flow control window that has been advertised to the peer
   // and not yet consumed. The peer can send this many bytes before becoming
   // blocked.
   int64_t window_;

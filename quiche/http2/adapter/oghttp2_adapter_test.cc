@@ -3187,6 +3187,8 @@ TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSetting) {
   options.perspective = Perspective::kClient;
   auto adapter = OgHttp2Adapter::Create(visitor, options);
 
+  testing::InSequence s;
+
   const std::string initial_frames =
       TestFrameSequence()
           .Settings({{INITIAL_WINDOW_SIZE, 80000u}})
@@ -3238,6 +3240,7 @@ TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSetting) {
   // The client can send more than 4 frames (65536 bytes) of data.
   EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, 16384, 0x0, 0)).Times(4);
   EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, 14464, 0x0, 0));
+  EXPECT_CALL(visitor, OnLocalFlowControlExhausted(stream_id));
 
   result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -3252,6 +3255,8 @@ TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSettingAfterStreamStart) {
   OgHttp2Adapter::Options options;
   options.perspective = Perspective::kClient;
   auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+  testing::InSequence s;
 
   const std::string initial_frames =
       TestFrameSequence().ServerPreface().WindowUpdate(0, 65536).Serialize();
@@ -3295,6 +3300,7 @@ TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSettingAfterStreamStart) {
   // yet been increased.
   EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, 16384, 0x0, 0)).Times(3);
   EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, 16383, 0x0, 0));
+  EXPECT_CALL(visitor, OnLocalFlowControlExhausted(stream_id));
 
   result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -3324,6 +3330,7 @@ TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSettingAfterStreamStart) {
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, ACK_FLAG, 0));
   // The client can write more after receiving the INITIAL_WINDOW_SIZE setting.
   EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id, 14465, 0x0, 0));
+  EXPECT_CALL(visitor, OnLocalFlowControlExhausted(stream_id));
 
   result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -3964,6 +3971,8 @@ TEST(OgHttp2AdapterTest, ClientEncountersFlowControlBlock) {
   // 4 DATA frames should saturate the default 64kB stream/connection flow
   // control window.
   EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id1, _, 0x0, 0)).Times(4);
+  EXPECT_CALL(visitor, OnLocalFlowControlExhausted(0));
+  EXPECT_CALL(visitor, OnLocalFlowControlExhausted(stream_id1));
 
   int result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -3993,8 +4002,12 @@ TEST(OgHttp2AdapterTest, ClientEncountersFlowControlBlock) {
 
   EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id2, _, 0x0, 0))
       .Times(testing::AtLeast(1));
+  EXPECT_CALL(visitor, OnLocalFlowControlExhausted(stream_id2));
+
   EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id1, _, 0x0, 0))
       .Times(testing::AtLeast(1));
+  // Connection level flow control is exhausted.
+  EXPECT_CALL(visitor, OnLocalFlowControlExhausted(0));
 
   EXPECT_TRUE(adapter->want_write());
   result = adapter->Send();
@@ -4041,9 +4054,12 @@ TEST(OgHttp2AdapterTest, ClientSendsTrailersAfterFlowControlBlock) {
   EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id2, _, 0x4));
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id2, _, 0x4, 0));
   EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id1, _, 0x0, 0)).Times(1);
-  // 4 DATA frames should saturate the default 64kB stream/connection flow
+  // 4 DATA frames should saturate the default 64kB connection flow
   // control window.
   EXPECT_CALL(visitor, OnFrameSent(DATA, stream_id2, _, 0x0, 0)).Times(4);
+  // The connection flow control window has been exhausted, but both streams
+  // still have flow control window available.
+  EXPECT_CALL(visitor, OnLocalFlowControlExhausted(0));
 
   int result = adapter->Send();
   EXPECT_EQ(0, result);
@@ -5798,6 +5814,7 @@ TEST(OgHttp2AdapterTest, ServerSubmitsTrailersWithFlowControlBlockage) {
   // This will send data but not trailers, because the data source hasn't
   // finished sending.
   EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnLocalFlowControlExhausted(1));
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::DATA}));
@@ -6272,6 +6289,7 @@ TEST(OgHttp2AdapterTest, ClientDisobeysStreamFlowControl) {
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 16384));
   EXPECT_CALL(visitor, OnDataForStream(1, _));
   EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0x0));
+  EXPECT_CALL(visitor, OnRemoteFlowControlExhausted(1)).Times(2);
   // No further frame data or headers are delivered.
 
   result = adapter->ProcessBytes(more_frames);

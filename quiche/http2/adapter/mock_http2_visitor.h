@@ -124,6 +124,12 @@ class QUICHE_NO_EXPORT MockHttp2Visitor : public Http2VisitorInterface {
               (Http2StreamId stream_id, uint8_t* dest, size_t dest_len),
               (override));
 
+  MOCK_METHOD(void, OnLocalFlowControlExhausted, (Http2StreamId stream_id),
+              (override));
+
+  MOCK_METHOD(void, OnRemoteFlowControlExhausted, (Http2StreamId stream_id),
+              (override));
+
   MOCK_METHOD(void, OnErrorDebug, (absl::string_view message), (override));
 };
 

@@ -841,11 +841,13 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
     }
     return SendResult::SEND_OK;
   }
+  bool wrote_data = false;
   int32_t available_window =
       std::min({connection_send_window_, state.send_window,
                 static_cast<int32_t>(max_frame_payload_)});
   while (connection_can_write == SendResult::SEND_OK && available_window > 0 &&
          IsReadyToWriteData(state)) {
+    wrote_data = true;
     DataFrameHeaderInfo info =
         GetDataFrameInfo(stream_id, available_window, state);
     QUICHE_VLOG(3) << "WriteForStream | length: " << info.payload_length
@@ -925,9 +927,18 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
   }
   // If the stream still exists and has data to send, it should be marked as
   // ready in the write scheduler.
-  if (stream_map_.contains(stream_id) && !state.data_deferred &&
-      state.send_window > 0 && HasMoreData(state)) {
+  const bool stream_exists = stream_map_.contains(stream_id);
+  if (stream_exists && !state.data_deferred && state.send_window > 0 &&
+      HasMoreData(state)) {
     write_scheduler_.MarkStreamReady(stream_id, false);
+  }
+  if (wrote_data) {
+    if (connection_send_window_ <= 0) {
+      visitor_.OnLocalFlowControlExhausted(0);
+    }
+    if (stream_exists && state.send_window <= 0) {
+      visitor_.OnLocalFlowControlExhausted(stream_id);
+    }
   }
   // Streams can continue writing as long as the connection is not write-blocked
   // and there is additional flow control quota available.
@@ -1843,9 +1854,17 @@ void OgHttp2Session::MaybeFinWithRstStream(StreamStateMap::iterator iter) {
 }
 
 void OgHttp2Session::MarkDataBuffered(Http2StreamId stream_id, size_t bytes) {
-  connection_window_manager_.MarkDataBuffered(bytes);
+  const bool peer_connection_window_available =
+      connection_window_manager_.MarkDataBuffered(bytes);
+  if (!peer_connection_window_available) {
+    visitor_.OnRemoteFlowControlExhausted(0);
+  }
   if (auto it = stream_map_.find(stream_id); it != stream_map_.end()) {
-    it->second.window_manager.MarkDataBuffered(bytes);
+    const bool peer_stream_window_available =
+        it->second.window_manager.MarkDataBuffered(bytes);
+    if (!peer_stream_window_available) {
+      visitor_.OnRemoteFlowControlExhausted(stream_id);
+    }
   }
 }
 
