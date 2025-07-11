@@ -476,7 +476,6 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
     headers[":scheme"] = url_.scheme();
     headers[":authority"] = url_.HostPort();
     headers[":path"] = url_.path();
-    headers["host"] = url_.HostPort();
     stream_id_ = h2_connection_->SendRequest(headers, std::string());
     h2_connection_->AttemptToSend();
     if (stream_id_ >= 0) {

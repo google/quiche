@@ -165,7 +165,6 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
     request.headers[":scheme"] = url.scheme();
     request.headers[":authority"] = url.HostPort();
     request.headers[":path"] = url.path();
-    request.headers["host"] = url.HostPort();
     request.headers["accept"] = "application/ohttp-keys";
     request.headers["content-type"] = "application/ohttp-keys";
     absl::StatusOr<RequestId> request_id =
@@ -268,7 +267,6 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
     request.headers[":scheme"] = relay_url_.scheme();
     request.headers[":authority"] = relay_url_.HostPort();
     request.headers[":path"] = relay_url_.path();
-    request.headers["host"] = relay_url_.HostPort();
     request.headers["content-type"] = "message/ohttp-req";
     request.body = ohttp_request->EncapsulateAndSerialize();
     absl::StatusOr<RequestId> request_id =
