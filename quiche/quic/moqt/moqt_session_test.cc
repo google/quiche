@@ -1420,7 +1420,7 @@ TEST_F(MoqtSessionTest, GroupAbandoned) {
   EXPECT_TRUE(correct_message);
   EXPECT_TRUE(fin);
 
-  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeTimedOut));
+  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeDeliveryTimeout));
   subscription->OnGroupAbandoned(5);
 }
 
@@ -2966,7 +2966,7 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutExpiredOnArrival) {
                                          quic::QuicTimeDelta::FromSeconds(1),
                                  },
                                  quiche::QuicheMemSlice(), false}));
-  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeTimedOut))
+  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeDeliveryTimeout))
       .WillOnce(Invoke([&](webtransport::StreamErrorCode /*error*/) {
         stream_visitor.reset();
       }));
@@ -3024,11 +3024,11 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAfterIntegratedFin) {
           quiche::QuicheMemSlice(), true}))
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(data_mock, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
-  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeTimedOut)).Times(0);
+  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeDeliveryTimeout)).Times(0);
   subscription->OnNewObjectAvailable(Location(0, 0), 0);
   auto* delivery_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
       MoqtSessionPeer::GetAlarm(stream_visitor.get()));
-  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeTimedOut))
+  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeDeliveryTimeout))
       .WillOnce(Invoke([&](webtransport::StreamErrorCode /*error*/) {
         stream_visitor.reset();
       }));
@@ -3081,7 +3081,7 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAfterSeparateFin) {
   subscription->OnNewFinAvailable(Location(0, 0), 0);
   auto* delivery_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
       MoqtSessionPeer::GetAlarm(stream_visitor.get()));
-  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeTimedOut))
+  EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeDeliveryTimeout))
       .WillOnce(Invoke([&](webtransport::StreamErrorCode /*error*/) {
         stream_visitor.reset();
       }));
@@ -3161,7 +3161,7 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAlternateDesign) {
   // Group 1 should start the timer on the Group 0 stream.
   auto* delivery_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
       MoqtSessionPeer::GetAlarm(stream_visitor1.get()));
-  EXPECT_CALL(data_mock1, ResetWithUserCode(kResetCodeTimedOut))
+  EXPECT_CALL(data_mock1, ResetWithUserCode(kResetCodeDeliveryTimeout))
       .WillOnce(Invoke([&](webtransport::StreamErrorCode /*error*/) {
         stream_visitor1.reset();
       }));

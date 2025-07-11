@@ -694,7 +694,7 @@ bool MoqtSession::SubscribeIsDone(uint64_t request_id, SubscribeDoneCode code,
     if (stream == nullptr) {
       continue;
     }
-    stream->ResetWithUserCode(kResetCodeSubscriptionGone);
+    stream->ResetWithUserCode(kResetCodeCancelled);
   }
   return true;
 }
@@ -1696,7 +1696,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
                 ? session_->RemoteTrackById(message.track_alias)
                 : session_->RemoteTrackByAlias(message.track_alias);
     if (track == nullptr) {
-      stream_->SendStopSending(kResetCodeSubscriptionGone);
+      stream_->SendStopSending(kResetCodeCancelled);
       // Received object for nonexistent track.
       return;
     }
@@ -1731,7 +1731,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
     UpstreamFetch::UpstreamFetchTask* task = fetch->task();
     if (task == nullptr) {
       // The application killed the FETCH.
-      stream_->SendStopSending(kResetCodeSubscriptionGone);
+      stream_->SendStopSending(kResetCodeCancelled);
       return;
     }
     if (!task->HasObject()) {
@@ -1824,7 +1824,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
                       << "Received object for a track with no SUBSCRIBE";
       // This is a not a session error because there might be an UNSUBSCRIBE in
       // flight.
-      stream_->SendStopSending(kResetCodeSubscriptionGone);
+      stream_->SendStopSending(kResetCodeCancelled);
       return;
     }
     it->second->OnStreamOpened();
@@ -1835,7 +1835,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
     QUIC_DLOG(INFO) << ENDPOINT << "Received object for a track with no FETCH";
     // This is a not a session error because there might be an UNSUBSCRIBE in
     // flight.
-    stream_->SendStopSending(kResetCodeSubscriptionGone);
+    stream_->SendStopSending(kResetCodeCancelled);
     return;
   }
   if (it->second == nullptr) {
@@ -2112,7 +2112,7 @@ void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
     if (raw_stream == nullptr) {
       continue;
     }
-    raw_stream->ResetWithUserCode(kResetCodeTimedOut);
+    raw_stream->ResetWithUserCode(kResetCodeDeliveryTimeout);
   }
   first_active_group_ = std::max(first_active_group_, group_id + 1);
   absl::erase_if(reset_subgroups_, [&](const DataStreamIndex& index) {
@@ -2260,14 +2260,14 @@ void MoqtSession::OutgoingDataStream::DeliveryTimeoutDelegate::OnAlarm() {
   if (it != stream_->session_->published_subscriptions_.end()) {
     it->second->OnStreamTimeout(stream_->index());
   }
-  stream_->stream_->ResetWithUserCode(kResetCodeTimedOut);
+  stream_->stream_->ResetWithUserCode(kResetCodeDeliveryTimeout);
 }
 
 MoqtSession::PublishedSubscription*
 MoqtSession::OutgoingDataStream::GetSubscriptionIfValid() {
   auto it = session_->published_subscriptions_.find(subscription_id_);
   if (it == session_->published_subscriptions_.end()) {
-    stream_->ResetWithUserCode(kResetCodeSubscriptionGone);
+    stream_->ResetWithUserCode(kResetCodeCancelled);
     return nullptr;
   }
 
@@ -2318,7 +2318,7 @@ void MoqtSession::OutgoingDataStream::SendObjects(
                 object->metadata.arrival_time >
             delivery_timeout) {
       subscription.OnStreamTimeout(index_);
-      stream_->ResetWithUserCode(kResetCodeTimedOut);
+      stream_->ResetWithUserCode(kResetCodeDeliveryTimeout);
       return;
     }
 

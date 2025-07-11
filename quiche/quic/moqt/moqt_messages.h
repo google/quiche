@@ -161,12 +161,10 @@ enum class QUICHE_EXPORT MoqtError : uint64_t {
 };
 
 // Error codes used by MoQT to reset streams.
-// TODO: update with spec-defined error codes once those are available, see
-// <https://github.com/moq-wg/moq-transport/issues/481>.
 inline constexpr webtransport::StreamErrorCode kResetCodeUnknown = 0x00;
-inline constexpr webtransport::StreamErrorCode kResetCodeSubscriptionGone =
-    0x01;
-inline constexpr webtransport::StreamErrorCode kResetCodeTimedOut = 0x02;
+inline constexpr webtransport::StreamErrorCode kResetCodeCancelled = 0x01;
+inline constexpr webtransport::StreamErrorCode kResetCodeDeliveryTimeout = 0x02;
+inline constexpr webtransport::StreamErrorCode kResetCodeSessionClosed = 0x03;
 
 enum class QUICHE_EXPORT SetupParameter : uint64_t {
   kPath = 0x1,
