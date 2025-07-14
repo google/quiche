@@ -154,9 +154,7 @@ class QUICHE_EXPORT MoqtDataStreamType {
            value_ == StreamType::kSubgroupExplicitWithExtensionHeaders;
   }
   uint64_t value() const { return static_cast<uint64_t>(value_); }
-  bool operator==(const MoqtDataStreamType& other) const {
-    return value_ == other.value_;
-  }
+  bool operator==(const MoqtDataStreamType& other) const = default;
   enum class StreamType : uint64_t {
     kFetch = 0x05,
     kSubgroup0NoExtensionHeaders = 0x08,
