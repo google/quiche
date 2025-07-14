@@ -38,28 +38,21 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
                  ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
                  SignedTokenCallback callback) override;
 
-  // Returns an attestation challenge in a callback.
-  // GetAttestationTokens callbacks will run on the same thread as the
+  // Returns signed unblinded tokens and their expiration time in a
+  // SignedTokenCallback. Errors will be returned in the SignedTokenCallback
+  // only. Tokens are single-use and restricted to the PI use case.
+  // GetAttestationTokens callback will run on the same thread as the
   // BlindSignMessageInterface callbacks.
-  // Callers can make multiple concurrent requests to GetTokens.
-  // AttestationDataCallback should call AttestAndSign with a separate callback
-  // in order to complete the token issuance protocol.
+  // Callers can make multiple concurrent requests to GetAttestationTokens.
+  // In the AttestationDataCallback, the caller must call the
+  // AttestAndSignCallback and provide AttestationData generated using Keystore
+  // and the challenge returned in AttestationDataCallback. If a token challenge
+  // is provided in the AttestAndSignCallback, it will be used in creating the
+  // token. Otherwise a default challenge will be used containing the issuer
+  // hostname.
   void GetAttestationTokens(int num_tokens, ProxyLayer layer,
-                            AttestationDataCallback callback) override;
-
-  // Returns signed unblinded tokens and their expiration time in a callback.
-  // Tokens are single-use and restricted to the PI use case.
-  // The GetTokens callback will run on the same thread as the
-  // BlindSignMessageInterface callbacks.
-  // This function should be called after the caller has generated
-  // AttestationData using Keystore and the challenge returned in
-  // AttestationDataCallback. If a token challenge is provided, it will be used
-  // in creating the token. Otherwise a default challenge will be used
-  // containing the issuer hostname.
-  void AttestAndSign(int num_tokens, ProxyLayer layer,
-                     std::string attestation_data,
-                     std::optional<std::string> token_challenge,
-                     SignedTokenCallback callback) override;
+                            AttestationDataCallback attestation_data_callback,
+                            SignedTokenCallback token_callback) override;
 
  private:
   struct PrivacyPassContext {
@@ -98,6 +91,24 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
       std::vector<std::unique_ptr<anonymous_tokens::
                                       PrivacyPassRsaBssaPublicMetadataClient>>
           privacy_pass_clients,
+      SignedTokenCallback callback,
+      absl::StatusOr<BlindSignMessageResponse> response);
+
+  // Helper functions for GetAttestationTokens flow.
+  void GetAttestationTokensCallback(
+      int num_tokens, AttestationDataCallback attestation_data_callback,
+      SignedTokenCallback token_callback,
+      absl::StatusOr<BlindSignMessageResponse> response);
+  void AttestAndSign(int num_tokens,
+                     privacy::ppn::GetInitialDataResponse initial_data_response,
+                     SignedTokenCallback callback,
+                     absl::StatusOr<std::string> attestation_data,
+                     std::optional<std::string> token_challenge);
+  void AttestAndSignCallback(
+      PrivacyPassContext pp_context,
+      const std::vector<std::unique_ptr<
+          anonymous_tokens::
+              PrivacyPassRsaBssaPublicMetadataClient>>& privacy_pass_clients,
       SignedTokenCallback callback,
       absl::StatusOr<BlindSignMessageResponse> response);
 

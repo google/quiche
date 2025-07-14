@@ -83,6 +83,14 @@ class BlindSignAuthTest : public QuicheTest {
     expected_get_initial_data_request_.set_validation_version(2);
     expected_get_initial_data_request_.set_proxy_layer(privacy::ppn::PROXY_A);
 
+    // Create expected GetInitialDataRequest for attestation flow.
+    expected_get_initial_data_request_attestation_.set_service_type(
+        "privatearatea");
+    expected_get_initial_data_request_attestation_.set_use_attestation(true);
+    expected_get_initial_data_request_attestation_.set_validation_version(2);
+    expected_get_initial_data_request_attestation_.set_proxy_layer(
+        privacy::ppn::PROXY_A);
+
     // Create fake GetInitialDataResponse.
     privacy::ppn::GetInitialDataResponse fake_get_initial_data_response;
     *fake_get_initial_data_response.mutable_at_public_metadata_public_key() =
@@ -155,6 +163,12 @@ class BlindSignAuthTest : public QuicheTest {
         privacy_pass_data;
     fake_get_initial_data_response_ = fake_get_initial_data_response;
 
+    // Create fake GetInitialDataResponse for attestation flow.
+    fake_get_initial_data_response_attestation_ =
+        fake_get_initial_data_response_;
+    fake_get_initial_data_response_attestation_.mutable_attestation()
+        ->set_attestation_nonce("test_attestation_nonce");
+
     // Create BlindSignAuthOptions.
     privacy::ppn::BlindSignAuthOptions options;
     options.set_enable_privacy_pass(true);
@@ -214,7 +228,43 @@ class BlindSignAuthTest : public QuicheTest {
     sign_response_ = response;
   }
 
-  void ValidatePrivacyPassTokensOutput(absl::Span<BlindSignToken> tokens) {
+  void CreateAttestAndSignResponse(const std::string& body) {
+    privacy::ppn::AttestAndSignRequest request;
+    ASSERT_TRUE(request.ParseFromString(body));
+
+    // Validate AttestAndSignRequest.
+    EXPECT_EQ(request.service_type(), "privatearatea");
+    EXPECT_EQ(request.key_version(), public_key_proto_.key_version());
+    EXPECT_NE(request.blinded_tokens().size(), 0);
+    EXPECT_EQ(request.public_metadata_extensions(),
+              fake_get_initial_data_response_attestation_.privacy_pass_data()
+                  .public_metadata_extensions());
+
+    privacy::ppn::AndroidAttestationData android_attestation_data;
+    ASSERT_TRUE(request.attestation().attestation_data().UnpackTo(
+        &android_attestation_data));
+    EXPECT_EQ(android_attestation_data.hardware_backed_certs().at(0),
+              "fake_hardware_backed_cert");
+
+    // Construct AttestAndSignResponse.
+    privacy::ppn::AttestAndSignResponse response;
+    for (const auto& request_token : request.blinded_tokens()) {
+      std::string decoded_blinded_token;
+      ASSERT_TRUE(absl::Base64Unescape(request_token, &decoded_blinded_token));
+      absl::StatusOr<std::string> signature =
+          anonymous_tokens::TestSignWithPublicMetadata(
+              decoded_blinded_token,
+              fake_get_initial_data_response_attestation_.privacy_pass_data()
+                  .public_metadata_extensions(),
+              *rsa_private_key_, false);
+      QUICHE_EXPECT_OK(signature);
+      response.add_blinded_token_signatures(absl::Base64Escape(*signature));
+    }
+    attest_and_sign_response_ = response;
+  }
+
+  void ValidatePrivacyPassTokensOutput(absl::Span<BlindSignToken> tokens,
+                                       bool validate_geo_hint) {
     for (const auto& token : tokens) {
       privacy::ppn::PrivacyPassTokenData privacy_pass_token_data;
       ASSERT_TRUE(privacy_pass_token_data.ParseFromString(token.token));
@@ -227,11 +277,13 @@ class BlindSignAuthTest : public QuicheTest {
       std::string decoded_extensions;
       ASSERT_TRUE(absl::WebSafeBase64Unescape(
           privacy_pass_token_data.encoded_extensions(), &decoded_extensions));
-      // Validate GeoHint in BlindSignToken.
-      EXPECT_EQ(token.geo_hint.geo_hint, "US,US-AL,ALABASTER");
-      EXPECT_EQ(token.geo_hint.country_code, "US");
-      EXPECT_EQ(token.geo_hint.region, "US-AL");
-      EXPECT_EQ(token.geo_hint.city, "ALABASTER");
+      if (validate_geo_hint) {
+        // Validate GeoHint in BlindSignToken.
+        EXPECT_EQ(token.geo_hint.geo_hint, "US,US-AL,ALABASTER");
+        EXPECT_EQ(token.geo_hint.country_code, "US");
+        EXPECT_EQ(token.geo_hint.region, "US-AL");
+        EXPECT_EQ(token.geo_hint.city, "ALABASTER");
+      }
     }
   }
 
@@ -248,6 +300,13 @@ class BlindSignAuthTest : public QuicheTest {
   privacy::ppn::GetInitialDataResponse fake_get_initial_data_response_;
   std::string oauth_token_ = "oauth_token";
   privacy::ppn::GetInitialDataRequest expected_get_initial_data_request_;
+
+  // Attestation test variables.
+  privacy::ppn::AttestAndSignResponse attest_and_sign_response_;
+  privacy::ppn::GetInitialDataResponse
+      fake_get_initial_data_response_attestation_;
+  privacy::ppn::GetInitialDataRequest
+      expected_get_initial_data_request_attestation_;
 };
 
 TEST_F(BlindSignAuthTest, TestGetTokensFailedNetworkError) {
@@ -392,7 +451,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceeds) {
   SignedTokenCallback callback =
       [this, &done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         QUICHE_EXPECT_OK(tokens);
-        ValidatePrivacyPassTokensOutput(*tokens);
+        ValidatePrivacyPassTokensOutput(*tokens, /*validate_geo_hint=*/true);
         done.Notify();
       };
   blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
@@ -543,12 +602,165 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceedsWithFewerTokens) {
         QUICHE_ASSERT_OK(tokens);
         // Expect only the number of tokens returned by the server.
         EXPECT_EQ(tokens->size(), expected_tokens_received);
-        ValidatePrivacyPassTokensOutput(*tokens);
+        ValidatePrivacyPassTokensOutput(*tokens, /*validate_geo_hint=*/true);
         done.Notify();
       };
   blind_sign_auth_->GetTokens(
       oauth_token_, num_tokens_requested, ProxyLayer::kProxyA,
       BlindSignAuthServiceType::kChromeIpBlinding, std::move(callback));
+  done.WaitForNotification();
+}
+
+TEST_F(BlindSignAuthTest, AttestationFlowSucceeds) {
+  BlindSignMessageResponse fake_initial_data_attestation_response(
+      absl::StatusCode::kOk,
+      fake_get_initial_data_response_attestation_.SerializeAsString());
+  {
+    InSequence seq;
+    // GetAttestationTokens sends a GetInitialData RPC.
+    EXPECT_CALL(mock_message_interface_,
+                DoRequest(Eq(BlindSignMessageRequestType::kGetInitialData), _,
+                          Eq(expected_get_initial_data_request_attestation_
+                                 .SerializeAsString()),
+                          _))
+        .Times(1)
+        .WillOnce([=](auto&&, auto&&, auto&&, auto get_initial_data_cb) {
+          std::move(get_initial_data_cb)(
+              fake_initial_data_attestation_response);
+        });
+
+    // AttestAndSign call
+    EXPECT_CALL(
+        mock_message_interface_,
+        DoRequest(Eq(BlindSignMessageRequestType::kAttestAndSign), _, _, _))
+        .Times(1)
+        .WillOnce(Invoke([this](Unused, Unused, const std::string& body,
+                                BlindSignMessageCallback attest_callback) {
+          CreateAttestAndSignResponse(body);
+          BlindSignMessageResponse response(
+              absl::StatusCode::kOk,
+              attest_and_sign_response_.SerializeAsString());
+          std::move(attest_callback)(response);
+        }));
+  }
+
+  AttestationDataCallback attestation_callback =
+      [](absl::string_view attestation_nonce,
+         AttestAndSignCallback attest_and_sign_callback) {
+        EXPECT_EQ(attestation_nonce, "test_attestation_nonce");
+        std::move(attest_and_sign_callback)(
+            /*attestation_data=*/"fake_hardware_backed_cert",
+            /*token_challenge=*/std::nullopt);
+      };
+
+  absl::Notification done;
+  SignedTokenCallback signed_token_callback =
+      [this, &done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
+        QUICHE_EXPECT_OK(tokens);
+        ValidatePrivacyPassTokensOutput(*tokens, /*validate_geo_hint=*/false);
+        done.Notify();
+      };
+  blind_sign_auth_->GetAttestationTokens(
+      /*num_tokens=*/1, ProxyLayer::kProxyA, std::move(attestation_callback),
+      std::move(signed_token_callback));
+  done.WaitForNotification();
+}
+
+TEST_F(BlindSignAuthTest, GetAttestationTokensFailedNetworkError) {
+  EXPECT_CALL(mock_message_interface_,
+              DoRequest(Eq(BlindSignMessageRequestType::kGetInitialData), _,
+                        Eq(expected_get_initial_data_request_attestation_
+                               .SerializeAsString()),
+                        _))
+      .Times(1)
+      .WillOnce([=](auto&&, auto&&, auto&&, auto get_initial_data_cb) {
+        std::move(get_initial_data_cb)(
+            absl::InternalError("Failed to create socket"));
+      });
+
+  absl::Notification done;
+  AttestationDataCallback callback =
+      [](absl::string_view /*attestation_nonce*/,
+         AttestAndSignCallback /*attest_and_sign_callback*/) {};
+  SignedTokenCallback signed_token_callback =
+      [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
+        EXPECT_FALSE(tokens.ok());
+        EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInvalidArgument);
+        done.Notify();
+      };
+  blind_sign_auth_->GetAttestationTokens(
+      /*num_tokens=*/1, ProxyLayer::kProxyA, std::move(callback),
+      std::move(signed_token_callback));
+  done.WaitForNotification();
+}
+
+TEST_F(BlindSignAuthTest, GetAttestationTokensFailedBadResponse) {
+  // Create a bad response proto with no attestation nonce.
+  privacy::ppn::GetInitialDataResponse bad_response_proto =
+      fake_get_initial_data_response_attestation_;
+  bad_response_proto.clear_attestation();
+  BlindSignMessageResponse fake_response(
+      absl::StatusCode::kOk, bad_response_proto.SerializeAsString());
+
+  EXPECT_CALL(mock_message_interface_,
+              DoRequest(Eq(BlindSignMessageRequestType::kGetInitialData), _,
+                        Eq(expected_get_initial_data_request_attestation_
+                               .SerializeAsString()),
+                        _))
+      .Times(1)
+      .WillOnce([=](auto&&, auto&&, auto&&, auto get_initial_data_cb) {
+        std::move(get_initial_data_cb)(fake_response);
+      });
+
+  absl::Notification done;
+  AttestationDataCallback callback =
+      [](absl::string_view /*attestation_nonce*/,
+         AttestAndSignCallback /*attest_and_sign_callback*/) {};
+  SignedTokenCallback signed_token_callback =
+      [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
+        EXPECT_FALSE(tokens.ok());
+        EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
+        done.Notify();
+      };
+  blind_sign_auth_->GetAttestationTokens(
+      /*num_tokens=*/1, ProxyLayer::kProxyA, std::move(callback),
+      std::move(signed_token_callback));
+  done.WaitForNotification();
+}
+
+TEST_F(BlindSignAuthTest, GetAttestationTokensFailedBadAttestationData) {
+  BlindSignMessageResponse fake_initial_data_attestation_response(
+      absl::StatusCode::kOk,
+      fake_get_initial_data_response_attestation_.SerializeAsString());
+
+  EXPECT_CALL(mock_message_interface_,
+              DoRequest(Eq(BlindSignMessageRequestType::kGetInitialData), _,
+                        Eq(expected_get_initial_data_request_attestation_
+                               .SerializeAsString()),
+                        _))
+      .Times(1)
+      .WillOnce([=](auto&&, auto&&, auto&&, auto get_initial_data_cb) {
+        std::move(get_initial_data_cb)(fake_initial_data_attestation_response);
+      });
+
+  absl::Notification done;
+  AttestationDataCallback callback =
+      [](absl::string_view /*attestation_nonce*/,
+         AttestAndSignCallback attest_and_sign_callback) {
+        std::move(attest_and_sign_callback)(
+            /*attestation_data=*/absl::InternalError(
+                "Could not generate attestation certs"),
+            /*token_challenge=*/std::nullopt);
+      };
+  SignedTokenCallback signed_token_callback =
+      [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
+        EXPECT_FALSE(tokens.ok());
+        EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
+        done.Notify();
+      };
+  blind_sign_auth_->GetAttestationTokens(
+      /*num_tokens=*/1, ProxyLayer::kProxyA, std::move(callback),
+      std::move(signed_token_callback));
   done.WaitForNotification();
 }
 

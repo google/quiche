@@ -134,19 +134,11 @@ void CachedBlindSignAuth::RemoveExpiredTokens() {
 
 void CachedBlindSignAuth::GetAttestationTokens(
     int /*num_tokens*/, ProxyLayer /*layer*/,
-    AttestationDataCallback callback) {
+    AttestationDataCallback /*attestation_data_callback*/,
+    SignedTokenCallback token_callback) {
   // TODO(b/421236538): Implement GetAttestationTokens.
-  std::move(callback)(
+  std::move(token_callback)(
       absl::UnimplementedError("GetAttestationTokens is not implemented"));
-}
-
-void CachedBlindSignAuth::AttestAndSign(
-    int /*num_tokens*/, ProxyLayer /*layer*/, std::string /*attestation_data*/,
-    std::optional<std::string> /*token_challenge*/,
-    SignedTokenCallback callback) {
-  // TODO(b/421236538): Implement AttestAndSign.
-  std::move(callback)(
-      absl::UnimplementedError("AttestAndSign is not implemented"));
 }
 
 }  // namespace quiche

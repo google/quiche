@@ -48,6 +48,11 @@ struct QUICHE_EXPORT BlindSignToken {
 using SignedTokenCallback =
     SingleUseCallback<void(absl::StatusOr<absl::Span<BlindSignToken>>)>;
 
+// This callback is used by the caller to return generated
+// attestation data and a token challenge to the BlindSignAuth library.
+using AttestAndSignCallback = SingleUseCallback<void(
+    absl::StatusOr<std::string>, std::optional<std::string>)>;
+
 // AttestationDataCallback returns a serialized
 // privacy::ppn::PrepareAttestationData proto, which contains an attestation
 // challenge from the issuer server.
@@ -55,8 +60,10 @@ using SignedTokenCallback =
 // the response's HTTP status code.
 // If the request succeeds but the server does not issue a challenge, the
 // callback will return an absl::InternalError.
+// The second callback is used by the caller to return the
+// attestation data to the BlindSignAuth library.
 using AttestationDataCallback =
-    SingleUseCallback<void(absl::StatusOr<absl::string_view>)>;
+    SingleUseCallback<void(absl::string_view, AttestAndSignCallback)>;
 
 // BlindSignAuth provides signed, unblinded tokens to callers.
 class QUICHE_EXPORT BlindSignAuthInterface {
@@ -69,29 +76,22 @@ class QUICHE_EXPORT BlindSignAuthInterface {
                          BlindSignAuthServiceType service_type,
                          SignedTokenCallback callback) = 0;
 
-  // Returns an attestation challenge in a callback.
-  // GetAttestationTokens callbacks will run on the same thread as the
+  // Returns signed unblinded tokens and their expiration time in a
+  // SignedTokenCallback. Errors will be returned in the SignedTokenCallback
+  // only. Tokens are single-use and restricted to the PI use case.
+  // GetAttestationTokens callback will run on the same thread as the
   // BlindSignMessageInterface callbacks.
-  // Callers can make multiple concurrent requests to GetTokens.
-  // ProxyLayer must be either ProxyB or TerminalLayer, NOT ProxyA.
-  // AttestationDataCallback should call AttestAndSign with a separate callback
-  // in order to complete the token issuance protocol.
-  virtual void GetAttestationTokens(int num_tokens, ProxyLayer layer,
-                                    AttestationDataCallback callback) = 0;
-
-  // Returns signed unblinded tokens and their expiration time in a callback.
-  // Tokens are single-use and restricted to the PI use case.
-  // The GetTokens callback will run on the same thread as the
-  // BlindSignMessageInterface callbacks.
-  // This function should be called after the caller has generated
-  // AttestationData using Keystore and the challenge returned in
-  // AttestationDataCallback. If a token challenge is provided, it will be used
-  // in creating the token. Otherwise a default challenge will be used
-  // containing the issuer hostname.
-  virtual void AttestAndSign(int num_tokens, ProxyLayer layer,
-                             std::string attestation_data,
-                             std::optional<std::string> token_challenge,
-                             SignedTokenCallback callback) = 0;
+  // Callers can make multiple concurrent requests to GetAttestationTokens.
+  // In the AttestationDataCallback, the caller must call the
+  // AttestAndSignCallback and provide AttestationData generated using Keystore
+  // and the challenge returned in AttestationDataCallback. If a token challenge
+  // is provided in the AttestAndSignCallback, it will be used in creating the
+  // token. Otherwise a default challenge will be used containing the issuer
+  // hostname.
+  virtual void GetAttestationTokens(
+      int num_tokens, ProxyLayer layer,
+      AttestationDataCallback attestation_data_callback,
+      SignedTokenCallback token_callback) = 0;
 };
 
 }  // namespace quiche

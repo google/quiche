@@ -23,6 +23,7 @@ enum class BlindSignMessageRequestType {
   kUnknown = 0,
   kGetInitialData,
   kAuthAndSign,
+  kAttestAndSign,
 };
 
 // Interface for async requests in BlindSignAuth. Implementers must send a

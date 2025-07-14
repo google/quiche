@@ -48,6 +48,10 @@ constexpr size_t kExpectedExtensionTypesSize = 5;
 constexpr std::array<const uint16_t, kExpectedExtensionTypesSize>
     kExpectedExtensionTypes = {0x0001, 0x0002, 0xF001, 0xF002, 0xF003};
 
+using privacy::ppn::AndroidAttestationData;
+using privacy::ppn::AttestAndSignRequest;
+using privacy::ppn::AttestAndSignResponse;
+using privacy::ppn::AttestationData;
 using privacy::ppn::AuthAndSignRequest;
 using privacy::ppn::AuthAndSignResponse;
 using privacy::ppn::GetInitialDataRequest;
@@ -86,12 +90,12 @@ void BlindSignAuth::GetTokens(std::optional<std::string> oauth_token,
   request.set_proxy_layer(QuicheProxyLayerToPpnProxyLayer(proxy_layer));
 
   // Call GetInitialData on the BlindSignMessageInterface Fetcher.
-  std::string body = request.SerializeAsString();
+  std::string body_bytes = request.SerializeAsString();
   BlindSignMessageCallback initial_data_callback = absl::bind_front(
       &BlindSignAuth::GetInitialDataCallback, this, oauth_token, num_tokens,
       proxy_layer, service_type, std::move(callback));
   fetcher_->DoRequest(BlindSignMessageRequestType::kGetInitialData, oauth_token,
-                      body, std::move(initial_data_callback));
+                      body_bytes, std::move(initial_data_callback));
 }
 
 void BlindSignAuth::GetInitialDataCallback(
@@ -120,6 +124,7 @@ void BlindSignAuth::GetInitialDataCallback(
     QUICHE_LOG(ERROR) << "Non-Privacy Pass tokens are no longer supported";
     std::move(callback)(absl::UnimplementedError(
         "Non-Privacy Pass tokens are no longer supported"));
+    return;
   }
 }
 
@@ -265,21 +270,225 @@ void BlindSignAuth::PrivacyPassAuthAndSignCallback(
   std::move(callback)(absl::Span<BlindSignToken>(tokens_vec));
 }
 
-void BlindSignAuth::GetAttestationTokens(int /*num_tokens*/,
-                                         ProxyLayer /*layer*/,
-                                         AttestationDataCallback callback) {
-  // TODO(b/421236538): Implement GetAttestationTokens.
-  std::move(callback)(
-      absl::UnimplementedError("GetAttestationTokens is not implemented"));
+void BlindSignAuth::GetAttestationTokens(
+    int num_tokens, ProxyLayer layer,
+    AttestationDataCallback attestation_data_callback,
+    SignedTokenCallback token_callback) {
+  GetInitialDataRequest request;
+  request.set_service_type(BlindSignAuthServiceTypeToString(
+      BlindSignAuthServiceType::kPrivateAratea));
+  // Validation version must be 2 to use ProxyLayer.
+  request.set_validation_version(2);
+  request.set_proxy_layer(QuicheProxyLayerToPpnProxyLayer(layer));
+  request.set_use_attestation(true);
+
+  // Send GetAttestationData RPC on the BlindSignMessageInterface.
+  std::string body_bytes = request.SerializeAsString();
+  BlindSignMessageCallback initial_data_callback = absl::bind_front(
+      &BlindSignAuth::GetAttestationTokensCallback, this, num_tokens,
+      std::move(attestation_data_callback), std::move(token_callback));
+  fetcher_->DoRequest(BlindSignMessageRequestType::kGetInitialData,
+                      /*authorization_header=*/std::nullopt, body_bytes,
+                      std::move(initial_data_callback));
+}
+
+void BlindSignAuth::GetAttestationTokensCallback(
+    int num_tokens, AttestationDataCallback attestation_data_callback,
+    SignedTokenCallback token_callback,
+    absl::StatusOr<BlindSignMessageResponse> response) {
+  absl::StatusOr<GetInitialDataResponse> initial_data_response =
+      ParseGetInitialDataResponseMessage(response);
+  if (!initial_data_response.ok()) {
+    std::move(token_callback)(initial_data_response.status());
+    return;
+  }
+
+  const bool use_privacy_pass_client =
+      auth_options_.enable_privacy_pass() &&
+      initial_data_response->has_privacy_pass_data();
+  if (use_privacy_pass_client) {
+    QUICHE_DVLOG(1) << "Using Privacy Pass client for GetAttestationTokens";
+  } else {
+    QUICHE_LOG(ERROR) << "Non-Privacy Pass tokens are no longer supported";
+    std::move(token_callback)(absl::UnimplementedError(
+        "Non-Privacy Pass tokens are no longer supported"));
+    return;
+  }
+
+  // Return attestation nonce, caller will use it as the attestation challenge.
+  if (!initial_data_response->has_attestation()) {
+    QUICHE_LOG(WARNING)
+        << "GetInitialDataResponse does not have attestation data";
+    std::move(token_callback)(absl::InternalError(
+        "GetInitialDataResponse does not have attestation data"));
+    return;
+  }
+  absl::string_view attestation_nonce =
+      initial_data_response->attestation().attestation_nonce();
+  quiche::AttestAndSignCallback attest_and_sign_callback = absl::bind_front(
+      &BlindSignAuth::AttestAndSign, this, num_tokens,
+      *std::move(initial_data_response), std::move(token_callback));
+  std::move(attestation_data_callback)(attestation_nonce,
+                                       std::move(attest_and_sign_callback));
 }
 
 void BlindSignAuth::AttestAndSign(
-    int /*num_tokens*/, ProxyLayer /*layer*/, std::string /*attestation_data*/,
-    std::optional<std::string> /*token_challenge*/,
-    SignedTokenCallback callback) {
-  // TODO(b/421236538): Implement AttestAndSign.
-  std::move(callback)(
-      absl::UnimplementedError("AttestAndSign is not implemented"));
+    int num_tokens, privacy::ppn::GetInitialDataResponse initial_data_response,
+    SignedTokenCallback callback, absl::StatusOr<std::string> attestation_data,
+    std::optional<std::string> token_challenge) {
+  absl::StatusOr<PrivacyPassContext> pp_context =
+      CreatePrivacyPassContext(initial_data_response);
+  if (!pp_context.ok()) {
+    std::move(callback)(pp_context.status());
+    return;
+  }
+
+  // Create token challenge if not provided.
+  std::string token_challenge_str;
+  if (!token_challenge.has_value()) {
+    TokenChallenge challenge;
+    challenge.issuer_name = kIssuerHostname;
+    if (absl::StatusOr<std::string> constant_challenge =
+            MarshalTokenChallenge(challenge);
+        constant_challenge.ok()) {
+      token_challenge_str = *constant_challenge;
+    } else {
+      QUICHE_LOG(WARNING) << "Failed to marshal token challenge: "
+                          << constant_challenge.status();
+      std::move(callback)(
+          absl::InvalidArgumentError("Failed to marshal token challenge"));
+      return;
+    }
+  } else {
+    token_challenge_str = *token_challenge;
+  }
+
+  absl::StatusOr<GeneratedTokenRequests> token_requests_data =
+      GenerateBlindedTokenRequests(
+          num_tokens, *pp_context->rsa_public_key, token_challenge_str,
+          pp_context->token_key_id, pp_context->extensions);
+  if (!token_requests_data.ok()) {
+    std::move(callback)(token_requests_data.status());
+    return;
+  }
+
+  // Create AndroidAttestationData.
+  AndroidAttestationData android_attestation_data;
+  if (!attestation_data.ok()) {
+    std::move(callback)(attestation_data.status());
+    return;
+  }
+  android_attestation_data.add_hardware_backed_certs(*attestation_data);
+  AttestationData attestation_data_proto;
+  attestation_data_proto.mutable_attestation_data()->PackFrom(
+      android_attestation_data);
+
+  // Create AttestAndSignRequest.
+  AttestAndSignRequest sign_request;
+  sign_request.set_service_type(BlindSignAuthServiceTypeToString(
+      BlindSignAuthServiceType::kPrivateAratea));
+  sign_request.mutable_blinded_tokens()->Assign(
+      token_requests_data->privacy_pass_blinded_tokens_b64.begin(),
+      token_requests_data->privacy_pass_blinded_tokens_b64.end());
+  sign_request.set_key_version(
+      initial_data_response.at_public_metadata_public_key().key_version());
+  sign_request.mutable_public_metadata_extensions()->assign(
+      initial_data_response.privacy_pass_data().public_metadata_extensions());
+  *sign_request.mutable_attestation() = attestation_data_proto;
+
+  BlindSignMessageCallback attestation_data_callback = absl::bind_front(
+      &BlindSignAuth::AttestAndSignCallback, this, *std::move(pp_context),
+      std::move(token_requests_data->privacy_pass_clients),
+      std::move(callback));
+
+  fetcher_->DoRequest(BlindSignMessageRequestType::kAttestAndSign,
+                      /*authorization_header=*/std::nullopt,
+                      sign_request.SerializeAsString(),
+                      std::move(attestation_data_callback));
+}
+
+void BlindSignAuth::AttestAndSignCallback(
+    PrivacyPassContext pp_context,
+    const std::vector<std::unique_ptr<
+        anonymous_tokens::
+            PrivacyPassRsaBssaPublicMetadataClient>>& privacy_pass_clients,
+    SignedTokenCallback callback,
+    absl::StatusOr<BlindSignMessageResponse> response) {
+  // Validate response.
+  if (!response.ok()) {
+    QUICHE_LOG(WARNING) << "AttestAndSign failed: " << response.status();
+    std::move(callback)(
+        absl::InvalidArgumentError("AttestAndSign failed: invalid response"));
+    return;
+  }
+  absl::StatusCode code = response->status_code();
+  if (code != absl::StatusCode::kOk) {
+    std::string message =
+        absl::StrCat("AttestAndSign failed with code: ", code);
+    QUICHE_LOG(WARNING) << message;
+    std::move(callback)(absl::InvalidArgumentError(message));
+    return;
+  }
+
+  // Decode AttestAndSignResponse.
+  AttestAndSignResponse sign_response;
+  if (!sign_response.ParseFromString(response->body())) {
+    QUICHE_LOG(WARNING) << "Failed to parse AttestAndSignResponse";
+    std::move(callback)(
+        absl::InternalError("Failed to parse AttestAndSignResponse"));
+    return;
+  }
+  if (static_cast<size_t>(sign_response.blinded_token_signatures_size()) >
+      privacy_pass_clients.size()) {
+    QUICHE_LOG(WARNING) << "Number of signatures is greater than the number of "
+                           "Privacy Pass tokens sent";
+    std::move(callback)(absl::InternalError(
+        "Number of signatures is greater than the number of "
+        "Privacy Pass tokens sent"));
+    return;
+  }
+
+  // Create tokens using blinded signatures.
+  std::vector<BlindSignToken> tokens_vec;
+  for (int i = 0; i < sign_response.blinded_token_signatures_size(); i++) {
+    std::string unescaped_blinded_sig;
+    if (!absl::Base64Unescape(sign_response.blinded_token_signatures()[i],
+                              &unescaped_blinded_sig)) {
+      QUICHE_LOG(WARNING) << "Failed to unescape blinded signature";
+      std::move(callback)(
+          absl::InternalError("Failed to unescape blinded signature"));
+      return;
+    }
+
+    absl::StatusOr<Token> token =
+        privacy_pass_clients[i]->FinalizeToken(unescaped_blinded_sig);
+    if (!token.ok()) {
+      QUICHE_LOG(WARNING) << "Failed to finalize token: " << token.status();
+      std::move(callback)(absl::InternalError("Failed to finalize token"));
+      return;
+    }
+
+    absl::StatusOr<std::string> marshaled_token = MarshalToken(*token);
+    if (!marshaled_token.ok()) {
+      QUICHE_LOG(WARNING) << "Failed to marshal token: "
+                          << marshaled_token.status();
+      std::move(callback)(absl::InternalError("Failed to marshal token"));
+      return;
+    }
+
+    PrivacyPassTokenData privacy_pass_token_data;
+    privacy_pass_token_data.mutable_token()->assign(
+        ConvertBase64ToWebSafeBase64(absl::Base64Escape(*marshaled_token)));
+    privacy_pass_token_data.mutable_encoded_extensions()->assign(
+        ConvertBase64ToWebSafeBase64(
+            absl::Base64Escape(pp_context.public_metadata_extensions_str)));
+    privacy_pass_token_data.set_use_case_override(pp_context.use_case);
+    tokens_vec.push_back(BlindSignToken{
+        privacy_pass_token_data.SerializeAsString(),
+        pp_context.public_metadata_expiry_time, pp_context.geo_hint});
+  }
+
+  std::move(callback)(absl::Span<BlindSignToken>(tokens_vec));
 }
 
 absl::StatusOr<privacy::ppn::GetInitialDataResponse>
@@ -457,7 +666,7 @@ std::string BlindSignAuthServiceTypeToString(
       return "chromeipblinding";
     }
     case BlindSignAuthServiceType::kPrivateAratea: {
-      return "pixel_private_aratea";
+      return "privatearatea";
     }
   }
 }
