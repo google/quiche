@@ -332,21 +332,10 @@ ParsedQuicVersionVector CurrentSupportedHttp3Versions() {
 }
 
 ParsedQuicVersion ParseQuicVersionLabel(QuicVersionLabel version_label) {
-  if (GetQuicReloadableFlag(quic_heapless_static_parser)) {
-    for (const ParsedQuicVersion& version : SupportedVersions()) {
-      if (version_label == CreateQuicVersionLabel(version)) {
-        return version;
-      }
+  for (const ParsedQuicVersion& version : SupportedVersions()) {
+    if (version_label == CreateQuicVersionLabel(version)) {
+      return version;
     }
-  } else {
-    for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-      if (version_label == CreateQuicVersionLabel(version)) {
-        return version;
-      }
-    }
-    // Reading from the client so this should not be considered an ERROR.
-    QUIC_DLOG(INFO) << "Unsupported QuicVersionLabel version: "
-                    << QuicVersionLabelToString(version_label);
   }
   return UnsupportedQuicVersion();
 }

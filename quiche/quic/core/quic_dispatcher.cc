@@ -279,28 +279,17 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   ++stats_.packets_processed;
   ReceivedPacketInfo packet_info(self_address, peer_address, packet);
   std::string detailed_error;
-  QuicErrorCode error;
-  if (GetQuicReloadableFlag(quic_heapless_static_parser)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_static_parser, 2, 3);
-    absl::string_view destination_connection_id, source_connection_id;
-    error = QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
-        packet, &packet_info.form, &packet_info.long_packet_type,
-        &packet_info.version_flag, &packet_info.use_length_prefix,
-        &packet_info.version_label, &packet_info.version,
-        &destination_connection_id, &source_connection_id,
-        &packet_info.retry_token, &detailed_error, connection_id_generator_);
-    packet_info.destination_connection_id =
-        QuicConnectionId(destination_connection_id);
-    packet_info.source_connection_id = QuicConnectionId(source_connection_id);
-  } else {
-    error = QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
-        packet, &packet_info.form, &packet_info.long_packet_type,
-        &packet_info.version_flag, &packet_info.use_length_prefix,
-        &packet_info.version_label, &packet_info.version,
-        &packet_info.destination_connection_id,
-        &packet_info.source_connection_id, &packet_info.retry_token,
-        &detailed_error, connection_id_generator_);
-  }
+  absl::string_view destination_connection_id, source_connection_id;
+  QuicErrorCode error =
+      QuicFramer::ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
+          packet, &packet_info.form, &packet_info.long_packet_type,
+          &packet_info.version_flag, &packet_info.use_length_prefix,
+          &packet_info.version_label, &packet_info.version,
+          &destination_connection_id, &source_connection_id,
+          &packet_info.retry_token, &detailed_error, connection_id_generator_);
+  packet_info.destination_connection_id =
+      QuicConnectionId(destination_connection_id);
+  packet_info.source_connection_id = QuicConnectionId(source_connection_id);
   if (error != QUIC_NO_ERROR) {
     // Packet has framing error.
     SetLastError(error);
@@ -363,32 +352,17 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
       IsSupportedVersion(ParsedQuicVersion::Q046())) {
     ReceivedPacketInfo gquic_packet_info(self_address, peer_address, packet);
     // Try again without asking |connection_id_generator_| for the length.
-    QuicErrorCode gquic_error;
-    if (GetQuicReloadableFlag(quic_heapless_static_parser)) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_static_parser, 3, 3);
-      absl::string_view destination_connection_id, source_connection_id;
-      gquic_error = QuicFramer::ParsePublicHeaderDispatcher(
-          packet, expected_server_connection_id_length_,
-          &gquic_packet_info.form, &gquic_packet_info.long_packet_type,
-          &gquic_packet_info.version_flag, &gquic_packet_info.use_length_prefix,
-          &gquic_packet_info.version_label, &gquic_packet_info.version,
-          &destination_connection_id, &source_connection_id,
-          &gquic_packet_info.retry_token, &detailed_error);
-      if (gquic_error == QUIC_NO_ERROR) {
-        gquic_packet_info.destination_connection_id =
-            QuicConnectionId(destination_connection_id);
-        gquic_packet_info.source_connection_id =
-            QuicConnectionId(source_connection_id);
-      }
-    } else {
-      gquic_error = QuicFramer::ParsePublicHeaderDispatcher(
-          packet, expected_server_connection_id_length_,
-          &gquic_packet_info.form, &gquic_packet_info.long_packet_type,
-          &gquic_packet_info.version_flag, &gquic_packet_info.use_length_prefix,
-          &gquic_packet_info.version_label, &gquic_packet_info.version,
-          &gquic_packet_info.destination_connection_id,
-          &gquic_packet_info.source_connection_id,
-          &gquic_packet_info.retry_token, &detailed_error);
+    QuicErrorCode gquic_error = QuicFramer::ParsePublicHeaderDispatcher(
+        packet, expected_server_connection_id_length_, &gquic_packet_info.form,
+        &gquic_packet_info.long_packet_type, &gquic_packet_info.version_flag,
+        &gquic_packet_info.use_length_prefix, &gquic_packet_info.version_label,
+        &gquic_packet_info.version, &destination_connection_id,
+        &source_connection_id, &gquic_packet_info.retry_token, &detailed_error);
+    if (gquic_error == QUIC_NO_ERROR) {
+      gquic_packet_info.destination_connection_id =
+          QuicConnectionId(destination_connection_id);
+      gquic_packet_info.source_connection_id =
+          QuicConnectionId(source_connection_id);
     }
     if (gquic_error == QUIC_NO_ERROR) {
       if (MaybeDispatchPacket(gquic_packet_info)) {

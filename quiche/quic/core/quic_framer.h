@@ -463,17 +463,6 @@ class QUICHE_EXPORT QuicFramer {
       QuicLongHeaderType* long_packet_type,
       quiche::QuicheVariableLengthIntegerLength* retry_token_length_length,
       absl::string_view* retry_token, std::string* detailed_error);
-  // Deprecated version that uses QuicConnectionId instead of string_view.
-  static QuicErrorCode ParsePublicHeader(
-      QuicDataReader* reader, uint8_t expected_destination_connection_id_length,
-      bool ietf_format, uint8_t* first_byte, PacketHeaderFormat* format,
-      bool* version_present, bool* has_length_prefix,
-      QuicVersionLabel* version_label, ParsedQuicVersion* parsed_version,
-      QuicConnectionId* destination_connection_id,
-      QuicConnectionId* source_connection_id,
-      QuicLongHeaderType* long_packet_type,
-      quiche::QuicheVariableLengthIntegerLength* retry_token_length_length,
-      absl::string_view* retry_token, std::string* detailed_error);
 
   // Parses the unencrypted fields in |packet| and stores them in the other
   // parameters. This can only be called on the server.
@@ -492,17 +481,6 @@ class QUICHE_EXPORT QuicFramer {
       absl::string_view* source_connection_id,
       std::optional<absl::string_view>* retry_token,
       std::string* detailed_error);
-  // Deprecated version that uses QuicConnectionId instead of string_view.
-  static QuicErrorCode ParsePublicHeaderDispatcher(
-      const QuicEncryptedPacket& packet,
-      uint8_t expected_destination_connection_id_length,
-      PacketHeaderFormat* format, QuicLongHeaderType* long_packet_type,
-      bool* version_present, bool* has_length_prefix,
-      QuicVersionLabel* version_label, ParsedQuicVersion* parsed_version,
-      QuicConnectionId* destination_connection_id,
-      QuicConnectionId* source_connection_id,
-      std::optional<absl::string_view>* retry_token,
-      std::string* detailed_error);
 
   // Parses the unencrypted fields in |packet| and stores them in the other
   // parameters. The only callers that should use this method are ones where
@@ -519,16 +497,6 @@ class QUICHE_EXPORT QuicFramer {
       ParsedQuicVersion* parsed_version,
       absl::string_view* destination_connection_id,
       absl::string_view* source_connection_id,
-      std::optional<absl::string_view>* retry_token,
-      std::string* detailed_error, ConnectionIdGeneratorInterface& generator);
-  // Deprecated version that uses QuicConnectionId instead of string_view.
-  static QuicErrorCode ParsePublicHeaderDispatcherShortHeaderLengthUnknown(
-      const QuicEncryptedPacket& packet, PacketHeaderFormat* format,
-      QuicLongHeaderType* long_packet_type, bool* version_present,
-      bool* has_length_prefix, QuicVersionLabel* version_label,
-      ParsedQuicVersion* parsed_version,
-      QuicConnectionId* destination_connection_id,
-      QuicConnectionId* source_connection_id,
       std::optional<absl::string_view>* retry_token,
       std::string* detailed_error, ConnectionIdGeneratorInterface& generator);
 
@@ -998,12 +966,6 @@ class QUICHE_EXPORT QuicFramer {
       ParsedQuicVersion* parsed_version,
       absl::string_view* destination_connection_id,
       std::string* detailed_error);
-  // Deprecated version that uses QuicConnectionId instead of string_view.
-  static QuicErrorCode ParsePublicHeaderGoogleQuic(
-      QuicDataReader* reader, uint8_t* first_byte, PacketHeaderFormat* format,
-      bool* version_present, QuicVersionLabel* version_label,
-      ParsedQuicVersion* parsed_version,
-      QuicConnectionId* destination_connection_id, std::string* detailed_error);
 
   bool ValidateReceivedConnectionIds(const QuicPacketHeader& header);
 
