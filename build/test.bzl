@@ -2,6 +2,7 @@
 
 load("@bazel_skylib//lib:dicts.bzl", "dicts")
 load("@bazel_skylib//lib:paths.bzl", "paths")
+load("//third_party/bazel_rules/rules_cc/cc:cc_test.bzl", "cc_test")
 
 def test_suite_from_source_list(name, srcs, **kwargs):
     """
@@ -21,7 +22,7 @@ def test_suite_from_source_list(name, srcs, **kwargs):
         extra_kwargs = {}
         if test_name == "end_to_end_test":
             extra_kwargs["shard_count"] = 16
-        native.cc_test(
+        cc_test(
             name = test_name,
             srcs = [sourcefile],
             **dicts.add(kwargs, extra_kwargs)
