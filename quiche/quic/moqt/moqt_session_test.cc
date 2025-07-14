@@ -57,6 +57,8 @@ constexpr webtransport::StreamId kIncomingUniStreamId = 15;
 constexpr webtransport::StreamId kOutgoingUniStreamId = 14;
 constexpr uint64_t kDefaultLocalRequestId = 0;
 constexpr uint64_t kDefaultPeerRequestId = 1;
+const MoqtDataStreamType kDefaultSubgroupStreamType =
+    MoqtDataStreamType::Subgroup(2, 4, false);
 
 FullTrackName kDefaultTrackName() { return FullTrackName("foo", "bar"); }
 
@@ -190,7 +192,10 @@ class MoqtSessionTest : public quic::test::QuicTest {
                      MockSubscribeRemoteTrackVisitor* track_visitor) {
     MoqtFramer framer(quiche::SimpleBufferAllocator::Get(), true);
     quiche::QuicheBuffer buffer = framer.SerializeObjectHeader(
-        object, MoqtDataStreamType::kStreamHeaderSubgroup, visitor == nullptr);
+        object,
+        MoqtDataStreamType::Subgroup(object.subgroup_id, object.object_id,
+                                     false),
+        visitor == nullptr);
     size_t data_read = 0;
     if (visitor == nullptr) {  // It's the first object in the stream
       EXPECT_CALL(session, AcceptIncomingUnidirectionalStream())
@@ -1061,8 +1066,8 @@ TEST_F(MoqtSessionTest, IncomingObject) {
       /*payload_length=*/8,
   };
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(
-          &session_, &mock_stream_, MoqtDataStreamType::kStreamHeaderSubgroup);
+      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream_,
+                                                kDefaultSubgroupStreamType);
 
   EXPECT_CALL(visitor_, OnObjectFragment).Times(1);
   EXPECT_CALL(mock_stream_, GetStreamId())
@@ -1086,8 +1091,8 @@ TEST_F(MoqtSessionTest, IncomingPartialObject) {
       /*payload_length=*/16,
   };
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(
-          &session_, &mock_stream_, MoqtDataStreamType::kStreamHeaderSubgroup);
+      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream_,
+                                                kDefaultSubgroupStreamType);
 
   EXPECT_CALL(visitor_, OnObjectFragment).Times(1);
   EXPECT_CALL(mock_stream_, GetStreamId())
@@ -1117,8 +1122,8 @@ TEST_F(MoqtSessionTest, IncomingPartialObjectNoBuffer) {
       /*payload_length=*/16,
   };
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(
-          &session, &mock_stream_, MoqtDataStreamType::kStreamHeaderSubgroup);
+      MoqtSessionPeer::CreateIncomingDataStream(&session, &mock_stream_,
+                                                kDefaultSubgroupStreamType);
 
   EXPECT_CALL(visitor_, OnObjectFragment).Times(2);
   EXPECT_CALL(mock_stream_, GetStreamId())
@@ -1144,8 +1149,8 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
       /*payload_length=*/8,
   };
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(
-          &session_, &mock_stream_, MoqtDataStreamType::kStreamHeaderSubgroup);
+      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream_,
+                                                kDefaultSubgroupStreamType);
 
   EXPECT_CALL(visitor_, OnObjectFragment)
       .WillOnce([&](const FullTrackName& full_track_name,
@@ -1190,8 +1195,8 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeError) {
       /*payload_length=*/8,
   };
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(
-          &session_, &mock_stream_, MoqtDataStreamType::kStreamHeaderSubgroup);
+      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream_,
+                                                kDefaultSubgroupStreamType);
 
   EXPECT_CALL(visitor, OnObjectFragment)
       .WillOnce([&](const FullTrackName& full_track_name,
@@ -1292,9 +1297,9 @@ TEST_F(MoqtSessionTest, CreateOutgoingDataStreamAndSend) {
   EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
       .WillRepeatedly(Return(&mock_stream_));
 
-  // Verify first six message fields are sent correctly
+  // Verify first four message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x00, 0x7f};
+  const std::string kExpectedMessage = {0x09, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1345,9 +1350,9 @@ TEST_F(MoqtSessionTest, FinDataStreamFromCache) {
   EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
       .WillRepeatedly(Return(&mock_stream_));
 
-  // Verify first five message fields are sent correctly
+  // Verify first four message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x00, 0x7f};
+  const std::string kExpectedMessage = {0x09, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1396,9 +1401,9 @@ TEST_F(MoqtSessionTest, GroupAbandoned) {
   EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
       .WillRepeatedly(Return(&mock_stream_));
 
-  // Verify first six message fields are sent correctly
+  // Verify first four message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x00, 0x7f};
+  const std::string kExpectedMessage = {0x09, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1450,9 +1455,9 @@ TEST_F(MoqtSessionTest, LateFinDataStream) {
   EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
       .WillRepeatedly(Return(&mock_stream_));
 
-  // Verify first six message fields are sent correctly
+  // Verify first four message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x00, 0x7f};
+  const std::string kExpectedMessage = {0x09, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev)
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1885,7 +1890,7 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
       /*publisher_priority=*/0,
       /*extension_headers=*/"",
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*subgroup_id=*/std::nullopt,
+      /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
   char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x08, 0x64,
@@ -1920,8 +1925,8 @@ TEST_F(MoqtSessionTest, DataStreamTypeMismatch) {
       /*payload_length=*/8,
   };
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(
-          &session_, &mock_stream_, MoqtDataStreamType::kStreamHeaderSubgroup);
+      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream_,
+                                                kDefaultSubgroupStreamType);
 
   EXPECT_CALL(visitor_, OnObjectFragment).Times(1);
   EXPECT_CALL(mock_stream_, GetStreamId())
@@ -1953,8 +1958,8 @@ TEST_F(MoqtSessionTest, StreamObjectOutOfWindow) {
       /*payload_length=*/8,
   };
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(
-          &session_, &mock_stream_, MoqtDataStreamType::kStreamHeaderSubgroup);
+      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream_,
+                                                kDefaultSubgroupStreamType);
   EXPECT_CALL(visitor_, OnObjectFragment).Times(0);
   object_stream->OnObjectMessage(object, payload, true);
 }
@@ -2243,8 +2248,7 @@ void ExpectSendObject(MockFetchTask* fetch_task,
           quic::QuicDataReader reader(data[0].AsStringView());
           uint64_t type;
           EXPECT_TRUE(reader.ReadVarInt62(&type));
-          EXPECT_EQ(type, static_cast<uint64_t>(
-                              MoqtDataStreamType::kStreamHeaderFetch));
+          EXPECT_EQ(type, MoqtDataStreamType::Fetch().value());
           EXPECT_FALSE(options.send_fin());  // fin_after_this is ignored.
           return absl::OkStatus();
         }))
@@ -2262,8 +2266,7 @@ void ExpectSendObject(MockFetchTask* fetch_task,
         quic::QuicDataReader reader(data[0].AsStringView());
         uint64_t type;
         EXPECT_TRUE(reader.ReadVarInt62(&type));
-        EXPECT_EQ(type, static_cast<uint64_t>(
-                            MoqtDataStreamType::kStreamHeaderFetch));
+        EXPECT_EQ(type, MoqtDataStreamType::Fetch().value());
         EXPECT_FALSE(options.send_fin());  // fin_after_this is ignored.
         return absl::OkStatus();
       }));
@@ -2579,8 +2582,8 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
       /*payload_length=*/3,
   };
   MoqtFramer framer(quiche::SimpleBufferAllocator::Get(), true);
-  quiche::QuicheBuffer header = framer.SerializeObjectHeader(
-      object, MoqtDataStreamType::kStreamHeaderFetch, true);
+  quiche::QuicheBuffer header =
+      framer.SerializeObjectHeader(object, MoqtDataStreamType::Fetch(), true);
 
   // Open stream, deliver two objects before FETCH_OK. Neither should be read.
   webtransport::test::InMemoryStream data_stream(kIncomingUniStreamId);
@@ -2735,7 +2738,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
   for (int i = 0; i < 4; ++i) {
     object.object_id = i;
     headers.push(framer_.SerializeObjectHeader(
-        object, MoqtDataStreamType::kStreamHeaderFetch, i == 0));
+        object, MoqtDataStreamType::Fetch(), i == 0));
     payloads.push("foo");
   }
 
@@ -2806,7 +2809,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
   for (int i = 0; i < 4; ++i) {
     object.object_id = i;
     headers.push(framer_.SerializeObjectHeader(
-        object, MoqtDataStreamType::kStreamHeaderFetch, i == 0));
+        object, MoqtDataStreamType::Fetch(), i == 0));
     payloads.push("foo");
   }
 
@@ -2895,8 +2898,8 @@ TEST_F(MoqtSessionTest, PartialObjectFetch) {
       /*payload_length=*/6,
   };
   MoqtFramer framer_(quiche::SimpleBufferAllocator::Get(), true);
-  quiche::QuicheBuffer header = framer_.SerializeObjectHeader(
-      object, MoqtDataStreamType::kStreamHeaderFetch, true);
+  quiche::QuicheBuffer header =
+      framer_.SerializeObjectHeader(object, MoqtDataStreamType::Fetch(), true);
   stream.Receive(header.AsStringView(), false);
   EXPECT_FALSE(task->HasObject());
   EXPECT_FALSE(object_ready);

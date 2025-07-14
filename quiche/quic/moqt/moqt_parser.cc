@@ -11,6 +11,7 @@
 #include <cstring>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "absl/base/casts.h"
 #include "absl/cleanup/cleanup.h"
@@ -54,18 +55,6 @@ uint64_t SignedVarintUnserializedForm(uint64_t value) {
     return -(value >> 1);
   }
   return value >> 1;
-}
-
-bool IsAllowedStreamType(uint64_t value) {
-  constexpr std::array kAllowedStreamTypes = {
-      MoqtDataStreamType::kStreamHeaderSubgroup,
-      MoqtDataStreamType::kStreamHeaderFetch, MoqtDataStreamType::kPadding};
-  for (MoqtDataStreamType type : kAllowedStreamTypes) {
-    if (static_cast<uint64_t>(type) == value) {
-      return true;
-    }
-  }
-  return false;
 }
 
 std::optional<uint64_t> ReadVarInt62FromStream(quiche::ReadStream& stream,
@@ -1141,6 +1130,7 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
       !reader.ReadStringPieceVarInt62(&extensions)) {
     return std::nullopt;
   }
+  object_metadata.subgroup_id = object_metadata.object_id;
   object_metadata.extension_headers = std::string(extensions);
   if (static_cast<MoqtDatagramType>(type_raw) ==
       MoqtDatagramType::kObjectStatus) {
@@ -1205,9 +1195,11 @@ std::optional<uint8_t> MoqtDataParser::ReadUint8NoFin() {
 }
 
 void MoqtDataParser::AdvanceParserState() {
-  QUICHE_DCHECK(type_ == MoqtDataStreamType::kStreamHeaderSubgroup ||
-                type_ == MoqtDataStreamType::kStreamHeaderFetch);
-  const bool is_fetch = type_ == MoqtDataStreamType::kStreamHeaderFetch;
+  if (next_input_ != kStreamType && !type_.has_value()) {
+    QUICHE_BUG(quic_bug_advance_parser_state_no_type)
+        << "Advancing parser state without a stream type";
+    return;
+  }
   switch (next_input_) {
     // The state table is factored into a separate function (rather than
     // inlined) in order to separate the order of elements from the way they are
@@ -1219,25 +1211,40 @@ void MoqtDataParser::AdvanceParserState() {
       next_input_ = kGroupId;
       break;
     case kGroupId:
-      next_input_ = kSubgroupId;
+      if (type_->IsFetch() || type_->IsSubgroupPresent()) {
+        next_input_ = kSubgroupId;
+        break;
+      }
+      if (type_->SubgroupIsZero()) {
+        metadata_.subgroup_id = 0;
+      }
+      next_input_ = kPublisherPriority;
       break;
     case kSubgroupId:
-      next_input_ = is_fetch ? kObjectId : kPublisherPriority;
+      next_input_ = type_->IsFetch() ? kObjectId : kPublisherPriority;
       break;
     case kPublisherPriority:
-      next_input_ = is_fetch ? kExtensionSize : kObjectId;
+      next_input_ = type_->IsFetch() ? kExtensionSize : kObjectId;
       break;
     case kObjectId:
-      next_input_ = is_fetch ? kPublisherPriority : kExtensionSize;
+      if (num_objects_read_ == 0 && type_->SubgroupIsFirstObjectId()) {
+        metadata_.subgroup_id = metadata_.object_id;
+      }
+      if (type_->IsFetch()) {
+        next_input_ = kPublisherPriority;
+      } else if (type_->AreExtensionHeadersPresent()) {
+        next_input_ = kExtensionSize;
+      } else {
+        next_input_ = kObjectPayloadLength;
+      }
       break;
     case kExtensionBody:
       next_input_ = kObjectPayloadLength;
       break;
     case kStatus:
     case kData:
-      next_input_ = is_fetch ? kGroupId : kObjectId;
+      next_input_ = type_->IsFetch() ? kGroupId : kObjectId;
       break;
-
     case kExtensionSize:        // Either kExtensionBody or
                                 // kObjectPayloadLength.
     case kObjectPayloadLength:  // Either kStatus or kData depending on length.
@@ -1255,22 +1262,21 @@ void MoqtDataParser::ParseNextItemFromStream() {
   switch (next_input_) {
     case kStreamType: {
       std::optional<uint64_t> value_read = ReadVarInt62NoFin();
-      if (value_read.has_value()) {
-        if (!IsAllowedStreamType(*value_read)) {
-          ParseError("Invalid stream type supplied");
-          return;
-        }
-        type_ = static_cast<MoqtDataStreamType>(*value_read);
-        switch (*type_) {
-          case MoqtDataStreamType::kStreamHeaderSubgroup:
-          case MoqtDataStreamType::kStreamHeaderFetch:
-            AdvanceParserState();
-            break;
-          case MoqtDataStreamType::kPadding:
-            next_input_ = kPadding;
-            break;
-        }
+      if (!value_read.has_value()) {
+        return;
       }
+      std::optional<MoqtDataStreamType> type =
+          MoqtDataStreamType::FromValue(*value_read);
+      if (!type.has_value()) {
+        ParseError("Invalid stream type supplied");
+        return;
+      }
+      type_.emplace(std::move(*type));
+      if (type_->IsPadding()) {
+        next_input_ = kPadding;
+        return;
+      }
+      AdvanceParserState();
       return;
     }
 
@@ -1440,10 +1446,8 @@ bool MoqtDataParser::CheckForFinWithoutData() {
     return false;
   }
   const bool valid_state =
-      (type_ == MoqtDataStreamType::kStreamHeaderSubgroup &&
-       next_input_ == kObjectId) ||
-      (type_ == MoqtDataStreamType::kStreamHeaderFetch &&
-       next_input_ == kGroupId);
+      type_.has_value() && ((type_->IsSubgroup() && next_input_ == kObjectId) ||
+                            (type_->IsFetch() && next_input_ == kGroupId));
   if (!valid_state || num_objects_read_ == 0) {
     ParseError("FIN received at an unexpected point in the stream");
     return true;

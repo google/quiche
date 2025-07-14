@@ -23,7 +23,7 @@ namespace moqt {
 
 struct PublishedObjectMetadata {
   Location location;
-  std::optional<uint64_t> subgroup;  // nullopt for datagrams
+  uint64_t subgroup;  // Equal to object_id for datagrams.
   MoqtObjectStatus status;
   MoqtPriority publisher_priority;
   quic::QuicTime arrival_time = quic::QuicTime::Zero();

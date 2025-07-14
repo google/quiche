@@ -31,7 +31,7 @@ namespace moqt::test {
 class MoqtDataParserPeer {
  public:
   static void SetType(MoqtDataParser* parser, MoqtDataStreamType type) {
-    parser->type_ = type;
+    parser->type_.emplace(std::move(type));
   }
 };
 

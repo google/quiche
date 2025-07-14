@@ -71,7 +71,7 @@ struct DataStreamIndex {
       : group(group), subgroup(subgroup) {}
   explicit DataStreamIndex(const PublishedObject& object)
       : group(object.metadata.location.group),
-        subgroup(object.metadata.subgroup.value_or(0)) {}
+        subgroup(object.metadata.subgroup) {}
 
   bool operator==(const DataStreamIndex& other) const {
     return group == other.group && subgroup == other.subgroup;

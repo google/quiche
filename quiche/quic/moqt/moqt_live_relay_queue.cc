@@ -112,16 +112,8 @@ bool MoqtLiveRelayQueue::AddObject(const PublishedObjectMetadata& metadata,
     return false;
   }
   switch (metadata.status) {
-    case MoqtObjectStatus::kEndOfTrackAndGroup:
-      if (sequence < next_sequence_) {
-        QUICHE_DLOG(INFO) << "EndOfTrackAndGroup is too early.";
-        return false;
-      }
-      // TODO(martinduke): Check that EndOfTrackAndGroup has normal IDs.
-      end_of_track_ = sequence;
-      break;
     case MoqtObjectStatus::kEndOfTrack:
-      if (sequence.group <= next_sequence_.group || sequence.object > 0) {
+      if (sequence < next_sequence_) {
         QUICHE_DLOG(INFO) << "EndOfTrack is too early.";
         return false;
       }
@@ -146,8 +138,7 @@ bool MoqtLiveRelayQueue::AddObject(const PublishedObjectMetadata& metadata,
                         << "group";
       return false;
     }
-    if ((metadata.status == MoqtObjectStatus::kEndOfGroup ||
-         metadata.status == MoqtObjectStatus::kEndOfTrackAndGroup) &&
+    if (metadata.status == MoqtObjectStatus::kEndOfGroup &&
         sequence.object < group.next_object) {
       QUICHE_DLOG(INFO) << "Skipping EndOfGroup because it is not the last "
                         << "object in the group.";
@@ -156,7 +147,7 @@ bool MoqtLiveRelayQueue::AddObject(const PublishedObjectMetadata& metadata,
   }
   // TODO: use `metadata.publisher_priority` instead.
   auto subgroup_it = group.subgroups.try_emplace(
-      SubgroupPriority{publisher_priority_, metadata.subgroup.value_or(0)});
+      SubgroupPriority{publisher_priority_, metadata.subgroup});
   auto& subgroup = subgroup_it.first->second;
   if (!subgroup.empty()) {  // Check if the new object is valid
     CachedObject& last_object = subgroup.rbegin()->second;
@@ -168,7 +159,6 @@ bool MoqtLiveRelayQueue::AddObject(const PublishedObjectMetadata& metadata,
     // If last_object has stream-ending status, it should have been caught by
     // the fin_after_this check above.
     QUICHE_DCHECK(
-        last_object.metadata.status != MoqtObjectStatus::kEndOfTrackAndGroup &&
         last_object.metadata.status != MoqtObjectStatus::kEndOfGroup &&
         last_object.metadata.status != MoqtObjectStatus::kEndOfTrack);
     if (last_object.metadata.location.object >= sequence.object) {
@@ -187,7 +177,6 @@ bool MoqtLiveRelayQueue::AddObject(const PublishedObjectMetadata& metadata,
   // Anticipate stream FIN with most non-normal objects.
   switch (metadata.status) {
     case MoqtObjectStatus::kEndOfTrack:
-    case MoqtObjectStatus::kEndOfTrackAndGroup:
       end_of_track_ = sequence;
       last_object_in_stream = true;
       ABSL_FALLTHROUGH_INTENDED;
@@ -207,7 +196,7 @@ bool MoqtLiveRelayQueue::AddObject(const PublishedObjectMetadata& metadata,
   subgroup.emplace(sequence.object,
                    CachedObject{metadata, slice, last_object_in_stream});
   for (MoqtObjectListener* listener : listeners_) {
-    listener->OnNewObjectAvailable(sequence, metadata.subgroup.value_or(0));
+    listener->OnNewObjectAvailable(sequence, metadata.subgroup);
   }
   return true;
 }

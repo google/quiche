@@ -272,15 +272,12 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
 }
 
 std::string MoqtDataStreamTypeToString(MoqtDataStreamType type) {
-  switch (type) {
-    case MoqtDataStreamType::kStreamHeaderSubgroup:
-      return "STREAM_HEADER_SUBGROUP";
-    case MoqtDataStreamType::kStreamHeaderFetch:
-      return "STREAM_HEADER_FETCH";
-    case MoqtDataStreamType::kPadding:
-      return "PADDING";
+  if (type.IsPadding()) {
+    return "PADDING";
+  } else if (type.IsFetch()) {
+    return "STREAM_HEADER_FETCH";
   }
-  return "Unknown stream type " + absl::StrCat(static_cast<int>(type));
+  return absl::StrCat("STREAM_HEADER_SUBGROUP_", type.value());
 }
 
 std::string MoqtDatagramTypeToString(MoqtDatagramType type) {

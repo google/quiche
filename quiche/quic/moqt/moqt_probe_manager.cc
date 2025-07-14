@@ -73,8 +73,8 @@ void MoqtProbeManager::ProbeStreamVisitor::OnCanWrite() {
 
   if (!header_sent_) {
     absl::Status status = quiche::WriteIntoStream(
-        *stream_, *quiche::SerializeIntoString(
-                      quiche::WireVarInt62(MoqtDataStreamType::kPadding)));
+        *stream_, *quiche::SerializeIntoString(quiche::WireVarInt62(
+                      MoqtDataStreamType::Padding().value())));
     QUICHE_DCHECK(status.ok()) << status;  // Should succeed if CanWrite().
     header_sent_ = true;
   }

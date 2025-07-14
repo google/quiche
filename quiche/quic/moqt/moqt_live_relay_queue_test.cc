@@ -55,16 +55,12 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
       case MoqtObjectStatus::kEndOfTrack:
         CloseTrack();
         break;
-      case MoqtObjectStatus::kEndOfTrackAndGroup:
-        CloseStreamForGroup(object->metadata.location.group);
-        CloseTrack();
-        break;
       default:
         EXPECT_TRUE(false);
     }
     if (object->fin_after_this) {
       CloseStreamForSubgroup(object->metadata.location.group,
-                             object->metadata.subgroup.value_or(0));
+                             object->metadata.subgroup);
     }
   }
 
@@ -72,7 +68,7 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
     ForAllObjects([&](const CachedObject& object) {
       if (window.InWindow(object.metadata.location)) {
         OnNewObjectAvailable(object.metadata.location,
-                             object.metadata.subgroup.value_or(0));
+                             object.metadata.subgroup);
       }
     });
   }
@@ -339,22 +335,6 @@ TEST(MoqtLiveRelayQueue, FiveGroupsPastSubscribeFromMidGroup) {
       queue.AddObject(Location{0, 2}, 0, MoqtObjectStatus::kEndOfGroup));
 }
 
-TEST(MoqtLiveRelayQueue, EndOfTrackAndGroup) {
-  TestMoqtLiveRelayQueue queue;
-  {
-    testing::InSequence seq;
-    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
-    EXPECT_CALL(queue, PublishObject(0, 2, "c"));
-    EXPECT_CALL(queue, CloseTrack());
-  }
-  EXPECT_TRUE(queue.AddObject(Location{0, 0}, 0, "a"));
-  EXPECT_TRUE(queue.AddObject(Location{0, 2}, 0, "c"));
-  EXPECT_FALSE(queue.AddObject(Location{0, 1}, 0,
-                               MoqtObjectStatus::kEndOfTrackAndGroup));
-  EXPECT_TRUE(queue.AddObject(Location{0, 3}, 0,
-                              MoqtObjectStatus::kEndOfTrackAndGroup));
-}
-
 TEST(MoqtLiveRelayQueue, EndOfTrack) {
   TestMoqtLiveRelayQueue queue;
   {
@@ -366,7 +346,7 @@ TEST(MoqtLiveRelayQueue, EndOfTrack) {
   EXPECT_TRUE(queue.AddObject(Location{0, 0}, 0, "a"));
   EXPECT_TRUE(queue.AddObject(Location{0, 2}, 0, "c"));
   EXPECT_FALSE(
-      queue.AddObject(Location{0, 3}, 0, MoqtObjectStatus::kEndOfTrack));
+      queue.AddObject(Location{0, 1}, 0, MoqtObjectStatus::kEndOfTrack));
   EXPECT_TRUE(
       queue.AddObject(Location{1, 0}, 0, MoqtObjectStatus::kEndOfTrack));
 }

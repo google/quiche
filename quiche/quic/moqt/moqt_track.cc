@@ -36,10 +36,12 @@ constexpr quic::QuicTimeDelta kMaxSubscribeDoneTimeout =
 }  // namespace
 
 bool RemoteTrack::CheckDataStreamType(MoqtDataStreamType type) {
-  if (data_stream_type_.has_value()) {
-    return data_stream_type_.value() == type;
+  if (is_fetch() && !type.IsFetch()) {
+    return false;
   }
-  data_stream_type_ = type;
+  if (!is_fetch() && !type.IsSubgroup()) {
+    return false;
+  }
   return true;
 }
 
@@ -165,7 +167,7 @@ UpstreamFetch::UpstreamFetchTask::GetNextObject(PublishedObject& output) {
   }
   output.metadata.location =
       Location(next_object_->group_id, next_object_->object_id);
-  output.metadata.subgroup = next_object_->subgroup_id.value_or(0);
+  output.metadata.subgroup = next_object_->subgroup_id;
   output.metadata.status = next_object_->object_status;
   output.metadata.publisher_priority = next_object_->publisher_priority;
   output.fin_after_this = false;

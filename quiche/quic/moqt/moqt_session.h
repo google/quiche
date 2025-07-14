@@ -546,6 +546,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     webtransport::Stream* stream_;
     uint64_t subscription_id_;
     DataStreamIndex index_;
+    MoqtDataStreamType stream_type_;
     // Minimum object ID that should go out next. The session doesn't know the
     // exact ID of the next object in the stream because the next object could
     // be in a different subgroup or simply be skipped.

@@ -233,7 +233,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     // TODO(martinduke): Handle extension headers.
     PublishedObjectMetadata metadata;
     metadata.location = Location(message.group_id, message.object_id);
-    metadata.subgroup = std::nullopt;
+    metadata.subgroup = message.object_id;
     metadata.status = message.object_status;
     metadata.publisher_priority = message.publisher_priority;
     metadata.arrival_time = callbacks_.clock->Now();
@@ -639,8 +639,8 @@ void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
         }
         if (fetch->session_->WriteObjectToStream(
                 stream_, fetch->request_id(), object.metadata,
-                std::move(object.payload),
-                MoqtDataStreamType::kStreamHeaderFetch, !stream_header_written_,
+                std::move(object.payload), MoqtDataStreamType::Fetch(),
+                !stream_header_written_,
                 /*fin=*/false)) {
           stream_header_written_ = true;
         }
@@ -1685,13 +1685,15 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       payload = absl::string_view(partial_object_);
     }
   }
-  QUICHE_BUG_IF(quic_bug_object_with_no_stream_type,
-                !parser_.stream_type().has_value())
-      << "Object delivered without a stream type";
+  if (!parser_.stream_type().has_value()) {
+    QUICHE_BUG(quic_bug_object_with_no_stream_type)
+        << "Object delivered without a stream type";
+    return;
+  }
   // Get a pointer to the upstream state.
   RemoteTrack* track = track_.GetIfAvailable();
   if (track == nullptr) {
-    track = (*parser_.stream_type() == MoqtDataStreamType::kStreamHeaderFetch)
+    track = (parser_.stream_type()->IsFetch())
                 // message.track_alias is actually a fetch ID for fetches.
                 ? session_->RemoteTrackById(message.track_alias)
                 : session_->RemoteTrackByAlias(message.track_alias);
@@ -1756,7 +1758,7 @@ MoqtSession::IncomingDataStream::~IncomingDataStream() {
   if (!track_.IsValid()) {
     return;
   }
-  if (parser_.stream_type() == MoqtDataStreamType::kStreamHeaderFetch) {
+  if (parser_.stream_type().has_value() && parser_.stream_type()->IsFetch()) {
     session_->upstream_by_id_.erase(*parser_.track_alias());
   }
   // It's a subscribe.
@@ -1771,7 +1773,7 @@ MoqtSession::IncomingDataStream::~IncomingDataStream() {
 
 void MoqtSession::IncomingDataStream::MaybeReadOneObject() {
   if (!parser_.track_alias().has_value() ||
-      parser_.stream_type() != MoqtDataStreamType::kStreamHeaderFetch) {
+      !parser_.stream_type().has_value() || !parser_.stream_type()->IsFetch()) {
     QUICHE_BUG(quic_bug_read_one_object_parser_unexpected_state)
         << "Requesting object, parser in unexpected state";
   }
@@ -1805,7 +1807,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
     }
   }
   bool knew_track_alias = parser_.track_alias().has_value();
-  if (parser_.stream_type() == MoqtDataStreamType::kStreamHeaderSubgroup) {
+  if (parser_.stream_type()->IsSubgroup()) {
     parser_.ReadAllData();
   } else if (!knew_track_alias) {
     parser_.ReadTrackAlias();
@@ -1813,7 +1815,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
   if (!parser_.track_alias().has_value()) {
     return;
   }
-  if (parser_.stream_type() == MoqtDataStreamType::kStreamHeaderSubgroup) {
+  if (parser_.stream_type()->IsSubgroup()) {
     if (knew_track_alias) {
       return;
     }
@@ -2221,6 +2223,10 @@ MoqtSession::OutgoingDataStream::OutgoingDataStream(
       stream_(stream),
       subscription_id_(subscription.request_id()),
       index_(parameters.index),
+      // Always include extension header length, because it's difficult to know
+      // a priori if they're going to appear on a stream.
+      stream_type_(MoqtDataStreamType::Subgroup(
+          index_.subgroup, parameters.first_object, false)),
       next_object_(parameters.first_object),
       session_liveness_(session->liveness_token_) {
   UpdateSendOrder(subscription);
@@ -2321,11 +2327,9 @@ void MoqtSession::OutgoingDataStream::SendObjects(
       stream_->ResetWithUserCode(kResetCodeDeliveryTimeout);
       return;
     }
-
     if (!session_->WriteObjectToStream(
             stream_, subscription.track_alias(), object->metadata,
-            std::move(object->payload),
-            MoqtDataStreamType::kStreamHeaderSubgroup, !stream_header_written_,
+            std::move(object->payload), stream_type_, !stream_header_written_,
             object->fin_after_this)) {
       // WriteObjectToStream() closes the connection on error, meaning that
       // there is no need to process the stream any further.
@@ -2436,7 +2440,7 @@ void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
   header.object_id = object->metadata.location.object;
   header.publisher_priority = object->metadata.publisher_priority;
   header.object_status = object->metadata.status;
-  header.subgroup_id = std::nullopt;
+  header.subgroup_id = header.object_id;
   header.payload_length = object->payload.length();
   quiche::QuicheBuffer datagram = session_->framer_.SerializeObjectDatagram(
       header, object->payload.AsStringView());

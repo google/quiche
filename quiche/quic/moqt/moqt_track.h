@@ -52,16 +52,8 @@ class RemoteTrack {
   virtual void OnObjectOrOk() { error_is_allowed_ = false; }
   bool ErrorIsAllowed() const { return error_is_allowed_; }
 
-  // When called while processing the first object in the track, sets the
-  // data stream type to the value indicated by the incoming encoding.
-  // Otherwise, returns true if the incoming object does not violate the rule
-  // that the type is consistent.
+  // Makes sure the data stream type is consistent with the track type.
   bool CheckDataStreamType(MoqtDataStreamType type);
-
-  bool is_fetch() const {
-    return data_stream_type_.has_value() &&
-           *data_stream_type_ == MoqtDataStreamType::kStreamHeaderFetch;
-  }
 
   uint64_t request_id() const { return request_id_; }
 
@@ -79,6 +71,8 @@ class RemoteTrack {
     subscriber_priority_ = priority;
   }
 
+  virtual bool is_fetch() const = 0;
+
  protected:
   SubscribeWindow& window_mutable() { return window_; };
 
@@ -87,7 +81,6 @@ class RemoteTrack {
   const uint64_t request_id_;
   MoqtPriority subscriber_priority_;
   SubscribeWindow window_;
-  std::optional<MoqtDataStreamType> data_stream_type_;
   // If false, an object or OK message has been received, so any ERROR message
   // is a protocol violation.
   bool error_is_allowed_ = true;
@@ -184,6 +177,8 @@ class SubscribeRemoteTrack : public RemoteTrack {
   bool forward() const { return forward_; }
   void set_forward(bool forward) { forward_ = forward; }
 
+  bool is_fetch() const override { return false; }
+
  private:
   friend class test::MoqtSessionPeer;
   friend class test::SubscribeRemoteTrackPeer;
@@ -240,19 +235,13 @@ class UpstreamFetch : public RemoteTrack {
             SubscribeWindow(standalone.start_object, standalone.end_group,
                             standalone.end_object),
             fetch.subscriber_priority),
-        ok_callback_(std::move(callback)) {
-    // Immediately set the data stream type.
-    CheckDataStreamType(MoqtDataStreamType::kStreamHeaderFetch);
-  }
+        ok_callback_(std::move(callback)) {}
   // Relative Joining Fetch constructor
   UpstreamFetch(const MoqtFetch& fetch, FullTrackName full_track_name,
                 FetchResponseCallback callback)
       : RemoteTrack(full_track_name, fetch.request_id,
                     SubscribeWindow(Location(0, 0)), fetch.subscriber_priority),
-        ok_callback_(std::move(callback)) {
-    // Immediately set the data stream type.
-    CheckDataStreamType(MoqtDataStreamType::kStreamHeaderFetch);
-  }
+        ok_callback_(std::move(callback)) {}
   // Absolute Joining Fetch constructor
   UpstreamFetch(const MoqtFetch& fetch, FullTrackName full_track_name,
                 JoiningFetchAbsolute absolute_joining,
@@ -261,10 +250,7 @@ class UpstreamFetch : public RemoteTrack {
             full_track_name, fetch.request_id,
             SubscribeWindow(Location(absolute_joining.joining_start, 0)),
             fetch.subscriber_priority),
-        ok_callback_(std::move(callback)) {
-    // Immediately set the data stream type.
-    CheckDataStreamType(MoqtDataStreamType::kStreamHeaderFetch);
-  }
+        ok_callback_(std::move(callback)) {}
   UpstreamFetch(const UpstreamFetch&) = delete;
   ~UpstreamFetch();
 
@@ -359,6 +345,8 @@ class UpstreamFetch : public RemoteTrack {
 
   // Manage the relationship with the data stream.
   void OnStreamOpened(CanReadCallback callback);
+
+  bool is_fetch() const override { return true; }
 
  private:
   quiche::QuicheWeakPtr<UpstreamFetchTask> task_;

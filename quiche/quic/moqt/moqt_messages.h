@@ -93,12 +93,84 @@ struct QUICHE_EXPORT MoqtSessionParameters {
 // are not buffered by the parser).
 inline constexpr size_t kMaxMessageHeaderSize = 2048;
 
-enum class QUICHE_EXPORT MoqtDataStreamType : uint64_t {
-  kStreamHeaderSubgroup = 0x04,
-  kStreamHeaderFetch = 0x05,
+class QUICHE_EXPORT MoqtDataStreamType {
+ public:
+  // Factory functions.
+  static std::optional<MoqtDataStreamType> FromValue(uint64_t value) {
+    MoqtDataStreamType stream_type(static_cast<StreamType>(value));
+    if (stream_type.IsFetch() || stream_type.IsPadding() ||
+        stream_type.IsSubgroup()) {
+      return stream_type;
+    }
+    return std::nullopt;
+  }
+  static MoqtDataStreamType Fetch() {
+    return MoqtDataStreamType(StreamType::kFetch);
+  }
+  static MoqtDataStreamType Padding() {
+    return MoqtDataStreamType(StreamType::kPadding);
+  }
+  static MoqtDataStreamType Subgroup(uint64_t subgroup_id,
+                                     uint64_t first_object_id,
+                                     bool no_extension_headers) {
+    if (subgroup_id == 0) {
+      return MoqtDataStreamType(
+          no_extension_headers ? StreamType::kSubgroup0NoExtensionHeaders
+                               : StreamType::kSubgroup0WithExtensionHeaders);
+    }
+    if (subgroup_id == first_object_id) {
+      return MoqtDataStreamType(
+          no_extension_headers
+              ? StreamType::kSubgroupFirstObjectNoExtensionHeaders
+              : StreamType::kSubgroupFirstObjectWithExtensionHeaders);
+    }
+    return MoqtDataStreamType(
+        no_extension_headers
+            ? StreamType::kSubgroupExplicitNoExtensionHeaders
+            : StreamType::kSubgroupExplicitWithExtensionHeaders);
+  }
+  MoqtDataStreamType(const MoqtDataStreamType& other) = default;
+  bool IsFetch() const { return value_ == StreamType::kFetch; }
+  bool IsPadding() const { return value_ == StreamType::kPadding; }
+  bool IsSubgroup() const {
+    return value_ >= StreamType::kSubgroup0NoExtensionHeaders &&
+           value_ <= StreamType::kSubgroupExplicitWithExtensionHeaders;
+  }
+  bool IsSubgroupPresent() const {
+    return value_ == StreamType::kSubgroupExplicitNoExtensionHeaders ||
+           value_ == StreamType::kSubgroupExplicitWithExtensionHeaders;
+  }
+  bool SubgroupIsZero() const {
+    return value_ == StreamType::kSubgroup0NoExtensionHeaders ||
+           value_ == StreamType::kSubgroup0WithExtensionHeaders;
+  }
+  bool SubgroupIsFirstObjectId() const {
+    return value_ == StreamType::kSubgroupFirstObjectNoExtensionHeaders ||
+           value_ == StreamType::kSubgroupFirstObjectWithExtensionHeaders;
+  }
+  bool AreExtensionHeadersPresent() const {
+    return value_ == StreamType::kSubgroup0WithExtensionHeaders ||
+           value_ == StreamType::kSubgroupFirstObjectWithExtensionHeaders ||
+           value_ == StreamType::kSubgroupExplicitWithExtensionHeaders;
+  }
+  uint64_t value() const { return static_cast<uint64_t>(value_); }
+  bool operator==(const MoqtDataStreamType& other) const {
+    return value_ == other.value_;
+  }
+  enum class StreamType : uint64_t {
+    kFetch = 0x05,
+    kSubgroup0NoExtensionHeaders = 0x08,
+    kSubgroup0WithExtensionHeaders = 0x09,
+    kSubgroupFirstObjectNoExtensionHeaders = 0x0a,
+    kSubgroupFirstObjectWithExtensionHeaders = 0x0b,
+    kSubgroupExplicitNoExtensionHeaders = 0x0c,
+    kSubgroupExplicitWithExtensionHeaders = 0x0d,
+    kPadding = 0x26d3,
+  };
 
-  // Currently QUICHE-specific.  All data on a kPadding stream is ignored.
-  kPadding = 0x26d3,
+ private:
+  explicit MoqtDataStreamType(StreamType value) : value_(value) {}
+  const StreamType value_;
 };
 
 enum class QUICHE_EXPORT MoqtDatagramType : uint64_t {
@@ -531,9 +603,8 @@ enum class QUICHE_EXPORT MoqtObjectStatus : uint64_t {
   kObjectDoesNotExist = 0x1,
   kGroupDoesNotExist = 0x2,
   kEndOfGroup = 0x3,
-  kEndOfTrackAndGroup = 0x4,
-  kEndOfTrack = 0x5,
-  kInvalidObjectStatus = 0x6,
+  kEndOfTrack = 0x4,
+  kInvalidObjectStatus = 0x5,
 };
 
 MoqtObjectStatus IntegerToObjectStatus(uint64_t integer);
@@ -547,7 +618,7 @@ struct QUICHE_EXPORT MoqtObject {
   MoqtPriority publisher_priority;
   std::string extension_headers;  // Raw, unparsed extension headers.
   MoqtObjectStatus object_status;
-  std::optional<uint64_t> subgroup_id;
+  uint64_t subgroup_id;
   uint64_t payload_length;
 };
 

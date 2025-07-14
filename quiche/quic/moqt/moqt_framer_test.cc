@@ -9,7 +9,6 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
@@ -263,17 +262,18 @@ class MoqtFramerSimpleTest : public quic::test::QuicTest {
 };
 
 TEST_F(MoqtFramerSimpleTest, GroupMiddler) {
-  auto header = std::make_unique<StreamHeaderSubgroupMessage>();
+  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(1, 1, true);
+  auto header = std::make_unique<StreamHeaderSubgroupMessage>(type);
   auto buffer1 =
       SerializeObject(framer_, std::get<MoqtObject>(header->structured_data()),
-                      "foo", MoqtDataStreamType::kStreamHeaderSubgroup, true);
+                      "foo", type, true);
   EXPECT_EQ(buffer1.size(), header->total_message_size());
   EXPECT_EQ(buffer1.AsStringView(), header->PacketSample());
 
-  auto middler = std::make_unique<StreamMiddlerSubgroupMessage>();
+  auto middler = std::make_unique<StreamMiddlerSubgroupMessage>(type);
   auto buffer2 =
       SerializeObject(framer_, std::get<MoqtObject>(middler->structured_data()),
-                      "bar", MoqtDataStreamType::kStreamHeaderSubgroup, false);
+                      "bar", type, false);
   EXPECT_EQ(buffer2.size(), middler->total_message_size());
   EXPECT_EQ(buffer2.AsStringView(), middler->PacketSample());
 }
@@ -282,14 +282,14 @@ TEST_F(MoqtFramerSimpleTest, FetchMiddler) {
   auto header = std::make_unique<StreamHeaderFetchMessage>();
   auto buffer1 =
       SerializeObject(framer_, std::get<MoqtObject>(header->structured_data()),
-                      "foo", MoqtDataStreamType::kStreamHeaderFetch, true);
+                      "foo", MoqtDataStreamType::Fetch(), true);
   EXPECT_EQ(buffer1.size(), header->total_message_size());
   EXPECT_EQ(buffer1.AsStringView(), header->PacketSample());
 
   auto middler = std::make_unique<StreamMiddlerFetchMessage>();
   auto buffer2 =
       SerializeObject(framer_, std::get<MoqtObject>(middler->structured_data()),
-                      "bar", MoqtDataStreamType::kStreamHeaderFetch, false);
+                      "bar", MoqtDataStreamType::Fetch(), false);
   EXPECT_EQ(buffer2.size(), middler->total_message_size());
   EXPECT_EQ(buffer2.AsStringView(), middler->PacketSample());
 }
@@ -308,26 +308,10 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
   };
   quiche::QuicheBuffer buffer;
 
-  // kSubgroup must have a subgroup_id.
-  object.subgroup_id = std::nullopt;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
-                      object, MoqtDataStreamType::kStreamHeaderSubgroup, false),
-                  "Object metadata is invalid");
-  EXPECT_TRUE(buffer.empty());
-  object.subgroup_id = 8;
-
-  // kFetch must have a subgroup_id.
-  object.subgroup_id = std::nullopt;
-  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
-                      object, MoqtDataStreamType::kStreamHeaderFetch, false),
-                  "Object metadata is invalid");
-  EXPECT_TRUE(buffer.empty());
-  object.subgroup_id = 8;
-
   // Non-normal status must have no payload.
   object.object_status = MoqtObjectStatus::kEndOfGroup;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
-                      object, MoqtDataStreamType::kStreamHeaderSubgroup, false),
+                      object, MoqtDataStreamType::Subgroup(8, 0, false), false),
                   "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
   // object.object_status = MoqtObjectStatus::kNormal;
@@ -342,7 +326,7 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
       /*publisher_priority=*/7,
       std::string(kDefaultExtensionBlob),
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*subgroup_id=*/std::nullopt,
+      /*subgroup_id=*/6,
       /*payload_length=*/3,
   };
   quiche::QuicheBuffer buffer;
@@ -357,7 +341,7 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(object, "foo"),
                   "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
-  object.subgroup_id = std::nullopt;
+  object.subgroup_id = 6;
 
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(object, "foobar"),
                   "Payload length does not match payload");
@@ -373,7 +357,7 @@ TEST_F(MoqtFramerSimpleTest, Datagram) {
       /*publisher_priority=*/7,
       std::string(kDefaultExtensionBlob),
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*subgroup_id=*/std::nullopt,
+      /*subgroup_id=*/6,
       /*payload_length=*/3,
   };
   std::string payload = "foo";
@@ -392,7 +376,7 @@ TEST_F(MoqtFramerSimpleTest, DatagramStatus) {
       /*publisher_priority=*/7,
       std::string(kDefaultExtensionBlob),
       /*object_status=*/MoqtObjectStatus::kEndOfGroup,
-      /*subgroup_id=*/std::nullopt,
+      /*subgroup_id=*/6,
       /*payload_length=*/0,
   };
   quiche::QuicheBuffer buffer;
