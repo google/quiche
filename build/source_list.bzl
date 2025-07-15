@@ -1729,6 +1729,7 @@ blind_sign_auth_tests_srcs = [
 ]
 protobuf_blind_sign_auth = [
     "blind_sign_auth/proto/any.proto",
+    "blind_sign_auth/proto/attest_and_sign.proto",
     "blind_sign_auth/proto/attestation.proto",
     "blind_sign_auth/proto/auth_and_sign.proto",
     "blind_sign_auth/proto/blind_sign_auth_options.proto",

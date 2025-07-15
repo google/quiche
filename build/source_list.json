@@ -1733,6 +1733,7 @@
   ],
   "protobuf_blind_sign_auth": [
     "quiche/blind_sign_auth/proto/any.proto",
+    "quiche/blind_sign_auth/proto/attest_and_sign.proto",
     "quiche/blind_sign_auth/proto/attestation.proto",
     "quiche/blind_sign_auth/proto/auth_and_sign.proto",
     "quiche/blind_sign_auth/proto/blind_sign_auth_options.proto",
