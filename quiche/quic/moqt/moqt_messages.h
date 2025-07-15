@@ -12,7 +12,6 @@
 #include <initializer_list>
 #include <optional>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -171,9 +170,29 @@ class QUICHE_EXPORT MoqtDataStreamType {
   const StreamType value_;
 };
 
-enum class QUICHE_EXPORT MoqtDatagramType : uint64_t {
-  kObject = 0x01,
-  kObjectStatus = 0x02,
+class QUICHE_EXPORT MoqtDatagramType {
+ public:
+  MoqtDatagramType(bool has_status, bool has_extension) : value_(0) {
+    if (has_status) {
+      value_ |= 0x02;
+    }
+    if (has_extension) {
+      value_ |= 0x01;
+    }
+  }
+  static std::optional<MoqtDatagramType> FromValue(uint64_t value) {
+    if (value <= 3) {
+      return MoqtDatagramType(value);
+    }
+    return std::nullopt;
+  }
+  bool has_status() const { return value_ & 0x02; }
+  bool has_extension() const { return value_ & 0x01; }
+  uint64_t value() const { return value_; }
+
+ private:
+  uint64_t value_;
+  explicit MoqtDatagramType(uint64_t value) : value_(value) {}
 };
 
 enum class QUICHE_EXPORT MoqtMessageType : uint64_t {

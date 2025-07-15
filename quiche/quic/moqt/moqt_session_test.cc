@@ -1856,8 +1856,8 @@ TEST_F(MoqtSessionTest, SendDatagram) {
   // Publish in window.
   bool correct_message = false;
   uint8_t kExpectedMessage[] = {
-      0x01, 0x02, 0x05, 0x00, 0x80, 0x00, 0x08, 0x64,
-      0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66,
+      0x00, 0x02, 0x05, 0x00, 0x80, 0x64, 0x65,
+      0x61, 0x64, 0x62, 0x65, 0x65, 0x66,  // "deadbeef"
   };
   EXPECT_CALL(mock_session_, SendOrQueueDatagram(_))
       .WillOnce([&](absl::string_view datagram) {
@@ -1872,7 +1872,7 @@ TEST_F(MoqtSessionTest, SendDatagram) {
     return PublishedObject{
         PublishedObjectMetadata{Location{5, 0}, 0, MoqtObjectStatus::kNormal,
                                 128},
-        MemSliceFromString("deadbeef")};
+        quiche::QuicheMemSlice::Copy("deadbeef")};
   });
   listener->OnNewObjectAvailable(Location(5, 0), 0);
   EXPECT_TRUE(correct_message);
@@ -1893,8 +1893,8 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
       /*subgroup_id=*/0,
       /*payload_length=*/8,
   };
-  char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x00, 0x00, 0x08, 0x64,
-                     0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
+  char datagram[] = {0x00, 0x02, 0x00, 0x00, 0x00, 0x64, 0x65,
+                     0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(visitor_, OnObjectFragment)
       .WillOnce([&](const FullTrackName& track_name,
                     const PublishedObjectMetadata& metadata,
@@ -1932,8 +1932,8 @@ TEST_F(MoqtSessionTest, DataStreamTypeMismatch) {
   EXPECT_CALL(mock_stream_, GetStreamId())
       .WillRepeatedly(Return(kIncomingUniStreamId));
   object_stream->OnObjectMessage(object, payload, true);
-  char datagram[] = {0x01, 0x02, 0x00, 0x10, 0x00, 0x00, 0x08, 0x64,
-                     0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
+  char datagram[] = {0x00, 0x02, 0x00, 0x10, 0x00, 0x64, 0x65,
+                     0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
                            "Received DATAGRAM for non-datagram track"))

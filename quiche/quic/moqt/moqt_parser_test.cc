@@ -127,20 +127,19 @@ class MoqtParserTest
   std::unique_ptr<TestMessageBase> MakeMessage() {
     if (IsDataStream()) {
       return CreateTestDataStream(std::get<MoqtDataStreamType>(message_type_));
-    } else {
-      return CreateTestMessage(std::get<MoqtMessageType>(message_type_),
-                               webtrans_);
     }
+    return CreateTestMessage(std::get<MoqtMessageType>(message_type_),
+                             webtrans_);
   }
 
   void ProcessData(absl::string_view data, bool fin) {
     if (IsDataStream()) {
       data_stream_.Receive(data, fin);
       data_parser_.ReadAllData();
-    } else {
-      control_stream_.Receive(data, /*fin=*/false);
-      control_parser_.ReadAndDispatchMessages();
+      return;
     }
+    control_stream_.Receive(data, /*fin=*/false);
+    control_parser_.ReadAndDispatchMessages();
   }
 
  protected:
@@ -1172,27 +1171,40 @@ TEST_F(MoqtMessageSpecificTest, AllMessagesTogether) {
 }
 
 TEST_F(MoqtMessageSpecificTest, DatagramSuccessful) {
-  ObjectDatagramMessage message;
-  MoqtObject object;
-  std::optional<absl::string_view> payload =
-      ParseDatagram(message.PacketSample(), object);
-  ASSERT_TRUE(payload.has_value());
-  TestMessageBase::MessageStructuredData object_metadata =
-      TestMessageBase::MessageStructuredData(object);
-  EXPECT_TRUE(message.EqualFieldValues(object_metadata));
-  EXPECT_EQ(payload, "foo");
+  for (MoqtDatagramType datagram_type : kMoqtDatagramTypes) {
+    ObjectDatagramMessage message(datagram_type);
+    MoqtObject object;
+    std::optional<absl::string_view> payload =
+        ParseDatagram(message.PacketSample(), object);
+    ASSERT_TRUE(payload.has_value());
+    TestMessageBase::MessageStructuredData object_metadata =
+        TestMessageBase::MessageStructuredData(object);
+    EXPECT_TRUE(message.EqualFieldValues(object_metadata));
+    if (datagram_type.has_status()) {
+      EXPECT_EQ(payload, "");
+    } else {
+      EXPECT_EQ(payload, "foo");
+    }
+  }
 }
 
-TEST_F(MoqtMessageSpecificTest, DatagramStatusSuccessful) {
-  ObjectStatusDatagramMessage message;
-  MoqtObject object;
-  std::optional<absl::string_view> payload =
-      ParseDatagram(message.PacketSample(), object);
-  ASSERT_TRUE(payload.has_value());
-  TestMessageBase::MessageStructuredData object_metadata =
-      TestMessageBase::MessageStructuredData(object);
-  EXPECT_TRUE(message.EqualFieldValues(object_metadata));
-  EXPECT_TRUE(payload.has_value() && payload->empty());
+TEST_F(MoqtMessageSpecificTest, DatagramSuccessfulExpandVarints) {
+  for (MoqtDatagramType datagram_type : kMoqtDatagramTypes) {
+    ObjectDatagramMessage message(datagram_type);
+    message.ExpandVarints();
+    MoqtObject object;
+    std::optional<absl::string_view> payload =
+        ParseDatagram(message.PacketSample(), object);
+    ASSERT_TRUE(payload.has_value());
+    TestMessageBase::MessageStructuredData object_metadata =
+        TestMessageBase::MessageStructuredData(object);
+    EXPECT_TRUE(message.EqualFieldValues(object_metadata));
+    if (datagram_type.has_status()) {
+      EXPECT_EQ(payload, "");
+    } else {
+      EXPECT_EQ(payload, "foo");
+    }
+  }
 }
 
 TEST_F(MoqtMessageSpecificTest, WrongMessageInDatagram) {
@@ -1205,7 +1217,7 @@ TEST_F(MoqtMessageSpecificTest, WrongMessageInDatagram) {
 }
 
 TEST_F(MoqtMessageSpecificTest, TruncatedDatagram) {
-  ObjectDatagramMessage message;
+  ObjectDatagramMessage message(MoqtDatagramType(false, true));
   message.set_wire_image_size(4);
   MoqtObject object;
   std::optional<absl::string_view> payload =

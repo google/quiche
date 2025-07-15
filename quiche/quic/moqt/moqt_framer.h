@@ -33,6 +33,7 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeObjectHeader(const MoqtObject& message,
                                              MoqtDataStreamType message_type,
                                              bool is_first_in_stream);
+  // Serializes both OBJECT and OBJECT_STATUS datagrams.
   quiche::QuicheBuffer SerializeObjectDatagram(const MoqtObject& message,
                                                absl::string_view payload);
   quiche::QuicheBuffer SerializeClientSetup(const MoqtClientSetup& message);

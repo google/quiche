@@ -349,7 +349,8 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
 }
 
 TEST_F(MoqtFramerSimpleTest, Datagram) {
-  auto datagram = std::make_unique<ObjectDatagramMessage>();
+  auto datagram = std::make_unique<ObjectDatagramMessage>(
+      MoqtDatagramType(/*has_status=*/false, /*has_extension=*/true));
   MoqtObject object = {
       /*track_alias=*/4,
       /*group_id=*/5,
@@ -368,7 +369,8 @@ TEST_F(MoqtFramerSimpleTest, Datagram) {
 }
 
 TEST_F(MoqtFramerSimpleTest, DatagramStatus) {
-  auto datagram = std::make_unique<ObjectStatusDatagramMessage>();
+  auto datagram =
+      std::make_unique<ObjectDatagramMessage>(MoqtDatagramType(true, true));
   MoqtObject object = {
       /*track_alias=*/4,
       /*group_id=*/5,

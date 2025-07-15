@@ -281,13 +281,8 @@ std::string MoqtDataStreamTypeToString(MoqtDataStreamType type) {
 }
 
 std::string MoqtDatagramTypeToString(MoqtDatagramType type) {
-  switch (type) {
-    case MoqtDatagramType::kObject:
-      return "OBJECT_DATAGRAM";
-    case MoqtDatagramType::kObjectStatus:
-      return "OBJECT_STATUS_DATAGRAM";
-  }
-  return "Unknown datagram type " + absl::StrCat(static_cast<int>(type));
+  return absl::StrCat("DATAGRAM", type.has_status() ? "_STATUS" : "",
+                      type.has_extension() ? "_EXTENSION" : "");
 }
 
 std::string MoqtForwardingPreferenceToString(

@@ -32,6 +32,13 @@ namespace moqt::test {
 inline constexpr absl::string_view kDefaultExtensionBlob(
     "\x00\x0c\x01\x03\x66\x6f\x6f", 7);
 
+const MoqtDatagramType kMoqtDatagramTypes[] = {
+    MoqtDatagramType(false, false),
+    MoqtDatagramType(false, true),
+    MoqtDatagramType(true, false),
+    MoqtDatagramType(true, true),
+};
+
 const MoqtDataStreamType kMoqtDataStreamTypes[] = {
     MoqtDataStreamType::Fetch(),
     MoqtDataStreamType::Subgroup(0, 1, true),
@@ -226,43 +233,62 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
 
 class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
  public:
-  ObjectDatagramMessage() : ObjectMessage() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  ObjectDatagramMessage(MoqtDatagramType datagram_type)
+      : ObjectMessage(), datagram_type_(datagram_type) {
     object_.subgroup_id = object_.object_id;
+    // Update ObjectMessage::object_ to match the datagram type.
+    if (datagram_type.has_status()) {
+      object_.object_status = MoqtObjectStatus::kEndOfGroup;
+      object_.payload_length = 0;
+    } else {
+      object_.object_status = MoqtObjectStatus::kNormal;
+      object_.payload_length = 3;
+    }
+    if (datagram_type.has_extension()) {
+      object_.extension_headers = std::string(kDefaultExtensionBlob);
+    } else {
+      object_.extension_headers = "";
+    }
+    quic::QuicDataWriter writer(sizeof(raw_packet_),
+                                reinterpret_cast<char*>(raw_packet_));
+    EXPECT_TRUE(writer.WriteVarInt62(datagram_type.value()));
+    EXPECT_TRUE(writer.WriteStringPiece(kRawVarints));
+    if (datagram_type.has_extension()) {
+      EXPECT_TRUE(writer.WriteStringPiece(kRawExtensions));
+    }
+    if (datagram_type.has_status()) {
+      EXPECT_TRUE(
+          writer.WriteVarInt62(static_cast<uint64_t>(object_.object_status)));
+    } else {
+      EXPECT_TRUE(writer.WriteStringPiece(kRawPayload));
+    }
+    EXPECT_LE(writer.length(), kMaxMessageHeaderSize);
+    SetWireImage(raw_packet_, writer.length());
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvvv-v-------v---", false);
+    if (datagram_type_.has_extension()) {
+      if (datagram_type_.has_status()) {
+        ExpandVarintsImpl("vvvv-v-------v", false);
+      } else {
+        ExpandVarintsImpl("vvvv-v----------", false);
+      }
+    } else {
+      if (datagram_type_.has_status()) {
+        ExpandVarintsImpl("vvvv-v", false);
+      } else {
+        ExpandVarintsImpl("vvvv----", false);
+      }
+    }
   }
 
  private:
-  uint8_t raw_packet_[17] = {
-      0x01, 0x04, 0x05, 0x06,  // varints
-      0x07, 0x07,              // publisher priority, 7B extensions
-      0x00, 0x0c, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // extensions
-      0x03, 0x66, 0x6f, 0x6f,                    // payload = "foo"
-  };
-};
-
-class QUICHE_NO_EXPORT ObjectStatusDatagramMessage : public ObjectMessage {
- public:
-  ObjectStatusDatagramMessage() : ObjectMessage() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-    object_.object_status = MoqtObjectStatus::kEndOfGroup;
-    object_.subgroup_id = object_.object_id;
-    object_.payload_length = 0;
-  }
-
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv-v-------v", false); }
-
- private:
-  uint8_t raw_packet_[14] = {
-      0x02, 0x04, 0x05, 0x06,                    // varints
-      0x07,                                      // publisher priority
-      0x07,                                      // 7B extensions
-      0x00, 0x0c, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // extensions
-      0x03,                                      // kEndOfGroup
-  };
+  uint8_t raw_packet_[17];
+  MoqtDatagramType datagram_type_;
+  static constexpr absl::string_view kRawVarints = "\x04\x05\x06\x07";
+  static constexpr absl::string_view kRawExtensions{
+      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultExtensionBlob
+  static constexpr absl::string_view kRawPayload = "foo";
 };
 
 // Concatenation of the base header and the object-specific header. Follow-on
@@ -1877,6 +1903,11 @@ static inline std::unique_ptr<TestMessageBase> CreateTestDataStream(
     return std::make_unique<StreamHeaderFetchMessage>();
   }
   return std::make_unique<StreamHeaderSubgroupMessage>(type);
+}
+
+static inline std::unique_ptr<TestMessageBase> CreateTestDatagram(
+    MoqtDatagramType type) {
+  return std::make_unique<ObjectDatagramMessage>(type);
 }
 
 }  // namespace moqt::test

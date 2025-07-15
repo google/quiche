@@ -1122,18 +1122,31 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
   uint64_t type_raw, object_status_raw;
   absl::string_view extensions;
   quic::QuicDataReader reader(data);
+  object_metadata = MoqtObject();
   if (!reader.ReadVarInt62(&type_raw) ||
       !reader.ReadVarInt62(&object_metadata.track_alias) ||
       !reader.ReadVarInt62(&object_metadata.group_id) ||
       !reader.ReadVarInt62(&object_metadata.object_id) ||
-      !reader.ReadUInt8(&object_metadata.publisher_priority) ||
-      !reader.ReadStringPieceVarInt62(&extensions)) {
+      !reader.ReadUInt8(&object_metadata.publisher_priority)) {
     return std::nullopt;
   }
   object_metadata.subgroup_id = object_metadata.object_id;
-  object_metadata.extension_headers = std::string(extensions);
-  if (static_cast<MoqtDatagramType>(type_raw) ==
-      MoqtDatagramType::kObjectStatus) {
+  std::optional<MoqtDatagramType> datagram_type =
+      MoqtDatagramType::FromValue(type_raw);
+  if (!datagram_type.has_value()) {
+    return std::nullopt;
+  }
+  if (datagram_type->has_extension()) {
+    if (!reader.ReadStringPieceVarInt62(&extensions)) {
+      return std::nullopt;
+    }
+    if (extensions.empty()) {
+      // This is a session error.
+      return std::nullopt;
+    }
+    object_metadata.extension_headers = std::string(extensions);
+  }
+  if (datagram_type->has_status()) {
     object_metadata.payload_length = 0;
     if (!reader.ReadVarInt62(&object_status_raw)) {
       return std::nullopt;
@@ -1141,11 +1154,7 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
     object_metadata.object_status = IntegerToObjectStatus(object_status_raw);
     return "";
   }
-
-  absl::string_view payload;
-  if (!reader.ReadStringPieceVarInt62(&payload)) {
-    return std::nullopt;
-  }
+  absl::string_view payload = reader.ReadRemainingPayload();
   object_metadata.object_status = MoqtObjectStatus::kNormal;
   object_metadata.payload_length = payload.length();
   return payload;

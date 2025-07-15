@@ -340,20 +340,26 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
         << "Payload length does not match payload";
     return quiche::QuicheBuffer();
   }
-  if (message.object_status != MoqtObjectStatus::kNormal) {
-    return Serialize(
-        WireVarInt62(MoqtDatagramType::kObjectStatus),
-        WireVarInt62(message.track_alias), WireVarInt62(message.group_id),
-        WireVarInt62(message.object_id), WireUint8(message.publisher_priority),
-        WireStringWithVarInt62Length(message.extension_headers),
-        WireVarInt62(message.object_status));
-  }
+  MoqtDatagramType datagram_type(/*has_status=*/payload.empty(),
+                                 !message.extension_headers.empty());
+  std::optional<absl::string_view> extensions =
+      datagram_type.has_extension()
+          ? std::optional<absl::string_view>(message.extension_headers)
+          : std::nullopt;
+  std::optional<uint64_t> object_status =
+      payload.empty() ? std::optional<uint64_t>(
+                            static_cast<uint64_t>(message.object_status))
+                      : std::nullopt;
+  std::optional<absl::string_view> raw_payload =
+      payload.empty() ? std::nullopt
+                      : std::optional<absl::string_view>(payload);
   return Serialize(
-      WireVarInt62(MoqtDatagramType::kObject),
-      WireVarInt62(message.track_alias), WireVarInt62(message.group_id),
-      WireVarInt62(message.object_id), WireUint8(message.publisher_priority),
-      WireStringWithVarInt62Length(message.extension_headers),
-      WireVarInt62(message.payload_length), WireBytes(payload));
+      WireVarInt62(datagram_type.value()), WireVarInt62(message.track_alias),
+      WireVarInt62(message.group_id), WireVarInt62(message.object_id),
+      WireUint8(message.publisher_priority),
+      WireOptional<WireStringWithVarInt62Length>(extensions),
+      WireOptional<WireVarInt62>(object_status),
+      WireOptional<WireBytes>(raw_payload));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
