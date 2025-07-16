@@ -87,7 +87,6 @@ class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
   // established yet or number of server initiated streams already reaches the
   // upper limit.
   bool ShouldCreateOutgoingBidirectionalStream() override;
-  bool ShouldCreateOutgoingUnidirectionalStream() override;
 
   // If we should create an incoming stream, returns true. Otherwise
   // does error handling, including communicating the error to the client and

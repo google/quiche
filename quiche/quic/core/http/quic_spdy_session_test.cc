@@ -295,13 +295,6 @@ class TestSession : public QuicSpdySession {
     return stream;
   }
 
-  TestStream* CreateOutgoingUnidirectionalStream() override {
-    TestStream* stream = new TestStream(GetNextOutgoingUnidirectionalStreamId(),
-                                        this, WRITE_UNIDIRECTIONAL);
-    ActivateStream(absl::WrapUnique(stream));
-    return stream;
-  }
-
   TestStream* CreateIncomingStream(QuicStreamId id) override {
     // Enforce the limit on the number of open streams.
     if (!VersionHasIetfQuicFrames(connection()->transport_version()) &&
@@ -330,7 +323,6 @@ class TestSession : public QuicSpdySession {
   bool ShouldCreateIncomingStream(QuicStreamId /*id*/) override { return true; }
 
   bool ShouldCreateOutgoingBidirectionalStream() override { return true; }
-  bool ShouldCreateOutgoingUnidirectionalStream() override { return true; }
 
   bool IsClosedStream(QuicStreamId id) {
     return QuicSession::IsClosedStream(id);

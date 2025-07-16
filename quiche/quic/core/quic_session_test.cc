@@ -284,13 +284,6 @@ class TestSession : public QuicSession {
     return stream;
   }
 
-  TestStream* CreateOutgoingUnidirectionalStream() {
-    TestStream* stream = new TestStream(GetNextOutgoingUnidirectionalStreamId(),
-                                        this, WRITE_UNIDIRECTIONAL);
-    ActivateStream(absl::WrapUnique(stream));
-    return stream;
-  }
-
   TestStream* CreateIncomingStream(QuicStreamId id) override {
     // Enforce the limit on the number of open streams.
     if (!VersionHasIetfQuicFrames(connection()->transport_version()) &&
@@ -789,20 +782,6 @@ TEST_P(QuicSessionTestServer, IsClosedBidirectionalStreamLocallyCreated) {
   CloseStream(GetNthServerInitiatedBidirectionalId(0));
   CheckClosedStreams();
   CloseStream(GetNthServerInitiatedBidirectionalId(1));
-  CheckClosedStreams();
-}
-
-TEST_P(QuicSessionTestServer, IsClosedUnidirectionalStreamLocallyCreated) {
-  CompleteHandshake();
-  TestStream* stream2 = session_.CreateOutgoingUnidirectionalStream();
-  EXPECT_EQ(GetNthServerInitiatedUnidirectionalId(0), stream2->id());
-  TestStream* stream4 = session_.CreateOutgoingUnidirectionalStream();
-  EXPECT_EQ(GetNthServerInitiatedUnidirectionalId(1), stream4->id());
-
-  CheckClosedStreams();
-  CloseStream(GetNthServerInitiatedUnidirectionalId(0));
-  CheckClosedStreams();
-  CloseStream(GetNthServerInitiatedUnidirectionalId(1));
   CheckClosedStreams();
 }
 
@@ -3300,7 +3279,7 @@ TEST_P(QuicSessionTestServer, AcceptReliableSizeIfNegotiated) {
   session_.EnableReliableStreamReset();
   MockPacketWriter* writer = static_cast<MockPacketWriter*>(
       QuicConnectionPeer::GetWriter(session_.connection()));
-  TestStream* write_only = session_.CreateOutgoingUnidirectionalStream();
+  TestStream* write_only = session_.CreateOutgoingBidirectionalStream();
   EXPECT_CALL(*writer, WritePacket(_, _, _, _, _, _))
       .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
   session_.SendStreamData(write_only);

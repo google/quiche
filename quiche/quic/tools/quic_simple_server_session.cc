@@ -95,19 +95,6 @@ QuicSpdyStream* QuicSimpleServerSession::CreateOutgoingBidirectionalStream() {
   return stream;
 }
 
-QuicSimpleServerStream*
-QuicSimpleServerSession::CreateOutgoingUnidirectionalStream() {
-  if (!ShouldCreateOutgoingUnidirectionalStream()) {
-    return nullptr;
-  }
-
-  QuicSimpleServerStream* stream = new QuicSimpleServerStream(
-      GetNextOutgoingUnidirectionalStreamId(), this, WRITE_UNIDIRECTIONAL,
-      quic_simple_server_backend_);
-  ActivateStream(absl::WrapUnique(stream));
-  return stream;
-}
-
 QuicStream* QuicSimpleServerSession::ProcessBidirectionalPendingStream(
     PendingStream* pending) {
   QUICHE_DCHECK(IsEncryptionEstablished());

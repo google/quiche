@@ -102,18 +102,6 @@ class TestServerSession : public QuicServerSessionBase {
     return nullptr;
   }
 
-  QuicSpdyStream* CreateOutgoingUnidirectionalStream() override {
-    if (!ShouldCreateOutgoingUnidirectionalStream()) {
-      return nullptr;
-    }
-
-    QuicSpdyStream* stream = new QuicSimpleServerStream(
-        GetNextOutgoingUnidirectionalStreamId(), this, WRITE_UNIDIRECTIONAL,
-        quic_simple_server_backend_);
-    ActivateStream(absl::WrapUnique(stream));
-    return stream;
-  }
-
   std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache) override {

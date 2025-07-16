@@ -254,21 +254,6 @@ bool QuicServerSessionBase::ShouldCreateOutgoingBidirectionalStream() {
   return CanOpenNextOutgoingBidirectionalStream();
 }
 
-bool QuicServerSessionBase::ShouldCreateOutgoingUnidirectionalStream() {
-  if (!connection()->connected()) {
-    QUIC_BUG(quic_bug_12513_3)
-        << "ShouldCreateOutgoingUnidirectionalStream called when disconnected";
-    return false;
-  }
-  if (!crypto_stream_->encryption_established()) {
-    QUIC_BUG(quic_bug_10393_5)
-        << "Encryption not established so no outgoing stream created.";
-    return false;
-  }
-
-  return CanOpenNextOutgoingUnidirectionalStream();
-}
-
 QuicCryptoServerStreamBase* QuicServerSessionBase::GetMutableCryptoStream() {
   return crypto_stream_.get();
 }

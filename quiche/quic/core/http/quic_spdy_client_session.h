@@ -45,7 +45,6 @@ class QUICHE_EXPORT QuicSpdyClientSession : public QuicSpdyClientSessionBase {
 
   // QuicSession methods:
   QuicSpdyClientStream* CreateOutgoingBidirectionalStream() override;
-  QuicSpdyClientStream* CreateOutgoingUnidirectionalStream() override;
   QuicCryptoClientStreamBase* GetMutableCryptoStream() override;
   const QuicCryptoClientStreamBase* GetCryptoStream() const override;
 
@@ -100,7 +99,6 @@ class QUICHE_EXPORT QuicSpdyClientSession : public QuicSpdyClientSessionBase {
   QuicSpdyStream* CreateIncomingStream(PendingStream* pending) override;
   // If an outgoing stream can be created, return true.
   bool ShouldCreateOutgoingBidirectionalStream() override;
-  bool ShouldCreateOutgoingUnidirectionalStream() override;
 
   // If an incoming stream can be created, return true.
   // TODO(fayang): move this up to QuicSpdyClientSessionBase.

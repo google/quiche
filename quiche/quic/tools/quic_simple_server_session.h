@@ -55,7 +55,6 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override;
   QuicSpdyStream* CreateIncomingStream(PendingStream* pending) override;
   QuicSpdyStream* CreateOutgoingBidirectionalStream() override;
-  QuicSimpleServerStream* CreateOutgoingUnidirectionalStream() override;
 
   // QuicServerSessionBaseMethod:
   std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
