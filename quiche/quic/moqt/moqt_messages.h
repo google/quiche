@@ -7,6 +7,7 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_MESSAGES_H_
 #define QUICHE_QUIC_MOQT_MOQT_MESSAGES_H_
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
@@ -67,15 +68,7 @@ struct QUICHE_EXPORT MoqtSessionParameters {
         max_request_id(max_request_id) {}
   MoqtSessionParameters(quic::Perspective perspective, uint64_t max_request_id)
       : perspective(perspective), max_request_id(max_request_id) {}
-  bool operator==(const MoqtSessionParameters& other) {
-    return version == other.version &&
-           deliver_partial_objects == other.deliver_partial_objects &&
-           perspective == other.perspective &&
-           using_webtrans == other.using_webtrans && path == other.path &&
-           max_request_id == other.max_request_id &&
-           max_auth_token_cache_size == other.max_auth_token_cache_size &&
-           support_object_acks == other.support_object_acks;
-  }
+  bool operator==(const MoqtSessionParameters& other) const = default;
 
   MoqtVersion version = kDefaultMoqtVersion;
   bool deliver_partial_objects = false;
@@ -292,9 +285,8 @@ enum AuthTokenAliasType : uint64_t {
 struct AuthToken {
   AuthToken(AuthTokenType token_type, absl::string_view token)
       : type(token_type), token(token) {}
-  bool operator==(const AuthToken& other) const {
-    return type == other.type && token == other.token;
-  }
+  bool operator==(const AuthToken& other) const = default;
+
   AuthTokenType type;
   std::string token;
 };
@@ -321,12 +313,7 @@ struct VersionSpecificParameters {
   quic::QuicTimeDelta max_cache_duration = quic::QuicTimeDelta::Infinite();
   std::optional<quic::QuicTimeDelta> oack_window_size;
 
-  bool operator==(const VersionSpecificParameters& other) const {
-    return authorization_token == other.authorization_token &&
-           delivery_timeout == other.delivery_timeout &&
-           max_cache_duration == other.max_cache_duration &&
-           oack_window_size == other.oack_window_size;
-  }
+  bool operator==(const VersionSpecificParameters& other) const = default;
 };
 
 // Used for SUBSCRIBE_ERROR, ANNOUNCE_ERROR, ANNOUNCE_CANCEL,
@@ -382,8 +369,14 @@ class TrackNamespace {
   size_t number_of_elements() const { return tuple_.size(); }
   // Returns the sum of the lengths of all elements in the tuple.
   size_t total_length() const { return length_; }
-  bool operator==(const TrackNamespace& other) const;
-  bool operator<(const TrackNamespace& other) const;
+
+  auto operator<=>(const TrackNamespace& other) const {
+    return std::lexicographical_compare_three_way(
+        tuple_.cbegin(), tuple_.cend(), other.tuple_.cbegin(),
+        other.tuple_.cend());
+  }
+  bool operator==(const TrackNamespace&) const = default;
+
   const std::vector<std::string>& tuple() const { return tuple_; }
 
   template <typename H>
@@ -433,13 +426,8 @@ class FullTrackName {
   }
   void set_name(absl::string_view name);
   size_t length() const { return namespace_.total_length() + name_.length(); }
-  bool operator==(const FullTrackName& other) const {
-    return name_ == other.name_ && namespace_ == other.namespace_;
-  }
-  bool operator<(const FullTrackName& other) const {
-    return namespace_ < other.namespace_ ||
-           (namespace_ == other.namespace_ && name_ < other.name_);
-  }
+
+  auto operator<=>(const FullTrackName&) const = default;
   template <typename H>
   friend H AbslHashValue(H h, const FullTrackName& m) {
     return H::combine(std::move(h), m.namespace_.tuple(), m.name_);
@@ -463,22 +451,9 @@ struct Location {
   Location() = default;
   Location(uint64_t group, uint64_t object) : group(group), object(object) {}
 
-  bool operator==(const Location& other) const {
-    return group == other.group && object == other.object;
-  }
-
   // Location order as described in
   // https://moq-wg.github.io/moq-transport/draft-ietf-moq-transport.html#location-structure
-  bool operator<(const Location& other) const {
-    return group < other.group ||
-           (group == other.group && object < other.object);
-  }
-  bool operator<=(const Location& other) const {
-    return (group < other.group ||
-            (group == other.group && object <= other.object));
-  }
-  bool operator>(const Location& other) const { return !(*this <= other); }
-  bool operator>=(const Location& other) const { return !(*this < other); }
+  auto operator<=>(const Location&) const = default;
 
   Location next() const { return Location(group, object + 1); }
 
@@ -495,20 +470,7 @@ struct SubgroupPriority {
   uint8_t publisher_priority = 0xf0;
   uint64_t subgroup_id = 0;
 
-  bool operator==(const SubgroupPriority& other) const {
-    return publisher_priority == other.publisher_priority &&
-           subgroup_id == other.subgroup_id;
-  }
-  bool operator<(const SubgroupPriority& other) const {
-    return publisher_priority < other.publisher_priority ||
-           (publisher_priority == other.publisher_priority &&
-            subgroup_id < other.subgroup_id);
-  }
-  bool operator<=(const SubgroupPriority& other) const {
-    return (publisher_priority < other.publisher_priority ||
-            (publisher_priority == other.publisher_priority &&
-             subgroup_id <= other.subgroup_id));
-  }
+  auto operator<=>(const SubgroupPriority&) const = default;
 };
 
 template <typename H>

@@ -7,7 +7,6 @@
 
 #include <cstdint>
 #include <optional>
-#include <tuple>
 #include <vector>
 
 #include "absl/container/btree_map.h"
@@ -73,21 +72,7 @@ struct DataStreamIndex {
       : group(object.metadata.location.group),
         subgroup(object.metadata.subgroup) {}
 
-  bool operator==(const DataStreamIndex& other) const {
-    return group == other.group && subgroup == other.subgroup;
-  }
-
-  bool operator<(const DataStreamIndex& other) const {
-    return std::make_tuple(group, subgroup) <
-           std::make_tuple(other.group, other.subgroup);
-  }
-  bool operator<=(const DataStreamIndex& other) const {
-    return std::make_tuple(group, subgroup) <=
-           std::make_tuple(other.group, other.subgroup);
-  }
-  bool operator>(const DataStreamIndex& other) const {
-    return !(*this <= other);
-  }
+  auto operator<=>(const DataStreamIndex&) const = default;
 
   template <typename H>
   friend H AbslHashValue(H h, const DataStreamIndex& index) {

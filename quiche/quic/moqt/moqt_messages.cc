@@ -348,17 +348,6 @@ std::string TrackNamespace::ToString() const {
   return absl::StrCat("{", absl::StrJoin(bits, "::"), "}");
 }
 
-bool TrackNamespace::operator==(const TrackNamespace& other) const {
-  if (number_of_elements() != other.number_of_elements()) {
-    return false;
-  }
-  return absl::c_equal(tuple_, other.tuple_);
-}
-
-bool TrackNamespace::operator<(const TrackNamespace& other) const {
-  return absl::c_lexicographical_compare(tuple_, other.tuple_);
-}
-
 void FullTrackName::set_name(absl::string_view name) {
   QUIC_BUG_IF(Moqt_name_too_large_03, !CanAddName(name))
       << "Setting a name that is too large.";
