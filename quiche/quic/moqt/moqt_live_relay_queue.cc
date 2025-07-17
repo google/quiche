@@ -111,24 +111,13 @@ bool MoqtLiveRelayQueue::AddObject(const PublishedObjectMetadata& metadata,
                       << "track";
     return false;
   }
-  switch (metadata.status) {
-    case MoqtObjectStatus::kEndOfTrack:
-      if (sequence < next_sequence_) {
-        QUICHE_DLOG(INFO) << "EndOfTrack is too early.";
-        return false;
-      }
-      // TODO(martinduke): Check that EndOfTrack has normal IDs.
-      end_of_track_ = sequence;
-      break;
-    case MoqtObjectStatus::kGroupDoesNotExist:
-      if (sequence.object > 0) {
-        QUICHE_DLOG(INFO) << "GroupDoesNotExist is not the last object in the "
-                          << "group";
-        return false;
-      }
-      break;
-    default:
-      break;
+  if (metadata.status == MoqtObjectStatus::kEndOfTrack) {
+    if (sequence < next_sequence_) {
+      QUICHE_DLOG(INFO) << "EndOfTrack is too early.";
+      return false;
+    }
+    // TODO(martinduke): Check that EndOfTrack has normal IDs.
+    end_of_track_ = sequence;
   }
   auto group_it = queue_.try_emplace(sequence.group);
   Group& group = group_it.first->second;
@@ -180,7 +169,6 @@ bool MoqtLiveRelayQueue::AddObject(const PublishedObjectMetadata& metadata,
       end_of_track_ = sequence;
       last_object_in_stream = true;
       ABSL_FALLTHROUGH_INTENDED;
-    case MoqtObjectStatus::kGroupDoesNotExist:
     case MoqtObjectStatus::kEndOfGroup:
       group.complete = true;
       last_object_in_stream = true;

@@ -3332,7 +3332,7 @@ TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithOpenStreams) {
       /*object_id=*/0,
       /*publisher_priority=*/7,
       /*extension_headers=*/"",
-      /*object_status=*/MoqtObjectStatus::kGroupDoesNotExist,
+      /*object_status=*/MoqtObjectStatus::kEndOfGroup,
       /*subgroup_id=*/0,
       /*payload_length=*/0,
   };
@@ -3390,7 +3390,7 @@ TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithClosedStreams) {
       /*object_id=*/0,
       /*publisher_priority=*/7,
       /*extension_headers=*/"",
-      /*object_status=*/MoqtObjectStatus::kGroupDoesNotExist,
+      /*object_status=*/MoqtObjectStatus::kEndOfGroup,
       /*subgroup_id=*/0,
       /*payload_length=*/0,
   };
@@ -3445,7 +3445,7 @@ TEST_F(MoqtSessionTest, SubscribeDoneTimeout) {
       /*object_id=*/0,
       /*publisher_priority=*/7,
       /*extension_headers=*/"",
-      /*object_status=*/MoqtObjectStatus::kGroupDoesNotExist,
+      /*object_status=*/MoqtObjectStatus::kEndOfGroup,
       /*subgroup_id=*/0,
       /*payload_length=*/0,
   };

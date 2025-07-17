@@ -46,9 +46,6 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
         SkipObject(object->metadata.location.group,
                    object->metadata.location.object);
         break;
-      case MoqtObjectStatus::kGroupDoesNotExist:
-        SkipGroup(object->metadata.location.group);
-        break;
       case MoqtObjectStatus::kEndOfGroup:
         CloseStreamForGroup(object->metadata.location.group);
         break;
@@ -86,7 +83,6 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
                absl::string_view payload),
               ());
   MOCK_METHOD(void, SkipObject, (uint64_t group_id, uint64_t object_id), ());
-  MOCK_METHOD(void, SkipGroup, (uint64_t group_id), ());
   MOCK_METHOD(void, CloseTrack, (), ());
   MOCK_METHOD(void, OnTrackPublisherGone, (), (override));
   MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
@@ -366,18 +362,6 @@ TEST(MoqtLiveRelayQueue, EndOfGroup) {
   EXPECT_TRUE(
       queue.AddObject(Location{0, 3}, 0, MoqtObjectStatus::kEndOfGroup));
   EXPECT_FALSE(queue.AddObject(Location{0, 4}, 0, "e"));
-}
-
-TEST(MoqtLiveRelayQueue, GroupDoesNotExist) {
-  TestMoqtLiveRelayQueue queue;
-  {
-    testing::InSequence seq;
-    EXPECT_CALL(queue, SkipGroup(0));
-  }
-  EXPECT_FALSE(
-      queue.AddObject(Location{0, 1}, 0, MoqtObjectStatus::kGroupDoesNotExist));
-  EXPECT_TRUE(
-      queue.AddObject(Location{0, 0}, 0, MoqtObjectStatus::kGroupDoesNotExist));
 }
 
 TEST(MoqtLiveRelayQueue, OverwriteObject) {

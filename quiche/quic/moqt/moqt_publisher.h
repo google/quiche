@@ -147,7 +147,7 @@ class MoqtTrackPublisher {
   //
   // This method returns nullopt if the object is not currently available, but
   // might become available in the future.  If the object is gone forever,
-  // kGroupDoesNotExist/kObjectDoesNotExist has to be returned instead;
+  // kEndOfGroup/kObjectDoesNotExist has to be returned instead;
   // otherwise, the corresponding QUIC streams will be stuck waiting for objects
   // that will never arrive.
   virtual std::optional<PublishedObject> GetCachedObject(

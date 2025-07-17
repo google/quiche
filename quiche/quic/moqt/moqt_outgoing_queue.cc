@@ -78,12 +78,14 @@ std::optional<PublishedObject> MoqtOutgoingQueue::GetCachedObject(
     uint64_t group, uint64_t subgroup, uint64_t object) const {
   QUICHE_DCHECK_EQ(subgroup, 0u);
   if (group < first_group_in_queue()) {
-    return PublishedObject{
-        PublishedObjectMetadata{Location(group, object),
-                                /*subgroup=*/0,
-                                MoqtObjectStatus::kGroupDoesNotExist,
-                                publisher_priority_, clock_->ApproximateNow()},
-        quiche::QuicheMemSlice{}};
+    if (object == 0) {
+      return PublishedObject{PublishedObjectMetadata{
+                                 Location(group, object), /*subgroup=*/0,
+                                 MoqtObjectStatus::kEndOfGroup,
+                                 publisher_priority_, clock_->ApproximateNow()},
+                             quiche::QuicheMemSlice{}};
+    }
+    return std::nullopt;
   }
   if (group > current_group_id_) {
     return std::nullopt;
@@ -173,18 +175,14 @@ std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::Fetch(
 
 MoqtFetchTask::GetNextObjectResult MoqtOutgoingQueue::FetchTask::GetNextObject(
     PublishedObject& object) {
-  for (;;) {
+  MoqtFetchTask::GetNextObjectResult result;
+  do {
+    result = GetNextObjectInner(object);
     // The specification for FETCH requires that all missing objects are simply
     // skipped.
-    MoqtFetchTask::GetNextObjectResult result = GetNextObjectInner(object);
-    bool missing_object =
-        result == kSuccess &&
-        (object.metadata.status == MoqtObjectStatus::kObjectDoesNotExist ||
-         object.metadata.status == MoqtObjectStatus::kGroupDoesNotExist);
-    if (!missing_object) {
-      return result;
-    }
-  }
+  } while (result == MoqtFetchTask::GetNextObjectResult::kSuccess &&
+           object.metadata.status == MoqtObjectStatus::kObjectDoesNotExist);
+  return result;
 }
 
 MoqtFetchTask::GetNextObjectResult
@@ -199,11 +197,21 @@ MoqtOutgoingQueue::FetchTask::GetNextObjectInner(PublishedObject& object) {
   std::optional<PublishedObject> result = queue_->GetCachedObject(
       objects_.front().group, 0, objects_.front().object);
   if (!result.has_value()) {
-    status_ = absl::InternalError("Previously known object became unknown.");
-    return kError;
+    // Create a synthetic object of status kEndOfGroup (if the object ID is
+    // zero) or kObjectDoesNotExist, which will result in the Fetch response
+    // skipping it.
+    object.metadata.location = objects_.front();
+    object.metadata.subgroup = 0;
+    object.metadata.publisher_priority = queue_->publisher_priority_;
+    object.metadata.status = object.metadata.location.object == 0
+                                 ? MoqtObjectStatus::kEndOfGroup
+                                 : MoqtObjectStatus::kObjectDoesNotExist;
+    object.metadata.arrival_time = queue_->clock_->ApproximateNow();
+    object.payload = quiche::QuicheMemSlice();
+    object.fin_after_this = false;
+  } else {
+    object = *std::move(result);
   }
-
-  object = *std::move(result);
   objects_.pop_front();
   return kSuccess;
 }
