@@ -631,7 +631,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       // No EndGroup or EndObject
       0x02,                                      // 2 parameters
       0x02, 0x67, 0x10,                          // delivery_timeout = 10000 ms
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
 
   MoqtSubscribe subscribe_ = {
@@ -940,7 +940,7 @@ class QUICHE_NO_EXPORT AnnounceMessage : public TestMessageBase {
       0x06, 0x00, 0x0e, 0x02,                    // request_id = 2
       0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
       0x01,                                      // 1 parameter
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
 
   MoqtAnnounce announce_ = {
@@ -1103,7 +1103,7 @@ class QUICHE_NO_EXPORT TrackStatusRequestMessage : public TestMessageBase {
       0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
       0x01,                                      // 1 parameter
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
 
   MoqtTrackStatusRequest track_status_request_ = {
@@ -1260,7 +1260,7 @@ class QUICHE_NO_EXPORT SubscribeAnnouncesMessage : public TestMessageBase {
       0x11, 0x00, 0x0e, 0x01,                    // request_id = 1
       0x01, 0x03, 0x66, 0x6f, 0x6f,              // namespace = "foo"
       0x01,                                      // 1 parameter
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
 
   MoqtSubscribeAnnounces subscribe_namespace_ = {
@@ -1474,7 +1474,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
       0x03, 0x62, 0x61, 0x72,        // track_name = "bar"
       0x01, 0x02,                    // start_object = 1, 2
       0x05, 0x07,                    // end_object = 5, 6
-      0x01, 0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
+      0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
   };
 
   MoqtFetch fetch_ = {
@@ -1545,7 +1545,7 @@ class QUICHE_NO_EXPORT RelativeJoiningFetchMessage : public TestMessageBase {
       0x01,        // group_order = kAscending
       0x02,        // type = kRelativeJoining
       0x02, 0x02,  // joining_subscribe_id = 2, 2 groups
-      0x01, 0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
+      0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
   };
 
   MoqtFetch fetch_ = {
@@ -1610,7 +1610,7 @@ class QUICHE_NO_EXPORT AbsoluteJoiningFetchMessage : public TestMessageBase {
       0x01,        // group_order = kAscending
       0x03,        // type = kAbsoluteJoining
       0x02, 0x02,  // joining_subscribe_id = 2, group_id = 2
-      0x01, 0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
+      0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
   };
 
   MoqtFetch fetch_ = {

@@ -174,10 +174,11 @@ MoqtError ValidateSetupParameters(const KeyValuePairList& parameters,
   return MoqtError::kNoError;
 }
 
-const std::array<MoqtMessageType, 5> kAllowsAuthorization = {
-    MoqtMessageType::kSubscribe, MoqtMessageType::kTrackStatusRequest,
-    MoqtMessageType::kFetch, MoqtMessageType::kSubscribeAnnounces,
-    MoqtMessageType::kAnnounce};
+const std::array<MoqtMessageType, 7> kAllowsAuthorization = {
+    MoqtMessageType::kClientSetup, MoqtMessageType::kServerSetup,
+    MoqtMessageType::kSubscribe,   MoqtMessageType::kSubscribeAnnounces,
+    MoqtMessageType::kAnnounce,    MoqtMessageType::kTrackStatusRequest,
+    MoqtMessageType::kFetch};
 const std::array<MoqtMessageType, 4> kAllowsDeliveryTimeout = {
     MoqtMessageType::kSubscribe, MoqtMessageType::kSubscribeOk,
     MoqtMessageType::kSubscribeUpdate, MoqtMessageType::kTrackStatus};
@@ -255,6 +256,12 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "UNSUBSCRIBE_NAMESPACE";
     case MoqtMessageType::kMaxRequestId:
       return "MAX_REQUEST_ID";
+    case MoqtMessageType::kPublish:
+      return "PUBLISH";
+    case MoqtMessageType::kPublishOk:
+      return "PUBLISH_OK";
+    case MoqtMessageType::kPublishError:
+      return "PUBLISH_ERROR";
     case MoqtMessageType::kFetch:
       return "FETCH";
     case MoqtMessageType::kFetchCancel:

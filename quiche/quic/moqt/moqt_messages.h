@@ -213,6 +213,9 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kFetchOk = 0x18,
   kFetchError = 0x19,
   kRequestsBlocked = 0x1a,
+  kPublish = 0x1d,
+  kPublishOk = 0x1e,
+  kPublishError = 0x1f,
   kClientSetup = 0x20,
   kServerSetup = 0x21,
 
@@ -259,8 +262,8 @@ enum class QUICHE_EXPORT SetupParameter : uint64_t {
 };
 
 enum class QUICHE_EXPORT VersionSpecificParameter : uint64_t {
-  kAuthorizationToken = 0x1,
   kDeliveryTimeout = 0x2,
+  kAuthorizationToken = 0x3,
   kMaxCacheDuration = 0x4,
 
   // QUICHE-specific extensions.

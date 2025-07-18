@@ -629,7 +629,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationTokenTagDelete) {
       0x20, 0x02, 0x01,              // priority, order, forward
       0x02,                          // filter_type = kLatestObject
       0x01,                          // one param
-      0x01, 0x02, 0x00, 0x00,        // authorization_token = DELETE 0;
+      0x03, 0x02, 0x00, 0x00,        // authorization_token = DELETE 0;
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -648,7 +648,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationTokenTagRegister) {
       0x20, 0x02, 0x01,              // priority, order, forward
       0x02,                          // filter_type = kLatestObject
       0x01,                          // one param
-      0x01, 0x06, 0x01, 0x10, 0x00, 0x62, 0x61, 0x72,  // REGISTER 0x01
+      0x03, 0x06, 0x01, 0x10, 0x00, 0x62, 0x61, 0x72,  // REGISTER 0x01
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -667,7 +667,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationTokenTagUseAlias) {
       0x20, 0x02, 0x01,              // priority, order, forward
       0x02,                          // filter_type = kLatestObject
       0x01,                          // one param
-      0x01, 0x02, 0x02, 0x07,        // authorization_token = USE 7;
+      0x03, 0x02, 0x02, 0x07,        // authorization_token = USE 7;
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -687,7 +687,7 @@ TEST_F(MoqtMessageSpecificTest,
       0x20, 0x02, 0x01,              // priority, order, forward
       0x02,                          // filter_type = kLatestObject
       0x01,                          // one param
-      0x01, 0x02, 0x04, 0x07,        // authorization_token type 4
+      0x03, 0x02, 0x04, 0x07,        // authorization_token type 4
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -707,7 +707,7 @@ TEST_F(MoqtMessageSpecificTest,
       0x20, 0x02, 0x01,                   // priority, order, forward
       0x02,                               // filter_type = kLatestObject
       0x01,                               // one param
-      0x01, 0x04, 0x03, 0x01, 0x00, 0x00  // authorization_token type 1
+      0x03, 0x04, 0x03, 0x01, 0x00, 0x00  // authorization_token type 1
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -732,7 +732,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeInvalidGroupOrder) {
       // No EndGroup or EndObject
       0x02,                                      // 2 parameters
       0x02, 0x67, 0x10,                          // delivery_timeout = 10000 ms
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -757,7 +757,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeInvalidForward) {
       // No EndGroup or EndObject
       0x02,                                      // 2 parameters
       0x02, 0x67, 0x10,                          // delivery_timeout = 10000 ms
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -782,7 +782,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeInvalidFilter) {
       // No EndGroup or EndObject
       0x02,                                      // 2 parameters
       0x02, 0x67, 0x10,                          // delivery_timeout = 10000 ms
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -800,7 +800,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkHasAuthorizationToken) {
       0x0c, 0x14,        // largest_group_id = 12, largest_object_id = 20,
       0x02,              // 2 parameters
       0x02, 0x67, 0x10,  // delivery_timeout = 10000
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_token = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_token = "bar"
   };
   stream.Receive(absl::string_view(subscribe_ok, sizeof(subscribe_ok)), false);
   parser.ReadAndDispatchMessages();
@@ -817,7 +817,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeUpdateHasAuthorizationToken) {
       0x02, 0x00, 0x0e, 0x02, 0x03, 0x01, 0x05,  // start and end sequences
       0xaa, 0x01,                                // priority, forward
       0x01,                                      // 1 parameter
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_token = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_token = "bar"
   };
   stream.Receive(absl::string_view(subscribe_update, sizeof(subscribe_update)),
                  false);
@@ -835,8 +835,8 @@ TEST_F(MoqtMessageSpecificTest, AnnounceAuthorizationTokenTwice) {
       0x06, 0x00, 0x15, 0x02, 0x01, 0x03, 0x66,
       0x6f, 0x6f,                                // track_namespace = "foo"
       0x02,                                      // 2 params
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
   };
   stream.Receive(absl::string_view(announce, sizeof(announce)), false);
   parser.ReadAndDispatchMessages();
@@ -850,7 +850,7 @@ TEST_F(MoqtMessageSpecificTest, AnnounceHasDeliveryTimeout) {
       0x06, 0x00, 0x11, 0x02, 0x01, 0x03, 0x66,
       0x6f, 0x6f,                                // track_namespace = "foo"
       0x02,                                      // 2 params
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_info = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_info = "bar"
       0x02, 0x67, 0x10,                          // delivery_timeout = 10000
   };
   stream.Receive(absl::string_view(announce, sizeof(announce)), false);
@@ -963,7 +963,7 @@ TEST_F(MoqtMessageSpecificTest, LatestObject) {
       0x20, 0x02, 0x01,              // priority = 0x20, group order, forward
       0x02,                          // filter_type = kLatestObject
       0x01,                          // 1 parameter
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -985,7 +985,7 @@ TEST_F(MoqtMessageSpecificTest, InvalidDeliveryOrder) {
       0x20, 0x08, 0x01,              // priority, invalid order, forward
       0x01,                          // filter_type = kNextGroupStart
       0x01,                          // 1 parameter
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -997,15 +997,15 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteStart) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char subscribe[] = {
-      0x03, 0x00, 0x18, 0x01, 0x02,  // id and alias
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
-      0x20, 0x02, 0x01,              // priority, order, forward
-      0x03,                          // filter_type = kAbsoluteStart
-      0x04,                          // start_group = 4
-      0x01,                          // start_object = 1
-      0x01,                          // 1 parameter
-      0x03, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
+      0x03, 0x00, 0x1a, 0x01, 0x02,              // id and alias
+      0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
+      0x20, 0x02, 0x01,                          // priority, order, forward
+      0x03,                                      // filter_type = kAbsoluteStart
+      0x04,                                      // start_group = 4
+      0x01,                                      // start_object = 1
+      0x01,                                      // 1 parameter
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -1022,16 +1022,16 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRange) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char subscribe[] = {
-      0x03, 0x00, 0x19, 0x01, 0x02,  // id and alias
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
-      0x20, 0x02, 0x01,              // priority, order, forward
-      0x04,                          // filter_type = kAbsoluteRange
-      0x04,                          // start_group = 4
-      0x01,                          // start_object = 1
-      0x07,                          // end_group = 7
-      0x01,                          // 1 parameter
-      0x03, 0x03, 0x62, 0x61, 0x72,  // authorization_info = "bar"
+      0x03, 0x00, 0x1b, 0x01, 0x02,              // id and alias
+      0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
+      0x20, 0x02, 0x01,                          // priority, order, forward
+      0x04,                                      // filter_type = kAbsoluteRange
+      0x04,                                      // start_group = 4
+      0x01,                                      // start_object = 1
+      0x07,                                      // end_group = 7
+      0x01,                                      // 1 parameter
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_info = "bar"
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
