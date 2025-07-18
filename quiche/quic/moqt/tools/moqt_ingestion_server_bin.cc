@@ -194,6 +194,7 @@ class MoqtIngestionHandler {
     }
 
     void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+    void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
 
    private:
     std::string directory_;

@@ -57,6 +57,8 @@ uint64_t SignedVarintUnserializedForm(uint64_t value) {
   return value >> 1;
 }
 
+// |fin_read| is set to true if there is a FIN anywhere before the end of the
+// varint.
 std::optional<uint64_t> ReadVarInt62FromStream(quiche::ReadStream& stream,
                                                bool& fin_read) {
   fin_read = false;
@@ -73,6 +75,9 @@ std::optional<uint64_t> ReadVarInt62FromStream(quiche::ReadStream& stream,
   size_t varint_size =
       1 << ((absl::bit_cast<uint8_t>(first_byte) & 0b11000000) >> 6);
   if (stream.ReadableBytes() < varint_size) {
+    if (peek_result.all_data_received) {
+      fin_read = true;
+    }
     return std::nullopt;
   }
 
@@ -1182,8 +1187,8 @@ void MoqtDataParser::ReadDataUntil(StopCondition stop_condition) {
 std::optional<uint64_t> MoqtDataParser::ReadVarInt62NoFin() {
   bool fin_read = false;
   std::optional<uint64_t> result = ReadVarInt62FromStream(stream_, fin_read);
-  if (fin_read) {
-    ParseError("Unexpected FIN received in the middle of a header");
+  if (fin_read) {  // FIN received before a complete varint.
+    ParseError("FIN after incomplete message");
     return std::nullopt;
   }
   return result;
@@ -1193,10 +1198,6 @@ std::optional<uint8_t> MoqtDataParser::ReadUint8NoFin() {
   char buffer[1];
   quiche::ReadStream::ReadResult read_result =
       stream_.Read(absl::MakeSpan(buffer));
-  if (read_result.fin) {
-    ParseError("Unexpected FIN received in the middle of a header");
-    return std::nullopt;
-  }
   if (read_result.bytes_read == 0) {
     return std::nullopt;
   }
@@ -1389,11 +1390,6 @@ void MoqtDataParser::ParseNextItemFromStream() {
         if (!peek_result.has_data()) {
           return;
         }
-        if (peek_result.fin_next && payload_length_remaining_ > 0) {
-          ParseError("FIN received at an unexpected point in the stream");
-          return;
-        }
-
         size_t chunk_size =
             std::min(payload_length_remaining_, peek_result.peeked_data.size());
         payload_length_remaining_ -= chunk_size;
@@ -1401,17 +1397,20 @@ void MoqtDataParser::ParseNextItemFromStream() {
         if (next_input_ == kData) {
           visitor_.OnObjectMessage(
               metadata_, peek_result.peeked_data.substr(0, chunk_size), done);
-          const bool fin = stream_.SkipBytes(chunk_size);
+          no_more_data_ = stream_.SkipBytes(chunk_size);
           if (done) {
             ++num_objects_read_;
-            no_more_data_ |= fin;
             AdvanceParserState();
+          } else if (no_more_data_) {
+            ParseError("FIN received at an unexpected point in the stream");
+            return;
           }
         } else {
           absl::StrAppend(&metadata_.extension_headers,
                           peek_result.peeked_data.substr(0, chunk_size));
           if (stream_.SkipBytes(chunk_size)) {
             ParseError("FIN received at an unexpected point in the stream");
+            no_more_data_ = true;
             return;
           }
           if (done) {
@@ -1454,8 +1453,10 @@ bool MoqtDataParser::CheckForFinWithoutData() {
   if (!stream_.PeekNextReadableRegion().fin_next) {
     return false;
   }
-  const bool valid_state =
-      type_.has_value() && ((type_->IsSubgroup() && next_input_ == kObjectId) ||
+  no_more_data_ = true;
+  const bool valid_state = type_.has_value() &&
+                           payload_length_remaining_ == 0 &&
+                           ((type_->IsSubgroup() && next_input_ == kObjectId) ||
                             (type_->IsFetch() && next_input_ == kGroupId));
   if (!valid_state || num_objects_read_ == 0) {
     ParseError("FIN received at an unexpected point in the stream");

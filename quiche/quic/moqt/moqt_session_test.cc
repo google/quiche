@@ -1934,10 +1934,11 @@ TEST_F(MoqtSessionTest, DataStreamTypeMismatch) {
   object_stream->OnObjectMessage(object, payload, true);
   char datagram[] = {0x00, 0x02, 0x00, 0x10, 0x00, 0x64, 0x65,
                      0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
-  EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "Received DATAGRAM for non-datagram track"))
-      .Times(1);
+  // Arrival of a datagram creates a malformed track. Unsubscribe.
+  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kUnsubscribe), _));
   session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
 }
 
@@ -2716,6 +2717,9 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
               EXPECT_EQ(object.metadata.location.object, expected_object_id);
               ++expected_object_id;
             }
+            if (result == MoqtFetchTask::GetNextObjectResult::kError) {
+              break;
+            }
           } while (result != MoqtFetchTask::GetNextObjectResult::kPending);
         });
       },
@@ -3475,6 +3479,134 @@ TEST_F(MoqtSessionTest, SubscribeDoneTimeout) {
   subscribe_done_alarm->Fire();
   // quic::test::MockAlarmFactory::FireAlarm(subscribe_done_alarm);;
   EXPECT_EQ(MoqtSessionPeer::remote_track(&session_, 0), nullptr);
+}
+
+TEST_F(MoqtSessionTest, SubgroupStreamOutOfOrder) {
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(),
+                                     &remote_track_visitor);
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  std::unique_ptr<MoqtDataParserVisitor> object_stream =
+      MoqtSessionPeer::CreateIncomingDataStream(
+          &session_, &mock_stream_,
+          MoqtDataStreamType::Subgroup(/*subgroup_id=*/0, /*first_object_id=*/1,
+                                       /*no_extension_headers=*/true));
+  object_stream->OnObjectMessage(
+      MoqtObject(/*track_alias=*/2, /*group_id=*/0, /*object_id=*/1,
+                 /*publisher_priority=*/0x80, /*extension_headers=*/"",
+                 MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
+                 /*payload_length=*/3),
+      "foo", true);
+  EXPECT_CALL(mock_session_, GetStreamById(_))
+      .WillRepeatedly(Return(&control_stream));
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kUnsubscribe), _));
+  EXPECT_CALL(remote_track_visitor, OnMalformedTrack);
+  object_stream->OnObjectMessage(
+      MoqtObject(/*track_alias=*/2, /*group_id=*/0, /*object_id=*/1,
+                 /*publisher_priority=*/0x80, /*extension_headers=*/"",
+                 MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
+                 /*payload_length=*/3),
+      "bar", true);
+}
+
+TEST_F(MoqtSessionTest, SubgroupStreamObjectAfterGroupEnd) {
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(),
+                                     &remote_track_visitor);
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  std::unique_ptr<MoqtDataParserVisitor> object_stream =
+      MoqtSessionPeer::CreateIncomingDataStream(
+          &session_, &mock_stream_,
+          MoqtDataStreamType::Subgroup(/*subgroup_id=*/0, /*first_object_id=*/0,
+                                       /*no_extension_headers=*/true));
+  object_stream->OnObjectMessage(
+      MoqtObject(/*track_alias=*/2, /*group_id=*/0, /*object_id=*/0,
+                 /*publisher_priority=*/0x80, /*extension_headers=*/"",
+                 MoqtObjectStatus::kEndOfGroup, /*subgroup_id=*/0,
+                 /*payload_length=*/0),
+      "", true);
+  EXPECT_CALL(mock_session_, GetStreamById(_))
+      .WillRepeatedly(Return(&control_stream));
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kUnsubscribe), _));
+  EXPECT_CALL(remote_track_visitor, OnMalformedTrack);
+  object_stream->OnObjectMessage(
+      MoqtObject(/*track_alias=*/2, /*group_id=*/0, /*object_id=*/1,
+                 /*publisher_priority=*/0x80, /*extension_headers=*/"",
+                 MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
+                 /*payload_length=*/3),
+      "bar", true);
+}
+
+TEST_F(MoqtSessionTest, SubgroupStreamObjectAfterTrackEnd) {
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(),
+                                     &remote_track_visitor);
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  std::unique_ptr<MoqtDataParserVisitor> object_stream =
+      MoqtSessionPeer::CreateIncomingDataStream(
+          &session_, &mock_stream_,
+          MoqtDataStreamType::Subgroup(/*subgroup_id=*/0, /*first_object_id=*/0,
+                                       /*no_extension_headers=*/true));
+  object_stream->OnObjectMessage(
+      MoqtObject(/*track_alias=*/2, /*group_id=*/0, /*object_id=*/0,
+                 /*publisher_priority=*/0x80, /*extension_headers=*/"",
+                 MoqtObjectStatus::kEndOfTrack, /*subgroup_id=*/0,
+                 /*payload_length=*/0),
+      "", true);
+  EXPECT_CALL(mock_session_, GetStreamById(_))
+      .WillRepeatedly(Return(&control_stream));
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kUnsubscribe), _));
+  EXPECT_CALL(remote_track_visitor, OnMalformedTrack);
+  object_stream->OnObjectMessage(
+      MoqtObject(/*track_alias=*/2, /*group_id=*/0, /*object_id=*/1,
+                 /*publisher_priority=*/0x80, /*extension_headers=*/"",
+                 MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
+                 /*payload_length=*/3),
+      "bar", true);
+}
+
+TEST_F(MoqtSessionTest, FetchStreamMalformedTrack) {
+  webtransport::test::InMemoryStream stream(kIncomingUniStreamId);
+  std::unique_ptr<MoqtFetchTask> task =
+      MoqtSessionPeer::CreateUpstreamFetch(&session_, &stream);
+  std::unique_ptr<MoqtDataParserVisitor> object_stream =
+      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream_,
+                                                MoqtDataStreamType::Fetch());
+  object_stream->OnObjectMessage(
+      MoqtObject(/*request_id=*/0, /*group_id=*/0, /*object_id=*/1,
+                 /*publisher_priority=*/0x80, /*extension_headers=*/"",
+                 MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
+                 /*payload_length=*/3),
+      "foo", true);
+  EXPECT_FALSE(IsInvalidArgument(task->GetStatus()));
+  object_stream->OnObjectMessage(
+      MoqtObject(/*request_id=*/0, /*group_id=*/0, /*object_id=*/2,
+                 /*publisher_priority=*/0x80, /*extension_headers=*/"",
+                 MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
+                 /*payload_length=*/3),
+      "bar", true);
+  EXPECT_FALSE(IsInvalidArgument(task->GetStatus()));
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  EXPECT_CALL(control_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kFetchCancel), _));
+  object_stream->OnObjectMessage(
+      MoqtObject(/*request_id=*/0, /*group_id=*/0, /*object_id=*/2,
+                 /*publisher_priority=*/0x80, /*extension_headers=*/"",
+                 MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
+                 /*payload_length=*/3),
+      "bar", true);
+  EXPECT_TRUE(IsInvalidArgument(task->GetStatus()));
 }
 
 // TODO: re-enable this test once this behavior is re-implemented.

@@ -178,7 +178,8 @@ class MoqtSessionPeer {
 
   // Adds an upstream fetch and a stream ready to receive data.
   static std::unique_ptr<MoqtFetchTask> CreateUpstreamFetch(
-      MoqtSession* session, webtransport::Stream* stream) {
+      MoqtSession* session, webtransport::Stream* stream,
+      MoqtDeliveryOrder order = MoqtDeliveryOrder::kAscending) {
     MoqtFetch fetch_message = {
         0,
         128,
@@ -198,7 +199,7 @@ class MoqtSessionPeer {
     UpstreamFetch* fetch = static_cast<UpstreamFetch*>(it->second.get());
     // Initialize the fetch task
     fetch->OnFetchResult(
-        Location{4, 10}, absl::OkStatus(),
+        Location{4, 10}, order, absl::OkStatus(),
         [=, session_ptr = session, request_id = fetch_message.request_id]() {
           session_ptr->CancelFetch(request_id);
         });

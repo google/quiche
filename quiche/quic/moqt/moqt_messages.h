@@ -39,11 +39,11 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 }
 
 enum class MoqtVersion : uint64_t {
-  kDraft11 = 0xff00000b,
+  kDraft12 = 0xff00000c,
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 
-inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft11;
+inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft12;
 inline constexpr uint64_t kDefaultInitialMaxRequestId = 100;
 // TODO(martinduke): Implement an auth token cache.
 inline constexpr uint64_t kDefaultMaxAuthTokenCacheSize = 0;
@@ -247,9 +247,12 @@ enum class QUICHE_EXPORT MoqtError : uint64_t {
 
 // Error codes used by MoQT to reset streams.
 inline constexpr webtransport::StreamErrorCode kResetCodeUnknown = 0x00;
-inline constexpr webtransport::StreamErrorCode kResetCodeCancelled = 0x01;
+inline constexpr webtransport::StreamErrorCode kResetCodeCanceled = 0x01;
 inline constexpr webtransport::StreamErrorCode kResetCodeDeliveryTimeout = 0x02;
 inline constexpr webtransport::StreamErrorCode kResetCodeSessionClosed = 0x03;
+// TODO(martinduke): This is not in the spec, but is needed. The number might
+// change.
+inline constexpr webtransport::StreamErrorCode kResetCodeMalformedTrack = 0x04;
 
 enum class QUICHE_EXPORT SetupParameter : uint64_t {
   kPath = 0x1,
@@ -653,6 +656,7 @@ enum class QUICHE_EXPORT SubscribeDoneCode : uint64_t {
   kGoingAway = 0x4,
   kExpired = 0x5,
   kTooFarBehind = 0x6,
+  kMalformedTrack = 0x7,
 };
 
 struct QUICHE_EXPORT MoqtSubscribeDone {

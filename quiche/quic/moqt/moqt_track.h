@@ -114,6 +114,10 @@ class SubscribeRemoteTrack : public RemoteTrack {
                                   absl::string_view object,
                                   bool end_of_message) = 0;
     virtual void OnSubscribeDone(FullTrackName full_track_name) = 0;
+    // Called when the track is malformed per Section 2.5 of
+    // draft-ietf-moqt-moq-transport-12. If the application is a relay, it MUST
+    // terminate downstream delivery of the track.
+    virtual void OnMalformedTrack(const FullTrackName& full_track_name) = 0;
   };
   SubscribeRemoteTrack(const MoqtSubscribe& subscribe, Visitor* visitor)
       : RemoteTrack(subscribe.full_track_name, subscribe.request_id,
@@ -148,9 +152,8 @@ class SubscribeRemoteTrack : public RemoteTrack {
     if (!is_datagram_.has_value()) {
       is_datagram_ = is_datagram;
       return true;
-    } else {
-      return (is_datagram_ == is_datagram);
     }
+    return (is_datagram_ == is_datagram);
   }
   // Called on SUBSCRIBE_OK or SUBSCRIBE_UPDATE.
   bool TruncateStart(Location start) {
@@ -312,7 +315,7 @@ class UpstreamFetch : public RemoteTrack {
 
    private:
     Location largest_location_;
-    absl::Status status_;
+    absl::Status status_ = absl::OkStatus();
     TaskDestroyedCallback task_destroyed_callback_;
 
     // Object delivery state. The payload_length member is used to track the
@@ -338,8 +341,8 @@ class UpstreamFetch : public RemoteTrack {
   };
 
   // Arrival of FETCH_OK/FETCH_ERROR.
-  void OnFetchResult(Location largest_location, absl::Status status,
-                     TaskDestroyedCallback callback);
+  void OnFetchResult(Location largest_location, MoqtDeliveryOrder group_order,
+                     absl::Status status, TaskDestroyedCallback callback);
 
   UpstreamFetchTask* task() { return task_.GetIfAvailable(); }
 
@@ -348,7 +351,17 @@ class UpstreamFetch : public RemoteTrack {
 
   bool is_fetch() const override { return true; }
 
+  // Validate that the track is not malformed due to a location violating group
+  // order or Object ID order.
+  bool LocationIsValid(Location location, MoqtObjectStatus status,
+                       bool end_of_message);
+
  private:
+  std::optional<MoqtDeliveryOrder> group_order_;  // nullopt if not yet known.
+  std::optional<Location> last_location_;
+  bool last_group_is_finished_ = false;  // Received EndOfGroup.
+  bool no_more_objects_ = false;         // Received EndOfTrack
+
   quiche::QuicheWeakPtr<UpstreamFetchTask> task_;
 
   // Before FetchTask is created, an incoming stream will register the callback

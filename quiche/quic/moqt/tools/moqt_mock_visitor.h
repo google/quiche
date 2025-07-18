@@ -100,6 +100,8 @@ class MockSubscribeRemoteTrackVisitor : public SubscribeRemoteTrack::Visitor {
               (override));
   MOCK_METHOD(void, OnSubscribeDone, (FullTrackName full_track_name),
               (override));
+  MOCK_METHOD(void, OnMalformedTrack, (const FullTrackName& full_track_name),
+              (override));
 };
 
 class MockPublishingMonitorInterface : public MoqtPublishingMonitorInterface {

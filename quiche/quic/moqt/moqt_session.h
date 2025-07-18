@@ -335,6 +335,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     friend class test::MoqtSessionPeer;
     void OnControlMessageReceived();
 
+    uint64_t next_object_id_ = 0;
+    bool no_more_objects_ = false;  // EndOfGroup or EndOfTrack was received.
     MoqtSession* session_;
     webtransport::Stream* stream_;
     // Once the subscribe ID is identified, set it here.
@@ -742,7 +744,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                            MoqtDataStreamType type, bool is_first_on_stream,
                            bool fin);
 
-  void CancelFetch(uint64_t subscribe_id);
+  void CancelFetch(uint64_t request_id);
 
   // Sends an OBJECT_ACK message for a specific subscribe ID.
   void SendObjectAck(uint64_t subscribe_id, uint64_t group_id,
@@ -763,6 +765,12 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   bool SupportsObjectAck() const {
     return parameters_.support_object_acks && peer_supports_object_ack_;
   }
+
+  // Called when the incoming track is malformed per Section 2.5 of
+  // draft-ietf-moqt-moq-transport-12. Unsubscribe and notify the application so
+  // the error can be propagated downstream, if necessary.
+  void OnMalformedTrack(RemoteTrack* track);
+
   bool is_closing_ = false;
 
   webtransport::Session* session_;

@@ -364,12 +364,14 @@ void FullTrackName::set_name(absl::string_view name) {
 absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
                                      absl::string_view reason_phrase) {
   switch (error_code) {
-    case kResetCodeCancelled:
+    case kResetCodeCanceled:
       return absl::CancelledError(reason_phrase);
     case kResetCodeDeliveryTimeout:
       return absl::DeadlineExceededError(reason_phrase);
     case kResetCodeSessionClosed:
       return absl::AbortedError(reason_phrase);
+    case kResetCodeMalformedTrack:
+      return absl::InvalidArgumentError(reason_phrase);
     default:
       return absl::UnknownError(reason_phrase);
   }

@@ -47,6 +47,8 @@ class ChatServer {
                           absl::string_view object,
                           bool end_of_message) override;
     void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+    // TODO(martinduke): Implement this.
+    void OnMalformedTrack(const FullTrackName& full_track_name) override {}
 
    private:
     ChatServer* server_;

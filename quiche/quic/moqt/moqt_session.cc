@@ -218,8 +218,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     return;
   }
   if (!track->OnObject(/*is_datagram=*/true)) {
-    Error(MoqtError::kProtocolViolation,
-          "Received DATAGRAM for non-datagram track");
+    OnMalformedTrack(track);
     return;
   }
   if (!track->InWindow(Location(message.group_id, message.object_id))) {
@@ -694,7 +693,7 @@ bool MoqtSession::SubscribeIsDone(uint64_t request_id, SubscribeDoneCode code,
     if (stream == nullptr) {
       continue;
     }
-    stream->ResetWithUserCode(kResetCodeCancelled);
+    stream->ResetWithUserCode(kResetCodeCanceled);
   }
   return true;
 }
@@ -1598,7 +1597,7 @@ void MoqtSession::ControlStream::OnFetchOkMessage(const MoqtFetchOk& message) {
                   << message.request_id << " " << track->full_track_name();
   UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
   fetch->OnFetchResult(
-      message.end_location, absl::OkStatus(),
+      message.end_location, message.group_order, absl::OkStatus(),
       [=, session = session_]() { session->CancelFetch(message.request_id); });
 }
 
@@ -1630,7 +1629,8 @@ void MoqtSession::ControlStream::OnFetchErrorMessage(
   UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
   absl::Status status =
       RequestErrorCodeToStatus(message.error_code, message.error_reason);
-  fetch->OnFetchResult(Location(0, 0), status, nullptr);
+  fetch->OnFetchResult(Location(0, 0), MoqtDeliveryOrder::kAscending, status,
+                       nullptr);
   session_->upstream_by_id_.erase(message.request_id);
 }
 
@@ -1698,7 +1698,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
                 ? session_->RemoteTrackById(message.track_alias)
                 : session_->RemoteTrackByAlias(message.track_alias);
     if (track == nullptr) {
-      stream_->SendStopSending(kResetCodeCancelled);
+      stream_->SendStopSending(kResetCodeCanceled);
       // Received object for nonexistent track.
       return;
     }
@@ -1714,8 +1714,27 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
     return;
   }
   if (!track->is_fetch()) {
+    if (no_more_objects_) {
+      // Already got a stream-ending object.
+      session_->OnMalformedTrack(track);
+      return;
+    }
+    if (message.object_id < next_object_id_) {
+      session_->OnMalformedTrack(track);
+      return;
+    }
+    if (end_of_message) {
+      next_object_id_ = message.object_id + 1;
+      if (message.object_status == MoqtObjectStatus::kEndOfTrack ||
+          message.object_status == MoqtObjectStatus::kEndOfGroup) {
+        no_more_objects_ = true;
+      }
+    }
     SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
-    subscribe->OnObject(/*is_datagram=*/false);
+    if (!subscribe->OnObject(/*is_datagram=*/false)) {
+      session_->OnMalformedTrack(track);
+      return;
+    }
     if (subscribe->visitor() != nullptr) {
       // TODO(martinduke): Send extension headers.
       PublishedObjectMetadata metadata;
@@ -1730,10 +1749,15 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
   } else {  // FETCH
     track->OnObjectOrOk();
     UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
+    if (!fetch->LocationIsValid(Location(message.group_id, message.object_id),
+                                message.object_status, end_of_message)) {
+      session_->OnMalformedTrack(track);
+      return;
+    }
     UpstreamFetch::UpstreamFetchTask* task = fetch->task();
     if (task == nullptr) {
       // The application killed the FETCH.
-      stream_->SendStopSending(kResetCodeCancelled);
+      stream_->SendStopSending(kResetCodeCanceled);
       return;
     }
     if (!task->HasObject()) {
@@ -1760,6 +1784,7 @@ MoqtSession::IncomingDataStream::~IncomingDataStream() {
   }
   if (parser_.stream_type().has_value() && parser_.stream_type()->IsFetch()) {
     session_->upstream_by_id_.erase(*parser_.track_alias());
+    return;
   }
   // It's a subscribe.
   SubscribeRemoteTrack* subscribe =
@@ -1826,7 +1851,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
                       << "Received object for a track with no SUBSCRIBE";
       // This is a not a session error because there might be an UNSUBSCRIBE in
       // flight.
-      stream_->SendStopSending(kResetCodeCancelled);
+      stream_->SendStopSending(kResetCodeCanceled);
       return;
     }
     it->second->OnStreamOpened();
@@ -1837,7 +1862,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
     QUIC_DLOG(INFO) << ENDPOINT << "Received object for a track with no FETCH";
     // This is a not a session error because there might be an UNSUBSCRIBE in
     // flight.
-    stream_->SendStopSending(kResetCodeCancelled);
+    stream_->SendStopSending(kResetCodeCanceled);
     return;
   }
   if (it->second == nullptr) {
@@ -2273,7 +2298,7 @@ MoqtSession::PublishedSubscription*
 MoqtSession::OutgoingDataStream::GetSubscriptionIfValid() {
   auto it = session_->published_subscriptions_.find(subscription_id_);
   if (it == session_->published_subscriptions_.end()) {
-    stream_->ResetWithUserCode(kResetCodeCancelled);
+    stream_->ResetWithUserCode(kResetCodeCanceled);
     return nullptr;
   }
 
@@ -2404,6 +2429,22 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
   QUIC_DVLOG(1) << "Stream " << stream->GetStreamId() << " successfully wrote "
                 << metadata.location << ", fin = " << fin;
   return true;
+}
+
+void MoqtSession::OnMalformedTrack(RemoteTrack* track) {
+  if (!track->is_fetch()) {
+    static_cast<SubscribeRemoteTrack*>(track)->visitor()->OnMalformedTrack(
+        track->full_track_name());
+    Unsubscribe(track->full_track_name());
+    return;
+  }
+  UpstreamFetch::UpstreamFetchTask* task =
+      static_cast<UpstreamFetch*>(track)->task();
+  if (task != nullptr) {
+    task->OnStreamAndFetchClosed(kResetCodeMalformedTrack,
+                                 "Malformed track received");
+  }
+  CancelFetch(track->request_id());
 }
 
 void MoqtSession::CancelFetch(uint64_t request_id) {

@@ -276,9 +276,8 @@ TEST_P(MoqtParserTest, SeparateEarlyFin) {
   ProcessData(absl::string_view(), true);
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_THAT(visitor_.parsing_error_,
-              AnyOf("End of stream before complete message",
+              AnyOf("FIN after incomplete message",
                     "FIN received at an unexpected point in the stream"));
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_P(MoqtParserTest, PayloadLengthTooLong) {
@@ -870,9 +869,23 @@ TEST_F(MoqtMessageSpecificTest, FinMidPayload) {
       true);
   parser.ReadAllData();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "FIN received at an unexpected point in the stream");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+  EXPECT_THAT(visitor_.parsing_error_,
+              AnyOf("FIN after incomplete message",
+                    "FIN received at an unexpected point in the stream"));
+}
+
+TEST_F(MoqtMessageSpecificTest, FinMidExtension) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtDataParser parser(&stream, &visitor_);
+  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(0, 1, false);
+  auto message = std::make_unique<StreamHeaderSubgroupMessage>(type);
+  // Read up to the extension body and then FIN.
+  stream.Receive(message->PacketSample().substr(0, 7), true);
+  parser.ReadAllData();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_THAT(visitor_.parsing_error_,
+              AnyOf("FIN after incomplete message",
+                    "FIN received at an unexpected point in the stream"));
 }
 
 TEST_F(MoqtMessageSpecificTest, PartialPayloadThenFin) {
@@ -887,9 +900,20 @@ TEST_F(MoqtMessageSpecificTest, PartialPayloadThenFin) {
   stream.Receive(absl::string_view(), true);
   parser.ReadAllData();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "FIN received at an unexpected point in the stream");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+  EXPECT_THAT(visitor_.parsing_error_,
+              AnyOf("FIN after incomplete message",
+                    "FIN received at an unexpected point in the stream"));
+}
+
+TEST_F(MoqtMessageSpecificTest, FinMidVarint) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtDataParser parser(&stream, &visitor_);
+  stream.Receive("\x40", true);
+  parser.ReadAllData();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_THAT(visitor_.parsing_error_,
+              AnyOf("FIN after incomplete message",
+                    "FIN received at an unexpected point in the stream"));
 }
 
 TEST_F(MoqtMessageSpecificTest, ControlStreamFin) {

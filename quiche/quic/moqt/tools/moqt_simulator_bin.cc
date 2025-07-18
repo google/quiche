@@ -317,6 +317,7 @@ class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
   }
 
   void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+  void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
 
   void OnFullObject(Location sequence, absl::string_view payload) {
     QUICHE_CHECK_GE(payload.size(), 8u);
