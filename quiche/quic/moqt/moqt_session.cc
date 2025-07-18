@@ -2133,6 +2133,13 @@ void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
   }
   std::vector<webtransport::StreamId> streams =
       stream_map().GetStreamsForGroup(group_id);
+  if (delivery_timeout_.IsInfinite() && largest_sent_.has_value() &&
+      largest_sent_->group <= group_id) {
+    session_->SubscribeIsDone(request_id_, SubscribeDoneCode::kTooFarBehind,
+                              "");
+    // No class access below this line!
+    return;
+  }
   for (webtransport::StreamId stream_id : streams) {
     webtransport::Stream* raw_stream =
         session_->session_->GetStreamById(stream_id);
@@ -2140,6 +2147,8 @@ void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
       continue;
     }
     raw_stream->ResetWithUserCode(kResetCodeDeliveryTimeout);
+    // Sending the Reset will call the destructor for OutgoingDataStream, which
+    // will erase it from the SendStreamMap.
   }
   first_active_group_ = std::max(first_active_group_, group_id + 1);
   absl::erase_if(reset_subgroups_, [&](const DataStreamIndex& index) {
@@ -2229,7 +2238,7 @@ void MoqtSession::PublishedSubscription::OnDataStreamCreated(
 }
 void MoqtSession::PublishedSubscription::OnDataStreamDestroyed(
     webtransport::StreamId id, DataStreamIndex end_sequence) {
-  stream_map().RemoveStream(end_sequence, id);
+  stream_map().RemoveStream(end_sequence);
 }
 
 void MoqtSession::PublishedSubscription::OnObjectSent(Location sequence) {

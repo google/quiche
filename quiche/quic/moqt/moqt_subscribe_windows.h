@@ -88,7 +88,7 @@ class QUICHE_EXPORT SendStreamMap {
   std::optional<webtransport::StreamId> GetStreamFor(
       DataStreamIndex index) const;
   void AddStream(DataStreamIndex index, webtransport::StreamId stream_id);
-  void RemoveStream(DataStreamIndex index, webtransport::StreamId stream_id);
+  void RemoveStream(DataStreamIndex index);
   std::vector<webtransport::StreamId> GetAllStreams() const;
   std::vector<webtransport::StreamId> GetStreamsForGroup(
       uint64_t group_id) const;

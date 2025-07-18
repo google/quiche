@@ -42,7 +42,7 @@ TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdSubgroup) {
   EXPECT_QUIC_BUG(stream_map.AddStream(DataStreamIndex{5, 0}, 6),
                   "Stream already added");
   EXPECT_EQ(stream_map.GetStreamFor(DataStreamIndex(4, 0)), 2);
-  stream_map.RemoveStream(DataStreamIndex{5, 1}, 7);
+  stream_map.RemoveStream(DataStreamIndex{5, 1});
   EXPECT_EQ(stream_map.GetStreamFor(DataStreamIndex(5, 1)), std::nullopt);
 }
 

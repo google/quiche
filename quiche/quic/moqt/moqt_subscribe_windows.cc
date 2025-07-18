@@ -32,8 +32,7 @@ void SendStreamMap::AddStream(DataStreamIndex index,
   QUIC_BUG_IF(quic_bug_moqt_draft_03_02, !success) << "Stream already added";
 }
 
-void SendStreamMap::RemoveStream(DataStreamIndex index,
-                                 webtransport::StreamId stream_id) {
+void SendStreamMap::RemoveStream(DataStreamIndex index) {
   send_streams_.erase(index);
 }
 
