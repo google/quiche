@@ -199,8 +199,18 @@ class MasquePacketWriter : public QuicPacketWriter {
           packet, client_->masque_encapsulated_client_session());
     } else {
       absl::string_view packet(buffer, buf_len);
-      client_->masque_client()->masque_client_session()->SendPacket(
-          packet, peer_address, client_->masque_encapsulated_client_session());
+      if (client_->masque_client()->masque_mode() ==
+          MasqueMode::kConnectUdpBind) {
+        client_->masque_client()
+            ->masque_client_session()
+            ->SendConnectUdpBindPacket(
+                packet, peer_address,
+                client_->masque_encapsulated_client_session());
+      } else {
+        client_->masque_client()->masque_client_session()->SendPacket(
+            packet, peer_address,
+            client_->masque_encapsulated_client_session());
+      }
     }
     return WriteResult(WRITE_STATUS_OK, buf_len);
   }

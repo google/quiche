@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_CLIENT_SESSION_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_CLIENT_SESSION_H_
 
+#include <cstdint>
 #include <list>
 #include <optional>
 #include <string>
@@ -25,6 +26,7 @@
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/capsule.h"
@@ -41,6 +43,7 @@ namespace quic {
 class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
                                            public QuicSpdyStream::Visitor {
  public:
+  using ContextId = uint64_t;
   // Interface meant to be implemented by the owner of the
   // MasqueClientSession instance.
   class QUIC_NO_EXPORT Owner {
@@ -140,6 +143,17 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
                   const QuicSocketAddress& target_server_address,
                   EncapsulatedClientSession* encapsulated_client_session);
 
+  // Send CONNECT-UDP-BIND packet, creating contexts if needed.
+  void SendConnectUdpBindPacket(
+      absl::string_view packet, const QuicSocketAddress& target_server_address,
+      EncapsulatedClientSession* encapsulated_client_session);
+
+  // Request uncompressed context for CONNECT-UDP Bind.
+  void set_bind_use_uncompressed_context(bool use_uncompressed_context) {
+    QUICHE_DCHECK(masque_mode_ == MasqueMode::kConnectUdpBind);
+    bind_use_uncompressed_context_ = use_uncompressed_context;
+  }
+
   // Send encapsulated IP packet. |packet| contains the IP header and payload.
   void SendIpPacket(absl::string_view packet,
                     EncapsulatedIpSession* encapsulated_ip_session);
@@ -192,7 +206,8 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
  private:
   // State that the MasqueClientSession keeps for each CONNECT-UDP request.
   class QUIC_NO_EXPORT ConnectUdpClientState
-      : public QuicSpdyStream::Http3DatagramVisitor {
+      : public QuicSpdyStream::Http3DatagramVisitor,
+        public QuicSpdyStream::ConnectUdpBindVisitor {
    public:
     // |stream| and |encapsulated_client_session| must be valid for the lifetime
     // of the ConnectUdpClientState.
@@ -203,6 +218,9 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
         const QuicSocketAddress& target_server_address);
 
     ~ConnectUdpClientState();
+
+    void set_is_bind(bool is_bind) { is_bind_ = is_bind; }
+    bool is_bind() const { return is_bind_; }
 
     // Disallow copy but allow move.
     ConnectUdpClientState(const ConnectUdpClientState&) = delete;
@@ -217,18 +235,43 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
     const QuicSocketAddress& target_server_address() const {
       return target_server_address_;
     }
-
+    void CloseContext(ContextId context_id);
     // From QuicSpdyStream::Http3DatagramVisitor.
     void OnHttp3Datagram(QuicStreamId stream_id,
                          absl::string_view payload) override;
     void OnUnknownCapsule(QuicStreamId /*stream_id*/,
                           const quiche::UnknownCapsule& /*capsule*/) override {}
 
+    // From QuicSpdyStream::ConnectUdpBindVisitor.
+
+    bool OnCompressionAssignCapsule(
+        const quiche::CompressionAssignCapsule& capsule) override;
+
+    bool OnCompressionCloseCapsule(
+        const quiche::CompressionCloseCapsule& capsule) override;
+
+    ContextId AllocateContextId();
+
+    // Get the context id for the given address if it exists or if
+    // an uncompressed context exists.
+    std::optional<ContextId> GetContextForAddress(
+        const QuicSocketAddress& target_server_address);
+    ContextId CreateCompressedContext(const QuicSocketAddress& target_address);
+    ContextId CreateUncompressedContext();
+    std::optional<std::string> PrepareBindPacket(
+        absl::string_view packet, const QuicSocketAddress& target_address,
+        bool use_uncompressed_context);
+
    private:
     QuicSpdyClientStream* stream_;                            // Unowned.
     EncapsulatedClientSession* encapsulated_client_session_;  // Unowned.
     MasqueClientSession* masque_session_;                     // Unowned.
     QuicSocketAddress target_server_address_;
+
+    ContextId next_available_context_id_ = 2;
+    absl::flat_hash_map<int, QuicSocketAddress> bind_context_ip_map_ = {};
+
+    bool is_bind_ = false;
   };
 
   // State that the MasqueClientSession keeps for each CONNECT-IP request.
@@ -318,9 +361,15 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
     return HttpDatagramSupport::kRfc;
   }
 
-  const ConnectUdpClientState* GetOrCreateConnectUdpClientState(
+  // target_server_address should be set to empty
+  // to create state for bind.
+  ConnectUdpClientState* GetOrCreateConnectUdpClientState(
       const QuicSocketAddress& target_server_address,
       EncapsulatedClientSession* encapsulated_client_session);
+
+  // Send Capsule for CONNECT-UDP Bind.
+  void SendBindCapsule(const quiche::Capsule& capsule,
+                       EncapsulatedClientSession* encapsulated_client_session);
 
   const ConnectIpClientState* GetOrCreateConnectIpClientState(
       EncapsulatedIpSession* encapsulated_ip_session);
@@ -332,13 +381,15 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
   void AddAdditionalHeaders(quiche::HttpHeaderBlock& headers,
                             const QuicUrl& url);
 
-  MasqueMode masque_mode_;
+  bool IsBind() const { return masque_mode_ == MasqueMode::kConnectUdpBind; }
+  MasqueMode masque_mode_ = MasqueMode::kInvalid;
   std::string uri_template_;
   std::string additional_headers_;
   std::string concealed_auth_key_id_;
   std::string concealed_auth_private_key_;
   std::string concealed_auth_public_key_;
   std::list<ConnectUdpClientState> connect_udp_client_states_;
+  bool bind_use_uncompressed_context_ = false;
   std::list<ConnectIpClientState> connect_ip_client_states_;
   std::list<ConnectEthernetClientState> connect_ethernet_client_states_;
   // Maps fake addresses generated by GetFakeAddress() to their corresponding

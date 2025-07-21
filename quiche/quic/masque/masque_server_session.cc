@@ -740,7 +740,7 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
   QuicSocketAddress expected_target_server_address =
       it->target_server_address();
 
-  QUICHE_DCHECK(expected_target_server_address.IsInitialized());
+  QUICHE_DCHECK(expected_target_server_address.IsInitialized() || is_bind);
   QUIC_DVLOG(1) << "Received readable event on fd " << fd << " (mask " << events
                 << ") stream ID " << it->stream()->id()
                 << (is_bind ? " (bind)" : "") << " server "
@@ -775,12 +775,15 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
           << "Missing peer address when reading from fd " << fd;
       continue;
     }
-    QuicSocketAddress peer_address = read_result.packet_info.peer_address();
+
+    // Normalize v6 mapped v4 to v4 if needed.
+    QuicSocketAddress peer_address =
+        read_result.packet_info.peer_address().Normalized();
 
     ContextId bind_context_id = kInvalidContextId;
     bool use_uncompressed_context = false;
     if (is_bind) {
-      ContextId uncompressed_context = it->uncompressed_context_id();
+      ContextId uncompressed_context = kInvalidContextId;
       ContextId matching_context = kInvalidContextId;
       // Now check if we either have a matching context or an uncompressed
       // context.
@@ -789,6 +792,9 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
         if (context_address_pair.second == peer_address) {
           matching_context = context_address_pair.first;
           break;
+        }
+        if (context_address_pair.second == quiche::QuicheSocketAddress()) {
+          uncompressed_context = context_address_pair.first;
         }
       }
 
@@ -1021,8 +1027,7 @@ void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
     return;
   } else if (is_bind_) {
     auto it = bind_context_ip_map_.find(context_id);
-    if (it == bind_context_ip_map_.end() &&
-        uncompressed_context_id_ != context_id) {
+    if (it == bind_context_ip_map_.end()) {
       QUIC_DLOG(ERROR) << "Context ID " << context_id
                        << " from datagram not found";
       return;
@@ -1084,14 +1089,10 @@ void MasqueServerSession::ConnectUdpServerState::OnHttp3Datagram(
 
 bool MasqueServerSession::ConnectUdpServerState::OnCompressionAssignCapsule(
     const quiche::CompressionAssignCapsule& capsule) {
-  if (bind_context_ip_map_.contains(capsule.context_id) ||
-      uncompressed_context_id_ == capsule.context_id) {
+  if (bind_context_ip_map_.contains(capsule.context_id)) {
     QUIC_DLOG(ERROR) << "Context ID " << capsule.context_id
                      << " from Compression Assign already exists";
     return false;
-  } else if (capsule.ip_address_port.host().address_family() ==
-             IpAddressFamily::IP_UNSPEC) {
-    uncompressed_context_id_ = capsule.context_id;
   } else {
     bind_context_ip_map_[capsule.context_id] = capsule.ip_address_port;
   }
@@ -1111,8 +1112,6 @@ bool MasqueServerSession::ConnectUdpServerState::OnCompressionCloseCapsule(
   auto it = bind_context_ip_map_.find(capsule.context_id);
   if (it != bind_context_ip_map_.end()) {
     bind_context_ip_map_.erase(it);
-  } else if (uncompressed_context_id_ == capsule.context_id) {
-    uncompressed_context_id_ = kInvalidContextId;
   } else {
     QUIC_DLOG(ERROR) << "Context ID " << capsule.context_id
                      << " from Compression Close not found";

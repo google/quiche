@@ -141,9 +141,6 @@ class QUIC_NO_EXPORT MasqueServerSession
     bind_context_ip_map() {
       return bind_context_ip_map_;
     }
-    ContextId uncompressed_context_id() const {
-      return uncompressed_context_id_;
-    }
 
    private:
     QuicSpdyStream* stream_;
@@ -155,7 +152,6 @@ class QUIC_NO_EXPORT MasqueServerSession
     // CONNECT-UDP-BIND context id to ip:port map.
     absl::flat_hash_map<ContextId, quic::QuicSocketAddress>
         bind_context_ip_map_ = {};
-    ContextId uncompressed_context_id_ = kInvalidContextId;
     // TODO(abhisinghx): Add Server's ability to request compression
     // or close contexts.
   };

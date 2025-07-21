@@ -80,6 +80,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "masque_client send the hostname in the CONNECT request.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, bind_use_uncompressed_context, false,
+    "If set, an uncompressed context will be created for the client."
+    "Otherwise, a compressed context will be requested.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, bring_up_tap, false,
     "If set to true, no URLs need to be specified and instead a TAP device "
     "is brought up for a MASQUE CONNECT-ETHERNET session.");
@@ -356,6 +361,9 @@ int RunMasqueClient(int argc, char* argv[]) {
     } else if (mode_string == "connectethernet" ||
                mode_string == "connect-ethernet") {
       masque_mode = MasqueMode::kConnectEthernet;
+    } else if (mode_string == "connectudpbind" ||
+               mode_string == "connect-udp-bind") {
+      masque_mode = MasqueMode::kConnectUdpBind;
     } else {
       QUIC_LOG(ERROR) << "Invalid masque_mode \"" << mode_string << "\"";
       return 1;
@@ -412,6 +420,7 @@ int RunMasqueClient(int argc, char* argv[]) {
       masque_client =
           MasqueClient::Create(uri_template, masque_mode, event_loop.get(),
                                std::move(proof_verifier));
+
     } else {
       masque_client = tools::CreateAndConnectMasqueEncapsulatedClient(
           masque_clients.back().get(), masque_mode, event_loop.get(),
@@ -462,6 +471,13 @@ int RunMasqueClient(int argc, char* argv[]) {
     QUICHE_NOTREACHED();
   }
 
+  if (masque_mode == MasqueMode::kConnectUdpBind) {
+    bool uncompressed_context =
+        quiche::GetQuicheCommandLineFlag(FLAGS_bind_use_uncompressed_context);
+    masque_client->masque_client_session()->set_bind_use_uncompressed_context(
+        uncompressed_context);
+  }
+
   for (size_t i = 1; i < urls.size(); ++i) {
     if (absl::StartsWith(urls[i], "/")) {
       QuicSpdyClientStream* stream =
@@ -472,11 +488,15 @@ int RunMasqueClient(int argc, char* argv[]) {
       // Print the response body to stdout.
       std::cout << std::endl << stream->data() << std::endl;
     } else {
+      // For bind, DNS has to be done on client in the encapsulated client.
       std::unique_ptr<MasqueEncapsulatedClient> encapsulated_client =
           tools::CreateAndConnectMasqueEncapsulatedClient(
               masque_client.get(), masque_mode, event_loop.get(), urls[i],
               disable_certificate_verification, address_family_for_lookup,
-              dns_on_client, /*is_also_underlying=*/false);
+              /*dns_on_client=*/dns_on_client ||
+                  (masque_mode == MasqueMode::kConnectUdpBind),
+              /*is_also_underlying=*/false);
+
       if (!encapsulated_client || !tools::SendRequestOnMasqueEncapsulatedClient(
                                       *encapsulated_client, urls[i])) {
         return 1;

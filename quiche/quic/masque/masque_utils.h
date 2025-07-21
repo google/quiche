@@ -42,6 +42,12 @@ enum class MasqueMode : uint8_t {
       3,  // ConnectEthernet mode uses MASQUE HTTP CONNECT-ETHERNET.
   // <https://datatracker.ietf.org/doc/draft-asedeno-masque-connect-ethernet/>
   // This mode also allows unauthenticated clients.
+  kConnectUdpBind = 4,
+  // Bind a UDP socket on the proxy and forward all packets to the client.
+  // This mode uses MASQUE HTTP CONNECT-UDP-BIND.
+  // We define a custom handler for this. Our default handler simply echoes
+  // back the UDP Payload.
+  // <https://datatracker.ietf.org/doc/draft-ietf-masque-connect-udp-listen/>
 };
 
 QUIC_NO_EXPORT std::string MasqueModeToString(MasqueMode masque_mode);

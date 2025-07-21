@@ -60,6 +60,8 @@ std::string MasqueModeToString(MasqueMode masque_mode) {
       return "CONNECT-IP";
     case MasqueMode::kConnectEthernet:
       return "CONNECT-ETHERNET";
+    case MasqueMode::kConnectUdpBind:
+      return "CONNECT-UDP-BIND";
   }
   return absl::StrCat("Unknown(", static_cast<int>(masque_mode), ")");
 }
