@@ -25,11 +25,12 @@ class MockBitrateAdjustable : public BitrateAdjustable {
   explicit MockBitrateAdjustable(QuicBandwidth initial_bitrate)
       : bitrate_(initial_bitrate) {}
 
-  QuicBandwidth GetCurrentBitrate() const override { return bitrate_; }
-  bool AdjustBitrate(QuicBandwidth bandwidth) override {
+  quic::QuicBandwidth GetCurrentBitrate() const { return bitrate_; }
+  bool CouldUseExtraBandwidth() override { return true; }
+  void ConsiderAdjustingBitrate(QuicBandwidth bandwidth,
+                                BitrateAdjustmentType /*type*/) override {
     bitrate_ = bandwidth;
     OnBitrateAdjusted(bandwidth);
-    return true;
   }
 
   MOCK_METHOD(void, OnBitrateAdjusted, (QuicBandwidth new_bitrate), ());
@@ -52,6 +53,9 @@ class MoqtBitrateAdjusterTest : public quiche::test::QuicheTest {
     ON_CALL(session_, GetSessionStats()).WillByDefault([this] {
       return stats_;
     });
+
+    clock_.AdvanceTime(quic::QuicTimeDelta::FromSeconds(10));
+    adjuster_.OnObjectAckSupportKnown(true);
   }
 
   MockBitrateAdjustable adjustable_;
@@ -107,30 +111,41 @@ TEST_F(MoqtBitrateAdjusterTest, AdjustDownTwice) {
   EXPECT_EQ(adjusted_times, 2);
 }
 
-TEST_F(MoqtBitrateAdjusterTest, AdjustDownSecondTimeIgnoredDueToTimeLimit) {
-  int adjusted_times = 0;
-  EXPECT_CALL(adjustable_, OnBitrateAdjusted(_)).WillRepeatedly([&] {
-    ++adjusted_times;
-  });
+TEST_F(MoqtBitrateAdjusterTest, ShouldIgnoreBitrateAdjustment) {
+  constexpr quic::QuicBandwidth kOldBandwith =
+      quic::QuicBandwidth::FromKBitsPerSecond(1024);
+  constexpr float kMinChange = 0.01;
+  EXPECT_FALSE(ShouldIgnoreBitrateAdjustment(kOldBandwith * 0.5,
+                                             BitrateAdjustmentType::kDown,
+                                             kOldBandwith, kMinChange));
+  EXPECT_FALSE(ShouldIgnoreBitrateAdjustment(kOldBandwith * 1.5,
+                                             BitrateAdjustmentType::kUp,
+                                             kOldBandwith, kMinChange));
 
-  clock_.AdvanceTime(100 * kDefaultRtt);
-  stats_.estimated_send_rate_bps = (0.5 * kDefaultBitrate).ToBitsPerSecond();
-  adjuster_.OnObjectAckReceived(0, 0, QuicTimeDelta::FromMilliseconds(-1));
-  EXPECT_EQ(adjusted_times, 1);
+  // Always ignore change if new bandwidth is the old bandwidth.
+  EXPECT_TRUE(ShouldIgnoreBitrateAdjustment(
+      kOldBandwith, BitrateAdjustmentType::kUp, kOldBandwith, kMinChange));
+  EXPECT_TRUE(ShouldIgnoreBitrateAdjustment(
+      kOldBandwith, BitrateAdjustmentType::kDown, kOldBandwith, kMinChange));
 
-  // Two round trips is not enough delay to trigger another adjustment.
-  clock_.AdvanceTime(2 * kDefaultRtt);
-  stats_.estimated_send_rate_bps = (0.25 * kDefaultBitrate).ToBitsPerSecond();
-  adjuster_.OnObjectAckReceived(0, 1, QuicTimeDelta::FromMilliseconds(-1));
-  EXPECT_EQ(adjusted_times, 1);
-}
+  // Ignore very small changes to bitrate.
+  const quic::QuicBandwidth kTinyDelta =
+      quic::QuicBandwidth::FromBitsPerSecond(1);
+  EXPECT_TRUE(ShouldIgnoreBitrateAdjustment(kOldBandwith - kTinyDelta,
+                                            BitrateAdjustmentType::kDown,
+                                            kOldBandwith, kMinChange));
+  EXPECT_TRUE(ShouldIgnoreBitrateAdjustment(kOldBandwith + kTinyDelta,
+                                            BitrateAdjustmentType::kUp,
+                                            kOldBandwith, kMinChange));
 
-TEST_F(MoqtBitrateAdjusterTest, AdjustDownIgnoredDueToHighBandwidthMeasured) {
-  EXPECT_CALL(adjustable_, OnBitrateAdjusted(_)).Times(0);
-
-  clock_.AdvanceTime(100 * kDefaultRtt);
-  stats_.estimated_send_rate_bps = (2.0 * kDefaultBitrate).ToBitsPerSecond();
-  adjuster_.OnObjectAckReceived(0, 0, QuicTimeDelta::FromMilliseconds(-1));
+  // Ignore if the direction of change stated by the bitrate adjuster is
+  // different from the actual direction suggested by the new bitrate value.
+  EXPECT_TRUE(ShouldIgnoreBitrateAdjustment(kOldBandwith * 0.5,
+                                            BitrateAdjustmentType::kUp,
+                                            kOldBandwith, kMinChange));
+  EXPECT_TRUE(ShouldIgnoreBitrateAdjustment(kOldBandwith * 1.5,
+                                            BitrateAdjustmentType::kDown,
+                                            kOldBandwith, kMinChange));
 }
 
 }  // namespace

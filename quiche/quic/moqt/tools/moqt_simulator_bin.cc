@@ -260,10 +260,15 @@ class ObjectGenerator : public quic::simulator::Actor,
   }
 
   quic::QuicBandwidth GetCurrentBitrate() const override { return bitrate_; }
-  bool AdjustBitrate(quic::QuicBandwidth bandwidth) override {
+  bool CouldUseExtraBandwidth() override { return true; }
+  void ConsiderAdjustingBitrate(quic::QuicBandwidth bandwidth,
+                                BitrateAdjustmentType type) override {
+    if (moqt::ShouldIgnoreBitrateAdjustment(bandwidth, type, bitrate_,
+                                            /*min_change=*/0.01)) {
+      return;
+    }
     bitrate_ = bandwidth;
     bitrate_history_.push_back(bandwidth);
-    return true;
   }
   std::string FormatBitrateHistory() const {
     std::vector<std::string> bits;
@@ -445,6 +450,9 @@ class MoqtSimulator {
     //       some catching up to do.
     generator_.Start();
     VersionSpecificParameters subscription_parameters;
+    if (parameters_.bitrate_adaptation) {
+      subscription_parameters.oack_window_size = parameters_.deadline;
+    }
     if (!parameters_.delivery_timeout.IsInfinite()) {
       subscription_parameters.delivery_timeout = parameters_.delivery_timeout;
     }

@@ -4,11 +4,12 @@
 
 #include "quiche/quic/moqt/moqt_bitrate_adjuster.h"
 
-#include <algorithm>
 #include <cstdint>
+#include <cstdlib>
 
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -20,26 +21,29 @@ using ::quic::QuicBandwidth;
 using ::quic::QuicTime;
 using ::quic::QuicTimeDelta;
 
-// Whenever adjusting bitrate down, it is set to `kTargetBitrateMultiplier *
-// bw`, where `bw` is typically windowed max bandwidth reported by BBR.  The
-// current value selected is a bit arbitrary; ideally, we would adjust down to
-// the application data goodput (i.e. goodput excluding all of the framing
-// overhead), but that would either require us knowing how to compute the
-// framing overhead correctly, or implementing our own application-level goodput
-// monitoring.
-constexpr float kTargetBitrateMultiplier = 0.9f;
-
-// Avoid re-adjusting bitrate within N RTTs after adjusting it. Here, on a
-// typical 20ms connection, 40 RTTs is 800ms.  Cap the limit at 3000ms.
-constexpr float kMinTimeBetweenAdjustmentsInRtts = 40;
-constexpr QuicTimeDelta kMaxTimeBetweenAdjustments =
-    QuicTimeDelta::FromSeconds(3);
-
 }  // namespace
+
+void MoqtBitrateAdjuster::Start() {
+  if (start_time_.IsInitialized()) {
+    QUICHE_BUG(MoqtBitrateAdjuster_double_init)
+        << "MoqtBitrateAdjuster::Start() called more than once.";
+    return;
+  }
+  start_time_ = clock_->Now();
+}
 
 void MoqtBitrateAdjuster::OnObjectAckReceived(
     uint64_t /*group_id*/, uint64_t /*object_id*/,
     QuicTimeDelta delta_from_deadline) {
+  if (!start_time_.IsInitialized()) {
+    return;
+  }
+
+  const QuicTime earliest_action_time = start_time_ + parameters_.initial_delay;
+  if (clock_->Now() < earliest_action_time) {
+    return;
+  }
+
   if (delta_from_deadline < QuicTimeDelta::Zero()) {
     // While adjusting down upon the first sign of packets getting late might
     // seem aggressive, note that:
@@ -54,37 +58,47 @@ void MoqtBitrateAdjuster::OnObjectAckReceived(
 
 void MoqtBitrateAdjuster::AttemptAdjustingDown() {
   webtransport::SessionStats stats = session_->GetSessionStats();
-
-  // Wait for a while after doing an adjustment.  There are non-trivial costs to
-  // switching, so we should rate limit adjustments.
-  QuicTimeDelta adjustment_delay =
-      QuicTimeDelta(stats.smoothed_rtt * kMinTimeBetweenAdjustmentsInRtts);
-  adjustment_delay = std::min(adjustment_delay, kMaxTimeBetweenAdjustments);
-  QuicTime now = clock_->ApproximateNow();
-  if (now - last_adjustment_time_ < adjustment_delay) {
-    return;
-  }
-
-  // Only adjust downwards.
   QuicBandwidth target_bandwidth =
-      kTargetBitrateMultiplier *
+      parameters_.target_bitrate_multiplier_down *
       QuicBandwidth::FromBitsPerSecond(stats.estimated_send_rate_bps);
-  QuicBandwidth current_bandwidth = adjustable_->GetCurrentBitrate();
-  if (current_bandwidth <= target_bandwidth) {
-    return;
-  }
-
-  QUICHE_DLOG(INFO) << "Adjusting the bitrate from " << current_bandwidth
-                    << " to " << target_bandwidth;
-  bool success = adjustable_->AdjustBitrate(target_bandwidth);
-  if (success) {
-    last_adjustment_time_ = now;
-  }
+  QUICHE_DLOG(INFO) << "Adjusting the bitrate down to " << target_bandwidth;
+  adjustable_->ConsiderAdjustingBitrate(target_bandwidth,
+                                        BitrateAdjustmentType::kDown);
 }
 
 void MoqtBitrateAdjuster::OnObjectAckSupportKnown(bool supported) {
-  QUICHE_DLOG_IF(WARNING, !supported)
-      << "OBJECT_ACK not supported; bitrate adjustments will not work.";
+  if (!supported) {
+    QUICHE_DLOG(WARNING)
+        << "OBJECT_ACK not supported; bitrate adjustments will not work.";
+    return;
+  }
+  Start();
+}
+
+bool ShouldIgnoreBitrateAdjustment(quic::QuicBandwidth new_bitrate,
+                                   BitrateAdjustmentType type,
+                                   quic::QuicBandwidth old_bitrate,
+                                   float min_change) {
+  const float min_change_bps = old_bitrate.ToBitsPerSecond() * min_change;
+  const float change_bps =
+      new_bitrate.ToBitsPerSecond() - old_bitrate.ToBitsPerSecond();
+  if (std::abs(change_bps) < min_change_bps) {
+    return true;
+  }
+
+  switch (type) {
+    case moqt::BitrateAdjustmentType::kDown:
+      if (new_bitrate >= old_bitrate) {
+        return true;
+      }
+      break;
+    case moqt::BitrateAdjustmentType::kUp:
+      if (old_bitrate >= new_bitrate) {
+        return true;
+      }
+      break;
+  }
+  return false;
 }
 
 }  // namespace moqt
