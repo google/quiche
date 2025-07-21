@@ -42,12 +42,15 @@ std::string OmitDefault(T value) {
   return value == 0 ? "" : absl::StrCat(value);
 }
 
+constexpr absl::string_view kAttestationProtoTypeUrl =
+    "type.googleapis.com/privacy.ppn.AndroidAttestationData";
 constexpr absl::string_view kIssuerHostname =
     "https://ipprotection-ppissuer.googleapis.com";
 constexpr size_t kExpectedExtensionTypesSize = 5;
 constexpr std::array<const uint16_t, kExpectedExtensionTypesSize>
     kExpectedExtensionTypes = {0x0001, 0x0002, 0xF001, 0xF002, 0xF003};
 
+using quiche::protobuf::Any;
 using privacy::ppn::AndroidAttestationData;
 using privacy::ppn::AttestAndSignRequest;
 using privacy::ppn::AttestAndSignResponse;
@@ -379,9 +382,15 @@ void BlindSignAuth::AttestAndSign(
     return;
   }
   android_attestation_data.add_hardware_backed_certs(*attestation_data);
+
+  Any attestation_data_proto_any;
+  attestation_data_proto_any.set_type_url(kAttestationProtoTypeUrl);
+  attestation_data_proto_any.set_value(
+      android_attestation_data.SerializeAsString());
+
   AttestationData attestation_data_proto;
-  attestation_data_proto.mutable_attestation_data()->PackFrom(
-      android_attestation_data);
+  *attestation_data_proto.mutable_attestation_data() =
+      attestation_data_proto_any;
 
   // Create AttestAndSignRequest.
   AttestAndSignRequest sign_request;
