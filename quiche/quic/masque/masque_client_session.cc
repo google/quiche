@@ -784,8 +784,6 @@ bool MasqueClientSession::ConnectUdpClientState::OnCompressionAssignCapsule(
     QUIC_DLOG(INFO) << "Ignoring ack of client's request";
     return true;
   }
-
-  return true;
 }
 
 bool MasqueClientSession::ConnectUdpClientState::OnCompressionCloseCapsule(
