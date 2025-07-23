@@ -241,8 +241,8 @@ class BlindSignAuthTest : public QuicheTest {
                   .public_metadata_extensions());
 
     privacy::ppn::AndroidAttestationData android_attestation_data;
-    ASSERT_TRUE(request.attestation().attestation_data().UnpackTo(
-        &android_attestation_data));
+    ASSERT_TRUE(android_attestation_data.ParseFromString(
+        request.attestation().attestation_data().value()));
     EXPECT_EQ(android_attestation_data.hardware_backed_certs().at(0),
               "fake_hardware_backed_cert");
 
