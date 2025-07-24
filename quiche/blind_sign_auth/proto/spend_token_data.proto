@@ -19,6 +19,9 @@ package privacy.ppn;
 import "quiche/blind_sign_auth/proto/public_metadata.proto";
 import "anonymous_tokens/proto/anonymous_tokens.proto";
 
+option java_package = "com.google.privacy.ppn.proto";
+option java_multiple_files = true;
+
 message SpendTokenData {
   // Public metadata associated with the token being spent.
   // See go/ppn-token-spend and go/ppn-phosphor-at-service for details.
