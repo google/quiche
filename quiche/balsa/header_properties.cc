@@ -5,8 +5,6 @@
 
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
-#include "quiche/common/platform/api/quiche_flag_utils.h"
-#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quiche::header_properties {
