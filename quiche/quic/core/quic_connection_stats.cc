@@ -33,7 +33,6 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
   os << " crypto_retransmit_count: " << s.crypto_retransmit_count;
   os << " loss_timeout_count: " << s.loss_timeout_count;
   os << " tlp_count: " << s.tlp_count;
-  os << " rto_count: " << s.rto_count;
   os << " pto_count: " << s.pto_count;
   os << " min_rtt_us: " << s.min_rtt_us;
   os << " srtt_us: " << s.srtt_us;

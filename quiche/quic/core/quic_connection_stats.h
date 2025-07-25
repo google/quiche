@@ -5,14 +5,17 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_CONNECTION_STATS_H_
 #define QUICHE_QUIC_CORE_QUIC_CONNECTION_STATS_H_
 
+#include <cstddef>
 #include <cstdint>
+#include <optional>
 #include <ostream>
 
 #include "quiche/quic/core/quic_bandwidth.h"
-#include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_time_accumulator.h"
-#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 
@@ -99,7 +102,6 @@ struct QUICHE_EXPORT QuicConnectionStats {
   // be lost when the alarm fires.
   size_t loss_timeout_count = 0;
   size_t tlp_count = 0;
-  size_t rto_count = 0;  // Count of times the rto timer fired.
   size_t pto_count = 0;
 
   int64_t min_rtt_us = 0;                 // Minimum RTT in microseconds.
