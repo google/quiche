@@ -3046,6 +3046,7 @@ TEST_F(MoqtSessionTest, PartialObjectFetch) {
   EXPECT_TRUE(object_ready);
   EXPECT_TRUE(task->HasObject());
   EXPECT_FALSE(task->NeedsMorePayload());
+  task->SetObjectAvailableCallback(nullptr);
 }
 
 TEST_F(MoqtSessionTest, DeliveryTimeoutParameter) {
