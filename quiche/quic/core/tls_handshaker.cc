@@ -286,23 +286,13 @@ void TlsHandshaker::SetWriteSecret(EncryptionLevel level,
       QuicEncrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
   const EVP_MD* prf = Prf(cipher);
   std::vector<uint8_t> header_protection_key;
-  if (GetQuicReloadableFlag(quic_heapless_key_derivation)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_key_derivation, 7, 10);
-    CryptoUtils::SetKeyAndIVHeapless(prf, write_secret,
-                                     handshaker_delegate_->parsed_version(),
-                                     encrypter.get());
-    header_protection_key.resize(encrypter->GetKeySize());
-    CryptoUtils::GenerateHeaderProtectionKey(
-        prf, write_secret, handshaker_delegate_->parsed_version(),
-        absl::Span<uint8_t>(header_protection_key));
-  } else {
-    CryptoUtils::SetKeyAndIV(prf, write_secret,
-                             handshaker_delegate_->parsed_version(),
-                             encrypter.get());
-    header_protection_key = CryptoUtils::GenerateHeaderProtectionKey(
-        prf, write_secret, handshaker_delegate_->parsed_version(),
-        encrypter->GetKeySize());
-  }
+  CryptoUtils::SetKeyAndIV(prf, write_secret,
+                           handshaker_delegate_->parsed_version(),
+                           encrypter.get());
+  header_protection_key.resize(encrypter->GetKeySize());
+  CryptoUtils::GenerateHeaderProtectionKey(
+      prf, write_secret, handshaker_delegate_->parsed_version(),
+      absl::Span<uint8_t>(header_protection_key));
   encrypter->SetHeaderProtectionKey(
       absl::string_view(reinterpret_cast<char*>(header_protection_key.data()),
                         header_protection_key.size()));
@@ -329,23 +319,13 @@ bool TlsHandshaker::SetReadSecret(EncryptionLevel level,
       QuicDecrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
   const EVP_MD* prf = Prf(cipher);
   std::vector<uint8_t> header_protection_key;
-  if (GetQuicReloadableFlag(quic_heapless_key_derivation)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_key_derivation, 8, 10);
-    CryptoUtils::SetKeyAndIVHeapless(prf, read_secret,
-                                     handshaker_delegate_->parsed_version(),
-                                     decrypter.get());
-    header_protection_key.resize(decrypter->GetKeySize());
-    CryptoUtils::GenerateHeaderProtectionKey(
-        prf, read_secret, handshaker_delegate_->parsed_version(),
-        absl::Span<uint8_t>(header_protection_key));
-  } else {
-    CryptoUtils::SetKeyAndIV(prf, read_secret,
-                             handshaker_delegate_->parsed_version(),
-                             decrypter.get());
-    header_protection_key = CryptoUtils::GenerateHeaderProtectionKey(
-        prf, read_secret, handshaker_delegate_->parsed_version(),
-        decrypter->GetKeySize());
-  }
+  CryptoUtils::SetKeyAndIV(prf, read_secret,
+                           handshaker_delegate_->parsed_version(),
+                           decrypter.get());
+  header_protection_key.resize(decrypter->GetKeySize());
+  CryptoUtils::GenerateHeaderProtectionKey(
+      prf, read_secret, handshaker_delegate_->parsed_version(),
+      absl::Span<uint8_t>(header_protection_key));
   decrypter->SetHeaderProtectionKey(
       absl::string_view(reinterpret_cast<char*>(header_protection_key.data()),
                         header_protection_key.size()));
@@ -372,29 +352,17 @@ TlsHandshaker::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
   }
   const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
   const EVP_MD* prf = Prf(cipher);
-  std::unique_ptr<QuicDecrypter> decrypter;
-  if (GetQuicReloadableFlag(quic_heapless_key_derivation)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_key_derivation, 9, 10);
-    CryptoUtils::GenerateNextKeyPhaseSecret(
-        prf, handshaker_delegate_->parsed_version(), latest_read_secret_,
-        absl::Span<uint8_t>(latest_read_secret_));
-    CryptoUtils::GenerateNextKeyPhaseSecret(
-        prf, handshaker_delegate_->parsed_version(), latest_write_secret_,
-        absl::Span<uint8_t>(latest_write_secret_));
-    decrypter = QuicDecrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
-    CryptoUtils::SetKeyAndIVHeapless(prf, latest_read_secret_,
-                                     handshaker_delegate_->parsed_version(),
-                                     decrypter.get());
-  } else {
-    latest_read_secret_ = CryptoUtils::GenerateNextKeyPhaseSecret(
-        prf, handshaker_delegate_->parsed_version(), latest_read_secret_);
-    latest_write_secret_ = CryptoUtils::GenerateNextKeyPhaseSecret(
-        prf, handshaker_delegate_->parsed_version(), latest_write_secret_);
-    decrypter = QuicDecrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
-    CryptoUtils::SetKeyAndIV(prf, latest_read_secret_,
-                             handshaker_delegate_->parsed_version(),
-                             decrypter.get());
-  }
+  CryptoUtils::GenerateNextKeyPhaseSecret(
+      prf, handshaker_delegate_->parsed_version(), latest_read_secret_,
+      absl::Span<uint8_t>(latest_read_secret_));
+  CryptoUtils::GenerateNextKeyPhaseSecret(
+      prf, handshaker_delegate_->parsed_version(), latest_write_secret_,
+      absl::Span<uint8_t>(latest_write_secret_));
+  std::unique_ptr<QuicDecrypter> decrypter =
+      QuicDecrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
+  CryptoUtils::SetKeyAndIV(prf, latest_read_secret_,
+                           handshaker_delegate_->parsed_version(),
+                           decrypter.get());
 
   decrypter->SetHeaderProtectionKey(absl::string_view(
       reinterpret_cast<char*>(one_rtt_read_header_protection_key_.data()),
@@ -414,16 +382,9 @@ std::unique_ptr<QuicEncrypter> TlsHandshaker::CreateCurrentOneRttEncrypter() {
   const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
   std::unique_ptr<QuicEncrypter> encrypter =
       QuicEncrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
-  if (GetQuicReloadableFlag(quic_heapless_key_derivation)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_heapless_key_derivation, 10, 10);
-    CryptoUtils::SetKeyAndIVHeapless(Prf(cipher), latest_write_secret_,
-                                     handshaker_delegate_->parsed_version(),
-                                     encrypter.get());
-  } else {
-    CryptoUtils::SetKeyAndIV(Prf(cipher), latest_write_secret_,
-                             handshaker_delegate_->parsed_version(),
-                             encrypter.get());
-  }
+  CryptoUtils::SetKeyAndIV(Prf(cipher), latest_write_secret_,
+                           handshaker_delegate_->parsed_version(),
+                           encrypter.get());
   encrypter->SetHeaderProtectionKey(absl::string_view(
       reinterpret_cast<char*>(one_rtt_write_header_protection_key_.data()),
       one_rtt_write_header_protection_key_.size()));

@@ -10,7 +10,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
-#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -84,23 +83,11 @@ class QUICHE_EXPORT CryptoUtils {
                                        absl::Span<const uint8_t> pp_secret,
                                        const ParsedQuicVersion& version,
                                        QuicCrypter* crypter);
-  // Overloaded legacy version that takes a vector.
-  // TODO(martinduke): Delete this.
-  static void InitializeCrypterSecrets(const EVP_MD* prf,
-                                       const std::vector<uint8_t>& pp_secret,
-                                       const ParsedQuicVersion& version,
-                                       QuicCrypter* crypter);
 
   // Derives the key and IV from the packet protection secret and sets those
   // fields on the given QuicCrypter |*crypter|, but does not set the header
   // protection key. GenerateHeaderProtectionKey/SetHeaderProtectionKey must be
   // called before using |crypter|.
-  static void SetKeyAndIVHeapless(const EVP_MD* prf,
-                                  absl::Span<const uint8_t> pp_secret,
-                                  const ParsedQuicVersion& version,
-                                  QuicCrypter* crypter);
-  // TODO(martinduke): Delete this legacy version that allocates more from the
-  // heap.
   static void SetKeyAndIV(const EVP_MD* prf,
                           absl::Span<const uint8_t> pp_secret,
                           const ParsedQuicVersion& version,
@@ -113,20 +100,12 @@ class QUICHE_EXPORT CryptoUtils {
                                           absl::Span<const uint8_t> pp_secret,
                                           const ParsedQuicVersion& version,
                                           absl::Span<uint8_t> out);
-  // Overloaded legacy version that allocates the vector.
-  static std::vector<uint8_t> GenerateHeaderProtectionKey(
-      const EVP_MD* prf, absl::Span<const uint8_t> pp_secret,
-      const ParsedQuicVersion& version, size_t out_len);
 
   // Given a secret for key phase n, return the secret for phase n+1 in |out|.
   // Returns true if the derivation was successful, false otherwise.
   static bool GenerateNextKeyPhaseSecret(
       const EVP_MD* prf, const ParsedQuicVersion& version,
       absl::Span<const uint8_t> current_secret, absl::Span<uint8_t> out);
-  // Overloaded legacy version that allocates the vector.
-  static std::vector<uint8_t> GenerateNextKeyPhaseSecret(
-      const EVP_MD* prf, const ParsedQuicVersion& version,
-      const std::vector<uint8_t>& current_secret);
 
   // Assumes Initial crypters have already been allocated, to create a path
   // with heap allocations limited to those inherited from OpenSSL. |encrypter|
