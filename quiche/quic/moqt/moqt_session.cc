@@ -581,7 +581,7 @@ bool MoqtSession::RelativeJoiningFetch(
   subscribe.start = std::nullopt;
   subscribe.end_group = std::nullopt;
   subscribe.parameters = parameters;
-  if (!Subscribe(subscribe, visitor, std::nullopt)) {
+  if (!Subscribe(subscribe, visitor)) {
     return false;
   }
   MoqtFetch fetch;
@@ -707,12 +707,13 @@ void MoqtSession::MaybeDestroySubscription(SubscribeRemoteTrack* subscribe) {
 void MoqtSession::DestroySubscription(SubscribeRemoteTrack* subscribe) {
   subscribe->visitor()->OnSubscribeDone(subscribe->full_track_name());
   subscribe_by_name_.erase(subscribe->full_track_name());
-  subscribe_by_alias_.erase(subscribe->track_alias());
+  if (subscribe->track_alias().has_value()) {
+    subscribe_by_alias_.erase(*subscribe->track_alias());
+  }
 }
 
 bool MoqtSession::Subscribe(MoqtSubscribe& message,
-                            SubscribeRemoteTrack::Visitor* visitor,
-                            std::optional<uint64_t> provided_track_alias) {
+                            SubscribeRemoteTrack::Visitor* visitor) {
   // TODO(martinduke): support authorization info
   if (next_request_id_ >= peer_max_request_id_) {
     if (!last_requests_blocked_sent_.has_value() ||
@@ -734,24 +735,12 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
                     << " which is already subscribed";
     return false;
   }
-  if (provided_track_alias.has_value() &&
-      subscribe_by_alias_.contains(*provided_track_alias)) {
-    Error(MoqtError::kProtocolViolation, "Provided track alias already in use");
-    return false;
-  }
   if (received_goaway_ || sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE after GOAWAY";
     return false;
   }
   message.request_id = next_request_id_;
   next_request_id_ += 2;
-  if (provided_track_alias.has_value()) {
-    message.track_alias = *provided_track_alias;
-    next_remote_track_alias_ =
-        std::max(next_remote_track_alias_, *provided_track_alias) + 1;
-  } else {
-    message.track_alias = next_remote_track_alias_++;
-  }
   if (SupportsObjectAck() && visitor != nullptr) {
     // Since we do not expose subscribe IDs directly in the API, instead wrap
     // the session and subscribe ID in a callback.
@@ -768,7 +757,6 @@ bool MoqtSession::Subscribe(MoqtSubscribe& message,
                   << message.full_track_name;
   auto track = std::make_unique<SubscribeRemoteTrack>(message, visitor);
   subscribe_by_name_.emplace(message.full_track_name, track.get());
-  subscribe_by_alias_.emplace(message.track_alias, track.get());
   upstream_by_id_.emplace(message.request_id, std::move(track));
   return true;
 }
@@ -1012,12 +1000,11 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
 
 void MoqtSession::ControlStream::SendSubscribeError(
     uint64_t request_id, RequestErrorCode error_code,
-    absl::string_view reason_phrase, uint64_t track_alias) {
+    absl::string_view reason_phrase) {
   MoqtSubscribeError subscribe_error;
   subscribe_error.request_id = request_id;
   subscribe_error.error_code = error_code;
   subscribe_error.reason_phrase = reason_phrase;
-  subscribe_error.track_alias = track_alias;
   SendOrBufferMessage(
       session_->framer_.SerializeSubscribeError(subscribe_error));
 }
@@ -1042,7 +1029,7 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   if (session_->sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE after GOAWAY";
     SendSubscribeError(message.request_id, RequestErrorCode::kUnauthorized,
-                       "SUBSCRIBE after GOAWAY", message.track_alias);
+                       "SUBSCRIBE after GOAWAY");
     return;
   }
   if (session_->subscribed_track_names_.contains(message.full_track_name)) {
@@ -1058,7 +1045,7 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
                     << " rejected by the application: "
                     << track_publisher.status();
     SendSubscribeError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
-                       track_publisher.status().message(), message.track_alias);
+                       track_publisher.status().message());
     return;
   }
 
@@ -1111,6 +1098,13 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
   }
   SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
   subscribe->OnObjectOrOk();
+  auto [it, success] =
+      session_->subscribe_by_alias_.try_emplace(message.track_alias, subscribe);
+  if (!success) {
+    session_->Error(MoqtError::kDuplicateTrackAlias, "");
+    return;
+  }
+  subscribe->set_track_alias(message.track_alias);
   // TODO(martinduke): Handle expires field.
   if (message.largest_location.has_value()) {
     subscribe->TruncateStart(message.largest_location->next());
@@ -1151,16 +1145,10 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
   // an error due to a duplicate track name. The other entries for this
   // subscribe will be deleted after calling Subscribe().
   session_->subscribe_by_name_.erase(subscribe->full_track_name());
-  if (message.error_code == RequestErrorCode::kRetryTrackAlias) {
-    // Automatically resubscribe with new alias.
-    MoqtSubscribe& subscribe_message = subscribe->GetSubscribe();
-    session_->Subscribe(subscribe_message, subscribe->visitor(),
-                        message.track_alias);
-  } else if (subscribe->visitor() != nullptr) {
+  if (subscribe->visitor() != nullptr) {
     subscribe->visitor()->OnReply(subscribe->full_track_name(), std::nullopt,
                                   message.reason_phrase);
   }
-  session_->subscribe_by_alias_.erase(subscribe->track_alias());
   session_->upstream_by_id_.erase(subscribe->request_id());
 }
 
@@ -1849,8 +1837,8 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
     if (it == session_->subscribe_by_alias_.end()) {
       QUIC_DLOG(INFO) << ENDPOINT
                       << "Received object for a track with no SUBSCRIBE";
-      // This is a not a session error because there might be an UNSUBSCRIBE in
-      // flight.
+      // This is a not a session error because there might be an UNSUBSCRIBE or
+      // SUBSCRIBE_OK (containing the track alias) in flight.
       stream_->SendStopSending(kResetCodeCanceled);
       return;
     }
@@ -1898,7 +1886,6 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
     : session_(session),
       track_publisher_(track_publisher),
       request_id_(subscribe.request_id),
-      track_alias_(subscribe.track_alias),
       filter_type_(subscribe.filter_type),
       forward_(subscribe.forward),
       window_(SubscribeMessageToWindow(subscribe)),
@@ -1993,19 +1980,26 @@ void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
   }
   MoqtSubscribeOk subscribe_ok;
   subscribe_ok.request_id = request_id_;
+  subscribe_ok.track_alias = session_->next_local_track_alias_++;
   subscribe_ok.group_order = track_publisher_->GetDeliveryOrder();
   subscribe_ok.largest_location = largest_location;
+  track_alias_.emplace(subscribe_ok.track_alias);
   // TODO(martinduke): Support sending DELIVERY_TIMEOUT parameter as the
   // publisher.
   stream->SendOrBufferMessage(
       session_->framer_.SerializeSubscribeOk(subscribe_ok));
+  if (!PublisherHasData(*track_publisher_)) {
+    return;
+  }
+  // TODO(martinduke): If we buffer objects that arrived previously, the arrival
+  // of the track alias disambiguates what subscription they belong to. Send
+  // them.
 }
 
 void MoqtSession::PublishedSubscription::OnSubscribeRejected(
     MoqtSubscribeErrorReason reason, std::optional<uint64_t> track_alias) {
   session_->GetControlStream()->SendSubscribeError(
-      request_id_, reason.error_code, reason.reason_phrase,
-      track_alias.value_or(track_alias_));
+      request_id_, reason.error_code, reason.reason_phrase);
   session_->published_subscriptions_.erase(request_id_);
   // No class access below this line!
 }
@@ -2331,6 +2325,9 @@ MoqtSession::OutgoingDataStream::GetSubscriptionIfValid() {
 
 void MoqtSession::OutgoingDataStream::SendObjects(
     PublishedSubscription& subscription) {
+  if (!subscription.track_alias().has_value()) {
+    return;
+  }
   while (stream_->CanWrite()) {
     std::optional<PublishedObject> object =
         subscription.publisher().GetCachedObject(index_.group, index_.subgroup,
@@ -2362,7 +2359,7 @@ void MoqtSession::OutgoingDataStream::SendObjects(
       return;
     }
     if (!session_->WriteObjectToStream(
-            stream_, subscription.track_alias(), object->metadata,
+            stream_, *subscription.track_alias(), object->metadata,
             std::move(object->payload), stream_type_, !stream_header_written_,
             object->fin_after_this)) {
       // WriteObjectToStream() closes the connection on error, meaning that
@@ -2483,9 +2480,11 @@ void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
         << "Got notification about an object that is not in the cache";
     return;
   }
-
+  if (!track_alias_.has_value()) {
+    return;
+  }
   MoqtObject header;
-  header.track_alias = track_alias();
+  header.track_alias = *track_alias_;
   header.group_id = object->metadata.location.group;
   header.object_id = object->metadata.location.object;
   header.publisher_priority = object->metadata.publisher_priority;

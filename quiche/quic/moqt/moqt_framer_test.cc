@@ -393,7 +393,6 @@ TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
         MoqtFilterType::kAbsoluteStart, MoqtFilterType::kAbsoluteRange}) {
     MoqtSubscribe subscribe = {
         /*subscribe_id=*/3,
-        /*track_alias=*/4,
         /*full_track_name=*/FullTrackName({"foo", "abcd"}),
         /*subscriber_priority=*/0x20,
         /*group_order=*/std::nullopt,
@@ -412,7 +411,6 @@ TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
 TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
   MoqtSubscribe subscribe = {
       /*subscribe_id=*/3,
-      /*track_alias=*/4,
       /*full_track_name=*/FullTrackName({"foo", "abcd"}),
       /*subscriber_priority=*/0x20,
       /*group_order=*/std::nullopt,
@@ -420,6 +418,42 @@ TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
       /*filter_type=*/MoqtFilterType::kAbsoluteRange,
       /*start=*/std::make_optional<Location>(4, 3),
       /*end_group=*/std::make_optional<uint64_t>(3ULL),
+      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
+  };
+  quiche::QuicheBuffer buffer;
+  EXPECT_QUICHE_BUG(buffer = framer_.SerializeSubscribe(subscribe),
+                    "Invalid object range");
+  EXPECT_EQ(buffer.size(), 0);
+}
+
+TEST_F(MoqtFramerSimpleTest, AbsoluteRangeStartMissing) {
+  MoqtSubscribe subscribe = {
+      /*subscribe_id=*/3,
+      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
+      /*subscriber_priority=*/0x20,
+      /*group_order=*/std::nullopt,
+      /*forward=*/true,
+      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
+      /*start=*/std::nullopt,
+      /*end_group=*/std::make_optional<uint64_t>(3ULL),
+      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
+  };
+  quiche::QuicheBuffer buffer;
+  EXPECT_QUICHE_BUG(buffer = framer_.SerializeSubscribe(subscribe),
+                    "Invalid object range");
+  EXPECT_EQ(buffer.size(), 0);
+}
+
+TEST_F(MoqtFramerSimpleTest, AbsoluteRangeEndMissing) {
+  MoqtSubscribe subscribe = {
+      /*subscribe_id=*/3,
+      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
+      /*subscriber_priority=*/0x20,
+      /*group_order=*/std::nullopt,
+      /*forward=*/true,
+      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
+      /*start=*/std::make_optional<Location>(4, 3),
+      /*end_group=*/std::nullopt,
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
   };
   quiche::QuicheBuffer buffer;

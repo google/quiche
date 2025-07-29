@@ -134,7 +134,6 @@ absl::StatusCode RequestErrorCodeToStatusCode(RequestErrorCode error_code) {
       return absl::StatusCode::kNotFound;
     case RequestErrorCode::kInvalidJoiningSubscribeId:
     case RequestErrorCode::kMalformedAuthToken:
-    case RequestErrorCode::kUnknownAuthTokenAlias:
       return absl::StatusCode::kInvalidArgument;
     case RequestErrorCode::kExpiredAuthToken:
       return absl::StatusCode::kUnauthenticated;

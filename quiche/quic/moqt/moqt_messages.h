@@ -337,11 +337,9 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kNamespacePrefixUnknown = 0x4,     // SUBSCRIBE_ANNOUNCES_ERROR only.
   kInvalidRange = 0x5,               // SUBSCRIBE_ERROR and FETCH_ERROR only.
   kNamespacePrefixOverlap = 0x5,     // SUBSCRIBE_ANNOUNCES_ERROR only.
-  kRetryTrackAlias = 0x6,            // SUBSCRIBE_ERROR only.
   kNoObjects = 0x6,                  // FETCH_ERROR only.
   kInvalidJoiningSubscribeId = 0x7,  // FETCH_ERROR only.
   kMalformedAuthToken = 0x10,
-  kUnknownAuthTokenAlias = 0x11,
   kExpiredAuthToken = 0x12,
 };
 
@@ -619,7 +617,6 @@ enum class QUICHE_EXPORT MoqtFilterType : uint64_t {
 
 struct QUICHE_EXPORT MoqtSubscribe {
   uint64_t request_id;
-  uint64_t track_alias;
   FullTrackName full_track_name;
   MoqtPriority subscriber_priority;
   std::optional<MoqtDeliveryOrder> group_order;
@@ -632,6 +629,7 @@ struct QUICHE_EXPORT MoqtSubscribe {
 
 struct QUICHE_EXPORT MoqtSubscribeOk {
   uint64_t request_id;
+  uint64_t track_alias;
   // The message uses ms, but expires is in us.
   quic::QuicTimeDelta expires = quic::QuicTimeDelta::FromMilliseconds(0);
   MoqtDeliveryOrder group_order;
@@ -644,7 +642,6 @@ struct QUICHE_EXPORT MoqtSubscribeError {
   uint64_t request_id;
   RequestErrorCode error_code;
   std::string reason_phrase;
-  uint64_t track_alias;
 };
 
 struct QUICHE_EXPORT MoqtUnsubscribe {

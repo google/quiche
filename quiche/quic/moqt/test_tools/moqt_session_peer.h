@@ -86,10 +86,13 @@ class MoqtSessionPeer {
 
   static void CreateRemoteTrack(MoqtSession* session,
                                 const MoqtSubscribe& subscribe,
+                                const std::optional<uint64_t> track_alias,
                                 SubscribeRemoteTrack::Visitor* visitor) {
     auto track = std::make_unique<SubscribeRemoteTrack>(subscribe, visitor);
-    session->subscribe_by_alias_.try_emplace(subscribe.track_alias,
-                                             track.get());
+    if (track_alias.has_value()) {
+      track->set_track_alias(*track_alias);
+      session->subscribe_by_alias_.try_emplace(*track_alias, track.get());
+    }
     session->subscribe_by_name_.try_emplace(subscribe.full_track_name,
                                             track.get());
     session->upstream_by_id_.try_emplace(subscribe.request_id,
@@ -102,7 +105,6 @@ class MoqtSessionPeer {
       uint64_t start_object) {
     MoqtSubscribe subscribe;
     subscribe.full_track_name = publisher->GetTrackName();
-    subscribe.track_alias = track_alias;
     subscribe.request_id = subscribe_id;
     subscribe.forward = true;
     subscribe.filter_type = MoqtFilterType::kAbsoluteStart;
@@ -112,6 +114,8 @@ class MoqtSessionPeer {
         subscribe_id, std::make_unique<MoqtSession::PublishedSubscription>(
                           session, std::move(publisher), subscribe,
                           /*monitoring_interface=*/nullptr));
+    session->published_subscriptions_[subscribe_id]->track_alias_.emplace(
+        track_alias);
     return session->published_subscriptions_[subscribe_id].get();
   }
 

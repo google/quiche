@@ -370,7 +370,6 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
   uint64_t filter, group, object;
   uint8_t group_order, forward;
   if (!reader.ReadVarInt62(&subscribe.request_id) ||
-      !reader.ReadVarInt62(&subscribe.track_alias) ||
       !ReadFullTrackName(reader, subscribe.full_track_name) ||
       !reader.ReadUInt8(&subscribe.subscriber_priority) ||
       !reader.ReadUInt8(&group_order) || !reader.ReadUInt8(&forward) ||
@@ -436,6 +435,7 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
   uint8_t group_order;
   uint8_t content_exists;
   if (!reader.ReadVarInt62(&subscribe_ok.request_id) ||
+      !reader.ReadVarInt62(&subscribe_ok.track_alias) ||
       !reader.ReadVarInt62(&milliseconds) || !reader.ReadUInt8(&group_order) ||
       !reader.ReadUInt8(&content_exists)) {
     return 0;
@@ -479,8 +479,7 @@ size_t MoqtControlParser::ProcessSubscribeError(quic::QuicDataReader& reader) {
   uint64_t error_code;
   if (!reader.ReadVarInt62(&subscribe_error.request_id) ||
       !reader.ReadVarInt62(&error_code) ||
-      !reader.ReadStringVarInt62(subscribe_error.reason_phrase) ||
-      !reader.ReadVarInt62(&subscribe_error.track_alias)) {
+      !reader.ReadStringVarInt62(subscribe_error.reason_phrase)) {
     return 0;
   }
   subscribe_error.error_code = static_cast<RequestErrorCode>(error_code);

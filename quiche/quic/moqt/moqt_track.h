@@ -124,11 +124,9 @@ class SubscribeRemoteTrack : public RemoteTrack {
                     SubscribeWindow(subscribe.start.value_or(Location()),
                                     subscribe.end_group),
                     subscribe.subscriber_priority),
-        track_alias_(subscribe.track_alias),
         forward_(subscribe.forward),
         visitor_(visitor),
-        delivery_timeout_(subscribe.parameters.delivery_timeout),
-        subscribe_(std::make_unique<MoqtSubscribe>(subscribe)) {}
+        delivery_timeout_(subscribe.parameters.delivery_timeout) {}
   ~SubscribeRemoteTrack() override {
     if (subscribe_done_alarm_ != nullptr) {
       subscribe_done_alarm_->PermanentCancel();
@@ -136,16 +134,14 @@ class SubscribeRemoteTrack : public RemoteTrack {
   }
 
   void OnObjectOrOk() override {
-    subscribe_.reset();  // No SUBSCRIBE_ERROR, no need to store this anymore.
     RemoteTrack::OnObjectOrOk();
   }
-  uint64_t track_alias() const { return track_alias_; }
-  Visitor* visitor() { return visitor_; }
-  MoqtSubscribe& GetSubscribe() {
-    return *subscribe_;
-    // This class will soon be destroyed, so there's no need to null the
-    // unique_ptr;
+  std::optional<uint64_t> track_alias() const { return track_alias_; }
+  void set_track_alias(uint64_t track_alias) {
+    track_alias_.emplace(track_alias);
   }
+  Visitor* visitor() { return visitor_; }
+
   // Returns false if the forwarding preference is changing on the track.
   bool OnObject(bool is_datagram) {
     OnObjectOrOk();
@@ -191,7 +187,7 @@ class SubscribeRemoteTrack : public RemoteTrack {
   void FetchObjects();
   std::unique_ptr<MoqtFetchTask> fetch_task_;
 
-  const uint64_t track_alias_;
+  std::optional<const uint64_t> track_alias_;
   bool forward_;
   Visitor* visitor_;
   std::optional<bool> is_datagram_;
@@ -205,10 +201,6 @@ class SubscribeRemoteTrack : public RemoteTrack {
   quic::QuicTimeDelta delivery_timeout_ = quic::QuicTimeDelta::Infinite();
   std::unique_ptr<quic::QuicAlarm> subscribe_done_alarm_ = nullptr;
   const quic::QuicClock* clock_ = nullptr;
-
-  // For convenience, store the subscribe message if it has to be re-sent with
-  // a new track alias.
-  std::unique_ptr<MoqtSubscribe> subscribe_;
 };
 
 // MoqtSession calls this when a FETCH_OK or FETCH_ERROR is received. The

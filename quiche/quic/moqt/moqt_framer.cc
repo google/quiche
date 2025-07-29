@@ -406,50 +406,40 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
         << "Serializing invalid MoQT parameters";
     return quiche::QuicheBuffer();
   }
+  std::optional<uint64_t> start_group, start_object, end_group;
   switch (message.filter_type) {
     case MoqtFilterType::kNextGroupStart:
     case MoqtFilterType::kLatestObject:
-      return SerializeControlMessage(
-          MoqtMessageType::kSubscribe, WireVarInt62(message.request_id),
-          WireVarInt62(message.track_alias),
-          WireFullTrackName(message.full_track_name),
-          WireUint8(message.subscriber_priority),
-          WireDeliveryOrder(message.group_order), WireBoolean(message.forward),
-          WireVarInt62(message.filter_type), WireKeyValuePairList(parameters));
-    case MoqtFilterType::kAbsoluteStart:
-      if (!message.start.has_value()) {
-        return quiche::QuicheBuffer();
-      };
-      return SerializeControlMessage(
-          MoqtMessageType::kSubscribe, WireVarInt62(message.request_id),
-          WireVarInt62(message.track_alias),
-          WireFullTrackName(message.full_track_name),
-          WireUint8(message.subscriber_priority),
-          WireDeliveryOrder(message.group_order), WireBoolean(message.forward),
-          WireVarInt62(message.filter_type), WireVarInt62(message.start->group),
-          WireVarInt62(message.start->object),
-          WireKeyValuePairList(parameters));
+      break;
     case MoqtFilterType::kAbsoluteRange:
-      if (!message.start.has_value() || !message.end_group.has_value()) {
-        return quiche::QuicheBuffer();
-      }
-      if (*message.end_group < message.start->group) {
+      if (!message.end_group.has_value() || !message.start.has_value() ||
+          *message.end_group < message.start->group) {
         QUICHE_BUG(MoqtFramer_invalid_end_group) << "Invalid object range";
         return quiche::QuicheBuffer();
       }
-      return SerializeControlMessage(
-          MoqtMessageType::kSubscribe, WireVarInt62(message.request_id),
-          WireVarInt62(message.track_alias),
-          WireFullTrackName(message.full_track_name),
-          WireUint8(message.subscriber_priority),
-          WireDeliveryOrder(message.group_order), WireBoolean(message.forward),
-          WireVarInt62(message.filter_type), WireVarInt62(message.start->group),
-          WireVarInt62(message.start->object), WireVarInt62(*message.end_group),
-          WireKeyValuePairList(parameters));
+      end_group = *message.end_group;
+      [[fallthrough]];
+    case MoqtFilterType::kAbsoluteStart:
+      if (!message.start.has_value()) {
+        QUICHE_BUG(MoqtFramer_invalid_start) << "Filter requires start";
+        return quiche::QuicheBuffer();
+      }
+      start_group = message.start->group;
+      start_object = message.start->object;
+      break;
     default:
       QUICHE_BUG(MoqtFramer_end_group_missing) << "Subscribe framing error.";
       return quiche::QuicheBuffer();
   }
+  return SerializeControlMessage(
+      MoqtMessageType::kSubscribe, WireVarInt62(message.request_id),
+      WireFullTrackName(message.full_track_name),
+      WireUint8(message.subscriber_priority),
+      WireDeliveryOrder(message.group_order), WireBoolean(message.forward),
+      WireVarInt62(message.filter_type),
+      WireOptional<WireVarInt62>(start_group),
+      WireOptional<WireVarInt62>(start_object),
+      WireOptional<WireVarInt62>(end_group), WireKeyValuePairList(parameters));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
@@ -465,6 +455,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
   if (message.largest_location.has_value()) {
     return SerializeControlMessage(
         MoqtMessageType::kSubscribeOk, WireVarInt62(message.request_id),
+        WireVarInt62(message.track_alias),
         WireVarInt62(message.expires.ToMilliseconds()),
         WireDeliveryOrder(message.group_order), WireUint8(1),
         WireVarInt62(message.largest_location->group),
@@ -473,6 +464,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
   }
   return SerializeControlMessage(
       MoqtMessageType::kSubscribeOk, WireVarInt62(message.request_id),
+      WireVarInt62(message.track_alias),
       WireVarInt62(message.expires.ToMilliseconds()),
       WireDeliveryOrder(message.group_order), WireUint8(0),
       WireKeyValuePairList(parameters));
@@ -483,8 +475,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeError(
   return SerializeControlMessage(
       MoqtMessageType::kSubscribeError, WireVarInt62(message.request_id),
       WireVarInt62(message.error_code),
-      WireStringWithVarInt62Length(message.reason_phrase),
-      WireVarInt62(message.track_alias));
+      WireStringWithVarInt62Length(message.reason_phrase));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribe(

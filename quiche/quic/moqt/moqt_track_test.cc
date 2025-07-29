@@ -46,7 +46,6 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
   MockSubscribeRemoteTrackVisitor visitor_;
   MoqtSubscribe subscribe_ = {
       /*subscribe_id=*/1,
-      /*track_alias=*/2,
       /*full_track_name=*/FullTrackName("foo", "bar"),
       /*subscriber_priority=*/128,
       /*group_order=*/std::nullopt,
@@ -62,9 +61,11 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
 TEST_F(SubscribeRemoteTrackTest, Queries) {
   EXPECT_EQ(track_.full_track_name(), FullTrackName("foo", "bar"));
   EXPECT_EQ(track_.request_id(), 1);
-  EXPECT_EQ(track_.track_alias(), 2);
+  EXPECT_FALSE(track_.track_alias().has_value());
   EXPECT_EQ(track_.visitor(), &visitor_);
   EXPECT_FALSE(track_.is_fetch());
+  track_.set_track_alias(1);
+  EXPECT_EQ(track_.track_alias(), 1);
 }
 
 TEST_F(SubscribeRemoteTrackTest, UpdateDataStreamType) {
@@ -75,7 +76,6 @@ TEST_F(SubscribeRemoteTrackTest, UpdateDataStreamType) {
 
 TEST_F(SubscribeRemoteTrackTest, AllowError) {
   EXPECT_TRUE(track_.ErrorIsAllowed());
-  EXPECT_EQ(track_.GetSubscribe().request_id, subscribe_.request_id);
   track_.OnObjectOrOk();
   EXPECT_FALSE(track_.ErrorIsAllowed());
 }

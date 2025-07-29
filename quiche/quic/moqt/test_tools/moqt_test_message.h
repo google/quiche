@@ -570,10 +570,6 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE subscribe ID mismatch";
       return false;
     }
-    if (cast.track_alias != subscribe_.track_alias) {
-      QUIC_LOG(INFO) << "SUBSCRIBE track alias mismatch";
-      return false;
-    }
     if (cast.full_track_name != subscribe_.full_track_name) {
       QUIC_LOG(INFO) << "SUBSCRIBE track name mismatch";
       return false;
@@ -610,7 +606,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvvv---v-------vvvvv--vv-----");
+    ExpandVarintsImpl("vvv---v-------vvvvv--vv-----");
   }
 
   MessageStructuredData structured_data() const override {
@@ -618,25 +614,43 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[32] = {
-      0x03, 0x00, 0x1d, 0x01, 0x02,  // id and alias
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
-      0x20,                          // subscriber priority = 0x20
-      0x02,                          // group order = descending
-      0x01,                          // forward = true
-      0x03,                          // Filter type: Absolute Start
-      0x04,                          // start_group = 4
-      0x01,                          // start_object = 1
+  uint8_t raw_packet_[31] = {
+      0x03,
+      0x00,
+      0x1c,
+      0x01,  // request_id = 1
+      0x01,
+      0x03,
+      0x66,
+      0x6f,
+      0x6f,  // track_namespace = "foo"
+      0x04,
+      0x61,
+      0x62,
+      0x63,
+      0x64,  // track_name = "abcd"
+      0x20,  // subscriber priority = 0x20
+      0x02,  // group order = descending
+      0x01,  // forward = true
+      0x03,  // Filter type: Absolute Start
+      0x04,  // start_group = 4
+      0x01,  // start_object = 1
       // No EndGroup or EndObject
-      0x02,                                      // 2 parameters
-      0x02, 0x67, 0x10,                          // delivery_timeout = 10000 ms
-      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x02,  // 2 parameters
+      0x02,
+      0x67,
+      0x10,  // delivery_timeout = 10000 ms
+      0x03,
+      0x05,
+      0x03,
+      0x00,
+      0x62,
+      0x61,
+      0x72,  // authorization_tag = "bar"
   };
 
   MoqtSubscribe subscribe_ = {
-      /*subscribe_id=*/1,
-      /*track_alias=*/2,
+      /*request_id=*/1,
       FullTrackName("foo", "abcd"),
       /*subscriber_priority=*/0x20,
       /*group_order=*/MoqtDeliveryOrder::kDescending,
@@ -661,6 +675,10 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE OK subscribe ID mismatch";
       return false;
     }
+    if (cast.track_alias != subscribe_ok_.track_alias) {
+      QUIC_LOG(INFO) << "SUBSCRIBE OK track alias mismatch";
+      return false;
+    }
     if (cast.expires != subscribe_ok_.expires) {
       QUIC_LOG(INFO) << "SUBSCRIBE OK expiration mismatch";
       return false;
@@ -680,34 +698,35 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vv--vvvv--v--"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv--vvvv--v--"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_ok_);
   }
 
   void SetInvalidContentExists() {
-    raw_packet_[6] = 0x02;
+    raw_packet_[7] = 0x02;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   void SetInvalidDeliveryOrder() {
-    raw_packet_[5] = 0x10;
+    raw_packet_[6] = 0x10;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
  private:
-  uint8_t raw_packet_[16] = {
-      0x04, 0x00, 0x0d, 0x01, 0x03,  // request_id = 1, expires = 3
-      0x02, 0x01,                    // group_order = 2, content exists
-      0x0c, 0x14,                    // largest_location = (12, 20)
-      0x02,                          // 2 parameters
-      0x02, 0x67, 0x10,              // delivery_timeout = 10000
-      0x04, 0x67, 0x10,              // max_cache_duration = 10000
+  uint8_t raw_packet_[17] = {
+      0x04, 0x00, 0x0e, 0x01, 0x02, 0x03,  // request_id, alias, expires
+      0x02, 0x01,                          // group_order = 2, content exists
+      0x0c, 0x14,                          // largest_location = (12, 20)
+      0x02,                                // 2 parameters
+      0x02, 0x67, 0x10,                    // delivery_timeout = 10000
+      0x04, 0x67, 0x10,                    // max_cache_duration = 10000
   };
 
   MoqtSubscribeOk subscribe_ok_ = {
       /*request_id=*/1,
+      /*track_alias=*/2,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(3),
       /*group_order=*/MoqtDeliveryOrder::kDescending,
       /*largest_location=*/Location(12, 20),
@@ -736,33 +755,27 @@ class QUICHE_NO_EXPORT SubscribeErrorMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE ERROR reason phrase mismatch";
       return false;
     }
-    if (cast.track_alias != subscribe_error_.track_alias) {
-      QUIC_LOG(INFO) << "SUBSCRIBE ERROR track alias mismatch";
-      return false;
-    }
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv---v"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv---"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_error_);
   }
 
  private:
-  uint8_t raw_packet_[10] = {
-      0x05, 0x00, 0x07,
+  uint8_t raw_packet_[9] = {
+      0x05, 0x00, 0x06,
       0x02,                    // request_id = 2
       0x05,                    // error_code = 5
       0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
-      0x04,                    // track_alias = 4
   };
 
   MoqtSubscribeError subscribe_error_ = {
       /*request_id=*/2,
       /*error_code=*/RequestErrorCode::kInvalidRange,
       /*reason_phrase=*/"bar",
-      /*track_alias=*/4,
   };
 };
 
