@@ -51,6 +51,30 @@ inline constexpr uint64_t kMinNamespaceElements = 1;
 inline constexpr uint64_t kMaxNamespaceElements = 32;
 inline constexpr size_t kMaxFullTrackNameSize = 1024;
 
+enum AuthTokenType : uint64_t {
+  kOutOfBand = 0x0,
+
+  kMaxAuthTokenType = 0x0,
+};
+
+enum AuthTokenAliasType : uint64_t {
+  kDelete = 0x0,
+  kRegister = 0x1,
+  kUseAlias = 0x2,
+  kUseValue = 0x3,
+
+  kMaxValue = 0x3,
+};
+
+struct AuthToken {
+  AuthToken(AuthTokenType token_type, absl::string_view token)
+      : type(token_type), token(token) {}
+  bool operator==(const AuthToken& other) const = default;
+
+  AuthTokenType type;
+  std::string token;
+};
+
 struct QUICHE_EXPORT MoqtSessionParameters {
   // TODO: support multiple versions.
   MoqtSessionParameters() = default;
@@ -78,6 +102,8 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   uint64_t max_request_id = kDefaultInitialMaxRequestId;
   uint64_t max_auth_token_cache_size = kDefaultMaxAuthTokenCacheSize;
   bool support_object_acks = false;
+  // TODO(martinduke): Turn authorization_token into structured data.
+  std::vector<AuthToken> authorization_token;
 };
 
 // The maximum length of a message, excluding any OBJECT payload. This prevents
@@ -257,6 +283,7 @@ inline constexpr webtransport::StreamErrorCode kResetCodeMalformedTrack = 0x04;
 enum class QUICHE_EXPORT SetupParameter : uint64_t {
   kPath = 0x1,
   kMaxRequestId = 0x2,
+  kAuthorizationToken = 0x3,
   kMaxAuthTokenCacheSize = 0x4,
 
   // QUICHE-specific extensions.
@@ -271,30 +298,6 @@ enum class QUICHE_EXPORT VersionSpecificParameter : uint64_t {
 
   // QUICHE-specific extensions.
   kOackWindowSize = 0xbbf1438,
-};
-
-enum AuthTokenType : uint64_t {
-  kOutOfBand = 0x0,
-
-  kMaxAuthTokenType = 0x0,
-};
-
-enum AuthTokenAliasType : uint64_t {
-  kDelete = 0x0,
-  kRegister = 0x1,
-  kUseAlias = 0x2,
-  kUseValue = 0x3,
-
-  kMaxValue = 0x3,
-};
-
-struct AuthToken {
-  AuthToken(AuthTokenType token_type, absl::string_view token)
-      : type(token_type), token(token) {}
-  bool operator==(const AuthToken& other) const = default;
-
-  AuthTokenType type;
-  std::string token;
 };
 
 struct VersionSpecificParameters {

@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/casts.h"
 #include "absl/cleanup/cleanup.h"
@@ -124,39 +125,6 @@ bool ParseKeyValuePairList(quic::QuicDataReader& reader,
     list.insert(type, value);
   }
   return true;
-}
-
-void KeyValuePairListToMoqtSessionParameters(const KeyValuePairList& parameters,
-                                             MoqtSessionParameters& out) {
-  parameters.ForEach(
-      [&](uint64_t key, uint64_t value) {
-        SetupParameter parameter = static_cast<SetupParameter>(key);
-        switch (parameter) {
-          case SetupParameter::kMaxRequestId:
-            out.max_request_id = value;
-            break;
-          case SetupParameter::kMaxAuthTokenCacheSize:
-            out.max_auth_token_cache_size = value;
-            break;
-          case SetupParameter::kSupportObjectAcks:
-            out.support_object_acks = (value == 1);
-            break;
-          default:
-            break;
-        }
-        return true;
-      },
-      [&](uint64_t key, absl::string_view value) {
-        SetupParameter parameter = static_cast<SetupParameter>(key);
-        switch (parameter) {
-          case SetupParameter::kPath:
-            out.path = value;
-            break;
-          default:
-            break;
-        }
-        return true;
-      });
 }
 
 }  // namespace
@@ -363,7 +331,9 @@ size_t MoqtControlParser::ProcessClientSetup(quic::QuicDataReader& reader) {
     ParseError(error, "Client SETUP contains invalid parameters");
     return 0;
   }
-  KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters);
+  if (!KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters)) {
+    return 0;
+  }
   // TODO(martinduke): Validate construction of the PATH (Sec 8.3.2.1)
   visitor_.OnClientSetupMessage(setup);
   return reader.PreviouslyReadPayload().length();
@@ -388,7 +358,9 @@ size_t MoqtControlParser::ProcessServerSetup(quic::QuicDataReader& reader) {
     ParseError(error, "Server SETUP contains invalid parameters");
     return 0;
   }
-  KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters);
+  if (!KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters)) {
+    return 0;
+  }
   visitor_.OnServerSetupMessage(setup);
   return reader.PreviouslyReadPayload().length();
 }
@@ -996,6 +968,44 @@ bool MoqtControlParser::ReadFullTrackName(quic::QuicDataReader& reader,
   return true;
 }
 
+bool MoqtControlParser::KeyValuePairListToMoqtSessionParameters(
+    const KeyValuePairList& parameters, MoqtSessionParameters& out) {
+  return parameters.ForEach(
+      [&](uint64_t key, uint64_t value) {
+        SetupParameter parameter = static_cast<SetupParameter>(key);
+        switch (parameter) {
+          case SetupParameter::kMaxRequestId:
+            out.max_request_id = value;
+            break;
+          case SetupParameter::kMaxAuthTokenCacheSize:
+            out.max_auth_token_cache_size = value;
+            break;
+          case SetupParameter::kSupportObjectAcks:
+            out.support_object_acks = (value == 1);
+            break;
+          default:
+            break;
+        }
+        return true;
+      },
+      [&](uint64_t key, absl::string_view value) {
+        SetupParameter parameter = static_cast<SetupParameter>(key);
+        switch (parameter) {
+          case SetupParameter::kPath:
+            out.path = value;
+            break;
+          case SetupParameter::kAuthorizationToken:
+            if (!ParseAuthTokenParameter(value, out.authorization_token)) {
+              return false;
+            }
+            break;
+          default:
+            break;
+        }
+        return true;
+      });
+}
+
 // Returns false if there is a protocol violation.
 bool MoqtControlParser::KeyValuePairListToVersionSpecificParameters(
     const KeyValuePairList& parameters, VersionSpecificParameters& out) {
@@ -1024,7 +1034,7 @@ bool MoqtControlParser::KeyValuePairListToVersionSpecificParameters(
             static_cast<VersionSpecificParameter>(key);
         switch (parameter) {
           case VersionSpecificParameter::kAuthorizationToken:
-            if (!ParseAuthTokenParameter(value, out)) {
+            if (!ParseAuthTokenParameter(value, out.authorization_token)) {
               return false;
             }
             break;
@@ -1035,8 +1045,8 @@ bool MoqtControlParser::KeyValuePairListToVersionSpecificParameters(
       });
 }
 
-bool MoqtControlParser::ParseAuthTokenParameter(
-    absl::string_view field, VersionSpecificParameters& out) {
+bool MoqtControlParser::ParseAuthTokenParameter(absl::string_view field,
+                                                std::vector<AuthToken>& out) {
   quic::QuicDataReader reader(field);
   AuthTokenType token_type;
   absl::string_view token;
@@ -1085,6 +1095,14 @@ bool MoqtControlParser::ParseAuthTokenParameter(
       }
       token_type = static_cast<AuthTokenType>(value);
       token = reader.PeekRemainingPayload();
+      if (message_type_.has_value() &&
+          *message_type_ ==
+              static_cast<uint64_t>(MoqtMessageType::kClientSetup)) {
+        // Do not check the max cache size. Since the max size isn't sent until
+        // SERVER_SETUP, it's not yet known. Since draft-12, this is not an
+        // error and tokens in excess of the cache limit are simply ignored.
+        break;
+      }
       if (auth_token_cache_size_ + sizeof(uint64_t) + token.length() >
           max_auth_token_cache_size_) {
         ParseError(MoqtError::kAuthTokenCacheOverflow,
@@ -1108,7 +1126,7 @@ bool MoqtControlParser::ParseAuthTokenParameter(
       return false;
   }
   // Validate cache operations.
-  out.authorization_token.push_back(AuthToken(token_type, token));
+  out.push_back(AuthToken(token_type, token));
   return true;
 }
 

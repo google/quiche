@@ -477,6 +477,22 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupMaxRequestIdAppearsTwice) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
 }
 
+TEST_F(MoqtMessageSpecificTest, ClientSetupAuthorizationTokenTagRegister) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  char setup[] = {
+      0x20, 0x00, 0x13, 0x02, 0x01, 0x02,              // versions
+      0x03,                                            // 3 params
+      0x01, 0x03, 0x66, 0x6f, 0x6f,                    // path = "foo"
+      0x02, 0x32,                                      // max_request_id = 50
+      0x03, 0x06, 0x01, 0x10, 0x00, 0x62, 0x61, 0x72,  // REGISTER 0x01
+  };
+  stream.Receive(absl::string_view(setup, sizeof(setup)), false);
+  parser.ReadAndDispatchMessages();
+  // No error even though the registration exceeds the max cache size of 0.
+  EXPECT_EQ(visitor_.messages_received_, 1);
+}
+
 TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
