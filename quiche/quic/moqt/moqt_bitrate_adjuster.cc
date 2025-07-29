@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <cstdlib>
+#include <optional>
 
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_time.h"
@@ -66,12 +67,14 @@ void MoqtBitrateAdjuster::AttemptAdjustingDown() {
                                         BitrateAdjustmentType::kDown);
 }
 
-void MoqtBitrateAdjuster::OnObjectAckSupportKnown(bool supported) {
-  if (!supported) {
+void MoqtBitrateAdjuster::OnObjectAckSupportKnown(
+    std::optional<quic::QuicTimeDelta> time_window) {
+  if (!time_window.has_value() || *time_window <= QuicTimeDelta::Zero()) {
     QUICHE_DLOG(WARNING)
         << "OBJECT_ACK not supported; bitrate adjustments will not work.";
     return;
   }
+  time_window_ = *time_window;
   Start();
 }
 

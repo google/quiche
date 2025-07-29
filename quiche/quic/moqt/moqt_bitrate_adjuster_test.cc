@@ -42,6 +42,7 @@ class MockBitrateAdjustable : public BitrateAdjustable {
 constexpr QuicBandwidth kDefaultBitrate =
     QuicBandwidth::FromBitsPerSecond(2000);
 constexpr QuicTimeDelta kDefaultRtt = QuicTimeDelta::FromMilliseconds(20);
+constexpr QuicTimeDelta kDefaultTimeScale = QuicTimeDelta::FromSeconds(1);
 
 class MoqtBitrateAdjusterTest : public quiche::test::QuicheTest {
  protected:
@@ -55,7 +56,7 @@ class MoqtBitrateAdjusterTest : public quiche::test::QuicheTest {
     });
 
     clock_.AdvanceTime(quic::QuicTimeDelta::FromSeconds(10));
-    adjuster_.OnObjectAckSupportKnown(true);
+    adjuster_.OnObjectAckSupportKnown(kDefaultTimeScale);
   }
 
   MockBitrateAdjustable adjustable_;

@@ -62,7 +62,8 @@ class MoqtPublishingMonitorInterface {
  public:
   virtual ~MoqtPublishingMonitorInterface() = default;
 
-  virtual void OnObjectAckSupportKnown(bool supported) = 0;
+  virtual void OnObjectAckSupportKnown(
+      std::optional<quic::QuicTimeDelta> time_window) = 0;
   virtual void OnObjectAckReceived(uint64_t group_id, uint64_t object_id,
                                    quic::QuicTimeDelta delta_from_deadline) = 0;
 };

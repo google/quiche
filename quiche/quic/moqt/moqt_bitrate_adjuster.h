@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_MOQT_MOQT_BITRATE_ADJUSTER_H_
 
 #include <cstdint>
+#include <optional>
 
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_clock.h"
@@ -69,7 +70,8 @@ class MoqtBitrateAdjuster : public MoqtPublishingMonitorInterface {
       : clock_(clock), session_(session), adjustable_(adjustable) {}
 
   // MoqtPublishingMonitorInterface implementation.
-  void OnObjectAckSupportKnown(bool supported) override;
+  void OnObjectAckSupportKnown(
+      std::optional<quic::QuicTimeDelta> time_window) override;
   void OnObjectAckReceived(uint64_t group_id, uint64_t object_id,
                            quic::QuicTimeDelta delta_from_deadline) override;
 
@@ -84,6 +86,7 @@ class MoqtBitrateAdjuster : public MoqtPublishingMonitorInterface {
   BitrateAdjustable* adjustable_;   // Not owned.
   MoqtBitrateAdjusterParameters parameters_;
   quic::QuicTime start_time_ = quic::QuicTime::Zero();
+  quic::QuicTimeDelta time_window_ = quic::QuicTimeDelta::Zero();
 };
 
 // Given a suggestion to change bitrate `old_bitrate` to `new_bitrate` with the

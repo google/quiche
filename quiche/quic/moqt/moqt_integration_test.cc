@@ -668,7 +668,7 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
   parameters.oack_window_size = quic::QuicTimeDelta::FromMilliseconds(100);
   client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor,
                                              parameters);
-  EXPECT_CALL(monitoring, OnObjectAckSupportKnown(true));
+  EXPECT_CALL(monitoring, OnObjectAckSupportKnown(parameters.oack_window_size));
   EXPECT_CALL(
       monitoring,
       OnObjectAckReceived(10, 20, quic::QuicTimeDelta::FromMicroseconds(-123)));

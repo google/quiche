@@ -1907,7 +1907,7 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
       monitoring_interface_(monitoring_interface) {
   if (monitoring_interface_ != nullptr) {
     monitoring_interface_->OnObjectAckSupportKnown(
-        subscribe.parameters.oack_window_size.has_value());
+        subscribe.parameters.oack_window_size);
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
                   << subscribe.full_track_name;
