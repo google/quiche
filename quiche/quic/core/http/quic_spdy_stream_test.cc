@@ -3325,7 +3325,7 @@ TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsClient) {
   EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), "moqt-01");
 }
 
-TEST_P(QuicSpdyStreamTest, WebTransportRejectSubprotocolsThatWereNotOffered) {
+TEST_P(QuicSpdyStreamTest, WebTransportIgnoreSubprotocolsThatWereNotOffered) {
   if (!UsesHttp3()) {
     return;
   }
@@ -3354,7 +3354,7 @@ TEST_P(QuicSpdyStreamTest, WebTransportRejectSubprotocolsThatWereNotOffered) {
   response_headers["wt-protocol"] = "\"moqt-02\"";
   stream_->web_transport()->HeadersReceived(response_headers);
   EXPECT_EQ(stream_->web_transport()->rejection_reason(),
-            WebTransportHttp3RejectionReason::kSubprotocolMismatch);
+            WebTransportHttp3RejectionReason::kNone);
   EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), std::nullopt);
 }
 
@@ -3387,7 +3387,7 @@ TEST_P(QuicSpdyStreamTest, WebTransportInvalidSubprotocolResponse) {
   response_headers["wt-protocol"] = "12345.67";
   stream_->web_transport()->HeadersReceived(response_headers);
   EXPECT_EQ(stream_->web_transport()->rejection_reason(),
-            WebTransportHttp3RejectionReason::kSubprotocolParseError);
+            WebTransportHttp3RejectionReason::kNone);
   EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), std::nullopt);
 }
 

@@ -188,12 +188,7 @@ void WebTransportHttp3::HeadersReceived(
       rejection_reason_ = WebTransportHttp3RejectionReason::kWrongStatusCode;
       return;
     }
-    WebTransportHttp3RejectionReason subprotocol_result =
-        MaybeSetSubprotocolFromResponseHeaders(headers);
-    if (subprotocol_result != WebTransportHttp3RejectionReason::kNone) {
-      rejection_reason_ = subprotocol_result;
-      return;
-    }
+    MaybeSetSubprotocolFromResponseHeaders(headers);
   }
 
   QUIC_DVLOG(1) << ENDPOINT << "WebTransport session " << id_ << " ready.";
@@ -483,12 +478,11 @@ uint64_t WebTransportErrorToHttp3(
          webtransport_error_code / 0x1e;
 }
 
-WebTransportHttp3RejectionReason
-WebTransportHttp3::MaybeSetSubprotocolFromResponseHeaders(
+void WebTransportHttp3::MaybeSetSubprotocolFromResponseHeaders(
     const quiche::HttpHeaderBlock& headers) {
   auto subprotocol_it = headers.find(webtransport::kSubprotocolResponseHeader);
   if (subprotocol_it == headers.end()) {
-    return WebTransportHttp3RejectionReason::kNone;
+    return;
   }
 
   absl::StatusOr<std::string> subprotocol =
@@ -496,8 +490,8 @@ WebTransportHttp3::MaybeSetSubprotocolFromResponseHeaders(
   if (!subprotocol.ok()) {
     QUIC_DVLOG(1) << ENDPOINT
                   << "WebTransport server has malformed WT-Protocol "
-                     "header, rejecting.";
-    return WebTransportHttp3RejectionReason::kSubprotocolParseError;
+                     "header, ignoring.";
+    return;
   }
 
   if (session_->perspective() == Perspective::IS_CLIENT &&
@@ -505,12 +499,11 @@ WebTransportHttp3::MaybeSetSubprotocolFromResponseHeaders(
     QUIC_DVLOG(1) << ENDPOINT
                   << "WebTransport server has offered a subprotocol value \""
                   << *subprotocol
-                  << "\", which was not one of the ones offered, rejecting.";
-    return WebTransportHttp3RejectionReason::kSubprotocolMismatch;
+                  << "\", which was not one of the ones offered, ignoring.";
+    return;
   }
 
   subprotocol_selected_ = *std::move(subprotocol);
-  return WebTransportHttp3RejectionReason::kNone;
 }
 
 }  // namespace quic

@@ -38,8 +38,6 @@ enum class WebTransportHttp3RejectionReason {
   kWrongStatusCode,
   kMissingDraftVersion,
   kUnsupportedDraftVersion,
-  kSubprotocolMismatch,
-  kSubprotocolParseError,
 };
 
 // A session of WebTransport over HTTP/3.  The session is owned by
@@ -132,7 +130,7 @@ class QUICHE_EXPORT WebTransportHttp3
   std::optional<std::string> GetNegotiatedSubprotocol() const override {
     return subprotocol_selected_;
   }
-  WebTransportHttp3RejectionReason MaybeSetSubprotocolFromResponseHeaders(
+  void MaybeSetSubprotocolFromResponseHeaders(
       const quiche::HttpHeaderBlock& headers);
 
  private:
