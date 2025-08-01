@@ -1627,6 +1627,24 @@ void MoqtSession::ControlStream::OnRequestsBlockedMessage(
   // TODO(martinduke): Derive logic for granting more subscribes.
 }
 
+void MoqtSession::ControlStream::OnPublishMessage(const MoqtPublish& message) {
+  if (!session_->ValidateRequestId(message.request_id)) {
+    return;
+  }
+  MoqtPublishError publish_error = {
+      .request_id = message.request_id,
+      .error_code = RequestErrorCode::kNotSupported,
+      .error_reason = "PUBLISH is not supported",
+  };
+  if (session_->sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received a PUBLISH after GOAWAY";
+    publish_error.error_code = RequestErrorCode::kUnauthorized;
+    publish_error.error_reason = "Received a PUBLISH after GOAWAY";
+  }
+  // TODO(martinduke): Process these messages.
+  SendOrBufferMessage(session_->framer_.SerializePublishError(publish_error));
+}
+
 void MoqtSession::ControlStream::OnParsingError(MoqtError error_code,
                                                 absl::string_view reason) {
   session_->Error(error_code, absl::StrCat("Parse error: ", reason));

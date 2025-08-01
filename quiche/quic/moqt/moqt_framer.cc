@@ -732,6 +732,90 @@ quiche::QuicheBuffer MoqtFramer::SerializeRequestsBlocked(
                                  WireVarInt62(message.max_request_id));
 }
 
+quiche::QuicheBuffer MoqtFramer::SerializePublish(const MoqtPublish& message) {
+  KeyValuePairList parameters;
+  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kPublish)) {
+    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
+        << "Serializing invalid MoQT parameters";
+    return quiche::QuicheBuffer();
+  }
+  std::optional<uint64_t> group, object;
+  if (message.largest_location.has_value()) {
+    group = message.largest_location->group;
+    object = message.largest_location->object;
+  }
+  return SerializeControlMessage(
+      MoqtMessageType::kPublish, WireVarInt62(message.request_id),
+      WireFullTrackName(message.full_track_name),
+      WireVarInt62(message.track_alias), WireDeliveryOrder(message.group_order),
+      WireBoolean(message.largest_location.has_value()),
+      WireOptional<WireVarInt62>(group), WireOptional<WireVarInt62>(object),
+      WireBoolean(message.forward), WireKeyValuePairList(parameters));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializePublishOk(
+    const MoqtPublishOk& message) {
+  KeyValuePairList parameters;
+  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kPublishOk)) {
+    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
+        << "Serializing invalid MoQT parameters";
+    return quiche::QuicheBuffer();
+  }
+  std::optional<uint64_t> start_group, start_object, end_group;
+  switch (message.filter_type) {
+    case MoqtFilterType::kNextGroupStart:
+    case MoqtFilterType::kLatestObject:
+      break;
+    case MoqtFilterType::kAbsoluteStart:
+    case MoqtFilterType::kAbsoluteRange:
+      if (!message.start.has_value()) {
+        QUICHE_BUG(QUICHE_BUG_invalid_filter_type)
+            << "Serializing invalid MoQT filter type";
+        return quiche::QuicheBuffer();
+      }
+      start_group = message.start->group;
+      start_object = message.start->object;
+      if (message.filter_type == MoqtFilterType::kAbsoluteStart) {
+        break;
+      }
+      if (!message.end_group.has_value()) {
+        QUICHE_BUG(QUICHE_BUG_invalid_filter_type)
+            << "Serializing invalid MoQT filter type";
+        return quiche::QuicheBuffer();
+      }
+      end_group = message.end_group;
+      if (*end_group < *start_group) {
+        QUICHE_BUG(QUICHE_BUG_invalid_filter_type)
+            << "End group is less than start group";
+        return quiche::QuicheBuffer();
+      }
+      break;
+    default:
+      QUICHE_BUG(QUICHE_BUG_invalid_filter_type)
+          << "Serializing invalid MoQT filter type";
+      return quiche::QuicheBuffer();
+  }
+  return SerializeControlMessage(
+      MoqtMessageType::kPublishOk, WireVarInt62(message.request_id),
+      WireBoolean(message.forward), WireUint8(message.subscriber_priority),
+      WireDeliveryOrder(message.group_order), WireVarInt62(message.filter_type),
+      WireOptional<WireVarInt62>(start_group),
+      WireOptional<WireVarInt62>(start_object),
+      WireOptional<WireVarInt62>(end_group), WireKeyValuePairList(parameters));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializePublishError(
+    const MoqtPublishError& message) {
+  return SerializeControlMessage(
+      MoqtMessageType::kPublishError, WireVarInt62(message.request_id),
+      WireVarInt62(message.error_code),
+      WireStringWithVarInt62Length(message.error_reason));
+}
+
 quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(
     const MoqtObjectAck& message) {
   return SerializeControlMessage(

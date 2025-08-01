@@ -852,6 +852,33 @@ struct QUICHE_EXPORT MoqtRequestsBlocked {
   uint64_t max_request_id;
 };
 
+struct QUICHE_EXPORT MoqtPublish {
+  uint64_t request_id;
+  FullTrackName full_track_name;
+  uint64_t track_alias;
+  MoqtDeliveryOrder group_order;
+  std::optional<Location> largest_location;
+  bool forward;
+  VersionSpecificParameters parameters;
+};
+
+struct QUICHE_EXPORT MoqtPublishOk {
+  uint64_t request_id;
+  bool forward;
+  MoqtPriority subscriber_priority;
+  MoqtDeliveryOrder group_order;
+  MoqtFilterType filter_type;
+  std::optional<Location> start;
+  std::optional<uint64_t> end_group;
+  VersionSpecificParameters parameters;
+};
+
+struct QUICHE_EXPORT MoqtPublishError {
+  uint64_t request_id;
+  RequestErrorCode error_code;
+  std::string error_reason;
+};
+
 // All of the four values in this message are encoded as varints.
 // `delta_from_deadline` is encoded as an absolute value, with the lowest bit
 // indicating the sign (0 if positive).

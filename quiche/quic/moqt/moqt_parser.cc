@@ -291,6 +291,15 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kRequestsBlocked:
       bytes_read = ProcessRequestsBlocked(reader);
       break;
+    case MoqtMessageType::kPublish:
+      bytes_read = ProcessPublish(reader);
+      break;
+    case MoqtMessageType::kPublishOk:
+      bytes_read = ProcessPublishOk(reader);
+      break;
+    case MoqtMessageType::kPublishError:
+      bytes_read = ProcessPublishError(reader);
+      break;
     case moqt::MoqtMessageType::kObjectAck:
       bytes_read = ProcessObjectAck(reader);
       break;
@@ -890,6 +899,136 @@ size_t MoqtControlParser::ProcessRequestsBlocked(quic::QuicDataReader& reader) {
     return 0;
   }
   visitor_.OnRequestsBlockedMessage(requests_blocked);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessPublish(quic::QuicDataReader& reader) {
+  MoqtPublish publish;
+  uint8_t group_order, content_exists;
+  QUICHE_DCHECK(reader.PreviouslyReadPayload().empty());
+  if (!reader.ReadVarInt62(&publish.request_id) ||
+      !ReadFullTrackName(reader, publish.full_track_name) ||
+      !reader.ReadVarInt62(&publish.track_alias) ||
+      !reader.ReadUInt8(&group_order) || !reader.ReadUInt8(&content_exists)) {
+    return 0;
+  }
+  publish.group_order = static_cast<MoqtDeliveryOrder>(group_order);
+  if (group_order != 0x01 && group_order != 0x02) {
+    ParseError("Invalid group order value in PUBLISH");
+    return 0;
+  }
+  if (content_exists > 1) {
+    ParseError("PUBLISH ContentExists has invalid value");
+    return 0;
+  }
+  if (content_exists == 1) {
+    uint64_t group, object;
+    if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
+      return 0;
+    }
+    publish.largest_location = Location(group, object);
+  }
+  uint8_t forward;
+  if (!reader.ReadUInt8(&forward)) {
+    return 0;
+  }
+  if (forward > 0x01) {
+    ParseError("Invalid forward value in PUBLISH");
+    return 0;
+  }
+  publish.forward = forward == 1;
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
+    return 0;
+  }
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kPublish)) {
+    ParseError("PUBLISH message contains invalid parameters");
+    return 0;
+  }
+  if (!KeyValuePairListToVersionSpecificParameters(
+          parameters, /*out=*/publish.parameters)) {
+    return 0;
+  };
+  visitor_.OnPublishMessage(publish);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessPublishOk(quic::QuicDataReader& reader) {
+  MoqtPublishOk publish_ok;
+  uint8_t forward, group_order;
+  uint64_t filter_type;
+  KeyValuePairList parameters;
+  if (!reader.ReadVarInt62(&publish_ok.request_id) ||
+      !reader.ReadUInt8(&forward) ||
+      !reader.ReadUInt8(&publish_ok.subscriber_priority) ||
+      !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&filter_type)) {
+    return 0;
+  }
+  if (forward > 0x01) {
+    ParseError("Invalid forward value in PUBLISH_OK");
+    return 0;
+  }
+  publish_ok.forward = forward == 1;
+  if (group_order != 0x01 && group_order != 0x02) {
+    ParseError("Invalid group order value in PUBLISH_OK");
+    return 0;
+  }
+  publish_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
+  publish_ok.filter_type = static_cast<MoqtFilterType>(filter_type);
+  uint64_t group, object, end_group;
+  switch (publish_ok.filter_type) {
+    case MoqtFilterType::kNextGroupStart:
+    case MoqtFilterType::kLatestObject:
+      break;
+    case MoqtFilterType::kAbsoluteStart:
+    case MoqtFilterType::kAbsoluteRange:
+      if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
+        return 0;
+      }
+      publish_ok.start = Location(group, object);
+      if (publish_ok.filter_type == MoqtFilterType::kAbsoluteStart) {
+        break;
+      }
+      if (!reader.ReadVarInt62(&end_group)) {
+        return 0;
+      }
+      publish_ok.end_group = end_group;
+      if (*publish_ok.end_group < publish_ok.start->group) {
+        ParseError("End group is less than start group");
+        return 0;
+      }
+      break;
+    default:
+      ParseError("Invalid filter type");
+      return 0;
+  }
+  if (!ParseKeyValuePairList(reader, parameters)) {
+    return 0;
+  }
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kPublishOk)) {
+    ParseError("PUBLISH_OK message contains invalid parameters");
+    return 0;
+  }
+  if (!KeyValuePairListToVersionSpecificParameters(parameters,
+                                                   publish_ok.parameters)) {
+    return 0;
+  };
+  visitor_.OnPublishOkMessage(publish_ok);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessPublishError(quic::QuicDataReader& reader) {
+  MoqtPublishError publish_error;
+  uint64_t error_code;
+  if (!reader.ReadVarInt62(&publish_error.request_id) ||
+      !reader.ReadVarInt62(&error_code) ||
+      !reader.ReadStringVarInt62(publish_error.error_reason)) {
+    return 0;
+  }
+  publish_error.error_code = static_cast<RequestErrorCode>(error_code);
+  visitor_.OnPublishErrorMessage(publish_error);
   return reader.PreviouslyReadPayload().length();
 }
 

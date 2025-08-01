@@ -173,17 +173,18 @@ MoqtError ValidateSetupParameters(const KeyValuePairList& parameters,
   return MoqtError::kNoError;
 }
 
-const std::array<MoqtMessageType, 7> kAllowsAuthorization = {
+const std::array<MoqtMessageType, 8> kAllowsAuthorization = {
     MoqtMessageType::kClientSetup, MoqtMessageType::kServerSetup,
     MoqtMessageType::kSubscribe,   MoqtMessageType::kSubscribeAnnounces,
     MoqtMessageType::kAnnounce,    MoqtMessageType::kTrackStatusRequest,
-    MoqtMessageType::kFetch};
-const std::array<MoqtMessageType, 4> kAllowsDeliveryTimeout = {
-    MoqtMessageType::kSubscribe, MoqtMessageType::kSubscribeOk,
-    MoqtMessageType::kSubscribeUpdate, MoqtMessageType::kTrackStatus};
-const std::array<MoqtMessageType, 3> kAllowsMaxCacheDuration = {
+    MoqtMessageType::kFetch,       MoqtMessageType::kPublish};
+const std::array<MoqtMessageType, 6> kAllowsDeliveryTimeout = {
+    MoqtMessageType::kSubscribe,       MoqtMessageType::kSubscribeOk,
+    MoqtMessageType::kSubscribeUpdate, MoqtMessageType::kTrackStatus,
+    MoqtMessageType::kPublish,         MoqtMessageType::kPublishOk};
+const std::array<MoqtMessageType, 4> kAllowsMaxCacheDuration = {
     MoqtMessageType::kSubscribeOk, MoqtMessageType::kTrackStatus,
-    MoqtMessageType::kFetchOk};
+    MoqtMessageType::kFetchOk, MoqtMessageType::kPublish};
 bool ValidateVersionSpecificParameters(const KeyValuePairList& parameters,
                                        MoqtMessageType message_type) {
   size_t authorization_token =

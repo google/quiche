@@ -269,6 +269,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnFetchOkMessage(const MoqtFetchOk& message) override;
     void OnFetchErrorMessage(const MoqtFetchError& message) override;
     void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) override;
+    void OnPublishMessage(const MoqtPublish& message) override;
+    void OnPublishOkMessage(const MoqtPublishOk& message) override {};
+    void OnPublishErrorMessage(const MoqtPublishError& message) override {};
     void OnObjectAckMessage(const MoqtObjectAck& message) override {
       auto subscription_it =
           session_->published_subscriptions_.find(message.subscribe_id);

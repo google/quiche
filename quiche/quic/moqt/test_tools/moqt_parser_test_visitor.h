@@ -125,6 +125,15 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) override {
     OnControlMessage(message);
   }
+  void OnPublishMessage(const MoqtPublish& message) override {
+    OnControlMessage(message);
+  }
+  void OnPublishOkMessage(const MoqtPublishOk& message) override {
+    OnControlMessage(message);
+  }
+  void OnPublishErrorMessage(const MoqtPublishError& message) override {
+    OnControlMessage(message);
+  }
   void OnObjectAckMessage(const MoqtObjectAck& message) override {
     OnControlMessage(message);
   }

@@ -34,7 +34,8 @@ using MoqtGenericFrame =
                  MoqtGoAway, MoqtSubscribeAnnounces, MoqtSubscribeAnnouncesOk,
                  MoqtSubscribeAnnouncesError, MoqtUnsubscribeAnnounces,
                  MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
-                 MoqtFetchError, MoqtRequestsBlocked, MoqtObjectAck>;
+                 MoqtFetchError, MoqtRequestsBlocked, MoqtPublish,
+                 MoqtPublishOk, MoqtPublishError, MoqtObjectAck>;
 
 MoqtMessageType MessageTypeForGenericMessage(const MoqtGenericFrame& frame);
 

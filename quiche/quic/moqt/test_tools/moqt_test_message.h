@@ -66,7 +66,8 @@ class QUICHE_NO_EXPORT TestMessageBase {
                    MoqtGoAway, MoqtSubscribeAnnounces, MoqtSubscribeAnnouncesOk,
                    MoqtSubscribeAnnouncesError, MoqtUnsubscribeAnnounces,
                    MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
-                   MoqtFetchError, MoqtRequestsBlocked, MoqtObjectAck>;
+                   MoqtFetchError, MoqtRequestsBlocked, MoqtPublish,
+                   MoqtPublishOk, MoqtPublishError, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -1796,6 +1797,191 @@ class QUICHE_NO_EXPORT RequestsBlockedMessage : public TestMessageBase {
   };
 };
 
+class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
+ public:
+  PublishMessage() : TestMessageBase() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+  bool EqualFieldValues(MessageStructuredData& values) const override {
+    auto cast = std::get<MoqtPublish>(values);
+    if (cast.request_id != publish_.request_id) {
+      QUIC_LOG(INFO) << "PUBLISH request_id mismatch";
+      return false;
+    }
+    if (cast.full_track_name != publish_.full_track_name) {
+      QUIC_LOG(INFO) << "PUBLISH full_track_name mismatch";
+      return false;
+    }
+    if (cast.track_alias != publish_.track_alias) {
+      QUIC_LOG(INFO) << "PUBLISH track_alias mismatch";
+      return false;
+    }
+    if (cast.group_order != publish_.group_order) {
+      QUIC_LOG(INFO) << "PUBLISH group_order mismatch";
+      return false;
+    }
+    if (cast.largest_location != publish_.largest_location) {
+      QUIC_LOG(INFO) << "PUBLISH largest_location mismatch";
+      return false;
+    }
+    if (cast.forward != publish_.forward) {
+      QUIC_LOG(INFO) << "PUBLISH forward mismatch";
+      return false;
+    }
+    if (cast.parameters != publish_.parameters) {
+      QUIC_LOG(INFO) << "PUBLISH parameters mismatch";
+      return false;
+    }
+    return true;
+  }
+
+  void ExpandVarints() override {
+    ExpandVarintsImpl("vvv---v---v--vv-vvv-----");
+  }
+
+  MessageStructuredData structured_data() const override {
+    return TestMessageBase::MessageStructuredData(publish_);
+  }
+
+ private:
+  uint8_t raw_packet_[27] = {
+      0x1d, 0x00, 0x18,
+      0x01,                          // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x03, 0x62, 0x61, 0x72,        // track_name = "bar"
+      0x04,                          // track_alias = 4
+      0x01,                          // group_order = kAscending
+      0x01, 0x0a, 0x01,              // content exists, largest_location = 10, 1
+      0x01,                          // forward = true
+      0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
+  };
+
+  MoqtPublish publish_ = {
+      /*request_id=*/1,
+      FullTrackName("foo", "bar"),
+      /*track_alias=*/4,
+      MoqtDeliveryOrder::kAscending,
+      /*largest_location=*/Location(10, 1),
+      /*forward=*/true,
+      VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
+  };
+};
+
+class QUICHE_NO_EXPORT PublishOkMessage : public TestMessageBase {
+ public:
+  PublishOkMessage() : TestMessageBase() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+  bool EqualFieldValues(MessageStructuredData& values) const override {
+    auto cast = std::get<MoqtPublishOk>(values);
+    if (cast.request_id != publish_ok_.request_id) {
+      QUIC_LOG(INFO) << "PUBLISH_OK request_id mismatch";
+      return false;
+    }
+    if (cast.forward != publish_ok_.forward) {
+      QUIC_LOG(INFO) << "PUBLISH_OK forward mismatch";
+      return false;
+    }
+    if (cast.subscriber_priority != publish_ok_.subscriber_priority) {
+      QUIC_LOG(INFO) << "PUBLISH_OK subscriber_priority mismatch";
+      return false;
+    }
+    if (cast.group_order != publish_ok_.group_order) {
+      QUIC_LOG(INFO) << "PUBLISH_OK group_order mismatch";
+      return false;
+    }
+    if (cast.filter_type != publish_ok_.filter_type) {
+      QUIC_LOG(INFO) << "PUBLISH_OK filter_type mismatch";
+      return false;
+    }
+    if (cast.start != publish_ok_.start) {
+      QUIC_LOG(INFO) << "PUBLISH_OK start mismatch";
+      return false;
+    }
+    if (cast.end_group != publish_ok_.end_group) {
+      QUIC_LOG(INFO) << "PUBLISH_OK end_group mismatch";
+      return false;
+    }
+    if (cast.parameters != publish_ok_.parameters) {
+      QUIC_LOG(INFO) << "PUBLISH_OK parameters mismatch";
+      return false;
+    }
+    return true;
+  }
+
+  void ExpandVarints() override { ExpandVarintsImpl("v---vvvvvv--"); }
+
+  MessageStructuredData structured_data() const override {
+    return TestMessageBase::MessageStructuredData(publish_ok_);
+  }
+
+ private:
+  uint8_t raw_packet_[15] = {
+      0x1e, 0x00, 0x0c,
+      0x01,                    // request_id = 1
+      0x01,                    // forward = true
+      0x02,                    // subscriber_priority = 2
+      0x01,                    // group_order = kAscending
+      0x04,                    // filter_type = kAbsoluteRange
+      0x05, 0x04,              // start = 5, 4
+      0x06,                    // end_group = 6
+      0x01, 0x02, 0x67, 0x10,  // delivery_timeout = 10000 ms
+  };
+  MoqtPublishOk publish_ok_ = {
+      /*request_id=*/1,
+      /*forward=*/true,
+      /*subscriber_priority=*/2,
+      MoqtDeliveryOrder::kAscending,
+      MoqtFilterType::kAbsoluteRange,
+      /*start=*/Location(5, 4),
+      /*end_group=*/6,
+      VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
+                                quic::QuicTimeDelta::Infinite()),
+  };
+};
+
+class QUICHE_NO_EXPORT PublishErrorMessage : public TestMessageBase {
+ public:
+  PublishErrorMessage() : TestMessageBase() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+  bool EqualFieldValues(MessageStructuredData& values) const override {
+    auto cast = std::get<MoqtPublishError>(values);
+    if (cast.request_id != publish_error_.request_id) {
+      QUIC_LOG(INFO) << "PUBLISH_ERROR request_id mismatch";
+      return false;
+    }
+    if (cast.error_code != publish_error_.error_code) {
+      QUIC_LOG(INFO) << "PUBLISH_ERROR error_code mismatch";
+      return false;
+    }
+    if (cast.error_reason != publish_error_.error_reason) {
+      QUIC_LOG(INFO) << "PUBLISH_ERROR error_reason mismatch";
+      return false;
+    }
+    return true;
+  }
+
+  void ExpandVarints() override { ExpandVarintsImpl("vvv---"); }
+
+  MessageStructuredData structured_data() const override {
+    return TestMessageBase::MessageStructuredData(publish_error_);
+  }
+
+ private:
+  uint8_t raw_packet_[9] = {
+      0x1f, 0x00, 0x06,
+      0x01,                    // request_id = 1
+      0x01,                    // error_code = kUnauthorized
+      0x03, 0x62, 0x61, 0x72,  // error_reason = "bar"
+  };
+  MoqtPublishError publish_error_ = {
+      /*request_id=*/1,
+      /*error_code=*/RequestErrorCode::kUnauthorized,
+      /*error_reason=*/"bar",
+  };
+};
+
 class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
  public:
   ObjectAckMessage() : TestMessageBase() {
@@ -1896,6 +2082,12 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<FetchErrorMessage>();
     case MoqtMessageType::kRequestsBlocked:
       return std::make_unique<RequestsBlockedMessage>();
+    case MoqtMessageType::kPublish:
+      return std::make_unique<PublishMessage>();
+    case MoqtMessageType::kPublishOk:
+      return std::make_unique<PublishOkMessage>();
+    case MoqtMessageType::kPublishError:
+      return std::make_unique<PublishErrorMessage>();
     case MoqtMessageType::kObjectAck:
       return std::make_unique<ObjectAckMessage>();
     case MoqtMessageType::kClientSetup:

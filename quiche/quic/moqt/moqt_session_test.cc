@@ -367,6 +367,24 @@ TEST_F(MoqtSessionTest, AddLocalTrack) {
   ReceiveSubscribeSynchronousOk(track, request, stream_input.get());
 }
 
+TEST_F(MoqtSessionTest, IncomingPublishRejected) {
+  MoqtPublish publish = {
+      .request_id = 1,
+      .full_track_name = FullTrackName("foo", "bar"),
+      .track_alias = 2,
+      .group_order = MoqtDeliveryOrder::kAscending,
+      .largest_location = Location(4, 5),
+      .forward = true,
+      .parameters = VersionSpecificParameters(),
+  };
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  // Request for track returns PUBLISH_ERROR.
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kPublishError), _));
+  stream_input->OnPublishMessage(publish);
+}
+
 TEST_F(MoqtSessionTest, AnnounceWithOkAndCancel) {
   testing::MockFunction<void(
       TrackNamespace track_namespace,

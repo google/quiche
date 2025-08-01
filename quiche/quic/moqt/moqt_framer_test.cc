@@ -57,6 +57,9 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kFetchOk,
       MoqtMessageType::kFetchError,
       MoqtMessageType::kRequestsBlocked,
+      MoqtMessageType::kPublish,
+      MoqtMessageType::kPublishOk,
+      MoqtMessageType::kPublishError,
       MoqtMessageType::kObjectAck,
       MoqtMessageType::kClientSetup,
       MoqtMessageType::kServerSetup,
@@ -206,6 +209,18 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kRequestsBlocked: {
         auto data = std::get<MoqtRequestsBlocked>(structured_data);
         return framer_.SerializeRequestsBlocked(data);
+      }
+      case moqt::MoqtMessageType::kPublish: {
+        auto data = std::get<MoqtPublish>(structured_data);
+        return framer_.SerializePublish(data);
+      }
+      case moqt::MoqtMessageType::kPublishOk: {
+        auto data = std::get<MoqtPublishOk>(structured_data);
+        return framer_.SerializePublishOk(data);
+      }
+      case moqt::MoqtMessageType::kPublishError: {
+        auto data = std::get<MoqtPublishError>(structured_data);
+        return framer_.SerializePublishError(data);
       }
       case moqt::MoqtMessageType::kObjectAck: {
         auto data = std::get<MoqtObjectAck>(structured_data);
@@ -459,6 +474,57 @@ TEST_F(MoqtFramerSimpleTest, AbsoluteRangeEndMissing) {
   quiche::QuicheBuffer buffer;
   EXPECT_QUICHE_BUG(buffer = framer_.SerializeSubscribe(subscribe),
                     "Invalid object range");
+  EXPECT_EQ(buffer.size(), 0);
+}
+
+TEST_F(MoqtFramerSimpleTest, PublishOkEndBeforeStart) {
+  MoqtPublishOk publish_ok = {
+      /*request_id=*/1,
+      /*forward=*/true,
+      /*subscriber_priority=*/2,
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
+      /*start=*/Location{1, 2},
+      /*end_group=*/0,
+      /*parameters=*/VersionSpecificParameters(),
+  };
+  quiche::QuicheBuffer buffer;
+  EXPECT_QUICHE_BUG(buffer = framer_.SerializePublishOk(publish_ok),
+                    "End group is less than start group");
+  EXPECT_EQ(buffer.size(), 0);
+}
+
+TEST_F(MoqtFramerSimpleTest, PublishOkMissingEndGroup) {
+  MoqtPublishOk publish_ok = {
+      /*request_id=*/1,
+      /*forward=*/true,
+      /*subscriber_priority=*/2,
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
+      /*start=*/Location{1, 2},
+      /*end_group=*/std::nullopt,
+      /*parameters=*/VersionSpecificParameters(),
+  };
+  quiche::QuicheBuffer buffer;
+  EXPECT_QUICHE_BUG(buffer = framer_.SerializePublishOk(publish_ok),
+                    "Serializing invalid MoQT filter type");
+  EXPECT_EQ(buffer.size(), 0);
+}
+
+TEST_F(MoqtFramerSimpleTest, PublishOkMissingStart) {
+  MoqtPublishOk publish_ok = {
+      /*request_id=*/1,
+      /*forward=*/true,
+      /*subscriber_priority=*/2,
+      /*group_order=*/MoqtDeliveryOrder::kAscending,
+      /*filter_type=*/MoqtFilterType::kAbsoluteStart,
+      /*start=*/std::nullopt,
+      /*end_group=*/std::nullopt,
+      /*parameters=*/VersionSpecificParameters(),
+  };
+  quiche::QuicheBuffer buffer;
+  EXPECT_QUICHE_BUG(buffer = framer_.SerializePublishOk(publish_ok),
+                    "Serializing invalid MoQT filter type");
   EXPECT_EQ(buffer.size(), 0);
 }
 

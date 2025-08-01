@@ -104,6 +104,15 @@ struct TypeVisitor {
   MoqtMessageType operator()(const MoqtRequestsBlocked&) {
     return MoqtMessageType::kRequestsBlocked;
   }
+  MoqtMessageType operator()(const MoqtPublish&) {
+    return MoqtMessageType::kPublish;
+  }
+  MoqtMessageType operator()(const MoqtPublishOk&) {
+    return MoqtMessageType::kPublishOk;
+  }
+  MoqtMessageType operator()(const MoqtPublishError&) {
+    return MoqtMessageType::kPublishError;
+  }
   MoqtMessageType operator()(const MoqtObjectAck&) {
     return MoqtMessageType::kObjectAck;
   }
@@ -187,6 +196,15 @@ struct FramingVisitor {
   }
   quiche::QuicheBuffer operator()(const MoqtRequestsBlocked& message) {
     return framer.SerializeRequestsBlocked(message);
+  }
+  quiche::QuicheBuffer operator()(const MoqtPublish& message) {
+    return framer.SerializePublish(message);
+  }
+  quiche::QuicheBuffer operator()(const MoqtPublishOk& message) {
+    return framer.SerializePublishOk(message);
+  }
+  quiche::QuicheBuffer operator()(const MoqtPublishError& message) {
+    return framer.SerializePublishError(message);
   }
   quiche::QuicheBuffer operator()(const MoqtObjectAck& message) {
     return framer.SerializeObjectAck(message);
@@ -275,6 +293,15 @@ class GenericMessageParseVisitor : public MoqtControlParserVisitor {
     frames_.push_back(message);
   }
   void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) {
+    frames_.push_back(message);
+  }
+  void OnPublishMessage(const MoqtPublish& message) {
+    frames_.push_back(message);
+  }
+  void OnPublishOkMessage(const MoqtPublishOk& message) {
+    frames_.push_back(message);
+  }
+  void OnPublishErrorMessage(const MoqtPublishError& message) {
     frames_.push_back(message);
   }
   void OnObjectAckMessage(const MoqtObjectAck& message) {
