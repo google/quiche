@@ -179,8 +179,8 @@ TEST_F(CapsuleTest, DrainWebTransportStreamCapsule) {
 TEST_F(CapsuleTest, AddressAssignCapsule) {
   std::string capsule_fragment;
   ASSERT_TRUE(absl::HexStringToBytes(
-      "9ECA6A00"  // ADDRESS_ASSIGN capsule type
-      "1A"        // capsule length = 26
+      "01"  // ADDRESS_ASSIGN capsule type
+      "1A"  // capsule length = 26
       // first assigned address
       "00"        // request ID = 0
       "04"        // IP version = 4
@@ -220,8 +220,8 @@ TEST_F(CapsuleTest, AddressAssignCapsule) {
 TEST_F(CapsuleTest, AddressRequestCapsule) {
   std::string capsule_fragment;
   ASSERT_TRUE(absl::HexStringToBytes(
-      "9ECA6A01"  // ADDRESS_REQUEST capsule type
-      "1A"        // capsule length = 26
+      "02"  // ADDRESS_REQUEST capsule type
+      "1A"  // capsule length = 26
       // first requested address
       "00"        // request ID = 0
       "04"        // IP version = 4
@@ -261,8 +261,8 @@ TEST_F(CapsuleTest, AddressRequestCapsule) {
 TEST_F(CapsuleTest, RouteAdvertisementCapsule) {
   std::string capsule_fragment;
   ASSERT_TRUE(absl::HexStringToBytes(
-      "9ECA6A02"  // ROUTE_ADVERTISEMENT capsule type
-      "2C"        // capsule length = 44
+      "03"  // ROUTE_ADVERTISEMENT capsule type
+      "2C"  // capsule length = 44
       // first IP address range
       "04"        // IP version = 4
       "C0000218"  // 192.0.2.24

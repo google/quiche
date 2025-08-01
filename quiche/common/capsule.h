@@ -35,10 +35,10 @@ enum class CapsuleType : uint64_t {
   CLOSE_WEBTRANSPORT_SESSION = 0x2843,
   DRAIN_WEBTRANSPORT_SESSION = 0x78ae,
 
-  // draft-ietf-masque-connect-ip-03.
-  ADDRESS_ASSIGN = 0x1ECA6A00,
-  ADDRESS_REQUEST = 0x1ECA6A01,
-  ROUTE_ADVERTISEMENT = 0x1ECA6A02,
+  // RFC 9484 - Proxying IP in HTTP.
+  ADDRESS_ASSIGN = 0x01,
+  ADDRESS_REQUEST = 0x02,
+  ROUTE_ADVERTISEMENT = 0x03,
 
   // draft-ietf-masque-connect-udp-listen-04.
   COMPRESSION_ASSIGN = 0x1C0FE323,
