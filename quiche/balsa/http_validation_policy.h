@@ -87,6 +87,10 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // If true, the parser rejects messages where there is a lone LF not preceded
   // by CR.
   bool disallow_lone_lf_in_chunk_extension = true;
+
+  // If true, the parser rejects chunked messages that don't end with
+  // CR_LF_CR_LF.
+  bool require_chunked_body_end_with_crlf_crlf = false;
 };
 
 }  // namespace quiche

@@ -2048,6 +2048,82 @@ TEST_F(HTTPBalsaFrameTest,
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
 }
+
+// Validates that chunked requests terminated by \r\n\n are accepted.
+// Note that this does not comply with
+// https://datatracker.ietf.org/doc/html/rfc9112#name-chunked-transfer-coding
+// which states that both `last-chunk` _and_ `chunked_body` must end with CR_LF.
+TEST_F(HTTPBalsaFrameTest,
+       TransferEncodingChunkedFramesMessagesEndingWithCR_LF_LF) {
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  const std::string message1 =
+      "POST / HTTP/1.1\r\n"
+      "Host: 1.1.1.1\r\n"
+      "Transfer-Encoding: chunked\r\n"
+      "\r\n";
+  EXPECT_EQ(message1.size(),
+            balsa_frame_.ProcessInput(message1.data(), message1.size()));
+  EXPECT_FALSE(balsa_frame_.Error())
+      << BalsaFrameEnums::ErrorCodeToString(balsa_frame_.ErrorCode());
+
+  const std::string chunk_size = "2\r\n";
+  EXPECT_EQ(chunk_size.size(),
+            balsa_frame_.ProcessInput(chunk_size.data(), chunk_size.size()));
+  EXPECT_FALSE(balsa_frame_.Error())
+      << BalsaFrameEnums::ErrorCodeToString(balsa_frame_.ErrorCode());
+
+  EXPECT_CALL(visitor_mock_, OnBodyChunkInput("AA"));
+  EXPECT_CALL(visitor_mock_, MessageDone());
+  const std::string chunks =
+      "AA\r\n"
+      "0\r\n"
+      "\n";
+  ASSERT_EQ(chunks.size(),
+            balsa_frame_.ProcessInput(chunks.data(), chunks.size()));
+
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  // According to the RFC, this should be false!
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+}
+
+TEST_F(
+    HTTPBalsaFrameTest,
+    TransferEncodingChunkedFramesMessagesEndingWithCR_LF_LFFailsWhenPolicySet) {
+  HttpValidationPolicy http_validation_policy{
+      .require_chunked_body_end_with_crlf_crlf = true};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  const std::string message1 =
+      "POST / HTTP/1.1\r\n"
+      "Host: 1.1.1.1\r\n"
+      "Transfer-Encoding: chunked\r\n"
+      "\r\n";
+  EXPECT_EQ(message1.size(),
+            balsa_frame_.ProcessInput(message1.data(), message1.size()));
+  EXPECT_FALSE(balsa_frame_.Error())
+      << BalsaFrameEnums::ErrorCodeToString(balsa_frame_.ErrorCode());
+
+  const std::string chunk_size = "2\r\n";
+  EXPECT_EQ(chunk_size.size(),
+            balsa_frame_.ProcessInput(chunk_size.data(), chunk_size.size()));
+  EXPECT_FALSE(balsa_frame_.Error())
+      << BalsaFrameEnums::ErrorCodeToString(balsa_frame_.ErrorCode());
+
+  EXPECT_CALL(visitor_mock_, OnBodyChunkInput("AA"));
+  EXPECT_CALL(visitor_mock_, MessageDone()).Times(0);
+  const std::string chunks =
+      "AA\r\n"
+      "0\r\n"
+      "\n";
+  ASSERT_EQ(chunks.size(),
+            balsa_frame_.ProcessInput(chunks.data(), chunks.size()));
+
+  EXPECT_EQ(BalsaFrameEnums::INVALID_CHUNK_FRAMING, balsa_frame_.ErrorCode());
+  EXPECT_FALSE(balsa_frame_.MessageFullyRead());
+}
+
 TEST_F(HTTPBalsaFrameTest,
        VisitorInvokedProperlyForRequestWithTransferEncodingAndTrailers) {
   std::string message_headers =
