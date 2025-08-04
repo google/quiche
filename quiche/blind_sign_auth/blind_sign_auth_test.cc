@@ -648,8 +648,10 @@ TEST_F(BlindSignAuthTest, AttestationFlowSucceeds) {
       [](absl::string_view attestation_nonce,
          AttestAndSignCallback attest_and_sign_callback) {
         EXPECT_EQ(attestation_nonce, "test_attestation_nonce");
+        std::vector<std::string> hardware_backed_certs = {
+            "fake_hardware_backed_cert"};
         std::move(attest_and_sign_callback)(
-            /*attestation_data=*/"fake_hardware_backed_cert",
+            /*attestation_data=*/hardware_backed_certs,
             /*token_challenge=*/std::nullopt);
       };
 

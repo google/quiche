@@ -99,11 +99,12 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
       int num_tokens, AttestationDataCallback attestation_data_callback,
       SignedTokenCallback token_callback,
       absl::StatusOr<BlindSignMessageResponse> response);
-  void AttestAndSign(int num_tokens,
-                     privacy::ppn::GetInitialDataResponse initial_data_response,
-                     SignedTokenCallback callback,
-                     absl::StatusOr<std::string> attestation_data,
-                     std::optional<std::string> token_challenge);
+  void AttestAndSign(
+      int num_tokens,
+      privacy::ppn::GetInitialDataResponse initial_data_response,
+      SignedTokenCallback callback,
+      absl::StatusOr<absl::Span<const std::string>> attestation_data,
+      std::optional<const absl::string_view> token_challenge);
   void AttestAndSignCallback(
       PrivacyPassContext pp_context,
       const std::vector<std::unique_ptr<

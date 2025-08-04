@@ -50,8 +50,9 @@ using SignedTokenCallback =
 
 // This callback is used by the caller to return generated
 // attestation data and a token challenge to the BlindSignAuth library.
-using AttestAndSignCallback = SingleUseCallback<void(
-    absl::StatusOr<std::string>, std::optional<std::string>)>;
+using AttestAndSignCallback =
+    SingleUseCallback<void(absl::StatusOr<absl::Span<const std::string>>,
+                           std::optional<absl::string_view>)>;
 
 // AttestationDataCallback returns a serialized
 // privacy::ppn::PrepareAttestationData proto, which contains an attestation

@@ -337,8 +337,9 @@ void BlindSignAuth::GetAttestationTokensCallback(
 
 void BlindSignAuth::AttestAndSign(
     int num_tokens, privacy::ppn::GetInitialDataResponse initial_data_response,
-    SignedTokenCallback callback, absl::StatusOr<std::string> attestation_data,
-    std::optional<std::string> token_challenge) {
+    SignedTokenCallback callback,
+    absl::StatusOr<absl::Span<const std::string>> attestation_data,
+    std::optional<const absl::string_view> token_challenge) {
   absl::StatusOr<PrivacyPassContext> pp_context =
       CreatePrivacyPassContext(initial_data_response);
   if (!pp_context.ok()) {
@@ -381,7 +382,14 @@ void BlindSignAuth::AttestAndSign(
     std::move(callback)(attestation_data.status());
     return;
   }
-  android_attestation_data.add_hardware_backed_certs(*attestation_data);
+  if (attestation_data->empty()) {
+    std::move(callback)(
+        absl::InvalidArgumentError("Attestation data is empty"));
+    return;
+  }
+  for (absl::string_view cert : *attestation_data) {
+    android_attestation_data.add_hardware_backed_certs(cert);
+  }
 
   Any attestation_data_proto_any;
   attestation_data_proto_any.set_type_url(kAttestationProtoTypeUrl);
