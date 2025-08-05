@@ -48,7 +48,7 @@ TEST_F(SubscribeWindowTest, AddQueryRemoveStreamIdSubgroup) {
 
 TEST_F(SubscribeWindowTest, UpdateStartEnd) {
   SubscribeWindow window(start_, end_);
-  EXPECT_TRUE(window.TruncateStart(start_.next()));
+  EXPECT_TRUE(window.TruncateStart(start_.Next()));
   EXPECT_TRUE(window.TruncateEnd(end_ - 1));
   EXPECT_FALSE(window.InWindow(start_));
   EXPECT_FALSE(window.InWindow(Location(end_, 0)));

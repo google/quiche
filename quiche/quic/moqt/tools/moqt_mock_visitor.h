@@ -76,9 +76,12 @@ class MockTrackPublisher : public MoqtTrackPublisher {
               (const, override));
   MOCK_METHOD(MoqtPriority, GetPublisherPriority, (), (const, override));
   MOCK_METHOD(MoqtDeliveryOrder, GetDeliveryOrder, (), (const, override));
-  MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, Fetch,
-              (Location, uint64_t, std::optional<uint64_t>, MoqtDeliveryOrder),
-              (override));
+  MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, StandaloneFetch,
+              (Location, Location, MoqtDeliveryOrder), (override));
+  MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, RelativeFetch,
+              (uint64_t, MoqtDeliveryOrder), (override));
+  MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, AbsoluteFetch,
+              (uint64_t, MoqtDeliveryOrder), (override));
 
  private:
   FullTrackName track_name_;

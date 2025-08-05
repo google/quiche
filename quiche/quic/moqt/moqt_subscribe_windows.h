@@ -31,10 +31,7 @@ class QUICHE_EXPORT SubscribeWindow {
       : start_(start),
         end_(Location(end_group.value_or(UINT64_MAX), UINT64_MAX)) {}
   // For FETCH with end object
-  SubscribeWindow(Location start, uint64_t end_group,
-                  std::optional<uint64_t> end_object)
-      : start_(start),
-        end_(Location(end_group, end_object.value_or(UINT64_MAX))) {}
+  SubscribeWindow(Location start, Location end) : start_(start), end_(end) {}
 
   bool InWindow(const Location& seq) const {
     return start_ <= seq && seq <= end_;

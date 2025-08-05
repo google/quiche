@@ -774,44 +774,42 @@ size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
   }
   switch (static_cast<FetchType>(type)) {
     case FetchType::kAbsoluteJoining: {
-      uint64_t joining_subscribe_id;
+      uint64_t joining_request_id;
       uint64_t joining_start;
-      if (!reader.ReadVarInt62(&joining_subscribe_id) ||
+      if (!reader.ReadVarInt62(&joining_request_id) ||
           !reader.ReadVarInt62(&joining_start)) {
         return 0;
       }
-      fetch.fetch = JoiningFetchAbsolute{joining_subscribe_id, joining_start};
+      fetch.fetch = JoiningFetchAbsolute{joining_request_id, joining_start};
       break;
     }
     case FetchType::kRelativeJoining: {
-      uint64_t joining_subscribe_id;
+      uint64_t joining_request_id;
       uint64_t joining_start;
-      if (!reader.ReadVarInt62(&joining_subscribe_id) ||
+      if (!reader.ReadVarInt62(&joining_request_id) ||
           !reader.ReadVarInt62(&joining_start)) {
         return 0;
       }
-      fetch.fetch = JoiningFetchRelative{joining_subscribe_id, joining_start};
+      fetch.fetch = JoiningFetchRelative{joining_request_id, joining_start};
       break;
     }
     case FetchType::kStandalone: {
       fetch.fetch = StandaloneFetch();
       StandaloneFetch& standalone_fetch =
           std::get<StandaloneFetch>(fetch.fetch);
-      uint64_t end_object;
       if (!ReadFullTrackName(reader, standalone_fetch.full_track_name) ||
-          !reader.ReadVarInt62(&standalone_fetch.start_object.group) ||
-          !reader.ReadVarInt62(&standalone_fetch.start_object.object) ||
-          !reader.ReadVarInt62(&standalone_fetch.end_group) ||
-          !reader.ReadVarInt62(&end_object)) {
+          !reader.ReadVarInt62(&standalone_fetch.start_location.group) ||
+          !reader.ReadVarInt62(&standalone_fetch.start_location.object) ||
+          !reader.ReadVarInt62(&standalone_fetch.end_location.group) ||
+          !reader.ReadVarInt62(&standalone_fetch.end_location.object)) {
         return 0;
       }
-      standalone_fetch.end_object =
-          end_object == 0 ? std::optional<uint64_t>() : (end_object - 1);
-      if (standalone_fetch.end_group < standalone_fetch.start_object.group ||
-          (standalone_fetch.end_group == standalone_fetch.start_object.group &&
-           standalone_fetch.end_object.has_value() &&
-           *standalone_fetch.end_object <
-               standalone_fetch.start_object.object)) {
+      if (standalone_fetch.end_location.object == 0) {
+        standalone_fetch.end_location.object = kMaxObjectId;
+      } else {
+        --standalone_fetch.end_location.object;
+      }
+      if (standalone_fetch.end_location < standalone_fetch.start_location) {
         ParseError("End object comes before start object in FETCH");
         return 0;
       }
@@ -860,6 +858,11 @@ size_t MoqtControlParser::ProcessFetchOk(quic::QuicDataReader& reader) {
                                          MoqtMessageType::kFetchOk)) {
     ParseError("FETCH_OK message contains invalid parameters");
     return 0;
+  }
+  if (fetch_ok.end_location.object == 0) {
+    fetch_ok.end_location.object = kMaxObjectId;
+  } else {
+    --fetch_ok.end_location.object;
   }
   fetch_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
   fetch_ok.end_of_track = end_of_track == 1;

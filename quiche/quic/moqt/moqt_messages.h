@@ -30,6 +30,7 @@
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_data_writer.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -50,6 +51,7 @@ inline constexpr uint64_t kDefaultMaxAuthTokenCacheSize = 0;
 inline constexpr uint64_t kMinNamespaceElements = 1;
 inline constexpr uint64_t kMaxNamespaceElements = 32;
 inline constexpr size_t kMaxFullTrackNameSize = 1024;
+inline constexpr uint64_t kMaxObjectId = quiche::kVarInt62MaxValue;
 
 enum AuthTokenType : uint64_t {
   kOutOfBand = 0x0,
@@ -332,13 +334,15 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kUnauthorized = 0x1,
   kTimeout = 0x2,
   kNotSupported = 0x3,
-  kTrackDoesNotExist = 0x4,          // SUBSCRIBE_ERROR and FETCH_ERROR only.
-  kUninterested = 0x4,               // ANNOUNCE_ERROR and ANNOUNCE_CANCEL only.
-  kNamespacePrefixUnknown = 0x4,     // SUBSCRIBE_ANNOUNCES_ERROR only.
-  kInvalidRange = 0x5,               // SUBSCRIBE_ERROR and FETCH_ERROR only.
-  kNamespacePrefixOverlap = 0x5,     // SUBSCRIBE_ANNOUNCES_ERROR only.
-  kNoObjects = 0x6,                  // FETCH_ERROR only.
-  kInvalidJoiningSubscribeId = 0x7,  // FETCH_ERROR only.
+  kTrackDoesNotExist = 0x4,        // SUBSCRIBE_ERROR and FETCH_ERROR only.
+  kUninterested = 0x4,             // ANNOUNCE_ERROR and ANNOUNCE_CANCEL only.
+  kNamespacePrefixUnknown = 0x4,   // SUBSCRIBE_ANNOUNCES_ERROR only.
+  kInvalidRange = 0x5,             // SUBSCRIBE_ERROR and FETCH_ERROR only.
+  kNamespacePrefixOverlap = 0x5,   // SUBSCRIBE_ANNOUNCES_ERROR only.
+  kNoObjects = 0x6,                // FETCH_ERROR only.
+  kInvalidJoiningRequestId = 0x7,  // FETCH_ERROR only.
+  kUnknownStatusInRange = 0x8,     // FETCH_ERROR only.
+  kMalformedTrack = 0x9,
   kMalformedAuthToken = 0x10,
   kExpiredAuthToken = 0x12,
 };
@@ -462,7 +466,15 @@ struct Location {
   // https://moq-wg.github.io/moq-transport/draft-ietf-moq-transport.html#location-structure
   auto operator<=>(const Location&) const = default;
 
-  Location next() const { return Location(group, object + 1); }
+  Location Next() const {
+    if (object == kMaxObjectId) {
+      if (group == kMaxObjectId) {
+        return Location(0, 0);
+      }
+      return Location(group + 1, 0);
+    }
+    return Location(group, object + 1);
+  }
 
   template <typename H>
   friend H AbslHashValue(H h, const Location& m);
@@ -771,20 +783,18 @@ enum class QUICHE_EXPORT FetchType : uint64_t {
 
 struct StandaloneFetch {
   StandaloneFetch() = default;
-  StandaloneFetch(FullTrackName full_track_name, Location start_object,
-                  uint64_t end_group, std::optional<uint64_t> end_object)
+  StandaloneFetch(FullTrackName full_track_name, Location start_location,
+                  Location end_location)
       : full_track_name(full_track_name),
-        start_object(start_object),
-        end_group(end_group),
-        end_object(end_object) {}
+        start_location(start_location),
+        end_location(end_location) {}
   FullTrackName full_track_name;
-  Location start_object;  // subgroup is ignored
-  uint64_t end_group;
-  std::optional<uint64_t> end_object;
+  Location start_location;
+  Location end_location;
   bool operator==(const StandaloneFetch& other) const {
     return full_track_name == other.full_track_name &&
-           start_object == other.start_object && end_group == other.end_group &&
-           end_object == other.end_object;
+           start_location == other.start_location &&
+           end_location == other.end_location;
   }
   bool operator!=(const StandaloneFetch& other) const {
     return !(*this == other);
@@ -792,13 +802,12 @@ struct StandaloneFetch {
 };
 
 struct JoiningFetchRelative {
-  JoiningFetchRelative(uint64_t joining_subscribe_id, uint64_t joining_start)
-      : joining_subscribe_id(joining_subscribe_id),
-        joining_start(joining_start) {}
-  uint64_t joining_subscribe_id;
+  JoiningFetchRelative(uint64_t joining_request_id, uint64_t joining_start)
+      : joining_request_id(joining_request_id), joining_start(joining_start) {}
+  uint64_t joining_request_id;
   uint64_t joining_start;
   bool operator==(const JoiningFetchRelative& other) const {
-    return joining_subscribe_id == other.joining_subscribe_id &&
+    return joining_request_id == other.joining_request_id &&
            joining_start == other.joining_start;
   }
   bool operator!=(const JoiningFetchRelative& other) const {
@@ -807,13 +816,12 @@ struct JoiningFetchRelative {
 };
 
 struct JoiningFetchAbsolute {
-  JoiningFetchAbsolute(uint64_t joining_subscribe_id, uint64_t joining_start)
-      : joining_subscribe_id(joining_subscribe_id),
-        joining_start(joining_start) {}
-  uint64_t joining_subscribe_id;
+  JoiningFetchAbsolute(uint64_t joining_request_id, uint64_t joining_start)
+      : joining_request_id(joining_request_id), joining_start(joining_start) {}
+  uint64_t joining_request_id;
   uint64_t joining_start;
   bool operator==(const JoiningFetchAbsolute& other) const {
-    return joining_subscribe_id == other.joining_subscribe_id &&
+    return joining_request_id == other.joining_request_id &&
            joining_start == other.joining_start;
   }
   bool operator!=(const JoiningFetchAbsolute& other) const {

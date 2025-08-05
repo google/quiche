@@ -94,7 +94,7 @@ MoqtFetch DefaultFetch() {
       /*group_order=*/std::nullopt,
       /*fetch=*/
       StandaloneFetch(kDefaultTrackName(), Location(0, 0),
-                      kDefaultPeerRequestId, std::nullopt),
+                      Location(1, kMaxObjectId)),
       /*parameters=*/VersionSpecificParameters(),
   };
   return fetch;
@@ -2371,7 +2371,8 @@ TEST_F(MoqtSessionTest, ProcessFetchGetEverythingFromUpstream) {
   // No callbacks are synchronous. MockFetchTask will store the callbacks.
   auto fetch_task_ptr = std::make_unique<MockFetchTask>();
   MockFetchTask* fetch_task = fetch_task_ptr.get();
-  EXPECT_CALL(*track, Fetch).WillOnce(Return(std::move(fetch_task_ptr)));
+  EXPECT_CALL(*track, StandaloneFetch)
+      .WillOnce(Return(std::move(fetch_task_ptr)));
   stream_input->OnFetchMessage(fetch);
 
   // Compose and send the FETCH_OK.
@@ -2408,7 +2409,8 @@ TEST_F(MoqtSessionTest, ProcessFetchWholeRangeIsPresent) {
   auto fetch_task_ptr =
       std::make_unique<MockFetchTask>(expected_ok, std::nullopt, true);
   MockFetchTask* fetch_task = fetch_task_ptr.get();
-  EXPECT_CALL(*track, Fetch).WillOnce(Return(std::move(fetch_task_ptr)));
+  EXPECT_CALL(*track, StandaloneFetch)
+      .WillOnce(Return(std::move(fetch_task_ptr)));
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _));
   webtransport::test::MockStream data_stream;
   std::unique_ptr<webtransport::StreamVisitor> stream_visitor;
@@ -2433,7 +2435,8 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeOk) {
   auto fetch_task_ptr =
       std::make_unique<MockFetchTask>(std::nullopt, std::nullopt, true);
   MockFetchTask* fetch_task = fetch_task_ptr.get();
-  EXPECT_CALL(*track, Fetch).WillOnce(Return(std::move(fetch_task_ptr)));
+  EXPECT_CALL(*track, StandaloneFetch)
+      .WillOnce(Return(std::move(fetch_task_ptr)));
   webtransport::test::MockStream data_stream;
   std::unique_ptr<webtransport::StreamVisitor> stream_visitor;
   ExpectStreamOpen(mock_session_, fetch_task, data_stream, stream_visitor);
@@ -2460,7 +2463,8 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeError) {
   auto fetch_task_ptr =
       std::make_unique<MockFetchTask>(std::nullopt, std::nullopt, true);
   MockFetchTask* fetch_task = fetch_task_ptr.get();
-  EXPECT_CALL(*track, Fetch).WillOnce(Return(std::move(fetch_task_ptr)));
+  EXPECT_CALL(*track, StandaloneFetch)
+      .WillOnce(Return(std::move(fetch_task_ptr)));
   webtransport::test::MockStream data_stream;
   std::unique_ptr<webtransport::StreamVisitor> stream_visitor;
   ExpectStreamOpen(mock_session_, fetch_task, data_stream, stream_visitor);
@@ -2501,7 +2505,8 @@ TEST_F(MoqtSessionTest, FetchFails) {
 
   auto fetch_task_ptr = std::make_unique<MockFetchTask>();
   MockFetchTask* fetch_task = fetch_task_ptr.get();
-  EXPECT_CALL(*track, Fetch).WillOnce(Return(std::move(fetch_task_ptr)));
+  EXPECT_CALL(*track, StandaloneFetch)
+      .WillOnce(Return(std::move(fetch_task_ptr)));
   EXPECT_CALL(*fetch_task, GetStatus())
       .WillRepeatedly(Return(absl::Status(absl::StatusCode::kInternal, "foo")));
   EXPECT_CALL(mock_stream_,
@@ -2518,7 +2523,8 @@ TEST_F(MoqtSessionTest, FullFetchDeliveryWithFlowControl) {
   auto fetch_task_ptr =
       std::make_unique<MockFetchTask>(std::nullopt, std::nullopt, true);
   MockFetchTask* fetch_task = fetch_task_ptr.get();
-  EXPECT_CALL(*track, Fetch).WillOnce(Return(std::move(fetch_task_ptr)));
+  EXPECT_CALL(*track, StandaloneFetch)
+      .WillOnce(Return(std::move(fetch_task_ptr)));
 
   stream_input->OnFetchMessage(fetch);
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
@@ -2538,7 +2544,7 @@ TEST_F(MoqtSessionTest, FullFetchDeliveryWithFlowControl) {
   stream_visitor->OnCanWrite();
 }
 
-TEST_F(MoqtSessionTest, IncomingJoiningFetch) {
+TEST_F(MoqtSessionTest, IncomingRelativeJoiningFetch) {
   MoqtSubscribe subscribe = DefaultSubscribe();
   // Give it the latest object filter.
   subscribe.filter_type = MoqtFilterType::kLatestObject;
@@ -2558,24 +2564,51 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetch) {
   EXPECT_FALSE(
       MoqtSessionPeer::InSubscriptionWindow(subscription, Location(4, 10)));
 
-  // Joining FETCH arrives. The resulting Fetch should begin at (2, 0).
   MoqtFetch fetch = DefaultFetch();
   fetch.request_id = 3;
   fetch.fetch = JoiningFetchRelative(1, 2);
-  EXPECT_CALL(*track, Fetch(Location(2, 0), 4, std::optional<uint64_t>(10), _))
+  EXPECT_CALL(*track, RelativeFetch(2, _))
       .WillOnce(Return(std::make_unique<MockFetchTask>()));
   stream_input->OnFetchMessage(fetch);
 }
 
-TEST_F(MoqtSessionTest, IncomingJoiningFetchBadSubscribeId) {
+TEST_F(MoqtSessionTest, IncomingAbsoluteJoiningFetch) {
+  MoqtSubscribe subscribe = DefaultSubscribe();
+  // Give it the latest object filter.
+  subscribe.filter_type = MoqtFilterType::kLatestObject;
+  subscribe.start = std::nullopt;
+  subscribe.end_group = std::nullopt;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  MockTrackPublisher* track = CreateTrackPublisher();
+  SetLargestId(track, Location(4, 10));
+  ReceiveSubscribeSynchronousOk(track, subscribe, stream_input.get());
+
+  MoqtObjectListener* subscription =
+      MoqtSessionPeer::GetSubscription(&session_, subscribe.request_id);
+  ASSERT_NE(subscription, nullptr);
+  EXPECT_TRUE(
+      MoqtSessionPeer::InSubscriptionWindow(subscription, Location(4, 11)));
+  EXPECT_FALSE(
+      MoqtSessionPeer::InSubscriptionWindow(subscription, Location(4, 10)));
+
+  MoqtFetch fetch = DefaultFetch();
+  fetch.request_id = 3;
+  fetch.fetch = JoiningFetchAbsolute(1, 2);
+  EXPECT_CALL(*track, AbsoluteFetch(2, _))
+      .WillOnce(Return(std::make_unique<MockFetchTask>()));
+  stream_input->OnFetchMessage(fetch);
+}
+
+TEST_F(MoqtSessionTest, IncomingJoiningFetchBadRequestId) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtFetch fetch = DefaultFetch();
   fetch.fetch = JoiningFetchRelative(1, 2);
   MoqtFetchError expected_error = {
       /*request_id=*/1,
-      /*error_code=*/RequestErrorCode::kTrackDoesNotExist,
-      /*reason_phrase=*/"Joining Fetch for non-existent subscribe",
+      /*error_code=*/RequestErrorCode::kInvalidJoiningRequestId,
+      /*reason_phrase=*/"Joining Fetch for non-existent request",
   };
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(expected_error), _));

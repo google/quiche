@@ -530,15 +530,14 @@ TEST_F(MoqtFramerSimpleTest, PublishOkMissingStart) {
 
 TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
   MoqtFetch fetch = {
-      /*subscribe_id =*/1,
+      /*request_id=*/1,
       /*subscriber_priority=*/2,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*fetch=*/
       StandaloneFetch{
           FullTrackName("foo", "bar"),
-          /*start_object=*/Location{1, 2},
-          /*end_group=*/1,
-          /*end_object=*/1,
+          /*start_location=*/Location{1, 2},
+          /*end_location=*/Location{1, 1},
       },
       /*parameters=*/
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
@@ -547,11 +546,24 @@ TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
   EXPECT_QUIC_BUG(buffer = framer_.SerializeFetch(fetch),
                   "Invalid FETCH object range");
   EXPECT_EQ(buffer.size(), 0);
-  std::get<StandaloneFetch>(fetch.fetch).end_group = 0;
-  std::get<StandaloneFetch>(fetch.fetch).end_object = std::nullopt;
+  std::get<StandaloneFetch>(fetch.fetch).end_location =
+      Location{0, kMaxObjectId};
   EXPECT_QUIC_BUG(buffer = framer_.SerializeFetch(fetch),
                   "Invalid FETCH object range");
   EXPECT_EQ(buffer.size(), 0);
+}
+
+TEST_F(MoqtFramerSimpleTest, FetchOkWholeGroup) {
+  MoqtFetchOk fetch_ok = {
+      /*request_id=*/1,
+      MoqtDeliveryOrder::kAscending,
+      /*end_of_track=*/false,
+      /*end_location=*/Location{4, kMaxObjectId},
+      VersionSpecificParameters(),
+  };
+  quiche::QuicheBuffer buffer = framer_.SerializeFetchOk(fetch_ok);
+  // Check that object ID is zero.
+  EXPECT_EQ(static_cast<uint8_t>(buffer.AsSpan()[7]), 0);
 }
 
 TEST_F(MoqtFramerSimpleTest, SubscribeUpdateEndGroupOnly) {

@@ -74,9 +74,12 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   MoqtDeliveryOrder GetDeliveryOrder() const override {
     return delivery_order_;
   }
-  std::unique_ptr<MoqtFetchTask> Fetch(Location start, uint64_t end_group,
-                                       std::optional<uint64_t> end_object,
-                                       MoqtDeliveryOrder order) override;
+  std::unique_ptr<MoqtFetchTask> StandaloneFetch(
+      Location start, Location end, MoqtDeliveryOrder order) override;
+  std::unique_ptr<MoqtFetchTask> RelativeFetch(
+      uint64_t group_diff, MoqtDeliveryOrder order) override;
+  std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
+      uint64_t group, MoqtDeliveryOrder order) override;
 
   bool HasSubscribers() const { return !listeners_.empty(); }
   void SetDeliveryOrder(MoqtDeliveryOrder order) {

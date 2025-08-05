@@ -227,8 +227,7 @@ class UpstreamFetch : public RemoteTrack {
                 FetchResponseCallback callback)
       : RemoteTrack(
             standalone.full_track_name, fetch.request_id,
-            SubscribeWindow(standalone.start_object, standalone.end_group,
-                            standalone.end_object),
+            SubscribeWindow(standalone.start_location, standalone.end_location),
             fetch.subscriber_priority),
         ok_callback_(std::move(callback)) {}
   // Relative Joining Fetch constructor

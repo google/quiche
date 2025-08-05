@@ -101,7 +101,8 @@ class UpstreamFetchTest : public quic::test::QuicTest {
       /*subscriber_priority=*/128,
       /*group_order=*/std::nullopt,
       /*fetch=*/
-      StandaloneFetch(FullTrackName("foo", "bar"), Location(1, 1), 3, 100),
+      StandaloneFetch(FullTrackName("foo", "bar"), Location(1, 1),
+                      Location(3, 100)),
       VersionSpecificParameters(),
   };
   // The pointer held by the application.

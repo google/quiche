@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <variant>
 
 #include "absl/status/status.h"
@@ -82,8 +83,7 @@ class MoqtObjectListener {
 class MoqtFetchTask {
  public:
   using ObjectsAvailableCallback = quiche::MultiUseCallback<void()>;
-  // If the fields are not correct (e.g. end_of_track is less than start) it
-  // will result in QUICHE_BUG. The request_id field will be ignored.
+  // The request_id field will be ignored.
   using FetchResponseCallback = quiche::SingleUseCallback<void(
       std::variant<MoqtFetchOk, MoqtFetchError>)>;
 
@@ -178,9 +178,12 @@ class MoqtTrackPublisher {
   virtual MoqtDeliveryOrder GetDeliveryOrder() const = 0;
 
   // Performs a fetch for the specified range of objects.
-  virtual std::unique_ptr<MoqtFetchTask> Fetch(
-      Location start, uint64_t end_group, std::optional<uint64_t> end_object,
-      MoqtDeliveryOrder order) = 0;
+  virtual std::unique_ptr<MoqtFetchTask> StandaloneFetch(
+      Location start, Location end, MoqtDeliveryOrder order) = 0;
+  virtual std::unique_ptr<MoqtFetchTask> RelativeFetch(
+      uint64_t group_diff, MoqtDeliveryOrder order) = 0;
+  virtual std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
+      uint64_t group, MoqtDeliveryOrder order) = 0;
 };
 
 // MoqtPublisher is an interface to a publisher that allows it to publish

@@ -188,8 +188,8 @@ class MoqtSessionPeer {
         0,
         128,
         std::nullopt,
-        StandaloneFetch(FullTrackName{"foo", "bar"}, Location{0, 0}, 4,
-                        std::nullopt),
+        StandaloneFetch(FullTrackName{"foo", "bar"}, Location{0, 0},
+                        Location{4, kMaxObjectId}),
         VersionSpecificParameters(),
     };
     std::unique_ptr<MoqtFetchTask> task;

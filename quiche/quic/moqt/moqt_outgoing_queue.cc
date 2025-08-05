@@ -6,7 +6,6 @@
 
 #include <algorithm>
 #include <cstdint>
-#include <limits>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -25,6 +24,19 @@
 #include "quiche/common/quiche_mem_slice.h"
 
 namespace moqt {
+
+namespace {
+void ObjectsInDescendingOrder(std::vector<Location>& objects) {
+  absl::c_reverse(objects);
+  for (auto it = objects.begin(); it != objects.end();) {
+    auto start_it = it;
+    while (it != objects.end() && it->group == start_it->group) {
+      ++it;
+    }
+    std::reverse(start_it, it);
+  }
+}
+}  // namespace
 
 void MoqtOutgoingQueue::AddObject(quiche::QuicheMemSlice payload, bool key) {
   if (queue_.empty() && !key) {
@@ -103,7 +115,7 @@ std::optional<PublishedObject> MoqtOutgoingQueue::GetCachedObject(
 std::vector<Location> MoqtOutgoingQueue::GetCachedObjectsInRange(
     Location start, Location end) const {
   std::vector<Location> sequences;
-  SubscribeWindow window(start, end.group, end.object);
+  SubscribeWindow window(start, end);
   for (const Group& group : queue_) {
     for (const CachedObject& object : group) {
       if (window.InWindow(object.metadata.location)) {
@@ -133,16 +145,13 @@ Location MoqtOutgoingQueue::GetLargestLocation() const {
   return Location{current_group_id_, queue_.back().size() - 1};
 }
 
-std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::Fetch(
-    Location start, uint64_t end_group, std::optional<uint64_t> end_object,
-    MoqtDeliveryOrder order) {
+std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::StandaloneFetch(
+    Location start, Location end, MoqtDeliveryOrder order) {
   if (queue_.empty()) {
     return std::make_unique<MoqtFailedFetch>(
         absl::NotFoundError("No objects available on the track"));
   }
 
-  Location end = Location(
-      end_group, end_object.value_or(std::numeric_limits<uint64_t>::max()));
   Location first_available_object = Location(first_group_in_queue(), 0);
   Location last_available_object =
       Location(current_group_id_, queue_.back().size() - 1);
@@ -169,6 +178,48 @@ std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::Fetch(
       }
       std::reverse(start_it, it);
     }
+  }
+  return std::make_unique<FetchTask>(this, std::move(objects));
+}
+
+std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::RelativeFetch(
+    uint64_t group_diff, MoqtDeliveryOrder order) {
+  if (queue_.empty()) {
+    return std::make_unique<MoqtFailedFetch>(
+        absl::NotFoundError("No objects available on the track"));
+  }
+
+  uint64_t start_group = (group_diff > first_group_in_queue())
+                             ? 0
+                             : current_group_id_ - group_diff;
+  start_group = std::max(start_group, first_group_in_queue());
+  Location start = Location(start_group, 0);
+  Location end = Location(current_group_id_, queue_.back().size() - 1);
+
+  std::vector<Location> objects = GetCachedObjectsInRange(start, end);
+  if (order == MoqtDeliveryOrder::kDescending) {
+    ObjectsInDescendingOrder(objects);
+  }
+  return std::make_unique<FetchTask>(this, std::move(objects));
+}
+
+std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::AbsoluteFetch(
+    uint64_t group, MoqtDeliveryOrder order) {
+  if (queue_.empty()) {
+    return std::make_unique<MoqtFailedFetch>(
+        absl::NotFoundError("No objects available on the track"));
+  }
+
+  Location start(std::max(group, first_group_in_queue()), 0);
+  Location end = Location(current_group_id_, queue_.back().size() - 1);
+  if (start > end) {
+    return std::make_unique<MoqtFailedFetch>(
+        absl::NotFoundError("All of the requested objects are in the future"));
+  }
+
+  std::vector<Location> objects = GetCachedObjectsInRange(start, end);
+  if (order == MoqtDeliveryOrder::kDescending) {
+    ObjectsInDescendingOrder(objects);
   }
   return std::make_unique<FetchTask>(this, std::move(objects));
 }

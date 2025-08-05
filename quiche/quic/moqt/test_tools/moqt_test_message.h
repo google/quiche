@@ -1465,8 +1465,9 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
     // Avoid varint nonsense.
     QUICHE_CHECK(group < 64);
     QUICHE_CHECK(!object.has_value() || *object < 64);
-    std::get<StandaloneFetch>(fetch_.fetch).end_group = group;
-    std::get<StandaloneFetch>(fetch_.fetch).end_object = object;
+    std::get<StandaloneFetch>(fetch_.fetch).end_location.group = group;
+    std::get<StandaloneFetch>(fetch_.fetch).end_location.object =
+        object.has_value() ? *object : kMaxObjectId;
     raw_packet_[18] = group;
     raw_packet_[19] = object.has_value() ? (*object + 1) : 0;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
@@ -1486,8 +1487,8 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
       0x01,                          // type = kStandalone
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x03, 0x62, 0x61, 0x72,        // track_name = "bar"
-      0x01, 0x02,                    // start_object = 1, 2
-      0x05, 0x07,                    // end_object = 5, 6
+      0x01, 0x02,                    // start_location = 1, 2
+      0x05, 0x07,                    // end_location = 5, 6
       0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
   };
 
@@ -1498,9 +1499,8 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
       /*fetch =*/
       StandaloneFetch{
           FullTrackName("foo", "bar"),
-          /*start_object=*/Location{1, 2},
-          /*end_group=*/5,
-          /*end_object=*/6,
+          /*start_location=*/Location{1, 2},
+          /*end_location=*/Location{5, 6},
       },
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
   };
@@ -1558,7 +1558,7 @@ class QUICHE_NO_EXPORT RelativeJoiningFetchMessage : public TestMessageBase {
       0x02,        // priority = kHigh
       0x01,        // group_order = kAscending
       0x02,        // type = kRelativeJoining
-      0x02, 0x02,  // joining_subscribe_id = 2, 2 groups
+      0x02, 0x02,  // joining_request_id = 2, 2 groups
       0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
   };
 
@@ -1623,7 +1623,7 @@ class QUICHE_NO_EXPORT AbsoluteJoiningFetchMessage : public TestMessageBase {
       0x02,        // priority = kHigh
       0x01,        // group_order = kAscending
       0x03,        // type = kAbsoluteJoining
-      0x02, 0x02,  // joining_subscribe_id = 2, group_id = 2
+      0x02, 0x02,  // joining_request_id = 2, group_id = 2
       0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
   };
 
@@ -1678,7 +1678,7 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
       0x01,                    // request_id = 1
       0x01,                    // group_order = kAscending
       0x00,                    // end_of_track = false
-      0x05, 0x04,              // end_location = 5, 4
+      0x05, 0x04,              // end_location = 5, 3
       0x01, 0x04, 0x67, 0x10,  // MaxCacheDuration = 10000
   };
 
@@ -1686,7 +1686,7 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
       /*request_id =*/1,
       /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*end_of_track=*/false,
-      /*end_location=*/Location{5, 4},
+      /*end_location=*/Location{5, 3},
       VersionSpecificParameters(quic::QuicTimeDelta::Infinite(),
                                 quic::QuicTimeDelta::FromMilliseconds(10000)),
   };

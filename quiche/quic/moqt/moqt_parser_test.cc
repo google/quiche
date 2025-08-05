@@ -1357,6 +1357,23 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkInvalidDeliveryOrder) {
             "Invalid group order value in SUBSCRIBE_OK");
 }
 
+TEST_F(MoqtMessageSpecificTest, FetchWholeGroup) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  FetchMessage fetch;
+  fetch.SetEndObject(5, std::nullopt);
+  stream.Receive(fetch.PacketSample(), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  EXPECT_TRUE(visitor_.last_message_.has_value());
+  if (!visitor_.last_message_.has_value()) {
+    return;
+  }
+  MoqtFetch parse_result = std::get<MoqtFetch>(*visitor_.last_message_);
+  auto standalone = std::get<StandaloneFetch>(parse_result.fetch);
+  EXPECT_EQ(standalone.end_location, Location(5, kMaxObjectId));
+}
+
 TEST_F(MoqtMessageSpecificTest, FetchInvalidRange) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);

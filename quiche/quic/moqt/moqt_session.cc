@@ -523,7 +523,10 @@ bool MoqtSession::Fetch(const FullTrackName& name,
     return false;
   }
   MoqtFetch message;
-  message.fetch = StandaloneFetch(name, start, end_group, end_object);
+  Location end_location = end_object.has_value()
+                              ? Location(end_group, *end_object)
+                              : Location(end_group, kMaxObjectId);
+  message.fetch = StandaloneFetch(name, start, end_location);
   message.request_id = next_request_id_;
   next_request_id_ += 2;
   message.subscriber_priority = priority;
@@ -1107,7 +1110,7 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
   subscribe->set_track_alias(message.track_alias);
   // TODO(martinduke): Handle expires field.
   if (message.largest_location.has_value()) {
-    subscribe->TruncateStart(message.largest_location->next());
+    subscribe->TruncateStart(message.largest_location->Next());
   }
   if (subscribe->visitor() != nullptr) {
     subscribe->visitor()->OnReply(track->full_track_name(),
@@ -1442,31 +1445,45 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
                    "FETCH after GOAWAY");
     return;
   }
+  std::unique_ptr<MoqtFetchTask> fetch;
   FullTrackName track_name;
-  Location start_object;
-  uint64_t end_group;
-  std::optional<uint64_t> end_object;
   if (std::holds_alternative<StandaloneFetch>(message.fetch)) {
     const StandaloneFetch& standalone_fetch =
         std::get<StandaloneFetch>(message.fetch);
     track_name = standalone_fetch.full_track_name;
-    start_object = standalone_fetch.start_object;
-    end_group = standalone_fetch.end_group;
-    end_object = standalone_fetch.end_object;
+    absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track_publisher =
+        session_->publisher_->GetTrack(track_name);
+    if (!track_publisher.ok()) {
+      QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
+                      << " rejected by the application: "
+                      << track_publisher.status();
+      SendFetchError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
+                     track_publisher.status().message());
+    }
+    QUIC_DLOG(INFO) << ENDPOINT << "Received a StandaloneFETCH for "
+                    << track_name;
+    // The check for end_object < start_object is done in
+    // MoqtTrackPublisher::Fetch().
+    fetch = (*track_publisher)
+                ->StandaloneFetch(standalone_fetch.start_location,
+                                  standalone_fetch.end_location,
+                                  message.group_order.value_or(
+                                      (*track_publisher)->GetDeliveryOrder()));
   } else {
-    uint64_t joining_subscribe_id =
+    // Joining Fetch processing.
+    uint64_t joining_request_id =
         std::holds_alternative<JoiningFetchRelative>(message.fetch)
             ? std::get<struct JoiningFetchRelative>(message.fetch)
-                  .joining_subscribe_id
-            : std::get<JoiningFetchAbsolute>(message.fetch)
-                  .joining_subscribe_id;
-    auto it = session_->published_subscriptions_.find(joining_subscribe_id);
+                  .joining_request_id
+            : std::get<JoiningFetchAbsolute>(message.fetch).joining_request_id;
+    auto it = session_->published_subscriptions_.find(joining_request_id);
     if (it == session_->published_subscriptions_.end()) {
       QUIC_DLOG(INFO) << ENDPOINT << "Received a JOINING_FETCH for "
-                      << "subscribe_id " << joining_subscribe_id
+                      << "request_id " << joining_request_id
                       << " that does not exist";
-      SendFetchError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
-                     "Joining Fetch for non-existent subscribe");
+      SendFetchError(message.request_id,
+                     RequestErrorCode::kInvalidJoiningRequestId,
+                     "Joining Fetch for non-existent request");
       return;
     }
     if (it->second->filter_type() != MoqtFilterType::kLatestObject) {
@@ -1474,50 +1491,33 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
       // LatestObject and AbsoluteStart with object ID > 0, but accept
       // JoiningFetch for AbsoluteStart.
       QUIC_DLOG(INFO) << ENDPOINT << "Received a JOINING_FETCH for "
-                      << "subscribe_id " << joining_subscribe_id
+                      << "joining_request_id " << joining_request_id
                       << " that is not a LatestObject";
       session_->Error(MoqtError::kProtocolViolation,
                       "Joining Fetch for non-LatestObject subscribe");
       return;
     }
     track_name = it->second->publisher().GetTrackName();
-    Location fetch_end = it->second->GetWindowStart();
     if (std::holds_alternative<JoiningFetchRelative>(message.fetch)) {
       const JoiningFetchRelative& relative_fetch =
           std::get<JoiningFetchRelative>(message.fetch);
-      if (relative_fetch.joining_start > fetch_end.group) {
-        start_object = Location(0, 0);
-      } else {
-        start_object =
-            Location(fetch_end.group - relative_fetch.joining_start, 0);
-      }
+      QUIC_DLOG(INFO) << ENDPOINT << "Received a Relative Joining FETCH for "
+                      << track_name;
+      fetch = it->second->publisher().RelativeFetch(
+          relative_fetch.joining_start,
+          message.group_order.value_or(
+              it->second->publisher().GetDeliveryOrder()));
     } else {
       const JoiningFetchAbsolute& absolute_fetch =
           std::get<JoiningFetchAbsolute>(message.fetch);
-      start_object =
-          Location(fetch_end.group - absolute_fetch.joining_start, 0);
+      QUIC_DLOG(INFO) << ENDPOINT << "Received a Absolute Joining FETCH for "
+                      << track_name;
+      fetch = it->second->publisher().AbsoluteFetch(
+          absolute_fetch.joining_start,
+          message.group_order.value_or(
+              it->second->publisher().GetDeliveryOrder()));
     }
-    end_group = fetch_end.group;
-    end_object = fetch_end.object - 1;
   }
-  // The check for end_object < start_object is done in
-  // MoqtTrackPublisher::Fetch().
-  QUIC_DLOG(INFO) << ENDPOINT << "Received a FETCH for " << track_name;
-  absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track_publisher =
-      session_->publisher_->GetTrack(track_name);
-  if (!track_publisher.ok()) {
-    QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
-                    << " rejected by the application: "
-                    << track_publisher.status();
-    SendFetchError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
-                   track_publisher.status().message());
-    return;
-  }
-  std::unique_ptr<MoqtFetchTask> fetch =
-      (*track_publisher)
-          ->Fetch(start_object, end_group, end_object,
-                  message.group_order.value_or(
-                      (*track_publisher)->GetDeliveryOrder()));
   if (!fetch->GetStatus().ok()) {
     QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
                     << " could not initialize the task";
@@ -1537,8 +1537,7 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
   }
   MoqtFetchTask* fetch_task = result.first->second->fetch_task();
   fetch_task->SetFetchResponseCallback(
-      [this, request_id = message.request_id, fetch_start = start_object,
-       fetch_end = Location(end_group, end_object.value_or(UINT64_MAX))](
+      [this, request_id = message.request_id](
           std::variant<MoqtFetchOk, MoqtFetchError> message) {
         if (!session_->incoming_fetches_.contains(request_id)) {
           return;  // FETCH was cancelled.
@@ -1546,15 +1545,6 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
         if (std::holds_alternative<MoqtFetchOk>(message)) {
           MoqtFetchOk& fetch_ok = std::get<MoqtFetchOk>(message);
           fetch_ok.request_id = request_id;
-          if (fetch_ok.end_location < fetch_start ||
-              fetch_ok.end_location > fetch_end) {
-            // TODO(martinduke): Add end_of_track to fetch_ok and check it's
-            // larger than end_location.
-            QUIC_BUG(quic_bug_fetch_ok_status_error)
-                << "FETCH_OK end or end_of_track is invalid";
-            session_->Error(MoqtError::kInternalError, "FETCH_OK status error");
-            return;
-          }
           SendOrBufferMessage(session_->framer_.SerializeFetchOk(fetch_ok));
           return;
         }
@@ -1999,7 +1989,7 @@ void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
     if (forward_) {
       switch (filter_type_) {
         case MoqtFilterType::kLatestObject:
-          window_ = SubscribeWindow(largest_location->next());
+          window_ = SubscribeWindow(largest_location->Next());
           break;
         case MoqtFilterType::kNextGroupStart:
           window_ = SubscribeWindow(Location(largest_location->group + 1, 0));

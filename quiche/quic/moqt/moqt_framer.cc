@@ -642,10 +642,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
   if (std::holds_alternative<StandaloneFetch>(message.fetch)) {
     const StandaloneFetch& standalone_fetch =
         std::get<StandaloneFetch>(message.fetch);
-    if (standalone_fetch.end_group < standalone_fetch.start_object.group ||
-        (standalone_fetch.end_group == standalone_fetch.start_object.group &&
-         standalone_fetch.end_object.has_value() &&
-         *standalone_fetch.end_object < standalone_fetch.start_object.object)) {
+    if (standalone_fetch.end_location < standalone_fetch.start_location) {
       QUICHE_BUG(MoqtFramer_invalid_fetch) << "Invalid FETCH object range";
       return quiche::QuicheBuffer();
     }
@@ -666,32 +663,31 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
         WireDeliveryOrder(message.group_order),
         WireVarInt62(FetchType::kStandalone),
         WireFullTrackName(standalone_fetch.full_track_name),
-        WireVarInt62(standalone_fetch.start_object.group),
-        WireVarInt62(standalone_fetch.start_object.object),
-        WireVarInt62(standalone_fetch.end_group),
-        WireVarInt62(standalone_fetch.end_object.has_value()
-                         ? *standalone_fetch.end_object + 1
-                         : 0),
+        WireVarInt62(standalone_fetch.start_location.group),
+        WireVarInt62(standalone_fetch.start_location.object),
+        WireVarInt62(standalone_fetch.end_location.group),
+        WireVarInt62(standalone_fetch.end_location.object == kMaxObjectId
+                         ? 0
+                         : standalone_fetch.end_location.object + 1),
         WireKeyValuePairList(parameters));
   }
-  uint64_t subscribe_id;
-  uint64_t joining_start;
+  uint64_t request_id, joining_start;
   if (std::holds_alternative<JoiningFetchRelative>(message.fetch)) {
     const JoiningFetchRelative& joining_fetch =
         std::get<JoiningFetchRelative>(message.fetch);
-    subscribe_id = joining_fetch.joining_subscribe_id;
+    request_id = joining_fetch.joining_request_id;
     joining_start = joining_fetch.joining_start;
   } else {
     const JoiningFetchAbsolute& joining_fetch =
         std::get<JoiningFetchAbsolute>(message.fetch);
-    subscribe_id = joining_fetch.joining_subscribe_id;
+    request_id = joining_fetch.joining_request_id;
     joining_start = joining_fetch.joining_start;
   }
   return SerializeControlMessage(
       MoqtMessageType::kFetch, WireVarInt62(message.request_id),
       WireUint8(message.subscriber_priority),
       WireDeliveryOrder(message.group_order),
-      WireVarInt62(message.fetch.index() + 1), WireVarInt62(subscribe_id),
+      WireVarInt62(message.fetch.index() + 1), WireVarInt62(request_id),
       WireVarInt62(joining_start), WireKeyValuePairList(parameters));
 }
 
@@ -708,7 +704,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetchOk(const MoqtFetchOk& message) {
       MoqtMessageType::kFetchOk, WireVarInt62(message.request_id),
       WireDeliveryOrder(message.group_order), WireBoolean(message.end_of_track),
       WireVarInt62(message.end_location.group),
-      WireVarInt62(message.end_location.object),
+      WireVarInt62(message.end_location.object == kMaxObjectId
+                       ? 0
+                       : (message.end_location.object + 1)),
       WireKeyValuePairList(parameters));
 }
 

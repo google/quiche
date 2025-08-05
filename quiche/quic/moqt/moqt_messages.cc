@@ -105,7 +105,7 @@ RequestErrorCode StatusToRequestErrorCode(absl::Status status) {
     case absl::StatusCode::kOutOfRange:
       return RequestErrorCode::kInvalidRange;
     case absl::StatusCode::kInvalidArgument:
-      return RequestErrorCode::kInvalidJoiningSubscribeId;
+      return RequestErrorCode::kInvalidJoiningRequestId;
     case absl::StatusCode::kUnauthenticated:
       return RequestErrorCode::kExpiredAuthToken;
     default:
@@ -132,7 +132,7 @@ absl::StatusCode RequestErrorCodeToStatusCode(RequestErrorCode error_code) {
     case RequestErrorCode::kNoObjects:
       // Equivalently, kRetryTrackAlias.
       return absl::StatusCode::kNotFound;
-    case RequestErrorCode::kInvalidJoiningSubscribeId:
+    case RequestErrorCode::kInvalidJoiningRequestId:
     case RequestErrorCode::kMalformedAuthToken:
       return absl::StatusCode::kInvalidArgument;
     case RequestErrorCode::kExpiredAuthToken:
