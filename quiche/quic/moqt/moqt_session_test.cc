@@ -2727,6 +2727,65 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithError) {
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesError),
              _));
   stream_input->OnSubscribeAnnouncesMessage(announces);
+
+  // Try again, to verify that it was purged from the tree.
+  announces.request_id += 2;
+  EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
+              Call(_, parameters))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(
+      control_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesOk), _));
+  stream_input->OnSubscribeAnnouncesMessage(announces);
+}
+
+TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithPrefixOverlap) {
+  TrackNamespace track_namespace{"foo"};
+  auto parameters = std::make_optional<VersionSpecificParameters>(
+      AuthTokenType::kOutOfBand, "foo");
+  MoqtSubscribeAnnounces announces = {
+      /*request_id=*/1,
+      track_namespace,
+      *parameters,
+  };
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
+              Call(_, parameters))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(
+      control_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesOk), _));
+  stream_input->OnSubscribeAnnouncesMessage(announces);
+
+  // Overlapping request is rejected.
+  announces.request_id += 2;
+  announces.track_namespace = TrackNamespace{"foo", "bar"};
+  EXPECT_CALL(
+      control_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesError),
+             _));
+  stream_input->OnSubscribeAnnouncesMessage(announces);
+
+  // Remove the subscription. Now a later one will work.
+  MoqtUnsubscribeAnnounces unsubscribe_announces = {
+      TrackNamespace{"foo"},
+  };
+  EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
+              Call(track_namespace, std::optional<VersionSpecificParameters>()))
+      .WillOnce(Return(std::nullopt));
+  stream_input->OnUnsubscribeAnnouncesMessage(unsubscribe_announces);
+
+  // Try again, it will work.
+  announces.request_id += 2;
+  EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
+              Call(_, parameters))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(
+      control_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesOk), _));
+  stream_input->OnSubscribeAnnouncesMessage(announces);
 }
 
 TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {

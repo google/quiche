@@ -1348,6 +1348,19 @@ void MoqtSession::ControlStream::OnSubscribeAnnouncesMessage(
         session_->framer_.SerializeSubscribeAnnouncesError(error));
     return;
   }
+  if (!session_->incoming_subscribe_announces_.AddNamespace(
+          message.track_namespace)) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE_ANNOUNCES for "
+                    << message.track_namespace
+                    << " that is already subscribed to";
+    MoqtSubscribeAnnouncesError error;
+    error.request_id = message.request_id;
+    error.error_code = RequestErrorCode::kNamespacePrefixOverlap;
+    error.error_reason = "SUBSCRIBE_ANNOUNCES for similar subscribed namespace";
+    SendOrBufferMessage(
+        session_->framer_.SerializeSubscribeAnnouncesError(error));
+    return;
+  }
   std::optional<MoqtSubscribeErrorReason> result =
       session_->callbacks_.incoming_subscribe_announces_callback(
           message.track_namespace, message.parameters);
@@ -1358,6 +1371,8 @@ void MoqtSession::ControlStream::OnSubscribeAnnouncesMessage(
     error.error_reason = result->reason_phrase;
     SendOrBufferMessage(
         session_->framer_.SerializeSubscribeAnnouncesError(error));
+    session_->incoming_subscribe_announces_.RemoveNamespace(
+        message.track_namespace);
     return;
   }
   MoqtSubscribeAnnouncesOk ok;
@@ -1400,6 +1415,8 @@ void MoqtSession::ControlStream::OnUnsubscribeAnnouncesMessage(
   std::optional<MoqtSubscribeErrorReason> result =
       session_->callbacks_.incoming_subscribe_announces_callback(
           message.track_namespace, std::nullopt);
+  session_->incoming_subscribe_announces_.RemoveNamespace(
+      message.track_namespace);
 }
 
 void MoqtSession::ControlStream::OnMaxRequestIdMessage(
