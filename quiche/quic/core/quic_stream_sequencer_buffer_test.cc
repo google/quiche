@@ -159,16 +159,12 @@ TEST_F(QuicStreamSequencerBufferTest, Move) {
   EXPECT_TRUE(helper2.IsBufferAllocated());
 }
 
-TEST_F(QuicStreamSequencerBufferTest, DISABLED_OnStreamDataInvalidSource) {
-  // Pass in an invalid source, expects to return error.
+TEST_F(QuicStreamSequencerBufferTest, OnStreamDataNull) {
+  // Pass in a null source, expects to return error.
   absl::string_view source;
-  source = absl::string_view(nullptr, 1024);
   EXPECT_THAT(buffer_->OnStreamData(800, source, &written_, &error_details_),
-              IsError(QUIC_STREAM_SEQUENCER_INVALID_STATE));
-  EXPECT_EQ(0u, error_details_.find(absl::StrCat(
-                    "QuicStreamSequencerBuffer error: OnStreamData() "
-                    "dest == nullptr: ",
-                    false, " source == nullptr: ", true)));
+              IsError(QUIC_EMPTY_STREAM_FRAME_NO_FIN));
+  EXPECT_TRUE(helper_->CheckBufferInvariants());
 }
 
 TEST_F(QuicStreamSequencerBufferTest, OnStreamDataWithOverlap) {
