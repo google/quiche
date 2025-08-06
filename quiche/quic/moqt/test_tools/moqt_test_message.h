@@ -33,10 +33,10 @@ inline constexpr absl::string_view kDefaultExtensionBlob(
     "\x00\x0c\x01\x03\x66\x6f\x6f", 7);
 
 const MoqtDatagramType kMoqtDatagramTypes[] = {
-    MoqtDatagramType(false, false),
-    MoqtDatagramType(false, true),
-    MoqtDatagramType(true, false),
-    MoqtDatagramType(true, true),
+    MoqtDatagramType(false, false, true), MoqtDatagramType(false, false, false),
+    MoqtDatagramType(false, true, true),  MoqtDatagramType(false, true, false),
+    MoqtDatagramType(true, false, false), MoqtDatagramType(true, true, false),
+    // Cannot have status and end_of_group both be true.
 };
 
 const MoqtDataStreamType kMoqtDataStreamTypes[] = {
@@ -239,10 +239,12 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     object_.subgroup_id = object_.object_id;
     // Update ObjectMessage::object_ to match the datagram type.
     if (datagram_type.has_status()) {
-      object_.object_status = MoqtObjectStatus::kEndOfGroup;
+      object_.object_status = MoqtObjectStatus::kObjectDoesNotExist;
       object_.payload_length = 0;
     } else {
-      object_.object_status = MoqtObjectStatus::kNormal;
+      object_.object_status = datagram_type.end_of_group()
+                                  ? MoqtObjectStatus::kEndOfGroup
+                                  : MoqtObjectStatus::kNormal;
       object_.payload_length = 3;
     }
     if (datagram_type.has_extension()) {

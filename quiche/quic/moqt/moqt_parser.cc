@@ -1300,6 +1300,16 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
   if (!datagram_type.has_value()) {
     return std::nullopt;
   }
+  if (datagram_type->end_of_group()) {
+    object_metadata.object_status = MoqtObjectStatus::kEndOfGroup;
+    if (datagram_type->has_status()) {
+      QUICHE_BUG(Moqt_invalid_datagram_type)
+          << "Invalid datagram type: " << type_raw;
+      return std::nullopt;
+    }
+  } else {
+    object_metadata.object_status = MoqtObjectStatus::kNormal;
+  }
   if (datagram_type->has_extension()) {
     if (!reader.ReadStringPieceVarInt62(&extensions)) {
       return std::nullopt;
@@ -1319,7 +1329,6 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
     return "";
   }
   absl::string_view payload = reader.ReadRemainingPayload();
-  object_metadata.object_status = MoqtObjectStatus::kNormal;
   object_metadata.payload_length = payload.length();
   return payload;
 }

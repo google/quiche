@@ -4,6 +4,7 @@
 
 #include "quiche/quic/moqt/moqt_messages.h"
 
+#include <optional>
 #include <vector>
 
 #include "absl/hash/hash.h"
@@ -92,6 +93,27 @@ TEST(MoqtMessagesTest, FullTrackNameTooLong) {
   absl::string_view big_namespace(raw_name, kMaxFullTrackNameSize + 1);
   EXPECT_QUICHE_BUG(TrackNamespace({big_namespace}),
                     "Constructing a namespace that is too large.");
+}
+
+TEST(MoqtMessagesTest, MoqtDatagramType) {
+  for (bool has_status : {false, true}) {
+    for (bool has_extension : {false, true}) {
+      for (bool end_of_group : {false, true}) {
+        if (has_status && end_of_group) {
+          EXPECT_QUICHE_BUG(
+              MoqtDatagramType(has_status, has_extension, end_of_group),
+              "Invalid datagram type");
+          continue;
+        }
+        MoqtDatagramType type(has_status, has_extension, end_of_group);
+        EXPECT_EQ(type.has_status(), has_status);
+        EXPECT_EQ(type.has_extension(), has_extension);
+        std::optional<MoqtDatagramType> from_value =
+            MoqtDatagramType::FromValue(type.value());
+        EXPECT_TRUE(from_value.has_value() && type == *from_value);
+      }
+    }
+  }
 }
 
 }  // namespace

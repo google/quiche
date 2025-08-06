@@ -193,23 +193,37 @@ class QUICHE_EXPORT MoqtDataStreamType {
 
 class QUICHE_EXPORT MoqtDatagramType {
  public:
-  MoqtDatagramType(bool has_status, bool has_extension) : value_(0) {
-    if (has_status) {
-      value_ |= 0x02;
-    }
+  MoqtDatagramType(bool has_status, bool has_extension, bool end_of_group)
+      : value_(0) {
     if (has_extension) {
       value_ |= 0x01;
     }
+    if (end_of_group) {
+      value_ |= 0x02;
+    }
+    if (has_status) {
+      value_ |= 0x04;
+    }
+    if (value_ > 0x5) {
+      QUICHE_BUG(Moqt_invalid_datagram_type)
+          << "Invalid datagram type: " << value_;
+      // Clear the end of group bit.
+      value_ &= 0x5;
+      return;
+    }
   }
   static std::optional<MoqtDatagramType> FromValue(uint64_t value) {
-    if (value <= 3) {
+    if (value <= 5) {
       return MoqtDatagramType(value);
     }
     return std::nullopt;
   }
-  bool has_status() const { return value_ & 0x02; }
+  bool has_status() const { return value_ & 0x04; }
+  bool end_of_group() const { return value_ & 0x02; }
   bool has_extension() const { return value_ & 0x01; }
   uint64_t value() const { return value_; }
+
+  bool operator==(const MoqtDatagramType& other) const = default;
 
  private:
   uint64_t value_;

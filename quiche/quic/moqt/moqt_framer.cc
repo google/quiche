@@ -340,8 +340,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
         << "Payload length does not match payload";
     return quiche::QuicheBuffer();
   }
-  MoqtDatagramType datagram_type(/*has_status=*/payload.empty(),
-                                 !message.extension_headers.empty());
+  MoqtDatagramType datagram_type(
+      /*has_status=*/payload.empty(), !message.extension_headers.empty(),
+      !payload.empty() &&
+          message.object_status == MoqtObjectStatus::kEndOfGroup);
   std::optional<absl::string_view> extensions =
       datagram_type.has_extension()
           ? std::optional<absl::string_view>(message.extension_headers)
@@ -827,6 +829,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(
 bool MoqtFramer::ValidateObjectMetadata(const MoqtObject& object,
                                         bool is_datagram) {
   if (object.object_status != MoqtObjectStatus::kNormal &&
+      object.object_status != MoqtObjectStatus::kEndOfGroup &&
       object.payload_length > 0) {
     return false;
   }

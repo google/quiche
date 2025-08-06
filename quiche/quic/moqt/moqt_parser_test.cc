@@ -1317,7 +1317,7 @@ TEST_F(MoqtMessageSpecificTest, WrongMessageInDatagram) {
 }
 
 TEST_F(MoqtMessageSpecificTest, TruncatedDatagram) {
-  ObjectDatagramMessage message(MoqtDatagramType(false, true));
+  ObjectDatagramMessage message(MoqtDatagramType(false, true, false));
   message.set_wire_image_size(4);
   MoqtObject object;
   std::optional<absl::string_view> payload =

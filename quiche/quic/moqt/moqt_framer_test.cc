@@ -324,7 +324,7 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
   quiche::QuicheBuffer buffer;
 
   // Non-normal status must have no payload.
-  object.object_status = MoqtObjectStatus::kEndOfGroup;
+  object.object_status = MoqtObjectStatus::kObjectDoesNotExist;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
                       object, MoqtDataStreamType::Subgroup(8, 0, false), false),
                   "Object metadata is invalid");
@@ -346,7 +346,7 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
   };
   quiche::QuicheBuffer buffer;
 
-  object.object_status = MoqtObjectStatus::kEndOfGroup;
+  object.object_status = MoqtObjectStatus::kObjectDoesNotExist;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(object, "foo"),
                   "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
@@ -365,7 +365,8 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
 
 TEST_F(MoqtFramerSimpleTest, Datagram) {
   auto datagram = std::make_unique<ObjectDatagramMessage>(
-      MoqtDatagramType(/*has_status=*/false, /*has_extension=*/true));
+      MoqtDatagramType(/*has_status=*/false, /*has_extension=*/true,
+                       /*end_of_group=*/false));
   MoqtObject object = {
       /*track_alias=*/4,
       /*group_id=*/5,
@@ -384,8 +385,28 @@ TEST_F(MoqtFramerSimpleTest, Datagram) {
 }
 
 TEST_F(MoqtFramerSimpleTest, DatagramStatus) {
-  auto datagram =
-      std::make_unique<ObjectDatagramMessage>(MoqtDatagramType(true, true));
+  auto datagram = std::make_unique<ObjectDatagramMessage>(
+      MoqtDatagramType(true, true, false));
+  MoqtObject object = {
+      /*track_alias=*/4,
+      /*group_id=*/5,
+      /*object_id=*/6,
+      /*publisher_priority=*/7,
+      std::string(kDefaultExtensionBlob),
+      /*object_status=*/MoqtObjectStatus::kObjectDoesNotExist,
+      /*subgroup_id=*/6,
+      /*payload_length=*/0,
+  };
+  quiche::QuicheBuffer buffer;
+  buffer = framer_.SerializeObjectDatagram(object, "");
+  EXPECT_EQ(buffer.size(), datagram->total_message_size());
+  EXPECT_EQ(buffer.AsStringView(), datagram->PacketSample());
+}
+
+TEST_F(MoqtFramerSimpleTest, DatagramEndOfGroup) {
+  auto datagram = std::make_unique<ObjectDatagramMessage>(
+      MoqtDatagramType(/*has_status=*/false, /*has_extension=*/true,
+                       /*end_of_group=*/true));
   MoqtObject object = {
       /*track_alias=*/4,
       /*group_id=*/5,
@@ -394,10 +415,11 @@ TEST_F(MoqtFramerSimpleTest, DatagramStatus) {
       std::string(kDefaultExtensionBlob),
       /*object_status=*/MoqtObjectStatus::kEndOfGroup,
       /*subgroup_id=*/6,
-      /*payload_length=*/0,
+      /*payload_length=*/3,
   };
+  std::string payload = "foo";
   quiche::QuicheBuffer buffer;
-  buffer = framer_.SerializeObjectDatagram(object, "");
+  buffer = framer_.SerializeObjectDatagram(object, payload);
   EXPECT_EQ(buffer.size(), datagram->total_message_size());
   EXPECT_EQ(buffer.AsStringView(), datagram->PacketSample());
 }
