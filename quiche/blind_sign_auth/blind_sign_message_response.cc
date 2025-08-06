@@ -3,9 +3,6 @@
 namespace quiche {
 
 absl::StatusCode BlindSignMessageResponse::HttpCodeToStatusCode(int http_code) {
-  // copybara:strip_begin(golink)
-  // This mapping is from go/http-canonical-mapping
-  // copybara:strip_end
   if (http_code >= 200 && http_code < 300) {
     return absl::StatusCode::kOk;
   } else if (http_code >= 300 && http_code < 400) {
