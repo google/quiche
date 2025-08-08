@@ -98,10 +98,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   quic::Perspective perspective() const { return parameters_.perspective; }
 
   // Returns true if message was sent.
-  bool SubscribeAnnounces(TrackNamespace track_namespace,
-                          MoqtOutgoingSubscribeAnnouncesCallback callback,
+  bool SubscribeNamespace(TrackNamespace track_namespace,
+                          MoqtOutgoingSubscribeNamespaceCallback callback,
                           VersionSpecificParameters parameters);
-  bool UnsubscribeAnnounces(TrackNamespace track_namespace);
+  bool UnsubscribeNamespace(TrackNamespace track_namespace);
 
   // Send an ANNOUNCE message for |track_namespace|, and call
   // |announce_callback| when the response arrives. Will fail immediately if
@@ -256,14 +256,14 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnUnannounceMessage(const MoqtUnannounce& /*message*/) override;
     void OnTrackStatusMessage(const MoqtTrackStatus& message) override {}
     void OnGoAwayMessage(const MoqtGoAway& /*message*/) override;
-    void OnSubscribeAnnouncesMessage(
-        const MoqtSubscribeAnnounces& message) override;
-    void OnSubscribeAnnouncesOkMessage(
-        const MoqtSubscribeAnnouncesOk& message) override;
-    void OnSubscribeAnnouncesErrorMessage(
-        const MoqtSubscribeAnnouncesError& message) override;
-    void OnUnsubscribeAnnouncesMessage(
-        const MoqtUnsubscribeAnnounces& message) override;
+    void OnSubscribeNamespaceMessage(
+        const MoqtSubscribeNamespace& message) override;
+    void OnSubscribeNamespaceOkMessage(
+        const MoqtSubscribeNamespaceOk& message) override;
+    void OnSubscribeNamespaceErrorMessage(
+        const MoqtSubscribeNamespaceError& message) override;
+    void OnUnsubscribeNamespaceMessage(
+        const MoqtUnsubscribeNamespace& message) override;
     void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) override;
     void OnFetchMessage(const MoqtFetch& message) override;
     void OnFetchCancelMessage(const MoqtFetchCancel& message) override {}
@@ -838,14 +838,14 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       outgoing_announces_;
 
   // The value is nullptr after OK or ERROR is received. The entry is deleted
-  // when sending UNSUBSCRIBE_ANNOUNCES, to make sure the application doesn't
+  // when sending UNSUBSCRIBE_NAMESPACE, to make sure the application doesn't
   // unsubscribe from something that it isn't subscribed to. ANNOUNCEs that
   // result from this subscription use incoming_announce_callback.
-  struct PendingSubscribeAnnouncesData {
+  struct PendingSubscribeNamespaceData {
     TrackNamespace track_namespace;
-    MoqtOutgoingSubscribeAnnouncesCallback callback;
+    MoqtOutgoingSubscribeNamespaceCallback callback;
   };
-  absl::flat_hash_map<uint64_t, PendingSubscribeAnnouncesData>
+  absl::flat_hash_map<uint64_t, PendingSubscribeNamespaceData>
       pending_outgoing_subscribe_announces_;
   absl::flat_hash_set<TrackNamespace> outgoing_subscribe_announces_;
   // It's an error if the namespaces overlap, so keep track of them.

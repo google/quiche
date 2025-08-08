@@ -36,12 +36,12 @@ using MoqtIncomingAnnounceCallback =
         const TrackNamespace& track_namespace,
         const std::optional<VersionSpecificParameters>& parameters)>;
 
-// Called whenever SUBSCRIBE_ANNOUNCES or UNSUBSCRIBE_ANNOUNCES is received from
-// the peer.  For SUBSCRIBE_ANNOUNCES, the return value indicates whether to
-// return an OK or an ERROR; for UNSUBSCRIBE_ANNOUNCES, the return value is
-// ignored. SUBSCRIBE_ANNOUNCES sets a value for |parameters|,
-// UNSUBSCRIBE_ANNOUNCES does not.
-using MoqtIncomingSubscribeAnnouncesCallback =
+// Called whenever SUBSCRIBE_NAMESPACE or UNSUBSCRIBE_NAMESPACE is received from
+// the peer.  For SUBSCRIBE_NAMESPACE, the return value indicates whether to
+// return an OK or an ERROR; for UNSUBSCRIBE_NAMESPACE, the return value is
+// ignored. SUBSCRIBE_NAMESPACE sets a value for |parameters|,
+// UNSUBSCRIBE_NAMESPACE does not.
+using MoqtIncomingSubscribeNamespaceCallback =
     quiche::MultiUseCallback<std::optional<MoqtSubscribeErrorReason>(
         const TrackNamespace& track_namespace,
         std::optional<VersionSpecificParameters> parameters)>;
@@ -55,12 +55,12 @@ inline std::optional<MoqtAnnounceErrorReason> DefaultIncomingAnnounceCallback(
 };
 
 inline std::optional<MoqtSubscribeErrorReason>
-DefaultIncomingSubscribeAnnouncesCallback(
+DefaultIncomingSubscribeNamespaceCallback(
     const TrackNamespace& track_namespace,
     std::optional<VersionSpecificParameters> /*parameters*/) {
   return MoqtSubscribeErrorReason{
       RequestErrorCode::kNotSupported,
-      "This endpoint does not support incoming SUBSCRIBE_ANNOUNCES messages"};
+      "This endpoint does not support incoming SUBSCRIBE_NAMESPACE messages"};
 }
 
 // Callbacks for session-level events.
@@ -74,8 +74,8 @@ struct MoqtSessionCallbacks {
 
   MoqtIncomingAnnounceCallback incoming_announce_callback =
       DefaultIncomingAnnounceCallback;
-  MoqtIncomingSubscribeAnnouncesCallback incoming_subscribe_announces_callback =
-      DefaultIncomingSubscribeAnnouncesCallback;
+  MoqtIncomingSubscribeNamespaceCallback incoming_subscribe_announces_callback =
+      DefaultIncomingSubscribeNamespaceCallback;
   const quic::QuicClock* clock = quic::QuicDefaultClock::Get();
 };
 

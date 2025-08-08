@@ -40,7 +40,7 @@ struct MockSessionCallbacks {
     ON_CALL(incoming_announce_callback, Call(testing::_, testing::_))
         .WillByDefault(DefaultIncomingAnnounceCallback);
     ON_CALL(incoming_subscribe_announces_callback, Call(testing::_, testing::_))
-        .WillByDefault(DefaultIncomingSubscribeAnnouncesCallback);
+        .WillByDefault(DefaultIncomingSubscribeNamespaceCallback);
   }
 
   MoqtSessionCallbacks AsSessionCallbacks() {

@@ -26,7 +26,7 @@ using MoqtOutgoingAnnounceCallback = quiche::MultiUseCallback<void(
     TrackNamespace track_namespace,
     std::optional<MoqtAnnounceErrorReason> error)>;
 
-using MoqtOutgoingSubscribeAnnouncesCallback = quiche::SingleUseCallback<void(
+using MoqtOutgoingSubscribeNamespaceCallback = quiche::SingleUseCallback<void(
     TrackNamespace track_namespace, std::optional<RequestErrorCode> error,
     absl::string_view reason)>;
 
@@ -110,7 +110,7 @@ class MoqtSessionInterface {
 
   // TODO(martinduke): Add an API for absolute joining fetch.
 
-  // TODO: Add SubscribeAnnounces, UnsubscribeAnnounces method.
+  // TODO: Add SubscribeNamespace, UnsubscribeNamespace method.
   // TODO: Add Announce, Unannounce method.
   // TODO: Add AnnounceCancel method.
   // TODO: Add TrackStatusRequest method.

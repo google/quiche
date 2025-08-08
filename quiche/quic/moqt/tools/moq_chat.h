@@ -47,7 +47,7 @@ std::optional<FullTrackName> ConstructTrackNameFromNamespace(
 // Strips "chat" from the end of |track_name| to use in ANNOUNCE.
 const TrackNamespace& GetUserNamespace(const FullTrackName& track_name);
 
-// Returns {"moq-chat", chat-id}, useful for SUBSCRIBE_ANNOUNCES.
+// Returns {"moq-chat", chat-id}, useful for SUBSCRIBE_NAMESPACE.
 TrackNamespace GetChatNamespace(const TrackNamespace& track_name);
 TrackNamespace GetChatNamespace(const FullTrackName& track_name);
 

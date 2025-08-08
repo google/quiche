@@ -31,8 +31,8 @@ using MoqtGenericFrame =
                  MoqtSubscribeDone, MoqtSubscribeUpdate, MoqtAnnounce,
                  MoqtAnnounceOk, MoqtAnnounceError, MoqtAnnounceCancel,
                  MoqtTrackStatusRequest, MoqtUnannounce, MoqtTrackStatus,
-                 MoqtGoAway, MoqtSubscribeAnnounces, MoqtSubscribeAnnouncesOk,
-                 MoqtSubscribeAnnouncesError, MoqtUnsubscribeAnnounces,
+                 MoqtGoAway, MoqtSubscribeNamespace, MoqtSubscribeNamespaceOk,
+                 MoqtSubscribeNamespaceError, MoqtUnsubscribeNamespace,
                  MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
                  MoqtFetchError, MoqtRequestsBlocked, MoqtPublish,
                  MoqtPublishOk, MoqtPublishError, MoqtObjectAck>;

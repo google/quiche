@@ -67,8 +67,8 @@ class QUICHE_NO_EXPORT TestMessageBase {
                    MoqtSubscribeDone, MoqtSubscribeUpdate, MoqtAnnounce,
                    MoqtAnnounceOk, MoqtAnnounceError, MoqtAnnounceCancel,
                    MoqtTrackStatusRequest, MoqtUnannounce, MoqtTrackStatus,
-                   MoqtGoAway, MoqtSubscribeAnnounces, MoqtSubscribeAnnouncesOk,
-                   MoqtSubscribeAnnouncesError, MoqtUnsubscribeAnnounces,
+                   MoqtGoAway, MoqtSubscribeNamespace, MoqtSubscribeNamespaceOk,
+                   MoqtSubscribeNamespaceError, MoqtUnsubscribeNamespace,
                    MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
                    MoqtFetchError, MoqtRequestsBlocked, MoqtPublish,
                    MoqtPublishOk, MoqtPublishError, MoqtObjectAck>;
@@ -1255,14 +1255,14 @@ class QUICHE_NO_EXPORT GoAwayMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT SubscribeAnnouncesMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT SubscribeNamespaceMessage : public TestMessageBase {
  public:
-  SubscribeAnnouncesMessage() : TestMessageBase() {
+  SubscribeNamespaceMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtSubscribeAnnounces>(values);
+    auto cast = std::get<MoqtSubscribeNamespace>(values);
     if (cast.request_id != subscribe_namespace_.request_id) {
       QUIC_LOG(INFO) << "SUBSCRIBE_NAMESPACE request_id mismatch";
       return false;
@@ -1292,21 +1292,21 @@ class QUICHE_NO_EXPORT SubscribeAnnouncesMessage : public TestMessageBase {
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
 
-  MoqtSubscribeAnnounces subscribe_namespace_ = {
+  MoqtSubscribeNamespace subscribe_namespace_ = {
       /*request_id=*/1,
       TrackNamespace("foo"),
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
   };
 };
 
-class QUICHE_NO_EXPORT SubscribeAnnouncesOkMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT SubscribeNamespaceOkMessage : public TestMessageBase {
  public:
-  SubscribeAnnouncesOkMessage() : TestMessageBase() {
+  SubscribeNamespaceOkMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtSubscribeAnnouncesOk>(values);
+    auto cast = std::get<MoqtSubscribeNamespaceOk>(values);
     if (cast.request_id != subscribe_namespace_ok_.request_id) {
       QUIC_LOG(INFO) << "SUBSCRIBE_NAMESPACE_OK request_id mismatch";
       return false;
@@ -1325,19 +1325,19 @@ class QUICHE_NO_EXPORT SubscribeAnnouncesOkMessage : public TestMessageBase {
       0x12, 0x00, 0x01, 0x01,  // request_id = 1
   };
 
-  MoqtSubscribeAnnouncesOk subscribe_namespace_ok_ = {
+  MoqtSubscribeNamespaceOk subscribe_namespace_ok_ = {
       /*request_id=*/1,
   };
 };
 
-class QUICHE_NO_EXPORT SubscribeAnnouncesErrorMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT SubscribeNamespaceErrorMessage : public TestMessageBase {
  public:
-  SubscribeAnnouncesErrorMessage() : TestMessageBase() {
+  SubscribeNamespaceErrorMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtSubscribeAnnouncesError>(values);
+    auto cast = std::get<MoqtSubscribeNamespaceError>(values);
     if (cast.request_id != subscribe_namespace_error_.request_id) {
       QUIC_LOG(INFO) << "SUBSCRIBE_NAMESPACE_ERROR request_id mismatch";
       return false;
@@ -1366,21 +1366,21 @@ class QUICHE_NO_EXPORT SubscribeAnnouncesErrorMessage : public TestMessageBase {
       0x03, 0x62, 0x61, 0x72,  // error_reason = "bar"
   };
 
-  MoqtSubscribeAnnouncesError subscribe_namespace_error_ = {
+  MoqtSubscribeNamespaceError subscribe_namespace_error_ = {
       /*request_id=*/1,
       /*error_code=*/RequestErrorCode::kUnauthorized,
       /*error_reason=*/"bar",
   };
 };
 
-class QUICHE_NO_EXPORT UnsubscribeAnnouncesMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT UnsubscribeNamespaceMessage : public TestMessageBase {
  public:
-  UnsubscribeAnnouncesMessage() : TestMessageBase() {
+  UnsubscribeNamespaceMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtUnsubscribeAnnounces>(values);
+    auto cast = std::get<MoqtUnsubscribeNamespace>(values);
     if (cast.track_namespace != unsubscribe_namespace_.track_namespace) {
       QUIC_LOG(INFO) << "UNSUBSCRIBE_NAMESPACE track namespace mismatch";
       return false;
@@ -1399,7 +1399,7 @@ class QUICHE_NO_EXPORT UnsubscribeAnnouncesMessage : public TestMessageBase {
       0x14, 0x00, 0x05, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace
   };
 
-  MoqtUnsubscribeAnnounces unsubscribe_namespace_ = {
+  MoqtUnsubscribeNamespace unsubscribe_namespace_ = {
       TrackNamespace("foo"),
   };
 };
@@ -2077,14 +2077,14 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<TrackStatusMessage>();
     case MoqtMessageType::kGoAway:
       return std::make_unique<GoAwayMessage>();
-    case MoqtMessageType::kSubscribeAnnounces:
-      return std::make_unique<SubscribeAnnouncesMessage>();
-    case MoqtMessageType::kSubscribeAnnouncesOk:
-      return std::make_unique<SubscribeAnnouncesOkMessage>();
-    case MoqtMessageType::kSubscribeAnnouncesError:
-      return std::make_unique<SubscribeAnnouncesErrorMessage>();
-    case MoqtMessageType::kUnsubscribeAnnounces:
-      return std::make_unique<UnsubscribeAnnouncesMessage>();
+    case MoqtMessageType::kSubscribeNamespace:
+      return std::make_unique<SubscribeNamespaceMessage>();
+    case MoqtMessageType::kSubscribeNamespaceOk:
+      return std::make_unique<SubscribeNamespaceOkMessage>();
+    case MoqtMessageType::kSubscribeNamespaceError:
+      return std::make_unique<SubscribeNamespaceErrorMessage>();
+    case MoqtMessageType::kUnsubscribeNamespace:
+      return std::make_unique<UnsubscribeNamespaceMessage>();
     case MoqtMessageType::kMaxRequestId:
       return std::make_unique<MaxRequestIdMessage>();
     case MoqtMessageType::kFetch:

@@ -1009,15 +1009,15 @@ TEST_F(MoqtSessionTest, ReplyToAnnounceWithError) {
   stream_input->OnAnnounceMessage(announce);
 }
 
-TEST_F(MoqtSessionTest, SubscribeAnnouncesLifeCycle) {
+TEST_F(MoqtSessionTest, SubscribeNamespaceLifeCycle) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   TrackNamespace track_namespace("foo");
   bool got_callback = false;
   EXPECT_CALL(
       mock_stream_,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnounces), _));
-  session_.SubscribeAnnounces(
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespace), _));
+  session_.SubscribeNamespace(
       track_namespace,
       [&](const TrackNamespace& ns, std::optional<RequestErrorCode> error,
           absl::string_view reason) {
@@ -1027,27 +1027,27 @@ TEST_F(MoqtSessionTest, SubscribeAnnouncesLifeCycle) {
         EXPECT_EQ(reason, "");
       },
       VersionSpecificParameters());
-  MoqtSubscribeAnnouncesOk ok = {
+  MoqtSubscribeNamespaceOk ok = {
       kDefaultLocalRequestId,
   };
-  stream_input->OnSubscribeAnnouncesOkMessage(ok);
+  stream_input->OnSubscribeNamespaceOkMessage(ok);
   EXPECT_TRUE(got_callback);
   EXPECT_CALL(
       mock_stream_,
-      Writev(ControlMessageOfType(MoqtMessageType::kUnsubscribeAnnounces), _));
-  EXPECT_TRUE(session_.UnsubscribeAnnounces(track_namespace));
-  EXPECT_FALSE(session_.UnsubscribeAnnounces(track_namespace));
+      Writev(ControlMessageOfType(MoqtMessageType::kUnsubscribeNamespace), _));
+  EXPECT_TRUE(session_.UnsubscribeNamespace(track_namespace));
+  EXPECT_FALSE(session_.UnsubscribeNamespace(track_namespace));
 }
 
-TEST_F(MoqtSessionTest, SubscribeAnnouncesError) {
+TEST_F(MoqtSessionTest, SubscribeNamespaceError) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   TrackNamespace track_namespace("foo");
   bool got_callback = false;
   EXPECT_CALL(
       mock_stream_,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnounces), _));
-  session_.SubscribeAnnounces(
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespace), _));
+  session_.SubscribeNamespace(
       track_namespace,
       [&](const TrackNamespace& ns, std::optional<RequestErrorCode> error,
           absl::string_view reason) {
@@ -1058,15 +1058,15 @@ TEST_F(MoqtSessionTest, SubscribeAnnouncesError) {
         EXPECT_EQ(reason, "deadbeef");
       },
       VersionSpecificParameters());
-  MoqtSubscribeAnnouncesError error = {
+  MoqtSubscribeNamespaceError error = {
       kDefaultLocalRequestId,
       RequestErrorCode::kInvalidRange,
       /*reason_phrase=*/"deadbeef",
   };
-  stream_input->OnSubscribeAnnouncesErrorMessage(error);
+  stream_input->OnSubscribeNamespaceErrorMessage(error);
   EXPECT_TRUE(got_callback);
   // Entry is immediately gone.
-  EXPECT_FALSE(session_.UnsubscribeAnnounces(track_namespace));
+  EXPECT_FALSE(session_.UnsubscribeNamespace(track_namespace));
 }
 
 TEST_F(MoqtSessionTest, IncomingObject) {
@@ -2711,11 +2711,11 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
   data_stream.Receive("foo", false);
 }
 
-TEST_F(MoqtSessionTest, IncomingSubscribeAnnounces) {
+TEST_F(MoqtSessionTest, IncomingSubscribeNamespace) {
   TrackNamespace track_namespace = TrackNamespace{"foo"};
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
-  MoqtSubscribeAnnounces announces = {
+  MoqtSubscribeNamespace announces = {
       /*request_id=*/1,
       track_namespace,
       *parameters,
@@ -2728,22 +2728,22 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnounces) {
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(
       control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesOk), _));
-  stream_input->OnSubscribeAnnouncesMessage(announces);
-  MoqtUnsubscribeAnnounces unsubscribe_announces = {
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceOk), _));
+  stream_input->OnSubscribeNamespaceMessage(announces);
+  MoqtUnsubscribeNamespace unsubscribe_announces = {
       TrackNamespace{"foo"},
   };
   EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
               Call(track_namespace, std::optional<VersionSpecificParameters>()))
       .WillOnce(Return(std::nullopt));
-  stream_input->OnUnsubscribeAnnouncesMessage(unsubscribe_announces);
+  stream_input->OnUnsubscribeNamespaceMessage(unsubscribe_announces);
 }
 
-TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithError) {
+TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithError) {
   TrackNamespace track_namespace{"foo"};
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
-  MoqtSubscribeAnnounces announces = {
+  MoqtSubscribeNamespace announces = {
       /*request_id=*/1,
       track_namespace,
       *parameters,
@@ -2757,9 +2757,9 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithError) {
           MoqtSubscribeErrorReason{RequestErrorCode::kUnauthorized, "foo"}));
   EXPECT_CALL(
       control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesError),
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceError),
              _));
-  stream_input->OnSubscribeAnnouncesMessage(announces);
+  stream_input->OnSubscribeNamespaceMessage(announces);
 
   // Try again, to verify that it was purged from the tree.
   announces.request_id += 2;
@@ -2768,15 +2768,15 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithError) {
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(
       control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesOk), _));
-  stream_input->OnSubscribeAnnouncesMessage(announces);
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceOk), _));
+  stream_input->OnSubscribeNamespaceMessage(announces);
 }
 
-TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithPrefixOverlap) {
+TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithPrefixOverlap) {
   TrackNamespace track_namespace{"foo"};
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
-  MoqtSubscribeAnnounces announces = {
+  MoqtSubscribeNamespace announces = {
       /*request_id=*/1,
       track_namespace,
       *parameters,
@@ -2789,26 +2789,26 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithPrefixOverlap) {
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(
       control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesOk), _));
-  stream_input->OnSubscribeAnnouncesMessage(announces);
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceOk), _));
+  stream_input->OnSubscribeNamespaceMessage(announces);
 
   // Overlapping request is rejected.
   announces.request_id += 2;
   announces.track_namespace = TrackNamespace{"foo", "bar"};
   EXPECT_CALL(
       control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesError),
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceError),
              _));
-  stream_input->OnSubscribeAnnouncesMessage(announces);
+  stream_input->OnSubscribeNamespaceMessage(announces);
 
   // Remove the subscription. Now a later one will work.
-  MoqtUnsubscribeAnnounces unsubscribe_announces = {
+  MoqtUnsubscribeNamespace unsubscribe_announces = {
       TrackNamespace{"foo"},
   };
   EXPECT_CALL(session_callbacks_.incoming_subscribe_announces_callback,
               Call(track_namespace, std::optional<VersionSpecificParameters>()))
       .WillOnce(Return(std::nullopt));
-  stream_input->OnUnsubscribeAnnouncesMessage(unsubscribe_announces);
+  stream_input->OnUnsubscribeNamespaceMessage(unsubscribe_announces);
 
   // Try again, it will work.
   announces.request_id += 2;
@@ -2817,8 +2817,8 @@ TEST_F(MoqtSessionTest, IncomingSubscribeAnnouncesWithPrefixOverlap) {
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(
       control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesOk), _));
-  stream_input->OnSubscribeAnnouncesMessage(announces);
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceOk), _));
+  stream_input->OnSubscribeNamespaceMessage(announces);
 }
 
 TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {
@@ -3362,7 +3362,7 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
   EXPECT_FALSE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
                                                &remote_track_visitor,
                                                VersionSpecificParameters()));
-  EXPECT_FALSE(session_.SubscribeAnnounces(
+  EXPECT_FALSE(session_.SubscribeNamespace(
       TrackNamespace{"foo"},
       +[](TrackNamespace /*track_namespace*/,
           std::optional<RequestErrorCode> /*error*/,
@@ -3413,16 +3413,16 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   stream_input->OnFetchMessage(fetch);
   EXPECT_CALL(
       mock_stream_,
-      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeAnnouncesError),
+      Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceError),
              _));
-  stream_input->OnSubscribeAnnouncesMessage(MoqtSubscribeAnnounces(7));
+  stream_input->OnSubscribeNamespaceMessage(MoqtSubscribeNamespace(7));
   // Block all outgoing SUBSCRIBE, ANNOUNCE, GOAWAY,etc.
   EXPECT_CALL(mock_stream_, Writev).Times(0);
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   EXPECT_FALSE(session_.SubscribeCurrentObject(
       FullTrackName(TrackNamespace("foo"), "bar"), &remote_track_visitor,
       VersionSpecificParameters()));
-  EXPECT_FALSE(session_.SubscribeAnnounces(
+  EXPECT_FALSE(session_.SubscribeNamespace(
       TrackNamespace{"foo"},
       +[](TrackNamespace /*track_namespace*/,
           std::optional<RequestErrorCode> /*error*/,

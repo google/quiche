@@ -261,17 +261,17 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kGoAway:
       bytes_read = ProcessGoAway(reader);
       break;
-    case MoqtMessageType::kSubscribeAnnounces:
-      bytes_read = ProcessSubscribeAnnounces(reader);
+    case MoqtMessageType::kSubscribeNamespace:
+      bytes_read = ProcessSubscribeNamespace(reader);
       break;
-    case MoqtMessageType::kSubscribeAnnouncesOk:
-      bytes_read = ProcessSubscribeAnnouncesOk(reader);
+    case MoqtMessageType::kSubscribeNamespaceOk:
+      bytes_read = ProcessSubscribeNamespaceOk(reader);
       break;
-    case MoqtMessageType::kSubscribeAnnouncesError:
-      bytes_read = ProcessSubscribeAnnouncesError(reader);
+    case MoqtMessageType::kSubscribeNamespaceError:
+      bytes_read = ProcessSubscribeNamespaceError(reader);
       break;
-    case MoqtMessageType::kUnsubscribeAnnounces:
-      bytes_read = ProcessUnsubscribeAnnounces(reader);
+    case MoqtMessageType::kUnsubscribeNamespace:
+      bytes_read = ProcessUnsubscribeNamespace(reader);
       break;
     case MoqtMessageType::kMaxRequestId:
       bytes_read = ProcessMaxRequestId(reader);
@@ -691,9 +691,9 @@ size_t MoqtControlParser::ProcessGoAway(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribeAnnounces(
+size_t MoqtControlParser::ProcessSubscribeNamespace(
     quic::QuicDataReader& reader) {
-  MoqtSubscribeAnnounces subscribe_announces;
+  MoqtSubscribeNamespace subscribe_announces;
   if (!reader.ReadVarInt62(&subscribe_announces.request_id) ||
       !ReadTrackNamespace(reader, subscribe_announces.track_namespace)) {
     return 0;
@@ -703,31 +703,31 @@ size_t MoqtControlParser::ProcessSubscribeAnnounces(
     return 0;
   }
   if (!ValidateVersionSpecificParameters(
-          parameters, MoqtMessageType::kSubscribeAnnounces)) {
-    ParseError("SUBSCRIBE_ANNOUNCES message contains invalid parameters");
+          parameters, MoqtMessageType::kSubscribeNamespace)) {
+    ParseError("SUBSCRIBE_NAMESPACE message contains invalid parameters");
     return 0;
   }
   if (!KeyValuePairListToVersionSpecificParameters(
           parameters, subscribe_announces.parameters)) {
     return 0;
   }
-  visitor_.OnSubscribeAnnouncesMessage(subscribe_announces);
+  visitor_.OnSubscribeNamespaceMessage(subscribe_announces);
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribeAnnouncesOk(
+size_t MoqtControlParser::ProcessSubscribeNamespaceOk(
     quic::QuicDataReader& reader) {
-  MoqtSubscribeAnnouncesOk subscribe_namespace_ok;
+  MoqtSubscribeNamespaceOk subscribe_namespace_ok;
   if (!reader.ReadVarInt62(&subscribe_namespace_ok.request_id)) {
     return 0;
   }
-  visitor_.OnSubscribeAnnouncesOkMessage(subscribe_namespace_ok);
+  visitor_.OnSubscribeNamespaceOkMessage(subscribe_namespace_ok);
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribeAnnouncesError(
+size_t MoqtControlParser::ProcessSubscribeNamespaceError(
     quic::QuicDataReader& reader) {
-  MoqtSubscribeAnnouncesError subscribe_namespace_error;
+  MoqtSubscribeNamespaceError subscribe_namespace_error;
   uint64_t error_code;
   if (!reader.ReadVarInt62(&subscribe_namespace_error.request_id) ||
       !reader.ReadVarInt62(&error_code) ||
@@ -736,17 +736,17 @@ size_t MoqtControlParser::ProcessSubscribeAnnouncesError(
   }
   subscribe_namespace_error.error_code =
       static_cast<RequestErrorCode>(error_code);
-  visitor_.OnSubscribeAnnouncesErrorMessage(subscribe_namespace_error);
+  visitor_.OnSubscribeNamespaceErrorMessage(subscribe_namespace_error);
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessUnsubscribeAnnounces(
+size_t MoqtControlParser::ProcessUnsubscribeNamespace(
     quic::QuicDataReader& reader) {
-  MoqtUnsubscribeAnnounces unsubscribe_namespace;
+  MoqtUnsubscribeNamespace unsubscribe_namespace;
   if (!ReadTrackNamespace(reader, unsubscribe_namespace.track_namespace)) {
     return 0;
   }
-  visitor_.OnUnsubscribeAnnouncesMessage(unsubscribe_namespace);
+  visitor_.OnUnsubscribeNamespaceMessage(unsubscribe_namespace);
   return reader.PreviouslyReadPayload().length();
 }
 

@@ -96,8 +96,8 @@ class MoqChatEndToEndTest : public quiche::test::QuicheTest {
 TEST_F(MoqChatEndToEndTest, EndToEndTest) {
   EXPECT_TRUE(client1_->Connect(moqt::moq_chat::kWebtransPath));
   EXPECT_TRUE(client2_->Connect(moqt::moq_chat::kWebtransPath));
-  EXPECT_TRUE(client1_->AnnounceAndSubscribeAnnounces());
-  EXPECT_TRUE(client2_->AnnounceAndSubscribeAnnounces());
+  EXPECT_TRUE(client1_->AnnounceAndSubscribeNamespace());
+  EXPECT_TRUE(client2_->AnnounceAndSubscribeNamespace());
   SendAndWaitForOutput(interface1_, interface2_, "client1", "Hello");
   SendAndWaitForOutput(interface2_, interface1_, "client2", "Hi");
   SendAndWaitForOutput(interface1_, interface2_, "client1", "How are you?");
@@ -113,8 +113,8 @@ TEST_F(MoqChatEndToEndTest, EndToEndTest) {
 TEST_F(MoqChatEndToEndTest, LeaveAndRejoin) {
   EXPECT_TRUE(client1_->Connect(moqt::moq_chat::kWebtransPath));
   EXPECT_TRUE(client2_->Connect(moqt::moq_chat::kWebtransPath));
-  EXPECT_TRUE(client1_->AnnounceAndSubscribeAnnounces());
-  EXPECT_TRUE(client2_->AnnounceAndSubscribeAnnounces());
+  EXPECT_TRUE(client1_->AnnounceAndSubscribeNamespace());
+  EXPECT_TRUE(client2_->AnnounceAndSubscribeNamespace());
   SendAndWaitForOutput(interface1_, interface2_, "client1", "Hello");
   SendAndWaitForOutput(interface2_, interface1_, "client2", "Hi");
 
@@ -136,7 +136,7 @@ TEST_F(MoqChatEndToEndTest, LeaveAndRejoin) {
       std::move(if1bptr), "test_chat", "client1", "device1",
       server_.moqt_server().quic_server().event_loop());
   EXPECT_TRUE(client1_->Connect(moqt::moq_chat::kWebtransPath));
-  EXPECT_TRUE(client1_->AnnounceAndSubscribeAnnounces());
+  EXPECT_TRUE(client1_->AnnounceAndSubscribeNamespace());
   SendAndWaitForOutput(interface1b_, interface2_, "client1", "Hello again");
   SendAndWaitForOutput(interface2_, interface1b_, "client2", "Hi again");
 }

@@ -88,10 +88,10 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
              std::optional<VersionSpecificParameters> parameters) {
         if (parameters.has_value()) {
           subscribed_namespaces_.insert(chat_namespace);
-          std::cout << "Received SUBSCRIBE_ANNOUNCES for ";
+          std::cout << "Received SUBSCRIBE_NAMESPACE for ";
         } else {
           subscribed_namespaces_.erase(chat_namespace);
-          std::cout << "Received UNSUBSCRIBE_ANNOUNCES for ";
+          std::cout << "Received UNSUBSCRIBE_NAMESPACE for ";
         }
         std::cout << chat_namespace.ToString() << "\n";
         if (!IsValidChatNamespace(chat_namespace)) {

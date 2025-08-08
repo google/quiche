@@ -175,7 +175,7 @@ MoqtError ValidateSetupParameters(const KeyValuePairList& parameters,
 
 const std::array<MoqtMessageType, 8> kAllowsAuthorization = {
     MoqtMessageType::kClientSetup, MoqtMessageType::kServerSetup,
-    MoqtMessageType::kSubscribe,   MoqtMessageType::kSubscribeAnnounces,
+    MoqtMessageType::kSubscribe,   MoqtMessageType::kSubscribeNamespace,
     MoqtMessageType::kAnnounce,    MoqtMessageType::kTrackStatusRequest,
     MoqtMessageType::kFetch,       MoqtMessageType::kPublish};
 const std::array<MoqtMessageType, 6> kAllowsDeliveryTimeout = {
@@ -246,13 +246,13 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "UNANNOUNCE";
     case MoqtMessageType::kGoAway:
       return "GOAWAY";
-    case MoqtMessageType::kSubscribeAnnounces:
+    case MoqtMessageType::kSubscribeNamespace:
       return "SUBSCRIBE_NAMESPACE";
-    case MoqtMessageType::kSubscribeAnnouncesOk:
+    case MoqtMessageType::kSubscribeNamespaceOk:
       return "SUBSCRIBE_NAMESPACE_OK";
-    case MoqtMessageType::kSubscribeAnnouncesError:
+    case MoqtMessageType::kSubscribeNamespaceError:
       return "SUBSCRIBE_NAMESPACE_ERROR";
-    case MoqtMessageType::kUnsubscribeAnnounces:
+    case MoqtMessageType::kUnsubscribeNamespace:
       return "UNSUBSCRIBE_NAMESPACE";
     case MoqtMessageType::kMaxRequestId:
       return "MAX_REQUEST_ID";

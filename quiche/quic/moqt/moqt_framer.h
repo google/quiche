@@ -57,14 +57,14 @@ class QUICHE_EXPORT MoqtFramer {
       const MoqtTrackStatusRequest& message);
   quiche::QuicheBuffer SerializeTrackStatus(const MoqtTrackStatus& message);
   quiche::QuicheBuffer SerializeGoAway(const MoqtGoAway& message);
-  quiche::QuicheBuffer SerializeSubscribeAnnounces(
-      const MoqtSubscribeAnnounces& message);
-  quiche::QuicheBuffer SerializeSubscribeAnnouncesOk(
-      const MoqtSubscribeAnnouncesOk& message);
-  quiche::QuicheBuffer SerializeSubscribeAnnouncesError(
-      const MoqtSubscribeAnnouncesError& message);
-  quiche::QuicheBuffer SerializeUnsubscribeAnnounces(
-      const MoqtUnsubscribeAnnounces& message);
+  quiche::QuicheBuffer SerializeSubscribeNamespace(
+      const MoqtSubscribeNamespace& message);
+  quiche::QuicheBuffer SerializeSubscribeNamespaceOk(
+      const MoqtSubscribeNamespaceOk& message);
+  quiche::QuicheBuffer SerializeSubscribeNamespaceError(
+      const MoqtSubscribeNamespaceError& message);
+  quiche::QuicheBuffer SerializeUnsubscribeNamespace(
+      const MoqtUnsubscribeNamespace& message);
   quiche::QuicheBuffer SerializeMaxRequestId(const MoqtMaxRequestId& message);
   quiche::QuicheBuffer SerializeFetch(const MoqtFetch& message);
   quiche::QuicheBuffer SerializeFetchCancel(const MoqtFetchCancel& message);

@@ -243,10 +243,10 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kTrackStatusRequest = 0x0d,
   kTrackStatus = 0x0e,
   kGoAway = 0x10,
-  kSubscribeAnnounces = 0x11,
-  kSubscribeAnnouncesOk = 0x12,
-  kSubscribeAnnouncesError = 0x13,
-  kUnsubscribeAnnounces = 0x14,
+  kSubscribeNamespace = 0x11,
+  kSubscribeNamespaceOk = 0x12,
+  kSubscribeNamespaceError = 0x13,
+  kUnsubscribeNamespace = 0x14,
   kMaxRequestId = 0x15,
   kFetch = 0x16,
   kFetchCancel = 0x17,
@@ -340,7 +340,7 @@ struct VersionSpecificParameters {
 };
 
 // Used for SUBSCRIBE_ERROR, ANNOUNCE_ERROR, ANNOUNCE_CANCEL,
-// SUBSCRIBE_ANNOUNCES_ERROR, and FETCH_ERROR.
+// SUBSCRIBE_NAMESPACE_ERROR, and FETCH_ERROR.
 enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kInternalError = 0x0,
   kUnauthorized = 0x1,
@@ -348,9 +348,9 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kNotSupported = 0x3,
   kTrackDoesNotExist = 0x4,        // SUBSCRIBE_ERROR and FETCH_ERROR only.
   kUninterested = 0x4,             // ANNOUNCE_ERROR and ANNOUNCE_CANCEL only.
-  kNamespacePrefixUnknown = 0x4,   // SUBSCRIBE_ANNOUNCES_ERROR only.
+  kNamespacePrefixUnknown = 0x4,   // SUBSCRIBE_NAMESPACE_ERROR only.
   kInvalidRange = 0x5,             // SUBSCRIBE_ERROR and FETCH_ERROR only.
-  kNamespacePrefixOverlap = 0x5,   // SUBSCRIBE_ANNOUNCES_ERROR only.
+  kNamespacePrefixOverlap = 0x5,   // SUBSCRIBE_NAMESPACE_ERROR only.
   kNoObjects = 0x6,                // FETCH_ERROR only.
   kInvalidJoiningRequestId = 0x7,  // FETCH_ERROR only.
   kUnknownStatusInRange = 0x8,     // FETCH_ERROR only.
@@ -763,23 +763,23 @@ struct QUICHE_EXPORT MoqtGoAway {
   std::string new_session_uri;
 };
 
-struct QUICHE_EXPORT MoqtSubscribeAnnounces {
+struct QUICHE_EXPORT MoqtSubscribeNamespace {
   uint64_t request_id;
   TrackNamespace track_namespace;
   VersionSpecificParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtSubscribeAnnouncesOk {
+struct QUICHE_EXPORT MoqtSubscribeNamespaceOk {
   uint64_t request_id;
 };
 
-struct QUICHE_EXPORT MoqtSubscribeAnnouncesError {
+struct QUICHE_EXPORT MoqtSubscribeNamespaceError {
   uint64_t request_id;
   RequestErrorCode error_code;
   std::string error_reason;
 };
 
-struct QUICHE_EXPORT MoqtUnsubscribeAnnounces {
+struct QUICHE_EXPORT MoqtUnsubscribeNamespace {
   TrackNamespace track_namespace;
 };
 

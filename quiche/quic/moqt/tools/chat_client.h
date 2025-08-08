@@ -113,7 +113,7 @@ class ChatClient {
   };
 
   // Returns false on error.
-  bool AnnounceAndSubscribeAnnounces();
+  bool AnnounceAndSubscribeNamespace();
 
   bool session_is_open() const { return session_is_open_; }
 

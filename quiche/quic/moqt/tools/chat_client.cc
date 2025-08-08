@@ -150,8 +150,8 @@ void ChatClient::OnTerminalLineInput(absl::string_view input_message) {
     return;
   }
   if (input_message == "/exit") {
-    // Clean teardown of SUBSCRIBE_ANNOUNCES, ANNOUNCE, SUBSCRIBE.
-    session_->UnsubscribeAnnounces(GetChatNamespace(my_track_name_));
+    // Clean teardown of SUBSCRIBE_NAMESPACE, ANNOUNCE, SUBSCRIBE.
+    session_->UnsubscribeNamespace(GetChatNamespace(my_track_name_));
     session_->Unannounce(GetUserNamespace(my_track_name_));
     for (const auto& track_name : other_users_) {
       session_->Unsubscribe(track_name);
@@ -205,7 +205,7 @@ void ChatClient::RemoteTrackVisitor::OnObjectFragment(
   client_->WriteToOutput(GetUsername(*it), object);
 }
 
-bool ChatClient::AnnounceAndSubscribeAnnounces() {
+bool ChatClient::AnnounceAndSubscribeNamespace() {
   session_ = client_->session();
   if (session_ == nullptr) {
     std::cout << "Failed to connect.\n";
@@ -236,22 +236,22 @@ bool ChatClient::AnnounceAndSubscribeAnnounces() {
 
   // Send SUBSCRIBE_ANNOUNCE. Pop 3 levels of namespace to get to {moq-chat,
   // chat-id}
-  MoqtOutgoingSubscribeAnnouncesCallback subscribe_announces_callback =
+  MoqtOutgoingSubscribeNamespaceCallback subscribe_announces_callback =
       [this](TrackNamespace track_namespace,
              std::optional<RequestErrorCode> error, absl::string_view reason) {
         if (error.has_value()) {
-          std::cout << "SUBSCRIBE_ANNOUNCES rejected, " << reason << "\n";
+          std::cout << "SUBSCRIBE_NAMESPACE rejected, " << reason << "\n";
           session_->Error(MoqtError::kInternalError,
-                          "Local SUBSCRIBE_ANNOUNCES rejected");
+                          "Local SUBSCRIBE_NAMESPACE rejected");
           return;
         }
-        std::cout << "SUBSCRIBE_ANNOUNCES for " << track_namespace.ToString()
+        std::cout << "SUBSCRIBE_NAMESPACE for " << track_namespace.ToString()
                   << " accepted\n";
         return;
       };
   VersionSpecificParameters parameters(
       AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
-  session_->SubscribeAnnounces(GetChatNamespace(my_track_name_),
+  session_->SubscribeNamespace(GetChatNamespace(my_track_name_),
                                std::move(subscribe_announces_callback),
                                parameters);
 
