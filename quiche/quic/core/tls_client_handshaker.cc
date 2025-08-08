@@ -157,12 +157,12 @@ bool TlsClientHandshaker::CryptoConnect() {
   if (GetQuicReloadableFlag(enable_tls_trust_anchor_ids)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(enable_tls_trust_anchor_ids, 2, 2);
 #if defined(BORINGSSL_API_VERSION) && BORINGSSL_API_VERSION >= 36
-    if (!tls_connection_.ssl_config().trust_anchor_ids.empty()) {
+    if (tls_connection_.ssl_config().trust_anchor_ids.has_value()) {
       if (!SSL_set1_requested_trust_anchors(
               ssl(),
               reinterpret_cast<const uint8_t*>(
-                  tls_connection_.ssl_config().trust_anchor_ids.data()),
-              tls_connection_.ssl_config().trust_anchor_ids.size())) {
+                  tls_connection_.ssl_config().trust_anchor_ids->data()),
+              tls_connection_.ssl_config().trust_anchor_ids->size())) {
         CloseConnection(QUIC_HANDSHAKE_FAILED,
                         "Client failed to set TLS Trust Anchor IDs");
         return false;

@@ -398,6 +398,43 @@ TEST_P(TlsClientHandshakerTest, HandshakeWithMultipleTrustAnchorIds) {
   ASSERT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->MatchedTrustAnchorIdForTesting());
 }
+
+// Tests that the client can complete a handshake in which it sends no Trust
+// Anchor IDs.
+TEST_P(TlsClientHandshakerTest, HandshakeWithEmptyTrustAnchorIdList) {
+  SetQuicReloadableFlag(enable_tls_trust_anchor_ids, true);
+  InitializeFakeServer("");
+  ssl_config_.emplace();
+  ssl_config_->trust_anchor_ids.emplace();
+  CreateConnection();
+
+  // Add a DoS callback on the server, to test that the client sent an empty
+  // extension. This is a bit of a hack. TlsServerHandshaker already configures
+  // the certificate selection callback, but does not usefully expose any way
+  // for tests to inspect the ClientHello. So, instead, we register a different
+  // callback that also gets the ClientHello.
+  static bool callback_ran;
+  callback_ran = false;
+  SSL_CTX_set_dos_protection_cb(
+      server_crypto_config_->ssl_ctx(),
+      [](const SSL_CLIENT_HELLO* client_hello) -> int {
+        const uint8_t* data;
+        size_t len;
+        EXPECT_TRUE(SSL_early_callback_ctx_extension_get(
+            client_hello, TLSEXT_TYPE_trust_anchors, &data, &len));
+        // The extension should contain an empty list, i.e. a two-byte encoding
+        // of a zero length.
+        EXPECT_EQ(len, 2u);
+        EXPECT_EQ(data[0], 0x00);
+        EXPECT_EQ(data[1], 0x00);
+        callback_ran = true;
+        return 1;
+      });
+
+  CompleteCryptoHandshake();
+  ASSERT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(callback_ran);
+}
 #endif
 
 TEST_P(TlsClientHandshakerTest, Resumption) {
