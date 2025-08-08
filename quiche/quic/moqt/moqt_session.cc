@@ -2279,7 +2279,7 @@ MoqtSession::OutgoingDataStream::OutgoingDataStream(
       // Always include extension header length, because it's difficult to know
       // a priori if they're going to appear on a stream.
       stream_type_(MoqtDataStreamType::Subgroup(
-          index_.subgroup, parameters.first_object, false)),
+          index_.subgroup, parameters.first_object, false, false)),
       next_object_(parameters.first_object),
       session_liveness_(session->liveness_token_) {
   UpdateSendOrder(subscription);

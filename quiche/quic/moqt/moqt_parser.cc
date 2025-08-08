@@ -1421,6 +1421,7 @@ void MoqtDataParser::AdvanceParserState() {
       break;
     case kStatus:
     case kData:
+    case kAwaitingNextByte:
       next_input_ = type_->IsFetch() ? kGroupId : kObjectId;
       break;
     case kExtensionSize:        // Either kExtensionBody or
@@ -1453,6 +1454,9 @@ void MoqtDataParser::ParseNextItemFromStream() {
       if (type_->IsPadding()) {
         next_input_ = kPadding;
         return;
+      }
+      if (type_->EndOfGroupInStream()) {
+        contains_end_of_group_ = true;
       }
       AdvanceParserState();
       return;
@@ -1540,6 +1544,12 @@ void MoqtDataParser::ParseNextItemFromStream() {
         }
 
         ++num_objects_read_;
+        // TODO(martinduke): If contains_end_of_group_ && fin_read, the track is
+        // malformed. There is no API to signal this to the session yet, but the
+        // contains_end_of_group_ logic is likely to substantially change in the
+        // spec. Don't bother to signal this for now; just ignore that the
+        // stream was supposed to conclude with kEndOfGroup and end it with the
+        // encoded status instead.
         visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
         AdvanceParserState();
       }
@@ -1563,15 +1573,35 @@ void MoqtDataParser::ParseNextItemFromStream() {
         payload_length_remaining_ -= chunk_size;
         bool done = payload_length_remaining_ == 0;
         if (next_input_ == kData) {
+          no_more_data_ = peek_result.all_data_received &&
+                          chunk_size == peek_result.peeked_data.size();
+          if (!done && no_more_data_) {
+            ParseError("FIN received at an unexpected point in the stream");
+            return;
+          }
+          if (contains_end_of_group_) {
+            if (no_more_data_) {
+              metadata_.object_status = MoqtObjectStatus::kEndOfGroup;
+            } else if (done) {
+              // Don't signal done until the next byte arrives.
+              next_input_ = kAwaitingNextByte;
+              done = false;
+            }
+          }
           visitor_.OnObjectMessage(
               metadata_, peek_result.peeked_data.substr(0, chunk_size), done);
-          no_more_data_ = stream_.SkipBytes(chunk_size);
           if (done) {
             ++num_objects_read_;
             AdvanceParserState();
-          } else if (no_more_data_) {
-            ParseError("FIN received at an unexpected point in the stream");
-            return;
+          }
+          if (stream_.SkipBytes(chunk_size) && !no_more_data_) {
+            // Although there was no FIN, SkipBytes() can return true if the
+            // stream is reset, probably because OnObjectMessage() caused
+            // something to happen to the stream or the session.
+            no_more_data_ = true;
+            if (!done) {
+              ParseError("FIN received at an unexpected point in the stream");
+            }
           }
         } else {
           absl::StrAppend(&metadata_.extension_headers,
@@ -1586,6 +1616,11 @@ void MoqtDataParser::ParseNextItemFromStream() {
           }
         }
       }
+      return;
+    }
+
+    case kAwaitingNextByte: {
+      QUICHE_NOTREACHED();  // CheckForFinWithoutData() should have handled it.
       return;
     }
 
@@ -1619,6 +1654,11 @@ void MoqtDataParser::ReadAtMostOneObject() {
 
 bool MoqtDataParser::CheckForFinWithoutData() {
   if (!stream_.PeekNextReadableRegion().fin_next) {
+    if (next_input_ == kAwaitingNextByte) {
+      // Data arrived; the last object was not EndOfGroup.
+      visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
+      AdvanceParserState();
+    }
     return false;
   }
   no_more_data_ = true;
@@ -1629,6 +1669,10 @@ bool MoqtDataParser::CheckForFinWithoutData() {
   if (!valid_state || num_objects_read_ == 0) {
     ParseError("FIN received at an unexpected point in the stream");
     return true;
+  }
+  if (next_input_ == kAwaitingNextByte) {
+    metadata_.object_status = MoqtObjectStatus::kEndOfGroup;
+    visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
   }
   return stream_.SkipBytes(0);
 }

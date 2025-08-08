@@ -39,16 +39,20 @@ const MoqtDatagramType kMoqtDatagramTypes[] = {
     // Cannot have status and end_of_group both be true.
 };
 
-const MoqtDataStreamType kMoqtDataStreamTypes[] = {
-    MoqtDataStreamType::Fetch(),
-    MoqtDataStreamType::Subgroup(0, 1, true),
-    MoqtDataStreamType::Subgroup(0, 1, false),
-    MoqtDataStreamType::Subgroup(1, 1, true),
-    MoqtDataStreamType::Subgroup(1, 1, false),
-    MoqtDataStreamType::Subgroup(2, 1, true),
-    MoqtDataStreamType::Subgroup(2, 1, false),
-    // Padding omitted.
-};
+inline std::vector<MoqtDataStreamType> AllMoqtDataStreamTypes() {
+  std::vector<MoqtDataStreamType> types;
+  types.push_back(MoqtDataStreamType::Fetch());
+  uint64_t first_object_id = 1;
+  for (uint64_t subgroup_id : {0, 1, 2}) {
+    for (bool no_extension_headers : {true, false}) {
+      for (bool end_of_group : {false, true}) {
+        types.push_back(MoqtDataStreamType::Subgroup(
+            subgroup_id, first_object_id, no_extension_headers, end_of_group));
+      }
+    }
+  }
+  return types;
+}
 
 // Base class containing a wire image and the corresponding structured
 // representation of an example of each message. It allows parser and framer
@@ -103,6 +107,9 @@ class QUICHE_NO_EXPORT TestMessageBase {
     wire_image_[length_offset + 1]++;
     set_wire_image_size(wire_image_size_ + 1);
   }
+
+  // Objects might need a different status if at the end of the stream.
+  virtual void MakeObjectEndOfStream() {}
 
  protected:
   void SetWireImage(uint8_t* wire_image, size_t wire_image_size) {
@@ -355,6 +362,12 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
     SetWireImage(reinterpret_cast<uint8_t*>(raw_packet_), total_message_size());
     set_wire_image_size(total_message_size() + payload_length_change);
     return true;
+  }
+
+  void MakeObjectEndOfStream() override {
+    if (type_.EndOfGroupInStream()) {
+      object_.object_status = MoqtObjectStatus::kEndOfGroup;
+    }
   }
 
  private:

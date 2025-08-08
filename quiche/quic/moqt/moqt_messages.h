@@ -29,6 +29,7 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_data_writer.h"
 #include "quiche/web_transport/web_transport.h"
@@ -115,80 +116,77 @@ inline constexpr size_t kMaxMessageHeaderSize = 2048;
 
 class QUICHE_EXPORT MoqtDataStreamType {
  public:
+  static constexpr uint64_t kFetch = 0x05;
+  static constexpr uint64_t kPadding = 0x26d3;
+  static constexpr uint64_t kSubgroupFlag = 0x10;
+  static constexpr uint64_t kExtensionFlag = 0x01;
+  static constexpr uint64_t kEndOfGroupFlag = 0x08;
+  // These two cannot simultaneously be true;
+  static constexpr uint64_t kFirstObjectIdFlag = 0x02;
+  static constexpr uint64_t kSubgroupIdFlag = 0x04;
+
   // Factory functions.
   static std::optional<MoqtDataStreamType> FromValue(uint64_t value) {
-    MoqtDataStreamType stream_type(static_cast<StreamType>(value));
+    MoqtDataStreamType stream_type(value);
     if (stream_type.IsFetch() || stream_type.IsPadding() ||
         stream_type.IsSubgroup()) {
       return stream_type;
     }
     return std::nullopt;
   }
-  static MoqtDataStreamType Fetch() {
-    return MoqtDataStreamType(StreamType::kFetch);
-  }
-  static MoqtDataStreamType Padding() {
-    return MoqtDataStreamType(StreamType::kPadding);
-  }
+  static MoqtDataStreamType Fetch() { return MoqtDataStreamType(kFetch); }
+  static MoqtDataStreamType Padding() { return MoqtDataStreamType(kPadding); }
   static MoqtDataStreamType Subgroup(uint64_t subgroup_id,
                                      uint64_t first_object_id,
-                                     bool no_extension_headers) {
+                                     bool no_extension_headers,
+                                     bool end_of_group = false) {
+    uint64_t value = kSubgroupFlag;
+    if (!no_extension_headers) {
+      value |= kExtensionFlag;
+    }
+    if (end_of_group) {
+      value |= kEndOfGroupFlag;
+    }
     if (subgroup_id == 0) {
-      return MoqtDataStreamType(
-          no_extension_headers ? StreamType::kSubgroup0NoExtensionHeaders
-                               : StreamType::kSubgroup0WithExtensionHeaders);
+      return MoqtDataStreamType(value);
     }
     if (subgroup_id == first_object_id) {
-      return MoqtDataStreamType(
-          no_extension_headers
-              ? StreamType::kSubgroupFirstObjectNoExtensionHeaders
-              : StreamType::kSubgroupFirstObjectWithExtensionHeaders);
+      value |= kFirstObjectIdFlag;
+    } else {
+      value |= kSubgroupIdFlag;
     }
-    return MoqtDataStreamType(
-        no_extension_headers
-            ? StreamType::kSubgroupExplicitNoExtensionHeaders
-            : StreamType::kSubgroupExplicitWithExtensionHeaders);
+    return MoqtDataStreamType(value);
   }
   MoqtDataStreamType(const MoqtDataStreamType& other) = default;
-  bool IsFetch() const { return value_ == StreamType::kFetch; }
-  bool IsPadding() const { return value_ == StreamType::kPadding; }
+  bool IsFetch() const { return value_ == kFetch; }
+  bool IsPadding() const { return value_ == kPadding; }
   bool IsSubgroup() const {
-    return value_ >= StreamType::kSubgroup0NoExtensionHeaders &&
-           value_ <= StreamType::kSubgroupExplicitWithExtensionHeaders;
+    return (value_ & kSubgroupFlag) && (value_ & ~0x1f) == 0 &&
+           !((value_ & kSubgroupIdFlag) && (value_ & kFirstObjectIdFlag));
   }
   bool IsSubgroupPresent() const {
-    return value_ == StreamType::kSubgroupExplicitNoExtensionHeaders ||
-           value_ == StreamType::kSubgroupExplicitWithExtensionHeaders;
+    return IsSubgroup() && (value_ & kSubgroupIdFlag);
   }
   bool SubgroupIsZero() const {
-    return value_ == StreamType::kSubgroup0NoExtensionHeaders ||
-           value_ == StreamType::kSubgroup0WithExtensionHeaders;
+    return IsSubgroup() && !(value_ & kSubgroupIdFlag) &&
+           !(value_ & kFirstObjectIdFlag);
   }
   bool SubgroupIsFirstObjectId() const {
-    return value_ == StreamType::kSubgroupFirstObjectNoExtensionHeaders ||
-           value_ == StreamType::kSubgroupFirstObjectWithExtensionHeaders;
+    return IsSubgroup() && (value_ & kFirstObjectIdFlag);
   }
   bool AreExtensionHeadersPresent() const {
-    return value_ == StreamType::kSubgroup0WithExtensionHeaders ||
-           value_ == StreamType::kSubgroupFirstObjectWithExtensionHeaders ||
-           value_ == StreamType::kSubgroupExplicitWithExtensionHeaders;
+    return IsSubgroup() && (value_ & kExtensionFlag);
   }
-  uint64_t value() const { return static_cast<uint64_t>(value_); }
+  bool EndOfGroupInStream() const {
+    return IsSubgroup() && (value_ & kEndOfGroupFlag);
+  }
+
+  uint64_t value() const { return value_; }
   bool operator==(const MoqtDataStreamType& other) const = default;
-  enum class StreamType : uint64_t {
-    kFetch = 0x05,
-    kSubgroup0NoExtensionHeaders = 0x08,
-    kSubgroup0WithExtensionHeaders = 0x09,
-    kSubgroupFirstObjectNoExtensionHeaders = 0x0a,
-    kSubgroupFirstObjectWithExtensionHeaders = 0x0b,
-    kSubgroupExplicitNoExtensionHeaders = 0x0c,
-    kSubgroupExplicitWithExtensionHeaders = 0x0d,
-    kPadding = 0x26d3,
-  };
 
  private:
-  explicit MoqtDataStreamType(StreamType value) : value_(value) {}
-  const StreamType value_;
+  explicit MoqtDataStreamType(uint64_t value) : value_(value) {}
+  const uint64_t value_;
 };
 
 class QUICHE_EXPORT MoqtDatagramType {

@@ -1248,7 +1248,7 @@ TEST_F(MoqtSessionTest, CreateOutgoingDataStreamAndSend) {
 
   // Verify first four message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x09, 0x02, 0x05, 0x7f};
+  const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1301,7 +1301,7 @@ TEST_F(MoqtSessionTest, FinDataStreamFromCache) {
 
   // Verify first four message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x09, 0x02, 0x05, 0x7f};
+  const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1352,7 +1352,7 @@ TEST_F(MoqtSessionTest, GroupAbandonedNoDeliveryTimeout) {
 
   // Verify first four message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x09, 0x02, 0x05, 0x7f};
+  const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1417,7 +1417,7 @@ TEST_F(MoqtSessionTest, GroupAbandonedDeliveryTimeout) {
 
   // Verify first four message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x09, 0x02, 0x05, 0x7f};
+  const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1484,7 +1484,7 @@ TEST_F(MoqtSessionTest, GroupAbandoned) {
 
   // Verify first four message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x09, 0x02, 0x05, 0x7f};
+  const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1537,7 +1537,7 @@ TEST_F(MoqtSessionTest, LateFinDataStream) {
 
   // Verify first four message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x09, 0x02, 0x05, 0x7f};
+  const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev)
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {

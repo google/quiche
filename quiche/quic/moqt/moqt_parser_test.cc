@@ -92,7 +92,7 @@ std::vector<MoqtParserTestParams> GetMoqtParserTestParams() {
       params.push_back(MoqtParserTestParams(message_type, true));
     }
   }
-  for (MoqtDataStreamType type : kMoqtDataStreamTypes) {
+  for (MoqtDataStreamType type : AllMoqtDataStreamTypes()) {
     params.push_back(MoqtParserTestParams(type));
   }
   return params;
@@ -161,6 +161,7 @@ INSTANTIATE_TEST_SUITE_P(MoqtParserTests, MoqtParserTest,
 
 TEST_P(MoqtParserTest, OneMessage) {
   std::unique_ptr<TestMessageBase> message = MakeMessage();
+  message->MakeObjectEndOfStream();
   ProcessData(message->PacketSample(), true);
   ASSERT_EQ(visitor_.messages_received_, 1);
   EXPECT_TRUE(message->EqualFieldValues(*visitor_.last_message_));
@@ -185,6 +186,7 @@ TEST_P(MoqtParserTest, OneMessageWithLongVarints) {
 
 TEST_P(MoqtParserTest, TwoPartMessage) {
   std::unique_ptr<TestMessageBase> message = MakeMessage();
+  message->MakeObjectEndOfStream();
   // The test Object message has payload for less then half the message length,
   // so splitting the message in half will prevent the first half from being
   // processed.
@@ -206,6 +208,7 @@ TEST_P(MoqtParserTest, TwoPartMessage) {
 
 TEST_P(MoqtParserTest, OneByteAtATime) {
   std::unique_ptr<TestMessageBase> message = MakeMessage();
+  message->MakeObjectEndOfStream();
   for (size_t i = 0; i < message->total_message_size(); ++i) {
     EXPECT_EQ(visitor_.messages_received_, 0);
     EXPECT_FALSE(visitor_.end_of_message_);
@@ -224,6 +227,7 @@ TEST_P(MoqtParserTest, OneByteAtATime) {
 TEST_P(MoqtParserTest, OneByteAtATimeLongerVarints) {
   std::unique_ptr<TestMessageBase> message = MakeMessage();
   message->ExpandVarints();
+  message->MakeObjectEndOfStream();
   for (size_t i = 0; i < message->total_message_size(); ++i) {
     EXPECT_EQ(visitor_.messages_received_, 0);
     EXPECT_FALSE(visitor_.end_of_message_);
@@ -241,10 +245,11 @@ TEST_P(MoqtParserTest, OneByteAtATimeLongerVarints) {
 
 TEST_P(MoqtParserTest, TwoBytesAtATime) {
   std::unique_ptr<TestMessageBase> message = MakeMessage();
+  message->MakeObjectEndOfStream();
   for (size_t i = 0; i < message->total_message_size(); i += 3) {
     EXPECT_EQ(visitor_.messages_received_, 0);
     EXPECT_FALSE(visitor_.end_of_message_);
-    bool last = (i + 2) >= message->total_message_size();
+    bool last = (i + 3) >= message->total_message_size();
     ProcessData(message->PacketSample().substr(i, 3), last);
   }
   EXPECT_EQ(visitor_.messages_received_, 1);
@@ -1005,7 +1010,7 @@ TEST_F(MoqtMessageSpecificTest, InvalidObjectStatus) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtDataParser parser(&stream, &visitor_);
   char stream_header_subgroup[] = {
-      0x0d,                    // type field
+      0x15,                    // type field
       0x04, 0x05, 0x08,        // varints
       0x07,                    // publisher priority
       0x06, 0x00, 0x00, 0x0f,  // object middler; status = 0x0f

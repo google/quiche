@@ -79,6 +79,8 @@ class MoqtDataParserVisitor {
   // OBJECT payload. If not, there will be subsequent calls with further payload
   // data. The parser retains ownership of |message| and |payload|, so the
   // visitor needs to copy anything it wants to retain.
+  // If `message.object_status` == `kNormal`, the status must not be used until
+  // `end_of_message` is true, since a FIN can change the status.
   virtual void OnObjectMessage(const MoqtObject& message,
                                absl::string_view payload,
                                bool end_of_message) = 0;
@@ -224,6 +226,7 @@ class QUICHE_EXPORT MoqtDataParser {
     kObjectPayloadLength,
     kStatus,
     kData,
+    kAwaitingNextByte,  // Can't determine status until the next byte arrives.
     kPadding,
     kFailed,
   };
@@ -263,6 +266,8 @@ class QUICHE_EXPORT MoqtDataParser {
 
   bool no_more_data_ = false;  // Fatal error or fin. No more parsing.
   bool parsing_error_ = false;
+  bool contains_end_of_group_ = false;  // True if the stream contains an
+                                        // implied END_OF_GROUP object.
 
   std::string buffered_message_;
 
