@@ -206,9 +206,8 @@ void BlindSignAuth::PrivacyPassAuthAndSignCallback(
   }
   absl::StatusCode code = response->status_code();
   if (code != absl::StatusCode::kOk) {
-    std::string message = absl::StrCat("AuthAndSign failed with code: ", code);
-    QUICHE_LOG(WARNING) << message;
-    std::move(callback)(absl::InvalidArgumentError(message));
+    QUICHE_LOG(WARNING) << "AuthAndSign failed with code: " << code;
+    std::move(callback)(absl::Status(code, "AuthAndSign failed"));
     return;
   }
 
@@ -440,10 +439,8 @@ void BlindSignAuth::AttestAndSignCallback(
   }
   absl::StatusCode code = response->status_code();
   if (code != absl::StatusCode::kOk) {
-    std::string message =
-        absl::StrCat("AttestAndSign failed with code: ", code);
-    QUICHE_LOG(WARNING) << message;
-    std::move(callback)(absl::InvalidArgumentError(message));
+    QUICHE_LOG(WARNING) << "AttestAndSign failed with code: " << code;
+    std::move(callback)(absl::Status(code, "AttestAndSign failed"));
     return;
   }
 
@@ -519,10 +516,8 @@ BlindSignAuth::ParseGetInitialDataResponseMessage(
   }
   if (absl::StatusCode code = response->status_code();
       code != absl::StatusCode::kOk) {
-    std::string message =
-        absl::StrCat("GetInitialDataRequest failed with code: ", code);
-    QUICHE_LOG(WARNING) << message;
-    return absl::InvalidArgumentError(message);
+    QUICHE_LOG(WARNING) << "GetInitialDataRequest failed with code: " << code;
+    return absl::Status(code, "GetInitialDataRequest failed");
   }
   // Parse GetInitialDataResponse.
   GetInitialDataResponse initial_data_response;
