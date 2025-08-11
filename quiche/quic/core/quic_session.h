@@ -999,10 +999,9 @@ class QUICHE_EXPORT QuicSession
   void PerformActionOnNonStaticStreams(
       quiche::UnretainedCallback<bool(QuicStream*)> action);
 
-  // Keep track of highest received byte offset of locally closed streams, while
-  // waiting for a definitive final highest offset from the peer.
-  absl::flat_hash_map<QuicStreamId, QuicStreamOffset>
-      locally_closed_streams_highest_offset_;
+  // A counter for streams which have sent and received FIN but waiting for
+  // application to consume data.
+  size_t num_draining_streams_;
 
   QuicConnection* connection_;
 
@@ -1010,24 +1009,119 @@ class QUICHE_EXPORT QuicSession
   // during our destructor when connection_ may have already been destroyed.
   Perspective perspective_;
 
-  // May be null.
-  Visitor* visitor_;
-
   // A list of streams which need to write more data.  Stream register
   // themselves in their constructor, and unregisterm themselves in their
-  // destructors, so the write blocked list must outlive all streams.
+  // destructors, so the write blocked list must outlive all streams. Don't
+  // reorder write_blocked_streams_ after stream_map_ for the correct
+  // destruction order.
   std::unique_ptr<QuicWriteBlockedListInterface> write_blocked_streams_;
-
-  ClosedStreams closed_streams_;
-
-  QuicConfig config_;
 
   // Map from StreamId to pointers to streams. Owns the streams.
   StreamMap stream_map_;
 
+  // A counter for streams which have done reading and writing, but are waiting
+  // for acks.
+  size_t num_zombie_streams_;
+
+  // A counter for static streams which are in stream_map_.
+  size_t num_static_streams_;
+
+  // TODO(fayang): switch to linked_hash_set when chromium supports it. The bool
+  // is not used here.
+  // List of streams with pending retransmissions.
+  quiche::QuicheLinkedHashMap<QuicStreamId, bool>
+      streams_with_pending_retransmission_;
+
+  // Used for connection-level flow control.
+  QuicFlowController flow_controller_;
+
+  QuicControlFrameManager control_frame_manager_;
+
+  // The buffer used to queue the DATAGRAM frames.
+  QuicDatagramQueue datagram_queue_;
+
+  // Initialized to false. Set to true when the session has been properly
+  // configured and is ready for general operation.
+  bool is_configured_;
+
+  // Whether the session has received a 0-RTT rejection (QUIC+TLS only).
+  bool was_zero_rtt_rejected_;
+
+  QuicPriorityType priority_type_;
+
+  const bool enable_stop_sending_for_zombie_streams_ =
+      GetQuicReloadableFlag(quic_deliver_stop_sending_to_zombie_streams);
+
+  // Whether a transport layer GOAWAY frame has been sent.
+  // Such a frame only exists in Google QUIC, therefore |transport_goaway_sent_|
+  // is always false when using IETF QUIC.
+  bool transport_goaway_sent_;
+  const bool notify_stream_soon_to_destroy_ =
+      GetQuicReloadableFlag(quic_notify_stream_soon_to_destroy);
+
+  // Whether a transport layer GOAWAY frame has been received.
+  // Such a frame only exists in Google QUIC, therefore
+  // |transport_goaway_received_| is always false when using IETF QUIC.
+  bool transport_goaway_received_;
+
+  // This indicates a liveness testing is in progress, and push back the
+  // creation of new outgoing bidirectional streams.
+  bool liveness_testing_in_progress_;
+
+  // Default to max stream count so that there is no stream creation limit per
+  // event loop.
+  QuicStreamCount max_streams_accepted_per_loop_ = kMaxQuicStreamCount;
+
+  // The counter for newly created non-static incoming streams in the current
+  // event loop and gets reset for each event loop.
+  QuicStreamCount new_incoming_streams_in_current_loop_ = 0u;
+
+  // Id of latest successfully sent message.
+  QuicMessageId last_message_id_;
+
+  // The stream id which was last popped in OnCanWrite, or 0, if not under the
+  // call stack of OnCanWrite.
+  QuicStreamId currently_writing_stream_id_;
+
+  // A counter for self initiated streams which have sent and received FIN but
+  // waiting for application to consume data.
+  size_t num_outgoing_draining_streams_;
+
+  std::optional<ConnectionCloseSource> connection_close_source_;
+
+  // Clean up closed_streams_ when this alarm fires.
+  std::unique_ptr<QuicAlarm> closed_streams_clean_up_alarm_;
+
+  // May be null.
+  Visitor* visitor_;
+
+  // Total number of datagram frames declared lost within the session.
+  uint64_t total_datagrams_lost_ = 0;
+
+  std::unique_ptr<QuicAlarm> stream_count_reset_alarm_;
+
+  // Only non-empty on the client after receiving a version negotiation packet,
+  // contains the configured versions from the original session before version
+  // negotiation was received.
+  ParsedQuicVersionVector client_original_supported_versions_;
+
+  ClosedStreams closed_streams_;
+
+  // Supported version list used by the crypto handshake only. Please note, this
+  // list may be a superset of the connection framer's supported versions.
+  ParsedQuicVersionVector supported_versions_;
+
+  std::optional<std::string> user_agent_id_;
+
+  // Keep track of highest received byte offset of locally closed streams, while
+  // waiting for a definitive final highest offset from the peer.
+  absl::flat_hash_map<QuicStreamId, QuicStreamOffset>
+      locally_closed_streams_highest_offset_;
   // Map from StreamId to PendingStreams for peer-created unidirectional streams
   // which are waiting for the first byte of payload to arrive.
   PendingStreamMap pending_stream_map_;
+  // Received information for a connection close.
+  QuicConnectionCloseFrame on_closed_frame_;
 
   // TODO(fayang): Consider moving LegacyQuicStreamIdManager into
   // UberQuicStreamIdManager.
@@ -1037,99 +1131,7 @@ class QUICHE_EXPORT QuicSession
   // Manages stream IDs for version99/IETF QUIC
   UberQuicStreamIdManager ietf_streamid_manager_;
 
-  // A counter for streams which have sent and received FIN but waiting for
-  // application to consume data.
-  size_t num_draining_streams_;
-
-  // A counter for self initiated streams which have sent and received FIN but
-  // waiting for application to consume data.
-  size_t num_outgoing_draining_streams_;
-
-  // A counter for static streams which are in stream_map_.
-  size_t num_static_streams_;
-
-  // A counter for streams which have done reading and writing, but are waiting
-  // for acks.
-  size_t num_zombie_streams_;
-
-  // Received information for a connection close.
-  QuicConnectionCloseFrame on_closed_frame_;
-  std::optional<ConnectionCloseSource> connection_close_source_;
-
-  // Used for connection-level flow control.
-  QuicFlowController flow_controller_;
-
-  // The stream id which was last popped in OnCanWrite, or 0, if not under the
-  // call stack of OnCanWrite.
-  QuicStreamId currently_writing_stream_id_;
-
-  // Whether a transport layer GOAWAY frame has been sent.
-  // Such a frame only exists in Google QUIC, therefore |transport_goaway_sent_|
-  // is always false when using IETF QUIC.
-  bool transport_goaway_sent_;
-
-  // Whether a transport layer GOAWAY frame has been received.
-  // Such a frame only exists in Google QUIC, therefore
-  // |transport_goaway_received_| is always false when using IETF QUIC.
-  bool transport_goaway_received_;
-
-  QuicControlFrameManager control_frame_manager_;
-
-  // Id of latest successfully sent message.
-  QuicMessageId last_message_id_;
-
-  // The buffer used to queue the DATAGRAM frames.
-  QuicDatagramQueue datagram_queue_;
-
-  // Total number of datagram frames declared lost within the session.
-  uint64_t total_datagrams_lost_ = 0;
-
-  // TODO(fayang): switch to linked_hash_set when chromium supports it. The bool
-  // is not used here.
-  // List of streams with pending retransmissions.
-  quiche::QuicheLinkedHashMap<QuicStreamId, bool>
-      streams_with_pending_retransmission_;
-
-  // Clean up closed_streams_ when this alarm fires.
-  std::unique_ptr<QuicAlarm> closed_streams_clean_up_alarm_;
-
-  // Supported version list used by the crypto handshake only. Please note, this
-  // list may be a superset of the connection framer's supported versions.
-  ParsedQuicVersionVector supported_versions_;
-
-  // Only non-empty on the client after receiving a version negotiation packet,
-  // contains the configured versions from the original session before version
-  // negotiation was received.
-  ParsedQuicVersionVector client_original_supported_versions_;
-
-  std::optional<std::string> user_agent_id_;
-
-  // Initialized to false. Set to true when the session has been properly
-  // configured and is ready for general operation.
-  bool is_configured_;
-
-  // Whether the session has received a 0-RTT rejection (QUIC+TLS only).
-  bool was_zero_rtt_rejected_;
-
-  // This indicates a liveness testing is in progress, and push back the
-  // creation of new outgoing bidirectional streams.
-  bool liveness_testing_in_progress_;
-
-  // The counter for newly created non-static incoming streams in the current
-  // event loop and gets reset for each event loop.
-  QuicStreamCount new_incoming_streams_in_current_loop_ = 0u;
-  // Default to max stream count so that there is no stream creation limit per
-  // event loop.
-  QuicStreamCount max_streams_accepted_per_loop_ = kMaxQuicStreamCount;
-  std::unique_ptr<QuicAlarm> stream_count_reset_alarm_;
-
-  QuicPriorityType priority_type_;
-
-  const bool enable_stop_sending_for_zombie_streams_ =
-      GetQuicReloadableFlag(quic_deliver_stop_sending_to_zombie_streams);
-
-  const bool notify_stream_soon_to_destroy_ =
-      GetQuicReloadableFlag(quic_notify_stream_soon_to_destroy);
+  QuicConfig config_;
 };
 
 }  // namespace quic

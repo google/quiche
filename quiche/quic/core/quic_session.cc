@@ -117,47 +117,47 @@ QuicSession::QuicSession(
     QuicStreamCount num_expected_unidirectional_static_streams,
     std::unique_ptr<QuicDatagramQueue::Observer> datagram_observer,
     QuicPriorityType priority_type)
-    : connection_(connection),
+    : num_draining_streams_(0),
+      connection_(connection),
       perspective_(connection->perspective()),
-      visitor_(owner),
       write_blocked_streams_(CreateWriteBlockedList(priority_type)),
-      config_(config),
-      stream_id_manager_(perspective(), connection->transport_version(),
-                         kDefaultMaxStreamsPerConnection,
-                         config_.GetMaxBidirectionalStreamsToSend()),
-      ietf_streamid_manager_(perspective(), connection->version(), this, 0,
-                             num_expected_unidirectional_static_streams,
-                             config_.GetMaxBidirectionalStreamsToSend(),
-                             config_.GetMaxUnidirectionalStreamsToSend() +
-                                 num_expected_unidirectional_static_streams),
-      num_draining_streams_(0),
-      num_outgoing_draining_streams_(0),
-      num_static_streams_(0),
       num_zombie_streams_(0),
+      num_static_streams_(0),
       flow_controller_(
           this, QuicUtils::GetInvalidStreamId(connection->transport_version()),
           /*is_connection_flow_controller*/ true,
           connection->version().AllowsLowFlowControlLimits()
               ? 0
               : kMinimumFlowControlSendWindow,
-          config_.GetInitialSessionFlowControlWindowToSend(),
+          config.GetInitialSessionFlowControlWindowToSend(),
           kSessionReceiveWindowLimit, perspective() == Perspective::IS_SERVER,
           nullptr),
-      currently_writing_stream_id_(0),
-      transport_goaway_sent_(false),
-      transport_goaway_received_(false),
       control_frame_manager_(this),
-      last_message_id_(0),
       datagram_queue_(this, std::move(datagram_observer)),
-      closed_streams_clean_up_alarm_(nullptr),
-      supported_versions_(supported_versions),
       is_configured_(false),
       was_zero_rtt_rejected_(false),
+      priority_type_(priority_type),
+      transport_goaway_sent_(false),
+      transport_goaway_received_(false),
       liveness_testing_in_progress_(false),
+      last_message_id_(0),
+      currently_writing_stream_id_(0),
+      num_outgoing_draining_streams_(0),
+      closed_streams_clean_up_alarm_(nullptr),
+      visitor_(owner),
       stream_count_reset_alarm_(
           absl::WrapUnique<QuicAlarm>(connection->alarm_factory()->CreateAlarm(
               new StreamCountResetAlarmDelegate(this)))),
-      priority_type_(priority_type) {
+      supported_versions_(supported_versions),
+      stream_id_manager_(perspective(), connection->transport_version(),
+                         kDefaultMaxStreamsPerConnection,
+                         config.GetMaxBidirectionalStreamsToSend()),
+      ietf_streamid_manager_(perspective(), connection->version(), this, 0,
+                             num_expected_unidirectional_static_streams,
+                             config.GetMaxBidirectionalStreamsToSend(),
+                             config.GetMaxUnidirectionalStreamsToSend() +
+                                 num_expected_unidirectional_static_streams),
+      config_(config) {
   closed_streams_clean_up_alarm_ =
       absl::WrapUnique<QuicAlarm>(connection_->alarm_factory()->CreateAlarm(
           new ClosedStreamsCleanUpDelegate(this)));

@@ -632,26 +632,42 @@ class QUICHE_EXPORT QuicSpdySession
 
   bool ValidateWebTransportSettingsConsistency();
 
-  HuffmanEncoding huffman_encoding_ = HuffmanEncoding::kEnabled;
-  CookieCrumbling cookie_crumbling_ = CookieCrumbling::kEnabled;
-  std::unique_ptr<QpackEncoder> qpack_encoder_;
   std::unique_ptr<QpackDecoder> qpack_decoder_;
+  http2::Http2DecoderAdapter h2_deframer_;
+  bool fin_;
+  // Whether the SETTINGS frame has been received on the control stream.
+  bool settings_received_ = false;
+
+  // Whether both this endpoint and our peer support HTTP datagrams and which
+  // draft is in use for this session.
+  HttpDatagramSupport http_datagram_support_ = HttpDatagramSupport::kNone;
+
+  // On the server side, if true, advertise and accept extended CONNECT method.
+  // On the client side, true if the peer advertised extended CONNECT.
+  bool allow_extended_connect_;
+  // Allows forcing ShouldBufferRequestsUntilSettings() to true via
+  // a connection option.
+  bool force_buffer_requests_until_settings_;
+
+  // WebTransport protocol versions supported by the peer.
+  WebTransportHttp3VersionSet peer_web_transport_versions_;
+  CookieCrumbling cookie_crumbling_ = CookieCrumbling::kEnabled;
+  // An integer used for live check. The indicator is assigned a value in
+  // constructor. As long as it is not the assigned value, that would indicate
+  // an use-after-free.
+  int32_t destruction_indicator_;
+  HuffmanEncoding huffman_encoding_ = HuffmanEncoding::kEnabled;
+
+  // Data about the stream whose headers are being processed.
+  QuicStreamId stream_id_;
 
   // Pointer to the header stream in stream_map_.
   QuicHeadersStream* headers_stream_;
 
-  // HTTP/3 control streams. They are owned by QuicSession inside
-  // stream map, and can be accessed by those unowned pointers below.
-  QuicSendControlStream* send_control_stream_;
-  QuicReceiveControlStream* receive_control_stream_;
+  // Not owned by the session.
+  Http3DebugVisitor* debug_visitor_;
 
-  // Pointers to HTTP/3 QPACK streams in stream map.
-  QpackReceiveStream* qpack_encoder_receive_stream_;
-  QpackReceiveStream* qpack_decoder_receive_stream_;
-  QpackSendStream* qpack_encoder_send_stream_;
-  QpackSendStream* qpack_decoder_send_stream_;
-
-  SettingsFrame settings_;
+  size_t frame_len_;
 
   // Maximum dynamic table capacity as defined at
   // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#maximum-dynamic-table-capacity
@@ -667,68 +683,56 @@ class QUICHE_EXPORT QuicSpdySession
   // for the decoding context.  Value will be sent via
   // SETTINGS_QPACK_BLOCKED_STREAMS.
   uint64_t qpack_maximum_blocked_streams_;
-
+  QuicReceiveControlStream* receive_control_stream_;
   // The maximum size of a header block that will be accepted from the peer,
   // defined per spec as key + value + overhead per field (uncompressed).
   // Value will be sent via SETTINGS_MAX_HEADER_LIST_SIZE.
   size_t max_inbound_header_list_size_;
+
+  // HTTP/3 control streams. They are owned by QuicSession inside
+  // stream map, and can be accessed by those unowned pointers below.
+  QuicSendControlStream* send_control_stream_;
+  std::unique_ptr<QpackEncoder> qpack_encoder_;
+  QpackReceiveStream* qpack_decoder_receive_stream_;
+
+  // Pointers to HTTP/3 QPACK streams in stream map.
+  QpackReceiveStream* qpack_encoder_receive_stream_;
+
+  QpackSendStream* qpack_encoder_send_stream_;
 
   // The maximum size of a header block that can be sent to the peer. This field
   // is informed and set by the peer via SETTINGS frame.
   // TODO(b/148616439): Honor this field when sending headers.
   size_t max_outbound_header_list_size_;
 
-  // Data about the stream whose headers are being processed.
-  QuicStreamId stream_id_;
-  size_t frame_len_;
-  bool fin_;
-
-  spdy::SpdyFramer spdy_framer_;
-  http2::Http2DecoderAdapter h2_deframer_;
   std::unique_ptr<SpdyFramerVisitor> spdy_framer_visitor_;
+  QpackSendStream* qpack_decoder_send_stream_;
 
-  // Not owned by the session.
-  Http3DebugVisitor* debug_visitor_;
-
-  // Priority values received in PRIORITY_UPDATE frames for streams that are not
-  // open yet.
-  absl::flat_hash_map<QuicStreamId, HttpStreamPriority>
-      buffered_stream_priorities_;
-
-  // An integer used for live check. The indicator is assigned a value in
-  // constructor. As long as it is not the assigned value, that would indicate
-  // an use-after-free.
-  int32_t destruction_indicator_;
-
-  // The identifier in the most recently received GOAWAY frame.  Unset if no
-  // GOAWAY frame has been received yet.
-  std::optional<uint64_t> last_received_http3_goaway_id_;
   // The identifier in the most recently sent GOAWAY frame.  Unset if no GOAWAY
   // frame has been sent yet.
   std::optional<uint64_t> last_sent_http3_goaway_id_;
 
-  // Whether both this endpoint and our peer support HTTP datagrams and which
-  // draft is in use for this session.
-  HttpDatagramSupport http_datagram_support_ = HttpDatagramSupport::kNone;
-
-  // WebTransport protocol versions supported by the peer.
-  WebTransportHttp3VersionSet peer_web_transport_versions_;
-
-  // Whether the SETTINGS frame has been received on the control stream.
-  bool settings_received_ = false;
-
-  // If ShouldBufferRequestsUntilSettings() is true, all streams that are
-  // blocked by that are tracked here.
-  absl::flat_hash_set<QuicStreamId> streams_waiting_for_settings_;
+  // The identifier in the most recently received GOAWAY frame.  Unset if no
+  // GOAWAY frame has been received yet.
+  std::optional<uint64_t> last_received_http3_goaway_id_;
 
   // WebTransport streams that do not have a session associated with them.
   // Limited to kMaxUnassociatedWebTransportStreams; when the list is full,
   // oldest streams are evicated first.
   std::list<BufferedWebTransportStream> buffered_streams_;
 
-  // On the server side, if true, advertise and accept extended CONNECT method.
-  // On the client side, true if the peer advertised extended CONNECT.
-  bool allow_extended_connect_;
+  spdy::SpdyFramer spdy_framer_;
+
+  // Priority values received in PRIORITY_UPDATE frames for streams that are not
+  // open yet.
+  absl::flat_hash_map<QuicStreamId, HttpStreamPriority>
+      buffered_stream_priorities_;
+
+  SettingsFrame settings_;
+
+  // If ShouldBufferRequestsUntilSettings() is true, all streams that are
+  // blocked by that are tracked here.
+  absl::flat_hash_set<QuicStreamId> streams_waiting_for_settings_;
 
   // Since WebTransport is versioned by renumbering
   // SETTINGS_WEBTRANSPORT_MAX_SESSIONS, the max sessions value depends on the
@@ -736,10 +740,6 @@ class QUICHE_EXPORT QuicSpdySession
   // server cannot initiate WebTransport sessions.
   absl::flat_hash_map<WebTransportHttp3Version, QuicStreamCount>
       max_webtransport_sessions_;
-
-  // Allows forcing ShouldBufferRequestsUntilSettings() to true via
-  // a connection option.
-  bool force_buffer_requests_until_settings_;
 };
 
 }  // namespace quic

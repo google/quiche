@@ -36,12 +36,12 @@ QuicServerSessionBase::QuicServerSessionBase(
     QuicPriorityType priority_type)
     : QuicSpdySession(connection, visitor, config, supported_versions,
                       priority_type),
-      crypto_config_(crypto_config),
-      compressed_certs_cache_(compressed_certs_cache),
-      helper_(helper),
       bandwidth_resumption_enabled_(false),
+      compressed_certs_cache_(compressed_certs_cache),
       bandwidth_estimate_sent_to_client_(QuicBandwidth::Zero()),
-      last_scup_time_(QuicTime::Zero()) {}
+      crypto_config_(crypto_config),
+      last_scup_time_(QuicTime::Zero()),
+      helper_(helper) {}
 
 QuicServerSessionBase::~QuicServerSessionBase() {}
 

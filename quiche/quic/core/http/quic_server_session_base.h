@@ -111,34 +111,34 @@ class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
   // data.
   void SendSettingsToCryptoStream();
 
-  const QuicCryptoServerConfig* crypto_config_;
+  std::unique_ptr<QuicCryptoServerStreamBase> crypto_stream_;
+
+  // Whether bandwidth resumption is enabled for this connection.
+  bool bandwidth_resumption_enabled_;
 
   // The cache which contains most recently compressed certs.
   // Owned by QuicDispatcher.
   QuicCompressedCertsCache* compressed_certs_cache_;
 
-  std::unique_ptr<QuicCryptoServerStreamBase> crypto_stream_;
+  // The most recent bandwidth estimate sent to the client.
+  QuicBandwidth bandwidth_estimate_sent_to_client_;
+
+  const QuicCryptoServerConfig* crypto_config_;
+
+  // Time at which we send the last SCUP to the client.
+  QuicTime last_scup_time_;
 
   // Pointer to the helper used to create crypto server streams. Must outlive
   // streams created via CreateQuicCryptoServerStream.
   QuicCryptoServerStreamBase::Helper* helper_;
 
-  // Whether bandwidth resumption is enabled for this connection.
-  bool bandwidth_resumption_enabled_;
-
-  // The most recent bandwidth estimate sent to the client.
-  QuicBandwidth bandwidth_estimate_sent_to_client_;
+  // Number of packets sent to the peer, at the time we last sent a SCUP.
+  QuicPacketNumber last_scup_packet_number_;
 
   // Text describing server location. Sent to the client as part of the
   // bandwidth estimate in the source-address token. Optional, can be left
   // empty.
   std::string serving_region_;
-
-  // Time at which we send the last SCUP to the client.
-  QuicTime last_scup_time_;
-
-  // Number of packets sent to the peer, at the time we last sent a SCUP.
-  QuicPacketNumber last_scup_packet_number_;
 
   // Converts QuicBandwidth to an int32 bytes/second that can be
   // stored in CachedNetworkParameters.  TODO(jokulik): This function

@@ -542,28 +542,28 @@ QuicSpdySession::QuicSpdySession(
                             kHttp3StaticUnidirectionalStreamCount)
                       : 0u,
                   std::make_unique<DatagramObserver>(this), priority_type),
-      send_control_stream_(nullptr),
-      receive_control_stream_(nullptr),
-      qpack_encoder_receive_stream_(nullptr),
-      qpack_decoder_receive_stream_(nullptr),
-      qpack_encoder_send_stream_(nullptr),
-      qpack_decoder_send_stream_(nullptr),
+      fin_(false),
+      allow_extended_connect_(perspective() == Perspective::IS_SERVER &&
+                              VersionUsesHttp3(transport_version())),
+      force_buffer_requests_until_settings_(false),
+      destruction_indicator_(123456789),
+      stream_id_(
+          QuicUtils::GetInvalidStreamId(connection->transport_version())),
+      debug_visitor_(nullptr),
+      frame_len_(0),
       qpack_maximum_dynamic_table_capacity_(
           GetDefaultQpackMaximumDynamicTableCapacity(perspective())),
       qpack_maximum_blocked_streams_(kDefaultMaximumBlockedStreams),
+      receive_control_stream_(nullptr),
       max_inbound_header_list_size_(kDefaultMaxUncompressedHeaderSize),
+      send_control_stream_(nullptr),
+      qpack_decoder_receive_stream_(nullptr),
+      qpack_encoder_receive_stream_(nullptr),
+      qpack_encoder_send_stream_(nullptr),
       max_outbound_header_list_size_(std::numeric_limits<size_t>::max()),
-      stream_id_(
-          QuicUtils::GetInvalidStreamId(connection->transport_version())),
-      frame_len_(0),
-      fin_(false),
-      spdy_framer_(SpdyFramer::ENABLE_COMPRESSION),
       spdy_framer_visitor_(new SpdyFramerVisitor(this)),
-      debug_visitor_(nullptr),
-      destruction_indicator_(123456789),
-      allow_extended_connect_(perspective() == Perspective::IS_SERVER &&
-                              VersionUsesHttp3(transport_version())),
-      force_buffer_requests_until_settings_(false) {
+      qpack_decoder_send_stream_(nullptr),
+      spdy_framer_(SpdyFramer::ENABLE_COMPRESSION) {
   h2_deframer_.set_visitor(spdy_framer_visitor_.get());
   h2_deframer_.set_debug_visitor(spdy_framer_visitor_.get());
   spdy_framer_.set_debug_visitor(spdy_framer_visitor_.get());
