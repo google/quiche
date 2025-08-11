@@ -40,7 +40,7 @@ struct QUICHE_EXPORT BufferedSlice {
   ~BufferedSlice();
 
   // Return an interval representing the offset and length.
-  QuicInterval<std::size_t> interval() const;
+  QuicInterval<uint64_t> interval() const;
 
   // Stream data of this data slice.
   quiche::QuicheMemSlice slice;

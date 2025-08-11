@@ -64,8 +64,8 @@ class QuicIntervalDequePeer;
 //   // An example class to be stored inside the Interval Deque.
 //   struct IntervalVal {
 //     const int32_t val;
-//     const size_t interval_begin, interval_end;
-//     QuicInterval<size_t> interval();
+//     const uint64_t interval_begin, interval_end;
+//     QuicInterval<uint64_t> interval();
 //   };
 //   typedef IntervalVal IV;
 //   QuicIntervialDeque<IntervalValue> deque;
@@ -155,13 +155,13 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
     // at |deque_.size()| and any attempt to increment above that will be
     // ignored. Once an iterator has iterated all elements the |cached_index_|
     // will be reset.
-    Iterator(std::size_t index, QuicIntervalDeque* deque)
+    Iterator(uint64_t index, QuicIntervalDeque* deque)
         : index_(index), deque_(deque) {}
     // Only the ++ operator attempts to update the cached index. Other operators
     // are used by |lower_bound| to binary search.
     Iterator& operator++() {
       // Don't increment when we are at the end.
-      const std::size_t container_size = deque_->container_.size();
+      const uint64_t container_size = deque_->container_.size();
       if (index_ >= container_size) {
         QUIC_BUG(QuicIntervalDeque_operator_plus_plus_iterator_out_of_bounds)
             << "Iterator out of bounds.";
@@ -169,7 +169,7 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
       }
       index_++;
       if (deque_->cached_index_.has_value()) {
-        const std::size_t cached_index = *deque_->cached_index_;
+        const uint64_t cached_index = *deque_->cached_index_;
         // If all items are iterated then reset the |cached_index_|
         if (index_ == container_size) {
           deque_->cached_index_.reset();
@@ -223,7 +223,7 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
 
    private:
     // |index_| is the index of the item in |*deque_|.
-    std::size_t index_;
+    uint64_t index_;
     // |deque_| is a pointer to the container the iterator came from.
     QuicIntervalDeque* deque_;
 
@@ -246,16 +246,16 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
   Iterator DataEnd();
   // Returns an iterator pointing to the item in |interval_begin|. The iterator
   // will move the |cached_index_| as the iterator moves.
-  Iterator DataAt(const std::size_t interval_begin);
+  Iterator DataAt(const uint64_t interval_begin);
 
   // Returns the number of items contained inside the structure.
-  std::size_t Size() const;
+  uint64_t Size() const;
   // Returns whether the structure is empty.
   bool Empty() const;
 
  private:
   struct QUICHE_NO_EXPORT IntervalCompare {
-    bool operator()(const T& item, std::size_t interval_begin) const {
+    bool operator()(const T& item, uint64_t interval_begin) const {
       return item.interval().max() <= interval_begin;
     }
   };
@@ -263,14 +263,14 @@ class QUICHE_NO_EXPORT QuicIntervalDeque {
   template <class U>
   void PushBackUniversal(U&& item);
 
-  Iterator Search(const std::size_t interval_begin,
-                  const std::size_t begin_index, const std::size_t end_index);
+  Iterator Search(const uint64_t interval_begin, const uint64_t begin_index,
+                  const uint64_t end_index);
 
   // For accessing the |cached_index_|
   friend class test::QuicIntervalDequePeer;
 
   C container_;
-  std::optional<std::size_t> cached_index_;
+  std::optional<uint64_t> cached_index_;
 };
 
 template <class T, class C>
@@ -315,16 +315,16 @@ typename QuicIntervalDeque<T, C>::Iterator QuicIntervalDeque<T, C>::DataEnd() {
 
 template <class T, class C>
 typename QuicIntervalDeque<T, C>::Iterator QuicIntervalDeque<T, C>::DataAt(
-    const std::size_t interval_begin) {
+    const uint64_t interval_begin) {
   // No |cached_index_| value means all items can be searched.
   if (!cached_index_.has_value()) {
     return Search(interval_begin, 0, container_.size());
   }
 
-  const std::size_t cached_index = *cached_index_;
+  const uint64_t cached_index = *cached_index_;
   QUICHE_DCHECK(cached_index < container_.size());
 
-  const QuicInterval<size_t> cached_interval =
+  const QuicInterval<uint64_t> cached_interval =
       container_[cached_index].interval();
   // Does our cached index point directly to what we want?
   if (cached_interval.Contains(interval_begin)) {
@@ -332,7 +332,7 @@ typename QuicIntervalDeque<T, C>::Iterator QuicIntervalDeque<T, C>::DataAt(
   }
 
   // Are we off-by-one?
-  const std::size_t next_index = cached_index + 1;
+  const uint64_t next_index = cached_index + 1;
   if (next_index < container_.size()) {
     if (container_[next_index].interval().Contains(interval_begin)) {
       cached_index_ = next_index;
@@ -342,10 +342,10 @@ typename QuicIntervalDeque<T, C>::Iterator QuicIntervalDeque<T, C>::DataAt(
 
   // Small optimization:
   // Determine if we should binary search above or below the cached interval.
-  const std::size_t cached_begin = cached_interval.min();
+  const uint64_t cached_begin = cached_interval.min();
   bool looking_below = interval_begin < cached_begin;
-  const std::size_t lower = looking_below ? 0 : cached_index + 1;
-  const std::size_t upper = looking_below ? cached_index : container_.size();
+  const uint64_t lower = looking_below ? 0 : cached_index + 1;
+  const uint64_t upper = looking_below ? cached_index : container_.size();
   Iterator ret = Search(interval_begin, lower, upper);
   if (ret == DataEnd()) {
     return ret;
@@ -358,7 +358,7 @@ typename QuicIntervalDeque<T, C>::Iterator QuicIntervalDeque<T, C>::DataAt(
 }
 
 template <class T, class C>
-std::size_t QuicIntervalDeque<T, C>::Size() const {
+uint64_t QuicIntervalDeque<T, C>::Size() const {
   return container_.size();
 }
 
@@ -370,7 +370,7 @@ bool QuicIntervalDeque<T, C>::Empty() const {
 template <class T, class C>
 template <class U>
 void QuicIntervalDeque<T, C>::PushBackUniversal(U&& item) {
-  QuicInterval<std::size_t> interval = item.interval();
+  QuicInterval<uint64_t> interval = item.interval();
   // Adding an empty interval is a bug.
   if (interval.Empty()) {
     QUIC_BUG(QuicIntervalDeque_PushBackUniversal_empty)
@@ -385,8 +385,8 @@ void QuicIntervalDeque<T, C>::PushBackUniversal(U&& item) {
 
 template <class T, class C>
 typename QuicIntervalDeque<T, C>::Iterator QuicIntervalDeque<T, C>::Search(
-    const std::size_t interval_begin, const std::size_t begin_index,
-    const std::size_t end_index) {
+    const uint64_t interval_begin, const uint64_t begin_index,
+    const uint64_t end_index) {
   auto begin = container_.begin() + begin_index;
   auto end = container_.begin() + end_index;
   auto res = std::lower_bound(begin, end, interval_begin, IntervalCompare());

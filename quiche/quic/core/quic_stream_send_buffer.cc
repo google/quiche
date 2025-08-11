@@ -44,9 +44,9 @@ BufferedSlice& BufferedSlice::operator=(BufferedSlice&& other) = default;
 
 BufferedSlice::~BufferedSlice() {}
 
-QuicInterval<std::size_t> BufferedSlice::interval() const {
-  const std::size_t length = slice.length();
-  return QuicInterval<std::size_t>(offset, offset + length);
+QuicInterval<uint64_t> BufferedSlice::interval() const {
+  const uint64_t length = slice.length();
+  return QuicInterval<uint64_t>(offset, offset + length);
 }
 
 QuicStreamSendBuffer::QuicStreamSendBuffer(

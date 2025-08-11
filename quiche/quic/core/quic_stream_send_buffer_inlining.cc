@@ -51,9 +51,9 @@ BufferedSliceInlining& BufferedSliceInlining::operator=(
 
 BufferedSliceInlining::~BufferedSliceInlining() {}
 
-QuicInterval<std::size_t> BufferedSliceInlining::interval() const {
-  const std::size_t length = slice.size();
-  return QuicInterval<std::size_t>(offset, offset + length);
+QuicInterval<uint64_t> BufferedSliceInlining::interval() const {
+  const uint64_t length = slice.size();
+  return QuicInterval<uint64_t>(offset, offset + length);
 }
 
 QuicStreamSendBufferInlining::QuicStreamSendBufferInlining(
