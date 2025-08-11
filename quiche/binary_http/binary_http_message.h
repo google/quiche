@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -14,6 +15,7 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
@@ -25,6 +27,12 @@ namespace quiche {
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-binary-message-06.html
 class QUICHE_EXPORT BinaryHttpMessage {
  public:
+  // A view of a field name and value. Used to pass around a field without
+  // owning or copying the backing data.
+  struct QUICHE_EXPORT FieldView {
+    absl::string_view name;
+    absl::string_view value;
+  };
   // Name value pair of either a header or trailer field.
   struct QUICHE_EXPORT Field {
     std::string name;
@@ -363,6 +371,42 @@ class QUICHE_EXPORT BinaryHttpResponse : public BinaryHttpMessage {
   bool operator!=(const BinaryHttpResponse& rhs) const {
     return !(*this == rhs);
   }
+
+  // Provides encoding methods for an Indeterminate-Length BHTTP response. The
+  // encoder keeps track of what has been encoded so far to ensure sections are
+  // encoded in the correct order, this means it can only be used for a single
+  // BHTTP response message.
+  class QUICHE_EXPORT IndeterminateLengthEncoder {
+   public:
+    // Encodes the specified informational response status code, fields, and its
+    // content terminator.
+    absl::StatusOr<std::string> EncodeInformationalResponse(
+        uint16_t status_code, absl::Span<FieldView> fields);
+    // Encodes the specified status code, headers, and its content terminator.
+    absl::StatusOr<std::string> EncodeHeaders(uint16_t status_code,
+                                              absl::Span<FieldView> headers);
+    // Encodes the specified body chunks. If 'body_chunks_done' is true, the
+    // encoded body chunks are followed by the content terminator.
+    absl::StatusOr<std::string> EncodeBodyChunks(
+        absl::Span<absl::string_view> body_chunks, bool body_chunks_done);
+    // Encodes the specified trailers and its content terminator.
+    absl::StatusOr<std::string> EncodeTrailers(absl::Span<FieldView> trailers);
+
+   private:
+    enum class MessageSection {
+      kInformationalResponseOrHeader,
+      kBody,
+      kTrailer,
+      kEnd,
+    };
+    absl::StatusOr<std::string> EncodeFieldSection(
+        std::optional<uint16_t> status_code, absl::Span<FieldView> fields);
+    std::string GetMessageSectionString(MessageSection section) const;
+
+    MessageSection current_section_ =
+        MessageSection::kInformationalResponseOrHeader;
+    bool framing_indicator_encoded_ = false;
+  };
 
  private:
   // Returns Binary Http known length request formatted response.

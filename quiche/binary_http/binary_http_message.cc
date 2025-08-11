@@ -5,6 +5,7 @@
 #include <functional>
 #include <iterator>
 #include <memory>
+#include <optional>
 #include <ostream>
 #include <string>
 #include <utility>
@@ -19,6 +20,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
@@ -29,14 +31,8 @@ namespace {
 constexpr uint64_t kKnownLengthRequestFraming = 0;
 constexpr uint64_t kKnownLengthResponseFraming = 1;
 constexpr uint64_t kIndeterminateLengthRequestFraming = 2;
+constexpr uint64_t kIndeterminateLengthResponseFraming = 3;
 constexpr uint64_t kContentTerminator = 0;
-
-// A view of a field name and value. Used to pass around a field without owning
-// or copying the backing data.
-struct FieldView {
-  absl::string_view name;
-  absl::string_view value;
-};
 
 bool ReadStringValue(quiche::QuicheDataReader& reader, std::string& data) {
   absl::string_view data_view;
@@ -72,8 +68,8 @@ absl::StatusOr<BinaryHttpRequest::ControlData> DecodeControlData(
 
 // Decodes a header/trailer name and value. This takes a length which represents
 // only the name length.
-absl::StatusOr<FieldView> DecodeField(QuicheDataReader& reader,
-                                      uint64_t name_length) {
+absl::StatusOr<BinaryHttpMessage::FieldView> DecodeField(
+    QuicheDataReader& reader, uint64_t name_length) {
   absl::string_view name;
   if (!reader.ReadStringPiece(&name, name_length)) {
     return absl::OutOfRangeError("Not enough data to read field name.");
@@ -82,7 +78,7 @@ absl::StatusOr<FieldView> DecodeField(QuicheDataReader& reader,
   if (!reader.ReadStringPieceVarInt62(&value)) {
     return absl::OutOfRangeError("Not enough data to read field value.");
   }
-  return FieldView{name, value};
+  return BinaryHttpMessage::FieldView{name, value};
 }
 
 absl::Status DecodeFields(quiche::QuicheDataReader& reader,
@@ -618,6 +614,191 @@ absl::StatusOr<BinaryHttpResponse> BinaryHttpResponse::Create(
   }
   return absl::UnimplementedError(
       absl::StrCat("Unsupported framing type ", framing));
+}
+
+absl::StatusOr<std::string>
+BinaryHttpResponse::IndeterminateLengthEncoder::EncodeFieldSection(
+    std::optional<uint16_t> status_code, absl::Span<FieldView> fields) {
+  uint64_t total_length = 0;
+  if (!framing_indicator_encoded_) {
+    total_length += quiche::QuicheDataWriter::GetVarInt62Len(
+        kIndeterminateLengthResponseFraming);
+  }
+  if (status_code.has_value()) {
+    total_length += QuicheDataWriter::GetVarInt62Len(*status_code);
+  }
+  for (const auto& field : fields) {
+    uint8_t length = QuicheDataWriter::GetVarInt62Len(field.name.size());
+    if (length == 0) {
+      return absl::InvalidArgumentError("Field name exceeds maximum length.");
+    }
+    total_length += length + field.name.size();
+
+    length = QuicheDataWriter::GetVarInt62Len(field.value.size());
+    if (length == 0) {
+      return absl::InvalidArgumentError("Field value exceeds maximum length.");
+    }
+    total_length += length + field.value.size();
+  }
+  total_length += quiche::QuicheDataWriter::GetVarInt62Len(kContentTerminator);
+
+  std::string data(total_length, '\0');
+  QuicheDataWriter writer(total_length, data.data());
+
+  if (!framing_indicator_encoded_) {
+    if (!writer.WriteVarInt62(kIndeterminateLengthResponseFraming)) {
+      return absl::InternalError("Failed to write framing indicator.");
+    }
+    framing_indicator_encoded_ = true;
+  }
+  if (status_code.has_value() && !writer.WriteVarInt62(*status_code)) {
+    return absl::InternalError("Failed to write status code.");
+  }
+  for (const auto& field : fields) {
+    if (!writer.WriteStringPieceVarInt62(absl::AsciiStrToLower(field.name))) {
+      return absl::InternalError("Failed to write field name.");
+    }
+    if (!writer.WriteStringPieceVarInt62(field.value)) {
+      return absl::InternalError("Failed to write field value.");
+    }
+  }
+  if (!writer.WriteVarInt62(kContentTerminator)) {
+    return absl::InternalError("Failed to write content terminator.");
+  }
+  if (writer.remaining() != 0) {
+    return absl::InternalError("Failed to write all data.");
+  }
+  return data;
+}
+
+std::string
+BinaryHttpResponse::IndeterminateLengthEncoder::GetMessageSectionString(
+    MessageSection section) const {
+  switch (section) {
+    case MessageSection::kInformationalResponseOrHeader:
+      return "InformationalResponseOrHeader";
+    case MessageSection::kBody:
+      return "Body";
+    case MessageSection::kTrailer:
+      return "Trailer";
+    case MessageSection::kEnd:
+      return "End";
+    default:
+      return "Unknown";
+  }
+}
+
+absl::StatusOr<std::string>
+BinaryHttpResponse::IndeterminateLengthEncoder::EncodeInformationalResponse(
+    uint16_t status_code, absl::Span<FieldView> fields) {
+  if (current_section_ != MessageSection::kInformationalResponseOrHeader) {
+    current_section_ = MessageSection::kEnd;
+    return absl::InvalidArgumentError(absl::StrCat(
+        "EncodeInformationalResponse called in incorrect section: ",
+        GetMessageSectionString(current_section_)));
+  }
+  if (status_code < 100 || status_code > 199) {
+    current_section_ = MessageSection::kEnd;
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Invalid informational response status code: ", status_code));
+  }
+
+  absl::StatusOr<std::string> data = EncodeFieldSection(status_code, fields);
+  if (!data.ok()) {
+    current_section_ = MessageSection::kEnd;
+  }
+
+  return data;
+}
+
+absl::StatusOr<std::string>
+BinaryHttpResponse::IndeterminateLengthEncoder::EncodeHeaders(
+    uint16_t status_code, absl::Span<FieldView> headers) {
+  if (current_section_ != MessageSection::kInformationalResponseOrHeader) {
+    current_section_ = MessageSection::kEnd;
+    return absl::InvalidArgumentError(
+        absl::StrCat("EncodeHeaders called in incorrect section: ",
+                     GetMessageSectionString(current_section_)));
+  }
+  if (status_code < 200 || status_code > 599) {
+    current_section_ = MessageSection::kEnd;
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid response status code: ", status_code));
+  }
+
+  absl::StatusOr<std::string> data = EncodeFieldSection(status_code, headers);
+  if (!data.ok()) {
+    current_section_ = MessageSection::kEnd;
+    return data;
+  }
+  current_section_ = MessageSection::kBody;
+  return data;
+}
+
+absl::StatusOr<std::string>
+BinaryHttpResponse::IndeterminateLengthEncoder::EncodeBodyChunks(
+    absl::Span<absl::string_view> body_chunks, bool body_chunks_done) {
+  if (current_section_ != MessageSection::kBody) {
+    current_section_ = MessageSection::kEnd;
+    return absl::InvalidArgumentError(
+        absl::StrCat("EncodeBodyChunks called in incorrect section: ",
+                     GetMessageSectionString(current_section_)));
+  }
+  uint64_t total_length = 0;
+  for (const auto& body_chunk : body_chunks) {
+    uint8_t body_chunk_var_int_length =
+        QuicheDataWriter::GetVarInt62Len(body_chunk.size());
+    if (body_chunk_var_int_length == 0) {
+      current_section_ = MessageSection::kEnd;
+      return absl::InvalidArgumentError(
+          "Body chunk size exceeds maximum length.");
+    }
+    total_length += body_chunk_var_int_length + body_chunk.size();
+  }
+  if (body_chunks_done) {
+    total_length +=
+        quiche::QuicheDataWriter::GetVarInt62Len(kContentTerminator);
+  }
+
+  std::string data(total_length, '\0');
+  QuicheDataWriter writer(total_length, data.data());
+
+  for (const auto& body_chunk : body_chunks) {
+    if (!writer.WriteStringPieceVarInt62(body_chunk)) {
+      current_section_ = MessageSection::kEnd;
+      return absl::InternalError("Failed to write body chunk.");
+    }
+  }
+  if (body_chunks_done) {
+    if (!writer.WriteVarInt62(kContentTerminator)) {
+      current_section_ = MessageSection::kEnd;
+      return absl::InternalError("Failed to write content terminator.");
+    }
+    current_section_ = MessageSection::kTrailer;
+  }
+
+  if (writer.remaining() != 0) {
+    current_section_ = MessageSection::kEnd;
+    return absl::InternalError("Failed to write all data.");
+  }
+  return data;
+}
+
+absl::StatusOr<std::string>
+BinaryHttpResponse::IndeterminateLengthEncoder::EncodeTrailers(
+    absl::Span<FieldView> trailers) {
+  if (current_section_ != MessageSection::kTrailer) {
+    current_section_ = MessageSection::kEnd;
+    return absl::InvalidArgumentError(
+        absl::StrCat("EncodeTrailers called in incorrect section: ",
+                     GetMessageSectionString(current_section_)));
+  }
+
+  absl::StatusOr<std::string> data =
+      EncodeFieldSection(/*status_code=*/std::nullopt, trailers);
+
+  current_section_ = MessageSection::kEnd;
+  return data;
 }
 
 std::string BinaryHttpMessage::DebugString() const {
