@@ -68,6 +68,11 @@ class QUICHE_EXPORT QuicGenericStream : public QuicStream {
   // QuicSession method implementations.
   void OnDataAvailable() override { adapter_.OnDataAvailable(); }
   void OnCanWriteNewData() override { adapter_.OnCanWriteNewData(); }
+  void OnWriteSideInDataRecvdState() override {
+    if (adapter_.visitor() != nullptr) {
+      adapter_.visitor()->OnWriteSideInDataRecvdState();
+    }
+  }
 
  private:
   WebTransportStreamAdapter adapter_;

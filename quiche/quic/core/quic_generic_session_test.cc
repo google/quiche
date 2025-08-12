@@ -13,6 +13,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
@@ -44,6 +45,7 @@
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
+#include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic::test {
@@ -203,23 +205,31 @@ TEST_F(QuicGenericSessionTest, SendOutgoingStreams) {
   WireUpEndpoints();
   RunHandshake();
 
+  int streams_data_recvd = 0;
+
   std::vector<webtransport::Stream*> streams;
   for (int i = 0; i < 10; i++) {
     webtransport::Stream* stream =
         client_->session()->OpenOutgoingUnidirectionalStream();
     ASSERT_TRUE(stream->Write("test"));
     streams.push_back(stream);
+
+    auto visitor = std::make_unique<webtransport::test::MockStreamVisitor>();
+    EXPECT_CALL(*visitor, OnWriteSideInDataRecvdState()).WillOnce([&] {
+      ++streams_data_recvd;
+    });
+    stream->SetVisitor(std::move(visitor));
   }
   ASSERT_TRUE(test_harness_.RunUntilWithDefaultTimeout([this]() {
     return QuicSessionPeer::GetNumOpenDynamicStreams(server_->session()) == 10;
   }));
+  EXPECT_EQ(streams_data_recvd, 0);
 
   for (webtransport::Stream* stream : streams) {
     ASSERT_TRUE(stream->SendFin());
   }
-  ASSERT_TRUE(test_harness_.RunUntilWithDefaultTimeout([this]() {
-    return QuicSessionPeer::GetNumOpenDynamicStreams(server_->session()) == 0;
-  }));
+  ASSERT_TRUE(test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return streams_data_recvd == 10; }));
 }
 
 TEST_F(QuicGenericSessionTest, EchoBidirectionalStreams) {
