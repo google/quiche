@@ -16,6 +16,7 @@
 #include "openssl/hpke.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_data_reader.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
@@ -84,6 +85,58 @@ const ObliviousHttpHeaderKeyConfig GetOhttpKeyConfig(uint8_t key_id,
   return std::move(ohttp_key_config.value());
 }
 }  // namespace
+
+TEST(ObliviousHttpRequest, DecodeEncapsulatedRequestHeader) {
+  auto ohttp_key_config =
+      GetOhttpKeyConfig(/*key_id=*/1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                        EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM);
+
+  auto hpke_key = ConstructHpkeKey(GetHpkePrivateKey(), ohttp_key_config);
+
+  std::string payload =
+      "010020000100014b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad1"
+      "9dec96c208b4726374e469135906992e1268c594d2a10c695d858c40a026e796"
+      "5e7d86b83dd440b2c0185204b4d63525";
+  std::string payload_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(payload, &payload_bytes));
+  QuicheDataReader reader(payload_bytes);
+
+  QUICHE_EXPECT_OK(ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
+      reader, *hpke_key, ohttp_key_config, "test"));
+}
+
+TEST(ObliviousHttpRequest, DecodeEncapsulatedRequestHeaderInvalidInputs) {
+  auto ohttp_key_config =
+      GetOhttpKeyConfig(1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                        EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM);
+
+  auto hpke_key = ConstructHpkeKey(GetHpkePrivateKey(), ohttp_key_config);
+
+  std::string payload = "";
+  QuicheDataReader reader(payload);
+
+  // Empty payload.
+  EXPECT_EQ(ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
+                reader, *hpke_key, ohttp_key_config, "test")
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+
+  payload =
+      "010020000100014b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad1"
+      "9dec96c208b4726374e469135906992e1268c594d2a10c695d858c40a026e796"
+      "5e7d86b83dd440b2c0185204b4d63525";
+  std::string payload_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(payload, &payload_bytes));
+  QuicheDataReader reader2(payload_bytes);
+
+  // Empty key
+  EXPECT_EQ(ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
+                reader2, {}, ohttp_key_config, "test")
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+}
 
 // Direct test example from RFC.
 // https://www.rfc-editor.org/rfc/rfc9458.html#appendix-A

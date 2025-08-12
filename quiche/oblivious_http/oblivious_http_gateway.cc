@@ -24,11 +24,9 @@ ObliviousHttpGateway::ObliviousHttpGateway(
       ohttp_key_config_(ohttp_key_config),
       quiche_random_(quiche_random) {}
 
-// Initialize ObliviousHttpGateway(Recipient/Server) context.
-absl::StatusOr<ObliviousHttpGateway> ObliviousHttpGateway::Create(
+absl::StatusOr<bssl::UniquePtr<EVP_HPKE_KEY>> CreateServerRecipientKey(
     absl::string_view hpke_private_key,
-    const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
-    QuicheRandom* quiche_random) {
+    const ObliviousHttpHeaderKeyConfig& ohttp_key_config) {
   if (hpke_private_key.empty()) {
     return absl::InvalidArgumentError("Invalid/Empty HPKE private key.");
   }
@@ -44,8 +42,21 @@ absl::StatusOr<ObliviousHttpGateway> ObliviousHttpGateway::Create(
           hpke_private_key.size())) {
     return SslErrorAsStatus("Failed to import HPKE private key.");
   }
+  return recipient_key;
+}
+
+// Initialize ObliviousHttpGateway(Recipient/Server) context.
+absl::StatusOr<ObliviousHttpGateway> ObliviousHttpGateway::Create(
+    absl::string_view hpke_private_key,
+    const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
+    QuicheRandom* quiche_random) {
+  absl::StatusOr<bssl::UniquePtr<EVP_HPKE_KEY>> recipient_key =
+      CreateServerRecipientKey(hpke_private_key, ohttp_key_config);
+  if (!recipient_key.ok()) {
+    return recipient_key.status();
+  }
   if (quiche_random == nullptr) quiche_random = QuicheRandom::GetInstance();
-  return ObliviousHttpGateway(std::move(recipient_key), ohttp_key_config,
+  return ObliviousHttpGateway(std::move(*recipient_key), ohttp_key_config,
                               quiche_random);
 }
 

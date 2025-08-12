@@ -8,6 +8,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "openssl/hpke.h"
+#include "quiche/common/quiche_data_reader.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
@@ -102,6 +103,13 @@ class QUICHE_EXPORT ObliviousHttpRequest {
   Context ReleaseContext() && {
     return std::move(oblivious_http_request_context_.value());
   }
+
+  // Reads the OHTTP request header from the given `reader`.
+  // On success, attempts to setup and return the Gateway Context.
+  static absl::StatusOr<Context> DecodeEncapsulatedRequestHeader(
+      QuicheDataReader& reader, const EVP_HPKE_KEY& gateway_key,
+      const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
+      absl::string_view request_label);
 
  private:
   explicit ObliviousHttpRequest(

@@ -18,6 +18,7 @@
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_crypto_logging.h"
 #include "quiche/common/quiche_random.h"
+#include "quiche/oblivious_http/buffers/oblivious_http_request.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
@@ -49,19 +50,6 @@ ObliviousHttpResponse::CreateClientObliviousResponse(
     std::string encrypted_data,
     ObliviousHttpRequest::Context& oblivious_http_request_context,
     absl::string_view resp_label) {
-  if (oblivious_http_request_context.hpke_context_ == nullptr) {
-    return absl::FailedPreconditionError(
-        "HPKE context wasn't initialized before proceeding with this Response "
-        "Decapsulation on Client-side.");
-  }
-  size_t expected_key_len = EVP_HPKE_KEM_enc_len(
-      EVP_HPKE_CTX_kem(oblivious_http_request_context.hpke_context_.get()));
-  if (oblivious_http_request_context.encapsulated_key_.size() !=
-      expected_key_len) {
-    return absl::InvalidArgumentError(absl::StrCat(
-        "Invalid len for encapsulated_key arg. Expected:", expected_key_len,
-        " Actual:", oblivious_http_request_context.encapsulated_key_.size()));
-  }
   if (encrypted_data.empty()) {
     return absl::InvalidArgumentError("Empty encrypted_data input param.");
   }
@@ -132,19 +120,6 @@ ObliviousHttpResponse::CreateServerObliviousResponse(
     std::string plaintext_payload,
     ObliviousHttpRequest::Context& oblivious_http_request_context,
     absl::string_view response_label, QuicheRandom* quiche_random) {
-  if (oblivious_http_request_context.hpke_context_ == nullptr) {
-    return absl::FailedPreconditionError(
-        "HPKE context wasn't initialized before proceeding with this Response "
-        "Encapsulation on Server-side.");
-  }
-  size_t expected_key_len = EVP_HPKE_KEM_enc_len(
-      EVP_HPKE_CTX_kem(oblivious_http_request_context.hpke_context_.get()));
-  if (oblivious_http_request_context.encapsulated_key_.size() !=
-      expected_key_len) {
-    return absl::InvalidArgumentError(absl::StrCat(
-        "Invalid len for encapsulated_key arg. Expected:", expected_key_len,
-        " Actual:", oblivious_http_request_context.encapsulated_key_.size()));
-  }
   if (plaintext_payload.empty()) {
     return absl::InvalidArgumentError("Empty plaintext_payload input param.");
   }
@@ -220,6 +195,19 @@ const std::string& ObliviousHttpResponse::GetPlaintextData() const {
 absl::StatusOr<ObliviousHttpResponse::CommonAeadParamsResult>
 ObliviousHttpResponse::GetCommonAeadParams(
     ObliviousHttpRequest::Context& oblivious_http_request_context) {
+  if (oblivious_http_request_context.hpke_context_ == nullptr) {
+    return absl::FailedPreconditionError(
+        "HPKE context wasn't initialized before proceeding with this Response");
+  }
+  size_t expected_key_len = EVP_HPKE_KEM_enc_len(
+      EVP_HPKE_CTX_kem(oblivious_http_request_context.hpke_context_.get()));
+  if (oblivious_http_request_context.encapsulated_key_.size() !=
+      expected_key_len) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Invalid len for encapsulated_key arg. Expected:", expected_key_len,
+        " Actual:", oblivious_http_request_context.encapsulated_key_.size()));
+  }
+
   const EVP_AEAD* evp_hpke_aead = EVP_HPKE_AEAD_aead(
       EVP_HPKE_CTX_aead(oblivious_http_request_context.hpke_context_.get()));
   if (evp_hpke_aead == nullptr) {

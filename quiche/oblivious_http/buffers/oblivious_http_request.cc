@@ -17,6 +17,8 @@
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_crypto_logging.h"
+#include "quiche/common/quiche_data_reader.h"
+#include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
 // Ctor.
@@ -42,39 +44,12 @@ ObliviousHttpRequest::CreateServerObliviousRequest(
     absl::string_view encrypted_data, const EVP_HPKE_KEY& gateway_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
     absl::string_view request_label) {
-  if (EVP_HPKE_KEY_kem(&gateway_key) == nullptr) {
-    return absl::InvalidArgumentError(
-        "Invalid input param. Failed to import gateway_key.");
-  }
-  bssl::UniquePtr<EVP_HPKE_CTX> gateway_ctx(EVP_HPKE_CTX_new());
-  if (gateway_ctx == nullptr) {
-    return SslErrorAsStatus("Failed to initialize Gateway/Server's Context.");
-  }
-
   QuicheDataReader reader(encrypted_data);
-
-  auto is_hdr_ok = ohttp_key_config.ParseOhttpPayloadHeader(reader);
-  if (!is_hdr_ok.ok()) {
-    return is_hdr_ok;
-  }
-
-  size_t enc_key_len = EVP_HPKE_KEM_enc_len(EVP_HPKE_KEY_kem(&gateway_key));
-
-  absl::string_view enc_key_received;
-  if (!reader.ReadStringPiece(&enc_key_received, enc_key_len)) {
-    return absl::FailedPreconditionError(absl::StrCat(
-        "Failed to extract encapsulation key of expected len=", enc_key_len,
-        "from payload."));
-  }
-  std::string info =
-      ohttp_key_config.SerializeRecipientContextInfo(request_label);
-  if (!EVP_HPKE_CTX_setup_recipient(
-          gateway_ctx.get(), &gateway_key, ohttp_key_config.GetHpkeKdf(),
-          ohttp_key_config.GetHpkeAead(),
-          reinterpret_cast<const uint8_t*>(enc_key_received.data()),
-          enc_key_received.size(),
-          reinterpret_cast<const uint8_t*>(info.data()), info.size())) {
-    return SslErrorAsStatus("Failed to setup recipient context");
+  absl::StatusOr<ObliviousHttpRequest::Context> gateway_context =
+      ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
+          reader, gateway_key, ohttp_key_config, request_label);
+  if (!gateway_context.ok()) {
+    return gateway_context.status();
   }
 
   absl::string_view ciphertext_received = reader.ReadRemainingPayload();
@@ -82,8 +57,9 @@ ObliviousHttpRequest::CreateServerObliviousRequest(
   std::string decrypted(ciphertext_received.size(), '\0');
   size_t decrypted_len;
   if (!EVP_HPKE_CTX_open(
-          gateway_ctx.get(), reinterpret_cast<uint8_t*>(decrypted.data()),
-          &decrypted_len, decrypted.size(),
+          gateway_context->hpke_context_.get(),
+          reinterpret_cast<uint8_t*>(decrypted.data()), &decrypted_len,
+          decrypted.size(),
           reinterpret_cast<const uint8_t*>(ciphertext_received.data()),
           ciphertext_received.size(), nullptr, 0)) {
     return SslErrorAsStatus("Failed to decrypt.",
@@ -91,7 +67,8 @@ ObliviousHttpRequest::CreateServerObliviousRequest(
   }
   decrypted.resize(decrypted_len);
   return ObliviousHttpRequest(
-      std::move(gateway_ctx), std::string(enc_key_received), ohttp_key_config,
+      std::move(gateway_context->hpke_context_),
+      std::string(gateway_context->encapsulated_key_), ohttp_key_config,
       std::string(ciphertext_received), std::move(decrypted));
 }
 
@@ -209,6 +186,47 @@ std::string ObliviousHttpRequest::EncapsulateAndSerialize() const {
 // the client while `CreateClientObliviousRequest`.
 absl::string_view ObliviousHttpRequest::GetPlaintextData() const {
   return request_plaintext_;
+}
+
+absl::StatusOr<ObliviousHttpRequest::Context>
+ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
+    QuicheDataReader& reader, const EVP_HPKE_KEY& gateway_key,
+    const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
+    absl::string_view request_label) {
+  if (EVP_HPKE_KEY_kem(&gateway_key) == nullptr) {
+    return absl::InvalidArgumentError(
+        "Invalid input param. Failed to import gateway_key.");
+  }
+  bssl::UniquePtr<EVP_HPKE_CTX> gateway_ctx(EVP_HPKE_CTX_new());
+  if (gateway_ctx == nullptr) {
+    return SslErrorAsStatus("Failed to initialize Gateway/Server's Context.");
+  }
+
+  auto is_hdr_ok = ohttp_key_config.ParseOhttpPayloadHeader(reader);
+  if (!is_hdr_ok.ok()) {
+    return is_hdr_ok;
+  }
+
+  size_t enc_key_len = EVP_HPKE_KEM_enc_len(EVP_HPKE_KEY_kem(&gateway_key));
+
+  absl::string_view enc_key_received;
+  if (!reader.ReadStringPiece(&enc_key_received, enc_key_len)) {
+    return absl::FailedPreconditionError(absl::StrCat(
+        "Failed to extract encapsulation key of expected len=", enc_key_len,
+        "from payload."));
+  }
+  std::string info =
+      ohttp_key_config.SerializeRecipientContextInfo(request_label);
+  if (!EVP_HPKE_CTX_setup_recipient(
+          gateway_ctx.get(), &gateway_key, ohttp_key_config.GetHpkeKdf(),
+          ohttp_key_config.GetHpkeAead(),
+          reinterpret_cast<const uint8_t*>(enc_key_received.data()),
+          enc_key_received.size(),
+          reinterpret_cast<const uint8_t*>(info.data()), info.size())) {
+    return SslErrorAsStatus("Failed to setup recipient context");
+  }
+
+  return Context(std::move(gateway_ctx), std::string(enc_key_received));
 }
 
 }  // namespace quiche
