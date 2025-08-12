@@ -1844,6 +1844,10 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
       return;
     }
   }
+  if (parser_.stream_type()->IsPadding()) {
+    (void)stream_->SkipBytes(stream_->ReadableBytes());
+    return;
+  }
   bool knew_track_alias = parser_.track_alias().has_value();
   if (parser_.stream_type()->IsSubgroup()) {
     parser_.ReadAllData();

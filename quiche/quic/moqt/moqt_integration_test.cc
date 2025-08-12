@@ -10,13 +10,16 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_generic_session.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_live_relay_queue.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_probe_manager.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
@@ -775,6 +778,28 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
   });
   EXPECT_TRUE(success);
   EXPECT_EQ(bytes_received, 2000);
+}
+
+TEST_F(MoqtIntegrationTest, BandwidthProbe) {
+  EstablishSession();
+  MoqtProbeManager probe_manager(client_->session()->session(),
+                                 test_harness_.simulator().GetClock(),
+                                 *test_harness_.simulator().GetAlarmFactory());
+
+  constexpr quic::QuicBandwidth kModelBandwidth =
+      quic::simulator::TestHarness::kServerBandwidth;
+  constexpr quic::QuicByteCount kProbeSize = 1024 * 1024;
+  constexpr quic::QuicTimeDelta kProbeTimeout =
+      kModelBandwidth.TransferTime(kProbeSize) * 10;
+  bool probe_done = false;
+  probe_manager.StartProbe(kProbeSize, kProbeTimeout,
+                           [&probe_done](const ProbeResult& result) {
+                             probe_done = true;
+                             EXPECT_EQ(result.status, ProbeStatus::kSuccess);
+                           });
+  bool success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return probe_done; });
+  EXPECT_TRUE(success);
 }
 
 }  // namespace
