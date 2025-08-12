@@ -2553,6 +2553,7 @@ class TestQuicPathValidationContext : public QuicPathValidationContext {
         writer_(writer) {}
 
   QuicPacketWriter* WriterToUse() override { return writer_; }
+  bool ShouldConnectionOwnWriter() const override { return false; }
 
  private:
   QuicPacketWriter* writer_;

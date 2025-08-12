@@ -39,6 +39,7 @@ class QUIC_EXPORT_PRIVATE PathMigrationContext
         alternative_writer_(std::move(writer)) {}
 
   QuicPacketWriter* WriterToUse() override { return alternative_writer_.get(); }
+  bool ShouldConnectionOwnWriter() const override { return false; }
 
   QuicPacketWriter* ReleaseWriter() { return alternative_writer_.release(); }
 

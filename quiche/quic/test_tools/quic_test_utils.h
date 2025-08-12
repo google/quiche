@@ -1459,7 +1459,7 @@ class MockQuicPathValidationContext : public QuicPathValidationContext {
                                 const QuicSocketAddress& effective_peer_address,
                                 QuicPacketWriter* writer)
       : QuicPathValidationContext(self_address, peer_address,
-                                  effective_peer_address),
+                                  effective_peer_address, /*network=*/-1),
         writer_(writer) {}
   QuicPacketWriter* WriterToUse() override { return writer_; }
 

@@ -40,26 +40,50 @@ enum class PathValidationReason {
   kMaxValue,
 };
 
+// Opaque handle for device-wide connection to a particular network.
+// For example an association with a particular WiFi network with a particular
+// SSID or a connection to particular cellular network. The meaning of this
+// handle is target-dependent. On Android QuicNetworkHandles are equivalent to:
+//   On Lollipop, the framework's concept of NetIDs (e.g. Network.netId), and
+//   On Marshmallow and newer releases, network handle (e.g.
+//   Network.getNetworkHandle()).
+using QuicNetworkHandle = int64_t;
+
+// An invalid NetworkHandle.
+inline constexpr QuicNetworkHandle kInvalidNetworkHandle = -1;
+
 // Interface to provide the information of the path to be validated.
 class QUICHE_EXPORT QuicPathValidationContext {
  public:
   QuicPathValidationContext(const QuicSocketAddress& self_address,
                             const QuicSocketAddress& peer_address)
-      : self_address_(self_address),
-        peer_address_(peer_address),
-        effective_peer_address_(peer_address) {}
+      : QuicPathValidationContext(self_address, peer_address,
+                                  kInvalidNetworkHandle) {}
 
   QuicPathValidationContext(const QuicSocketAddress& self_address,
                             const QuicSocketAddress& peer_address,
-                            const QuicSocketAddress& effective_peer_address)
+                            QuicNetworkHandle network)
+      : QuicPathValidationContext(self_address, peer_address, peer_address,
+                                  network) {}
+
+  QuicPathValidationContext(const QuicSocketAddress& self_address,
+                            const QuicSocketAddress& peer_address,
+                            const QuicSocketAddress& effective_peer_address,
+                            QuicNetworkHandle network)
       : self_address_(self_address),
         peer_address_(peer_address),
-        effective_peer_address_(effective_peer_address) {}
+        effective_peer_address_(effective_peer_address),
+        network_handle_(network) {}
 
   virtual ~QuicPathValidationContext() = default;
 
   virtual QuicPacketWriter* WriterToUse() = 0;
+  // Returns true if the writer should be owned by the QUIC connection.
+  // TODO(danzh): make it a pure virtual interface once
+  // EnvoyQuicPathValidationContext implements it.
+  virtual bool ShouldConnectionOwnWriter() const { return true; }
 
+  QuicNetworkHandle network() const { return network_handle_; }
   const QuicSocketAddress& self_address() const { return self_address_; }
   const QuicSocketAddress& peer_address() const { return peer_address_; }
   const QuicSocketAddress& effective_peer_address() const {
@@ -73,9 +97,13 @@ class QUICHE_EXPORT QuicPathValidationContext {
   QuicSocketAddress self_address_;
   // The address to send PATH_CHALLENGE.
   QuicSocketAddress peer_address_;
-  // The actual peer address which is different from |peer_address_| if the peer
+  // The actual peer address which is different from `peer_address_` if the peer
   // is behind a proxy.
   QuicSocketAddress effective_peer_address_;
+  // See comments above for QuicNetworkHandle.
+  // `kInvalidNetworkHandle`, if the platform doesn't expose handles for
+  // networks, e.g. iOS and Linux. It shouldn't referred to in such case.
+  QuicNetworkHandle network_handle_;
 };
 
 // Used to validate a path by sending up to 3 PATH_CHALLENGE frames before

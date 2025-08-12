@@ -1,0 +1,241 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#ifndef QUICHE_QUIC_CORE_HTTP_QUIC_CONNECTION_MIGRATION_MANAGER_H_
+#define QUICHE_QUIC_CORE_HTTP_QUIC_CONNECTION_MIGRATION_MANAGER_H_
+
+#include <cstddef>
+#include <list>
+#include <memory>
+
+#include "absl/base/nullability.h"
+#include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/quic_clock.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_packet_writer.h"
+#include "quiche/quic/core/quic_path_context_factory.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
+
+namespace quic {
+
+namespace test {
+class QuicConnectionMigrationManagerPeer;
+}  // namespace test
+
+class QuicSpdyClientSessionWithMigration;
+
+// Result of a session migration attempt.
+enum class MigrationResult {
+  SUCCESS,         // Migration succeeded.
+  NO_NEW_NETWORK,  // Migration failed since no new network was found.
+  FAILURE,         // Migration failed for other reasons.
+};
+
+// Cause of a migration.
+enum class MigrationCause {
+  UNKNOWN_CAUSE,                              // Not migrating.
+  ON_NETWORK_CONNECTED,                       // No probing.
+  ON_NETWORK_DISCONNECTED,                    // No probing.
+  ON_WRITE_ERROR,                             // No probing.
+  ON_NETWORK_MADE_DEFAULT,                    // With probing.
+  ON_MIGRATE_BACK_TO_DEFAULT_NETWORK,         // With probing.
+  CHANGE_NETWORK_ON_PATH_DEGRADING,           // With probing.
+  CHANGE_PORT_ON_PATH_DEGRADING,              // With probing.
+  NEW_NETWORK_CONNECTED_POST_PATH_DEGRADING,  // With probing.
+  ON_SERVER_PREFERRED_ADDRESS_AVAILABLE,      // With probing.
+};
+
+// Result of connection migration.
+enum class QuicConnectionMigrationStatus {
+  MIGRATION_STATUS_SUCCESS,
+  MIGRATION_STATUS_NO_MIGRATABLE_STREAMS,
+  MIGRATION_STATUS_ALREADY_MIGRATED,
+  MIGRATION_STATUS_INTERNAL_ERROR,
+  MIGRATION_STATUS_TOO_MANY_CHANGES,
+  MIGRATION_STATUS_NON_MIGRATABLE_STREAM,
+  MIGRATION_STATUS_NOT_ENABLED,
+  MIGRATION_STATUS_NO_ALTERNATE_NETWORK,
+  MIGRATION_STATUS_ON_PATH_DEGRADING_DISABLED,
+  MIGRATION_STATUS_DISABLED_BY_CONFIG,
+  MIGRATION_STATUS_PATH_DEGRADING_NOT_ENABLED,
+  MIGRATION_STATUS_TIMEOUT,
+  MIGRATION_STATUS_ON_WRITE_ERROR_DISABLED,
+  MIGRATION_STATUS_PATH_DEGRADING_BEFORE_HANDSHAKE_CONFIRMED,
+  MIGRATION_STATUS_IDLE_MIGRATION_TIMEOUT,
+  MIGRATION_STATUS_NO_UNUSED_CONNECTION_ID,
+  MIGRATION_STATUS_MAX
+};
+
+struct QUICHE_NO_EXPORT QuicConnectionMigrationConfig {
+  // Whether to migrate a session with no in-flight requests to a different
+  // network or port.
+  bool migrate_idle_session = false;
+  // Session can be migrated if its idle time is within this period.
+  QuicTimeDelta idle_migration_period = QuicTimeDelta::FromSeconds(30);
+  // Whether to migrate to a different network upon the underlying platform's
+  // network change signals and write error.
+  bool migrate_session_on_network_change = false;
+
+  // Below are optional experimental features.
+  bool disable_blackhole_detection_on_immediate_migrate = true;
+};
+
+class QUICHE_EXPORT QuicConnectionMigrationDebugVisitor {
+ public:
+  virtual ~QuicConnectionMigrationDebugVisitor() = default;
+
+  virtual void OnWaitingForNewNetworkToMigrate() = 0;
+  virtual void OnWaitForNetworkFailed() = 0;
+  virtual void OnNetworkDisconnected(
+      QuicNetworkHandle disconnected_network) = 0;
+  virtual void OnConnectionMigrationAfterNetworkDisconnected(
+      QuicNetworkHandle disconnected_network) = 0;
+  virtual void OnConnectionMigrationAboutToStartAfterEvent(
+      absl::string_view event_name) = 0;
+  virtual void OnConnectionMigrationStarted() = 0;
+  virtual void OnConnectionMigrationFailed(MigrationCause migration_cause,
+                                           QuicConnectionId connection_id,
+                                           absl::string_view details) = 0;
+  virtual void OnConnectionMigrationSuccess(MigrationCause migration_cause,
+                                            QuicConnectionId connection_id) = 0;
+};
+
+using MigrationCallback =
+    quiche::SingleUseCallback<void(QuicNetworkHandle, MigrationResult)>;
+
+// This class receives network change signals from the device and events
+// reported by the connection, like path degrading and write error, to make
+// decision about whether and how to migrate the connection to a different
+// network or port.
+class QUICHE_EXPORT QuicConnectionMigrationManager {
+ public:
+  QuicConnectionMigrationManager(
+      QuicSpdyClientSessionWithMigration* absl_nonnull session,
+      const quic::QuicClock* absl_nonnull clock,
+      QuicNetworkHandle default_network, QuicNetworkHandle current_network,
+      QuicPathContextFactory* absl_nonnull path_context_factory,
+      const QuicConnectionMigrationConfig& config);
+
+  ~QuicConnectionMigrationManager();
+
+  // Called when the platform detects the given network to be disconnected.
+  void OnNetworkDisconnected(QuicNetworkHandle disconnected_network);
+
+  // Called by the session when the handshake gets completed. |config| is the
+  // negotiated QUIC configuration.
+  void OnHandshakeCompleted(const QuicConfig& negotiated_config);
+
+  void OnMigrationFailure(QuicConnectionMigrationStatus status,
+                          absl::string_view reason);
+
+  // Called when migration alarm fires. If migration has not occurred
+  // since alarm was set, closes session with error.
+  void OnMigrationTimeout();
+
+  void set_debug_visitor(
+      QuicConnectionMigrationDebugVisitor* absl_nullable visitor) {
+    debug_visitor_ = visitor;
+  }
+
+  const QuicConnectionMigrationConfig& config() const { return config_; }
+
+  // Returns the network interface that is currently used to send packets.
+  QuicNetworkHandle current_network() const { return current_network_; }
+
+  bool migration_attempted() const { return migration_attempted_; }
+
+  bool migration_successful() const { return migration_successful_; }
+
+ private:
+  friend class test::QuicConnectionMigrationManagerPeer;
+
+  class PathContextCreationResultDelegateForImmediateMigration
+      : public QuicPathContextFactory::CreationResultDelegate {
+   public:
+    // |migration_manager| should out live this instance.
+    PathContextCreationResultDelegateForImmediateMigration(
+        QuicConnectionMigrationManager* absl_nonnull migration_manager,
+        bool close_session_on_error, MigrationCallback migration_callback);
+
+    void OnCreationSucceeded(
+        std::unique_ptr<QuicPathValidationContext> context) override;
+
+    void OnCreationFailed(QuicNetworkHandle network,
+                          absl::string_view error) override;
+
+   private:
+    QuicConnectionMigrationManager* absl_nonnull migration_manager_;
+    const bool close_session_on_error_;
+    MigrationCallback migration_callback_;
+  };
+
+  // TODO(danzh): Schedules a migration alarm to wait for a new network.
+  void OnNoNewNetwork();
+
+  // Called when there is only one possible working network: |network|, if any
+  // error is encountered, this session will be closed.
+  // TODO(danzh): When the migration succeeds:
+  //  - If no longer on the default network, set timer to migrate back to the
+  //    default network;
+  //  - If now on the default network, cancel timer to migrate back to default
+  //    network.
+  void MigrateNetworkImmediately(QuicNetworkHandle network);
+
+  void FinishMigrateNetworkImmediately(QuicNetworkHandle network,
+                                       MigrationResult result);
+
+  // Migrates session over to use |peer_address| and |network|.
+  // If |network| is kInvalidNetworkHandle, default network is used. If
+  // the migration fails and |close_session_on_error| is true, session will be
+  // closed.
+  void Migrate(QuicNetworkHandle network, QuicSocketAddress peer_address,
+               bool close_session_on_error,
+               MigrationCallback migration_callback);
+  // Helper to finish session migration once the |path_context| is provided.
+  void FinishMigrate(std::unique_ptr<QuicPathValidationContext> path_context,
+                     bool close_session_on_error, MigrationCallback callback);
+
+  bool MaybeCloseIdleSession(bool has_write_error,
+                             ConnectionCloseBehavior close_behavior);
+
+  void LogMetricsOnNetworkDisconnected();
+  void LogHandshakeStatusOnMigrationSignal() const;
+  void LogProbeResultToHistogram(MigrationCause cause, bool success);
+  void OnMigrationSuccess();
+  void ResetMigrationCauseAndLogResult(QuicConnectionMigrationStatus status);
+
+  QuicSpdyClientSessionWithMigration* absl_nonnull session_;
+  QuicConnection* absl_nonnull connection_;
+  const quic::QuicClock* absl_nonnull clock_;  // Unowned.
+  // Stores the network interface that is currently used by the connection.
+  QuicNetworkHandle current_network_;
+  QuicPathContextFactory* absl_nonnull path_context_factory_;
+  // Not owned.
+  QuicConnectionMigrationDebugVisitor* absl_nullable debug_visitor_ = nullptr;
+  const QuicConnectionMigrationConfig config_;
+  bool migration_disabled_ = false;
+
+  // True when a session migration starts from MigrateNetworkImmediately.
+  bool pending_migrate_network_immediately_ = false;
+  MigrationCause current_migration_cause_ = MigrationCause::UNKNOWN_CAUSE;
+  // True if migration is triggered, and there is no alternate network to
+  // migrate to.
+  bool wait_for_new_network_ = false;
+  quic::QuicTime most_recent_network_disconnected_timestamp_ =
+      quic::QuicTime::Zero();
+  bool migration_attempted_ = false;
+  bool migration_successful_ = false;
+
+  std::unique_ptr<QuicAlarm> wait_for_migration_alarm_;
+};
+
+}  // namespace quic
+
+#endif  // QUICHE_QUIC_CORE_HTTP_QUIC_CONNECTION_MIGRATION_MANAGER_H_

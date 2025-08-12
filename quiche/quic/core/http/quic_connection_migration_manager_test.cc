@@ -1,0 +1,746 @@
+// Copyright 2025 The Chromium Authors
+// Use of this source code is governed by a BSD-style license that can be
+// found in the LICENSE file.
+
+#include "quiche/quic/core/http/quic_connection_migration_manager.h"
+
+#include <memory>
+
+#include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/http/quic_spdy_client_session_with_migration.h"
+#include "quiche/quic/core/io/socket.h"
+#include "quiche/quic/core/quic_force_blockable_packet_writer.h"
+#include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/quic/test_tools/quic_config_peer.h"
+#include "quiche/quic/test_tools/quic_connection_peer.h"
+#include "quiche/quic/test_tools/quic_test_utils.h"
+
+using testing::_;
+using testing::Invoke;
+using testing::NiceMock;
+using testing::Return;
+using testing::StrictMock;
+
+namespace quic::test {
+
+MATCHER_P(IsFrame, type, "") { return arg.type == type; }
+
+class QuicConnectionMigrationManagerPeer {
+ public:
+  static QuicAlarm* GetWaitForMigrationAlarm(
+      QuicConnectionMigrationManager* manager) {
+    return manager->wait_for_migration_alarm_.get();
+  }
+};
+
+class TestQuicForceBlockablePacketWriter
+    : public QuicForceBlockablePacketWriter {
+ public:
+  TestQuicForceBlockablePacketWriter() : QuicForceBlockablePacketWriter() {
+    ON_CALL(writer_, WritePacket(_, _, _, _, _, _))
+        .WillByDefault(Return(WriteResult(WRITE_STATUS_OK, 0)));
+    ON_CALL(writer_, GetMaxPacketSize(_))
+        .WillByDefault(Return(kMaxOutgoingPacketSize));
+    ON_CALL(writer_, IsBatchMode()).WillByDefault(Return(false));
+    ON_CALL(writer_, GetNextWriteLocation(_, _))
+        .WillByDefault(Return(QuicPacketBuffer()));
+    ON_CALL(writer_, Flush())
+        .WillByDefault(Return(WriteResult(WRITE_STATUS_OK, 0)));
+    ON_CALL(writer_, SupportsReleaseTime()).WillByDefault(Return(false));
+  }
+
+  // QuicPacketWriter.
+  WriteResult WritePacket(const char* buffer, size_t buf_len,
+                          const QuicIpAddress& self_address,
+                          const QuicSocketAddress& peer_address,
+                          PerPacketOptions* options,
+                          const QuicPacketWriterParams& params) override {
+    return writer_.WritePacket(buffer, buf_len, self_address, peer_address,
+                               options, params);
+  }
+
+  void SetWritable() override { writer_.SetWritable(); }
+
+  std::optional<int> MessageTooBigErrorCode() const override {
+    return kSocketErrorMsgSize;
+  }
+
+  QuicByteCount GetMaxPacketSize(
+      const QuicSocketAddress& peer_address) const override {
+    return writer_.GetMaxPacketSize(peer_address);
+  }
+
+  bool SupportsReleaseTime() const override {
+    return writer_.SupportsReleaseTime();
+  }
+
+  bool IsBatchMode() const override { return writer_.IsBatchMode(); }
+
+  bool SupportsEcn() const override { return writer_.SupportsEcn(); }
+
+  QuicPacketBuffer GetNextWriteLocation(
+      const QuicIpAddress& self_address,
+      const QuicSocketAddress& peer_address) override {
+    return writer_.GetNextWriteLocation(self_address, peer_address);
+  }
+
+  WriteResult Flush() override { return writer_.Flush(); }
+
+  bool IsWriteBlocked() const override {
+    return force_write_blocked_ || writer_.IsWriteBlocked();
+  }
+
+  // QuicForceBlockablePacketWriter
+  void ForceWriteBlocked(bool enforce_write_block) override {
+    force_write_blocked_ = enforce_write_block;
+  }
+
+  MockPacketWriter& GetMockWriter() { return writer_; }
+
+ private:
+  NiceMock<MockPacketWriter> writer_;
+  bool force_write_blocked_ = false;
+};
+
+class TestQuicClientPathValidationContext : public QuicPathValidationContext {
+ public:
+  TestQuicClientPathValidationContext(
+      const quic::QuicSocketAddress& self_address,
+      const quic::QuicSocketAddress& peer_address, QuicNetworkHandle network)
+      : QuicPathValidationContext(self_address, peer_address, network),
+        writer_(std::make_unique<TestQuicForceBlockablePacketWriter>()) {}
+
+  quic::QuicPacketWriter* WriterToUse() override { return writer_.get(); }
+
+  bool ShouldConnectionOwnWriter() const override { return true; }
+
+  void ReleasePacketWriter() { writer_.release(); }
+
+ private:
+  std::unique_ptr<TestQuicForceBlockablePacketWriter> writer_;
+};
+
+class TestQuicPathContextFactory : public QuicPathContextFactory {
+ public:
+  TestQuicPathContextFactory() = default;
+
+  void CreatePathValidationContext(
+      QuicNetworkHandle network, QuicSocketAddress peer_address,
+      std::unique_ptr<CreationResultDelegate> result_delegate) override {
+    pending_result_delegate_ = std::move(result_delegate);
+    network_ = network;
+    peer_address_ = peer_address;
+    if (!async_creation_) {
+      FinishPendingCreation();
+    }
+    ++num_creation_attempts_;
+  }
+
+  void FinishPendingCreation() {
+    ASSERT_NE(pending_result_delegate_, nullptr)
+        << "No pending path context creation";
+    if (has_error_) {
+      pending_result_delegate_->OnCreationFailed(
+          network_, "path context creation failure.");
+    } else {
+      QUICHE_DCHECK(network_to_address_map_.contains(network_));
+      pending_result_delegate_->OnCreationSucceeded(
+          std::make_unique<TestQuicClientPathValidationContext>(
+              network_to_address_map_[network_], peer_address_, network_));
+      network_to_address_map_.erase(network_);
+    }
+    pending_result_delegate_ = nullptr;
+  }
+
+  void SetSelfAddressForNetwork(QuicNetworkHandle network,
+                                const QuicSocketAddress& self_address) {
+    QUICHE_DCHECK(!network_to_address_map_.contains(network));
+    network_to_address_map_[network] = self_address;
+  }
+
+  size_t num_creation_attempts() const { return num_creation_attempts_; }
+
+ private:
+  bool async_creation_ = false;
+  bool has_error_ = false;
+  std::unique_ptr<CreationResultDelegate> pending_result_delegate_;
+  QuicNetworkHandle network_ = kInvalidNetworkHandle;
+  QuicSocketAddress peer_address_;
+  absl::flat_hash_map<QuicNetworkHandle, QuicSocketAddress>
+      network_to_address_map_;
+  size_t num_creation_attempts_ = 0;
+};
+
+class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
+ public:
+  explicit TestCryptoStream(QuicSession* session)
+      : QuicCryptoStream(session),
+        QuicCryptoHandshaker(this, session),
+        params_(new QuicCryptoNegotiatedParameters) {
+    // Simulate a negotiated cipher_suite with a fake value.
+    params_->cipher_suite = 1;
+  }
+
+  void EstablishZeroRttEncryption() {
+    encryption_established_ = true;
+    session()->connection()->SetEncrypter(
+        ENCRYPTION_ZERO_RTT,
+        std::make_unique<NullEncrypter>(session()->perspective()));
+  }
+
+  void OnHandshakeMessage(const CryptoHandshakeMessage& /*message*/) override {
+    encryption_established_ = true;
+    one_rtt_keys_available_ = true;
+    QuicErrorCode error;
+    std::string error_details;
+    session()->config()->SetInitialStreamFlowControlWindowToSend(
+        test::kInitialStreamFlowControlWindowForTest);
+    session()->config()->SetInitialSessionFlowControlWindowToSend(
+        test::kInitialSessionFlowControlWindowForTest);
+    if (session()->version().UsesTls()) {
+      if (session()->perspective() == Perspective::IS_CLIENT) {
+        session()->config()->SetOriginalConnectionIdToSend(
+            session()->connection()->connection_id());
+        session()->config()->SetInitialSourceConnectionIdToSend(
+            session()->connection()->connection_id());
+      } else {
+        session()->config()->SetInitialSourceConnectionIdToSend(
+            session()->connection()->client_connection_id());
+      }
+      TransportParameters transport_parameters;
+      EXPECT_TRUE(
+          session()->config()->FillTransportParameters(&transport_parameters));
+      error = session()->config()->ProcessTransportParameters(
+          transport_parameters, /* is_resumption = */ false, &error_details);
+    } else {
+      CryptoHandshakeMessage msg;
+      session()->config()->ToHandshakeMessage(&msg, transport_version());
+      error =
+          session()->config()->ProcessPeerHello(msg, CLIENT, &error_details);
+    }
+    session()->OnConfigNegotiated();
+    EXPECT_THAT(error, test::IsQuicNoError());
+    session()->OnNewEncryptionKeyAvailable(
+        ENCRYPTION_FORWARD_SECURE,
+        std::make_unique<NullEncrypter>(session()->perspective()));
+    if (session()->connection()->version().handshake_protocol ==
+        PROTOCOL_TLS1_3) {
+      session()->OnTlsHandshakeComplete();
+    } else {
+      session()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    }
+    session()->DiscardOldEncryptionKey(ENCRYPTION_INITIAL);
+  }
+
+  // QuicCryptoStream implementation
+  ssl_early_data_reason_t EarlyDataReason() const override {
+    return ssl_early_data_unknown;
+  }
+  bool encryption_established() const override {
+    return encryption_established_;
+  }
+  bool one_rtt_keys_available() const override {
+    return one_rtt_keys_available_;
+  }
+  const QuicCryptoNegotiatedParameters& crypto_negotiated_params()
+      const override {
+    return *params_;
+  }
+  CryptoMessageParser* crypto_message_parser() override {
+    return QuicCryptoHandshaker::crypto_message_parser();
+  }
+  void OnPacketDecrypted(EncryptionLevel /*level*/) override {}
+  void OnOneRttPacketAcknowledged() override {}
+  void OnHandshakePacketSent() override {}
+  void OnHandshakeDoneReceived() override {}
+  void OnNewTokenReceived(absl::string_view /*token*/) override {}
+  std::string GetAddressToken(
+      const CachedNetworkParameters* /*cached_network_parameters*/)
+      const override {
+    return "";
+  }
+  bool ValidateAddressToken(absl::string_view /*token*/) const override {
+    return true;
+  }
+  const CachedNetworkParameters* PreviousCachedNetworkParams() const override {
+    return nullptr;
+  }
+  void SetPreviousCachedNetworkParams(
+      CachedNetworkParameters /*cached_network_params*/) override {}
+  HandshakeState GetHandshakeState() const override {
+    return one_rtt_keys_available() ? HANDSHAKE_CONFIRMED : HANDSHAKE_START;
+  }
+  void SetServerApplicationStateForResumption(
+      std::unique_ptr<ApplicationState> /*application_state*/) override {}
+  MOCK_METHOD(std::unique_ptr<QuicDecrypter>,
+              AdvanceKeysAndCreateCurrentOneRttDecrypter, (), (override));
+  MOCK_METHOD(std::unique_ptr<QuicEncrypter>, CreateCurrentOneRttEncrypter, (),
+              (override));
+
+  MOCK_METHOD(void, OnCanWrite, (), (override));
+  bool HasPendingCryptoRetransmission() const override { return false; }
+
+  MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
+
+  void OnConnectionClosed(const QuicConnectionCloseFrame& /*frame*/,
+                          ConnectionCloseSource /*source*/) override {}
+
+  bool ExportKeyingMaterial(absl::string_view /*label*/,
+                            absl::string_view /*context*/,
+                            size_t /*result_len*/,
+                            std::string* /*result*/) override {
+    return false;
+  }
+
+  SSL* GetSsl() const override { return nullptr; }
+
+  bool IsCryptoFrameExpectedForEncryptionLevel(
+      EncryptionLevel level) const override {
+    return level != ENCRYPTION_ZERO_RTT;
+  }
+
+  EncryptionLevel GetEncryptionLevelToSendCryptoDataOfSpace(
+      PacketNumberSpace space) const override {
+    switch (space) {
+      case INITIAL_DATA:
+        return ENCRYPTION_INITIAL;
+      case HANDSHAKE_DATA:
+        return ENCRYPTION_HANDSHAKE;
+      case APPLICATION_DATA:
+        return ENCRYPTION_FORWARD_SECURE;
+      default:
+        QUICHE_DCHECK(false);
+        return NUM_ENCRYPTION_LEVELS;
+    }
+  }
+
+ private:
+  using QuicCryptoStream::session;
+
+  bool encryption_established_ = false;
+  bool one_rtt_keys_available_ = false;
+  quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
+};
+
+class TestStream : public QuicSpdyStream {
+ public:
+  TestStream(QuicStreamId id, QuicSpdySession* session, StreamType type)
+      : QuicSpdyStream(id, session, type) {}
+
+  TestStream(PendingStream* pending, QuicSpdySession* session)
+      : QuicSpdyStream(pending, session) {}
+
+  void OnBodyAvailable() override {}
+
+  MOCK_METHOD(void, OnCanWrite, (), (override));
+  MOCK_METHOD(bool, RetransmitStreamData,
+              (QuicStreamOffset, QuicByteCount, bool, TransmissionType),
+              (override));
+
+  MOCK_METHOD(bool, HasPendingRetransmission, (), (const, override));
+
+ protected:
+  bool ValidateReceivedHeaders(const QuicHeaderList& /*header_list*/) override {
+    return true;
+  }
+};
+
+class TestQuicSpdyClientSessionWithMigration
+    : public QuicSpdyClientSessionWithMigration {
+ public:
+  TestQuicSpdyClientSessionWithMigration(
+      QuicConnection* connection, QuicSession::Visitor* visitor,
+      const QuicConfig& config,
+      const ParsedQuicVersionVector& supported_versions,
+      QuicNetworkHandle default_network, QuicNetworkHandle current_network,
+      std::unique_ptr<QuicPathContextFactory> path_context_factory,
+      QuicConnectionMigrationConfig migration_config)
+      : QuicSpdyClientSessionWithMigration(
+            connection, visitor, config, supported_versions, default_network,
+            current_network, std::move(path_context_factory), migration_config),
+        crypto_stream_(this) {
+    ON_CALL(*this, IsSessionProxied()).WillByDefault(Return(false));
+    ON_CALL(*this, OnMigrationToPathDone(_, _))
+        .WillByDefault(
+            Invoke([](std::unique_ptr<QuicPathValidationContext> context,
+                      bool success) {
+              if (success) {
+                static_cast<TestQuicClientPathValidationContext&>(*context)
+                    .ReleasePacketWriter();
+              }
+            }));
+  }
+
+  MOCK_METHOD(void, ResetNonMigratableStreams, (), (override));
+  MOCK_METHOD(void, OnNoNewNetworkForMigration, (), (override));
+  MOCK_METHOD(void, PrepareForProbingOnPath,
+              (QuicPathValidationContext & context), (override));
+  MOCK_METHOD(bool, IsSessionProxied, (), (const));
+  MOCK_METHOD(QuicTimeDelta, TimeSinceLastStreamClose, (), (override));
+  MOCK_METHOD(bool, PrepareForMigrationToPath, (QuicPathValidationContext&));
+  MOCK_METHOD(void, OnMigrationToPathDone,
+              (std::unique_ptr<QuicPathValidationContext>, bool));
+  MOCK_METHOD(void, OnConnectionToBeClosedDueToMigrationError,
+              (MigrationCause migration_cause, QuicErrorCode quic_error),
+              (override));
+
+  // QuicSpdyClientSessionWithMigration.
+  QuicNetworkHandle FindAlternateNetwork(QuicNetworkHandle network) override {
+    QUICHE_DCHECK_NE(network, alternate_network_);
+    return alternate_network_;
+  }
+
+  void StartDraining() override { going_away_ = true; }
+
+  // QuicSession.
+  TestCryptoStream* GetMutableCryptoStream() override {
+    return &crypto_stream_;
+  }
+
+  const TestCryptoStream* GetCryptoStream() const override {
+    return &crypto_stream_;
+  }
+
+  void OnProofValid(
+      const QuicCryptoClientConfig::CachedState& /*cached*/) override {}
+
+  void OnProofVerifyDetailsAvailable(
+      const ProofVerifyDetails& /*verify_details*/) override {}
+
+  TestStream* CreateOutgoingBidirectionalStream() override {
+    QuicStreamId id = GetNextOutgoingBidirectionalStreamId();
+    if (id ==
+        QuicUtils::GetInvalidStreamId(connection()->transport_version())) {
+      return nullptr;
+    }
+    TestStream* stream = new TestStream(id, this, BIDIRECTIONAL);
+    ActivateStream(absl::WrapUnique(stream));
+    return stream;
+  }
+
+  TestStream* CreateIncomingStream(QuicStreamId id) override {
+    // Enforce the limit on the number of open streams.
+    if (!VersionHasIetfQuicFrames(connection()->transport_version()) &&
+        stream_id_manager().num_open_incoming_streams() + 1 >
+            max_open_incoming_bidirectional_streams()) {
+      // No need to do this test for version 99; it's done by
+      // QuicSession::GetOrCreateStream.
+      connection()->CloseConnection(
+          QUIC_TOO_MANY_OPEN_STREAMS, "Too many streams!",
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return nullptr;
+    }
+
+    TestStream* stream = new TestStream(
+        id, this,
+        test::DetermineStreamType(id, connection()->version(), perspective(),
+                                  /*is_incoming=*/true, BIDIRECTIONAL));
+    ActivateStream(absl::WrapUnique(stream));
+    return stream;
+  }
+
+  TestStream* CreateIncomingStream(PendingStream* pending) override {
+    TestStream* stream = new TestStream(pending, this);
+    ActivateStream(absl::WrapUnique(stream));
+    return stream;
+  }
+
+  void set_alternate_network(QuicNetworkHandle network) {
+    alternate_network_ = network;
+  }
+
+  bool going_away() const { return going_away_; }
+
+  using QuicSpdyClientSessionWithMigration::migration_manager;
+
+ protected:
+  bool ShouldCreateIncomingStream(QuicStreamId /*id*/) override { return true; }
+  bool ShouldCreateOutgoingBidirectionalStream() override { return true; }
+
+ private:
+  QuicNetworkHandle alternate_network_ = kInvalidNetworkHandle;
+  bool going_away_ = false;
+  NiceMock<TestCryptoStream> crypto_stream_;
+};
+
+class QuicConnectionMigrationManagerTest
+    : public test::QuicTestWithParam<ParsedQuicVersion> {
+ public:
+  QuicConnectionMigrationManagerTest()
+      : versions_(ParsedQuicVersionVector{GetParam()}),
+        config_(test::DefaultQuicConfig()),
+        path_context_factory_(new TestQuicPathContextFactory()),
+        connection_(new StrictMock<test::MockQuicConnection>(
+            &connection_helper_, &alarm_factory_, Perspective::IS_CLIENT,
+            versions_)),
+        default_writer_(new NiceMock<TestQuicForceBlockablePacketWriter>()) {
+    connection_->SetQuicPacketWriter(default_writer_, true);
+  }
+
+  void Initialize() {
+    migration_config_.migrate_session_on_network_change =
+        connection_migration_on_network_change_;
+    migration_config_.migrate_idle_session = migrate_idle_session_;
+
+    session_ = std::make_unique<TestQuicSpdyClientSessionWithMigration>(
+        connection_, &session_visitor_, config_, versions_, default_network_,
+        initial_network_,
+        std::unique_ptr<QuicPathContextFactory>(path_context_factory_),
+        migration_config_);
+    session_->Initialize();
+    migration_manager_ = &session_->migration_manager();
+    EXPECT_EQ(migration_manager_->current_network(), initial_network_);
+
+    connection_helper_.GetClock()->AdvanceTime(QuicTimeDelta::FromSeconds(1));
+
+    if (complete_handshake_) {
+      CompleteHandshake(/*received_server_preferred_address=*/false);
+      return;
+    }
+  }
+
+  void CompleteHandshake(bool received_server_preferred_address) {
+    const QuicConnectionId extra_connection_id = TestConnectionId(1234);
+    ASSERT_NE(extra_connection_id, connection_->connection_id());
+    const StatelessResetToken reset_token =
+        QuicUtils::GenerateStatelessResetToken(extra_connection_id);
+    if (version().HasIetfQuicFrames() && received_server_preferred_address) {
+      // OnHandshakeMessage() will populate the received values with these.
+      QuicIpAddress ipv4, ipv6;
+      ASSERT_TRUE(ipv4.FromString("127.0.0.2"));
+      ASSERT_TRUE(ipv6.FromString("::2"));
+      session_->config()->SetIPv4AlternateServerAddressToSend(
+          QuicSocketAddress(ipv4, 12345));
+      session_->config()->SetIPv6AlternateServerAddressToSend(
+          QuicSocketAddress(ipv6, 12345));
+      session_->config()->SetPreferredAddressConnectionIdAndTokenToSend(
+          extra_connection_id, reset_token);
+    }
+    CryptoHandshakeMessage msg;
+    session_->GetMutableCryptoStream()->OnHandshakeMessage(msg);
+    EXPECT_TRUE(session_->OneRttKeysAvailable());
+    EXPECT_EQ(session_->GetHandshakeState(), HANDSHAKE_CONFIRMED);
+    if (received_server_preferred_address) {
+      EXPECT_TRUE(
+          QuicConnectionPeer::GetReceivedServerPreferredAddress(connection_)
+              .IsInitialized());
+    }
+
+    connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+    if (version().HasIetfQuicFrames() && !received_server_preferred_address) {
+      // Prepare an additional CID for future migration.
+      QuicNewConnectionIdFrame frame;
+      frame.connection_id = extra_connection_id;
+      frame.stateless_reset_token = reset_token;
+      frame.retire_prior_to = 0u;
+      frame.sequence_number = 1u;
+      connection_->OnNewConnectionIdFrame(frame);
+    }
+    connection_->OnHandshakeComplete();
+  }
+
+  ParsedQuicVersion version() const { return versions_[0]; }
+
+ protected:
+  QuicNetworkHandle default_network_ = 1;
+  QuicNetworkHandle initial_network_ = 1;
+  MockQuicConnectionHelper connection_helper_;
+  MockAlarmFactory alarm_factory_;
+  NiceMock<test::MockQuicSessionVisitor> session_visitor_;
+  ParsedQuicVersionVector versions_;
+  QuicConfig config_;
+  QuicConnectionMigrationConfig migration_config_;
+  // Owned by |session_|
+  TestQuicPathContextFactory* path_context_factory_;
+  // Owned by |session_|
+  StrictMock<test::MockQuicConnection>* connection_;
+  NiceMock<TestQuicForceBlockablePacketWriter>* default_writer_;
+  std::unique_ptr<TestQuicSpdyClientSessionWithMigration> session_;
+  QuicConnectionMigrationManager* migration_manager_ = nullptr;
+  bool connection_migration_on_path_degrading_ = true;
+  bool port_migration_ = true;
+  bool connection_migration_on_network_change_ = true;
+  bool migrate_idle_session_ = false;
+  bool complete_handshake_ = true;
+};
+
+// Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const ParsedQuicVersion& p) {
+  return ParsedQuicVersionToString(p);
+}
+
+INSTANTIATE_TEST_SUITE_P(QuicConnectionMigrationManagerTests,
+                         QuicConnectionMigrationManagerTest,
+                         ::testing::ValuesIn(CurrentSupportedHttp3Versions()),
+                         ::testing::PrintToStringParamName());
+
+// This test verifies that session times out connection migration attempt
+// with signals delivered in the following order (no alternate network is
+// available):
+// - default network disconnected is delivered: session attempts connection
+//   migration but found not alternate network. Session waits for a new network
+//   comes up in the next kWaitTimeForNewNetworkSecs seconds.
+// - no new network is connected, migration times out. Session is closed.
+TEST_P(QuicConnectionMigrationManagerTest, MigrationTimeoutWithNoNewNetwork) {
+  Initialize();
+
+  // Trigger a network disconnected signal to attempt migrating to a different
+  // network. But since there is no alternative network available, no migration
+  // should have happened.
+  EXPECT_CALL(*session_, OnNoNewNetworkForMigration());
+  migration_manager_->OnNetworkDisconnected(initial_network_);
+  EXPECT_EQ(path_context_factory_->num_creation_attempts(), 0u);
+  EXPECT_TRUE(default_writer_->IsWriteBlocked());
+
+  QuicAlarm* migration_alarm =
+      QuicConnectionMigrationManagerPeer::GetWaitForMigrationAlarm(
+          migration_manager_);
+  EXPECT_TRUE(migration_alarm->IsSet());
+  EXPECT_EQ(migration_alarm->deadline() - connection_helper_.GetClock()->Now(),
+            QuicTimeDelta::FromSeconds(10));
+
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_CONNECTION_MIGRATION_NO_NEW_NETWORK,
+                      "Migration for cause OnNetworkDisconnected timed out",
+                      ConnectionCloseBehavior::SILENT_CLOSE));
+  connection_helper_.GetClock()->AdvanceTime(QuicTimeDelta::FromSeconds(10));
+  alarm_factory_.FireAlarm(migration_alarm);
+}
+
+// This test verifies session migrates off the disconnected default network.
+TEST_P(QuicConnectionMigrationManagerTest,
+       MigratingOffDisconnectedDefaultNetwork) {
+  migrate_idle_session_ = true;
+  Initialize();
+
+  const QuicNetworkHandle alternate_network = 2;
+  session_->set_alternate_network(alternate_network);
+  EXPECT_NE(alternate_network, migration_manager_->current_network());
+  QuicSocketAddress alternate_self_address =
+      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/kTestPort);
+  EXPECT_NE(alternate_self_address.host(), connection_->self_address().host());
+  path_context_factory_->SetSelfAddressForNetwork(alternate_network,
+                                                  alternate_self_address);
+
+  EXPECT_CALL(*session_, TimeSinceLastStreamClose())
+      .WillOnce(Return(QuicTimeDelta::Zero()));
+  EXPECT_CALL(*session_, ResetNonMigratableStreams());
+  EXPECT_CALL(*session_, PrepareForMigrationToPath(_)).WillOnce(Return(true));
+  EXPECT_CALL(*session_, OnMigrationToPathDone(_, true));
+  migration_manager_->OnNetworkDisconnected(initial_network_);
+  EXPECT_EQ(migration_manager_->current_network(), alternate_network);
+  EXPECT_EQ(connection_->self_address(), alternate_self_address);
+  EXPECT_EQ(path_context_factory_->num_creation_attempts(), 1u);
+}
+
+// This test verifies that sessions idle for longer than the configured
+// |idle_migration_period| should not be migrated.
+TEST_P(QuicConnectionMigrationManagerTest, DoNotMigrateLongIdleSession) {
+  migrate_idle_session_ = true;
+  Initialize();
+  const QuicNetworkHandle alternate_network = 2;
+  session_->set_alternate_network(alternate_network);
+  EXPECT_NE(alternate_network, migration_manager_->current_network());
+
+  EXPECT_CALL(*session_, TimeSinceLastStreamClose())
+      .WillOnce(Return(migration_config_.idle_migration_period));
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_NETWORK_IDLE_TIMEOUT,
+                      "Idle session exceeds configured idle migration period",
+                      ConnectionCloseBehavior::SILENT_CLOSE));
+  migration_manager_->OnNetworkDisconnected(initial_network_);
+}
+
+// This test verifies that no idle sessions should be migrated if disallowed by
+// config.
+TEST_P(QuicConnectionMigrationManagerTest,
+       DoNotMigrateIdleSessionIfDisabledByConfig) {
+  migrate_idle_session_ = false;
+  Initialize();
+  const QuicNetworkHandle alternate_network = 2;
+  session_->set_alternate_network(alternate_network);
+  EXPECT_NE(alternate_network, migration_manager_->current_network());
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_CONNECTION_MIGRATION_NO_MIGRATABLE_STREAMS,
+                              "Migrating idle session is disabled.",
+                              ConnectionCloseBehavior::SILENT_CLOSE));
+  migration_manager_->OnNetworkDisconnected(initial_network_);
+}
+
+TEST_P(QuicConnectionMigrationManagerTest,
+       ConnectionMigrationDisabledDuringHandshake) {
+  QuicConfigPeer::SetReceivedDisableConnectionMigration(&config_);
+  migrate_idle_session_ = true;
+  Initialize();
+
+  const QuicNetworkHandle alternate_network = 2;
+  session_->set_alternate_network(alternate_network);
+  EXPECT_NE(alternate_network, migration_manager_->current_network());
+  EXPECT_TRUE(session_->config()->DisableConnectionMigration());
+
+  EXPECT_CALL(*session_, TimeSinceLastStreamClose())
+      .WillOnce(Return(QuicTimeDelta::Zero()));
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_CONNECTION_MIGRATION_DISABLED_BY_CONFIG,
+                              "Migration disabled by config",
+                              ConnectionCloseBehavior::SILENT_CLOSE));
+  migration_manager_->OnNetworkDisconnected(initial_network_);
+}
+
+class QuicConnectionMigrationManagerGoogleQuicTest
+    : public QuicConnectionMigrationManagerTest {};
+
+INSTANTIATE_TEST_SUITE_P(QuicConnectionMigrationManagerGoogleQuicTests,
+                         QuicConnectionMigrationManagerGoogleQuicTest,
+                         ::testing::ValuesIn(ParsedQuicVersionVector{
+                             quic::ParsedQuicVersion::Q046()}),
+                         ::testing::PrintToStringParamName());
+
+TEST_P(QuicConnectionMigrationManagerGoogleQuicTest, NoMigrationForGoogleQuic) {
+  Initialize();
+  session_->set_alternate_network(-1);
+  // If the session has attempted to migrate, it would have found no alternate
+  // network and called OnNoNewNetworkForMigration().
+  EXPECT_CALL(*session_, OnNoNewNetworkForMigration()).Times(0);
+  migration_manager_->OnNetworkDisconnected(initial_network_);
+}
+
+class QuicSpdyClientSessionWithMigrationTest
+    : public QuicConnectionMigrationManagerTest {};
+
+INSTANTIATE_TEST_SUITE_P(QuicSpdyClientSessionWithMigrationTests,
+                         QuicSpdyClientSessionWithMigrationTest,
+                         ::testing::ValuesIn(CurrentSupportedHttp3Versions()),
+                         ::testing::PrintToStringParamName());
+
+TEST_P(QuicSpdyClientSessionWithMigrationTest,
+       SessionFailedToPrepareForMigration) {
+  migrate_idle_session_ = true;
+  Initialize();
+
+  const QuicNetworkHandle alternate_network = 2;
+  session_->set_alternate_network(alternate_network);
+  EXPECT_NE(alternate_network, migration_manager_->current_network());
+  QuicSocketAddress alternate_self_address =
+      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/kTestPort);
+  EXPECT_NE(alternate_self_address.host(), connection_->self_address().host());
+  path_context_factory_->SetSelfAddressForNetwork(alternate_network,
+                                                  alternate_self_address);
+
+  EXPECT_CALL(*session_, TimeSinceLastStreamClose())
+      .WillOnce(Return(QuicTimeDelta::Zero()));
+  EXPECT_CALL(*session_, ResetNonMigratableStreams());
+  // Session failed to prepare for migration. Migration should not be attempted.
+  EXPECT_CALL(*session_, PrepareForMigrationToPath(_)).WillOnce(Return(false));
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_CONNECTION_MIGRATION_INTERNAL_ERROR,
+                              "Session failed to migrate to new path.",
+                              ConnectionCloseBehavior::SILENT_CLOSE));
+  migration_manager_->OnNetworkDisconnected(initial_network_);
+  EXPECT_EQ(migration_manager_->current_network(), default_network_);
+  EXPECT_EQ(path_context_factory_->num_creation_attempts(), 1u);
+}
+
+}  // namespace quic::test

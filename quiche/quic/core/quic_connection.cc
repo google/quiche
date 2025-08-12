@@ -1672,10 +1672,18 @@ class ReversePathValidationContext : public QuicPathValidationContext {
                                const QuicSocketAddress& effective_peer_address,
                                QuicConnection* connection)
       : QuicPathValidationContext(self_address, peer_address,
-                                  effective_peer_address),
+                                  effective_peer_address, /*network=*/-1),
         connection_(connection) {}
 
   QuicPacketWriter* WriterToUse() override { return connection_->writer(); }
+
+  // Reverse path validation always re-uses the original writer. So this method
+  // will not be called and the return value here doesn't matter.
+  bool ShouldConnectionOwnWriter() const override {
+    QUIC_BUG(client_only_writer_interface_used_in_server_side)
+        << "Reverse path validation shouldn't call this interface.";
+    return false;
+  }
 
  private:
   QuicConnection* connection_;
