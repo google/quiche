@@ -82,7 +82,8 @@ void MoqtOutgoingQueue::AddRawObject(MoqtObjectStatus status,
                               clock_->ApproximateNow()},
       std::make_shared<quiche::QuicheMemSlice>(std::move(payload)), fin});
   for (MoqtObjectListener* listener : listeners_) {
-    listener->OnNewObjectAvailable(sequence, /*subgroup=*/0);
+    listener->OnNewObjectAvailable(sequence, /*subgroup=*/0,
+                                   publisher_priority_);
   }
 }
 
@@ -126,27 +127,15 @@ std::vector<Location> MoqtOutgoingQueue::GetCachedObjectsInRange(
   return sequences;
 }
 
-absl::StatusOr<MoqtTrackStatusCode> MoqtOutgoingQueue::GetTrackStatus() const {
-  if (closed_) {
-    return MoqtTrackStatusCode::kFinished;
-  }
+std::optional<Location> MoqtOutgoingQueue::largest_location() const {
   if (queue_.empty()) {
-    return MoqtTrackStatusCode::kNotYetBegun;
-  }
-  return MoqtTrackStatusCode::kInProgress;
-}
-
-Location MoqtOutgoingQueue::GetLargestLocation() const {
-  if (queue_.empty()) {
-    QUICHE_BUG(MoqtOutgoingQueue_GetLargestLocation_not_begun)
-        << "Calling GetLargestLocation() on a track that hasn't begun";
-    return Location{0, 0};
+    return std::nullopt;
   }
   return Location{current_group_id_, queue_.back().size() - 1};
 }
 
 std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::StandaloneFetch(
-    Location start, Location end, MoqtDeliveryOrder order) {
+    Location start, Location end, std::optional<MoqtDeliveryOrder> order) {
   if (queue_.empty()) {
     return std::make_unique<MoqtFailedFetch>(
         absl::NotFoundError("No objects available on the track"));
@@ -169,21 +158,15 @@ std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::StandaloneFetch(
   Location adjusted_end = std::min(end, last_available_object);
   std::vector<Location> objects =
       GetCachedObjectsInRange(adjusted_start, adjusted_end);
+  // Default to ascending order.
   if (order == MoqtDeliveryOrder::kDescending) {
-    absl::c_reverse(objects);
-    for (auto it = objects.begin(); it != objects.end();) {
-      auto start_it = it;
-      while (it != objects.end() && it->group == start_it->group) {
-        ++it;
-      }
-      std::reverse(start_it, it);
-    }
+    ObjectsInDescendingOrder(objects);
   }
   return std::make_unique<FetchTask>(this, std::move(objects));
 }
 
 std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::RelativeFetch(
-    uint64_t group_diff, MoqtDeliveryOrder order) {
+    uint64_t group_diff, std::optional<MoqtDeliveryOrder> order) {
   if (queue_.empty()) {
     return std::make_unique<MoqtFailedFetch>(
         absl::NotFoundError("No objects available on the track"));
@@ -204,7 +187,7 @@ std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::RelativeFetch(
 }
 
 std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::AbsoluteFetch(
-    uint64_t group, MoqtDeliveryOrder order) {
+    uint64_t group, std::optional<MoqtDeliveryOrder> order) {
   if (queue_.empty()) {
     return std::make_unique<MoqtFailedFetch>(
         absl::NotFoundError("No objects available on the track"));

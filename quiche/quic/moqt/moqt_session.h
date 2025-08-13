@@ -35,6 +35,7 @@
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/namespace_tree.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
@@ -219,10 +220,13 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   struct NewStreamParameters {
     DataStreamIndex index;
     uint64_t first_object;
+    MoqtPriority publisher_priority;
 
     NewStreamParameters(uint64_t group, uint64_t subgroup,
-                        uint64_t first_object)
-        : index(group, subgroup), first_object(first_object) {}
+                        uint64_t first_object, MoqtPriority publisher_priority)
+        : index(group, subgroup),
+          first_object(first_object),
+          publisher_priority(publisher_priority) {}
   };
 
   class QUICHE_EXPORT ControlStream : public webtransport::StreamVisitor,
@@ -250,11 +254,12 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnAnnounceMessage(const MoqtAnnounce& message) override;
     void OnAnnounceOkMessage(const MoqtAnnounceOk& message) override;
     void OnAnnounceErrorMessage(const MoqtAnnounceError& message) override;
-    void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override;
-    void OnTrackStatusRequestMessage(
-        const MoqtTrackStatusRequest& message) override;
     void OnUnannounceMessage(const MoqtUnannounce& /*message*/) override;
-    void OnTrackStatusMessage(const MoqtTrackStatus& message) override {}
+    void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override;
+    void OnTrackStatusMessage(const MoqtTrackStatus& message) override;
+    void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) override {}
+    void OnTrackStatusErrorMessage(
+        const MoqtTrackStatusError& message) override {}
     void OnGoAwayMessage(const MoqtGoAway& /*message*/) override;
     void OnSubscribeNamespaceMessage(
         const MoqtSubscribeNamespace& message) override;
@@ -376,11 +381,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     // MoqtObjectListener implementation.
     void OnSubscribeAccepted() override;
-    void OnSubscribeRejected(
-        MoqtSubscribeErrorReason reason,
-        std::optional<uint64_t> track_alias = std::nullopt) override;
+    void OnSubscribeRejected(MoqtSubscribeErrorReason reason) override;
     // This is only called for objects that have just arrived.
-    void OnNewObjectAvailable(Location location, uint64_t subgroup) override;
+    void OnNewObjectAvailable(Location location, uint64_t subgroup,
+                              MoqtPriority publisher_priority) override;
     void OnTrackPublisherGone() override;
     void OnNewFinAvailable(Location location, uint64_t subgroup) override;
     void OnSubgroupAbandoned(uint64_t group, uint64_t subgroup,
@@ -419,8 +423,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     std::vector<webtransport::StreamId> GetAllStreams() const;
 
-    webtransport::SendOrder GetSendOrder(Location sequence,
-                                         uint64_t subgroup) const;
+    webtransport::SendOrder GetSendOrder(Location sequence, uint64_t subgroup,
+                                         MoqtPriority publisher_priority) const;
 
     void AddQueuedOutgoingDataStream(const NewStreamParameters& parameters);
     // Pops the pending outgoing data stream, with the highest send order.
@@ -553,6 +557,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     webtransport::Stream* stream_;
     uint64_t subscription_id_;
     DataStreamIndex index_;
+    const MoqtPriority publisher_priority_;
     MoqtDataStreamType stream_type_;
     // Minimum object ID that should go out next. The session doesn't know the
     // exact ID of the next object in the stream because the next object could
@@ -622,43 +627,53 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     DownstreamTrackStatus(uint64_t request_id,
                           MoqtSession* absl_nonnull session,
                           MoqtTrackPublisher* absl_nonnull publisher)
-        : request_id_(request_id), session_(session), publisher_(publisher) {
-      publisher_->AddObjectListener(this);
-    }
+        : request_id_(request_id), session_(session), publisher_(publisher) {}
     ~DownstreamTrackStatus() {
       if (publisher_ != nullptr) {
         publisher_->RemoveObjectListener(this);
       }
     }
+    DownstreamTrackStatus(const DownstreamTrackStatus&) = delete;
+    DownstreamTrackStatus(DownstreamTrackStatus&&) = delete;
 
     void OnSubscribeAccepted() override {
-      MoqtTrackStatus track_status;
-      track_status.request_id = request_id_;
-      QUICHE_CHECK(publisher_ != nullptr);
-      absl::StatusOr<MoqtTrackStatusCode> status = publisher_->GetTrackStatus();
-      if (!status.ok()) {
-        session_->Error(MoqtError::kInternalError,
-                        "Failed to get track status");
+      if (publisher_ == nullptr) {
+        QUICHE_NOTREACHED();
         return;
       }
-      track_status.status_code = *status;
-      if (*status != MoqtTrackStatusCode::kDoesNotExist &&
-          *status != MoqtTrackStatusCode::kNotYetBegun) {
-        track_status.largest_location = publisher_->GetLargestLocation();
-      }  // Else, leave it at (0,0).
+      MoqtTrackStatusOk track_status_ok;
+      track_status_ok.request_id = request_id_;
+      track_status_ok.track_alias = 0;
+      QUICHE_BUG_IF(quic_bug_track_status_ok_no_expiration,
+                    !publisher_->expiration().has_value())
+          << "Request accepted without expiration";
+      track_status_ok.expires =
+          publisher_->expiration().value_or(quic::QuicTimeDelta::Zero());
+      QUICHE_BUG_IF(quic_bug_track_status_ok_no_delivery_order,
+                    !publisher_->delivery_order().has_value())
+          << "Request accepted without delivery order";
+      track_status_ok.group_order =
+          publisher_->delivery_order().value_or(MoqtDeliveryOrder::kAscending);
+      track_status_ok.largest_location = publisher_->largest_location();
       session_->SendControlMessage(
-          session_->framer_.SerializeTrackStatus(track_status));
+          session_->framer_.SerializeTrackStatusOk(track_status_ok));
       session_->incoming_track_status_.erase(request_id_);
       // No class access below this line!
     }
 
-    // TODO(martinduke): In draft-13, this will trigger TRACK_STATUS_ERROR.
-    void OnSubscribeRejected(MoqtSubscribeErrorReason /*error_code*/,
-                             std::optional<uint64_t> /*track_alias*/) override {
-      OnSubscribeAccepted();
+    void OnSubscribeRejected(MoqtSubscribeErrorReason error_reason) override {
+      MoqtTrackStatusError track_status_error;
+      track_status_error.request_id = request_id_;
+      track_status_error.error_code = error_reason.error_code;
+      track_status_error.reason_phrase = error_reason.reason_phrase;
+      session_->SendControlMessage(
+          session_->framer_.SerializeTrackStatusError(track_status_error));
+      session_->incoming_track_status_.erase(request_id_);
+      // No class access below this line!
     }
 
-    void OnNewObjectAvailable(Location sequence, uint64_t subgroup) override {}
+    void OnNewObjectAvailable(Location sequence, uint64_t subgroup,
+                              MoqtPriority publisher_priority) override {}
     void OnNewFinAvailable(Location location, uint64_t subgroup) override {}
     void OnSubgroupAbandoned(
         uint64_t group, uint64_t subgroup,
@@ -666,13 +681,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnGroupAbandoned(uint64_t group_id) override {}
     void OnTrackPublisherGone() override {
       publisher_ = nullptr;
-      MoqtTrackStatus track_status;
-      track_status.request_id = request_id_;
-      track_status.status_code = MoqtTrackStatusCode::kDoesNotExist;
-      track_status.largest_location = Location(0, 0);
-      session_->SendControlMessage(
-          session_->framer_.SerializeTrackStatus(track_status));
-      session_->incoming_track_status_.erase(request_id_);
+      OnSubscribeRejected(MoqtSubscribeErrorReason(
+          RequestErrorCode::kTrackDoesNotExist, "Track publisher gone"));
     }
 
    private:
@@ -825,7 +835,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::flat_hash_map<uint64_t, std::shared_ptr<PublishedFetch>>
       incoming_fetches_;
 
-  absl::flat_hash_map<uint64_t, DownstreamTrackStatus> incoming_track_status_;
+  absl::flat_hash_map<uint64_t, std::unique_ptr<DownstreamTrackStatus>>
+      incoming_track_status_;
 
   // Monitoring interfaces for expected incoming subscriptions.
   absl::flat_hash_map<FullTrackName, MoqtPublishingMonitorInterface*>

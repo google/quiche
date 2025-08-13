@@ -50,14 +50,13 @@ class MoqtObjectListener {
   virtual void OnSubscribeAccepted() = 0;
   // Called when the publisher is sure that it cannot serve the subscription.
   // This could happen synchronously or asynchronously.
-  virtual void OnSubscribeRejected(
-      MoqtSubscribeErrorReason reason,
-      std::optional<uint64_t> track_alias = std::nullopt) = 0;
+  virtual void OnSubscribeRejected(MoqtSubscribeErrorReason reason) = 0;
 
   // Notifies that a new object is available on the track.  The object payload
   // itself may be retrieved via GetCachedObject method of the associated track
   // publisher.
-  virtual void OnNewObjectAvailable(Location sequence, uint64_t subgroup) = 0;
+  virtual void OnNewObjectAvailable(Location sequence, uint64_t subgroup,
+                                    MoqtPriority publisher_priority) = 0;
   // Notifies that a pure FIN has arrived following |sequence|. Should not be
   // called unless all objects have already been delivered. If not delivered,
   // instead set the fin_after_this flag in the PublishedObject.
@@ -159,31 +158,24 @@ class MoqtTrackPublisher {
   virtual void AddObjectListener(MoqtObjectListener* listener) = 0;
   virtual void RemoveObjectListener(MoqtObjectListener* listener) = 0;
 
-  virtual absl::StatusOr<MoqtTrackStatusCode> GetTrackStatus() const = 0;
-
-  // Returns the largest (group, object) pair that has been published so far.
-  // This method may only be called if
-  // DoesTrackStatusImplyHavingData(GetTrackStatus()) is true.
-  virtual Location GetLargestLocation() const = 0;
-
-  // Returns the forwarding preference of the track.
-  // This method may only be called if
-  // DoesTrackStatusImplyHavingData(GetTrackStatus()) is true.
-  virtual MoqtForwardingPreference GetForwardingPreference() const = 0;
-
-  // Returns the current forwarding priority of the track.
-  virtual MoqtPriority GetPublisherPriority() const = 0;
-
-  // Returns the publisher-preferred delivery order for the track.
-  virtual MoqtDeliveryOrder GetDeliveryOrder() const = 0;
+  // Methods to return various track properties. Returns nullopt if the value is
+  // not yet available. Guaranteed to be non-null if an object is available
+  // and/or OnSubscribeAccepted() has been called.
+  // Track alias is not present because MoqtSession always uses locally
+  // generated values.
+  virtual std::optional<Location> largest_location() const = 0;
+  virtual std::optional<MoqtForwardingPreference> forwarding_preference()
+      const = 0;
+  virtual std::optional<MoqtDeliveryOrder> delivery_order() const = 0;
+  virtual std::optional<quic::QuicTimeDelta> expiration() const = 0;
 
   // Performs a fetch for the specified range of objects.
   virtual std::unique_ptr<MoqtFetchTask> StandaloneFetch(
-      Location start, Location end, MoqtDeliveryOrder order) = 0;
+      Location start, Location end, std::optional<MoqtDeliveryOrder> order) = 0;
   virtual std::unique_ptr<MoqtFetchTask> RelativeFetch(
-      uint64_t group_diff, MoqtDeliveryOrder order) = 0;
+      uint64_t group_diff, std::optional<MoqtDeliveryOrder> order) = 0;
   virtual std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
-      uint64_t group, MoqtDeliveryOrder order) = 0;
+      uint64_t group, std::optional<MoqtDeliveryOrder> order) = 0;
 };
 
 // MoqtPublisher is an interface to a publisher that allows it to publish

@@ -25,19 +25,16 @@ namespace moqt::test {
 
 // TODO: remove MoqtObject from TestMessageBase::MessageStructuredData and merge
 // those two types.
-using MoqtGenericFrame =
-    std::variant<MoqtClientSetup, MoqtServerSetup, MoqtSubscribe,
-                 MoqtSubscribeOk, MoqtSubscribeError, MoqtUnsubscribe,
-                 MoqtSubscribeDone, MoqtSubscribeUpdate, MoqtAnnounce,
-                 MoqtAnnounceOk, MoqtAnnounceError, MoqtAnnounceCancel,
-                 MoqtTrackStatusRequest, MoqtUnannounce, MoqtTrackStatus,
-                 MoqtGoAway, MoqtSubscribeNamespace, MoqtSubscribeNamespaceOk,
-                 MoqtSubscribeNamespaceError, MoqtUnsubscribeNamespace,
-                 MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
-                 MoqtFetchError, MoqtRequestsBlocked, MoqtPublish,
-                 MoqtPublishOk, MoqtPublishError, MoqtObjectAck>;
-
-MoqtMessageType MessageTypeForGenericMessage(const MoqtGenericFrame& frame);
+using MoqtGenericFrame = std::variant<
+    MoqtClientSetup, MoqtServerSetup, MoqtSubscribe, MoqtSubscribeOk,
+    MoqtSubscribeError, MoqtUnsubscribe, MoqtSubscribeDone, MoqtSubscribeUpdate,
+    MoqtAnnounce, MoqtAnnounceOk, MoqtAnnounceError, MoqtUnannounce,
+    MoqtAnnounceCancel, MoqtTrackStatus, MoqtTrackStatusOk,
+    MoqtTrackStatusError, MoqtGoAway, MoqtSubscribeNamespace,
+    MoqtSubscribeNamespaceOk, MoqtSubscribeNamespaceError,
+    MoqtUnsubscribeNamespace, MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel,
+    MoqtFetchOk, MoqtFetchError, MoqtRequestsBlocked, MoqtPublish,
+    MoqtPublishOk, MoqtPublishError, MoqtObjectAck>;
 
 std::string SerializeGenericMessage(const MoqtGenericFrame& frame,
                                     bool use_webtrans = false);

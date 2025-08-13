@@ -47,7 +47,8 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
     AddObjectListener(this);
   }
 
-  void OnNewObjectAvailable(Location sequence, uint64_t subgroup) override {
+  void OnNewObjectAvailable(Location sequence, uint64_t subgroup,
+                            MoqtPriority publisher_priority) override {
     std::optional<PublishedObject> object =
         GetCachedObject(sequence.group, subgroup, sequence.object);
     ASSERT_THAT(object,
@@ -66,11 +67,14 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
   }
 
   void GetObjectsFromPast(const SubscribeWindow& window) {
+    if (!largest_location().has_value()) {
+      return;
+    }
     std::vector<Location> objects =
-        GetCachedObjectsInRange(Location(0, 0), GetLargestLocation());
+        GetCachedObjectsInRange(Location(0, 0), *largest_location());
     for (Location object : objects) {
       if (window.InWindow(object)) {
-        OnNewObjectAvailable(object, 0);
+        OnNewObjectAvailable(object, 0, publisher_priority());
       }
     }
   }
@@ -87,9 +91,7 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
               ());
   MOCK_METHOD(void, OnTrackPublisherGone, (), (override));
   MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
-  MOCK_METHOD(void, OnSubscribeRejected,
-              (MoqtSubscribeErrorReason reason,
-               std::optional<uint64_t> track_alias),
+  MOCK_METHOD(void, OnSubscribeRejected, (MoqtSubscribeErrorReason reason),
               (override));
 };
 
@@ -448,7 +450,7 @@ TEST(MoqtOutgoingQueue, EndOfTrack) {
   EXPECT_EQ(end_location, Location(1, 0));
 
   queue.Close();  // Create (2, 0)
-  EXPECT_EQ(queue.GetLargestLocation(), Location(2, 0));
+  EXPECT_EQ(queue.largest_location(), Location(2, 0));
   fetch = queue.StandaloneFetch(Location{0, 0}, Location{1, kMaxObjectId},
                                 MoqtDeliveryOrder::kAscending);
   // end_of_track is false if the fetch does not include the last object.

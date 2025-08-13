@@ -246,17 +246,20 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kAnnounceError:
       bytes_read = ProcessAnnounceError(reader);
       break;
-    case MoqtMessageType::kAnnounceCancel:
-      bytes_read = ProcessAnnounceCancel(reader);
-      break;
-    case MoqtMessageType::kTrackStatusRequest:
-      bytes_read = ProcessTrackStatusRequest(reader);
-      break;
     case MoqtMessageType::kUnannounce:
       bytes_read = ProcessUnannounce(reader);
       break;
+    case MoqtMessageType::kAnnounceCancel:
+      bytes_read = ProcessAnnounceCancel(reader);
+      break;
     case MoqtMessageType::kTrackStatus:
       bytes_read = ProcessTrackStatus(reader);
+      break;
+    case MoqtMessageType::kTrackStatusOk:
+      bytes_read = ProcessTrackStatusOk(reader);
+      break;
+    case MoqtMessageType::kTrackStatusError:
+      bytes_read = ProcessTrackStatusError(reader);
       break;
     case MoqtMessageType::kGoAway:
       bytes_read = ProcessGoAway(reader);
@@ -374,7 +377,8 @@ size_t MoqtControlParser::ProcessServerSetup(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
+size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader,
+                                           MoqtMessageType message_type) {
   MoqtSubscribe subscribe;
   uint64_t filter, group, object;
   uint8_t group_order, forward;
@@ -434,11 +438,16 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader) {
                                                    subscribe.parameters)) {
     return 0;
   }
-  visitor_.OnSubscribeMessage(subscribe);
+  if (message_type == MoqtMessageType::kTrackStatus) {
+    visitor_.OnTrackStatusMessage(subscribe);
+  } else {
+    visitor_.OnSubscribeMessage(subscribe);
+  }
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
+size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader,
+                                             MoqtMessageType message_type) {
   MoqtSubscribeOk subscribe_ok;
   uint64_t milliseconds;
   uint8_t group_order;
@@ -449,6 +458,8 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
       !reader.ReadUInt8(&content_exists)) {
     return 0;
   }
+  // TODO(martinduke): If track_alias > 0 is an error for TrackStatusOk, then
+  // throw an error here.
   if (content_exists > 1) {
     ParseError("SUBSCRIBE_OK ContentExists has invalid value");
     return 0;
@@ -479,11 +490,16 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
                                                    subscribe_ok.parameters)) {
     return 0;
   }
-  visitor_.OnSubscribeOkMessage(subscribe_ok);
+  if (message_type == MoqtMessageType::kTrackStatusOk) {
+    visitor_.OnTrackStatusOkMessage(subscribe_ok);
+  } else {
+    visitor_.OnSubscribeOkMessage(subscribe_ok);
+  }
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribeError(quic::QuicDataReader& reader) {
+size_t MoqtControlParser::ProcessSubscribeError(quic::QuicDataReader& reader,
+                                                MoqtMessageType message_type) {
   MoqtSubscribeError subscribe_error;
   uint64_t error_code;
   if (!reader.ReadVarInt62(&subscribe_error.request_id) ||
@@ -492,7 +508,11 @@ size_t MoqtControlParser::ProcessSubscribeError(quic::QuicDataReader& reader) {
     return 0;
   }
   subscribe_error.error_code = static_cast<RequestErrorCode>(error_code);
-  visitor_.OnSubscribeErrorMessage(subscribe_error);
+  if (message_type == MoqtMessageType::kTrackStatusError) {
+    visitor_.OnTrackStatusErrorMessage(subscribe_error);
+  } else {
+    visitor_.OnSubscribeErrorMessage(subscribe_error);
+  }
   return reader.PreviouslyReadPayload().length();
 }
 
@@ -605,6 +625,15 @@ size_t MoqtControlParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
+size_t MoqtControlParser::ProcessUnannounce(quic::QuicDataReader& reader) {
+  MoqtUnannounce unannounce;
+  if (!ReadTrackNamespace(reader, unannounce.track_namespace)) {
+    return 0;
+  }
+  visitor_.OnUnannounceMessage(unannounce);
+  return reader.PreviouslyReadPayload().length();
+}
+
 size_t MoqtControlParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
   MoqtAnnounceCancel announce_cancel;
   if (!ReadTrackNamespace(reader, announce_cancel.track_namespace)) {
@@ -620,66 +649,17 @@ size_t MoqtControlParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessTrackStatusRequest(
-    quic::QuicDataReader& reader) {
-  MoqtTrackStatusRequest track_status_request;
-  if (!reader.ReadVarInt62(&track_status_request.request_id)) {
-    return 0;
-  }
-  if (!ReadFullTrackName(reader, track_status_request.full_track_name)) {
-    return 0;
-  }
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (!ValidateVersionSpecificParameters(
-          parameters, MoqtMessageType::kTrackStatusRequest)) {
-    ParseError("TRACK_STATUS_REQUEST message contains invalid parameters");
-    return 0;
-  }
-  if (!KeyValuePairListToVersionSpecificParameters(
-          parameters, track_status_request.parameters)) {
-    return 0;
-  }
-  visitor_.OnTrackStatusRequestMessage(track_status_request);
-  return reader.PreviouslyReadPayload().length();
-}
-
-size_t MoqtControlParser::ProcessUnannounce(quic::QuicDataReader& reader) {
-  MoqtUnannounce unannounce;
-  if (!ReadTrackNamespace(reader, unannounce.track_namespace)) {
-    return 0;
-  }
-  visitor_.OnUnannounceMessage(unannounce);
-  return reader.PreviouslyReadPayload().length();
-}
-
 size_t MoqtControlParser::ProcessTrackStatus(quic::QuicDataReader& reader) {
-  MoqtTrackStatus track_status;
-  uint64_t status_code;
-  if (!reader.ReadVarInt62(&track_status.request_id) ||
-      !reader.ReadVarInt62(&status_code) ||
-      !reader.ReadVarInt62(&track_status.largest_location.group) ||
-      !reader.ReadVarInt62(&track_status.largest_location.object)) {
-    return 0;
-  }
-  track_status.status_code = static_cast<MoqtTrackStatusCode>(status_code);
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kTrackStatus)) {
-    ParseError("TRACK_STATUS message contains invalid parameters");
-    return 0;
-  }
-  if (!KeyValuePairListToVersionSpecificParameters(parameters,
-                                                   track_status.parameters)) {
-    return 0;
-  }
-  visitor_.OnTrackStatusMessage(track_status);
-  return reader.PreviouslyReadPayload().length();
+  return ProcessSubscribe(reader, MoqtMessageType::kTrackStatus);
+}
+
+size_t MoqtControlParser::ProcessTrackStatusOk(quic::QuicDataReader& reader) {
+  return ProcessSubscribeOk(reader, MoqtMessageType::kTrackStatusOk);
+}
+
+size_t MoqtControlParser::ProcessTrackStatusError(
+    quic::QuicDataReader& reader) {
+  return ProcessSubscribeError(reader, MoqtMessageType::kTrackStatusError);
 }
 
 size_t MoqtControlParser::ProcessGoAway(quic::QuicDataReader& reader) {

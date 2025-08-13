@@ -510,6 +510,10 @@ TEST_F(MoqtIntegrationTest, SubscribeAbsoluteOk) {
   MockSubscribeRemoteTrackVisitor client_visitor;
   std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
+  ON_CALL(*track_publisher, expiration)
+      .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
+  ON_CALL(*track_publisher, delivery_order)
+      .WillByDefault(Return(MoqtDeliveryOrder::kAscending));
   EXPECT_CALL(*track_publisher, AddObjectListener)
       .WillOnce([&](MoqtObjectListener* listener) {
         listener->OnSubscribeAccepted();
@@ -536,6 +540,10 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentObjectOk) {
   MockSubscribeRemoteTrackVisitor client_visitor;
   std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
+  ON_CALL(*track_publisher, expiration)
+      .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
+  ON_CALL(*track_publisher, delivery_order)
+      .WillByDefault(Return(MoqtDeliveryOrder::kAscending));
   EXPECT_CALL(*track_publisher, AddObjectListener)
       .WillOnce([&](MoqtObjectListener* listener) {
         listener->OnSubscribeAccepted();
@@ -562,6 +570,10 @@ TEST_F(MoqtIntegrationTest, SubscribeNextGroupOk) {
   MockSubscribeRemoteTrackVisitor client_visitor;
   std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
+  ON_CALL(*track_publisher, expiration)
+      .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
+  ON_CALL(*track_publisher, delivery_order)
+      .WillByDefault(Return(MoqtDeliveryOrder::kAscending));
   EXPECT_CALL(*track_publisher, AddObjectListener)
       .WillOnce([&](MoqtObjectListener* listener) {
         listener->OnSubscribeAccepted();
@@ -597,7 +609,8 @@ TEST_F(MoqtIntegrationTest, CleanSubscribeDone) {
   MoqtKnownTrackPublisher publisher;
   server_->session()->set_publisher(&publisher);
   auto queue = std::make_shared<MoqtLiveRelayQueue>(
-      full_track_name, MoqtForwardingPreference::kSubgroup);
+      full_track_name, MoqtForwardingPreference::kSubgroup,
+      MoqtDeliveryOrder::kAscending, quic::QuicTime::Infinite());
   publisher.Add(queue);
 
   MockSubscribeRemoteTrackVisitor client_visitor;
@@ -669,6 +682,10 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
 
   VersionSpecificParameters parameters;
   parameters.oack_window_size = quic::QuicTimeDelta::FromMilliseconds(100);
+  ON_CALL(*track_publisher, expiration)
+      .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
+  ON_CALL(*track_publisher, delivery_order)
+      .WillByDefault(Return(MoqtDeliveryOrder::kAscending));
   client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor,
                                              parameters);
   EXPECT_CALL(monitoring, OnObjectAckSupportKnown(parameters.oack_window_size));
@@ -694,6 +711,7 @@ TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
   server_->session()->set_publisher(&publisher);
   auto queue = std::make_shared<MoqtLiveRelayQueue>(
       full_track_name, MoqtForwardingPreference::kSubgroup,
+      MoqtDeliveryOrder::kAscending, quic::QuicTime::Infinite(),
       test_harness_.simulator().GetClock());
   auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
   publisher.Add(queue);
@@ -743,6 +761,7 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
   server_->session()->UseAlternateDeliveryTimeout();
   auto queue = std::make_shared<MoqtLiveRelayQueue>(
       full_track_name, MoqtForwardingPreference::kSubgroup,
+      MoqtDeliveryOrder::kAscending, quic::QuicTime::Infinite(),
       test_harness_.simulator().GetClock());
   auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
   publisher.Add(queue);
@@ -755,6 +774,10 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
   VersionSpecificParameters parameters;
   // Set delivery timeout to ~ 1 RTT: any loss is fatal.
   parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
+  ON_CALL(*track_publisher, expiration)
+      .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
+  ON_CALL(*track_publisher, delivery_order)
+      .WillByDefault(Return(MoqtDeliveryOrder::kAscending));
   client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor,
                                              parameters);
   bool success =

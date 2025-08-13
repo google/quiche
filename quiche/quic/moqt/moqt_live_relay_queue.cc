@@ -7,16 +7,12 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <vector>
 
 #include "absl/base/attributes.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_cached_object.h"
 #include "quiche/quic/moqt/moqt_messages.h"
-#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
-#include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -27,11 +23,9 @@
 namespace moqt {
 
 bool MoqtLiveRelayQueue::AddFin(Location sequence, uint64_t subgroup) {
-  switch (forwarding_preference_) {
-    case MoqtForwardingPreference::kDatagram:
-      return false;
-    case MoqtForwardingPreference::kSubgroup:
-      break;
+  if (!forwarding_preference_.has_value() ||
+      *forwarding_preference_ == MoqtForwardingPreference::kDatagram) {
+    return false;
   }
   auto group_it = queue_.find(sequence.group);
   if (group_it == queue_.end()) {
@@ -39,8 +33,7 @@ bool MoqtLiveRelayQueue::AddFin(Location sequence, uint64_t subgroup) {
     return false;
   }
   Group& group = group_it->second;
-  auto subgroup_it =
-      group.subgroups.find(SubgroupPriority{publisher_priority_, subgroup});
+  auto subgroup_it = group.subgroups.find(subgroup);
   if (subgroup_it == group.subgroups.end()) {
     // Subgroup does not exist.
     return false;
@@ -61,29 +54,27 @@ bool MoqtLiveRelayQueue::AddFin(Location sequence, uint64_t subgroup) {
 }
 
 bool MoqtLiveRelayQueue::OnStreamReset(
-    Location sequence, uint64_t subgroup_id,
+    uint64_t group_id, uint64_t subgroup_id,
     webtransport::StreamErrorCode error_code) {
-  switch (forwarding_preference_) {
-    case MoqtForwardingPreference::kDatagram:
-      return false;
-    case MoqtForwardingPreference::kSubgroup:
-      break;
+  if (!forwarding_preference_.has_value() ||
+      *forwarding_preference_ == MoqtForwardingPreference::kDatagram) {
+    return false;
   }
-  auto group_it = queue_.find(sequence.group);
+  auto group_it = queue_.find(group_id);
   if (group_it == queue_.end()) {
     // Group does not exist.
     return false;
   }
   Group& group = group_it->second;
-  auto subgroup_it =
-      group.subgroups.find(SubgroupPriority{publisher_priority_, subgroup_id});
+  auto subgroup_it = group.subgroups.find(subgroup_id);
   if (subgroup_it == group.subgroups.end()) {
     // Subgroup does not exist.
     return false;
   }
   for (MoqtObjectListener* listener : listeners_) {
-    listener->OnSubgroupAbandoned(sequence.group, subgroup_id, error_code);
+    listener->OnSubgroupAbandoned(group_id, subgroup_id, error_code);
   }
+  group.subgroups.erase(subgroup_id);
   return true;
 }
 
@@ -134,12 +125,15 @@ bool MoqtLiveRelayQueue::AddObject(const PublishedObjectMetadata& metadata,
       return false;
     }
   }
-  // TODO: use `metadata.publisher_priority` instead.
-  auto subgroup_it = group.subgroups.try_emplace(
-      SubgroupPriority{publisher_priority_, metadata.subgroup});
+  auto subgroup_it = group.subgroups.try_emplace(metadata.subgroup);
   auto& subgroup = subgroup_it.first->second;
   if (!subgroup.empty()) {  // Check if the new object is valid
     CachedObject& last_object = subgroup.rbegin()->second;
+    if (last_object.metadata.publisher_priority !=
+        metadata.publisher_priority) {
+      QUICHE_DLOG(INFO) << "Publisher priority changing in a subgroup";
+      return false;
+    }
     if (last_object.fin_after_this) {
       QUICHE_DLOG(INFO) << "Skipping object because it is after the end of the "
                         << "subgroup";
@@ -184,21 +178,21 @@ bool MoqtLiveRelayQueue::AddObject(const PublishedObjectMetadata& metadata,
   subgroup.emplace(sequence.object,
                    CachedObject{metadata, slice, last_object_in_stream});
   for (MoqtObjectListener* listener : listeners_) {
-    listener->OnNewObjectAvailable(sequence, metadata.subgroup);
+    listener->OnNewObjectAvailable(sequence, metadata.subgroup,
+                                   metadata.publisher_priority);
   }
   return true;
 }
 
 std::optional<PublishedObject> MoqtLiveRelayQueue::GetCachedObject(
-    uint64_t group_id, uint64_t subgroup_id, uint64_t object_id) const {
+    uint64_t group_id, uint64_t subgroup_id, uint64_t min_object_id) const {
   auto group_it = queue_.find(group_id);
   if (group_it == queue_.end()) {
     // Group does not exist.
     return std::nullopt;
   }
   const Group& group = group_it->second;
-  auto subgroup_it =
-      group.subgroups.find(SubgroupPriority{publisher_priority_, subgroup_id});
+  auto subgroup_it = group.subgroups.find(subgroup_id);
   if (subgroup_it == group.subgroups.end()) {
     // Subgroup does not exist.
     return std::nullopt;
@@ -207,8 +201,8 @@ std::optional<PublishedObject> MoqtLiveRelayQueue::GetCachedObject(
   if (subgroup.empty()) {
     return std::nullopt;  // There are no objects.
   }
-  // Find an object with ID of at least sequence.object.
-  auto object_it = subgroup.lower_bound(object_id);
+  // Find an object with ID of at least min_object_id.
+  auto object_it = subgroup.lower_bound(min_object_id);
   if (object_it == subgroup.end()) {
     // No object after the last one received.
     return std::nullopt;
@@ -227,18 +221,10 @@ void MoqtLiveRelayQueue::ForAllObjects(
   }
 }
 
-absl::StatusOr<MoqtTrackStatusCode> MoqtLiveRelayQueue::GetTrackStatus() const {
-  if (end_of_track_.has_value()) {
-    return MoqtTrackStatusCode::kFinished;
-  }
+std::optional<Location> MoqtLiveRelayQueue::largest_location() const {
   if (queue_.empty()) {
-    // TODO(martinduke): Retrieve the track status from upstream.
-    return MoqtTrackStatusCode::kNotYetBegun;
+    return std::nullopt;
   }
-  return MoqtTrackStatusCode::kInProgress;
-}
-
-Location MoqtLiveRelayQueue::GetLargestLocation() const {
   return Location{next_sequence_.group, next_sequence_.object - 1};
 }
 

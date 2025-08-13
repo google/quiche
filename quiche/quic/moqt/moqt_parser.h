@@ -43,11 +43,12 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnAnnounceMessage(const MoqtAnnounce& message) = 0;
   virtual void OnAnnounceOkMessage(const MoqtAnnounceOk& message) = 0;
   virtual void OnAnnounceErrorMessage(const MoqtAnnounceError& message) = 0;
-  virtual void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) = 0;
-  virtual void OnTrackStatusRequestMessage(
-      const MoqtTrackStatusRequest& message) = 0;
   virtual void OnUnannounceMessage(const MoqtUnannounce& message) = 0;
+  virtual void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) = 0;
   virtual void OnTrackStatusMessage(const MoqtTrackStatus& message) = 0;
+  virtual void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) = 0;
+  virtual void OnTrackStatusErrorMessage(
+      const MoqtTrackStatusError& message) = 0;
   virtual void OnGoAwayMessage(const MoqtGoAway& message) = 0;
   virtual void OnSubscribeNamespaceMessage(
       const MoqtSubscribeNamespace& message) = 0;
@@ -112,19 +113,28 @@ class QUICHE_EXPORT MoqtControlParser {
   // otherwise.
   size_t ProcessClientSetup(quic::QuicDataReader& reader);
   size_t ProcessServerSetup(quic::QuicDataReader& reader);
-  size_t ProcessSubscribe(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeOk(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeError(quic::QuicDataReader& reader);
+  // Subscribe formats are used for TrackStatus as well, so take the message
+  // type as an argument, defaulting to the subscribe version.
+  size_t ProcessSubscribe(
+      quic::QuicDataReader& reader,
+      MoqtMessageType message_type = MoqtMessageType::kSubscribe);
+  size_t ProcessSubscribeOk(
+      quic::QuicDataReader& reader,
+      MoqtMessageType message_type = MoqtMessageType::kSubscribeOk);
+  size_t ProcessSubscribeError(
+      quic::QuicDataReader& reader,
+      MoqtMessageType message_type = MoqtMessageType::kSubscribeError);
   size_t ProcessUnsubscribe(quic::QuicDataReader& reader);
   size_t ProcessSubscribeDone(quic::QuicDataReader& reader);
   size_t ProcessSubscribeUpdate(quic::QuicDataReader& reader);
   size_t ProcessAnnounce(quic::QuicDataReader& reader);
   size_t ProcessAnnounceOk(quic::QuicDataReader& reader);
   size_t ProcessAnnounceError(quic::QuicDataReader& reader);
-  size_t ProcessAnnounceCancel(quic::QuicDataReader& reader);
-  size_t ProcessTrackStatusRequest(quic::QuicDataReader& reader);
   size_t ProcessUnannounce(quic::QuicDataReader& reader);
+  size_t ProcessAnnounceCancel(quic::QuicDataReader& reader);
   size_t ProcessTrackStatus(quic::QuicDataReader& reader);
+  size_t ProcessTrackStatusOk(quic::QuicDataReader& reader);
+  size_t ProcessTrackStatusError(quic::QuicDataReader& reader);
   size_t ProcessGoAway(quic::QuicDataReader& reader);
   size_t ProcessSubscribeNamespace(quic::QuicDataReader& reader);
   size_t ProcessSubscribeNamespaceOk(quic::QuicDataReader& reader);

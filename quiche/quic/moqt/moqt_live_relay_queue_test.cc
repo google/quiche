@@ -8,8 +8,10 @@
 #include <optional>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_cached_object.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -24,12 +26,14 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
                                public MoqtObjectListener {
  public:
   TestMoqtLiveRelayQueue()
-      : MoqtLiveRelayQueue(FullTrackName{"test", "track"},
-                           MoqtForwardingPreference::kSubgroup) {
+      : MoqtLiveRelayQueue(
+            FullTrackName{"test", "track"}, MoqtForwardingPreference::kSubgroup,
+            MoqtDeliveryOrder::kAscending, quic::QuicTime::Infinite()) {
     AddObjectListener(this);
   }
 
-  void OnNewObjectAvailable(Location sequence, uint64_t subgroup_id) {
+  void OnNewObjectAvailable(Location sequence, uint64_t subgroup_id,
+                            MoqtPriority /*publisher_priority*/) {
     std::optional<PublishedObject> object =
         GetCachedObject(sequence.group, subgroup_id, sequence.object);
     QUICHE_CHECK(object.has_value());
@@ -64,8 +68,8 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
   void GetObjectsFromPast(const SubscribeWindow& window) {
     ForAllObjects([&](const CachedObject& object) {
       if (window.InWindow(object.metadata.location)) {
-        OnNewObjectAvailable(object.metadata.location,
-                             object.metadata.subgroup);
+        OnNewObjectAvailable(object.metadata.location, object.metadata.subgroup,
+                             object.metadata.publisher_priority);
       }
     });
   }
@@ -86,9 +90,7 @@ class TestMoqtLiveRelayQueue : public MoqtLiveRelayQueue,
   MOCK_METHOD(void, CloseTrack, (), ());
   MOCK_METHOD(void, OnTrackPublisherGone, (), (override));
   MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
-  MOCK_METHOD(void, OnSubscribeRejected,
-              (MoqtSubscribeErrorReason reason,
-               std::optional<uint64_t> track_alias),
+  MOCK_METHOD(void, OnSubscribeRejected, (MoqtSubscribeErrorReason reason),
               (override));
 };
 
@@ -466,7 +468,7 @@ TEST(MoqtLiveRelayQueue, StreamReset) {
     EXPECT_CALL(queue, OnSubgroupAbandoned(0, 0, 0x1));
   }
   EXPECT_TRUE(queue.AddObject(Location{0, 0}, 0, "a"));
-  EXPECT_TRUE(queue.OnStreamReset(Location{0, 0}, 0, 0x1));
+  EXPECT_TRUE(queue.OnStreamReset(0, 0, 0x1));
 }
 
 }  // namespace

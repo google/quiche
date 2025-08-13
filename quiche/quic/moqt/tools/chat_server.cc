@@ -15,6 +15,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_source.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_live_relay_queue.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -197,7 +198,8 @@ ChatServer::~ChatServer() {
 void ChatServer::AddUser(FullTrackName track_name) {
   // Add a local track.
   user_queues_[track_name] = std::make_shared<MoqtLiveRelayQueue>(
-      track_name, MoqtForwardingPreference::kSubgroup);
+      track_name, MoqtForwardingPreference::kSubgroup,
+      MoqtDeliveryOrder::kAscending, quic::QuicTime::Infinite());
   publisher_.Add(user_queues_[track_name]);
   for (auto& session : sessions_) {
     session.AnnounceIfSubscribed(track_name.track_namespace());

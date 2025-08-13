@@ -399,7 +399,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
-    const MoqtSubscribe& message) {
+    const MoqtSubscribe& message, MoqtMessageType message_type) {
   KeyValuePairList parameters;
   VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
   if (!ValidateVersionSpecificParameters(parameters,
@@ -434,7 +434,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
       return quiche::QuicheBuffer();
   }
   return SerializeControlMessage(
-      MoqtMessageType::kSubscribe, WireVarInt62(message.request_id),
+      message_type, WireVarInt62(message.request_id),
       WireFullTrackName(message.full_track_name),
       WireUint8(message.subscriber_priority),
       WireDeliveryOrder(message.group_order), WireBoolean(message.forward),
@@ -445,7 +445,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
-    const MoqtSubscribeOk& message) {
+    const MoqtSubscribeOk& message, MoqtMessageType message_type) {
   KeyValuePairList parameters;
   VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
   if (!ValidateVersionSpecificParameters(parameters,
@@ -456,7 +456,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
   }
   if (message.largest_location.has_value()) {
     return SerializeControlMessage(
-        MoqtMessageType::kSubscribeOk, WireVarInt62(message.request_id),
+        message_type, WireVarInt62(message.request_id),
         WireVarInt62(message.track_alias),
         WireVarInt62(message.expires.ToMilliseconds()),
         WireDeliveryOrder(message.group_order), WireUint8(1),
@@ -464,18 +464,18 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
         WireVarInt62(message.largest_location->object),
         WireKeyValuePairList(parameters));
   }
-  return SerializeControlMessage(
-      MoqtMessageType::kSubscribeOk, WireVarInt62(message.request_id),
-      WireVarInt62(message.track_alias),
-      WireVarInt62(message.expires.ToMilliseconds()),
-      WireDeliveryOrder(message.group_order), WireUint8(0),
-      WireKeyValuePairList(parameters));
+  return SerializeControlMessage(message_type, WireVarInt62(message.request_id),
+                                 WireVarInt62(message.track_alias),
+                                 WireVarInt62(message.expires.ToMilliseconds()),
+                                 WireDeliveryOrder(message.group_order),
+                                 WireUint8(0),
+                                 WireKeyValuePairList(parameters));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeError(
-    const MoqtSubscribeError& message) {
+    const MoqtSubscribeError& message, MoqtMessageType message_type) {
   return SerializeControlMessage(
-      MoqtMessageType::kSubscribeError, WireVarInt62(message.request_id),
+      message_type, WireVarInt62(message.request_id),
       WireVarInt62(message.error_code),
       WireStringWithVarInt62Length(message.reason_phrase));
 }
@@ -558,38 +558,19 @@ quiche::QuicheBuffer MoqtFramer::SerializeAnnounceCancel(
       WireStringWithVarInt62Length(message.error_reason));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeTrackStatusRequest(
-    const MoqtTrackStatusRequest& message) {
-  KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(
-          parameters, MoqtMessageType::kTrackStatusRequest)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
-    return quiche::QuicheBuffer();
-  }
-  return SerializeControlMessage(MoqtMessageType::kTrackStatusRequest,
-                                 WireVarInt62(message.request_id),
-                                 WireFullTrackName(message.full_track_name),
-                                 WireKeyValuePairList(parameters));
-}
-
 quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(
     const MoqtTrackStatus& message) {
-  KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kTrackStatus)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
-    return quiche::QuicheBuffer();
-  }
-  return SerializeControlMessage(MoqtMessageType::kTrackStatus,
-                                 WireVarInt62(message.request_id),
-                                 WireVarInt62(message.status_code),
-                                 WireVarInt62(message.largest_location.group),
-                                 WireVarInt62(message.largest_location.object),
-                                 WireKeyValuePairList(parameters));
+  return SerializeSubscribe(message, MoqtMessageType::kTrackStatus);
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeTrackStatusOk(
+    const MoqtTrackStatusOk& message) {
+  return SerializeSubscribeOk(message, MoqtMessageType::kTrackStatusOk);
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeTrackStatusError(
+    const MoqtTrackStatusError& message) {
+  return SerializeSubscribeError(message, MoqtMessageType::kTrackStatusError);
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {

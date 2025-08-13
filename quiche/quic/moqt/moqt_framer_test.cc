@@ -39,13 +39,14 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kSubscribeError,
       MoqtMessageType::kUnsubscribe,
       MoqtMessageType::kSubscribeDone,
-      MoqtMessageType::kAnnounceCancel,
-      MoqtMessageType::kTrackStatusRequest,
-      MoqtMessageType::kTrackStatus,
       MoqtMessageType::kAnnounce,
       MoqtMessageType::kAnnounceOk,
       MoqtMessageType::kAnnounceError,
       MoqtMessageType::kUnannounce,
+      MoqtMessageType::kAnnounceCancel,
+      MoqtMessageType::kTrackStatus,
+      MoqtMessageType::kTrackStatusOk,
+      MoqtMessageType::kTrackStatusError,
       MoqtMessageType::kGoAway,
       MoqtMessageType::kSubscribeNamespace,
       MoqtMessageType::kSubscribeNamespaceOk,
@@ -150,21 +151,25 @@ class MoqtFramerTest
         auto data = std::get<MoqtAnnounceError>(structured_data);
         return framer_.SerializeAnnounceError(data);
       }
-      case moqt::MoqtMessageType::kAnnounceCancel: {
-        auto data = std::get<MoqtAnnounceCancel>(structured_data);
-        return framer_.SerializeAnnounceCancel(data);
-      }
-      case moqt::MoqtMessageType::kTrackStatusRequest: {
-        auto data = std::get<MoqtTrackStatusRequest>(structured_data);
-        return framer_.SerializeTrackStatusRequest(data);
-      }
       case MoqtMessageType::kUnannounce: {
         auto data = std::get<MoqtUnannounce>(structured_data);
         return framer_.SerializeUnannounce(data);
       }
+      case moqt::MoqtMessageType::kAnnounceCancel: {
+        auto data = std::get<MoqtAnnounceCancel>(structured_data);
+        return framer_.SerializeAnnounceCancel(data);
+      }
       case moqt::MoqtMessageType::kTrackStatus: {
         auto data = std::get<MoqtTrackStatus>(structured_data);
         return framer_.SerializeTrackStatus(data);
+      }
+      case moqt::MoqtMessageType::kTrackStatusOk: {
+        auto data = std::get<MoqtTrackStatusOk>(structured_data);
+        return framer_.SerializeTrackStatusOk(data);
+      }
+      case moqt::MoqtMessageType::kTrackStatusError: {
+        auto data = std::get<MoqtTrackStatusError>(structured_data);
+        return framer_.SerializeTrackStatusError(data);
       }
       case moqt::MoqtMessageType::kGoAway: {
         auto data = std::get<MoqtGoAway>(structured_data);

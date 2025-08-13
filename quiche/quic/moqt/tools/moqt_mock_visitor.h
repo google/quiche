@@ -58,7 +58,7 @@ class MockTrackPublisher : public MoqtTrackPublisher {
  public:
   explicit MockTrackPublisher(FullTrackName name)
       : track_name_(std::move(name)) {
-    ON_CALL(*this, GetDeliveryOrder())
+    ON_CALL(*this, delivery_order())
         .WillByDefault(testing::Return(MoqtDeliveryOrder::kAscending));
   }
   const FullTrackName& GetTrackName() const override { return track_name_; }
@@ -69,19 +69,20 @@ class MockTrackPublisher : public MoqtTrackPublisher {
               (override));
   MOCK_METHOD(void, RemoveObjectListener, (MoqtObjectListener * listener),
               (override));
-  MOCK_METHOD(absl::StatusOr<MoqtTrackStatusCode>, GetTrackStatus, (),
+  MOCK_METHOD(std::optional<Location>, largest_location, (), (const, override));
+  MOCK_METHOD(std::optional<MoqtForwardingPreference>, forwarding_preference,
+              (), (const, override));
+  MOCK_METHOD(std::optional<MoqtDeliveryOrder>, delivery_order, (),
               (const, override));
-  MOCK_METHOD(Location, GetLargestLocation, (), (const, override));
-  MOCK_METHOD(MoqtForwardingPreference, GetForwardingPreference, (),
+  MOCK_METHOD(std::optional<quic::QuicTimeDelta>, expiration, (),
               (const, override));
-  MOCK_METHOD(MoqtPriority, GetPublisherPriority, (), (const, override));
-  MOCK_METHOD(MoqtDeliveryOrder, GetDeliveryOrder, (), (const, override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, StandaloneFetch,
-              (Location, Location, MoqtDeliveryOrder), (override));
+              (Location, Location, std::optional<MoqtDeliveryOrder>),
+              (override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, RelativeFetch,
-              (uint64_t, MoqtDeliveryOrder), (override));
+              (uint64_t, std::optional<MoqtDeliveryOrder>), (override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, AbsoluteFetch,
-              (uint64_t, MoqtDeliveryOrder), (override));
+              (uint64_t, std::optional<MoqtDeliveryOrder>), (override));
 
  private:
   FullTrackName track_name_;

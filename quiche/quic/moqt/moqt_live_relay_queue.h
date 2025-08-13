@@ -14,10 +14,10 @@
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_default_clock.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_cached_object.h"
 #include "quiche/quic/moqt/moqt_failed_fetch.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -41,11 +41,16 @@ namespace moqt {
 class MoqtLiveRelayQueue : public MoqtTrackPublisher {
  public:
   MoqtLiveRelayQueue(
-      FullTrackName track, MoqtForwardingPreference forwarding_preference,
+      FullTrackName track,
+      std::optional<MoqtForwardingPreference> forwarding_preference,
+      std::optional<MoqtDeliveryOrder> delivery_order,
+      std::optional<quic::QuicTime> expiration = quic::QuicTime::Infinite(),
       const quic::QuicClock* clock = quic::QuicDefaultClock::Get())
       : clock_(clock),
         track_(std::move(track)),
         forwarding_preference_(forwarding_preference),
+        delivery_order_(delivery_order),
+        expiration_(expiration),
         next_sequence_(0, 0) {}
 
   MoqtLiveRelayQueue(const MoqtLiveRelayQueue&) = delete;
@@ -83,16 +88,15 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
     return AddObject(metadata, object, fin);
   }
 
-  // Record a received FIN that did not come with the last object.
+  // Record a received FIN from upstream that did not come with the last object.
   // If the forwarding preference is kDatagram or kTrack, |sequence| is ignored.
   // Otherwise, |sequence| is used to determine which stream is being FINed. If
   // the object ID does not match the last object ID in the stream, no action
   // is taken.
   bool AddFin(Location sequence, uint64_t subgroup_id);
-  // Record a received RESET_STREAM. |sequence| encodes the group and subgroup
-  // of the stream that is being reset. Returns false on datagram tracks, or if
-  // the stream does not exist.
-  bool OnStreamReset(Location sequence, uint64_t subgroup_id,
+  // Record a received RESET_STREAM from upstream. Returns false on datagram
+  // tracks, or if the stream does not exist.
+  bool OnStreamReset(uint64_t group_id, uint64_t subgroup_id,
                      webtransport::StreamErrorCode error_code);
 
   // MoqtTrackPublisher implementation.
@@ -107,30 +111,41 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
   void RemoveObjectListener(MoqtObjectListener* listener) override {
     listeners_.erase(listener);
   }
-  absl::StatusOr<MoqtTrackStatusCode> GetTrackStatus() const override;
-  Location GetLargestLocation() const override;
-  MoqtForwardingPreference GetForwardingPreference() const override {
+  std::optional<Location> largest_location() const override;
+  std::optional<MoqtForwardingPreference> forwarding_preference()
+      const override {
     return forwarding_preference_;
   }
-  MoqtPriority GetPublisherPriority() const override {
-    return publisher_priority_;
-  }
-  MoqtDeliveryOrder GetDeliveryOrder() const override {
+  std::optional<MoqtDeliveryOrder> delivery_order() const override {
     return delivery_order_;
+  }
+  std::optional<quic::QuicTimeDelta> expiration() const override {
+    if (!expiration_.has_value()) {
+      return std::nullopt;
+    }
+    if (expiration_ == quic::QuicTime::Infinite()) {
+      return quic::QuicTimeDelta::Zero();
+    }
+    if (expiration_ < clock_->Now()) {
+      // TODO(martinduke): Tear everything down; the track is expired.
+      return quic::QuicTimeDelta::Zero();
+    }
+    return clock_->Now() - *expiration_;
   }
   std::unique_ptr<MoqtFetchTask> StandaloneFetch(
       Location /*start*/, Location /*end*/,
-      MoqtDeliveryOrder /*order*/) override {
+      std::optional<MoqtDeliveryOrder> /*order*/) override {
     return std::make_unique<MoqtFailedFetch>(
         absl::UnimplementedError("Fetch not implemented"));
   }
   std::unique_ptr<MoqtFetchTask> RelativeFetch(
-      uint64_t /*group_diff*/, MoqtDeliveryOrder /*order*/) override {
+      uint64_t /*group_diff*/,
+      std::optional<MoqtDeliveryOrder> /*order*/) override {
     return std::make_unique<MoqtFailedFetch>(
         absl::UnimplementedError("Fetch not implemented"));
   }
   std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
-      uint64_t /*group*/, MoqtDeliveryOrder /*order*/) override {
+      uint64_t /*group*/, std::optional<MoqtDeliveryOrder> /*order*/) override {
     return std::make_unique<MoqtFailedFetch>(
         absl::UnimplementedError("Fetch not implemented"));
   }
@@ -159,14 +174,14 @@ class MoqtLiveRelayQueue : public MoqtTrackPublisher {
   struct Group {
     uint64_t next_object = 0;
     bool complete = false;  // If true, kEndOfGroup has been received.
-    absl::btree_map<SubgroupPriority, Subgroup> subgroups;
+    absl::btree_map<uint64_t, Subgroup> subgroups;  // Ordered by subgroup id.
   };
 
   const quic::QuicClock* clock_;
   FullTrackName track_;
-  MoqtForwardingPreference forwarding_preference_;
-  MoqtPriority publisher_priority_ = 128;
-  MoqtDeliveryOrder delivery_order_ = MoqtDeliveryOrder::kAscending;
+  std::optional<MoqtForwardingPreference> forwarding_preference_;
+  std::optional<MoqtDeliveryOrder> delivery_order_;
+  std::optional<quic::QuicTime> expiration_;
   absl::btree_map<uint64_t, Group> queue_;  // Ordered by group id.
   absl::flat_hash_set<MoqtObjectListener*> listeners_;
   std::optional<Location> end_of_track_;

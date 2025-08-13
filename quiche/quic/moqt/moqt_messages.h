@@ -41,11 +41,11 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 }
 
 enum class MoqtVersion : uint64_t {
-  kDraft12 = 0xff00000c,
+  kDraft13 = 0xff00000d,
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 
-inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft12;
+inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft13;
 inline constexpr uint64_t kDefaultInitialMaxRequestId = 100;
 // TODO(martinduke): Implement an auth token cache.
 inline constexpr uint64_t kDefaultMaxAuthTokenCacheSize = 0;
@@ -129,7 +129,8 @@ class QUICHE_EXPORT MoqtDataStreamType {
   static std::optional<MoqtDataStreamType> FromValue(uint64_t value) {
     MoqtDataStreamType stream_type(value);
     if (stream_type.IsFetch() || stream_type.IsPadding() ||
-        stream_type.IsSubgroup()) {
+        (!((value & kSubgroupIdFlag) && (value & kFirstObjectIdFlag)) &&
+         stream_type.IsSubgroup())) {
       return stream_type;
     }
     return std::nullopt;
@@ -161,8 +162,9 @@ class QUICHE_EXPORT MoqtDataStreamType {
   bool IsFetch() const { return value_ == kFetch; }
   bool IsPadding() const { return value_ == kPadding; }
   bool IsSubgroup() const {
-    return (value_ & kSubgroupFlag) && (value_ & ~0x1f) == 0 &&
-           !((value_ & kSubgroupIdFlag) && (value_ & kFirstObjectIdFlag));
+    QUICHE_CHECK(
+        !((value_ & kSubgroupIdFlag) && (value_ & kFirstObjectIdFlag)));
+    return (value_ & kSubgroupFlag) && (value_ & ~0x1f) == 0;
   }
   bool IsSubgroupPresent() const {
     return IsSubgroup() && (value_ & kSubgroupIdFlag);
@@ -240,8 +242,9 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kUnsubscribe = 0x0a,
   kSubscribeDone = 0x0b,
   kAnnounceCancel = 0x0c,
-  kTrackStatusRequest = 0x0d,
-  kTrackStatus = 0x0e,
+  kTrackStatus = 0x0d,
+  kTrackStatusOk = 0x0e,
+  kTrackStatusError = 0x0f,
   kGoAway = 0x10,
   kSubscribeNamespace = 0x11,
   kSubscribeNamespaceOk = 0x12,
@@ -323,7 +326,7 @@ struct VersionSpecificParameters {
         max_cache_duration(max_cache_duration) {}
   VersionSpecificParameters(AuthTokenType token_type, absl::string_view token) {
     authorization_token.emplace_back(token_type, token);
-  };
+  }
   VersionSpecificParameters(quic::QuicTimeDelta delivery_timeout,
                             AuthTokenType token_type, absl::string_view token)
       : delivery_timeout(delivery_timeout) {
@@ -725,38 +728,21 @@ struct QUICHE_EXPORT MoqtAnnounceCancel {
   std::string error_reason;
 };
 
-enum class QUICHE_EXPORT MoqtTrackStatusCode : uint64_t {
-  kInProgress = 0x0,
-  kDoesNotExist = 0x1,
-  kNotYetBegun = 0x2,
-  kFinished = 0x3,
-  kStatusNotAvailable = 0x4,
+struct QUICHE_EXPORT MoqtTrackStatus : public MoqtSubscribe {
+  MoqtTrackStatus() = default;
+  MoqtTrackStatus(MoqtSubscribe subscribe) : MoqtSubscribe(subscribe) {}
 };
 
-inline bool DoesTrackStatusImplyHavingData(MoqtTrackStatusCode code) {
-  switch (code) {
-    case MoqtTrackStatusCode::kInProgress:
-    case MoqtTrackStatusCode::kFinished:
-      return true;
-    case MoqtTrackStatusCode::kDoesNotExist:
-    case MoqtTrackStatusCode::kNotYetBegun:
-    case MoqtTrackStatusCode::kStatusNotAvailable:
-      return false;
-  }
-  return false;
-}
-
-struct QUICHE_EXPORT MoqtTrackStatusRequest {
-  uint64_t request_id;
-  FullTrackName full_track_name;
-  VersionSpecificParameters parameters;
+struct QUICHE_EXPORT MoqtTrackStatusOk : public MoqtSubscribeOk {
+  MoqtTrackStatusOk() = default;
+  MoqtTrackStatusOk(MoqtSubscribeOk subscribe_ok)
+      : MoqtSubscribeOk(subscribe_ok) {}
 };
 
-struct QUICHE_EXPORT MoqtTrackStatus {
-  uint64_t request_id;
-  MoqtTrackStatusCode status_code;
-  Location largest_location;
-  VersionSpecificParameters parameters;
+struct QUICHE_EXPORT MoqtTrackStatusError : public MoqtSubscribeError {
+  MoqtTrackStatusError() = default;
+  MoqtTrackStatusError(MoqtSubscribeError subscribe_error)
+      : MoqtSubscribeError(subscribe_error) {}
 };
 
 struct QUICHE_EXPORT MoqtGoAway {

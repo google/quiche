@@ -25,99 +25,6 @@ namespace moqt::test {
 
 namespace {
 
-struct TypeVisitor {
-  MoqtMessageType operator()(const MoqtClientSetup&) {
-    return MoqtMessageType::kClientSetup;
-  }
-  MoqtMessageType operator()(const MoqtServerSetup&) {
-    return MoqtMessageType::kServerSetup;
-  }
-  MoqtMessageType operator()(const MoqtSubscribe&) {
-    return MoqtMessageType::kSubscribe;
-  }
-  MoqtMessageType operator()(const MoqtSubscribeOk&) {
-    return MoqtMessageType::kSubscribeOk;
-  }
-  MoqtMessageType operator()(const MoqtSubscribeError&) {
-    return MoqtMessageType::kSubscribeError;
-  }
-  MoqtMessageType operator()(const MoqtUnsubscribe&) {
-    return MoqtMessageType::kUnsubscribe;
-  }
-  MoqtMessageType operator()(const MoqtSubscribeDone&) {
-    return MoqtMessageType::kSubscribeDone;
-  }
-  MoqtMessageType operator()(const MoqtSubscribeUpdate&) {
-    return MoqtMessageType::kSubscribeUpdate;
-  }
-  MoqtMessageType operator()(const MoqtAnnounce&) {
-    return MoqtMessageType::kAnnounce;
-  }
-  MoqtMessageType operator()(const MoqtAnnounceOk&) {
-    return MoqtMessageType::kAnnounceOk;
-  }
-  MoqtMessageType operator()(const MoqtAnnounceError&) {
-    return MoqtMessageType::kAnnounceError;
-  }
-  MoqtMessageType operator()(const MoqtAnnounceCancel&) {
-    return MoqtMessageType::kAnnounceCancel;
-  }
-  MoqtMessageType operator()(const MoqtTrackStatusRequest&) {
-    return MoqtMessageType::kTrackStatusRequest;
-  }
-  MoqtMessageType operator()(const MoqtUnannounce&) {
-    return MoqtMessageType::kUnannounce;
-  }
-  MoqtMessageType operator()(const MoqtTrackStatus&) {
-    return MoqtMessageType::kTrackStatus;
-  }
-  MoqtMessageType operator()(const MoqtGoAway&) {
-    return MoqtMessageType::kGoAway;
-  }
-  MoqtMessageType operator()(const MoqtSubscribeNamespace&) {
-    return MoqtMessageType::kSubscribeNamespace;
-  }
-  MoqtMessageType operator()(const MoqtSubscribeNamespaceOk&) {
-    return MoqtMessageType::kSubscribeNamespaceOk;
-  }
-  MoqtMessageType operator()(const MoqtSubscribeNamespaceError&) {
-    return MoqtMessageType::kSubscribeNamespaceError;
-  }
-  MoqtMessageType operator()(const MoqtUnsubscribeNamespace&) {
-    return MoqtMessageType::kUnsubscribeNamespace;
-  }
-  MoqtMessageType operator()(const MoqtMaxRequestId&) {
-    return MoqtMessageType::kMaxRequestId;
-  }
-  MoqtMessageType operator()(const MoqtFetch&) {
-    return MoqtMessageType::kFetch;
-  }
-  MoqtMessageType operator()(const MoqtFetchCancel&) {
-    return MoqtMessageType::kFetchCancel;
-  }
-  MoqtMessageType operator()(const MoqtFetchOk&) {
-    return MoqtMessageType::kFetchOk;
-  }
-  MoqtMessageType operator()(const MoqtFetchError&) {
-    return MoqtMessageType::kFetchError;
-  }
-  MoqtMessageType operator()(const MoqtRequestsBlocked&) {
-    return MoqtMessageType::kRequestsBlocked;
-  }
-  MoqtMessageType operator()(const MoqtPublish&) {
-    return MoqtMessageType::kPublish;
-  }
-  MoqtMessageType operator()(const MoqtPublishOk&) {
-    return MoqtMessageType::kPublishOk;
-  }
-  MoqtMessageType operator()(const MoqtPublishError&) {
-    return MoqtMessageType::kPublishError;
-  }
-  MoqtMessageType operator()(const MoqtObjectAck&) {
-    return MoqtMessageType::kObjectAck;
-  }
-};
-
 struct FramingVisitor {
   quiche::QuicheBuffer operator()(const MoqtClientSetup& message) {
     return framer.SerializeClientSetup(message);
@@ -152,17 +59,20 @@ struct FramingVisitor {
   quiche::QuicheBuffer operator()(const MoqtAnnounceError& message) {
     return framer.SerializeAnnounceError(message);
   }
-  quiche::QuicheBuffer operator()(const MoqtAnnounceCancel& message) {
-    return framer.SerializeAnnounceCancel(message);
-  }
-  quiche::QuicheBuffer operator()(const MoqtTrackStatusRequest& message) {
-    return framer.SerializeTrackStatusRequest(message);
-  }
   quiche::QuicheBuffer operator()(const MoqtUnannounce& message) {
     return framer.SerializeUnannounce(message);
   }
+  quiche::QuicheBuffer operator()(const MoqtAnnounceCancel& message) {
+    return framer.SerializeAnnounceCancel(message);
+  }
   quiche::QuicheBuffer operator()(const MoqtTrackStatus& message) {
     return framer.SerializeTrackStatus(message);
+  }
+  quiche::QuicheBuffer operator()(const MoqtTrackStatusOk& message) {
+    return framer.SerializeTrackStatusOk(message);
+  }
+  quiche::QuicheBuffer operator()(const MoqtTrackStatusError& message) {
+    return framer.SerializeTrackStatusError(message);
   }
   quiche::QuicheBuffer operator()(const MoqtGoAway& message) {
     return framer.SerializeGoAway(message);
@@ -211,6 +121,7 @@ struct FramingVisitor {
   }
 
   MoqtFramer& framer;
+  bool is_track_status;
 };
 
 class GenericMessageParseVisitor : public MoqtControlParserVisitor {
@@ -251,16 +162,19 @@ class GenericMessageParseVisitor : public MoqtControlParserVisitor {
   void OnAnnounceErrorMessage(const MoqtAnnounceError& message) {
     frames_.push_back(message);
   }
-  void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) {
-    frames_.push_back(message);
-  }
-  void OnTrackStatusRequestMessage(const MoqtTrackStatusRequest& message) {
-    frames_.push_back(message);
-  }
   void OnUnannounceMessage(const MoqtUnannounce& message) {
     frames_.push_back(message);
   }
+  void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) {
+    frames_.push_back(message);
+  }
   void OnTrackStatusMessage(const MoqtTrackStatus& message) {
+    frames_.push_back(message);
+  }
+  void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) {
+    frames_.push_back(message);
+  }
+  void OnTrackStatusErrorMessage(const MoqtTrackStatusError& message) {
     frames_.push_back(message);
   }
   void OnGoAwayMessage(const MoqtGoAway& message) {
@@ -322,10 +236,6 @@ std::string SerializeGenericMessage(const MoqtGenericFrame& frame,
                                     bool use_webtrans) {
   MoqtFramer framer(quiche::SimpleBufferAllocator::Get(), use_webtrans);
   return std::string(std::visit(FramingVisitor{framer}, frame).AsStringView());
-}
-
-MoqtMessageType MessageTypeForGenericMessage(const MoqtGenericFrame& frame) {
-  return std::visit(TypeVisitor(), frame);
 }
 
 std::vector<MoqtGenericFrame> ParseGenericMessage(absl::string_view body) {
