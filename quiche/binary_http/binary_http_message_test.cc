@@ -524,6 +524,19 @@ TEST(IndeterminateLengthDecoder, BufferedRequestDecodingSuccess) {
   ExpectRequestMessageSectionHandler(handler.GetMessageData());
 }
 
+TEST(IndeterminateLengthDecoder,
+     OutOfRangeTreatedAsInvalidArgumentWhenEndStream) {
+  std::string incomplete_request_bytes =
+      "4002"         // 2-byte framing indicator
+      "04504F5354";  // :method = POST
+  std::string request_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(incomplete_request_bytes, &request_bytes));
+  RequestMessageSectionTestHandler handler;
+  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
+  EXPECT_THAT(decoder.Decode(request_bytes, true),
+              test::StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
 TEST(IndeterminateLengthDecoder, InvalidFramingError) {
   RequestMessageSectionTestHandler handler;
   BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
@@ -920,7 +933,7 @@ TEST_P(InvalidEndStreamTest, InvalidEndStreamError) {
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(test_case.request, &request_bytes));
   absl::Status status = decoder.Decode(request_bytes, true);
-  EXPECT_THAT(status, test::StatusIs(absl::StatusCode::kOutOfRange));
+  EXPECT_THAT(status, test::StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 INSTANTIATE_TEST_SUITE_P(

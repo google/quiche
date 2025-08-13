@@ -588,6 +588,11 @@ absl::Status BinaryHttpRequest::IndeterminateLengthDecoder::Decode(
   if (end_stream) {
     current_section_ = MessageSection::kEnd;
     buffer_.clear();
+    // Out of range errors shall be treated as invalid argument errors when the
+    // stream is ending.
+    if (absl::IsOutOfRange(status)) {
+      return absl::InvalidArgumentError(status.message());
+    }
     return status;
   }
   if (absl::IsOutOfRange(status)) {
