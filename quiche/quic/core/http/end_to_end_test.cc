@@ -8631,6 +8631,36 @@ TEST_P(EndToEndTest, CubicConnectionOptionSent) {
   EXPECT_EQ(GetClientConnection()->ecn_codepoint(), ECN_NOT_ECT);
 }
 
+TEST_P(EndToEndTest, ChangeFlowLabelOnRTO) {
+  SetQuicReloadableFlag(quic_allow_flow_label_blackhole_avoidance_on_server,
+                        true);
+  client_extra_copts_.push_back(kCFLS);
+  server_address_ =
+      QuicSocketAddress(QuicIpAddress::Loopback6(), server_address_.port());
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames()) {
+    return;
+  }
+
+  // Block the client until the server changes its flow label on RTO.
+  EXPECT_TRUE(server_thread_->WaitUntil(
+      [&]() {
+        QuicConnection* server_connection = GetServerConnection();
+        if (server_connection == nullptr) {
+          return false;
+        }
+        QuicConnectionStats server_stats = server_connection->GetStats();
+        EXPECT_TRUE(
+            server_connection->enable_black_hole_avoidance_via_flow_label());
+        EXPECT_TRUE(server_stats.num_flow_label_changes == 0 ||
+                    server_stats.pto_count > 0);
+        return server_connection->GetStats().num_flow_label_changes > 0;
+      },
+      QuicTime::Delta::FromSeconds(5)));
+
+  client_->Disconnect();
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

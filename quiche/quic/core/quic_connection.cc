@@ -625,6 +625,15 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     }
   }
 
+  if (perspective_ == Perspective::IS_SERVER && version().HasIetfQuicFrames() &&
+      config.HasClientSentConnectionOption(kCFLS, perspective_) &&
+      GetQuicReloadableFlag(
+          quic_allow_flow_label_blackhole_avoidance_on_server)) {
+    QUIC_RELOADABLE_FLAG_COUNT(
+        quic_allow_flow_label_blackhole_avoidance_on_server);
+    EnableBlackholeAvoidanceViaFlowLabel();
+  }
+
   if (config.HasMinAckDelayDraft10ToSend()) {
     if (config.GetMinAckDelayDraft10ToSendMs() <=
         config.GetMaxAckDelayToSendMs()) {  // MinAckDelay is valid.

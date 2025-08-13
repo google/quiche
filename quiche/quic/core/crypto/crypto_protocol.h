@@ -535,9 +535,12 @@ DEFINE_STATIC_QUIC_TAG(PDE2);  // 2 PTOs for path degradation.
 DEFINE_STATIC_QUIC_TAG(PDE3);  // 3 PTOs for path degradation.
 DEFINE_STATIC_QUIC_TAG(PDE5);  // 5 PTOs for path degradation.
 DEFINE_STATIC_QUIC_TAG(MPR1);  // Probe for multi-port path on RTO.
+// TODO: b/433537286 - Remove this tag once the experiment is complete.
+DEFINE_STATIC_QUIC_TAG(CFLS);  // Enable flow-label-based blackhole avoidance on
+                               // the server side when the client sends CFLS.
 
-// Experiment for explicit connection close packet for silent idle timeout from
-// server.
+// Experiment for explicit connection close packet for silent idle timeout
+// from server.
 DEFINE_STATIC_QUIC_TAG(ECCP);
 
 #undef DEFINE_STATIC_QUIC_TAG
