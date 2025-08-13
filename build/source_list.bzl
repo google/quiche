@@ -1266,7 +1266,6 @@ quiche_tests_srcs = [
     "quic/core/http/http_encoder_test.cc",
     "quic/core/http/http_frames_test.cc",
     "quic/core/http/metadata_decoder_test.cc",
-    "quic/core/http/quic_connection_migration_manager_test.cc",
     "quic/core/http/quic_header_list_test.cc",
     "quic/core/http/quic_headers_stream_test.cc",
     "quic/core/http/quic_receive_control_stream_test.cc",
@@ -1385,6 +1384,7 @@ io_tests_hdrs = [
 io_tests_srcs = [
     "quic/core/chlo_extractor_test.cc",
     "quic/core/http/end_to_end_test.cc",
+    "quic/core/http/quic_connection_migration_manager_test.cc",
     "quic/core/http/quic_spdy_client_session_test.cc",
     "quic/core/http/quic_spdy_client_stream_test.cc",
     "quic/core/http/quic_spdy_server_stream_base_test.cc",
