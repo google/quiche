@@ -20,6 +20,7 @@
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/hpack/varint/hpack_varint_decoder.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
@@ -135,8 +136,7 @@ class QUICHE_EXPORT HpackStringDecoder {
     huffman_encoded_ = (h_and_prefix & 0x80) == 0x80;
     *status = length_decoder_.Start(h_and_prefix, 7, db);
     if (*status == DecodeStatus::kDecodeDone) {
-      OnStringStart(cb, status);
-      return true;
+      return OnStringStart(cb, status);
     }
     // Set the state to cover the DecodeStatus::kDecodeInProgress case.
     // Won't be needed if the status is kDecodeError.
@@ -156,8 +156,7 @@ class QUICHE_EXPORT HpackStringDecoder {
     *status = length_decoder_.Resume(db);
     if (*status == DecodeStatus::kDecodeDone) {
       state_ = kDecodingString;
-      OnStringStart(cb, status);
-      return true;
+      return OnStringStart(cb, status);
     }
     return false;
   }
@@ -165,11 +164,20 @@ class QUICHE_EXPORT HpackStringDecoder {
   // Returns true if the listener wants the decoding to continue, and
   // false otherwise, in which case status set.
   template <class Listener>
-  void OnStringStart(Listener* cb, DecodeStatus* /*status*/) {
-    // TODO(vasilvv): fail explicitly in case of truncation.
+  bool OnStringStart(Listener* cb, DecodeStatus* status) {
+    if (GetQuicheReloadableFlag(http2_hpack_varint_decoding_fix) &&
+        (length_decoder_.value() > std::numeric_limits<uint32_t>::max())) {
+      // Upper layer decoder is even more strict about the string length. But
+      // for simplicity, and to avoid the possibility of integer overflow on
+      // 32-bit platforms, strings with lengths greater than 2^32 are rejected.
+      *status = DecodeStatus::kDecodeError;
+      return false;
+    }
     remaining_ = static_cast<size_t>(length_decoder_.value());
+    QUICHE_DCHECK_EQ(remaining_, length_decoder_.value());
     // Make callback so consumer knows what is coming.
     cb->OnStringStart(huffman_encoded_, remaining_);
+    return true;
   }
 
   // Passes the available portion of the string to the listener, and signals

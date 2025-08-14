@@ -65,6 +65,15 @@ DecodeStatus HpackEntryDecoder::Start(DecodeBuffer* db,
   DecodeStatus status = entry_type_decoder_.Start(db);
   switch (status) {
     case DecodeStatus::kDecodeDone:
+      if (GetQuicheReloadableFlag(http2_hpack_varint_decoding_fix) &&
+          entry_type_decoder_.varint() > std::numeric_limits<uint32_t>::max()) {
+        QUICHE_VLOG(2)
+            << "Invalid varint for index: " << entry_type_decoder_.varint()
+            << ". The index should be representable using 4 bytes as the max "
+               "table size is negotiated using a 4 bytes SETTING";
+        error_ = HpackDecodingError::kIndexVarintError;
+        return DecodeStatus::kDecodeError;
+      }
       // The type of the entry and its varint fit into the current decode
       // buffer.
       if (entry_type_decoder_.entry_type() == HpackEntryType::kIndexedHeader) {
@@ -120,6 +129,16 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
         // entry_type_decoder_ returned kDecodeDone, now need to decide how
         // to proceed.
         QUICHE_DVLOG(1) << "kDecodedType: db->Remaining=" << db->Remaining();
+        if (GetQuicheReloadableFlag(http2_hpack_varint_decoding_fix) &&
+            entry_type_decoder_.varint() >
+                std::numeric_limits<uint32_t>::max()) {
+          error_ = HpackDecodingError::kIndexVarintError;
+          QUICHE_VLOG(2)
+              << "Invalid varint for index: " << entry_type_decoder_.varint()
+              << ". The index should be representable using 4 bytes as the max "
+                 "table size is negotiated using a 4 bytes SETTING";
+          return DecodeStatus::kDecodeError;
+        }
         if (DispatchOnType(listener)) {
           // All done.
           return DecodeStatus::kDecodeDone;
@@ -223,6 +242,8 @@ DecodeStatus HpackEntryDecoder::Resume(DecodeBuffer* db,
 bool HpackEntryDecoder::DispatchOnType(HpackEntryDecoderListener* listener) {
   const HpackEntryType entry_type = entry_type_decoder_.entry_type();
   const uint32_t varint = static_cast<uint32_t>(entry_type_decoder_.varint());
+  QUICHE_DCHECK(!GetQuicheReloadableFlag(http2_hpack_varint_decoding_fix) ||
+                varint == entry_type_decoder_.varint());
   switch (entry_type) {
     case HpackEntryType::kIndexedHeader:
       // The entry consists solely of the entry type and varint. See:

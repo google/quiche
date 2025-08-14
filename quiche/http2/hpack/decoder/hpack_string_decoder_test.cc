@@ -15,6 +15,7 @@
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/test_tools/random_decoder_test_base.h"
 #include "quiche/http2/test_tools/verify_macros.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -148,6 +149,27 @@ TEST_F(HpackStringDecoderTest, DecodeLongStrings) {
                             MakeValidator(value, kCompressed))));
   EXPECT_EQ(offset_after_value, b.Offset());
   EXPECT_EQ(0u, b.Remaining());
+}
+
+TEST_F(HpackStringDecoderTest, ErrorOnExcessivelyLongStrings) {
+  const char length_prefix[] = {
+      '\x7f', '\x92', '\xff', '\xff', '\xff', '\xff',
+      '\xff', '\xff', '\xff', '\xff', '\x00'};  // == Not Huffman encoded +
+                                                // string length 2^63 + 17 ==
+  const std::string partial_string = Random().RandString(1024);
+  char input[sizeof(length_prefix) + 1024];
+  memcpy(input, length_prefix, sizeof(length_prefix));
+  memcpy(input + sizeof(length_prefix), partial_string.data(), 1024);
+  DecodeBuffer b(input);
+  if (GetQuicheReloadableFlag(http2_hpack_varint_decoding_fix)) {
+    EXPECT_TRUE(DecodeAndValidateSeveralWays(&b, kMayReturnZeroOnFirst,
+                                             ValidateError()));
+  } else {
+    // The decoder should be waiting for more bytes of the excessively long
+    // string.
+    EXPECT_TRUE(DecodeAndValidateSeveralWays(
+        &b, kMayReturnZeroOnFirst, ValidateInProgressAndOffset(b.FullSize())));
+  }
 }
 
 }  // namespace

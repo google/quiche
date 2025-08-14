@@ -14,6 +14,7 @@
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/test_tools/random_decoder_test_base.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -79,6 +80,28 @@ TEST_F(HpackEntryDecoderTest, IndexedHeader_Literals) {
     EXPECT_TRUE(
         DecodeAndValidateSeveralWays(&b, ValidateDoneAndEmpty(do_check)));
     EXPECT_TRUE(do_check());
+  }
+  collector_.Clear();
+
+  const char input[] = {
+      '\xff', '\x92', '\xff', '\xff', '\xff', '\xff',
+      '\xff', '\xff', '\xff', '\xff', '\x00'};  // == Index 2^63 + 17 ==
+  if (GetQuicheReloadableFlag(http2_hpack_varint_decoding_fix)) {
+    DecodeBuffer b(input);
+    EXPECT_TRUE(DecodeAndValidateSeveralWays(&b, ValidateError()));
+    EXPECT_EQ(decoder_.error(), HpackDecodingError::kIndexVarintError);
+  } else {
+    DecodeBuffer b1(input);
+    auto do_check1 = [this]() {
+      return collector_.ValidateIndexedHeader((1ULL << 63) + 17);
+    };
+    EXPECT_TRUE(DecodeSegmentsAndValidate(&b1, SelectRemaining(),
+                                          ValidateDoneAndEmpty(do_check1)));
+    // If decoding 1 byte at a time, the decoder will return a wrong index.
+    DecodeBuffer b2(input);
+    auto do_check2 = [this]() { return collector_.ValidateIndexedHeader(17); };
+    EXPECT_TRUE(DecodeSegmentsAndValidate(&b2, SelectOne(),
+                                          ValidateDoneAndEmpty(do_check2)));
   }
 }
 

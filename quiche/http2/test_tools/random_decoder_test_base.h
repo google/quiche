@@ -235,6 +235,24 @@ class QUICHE_NO_EXPORT RandomDecoderTest : public quiche::test::QuicheTest {
     return ValidateDoneAndOffset(offset, NoArgValidator());
   }
 
+  static Validator ValidateError() {
+    return [](const DecodeBuffer& /*input*/,
+              DecodeStatus status) -> AssertionResult {
+      HTTP2_VERIFY_EQ(status, DecodeStatus::kDecodeError);
+      return ::testing::AssertionSuccess();
+    };
+  }
+
+  static Validator ValidateInProgressAndOffset(uint32_t offset) {
+    return [offset](const DecodeBuffer& input,
+                    DecodeStatus status) -> AssertionResult {
+      HTTP2_VERIFY_EQ(status, DecodeStatus::kDecodeInProgress);
+      HTTP2_VERIFY_EQ(offset, input.Offset())
+          << "\nRemaining=" << input.Remaining();
+      return ::testing::AssertionSuccess();
+    };
+  }
+
   // Expose |random_| as Http2Random so callers don't have to care about which
   // sub-class of Http2Random is used, nor can they rely on the specific
   // sub-class that RandomDecoderTest uses.

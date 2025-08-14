@@ -10,6 +10,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 
 namespace quic {
@@ -241,10 +242,18 @@ bool QpackInstructionDecoder::DoVarintDone() {
     return true;
   }
 
-  string_length_ = varint_decoder_.value();
-  if (string_length_ > kStringLiteralLengthLimit) {
-    OnError(ErrorCode::STRING_LITERAL_TOO_LONG, "String literal too long.");
-    return false;
+  if (GetQuicReloadableFlag(http2_hpack_varint_decoding_fix)) {
+    if (varint_decoder_.value() > kStringLiteralLengthLimit) {
+      OnError(ErrorCode::STRING_LITERAL_TOO_LONG, "String literal too long.");
+      return false;
+    }
+    string_length_ = varint_decoder_.value();
+  } else {
+    string_length_ = varint_decoder_.value();
+    if (string_length_ > kStringLiteralLengthLimit) {
+      OnError(ErrorCode::STRING_LITERAL_TOO_LONG, "String literal too long.");
+      return false;
+    }
   }
 
   std::string* const string =
