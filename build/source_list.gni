@@ -1726,6 +1726,7 @@ blind_sign_auth_hdrs = [
     "src/quiche/blind_sign_auth/blind_sign_auth_test_data.h",
     "src/quiche/blind_sign_auth/blind_sign_message_interface.h",
     "src/quiche/blind_sign_auth/blind_sign_message_response.h",
+    "src/quiche/blind_sign_auth/blind_sign_tracing_hooks.h",
     "src/quiche/blind_sign_auth/cached_blind_sign_auth.h",
     "src/quiche/blind_sign_auth/test_tools/mock_blind_sign_auth_interface.h",
     "src/quiche/blind_sign_auth/test_tools/mock_blind_sign_message_interface.h",

@@ -5,18 +5,24 @@
 #ifndef QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_AUTH_H_
 #define QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_AUTH_H_
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "absl/time/time.h"
+#include "absl/types/span.h"
 #include "anonymous_tokens/cpp/privacy_pass/rsa_bssa_public_metadata_client.h"
 #include "anonymous_tokens/cpp/privacy_pass/token_encodings.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
 #include "quiche/blind_sign_auth/blind_sign_message_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_message_response.h"
+#include "quiche/blind_sign_auth/blind_sign_tracing_hooks.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
@@ -25,8 +31,11 @@ namespace quiche {
 class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
  public:
   explicit BlindSignAuth(BlindSignMessageInterface* fetcher,
-                         privacy::ppn::BlindSignAuthOptions auth_options)
-      : fetcher_(fetcher), auth_options_(std::move(auth_options)) {}
+                         privacy::ppn::BlindSignAuthOptions auth_options,
+                         BlindSignTracingHooks* hooks = nullptr)
+      : fetcher_(fetcher),
+        auth_options_(std::move(auth_options)),
+        hooks_(hooks) {}
 
   // Returns signed unblinded tokens, their expiration time, and their geo in a
   // callback.
@@ -132,6 +141,7 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
 
   BlindSignMessageInterface* fetcher_ = nullptr;
   privacy::ppn::BlindSignAuthOptions auth_options_;
+  BlindSignTracingHooks* hooks_ = nullptr;
 };
 
 std::string BlindSignAuthServiceTypeToString(
