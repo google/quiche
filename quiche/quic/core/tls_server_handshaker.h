@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "openssl/base.h"
@@ -349,6 +350,11 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
 
   std::unique_ptr<ProofSourceHandle> proof_source_handle_;
   ProofSource* proof_source_;
+
+  // proof_verifier_ is an optional object that can verify a client's
+  // certificate chain. If this is null, then client certificates will always be
+  // considered valid.
+  ProofVerifier* absl_nullable proof_verifier_;
 
   // State to handle potentially asynchronous session ticket decryption.
   // |ticket_decryption_callback_| points to the non-owned callback that was

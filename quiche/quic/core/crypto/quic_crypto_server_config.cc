@@ -31,6 +31,7 @@
 #include "quiche/quic/core/crypto/key_exchange.h"
 #include "quiche/quic/core/crypto/p256_key_exchange.h"
 #include "quiche/quic/core/crypto/proof_source.h"
+#include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/quic_hkdf.h"
@@ -273,13 +274,15 @@ void QuicCryptoServerConfig::ProcessClientHelloContext::Succeed(
 QuicCryptoServerConfig::QuicCryptoServerConfig(
     absl::string_view source_address_token_secret,
     QuicRandom* server_nonce_entropy, std::unique_ptr<ProofSource> proof_source,
-    std::unique_ptr<KeyExchangeSource> key_exchange_source)
+    std::unique_ptr<KeyExchangeSource> key_exchange_source,
+    std::unique_ptr<ProofVerifier> proof_verifier)
     : replay_protection_(true),
       chlo_multiplier_(kMultiplier),
       configs_lock_(),
       primary_config_(nullptr),
       next_config_promotion_time_(QuicWallTime::Zero()),
       proof_source_(std::move(proof_source)),
+      proof_verifier_(std::move(proof_verifier)),
       key_exchange_source_(std::move(key_exchange_source)),
       ssl_ctx_(TlsServerConnection::CreateSslCtx(proof_source_.get())),
       source_address_token_future_secs_(3600),
@@ -1764,6 +1767,10 @@ int QuicCryptoServerConfig::NumberOfConfigs() const {
 
 ProofSource* QuicCryptoServerConfig::proof_source() const {
   return proof_source_.get();
+}
+
+ProofVerifier* QuicCryptoServerConfig::proof_verifier() const {
+  return proof_verifier_.get();
 }
 
 SSL_CTX* QuicCryptoServerConfig::ssl_ctx() const { return ssl_ctx_.get(); }

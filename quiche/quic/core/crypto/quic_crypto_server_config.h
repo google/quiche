@@ -12,6 +12,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
@@ -22,6 +23,7 @@
 #include "quiche/quic/core/crypto/crypto_secret_boxer.h"
 #include "quiche/quic/core/crypto/key_exchange.h"
 #include "quiche/quic/core/crypto/proof_source.h"
+#include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/crypto/quic_crypto_proof.h"
 #include "quiche/quic/core/crypto/quic_random.h"
@@ -36,6 +38,7 @@ namespace quic {
 
 class CryptoHandshakeMessage;
 class ProofSource;
+class ProofVerifier;
 class QuicClock;
 class QuicServerConfigProtobuf;
 struct QuicSignedServerConfig;
@@ -213,7 +216,8 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
       absl::string_view source_address_token_secret,
       QuicRandom* server_nonce_entropy,
       std::unique_ptr<ProofSource> proof_source,
-      std::unique_ptr<KeyExchangeSource> key_exchange_source);
+      std::unique_ptr<KeyExchangeSource> key_exchange_source,
+      std::unique_ptr<ProofVerifier> proof_verifier = nullptr);
   QuicCryptoServerConfig(const QuicCryptoServerConfig&) = delete;
   QuicCryptoServerConfig& operator=(const QuicCryptoServerConfig&) = delete;
   ~QuicCryptoServerConfig();
@@ -437,6 +441,7 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
   }
 
   ProofSource* proof_source() const;
+  ProofVerifier* absl_nullable proof_verifier() const;
 
   SSL_CTX* ssl_ctx() const;
 
@@ -902,6 +907,12 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
   // proof_source_ contains an object that can provide certificate chains and
   // signatures.
   std::unique_ptr<ProofSource> proof_source_;
+
+  // proof_verifier_ is an optional object that can verify a client's
+  // certificate chain. Crypto server stream implementations can use this when
+  // verifying a client's certificate chain, but must be able to handle the case
+  // where this is null.
+  std::unique_ptr<ProofVerifier> proof_verifier_;
 
   // key_exchange_source_ contains an object that can provide key exchange
   // objects.

@@ -5,6 +5,7 @@
 #include "quiche/quic/core/tls_server_handshaker.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
@@ -15,6 +16,7 @@
 #include "quiche/quic/core/crypto/certificate_util.h"
 #include "quiche/quic/core/crypto/client_proof_source.h"
 #include "quiche/quic/core/crypto/proof_source.h"
+#include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_crypto_client_stream.h"
@@ -77,6 +79,33 @@ std::vector<TestParams> GetTestParams() {
   return params;
 }
 
+class MockProofVerifier : public ProofVerifier {
+ public:
+  MOCK_METHOD(QuicAsyncStatus, VerifyProof,
+              (const std::string& hostname, uint16_t port,
+               const std::string& server_config,
+               QuicTransportVersion transport_version,
+               absl::string_view chlo_hash,
+               const std::vector<std::string>& certs,
+               const std::string& cert_sct, const std::string& signature,
+               const ProofVerifyContext* context, std::string* error_details,
+               std::unique_ptr<ProofVerifyDetails>* details,
+               std::unique_ptr<ProofVerifierCallback> callback),
+              (override));
+
+  MOCK_METHOD(QuicAsyncStatus, VerifyCertChain,
+              (const std::string& hostname, uint16_t port,
+               const std::vector<std::string>& certs,
+               const std::string& ocsp_response, const std::string& cert_sct,
+               const ProofVerifyContext* context, std::string* error_details,
+               std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
+               std::unique_ptr<ProofVerifierCallback> callback),
+              (override));
+
+  MOCK_METHOD(std::unique_ptr<ProofVerifyContext>, CreateDefaultContext, (),
+              (override));
+};
+
 class TestTlsServerHandshaker : public TlsServerHandshaker {
  public:
   static constexpr TransportParameters::TransportParameterId
@@ -122,6 +151,9 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
   }
 
   bool received_client_cert() const { return received_client_cert_; }
+  QuicAsyncStatus verify_cert_chain_status() const {
+    return verify_cert_chain_status_;
+  }
 
   using TlsServerHandshaker::AdvanceHandshake;
   using TlsServerHandshaker::expected_ssl_error;
@@ -132,8 +164,9 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
       std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     received_client_cert_ = true;
-    return TlsServerHandshaker::VerifyCertChain(certs, error_details, details,
-                                                out_alert, std::move(callback));
+    verify_cert_chain_status_ = TlsServerHandshaker::VerifyCertChain(
+        certs, error_details, details, out_alert, std::move(callback));
+    return verify_cert_chain_status_;
   }
 
   bool ProcessAdditionalTransportParameters(
@@ -153,6 +186,7 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
   // Owned by TlsServerHandshaker.
   FakeProofSourceHandle* fake_proof_source_handle_ = nullptr;
   ProofSource* proof_source_ = nullptr;
+  QuicAsyncStatus verify_cert_chain_status_;
   bool received_client_cert_ = false;
 };
 
@@ -200,21 +234,34 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
     alarm_factories_.clear();
   }
 
-  void InitializeServerConfig() {
+  std::unique_ptr<FakeProofSource> InitializeProofSource() {
     auto ticket_crypter = std::make_unique<TestTicketCrypter>();
     ticket_crypter_ = ticket_crypter.get();
     auto proof_source = std::make_unique<FakeProofSource>();
     proof_source_ = proof_source.get();
     proof_source_->SetTicketCrypter(std::move(ticket_crypter));
+    return proof_source;
+  }
+
+  void InitializeServerConfig() {
     server_crypto_config_ = std::make_unique<QuicCryptoServerConfig>(
         QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
-        std::move(proof_source), KeyExchangeSource::Default());
+        InitializeProofSource(), KeyExchangeSource::Default());
   }
 
   void InitializeServerConfigWithFailingProofSource() {
     server_crypto_config_ = std::make_unique<QuicCryptoServerConfig>(
         QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
         std::make_unique<FailingProofSource>(), KeyExchangeSource::Default());
+  }
+
+  void InitializeServerConfigWithProofSourceAndVerifier(
+      std::unique_ptr<ProofSource> proof_source,
+      std::unique_ptr<ProofVerifier> proof_verifier) {
+    server_crypto_config_ = std::make_unique<QuicCryptoServerConfig>(
+        QuicCryptoServerConfig::TESTING, QuicRandom::GetInstance(),
+        std::move(proof_source), KeyExchangeSource::Default(),
+        std::move(proof_verifier));
   }
 
   void CreateTlsServerHandshakerTestSession(MockQuicConnectionHelper* helper,
@@ -978,6 +1025,65 @@ TEST_P(TlsServerHandshakerTest, RequestClientCert) {
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
   EXPECT_TRUE(server_handshaker_->received_client_cert());
+}
+
+TEST_P(TlsServerHandshakerTest, RequestClientCertAndVerify) {
+  ASSERT_TRUE(SetupClientCert());
+  InitializeFakeClient();
+
+  initial_client_cert_mode_ = ClientCertMode::kRequest;
+  auto proof_source = InitializeProofSource();
+  auto proof_verifier = std::make_unique<NiceMock<MockProofVerifier>>();
+  EXPECT_CALL(*proof_verifier, VerifyCertChain).WillOnce(Return(QUIC_SUCCESS));
+  InitializeServerConfigWithProofSourceAndVerifier(std::move(proof_source),
+                                                   std::move(proof_verifier));
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_SYNC);
+
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_TRUE(server_handshaker_->received_client_cert());
+  EXPECT_EQ(QuicAsyncStatus::QUIC_SUCCESS,
+            server_handshaker_->verify_cert_chain_status());
+}
+
+TEST_P(TlsServerHandshakerTest, RequestClientCertAndFailVerification) {
+  ASSERT_TRUE(SetupClientCert());
+  InitializeFakeClient();
+
+  initial_client_cert_mode_ = ClientCertMode::kRequest;
+  auto proof_source = InitializeProofSource();
+  auto proof_verifier = std::make_unique<NiceMock<MockProofVerifier>>();
+  EXPECT_CALL(*proof_verifier, VerifyCertChain).WillOnce(Return(QUIC_FAILURE));
+  InitializeServerConfigWithProofSourceAndVerifier(std::move(proof_source),
+                                                   std::move(proof_verifier));
+  InitializeServerWithFakeProofSourceHandle();
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_SYNC);
+
+  // Advance handshake until it can't make any more progress due to the
+  // failing proof verifier.
+  while (!client_stream()->one_rtt_keys_available() ||
+         !server_stream()->one_rtt_keys_available()) {
+    auto previous_moved_messages_counts = moved_messages_counts_;
+    AdvanceHandshakeWithFakeClient();
+    // Break if the handshake has stopped making progress.
+    if (previous_moved_messages_counts == moved_messages_counts_) {
+      break;
+    }
+  }
+
+  // Check that handshake did not finish successfully from the server side.
+  EXPECT_FALSE(server_stream()->one_rtt_keys_available());
+  // Handshake is not complete and not confirmed.
+  EXPECT_EQ(HANDSHAKE_PROCESSED, server_stream()->GetHandshakeState());
+  EXPECT_EQ(QuicAsyncStatus::QUIC_FAILURE,
+            server_handshaker_->verify_cert_chain_status());
 }
 
 TEST_P(TlsServerHandshakerTest,

@@ -213,6 +213,7 @@ TlsServerHandshaker::TlsServerHandshaker(
     : TlsHandshaker(this, session),
       QuicCryptoServerStreamBase(session),
       proof_source_(crypto_config->proof_source()),
+      proof_verifier_(crypto_config->proof_verifier()),
       pre_shared_key_(crypto_config->pre_shared_key()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       tls_connection_(crypto_config->ssl_ctx(), this, session->GetSSLConfig()),
@@ -675,15 +676,22 @@ void TlsServerHandshaker::FinishHandshake() {
   // appropriate time.
 }
 
+// VerifyCertChain is called to verify the client's certificate chain. If the
+// proof verifier is not set, the method will assume the certificate chain is
+// valid and return QUIC_SUCCESS.
 QuicAsyncStatus TlsServerHandshaker::VerifyCertChain(
-    const std::vector<std::string>& /*certs*/, std::string* /*error_details*/,
-    std::unique_ptr<ProofVerifyDetails>* /*details*/, uint8_t* /*out_alert*/,
-    std::unique_ptr<ProofVerifierCallback> /*callback*/) {
-  QUIC_DVLOG(1) << "VerifyCertChain returning success";
+    const std::vector<std::string>& certs, std::string* error_details,
+    std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
+    std::unique_ptr<ProofVerifierCallback> callback) {
+  if (proof_verifier_ == nullptr) {
+    QUIC_DVLOG(1) << "Proof verifier is not set, skipping cert verification";
+    return QUIC_SUCCESS;
+  }
 
-  // No real verification here. A subclass can override this function to verify
-  // the client cert if needed.
-  return QUIC_SUCCESS;
+  return proof_verifier_->VerifyCertChain(
+      /*hostname=*/"", /*port=*/0, certs, /*ocsp_response=*/"", /*cert_sct=*/"",
+      /*context=*/nullptr, error_details, details, out_alert,
+      std::move(callback));
 }
 
 void TlsServerHandshaker::OnProofVerifyDetailsAvailable(
