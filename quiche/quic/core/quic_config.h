@@ -519,6 +519,13 @@ class QUICHE_EXPORT QuicConfig {
   bool HasReceivedRetrySourceConnectionId() const;
   QuicConnectionId ReceivedRetrySourceConnectionId() const;
 
+  uint64_t peer_reordering_threshold() const {
+    return peer_reordering_threshold_;
+  }
+  void set_peer_reordering_threshold(uint64_t peer_reordering_threshold) {
+    peer_reordering_threshold_ = peer_reordering_threshold;
+  }
+
   bool negotiated() const;
 
   void SetCreateSessionTagIndicators(QuicTagVector tags);
@@ -723,6 +730,10 @@ class QUICHE_EXPORT QuicConfig {
   // Length of the receive data in the 'discard' transport parameter. Negative
   // values means 'discard' data not received.
   int32_t discard_length_received_ = -1;
+
+  // A hardcoded value for reordering threshold, as if the peer had sent an
+  // ACK_FREQUENCY frame with that value.
+  uint64_t peer_reordering_threshold_ = 1;
 
   // Google internal handshake message.
   std::optional<std::string> google_handshake_message_to_send_;

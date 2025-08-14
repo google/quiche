@@ -256,6 +256,8 @@ class QuicConnectionPeer {
 
   static uint8_t GetNumPtosForRetransmittableOnWireTimeout(
       const QuicConnection* connection);
+
+  static uint64_t GetPeerReorderingThreshold(QuicConnection* connection);
 };
 
 }  // namespace test

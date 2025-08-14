@@ -4,6 +4,7 @@
 
 #include "quiche/quic/test_tools/quic_connection_peer.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -13,6 +14,7 @@
 #include "quiche/quic/core/quic_connection_alarms.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_received_packet_manager.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/test_tools/quic_connection_id_manager_peer.h"
@@ -612,6 +614,19 @@ uint8_t QuicConnectionPeer::GetNumPtosForRetransmittableOnWireTimeout(
     const QuicConnection* connection) {
   return connection->ping_manager_
       .num_ptos_for_retransmittable_on_wire_timeout_;
+}
+
+// static
+uint64_t QuicConnectionPeer::GetPeerReorderingThreshold(
+    QuicConnection* connection) {
+  if (!connection->version().UsesTls()) {
+    return connection->uber_received_packet_manager_
+        .received_packet_managers_[0]
+        .reordering_threshold_;
+  }
+  return connection->uber_received_packet_manager_
+      .received_packet_managers_[APPLICATION_DATA]
+      .reordering_threshold_;
 }
 
 }  // namespace test

@@ -647,6 +647,14 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
 
   framer_.set_process_reset_stream_at(config.SupportsReliableStreamReset());
+
+  if (config.peer_reordering_threshold() != 1 &&
+      perspective_ == Perspective::IS_CLIENT && version().UsesTls() &&
+      !config.HasMinAckDelayDraft10ToSend()) {
+    QuicAckFrequencyFrame frame;
+    frame.reordering_threshold = config.peer_reordering_threshold();
+    uber_received_packet_manager_.OnAckFrequencyFrame(frame);
+  }
 }
 
 void QuicConnection::AddDispatcherSentPackets(

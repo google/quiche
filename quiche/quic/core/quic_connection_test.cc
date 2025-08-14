@@ -18059,6 +18059,20 @@ TEST_P(QuicConnectionTest, ConfigEnablesAckFrequency) {
   EXPECT_TRUE(QuicConnectionPeer::CanReceiveAckFrequencyFrames(&connection_));
 }
 
+TEST_P(QuicConnectionTest, ConfigHardCodedPeerReorderingThreshold) {
+  if (!version().UsesTls()) {
+    return;
+  }
+  QuicConfig config;
+  EXPECT_EQ(QuicConnectionPeer::GetPeerReorderingThreshold(&connection_), 1);
+  config.set_peer_reordering_threshold(10);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(QuicConnectionPeer::GetPeerReorderingThreshold(&connection_), 10);
+}
+
 // Regression test for b/424538505.
 TEST_P(QuicConnectionTest, LeastUnackedOffByOne) {
   QuicPacketNumber largest_packet_sent;
