@@ -327,7 +327,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedNetworkError) {
   absl::Notification done;
   SignedTokenCallback callback =
       [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
-        EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInvalidArgument);
+        EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
         done.Notify();
       };
   blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
@@ -687,7 +687,7 @@ TEST_F(BlindSignAuthTest, GetAttestationTokensFailedNetworkError) {
   SignedTokenCallback signed_token_callback =
       [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_FALSE(tokens.ok());
-        EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInvalidArgument);
+        EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
         done.Notify();
       };
   blind_sign_auth_->GetAttestationTokens(

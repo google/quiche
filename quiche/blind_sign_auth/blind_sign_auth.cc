@@ -200,8 +200,8 @@ void BlindSignAuth::PrivacyPassAuthAndSignCallback(
   // Validate response.
   if (!response.ok()) {
     QUICHE_LOG(WARNING) << "AuthAndSign failed: " << response.status();
-    std::move(callback)(
-        absl::InvalidArgumentError("AuthAndSign failed: invalid response"));
+    std::move(callback)(absl::Status(response.status().code(),
+                                     "AuthAndSign failed: invalid response"));
     return;
   }
   absl::StatusCode code = response->status_code();
@@ -433,8 +433,8 @@ void BlindSignAuth::AttestAndSignCallback(
   // Validate response.
   if (!response.ok()) {
     QUICHE_LOG(WARNING) << "AttestAndSign failed: " << response.status();
-    std::move(callback)(
-        absl::InvalidArgumentError("AttestAndSign failed: invalid response"));
+    std::move(callback)(absl::Status(response.status().code(),
+                                     "AttestAndSign failed: invalid response"));
     return;
   }
   absl::StatusCode code = response->status_code();
@@ -511,8 +511,8 @@ BlindSignAuth::ParseGetInitialDataResponseMessage(
   if (!response.ok()) {
     QUICHE_LOG(WARNING) << "GetInitialDataRequest failed: "
                         << response.status();
-    return absl::InvalidArgumentError(
-        "GetInitialDataRequest failed: invalid response");
+    return absl::Status(response.status().code(),
+                        "GetInitialDataRequest failed: invalid response");
   }
   if (absl::StatusCode code = response->status_code();
       code != absl::StatusCode::kOk) {
