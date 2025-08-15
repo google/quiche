@@ -5,28 +5,36 @@
 #include "quiche/quic/core/tls_server_handshaker.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/base/macros.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/certificate_util.h"
+#include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/core/crypto/client_proof_source.h"
 #include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
+#include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
+#include "quiche/quic/core/crypto/quic_crypto_client_config.h"
+#include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/crypto/quic_random.h"
-#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/quic_crypto_client_stream.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/core/tls_client_handshaker.h"
+#include "quiche/quic/core/tls_handshaker.h"
 #include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/failing_proof_source.h"
@@ -35,8 +43,9 @@
 #include "quiche/quic/test_tools/quic_config_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simple_session_cache.h"
-#include "quiche/quic/test_tools/test_certificates.h"
 #include "quiche/quic/test_tools/test_ticket_crypter.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
 class QuicConnection;
@@ -61,8 +70,8 @@ struct TestParams {
   bool disable_resumption;
 };
 
-// Used by ::testing::PrintToStringParamName().
-std::string PrintToString(const TestParams& p) {
+ABSL_ATTRIBUTE_UNUSED  // Used by ::testing::PrintToStringParamName().
+    std::string PrintToString(const TestParams& p) {
   return absl::StrCat(
       ParsedQuicVersionToString(p.version), "_",
       (p.disable_resumption ? "ResumptionDisabled" : "ResumptionEnabled"));

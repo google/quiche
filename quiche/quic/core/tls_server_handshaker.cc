@@ -14,6 +14,7 @@
 #include <variant>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -49,11 +50,12 @@
 #include "quiche/quic/core/tls_handshaker.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
-#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_hostname_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_server_stats.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_reference_counted.h"
 
 #define RECORD_LATENCY_IN_US(stat_name, latency, comment)                   \
   do {                                                                      \
@@ -73,8 +75,12 @@ uint16_t kDefaultPort = 443;
 }  // namespace
 
 TlsServerHandshaker::DefaultProofSourceHandle::DefaultProofSourceHandle(
-    TlsServerHandshaker* handshaker, ProofSource* proof_source)
-    : handshaker_(handshaker), proof_source_(proof_source) {}
+    TlsServerHandshaker* absl_nonnull handshaker,
+    ProofSource* absl_nonnull proof_source)
+    : handshaker_(handshaker), proof_source_(proof_source) {
+  QUICHE_DCHECK(handshaker_);
+  QUICHE_DCHECK(proof_source_);
+}
 
 TlsServerHandshaker::DefaultProofSourceHandle::~DefaultProofSourceHandle() {
   CloseHandle();
@@ -291,6 +297,7 @@ void TlsServerHandshaker::InfoCallback(int type, int value) {
 
 std::unique_ptr<ProofSourceHandle>
 TlsServerHandshaker::MaybeCreateProofSourceHandle() {
+  QUICHE_DCHECK(proof_source_);
   return std::make_unique<DefaultProofSourceHandle>(this, proof_source_);
 }
 

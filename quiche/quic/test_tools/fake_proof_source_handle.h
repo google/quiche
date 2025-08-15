@@ -5,8 +5,19 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_FAKE_PROOF_SOURCE_HANDLE_H_
 #define QUICHE_QUIC_TEST_TOOLS_FAKE_PROOF_SOURCE_HANDLE_H_
 
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <string>
+#include <vector>
+
+#include "absl/base/nullability.h"
+#include "absl/strings/string_view.h"
+#include "openssl/base.h"
 #include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 
 namespace quic {
 namespace test {
@@ -33,7 +44,8 @@ class FakeProofSourceHandle : public ProofSourceHandle {
   // |delegate| must do cert selection and signature synchronously.
   // |delayed_ssl_config| is the config passed to OnSelectCertificateDone.
   FakeProofSourceHandle(
-      ProofSource* delegate, ProofSourceHandleCallback* callback,
+      ProofSource* absl_nonnull delegate,
+      ProofSourceHandleCallback* absl_nonnull callback,
       Action select_cert_action, Action compute_signature_action,
       QuicDelayedSSLConfig delayed_ssl_config = QuicDelayedSSLConfig());
 
@@ -174,8 +186,8 @@ class FakeProofSourceHandle : public ProofSourceHandle {
   int NumPendingOperations() const;
 
   bool closed_ = false;
-  ProofSource* delegate_;
-  ProofSourceHandleCallback* callback_;
+  ProofSource* absl_nonnull delegate_;
+  ProofSourceHandleCallback* absl_nonnull callback_;
   // Action for the next select cert operation.
   Action select_cert_action_ = Action::DELEGATE_SYNC;
   // Action for the next compute signature operation.

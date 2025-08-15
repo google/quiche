@@ -40,6 +40,8 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/tls_handshaker.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
 
@@ -240,8 +242,8 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   // source.
   class QUICHE_EXPORT DefaultProofSourceHandle : public ProofSourceHandle {
    public:
-    DefaultProofSourceHandle(TlsServerHandshaker* handshaker,
-                             ProofSource* proof_source);
+    DefaultProofSourceHandle(TlsServerHandshaker* absl_nonnull handshaker,
+                             ProofSource* absl_nonnull proof_source);
 
     ~DefaultProofSourceHandle() override;
 
@@ -271,7 +273,9 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
                                      size_t max_signature_size) override;
 
    protected:
-    ProofSourceHandleCallback* callback() override { return handshaker_; }
+    ProofSourceHandleCallback* absl_nullable callback() override {
+      return handshaker_;
+    }
 
    private:
     class QUICHE_EXPORT DefaultSignatureCallback
@@ -309,9 +313,9 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
     };
 
     // Not nullptr on construction. Set to nullptr when cancelled.
-    TlsServerHandshaker* handshaker_;  // Not owned.
-    ProofSource* proof_source_;        // Not owned.
-    DefaultSignatureCallback* signature_callback_ = nullptr;
+    TlsServerHandshaker* absl_nullable handshaker_;  // Not owned.
+    ProofSource* absl_nullable proof_source_;        // Not owned.
+    DefaultSignatureCallback* absl_nullable signature_callback_ = nullptr;
   };
 
   struct QUICHE_EXPORT SetTransportParametersResult {
@@ -349,7 +353,7 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   }
 
   std::unique_ptr<ProofSourceHandle> proof_source_handle_;
-  ProofSource* proof_source_;
+  ProofSource* absl_nullable proof_source_;
 
   // proof_verifier_ is an optional object that can verify a client's
   // certificate chain. If this is null, then client certificates will always be

@@ -12,7 +12,9 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
+#include "openssl/base.h"
 #include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_types.h"
@@ -49,11 +51,11 @@ class ResultSavingSignatureCallback : public ProofSource::SignatureCallback {
 };
 
 ComputeSignatureResult ComputeSignatureNow(
-    ProofSource* delegate, const QuicSocketAddress& server_address,
+    ProofSource& delegate, const QuicSocketAddress& server_address,
     const QuicSocketAddress& client_address, const std::string& hostname,
     uint16_t signature_algorithm, absl::string_view in) {
   std::optional<ComputeSignatureResult> result;
-  delegate->ComputeTlsSignature(
+  delegate.ComputeTlsSignature(
       server_address, client_address, hostname, signature_algorithm, in,
       std::make_unique<ResultSavingSignatureCallback>(&result));
   QUICHE_CHECK(result.has_value())
@@ -64,14 +66,17 @@ ComputeSignatureResult ComputeSignatureNow(
 }  // namespace
 
 FakeProofSourceHandle::FakeProofSourceHandle(
-    ProofSource* delegate, ProofSourceHandleCallback* callback,
-    Action select_cert_action, Action compute_signature_action,
-    QuicDelayedSSLConfig delayed_ssl_config)
+    ProofSource* absl_nonnull delegate,
+    ProofSourceHandleCallback* absl_nonnull callback, Action select_cert_action,
+    Action compute_signature_action, QuicDelayedSSLConfig delayed_ssl_config)
     : delegate_(delegate),
       callback_(callback),
       select_cert_action_(select_cert_action),
       compute_signature_action_(compute_signature_action),
-      delayed_ssl_config_(delayed_ssl_config) {}
+      delayed_ssl_config_(delayed_ssl_config) {
+  QUICHE_CHECK(delegate);
+  QUICHE_CHECK(callback);
+}
 
 void FakeProofSourceHandle::CloseHandle() {
   select_cert_op_.reset();
@@ -157,7 +162,7 @@ QuicAsyncStatus FakeProofSourceHandle::ComputeSignature(
 
   QUICHE_DCHECK(compute_signature_action_ == Action::DELEGATE_SYNC);
   ComputeSignatureResult result =
-      ComputeSignatureNow(delegate_, server_address, client_address, hostname,
+      ComputeSignatureNow(*delegate_, server_address, client_address, hostname,
                           signature_algorithm, in);
   callback_->OnComputeSignatureDone(
       result.ok, /*is_sync=*/true, result.signature, std::move(result.details));
@@ -235,7 +240,7 @@ void FakeProofSourceHandle::ComputeSignatureOperation::Run() {
         /*signature=*/"", /*details=*/nullptr);
   } else if (action_ == Action::DELEGATE_ASYNC) {
     ComputeSignatureResult result = ComputeSignatureNow(
-        delegate_, args_.server_address, args_.client_address, args_.hostname,
+        *delegate_, args_.server_address, args_.client_address, args_.hostname,
         args_.signature_algorithm, args_.in);
     callback_->OnComputeSignatureDone(result.ok, /*is_sync=*/false,
                                       result.signature,
