@@ -4,17 +4,35 @@
 
 #include "quiche/quic/core/quic_crypto_client_handshaker.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
+#include "openssl/ssl.h"
+#include "quiche/quic/core/crypto/crypto_handshake.h"
+#include "quiche/quic/core/crypto/crypto_handshake_message.h"
+#include "quiche/quic/core/crypto/crypto_message_parser.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/crypto_utils.h"
+#include "quiche/quic/core/crypto/proof_verifier.h"
+#include "quiche/quic/core/crypto/quic_crypto_client_config.h"
+#include "quiche/quic/core/crypto/quic_decrypter.h"
+#include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_crypto_client_stream.h"
+#include "quiche/quic/core/quic_crypto_handshaker.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_tag.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_client_stats.h"
-#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
@@ -532,7 +550,7 @@ void QuicCryptoClientHandshaker::DoVerifyProofComplete(
     next_state_ = STATE_VERIFY_PROOF;
   } else {
     SetCachedProofValid(cached);
-    cached->SetProofVerifyDetails(verify_details_.release());
+    cached->SetProofVerifyDetails(std::move(verify_details_));
     if (!one_rtt_keys_available()) {
       next_state_ = STATE_SEND_CHLO;
     } else {

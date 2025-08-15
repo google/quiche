@@ -8,7 +8,9 @@
 #include <cstdint>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -16,12 +18,15 @@
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/client_proof_source.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
-#include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
-#include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_server_id.h"
-#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
@@ -186,8 +191,7 @@ class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
 
     void set_cert_sct(absl::string_view cert_sct);
 
-    // SetProofVerifyDetails takes ownership of |details|.
-    void SetProofVerifyDetails(ProofVerifyDetails* details);
+    void SetProofVerifyDetails(std::unique_ptr<ProofVerifyDetails> details);
 
     // Copy the |server_config_|, |source_address_token_|, |certs_|,
     // |expiration_time_|, |cert_sct_|, |chlo_hash_| and |server_config_sig_|

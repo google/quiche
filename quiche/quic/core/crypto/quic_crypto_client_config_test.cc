@@ -4,19 +4,30 @@
 
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "openssl/aead.h"
+#include "quiche/quic/core/crypto/crypto_handshake.h"
+#include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_server_id.h"
-#include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/core/quic_utils.h"
-#include "quiche/quic/platform/api/quic_expect_bug.h"
+#include "quiche/quic/core/quic_tag.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/mock_random.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/platform/api/quiche_reference_counted.h"
 
 using testing::StartsWith;
 
@@ -76,10 +87,11 @@ TEST_F(QuicCryptoClientConfigTest, CachedState_GenerationCounter) {
 
 TEST_F(QuicCryptoClientConfigTest, CachedState_SetProofVerifyDetails) {
   QuicCryptoClientConfig::CachedState state;
-  EXPECT_TRUE(state.proof_verify_details() == nullptr);
-  ProofVerifyDetails* details = new TestProofVerifyDetails;
-  state.SetProofVerifyDetails(details);
-  EXPECT_EQ(details, state.proof_verify_details());
+  EXPECT_EQ(state.proof_verify_details(), nullptr);
+  std::unique_ptr<ProofVerifyDetails> details(new TestProofVerifyDetails);
+  const auto* details_ptr = details.get();
+  state.SetProofVerifyDetails(std::move(details));
+  EXPECT_EQ(details_ptr, state.proof_verify_details());
 }
 
 TEST_F(QuicCryptoClientConfigTest, CachedState_InitializeFrom) {

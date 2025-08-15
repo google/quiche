@@ -5,35 +5,49 @@
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 
 #include <algorithm>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "absl/base/nullability.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
+#include "openssl/aead.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/cert_compressor.h"
-#include "quiche/quic/core/crypto/chacha20_poly1305_encrypter.h"
+#include "quiche/quic/core/crypto/client_proof_source.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
+#include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/crypto_utils.h"
 #include "quiche/quic/core/crypto/curve25519_key_exchange.h"
 #include "quiche/quic/core/crypto/key_exchange.h"
 #include "quiche/quic/core/crypto/p256_key_exchange.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
-#include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/crypto/tls_client_connection.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/core/quic_tag.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_client_stats.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_hostname_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
 
@@ -307,7 +321,7 @@ uint64_t QuicCryptoClientConfig::CachedState::generation_counter() const {
   return generation_counter_;
 }
 
-const ProofVerifyDetails*
+const ProofVerifyDetails* absl_nullable
 QuicCryptoClientConfig::CachedState::proof_verify_details() const {
   return proof_verify_details_.get();
 }
@@ -323,8 +337,8 @@ void QuicCryptoClientConfig::CachedState::set_cert_sct(
 }
 
 void QuicCryptoClientConfig::CachedState::SetProofVerifyDetails(
-    ProofVerifyDetails* details) {
-  proof_verify_details_.reset(details);
+    std::unique_ptr<ProofVerifyDetails> details) {
+  proof_verify_details_ = std::move(details);
 }
 
 void QuicCryptoClientConfig::CachedState::InitializeFrom(
