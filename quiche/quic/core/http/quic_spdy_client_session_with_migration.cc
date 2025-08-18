@@ -38,8 +38,8 @@ void QuicSpdyClientSessionWithMigration::SetDefaultEncryptionLevel(
 bool QuicSpdyClientSessionWithMigration::MigrateToNewPath(
     std::unique_ptr<QuicPathValidationContext> path_context) {
   if (!PrepareForMigrationToPath(*path_context)) {
-    QUIC_CLIENT_HISTOGRAM_BOOL("Net.QuicSession.PrepareForMigrationToPath",
-                               false, "");
+    QUIC_CLIENT_HISTOGRAM_BOOL("QuicSession.PrepareForMigrationToPath", false,
+                               "");
     return false;
   }
   const bool success = MigratePath(

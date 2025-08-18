@@ -272,7 +272,7 @@ void QuicConnectionMigrationManager::Migrate(
     // TODO(b/430345640): remove the if condition if the historgram is not hit
     // at all in production.
     QUIC_CLIENT_HISTOGRAM_BOOL(
-        "Net.QuicSession.MigratingToInvalidNetwork", true,
+        "QuicSession.MigratingToInvalidNetwork", true,
         "Connection is migrating with an invalid network handle.");
   }
   QUIC_DVLOG(1) << "Force blocking the current packet writer";
@@ -430,7 +430,7 @@ void QuicConnectionMigrationManager::ResetMigrationCauseAndLogResult(
   if (current_migration_cause_ ==
       MigrationCause::CHANGE_PORT_ON_PATH_DEGRADING) {
     QUIC_CLIENT_HISTOGRAM_ENUM(
-        "Net.QuicSession.PortMigration", status,
+        "QuicSession.PortMigration", status,
         QuicConnectionMigrationStatus::MIGRATION_STATUS_MAX, "");
     current_migration_cause_ = MigrationCause::UNKNOWN_CAUSE;
     return;
@@ -438,55 +438,55 @@ void QuicConnectionMigrationManager::ResetMigrationCauseAndLogResult(
   if (current_migration_cause_ ==
       MigrationCause::ON_SERVER_PREFERRED_ADDRESS_AVAILABLE) {
     QUIC_CLIENT_HISTOGRAM_ENUM(
-        "Net.QuicSession.OnServerPreferredAddressAvailable", status,
+        "QuicSession.OnServerPreferredAddressAvailable", status,
         QuicConnectionMigrationStatus::MIGRATION_STATUS_MAX, "");
     current_migration_cause_ = MigrationCause::UNKNOWN_CAUSE;
     return;
   }
   QUIC_CLIENT_HISTOGRAM_ENUM(
-      "Net.QuicSession.ConnectionMigration", status,
+      "QuicSession.ConnectionMigration", status,
       QuicConnectionMigrationStatus::MIGRATION_STATUS_MAX, "");
   // Log the connection migraiton result to different histograms based on the
   // cause of the connection migration.
   switch (current_migration_cause_) {
     case MigrationCause::UNKNOWN_CAUSE:
       QUIC_CLIENT_HISTOGRAM_ENUM(
-          "Net.QuicSession.ConnectionMigration.Unknown", status,
+          "QuicSession.ConnectionMigration.Unknown", status,
           QuicConnectionMigrationStatus::MIGRATION_STATUS_MAX, "");
       break;
     case MigrationCause::ON_NETWORK_CONNECTED:
       QUIC_CLIENT_HISTOGRAM_ENUM(
-          "Net.QuicSession.ConnectionMigration.OnNetworkConnected", status,
+          "QuicSession.ConnectionMigration.OnNetworkConnected", status,
           QuicConnectionMigrationStatus::MIGRATION_STATUS_MAX, "");
       break;
     case MigrationCause::ON_NETWORK_DISCONNECTED:
       QUIC_CLIENT_HISTOGRAM_ENUM(
-          "Net.QuicSession.ConnectionMigration.OnNetworkDisconnected", status,
+          "QuicSession.ConnectionMigration.OnNetworkDisconnected", status,
           QuicConnectionMigrationStatus::MIGRATION_STATUS_MAX, "");
       break;
     case MigrationCause::ON_WRITE_ERROR:
       QUIC_CLIENT_HISTOGRAM_ENUM(
-          "Net.QuicSession.ConnectionMigration.OnWriteError", status,
+          "QuicSession.ConnectionMigration.OnWriteError", status,
           QuicConnectionMigrationStatus::MIGRATION_STATUS_MAX, "");
       break;
     case MigrationCause::ON_NETWORK_MADE_DEFAULT:
       QUIC_CLIENT_HISTOGRAM_ENUM(
-          "Net.QuicSession.ConnectionMigration.OnNetworkMadeDefault", status,
+          "QuicSession.ConnectionMigration.OnNetworkMadeDefault", status,
           QuicConnectionMigrationStatus::MIGRATION_STATUS_MAX, "");
       break;
     case MigrationCause::ON_MIGRATE_BACK_TO_DEFAULT_NETWORK:
       QUIC_CLIENT_HISTOGRAM_ENUM(
-          "Net.QuicSession.ConnectionMigration.OnMigrateBackToDefaultNetwork",
+          "QuicSession.ConnectionMigration.OnMigrateBackToDefaultNetwork",
           status, QuicConnectionMigrationStatus::MIGRATION_STATUS_MAX, "");
       break;
     case MigrationCause::CHANGE_NETWORK_ON_PATH_DEGRADING:
       QUIC_CLIENT_HISTOGRAM_ENUM(
-          "Net.QuicSession.ConnectionMigration.OnPathDegrading", status,
+          "QuicSession.ConnectionMigration.OnPathDegrading", status,
           QuicConnectionMigrationStatus::MIGRATION_STATUS_MAX, "");
       break;
     case MigrationCause::NEW_NETWORK_CONNECTED_POST_PATH_DEGRADING:
       QUIC_CLIENT_HISTOGRAM_ENUM(
-          "Net.QuicSession.ConnectionMigration."
+          "QuicSession.ConnectionMigration."
           "NewNetworkConnectedPostPathDegrading",
           status, QuicConnectionMigrationStatus::MIGRATION_STATUS_MAX, "");
       break;
@@ -503,64 +503,63 @@ void QuicConnectionMigrationManager::LogHandshakeStatusOnMigrationSignal()
   const bool handshake_confirmed = session_->OneRttKeysAvailable();
   if (current_migration_cause_ ==
       MigrationCause::CHANGE_PORT_ON_PATH_DEGRADING) {
-    QUIC_CLIENT_HISTOGRAM_BOOL("Net.QuicSession.HandshakeStatusOnPortMigration",
+    QUIC_CLIENT_HISTOGRAM_BOOL("QuicSession.HandshakeStatusOnPortMigration",
                                handshake_confirmed, "");
     return;
   }
   if (current_migration_cause_ ==
       MigrationCause::ON_SERVER_PREFERRED_ADDRESS_AVAILABLE) {
     QUIC_CLIENT_HISTOGRAM_BOOL(
-        "Net.QuicSession.HandshakeStatusOnMigratingToServerPreferredAddress",
+        "QuicSession.HandshakeStatusOnMigratingToServerPreferredAddress",
         handshake_confirmed, "");
     return;
   }
-  QUIC_CLIENT_HISTOGRAM_BOOL(
-      "Net.QuicSession.HandshakeStatusOnConnectionMigration",
-      handshake_confirmed, "");
+  QUIC_CLIENT_HISTOGRAM_BOOL("QuicSession.HandshakeStatusOnConnectionMigration",
+                             handshake_confirmed, "");
   switch (current_migration_cause_) {
     case MigrationCause::UNKNOWN_CAUSE:
       QUIC_CLIENT_HISTOGRAM_BOOL(
-          "Net.QuicSession.HandshakeStatusOnConnectionMigration.Unknown",
+          "QuicSession.HandshakeStatusOnConnectionMigration.Unknown",
           handshake_confirmed, "");
       break;
     case MigrationCause::ON_NETWORK_CONNECTED:
       QUIC_CLIENT_HISTOGRAM_BOOL(
-          "Net.QuicSession.HandshakeStatusOnConnectionMigration."
+          "QuicSession.HandshakeStatusOnConnectionMigration."
           "OnNetworkConnected",
           handshake_confirmed, "");
       break;
     case MigrationCause::ON_NETWORK_DISCONNECTED:
       QUIC_CLIENT_HISTOGRAM_BOOL(
-          "Net.QuicSession.HandshakeStatusOnConnectionMigration."
+          "QuicSession.HandshakeStatusOnConnectionMigration."
           "OnNetworkDisconnected",
           handshake_confirmed, "");
       break;
     case MigrationCause::ON_WRITE_ERROR:
       QUIC_CLIENT_HISTOGRAM_BOOL(
-          "Net.QuicSession.HandshakeStatusOnConnectionMigration.OnWriteError",
+          "QuicSession.HandshakeStatusOnConnectionMigration.OnWriteError",
           handshake_confirmed, "");
       break;
     case MigrationCause::ON_NETWORK_MADE_DEFAULT:
       QUIC_CLIENT_HISTOGRAM_BOOL(
-          "Net.QuicSession.HandshakeStatusOnConnectionMigration."
+          "QuicSession.HandshakeStatusOnConnectionMigration."
           "OnNetworkMadeDefault",
           handshake_confirmed, "");
       break;
     case MigrationCause::ON_MIGRATE_BACK_TO_DEFAULT_NETWORK:
       QUIC_CLIENT_HISTOGRAM_BOOL(
-          "Net.QuicSession.HandshakeStatusOnConnectionMigration."
+          "QuicSession.HandshakeStatusOnConnectionMigration."
           "OnMigrateBackToDefaultNetwork",
           handshake_confirmed, "");
       break;
     case MigrationCause::CHANGE_NETWORK_ON_PATH_DEGRADING:
       QUIC_CLIENT_HISTOGRAM_BOOL(
-          "Net.QuicSession.HandshakeStatusOnConnectionMigration."
+          "QuicSession.HandshakeStatusOnConnectionMigration."
           "OnPathDegrading",
           handshake_confirmed, "");
       break;
     case MigrationCause::NEW_NETWORK_CONNECTED_POST_PATH_DEGRADING:
       QUIC_CLIENT_HISTOGRAM_BOOL(
-          "Net.QuicSession.HandshakeStatusOnConnectionMigration."
+          "QuicSession.HandshakeStatusOnConnectionMigration."
           "NewNetworkConnectedPostPathDegrading",
           handshake_confirmed, "");
       break;
