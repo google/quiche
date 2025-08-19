@@ -23,13 +23,12 @@ const std::size_t kIntervalStep = 10;
 }  // namespace
 
 struct TestIntervalItem {
-  int32_t val;
-  std::size_t interval_start, interval_end;
-  QuicInterval<std::size_t> interval() const {
-    return QuicInterval<std::size_t>(interval_start, interval_end);
+  uint64_t val;
+  uint64_t interval_start, interval_end;
+  QuicInterval<uint64_t> interval() const {
+    return QuicInterval<uint64_t>(interval_start, interval_end);
   }
-  TestIntervalItem(int32_t val, std::size_t interval_start,
-                   std::size_t interval_end)
+  TestIntervalItem(uint64_t val, uint64_t interval_start, uint64_t interval_end)
       : val(val), interval_start(interval_start), interval_end(interval_end) {}
 };
 
