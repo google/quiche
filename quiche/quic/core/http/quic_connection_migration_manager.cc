@@ -38,7 +38,10 @@ namespace quic {
 namespace {
 // Time to wait (in seconds) when no networks are available and
 // migrating sessions need to wait for a new network to connect.
-const size_t kWaitTimeForNewNetworkSecs = 10;
+constexpr size_t kWaitTimeForNewNetworkSecs = 10;
+// Minimum time to wait (in seconds) when retrying to migrate back to the
+// default network.
+constexpr size_t kMinRetryTimeForDefaultNetworkSecs = 1;
 
 class WaitForMigrationDelegate : public QuicAlarm::Delegate {
  public:
@@ -54,6 +57,51 @@ class WaitForMigrationDelegate : public QuicAlarm::Delegate {
  private:
   QuicConnectionMigrationManager* absl_nonnull migration_manager_;
   QuicConnectionContext* absl_nullable context_;
+};
+
+class MigrateBackToDefaultNetworkDelegate : public QuicAlarm::Delegate {
+ public:
+  MigrateBackToDefaultNetworkDelegate(
+      QuicConnectionMigrationManager* absl_nonnull migration_manager,
+      QuicConnectionContext* absl_nullable context)
+      : migration_manager_(migration_manager), context_(context) {}
+  MigrateBackToDefaultNetworkDelegate(
+      const MigrateBackToDefaultNetworkDelegate&) = delete;
+  MigrateBackToDefaultNetworkDelegate& operator=(
+      const MigrateBackToDefaultNetworkDelegate&) = delete;
+  QuicConnectionContext* GetConnectionContext() override { return context_; }
+  void OnAlarm() override {
+    migration_manager_->MaybeRetryMigrateBackToDefaultNetwork();
+  }
+
+ private:
+  QuicConnectionMigrationManager* absl_nonnull migration_manager_;
+  QuicConnectionContext* absl_nullable context_;
+};
+
+// This class handles path validation results associated with connection
+// migration which depends on probing.
+class ConnectionMigrationValidationResultDelegate
+    : public quic::QuicPathValidator::ResultDelegate {
+ public:
+  // `migration_manager` should out live this instance.
+  explicit ConnectionMigrationValidationResultDelegate(
+      QuicConnectionMigrationManager* absl_nonnull migration_manager)
+      : migration_manager_(migration_manager) {}
+  void OnPathValidationSuccess(
+      std::unique_ptr<quic::QuicPathValidationContext> context,
+      quic::QuicTime start_time) override {
+    migration_manager_->OnConnectionMigrationProbeSucceeded(std::move(context),
+                                                            start_time);
+  }
+  void OnPathValidationFailure(
+      std::unique_ptr<quic::QuicPathValidationContext> context) override {
+    migration_manager_->OnProbeFailed(std::move(context));
+  }
+
+ private:
+  // `migration_manager_` should out live |this|.
+  QuicConnectionMigrationManager* absl_nonnull migration_manager_;
 };
 
 std::string MigrationCauseToString(MigrationCause cause) {
@@ -90,20 +138,29 @@ std::string MigrationCauseToString(MigrationCause cause) {
 QuicConnectionMigrationManager::QuicConnectionMigrationManager(
     QuicSpdyClientSessionWithMigration* absl_nonnull session,
     const quic::QuicClock* absl_nonnull clock,
-    QuicNetworkHandle /*default_network*/, QuicNetworkHandle current_network,
+    QuicNetworkHandle default_network, QuicNetworkHandle current_network,
     QuicPathContextFactory* absl_nonnull path_context_factory,
     const QuicConnectionMigrationConfig& config)
     : session_(session),
       connection_(session->connection()),
       clock_(clock),
+      default_network_(default_network),
       current_network_(current_network),
       path_context_factory_(path_context_factory),
       config_(config),
+      migrate_back_to_default_timer_(connection_->alarm_factory()->CreateAlarm(
+          new MigrateBackToDefaultNetworkDelegate(this,
+                                                  connection_->context()))),
       wait_for_migration_alarm_(connection_->alarm_factory()->CreateAlarm(
-          new WaitForMigrationDelegate(this, connection_->context()))) {}
+          new WaitForMigrationDelegate(this, connection_->context()))) {
+  QUICHE_BUG_IF(gquic_session_created_on_non_default_network,
+                default_network_ != current_network_ &&
+                    !session_->version().HasIetfQuicFrames());
+}
 
 QuicConnectionMigrationManager::~QuicConnectionMigrationManager() {
   wait_for_migration_alarm_->PermanentCancel();
+  migrate_back_to_default_timer_->PermanentCancel();
 }
 
 void QuicConnectionMigrationManager::OnNetworkDisconnected(
@@ -129,10 +186,22 @@ void QuicConnectionMigrationManager::OnNetworkDisconnected(
     connection_->CancelPathValidation();
   }
 
+  if (disconnected_network == default_network_) {
+    QUIC_DLOG(INFO) << "Default network: " << default_network_
+                    << " is disconnected.";
+    default_network_ = kInvalidNetworkHandle;
+  }
   // Ignore the signal if the current active network is not affected.
   if (current_network() != disconnected_network) {
     QUIC_DVLOG(1) << "Client's current default network is not affected by the "
                   << "disconnected one.";
+    return;
+  }
+  if (config_.ignore_disconnect_signal_during_probing &&
+      current_migration_cause_ == MigrationCause::ON_NETWORK_MADE_DEFAULT) {
+    QUIC_DVLOG(1)
+        << "Ignoring a network disconnection signal because a "
+           "connection migration is happening on the default network.";
     return;
   }
   current_migration_cause_ = MigrationCause::ON_NETWORK_DISCONNECTED;
@@ -242,6 +311,30 @@ void QuicConnectionMigrationManager::
       QuicConnectionMigrationStatus::MIGRATION_STATUS_INTERNAL_ERROR, error);
 }
 
+QuicConnectionMigrationManager::PathContextCreationResultDelegateForProbing::
+    PathContextCreationResultDelegateForProbing(
+        QuicConnectionMigrationManager* absl_nonnull migration_manager,
+        StartProbingCallback probing_callback)
+    : migration_manager_(migration_manager),
+      probing_callback_(std::move(probing_callback)) {}
+
+void QuicConnectionMigrationManager::
+    PathContextCreationResultDelegateForProbing::OnCreationSucceeded(
+        std::unique_ptr<QuicPathValidationContext> context) {
+  migration_manager_->FinishStartProbing(std::move(probing_callback_),
+                                         std::move(context));
+}
+
+void QuicConnectionMigrationManager::
+    PathContextCreationResultDelegateForProbing::OnCreationFailed(
+        QuicNetworkHandle /*network*/, absl::string_view error) {
+  migration_manager_->OnMigrationFailure(
+      QuicConnectionMigrationStatus::MIGRATION_STATUS_INTERNAL_ERROR, error);
+  if (probing_callback_) {
+    std::move(probing_callback_)(ProbingResult::INTERNAL_ERROR);
+  }
+}
+
 void QuicConnectionMigrationManager::Migrate(
     QuicNetworkHandle network, QuicSocketAddress peer_address,
     bool close_session_on_error, MigrationCallback migration_callback) {
@@ -290,10 +383,20 @@ void QuicConnectionMigrationManager::Migrate(
 }
 
 void QuicConnectionMigrationManager::FinishMigrateNetworkImmediately(
-    QuicNetworkHandle /*network*/, MigrationResult /*result*/) {
+    QuicNetworkHandle network, MigrationResult result) {
   pending_migrate_network_immediately_ = false;
-  // TODO(danzh): check whether the session is on the default network or not. If
-  // not, set timer to migrate back to default network.
+  if (result == MigrationResult::FAILURE) {
+    QUIC_DVLOG(1) << "Failed to migrate network immediately";
+    return;
+  }
+  if (network == default_network_) {
+    CancelMigrateBackToDefaultNetworkTimer();
+    return;
+  }
+  // We are forced to migrate to |network|, probably |default_network_| is
+  // not working, start to migrate back to default network after 1 secs.
+  StartMigrateBackToDefaultNetworkTimer(
+      QuicTimeDelta::FromSeconds(kMinRetryTimeForDefaultNetworkSecs));
 }
 
 void QuicConnectionMigrationManager::FinishMigrate(
@@ -367,6 +470,242 @@ void QuicConnectionMigrationManager::OnMigrationTimeout() {
       ConnectionCloseBehavior::SILENT_CLOSE);
 }
 
+void QuicConnectionMigrationManager::StartMigrateBackToDefaultNetworkTimer(
+    QuicTimeDelta delay) {
+  if (current_migration_cause_ != MigrationCause::ON_NETWORK_MADE_DEFAULT) {
+    current_migration_cause_ =
+        MigrationCause::ON_MIGRATE_BACK_TO_DEFAULT_NETWORK;
+  }
+  CancelMigrateBackToDefaultNetworkTimer();
+  // Try migrate back to default network after |delay|.
+  migrate_back_to_default_timer_->Set(clock_->ApproximateNow() + delay);
+}
+
+void QuicConnectionMigrationManager::CancelMigrateBackToDefaultNetworkTimer() {
+  retry_migrate_back_count_ = 0;
+  migrate_back_to_default_timer_->Cancel();
+}
+
+void QuicConnectionMigrationManager::MaybeRetryMigrateBackToDefaultNetwork() {
+  // Exponentially backoff the retry timeout.
+  QuicTimeDelta retry_migrate_back_timeout =
+      QuicTimeDelta::FromSeconds(UINT64_C(1) << retry_migrate_back_count_);
+  if (retry_migrate_back_timeout > config_.max_time_on_non_default_network) {
+    // Mark session as going away to accept no more streams.
+    session_->StartDraining();
+    return;
+  }
+  TryMigrateBackToDefaultNetwork(retry_migrate_back_timeout);
+}
+
+void QuicConnectionMigrationManager::TryMigrateBackToDefaultNetwork(
+    QuicTimeDelta next_try_timeout) {
+  if (default_network_ == kInvalidNetworkHandle) {
+    QUICHE_DVLOG(1) << "Default network is not connected";
+    return;
+  }
+  if (debug_visitor_) {
+    debug_visitor_->OnConnectionMigrationBackToDefaultNetwork(
+        retry_migrate_back_count_);
+  }
+  if (!path_context_factory_) {
+    FinishTryMigrateBackToDefaultNetwork(
+        next_try_timeout, ProbingResult::DISABLED_WITH_IDLE_SESSION);
+    return;
+  }
+  if (MaybeCloseIdleSession(
+          /*has_write_error=*/false,
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET)) {
+    FinishTryMigrateBackToDefaultNetwork(
+        next_try_timeout, ProbingResult::DISABLED_WITH_IDLE_SESSION);
+    return;
+  }
+  if (migration_disabled_) {
+    QUIC_DVLOG(1)
+        << "Client disables probing network with connection migration "
+        << "disabled by config";
+    OnMigrationFailure(
+        QuicConnectionMigrationStatus::MIGRATION_STATUS_DISABLED_BY_CONFIG,
+        "Migration disabled by config");
+    FinishTryMigrateBackToDefaultNetwork(next_try_timeout,
+                                         ProbingResult::DISABLED_BY_CONFIG);
+    return;
+  }
+  // Start probe default network immediately, if this observer is probing
+  // the same network, this will be a no-op. Otherwise, previous probe
+  // will be cancelled and it starts to probe |default_network_|
+  // immediately.
+  StartProbing(
+      [this, next_try_timeout](ProbingResult rv) {
+        FinishTryMigrateBackToDefaultNetwork(next_try_timeout, rv);
+      },
+      default_network_, connection_->peer_address());
+}
+
+void QuicConnectionMigrationManager::FinishTryMigrateBackToDefaultNetwork(
+    QuicTimeDelta next_try_timeout, ProbingResult result) {
+  if (result != ProbingResult::PENDING) {
+    // Session is not allowed to migrate, mark session as going away, cancel
+    // migrate back to default timer.
+    session_->StartDraining();
+    CancelMigrateBackToDefaultNetworkTimer();
+    return;
+  }
+  ++retry_migrate_back_count_;
+  migrate_back_to_default_timer_->Set(clock_->ApproximateNow() +
+                                      next_try_timeout);
+}
+
+void QuicConnectionMigrationManager::StartProbing(
+    StartProbingCallback probing_callback, QuicNetworkHandle network,
+    const quic::QuicSocketAddress& peer_address) {
+  // Check if probing manager is probing the same path.
+  QuicPathValidationContext* existing_context =
+      connection_->GetPathValidationContext();
+  if (existing_context && existing_context->network() == network &&
+      existing_context->peer_address() == peer_address) {
+    if (probing_callback) {
+      QUIC_DVLOG(1) << "On-going probing of peer address " << peer_address
+                    << " on network " << network << " hasn't finished.";
+      std::move(probing_callback)(ProbingResult::DISABLED_BY_CONFIG);
+    }
+    return;
+  }
+  path_context_factory_->CreatePathValidationContext(
+      network, peer_address,
+      std::make_unique<PathContextCreationResultDelegateForProbing>(
+          this, std::move(probing_callback)));
+}
+
+void QuicConnectionMigrationManager::FinishStartProbing(
+    StartProbingCallback probing_callback,
+    std::unique_ptr<QuicPathValidationContext> path_context) {
+  session_->PrepareForProbingOnPath(*path_context);
+  connection_->ValidatePath(
+      std::move(path_context),
+      std::make_unique<ConnectionMigrationValidationResultDelegate>(this),
+      quic::PathValidationReason::kConnectionMigration);
+  if (probing_callback) {
+    std::move(probing_callback)(ProbingResult::PENDING);
+  }
+}
+
+void QuicConnectionMigrationManager::OnProbeFailed(
+    std::unique_ptr<QuicPathValidationContext> path_context) {
+  connection_->OnPathValidationFailureAtClient(
+      /*is_multi_port=*/false, *path_context);
+  QuicNetworkHandle network = path_context->network();
+  if (debug_visitor_) {
+    debug_visitor_->OnProbeResult(network, connection_->peer_address(),
+                                  /*success=*/false);
+  }
+  LogProbeResultToHistogram(current_migration_cause_, false);
+  QuicPathValidationContext* context = connection_->GetPathValidationContext();
+  if (!context) {
+    return;
+  }
+  if (context->network() == network &&
+      context->peer_address() == connection_->peer_address()) {
+    connection_->CancelPathValidation();
+  }
+  if (network != kInvalidNetworkHandle) {
+    // Probing failure can be ignored.
+    QUICHE_DVLOG(1) << "Connectivity probing failed on <network: " << network
+                    << ", peer_address: "
+                    << connection_->peer_address().ToString() << ">.";
+    QUICHE_DVLOG_IF(
+        1, network == default_network_ && current_network() != default_network_)
+        << "Client probing failed on the default network, still using "
+           "non-default network.";
+  }
+}
+
+void QuicConnectionMigrationManager::OnConnectionMigrationProbeSucceeded(
+    std::unique_ptr<QuicPathValidationContext> path_context,
+    quic::QuicTime /*start_time*/) {
+  QuicNetworkHandle network = path_context->network();
+  if (debug_visitor_) {
+    debug_visitor_->OnProbeResult(network, connection_->peer_address(),
+                                  /*success*/ true);
+  }
+  LogProbeResultToHistogram(current_migration_cause_, true);
+  // Close streams that are not migratable to the probed |network|.
+  session_->ResetNonMigratableStreams();
+  if (MaybeCloseIdleSession(
+          /*has_write_error=*/false,
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET)) {
+    return;
+  }
+  // Migrate to the probed socket immediately.
+  if (!session_->MigrateToNewPath(std::move(path_context))) {
+    if (debug_visitor_) {
+      debug_visitor_->OnConnectionMigrationFailedAfterProbe();
+    }
+    return;
+  }
+  OnMigrationSuccess();
+  if (debug_visitor_) {
+    debug_visitor_->OnConnectionMigrationSucceededAfterProbe(network);
+  }
+  current_network_ = network;
+  if (network == default_network_) {
+    QUIC_DVLOG(1) << "Client successfully migrated to default network: "
+                  << default_network_;
+    CancelMigrateBackToDefaultNetworkTimer();
+    return;
+  }
+  QUIC_DVLOG(1) << "Client successfully got off default network after "
+                << "successful probing network: " << network << ".";
+  if (!migrate_back_to_default_timer_->IsSet()) {
+    current_migration_cause_ =
+        MigrationCause::ON_MIGRATE_BACK_TO_DEFAULT_NETWORK;
+    // Session gets off the |default_network|, stay on |network| for now but
+    // try to migrate back to default network after 1 second.
+    StartMigrateBackToDefaultNetworkTimer(
+        QuicTimeDelta::FromSeconds(kMinRetryTimeForDefaultNetworkSecs));
+  }
+}
+
+void QuicConnectionMigrationManager::OnNetworkMadeDefault(
+    QuicNetworkHandle new_network) {
+  if (!session_->version().HasIetfQuicFrames()) {
+    return;
+  }
+  if (debug_visitor_) {
+    debug_visitor_->OnNetworkMadeDefault(new_network);
+  }
+  if (!config_.migrate_session_on_network_change ||
+      session_->IsSessionProxied()) {
+    return;
+  }
+  QUICHE_DCHECK_NE(kInvalidNetworkHandle, new_network);
+  if (debug_visitor_) {
+    debug_visitor_->OnConnectionMigrationAfterNewDefaultNetwork(new_network);
+  }
+  if (new_network == default_network_) {
+    return;
+  }
+  QUICHE_DVLOG(1) << "Network: " << new_network
+                  << " becomes default, old default: " << default_network_
+                  << " current_network " << current_network();
+  default_network_ = new_network;
+  current_migration_cause_ = MigrationCause::ON_NETWORK_MADE_DEFAULT;
+  // Simply cancel the timer to migrate back to the default network if session
+  // is already on the default network.
+  if (current_network() == new_network) {
+    CancelMigrateBackToDefaultNetworkTimer();
+    OnMigrationFailure(
+        QuicConnectionMigrationStatus::MIGRATION_STATUS_ALREADY_MIGRATED,
+        "Already migrated on the new network");
+    return;
+  }
+  LogHandshakeStatusOnMigrationSignal();
+  // Stay on the current network. Try to migrate back to default network
+  // without any delay, which will start probing the new default network and
+  // migrate to the new network immediately on success.
+  StartMigrateBackToDefaultNetworkTimer(QuicTimeDelta::Zero());
+}
+
 void QuicConnectionMigrationManager::LogMetricsOnNetworkDisconnected() {
   most_recent_network_disconnected_timestamp_ = clock_->ApproximateNow();
 }
@@ -421,8 +760,48 @@ bool QuicConnectionMigrationManager::MaybeCloseIdleSession(
 void QuicConnectionMigrationManager::OnHandshakeCompleted(
     const QuicConfig& negotiated_config) {
   migration_disabled_ = negotiated_config.DisableConnectionMigration();
-  // TODO(danzh): attempt to migrate back to the default network after handshake
-  // has been completed if the session is not created on the default network.
+  // Attempt to migrate back to the default network after handshake has been
+  // completed if the session is not created on the default network.
+  if (config_.migrate_session_on_network_change &&
+      default_network_ != kInvalidNetworkHandle &&
+      current_network() != default_network_) {
+    QUICHE_DCHECK(session_->version().HasIetfQuicFrames());
+    current_migration_cause_ =
+        MigrationCause::ON_MIGRATE_BACK_TO_DEFAULT_NETWORK;
+    StartMigrateBackToDefaultNetworkTimer(
+        QuicTimeDelta::FromSeconds(kMinRetryTimeForDefaultNetworkSecs));
+  }
+}
+
+// TODO(fayang): Remove this when necessary data is collected.
+void QuicConnectionMigrationManager::LogProbeResultToHistogram(
+    MigrationCause cause, bool success) {
+  QUIC_CLIENT_HISTOGRAM_BOOL("Net.QuicSession.PathValidationSuccess", success,
+                             "");
+  switch (cause) {
+    case MigrationCause::UNKNOWN_CAUSE:
+      QUIC_CLIENT_HISTOGRAM_BOOL(
+          "Net.QuicSession.PathValidationSuccess.Unknown", success, "");
+      return;
+    case MigrationCause::ON_NETWORK_DISCONNECTED:
+      QUIC_CLIENT_HISTOGRAM_BOOL(
+          "Net.QuicSession.PathValidationSuccess.OnNetworkDisconnected",
+          success, "");
+      return;
+    case MigrationCause::ON_NETWORK_MADE_DEFAULT:
+      QUIC_CLIENT_HISTOGRAM_BOOL(
+          "Net.QuicSession.PathValidationSuccess.OnNetworkMadeDefault", success,
+          "");
+      return;
+    case MigrationCause::ON_MIGRATE_BACK_TO_DEFAULT_NETWORK:
+      QUIC_CLIENT_HISTOGRAM_BOOL(
+          "Net.QuicSession.PathValidationSuccess.OnMigrateBackToDefaultNetwork",
+          success, "");
+      return;
+    default:
+      // Other causes are not implemented yet.
+      return;
+  }
 }
 
 void QuicConnectionMigrationManager::ResetMigrationCauseAndLogResult(
