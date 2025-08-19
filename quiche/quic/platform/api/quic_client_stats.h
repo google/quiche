@@ -5,8 +5,6 @@
 #ifndef QUICHE_QUIC_PLATFORM_API_QUIC_CLIENT_STATS_H_
 #define QUICHE_QUIC_PLATFORM_API_QUIC_CLIENT_STATS_H_
 
-#include <string>
-
 #include "quiche/common/platform/api/quiche_client_stats.h"
 
 namespace quic {
@@ -78,7 +76,8 @@ namespace quic {
   QUICHE_CLIENT_HISTOGRAM_COUNTS(name, sample, min, max, bucket_count,     \
                                  docstring)
 
-inline void QuicClientSparseHistogram(const std::string& name, int sample) {
+template <typename String>
+inline void QuicClientSparseHistogram(const String& name, int sample) {
   quiche::QuicheClientSparseHistogram(name, sample);
 }
 
