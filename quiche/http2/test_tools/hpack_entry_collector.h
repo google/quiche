@@ -73,7 +73,8 @@ class QUICHE_NO_EXPORT HpackEntryCollector : public HpackEntryDecoderListener {
 
   // Returns success if collected an Indexed Header (i.e. OnIndexedHeader was
   // called).
-  ::testing::AssertionResult ValidateIndexedHeader(size_t expected_index) const;
+  ::testing::AssertionResult ValidateIndexedHeader(
+      uint64_t expected_index) const;
 
   // Returns success if collected a Header with an indexed name and literal
   // value (i.e. OnStartLiteralHeader was called with a non-zero index for

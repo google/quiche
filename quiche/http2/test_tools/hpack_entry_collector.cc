@@ -152,11 +152,11 @@ bool HpackEntryCollector::LiteralValueExpected() const {
   }
 }
 AssertionResult HpackEntryCollector::ValidateIndexedHeader(
-    size_t expected_index) const {
+    uint64_t expected_index) const {
   HTTP2_VERIFY_TRUE(started_);
   HTTP2_VERIFY_TRUE(ended_);
   HTTP2_VERIFY_EQ(HpackEntryType::kIndexedHeader, header_type_);
-  HTTP2_VERIFY_EQ(expected_index, index_);
+  HTTP2_VERIFY_EQ(expected_index, static_cast<uint64_t>(index_));
   return ::testing::AssertionSuccess();
 }
 AssertionResult HpackEntryCollector::ValidateLiteralValueHeader(
