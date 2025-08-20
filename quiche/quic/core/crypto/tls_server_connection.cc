@@ -76,6 +76,7 @@ absl::Status TlsServerConnection::ConfigureSSL(
 void TlsServerConnection::SetCertChain(
     const std::vector<CRYPTO_BUFFER*>& cert_chain,
     const std::string& trust_anchor_id) {
+#if defined(BORINGSSL_API_VERSION) && BORINGSSL_API_VERSION >= 36
   if (GetQuicReloadableFlag(enable_tls_trust_anchor_ids)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(enable_tls_trust_anchor_ids, 1, 2);
     bssl::UniquePtr<SSL_CREDENTIAL> credential(SSL_CREDENTIAL_new_x509());
@@ -88,7 +89,6 @@ void TlsServerConnection::SetCertChain(
     }
     SSL_CREDENTIAL_set_private_key_method(
         credential.get(), &TlsServerConnection::kPrivateKeyMethod);
-#if defined(BORINGSSL_API_VERSION) && BORINGSSL_API_VERSION >= 36
     if (!trust_anchor_id.empty()) {
       SSL_CREDENTIAL_set1_trust_anchor_id(
           credential.get(),
@@ -96,10 +96,11 @@ void TlsServerConnection::SetCertChain(
           trust_anchor_id.size());
       SSL_CREDENTIAL_set_must_match_issuer(credential.get(), 1);
     }
-#else
-    (void)trust_anchor_id;  // Suppress unused parameter error.
-#endif
     SSL_add1_credential(ssl(), credential.get());
+#else
+  (void)trust_anchor_id;  // Suppress unused parameter error.
+  if (false) {
+#endif
   } else {
     SSL_set_chain_and_key(ssl(), cert_chain.data(), cert_chain.size(), nullptr,
                           &TlsServerConnection::kPrivateKeyMethod);
