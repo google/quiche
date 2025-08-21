@@ -162,7 +162,8 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
 QuicTestServer::QuicTestServer(
     std::unique_ptr<ProofSource> proof_source,
     QuicSimpleServerBackend* quic_simple_server_backend)
-    : QuicServer(std::move(proof_source), quic_simple_server_backend) {}
+    : QuicServer(std::move(proof_source), /*proof_verifier=*/nullptr,
+                 quic_simple_server_backend) {}
 
 QuicTestServer::QuicTestServer(
     std::unique_ptr<ProofSource> proof_source, const QuicConfig& config,
@@ -177,7 +178,7 @@ QuicTestServer::QuicTestServer(
     const ParsedQuicVersionVector& supported_versions,
     QuicSimpleServerBackend* quic_simple_server_backend,
     uint8_t expected_server_connection_id_length)
-    : QuicServer(std::move(proof_source), config,
+    : QuicServer(std::move(proof_source), /*proof_verifier=*/nullptr, config,
                  QuicCryptoServerConfig::ConfigOptions(), supported_versions,
                  quic_simple_server_backend,
                  expected_server_connection_id_length) {}

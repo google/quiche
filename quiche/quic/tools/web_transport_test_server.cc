@@ -83,7 +83,8 @@ int Main(int argc, char** argv) {
       quiche::QuicheParseCommandLineFlags(usage, argc, argv);
 
   WebTransportOnlyBackend backend(ProcessRequest);
-  QuicServer server(quiche::CreateDefaultProofSource(), &backend);
+  QuicServer server(quiche::CreateDefaultProofSource(),
+                    /*proof_verifier=*/nullptr, &backend);
   quic::QuicSocketAddress addr(quic::QuicIpAddress::Any6(),
                                quiche::GetQuicheCommandLineFlag(FLAGS_port));
   if (!server.CreateUDPSocketAndListen(addr)) {

@@ -17,6 +17,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/connection_id_generator.h"
+#include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/deterministic_connection_id_generator.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
@@ -46,11 +47,14 @@ class QuicServer : public QuicSpdyServerBase {
  public:
   // `quic_simple_server_backend` must outlive the created QuicServer.
   QuicServer(std::unique_ptr<ProofSource> proof_source,
+             std::unique_ptr<ProofVerifier> proof_verifier,
              QuicSimpleServerBackend* quic_simple_server_backend);
   QuicServer(std::unique_ptr<ProofSource> proof_source,
+             std::unique_ptr<ProofVerifier> proof_verifier,
              QuicSimpleServerBackend* quic_simple_server_backend,
              const ParsedQuicVersionVector& supported_versions);
   QuicServer(std::unique_ptr<ProofSource> proof_source,
+             std::unique_ptr<ProofVerifier> proof_verifier,
              const QuicConfig& config,
              const QuicCryptoServerConfig::ConfigOptions& crypto_config_options,
              const ParsedQuicVersionVector& supported_versions,

@@ -41,6 +41,6 @@ quic::WebTransportRequestCallback CreateWebTransportCallback(
 MoqtServer::MoqtServer(std::unique_ptr<quic::ProofSource> proof_source,
                        MoqtIncomingSessionCallback callback)
     : backend_(CreateWebTransportCallback(std::move(callback), &server_)),
-      server_(std::move(proof_source), &backend_) {}
+      server_(std::move(proof_source), /*proof_verifier=*/nullptr, &backend_) {}
 
 }  // namespace moqt

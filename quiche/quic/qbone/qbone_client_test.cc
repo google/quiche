@@ -135,7 +135,8 @@ class QboneTestServer : public QuicServer {
  public:
   explicit QboneTestServer(std::unique_ptr<ProofSource> proof_source,
                            quic::QuicMemoryCacheBackend* response_cache)
-      : QuicServer(std::move(proof_source), response_cache) {}
+      : QuicServer(std::move(proof_source), /*proof_verifier=*/nullptr,
+                   response_cache) {}
   QuicDispatcher* CreateQuicDispatcher() override {
     return new QuicQboneDispatcher(
         &config(), &crypto_config(), version_manager(),

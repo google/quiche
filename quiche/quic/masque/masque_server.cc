@@ -19,8 +19,8 @@ namespace quic {
 
 MasqueServer::MasqueServer(MasqueMode masque_mode,
                            MasqueServerBackend* masque_server_backend)
-    : QuicServer(CreateDefaultProofSource(), masque_server_backend,
-                 MasqueSupportedVersions()),
+    : QuicServer(CreateDefaultProofSource(), /*proof_verifier=*/nullptr,
+                 masque_server_backend, MasqueSupportedVersions()),
       masque_mode_(masque_mode),
       masque_server_backend_(masque_server_backend) {}
 
