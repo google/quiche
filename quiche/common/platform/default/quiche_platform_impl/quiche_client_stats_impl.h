@@ -10,6 +10,7 @@
 
 #include <type_traits>
 
+#include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
@@ -50,8 +51,8 @@ struct QUICHE_NO_EXPORT QuicheRequireStringConstant {
   consteval QuicheRequireStringConstant(const char (& /*name*/)[N]) {}
 };
 
-inline void QuicheClientSparseHistogramImpl(
-    QuicheRequireStringConstant /*name*/, int /*sample*/) {
+inline void QuicheClientSparseHistogramImpl(absl::string_view /*name*/,
+                                            int /*sample*/) {
   // No-op.
 }
 

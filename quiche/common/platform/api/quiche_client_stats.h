@@ -5,6 +5,7 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_CLIENT_STATS_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_CLIENT_STATS_H_
 
+#include "absl/strings/string_view.h"
 #include "quiche_platform_impl/quiche_client_stats_impl.h"
 
 namespace quiche {
@@ -77,8 +78,7 @@ namespace quiche {
   QUICHE_CLIENT_HISTOGRAM_COUNTS_IMPL(name, sample, min, max, bucket_count,  \
                                       docstring)
 
-template <typename String>
-inline void QuicheClientSparseHistogram(const String& name, int sample) {
+inline void QuicheClientSparseHistogram(absl::string_view name, int sample) {
   QuicheClientSparseHistogramImpl(name, sample);
 }
 

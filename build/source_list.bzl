@@ -1110,6 +1110,7 @@ quiche_tests_srcs = [
     "common/lifetime_tracking_test.cc",
     "common/masque/connect_ip_datagram_payload_test.cc",
     "common/masque/connect_udp_datagram_payload_test.cc",
+    "common/platform/api/quiche_client_stats_test.cc",
     "common/platform/api/quiche_file_utils_test.cc",
     "common/platform/api/quiche_hostname_utils_test.cc",
     "common/platform/api/quiche_lower_case_string_test.cc",
