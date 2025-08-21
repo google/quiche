@@ -943,7 +943,6 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
 
     int use_alps_new_codepoint = 0;
 
-#if BORINGSSL_API_VERSION >= 27
     alps_new_codepoint_received_ = SSL_early_callback_ctx_extension_get(
         client_hello, TLSEXT_TYPE_application_settings, &unused_extension_bytes,
         &unused_extension_len);
@@ -954,7 +953,6 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     }
     QUIC_DLOG(INFO) << "ALPS use new codepoint: " << use_alps_new_codepoint;
     SSL_set_alps_use_new_codepoint(ssl(), use_alps_new_codepoint);
-#endif  // BORINGSSL_API_VERSION
 
     if (use_alps_new_codepoint == 0) {
       QUIC_CODE_COUNT(quic_gfe_alps_use_old_codepoint);

@@ -89,10 +89,8 @@ bool TlsClientHandshaker::CryptoConnect() {
 
   // TODO(b/193650832) Add SetFromConfig to QUIC handshakers and remove reliance
   // on session pointer.
-#if BORINGSSL_API_VERSION >= 16
   // Ask BoringSSL to randomize the order of TLS extensions.
   SSL_set_permute_extensions(ssl(), true);
-#endif  // BORINGSSL_API_VERSION
 
   // Set the SNI to send, if any.
   SSL_set_connect_state(ssl());
@@ -156,7 +154,6 @@ bool TlsClientHandshaker::CryptoConnect() {
   // if set.
   if (GetQuicReloadableFlag(enable_tls_trust_anchor_ids)) {
     QUIC_RELOADABLE_FLAG_COUNT_N(enable_tls_trust_anchor_ids, 2, 2);
-#if defined(BORINGSSL_API_VERSION) && BORINGSSL_API_VERSION >= 36
     if (tls_connection_.ssl_config().trust_anchor_ids.has_value()) {
       if (!SSL_set1_requested_trust_anchors(
               ssl(),
@@ -168,7 +165,6 @@ bool TlsClientHandshaker::CryptoConnect() {
         return false;
       }
     }
-#endif
   }
 
   // Start the handshake.
@@ -527,9 +523,7 @@ QuicAsyncStatus TlsClientHandshaker::VerifyCertChain(
     const std::vector<std::string>& certs, std::string* error_details,
     std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
     std::unique_ptr<ProofVerifierCallback> callback) {
-#if defined(BORINGSSL_API_VERSION) && BORINGSSL_API_VERSION >= 36
   matched_trust_anchor_id_ = SSL_peer_matched_trust_anchor(ssl());
-#endif
 
   const uint8_t* ocsp_response_raw;
   size_t ocsp_response_len;

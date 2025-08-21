@@ -366,7 +366,6 @@ TEST_P(TlsClientHandshakerTest, HandshakeWithAsyncProofVerifier) {
   EXPECT_TRUE(stream()->one_rtt_keys_available());
 }
 
-#if defined(BORINGSSL_API_VERSION) && BORINGSSL_API_VERSION >= 36
 TEST_P(TlsClientHandshakerTest, HandshakeWithTrustAnchorIds) {
   SetQuicReloadableFlag(enable_tls_trust_anchor_ids, true);
   const std::string kTestTrustAnchorId = {0x03, 0x01, 0x02, 0x03};
@@ -435,7 +434,6 @@ TEST_P(TlsClientHandshakerTest, HandshakeWithEmptyTrustAnchorIdList) {
   ASSERT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(callback_ran);
 }
-#endif
 
 TEST_P(TlsClientHandshakerTest, Resumption) {
   // Disable 0-RTT on the server so that we're only testing 1-RTT resumption:
