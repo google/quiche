@@ -1446,6 +1446,63 @@ TEST_F(QuicSentPacketManagerTest, ConnectionMigrationUnspecifiedChange) {
   EXPECT_EQ(0u, manager_.GetConsecutivePtoCount());
 }
 
+TEST_F(QuicSentPacketManagerTest,
+       NoInflightBytesAfterConnectionMigrationWithResetSendAlgorithm) {
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, 0u, QuicPacketNumber(1), _, _))
+      .Times(1);
+
+  SerializedPacket packet(QuicPacketNumber(1), PACKET_4BYTE_PACKET_NUMBER,
+                          nullptr, kDefaultLength, false, false);
+  manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
+                        HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+  EXPECT_EQ(BytesInFlight(), kDefaultLength);
+
+  if (GetQuicReloadableFlag(quic_neuter_packets_on_migration)) {
+    EXPECT_CALL(*send_algorithm_, OnPacketNeutered(QuicPacketNumber(1)))
+        .Times(1);
+  } else {
+    EXPECT_CALL(*send_algorithm_, OnPacketNeutered(QuicPacketNumber(1)))
+        .Times(0);
+  }
+
+  std::unique_ptr<SendAlgorithmInterface> old_send_algorithm =
+      manager_.OnConnectionMigration(/*reset_send_algorithm=*/true);
+  EXPECT_EQ(old_send_algorithm.get(), send_algorithm_);
+  EXPECT_EQ(BytesInFlight(), 0u);
+}
+
+// Regression test for b/323150773.
+TEST_F(QuicSentPacketManagerTest,
+       NoInflightBytesAfterConnectionMigrationWithResetBBR2Sender) {
+  if (!GetQuicReloadableFlag(quic_neuter_packets_on_migration)) {
+    return;
+  }
+  manager_.SetSendAlgorithm(CongestionControlType::kBBRv2);
+
+  SerializedPacket packet(QuicPacketNumber(1), PACKET_4BYTE_PACKET_NUMBER,
+                          nullptr, kDefaultLength, false, false);
+  packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
+  manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
+                        HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
+  EXPECT_EQ(BytesInFlight(), kDefaultLength);
+
+  std::unique_ptr<SendAlgorithmInterface> old_send_algorithm =
+      manager_.OnConnectionMigration(/*reset_send_algorithm=*/true);
+  EXPECT_EQ(BytesInFlight(), 0u);
+
+  // Restore the old send algorithm and receive an ack for packet 1.
+  manager_.SetSendAlgorithm(old_send_algorithm.release());
+
+  EXPECT_CALL(*network_change_visitor_, OnCongestionChange());
+
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_FORWARD_SECURE, kEmptyCounts));
+}
+
 // Tests that ResetCongestionControlUponPeerAddressChange() resets send
 // algorithm and RTT. And unACK'ed packets are handled correctly.
 TEST_F(QuicSentPacketManagerTest,

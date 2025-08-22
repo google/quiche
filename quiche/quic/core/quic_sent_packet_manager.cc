@@ -1270,6 +1270,10 @@ QuicSentPacketManager::OnConnectionMigration(bool reset_send_algorithm) {
         MarkForRetransmission(packet_number, PATH_RETRANSMISSION);
         QUICHE_DCHECK_EQ(it->state, NOT_CONTRIBUTING_RTT);
       }
+      if (neuter_packets_on_migration_) {
+        QUIC_RELOADABLE_FLAG_COUNT(quic_neuter_packets_on_migration);
+        old_send_algorithm->OnPacketNeutered(packet_number);
+      }
     }
     it->state = NOT_CONTRIBUTING_RTT;
   }

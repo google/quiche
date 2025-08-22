@@ -31,6 +31,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_unacked_packet_map.h"
 #include "quiche/quic/core/session_notifier_interface.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_circular_deque.h"
@@ -771,6 +772,9 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // used to prevent the execution of ECN-specific code unless flag-protected
   // code has explicitly enabled it.
   bool ecn_queried_ = false;
+
+  const bool neuter_packets_on_migration_ =
+      GetQuicReloadableFlag(quic_neuter_packets_on_migration);
 };
 
 }  // namespace quic
