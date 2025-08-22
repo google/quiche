@@ -60,12 +60,11 @@ std::string GetSerializedKeyConfig(
   return ohttp_key;
 }
 
-TEST(ObliviousHttpHeaderKeyConfig, TestSerializeRecipientContextInfo) {
+void ExpectSerializedRecipientContextInfo(absl::string_view ohttp_req_label) {
   uint8_t key_id = 3;
   uint16_t kem_id = EVP_HPKE_DHKEM_X25519_HKDF_SHA256;
   uint16_t kdf_id = EVP_HPKE_HKDF_SHA256;
   uint16_t aead_id = EVP_HPKE_AES_256_GCM;
-  absl::string_view ohttp_req_label = "message/bhttp request";
   std::string expected(ohttp_req_label);
   uint8_t zero_byte = 0x00;
   int buf_len = ohttp_req_label.size() + sizeof(zero_byte) + sizeof(key_id) +
@@ -77,8 +76,19 @@ TEST(ObliviousHttpHeaderKeyConfig, TestSerializeRecipientContextInfo) {
   auto instance =
       ObliviousHttpHeaderKeyConfig::Create(key_id, kem_id, kdf_id, aead_id);
   ASSERT_TRUE(instance.ok());
-  EXPECT_EQ(instance.value().SerializeRecipientContextInfo(), expected);
+  EXPECT_EQ(instance.value().SerializeRecipientContextInfo(ohttp_req_label),
+            expected);
   EXPECT_THAT(instance->DebugString(), HasSubstr("AES-256-GCM"));
+}
+
+TEST(ObliviousHttpHeaderKeyConfig,
+     TestSerializeRecipientContextInfoStandardLabel) {
+  ExpectSerializedRecipientContextInfo("message/bhttp request");
+}
+
+TEST(ObliviousHttpHeaderKeyConfig,
+     TestSerializeRecipientContextInfoChunkedLabel) {
+  ExpectSerializedRecipientContextInfo("message/bhttp chunked request");
 }
 
 TEST(ObliviousHttpHeaderKeyConfig, TestValidKeyConfig) {

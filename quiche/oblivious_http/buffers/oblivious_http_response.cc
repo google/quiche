@@ -19,6 +19,7 @@
 #include "quiche/common/quiche_crypto_logging.h"
 #include "quiche/common/quiche_random.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
+#include "quiche/oblivious_http/common/oblivious_http_definitions.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
@@ -336,4 +337,106 @@ ObliviousHttpResponse::CommonOperationsToEncapDecap(
   return result;
 }
 
+absl::StatusOr<ObliviousHttpResponse::AeadContextData>
+ObliviousHttpResponse::GetAeadContextData(
+    ObliviousHttpRequest::Context& oblivious_http_request_context,
+    CommonAeadParamsResult& aead_params, absl::string_view response_label,
+    absl::string_view response_nonce) {
+  // Steps (1, 3 to 5) + AEAD context SetUp before 6th step is performed in
+  // CommonOperations.
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-3
+  auto common_ops_st = CommonOperationsToEncapDecap(
+      response_nonce, oblivious_http_request_context, response_label,
+      aead_params.aead_key_len, aead_params.aead_nonce_len,
+      aead_params.secret_len);
+  if (!common_ops_st.ok()) {
+    return common_ops_st.status();
+  }
+  return AeadContextData{std::move(common_ops_st.value().aead_ctx),
+                         std::move(common_ops_st.value().aead_nonce)};
+}
+
+// Encrypts the chunk following
+// https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-05.html#section-6.1
+// The plaintext payload can only be empty if this is the final chunk. The chunk
+// nonce cannot be empty. If the operation succeeds then the returned encrypted
+// data is guaranteed to be non-empty.
+absl::StatusOr<std::string> ObliviousHttpResponse::EncryptChunk(
+    ObliviousHttpRequest::Context& oblivious_http_request_context,
+    const AeadContextData& aead_context_data,
+    absl::string_view plaintext_payload, absl::string_view chunk_nonce,
+    bool is_final_chunk) {
+  // Empty plaintext_payload is only allowed for the final chunk.
+  if (!is_final_chunk && plaintext_payload.empty()) {
+    return absl::InvalidArgumentError(
+        "Payload cannot be empty for non-final chunks.");
+  }
+  if (chunk_nonce.empty()) {
+    return absl::InvalidArgumentError("Chunk nonce cannot be empty.");
+  }
+
+  uint8_t* ad = nullptr;
+  size_t ad_len = 0;
+  if (is_final_chunk) {
+    ad = const_cast<uint8_t*>(kFinalAdBytes);
+    ad_len = sizeof(kFinalAdBytes);
+  }
+
+  const size_t max_encrypted_data_size =
+      plaintext_payload.size() +
+      EVP_AEAD_max_overhead(EVP_HPKE_AEAD_aead(EVP_HPKE_CTX_aead(
+          oblivious_http_request_context.hpke_context_.get())));
+  std::string encrypted_data(max_encrypted_data_size, '\0');
+  size_t ciphertext_len;
+
+  if (!EVP_AEAD_CTX_seal(
+          aead_context_data.aead_ctx.get(),
+          reinterpret_cast<uint8_t*>(encrypted_data.data()), &ciphertext_len,
+          encrypted_data.size(),
+          reinterpret_cast<const uint8_t*>(chunk_nonce.data()),
+          aead_context_data.aead_nonce.size(),
+          reinterpret_cast<const uint8_t*>(plaintext_payload.data()),
+          plaintext_payload.size(), ad, ad_len)) {
+    return SslErrorAsStatus(
+        "Failed to encrypt the payload with derived AEAD key.");
+  }
+  encrypted_data.resize(ciphertext_len);
+  if (ciphertext_len == 0) {
+    return absl::InternalError("Generated Encrypted payload cannot be empty.");
+  }
+  return encrypted_data;
+}
+
+absl::StatusOr<ObliviousHttpResponse::ChunkCounter>
+ObliviousHttpResponse::ChunkCounter::Create(std::string nonce) {
+  if (nonce.empty()) {
+    return absl::InvalidArgumentError("Nonce must not be empty.");
+  }
+  return ObliviousHttpResponse::ChunkCounter(std::move(nonce));
+}
+
+ObliviousHttpResponse::ChunkCounter::ChunkCounter(std::string nonce)
+    : nonce_(std::move(nonce)), encoded_counter_(nonce_.size(), '\0') {}
+
+void ObliviousHttpResponse::ChunkCounter::Increment() {
+  uint64_t pos = nonce_.size();
+  // Start with the least significant byte and increment it by 1, if it wraps
+  // then proceed to the next byte and repeat.
+  do {
+    pos--;
+    encoded_counter_[pos] += static_cast<uint8_t>(1);
+  } while (pos != 0 && encoded_counter_[pos] == '\0');
+  if (pos == 0 && encoded_counter_[pos] == '\0') {
+    // Counter has wrapped.
+    limit_exceeded_ = true;
+  }
+}
+
+std::string ObliviousHttpResponse::ChunkCounter::GetChunkNonce() const {
+  std::string chunk_nonce(nonce_.size(), '\0');
+  for (size_t i = 0; i < chunk_nonce.size(); i++) {
+    chunk_nonce[i] = nonce_[i] ^ encoded_counter_[i];
+  }
+  return chunk_nonce;
+}
 }  // namespace quiche

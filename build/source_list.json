@@ -1637,6 +1637,8 @@
   "oblivious_http_hdrs": [
     "quiche/oblivious_http/buffers/oblivious_http_request.h",
     "quiche/oblivious_http/buffers/oblivious_http_response.h",
+    "quiche/oblivious_http/common/oblivious_http_chunk_handler.h",
+    "quiche/oblivious_http/common/oblivious_http_definitions.h",
     "quiche/oblivious_http/common/oblivious_http_header_key_config.h",
     "quiche/oblivious_http/oblivious_http_client.h",
     "quiche/oblivious_http/oblivious_http_gateway.h"

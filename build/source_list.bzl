@@ -1634,6 +1634,8 @@ binary_http_srcs = [
 oblivious_http_hdrs = [
     "oblivious_http/buffers/oblivious_http_request.h",
     "oblivious_http/buffers/oblivious_http_response.h",
+    "oblivious_http/common/oblivious_http_chunk_handler.h",
+    "oblivious_http/common/oblivious_http_definitions.h",
     "oblivious_http/common/oblivious_http_header_key_config.h",
     "oblivious_http/oblivious_http_client.h",
     "oblivious_http/oblivious_http_gateway.h",

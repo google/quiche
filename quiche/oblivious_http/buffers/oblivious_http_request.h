@@ -1,13 +1,14 @@
 #ifndef QUICHE_OBLIVIOUS_HTTP_BUFFERS_OBLIVIOUS_HTTP_REQUEST_H_
 #define QUICHE_OBLIVIOUS_HTTP_BUFFERS_OBLIVIOUS_HTTP_REQUEST_H_
 
-#include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "openssl/hpke.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
@@ -110,6 +111,10 @@ class QUICHE_EXPORT ObliviousHttpRequest {
       QuicheDataReader& reader, const EVP_HPKE_KEY& gateway_key,
       const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
       absl::string_view request_label);
+
+  // Decrypts an encrypted chunk.
+  static absl::StatusOr<std::string> DecryptChunk(
+      Context& context, absl::string_view encrypted_chunk, bool is_final_chunk);
 
  private:
   explicit ObliviousHttpRequest(

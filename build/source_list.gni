@@ -1638,6 +1638,8 @@ binary_http_srcs = [
 oblivious_http_hdrs = [
     "src/quiche/oblivious_http/buffers/oblivious_http_request.h",
     "src/quiche/oblivious_http/buffers/oblivious_http_response.h",
+    "src/quiche/oblivious_http/common/oblivious_http_chunk_handler.h",
+    "src/quiche/oblivious_http/common/oblivious_http_definitions.h",
     "src/quiche/oblivious_http/common/oblivious_http_header_key_config.h",
     "src/quiche/oblivious_http/oblivious_http_client.h",
     "src/quiche/oblivious_http/oblivious_http_gateway.h",

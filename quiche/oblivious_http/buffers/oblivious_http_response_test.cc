@@ -9,12 +9,15 @@
 #include <string>
 #include <utility>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "openssl/hpke.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_data_reader.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
@@ -223,6 +226,174 @@ TEST(ObliviousHttpResponse, TestEncapsulateWithQuicheRandom) {
       server_response_encapsulate->EncapsulateAndSerialize().substr(
           GetResponseNonceLength(*(server_request_context.hpke_context_))),
       expected_encrypted_response_bytes);
+}
+
+struct EncryptChunkTestParams {
+  ObliviousHttpRequest::Context context;
+  ObliviousHttpResponse::CommonAeadParamsResult aead_params;
+  ObliviousHttpResponse::AeadContextData aead_context_data;
+};
+
+absl::StatusOr<EncryptChunkTestParams> SetUpEncryptChunkTest() {
+  // Example from
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-05.html#appendix-A
+  auto ohttp_key_config =
+      GetOhttpKeyConfig(1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                        EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM);
+
+  std::string kX25519SecretKey =
+      "1c190d72acdbe4dbc69e680503bb781a932c70a12c8f3754434c67d8640d8698";
+  std::string x25519_secret_key_bytes;
+  EXPECT_TRUE(
+      absl::HexStringToBytes(kX25519SecretKey, &x25519_secret_key_bytes));
+  auto hpke_key = ConstructHpkeKey(x25519_secret_key_bytes, ohttp_key_config);
+
+  std::string encapsulated_request_headers =
+      "01002000010001"
+      "8811eb457e100811c40a0aa71340a1b81d804bb986f736f2f566a7199761a032";
+  std::string encapsulated_request_headers_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(encapsulated_request_headers,
+                                     &encapsulated_request_headers_bytes));
+  QuicheDataReader reader(encapsulated_request_headers_bytes);
+
+  auto context = ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
+      reader, *hpke_key, ohttp_key_config,
+      ObliviousHttpHeaderKeyConfig::kChunkedOhttpRequestLabel);
+  QUICHE_EXPECT_OK(context);
+
+  absl::StatusOr<ObliviousHttpResponse::CommonAeadParamsResult> aead_params =
+      ObliviousHttpResponse::GetCommonAeadParams(*context);
+  EXPECT_TRUE(aead_params.ok());
+
+  auto response_nonce = "bcce7f4cb921309ba5d62edf1769ef09";
+  std::string response_nonce_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(response_nonce, &response_nonce_bytes));
+  auto aead_context_data = ObliviousHttpResponse::GetAeadContextData(
+      *context, *aead_params,
+      ObliviousHttpHeaderKeyConfig::kChunkedOhttpResponseLabel,
+      response_nonce_bytes);
+  QUICHE_EXPECT_OK(aead_context_data);
+
+  return EncryptChunkTestParams{
+      .context = std::move(*context),
+      .aead_params = std::move(*aead_params),
+      .aead_context_data = std::move(*aead_context_data)};
+}
+
+TEST(ObliviousHttpResponse, TestEncryptChunks) {
+  auto test_params = SetUpEncryptChunkTest();
+  QUICHE_EXPECT_OK(test_params);
+  auto& [context, aead_params, aead_context_data] = *test_params;
+
+  std::string plaintext_payload = "01";
+  std::string plaintext_payload_bytes;
+  EXPECT_TRUE(
+      absl::HexStringToBytes(plaintext_payload, &plaintext_payload_bytes));
+  std::string chunk_nonce = "fead854635d2d5527d64f546";
+  std::string chunk_nonce_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(chunk_nonce, &chunk_nonce_bytes));
+
+  auto encrypted_chunk = ObliviousHttpResponse::EncryptChunk(
+      context, aead_context_data, plaintext_payload_bytes, chunk_nonce_bytes,
+      /*is_final_chunk=*/false);
+  QUICHE_EXPECT_OK(encrypted_chunk);
+  std::string encrypted_chunk_hex = absl::BytesToHexString(*encrypted_chunk);
+  EXPECT_EQ(encrypted_chunk_hex, "79bf1cc87fa0e2c02de4546945aa3d1e48");
+
+  plaintext_payload = "40c8";
+  EXPECT_TRUE(
+      absl::HexStringToBytes(plaintext_payload, &plaintext_payload_bytes));
+  chunk_nonce = "fead854635d2d5527d64f547";
+  EXPECT_TRUE(absl::HexStringToBytes(chunk_nonce, &chunk_nonce_bytes));
+
+  encrypted_chunk = ObliviousHttpResponse::EncryptChunk(
+      context, aead_context_data, plaintext_payload_bytes, chunk_nonce_bytes,
+      /*is_final_chunk=*/false);
+  QUICHE_EXPECT_OK(encrypted_chunk);
+  encrypted_chunk_hex = absl::BytesToHexString(*encrypted_chunk);
+  EXPECT_EQ(encrypted_chunk_hex, "b348b5bd4c594c16b6170b07b475845d1f32");
+
+  chunk_nonce = "fead854635d2d5527d64f544";
+  EXPECT_TRUE(absl::HexStringToBytes(chunk_nonce, &chunk_nonce_bytes));
+
+  encrypted_chunk = ObliviousHttpResponse::EncryptChunk(
+      context, aead_context_data, /*plaintext_payload=*/"", chunk_nonce_bytes,
+      /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(encrypted_chunk);
+  encrypted_chunk_hex = absl::BytesToHexString(*encrypted_chunk);
+  EXPECT_EQ(encrypted_chunk_hex, "ed9d8a796617a5b27265f4d73247f639");
+}
+
+TEST(OblviousHttpResponse, EncryptNonFinalChunkWithEmptyPayloadError) {
+  auto test_params = SetUpEncryptChunkTest();
+  QUICHE_EXPECT_OK(test_params);
+  auto& [context, aead_params, aead_context_data] = *test_params;
+
+  EXPECT_EQ(ObliviousHttpResponse::EncryptChunk(context, aead_context_data,
+                                                /*plaintext_payload=*/"", "",
+                                                /*is_final_chunk=*/false)
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
+TEST(OblviousHttpResponse, EncryptChunkWithEmptyNonceError) {
+  auto test_params = SetUpEncryptChunkTest();
+  QUICHE_EXPECT_OK(test_params);
+  auto& [context, aead_params, aead_context_data] = *test_params;
+
+  EXPECT_EQ(ObliviousHttpResponse::EncryptChunk(context, aead_context_data,
+                                                /*plaintext_payload=*/"111", "",
+                                                /*is_final_chunk=*/false)
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ChunkCounter, EmptyNonceIsInvalid) {
+  EXPECT_EQ(ObliviousHttpResponse::ChunkCounter::Create("").status().code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ChunkCounter, GetChunkNonce) {
+  // Chunk nonces from
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-05.html#appendix-A
+  std::string nonce_hex = "fead854635d2d5527d64f546";
+  std::string nonce;
+  EXPECT_TRUE(absl::HexStringToBytes(nonce_hex, &nonce));
+  auto chunk_counter = ObliviousHttpResponse::ChunkCounter::Create(nonce);
+  EXPECT_TRUE(chunk_counter.ok());
+
+  std::string expected_chunk_nonce_hex = "fead854635d2d5527d64f546";
+  std::string chunk_nonce;
+  EXPECT_TRUE(absl::HexStringToBytes(expected_chunk_nonce_hex, &chunk_nonce));
+  EXPECT_EQ(chunk_counter->GetChunkNonce(), chunk_nonce);
+
+  chunk_counter->Increment();
+  expected_chunk_nonce_hex = "fead854635d2d5527d64f547";
+  EXPECT_TRUE(absl::HexStringToBytes(expected_chunk_nonce_hex, &chunk_nonce));
+  EXPECT_EQ(chunk_counter->GetChunkNonce(), chunk_nonce);
+
+  chunk_counter->Increment();
+  expected_chunk_nonce_hex = "fead854635d2d5527d64f544";
+  EXPECT_TRUE(absl::HexStringToBytes(expected_chunk_nonce_hex, &chunk_nonce));
+  EXPECT_EQ(chunk_counter->GetChunkNonce(), chunk_nonce);
+}
+
+TEST(ChunkCounter, LimitExceeded) {
+  std::string nonce_hex = "00";
+  std::string nonce;
+  EXPECT_TRUE(absl::HexStringToBytes(nonce_hex, &nonce));
+  auto chunk_counter = ObliviousHttpResponse::ChunkCounter::Create(nonce);
+  EXPECT_TRUE(chunk_counter.ok());
+
+  for (int i = 0; i < 256; ++i) {
+    EXPECT_FALSE(chunk_counter->LimitExceeded());
+    chunk_counter->Increment();
+  }
+
+  // Counter limit reached at 2^(nonce_size * 8)
+  EXPECT_TRUE(chunk_counter->LimitExceeded());
 }
 
 }  // namespace quiche

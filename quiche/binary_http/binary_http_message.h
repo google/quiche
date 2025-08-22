@@ -187,7 +187,7 @@ class QUICHE_EXPORT BinaryHttpRequest : public BinaryHttpMessage {
   class QUICHE_EXPORT IndeterminateLengthDecoder {
    public:
     // The handler to invoke when a section is decoded successfully.
-    class MessageSectionHandler {
+    class QUICHE_EXPORT MessageSectionHandler {
      public:
       virtual ~MessageSectionHandler() = default;
       virtual void OnControlData(const ControlData& control_data) = 0;

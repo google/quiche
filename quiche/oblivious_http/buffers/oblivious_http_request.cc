@@ -11,6 +11,7 @@
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "openssl/hpke.h"
@@ -18,6 +19,7 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_crypto_logging.h"
 #include "quiche/common/quiche_data_reader.h"
+#include "quiche/oblivious_http/common/oblivious_http_definitions.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
@@ -227,6 +229,31 @@ ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
   }
 
   return Context(std::move(gateway_ctx), std::string(enc_key_received));
+}
+
+absl::StatusOr<std::string> ObliviousHttpRequest::DecryptChunk(
+    Context& context, absl::string_view encrypted_chunk, bool is_final_chunk) {
+  uint8_t* ad = nullptr;
+  size_t ad_len = 0;
+  std::string final_ad_bytes;
+  if (is_final_chunk) {
+    ad = const_cast<uint8_t*>(kFinalAdBytes);
+    ad_len = sizeof(kFinalAdBytes);
+  }
+
+  std::string decrypted(encrypted_chunk.size(), '\0');
+  size_t decrypted_len;
+  if (!EVP_HPKE_CTX_open(
+          context.hpke_context_.get(),
+          reinterpret_cast<uint8_t*>(decrypted.data()), &decrypted_len,
+          decrypted.size(),
+          reinterpret_cast<const uint8_t*>(encrypted_chunk.data()),
+          encrypted_chunk.size(), ad, ad_len)) {
+    return SslErrorAsStatus("Failed to decrypt.",
+                            absl::StatusCode::kInvalidArgument);
+  }
+  decrypted.resize(decrypted_len);
+  return decrypted;
 }
 
 }  // namespace quiche

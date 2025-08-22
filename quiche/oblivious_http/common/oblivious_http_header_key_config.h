@@ -25,6 +25,10 @@ class QUICHE_EXPORT ObliviousHttpHeaderKeyConfig {
       "message/bhttp request";
   static constexpr absl::string_view kOhttpResponseLabel =
       "message/bhttp response";
+  static constexpr absl::string_view kChunkedOhttpRequestLabel =
+      "message/bhttp chunked request";
+  static constexpr absl::string_view kChunkedOhttpResponseLabel =
+      "message/bhttp chunked response";
   // Length of the Oblivious HTTP header.
   static constexpr uint32_t kHeaderLength =
       sizeof(uint8_t) + (3 * sizeof(uint16_t));

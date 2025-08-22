@@ -2,20 +2,65 @@
 
 #include <stdint.h>
 
+#include <algorithm>
+#include <cstddef>
+#include <cstring>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "openssl/hpke.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_thread.h"
 #include "quiche/common/quiche_random.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
+#include "quiche/oblivious_http/common/oblivious_http_chunk_handler.h"
+#include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
 namespace quiche {
 namespace {
+
+constexpr absl::string_view kEncapsulatedChunkedRequest =
+    "01002000010001"
+    "8811eb457e100811c40a0aa71340a1b81d804bb986f736f2f566a7199761a032"
+    "1c2ad24942d4d692563012f2980c8fef437a336b9b2fc938ef77a5834f"
+    "1d2e33d8fd25577afe31bd1c79d094f76b6250ae6549b473ecd950501311"
+    "001c6c1395d0ef7c1022297966307b8a7f";
+
+class TestChunkHandler : public ObliviousHttpChunkHandler {
+ public:
+  TestChunkHandler() = default;
+  ~TestChunkHandler() override = default;
+  absl::Status OnDecryptedChunk(absl::string_view decrypted_chunk) override {
+    EXPECT_FALSE(on_chunks_done_called_);
+    chunk_count_++;
+    absl::StrAppend(&concatenated_decrypted_chunks_, decrypted_chunk);
+    return absl::OkStatus();
+  }
+  absl::Status OnChunksDone() override {
+    EXPECT_FALSE(on_chunks_done_called_);
+    on_chunks_done_called_ = true;
+    std::string expected_request;
+    EXPECT_TRUE(absl::HexStringToBytes(
+        "00034745540568747470730b6578616d706c652e636f6d012f",
+        &expected_request));
+    EXPECT_EQ(concatenated_decrypted_chunks_, expected_request);
+    return absl::OkStatus();
+  }
+  uint64_t GetChunkCount() const { return chunk_count_; }
+  bool GetOnChunksDoneCalled() const { return on_chunks_done_called_; }
+
+ private:
+  uint64_t chunk_count_ = 0;
+  bool on_chunks_done_called_ = false;
+  std::string concatenated_decrypted_chunks_;
+};
 
 std::string GetHpkePrivateKey() {
   // Dev/Test private key generated using Keystore.
@@ -76,6 +121,167 @@ TEST(ObliviousHttpGateway, TestProvisioningKeyAndDecapsulate) {
   ASSERT_FALSE(decrypted_req->GetPlaintextData().empty());
 }
 
+absl::StatusOr<ChunkedObliviousHttpGateway> CreateChunkedObliviousHttpGateway(
+    ObliviousHttpChunkHandler& chunk_handler,
+    QuicheRandom* quiche_random = nullptr) {
+  constexpr absl::string_view kX25519SecretKey =
+      "1c190d72acdbe4dbc69e680503bb781a932c70a12c8f3754434c67d8640d8698";
+  std::string x25519_secret_key_bytes;
+  EXPECT_TRUE(
+      absl::HexStringToBytes(kX25519SecretKey, &x25519_secret_key_bytes));
+
+  return ChunkedObliviousHttpGateway::Create(
+      x25519_secret_key_bytes,
+      GetOhttpKeyConfig(
+          /*key_id=*/1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+          EVP_HPKE_AES_128_GCM),
+      chunk_handler, quiche_random);
+}
+
+TEST(ChunkedObliviousHttpGateway, ProvisionKeyAndDecapsulateFullRequest) {
+  // Example from
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-05.html#appendix-A
+  TestChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(kEncapsulatedChunkedRequest,
+                                     &encapsulated_request_bytes));
+
+  QUICHE_EXPECT_OK(instance->DecryptRequest(encapsulated_request_bytes, true));
+  EXPECT_TRUE(chunk_handler.GetOnChunksDoneCalled());
+  EXPECT_EQ(chunk_handler.GetChunkCount(), 3);
+}
+
+TEST(ChunkedObliviousHttpGateway, ProvisionKeyAndDecapsulateBufferedRequest) {
+  // Example from
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-05.html#appendix-A
+  TestChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(kEncapsulatedChunkedRequest,
+                                     &encapsulated_request_bytes));
+
+  for (size_t i = 0; i < encapsulated_request_bytes.size(); i++) {
+    absl::string_view current_byte(&encapsulated_request_bytes[i], 1);
+    QUICHE_EXPECT_OK(instance->DecryptRequest(current_byte, false));
+  }
+
+  QUICHE_EXPECT_OK(instance->DecryptRequest("", true));
+  EXPECT_TRUE(chunk_handler.GetOnChunksDoneCalled());
+  EXPECT_EQ(chunk_handler.GetChunkCount(), 3);
+}
+
+TEST(ChunkedObliviousHttpGateway, DecryptingAfterDoneReturnsInvalidArgument) {
+  TestChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(kEncapsulatedChunkedRequest,
+                                     &encapsulated_request_bytes));
+
+  QUICHE_EXPECT_OK(instance->DecryptRequest(encapsulated_request_bytes, true));
+
+  auto second_decrypt =
+      instance->DecryptRequest(encapsulated_request_bytes, true);
+  EXPECT_EQ(second_decrypt.code(), absl::StatusCode::kInternal);
+  EXPECT_EQ(second_decrypt.message(), "Decrypting is marked as invalid.");
+}
+
+TEST(ChunkedObliviousHttpGateway, FinalChunkNotDoneReturnsInvalidArgument) {
+  TestChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes("010020", &encapsulated_request_bytes));
+
+  EXPECT_EQ(instance->DecryptRequest(encapsulated_request_bytes, true).code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ChunkedObliviousHttpGateway, GettingDecryptErrorSetsGatewayToInvalid) {
+  TestChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  std::string invalid_key_request =
+      "020020000100014b28f881333e7c164ffc499ad9796f877f4e1051ee6d31bad19dec96c2"
+      "08b4726374e469135906992e";
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(
+      absl::HexStringToBytes(invalid_key_request, &encapsulated_request_bytes));
+
+  EXPECT_EQ(instance->DecryptRequest(encapsulated_request_bytes, false).code(),
+            absl::StatusCode::kInvalidArgument);
+
+  auto second_decrypt =
+      instance->DecryptRequest(encapsulated_request_bytes, true);
+  EXPECT_EQ(second_decrypt.code(), absl::StatusCode::kInternal);
+  EXPECT_EQ(second_decrypt.message(), "Decrypting is marked as invalid.");
+}
+
+TEST(ChunkedObliviousHttpGateway, InvalidKeyConfigReturnsInvalidArgument) {
+  TestChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("990020000100018811eb457e100811c40a0aa71340a1b81d8"
+                             "04bb986f736f2f566a7199761a032",
+                             &encapsulated_request_bytes));
+
+  EXPECT_EQ(instance->DecryptRequest(encapsulated_request_bytes, false).code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ChunkedObliviousHttpGateway, ChunkHandlerOnChunkErrorPropagates) {
+  class FailingChunkHandler : public ObliviousHttpChunkHandler {
+   public:
+    FailingChunkHandler() = default;
+    ~FailingChunkHandler() override = default;
+    absl::Status OnDecryptedChunk(
+        absl::string_view /*decrypted_chunk*/) override {
+      return absl::InvalidArgumentError("Invalid data");
+    }
+    absl::Status OnChunksDone() override {
+      return absl::InvalidArgumentError("Invalid data");
+    }
+  };
+  FailingChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(kEncapsulatedChunkedRequest,
+                                     &encapsulated_request_bytes));
+
+  EXPECT_EQ(instance->DecryptRequest(encapsulated_request_bytes, true).code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ChunkedObliviousHttpGateway, ChunkHandlerOnChunksDoneErrorPropagates) {
+  class FailingChunkHandler : public ObliviousHttpChunkHandler {
+   public:
+    FailingChunkHandler() = default;
+    ~FailingChunkHandler() override = default;
+    absl::Status OnDecryptedChunk(
+        absl::string_view /*decrypted_chunk*/) override {
+      return absl::OkStatus();
+    }
+    absl::Status OnChunksDone() override {
+      return absl::InvalidArgumentError("Invalid data");
+    }
+  };
+  FailingChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(kEncapsulatedChunkedRequest,
+                                     &encapsulated_request_bytes));
+
+  EXPECT_EQ(instance->DecryptRequest(encapsulated_request_bytes, true).code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
 TEST(ObliviousHttpGateway, TestDecryptingMultipleRequestsWithSingleInstance) {
   auto instance = ObliviousHttpGateway::Create(
       GetHpkePrivateKey(),
@@ -123,6 +329,28 @@ TEST(ObliviousHttpGateway, TestInvalidHPKEKey) {
             absl::StatusCode::kInvalidArgument);
 }
 
+TEST(ChunkedObliviousHttpGateway, TestInvalidHPKEKey) {
+  TestChunkHandler chunk_handler;
+  // Invalid private key.
+  EXPECT_EQ(ChunkedObliviousHttpGateway::Create(
+                "Invalid HPKE key",
+                GetOhttpKeyConfig(70, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                                  EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_256_GCM),
+                chunk_handler)
+                .status()
+                .code(),
+            absl::StatusCode::kInternal);
+  // Empty private key.
+  EXPECT_EQ(ChunkedObliviousHttpGateway::Create(
+                /*hpke_private_key*/ "",
+                GetOhttpKeyConfig(70, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                                  EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_256_GCM),
+                chunk_handler)
+                .status()
+                .code(),
+            absl::StatusCode::kInvalidArgument);
+}
+
 TEST(ObliviousHttpGateway, TestObliviousResponseHandling) {
   auto ohttp_key_config =
       GetOhttpKeyConfig(3, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
@@ -145,6 +373,142 @@ TEST(ObliviousHttpGateway, TestObliviousResponseHandling) {
       "some response", server_request_context);
   ASSERT_TRUE(encapsulate_resp_on_gateway.ok());
   ASSERT_FALSE(encapsulate_resp_on_gateway->EncapsulateAndSerialize().empty());
+}
+
+class TestQuicheRandom : public QuicheRandom {
+ public:
+  TestQuicheRandom(std::string seed) : seed_(seed) {}
+  ~TestQuicheRandom() override {}
+
+  void RandBytes(void* data, size_t len) override {
+    size_t copy_len = std::min(len, seed_.length());
+    memcpy(data, seed_.c_str(), copy_len);
+  }
+
+  uint64_t RandUint64() override { return 0; }
+
+  void InsecureRandBytes(void* /*data*/, size_t /*len*/) override {}
+  uint64_t InsecureRandUint64() override { return 0; }
+
+ private:
+  std::string seed_;
+};
+
+TEST(ChunkedObliviousHttpGateway, SingleChunkResponse) {
+  TestChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  // Request decryption implicitly sets up the context for response encryption
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(kEncapsulatedChunkedRequest,
+                                     &encapsulated_request_bytes));
+  QUICHE_EXPECT_OK(instance->DecryptRequest(encapsulated_request_bytes, true));
+
+  // 63 byte response to test final chunk indicator length.
+  std::string plaintext_response =
+      "111111111111111111111111111111111111111111111111111111111111111111111111"
+      "111111111111111111111111111111111111111111111111111111";
+  absl::StatusOr<std::string> encrypted_response =
+      instance->EncryptResponse(plaintext_response, true);
+  QUICHE_EXPECT_OK(encrypted_response);
+  EXPECT_FALSE(encrypted_response->empty());
+  EXPECT_NE(*encrypted_response, plaintext_response);
+}
+
+TEST(ChunkedObliviousHttpGateway, MultipleChunkResponse) {
+  // Example from
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-05.html#appendix-A
+  TestChunkHandler chunk_handler;
+  std::string response_nonce = "bcce7f4cb921309ba5d62edf1769ef09";
+  std::string response_nonce_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(response_nonce, &response_nonce_bytes));
+  TestQuicheRandom quiche_random(response_nonce_bytes);
+  auto instance =
+      CreateChunkedObliviousHttpGateway(chunk_handler, &quiche_random);
+
+  // Request decrypting implicitly sets up the context for response encryption
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(kEncapsulatedChunkedRequest,
+                                     &encapsulated_request_bytes));
+  QUICHE_EXPECT_OK(instance->DecryptRequest(encapsulated_request_bytes, true));
+
+  std::string plaintext_response = "01";
+  std::string plaintext_response_bytes;
+  EXPECT_TRUE(
+      absl::HexStringToBytes(plaintext_response, &plaintext_response_bytes));
+  std::vector<std::string> encrypted_response_chunks;
+  absl::StatusOr<std::string> encrypted_response_chunk =
+      instance->EncryptResponse(plaintext_response_bytes, false);
+  QUICHE_EXPECT_OK(encrypted_response_chunk);
+  std::string encrypted_response_chunk_hex =
+      absl::BytesToHexString(*encrypted_response_chunk);
+  // The first chunk should contain the response nonce.
+  EXPECT_EQ(
+      encrypted_response_chunk_hex,
+      "bcce7f4cb921309ba5d62edf1769ef091179bf1cc87fa0e2c02de4546945aa3d1e48");
+
+  plaintext_response = "40c8";
+  EXPECT_TRUE(
+      absl::HexStringToBytes(plaintext_response, &plaintext_response_bytes));
+  encrypted_response_chunk =
+      instance->EncryptResponse(plaintext_response_bytes, false);
+  QUICHE_EXPECT_OK(encrypted_response_chunk);
+  encrypted_response_chunk_hex =
+      absl::BytesToHexString(*encrypted_response_chunk);
+  EXPECT_EQ(encrypted_response_chunk_hex,
+            "12b348b5bd4c594c16b6170b07b475845d1f32");
+
+  EXPECT_TRUE(
+      absl::HexStringToBytes(plaintext_response, &plaintext_response_bytes));
+  encrypted_response_chunk =
+      instance->EncryptResponse(/*plaintext_payload=*/"", true);
+  QUICHE_EXPECT_OK(encrypted_response_chunk);
+  encrypted_response_chunk_hex =
+      absl::BytesToHexString(*encrypted_response_chunk);
+  EXPECT_EQ(encrypted_response_chunk_hex, "00ed9d8a796617a5b27265f4d73247f639");
+}
+
+TEST(ChunkedObliviousHttpGateway, EncryptingAfterFinalChunkFails) {
+  TestChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  // Request decryption implicitly sets up the context for response encryption
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(kEncapsulatedChunkedRequest,
+                                     &encapsulated_request_bytes));
+  QUICHE_EXPECT_OK(instance->DecryptRequest(encapsulated_request_bytes, true));
+
+  std::string plaintext_response = "0140c8";
+  absl::StatusOr<std::string> encrypted_response =
+      instance->EncryptResponse(plaintext_response, true);
+  QUICHE_EXPECT_OK(encrypted_response);
+  EXPECT_EQ(
+      instance->EncryptResponse(plaintext_response, false).status().code(),
+      absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ChunkedObliviousHttpGateway, EncryptingBeforeDecryptingFails) {
+  TestChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  std::string plaintext_response = "0140c8";
+  EXPECT_EQ(
+      instance->EncryptResponse(plaintext_response, false).status().code(),
+      absl::StatusCode::kInternal);
+}
+
+TEST(ChunkedObliviousHttpGateway, EncryptionErrorMarksGatewayInvalid) {
+  TestChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  std::string plaintext_response = "0140c8";
+  EXPECT_EQ(
+      instance->EncryptResponse(plaintext_response, false).status().code(),
+      absl::StatusCode::kInternal);
+
+  EXPECT_EQ(
+      instance->EncryptResponse(plaintext_response, false).status().message(),
+      "Encrypting is marked as invalid.");
 }
 
 TEST(ObliviousHttpGateway,

@@ -136,6 +136,119 @@ TEST(ObliviousHttpRequest, DecodeEncapsulatedRequestHeaderInvalidInputs) {
                 .status()
                 .code(),
             absl::StatusCode::kInvalidArgument);
+
+  // Valid key header but missing encapsulated secret.
+  payload = "010020000100014b";
+  ASSERT_TRUE(absl::HexStringToBytes(payload, &payload_bytes));
+  QuicheDataReader reader3(payload_bytes);
+
+  // Missing encapsulated secret.
+  EXPECT_EQ(ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
+                reader3, *hpke_key, ohttp_key_config, "test")
+                .status()
+                .code(),
+            absl::StatusCode::kFailedPrecondition);
+}
+
+TEST(ObliviousHttpRequest, DecryptChunks) {
+  // Example from
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-05.html#appendix-A
+  auto ohttp_key_config =
+      GetOhttpKeyConfig(1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                        EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM);
+
+  std::string kX25519SecretKey =
+      "1c190d72acdbe4dbc69e680503bb781a932c70a12c8f3754434c67d8640d8698";
+  std::string x25519_secret_key_bytes;
+  EXPECT_TRUE(
+      absl::HexStringToBytes(kX25519SecretKey, &x25519_secret_key_bytes));
+  auto hpke_key = ConstructHpkeKey(x25519_secret_key_bytes, ohttp_key_config);
+
+  std::string encapsulated_request_headers =
+      "01002000010001"
+      "8811eb457e100811c40a0aa71340a1b81d804bb986f736f2f566a7199761a032";
+  std::string encapsulated_request_headers_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(encapsulated_request_headers,
+                                     &encapsulated_request_headers_bytes));
+  QuicheDataReader reader(encapsulated_request_headers_bytes);
+
+  auto context = ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
+      reader, *hpke_key, ohttp_key_config,
+      ObliviousHttpHeaderKeyConfig::kChunkedOhttpRequestLabel);
+  QUICHE_EXPECT_OK(context);
+
+  // Encrypted chunks from
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-05.html#appendix-A
+  std::string decrypted_payload = "";
+  std::string encrypted_non_final_chunks[] = {
+      "2ad24942d4d692563012f2980c8fef437a336b9b2fc938ef77a5834f",
+      "2e33d8fd25577afe31bd1c79d094f76b6250ae6549b473ecd950501311"};
+
+  for (const auto& encrypted_chunk : encrypted_non_final_chunks) {
+    std::string encrypted_chunk_bytes;
+    EXPECT_TRUE(
+        absl::HexStringToBytes(encrypted_chunk, &encrypted_chunk_bytes));
+    auto decrypted_chunk = ObliviousHttpRequest::DecryptChunk(
+        *context, encrypted_chunk_bytes, /*is_final_chunk=*/false);
+    QUICHE_EXPECT_OK(decrypted_chunk);
+    absl::StrAppend(&decrypted_payload, *decrypted_chunk);
+    auto debug = absl::BytesToHexString(*decrypted_chunk);
+    EXPECT_NE(debug, encrypted_chunk);
+  }
+
+  std::string final_encrypted_chunk = "1c6c1395d0ef7c1022297966307b8a7f";
+  std::string final_encrypted_chunk_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(final_encrypted_chunk,
+                                     &final_encrypted_chunk_bytes));
+  auto decrypted_final_chunk = ObliviousHttpRequest::DecryptChunk(
+      *context, final_encrypted_chunk_bytes, /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(decrypted_final_chunk);
+  absl::StrAppend(&decrypted_payload, *decrypted_final_chunk);
+
+  std::string decrypted_payload_hex = absl::BytesToHexString(decrypted_payload);
+
+  EXPECT_EQ(decrypted_payload_hex,
+            "00034745540568747470730b6578616d706c652e636f6d012f");
+}
+
+TEST(ObliviousHttpRequest, DecryptChunkHandleError) {
+  auto ohttp_key_config =
+      GetOhttpKeyConfig(1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                        EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM);
+
+  std::string kX25519SecretKey =
+      "1c190d72acdbe4dbc69e680503bb781a932c70a12c8f3754434c67d8640d8698";
+  std::string x25519_secret_key_bytes;
+  EXPECT_TRUE(
+      absl::HexStringToBytes(kX25519SecretKey, &x25519_secret_key_bytes));
+  auto hpke_key = ConstructHpkeKey(x25519_secret_key_bytes, ohttp_key_config);
+
+  std::string encapsulated_request_headers =
+      "01002000010001"
+      "8811eb457e100811c40a0aa71340a1b81d804bb986f736f2f566a7199761a032";
+  std::string encapsulated_request_headers_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(encapsulated_request_headers,
+                                     &encapsulated_request_headers_bytes));
+  QuicheDataReader reader(encapsulated_request_headers_bytes);
+
+  auto context = ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
+      reader, *hpke_key, ohttp_key_config,
+      ObliviousHttpHeaderKeyConfig::kChunkedOhttpRequestLabel);
+  QUICHE_EXPECT_OK(context);
+
+  // Encrypted chunks from
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-05.html#appendix-A
+  std::string decrypted_payload = "";
+  // Last byte altered to make the chunk invalid.
+  std::string encrypted_chunk =
+      "2ad24942d4d692563012f2980c8fef437a336b9b2fc938ef77a5834e";
+
+  std::string encrypted_chunk_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(encrypted_chunk, &encrypted_chunk_bytes));
+  auto decrypted_chunk = ObliviousHttpRequest::DecryptChunk(
+      *context, encrypted_chunk_bytes, /*is_final_chunk=*/false);
+  EXPECT_EQ(decrypted_chunk.status().code(),
+            absl::StatusCode::kInvalidArgument);
 }
 
 // Direct test example from RFC.
