@@ -494,6 +494,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       blackhole_detection_disabled_ = true;
     }
     if (config.HasClientSentConnectionOption(kNBHD, perspective_)) {
+      QUIC_CODE_COUNT(quic_no_blackhole_detection);
       blackhole_detection_disabled_ = true;
     }
   }
