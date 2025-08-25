@@ -49,7 +49,7 @@ namespace quiche {
 
 // Sample usage:
 //   QUICHE_SERVER_HISTOGRAM_TIMES("Very.Long.Timing.Histogram", time_delta,
-//       QuicTime::Delta::FromSeconds(1), QuicTime::Delta::FromSecond(3600 *
+//       QuicTime::Delta::FromSeconds(1), QuicTime::Delta::FromSeconds(3600 *
 //       24), 100, "Time spent in doing operation.");
 #define QUICHE_SERVER_HISTOGRAM_TIMES(name, sample, min, max, bucket_count, \
                                       docstring)                            \
