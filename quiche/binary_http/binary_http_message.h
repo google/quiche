@@ -186,19 +186,21 @@ class QUICHE_EXPORT BinaryHttpRequest : public BinaryHttpMessage {
   // its corresponding section is successfully decoded.
   class QUICHE_EXPORT IndeterminateLengthDecoder {
    public:
-    // The handler to invoke when a section is decoded successfully.
+    // The handler to invoke when a section is decoded successfully. The
+    // handler can return an error if the decoded data cannot be processed
+    // successfully.
     class QUICHE_EXPORT MessageSectionHandler {
      public:
       virtual ~MessageSectionHandler() = default;
-      virtual void OnControlData(const ControlData& control_data) = 0;
-      virtual void OnHeader(absl::string_view name,
-                            absl::string_view value) = 0;
-      virtual void OnHeadersDone() = 0;
-      virtual void OnBodyChunk(absl::string_view body_chunk) = 0;
-      virtual void OnBodyChunksDone() = 0;
-      virtual void OnTrailer(absl::string_view name,
-                             absl::string_view value) = 0;
-      virtual void OnTrailersDone() = 0;
+      virtual absl::Status OnControlData(const ControlData& control_data) = 0;
+      virtual absl::Status OnHeader(absl::string_view name,
+                                    absl::string_view value) = 0;
+      virtual absl::Status OnHeadersDone() = 0;
+      virtual absl::Status OnBodyChunk(absl::string_view body_chunk) = 0;
+      virtual absl::Status OnBodyChunksDone() = 0;
+      virtual absl::Status OnTrailer(absl::string_view name,
+                                     absl::string_view value) = 0;
+      virtual absl::Status OnTrailersDone() = 0;
     };
 
     explicit IndeterminateLengthDecoder(

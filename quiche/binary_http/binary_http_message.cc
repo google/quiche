@@ -440,7 +440,12 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeContentTerminatedSection(
           if (!field.ok()) {
             return field.status();
           }
-          message_section_handler_.OnHeader(field->name, field->value);
+          const absl::Status section_status =
+              message_section_handler_.OnHeader(field->name, field->value);
+          if (!section_status.ok()) {
+            return absl::InternalError(absl::StrCat("Failed to handle header: ",
+                                                    section_status.message()));
+          }
           break;
         }
         case MessageSection::kBody: {
@@ -449,7 +454,12 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeContentTerminatedSection(
                                       length_or_content_terminator)) {
             return absl::OutOfRangeError("Failed to read body chunk.");
           }
-          message_section_handler_.OnBodyChunk(body_chunk);
+          const absl::Status section_status =
+              message_section_handler_.OnBodyChunk(body_chunk);
+          if (!section_status.ok()) {
+            return absl::InternalError(absl::StrCat(
+                "Failed to handle body chunk: ", section_status.message()));
+          }
           break;
         }
         case MessageSection::kTrailer: {
@@ -458,7 +468,12 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeContentTerminatedSection(
           if (!field.ok()) {
             return field.status();
           }
-          message_section_handler_.OnTrailer(field->name, field->value);
+          const absl::Status section_status =
+              message_section_handler_.OnTrailer(field->name, field->value);
+          if (!section_status.ok()) {
+            return absl::InternalError(absl::StrCat(
+                "Failed to handle trailer: ", section_status.message()));
+          }
           break;
         }
         default:
@@ -500,7 +515,12 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
         return absl::OutOfRangeError("Failed to read control data.");
       }
 
-      message_section_handler_.OnControlData(control_data.value());
+      const absl::Status section_status =
+          message_section_handler_.OnControlData(control_data.value());
+      if (!section_status.ok()) {
+        return absl::InternalError(absl::StrCat(
+            "Failed to handle control data: ", section_status.message()));
+      }
       SaveCheckpoint(reader);
       current_section_ = MessageSection::kHeader;
     }
@@ -510,7 +530,12 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
       if (!status.ok()) {
         return status;
       }
-      message_section_handler_.OnHeadersDone();
+      const absl::Status section_status =
+          message_section_handler_.OnHeadersDone();
+      if (!section_status.ok()) {
+        return absl::InternalError(absl::StrCat(
+            "Failed to handle headers done: ", section_status.message()));
+      }
       current_section_ = MessageSection::kBody;
     }
       ABSL_FALLTHROUGH_INTENDED;
@@ -522,16 +547,29 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
       // 1. There is no data to read after the headers section.
       // 2. This is signaled as the last piece of data (end_stream).
       if (maybe_truncated_ && end_stream) {
-        message_section_handler_.OnBodyChunksDone();
-        message_section_handler_.OnTrailersDone();
+        absl::Status section_status =
+            message_section_handler_.OnBodyChunksDone();
+        if (!section_status.ok()) {
+          return absl::InternalError(absl::StrCat(
+              "Failed to handle body chunks done: ", section_status.message()));
+        }
+        section_status = message_section_handler_.OnTrailersDone();
+        if (!section_status.ok()) {
+          return absl::InternalError(absl::StrCat(
+              "Failed to handle trailers done: ", section_status.message()));
+        }
         return absl::OkStatus();
       }
 
-      const absl::Status status = DecodeContentTerminatedSection(reader);
-      if (!status.ok()) {
-        return status;
+      absl::Status section_status = DecodeContentTerminatedSection(reader);
+      if (!section_status.ok()) {
+        return section_status;
       }
-      message_section_handler_.OnBodyChunksDone();
+      section_status = message_section_handler_.OnBodyChunksDone();
+      if (!section_status.ok()) {
+        return absl::InternalError(absl::StrCat(
+            "Failed to handle body chunks done: ", section_status.message()));
+      }
       current_section_ = MessageSection::kTrailer;
       // Reset the truncation flag before entering the trailers section.
       maybe_truncated_ = true;
@@ -545,15 +583,24 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
       // 1. There is no data to read after the body section.
       // 2. This is signaled as the last piece of data (end_stream).
       if (maybe_truncated_ && end_stream) {
-        message_section_handler_.OnTrailersDone();
+        const absl::Status section_status =
+            message_section_handler_.OnTrailersDone();
+        if (!section_status.ok()) {
+          return absl::InternalError(absl::StrCat(
+              "Failed to handle trailers done: ", section_status.message()));
+        }
         return absl::OkStatus();
       }
 
-      const absl::Status status = DecodeContentTerminatedSection(reader);
-      if (!status.ok()) {
-        return status;
+      absl::Status section_status = DecodeContentTerminatedSection(reader);
+      if (!section_status.ok()) {
+        return section_status;
       }
-      message_section_handler_.OnTrailersDone();
+      section_status = message_section_handler_.OnTrailersDone();
+      if (!section_status.ok()) {
+        return absl::InternalError(absl::StrCat(
+            "Failed to handle trailers done: ", section_status.message()));
+      }
       current_section_ = MessageSection::kPadding;
     }
       ABSL_FALLTHROUGH_INTENDED;

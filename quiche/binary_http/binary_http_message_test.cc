@@ -52,34 +52,43 @@ class RequestMessageSectionTestHandler
     bool trailers_done_ = false;
   };
   RequestMessageSectionTestHandler() = default;
-  void OnControlData(
+  absl::Status OnControlData(
       const BinaryHttpRequest::ControlData& control_data) override {
     EXPECT_FALSE(message_data_.control_data_.has_value());
     message_data_.control_data_ = control_data;
+    return absl::OkStatus();
   }
-  void OnHeader(absl::string_view name, absl::string_view value) override {
+  absl::Status OnHeader(absl::string_view name,
+                        absl::string_view value) override {
     EXPECT_FALSE(message_data_.headers_done_);
     message_data_.headers_.push_back({std::string(name), std::string(value)});
+    return absl::OkStatus();
   }
-  void OnHeadersDone() override {
+  absl::Status OnHeadersDone() override {
     EXPECT_FALSE(message_data_.headers_done_);
     message_data_.headers_done_ = true;
+    return absl::OkStatus();
   }
-  void OnBodyChunk(absl::string_view body_chunk) override {
+  absl::Status OnBodyChunk(absl::string_view body_chunk) override {
     EXPECT_FALSE(message_data_.body_chunks_done_);
     message_data_.body_chunks_.push_back(std::string(body_chunk));
+    return absl::OkStatus();
   }
-  void OnBodyChunksDone() override {
+  absl::Status OnBodyChunksDone() override {
     EXPECT_FALSE(message_data_.body_chunks_done_);
     message_data_.body_chunks_done_ = true;
+    return absl::OkStatus();
   }
-  void OnTrailer(absl::string_view name, absl::string_view value) override {
+  absl::Status OnTrailer(absl::string_view name,
+                         absl::string_view value) override {
     EXPECT_FALSE(message_data_.trailers_done_);
     message_data_.trailers_.push_back({std::string(name), std::string(value)});
+    return absl::OkStatus();
   }
-  void OnTrailersDone() override {
+  absl::Status OnTrailersDone() override {
     EXPECT_FALSE(message_data_.trailers_done_);
     message_data_.trailers_done_ = true;
+    return absl::OkStatus();
   }
   MessageData& GetMessageData() { return message_data_; }
 
@@ -503,6 +512,123 @@ TEST(IndeterminateLengthDecoder, FullRequestDecodingSuccess) {
   BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
   QUICHE_EXPECT_OK(decoder.Decode(request_bytes, true));
   ExpectRequestMessageSectionHandler(handler.GetMessageData());
+}
+
+class MockFailingMessageSectionHandler
+    : public BinaryHttpRequest::IndeterminateLengthDecoder::
+          MessageSectionHandler {
+ public:
+  MOCK_METHOD(absl::Status, OnControlData,
+              (const BinaryHttpRequest::ControlData& control_data), (override));
+
+  MOCK_METHOD(absl::Status, OnHeader,
+              (absl::string_view name, absl::string_view value), (override));
+  MOCK_METHOD(absl::Status, OnHeadersDone, (), (override));
+  MOCK_METHOD(absl::Status, OnBodyChunk, (absl::string_view body_chunk),
+              (override));
+  MOCK_METHOD(absl::Status, OnBodyChunksDone, (), (override));
+  MOCK_METHOD(absl::Status, OnTrailer,
+              (absl::string_view name, absl::string_view value), (override));
+  MOCK_METHOD(absl::Status, OnTrailersDone, (), (override));
+};
+
+std::unique_ptr<MockFailingMessageSectionHandler>
+GetMockMessageSectionHandler() {
+  auto handler = std::make_unique<MockFailingMessageSectionHandler>();
+  ON_CALL(*handler, OnControlData(testing::_))
+      .WillByDefault(testing::Return(absl::OkStatus()));
+  ON_CALL(*handler, OnHeader(testing::_, testing::_))
+      .WillByDefault(testing::Return(absl::OkStatus()));
+  ON_CALL(*handler, OnHeadersDone())
+      .WillByDefault(testing::Return(absl::OkStatus()));
+  ON_CALL(*handler, OnBodyChunk(testing::_))
+      .WillByDefault(testing::Return(absl::OkStatus()));
+  ON_CALL(*handler, OnBodyChunksDone())
+      .WillByDefault(testing::Return(absl::OkStatus()));
+  ON_CALL(*handler, OnTrailer(testing::_, testing::_))
+      .WillByDefault(testing::Return(absl::OkStatus()));
+  ON_CALL(*handler, OnTrailersDone())
+      .WillByDefault(testing::Return(absl::OkStatus()));
+  return handler;
+}
+
+TEST(IndeterminateLengthDecoder, FailedMessageSectionHandler) {
+  std::string request_bytes;
+  EXPECT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(kIndeterminateLengthEncodedRequestHeaders,
+                   kIndeterminateLengthEncodedRequestBodyChunks,
+                   kIndeterminateLengthEncodedRequestTrailers),
+      &request_bytes));
+
+  auto handler = GetMockMessageSectionHandler();
+  std::string error_message = "Failed to handle control data";
+  EXPECT_CALL(*handler, OnControlData(testing::_))
+      .WillOnce(testing::Return(absl::InternalError(error_message)));
+  auto decoder =
+      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
+  EXPECT_THAT(decoder->Decode(request_bytes, true),
+              test::StatusIs(absl::StatusCode::kInternal,
+                             testing::HasSubstr(error_message)));
+
+  handler = GetMockMessageSectionHandler();
+  error_message = "Failed to handle header";
+  EXPECT_CALL(*handler, OnHeader(testing::_, testing::_))
+      .WillOnce(testing::Return(absl::InternalError(error_message)));
+  decoder =
+      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
+  EXPECT_THAT(decoder->Decode(request_bytes, true),
+              test::StatusIs(absl::StatusCode::kInternal,
+                             testing::HasSubstr(error_message)));
+
+  handler = GetMockMessageSectionHandler();
+  error_message = "Failed to handle headers done";
+  EXPECT_CALL(*handler, OnHeadersDone())
+      .WillOnce(testing::Return(absl::InternalError(error_message)));
+  decoder =
+      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
+  EXPECT_THAT(decoder->Decode(request_bytes, true),
+              test::StatusIs(absl::StatusCode::kInternal,
+                             testing::HasSubstr(error_message)));
+
+  handler = GetMockMessageSectionHandler();
+  error_message = "Failed to handle body chunk";
+  EXPECT_CALL(*handler, OnBodyChunk(testing::_))
+      .WillOnce(testing::Return(absl::InternalError(error_message)));
+  decoder =
+      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
+  EXPECT_THAT(decoder->Decode(request_bytes, true),
+              test::StatusIs(absl::StatusCode::kInternal,
+                             testing::HasSubstr(error_message)));
+
+  handler = GetMockMessageSectionHandler();
+  error_message = "Failed to handle body chunks done";
+  EXPECT_CALL(*handler, OnBodyChunksDone())
+      .WillOnce(testing::Return(absl::InternalError(error_message)));
+  decoder =
+      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
+  EXPECT_THAT(decoder->Decode(request_bytes, true),
+              test::StatusIs(absl::StatusCode::kInternal,
+                             testing::HasSubstr(error_message)));
+
+  handler = GetMockMessageSectionHandler();
+  error_message = "Failed to handle trailer";
+  EXPECT_CALL(*handler, OnTrailer(testing::_, testing::_))
+      .WillOnce(testing::Return(absl::InternalError(error_message)));
+  decoder =
+      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
+  EXPECT_THAT(decoder->Decode(request_bytes, true),
+              test::StatusIs(absl::StatusCode::kInternal,
+                             testing::HasSubstr(error_message)));
+
+  handler = GetMockMessageSectionHandler();
+  error_message = "Failed to handle trailers done";
+  EXPECT_CALL(*handler, OnTrailersDone())
+      .WillOnce(testing::Return(absl::InternalError(error_message)));
+  decoder =
+      std::make_unique<BinaryHttpRequest::IndeterminateLengthDecoder>(*handler);
+  EXPECT_THAT(decoder->Decode(request_bytes, true),
+              test::StatusIs(absl::StatusCode::kInternal,
+                             testing::HasSubstr(error_message)));
 }
 
 TEST(IndeterminateLengthDecoder, BufferedRequestDecodingSuccess) {
