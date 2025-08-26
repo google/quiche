@@ -191,8 +191,6 @@ class QUICHE_EXPORT ChunkedObliviousHttpGateway {
   // context data and response nonce.
   std::optional<ObliviousHttpResponse::AeadContextData> aead_context_data_;
 
-  // Used to determine whether the response nonce has already been encoded.
-  bool has_encoded_response_nonce_ = false;
   // Counter to keep track of the number of response chunks generated and to
   // generate the corresponding chunk nonce.
   std::optional<ObliviousHttpResponse::ChunkCounter> response_chunk_counter_;
