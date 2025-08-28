@@ -43,12 +43,12 @@
 #include "quiche/quic/core/frames/quic_blocked_frame.h"
 #include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
+#include "quiche/quic/core/frames/quic_datagram_frame.h"
 #include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/frames/quic_goaway_frame.h"
 #include "quiche/quic/core/frames/quic_handshake_done_frame.h"
 #include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_max_streams_frame.h"
-#include "quiche/quic/core/frames/quic_message_frame.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_new_token_frame.h"
 #include "quiche/quic/core/frames/quic_padding_frame.h"
@@ -151,7 +151,7 @@ class QUICHE_EXPORT QuicConnectionVisitorInterface {
   virtual void OnGoAway(const QuicGoAwayFrame& frame) = 0;
 
   // Called when |message| has been received.
-  virtual void OnMessageReceived(absl::string_view message) = 0;
+  virtual void OnDatagramReceived(absl::string_view datagram) = 0;
 
   // Called when a HANDSHAKE_DONE frame has been received.
   virtual void OnHandshakeDoneReceived() = 0;
@@ -415,8 +415,8 @@ class QUICHE_EXPORT QuicConnectionDebugVisitor
   // Called when a NewTokenFrame has been parsed.
   virtual void OnNewTokenFrame(const QuicNewTokenFrame& /*frame*/) {}
 
-  // Called when a MessageFrame has been parsed.
-  virtual void OnMessageFrame(const QuicMessageFrame& /*frame*/) {}
+  // Called when a DatagramFrame has been parsed.
+  virtual void OnDatagramFrame(const QuicDatagramFrame& /*frame*/) {}
 
   // Called when a HandshakeDoneFrame has been parsed.
   virtual void OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& /*frame*/) {}
@@ -790,7 +790,7 @@ class QUICHE_EXPORT QuicConnection
   bool OnRetireConnectionIdFrame(
       const QuicRetireConnectionIdFrame& frame) override;
   bool OnNewTokenFrame(const QuicNewTokenFrame& frame) override;
-  bool OnMessageFrame(const QuicMessageFrame& frame) override;
+  bool OnDatagramFrame(const QuicDatagramFrame& frame) override;
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override;
   bool OnImmediateAckFrame(const QuicImmediateAckFrame& frame) override;
@@ -1110,20 +1110,20 @@ class QUICHE_EXPORT QuicConnection
   void SetTransmissionType(TransmissionType type);
 
   // Tries to send |message| and returns the message status.
-  // If |flush| is false, this will return a MESSAGE_STATUS_BLOCKED
+  // If |flush| is false, this will return a DATAGRAM_STATUS_BLOCKED
   // when the connection is deemed unwritable.
-  virtual MessageStatus SendMessage(QuicMessageId message_id,
-                                    absl::Span<quiche::QuicheMemSlice> message,
-                                    bool flush);
+  virtual DatagramStatus SendDatagram(
+      QuicDatagramId datagram_id, absl::Span<quiche::QuicheMemSlice> datagram,
+      bool flush);
 
-  // Returns the largest payload that will fit into a single MESSAGE frame.
+  // Returns the largest payload that will fit into a single DATAGRAM frame.
   // Because overhead can vary during a connection, this method should be
-  // checked for every message.
-  QuicPacketLength GetCurrentLargestMessagePayload() const;
-  // Returns the largest payload that will fit into a single MESSAGE frame at
+  // checked for every datagram.
+  QuicPacketLength GetCurrentLargestDatagramPayload() const;
+  // Returns the largest payload that will fit into a single DATAGRAM frame at
   // any point during the connection.  This assumes the version and
   // connection ID lengths do not change.
-  QuicPacketLength GetGuaranteedLargestMessagePayload() const;
+  QuicPacketLength GetGuaranteedLargestDatagramPayload() const;
 
   void SetUnackedMapInitialCapacity();
 

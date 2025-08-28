@@ -34,7 +34,7 @@ class QUICHE_EXPORT QuicDatagramQueue {
     // This function is called synchronously in `QuicDatagramQueue` methods.
     // `status` is nullopt when the datagram is dropped due to being in the
     // queue for too long.
-    virtual void OnDatagramProcessed(std::optional<MessageStatus> status) = 0;
+    virtual void OnDatagramProcessed(std::optional<DatagramStatus> status) = 0;
   };
 
   // |session| is not owned and must outlive this object.
@@ -44,12 +44,12 @@ class QUICHE_EXPORT QuicDatagramQueue {
   QuicDatagramQueue(QuicSession* session, std::unique_ptr<Observer> observer);
 
   // Adds the datagram to the end of the queue.  May send it immediately; if
-  // not, MESSAGE_STATUS_BLOCKED is returned.
-  MessageStatus SendOrQueueDatagram(quiche::QuicheMemSlice datagram);
+  // not, DATAGRAM_STATUS_BLOCKED is returned.
+  DatagramStatus SendOrQueueDatagram(quiche::QuicheMemSlice datagram);
 
   // Attempts to send a single datagram from the queue.  Returns the result of
-  // SendMessage(), or nullopt if there were no unexpired datagrams to send.
-  std::optional<MessageStatus> TrySendingNextDatagram();
+  // SendDatagram(), or nullopt if there were no unexpired datagrams to send.
+  std::optional<DatagramStatus> TrySendingNextDatagram();
 
   // Sends all of the unexpired datagrams until either the connection becomes
   // write-blocked or the queue is empty.  Returns the number of datagrams sent.

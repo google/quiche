@@ -447,7 +447,7 @@ SerializedPacket::SerializedPacket(QuicPacketNumber packet_number,
       transmission_type(NOT_RETRANSMISSION),
       has_ack_frame_copy(false),
       has_ack_frequency(false),
-      has_message(false),
+      has_datagram(false),
       fate(SEND_TO_WRITER) {}
 
 SerializedPacket::SerializedPacket(SerializedPacket&& other)
@@ -462,7 +462,7 @@ SerializedPacket::SerializedPacket(SerializedPacket&& other)
       largest_acked(other.largest_acked),
       has_ack_frame_copy(other.has_ack_frame_copy),
       has_ack_frequency(other.has_ack_frequency),
-      has_message(other.has_message),
+      has_datagram(other.has_datagram),
       fate(other.fate),
       peer_address(other.peer_address),
       bytes_not_retransmitted(other.bytes_not_retransmitted),
@@ -510,7 +510,7 @@ SerializedPacket* CopySerializedPacket(const SerializedPacket& serialized,
   copy->transmission_type = serialized.transmission_type;
   copy->largest_acked = serialized.largest_acked;
   copy->has_ack_frequency = serialized.has_ack_frequency;
-  copy->has_message = serialized.has_message;
+  copy->has_datagram = serialized.has_datagram;
   copy->fate = serialized.fate;
   copy->peer_address = serialized.peer_address;
   copy->bytes_not_retransmitted = serialized.bytes_not_retransmitted;

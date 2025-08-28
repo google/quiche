@@ -273,7 +273,7 @@ webtransport::Stream* WebTransportHttp3::GetStreamById(
 
 webtransport::DatagramStatus WebTransportHttp3::SendOrQueueDatagram(
     absl::string_view datagram) {
-  return MessageStatusToWebTransportStatus(
+  return DatagramStatusToWebTransportStatus(
       connect_stream_->SendHttp3Datagram(datagram));
 }
 

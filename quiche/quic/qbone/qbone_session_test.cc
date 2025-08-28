@@ -423,7 +423,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   // Test handshake establishment and sending/receiving of data for two
   // directions.
-  void TestStreamConnection(bool use_messages) {
+  void TestStreamConnection(bool use_datagrams) {
     ASSERT_TRUE(server_peer_->OneRttKeysAvailable());
     ASSERT_TRUE(client_peer_->OneRttKeysAvailable());
     ASSERT_TRUE(server_peer_->IsEncryptionEstablished());
@@ -463,10 +463,10 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     QUIC_LOG(INFO) << "Sending server -> client long data";
     server_peer_->ProcessPacketFromNetwork(TestPacketIn(long_data));
     runner_.Run();
-    if (use_messages) {
+    if (use_datagrams) {
       ExpectICMPTooBigResponse(
           server_writer_->data(),
-          server_peer_->connection()->GetGuaranteedLargestMessagePayload(),
+          server_peer_->connection()->GetGuaranteedLargestDatagramPayload(),
           TestPacketOut(long_data));
     } else {
       EXPECT_THAT(client_writer_->data(), Contains(TestPacketOut(long_data)));
@@ -479,10 +479,10 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     QUIC_LOG(INFO) << "Sending client -> server long data";
     client_peer_->ProcessPacketFromNetwork(TestPacketIn(long_data));
     runner_.Run();
-    if (use_messages) {
+    if (use_datagrams) {
       ExpectICMPTooBigResponse(
           client_writer_->data(),
-          client_peer_->connection()->GetGuaranteedLargestMessagePayload(),
+          client_peer_->connection()->GetGuaranteedLargestDatagramPayload(),
           TestPacketIn(long_data));
     } else {
       EXPECT_THAT(server_writer_->data(), Contains(TestPacketOut(long_data)));
@@ -491,21 +491,21 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     EXPECT_FALSE(client_peer_->ReceivedInchoateReject());
     EXPECT_THAT(client_peer_->GetNumReceivedServerConfigUpdates(), Eq(0));
 
-    if (!use_messages) {
+    if (!use_datagrams) {
       EXPECT_THAT(client_peer_->GetNumStreamedPackets(), Eq(1));
       EXPECT_THAT(server_peer_->GetNumStreamedPackets(), Eq(1));
     }
 
-    if (use_messages) {
+    if (use_datagrams) {
       EXPECT_THAT(client_peer_->GetNumEphemeralPackets(), Eq(0));
       EXPECT_THAT(server_peer_->GetNumEphemeralPackets(), Eq(0));
-      EXPECT_THAT(client_peer_->GetNumMessagePackets(), Eq(2));
-      EXPECT_THAT(server_peer_->GetNumMessagePackets(), Eq(2));
+      EXPECT_THAT(client_peer_->GetNumDatagramPackets(), Eq(2));
+      EXPECT_THAT(server_peer_->GetNumDatagramPackets(), Eq(2));
     } else {
       EXPECT_THAT(client_peer_->GetNumEphemeralPackets(), Eq(2));
       EXPECT_THAT(server_peer_->GetNumEphemeralPackets(), Eq(2));
-      EXPECT_THAT(client_peer_->GetNumMessagePackets(), Eq(0));
-      EXPECT_THAT(server_peer_->GetNumMessagePackets(), Eq(0));
+      EXPECT_THAT(client_peer_->GetNumDatagramPackets(), Eq(0));
+      EXPECT_THAT(server_peer_->GetNumDatagramPackets(), Eq(0));
     }
 
     // All streams are ephemeral and should be gone.
@@ -552,16 +552,16 @@ INSTANTIATE_TEST_SUITE_P(Tests, QboneSessionTest,
 
 TEST_P(QboneSessionTest, StreamConnection) {
   CreateClientAndServerSessions();
-  client_peer_->set_send_packets_as_messages(false);
-  server_peer_->set_send_packets_as_messages(false);
+  client_peer_->set_send_packets_as_datagrams(false);
+  server_peer_->set_send_packets_as_datagrams(false);
   StartHandshake();
   TestStreamConnection(false);
 }
 
-TEST_P(QboneSessionTest, Messages) {
+TEST_P(QboneSessionTest, Datagrams) {
   CreateClientAndServerSessions();
-  client_peer_->set_send_packets_as_messages(true);
-  server_peer_->set_send_packets_as_messages(true);
+  client_peer_->set_send_packets_as_datagrams(true);
+  server_peer_->set_send_packets_as_datagrams(true);
   StartHandshake();
   TestStreamConnection(true);
 }

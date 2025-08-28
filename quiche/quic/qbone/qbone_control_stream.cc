@@ -56,7 +56,7 @@ void QboneControlStreamBase::OnDataAvailable() {
   }
 }
 
-bool QboneControlStreamBase::SendMessage(const proto2::Message& proto) {
+bool QboneControlStreamBase::SendDatagram(const proto2::Message& proto) {
   std::string tmp;
   if (!proto.SerializeToString(&tmp)) {
     QUIC_BUG(quic_bug_11023_1) << "Failed to serialize QboneControlRequest";

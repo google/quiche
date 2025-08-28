@@ -42,7 +42,7 @@ class SimpleQuicFramer {
   const std::vector<QuicPathChallengeFrame>& path_challenge_frames() const;
   const std::vector<QuicPathResponseFrame>& path_response_frames() const;
   const std::vector<QuicPingFrame>& ping_frames() const;
-  const std::vector<QuicMessageFrame>& message_frames() const;
+  const std::vector<QuicDatagramFrame>& datagram_frames() const;
   const std::vector<QuicWindowUpdateFrame>& window_update_frames() const;
   const std::vector<QuicGoAwayFrame>& goaway_frames() const;
   const std::vector<QuicRstStreamFrame>& rst_stream_frames() const;

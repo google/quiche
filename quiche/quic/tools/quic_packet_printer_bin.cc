@@ -203,8 +203,8 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     std::cerr << "OnBlockedFrame: " << frame;
     return true;
   }
-  bool OnMessageFrame(const QuicMessageFrame& frame) override {
-    std::cerr << "OnMessageFrame: " << frame;
+  bool OnDatagramFrame(const QuicDatagramFrame& frame) override {
+    std::cerr << "OnDatagramFrame: " << frame;
     return true;
   }
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override {

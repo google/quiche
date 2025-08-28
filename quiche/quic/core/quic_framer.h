@@ -16,6 +16,7 @@
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/frames/quic_datagram_frame.h"
 #include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -217,8 +218,8 @@ class QUICHE_EXPORT QuicFramerVisitorInterface {
   // Called when a NewTokenFrame has been parsed.
   virtual bool OnNewTokenFrame(const QuicNewTokenFrame& frame) = 0;
 
-  // Called when a message frame has been parsed.
-  virtual bool OnMessageFrame(const QuicMessageFrame& frame) = 0;
+  // Called when a Datagrame frame has been parsed.
+  virtual bool OnDatagramFrame(const QuicDatagramFrame& frame) = 0;
 
   // Called when a handshake done frame has been parsed.
   virtual bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) = 0;
@@ -361,8 +362,8 @@ class QUICHE_EXPORT QuicFramer {
   // data length provided, but not counting the size of the data payload.
   static size_t GetMinCryptoFrameSize(QuicStreamOffset offset,
                                       QuicPacketLength data_length);
-  static size_t GetMessageFrameSize(bool last_frame_in_packet,
-                                    QuicByteCount length);
+  static size_t GetDatagramFrameSize(bool last_frame_in_packet,
+                                     QuicByteCount length);
   // Size in bytes of all ack frame fields without the missing packets or ack
   // blocks.
   static size_t GetMinAckFrameSize(QuicTransportVersion version,
@@ -905,8 +906,8 @@ class QUICHE_EXPORT QuicFramer {
                                 QuicWindowUpdateFrame* frame);
   bool ProcessBlockedFrame(QuicDataReader* reader, QuicBlockedFrame* frame);
   void ProcessPaddingFrame(QuicDataReader* reader, QuicPaddingFrame* frame);
-  bool ProcessMessageFrame(QuicDataReader* reader, bool no_message_length,
-                           QuicMessageFrame* frame);
+  bool ProcessDatagramFrame(QuicDataReader* reader, bool no_datagram_length,
+                            QuicDatagramFrame* frame);
 
   bool DecryptPayload(size_t udp_packet_length, absl::string_view encrypted,
                       absl::string_view associated_data,
@@ -1000,9 +1001,9 @@ class QUICHE_EXPORT QuicFramer {
                           QuicDataWriter* writer);
   bool AppendPaddingFrame(const QuicPaddingFrame& frame,
                           QuicDataWriter* writer);
-  bool AppendMessageFrameAndTypeByte(const QuicMessageFrame& frame,
-                                     bool last_frame_in_packet,
-                                     QuicDataWriter* writer);
+  bool AppendDatagramFrameAndTypeByte(const QuicDatagramFrame& frame,
+                                      bool last_frame_in_packet,
+                                      QuicDataWriter* writer);
 
   // IETF frame processing methods.
   bool ProcessIetfStreamFrame(QuicDataReader* reader, uint8_t frame_type,

@@ -21,8 +21,8 @@
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/frames/quic_ack_frame.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_datagram_frame.h"
 #include "quiche/quic/core/frames/quic_frame.h"
-#include "quiche/quic/core/frames/quic_message_frame.h"
 #include "quiche/quic/core/frames/quic_path_challenge_frame.h"
 #include "quiche/quic/core/frames/quic_ping_frame.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
@@ -3152,30 +3152,30 @@ TEST_F(QuicSentPacketManagerTest,
   EXPECT_EQ(manager_.peer_max_ack_delay(), extra_1_ms);
 }
 
-TEST_F(QuicSentPacketManagerTest, ClearDataInMessageFrameAfterPacketSent) {
+TEST_F(QuicSentPacketManagerTest, ClearDataInDatagramFrameAfterPacketSent) {
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
 
-  QuicMessageFrame* message_frame = nullptr;
+  QuicDatagramFrame* datagram_frame = nullptr;
   {
     quiche::QuicheMemSlice slice(quiche::QuicheBuffer(&allocator_, 1024));
-    message_frame = new QuicMessageFrame(/*message_id=*/1, std::move(slice));
-    EXPECT_FALSE(message_frame->message_data.empty());
-    EXPECT_EQ(message_frame->message_length, 1024);
+    datagram_frame = new QuicDatagramFrame(/*datagram_id=*/1, std::move(slice));
+    EXPECT_FALSE(datagram_frame->datagram_data.empty());
+    EXPECT_EQ(datagram_frame->datagram_length, 1024);
 
     SerializedPacket packet(QuicPacketNumber(1), PACKET_4BYTE_PACKET_NUMBER,
                             /*encrypted_buffer=*/nullptr, kDefaultLength,
                             /*has_ack=*/false,
                             /*has_stop_waiting*/ false);
     packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
-    packet.retransmittable_frames.push_back(QuicFrame(message_frame));
-    packet.has_message = true;
+    packet.retransmittable_frames.push_back(QuicFrame(datagram_frame));
+    packet.has_datagram = true;
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
                           HAS_RETRANSMITTABLE_DATA, /*measure_rtt=*/true,
                           ECN_NOT_ECT);
   }
 
-  EXPECT_TRUE(message_frame->message_data.empty());
-  EXPECT_EQ(message_frame->message_length, 0);
+  EXPECT_TRUE(datagram_frame->datagram_data.empty());
+  EXPECT_EQ(datagram_frame->datagram_length, 0);
 }
 
 // TODO(b/389762349): Re-enable these tests when sending AckFrequency is
@@ -3745,7 +3745,7 @@ TEST_F(QuicSentPacketManagerTest, OverheadFromDatagramFrames) {
                             nullptr, kDefaultLength, false, false);
     packet.encryption_level = ENCRYPTION_FORWARD_SECURE;
     packet.retransmittable_frames.push_back(QuicFrame(
-        new QuicMessageFrame(i, quiche::QuicheMemSlice::Copy(buffer))));
+        new QuicDatagramFrame(i, quiche::QuicheMemSlice::Copy(buffer))));
     manager_.OnPacketSent(&packet, clock_.Now(), NOT_RETRANSMISSION,
                           HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
   }

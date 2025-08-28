@@ -222,9 +222,9 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  bool OnMessageFrame(const QuicMessageFrame& frame) override {
-    message_frames_.emplace_back(frame.data, frame.message_length);
-    frame_types_.push_back(MESSAGE_FRAME);
+  bool OnDatagramFrame(const QuicDatagramFrame& frame) override {
+    datagram_frames_.emplace_back(frame.data, frame.datagram_length);
+    frame_types_.push_back(DATAGRAM_FRAME);
     return true;
   }
 
@@ -303,8 +303,8 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
     return stop_waiting_frames_;
   }
   const std::vector<QuicPingFrame>& ping_frames() const { return ping_frames_; }
-  const std::vector<QuicMessageFrame>& message_frames() const {
-    return message_frames_;
+  const std::vector<QuicDatagramFrame>& datagram_frames() const {
+    return datagram_frames_;
   }
   const std::vector<QuicWindowUpdateFrame>& window_update_frames() const {
     return window_update_frames_;
@@ -352,7 +352,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   std::vector<QuicNewConnectionIdFrame> new_connection_id_frames_;
   std::vector<QuicRetireConnectionIdFrame> retire_connection_id_frames_;
   std::vector<QuicNewTokenFrame> new_token_frames_;
-  std::vector<QuicMessageFrame> message_frames_;
+  std::vector<QuicDatagramFrame> datagram_frames_;
   std::vector<QuicHandshakeDoneFrame> handshake_done_frames_;
   std::vector<QuicAckFrequencyFrame> ack_frequency_frames_;
   std::vector<QuicImmediateAckFrame> immediate_ack_frames_;
@@ -445,8 +445,9 @@ const std::vector<QuicPingFrame>& SimpleQuicFramer::ping_frames() const {
   return visitor_->ping_frames();
 }
 
-const std::vector<QuicMessageFrame>& SimpleQuicFramer::message_frames() const {
-  return visitor_->message_frames();
+const std::vector<QuicDatagramFrame>& SimpleQuicFramer::datagram_frames()
+    const {
+  return visitor_->datagram_frames();
 }
 
 const std::vector<QuicWindowUpdateFrame>&

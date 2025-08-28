@@ -36,6 +36,7 @@
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
+#include "quiche/quic/core/frames/quic_datagram_frame.h"
 #include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -460,8 +461,8 @@ size_t QuicFramer::GetMinCryptoFrameSize(QuicStreamOffset offset,
 }
 
 // static
-size_t QuicFramer::GetMessageFrameSize(bool last_frame_in_packet,
-                                       QuicByteCount length) {
+size_t QuicFramer::GetDatagramFrameSize(bool last_frame_in_packet,
+                                        QuicByteCount length) {
   return kQuicFrameTypeSize +
          (last_frame_in_packet ? 0 : QuicDataWriter::GetVarInt62Len(length)) +
          length;
@@ -708,7 +709,7 @@ size_t QuicFramer::GetRetransmittableControlFrameSize(
     case STOP_WAITING_FRAME:
     case MTU_DISCOVERY_FRAME:
     case PADDING_FRAME:
-    case MESSAGE_FRAME:
+    case DATAGRAM_FRAME:
     case CRYPTO_FRAME:
     case NUM_FRAME_TYPES:
       QUICHE_DCHECK(false);
@@ -1004,10 +1005,10 @@ size_t QuicFramer::BuildDataPacket(const QuicPacketHeader& header,
         set_detailed_error(
             "Attempt to append STOP_SENDING frame and not in IETF QUIC.");
         return RaiseError(QUIC_INTERNAL_ERROR);
-      case MESSAGE_FRAME:
-        if (!AppendMessageFrameAndTypeByte(*frame.message_frame,
-                                           last_frame_in_packet, &writer)) {
-          QUIC_BUG(quic_bug_10850_27) << "AppendMessageFrame failed";
+      case DATAGRAM_FRAME:
+        if (!AppendDatagramFrameAndTypeByte(*frame.datagram_frame,
+                                            last_frame_in_packet, &writer)) {
+          QUIC_BUG(quic_bug_10850_27) << "AppendDatagramFrame failed";
           return 0;
         }
         break;
@@ -1192,11 +1193,11 @@ size_t QuicFramer::AppendIetfFrames(const QuicFrames& frames,
           return 0;
         }
         break;
-      case MESSAGE_FRAME:
-        if (!AppendMessageFrameAndTypeByte(*frame.message_frame,
-                                           last_frame_in_packet, writer)) {
+      case DATAGRAM_FRAME:
+        if (!AppendDatagramFrameAndTypeByte(*frame.datagram_frame,
+                                            last_frame_in_packet, writer)) {
           QUIC_BUG(quic_bug_10850_49)
-              << "AppendMessageFrame failed: " << detailed_error();
+              << "AppendDatagramFrame failed: " << detailed_error();
           return 0;
         }
         break;
@@ -2703,19 +2704,19 @@ bool QuicFramer::ProcessFrameData(QuicDataReader* reader,
         QUIC_DVLOG(2) << ENDPOINT << "Processing ping frame " << ping_frame;
         continue;
       }
-      case IETF_EXTENSION_MESSAGE_NO_LENGTH:
+      case IETF_EXTENSION_DATAGRAM_NO_LENGTH:
         ABSL_FALLTHROUGH_INTENDED;
-      case IETF_EXTENSION_MESSAGE: {
-        QUIC_CODE_COUNT(quic_legacy_message_frame_codepoint_read);
-        QuicMessageFrame message_frame;
-        if (!ProcessMessageFrame(reader,
-                                 frame_type == IETF_EXTENSION_MESSAGE_NO_LENGTH,
-                                 &message_frame)) {
-          return RaiseError(QUIC_INVALID_MESSAGE_DATA);
+      case IETF_EXTENSION_DATAGRAM: {
+        QUIC_CODE_COUNT(quic_legacy_datagram_frame_codepoint_read);
+        QuicDatagramFrame datagram_frame;
+        if (!ProcessDatagramFrame(
+                reader, frame_type == IETF_EXTENSION_DATAGRAM_NO_LENGTH,
+                &datagram_frame)) {
+          return RaiseError(QUIC_INVALID_DATAGRAM_DATA);
         }
-        QUIC_DVLOG(2) << ENDPOINT << "Processing message frame "
-                      << message_frame;
-        if (!visitor_->OnMessageFrame(message_frame)) {
+        QUIC_DVLOG(2) << ENDPOINT << "Processing datagram frame "
+                      << datagram_frame;
+        if (!visitor_->OnDatagramFrame(datagram_frame)) {
           QUIC_DVLOG(1) << ENDPOINT
                         << "Visitor asked to stop further processing.";
           // Returning true since there was no parsing error.
@@ -3098,18 +3099,18 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           }
           break;
         }
-        case IETF_EXTENSION_MESSAGE_NO_LENGTH_V99:
+        case IETF_EXTENSION_DATAGRAM_NO_LENGTH_V99:
           ABSL_FALLTHROUGH_INTENDED;
-        case IETF_EXTENSION_MESSAGE_V99: {
-          QuicMessageFrame message_frame;
-          if (!ProcessMessageFrame(
-                  reader, frame_type == IETF_EXTENSION_MESSAGE_NO_LENGTH_V99,
-                  &message_frame)) {
-            return RaiseError(QUIC_INVALID_MESSAGE_DATA);
+        case IETF_EXTENSION_DATAGRAM_V99: {
+          QuicDatagramFrame datagram_frame;
+          if (!ProcessDatagramFrame(
+                  reader, frame_type == IETF_EXTENSION_DATAGRAM_NO_LENGTH_V99,
+                  &datagram_frame)) {
+            return RaiseError(QUIC_INVALID_DATAGRAM_DATA);
           }
-          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF message frame "
-                        << message_frame;
-          if (!visitor_->OnMessageFrame(message_frame)) {
+          QUIC_DVLOG(2) << ENDPOINT << "Processing IETF datagram frame "
+                        << datagram_frame;
+          if (!visitor_->OnDatagramFrame(datagram_frame)) {
             QUIC_DVLOG(1) << ENDPOINT
                           << "Visitor asked to stop further processing.";
             // Returning true since there was no parsing error.
@@ -4014,30 +4015,30 @@ void QuicFramer::ProcessPaddingFrame(QuicDataReader* reader,
   }
 }
 
-bool QuicFramer::ProcessMessageFrame(QuicDataReader* reader,
-                                     bool no_message_length,
-                                     QuicMessageFrame* frame) {
-  if (no_message_length) {
+bool QuicFramer::ProcessDatagramFrame(QuicDataReader* reader,
+                                      bool no_datagram_length,
+                                      QuicDatagramFrame* frame) {
+  if (no_datagram_length) {
     absl::string_view remaining(reader->ReadRemainingPayload());
     frame->data = remaining.data();
-    frame->message_length = remaining.length();
+    frame->datagram_length = remaining.length();
     return true;
   }
 
-  uint64_t message_length;
-  if (!reader->ReadVarInt62(&message_length)) {
-    set_detailed_error("Unable to read message length");
+  uint64_t datagram_length;
+  if (!reader->ReadVarInt62(&datagram_length)) {
+    set_detailed_error("Unable to read datagram length");
     return false;
   }
 
-  absl::string_view message_piece;
-  if (!reader->ReadStringPiece(&message_piece, message_length)) {
-    set_detailed_error("Unable to read message data");
+  absl::string_view datagram_piece;
+  if (!reader->ReadStringPiece(&datagram_piece, datagram_length)) {
+    set_detailed_error("Unable to read datagram data");
     return false;
   }
 
-  frame->data = message_piece.data();
-  frame->message_length = message_length;
+  frame->data = datagram_piece.data();
+  frame->datagram_length = datagram_length;
 
   return true;
 }
@@ -4826,9 +4827,9 @@ size_t QuicFramer::ComputeFrameLength(
     case MTU_DISCOVERY_FRAME:
       // MTU discovery frames are serialized as ping frames.
       return kQuicFrameTypeSize;
-    case MESSAGE_FRAME:
-      return GetMessageFrameSize(last_frame_in_packet,
-                                 frame.message_frame->message_length);
+    case DATAGRAM_FRAME:
+      return GetDatagramFrameSize(last_frame_in_packet,
+                                  frame.datagram_frame->datagram_length);
     case PADDING_FRAME:
       QUICHE_DCHECK(false);
       return 0;
@@ -4887,7 +4888,7 @@ bool QuicFramer::AppendTypeByte(const QuicFrame& frame,
       set_detailed_error(
           "Attempt to append STOP_SENDING frame and not in IETF QUIC.");
       return RaiseError(QUIC_INTERNAL_ERROR);
-    case MESSAGE_FRAME:
+    case DATAGRAM_FRAME:
       return true;
 
     default:
@@ -4997,7 +4998,7 @@ bool QuicFramer::AppendIetfFrameType(const QuicFrame& frame,
     case STOP_SENDING_FRAME:
       type_byte = IETF_STOP_SENDING;
       break;
-    case MESSAGE_FRAME:
+    case DATAGRAM_FRAME:
       return true;
     case CRYPTO_FRAME:
       type_byte = IETF_CRYPTO;
@@ -5882,25 +5883,25 @@ bool QuicFramer::AppendPaddingFrame(const QuicPaddingFrame& frame,
   return writer->WritePaddingBytes(frame.num_padding_bytes - 1);
 }
 
-bool QuicFramer::AppendMessageFrameAndTypeByte(const QuicMessageFrame& frame,
-                                               bool last_frame_in_packet,
-                                               QuicDataWriter* writer) {
+bool QuicFramer::AppendDatagramFrameAndTypeByte(const QuicDatagramFrame& frame,
+                                                bool last_frame_in_packet,
+                                                QuicDataWriter* writer) {
   uint8_t type_byte;
   if (VersionHasIetfQuicFrames(version_.transport_version)) {
-    type_byte = last_frame_in_packet ? IETF_EXTENSION_MESSAGE_NO_LENGTH_V99
-                                     : IETF_EXTENSION_MESSAGE_V99;
+    type_byte = last_frame_in_packet ? IETF_EXTENSION_DATAGRAM_NO_LENGTH_V99
+                                     : IETF_EXTENSION_DATAGRAM_V99;
   } else {
-    QUIC_CODE_COUNT(quic_legacy_message_frame_codepoint_write);
-    type_byte = last_frame_in_packet ? IETF_EXTENSION_MESSAGE_NO_LENGTH
-                                     : IETF_EXTENSION_MESSAGE;
+    QUIC_CODE_COUNT(quic_legacy_datagram_frame_codepoint_write);
+    type_byte = last_frame_in_packet ? IETF_EXTENSION_DATAGRAM_NO_LENGTH
+                                     : IETF_EXTENSION_DATAGRAM;
   }
   if (!writer->WriteUInt8(type_byte)) {
     return false;
   }
-  if (!last_frame_in_packet && !writer->WriteVarInt62(frame.message_length)) {
+  if (!last_frame_in_packet && !writer->WriteVarInt62(frame.datagram_length)) {
     return false;
   }
-  for (const auto& slice : frame.message_data) {
+  for (const auto& slice : frame.datagram_data) {
     if (!writer->WriteBytes(slice.data(), slice.length())) {
       return false;
     }

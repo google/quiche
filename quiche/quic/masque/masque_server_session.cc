@@ -172,13 +172,13 @@ MasqueServerSession::MasqueServerSession(
   (void)masque_mode_;
 }
 
-void MasqueServerSession::OnMessageAcked(QuicMessageId message_id,
-                                         QuicTime /*receive_timestamp*/) {
-  QUIC_DVLOG(1) << "Received ack for DATAGRAM frame " << message_id;
+void MasqueServerSession::OnDatagramAcked(QuicDatagramId datagram_id,
+                                          QuicTime /*receive_timestamp*/) {
+  QUIC_DVLOG(1) << "Received ack for DATAGRAM frame " << datagram_id;
 }
 
-void MasqueServerSession::OnMessageLost(QuicMessageId message_id) {
-  QUIC_DVLOG(1) << "We believe DATAGRAM frame " << message_id << " was lost";
+void MasqueServerSession::OnDatagramLost(QuicDatagramId datagram_id) {
+  QUIC_DVLOG(1) << "We believe DATAGRAM frame " << datagram_id << " was lost";
 }
 
 void MasqueServerSession::OnConnectionClosed(
@@ -860,12 +860,12 @@ bool MasqueServerSession::HandleConnectUdpSocketEvent(
     absl::string_view message(
         udp_payload_read_pos - final_header_length,
         read_result.packet_buffer.buffer_len + final_header_length);
-    MessageStatus message_status = it->stream()->SendHttp3Datagram(message);
+    DatagramStatus message_status = it->stream()->SendHttp3Datagram(message);
     QUIC_DVLOG(1) << "Sent UDP packet from " << expected_target_server_address
                   << " of length " << read_result.packet_buffer.buffer_len
                   << " with stream ID " << it->stream()->id()
                   << " and got message status "
-                  << MessageStatusToString(message_status)
+                  << DatagramStatusToString(message_status)
                   << " message size with header: " << message.size();
     QUIC_DVLOG(2) << "Contents of outgoing HTTP Datagram of length "
                   << message.size() << ":" << std::endl
@@ -892,12 +892,12 @@ bool MasqueServerSession::HandleConnectIpSocketEvent(
     if (read_size < 0) {
       break;
     }
-    MessageStatus message_status = it->stream()->SendHttp3Datagram(
+    DatagramStatus message_status = it->stream()->SendHttp3Datagram(
         absl::string_view(datagram, 1 + read_size));
     QUIC_DVLOG(1) << "Encapsulated IP packet of length " << read_size
                   << " with stream ID " << it->stream()->id()
                   << " and got message status "
-                  << MessageStatusToString(message_status);
+                  << DatagramStatusToString(message_status);
   }
   return true;
 }
@@ -921,12 +921,12 @@ bool MasqueServerSession::HandleConnectEthernetSocketEvent(
     if (read_size < 0) {
       break;
     }
-    MessageStatus message_status = it->stream()->SendHttp3Datagram(
+    DatagramStatus message_status = it->stream()->SendHttp3Datagram(
         absl::string_view(datagram, 1 + read_size));
     QUIC_DVLOG(1) << "Encapsulated Ethernet frame of length " << read_size
                   << " with stream ID " << it->stream()->id()
                   << " and got message status "
-                  << MessageStatusToString(message_status);
+                  << DatagramStatusToString(message_status);
   }
   return true;
 }

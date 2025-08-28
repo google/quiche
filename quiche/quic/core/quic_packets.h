@@ -425,7 +425,7 @@ struct QUICHE_EXPORT SerializedPacket {
   // nonretransmittable_frames.
   bool has_ack_frame_copy;
   bool has_ack_frequency;
-  bool has_message;
+  bool has_datagram;
   SerializedPacketFate fate;
   QuicSocketAddress peer_address;
   // Sum of bytes from frames that are not retransmissions. This field is only

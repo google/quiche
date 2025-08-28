@@ -30,7 +30,7 @@ namespace quic {
 
 using QuicPacketLength = uint16_t;
 using QuicControlFrameId = uint32_t;
-using QuicMessageId = uint32_t;
+using QuicDatagramId = uint32_t;
 
 // IMPORTANT: IETF QUIC defines stream IDs and stream counts as being unsigned
 // 62-bit numbers. However, we have decided to only support up to 2^32-1 streams
@@ -272,7 +272,7 @@ enum QuicFrameType : uint8_t {
   PATH_RESPONSE_FRAME,
   PATH_CHALLENGE_FRAME,
   STOP_SENDING_FRAME,
-  MESSAGE_FRAME,
+  DATAGRAM_FRAME,
   NEW_TOKEN_FRAME,
   RETIRE_CONNECTION_ID_FRAME,
   ACK_FREQUENCY_FRAME,
@@ -340,10 +340,10 @@ enum QuicIetfFrameType : uint64_t {
   // The MESSAGE frame type has not yet been fully standardized.
   // QUIC versions starting with 46 and before 99 use 0x20-0x21.
   // IETF QUIC (v99) uses 0x30-0x31, see draft-pauly-quic-datagram.
-  IETF_EXTENSION_MESSAGE_NO_LENGTH = 0x20,
-  IETF_EXTENSION_MESSAGE = 0x21,
-  IETF_EXTENSION_MESSAGE_NO_LENGTH_V99 = 0x30,
-  IETF_EXTENSION_MESSAGE_V99 = 0x31,
+  IETF_EXTENSION_DATAGRAM_NO_LENGTH = 0x20,
+  IETF_EXTENSION_DATAGRAM = 0x21,
+  IETF_EXTENSION_DATAGRAM_NO_LENGTH_V99 = 0x30,
+  IETF_EXTENSION_DATAGRAM_V99 = 0x31,
 
   // An QUIC extension frame for sender control of acknowledgement delays
   IETF_ACK_FREQUENCY = 0xaf,
@@ -653,44 +653,45 @@ enum QuicPacketHeaderTypeFlags : uint8_t {
   FLAGS_LONG_HEADER = 1 << 7,
 };
 
-enum MessageStatus {
-  MESSAGE_STATUS_SUCCESS,
-  MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED,  // Failed to send message because
-                                              // encryption is not established
-                                              // yet.
-  MESSAGE_STATUS_UNSUPPORTED,  // Failed to send message because MESSAGE frame
-                               // is not supported by the connection.
-  MESSAGE_STATUS_BLOCKED,      // Failed to send message because connection is
-                           // congestion control blocked or underlying socket is
-                           // write blocked.
-  MESSAGE_STATUS_TOO_LARGE,  // Failed to send message because the message is
-                             // too large to fit into a single packet.
-  MESSAGE_STATUS_SETTINGS_NOT_RECEIVED,  // Failed to send message because
-                                         // SETTINGS frame has not been received
-                                         // yet.
-  MESSAGE_STATUS_INTERNAL_ERROR,  // Failed to send message because connection
-                                  // reaches an invalid state.
+enum DatagramStatus {
+  DATAGRAM_STATUS_SUCCESS,
+  DATAGRAM_STATUS_ENCRYPTION_NOT_ESTABLISHED,  // Failed to send message because
+                                               // encryption is not established
+                                               // yet.
+  DATAGRAM_STATUS_UNSUPPORTED,  // Failed to send message because MESSAGE frame
+                                // is not supported by the connection.
+  DATAGRAM_STATUS_BLOCKED,      // Failed to send message because connection is
+                            // congestion control blocked or underlying socket
+                            // is write blocked.
+  DATAGRAM_STATUS_TOO_LARGE,  // Failed to send message because the message is
+                              // too large to fit into a single packet.
+  DATAGRAM_STATUS_SETTINGS_NOT_RECEIVED,  // Failed to send message because
+                                          // SETTINGS frame has not been
+                                          // received yet.
+  DATAGRAM_STATUS_INTERNAL_ERROR,  // Failed to send message because connection
+                                   // reaches an invalid state.
 };
 
-QUICHE_EXPORT std::string MessageStatusToString(MessageStatus message_status);
+QUICHE_EXPORT std::string DatagramStatusToString(DatagramStatus message_status);
 
-// Used to return the result of SendMessage calls
-struct QUICHE_EXPORT MessageResult {
-  MessageResult(MessageStatus status, QuicMessageId message_id);
+// Used to return the result of SendDatagram calls
+struct QUICHE_EXPORT DatagramResult {
+  DatagramResult(DatagramStatus status, QuicDatagramId datagram_id);
 
-  bool operator==(const MessageResult& other) const {
-    return status == other.status && message_id == other.message_id;
+  bool operator==(const DatagramResult& other) const {
+    return status == other.status && datagram_id == other.datagram_id;
   }
 
   QUICHE_EXPORT friend std::ostream& operator<<(std::ostream& os,
-                                                const MessageResult& mr);
+                                                const DatagramResult& mr);
 
-  MessageStatus status;
-  // Only valid when status is MESSAGE_STATUS_SUCCESS.
-  QuicMessageId message_id;
+  DatagramStatus status;
+  // Only valid when status is DATAGRAM_STATUS_SUCCESS.
+  QuicDatagramId datagram_id;
 };
 
-QUICHE_EXPORT std::string MessageResultToString(MessageResult message_result);
+QUICHE_EXPORT std::string DatagramResultToString(
+    DatagramResult datagram_result);
 
 enum WriteStreamDataResult {
   WRITE_SUCCESS,

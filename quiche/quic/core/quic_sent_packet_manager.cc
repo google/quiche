@@ -749,13 +749,13 @@ bool QuicSentPacketManager::OnPacketSent(
                                   has_retransmittable_data);
   }
 
-  // Deallocate message data in QuicMessageFrame immediately after packet
+  // Deallocate datagram data in QuicDatagramFrame immediately after packet
   // sent.
-  if (packet.has_message) {
+  if (packet.has_datagram) {
     for (auto& frame : mutable_packet->retransmittable_frames) {
-      if (frame.type == MESSAGE_FRAME) {
-        frame.message_frame->message_data.clear();
-        frame.message_frame->message_length = 0;
+      if (frame.type == DATAGRAM_FRAME) {
+        frame.datagram_frame->datagram_data.clear();
+        frame.datagram_frame->datagram_length = 0;
       }
     }
   }
@@ -1709,8 +1709,8 @@ void QuicSentPacketManager::UpdateOverheadMeasurements(
     if (frame.type == QuicFrameType::STREAM_FRAME) {
       overhead_good_bytes_ += frame.stream_frame.data_length;
     }
-    if (frame.type == QuicFrameType::MESSAGE_FRAME) {
-      overhead_good_bytes_ += frame.message_frame->message_length;
+    if (frame.type == QuicFrameType::DATAGRAM_FRAME) {
+      overhead_good_bytes_ += frame.datagram_frame->datagram_length;
     }
   }
 }

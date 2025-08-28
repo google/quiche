@@ -1764,20 +1764,20 @@ void QuicSpdySession::LogHeaderCompressionRatioHistogram(
   }
 }
 
-MessageStatus QuicSpdySession::SendHttp3Datagram(QuicStreamId stream_id,
-                                                 absl::string_view payload) {
+DatagramStatus QuicSpdySession::SendHttp3Datagram(QuicStreamId stream_id,
+                                                  absl::string_view payload) {
   if (!SupportsH3Datagram()) {
     if (LocalHttpDatagramSupport() == HttpDatagramSupport::kNone) {
       QUIC_BUG(http datagram disabled locally)
           << "Cannot send HTTP Datagram when disabled locally";
-      return MESSAGE_STATUS_UNSUPPORTED;
+      return DATAGRAM_STATUS_UNSUPPORTED;
     } else if (!settings_received_) {
       QUIC_DLOG(INFO)
           << "Refusing to send HTTP Datagram before SETTINGS received";
-      return MESSAGE_STATUS_SETTINGS_NOT_RECEIVED;
+      return DATAGRAM_STATUS_SETTINGS_NOT_RECEIVED;
     } else {
       QUIC_DLOG(INFO) << "Refusing to send HTTP Datagram without peer support";
-      return MESSAGE_STATUS_UNSUPPORTED;
+      return DATAGRAM_STATUS_UNSUPPORTED;
     }
   }
   // Stream ID is sent divided by four as per the specification.
@@ -1790,12 +1790,12 @@ MessageStatus QuicSpdySession::SendHttp3Datagram(QuicStreamId stream_id,
   if (!writer.WriteVarInt62(stream_id_to_write)) {
     QUIC_BUG(h3 datagram stream ID write fail)
         << "Failed to write HTTP/3 datagram stream ID";
-    return MESSAGE_STATUS_INTERNAL_ERROR;
+    return DATAGRAM_STATUS_INTERNAL_ERROR;
   }
   if (!writer.WriteBytes(payload.data(), payload.length())) {
     QUIC_BUG(h3 datagram payload write fail)
         << "Failed to write HTTP/3 datagram payload";
-    return MESSAGE_STATUS_INTERNAL_ERROR;
+    return DATAGRAM_STATUS_INTERNAL_ERROR;
   }
 
   quiche::QuicheMemSlice slice(std::move(buffer));
@@ -1809,13 +1809,13 @@ void QuicSpdySession::SetMaxDatagramTimeInQueueForStreamId(
   datagram_queue()->SetMaxTimeInQueue(max_time_in_queue);
 }
 
-void QuicSpdySession::OnMessageReceived(absl::string_view message) {
-  QuicSession::OnMessageReceived(message);
+void QuicSpdySession::OnDatagramReceived(absl::string_view datagram) {
+  QuicSession::OnDatagramReceived(datagram);
   if (!SupportsH3Datagram()) {
     QUIC_DLOG(INFO) << "Ignoring unexpected received HTTP/3 datagram";
     return;
   }
-  QuicDataReader reader(message);
+  QuicDataReader reader(datagram);
   uint64_t stream_id64;
   if (!reader.ReadVarInt62(&stream_id64)) {
     QUIC_DLOG(ERROR) << "Failed to parse stream ID in received HTTP/3 datagram";
@@ -1980,12 +1980,12 @@ QuicSpdyStream* QuicSpdySession::CreateOutgoingBidirectionalWebTransportStream(
 }
 
 void QuicSpdySession::OnDatagramProcessed(
-    std::optional<MessageStatus> /*status*/) {
+    std::optional<DatagramStatus> /*status*/) {
   // TODO(b/184598230): make this work with multiple datagram flows.
 }
 
 void QuicSpdySession::DatagramObserver::OnDatagramProcessed(
-    std::optional<MessageStatus> status) {
+    std::optional<DatagramStatus> status) {
   session_->OnDatagramProcessed(status);
 }
 

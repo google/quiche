@@ -16,11 +16,11 @@
 #include "quiche/quic/core/frames/quic_blocked_frame.h"
 #include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
+#include "quiche/quic/core/frames/quic_datagram_frame.h"
 #include "quiche/quic/core/frames/quic_goaway_frame.h"
 #include "quiche/quic/core/frames/quic_handshake_done_frame.h"
 #include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_max_streams_frame.h"
-#include "quiche/quic/core/frames/quic_message_frame.h"
 #include "quiche/quic/core/frames/quic_mtu_discovery_frame.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/frames/quic_new_token_frame.h"
@@ -75,7 +75,7 @@ struct QUICHE_EXPORT QuicFrame {
   explicit QuicFrame(QuicNewConnectionIdFrame* frame);
   explicit QuicFrame(QuicRetireConnectionIdFrame* frame);
   explicit QuicFrame(QuicNewTokenFrame* frame);
-  explicit QuicFrame(QuicMessageFrame* message_frame);
+  explicit QuicFrame(QuicDatagramFrame* datagram_frame);
   explicit QuicFrame(QuicCryptoFrame* crypto_frame);
   explicit QuicFrame(QuicAckFrequencyFrame* ack_frequency_frame);
   explicit QuicFrame(QuicResetStreamAtFrame* reset_stream_at_frame);
@@ -118,7 +118,7 @@ struct QUICHE_EXPORT QuicFrame {
         QuicGoAwayFrame* goaway_frame;
         QuicNewConnectionIdFrame* new_connection_id_frame;
         QuicRetireConnectionIdFrame* retire_connection_id_frame;
-        QuicMessageFrame* message_frame;
+        QuicDatagramFrame* datagram_frame;
         QuicCryptoFrame* crypto_frame;
         QuicAckFrequencyFrame* ack_frequency_frame;
         QuicNewTokenFrame* new_token_frame;
@@ -150,7 +150,7 @@ QUICHE_EXPORT void RemoveFramesForStream(QuicFrames* frames,
                                          QuicStreamId stream_id);
 
 // Returns true if |frames| contains at least one message frame.
-QUICHE_EXPORT bool HasMessageFrame(const QuicFrames& frames);
+QUICHE_EXPORT bool HasDatagramFrame(const QuicFrames& frames);
 
 // Returns true if |type| is a retransmittable control frame.
 QUICHE_EXPORT bool IsControlFrame(QuicFrameType type);

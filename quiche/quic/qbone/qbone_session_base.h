@@ -31,8 +31,8 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   void Initialize() override;
   // This will check if the packet is wholly contained.
   void OnStreamFrame(const QuicStreamFrame& frame) override;
-  // Called whenever a MESSAGE frame is received.
-  void OnMessageReceived(absl::string_view message) override;
+  // Called whenever a DATAGRAM frame is received.
+  void OnDatagramReceived(absl::string_view datagram) override;
 
   virtual void ProcessPacketFromNetwork(absl::string_view packet) = 0;
   virtual void ProcessPacketFromPeer(absl::string_view packet) = 0;
@@ -47,16 +47,16 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   uint64_t GetNumStreamedPackets() const;
 
   // Returns the number of QBONE network packets that were received using QUIC
-  // MESSAGE frame.
-  uint64_t GetNumMessagePackets() const;
+  // DATAGRAM frame.
+  uint64_t GetNumDatagramPackets() const;
 
-  // Returns the number of times sending a MESSAGE frame failed, and the session
-  // used an ephemeral stream instead.
+  // Returns the number of times sending a DATAGRAM frame failed, and the
+  // session used an ephemeral stream instead.
   uint64_t GetNumFallbackToStream() const;
 
   void set_writer(QbonePacketWriter* writer);
-  void set_send_packets_as_messages(bool send_packets_as_messages) {
-    send_packets_as_messages_ = send_packets_as_messages;
+  void set_send_packets_as_datagrams(bool send_packets_as_datagrams) {
+    send_packets_as_datagrams_ = send_packets_as_datagrams;
   }
 
  protected:
@@ -88,9 +88,9 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
 
   QbonePacketWriter* writer_;
 
-  // If true, send QUIC DATAGRAM (aka MESSAGE) frames instead of ephemeral
+  // If true, send QUIC DATAGRAM (aka DATAGRAM) frames instead of ephemeral
   // streams. Note that receiving DATAGRAM frames is always supported.
-  bool send_packets_as_messages_ = true;
+  bool send_packets_as_datagrams_ = true;
 
  private:
   // Used for the crypto handshake.
@@ -98,10 +98,10 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
 
   // Statistics for the packets received by the session.
   uint64_t num_ephemeral_packets_ = 0;
-  uint64_t num_message_packets_ = 0;
+  uint64_t num_datagram_packets_ = 0;
   uint64_t num_streamed_packets_ = 0;
 
-  // Number of times the connection has failed to send packets as MESSAGE frame
+  // Number of times the connection has failed to send packets as DATAGRAM frame
   // and used streams as a fallback.
   uint64_t num_fallback_to_stream_ = 0;
 };

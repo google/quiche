@@ -85,9 +85,9 @@ void QboneSessionBase::OnStreamFrame(const QuicStreamFrame& frame) {
   QuicSession::OnStreamFrame(frame);
 }
 
-void QboneSessionBase::OnMessageReceived(absl::string_view message) {
-  ++num_message_packets_;
-  ProcessPacketFromPeer(message);
+void QboneSessionBase::OnDatagramReceived(absl::string_view datagram) {
+  ++num_datagram_packets_;
+  ProcessPacketFromPeer(datagram);
 }
 
 QuicStream* QboneSessionBase::CreateIncomingStream(QuicStreamId id) {
@@ -137,13 +137,13 @@ void QboneSessionBase::SendPacketToPeer(absl::string_view packet) {
     return;
   }
 
-  if (send_packets_as_messages_) {
+  if (send_packets_as_datagrams_) {
     quiche::QuicheMemSlice slice(quiche::QuicheBuffer::Copy(
         connection()->helper()->GetStreamSendBufferAllocator(), packet));
-    switch (SendMessage(absl::MakeSpan(&slice, 1), /*flush=*/true).status) {
-      case MESSAGE_STATUS_SUCCESS:
+    switch (SendDatagram(absl::MakeSpan(&slice, 1), /*flush=*/true).status) {
+      case DATAGRAM_STATUS_SUCCESS:
         break;
-      case MESSAGE_STATUS_TOO_LARGE: {
+      case DATAGRAM_STATUS_TOO_LARGE: {
         if (packet.size() < sizeof(ip6_hdr)) {
           QUIC_BUG(quic_bug_10987_2)
               << "Dropped malformed packet: IPv6 header too short";
@@ -153,7 +153,7 @@ void QboneSessionBase::SendPacketToPeer(absl::string_view packet) {
         icmp6_hdr icmp_header{};
         icmp_header.icmp6_type = ICMP6_PACKET_TOO_BIG;
         icmp_header.icmp6_mtu =
-            connection()->GetGuaranteedLargestMessagePayload();
+            connection()->GetGuaranteedLargestDatagramPayload();
 
         CreateIcmpPacket(header->ip6_dst, header->ip6_src, icmp_header, packet,
                          [this](absl::string_view icmp_packet) {
@@ -162,21 +162,21 @@ void QboneSessionBase::SendPacketToPeer(absl::string_view packet) {
                          });
         break;
       }
-      case MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED:
+      case DATAGRAM_STATUS_ENCRYPTION_NOT_ESTABLISHED:
         QUIC_BUG(quic_bug_10987_3)
-            << "MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED";
+            << "DATAGRAM_STATUS_ENCRYPTION_NOT_ESTABLISHED";
         break;
-      case MESSAGE_STATUS_UNSUPPORTED:
-        QUIC_BUG(quic_bug_10987_4) << "MESSAGE_STATUS_UNSUPPORTED";
+      case DATAGRAM_STATUS_UNSUPPORTED:
+        QUIC_BUG(quic_bug_10987_4) << "DATAGRAM_STATUS_UNSUPPORTED";
         break;
-      case MESSAGE_STATUS_BLOCKED:
-        QUIC_BUG(quic_bug_10987_5) << "MESSAGE_STATUS_BLOCKED";
+      case DATAGRAM_STATUS_BLOCKED:
+        QUIC_BUG(quic_bug_10987_5) << "DATAGRAM_STATUS_BLOCKED";
         break;
-      case MESSAGE_STATUS_SETTINGS_NOT_RECEIVED:
-        QUIC_BUG(quic_bug_10987_8) << "MESSAGE_STATUS_SETTINGS_NOT_RECEIVED";
+      case DATAGRAM_STATUS_SETTINGS_NOT_RECEIVED:
+        QUIC_BUG(quic_bug_10987_8) << "DATAGRAM_STATUS_SETTINGS_NOT_RECEIVED";
         break;
-      case MESSAGE_STATUS_INTERNAL_ERROR:
-        QUIC_BUG(quic_bug_10987_6) << "MESSAGE_STATUS_INTERNAL_ERROR";
+      case DATAGRAM_STATUS_INTERNAL_ERROR:
+        QUIC_BUG(quic_bug_10987_6) << "DATAGRAM_STATUS_INTERNAL_ERROR";
         break;
     }
     return;
@@ -202,8 +202,8 @@ uint64_t QboneSessionBase::GetNumStreamedPackets() const {
   return num_streamed_packets_;
 }
 
-uint64_t QboneSessionBase::GetNumMessagePackets() const {
-  return num_message_packets_;
+uint64_t QboneSessionBase::GetNumDatagramPackets() const {
+  return num_datagram_packets_;
 }
 
 uint64_t QboneSessionBase::GetNumFallbackToStream() const {

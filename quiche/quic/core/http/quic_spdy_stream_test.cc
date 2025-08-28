@@ -3542,7 +3542,7 @@ TEST_P(QuicSpdyStreamTest, ReceiveHttpDatagram) {
   }
 
   stream_->RegisterHttp3DatagramVisitor(&h3_datagram_visitor);
-  session_->OnMessageReceived(
+  session_->OnDatagramReceived(
       absl::string_view(datagram.data(), datagram.size()));
   EXPECT_THAT(
       h3_datagram_visitor.received_h3_datagrams(),
@@ -3552,7 +3552,7 @@ TEST_P(QuicSpdyStreamTest, ReceiveHttpDatagram) {
   SavingHttp3DatagramVisitor h3_datagram_visitor2;
   stream_->ReplaceHttp3DatagramVisitor(&h3_datagram_visitor2);
   EXPECT_TRUE(h3_datagram_visitor2.received_h3_datagrams().empty());
-  session_->OnMessageReceived(
+  session_->OnDatagramReceived(
       absl::string_view(datagram.data(), datagram.size()));
   EXPECT_THAT(
       h3_datagram_visitor2.received_h3_datagrams(),
@@ -3571,10 +3571,10 @@ TEST_P(QuicSpdyStreamTest, SendHttpDatagram) {
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
                                               HttpDatagramSupport::kRfc);
   std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
-  EXPECT_CALL(*connection_, SendMessage(1, _, false))
-      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
+  EXPECT_CALL(*connection_, SendDatagram(1, _, false))
+      .WillOnce(Return(DATAGRAM_STATUS_SUCCESS));
   EXPECT_EQ(stream_->SendHttp3Datagram(http_datagram_payload),
-            MESSAGE_STATUS_SUCCESS);
+            DATAGRAM_STATUS_SUCCESS);
 }
 
 TEST_P(QuicSpdyStreamTest, SendHttpDatagramWithoutLocalSupport) {
@@ -3596,7 +3596,7 @@ TEST_P(QuicSpdyStreamTest, SendHttpDatagramBeforeReceivingSettings) {
   session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
   std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
   EXPECT_EQ(stream_->SendHttp3Datagram(http_datagram_payload),
-            MESSAGE_STATUS_SETTINGS_NOT_RECEIVED);
+            DATAGRAM_STATUS_SETTINGS_NOT_RECEIVED);
 }
 
 TEST_P(QuicSpdyStreamTest, SendHttpDatagramWithoutPeerSupport) {
@@ -3612,7 +3612,7 @@ TEST_P(QuicSpdyStreamTest, SendHttpDatagramWithoutPeerSupport) {
 
   std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
   EXPECT_EQ(stream_->SendHttp3Datagram(http_datagram_payload),
-            MESSAGE_STATUS_UNSUPPORTED);
+            DATAGRAM_STATUS_UNSUPPORTED);
 }
 
 TEST_P(QuicSpdyStreamTest, GetMaxDatagramSize) {

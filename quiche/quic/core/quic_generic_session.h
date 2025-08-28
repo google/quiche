@@ -80,7 +80,7 @@ class QUICHE_EXPORT QuicGenericSessionBase : public QuicSession,
   }
 
   void OnTlsHandshakeComplete() override;
-  void OnMessageReceived(absl::string_view message) override;
+  void OnDatagramReceived(absl::string_view datagram) override;
 
   // webtransport::Session implementation.
   webtransport::Stream* AcceptIncomingBidirectionalStream() override;
@@ -123,7 +123,7 @@ class QUICHE_EXPORT QuicGenericSessionBase : public QuicSession,
   }
 
   QuicByteCount GetMaxDatagramSize() const override {
-    return GetGuaranteedLargestMessagePayload();
+    return GetGuaranteedLargestDatagramPayload();
   }
 
  private:

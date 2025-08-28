@@ -29,15 +29,15 @@ QuicDatagramQueue::QuicDatagramQueue(QuicSession* session,
       clock_(session->connection()->clock()),
       observer_(std::move(observer)) {}
 
-MessageStatus QuicDatagramQueue::SendOrQueueDatagram(
+DatagramStatus QuicDatagramQueue::SendOrQueueDatagram(
     quiche::QuicheMemSlice datagram) {
   // If the queue is non-empty, always queue the daragram.  This ensures that
   // the datagrams are sent in the same order that they were sent by the
   // application.
   if (queue_.empty()) {
-    MessageResult result = session_->SendMessage(absl::MakeSpan(&datagram, 1),
-                                                 /*flush=*/force_flush_);
-    if (result.status != MESSAGE_STATUS_BLOCKED) {
+    DatagramResult result = session_->SendDatagram(absl::MakeSpan(&datagram, 1),
+                                                   /*flush=*/force_flush_);
+    if (result.status != DATAGRAM_STATUS_BLOCKED) {
       if (observer_) {
         observer_->OnDatagramProcessed(result.status);
       }
@@ -47,18 +47,18 @@ MessageStatus QuicDatagramQueue::SendOrQueueDatagram(
 
   queue_.emplace_back(Datagram{std::move(datagram),
                                clock_->ApproximateNow() + GetMaxTimeInQueue()});
-  return MESSAGE_STATUS_BLOCKED;
+  return DATAGRAM_STATUS_BLOCKED;
 }
 
-std::optional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
+std::optional<DatagramStatus> QuicDatagramQueue::TrySendingNextDatagram() {
   RemoveExpiredDatagrams();
   if (queue_.empty()) {
     return std::nullopt;
   }
 
-  MessageResult result =
-      session_->SendMessage(absl::MakeSpan(&queue_.front().datagram, 1));
-  if (result.status != MESSAGE_STATUS_BLOCKED) {
+  DatagramResult result =
+      session_->SendDatagram(absl::MakeSpan(&queue_.front().datagram, 1));
+  if (result.status != DATAGRAM_STATUS_BLOCKED) {
     queue_.pop_front();
     if (observer_) {
       observer_->OnDatagramProcessed(result.status);
@@ -70,11 +70,11 @@ std::optional<MessageStatus> QuicDatagramQueue::TrySendingNextDatagram() {
 size_t QuicDatagramQueue::SendDatagrams() {
   size_t num_datagrams = 0;
   for (;;) {
-    std::optional<MessageStatus> status = TrySendingNextDatagram();
+    std::optional<DatagramStatus> status = TrySendingNextDatagram();
     if (!status.has_value()) {
       break;
     }
-    if (*status == MESSAGE_STATUS_BLOCKED) {
+    if (*status == DATAGRAM_STATUS_BLOCKED) {
       break;
     }
     num_datagrams++;

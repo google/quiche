@@ -22,31 +22,31 @@ using WebTransportStream = webtransport::Stream;
 using WebTransportVisitor = webtransport::SessionVisitor;
 using WebTransportSession = webtransport::Session;
 
-inline webtransport::DatagramStatus MessageStatusToWebTransportStatus(
-    MessageStatus status) {
+inline webtransport::DatagramStatus DatagramStatusToWebTransportStatus(
+    DatagramStatus status) {
   switch (status) {
-    case MESSAGE_STATUS_SUCCESS:
+    case DATAGRAM_STATUS_SUCCESS:
       return webtransport::DatagramStatus(
           webtransport::DatagramStatusCode::kSuccess, "");
-    case MESSAGE_STATUS_BLOCKED:
+    case DATAGRAM_STATUS_BLOCKED:
       return webtransport::DatagramStatus(
           webtransport::DatagramStatusCode::kBlocked,
           "QUIC connection write-blocked");
-    case MESSAGE_STATUS_TOO_LARGE:
+    case DATAGRAM_STATUS_TOO_LARGE:
       return webtransport::DatagramStatus(
           webtransport::DatagramStatusCode::kTooBig,
           "Datagram payload exceeded maximum allowed size");
-    case MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED:
-    case MESSAGE_STATUS_INTERNAL_ERROR:
-    case MESSAGE_STATUS_UNSUPPORTED:
-    case MESSAGE_STATUS_SETTINGS_NOT_RECEIVED:
+    case DATAGRAM_STATUS_ENCRYPTION_NOT_ESTABLISHED:
+    case DATAGRAM_STATUS_INTERNAL_ERROR:
+    case DATAGRAM_STATUS_UNSUPPORTED:
+    case DATAGRAM_STATUS_SETTINGS_NOT_RECEIVED:
       return webtransport::DatagramStatus(
           webtransport::DatagramStatusCode::kInternalError,
-          absl::StrCat("Internal error: ", MessageStatusToString(status)));
+          absl::StrCat("Internal error: ", DatagramStatusToString(status)));
     default:
       return webtransport::DatagramStatus(
           webtransport::DatagramStatusCode::kInternalError,
-          absl::StrCat("Unknown status: ", MessageStatusToString(status)));
+          absl::StrCat("Unknown status: ", DatagramStatusToString(status)));
   }
 }
 

@@ -175,7 +175,7 @@ class QUICHE_EXPORT TlsChloExtractor
   bool OnPaddingFrame(const QuicPaddingFrame& /*frame*/) override {
     return true;
   }
-  bool OnMessageFrame(const QuicMessageFrame& /*frame*/) override {
+  bool OnDatagramFrame(const QuicDatagramFrame& /*frame*/) override {
     return true;
   }
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& /*frame*/) override {

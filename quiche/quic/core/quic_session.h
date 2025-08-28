@@ -139,7 +139,7 @@ class QUICHE_EXPORT QuicSession
   void OnRstStream(const QuicRstStreamFrame& frame) override;
   void OnResetStreamAt(const QuicResetStreamAtFrame& frame) override;
   void OnGoAway(const QuicGoAwayFrame& frame) override;
-  void OnMessageReceived(absl::string_view message) override;
+  void OnDatagramReceived(absl::string_view datagram) override;
   void OnHandshakeDoneReceived() override;
   void OnNewTokenReceived(absl::string_view token) override;
   void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
@@ -234,47 +234,48 @@ class QUICHE_EXPORT QuicSession
                                 const QuicSocketAddress& peer_address,
                                 const QuicReceivedPacket& packet);
 
-  // Sends |message| as a QUIC DATAGRAM frame (QUIC MESSAGE frame in gQUIC).
+  // Sends |datagram| as a QUIC DATAGRAM frame.
   // See <https://datatracker.ietf.org/doc/html/draft-ietf-quic-datagram> for
   // more details.
   //
-  // Returns a MessageResult struct which includes the status of the write
-  // operation and a message ID.  The message ID (not sent on the wire) can be
-  // used to track the message; OnMessageAcked and OnMessageLost are called when
-  // a specific message gets acked or lost.
+  // Returns a DatagramResult struct which includes the status of the write
+  // operation and a datagram ID.  The datagram ID (not sent on the wire) can be
+  // used to track the datagram; OnDatagramAcked and OnDatagramLost are called
+  // when a specific datagram gets acked or lost.
   //
-  // If the write operation is successful, all of the slices in |message| are
-  // consumed, leaving them empty.  If MESSAGE_STATUS_INTERNAL_ERROR is
+  // If the write operation is successful, all of the slices in |datagram| are
+  // consumed, leaving them empty.  If DATAGRAM_STATUS_INTERNAL_ERROR is
   // returned, the slices in question may or may not be consumed; it is no
-  // longer safe to access those.  For all other status codes, |message| is kept
-  // intact.
+  // longer safe to access those.  For all other status codes, |datagram| is
+  // kept intact.
   //
-  // Note that SendMessage will fail with status = MESSAGE_STATUS_BLOCKED
+  // Note that SendDatagram will fail with status = DATAGRAM_STATUS_BLOCKED
   // if the connection is congestion control blocked or the underlying socket is
-  // write blocked. In this case the caller can retry sending message again when
-  // connection becomes available, for example after getting OnCanWrite()
+  // write blocked. In this case the caller can retry sending datagram again
+  // when connection becomes available, for example after getting OnCanWrite()
   // callback.
   //
-  // SendMessage flushes the current packet even it is not full; if the
+  // SendDatagram flushes the current packet even it is not full; if the
   // application needs to bundle other data in the same packet, consider using
   // QuicConnection::ScopedPacketFlusher around the relevant write operations.
-  MessageResult SendMessage(absl::Span<quiche::QuicheMemSlice> message);
+  DatagramResult SendDatagram(absl::Span<quiche::QuicheMemSlice> datagram);
 
-  // Same as above SendMessage, except caller can specify if the given |message|
-  // should be flushed even if the underlying connection is deemed unwritable.
-  MessageResult SendMessage(absl::Span<quiche::QuicheMemSlice> message,
-                            bool flush);
+  // Same as above SendDatagram, except caller can specify if the given
+  // |datagram| should be flushed even if the underlying connection is deemed
+  // unwritable.
+  DatagramResult SendDatagram(absl::Span<quiche::QuicheMemSlice> datagram,
+                              bool flush);
 
-  // Single-slice version of SendMessage().  Unlike the version above, this
+  // Single-slice version of SendDatagram().  Unlike the version above, this
   // version always takes ownership of the slice.
-  MessageResult SendMessage(quiche::QuicheMemSlice message);
+  DatagramResult SendDatagram(quiche::QuicheMemSlice datagram);
 
-  // Called when message with |message_id| gets acked.
-  virtual void OnMessageAcked(QuicMessageId message_id,
-                              QuicTime receive_timestamp);
+  // Called when datagram with |datagram_id| gets acked.
+  virtual void OnDatagramAcked(QuicDatagramId datagram_id,
+                               QuicTime receive_timestamp);
 
-  // Called when message with |message_id| is considered as lost.
-  virtual void OnMessageLost(QuicMessageId message_id);
+  // Called when datagram with |datagram_id| is considered as lost.
+  virtual void OnDatagramLost(QuicDatagramId datagram_id);
 
   // QuicControlFrameManager::DelegateInterface
   // Close the connection on error.
@@ -497,15 +498,15 @@ class QUICHE_EXPORT QuicSession
                    const QuicSocketAddress& peer_address,
                    QuicPacketWriter* writer, bool owns_writer);
 
-  // Returns the largest payload that will fit into a single MESSAGE frame.
+  // Returns the largest payload that will fit into a single DATAGRAM frame.
   // Because overhead can vary during a connection, this method should be
-  // checked for every message.
-  QuicPacketLength GetCurrentLargestMessagePayload() const;
+  // checked for every datagram.
+  QuicPacketLength GetCurrentLargestDatagramPayload() const;
 
-  // Returns the largest payload that will fit into a single MESSAGE frame at
+  // Returns the largest payload that will fit into a single DATAGRAM frame at
   // any point during the connection.  This assumes the version and
   // connection ID lengths do not change.
-  QuicPacketLength GetGuaranteedLargestMessagePayload() const;
+  QuicPacketLength GetGuaranteedLargestDatagramPayload() const;
 
   bool transport_goaway_sent() const { return transport_goaway_sent_; }
 
@@ -1076,8 +1077,8 @@ class QUICHE_EXPORT QuicSession
   // event loop and gets reset for each event loop.
   QuicStreamCount new_incoming_streams_in_current_loop_ = 0u;
 
-  // Id of latest successfully sent message.
-  QuicMessageId last_message_id_;
+  // Id of latest successfully sent datagram.
+  QuicDatagramId last_datagram_id_;
 
   // The stream id which was last popped in OnCanWrite, or 0, if not under the
   // call stack of OnCanWrite.

@@ -598,8 +598,8 @@ TEST_F(QuicFramesTest, RemoveSmallestInterval) {
 
 TEST_F(QuicFramesTest, CopyQuicFrames) {
   QuicFrames frames;
-  QuicMessageFrame* message_frame =
-      new QuicMessageFrame(1, MemSliceFromString("message"));
+  QuicDatagramFrame* Datagram_frame =
+      new QuicDatagramFrame(1, MemSliceFromString("Datagram"));
   // Construct a frame list.
   for (uint8_t i = 0; i < NUM_FRAME_TYPES; ++i) {
     switch (i) {
@@ -657,8 +657,8 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
       case STOP_SENDING_FRAME:
         frames.push_back(QuicFrame(QuicStopSendingFrame()));
         break;
-      case MESSAGE_FRAME:
-        frames.push_back(QuicFrame(message_frame));
+      case DATAGRAM_FRAME:
+        frames.push_back(QuicFrame(Datagram_frame));
         break;
       case NEW_TOKEN_FRAME:
         frames.push_back(QuicFrame(new QuicNewTokenFrame()));
@@ -690,14 +690,15 @@ TEST_F(QuicFramesTest, CopyQuicFrames) {
   ASSERT_EQ(NUM_FRAME_TYPES, copy.size());
   for (uint8_t i = 0; i < NUM_FRAME_TYPES; ++i) {
     EXPECT_EQ(i, copy[i].type);
-    if (i == MESSAGE_FRAME) {
-      // Verify message frame is correctly copied.
-      EXPECT_EQ(1u, copy[i].message_frame->message_id);
-      EXPECT_EQ(nullptr, copy[i].message_frame->data);
-      EXPECT_EQ(7u, copy[i].message_frame->message_length);
-      ASSERT_EQ(1u, copy[i].message_frame->message_data.size());
-      EXPECT_EQ(0, memcmp(copy[i].message_frame->message_data[0].data(),
-                          frames[i].message_frame->message_data[0].data(), 7));
+    if (i == DATAGRAM_FRAME) {
+      // Verify datagram frame is correctly copied.
+      EXPECT_EQ(1u, copy[i].datagram_frame->datagram_id);
+      EXPECT_EQ(nullptr, copy[i].datagram_frame->data);
+      EXPECT_EQ(8u, copy[i].datagram_frame->datagram_length);
+      ASSERT_EQ(1u, copy[i].datagram_frame->datagram_data.size());
+      EXPECT_EQ(0,
+                memcmp(copy[i].datagram_frame->datagram_data[0].data(),
+                       frames[i].datagram_frame->datagram_data[0].data(), 8));
     } else if (i == PATH_CHALLENGE_FRAME) {
       EXPECT_EQ(copy[i].path_challenge_frame.control_frame_id,
                 frames[i].path_challenge_frame.control_frame_id);
@@ -903,15 +904,15 @@ TEST_F(PacketNumberQueueTest, IntervalLengthAndRemoveInterval) {
   EXPECT_EQ(QuicPacketNumber(49u), queue.Max());
 }
 
-TEST_F(QuicFramesTest, HasMessageFrame) {
+TEST_F(QuicFramesTest, HasDatagramFrame) {
   QuicFrames frames;
 
   frames.push_back(QuicFrame(QuicHandshakeDoneFrame()));
-  EXPECT_FALSE(HasMessageFrame(frames));
+  EXPECT_FALSE(HasDatagramFrame(frames));
 
   frames.push_back(
-      QuicFrame(new QuicMessageFrame(1, MemSliceFromString("message"))));
-  EXPECT_TRUE(HasMessageFrame(frames));
+      QuicFrame(new QuicDatagramFrame(1, MemSliceFromString("datagram"))));
+  EXPECT_TRUE(HasDatagramFrame(frames));
 
   DeleteFrames(&frames);
 }

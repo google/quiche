@@ -56,7 +56,7 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnRstStream(const QuicRstStreamFrame& /*frame*/) override {}
   void OnResetStreamAt(const QuicResetStreamAtFrame& /*frame*/) override {}
   void OnGoAway(const QuicGoAwayFrame& /*frame*/) override {}
-  void OnMessageReceived(absl::string_view /*message*/) override {}
+  void OnDatagramReceived(absl::string_view /*datagram*/) override {}
   void OnHandshakeDoneReceived() override {}
   void OnNewTokenReceived(absl::string_view /*token*/) override {}
   void OnConnectionClosed(const QuicConnectionCloseFrame& /*frame*/,

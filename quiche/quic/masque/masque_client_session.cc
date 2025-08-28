@@ -87,13 +87,13 @@ MasqueClientSession::MasqueClientSession(
                             crypto_config),
       owner_(owner) {}
 
-void MasqueClientSession::OnMessageAcked(QuicMessageId message_id,
-                                         QuicTime /*receive_timestamp*/) {
-  QUIC_DVLOG(1) << "Received ack for DATAGRAM frame " << message_id;
+void MasqueClientSession::OnDatagramAcked(QuicDatagramId datagram_id,
+                                          QuicTime /*receive_timestamp*/) {
+  QUIC_DVLOG(1) << "Received ack for DATAGRAM frame " << datagram_id;
 }
 
-void MasqueClientSession::OnMessageLost(QuicMessageId message_id) {
-  QUIC_DVLOG(1) << "We believe DATAGRAM frame " << message_id << " was lost";
+void MasqueClientSession::OnDatagramLost(QuicDatagramId datagram_id) {
+  QUIC_DVLOG(1) << "We believe DATAGRAM frame " << datagram_id << " was lost";
 }
 
 MasqueClientSession::ConnectUdpClientState*
@@ -354,13 +354,13 @@ void MasqueClientSession::SendIpPacket(
     QUIC_BUG(IP packet write fail) << "Failed to write CONNECT-IP packet";
     return;
   }
-  MessageStatus message_status =
+  DatagramStatus message_status =
       SendHttp3Datagram(connect_ip->stream()->id(), http_payload);
 
   QUIC_DVLOG(1) << "Sent encapsulated IP packet of length " << packet.size()
                 << " with stream ID " << connect_ip->stream()->id()
                 << " and got message status "
-                << MessageStatusToString(message_status);
+                << DatagramStatusToString(message_status);
 }
 
 void MasqueClientSession::SendEthernetFrame(
@@ -387,13 +387,13 @@ void MasqueClientSession::SendEthernetFrame(
     QUIC_BUG(IP packet write fail) << "Failed to write CONNECT-ETHERNET frame";
     return;
   }
-  MessageStatus message_status =
+  DatagramStatus message_status =
       SendHttp3Datagram(connect_ethernet->stream()->id(), http_payload);
 
   QUIC_DVLOG(1) << "Sent encapsulated Ethernet frame of length " << frame.size()
                 << " with stream ID " << connect_ethernet->stream()->id()
                 << " and got message status "
-                << MessageStatusToString(message_status);
+                << DatagramStatusToString(message_status);
 }
 
 void MasqueClientSession::SendConnectUdpBindPacket(
@@ -433,13 +433,13 @@ void MasqueClientSession::SendPacket(
   http_payload.resize(1 + packet.size());
   http_payload[0] = 0;
   memcpy(&http_payload[1], packet.data(), packet.size());
-  MessageStatus message_status =
+  DatagramStatus message_status =
       SendHttp3Datagram(connect_udp->stream()->id(), http_payload);
 
   QUIC_DVLOG(1) << "Sent packet to " << target_server_address
                 << " compressed with stream ID " << connect_udp->stream()->id()
                 << " and got message status "
-                << MessageStatusToString(message_status);
+                << DatagramStatusToString(message_status);
   QUIC_DVLOG(2) << "Contents of outgoing HTTP Datagram of length "
                 << http_payload.size() << ":" << std::endl
                 << quiche::QuicheTextUtils::HexDump(http_payload);

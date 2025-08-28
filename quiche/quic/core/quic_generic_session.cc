@@ -178,8 +178,8 @@ QuicGenericStream* QuicGenericSessionBase::CreateStream(QuicStreamId id) {
   return stream_ptr;
 }
 
-void QuicGenericSessionBase::OnMessageReceived(absl::string_view message) {
-  visitor_->OnDatagramReceived(message);
+void QuicGenericSessionBase::OnDatagramReceived(absl::string_view datagram) {
+  visitor_->OnDatagramReceived(datagram);
 }
 
 void QuicGenericSessionBase::OnCanCreateNewOutgoingStream(bool unidirectional) {
@@ -203,7 +203,7 @@ webtransport::DatagramStatus QuicGenericSessionBase::SendOrQueueDatagram(
     absl::string_view datagram) {
   quiche::QuicheBuffer buffer = quiche::QuicheBuffer::Copy(
       quiche::SimpleBufferAllocator::Get(), datagram);
-  return MessageStatusToWebTransportStatus(
+  return DatagramStatusToWebTransportStatus(
       datagram_queue()->SendOrQueueDatagram(
           quiche::QuicheMemSlice(std::move(buffer))));
 }

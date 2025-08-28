@@ -169,7 +169,7 @@ enum QuicErrorCode : uint32_t {
   // ACK frame data is malformed.
   QUIC_INVALID_ACK_DATA = 9,
   // Message frame data is malformed.
-  QUIC_INVALID_MESSAGE_DATA = 112,
+  QUIC_INVALID_DATAGRAM_DATA = 112,
 
   // Version negotiation packet is malformed.
   QUIC_INVALID_VERSION_NEGOTIATION_PACKET = 10,

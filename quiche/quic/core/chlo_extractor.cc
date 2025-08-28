@@ -80,7 +80,7 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
   bool OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
   bool OnBlockedFrame(const QuicBlockedFrame& frame) override;
   bool OnPaddingFrame(const QuicPaddingFrame& frame) override;
-  bool OnMessageFrame(const QuicMessageFrame& frame) override;
+  bool OnDatagramFrame(const QuicDatagramFrame& frame) override;
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override;
   bool OnImmediateAckFrame(const QuicImmediateAckFrame& frame) override;
@@ -299,7 +299,7 @@ bool ChloFramerVisitor::OnPaddingFrame(const QuicPaddingFrame& /*frame*/) {
   return true;
 }
 
-bool ChloFramerVisitor::OnMessageFrame(const QuicMessageFrame& /*frame*/) {
+bool ChloFramerVisitor::OnDatagramFrame(const QuicDatagramFrame& /*frame*/) {
   return true;
 }
 

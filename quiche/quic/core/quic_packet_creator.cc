@@ -360,20 +360,20 @@ bool QuicPacketCreator::HasRoomForStreamFrame(QuicStreamId id,
   return BytesFree() > min_stream_frame_size;
 }
 
-bool QuicPacketCreator::HasRoomForMessageFrame(QuicByteCount length) {
-  const size_t message_frame_size =
-      QuicFramer::GetMessageFrameSize(/*last_frame_in_packet=*/true, length);
-  if (static_cast<QuicByteCount>(message_frame_size) >
+bool QuicPacketCreator::HasRoomForDatagramFrame(QuicByteCount length) {
+  const size_t datagram_frame_size =
+      QuicFramer::GetDatagramFrameSize(/*last_frame_in_packet=*/true, length);
+  if (static_cast<QuicByteCount>(datagram_frame_size) >
       max_datagram_frame_size_) {
     return false;
   }
-  if (BytesFree() >= message_frame_size) {
+  if (BytesFree() >= datagram_frame_size) {
     return true;
   }
   if (!RemoveSoftMaxPacketLength()) {
     return false;
   }
-  return BytesFree() >= message_frame_size;
+  return BytesFree() >= datagram_frame_size;
 }
 
 // static
@@ -498,7 +498,7 @@ void QuicPacketCreator::ClearPacket() {
   packet_.encrypted_buffer = nullptr;
   packet_.encrypted_length = 0;
   packet_.has_ack_frequency = false;
-  packet_.has_message = false;
+  packet_.has_datagram = false;
   packet_.fate = SEND_TO_WRITER;
   QUIC_BUG_IF(quic_bug_12398_6, packet_.release_encrypted_buffer != nullptr)
       << ENDPOINT << "packet_.release_encrypted_buffer should be empty";
@@ -722,8 +722,8 @@ bool QuicPacketCreator::HasPendingStreamFramesOfStream(QuicStreamId id) const {
 }
 
 size_t QuicPacketCreator::ExpansionOnNewFrame() const {
-  // If the last frame in the packet is a message frame, then it will expand to
-  // include the varint message length when a new frame is added.
+  // If the last frame in the packet is a datagram frame, then it will expand to
+  // include the varint datagram length when a new frame is added.
   if (queued_frames_.empty()) {
     return 0;
   }
@@ -734,9 +734,9 @@ size_t QuicPacketCreator::ExpansionOnNewFrame() const {
 // static
 size_t QuicPacketCreator::ExpansionOnNewFrameWithLastFrame(
     const QuicFrame& last_frame, QuicTransportVersion version) {
-  if (last_frame.type == MESSAGE_FRAME) {
+  if (last_frame.type == DATAGRAM_FRAME) {
     return QuicDataWriter::GetVarInt62Len(
-        last_frame.message_frame->message_length);
+        last_frame.datagram_frame->datagram_length);
   }
   if (last_frame.type != STREAM_FRAME) {
     return 0;
@@ -1825,31 +1825,31 @@ void QuicPacketCreator::SetTransmissionType(TransmissionType type) {
   next_transmission_type_ = type;
 }
 
-MessageStatus QuicPacketCreator::AddMessageFrame(
-    QuicMessageId message_id, absl::Span<quiche::QuicheMemSlice> message) {
+DatagramStatus QuicPacketCreator::AddDatagramFrame(
+    QuicDatagramId datagram_id, absl::Span<quiche::QuicheMemSlice> datagram) {
   QUIC_BUG_IF(quic_bug_10752_33, !flusher_attached_)
       << ENDPOINT
       << "Packet flusher is not attached when "
-         "generator tries to add message frame.";
+         "generator tries to add datagram frame.";
   MaybeBundleOpportunistically();
-  const QuicByteCount message_length = MemSliceSpanTotalSize(message);
-  if (message_length > GetCurrentLargestMessagePayload()) {
-    return MESSAGE_STATUS_TOO_LARGE;
+  const QuicByteCount datagram_length = MemSliceSpanTotalSize(datagram);
+  if (datagram_length > GetCurrentLargestDatagramPayload()) {
+    return DATAGRAM_STATUS_TOO_LARGE;
   }
-  if (!HasRoomForMessageFrame(message_length)) {
+  if (!HasRoomForDatagramFrame(datagram_length)) {
     FlushCurrentPacket();
   }
-  QuicMessageFrame* frame = new QuicMessageFrame(message_id, message);
+  QuicDatagramFrame* frame = new QuicDatagramFrame(datagram_id, datagram);
   const bool success = AddFrame(QuicFrame(frame), next_transmission_type_);
   if (!success) {
     QUIC_BUG(quic_bug_10752_34)
-        << ENDPOINT << "Failed to send message " << message_id;
+        << ENDPOINT << "Failed to send datagram " << datagram_id;
     delete frame;
-    return MESSAGE_STATUS_INTERNAL_ERROR;
+    return DATAGRAM_STATUS_INTERNAL_ERROR;
   }
-  QUICHE_DCHECK_EQ(MemSliceSpanTotalSize(message),
+  QUICHE_DCHECK_EQ(MemSliceSpanTotalSize(datagram),
                    0u);  // Ensure the old slices are empty.
-  return MESSAGE_STATUS_SUCCESS;
+  return DATAGRAM_STATUS_SUCCESS;
 }
 
 quiche::QuicheVariableLengthIntegerLength QuicPacketCreator::GetLengthLength()
@@ -1951,7 +1951,7 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
        frame.type != MAX_STREAMS_FRAME && frame.type != STREAMS_BLOCKED_FRAME &&
        frame.type != PATH_RESPONSE_FRAME &&
        frame.type != PATH_CHALLENGE_FRAME && frame.type != STOP_SENDING_FRAME &&
-       frame.type != MESSAGE_FRAME && frame.type != NEW_TOKEN_FRAME &&
+       frame.type != DATAGRAM_FRAME && frame.type != NEW_TOKEN_FRAME &&
        frame.type != RETIRE_CONNECTION_ID_FRAME &&
        frame.type != ACK_FREQUENCY_FRAME))
       << ENDPOINT << frame.type << " not allowed at "
@@ -2023,8 +2023,8 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
     packet_.has_stop_waiting = true;
   } else if (frame.type == ACK_FREQUENCY_FRAME) {
     packet_.has_ack_frequency = true;
-  } else if (frame.type == MESSAGE_FRAME) {
-    packet_.has_message = true;
+  } else if (frame.type == DATAGRAM_FRAME) {
+    packet_.has_datagram = true;
   }
   if (debug_delegate_ != nullptr) {
     debug_delegate_->OnFrameAddedToPacket(frame);
@@ -2216,14 +2216,14 @@ void QuicPacketCreator::SetClientConnectionId(
   client_connection_id_ = client_connection_id;
 }
 
-QuicPacketLength QuicPacketCreator::GetCurrentLargestMessagePayload() const {
+QuicPacketLength QuicPacketCreator::GetCurrentLargestDatagramPayload() const {
   const size_t packet_header_size = GetPacketHeaderSize(
       framer_->transport_version(), GetDestinationConnectionIdLength(),
       GetSourceConnectionIdLength(), IncludeVersionInHeader(),
       IncludeNonceInPublicHeader(), GetPacketNumberLength(),
       // No Retry token on packets containing application data.
       quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, GetLengthLength());
-  // This is the largest possible message payload when the length field is
+  // This is the largest possible datagram payload when the length field is
   // omitted.
   size_t max_plaintext_size =
       latched_hard_max_packet_length_ == 0
@@ -2237,7 +2237,8 @@ QuicPacketLength QuicPacketCreator::GetCurrentLargestMessagePayload() const {
   return largest_frame - std::min(largest_frame, kQuicFrameTypeSize);
 }
 
-QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
+QuicPacketLength QuicPacketCreator::GetGuaranteedLargestDatagramPayload()
+    const {
   // QUIC Crypto server packets may include a diversification nonce.
   const bool may_include_nonce =
       framer_->version().handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
@@ -2258,7 +2259,7 @@ QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
       PACKET_4BYTE_PACKET_NUMBER,
       // No Retry token on packets containing application data.
       quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0, 0, length_length);
-  // This is the largest possible message payload when the length field is
+  // This is the largest possible datagram payload when the length field is
   // omitted.
   size_t max_plaintext_size =
       latched_hard_max_packet_length_ == 0
@@ -2271,8 +2272,8 @@ QuicPacketLength QuicPacketCreator::GetGuaranteedLargestMessagePayload() const {
   }
   const QuicPacketLength largest_payload =
       largest_frame - std::min(largest_frame, kQuicFrameTypeSize);
-  // This must always be less than or equal to GetCurrentLargestMessagePayload.
-  QUICHE_DCHECK_LE(largest_payload, GetCurrentLargestMessagePayload())
+  // This must always be less than or equal to GetCurrentLargestDatagramPayload.
+  QUICHE_DCHECK_LE(largest_payload, GetCurrentLargestDatagramPayload())
       << ENDPOINT;
   return largest_payload;
 }

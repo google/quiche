@@ -403,14 +403,14 @@ class QUICHE_EXPORT QuicSpdySession
   }
 
   // This must not be used except by QuicSpdyStream::SendHttp3Datagram.
-  MessageStatus SendHttp3Datagram(QuicStreamId stream_id,
-                                  absl::string_view payload);
+  DatagramStatus SendHttp3Datagram(QuicStreamId stream_id,
+                                   absl::string_view payload);
   // This must not be used except by QuicSpdyStream::SetMaxDatagramTimeInQueue.
   void SetMaxDatagramTimeInQueueForStreamId(QuicStreamId stream_id,
                                             QuicTime::Delta max_time_in_queue);
 
   // Override from QuicSession to support HTTP/3 datagrams.
-  void OnMessageReceived(absl::string_view message) override;
+  void OnDatagramReceived(absl::string_view datagram) override;
 
   // Indicates whether the HTTP/3 session supports WebTransport.
   bool SupportsWebTransport();
@@ -554,7 +554,7 @@ class QUICHE_EXPORT QuicSpdySession
   void MaybeBundleOpportunistically() override;
 
   // Called whenever a datagram is dequeued or dropped from datagram_queue().
-  virtual void OnDatagramProcessed(std::optional<MessageStatus> status);
+  virtual void OnDatagramProcessed(std::optional<DatagramStatus> status);
 
   // Returns which version of the HTTP/3 datagram extension we should advertise
   // in settings and accept remote settings for.
@@ -594,7 +594,7 @@ class QUICHE_EXPORT QuicSpdySession
   class QUICHE_EXPORT DatagramObserver : public QuicDatagramQueue::Observer {
    public:
     explicit DatagramObserver(QuicSpdySession* session) : session_(session) {}
-    void OnDatagramProcessed(std::optional<MessageStatus> status) override;
+    void OnDatagramProcessed(std::optional<DatagramStatus> status) override;
 
    private:
     QuicSpdySession* session_;  // not owned

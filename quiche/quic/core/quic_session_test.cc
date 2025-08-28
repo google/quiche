@@ -2718,41 +2718,41 @@ TEST_P(QuicSessionTestServer, RetransmitLostDataCausesConnectionClose) {
   session_.OnCanWrite();
 }
 
-TEST_P(QuicSessionTestServer, SendMessage) {
-  // Cannot send message when encryption is not established.
+TEST_P(QuicSessionTestServer, SendDatagram) {
+  // Cannot send datagram when encryption is not established.
   EXPECT_FALSE(session_.OneRttKeysAvailable());
-  EXPECT_EQ(MessageResult(MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED, 0),
-            session_.SendMessage(MemSliceFromString("")));
+  EXPECT_EQ(DatagramResult(DATAGRAM_STATUS_ENCRYPTION_NOT_ESTABLISHED, 0),
+            session_.SendDatagram(MemSliceFromString("")));
 
   CompleteHandshake();
   EXPECT_TRUE(session_.OneRttKeysAvailable());
 
-  EXPECT_CALL(*connection_, SendMessage(1, _, false))
-      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
-  EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 1),
-            session_.SendMessage(MemSliceFromString("")));
-  // Verify message_id increases.
-  EXPECT_CALL(*connection_, SendMessage(2, _, false))
-      .WillOnce(Return(MESSAGE_STATUS_TOO_LARGE));
-  EXPECT_EQ(MessageResult(MESSAGE_STATUS_TOO_LARGE, 0),
-            session_.SendMessage(MemSliceFromString("")));
-  // Verify unsent message does not consume a message_id.
-  EXPECT_CALL(*connection_, SendMessage(2, _, false))
-      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
-  EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 2),
-            session_.SendMessage(MemSliceFromString("")));
+  EXPECT_CALL(*connection_, SendDatagram(1, _, false))
+      .WillOnce(Return(DATAGRAM_STATUS_SUCCESS));
+  EXPECT_EQ(DatagramResult(DATAGRAM_STATUS_SUCCESS, 1),
+            session_.SendDatagram(MemSliceFromString("")));
+  // Verify datagram_id increases.
+  EXPECT_CALL(*connection_, SendDatagram(2, _, false))
+      .WillOnce(Return(DATAGRAM_STATUS_TOO_LARGE));
+  EXPECT_EQ(DatagramResult(DATAGRAM_STATUS_TOO_LARGE, 0),
+            session_.SendDatagram(MemSliceFromString("")));
+  // Verify unsent datagram does not consume a datagram_id.
+  EXPECT_CALL(*connection_, SendDatagram(2, _, false))
+      .WillOnce(Return(DATAGRAM_STATUS_SUCCESS));
+  EXPECT_EQ(DatagramResult(DATAGRAM_STATUS_SUCCESS, 2),
+            session_.SendDatagram(MemSliceFromString("")));
 
-  QuicMessageFrame frame(1);
-  QuicMessageFrame frame2(2);
+  QuicDatagramFrame frame(1);
+  QuicDatagramFrame frame2(2);
   EXPECT_FALSE(session_.IsFrameOutstanding(QuicFrame(&frame)));
   EXPECT_FALSE(session_.IsFrameOutstanding(QuicFrame(&frame2)));
 
-  // Lost message 2.
-  session_.OnMessageLost(2);
+  // Lost datagram 2.
+  session_.OnDatagramLost(2);
   EXPECT_FALSE(session_.IsFrameOutstanding(QuicFrame(&frame2)));
 
-  // message 1 gets acked.
-  session_.OnMessageAcked(1, QuicTime::Zero());
+  // datagram 1 gets acked.
+  session_.OnDatagramAcked(1, QuicTime::Zero());
   EXPECT_FALSE(session_.IsFrameOutstanding(QuicFrame(&frame)));
 }
 

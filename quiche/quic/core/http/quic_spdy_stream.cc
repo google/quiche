@@ -1671,7 +1671,7 @@ void QuicSpdyStream::WriteGreaseCapsule() {
   WriteCapsule(capsule, /*fin=*/false);
 }
 
-MessageStatus QuicSpdyStream::SendHttp3Datagram(absl::string_view payload) {
+DatagramStatus QuicSpdyStream::SendHttp3Datagram(absl::string_view payload) {
   return spdy_session_->SendHttp3Datagram(id(), payload);
 }
 
@@ -1833,10 +1833,11 @@ QuicByteCount QuicSpdyStream::GetMaxDatagramSize() const {
   }
 
   QuicByteCount max_datagram_size =
-      session()->GetGuaranteedLargestMessagePayload();
+      session()->GetGuaranteedLargestDatagramPayload();
   if (max_datagram_size < prefix_size) {
     QUIC_BUG(max_datagram_size smaller than prefix_size)
-        << "GetGuaranteedLargestMessagePayload() returned a datagram size that "
+        << "GetGuaranteedLargestDatagramPayload() returned a datagram size "
+           "that "
            "is not sufficient to fit stream ID into it.";
     return 0;
   }

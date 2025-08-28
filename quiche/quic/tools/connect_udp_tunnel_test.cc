@@ -56,7 +56,7 @@ class MockStream : public QuicSpdyStream {
 
   void OnBodyAvailable() override {}
 
-  MOCK_METHOD(MessageStatus, SendHttp3Datagram, (absl::string_view data),
+  MOCK_METHOD(DatagramStatus, SendHttp3Datagram, (absl::string_view data),
               (override));
 };
 
@@ -315,7 +315,7 @@ TEST_F(ConnectUdpTunnelTest, ReceiveFromTarget) {
       stream_,
       SendHttp3Datagram(
           quiche::ConnectUdpDatagramUdpPacketPayload(kData).Serialize()))
-      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
+      .WillOnce(Return(DATAGRAM_STATUS_SUCCESS));
 
   quiche::HttpHeaderBlock request_headers;
   request_headers[":method"] = "CONNECT";

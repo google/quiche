@@ -305,7 +305,7 @@ class QUICHE_EXPORT QuicSpdyStream
 
   // Sends an HTTP/3 datagram. The stream ID is not part of |payload|. Virtual
   // to allow mocking in tests.
-  virtual MessageStatus SendHttp3Datagram(absl::string_view payload);
+  virtual DatagramStatus SendHttp3Datagram(absl::string_view payload);
 
   // Registers |visitor| to receive HTTP/3 datagrams and enables Capsule
   // Protocol by registering a CapsuleParser. |visitor| must be valid until a

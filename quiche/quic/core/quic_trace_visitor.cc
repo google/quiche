@@ -92,7 +92,7 @@ void QuicTraceVisitor::OnPacketSent(
       case PATH_RESPONSE_FRAME:
       case PATH_CHALLENGE_FRAME:
       case STOP_SENDING_FRAME:
-      case MESSAGE_FRAME:
+      case DATAGRAM_FRAME:
       case CRYPTO_FRAME:
       case NEW_TOKEN_FRAME:
       case RESET_STREAM_AT_FRAME:
@@ -224,7 +224,7 @@ void QuicTraceVisitor::PopulateFrameInfo(const QuicFrame& frame,
     case PATH_RESPONSE_FRAME:
     case PATH_CHALLENGE_FRAME:
     case STOP_SENDING_FRAME:
-    case MESSAGE_FRAME:
+    case DATAGRAM_FRAME:
     case CRYPTO_FRAME:
     case NEW_TOKEN_FRAME:
     case ACK_FREQUENCY_FRAME:

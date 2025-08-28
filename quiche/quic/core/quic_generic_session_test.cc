@@ -81,7 +81,7 @@ using testing::Eq;
 class CountingDatagramObserver : public QuicDatagramQueue::Observer {
  public:
   CountingDatagramObserver(int& total) : total_(total) {}
-  void OnDatagramProcessed(std::optional<MessageStatus>) { ++total_; }
+  void OnDatagramProcessed(std::optional<DatagramStatus>) { ++total_; }
 
  private:
   int& total_;
@@ -400,7 +400,7 @@ TEST_F(QuicGenericSessionTest, EchoALotOfDatagrams) {
       (10000 * simulator::TestHarness::kRtt).ToAbsl());
   for (int i = 0; i < 1000; i++) {
     client_->session()->SendOrQueueDatagram(std::string(
-        client_->session()->GetGuaranteedLargestMessagePayload(), 'a'));
+        client_->session()->GetGuaranteedLargestDatagramPayload(), 'a'));
   }
 
   size_t received = 0;
@@ -453,7 +453,7 @@ TEST_F(QuicGenericSessionTest, ExpireDatagrams) {
       (0.2 * simulator::TestHarness::kRtt).ToAbsl());
   for (int i = 0; i < 1000; i++) {
     client_->session()->SendOrQueueDatagram(std::string(
-        client_->session()->GetGuaranteedLargestMessagePayload(), 'a'));
+        client_->session()->GetGuaranteedLargestDatagramPayload(), 'a'));
   }
 
   size_t received = 0;
@@ -481,7 +481,7 @@ TEST_F(QuicGenericSessionTest, LoseDatagrams) {
       (10000 * simulator::TestHarness::kRtt).ToAbsl());
   for (int i = 0; i < 1000; i++) {
     client_->session()->SendOrQueueDatagram(std::string(
-        client_->session()->GetGuaranteedLargestMessagePayload(), 'a'));
+        client_->session()->GetGuaranteedLargestDatagramPayload(), 'a'));
   }
 
   size_t received = 0;

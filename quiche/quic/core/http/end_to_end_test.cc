@@ -5536,7 +5536,7 @@ TEST_P(EndToEndTest, ResetStreamOnTtlExpires) {
   EXPECT_THAT(client_->stream_error(), IsStreamError(QUIC_STREAM_TTL_EXPIRED));
 }
 
-TEST_P(EndToEndTest, SendMessages) {
+TEST_P(EndToEndTest, SendDatagrams) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   QuicSession* client_session = GetClientSession();
@@ -5546,43 +5546,43 @@ TEST_P(EndToEndTest, SendMessages) {
 
   SetPacketLossPercentage(30);
   ASSERT_GT(kMaxOutgoingPacketSize,
-            client_session->GetCurrentLargestMessagePayload());
-  ASSERT_LT(0, client_session->GetCurrentLargestMessagePayload());
+            client_session->GetCurrentLargestDatagramPayload());
+  ASSERT_LT(0, client_session->GetCurrentLargestDatagramPayload());
 
-  std::string message_string(kMaxOutgoingPacketSize, 'a');
+  std::string datagram_string(kMaxOutgoingPacketSize, 'a');
   QuicRandom* random =
       QuicConnectionPeer::GetHelper(client_connection)->GetRandomGenerator();
   {
     QuicConnection::ScopedPacketFlusher flusher(client_session->connection());
-    // Verify the largest message gets successfully sent.
-    EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, 1),
-              client_session->SendMessage(MemSliceFromString(absl::string_view(
-                  message_string.data(),
-                  client_session->GetCurrentLargestMessagePayload()))));
-    // Send more messages with size (0, largest_payload] until connection is
+    // Verify the largest datagram gets successfully sent.
+    EXPECT_EQ(DatagramResult(DATAGRAM_STATUS_SUCCESS, 1),
+              client_session->SendDatagram(MemSliceFromString(absl::string_view(
+                  datagram_string.data(),
+                  client_session->GetCurrentLargestDatagramPayload()))));
+    // Send more datagrams with size (0, largest_payload] until connection is
     // write blocked.
-    const int kTestMaxNumberOfMessages = 100;
-    for (size_t i = 2; i <= kTestMaxNumberOfMessages; ++i) {
-      size_t message_length =
+    const int kTestMaxNumberOfDatagrams = 100;
+    for (size_t i = 2; i <= kTestMaxNumberOfDatagrams; ++i) {
+      size_t datagram_length =
           random->RandUint64() %
-              client_session->GetGuaranteedLargestMessagePayload() +
+              client_session->GetGuaranteedLargestDatagramPayload() +
           1;
-      MessageResult result = client_session->SendMessage(MemSliceFromString(
-          absl::string_view(message_string.data(), message_length)));
-      if (result.status == MESSAGE_STATUS_BLOCKED) {
+      DatagramResult result = client_session->SendDatagram(MemSliceFromString(
+          absl::string_view(datagram_string.data(), datagram_length)));
+      if (result.status == DATAGRAM_STATUS_BLOCKED) {
         // Connection is write blocked.
         break;
       }
-      EXPECT_EQ(MessageResult(MESSAGE_STATUS_SUCCESS, i), result);
+      EXPECT_EQ(DatagramResult(DATAGRAM_STATUS_SUCCESS, i), result);
     }
   }
 
   client_->WaitForDelayedAcks();
-  EXPECT_EQ(MESSAGE_STATUS_TOO_LARGE,
+  EXPECT_EQ(DATAGRAM_STATUS_TOO_LARGE,
             client_session
-                ->SendMessage(MemSliceFromString(absl::string_view(
-                    message_string.data(),
-                    client_session->GetCurrentLargestMessagePayload() + 1)))
+                ->SendDatagram(MemSliceFromString(absl::string_view(
+                    datagram_string.data(),
+                    client_session->GetCurrentLargestDatagramPayload() + 1)))
                 .status);
   EXPECT_THAT(client_->connection_error(), IsQuicNoError());
 }

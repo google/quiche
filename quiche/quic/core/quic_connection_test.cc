@@ -1088,11 +1088,11 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   void SendPing() { notifier_.WriteOrBufferPing(); }
 
-  MessageStatus SendMessage(absl::string_view message) {
+  DatagramStatus SendDatagram(absl::string_view message) {
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
     quiche::QuicheMemSlice slice(quiche::QuicheBuffer::Copy(
         connection_.helper()->GetStreamSendBufferAllocator(), message));
-    return connection_.SendMessage(1, absl::MakeSpan(&slice, 1), false);
+    return connection_.SendDatagram(1, absl::MakeSpan(&slice, 1), false);
   }
 
   void ProcessAckPacket(uint64_t packet_number, QuicAckFrame* frame) {
@@ -8657,7 +8657,7 @@ TEST_P(QuicConnectionTest, WriteBlockedWithInvalidAck) {
   EXPECT_EQ(0, connection_close_frame_count_);
 }
 
-TEST_P(QuicConnectionTest, SendMessage) {
+TEST_P(QuicConnectionTest, SendDatagram) {
   if (connection_.version().UsesTls()) {
     QuicConfig config;
     QuicConfigPeer::SetReceivedMaxDatagramFrameSize(
@@ -8667,35 +8667,35 @@ TEST_P(QuicConnectionTest, SendMessage) {
     EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
     connection_.SetFromConfig(config);
   }
-  std::string message(connection_.GetCurrentLargestMessagePayload() * 2, 'a');
+  std::string datagram(connection_.GetCurrentLargestDatagramPayload() * 2, 'a');
   quiche::QuicheMemSlice slice;
   {
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
     connection_.SendStreamData3();
-    // Send a message which cannot fit into current open packet, and 2 packets
+    // Send a datagram which cannot fit into current open packet, and 2 packets
     // get sent, one contains stream frame, and the other only contains the
-    // message frame.
+    // datagram frame.
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
     slice = MemSliceFromString(absl::string_view(
-        message.data(), connection_.GetCurrentLargestMessagePayload()));
-    EXPECT_EQ(MESSAGE_STATUS_SUCCESS,
-              connection_.SendMessage(1, absl::MakeSpan(&slice, 1), false));
+        datagram.data(), connection_.GetCurrentLargestDatagramPayload()));
+    EXPECT_EQ(DATAGRAM_STATUS_SUCCESS,
+              connection_.SendDatagram(1, absl::MakeSpan(&slice, 1), false));
   }
-  // Fail to send a message if connection is congestion control blocked.
+  // Fail to send a datagram if connection is congestion control blocked.
   EXPECT_CALL(*send_algorithm_, CanSend(_)).WillOnce(Return(false));
   slice = MemSliceFromString("message");
-  EXPECT_EQ(MESSAGE_STATUS_BLOCKED,
-            connection_.SendMessage(2, absl::MakeSpan(&slice, 1), false));
+  EXPECT_EQ(DATAGRAM_STATUS_BLOCKED,
+            connection_.SendDatagram(2, absl::MakeSpan(&slice, 1), false));
 
-  // Always fail to send a message which cannot fit into one packet.
+  // Always fail to send a datagram which cannot fit into one packet.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
   slice = MemSliceFromString(absl::string_view(
-      message.data(), connection_.GetCurrentLargestMessagePayload() + 1));
-  EXPECT_EQ(MESSAGE_STATUS_TOO_LARGE,
-            connection_.SendMessage(3, absl::MakeSpan(&slice, 1), false));
+      datagram.data(), connection_.GetCurrentLargestDatagramPayload() + 1));
+  EXPECT_EQ(DATAGRAM_STATUS_TOO_LARGE,
+            connection_.SendDatagram(3, absl::MakeSpan(&slice, 1), false));
 }
 
-TEST_P(QuicConnectionTest, GetCurrentLargestMessagePayload) {
+TEST_P(QuicConnectionTest, GetCurrentLargestDatagramPayload) {
   QuicPacketLength expected_largest_payload = 1215;
   if (connection_.version().SendsVariableLengthPacketNumberInLongHeader()) {
     expected_largest_payload += 3;
@@ -8707,8 +8707,8 @@ TEST_P(QuicConnectionTest, GetCurrentLargestMessagePayload) {
     expected_largest_payload -= 1;
   }
   if (connection_.version().UsesTls()) {
-    // QUIC+TLS disallows DATAGRAM/MESSAGE frames before the handshake.
-    EXPECT_EQ(connection_.GetCurrentLargestMessagePayload(), 0);
+    // QUIC+TLS disallows DATAGRAM frames before the handshake.
+    EXPECT_EQ(connection_.GetCurrentLargestDatagramPayload(), 0);
     QuicConfig config;
     QuicConfigPeer::SetReceivedMaxDatagramFrameSize(
         &config, kMaxAcceptedDatagramFrameSize);
@@ -8717,15 +8717,15 @@ TEST_P(QuicConnectionTest, GetCurrentLargestMessagePayload) {
     EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
     connection_.SetFromConfig(config);
     // Verify the value post-handshake.
-    EXPECT_EQ(connection_.GetCurrentLargestMessagePayload(),
+    EXPECT_EQ(connection_.GetCurrentLargestDatagramPayload(),
               expected_largest_payload);
   } else {
-    EXPECT_EQ(connection_.GetCurrentLargestMessagePayload(),
+    EXPECT_EQ(connection_.GetCurrentLargestDatagramPayload(),
               expected_largest_payload);
   }
 }
 
-TEST_P(QuicConnectionTest, GetGuaranteedLargestMessagePayload) {
+TEST_P(QuicConnectionTest, GetGuaranteedLargestDatagramPayload) {
   QuicPacketLength expected_largest_payload = 1215;
   if (connection_.version().HasLongHeaderLengths()) {
     expected_largest_payload -= 2;
@@ -8735,7 +8735,7 @@ TEST_P(QuicConnectionTest, GetGuaranteedLargestMessagePayload) {
   }
   if (connection_.version().UsesTls()) {
     // QUIC+TLS disallows DATAGRAM/MESSAGE frames before the handshake.
-    EXPECT_EQ(connection_.GetGuaranteedLargestMessagePayload(), 0);
+    EXPECT_EQ(connection_.GetGuaranteedLargestDatagramPayload(), 0);
     QuicConfig config;
     QuicConfigPeer::SetReceivedMaxDatagramFrameSize(
         &config, kMaxAcceptedDatagramFrameSize);
@@ -8744,10 +8744,10 @@ TEST_P(QuicConnectionTest, GetGuaranteedLargestMessagePayload) {
     EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
     connection_.SetFromConfig(config);
     // Verify the value post-handshake.
-    EXPECT_EQ(connection_.GetGuaranteedLargestMessagePayload(),
+    EXPECT_EQ(connection_.GetGuaranteedLargestDatagramPayload(),
               expected_largest_payload);
   } else {
-    EXPECT_EQ(connection_.GetGuaranteedLargestMessagePayload(),
+    EXPECT_EQ(connection_.GetGuaranteedLargestDatagramPayload(),
               expected_largest_payload);
   }
 }
@@ -8760,8 +8760,8 @@ TEST_P(QuicConnectionTest, LimitedLargestMessagePayload) {
   constexpr QuicPacketLength kPayloadSizeLimit =
       kFrameSizeLimit - kQuicFrameTypeSize;
   // QUIC+TLS disallows DATAGRAM/MESSAGE frames before the handshake.
-  EXPECT_EQ(connection_.GetCurrentLargestMessagePayload(), 0);
-  EXPECT_EQ(connection_.GetGuaranteedLargestMessagePayload(), 0);
+  EXPECT_EQ(connection_.GetCurrentLargestDatagramPayload(), 0);
+  EXPECT_EQ(connection_.GetGuaranteedLargestDatagramPayload(), 0);
   QuicConfig config;
   QuicConfigPeer::SetReceivedMaxDatagramFrameSize(&config, kFrameSizeLimit);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
@@ -8769,8 +8769,8 @@ TEST_P(QuicConnectionTest, LimitedLargestMessagePayload) {
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
   connection_.SetFromConfig(config);
   // Verify the value post-handshake.
-  EXPECT_EQ(connection_.GetCurrentLargestMessagePayload(), kPayloadSizeLimit);
-  EXPECT_EQ(connection_.GetGuaranteedLargestMessagePayload(),
+  EXPECT_EQ(connection_.GetCurrentLargestDatagramPayload(), kPayloadSizeLimit);
+  EXPECT_EQ(connection_.GetGuaranteedLargestDatagramPayload(),
             kPayloadSizeLimit);
 }
 
@@ -10992,7 +10992,7 @@ TEST_P(QuicConnectionTest, SendPingWhenSkipPacketNumberForPto) {
   connection_.OnHandshakeComplete();
   EXPECT_FALSE(connection_.GetRetransmissionAlarm()->IsSet());
 
-  EXPECT_EQ(MESSAGE_STATUS_SUCCESS, SendMessage("message"));
+  EXPECT_EQ(DATAGRAM_STATUS_SUCCESS, SendDatagram("message"));
   EXPECT_TRUE(connection_.GetRetransmissionAlarm()->IsSet());
 
   // PTO fires, verify a PING packet gets sent because there is no data to
@@ -15901,7 +15901,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   EXPECT_CALL(visitor_, OnMaxStreamsFrame(_));
   EXPECT_CALL(visitor_, OnStreamsBlockedFrame(_));
   EXPECT_CALL(visitor_, OnStopSendingFrame(_));
-  EXPECT_CALL(visitor_, OnMessageReceived(""));
+  EXPECT_CALL(visitor_, OnDatagramReceived(""));
   EXPECT_CALL(visitor_, OnNewTokenReceived(""));
 
   SetClientConnectionId(TestConnectionId(12));
@@ -15920,7 +15920,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   retire_connection_id_frame.sequence_number = 1u;
   QuicStopSendingFrame stop_sending_frame;
   QuicPathResponseFrame path_response_frame;
-  QuicMessageFrame message_frame;
+  QuicDatagramFrame message_frame;
   QuicNewTokenFrame new_token_frame;
   QuicAckFrequencyFrame ack_frequency_frame;
   QuicResetStreamAtFrame reset_stream_at_frame;
@@ -16001,7 +16001,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
       case PATH_RESPONSE_FRAME:
         frame = QuicFrame(path_response_frame);
         break;
-      case MESSAGE_FRAME:
+      case DATAGRAM_FRAME:
         frame = QuicFrame(&message_frame);
         break;
       case CRYPTO_FRAME:

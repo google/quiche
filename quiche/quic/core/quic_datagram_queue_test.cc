@@ -39,7 +39,7 @@ class QuicDatagramQueueObserver final : public QuicDatagramQueue::Observer {
  public:
   class Context : public quiche::QuicheReferenceCounted {
    public:
-    std::vector<std::optional<MessageStatus>> statuses;
+    std::vector<std::optional<DatagramStatus>> statuses;
   };
 
   QuicDatagramQueueObserver() : context_(new Context()) {}
@@ -47,7 +47,7 @@ class QuicDatagramQueueObserver final : public QuicDatagramQueue::Observer {
   QuicDatagramQueueObserver& operator=(const QuicDatagramQueueObserver&) =
       delete;
 
-  void OnDatagramProcessed(std::optional<MessageStatus> status) override {
+  void OnDatagramProcessed(std::optional<DatagramStatus> status) override {
     context_->statuses.push_back(std::move(status));
   }
 
@@ -93,39 +93,37 @@ class QuicDatagramQueueTest : public QuicDatagramQueueTestBase {
 };
 
 TEST_F(QuicDatagramQueueTest, SendDatagramImmediately) {
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
-  MessageStatus status = queue_.SendOrQueueDatagram(CreateMemSlice("test"));
-  EXPECT_EQ(MESSAGE_STATUS_SUCCESS, status);
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillOnce(Return(DATAGRAM_STATUS_SUCCESS));
+  DatagramStatus status = queue_.SendOrQueueDatagram(CreateMemSlice("test"));
+  EXPECT_EQ(DATAGRAM_STATUS_SUCCESS, status);
   EXPECT_EQ(0u, queue_.queue_size());
 }
 
 TEST_F(QuicDatagramQueueTest, SendDatagramAfterBuffering) {
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillOnce(Return(MESSAGE_STATUS_BLOCKED));
-  MessageStatus initial_status =
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillOnce(Return(DATAGRAM_STATUS_BLOCKED));
+  DatagramStatus initial_status =
       queue_.SendOrQueueDatagram(CreateMemSlice("test"));
-  EXPECT_EQ(MESSAGE_STATUS_BLOCKED, initial_status);
+  EXPECT_EQ(DATAGRAM_STATUS_BLOCKED, initial_status);
   EXPECT_EQ(1u, queue_.queue_size());
 
   // Verify getting write blocked does not remove the datagram from the queue.
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillOnce(Return(MESSAGE_STATUS_BLOCKED));
-  std::optional<MessageStatus> status = queue_.TrySendingNextDatagram();
-  ASSERT_TRUE(status.has_value());
-  EXPECT_EQ(MESSAGE_STATUS_BLOCKED, *status);
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillOnce(Return(DATAGRAM_STATUS_BLOCKED));
+  std::optional<DatagramStatus> status = queue_.TrySendingNextDatagram();
+  EXPECT_TRUE(status.has_value() && DATAGRAM_STATUS_BLOCKED == *status);
   EXPECT_EQ(1u, queue_.queue_size());
 
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillOnce(Return(DATAGRAM_STATUS_SUCCESS));
   status = queue_.TrySendingNextDatagram();
-  ASSERT_TRUE(status.has_value());
-  EXPECT_EQ(MESSAGE_STATUS_SUCCESS, *status);
+  EXPECT_TRUE(status.has_value() && DATAGRAM_STATUS_SUCCESS == *status);
   EXPECT_EQ(0u, queue_.queue_size());
 }
 
 TEST_F(QuicDatagramQueueTest, EmptyBuffer) {
-  std::optional<MessageStatus> status = queue_.TrySendingNextDatagram();
+  std::optional<DatagramStatus> status = queue_.TrySendingNextDatagram();
   EXPECT_FALSE(status.has_value());
 
   size_t num_messages = queue_.SendDatagrams();
@@ -133,19 +131,19 @@ TEST_F(QuicDatagramQueueTest, EmptyBuffer) {
 }
 
 TEST_F(QuicDatagramQueueTest, MultipleDatagrams) {
-  // Note that SendMessage() is called only once here, since all the remaining
+  // Note that SendDatagram() is called only once here, since all the remaining
   // messages are automatically queued due to the queue being non-empty.
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillOnce(Return(MESSAGE_STATUS_BLOCKED));
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillOnce(Return(DATAGRAM_STATUS_BLOCKED));
   queue_.SendOrQueueDatagram(CreateMemSlice("a"));
   queue_.SendOrQueueDatagram(CreateMemSlice("b"));
   queue_.SendOrQueueDatagram(CreateMemSlice("c"));
   queue_.SendOrQueueDatagram(CreateMemSlice("d"));
   queue_.SendOrQueueDatagram(CreateMemSlice("e"));
 
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
       .Times(5)
-      .WillRepeatedly(Return(MESSAGE_STATUS_SUCCESS));
+      .WillRepeatedly(Return(DATAGRAM_STATUS_SUCCESS));
   size_t num_messages = queue_.SendDatagrams();
   EXPECT_EQ(5u, num_messages);
 }
@@ -166,8 +164,8 @@ TEST_F(QuicDatagramQueueTest, Expiry) {
   constexpr QuicTime::Delta expiry = QuicTime::Delta::FromMilliseconds(100);
   queue_.SetMaxTimeInQueue(expiry);
 
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillOnce(Return(MESSAGE_STATUS_BLOCKED));
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillOnce(Return(DATAGRAM_STATUS_BLOCKED));
   queue_.SendOrQueueDatagram(CreateMemSlice("a"));
   helper_.AdvanceTime(0.6 * expiry);
   queue_.SendOrQueueDatagram(CreateMemSlice("b"));
@@ -175,12 +173,12 @@ TEST_F(QuicDatagramQueueTest, Expiry) {
   queue_.SendOrQueueDatagram(CreateMemSlice("c"));
 
   std::vector<std::string> messages;
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillRepeatedly([&messages](QuicMessageId /*id*/,
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillRepeatedly([&messages](QuicDatagramId /*id*/,
                                   absl::Span<quiche::QuicheMemSlice> message,
                                   bool /*flush*/) {
         messages.push_back(std::string(message[0].AsStringView()));
-        return MESSAGE_STATUS_SUCCESS;
+        return DATAGRAM_STATUS_SUCCESS;
       });
   EXPECT_EQ(2u, queue_.SendDatagrams());
   EXPECT_THAT(messages, ElementsAre("b", "c"));
@@ -190,14 +188,14 @@ TEST_F(QuicDatagramQueueTest, ExpireAll) {
   constexpr QuicTime::Delta expiry = QuicTime::Delta::FromMilliseconds(100);
   queue_.SetMaxTimeInQueue(expiry);
 
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillOnce(Return(MESSAGE_STATUS_BLOCKED));
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillOnce(Return(DATAGRAM_STATUS_BLOCKED));
   queue_.SendOrQueueDatagram(CreateMemSlice("a"));
   queue_.SendOrQueueDatagram(CreateMemSlice("b"));
   queue_.SendOrQueueDatagram(CreateMemSlice("c"));
 
   helper_.AdvanceTime(100 * expiry);
-  EXPECT_CALL(*connection_, SendMessage(_, _, _)).Times(0);
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _)).Times(0);
   EXPECT_EQ(0u, queue_.SendDatagrams());
 }
 
@@ -220,34 +218,34 @@ class QuicDatagramQueueWithObserverTest : public QuicDatagramQueueTestBase {
 TEST_F(QuicDatagramQueueWithObserverTest, ObserveSuccessImmediately) {
   EXPECT_TRUE(context_->statuses.empty());
 
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillOnce(Return(DATAGRAM_STATUS_SUCCESS));
 
-  EXPECT_EQ(MESSAGE_STATUS_SUCCESS,
+  EXPECT_EQ(DATAGRAM_STATUS_SUCCESS,
             queue_.SendOrQueueDatagram(CreateMemSlice("a")));
 
-  EXPECT_THAT(context_->statuses, ElementsAre(MESSAGE_STATUS_SUCCESS));
+  EXPECT_THAT(context_->statuses, ElementsAre(DATAGRAM_STATUS_SUCCESS));
 }
 
 TEST_F(QuicDatagramQueueWithObserverTest, ObserveFailureImmediately) {
   EXPECT_TRUE(context_->statuses.empty());
 
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillOnce(Return(MESSAGE_STATUS_TOO_LARGE));
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillOnce(Return(DATAGRAM_STATUS_TOO_LARGE));
 
-  EXPECT_EQ(MESSAGE_STATUS_TOO_LARGE,
+  EXPECT_EQ(DATAGRAM_STATUS_TOO_LARGE,
             queue_.SendOrQueueDatagram(CreateMemSlice("a")));
 
-  EXPECT_THAT(context_->statuses, ElementsAre(MESSAGE_STATUS_TOO_LARGE));
+  EXPECT_THAT(context_->statuses, ElementsAre(DATAGRAM_STATUS_TOO_LARGE));
 }
 
 TEST_F(QuicDatagramQueueWithObserverTest, BlockingShouldNotBeObserved) {
   EXPECT_TRUE(context_->statuses.empty());
 
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillRepeatedly(Return(MESSAGE_STATUS_BLOCKED));
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillRepeatedly(Return(DATAGRAM_STATUS_BLOCKED));
 
-  EXPECT_EQ(MESSAGE_STATUS_BLOCKED,
+  EXPECT_EQ(DATAGRAM_STATUS_BLOCKED,
             queue_.SendOrQueueDatagram(CreateMemSlice("a")));
   EXPECT_EQ(0u, queue_.SendDatagrams());
 
@@ -257,19 +255,19 @@ TEST_F(QuicDatagramQueueWithObserverTest, BlockingShouldNotBeObserved) {
 TEST_F(QuicDatagramQueueWithObserverTest, ObserveSuccessAfterBuffering) {
   EXPECT_TRUE(context_->statuses.empty());
 
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillOnce(Return(MESSAGE_STATUS_BLOCKED));
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillOnce(Return(DATAGRAM_STATUS_BLOCKED));
 
-  EXPECT_EQ(MESSAGE_STATUS_BLOCKED,
+  EXPECT_EQ(DATAGRAM_STATUS_BLOCKED,
             queue_.SendOrQueueDatagram(CreateMemSlice("a")));
 
   EXPECT_TRUE(context_->statuses.empty());
 
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillOnce(Return(MESSAGE_STATUS_SUCCESS));
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillOnce(Return(DATAGRAM_STATUS_SUCCESS));
 
   EXPECT_EQ(1u, queue_.SendDatagrams());
-  EXPECT_THAT(context_->statuses, ElementsAre(MESSAGE_STATUS_SUCCESS));
+  EXPECT_THAT(context_->statuses, ElementsAre(DATAGRAM_STATUS_SUCCESS));
 }
 
 TEST_F(QuicDatagramQueueWithObserverTest, ObserveExpiry) {
@@ -278,15 +276,15 @@ TEST_F(QuicDatagramQueueWithObserverTest, ObserveExpiry) {
 
   EXPECT_TRUE(context_->statuses.empty());
 
-  EXPECT_CALL(*connection_, SendMessage(_, _, _))
-      .WillOnce(Return(MESSAGE_STATUS_BLOCKED));
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _))
+      .WillOnce(Return(DATAGRAM_STATUS_BLOCKED));
 
-  EXPECT_EQ(MESSAGE_STATUS_BLOCKED,
+  EXPECT_EQ(DATAGRAM_STATUS_BLOCKED,
             queue_.SendOrQueueDatagram(CreateMemSlice("a")));
 
   EXPECT_TRUE(context_->statuses.empty());
 
-  EXPECT_CALL(*connection_, SendMessage(_, _, _)).Times(0);
+  EXPECT_CALL(*connection_, SendDatagram(_, _, _)).Times(0);
   helper_.AdvanceTime(100 * expiry);
 
   EXPECT_TRUE(context_->statuses.empty());

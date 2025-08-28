@@ -352,7 +352,7 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
               (override));
   MOCK_METHOD(bool, OnBlockedFrame, (const QuicBlockedFrame& frame),
               (override));
-  MOCK_METHOD(bool, OnMessageFrame, (const QuicMessageFrame& frame),
+  MOCK_METHOD(bool, OnDatagramFrame, (const QuicDatagramFrame& frame),
               (override));
   MOCK_METHOD(bool, OnHandshakeDoneFrame, (const QuicHandshakeDoneFrame& frame),
               (override));
@@ -426,7 +426,7 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override;
   bool OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override;
   bool OnBlockedFrame(const QuicBlockedFrame& frame) override;
-  bool OnMessageFrame(const QuicMessageFrame& frame) override;
+  bool OnDatagramFrame(const QuicDatagramFrame& frame) override;
   bool OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) override;
   bool OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) override;
   bool OnImmediateAckFrame(const QuicImmediateAckFrame& frame) override;
@@ -465,7 +465,8 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, OnResetStreamAt, (const QuicResetStreamAtFrame& frame),
               (override));
   MOCK_METHOD(void, OnGoAway, (const QuicGoAwayFrame& frame), (override));
-  MOCK_METHOD(void, OnMessageReceived, (absl::string_view message), (override));
+  MOCK_METHOD(void, OnDatagramReceived, (absl::string_view datagram),
+              (override));
   MOCK_METHOD(void, OnHandshakeDoneReceived, (), (override));
   MOCK_METHOD(void, OnNewTokenReceived, (absl::string_view token), (override));
   MOCK_METHOD(void, OnConnectionClosed,
@@ -664,8 +665,8 @@ class MockQuicConnection : public QuicConnection {
   MOCK_METHOD(void, OnStreamReset, (QuicStreamId, QuicRstStreamErrorCode),
               (override));
   MOCK_METHOD(bool, SendControlFrame, (const QuicFrame& frame), (override));
-  MOCK_METHOD(MessageStatus, SendMessage,
-              (QuicMessageId, absl::Span<quiche::QuicheMemSlice>, bool),
+  MOCK_METHOD(DatagramStatus, SendDatagram,
+              (QuicDatagramId, absl::Span<quiche::QuicheMemSlice>, bool),
               (override));
   MOCK_METHOD(bool, SendPathChallenge,
               (const QuicPathFrameBuffer&, const QuicSocketAddress&,
@@ -1370,7 +1371,7 @@ class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {
 
   MOCK_METHOD(void, OnNewTokenFrame, (const QuicNewTokenFrame&), (override));
 
-  MOCK_METHOD(void, OnMessageFrame, (const QuicMessageFrame&), (override));
+  MOCK_METHOD(void, OnDatagramFrame, (const QuicDatagramFrame&), (override));
 
   MOCK_METHOD(void, OnStopSendingFrame, (const QuicStopSendingFrame&),
               (override));
@@ -1939,8 +1940,8 @@ class TestPacketWriter : public QuicPacketWriter {
     return framer_.ping_frames();
   }
 
-  const std::vector<QuicMessageFrame>& message_frames() const {
-    return framer_.message_frames();
+  const std::vector<QuicDatagramFrame>& datagram_frames() const {
+    return framer_.datagram_frames();
   }
 
   const std::vector<QuicWindowUpdateFrame>& window_update_frames() const {

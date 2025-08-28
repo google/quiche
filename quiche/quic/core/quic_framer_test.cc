@@ -428,14 +428,14 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return true;
   }
 
-  bool OnMessageFrame(const QuicMessageFrame& frame) override {
+  bool OnDatagramFrame(const QuicDatagramFrame& frame) override {
     ++frame_count_;
-    message_frames_.push_back(
-        std::make_unique<QuicMessageFrame>(frame.data, frame.message_length));
+    datagram_frames_.push_back(
+        std::make_unique<QuicDatagramFrame>(frame.data, frame.datagram_length));
     if (VersionHasIetfQuicFrames(transport_version_)) {
-      EXPECT_TRUE(IETF_EXTENSION_MESSAGE_NO_LENGTH_V99 ==
+      EXPECT_TRUE(IETF_EXTENSION_DATAGRAM_NO_LENGTH_V99 ==
                       framer_->current_received_frame_type() ||
-                  IETF_EXTENSION_MESSAGE_V99 ==
+                  IETF_EXTENSION_DATAGRAM_V99 ==
                       framer_->current_received_frame_type());
     } else {
       EXPECT_EQ(0u, framer_->current_received_frame_type());
@@ -667,7 +667,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   std::vector<std::unique_ptr<QuicStopWaitingFrame>> stop_waiting_frames_;
   std::vector<std::unique_ptr<QuicPaddingFrame>> padding_frames_;
   std::vector<std::unique_ptr<QuicPingFrame>> ping_frames_;
-  std::vector<std::unique_ptr<QuicMessageFrame>> message_frames_;
+  std::vector<std::unique_ptr<QuicDatagramFrame>> datagram_frames_;
   std::vector<std::unique_ptr<QuicHandshakeDoneFrame>> handshake_done_frames_;
   std::vector<std::unique_ptr<QuicAckFrequencyFrame>> ack_frequency_frames_;
   std::vector<std::unique_ptr<QuicImmediateAckFrame>> immediate_ack_frames_;
@@ -4986,7 +4986,7 @@ TEST_P(QuicFramerTest, ParseInvalidResetStreamAtFrame) {
   EXPECT_EQ(visitor_.reset_stream_at_frames_.size(), 0);
 }
 
-TEST_P(QuicFramerTest, MessageFrame) {
+TEST_P(QuicFramerTest, DatagramFrame) {
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
   PacketFragments packet = {
@@ -4999,19 +4999,19 @@ TEST_P(QuicFramerTest, MessageFrame) {
        // packet number
        {"",
         {0x12, 0x34, 0x56, 0x78}},
-       // message frame type.
+       // datagram frame type.
        {"",
         { 0x21 }},
-       // message length
-       {"Unable to read message length",
+       // datagram length
+       {"Unable to read datagram length",
         {0x07}},
-       // message data
-       {"Unable to read message data",
+       // datagram data
+       {"Unable to read datagram data",
         {'m', 'e', 's', 's', 'a', 'g', 'e'}},
-        // message frame no length.
+        // datagram frame no length.
         {"",
          { 0x20 }},
-        // message data
+        // datagram data
         {{},
          {'m', 'e', 's', 's', 'a', 'g', 'e', '2'}},
    };
@@ -5025,19 +5025,19 @@ TEST_P(QuicFramerTest, MessageFrame) {
        // packet number
        {"",
         {0x12, 0x34, 0x56, 0x78}},
-       // message frame type.
+       // datagram frame type.
        {"",
         { 0x31 }},
-       // message length
-       {"Unable to read message length",
+       // datagram length
+       {"Unable to read datagram length",
         {0x07}},
-       // message data
-       {"Unable to read message data",
+       // datagram data
+       {"Unable to read datagram data",
         {'m', 'e', 's', 's', 'a', 'g', 'e'}},
-        // message frame no length.
+        // datagram frame no length.
         {"",
          { 0x30 }},
-        // message data
+        // datagram data
         {{},
          {'m', 'e', 's', 's', 'a', 'g', 'e', '2'}},
    };
@@ -5057,14 +5057,14 @@ TEST_P(QuicFramerTest, MessageFrame) {
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
-  ASSERT_EQ(2u, visitor_.message_frames_.size());
-  EXPECT_EQ(7u, visitor_.message_frames_[0]->message_length);
-  EXPECT_EQ(8u, visitor_.message_frames_[1]->message_length);
+  ASSERT_EQ(2u, visitor_.datagram_frames_.size());
+  EXPECT_EQ(7u, visitor_.datagram_frames_[0]->datagram_length);
+  EXPECT_EQ(8u, visitor_.datagram_frames_[1]->datagram_length);
 
   if (VersionHasIetfQuicFrames(framer_.transport_version())) {
-    CheckFramingBoundaries(packet_ietf, QUIC_INVALID_MESSAGE_DATA);
+    CheckFramingBoundaries(packet_ietf, QUIC_INVALID_DATAGRAM_DATA);
   } else {
-    CheckFramingBoundaries(packet, QUIC_INVALID_MESSAGE_DATA);
+    CheckFramingBoundaries(packet, QUIC_INVALID_DATAGRAM_DATA);
   }
 }
 
@@ -8368,7 +8368,7 @@ TEST_P(QuicFramerTest, BuildResetStreamAtPacket) {
       ABSL_ARRAYSIZE(packet));
 }
 
-TEST_P(QuicFramerTest, BuildMessagePacket) {
+TEST_P(QuicFramerTest, BuildDatagramPacket) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();
@@ -8376,8 +8376,8 @@ TEST_P(QuicFramerTest, BuildMessagePacket) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  QuicMessageFrame frame(1, MemSliceFromString("message"));
-  QuicMessageFrame frame2(2, MemSliceFromString("message2"));
+  QuicDatagramFrame frame(1, MemSliceFromString("message"));
+  QuicDatagramFrame frame2(2, MemSliceFromString("message2"));
   QuicFrames frames = {QuicFrame(&frame), QuicFrame(&frame2)};
 
   // clang-format off
@@ -8389,15 +8389,15 @@ TEST_P(QuicFramerTest, BuildMessagePacket) {
     // packet number
     0x12, 0x34, 0x56, 0x78,
 
-    // frame type (message frame)
+    // frame type (datagram frame)
     0x21,
     // Length
     0x07,
-    // Message Data
+    // Datagram Data
     'm', 'e', 's', 's', 'a', 'g', 'e',
-    // frame type (message frame no length)
+    // frame type (datagram frame no length)
     0x20,
-    // Message Data
+    // Datagram Data
     'm', 'e', 's', 's', 'a', 'g', 'e', '2'
   };
 
@@ -8409,15 +8409,15 @@ TEST_P(QuicFramerTest, BuildMessagePacket) {
     // packet number
     0x12, 0x34, 0x56, 0x78,
 
-    // frame type (IETF_MESSAGE frame)
+    // frame type (IETF_DATAGRAM frame)
     0x31,
     // Length
     0x07,
-    // Message Data
+    //  Datagram Data
     'm', 'e', 's', 's', 'a', 'g', 'e',
-    // frame type (message frame no length)
+    // frame type (datagram frame no length)
     0x30,
-    // Message Data
+    // Datagram Data
     'm', 'e', 's', 's', 'a', 'g', 'e', '2'
   };
   // clang-format on

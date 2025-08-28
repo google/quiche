@@ -128,8 +128,9 @@ std::ostream& operator<<(std::ostream& os, const WriteResult& s) {
   return os;
 }
 
-MessageResult::MessageResult(MessageStatus status, QuicMessageId message_id)
-    : status(status), message_id(message_id) {}
+DatagramResult::DatagramResult(DatagramStatus status,
+                               QuicDatagramId datagram_id)
+    : status(status), datagram_id(datagram_id) {}
 
 #define RETURN_STRING_LITERAL(x) \
   case x:                        \
@@ -156,7 +157,7 @@ std::string QuicFrameTypeToString(QuicFrameType t) {
     RETURN_STRING_LITERAL(PATH_RESPONSE_FRAME)
     RETURN_STRING_LITERAL(PATH_CHALLENGE_FRAME)
     RETURN_STRING_LITERAL(STOP_SENDING_FRAME)
-    RETURN_STRING_LITERAL(MESSAGE_FRAME)
+    RETURN_STRING_LITERAL(DATAGRAM_FRAME)
     RETURN_STRING_LITERAL(NEW_TOKEN_FRAME)
     RETURN_STRING_LITERAL(RETIRE_CONNECTION_ID_FRAME)
     RETURN_STRING_LITERAL(ACK_FREQUENCY_FRAME)
@@ -200,10 +201,10 @@ std::string QuicIetfFrameTypeString(QuicIetfFrameType t) {
     RETURN_STRING_LITERAL(IETF_PATH_RESPONSE);
     RETURN_STRING_LITERAL(IETF_CONNECTION_CLOSE);
     RETURN_STRING_LITERAL(IETF_APPLICATION_CLOSE);
-    RETURN_STRING_LITERAL(IETF_EXTENSION_MESSAGE_NO_LENGTH);
-    RETURN_STRING_LITERAL(IETF_EXTENSION_MESSAGE);
-    RETURN_STRING_LITERAL(IETF_EXTENSION_MESSAGE_NO_LENGTH_V99);
-    RETURN_STRING_LITERAL(IETF_EXTENSION_MESSAGE_V99);
+    RETURN_STRING_LITERAL(IETF_EXTENSION_DATAGRAM_NO_LENGTH);
+    RETURN_STRING_LITERAL(IETF_EXTENSION_DATAGRAM);
+    RETURN_STRING_LITERAL(IETF_EXTENSION_DATAGRAM_NO_LENGTH_V99);
+    RETURN_STRING_LITERAL(IETF_EXTENSION_DATAGRAM_V99);
     default:
       return absl::StrCat("Private value (", t, ")");
   }
@@ -259,30 +260,31 @@ std::string QuicLongHeaderTypeToString(QuicLongHeaderType type) {
   }
 }
 
-std::string MessageStatusToString(MessageStatus message_status) {
+std::string DatagramStatusToString(DatagramStatus message_status) {
   switch (message_status) {
-    RETURN_STRING_LITERAL(MESSAGE_STATUS_SUCCESS);
-    RETURN_STRING_LITERAL(MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED);
-    RETURN_STRING_LITERAL(MESSAGE_STATUS_UNSUPPORTED);
-    RETURN_STRING_LITERAL(MESSAGE_STATUS_BLOCKED);
-    RETURN_STRING_LITERAL(MESSAGE_STATUS_TOO_LARGE);
-    RETURN_STRING_LITERAL(MESSAGE_STATUS_SETTINGS_NOT_RECEIVED);
-    RETURN_STRING_LITERAL(MESSAGE_STATUS_INTERNAL_ERROR);
+    RETURN_STRING_LITERAL(DATAGRAM_STATUS_SUCCESS);
+    RETURN_STRING_LITERAL(DATAGRAM_STATUS_ENCRYPTION_NOT_ESTABLISHED);
+    RETURN_STRING_LITERAL(DATAGRAM_STATUS_UNSUPPORTED);
+    RETURN_STRING_LITERAL(DATAGRAM_STATUS_BLOCKED);
+    RETURN_STRING_LITERAL(DATAGRAM_STATUS_TOO_LARGE);
+    RETURN_STRING_LITERAL(DATAGRAM_STATUS_SETTINGS_NOT_RECEIVED);
+    RETURN_STRING_LITERAL(DATAGRAM_STATUS_INTERNAL_ERROR);
     default:
       return absl::StrCat("Unknown(", static_cast<int>(message_status), ")");
   }
 }
 
-std::string MessageResultToString(MessageResult message_result) {
-  if (message_result.status != MESSAGE_STATUS_SUCCESS) {
-    return absl::StrCat("{", MessageStatusToString(message_result.status), "}");
+std::string DatagramResultToString(DatagramResult datagram_result) {
+  if (datagram_result.status != DATAGRAM_STATUS_SUCCESS) {
+    return absl::StrCat("{", DatagramStatusToString(datagram_result.status),
+                        "}");
   }
-  return absl::StrCat("{MESSAGE_STATUS_SUCCESS,id=", message_result.message_id,
-                      "}");
+  return absl::StrCat(
+      "{DATAGRAM_STATUS_SUCCESS,id=", datagram_result.datagram_id, "}");
 }
 
-std::ostream& operator<<(std::ostream& os, const MessageResult& mr) {
-  os << MessageResultToString(mr);
+std::ostream& operator<<(std::ostream& os, const DatagramResult& mr) {
+  os << DatagramResultToString(mr);
   return os;
 }
 

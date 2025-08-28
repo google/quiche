@@ -24,7 +24,7 @@ class QUIC_EXPORT_PRIVATE QboneControlStreamBase : public QuicStream {
 
  protected:
   virtual void OnMessage(const std::string& data) = 0;
-  bool SendMessage(const proto2::Message& proto);
+  bool SendDatagram(const proto2::Message& proto);
 
  private:
   uint16_t pending_message_size_;
@@ -51,7 +51,7 @@ class QUIC_EXPORT_PRIVATE QboneControlStream : public QboneControlStreamBase {
                      Handler* handler)
       : QboneControlStreamBase(pending, session), handler_(handler) {}
 
-  bool SendRequest(const Outgoing& request) { return SendMessage(request); }
+  bool SendRequest(const Outgoing& request) { return SendDatagram(request); }
 
  protected:
   void OnMessage(const std::string& data) override {

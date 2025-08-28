@@ -140,7 +140,7 @@ QuicSession::QuicSession(
       transport_goaway_sent_(false),
       transport_goaway_received_(false),
       liveness_testing_in_progress_(false),
-      last_message_id_(0),
+      last_datagram_id_(0),
       currently_writing_stream_id_(0),
       num_outgoing_draining_streams_(0),
       closed_streams_clean_up_alarm_(nullptr),
@@ -542,12 +542,12 @@ void QuicSession::OnGoAway(const QuicGoAwayFrame& /*frame*/) {
   transport_goaway_received_ = true;
 }
 
-void QuicSession::OnMessageReceived(absl::string_view message) {
-  QUIC_DVLOG(1) << ENDPOINT << "Received message of length "
-                << message.length();
-  QUIC_DVLOG(2) << ENDPOINT << "Contents of message of length "
-                << message.length() << ":" << std::endl
-                << quiche::QuicheTextUtils::HexDump(message);
+void QuicSession::OnDatagramReceived(absl::string_view datagram) {
+  QUIC_DVLOG(1) << ENDPOINT << "Received datagram of length "
+                << datagram.length();
+  QUIC_DVLOG(2) << ENDPOINT << "Contents of datagram of length "
+                << datagram.length() << ":" << std::endl
+                << quiche::QuicheTextUtils::HexDump(datagram);
 }
 
 void QuicSession::OnHandshakeDoneReceived() {
@@ -2483,8 +2483,8 @@ bool QuicSession::OnFrameAcked(const QuicFrame& frame,
                                QuicTime::Delta ack_delay_time,
                                QuicTime receive_timestamp,
                                bool is_retransmission) {
-  if (frame.type == MESSAGE_FRAME) {
-    OnMessageAcked(frame.message_frame->message_id, receive_timestamp);
+  if (frame.type == DATAGRAM_FRAME) {
+    OnDatagramAcked(frame.datagram_frame->datagram_id, receive_timestamp);
     return true;
   }
   if (frame.type == CRYPTO_FRAME) {
@@ -2533,9 +2533,9 @@ void QuicSession::OnStreamFrameRetransmitted(const QuicStreamFrame& frame) {
 }
 
 void QuicSession::OnFrameLost(const QuicFrame& frame) {
-  if (frame.type == MESSAGE_FRAME) {
+  if (frame.type == DATAGRAM_FRAME) {
     ++total_datagrams_lost_;
-    OnMessageLost(frame.message_frame->message_id);
+    OnDatagramLost(frame.datagram_frame->datagram_id);
     return;
   }
   if (frame.type == CRYPTO_FRAME) {
@@ -2565,8 +2565,8 @@ bool QuicSession::RetransmitFrames(const QuicFrames& frames,
                                    TransmissionType type) {
   QuicConnection::ScopedPacketFlusher retransmission_flusher(connection_);
   for (const QuicFrame& frame : frames) {
-    if (frame.type == MESSAGE_FRAME) {
-      // Do not retransmit MESSAGE frames.
+    if (frame.type == DATAGRAM_FRAME) {
+      // Do not retransmit DATAGRAM frames.
       continue;
     }
     if (frame.type == CRYPTO_FRAME) {
@@ -2593,7 +2593,7 @@ bool QuicSession::RetransmitFrames(const QuicFrames& frames,
 }
 
 bool QuicSession::IsFrameOutstanding(const QuicFrame& frame) const {
-  if (frame.type == MESSAGE_FRAME) {
+  if (frame.type == DATAGRAM_FRAME) {
     return false;
   }
   if (frame.type == CRYPTO_FRAME) {
@@ -2758,50 +2758,50 @@ void QuicSession::SetTransmissionType(TransmissionType type) {
   connection_->SetTransmissionType(type);
 }
 
-MessageResult QuicSession::SendMessage(
-    absl::Span<quiche::QuicheMemSlice> message) {
-  return SendMessage(message, /*flush=*/false);
+DatagramResult QuicSession::SendDatagram(
+    absl::Span<quiche::QuicheMemSlice> datagram) {
+  return SendDatagram(datagram, /*flush=*/false);
 }
 
-MessageResult QuicSession::SendMessage(quiche::QuicheMemSlice message) {
-  return SendMessage(absl::MakeSpan(&message, 1), /*flush=*/false);
+DatagramResult QuicSession::SendDatagram(quiche::QuicheMemSlice datagram) {
+  return SendDatagram(absl::MakeSpan(&datagram, 1), /*flush=*/false);
 }
 
-MessageResult QuicSession::SendMessage(
-    absl::Span<quiche::QuicheMemSlice> message, bool flush) {
+DatagramResult QuicSession::SendDatagram(
+    absl::Span<quiche::QuicheMemSlice> datagram, bool flush) {
   QUICHE_DCHECK(connection_->connected())
-      << ENDPOINT << "Try to write messages when connection is closed.";
+      << ENDPOINT << "Try to write datagrams when connection is closed.";
   if (!IsEncryptionEstablished()) {
-    return {MESSAGE_STATUS_ENCRYPTION_NOT_ESTABLISHED, 0};
+    return {DATAGRAM_STATUS_ENCRYPTION_NOT_ESTABLISHED, 0};
   }
   QuicConnection::ScopedEncryptionLevelContext context(
       connection(), GetEncryptionLevelToSendApplicationData());
-  MessageStatus result =
-      connection_->SendMessage(last_message_id_ + 1, message, flush);
-  if (result == MESSAGE_STATUS_SUCCESS) {
-    return {result, ++last_message_id_};
+  DatagramStatus result =
+      connection_->SendDatagram(last_datagram_id_ + 1, datagram, flush);
+  if (result == DATAGRAM_STATUS_SUCCESS) {
+    return {result, ++last_datagram_id_};
   }
   return {result, 0};
 }
 
-void QuicSession::OnMessageAcked(QuicMessageId message_id,
-                                 QuicTime /*receive_timestamp*/) {
-  QUIC_DVLOG(1) << ENDPOINT << "message " << message_id << " gets acked.";
+void QuicSession::OnDatagramAcked(QuicDatagramId datagram_id,
+                                  QuicTime /*receive_timestamp*/) {
+  QUIC_DVLOG(1) << ENDPOINT << "datagram " << datagram_id << " gets acked.";
 }
 
-void QuicSession::OnMessageLost(QuicMessageId message_id) {
-  QUIC_DVLOG(1) << ENDPOINT << "message " << message_id
+void QuicSession::OnDatagramLost(QuicDatagramId datagram_id) {
+  QUIC_DVLOG(1) << ENDPOINT << "datagram " << datagram_id
                 << " is considered lost";
 }
 
 void QuicSession::CleanUpClosedStreams() { closed_streams_.clear(); }
 
-QuicPacketLength QuicSession::GetCurrentLargestMessagePayload() const {
-  return connection_->GetCurrentLargestMessagePayload();
+QuicPacketLength QuicSession::GetCurrentLargestDatagramPayload() const {
+  return connection_->GetCurrentLargestDatagramPayload();
 }
 
-QuicPacketLength QuicSession::GetGuaranteedLargestMessagePayload() const {
-  return connection_->GetGuaranteedLargestMessagePayload();
+QuicPacketLength QuicSession::GetGuaranteedLargestDatagramPayload() const {
+  return connection_->GetGuaranteedLargestDatagramPayload();
 }
 
 QuicStreamId QuicSession::next_outgoing_bidirectional_stream_id() const {

@@ -429,7 +429,7 @@ bool NoOpFramerVisitor::OnBlockedFrame(const QuicBlockedFrame& /*frame*/) {
   return true;
 }
 
-bool NoOpFramerVisitor::OnMessageFrame(const QuicMessageFrame& /*frame*/) {
+bool NoOpFramerVisitor::OnDatagramFrame(const QuicDatagramFrame& /*frame*/) {
   return true;
 }
 
