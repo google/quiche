@@ -33,6 +33,7 @@
 #include "quiche/blind_sign_auth/blind_sign_auth_protos.h"
 #include "quiche/blind_sign_auth/blind_sign_message_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_message_response.h"
+#include "quiche/blind_sign_auth/blind_sign_tracing_hooks.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_random.h"
 
@@ -83,9 +84,10 @@ using anonymous_tokens::ValidateExtensionsOrderAndValues;
 void BlindSignAuth::GetTokens(std::optional<std::string> oauth_token,
                               int num_tokens, ProxyLayer proxy_layer,
                               BlindSignAuthServiceType service_type,
-                              SignedTokenCallback callback) {
-  if (hooks_ != nullptr) {
-    hooks_->OnGetInitialDataStart();
+                              SignedTokenCallback callback,
+                              std::unique_ptr<BlindSignTracingHooks> hooks) {
+  if (hooks != nullptr) {
+    hooks->OnGetInitialDataStart();
   }
   // Create GetInitialData RPC.
   GetInitialDataRequest request;
@@ -101,7 +103,7 @@ void BlindSignAuth::GetTokens(std::optional<std::string> oauth_token,
   std::string body_bytes = request.SerializeAsString();
   BlindSignMessageCallback initial_data_callback = absl::bind_front(
       &BlindSignAuth::GetInitialDataCallback, this, oauth_token, num_tokens,
-      proxy_layer, service_type, std::move(callback));
+      proxy_layer, service_type, std::move(callback), std::move(hooks));
   fetcher_->DoRequest(BlindSignMessageRequestType::kGetInitialData, oauth_token,
                       body_bytes, std::move(initial_data_callback));
 }
@@ -109,10 +111,10 @@ void BlindSignAuth::GetTokens(std::optional<std::string> oauth_token,
 void BlindSignAuth::GetInitialDataCallback(
     std::optional<std::string> oauth_token, int num_tokens,
     ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
-    SignedTokenCallback callback,
+    SignedTokenCallback callback, std::unique_ptr<BlindSignTracingHooks> hooks,
     absl::StatusOr<BlindSignMessageResponse> response) {
-  if (hooks_ != nullptr) {
-    hooks_->OnGetInitialDataEnd();
+  if (hooks != nullptr) {
+    hooks->OnGetInitialDataEnd();
   }
   absl::StatusOr<GetInitialDataResponse> initial_data_response =
       ParseGetInitialDataResponseMessage(response);
@@ -130,7 +132,7 @@ void BlindSignAuth::GetInitialDataCallback(
     QUICHE_DVLOG(1) << "Using Privacy Pass client";
     GeneratePrivacyPassTokens(*initial_data_response, std::move(oauth_token),
                               num_tokens, proxy_layer, service_type,
-                              std::move(callback));
+                              std::move(callback), std::move(hooks));
   } else {
     QUICHE_LOG(ERROR) << "Non-Privacy Pass tokens are no longer supported";
     std::move(callback)(absl::UnimplementedError(
@@ -143,7 +145,8 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
     privacy::ppn::GetInitialDataResponse initial_data_response,
     std::optional<std::string> oauth_token, int num_tokens,
     ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
-    SignedTokenCallback callback) {
+    SignedTokenCallback callback,
+    std::unique_ptr<BlindSignTracingHooks> hooks) {
   absl::StatusOr<PrivacyPassContext> pp_context =
       CreatePrivacyPassContext(initial_data_response);
   if (!pp_context.ok()) {
@@ -164,15 +167,15 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
     return;
   }
 
-  if (hooks_ != nullptr) {
-    hooks_->OnGenerateBlindedTokenRequestsStart();
+  if (hooks != nullptr) {
+    hooks->OnGenerateBlindedTokenRequestsStart();
   }
   absl::StatusOr<GeneratedTokenRequests> token_requests_data =
       GenerateBlindedTokenRequests(num_tokens, *pp_context->rsa_public_key,
                                    *token_challenge, pp_context->token_key_id,
                                    pp_context->extensions);
-  if (hooks_ != nullptr) {
-    hooks_->OnGenerateBlindedTokenRequestsEnd();
+  if (hooks != nullptr) {
+    hooks->OnGenerateBlindedTokenRequestsEnd();
   }
   if (!token_requests_data.ok()) {
     std::move(callback)(token_requests_data.status());
@@ -193,14 +196,14 @@ void BlindSignAuth::GeneratePrivacyPassTokens(
   sign_request.set_do_not_use_rsa_public_exponent(true);
   sign_request.set_proxy_layer(QuicheProxyLayerToPpnProxyLayer(proxy_layer));
 
-  if (hooks_ != nullptr) {
-    hooks_->OnAuthAndSignStart();
+  if (hooks != nullptr) {
+    hooks->OnAuthAndSignStart();
   }
   BlindSignMessageCallback auth_and_sign_callback =
       absl::bind_front(&BlindSignAuth::PrivacyPassAuthAndSignCallback, this,
                        *std::move(pp_context),
                        std::move(token_requests_data->privacy_pass_clients),
-                       std::move(callback));
+                       std::move(callback), std::move(hooks));
   // TODO(b/304811277): remove other usages of string.data()
   fetcher_->DoRequest(BlindSignMessageRequestType::kAuthAndSign, oauth_token,
                       sign_request.SerializeAsString(),
@@ -212,10 +215,10 @@ void BlindSignAuth::PrivacyPassAuthAndSignCallback(
     std::vector<std::unique_ptr<anonymous_tokens::
                                     PrivacyPassRsaBssaPublicMetadataClient>>
         privacy_pass_clients,
-    SignedTokenCallback callback,
+    SignedTokenCallback callback, std::unique_ptr<BlindSignTracingHooks> hooks,
     absl::StatusOr<BlindSignMessageResponse> response) {
-  if (hooks_ != nullptr) {
-    hooks_->OnAuthAndSignEnd();
+  if (hooks != nullptr) {
+    hooks->OnAuthAndSignEnd();
   }
   // Validate response.
   if (!response.ok()) {
@@ -249,12 +252,12 @@ void BlindSignAuth::PrivacyPassAuthAndSignCallback(
     return;
   }
 
-  if (hooks_ != nullptr) {
-    hooks_->OnUnblindTokensStart();
+  if (hooks != nullptr) {
+    hooks->OnUnblindTokensStart();
   }
-  absl::Cleanup unblind_tokens_end = [&]() {
-    if (hooks_ != nullptr) {
-      hooks_->OnUnblindTokensEnd();
+  absl::Cleanup unblind_tokens_end = [hooks = std::move(hooks)]() {
+    if (hooks != nullptr) {
+      hooks->OnUnblindTokensEnd();
     }
   };
 

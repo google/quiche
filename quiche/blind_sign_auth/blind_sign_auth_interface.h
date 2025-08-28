@@ -5,14 +5,17 @@
 #ifndef QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_AUTH_INTERFACE_H_
 #define QUICHE_BLIND_SIGN_AUTH_BLIND_SIGN_AUTH_INTERFACE_H_
 
+#include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "anonymous_tokens/cpp/privacy_pass/token_encodings.h"
+#include "quiche/blind_sign_auth/blind_sign_tracing_hooks.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
 
@@ -76,6 +79,14 @@ class QUICHE_EXPORT BlindSignAuthInterface {
                          ProxyLayer proxy_layer,
                          BlindSignAuthServiceType service_type,
                          SignedTokenCallback callback) = 0;
+  virtual void GetTokens(std::optional<std::string> oauth_token, int num_tokens,
+                         ProxyLayer proxy_layer,
+                         BlindSignAuthServiceType service_type,
+                         SignedTokenCallback callback,
+                         std::unique_ptr<BlindSignTracingHooks> /*hooks*/) {
+    GetTokens(oauth_token, num_tokens, proxy_layer, service_type,
+              std::move(callback));
+  }
 
   // Returns signed unblinded tokens and their expiration time in a
   // SignedTokenCallback. Errors will be returned in the SignedTokenCallback

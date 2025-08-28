@@ -31,11 +31,8 @@ namespace quiche {
 class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
  public:
   explicit BlindSignAuth(BlindSignMessageInterface* fetcher,
-                         privacy::ppn::BlindSignAuthOptions auth_options,
-                         BlindSignTracingHooks* hooks = nullptr)
-      : fetcher_(fetcher),
-        auth_options_(std::move(auth_options)),
-        hooks_(hooks) {}
+                         privacy::ppn::BlindSignAuthOptions auth_options)
+      : fetcher_(fetcher), auth_options_(std::move(auth_options)) {}
 
   // Returns signed unblinded tokens, their expiration time, and their geo in a
   // callback.
@@ -45,7 +42,17 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
   // Callers can make multiple concurrent requests to GetTokens.
   void GetTokens(std::optional<std::string> oauth_token, int num_tokens,
                  ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
-                 SignedTokenCallback callback) override;
+                 SignedTokenCallback callback) override {
+    GetTokens(oauth_token, num_tokens, proxy_layer, service_type,
+              std::move(callback), /*hooks=*/nullptr);
+  }
+
+  // Same as above, but allows passing tracing hooks which will be used to trace
+  // this invocation. The hooks will be destroyed after the callback is called.
+  void GetTokens(std::optional<std::string> oauth_token, int num_tokens,
+                 ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
+                 SignedTokenCallback callback,
+                 std::unique_ptr<BlindSignTracingHooks> hooks) override;
 
   // Returns signed unblinded tokens and their expiration time in a
   // SignedTokenCallback. Errors will be returned in the SignedTokenCallback
@@ -87,13 +94,15 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
       std::optional<std::string> oauth_token, int num_tokens,
       ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
       SignedTokenCallback callback,
+      std::unique_ptr<BlindSignTracingHooks> hooks,
       absl::StatusOr<BlindSignMessageResponse> response);
 
   void GeneratePrivacyPassTokens(
       privacy::ppn::GetInitialDataResponse initial_data_response,
       std::optional<std::string> oauth_token, int num_tokens,
       ProxyLayer proxy_layer, BlindSignAuthServiceType service_type,
-      SignedTokenCallback callback);
+      SignedTokenCallback callback,
+      std::unique_ptr<BlindSignTracingHooks> hooks);
 
   void PrivacyPassAuthAndSignCallback(
       const PrivacyPassContext& pp_context,
@@ -101,6 +110,7 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
                                       PrivacyPassRsaBssaPublicMetadataClient>>
           privacy_pass_clients,
       SignedTokenCallback callback,
+      std::unique_ptr<BlindSignTracingHooks> hooks,
       absl::StatusOr<BlindSignMessageResponse> response);
 
   // Helper functions for GetAttestationTokens flow.
@@ -141,7 +151,6 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
 
   BlindSignMessageInterface* fetcher_ = nullptr;
   privacy::ppn::BlindSignAuthOptions auth_options_;
-  BlindSignTracingHooks* hooks_ = nullptr;
 };
 
 std::string BlindSignAuthServiceTypeToString(

@@ -188,8 +188,8 @@ class BlindSignAuthTest : public QuicheTest {
     privacy::ppn::BlindSignAuthOptions options;
     options.set_enable_privacy_pass(true);
 
-    blind_sign_auth_ = std::make_unique<BlindSignAuth>(
-        &mock_message_interface_, options, &mock_tracing_hooks_);
+    blind_sign_auth_ =
+        std::make_unique<BlindSignAuth>(&mock_message_interface_, options);
   }
 
   void TearDown() override { blind_sign_auth_.reset(nullptr); }
@@ -303,7 +303,6 @@ class BlindSignAuthTest : public QuicheTest {
   }
 
   MockBlindSignMessageInterface mock_message_interface_;
-  MockBlindSignTracingHooks mock_tracing_hooks_;
   std::unique_ptr<BlindSignAuth> blind_sign_auth_;
   anonymous_tokens::RSABlindSignaturePublicKey
       public_key_proto_;
@@ -433,12 +432,13 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadAuthAndSignResponse) {
 }
 
 TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceeds) {
+  auto mock_tracing_hooks = std::make_unique<MockBlindSignTracingHooks>();
   BlindSignMessageResponse fake_public_key_response(
       absl::StatusCode::kOk,
       fake_get_initial_data_response_.SerializeAsString());
   {
     InSequence seq;
-    EXPECT_CALL(mock_tracing_hooks_, OnGetInitialDataStart);
+    EXPECT_CALL(*mock_tracing_hooks, OnGetInitialDataStart);
     EXPECT_CALL(
         mock_message_interface_,
         DoRequest(
@@ -448,10 +448,10 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceeds) {
         .WillOnce([=](auto&&, auto&&, auto&&, auto get_initial_data_cb) {
           std::move(get_initial_data_cb)(fake_public_key_response);
         });
-    EXPECT_CALL(mock_tracing_hooks_, OnGetInitialDataEnd);
-    EXPECT_CALL(mock_tracing_hooks_, OnGenerateBlindedTokenRequestsStart);
-    EXPECT_CALL(mock_tracing_hooks_, OnGenerateBlindedTokenRequestsEnd);
-    EXPECT_CALL(mock_tracing_hooks_, OnAuthAndSignStart);
+    EXPECT_CALL(*mock_tracing_hooks, OnGetInitialDataEnd);
+    EXPECT_CALL(*mock_tracing_hooks, OnGenerateBlindedTokenRequestsStart);
+    EXPECT_CALL(*mock_tracing_hooks, OnGenerateBlindedTokenRequestsEnd);
+    EXPECT_CALL(*mock_tracing_hooks, OnAuthAndSignStart);
     EXPECT_CALL(mock_message_interface_,
                 DoRequest(Eq(BlindSignMessageRequestType::kAuthAndSign),
                           Eq(oauth_token_), _, _))
@@ -463,9 +463,9 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceeds) {
                                             sign_response_.SerializeAsString());
           std::move(callback)(response);
         }));
-    EXPECT_CALL(mock_tracing_hooks_, OnAuthAndSignEnd);
-    EXPECT_CALL(mock_tracing_hooks_, OnUnblindTokensStart);
-    EXPECT_CALL(mock_tracing_hooks_, OnUnblindTokensEnd);
+    EXPECT_CALL(*mock_tracing_hooks, OnAuthAndSignEnd);
+    EXPECT_CALL(*mock_tracing_hooks, OnUnblindTokensStart);
+    EXPECT_CALL(*mock_tracing_hooks, OnUnblindTokensEnd);
   }
 
   int num_tokens = 1;
@@ -478,7 +478,8 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceeds) {
       };
   blind_sign_auth_->GetTokens(oauth_token_, num_tokens, ProxyLayer::kProxyA,
                               BlindSignAuthServiceType::kChromeIpBlinding,
-                              std::move(callback));
+                              std::move(callback),
+                              std::move(mock_tracing_hooks));
   done.WaitForNotification();
 }
 
