@@ -18117,6 +18117,46 @@ TEST_P(QuicConnectionTest, LeastUnackedOffByOne) {
   }
 }
 
+// Regression test for b/440033781 and
+// https://g-issues.chromium.org/issues/440833156.
+// This test will fail when gfe2_reloadable_flag_quic_least_unacked_plus_1 is
+// true.
+TEST_P(QuicConnectionTest, AllAckedPacketsCleared) {
+  if (!version().UsesTls()) {
+    return;
+  }
+  if (!GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_fail_on_empty_ack, true);
+  // Two packets arrive to trigger an ACK.
+  QuicPacketNumber largest_packet_sent;
+  EXPECT_CALL(connection_, OnSerializedPacket)
+      .WillRepeatedly([&](SerializedPacket packet) {
+        largest_packet_sent = packet.packet_number;
+        connection_.QuicConnection::OnSerializedPacket(std::move(packet));
+      });
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent);
+  ProcessPacket(4);
+  ProcessPacket(5);
+  EXPECT_TRUE(largest_packet_sent.IsInitialized());
+  const QuicAckFrame& local_ack_frame_1 = writer_->ack_frames()[0];
+  EXPECT_EQ(local_ack_frame_1.largest_acked, QuicPacketNumber(5));
+  EXPECT_EQ(local_ack_frame_1.packets.NumIntervals(), 1);
+
+  // The peer ACKs the locally generated ACK, but with an earlier packet number
+  // so that all packets in the ACK frame are cleared.
+  QuicAckFrame peer_ack_frame;
+  peer_ack_frame.largest_acked = largest_packet_sent;
+  peer_ack_frame.ack_delay_time = QuicTime::Delta::Zero();
+  peer_ack_frame.packets.Add(largest_packet_sent);
+  QuicFrames peer_frames;
+  peer_frames.push_back(QuicFrame(&peer_ack_frame));
+  EXPECT_CALL(visitor_, OnConnectionClosed);
+  ProcessFramesPacketAtLevel(3, peer_frames, ENCRYPTION_FORWARD_SECURE);
+  TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

@@ -5843,6 +5843,26 @@ void QuicConnection::PostProcessAfterAckFrame(bool acked_new_packet) {
     uber_received_packet_manager_.DontWaitForPacketsBefore(
         last_received_packet_info_.decrypted_level,
         largest_packet_peer_knows_is_acked);
+    if (uber_received_packet_manager_.IsAckFrameEmpty(
+            QuicUtils::GetPacketNumberSpace(
+                last_received_packet_info_.decrypted_level)) &&
+        GetQuicReloadableFlag(quic_fail_on_empty_ack)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_fail_on_empty_ack);
+      // A packet N arrived from the peer, and was ACKed. Then a packet M < N
+      // arrived acknowledging the locally generated ACK. This implies that
+      // the packet numbers are not increasing. Or, M was sent with an
+      // "Optimistic ACK" for packets it hadn't received, and M was delayed in
+      // flight to arrive after N.
+      // Either case causes DontWaitForPacketsBefore to empty the ACK frame,
+      // which is a symptom of a protocol violation.
+      // Avoid sending an ACK in CONNECTION_CLOSE, which would be malformed.
+      uber_received_packet_manager_.ResetAckStates(
+          last_received_packet_info_.decrypted_level);
+      CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION,
+                      "Opportunistic ACK received",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
   }
   // Always reset the retransmission alarm when an ack comes in, since we now
   // have a better estimate of the current rtt than when it was set.
