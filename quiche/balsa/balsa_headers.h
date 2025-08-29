@@ -1048,7 +1048,8 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
   friend bool ParseHTTPFirstLine(
       char* begin, char* end, bool is_request, BalsaHeaders* headers,
       BalsaFrameEnums::ErrorCode* error_code,
-      HttpValidationPolicy::FirstLineValidationOption whitespace_option);
+      HttpValidationPolicy::FirstLineValidationOption whitespace_option,
+      HttpValidationPolicy::FirstLineValidationOption multiple_spaces_option);
 
   // Reverse iterators have been removed for lack of use, refer to
   // cl/30618773 in case they are needed.

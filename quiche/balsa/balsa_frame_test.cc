@@ -2124,6 +2124,118 @@ TEST_F(
   EXPECT_FALSE(balsa_frame_.MessageFullyRead());
 }
 
+TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesAllowed) {
+  HttpValidationPolicy http_validation_policy{
+      .sanitize_firstline_spaces =
+          HttpValidationPolicy::FirstLineValidationOption::NONE};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  const std::string message1 =
+      "GET  / HTTP/1.1\r\n"
+      "Host: 1.1.1.1\r\n"
+      "\r\n";
+  EXPECT_EQ(message1.size(),
+            balsa_frame_.ProcessInput(message1.data(), message1.size()));
+  EXPECT_FALSE(balsa_frame_.Error())
+      << BalsaFrameEnums::ErrorCodeToString(balsa_frame_.ErrorCode());
+
+  EXPECT_EQ("GET  / HTTP/1.1", headers_.first_line());
+}
+
+TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesRejected) {
+  HttpValidationPolicy http_validation_policy{
+      .sanitize_firstline_spaces =
+          HttpValidationPolicy::FirstLineValidationOption::REJECT};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_)).Times(0);
+  EXPECT_CALL(visitor_mock_, HeaderDone()).Times(0);
+  const std::string message1 =
+      "GET  / HTTP/1.1\r\n"
+      "Host: 1.1.1.1\r\n"
+      "\r\n";
+  EXPECT_GT(message1.size(),
+            balsa_frame_.ProcessInput(message1.data(), message1.size()));
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::MULTIPLE_SPACES_IN_REQUEST_LINE,
+            balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesSanitized) {
+  HttpValidationPolicy http_validation_policy{
+      .sanitize_firstline_spaces =
+          HttpValidationPolicy::FirstLineValidationOption::SANITIZE};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  const std::string message1 =
+      "GET  / HTTP/1.1\r\n"
+      "Host: 1.1.1.1\r\n"
+      "\r\n";
+  EXPECT_EQ(message1.size(),
+            balsa_frame_.ProcessInput(message1.data(), message1.size()));
+  EXPECT_FALSE(balsa_frame_.Error())
+      << BalsaFrameEnums::ErrorCodeToString(balsa_frame_.ErrorCode());
+
+  EXPECT_EQ("GET / HTTP/1.1", headers_.first_line());
+}
+
+TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesAllowed) {
+  HttpValidationPolicy http_validation_policy{
+      .sanitize_firstline_spaces =
+          HttpValidationPolicy::FirstLineValidationOption::NONE};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  const std::string message1 =
+      "HTTP/1.1 200  OK\r\n"
+      "Content-Type: text/html\r\n"
+      "\r\n";
+  EXPECT_EQ(message1.size(),
+            balsa_frame_.ProcessInput(message1.data(), message1.size()));
+  EXPECT_FALSE(balsa_frame_.Error())
+      << BalsaFrameEnums::ErrorCodeToString(balsa_frame_.ErrorCode());
+
+  EXPECT_EQ("HTTP/1.1 200  OK", headers_.first_line());
+}
+
+TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesRejected) {
+  HttpValidationPolicy http_validation_policy{
+      .sanitize_firstline_spaces =
+          HttpValidationPolicy::FirstLineValidationOption::REJECT};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_)).Times(0);
+  EXPECT_CALL(visitor_mock_, HeaderDone()).Times(0);
+  const std::string message1 =
+      "HTTP/1.1 200  OK\r\n"
+      "Content-Type: text/html\r\n"
+      "\r\n";
+  EXPECT_GT(message1.size(),
+            balsa_frame_.ProcessInput(message1.data(), message1.size()));
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::MULTIPLE_SPACES_IN_REQUEST_LINE,
+            balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesSanitized) {
+  HttpValidationPolicy http_validation_policy{
+      .sanitize_firstline_spaces =
+          HttpValidationPolicy::FirstLineValidationOption::SANITIZE};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  const std::string message1 =
+      "HTTP/1.1 200  OK\r\n"
+      "Content-Type: text/html\r\n"
+      "\r\n";
+  EXPECT_EQ(message1.size(),
+            balsa_frame_.ProcessInput(message1.data(), message1.size()));
+  EXPECT_FALSE(balsa_frame_.Error())
+      << BalsaFrameEnums::ErrorCodeToString(balsa_frame_.ErrorCode());
+
+  EXPECT_EQ("HTTP/1.1 200 OK", headers_.first_line());
+}
+
 TEST_F(HTTPBalsaFrameTest,
        VisitorInvokedProperlyForRequestWithTransferEncodingAndTrailers) {
   std::string message_headers =

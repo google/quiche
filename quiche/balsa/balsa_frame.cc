@@ -162,7 +162,8 @@ inline char* ParseOneIsland(char* current, char* begin, char* end,
 bool ParseHTTPFirstLine(char* begin, char* end, bool is_request,
                         BalsaHeaders* headers,
                         BalsaFrameEnums::ErrorCode* error_code,
-                        FirstLineValidationOption whitespace_option) {
+                        FirstLineValidationOption whitespace_option,
+                        FirstLineValidationOption multiple_spaces_option) {
   while (begin < end && (end[-1] == '\n' || end[-1] == '\r')) {
     --end;
   }
@@ -247,6 +248,27 @@ bool ParseHTTPFirstLine(char* begin, char* end, bool is_request,
         return false;
       }
     }
+  }
+
+  if (multiple_spaces_option != FirstLineValidationOption::NONE &&
+      absl::StrContains(headers->first_line(), "  ")) {
+    if (multiple_spaces_option == FirstLineValidationOption::REJECT) {
+      *error_code = is_request
+                        ? BalsaFrameEnums::MULTIPLE_SPACES_IN_REQUEST_LINE
+                        : BalsaFrameEnums::MULTIPLE_SPACES_IN_STATUS_LINE;
+      return false;
+    }
+    const absl::string_view part1(
+        begin + headers->non_whitespace_1_idx_,
+        headers->whitespace_2_idx_ - headers->non_whitespace_1_idx_);
+    const absl::string_view part2(
+        begin + headers->non_whitespace_2_idx_,
+        headers->whitespace_3_idx_ - headers->non_whitespace_2_idx_);
+    const absl::string_view part3(
+        begin + headers->non_whitespace_3_idx_,
+        headers->whitespace_4_idx_ - headers->non_whitespace_3_idx_);
+
+    headers->SetRequestFirstlineFromStringPieces(part1, part2, part3);
   }
 
   return true;
@@ -354,7 +376,8 @@ void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
   BalsaFrameEnums::ErrorCode previous_error = last_error_;
   if (!ParseHTTPFirstLine(
           begin, end, is_request_, headers_, &last_error_,
-          http_validation_policy().sanitize_cr_tab_in_first_line)) {
+          http_validation_policy().sanitize_cr_tab_in_first_line,
+          http_validation_policy().sanitize_firstline_spaces)) {
     parse_state_ = BalsaFrameEnums::ERROR;
     HandleError(last_error_);
     return;
