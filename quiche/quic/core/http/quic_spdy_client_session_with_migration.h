@@ -70,6 +70,7 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
   virtual quic::QuicTimeDelta TimeSinceLastStreamClose() = 0;
 
   // QuicSpdyClientSessionBase
+  void OnPathDegrading() override;
   void OnTlsHandshakeComplete() override;
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
 

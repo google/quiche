@@ -83,6 +83,14 @@ enum class ProbingResult {
 };
 
 struct QUICHE_NO_EXPORT QuicConnectionMigrationConfig {
+  // Whether to probe and migrate to a different network upon path degrading in
+  // addition to the underlying platform's network change signals and write
+  // error which usually come later. If migrate_session_on_network_change is
+  // false, this must be false.
+  bool migrate_session_early = false;
+  // Whether to probe and migrate to a different port when migrating to a
+  // different network is not allowed upon path degrading.
+  bool allow_port_migration = false;
   // Whether to migrate a session with no in-flight requests to a different
   // network or port.
   bool migrate_idle_session = false;
@@ -92,6 +100,9 @@ struct QUICHE_NO_EXPORT QuicConnectionMigrationConfig {
   // before migrating back to the default network.
   QuicTimeDelta max_time_on_non_default_network =
       QuicTimeDelta::FromSeconds(128);
+  // Maximum allowed number of migrations to non-default network triggered by
+  // path degrading per default network.
+  int max_migrations_to_non_default_network_on_path_degrading = 5;
   // Whether to migrate to a different network upon the underlying platform's
   // network change signals and write error.
   bool migrate_session_on_network_change = false;
@@ -105,15 +116,21 @@ class QUICHE_EXPORT QuicConnectionMigrationDebugVisitor {
  public:
   virtual ~QuicConnectionMigrationDebugVisitor() = default;
 
+  virtual void OnNetworkConnected(QuicNetworkHandle network) = 0;
+  virtual void OnConnectionMigrationAfterNetworkConnected(
+      QuicNetworkHandle network) = 0;
   virtual void OnWaitingForNewNetworkToMigrate() = 0;
+  virtual void OnWaitingForNewNetworkSucceeded(QuicNetworkHandle network) = 0;
   virtual void OnWaitForNetworkFailed() = 0;
   virtual void OnNetworkDisconnected(
       QuicNetworkHandle disconnected_network) = 0;
   virtual void OnConnectionMigrationAfterNetworkDisconnected(
       QuicNetworkHandle disconnected_network) = 0;
-  virtual void OnConnectionMigrationAboutToStartAfterEvent(
+  virtual void OnConnectionMigrationStartingAfterEvent(
       absl::string_view event_name) = 0;
   virtual void OnConnectionMigrationStarted() = 0;
+  virtual void OnPortMigrationStarting() = 0;
+  virtual void OnPortMigrationStarted() = 0;
   virtual void OnConnectionMigrationBackToDefaultNetwork(
       int num_migration_back_retries) = 0;
   virtual void OnProbeResult(QuicNetworkHandle probed_network,
@@ -150,12 +167,22 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
 
   ~QuicConnectionMigrationManager();
 
+  // Called when the platform detects a newly connected network. Migrates this
+  // session to the newly connected network if the session has previously
+  // attempted to migrate off the current network for various reasons but failed
+  // because there was no alternate network available at the time.
+  void OnNetworkConnected(QuicNetworkHandle network);
+
   // Called when the platform detects the given network to be disconnected.
   void OnNetworkDisconnected(QuicNetworkHandle disconnected_network);
 
   // Called when the platform chooses the given network as the default network.
   // Migrates this session to it if appropriate.
   void OnNetworkMadeDefault(QuicNetworkHandle new_network);
+
+  // Maybe start migrating the session to a different port or a different
+  // network.
+  void OnPathDegrading();
 
   // Called by the session when the handshake gets completed to attempt
   // switching to the platform's default network asynchronously if not on it
@@ -173,6 +200,10 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
 
   // Called when probing alternative network for connection migration succeeds.
   void OnConnectionMigrationProbeSucceeded(
+      std::unique_ptr<QuicPathValidationContext> path_context,
+      quic::QuicTime start_time);
+  // Called when probing a different port succeeds.
+  void OnPortMigrationProbeSucceeded(
       std::unique_ptr<QuicPathValidationContext> path_context,
       quic::QuicTime start_time);
 
@@ -274,6 +305,8 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
   void FinishTryMigrateBackToDefaultNetwork(QuicTimeDelta next_try_timeout,
                                             ProbingResult result);
 
+  void MaybeProbeAndMigrateToAlternateNetworkOnPathDegrading();
+
   void StartProbing(StartProbingCallback probing_callback,
                     QuicNetworkHandle network,
                     const QuicSocketAddress& peer_address);
@@ -284,9 +317,10 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
   bool MaybeCloseIdleSession(bool has_write_error,
                              ConnectionCloseBehavior close_behavior);
 
-  void LogMetricsOnNetworkDisconnected();
-  void LogHandshakeStatusOnMigrationSignal() const;
-  void LogProbeResultToHistogram(MigrationCause cause, bool success);
+  void RecordMetricsOnNetworkMadeDefault();
+  void RecordMetricsOnNetworkDisconnected();
+  void RecordHandshakeStatusOnMigrationSignal() const;
+  void RecordProbeResultToHistogram(MigrationCause cause, bool success);
   void OnMigrationSuccess();
   void ResetMigrationCauseAndLogResult(QuicConnectionMigrationStatus status);
 
@@ -312,6 +346,9 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
   // True if migration is triggered, and there is no alternate network to
   // migrate to.
   bool wait_for_new_network_ = false;
+  int current_migrations_to_non_default_network_on_path_degrading_ = 0;
+  int current_migrations_to_different_port_on_path_degrading_ = 0;
+  quic::QuicTime most_recent_path_degrading_timestamp_ = quic::QuicTime::Zero();
   quic::QuicTime most_recent_network_disconnected_timestamp_ =
       quic::QuicTime::Zero();
   bool migration_attempted_ = false;
@@ -319,6 +356,7 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
 
   std::unique_ptr<QuicAlarm> migrate_back_to_default_timer_;
   std::unique_ptr<QuicAlarm> wait_for_migration_alarm_;
+  std::unique_ptr<QuicAlarm> run_pending_callbacks_alarm_;
 };
 
 }  // namespace quic

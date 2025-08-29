@@ -38,10 +38,12 @@ namespace quic {
 namespace {
 // Time to wait (in seconds) when no networks are available and
 // migrating sessions need to wait for a new network to connect.
-constexpr size_t kWaitTimeForNewNetworkSecs = 10;
+constexpr int kWaitTimeForNewNetworkSecs = 10;
 // Minimum time to wait (in seconds) when retrying to migrate back to the
 // default network.
-constexpr size_t kMinRetryTimeForDefaultNetworkSecs = 1;
+constexpr int kMinRetryTimeForDefaultNetworkSecs = 1;
+// Allow up to 4 port migrations.
+const int kMaxPortMigrationsPerQuicSession = 4;
 
 class WaitForMigrationDelegate : public QuicAlarm::Delegate {
  public:
@@ -93,6 +95,30 @@ class ConnectionMigrationValidationResultDelegate
       quic::QuicTime start_time) override {
     migration_manager_->OnConnectionMigrationProbeSucceeded(std::move(context),
                                                             start_time);
+  }
+  void OnPathValidationFailure(
+      std::unique_ptr<quic::QuicPathValidationContext> context) override {
+    migration_manager_->OnProbeFailed(std::move(context));
+  }
+
+ private:
+  // `migration_manager_` should out live |this|.
+  QuicConnectionMigrationManager* absl_nonnull migration_manager_;
+};
+
+// This class handles path validation results associated with port migration.
+class PortMigrationValidationResultDelegate
+    : public quic::QuicPathValidator::ResultDelegate {
+ public:
+  // `migration_manager` should out live this instance.
+  explicit PortMigrationValidationResultDelegate(
+      QuicConnectionMigrationManager* absl_nonnull migration_manager)
+      : migration_manager_(migration_manager) {}
+  void OnPathValidationSuccess(
+      std::unique_ptr<quic::QuicPathValidationContext> context,
+      quic::QuicTime start_time) override {
+    migration_manager_->OnPortMigrationProbeSucceeded(std::move(context),
+                                                      start_time);
   }
   void OnPathValidationFailure(
       std::unique_ptr<quic::QuicPathValidationContext> context) override {
@@ -156,6 +182,11 @@ QuicConnectionMigrationManager::QuicConnectionMigrationManager(
   QUICHE_BUG_IF(gquic_session_created_on_non_default_network,
                 default_network_ != current_network_ &&
                     !session_->version().HasIetfQuicFrames());
+  QUICHE_BUG_IF(inconsistent_migrate_session_config,
+                config_.migrate_session_early &&
+                    !config_.migrate_session_on_network_change)
+      << "migrate_session_early must be false if "
+         "migrate_session_on_network_change is false.";
 }
 
 QuicConnectionMigrationManager::~QuicConnectionMigrationManager() {
@@ -163,9 +194,56 @@ QuicConnectionMigrationManager::~QuicConnectionMigrationManager() {
   migrate_back_to_default_timer_->PermanentCancel();
 }
 
+void QuicConnectionMigrationManager::OnNetworkConnected(
+    QuicNetworkHandle network) {
+  if (!session_->version().HasIetfQuicFrames()) {
+    return;
+  }
+  if (connection_->IsPathDegrading()) {
+    quic::QuicTimeDelta duration =
+        clock_->Now() - most_recent_path_degrading_timestamp_;
+    QUICHE_CLIENT_HISTOGRAM_TIMES(
+        "QuicNetworkDegradingDurationTillConnected", duration,
+        quic::QuicTimeDelta::FromMilliseconds(1),
+        quic::QuicTimeDelta::FromSeconds(10 * 60), 50,
+        "Time elapsed since last network degrading detected.");
+  }
+  if (debug_visitor_) {
+    debug_visitor_->OnNetworkConnected(network);
+  }
+  if (!config_.migrate_session_on_network_change) {
+    return;
+  }
+  // If there was no migration waiting for new network and the path is not
+  // degrading, ignore this signal.
+  if (!wait_for_new_network_ && !connection_->IsPathDegrading()) {
+    return;
+  }
+  if (debug_visitor_) {
+    debug_visitor_->OnConnectionMigrationAfterNetworkConnected(network);
+  }
+  if (connection_->IsPathDegrading()) {
+    current_migration_cause_ =
+        MigrationCause::NEW_NETWORK_CONNECTED_POST_PATH_DEGRADING;
+  }
+  if (wait_for_new_network_) {
+    wait_for_new_network_ = false;
+    if (debug_visitor_) {
+      debug_visitor_->OnWaitingForNewNetworkSucceeded(network);
+    }
+    // `wait_for_new_network_` is true, there was no working network previously.
+    // `network` is now the only possible candidate, migrate immediately.
+    MigrateNetworkImmediately(network);
+  } else {
+    // The connection is path degrading.
+    QUICHE_DCHECK(connection_->IsPathDegrading());
+    MaybeProbeAndMigrateToAlternateNetworkOnPathDegrading();
+  }
+}
+
 void QuicConnectionMigrationManager::OnNetworkDisconnected(
     QuicNetworkHandle disconnected_network) {
-  LogMetricsOnNetworkDisconnected();
+  RecordMetricsOnNetworkDisconnected();
   if (debug_visitor_) {
     debug_visitor_->OnNetworkDisconnected(disconnected_network);
   }
@@ -205,7 +283,7 @@ void QuicConnectionMigrationManager::OnNetworkDisconnected(
     return;
   }
   current_migration_cause_ = MigrationCause::ON_NETWORK_DISCONNECTED;
-  LogHandshakeStatusOnMigrationSignal();
+  RecordHandshakeStatusOnMigrationSignal();
   if (!session_->OneRttKeysAvailable()) {
     // Close the connection if handshake has not completed. Migration before
     // that is not allowed.
@@ -486,6 +564,117 @@ void QuicConnectionMigrationManager::CancelMigrateBackToDefaultNetworkTimer() {
   migrate_back_to_default_timer_->Cancel();
 }
 
+void QuicConnectionMigrationManager::OnPathDegrading() {
+  if (!session_->version().HasIetfQuicFrames()) {
+    return;
+  }
+  if (!most_recent_path_degrading_timestamp_.IsInitialized()) {
+    most_recent_path_degrading_timestamp_ = clock_->ApproximateNow();
+  }
+  // Proxied sessions should not attempt migration when the path degrades, as
+  // there is nowhere for such a session to migrate to. If the degradation is
+  // due to degradation of the underlying session, then that session may attempt
+  // migration.
+  if (session_->IsSessionProxied()) {
+    return;
+  }
+  if (!path_context_factory_ || connection_->multi_port_stats()) {
+    return;
+  }
+  const bool migrate_session_early = config_.migrate_session_early &&
+                                     config_.migrate_session_on_network_change;
+  current_migration_cause_ =
+      (config_.allow_port_migration && !migrate_session_early)
+          ? MigrationCause::CHANGE_PORT_ON_PATH_DEGRADING
+          : MigrationCause::CHANGE_NETWORK_ON_PATH_DEGRADING;
+  RecordHandshakeStatusOnMigrationSignal();
+  if (!connection_->IsHandshakeConfirmed()) {
+    OnMigrationFailure(
+        QuicConnectionMigrationStatus::
+            MIGRATION_STATUS_PATH_DEGRADING_BEFORE_HANDSHAKE_CONFIRMED,
+        "Path degrading before handshake confirmed");
+    return;
+  }
+  if (migration_disabled_) {
+    QUICHE_DVLOG(1)
+        << "Client disables probing network with connection migration "
+        << "disabled by config";
+    OnMigrationFailure(
+        QuicConnectionMigrationStatus::MIGRATION_STATUS_DISABLED_BY_CONFIG,
+        "Migration disabled by config");
+    return;
+  }
+  if (current_migration_cause_ ==
+      MigrationCause::CHANGE_PORT_ON_PATH_DEGRADING) {
+    if (current_migrations_to_different_port_on_path_degrading_ >=
+        kMaxPortMigrationsPerQuicSession) {
+      // Note that Chrome implementation hasn't limited the number of port
+      // migrations if config_.migrate_session_on_network_change is true and
+      // config_.migrate_session_early is false.
+      OnMigrationFailure(
+          QuicConnectionMigrationStatus::MIGRATION_STATUS_TOO_MANY_CHANGES,
+          "Too many changes");
+      return;
+    }
+
+    QUICHE_DLOG(INFO) << "Start probing a different port on path degrading.";
+    if (debug_visitor_) {
+      debug_visitor_->OnPortMigrationStarting();
+    }
+    // Probe a different port, session will migrate to the probed port on
+    // success.
+    StartProbing(nullptr, default_network_, connection_->peer_address());
+    if (debug_visitor_) {
+      debug_visitor_->OnPortMigrationStarted();
+    }
+    return;
+  }
+  if (!migrate_session_early) {
+    OnMigrationFailure(QuicConnectionMigrationStatus::
+                           MIGRATION_STATUS_PATH_DEGRADING_NOT_ENABLED,
+                       "Migration on path degrading not enabled");
+    return;
+  }
+  MaybeProbeAndMigrateToAlternateNetworkOnPathDegrading();
+}
+
+void QuicConnectionMigrationManager::
+    MaybeProbeAndMigrateToAlternateNetworkOnPathDegrading() {
+  if (debug_visitor_) {
+    debug_visitor_->OnConnectionMigrationStartingAfterEvent("PathDegrading");
+  }
+  if (current_network() == default_network_ &&
+      current_migrations_to_non_default_network_on_path_degrading_ >=
+          config_.max_migrations_to_non_default_network_on_path_degrading) {
+    OnMigrationFailure(
+        QuicConnectionMigrationStatus::
+            MIGRATION_STATUS_ON_PATH_DEGRADING_DISABLED,
+        "Exceeds maximum number of migrations on path degrading");
+    return;
+  }
+  QuicNetworkHandle alternate_network =
+      session_->FindAlternateNetwork(current_network());
+  if (alternate_network == kInvalidNetworkHandle) {
+    OnMigrationFailure(
+        QuicConnectionMigrationStatus::MIGRATION_STATUS_NO_ALTERNATE_NETWORK,
+        "No alternative network on path degrading");
+    return;
+  }
+  if (MaybeCloseIdleSession(
+          /*has_write_error=*/false,
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET)) {
+    return;
+  }
+  // Probe the alternative network, session will migrate to the probed
+  // network and decide whether it wants to migrate back to the default
+  // network on success. Null is passed in for `start_probing_callback` as the
+  // return value of StartProbing is not needed.
+  StartProbing(nullptr, alternate_network, connection_->peer_address());
+  if (debug_visitor_) {
+    debug_visitor_->OnConnectionMigrationStarted();
+  }
+}
+
 void QuicConnectionMigrationManager::MaybeRetryMigrateBackToDefaultNetwork() {
   // Exponentially backoff the retry timeout.
   QuicTimeDelta retry_migrate_back_timeout =
@@ -581,10 +770,20 @@ void QuicConnectionMigrationManager::FinishStartProbing(
     StartProbingCallback probing_callback,
     std::unique_ptr<QuicPathValidationContext> path_context) {
   session_->PrepareForProbingOnPath(*path_context);
-  connection_->ValidatePath(
-      std::move(path_context),
-      std::make_unique<ConnectionMigrationValidationResultDelegate>(this),
-      quic::PathValidationReason::kConnectionMigration);
+  switch (current_migration_cause_) {
+    case MigrationCause::CHANGE_PORT_ON_PATH_DEGRADING:
+      connection_->ValidatePath(
+          std::move(path_context),
+          std::make_unique<PortMigrationValidationResultDelegate>(this),
+          quic::PathValidationReason::kPortMigration);
+      break;
+    default:
+      connection_->ValidatePath(
+          std::move(path_context),
+          std::make_unique<ConnectionMigrationValidationResultDelegate>(this),
+          quic::PathValidationReason::kConnectionMigration);
+      break;
+  }
   if (probing_callback) {
     std::move(probing_callback)(ProbingResult::PENDING);
   }
@@ -599,7 +798,7 @@ void QuicConnectionMigrationManager::OnProbeFailed(
     debug_visitor_->OnProbeResult(network, connection_->peer_address(),
                                   /*success=*/false);
   }
-  LogProbeResultToHistogram(current_migration_cause_, false);
+  RecordProbeResultToHistogram(current_migration_cause_, false);
   QuicPathValidationContext* context = connection_->GetPathValidationContext();
   if (!context) {
     return;
@@ -628,7 +827,7 @@ void QuicConnectionMigrationManager::OnConnectionMigrationProbeSucceeded(
     debug_visitor_->OnProbeResult(network, connection_->peer_address(),
                                   /*success*/ true);
   }
-  LogProbeResultToHistogram(current_migration_cause_, true);
+  RecordProbeResultToHistogram(current_migration_cause_, true);
   // Close streams that are not migratable to the probed |network|.
   session_->ResetNonMigratableStreams();
   if (MaybeCloseIdleSession(
@@ -656,6 +855,7 @@ void QuicConnectionMigrationManager::OnConnectionMigrationProbeSucceeded(
   }
   QUIC_DVLOG(1) << "Client successfully got off default network after "
                 << "successful probing network: " << network << ".";
+  ++current_migrations_to_non_default_network_on_path_degrading_;
   if (!migrate_back_to_default_timer_->IsSet()) {
     current_migration_cause_ =
         MigrationCause::ON_MIGRATE_BACK_TO_DEFAULT_NETWORK;
@@ -666,11 +866,37 @@ void QuicConnectionMigrationManager::OnConnectionMigrationProbeSucceeded(
   }
 }
 
+void QuicConnectionMigrationManager::OnPortMigrationProbeSucceeded(
+    std::unique_ptr<QuicPathValidationContext> path_context,
+    quic::QuicTime /*start_time*/) {
+  QuicNetworkHandle network = path_context->network();
+  if (debug_visitor_) {
+    debug_visitor_->OnProbeResult(network, connection_->peer_address(),
+                                  /*success=*/true);
+  }
+  RecordProbeResultToHistogram(current_migration_cause_, true);
+  if (MaybeCloseIdleSession(
+          /*has_write_error=*/false,
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET)) {
+    return;
+  }
+  // Migrate to the probed socket immediately.
+  if (!session_->MigrateToNewPath(std::move(path_context))) {
+    if (debug_visitor_) {
+      debug_visitor_->OnConnectionMigrationFailedAfterProbe();
+    }
+    return;
+  }
+  ++current_migrations_to_different_port_on_path_degrading_;
+  OnMigrationSuccess();
+}
+
 void QuicConnectionMigrationManager::OnNetworkMadeDefault(
     QuicNetworkHandle new_network) {
   if (!session_->version().HasIetfQuicFrames()) {
     return;
   }
+  RecordMetricsOnNetworkMadeDefault();
   if (debug_visitor_) {
     debug_visitor_->OnNetworkMadeDefault(new_network);
   }
@@ -690,6 +916,7 @@ void QuicConnectionMigrationManager::OnNetworkMadeDefault(
                   << " current_network " << current_network();
   default_network_ = new_network;
   current_migration_cause_ = MigrationCause::ON_NETWORK_MADE_DEFAULT;
+  current_migrations_to_non_default_network_on_path_degrading_ = 0;
   // Simply cancel the timer to migrate back to the default network if session
   // is already on the default network.
   if (current_network() == new_network) {
@@ -699,15 +926,48 @@ void QuicConnectionMigrationManager::OnNetworkMadeDefault(
         "Already migrated on the new network");
     return;
   }
-  LogHandshakeStatusOnMigrationSignal();
+  RecordHandshakeStatusOnMigrationSignal();
   // Stay on the current network. Try to migrate back to default network
   // without any delay, which will start probing the new default network and
   // migrate to the new network immediately on success.
   StartMigrateBackToDefaultNetworkTimer(QuicTimeDelta::Zero());
 }
 
-void QuicConnectionMigrationManager::LogMetricsOnNetworkDisconnected() {
+void QuicConnectionMigrationManager::RecordMetricsOnNetworkMadeDefault() {
+  if (most_recent_path_degrading_timestamp_.IsInitialized()) {
+    if (most_recent_network_disconnected_timestamp_.IsInitialized()) {
+      // NetworkDisconnected happens before NetworkMadeDefault, the platform
+      // is dropping WiFi.
+      QuicTime now = clock_->ApproximateNow();
+      QuicTimeDelta disconnection_duration =
+          now - most_recent_network_disconnected_timestamp_;
+      QuicTimeDelta degrading_duration =
+          now - most_recent_path_degrading_timestamp_;
+      QUIC_CLIENT_HISTOGRAM_TIMES("QuicNetworkDisconnectionDuration",
+                                  disconnection_duration,
+                                  QuicTimeDelta::FromMilliseconds(1),
+                                  QuicTimeDelta::FromSeconds(10 * 60), 100, "");
+      QUIC_CLIENT_HISTOGRAM_TIMES(
+          "QuicNetworkDegradingDurationTillNewNetworkMadeDefault",
+          degrading_duration, QuicTimeDelta::FromMilliseconds(1),
+          QuicTimeDelta::FromSeconds(10 * 60), 100, "");
+      most_recent_network_disconnected_timestamp_ = QuicTime::Zero();
+    }
+    most_recent_path_degrading_timestamp_ = QuicTime::Zero();
+  }
+}
+
+void QuicConnectionMigrationManager::RecordMetricsOnNetworkDisconnected() {
   most_recent_network_disconnected_timestamp_ = clock_->ApproximateNow();
+  if (most_recent_path_degrading_timestamp_.IsInitialized()) {
+    QuicTimeDelta degrading_duration =
+        most_recent_network_disconnected_timestamp_ -
+        most_recent_path_degrading_timestamp_;
+    QUIC_CLIENT_HISTOGRAM_TIMES("QuicNetworkDegradingDurationTillDisconnected",
+                                degrading_duration,
+                                QuicTimeDelta::FromMilliseconds(1),
+                                QuicTimeDelta::FromSeconds(10 * 60), 100, "");
+  }
 }
 
 bool QuicConnectionMigrationManager::MaybeCloseIdleSession(
@@ -774,29 +1034,46 @@ void QuicConnectionMigrationManager::OnHandshakeCompleted(
 }
 
 // TODO(fayang): Remove this when necessary data is collected.
-void QuicConnectionMigrationManager::LogProbeResultToHistogram(
+void QuicConnectionMigrationManager::RecordProbeResultToHistogram(
     MigrationCause cause, bool success) {
-  QUIC_CLIENT_HISTOGRAM_BOOL("Net.QuicSession.PathValidationSuccess", success,
-                             "");
+  QUIC_CLIENT_HISTOGRAM_BOOL("QuicSession.PathValidationSuccess", success, "");
   switch (cause) {
     case MigrationCause::UNKNOWN_CAUSE:
+      QUIC_CLIENT_HISTOGRAM_BOOL("QuicSession.PathValidationSuccess.Unknown",
+                                 success, "");
+      return;
+    case MigrationCause::ON_NETWORK_CONNECTED:
       QUIC_CLIENT_HISTOGRAM_BOOL(
-          "Net.QuicSession.PathValidationSuccess.Unknown", success, "");
+          "QuicSession.PathValidationSuccess.OnNetworkConnected", success, "");
       return;
     case MigrationCause::ON_NETWORK_DISCONNECTED:
       QUIC_CLIENT_HISTOGRAM_BOOL(
-          "Net.QuicSession.PathValidationSuccess.OnNetworkDisconnected",
-          success, "");
+          "QuicSession.PathValidationSuccess.OnNetworkDisconnected", success,
+          "");
       return;
     case MigrationCause::ON_NETWORK_MADE_DEFAULT:
       QUIC_CLIENT_HISTOGRAM_BOOL(
-          "Net.QuicSession.PathValidationSuccess.OnNetworkMadeDefault", success,
+          "QuicSession.PathValidationSuccess.OnNetworkMadeDefault", success,
           "");
       return;
     case MigrationCause::ON_MIGRATE_BACK_TO_DEFAULT_NETWORK:
       QUIC_CLIENT_HISTOGRAM_BOOL(
-          "Net.QuicSession.PathValidationSuccess.OnMigrateBackToDefaultNetwork",
+          "QuicSession.PathValidationSuccess.OnMigrateBackToDefaultNetwork",
           success, "");
+      return;
+    case MigrationCause::CHANGE_NETWORK_ON_PATH_DEGRADING:
+      QUIC_CLIENT_HISTOGRAM_BOOL(
+          "QuicSession.PathValidationSuccess.OnPathDegrading", success, "");
+      return;
+    case MigrationCause::NEW_NETWORK_CONNECTED_POST_PATH_DEGRADING:
+      QUIC_CLIENT_HISTOGRAM_BOOL(
+          "QuicSession.PathValidationSuccess."
+          "NewNetworkConnectedPostPathDegrading",
+          success, "");
+      return;
+    case MigrationCause::CHANGE_PORT_ON_PATH_DEGRADING:
+      QUIC_CLIENT_HISTOGRAM_BOOL(
+          "QuicSession.PathValidationSuccess.PortMigration", success, "");
       return;
     default:
       // Other causes are not implemented yet.
@@ -877,7 +1154,7 @@ void QuicConnectionMigrationManager::ResetMigrationCauseAndLogResult(
   current_migration_cause_ = MigrationCause::UNKNOWN_CAUSE;
 }
 
-void QuicConnectionMigrationManager::LogHandshakeStatusOnMigrationSignal()
+void QuicConnectionMigrationManager::RecordHandshakeStatusOnMigrationSignal()
     const {
   const bool handshake_confirmed = session_->OneRttKeysAvailable();
   if (current_migration_cause_ ==

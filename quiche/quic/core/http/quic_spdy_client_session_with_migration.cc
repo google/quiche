@@ -22,6 +22,11 @@ QuicSpdyClientSessionWithMigration::QuicSpdyClientSessionWithMigration(
 QuicSpdyClientSessionWithMigration::~QuicSpdyClientSessionWithMigration() =
     default;
 
+void QuicSpdyClientSessionWithMigration::OnPathDegrading() {
+  QuicSpdyClientSessionBase::OnPathDegrading();
+  migration_manager_.OnPathDegrading();
+}
+
 void QuicSpdyClientSessionWithMigration::OnTlsHandshakeComplete() {
   QuicSpdyClientSessionBase::OnTlsHandshakeComplete();
   migration_manager_.OnHandshakeCompleted(*config());
