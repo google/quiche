@@ -108,12 +108,12 @@ class RecordingProofVerifier : public ProofVerifier {
     }
 
     // Extract the CN field
-    X509_NAME* subject = X509_get_subject_name(cert.get());
+    const X509_NAME* subject = X509_get_subject_name(cert.get());
     const int index = X509_NAME_get_index_by_NID(subject, NID_commonName, -1);
     if (index < 0) {
       return QUIC_FAILURE;
     }
-    ASN1_STRING* name_data =
+    const ASN1_STRING* name_data =
         X509_NAME_ENTRY_get_data(X509_NAME_get_entry(subject, index));
     if (name_data == nullptr) {
       return QUIC_FAILURE;
