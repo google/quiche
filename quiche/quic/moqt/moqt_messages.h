@@ -286,6 +286,11 @@ enum class QUICHE_EXPORT MoqtError : uint64_t {
   kAuthTokenCacheOverflow = 0x13,
   kDuplicateAuthTokenAlias = 0x14,
   kVersionNegotiationFailed = 0x15,
+  kMalformedAuthToken = 0x16,
+  kUnknownAuthTokenAlias = 0x17,
+  kExpiredAuthToken = 0x18,
+  kInvalidAuthority = 0x19,
+  kMalformedAuthority = 0x1a,
 };
 
 // Error codes used by MoQT to reset streams.
