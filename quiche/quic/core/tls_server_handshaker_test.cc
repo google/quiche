@@ -145,14 +145,14 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
       QuicDelayedSSLConfig dealyed_ssl_config = QuicDelayedSSLConfig()) {
     EXPECT_CALL(*this, MaybeCreateProofSourceHandle())
         .WillOnce(
-            testing::Invoke([this, select_cert_action, compute_signature_action,
-                             dealyed_ssl_config]() {
+            [this, select_cert_action, compute_signature_action,
+             dealyed_ssl_config]() {
               auto handle = std::make_unique<FakeProofSourceHandle>(
                   proof_source_, this, select_cert_action,
                   compute_signature_action, dealyed_ssl_config);
               fake_proof_source_handle_ = handle.get();
               return handle;
-            }));
+            });
   }
 
   FakeProofSourceHandle* fake_proof_source_handle() {
@@ -1268,20 +1268,19 @@ TEST_P(TlsServerHandshakerTest, CloseConnectionBeforeSelectCert) {
           FAIL_SYNC_DO_NOT_CHECK_CLOSED);
 
   EXPECT_CALL(*server_handshaker_, OverrideQuicConfigDefaults(_))
-      .WillOnce(testing::Invoke([](QuicConfig* config) {
+      .WillOnce([](QuicConfig* config) {
         QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(config,
                                                             /*max_streams=*/0);
-      }));
+      });
 
   EXPECT_CALL(*server_connection_,
               CloseConnection(QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED, _, _))
-      .WillOnce(testing::Invoke(
-          [this](QuicErrorCode error, const std::string& details,
-                 ConnectionCloseBehavior connection_close_behavior) {
-            server_connection_->ReallyCloseConnection(
-                error, details, connection_close_behavior);
-            ASSERT_FALSE(server_connection_->connected());
-          }));
+      .WillOnce([this](QuicErrorCode error, const std::string& details,
+                       ConnectionCloseBehavior connection_close_behavior) {
+        server_connection_->ReallyCloseConnection(error, details,
+                                                  connection_close_behavior);
+        ASSERT_FALSE(server_connection_->connected());
+      });
 
   AdvanceHandshakeWithFakeClient();
 

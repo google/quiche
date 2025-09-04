@@ -18,7 +18,6 @@
 
 using ::testing::_;
 using ::testing::Eq;
-using ::testing::Invoke;
 using ::testing::Mock;
 using ::testing::Sequence;
 using ::testing::StrictMock;
@@ -50,10 +49,10 @@ class QpackDecoderTest : public QuicTestWithParam<FragmentMode> {
     // Destroy QpackProgressiveDecoder on error to test that it does not crash.
     // See https://crbug.com/1025209.
     ON_CALL(handler_, OnDecodingErrorDetected(_, _))
-        .WillByDefault(Invoke([this](QuicErrorCode /* error_code */,
-                                     absl::string_view /* error_message */) {
+        .WillByDefault([this](QuicErrorCode /* error_code */,
+                              absl::string_view /* error_message */) {
           progressive_decoder_.reset();
-        }));
+        });
   }
 
   void DecodeEncoderStreamData(absl::string_view data) {

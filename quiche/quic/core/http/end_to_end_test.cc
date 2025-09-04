@@ -129,7 +129,6 @@ using spdy::SpdySettingsIR;
 using ::testing::_;
 using ::testing::Assign;
 using ::testing::HasSubstr;
-using ::testing::Invoke;
 using ::testing::NiceMock;
 using ::testing::UnorderedElementsAreArray;
 
@@ -2519,7 +2518,7 @@ TEST_P(EndToEndTest, PostZeroRTTRequestDuringHandshake) {
 
   // The 0-RTT handshake should succeed.
   ON_CALL(visitor, OnCryptoFrame(_))
-      .WillByDefault(Invoke([this](const QuicCryptoFrame& frame) {
+      .WillByDefault([this](const QuicCryptoFrame& frame) {
         if (frame.level != ENCRYPTION_HANDSHAKE) {
           return;
         }
@@ -2540,7 +2539,7 @@ TEST_P(EndToEndTest, PostZeroRTTRequestDuringHandshake) {
         EXPECT_GT(
             client_->SendMessage(headers, "", /*fin*/ true, /*flush*/ false),
             0);
-      }));
+      });
   client_->Connect();
   ASSERT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   client_->WaitForWriteToFlush();
@@ -2594,9 +2593,9 @@ TEST_P(EndToEndTest, RetransmissionAfterZeroRTTRejectBeforeOneRtt) {
   server_writer_ = new PacketDroppingTestWriter();
   StartServer();
 
-  ON_CALL(visitor, OnZeroRttRejected(_)).WillByDefault(Invoke([this]() {
+  ON_CALL(visitor, OnZeroRttRejected(_)).WillByDefault([this]() {
     EXPECT_FALSE(GetClientSession()->IsEncryptionEstablished());
-  }));
+  });
 
   // The 0-RTT handshake should fail.
   client_->Connect();
@@ -6767,12 +6766,12 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
   NiceMock<MockQuicConnectionDebugVisitor> visitor;
   connection_debug_visitor_ = &visitor;
   EXPECT_CALL(visitor, OnTransportParametersSent(_))
-      .WillOnce(Invoke([kCustomParameter](
-                           const TransportParameters& transport_parameters) {
+      .WillOnce([kCustomParameter](
+                    const TransportParameters& transport_parameters) {
         auto it = transport_parameters.custom_parameters.find(kCustomParameter);
         ASSERT_NE(it, transport_parameters.custom_parameters.end());
         EXPECT_EQ(it->second, "test");
-      }));
+      });
   EXPECT_CALL(visitor, OnTransportParametersReceived(_)).Times(1);
   ASSERT_TRUE(Initialize());
 
@@ -8440,9 +8439,9 @@ TEST_P(EndToEndTest, DoNotAdvertisePreferredAddressWithoutSPAD) {
   NiceMock<MockQuicConnectionDebugVisitor> visitor;
   connection_debug_visitor_ = &visitor;
   EXPECT_CALL(visitor, OnTransportParametersReceived(_))
-      .WillOnce(Invoke([](const TransportParameters& transport_parameters) {
+      .WillOnce([](const TransportParameters& transport_parameters) {
         EXPECT_EQ(nullptr, transport_parameters.preferred_address);
-      }));
+      });
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
 }

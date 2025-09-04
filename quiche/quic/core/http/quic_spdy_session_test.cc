@@ -481,12 +481,12 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   void CloseStream(QuicStreamId id) {
     if (!VersionHasIetfQuicFrames(transport_version())) {
       EXPECT_CALL(*connection_, SendControlFrame(_))
-          .WillOnce(Invoke(&ClearControlFrame));
+          .WillOnce(&ClearControlFrame);
     } else {
       // IETF QUIC has two frames, RST_STREAM and STOP_SENDING
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .Times(2)
-          .WillRepeatedly(Invoke(&ClearControlFrame));
+          .WillRepeatedly(&ClearControlFrame);
     }
     EXPECT_CALL(*connection_, OnStreamReset(id, _));
 
@@ -542,7 +542,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         connection_->perspective() == Perspective::IS_SERVER) {
       // HANDSHAKE_DONE frame.
       EXPECT_CALL(*connection_, SendControlFrame(_))
-          .WillOnce(Invoke(&ClearControlFrame));
+          .WillOnce(&ClearControlFrame);
     }
 
     CryptoHandshakeMessage message;
@@ -880,15 +880,15 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteBundlesStreams) {
   EXPECT_CALL(*send_algorithm, GetCongestionWindow())
       .WillRepeatedly(Return(kMaxOutgoingPacketSize * 10));
   EXPECT_CALL(*send_algorithm, InRecovery()).WillRepeatedly(Return(false));
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
     session_->SendStreamData(stream2);
-  }));
-  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+  });
+  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4]() {
     session_->SendStreamData(stream4);
-  }));
-  EXPECT_CALL(*stream6, OnCanWrite()).WillOnce(Invoke([this, stream6]() {
+  });
+  EXPECT_CALL(*stream6, OnCanWrite()).WillOnce([this, stream6]() {
     session_->SendStreamData(stream6);
-  }));
+  });
 
   // Expect that we only send one packet, the writes from different streams
   // should be bundled together.
@@ -919,14 +919,14 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteCongestionControlBlocks) {
   session_->MarkConnectionLevelWriteBlocked(stream4->id());
 
   EXPECT_CALL(*send_algorithm, CanSend(_)).WillOnce(Return(true));
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
     session_->SendStreamData(stream2);
-  }));
+  });
   EXPECT_CALL(*send_algorithm, GetCongestionWindow()).Times(AnyNumber());
   EXPECT_CALL(*send_algorithm, CanSend(_)).WillOnce(Return(true));
-  EXPECT_CALL(*stream6, OnCanWrite()).WillOnce(Invoke([this, stream6]() {
+  EXPECT_CALL(*stream6, OnCanWrite()).WillOnce([this, stream6]() {
     session_->SendStreamData(stream6);
-  }));
+  });
   EXPECT_CALL(*send_algorithm, CanSend(_)).WillOnce(Return(false));
   // stream4->OnCanWrite is not called.
 
@@ -941,9 +941,9 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteCongestionControlBlocks) {
   // stream4->OnCanWrite is called once the connection stops being
   // congestion-control blocked.
   EXPECT_CALL(*send_algorithm, CanSend(_)).WillOnce(Return(true));
-  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4]() {
     session_->SendStreamData(stream4);
-  }));
+  });
   EXPECT_CALL(*send_algorithm, OnApplicationLimited(_));
   session_->OnCanWrite();
   EXPECT_FALSE(session_->WillingAndAbleToWrite());
@@ -1012,16 +1012,16 @@ TEST_P(QuicSpdySessionTestServer, BufferedHandshake) {
   TestCryptoStream* crypto_stream = session_->GetMutableCryptoStream();
   EXPECT_CALL(*crypto_stream, OnCanWrite());
 
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
     session_->SendStreamData(stream2);
-  }));
-  EXPECT_CALL(*stream3, OnCanWrite()).WillOnce(Invoke([this, stream3]() {
+  });
+  EXPECT_CALL(*stream3, OnCanWrite()).WillOnce([this, stream3]() {
     session_->SendStreamData(stream3);
-  }));
-  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+  });
+  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4]() {
     session_->SendStreamData(stream4);
     session_->MarkConnectionLevelWriteBlocked(stream4->id());
-  }));
+  });
 
   session_->OnCanWrite();
   EXPECT_TRUE(session_->WillingAndAbleToWrite());
@@ -1043,13 +1043,13 @@ TEST_P(QuicSpdySessionTestServer, OnCanWriteWithClosedStream) {
 
   InSequence s;
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+      .WillRepeatedly(&ClearControlFrame);
+  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
     session_->SendStreamData(stream2);
-  }));
-  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+  });
+  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4]() {
     session_->SendStreamData(stream4);
-  }));
+  });
   session_->OnCanWrite();
   EXPECT_FALSE(session_->WillingAndAbleToWrite());
 }
@@ -1263,8 +1263,7 @@ TEST_P(QuicSpdySessionTestServer, DoNotSendGoAwayTwice) {
     // HTTP/3 GOAWAY doesn't have such restriction.
     return;
   }
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(&ClearControlFrame);
   session_->SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
   EXPECT_TRUE(session_->goaway_sent());
   session_->SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
@@ -1530,8 +1529,7 @@ TEST_P(QuicSpdySessionTestServer,
   EXPECT_FALSE(session_->IsStreamFlowControlBlocked());
   QuicStreamId stream_id = 5;
   // Write until the header stream is flow control blocked.
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(&ClearControlFrame);
   HttpHeaderBlock headers;
   SimpleRandom random;
   while (!headers_stream->IsFlowControlBlocked() && stream_id < 2000) {
@@ -1575,7 +1573,7 @@ TEST_P(QuicSpdySessionTestServer,
   Initialize();
 
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(&ClearControlFrame);
   CompleteHandshake();
   // Test that when we receive an out of order stream RST we correctly adjust
   // our connection level flow control receive window.
@@ -2215,7 +2213,7 @@ TEST_P(QuicSpdySessionTestServer, DonotRetransmitDataOfClosedStreams) {
   EXPECT_CALL(*stream2, OnCanWrite());
   EXPECT_CALL(*stream2, HasPendingRetransmission()).WillOnce(Return(false));
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(&ClearControlFrame);
   EXPECT_CALL(*stream2, OnCanWrite());
   EXPECT_CALL(*stream6, OnCanWrite());
   session_->OnCanWrite();
@@ -2231,8 +2229,7 @@ TEST_P(QuicSpdySessionTestServer, RetransmitFrames) {
   TestStream* stream2 = session_->CreateOutgoingBidirectionalStream();
   TestStream* stream4 = session_->CreateOutgoingBidirectionalStream();
   TestStream* stream6 = session_->CreateOutgoingBidirectionalStream();
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(&ClearControlFrame);
   session_->SendWindowUpdate(stream2->id(), 9);
 
   QuicStreamFrame frame1(stream2->id(), false, 0, 9);
@@ -2248,8 +2245,7 @@ TEST_P(QuicSpdySessionTestServer, RetransmitFrames) {
 
   EXPECT_CALL(*stream2, RetransmitStreamData(_, _, _, _))
       .WillOnce(Return(true));
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(&ClearControlFrame);
   EXPECT_CALL(*stream4, RetransmitStreamData(_, _, _, _))
       .WillOnce(Return(true));
   EXPECT_CALL(*stream6, RetransmitStreamData(_, _, _, _))
@@ -2457,7 +2453,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
 
     // A STOP_SENDING frame is sent in response to the unknown stream type.
     EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillOnce(Invoke([stream_id](const QuicFrame& frame) {
+        .WillOnce([stream_id](const QuicFrame& frame) {
           EXPECT_EQ(STOP_SENDING_FRAME, frame.type);
 
           const QuicStopSendingFrame& stop_sending = frame.stop_sending_frame;
@@ -2468,7 +2464,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
               stop_sending.ietf_error_code);
 
           return ClearControlFrame(frame);
-        }));
+        });
     session_->OnStreamFrame(frame);
 
     PendingStream* pending =
@@ -2509,7 +2505,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
     session_->OnStreamFrame(frame2);
     // A STOP_SENDING frame is sent in response to the unknown stream type.
     EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillOnce(Invoke(&VerifyAndClearStopSendingFrame));
+        .WillOnce(&VerifyAndClearStopSendingFrame);
     session_->OnStreamFrame(frame1);
 
     PendingStream* pending =
@@ -2555,7 +2551,7 @@ TEST_P(QuicSpdySessionTestServer,
     session_->OnStreamFrame(frame1);
     // A STOP_SENDING frame is sent in response to the unknown stream type.
     EXPECT_CALL(*connection_, SendControlFrame(_))
-        .WillOnce(Invoke(&VerifyAndClearStopSendingFrame));
+        .WillOnce(&VerifyAndClearStopSendingFrame);
     session_->OnStreamFrame(frame2);
 
     PendingStream* pending =
@@ -2801,7 +2797,7 @@ TEST_P(QuicSpdySessionTestClient, ResetAfterInvalidIncomingStreamType) {
 
   // A STOP_SENDING frame is sent in response to the unknown stream type.
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&VerifyAndClearStopSendingFrame));
+      .WillOnce(&VerifyAndClearStopSendingFrame);
   session_->OnStreamFrame(frame);
 
   // There are no active streams.
@@ -2850,7 +2846,7 @@ TEST_P(QuicSpdySessionTestClient, FinAfterInvalidIncomingStreamType) {
 
   // A STOP_SENDING frame is sent in response to the unknown stream type.
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&VerifyAndClearStopSendingFrame));
+      .WillOnce(&VerifyAndClearStopSendingFrame);
   session_->OnStreamFrame(frame);
 
   // The pending stream is still around, because it did not receive a FIN.
@@ -3975,7 +3971,7 @@ TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreams) {
   EXPECT_EQ(web_transport->NumberOfAssociatedStreams(), 1u);
 
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(&ClearControlFrame);
   EXPECT_CALL(*connection_, OnStreamReset(session_id, _));
   EXPECT_CALL(
       *connection_,
@@ -3998,7 +3994,7 @@ TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreamsLimit) {
 
   const int streams_to_send = kMaxUnassociatedWebTransportStreams + 4;
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(&ClearControlFrame);
   EXPECT_CALL(*connection_,
               OnStreamReset(
                   _, QUIC_STREAM_WEBTRANSPORT_BUFFERED_STREAMS_LIMIT_EXCEEDED))
@@ -4020,7 +4016,7 @@ TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreamsLimit) {
             kMaxUnassociatedWebTransportStreams);
 
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(&ClearControlFrame);
   EXPECT_CALL(*connection_, OnStreamReset(_, _))
       .Times(kMaxUnassociatedWebTransportStreams + 1);
   session_->ResetStream(session_id, QUIC_STREAM_INTERNAL_ERROR);
@@ -4082,7 +4078,7 @@ TEST_P(QuicSpdySessionTestServer, ResetOutgoingWebTransportStreams) {
   QuicStreamId stream_id = stream->GetStreamId();
 
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(&ClearControlFrame);
   EXPECT_CALL(*connection_, OnStreamReset(session_id, _));
   EXPECT_CALL(*connection_,
               OnStreamReset(stream_id, QUIC_STREAM_WEBTRANSPORT_SESSION_GONE));

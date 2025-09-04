@@ -338,7 +338,7 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
 
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(&ClearControlFrame);
   EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(1);
   session_->ResetStream(stream_id, QUIC_STREAM_PEER_GOING_AWAY);
 
@@ -389,7 +389,7 @@ TEST_P(QuicSpdyClientSessionTest, ReceivedMalformedTrailersAfterSendingRst) {
   QuicStreamId stream_id = stream->id();
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(&ClearControlFrame);
   EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(1);
   session_->ResetStream(stream_id, QUIC_STREAM_PEER_GOING_AWAY);
 

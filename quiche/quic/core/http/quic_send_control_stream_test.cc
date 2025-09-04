@@ -223,7 +223,7 @@ TEST_P(QuicSendControlStreamTest, WriteSettings) {
       };
 
   EXPECT_CALL(session_, WritevData(send_control_stream_->id(), _, _, _, _, _))
-      .WillRepeatedly(Invoke(save_write_data));
+      .WillRepeatedly(save_write_data);
 
   send_control_stream_->MaybeSendSettingsFrame();
   quiche::test::CompareCharArraysWithHexError(
