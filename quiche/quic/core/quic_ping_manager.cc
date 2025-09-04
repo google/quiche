@@ -115,8 +115,6 @@ void QuicPingManager::UpdateDeadlines(QuicTime now, bool should_keep_alive,
         static_cast<int>(num_ptos_for_retransmittable_on_wire_timeout_) *
         pto_delay;
   } else {
-    QUICHE_DCHECK_LT(initial_retransmittable_on_wire_timeout_,
-                     keep_alive_timeout_);
     retransmittable_on_wire_timeout = initial_retransmittable_on_wire_timeout_;
   }
 

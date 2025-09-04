@@ -534,6 +534,39 @@ TEST_F(QuicPingManagerTest,
   }
 }
 
+TEST_F(QuicPingManagerTest,
+       SetAlarmAgnosticToRelativeSizeOfKeepAliveTimeoutVsROWTimeout) {
+  struct TestCase {
+    QuicTime::Delta retransmittable_on_wire_timeout;
+    QuicTime::Delta keep_alive_timeout;
+  };
+  static constexpr TestCase kTestCases[] = {
+      {QuicTime::Delta::FromSeconds(3), QuicTime::Delta::FromSeconds(4)},
+      {QuicTime::Delta::FromSeconds(6), QuicTime::Delta::FromSeconds(5)},
+      {QuicTime::Delta::FromSeconds(7), QuicTime::Delta::FromSeconds(7)}};
+  for (const auto& test_case : kTestCases) {
+    SCOPED_TRACE(testing::Message()
+                 << "retransmittable_on_wire_timeout: "
+                 << test_case.retransmittable_on_wire_timeout
+                 << ", keep_alive_timeout: " << test_case.keep_alive_timeout);
+    manager_.Stop();
+    alarm_->Cancel();
+    EXPECT_FALSE(alarm_->IsSet());
+
+    manager_.set_initial_retransmittable_on_wire_timeout(
+        test_case.retransmittable_on_wire_timeout);
+    manager_.set_keep_alive_timeout(test_case.keep_alive_timeout);
+
+    manager_.SetAlarm(clock_.ApproximateNow(), kShouldKeepAlive,
+                      /*has_in_flight_packets=*/false, kPtoDelay);
+    EXPECT_TRUE(alarm_->IsSet());
+
+    EXPECT_EQ(alarm_->deadline() - clock_.ApproximateNow(),
+              std::min(test_case.retransmittable_on_wire_timeout,
+                       test_case.keep_alive_timeout));
+  }
+}
+
 }  // namespace
 
 }  // namespace test

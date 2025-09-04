@@ -8585,6 +8585,55 @@ TEST_P(QuicConnectionTest, RetransmittableOnWirePingLimit) {
             connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
 }
 
+TEST_P(QuicConnectionTest, RetransmittableOnWireTimeoutGreaterThanPingTimeout) {
+  static constexpr QuicTime::Delta kInitialRetransmittableOnWireTimeout =
+      QuicTime::Delta::FromSeconds(300);
+  static constexpr auto kPingTimeout =
+      QuicTime::Delta::FromSeconds(kPingTimeoutSecs);
+
+  connection_.set_initial_retransmittable_on_wire_timeout(
+      kInitialRetransmittableOnWireTimeout);
+
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_CALL(visitor_, ShouldKeepConnectionAlive())
+      .WillRepeatedly(Return(true));
+  // Send a data packet to the peer
+  EXPECT_FALSE(connection_.GetPingAlarm()->IsSet());
+  connection_.SendStreamDataWithString(1, "data", 0, NO_FIN);
+  EXPECT_TRUE(connection_.sent_packet_manager().HasInFlightPackets());
+  // The ping alarm is set for the ping timeout, not the
+  // retransmittable_on_wire_timeout.
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+  EXPECT_EQ(kPingTimeout,
+            connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_)).Times(AnyNumber());
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _, _, _))
+      .Times(AnyNumber());
+
+  // Receive an ACK of the first packet. Verify there are no in flight packets.
+  // This should still set the ping alarm with kPingTimeout since
+  // retransmittable_on_wire_timeout is greater than kPingTimeout.
+  QUICHE_DCHECK_GT(kInitialRetransmittableOnWireTimeout, kPingTimeout);
+  {
+    QuicPacketNumber ack_num = creator_->packet_number();
+    QuicAckFrame frame = InitAckFrame(
+        {{QuicPacketNumber(ack_num), QuicPacketNumber(ack_num + 1)}});
+    ProcessAckPacket(&frame);
+    EXPECT_FALSE(connection_.sent_packet_manager().HasInFlightPackets());
+    EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+    EXPECT_EQ(kPingTimeout,
+              connection_.GetPingAlarm()->deadline() - clock_.ApproximateNow());
+  }
+  // Simulate the alarm firing and check that a PING is sent.
+  writer_->Reset();
+  clock_.AdvanceTime(kPingTimeout);
+  connection_.GetPingAlarm()->Fire();
+
+  // The ping alarm is set with default ping timeout.
+  EXPECT_TRUE(connection_.GetPingAlarm()->IsSet());
+}
+
 // Make sure when enabled, the retransmittable on wire timeout is based on the
 // PTO.
 TEST_P(QuicConnectionTest, PtoBasedRetransmittableOnWireTimeout) {
