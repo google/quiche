@@ -35,7 +35,6 @@ constexpr char kOldAddress[] = "1.2.3.4";
 constexpr int kOldPrefixLen = 24;
 
 using ::testing::_;
-using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::StrictMock;
 
@@ -56,11 +55,11 @@ class TunDeviceControllerTest : public QuicTest {
  protected:
   void ExpectLinkInfo(const std::string& interface_name, int ifindex) {
     EXPECT_CALL(netlink_, GetLinkInfo(interface_name, _))
-        .WillOnce(Invoke([ifindex](absl::string_view ifname,
-                                   NetlinkInterface::LinkInfo* link_info) {
+        .WillOnce([ifindex](absl::string_view ifname,
+                            NetlinkInterface::LinkInfo* link_info) {
           link_info->index = ifindex;
           return true;
-        }));
+        });
   }
 
   MockNetlink netlink_;
@@ -90,15 +89,15 @@ TEST_F(TunDeviceControllerTest, OldAddressesAreRemoved) {
   ExpectLinkInfo(kIfname, kIfindex);
 
   EXPECT_CALL(netlink_, GetAddresses(kIfindex, _, _, _))
-      .WillOnce(Invoke([](int interface_index, uint8_t unwanted_flags,
-                          std::vector<NetlinkInterface::AddressInfo>* addresses,
-                          int* num_ipv6_nodad_dadfailed_addresses) {
+      .WillOnce([](int interface_index, uint8_t unwanted_flags,
+                   std::vector<NetlinkInterface::AddressInfo>* addresses,
+                   int* num_ipv6_nodad_dadfailed_addresses) {
         NetlinkInterface::AddressInfo info{};
         info.interface_address.FromString(kOldAddress);
         info.prefix_length = kOldPrefixLen;
         addresses->emplace_back(info);
         return true;
-      }));
+      });
 
   QuicIpAddress old_address;
   old_address.FromString(kOldAddress);
@@ -124,26 +123,25 @@ TEST_F(TunDeviceControllerTest, UpdateRoutesRemovedOldRoutes) {
 
   const int num_matching_routes = 3;
   EXPECT_CALL(netlink_, GetRouteInfo(_))
-      .WillOnce(
-          Invoke([](std::vector<NetlinkInterface::RoutingRule>* routing_rules) {
-            NetlinkInterface::RoutingRule non_matching_route{};
-            non_matching_route.table = QboneConstants::kQboneRouteTableId;
-            non_matching_route.out_interface = kIfindex + 1;
-            routing_rules->push_back(non_matching_route);
+      .WillOnce([](std::vector<NetlinkInterface::RoutingRule>* routing_rules) {
+        NetlinkInterface::RoutingRule non_matching_route{};
+        non_matching_route.table = QboneConstants::kQboneRouteTableId;
+        non_matching_route.out_interface = kIfindex + 1;
+        routing_rules->push_back(non_matching_route);
 
-            NetlinkInterface::RoutingRule matching_route{};
-            matching_route.table = QboneConstants::kQboneRouteTableId;
-            matching_route.out_interface = kIfindex;
-            for (int i = 0; i < num_matching_routes; i++) {
-              routing_rules->push_back(matching_route);
-            }
+        NetlinkInterface::RoutingRule matching_route{};
+        matching_route.table = QboneConstants::kQboneRouteTableId;
+        matching_route.out_interface = kIfindex;
+        for (int i = 0; i < num_matching_routes; i++) {
+          routing_rules->push_back(matching_route);
+        }
 
-            NetlinkInterface::RoutingRule non_matching_table{};
-            non_matching_table.table = QboneConstants::kQboneRouteTableId + 1;
-            non_matching_table.out_interface = kIfindex;
-            routing_rules->push_back(non_matching_table);
-            return true;
-          }));
+        NetlinkInterface::RoutingRule non_matching_table{};
+        non_matching_table.table = QboneConstants::kQboneRouteTableId + 1;
+        non_matching_table.out_interface = kIfindex;
+        routing_rules->push_back(non_matching_table);
+        return true;
+      });
 
   EXPECT_CALL(netlink_, ChangeRoute(NetlinkInterface::Verb::kRemove,
                                     QboneConstants::kQboneRouteTableId, _, _, _,

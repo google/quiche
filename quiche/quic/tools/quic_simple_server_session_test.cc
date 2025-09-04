@@ -38,7 +38,6 @@
 #include "quiche/quic/tools/quic_simple_server_stream.h"
 
 using testing::_;
-using testing::Invoke;
 using testing::StrictMock;
 
 namespace quic {
@@ -117,8 +116,7 @@ class MockQuicConnectionWithSendStreamData : public MockQuicConnection {
                                StreamSendingState state) {
       return QuicConsumedData(write_length, state != NO_FIN);
     };
-    ON_CALL(*this, SendStreamData(_, _, _, _))
-        .WillByDefault(Invoke(consume_all_data));
+    ON_CALL(*this, SendStreamData(_, _, _, _)).WillByDefault(consume_all_data);
   }
 
   MOCK_METHOD(QuicConsumedData, SendStreamData,
@@ -209,7 +207,7 @@ class QuicSimpleServerSessionTest
 
     if (VersionHasIetfQuicFrames(transport_version())) {
       EXPECT_CALL(*session_, WriteControlFrame(_, _))
-          .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
+          .WillRepeatedly(&ClearControlFrameWithTransmissionType);
     }
     session_->OnConfigNegotiated();
   }

@@ -22,7 +22,6 @@ namespace {
 using ::testing::_;
 using ::testing::Contains;
 using ::testing::InSequence;
-using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::Unused;
 
@@ -32,10 +31,10 @@ class NetlinkTest : public QuicTest {
  protected:
   NetlinkTest() {
     ON_CALL(mock_kernel_, socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE))
-        .WillByDefault(Invoke([this](Unused, Unused, Unused) {
+        .WillByDefault([this](Unused, Unused, Unused) {
           EXPECT_CALL(mock_kernel_, close(kSocketFd)).WillOnce(Return(0));
           return kSocketFd;
-        }));
+        });
   }
 
   void ExpectNetlinkPacket(
@@ -48,8 +47,8 @@ class NetlinkTest : public QuicTest {
     InSequence s;
 
     EXPECT_CALL(mock_kernel_, sendmsg(kSocketFd, _, _))
-        .WillOnce(Invoke([type, flags, send_callback](
-                             Unused, const struct msghdr* msg, int) {
+        .WillOnce([type, flags, send_callback](Unused, const struct msghdr* msg,
+                                               int) {
           EXPECT_EQ(sizeof(struct sockaddr_nl), msg->msg_namelen);
           auto* nl_addr =
               reinterpret_cast<const struct sockaddr_nl*>(msg->msg_name);
@@ -80,13 +79,13 @@ class NetlinkTest : public QuicTest {
           QUICHE_CHECK_EQ(seq, -1);
           seq = netlink_message->nlmsg_seq;
           return buf.size();
-        }));
+        });
 
     EXPECT_CALL(mock_kernel_,
                 recvfrom(kSocketFd, _, 0, MSG_PEEK | MSG_TRUNC, _, _))
-        .WillOnce(Invoke([this, recv_callback](Unused, Unused, Unused, Unused,
-                                               struct sockaddr* src_addr,
-                                               socklen_t* addrlen) {
+        .WillOnce([this, recv_callback](Unused, Unused, Unused, Unused,
+                                        struct sockaddr* src_addr,
+                                        socklen_t* addrlen) {
           auto* nl_addr = reinterpret_cast<struct sockaddr_nl*>(src_addr);
           nl_addr->nl_family = AF_NETLINK;
           nl_addr->nl_pid = 0;     // from kernel
@@ -95,12 +94,12 @@ class NetlinkTest : public QuicTest {
           int ret = recv_callback(reply_packet_, sizeof(reply_packet_), seq);
           QUICHE_CHECK_LE(ret, sizeof(reply_packet_));
           return ret;
-        }));
+        });
 
     EXPECT_CALL(mock_kernel_, recvfrom(kSocketFd, _, _, _, _, _))
-        .WillOnce(Invoke([recv_callback](Unused, void* buf, size_t len, Unused,
-                                         struct sockaddr* src_addr,
-                                         socklen_t* addrlen) {
+        .WillOnce([recv_callback](Unused, void* buf, size_t len, Unused,
+                                  struct sockaddr* src_addr,
+                                  socklen_t* addrlen) {
           auto* nl_addr = reinterpret_cast<struct sockaddr_nl*>(src_addr);
           nl_addr->nl_family = AF_NETLINK;
           nl_addr->nl_pid = 0;     // from kernel
@@ -110,7 +109,7 @@ class NetlinkTest : public QuicTest {
           EXPECT_GE(len, ret);
           seq = -1;
           return ret;
-        }));
+        });
   }
 
   char reply_packet_[4096];

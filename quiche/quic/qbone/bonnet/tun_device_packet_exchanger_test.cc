@@ -21,7 +21,6 @@ const size_t kMaxPendingPackets = 5;
 const int kFd = 15;
 
 using ::testing::_;
-using ::testing::Invoke;
 using ::testing::StrEq;
 using ::testing::StrictMock;
 
@@ -53,10 +52,10 @@ class TunDevicePacketExchangerTest : public QuicTest {
 TEST_F(TunDevicePacketExchangerTest, WritePacketReturnsFalseOnError) {
   std::string packet = "fake packet";
   EXPECT_CALL(mock_kernel_, write(kFd, _, packet.size()))
-      .WillOnce(Invoke([](int fd, const void* buf, size_t count) {
+      .WillOnce([](int fd, const void* buf, size_t count) {
         errno = ECOMM;
         return -1;
-      }));
+      });
 
   EXPECT_CALL(mock_visitor_, OnWriteError(_));
   EXPECT_CALL(mock_visitor_, OnWrite(StrEq(packet))).Times(1);
@@ -67,10 +66,10 @@ TEST_F(TunDevicePacketExchangerTest,
        WritePacketReturnFalseAndBlockedOnBlockedTunnel) {
   std::string packet = "fake packet";
   EXPECT_CALL(mock_kernel_, write(kFd, _, packet.size()))
-      .WillOnce(Invoke([](int fd, const void* buf, size_t count) {
+      .WillOnce([](int fd, const void* buf, size_t count) {
         errno = EAGAIN;
         return -1;
-      }));
+      });
 
   EXPECT_CALL(mock_stats_, OnWriteError(_)).Times(1);
   EXPECT_CALL(mock_visitor_, OnWrite(StrEq(packet))).Times(1);
@@ -80,10 +79,10 @@ TEST_F(TunDevicePacketExchangerTest,
 TEST_F(TunDevicePacketExchangerTest, WritePacketReturnsTrueOnSuccessfulWrite) {
   std::string packet = "fake packet";
   EXPECT_CALL(mock_kernel_, write(kFd, _, packet.size()))
-      .WillOnce(Invoke([packet](int fd, const void* buf, size_t count) {
+      .WillOnce([packet](int fd, const void* buf, size_t count) {
         EXPECT_THAT(reinterpret_cast<const char*>(buf), StrEq(packet));
         return count;
-      }));
+      });
 
   EXPECT_CALL(mock_stats_, OnPacketWritten(_)).Times(1);
   EXPECT_CALL(mock_visitor_, OnWrite(StrEq(packet))).Times(1);
@@ -92,20 +91,20 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketReturnsTrueOnSuccessfulWrite) {
 
 TEST_F(TunDevicePacketExchangerTest, ReadPacketReturnsNullOnError) {
   EXPECT_CALL(mock_kernel_, read(kFd, _, kMtu))
-      .WillOnce(Invoke([](int fd, void* buf, size_t count) {
+      .WillOnce([](int fd, void* buf, size_t count) {
         errno = ECOMM;
         return -1;
-      }));
+      });
   EXPECT_CALL(mock_visitor_, OnReadError(_));
   exchanger_.ReadAndDeliverPacket(&mock_client_);
 }
 
 TEST_F(TunDevicePacketExchangerTest, ReadPacketReturnsNullOnBlockedRead) {
   EXPECT_CALL(mock_kernel_, read(kFd, _, kMtu))
-      .WillOnce(Invoke([](int fd, void* buf, size_t count) {
+      .WillOnce([](int fd, void* buf, size_t count) {
         errno = EAGAIN;
         return -1;
-      }));
+      });
   EXPECT_CALL(mock_stats_, OnReadError(_)).Times(1);
   EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
 }
@@ -114,10 +113,10 @@ TEST_F(TunDevicePacketExchangerTest,
        ReadPacketReturnsThePacketOnSuccessfulRead) {
   std::string packet = "fake_packet";
   EXPECT_CALL(mock_kernel_, read(kFd, _, kMtu))
-      .WillOnce(Invoke([packet](int fd, void* buf, size_t count) {
+      .WillOnce([packet](int fd, void* buf, size_t count) {
         memcpy(buf, packet.data(), packet.size());
         return packet.size();
-      }));
+      });
   EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(packet)));
   EXPECT_CALL(mock_stats_, OnPacketRead(_)).Times(1);
   EXPECT_TRUE(exchanger_.ReadAndDeliverPacket(&mock_client_));

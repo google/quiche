@@ -22,7 +22,6 @@ namespace {
 
 using ::testing::_;
 using ::testing::InSequence;
-using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::StrictMock;
 
@@ -106,9 +105,9 @@ class IcmpReachableTest : public QuicTest {
 
     EXPECT_CALL(kernel_, setsockopt(read_fd_, SOL_ICMPV6, ICMP6_FILTER, _, _));
 
-    EXPECT_CALL(kernel_, close(read_fd_)).WillOnce(Invoke([](int fd) {
+    EXPECT_CALL(kernel_, close(read_fd_)).WillOnce([](int fd) {
       return close(fd);
-    }));
+    });
   }
 
  protected:
@@ -131,13 +130,13 @@ TEST_F(IcmpReachableTest, SendsPings) {
   ASSERT_TRUE(reachable.Init());
 
   EXPECT_CALL(kernel_, sendto(kFakeWriteFd, _, _, _, _, _))
-      .WillOnce(Invoke([](int sockfd, const void* buf, size_t len, int flags,
-                          const struct sockaddr* dest_addr, socklen_t addrlen) {
+      .WillOnce([](int sockfd, const void* buf, size_t len, int flags,
+                   const struct sockaddr* dest_addr, socklen_t addrlen) {
         auto icmp_header = GetHeaderFromPacket(buf, len);
         EXPECT_EQ(icmp_header.icmp6_type, ICMP6_ECHO_REQUEST);
         EXPECT_EQ(icmp_header.icmp6_seq, 1);
         return len;
-      }));
+      });
 
   event_loop_->RunEventLoopOnce(QuicTime::Delta::FromSeconds(1));
   EXPECT_FALSE(stats_.HasWriteErrors());
@@ -152,9 +151,9 @@ TEST_F(IcmpReachableTest, HandlesUnreachableEvents) {
 
   EXPECT_CALL(kernel_, sendto(kFakeWriteFd, _, _, _, _, _))
       .Times(2)
-      .WillRepeatedly(Invoke([](int sockfd, const void* buf, size_t len,
-                                int flags, const struct sockaddr* dest_addr,
-                                socklen_t addrlen) { return len; }));
+      .WillRepeatedly([](int sockfd, const void* buf, size_t len, int flags,
+                         const struct sockaddr* dest_addr,
+                         socklen_t addrlen) { return len; });
 
   event_loop_->RunEventLoopOnce(QuicTime::Delta::FromSeconds(1));
   EXPECT_EQ(stats_.unreachable_count(), 0);
@@ -175,25 +174,23 @@ TEST_F(IcmpReachableTest, HandlesReachableEvents) {
   icmp6_hdr last_request_hdr{};
   EXPECT_CALL(kernel_, sendto(kFakeWriteFd, _, _, _, _, _))
       .Times(2)
-      .WillRepeatedly(
-          Invoke([&last_request_hdr](
-                     int sockfd, const void* buf, size_t len, int flags,
-                     const struct sockaddr* dest_addr, socklen_t addrlen) {
-            last_request_hdr = GetHeaderFromPacket(buf, len);
-            return len;
-          }));
+      .WillRepeatedly([&last_request_hdr](
+                          int sockfd, const void* buf, size_t len, int flags,
+                          const struct sockaddr* dest_addr, socklen_t addrlen) {
+        last_request_hdr = GetHeaderFromPacket(buf, len);
+        return len;
+      });
 
   sockaddr_in6 source_addr{};
   std::string packed_source = source_.ToPackedString();
   memcpy(&source_addr.sin6_addr, packed_source.data(), packed_source.size());
 
   EXPECT_CALL(kernel_, recvfrom(read_fd_, _, _, _, _, _))
-      .WillOnce(
-          Invoke([&source_addr](int sockfd, void* buf, size_t len, int flags,
-                                struct sockaddr* src_addr, socklen_t* addrlen) {
-            *reinterpret_cast<sockaddr_in6*>(src_addr) = source_addr;
-            return read(sockfd, buf, len);
-          }));
+      .WillOnce([&source_addr](int sockfd, void* buf, size_t len, int flags,
+                               struct sockaddr* src_addr, socklen_t* addrlen) {
+        *reinterpret_cast<sockaddr_in6*>(src_addr) = source_addr;
+        return read(sockfd, buf, len);
+      });
 
   event_loop_->RunEventLoopOnce(QuicTime::Delta::FromSeconds(1));
   EXPECT_EQ(stats_.reachable_count(), 0);
@@ -219,11 +216,11 @@ TEST_F(IcmpReachableTest, HandlesWriteErrors) {
   ASSERT_TRUE(reachable.Init());
 
   EXPECT_CALL(kernel_, sendto(kFakeWriteFd, _, _, _, _, _))
-      .WillOnce(Invoke([](int sockfd, const void* buf, size_t len, int flags,
-                          const struct sockaddr* dest_addr, socklen_t addrlen) {
+      .WillOnce([](int sockfd, const void* buf, size_t len, int flags,
+                   const struct sockaddr* dest_addr, socklen_t addrlen) {
         errno = EAGAIN;
         return 0;
-      }));
+      });
 
   event_loop_->RunEventLoopOnce(QuicTime::Delta::FromSeconds(1));
   EXPECT_EQ(stats_.WriteErrorCount(EAGAIN), 1);
@@ -237,16 +234,16 @@ TEST_F(IcmpReachableTest, HandlesReadErrors) {
   ASSERT_TRUE(reachable.Init());
 
   EXPECT_CALL(kernel_, sendto(kFakeWriteFd, _, _, _, _, _))
-      .WillOnce(Invoke([](int sockfd, const void* buf, size_t len, int flags,
-                          const struct sockaddr* dest_addr,
-                          socklen_t addrlen) { return len; }));
+      .WillOnce([](int sockfd, const void* buf, size_t len, int flags,
+                   const struct sockaddr* dest_addr,
+                   socklen_t addrlen) { return len; });
 
   EXPECT_CALL(kernel_, recvfrom(read_fd_, _, _, _, _, _))
-      .WillOnce(Invoke([](int sockfd, void* buf, size_t len, int flags,
-                          struct sockaddr* src_addr, socklen_t* addrlen) {
+      .WillOnce([](int sockfd, void* buf, size_t len, int flags,
+                   struct sockaddr* src_addr, socklen_t* addrlen) {
         errno = EIO;
         return -1;
-      }));
+      });
 
   icmp6_hdr response{};
 

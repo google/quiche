@@ -21,7 +21,6 @@ using ProcessingResult = QbonePacketProcessor::ProcessingResult;
 using OutputInterface = QbonePacketProcessor::OutputInterface;
 using ::testing::_;
 using ::testing::Eq;
-using ::testing::Invoke;
 using ::testing::Return;
 using ::testing::WithArgs;
 
@@ -509,8 +508,8 @@ TEST_F(QbonePacketProcessorTest, FilterHelperFunctionsTOS) {
 TEST_F(QbonePacketProcessorTest, Icmp6EchoResponseHasRightPayload) {
   auto filter = std::make_unique<MockPacketFilter>();
   EXPECT_CALL(*filter, FilterPacket(_, _, _, _))
-      .WillOnce(WithArgs<2, 3>(
-          Invoke([](absl::string_view payload, icmp6_hdr* icmp_header) {
+      .WillOnce(
+          WithArgs<2, 3>([](absl::string_view payload, icmp6_hdr* icmp_header) {
             icmp_header->icmp6_type = ICMP6_ECHO_REPLY;
             icmp_header->icmp6_code = 0;
             auto* request_header =
@@ -518,12 +517,12 @@ TEST_F(QbonePacketProcessorTest, Icmp6EchoResponseHasRightPayload) {
             icmp_header->icmp6_id = request_header->icmp6_id;
             icmp_header->icmp6_seq = request_header->icmp6_seq;
             return ProcessingResult::ICMP;
-          })));
+          }));
   processor_->set_filter(std::move(filter));
 
   EXPECT_CALL(stats_, OnPacketDroppedWithIcmp(Direction::FROM_OFF_NETWORK, _));
   EXPECT_CALL(output_, SendPacketToClient(_))
-      .WillOnce(Invoke([](absl::string_view packet) {
+      .WillOnce([](absl::string_view packet) {
         // Explicit conversion because otherwise it is treated as a null
         // terminated string.
         absl::string_view expected = absl::string_view(
@@ -532,7 +531,7 @@ TEST_F(QbonePacketProcessorTest, Icmp6EchoResponseHasRightPayload) {
         EXPECT_THAT(packet, Eq(expected));
         QUIC_LOG(INFO) << "ICMP response:\n"
                        << quiche::QuicheTextUtils::HexDump(packet);
-      }));
+      });
   SendPacketFromClient(kReferenceEchoRequest);
 }
 
