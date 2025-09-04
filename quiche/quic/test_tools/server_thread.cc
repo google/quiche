@@ -38,7 +38,7 @@ void ServerThread::Initialize() {
     return;
   }
 
-  absl::WriterMutexLock lock(&port_lock_);
+  absl::WriterMutexLock lock(port_lock_);
   port_ = server_->port();
 
   initialized_ = true;
@@ -63,14 +63,14 @@ void ServerThread::Run() {
 }
 
 int ServerThread::GetPort() {
-  absl::ReaderMutexLock lock(&port_lock_);
+  absl::ReaderMutexLock lock(port_lock_);
   int rc = port_;
   return rc;
 }
 
 void ServerThread::Schedule(quiche::SingleUseCallback<void()> action) {
   QUICHE_DCHECK(!quit_.HasBeenNotified());
-  absl::WriterMutexLock lock(&scheduled_actions_lock_);
+  absl::WriterMutexLock lock(scheduled_actions_lock_);
   scheduled_actions_.push_back(std::move(action));
 }
 
@@ -147,7 +147,7 @@ void ServerThread::MaybeNotifyOfHandshakeConfirmation() {
 void ServerThread::ExecuteScheduledActions() {
   quiche::QuicheCircularDeque<quiche::SingleUseCallback<void()>> actions;
   {
-    absl::WriterMutexLock lock(&scheduled_actions_lock_);
+    absl::WriterMutexLock lock(scheduled_actions_lock_);
     actions.swap(scheduled_actions_);
   }
   while (!actions.empty()) {
