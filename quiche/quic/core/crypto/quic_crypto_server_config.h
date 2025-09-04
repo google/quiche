@@ -151,7 +151,7 @@ class QUICHE_EXPORT RejectionObserver {
   RejectionObserver& operator=(const RejectionObserver&) = delete;
   // Called after a rejection is built.
   virtual void OnRejectionBuilt(const std::vector<uint32_t>& reasons,
-                                CryptoHandshakeMessage* out) const = 0;
+                                CryptoHandshakeMessage* _Nonnull out) const = 0;
 };
 
 // Factory for creating KeyExchange objects.
@@ -443,7 +443,7 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
   ProofSource* proof_source() const;
   ProofVerifier* absl_nullable proof_verifier() const;
 
-  SSL_CTX* ssl_ctx() const;
+  SSL_CTX* _Nullable ssl_ctx() const;
 
   // The groups to use for key exchange in the TLS handshake;
   const std::vector<uint16_t>& preferred_groups() const {
@@ -528,7 +528,7 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
     // source-address tokens that are given to clients.
     // Points to either source_address_token_boxer_storage or the
     // default boxer provided by QuicCryptoServerConfig.
-    const CryptoSecretBoxer* source_address_token_boxer;
+    const CryptoSecretBoxer* _Nonnull source_address_token_boxer;
 
     // Holds the override source_address_token_boxer instance if the
     // Config is not using the default source address token boxer
@@ -563,7 +563,7 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
   bool GetCurrentConfigs(
       const QuicWallTime& now, absl::string_view requested_scid,
       quiche::QuicheReferenceCountedPointer<Config> old_primary_config,
-      Configs* configs) const;
+      Configs* _Nonnull configs) const;
 
   // ConfigPrimaryTimeLessThan returns true if a->primary_time <
   // b->primary_time.
@@ -600,8 +600,8 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
         const QuicSocketAddress& server_address,
         const QuicSocketAddress& client_address, ParsedQuicVersion version,
         const ParsedQuicVersionVector& supported_versions,
-        const QuicClock* clock, QuicRandom* rand,
-        QuicCompressedCertsCache* compressed_certs_cache,
+        const QuicClock* _Nonnull clock, QuicRandom* _Nonnull rand,
+        QuicCompressedCertsCache* _Nonnull compressed_certs_cache,
         quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
             params,
         quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig>
@@ -648,9 +648,9 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
     ParsedQuicVersionVector supported_versions() const {
       return supported_versions_;
     }
-    const QuicClock* clock() const { return clock_; }
-    QuicRandom* rand() const { return rand_; }  // NOLINT
-    QuicCompressedCertsCache* compressed_certs_cache() const {
+    const QuicClock* _Nonnull clock() const { return clock_; }
+    QuicRandom* _Nonnull rand() const { return rand_; }  // NOLINT
+    QuicCompressedCertsCache* _Nonnull compressed_certs_cache() const {
       return compressed_certs_cache_;
     }
     quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
@@ -685,9 +685,9 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
     const QuicSocketAddress client_address_;
     const ParsedQuicVersion version_;
     const ParsedQuicVersionVector supported_versions_;
-    const QuicClock* const clock_;
-    QuicRandom* const rand_;
-    QuicCompressedCertsCache* const compressed_certs_cache_;
+    const QuicClock* _Nonnull const clock_;
+    QuicRandom* _Nonnull const rand_;
+    QuicCompressedCertsCache* _Nonnull const compressed_certs_cache_;
     const quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
         params_;
     const quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig>
@@ -813,7 +813,7 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
         delete;
     BuildServerConfigUpdateMessageProofSourceCallback(
         const QuicCryptoServerConfig* config,
-        QuicCompressedCertsCache* compressed_certs_cache,
+        QuicCompressedCertsCache* _Nonnull compressed_certs_cache,
         const QuicCryptoNegotiatedParameters& params,
         CryptoHandshakeMessage message,
         std::unique_ptr<BuildServerConfigUpdateMessageResultCallback> cb);
