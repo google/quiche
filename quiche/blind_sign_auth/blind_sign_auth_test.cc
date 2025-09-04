@@ -40,7 +40,6 @@ namespace {
 using ::testing::_;
 using ::testing::Eq;
 using ::testing::InSequence;
-using ::testing::Invoke;
 using ::testing::Unused;
 
 class MockBlindSignTracingHooks : public BlindSignTracingHooks {
@@ -407,15 +406,15 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadAuthAndSignResponse) {
                 DoRequest(Eq(BlindSignMessageRequestType::kAuthAndSign),
                           Eq(oauth_token_), _, _))
         .Times(1)
-        .WillOnce(Invoke([this](Unused, Unused, const std::string& body,
-                                BlindSignMessageCallback callback) {
+        .WillOnce([this](Unused, Unused, const std::string& body,
+                         BlindSignMessageCallback callback) {
           CreateSignResponse(body, false);
           // Add an invalid signature that can't be Base64 decoded.
           sign_response_.add_blinded_token_signature("invalid_signature%");
           BlindSignMessageResponse response(absl::StatusCode::kOk,
                                             sign_response_.SerializeAsString());
           std::move(callback)(response);
-        }));
+        });
   }
 
   int num_tokens = 1;
@@ -456,13 +455,13 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceeds) {
                 DoRequest(Eq(BlindSignMessageRequestType::kAuthAndSign),
                           Eq(oauth_token_), _, _))
         .Times(1)
-        .WillOnce(Invoke([this](Unused, Unused, const std::string& body,
-                                BlindSignMessageCallback callback) {
+        .WillOnce([this](Unused, Unused, const std::string& body,
+                         BlindSignMessageCallback callback) {
           CreateSignResponse(body, /*use_privacy_pass=*/true);
           BlindSignMessageResponse response(absl::StatusCode::kOk,
                                             sign_response_.SerializeAsString());
           std::move(callback)(response);
-        }));
+        });
     EXPECT_CALL(*mock_tracing_hooks, OnAuthAndSignEnd);
     EXPECT_CALL(*mock_tracing_hooks, OnUnblindTokensStart);
     EXPECT_CALL(*mock_tracing_hooks, OnUnblindTokensEnd);
@@ -544,8 +543,8 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensFailsWithMoreTokens) {
                 DoRequest(Eq(BlindSignMessageRequestType::kAuthAndSign),
                           Eq(oauth_token_), _, _))
         .Times(1)
-        .WillOnce(Invoke([this](Unused, Unused, const std::string& body,
-                                BlindSignMessageCallback callback) {
+        .WillOnce([this](Unused, Unused, const std::string& body,
+                         BlindSignMessageCallback callback) {
           // Create response for the requested number of tokens (1).
           CreateSignResponse(body, /*use_privacy_pass=*/true);
           ASSERT_EQ(sign_response_.blinded_token_signature_size(), 1);
@@ -557,7 +556,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensFailsWithMoreTokens) {
           BlindSignMessageResponse response(absl::StatusCode::kOk,
                                             sign_response_.SerializeAsString());
           std::move(callback)(response);
-        }));
+        });
   }
 
   int num_tokens_requested = 1;
@@ -600,8 +599,8 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceedsWithFewerTokens) {
                 DoRequest(Eq(BlindSignMessageRequestType::kAuthAndSign),
                           Eq(oauth_token_), _, _))
         .Times(1)
-        .WillOnce(Invoke([this](Unused, Unused, const std::string& body,
-                                BlindSignMessageCallback callback) {
+        .WillOnce([this](Unused, Unused, const std::string& body,
+                         BlindSignMessageCallback callback) {
           // Create response for the requested number of tokens (2).
           CreateSignResponse(body, /*use_privacy_pass=*/true);
           // Modify the response to only contain 1 signature.
@@ -612,7 +611,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceedsWithFewerTokens) {
           BlindSignMessageResponse response(absl::StatusCode::kOk,
                                             sign_response_.SerializeAsString());
           std::move(callback)(response);
-        }));
+        });
   }
 
   int num_tokens_requested = 2;
@@ -657,14 +656,14 @@ TEST_F(BlindSignAuthTest, AttestationFlowSucceeds) {
         mock_message_interface_,
         DoRequest(Eq(BlindSignMessageRequestType::kAttestAndSign), _, _, _))
         .Times(1)
-        .WillOnce(Invoke([this](Unused, Unused, const std::string& body,
-                                BlindSignMessageCallback attest_callback) {
+        .WillOnce([this](Unused, Unused, const std::string& body,
+                         BlindSignMessageCallback attest_callback) {
           CreateAttestAndSignResponse(body);
           BlindSignMessageResponse response(
               absl::StatusCode::kOk,
               attest_and_sign_response_.SerializeAsString());
           std::move(attest_callback)(response);
-        }));
+        });
   }
 
   AttestationDataCallback attestation_callback =
