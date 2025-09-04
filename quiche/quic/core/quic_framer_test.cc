@@ -8709,8 +8709,7 @@ TEST_P(QuicFramerTest, BuildIetfStatelessResetPacketCallerProvidedRandomBytes) {
     std::string bytes(len, 0x7c);
     memcpy(data, bytes.data(), bytes.size());
   };
-  EXPECT_CALL(random, InsecureRandBytes(_, _))
-      .WillOnce(testing::Invoke(generate_random_bytes));
+  EXPECT_CALL(random, InsecureRandBytes(_, _)).WillOnce(generate_random_bytes);
   std::unique_ptr<QuicEncryptedPacket> data(
       framer_.BuildIetfStatelessResetPacket(
           FramerTestConnectionId(),

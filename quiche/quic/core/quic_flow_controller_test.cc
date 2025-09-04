@@ -17,7 +17,6 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 using testing::_;
-using testing::Invoke;
 using testing::StrictMock;
 
 namespace quic {
@@ -251,7 +250,7 @@ TEST_F(QuicFlowControllerTest, ReceivingBytesFastNoAutoTune) {
   // This test will generate two WINDOW_UPDATE frames.
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .Times(2)
-      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillRepeatedly(&ClearControlFrameWithTransmissionType);
   EXPECT_FALSE(flow_controller_->auto_tune_receive_window());
 
   // Make sure clock is inititialized.
@@ -361,7 +360,7 @@ TEST_F(QuicFlowControllerTest, ReceivingBytesNormalNoAutoTune) {
   // This test will generate two WINDOW_UPDATE frames.
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .Times(2)
-      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillRepeatedly(&ClearControlFrameWithTransmissionType);
   EXPECT_FALSE(flow_controller_->auto_tune_receive_window());
 
   // Make sure clock is inititialized.

@@ -20,7 +20,6 @@
 
 using testing::_;
 using testing::InSequence;
-using testing::Invoke;
 using testing::SetErrnoAndReturn;
 
 namespace quic {
@@ -224,11 +223,11 @@ TEST_F(QuicLinuxSocketUtilsTest, WriteMultiplePackets_WriteBlocked) {
                                QuicSocketAddress(QuicIpAddress::Any4(), 0));
 
   EXPECT_CALL(mock_syscalls_, Sendmmsg(_, _, _, _))
-      .WillOnce(Invoke([](int /*fd*/, mmsghdr* /*msgvec*/,
-                          unsigned int /*vlen*/, int /*flags*/) {
+      .WillOnce([](int /*fd*/, mmsghdr* /*msgvec*/, unsigned int /*vlen*/,
+                   int /*flags*/) {
         errno = EWOULDBLOCK;
         return -1;
-      }));
+      });
 
   EXPECT_EQ(WriteResult(WRITE_STATUS_BLOCKED, EWOULDBLOCK),
             TestWriteMultiplePackets(1, buffered_writes.begin(),
@@ -243,11 +242,11 @@ TEST_F(QuicLinuxSocketUtilsTest, WriteMultiplePackets_WriteError) {
                                QuicSocketAddress(QuicIpAddress::Any4(), 0));
 
   EXPECT_CALL(mock_syscalls_, Sendmmsg(_, _, _, _))
-      .WillOnce(Invoke([](int /*fd*/, mmsghdr* /*msgvec*/,
-                          unsigned int /*vlen*/, int /*flags*/) {
+      .WillOnce([](int /*fd*/, mmsghdr* /*msgvec*/, unsigned int /*vlen*/,
+                   int /*flags*/) {
         errno = EPERM;
         return -1;
-      }));
+      });
 
   EXPECT_EQ(WriteResult(WRITE_STATUS_ERROR, EPERM),
             TestWriteMultiplePackets(1, buffered_writes.begin(),
@@ -292,8 +291,8 @@ TEST_F(QuicLinuxSocketUtilsTest, WriteMultiplePackets_WriteSuccess) {
     SCOPED_TRACE(testing::Message()
                  << "expected_num_packets_sent=" << expected_num_packets_sent);
     EXPECT_CALL(mock_syscalls_, Sendmmsg(_, _, _, _))
-        .WillOnce(Invoke([&](int /*fd*/, mmsghdr* msgvec, unsigned int vlen,
-                             int /*flags*/) {
+        .WillOnce([&](int /*fd*/, mmsghdr* msgvec, unsigned int vlen,
+                      int /*flags*/) {
           EXPECT_LE(static_cast<unsigned int>(expected_num_packets_sent), vlen);
           for (unsigned int i = 0; i < vlen; ++i) {
             const BufferedWrite& buffered_write = buffered_writes[i];
@@ -309,7 +308,7 @@ TEST_F(QuicLinuxSocketUtilsTest, WriteMultiplePackets_WriteSuccess) {
                       hdr.msg_control != nullptr);
           }
           return expected_num_packets_sent;
-        }))
+        })
         .RetiresOnSaturation();
 
     int expected_bytes_written = 0;

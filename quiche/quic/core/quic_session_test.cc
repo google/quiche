@@ -522,7 +522,7 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         // READ_UNIDIRECTIONAL streams.
         EXPECT_CALL(*connection_, SendControlFrame(IsFrame(STOP_SENDING_FRAME)))
             .Times(1)
-            .WillOnce(Invoke(&ClearControlFrame));
+            .WillOnce(&ClearControlFrame);
         EXPECT_CALL(*connection_, OnStreamReset(id, _)).Times(1);
       } else if (QuicUtils::GetStreamType(
                      id, session_.perspective(), session_.IsIncomingStream(id),
@@ -531,20 +531,20 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         // stream.
         EXPECT_CALL(*connection_, SendControlFrame(IsFrame(RST_STREAM_FRAME)))
             .Times(1)
-            .WillOnce(Invoke(&ClearControlFrame));
+            .WillOnce(&ClearControlFrame);
         EXPECT_CALL(*connection_, OnStreamReset(id, _));
       } else {
         // Verify RST_STREAM and STOP_SENDING are sent for BIDIRECTIONAL
         // streams.
         EXPECT_CALL(*connection_, SendControlFrame(IsFrame(RST_STREAM_FRAME)))
-            .WillRepeatedly(Invoke(&ClearControlFrame));
+            .WillRepeatedly(&ClearControlFrame);
         EXPECT_CALL(*connection_, SendControlFrame(IsFrame(STOP_SENDING_FRAME)))
-            .WillRepeatedly(Invoke(&ClearControlFrame));
+            .WillRepeatedly(&ClearControlFrame);
         EXPECT_CALL(*connection_, OnStreamReset(id, _));
       }
     } else {
       EXPECT_CALL(*connection_, SendControlFrame(_))
-          .WillOnce(Invoke(&ClearControlFrame));
+          .WillOnce(&ClearControlFrame);
       EXPECT_CALL(*connection_, OnStreamReset(id, _));
     }
     session_.ResetStream(id, QUIC_STREAM_CANCELLED);
@@ -557,7 +557,7 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         connection_->perspective() == Perspective::IS_SERVER) {
       // HANDSHAKE_DONE frame.
       EXPECT_CALL(*connection_, SendControlFrame(_))
-          .WillOnce(Invoke(&ClearControlFrame));
+          .WillOnce(&ClearControlFrame);
     }
     session_.GetMutableCryptoStream()->OnHandshakeMessage(msg);
   }
@@ -633,17 +633,15 @@ class QuicSessionTestServer : public QuicSessionTestBase {
       EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
       EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
       EXPECT_CALL(framer_visitor_, OnPathResponseFrame(_))
-          .WillOnce(
-              WithArg<0>(Invoke([this](const QuicPathResponseFrame& frame) {
-                EXPECT_EQ(path_frame_buffer1_, frame.data_buffer);
-                return true;
-              })));
+          .WillOnce(WithArg<0>([this](const QuicPathResponseFrame& frame) {
+            EXPECT_EQ(path_frame_buffer1_, frame.data_buffer);
+            return true;
+          }));
       EXPECT_CALL(framer_visitor_, OnPathResponseFrame(_))
-          .WillOnce(
-              WithArg<0>(Invoke([this](const QuicPathResponseFrame& frame) {
-                EXPECT_EQ(path_frame_buffer2_, frame.data_buffer);
-                return true;
-              })));
+          .WillOnce(WithArg<0>([this](const QuicPathResponseFrame& frame) {
+            EXPECT_EQ(path_frame_buffer2_, frame.data_buffer);
+            return true;
+          }));
       EXPECT_CALL(framer_visitor_, OnPacketComplete());
     }
     client_framer_.ProcessPacket(packet);
@@ -1002,10 +1000,10 @@ TEST_P(QuicSessionTestServer, OnCanWrite) {
   InSequence s;
 
   // Reregister, to test the loop limit.
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
     session_.SendStreamData(stream2);
     session_.MarkConnectionLevelWriteBlocked(stream2->id());
-  }));
+  });
 
   if (!GetQuicReloadableFlag(quic_disable_batch_write) ||
       GetQuicReloadableFlag(quic_priority_respect_incremental)) {
@@ -1013,19 +1011,19 @@ TEST_P(QuicSessionTestServer, OnCanWrite) {
     // are non-incremental by default, so if the incremental flag is respected,
     // then stream 2 will write again. (If it is not respected, then every
     // stream is treated as incremental.)
-    EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+    EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
       session_.SendStreamData(stream2);
-    }));
-    EXPECT_CALL(*stream6, OnCanWrite()).WillOnce(Invoke([this, stream6]() {
+    });
+    EXPECT_CALL(*stream6, OnCanWrite()).WillOnce([this, stream6]() {
       session_.SendStreamData(stream6);
-    }));
+    });
   } else {
-    EXPECT_CALL(*stream6, OnCanWrite()).WillOnce(Invoke([this, stream6]() {
+    EXPECT_CALL(*stream6, OnCanWrite()).WillOnce([this, stream6]() {
       session_.SendStreamData(stream6);
-    }));
-    EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+    });
+    EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4]() {
       session_.SendStreamData(stream4);
-    }));
+    });
   }
 
   // Stream 4 will not get called, as we exceeded the loop limit.
@@ -1053,75 +1051,72 @@ TEST_P(QuicSessionTestServer, TestBatchedWrites) {
 
   // With two sessions blocked, we should get two write calls.
   InSequence s;
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
     session_.SendLargeFakeData(stream2, 6000);
     session_.MarkConnectionLevelWriteBlocked(stream2->id());
-  }));
+  });
   if (GetQuicReloadableFlag(quic_disable_batch_write)) {
-    EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+    EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4]() {
       session_.SendLargeFakeData(stream4, 6000);
       session_.MarkConnectionLevelWriteBlocked(stream4->id());
-    }));
+    });
   } else {
     // Since stream2 only wrote 6 kB and marked itself blocked again,
     // the second write happens on the same stream.
-    EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+    EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
       session_.SendLargeFakeData(stream2, 6000);
       session_.MarkConnectionLevelWriteBlocked(stream2->id());
-    }));
+    });
   }
   session_.OnCanWrite();
 
   // If batched write is enabled, stream2 can write a third time in a row.
   // If batched write is disabled, stream2 has a turn again after stream4.
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
     session_.SendLargeFakeData(stream2, 6000);
     session_.MarkConnectionLevelWriteBlocked(stream2->id());
-  }));
-  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+  });
+  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4]() {
     session_.SendLargeFakeData(stream4, 6000);
     session_.MarkConnectionLevelWriteBlocked(stream4->id());
-  }));
+  });
   session_.OnCanWrite();
 
   // The next write adds a block for stream 6.
   stream6->SetPriority(QuicStreamPriority(HttpStreamPriority{
       kV3HighestPriority, HttpStreamPriority::kDefaultIncremental}));
   if (GetQuicReloadableFlag(quic_disable_batch_write)) {
-    EXPECT_CALL(*stream2, OnCanWrite())
-        .WillOnce(Invoke([this, stream2, stream6]() {
-          session_.SendLargeFakeData(stream2, 6000);
-          session_.MarkConnectionLevelWriteBlocked(stream2->id());
-          session_.MarkConnectionLevelWriteBlocked(stream6->id());
-        }));
+    EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2, stream6]() {
+      session_.SendLargeFakeData(stream2, 6000);
+      session_.MarkConnectionLevelWriteBlocked(stream2->id());
+      session_.MarkConnectionLevelWriteBlocked(stream6->id());
+    });
   } else {
-    EXPECT_CALL(*stream4, OnCanWrite())
-        .WillOnce(Invoke([this, stream4, stream6]() {
-          session_.SendLargeFakeData(stream4, 6000);
-          session_.MarkConnectionLevelWriteBlocked(stream4->id());
-          session_.MarkConnectionLevelWriteBlocked(stream6->id());
-        }));
+    EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4, stream6]() {
+      session_.SendLargeFakeData(stream4, 6000);
+      session_.MarkConnectionLevelWriteBlocked(stream4->id());
+      session_.MarkConnectionLevelWriteBlocked(stream6->id());
+    });
   }
   // Stream 6 will write next, because it has higher priority.
   // It does not mark itself as blocked.
-  EXPECT_CALL(*stream6, OnCanWrite())
-      .WillOnce(Invoke([this, stream4, stream6]() {
-        session_.SendStreamData(stream6);
-        session_.SendLargeFakeData(stream4, 6000);
-      }));
+  EXPECT_CALL(*stream6, OnCanWrite()).WillOnce([this, stream4, stream6]() {
+    session_.SendStreamData(stream6);
+    session_.SendLargeFakeData(stream4, 6000);
+  });
   session_.OnCanWrite();
 
   // If batched write is enabled, stream4 can continue to write, but will
   // exhaust its write limit, so the last write is on stream2.
   // If batched write is disabled, stream4 has a turn again, then stream2.
-  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4]() {
     session_.SendLargeFakeData(stream4, 12000);
     session_.MarkConnectionLevelWriteBlocked(stream4->id());
-  }));
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+  });
+  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
     session_.SendLargeFakeData(stream2, 6000);
     session_.MarkConnectionLevelWriteBlocked(stream2->id());
-  }));
+  });
   session_.OnCanWrite();
 }
 
@@ -1147,15 +1142,15 @@ TEST_P(QuicSessionTestServer, OnCanWriteBundlesStreams) {
   EXPECT_CALL(*send_algorithm, GetCongestionWindow())
       .WillRepeatedly(Return(kMaxOutgoingPacketSize * 10));
   EXPECT_CALL(*send_algorithm, InRecovery()).WillRepeatedly(Return(false));
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
     session_.SendStreamData(stream2);
-  }));
-  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+  });
+  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4]() {
     session_.SendStreamData(stream4);
-  }));
-  EXPECT_CALL(*stream6, OnCanWrite()).WillOnce(Invoke([this, stream6]() {
+  });
+  EXPECT_CALL(*stream6, OnCanWrite()).WillOnce([this, stream6]() {
     session_.SendStreamData(stream6);
-  }));
+  });
 
   // Expect that we only send one packet, the writes from different streams
   // should be bundled together.
@@ -1185,14 +1180,14 @@ TEST_P(QuicSessionTestServer, OnCanWriteCongestionControlBlocks) {
   session_.MarkConnectionLevelWriteBlocked(stream4->id());
 
   EXPECT_CALL(*send_algorithm, CanSend(_)).WillOnce(Return(true));
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
     session_.SendStreamData(stream2);
-  }));
+  });
   EXPECT_CALL(*send_algorithm, GetCongestionWindow()).Times(AnyNumber());
   EXPECT_CALL(*send_algorithm, CanSend(_)).WillOnce(Return(true));
-  EXPECT_CALL(*stream6, OnCanWrite()).WillOnce(Invoke([this, stream6]() {
+  EXPECT_CALL(*stream6, OnCanWrite()).WillOnce([this, stream6]() {
     session_.SendStreamData(stream6);
-  }));
+  });
   EXPECT_CALL(*send_algorithm, CanSend(_)).WillOnce(Return(false));
   // stream4->OnCanWrite is not called.
 
@@ -1207,9 +1202,9 @@ TEST_P(QuicSessionTestServer, OnCanWriteCongestionControlBlocks) {
   // stream4->OnCanWrite is called once the connection stops being
   // congestion-control blocked.
   EXPECT_CALL(*send_algorithm, CanSend(_)).WillOnce(Return(true));
-  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4]() {
     session_.SendStreamData(stream4);
-  }));
+  });
   EXPECT_CALL(*send_algorithm, OnApplicationLimited(_));
   session_.OnCanWrite();
   EXPECT_FALSE(session_.WillingAndAbleToWrite());
@@ -1251,13 +1246,13 @@ TEST_P(QuicSessionTestServer, SendStreamsBlocked) {
   }
   // Next checking causes STREAMS_BLOCKED to be sent.
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke([](const QuicFrame& frame) {
+      .WillOnce([](const QuicFrame& frame) {
         EXPECT_FALSE(frame.streams_blocked_frame.unidirectional);
         EXPECT_EQ(kDefaultMaxStreamsPerConnection,
                   frame.streams_blocked_frame.stream_count);
         ClearControlFrame(frame);
         return true;
-      }));
+      });
   EXPECT_FALSE(session_.CanOpenNextOutgoingBidirectionalStream());
 
   for (size_t i = 0; i < kDefaultMaxStreamsPerConnection; ++i) {
@@ -1266,13 +1261,13 @@ TEST_P(QuicSessionTestServer, SendStreamsBlocked) {
   }
   // Next checking causes STREAM_BLOCKED to be sent.
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke([](const QuicFrame& frame) {
+      .WillOnce([](const QuicFrame& frame) {
         EXPECT_TRUE(frame.streams_blocked_frame.unidirectional);
         EXPECT_EQ(kDefaultMaxStreamsPerConnection,
                   frame.streams_blocked_frame.stream_count);
         ClearControlFrame(frame);
         return true;
-      }));
+      });
   EXPECT_FALSE(session_.CanOpenNextOutgoingUnidirectionalStream());
 }
 
@@ -1293,11 +1288,11 @@ TEST_P(QuicSessionTestServer, LimitMaxStreams) {
   std::vector<QuicMaxStreamsFrame> max_stream_frames;
   EXPECT_CALL(*connection_, SendControlFrame(IsFrame(MAX_STREAMS_FRAME)))
       .Times(2)
-      .WillRepeatedly(Invoke([&max_stream_frames](const QuicFrame& frame) {
+      .WillRepeatedly([&max_stream_frames](const QuicFrame& frame) {
         max_stream_frames.push_back(frame.max_streams_frame);
         ClearControlFrame(frame);
         return true;
-      }));
+      });
   for (size_t i = 0; i < kMaxStreams; ++i) {
     QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(i);
     QuicStreamFrame data1(stream_id, true, 0, absl::string_view("HT"));
@@ -1326,7 +1321,7 @@ TEST_P(QuicSessionTestServer, LimitMaxStreams) {
 
   // Now when the outstanding MAX_STREAMS frame is ACK'd a new one will be sent.
   EXPECT_CALL(*connection_, SendControlFrame(IsFrame(MAX_STREAMS_FRAME)))
-      .WillOnce(Invoke(&ClearControlFrame));
+      .WillOnce(&ClearControlFrame);
   session_.OnFrameAcked(QuicFrame(max_stream_frames[0]),
                         QuicTime::Delta::Zero(), QuicTime::Zero(),
                         /*is_retransmission=*/false);
@@ -1389,16 +1384,16 @@ TEST_P(QuicSessionTestServer, BufferedHandshake) {
   TestCryptoStream* crypto_stream = session_.GetMutableCryptoStream();
   EXPECT_CALL(*crypto_stream, OnCanWrite());
 
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
     session_.SendStreamData(stream2);
-  }));
-  EXPECT_CALL(*stream3, OnCanWrite()).WillOnce(Invoke([this, stream3]() {
+  });
+  EXPECT_CALL(*stream3, OnCanWrite()).WillOnce([this, stream3]() {
     session_.SendStreamData(stream3);
-  }));
-  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+  });
+  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4]() {
     session_.SendStreamData(stream4);
     session_.MarkConnectionLevelWriteBlocked(stream4->id());
-  }));
+  });
 
   session_.OnCanWrite();
   EXPECT_TRUE(session_.WillingAndAbleToWrite());
@@ -1419,13 +1414,13 @@ TEST_P(QuicSessionTestServer, OnCanWriteWithClosedStream) {
 
   InSequence s;
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
-  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce(Invoke([this, stream2]() {
+      .WillRepeatedly(&ClearControlFrame);
+  EXPECT_CALL(*stream2, OnCanWrite()).WillOnce([this, stream2]() {
     session_.SendStreamData(stream2);
-  }));
-  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce(Invoke([this, stream4]() {
+  });
+  EXPECT_CALL(*stream4, OnCanWrite()).WillOnce([this, stream4]() {
     session_.SendStreamData(stream4);
-  }));
+  });
   session_.OnCanWrite();
   EXPECT_FALSE(session_.WillingAndAbleToWrite());
 }
@@ -1503,8 +1498,7 @@ TEST_P(QuicSessionTestServer, DoNotSendGoAwayTwice) {
     // In IETF QUIC, GOAWAY lives up in the HTTP layer.
     return;
   }
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(&ClearControlFrame);
   session_.SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
   EXPECT_TRUE(session_.transport_goaway_sent());
   session_.SendGoAway(QUIC_PEER_GOING_AWAY, "Going Away.");
@@ -1668,7 +1662,7 @@ TEST_P(QuicSessionTestServer, ConnectionFlowControlAccountingRstOutOfOrder) {
 
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(2)
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(&ClearControlFrame);
   EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
 
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream->id(),
@@ -2490,8 +2484,7 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream2->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   // Just for the RST_STREAM
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(&ClearControlFrame);
   if (VersionHasIetfQuicFrames(transport_version())) {
     EXPECT_CALL(*connection_,
                 OnStreamReset(stream2->id(), QUIC_STREAM_CANCELLED));
@@ -2517,7 +2510,7 @@ TEST_P(QuicSessionTestServer, TestZombieStreams) {
     // Once for the RST_STREAM, once for the STOP_SENDING
     EXPECT_CALL(*connection_, SendControlFrame(_))
         .Times(2)
-        .WillRepeatedly(Invoke(&ClearControlFrame));
+        .WillRepeatedly(&ClearControlFrame);
   } else {
     // Just for the RST_STREAM
     EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
@@ -2644,7 +2637,7 @@ TEST_P(QuicSessionTestServer, DonotRetransmitDataOfClosedStreams) {
   EXPECT_CALL(*stream2, OnCanWrite());
   EXPECT_CALL(*stream2, HasPendingRetransmission()).WillOnce(Return(false));
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(&ClearControlFrame);
   EXPECT_CALL(*stream2, OnCanWrite());
   EXPECT_CALL(*stream6, OnCanWrite());
   session_.OnCanWrite();
@@ -2659,8 +2652,7 @@ TEST_P(QuicSessionTestServer, RetransmitFrames) {
   TestStream* stream2 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream4 = session_.CreateOutgoingBidirectionalStream();
   TestStream* stream6 = session_.CreateOutgoingBidirectionalStream();
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(&ClearControlFrame);
   session_.SendWindowUpdate(stream2->id(), 9);
 
   QuicStreamFrame frame1(stream2->id(), false, 0, 9);
@@ -2676,8 +2668,7 @@ TEST_P(QuicSessionTestServer, RetransmitFrames) {
 
   EXPECT_CALL(*stream2, RetransmitStreamData(_, _, _, _))
       .WillOnce(Return(true));
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(Invoke(&ClearControlFrame));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(&ClearControlFrame);
   EXPECT_CALL(*stream4, RetransmitStreamData(_, _, _, _))
       .WillOnce(Return(true));
   EXPECT_CALL(*stream6, RetransmitStreamData(_, _, _, _))
@@ -2701,9 +2692,9 @@ TEST_P(QuicSessionTestServer, RetransmitLostDataCausesConnectionClose) {
   session_.OnFrameLost(QuicFrame(frame));
   // Retransmit stream data causes connection close. Stream has not sent fin
   // yet, so an RST is sent.
-  EXPECT_CALL(*stream, OnCanWrite()).WillOnce(Invoke([this, stream]() {
+  EXPECT_CALL(*stream, OnCanWrite()).WillOnce([this, stream]() {
     session_.ResetStream(stream->id(), QUIC_STREAM_CANCELLED);
-  }));
+  });
   if (VersionHasIetfQuicFrames(transport_version())) {
     // Once for the RST_STREAM, once for the STOP_SENDING
     EXPECT_CALL(*connection_, SendControlFrame(_))
@@ -2778,7 +2769,7 @@ TEST_P(QuicSessionTestServer, LocallyResetZombieStreams) {
 
   // Reset stream2 locally.
   EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(&ClearControlFrame);
   EXPECT_CALL(*connection_, OnStreamReset(stream2->id(), _));
   stream2->Reset(QUIC_STREAM_CANCELLED);
 
@@ -3252,21 +3243,21 @@ TEST_P(QuicSessionTestServer, ResetForIETFStreamTypes) {
 
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(1)
-      .WillOnce(Invoke(&ClearControlFrame));
+      .WillOnce(&ClearControlFrame);
   EXPECT_CALL(*connection_, OnStreamReset(read_only, _));
   session_.ResetStream(read_only, QUIC_STREAM_CANCELLED);
 
   QuicStreamId write_only = GetNthServerInitiatedUnidirectionalId(0);
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(1)
-      .WillOnce(Invoke(&ClearControlFrame));
+      .WillOnce(&ClearControlFrame);
   EXPECT_CALL(*connection_, OnStreamReset(write_only, _));
   session_.ResetStream(write_only, QUIC_STREAM_CANCELLED);
 
   QuicStreamId bidirectional = GetNthClientInitiatedBidirectionalId(0);
   EXPECT_CALL(*connection_, SendControlFrame(_))
       .Times(2)
-      .WillRepeatedly(Invoke(&ClearControlFrame));
+      .WillRepeatedly(&ClearControlFrame);
   EXPECT_CALL(*connection_, OnStreamReset(bidirectional, _));
   session_.ResetStream(bidirectional, QUIC_STREAM_CANCELLED);
 }

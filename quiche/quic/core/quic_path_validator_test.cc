@@ -18,7 +18,6 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 using testing::_;
-using testing::Invoke;
 using testing::Return;
 
 namespace quic {
@@ -76,12 +75,12 @@ TEST_F(QuicPathValidatorTest, PathValidationSuccessOnFirstRound) {
   EXPECT_CALL(send_delegate_,
               SendPathChallenge(_, self_address_, peer_address_,
                                 effective_peer_address_, &writer_))
-      .WillOnce(Invoke([&](const QuicPathFrameBuffer& payload,
-                           const QuicSocketAddress&, const QuicSocketAddress&,
-                           const QuicSocketAddress&, QuicPacketWriter*) {
+      .WillOnce([&](const QuicPathFrameBuffer& payload,
+                    const QuicSocketAddress&, const QuicSocketAddress&,
+                    const QuicSocketAddress&, QuicPacketWriter*) {
         memcpy(challenge_data.data(), payload.data(), payload.size());
         return true;
-      }));
+      });
   EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_));
   const QuicTime expected_start_time = clock_.Now();
   path_validator_.StartPathValidation(
@@ -93,12 +92,11 @@ TEST_F(QuicPathValidatorTest, PathValidationSuccessOnFirstRound) {
             path_validator_.GetPathValidationReason());
   EXPECT_TRUE(path_validator_.IsValidatingPeerAddress(effective_peer_address_));
   EXPECT_CALL(*result_delegate_, OnPathValidationSuccess(_, _))
-      .WillOnce(
-          Invoke([=, this](std::unique_ptr<QuicPathValidationContext> context,
-                           QuicTime start_time) {
-            EXPECT_EQ(context.get(), context_);
-            EXPECT_EQ(start_time, expected_start_time);
-          }));
+      .WillOnce([=, this](std::unique_ptr<QuicPathValidationContext> context,
+                          QuicTime start_time) {
+        EXPECT_EQ(context.get(), context_);
+        EXPECT_EQ(start_time, expected_start_time);
+      });
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(kInitialRttMs));
   path_validator_.OnPathResponse(challenge_data, self_address_);
   EXPECT_FALSE(path_validator_.HasPendingPathValidation());
@@ -111,12 +109,12 @@ TEST_F(QuicPathValidatorTest, RespondWithDifferentSelfAddress) {
   EXPECT_CALL(send_delegate_,
               SendPathChallenge(_, self_address_, peer_address_,
                                 effective_peer_address_, &writer_))
-      .WillOnce(Invoke([&](const QuicPathFrameBuffer payload,
-                           const QuicSocketAddress&, const QuicSocketAddress&,
-                           const QuicSocketAddress&, QuicPacketWriter*) {
+      .WillOnce([&](const QuicPathFrameBuffer payload, const QuicSocketAddress&,
+                    const QuicSocketAddress&, const QuicSocketAddress&,
+                    QuicPacketWriter*) {
         memcpy(challenge_data.data(), payload.data(), payload.size());
         return true;
-      }));
+      });
   EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_));
   const QuicTime expected_start_time = clock_.Now();
   path_validator_.StartPathValidation(
@@ -131,12 +129,11 @@ TEST_F(QuicPathValidatorTest, RespondWithDifferentSelfAddress) {
   path_validator_.OnPathResponse(challenge_data, kAlternativeSelfAddress);
 
   EXPECT_CALL(*result_delegate_, OnPathValidationSuccess(_, _))
-      .WillOnce(
-          Invoke([=, this](std::unique_ptr<QuicPathValidationContext> context,
-                           QuicTime start_time) {
-            EXPECT_EQ(context->self_address(), self_address_);
-            EXPECT_EQ(start_time, expected_start_time);
-          }));
+      .WillOnce([=, this](std::unique_ptr<QuicPathValidationContext> context,
+                          QuicTime start_time) {
+        EXPECT_EQ(context->self_address(), self_address_);
+        EXPECT_EQ(start_time, expected_start_time);
+      });
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(kInitialRttMs));
   path_validator_.OnPathResponse(challenge_data, self_address_);
   EXPECT_EQ(PathValidationReason::kReasonUnknown,
@@ -148,19 +145,19 @@ TEST_F(QuicPathValidatorTest, RespondAfter1stRetry) {
   EXPECT_CALL(send_delegate_,
               SendPathChallenge(_, self_address_, peer_address_,
                                 effective_peer_address_, &writer_))
-      .WillOnce(Invoke([&](const QuicPathFrameBuffer& payload,
-                           const QuicSocketAddress&, const QuicSocketAddress&,
-                           const QuicSocketAddress&, QuicPacketWriter*) {
+      .WillOnce([&](const QuicPathFrameBuffer& payload,
+                    const QuicSocketAddress&, const QuicSocketAddress&,
+                    const QuicSocketAddress&, QuicPacketWriter*) {
         // Store up the 1st PATH_CHALLANGE payload.
         memcpy(challenge_data.data(), payload.data(), payload.size());
         return true;
-      }))
-      .WillOnce(Invoke([&](const QuicPathFrameBuffer& payload,
-                           const QuicSocketAddress&, const QuicSocketAddress&,
-                           const QuicSocketAddress&, QuicPacketWriter*) {
+      })
+      .WillOnce([&](const QuicPathFrameBuffer& payload,
+                    const QuicSocketAddress&, const QuicSocketAddress&,
+                    const QuicSocketAddress&, QuicPacketWriter*) {
         EXPECT_NE(payload, challenge_data);
         return true;
-      }));
+      });
   EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_))
       .Times(2u);
   const QuicTime start_time = clock_.Now();
@@ -185,19 +182,19 @@ TEST_F(QuicPathValidatorTest, RespondToRetryChallenge) {
   EXPECT_CALL(send_delegate_,
               SendPathChallenge(_, self_address_, peer_address_,
                                 effective_peer_address_, &writer_))
-      .WillOnce(Invoke([&](const QuicPathFrameBuffer& payload,
-                           const QuicSocketAddress&, const QuicSocketAddress&,
-                           const QuicSocketAddress&, QuicPacketWriter*) {
+      .WillOnce([&](const QuicPathFrameBuffer& payload,
+                    const QuicSocketAddress&, const QuicSocketAddress&,
+                    const QuicSocketAddress&, QuicPacketWriter*) {
         memcpy(challenge_data.data(), payload.data(), payload.size());
         return true;
-      }))
-      .WillOnce(Invoke([&](const QuicPathFrameBuffer& payload,
-                           const QuicSocketAddress&, const QuicSocketAddress&,
-                           const QuicSocketAddress&, QuicPacketWriter*) {
+      })
+      .WillOnce([&](const QuicPathFrameBuffer& payload,
+                    const QuicSocketAddress&, const QuicSocketAddress&,
+                    const QuicSocketAddress&, QuicPacketWriter*) {
         EXPECT_NE(challenge_data, payload);
         memcpy(challenge_data.data(), payload.data(), payload.size());
         return true;
-      }));
+      });
   EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_))
       .Times(2u);
   path_validator_.StartPathValidation(
@@ -237,10 +234,9 @@ TEST_F(QuicPathValidatorTest, ValidationTimeOut) {
 
   // Retry 3 times. The 3rd time should fail the validation.
   EXPECT_CALL(*result_delegate_, OnPathValidationFailure(_))
-      .WillOnce(
-          Invoke([=, this](std::unique_ptr<QuicPathValidationContext> context) {
-            EXPECT_EQ(context_, context.get());
-          }));
+      .WillOnce([=, this](std::unique_ptr<QuicPathValidationContext> context) {
+        EXPECT_EQ(context_, context.get());
+      });
   for (size_t i = 0; i <= QuicPathValidator::kMaxRetryTimes; ++i) {
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
     alarm_factory_.FireAlarm(
@@ -254,14 +250,14 @@ TEST_F(QuicPathValidatorTest, SendPathChallengeError) {
   EXPECT_CALL(send_delegate_,
               SendPathChallenge(_, self_address_, peer_address_,
                                 effective_peer_address_, &writer_))
-      .WillOnce(Invoke([&](const QuicPathFrameBuffer&, const QuicSocketAddress&,
-                           const QuicSocketAddress&, const QuicSocketAddress&,
-                           QuicPacketWriter*) {
+      .WillOnce([&](const QuicPathFrameBuffer&, const QuicSocketAddress&,
+                    const QuicSocketAddress&, const QuicSocketAddress&,
+                    QuicPacketWriter*) {
         // Abandon this validation in the call stack shouldn't cause crash and
         // should cancel the alarm.
         path_validator_.CancelPathValidation();
         return false;
-      }));
+      });
   EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_))
       .Times(0u);
   EXPECT_CALL(*result_delegate_, OnPathValidationFailure(_));

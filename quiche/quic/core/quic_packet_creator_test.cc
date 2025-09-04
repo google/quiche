@@ -1779,9 +1779,9 @@ TEST_P(QuicPacketCreatorTest, FlushWithExternalBuffer) {
       /*needs_full_padding=*/true, NOT_RETRANSMISSION, &frame));
 
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke([&external_buffer](SerializedPacket serialized_packet) {
+      .WillOnce([&external_buffer](SerializedPacket serialized_packet) {
         EXPECT_EQ(external_buffer.buffer, serialized_packet.encrypted_buffer);
-      }));
+      });
   creator_.FlushCurrentPacket();
 }
 
@@ -2345,9 +2345,9 @@ TEST_P(QuicPacketCreatorTest, SerializeCoalescedPacket) {
     if (i < ENCRYPTION_FORWARD_SECURE) {
       // Save coalesced packet.
       EXPECT_CALL(framer_visitor_, OnCoalescedPacket(_))
-          .WillOnce(Invoke([i, &packets](const QuicEncryptedPacket& packet) {
+          .WillOnce([i, &packets](const QuicEncryptedPacket& packet) {
             packets[i + 1] = packet.Clone();
-          }));
+          });
     }
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
     EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
@@ -2641,10 +2641,10 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
       frames.push_back(QuicFrame(&ack_frame_));
     }
     EXPECT_CALL(*delegate_, MaybeBundleOpportunistically(_))
-        .WillOnce(Invoke([this, frames = std::move(frames)] {
+        .WillOnce([this, frames = std::move(frames)] {
           FlushAckFrame(frames);
           return QuicFrames();
-        }));
+        });
     return QuicPacketCreator::ConsumeRetransmittableControlFrame(frame);
   }
 
@@ -4344,12 +4344,12 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
   // After exiting the scope, the last queued frame should be flushed.
   EXPECT_TRUE(creator_.HasPendingFrames());
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke([=](SerializedPacket packet) {
+      .WillOnce([=](SerializedPacket packet) {
         EXPECT_EQ(peer_addr, packet.peer_address);
         ASSERT_EQ(2u, packet.retransmittable_frames.size());
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.back().type);
-      }));
+      });
   creator_.FlushCurrentPacket();
 }
 
@@ -4369,16 +4369,16 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 
   QuicSocketAddress peer_addr1(QuicIpAddress::Any4(), 12346);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke([=](SerializedPacket packet) {
+      .WillOnce([=](SerializedPacket packet) {
         EXPECT_EQ(peer_addr, packet.peer_address);
         ASSERT_EQ(1u, packet.retransmittable_frames.size());
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
-      }))
-      .WillOnce(Invoke([=](SerializedPacket packet) {
+      })
+      .WillOnce([=](SerializedPacket packet) {
         EXPECT_EQ(peer_addr1, packet.peer_address);
         ASSERT_EQ(1u, packet.retransmittable_frames.size());
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
-      }));
+      });
   EXPECT_TRUE(creator_.HasPendingFrames());
   {
     QuicConnectionId client_connection_id = TestConnectionId(1);
@@ -4426,7 +4426,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 
   QuicSocketAddress peer_addr1(QuicIpAddress::Any4(), 12346);
   EXPECT_CALL(delegate_, OnSerializedPacket(_))
-      .WillOnce(Invoke([=, this](SerializedPacket packet) {
+      .WillOnce([=, this](SerializedPacket packet) {
         EXPECT_EQ(peer_addr, packet.peer_address);
         ASSERT_EQ(1u, packet.retransmittable_frames.size());
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
@@ -4451,12 +4451,12 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
         // This should trigger another OnSerializedPacket() with the 2nd
         // address.
         creator_.FlushCurrentPacket();
-      }))
-      .WillOnce(Invoke([=](SerializedPacket packet) {
+      })
+      .WillOnce([=](SerializedPacket packet) {
         EXPECT_EQ(peer_addr1, packet.peer_address);
         ASSERT_EQ(1u, packet.retransmittable_frames.size());
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
-      }));
+      });
   creator_.FlushCurrentPacket();
 }
 

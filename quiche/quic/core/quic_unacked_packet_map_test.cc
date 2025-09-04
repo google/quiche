@@ -21,7 +21,6 @@
 #include "quiche/quic/test_tools/quic_unacked_packet_map_peer.h"
 
 using testing::_;
-using testing::Invoke;
 using testing::Return;
 using testing::StrictMock;
 
@@ -653,8 +652,7 @@ TEST_P(QuicUnackedPacketMapTest, UpdateTransmissionInfoOnFrameAcked) {
       last_info->retransmittable_frames[0].padding_frame.num_padding_bytes;
 
   EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _))
-      .WillOnce(Invoke([&](const QuicFrame& frame, QuicTime::Delta, QuicTime,
-                           bool) {
+      .WillOnce([&](const QuicFrame& frame, QuicTime::Delta, QuicTime, bool) {
         EXPECT_EQ(frame.type, PADDING_FRAME);
         EXPECT_EQ(frame.padding_frame.num_padding_bytes, last_padding_bytes);
         // Append one more packet to the unacked packet map.
@@ -663,7 +661,7 @@ TEST_P(QuicUnackedPacketMapTest, UpdateTransmissionInfoOnFrameAcked) {
         unacked_packets_.AddSentPacket(&packet, NOT_RETRANSMISSION, now_, true,
                                        true, ECN_NOT_ECT);
         return true;
-      }));
+      });
 
   QuicTransmissionInfo* last_info_updated = last_info;
   unacked_packets_.NotifyFramesAcked(largest_sent_packet_before_acked,

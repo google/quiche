@@ -745,7 +745,7 @@ TEST_P(QuicStreamTest, StopReadingSendsFlowControl) {
       .Times(0);
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillRepeatedly(&ClearControlFrameWithTransmissionType);
 
   std::string data(1000, 'x');
   for (QuicStreamOffset offset = 0;
@@ -1076,7 +1076,7 @@ TEST_P(QuicStreamTest, CancelStream) {
               OnStreamReset(stream_->id(), QUIC_STREAM_CANCELLED));
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .Times(AtLeast(1))
-      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillRepeatedly(&ClearControlFrameWithTransmissionType);
 
   EXPECT_CALL(*session_, MaybeSendRstStreamFrame(_, _, _))
       .WillOnce(InvokeWithoutArgs([this]() {
