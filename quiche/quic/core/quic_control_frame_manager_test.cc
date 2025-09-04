@@ -21,7 +21,6 @@
 
 using testing::_;
 using testing::InSequence;
-using testing::Invoke;
 using testing::Return;
 using testing::StrictMock;
 
@@ -70,13 +69,13 @@ TEST_F(QuicControlFrameManagerTest, InitialState) {
 TEST_F(QuicControlFrameManagerTest, WriteOrBufferRstStream) {
   QuicRstStreamFrame rst_stream = {1, kTestStreamId, QUIC_STREAM_CANCELLED, 0};
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(
+      .WillOnce(
           [&rst_stream](const QuicFrame& frame, TransmissionType /*type*/) {
             EXPECT_EQ(RST_STREAM_FRAME, frame.type);
             EXPECT_EQ(rst_stream, *frame.rst_stream_frame);
             ClearControlFrame(frame);
             return true;
-          }));
+          });
   manager_->WriteOrBufferRstStream(
       rst_stream.stream_id,
       QuicResetStreamError::FromInternal(rst_stream.error_code),
@@ -90,13 +89,13 @@ TEST_F(QuicControlFrameManagerTest, WriteOrBufferResetStreamAt) {
   QuicResetStreamAtFrame reset_stream_at = {1, kTestStreamId,
                                             QUIC_STREAM_CANCELLED, 20, 10};
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke([&reset_stream_at](const QuicFrame& frame,
-                                          TransmissionType /*type*/) {
+      .WillOnce([&reset_stream_at](const QuicFrame& frame,
+                                   TransmissionType /*type*/) {
         EXPECT_EQ(RESET_STREAM_AT_FRAME, frame.type);
         EXPECT_EQ(reset_stream_at, *frame.reset_stream_at_frame);
         ClearControlFrame(frame);
         return true;
-      }));
+      });
   manager_->WriteOrBufferResetStreamAt(
       reset_stream_at.stream_id,
       QuicResetStreamError::FromIetf(reset_stream_at.error),
@@ -110,13 +109,12 @@ TEST_F(QuicControlFrameManagerTest, WriteOrBufferGoAway) {
   QuicGoAwayFrame goaway = {1, QUIC_PEER_GOING_AWAY, kTestStreamId,
                             "Going away."};
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(
-          Invoke([&goaway](const QuicFrame& frame, TransmissionType /*type*/) {
-            EXPECT_EQ(GOAWAY_FRAME, frame.type);
-            EXPECT_EQ(goaway, *frame.goaway_frame);
-            ClearControlFrame(frame);
-            return true;
-          }));
+      .WillOnce([&goaway](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(GOAWAY_FRAME, frame.type);
+        EXPECT_EQ(goaway, *frame.goaway_frame);
+        ClearControlFrame(frame);
+        return true;
+      });
   manager_->WriteOrBufferGoAway(goaway.error_code, goaway.last_good_stream_id,
                                 goaway.reason_phrase);
   EXPECT_EQ(1, QuicControlFrameManagerPeer::QueueSize(manager_.get()));
@@ -127,13 +125,13 @@ TEST_F(QuicControlFrameManagerTest, WriteOrBufferGoAway) {
 TEST_F(QuicControlFrameManagerTest, WriteOrBufferWindowUpdate) {
   QuicWindowUpdateFrame window_update = {1, kTestStreamId, 100};
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(
+      .WillOnce(
           [&window_update](const QuicFrame& frame, TransmissionType /*type*/) {
             EXPECT_EQ(WINDOW_UPDATE_FRAME, frame.type);
             EXPECT_EQ(window_update, frame.window_update_frame);
             ClearControlFrame(frame);
             return true;
-          }));
+          });
   manager_->WriteOrBufferWindowUpdate(window_update.stream_id,
                                       window_update.max_data);
   EXPECT_EQ(1, QuicControlFrameManagerPeer::QueueSize(manager_.get()));
@@ -144,13 +142,12 @@ TEST_F(QuicControlFrameManagerTest, WriteOrBufferWindowUpdate) {
 TEST_F(QuicControlFrameManagerTest, WriteOrBufferBlocked) {
   QuicBlockedFrame blocked = {1, kTestStreamId, 10};
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(
-          Invoke([&blocked](const QuicFrame& frame, TransmissionType /*type*/) {
-            EXPECT_EQ(BLOCKED_FRAME, frame.type);
-            EXPECT_EQ(blocked, frame.blocked_frame);
-            ClearControlFrame(frame);
-            return true;
-          }));
+      .WillOnce([&blocked](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(BLOCKED_FRAME, frame.type);
+        EXPECT_EQ(blocked, frame.blocked_frame);
+        ClearControlFrame(frame);
+        return true;
+      });
   manager_->WriteOrBufferBlocked(blocked.stream_id, blocked.offset);
   EXPECT_EQ(1, QuicControlFrameManagerPeer::QueueSize(manager_.get()));
   EXPECT_TRUE(manager_->IsControlFrameOutstanding(QuicFrame(blocked)));
@@ -160,13 +157,13 @@ TEST_F(QuicControlFrameManagerTest, WriteOrBufferBlocked) {
 TEST_F(QuicControlFrameManagerTest, WriteOrBufferStopSending) {
   QuicStopSendingFrame stop_sending = {1, kTestStreamId, kTestStopSendingCode};
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(
+      .WillOnce(
           [&stop_sending](const QuicFrame& frame, TransmissionType /*type*/) {
             EXPECT_EQ(STOP_SENDING_FRAME, frame.type);
             EXPECT_EQ(stop_sending, frame.stop_sending_frame);
             ClearControlFrame(frame);
             return true;
-          }));
+          });
   manager_->WriteOrBufferStopSending(
       QuicResetStreamError::FromInternal(stop_sending.error_code),
       stop_sending.stream_id);
@@ -187,7 +184,7 @@ TEST_F(QuicControlFrameManagerTest, BufferWhenWriteControlFrameReturnsFalse) {
 
   // OnCanWrite will send the frame.
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillOnce(&ClearControlFrameWithTransmissionType);
   manager_->OnCanWrite();
   EXPECT_FALSE(manager_->WillingToWrite());
 }
@@ -209,14 +206,14 @@ TEST_F(QuicControlFrameManagerTest, BufferThenSendThenBuffer) {
   // OnCanWrite will send the first frame, but WriteControlFrame will return
   // false and the second frame will remain buffered.
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillOnce(&ClearControlFrameWithTransmissionType);
   EXPECT_CALL(*session_, WriteControlFrame(_, _)).WillOnce(Return(false));
   manager_->OnCanWrite();
   EXPECT_TRUE(manager_->WillingToWrite());
 
   // Now the second frame will finally be sent.
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillOnce(&ClearControlFrameWithTransmissionType);
   manager_->OnCanWrite();
   EXPECT_FALSE(manager_->WillingToWrite());
 }
@@ -233,7 +230,7 @@ TEST_F(QuicControlFrameManagerTest, OnControlFrameAcked) {
   InSequence s;
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .Times(5)
-      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillRepeatedly(&ClearControlFrameWithTransmissionType);
   manager_->WriteOrBufferRstStream(
       frame1.stream_id, QuicResetStreamError::FromInternal(frame1.error_code),
       frame1.byte_offset);
@@ -298,7 +295,7 @@ TEST_F(QuicControlFrameManagerTest, OnControlFrameLost) {
   InSequence s;
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .Times(3)
-      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillRepeatedly(&ClearControlFrameWithTransmissionType);
   manager_->WriteOrBufferRstStream(
       frame1.stream_id, QuicResetStreamError::FromInternal(frame1.error_code),
       frame1.byte_offset);
@@ -326,42 +323,38 @@ TEST_F(QuicControlFrameManagerTest, OnControlFrameLost) {
   // OnCanWrite will retransmit the lost frames, but will not sent the
   // not-yet-sent frames.
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(
-          Invoke([&frame1](const QuicFrame& frame, TransmissionType /*type*/) {
-            EXPECT_EQ(RST_STREAM_FRAME, frame.type);
-            EXPECT_EQ(frame1, *frame.rst_stream_frame);
-            ClearControlFrame(frame);
-            return true;
-          }));
+      .WillOnce([&frame1](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(RST_STREAM_FRAME, frame.type);
+        EXPECT_EQ(frame1, *frame.rst_stream_frame);
+        ClearControlFrame(frame);
+        return true;
+      });
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(
-          Invoke([&frame3](const QuicFrame& frame, TransmissionType /*type*/) {
-            EXPECT_EQ(WINDOW_UPDATE_FRAME, frame.type);
-            EXPECT_EQ(frame3, frame.window_update_frame);
-            ClearControlFrame(frame);
-            return true;
-          }));
+      .WillOnce([&frame3](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(WINDOW_UPDATE_FRAME, frame.type);
+        EXPECT_EQ(frame3, frame.window_update_frame);
+        ClearControlFrame(frame);
+        return true;
+      });
   manager_->OnCanWrite();
   EXPECT_FALSE(manager_->HasPendingRetransmission());
   EXPECT_TRUE(manager_->WillingToWrite());
 
   // Send control frames 4, and 5.
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(
-          Invoke([&frame4](const QuicFrame& frame, TransmissionType /*type*/) {
-            EXPECT_EQ(BLOCKED_FRAME, frame.type);
-            EXPECT_EQ(frame4, frame.blocked_frame);
-            ClearControlFrame(frame);
-            return true;
-          }));
+      .WillOnce([&frame4](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(BLOCKED_FRAME, frame.type);
+        EXPECT_EQ(frame4, frame.blocked_frame);
+        ClearControlFrame(frame);
+        return true;
+      });
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(
-          Invoke([&frame5](const QuicFrame& frame, TransmissionType /*type*/) {
-            EXPECT_EQ(STOP_SENDING_FRAME, frame.type);
-            EXPECT_EQ(frame5, frame.stop_sending_frame);
-            ClearControlFrame(frame);
-            return true;
-          }));
+      .WillOnce([&frame5](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(STOP_SENDING_FRAME, frame.type);
+        EXPECT_EQ(frame5, frame.stop_sending_frame);
+        ClearControlFrame(frame);
+        return true;
+      });
   manager_->OnCanWrite();
   EXPECT_FALSE(manager_->WillingToWrite());
 }
@@ -377,7 +370,7 @@ TEST_F(QuicControlFrameManagerTest, RetransmitControlFrame) {
   InSequence s;
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .Times(4)
-      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillRepeatedly(&ClearControlFrameWithTransmissionType);
   manager_->WriteOrBufferRstStream(
       frame1.stream_id, QuicResetStreamError::FromInternal(frame1.error_code),
       frame1.byte_offset);
@@ -395,25 +388,23 @@ TEST_F(QuicControlFrameManagerTest, RetransmitControlFrame) {
 
   // Retransmit frame 3.
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(
-          Invoke([&frame3](const QuicFrame& frame, TransmissionType /*type*/) {
-            EXPECT_EQ(WINDOW_UPDATE_FRAME, frame.type);
-            EXPECT_EQ(frame3, frame.window_update_frame);
-            ClearControlFrame(frame);
-            return true;
-          }));
+      .WillOnce([&frame3](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(WINDOW_UPDATE_FRAME, frame.type);
+        EXPECT_EQ(frame3, frame.window_update_frame);
+        ClearControlFrame(frame);
+        return true;
+      });
   EXPECT_TRUE(
       manager_->RetransmitControlFrame(QuicFrame(frame3), PTO_RETRANSMISSION));
 
   // Retransmit frame 4, but since WriteControlFrame returned false the
   // frame will still need retransmission.
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(
-          Invoke([&frame4](const QuicFrame& frame, TransmissionType /*type*/) {
-            EXPECT_EQ(BLOCKED_FRAME, frame.type);
-            EXPECT_EQ(frame4, frame.blocked_frame);
-            return false;
-          }));
+      .WillOnce([&frame4](const QuicFrame& frame, TransmissionType /*type*/) {
+        EXPECT_EQ(BLOCKED_FRAME, frame.type);
+        EXPECT_EQ(frame4, frame.blocked_frame);
+        return false;
+      });
   EXPECT_FALSE(
       manager_->RetransmitControlFrame(QuicFrame(frame4), PTO_RETRANSMISSION));
 }
@@ -425,7 +416,7 @@ TEST_F(QuicControlFrameManagerTest, SendAndAckAckFrequencyFrame) {
   frame_to_send.requested_max_ack_delay = QuicTime::Delta::FromMilliseconds(24);
   frame_to_send.reordering_threshold = 3;
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillOnce(&ClearControlFrameWithTransmissionType);
   manager_->WriteOrBufferAckFrequency(frame_to_send);
 
   // Ack AckFrequencyFrame.
@@ -439,7 +430,7 @@ TEST_F(QuicControlFrameManagerTest, SendAndAckAckFrequencyFrame) {
 TEST_F(QuicControlFrameManagerTest, NewAndRetireConnectionIdFrames) {
   // Send NewConnectionIdFrame
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillOnce(&ClearControlFrameWithTransmissionType);
   QuicNewConnectionIdFrame new_connection_id_frame(
       1, TestConnectionId(3), /*sequence_number=*/1,
       /*stateless_reset_token=*/
@@ -452,7 +443,7 @@ TEST_F(QuicControlFrameManagerTest, NewAndRetireConnectionIdFrames) {
 
   // Send RetireConnectionIdFrame
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillOnce(&ClearControlFrameWithTransmissionType);
   QuicRetireConnectionIdFrame retire_connection_id_frame(2,
                                                          /*sequence_number=*/0);
   manager_->WriteOrBufferRetireConnectionId(
@@ -469,13 +460,13 @@ TEST_F(QuicControlFrameManagerTest, DonotRetransmitOldWindowUpdates) {
   // Send two window updates for the same stream.
   QuicWindowUpdateFrame window_update1(1, kTestStreamId, 200);
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillOnce(&ClearControlFrameWithTransmissionType);
   manager_->WriteOrBufferWindowUpdate(window_update1.stream_id,
                                       window_update1.max_data);
 
   QuicWindowUpdateFrame window_update2(2, kTestStreamId, 300);
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillOnce(&ClearControlFrameWithTransmissionType);
   manager_->WriteOrBufferWindowUpdate(window_update2.stream_id,
                                       window_update2.max_data);
 
@@ -487,13 +478,13 @@ TEST_F(QuicControlFrameManagerTest, DonotRetransmitOldWindowUpdates) {
 
   // Verify only the latest window update gets retransmitted.
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(
+      .WillOnce(
           [&window_update2](const QuicFrame& frame, TransmissionType /*type*/) {
             EXPECT_EQ(WINDOW_UPDATE_FRAME, frame.type);
             EXPECT_EQ(window_update2, frame.window_update_frame);
             ClearControlFrame(frame);
             return true;
-          }));
+          });
   manager_->OnCanWrite();
   EXPECT_FALSE(manager_->HasPendingRetransmission());
   EXPECT_FALSE(manager_->WillingToWrite());
@@ -503,13 +494,13 @@ TEST_F(QuicControlFrameManagerTest, RetransmitWindowUpdateOfDifferentStreams) {
   // Send two window updates for different streams.
   QuicWindowUpdateFrame window_update1(1, kTestStreamId + 2, 200);
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillOnce(&ClearControlFrameWithTransmissionType);
   manager_->WriteOrBufferWindowUpdate(window_update1.stream_id,
                                       window_update1.max_data);
 
   QuicWindowUpdateFrame window_update2(2, kTestStreamId + 4, 300);
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
-      .WillOnce(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillOnce(&ClearControlFrameWithTransmissionType);
   manager_->WriteOrBufferWindowUpdate(window_update2.stream_id,
                                       window_update2.max_data);
 
@@ -522,7 +513,7 @@ TEST_F(QuicControlFrameManagerTest, RetransmitWindowUpdateOfDifferentStreams) {
   // Verify both window updates get retransmitted.
   EXPECT_CALL(*session_, WriteControlFrame(_, _))
       .Times(2)
-      .WillRepeatedly(Invoke(&ClearControlFrameWithTransmissionType));
+      .WillRepeatedly(&ClearControlFrameWithTransmissionType);
   manager_->OnCanWrite();
   EXPECT_FALSE(manager_->HasPendingRetransmission());
   EXPECT_FALSE(manager_->WillingToWrite());
@@ -552,12 +543,12 @@ TEST_F(QuicControlFrameManagerTest, NumBufferedMaxStreams) {
   for (int i = 0; i < 5; ++i) {
     // Save the frame so it can be ACK'd later.
     EXPECT_CALL(*session_, WriteControlFrame(_, _))
-        .WillOnce(Invoke([&max_streams_frames](const QuicFrame& frame,
-                                               TransmissionType /*type*/) {
+        .WillOnce([&max_streams_frames](const QuicFrame& frame,
+                                        TransmissionType /*type*/) {
           max_streams_frames.push_back(frame.max_streams_frame);
           ClearControlFrame(frame);
           return true;
-        }));
+        });
 
     // The contents of the frame don't matter for this test.
     manager_->WriteOrBufferMaxStreams(0, false);

@@ -1799,11 +1799,11 @@ TEST_P(QuicConnectionTest, PeerPortChangeAtServer) {
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
-      .WillOnce(Invoke(
-          [=, this]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
-      .WillOnce(Invoke([=, this]() {
+      .WillOnce(
+          [=, this]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); })
+      .WillOnce([=, this]() {
         EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
-      }));
+      });
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
@@ -1875,11 +1875,11 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServer) {
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback4(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
-      .WillOnce(Invoke(
-          [=, this]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
-      .WillOnce(Invoke([=, this]() {
+      .WillOnce(
+          [=, this]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); })
+      .WillOnce([=, this]() {
         EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
-      }));
+      });
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
@@ -2000,10 +2000,10 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
         .WillOnce(Return(TestConnectionId(456)));
   }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
-      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+      .WillOnce([&](const QuicConnectionId& cid) {
         server_cid1 = cid;
         return true;
-      }));
+      });
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.OnHandshakeComplete();
 
@@ -2204,10 +2204,10 @@ TEST_P(QuicConnectionTest, ConnectionMigrationWithPendingPaddingBytes) {
         .WillOnce(Return(TestConnectionId(456)));
   }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
-      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+      .WillOnce([&](const QuicConnectionId& cid) {
         new_cid = cid;
         return true;
-      }));
+      });
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   // Discard INITIAL key.
   connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
@@ -2258,10 +2258,10 @@ TEST_P(QuicConnectionTest,
         .WillOnce(Return(TestConnectionId(456)));
   }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
-      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+      .WillOnce([&](const QuicConnectionId& cid) {
         new_cid = cid;
         return true;
-      }));
+      });
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   // Discard INITIAL key.
   connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
@@ -2290,11 +2290,11 @@ TEST_P(QuicConnectionTest,
         QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/56789);
     auto ack_frame = InitAckFrame(1);
     EXPECT_CALL(visitor_, OnConnectionMigration(IPV4_TO_IPV6_CHANGE)).Times(1);
-    EXPECT_CALL(visitor_, MaybeSendAddressToken()).WillOnce(Invoke([this]() {
+    EXPECT_CALL(visitor_, MaybeSendAddressToken()).WillOnce([this]() {
       connection_.SendControlFrame(
           QuicFrame(new QuicNewTokenFrame(1, "new_token")));
       return true;
-    }));
+    });
     ProcessFramesPacketWithAddresses(
         {QuicFrame(QuicPathResponseFrame(0, reverse_path_challenge_payload)),
          QuicFrame(&ack_frame)},
@@ -2330,10 +2330,10 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
         .WillOnce(Return(TestConnectionId(456)));
   }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
-      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+      .WillOnce([&](const QuicConnectionId& cid) {
         server_cid1 = cid;
         return true;
-      }));
+      });
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.OnHandshakeComplete();
   // Receives new client CID from client.
@@ -2357,11 +2357,11 @@ TEST_P(QuicConnectionTest, ReversePathValidationFailureAtServer) {
   const QuicSocketAddress kNewPeerAddress =
       QuicSocketAddress(QuicIpAddress::Loopback4(), /*port=*/23456);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
-      .WillOnce(Invoke(
-          [=, this]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); }))
-      .WillOnce(Invoke([=, this]() {
+      .WillOnce(
+          [=, this]() { EXPECT_EQ(kPeerAddress, connection_.peer_address()); })
+      .WillOnce([=, this]() {
         EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
-      }));
+      });
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
@@ -2641,11 +2641,11 @@ TEST_P(QuicConnectionTest, ReceivePathProbingFromNewPeerAddressAtServer) {
     EXPECT_CALL(visitor_, OnPacketReceived(_, _, _)).Times(0);
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
         .Times(AtLeast(1u))
-        .WillOnce(Invoke([&]() {
+        .WillOnce([&]() {
           EXPECT_EQ(1u, writer_->path_challenge_frames().size());
           EXPECT_EQ(1u, writer_->path_response_frames().size());
           payload = writer_->path_challenge_frames().front().data_buffer;
-        }))
+        })
         .WillRepeatedly(DoDefault());
   }
   // Process a probing packet from a new peer address on server side
@@ -2741,12 +2741,12 @@ TEST_P(QuicConnectionTest, ReceivePathProbingToPreferredAddressAtServer) {
       connection_.GetStats().num_connectivity_probing_received;
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1u))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(1u, writer_->path_response_frames().size());
         // Verify that the PATH_RESPONSE is sent from the original self address.
         EXPECT_EQ(kSelfAddress.host(), writer_->last_write_source_address());
         EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
-      }));
+      });
   ProcessReceivedPacket(kServerPreferredAddress, kPeerAddress, *received);
 
   EXPECT_EQ(num_probing_received + 1,
@@ -2765,7 +2765,7 @@ TEST_P(QuicConnectionTest, ReceivePathProbingToPreferredAddressAtServer) {
       clock_.Now()));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1u))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(1u, writer_->path_response_frames().size());
         EXPECT_EQ(1u, writer_->path_challenge_frames().size());
         EXPECT_EQ(kServerPreferredAddress.host(),
@@ -2774,7 +2774,7 @@ TEST_P(QuicConnectionTest, ReceivePathProbingToPreferredAddressAtServer) {
         // has not received packet on original address from the new client
         // address.
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
-      }));
+      });
   ProcessReceivedPacket(kServerPreferredAddress, kNewPeerAddress, *received);
 
   EXPECT_EQ(num_probing_received + 2,
@@ -3636,10 +3636,9 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFrames) {
   }
   // Receiving Packet 40 causes 20th ack to send. Session is informed and adds
   // WINDOW_UPDATE.
-  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame())
-      .WillOnce(Invoke([this]() {
-        connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
-      }));
+  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).WillOnce([this]() {
+    connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
+  });
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   EXPECT_EQ(0u, writer_->window_update_frames().size());
   ProcessDataPacket(40);
@@ -3663,10 +3662,9 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFrames) {
     EXPECT_EQ(0u, writer_->window_update_frames().size());
   }
   // Session does not add a retransmittable frame.
-  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame())
-      .WillOnce(Invoke([this]() {
-        connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
-      }));
+  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).WillOnce([this]() {
+    connection_.SendControlFrame(QuicFrame(QuicPingFrame(1)));
+  });
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   EXPECT_EQ(0u, writer_->ping_frames().size());
   ProcessDataPacket(99);
@@ -3708,10 +3706,9 @@ TEST_P(QuicConnectionTest, AckNeedsRetransmittableFramesAfterPto) {
 
   // Process a packet, which requests a retransmittable frame be bundled
   // with the ACK.
-  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame())
-      .WillOnce(Invoke([this]() {
-        connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
-      }));
+  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).WillOnce([this]() {
+    connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
+  });
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessDataPacket(11);
   EXPECT_EQ(1u, writer_->window_update_frames().size());
@@ -8868,13 +8865,13 @@ TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnAlternativeSocket) {
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1u))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(1u, new_writer.packets_write_attempts());
         EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
         EXPECT_EQ(1u, new_writer.padding_frames().size());
         EXPECT_EQ(kNewSelfAddress.host(),
                   new_writer.last_write_source_address());
-      }));
+      });
   bool success = false;
   connection_.ValidatePath(
       std::make_unique<TestQuicPathValidationContext>(
@@ -8887,13 +8884,13 @@ TEST_P(QuicConnectionTest, ClientResponseToPathChallengeOnAlternativeSocket) {
   // PATH_CHALLENGE should be sent via the alternative writer.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1u))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(2u, new_writer.packets_write_attempts());
         EXPECT_EQ(1u, new_writer.path_response_frames().size());
         EXPECT_EQ(1u, new_writer.padding_frames().size());
         EXPECT_EQ(kNewSelfAddress.host(),
                   new_writer.last_write_source_address());
-      }))
+      })
       .WillRepeatedly(DoDefault());
   ;
   std::unique_ptr<SerializedPacket> probing_packet = ConstructProbingPacket();
@@ -11034,13 +11031,13 @@ TEST_P(QuicConnectionTest, DonotChangeQueuedAcks) {
   QuicAckFrame ack_frame = InitAckFrame(1);
   frames.push_back(QuicFrame(&ack_frame));
   // Receiving stream frame causes something to send.
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([this]() {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce([this]() {
     connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
     // Verify now the queued ACK contains packet number 2.
     EXPECT_TRUE(QuicPacketCreatorPeer::QueuedFrames(
                     QuicConnectionPeer::GetPacketCreator(&connection_))[0]
                     .ack_frame->packets.Contains(QuicPacketNumber(2)));
-  }));
+  });
   ProcessFramesPacketAtLevel(9, frames, ENCRYPTION_FORWARD_SECURE);
   EXPECT_TRUE(writer_->ack_frames()[0].packets.Contains(QuicPacketNumber(2)));
 }
@@ -11077,9 +11074,9 @@ TEST_P(QuicConnectionTest, BundleAckWithImmediateResponse) {
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
 
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([this]() {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce([this]() {
     notifier_.WriteOrBufferWindowUpate(0, 0);
-  }));
+  });
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
   ProcessDataPacket(1);
   // Verify ACK is bundled with WINDOW_UPDATE.
@@ -11562,10 +11559,10 @@ TEST_P(QuicConnectionTest, ClientAckDelayForAsyncPacketProcessing) {
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
-  EXPECT_CALL(visitor_, OnHandshakePacketSent()).WillOnce(Invoke([this]() {
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).WillOnce([this]() {
     connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
     connection_.NeuterUnencryptedPackets();
-  }));
+  });
   QuicConfig config;
   connection_.SetFromConfig(config);
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
@@ -11900,10 +11897,10 @@ TEST_P(QuicConnectionTest,
   connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
                            std::make_unique<TaggingEncrypter>(0x02));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
-  EXPECT_CALL(visitor_, OnHandshakePacketSent()).WillOnce(Invoke([this]() {
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).WillOnce([this]() {
     connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
     connection_.NeuterUnencryptedPackets();
-  }));
+  });
   {
     QuicConnection::ScopedPacketFlusher flusher(&connection_);
     connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_HANDSHAKE);
@@ -11931,13 +11928,13 @@ TEST_P(QuicConnectionTest, PathValidationOnNewSocketSuccess) {
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1u))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(1u, new_writer.packets_write_attempts());
         EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
         EXPECT_EQ(1u, new_writer.padding_frames().size());
         EXPECT_EQ(kNewSelfAddress.host(),
                   new_writer.last_write_source_address());
-      }))
+      })
       .WillRepeatedly(DoDefault());
   ;
   bool success = false;
@@ -11981,14 +11978,12 @@ TEST_P(QuicConnectionTest, PathValidationOnNewSocketWriteBlocked) {
   // Retry after time out.
   clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
   static_cast<test::MockRandom*>(helper_->GetRandomGenerator())->ChangeValue();
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-      .WillOnce(Invoke([&]() {
-        EXPECT_EQ(1u, new_writer.packets_write_attempts());
-        EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
-        EXPECT_EQ(1u, new_writer.padding_frames().size());
-        EXPECT_EQ(kNewSelfAddress.host(),
-                  new_writer.last_write_source_address());
-      }));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).WillOnce([&]() {
+    EXPECT_EQ(1u, new_writer.packets_write_attempts());
+    EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
+    EXPECT_EQ(1u, new_writer.padding_frames().size());
+    EXPECT_EQ(kNewSelfAddress.host(), new_writer.last_write_source_address());
+  });
   static_cast<TestAlarmFactory::TestAlarm*>(
       QuicPathValidatorPeer::retry_timer(
           QuicConnectionPeer::path_validator(&connection_)))
@@ -12000,12 +11995,12 @@ TEST_P(QuicConnectionTest, PathValidationOnNewSocketWriteBlocked) {
   frames.push_back(QuicFrame(QuicPathChallengeFrame(0, path_frame_buffer)));
   new_writer.SetWriteBlocked();
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-      .WillRepeatedly(Invoke([&] {
+      .WillRepeatedly([&] {
         // Packets other than PATH_RESPONSE may be sent over the default writer.
         EXPECT_EQ(1u, new_writer.packets_write_attempts());
         EXPECT_TRUE(new_writer.path_response_frames().empty());
         EXPECT_EQ(1u, writer_->packets_write_attempts());
-      }));
+      });
   ProcessFramesPacketWithAddresses(frames, kNewSelfAddress,
                                    connection_.peer_address(),
                                    ENCRYPTION_FORWARD_SECURE);
@@ -12022,13 +12017,13 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1u))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(1u, new_writer.packets_write_attempts());
         EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
         EXPECT_EQ(1u, new_writer.padding_frames().size());
         EXPECT_EQ(kNewSelfAddress.host(),
                   new_writer.last_write_source_address());
-      }));
+      });
   bool success = true;
   connection_.ValidatePath(
       std::make_unique<TestQuicPathValidationContext>(
@@ -12064,10 +12059,10 @@ TEST_P(QuicConnectionTest, PathValidationRetry) {
 
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(2u)
-      .WillRepeatedly(Invoke([&]() {
+      .WillRepeatedly([&]() {
         EXPECT_EQ(1u, writer_->path_challenge_frames().size());
         EXPECT_EQ(1u, writer_->padding_frames().size());
-      }));
+      });
   bool success = true;
   connection_.ValidatePath(std::make_unique<TestQuicPathValidationContext>(
                                connection_.self_address(),
@@ -12106,13 +12101,13 @@ TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1u))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(1u, new_writer.packets_write_attempts());
         EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
         EXPECT_EQ(1u, new_writer.padding_frames().size());
         EXPECT_EQ(kNewSelfAddress.host(),
                   new_writer.last_write_source_address());
-      }))
+      })
       .WillRepeatedly(DoDefault());
   ;
   bool success = true;
@@ -12151,7 +12146,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
   EXPECT_CALL(visitor_, OnWriteBlocked()).Times(0);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         // Even though the socket is blocked, the PATH_CHALLENGE should still be
         // treated as sent.
         EXPECT_EQ(1u, new_writer.packets_write_attempts());
@@ -12159,7 +12154,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedNewSocket) {
         EXPECT_EQ(1u, new_writer.padding_frames().size());
         EXPECT_EQ(kNewSelfAddress.host(),
                   new_writer.last_write_source_address());
-      }))
+      })
       .WillRepeatedly(DoDefault());
   ;
   bool success = false;
@@ -12195,7 +12190,7 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedDefaultSocket) {
   QuicPathFrameBuffer path_challenge_payload{0, 1, 2, 3, 4, 5, 6, 7};
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1u))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         // This packet isn't sent actually, instead it is buffered in the
         // connection.
         EXPECT_EQ(1u, writer_->packets_write_attempts());
@@ -12207,11 +12202,11 @@ TEST_P(QuicConnectionTest, SendPathChallengeUsingBlockedDefaultSocket) {
         EXPECT_EQ(1u, writer_->path_challenge_frames().size());
         EXPECT_EQ(1u, writer_->padding_frames().size());
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
-      }))
-      .WillRepeatedly(Invoke([&]() {
+      })
+      .WillRepeatedly([&]() {
         // Only one PATH_CHALLENGE should be sent out.
         EXPECT_EQ(0u, writer_->path_challenge_frames().size());
-      }));
+      });
   // Receiving a PATH_CHALLENGE from the new peer address should trigger address
   // validation.
   QuicFrames frames;
@@ -12282,10 +12277,9 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnDefaultPath) {
 
   writer_->SetShouldWriteFail();
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
-      .WillOnce(
-          Invoke([](QuicConnectionCloseFrame frame, ConnectionCloseSource) {
-            EXPECT_EQ(QUIC_PACKET_WRITE_ERROR, frame.quic_error_code);
-          }));
+      .WillOnce([](QuicConnectionCloseFrame frame, ConnectionCloseSource) {
+        EXPECT_EQ(QUIC_PACKET_WRITE_ERROR, frame.quic_error_code);
+      });
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0u);
   {
     // Add a flusher to force flush, otherwise the frames will remain in the
@@ -12318,10 +12312,9 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnAlternativePeerAddress) {
   writer_->SetShouldWriteFail();
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Any4(), 12345);
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
-      .WillOnce(
-          Invoke([](QuicConnectionCloseFrame frame, ConnectionCloseSource) {
-            EXPECT_EQ(QUIC_PACKET_WRITE_ERROR, frame.quic_error_code);
-          }));
+      .WillOnce([](QuicConnectionCloseFrame frame, ConnectionCloseSource) {
+        EXPECT_EQ(QUIC_PACKET_WRITE_ERROR, frame.quic_error_code);
+      });
   // Sending PATH_CHALLENGE to trigger a flush write which will fail and close
   // the connection.
   bool success = false;
@@ -12397,7 +12390,7 @@ TEST_P(QuicConnectionTest, ReceiveMultiplePathChallenge) {
   // peer address.
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(2)
-      .WillOnce(Invoke([=, this]() {
+      .WillOnce([=, this]() {
         EXPECT_EQ(1u, writer_->path_response_frames().size());
         // The final check is to ensure that the random data in the response
         // matches the random data from the challenge.
@@ -12407,12 +12400,12 @@ TEST_P(QuicConnectionTest, ReceiveMultiplePathChallenge) {
                          sizeof(path_frame_buffer1)));
         EXPECT_EQ(1u, writer_->padding_frames().size());
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
-      }))
-      .WillOnce(Invoke([=, this]() {
+      })
+      .WillOnce([=, this]() {
         // The last write of ACK-only packet should still use the old peer
         // address.
         EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
-      }));
+      });
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
 }
@@ -12434,14 +12427,14 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameBeforePathChallenge) {
   EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE));
   EXPECT_CALL(*send_algorithm_, OnConnectionMigration()).Times(0u);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
-      .WillOnce(Invoke([=, this](const QuicStreamFrame& frame) {
+      .WillOnce([=, this](const QuicStreamFrame& frame) {
         // Send some data on the stream. The STREAM_FRAME should be built into
         // one packet together with the latter PATH_RESPONSE and PATH_CHALLENGE.
         const std::string data{"response body"};
         connection_.producer()->SaveStreamData(frame.stream_id, data);
         return notifier_.WriteOrBufferData(frame.stream_id, data.length(),
                                            NO_FIN);
-      }));
+      });
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0u);
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
@@ -12478,7 +12471,7 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameFollowingPathChallenge) {
   QuicByteCount received_packet_size;
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1u))
-      .WillOnce(Invoke([=, this, &received_packet_size]() {
+      .WillOnce([=, this, &received_packet_size]() {
         // Verify that this packet contains a PATH_RESPONSE_FRAME.
         EXPECT_EQ(0u, writer_->stream_frames().size());
         EXPECT_EQ(1u, writer_->path_response_frames().size());
@@ -12493,18 +12486,18 @@ TEST_P(QuicConnectionTest, ReceiveStreamFrameFollowingPathChallenge) {
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
         received_packet_size =
             QuicConnectionPeer::BytesReceivedOnAlternativePath(&connection_);
-      }));
+      });
   EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE));
   EXPECT_CALL(*send_algorithm_, OnConnectionMigration()).Times(0u);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
-      .WillOnce(Invoke([=, this](const QuicStreamFrame& frame) {
+      .WillOnce([=, this](const QuicStreamFrame& frame) {
         // Send some data on the stream. The STREAM_FRAME should be built into a
         // new packet but throttled by anti-amplifciation limit.
         const std::string data{"response body"};
         connection_.producer()->SaveStreamData(frame.stream_id, data);
         return notifier_.WriteOrBufferData(frame.stream_id, data.length(),
                                            NO_FIN);
-      }));
+      });
 
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
@@ -12535,24 +12528,24 @@ TEST_P(QuicConnectionTest, PathChallengeWithDataInOutOfOrderPacket) {
   EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0u);
   EXPECT_CALL(visitor_, OnStreamFrame(_))
       .Times(2)
-      .WillRepeatedly(Invoke([=, this](const QuicStreamFrame& frame) {
+      .WillRepeatedly([=, this](const QuicStreamFrame& frame) {
         // Send some data on the stream. The STREAM_FRAME should be built into
         // one packet together with the latter PATH_RESPONSE.
         const std::string data{"response body"};
         connection_.producer()->SaveStreamData(frame.stream_id, data);
         return notifier_.WriteOrBufferData(frame.stream_id, data.length(),
                                            NO_FIN);
-      }));
+      });
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-      .WillOnce(Invoke([=, this]() {
+      .WillOnce([=, this]() {
         // Verify that this packet contains a STREAM_FRAME and is sent to the
         // original peer address.
         EXPECT_EQ(1u, writer_->stream_frames().size());
         // No connection migration should happen because the packet is received
         // out of order.
         EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
-      }))
-      .WillOnce(Invoke([=, this]() {
+      })
+      .WillOnce([=, this]() {
         EXPECT_EQ(1u, writer_->path_response_frames().size());
         // The final check is to ensure that the random data in the response
         // matches the random data from the challenge.
@@ -12564,15 +12557,15 @@ TEST_P(QuicConnectionTest, PathChallengeWithDataInOutOfOrderPacket) {
         // PATH_RESPONSE should be sent in another packet to a different peer
         // address.
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
-      }))
-      .WillOnce(Invoke([=, this]() {
+      })
+      .WillOnce([=, this]() {
         // Verify that this packet contains a STREAM_FRAME and is sent to the
         // original peer address.
         EXPECT_EQ(1u, writer_->stream_frames().size());
         // No connection migration should happen because the packet is received
         // out of order.
         EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
-      }));
+      });
   // Lower the packet number so that receiving this packet shouldn't trigger
   // peer migration.
   QuicPacketCreatorPeer::SetPacketNumber(&peer_creator_, 1);
@@ -12669,10 +12662,10 @@ TEST_P(QuicConnectionTest, CoalescerHandlesInitialKeyDiscard) {
   }
   SetQuicReloadableFlag(quic_discard_initial_packet_with_key_dropped, true);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
-  EXPECT_CALL(visitor_, OnHandshakePacketSent()).WillOnce(Invoke([this]() {
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).WillOnce([this]() {
     connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
     connection_.NeuterUnencryptedPackets();
-  }));
+  });
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
 
   EXPECT_EQ(0u, connection_.GetStats().packets_discarded);
@@ -12698,12 +12691,12 @@ TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
   }
   // Not defer send in response to packet.
   connection_.set_defer_send_in_response_to_packets(false);
-  EXPECT_CALL(visitor_, OnHandshakePacketSent()).WillOnce(Invoke([this]() {
+  EXPECT_CALL(visitor_, OnHandshakePacketSent()).WillOnce([this]() {
     connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
     connection_.NeuterUnencryptedPackets();
-  }));
+  });
   EXPECT_CALL(visitor_, OnCryptoFrame(_))
-      .WillRepeatedly(Invoke([=, this](const QuicCryptoFrame& frame) {
+      .WillRepeatedly([=, this](const QuicCryptoFrame& frame) {
         if (frame.level == ENCRYPTION_HANDSHAKE) {
           // 0-RTT gets rejected.
           connection_.MarkZeroRttPacketsForRetransmission(0);
@@ -12724,7 +12717,7 @@ TEST_P(QuicConnectionTest, ZeroRttRejectionAndMissingInitialKeys) {
           // bummer.
           clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1));
         }
-      }));
+      });
   connection_.SendCryptoDataWithString("foo", 0, ENCRYPTION_INITIAL);
   // Send 0-RTT packet.
   connection_.SetEncrypter(
@@ -13399,9 +13392,9 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrame) {
 
   QuicAckFrequencyFrame captured_frame;
   EXPECT_CALL(visitor_, SendAckFrequency(_))
-      .WillOnce(Invoke([&captured_frame](const QuicAckFrequencyFrame& frame) {
+      .WillOnce([&captured_frame](const QuicAckFrequencyFrame& frame) {
         captured_frame = frame;
-      }));
+      });
   // Send packet 101.
   SendStreamDataToPeer(/*id=*/1, "bar", /*offset=*/3, NO_FIN, nullptr);
 
@@ -13438,9 +13431,9 @@ TEST_P(QuicConnectionTest, SendAckFrequencyFrameUponHandshakeCompletion) {
 
   QuicAckFrequencyFrame captured_frame;
   EXPECT_CALL(visitor_, SendAckFrequency(_))
-      .WillOnce(Invoke([&captured_frame](const QuicAckFrequencyFrame& frame) {
+      .WillOnce([&captured_frame](const QuicAckFrequencyFrame& frame) {
         captured_frame = frame;
-      }));
+      });
 
   connection_.OnHandshakeComplete();
 
@@ -13484,7 +13477,7 @@ TEST_P(QuicConnectionTest, ServerHelloGetsReordered) {
   QuicConfig config;
   connection_.SetFromConfig(config);
   EXPECT_CALL(visitor_, OnCryptoFrame(_))
-      .WillRepeatedly(Invoke([=, this](const QuicCryptoFrame& frame) {
+      .WillRepeatedly([=, this](const QuicCryptoFrame& frame) {
         if (frame.level == ENCRYPTION_INITIAL) {
           // Install handshake read keys.
           SetDecrypter(
@@ -13495,7 +13488,7 @@ TEST_P(QuicConnectionTest, ServerHelloGetsReordered) {
               std::make_unique<TaggingEncrypter>(ENCRYPTION_HANDSHAKE));
           connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
         }
-      }));
+      });
 
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
   connection_.SendCryptoStreamData();
@@ -14091,12 +14084,12 @@ TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsReadyAndNotProbing) {
   EXPECT_CALL(visitor_, OnPathDegrading());
   EXPECT_CALL(visitor_, OnForwardProgressMadeAfterPathDegrading()).Times(0);
   EXPECT_CALL(visitor_, MigrateToMultiPortPath(_))
-      .WillOnce(Invoke([&](std::unique_ptr<QuicPathValidationContext> context) {
+      .WillOnce([&](std::unique_ptr<QuicPathValidationContext> context) {
         EXPECT_EQ(context->self_address(), kNewSelfAddress);
         connection_.MigratePath(context->self_address(),
                                 context->peer_address(), context->WriterToUse(),
                                 /*owns_writer=*/false);
-      }));
+      });
   connection_.OnPathDegradingDetected();
 }
 
@@ -14176,12 +14169,12 @@ TEST_P(QuicConnectionTest, PathDegradingWhenAltPathIsReadyAndProbing) {
   EXPECT_CALL(visitor_, OnPathDegrading());
   EXPECT_CALL(visitor_, OnForwardProgressMadeAfterPathDegrading()).Times(0);
   EXPECT_CALL(visitor_, MigrateToMultiPortPath(_))
-      .WillOnce(Invoke([&](std::unique_ptr<QuicPathValidationContext> context) {
+      .WillOnce([&](std::unique_ptr<QuicPathValidationContext> context) {
         EXPECT_EQ(context->self_address(), kNewSelfAddress);
         connection_.MigratePath(context->self_address(),
                                 context->peer_address(), context->WriterToUse(),
                                 /*owns_writer=*/false);
-      }));
+      });
   connection_.OnPathDegradingDetected();
   EXPECT_FALSE(connection_.HasPendingPathValidation());
   auto* path_validator = QuicConnectionPeer::path_validator(&connection_);
@@ -14198,12 +14191,12 @@ TEST_P(QuicConnectionTest, SingleAckInPacket) {
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
 
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=, this]() {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce([=, this]() {
     connection_.SendStreamData3();
     connection_.CloseConnection(
         QUIC_INTERNAL_ERROR, "error",
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-  }));
+  });
   QuicFrames frames;
   frames.push_back(QuicFrame(frame1_));
   ProcessFramesPacketWithAddresses(frames, kSelfAddress, kPeerAddress,
@@ -14475,10 +14468,10 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
         .WillOnce(Return(TestConnectionId(456)));
   }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
-      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+      .WillOnce([&](const QuicConnectionId& cid) {
         server_cid1 = cid;
         return true;
-      }));
+      });
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.MaybeSendConnectionIdToClient();
   // Receives new client CID from client.
@@ -14502,14 +14495,14 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   EXPECT_CALL(*send_algorithm_,
               OnPacketSent(_, _, _, _, NO_RETRANSMITTABLE_DATA))
       .Times(AtLeast(1))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
         EXPECT_EQ(kPeerAddress, connection_.peer_address());
         EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
         EXPECT_FALSE(writer_->path_response_frames().empty());
         EXPECT_FALSE(writer_->path_challenge_frames().empty());
         payload = writer_->path_challenge_frames().front().data_buffer;
-      }))
+      })
       .WillRepeatedly(DoDefault());
   ;
   ProcessFramesPacketWithAddresses(frames1, kSelfAddress, kNewPeerAddress,
@@ -14530,9 +14523,9 @@ TEST_P(QuicConnectionTest, PathChallengeBeforePeerIpAddressChangeAtServer) {
   // Process another packet with a different peer address on server side will
   // start connection migration.
   EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE)).Times(1);
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=, this]() {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce([=, this]() {
     EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
-  }));
+  });
   // IETF QUIC send algorithm should be changed to a different object, so no
   // OnPacketSent() called on the old send algorithm.
   EXPECT_CALL(*send_algorithm_,
@@ -14630,10 +14623,10 @@ TEST_P(QuicConnectionTest,
         .WillOnce(Return(TestConnectionId(456)));
   }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
-      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+      .WillOnce([&](const QuicConnectionId& cid) {
         server_cid1 = cid;
         return true;
-      }));
+      });
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.MaybeSendConnectionIdToClient();
   auto* packet_creator = QuicConnectionPeer::GetPacketCreator(&connection_);
@@ -14646,18 +14639,18 @@ TEST_P(QuicConnectionTest,
   QuicPathFrameBuffer payload;
   EXPECT_CALL(*send_algorithm_,
               OnPacketSent(_, _, _, _, NO_RETRANSMITTABLE_DATA))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
         EXPECT_EQ(kPeerAddress, connection_.peer_address());
         EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
         EXPECT_FALSE(writer_->path_response_frames().empty());
         EXPECT_FALSE(writer_->path_challenge_frames().empty());
         payload = writer_->path_challenge_frames().front().data_buffer;
-      }))
-      .WillRepeatedly(Invoke([&]() {
+      })
+      .WillRepeatedly([&]() {
         // Only start reverse path validation once.
         EXPECT_TRUE(writer_->path_challenge_frames().empty());
-      }));
+      });
   QuicPathFrameBuffer path_challenge_payload{0, 1, 2, 3, 4, 5, 6, 7};
   QuicFrames frames1;
   frames1.push_back(
@@ -14688,9 +14681,9 @@ TEST_P(QuicConnectionTest,
       .Times(0);
   const QuicSocketAddress kNewerPeerAddress(QuicIpAddress::Loopback4(),
                                             /*port=*/34567);
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=, this]() {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce([=, this]() {
     EXPECT_EQ(kNewerPeerAddress, connection_.peer_address());
-  }));
+  });
   EXPECT_CALL(visitor_, MaybeSendAddressToken());
   QuicFrames frames2;
   frames2.push_back(QuicFrame(frame2_));
@@ -14755,10 +14748,10 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
         .WillOnce(Return(TestConnectionId(456)));
   }
   EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
-      .WillOnce(Invoke([&](const QuicConnectionId& cid) {
+      .WillOnce([&](const QuicConnectionId& cid) {
         server_cid1 = cid;
         return true;
-      }));
+      });
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.MaybeSendConnectionIdToClient();
   // Receives new client CID from client.
@@ -14781,13 +14774,13 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
   EXPECT_CALL(*send_algorithm_,
               OnPacketSent(_, _, _, _, NO_RETRANSMITTABLE_DATA))
       .Times(AtLeast(1))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
         EXPECT_EQ(kPeerAddress, connection_.peer_address());
         EXPECT_EQ(kPeerAddress, connection_.effective_peer_address());
         EXPECT_FALSE(writer_->path_response_frames().empty());
         EXPECT_FALSE(writer_->path_challenge_frames().empty());
-      }))
+      })
       .WillRepeatedly(DoDefault());
   ProcessFramesPacketWithAddresses(frames1, kSelfAddress, kNewPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
@@ -14806,9 +14799,9 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
 
   // Process non-probing packets on the default path.
   peer_creator_.SetServerConnectionId(server_cid0);
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillRepeatedly(Invoke([=, this]() {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillRepeatedly([=, this]() {
     EXPECT_EQ(kPeerAddress, connection_.peer_address());
-  }));
+  });
   // Receives packets 3 - 39 to send 19 ACK-only packets, which will force the
   // connection to reach |kMaxConsecutiveNonRetransmittablePackets| while
   // sending the next ACK.
@@ -14827,22 +14820,21 @@ TEST_P(QuicConnectionTest, NoNonProbingFrameOnAlternativePath) {
                      clock_.ApproximateNow());
 
   // The 20th ACK should bundle with a WINDOW_UPDATE frame.
-  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame())
-      .WillOnce(Invoke([this]() {
-        connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
-      }));
+  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame()).WillOnce([this]() {
+    connection_.SendControlFrame(QuicFrame(QuicWindowUpdateFrame(1, 0, 0)));
+  });
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
         EXPECT_FALSE(writer_->path_challenge_frames().empty());
         // Retry path validation shouldn't bundle ACK.
         EXPECT_TRUE(writer_->ack_frames().empty());
-      }))
-      .WillOnce(Invoke([&]() {
+      })
+      .WillOnce([&]() {
         EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
         EXPECT_FALSE(writer_->ack_frames().empty());
         EXPECT_FALSE(writer_->window_update_frames().empty());
-      }));
+      });
   static_cast<TestAlarmFactory::TestAlarm*>(
       QuicPathValidatorPeer::retry_timer(
           QuicConnectionPeer::path_validator(&connection_)))
@@ -14887,9 +14879,9 @@ TEST_P(QuicConnectionTest,
   EXPECT_CALL(*send_algorithm_,
               OnPacketSent(_, _, _, _, NO_RETRANSMITTABLE_DATA))
       .Times(0);
-  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce(Invoke([=, this]() {
+  EXPECT_CALL(visitor_, OnStreamFrame(_)).WillOnce([=, this]() {
     EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
-  }));
+  });
   QuicFrames frames2;
   frames2.push_back(QuicFrame(frame2_));
   ProcessFramesPacketWithAddresses(frames2, kSelfAddress, kNewPeerAddress,
@@ -14915,12 +14907,11 @@ TEST_P(QuicConnectionTest,
   // on-going path validation.
   const QuicSocketAddress kNewerPeerAddress(QuicIpAddress::Loopback4(),
                                             /*port=*/34567);
-  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
-      .WillOnce(Invoke([&]() {
-        EXPECT_EQ(kNewerPeerAddress, writer_->last_write_peer_address());
-        EXPECT_FALSE(writer_->path_response_frames().empty());
-        EXPECT_TRUE(writer_->path_challenge_frames().empty());
-      }));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).WillOnce([&]() {
+    EXPECT_EQ(kNewerPeerAddress, writer_->last_write_peer_address());
+    EXPECT_FALSE(writer_->path_response_frames().empty());
+    EXPECT_TRUE(writer_->path_challenge_frames().empty());
+  });
   QuicPathFrameBuffer path_challenge_payload{0, 1, 2, 3, 4, 5, 6, 7};
   QuicFrames frames1;
   frames1.push_back(
@@ -14984,9 +14975,9 @@ TEST_P(QuicConnectionTest,
   EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
       .WillOnce(Return(TestConnectionId(456)));
   EXPECT_CALL(visitor_, SendNewConnectionId(_))
-      .WillOnce(Invoke([&](const QuicNewConnectionIdFrame& frame) {
+      .WillOnce([&](const QuicNewConnectionIdFrame& frame) {
         client_cid1 = frame.connection_id;
-      }));
+      });
 
   const QuicSocketAddress kSelfAddress1(QuicIpAddress::Any4(), 12345);
   ASSERT_NE(kSelfAddress1, connection_.self_address());
@@ -15126,9 +15117,9 @@ TEST_P(QuicConnectionTest,
   EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
       .WillOnce(Return(TestConnectionId(456)));
   EXPECT_CALL(visitor_, SendNewConnectionId(_))
-      .WillOnce(Invoke([&](const QuicNewConnectionIdFrame& frame) {
+      .WillOnce([&](const QuicNewConnectionIdFrame& frame) {
         new_client_connection_id = frame.connection_id;
-      }));
+      });
 
   // 1st migration is successful.
   const QuicSocketAddress kSelfAddress1(QuicIpAddress::Any4(), 12345);
@@ -15449,8 +15440,7 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
   }
-  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
-      .WillOnce(Invoke(cid_recorder));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_)).WillOnce(cid_recorder);
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   connection_.MaybeSendConnectionIdToClient();
   cid1 = recorded_cid;
@@ -15484,8 +15474,7 @@ TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
     EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(_))
         .WillOnce(Return(TestConnectionId(456)));
   }
-  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
-      .WillOnce(Invoke(cid_recorder));
+  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_)).WillOnce(cid_recorder);
   EXPECT_CALL(visitor_, SendNewConnectionId(_));
   peer_creator_.SetServerConnectionId(cid1);
   connection_.ProcessUdpPacket(kSelfAddress, kPeerAddress, *packet2);
@@ -16866,14 +16855,14 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress) {
   // confirmed.
   EXPECT_CALL(visitor_,
               OnServerPreferredAddressAvailable(kServerPreferredAddress))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         connection_.ValidatePath(
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
                 &connection_),
             PathValidationReason::kReasonUnknown);
-      }));
+      });
   connection_.OnHandshakeComplete();
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
@@ -16946,14 +16935,14 @@ TEST_P(QuicConnectionTest, ClientValidatedServerPreferredAddress2) {
   // confirmed.
   EXPECT_CALL(visitor_,
               OnServerPreferredAddressAvailable(kServerPreferredAddress))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         connection_.ValidatePath(
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
                 &connection_),
             PathValidationReason::kReasonUnknown);
-      }));
+      });
   connection_.OnHandshakeComplete();
   EXPECT_TRUE(connection_.HasPendingPathValidation());
   ASSERT_FALSE(new_writer.path_challenge_frames().empty());
@@ -17014,14 +17003,14 @@ TEST_P(QuicConnectionTest, ClientFailedToValidateServerPreferredAddress) {
   // confirmed.
   EXPECT_CALL(visitor_,
               OnServerPreferredAddressAvailable(kServerPreferredAddress))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         connection_.ValidatePath(
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
                 &connection_),
             PathValidationReason::kReasonUnknown);
-      }));
+      });
   connection_.OnHandshakeComplete();
   EXPECT_TRUE(connection_.IsValidatingServerPreferredAddress());
   EXPECT_TRUE(QuicConnectionPeer::IsAlternativePath(
@@ -17077,14 +17066,14 @@ TEST_P(QuicConnectionTest, OptimizedServerPreferredAddress) {
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
   EXPECT_CALL(visitor_,
               OnServerPreferredAddressAvailable(kServerPreferredAddress))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         connection_.ValidatePath(
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
                 &connection_),
             PathValidationReason::kReasonUnknown);
-      }));
+      });
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kSPA2});
   ServerPreferredAddressInit(config);
@@ -17115,14 +17104,14 @@ TEST_P(QuicConnectionTest, OptimizedServerPreferredAddress2) {
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
   EXPECT_CALL(visitor_,
               OnServerPreferredAddressAvailable(kServerPreferredAddress))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         connection_.ValidatePath(
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
                 &connection_),
             PathValidationReason::kReasonUnknown);
-      }));
+      });
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kSPA2});
   ServerPreferredAddressInit(config);
@@ -17159,14 +17148,14 @@ TEST_P(QuicConnectionTest, MaxDuplicatedPacketsSentToServerPreferredAddress) {
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
   EXPECT_CALL(visitor_,
               OnServerPreferredAddressAvailable(kServerPreferredAddress))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         connection_.ValidatePath(
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
                 &connection_),
             PathValidationReason::kReasonUnknown);
-      }));
+      });
   QuicConfig config;
   config.SetClientConnectionOptions(QuicTagVector{kSPA2});
   ServerPreferredAddressInit(config);
@@ -17210,25 +17199,25 @@ TEST_P(QuicConnectionTest, MultiPortCreationAfterServerMigration) {
   TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
   EXPECT_CALL(visitor_,
               OnServerPreferredAddressAvailable(kServerPreferredAddress))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         connection_.ValidatePath(
             std::make_unique<TestQuicPathValidationContext>(
                 kNewSelfAddress, kServerPreferredAddress, &new_writer),
             std::make_unique<ServerPreferredAddressTestResultDelegate>(
                 &connection_),
             PathValidationReason::kReasonUnknown);
-      }));
+      });
   // The connection should start probing the preferred address after handshake
   // confirmed.
   QuicPathFrameBuffer payload;
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(testing::AtLeast(1u))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(1u, new_writer.path_challenge_frames().size());
         payload = new_writer.path_challenge_frames().front().data_buffer;
         EXPECT_EQ(kServerPreferredAddress,
                   new_writer.last_write_peer_address());
-      }));
+      });
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   connection_.OnHandshakeComplete();
@@ -17298,9 +17287,9 @@ TEST_P(QuicConnectionTest, ClientReceivePathChallengeAfterServerMigration) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   EXPECT_CALL(visitor_,
               OnServerPreferredAddressAvailable(kServerPreferredAddress))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         connection_.AddKnownServerAddress(kServerPreferredAddress);
-      }));
+      });
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   connection_.OnHandshakeComplete();
@@ -17349,7 +17338,7 @@ TEST_P(QuicConnectionTest, ClientReceivePathChallengeAfterServerMigration) {
       QuicFrame(QuicPathChallengeFrame(0, path_challenge_payload)));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         ASSERT_FALSE(new_writer.path_response_frames().empty());
         EXPECT_EQ(
             0, memcmp(&path_challenge_payload,
@@ -17359,7 +17348,7 @@ TEST_P(QuicConnectionTest, ClientReceivePathChallengeAfterServerMigration) {
                   new_writer.last_write_peer_address());
         EXPECT_EQ(kNewSelfAddress.host(),
                   new_writer.last_write_source_address());
-      }));
+      });
   ProcessFramesPacketWithAddresses(frames1, kNewSelfAddress, kPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
 }
@@ -17379,9 +17368,9 @@ TEST_P(QuicConnectionTest, ClientProbesAfterServerMigration) {
   // confirmed.
   EXPECT_CALL(visitor_,
               OnServerPreferredAddressAvailable(kServerPreferredAddress))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         connection_.AddKnownServerAddress(kServerPreferredAddress);
-      }));
+      });
   EXPECT_CALL(visitor_, GetHandshakeState())
       .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
   connection_.OnHandshakeComplete();
@@ -17446,14 +17435,14 @@ TEST_P(QuicConnectionTest, ClientProbesAfterServerMigration) {
   QuicPathFrameBuffer payload;
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(testing::AtLeast(1u))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(1u, new_writer2.path_challenge_frames().size());
         payload = new_writer2.path_challenge_frames().front().data_buffer;
         EXPECT_EQ(kServerPreferredAddress,
                   new_writer2.last_write_peer_address());
         EXPECT_EQ(kNewSelfAddress2.host(),
                   new_writer2.last_write_source_address());
-      }));
+      });
   connection_.ValidatePath(
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress2, connection_.peer_address(), &new_writer2),
@@ -17473,7 +17462,7 @@ TEST_P(QuicConnectionTest, ClientProbesAfterServerMigration) {
   frames.push_back(QuicFrame(QuicPathResponseFrame(99, payload)));
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_FALSE(new_writer2.path_response_frames().empty());
         EXPECT_EQ(
             0, memcmp(&path_challenge_payload,
@@ -17483,7 +17472,7 @@ TEST_P(QuicConnectionTest, ClientProbesAfterServerMigration) {
                   new_writer2.last_write_peer_address());
         EXPECT_EQ(kNewSelfAddress2.host(),
                   new_writer2.last_write_source_address());
-      }));
+      });
   ProcessFramesPacketWithAddresses(frames, kNewSelfAddress2, kPeerAddress,
                                    ENCRYPTION_FORWARD_SECURE);
   EXPECT_TRUE(success);
@@ -17799,7 +17788,7 @@ TEST_P(QuicConnectionTest,
       connection_.GetStats().num_connectivity_probing_received;
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
       .Times(AtLeast(1u))
-      .WillOnce(Invoke([&]() {
+      .WillOnce([&]() {
         EXPECT_EQ(1u, writer_->path_response_frames().size());
         EXPECT_EQ(1u, writer_->path_challenge_frames().size());
         // The responses should be sent from preferred address given server
@@ -17808,7 +17797,7 @@ TEST_P(QuicConnectionTest,
         EXPECT_EQ(kServerPreferredAddress.host(),
                   writer_->last_write_source_address());
         EXPECT_EQ(kNewPeerAddress, writer_->last_write_peer_address());
-      }))
+      })
       .WillRepeatedly(DoDefault());
   ProcessReceivedPacket(kServerPreferredAddress, kNewPeerAddress, *received);
   EXPECT_EQ(num_probing_received + 1,
@@ -18077,10 +18066,10 @@ TEST_P(QuicConnectionTest, ConfigHardCodedPeerReorderingThreshold) {
 TEST_P(QuicConnectionTest, LeastUnackedOffByOne) {
   QuicPacketNumber largest_packet_sent;
   EXPECT_CALL(connection_, OnSerializedPacket)
-      .WillOnce(Invoke([&](SerializedPacket packet) {
+      .WillOnce([&](SerializedPacket packet) {
         largest_packet_sent = packet.packet_number;
         connection_.QuicConnection::OnSerializedPacket(std::move(packet));
-      }));
+      });
   ProcessPacket(1);
   ProcessPacket(2);
   EXPECT_TRUE(largest_packet_sent.IsInitialized());

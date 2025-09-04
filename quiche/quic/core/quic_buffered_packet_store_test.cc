@@ -125,7 +125,7 @@ class QuicBufferedPacketStoreTest : public QuicTest {
     EXPECT_CALL(mock_packet_writer_, IsWriteBlocked())
         .WillRepeatedly(Return(false));
     EXPECT_CALL(mock_packet_writer_, WritePacket(_, _, _, _, _, _))
-        .WillRepeatedly(testing::Invoke(
+        .WillRepeatedly(
             [&](const char* buffer, size_t buf_len, const QuicIpAddress&,
                 const QuicSocketAddress&, PerPacketOptions*,
                 const QuicPacketWriterParams&) {
@@ -134,7 +134,7 @@ class QuicBufferedPacketStoreTest : public QuicTest {
                   std::make_unique<ClientReceivedPacket>(
                       buffer, buf_len, peer_address_, self_address_));
               return WriteResult(WRITE_STATUS_OK, buf_len);
-            }));
+            });
   }
 
  protected:

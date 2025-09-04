@@ -9,7 +9,6 @@
 
 namespace quic {
 
-using testing::Invoke;
 using testing::Return;
 
 namespace {
@@ -111,9 +110,9 @@ TEST(QuicBlockedWriterList, OnWriterUnblockedThenBlocked) {
 
   EXPECT_CALL(writer1, OnBlockedWriterCanWrite());
   EXPECT_CALL(writer2, IsWriterBlocked()).WillOnce(Return(true));
-  EXPECT_CALL(writer2, OnBlockedWriterCanWrite()).WillOnce(Invoke([&]() {
+  EXPECT_CALL(writer2, OnBlockedWriterCanWrite()).WillOnce([&]() {
     list.Add(writer2);
-  }));
+  });
 
   EXPECT_CALL(writer3, OnBlockedWriterCanWrite());
   list.OnWriterUnblocked();

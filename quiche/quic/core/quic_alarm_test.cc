@@ -214,9 +214,9 @@ TEST_F(QuicAlarmTest, NullAlarmContext) {
 
   EXPECT_CALL(*delegate_, GetConnectionContext()).WillOnce(Return(nullptr));
 
-  EXPECT_CALL(*delegate_, OnAlarm()).WillOnce(Invoke([] {
+  EXPECT_CALL(*delegate_, OnAlarm()).WillOnce([] {
     QUIC_TRACELITERAL("Alarm fired.");
-  }));
+  });
   alarm_.FireAlarm();
 }
 
@@ -229,9 +229,9 @@ TEST_F(QuicAlarmTest, AlarmContextWithNullTracer) {
 
   EXPECT_CALL(*delegate_, GetConnectionContext()).WillOnce(Return(&context));
 
-  EXPECT_CALL(*delegate_, OnAlarm()).WillOnce(Invoke([] {
+  EXPECT_CALL(*delegate_, OnAlarm()).WillOnce([] {
     QUIC_TRACELITERAL("Alarm fired.");
-  }));
+  });
   alarm_.FireAlarm();
 }
 
@@ -246,9 +246,9 @@ TEST_F(QuicAlarmTest, AlarmContextWithTracer) {
 
   EXPECT_CALL(*delegate_, GetConnectionContext()).WillOnce(Return(&context));
 
-  EXPECT_CALL(*delegate_, OnAlarm()).WillOnce(Invoke([] {
+  EXPECT_CALL(*delegate_, OnAlarm()).WillOnce([] {
     QUIC_TRACELITERAL("Alarm fired.");
-  }));
+  });
 
   // Since |context| is not installed in the current thread, the messages before
   // and after FireAlarm() should not be collected by |tracer|.
