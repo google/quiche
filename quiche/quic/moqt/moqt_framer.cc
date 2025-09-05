@@ -270,12 +270,13 @@ void VersionSpecificParametersToKeyValuePairList(
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
     const MoqtObject& message, MoqtDataStreamType message_type,
-    bool is_first_in_stream) {
+    std::optional<uint64_t> previous_object_in_stream) {
   if (!ValidateObjectMetadata(message, /*is_datagram=*/false)) {
     QUICHE_BUG(QUICHE_BUG_serialize_object_header_01)
         << "Object metadata is invalid";
     return quiche::QuicheBuffer();
   }
+  bool is_first_in_stream = !previous_object_in_stream.has_value();
   // Not all fields will be written to the wire. Keep optional ones in
   // std::optional so that they can be excluded.
   // Three fields are always optional.
@@ -300,11 +301,23 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
         WireVarInt62(message.payload_length),
         WireOptional<WireVarInt62>(object_status));
   }
+  if (previous_object_in_stream.has_value() &&
+      message.object_id <= *previous_object_in_stream) {
+    QUICHE_BUG(QUICHE_BUG_serialize_object_header_02)
+        << "Object ID is not increasing";
+    return quiche::QuicheBuffer();
+  }
   // Subgroup headers have more optional fields.
   QUICHE_CHECK(message_type.IsSubgroup());
   std::optional<uint64_t> group_id =
-      is_first_in_stream ? std::optional<uint64_t>(message.group_id)
-                         : std::nullopt;
+      previous_object_in_stream.has_value()
+          ? std::nullopt
+          : std::optional<uint64_t>(message.group_id);
+  uint64_t object_id = message.object_id;
+  if (!is_first_in_stream) {
+    // The value is actually an object ID delta, not the absolute object ID.
+    object_id -= (*previous_object_in_stream + 1);
+  }
   std::optional<uint64_t> subgroup_id =
       (is_first_in_stream && message_type.IsSubgroupPresent())
           ? std::optional<uint64_t>(message.subgroup_id)
@@ -321,8 +334,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
       WireOptional<WireVarInt62>(track_alias),
       WireOptional<WireVarInt62>(group_id),
       WireOptional<WireVarInt62>(subgroup_id),
-      WireOptional<WireUint8>(publisher_priority),
-      WireVarInt62(message.object_id),
+      WireOptional<WireUint8>(publisher_priority), WireVarInt62(object_id),
       WireOptional<WireStringWithVarInt62Length>(extension_headers),
       WireVarInt62(message.payload_length),
       WireOptional<WireVarInt62>(object_status));
@@ -341,9 +353,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
     return quiche::QuicheBuffer();
   }
   MoqtDatagramType datagram_type(
-      /*has_status=*/payload.empty(), !message.extension_headers.empty(),
-      !payload.empty() &&
-          message.object_status == MoqtObjectStatus::kEndOfGroup);
+      !payload.empty(), !message.extension_headers.empty(),
+      message.object_status == MoqtObjectStatus::kEndOfGroup,
+      message.object_id == 0);
+  std::optional<uint64_t> object_id =
+      datagram_type.has_object_id() ? std::optional<uint64_t>(message.object_id)
+                                    : std::nullopt;
   std::optional<absl::string_view> extensions =
       datagram_type.has_extension()
           ? std::optional<absl::string_view>(message.extension_headers)
@@ -357,7 +372,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
                       : std::optional<absl::string_view>(payload);
   return Serialize(
       WireVarInt62(datagram_type.value()), WireVarInt62(message.track_alias),
-      WireVarInt62(message.group_id), WireVarInt62(message.object_id),
+      WireVarInt62(message.group_id), WireOptional<WireVarInt62>(object_id),
       WireUint8(message.publisher_priority),
       WireOptional<WireStringWithVarInt62Length>(extensions),
       WireOptional<WireVarInt62>(object_status),

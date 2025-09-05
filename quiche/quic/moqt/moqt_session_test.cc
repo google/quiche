@@ -193,7 +193,8 @@ class MoqtSessionTest : public quic::test::QuicTest {
         object,
         MoqtDataStreamType::Subgroup(object.subgroup_id, object.object_id,
                                      false),
-        visitor == nullptr);
+        (visitor == nullptr) ? std::nullopt
+                             : std::optional<uint64_t>(object.object_id - 1));
     size_t data_read = 0;
     if (visitor == nullptr) {  // It's the first object in the stream
       EXPECT_CALL(session, AcceptIncomingUnidirectionalStream())
@@ -1651,7 +1652,7 @@ TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
   // Reopen the window.
   correct_message = false;
   // object id, extensions, payload length, status.
-  const std::string kExpectedMessage2 = {0x01, 0x00, 0x00, 0x03};
+  const std::string kExpectedMessage2 = {0x00, 0x00, 0x00, 0x03};
   EXPECT_CALL(mock_stream_, CanWrite()).WillRepeatedly([&] { return true; });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 1)).WillRepeatedly([&] {
     return PublishedObject{PublishedObjectMetadata{
@@ -1963,7 +1964,7 @@ TEST_F(MoqtSessionTest, SendDatagram) {
   // Publish in window.
   bool correct_message = false;
   uint8_t kExpectedMessage[] = {
-      0x00, 0x02, 0x05, 0x00, 0x80, 0x64, 0x65,
+      0x04, 0x02, 0x05, 0x80, 0x64, 0x65,
       0x61, 0x64, 0x62, 0x65, 0x65, 0x66,  // "deadbeef"
   };
   EXPECT_CALL(mock_session_, SendOrQueueDatagram(_))
@@ -2724,8 +2725,8 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
       /*payload_length=*/3,
   };
   MoqtFramer framer(quiche::SimpleBufferAllocator::Get(), true);
-  quiche::QuicheBuffer header =
-      framer.SerializeObjectHeader(object, MoqtDataStreamType::Fetch(), true);
+  quiche::QuicheBuffer header = framer.SerializeObjectHeader(
+      object, MoqtDataStreamType::Fetch(), std::nullopt);
 
   // Open stream, deliver two objects before FETCH_OK. Neither should be read.
   webtransport::test::InMemoryStream data_stream(kIncomingUniStreamId);
@@ -2942,7 +2943,8 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
   for (int i = 0; i < 4; ++i) {
     object.object_id = i;
     headers.push(framer_.SerializeObjectHeader(
-        object, MoqtDataStreamType::Fetch(), i == 0));
+        object, MoqtDataStreamType::Fetch(),
+        i == 0 ? std::nullopt : std::optional<uint64_t>(i - 1)));
     payloads.push("foo");
   }
 
@@ -3013,7 +3015,8 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
   for (int i = 0; i < 4; ++i) {
     object.object_id = i;
     headers.push(framer_.SerializeObjectHeader(
-        object, MoqtDataStreamType::Fetch(), i == 0));
+        object, MoqtDataStreamType::Fetch(),
+        i == 0 ? std::nullopt : std::optional<uint64_t>(i - 1)));
     payloads.push("foo");
   }
 
@@ -3102,8 +3105,8 @@ TEST_F(MoqtSessionTest, PartialObjectFetch) {
       /*payload_length=*/6,
   };
   MoqtFramer framer_(quiche::SimpleBufferAllocator::Get(), true);
-  quiche::QuicheBuffer header =
-      framer_.SerializeObjectHeader(object, MoqtDataStreamType::Fetch(), true);
+  quiche::QuicheBuffer header = framer_.SerializeObjectHeader(
+      object, MoqtDataStreamType::Fetch(), std::nullopt);
   stream.Receive(header.AsStringView(), false);
   EXPECT_FALSE(task->HasObject());
   EXPECT_FALSE(object_ready);

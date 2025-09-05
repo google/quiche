@@ -41,11 +41,11 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 }
 
 enum class MoqtVersion : uint64_t {
-  kDraft13 = 0xff00000d,
+  kDraft14 = 0xff00000e,
   kUnrecognizedVersionForTests = 0xfe0000ff,
 };
 
-inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft13;
+inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft14;
 inline constexpr uint64_t kDefaultInitialMaxRequestId = 100;
 // TODO(martinduke): Implement an auth token cache.
 inline constexpr uint64_t kDefaultMaxAuthTokenCacheSize = 0;
@@ -193,32 +193,46 @@ class QUICHE_EXPORT MoqtDataStreamType {
 
 class QUICHE_EXPORT MoqtDatagramType {
  public:
-  MoqtDatagramType(bool has_status, bool has_extension, bool end_of_group)
+  // The arguments here are properties of the object. The constructor creates
+  // the appropriate type given those properties and the spec restrictions.
+  MoqtDatagramType(bool payload, bool extension, bool end_of_group,
+                   bool zero_object_id)
       : value_(0) {
-    if (has_extension) {
+    // Avoid illegal types. Status cannot coexist with the zero-object-id flag
+    // or the end-of-group flag.
+    if (!payload && !end_of_group) {
+      // The only way to express non-normal, non-end-of-group with no payload is
+      // with an explicit status, so we cannot utilize object ID compression.
+      zero_object_id = false;
+    } else if (zero_object_id) {
+      // zero-object-id saves a byte; no-payload does not.
+      payload = true;
+    } else if (!payload) {
+      // If it's an empty end-of-group object, use the explict status because
+      // it's more readable.
+      end_of_group = false;
+    }
+    if (extension) {
       value_ |= 0x01;
     }
     if (end_of_group) {
       value_ |= 0x02;
     }
-    if (has_status) {
+    if (zero_object_id) {
       value_ |= 0x04;
     }
-    if (value_ > 0x5) {
-      QUICHE_BUG(Moqt_invalid_datagram_type)
-          << "Invalid datagram type: " << value_;
-      // Clear the end of group bit.
-      value_ &= 0x5;
-      return;
+    if (!payload) {
+      value_ |= 0x20;
     }
   }
   static std::optional<MoqtDatagramType> FromValue(uint64_t value) {
-    if (value <= 5) {
+    if (value <= 7 || value == 0x20 || value == 0x21) {
       return MoqtDatagramType(value);
     }
     return std::nullopt;
   }
-  bool has_status() const { return value_ & 0x04; }
+  bool has_status() const { return value_ & 0x20; }
+  bool has_object_id() const { return !(value_ & 0x04); }
   bool end_of_group() const { return value_ & 0x02; }
   bool has_extension() const { return value_ & 0x01; }
   uint64_t value() const { return value_; }

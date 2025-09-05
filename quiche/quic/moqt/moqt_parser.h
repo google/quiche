@@ -11,6 +11,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
@@ -284,6 +285,7 @@ class QUICHE_EXPORT MoqtDataParser {
   std::optional<MoqtDataStreamType> type_ = std::nullopt;
   NextInput next_input_ = kStreamType;
   MoqtObject metadata_;
+  std::optional<uint64_t> last_object_id_;
   size_t payload_length_remaining_ = 0;
   size_t num_objects_read_ = 0;
 

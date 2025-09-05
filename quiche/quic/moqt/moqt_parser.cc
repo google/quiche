@@ -1269,12 +1269,10 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
   object_metadata = MoqtObject();
   if (!reader.ReadVarInt62(&type_raw) ||
       !reader.ReadVarInt62(&object_metadata.track_alias) ||
-      !reader.ReadVarInt62(&object_metadata.group_id) ||
-      !reader.ReadVarInt62(&object_metadata.object_id) ||
-      !reader.ReadUInt8(&object_metadata.publisher_priority)) {
+      !reader.ReadVarInt62(&object_metadata.group_id)) {
     return std::nullopt;
   }
-  object_metadata.subgroup_id = object_metadata.object_id;
+
   std::optional<MoqtDatagramType> datagram_type =
       MoqtDatagramType::FromValue(type_raw);
   if (!datagram_type.has_value()) {
@@ -1289,6 +1287,17 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
     }
   } else {
     object_metadata.object_status = MoqtObjectStatus::kNormal;
+  }
+  if (datagram_type->has_object_id()) {
+    if (!reader.ReadVarInt62(&object_metadata.object_id)) {
+      return std::nullopt;
+    }
+  } else {
+    object_metadata.object_id = 0;
+  }
+  object_metadata.subgroup_id = object_metadata.object_id;
+  if (!reader.ReadUInt8(&object_metadata.publisher_priority)) {
+    return std::nullopt;
   }
   if (datagram_type->has_extension()) {
     if (!reader.ReadStringPieceVarInt62(&extensions)) {
@@ -1481,7 +1490,13 @@ void MoqtDataParser::ParseNextItemFromStream() {
     case kObjectId: {
       std::optional<uint64_t> value_read = ReadVarInt62NoFin();
       if (value_read.has_value()) {
-        metadata_.object_id = *value_read;
+        if (type_.has_value() && type_->IsSubgroup() &&
+            last_object_id_.has_value()) {
+          metadata_.object_id = *value_read + *last_object_id_ + 1;
+        } else {
+          metadata_.object_id = *value_read;
+        }
+        last_object_id_ = metadata_.object_id;
         AdvanceParserState();
       }
       return;

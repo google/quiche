@@ -1277,7 +1277,7 @@ TEST_F(MoqtMessageSpecificTest, AllMessagesTogether) {
 }
 
 TEST_F(MoqtMessageSpecificTest, DatagramSuccessful) {
-  for (MoqtDatagramType datagram_type : kMoqtDatagramTypes) {
+  for (MoqtDatagramType datagram_type : AllMoqtDatagramTypes()) {
     ObjectDatagramMessage message(datagram_type);
     MoqtObject object;
     std::optional<absl::string_view> payload =
@@ -1295,7 +1295,7 @@ TEST_F(MoqtMessageSpecificTest, DatagramSuccessful) {
 }
 
 TEST_F(MoqtMessageSpecificTest, DatagramSuccessfulExpandVarints) {
-  for (MoqtDatagramType datagram_type : kMoqtDatagramTypes) {
+  for (MoqtDatagramType datagram_type : AllMoqtDatagramTypes()) {
     ObjectDatagramMessage message(datagram_type);
     message.ExpandVarints();
     MoqtObject object;
@@ -1323,7 +1323,7 @@ TEST_F(MoqtMessageSpecificTest, WrongMessageInDatagram) {
 }
 
 TEST_F(MoqtMessageSpecificTest, TruncatedDatagram) {
-  ObjectDatagramMessage message(MoqtDatagramType(false, true, false));
+  ObjectDatagramMessage message(MoqtDatagramType(false, true, false, false));
   message.set_wire_image_size(4);
   MoqtObject object;
   std::optional<absl::string_view> payload =

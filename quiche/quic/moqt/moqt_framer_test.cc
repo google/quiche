@@ -86,15 +86,20 @@ std::string ParamNameFormatter(
          (info.param.uses_web_transport ? "WebTransport" : "QUIC");
 }
 
+// If |change_in_object_id| is 0, it's the first object in the stream.
 quiche::QuicheBuffer SerializeObject(MoqtFramer& framer,
                                      const MoqtObject& message,
                                      absl::string_view payload,
                                      MoqtDataStreamType stream_type,
-                                     bool is_first_in_stream) {
+                                     uint64_t change_in_object_id) {
   MoqtObject adjusted_message = message;
   adjusted_message.payload_length = payload.size();
+  QUICHE_DCHECK(message.object_id > change_in_object_id);
   quiche::QuicheBuffer header = framer.SerializeObjectHeader(
-      adjusted_message, stream_type, is_first_in_stream);
+      adjusted_message, stream_type,
+      change_in_object_id == 0
+          ? std::nullopt
+          : std::optional<uint64_t>(message.object_id - change_in_object_id));
   if (header.empty()) {
     return quiche::QuicheBuffer();
   }
@@ -284,16 +289,15 @@ class MoqtFramerSimpleTest : public quic::test::QuicTest {
 TEST_F(MoqtFramerSimpleTest, GroupMiddler) {
   MoqtDataStreamType type = MoqtDataStreamType::Subgroup(1, 1, true);
   auto header = std::make_unique<StreamHeaderSubgroupMessage>(type);
-  auto buffer1 =
-      SerializeObject(framer_, std::get<MoqtObject>(header->structured_data()),
-                      "foo", type, true);
+  auto buffer1 = SerializeObject(
+      framer_, std::get<MoqtObject>(header->structured_data()), "foo", type, 0);
   EXPECT_EQ(buffer1.size(), header->total_message_size());
   EXPECT_EQ(buffer1.AsStringView(), header->PacketSample());
 
   auto middler = std::make_unique<StreamMiddlerSubgroupMessage>(type);
   auto buffer2 =
       SerializeObject(framer_, std::get<MoqtObject>(middler->structured_data()),
-                      "bar", type, false);
+                      "bar", type, /*change_in_object_id=*/3);
   EXPECT_EQ(buffer2.size(), middler->total_message_size());
   EXPECT_EQ(buffer2.AsStringView(), middler->PacketSample());
 }
@@ -302,14 +306,14 @@ TEST_F(MoqtFramerSimpleTest, FetchMiddler) {
   auto header = std::make_unique<StreamHeaderFetchMessage>();
   auto buffer1 =
       SerializeObject(framer_, std::get<MoqtObject>(header->structured_data()),
-                      "foo", MoqtDataStreamType::Fetch(), true);
+                      "foo", MoqtDataStreamType::Fetch(), 0);
   EXPECT_EQ(buffer1.size(), header->total_message_size());
   EXPECT_EQ(buffer1.AsStringView(), header->PacketSample());
 
   auto middler = std::make_unique<StreamMiddlerFetchMessage>();
   auto buffer2 =
       SerializeObject(framer_, std::get<MoqtObject>(middler->structured_data()),
-                      "bar", MoqtDataStreamType::Fetch(), false);
+                      "bar", MoqtDataStreamType::Fetch(), 3);
   EXPECT_EQ(buffer2.size(), middler->total_message_size());
   EXPECT_EQ(buffer2.AsStringView(), middler->PacketSample());
 }
@@ -368,65 +372,15 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
   EXPECT_TRUE(buffer.empty());
 }
 
-TEST_F(MoqtFramerSimpleTest, Datagram) {
-  auto datagram = std::make_unique<ObjectDatagramMessage>(
-      MoqtDatagramType(/*has_status=*/false, /*has_extension=*/true,
-                       /*end_of_group=*/false));
-  MoqtObject object = {
-      /*track_alias=*/4,
-      /*group_id=*/5,
-      /*object_id=*/6,
-      /*publisher_priority=*/7,
-      std::string(kDefaultExtensionBlob),
-      /*object_status=*/MoqtObjectStatus::kNormal,
-      /*subgroup_id=*/6,
-      /*payload_length=*/3,
-  };
-  std::string payload = "foo";
-  quiche::QuicheBuffer buffer;
-  buffer = framer_.SerializeObjectDatagram(object, payload);
-  EXPECT_EQ(buffer.size(), datagram->total_message_size());
-  EXPECT_EQ(buffer.AsStringView(), datagram->PacketSample());
-}
-
-TEST_F(MoqtFramerSimpleTest, DatagramStatus) {
-  auto datagram = std::make_unique<ObjectDatagramMessage>(
-      MoqtDatagramType(true, true, false));
-  MoqtObject object = {
-      /*track_alias=*/4,
-      /*group_id=*/5,
-      /*object_id=*/6,
-      /*publisher_priority=*/7,
-      std::string(kDefaultExtensionBlob),
-      /*object_status=*/MoqtObjectStatus::kObjectDoesNotExist,
-      /*subgroup_id=*/6,
-      /*payload_length=*/0,
-  };
-  quiche::QuicheBuffer buffer;
-  buffer = framer_.SerializeObjectDatagram(object, "");
-  EXPECT_EQ(buffer.size(), datagram->total_message_size());
-  EXPECT_EQ(buffer.AsStringView(), datagram->PacketSample());
-}
-
-TEST_F(MoqtFramerSimpleTest, DatagramEndOfGroup) {
-  auto datagram = std::make_unique<ObjectDatagramMessage>(
-      MoqtDatagramType(/*has_status=*/false, /*has_extension=*/true,
-                       /*end_of_group=*/true));
-  MoqtObject object = {
-      /*track_alias=*/4,
-      /*group_id=*/5,
-      /*object_id=*/6,
-      /*publisher_priority=*/7,
-      std::string(kDefaultExtensionBlob),
-      /*object_status=*/MoqtObjectStatus::kEndOfGroup,
-      /*subgroup_id=*/6,
-      /*payload_length=*/3,
-  };
-  std::string payload = "foo";
-  quiche::QuicheBuffer buffer;
-  buffer = framer_.SerializeObjectDatagram(object, payload);
-  EXPECT_EQ(buffer.size(), datagram->total_message_size());
-  EXPECT_EQ(buffer.AsStringView(), datagram->PacketSample());
+TEST_F(MoqtFramerSimpleTest, AllDatagramTypes) {
+  for (MoqtDatagramType type : AllMoqtDatagramTypes()) {
+    ObjectDatagramMessage message(type);
+    MoqtObject object = std::get<MoqtObject>(message.structured_data());
+    quiche::QuicheBuffer buffer =
+        framer_.SerializeObjectDatagram(object, type.has_status() ? "" : "foo");
+    EXPECT_EQ(buffer.size(), message.total_message_size());
+    EXPECT_EQ(buffer.AsStringView(), message.PacketSample());
+  }
 }
 
 TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {

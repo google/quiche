@@ -563,7 +563,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // exact ID of the next object in the stream because the next object could
     // be in a different subgroup or simply be skipped.
     uint64_t next_object_;
-    bool stream_header_written_ = false;
+    // Used in subgroup streams to compute the object ID diff. If nullopt, the
+    // stream header has not been written yet.
+    std::optional<uint64_t> last_object_id_;
     // If this data stream is for SUBSCRIBE, reset it if an object has been
     // excessively delayed per Section 7.1.1.2.
     std::unique_ptr<quic::QuicAlarm> delivery_timeout_alarm_;
@@ -755,8 +757,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   bool WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
                            const PublishedObjectMetadata& metadata,
                            quiche::QuicheMemSlice payload,
-                           MoqtDataStreamType type, bool is_first_on_stream,
-                           bool fin);
+                           MoqtDataStreamType type,
+                           std::optional<uint64_t> last_id, bool fin);
 
   void CancelFetch(uint64_t request_id);
 

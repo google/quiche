@@ -32,12 +32,20 @@ namespace moqt::test {
 inline constexpr absl::string_view kDefaultExtensionBlob(
     "\x00\x0c\x01\x03\x66\x6f\x6f", 7);
 
-const MoqtDatagramType kMoqtDatagramTypes[] = {
-    MoqtDatagramType(false, false, true), MoqtDatagramType(false, false, false),
-    MoqtDatagramType(false, true, true),  MoqtDatagramType(false, true, false),
-    MoqtDatagramType(true, false, false), MoqtDatagramType(true, true, false),
-    // Cannot have status and end_of_group both be true.
-};
+inline std::vector<MoqtDatagramType> AllMoqtDatagramTypes() {
+  std::vector<MoqtDatagramType> types;
+  for (bool payload : {false, true}) {
+    for (bool extension : {false, true}) {
+      for (bool end_of_group : {false, true}) {
+        for (bool zero_object_id : {false, true}) {
+          types.push_back(MoqtDatagramType(payload, extension, end_of_group,
+                                           zero_object_id));
+        }
+      }
+    }
+  }
+  return types;
+}
 
 inline std::vector<MoqtDataStreamType> AllMoqtDataStreamTypes() {
   std::vector<MoqtDataStreamType> types;
@@ -243,7 +251,6 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
  public:
   ObjectDatagramMessage(MoqtDatagramType datagram_type)
       : ObjectMessage(), datagram_type_(datagram_type) {
-    object_.subgroup_id = object_.object_id;
     // Update ObjectMessage::object_ to match the datagram type.
     if (datagram_type.has_status()) {
       object_.object_status = MoqtObjectStatus::kObjectDoesNotExist;
@@ -254,15 +261,18 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
                                   : MoqtObjectStatus::kNormal;
       object_.payload_length = 3;
     }
-    if (datagram_type.has_extension()) {
-      object_.extension_headers = std::string(kDefaultExtensionBlob);
-    } else {
-      object_.extension_headers = "";
-    }
+    object_.extension_headers =
+        datagram_type.has_extension() ? std::string(kDefaultExtensionBlob) : "";
+    object_.object_id = datagram_type.has_object_id() ? 6 : 0;
+    object_.subgroup_id = object_.object_id;
     quic::QuicDataWriter writer(sizeof(raw_packet_),
                                 reinterpret_cast<char*>(raw_packet_));
     EXPECT_TRUE(writer.WriteVarInt62(datagram_type.value()));
-    EXPECT_TRUE(writer.WriteStringPiece(kRawVarints));
+    EXPECT_TRUE(writer.WriteStringPiece(kRawAliasGroup));
+    if (datagram_type.has_object_id()) {
+      EXPECT_TRUE(writer.WriteStringPiece(kRawObject));
+    }
+    EXPECT_TRUE(writer.WriteStringPiece(kRawPriority));
     if (datagram_type.has_extension()) {
       EXPECT_TRUE(writer.WriteStringPiece(kRawExtensions));
     }
@@ -277,25 +287,26 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
   }
 
   void ExpandVarints() override {
-    if (datagram_type_.has_extension()) {
-      if (datagram_type_.has_status()) {
-        ExpandVarintsImpl("vvvv-v-------v", false);
-      } else {
-        ExpandVarintsImpl("vvvv-v----------", false);
-      }
-    } else {
-      if (datagram_type_.has_status()) {
-        ExpandVarintsImpl("vvvv-v", false);
-      } else {
-        ExpandVarintsImpl("vvvv----", false);
-      }
+    std::string varints = "vvv";
+    if (datagram_type_.has_object_id()) {
+      varints += "v";
     }
+    varints += "-";  // priority
+    if (datagram_type_.has_extension()) {
+      varints += "v-------";
+    }
+    if (datagram_type_.has_status()) {
+      varints += "v";
+    }
+    ExpandVarintsImpl(varints, false);
   }
 
  private:
   uint8_t raw_packet_[17];
   MoqtDatagramType datagram_type_;
-  static constexpr absl::string_view kRawVarints = "\x04\x05\x06\x07";
+  static constexpr absl::string_view kRawAliasGroup = "\x04\x05";
+  static constexpr absl::string_view kRawObject = "\x06";
+  static constexpr absl::string_view kRawPriority = "\x07";
   static constexpr absl::string_view kRawExtensions{
       "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultExtensionBlob
   static constexpr absl::string_view kRawPayload = "foo";
@@ -396,7 +407,7 @@ class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
     }
     object_.object_id = 9;
     quic::QuicDataWriter writer(sizeof(raw_packet_), raw_packet_);
-    EXPECT_TRUE(writer.WriteVarInt62(object_.object_id));
+    EXPECT_TRUE(writer.WriteVarInt62(2));  // Object ID delta - 1
     if (type.AreExtensionHeadersPresent()) {
       EXPECT_TRUE(
           writer.WriteBytes(kRawExtensions.data(), kRawExtensions.length()));

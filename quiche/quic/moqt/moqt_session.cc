@@ -641,7 +641,9 @@ void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
         if (fetch->session_->WriteObjectToStream(
                 stream_, fetch->request_id(), object.metadata,
                 std::move(object.payload), MoqtDataStreamType::Fetch(),
-                !stream_header_written_,
+                // last Object ID doesn't matter for FETCH, just use zero.
+                stream_header_written_ ? std::optional<uint64_t>(0)
+                                       : std::nullopt,
                 /*fin=*/false)) {
           stream_header_written_ = true;
         }
@@ -2393,14 +2395,14 @@ void MoqtSession::OutgoingDataStream::SendObjects(
     }
     if (!session_->WriteObjectToStream(
             stream_, *subscription.track_alias(), object->metadata,
-            std::move(object->payload), stream_type_, !stream_header_written_,
+            std::move(object->payload), stream_type_, last_object_id_,
             object->fin_after_this)) {
       // WriteObjectToStream() closes the connection on error, meaning that
       // there is no need to process the stream any further.
       return;
     }
     ++next_object_;
-    stream_header_written_ = true;
+    last_object_id_ = object->metadata.location.object;
     subscription.OnObjectSent(object->metadata.location);
 
     if (object->fin_after_this && !delivery_timeout.IsInfinite() &&
@@ -2435,7 +2437,8 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
                                       const PublishedObjectMetadata& metadata,
                                       quiche::QuicheMemSlice payload,
                                       MoqtDataStreamType type,
-                                      bool is_first_on_stream, bool fin) {
+                                      std::optional<uint64_t> last_id,
+                                      bool fin) {
   QUICHE_DCHECK(stream->CanWrite());
   MoqtObject header;
   header.track_alias = id;
@@ -2447,7 +2450,7 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
   header.payload_length = payload.length();
 
   quiche::QuicheBuffer serialized_header =
-      framer_.SerializeObjectHeader(header, type, is_first_on_stream);
+      framer_.SerializeObjectHeader(header, type, last_id);
   // TODO(vasilvv): add a version of WebTransport write API that accepts
   // memslices so that we can avoid a copy here.
   std::array write_vector = {

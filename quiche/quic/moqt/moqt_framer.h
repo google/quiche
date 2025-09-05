@@ -5,6 +5,9 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_FRAMER_H_
 #define QUICHE_QUIC_MOQT_MOQT_FRAMER_H_
 
+#include <cstdint>
+#include <optional>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -28,11 +31,12 @@ class QUICHE_EXPORT MoqtFramer {
   // Serialize functions. Takes structured data and serializes it into a
   // QuicheBuffer for delivery to the stream.
 
-  // Serializes the header for an object, including the appropriate stream
-  // header if `is_first_in_stream` is set to true.
-  quiche::QuicheBuffer SerializeObjectHeader(const MoqtObject& message,
-                                             MoqtDataStreamType message_type,
-                                             bool is_first_in_stream);
+  // Serializes the header for an object, |previous_object_in_stream| is nullopt
+  // if this is the first object in the stream, the object ID of the previous
+  // one otherwise.
+  quiche::QuicheBuffer SerializeObjectHeader(
+      const MoqtObject& message, MoqtDataStreamType message_type,
+      std::optional<uint64_t> previous_object_in_stream);
   // Serializes both OBJECT and OBJECT_STATUS datagrams.
   quiche::QuicheBuffer SerializeObjectDatagram(const MoqtObject& message,
                                                absl::string_view payload);
