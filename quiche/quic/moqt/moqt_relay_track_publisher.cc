@@ -10,8 +10,8 @@
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/moqt/moqt_cached_object.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"

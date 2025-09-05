@@ -10,13 +10,13 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
 
 
 #include "absl/algorithm/container.h"
+#include "absl/base/nullability.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
@@ -24,15 +24,16 @@
 #include "absl/functional/bind_front.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
@@ -83,11 +84,14 @@ class DefaultPublisher : public MoqtPublisher {
     return instance;
   }
 
-  absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> GetTrack(
+  // MoqtPublisher implementation.
+  absl_nullable std::shared_ptr<MoqtTrackPublisher> GetTrack(
       const FullTrackName& track_name) override {
     QUICHE_DCHECK(track_name.IsValid());
-    return absl::NotFoundError("No tracks published");
+    return nullptr;
   }
+  void AddNamespaceListener(NamespaceListener*) override {}
+  void RemoveNamespaceListener(NamespaceListener*) override {}
 };
 }  // namespace
 
@@ -1036,14 +1040,13 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     return;
   }
   const FullTrackName& track_name = message.full_track_name;
-  absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track_publisher =
+  std::shared_ptr<MoqtTrackPublisher> track_publisher =
       session_->publisher_->GetTrack(track_name);
-  if (!track_publisher.ok()) {
+  if (track_publisher == nullptr) {
     QUIC_DLOG(INFO) << ENDPOINT << "SUBSCRIBE for " << track_name
-                    << " rejected by the application: "
-                    << track_publisher.status();
+                    << " rejected by the application: does not exist";
     SendSubscribeError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
-                       track_publisher.status().message());
+                       "not found");
     return;
   }
 
@@ -1056,9 +1059,9 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     session_->monitoring_interfaces_for_published_tracks_.erase(monitoring_it);
   }
 
-  MoqtTrackPublisher* track_publisher_ptr = track_publisher->get();
+  MoqtTrackPublisher* track_publisher_ptr = track_publisher.get();
   auto subscription = std::make_unique<MoqtSession::PublishedSubscription>(
-      session_, *std::move(track_publisher), message, monitoring);
+      session_, track_publisher, message, monitoring);
   subscription->set_delivery_timeout(message.parameters.delivery_timeout);
   MoqtSession::PublishedSubscription* subscription_ptr = subscription.get();
   auto [it, success] = session_->published_subscriptions_.emplace(
@@ -1298,9 +1301,9 @@ void MoqtSession::ControlStream::OnTrackStatusMessage(
     return;
   }
   // TODO(martinduke): Handle authentication.
-  absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track =
+  std::shared_ptr<MoqtTrackPublisher> track =
       session_->publisher_->GetTrack(message.full_track_name);
-  if (!track.ok()) {
+  if (track == nullptr) {
     MoqtTrackStatusError error;
     error.request_id = message.request_id;
     error.error_code = RequestErrorCode::kTrackDoesNotExist;
@@ -1310,8 +1313,8 @@ void MoqtSession::ControlStream::OnTrackStatusMessage(
   }
   auto [it, inserted] = session_->incoming_track_status_.emplace(
       message.request_id, std::make_unique<DownstreamTrackStatus>(
-                              message.request_id, session_, track->get()));
-  track->get()->AddObjectListener(it->second.get());
+                              message.request_id, session_, track.get()));
+  track->AddObjectListener(it->second.get());
 }
 
 void MoqtSession::ControlStream::OnGoAwayMessage(const MoqtGoAway& message) {
@@ -1450,23 +1453,21 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
     const StandaloneFetch& standalone_fetch =
         std::get<StandaloneFetch>(message.fetch);
     track_name = standalone_fetch.full_track_name;
-    absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> track_publisher =
+    std::shared_ptr<MoqtTrackPublisher> track_publisher =
         session_->publisher_->GetTrack(track_name);
-    if (!track_publisher.ok()) {
+    if (track_publisher == nullptr) {
       QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
-                      << " rejected by the application: "
-                      << track_publisher.status();
+                      << " rejected by the application: not found";
       SendFetchError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
-                     track_publisher.status().message());
+                     "not found");
     }
     QUIC_DLOG(INFO) << ENDPOINT << "Received a StandaloneFETCH for "
                     << track_name;
     // The check for end_object < start_object is done in
     // MoqtTrackPublisher::Fetch().
-    fetch = (*track_publisher)
-                ->StandaloneFetch(standalone_fetch.start_location,
-                                  standalone_fetch.end_location,
-                                  message.group_order);
+    fetch = track_publisher->StandaloneFetch(standalone_fetch.start_location,
+                                             standalone_fetch.end_location,
+                                             message.group_order);
   } else {
     // Joining Fetch processing.
     uint64_t joining_request_id =

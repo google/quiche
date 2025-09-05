@@ -2,10 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/moqt/moqt_cached_object.h"
+#include "quiche/quic/moqt/moqt_object.h"
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/common/quiche_mem_slice.h"
 
 namespace moqt {

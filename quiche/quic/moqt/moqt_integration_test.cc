@@ -591,7 +591,7 @@ TEST_F(MoqtIntegrationTest, SubscribeError) {
   EstablishSession();
   FullTrackName full_track_name("foo", "bar");
   MockSubscribeRemoteTrackVisitor client_visitor;
-  std::optional<absl::string_view> expected_reason = "No tracks published";
+  std::optional<absl::string_view> expected_reason = "not found";
   bool received_ok = false;
   EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
       .WillOnce([&]() { received_ok = true; });

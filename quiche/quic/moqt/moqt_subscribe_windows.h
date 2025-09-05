@@ -12,7 +12,7 @@
 #include "absl/container/btree_map.h"
 #include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/moqt/moqt_messages.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/web_transport/web_transport.h"
 

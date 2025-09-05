@@ -7,8 +7,8 @@
 
 #include <memory>
 
+#include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
-#include "absl/status/statusor.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 
@@ -24,8 +24,13 @@ class MoqtKnownTrackPublisher : public MoqtPublisher {
   MoqtKnownTrackPublisher& operator=(const MoqtKnownTrackPublisher&) = delete;
   MoqtKnownTrackPublisher& operator=(MoqtKnownTrackPublisher&&) = delete;
 
-  absl::StatusOr<std::shared_ptr<MoqtTrackPublisher>> GetTrack(
+  // MoqtPublisher implementation.
+  absl_nullable std::shared_ptr<MoqtTrackPublisher> GetTrack(
       const FullTrackName& track_name) override;
+  // TODO(martinduke): Implement namespace support.
+  void AddNamespaceListener(NamespaceListener* /*listener*/) override {}
+  void RemoveNamespaceListener(NamespaceListener* /*listener*/) override {}
+
   void Add(std::shared_ptr<MoqtTrackPublisher> track_publisher);
   void Delete(const FullTrackName& track_name);
 

@@ -18,11 +18,12 @@
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/moqt/moqt_cached_object.h"
-#include "quiche/quic/moqt/moqt_failed_fetch.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -38,7 +39,8 @@ namespace moqt {
 //
 // This class is primarily meant to be used by live relays to buffer the
 // frames that arrive for a short time.
-class MoqtRelayTrackPublisher : public MoqtTrackPublisher {
+class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
+                                public SubscribeRemoteTrack::Visitor {
  public:
   MoqtRelayTrackPublisher(
       FullTrackName track,
@@ -57,6 +59,20 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher {
   MoqtRelayTrackPublisher(MoqtRelayTrackPublisher&&) = default;
   MoqtRelayTrackPublisher& operator=(const MoqtRelayTrackPublisher&) = delete;
   MoqtRelayTrackPublisher& operator=(MoqtRelayTrackPublisher&&) = default;
+
+  // SubscribeRemoteTrack::Visitor implementation.
+  // TODO(martinduke): Implement these.
+  void OnReply(
+      const FullTrackName& /*full_track_name*/,
+      std::optional<Location> /*largest_location*/,
+      std::optional<absl::string_view> /*error_reason_phrase*/) override {}
+  void OnCanAckObjects(MoqtObjectAckFunction /*ack_function*/) override {}
+  void OnObjectFragment(const FullTrackName& /*full_track_name*/,
+                        const PublishedObjectMetadata& /*metadata*/,
+                        absl::string_view /*object*/,
+                        bool /*end_of_message*/) override {}
+  void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+  void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
 
   // Publish a received object. Returns false if the object is invalid, given
   // other non-normal objects indicate that the sequence number should not
