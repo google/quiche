@@ -30,7 +30,7 @@ namespace moqt::test {
 namespace {
 MoqtSessionParameters CreateParameters(quic::Perspective perspective,
                                        MoqtVersion version) {
-  MoqtSessionParameters parameters(perspective, "");
+  MoqtSessionParameters parameters(perspective, "", "");
   parameters.version = version;
   parameters.deliver_partial_objects = false;
   return parameters;

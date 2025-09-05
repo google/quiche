@@ -83,16 +83,19 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   MoqtSessionParameters() = default;
   explicit MoqtSessionParameters(quic::Perspective perspective)
       : perspective(perspective), using_webtrans(true) {}
-  MoqtSessionParameters(quic::Perspective perspective, std::string path)
+  MoqtSessionParameters(quic::Perspective perspective, std::string path,
+                        std::string authority)
       : perspective(perspective),
         using_webtrans(false),
-        path(std::move(path)) {}
+        path(std::move(path)),
+        authority(std::move(authority)) {}
   MoqtSessionParameters(quic::Perspective perspective, std::string path,
-                        uint64_t max_request_id)
+                        std::string authority, uint64_t max_request_id)
       : perspective(perspective),
         using_webtrans(true),
         path(std::move(path)),
-        max_request_id(max_request_id) {}
+        max_request_id(max_request_id),
+        authority(std::move(authority)) {}
   MoqtSessionParameters(quic::Perspective perspective, uint64_t max_request_id)
       : perspective(perspective), max_request_id(max_request_id) {}
   bool operator==(const MoqtSessionParameters& other) const = default;
@@ -101,12 +104,14 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   bool deliver_partial_objects = false;
   quic::Perspective perspective = quic::Perspective::IS_SERVER;
   bool using_webtrans = true;
-  std::string path = "";
+  std::string path;
   uint64_t max_request_id = kDefaultInitialMaxRequestId;
   uint64_t max_auth_token_cache_size = kDefaultMaxAuthTokenCacheSize;
   bool support_object_acks = false;
   // TODO(martinduke): Turn authorization_token into structured data.
   std::vector<AuthToken> authorization_token;
+  std::string authority;
+  std::string moqt_implementation = "Google QUICHE MOQT draft 14";
 };
 
 // The maximum length of a message, excluding any OBJECT payload. This prevents
@@ -321,6 +326,8 @@ enum class QUICHE_EXPORT SetupParameter : uint64_t {
   kMaxRequestId = 0x2,
   kAuthorizationToken = 0x3,
   kMaxAuthTokenCacheSize = 0x4,
+  kAuthority = 0x5,
+  kMoqtImplementation = 0x7,
 
   // QUICHE-specific extensions.
   // Indicates support for OACK messages.

@@ -161,6 +161,11 @@ MoqtError ValidateSetupParameters(const KeyValuePairList& parameters,
     // Only non-webtrans servers should receive kPath.
     return MoqtError::kInvalidPath;
   }
+  if ((webtrans || perspective == quic::Perspective::IS_CLIENT) &&
+      parameters.contains(SetupParameter::kAuthority)) {
+    // Only non-webtrans servers should receive kAuthority.
+    return MoqtError::kInvalidAuthority;
+  }
   if (!parameters.contains(SetupParameter::kSupportObjectAcks)) {
     return MoqtError::kNoError;
   }
@@ -173,15 +178,21 @@ MoqtError ValidateSetupParameters(const KeyValuePairList& parameters,
   return MoqtError::kNoError;
 }
 
-const std::array<MoqtMessageType, 8> kAllowsAuthorization = {
-    MoqtMessageType::kClientSetup, MoqtMessageType::kServerSetup,
-    MoqtMessageType::kSubscribe,   MoqtMessageType::kSubscribeNamespace,
-    MoqtMessageType::kAnnounce,    MoqtMessageType::kTrackStatus,
-    MoqtMessageType::kFetch,       MoqtMessageType::kPublish};
-const std::array<MoqtMessageType, 6> kAllowsDeliveryTimeout = {
-    MoqtMessageType::kSubscribe,       MoqtMessageType::kSubscribeOk,
-    MoqtMessageType::kSubscribeUpdate, MoqtMessageType::kTrackStatusOk,
-    MoqtMessageType::kPublish,         MoqtMessageType::kPublishOk};
+const std::array<MoqtMessageType, 9> kAllowsAuthorization = {
+    MoqtMessageType::kClientSetup,
+    MoqtMessageType::kServerSetup,
+    MoqtMessageType::kPublish,
+    MoqtMessageType::kSubscribe,
+    MoqtMessageType::kSubscribeUpdate,
+    MoqtMessageType::kSubscribeNamespace,
+    MoqtMessageType::kAnnounce,
+    MoqtMessageType::kTrackStatus,
+    MoqtMessageType::kFetch};
+const std::array<MoqtMessageType, 7> kAllowsDeliveryTimeout = {
+    MoqtMessageType::kTrackStatus,    MoqtMessageType::kTrackStatusOk,
+    MoqtMessageType::kPublish,        MoqtMessageType::kPublishOk,
+    MoqtMessageType::kSubscribe,      MoqtMessageType::kSubscribeOk,
+    MoqtMessageType::kSubscribeUpdate};
 const std::array<MoqtMessageType, 4> kAllowsMaxCacheDuration = {
     MoqtMessageType::kSubscribeOk, MoqtMessageType::kTrackStatusOk,
     MoqtMessageType::kFetchOk, MoqtMessageType::kPublish};

@@ -493,11 +493,14 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   explicit ClientSetupMessage(bool webtrans) : TestMessageBase() {
     client_setup_.parameters.using_webtrans = webtrans;
     if (webtrans) {
-      // Should not send PATH.
+      // Should not send PATH or AUTHORITY.
       client_setup_.parameters.path = "";
-      raw_packet_[2] = 0x06;  // adjust payload length (-5)
-      raw_packet_[6] = 0x01;  // only one parameter
-      SetWireImage(raw_packet_, sizeof(raw_packet_) - 5);
+      client_setup_.parameters.authority = "";
+      raw_packet_[2] = 0x23;  // adjust payload length (-17)
+      raw_packet_[6] = 0x02;  // only two parameters
+      // Move MoqtImplementation up in the packet.
+      memcpy(raw_packet_ + 9, raw_packet_ + 26, 29);
+      SetWireImage(raw_packet_, sizeof(raw_packet_) - 17);
     } else {
       SetWireImage(raw_packet_, sizeof(raw_packet_));
     }
@@ -526,9 +529,9 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
 
   void ExpandVarints() override {
     if (!client_setup_.parameters.path.empty()) {
-      ExpandVarintsImpl("vvvvvvvv---");
+      ExpandVarintsImpl("vvvvvvvv----vv---------vv---------------------------");
     } else {
-      ExpandVarintsImpl("vvvvvv");
+      ExpandVarintsImpl("vvvvvvvv---------------------------");
     }
   }
 
@@ -537,17 +540,27 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[14] = {
-      0x20, 0x00, 0x0b,              // type
-      0x02, 0x01, 0x02,              // versions
-      0x02,                          // 2 parameters
-      0x02, 0x32,                    // max_request_id = 50
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
-  };
+  // The framer serializes all the integer parameters in order, then all the
+  // string parameters in order. Unfortunately, this means that
+  // kMoqtImplementation goes last even though it is always present, while
+  // kPath and KAuthority aren't.
+  uint8_t raw_packet_[55] = {
+      0x20, 0x00, 0x34,                    // type, length
+      0x02, 0x01, 0x02,                    // versions
+      0x04,                                // 4 parameters
+      0x02, 0x32,                          // max_request_id = 50
+      0x01, 0x04, 0x70, 0x61, 0x74, 0x68,  // path = "path"
+      0x05, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74,
+      0x79,  // authority = "authority"
+      // moqt_implementation:
+      0x07, 0x1b, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x20, 0x51, 0x55, 0x49,
+      0x43, 0x48, 0x45, 0x20, 0x4d, 0x4f, 0x51, 0x54, 0x20, 0x64, 0x72, 0x61,
+      0x66, 0x74, 0x20, 0x31, 0x34};
   MoqtClientSetup client_setup_ = {
       /*supported_versions=*/std::vector<MoqtVersion>(
           {static_cast<MoqtVersion>(1), static_cast<MoqtVersion>(2)}),
-      MoqtSessionParameters(quic::Perspective::IS_CLIENT, "foo", 50),
+      MoqtSessionParameters(quic::Perspective::IS_CLIENT, "path", "authority",
+                            50),
   };
 };
 
@@ -574,11 +587,17 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[7] = {
-      0x21, 0x00, 0x04,  // type
-      0x01, 0x01,        // version, one parameter
-      0x02, 0x32,        // max_subscribe_id = 50
-  };
+  uint8_t raw_packet_[36] = {0x21, 0x00,
+                             0x21,  // type
+                             0x01,
+                             0x02,  // version, two parameters
+                             0x02,
+                             0x32,  // max_subscribe_id = 50
+                             // moqt_implementation:
+                             0x07, 0x1b, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65,
+                             0x20, 0x51, 0x55, 0x49, 0x43, 0x48, 0x45, 0x20,
+                             0x4d, 0x4f, 0x51, 0x54, 0x20, 0x64, 0x72, 0x61,
+                             0x66, 0x74, 0x20, 0x31, 0x34};
   MoqtServerSetup server_setup_ = {
       /*selected_version=*/static_cast<MoqtVersion>(1),
       MoqtSessionParameters(quic::Perspective::IS_SERVER, 50),

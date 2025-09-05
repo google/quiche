@@ -123,7 +123,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
  public:
   MoqtSessionTest()
       : session_(&mock_session_,
-                 MoqtSessionParameters(quic::Perspective::IS_CLIENT, ""),
+                 MoqtSessionParameters(quic::Perspective::IS_CLIENT, "", ""),
                  std::make_unique<quic::test::TestAlarmFactory>(),
                  session_callbacks_.AsSessionCallbacks()) {
     session_.set_publisher(&publisher_);

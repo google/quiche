@@ -220,7 +220,10 @@ void SessionParametersToKeyValuePairList(
   if (!parameters.using_webtrans &&
       parameters.perspective == quic::Perspective::IS_CLIENT) {
     out.insert(SetupParameter::kPath, parameters.path);
+    out.insert(SetupParameter::kAuthority, parameters.authority);
   }
+  out.insert(SetupParameter::kMoqtImplementation,
+             parameters.moqt_implementation);
   if (parameters.max_request_id > 0) {
     out.insert(SetupParameter::kMaxRequestId, parameters.max_request_id);
   }

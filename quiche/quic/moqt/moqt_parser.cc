@@ -20,6 +20,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/http2/adapter/header_validator.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -1113,12 +1114,27 @@ bool MoqtControlParser::KeyValuePairListToMoqtSessionParameters(
         SetupParameter parameter = static_cast<SetupParameter>(key);
         switch (parameter) {
           case SetupParameter::kPath:
+            if (!http2::adapter::HeaderValidator::IsValidPath(
+                    value, /*allow_fragment=*/false)) {
+              ParseError(MoqtError::kMalformedPath, "Malformed path");
+              return false;
+            }
             out.path = value;
             break;
           case SetupParameter::kAuthorizationToken:
             if (!ParseAuthTokenParameter(value, out.authorization_token)) {
               return false;
             }
+            break;
+          case SetupParameter::kAuthority:
+            if (!http2::adapter::HeaderValidator::IsValidAuthority(value)) {
+              ParseError(MoqtError::kMalformedAuthority, "Malformed authority");
+              return false;
+            }
+            out.authority = value;
+            break;
+          case SetupParameter::kMoqtImplementation:
+            QUICHE_LOG(INFO) << "Peer MOQT implementation: " << value;
             break;
           default:
             break;
