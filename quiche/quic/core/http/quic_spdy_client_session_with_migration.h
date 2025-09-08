@@ -12,6 +12,7 @@
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_force_blockable_packet_writer.h"
 #include "quiche/quic/core/quic_path_context_factory.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_time.h"
@@ -33,8 +34,8 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
     : public QuicSpdyClientSessionBase {
  public:
   QuicSpdyClientSessionWithMigration(
-      QuicConnection* connection, QuicSession::Visitor* visitor,
-      const QuicConfig& config,
+      QuicConnection* connection, QuicForceBlockablePacketWriter* writer,
+      QuicSession::Visitor* visitor, const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
       QuicNetworkHandle default_network, QuicNetworkHandle current_network,
       std::unique_ptr<QuicPathContextFactory> path_context_factory,
@@ -78,7 +79,7 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
   // network.
   // Returns true on successful migration.
   bool MigrateToNewPath(
-      std::unique_ptr<QuicPathValidationContext> path_context);
+      std::unique_ptr<QuicClientPathValidationContext> path_context);
 
   void SetMigrationDebugVisitor(
       quic::QuicConnectionMigrationDebugVisitor* visitor);
@@ -93,19 +94,23 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
     return migration_manager_;
   }
 
+  QuicForceBlockablePacketWriter* writer() { return writer_; }
+
  protected:
   // Called in MigrateToNewPath() prior to calling MigratePath().
   // Return false if MigratePath() should be skipped.
   virtual bool PrepareForMigrationToPath(
-      QuicPathValidationContext& context) = 0;
+      QuicClientPathValidationContext& context) = 0;
 
   // Called in MigrateToNewPath() after MigratePath() for clean up.
   virtual void OnMigrationToPathDone(
-      std::unique_ptr<QuicPathValidationContext> context, bool success) = 0;
+      std::unique_ptr<QuicClientPathValidationContext> context,
+      bool success) = 0;
 
  private:
   std::unique_ptr<QuicPathContextFactory> path_context_factory_;
   QuicConnectionMigrationManager migration_manager_;
+  QuicForceBlockablePacketWriter* absl_nonnull writer_;
 };
 
 }  // namespace quic

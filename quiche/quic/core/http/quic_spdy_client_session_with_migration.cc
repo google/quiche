@@ -4,11 +4,14 @@
 
 #include "quiche/quic/core/http/quic_spdy_client_session_with_migration.h"
 
+#include "quiche/quic/core/quic_force_blockable_packet_writer.h"
+
 namespace quic {
 
 QuicSpdyClientSessionWithMigration::QuicSpdyClientSessionWithMigration(
-    QuicConnection* connection, QuicSession::Visitor* visitor,
-    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
+    QuicConnection* connection, QuicForceBlockablePacketWriter* writer,
+    QuicSession::Visitor* visitor, const QuicConfig& config,
+    const ParsedQuicVersionVector& supported_versions,
     QuicNetworkHandle default_network, QuicNetworkHandle current_network,
     std::unique_ptr<QuicPathContextFactory> path_context_factory,
     QuicConnectionMigrationConfig migration_config)
@@ -17,7 +20,11 @@ QuicSpdyClientSessionWithMigration::QuicSpdyClientSessionWithMigration(
       path_context_factory_(std::move(path_context_factory)),
       migration_manager_(this, connection->clock(), default_network,
                          current_network, path_context_factory_.get(),
-                         migration_config) {}
+                         migration_config),
+      writer_(writer) {
+  QUICHE_DCHECK_EQ(writer_, connection->writer())
+      << "Writer is not the connection writer";
+}
 
 QuicSpdyClientSessionWithMigration::~QuicSpdyClientSessionWithMigration() =
     default;
@@ -41,7 +48,7 @@ void QuicSpdyClientSessionWithMigration::SetDefaultEncryptionLevel(
 }
 
 bool QuicSpdyClientSessionWithMigration::MigrateToNewPath(
-    std::unique_ptr<QuicPathValidationContext> path_context) {
+    std::unique_ptr<QuicClientPathValidationContext> path_context) {
   if (!PrepareForMigrationToPath(*path_context)) {
     QUIC_CLIENT_HISTOGRAM_BOOL("QuicSession.PrepareForMigrationToPath", false,
                                "");
@@ -57,6 +64,8 @@ bool QuicSpdyClientSessionWithMigration::MigrateToNewPath(
         "No unused server connection ID");
     QUIC_DVLOG(1) << "MigratePath fails as there is no CID available";
   }
+  writer_ = path_context->ForceBlockableWriterToUse();
+  QUICHE_DCHECK_EQ(writer_, connection()->writer());
   OnMigrationToPathDone(std::move(path_context), success);
   return success;
 }

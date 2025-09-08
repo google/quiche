@@ -112,15 +112,18 @@ class TestQuicForceBlockablePacketWriter
   bool force_write_blocked_ = false;
 };
 
-class TestQuicClientPathValidationContext : public QuicPathValidationContext {
+class TestQuicClientPathValidationContext
+    : public QuicClientPathValidationContext {
  public:
   TestQuicClientPathValidationContext(
       const quic::QuicSocketAddress& self_address,
       const quic::QuicSocketAddress& peer_address, QuicNetworkHandle network)
-      : QuicPathValidationContext(self_address, peer_address, network),
+      : QuicClientPathValidationContext(self_address, peer_address, network),
         writer_(std::make_unique<TestQuicForceBlockablePacketWriter>()) {}
 
-  quic::QuicPacketWriter* WriterToUse() override { return writer_.get(); }
+  QuicForceBlockablePacketWriter* ForceBlockableWriterToUse() override {
+    return writer_.get();
+  }
 
   bool ShouldConnectionOwnWriter() const override { return true; }
 
@@ -359,15 +362,16 @@ class TestQuicSpdyClientSessionWithMigration
     : public QuicSpdyClientSessionWithMigration {
  public:
   TestQuicSpdyClientSessionWithMigration(
-      QuicConnection* connection, QuicSession::Visitor* visitor,
-      const QuicConfig& config,
+      QuicConnection* connection, QuicForceBlockablePacketWriter* writer,
+      QuicSession::Visitor* visitor, const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
       QuicNetworkHandle default_network, QuicNetworkHandle current_network,
       std::unique_ptr<QuicPathContextFactory> path_context_factory,
       QuicConnectionMigrationConfig migration_config)
       : QuicSpdyClientSessionWithMigration(
-            connection, visitor, config, supported_versions, default_network,
-            current_network, std::move(path_context_factory), migration_config),
+            connection, writer, visitor, config, supported_versions,
+            default_network, current_network, std::move(path_context_factory),
+            migration_config),
         crypto_stream_(this) {
     ON_CALL(*this, IsSessionProxied()).WillByDefault(Return(false));
     ON_CALL(*this, OnMigrationToPathDone(_, _))
@@ -387,9 +391,10 @@ class TestQuicSpdyClientSessionWithMigration
               (QuicPathValidationContext & context), (override));
   MOCK_METHOD(bool, IsSessionProxied, (), (const));
   MOCK_METHOD(QuicTimeDelta, TimeSinceLastStreamClose, (), (override));
-  MOCK_METHOD(bool, PrepareForMigrationToPath, (QuicPathValidationContext&));
+  MOCK_METHOD(bool, PrepareForMigrationToPath,
+              (QuicClientPathValidationContext&));
   MOCK_METHOD(void, OnMigrationToPathDone,
-              (std::unique_ptr<QuicPathValidationContext>, bool));
+              (std::unique_ptr<QuicClientPathValidationContext>, bool));
   MOCK_METHOD(void, OnConnectionToBeClosedDueToMigrationError,
               (MigrationCause migration_cause, QuicErrorCode quic_error),
               (override));
@@ -497,8 +502,8 @@ class QuicConnectionMigrationManagerTest
     migration_config_.migrate_idle_session = migrate_idle_session_;
 
     session_ = std::make_unique<TestQuicSpdyClientSessionWithMigration>(
-        connection_, &session_visitor_, config_, versions_, default_network_,
-        initial_network_,
+        connection_, default_writer_, &session_visitor_, config_, versions_,
+        default_network_, initial_network_,
         std::unique_ptr<QuicPathContextFactory>(path_context_factory_),
         migration_config_);
     session_->Initialize();

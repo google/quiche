@@ -239,7 +239,7 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
         bool close_session_on_error, MigrationCallback migration_callback);
 
     void OnCreationSucceeded(
-        std::unique_ptr<QuicPathValidationContext> context) override;
+        std::unique_ptr<QuicClientPathValidationContext> context) override;
 
     void OnCreationFailed(QuicNetworkHandle network,
                           absl::string_view error) override;
@@ -261,7 +261,7 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
         StartProbingCallback probing_callback);
 
     void OnCreationSucceeded(
-        std::unique_ptr<QuicPathValidationContext> context) override;
+        std::unique_ptr<QuicClientPathValidationContext> context) override;
 
     void OnCreationFailed(QuicNetworkHandle network,
                           absl::string_view error) override;
@@ -294,8 +294,9 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
                bool close_session_on_error,
                MigrationCallback migration_callback);
   // Helper to finish session migration once the |path_context| is provided.
-  void FinishMigrate(std::unique_ptr<QuicPathValidationContext> path_context,
-                     bool close_session_on_error, MigrationCallback callback);
+  void FinishMigrate(
+      std::unique_ptr<QuicClientPathValidationContext> path_context,
+      bool close_session_on_error, MigrationCallback callback);
 
   void StartMigrateBackToDefaultNetworkTimer(QuicTimeDelta delay);
   void CancelMigrateBackToDefaultNetworkTimer();
@@ -312,7 +313,7 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
                     const QuicSocketAddress& peer_address);
   void FinishStartProbing(
       StartProbingCallback probing_callback,
-      std::unique_ptr<QuicPathValidationContext> path_context);
+      std::unique_ptr<QuicClientPathValidationContext> path_context);
 
   bool MaybeCloseIdleSession(bool has_write_error,
                              ConnectionCloseBehavior close_behavior);

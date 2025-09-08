@@ -91,13 +91,13 @@ class ConnectionMigrationValidationResultDelegate
       QuicConnectionMigrationManager* absl_nonnull migration_manager)
       : migration_manager_(migration_manager) {}
   void OnPathValidationSuccess(
-      std::unique_ptr<quic::QuicPathValidationContext> context,
+      std::unique_ptr<QuicPathValidationContext> context,
       quic::QuicTime start_time) override {
     migration_manager_->OnConnectionMigrationProbeSucceeded(std::move(context),
                                                             start_time);
   }
   void OnPathValidationFailure(
-      std::unique_ptr<quic::QuicPathValidationContext> context) override {
+      std::unique_ptr<QuicPathValidationContext> context) override {
     migration_manager_->OnProbeFailed(std::move(context));
   }
 
@@ -364,7 +364,7 @@ QuicConnectionMigrationManager::
 
 void QuicConnectionMigrationManager::
     PathContextCreationResultDelegateForImmediateMigration::OnCreationSucceeded(
-        std::unique_ptr<QuicPathValidationContext> context) {
+        std::unique_ptr<QuicClientPathValidationContext> context) {
   migration_manager_->FinishMigrate(std::move(context), close_session_on_error_,
                                     std::move(migration_callback_));
 }
@@ -372,9 +372,7 @@ void QuicConnectionMigrationManager::
 void QuicConnectionMigrationManager::
     PathContextCreationResultDelegateForImmediateMigration::OnCreationFailed(
         QuicNetworkHandle network, absl::string_view error) {
-  static_cast<QuicForceBlockablePacketWriter*>(
-      migration_manager_->connection_->writer())
-      ->ForceWriteBlocked(false);
+  migration_manager_->session_->writer()->ForceWriteBlocked(false);
   std::move(migration_callback_)(network, MigrationResult::FAILURE);
   if (close_session_on_error_) {
     migration_manager_->session_->OnConnectionToBeClosedDueToMigrationError(
@@ -398,7 +396,7 @@ QuicConnectionMigrationManager::PathContextCreationResultDelegateForProbing::
 
 void QuicConnectionMigrationManager::
     PathContextCreationResultDelegateForProbing::OnCreationSucceeded(
-        std::unique_ptr<QuicPathValidationContext> context) {
+        std::unique_ptr<QuicClientPathValidationContext> context) {
   migration_manager_->FinishStartProbing(std::move(probing_callback_),
                                          std::move(context));
 }
@@ -447,8 +445,7 @@ void QuicConnectionMigrationManager::Migrate(
         "Connection is migrating with an invalid network handle.");
   }
   QUIC_DVLOG(1) << "Force blocking the current packet writer";
-  static_cast<QuicForceBlockablePacketWriter*>(connection_->writer())
-      ->ForceWriteBlocked(true);
+  session_->writer()->ForceWriteBlocked(true);
   if (config_.disable_blackhole_detection_on_immediate_migrate) {
     // Turn off the black hole detector since the writer is blocked.
     // Blackhole will be re-enabled once a packet is sent again.
@@ -478,14 +475,13 @@ void QuicConnectionMigrationManager::FinishMigrateNetworkImmediately(
 }
 
 void QuicConnectionMigrationManager::FinishMigrate(
-    std::unique_ptr<QuicPathValidationContext> path_context,
+    std::unique_ptr<QuicClientPathValidationContext> path_context,
     bool close_session_on_error, MigrationCallback callback) {
   // Migrate to the new socket.
   MigrationCause current_migration_cause = current_migration_cause_;
   QuicNetworkHandle network = path_context->network();
   if (!session_->MigrateToNewPath(std::move(path_context))) {
-    static_cast<QuicForceBlockablePacketWriter*>(connection_->writer())
-        ->ForceWriteBlocked(false);
+    session_->writer()->ForceWriteBlocked(false);
     std::move(callback)(network, MigrationResult::FAILURE);
     if (close_session_on_error) {
       session_->OnConnectionToBeClosedDueToMigrationError(
@@ -514,8 +510,7 @@ void QuicConnectionMigrationManager::OnNoNewNetwork() {
                 << MigrationCauseToString(current_migration_cause_);
   // Force blocking the packet writer to avoid any writes since there is no
   // alternate network available.
-  static_cast<QuicForceBlockablePacketWriter*>(connection_->writer())
-      ->ForceWriteBlocked(true);
+  session_->writer()->ForceWriteBlocked(true);
   if (config_.disable_blackhole_detection_on_immediate_migrate) {
     // Turn off the black hole detector since the writer is blocked.
     // Blackhole will be re-enabled once a packet is sent again.
@@ -768,7 +763,7 @@ void QuicConnectionMigrationManager::StartProbing(
 
 void QuicConnectionMigrationManager::FinishStartProbing(
     StartProbingCallback probing_callback,
-    std::unique_ptr<QuicPathValidationContext> path_context) {
+    std::unique_ptr<QuicClientPathValidationContext> path_context) {
   session_->PrepareForProbingOnPath(*path_context);
   switch (current_migration_cause_) {
     case MigrationCause::CHANGE_PORT_ON_PATH_DEGRADING:
@@ -836,7 +831,10 @@ void QuicConnectionMigrationManager::OnConnectionMigrationProbeSucceeded(
     return;
   }
   // Migrate to the probed socket immediately.
-  if (!session_->MigrateToNewPath(std::move(path_context))) {
+  if (!session_->MigrateToNewPath(
+          std::unique_ptr<QuicClientPathValidationContext>(
+              static_cast<QuicClientPathValidationContext*>(
+                  path_context.release())))) {
     if (debug_visitor_) {
       debug_visitor_->OnConnectionMigrationFailedAfterProbe();
     }
@@ -881,7 +879,10 @@ void QuicConnectionMigrationManager::OnPortMigrationProbeSucceeded(
     return;
   }
   // Migrate to the probed socket immediately.
-  if (!session_->MigrateToNewPath(std::move(path_context))) {
+  if (!session_->MigrateToNewPath(
+          std::unique_ptr<QuicClientPathValidationContext>(
+              static_cast<QuicClientPathValidationContext*>(
+                  path_context.release())))) {
     if (debug_visitor_) {
       debug_visitor_->OnConnectionMigrationFailedAfterProbe();
     }
