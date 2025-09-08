@@ -499,7 +499,7 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       raw_packet_[2] = 0x23;  // adjust payload length (-17)
       raw_packet_[6] = 0x02;  // only two parameters
       // Move MoqtImplementation up in the packet.
-      memcpy(raw_packet_ + 9, raw_packet_ + 26, 29);
+      memmove(raw_packet_ + 9, raw_packet_ + 26, 29);
       SetWireImage(raw_packet_, sizeof(raw_packet_) - 17);
     } else {
       SetWireImage(raw_packet_, sizeof(raw_packet_));
