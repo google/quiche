@@ -169,11 +169,20 @@ void UpstreamFetch::OnStreamOpened(CanReadCallback can_read_callback) {
 
 bool UpstreamFetch::LocationIsValid(Location location, MoqtObjectStatus status,
                                     bool end_of_message) {
-  if (no_more_objects_) {
-    return false;
+  if (end_of_track_.has_value()) {
+    // Cannot exceed or change end_of_track_.
+    if (location > end_of_track_) {
+      return false;
+    }
+    if (status == MoqtObjectStatus::kEndOfTrack && location != *end_of_track_) {
+      return false;
+    }
   }
   if (end_of_message && status == MoqtObjectStatus::kEndOfTrack) {
-    no_more_objects_ = true;
+    if (highest_location_.has_value() && location < *highest_location_) {
+      return false;
+    }
+    end_of_track_ = location;
   }
   bool last_group_is_finished = last_group_is_finished_;
   last_group_is_finished_ =
@@ -181,6 +190,11 @@ bool UpstreamFetch::LocationIsValid(Location location, MoqtObjectStatus status,
   std::optional<Location> last_location = last_location_;
   if (end_of_message) {
     last_location_ = location;
+    if (!highest_location_.has_value()) {
+      highest_location_ = location;
+    } else {
+      highest_location_ = std::max(*highest_location_, location);
+    }
   }
   if (!last_location.has_value()) {
     return true;

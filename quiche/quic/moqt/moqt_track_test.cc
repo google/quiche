@@ -281,6 +281,22 @@ TEST_F(UpstreamFetchTest, LocationIsValidObjectBeyondEndOfTrack) {
       fetch_.LocationIsValid(Location(2, 1), MoqtObjectStatus::kNormal, true));
 }
 
+TEST_F(UpstreamFetchTest, LocationIsValidTwoEndsOfTrack) {
+  EXPECT_TRUE(fetch_.LocationIsValid(Location(1, 1),
+                                     MoqtObjectStatus::kEndOfTrack, true));
+  EXPECT_FALSE(fetch_.LocationIsValid(Location(1, 2),
+                                      MoqtObjectStatus::kEndOfTrack, true));
+}
+
+TEST_F(UpstreamFetchTest, LocationIsValidEndOfTrackTooLow) {
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(1, 2), MoqtObjectStatus::kNormal, true));
+  EXPECT_TRUE(
+      fetch_.LocationIsValid(Location(3, 0), MoqtObjectStatus::kNormal, true));
+  EXPECT_FALSE(fetch_.LocationIsValid(Location(2, 1),
+                                      MoqtObjectStatus::kEndOfTrack, true));
+}
+
 }  // namespace test
 
 }  // namespace moqt

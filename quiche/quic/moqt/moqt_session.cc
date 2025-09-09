@@ -1729,10 +1729,6 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       session_->OnMalformedTrack(track);
       return;
     }
-    if (message.object_id < next_object_id_) {
-      session_->OnMalformedTrack(track);
-      return;
-    }
     if (end_of_message) {
       next_object_id_ = message.object_id + 1;
       if (message.object_status == MoqtObjectStatus::kEndOfTrack ||

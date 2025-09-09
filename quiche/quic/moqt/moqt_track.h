@@ -350,9 +350,12 @@ class UpstreamFetch : public RemoteTrack {
 
  private:
   std::optional<MoqtDeliveryOrder> group_order_;  // nullopt if not yet known.
+  // The last object received on the stream.
   std::optional<Location> last_location_;
+  // The highest location received on the stream.
+  std::optional<Location> highest_location_;
   bool last_group_is_finished_ = false;  // Received EndOfGroup.
-  bool no_more_objects_ = false;         // Received EndOfTrack
+  std::optional<Location> end_of_track_;  // Received EndOfTrack
 
   quiche::QuicheWeakPtr<UpstreamFetchTask> task_;
 
