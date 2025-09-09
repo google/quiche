@@ -647,6 +647,11 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
   // Removes all headers starting with 'key' [case insensitive]
   void RemoveAllHeadersWithPrefix(absl::string_view prefix) override;
 
+  // Removes all headers that satisfy the predicate.
+  void RemoveHeadersIf(
+      std::function<bool(const absl::string_view, const absl::string_view)>
+          predicate);
+
   // Returns true if we have at least one header with given prefix
   // [case insensitive]. Currently for test use only.
   bool HasHeadersWithPrefix(absl::string_view prefix) const override;

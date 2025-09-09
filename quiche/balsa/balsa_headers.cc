@@ -6,6 +6,7 @@
 
 #include <sys/types.h>
 
+#include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <string>
@@ -672,6 +673,25 @@ void BalsaHeaders::RemoveAllHeadersWithPrefix(absl::string_view prefix) {
       const absl::string_view current_key(
           GetPtr(line.buffer_base_idx) + line.first_char_idx, key_len);
       MaybeClearSpecialHeaderValues(current_key);
+      line.skip = true;
+    }
+  }
+}
+
+void BalsaHeaders::RemoveHeadersIf(
+    std::function<bool(const absl::string_view, const absl::string_view)>
+        predicate) {
+  for (HeaderLines::size_type i = 0; i < header_lines_.size(); ++i) {
+    if (header_lines_[i].skip) {
+      continue;
+    }
+
+    HeaderLineDescription& line = header_lines_[i];
+    const absl::string_view key(
+        GetPtr(line.buffer_base_idx) + line.first_char_idx,
+        line.key_end_idx - line.first_char_idx);
+    const absl::string_view value = GetValueFromHeaderLineDescription(line);
+    if (predicate(key, value)) {
       line.skip = true;
     }
   }

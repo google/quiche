@@ -18,6 +18,7 @@
 #include <vector>
 
 #include "absl/base/macros.h"
+#include "absl/strings/match.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
@@ -3627,6 +3628,41 @@ TEST(BalsaHeaders, WriteToBufferCoalescingEnvoyHeaders) {
       &simple_buffer, BalsaHeaders::CaseOption::kNoModification,
       BalsaHeaders::CoalesceOption::kCoalesce);
   EXPECT_EQ(simple_buffer.GetReadableRegion(), expected_coalesced);
+}
+
+TEST(BalsaHeaders, RemoveHeadersIf) {
+  BalsaHeaders headers;
+  headers.AppendHeader("keep", "val-keep");
+  headers.AppendHeader("first-1", "val-first-1");
+  headers.AppendHeader("first-2", "val-first-2");
+  headers.AppendHeader("second", "val-second");
+  EXPECT_EQ(headers.GetHeader("keep"), "val-keep");
+  EXPECT_EQ(headers.GetHeader("first-1"), "val-first-1");
+  EXPECT_EQ(headers.GetHeader("first-2"), "val-first-2");
+  EXPECT_EQ(headers.GetHeader("second"), "val-second");
+
+  headers.RemoveHeadersIf(
+      [](const absl::string_view key, const absl::string_view /*value*/) {
+        return absl::StartsWith(key, "first");
+      });
+  EXPECT_FALSE(headers.HasHeader("first-1"));
+  EXPECT_FALSE(headers.HasHeader("first-2"));
+  EXPECT_EQ(headers.GetHeader("keep"), "val-keep");
+  EXPECT_EQ(headers.GetHeader("first-1"), "");
+  EXPECT_EQ(headers.GetHeader("first-2"), "");
+  EXPECT_EQ(headers.GetHeader("second"), "val-second");
+
+  headers.RemoveHeadersIf(
+      [](const absl::string_view key, const absl::string_view /*value*/) {
+        return key == "second";
+      });
+  EXPECT_FALSE(headers.HasHeader("first-1"));
+  EXPECT_FALSE(headers.HasHeader("first-2"));
+  EXPECT_FALSE(headers.HasHeader("second"));
+  EXPECT_EQ(headers.GetHeader("keep"), "val-keep");
+  EXPECT_EQ(headers.GetHeader("first-1"), "");
+  EXPECT_EQ(headers.GetHeader("first-2"), "");
+  EXPECT_EQ(headers.GetHeader("second"), "");
 }
 
 TEST(BalsaHeadersTest, RemoveLastTokenFromOneLineHeader) {
