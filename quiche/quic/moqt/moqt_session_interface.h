@@ -14,6 +14,7 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
 
@@ -115,6 +116,8 @@ class MoqtSessionInterface {
   // TODO: Add AnnounceCancel method.
   // TODO: Add TrackStatusRequest method.
   // TODO: Add SubscribeUpdate, SubscribeDone method.
+
+  virtual quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() = 0;
 };
 
 }  // namespace moqt

@@ -1578,6 +1578,7 @@ moqt_hdrs = [
     "quic/moqt/tools/moq_chat.h",
     "quic/moqt/tools/moqt_client.h",
     "quic/moqt/tools/moqt_mock_visitor.h",
+    "quic/moqt/tools/moqt_relay.h",
     "quic/moqt/tools/moqt_server.h",
 ]
 moqt_srcs = [
@@ -1602,6 +1603,7 @@ moqt_srcs = [
     "quic/moqt/moqt_probe_manager.cc",
     "quic/moqt/moqt_probe_manager_test.cc",
     "quic/moqt/moqt_relay_publisher.cc",
+    "quic/moqt/moqt_relay_publisher_test.cc",
     "quic/moqt/moqt_relay_track_publisher.cc",
     "quic/moqt/moqt_relay_track_publisher_test.cc",
     "quic/moqt/moqt_session.cc",
@@ -1623,6 +1625,9 @@ moqt_srcs = [
     "quic/moqt/tools/moqt_client.cc",
     "quic/moqt/tools/moqt_end_to_end_test.cc",
     "quic/moqt/tools/moqt_ingestion_server_bin.cc",
+    "quic/moqt/tools/moqt_relay.cc",
+    "quic/moqt/tools/moqt_relay_bin.cc",
+    "quic/moqt/tools/moqt_relay_test.cc",
     "quic/moqt/tools/moqt_server.cc",
     "quic/moqt/tools/moqt_server_test.cc",
     "quic/moqt/tools/moqt_simulator_bin.cc",

@@ -1581,6 +1581,7 @@
     "quiche/quic/moqt/tools/moq_chat.h",
     "quiche/quic/moqt/tools/moqt_client.h",
     "quiche/quic/moqt/tools/moqt_mock_visitor.h",
+    "quiche/quic/moqt/tools/moqt_relay.h",
     "quiche/quic/moqt/tools/moqt_server.h"
   ],
   "moqt_srcs": [
@@ -1605,6 +1606,7 @@
     "quiche/quic/moqt/moqt_probe_manager.cc",
     "quiche/quic/moqt/moqt_probe_manager_test.cc",
     "quiche/quic/moqt/moqt_relay_publisher.cc",
+    "quiche/quic/moqt/moqt_relay_publisher_test.cc",
     "quiche/quic/moqt/moqt_relay_track_publisher.cc",
     "quiche/quic/moqt/moqt_relay_track_publisher_test.cc",
     "quiche/quic/moqt/moqt_session.cc",
@@ -1626,6 +1628,9 @@
     "quiche/quic/moqt/tools/moqt_client.cc",
     "quiche/quic/moqt/tools/moqt_end_to_end_test.cc",
     "quiche/quic/moqt/tools/moqt_ingestion_server_bin.cc",
+    "quiche/quic/moqt/tools/moqt_relay.cc",
+    "quiche/quic/moqt/tools/moqt_relay_bin.cc",
+    "quiche/quic/moqt/tools/moqt_relay_test.cc",
     "quiche/quic/moqt/tools/moqt_server.cc",
     "quiche/quic/moqt/tools/moqt_server_test.cc",
     "quiche/quic/moqt/tools/moqt_simulator_bin.cc"

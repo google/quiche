@@ -15,8 +15,6 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
