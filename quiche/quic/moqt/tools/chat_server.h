@@ -46,7 +46,7 @@ class ChatServer {
                           const PublishedObjectMetadata& metadata,
                           absl::string_view object,
                           bool end_of_message) override;
-    void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+    void OnPublishDone(FullTrackName /*full_track_name*/) override {}
     // TODO(martinduke): Implement this.
     void OnMalformedTrack(const FullTrackName& full_track_name) override {}
 

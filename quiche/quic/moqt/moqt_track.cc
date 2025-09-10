@@ -30,9 +30,9 @@ namespace moqt {
 
 namespace {
 
-constexpr quic::QuicTimeDelta kMinSubscribeDoneTimeout =
+constexpr quic::QuicTimeDelta kMinPublishDoneTimeout =
     quic::QuicTimeDelta::FromSeconds(1);
-constexpr quic::QuicTimeDelta kMaxSubscribeDoneTimeout =
+constexpr quic::QuicTimeDelta kMaxPublishDoneTimeout =
     quic::QuicTimeDelta::FromSeconds(10);
 
 }  // namespace
@@ -61,24 +61,24 @@ void SubscribeRemoteTrack::OnStreamClosed() {
   if (subscribe_done_alarm_ == nullptr) {
     return;
   }
-  MaybeSetSubscribeDoneAlarm();
+  MaybeSetPublishDoneAlarm();
 }
 
-void SubscribeRemoteTrack::OnSubscribeDone(
+void SubscribeRemoteTrack::OnPublishDone(
     uint64_t stream_count, const quic::QuicClock* clock,
     std::unique_ptr<quic::QuicAlarm> subscribe_done_alarm) {
   total_streams_ = stream_count;
   clock_ = clock;
   subscribe_done_alarm_ = std::move(subscribe_done_alarm);
-  MaybeSetSubscribeDoneAlarm();
+  MaybeSetPublishDoneAlarm();
 }
 
-void SubscribeRemoteTrack::MaybeSetSubscribeDoneAlarm() {
+void SubscribeRemoteTrack::MaybeSetPublishDoneAlarm() {
   if (currently_open_streams_ == 0 && total_streams_.has_value() &&
       clock_ != nullptr) {
     quic::QuicTimeDelta timeout =
-        std::min(delivery_timeout_, kMaxSubscribeDoneTimeout);
-    timeout = std::max(timeout, kMinSubscribeDoneTimeout);
+        std::min(delivery_timeout_, kMaxPublishDoneTimeout);
+    timeout = std::max(timeout, kMinPublishDoneTimeout);
     subscribe_done_alarm_->Set(clock_->ApproximateNow() + timeout);
   }
 }

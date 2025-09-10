@@ -63,7 +63,7 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override {
     OnControlMessage(message);
   }
-  void OnSubscribeDoneMessage(const MoqtSubscribeDone& message) override {
+  void OnPublishDoneMessage(const MoqtPublishDone& message) override {
     OnControlMessage(message);
   }
   void OnAnnounceMessage(const MoqtAnnounce& message) override {

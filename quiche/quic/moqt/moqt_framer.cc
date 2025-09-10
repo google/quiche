@@ -504,10 +504,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribe(
                                  WireVarInt62(message.request_id));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeSubscribeDone(
-    const MoqtSubscribeDone& message) {
+quiche::QuicheBuffer MoqtFramer::SerializePublishDone(
+    const MoqtPublishDone& message) {
   return SerializeControlMessage(
-      MoqtMessageType::kSubscribeDone, WireVarInt62(message.request_id),
+      MoqtMessageType::kPublishDone, WireVarInt62(message.request_id),
       WireVarInt62(message.status_code), WireVarInt62(message.stream_count),
       WireStringWithVarInt62Length(message.error_reason));
 }

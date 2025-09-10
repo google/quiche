@@ -102,8 +102,7 @@ class MockSubscribeRemoteTrackVisitor : public SubscribeVisitor {
                const PublishedObjectMetadata& metadata,
                absl::string_view object, bool end_of_message),
               (override));
-  MOCK_METHOD(void, OnSubscribeDone, (FullTrackName full_track_name),
-              (override));
+  MOCK_METHOD(void, OnPublishDone, (FullTrackName full_track_name), (override));
   MOCK_METHOD(void, OnMalformedTrack, (const FullTrackName& full_track_name),
               (override));
 };

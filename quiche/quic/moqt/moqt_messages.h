@@ -259,7 +259,7 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kAnnounceError = 0x08,
   kUnannounce = 0x09,
   kUnsubscribe = 0x0a,
-  kSubscribeDone = 0x0b,
+  kPublishDone = 0x0b,
   kAnnounceCancel = 0x0c,
   kTrackStatus = 0x0d,
   kTrackStatusOk = 0x0e,
@@ -703,7 +703,7 @@ struct QUICHE_EXPORT MoqtUnsubscribe {
   uint64_t request_id;
 };
 
-enum class QUICHE_EXPORT SubscribeDoneCode : uint64_t {
+enum class QUICHE_EXPORT PublishDoneCode : uint64_t {
   kInternalError = 0x0,
   kUnauthorized = 0x1,
   kTrackEnded = 0x2,
@@ -714,9 +714,9 @@ enum class QUICHE_EXPORT SubscribeDoneCode : uint64_t {
   kMalformedTrack = 0x7,
 };
 
-struct QUICHE_EXPORT MoqtSubscribeDone {
+struct QUICHE_EXPORT MoqtPublishDone {
   uint64_t request_id;
-  SubscribeDoneCode status_code;
+  PublishDoneCode status_code;
   uint64_t stream_count;
   std::string error_reason;
 };

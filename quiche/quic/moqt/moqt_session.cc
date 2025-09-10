@@ -672,8 +672,8 @@ void MoqtSession::GoAwayTimeoutDelegate::OnAlarm() {
                   "Peer did not close session after GOAWAY");
 }
 
-bool MoqtSession::SubscribeIsDone(uint64_t request_id, SubscribeDoneCode code,
-                                  absl::string_view error_reason) {
+bool MoqtSession::PublishIsDone(uint64_t request_id, PublishDoneCode code,
+                                absl::string_view error_reason) {
   auto it = published_subscriptions_.find(request_id);
   if (it == published_subscriptions_.end()) {
     return false;
@@ -683,12 +683,12 @@ bool MoqtSession::SubscribeIsDone(uint64_t request_id, SubscribeDoneCode code,
   std::vector<webtransport::StreamId> streams_to_reset =
       subscription.GetAllStreams();
 
-  MoqtSubscribeDone subscribe_done;
+  MoqtPublishDone subscribe_done;
   subscribe_done.request_id = request_id;
   subscribe_done.status_code = code;
   subscribe_done.stream_count = subscription.streams_opened();
   subscribe_done.error_reason = error_reason;
-  SendControlMessage(framer_.SerializeSubscribeDone(subscribe_done));
+  SendControlMessage(framer_.SerializePublishDone(subscribe_done));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_DONE message for "
                   << subscription.publisher().GetTrackName();
   // Clean up the subscription
@@ -710,7 +710,7 @@ void MoqtSession::MaybeDestroySubscription(SubscribeRemoteTrack* subscribe) {
 }
 
 void MoqtSession::DestroySubscription(SubscribeRemoteTrack* subscribe) {
-  subscribe->visitor()->OnSubscribeDone(subscribe->full_track_name());
+  subscribe->visitor()->OnPublishDone(subscribe->full_track_name());
   subscribe_by_name_.erase(subscribe->full_track_name());
   if (subscribe->track_alias().has_value()) {
     subscribe_by_alias_.erase(*subscribe->track_alias());
@@ -1166,8 +1166,8 @@ void MoqtSession::ControlStream::OnUnsubscribeMessage(
   session_->published_subscriptions_.erase(it);
 }
 
-void MoqtSession::ControlStream::OnSubscribeDoneMessage(
-    const MoqtSubscribeDone& message) {
+void MoqtSession::ControlStream::OnPublishDoneMessage(
+    const MoqtPublishDone& message) {
   auto it = session_->upstream_by_id_.find(message.request_id);
   if (it == session_->upstream_by_id_.end()) {
     return;
@@ -1175,10 +1175,10 @@ void MoqtSession::ControlStream::OnSubscribeDoneMessage(
   auto* subscribe = static_cast<SubscribeRemoteTrack*>(it->second.get());
   QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE_DONE for "
                   << it->second->full_track_name();
-  subscribe->OnSubscribeDone(
+  subscribe->OnPublishDone(
       message.stream_count, session_->callbacks_.clock,
       absl::WrapUnique(session_->alarm_factory_->CreateAlarm(
-          new SubscribeDoneDelegate(session_, subscribe))));
+          new PublishDoneDelegate(session_, subscribe))));
   session_->MaybeDestroySubscription(subscribe);
 }
 
@@ -2092,8 +2092,8 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
 }
 
 void MoqtSession::PublishedSubscription::OnTrackPublisherGone() {
-  session_->SubscribeIsDone(request_id_, SubscribeDoneCode::kGoingAway,
-                            "Publisher is gone");
+  session_->PublishIsDone(request_id_, PublishDoneCode::kGoingAway,
+                          "Publisher is gone");
 }
 
 // TODO(martinduke): Revise to check if the last object has been delivered.
@@ -2158,8 +2158,7 @@ void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
       stream_map().GetStreamsForGroup(group_id);
   if (delivery_timeout_.IsInfinite() && largest_sent_.has_value() &&
       largest_sent_->group <= group_id) {
-    session_->SubscribeIsDone(request_id_, SubscribeDoneCode::kTooFarBehind,
-                              "");
+    session_->PublishIsDone(request_id_, PublishDoneCode::kTooFarBehind, "");
     // No class access below this line!
     return;
   }

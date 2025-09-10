@@ -71,7 +71,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
                         const PublishedObjectMetadata& /*metadata*/,
                         absl::string_view /*object*/,
                         bool /*end_of_message*/) override {}
-  void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+  void OnPublishDone(FullTrackName /*full_track_name*/) override {}
   void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
 
   // Publish a received object. Returns false if the object is invalid, given

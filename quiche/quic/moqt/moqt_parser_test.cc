@@ -37,7 +37,7 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kSubscribeError,
     MoqtMessageType::kSubscribeUpdate,
     MoqtMessageType::kUnsubscribe,
-    MoqtMessageType::kSubscribeDone,
+    MoqtMessageType::kPublishDone,
     MoqtMessageType::kAnnounceCancel,
     MoqtMessageType::kTrackStatus,
     MoqtMessageType::kTrackStatusOk,

@@ -232,8 +232,8 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kUnsubscribe:
       bytes_read = ProcessUnsubscribe(reader);
       break;
-    case MoqtMessageType::kSubscribeDone:
-      bytes_read = ProcessSubscribeDone(reader);
+    case MoqtMessageType::kPublishDone:
+      bytes_read = ProcessPublishDone(reader);
       break;
     case MoqtMessageType::kSubscribeUpdate:
       bytes_read = ProcessSubscribeUpdate(reader);
@@ -526,8 +526,8 @@ size_t MoqtControlParser::ProcessUnsubscribe(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribeDone(quic::QuicDataReader& reader) {
-  MoqtSubscribeDone subscribe_done;
+size_t MoqtControlParser::ProcessPublishDone(quic::QuicDataReader& reader) {
+  MoqtPublishDone subscribe_done;
   uint64_t value;
   if (!reader.ReadVarInt62(&subscribe_done.request_id) ||
       !reader.ReadVarInt62(&value) ||
@@ -535,8 +535,8 @@ size_t MoqtControlParser::ProcessSubscribeDone(quic::QuicDataReader& reader) {
       !reader.ReadStringVarInt62(subscribe_done.error_reason)) {
     return 0;
   }
-  subscribe_done.status_code = static_cast<SubscribeDoneCode>(value);
-  visitor_.OnSubscribeDoneMessage(subscribe_done);
+  subscribe_done.status_code = static_cast<PublishDoneCode>(value);
+  visitor_.OnPublishDoneMessage(subscribe_done);
   return reader.PreviouslyReadPayload().length();
 }
 

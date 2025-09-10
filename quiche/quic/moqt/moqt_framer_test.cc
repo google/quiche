@@ -38,7 +38,7 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kSubscribeOk,
       MoqtMessageType::kSubscribeError,
       MoqtMessageType::kUnsubscribe,
-      MoqtMessageType::kSubscribeDone,
+      MoqtMessageType::kPublishDone,
       MoqtMessageType::kAnnounce,
       MoqtMessageType::kAnnounceOk,
       MoqtMessageType::kAnnounceError,
@@ -140,9 +140,9 @@ class MoqtFramerTest
         auto data = std::get<MoqtUnsubscribe>(structured_data);
         return framer_.SerializeUnsubscribe(data);
       }
-      case MoqtMessageType::kSubscribeDone: {
-        auto data = std::get<MoqtSubscribeDone>(structured_data);
-        return framer_.SerializeSubscribeDone(data);
+      case MoqtMessageType::kPublishDone: {
+        auto data = std::get<MoqtPublishDone>(structured_data);
+        return framer_.SerializePublishDone(data);
       }
       case MoqtMessageType::kAnnounce: {
         auto data = std::get<MoqtAnnounce>(structured_data);

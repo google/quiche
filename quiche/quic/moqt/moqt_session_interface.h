@@ -50,7 +50,7 @@ class SubscribeVisitor {
                                 const PublishedObjectMetadata& metadata,
                                 absl::string_view object,
                                 bool end_of_message) = 0;
-  virtual void OnSubscribeDone(FullTrackName full_track_name) = 0;
+  virtual void OnPublishDone(FullTrackName full_track_name) = 0;
   // Called when the track is malformed per Section 2.5 of
   // draft-ietf-moqt-moq-transport-12. If the application is a relay, it MUST
   // terminate downstream delivery of the track.
@@ -162,7 +162,7 @@ class MoqtSessionInterface {
   // TODO: Add Announce, Unannounce method.
   // TODO: Add AnnounceCancel method.
   // TODO: Add TrackStatusRequest method.
-  // TODO: Add SubscribeUpdate, SubscribeDone method.
+  // TODO: Add SubscribeUpdate, PublishDone method.
 
   virtual quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() = 0;
 };

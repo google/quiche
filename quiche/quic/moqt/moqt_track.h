@@ -133,8 +133,8 @@ class SubscribeRemoteTrack : public RemoteTrack {
   }
   void OnStreamOpened();
   void OnStreamClosed();
-  void OnSubscribeDone(uint64_t stream_count, const quic::QuicClock* clock,
-                       std::unique_ptr<quic::QuicAlarm> subscribe_done_alarm);
+  void OnPublishDone(uint64_t stream_count, const quic::QuicClock* clock,
+                     std::unique_ptr<quic::QuicAlarm> subscribe_done_alarm);
   bool all_streams_closed() const {
     return total_streams_.has_value() && *total_streams_ == streams_closed_;
   }
@@ -154,7 +154,7 @@ class SubscribeRemoteTrack : public RemoteTrack {
   friend class test::MoqtSessionPeer;
   friend class test::SubscribeRemoteTrackPeer;
 
-  void MaybeSetSubscribeDoneAlarm();
+  void MaybeSetPublishDoneAlarm();
 
   void FetchObjects();
   std::unique_ptr<MoqtFetchTask> fetch_task_;

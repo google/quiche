@@ -193,7 +193,7 @@ class MoqtIngestionHandler {
       output.close();
     }
 
-    void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+    void OnPublishDone(FullTrackName /*full_track_name*/) override {}
     void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
 
    private:

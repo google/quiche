@@ -321,7 +321,7 @@ class ObjectReceiver : public SubscribeVisitor {
     OnFullObject(metadata.location, object);
   }
 
-  void OnSubscribeDone(FullTrackName /*full_track_name*/) override {}
+  void OnPublishDone(FullTrackName /*full_track_name*/) override {}
   void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
 
   void OnFullObject(Location sequence, absl::string_view payload) {

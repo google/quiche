@@ -39,7 +39,7 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnSubscribeOkMessage(const MoqtSubscribeOk& message) = 0;
   virtual void OnSubscribeErrorMessage(const MoqtSubscribeError& message) = 0;
   virtual void OnUnsubscribeMessage(const MoqtUnsubscribe& message) = 0;
-  virtual void OnSubscribeDoneMessage(const MoqtSubscribeDone& message) = 0;
+  virtual void OnPublishDoneMessage(const MoqtPublishDone& message) = 0;
   virtual void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) = 0;
   virtual void OnAnnounceMessage(const MoqtAnnounce& message) = 0;
   virtual void OnAnnounceOkMessage(const MoqtAnnounceOk& message) = 0;
@@ -126,7 +126,7 @@ class QUICHE_EXPORT MoqtControlParser {
       quic::QuicDataReader& reader,
       MoqtMessageType message_type = MoqtMessageType::kSubscribeError);
   size_t ProcessUnsubscribe(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeDone(quic::QuicDataReader& reader);
+  size_t ProcessPublishDone(quic::QuicDataReader& reader);
   size_t ProcessSubscribeUpdate(quic::QuicDataReader& reader);
   size_t ProcessAnnounce(quic::QuicDataReader& reader);
   size_t ProcessAnnounceOk(quic::QuicDataReader& reader);

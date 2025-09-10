@@ -230,7 +230,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnSubscribeErrorMessage(const MoqtSubscribeError& message) override;
     void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override;
     // There is no state to update for SUBSCRIBE_DONE.
-    void OnSubscribeDoneMessage(const MoqtSubscribeDone& message) override;
+    void OnPublishDoneMessage(const MoqtPublishDone& /*message*/) override;
     void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override;
     void OnAnnounceMessage(const MoqtAnnounce& message) override;
     void OnAnnounceOkMessage(const MoqtAnnounceOk& message) override;
@@ -690,9 +690,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtSession* session_;
   };
 
-  class SubscribeDoneDelegate : public quic::QuicAlarm::DelegateWithoutContext {
+  class PublishDoneDelegate : public quic::QuicAlarm::DelegateWithoutContext {
    public:
-    SubscribeDoneDelegate(MoqtSession* session, SubscribeRemoteTrack* subscribe)
+    PublishDoneDelegate(MoqtSession* session, SubscribeRemoteTrack* subscribe)
         : session_(session), subscribe_(subscribe) {}
 
     void OnAlarm() override { session_->DestroySubscription(subscribe_); }
@@ -704,8 +704,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   // Private members of MoqtSession.
   // Returns true if SUBSCRIBE_DONE was sent.
-  bool SubscribeIsDone(uint64_t request_id, SubscribeDoneCode code,
-                       absl::string_view error_reason);
+  bool PublishIsDone(uint64_t request_id, PublishDoneCode code,
+                     absl::string_view error_reason);
   void MaybeDestroySubscription(SubscribeRemoteTrack* subscribe);
   void DestroySubscription(SubscribeRemoteTrack* subscribe);
 

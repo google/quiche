@@ -71,7 +71,7 @@ class QUICHE_NO_EXPORT TestMessageBase {
 
   using MessageStructuredData = std::variant<
       MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtSubscribe,
-      MoqtSubscribeOk, MoqtSubscribeError, MoqtUnsubscribe, MoqtSubscribeDone,
+      MoqtSubscribeOk, MoqtSubscribeError, MoqtUnsubscribe, MoqtPublishDone,
       MoqtSubscribeUpdate, MoqtAnnounce, MoqtAnnounceOk, MoqtAnnounceError,
       MoqtUnannounce, MoqtAnnounceCancel, MoqtTrackStatus, MoqtTrackStatusOk,
       MoqtTrackStatusError, MoqtGoAway, MoqtSubscribeNamespace,
@@ -860,14 +860,14 @@ class QUICHE_NO_EXPORT UnsubscribeMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT SubscribeDoneMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT PublishDoneMessage : public TestMessageBase {
  public:
-  SubscribeDoneMessage() : TestMessageBase() {
+  PublishDoneMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtSubscribeDone>(values);
+    auto cast = std::get<MoqtPublishDone>(values);
     if (cast.request_id != subscribe_done_.request_id) {
       QUIC_LOG(INFO) << "SUBSCRIBE_DONE request ID mismatch";
       return false;
@@ -901,9 +901,9 @@ class QUICHE_NO_EXPORT SubscribeDoneMessage : public TestMessageBase {
       0x02, 0x68, 0x69,              // error_reason = "hi"
   };
 
-  MoqtSubscribeDone subscribe_done_ = {
+  MoqtPublishDone subscribe_done_ = {
       /*request_id=*/2,
-      /*error_code=*/SubscribeDoneCode::kTrackEnded,
+      /*error_code=*/PublishDoneCode::kTrackEnded,
       /*stream_count=*/5,
       /*error_reason=*/"hi",
   };
@@ -2057,8 +2057,8 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<SubscribeErrorMessage>();
     case MoqtMessageType::kUnsubscribe:
       return std::make_unique<UnsubscribeMessage>();
-    case MoqtMessageType::kSubscribeDone:
-      return std::make_unique<SubscribeDoneMessage>();
+    case MoqtMessageType::kPublishDone:
+      return std::make_unique<PublishDoneMessage>();
     case MoqtMessageType::kSubscribeUpdate:
       return std::make_unique<SubscribeUpdateMessage>();
     case MoqtMessageType::kAnnounce:

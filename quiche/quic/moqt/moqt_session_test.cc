@@ -1392,9 +1392,9 @@ TEST_F(MoqtSessionTest, GroupAbandonedNoDeliveryTimeout) {
   EXPECT_TRUE(correct_message);
   EXPECT_TRUE(fin);
 
-  struct MoqtSubscribeDone expected_subscribe_done = {
+  struct MoqtPublishDone expected_subscribe_done = {
       /*request_id=*/0,
-      SubscribeDoneCode::kTooFarBehind,
+      PublishDoneCode::kTooFarBehind,
       /*stream_count=*/1,
       /*error_reason=*/"",
   };
@@ -1458,9 +1458,9 @@ TEST_F(MoqtSessionTest, GroupAbandonedDeliveryTimeout) {
   EXPECT_TRUE(correct_message);
   EXPECT_TRUE(fin);
 
-  struct MoqtSubscribeDone expected_subscribe_done = {
+  struct MoqtPublishDone expected_subscribe_done = {
       /*request_id=*/0,
-      SubscribeDoneCode::kTooFarBehind,
+      PublishDoneCode::kTooFarBehind,
       /*stream_count=*/1,
       /*error_reason=*/"",
   };
@@ -3531,7 +3531,7 @@ TEST_F(MoqtSessionTest, ServerCannotReceiveNewSessionUri) {
   EXPECT_TRUE(reported_error);
 }
 
-TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithOpenStreams) {
+TEST_F(MoqtSessionTest, ReceivePublishDoneWithOpenStreams) {
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -3578,19 +3578,19 @@ TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithOpenStreams) {
   SubscribeRemoteTrack* track = MoqtSessionPeer::remote_track(&session_, 0);
   ASSERT_NE(track, nullptr);
   EXPECT_FALSE(track->all_streams_closed());
-  stream_input->OnSubscribeDoneMessage(
-      MoqtSubscribeDone(0, SubscribeDoneCode::kTrackEnded, kNumStreams, "foo"));
+  stream_input->OnPublishDoneMessage(
+      MoqtPublishDone(0, PublishDoneCode::kTrackEnded, kNumStreams, "foo"));
   track = MoqtSessionPeer::remote_track(&session_, 0);
   ASSERT_NE(track, nullptr);
   EXPECT_FALSE(track->all_streams_closed());
-  EXPECT_CALL(remote_track_visitor, OnSubscribeDone(_));
+  EXPECT_CALL(remote_track_visitor, OnPublishDone(_));
   for (uint64_t i = 0; i < kNumStreams; ++i) {
     data_streams[i].reset();
   }
   EXPECT_EQ(MoqtSessionPeer::remote_track(&session_, 0), nullptr);
 }
 
-TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithClosedStreams) {
+TEST_F(MoqtSessionTest, ReceivePublishDoneWithClosedStreams) {
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -3640,13 +3640,13 @@ TEST_F(MoqtSessionTest, ReceiveSubscribeDoneWithClosedStreams) {
   SubscribeRemoteTrack* track = MoqtSessionPeer::remote_track(&session_, 0);
   ASSERT_NE(track, nullptr);
   EXPECT_FALSE(track->all_streams_closed());
-  EXPECT_CALL(remote_track_visitor, OnSubscribeDone(_));
-  stream_input->OnSubscribeDoneMessage(
-      MoqtSubscribeDone(0, SubscribeDoneCode::kTrackEnded, kNumStreams, "foo"));
+  EXPECT_CALL(remote_track_visitor, OnPublishDone(_));
+  stream_input->OnPublishDoneMessage(
+      MoqtPublishDone(0, PublishDoneCode::kTrackEnded, kNumStreams, "foo"));
   EXPECT_EQ(MoqtSessionPeer::remote_track(&session_, 0), nullptr);
 }
 
-TEST_F(MoqtSessionTest, SubscribeDoneTimeout) {
+TEST_F(MoqtSessionTest, PublishDoneTimeout) {
   MockSubscribeRemoteTrackVisitor remote_track_visitor;
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
@@ -3697,13 +3697,13 @@ TEST_F(MoqtSessionTest, SubscribeDoneTimeout) {
   ASSERT_NE(track, nullptr);
   EXPECT_FALSE(track->all_streams_closed());
   // stream_count includes a stream that was never sent.
-  stream_input->OnSubscribeDoneMessage(MoqtSubscribeDone(
-      0, SubscribeDoneCode::kTrackEnded, kNumStreams + 1, "foo"));
+  stream_input->OnPublishDoneMessage(
+      MoqtPublishDone(0, PublishDoneCode::kTrackEnded, kNumStreams + 1, "foo"));
   EXPECT_FALSE(track->all_streams_closed());
   auto* subscribe_done_alarm =
       static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
-          MoqtSessionPeer::GetSubscribeDoneAlarm(track));
-  EXPECT_CALL(remote_track_visitor, OnSubscribeDone(_));
+          MoqtSessionPeer::GetPublishDoneAlarm(track));
+  EXPECT_CALL(remote_track_visitor, OnPublishDone(_));
   subscribe_done_alarm->Fire();
   // quic::test::MockAlarmFactory::FireAlarm(subscribe_done_alarm);;
   EXPECT_EQ(MoqtSessionPeer::remote_track(&session_, 0), nullptr);
@@ -3935,7 +3935,7 @@ TEST_F(MoqtSessionTest, SubscribeUpdateClosesSubscription) {
                     const quiche::StreamWriteOptions& options) {
         correct_message = true;
         EXPECT_EQ(*ExtractMessageType(data[0].AsStringView()),
-                  MoqtMessageType::kSubscribeDone);
+                  MoqtMessageType::kPublishDone);
         return absl::OkStatus();
       });
   stream_input->OnSubscribeUpdateMessage(update);

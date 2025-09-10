@@ -602,7 +602,7 @@ TEST_F(MoqtIntegrationTest, SubscribeError) {
   EXPECT_TRUE(success);
 }
 
-TEST_F(MoqtIntegrationTest, CleanSubscribeDone) {
+TEST_F(MoqtIntegrationTest, CleanPublishDone) {
   EstablishSession();
   FullTrackName full_track_name("foo", "bar");
 
@@ -633,7 +633,7 @@ TEST_F(MoqtIntegrationTest, CleanSubscribeDone) {
       full_track_name, &client_visitor, VersionSpecificParameters()));
   queue->RemoveAllSubscriptions();  // Induce a SUBSCRIBE_DONE.
   bool subscribe_done = false;
-  EXPECT_CALL(client_visitor, OnSubscribeDone).WillOnce([&]() {
+  EXPECT_CALL(client_visitor, OnPublishDone).WillOnce([&]() {
     subscribe_done = true;
   });
   success = test_harness_.RunUntilWithDefaultTimeout(
