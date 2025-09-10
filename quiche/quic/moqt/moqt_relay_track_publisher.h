@@ -40,7 +40,7 @@ namespace moqt {
 // This class is primarily meant to be used by live relays to buffer the
 // frames that arrive for a short time.
 class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
-                                public SubscribeRemoteTrack::Visitor {
+                                public SubscribeVisitor {
  public:
   MoqtRelayTrackPublisher(
       FullTrackName track,
@@ -60,7 +60,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   MoqtRelayTrackPublisher& operator=(const MoqtRelayTrackPublisher&) = delete;
   MoqtRelayTrackPublisher& operator=(MoqtRelayTrackPublisher&&) = default;
 
-  // SubscribeRemoteTrack::Visitor implementation.
+  // SubscribeVisitor implementation.
   // TODO(martinduke): Implement these.
   void OnReply(
       const FullTrackName& /*full_track_name*/,

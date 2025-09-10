@@ -35,7 +35,7 @@ class ChatServer {
              absl::string_view output_file);
   ~ChatServer();
 
-  class RemoteTrackVisitor : public SubscribeRemoteTrack::Visitor {
+  class RemoteTrackVisitor : public SubscribeVisitor {
    public:
     explicit RemoteTrackVisitor(ChatServer* server);
     void OnReply(const moqt::FullTrackName& full_track_name,

@@ -289,7 +289,7 @@ class ObjectGenerator : public quic::simulator::Actor,
   std::vector<QuicBandwidth> bitrate_history_;
 };
 
-class ObjectReceiver : public SubscribeRemoteTrack::Visitor {
+class ObjectReceiver : public SubscribeVisitor {
  public:
   explicit ObjectReceiver(const QuicClock* clock, QuicTimeDelta deadline)
       : clock_(clock), deadline_(deadline) {}

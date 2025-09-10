@@ -227,7 +227,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     return;
   }
   QUICHE_CHECK(!track->is_fetch());
-  SubscribeRemoteTrack::Visitor* visitor = track->visitor();
+  SubscribeVisitor* visitor = track->visitor();
   if (visitor != nullptr) {
     // TODO(martinduke): Handle extension headers.
     PublishedObjectMetadata metadata;
@@ -380,7 +380,7 @@ void MoqtSession::CancelAnnounce(TrackNamespace track_namespace,
 
 bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
-                                    SubscribeRemoteTrack::Visitor* visitor,
+                                    SubscribeVisitor* visitor,
                                     VersionSpecificParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
   MoqtSubscribe message;
@@ -398,7 +398,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
 bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
                                     uint64_t start_group, uint64_t start_object,
                                     uint64_t end_group,
-                                    SubscribeRemoteTrack::Visitor* visitor,
+                                    SubscribeVisitor* visitor,
                                     VersionSpecificParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
   if (end_group < start_group) {
@@ -418,7 +418,7 @@ bool MoqtSession::SubscribeAbsolute(const FullTrackName& name,
 }
 
 bool MoqtSession::SubscribeCurrentObject(const FullTrackName& name,
-                                         SubscribeRemoteTrack::Visitor* visitor,
+                                         SubscribeVisitor* visitor,
                                          VersionSpecificParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
   MoqtSubscribe message;
@@ -434,7 +434,7 @@ bool MoqtSession::SubscribeCurrentObject(const FullTrackName& name,
 }
 
 bool MoqtSession::SubscribeNextGroup(const FullTrackName& name,
-                                     SubscribeRemoteTrack::Visitor* visitor,
+                                     SubscribeVisitor* visitor,
                                      VersionSpecificParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
   MoqtSubscribe message;
@@ -541,7 +541,7 @@ bool MoqtSession::Fetch(const FullTrackName& name,
 }
 
 bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
-                                       SubscribeRemoteTrack::Visitor* visitor,
+                                       SubscribeVisitor* visitor,
                                        uint64_t num_previous_groups,
                                        VersionSpecificParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
@@ -563,7 +563,7 @@ bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
 }
 
 bool MoqtSession::RelativeJoiningFetch(
-    const FullTrackName& name, SubscribeRemoteTrack::Visitor* visitor,
+    const FullTrackName& name, SubscribeVisitor* visitor,
     FetchResponseCallback callback, uint64_t num_previous_groups,
     MoqtPriority priority, std::optional<MoqtDeliveryOrder> delivery_order,
     VersionSpecificParameters parameters) {
@@ -717,8 +717,7 @@ void MoqtSession::DestroySubscription(SubscribeRemoteTrack* subscribe) {
   }
 }
 
-bool MoqtSession::Subscribe(MoqtSubscribe& message,
-                            SubscribeRemoteTrack::Visitor* visitor) {
+bool MoqtSession::Subscribe(MoqtSubscribe& message, SubscribeVisitor* visitor) {
   // TODO(martinduke): support authorization info
   if (next_request_id_ >= peer_max_request_id_) {
     if (!last_requests_blocked_sent_.has_value() ||

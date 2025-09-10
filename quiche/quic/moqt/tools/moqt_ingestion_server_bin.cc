@@ -163,7 +163,7 @@ class MoqtIngestionHandler {
   }
 
  private:
-  class NamespaceHandler : public SubscribeRemoteTrack::Visitor {
+  class NamespaceHandler : public SubscribeVisitor {
    public:
     explicit NamespaceHandler(absl::string_view directory)
         : directory_(directory) {}

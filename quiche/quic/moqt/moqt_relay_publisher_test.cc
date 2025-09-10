@@ -27,23 +27,20 @@ class MockMoqtSession : public MoqtSessionInterface {
               (override));
   MOCK_METHOD(bool, SubscribeAbsolute,
               (const FullTrackName& name, uint64_t start_group,
-               uint64_t start_object, SubscribeRemoteTrack::Visitor* visitor,
+               uint64_t start_object, SubscribeVisitor* visitor,
                VersionSpecificParameters parameters),
               (override));
   MOCK_METHOD(bool, SubscribeAbsolute,
               (const FullTrackName& name, uint64_t start_group,
                uint64_t start_object, uint64_t end_group,
-               SubscribeRemoteTrack::Visitor* visitor,
-               VersionSpecificParameters parameters),
+               SubscribeVisitor* visitor, VersionSpecificParameters parameters),
               (override));
   MOCK_METHOD(bool, SubscribeCurrentObject,
-              (const FullTrackName& name,
-               SubscribeRemoteTrack::Visitor* visitor,
+              (const FullTrackName& name, SubscribeVisitor* visitor,
                VersionSpecificParameters parameters),
               (override));
   MOCK_METHOD(bool, SubscribeNextGroup,
-              (const FullTrackName& name,
-               SubscribeRemoteTrack::Visitor* visitor,
+              (const FullTrackName& name, SubscribeVisitor* visitor,
                VersionSpecificParameters parameters),
               (override));
   MOCK_METHOD(bool, SubscribeUpdate,
@@ -62,14 +59,12 @@ class MockMoqtSession : public MoqtSessionInterface {
                VersionSpecificParameters parameters),
               (override));
   MOCK_METHOD(bool, RelativeJoiningFetch,
-              (const FullTrackName& name,
-               SubscribeRemoteTrack::Visitor* visitor,
+              (const FullTrackName& name, SubscribeVisitor* visitor,
                uint64_t num_previous_groups,
                VersionSpecificParameters parameters),
               (override));
   MOCK_METHOD(bool, RelativeJoiningFetch,
-              (const FullTrackName& name,
-               SubscribeRemoteTrack::Visitor* visitor,
+              (const FullTrackName& name, SubscribeVisitor* visitor,
                FetchResponseCallback callback, uint64_t num_previous_groups,
                MoqtPriority priority,
                std::optional<MoqtDeliveryOrder> delivery_order,

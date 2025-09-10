@@ -18,6 +18,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -30,10 +31,6 @@ namespace test {
 class MoqtSessionPeer;
 class SubscribeRemoteTrackPeer;
 }  // namespace test
-
-using MoqtObjectAckFunction =
-    quiche::MultiUseCallback<void(uint64_t group_id, uint64_t object_id,
-                                  quic::QuicTimeDelta delta_from_deadline)>;
 
 // State common to both SUBSCRIBE and FETCH upstream.
 class RemoteTrack {
@@ -93,34 +90,8 @@ class RemoteTrack {
 // A track on the peer to which the session has subscribed.
 class SubscribeRemoteTrack : public RemoteTrack {
  public:
-  // TODO: Separate this out (as it's used by the application) and give it a
-  // name like MoqtTrackSubscriber,
-  class Visitor {
-   public:
-    virtual ~Visitor() = default;
-    // Called when the session receives a response to the SUBSCRIBE, unless it's
-    // a SUBSCRIBE_ERROR with a new track_alias. In that case, the session will
-    // automatically retry.
-    virtual void OnReply(
-        const FullTrackName& full_track_name,
-        std::optional<Location> largest_location,
-        std::optional<absl::string_view> error_reason_phrase) = 0;
-    // Called when the subscription process is far enough that it is possible to
-    // send OBJECT_ACK messages; provides a callback to do so. The callback is
-    // valid for as long as the session is valid.
-    virtual void OnCanAckObjects(MoqtObjectAckFunction ack_function) = 0;
-    // Called when an object fragment (or an entire object) is received.
-    virtual void OnObjectFragment(const FullTrackName& full_track_name,
-                                  const PublishedObjectMetadata& metadata,
-                                  absl::string_view object,
-                                  bool end_of_message) = 0;
-    virtual void OnSubscribeDone(FullTrackName full_track_name) = 0;
-    // Called when the track is malformed per Section 2.5 of
-    // draft-ietf-moqt-moq-transport-12. If the application is a relay, it MUST
-    // terminate downstream delivery of the track.
-    virtual void OnMalformedTrack(const FullTrackName& full_track_name) = 0;
-  };
-  SubscribeRemoteTrack(const MoqtSubscribe& subscribe, Visitor* visitor)
+  SubscribeRemoteTrack(const MoqtSubscribe& subscribe,
+                       SubscribeVisitor* visitor)
       : RemoteTrack(subscribe.full_track_name, subscribe.request_id,
                     SubscribeWindow(subscribe.start.value_or(Location()),
                                     subscribe.end_group),
@@ -141,7 +112,7 @@ class SubscribeRemoteTrack : public RemoteTrack {
   void set_track_alias(uint64_t track_alias) {
     track_alias_.emplace(track_alias);
   }
-  Visitor* visitor() { return visitor_; }
+  SubscribeVisitor* visitor() { return visitor_; }
 
   // Returns false if the forwarding preference is changing on the track.
   bool OnObject(bool is_datagram) {
@@ -190,7 +161,7 @@ class SubscribeRemoteTrack : public RemoteTrack {
 
   std::optional<const uint64_t> track_alias_;
   bool forward_;
-  Visitor* visitor_;
+  SubscribeVisitor* visitor_;
   std::optional<bool> is_datagram_;
   int currently_open_streams_ = 0;
   // Every stream that has received FIN or RESET_STREAM.
@@ -203,12 +174,6 @@ class SubscribeRemoteTrack : public RemoteTrack {
   std::unique_ptr<quic::QuicAlarm> subscribe_done_alarm_ = nullptr;
   const quic::QuicClock* clock_ = nullptr;
 };
-
-// MoqtSession calls this when a FETCH_OK or FETCH_ERROR is received. The
-// destination of the callback owns |fetch_task| and MoqtSession will react
-// safely if the owner destroys it.
-using FetchResponseCallback =
-    quiche::SingleUseCallback<void(std::unique_ptr<MoqtFetchTask> fetch_task)>;
 
 // This is a callback to MoqtSession::IncomingDataStream. Called when the
 // FetchTask has its object cache empty, on creation, and whenever the

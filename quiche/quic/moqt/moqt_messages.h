@@ -388,10 +388,12 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kExpiredAuthToken = 0x12,
 };
 
-struct MoqtSubscribeErrorReason {
+struct MoqtRequestError {
   RequestErrorCode error_code;
   std::string reason_phrase;
 };
+// TODO(martinduke): These are deprecated. Replace them in the code.
+using MoqtSubscribeErrorReason = MoqtRequestError;
 using MoqtAnnounceErrorReason = MoqtSubscribeErrorReason;
 
 class TrackNamespace {

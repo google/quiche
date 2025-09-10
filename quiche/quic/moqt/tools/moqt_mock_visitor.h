@@ -88,7 +88,7 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   FullTrackName track_name_;
 };
 
-class MockSubscribeRemoteTrackVisitor : public SubscribeRemoteTrack::Visitor {
+class MockSubscribeRemoteTrackVisitor : public SubscribeVisitor {
  public:
   MOCK_METHOD(void, OnReply,
               (const FullTrackName& full_track_name,

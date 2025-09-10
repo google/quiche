@@ -87,8 +87,7 @@ class ChatClient {
 
   quic::QuicEventLoop* event_loop() { return event_loop_; }
 
-  class QUICHE_EXPORT RemoteTrackVisitor
-      : public moqt::SubscribeRemoteTrack::Visitor {
+  class QUICHE_EXPORT RemoteTrackVisitor : public moqt::SubscribeVisitor {
    public:
     RemoteTrackVisitor(ChatClient* client) : client_(client) {}
 

@@ -118,18 +118,16 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   MoqtSessionCallbacks& callbacks() override { return callbacks_; }
   void Error(MoqtError code, absl::string_view error) override;
   bool SubscribeAbsolute(const FullTrackName& name, uint64_t start_group,
-                         uint64_t start_object,
-                         SubscribeRemoteTrack::Visitor* visitor,
+                         uint64_t start_object, SubscribeVisitor* visitor,
                          VersionSpecificParameters parameters) override;
   bool SubscribeAbsolute(const FullTrackName& name, uint64_t start_group,
                          uint64_t start_object, uint64_t end_group,
-                         SubscribeRemoteTrack::Visitor* visitor,
+                         SubscribeVisitor* visitor,
                          VersionSpecificParameters parameters) override;
   bool SubscribeCurrentObject(const FullTrackName& name,
-                              SubscribeRemoteTrack::Visitor* visitor,
+                              SubscribeVisitor* visitor,
                               VersionSpecificParameters parameters) override;
-  bool SubscribeNextGroup(const FullTrackName& name,
-                          SubscribeRemoteTrack::Visitor* visitor,
+  bool SubscribeNextGroup(const FullTrackName& name, SubscribeVisitor* visitor,
                           VersionSpecificParameters parameters) override;
   bool SubscribeUpdate(const FullTrackName& name, std::optional<Location> start,
                        std::optional<uint64_t> end_group,
@@ -143,11 +141,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
              std::optional<MoqtDeliveryOrder> delivery_order,
              VersionSpecificParameters parameters) override;
   bool RelativeJoiningFetch(const FullTrackName& name,
-                            SubscribeRemoteTrack::Visitor* visitor,
+                            SubscribeVisitor* visitor,
                             uint64_t num_previous_groups,
                             VersionSpecificParameters parameters) override;
   bool RelativeJoiningFetch(const FullTrackName& name,
-                            SubscribeRemoteTrack::Visitor* visitor,
+                            SubscribeVisitor* visitor,
                             FetchResponseCallback callback,
                             uint64_t num_previous_groups, MoqtPriority priority,
                             std::optional<MoqtDeliveryOrder> delivery_order,
@@ -718,8 +716,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   void SendControlMessage(quiche::QuicheBuffer message);
 
   // Returns false if the SUBSCRIBE isn't sent.
-  bool Subscribe(MoqtSubscribe& message,
-                 SubscribeRemoteTrack::Visitor* visitor);
+  bool Subscribe(MoqtSubscribe& message, SubscribeVisitor* visitor);
 
   // Opens a new data stream, or queues it if the session is flow control
   // blocked.
