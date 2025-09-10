@@ -29,10 +29,11 @@ using MoqtSessionTerminatedCallback =
 // Called from the session destructor.
 using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
 
-// Called whenever an ANNOUNCE or UNANNOUNCE message is received from the peer.
-// ANNOUNCE sets a value for |parameters|, UNANNOUNCE does not.
-using MoqtIncomingAnnounceCallback =
-    quiche::MultiUseCallback<std::optional<MoqtAnnounceErrorReason>(
+// Called whenever a PUBLISH_NAMESPACE or PUBLISH_NAMESPACE_DONE message is
+// received from the peer. PUBLISH_NAMESPACE sets a value for |parameters|,
+// PUBLISH_NAMESPACE_DONE does not.
+using MoqtIncomingPublishNamespaceCallback =
+    quiche::MultiUseCallback<std::optional<MoqtPublishNamespaceErrorReason>(
         const TrackNamespace& track_namespace,
         const std::optional<VersionSpecificParameters>& parameters)>;
 
@@ -46,12 +47,13 @@ using MoqtIncomingSubscribeNamespaceCallback =
         const TrackNamespace& track_namespace,
         std::optional<VersionSpecificParameters> parameters)>;
 
-inline std::optional<MoqtAnnounceErrorReason> DefaultIncomingAnnounceCallback(
+inline std::optional<MoqtPublishNamespaceErrorReason>
+DefaultIncomingPublishNamespaceCallback(
     const TrackNamespace& /*track_namespace*/,
     std::optional<VersionSpecificParameters> /*parameters*/) {
-  return std::optional(MoqtAnnounceErrorReason{
+  return std::optional(MoqtPublishNamespaceErrorReason{
       RequestErrorCode::kNotSupported,
-      "This endpoint does not accept incoming ANNOUNCE messages"});
+      "This endpoint does not accept incoming PUBLISH_NAMESPACE messages"});
 };
 
 inline std::optional<MoqtSubscribeErrorReason>
@@ -72,9 +74,9 @@ struct MoqtSessionCallbacks {
       +[](absl::string_view) {};
   MoqtSessionDeletedCallback session_deleted_callback = +[] {};
 
-  MoqtIncomingAnnounceCallback incoming_announce_callback =
-      DefaultIncomingAnnounceCallback;
-  MoqtIncomingSubscribeNamespaceCallback incoming_subscribe_announces_callback =
+  MoqtIncomingPublishNamespaceCallback incoming_publish_namespace_callback =
+      DefaultIncomingPublishNamespaceCallback;
+  MoqtIncomingSubscribeNamespaceCallback incoming_subscribe_namespace_callback =
       DefaultIncomingSubscribeNamespaceCallback;
   const quic::QuicClock* clock = quic::QuicDefaultClock::Get();
 };

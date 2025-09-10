@@ -41,11 +41,16 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnUnsubscribeMessage(const MoqtUnsubscribe& message) = 0;
   virtual void OnPublishDoneMessage(const MoqtPublishDone& message) = 0;
   virtual void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) = 0;
-  virtual void OnAnnounceMessage(const MoqtAnnounce& message) = 0;
-  virtual void OnAnnounceOkMessage(const MoqtAnnounceOk& message) = 0;
-  virtual void OnAnnounceErrorMessage(const MoqtAnnounceError& message) = 0;
-  virtual void OnUnannounceMessage(const MoqtUnannounce& message) = 0;
-  virtual void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) = 0;
+  virtual void OnPublishNamespaceMessage(
+      const MoqtPublishNamespace& message) = 0;
+  virtual void OnPublishNamespaceOkMessage(
+      const MoqtPublishNamespaceOk& message) = 0;
+  virtual void OnPublishNamespaceErrorMessage(
+      const MoqtPublishNamespaceError& message) = 0;
+  virtual void OnPublishNamespaceDoneMessage(
+      const MoqtPublishNamespaceDone& message) = 0;
+  virtual void OnPublishNamespaceCancelMessage(
+      const MoqtPublishNamespaceCancel& message) = 0;
   virtual void OnTrackStatusMessage(const MoqtTrackStatus& message) = 0;
   virtual void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) = 0;
   virtual void OnTrackStatusErrorMessage(
@@ -128,11 +133,11 @@ class QUICHE_EXPORT MoqtControlParser {
   size_t ProcessUnsubscribe(quic::QuicDataReader& reader);
   size_t ProcessPublishDone(quic::QuicDataReader& reader);
   size_t ProcessSubscribeUpdate(quic::QuicDataReader& reader);
-  size_t ProcessAnnounce(quic::QuicDataReader& reader);
-  size_t ProcessAnnounceOk(quic::QuicDataReader& reader);
-  size_t ProcessAnnounceError(quic::QuicDataReader& reader);
-  size_t ProcessUnannounce(quic::QuicDataReader& reader);
-  size_t ProcessAnnounceCancel(quic::QuicDataReader& reader);
+  size_t ProcessPublishNamespace(quic::QuicDataReader& reader);
+  size_t ProcessPublishNamespaceOk(quic::QuicDataReader& reader);
+  size_t ProcessPublishNamespaceError(quic::QuicDataReader& reader);
+  size_t ProcessPublishNamespaceDone(quic::QuicDataReader& reader);
+  size_t ProcessPublishNamespaceCancel(quic::QuicDataReader& reader);
   size_t ProcessTrackStatus(quic::QuicDataReader& reader);
   size_t ProcessTrackStatusOk(quic::QuicDataReader& reader);
   size_t ProcessTrackStatusError(quic::QuicDataReader& reader);

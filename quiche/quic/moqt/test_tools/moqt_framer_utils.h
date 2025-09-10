@@ -28,9 +28,9 @@ namespace moqt::test {
 using MoqtGenericFrame = std::variant<
     MoqtClientSetup, MoqtServerSetup, MoqtSubscribe, MoqtSubscribeOk,
     MoqtSubscribeError, MoqtUnsubscribe, MoqtPublishDone, MoqtSubscribeUpdate,
-    MoqtAnnounce, MoqtAnnounceOk, MoqtAnnounceError, MoqtUnannounce,
-    MoqtAnnounceCancel, MoqtTrackStatus, MoqtTrackStatusOk,
-    MoqtTrackStatusError, MoqtGoAway, MoqtSubscribeNamespace,
+    MoqtPublishNamespace, MoqtPublishNamespaceOk, MoqtPublishNamespaceError,
+    MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
+    MoqtTrackStatusOk, MoqtTrackStatusError, MoqtGoAway, MoqtSubscribeNamespace,
     MoqtSubscribeNamespaceOk, MoqtSubscribeNamespaceError,
     MoqtUnsubscribeNamespace, MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel,
     MoqtFetchOk, MoqtFetchError, MoqtRequestsBlocked, MoqtPublish,

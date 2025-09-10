@@ -185,7 +185,7 @@ const std::array<MoqtMessageType, 9> kAllowsAuthorization = {
     MoqtMessageType::kSubscribe,
     MoqtMessageType::kSubscribeUpdate,
     MoqtMessageType::kSubscribeNamespace,
-    MoqtMessageType::kAnnounce,
+    MoqtMessageType::kPublishNamespace,
     MoqtMessageType::kTrackStatus,
     MoqtMessageType::kFetch};
 const std::array<MoqtMessageType, 7> kAllowsDeliveryTimeout = {
@@ -241,22 +241,22 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "SUBSCRIBE_DONE";
     case MoqtMessageType::kSubscribeUpdate:
       return "SUBSCRIBE_UPDATE";
-    case MoqtMessageType::kAnnounceCancel:
-      return "ANNOUNCE_CANCEL";
+    case MoqtMessageType::kPublishNamespaceCancel:
+      return "PUBLISH_NAMESPACE_CANCEL";
     case MoqtMessageType::kTrackStatus:
       return "TRACK_STATUS";
     case MoqtMessageType::kTrackStatusOk:
       return "TRACK_STATUS_OK";
     case MoqtMessageType::kTrackStatusError:
       return "TRACK_STATUS_ERROR";
-    case MoqtMessageType::kAnnounce:
-      return "ANNOUNCE";
-    case MoqtMessageType::kAnnounceOk:
-      return "ANNOUNCE_OK";
-    case MoqtMessageType::kAnnounceError:
-      return "ANNOUNCE_ERROR";
-    case MoqtMessageType::kUnannounce:
-      return "UNANNOUNCE";
+    case MoqtMessageType::kPublishNamespace:
+      return "PUBLISH_NAMESPACE";
+    case MoqtMessageType::kPublishNamespaceOk:
+      return "PUBLISH_NAMESPACE_OK";
+    case MoqtMessageType::kPublishNamespaceError:
+      return "PUBLISH_NAMESPACE_ERROR";
+    case MoqtMessageType::kPublishNamespaceDone:
+      return "PUBLISH_NAMESPACE_DONE";
     case MoqtMessageType::kGoAway:
       return "GOAWAY";
     case MoqtMessageType::kSubscribeNamespace:

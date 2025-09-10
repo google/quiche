@@ -63,17 +63,18 @@ class SubscribeVisitor {
 using FetchResponseCallback =
     quiche::SingleUseCallback<void(std::unique_ptr<MoqtFetchTask> fetch_task)>;
 
-// TODO(martinduke): MoqtOutgoingAnnounceCallback and
+// TODO(martinduke): MoqtOutgoingPublishNamespaceCallback and
 // MoqtOutgoingSubscribeNamespaceCallback are deprecated. Remove.
 
-// If |error_message| is nullopt, this is triggered by an ANNOUNCE_OK.
-// Otherwise, it is triggered by ANNOUNCE_ERROR or ANNOUNCE_CANCEL. For
-// ERROR or CANCEL, MoqtSession is deleting all ANNOUNCE state immediately
-// after calling this callback. Alternatively, the application can call
-// Unannounce() to delete the state.
-using MoqtOutgoingAnnounceCallback = quiche::MultiUseCallback<void(
+// If |error_message| is nullopt, this is triggered by a PUBLISH_NAMESPACE_OK.
+// Otherwise, it is triggered by PUBLISH_NAMESPACE_ERROR or
+// PUBLISH_NAMESPACE_CANCEL. For ERROR or CANCEL, MoqtSession is deleting all
+// PUBLISH_NAMESPACE state immediately after calling this callback.
+// Alternatively, the application can call PublishNamespaceDone() to delete the
+// state.
+using MoqtOutgoingPublishNamespaceCallback = quiche::MultiUseCallback<void(
     TrackNamespace track_namespace,
-    std::optional<MoqtAnnounceErrorReason> error)>;
+    std::optional<MoqtPublishNamespaceErrorReason> error)>;
 
 using MoqtOutgoingSubscribeNamespaceCallback = quiche::SingleUseCallback<void(
     TrackNamespace track_namespace, std::optional<RequestErrorCode> error,
@@ -83,7 +84,7 @@ class MoqtSessionInterface {
  public:
   virtual ~MoqtSessionInterface() = default;
 
-  // TODO: move ANNOUNCE logic here.
+  // TODO: move PUBLISH_NAMESPACE logic here.
 
   // Callbacks for session-level events.
   virtual MoqtSessionCallbacks& callbacks() = 0;
@@ -159,8 +160,8 @@ class MoqtSessionInterface {
   // TODO(martinduke): Add an API for absolute joining fetch.
 
   // TODO: Add SubscribeNamespace, UnsubscribeNamespace method.
-  // TODO: Add Announce, Unannounce method.
-  // TODO: Add AnnounceCancel method.
+  // TODO: Add PublishNamespace, PublishNamespaceDone method.
+  // TODO: Add PublishNamespaceCancel method.
   // TODO: Add TrackStatusRequest method.
   // TODO: Add SubscribeUpdate, PublishDone method.
 

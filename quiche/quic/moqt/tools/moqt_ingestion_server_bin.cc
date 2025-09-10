@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // moqt_ingestion_server is a simple command-line utility that accepts incoming
-// ANNOUNCE messages and records them into a file.
+// PUBLISH_NAMESPACE messages and records them into a file.
 
 #include <sys/stat.h>
 
@@ -112,21 +112,24 @@ class MoqtIngestionHandler {
   explicit MoqtIngestionHandler(MoqtSession* session,
                                 absl::string_view output_root)
       : session_(session), output_root_(output_root) {
-    session_->callbacks().incoming_announce_callback =
-        absl::bind_front(&MoqtIngestionHandler::OnAnnounceReceived, this);
+    session_->callbacks().incoming_publish_namespace_callback =
+        absl::bind_front(&MoqtIngestionHandler::OnPublishNamespaceReceived,
+                         this);
   }
 
-  // TODO(martinduke): Handle when |announce| is false (UNANNOUNCE).
-  std::optional<MoqtAnnounceErrorReason> OnAnnounceReceived(
+  // TODO(martinduke): Handle when |publish_namespace| is false
+  // (PUBLISH_NAMESPACE_DONE).
+  std::optional<MoqtPublishNamespaceErrorReason> OnPublishNamespaceReceived(
       TrackNamespace track_namespace,
       std::optional<VersionSpecificParameters> /*parameters*/) {
     if (!IsValidTrackNamespace(track_namespace) &&
         !quiche::GetQuicheCommandLineFlag(
             FLAGS_allow_invalid_track_namespaces)) {
-      QUICHE_DLOG(WARNING) << "Rejected remote announce as it contained "
-                              "disallowed characters; namespace: "
-                           << track_namespace;
-      return MoqtAnnounceErrorReason{
+      QUICHE_DLOG(WARNING)
+          << "Rejected remote publish_namespace as it contained "
+             "disallowed characters; namespace: "
+          << track_namespace;
+      return MoqtPublishNamespaceErrorReason{
           RequestErrorCode::kInternalError,
           "Track namespace contains disallowed characters"};
     }
@@ -146,8 +149,9 @@ class MoqtIngestionHandler {
       subscribed_namespaces_.erase(it);
       QUICHE_LOG(ERROR) << "Failed to create directory " << directory_path
                         << "; " << status;
-      return MoqtAnnounceErrorReason{RequestErrorCode::kInternalError,
-                                     "Failed to create output directory"};
+      return MoqtPublishNamespaceErrorReason{
+          RequestErrorCode::kInternalError,
+          "Failed to create output directory"};
     }
 
     std::string track_list = quiche::GetQuicheCommandLineFlag(FLAGS_tracks);

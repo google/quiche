@@ -254,13 +254,13 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kSubscribe = 0x03,
   kSubscribeOk = 0x04,
   kSubscribeError = 0x05,
-  kAnnounce = 0x06,
-  kAnnounceOk = 0x7,
-  kAnnounceError = 0x08,
-  kUnannounce = 0x09,
+  kPublishNamespace = 0x06,
+  kPublishNamespaceOk = 0x7,
+  kPublishNamespaceError = 0x08,
+  kPublishNamespaceDone = 0x09,
   kUnsubscribe = 0x0a,
   kPublishDone = 0x0b,
-  kAnnounceCancel = 0x0c,
+  kPublishNamespaceCancel = 0x0c,
   kTrackStatus = 0x0d,
   kTrackStatusOk = 0x0e,
   kTrackStatusError = 0x0f,
@@ -368,15 +368,16 @@ struct VersionSpecificParameters {
   bool operator==(const VersionSpecificParameters& other) const = default;
 };
 
-// Used for SUBSCRIBE_ERROR, ANNOUNCE_ERROR, ANNOUNCE_CANCEL,
+// Used for SUBSCRIBE_ERROR, PUBLISH_NAMESPACE_ERROR, PUBLISH_NAMESPACE_CANCEL,
 // SUBSCRIBE_NAMESPACE_ERROR, and FETCH_ERROR.
 enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kInternalError = 0x0,
   kUnauthorized = 0x1,
   kTimeout = 0x2,
   kNotSupported = 0x3,
-  kTrackDoesNotExist = 0x4,        // SUBSCRIBE_ERROR and FETCH_ERROR only.
-  kUninterested = 0x4,             // ANNOUNCE_ERROR and ANNOUNCE_CANCEL only.
+  kTrackDoesNotExist = 0x4,  // SUBSCRIBE_ERROR and FETCH_ERROR only.
+  kUninterested =
+      0x4,  // PUBLISH_NAMESPACE_ERROR and PUBLISH_NAMESPACE_CANCEL only.
   kNamespacePrefixUnknown = 0x4,   // SUBSCRIBE_NAMESPACE_ERROR only.
   kInvalidRange = 0x5,             // SUBSCRIBE_ERROR and FETCH_ERROR only.
   kNamespacePrefixOverlap = 0x5,   // SUBSCRIBE_NAMESPACE_ERROR only.
@@ -394,7 +395,7 @@ struct MoqtRequestError {
 };
 // TODO(martinduke): These are deprecated. Replace them in the code.
 using MoqtSubscribeErrorReason = MoqtRequestError;
-using MoqtAnnounceErrorReason = MoqtSubscribeErrorReason;
+using MoqtPublishNamespaceErrorReason = MoqtSubscribeErrorReason;
 
 class TrackNamespace {
  public:
@@ -730,27 +731,27 @@ struct QUICHE_EXPORT MoqtSubscribeUpdate {
   VersionSpecificParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtAnnounce {
+struct QUICHE_EXPORT MoqtPublishNamespace {
   uint64_t request_id;
   TrackNamespace track_namespace;
   VersionSpecificParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtAnnounceOk {
+struct QUICHE_EXPORT MoqtPublishNamespaceOk {
   uint64_t request_id;
 };
 
-struct QUICHE_EXPORT MoqtAnnounceError {
+struct QUICHE_EXPORT MoqtPublishNamespaceError {
   uint64_t request_id;
   RequestErrorCode error_code;
   std::string error_reason;
 };
 
-struct QUICHE_EXPORT MoqtUnannounce {
+struct QUICHE_EXPORT MoqtPublishNamespaceDone {
   TrackNamespace track_namespace;
 };
 
-struct QUICHE_EXPORT MoqtAnnounceCancel {
+struct QUICHE_EXPORT MoqtPublishNamespaceCancel {
   TrackNamespace track_namespace;
   RequestErrorCode error_code;
   std::string error_reason;

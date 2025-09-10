@@ -277,7 +277,7 @@ bool MoqtSession::SubscribeNamespace(
                     << peer_max_request_id_;
     return false;
   }
-  if (outgoing_subscribe_announces_.contains(track_namespace)) {
+  if (outgoing_subscribe_namespaces_.contains(track_namespace)) {
     std::move(callback)(
         track_namespace, RequestErrorCode::kInternalError,
         "SUBSCRIBE_NAMESPACE already outstanding for namespace");
@@ -291,15 +291,15 @@ bool MoqtSession::SubscribeNamespace(
   SendControlMessage(framer_.SerializeSubscribeNamespace(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_NAMESPACE message for "
                   << message.track_namespace;
-  pending_outgoing_subscribe_announces_[message.request_id] =
+  pending_outgoing_subscribe_namespaces_[message.request_id] =
       PendingSubscribeNamespaceData{track_namespace, std::move(callback)};
-  outgoing_subscribe_announces_.emplace(track_namespace);
+  outgoing_subscribe_namespaces_.emplace(track_namespace);
   return true;
 }
 
 bool MoqtSession::UnsubscribeNamespace(TrackNamespace track_namespace) {
   QUICHE_DCHECK(track_namespace.IsValid());
-  if (!outgoing_subscribe_announces_.contains(track_namespace)) {
+  if (!outgoing_subscribe_namespaces_.contains(track_namespace)) {
     return false;
   }
   MoqtUnsubscribeNamespace message;
@@ -307,19 +307,21 @@ bool MoqtSession::UnsubscribeNamespace(TrackNamespace track_namespace) {
   SendControlMessage(framer_.SerializeUnsubscribeNamespace(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent UNSUBSCRIBE_NAMESPACE message for "
                   << message.track_namespace;
-  outgoing_subscribe_announces_.erase(track_namespace);
+  outgoing_subscribe_namespaces_.erase(track_namespace);
   return true;
 }
 
-void MoqtSession::Announce(TrackNamespace track_namespace,
-                           MoqtOutgoingAnnounceCallback announce_callback,
-                           VersionSpecificParameters parameters) {
+void MoqtSession::PublishNamespace(
+    TrackNamespace track_namespace,
+    MoqtOutgoingPublishNamespaceCallback publish_namespace_callback,
+    VersionSpecificParameters parameters) {
   QUICHE_DCHECK(track_namespace.IsValid());
-  if (outgoing_announces_.contains(track_namespace)) {
-    std::move(announce_callback)(
+  if (outgoing_publish_namespaces_.contains(track_namespace)) {
+    std::move(publish_namespace_callback)(
         track_namespace,
-        MoqtAnnounceErrorReason{RequestErrorCode::kInternalError,
-                                "ANNOUNCE already outstanding for namespace"});
+        MoqtPublishNamespaceErrorReason{
+            RequestErrorCode::kInternalError,
+            "PUBLISH_NAMESPACE already outstanding for namespace"});
     return;
   }
   if (next_request_id_ >= peer_max_request_id_) {
@@ -330,51 +332,54 @@ void MoqtSession::Announce(TrackNamespace track_namespace,
       SendControlMessage(framer_.SerializeRequestsBlocked(requests_blocked));
       last_requests_blocked_sent_ = peer_max_request_id_;
     }
-    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send ANNOUNCE with ID "
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send PUBLISH_NAMESPACE with ID "
                     << next_request_id_
                     << " which is greater than the maximum ID "
                     << peer_max_request_id_;
     return;
   }
   if (received_goaway_ || sent_goaway_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send ANNOUNCE after GOAWAY";
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Tried to send PUBLISH_NAMESPACE after GOAWAY";
     return;
   }
-  MoqtAnnounce message;
+  MoqtPublishNamespace message;
   message.request_id = next_request_id_;
   next_request_id_ += 2;
   message.track_namespace = track_namespace;
   message.parameters = parameters;
-  SendControlMessage(framer_.SerializeAnnounce(message));
-  QUIC_DLOG(INFO) << ENDPOINT << "Sent ANNOUNCE message for "
+  SendControlMessage(framer_.SerializePublishNamespace(message));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent PUBLISH_NAMESPACE message for "
                   << message.track_namespace;
-  pending_outgoing_announces_[message.request_id] = track_namespace;
-  outgoing_announces_[track_namespace] = std::move(announce_callback);
+  pending_outgoing_publish_namespaces_[message.request_id] = track_namespace;
+  outgoing_publish_namespaces_[track_namespace] =
+      std::move(publish_namespace_callback);
 }
 
-bool MoqtSession::Unannounce(TrackNamespace track_namespace) {
+bool MoqtSession::PublishNamespaceDone(TrackNamespace track_namespace) {
   QUICHE_DCHECK(track_namespace.IsValid());
-  auto it = outgoing_announces_.find(track_namespace);
-  if (it == outgoing_announces_.end()) {
-    return false;  // Could have been destroyed by ANNOUNCE_CANCEL.
+  auto it = outgoing_publish_namespaces_.find(track_namespace);
+  if (it == outgoing_publish_namespaces_.end()) {
+    return false;  // Could have been destroyed by PUBLISH_NAMESPACE_CANCEL.
   }
-  MoqtUnannounce message;
+  MoqtPublishNamespaceDone message;
   message.track_namespace = track_namespace;
-  SendControlMessage(framer_.SerializeUnannounce(message));
-  QUIC_DLOG(INFO) << ENDPOINT << "Sent UNANNOUNCE message for "
+  SendControlMessage(framer_.SerializePublishNamespaceDone(message));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent PUBLISH_NAMESPACE_DONE message for "
                   << message.track_namespace;
-  outgoing_announces_.erase(it);
+  outgoing_publish_namespaces_.erase(it);
   return true;
 }
 
-void MoqtSession::CancelAnnounce(TrackNamespace track_namespace,
-                                 RequestErrorCode code,
-                                 absl::string_view reason) {
+void MoqtSession::CancelPublishNamespace(TrackNamespace track_namespace,
+                                         RequestErrorCode code,
+                                         absl::string_view reason) {
   QUICHE_DCHECK(track_namespace.IsValid());
-  MoqtAnnounceCancel message{track_namespace, code, std::string(reason)};
+  MoqtPublishNamespaceCancel message{track_namespace, code,
+                                     std::string(reason)};
 
-  SendControlMessage(framer_.SerializeAnnounceCancel(message));
-  QUIC_DLOG(INFO) << ENDPOINT << "Sent ANNOUNCE_CANCEL message for "
+  SendControlMessage(framer_.SerializePublishNamespaceCancel(message));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent PUBLISH_NAMESPACE_CANCEL message for "
                   << message.track_namespace << " with reason " << reason;
 }
 
@@ -1193,98 +1198,104 @@ void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
   it->second->set_delivery_timeout(message.parameters.delivery_timeout);
 }
 
-void MoqtSession::ControlStream::OnAnnounceMessage(
-    const MoqtAnnounce& message) {
+void MoqtSession::ControlStream::OnPublishNamespaceMessage(
+    const MoqtPublishNamespace& message) {
   if (!session_->ValidateRequestId(message.request_id)) {
     return;
   }
   if (session_->sent_goaway_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Received an ANNOUNCE after GOAWAY";
-    MoqtAnnounceError error;
+    QUIC_DLOG(INFO) << ENDPOINT << "Received a PUBLISH_NAMESPACE after GOAWAY";
+    MoqtPublishNamespaceError error;
     error.request_id = message.request_id;
     error.error_code = RequestErrorCode::kUnauthorized;
-    error.error_reason = "ANNOUNCE after GOAWAY";
-    SendOrBufferMessage(session_->framer_.SerializeAnnounceError(error));
+    error.error_reason = "PUBLISH_NAMESPACE after GOAWAY";
+    SendOrBufferMessage(
+        session_->framer_.SerializePublishNamespaceError(error));
     return;
   }
-  std::optional<MoqtAnnounceErrorReason> error =
-      session_->callbacks_.incoming_announce_callback(message.track_namespace,
-                                                      message.parameters);
+  std::optional<MoqtPublishNamespaceErrorReason> error =
+      session_->callbacks_.incoming_publish_namespace_callback(
+          message.track_namespace, message.parameters);
   if (error.has_value()) {
-    MoqtAnnounceError reply;
+    MoqtPublishNamespaceError reply;
     reply.request_id = message.request_id;
     reply.error_code = error->error_code;
     reply.error_reason = error->reason_phrase;
-    SendOrBufferMessage(session_->framer_.SerializeAnnounceError(reply));
+    SendOrBufferMessage(
+        session_->framer_.SerializePublishNamespaceError(reply));
     return;
   }
-  MoqtAnnounceOk ok;
+  MoqtPublishNamespaceOk ok;
   ok.request_id = message.request_id;
-  SendOrBufferMessage(session_->framer_.SerializeAnnounceOk(ok));
+  SendOrBufferMessage(session_->framer_.SerializePublishNamespaceOk(ok));
 }
 
-// Do not enforce that there is only one of OK or ERROR per ANNOUNCE. Upon
-// ERROR, we immediately destroy the state.
-void MoqtSession::ControlStream::OnAnnounceOkMessage(
-    const MoqtAnnounceOk& message) {
-  auto it = session_->pending_outgoing_announces_.find(message.request_id);
-  if (it == session_->pending_outgoing_announces_.end()) {
+// Do not enforce that there is only one of OK or ERROR per PUBLISH_NAMESPACE.
+// Upon ERROR, we immediately destroy the state.
+void MoqtSession::ControlStream::OnPublishNamespaceOkMessage(
+    const MoqtPublishNamespaceOk& message) {
+  auto it =
+      session_->pending_outgoing_publish_namespaces_.find(message.request_id);
+  if (it == session_->pending_outgoing_publish_namespaces_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
-                    "Received ANNOUNCE_OK for unknown request_id");
+                    "Received PUBLISH_NAMESPACE_OK for unknown request_id");
     return;
   }
   TrackNamespace track_namespace = it->second;
-  session_->pending_outgoing_announces_.erase(it);
-  auto callback_it = session_->outgoing_announces_.find(track_namespace);
-  if (callback_it == session_->outgoing_announces_.end()) {
-    // It might have already been destroyed due to UNANNOUNCE.
+  session_->pending_outgoing_publish_namespaces_.erase(it);
+  auto callback_it =
+      session_->outgoing_publish_namespaces_.find(track_namespace);
+  if (callback_it == session_->outgoing_publish_namespaces_.end()) {
+    // It might have already been destroyed due to PUBLISH_NAMESPACE_DONE.
     return;
   }
   std::move(callback_it->second)(track_namespace, std::nullopt);
 }
 
-void MoqtSession::ControlStream::OnAnnounceErrorMessage(
-    const MoqtAnnounceError& message) {
-  auto it = session_->pending_outgoing_announces_.find(message.request_id);
-  if (it == session_->pending_outgoing_announces_.end()) {
+void MoqtSession::ControlStream::OnPublishNamespaceErrorMessage(
+    const MoqtPublishNamespaceError& message) {
+  auto it =
+      session_->pending_outgoing_publish_namespaces_.find(message.request_id);
+  if (it == session_->pending_outgoing_publish_namespaces_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
-                    "Received ANNOUNCE_ERROR for unknown request_id");
+                    "Received PUBLISH_NAMESPACE_ERROR for unknown request_id");
     return;
   }
   TrackNamespace track_namespace = it->second;
-  session_->pending_outgoing_announces_.erase(it);
-  auto it2 = session_->outgoing_announces_.find(track_namespace);
-  if (it2 == session_->outgoing_announces_.end()) {
-    return;  // State might have been destroyed due to UNANNOUNCE.
+  session_->pending_outgoing_publish_namespaces_.erase(it);
+  auto it2 = session_->outgoing_publish_namespaces_.find(track_namespace);
+  if (it2 == session_->outgoing_publish_namespaces_.end()) {
+    return;  // State might have been destroyed due to PUBLISH_NAMESPACE_DONE.
   }
   std::move(it2->second)(
       track_namespace,
-      MoqtAnnounceErrorReason{message.error_code,
-                              std::string(message.error_reason)});
-  session_->outgoing_announces_.erase(it2);
+      MoqtPublishNamespaceErrorReason{message.error_code,
+                                      std::string(message.error_reason)});
+  session_->outgoing_publish_namespaces_.erase(it2);
 }
 
-void MoqtSession::ControlStream::OnUnannounceMessage(
-    const MoqtUnannounce& message) {
-  session_->callbacks_.incoming_announce_callback(message.track_namespace,
-                                                  std::nullopt);
+void MoqtSession::ControlStream::OnPublishNamespaceDoneMessage(
+    const MoqtPublishNamespaceDone& message) {
+  session_->callbacks_.incoming_publish_namespace_callback(
+      message.track_namespace, std::nullopt);
 }
 
-void MoqtSession::ControlStream::OnAnnounceCancelMessage(
-    const MoqtAnnounceCancel& message) {
+void MoqtSession::ControlStream::OnPublishNamespaceCancelMessage(
+    const MoqtPublishNamespaceCancel& message) {
   // The spec currently says that if a later SUBSCRIBE arrives for this
   // namespace, that SHOULD be a session error. I'm hoping that via Issue #557,
   // this will go away. Regardless, a SHOULD will not compel the session to keep
   // state forever, so there is no support for this requirement.
-  auto it = session_->outgoing_announces_.find(message.track_namespace);
-  if (it == session_->outgoing_announces_.end()) {
-    return;  // State might have been destroyed due to UNANNOUNCE.
+  auto it =
+      session_->outgoing_publish_namespaces_.find(message.track_namespace);
+  if (it == session_->outgoing_publish_namespaces_.end()) {
+    return;  // State might have been destroyed due to PUBLISH_NAMESPACE_DONE.
   }
   std::move(it->second)(
       message.track_namespace,
-      MoqtAnnounceErrorReason{message.error_code,
-                              std::string(message.error_reason)});
-  session_->outgoing_announces_.erase(it);
+      MoqtPublishNamespaceErrorReason{message.error_code,
+                                      std::string(message.error_reason)});
+  session_->outgoing_publish_namespaces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnTrackStatusMessage(
@@ -1355,7 +1366,7 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
         session_->framer_.SerializeSubscribeNamespaceError(error));
     return;
   }
-  if (!session_->incoming_subscribe_announces_.AddNamespace(
+  if (!session_->incoming_subscribe_namespace_.AddNamespace(
           message.track_namespace)) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE_NAMESPACE for "
                     << message.track_namespace
@@ -1369,7 +1380,7 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
     return;
   }
   std::optional<MoqtSubscribeErrorReason> result =
-      session_->callbacks_.incoming_subscribe_announces_callback(
+      session_->callbacks_.incoming_subscribe_namespace_callback(
           message.track_namespace, message.parameters);
   if (result.has_value()) {
     MoqtSubscribeNamespaceError error;
@@ -1378,7 +1389,7 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
     error.error_reason = result->reason_phrase;
     SendOrBufferMessage(
         session_->framer_.SerializeSubscribeNamespaceError(error));
-    session_->incoming_subscribe_announces_.RemoveNamespace(
+    session_->incoming_subscribe_namespace_.RemoveNamespace(
         message.track_namespace);
     return;
   }
@@ -1390,21 +1401,21 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
 void MoqtSession::ControlStream::OnSubscribeNamespaceOkMessage(
     const MoqtSubscribeNamespaceOk& message) {
   auto it =
-      session_->pending_outgoing_subscribe_announces_.find(message.request_id);
-  if (it == session_->pending_outgoing_subscribe_announces_.end()) {
+      session_->pending_outgoing_subscribe_namespaces_.find(message.request_id);
+  if (it == session_->pending_outgoing_subscribe_namespaces_.end()) {
     session_->Error(MoqtError::kProtocolViolation,
                     "Received SUBSCRIBE_NAMESPACE_OK for unknown request_id");
     return;  // UNSUBSCRIBE_NAMESPACE may already have deleted the entry.
   }
   std::move(it->second.callback)(it->second.track_namespace, std::nullopt, "");
-  session_->pending_outgoing_subscribe_announces_.erase(it);
+  session_->pending_outgoing_subscribe_namespaces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnSubscribeNamespaceErrorMessage(
     const MoqtSubscribeNamespaceError& message) {
   auto it =
-      session_->pending_outgoing_subscribe_announces_.find(message.request_id);
-  if (it == session_->pending_outgoing_subscribe_announces_.end()) {
+      session_->pending_outgoing_subscribe_namespaces_.find(message.request_id);
+  if (it == session_->pending_outgoing_subscribe_namespaces_.end()) {
     session_->Error(
         MoqtError::kProtocolViolation,
         "Received SUBSCRIBE_NAMESPACE_ERROR for unknown request_id");
@@ -1412,17 +1423,17 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceErrorMessage(
   }
   std::move(it->second.callback)(it->second.track_namespace, message.error_code,
                                  absl::string_view(message.error_reason));
-  session_->outgoing_subscribe_announces_.erase(it->second.track_namespace);
-  session_->pending_outgoing_subscribe_announces_.erase(it);
+  session_->outgoing_subscribe_namespaces_.erase(it->second.track_namespace);
+  session_->pending_outgoing_subscribe_namespaces_.erase(it);
 }
 
 void MoqtSession::ControlStream::OnUnsubscribeNamespaceMessage(
     const MoqtUnsubscribeNamespace& message) {
   // MoqtSession keeps no state here, so just tell the application.
   std::optional<MoqtSubscribeErrorReason> result =
-      session_->callbacks_.incoming_subscribe_announces_callback(
+      session_->callbacks_.incoming_subscribe_namespace_callback(
           message.track_namespace, std::nullopt);
-  session_->incoming_subscribe_announces_.RemoveNamespace(
+  session_->incoming_subscribe_namespace_.RemoveNamespace(
       message.track_namespace);
 }
 

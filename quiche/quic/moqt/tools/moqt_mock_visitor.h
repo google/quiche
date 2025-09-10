@@ -12,13 +12,14 @@
 #include <variant>
 
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
@@ -29,17 +30,17 @@ struct MockSessionCallbacks {
   testing::MockFunction<void(absl::string_view)> goaway_received_callback;
   testing::MockFunction<void(absl::string_view)> session_terminated_callback;
   testing::MockFunction<void()> session_deleted_callback;
-  testing::MockFunction<std::optional<MoqtAnnounceErrorReason>(
+  testing::MockFunction<std::optional<MoqtPublishNamespaceErrorReason>(
       const TrackNamespace&, std::optional<VersionSpecificParameters>)>
-      incoming_announce_callback;
+      incoming_publish_namespace_callback;
   testing::MockFunction<std::optional<MoqtSubscribeErrorReason>(
       TrackNamespace, std::optional<VersionSpecificParameters>)>
-      incoming_subscribe_announces_callback;
+      incoming_subscribe_namespace_callback;
 
   MockSessionCallbacks() {
-    ON_CALL(incoming_announce_callback, Call(testing::_, testing::_))
-        .WillByDefault(DefaultIncomingAnnounceCallback);
-    ON_CALL(incoming_subscribe_announces_callback, Call(testing::_, testing::_))
+    ON_CALL(incoming_publish_namespace_callback, Call(testing::_, testing::_))
+        .WillByDefault(DefaultIncomingPublishNamespaceCallback);
+    ON_CALL(incoming_subscribe_namespace_callback, Call(testing::_, testing::_))
         .WillByDefault(DefaultIncomingSubscribeNamespaceCallback);
   }
 
@@ -49,8 +50,8 @@ struct MockSessionCallbacks {
         goaway_received_callback.AsStdFunction(),
         session_terminated_callback.AsStdFunction(),
         session_deleted_callback.AsStdFunction(),
-        incoming_announce_callback.AsStdFunction(),
-        incoming_subscribe_announces_callback.AsStdFunction()};
+        incoming_publish_namespace_callback.AsStdFunction(),
+        incoming_subscribe_namespace_callback.AsStdFunction()};
   }
 };
 

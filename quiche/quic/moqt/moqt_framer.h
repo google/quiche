@@ -56,12 +56,16 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializePublishDone(const MoqtPublishDone& message);
   quiche::QuicheBuffer SerializeSubscribeUpdate(
       const MoqtSubscribeUpdate& message);
-  quiche::QuicheBuffer SerializeAnnounce(const MoqtAnnounce& message);
-  quiche::QuicheBuffer SerializeAnnounceOk(const MoqtAnnounceOk& message);
-  quiche::QuicheBuffer SerializeAnnounceError(const MoqtAnnounceError& message);
-  quiche::QuicheBuffer SerializeUnannounce(const MoqtUnannounce& message);
-  quiche::QuicheBuffer SerializeAnnounceCancel(
-      const MoqtAnnounceCancel& message);
+  quiche::QuicheBuffer SerializePublishNamespace(
+      const MoqtPublishNamespace& message);
+  quiche::QuicheBuffer SerializePublishNamespaceOk(
+      const MoqtPublishNamespaceOk& message);
+  quiche::QuicheBuffer SerializePublishNamespaceError(
+      const MoqtPublishNamespaceError& message);
+  quiche::QuicheBuffer SerializePublishNamespaceDone(
+      const MoqtPublishNamespaceDone& message);
+  quiche::QuicheBuffer SerializePublishNamespaceCancel(
+      const MoqtPublishNamespaceCancel& message);
   quiche::QuicheBuffer SerializeTrackStatus(const MoqtTrackStatus& message);
   quiche::QuicheBuffer SerializeTrackStatusOk(const MoqtTrackStatusOk& message);
   quiche::QuicheBuffer SerializeTrackStatusError(

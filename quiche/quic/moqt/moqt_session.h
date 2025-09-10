@@ -101,18 +101,22 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                           VersionSpecificParameters parameters);
   bool UnsubscribeNamespace(TrackNamespace track_namespace);
 
-  // Send an ANNOUNCE message for |track_namespace|, and call
-  // |announce_callback| when the response arrives. Will fail immediately if
-  // there is already an unresolved ANNOUNCE for that namespace.
-  void Announce(TrackNamespace track_namespace,
-                MoqtOutgoingAnnounceCallback announce_callback,
-                VersionSpecificParameters parameters);
-  // Returns true if message was sent, false if there is no ANNOUNCE to cancel.
-  bool Unannounce(TrackNamespace track_namespace);
+  // Send a PUBLISH_NAMESPACE message for |track_namespace|, and call
+  // |publish_namespace_callback| when the response arrives. Will fail
+  // immediately if there is already an unresolved PUBLISH_NAMESPACE for that
+  // namespace.
+  void PublishNamespace(
+      TrackNamespace track_namespace,
+      MoqtOutgoingPublishNamespaceCallback publish_namespace_callback,
+      VersionSpecificParameters parameters);
+  // Returns true if message was sent, false if there is no PUBLISH_NAMESPACE to
+  // cancel.
+  bool PublishNamespaceDone(TrackNamespace track_namespace);
   // Allows the subscriber to declare it will not subscribe to |track_namespace|
   // anymore.
-  void CancelAnnounce(TrackNamespace track_namespace, RequestErrorCode code,
-                      absl::string_view reason_phrase);
+  void CancelPublishNamespace(TrackNamespace track_namespace,
+                              RequestErrorCode code,
+                              absl::string_view reason_phrase);
 
   // MoqtSessionInterface implementation.
   MoqtSessionCallbacks& callbacks() override { return callbacks_; }
@@ -232,11 +236,16 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // There is no state to update for SUBSCRIBE_DONE.
     void OnPublishDoneMessage(const MoqtPublishDone& /*message*/) override;
     void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override;
-    void OnAnnounceMessage(const MoqtAnnounce& message) override;
-    void OnAnnounceOkMessage(const MoqtAnnounceOk& message) override;
-    void OnAnnounceErrorMessage(const MoqtAnnounceError& message) override;
-    void OnUnannounceMessage(const MoqtUnannounce& message) override;
-    void OnAnnounceCancelMessage(const MoqtAnnounceCancel& message) override;
+    void OnPublishNamespaceMessage(
+        const MoqtPublishNamespace& message) override;
+    void OnPublishNamespaceOkMessage(
+        const MoqtPublishNamespaceOk& message) override;
+    void OnPublishNamespaceErrorMessage(
+        const MoqtPublishNamespaceError& message) override;
+    void OnPublishNamespaceDoneMessage(
+        const MoqtPublishNamespaceDone& /*message*/) override;
+    void OnPublishNamespaceCancelMessage(
+        const MoqtPublishNamespaceCancel& message) override;
     void OnTrackStatusMessage(const MoqtTrackStatus& message) override;
     void OnTrackStatusOkMessage(const MoqtTrackStatusOk& /*message*/) override {
     }
@@ -830,25 +839,26 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::flat_hash_map<FullTrackName, MoqtPublishingMonitorInterface*>
       monitoring_interfaces_for_published_tracks_;
 
-  // Outgoing ANNOUNCE for which no OK or ERROR has been received.
-  absl::flat_hash_map<uint64_t, TrackNamespace> pending_outgoing_announces_;
-  // All outgoing ANNOUNCE.
-  absl::flat_hash_map<TrackNamespace, MoqtOutgoingAnnounceCallback>
-      outgoing_announces_;
+  // Outgoing PUBLISH_NAMESPACE for which no OK or ERROR has been received.
+  absl::flat_hash_map<uint64_t, TrackNamespace>
+      pending_outgoing_publish_namespaces_;
+  // All outgoing PUBLISH_NAMESPACE.
+  absl::flat_hash_map<TrackNamespace, MoqtOutgoingPublishNamespaceCallback>
+      outgoing_publish_namespaces_;
 
   // The value is nullptr after OK or ERROR is received. The entry is deleted
   // when sending UNSUBSCRIBE_NAMESPACE, to make sure the application doesn't
-  // unsubscribe from something that it isn't subscribed to. ANNOUNCEs that
-  // result from this subscription use incoming_announce_callback.
+  // unsubscribe from something that it isn't subscribed to. PUBLISH_NAMESPACEs
+  // that result from this subscription use incoming_publish_namespace_callback.
   struct PendingSubscribeNamespaceData {
     TrackNamespace track_namespace;
     MoqtOutgoingSubscribeNamespaceCallback callback;
   };
   absl::flat_hash_map<uint64_t, PendingSubscribeNamespaceData>
-      pending_outgoing_subscribe_announces_;
-  absl::flat_hash_set<TrackNamespace> outgoing_subscribe_announces_;
+      pending_outgoing_subscribe_namespaces_;
+  absl::flat_hash_set<TrackNamespace> outgoing_subscribe_namespaces_;
   // It's an error if the namespaces overlap, so keep track of them.
-  NamespaceTree incoming_subscribe_announces_;
+  NamespaceTree incoming_subscribe_namespace_;
 
   // The minimum request ID the peer can use that is monotonically increasing.
   uint64_t next_incoming_request_id_ = 0;

@@ -69,16 +69,18 @@ class QUICHE_NO_EXPORT TestMessageBase {
  public:
   virtual ~TestMessageBase() = default;
 
-  using MessageStructuredData = std::variant<
-      MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtSubscribe,
-      MoqtSubscribeOk, MoqtSubscribeError, MoqtUnsubscribe, MoqtPublishDone,
-      MoqtSubscribeUpdate, MoqtAnnounce, MoqtAnnounceOk, MoqtAnnounceError,
-      MoqtUnannounce, MoqtAnnounceCancel, MoqtTrackStatus, MoqtTrackStatusOk,
-      MoqtTrackStatusError, MoqtGoAway, MoqtSubscribeNamespace,
-      MoqtSubscribeNamespaceOk, MoqtSubscribeNamespaceError,
-      MoqtUnsubscribeNamespace, MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel,
-      MoqtFetchOk, MoqtFetchError, MoqtRequestsBlocked, MoqtPublish,
-      MoqtPublishOk, MoqtPublishError, MoqtObjectAck>;
+  using MessageStructuredData =
+      std::variant<MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtSubscribe,
+                   MoqtSubscribeOk, MoqtSubscribeError, MoqtUnsubscribe,
+                   MoqtPublishDone, MoqtSubscribeUpdate, MoqtPublishNamespace,
+                   MoqtPublishNamespaceOk, MoqtPublishNamespaceError,
+                   MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel,
+                   MoqtTrackStatus, MoqtTrackStatusOk, MoqtTrackStatusError,
+                   MoqtGoAway, MoqtSubscribeNamespace, MoqtSubscribeNamespaceOk,
+                   MoqtSubscribeNamespaceError, MoqtUnsubscribeNamespace,
+                   MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
+                   MoqtFetchError, MoqtRequestsBlocked, MoqtPublish,
+                   MoqtPublishOk, MoqtPublishError, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -969,24 +971,24 @@ class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT AnnounceMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT PublishNamespaceMessage : public TestMessageBase {
  public:
-  AnnounceMessage() : TestMessageBase() {
+  PublishNamespaceMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtAnnounce>(values);
-    if (cast.request_id != announce_.request_id) {
-      QUIC_LOG(INFO) << "ANNOUNCE request ID mismatch";
+    auto cast = std::get<MoqtPublishNamespace>(values);
+    if (cast.request_id != publish_namespace_.request_id) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE request ID mismatch";
       return false;
     }
-    if (cast.track_namespace != announce_.track_namespace) {
-      QUIC_LOG(INFO) << "ANNOUNCE track namespace mismatch";
+    if (cast.track_namespace != publish_namespace_.track_namespace) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE track namespace mismatch";
       return false;
     }
-    if (cast.parameters != announce_.parameters) {
-      QUIC_LOG(INFO) << "ANNOUNCE parameter mismatch";
+    if (cast.parameters != publish_namespace_.parameters) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE parameter mismatch";
       return false;
     }
     return true;
@@ -995,7 +997,7 @@ class QUICHE_NO_EXPORT AnnounceMessage : public TestMessageBase {
   void ExpandVarints() override { ExpandVarintsImpl("vvv---vvv-----"); }
 
   MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(announce_);
+    return TestMessageBase::MessageStructuredData(publish_namespace_);
   }
 
  private:
@@ -1006,23 +1008,23 @@ class QUICHE_NO_EXPORT AnnounceMessage : public TestMessageBase {
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
   };
 
-  MoqtAnnounce announce_ = {
+  MoqtPublishNamespace publish_namespace_ = {
       /*request_id=*/2,
       TrackNamespace{"foo"},
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
   };
 };
 
-class QUICHE_NO_EXPORT AnnounceOkMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT PublishNamespaceOkMessage : public TestMessageBase {
  public:
-  AnnounceOkMessage() : TestMessageBase() {
+  PublishNamespaceOkMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtAnnounceOk>(values);
-    if (cast.request_id != announce_ok_.request_id) {
-      QUIC_LOG(INFO) << "ANNOUNCE OK MESSAGE request ID mismatch";
+    auto cast = std::get<MoqtPublishNamespaceOk>(values);
+    if (cast.request_id != publish_namespace_ok_.request_id) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE OK MESSAGE request ID mismatch";
       return false;
     }
     return true;
@@ -1031,7 +1033,7 @@ class QUICHE_NO_EXPORT AnnounceOkMessage : public TestMessageBase {
   void ExpandVarints() override { ExpandVarintsImpl("v"); }
 
   MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(announce_ok_);
+    return TestMessageBase::MessageStructuredData(publish_namespace_ok_);
   }
 
  private:
@@ -1039,29 +1041,29 @@ class QUICHE_NO_EXPORT AnnounceOkMessage : public TestMessageBase {
       0x07, 0x00, 0x01, 0x01,  // request_id = 1
   };
 
-  MoqtAnnounceOk announce_ok_ = {
+  MoqtPublishNamespaceOk publish_namespace_ok_ = {
       /*request_id=*/1,
   };
 };
 
-class QUICHE_NO_EXPORT AnnounceErrorMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT PublishNamespaceErrorMessage : public TestMessageBase {
  public:
-  AnnounceErrorMessage() : TestMessageBase() {
+  PublishNamespaceErrorMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtAnnounceError>(values);
-    if (cast.request_id != announce_error_.request_id) {
-      QUIC_LOG(INFO) << "ANNOUNCE_ERROR request ID mismatch";
+    auto cast = std::get<MoqtPublishNamespaceError>(values);
+    if (cast.request_id != publish_namespace_error_.request_id) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE_ERROR request ID mismatch";
       return false;
     }
-    if (cast.error_code != announce_error_.error_code) {
-      QUIC_LOG(INFO) << "ANNOUNCE_ERROR error code mismatch";
+    if (cast.error_code != publish_namespace_error_.error_code) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE_ERROR error code mismatch";
       return false;
     }
-    if (cast.error_reason != announce_error_.error_reason) {
-      QUIC_LOG(INFO) << "ANNOUNCE_ERROR error reason mismatch";
+    if (cast.error_reason != publish_namespace_error_.error_reason) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE_ERROR error reason mismatch";
       return false;
     }
     return true;
@@ -1070,7 +1072,7 @@ class QUICHE_NO_EXPORT AnnounceErrorMessage : public TestMessageBase {
   void ExpandVarints() override { ExpandVarintsImpl("vvv---"); }
 
   MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(announce_error_);
+    return TestMessageBase::MessageStructuredData(publish_namespace_error_);
   }
 
  private:
@@ -1080,23 +1082,23 @@ class QUICHE_NO_EXPORT AnnounceErrorMessage : public TestMessageBase {
       0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
   };
 
-  MoqtAnnounceError announce_error_ = {
+  MoqtPublishNamespaceError publish_namespace_error_ = {
       /*request_id=*/1,
       RequestErrorCode::kNotSupported,
       /*reason_phrase=*/"bar",
   };
 };
 
-class QUICHE_NO_EXPORT UnannounceMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT PublishNamespaceDoneMessage : public TestMessageBase {
  public:
-  UnannounceMessage() : TestMessageBase() {
+  PublishNamespaceDoneMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtUnannounce>(values);
-    if (cast.track_namespace != unannounce_.track_namespace) {
-      QUIC_LOG(INFO) << "UNANNOUNCE track namespace mismatch";
+    auto cast = std::get<MoqtPublishNamespaceDone>(values);
+    if (cast.track_namespace != publish_namespace_done_.track_namespace) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE_DONE track namespace mismatch";
       return false;
     }
     return true;
@@ -1105,7 +1107,7 @@ class QUICHE_NO_EXPORT UnannounceMessage : public TestMessageBase {
   void ExpandVarints() override { ExpandVarintsImpl("vv---"); }
 
   MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(unannounce_);
+    return TestMessageBase::MessageStructuredData(publish_namespace_done_);
   }
 
  private:
@@ -1113,29 +1115,29 @@ class QUICHE_NO_EXPORT UnannounceMessage : public TestMessageBase {
       0x09, 0x00, 0x05, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace
   };
 
-  MoqtUnannounce unannounce_ = {
+  MoqtPublishNamespaceDone publish_namespace_done_ = {
       TrackNamespace("foo"),
   };
 };
 
-class QUICHE_NO_EXPORT AnnounceCancelMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT PublishNamespaceCancelMessage : public TestMessageBase {
  public:
-  AnnounceCancelMessage() : TestMessageBase() {
+  PublishNamespaceCancelMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtAnnounceCancel>(values);
-    if (cast.track_namespace != announce_cancel_.track_namespace) {
-      QUIC_LOG(INFO) << "ANNOUNCE CANCEL track namespace mismatch";
+    auto cast = std::get<MoqtPublishNamespaceCancel>(values);
+    if (cast.track_namespace != publish_namespace_cancel_.track_namespace) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE CANCEL track namespace mismatch";
       return false;
     }
-    if (cast.error_code != announce_cancel_.error_code) {
-      QUIC_LOG(INFO) << "ANNOUNCE CANCEL error code mismatch";
+    if (cast.error_code != publish_namespace_cancel_.error_code) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE CANCEL error code mismatch";
       return false;
     }
-    if (cast.error_reason != announce_cancel_.error_reason) {
-      QUIC_LOG(INFO) << "ANNOUNCE CANCEL reason phrase mismatch";
+    if (cast.error_reason != publish_namespace_cancel_.error_reason) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE CANCEL reason phrase mismatch";
       return false;
     }
     return true;
@@ -1144,7 +1146,7 @@ class QUICHE_NO_EXPORT AnnounceCancelMessage : public TestMessageBase {
   void ExpandVarints() override { ExpandVarintsImpl("vv---vv---"); }
 
   MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(announce_cancel_);
+    return TestMessageBase::MessageStructuredData(publish_namespace_cancel_);
   }
 
  private:
@@ -1155,7 +1157,7 @@ class QUICHE_NO_EXPORT AnnounceCancelMessage : public TestMessageBase {
       0x03, 0x62, 0x61, 0x72,  // error_reason = "bar"
   };
 
-  MoqtAnnounceCancel announce_cancel_ = {
+  MoqtPublishNamespaceCancel publish_namespace_cancel_ = {
       TrackNamespace("foo"),
       RequestErrorCode::kNotSupported,
       /*error_reason=*/"bar",
@@ -2061,16 +2063,16 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<PublishDoneMessage>();
     case MoqtMessageType::kSubscribeUpdate:
       return std::make_unique<SubscribeUpdateMessage>();
-    case MoqtMessageType::kAnnounce:
-      return std::make_unique<AnnounceMessage>();
-    case MoqtMessageType::kAnnounceOk:
-      return std::make_unique<AnnounceOkMessage>();
-    case MoqtMessageType::kAnnounceError:
-      return std::make_unique<AnnounceErrorMessage>();
-    case MoqtMessageType::kUnannounce:
-      return std::make_unique<UnannounceMessage>();
-    case MoqtMessageType::kAnnounceCancel:
-      return std::make_unique<AnnounceCancelMessage>();
+    case MoqtMessageType::kPublishNamespace:
+      return std::make_unique<PublishNamespaceMessage>();
+    case MoqtMessageType::kPublishNamespaceOk:
+      return std::make_unique<PublishNamespaceOkMessage>();
+    case MoqtMessageType::kPublishNamespaceError:
+      return std::make_unique<PublishNamespaceErrorMessage>();
+    case MoqtMessageType::kPublishNamespaceDone:
+      return std::make_unique<PublishNamespaceDoneMessage>();
+    case MoqtMessageType::kPublishNamespaceCancel:
+      return std::make_unique<PublishNamespaceCancelMessage>();
     case MoqtMessageType::kTrackStatus:
       return std::make_unique<TrackStatusMessage>();
     case MoqtMessageType::kTrackStatusOk:

@@ -238,20 +238,20 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kSubscribeUpdate:
       bytes_read = ProcessSubscribeUpdate(reader);
       break;
-    case MoqtMessageType::kAnnounce:
-      bytes_read = ProcessAnnounce(reader);
+    case MoqtMessageType::kPublishNamespace:
+      bytes_read = ProcessPublishNamespace(reader);
       break;
-    case MoqtMessageType::kAnnounceOk:
-      bytes_read = ProcessAnnounceOk(reader);
+    case MoqtMessageType::kPublishNamespaceOk:
+      bytes_read = ProcessPublishNamespaceOk(reader);
       break;
-    case MoqtMessageType::kAnnounceError:
-      bytes_read = ProcessAnnounceError(reader);
+    case MoqtMessageType::kPublishNamespaceError:
+      bytes_read = ProcessPublishNamespaceError(reader);
       break;
-    case MoqtMessageType::kUnannounce:
-      bytes_read = ProcessUnannounce(reader);
+    case MoqtMessageType::kPublishNamespaceDone:
+      bytes_read = ProcessPublishNamespaceDone(reader);
       break;
-    case MoqtMessageType::kAnnounceCancel:
-      bytes_read = ProcessAnnounceCancel(reader);
+    case MoqtMessageType::kPublishNamespaceCancel:
+      bytes_read = ProcessPublishNamespaceCancel(reader);
       break;
     case MoqtMessageType::kTrackStatus:
       bytes_read = ProcessTrackStatus(reader);
@@ -581,10 +581,11 @@ size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessAnnounce(quic::QuicDataReader& reader) {
-  MoqtAnnounce announce;
-  if (!reader.ReadVarInt62(&announce.request_id) ||
-      !ReadTrackNamespace(reader, announce.track_namespace)) {
+size_t MoqtControlParser::ProcessPublishNamespace(
+    quic::QuicDataReader& reader) {
+  MoqtPublishNamespace publish_namespace;
+  if (!reader.ReadVarInt62(&publish_namespace.request_id) ||
+      !ReadTrackNamespace(reader, publish_namespace.track_namespace)) {
     return 0;
   }
   KeyValuePairList parameters;
@@ -592,61 +593,67 @@ size_t MoqtControlParser::ProcessAnnounce(quic::QuicDataReader& reader) {
     return 0;
   }
   if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kAnnounce)) {
-    ParseError("ANNOUNCE contains invalid parameters");
+                                         MoqtMessageType::kPublishNamespace)) {
+    ParseError("PUBLISH_NAMESPACE contains invalid parameters");
     return 0;
   }
-  if (!KeyValuePairListToVersionSpecificParameters(parameters,
-                                                   announce.parameters)) {
+  if (!KeyValuePairListToVersionSpecificParameters(
+          parameters, publish_namespace.parameters)) {
     return 0;
   }
-  visitor_.OnAnnounceMessage(announce);
+  visitor_.OnPublishNamespaceMessage(publish_namespace);
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessAnnounceOk(quic::QuicDataReader& reader) {
-  MoqtAnnounceOk announce_ok;
-  if (!reader.ReadVarInt62(&announce_ok.request_id)) {
+size_t MoqtControlParser::ProcessPublishNamespaceOk(
+    quic::QuicDataReader& reader) {
+  MoqtPublishNamespaceOk publish_namespace_ok;
+  if (!reader.ReadVarInt62(&publish_namespace_ok.request_id)) {
     return 0;
   }
-  visitor_.OnAnnounceOkMessage(announce_ok);
+  visitor_.OnPublishNamespaceOkMessage(publish_namespace_ok);
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessAnnounceError(quic::QuicDataReader& reader) {
-  MoqtAnnounceError announce_error;
+size_t MoqtControlParser::ProcessPublishNamespaceError(
+    quic::QuicDataReader& reader) {
+  MoqtPublishNamespaceError publish_namespace_error;
   uint64_t error_code;
-  if (!reader.ReadVarInt62(&announce_error.request_id) ||
+  if (!reader.ReadVarInt62(&publish_namespace_error.request_id) ||
       !reader.ReadVarInt62(&error_code) ||
-      !reader.ReadStringVarInt62(announce_error.error_reason)) {
+      !reader.ReadStringVarInt62(publish_namespace_error.error_reason)) {
     return 0;
   }
-  announce_error.error_code = static_cast<RequestErrorCode>(error_code);
-  visitor_.OnAnnounceErrorMessage(announce_error);
+  publish_namespace_error.error_code =
+      static_cast<RequestErrorCode>(error_code);
+  visitor_.OnPublishNamespaceErrorMessage(publish_namespace_error);
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessUnannounce(quic::QuicDataReader& reader) {
-  MoqtUnannounce unannounce;
-  if (!ReadTrackNamespace(reader, unannounce.track_namespace)) {
+size_t MoqtControlParser::ProcessPublishNamespaceDone(
+    quic::QuicDataReader& reader) {
+  MoqtPublishNamespaceDone unpublish_namespace;
+  if (!ReadTrackNamespace(reader, unpublish_namespace.track_namespace)) {
     return 0;
   }
-  visitor_.OnUnannounceMessage(unannounce);
+  visitor_.OnPublishNamespaceDoneMessage(unpublish_namespace);
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessAnnounceCancel(quic::QuicDataReader& reader) {
-  MoqtAnnounceCancel announce_cancel;
-  if (!ReadTrackNamespace(reader, announce_cancel.track_namespace)) {
+size_t MoqtControlParser::ProcessPublishNamespaceCancel(
+    quic::QuicDataReader& reader) {
+  MoqtPublishNamespaceCancel publish_namespace_cancel;
+  if (!ReadTrackNamespace(reader, publish_namespace_cancel.track_namespace)) {
     return 0;
   }
   uint64_t error_code;
   if (!reader.ReadVarInt62(&error_code) ||
-      !reader.ReadStringVarInt62(announce_cancel.error_reason)) {
+      !reader.ReadStringVarInt62(publish_namespace_cancel.error_reason)) {
     return 0;
   }
-  announce_cancel.error_code = static_cast<RequestErrorCode>(error_code);
-  visitor_.OnAnnounceCancelMessage(announce_cancel);
+  publish_namespace_cancel.error_code =
+      static_cast<RequestErrorCode>(error_code);
+  visitor_.OnPublishNamespaceCancelMessage(publish_namespace_cancel);
   return reader.PreviouslyReadPayload().length();
 }
 
@@ -674,9 +681,9 @@ size_t MoqtControlParser::ProcessGoAway(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessSubscribeNamespace(
     quic::QuicDataReader& reader) {
-  MoqtSubscribeNamespace subscribe_announces;
-  if (!reader.ReadVarInt62(&subscribe_announces.request_id) ||
-      !ReadTrackNamespace(reader, subscribe_announces.track_namespace)) {
+  MoqtSubscribeNamespace subscribe_namespace;
+  if (!reader.ReadVarInt62(&subscribe_namespace.request_id) ||
+      !ReadTrackNamespace(reader, subscribe_namespace.track_namespace)) {
     return 0;
   }
   KeyValuePairList parameters;
@@ -689,10 +696,10 @@ size_t MoqtControlParser::ProcessSubscribeNamespace(
     return 0;
   }
   if (!KeyValuePairListToVersionSpecificParameters(
-          parameters, subscribe_announces.parameters)) {
+          parameters, subscribe_namespace.parameters)) {
     return 0;
   }
-  visitor_.OnSubscribeNamespaceMessage(subscribe_announces);
+  visitor_.OnSubscribeNamespaceMessage(subscribe_namespace);
   return reader.PreviouslyReadPayload().length();
 }
 

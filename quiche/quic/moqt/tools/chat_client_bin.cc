@@ -152,7 +152,7 @@ int main(int argc, char* argv[]) {
   if (!client.Connect(path)) {
     return 1;
   }
-  if (!client.AnnounceAndSubscribeNamespace()) {
+  if (!client.PublishNamespaceAndSubscribeNamespace()) {
     return 1;
   }
   client.IoLoop();

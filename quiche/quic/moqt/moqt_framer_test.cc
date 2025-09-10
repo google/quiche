@@ -39,11 +39,11 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kSubscribeError,
       MoqtMessageType::kUnsubscribe,
       MoqtMessageType::kPublishDone,
-      MoqtMessageType::kAnnounce,
-      MoqtMessageType::kAnnounceOk,
-      MoqtMessageType::kAnnounceError,
-      MoqtMessageType::kUnannounce,
-      MoqtMessageType::kAnnounceCancel,
+      MoqtMessageType::kPublishNamespace,
+      MoqtMessageType::kPublishNamespaceOk,
+      MoqtMessageType::kPublishNamespaceError,
+      MoqtMessageType::kPublishNamespaceDone,
+      MoqtMessageType::kPublishNamespaceCancel,
       MoqtMessageType::kTrackStatus,
       MoqtMessageType::kTrackStatusOk,
       MoqtMessageType::kTrackStatusError,
@@ -144,25 +144,25 @@ class MoqtFramerTest
         auto data = std::get<MoqtPublishDone>(structured_data);
         return framer_.SerializePublishDone(data);
       }
-      case MoqtMessageType::kAnnounce: {
-        auto data = std::get<MoqtAnnounce>(structured_data);
-        return framer_.SerializeAnnounce(data);
+      case MoqtMessageType::kPublishNamespace: {
+        auto data = std::get<MoqtPublishNamespace>(structured_data);
+        return framer_.SerializePublishNamespace(data);
       }
-      case moqt::MoqtMessageType::kAnnounceOk: {
-        auto data = std::get<MoqtAnnounceOk>(structured_data);
-        return framer_.SerializeAnnounceOk(data);
+      case moqt::MoqtMessageType::kPublishNamespaceOk: {
+        auto data = std::get<MoqtPublishNamespaceOk>(structured_data);
+        return framer_.SerializePublishNamespaceOk(data);
       }
-      case moqt::MoqtMessageType::kAnnounceError: {
-        auto data = std::get<MoqtAnnounceError>(structured_data);
-        return framer_.SerializeAnnounceError(data);
+      case moqt::MoqtMessageType::kPublishNamespaceError: {
+        auto data = std::get<MoqtPublishNamespaceError>(structured_data);
+        return framer_.SerializePublishNamespaceError(data);
       }
-      case MoqtMessageType::kUnannounce: {
-        auto data = std::get<MoqtUnannounce>(structured_data);
-        return framer_.SerializeUnannounce(data);
+      case MoqtMessageType::kPublishNamespaceDone: {
+        auto data = std::get<MoqtPublishNamespaceDone>(structured_data);
+        return framer_.SerializePublishNamespaceDone(data);
       }
-      case moqt::MoqtMessageType::kAnnounceCancel: {
-        auto data = std::get<MoqtAnnounceCancel>(structured_data);
-        return framer_.SerializeAnnounceCancel(data);
+      case moqt::MoqtMessageType::kPublishNamespaceCancel: {
+        auto data = std::get<MoqtPublishNamespaceCancel>(structured_data);
+        return framer_.SerializePublishNamespaceCancel(data);
       }
       case moqt::MoqtMessageType::kTrackStatus: {
         auto data = std::get<MoqtTrackStatus>(structured_data);

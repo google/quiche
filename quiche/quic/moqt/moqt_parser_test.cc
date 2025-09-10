@@ -38,14 +38,14 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kSubscribeUpdate,
     MoqtMessageType::kUnsubscribe,
     MoqtMessageType::kPublishDone,
-    MoqtMessageType::kAnnounceCancel,
     MoqtMessageType::kTrackStatus,
     MoqtMessageType::kTrackStatusOk,
     MoqtMessageType::kTrackStatusError,
-    MoqtMessageType::kAnnounce,
-    MoqtMessageType::kAnnounceOk,
-    MoqtMessageType::kAnnounceError,
-    MoqtMessageType::kUnannounce,
+    MoqtMessageType::kPublishNamespace,
+    MoqtMessageType::kPublishNamespaceOk,
+    MoqtMessageType::kPublishNamespaceError,
+    MoqtMessageType::kPublishNamespaceDone,
+    MoqtMessageType::kPublishNamespaceCancel,
     MoqtMessageType::kClientSetup,
     MoqtMessageType::kServerSetup,
     MoqtMessageType::kGoAway,
@@ -955,35 +955,38 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkHasAuthorizationToken) {
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
-TEST_F(MoqtMessageSpecificTest, AnnounceAuthorizationTokenTwice) {
+TEST_F(MoqtMessageSpecificTest, PublishNamespaceAuthorizationTokenTwice) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
-  char announce[] = {
+  char publish_namespace[] = {
       0x06, 0x00, 0x15, 0x02, 0x01, 0x03, 0x66,
       0x6f, 0x6f,                                // track_namespace = "foo"
       0x02,                                      // 2 params
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
   };
-  stream.Receive(absl::string_view(announce, sizeof(announce)), false);
+  stream.Receive(
+      absl::string_view(publish_namespace, sizeof(publish_namespace)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
 }
 
-TEST_F(MoqtMessageSpecificTest, AnnounceHasDeliveryTimeout) {
+TEST_F(MoqtMessageSpecificTest, PublishNamespaceHasDeliveryTimeout) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
-  char announce[] = {
+  char publish_namespace[] = {
       0x06, 0x00, 0x11, 0x02, 0x01, 0x03, 0x66,
       0x6f, 0x6f,                                // track_namespace = "foo"
       0x02,                                      // 2 params
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_info = "bar"
       0x02, 0x67, 0x10,                          // delivery_timeout = 10000
   };
-  stream.Receive(absl::string_view(announce, sizeof(announce)), false);
+  stream.Receive(
+      absl::string_view(publish_namespace, sizeof(publish_namespace)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "ANNOUNCE contains invalid parameters");
+  EXPECT_EQ(visitor_.parsing_error_,
+            "PUBLISH_NAMESPACE contains invalid parameters");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
@@ -1477,22 +1480,25 @@ TEST_F(MoqtMessageSpecificTest, PaddingStream) {
 }
 
 // All messages with TrackNamespace use ReadTrackNamespace too check this. Use
-// ANNOUNCE.
+// PUBLISH_NAMESPACE.
 TEST_F(MoqtMessageSpecificTest, NamespaceTooSmall) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char announce[7] = {
+  char publish_namespace[7] = {
       0x06, 0x00, 0x04, 0x02,  // request_id = 2
       0x01, 0x00,              // one empty namespace element
       0x00,                    // no parameters
   };
-  stream.Receive(absl::string_view(announce, sizeof(announce)), false);
+  stream.Receive(
+      absl::string_view(publish_namespace, sizeof(publish_namespace)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
-  --announce[2];  // Remove one element.
-  --announce[4];
-  stream.Receive(absl::string_view(announce, sizeof(announce) - 1), false);
+  --publish_namespace[2];  // Remove one element.
+  --publish_namespace[4];
+  stream.Receive(
+      absl::string_view(publish_namespace, sizeof(publish_namespace) - 1),
+      false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_EQ(visitor_.parsing_error_, "Invalid number of namespace elements");
@@ -1501,18 +1507,21 @@ TEST_F(MoqtMessageSpecificTest, NamespaceTooSmall) {
 TEST_F(MoqtMessageSpecificTest, NamespaceTooLarge) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char announce[39] = {
+  char publish_namespace[39] = {
       0x06, 0x00, 0x23, 0x02,  // type, length = 35, request_id = 2
       0x20,                    // 32 namespace elements. This is the maximum.
   };
   // 32 empty namespace elements + no parameters.
-  stream.Receive(absl::string_view(announce, sizeof(announce) - 1), false);
+  stream.Receive(
+      absl::string_view(publish_namespace, sizeof(publish_namespace) - 1),
+      false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
-  ++announce[2];  // Add one element.
-  ++announce[4];
-  stream.Receive(absl::string_view(announce, sizeof(announce)), false);
+  ++publish_namespace[2];  // Add one element.
+  ++publish_namespace[4];
+  stream.Receive(
+      absl::string_view(publish_namespace, sizeof(publish_namespace)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
   EXPECT_EQ(visitor_.parsing_error_, "Invalid number of namespace elements");
