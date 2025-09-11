@@ -30,6 +30,15 @@ namespace quiche {
 // BlindSignAuth provides signed, unblinded tokens to callers.
 class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
  public:
+  explicit BlindSignAuth(std::unique_ptr<BlindSignMessageInterface> fetcher,
+                         privacy::ppn::BlindSignAuthOptions auth_options)
+      : owned_fetcher_(std::move(fetcher)),
+        auth_options_(std::move(auth_options)) {
+    fetcher_ = owned_fetcher_.get();
+  }
+
+  // TODO: b/441077019 - Remove once IpProtectionTokenDirectFetcher updates to
+  // transfer pointer ownership.
   explicit BlindSignAuth(BlindSignMessageInterface* fetcher,
                          privacy::ppn::BlindSignAuthOptions auth_options)
       : fetcher_(fetcher), auth_options_(std::move(auth_options)) {}
@@ -149,7 +158,10 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
   // Replaces '+' and '/' with '-' and '_' in a Base64 string.
   std::string ConvertBase64ToWebSafeBase64(std::string base64_string);
 
+  // TODO: b/441077019 - Change fetcher to owned_fetcher_ once
+  // IpProtectionTokenDirectFetcher updates to transfer pointer ownership.
   BlindSignMessageInterface* fetcher_ = nullptr;
+  std::unique_ptr<BlindSignMessageInterface> owned_fetcher_;
   privacy::ppn::BlindSignAuthOptions auth_options_;
 };
 

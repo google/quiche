@@ -187,8 +187,10 @@ class BlindSignAuthTest : public QuicheTest {
     privacy::ppn::BlindSignAuthOptions options;
     options.set_enable_privacy_pass(true);
 
+    auto mock = std::make_unique<MockBlindSignMessageInterface>();
+    mock_message_interface_ = mock.get();
     blind_sign_auth_ =
-        std::make_unique<BlindSignAuth>(&mock_message_interface_, options);
+        std::make_unique<BlindSignAuth>(std::move(mock), options);
   }
 
   void TearDown() override { blind_sign_auth_.reset(nullptr); }
@@ -301,7 +303,11 @@ class BlindSignAuthTest : public QuicheTest {
     }
   }
 
-  MockBlindSignMessageInterface mock_message_interface_;
+  MockBlindSignMessageInterface& mock_message_interface() {
+    return *mock_message_interface_;
+  }
+
+  MockBlindSignMessageInterface* mock_message_interface_ = nullptr;
   std::unique_ptr<BlindSignAuth> blind_sign_auth_;
   anonymous_tokens::RSABlindSignaturePublicKey
       public_key_proto_;
@@ -324,7 +330,7 @@ class BlindSignAuthTest : public QuicheTest {
 };
 
 TEST_F(BlindSignAuthTest, TestGetTokensFailedNetworkError) {
-  EXPECT_CALL(mock_message_interface_,
+  EXPECT_CALL(mock_message_interface(),
               DoRequest(Eq(BlindSignMessageRequestType::kGetInitialData),
                         Eq(oauth_token_), _, _))
       .Times(1)
@@ -333,7 +339,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedNetworkError) {
             absl::InternalError("Failed to create socket"));
       });
 
-  EXPECT_CALL(mock_message_interface_,
+  EXPECT_CALL(mock_message_interface(),
               DoRequest(Eq(BlindSignMessageRequestType::kAuthAndSign), _, _, _))
       .Times(0);
 
@@ -359,7 +365,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadGetInitialDataResponse) {
       fake_get_initial_data_response_.SerializeAsString());
 
   EXPECT_CALL(
-      mock_message_interface_,
+      mock_message_interface(),
       DoRequest(Eq(BlindSignMessageRequestType::kGetInitialData),
                 Eq(oauth_token_),
                 Eq(expected_get_initial_data_request_.SerializeAsString()), _))
@@ -368,7 +374,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadGetInitialDataResponse) {
         std::move(get_initial_data_cb)(fake_public_key_response);
       });
 
-  EXPECT_CALL(mock_message_interface_,
+  EXPECT_CALL(mock_message_interface(),
               DoRequest(Eq(BlindSignMessageRequestType::kAuthAndSign), _, _, _))
       .Times(0);
 
@@ -393,7 +399,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadAuthAndSignResponse) {
     InSequence seq;
 
     EXPECT_CALL(
-        mock_message_interface_,
+        mock_message_interface(),
         DoRequest(
             Eq(BlindSignMessageRequestType::kGetInitialData), Eq(oauth_token_),
             Eq(expected_get_initial_data_request_.SerializeAsString()), _))
@@ -402,7 +408,7 @@ TEST_F(BlindSignAuthTest, TestGetTokensFailedBadAuthAndSignResponse) {
           std::move(get_initial_data_cb)(fake_public_key_response);
         });
 
-    EXPECT_CALL(mock_message_interface_,
+    EXPECT_CALL(mock_message_interface(),
                 DoRequest(Eq(BlindSignMessageRequestType::kAuthAndSign),
                           Eq(oauth_token_), _, _))
         .Times(1)
@@ -439,7 +445,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceeds) {
     InSequence seq;
     EXPECT_CALL(*mock_tracing_hooks, OnGetInitialDataStart);
     EXPECT_CALL(
-        mock_message_interface_,
+        mock_message_interface(),
         DoRequest(
             Eq(BlindSignMessageRequestType::kGetInitialData), Eq(oauth_token_),
             Eq(expected_get_initial_data_request_.SerializeAsString()), _))
@@ -451,7 +457,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceeds) {
     EXPECT_CALL(*mock_tracing_hooks, OnGenerateBlindedTokenRequestsStart);
     EXPECT_CALL(*mock_tracing_hooks, OnGenerateBlindedTokenRequestsEnd);
     EXPECT_CALL(*mock_tracing_hooks, OnAuthAndSignStart);
-    EXPECT_CALL(mock_message_interface_,
+    EXPECT_CALL(mock_message_interface(),
                 DoRequest(Eq(BlindSignMessageRequestType::kAuthAndSign),
                           Eq(oauth_token_), _, _))
         .Times(1)
@@ -485,8 +491,10 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceeds) {
 TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensFailsWithBadExtensions) {
   privacy::ppn::BlindSignAuthOptions options;
   options.set_enable_privacy_pass(true);
-  blind_sign_auth_ =
-      std::make_unique<BlindSignAuth>(&mock_message_interface_, options);
+
+  auto mock = std::make_unique<MockBlindSignMessageInterface>();
+  mock_message_interface_ = mock.get();
+  blind_sign_auth_ = std::make_unique<BlindSignAuth>(std::move(mock), options);
 
   public_key_proto_.set_message_mask_type(
       anonymous_tokens::AT_MESSAGE_MASK_NO_MASK);
@@ -500,7 +508,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensFailsWithBadExtensions) {
       fake_get_initial_data_response_.SerializeAsString());
 
   EXPECT_CALL(
-      mock_message_interface_,
+      mock_message_interface(),
       DoRequest(Eq(BlindSignMessageRequestType::kGetInitialData),
                 Eq(oauth_token_),
                 Eq(expected_get_initial_data_request_.SerializeAsString()), _))
@@ -530,7 +538,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensFailsWithMoreTokens) {
     InSequence seq;
 
     EXPECT_CALL(
-        mock_message_interface_,
+        mock_message_interface(),
         DoRequest(
             Eq(BlindSignMessageRequestType::kGetInitialData), Eq(oauth_token_),
             Eq(expected_get_initial_data_request_.SerializeAsString()), _))
@@ -539,7 +547,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensFailsWithMoreTokens) {
           std::move(get_initial_data_cb)(fake_public_key_response);
         });
 
-    EXPECT_CALL(mock_message_interface_,
+    EXPECT_CALL(mock_message_interface(),
                 DoRequest(Eq(BlindSignMessageRequestType::kAuthAndSign),
                           Eq(oauth_token_), _, _))
         .Times(1)
@@ -586,7 +594,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceedsWithFewerTokens) {
     InSequence seq;
 
     EXPECT_CALL(
-        mock_message_interface_,
+        mock_message_interface(),
         DoRequest(
             Eq(BlindSignMessageRequestType::kGetInitialData), Eq(oauth_token_),
             Eq(expected_get_initial_data_request_.SerializeAsString()), _))
@@ -595,7 +603,7 @@ TEST_F(BlindSignAuthTest, TestPrivacyPassGetTokensSucceedsWithFewerTokens) {
           std::move(get_initial_data_cb)(fake_public_key_response);
         });
 
-    EXPECT_CALL(mock_message_interface_,
+    EXPECT_CALL(mock_message_interface(),
                 DoRequest(Eq(BlindSignMessageRequestType::kAuthAndSign),
                           Eq(oauth_token_), _, _))
         .Times(1)
@@ -640,7 +648,7 @@ TEST_F(BlindSignAuthTest, AttestationFlowSucceeds) {
   {
     InSequence seq;
     // GetAttestationTokens sends a GetInitialData RPC.
-    EXPECT_CALL(mock_message_interface_,
+    EXPECT_CALL(mock_message_interface(),
                 DoRequest(Eq(BlindSignMessageRequestType::kGetInitialData), _,
                           Eq(expected_get_initial_data_request_attestation_
                                  .SerializeAsString()),
@@ -653,7 +661,7 @@ TEST_F(BlindSignAuthTest, AttestationFlowSucceeds) {
 
     // AttestAndSign call
     EXPECT_CALL(
-        mock_message_interface_,
+        mock_message_interface(),
         DoRequest(Eq(BlindSignMessageRequestType::kAttestAndSign), _, _, _))
         .Times(1)
         .WillOnce([this](Unused, Unused, const std::string& body,
@@ -691,7 +699,7 @@ TEST_F(BlindSignAuthTest, AttestationFlowSucceeds) {
 }
 
 TEST_F(BlindSignAuthTest, GetAttestationTokensFailedNetworkError) {
-  EXPECT_CALL(mock_message_interface_,
+  EXPECT_CALL(mock_message_interface(),
               DoRequest(Eq(BlindSignMessageRequestType::kGetInitialData), _,
                         Eq(expected_get_initial_data_request_attestation_
                                .SerializeAsString()),
@@ -726,7 +734,7 @@ TEST_F(BlindSignAuthTest, GetAttestationTokensFailedBadResponse) {
   BlindSignMessageResponse fake_response(
       absl::StatusCode::kOk, bad_response_proto.SerializeAsString());
 
-  EXPECT_CALL(mock_message_interface_,
+  EXPECT_CALL(mock_message_interface(),
               DoRequest(Eq(BlindSignMessageRequestType::kGetInitialData), _,
                         Eq(expected_get_initial_data_request_attestation_
                                .SerializeAsString()),
@@ -757,7 +765,7 @@ TEST_F(BlindSignAuthTest, GetAttestationTokensFailedBadAttestationData) {
       absl::StatusCode::kOk,
       fake_get_initial_data_response_attestation_.SerializeAsString());
 
-  EXPECT_CALL(mock_message_interface_,
+  EXPECT_CALL(mock_message_interface(),
               DoRequest(Eq(BlindSignMessageRequestType::kGetInitialData), _,
                         Eq(expected_get_initial_data_request_attestation_
                                .SerializeAsString()),
