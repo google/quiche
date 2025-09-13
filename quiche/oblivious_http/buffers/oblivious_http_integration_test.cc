@@ -35,10 +35,9 @@ std::string GetHpkePublicKey() {
   return public_key_bytes;
 }
 
-const ObliviousHttpHeaderKeyConfig GetOhttpKeyConfig(uint8_t key_id,
-                                                     uint16_t kem_id,
-                                                     uint16_t kdf_id,
-                                                     uint16_t aead_id) {
+ObliviousHttpHeaderKeyConfig GetOhttpKeyConfig(uint8_t key_id, uint16_t kem_id,
+                                               uint16_t kdf_id,
+                                               uint16_t aead_id) {
   auto ohttp_key_config =
       ObliviousHttpHeaderKeyConfig::Create(key_id, kem_id, kdf_id, aead_id);
   EXPECT_TRUE(ohttp_key_config.ok());
