@@ -441,7 +441,7 @@ std::unique_ptr<CryptoHandshakeMessage> QuicCryptoServerConfig::AddConfig(
   }
 
   {
-    absl::WriterMutexLock locked(&configs_lock_);
+    absl::WriterMutexLock locked(configs_lock_);
     if (configs_.find(config->id) != configs_.end()) {
       QUIC_LOG(WARNING) << "Failed to add config because another with the same "
                            "server config id already exists: "
@@ -504,7 +504,7 @@ bool QuicCryptoServerConfig::SetConfigs(
 
   QUIC_LOG(INFO) << "Updating configs:";
 
-  absl::WriterMutexLock locked(&configs_lock_);
+  absl::WriterMutexLock locked(configs_lock_);
   ConfigMap new_configs;
 
   for (const quiche::QuicheReferenceCountedPointer<Config>& config :
@@ -555,7 +555,7 @@ void QuicCryptoServerConfig::SetSourceAddressTokenKeys(
 }
 
 std::vector<std::string> QuicCryptoServerConfig::GetConfigIds() const {
-  absl::ReaderMutexLock locked(&configs_lock_);
+  absl::ReaderMutexLock locked(configs_lock_);
   std::vector<std::string> scids;
   for (auto it = configs_.begin(); it != configs_.end(); ++it) {
     scids.push_back(it->first);
@@ -1126,21 +1126,21 @@ bool QuicCryptoServerConfig::GetCurrentConfigs(
     const QuicWallTime& now, absl::string_view requested_scid,
     quiche::QuicheReferenceCountedPointer<Config> old_primary_config,
     Configs* configs) const {
-  absl::ReaderMutexLock locked(&configs_lock_);
+  absl::ReaderMutexLock locked(configs_lock_);
 
   if (!primary_config_) {
     return false;
   }
 
   if (IsNextConfigReady(now)) {
-    configs_lock_.ReaderUnlock();
-    configs_lock_.WriterLock();
+    configs_lock_.unlock_shared();
+    configs_lock_.lock();
     SelectNewPrimaryConfig(now);
     QUICHE_DCHECK(primary_config_.get());
     QUICHE_DCHECK_EQ(configs_.find(primary_config_->id)->second.get(),
                      primary_config_.get());
-    configs_lock_.WriterUnlock();
-    configs_lock_.ReaderLock();
+    configs_lock_.unlock();
+    configs_lock_.lock_shared();
   }
 
   if (old_primary_config != nullptr) {
@@ -1362,7 +1362,7 @@ void QuicCryptoServerConfig::BuildServerConfigUpdateMessage(
   std::string serialized;
   std::string source_address_token;
   {
-    absl::ReaderMutexLock locked(&configs_lock_);
+    absl::ReaderMutexLock locked(configs_lock_);
     serialized = primary_config_->serialized;
     source_address_token = NewSourceAddressToken(
         *primary_config_->source_address_token_boxer,
@@ -1720,7 +1720,7 @@ void QuicCryptoServerConfig::set_enable_serving_sct(bool enable_serving_sct) {
 
 void QuicCryptoServerConfig::AcquirePrimaryConfigChangedCb(
     std::unique_ptr<PrimaryConfigChangedCallback> cb) {
-  absl::WriterMutexLock locked(&configs_lock_);
+  absl::WriterMutexLock locked(configs_lock_);
   primary_config_changed_cb_ = std::move(cb);
 }
 
@@ -1761,7 +1761,7 @@ std::string QuicCryptoServerConfig::NewSourceAddressToken(
 }
 
 int QuicCryptoServerConfig::NumberOfConfigs() const {
-  absl::ReaderMutexLock locked(&configs_lock_);
+  absl::ReaderMutexLock locked(configs_lock_);
   return configs_.size();
 }
 
