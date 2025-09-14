@@ -48,7 +48,6 @@ using quic::QuicPacketNumber;
 using quic::QuicTime;
 using quic::QuicTransportVersion;
 using quic::test::NoOpFramerVisitor;
-using quic::test::QuicFramerPeer;
 
 PacketHeaderFormat ConsumePacketHeaderFormat(FuzzedDataProvider* provider) {
   return provider->ConsumeBool() ? quic::IETF_QUIC_LONG_HEADER_PACKET
