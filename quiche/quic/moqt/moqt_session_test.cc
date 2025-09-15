@@ -12,6 +12,7 @@
 #include <queue>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
@@ -26,7 +27,7 @@
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
-#include "quiche/quic/moqt/moqt_subscribe_windows.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
@@ -740,12 +741,11 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
       /*track_alias=*/2,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
   };
-  EXPECT_CALL(remote_track_visitor, OnReply(_, _, _))
+  EXPECT_CALL(remote_track_visitor, OnReply)
       .WillOnce([&](const FullTrackName& ftn,
-                    std::optional<Location> /*largest_location*/,
-                    std::optional<absl::string_view> error_message) {
+                    std::variant<SubscribeOkData, MoqtRequestError> response) {
         EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
-        EXPECT_FALSE(error_message.has_value());
+        EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(response));
       });
   stream_input->OnSubscribeOkMessage(ok);
 }
@@ -777,12 +777,11 @@ TEST_F(MoqtSessionTest, SubscribeNextGroupWithOk) {
       /*track_alias=*/2,
       /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
   };
-  EXPECT_CALL(remote_track_visitor, OnReply(_, _, _))
+  EXPECT_CALL(remote_track_visitor, OnReply)
       .WillOnce([&](const FullTrackName& ftn,
-                    std::optional<Location> /*largest_location*/,
-                    std::optional<absl::string_view> error_message) {
+                    std::variant<SubscribeOkData, MoqtRequestError> response) {
         EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
-        EXPECT_FALSE(error_message.has_value());
+        EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(response));
       });
   stream_input->OnSubscribeOkMessage(ok);
 }
@@ -920,12 +919,13 @@ TEST_F(MoqtSessionTest, SubscribeWithError) {
       /*error_code=*/RequestErrorCode::kInvalidRange,
       /*reason_phrase=*/"deadbeef",
   };
-  EXPECT_CALL(remote_track_visitor, OnReply(_, _, _))
+  EXPECT_CALL(remote_track_visitor, OnReply)
       .WillOnce([&](const FullTrackName& ftn,
-                    std::optional<Location> /*largest_id*/,
-                    std::optional<absl::string_view> error_message) {
+                    std::variant<SubscribeOkData, MoqtRequestError> response) {
         EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
-        EXPECT_EQ(*error_message, "deadbeef");
+        EXPECT_TRUE(std::holds_alternative<MoqtRequestError>(response) &&
+                    std::get<MoqtRequestError>(response).reason_phrase ==
+                        "deadbeef");
       });
   stream_input->OnSubscribeErrorMessage(error);
 }
@@ -1207,7 +1207,7 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
   webtransport::test::MockStream mock_control_stream;
   std::unique_ptr<MoqtControlParserVisitor> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_control_stream);
-  EXPECT_CALL(visitor_, OnReply(_, _, _)).Times(1);
+  EXPECT_CALL(visitor_, OnReply).Times(1);
   control_stream->OnSubscribeOkMessage(ok);
 }
 

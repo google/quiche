@@ -10,9 +10,7 @@
 #include <vector>
 
 #include "absl/container/btree_map.h"
-#include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/moqt/moqt_messages.h"
-#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -53,28 +51,6 @@ class QUICHE_EXPORT SubscribeWindow {
   // The subgroups in these sequences have no meaning.
   Location start_ = Location();
   Location end_ = Location(UINT64_MAX, UINT64_MAX);
-};
-
-// A tuple uniquely identifying a WebTransport data stream associated with a
-// subscription. By convention, if a DataStreamIndex is necessary for a datagram
-// track, `subgroup` is set to zero.
-struct DataStreamIndex {
-  uint64_t group = 0;
-  uint64_t subgroup = 0;
-
-  DataStreamIndex() = default;
-  DataStreamIndex(uint64_t group, uint64_t subgroup)
-      : group(group), subgroup(subgroup) {}
-  explicit DataStreamIndex(const PublishedObject& object)
-      : group(object.metadata.location.group),
-        subgroup(object.metadata.subgroup) {}
-
-  auto operator<=>(const DataStreamIndex&) const = default;
-
-  template <typename H>
-  friend H AbslHashValue(H h, const DataStreamIndex& index) {
-    return H::combine(std::move(h), index.group, index.subgroup);
-  }
 };
 
 // A map of outgoing data streams indexed by object sequence numbers.

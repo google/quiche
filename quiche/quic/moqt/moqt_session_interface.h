@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <variant>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
@@ -24,12 +25,19 @@ namespace moqt {
 // The callback we'll use for all request types going forward. Can only be used
 // once; if the argument is nullopt, an OK response was received. Otherwise, an
 // ERROR response was received.
-using MoqtRequestCallback =
+using MoqtResponseCallback =
     quiche::SingleUseCallback<void(std::optional<MoqtRequestError>)>;
 
 using MoqtObjectAckFunction =
     quiche::MultiUseCallback<void(uint64_t group_id, uint64_t object_id,
                                   quic::QuicTimeDelta delta_from_deadline)>;
+
+struct SubscribeOkData {
+  quic::QuicTimeDelta expires;
+  MoqtDeliveryOrder delivery_order;
+  std::optional<Location> largest_location;
+  VersionSpecificParameters parameters = VersionSpecificParameters();
+};
 
 class SubscribeVisitor {
  public:
@@ -39,8 +47,7 @@ class SubscribeVisitor {
   // automatically retry.
   virtual void OnReply(
       const FullTrackName& full_track_name,
-      std::optional<Location> largest_location,
-      std::optional<absl::string_view> error_reason_phrase) = 0;
+      std::variant<SubscribeOkData, MoqtRequestError> response) = 0;
   // Called when the subscription process is far enough that it is possible to
   // send OBJECT_ACK messages; provides a callback to do so. The callback is
   // valid for as long as the session is valid.

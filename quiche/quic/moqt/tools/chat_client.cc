@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/functional/bind_front.h"
@@ -23,9 +24,8 @@
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
-#include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
@@ -170,8 +170,7 @@ void ChatClient::OnTerminalLineInput(absl::string_view input_message) {
 
 void ChatClient::RemoteTrackVisitor::OnReply(
     const FullTrackName& full_track_name,
-    std::optional<Location> /*largest_id*/,
-    std::optional<absl::string_view> reason_phrase) {
+    std::variant<SubscribeOkData, MoqtRequestError> response) {
   auto it = client_->other_users_.find(full_track_name);
   if (it == client_->other_users_.end()) {
     std::cout << "Error: received reply for unknown user "
@@ -180,11 +179,13 @@ void ChatClient::RemoteTrackVisitor::OnReply(
   }
   --client_->subscribes_to_make_;
   std::cout << "Subscription to user " << GetUsername(*it) << " ";
-  if (reason_phrase.has_value()) {
-    std::cout << "REJECTED, reason = " << *reason_phrase << "\n";
-    client_->other_users_.erase(it);
-  } else {
+  if (std::holds_alternative<SubscribeOkData>(response)) {
     std::cout << "ACCEPTED\n";
+  } else {
+    auto request_error = std::get<MoqtRequestError>(response);
+    std::cout << "REJECTED, reason = "
+              << std::get<MoqtRequestError>(response).reason_phrase << "\n";
+    client_->other_users_.erase(it);
   }
 }
 

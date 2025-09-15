@@ -1568,6 +1568,7 @@ moqt_hdrs = [
     "quic/moqt/moqt_subscribe_windows.h",
     "quic/moqt/moqt_track.h",
     "quic/moqt/namespace_tree.h",
+    "quic/moqt/test_tools/mock_moqt_session.h",
     "quic/moqt/test_tools/moqt_framer_utils.h",
     "quic/moqt/test_tools/moqt_parser_test_visitor.h",
     "quic/moqt/test_tools/moqt_session_peer.h",

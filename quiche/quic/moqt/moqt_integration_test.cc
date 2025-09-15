@@ -7,6 +7,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -22,7 +23,7 @@
 #include "quiche/quic/moqt/moqt_probe_manager.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
-#include "quiche/quic/moqt/moqt_subscribe_windows.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
@@ -78,9 +79,12 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
   void SubscribeLatestObject(FullTrackName track_name,
                              MockSubscribeRemoteTrackVisitor* visitor) {
     bool received_ok = false;
-    EXPECT_CALL(*visitor, OnReply(track_name, std::optional<Location>(),
-                                  std::optional<absl::string_view>()))
-        .WillOnce([&]() { received_ok = true; });
+    EXPECT_CALL(*visitor, OnReply)
+        .WillOnce(
+            [&](const FullTrackName&,
+                std::variant<SubscribeOkData, MoqtRequestError> response) {
+              received_ok = std::holds_alternative<SubscribeOkData>(response);
+            });
     client_->session()->SubscribeCurrentObject(track_name, visitor,
                                                VersionSpecificParameters());
     bool success =
@@ -250,9 +254,7 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSubscribeInResponse) {
         server_->session()->SubscribeCurrentObject(track_name, &server_visitor,
                                                    VersionSpecificParameters());
       });
-  EXPECT_CALL(server_visitor, OnReply(_, _, _)).WillOnce([&]() {
-    matches = true;
-  });
+  EXPECT_CALL(server_visitor, OnReply).WillOnce([&]() { matches = true; });
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
   EXPECT_TRUE(success);
@@ -283,7 +285,7 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSendDataInResponse) {
   known_track_publisher.Add(queue);
   client_->session()->set_publisher(&known_track_publisher);
   bool received_subscribe_ok = false;
-  EXPECT_CALL(server_visitor, OnReply(_, _, _)).WillOnce([&]() {
+  EXPECT_CALL(server_visitor, OnReply).WillOnce([&]() {
     received_subscribe_ok = true;
   });
   client_->session()->PublishNamespace(
@@ -339,10 +341,12 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
                                                VersionSpecificParameters());
     std::optional<Location> largest_id;
     EXPECT_CALL(client_visitor, OnReply)
-        .WillOnce([&](const FullTrackName& /*name*/, std::optional<Location> id,
-                      std::optional<absl::string_view> /*reason*/) {
-          largest_id = id;
-        });
+        .WillOnce(
+            [&](const FullTrackName&,
+                std::variant<SubscribeOkData, MoqtRequestError> response) {
+              EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(response));
+              largest_id = std::get<SubscribeOkData>(response).largest_location;
+            });
     bool success = test_harness_.RunUntilWithDefaultTimeout([&]() {
       return largest_id.has_value() && *largest_id == Location(0, 2);
     });
@@ -512,7 +516,6 @@ TEST_F(MoqtIntegrationTest, SubscribeAbsoluteOk) {
   publisher.Add(track_publisher);
 
   MockSubscribeRemoteTrackVisitor client_visitor;
-  std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
   ON_CALL(*track_publisher, expiration)
       .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
@@ -522,8 +525,11 @@ TEST_F(MoqtIntegrationTest, SubscribeAbsoluteOk) {
       .WillOnce([&](MoqtObjectListener* listener) {
         listener->OnSubscribeAccepted();
       });
-  EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
-      .WillOnce([&]() { received_ok = true; });
+  EXPECT_CALL(client_visitor, OnReply)
+      .WillOnce([&](const FullTrackName&,
+                    std::variant<SubscribeOkData, MoqtRequestError> response) {
+        received_ok = std::holds_alternative<SubscribeOkData>(response);
+      });
   client_->session()->SubscribeAbsolute(full_track_name, 0, 0, &client_visitor,
                                         VersionSpecificParameters());
   bool success =
@@ -542,7 +548,6 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentObjectOk) {
   publisher.Add(track_publisher);
 
   MockSubscribeRemoteTrackVisitor client_visitor;
-  std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
   ON_CALL(*track_publisher, expiration)
       .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
@@ -552,8 +557,11 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentObjectOk) {
       .WillOnce([&](MoqtObjectListener* listener) {
         listener->OnSubscribeAccepted();
       });
-  EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
-      .WillOnce([&]() { received_ok = true; });
+  EXPECT_CALL(client_visitor, OnReply)
+      .WillOnce([&](const FullTrackName&,
+                    std::variant<SubscribeOkData, MoqtRequestError> response) {
+        received_ok = std::holds_alternative<SubscribeOkData>(response);
+      });
   client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor,
                                              VersionSpecificParameters());
   bool success =
@@ -572,7 +580,6 @@ TEST_F(MoqtIntegrationTest, SubscribeNextGroupOk) {
   publisher.Add(track_publisher);
 
   MockSubscribeRemoteTrackVisitor client_visitor;
-  std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
   ON_CALL(*track_publisher, expiration)
       .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
@@ -582,8 +589,11 @@ TEST_F(MoqtIntegrationTest, SubscribeNextGroupOk) {
       .WillOnce([&](MoqtObjectListener* listener) {
         listener->OnSubscribeAccepted();
       });
-  EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
-      .WillOnce([&]() { received_ok = true; });
+  EXPECT_CALL(client_visitor, OnReply)
+      .WillOnce([&](const FullTrackName&,
+                    std::variant<SubscribeOkData, MoqtRequestError> response) {
+        received_ok = std::holds_alternative<SubscribeOkData>(response);
+      });
   client_->session()->SubscribeNextGroup(full_track_name, &client_visitor,
                                          VersionSpecificParameters());
   bool success =
@@ -595,10 +605,12 @@ TEST_F(MoqtIntegrationTest, SubscribeError) {
   EstablishSession();
   FullTrackName full_track_name("foo", "bar");
   MockSubscribeRemoteTrackVisitor client_visitor;
-  std::optional<absl::string_view> expected_reason = "not found";
   bool received_ok = false;
-  EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
-      .WillOnce([&]() { received_ok = true; });
+  EXPECT_CALL(client_visitor, OnReply)
+      .WillOnce([&](const FullTrackName&,
+                    std::variant<SubscribeOkData, MoqtRequestError> response) {
+        received_ok = std::holds_alternative<MoqtRequestError>(response);
+      });
   client_->session()->SubscribeCurrentObject(full_track_name, &client_visitor,
                                              VersionSpecificParameters());
   bool success =
@@ -677,9 +689,9 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
       .WillOnce([&](MoqtObjectListener* listener) {
         listener->OnSubscribeAccepted();
       });
-  EXPECT_CALL(client_visitor, OnReply(_, _, _))
-      .WillOnce([&](const FullTrackName&, std::optional<Location>,
-                    std::optional<absl::string_view>) {
+  EXPECT_CALL(client_visitor, OnReply)
+      .WillOnce([&](const FullTrackName&,
+                    std::variant<SubscribeOkData, MoqtRequestError>) {
         ack_function(10, 20, quic::QuicTimeDelta::FromMicroseconds(-123));
         ack_function(100, 200, quic::QuicTimeDelta::FromMicroseconds(456));
       });
@@ -721,10 +733,12 @@ TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
   publisher.Add(queue);
 
   MockSubscribeRemoteTrackVisitor client_visitor;
-  std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
-  EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
-      .WillOnce([&]() { received_ok = true; });
+  EXPECT_CALL(client_visitor, OnReply)
+      .WillOnce([&](const FullTrackName&,
+                    std::variant<SubscribeOkData, MoqtRequestError> response) {
+        received_ok = std::holds_alternative<SubscribeOkData>(response);
+      });
   VersionSpecificParameters parameters;
   // Set delivery timeout to ~ 1 RTT: any loss is fatal.
   parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
@@ -771,10 +785,12 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
   publisher.Add(queue);
 
   MockSubscribeRemoteTrackVisitor client_visitor;
-  std::optional<absl::string_view> expected_reason = std::nullopt;
   bool received_ok = false;
-  EXPECT_CALL(client_visitor, OnReply(full_track_name, _, expected_reason))
-      .WillOnce([&]() { received_ok = true; });
+  EXPECT_CALL(client_visitor, OnReply)
+      .WillOnce([&](const FullTrackName&,
+                    std::variant<SubscribeOkData, MoqtRequestError> response) {
+        received_ok = std::holds_alternative<SubscribeOkData>(response);
+      });
   VersionSpecificParameters parameters;
   // Set delivery timeout to ~ 1 RTT: any loss is fatal.
   parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(100);

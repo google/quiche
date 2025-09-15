@@ -469,7 +469,9 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader,
     ParseError("Invalid group order value in SUBSCRIBE_OK");
     return 0;
   }
-  subscribe_ok.expires = quic::QuicTimeDelta::FromMilliseconds(milliseconds);
+  subscribe_ok.expires =
+      (milliseconds == 0) ? quic::QuicTimeDelta::Infinite()
+                          : quic::QuicTimeDelta::FromMilliseconds(milliseconds);
   subscribe_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
   if (content_exists) {
     subscribe_ok.largest_location = Location();

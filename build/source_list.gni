@@ -1572,6 +1572,7 @@ moqt_hdrs = [
     "src/quiche/quic/moqt/moqt_subscribe_windows.h",
     "src/quiche/quic/moqt/moqt_track.h",
     "src/quiche/quic/moqt/namespace_tree.h",
+    "src/quiche/quic/moqt/test_tools/mock_moqt_session.h",
     "src/quiche/quic/moqt/test_tools/moqt_framer_utils.h",
     "src/quiche/quic/moqt/test_tools/moqt_parser_test_visitor.h",
     "src/quiche/quic/moqt/test_tools/moqt_session_peer.h",

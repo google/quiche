@@ -5,6 +5,8 @@
 #include "quiche/quic/moqt/moqt_relay_publisher.h"
 
 #include <memory>
+#include <optional>
+#include <utility>
 
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
@@ -13,7 +15,6 @@
 #include "quiche/quic/moqt/moqt_relay_track_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
@@ -23,10 +24,20 @@ using quiche::QuicheWeakPtr;
 absl_nullable std::shared_ptr<MoqtTrackPublisher> MoqtRelayPublisher::GetTrack(
     const FullTrackName& track_name) {
   auto it = tracks_.find(track_name);
-  if (it == tracks_.end()) {
+  if (it != tracks_.end()) {
+    return it->second;
+  }
+  QuicheWeakPtr<MoqtSessionInterface> upstream =
+      GetUpstream(track_name.track_namespace());
+  if (!upstream.IsValid()) {
     return nullptr;
   }
-  return it->second;
+  auto track_publisher = std::make_shared<MoqtRelayTrackPublisher>(
+      track_name, std::move(upstream),
+      [this, track_name] { tracks_.erase(track_name); }, std::nullopt,
+      std::nullopt);
+  tracks_[track_name] = track_publisher;
+  return track_publisher;
 }
 
 void MoqtRelayPublisher::SetDefaultUpstreamSession(
@@ -57,16 +68,14 @@ void MoqtRelayPublisher::AddNamespaceCallbacks(
   // TODO(martinduke): Implement this.
 }
 
-void MoqtRelayPublisher::AddTrack(
-    std::shared_ptr<MoqtRelayTrackPublisher> track_publisher) {
-  const FullTrackName& track_name = track_publisher->GetTrackName();
-  auto [it, success] = tracks_.emplace(track_name, track_publisher);
-  QUICHE_BUG_IF(MoqtRelayPublisher_duplicate, !success)
-      << "Trying to add a duplicate track into a RelayPublisher";
-}
-
-void MoqtRelayPublisher::DeleteTrack(const FullTrackName& track_name) {
-  tracks_.erase(track_name);
+QuicheWeakPtr<MoqtSessionInterface> MoqtRelayPublisher::GetUpstream(
+    const TrackNamespace& /*track_namespace*/) {
+  // TODO(martinduke): Find a published namespace that contains
+  // |track_namespace|.
+  if (default_upstream_session_.IsValid()) {
+    return default_upstream_session_.GetIfAvailable()->GetWeakPtr();
+  }
+  return QuicheWeakPtr<MoqtSessionInterface>();
 }
 
 }  // namespace moqt

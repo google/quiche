@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <variant>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
@@ -20,10 +21,10 @@
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_live_relay_queue.h"
 #include "quiche/quic/moqt/moqt_messages.h"
-#include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
-#include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
 
 namespace moqt {
@@ -38,17 +39,17 @@ class ChatServer {
   class RemoteTrackVisitor : public SubscribeVisitor {
    public:
     explicit RemoteTrackVisitor(ChatServer* server);
-    void OnReply(const moqt::FullTrackName& full_track_name,
-                 std::optional<Location> largest_id,
-                 std::optional<absl::string_view> reason_phrase) override;
+    void OnReply(
+        const moqt::FullTrackName& full_track_name,
+        std::variant<SubscribeOkData, MoqtRequestError> response) override;
     void OnCanAckObjects(MoqtObjectAckFunction) override {}
     void OnObjectFragment(const moqt::FullTrackName& full_track_name,
                           const PublishedObjectMetadata& metadata,
                           absl::string_view object,
                           bool end_of_message) override;
-    void OnPublishDone(FullTrackName /*full_track_name*/) override {}
+    void OnPublishDone(FullTrackName) override {}
     // TODO(martinduke): Implement this.
-    void OnMalformedTrack(const FullTrackName& full_track_name) override {}
+    void OnMalformedTrack(const FullTrackName&) override {}
 
    private:
     ChatServer* server_;

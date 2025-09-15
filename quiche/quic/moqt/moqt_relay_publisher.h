@@ -49,8 +49,8 @@ class MoqtRelayPublisher : public MoqtPublisher {
   }
 
  private:
-  void AddTrack(std::shared_ptr<MoqtRelayTrackPublisher> track_publisher);
-  void DeleteTrack(const FullTrackName& track_name);
+  quiche::QuicheWeakPtr<MoqtSessionInterface> GetUpstream(
+      const TrackNamespace& track_namespace);
 
   absl::flat_hash_map<FullTrackName, std::shared_ptr<MoqtRelayTrackPublisher>>
       tracks_;

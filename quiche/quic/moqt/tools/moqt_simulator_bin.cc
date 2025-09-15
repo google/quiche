@@ -10,11 +10,11 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
-#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/algorithm/container.h"
@@ -37,9 +37,8 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
-#include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 #include "quiche/quic/test_tools/simulator/actor.h"
 #include "quiche/quic/test_tools/simulator/link.h"
@@ -294,11 +293,14 @@ class ObjectReceiver : public SubscribeVisitor {
   explicit ObjectReceiver(const QuicClock* clock, QuicTimeDelta deadline)
       : clock_(clock), deadline_(deadline) {}
 
-  void OnReply(const FullTrackName& full_track_name,
-               std::optional<Location> /*largest_id*/,
-               std::optional<absl::string_view> error_reason_phrase) override {
+  void OnReply(
+      const FullTrackName& full_track_name,
+      std::variant<SubscribeOkData, MoqtRequestError> response) override {
     QUICHE_CHECK(full_track_name == TrackName());
-    QUICHE_CHECK(!error_reason_phrase.has_value()) << *error_reason_phrase;
+    if (std::holds_alternative<MoqtRequestError>(response)) {
+      MoqtRequestError error = std::get<MoqtRequestError>(response);
+      QUICHE_CHECK(!error.reason_phrase.empty()) << error.reason_phrase;
+    }
   }
 
   void OnCanAckObjects(MoqtObjectAckFunction ack_function) override {

@@ -45,6 +45,8 @@ MoqtRelay::MoqtRelay(std::unique_ptr<quic::ProofSource> proof_source,
                      quic::QuicEventLoop* client_event_loop)
     : ignore_certificate_(ignore_certificate),
       client_event_loop_(client_event_loop),
+      // TODO(martinduke): Extend MoqtServer so that partial objects can be
+      // received.
       server_(std::make_unique<MoqtServer>(std::move(proof_source),
                                            [this](absl::string_view path) {
                                              return IncomingSessionHandler(

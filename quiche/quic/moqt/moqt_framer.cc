@@ -476,7 +476,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
     return SerializeControlMessage(
         message_type, WireVarInt62(message.request_id),
         WireVarInt62(message.track_alias),
-        WireVarInt62(message.expires.ToMilliseconds()),
+        WireVarInt62(message.expires.IsInfinite()
+                         ? 0
+                         : message.expires.ToMilliseconds()),
         WireDeliveryOrder(message.group_order), WireUint8(1),
         WireVarInt62(message.largest_location->group),
         WireVarInt62(message.largest_location->object),

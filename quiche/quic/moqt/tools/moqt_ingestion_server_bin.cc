@@ -15,6 +15,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/algorithm/container.h"
@@ -29,12 +30,10 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
-#include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_session.h"
-#include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
-#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_default_proof_providers.h"
@@ -174,11 +173,11 @@ class MoqtIngestionHandler {
 
     void OnReply(
         const FullTrackName& full_track_name,
-        std::optional<Location> /*largest_id*/,
-        std::optional<absl::string_view> error_reason_phrase) override {
-      if (error_reason_phrase.has_value()) {
+        std::variant<SubscribeOkData, MoqtRequestError> response) override {
+      if (std::holds_alternative<MoqtRequestError>(response)) {
         QUICHE_LOG(ERROR) << "Failed to subscribe to the peer track "
-                          << full_track_name << ": " << *error_reason_phrase;
+                          << full_track_name << ": "
+                          << std::get<MoqtRequestError>(response).reason_phrase;
       }
     }
 

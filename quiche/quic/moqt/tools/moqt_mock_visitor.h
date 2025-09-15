@@ -20,7 +20,7 @@
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
-#include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace moqt::test {
@@ -89,12 +89,12 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   FullTrackName track_name_;
 };
 
+// TODO(martinduke): Rename to MockSubscribeVisitor.
 class MockSubscribeRemoteTrackVisitor : public SubscribeVisitor {
  public:
   MOCK_METHOD(void, OnReply,
               (const FullTrackName& full_track_name,
-               std::optional<Location> largest_id,
-               std::optional<absl::string_view> error_reason_phrase),
+               (std::variant<SubscribeOkData, MoqtRequestError> response)),
               (override));
   MOCK_METHOD(void, OnCanAckObjects, (MoqtObjectAckFunction ack_function),
               (override));

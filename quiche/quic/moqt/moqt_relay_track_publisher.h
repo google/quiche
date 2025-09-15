@@ -10,6 +10,7 @@
 #include <memory>
 #include <optional>
 #include <utility>
+#include <variant>
 
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_set.h"
@@ -23,14 +24,16 @@
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
-#include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/web_transport/web_transport.h"
+#include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
 
+using DeleteTrackCallback = quiche::SingleUseCallback<void()>;
+
 // MoqtRelayTrackPublisher lets the user send objects by providing the contents
-// of the object and the object metadata. It will store these by sequence
+// of the object and the object metadata. It will store these by location
 // number. When called on to provide a range of objects, it will fill in any
 // missing objects and groups.
 //
@@ -43,17 +46,20 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
                                 public SubscribeVisitor {
  public:
   MoqtRelayTrackPublisher(
-      FullTrackName track,
+      FullTrackName track, quiche::QuicheWeakPtr<MoqtSessionInterface> upstream,
+      DeleteTrackCallback delete_track_callback,
       std::optional<MoqtForwardingPreference> forwarding_preference,
       std::optional<MoqtDeliveryOrder> delivery_order,
       std::optional<quic::QuicTime> expiration = quic::QuicTime::Infinite(),
       const quic::QuicClock* clock = quic::QuicDefaultClock::Get())
       : clock_(clock),
         track_(std::move(track)),
+        upstream_(std::move(upstream)),
+        delete_track_callback_(std::move(delete_track_callback)),
         forwarding_preference_(forwarding_preference),
         delivery_order_(delivery_order),
         expiration_(expiration),
-        next_sequence_(0, 0) {}
+        next_location_(0, 0) {}
 
   MoqtRelayTrackPublisher(const MoqtRelayTrackPublisher&) = delete;
   MoqtRelayTrackPublisher(MoqtRelayTrackPublisher&&) = default;
@@ -61,72 +67,27 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   MoqtRelayTrackPublisher& operator=(MoqtRelayTrackPublisher&&) = default;
 
   // SubscribeVisitor implementation.
-  // TODO(martinduke): Implement these.
   void OnReply(
-      const FullTrackName& /*full_track_name*/,
-      std::optional<Location> /*largest_location*/,
-      std::optional<absl::string_view> /*error_reason_phrase*/) override {}
+      const FullTrackName& full_track_name,
+      std::variant<SubscribeOkData, MoqtRequestError> response) override;
+  // TODO(vasilvv): Implement this if we want to support Object Acks across
+  // relays.
   void OnCanAckObjects(MoqtObjectAckFunction /*ack_function*/) override {}
-  void OnObjectFragment(const FullTrackName& /*full_track_name*/,
-                        const PublishedObjectMetadata& /*metadata*/,
-                        absl::string_view /*object*/,
-                        bool /*end_of_message*/) override {}
+  void OnObjectFragment(const FullTrackName& full_track_name,
+                        const PublishedObjectMetadata& metadata,
+                        absl::string_view object, bool end_of_message) override;
   void OnPublishDone(FullTrackName /*full_track_name*/) override {}
-  void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
-
-  // Publish a received object. Returns false if the object is invalid, given
-  // other non-normal objects indicate that the sequence number should not
-  // occur. A false return value might result in a session error on the
-  // inbound session, but this queue is the only place that retains enough state
-  // to check.
-  bool AddObject(const PublishedObjectMetadata& metadata,
-                 absl::string_view payload, bool fin);
-
-  // Convenience methods primarily for use in tests. Prefer the
-  // `PublishedObjectMetadata` version in real forwarding code to ensure all
-  // metadata is copied correctly.
-  bool AddObject(Location location, uint64_t subgroup, MoqtObjectStatus status,
-                 bool fin = false) {
-    PublishedObjectMetadata metadata;
-    metadata.location = location;
-    metadata.subgroup = subgroup;
-    metadata.status = status;
-    metadata.publisher_priority = 0;
-    return AddObject(metadata, "", fin);
+  void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {
+    DeleteTrack();
   }
-  bool AddObject(Location location, uint64_t subgroup, absl::string_view object,
-                 bool fin = false) {
-    PublishedObjectMetadata metadata;
-    metadata.location = location;
-    metadata.subgroup = subgroup;
-    metadata.status = MoqtObjectStatus::kNormal;
-    metadata.publisher_priority = 0;
-    return AddObject(metadata, object, fin);
-  }
-
-  // Record a received FIN from upstream that did not come with the last object.
-  // If the forwarding preference is kDatagram or kTrack, |sequence| is ignored.
-  // Otherwise, |sequence| is used to determine which stream is being FINed. If
-  // the object ID does not match the last object ID in the stream, no action
-  // is taken.
-  bool AddFin(Location sequence, uint64_t subgroup_id);
-  // Record a received RESET_STREAM from upstream. Returns false on datagram
-  // tracks, or if the stream does not exist.
-  bool OnStreamReset(uint64_t group_id, uint64_t subgroup_id,
-                     webtransport::StreamErrorCode error_code);
 
   // MoqtTrackPublisher implementation.
   const FullTrackName& GetTrackName() const override { return track_; }
   std::optional<PublishedObject> GetCachedObject(
       uint64_t group_id, uint64_t subgroup_id,
       uint64_t min_object) const override;
-  void AddObjectListener(MoqtObjectListener* listener) override {
-    listeners_.insert(listener);
-    listener->OnSubscribeAccepted();
-  }
-  void RemoveObjectListener(MoqtObjectListener* listener) override {
-    listeners_.erase(listener);
-  }
+  void AddObjectListener(MoqtObjectListener* listener) override;
+  void RemoveObjectListener(MoqtObjectListener* listener) override;
   std::optional<Location> largest_location() const override;
   std::optional<MoqtForwardingPreference> forwarding_preference()
       const override {
@@ -135,19 +96,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   std::optional<MoqtDeliveryOrder> delivery_order() const override {
     return delivery_order_;
   }
-  std::optional<quic::QuicTimeDelta> expiration() const override {
-    if (!expiration_.has_value()) {
-      return std::nullopt;
-    }
-    if (expiration_ == quic::QuicTime::Infinite()) {
-      return quic::QuicTimeDelta::Zero();
-    }
-    if (expiration_ < clock_->Now()) {
-      // TODO(martinduke): Tear everything down; the track is expired.
-      return quic::QuicTimeDelta::Zero();
-    }
-    return clock_->Now() - *expiration_;
-  }
+  std::optional<quic::QuicTimeDelta> expiration() const override;
   std::unique_ptr<MoqtFetchTask> StandaloneFetch(
       Location /*start*/, Location /*end*/,
       std::optional<MoqtDeliveryOrder> /*order*/) override {
@@ -166,23 +115,14 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
         absl::UnimplementedError("Fetch not implemented"));
   }
 
-  bool HasSubscribers() const { return !listeners_.empty(); }
-
-  // Since MoqtTrackPublisher is generally held in a shared_ptr, an explicit
-  // call allows all the listeners to delete their reference and actually
-  // destroy the object.
-  void RemoveAllSubscriptions() {
-    for (MoqtObjectListener* listener : listeners_) {
-      listener->OnTrackPublisherGone();
-    }
-  }
-
   void ForAllObjects(
       quiche::UnretainedCallback<void(const CachedObject&)> callback);
 
  private:
   // The number of recent groups to keep around for newly joined subscribers.
   static constexpr size_t kMaxQueuedGroups = 3;
+
+  void DeleteTrack();
 
   // Ordered by object id.
   using Subgroup = absl::btree_map<uint64_t, CachedObject>;
@@ -195,13 +135,17 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
 
   const quic::QuicClock* clock_;
   FullTrackName track_;
+  quiche::QuicheWeakPtr<MoqtSessionInterface> upstream_;
+  DeleteTrackCallback delete_track_callback_;
   std::optional<MoqtForwardingPreference> forwarding_preference_;
   std::optional<MoqtDeliveryOrder> delivery_order_;
+  // TODO(martinduke): This publisher should destroy itself when the expiration
+  // time passes.
   std::optional<quic::QuicTime> expiration_;
   absl::btree_map<uint64_t, Group> queue_;  // Ordered by group id.
   absl::flat_hash_set<MoqtObjectListener*> listeners_;
   std::optional<Location> end_of_track_;
-  Location next_sequence_;
+  Location next_location_;
 };
 
 }  // namespace moqt

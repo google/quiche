@@ -9,6 +9,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
@@ -18,9 +19,10 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_live_relay_queue.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
 
@@ -141,11 +143,11 @@ ChatServer::RemoteTrackVisitor::RemoteTrackVisitor(ChatServer* server)
 
 void ChatServer::RemoteTrackVisitor::OnReply(
     const moqt::FullTrackName& full_track_name,
-    std::optional<Location> /*largest_id*/,
-    std::optional<absl::string_view> reason_phrase) {
+    std::variant<SubscribeOkData, MoqtRequestError> response) {
   std::cout << "Subscription to " << full_track_name.ToString();
-  if (reason_phrase.has_value()) {
-    std::cout << " REJECTED, reason = " << *reason_phrase << "\n";
+  if (std::holds_alternative<MoqtRequestError>(response)) {
+    std::cout << " REJECTED, reason = "
+              << std::get<MoqtRequestError>(response).reason_phrase << "\n";
     server_->DeleteUser(full_track_name);
   } else {
     std::cout << " ACCEPTED\n";

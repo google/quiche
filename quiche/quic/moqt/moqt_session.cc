@@ -1118,8 +1118,10 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
     subscribe->TruncateStart(message.largest_location->Next());
   }
   if (subscribe->visitor() != nullptr) {
-    subscribe->visitor()->OnReply(track->full_track_name(),
-                                  message.largest_location, std::nullopt);
+    subscribe->visitor()->OnReply(
+        track->full_track_name(),
+        SubscribeOkData{message.expires, message.group_order,
+                        message.largest_location, message.parameters});
   }
 }
 
@@ -1154,8 +1156,9 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
   // subscribe will be deleted after calling Subscribe().
   session_->subscribe_by_name_.erase(subscribe->full_track_name());
   if (subscribe->visitor() != nullptr) {
-    subscribe->visitor()->OnReply(subscribe->full_track_name(), std::nullopt,
-                                  message.reason_phrase);
+    subscribe->visitor()->OnReply(
+        subscribe->full_track_name(),
+        MoqtRequestError{message.error_code, message.reason_phrase});
   }
   session_->upstream_by_id_.erase(subscribe->request_id());
 }
