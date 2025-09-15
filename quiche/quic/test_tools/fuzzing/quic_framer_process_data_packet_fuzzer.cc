@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -17,12 +18,16 @@
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_framer.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/test_tools/quic_framer_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 using quic::DiversificationNonce;
 using quic::EncryptionLevel;
@@ -173,8 +178,8 @@ class FuzzingFramerVisitor : public NoOpFramerVisitor {
   uint64_t decrypted_packet_count_ = 0;
 };
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  FuzzedDataProvider data_provider(data, size);
+void DoesNotCrash(const std::vector<uint8_t>& data) {
+  FuzzedDataProvider data_provider(data.data(), data.size());
 
   const QuicTime creation_time =
       QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(
@@ -271,5 +276,5 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         << ", error_detail:" << receiver_framer.detailed_error()
         << ". header:" << header;
   }
-  return 0;
 }
+FUZZ_TEST(QuicFramerProcessDataPacketFuzzer, DoesNotCrash);

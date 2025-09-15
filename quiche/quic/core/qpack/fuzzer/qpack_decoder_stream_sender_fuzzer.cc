@@ -6,49 +6,64 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <variant>
+#include <vector>
 
+#include "absl/functional/overload.h"
 #include "quiche/quic/core/qpack/qpack_decoder_stream_sender.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
 
 namespace quic {
 namespace test {
 
+namespace {
+
+class FuzzAction {
+ public:
+  struct InsertCountIncrement {
+    uint64_t increment;
+  };
+  struct HeaderAcknowledgement {
+    QuicStreamId stream_id;
+  };
+  struct StreamCancellation {
+    QuicStreamId stream_id;
+  };
+  struct Flush {};
+
+  using Variant = std::variant<InsertCountIncrement, HeaderAcknowledgement,
+                               StreamCancellation, Flush>;
+};
+
+}  // namespace
+
 // This fuzzer exercises QpackDecoderStreamSender.
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+void DoesNotCrash(const std::vector<FuzzAction::Variant>& inputs) {
   NoopQpackStreamSenderDelegate delegate;
   QpackDecoderStreamSender sender;
   sender.set_qpack_stream_sender_delegate(&delegate);
 
-  FuzzedDataProvider provider(data, size);
-
-  while (provider.remaining_bytes() != 0) {
-    switch (provider.ConsumeIntegral<uint8_t>() % 4) {
-      case 0: {
-        uint64_t increment = provider.ConsumeIntegral<uint64_t>();
-        sender.SendInsertCountIncrement(increment);
-        break;
-      }
-      case 1: {
-        QuicStreamId stream_id = provider.ConsumeIntegral<QuicStreamId>();
-        sender.SendHeaderAcknowledgement(stream_id);
-        break;
-      }
-      case 2: {
-        QuicStreamId stream_id = provider.ConsumeIntegral<QuicStreamId>();
-        sender.SendStreamCancellation(stream_id);
-        break;
-      }
-      case 3: {
-        sender.Flush();
-        break;
-      }
-    }
+  for (const auto& input : inputs) {
+    std::visit(absl::Overload{
+                   [&](const FuzzAction::InsertCountIncrement& increment) {
+                     sender.SendInsertCountIncrement(increment.increment);
+                   },
+                   [&](const FuzzAction::HeaderAcknowledgement& ack) {
+                     sender.SendHeaderAcknowledgement(ack.stream_id);
+                   },
+                   [&](const FuzzAction::StreamCancellation& cancel) {
+                     sender.SendStreamCancellation(cancel.stream_id);
+                   },
+                   [&](const FuzzAction::Flush&) { sender.Flush(); },
+               },
+               input);
   }
 
   sender.Flush();
-  return 0;
 }
+FUZZ_TEST(QpackDecoderStreamSenderFuzzer, DoesNotCrash);
 
 }  // namespace test
 }  // namespace quic

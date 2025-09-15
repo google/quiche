@@ -18,6 +18,7 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/test_tools/qpack/qpack_decoder_test_utils.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
 
 namespace quic {
 namespace test {
@@ -83,8 +84,8 @@ class HeadersHandler : public QpackProgressiveDecoder::HeadersHandlerInterface {
 // into a roundtrip test, because the same header list can be encoded in many
 // different ways, so the output could not be expected to match the original
 // input.
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  FuzzedDataProvider provider(data, size);
+void DoesNotCrash(const std::vector<uint8_t>& data) {
+  FuzzedDataProvider provider(data.data(), data.size());
 
   // Maximum 256 byte dynamic table.  Such a small size helps test draining
   // entries and eviction.
@@ -189,9 +190,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
       }
     }
   }
-
-  return 0;
 }
+FUZZ_TEST(QpackDecoderFuzzer, DoesNotCrash);
 
 }  // namespace test
 }  // namespace quic

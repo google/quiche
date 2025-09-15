@@ -7,11 +7,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/qpack/qpack_decoder_stream_receiver.h"
 #include "quiche/quic/core/quic_error_codes.h"
-#include "quiche/quic/core/quic_stream.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
 
 namespace quic {
 namespace test {
@@ -41,11 +43,11 @@ class NoOpDelegate : public QpackDecoderStreamReceiver::Delegate {
 }  // namespace
 
 // This fuzzer exercises QpackDecoderStreamReceiver.
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+void DoesNotCrash(const std::vector<uint8_t>& data) {
   NoOpDelegate delegate;
   QpackDecoderStreamReceiver receiver(&delegate);
 
-  FuzzedDataProvider provider(data, size);
+  FuzzedDataProvider provider(data.data(), data.size());
 
   while (!delegate.error_detected() && provider.remaining_bytes() != 0) {
     // Process up to 64 kB fragments at a time.  Too small upper bound might not
@@ -54,9 +56,8 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
         0, std::numeric_limits<uint16_t>::max());
     receiver.Decode(provider.ConsumeRandomLengthString(fragment_size));
   }
-
-  return 0;
 }
+FUZZ_TEST(QpackDecoderStreamReceiverFuzzer, DoesNotCrash);
 
 }  // namespace test
 }  // namespace quic

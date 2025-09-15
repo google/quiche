@@ -4,13 +4,16 @@
 
 #include <fuzzer/FuzzedDataProvider.h>
 
-#include <cstddef>
 #include <cstdint>
-#include <limits>
+#include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/qpack/qpack_encoder_stream_receiver.h"
-#include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
+#include "quiche/common/quiche_data_reader.h"
 
 namespace quic {
 namespace test {
@@ -40,29 +43,34 @@ class NoOpDelegate : public QpackEncoderStreamReceiver::Delegate {
   bool error_detected_;
 };
 
-}  // namespace
-
 // This fuzzer exercises QpackEncoderStreamReceiver.
 // Note that since string literals may be encoded with or without Huffman
 // encoding, one could not expect identical encoded data if the decoded
 // instructions were fed into QpackEncoderStreamSender.  Therefore there is no
 // point in extending this fuzzer into a round-trip test.
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
+void DoesNotCrash(std::string data,
+                  const std::vector<uint16_t>& fragment_sizes_vector) {
   NoOpDelegate delegate;
   QpackEncoderStreamReceiver receiver(&delegate);
 
-  FuzzedDataProvider provider(data, size);
+  quiche::QuicheDataReader reader(data);
+  absl::Span<const uint16_t> fragment_sizes(fragment_sizes_vector);
 
-  while (!delegate.error_detected() && provider.remaining_bytes() != 0) {
+  while (!reader.IsDoneReading() && !fragment_sizes.empty()) {
+    if (delegate.error_detected()) {
+      break;
+    }
+
     // Process up to 64 kB fragments at a time.  Too small upper bound might not
     // provide enough coverage, too large might make fuzzing too inefficient.
-    size_t fragment_size = provider.ConsumeIntegralInRange<uint16_t>(
-        0, std::numeric_limits<uint16_t>::max());
-    receiver.Decode(provider.ConsumeRandomLengthString(fragment_size));
+    uint16_t fragment_size = fragment_sizes.front();
+    fragment_sizes.remove_prefix(1);
+    receiver.Decode(reader.ReadAtMost(fragment_size));
   }
-
-  return 0;
 }
+FUZZ_TEST(QpackEncoderStreamReceiverFuzzer, DoesNotCrash);
+
+}  // namespace
 
 }  // namespace test
 }  // namespace quic

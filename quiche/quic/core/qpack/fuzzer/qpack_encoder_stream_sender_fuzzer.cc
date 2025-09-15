@@ -4,72 +4,97 @@
 
 #include <fuzzer/FuzzedDataProvider.h>
 
-#include <cstddef>
 #include <cstdint>
-#include <limits>
 #include <string>
+#include <variant>
+#include <vector>
 
+#include "absl/functional/overload.h"
 #include "quiche/quic/core/qpack/qpack_encoder_stream_sender.h"
+#include "quiche/quic/core/qpack/qpack_instruction_encoder.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
 
 namespace quic {
 namespace test {
 
-// This fuzzer exercises QpackEncoderStreamSender.
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  FuzzedDataProvider provider(data, size);
+namespace {
 
+class FuzzAction {
+ public:
+  struct SendInsertWithNameReference {
+    bool is_static;
+    uint64_t name_index;
+    uint16_t value_length;
+    std::string value;
+  };
+  struct SendInsertWithoutNameReference {
+    std::string name;
+    std::string value;
+  };
+  struct SendDuplicate {
+    uint64_t index;
+  };
+  struct SendSetDynamicTableCapacity {
+    uint64_t capacity;
+  };
+  struct Flush {};
+
+  using Variant =
+      std::variant<SendInsertWithNameReference, SendInsertWithoutNameReference,
+                   SendDuplicate, SendSetDynamicTableCapacity, Flush>;
+};
+
+// This fuzzer exercises QpackEncoderStreamSender.
+void DoesNotCrash(HuffmanEncoding huffman_encoding,
+                  const std::vector<FuzzAction::Variant>& actions) {
   NoopQpackStreamSenderDelegate delegate;
-  QpackEncoderStreamSender sender(provider.ConsumeBool()
-                                      ? HuffmanEncoding::kEnabled
-                                      : HuffmanEncoding::kDisabled);
+  QpackEncoderStreamSender sender(huffman_encoding);
   sender.set_qpack_stream_sender_delegate(&delegate);
 
-  // Limit string literal length to 2 kB for efficiency.
-  const uint16_t kMaxStringLength = 2048;
-
-  while (provider.remaining_bytes() != 0) {
-    switch (provider.ConsumeIntegral<uint8_t>() % 5) {
-      case 0: {
-        bool is_static = provider.ConsumeBool();
-        uint64_t name_index = provider.ConsumeIntegral<uint64_t>();
-        uint16_t value_length =
-            provider.ConsumeIntegralInRange<uint16_t>(0, kMaxStringLength);
-        std::string value = provider.ConsumeRandomLengthString(value_length);
-
-        sender.SendInsertWithNameReference(is_static, name_index, value);
-        break;
-      }
-      case 1: {
-        uint16_t name_length =
-            provider.ConsumeIntegralInRange<uint16_t>(0, kMaxStringLength);
-        std::string name = provider.ConsumeRandomLengthString(name_length);
-        uint16_t value_length =
-            provider.ConsumeIntegralInRange<uint16_t>(0, kMaxStringLength);
-        std::string value = provider.ConsumeRandomLengthString(value_length);
-        sender.SendInsertWithoutNameReference(name, value);
-        break;
-      }
-      case 2: {
-        uint64_t index = provider.ConsumeIntegral<uint64_t>();
-        sender.SendDuplicate(index);
-        break;
-      }
-      case 3: {
-        uint64_t capacity = provider.ConsumeIntegral<uint64_t>();
-        sender.SendSetDynamicTableCapacity(capacity);
-        break;
-      }
-      case 4: {
-        sender.Flush();
-        break;
-      }
-    }
+  for (const FuzzAction::Variant& action : actions) {
+    std::visit(
+        absl::Overload{
+            [&](const FuzzAction::SendInsertWithNameReference& insert) {
+              sender.SendInsertWithNameReference(
+                  insert.is_static, insert.name_index, insert.value);
+            },
+            [&](const FuzzAction::SendInsertWithoutNameReference& insert) {
+              sender.SendInsertWithoutNameReference(insert.name, insert.value);
+            },
+            [&](const FuzzAction::SendDuplicate& duplicate) {
+              sender.SendDuplicate(duplicate.index);
+            },
+            [&](const FuzzAction::SendSetDynamicTableCapacity& capacity) {
+              sender.SendSetDynamicTableCapacity(capacity.capacity);
+            },
+            [&](const FuzzAction::Flush&) { sender.Flush(); },
+        },
+        action);
   }
 
   sender.Flush();
-  return 0;
 }
+
+// Limit string length to 2 KiB for efficiency.
+auto ShortStringDomain() { return fuzztest::String().WithMaxSize(2048); }
+
+FUZZ_TEST(QpackEncoderStreamSenderFuzzer, DoesNotCrash)
+    .WithDomains(
+        fuzztest::ElementOf({HuffmanEncoding::kEnabled,
+                             HuffmanEncoding::kDisabled}),
+        fuzztest::VectorOf(fuzztest::VariantOf(
+
+            fuzztest::StructOf<FuzzAction::SendInsertWithNameReference>(
+                fuzztest::Arbitrary<bool>(), fuzztest::Arbitrary<uint64_t>(),
+                fuzztest::Arbitrary<uint16_t>(), ShortStringDomain()),
+            fuzztest::StructOf<FuzzAction::SendInsertWithoutNameReference>(
+                ShortStringDomain(), ShortStringDomain()),
+            fuzztest::Arbitrary<FuzzAction::SendDuplicate>(),
+            fuzztest::Arbitrary<FuzzAction::SendSetDynamicTableCapacity>(),
+            fuzztest::Arbitrary<FuzzAction::Flush>())));
+
+}  // namespace
 
 }  // namespace test
 }  // namespace quic

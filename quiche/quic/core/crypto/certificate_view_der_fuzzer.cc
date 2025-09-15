@@ -2,19 +2,22 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cstdlib>
 #include <memory>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/certificate_view.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  std::string input(reinterpret_cast<const char*>(data), size);
-
+void DoesNotCrash(std::string input) {
   std::unique_ptr<quic::CertificateView> view =
       quic::CertificateView::ParseSingleCertificate(input);
   if (view != nullptr) {
     view->GetHumanReadableSubject();
   }
   quic::CertificatePrivateKey::LoadFromDer(input);
-  return 0;
 }
+FUZZ_TEST(CertificateViewDerFuzzer, DoesNotCrash)
+    .WithSeeds(
+        fuzztest::ReadFilesFromDirectory(getenv("FUZZER_SEED_CORPUS_DIR")));
