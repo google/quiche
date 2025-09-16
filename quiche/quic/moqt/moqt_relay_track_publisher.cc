@@ -35,7 +35,11 @@ void MoqtRelayTrackPublisher::OnReply(
     return;
   }
   SubscribeOkData ok_data = std::get<SubscribeOkData>(response);
-  expiration_ = clock_->Now() + ok_data.expires;
+  if (ok_data.expires.IsInfinite()) {
+    expiration_ = quic::QuicTime::Infinite();
+  } else {
+    expiration_ = clock_->Now() + ok_data.expires;
+  }
   delivery_order_ = ok_data.delivery_order;
   next_location_ = ok_data.largest_location.has_value()
                        ? ok_data.largest_location->Next()
@@ -244,6 +248,9 @@ std::optional<Location> MoqtRelayTrackPublisher::largest_location() const {
 std::optional<quic::QuicTimeDelta> MoqtRelayTrackPublisher::expiration() const {
   if (!expiration_.has_value()) {
     return std::nullopt;
+  }
+  if (expiration_ == quic::QuicTime::Infinite()) {
+    return quic::QuicTimeDelta::Infinite();
   }
   if (expiration_ < clock_->Now()) {
     // TODO(martinduke): Tear everything down; the track is expired.

@@ -108,7 +108,8 @@ TEST_F(MoqtRelayTrackPublisherTest, Queries) {
   EXPECT_EQ(publisher_.largest_location(), kLargestLocation);
   EXPECT_EQ(publisher_.forwarding_preference(), std::nullopt);
   EXPECT_EQ(publisher_.delivery_order(), MoqtDeliveryOrder::kAscending);
-  EXPECT_EQ(publisher_.expiration(), quic::QuicTimeDelta::Zero());
+  EXPECT_TRUE(publisher_.expiration().has_value() &&
+              publisher_.expiration()->IsInfinite());
 }
 
 TEST_F(MoqtRelayTrackPublisherTest, FiniteExpiration) {
