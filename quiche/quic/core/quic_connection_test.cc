@@ -1247,7 +1247,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     return QuicTime::Delta::FromMilliseconds(GetDefaultDelayedAckTimeMs());
   }
 
-  const QuicStopWaitingFrame InitStopWaitingFrame(uint64_t least_unacked) {
+  QuicStopWaitingFrame InitStopWaitingFrame(uint64_t least_unacked) {
     QuicStopWaitingFrame frame;
     frame.least_unacked = QuicPacketNumber(least_unacked);
     return frame;

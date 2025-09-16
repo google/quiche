@@ -54,7 +54,7 @@ class FramerVisitorCapturingPublicReset : public NoOpFramerVisitor {
     stateless_reset_packet_ = packet;
   }
 
-  const QuicIetfStatelessResetPacket stateless_reset_packet() {
+  QuicIetfStatelessResetPacket stateless_reset_packet() {
     return stateless_reset_packet_;
   }
 
