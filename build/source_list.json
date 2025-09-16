@@ -1573,6 +1573,7 @@
     "quiche/quic/moqt/namespace_tree.h",
     "quiche/quic/moqt/test_tools/mock_moqt_session.h",
     "quiche/quic/moqt/test_tools/moqt_framer_utils.h",
+    "quiche/quic/moqt/test_tools/moqt_mock_visitor.h",
     "quiche/quic/moqt/test_tools/moqt_parser_test_visitor.h",
     "quiche/quic/moqt/test_tools/moqt_session_peer.h",
     "quiche/quic/moqt/test_tools/moqt_simulator_harness.h",
@@ -1581,7 +1582,6 @@
     "quiche/quic/moqt/tools/chat_server.h",
     "quiche/quic/moqt/tools/moq_chat.h",
     "quiche/quic/moqt/tools/moqt_client.h",
-    "quiche/quic/moqt/tools/moqt_mock_visitor.h",
     "quiche/quic/moqt/tools/moqt_relay.h",
     "quiche/quic/moqt/tools/moqt_server.h"
   ],

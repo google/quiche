@@ -1574,6 +1574,7 @@ moqt_hdrs = [
     "src/quiche/quic/moqt/namespace_tree.h",
     "src/quiche/quic/moqt/test_tools/mock_moqt_session.h",
     "src/quiche/quic/moqt/test_tools/moqt_framer_utils.h",
+    "src/quiche/quic/moqt/test_tools/moqt_mock_visitor.h",
     "src/quiche/quic/moqt/test_tools/moqt_parser_test_visitor.h",
     "src/quiche/quic/moqt/test_tools/moqt_session_peer.h",
     "src/quiche/quic/moqt/test_tools/moqt_simulator_harness.h",
@@ -1582,7 +1583,6 @@ moqt_hdrs = [
     "src/quiche/quic/moqt/tools/chat_server.h",
     "src/quiche/quic/moqt/tools/moq_chat.h",
     "src/quiche/quic/moqt/tools/moqt_client.h",
-    "src/quiche/quic/moqt/tools/moqt_mock_visitor.h",
     "src/quiche/quic/moqt/tools/moqt_relay.h",
     "src/quiche/quic/moqt/tools/moqt_server.h",
 ]

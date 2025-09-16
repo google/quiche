@@ -1570,6 +1570,7 @@ moqt_hdrs = [
     "quic/moqt/namespace_tree.h",
     "quic/moqt/test_tools/mock_moqt_session.h",
     "quic/moqt/test_tools/moqt_framer_utils.h",
+    "quic/moqt/test_tools/moqt_mock_visitor.h",
     "quic/moqt/test_tools/moqt_parser_test_visitor.h",
     "quic/moqt/test_tools/moqt_session_peer.h",
     "quic/moqt/test_tools/moqt_simulator_harness.h",
@@ -1578,7 +1579,6 @@ moqt_hdrs = [
     "quic/moqt/tools/chat_server.h",
     "quic/moqt/tools/moq_chat.h",
     "quic/moqt/tools/moqt_client.h",
-    "quic/moqt/tools/moqt_mock_visitor.h",
     "quic/moqt/tools/moqt_relay.h",
     "quic/moqt/tools/moqt_server.h",
 ]
