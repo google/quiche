@@ -2,23 +2,26 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <fuzzer/FuzzedDataProvider.h>
-
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <iterator>
-#include <limits>
 #include <map>
 #include <memory>
 #include <string>
 #include <utility>
+#include <variant>
+#include <vector>
 
+#include "absl/functional/overload.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/qpack/qpack_decoder.h"
+#include "quiche/quic/core/qpack/qpack_progressive_decoder.h"
 #include "quiche/quic/core/quic_error_codes.h"
-#include "quiche/quic/test_tools/qpack/qpack_decoder_test_utils.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/test_tools/qpack/qpack_test_utils.h"
 #include "quiche/common/platform/api/quiche_fuzztest.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 namespace test {
@@ -79,21 +82,34 @@ class HeadersHandler : public QpackProgressiveDecoder::HeadersHandlerInterface {
   bool* const error_detected_;
 };
 
+class FuzzerAction {
+ public:
+  struct Decode {
+    std::string encoded_data;
+  };
+  struct CreateProgressiveDecoder {
+    QuicStreamId stream_id;
+  };
+  struct DecodeWithExistingDecoder {
+    size_t distance;
+    std::string encoded_data;
+  };
+  struct EndHeaderBlock {
+    size_t distance;
+  };
+
+  using ActionVariant = std::variant<Decode, CreateProgressiveDecoder,
+                                     DecodeWithExistingDecoder, EndHeaderBlock>;
+};
+
 // This fuzzer exercises QpackDecoder.  It should be able to cover all possible
 // code paths.  There is no point in encoding QpackDecoder's output to turn this
 // into a roundtrip test, because the same header list can be encoded in many
 // different ways, so the output could not be expected to match the original
 // input.
-void DoesNotCrash(const std::vector<uint8_t>& data) {
-  FuzzedDataProvider provider(data.data(), data.size());
-
-  // Maximum 256 byte dynamic table.  Such a small size helps test draining
-  // entries and eviction.
-  const uint64_t maximum_dynamic_table_capacity =
-      provider.ConsumeIntegral<uint8_t>();
-  // Maximum 256 blocked streams.
-  const uint64_t maximum_blocked_streams = provider.ConsumeIntegral<uint8_t>();
-
+void DoesNotCrash(uint64_t maximum_dynamic_table_capacity,
+                  uint64_t maximum_blocked_streams,
+                  const std::vector<FuzzerAction::ActionVariant>& actions) {
   // |error_detected| will be set to true if an error is encountered either in a
   // header block or on the encoder stream.
   bool error_detected = false;
@@ -112,86 +128,83 @@ void DoesNotCrash(const std::vector<uint8_t>& data) {
   // with corresponding handlers.
   DecoderAndHandlerMap processing_decoders;
 
-  // Maximum 256 data fragments to limit runtime and memory usage.
-  auto fragment_count = provider.ConsumeIntegral<uint8_t>();
-  while (fragment_count > 0 && !error_detected &&
-         provider.remaining_bytes() > 0) {
-    --fragment_count;
-    switch (provider.ConsumeIntegralInRange<uint8_t>(0, 3)) {
-      // Feed encoder stream data to QpackDecoder.
-      case 0: {
-        size_t fragment_size = provider.ConsumeIntegral<uint8_t>();
-        std::string encoded_data =
-            provider.ConsumeRandomLengthString(fragment_size);
-        decoder.encoder_stream_receiver()->Decode(encoded_data);
-
-        continue;
-      }
-
-      // Create new progressive decoder.
-      case 1: {
-        QuicStreamId stream_id = provider.ConsumeIntegral<uint8_t>();
-        if (reading_decoders.find(stream_id) != reading_decoders.end() ||
-            processing_decoders.find(stream_id) != processing_decoders.end()) {
-          continue;
-        }
-
-        DecoderAndHandler decoder_and_handler;
-        decoder_and_handler.handler = std::make_unique<HeadersHandler>(
-            stream_id, &processing_decoders, &error_detected);
-        decoder_and_handler.decoder = decoder.CreateProgressiveDecoder(
-            stream_id, decoder_and_handler.handler.get());
-        reading_decoders.insert({stream_id, std::move(decoder_and_handler)});
-
-        continue;
-      }
-
-      // Feed header block data to existing decoder.
-      case 2: {
-        if (reading_decoders.empty()) {
-          continue;
-        }
-
-        auto it = reading_decoders.begin();
-        auto distance = provider.ConsumeIntegralInRange<uint8_t>(
-            0, reading_decoders.size() - 1);
-        std::advance(it, distance);
-
-        size_t fragment_size = provider.ConsumeIntegral<uint8_t>();
-        std::string encoded_data =
-            provider.ConsumeRandomLengthString(fragment_size);
-        it->second.decoder->Decode(encoded_data);
-
-        continue;
-      }
-
-      // End header block.
-      case 3: {
-        if (reading_decoders.empty()) {
-          continue;
-        }
-
-        auto it = reading_decoders.begin();
-        auto distance = provider.ConsumeIntegralInRange<uint8_t>(
-            0, reading_decoders.size() - 1);
-        std::advance(it, distance);
-
-        QpackProgressiveDecoder* reading_decoder = it->second.decoder.get();
-
-        // Move DecoderAndHandler to |processing_decoders| first, because
-        // EndHeaderBlock() might synchronously call OnDecodingCompleted().
-        QuicStreamId stream_id = it->first;
-        processing_decoders.insert({stream_id, std::move(it->second)});
-        reading_decoders.erase(it);
-
-        reading_decoder->EndHeaderBlock();
-
-        continue;
-      }
+  for (const FuzzerAction::ActionVariant& action : actions) {
+    if (error_detected) {
+      break;
     }
+    std::visit(
+        absl::Overload{
+            [&](const FuzzerAction::Decode& params) {
+              // Feed encoder stream data to QpackDecoder.
+              decoder.encoder_stream_receiver()->Decode(params.encoded_data);
+            },
+            [&](const FuzzerAction::CreateProgressiveDecoder& params) {
+              static constexpr QuicStreamId kMaxStreamId = 255;
+
+              // Create new progressive decoder.
+              QuicStreamId stream_id = std::min(params.stream_id, kMaxStreamId);
+              if (reading_decoders.find(stream_id) != reading_decoders.end() ||
+                  processing_decoders.find(stream_id) !=
+                      processing_decoders.end()) {
+                return;
+              }
+
+              DecoderAndHandler decoder_and_handler;
+              decoder_and_handler.handler = std::make_unique<HeadersHandler>(
+                  stream_id, &processing_decoders, &error_detected);
+              decoder_and_handler.decoder = decoder.CreateProgressiveDecoder(
+                  stream_id, decoder_and_handler.handler.get());
+              reading_decoders.insert(
+                  {stream_id, std::move(decoder_and_handler)});
+            },
+            [&](const FuzzerAction::DecodeWithExistingDecoder& params) {
+              // Feed header block data to existing decoder.
+              if (reading_decoders.empty()) {
+                return;
+              }
+
+              const size_t distance =
+                  std::min(params.distance, reading_decoders.size() - 1);
+              auto it = reading_decoders.begin();
+              std::advance(it, distance);
+
+              it->second.decoder->Decode(params.encoded_data);
+            },
+            [&](const FuzzerAction::EndHeaderBlock& params) {
+              if (reading_decoders.empty()) {
+                return;
+              }
+
+              const size_t distance =
+                  std::min(params.distance, reading_decoders.size() - 1);
+              auto it = reading_decoders.begin();
+              std::advance(it, distance);
+
+              QpackProgressiveDecoder* reading_decoder =
+                  it->second.decoder.get();
+
+              // Move DecoderAndHandler to |processing_decoders| first, because
+              // EndHeaderBlock() might synchronously call
+              // OnDecodingCompleted().
+              QuicStreamId stream_id = it->first;
+              processing_decoders.insert({stream_id, std::move(it->second)});
+              reading_decoders.erase(it);
+
+              reading_decoder->EndHeaderBlock();
+            }},
+        action);
   }
 }
-FUZZ_TEST(QpackDecoderFuzzer, DoesNotCrash);
+FUZZ_TEST(QpackDecoderFuzzer, DoesNotCrash)
+    .WithDomains(
+        // Maximum 256 byte dynamic table.  Such a small size helps test
+        // draining entries and eviction.
+        fuzztest::InRange(0u, 256u),
+        // Maximum 256 blocked streams.
+        fuzztest::InRange(0u, 256u),
+        // Maximum 256 data fragments to limit runtime and memory usage.
+        fuzztest::VectorOf(fuzztest::Arbitrary<FuzzerAction::ActionVariant>())
+            .WithMaxSize(256));
 
 }  // namespace test
 }  // namespace quic
