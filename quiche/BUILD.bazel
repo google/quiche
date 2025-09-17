@@ -21,6 +21,11 @@ load(
     "io_tool_support_srcs",
     "masque_support_hdrs",
     "masque_support_srcs",
+    "moqt_hdrs",
+    "moqt_srcs",
+    "moqt_test_srcs",
+    "moqt_test_support_hdrs",
+    "moqt_test_support_srcs",
     "oblivious_http_hdrs",
     "oblivious_http_srcs",
     "quiche_core_hdrs",
@@ -382,6 +387,37 @@ cc_library(
 )
 
 cc_library(
+    name = "moqt_core",
+    srcs = moqt_srcs,
+    hdrs = moqt_hdrs,
+    deps = [
+        ":io_tool_support",
+        ":quiche_core",
+        ":quiche_tool_support",
+        "@com_google_absl//absl/algorithm:container",
+        "@com_google_absl//absl/base",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/base:nullability",
+        "@com_google_absl//absl/cleanup",
+        "@com_google_absl//absl/container:btree",
+        "@com_google_absl//absl/container:fixed_array",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/container:inlined_vector",
+        "@com_google_absl//absl/container:node_hash_map",
+        "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
+        "@com_google_absl//absl/time",
+        "@com_google_absl//absl/types:span",
+        "@com_google_absl//absl/types:variant",
+    ],
+)
+
+cc_library(
     name = "io_test_support",
     testonly = 1,
     srcs = io_test_support_srcs,
@@ -445,6 +481,42 @@ test_suite_from_source_list(
         "@com_google_absl//absl/types:span",
         "@com_google_absl//absl/types:variant",
         "@com_google_googletest//:gtest",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+cc_library(
+    name = "moqt_test_support",
+    testonly = 1,
+    srcs = moqt_test_support_srcs,
+    hdrs = moqt_test_support_hdrs,
+    deps = [
+        ":moqt_core",
+        ":quiche_core",
+        ":quiche_test_support",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
+    ],
+)
+
+test_suite_from_source_list(
+    name = "moqt_tests",
+    srcs = moqt_test_srcs,
+    deps = [
+        ":io_tool_support",
+        ":moqt_core",
+        ":moqt_test_support",
+        ":quiche_core",
+        ":quiche_test_support",
+        ":quiche_tool_support",
+        "@com_google_absl//absl/functional:bind_front",
+        "@com_google_absl//absl/hash",
+        "@com_google_absl//absl/memory",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/types:span",
         "@com_google_googletest//:gtest_main",
     ],
 )
@@ -531,6 +603,17 @@ cc_binary(
         ":quiche_tool_support",
         "@com_google_absl//absl/status",
         "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
+    name = "moqt_relay",
+    srcs = ["quic/moqt/tools/moqt_relay_bin.cc"],
+    deps = [
+        ":moqt_core",
+        ":quiche_core",
+        ":quiche_tool_support",
         "@com_google_absl//absl/strings",
     ],
 )
