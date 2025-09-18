@@ -5,6 +5,7 @@
 #include "quiche/quic/moqt/moqt_relay_publisher.h"
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "absl/strings/string_view.h"
@@ -12,6 +13,7 @@
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
+#include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
@@ -20,11 +22,10 @@ namespace test {
 
 class MoqtRelayPublisherTest : public quiche::test::QuicheTest {
  public:
-  MoqtRelayPublisherTest() : publisher_(false) {}
-
   MoqtSessionCallbacks callbacks_;
   MockMoqtSession session_;
   MoqtRelayPublisher publisher_;
+  MockMoqtObjectListener object_listener_;
 };
 
 TEST_F(MoqtRelayPublisherTest, SetDefaultUpstreamSession) {
@@ -70,6 +71,25 @@ TEST_F(MoqtRelayPublisherTest, GetTrackFromDefaultUpstream) {
       publisher_.GetTrack(FullTrackName("foo", "bar"));
   EXPECT_NE(track, nullptr);
   EXPECT_EQ(track->GetTrackName(), FullTrackName("foo", "bar"));
+}
+
+TEST_F(MoqtRelayPublisherTest, PublishNamespaceLifecycle) {
+  EXPECT_EQ(publisher_.GetTrack(FullTrackName("foo", "bar")), nullptr);
+  std::optional<MoqtRequestError> response;
+  publisher_.OnPublishNamespace(
+      TrackNamespace({"foo"}), VersionSpecificParameters(), &session_,
+      [&](std::optional<MoqtRequestError> error_response) {
+        response = error_response;
+      });
+  EXPECT_EQ(response, std::nullopt);
+  std::shared_ptr<MoqtTrackPublisher> track =
+      publisher_.GetTrack(FullTrackName("foo", "bar"));
+  EXPECT_NE(track, nullptr);
+  EXPECT_CALL(session_, SubscribeCurrentObject);
+  track->AddObjectListener(&object_listener_);
+  track->RemoveObjectListener(&object_listener_);
+  publisher_.OnPublishNamespaceDone(TrackNamespace({"foo"}), &session_);
+  EXPECT_EQ(publisher_.GetTrack(FullTrackName("foo", "bar")), nullptr);
 }
 
 }  // namespace test

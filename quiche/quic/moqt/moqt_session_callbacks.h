@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_MOQT_MOQT_SESSION_CALLBACKS_H_
 
 #include <optional>
+#include <utility>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_clock.h"
@@ -14,6 +15,12 @@
 #include "quiche/common/quiche_callbacks.h"
 
 namespace moqt {
+
+// The callback we'll use for all request types going forward. Can only be used
+// once; if the argument is nullopt, an OK response was received. Otherwise, an
+// ERROR response was received.
+using MoqtResponseCallback =
+    quiche::SingleUseCallback<void(std::optional<MoqtRequestError>)>;
 
 // Called when the SETUP message from the peer is received.
 using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
@@ -31,11 +38,11 @@ using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
 
 // Called whenever a PUBLISH_NAMESPACE or PUBLISH_NAMESPACE_DONE message is
 // received from the peer. PUBLISH_NAMESPACE sets a value for |parameters|,
-// PUBLISH_NAMESPACE_DONE does not.
-using MoqtIncomingPublishNamespaceCallback =
-    quiche::MultiUseCallback<std::optional<MoqtPublishNamespaceErrorReason>(
-        const TrackNamespace& track_namespace,
-        const std::optional<VersionSpecificParameters>& parameters)>;
+// PUBLISH_NAMESPACE_DONE does not..
+using MoqtIncomingPublishNamespaceCallback = quiche::MultiUseCallback<void(
+    const TrackNamespace& track_namespace,
+    const std::optional<VersionSpecificParameters>& parameters,
+    MoqtResponseCallback callback)>;
 
 // Called whenever SUBSCRIBE_NAMESPACE or UNSUBSCRIBE_NAMESPACE is received from
 // the peer.  For SUBSCRIBE_NAMESPACE, the return value indicates whether to
@@ -47,11 +54,13 @@ using MoqtIncomingSubscribeNamespaceCallback =
         const TrackNamespace& track_namespace,
         std::optional<VersionSpecificParameters> parameters)>;
 
-inline std::optional<MoqtPublishNamespaceErrorReason>
-DefaultIncomingPublishNamespaceCallback(
-    const TrackNamespace& /*track_namespace*/,
-    std::optional<VersionSpecificParameters> /*parameters*/) {
-  return std::optional(MoqtPublishNamespaceErrorReason{
+inline void DefaultIncomingPublishNamespaceCallback(
+    const TrackNamespace&, const std::optional<VersionSpecificParameters>&,
+    MoqtResponseCallback callback) {
+  if (callback == nullptr) {
+    return;
+  }
+  return std::move(callback)(MoqtRequestError{
       RequestErrorCode::kNotSupported,
       "This endpoint does not accept incoming PUBLISH_NAMESPACE messages"});
 };

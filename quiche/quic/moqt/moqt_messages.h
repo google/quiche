@@ -419,6 +419,14 @@ class TrackNamespace {
             length_ + element.length() <= kMaxFullTrackNameSize);
   }
   void AddElement(absl::string_view element);
+  bool PopElement() {
+    if (tuple_.size() == 1) {
+      return false;
+    }
+    length_ -= tuple_.back().length();
+    tuple_.pop_back();
+    return true;
+  }
   std::string ToString() const;
   // Returns the number of elements in the tuple.
   size_t number_of_elements() const { return tuple_.size(); }

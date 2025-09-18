@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "absl/base/nullability.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
@@ -27,8 +28,9 @@ absl_nullable std::shared_ptr<MoqtTrackPublisher> MoqtRelayPublisher::GetTrack(
   if (it != tracks_.end()) {
     return it->second;
   }
-  QuicheWeakPtr<MoqtSessionInterface> upstream =
-      GetUpstream(track_name.track_namespace());
+  // Make a copy, because this namespace might be truncated.
+  TrackNamespace track_namespace = track_name.track_namespace();
+  QuicheWeakPtr<MoqtSessionInterface> upstream = GetUpstream(track_namespace);
   if (!upstream.IsValid()) {
     return nullptr;
   }
@@ -59,23 +61,48 @@ void MoqtRelayPublisher::SetDefaultUpstreamSession(
                          << error_message;
         default_upstream_session_ = QuicheWeakPtr<MoqtSessionInterface>();
       };
-  AddNamespaceCallbacks(default_upstream_session);
   default_upstream_session_ = default_upstream_session->GetWeakPtr();
 }
 
-void MoqtRelayPublisher::AddNamespaceCallbacks(
-    MoqtSessionInterface* /*session*/) {
-  // TODO(martinduke): Implement this.
+void MoqtRelayPublisher::OnPublishNamespace(
+    const TrackNamespace& track_namespace,
+    const VersionSpecificParameters& /*parameters*/,
+    MoqtSessionInterface* session, MoqtResponseCallback callback) {
+  if (session == nullptr) {
+    return;
+  }
+  // TODO(martinduke): Handle parameters.
+  namespace_publishers_.AddPublisher(track_namespace, session);
+  // TODO(martinduke): Notify subscribers listening for this namespace.
+  // Send PUBLISH_NAMESPACE_OK.
+  std::move(callback)(std::nullopt);
+}
+
+void MoqtRelayPublisher::OnPublishNamespaceDone(
+    const TrackNamespace& track_namespace, MoqtSessionInterface* session) {
+  if (session == nullptr) {
+    return;
+  }
+  namespace_publishers_.RemovePublisher(track_namespace, session);
+  // TODO(martinduke): Notify subscribers listening for this namespace.
 }
 
 QuicheWeakPtr<MoqtSessionInterface> MoqtRelayPublisher::GetUpstream(
-    const TrackNamespace& /*track_namespace*/) {
-  // TODO(martinduke): Find a published namespace that contains
-  // |track_namespace|.
-  if (default_upstream_session_.IsValid()) {
-    return default_upstream_session_.GetIfAvailable()->GetWeakPtr();
+    TrackNamespace& track_namespace) {
+  quiche::QuicheWeakPtr<MoqtSessionInterface> upstream;
+  upstream = namespace_publishers_.GetValidPublisher(track_namespace);
+  if (upstream.IsValid()) {
+    return upstream;
   }
-  return QuicheWeakPtr<MoqtSessionInterface>();
+  if (!track_namespace.PopElement()) {
+    // This the last element; send the default upstream if valid.
+    if (default_upstream_session_.IsValid()) {
+      return default_upstream_session_.GetIfAvailable()->GetWeakPtr();
+    }
+    return QuicheWeakPtr<MoqtSessionInterface>();
+  }
+  // See if there's a subscriber for a parent namespace.
+  return GetUpstream(track_namespace);
 }
 
 }  // namespace moqt

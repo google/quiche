@@ -5,14 +5,20 @@
 #include "quiche/quic/moqt/tools/moqt_relay.h"
 
 #include <cstdint>
+#include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_relay_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
@@ -29,10 +35,10 @@ class TestMoqtRelay : public MoqtRelay {
  public:
   TestMoqtRelay(std::string bind_address, uint16_t bind_port,
                 absl::string_view default_upstream, bool ignore_certificate,
-                bool promiscuous_mode, quic::QuicEventLoop* event_loop)
+                quic::QuicEventLoop* event_loop)
       : MoqtRelay(quic::test::crypto_test_utils::ProofSourceForTesting(),
                   bind_address, bind_port, default_upstream, ignore_certificate,
-                  promiscuous_mode, event_loop) {}
+                  event_loop) {}
 
   quic::QuicEventLoop* server_event_loop() {
     return server()->quic_server().event_loop();
@@ -47,15 +53,23 @@ class TestMoqtRelay : public MoqtRelay {
   }
 
   MoqtRelayPublisher* publisher() { return MoqtRelay::publisher(); }
+
+  virtual void SetPublishNamespaceCallback(
+      MoqtSessionInterface* session) override {
+    last_server_session = session;
+    MoqtRelay::SetPublishNamespaceCallback(session);
+  }
+
+  MoqtSessionInterface* last_server_session;
 };
 
 class MoqtRelayTest : public quiche::test::QuicheTest {
  public:
   MoqtRelayTest()
-      : upstream_("127.0.0.1", 9991, "", true, false, nullptr),  // no client.
-        relay_("127.0.0.1", 9992, "https://127.0.0.1:9991", true, false,
+      : upstream_("127.0.0.1", 9991, "", true, nullptr),  // no client.
+        relay_("127.0.0.1", 9992, "https://127.0.0.1:9991", true,
                upstream_.server_event_loop()),
-        downstream_("127.0.0.1", 9993, "https://127.0.0.1:9992", true, false,
+        downstream_("127.0.0.1", 9993, "https://127.0.0.1:9992", true,
                     relay_.server_event_loop()) {
     RunUntilConnected(relay_, upstream_);
     RunUntilConnected(downstream_, relay_);
@@ -104,6 +118,34 @@ TEST_F(MoqtRelayTest, CloseSession) {
   std::move(relay_.client_session()->callbacks().session_terminated_callback)(
       "");
   EXPECT_FALSE(relay_.publisher()->GetDefaultUpstreamSession().IsValid());
+}
+
+TEST_F(MoqtRelayTest, PublishNamespace) {
+  MockMoqtObjectListener object_listener;
+  // No path to a subscribe. Test the upstream_ publisher because it doesn't
+  // have a default upstream.
+  EXPECT_EQ(upstream_.publisher()->GetTrack(FullTrackName("foo", "bar")),
+            nullptr);
+  // relay_ publishes a namespace, so upstream_ will route to relay_.
+  relay_.client_session()->PublishNamespace(
+      TrackNamespace({"foo"}),
+      [](TrackNamespace, std::optional<MoqtPublishNamespaceErrorReason>) {},
+      VersionSpecificParameters());
+  upstream_.RunOneEvent();
+  // There is now an upstream session for "Foo".
+  std::shared_ptr<MoqtTrackPublisher> track =
+      upstream_.publisher()->GetTrack(FullTrackName("foo", "bar"));
+  EXPECT_NE(track, nullptr);
+  track->AddObjectListener(&object_listener);
+  track->RemoveObjectListener(&object_listener);
+  // Track should have been destroyed.
+
+  // Send PUBLISH_NAMESPACE_DONE
+  relay_.client_session()->PublishNamespaceDone(TrackNamespace({"foo"}));
+  upstream_.RunOneEvent();
+  // Now there's nowhere to route for "foo".
+  EXPECT_EQ(upstream_.publisher()->GetTrack(FullTrackName("foo", "bar")),
+            nullptr);
 }
 
 #if 0  // TODO(martinduke): Re-enable these tests when GOAWAY support exists.

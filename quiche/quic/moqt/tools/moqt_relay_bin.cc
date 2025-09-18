@@ -29,11 +29,6 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "If set, connect to the upstream URL and forward all requests there if "
     "there is no explicitly advertised source.");
 
-DEFINE_QUICHE_COMMAND_LINE_FLAG(
-    bool, broadcast_mode, false,
-    "If set, PUBLISH_NAMESPACE messages will be forwarded to all sessions, "
-    "whether or not they are subscribed.");
-
 // A pure MoQT relay. Accepts connections. Will try to route requests from a
 // session to a different appropriate upstream session. If the namespace for the
 // request has not been advertised, it will reject the request. If
@@ -52,8 +47,7 @@ int main(int argc, char* argv[]) {
       quiche::GetQuicheCommandLineFlag(FLAGS_bind_address),
       quiche::GetQuicheCommandLineFlag(FLAGS_port),
       quiche::GetQuicheCommandLineFlag(FLAGS_default_upstream),
-      quiche::GetQuicheCommandLineFlag(FLAGS_disable_certificate_verification),
-      quiche::GetQuicheCommandLineFlag(FLAGS_broadcast_mode));
+      quiche::GetQuicheCommandLineFlag(FLAGS_disable_certificate_verification));
   relay.HandleEventsForever();
   return 0;
 }

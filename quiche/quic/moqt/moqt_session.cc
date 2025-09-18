@@ -47,6 +47,7 @@
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
+#include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -1216,21 +1217,29 @@ void MoqtSession::ControlStream::OnPublishNamespaceMessage(
         session_->framer_.SerializePublishNamespaceError(error));
     return;
   }
-  std::optional<MoqtPublishNamespaceErrorReason> error =
-      session_->callbacks_.incoming_publish_namespace_callback(
-          message.track_namespace, message.parameters);
-  if (error.has_value()) {
-    MoqtPublishNamespaceError reply;
-    reply.request_id = message.request_id;
-    reply.error_code = error->error_code;
-    reply.error_reason = error->reason_phrase;
-    SendOrBufferMessage(
-        session_->framer_.SerializePublishNamespaceError(reply));
-    return;
-  }
-  MoqtPublishNamespaceOk ok;
-  ok.request_id = message.request_id;
-  SendOrBufferMessage(session_->framer_.SerializePublishNamespaceOk(ok));
+  quiche::QuicheWeakPtr<MoqtSessionInterface> session_weakptr =
+      session_->GetWeakPtr();
+  session_->callbacks_.incoming_publish_namespace_callback(
+      message.track_namespace, message.parameters,
+      [&](std::optional<MoqtRequestError> error) {
+        MoqtSession* session =
+            static_cast<MoqtSession*>(session_weakptr.GetIfAvailable());
+        if (session == nullptr) {
+          return;
+        }
+        if (error.has_value()) {
+          MoqtPublishNamespaceError reply;
+          reply.request_id = message.request_id;
+          reply.error_code = error->error_code;
+          reply.error_reason = error->reason_phrase;
+          SendOrBufferMessage(
+              session->framer_.SerializePublishNamespaceError(reply));
+        } else {
+          MoqtPublishNamespaceOk ok;
+          ok.request_id = message.request_id;
+          SendOrBufferMessage(session->framer_.SerializePublishNamespaceOk(ok));
+        }
+      });
 }
 
 // Do not enforce that there is only one of OK or ERROR per PUBLISH_NAMESPACE.
@@ -1280,7 +1289,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceErrorMessage(
 void MoqtSession::ControlStream::OnPublishNamespaceDoneMessage(
     const MoqtPublishNamespaceDone& message) {
   session_->callbacks_.incoming_publish_namespace_callback(
-      message.track_namespace, std::nullopt);
+      message.track_namespace, std::nullopt, nullptr);
 }
 
 void MoqtSession::ControlStream::OnPublishNamespaceCancelMessage(

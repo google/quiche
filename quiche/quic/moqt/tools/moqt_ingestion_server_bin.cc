@@ -32,6 +32,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -118,9 +119,9 @@ class MoqtIngestionHandler {
 
   // TODO(martinduke): Handle when |publish_namespace| is false
   // (PUBLISH_NAMESPACE_DONE).
-  std::optional<MoqtPublishNamespaceErrorReason> OnPublishNamespaceReceived(
-      TrackNamespace track_namespace,
-      std::optional<VersionSpecificParameters> /*parameters*/) {
+  void OnPublishNamespaceReceived(TrackNamespace track_namespace,
+                                  std::optional<VersionSpecificParameters>,
+                                  MoqtResponseCallback callback) {
     if (!IsValidTrackNamespace(track_namespace) &&
         !quiche::GetQuicheCommandLineFlag(
             FLAGS_allow_invalid_track_namespaces)) {
@@ -128,9 +129,10 @@ class MoqtIngestionHandler {
           << "Rejected remote publish_namespace as it contained "
              "disallowed characters; namespace: "
           << track_namespace;
-      return MoqtPublishNamespaceErrorReason{
+      std::move(callback)(MoqtPublishNamespaceErrorReason{
           RequestErrorCode::kInternalError,
-          "Track namespace contains disallowed characters"};
+          "Track namespace contains disallowed characters"});
+      return;
     }
 
     std::string directory_name = absl::StrCat(
@@ -141,16 +143,18 @@ class MoqtIngestionHandler {
         track_namespace, NamespaceHandler(directory_path));
     if (!added) {
       // Received before; should be handled by already existing subscriptions.
-      return std::nullopt;
+      std::move(callback)(std::nullopt);
+      return;
     }
 
     if (absl::Status status = MakeDirectory(directory_path); !status.ok()) {
       subscribed_namespaces_.erase(it);
       QUICHE_LOG(ERROR) << "Failed to create directory " << directory_path
                         << "; " << status;
-      return MoqtPublishNamespaceErrorReason{
-          RequestErrorCode::kInternalError,
-          "Failed to create output directory"};
+      std::move(callback)(
+          MoqtPublishNamespaceErrorReason{RequestErrorCode::kInternalError,
+                                          "Failed to create output directory"});
+      return;
     }
 
     std::string track_list = quiche::GetQuicheCommandLineFlag(FLAGS_tracks);
@@ -161,8 +165,7 @@ class MoqtIngestionHandler {
       session_->RelativeJoiningFetch(full_track_name, &it->second, 0,
                                      VersionSpecificParameters());
     }
-
-    return std::nullopt;
+    std::move(callback)(std::nullopt);
   }
 
  private:

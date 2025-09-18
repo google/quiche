@@ -27,6 +27,7 @@
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
@@ -40,13 +41,14 @@
 
 namespace moqt::moq_chat {
 
-std::optional<MoqtPublishNamespaceErrorReason>
-ChatClient::OnIncomingPublishNamespace(
+void ChatClient::OnIncomingPublishNamespace(
     const moqt::TrackNamespace& track_namespace,
-    std::optional<VersionSpecificParameters> parameters) {
+    std::optional<VersionSpecificParameters> parameters,
+    moqt::MoqtResponseCallback callback) {
   if (track_namespace == GetUserNamespace(my_track_name_)) {
     // Ignore PUBLISH_NAMESPACE for my own track.
-    return std::optional<MoqtPublishNamespaceErrorReason>();
+    std::move(callback)(std::nullopt);
+    return;
   }
   std::optional<FullTrackName> track_name = ConstructTrackNameFromNamespace(
       track_namespace, GetChatId(my_track_name_));
@@ -57,22 +59,25 @@ ChatClient::OnIncomingPublishNamespace(
       session_->Unsubscribe(*track_name);
       other_users_.erase(*track_name);
     }
-    return std::nullopt;
+    return;
   }
   std::cout << "PUBLISH_NAMESPACE for " << track_namespace.ToString() << "\n";
   if (!track_name.has_value()) {
     std::cout << "PUBLISH_NAMESPACE rejected, invalid namespace\n";
-    return std::make_optional<MoqtPublishNamespaceErrorReason>(
-        RequestErrorCode::kTrackDoesNotExist, "Not a subscribed namespace");
+    std::move(callback)(std::make_optional<MoqtPublishNamespaceErrorReason>(
+        RequestErrorCode::kTrackDoesNotExist, "Not a subscribed namespace"));
+    return;
   }
   if (other_users_.contains(*track_name)) {
     std::cout << "Duplicate PUBLISH_NAMESPACE, send OK and ignore\n";
-    return std::nullopt;
+    std::move(callback)(std::nullopt);
+    return;
   }
   if (GetUsername(my_track_name_) == GetUsername(*track_name)) {
     std::cout << "PUBLISH_NAMESPACE for a previous instance of my track, "
                  "do not subscribe\n";
-    return std::nullopt;
+    std::move(callback)(std::nullopt);
+    return;
   }
   VersionSpecificParameters subscribe_parameters(
       AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
@@ -81,7 +86,7 @@ ChatClient::OnIncomingPublishNamespace(
     ++subscribes_to_make_;
     other_users_.emplace(*track_name);
   }
-  return std::nullopt;  // Send PUBLISH_NAMESPACE_OK.
+  std::move(callback)(std::nullopt);  // Send PUBLISH_NAMESPACE_OK.
 }
 
 ChatClient::ChatClient(const quic::QuicServerId& server_id,

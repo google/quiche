@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
@@ -15,8 +16,10 @@
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
@@ -32,16 +35,15 @@ namespace moqt {
 MoqtRelay::MoqtRelay(std::unique_ptr<quic::ProofSource> proof_source,
                      std::string bind_address, uint16_t bind_port,
                      absl::string_view default_upstream,
-                     bool ignore_certificate, bool broadcast_mode)
+                     bool ignore_certificate)
     : MoqtRelay(std::move(proof_source), bind_address, bind_port,
-                default_upstream, ignore_certificate, broadcast_mode, nullptr) {
-}
+                default_upstream, ignore_certificate, nullptr) {}
 
 // protected members.
 MoqtRelay::MoqtRelay(std::unique_ptr<quic::ProofSource> proof_source,
                      std::string bind_address, uint16_t bind_port,
                      absl::string_view default_upstream,
-                     bool ignore_certificate, bool broadcast_mode,
+                     bool ignore_certificate,
                      quic::QuicEventLoop* client_event_loop)
     : ignore_certificate_(ignore_certificate),
       client_event_loop_(client_event_loop),
@@ -51,8 +53,7 @@ MoqtRelay::MoqtRelay(std::unique_ptr<quic::ProofSource> proof_source,
                                            [this](absl::string_view path) {
                                              return IncomingSessionHandler(
                                                  path);
-                                           })),
-      publisher_(broadcast_mode) {
+                                           })) {
   quiche::QuicheIpAddress bind_ip_address;
   QUICHE_CHECK(bind_ip_address.FromString(bind_address));
   // CreateUDPSocketAndListen() creates the event loop that we will pass to
@@ -91,8 +92,10 @@ std::unique_ptr<moqt::MoqtClient> MoqtRelay::CreateClient(
 MoqtSessionCallbacks MoqtRelay::CreateClientCallbacks() {
   MoqtSessionCallbacks callbacks;
   callbacks.session_established_callback = [this]() {
-    default_upstream_client_->session()->set_publisher(&publisher_);
-    publisher_.SetDefaultUpstreamSession(default_upstream_client_->session());
+    MoqtSession* session = default_upstream_client_->session();
+    session->set_publisher(&publisher_);
+    publisher_.SetDefaultUpstreamSession(session);
+    SetPublishNamespaceCallback(session);
   };
   callbacks.goaway_received_callback = [](absl::string_view new_session_uri) {
     QUICHE_LOG(INFO) << "GoAway received, new session uri = "
@@ -103,13 +106,28 @@ MoqtSessionCallbacks MoqtRelay::CreateClientCallbacks() {
   return callbacks;
 }
 
+void MoqtRelay::SetPublishNamespaceCallback(MoqtSessionInterface* session) {
+  session->callbacks().incoming_publish_namespace_callback =
+      [this, session](
+          const TrackNamespace& track_namespace,
+          const std::optional<VersionSpecificParameters>& parameters,
+          MoqtResponseCallback callback) {
+        if (parameters.has_value()) {
+          return publisher_.OnPublishNamespace(track_namespace, *parameters,
+                                               session, std::move(callback));
+        } else {
+          return publisher_.OnPublishNamespaceDone(track_namespace, session);
+        }
+      };
+}
+
 absl::StatusOr<MoqtConfigureSessionCallback> MoqtRelay::IncomingSessionHandler(
     absl::string_view /*path*/) {
   return [this](MoqtSession* session) {
-    session->set_publisher(&publisher_);
     session->callbacks().session_established_callback = [this, session]() {
-      publisher_.AddNamespaceCallbacks(session);
+      session->set_publisher(&publisher_);
     };
+    SetPublishNamespaceCallback(session);
   };
 }
 

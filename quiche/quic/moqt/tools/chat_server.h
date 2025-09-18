@@ -24,6 +24,7 @@
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
 
@@ -92,9 +93,10 @@ class ChatServer {
 
    private:
     // Callback for incoming publish_namespaces.
-    std::optional<MoqtPublishNamespaceErrorReason> OnIncomingPublishNamespace(
-        const moqt::TrackNamespace& track_namespace,
-        std::optional<VersionSpecificParameters> parameters);
+    void OnIncomingPublishNamespace(
+        const TrackNamespace& track_namespace,
+        std::optional<VersionSpecificParameters> parameters,
+        MoqtResponseCallback callback);
     void OnOutgoingPublishNamespaceReply(
         TrackNamespace track_namespace,
         std::optional<MoqtPublishNamespaceErrorReason> error_message);

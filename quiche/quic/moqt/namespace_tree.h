@@ -5,9 +5,7 @@
 #ifndef QUICHE_QUIC_MOQT_NAMESPACE_TREE_H_
 #define QUICHE_QUIC_MOQT_NAMESPACE_TREE_H_
 
-#include <cstddef>
 #include <string>
-#include <vector>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/types/span.h"

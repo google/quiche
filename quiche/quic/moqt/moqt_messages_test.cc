@@ -42,6 +42,17 @@ TEST(MoqtMessagesTest, TrackNamespaceInNamespace) {
   EXPECT_FALSE(name2.InNamespace(name3));
 }
 
+TEST(MoqtMessagesTest, TrackNamespacePushPop) {
+  TrackNamespace name({"a"});
+  TrackNamespace original = name;
+  name.AddElement("b");
+  EXPECT_TRUE(name.InNamespace(original));
+  EXPECT_FALSE(original.InNamespace(name));
+  EXPECT_TRUE(name.PopElement());
+  EXPECT_EQ(name, original);
+  EXPECT_FALSE(name.PopElement());
+}
+
 TEST(MoqtMessagesTest, TrackNamespaceToString) {
   TrackNamespace name1({"a", "b"});
   EXPECT_EQ(name1.ToString(), R"({"a"::"b"})");

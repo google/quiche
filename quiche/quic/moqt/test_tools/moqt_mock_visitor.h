@@ -22,6 +22,7 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt::test {
 
@@ -30,15 +31,17 @@ struct MockSessionCallbacks {
   testing::MockFunction<void(absl::string_view)> goaway_received_callback;
   testing::MockFunction<void(absl::string_view)> session_terminated_callback;
   testing::MockFunction<void()> session_deleted_callback;
-  testing::MockFunction<std::optional<MoqtPublishNamespaceErrorReason>(
-      const TrackNamespace&, std::optional<VersionSpecificParameters>)>
+  testing::MockFunction<void(const TrackNamespace&,
+                             const std::optional<VersionSpecificParameters>&,
+                             MoqtResponseCallback)>
       incoming_publish_namespace_callback;
   testing::MockFunction<std::optional<MoqtSubscribeErrorReason>(
       TrackNamespace, std::optional<VersionSpecificParameters>)>
       incoming_subscribe_namespace_callback;
 
   MockSessionCallbacks() {
-    ON_CALL(incoming_publish_namespace_callback, Call(testing::_, testing::_))
+    ON_CALL(incoming_publish_namespace_callback,
+            Call(testing::_, testing::_, testing::_))
         .WillByDefault(DefaultIncomingPublishNamespaceCallback);
     ON_CALL(incoming_subscribe_namespace_callback, Call(testing::_, testing::_))
         .WillByDefault(DefaultIncomingSubscribeNamespaceCallback);
@@ -170,6 +173,19 @@ class MockFetchTask : public MoqtFetchTask {
   std::optional<MoqtFetchOk> synchronous_fetch_ok_;
   std::optional<MoqtFetchError> synchronous_fetch_error_;
   bool synchronous_object_available_ = false;
+};
+
+class MockMoqtObjectListener : public MoqtObjectListener {
+ public:
+  MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
+  MOCK_METHOD(void, OnSubscribeRejected, (MoqtRequestError), (override));
+  MOCK_METHOD(void, OnNewObjectAvailable, (Location, uint64_t, MoqtPriority),
+              (override));
+  MOCK_METHOD(void, OnNewFinAvailable, (Location, uint64_t), (override));
+  MOCK_METHOD(void, OnSubgroupAbandoned,
+              (uint64_t, uint64_t, webtransport::StreamErrorCode), (override));
+  MOCK_METHOD(void, OnGroupAbandoned, (uint64_t), (override));
+  MOCK_METHOD(void, OnTrackPublisherGone, (), (override));
 };
 
 }  // namespace moqt::test

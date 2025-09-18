@@ -138,7 +138,7 @@ class MoqtPublisher {
  public:
   virtual ~MoqtPublisher() = default;
 
-  // These are all called by MoqtSession based on messages arriving on the wire.
+  // Called by MoqtSession based on messages arriving on the wire.
   virtual absl_nullable std::shared_ptr<MoqtTrackPublisher> GetTrack(
       const FullTrackName& track_name) = 0;
   virtual void AddNamespaceListener(NamespaceListener* listener) = 0;

@@ -128,9 +128,10 @@ class ChatClient {
  private:
   void RunEventLoop() { event_loop_->RunEventLoopOnce(kChatEventLoopDuration); }
   // Callback for incoming publish_namespaces.
-  std::optional<MoqtPublishNamespaceErrorReason> OnIncomingPublishNamespace(
+  void OnIncomingPublishNamespace(
       const moqt::TrackNamespace& track_namespace,
-      std::optional<VersionSpecificParameters> parameters);
+      std::optional<VersionSpecificParameters> parameters,
+      moqt::MoqtResponseCallback callback);
 
   // Basic session information
   FullTrackName my_track_name_;

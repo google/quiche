@@ -22,12 +22,6 @@
 
 namespace moqt {
 
-// The callback we'll use for all request types going forward. Can only be used
-// once; if the argument is nullopt, an OK response was received. Otherwise, an
-// ERROR response was received.
-using MoqtResponseCallback =
-    quiche::SingleUseCallback<void(std::optional<MoqtRequestError>)>;
-
 using MoqtObjectAckFunction =
     quiche::MultiUseCallback<void(uint64_t group_id, uint64_t object_id,
                                   quic::QuicTimeDelta delta_from_deadline)>;
