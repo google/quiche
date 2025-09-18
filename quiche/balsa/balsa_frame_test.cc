@@ -68,7 +68,9 @@ class BalsaFrameTestPeer {
                                              const BalsaFrame::Lines& lines,
                                              bool is_trailer,
                                              BalsaHeaders* headers) {
-    balsa_frame->FindColonsAndParseIntoKeyValue(lines, is_trailer, headers);
+    bool has_continuation_lines = false;
+    balsa_frame->FindColonsAndParseIntoKeyValue(lines, is_trailer, headers,
+                                                &has_continuation_lines);
   }
 };
 
@@ -4889,6 +4891,45 @@ TEST_F(HTTPBalsaFrameTest, ContinuationDisallowed) {
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::INVALID_HEADER_FORMAT, balsa_frame_.ErrorCode());
+}
+
+// Tests that continuation lines are sanitized according to RFC7230 Section
+// 3.2.4 when the sanitize_obs_fold_in_header_values policy is enabled.
+TEST_F(HTTPBalsaFrameTest, ContinuationLinesSanitized) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.sanitize_obs_fold_in_header_values = true;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  const std::string message =
+      "GET / HTTP/1.1\r\n"
+      "key1: obs-\n fold\r\n"
+      "key2: obs-\r\n fold\r\n"
+      "key3: obs-\n\tfold\r\n"
+      "key4: obs-\r\n\tfold\r\n"
+      "key5: obs-\n   fold\r\n"
+      "key6: obs-\r\n   fold\r\n"
+      "key7: obs-\n \tfold\r\n"
+      "key8: obs-\r\n \tfold\r\n"
+      "\r\n";
+
+  FakeHeaders fake_headers;
+  // The number of spaces in the header value is not important, but is equal to
+  // the number of whitespace characters in the original header value.
+  fake_headers.AddKeyValue("key1", "obs-  fold");
+  fake_headers.AddKeyValue("key2", "obs-   fold");
+  fake_headers.AddKeyValue("key3", "obs-  fold");
+  fake_headers.AddKeyValue("key4", "obs-   fold");
+  fake_headers.AddKeyValue("key5", "obs-    fold");
+  fake_headers.AddKeyValue("key6", "obs-     fold");
+  fake_headers.AddKeyValue("key7", "obs-   fold");
+  fake_headers.AddKeyValue("key8", "obs-    fold");
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(fake_headers));
+  EXPECT_CALL(visitor_mock_,
+              HandleWarning(BalsaFrameEnums::OBS_FOLD_IN_HEADERS))
+      .Times(8);
+
+  EXPECT_EQ(message.size(),
+            balsa_frame_.ProcessInput(message.data(), message.size()));
 }
 
 TEST_F(HTTPBalsaFrameTest, NullAtBeginningOrEndOfValue) {

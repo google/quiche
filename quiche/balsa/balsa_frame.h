@@ -259,7 +259,8 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
 
   // Calls HandleError() and returns false on error.
   bool FindColonsAndParseIntoKeyValue(const Lines& lines, bool is_trailer,
-                                      BalsaHeaders* headers);
+                                      BalsaHeaders* headers,
+                                      bool* has_continuation_lines);
 
   void HandleError(BalsaFrameEnums::ErrorCode error_code);
   void HandleWarning(BalsaFrameEnums::ErrorCode error_code);

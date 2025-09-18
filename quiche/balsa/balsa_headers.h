@@ -404,6 +404,7 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
     size_t last_char_idx;
     BalsaBuffer::Blocks::size_type buffer_base_idx;
     bool skip;
+    bool has_continuation_line = false;
   };
 
   using HeaderTokenList = std::vector<absl::string_view>;
@@ -845,6 +846,8 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
       quiche::UnretainedCallback<bool(const absl::string_view key,
                                       const absl::string_view value)>
           fn) const override;
+
+  void FoldContinuationLines();
 
   void DumpToPrefixedString(const char* spaces, std::string* str) const;
 

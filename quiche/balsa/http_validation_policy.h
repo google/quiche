@@ -97,6 +97,10 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // containing multiple consecutive spaces will be rejected.
   FirstLineValidationOption sanitize_firstline_spaces =
       FirstLineValidationOption::NONE;
+
+  // If true, the parser will replace obs-fold in header field values with one
+  // or more space characters.
+  bool sanitize_obs_fold_in_header_values = false;
 };
 
 }  // namespace quiche

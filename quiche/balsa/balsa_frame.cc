@@ -458,7 +458,8 @@ void BalsaFrame::CleanUpKeyValueWhitespace(
 
 bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
                                                 bool is_trailer,
-                                                BalsaHeaders* headers) {
+                                                BalsaHeaders* headers,
+                                                bool* has_continuation_lines) {
   QUICHE_DCHECK(!lines.empty());
   const char* stream_begin = headers->OriginalHeaderStreamBegin();
   // The last line is always just a newline (and is uninteresting).
@@ -478,9 +479,9 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
     const char* line_begin = stream_begin + lines[i].first;
 
     // Here we handle possible continuations.  Note that we do not replace
-    // the '\n' in the line before a continuation (at least, as of now),
-    // which implies that any code which looks for a value must deal with
-    // "\r\n", etc -within- the line (and not just at the end of it).
+    // the '\n' in the line before a continuation, but we do mark the line as
+    // having continuation lines so that the caller can deal with it later.
+    bool header_has_continuation_line = false;
     for (++i; i < lines_size_m1; ++i) {
       const char c = *(stream_begin + lines[i].first);
       if (CHAR_GT(c, ' ')) {
@@ -504,9 +505,10 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
       // continuation) and continuation is allowed.
       HandleWarning(is_trailer ? BalsaFrameEnums::OBS_FOLD_IN_TRAILERS
                                : BalsaFrameEnums::OBS_FOLD_IN_HEADERS);
-
-      // If disallow_header_continuation_lines() is false, we neither reject nor
-      // normalize continuation lines, in violation of RFC7230.
+      if (http_validation_policy().sanitize_obs_fold_in_header_values) {
+        *has_continuation_lines = true;
+        header_has_continuation_line = true;
+      }
     }
     const char* line_end = stream_begin + lines[i - 1].second;
     QUICHE_DCHECK_LT(line_begin - stream_begin, line_end - stream_begin);
@@ -532,6 +534,8 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
     headers->header_lines_.push_back(HeaderLineDescription(
         line_begin - stream_begin, line_end - stream_begin,
         line_end - stream_begin, line_end - stream_begin, 0));
+    headers->header_lines_.back().has_continuation_line =
+        header_has_continuation_line;
     if (current >= line_end) {
       if (http_validation_policy().require_header_colon) {
         HandleError(is_trailer ? BalsaFrameEnums::TRAILER_MISSING_COLON
@@ -738,9 +742,15 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
   HeaderLines::size_type content_length_idx = 0;
   HeaderLines::size_type transfer_encoding_idx = 0;
   const char* stream_begin = headers->OriginalHeaderStreamBegin();
+  bool has_continuation_lines = false;
   // Parse the rest of the header or trailer data into key-value pairs.
-  if (!FindColonsAndParseIntoKeyValue(lines, is_trailer, headers)) {
+  if (!FindColonsAndParseIntoKeyValue(lines, is_trailer, headers,
+                                      &has_continuation_lines)) {
     return;
+  }
+  if (http_validation_policy().sanitize_obs_fold_in_header_values &&
+      has_continuation_lines) {
+    headers->FoldContinuationLines();
   }
   // At this point, we've parsed all of the headers/trailers.  Time to look
   // for those headers which we require for framing or for format errors.
@@ -954,11 +964,14 @@ size_t BalsaFrame::ProcessHeaders(const char* message_start,
           return message_current - original_message_start;
         }
       }
+      // Determine if this is the end of the headers.
       const size_t chars_since_last_slash_n =
           (message_current_idx - last_slash_n_idx_);
       last_slash_n_idx_ = message_current_idx;
       if (chars_since_last_slash_n > 2) {
-        // false positive.
+        // Optimization: if the line is longer than 2 characters, it must
+        // contain content and cannot be the terminating blank line. The loop
+        // continues to search for the next line.
         ++message_current;
         continue;
       }
