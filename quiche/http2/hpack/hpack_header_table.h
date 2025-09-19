@@ -71,7 +71,8 @@ class QUICHE_EXPORT HpackHeaderTable {
   size_t GetByNameAndValue(absl::string_view name, absl::string_view value);
 
   // Sets the maximum size of the header table, evicting entries if
-  // necessary as described in 5.2.
+  // necessary as described in 5.2. The value of `max_size` must not exceed
+  // `settings_size_bound()`.
   void SetMaxSize(size_t max_size);
 
   // Sets the SETTINGS_HEADER_TABLE_SIZE bound of the table. Will call

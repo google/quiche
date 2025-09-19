@@ -8,12 +8,15 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <variant>
 #include <vector>
 
+#include "absl/functional/overload.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/hpack_constants.h"
 #include "quiche/http2/hpack/hpack_entry.h"
 #include "quiche/http2/hpack/hpack_static_table.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace spdy {
@@ -387,6 +390,69 @@ TEST_F(HpackHeaderTableTest, TryAddTooLargeEntry) {
   EXPECT_EQ(new_entry, static_cast<HpackEntry*>(nullptr));
   EXPECT_EQ(0u, peer_.dynamic_entries().size());
 }
+
+class MethodFuzzUtil {
+ public:
+  struct CallGetByName {
+    std::string name;
+  };
+  struct CallGetByNameAndValue {
+    std::string name, value;
+  };
+  struct CallSetMaxSize {
+    size_t max_size;
+  };
+  struct CallSetSettingsHeaderTableSize {
+    size_t max_size;
+  };
+  struct CallEvictionSet {
+    std::string name, value;
+  };
+  struct CallTryAddEntry {
+    std::string name, value;
+  };
+  using CallVariant =
+      std::variant<CallGetByName, CallGetByNameAndValue, CallSetMaxSize,
+                   CallSetSettingsHeaderTableSize, CallEvictionSet,
+                   CallTryAddEntry>;
+};
+
+// Interprets each element of `call_sequence` by calling the appropriate
+// method of `HpackHeaderTable`.
+void CanCallMethodSequence(
+    const std::vector<MethodFuzzUtil::CallVariant>& call_sequence) {
+  HpackHeaderTable table;
+  for (const MethodFuzzUtil::CallVariant& call : call_sequence) {
+    std::visit(
+        absl::Overload{
+            [&](const MethodFuzzUtil::CallGetByName& call) {
+              table.GetByName(call.name);
+            },
+            [&](const MethodFuzzUtil::CallGetByNameAndValue& call) {
+              table.GetByNameAndValue(call.name, call.value);
+            },
+            [&](const MethodFuzzUtil::CallSetMaxSize& call) {
+              const size_t max_size =
+                  call.max_size % (kDefaultHeaderTableSizeSetting + 1);
+              if (max_size <= table.settings_size_bound()) {
+                table.SetMaxSize(max_size);
+              }
+            },
+            [&](const MethodFuzzUtil::CallSetSettingsHeaderTableSize& call) {
+              table.SetSettingsHeaderTableSize(call.max_size);
+            },
+            [&](const MethodFuzzUtil::CallEvictionSet& call) {
+              HpackHeaderTable::DynamicEntryTable::iterator begin, end;
+              table.EvictionSet(call.name, call.value, &begin, &end);
+            },
+            [&](const MethodFuzzUtil::CallTryAddEntry& call) {
+              table.TryAddEntry(call.name, call.value);
+            },
+        },
+        call);
+  }
+}
+FUZZ_TEST(HpackHeaderTableFuzzTest, CanCallMethodSequence);
 
 }  // namespace
 
