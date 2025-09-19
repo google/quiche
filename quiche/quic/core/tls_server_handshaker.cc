@@ -974,7 +974,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
         QuicHostnameUtils::NormalizeHostname(hostname);
     if (!ValidateHostname(hostname)) {
       CloseConnection(QUIC_HANDSHAKE_FAILED_INVALID_HOSTNAME,
-                      "invalid hostname");
+                      absl::StrCat("Invalid SNI provided: ", hostname));
       return ssl_select_cert_error;
     }
     if (hostname != crypto_negotiated_params_->sni) {
