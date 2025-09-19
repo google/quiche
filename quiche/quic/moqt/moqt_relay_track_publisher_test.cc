@@ -74,8 +74,9 @@ class MoqtRelayTrackPublisherTest : public quiche::test::QuicheTest {
       EXPECT_CALL(listener_, OnNewFinAvailable(location, subgroup));
     }
     publisher_.OnObjectFragment(
-        kTrackName, PublishedObjectMetadata{location, subgroup, status, 128},
-        payload, true);
+        kTrackName,
+        PublishedObjectMetadata{location, subgroup, "", status, 128}, payload,
+        true);
     std::optional<PublishedObject> object =
         publisher_.GetCachedObject(location.group, subgroup, location.object);
     ASSERT_TRUE(object.has_value());
@@ -162,7 +163,7 @@ TEST_F(MoqtRelayTrackPublisherTest, GroupAbandoned) {
     EXPECT_CALL(listener_, OnNewObjectAvailable(Location(group, 0), 0, 128));
     publisher_.OnObjectFragment(
         kTrackName,
-        PublishedObjectMetadata{Location(group, 0), 0,
+        PublishedObjectMetadata{Location(group, 0), 0, "",
                                 MoqtObjectStatus::kEndOfGroup, 128},
         "", true);
   }
@@ -178,7 +179,7 @@ TEST_F(MoqtRelayTrackPublisherTest, BeyondEndOfTrack) {
   EXPECT_CALL(*session_, Unsubscribe(kTrackName));
   publisher_.OnObjectFragment(
       kTrackName,
-      PublishedObjectMetadata{location, 0, MoqtObjectStatus::kNormal, 128},
+      PublishedObjectMetadata{location, 0, "", MoqtObjectStatus::kNormal, 128},
       "object", true);
   EXPECT_TRUE(track_deleted_);
 }
@@ -193,8 +194,8 @@ TEST_F(MoqtRelayTrackPublisherTest, EndOfTrackTooEarly) {
   EXPECT_CALL(*session_, Unsubscribe(kTrackName));
   publisher_.OnObjectFragment(
       kTrackName,
-      PublishedObjectMetadata{first_location, 0, MoqtObjectStatus::kEndOfTrack,
-                              128},
+      PublishedObjectMetadata{first_location, 0, "",
+                              MoqtObjectStatus::kEndOfTrack, 128},
       "", true);
   EXPECT_TRUE(track_deleted_);
 }
@@ -209,7 +210,8 @@ TEST_F(MoqtRelayTrackPublisherTest, BeyondEndOfGroup) {
   EXPECT_CALL(*session_, Unsubscribe(kTrackName));
   publisher_.OnObjectFragment(
       kTrackName,
-      PublishedObjectMetadata{location, 1, MoqtObjectStatus::kEndOfGroup, 128},
+      PublishedObjectMetadata{location, 1, "", MoqtObjectStatus::kEndOfGroup,
+                              128},
       "object", true);
   EXPECT_TRUE(track_deleted_);
 }
@@ -224,8 +226,8 @@ TEST_F(MoqtRelayTrackPublisherTest, EndOfGroupTooEarly) {
   EXPECT_CALL(*session_, Unsubscribe(kTrackName));
   publisher_.OnObjectFragment(
       kTrackName,
-      PublishedObjectMetadata{first_location, 1, MoqtObjectStatus::kEndOfGroup,
-                              128},
+      PublishedObjectMetadata{first_location, 1, "",
+                              MoqtObjectStatus::kEndOfGroup, 128},
       "", true);
   EXPECT_TRUE(track_deleted_);
 }
@@ -240,7 +242,7 @@ TEST_F(MoqtRelayTrackPublisherTest, PriorityChange) {
   EXPECT_CALL(*session_, Unsubscribe(kTrackName));
   publisher_.OnObjectFragment(
       kTrackName,
-      PublishedObjectMetadata{location, 0, MoqtObjectStatus::kNormal, 200},
+      PublishedObjectMetadata{location, 0, "", MoqtObjectStatus::kNormal, 200},
       "object", true);
   EXPECT_TRUE(track_deleted_);
 }
@@ -257,7 +259,7 @@ TEST_F(MoqtRelayTrackPublisherTest, ObjectAfterFin) {
   EXPECT_CALL(*session_, Unsubscribe(kTrackName));
   publisher_.OnObjectFragment(
       kTrackName,
-      PublishedObjectMetadata{location, 0, MoqtObjectStatus::kNormal, 128},
+      PublishedObjectMetadata{location, 0, "", MoqtObjectStatus::kNormal, 128},
       "object", true);
   EXPECT_TRUE(track_deleted_);
 }
@@ -272,7 +274,7 @@ TEST_F(MoqtRelayTrackPublisherTest, ObjectOutOfOrder) {
   EXPECT_CALL(listener_, OnNewObjectAvailable).Times(0);
   publisher_.OnObjectFragment(
       kTrackName,
-      PublishedObjectMetadata{first_location, 0, MoqtObjectStatus::kNormal,
+      PublishedObjectMetadata{first_location, 0, "", MoqtObjectStatus::kNormal,
                               128},
       "object", true);
   // Object is simply ignored; track is not malformed.

@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <string>
 
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -18,6 +19,7 @@ namespace moqt {
 struct PublishedObjectMetadata {
   Location location;
   uint64_t subgroup;  // Equal to object_id for datagrams.
+  std::string extensions;
   MoqtObjectStatus status;
   MoqtPriority publisher_priority;
   quic::QuicTime arrival_time = quic::QuicTime::Zero();

@@ -1768,10 +1768,10 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       return;
     }
     if (subscribe->visitor() != nullptr) {
-      // TODO(martinduke): Send extension headers.
       PublishedObjectMetadata metadata;
       metadata.location = Location(message.group_id, message.object_id);
       metadata.subgroup = message.subgroup_id;
+      metadata.extensions = message.extension_headers;
       metadata.status = message.object_status;
       metadata.publisher_priority = message.publisher_priority;
       metadata.arrival_time = session_->callbacks_.clock->Now();
@@ -2467,6 +2467,7 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
   header.subgroup_id = metadata.subgroup;
   header.object_id = metadata.location.object;
   header.publisher_priority = metadata.publisher_priority;
+  header.extension_headers = metadata.extensions;
   header.object_status = metadata.status;
   header.payload_length = payload.length();
 
@@ -2545,6 +2546,7 @@ void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
   header.group_id = object->metadata.location.group;
   header.object_id = object->metadata.location.object;
   header.publisher_priority = object->metadata.publisher_priority;
+  header.extension_headers = object->metadata.extensions;
   header.object_status = object->metadata.status;
   header.subgroup_id = header.object_id;
   header.payload_length = object->payload.length();

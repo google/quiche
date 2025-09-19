@@ -21,9 +21,11 @@
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
@@ -1113,7 +1115,7 @@ TEST_F(MoqtSessionTest, IncomingObject) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
-      /*extension_headers=*/"",
+      /*extension_headers=*/"foo",
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/0,
       /*payload_length=*/8,
@@ -1122,7 +1124,20 @@ TEST_F(MoqtSessionTest, IncomingObject) {
       MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream_,
                                                 kDefaultSubgroupStreamType);
 
-  EXPECT_CALL(visitor_, OnObjectFragment).Times(1);
+  EXPECT_CALL(visitor_, OnObjectFragment)
+      .WillOnce([&](const FullTrackName& track_name,
+                    const PublishedObjectMetadata& metadata,
+                    const absl::string_view received_payload,
+                    bool end_of_message) {
+        EXPECT_EQ(track_name, ftn);
+        EXPECT_EQ(metadata.location, Location(0, 0));
+        EXPECT_EQ(metadata.subgroup, 0);
+        EXPECT_EQ(metadata.extensions, "foo");
+        EXPECT_EQ(metadata.status, MoqtObjectStatus::kNormal);
+        EXPECT_EQ(metadata.publisher_priority, 0);
+        EXPECT_EQ(payload, received_payload);
+        EXPECT_TRUE(end_of_message);
+      });
   EXPECT_CALL(mock_stream_, GetStreamId())
       .WillRepeatedly(Return(kIncomingUniStreamId));
   object_stream->OnObjectMessage(object, payload, true);
@@ -1279,9 +1294,9 @@ TEST_F(MoqtSessionTest, CreateOutgoingDataStreamAndSend) {
   EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
       .WillRepeatedly(Return(&mock_stream_));
 
-  // Verify first four message fields are sent correctly
+  // Verify first six message fields are sent correctly
   bool correct_message = false;
-  const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f};
+  const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f, 0x00, 0x0a};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const quiche::StreamWriteOptions& options) {
@@ -1292,8 +1307,9 @@ TEST_F(MoqtSessionTest, CreateOutgoingDataStreamAndSend) {
       });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 0)).WillRepeatedly([&] {
     return PublishedObject{
-        PublishedObjectMetadata{Location(5, 0), 0, MoqtObjectStatus::kNormal,
-                                127, MoqtSessionPeer::Now(&session_)},
+        PublishedObjectMetadata{Location(5, 0), 0, "extensions",
+                                MoqtObjectStatus::kNormal, 127,
+                                MoqtSessionPeer::Now(&session_)},
         MemSliceFromString("deadbeef"), false};
   });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 1)).WillRepeatedly([] {
@@ -1345,10 +1361,10 @@ TEST_F(MoqtSessionTest, FinDataStreamFromCache) {
         return absl::OkStatus();
       });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 0)).WillRepeatedly([&] {
-    return PublishedObject{
-        PublishedObjectMetadata{Location(5, 0), 0, MoqtObjectStatus::kNormal,
-                                127, MoqtSessionPeer::Now(&session_)},
-        MemSliceFromString("deadbeef"), true};
+    return PublishedObject{PublishedObjectMetadata{
+                               Location(5, 0), 0, "", MoqtObjectStatus::kNormal,
+                               127, MoqtSessionPeer::Now(&session_)},
+                           MemSliceFromString("deadbeef"), true};
   });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 1)).WillRepeatedly([] {
     return std::optional<PublishedObject>();
@@ -1397,10 +1413,10 @@ TEST_F(MoqtSessionTest, GroupAbandonedNoDeliveryTimeout) {
         return absl::OkStatus();
       });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 0)).WillRepeatedly([&] {
-    return PublishedObject{
-        PublishedObjectMetadata{Location(5, 0), 0, MoqtObjectStatus::kNormal,
-                                127, MoqtSessionPeer::Now(&session_)},
-        MemSliceFromString("deadbeef"), true};
+    return PublishedObject{PublishedObjectMetadata{
+                               Location(5, 0), 0, "", MoqtObjectStatus::kNormal,
+                               127, MoqtSessionPeer::Now(&session_)},
+                           MemSliceFromString("deadbeef"), true};
   });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 1)).WillRepeatedly([] {
     return std::optional<PublishedObject>();
@@ -1463,10 +1479,10 @@ TEST_F(MoqtSessionTest, GroupAbandonedDeliveryTimeout) {
         return absl::OkStatus();
       });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 0)).WillRepeatedly([&] {
-    return PublishedObject{
-        PublishedObjectMetadata{Location(5, 0), 0, MoqtObjectStatus::kNormal,
-                                127, MoqtSessionPeer::Now(&session_)},
-        MemSliceFromString("deadbeef"), true};
+    return PublishedObject{PublishedObjectMetadata{
+                               Location(5, 0), 0, "", MoqtObjectStatus::kNormal,
+                               127, MoqtSessionPeer::Now(&session_)},
+                           MemSliceFromString("deadbeef"), true};
   });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 1)).WillRepeatedly([] {
     return std::optional<PublishedObject>();
@@ -1531,10 +1547,10 @@ TEST_F(MoqtSessionTest, GroupAbandoned) {
         return absl::OkStatus();
       });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 0)).WillRepeatedly([&] {
-    return PublishedObject{
-        PublishedObjectMetadata{Location(5, 0), 0, MoqtObjectStatus::kNormal,
-                                127, MoqtSessionPeer::Now(&session_)},
-        MemSliceFromString("deadbeef"), true};
+    return PublishedObject{PublishedObjectMetadata{
+                               Location(5, 0), 0, "", MoqtObjectStatus::kNormal,
+                               127, MoqtSessionPeer::Now(&session_)},
+                           MemSliceFromString("deadbeef"), true};
   });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 1)).WillRepeatedly([] {
     return std::optional<PublishedObject>();
@@ -1585,10 +1601,10 @@ TEST_F(MoqtSessionTest, LateFinDataStream) {
         return absl::OkStatus();
       });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 0)).WillRepeatedly([&] {
-    return PublishedObject{
-        PublishedObjectMetadata{Location(5, 0), 0, MoqtObjectStatus::kNormal,
-                                127, MoqtSessionPeer::Now(&session_)},
-        MemSliceFromString("deadbeef"), false};
+    return PublishedObject{PublishedObjectMetadata{
+                               Location(5, 0), 0, "", MoqtObjectStatus::kNormal,
+                               127, MoqtSessionPeer::Now(&session_)},
+                           MemSliceFromString("deadbeef"), false};
   });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 1)).WillRepeatedly([] {
     return std::optional<PublishedObject>();
@@ -1646,10 +1662,10 @@ TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
         return absl::OkStatus();
       });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 0)).WillRepeatedly([&] {
-    return PublishedObject{
-        PublishedObjectMetadata{Location(5, 0), 0, MoqtObjectStatus::kNormal,
-                                127, MoqtSessionPeer::Now(&session_)},
-        MemSliceFromString("deadbeef"), false};
+    return PublishedObject{PublishedObjectMetadata{
+                               Location(5, 0), 0, "", MoqtObjectStatus::kNormal,
+                               127, MoqtSessionPeer::Now(&session_)},
+                           MemSliceFromString("deadbeef"), false};
   });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 1)).WillRepeatedly([] {
     return std::optional<PublishedObject>();
@@ -1673,10 +1689,11 @@ TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
   const std::string kExpectedMessage2 = {0x00, 0x00, 0x00, 0x03};
   EXPECT_CALL(mock_stream_, CanWrite()).WillRepeatedly([&] { return true; });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 1)).WillRepeatedly([&] {
-    return PublishedObject{PublishedObjectMetadata{
-                               Location(5, 1), 0, MoqtObjectStatus::kEndOfGroup,
-                               127, MoqtSessionPeer::Now(&session_)},
-                           MemSliceFromString(""), true};
+    return PublishedObject{
+        PublishedObjectMetadata{Location(5, 1), 0, "",
+                                MoqtObjectStatus::kEndOfGroup, 127,
+                                MoqtSessionPeer::Now(&session_)},
+        MemSliceFromString(""), true};
   });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 2)).WillRepeatedly([] {
     return std::optional<PublishedObject>();
@@ -1732,10 +1749,10 @@ TEST_F(MoqtSessionTest, PublisherAbandonsSubgroup) {
         return absl::OkStatus();
       });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 0)).WillRepeatedly([&] {
-    return PublishedObject{
-        PublishedObjectMetadata{Location(5, 0), 0, MoqtObjectStatus::kNormal,
-                                127, MoqtSessionPeer::Now(&session_)},
-        MemSliceFromString("deadbeef"), false};
+    return PublishedObject{PublishedObjectMetadata{
+                               Location(5, 0), 0, "", MoqtObjectStatus::kNormal,
+                               127, MoqtSessionPeer::Now(&session_)},
+                           MemSliceFromString("deadbeef"), false};
   });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 1)).WillRepeatedly([] {
     return std::optional<PublishedObject>();
@@ -1785,8 +1802,8 @@ TEST_F(MoqtSessionTest, UnidirectionalStreamCannotBeOpened) {
   EXPECT_CALL(mock_stream_, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(*track, GetCachedObject(5, 0, 0)).WillRepeatedly([] {
     return PublishedObject{
-        PublishedObjectMetadata{Location(5, 0), 0, MoqtObjectStatus::kNormal,
-                                128},
+        PublishedObjectMetadata{Location(5, 0), 0, "",
+                                MoqtObjectStatus::kNormal, 128},
         MemSliceFromString("deadbeef")};
   });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 1)).WillRepeatedly([] {
@@ -1835,8 +1852,8 @@ TEST_F(MoqtSessionTest, QueuedStreamIsCleared) {
   EXPECT_CALL(mock_stream_, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(*track, GetCachedObject(6, 0, 0)).WillRepeatedly([] {
     return PublishedObject{
-        PublishedObjectMetadata{Location(6, 0), 0, MoqtObjectStatus::kNormal,
-                                128},
+        PublishedObjectMetadata{Location(6, 0), 0, "",
+                                MoqtObjectStatus::kNormal, 128},
         MemSliceFromString("deadbeef")};
   });
   EXPECT_CALL(*track, GetCachedObject(6, 0, 1)).WillRepeatedly([] {
@@ -1874,8 +1891,8 @@ TEST_F(MoqtSessionTest, OutgoingStreamDisappears) {
   EXPECT_CALL(mock_stream_, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(*track, GetCachedObject(5, 0, 0)).WillRepeatedly([] {
     return PublishedObject{
-        PublishedObjectMetadata{Location(5, 0), 0, MoqtObjectStatus::kNormal,
-                                128},
+        PublishedObjectMetadata{Location(5, 0), 0, "",
+                                MoqtObjectStatus::kNormal, 128},
         MemSliceFromString("deadbeef")};
   });
   EXPECT_CALL(*track, GetCachedObject(5, 0, 1)).WillOnce([] {
@@ -1982,8 +1999,8 @@ TEST_F(MoqtSessionTest, SendDatagram) {
   // Publish in window.
   bool correct_message = false;
   uint8_t kExpectedMessage[] = {
-      0x04, 0x02, 0x05, 0x80, 0x64, 0x65,
-      0x61, 0x64, 0x62, 0x65, 0x65, 0x66,  // "deadbeef"
+      0x05, 0x02, 0x05, 0x80, 0x03, 0x65, 0x78, 0x74,
+      0x64, 0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66,  // "deadbeef"
   };
   EXPECT_CALL(mock_session_, SendOrQueueDatagram(_))
       .WillOnce([&](absl::string_view datagram) {
@@ -1996,8 +2013,8 @@ TEST_F(MoqtSessionTest, SendDatagram) {
       });
   EXPECT_CALL(*track_publisher, GetCachedObject(5, 0, 0)).WillRepeatedly([] {
     return PublishedObject{
-        PublishedObjectMetadata{Location{5, 0}, 0, MoqtObjectStatus::kNormal,
-                                128},
+        PublishedObjectMetadata{Location{5, 0}, 0, "ext",
+                                MoqtObjectStatus::kNormal, 128},
         quiche::QuicheMemSlice::Copy("deadbeef")};
   });
   listener->OnNewObjectAvailable(Location(5, 0), 0, kDefaultPublisherPriority);
@@ -2160,20 +2177,20 @@ TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
   });
   EXPECT_CALL(*track, GetCachedObject(0, 0, 0))
       .WillOnce(Return(PublishedObject{
-          PublishedObjectMetadata{Location(0, 0), 0, MoqtObjectStatus::kNormal,
-                                  127},
+          PublishedObjectMetadata{Location(0, 0), 0, "",
+                                  MoqtObjectStatus::kNormal, 127},
           MemSliceFromString("deadbeef")}));
   EXPECT_CALL(*track, GetCachedObject(0, 0, 1)).WillOnce(Return(std::nullopt));
   EXPECT_CALL(*track, GetCachedObject(1, 0, 0))
       .WillOnce(Return(PublishedObject{
-          PublishedObjectMetadata{Location(1, 0), 0, MoqtObjectStatus::kNormal,
-                                  127},
+          PublishedObjectMetadata{Location(1, 0), 0, "",
+                                  MoqtObjectStatus::kNormal, 127},
           MemSliceFromString("deadbeef")}));
   EXPECT_CALL(*track, GetCachedObject(1, 0, 1)).WillOnce(Return(std::nullopt));
   EXPECT_CALL(*track, GetCachedObject(2, 0, 0))
       .WillOnce(Return(PublishedObject{
-          PublishedObjectMetadata{Location(2, 0), 0, MoqtObjectStatus::kNormal,
-                                  127},
+          PublishedObjectMetadata{Location(2, 0), 0, "",
+                                  MoqtObjectStatus::kNormal, 127},
           MemSliceFromString("deadbeef")}));
   EXPECT_CALL(*track, GetCachedObject(2, 0, 1)).WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream0, CanWrite()).WillRepeatedly(Return(true));
@@ -2275,8 +2292,8 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   });
   EXPECT_CALL(*track1, GetCachedObject(0, 0, 0))
       .WillOnce(Return(PublishedObject{
-          PublishedObjectMetadata{Location(0, 0), 0, MoqtObjectStatus::kNormal,
-                                  127},
+          PublishedObjectMetadata{Location(0, 0), 0, "",
+                                  MoqtObjectStatus::kNormal, 127},
           MemSliceFromString("foobar")}));
   EXPECT_CALL(*track1, GetCachedObject(0, 0, 1)).WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream0, CanWrite()).WillRepeatedly(Return(true));
@@ -2311,8 +2328,8 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   });
   EXPECT_CALL(*track2, GetCachedObject(0, 0, 0))
       .WillOnce(Return(PublishedObject{
-          PublishedObjectMetadata{Location(0, 0), 0, MoqtObjectStatus::kNormal,
-                                  127},
+          PublishedObjectMetadata{Location(0, 0), 0, "",
+                                  MoqtObjectStatus::kNormal, 127},
           MemSliceFromString("deadbeef")}));
   EXPECT_CALL(*track2, GetCachedObject(0, 0, 1)).WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream1, CanWrite()).WillRepeatedly(Return(true));
@@ -3188,6 +3205,7 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutExpiredOnArrival) {
           Return(PublishedObject{PublishedObjectMetadata{
                                      Location(0, 0),
                                      0,
+                                     "",
                                      MoqtObjectStatus::kObjectDoesNotExist,
                                      0,
                                      MoqtSessionPeer::Now(&session_) -
@@ -3253,7 +3271,7 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAfterIntegratedFin) {
   });
   EXPECT_CALL(*track_publisher, GetCachedObject)
       .WillOnce(Return(PublishedObject{
-          PublishedObjectMetadata{Location(0, 0), 0,
+          PublishedObjectMetadata{Location(0, 0), 0, "",
                                   MoqtObjectStatus::kObjectDoesNotExist, 0,
                                   MoqtSessionPeer::Now(&session_)},
           quiche::QuicheMemSlice(), true}))
@@ -3306,7 +3324,7 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAfterSeparateFin) {
   });
   EXPECT_CALL(*track_publisher, GetCachedObject)
       .WillOnce(Return(PublishedObject{
-          PublishedObjectMetadata{Location(0, 0), 0,
+          PublishedObjectMetadata{Location(0, 0), 0, "",
                                   MoqtObjectStatus::kObjectDoesNotExist, 0,
                                   MoqtSessionPeer::Now(&session_)},
           quiche::QuicheMemSlice(), false}))
@@ -3362,7 +3380,7 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAlternateDesign) {
   });
   EXPECT_CALL(*track_publisher, GetCachedObject)
       .WillOnce(Return(PublishedObject{
-          PublishedObjectMetadata{Location(0, 0), 0,
+          PublishedObjectMetadata{Location(0, 0), 0, "",
                                   MoqtObjectStatus::kObjectDoesNotExist, 0,
                                   MoqtSessionPeer::Now(&session_)},
           quiche::QuicheMemSlice(), false}))
@@ -3391,7 +3409,7 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAlternateDesign) {
   });
   EXPECT_CALL(*track_publisher, GetCachedObject)
       .WillOnce(Return(PublishedObject{
-          PublishedObjectMetadata{Location(1, 0), 0,
+          PublishedObjectMetadata{Location(1, 0), 0, "",
                                   MoqtObjectStatus::kObjectDoesNotExist, 0,
                                   MoqtSessionPeer::Now(&session_)},
           quiche::QuicheMemSlice(), false}))
