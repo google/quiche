@@ -56,6 +56,12 @@ class SubscribeVisitor {
   // draft-ietf-moqt-moq-transport-12. If the application is a relay, it MUST
   // terminate downstream delivery of the track.
   virtual void OnMalformedTrack(const FullTrackName& full_track_name) = 0;
+
+  // End user applications might not care about stream state, but relays will.
+  virtual void OnStreamFin(const FullTrackName& full_track_name,
+                           DataStreamIndex stream) = 0;
+  virtual void OnStreamReset(const FullTrackName& full_track_name,
+                             DataStreamIndex stream) = 0;
 };
 
 // MoqtSession calls this when a FETCH_OK or FETCH_ERROR is received. The

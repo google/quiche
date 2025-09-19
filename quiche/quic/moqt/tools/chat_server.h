@@ -52,6 +52,9 @@ class ChatServer {
     // TODO(martinduke): Implement this.
     void OnMalformedTrack(const FullTrackName&) override {}
 
+    void OnStreamFin(const FullTrackName&, DataStreamIndex) override {}
+    void OnStreamReset(const FullTrackName&, DataStreamIndex) override {}
+
    private:
     ChatServer* server_;
   };

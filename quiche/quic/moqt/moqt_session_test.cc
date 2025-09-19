@@ -241,7 +241,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
     }
   }
 
-  webtransport::test::MockStream mock_stream_;
+  webtransport::test::MockStream mock_stream_, control_stream_;
   MockSessionCallbacks session_callbacks_;
   webtransport::test::MockSession mock_session_;
   MoqtSession session_;
@@ -3924,6 +3924,99 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenAsynchronousError) {
   EXPECT_CALL(*track, RemoveObjectListener(listener));
   listener->OnSubscribeRejected(
       MoqtSubscribeErrorReason(RequestErrorCode::kInternalError, "Test error"));
+}
+
+TEST_F(MoqtSessionTest, FinReportedToVisitor) {
+  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream_);
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  EXPECT_CALL(mock_session_, GetStreamById)
+      .WillRepeatedly(Return(&control_stream_));
+  EXPECT_CALL(control_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
+  EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
+                                              &remote_track_visitor,
+                                              VersionSpecificParameters()));
+  MoqtSubscribeOk ok = {
+      /*request_id=*/0,
+      /*track_alias=*/2,
+      /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
+  };
+  EXPECT_CALL(remote_track_visitor, OnReply)
+      .WillOnce([&](const FullTrackName& ftn,
+                    std::variant<SubscribeOkData, MoqtRequestError> response) {
+        EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
+        EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(response));
+      });
+  control_stream->OnSubscribeOkMessage(ok);
+  MoqtObject object = {
+      /*track_alias=*/2,
+      /*group_id=*/0,
+      /*object_id=*/0,
+      /*publisher_priority=*/7,
+      /*extension_headers=*/"",
+      /*object_status=*/MoqtObjectStatus::kEndOfGroup,
+      /*subgroup_id=*/0,
+      /*payload_length=*/0,
+  };
+  EXPECT_CALL(mock_stream_, GetStreamId())
+      .WillRepeatedly(Return(kIncomingUniStreamId));
+  EXPECT_CALL(mock_session_, GetStreamById(kIncomingUniStreamId))
+      .WillRepeatedly(Return(&mock_stream_));
+  std::unique_ptr<webtransport::StreamVisitor> data_stream;
+  DeliverObject(object, /*fin=*/true, mock_session_, &mock_stream_, data_stream,
+                &remote_track_visitor);
+  // The data stream died and destroyed the visitor (IncomingDataStream).
+  EXPECT_CALL(remote_track_visitor,
+              OnStreamFin(FullTrackName("foo", "bar"), DataStreamIndex(0, 0)));
+  data_stream.reset();
+}
+
+TEST_F(MoqtSessionTest, ResetReportedToVisitor) {
+  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream_);
+  MockSubscribeRemoteTrackVisitor remote_track_visitor;
+  EXPECT_CALL(mock_session_, GetStreamById)
+      .WillRepeatedly(Return(&control_stream_));
+  EXPECT_CALL(control_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
+  EXPECT_TRUE(session_.SubscribeCurrentObject(FullTrackName("foo", "bar"),
+                                              &remote_track_visitor,
+                                              VersionSpecificParameters()));
+  MoqtSubscribeOk ok = {
+      /*request_id=*/0,
+      /*track_alias=*/2,
+      /*expires=*/quic::QuicTimeDelta::FromMilliseconds(0),
+  };
+  EXPECT_CALL(remote_track_visitor, OnReply)
+      .WillOnce([&](const FullTrackName& ftn,
+                    std::variant<SubscribeOkData, MoqtRequestError> response) {
+        EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
+        EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(response));
+      });
+  control_stream->OnSubscribeOkMessage(ok);
+  MoqtObject object = {
+      /*track_alias=*/2,
+      /*group_id=*/0,
+      /*object_id=*/0,
+      /*publisher_priority=*/7,
+      /*extension_headers=*/"",
+      /*object_status=*/MoqtObjectStatus::kEndOfGroup,
+      /*subgroup_id=*/0,
+      /*payload_length=*/0,
+  };
+  EXPECT_CALL(mock_stream_, GetStreamId())
+      .WillRepeatedly(Return(kIncomingUniStreamId));
+  EXPECT_CALL(mock_session_, GetStreamById(kIncomingUniStreamId))
+      .WillRepeatedly(Return(&mock_stream_));
+  std::unique_ptr<webtransport::StreamVisitor> data_stream;
+  DeliverObject(object, /*fin=*/false, mock_session_, &mock_stream_,
+                data_stream, &remote_track_visitor);
+  // The data stream died and destroyed the visitor (IncomingDataStream).
+  data_stream->OnResetStreamReceived(kResetCodeCanceled);
+  EXPECT_CALL(remote_track_visitor, OnStreamReset(FullTrackName("foo", "bar"),
+                                                  DataStreamIndex(0, 0)));
+  data_stream.reset();
 }
 
 // TODO: re-enable this test once this behavior is re-implemented.

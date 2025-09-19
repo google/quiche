@@ -36,6 +36,7 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
     }
     last_message_ = TestMessageBase::MessageStructuredData(object);
   }
+  void OnFin() override { fin_received_ = true; }
   template <typename Message>
   void OnControlMessage(const Message& message) {
     end_of_message_ = true;
@@ -154,6 +155,7 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   bool enable_logging_ = true;
   std::vector<std::string> object_payloads_;
   bool end_of_message_ = false;
+  bool fin_received_ = false;
   std::optional<std::string> parsing_error_;
   MoqtError parsing_error_code_;
   uint64_t messages_received_ = 0;

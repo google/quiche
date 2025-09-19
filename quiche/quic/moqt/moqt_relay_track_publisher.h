@@ -80,6 +80,8 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {
     DeleteTrack();
   }
+  void OnStreamFin(const FullTrackName&, DataStreamIndex stream) override;
+  void OnStreamReset(const FullTrackName&, DataStreamIndex stream) override;
 
   // MoqtTrackPublisher implementation.
   const FullTrackName& GetTrackName() const override { return track_; }

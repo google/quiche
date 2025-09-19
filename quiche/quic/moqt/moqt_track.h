@@ -132,7 +132,7 @@ class SubscribeRemoteTrack : public RemoteTrack {
     return window_mutable().TruncateEnd(end_group);
   }
   void OnStreamOpened();
-  void OnStreamClosed();
+  void OnStreamClosed(bool fin_received, std::optional<DataStreamIndex> index);
   void OnPublishDone(uint64_t stream_count, const quic::QuicClock* clock,
                      std::unique_ptr<quic::QuicAlarm> subscribe_done_alarm);
   bool all_streams_closed() const {

@@ -325,6 +325,8 @@ class ObjectReceiver : public SubscribeVisitor {
 
   void OnPublishDone(FullTrackName /*full_track_name*/) override {}
   void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
+  void OnStreamFin(const FullTrackName&, DataStreamIndex) override {}
+  void OnStreamReset(const FullTrackName&, DataStreamIndex) override {}
 
   void OnFullObject(Location sequence, absl::string_view payload) {
     QUICHE_CHECK_GE(payload.size(), 8u);

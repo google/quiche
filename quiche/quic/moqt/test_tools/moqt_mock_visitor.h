@@ -109,6 +109,12 @@ class MockSubscribeRemoteTrackVisitor : public SubscribeVisitor {
   MOCK_METHOD(void, OnPublishDone, (FullTrackName full_track_name), (override));
   MOCK_METHOD(void, OnMalformedTrack, (const FullTrackName& full_track_name),
               (override));
+  MOCK_METHOD(void, OnStreamFin,
+              (const FullTrackName& full_track_name, DataStreamIndex stream),
+              (override));
+  MOCK_METHOD(void, OnStreamReset,
+              (const FullTrackName& full_track_name, DataStreamIndex stream),
+              (override));
 };
 
 class MockPublishingMonitorInterface : public MoqtPublishingMonitorInterface {

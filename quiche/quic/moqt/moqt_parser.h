@@ -91,6 +91,7 @@ class MoqtDataParserVisitor {
   virtual void OnObjectMessage(const MoqtObject& message,
                                absl::string_view payload,
                                bool end_of_message) = 0;
+  virtual void OnFin() = 0;
 
   virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
 };

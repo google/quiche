@@ -340,6 +340,31 @@ TEST_F(MoqtRelayTrackPublisherTest, OnMalformedObject) {
   EXPECT_TRUE(track_deleted_);
 }
 
+TEST_F(MoqtRelayTrackPublisherTest, Fin) {
+  SubscribeAndOk();
+
+  // No stream to FIN.
+  EXPECT_CALL(listener_, OnNewFinAvailable).Times(0);
+  publisher_.OnStreamFin(kTrackName, DataStreamIndex{2, 0});
+
+  ObjectArrives(Location(4, 0), 0, MoqtObjectStatus::kNormal, "object", false);
+  std::optional<PublishedObject> object = publisher_.GetCachedObject(4, 0, 0);
+  EXPECT_FALSE(object.has_value() && object->fin_after_this);
+
+  EXPECT_CALL(listener_, OnNewFinAvailable(Location(4, 0), 0));
+  publisher_.OnStreamFin(kTrackName, DataStreamIndex{4, 0});
+  // Object now has fin_after_this set.
+  object = publisher_.GetCachedObject(4, 0, 0);
+  EXPECT_TRUE(object.has_value() && object->fin_after_this);
+}
+
+TEST_F(MoqtRelayTrackPublisherTest, Reset) {
+  SubscribeAndOk();
+
+  EXPECT_CALL(listener_, OnSubgroupAbandoned(2, 0, kResetCodeCanceled));
+  publisher_.OnStreamReset(kTrackName, DataStreamIndex{2, 0});
+}
+
 }  // namespace
 
 }  // namespace moqt::test

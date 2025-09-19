@@ -54,10 +54,19 @@ void SubscribeRemoteTrack::OnStreamOpened() {
   }
 }
 
-void SubscribeRemoteTrack::OnStreamClosed() {
+void SubscribeRemoteTrack::OnStreamClosed(
+    bool fin_received, std::optional<DataStreamIndex> index) {
   ++streams_closed_;
   --currently_open_streams_;
   QUICHE_DCHECK_GE(currently_open_streams_, -1);
+  if (index.has_value()) {
+    // If index is nullopt, there was not an object received on the stream.
+    if (fin_received) {
+      visitor_->OnStreamFin(full_track_name(), *index);
+    } else {
+      visitor_->OnStreamReset(full_track_name(), *index);
+    }
+  }
   if (subscribe_done_alarm_ == nullptr) {
     return;
   }

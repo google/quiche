@@ -1703,6 +1703,9 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
                   << " priority " << message.publisher_priority << " length "
                   << payload.size() << " length " << message.payload_length
                   << (end_of_message ? "F" : "");
+  if (!index_.has_value()) {
+    index_ = DataStreamIndex(message.group_id, message.subgroup_id);
+  }
   if (!session_->parameters_.deliver_partial_objects) {
     if (!end_of_message) {  // Buffer partial object.
       if (partial_object_.empty()) {
@@ -1821,7 +1824,7 @@ MoqtSession::IncomingDataStream::~IncomingDataStream() {
   if (subscribe == nullptr) {
     return;
   }
-  subscribe->OnStreamClosed();
+  subscribe->OnStreamClosed(fin_received_, index_);
   session_->MaybeDestroySubscription(subscribe);
 }
 

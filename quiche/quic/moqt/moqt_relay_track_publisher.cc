@@ -174,6 +174,35 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
   }
 }
 
+void MoqtRelayTrackPublisher::OnStreamFin(const FullTrackName&,
+                                          DataStreamIndex stream) {
+  auto group_it = queue_.find(stream.group);
+  if (group_it == queue_.end()) {
+    return;
+  }
+  auto subgroup_it = group_it->second.subgroups.find(stream.subgroup);
+  if (subgroup_it == group_it->second.subgroups.end()) {
+    return;
+  }
+  if (subgroup_it->second.empty()) {
+    QUICHE_LOG(INFO) << "got a FIN for an empty subgroup";
+    return;
+  }
+  CachedObject& last_object = subgroup_it->second.rbegin()->second;
+  last_object.fin_after_this = true;
+  for (MoqtObjectListener* listener : listeners_) {
+    listener->OnNewFinAvailable(last_object.metadata.location, stream.subgroup);
+  }
+}
+
+void MoqtRelayTrackPublisher::OnStreamReset(const FullTrackName&,
+                                            DataStreamIndex stream) {
+  for (MoqtObjectListener* listener : listeners_) {
+    listener->OnSubgroupAbandoned(stream.group, stream.subgroup,
+                                  kResetCodeCanceled);
+  }
+}
+
 std::optional<PublishedObject> MoqtRelayTrackPublisher::GetCachedObject(
     uint64_t group_id, uint64_t subgroup_id, uint64_t min_object_id) const {
   auto group_it = queue_.find(group_id);

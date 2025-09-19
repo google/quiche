@@ -1574,6 +1574,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
         AdvanceParserState();
       }
       if (fin_read) {
+        visitor_.OnFin();
         no_more_data_ = true;
         return;
       }
@@ -1611,6 +1612,9 @@ void MoqtDataParser::ParseNextItemFromStream() {
           visitor_.OnObjectMessage(
               metadata_, peek_result.peeked_data.substr(0, chunk_size), done);
           if (done) {
+            if (no_more_data_) {
+              visitor_.OnFin();
+            }
             ++num_objects_read_;
             AdvanceParserState();
           }
@@ -1694,6 +1698,7 @@ bool MoqtDataParser::CheckForFinWithoutData() {
     metadata_.object_status = MoqtObjectStatus::kEndOfGroup;
     visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
   }
+  visitor_.OnFin();
   return stream_.SkipBytes(0);
 }
 

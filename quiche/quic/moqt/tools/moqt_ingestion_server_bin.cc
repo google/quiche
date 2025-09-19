@@ -201,6 +201,8 @@ class MoqtIngestionHandler {
 
     void OnPublishDone(FullTrackName /*full_track_name*/) override {}
     void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
+    void OnStreamFin(const FullTrackName&, DataStreamIndex) override {}
+    void OnStreamReset(const FullTrackName&, DataStreamIndex) override {}
 
    private:
     std::string directory_;

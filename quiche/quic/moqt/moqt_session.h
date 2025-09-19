@@ -312,8 +312,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // webtransport::StreamVisitor implementation.
     void OnCanRead() override;
     void OnCanWrite() override {}
-    void OnResetStreamReceived(
-        webtransport::StreamErrorCode /*error*/) override {}
+    void OnResetStreamReceived(webtransport::StreamErrorCode) override {}
     void OnStopSendingReceived(
         webtransport::StreamErrorCode /*error*/) override {}
     void OnWriteSideInDataRecvdState() override {}
@@ -322,6 +321,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // TODO: Handle a stream FIN.
     void OnObjectMessage(const MoqtObject& message, absl::string_view payload,
                          bool end_of_message) override;
+    void OnFin() override { fin_received_ = true; }
     void OnParsingError(MoqtError error_code,
                         absl::string_view reason) override;
 
@@ -339,6 +339,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     uint64_t next_object_id_ = 0;
     bool no_more_objects_ = false;  // EndOfGroup or EndOfTrack was received.
+    std::optional<DataStreamIndex> index_;  // Only set for subscribe.
+    bool fin_received_ = false;
     MoqtSession* session_;
     webtransport::Stream* stream_;
     // Once the subscribe ID is identified, set it here.
