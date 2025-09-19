@@ -13,21 +13,25 @@
 #include <string>
 #include <utility>
 
-#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_socket_address_coder.h"
+#include "quiche/quic/core/quic_tag.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_data_writer.h"
+#include "quiche/common/quiche_ip_address_family.h"
 
 namespace quic {
 
@@ -555,15 +559,15 @@ bool QuicConfig::HasClientRequestedIndependentOption(
 
 const QuicTagVector& QuicConfig::ClientRequestedIndependentOptions(
     Perspective perspective) const {
-  static const QuicTagVector* no_options = new QuicTagVector;
+  static constexpr QuicTagVector no_options;
   if (perspective == Perspective::IS_SERVER) {
     return HasReceivedConnectionOptions() ? ReceivedConnectionOptions()
-                                          : *no_options;
+                                          : no_options;
   }
 
   return client_connection_options_.HasSendValues()
              ? client_connection_options_.GetSendValues()
-             : *no_options;
+             : no_options;
 }
 
 void QuicConfig::SetIdleNetworkTimeout(QuicTime::Delta idle_network_timeout) {
