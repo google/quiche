@@ -1,14 +1,22 @@
-#include <cstddef>
-#include <cstdint>
+#include <string>
 
+#include "absl/strings/string_view.h"
 #include "quiche/http2/decoder/decode_buffer.h"
 #include "quiche/http2/decoder/http2_frame_decoder.h"
 #include "quiche/http2/decoder/http2_frame_decoder_listener.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
 
-extern "C" int LLVMFuzzerTestOneInput(const uint8_t *data, size_t size) {
-  http2::Http2FrameDecoderNoOpListener listener;
-  http2::Http2FrameDecoder decoder(&listener);
-  http2::DecodeBuffer db(reinterpret_cast<const char *>(data), size);
+namespace http2 {
+namespace {
+
+void DoesNotCrash(const absl::string_view data) {
+  Http2FrameDecoderNoOpListener listener;
+  Http2FrameDecoder decoder(&listener);
+  DecodeBuffer db(data.data(), data.size());
   decoder.DecodeFrame(&db);
-  return 0;  // Always return 0; other values are reserved for future uses.
 }
+FUZZ_TEST(Http2FrameDecoderFuzzer, DoesNotCrash)
+    .WithDomains(fuzztest::Arbitrary<std::string>().WithMinSize(1));
+
+}  // namespace
+}  // namespace http2
