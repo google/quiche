@@ -45,7 +45,7 @@ class HpackEncoder::RepresentationIterator {
     return pseudo_begin_ != pseudo_end_ || regular_begin_ != regular_end_;
   }
 
-  const Representation Next() {
+  Representation Next() {
     if (pseudo_begin_ != pseudo_end_) {
       return *pseudo_begin_++;
     } else {
