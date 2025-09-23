@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/crypto/transport_parameters.h"
 
+#include <cstdint>
 #include <cstring>
 #include <memory>
 #include <optional>
@@ -21,8 +22,10 @@
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
 
 namespace quic {
 namespace test {
@@ -160,8 +163,6 @@ void RemoveGreaseParameters(TransportParameters* params) {
     }
   }
 }
-
-}  // namespace
 
 class TransportParametersTest : public QuicTestWithParam<ParsedQuicVersion> {
  protected:
@@ -1226,5 +1227,21 @@ TEST_F(TransportParametersTicketSerializationTest,
   EXPECT_NE(original_serialized_params_, serialized);
 }
 
+void ParseTransportParametersDoesNotCrash(ParsedQuicVersion version,
+                                          Perspective perspective,
+                                          const std::vector<uint8_t>& data) {
+  TransportParameters params;
+  std::string error_details;
+  (void)ParseTransportParameters(version, perspective, data.data(), data.size(),
+                                 &params, &error_details);
+}
+
+FUZZ_TEST(TransportParametersFuzzTest, ParseTransportParametersDoesNotCrash)
+    .WithDomains(fuzztest::ElementOf(AllSupportedVersions()),
+                 fuzztest::ElementOf({Perspective::IS_CLIENT,
+                                      Perspective::IS_SERVER}),
+                 fuzztest::Arbitrary<std::vector<uint8_t>>());
+
+}  // namespace
 }  // namespace test
 }  // namespace quic
