@@ -58,12 +58,12 @@ std::string TestPacketOut(const std::string& body) {
 class DataSavingQbonePacketWriter : public QbonePacketWriter {
  public:
   void WritePacketToNetwork(const char* packet, size_t size) override {
-    absl::WriterMutexLock lock(&mu_);
+    absl::WriterMutexLock lock(mu_);
     data_.push_back(std::string(packet, size));
   }
 
   std::vector<std::string> data() {
-    absl::WriterMutexLock lock(&mu_);
+    absl::WriterMutexLock lock(mu_);
     return data_;
   }
 
