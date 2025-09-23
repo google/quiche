@@ -1161,11 +1161,14 @@ bool MoqtControlParser::KeyValuePairListToVersionSpecificParameters(
             static_cast<VersionSpecificParameter>(key);
         switch (parameter) {
           case VersionSpecificParameter::kDeliveryTimeout:
-            out.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(value);
+            out.delivery_timeout =
+                quic::QuicTimeDelta::TryFromMilliseconds(value).value_or(
+                    quic::QuicTimeDelta::Infinite());
             break;
           case VersionSpecificParameter::kMaxCacheDuration:
             out.max_cache_duration =
-                quic::QuicTimeDelta::FromMilliseconds(value);
+                quic::QuicTimeDelta::TryFromMilliseconds(value).value_or(
+                    quic::QuicTimeDelta::Infinite());
             break;
           case VersionSpecificParameter::kOackWindowSize:
             out.oack_window_size = quic::QuicTimeDelta::FromMicroseconds(value);

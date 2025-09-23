@@ -6,8 +6,10 @@
 #define QUICHE_QUIC_CORE_QUIC_TIME_H_
 
 #include <cmath>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <ostream>
 #include <string>
 
@@ -48,6 +50,16 @@ class QUICHE_EXPORT QuicTimeDelta {
 
   // Converts a number of milliseconds to a time offset.
   static constexpr QuicTimeDelta FromMilliseconds(int64_t ms) {
+    return QuicTimeDelta(ms * 1000);
+  }
+
+  // Converts a number of milliseconds to a time offset. Returns std::nullopt if
+  // the conversion would overflow.
+  static constexpr std::optional<QuicTimeDelta> TryFromMilliseconds(
+      int64_t ms) {
+    if (ms > std::numeric_limits<int64_t>::max() / 1000) {
+      return std::nullopt;
+    }
     return QuicTimeDelta(ms * 1000);
   }
 

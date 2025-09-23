@@ -4,11 +4,21 @@
 
 #include "quiche/quic/core/quic_time.h"
 
+#include <algorithm>
+#include <cstdint>
+#include <limits>
+#include <optional>
+
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 
 namespace quic {
 namespace test {
+
+using testing::AllOf;
+using testing::IsFalse;
+using testing::Optional;
+using testing::Property;
 
 class QuicTimeDeltaTest : public QuicTest {};
 
@@ -38,6 +48,25 @@ TEST_F(QuicTimeDeltaTest, FromTo) {
   EXPECT_EQ(1, QuicTime::Delta::FromMicroseconds(1000).ToMilliseconds());
   EXPECT_EQ(QuicTime::Delta::FromMilliseconds(2000).ToMicroseconds(),
             QuicTime::Delta::FromSeconds(2).ToMicroseconds());
+}
+
+TEST_F(QuicTimeDeltaTest, TryFromMilliseconds) {
+  static constexpr int64_t kMaxNumMilliseconds{
+      std::numeric_limits<int64_t>::max() / 1000};
+
+  EXPECT_EQ(QuicTime::Delta::TryFromMilliseconds(0), QuicTime::Delta::Zero());
+  EXPECT_EQ(QuicTime::Delta::TryFromMilliseconds(2000),
+            QuicTime::Delta::FromMicroseconds(2000 * 1000));
+  EXPECT_THAT(
+      QuicTime::Delta::TryFromMilliseconds(kMaxNumMilliseconds),
+      Optional(AllOf(Property(&QuicTime::Delta::ToMicroseconds,
+                              kMaxNumMilliseconds * 1000),
+                     // `QuicTimeDelta::TryFromMilliseconds()` will never return
+                     // an infinite duration.
+                     Property(&QuicTime::Delta::IsInfinite, IsFalse()))));
+  // Internal conversion to microseconds would overflow `int64_t`.
+  EXPECT_EQ(QuicTime::Delta::TryFromMilliseconds(kMaxNumMilliseconds + 1),
+            std::nullopt);
 }
 
 TEST_F(QuicTimeDeltaTest, Add) {
