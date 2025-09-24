@@ -263,42 +263,47 @@ void BlindSignAuth::PrivacyPassAuthAndSignCallback(
 
   // Create tokens using blinded signatures.
   std::vector<BlindSignToken> tokens_vec;
+  tokens_vec.resize(sign_response.blinded_token_signature_size());
   for (int i = 0; i < sign_response.blinded_token_signature_size(); i++) {
-    std::string unescaped_blinded_sig;
-    if (!absl::Base64Unescape(sign_response.blinded_token_signature()[i],
-                              &unescaped_blinded_sig)) {
-      QUICHE_LOG(WARNING) << "Failed to unescape blinded signature";
-      std::move(callback)(
-          absl::InternalError("Failed to unescape blinded signature"));
-      return;
-    }
+    task_bundle_->Add([&, i]() {
+      std::string unescaped_blinded_sig;
+      if (!absl::Base64Unescape(sign_response.blinded_token_signature()[i],
+                                &unescaped_blinded_sig)) {
+        QUICHE_LOG(WARNING) << "Failed to unescape blinded signature";
+        return absl::InternalError("Failed to unescape blinded signature");
+      }
 
-    absl::StatusOr<Token> token =
-        privacy_pass_clients[i]->FinalizeToken(unescaped_blinded_sig);
-    if (!token.ok()) {
-      QUICHE_LOG(WARNING) << "Failed to finalize token: " << token.status();
-      std::move(callback)(absl::InternalError("Failed to finalize token"));
-      return;
-    }
+      absl::StatusOr<Token> token =
+          privacy_pass_clients[i]->FinalizeToken(unescaped_blinded_sig);
+      if (!token.ok()) {
+        QUICHE_LOG(WARNING) << "Failed to finalize token: " << token.status();
+        return absl::InternalError("Failed to finalize token");
+      }
 
-    absl::StatusOr<std::string> marshaled_token = MarshalToken(*token);
-    if (!marshaled_token.ok()) {
-      QUICHE_LOG(WARNING) << "Failed to marshal token: "
-                          << marshaled_token.status();
-      std::move(callback)(absl::InternalError("Failed to marshal token"));
-      return;
-    }
+      absl::StatusOr<std::string> marshaled_token = MarshalToken(*token);
+      if (!marshaled_token.ok()) {
+        QUICHE_LOG(WARNING)
+            << "Failed to marshal token: " << marshaled_token.status();
+        return absl::InternalError("Failed to marshal token");
+      }
 
-    PrivacyPassTokenData privacy_pass_token_data;
-    privacy_pass_token_data.mutable_token()->assign(
-        ConvertBase64ToWebSafeBase64(absl::Base64Escape(*marshaled_token)));
-    privacy_pass_token_data.mutable_encoded_extensions()->assign(
-        ConvertBase64ToWebSafeBase64(
-            absl::Base64Escape(pp_context.public_metadata_extensions_str)));
-    privacy_pass_token_data.set_use_case_override(pp_context.use_case);
-    tokens_vec.push_back(BlindSignToken{
-        privacy_pass_token_data.SerializeAsString(),
-        pp_context.public_metadata_expiry_time, pp_context.geo_hint});
+      PrivacyPassTokenData privacy_pass_token_data;
+      privacy_pass_token_data.mutable_token()->assign(
+          ConvertBase64ToWebSafeBase64(absl::Base64Escape(*marshaled_token)));
+      privacy_pass_token_data.mutable_encoded_extensions()->assign(
+          ConvertBase64ToWebSafeBase64(
+              absl::Base64Escape(pp_context.public_metadata_extensions_str)));
+      privacy_pass_token_data.set_use_case_override(pp_context.use_case);
+      tokens_vec[i] = BlindSignToken{
+          privacy_pass_token_data.SerializeAsString(),
+          pp_context.public_metadata_expiry_time, pp_context.geo_hint};
+      return absl::OkStatus();
+    });
+  }
+  absl::Status status = task_bundle_->Join();
+  if (!status.ok()) {
+    std::move(callback)(status);
+    return;
   }
 
   std::move(callback)(absl::Span<BlindSignToken>(tokens_vec));
@@ -496,44 +501,48 @@ void BlindSignAuth::AttestAndSignCallback(
 
   // Create tokens using blinded signatures.
   std::vector<BlindSignToken> tokens_vec;
+  tokens_vec.resize(sign_response.blinded_token_signatures_size());
   for (int i = 0; i < sign_response.blinded_token_signatures_size(); i++) {
-    std::string unescaped_blinded_sig;
-    if (!absl::Base64Unescape(sign_response.blinded_token_signatures()[i],
-                              &unescaped_blinded_sig)) {
-      QUICHE_LOG(WARNING) << "Failed to unescape blinded signature";
-      std::move(callback)(
-          absl::InternalError("Failed to unescape blinded signature"));
-      return;
-    }
+    task_bundle_->Add([&, i]() {
+      std::string unescaped_blinded_sig;
+      if (!absl::Base64Unescape(sign_response.blinded_token_signatures()[i],
+                                &unescaped_blinded_sig)) {
+        QUICHE_LOG(WARNING) << "Failed to unescape blinded signature";
+        return absl::InternalError("Failed to unescape blinded signature");
+      }
 
-    absl::StatusOr<Token> token =
-        privacy_pass_clients[i]->FinalizeToken(unescaped_blinded_sig);
-    if (!token.ok()) {
-      QUICHE_LOG(WARNING) << "Failed to finalize token: " << token.status();
-      std::move(callback)(absl::InternalError("Failed to finalize token"));
-      return;
-    }
+      absl::StatusOr<Token> token =
+          privacy_pass_clients[i]->FinalizeToken(unescaped_blinded_sig);
+      if (!token.ok()) {
+        QUICHE_LOG(WARNING) << "Failed to finalize token: " << token.status();
+        return absl::InternalError("Failed to finalize token");
+      }
 
-    absl::StatusOr<std::string> marshaled_token = MarshalToken(*token);
-    if (!marshaled_token.ok()) {
-      QUICHE_LOG(WARNING) << "Failed to marshal token: "
-                          << marshaled_token.status();
-      std::move(callback)(absl::InternalError("Failed to marshal token"));
-      return;
-    }
+      absl::StatusOr<std::string> marshaled_token = MarshalToken(*token);
+      if (!marshaled_token.ok()) {
+        QUICHE_LOG(WARNING)
+            << "Failed to marshal token: " << marshaled_token.status();
+        return absl::InternalError("Failed to marshal token");
+      }
 
-    PrivacyPassTokenData privacy_pass_token_data;
-    privacy_pass_token_data.mutable_token()->assign(
-        ConvertBase64ToWebSafeBase64(absl::Base64Escape(*marshaled_token)));
-    privacy_pass_token_data.mutable_encoded_extensions()->assign(
-        ConvertBase64ToWebSafeBase64(
-            absl::Base64Escape(pp_context.public_metadata_extensions_str)));
-    privacy_pass_token_data.set_use_case_override(pp_context.use_case);
-    tokens_vec.push_back(BlindSignToken{
-        privacy_pass_token_data.SerializeAsString(),
-        pp_context.public_metadata_expiry_time, pp_context.geo_hint});
+      PrivacyPassTokenData privacy_pass_token_data;
+      privacy_pass_token_data.mutable_token()->assign(
+          ConvertBase64ToWebSafeBase64(absl::Base64Escape(*marshaled_token)));
+      privacy_pass_token_data.mutable_encoded_extensions()->assign(
+          ConvertBase64ToWebSafeBase64(
+              absl::Base64Escape(pp_context.public_metadata_extensions_str)));
+      privacy_pass_token_data.set_use_case_override(pp_context.use_case);
+      tokens_vec[i] = BlindSignToken{
+          privacy_pass_token_data.SerializeAsString(),
+          pp_context.public_metadata_expiry_time, pp_context.geo_hint};
+      return absl::OkStatus();
+    });
   }
-
+  absl::Status status = task_bundle_->Join();
+  if (!status.ok()) {
+    std::move(callback)(status);
+    return;
+  }
   std::move(callback)(absl::Span<BlindSignToken>(tokens_vec));
 }
 
@@ -641,33 +650,40 @@ BlindSignAuth::GenerateBlindedTokenRequests(
     absl::string_view token_challenge_str, absl::string_view token_key_id,
     const anonymous_tokens::Extensions& extensions) {
   GeneratedTokenRequests result;
-  result.privacy_pass_clients.reserve(num_tokens);
-  result.privacy_pass_blinded_tokens_b64.reserve(num_tokens);
+  result.privacy_pass_clients.resize(num_tokens);
+  result.privacy_pass_blinded_tokens_b64.resize(num_tokens);
   QuicheRandom* random = QuicheRandom::GetInstance();
 
   for (int i = 0; i < num_tokens; i++) {
-    absl::StatusOr<std::unique_ptr<PrivacyPassRsaBssaPublicMetadataClient>>
-        client = PrivacyPassRsaBssaPublicMetadataClient::Create(rsa_public_key);
-    if (!client.ok()) {
-      return absl::InternalError(
-          absl::StrCat("Failed to create Privacy Pass client: ",
-                       client.status().ToString()));
-    }
+    task_bundle_->Add([&, i]() {
+      auto client =
+          PrivacyPassRsaBssaPublicMetadataClient::Create(rsa_public_key);
+      if (!client.ok()) {
+        return absl::InternalError(
+            absl::StrCat("Failed to create Privacy Pass client: ",
+                         client.status().ToString()));
+      }
 
-    std::string nonce_rand(32, '\0');
-    random->RandBytes(nonce_rand.data(), nonce_rand.size());
+      std::string nonce_rand(32, '\0');
+      random->RandBytes(nonce_rand.data(), nonce_rand.size());
 
-    absl::StatusOr<ExtendedTokenRequest> extended_token_request =
-        (*client)->CreateTokenRequest(token_challenge_str, nonce_rand,
-                                      token_key_id, extensions);
-    if (!extended_token_request.ok()) {
-      return absl::InternalError(
-          absl::StrCat("Failed to create ExtendedTokenRequest: ",
-                       extended_token_request.status().ToString()));
-    }
-    result.privacy_pass_clients.push_back(*std::move(client));
-    result.privacy_pass_blinded_tokens_b64.push_back(absl::Base64Escape(
-        extended_token_request->request.blinded_token_request));
+      absl::StatusOr<ExtendedTokenRequest> extended_token_request =
+          (*client)->CreateTokenRequest(token_challenge_str, nonce_rand,
+                                        token_key_id, extensions);
+      if (!extended_token_request.ok()) {
+        return absl::InternalError(
+            absl::StrCat("Failed to create ExtendedTokenRequest: ",
+                         extended_token_request.status().ToString()));
+      }
+      result.privacy_pass_clients[i] = *std::move(client);
+      result.privacy_pass_blinded_tokens_b64[i] = absl::Base64Escape(
+          extended_token_request->request.blinded_token_request);
+      return absl::OkStatus();
+    });
+  }
+  absl::Status status = task_bundle_->Join();
+  if (!status.ok()) {
+    return status;
   }
   return result;
 }

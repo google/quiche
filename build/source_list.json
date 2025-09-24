@@ -1752,6 +1752,8 @@
     "quiche/blind_sign_auth/blind_sign_message_response.h",
     "quiche/blind_sign_auth/blind_sign_tracing_hooks.h",
     "quiche/blind_sign_auth/cached_blind_sign_auth.h",
+    "quiche/blind_sign_auth/direct_task_bundle.h",
+    "quiche/blind_sign_auth/task_bundle.h",
     "quiche/blind_sign_auth/test_tools/mock_blind_sign_auth_interface.h",
     "quiche/blind_sign_auth/test_tools/mock_blind_sign_message_interface.h"
   ],
@@ -1759,7 +1761,8 @@
     "quiche/blind_sign_auth/blind_sign_auth.cc",
     "quiche/blind_sign_auth/blind_sign_auth_test_data.cc",
     "quiche/blind_sign_auth/blind_sign_message_response.cc",
-    "quiche/blind_sign_auth/cached_blind_sign_auth.cc"
+    "quiche/blind_sign_auth/cached_blind_sign_auth.cc",
+    "quiche/blind_sign_auth/direct_task_bundle.cc"
   ],
   "blind_sign_auth_tests_hdrs": [
 

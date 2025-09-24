@@ -23,6 +23,8 @@
 #include "quiche/blind_sign_auth/blind_sign_message_interface.h"
 #include "quiche/blind_sign_auth/blind_sign_message_response.h"
 #include "quiche/blind_sign_auth/blind_sign_tracing_hooks.h"
+#include "quiche/blind_sign_auth/direct_task_bundle.h"
+#include "quiche/blind_sign_auth/task_bundle.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
@@ -31,8 +33,11 @@ namespace quiche {
 class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
  public:
   explicit BlindSignAuth(std::unique_ptr<BlindSignMessageInterface> fetcher,
-                         privacy::ppn::BlindSignAuthOptions auth_options)
+                         privacy::ppn::BlindSignAuthOptions auth_options,
+                         std::unique_ptr<TaskBundle> task_bundle =
+                             std::make_unique<DirectTaskBundle>())
       : owned_fetcher_(std::move(fetcher)),
+        task_bundle_(std::move(task_bundle)),
         auth_options_(std::move(auth_options)) {
     fetcher_ = owned_fetcher_.get();
   }
@@ -40,8 +45,12 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
   // TODO: b/441077019 - Remove once IpProtectionTokenDirectFetcher updates to
   // transfer pointer ownership.
   explicit BlindSignAuth(BlindSignMessageInterface* fetcher,
-                         privacy::ppn::BlindSignAuthOptions auth_options)
-      : fetcher_(fetcher), auth_options_(std::move(auth_options)) {}
+                         privacy::ppn::BlindSignAuthOptions auth_options,
+                         std::unique_ptr<TaskBundle> task_bundle =
+                             std::make_unique<DirectTaskBundle>())
+      : fetcher_(fetcher),
+        task_bundle_(std::move(task_bundle)),
+        auth_options_(std::move(auth_options)) {}
 
   // Returns signed unblinded tokens, their expiration time, and their geo in a
   // callback.
@@ -162,6 +171,7 @@ class QUICHE_EXPORT BlindSignAuth : public BlindSignAuthInterface {
   // IpProtectionTokenDirectFetcher updates to transfer pointer ownership.
   BlindSignMessageInterface* fetcher_ = nullptr;
   std::unique_ptr<BlindSignMessageInterface> owned_fetcher_;
+  std::unique_ptr<TaskBundle> task_bundle_;
   privacy::ppn::BlindSignAuthOptions auth_options_;
 };
 
