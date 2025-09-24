@@ -51,12 +51,12 @@ TEST_F(QuicTimeDeltaTest, FromTo) {
 }
 
 TEST_F(QuicTimeDeltaTest, TryFromMilliseconds) {
-  static constexpr int64_t kMaxNumMilliseconds{
-      std::numeric_limits<int64_t>::max() / 1000};
-
   EXPECT_EQ(QuicTime::Delta::TryFromMilliseconds(0), QuicTime::Delta::Zero());
   EXPECT_EQ(QuicTime::Delta::TryFromMilliseconds(2000),
             QuicTime::Delta::FromMicroseconds(2000 * 1000));
+
+  static constexpr int64_t kMaxNumMilliseconds{
+      std::numeric_limits<int64_t>::max() / 1000};
   EXPECT_THAT(
       QuicTime::Delta::TryFromMilliseconds(kMaxNumMilliseconds),
       Optional(AllOf(Property(&QuicTime::Delta::ToMicroseconds,
@@ -66,6 +66,19 @@ TEST_F(QuicTimeDeltaTest, TryFromMilliseconds) {
                      Property(&QuicTime::Delta::IsInfinite, IsFalse()))));
   // Internal conversion to microseconds would overflow `int64_t`.
   EXPECT_EQ(QuicTime::Delta::TryFromMilliseconds(kMaxNumMilliseconds + 1),
+            std::nullopt);
+
+  static constexpr int64_t kMinNumMilliseconds{
+      std::numeric_limits<int64_t>::min() / 1000};
+  EXPECT_THAT(
+      QuicTime::Delta::TryFromMilliseconds(kMinNumMilliseconds),
+      Optional(AllOf(Property(&QuicTime::Delta::ToMicroseconds,
+                              kMinNumMilliseconds * 1000),
+                     // `QuicTimeDelta::TryFromMilliseconds()` will never return
+                     // an infinite duration.
+                     Property(&QuicTime::Delta::IsInfinite, IsFalse()))));
+  // Internal conversion to microseconds would overflow `int64_t`.
+  EXPECT_EQ(QuicTime::Delta::TryFromMilliseconds(kMinNumMilliseconds - 1),
             std::nullopt);
 }
 

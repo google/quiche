@@ -57,7 +57,8 @@ class QUICHE_EXPORT QuicTimeDelta {
   // the conversion would overflow.
   static constexpr std::optional<QuicTimeDelta> TryFromMilliseconds(
       int64_t ms) {
-    if (ms > std::numeric_limits<int64_t>::max() / 1000) {
+    if (ms > std::numeric_limits<int64_t>::max() / 1000 ||
+        ms < std::numeric_limits<int64_t>::min() / 1000) {
       return std::nullopt;
     }
     return QuicTimeDelta(ms * 1000);
