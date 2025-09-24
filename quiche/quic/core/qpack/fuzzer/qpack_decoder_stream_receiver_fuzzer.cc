@@ -40,8 +40,6 @@ class NoOpDelegate : public QpackDecoderStreamReceiver::Delegate {
   bool error_detected_;
 };
 
-}  // namespace
-
 // This fuzzer exercises QpackDecoderStreamReceiver.
 void DoesNotCrash(const std::vector<uint8_t>& data) {
   NoOpDelegate delegate;
@@ -59,5 +57,6 @@ void DoesNotCrash(const std::vector<uint8_t>& data) {
 }
 FUZZ_TEST(QpackDecoderStreamReceiverFuzzer, DoesNotCrash);
 
+}  // namespace
 }  // namespace test
 }  // namespace quic

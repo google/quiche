@@ -37,7 +37,6 @@ class FuzzAction {
                                StreamCancellation, Flush>;
 };
 
-}  // namespace
 
 // This fuzzer exercises QpackDecoderStreamSender.
 void DoesNotCrash(const std::vector<FuzzAction::Variant>& inputs) {
@@ -65,5 +64,6 @@ void DoesNotCrash(const std::vector<FuzzAction::Variant>& inputs) {
 }
 FUZZ_TEST(QpackDecoderStreamSenderFuzzer, DoesNotCrash);
 
+}  // namespace
 }  // namespace test
 }  // namespace quic

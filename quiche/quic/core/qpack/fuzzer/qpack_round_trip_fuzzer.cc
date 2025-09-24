@@ -47,8 +47,6 @@ void TruncateValueOnInvalidChars(std::string* value) {
   }
 }
 
-}  // anonymous namespace
-
 // Class to hold QpackEncoder and its DecoderStreamErrorDelegate.
 class EncodingEndpoint {
  public:
@@ -693,5 +691,6 @@ void EncodeDecodeRoundTrips(const std::vector<uint8_t>& data) {
 }
 FUZZ_TEST(QpackRoundTripFuzzer, EncodeDecodeRoundTrips);
 
+}  // anonymous namespace
 }  // namespace test
 }  // namespace quic

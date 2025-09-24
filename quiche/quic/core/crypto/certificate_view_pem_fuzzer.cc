@@ -9,13 +9,19 @@
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/common/platform/api/quiche_fuzztest.h"
 
+namespace quic {
+namespace {
+
 void DoesNotCrash(const std::string& input) {
   std::stringstream stream(input);
 
-  quic::CertificateView::LoadPemFromStream(&stream);
+  CertificateView::LoadPemFromStream(&stream);
   stream.seekg(0);
-  quic::CertificatePrivateKey::LoadPemFromStream(&stream);
+  CertificatePrivateKey::LoadPemFromStream(&stream);
 }
 FUZZ_TEST(CertificateViewPemFuzzer, DoesNotCrash)
     .WithSeeds(
         fuzztest::ReadFilesFromDirectory(getenv("FUZZER_SEED_CORPUS_DIR")));
+
+}  // namespace
+}  // namespace quic

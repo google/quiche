@@ -12,19 +12,23 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/platform/api/quiche_fuzztest.h"
 
+namespace quic {
+namespace {
 void DoesNotCrash(absl::string_view data) {
-  quic::QuicFramer framer(quic::AllSupportedVersions(), quic::QuicTime::Zero(),
-                          quic::Perspective::IS_SERVER,
-                          quic::kQuicDefaultConnectionIdLength);
+  QuicFramer framer(AllSupportedVersions(), QuicTime::Zero(),
+                    Perspective::IS_SERVER, kQuicDefaultConnectionIdLength);
 
   // Test the CryptoFramer.
-  std::unique_ptr<quic::CryptoHandshakeMessage> handshake_message(
-      quic::CryptoFramer::ParseMessage(data));
+  std::unique_ptr<CryptoHandshakeMessage> handshake_message(
+      CryptoFramer::ParseMessage(data));
 
   // Test the regular QuicFramer with the same input.
-  quic::test::NoOpFramerVisitor visitor;
+  test::NoOpFramerVisitor visitor;
   framer.set_visitor(&visitor);
-  quic::QuicEncryptedPacket packet(data.data(), data.length());
+  QuicEncryptedPacket packet(data.data(), data.length());
   framer.ProcessPacket(packet);
 }
 FUZZ_TEST(QuicFramerFuzzer, DoesNotCrash);
+
+}  // namespace
+}  // namespace quic

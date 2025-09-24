@@ -25,6 +25,7 @@
 
 namespace quic {
 namespace test {
+namespace {
 
 struct DecoderAndHandler {
   std::unique_ptr<QpackProgressiveDecoder> decoder;
@@ -206,5 +207,6 @@ FUZZ_TEST(QpackDecoderFuzzer, DoesNotCrash)
         fuzztest::VectorOf(fuzztest::Arbitrary<FuzzerAction::ActionVariant>())
             .WithMaxSize(256));
 
+}  // namespace
 }  // namespace test
 }  // namespace quic
