@@ -470,8 +470,11 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader,
     return 0;
   }
   subscribe_ok.expires =
-      (milliseconds == 0) ? quic::QuicTimeDelta::Infinite()
-                          : quic::QuicTimeDelta::FromMilliseconds(milliseconds);
+      (milliseconds == 0
+           ? std::nullopt
+           : quic::QuicTimeDelta::TryFromMilliseconds(milliseconds))
+          .value_or(quic::QuicTimeDelta::Infinite());
+
   subscribe_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
   if (content_exists) {
     subscribe_ok.largest_location = Location();
