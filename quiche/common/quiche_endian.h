@@ -6,6 +6,7 @@
 #define QUICHE_COMMON_QUICHE_ENDIAN_H_
 
 #include <algorithm>
+#include <array>
 #include <cstdint>
 #include <type_traits>
 
@@ -66,6 +67,13 @@ enum QuicheVariableLengthIntegerLength : uint8_t {
   // of variable length integers, even when the length is below 64, which allows
   // us to fill in the length before knowing what the length actually is.
   kQuicheDefaultLongHeaderLengthLength = VARIABLE_LENGTH_INTEGER_LENGTH_2,
+};
+
+constexpr std::array<QuicheVariableLengthIntegerLength, 5>
+    kAllQuicheVariableLengthIntegerLengths = {
+        VARIABLE_LENGTH_INTEGER_LENGTH_0, VARIABLE_LENGTH_INTEGER_LENGTH_1,
+        VARIABLE_LENGTH_INTEGER_LENGTH_2, VARIABLE_LENGTH_INTEGER_LENGTH_4,
+        VARIABLE_LENGTH_INTEGER_LENGTH_8,
 };
 
 }  // namespace quiche

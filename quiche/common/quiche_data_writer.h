@@ -89,18 +89,19 @@ class QUICHE_EXPORT QuicheDataWriter {
 
   // Write a 62-bit unsigned integer using RFC 9000 Variable Length Integer
   // encoding. Returns false if the value is out of range or if there is no room
-  // in the buffer.
+  // in the buffer. Requires that the endianness is NETWORK_BYTE_ORDER.
   bool WriteVarInt62(uint64_t value);
 
   // Same as WriteVarInt62(uint64_t), but forces an encoding size to write to.
   // This is not as optimized as WriteVarInt62(uint64_t). Returns false if the
   // value does not fit in the specified write_length or if there is no room in
-  // the buffer.
+  // the buffer. Requires that the endianness is NETWORK_BYTE_ORDER.
   bool WriteVarInt62WithForcedLength(
       uint64_t value, QuicheVariableLengthIntegerLength write_length);
 
-  // Writes a string piece as a consecutive length/content pair. The
-  // length uses RFC 9000 Variable Length Integer encoding.
+  // Writes a string piece as a consecutive length/content pair. The length uses
+  // RFC 9000 Variable Length Integer encoding. Requires that the endianness is
+  // NETWORK_BYTE_ORDER.
   bool WriteStringPieceVarInt62(const absl::string_view& string_piece);
 
   // Utility function to return the number of bytes needed to encode

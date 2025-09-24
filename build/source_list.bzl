@@ -1123,6 +1123,7 @@ quiche_tests_srcs = [
     "common/quiche_callbacks_test.cc",
     "common/quiche_circular_deque_test.cc",
     "common/quiche_data_reader_test.cc",
+    "common/quiche_data_writer_fuzz_test.cc",
     "common/quiche_data_writer_test.cc",
     "common/quiche_endian_test.cc",
     "common/quiche_intrusive_list_test.cc",

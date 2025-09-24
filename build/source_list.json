@@ -1123,6 +1123,7 @@
     "quiche/common/quiche_callbacks_test.cc",
     "quiche/common/quiche_circular_deque_test.cc",
     "quiche/common/quiche_data_reader_test.cc",
+    "quiche/common/quiche_data_writer_fuzz_test.cc",
     "quiche/common/quiche_data_writer_test.cc",
     "quiche/common/quiche_endian_test.cc",
     "quiche/common/quiche_intrusive_list_test.cc",
