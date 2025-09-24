@@ -281,11 +281,12 @@ std::optional<quic::QuicTimeDelta> MoqtRelayTrackPublisher::expiration() const {
   if (expiration_ == quic::QuicTime::Infinite()) {
     return quic::QuicTimeDelta::Infinite();
   }
-  if (expiration_ < clock_->Now()) {
+  quic::QuicTime now = clock_->Now();
+  if (expiration_ < now) {
     // TODO(martinduke): Tear everything down; the track is expired.
     return quic::QuicTimeDelta::Zero();
   }
-  return clock_->Now() - *expiration_;
+  return *expiration_ - now;
 }
 
 void MoqtRelayTrackPublisher::DeleteTrack() {
