@@ -81,6 +81,23 @@ class MigrateBackToDefaultNetworkDelegate : public QuicAlarm::Delegate {
   QuicConnectionContext* absl_nullable context_;
 };
 
+class RunPendingCallbackDelegate : public QuicAlarm::Delegate {
+ public:
+  RunPendingCallbackDelegate(
+      QuicConnectionMigrationManager* absl_nonnull migration_manager,
+      QuicConnectionContext* absl_nullable context)
+      : migration_manager_(migration_manager), context_(context) {}
+  RunPendingCallbackDelegate(const RunPendingCallbackDelegate&) = delete;
+  RunPendingCallbackDelegate& operator=(const RunPendingCallbackDelegate&) =
+      delete;
+  QuicConnectionContext* GetConnectionContext() override { return context_; }
+  void OnAlarm() override { migration_manager_->RunPendingCallbacks(); }
+
+ private:
+  QuicConnectionMigrationManager* absl_nonnull migration_manager_;
+  QuicConnectionContext* absl_nullable context_;
+};
+
 // This class handles path validation results associated with connection
 // migration which depends on probing.
 class ConnectionMigrationValidationResultDelegate
@@ -127,6 +144,30 @@ class PortMigrationValidationResultDelegate
 
  private:
   // `migration_manager_` should out live |this|.
+  QuicConnectionMigrationManager* absl_nonnull migration_manager_;
+};
+
+// This class handles path validation results associated with migrating to
+// server preferred address.
+class ServerPreferredAddressValidationResultDelegate
+    : public quic::QuicPathValidator::ResultDelegate {
+ public:
+  // `migration_manager` should out live this instance.
+  explicit ServerPreferredAddressValidationResultDelegate(
+      QuicConnectionMigrationManager* absl_nonnull migration_manager)
+      : migration_manager_(migration_manager) {}
+  void OnPathValidationSuccess(
+      std::unique_ptr<quic::QuicPathValidationContext> context,
+      quic::QuicTime start_time) override {
+    migration_manager_->OnServerPreferredAddressProbeSucceeded(
+        std::move(context), start_time);
+  }
+  void OnPathValidationFailure(
+      std::unique_ptr<quic::QuicPathValidationContext> context) override {
+    migration_manager_->OnProbeFailed(std::move(context));
+  }
+
+ private:
   QuicConnectionMigrationManager* absl_nonnull migration_manager_;
 };
 
@@ -178,7 +219,9 @@ QuicConnectionMigrationManager::QuicConnectionMigrationManager(
           new MigrateBackToDefaultNetworkDelegate(this,
                                                   connection_->context()))),
       wait_for_migration_alarm_(connection_->alarm_factory()->CreateAlarm(
-          new WaitForMigrationDelegate(this, connection_->context()))) {
+          new WaitForMigrationDelegate(this, connection_->context()))),
+      run_pending_callbacks_alarm_(connection_->alarm_factory()->CreateAlarm(
+          new RunPendingCallbackDelegate(this, connection_->context()))) {
   QUICHE_BUG_IF(gquic_session_created_on_non_default_network,
                 default_network_ != current_network_ &&
                     !session_->version().HasIetfQuicFrames());
@@ -192,6 +235,7 @@ QuicConnectionMigrationManager::QuicConnectionMigrationManager(
 QuicConnectionMigrationManager::~QuicConnectionMigrationManager() {
   wait_for_migration_alarm_->PermanentCancel();
   migrate_back_to_default_timer_->PermanentCancel();
+  run_pending_callbacks_alarm_->PermanentCancel();
 }
 
 void QuicConnectionMigrationManager::OnNetworkConnected(
@@ -231,6 +275,9 @@ void QuicConnectionMigrationManager::OnNetworkConnected(
     if (debug_visitor_) {
       debug_visitor_->OnWaitingForNewNetworkSucceeded(network);
     }
+    if (current_migration_cause_ == MigrationCause::ON_WRITE_ERROR) {
+      ++current_migrations_to_non_default_network_on_write_error_;
+    }
     // `wait_for_new_network_` is true, there was no working network previously.
     // `network` is now the only possible candidate, migrate immediately.
     MigrateNetworkImmediately(network);
@@ -268,11 +315,18 @@ void QuicConnectionMigrationManager::OnNetworkDisconnected(
     QUIC_DLOG(INFO) << "Default network: " << default_network_
                     << " is disconnected.";
     default_network_ = kInvalidNetworkHandle;
+    current_migrations_to_non_default_network_on_write_error_ = 0;
   }
   // Ignore the signal if the current active network is not affected.
   if (current_network() != disconnected_network) {
     QUIC_DVLOG(1) << "Client's current default network is not affected by the "
                   << "disconnected one.";
+    return;
+  }
+  if (pending_migrate_session_on_write_error_) {
+    QUIC_DVLOG(1)
+        << "Ignoring a network disconnection signal because a "
+           "connection migration is happening due to a previous write error.";
     return;
   }
   if (config_.ignore_disconnect_signal_during_probing &&
@@ -309,6 +363,7 @@ void QuicConnectionMigrationManager::OnNetworkDisconnected(
   // alternative network.
   MigrateNetworkImmediately(new_network);
 }
+
 void QuicConnectionMigrationManager::MigrateNetworkImmediately(
     QuicNetworkHandle network) {
   // There is no choice but to migrate to |network|. If any error encountered,
@@ -559,6 +614,143 @@ void QuicConnectionMigrationManager::CancelMigrateBackToDefaultNetworkTimer() {
   migrate_back_to_default_timer_->Cancel();
 }
 
+bool QuicConnectionMigrationManager::MaybeStartMigrateSessionOnWriteError(
+    int error_code) {
+  if (!session_->version().HasIetfQuicFrames()) {
+    return false;
+  }
+  QuicClientSparseHistogram("QuicSession.WriteError", -error_code);
+  if (session_->OneRttKeysAvailable()) {
+    QuicClientSparseHistogram("QuicSession.WriteError.HandshakeConfirmed",
+                              -error_code);
+  }
+  // Proxied sessions cannot presently encounter write errors, but in case that
+  // changes, those sessions should not attempt migration when such an error
+  // occurs. The underlying connection to the proxy server may still migrate.
+  if (session_->IsSessionProxied()) {
+    return false;
+  }
+  std::optional<int> msg_too_big_error =
+      connection_->writer()->MessageTooBigErrorCode();
+  if ((msg_too_big_error.has_value() && error_code == *msg_too_big_error) ||
+      !path_context_factory_ || !config_.migrate_session_on_network_change ||
+      !session_->OneRttKeysAvailable()) {
+    return false;
+  }
+  if (debug_visitor_) {
+    debug_visitor_->OnConnectionMigrationAfterWriteError(current_network_);
+  }
+  most_recent_write_error_timestamp_ = clock_->ApproximateNow();
+  most_recent_write_error_ = error_code;
+  // Migrate the session onto a new network in the next event loop.
+  RunCallbackInNextLoop([this, writer = connection_->writer()]() {
+    StartMigrateSessionOnWriteError(writer);
+  });
+  return true;
+}
+
+void QuicConnectionMigrationManager::StartMigrateSessionOnWriteError(
+    quic::QuicPacketWriter* writer) {
+  QUICHE_DCHECK(config_.migrate_session_on_network_change);
+  // If `writer` is no longer actively in use, or a parallel connection
+  // migration has started from MigrateNetworkImmediately, abort this migration
+  // attempt.
+  if (writer != connection_->writer() || pending_migrate_network_immediately_) {
+    return;
+  }
+  current_migration_cause_ = MigrationCause::ON_WRITE_ERROR;
+  RecordHandshakeStatusOnMigrationSignal();
+  if (MaybeCloseIdleSession(/*has_write_error=*/true,
+                            ConnectionCloseBehavior::SILENT_CLOSE)) {
+    return;
+  }
+  // Do not migrate if connection migration is disabled.
+  if (migration_disabled_) {
+    OnMigrationFailure(
+        QuicConnectionMigrationStatus::MIGRATION_STATUS_DISABLED_BY_CONFIG,
+        "Migration disabled by config");
+    // Close the connection since migration was disabled. Do not cause a
+    // connection close packet to be sent since socket may be borked.
+    connection_->CloseConnection(QUIC_CONNECTION_MIGRATION_DISABLED_BY_CONFIG,
+                                 "Unrecoverable write error",
+                                 quic::ConnectionCloseBehavior::SILENT_CLOSE);
+    return;
+  }
+  QuicNetworkHandle new_network =
+      session_->FindAlternateNetwork(current_network());
+  if (new_network == kInvalidNetworkHandle) {
+    OnNoNewNetwork();
+    return;
+  }
+  if (current_network() == default_network_) {
+    if (current_migrations_to_non_default_network_on_write_error_ >=
+        config_.max_migrations_to_non_default_network_on_write_error) {
+      OnMigrationFailure(QuicConnectionMigrationStatus::
+                             MIGRATION_STATUS_ON_WRITE_ERROR_DISABLED,
+                         "Exceeds maximum number of migrations on write error");
+      // Close the connection if migration failed. Do not cause a
+      // connection close packet to be sent since socket may be borked.
+      connection_->CloseConnection(
+          QUIC_PACKET_WRITE_ERROR,
+          "Too many migrations for write error for the same network",
+          ConnectionCloseBehavior::SILENT_CLOSE);
+      return;
+    }
+    ++current_migrations_to_non_default_network_on_write_error_;
+  }
+  if (debug_visitor_) {
+    debug_visitor_->OnConnectionMigrationStartingAfterEvent("WriteError");
+  }
+  pending_migrate_session_on_write_error_ = true;
+  Migrate(new_network, connection_->peer_address(),
+          /*close_session_on_error=*/false,
+          [this](QuicNetworkHandle new_network, MigrationResult rv) {
+            FinishMigrateSessionOnWriteError(new_network, rv);
+          });
+  if (debug_visitor_) {
+    debug_visitor_->OnConnectionMigrationStarted();
+  }
+}
+
+void QuicConnectionMigrationManager::FinishMigrateSessionOnWriteError(
+    QuicNetworkHandle new_network, MigrationResult result) {
+  pending_migrate_session_on_write_error_ = false;
+  if (result == MigrationResult::FAILURE) {
+    // Close the connection if migration failed. Do not cause a
+    // connection close packet to be sent since socket may be borked.
+    connection_->CloseConnection(QUIC_PACKET_WRITE_ERROR,
+                                 "Write and subsequent migration failed",
+                                 ConnectionCloseBehavior::SILENT_CLOSE);
+    return;
+  }
+  if (new_network != default_network_) {
+    StartMigrateBackToDefaultNetworkTimer(
+        QuicTimeDelta::FromSeconds(kMinRetryTimeForDefaultNetworkSecs));
+  } else {
+    CancelMigrateBackToDefaultNetworkTimer();
+  }
+}
+
+void QuicConnectionMigrationManager::RunCallbackInNextLoop(
+    quiche::SingleUseCallback<void()> callback) {
+  if (callback == nullptr) {
+    return;
+  }
+  pending_callbacks_.push_back(std::move(callback));
+  if (pending_callbacks_.size() == 1u) {
+    run_pending_callbacks_alarm_->Set(clock_->ApproximateNow());
+  }
+}
+
+void QuicConnectionMigrationManager::RunPendingCallbacks() {
+  std::list<quiche::SingleUseCallback<void()>> pending_callbacks =
+      std::move(pending_callbacks_);
+  while (!pending_callbacks.empty()) {
+    std::move(pending_callbacks.front())();
+    pending_callbacks.pop_front();
+  }
+}
+
 void QuicConnectionMigrationManager::OnPathDegrading() {
   if (!session_->version().HasIetfQuicFrames()) {
     return;
@@ -674,6 +866,14 @@ void QuicConnectionMigrationManager::MaybeRetryMigrateBackToDefaultNetwork() {
   // Exponentially backoff the retry timeout.
   QuicTimeDelta retry_migrate_back_timeout =
       QuicTimeDelta::FromSeconds(UINT64_C(1) << retry_migrate_back_count_);
+  if (pending_migrate_session_on_write_error_ ||
+      pending_migrate_network_immediately_) {
+    // Another more pressing migration (without probing) is in progress, which
+    // might migrate the session back to the default network. Wait for it to
+    // finish before retrying to migrate back to default network with probing.
+    StartMigrateBackToDefaultNetworkTimer(QuicTimeDelta::FromSeconds(0));
+    return;
+  }
   if (retry_migrate_back_timeout > config_.max_time_on_non_default_network) {
     // Mark session as going away to accept no more streams.
     session_->StartDraining();
@@ -771,6 +971,13 @@ void QuicConnectionMigrationManager::FinishStartProbing(
           std::move(path_context),
           std::make_unique<PortMigrationValidationResultDelegate>(this),
           quic::PathValidationReason::kPortMigration);
+      break;
+    case MigrationCause::ON_SERVER_PREFERRED_ADDRESS_AVAILABLE:
+      connection_->ValidatePath(
+          std::move(path_context),
+          std::make_unique<ServerPreferredAddressValidationResultDelegate>(
+              this),
+          quic::PathValidationReason::kServerPreferredAddressMigration);
       break;
     default:
       connection_->ValidatePath(
@@ -892,6 +1099,59 @@ void QuicConnectionMigrationManager::OnPortMigrationProbeSucceeded(
   OnMigrationSuccess();
 }
 
+void QuicConnectionMigrationManager::OnServerPreferredAddressProbeSucceeded(
+    std::unique_ptr<QuicPathValidationContext> path_context,
+    quic::QuicTime /*start_time*/) {
+  QuicNetworkHandle network = path_context->network();
+  if (debug_visitor_) {
+    debug_visitor_->OnProbeResult(network, connection_->peer_address(),
+                                  /*success*/ true);
+  }
+  RecordProbeResultToHistogram(current_migration_cause_, true);
+  connection_->mutable_stats().server_preferred_address_validated = true;
+  // Migrate to the probed socket immediately.
+  if (!session_->MigrateToNewPath(
+          std::unique_ptr<QuicClientPathValidationContext>(
+              static_cast<QuicClientPathValidationContext*>(
+                  path_context.release())))) {
+    if (debug_visitor_) {
+      debug_visitor_->OnConnectionMigrationFailedAfterProbe();
+    }
+    return;
+  }
+  OnMigrationSuccess();
+}
+
+void QuicConnectionMigrationManager::
+    MaybeStartMigrateSessionToServerPreferredAddress(
+        const quic::QuicSocketAddress& server_preferred_address) {
+  // If this is a proxied connection, we cannot perform any migration, so
+  // ignore the server preferred address.
+  if (session_->IsSessionProxied()) {
+    if (debug_visitor_) {
+      debug_visitor_->OnConnectionMigrationFailed(
+          MigrationCause::UNKNOWN_CAUSE, connection_->connection_id(),
+          "Ignored server preferred address received via proxied connection");
+    }
+    return;
+  }
+  if (!config_.allow_server_preferred_address) {
+    return;
+  }
+  current_migration_cause_ =
+      MigrationCause::ON_SERVER_PREFERRED_ADDRESS_AVAILABLE;
+  if (!path_context_factory_) {
+    return;
+  }
+  if (debug_visitor_) {
+    debug_visitor_->OnProbingServerPreferredAddressStarting();
+  }
+  StartProbing(nullptr, default_network_, server_preferred_address);
+  if (debug_visitor_) {
+    debug_visitor_->OnProbingServerPreferredAddressStarted();
+  }
+}
+
 void QuicConnectionMigrationManager::OnNetworkMadeDefault(
     QuicNetworkHandle new_network) {
   if (!session_->version().HasIetfQuicFrames()) {
@@ -917,6 +1177,7 @@ void QuicConnectionMigrationManager::OnNetworkMadeDefault(
                   << " current_network " << current_network();
   default_network_ = new_network;
   current_migration_cause_ = MigrationCause::ON_NETWORK_MADE_DEFAULT;
+  current_migrations_to_non_default_network_on_write_error_ = 0;
   current_migrations_to_non_default_network_on_path_degrading_ = 0;
   // Simply cancel the timer to migrate back to the default network if session
   // is already on the default network.
@@ -968,6 +1229,19 @@ void QuicConnectionMigrationManager::RecordMetricsOnNetworkDisconnected() {
                                 degrading_duration,
                                 QuicTimeDelta::FromMilliseconds(1),
                                 QuicTimeDelta::FromSeconds(10 * 60), 100, "");
+  }
+  if (most_recent_write_error_timestamp_.IsInitialized()) {
+    QuicTimeDelta write_error_to_disconnection_gap =
+        most_recent_network_disconnected_timestamp_ -
+        most_recent_write_error_timestamp_;
+    QUIC_CLIENT_HISTOGRAM_TIMES(
+        "QuicNetworkGapBetweenWriteErrorAndDisconnection",
+        write_error_to_disconnection_gap, QuicTimeDelta::FromMilliseconds(1),
+        QuicTimeDelta::FromSeconds(10 * 60), 100, "");
+    QuicClientSparseHistogram("QuicSession.WriteError.NetworkDisconnected",
+                              -most_recent_write_error_);
+    most_recent_write_error_ = 0;
+    most_recent_write_error_timestamp_ = QuicTime::Zero();
   }
 }
 
@@ -1052,6 +1326,10 @@ void QuicConnectionMigrationManager::RecordProbeResultToHistogram(
           "QuicSession.PathValidationSuccess.OnNetworkDisconnected", success,
           "");
       return;
+    case MigrationCause::ON_WRITE_ERROR:
+      QUIC_CLIENT_HISTOGRAM_BOOL(
+          "QuicSession.PathValidationSuccess.OnWriteError", success, "");
+      return;
     case MigrationCause::ON_NETWORK_MADE_DEFAULT:
       QUIC_CLIENT_HISTOGRAM_BOOL(
           "QuicSession.PathValidationSuccess.OnNetworkMadeDefault", success,
@@ -1076,8 +1354,11 @@ void QuicConnectionMigrationManager::RecordProbeResultToHistogram(
       QUIC_CLIENT_HISTOGRAM_BOOL(
           "QuicSession.PathValidationSuccess.PortMigration", success, "");
       return;
-    default:
-      // Other causes are not implemented yet.
+    case MigrationCause::ON_SERVER_PREFERRED_ADDRESS_AVAILABLE:
+      QUIC_CLIENT_HISTOGRAM_BOOL(
+          "QuicSession.PathValidationSuccess."
+          "OnServerPreferredAddressAvailable",
+          success, "");
       return;
   }
 }

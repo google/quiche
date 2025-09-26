@@ -70,6 +70,13 @@ bool QuicSpdyClientSessionWithMigration::MigrateToNewPath(
   return success;
 }
 
+void QuicSpdyClientSessionWithMigration::OnServerPreferredAddressAvailable(
+    const QuicSocketAddress& server_preferred_address) {
+  QUICHE_DCHECK(version().HasIetfQuicFrames());
+  migration_manager_.MaybeStartMigrateSessionToServerPreferredAddress(
+      server_preferred_address);
+}
+
 void QuicSpdyClientSessionWithMigration::SetMigrationDebugVisitor(
     QuicConnectionMigrationDebugVisitor* visitor) {
   migration_manager_.set_debug_visitor(visitor);

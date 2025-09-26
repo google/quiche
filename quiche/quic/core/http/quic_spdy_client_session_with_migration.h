@@ -74,6 +74,8 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
   void OnPathDegrading() override;
   void OnTlsHandshakeComplete() override;
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
+  void OnServerPreferredAddressAvailable(
+      const quic::QuicSocketAddress& server_preferred_address) override;
 
   // Migrates session onto the new path, i.e. changing the default writer and
   // network.
