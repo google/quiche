@@ -15,7 +15,7 @@ namespace quiche {
 DirectTaskBundle::~DirectTaskBundle() {
   QUICHE_DCHECK(tasks_.empty())
       << "DirectTaskBundle destroyed with pending tasks";
-};
+}
 
 void DirectTaskBundle::Add(SingleUseCallback<absl::Status()> task) {
   tasks_.push_back(std::move(task));
