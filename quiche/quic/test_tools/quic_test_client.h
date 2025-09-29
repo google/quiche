@@ -196,6 +196,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor {
   // received.
   const quiche::HttpHeaderBlock& response_trailers() const;
   bool response_complete() const;
+  QuicTime response_end_time() const;
   int64_t response_body_size() const;
   const std::string& response_body() const;
   // Getters for stream state that return state of the oldest active stream that
@@ -294,6 +295,8 @@ class QuicTestClient : public QuicSpdyStream::Visitor {
 
   // Get the server config map.  Server config must exist.
   const QuicTagValueMap& GetServerConfig() const;
+
+  const QuicConnectionStats& GetConnectionStats() const;
 
   void set_auto_reconnect(bool reconnect) { auto_reconnect_ = reconnect; }
 
@@ -397,6 +400,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor {
   QuicRstStreamErrorCode stream_error_;
 
   bool response_complete_;
+  QuicTime response_end_time_ = QuicTime::Zero();
   bool response_headers_complete_;
   mutable quiche::HttpHeaderBlock response_headers_;
 
