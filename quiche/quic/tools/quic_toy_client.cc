@@ -235,11 +235,14 @@ std::unique_ptr<ClientProofSource> CreateTestClientProofSource(
   }
 
   auto proof_source = std::make_unique<DefaultClientProofSource>();
-  proof_source->AddCertAndKey(
-      {"*"},
-      quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain>(
-          new ClientProofSource::Chain(certs)),
-      std::move(*private_key));
+  if (!proof_source->AddCertAndKey(
+          {"*"},
+          quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain>(
+              new ClientProofSource::Chain(certs)),
+          std::move(*private_key))) {
+    std::cerr << "Failed to add client cert and key." << std::endl;
+    return nullptr;
+  }
 
   return proof_source;
 }

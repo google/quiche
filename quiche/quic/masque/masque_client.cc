@@ -11,6 +11,7 @@
 
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
+#include "quiche/quic/core/crypto/client_proof_source.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_connection.h"
@@ -91,7 +92,8 @@ std::string MasqueClient::authority() const {
 // static
 std::unique_ptr<MasqueClient> MasqueClient::Create(
     const std::string& uri_template, MasqueMode masque_mode,
-    QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier) {
+    QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier,
+    std::unique_ptr<ClientProofSource> proof_source) {
   QuicUrl url(uri_template);
   std::string host = url.host();
   if (host.empty()) {
@@ -117,6 +119,9 @@ std::unique_ptr<MasqueClient> MasqueClient::Create(
   if (masque_client == nullptr) {
     QUIC_LOG(ERROR) << "Failed to create masque_client";
     return nullptr;
+  }
+  if (proof_source != nullptr) {
+    masque_client->crypto_config()->set_proof_source(std::move(proof_source));
   }
   if (!masque_client->Prepare(kDefaultMaxPacketSizeForTunnels)) {
     QUIC_LOG(ERROR) << "Failed to prepare MASQUE client to " << host << ":"

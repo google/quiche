@@ -8,6 +8,7 @@
 #include <memory>
 #include <string>
 
+#include "quiche/quic/core/crypto/client_proof_source.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_connection.h"
@@ -32,7 +33,8 @@ class QUIC_NO_EXPORT MasqueClient : public QuicDefaultClient,
   // lookup.
   static std::unique_ptr<MasqueClient> Create(
       const std::string& uri_template, MasqueMode masque_mode,
-      QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier);
+      QuicEventLoop* event_loop, std::unique_ptr<ProofVerifier> proof_verifier,
+      std::unique_ptr<ClientProofSource> proof_source);
 
   // From QuicClient.
   std::unique_ptr<QuicSession> CreateQuicClientSession(

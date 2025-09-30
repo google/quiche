@@ -9,6 +9,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <fstream>
 #include <iostream>
 #include <memory>
 #include <string>
@@ -21,6 +22,8 @@
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "openssl/curve25519.h"
+#include "quiche/quic/core/crypto/certificate_view.h"
+#include "quiche/quic/core/crypto/client_proof_source.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
@@ -42,6 +45,7 @@
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_googleurl.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_reference_counted.h"
 #include "quiche/common/platform/api/quiche_system_event_loop.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
@@ -88,6 +92,14 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, bring_up_tap, false,
     "If set to true, no URLs need to be specified and instead a TAP device "
     "is brought up for a MASQUE CONNECT-ETHERNET session.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, client_cert_file, "",
+    "Path to the PEM-encoded client certificate chain.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, client_cert_key_file, "",
+    "Path to the PEM/PKCS8-encoded client certificate private key.");
 
 namespace quic {
 
@@ -246,6 +258,43 @@ class MasqueTapSession
   int fd_ = -1;
 };
 
+std::unique_ptr<ClientProofSource> CreateClientProofSource(
+    const std::string& client_cert_file,
+    const std::string& client_cert_key_file) {
+  if (client_cert_file.empty() || client_cert_key_file.empty()) {
+    std::cerr << "Both client cert and client cert key need to be set."
+              << std::endl;
+    return nullptr;
+  }
+  std::ifstream cert_stream(client_cert_file, std::ios::binary);
+  std::vector<std::string> certs =
+      CertificateView::LoadPemFromStream(&cert_stream);
+  if (certs.empty()) {
+    std::cerr << "Failed to load client certs." << std::endl;
+    return nullptr;
+  }
+
+  std::ifstream key_stream(client_cert_key_file, std::ios::binary);
+  std::unique_ptr<CertificatePrivateKey> private_key =
+      CertificatePrivateKey::LoadPemFromStream(&key_stream);
+  if (private_key == nullptr) {
+    std::cerr << "Failed to load client cert key." << std::endl;
+    return nullptr;
+  }
+
+  auto proof_source = std::make_unique<DefaultClientProofSource>();
+  if (!proof_source->AddCertAndKey(
+          {"*"},
+          quiche::QuicheReferenceCountedPointer<ClientProofSource::Chain>(
+              new ClientProofSource::Chain(certs)),
+          std::move(*private_key))) {
+    std::cerr << "Failed to add client cert and key." << std::endl;
+    return nullptr;
+  }
+
+  return proof_source;
+}
+
 int RunMasqueClient(int argc, char* argv[]) {
   const char* usage =
       "Usage: masque_client [options] <proxy-url> <urls>..\n"
@@ -384,6 +433,10 @@ int RunMasqueClient(int argc, char* argv[]) {
   }
   const bool dns_on_client =
       quiche::GetQuicheCommandLineFlag(FLAGS_dns_on_client);
+  std::string client_cert_file =
+      quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_file);
+  std::string client_cert_key_file =
+      quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_key_file);
   std::unique_ptr<QuicEventLoop> event_loop =
       GetDefaultEventLoop()->Create(QuicDefaultClock::Get());
 
@@ -411,15 +464,26 @@ int RunMasqueClient(int argc, char* argv[]) {
     if (masque_clients.empty()) {
       std::string host = uri_template.substr(parsed_uri_template.host.begin,
                                              parsed_uri_template.host.len);
+
       std::unique_ptr<ProofVerifier> proof_verifier;
       if (disable_certificate_verification) {
         proof_verifier = std::make_unique<FakeProofVerifier>();
       } else {
         proof_verifier = CreateDefaultProofVerifier(host);
       }
-      masque_client =
-          MasqueClient::Create(uri_template, masque_mode, event_loop.get(),
-                               std::move(proof_verifier));
+
+      std::unique_ptr<ClientProofSource> proof_source;
+      if (!client_cert_file.empty() || !client_cert_key_file.empty()) {
+        proof_source =
+            CreateClientProofSource(client_cert_file, client_cert_key_file);
+        if (proof_source == nullptr) {
+          return 1;
+        }
+      }
+
+      masque_client = MasqueClient::Create(
+          uri_template, masque_mode, event_loop.get(),
+          std::move(proof_verifier), std::move(proof_source));
 
     } else {
       masque_client = tools::CreateAndConnectMasqueEncapsulatedClient(
