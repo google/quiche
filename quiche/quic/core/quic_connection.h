@@ -625,8 +625,6 @@ class QUICHE_EXPORT QuicConnection
   // information.
   void AdjustNetworkParameters(
       const SendAlgorithmInterface::NetworkParams& params);
-  void AdjustNetworkParameters(QuicBandwidth bandwidth, QuicTime::Delta rtt,
-                               bool allow_cwnd_to_decrease);
 
   // Install a loss detection tuner. Must be called before OnConfigNegotiated.
   void SetLossDetectionTuner(
@@ -1376,6 +1374,8 @@ class QUICHE_EXPORT QuicConnection
 
   void SetSourceAddressTokenToSend(absl::string_view token);
 
+  // Used by Chromium clients to send PING frames when there are no outstanding
+  // requests. TODO(ianswett): Consider removing this functionality.
   void SendPing() {
     SendPingAtLevel(framer().GetEncryptionLevelToSendApplicationData());
   }
@@ -1395,7 +1395,6 @@ class QUICHE_EXPORT QuicConnection
   void QuicBugIfHasPendingFrames(QuicStreamId id) const;
 
   QuicConnectionContext* context() override { return &context_; }
-  const QuicConnectionContext* context() const { return &context_; }
 
   void set_context_listener(
       std::unique_ptr<QuicConnectionContextListener> listener) {
@@ -1561,9 +1560,6 @@ class QUICHE_EXPORT QuicConnection
   //      change.
   virtual QuicSocketAddress GetEffectivePeerAddressFromCurrentPacket() const;
 
-  // Returns the current per-packet options for the connection.
-  PerPacketOptions* per_packet_options() { return per_packet_options_; }
-
   AddressChangeType active_effective_peer_migration_type() const {
     return active_effective_peer_migration_type_;
   }
@@ -1628,11 +1624,6 @@ class QUICHE_EXPORT QuicConnection
     kPendingRefreshValidation,
     kWaitingForRefreshValidation,
     kMaxValue,
-  };
-
-  struct QUICHE_EXPORT PendingPathChallenge {
-    QuicPathFrameBuffer received_path_challenge;
-    QuicSocketAddress peer_address;
   };
 
   struct QUICHE_EXPORT PathState {
@@ -1933,10 +1924,6 @@ class QUICHE_EXPORT QuicConnection
   // acks and pending writes if an ack opened the congestion window.
   void MaybeSendInResponseToPacket();
 
-  // Gets the least unacked packet number, which is the next packet number to be
-  // sent if there are no outstanding packets.
-  QuicPacketNumber GetLeastUnacked() const;
-
   // Sets the ping alarm to the appropriate value, if any.
   void SetPingAlarm();
 
@@ -1988,11 +1975,6 @@ class QUICHE_EXPORT QuicConnection
 
   // Updates the release time into the future.
   void UpdateReleaseTimeIntoFuture();
-
-  // Sends generic path probe packet to the peer. If we are not IETF QUIC, will
-  // always send a padded ping, regardless of whether this is a request or not.
-  bool SendGenericPathProbePacket(QuicPacketWriter* probing_writer,
-                                  const QuicSocketAddress& peer_address);
 
   // Called when an ACK is about to send. Resets ACK related internal states,
   // e.g., cancels ack_alarm_, resets
@@ -2263,9 +2245,6 @@ class QUICHE_EXPORT QuicConnection
   // number spaces.
   QuicPacketNumber largest_seen_packets_with_ack_[NUM_PACKET_NUMBER_SPACES];
 
-  // Largest packet number sent by the peer which had a stop waiting frame.
-  QuicPacketNumber largest_seen_packet_with_stop_waiting_;
-
   // Collection of packets which were received before encryption was
   // established, but which could not be decrypted.  We buffer these on
   // the assumption that they could not be processed because they were
@@ -2349,15 +2328,6 @@ class QUICHE_EXPORT QuicConnection
 
   // Time this connection can release packets into the future.
   QuicTime::Delta release_time_into_future_;
-
-  // Payloads that were received in the most recent probe. This needs to be a
-  // Deque because the peer might no be using this implementation, and others
-  // might send a packet with more than one PATH_CHALLENGE, so all need to be
-  // saved and responded to.
-  // TODO(danzh) deprecate this field when deprecating
-  // --quic_send_path_response.
-  quiche::QuicheCircularDeque<QuicPathFrameBuffer>
-      received_path_challenge_payloads_;
 
   // When we receive a RETRY packet or some INITIAL packets, we replace
   // |server_connection_id_| with the value from that packet and save off the
@@ -2448,9 +2418,6 @@ class QUICHE_EXPORT QuicConnection
   // The flow label of the packet with the largest packet number received
   // from the peer.
   uint32_t last_flow_label_received_ = 0;
-
-  // Id of latest sent control frame. 0 if no control frame has been sent.
-  QuicControlFrameId last_control_frame_id_ = kInvalidControlFrameId;
 
   RetransmittableOnWireBehavior retransmittable_on_wire_behavior_ = DEFAULT;
 

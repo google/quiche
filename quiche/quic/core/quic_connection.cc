@@ -2431,10 +2431,6 @@ const QuicFrame QuicConnection::GetUpdatedAckFrame() {
       clock_->ApproximateNow());
 }
 
-QuicPacketNumber QuicConnection::GetLeastUnacked() const {
-  return sent_packet_manager_.GetLeastUnacked();
-}
-
 bool QuicConnection::HandleWriteBlocked() {
   if (!writer_->IsWriteBlocked()) {
     return false;
