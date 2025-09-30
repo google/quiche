@@ -479,6 +479,9 @@ DEFINE_STATIC_QUIC_TAG(ACH0);
 DEFINE_STATIC_QUIC_TAG(NOIP);
 DEFINE_STATIC_QUIC_TAG(NIPA);  // Aggressively skip IP matching
 
+// Experiment for sending new ORIGIN frame.
+DEFINE_STATIC_QUIC_TAG(ORIG);
+
 // Rejection tags
 DEFINE_STATIC_QUIC_TAG(RREJ);  // Reasons for server sending
 
