@@ -196,6 +196,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor {
   // received.
   const quiche::HttpHeaderBlock& response_trailers() const;
   bool response_complete() const;
+  QuicTime request_start_time() const;
   QuicTime response_end_time() const;
   int64_t response_body_size() const;
   const std::string& response_body() const;
@@ -400,6 +401,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor {
   QuicRstStreamErrorCode stream_error_;
 
   bool response_complete_;
+  QuicTime request_start_time_ = QuicTime::Zero();
   QuicTime response_end_time_ = QuicTime::Zero();
   bool response_headers_complete_;
   mutable quiche::HttpHeaderBlock response_headers_;

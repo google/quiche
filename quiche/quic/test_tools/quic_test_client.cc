@@ -454,6 +454,10 @@ int64_t QuicTestClient::SendData(
 
 bool QuicTestClient::response_complete() const { return response_complete_; }
 
+QuicTime QuicTestClient::request_start_time() const {
+  return request_start_time_;
+}
+
 QuicTime QuicTestClient::response_end_time() const {
   return response_end_time_;
 }
@@ -522,6 +526,8 @@ QuicSpdyClientStream* QuicTestClient::GetOrCreateStream() {
   if (!latest_created_stream_) {
     SetLatestCreatedStream(client_->CreateClientStream());
     if (latest_created_stream_) {
+      request_start_time_ =
+          client()->client_session()->connection()->clock()->Now();
       latest_created_stream_->SetPriority(QuicStreamPriority(
           HttpStreamPriority{priority_, /* incremental = */ false}));
     }
