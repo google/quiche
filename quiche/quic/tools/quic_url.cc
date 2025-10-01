@@ -48,12 +48,11 @@ std::string QuicUrl::HostPort() const {
     return "";
   }
 
-  std::string host = url_.host();
   int port = url_.IntPort();
   if (port == url::PORT_UNSPECIFIED) {
-    return host;
+    return std::string(url_.host());
   }
-  return absl::StrCat(host, ":", port);
+  return absl::StrCat(url_.host(), ":", port);
 }
 
 std::string QuicUrl::PathParamsQuery() const {
@@ -69,7 +68,7 @@ std::string QuicUrl::scheme() const {
     return "";
   }
 
-  return url_.scheme();
+  return std::string(url_.scheme());
 }
 
 std::string QuicUrl::host() const {
@@ -85,7 +84,7 @@ std::string QuicUrl::path() const {
     return "";
   }
 
-  return url_.path();
+  return std::string(url_.path());
 }
 
 uint16_t QuicUrl::port() const {
