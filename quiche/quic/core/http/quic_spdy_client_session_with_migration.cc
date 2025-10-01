@@ -14,16 +14,24 @@ QuicSpdyClientSessionWithMigration::QuicSpdyClientSessionWithMigration(
     const ParsedQuicVersionVector& supported_versions,
     QuicNetworkHandle default_network, QuicNetworkHandle current_network,
     std::unique_ptr<QuicPathContextFactory> path_context_factory,
-    QuicConnectionMigrationConfig migration_config)
-    : QuicSpdyClientSessionBase(connection, visitor, config,
-                                supported_versions),
+    QuicConnectionMigrationConfig migration_config,
+    QuicPriorityType priority_type)
+    : QuicSpdyClientSessionBase(connection, visitor, config, supported_versions,
+                                priority_type),
       path_context_factory_(std::move(path_context_factory)),
       migration_manager_(this, connection->clock(), default_network,
                          current_network, path_context_factory_.get(),
                          migration_config),
-      writer_(writer) {
-  QUICHE_DCHECK_EQ(writer_, connection->writer())
-      << "Writer is not the connection writer";
+      writer_(writer),
+      most_recent_stream_close_time_(connection->clock()->ApproximateNow()) {
+  QUICHE_DCHECK(writer_ == nullptr || writer_ == connection->writer())
+      << "Writer is should be either null or the connection writer";
+  if (migration_config.migrate_session_on_network_change ||
+      migration_config.allow_port_migration ||
+      migration_config.allow_server_preferred_address) {
+    QUICHE_DCHECK_EQ(writer_, connection->writer())
+        << "Writer is not the connection writer";
+  }
 }
 
 QuicSpdyClientSessionWithMigration::~QuicSpdyClientSessionWithMigration() =
@@ -73,6 +81,8 @@ bool QuicSpdyClientSessionWithMigration::MigrateToNewPath(
 void QuicSpdyClientSessionWithMigration::OnServerPreferredAddressAvailable(
     const QuicSocketAddress& server_preferred_address) {
   QUICHE_DCHECK(version().HasIetfQuicFrames());
+  QuicSpdyClientSessionBase::OnServerPreferredAddressAvailable(
+      server_preferred_address);
   migration_manager_.MaybeStartMigrateSessionToServerPreferredAddress(
       server_preferred_address);
 }
@@ -85,6 +95,17 @@ void QuicSpdyClientSessionWithMigration::SetMigrationDebugVisitor(
 const QuicConnectionMigrationConfig&
 QuicSpdyClientSessionWithMigration::GetConnectionMigrationConfig() const {
   return migration_manager_.config();
+}
+
+void QuicSpdyClientSessionWithMigration::OnStreamClosed(
+    QuicStreamId stream_id) {
+  most_recent_stream_close_time_ = connection()->clock()->ApproximateNow();
+  QuicSpdyClientSessionBase::OnStreamClosed(stream_id);
+}
+
+QuicTimeDelta QuicSpdyClientSessionWithMigration::TimeSinceLastStreamClose() {
+  return connection()->clock()->ApproximateNow() -
+         most_recent_stream_close_time_;
 }
 
 }  // namespace quic

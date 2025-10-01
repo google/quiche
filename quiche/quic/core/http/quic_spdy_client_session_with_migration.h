@@ -33,13 +33,16 @@ namespace quic {
 class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
     : public QuicSpdyClientSessionBase {
  public:
+  // `writer` must be the same as the connection's writer if any type of
+  // migration is enabled. Otherwise, it can also be nullptr.
   QuicSpdyClientSessionWithMigration(
       QuicConnection* connection, QuicForceBlockablePacketWriter* writer,
       QuicSession::Visitor* visitor, const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
       QuicNetworkHandle default_network, QuicNetworkHandle current_network,
       std::unique_ptr<QuicPathContextFactory> path_context_factory,
-      QuicConnectionMigrationConfig migration_config);
+      QuicConnectionMigrationConfig migration_config,
+      QuicPriorityType priority_type);
 
   ~QuicSpdyClientSessionWithMigration() override;
 
@@ -68,7 +71,7 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
   virtual bool IsSessionProxied() const = 0;
 
   // Returns the time elapsed since the latest stream closure.
-  virtual quic::QuicTimeDelta TimeSinceLastStreamClose() = 0;
+  quic::QuicTimeDelta TimeSinceLastStreamClose();
 
   // QuicSpdyClientSessionBase
   void OnPathDegrading() override;
@@ -76,6 +79,7 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
   void SetDefaultEncryptionLevel(EncryptionLevel level) override;
   void OnServerPreferredAddressAvailable(
       const quic::QuicSocketAddress& server_preferred_address) override;
+  void OnStreamClosed(QuicStreamId stream_id) override;
 
   // Migrates session onto the new path, i.e. changing the default writer and
   // network.
@@ -113,6 +117,7 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
   std::unique_ptr<QuicPathContextFactory> path_context_factory_;
   QuicConnectionMigrationManager migration_manager_;
   QuicForceBlockablePacketWriter* absl_nonnull writer_;
+  QuicTime most_recent_stream_close_time_;
 };
 
 }  // namespace quic

@@ -671,6 +671,7 @@
     "quiche/quic/core/quic_dispatcher_stats.cc",
     "quiche/quic/core/quic_error_codes.cc",
     "quiche/quic/core/quic_flow_controller.cc",
+    "quiche/quic/core/quic_force_blockable_packet_writer.cc",
     "quiche/quic/core/quic_framer.cc",
     "quiche/quic/core/quic_generic_session.cc",
     "quiche/quic/core/quic_idle_network_detector.cc",

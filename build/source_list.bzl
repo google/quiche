@@ -672,6 +672,7 @@ quiche_core_srcs = [
     "quic/core/quic_dispatcher_stats.cc",
     "quic/core/quic_error_codes.cc",
     "quic/core/quic_flow_controller.cc",
+    "quic/core/quic_force_blockable_packet_writer.cc",
     "quic/core/quic_framer.cc",
     "quic/core/quic_generic_session.cc",
     "quic/core/quic_idle_network_detector.cc",
