@@ -831,7 +831,7 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
     }
   }
 
-  // Dump the textural representation of the header object to a string, which
+  // Dump the textual representation of the header object to a string, which
   // is suitable for writing out to logs. All CRLF will be printed out as \n.
   // This function can be called on a header object in any state. Raw header
   // data will be printed out if the header object is not completely parsed,
