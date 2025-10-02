@@ -139,6 +139,10 @@ class ChatClient {
   // Basic session information
   FullTrackName my_track_name_;
 
+  // Related to subscriptions/publish_namespaces
+  // TODO: One for each subscribe
+  RemoteTrackVisitor remote_track_visitor_;
+
   // General state variables
   // The event loop to use for this client.
   quic::QuicEventLoop* event_loop_;
@@ -155,9 +159,6 @@ class ChatClient {
   absl::flat_hash_set<FullTrackName> other_users_;
   int subscribes_to_make_ = 0;
 
-  // Related to subscriptions/publish_namespaces
-  // TODO: One for each subscribe
-  RemoteTrackVisitor remote_track_visitor_;
 
   // Handling outgoing messages
   std::shared_ptr<moqt::MoqtOutgoingQueue> queue_;
