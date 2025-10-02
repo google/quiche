@@ -129,7 +129,8 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
               BinaryHttpResponse::Create(ohttp_response->GetPlaintextData());
           if (binary_response.ok()) {
             QUICHE_LOG(INFO) << "Successfully decoded OHTTP response:";
-            for (const quiche::BinaryHttpMessage::Field &field :
+            QUICHE_LOG(INFO) << "Status: " << binary_response->status_code();
+            for (const quiche::BinaryHttpMessage::Field& field :
                  binary_response->GetHeaderFields()) {
               QUICHE_LOG(INFO) << field.name << ": " << field.value;
             }
