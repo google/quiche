@@ -6073,6 +6073,11 @@ void QuicConnection::SendAllPendingAcks() {
     }
     ResetAckStates();
   }
+  if (GetQuicReloadableFlag(quic_disconnect_early_exit) && !connected_) {
+    // FlushAckFrame can result in a closed connection. If so, avoid updating
+    // ack state that could trigger QUICHE_BUGs.
+    return;
+  }
 
   const QuicTime timeout =
       uber_received_packet_manager_.GetEarliestAckTimeout();

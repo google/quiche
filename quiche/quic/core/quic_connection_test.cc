@@ -18195,6 +18195,43 @@ TEST_P(QuicConnectionTest, AllAckedPacketsCleared) {
   TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
 }
 
+// Regression test for b/443473227.
+TEST_P(QuicConnectionTest, DoNotUpdateAckStateAfterConnectionClose) {
+  if (!version().UsesTls()) {
+    return;
+  }
+  // Test will fail if this flag is false.
+  SetQuicReloadableFlag(quic_disconnect_early_exit, true);
+  // Path validation must occur after the handshake is confirmed.
+  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  // Avoid packets being held to coalesce.
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  // Silence nagging that connection_ isn't sending retransmittable frames.
+  EXPECT_CALL(visitor_, OnAckNeedsRetransmittableFrame).Times(AnyNumber());
+
+  // Build a big ACK frame by processing widely spaced packets.
+  // Must be encoded in 8 bytes when a gap.
+  uint64_t packet_number_increment = 0x40000002;
+  // Test passes if <= 134.
+  uint64_t max_packet_number = packet_number_increment * 135ULL;
+  // Make an ACK frame that is too large to fit in a single packet.
+  for (uint64_t packet_number = packet_number_increment;
+       packet_number < max_packet_number;
+       packet_number += packet_number_increment) {
+    ProcessPacket(packet_number);
+  }
+
+  QuicFrames peer_frames;
+  peer_frames.push_back(QuicFrame(QuicPathChallengeFrame()));
+  writer_->SetShouldWriteFail();
+  writer_->SetWriteError(-109);
+  EXPECT_CALL(visitor_, OnConnectionClosed);
+  ProcessFramesPacketAtLevel(max_packet_number, peer_frames,
+                             ENCRYPTION_FORWARD_SECURE);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
