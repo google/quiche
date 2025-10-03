@@ -4,7 +4,7 @@
 
 #include "quiche/quic/core/quic_time.h"
 
-#include <cinttypes>
+#include <cstdint>
 #include <cstdlib>
 #include <limits>
 #include <string>

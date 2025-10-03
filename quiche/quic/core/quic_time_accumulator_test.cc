@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_time_accumulator.h"
 
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 

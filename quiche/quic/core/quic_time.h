@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_QUIC_TIME_H_
 
 #include <cmath>
+#include <compare>
 #include <cstddef>
 #include <cstdint>
 #include <limits>
@@ -13,8 +14,9 @@
 #include <ostream>
 #include <string>
 
+#include "absl/base/optimization.h"
 #include "absl/time/time.h"
-#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 
@@ -97,9 +99,11 @@ class QUICHE_EXPORT QuicTimeDelta {
     sink.Append(delta.ToDebuggingValue());
   }
 
+  std::strong_ordering operator<=>(const QuicTimeDelta& other) const = default;
+
  private:
-  friend inline bool operator==(QuicTimeDelta lhs, QuicTimeDelta rhs);
-  friend inline bool operator<(QuicTimeDelta lhs, QuicTimeDelta rhs);
+  friend class QuicTime;
+
   friend inline QuicTimeDelta operator<<(QuicTimeDelta lhs, size_t rhs);
   friend inline QuicTimeDelta operator>>(QuicTimeDelta lhs, size_t rhs);
 
@@ -121,8 +125,8 @@ class QUICHE_EXPORT QuicTimeDelta {
   explicit constexpr QuicTimeDelta(int64_t time_offset)
       : time_offset_(time_offset) {}
 
+  // IMPORTANT: The defaulted comparisons automatically use all data members.
   int64_t time_offset_;
-  friend class QuicTime;
 };
 
 // A microsecond precision timestamp returned by a QuicClock. It is
@@ -157,17 +161,18 @@ class QUICHE_EXPORT QuicTime {
 
   bool IsInitialized() const { return 0 != time_; }
 
+  std::strong_ordering operator<=>(const QuicTime& other) const = default;
+
  private:
   friend class QuicClock;
 
-  friend inline bool operator==(QuicTime lhs, QuicTime rhs);
-  friend inline bool operator<(QuicTime lhs, QuicTime rhs);
   friend inline QuicTime operator+(QuicTime lhs, QuicTimeDelta rhs);
   friend inline QuicTime operator-(QuicTime lhs, QuicTimeDelta rhs);
   friend inline QuicTimeDelta operator-(QuicTime lhs, QuicTime rhs);
 
   explicit constexpr QuicTime(int64_t time) : time_(time) {}
 
+  // IMPORTANT: The defaulted comparisons automatically use all data members.
   int64_t time_;
 };
 
@@ -213,9 +218,7 @@ class QUICHE_EXPORT QuicWallTime {
   // minus |delta|.
   [[nodiscard]] QuicWallTime Subtract(QuicTimeDelta delta) const;
 
-  bool operator==(const QuicWallTime& other) const {
-    return microseconds_ == other.microseconds_;
-  }
+  bool operator==(const QuicWallTime& other) const = default;
 
   QuicTimeDelta operator-(const QuicWallTime& rhs) const {
     return QuicTimeDelta::FromMicroseconds(microseconds_ - rhs.microseconds_);
@@ -225,28 +228,11 @@ class QUICHE_EXPORT QuicWallTime {
   explicit constexpr QuicWallTime(uint64_t microseconds)
       : microseconds_(microseconds) {}
 
+  // IMPORTANT: The defaulted comparisons automatically use all data members.
   uint64_t microseconds_;
 };
 
 // Non-member relational operators for QuicTimeDelta.
-inline bool operator==(QuicTimeDelta lhs, QuicTimeDelta rhs) {
-  return lhs.time_offset_ == rhs.time_offset_;
-}
-inline bool operator!=(QuicTimeDelta lhs, QuicTimeDelta rhs) {
-  return !(lhs == rhs);
-}
-inline bool operator<(QuicTimeDelta lhs, QuicTimeDelta rhs) {
-  return lhs.time_offset_ < rhs.time_offset_;
-}
-inline bool operator>(QuicTimeDelta lhs, QuicTimeDelta rhs) {
-  return rhs < lhs;
-}
-inline bool operator<=(QuicTimeDelta lhs, QuicTimeDelta rhs) {
-  return !(rhs < lhs);
-}
-inline bool operator>=(QuicTimeDelta lhs, QuicTimeDelta rhs) {
-  return !(lhs < rhs);
-}
 inline QuicTimeDelta operator<<(QuicTimeDelta lhs, size_t rhs) {
   return QuicTimeDelta(lhs.time_offset_ << rhs);
 }
@@ -254,17 +240,6 @@ inline QuicTimeDelta operator>>(QuicTimeDelta lhs, size_t rhs) {
   return QuicTimeDelta(lhs.time_offset_ >> rhs);
 }
 
-// Non-member relational operators for QuicTime.
-inline bool operator==(QuicTime lhs, QuicTime rhs) {
-  return lhs.time_ == rhs.time_;
-}
-inline bool operator!=(QuicTime lhs, QuicTime rhs) { return !(lhs == rhs); }
-inline bool operator<(QuicTime lhs, QuicTime rhs) {
-  return lhs.time_ < rhs.time_;
-}
-inline bool operator>(QuicTime lhs, QuicTime rhs) { return rhs < lhs; }
-inline bool operator<=(QuicTime lhs, QuicTime rhs) { return !(rhs < lhs); }
-inline bool operator>=(QuicTime lhs, QuicTime rhs) { return !(lhs < rhs); }
 
 // Override stream output operator for gtest or QUICHE_CHECK macros.
 inline std::ostream& operator<<(std::ostream& output, const QuicTime t) {

@@ -2145,19 +2145,17 @@ bool WriteServerVersionNegotiationProbeResponse(
 class SavingHttp3DatagramVisitor : public QuicSpdyStream::Http3DatagramVisitor {
  public:
   struct SavedHttp3Datagram {
+    bool operator==(const SavedHttp3Datagram&) const = default;
+
     QuicStreamId stream_id;
     std::string payload;
-    bool operator==(const SavedHttp3Datagram& o) const {
-      return stream_id == o.stream_id && payload == o.payload;
-    }
   };
   struct SavedUnknownCapsule {
+    bool operator==(const SavedUnknownCapsule&) const = default;
+
     QuicStreamId stream_id;
     uint64_t type;
     std::string payload;
-    bool operator==(const SavedUnknownCapsule& o) const {
-      return stream_id == o.stream_id && type == o.type && payload == o.payload;
-    }
   };
   const std::vector<SavedHttp3Datagram>& received_h3_datagrams() const {
     return received_h3_datagrams_;

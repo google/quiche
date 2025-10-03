@@ -40,13 +40,7 @@ class QUICHE_EXPORT SendAlgorithmInterface {
           rtt(rtt),
           allow_cwnd_to_decrease(allow_cwnd_to_decrease) {}
 
-    bool operator==(const NetworkParams& other) const {
-      return bandwidth == other.bandwidth && rtt == other.rtt &&
-             max_initial_congestion_window ==
-                 other.max_initial_congestion_window &&
-             allow_cwnd_to_decrease == other.allow_cwnd_to_decrease &&
-             is_rtt_trusted == other.is_rtt_trusted;
-    }
+    bool operator==(const NetworkParams& other) const = default;
 
     QuicBandwidth bandwidth = QuicBandwidth::Zero();
     QuicTime::Delta rtt = QuicTime::Delta::Zero();
