@@ -26,3 +26,55 @@ To contribute to QUICHE, follow instructions at
 [CONTRIBUTING.md](CONTRIBUTING.md).
 
 QUICHE is only supported on little-endian platforms.
+
+## Build and run standalone QUICHE
+
+QUICHE has binaries that can run on Linux platforms.
+
+Follow the [instructions](https://bazel.build/install) to install Bazel.
+
+```
+sudo apt install libicu-dev clang lld
+cd <directory that will be the root of your quiche implmentation>
+git clone https://github.com/google/quiche.git
+cd quiche
+CC=clang bazel build -c opt //...
+./bazel-bin/quiche/<target_name> <arguments>
+```
+
+There are several targets that can be built and then run. Full usage
+instructions are available using the `--helpfull` flag on any binary.
+
+*   quic_packet_printer: from a provided packet, parses and prints out the
+    contents that are accessible without decryption.
+
+Usage: `quic_packet_printer server|client <hex dump of packet>`
+
+*   crypto_message_printer: dumps the contents of a QUIC crypto handshake
+    message in a human readable format.
+
+Usage: `crypto_message_printer_bin <hex of message>`
+
+*   quic_client: connects to a host using QUIC and HTTP/3, sends a request to
+    the provided URL, and displays the response.
+
+Usage: `quic_client <URL>`
+
+*   quic_server: listens forever on --port (default 6121) until halted via
+    ctrl-c.
+
+*   masque_client: tunnels to a URL via an identified proxy (See RFC 9298).
+
+Usage: `masque_client [options] <proxy-url> <urls>`
+
+*   masque_server: a MASQUE tunnel proxy that defaults to port 9661.
+
+Usage: `masque_server`
+
+*   web_transport_test_server: a server that clients can connect to via
+    WebTransport.
+
+*   moqt_relay: a relay for the Media Over QUIC transport for publishers and
+    subscribers can connect to.
+
+Usage: `moqt_relay`
