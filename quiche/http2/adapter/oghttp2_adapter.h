@@ -22,8 +22,8 @@ class QUICHE_EXPORT OgHttp2Adapter : public Http2Adapter {
 
   // From Http2Adapter.
   bool IsServerSession() const override;
-  bool want_read() const override { return session_->want_read(); }
-  bool want_write() const override { return session_->want_write(); }
+  bool want_read() const override { return session_.want_read(); }
+  bool want_write() const override { return session_.want_write(); }
   int64_t ProcessBytes(absl::string_view bytes) override;
   void SubmitSettings(absl::Span<const Http2Setting> settings) override;
   void SubmitPriorityForStream(Http2StreamId stream_id,
@@ -72,7 +72,7 @@ class QUICHE_EXPORT OgHttp2Adapter : public Http2Adapter {
  private:
   OgHttp2Adapter(Http2VisitorInterface& visitor, Options options);
 
-  std::unique_ptr<OgHttp2Session> session_;
+  OgHttp2Session session_;
 };
 
 }  // namespace adapter

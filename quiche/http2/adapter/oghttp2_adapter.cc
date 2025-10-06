@@ -31,41 +31,41 @@ std::unique_ptr<OgHttp2Adapter> OgHttp2Adapter::Create(
 OgHttp2Adapter::~OgHttp2Adapter() {}
 
 bool OgHttp2Adapter::IsServerSession() const {
-  return session_->IsServerSession();
+  return session_.IsServerSession();
 }
 
 int64_t OgHttp2Adapter::ProcessBytes(absl::string_view bytes) {
-  return session_->ProcessBytes(bytes);
+  return session_.ProcessBytes(bytes);
 }
 
 void OgHttp2Adapter::SubmitSettings(absl::Span<const Http2Setting> settings) {
-  session_->SubmitSettings(settings);
+  session_.SubmitSettings(settings);
 }
 
 void OgHttp2Adapter::SubmitPriorityForStream(Http2StreamId stream_id,
                                              Http2StreamId parent_stream_id,
                                              int weight, bool exclusive) {
-  session_->EnqueueFrame(std::make_unique<SpdyPriorityIR>(
+  session_.EnqueueFrame(std::make_unique<SpdyPriorityIR>(
       stream_id, parent_stream_id, weight, exclusive));
 }
 
 void OgHttp2Adapter::SubmitPing(Http2PingId ping_id) {
-  session_->EnqueueFrame(std::make_unique<SpdyPingIR>(ping_id));
+  session_.EnqueueFrame(std::make_unique<SpdyPingIR>(ping_id));
 }
 
 void OgHttp2Adapter::SubmitShutdownNotice() {
-  session_->StartGracefulShutdown();
+  session_.StartGracefulShutdown();
 }
 
 void OgHttp2Adapter::SubmitGoAway(Http2StreamId last_accepted_stream_id,
                                   Http2ErrorCode error_code,
                                   absl::string_view opaque_data) {
-  session_->SubmitGoAway(last_accepted_stream_id, error_code, opaque_data);
+  session_.SubmitGoAway(last_accepted_stream_id, error_code, opaque_data);
 }
 
 void OgHttp2Adapter::SubmitWindowUpdate(Http2StreamId stream_id,
                                         int window_increment) {
-  session_->EnqueueFrame(
+  session_.EnqueueFrame(
       std::make_unique<SpdyWindowUpdateIR>(stream_id, window_increment));
 }
 
@@ -74,7 +74,7 @@ void OgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
                                     std::unique_ptr<MetadataSource> source) {
   // Not necessary to pass max_frame_size along, since OgHttp2Session tracks the
   // peer's advertised max frame size.
-  session_->SubmitMetadata(stream_id, std::move(source));
+  session_.SubmitMetadata(stream_id, std::move(source));
 }
 
 void OgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
@@ -83,94 +83,93 @@ void OgHttp2Adapter::SubmitMetadata(Http2StreamId stream_id,
   // peer's advertised max frame size. Not necessary to pass the number of
   // frames along, since OgHttp2Session will invoke the visitor method until it
   // is done packing the payload.
-  session_->SubmitMetadata(stream_id);
+  session_.SubmitMetadata(stream_id);
 }
 
-int OgHttp2Adapter::Send() { return session_->Send(); }
+int OgHttp2Adapter::Send() { return session_.Send(); }
 
 int OgHttp2Adapter::GetSendWindowSize() const {
-  return session_->GetRemoteWindowSize();
+  return session_.GetRemoteWindowSize();
 }
 
 int OgHttp2Adapter::GetStreamSendWindowSize(Http2StreamId stream_id) const {
-  return session_->GetStreamSendWindowSize(stream_id);
+  return session_.GetStreamSendWindowSize(stream_id);
 }
 
 int OgHttp2Adapter::GetStreamReceiveWindowLimit(Http2StreamId stream_id) const {
-  return session_->GetStreamReceiveWindowLimit(stream_id);
+  return session_.GetStreamReceiveWindowLimit(stream_id);
 }
 
 int OgHttp2Adapter::GetStreamReceiveWindowSize(Http2StreamId stream_id) const {
-  return session_->GetStreamReceiveWindowSize(stream_id);
+  return session_.GetStreamReceiveWindowSize(stream_id);
 }
 
 int OgHttp2Adapter::GetReceiveWindowSize() const {
-  return session_->GetReceiveWindowSize();
+  return session_.GetReceiveWindowSize();
 }
 
 int OgHttp2Adapter::GetHpackEncoderDynamicTableSize() const {
-  return session_->GetHpackEncoderDynamicTableSize();
+  return session_.GetHpackEncoderDynamicTableSize();
 }
 
 int OgHttp2Adapter::GetHpackEncoderDynamicTableCapacity() const {
-  return session_->GetHpackEncoderDynamicTableCapacity();
+  return session_.GetHpackEncoderDynamicTableCapacity();
 }
 
 int OgHttp2Adapter::GetHpackDecoderDynamicTableSize() const {
-  return session_->GetHpackDecoderDynamicTableSize();
+  return session_.GetHpackDecoderDynamicTableSize();
 }
 
 int OgHttp2Adapter::GetHpackDecoderSizeLimit() const {
-  return session_->GetHpackDecoderSizeLimit();
+  return session_.GetHpackDecoderSizeLimit();
 }
 
 Http2StreamId OgHttp2Adapter::GetHighestReceivedStreamId() const {
-  return session_->GetHighestReceivedStreamId();
+  return session_.GetHighestReceivedStreamId();
 }
 
 void OgHttp2Adapter::MarkDataConsumedForStream(Http2StreamId stream_id,
                                                size_t num_bytes) {
-  session_->Consume(stream_id, num_bytes);
+  session_.Consume(stream_id, num_bytes);
 }
 
 void OgHttp2Adapter::SubmitRst(Http2StreamId stream_id,
                                Http2ErrorCode error_code) {
-  session_->EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
+  session_.EnqueueFrame(std::make_unique<spdy::SpdyRstStreamIR>(
       stream_id, TranslateErrorCode(error_code)));
 }
 
 int32_t OgHttp2Adapter::SubmitRequest(absl::Span<const Header> headers,
                                       bool end_stream, void* user_data) {
-  return session_->SubmitRequest(headers, end_stream, user_data);
+  return session_.SubmitRequest(headers, end_stream, user_data);
 }
 
 int OgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
                                    absl::Span<const Header> headers,
                                    bool end_stream) {
-  return session_->SubmitResponse(stream_id, headers, end_stream);
+  return session_.SubmitResponse(stream_id, headers, end_stream);
 }
 
 int OgHttp2Adapter::SubmitTrailer(Http2StreamId stream_id,
                                   absl::Span<const Header> trailers) {
-  return session_->SubmitTrailer(stream_id, trailers);
+  return session_.SubmitTrailer(stream_id, trailers);
 }
 
 void OgHttp2Adapter::SetStreamUserData(Http2StreamId stream_id,
                                        void* user_data) {
-  session_->SetStreamUserData(stream_id, user_data);
+  session_.SetStreamUserData(stream_id, user_data);
 }
 
 void* OgHttp2Adapter::GetStreamUserData(Http2StreamId stream_id) {
-  return session_->GetStreamUserData(stream_id);
+  return session_.GetStreamUserData(stream_id);
 }
 
 bool OgHttp2Adapter::ResumeStream(Http2StreamId stream_id) {
-  return session_->ResumeStream(stream_id);
+  return session_.ResumeStream(stream_id);
 }
 
 OgHttp2Adapter::OgHttp2Adapter(Http2VisitorInterface& visitor, Options options)
-    : Http2Adapter(visitor),
-      session_(std::make_unique<OgHttp2Session>(visitor, std::move(options))) {}
+    : Http2Adapter(visitor), session_(visitor, std::move(options)) {}
 
 }  // namespace adapter
 }  // namespace http2
