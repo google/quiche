@@ -32,7 +32,7 @@
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_track.h"
-#include "quiche/quic/moqt/namespace_tree.h"
+#include "quiche/quic/moqt/session_namespace_tree.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -860,7 +860,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       pending_outgoing_subscribe_namespaces_;
   absl::flat_hash_set<TrackNamespace> outgoing_subscribe_namespaces_;
   // It's an error if the namespaces overlap, so keep track of them.
-  NamespaceTree incoming_subscribe_namespace_;
+  SessionNamespaceTree incoming_subscribe_namespace_;
 
   // The minimum request ID the peer can use that is monotonically increasing.
   uint64_t next_incoming_request_id_ = 0;

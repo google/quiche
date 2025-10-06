@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/moqt/namespace_tree.h"
+#include "quiche/quic/moqt/session_namespace_tree.h"
 
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -10,8 +10,8 @@
 namespace moqt {
 namespace test {
 
-TEST(NamespaceTreeTest, AddNamespaces) {
-  NamespaceTree tree;
+TEST(SessionNamespaceTreeTest, AddNamespaces) {
+  SessionNamespaceTree tree;
   EXPECT_TRUE(tree.AddNamespace(TrackNamespace({"a", "b", "c"})));
   // No parents, children, or equivalents of what's already there.
   EXPECT_FALSE(tree.AddNamespace(TrackNamespace({"a", "b", "c"})));
@@ -27,7 +27,7 @@ TEST(NamespaceTreeTest, AddNamespaces) {
 }
 
 TEST(NamespaceTreeTest, RemoveNamespaces) {
-  NamespaceTree tree;
+  SessionNamespaceTree tree;
   // Removing from an empty tree doesn't do anything.
   tree.RemoveNamespace(TrackNamespace({"a", "b", "c"}));
   // RemoveNamespace doesn't do anything if the namespace isn't present.

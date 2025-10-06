@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_MOQT_NAMESPACE_TREE_H_
-#define QUICHE_QUIC_MOQT_NAMESPACE_TREE_H_
+#ifndef QUICHE_QUIC_MOQT_SESSION_NAMESPACE_TREE_H_
+#define QUICHE_QUIC_MOQT_SESSION_NAMESPACE_TREE_H_
 
 #include <string>
 
@@ -20,10 +20,10 @@ namespace moqt {
 // other complete namespaces as direct ancestors or descendants.
 // For example, if a/b/c and a/b/d are in the tree, then a/b/e is allowed, but
 // a/b and a/b/c/d would not be.
-class NamespaceTree {
+class SessionNamespaceTree {
  public:
-  NamespaceTree() = default;
-  ~NamespaceTree() = default;
+  SessionNamespaceTree() = default;
+  ~SessionNamespaceTree() = default;
 
   // Returns false if the namespace can't be added because it intersects with an
   // existing namespace.
@@ -108,4 +108,4 @@ class NamespaceTree {
 
 }  // namespace moqt
 
-#endif  // QUICHE_QUIC_MOQT_NAMESPACE_TREE_H_
+#endif  // QUICHE_QUIC_MOQT_SESSION_NAMESPACE_TREE_H_
