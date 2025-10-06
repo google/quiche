@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_MOQT_NAMESPACE_PUBLISHER_MULTIMAP_H_
-#define QUICHE_QUIC_MOQT_NAMESPACE_PUBLISHER_MULTIMAP_H_
+#ifndef QUICHE_QUIC_MOQT_RELAY_NAMESPACE_TREE_H_
+#define QUICHE_QUIC_MOQT_RELAY_NAMESPACE_TREE_H_
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
@@ -13,7 +13,14 @@
 
 namespace moqt {
 
-class NamespacePublisherMultimap {
+// A data structure for all namespaces an MOQT relay is aware of.
+// For any given namespace, it stores all publishers, subscribers, and published
+// tracks in that namespace.
+// A subscriber must be notified of any publish in a child namespace, and a
+// new PUBLISH(_NAMESPACE) has to find subscribers to parent namespaces.
+// Therefore, this is a tree structure to easily and scalably move up and down
+// the hierarchy to find parents or children.
+class RelayNamespaceTree {
  public:
   void AddPublisher(const TrackNamespace& track_namespace,
                     MoqtSessionInterface* session) {
@@ -60,4 +67,4 @@ class NamespacePublisherMultimap {
 
 }  // namespace moqt
 
-#endif  // QUICHE_QUIC_MOQT_NAMESPACE_PUBLISHER_MULTIMAP_H_
+#endif  // QUICHE_QUIC_MOQT_RELAY_NAMESPACE_TREE_H_

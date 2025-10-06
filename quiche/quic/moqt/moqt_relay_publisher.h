@@ -14,7 +14,7 @@
 #include "quiche/quic/moqt/moqt_relay_track_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/namespace_publisher_multimap.h"
+#include "quiche/quic/moqt/relay_namespace_tree.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
@@ -64,7 +64,7 @@ class MoqtRelayPublisher : public MoqtPublisher {
   // An indexed map of namespace to a map of sessions. The key to the inner map
   // is indexed by a raw pointer, to make it easier to find entries when
   // deleting.
-  NamespacePublisherMultimap namespace_publishers_;
+  RelayNamespaceTree namespace_publishers_;
 
   // TODO(martinduke): Add a map of Namespaces to namespace listeners.
 
