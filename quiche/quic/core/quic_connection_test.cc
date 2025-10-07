@@ -18195,6 +18195,49 @@ TEST_P(QuicConnectionTest, AllAckedPacketsCleared) {
   TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
 }
 
+// Regression test for b/440033781.
+TEST_P(QuicConnectionTest, DispatcherAckedOpportunisticAck) {
+  if (!version().UsesTls()) {
+    return;
+  }
+  if (!GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_fail_on_empty_ack, true);
+  set_perspective(Perspective::IS_SERVER);
+  connection_.RemoveEncrypter(ENCRYPTION_FORWARD_SECURE);
+
+  DispatcherSentPacket sent_packet{
+      /*sent=*/QuicPacketNumber(1),
+      /*received=*/QuicPacketNumber(1), /*largest_acked=*/QuicPacketNumber(1),
+      /*sent_time=*/clock_.Now(), /*bytes_sent=*/80};
+  connection_.AddDispatcherSentPackets(absl::MakeSpan(&sent_packet, 1));
+
+  QuicFrames peer_frames;
+  EXPECT_CALL(connection_, OnSerializedPacket)
+      .WillRepeatedly([&](SerializedPacket packet) {
+        connection_.QuicConnection::OnSerializedPacket(std::move(packet));
+      });
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent);
+  peer_frames.push_back(QuicFrame(QuicPingFrame()));
+  peer_frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+  ProcessFramesPacketAtLevel(0, peer_frames, ENCRYPTION_INITIAL);
+
+  QuicAckFrame peer_ack_frame;
+  peer_ack_frame.largest_acked = QuicPacketNumber(1);
+  peer_ack_frame.ack_delay_time = QuicTime::Delta::Zero();
+  peer_ack_frame.packets.Add(QuicPacketNumber(1));
+  peer_frames.clear();
+  peer_frames.push_back(QuicFrame(&peer_ack_frame));
+  peer_frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
+  EXPECT_CALL(visitor_, OnConnectionClosed);
+  ProcessFramesPacketAtLevel(1, peer_frames, ENCRYPTION_INITIAL);
+
+  // If quic_fail_on_empty_ack is false, this will trigger a BUG.
+  connection_.SendCryptoData(ENCRYPTION_INITIAL, /*length=*/1000, /*offset=*/0);
+  TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
+}
+
 // Regression test for b/443473227.
 TEST_P(QuicConnectionTest, DoNotUpdateAckStateAfterConnectionClose) {
   if (!version().UsesTls()) {
