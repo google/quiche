@@ -875,7 +875,7 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
       spdy::SpdySerializedFrame header =
           spdy::SpdyFramer::SerializeDataFrameHeaderWithPaddingLengthField(
               data);
-      QUICHE_DCHECK(buffered_data_.Empty() && frames_.empty());
+      QUICHE_DCHECK(buffered_data_.Empty());
       data.Visit(&send_logger_);
       const bool success = SendDataFrame(stream_id, absl::string_view(header),
                                          info.payload_length, state);
