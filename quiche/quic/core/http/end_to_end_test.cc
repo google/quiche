@@ -6801,6 +6801,51 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, SniInClientTransportParameters) {
+  if (!version_.UsesTls()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  const std::string debugging_sni = "test.example.com";
+  client_config_.SetDebuggingSniToSend(debugging_sni);
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+
+  server_thread_->Pause();
+  QuicSpdySession* server_session = GetServerSession();
+  QuicConfig* server_config = nullptr;
+  ASSERT_TRUE(server_session);
+  server_config = server_session->config();
+  ASSERT_TRUE(server_config);
+  const std::optional<std::string>& received_sni =
+      server_config->GetReceivedDebuggingSni();
+  EXPECT_THAT(received_sni, testing::Optional(debugging_sni));
+  server_thread_->Resume();
+}
+
+TEST_P(EndToEndTest, NoSniInClientTransportParameters) {
+  if (!version_.UsesTls()) {
+    // SNI in transport parameters is only supported with TLS.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  ASSERT_TRUE(Initialize());
+
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+
+  server_thread_->Pause();
+  QuicSpdySession* server_session = GetServerSession();
+  QuicConfig* server_config = nullptr;
+  ASSERT_TRUE(server_session);
+  server_config = server_session->config();
+  ASSERT_TRUE(server_config);
+  const std::optional<std::string>& received_sni =
+      server_config->GetReceivedDebuggingSni();
+  ASSERT_FALSE(received_sni.has_value());
+  server_thread_->Resume();
+}
+
 // Testing packet writer that parses initial packets and saves information
 // relevant to chaos protection.
 class ChaosPacketWriter : public PacketDroppingTestWriter {

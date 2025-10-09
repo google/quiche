@@ -474,6 +474,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
     return;
   }
   const std::string kFakeGoogleHandshakeMessage = "Fake handshake message";
+  const std::string kFakeSni = "example.com";
   const int32_t kDiscardLength = 2000;
   config_.SetInitialMaxStreamDataBytesIncomingBidirectionalToSend(
       2 * kMinimumFlowControlSendWindow);
@@ -491,6 +492,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
   config_.SetMinAckDelayDraft10Ms(kDefaultMinAckDelayTimeMs);
   config_.SetDiscardLengthToSend(kDiscardLength);
   config_.SetGoogleHandshakeMessageToSend(kFakeGoogleHandshakeMessage);
+  config_.SetDebuggingSniToSend(kFakeSni);
   config_.SetReliableStreamReset(true);
 
   QuicIpAddress host;
@@ -553,6 +555,7 @@ TEST_P(QuicConfigTest, FillTransportParams) {
             new_stateless_reset_token);
   EXPECT_EQ(kDiscardLength, params.discard_length);
   EXPECT_EQ(kFakeGoogleHandshakeMessage, params.google_handshake_message);
+  EXPECT_EQ(kFakeSni, params.debugging_sni);
 
   EXPECT_TRUE(params.reliable_stream_reset);
 }
@@ -665,6 +668,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
     return;
   }
   const std::string kFakeGoogleHandshakeMessage = "Fake handshake message";
+  const std::string kFakeSni = "example.com";
   const int32_t kDiscardLength = 2000;
   TransportParameters params;
 
@@ -687,6 +691,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
   params.retry_source_connection_id = TestConnectionId(0x3333);
   params.discard_length = kDiscardLength;
   params.google_handshake_message = kFakeGoogleHandshakeMessage;
+  params.debugging_sni = kFakeSni;
 
   std::string error_details;
   EXPECT_THAT(config_.ProcessTransportParameters(
@@ -807,6 +812,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
             TestConnectionId(0x3333));
   EXPECT_EQ(kFakeGoogleHandshakeMessage,
             config_.GetReceivedGoogleHandshakeMessage());
+  EXPECT_EQ(kFakeSni, config_.GetReceivedDebuggingSni());
   EXPECT_EQ(kDiscardLength, config_.GetDiscardLengthReceived());
 }
 

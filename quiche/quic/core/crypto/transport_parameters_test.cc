@@ -57,6 +57,8 @@ const char* kCustomParameter2Value = "bar";
 const char kFakeGoogleHandshakeMessage[] =
     "01000106030392655f5230270d4964a4f99b15bbad220736d972aea97bf9ac494ead62e6";
 
+const char kFakeSni[] = "example.com";
+
 QuicConnectionId CreateFakeOriginalDestinationConnectionId() {
   return TestConnectionId(0x1337);
 }
@@ -302,6 +304,7 @@ TEST_P(TransportParametersTest, CopyConstructor) {
   ASSERT_TRUE(absl::HexStringToBytes(kFakeGoogleHandshakeMessage,
                                      &google_handshake_message));
   orig_params.google_handshake_message = std::move(google_handshake_message);
+  orig_params.debugging_sni = kFakeSni;
   orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
@@ -342,6 +345,7 @@ TEST_P(TransportParametersTest, RoundTripClient) {
   ASSERT_TRUE(absl::HexStringToBytes(kFakeGoogleHandshakeMessage,
                                      &google_handshake_message));
   orig_params.google_handshake_message = std::move(google_handshake_message);
+  orig_params.debugging_sni = kFakeSni;
   orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
@@ -497,6 +501,14 @@ TEST_P(TransportParametersTest, AreValid) {
               "Invalid transport parameters [Client active_connection_id_limit"
               " 0 (Invalid)]");
   }
+  {
+    TransportParameters params;
+    std::string error_details;
+    params.perspective = Perspective::IS_SERVER;
+    params.debugging_sni = kFakeSni;
+    EXPECT_FALSE(params.AreValid(&error_details));
+    EXPECT_EQ(error_details, "Server cannot send debugging_sni");
+  }
 }
 
 TEST_P(TransportParametersTest, NoClientParamsWithStatelessResetToken) {
@@ -587,6 +599,10 @@ TEST_P(TransportParametersTest, ParseClientParams) {
       0x01, 0x00, 0x01, 0x06, 0x03, 0x03, 0x92, 0x65, 0x5f, 0x52, 0x30, 0x27,
       0x0d, 0x49, 0x64, 0xa4, 0xf9, 0x9b, 0x15, 0xbb, 0xad, 0x22, 0x07, 0x36,
       0xd9, 0x72, 0xae, 0xa9, 0x7b, 0xf9, 0xac, 0x49, 0x4e, 0xad, 0x62, 0xe6,
+      // debugging_sni
+      0xc0, 0x00, 0x00, 0x00, 0x21, 0x9b, 0xbc, 0xd0,  // parameter id
+      0x0b,  // length
+      0x27, 0x03, 0x21, 0x0e, 0x61, 0x46, 0x0a, 0x2b, 0x3b, 0x70, 0x12,
       // initial_round_trip_time_us
       0x71, 0x27,  // parameter id
       0x01,  // length
@@ -664,8 +680,11 @@ TEST_P(TransportParametersTest, ParseClientParams) {
   std::string expected_google_handshake_message;
   ASSERT_TRUE(absl::HexStringToBytes(kFakeGoogleHandshakeMessage,
                                      &expected_google_handshake_message));
+
   EXPECT_EQ(expected_google_handshake_message,
             new_params.google_handshake_message);
+
+  EXPECT_EQ(kFakeSni, new_params.debugging_sni);
 }
 
 TEST_P(TransportParametersTest,
@@ -1106,6 +1125,8 @@ TEST_P(TransportParametersTest, Degrease) {
   ASSERT_TRUE(absl::HexStringToBytes(kFakeGoogleHandshakeMessage,
                                      &google_handshake_message));
   orig_params.google_handshake_message = std::move(google_handshake_message);
+  orig_params.debugging_sni = kFakeSni;
+
   orig_params.google_connection_options = CreateFakeGoogleConnectionOptions();
   orig_params.custom_parameters[kCustomParameter1] = kCustomParameter1Value;
   orig_params.custom_parameters[kCustomParameter2] = kCustomParameter2Value;
@@ -1126,6 +1147,39 @@ TEST_P(TransportParametersTest, Degrease) {
 
   DegreaseTransportParameters(new_params);
   EXPECT_EQ(new_params, orig_params);
+}
+
+TEST_P(TransportParametersTest, DebuggingSniParsingClientToServer) {
+  TransportParameters orig_params;
+  orig_params.perspective = Perspective::IS_CLIENT;
+  orig_params.legacy_version_information =
+      CreateFakeLegacyVersionInformationClient();
+  orig_params.debugging_sni = kFakeSni;
+
+  std::vector<uint8_t> serialized;
+  ASSERT_TRUE(SerializeTransportParameters(orig_params, &serialized));
+
+  TransportParameters parsed_params;
+  std::string error_details;
+  ASSERT_TRUE(ParseTransportParameters(GetParam(), Perspective::IS_CLIENT,
+                                       serialized.data(), serialized.size(),
+                                       &parsed_params, &error_details));
+  EXPECT_TRUE(parsed_params.debugging_sni.has_value());
+  EXPECT_EQ(parsed_params.debugging_sni, kFakeSni);
+}
+
+TEST_P(TransportParametersTest, ServerCannotSendDebuggingSni) {
+  TransportParameters orig_params;
+  orig_params.perspective = Perspective::IS_SERVER;
+  orig_params.legacy_version_information =
+      CreateFakeLegacyVersionInformationServer();
+  orig_params.debugging_sni = kFakeSni;
+
+  std::vector<uint8_t> out;
+  EXPECT_QUIC_BUG(
+      EXPECT_FALSE(SerializeTransportParameters(orig_params, &out)),
+      "Not serializing invalid transport parameters: Server cannot send "
+      "debugging_sni");
 }
 
 class TransportParametersTicketSerializationTest : public QuicTest {

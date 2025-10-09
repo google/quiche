@@ -35,6 +35,19 @@
 
 namespace quic {
 
+namespace {
+std::string ObfuscateSni(const absl::string_view& input) {
+  static constexpr char kObfuscationKey[] = {0x42, 0x7b, 0x40, 0x63, 0x11, 0x2a,
+                                             0x6f, 0x05, 0x58, 0x1f, 0x7f, 0x33,
+                                             0x32, 0x4d, 0x64, 0x16};
+  std::string output = std::string(input);
+  for (size_t i = 0; i < output.size(); ++i) {
+    output[i] ^= kObfuscationKey[i % sizeof(kObfuscationKey)];
+  }
+  return output;
+}
+}  // namespace
+
 // Values of the TransportParameterId enum as defined in the
 // "Transport Parameter Encoding" section of draft-ietf-quic-transport.
 // When parameters are encoded, one of these enum values is used to indicate
@@ -65,6 +78,7 @@ enum TransportParameters::TransportParameterId : uint64_t {
   kDiscard = 0x173E,
 
   kGoogleHandshakeMessage = 0x26ab,
+  kDebuggingSni = 0x219bbcd0,
 
   kInitialRoundTripTime = 0x3127,
   kGoogleConnectionOptions = 0x3128,
@@ -142,6 +156,8 @@ std::string TransportParameterIdToString(
       return "discard";
     case TransportParameters::kGoogleHandshakeMessage:
       return "google_handshake_message";
+    case TransportParameters::kDebuggingSni:
+      return "debugging_sni";
     case TransportParameters::kInitialRoundTripTime:
       return "initial_round_trip_time";
     case TransportParameters::kGoogleConnectionOptions:
@@ -223,6 +239,7 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kMaxDatagramFrameSize:
     case TransportParameters::kDiscard:
     case TransportParameters::kGoogleHandshakeMessage:
+    case TransportParameters::kDebuggingSni:
     case TransportParameters::kInitialRoundTripTime:
     case TransportParameters::kGoogleConnectionOptions:
     case TransportParameters::kGoogleQuicVersion:
@@ -478,6 +495,10 @@ std::string TransportParameters::ToString() const {
                     TransportParameterIdToString(kGoogleHandshakeMessage),
                     " length: ", google_handshake_message->length());
   }
+  if (debugging_sni.has_value()) {
+    absl::StrAppend(&rv, " ", TransportParameterIdToString(kDebuggingSni),
+                    " value: ", *debugging_sni);
+  }
   rv += initial_round_trip_time_us.ToString(/*for_use_in_list=*/true);
   if (google_connection_options.has_value()) {
     rv += " " + TransportParameterIdToString(kGoogleConnectionOptions) + " ";
@@ -566,6 +587,7 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       initial_round_trip_time_us(other.initial_round_trip_time_us),
       discard_length(other.discard_length),
       google_handshake_message(other.google_handshake_message),
+      debugging_sni(other.debugging_sni),
       google_connection_options(other.google_connection_options),
       custom_parameters(other.custom_parameters) {
   if (other.preferred_address) {
@@ -609,6 +631,7 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
             rhs.initial_round_trip_time_us.value() &&
         discard_length == rhs.discard_length &&
         google_handshake_message == rhs.google_handshake_message &&
+        debugging_sni == rhs.debugging_sni &&
         google_connection_options == rhs.google_connection_options &&
         custom_parameters == rhs.custom_parameters)) {
     return false;
@@ -682,6 +705,10 @@ bool TransportParameters::AreValid(std::string* error_details) const {
   if (perspective == Perspective::IS_SERVER &&
       google_handshake_message.has_value()) {
     *error_details = "Server cannot send google_handshake_message";
+    return false;
+  }
+  if (perspective == Perspective::IS_SERVER && debugging_sni.has_value()) {
+    *error_details = "Server cannot send debugging_sni";
     return false;
   }
   if (perspective == Perspective::IS_SERVER &&
@@ -804,6 +831,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       kIntegerParameterLength +           // initial_round_trip_time_us
       kTypeAndValueLength +               // discard
       kTypeAndValueLength +               // google_handshake_message
+      kTypeAndValueLength +               // debugging_sni
       kTypeAndValueLength +               // google_connection_options
       kTypeAndValueLength;                // google-version
 
@@ -826,6 +854,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       TransportParameters::kReliableStreamReset,
       TransportParameters::kDiscard,
       TransportParameters::kGoogleHandshakeMessage,
+      TransportParameters::kDebuggingSni,
       TransportParameters::kInitialRoundTripTime,
       TransportParameters::kDisableActiveMigration,
       TransportParameters::kPreferredAddress,
@@ -865,6 +894,10 @@ bool SerializeTransportParameters(const TransportParameters& in,
   // google_handshake_message.
   if (in.google_handshake_message.has_value()) {
     max_transport_param_length += in.google_handshake_message->length();
+  }
+  // debugging_sni.
+  if (in.debugging_sni.has_value()) {
+    max_transport_param_length += in.debugging_sni->length();
   }
 
   // Add a random GREASE transport parameter, as defined in the
@@ -1074,6 +1107,21 @@ bool SerializeTransportParameters(const TransportParameters& in,
             QUIC_BUG(Failed to write google_handshake_message)
                 << "Failed to write google_handshake_message: "
                 << *in.google_handshake_message << " for " << in;
+            return false;
+          }
+        }
+      } break;
+      // debugging_sni.
+      case TransportParameters::kDebuggingSni: {
+        if (in.debugging_sni.has_value()) {
+          QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, in.perspective);
+          // Obfuscate the SNI before writing it to the transport parameters.
+          std::string obfuscated_sni = ObfuscateSni(*in.debugging_sni);
+          if (!writer.WriteVarInt62(TransportParameters::kDebuggingSni) ||
+              !writer.WriteStringPieceVarInt62(obfuscated_sni)) {
+            QUIC_BUG(failed_to_write_debugging_sni)
+                << "Failed to write debugging_sni: " << *in.debugging_sni
+                << " obfuscated to: " << obfuscated_sni << " for " << in;
             return false;
           }
         }
@@ -1526,6 +1574,14 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         out->google_handshake_message =
             std::string(value_reader.ReadRemainingPayload());
         break;
+      case TransportParameters::kDebuggingSni:
+        if (out->debugging_sni.has_value()) {
+          *error_details = "Received a second debugging_sni";
+          return false;
+        }
+        // Deobfuscate the SNI and store it in the transport parameters.
+        out->debugging_sni = ObfuscateSni(value_reader.ReadRemainingPayload());
+        break;
       case TransportParameters::kInitialRoundTripTime:
         parse_success =
             out->initial_round_trip_time_us.Read(&value_reader, error_details);
@@ -1762,5 +1818,4 @@ void DegreaseTransportParameters(TransportParameters& parameters) {
     parameters.version_information->other_versions = std::move(clean_versions);
   }
 }
-
 }  // namespace quic

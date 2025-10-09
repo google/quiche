@@ -507,6 +507,14 @@ QuicConfig::GetReceivedGoogleHandshakeMessage() const {
   return received_google_handshake_message_;
 }
 
+void QuicConfig::SetDebuggingSniToSend(const std::string& debugging_sni) {
+  debugging_sni_to_send_ = debugging_sni;
+}
+
+const std::optional<std::string>& QuicConfig::GetReceivedDebuggingSni() const {
+  return received_debugging_sni_;
+}
+
 void QuicConfig::SetDiscardLengthToSend(int32_t discard_length) {
   discard_length_to_send_ = discard_length;
 }
@@ -1292,6 +1300,9 @@ bool QuicConfig::FillTransportParameters(TransportParameters* params) const {
   if (google_handshake_message_to_send_.has_value()) {
     params->google_handshake_message = google_handshake_message_to_send_;
   }
+  if (debugging_sni_to_send_.has_value()) {
+    params->debugging_sni = debugging_sni_to_send_;
+  }
 
   params->discard_length = discard_length_to_send_;
 
@@ -1428,6 +1439,9 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
   }
   if (params.google_handshake_message.has_value()) {
     received_google_handshake_message_ = params.google_handshake_message;
+  }
+  if (params.debugging_sni.has_value()) {
+    received_debugging_sni_ = params.debugging_sni;
   }
 
   received_custom_transport_parameters_ = params.custom_parameters;

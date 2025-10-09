@@ -265,6 +265,10 @@ struct QUICHE_EXPORT TransportParameters {
   // Google internal handshake message.
   std::optional<std::string> google_handshake_message;
 
+  // Debugging Server Name Indication. This is used to send the obfuscated SNI
+  // in the transport parameters to the server for debugging purposes only.
+  std::optional<std::string> debugging_sni;
+
   // Google-specific connection options.
   std::optional<QuicTagVector> google_connection_options;
 

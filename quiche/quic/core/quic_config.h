@@ -266,6 +266,10 @@ class QUICHE_EXPORT QuicConfig {
 
   const std::optional<std::string>& GetReceivedGoogleHandshakeMessage() const;
 
+  void SetDebuggingSniToSend(const std::string& debugging_sni);
+
+  const std::optional<std::string>& GetReceivedDebuggingSni() const;
+
   // Sets initial received connection options.  All received connection options
   // will be initialized with these fields. Initial received options may only be
   // set once per config, prior to the setting of any other options.  If options
@@ -743,6 +747,12 @@ class QUICHE_EXPORT QuicConfig {
   // Google internal handshake message.
   std::optional<std::string> google_handshake_message_to_send_;
   std::optional<std::string> received_google_handshake_message_;
+
+  // Debugging Server Name Indication. These fields are used to send and get the
+  // SNI in the transport parameters from client to the server for
+  // debugging purposes only.
+  std::optional<std::string> debugging_sni_to_send_;
+  std::optional<std::string> received_debugging_sni_;
 
   // Support for RESET_STREAM_AT frame.
   bool reliable_stream_reset_;
