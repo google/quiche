@@ -2,26 +2,29 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <algorithm>
-#include <map>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <ostream>
 #include <string>
-#include <utility>
 #include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
+#include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/quic_bandwidth.h"
+#include "quiche/quic/core/quic_clock.h"
+#include "quiche/quic/core/quic_connection_stats.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/test_tools/mock_clock.h"
-#include "quiche/quic/test_tools/quic_config_peer.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
 #include "quiche/quic/test_tools/quic_sent_packet_manager_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/quic/test_tools/simulator/link.h"
 #include "quiche/quic/test_tools/simulator/quic_endpoint.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/test_tools/simulator/switch.h"
@@ -133,8 +136,6 @@ std::vector<TestParams> GetTestParams() {
   }
   return params;
 }
-
-}  // namespace
 
 class SendAlgorithmTest : public QuicTestWithParam<TestParams> {
  protected:
@@ -345,5 +346,23 @@ TEST_P(SendAlgorithmTest, LowRTTTransfer) {
   PrintTransferStats();
 }
 
+TEST(NetworkParamsStringifyTest, Stringifies) {
+  SendAlgorithmInterface::NetworkParams params(
+      /*bandwidth=*/QuicBandwidth::FromKBitsPerSecond(1000),
+      /*rtt=*/QuicTime::Delta::FromSeconds(2),
+      /*allow_cwnd_to_decrease=*/true);
+
+  params.max_initial_congestion_window = 42;
+  params.is_rtt_trusted = true;
+
+  EXPECT_EQ(testing::PrintToString(params),
+            "NetworkParams { bandwidth: 1000.00 kbits/s (125.00 kbytes/s), "
+            "rtt: 2s, "
+            "max_initial_congestion_window: 42, "
+            "allow_cwnd_to_decrease: true, "
+            "is_rtt_trusted: true }");
+}
+
+}  // namespace
 }  // namespace test
 }  // namespace quic

@@ -40,6 +40,20 @@ class QUICHE_EXPORT SendAlgorithmInterface {
           rtt(rtt),
           allow_cwnd_to_decrease(allow_cwnd_to_decrease) {}
 
+    template <typename Sink>
+    friend void AbslStringify(Sink& sink, const NetworkParams& params) {
+      absl::Format(&sink,
+                   "NetworkParams { "
+                   "bandwidth: %v, "
+                   "rtt: %v, "
+                   "max_initial_congestion_window: %v, "
+                   "allow_cwnd_to_decrease: %v, "
+                   "is_rtt_trusted: %v }",
+                   params.bandwidth, params.rtt,
+                   params.max_initial_congestion_window,
+                   params.allow_cwnd_to_decrease, params.is_rtt_trusted);
+    }
+
     bool operator==(const NetworkParams& other) const = default;
 
     QuicBandwidth bandwidth = QuicBandwidth::Zero();
