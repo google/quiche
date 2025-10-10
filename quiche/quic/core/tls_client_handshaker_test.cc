@@ -12,6 +12,7 @@
 #include "absl/base/macros.h"
 #include "openssl/hpke.h"
 #include "openssl/ssl.h"
+#include "openssl/tls1.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -977,6 +978,49 @@ TEST_P(TlsClientHandshakerTest, EnableClientAlpsUseNewCodepoint) {
   CompleteCryptoHandshake();
   EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
   EXPECT_TRUE(callback_ran);
+}
+
+#if BORINGSSL_API_VERSION >= 37
+TEST_P(TlsClientHandshakerTest, SpecifyClientKeyShares) {
+  crypto_config_->set_preferred_groups(
+      {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519, SSL_GROUP_SECP256R1});
+  crypto_config_->set_client_key_shares({SSL_GROUP_SECP256R1});
+  server_crypto_config_->set_preferred_groups({SSL_GROUP_SECP256R1});
+  CreateConnection();
+
+  // Only one ClientHello is needed because the client specified a key_share
+  // that the server prefers.
+  EXPECT_CALL(*connection_,
+              OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION))
+      .Times(1);
+  EXPECT_CALL(*connection_,
+              OnPacketSent(ENCRYPTION_HANDSHAKE, NOT_RETRANSMISSION))
+      .Times(1);
+  EXPECT_CALL(*connection_,
+              OnPacketSent(ENCRYPTION_FORWARD_SECURE, NOT_RETRANSMISSION))
+      .Times(1);
+  CompleteCryptoHandshake();
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_EQ(stream()->crypto_negotiated_params().key_exchange_group,
+            SSL_GROUP_SECP256R1);
+}
+#endif  // BORINGSSL_API_VERSION >= 37
+
+TEST_P(TlsClientHandshakerTest, SetCompliancePolicyCnsa202407) {
+  crypto_config_->set_ssl_compliance_policy(ssl_compliance_policy_cnsa_202407);
+  CreateConnection();
+  CompleteCryptoHandshake();
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  ASSERT_TRUE(stream()->SslCompliancePolicyForTesting().has_value());
+  EXPECT_EQ(stream()->SslCompliancePolicyForTesting().value(),
+            ssl_compliance_policy_cnsa_202407);
+  // AES-256 is only preferred over the default AES-128 under the CNSA 202407
+  // policy.
+  EXPECT_EQ(stream()->crypto_negotiated_params().cipher_suite,
+            TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff);
 }
 
 }  // namespace

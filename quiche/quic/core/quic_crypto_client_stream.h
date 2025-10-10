@@ -7,8 +7,10 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "quiche/quic/core/proto/cached_network_parameters_proto.h"
@@ -241,6 +243,10 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
     // anchor IDs
     // (https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html#name-overview).
     virtual bool MatchedTrustAnchorIdForTesting() const = 0;
+
+    // Returns the SSL compliance policy configured for the connection, if any.
+    virtual std::optional<ssl_compliance_policy_t>
+    SslCompliancePolicyForTesting() const = 0;
   };
 
   // ProofHandler is an interface that handles callbacks from the crypto
@@ -314,6 +320,7 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
   std::string chlo_hash() const;
 
   bool MatchedTrustAnchorIdForTesting() const;
+  std::optional<ssl_compliance_policy_t> SslCompliancePolicyForTesting() const;
 
  protected:
   void set_handshaker(std::unique_ptr<HandshakerInterface> handshaker) {

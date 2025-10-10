@@ -8,6 +8,7 @@
 #include <cstring>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -44,7 +45,8 @@ TlsClientHandshaker::TlsClientHandshaker(
       pre_shared_key_(crypto_config->pre_shared_key()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       has_application_state_(has_application_state),
-      tls_connection_(crypto_config->ssl_ctx(), this, session->GetSSLConfig()) {
+      tls_connection_(crypto_config->ssl_ctx(), this, session->GetSSLConfig()),
+      ssl_compliance_policy_(crypto_config->ssl_compliance_policy()) {
   if (crypto_config->tls_signature_algorithms().has_value()) {
     SSL_set1_sigalgs_list(ssl(),
                           crypto_config->tls_signature_algorithms()->c_str());
@@ -62,6 +64,12 @@ TlsClientHandshaker::TlsClientHandshaker(
     SSL_set1_group_ids(ssl(), crypto_config->preferred_groups().data(),
                        crypto_config->preferred_groups().size());
   }
+#if BORINGSSL_API_VERSION >= 37
+  if (!crypto_config->client_key_shares().empty()) {
+    SSL_set1_client_key_shares(ssl(), crypto_config->client_key_shares().data(),
+                               crypto_config->client_key_shares().size());
+  }
+#endif
 
   // Make sure we use the right ALPS codepoint.
   SSL_set_alps_use_new_codepoint(ssl(),
@@ -165,6 +173,12 @@ bool TlsClientHandshaker::CryptoConnect() {
         return false;
       }
     }
+  }
+
+  // The compliance policy must be the last thing configured before the
+  // handshake in order to have defined behavior.
+  if (ssl_compliance_policy_.has_value()) {
+    SSL_set_compliance_policy(ssl(), ssl_compliance_policy_.value());
   }
 
   // Start the handshake.
@@ -403,6 +417,11 @@ bool TlsClientHandshaker::ExportKeyingMaterial(absl::string_view label,
 
 bool TlsClientHandshaker::MatchedTrustAnchorIdForTesting() const {
   return matched_trust_anchor_id_;
+}
+
+std::optional<ssl_compliance_policy_t>
+TlsClientHandshaker::SslCompliancePolicyForTesting() const {
+  return ssl_compliance_policy_;
 }
 
 bool TlsClientHandshaker::encryption_established() const {

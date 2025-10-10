@@ -28,6 +28,7 @@
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
@@ -365,11 +366,23 @@ class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
     return preferred_groups_;
   }
 
+  // If non-empty, the groups for which to send key shares in the TLS handshake.
+  const std::vector<uint16_t>& client_key_shares() const {
+    return client_key_shares_;
+  }
+
   // Sets the preferred groups that will be used in the TLS handshake. Values
   // in the |preferred_groups| vector are NamedGroup enum codepoints from
   // https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.7.
   void set_preferred_groups(const std::vector<uint16_t>& preferred_groups) {
     preferred_groups_ = preferred_groups;
+  }
+
+  // Sets the groups for which to send key shares in the TLS handshake. Values
+  // in the |key_shares| vector are NamedGroup enum codepoints from
+  // https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.7.
+  void set_client_key_shares(const std::vector<uint16_t>& key_shares) {
+    client_key_shares_ = key_shares;
   }
 
   // Saves the |user_agent_id| that will be passed in QUIC's CHLO message.
@@ -411,6 +424,18 @@ class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
   bool alps_use_new_codepoint() const { return alps_use_new_codepoint_; }
   void set_alps_use_new_codepoint(bool new_value) {
     alps_use_new_codepoint_ = new_value;
+  }
+
+  std::optional<ssl_compliance_policy_t> ssl_compliance_policy() const {
+    return ssl_compliance_policy_;
+  }
+
+  void set_ssl_compliance_policy(ssl_compliance_policy_t policy) {
+    QUICHE_DCHECK_NE(ssl_compliance_policy_none, policy)
+        << "ssl_compliance_policy_none is not a valid policy to set.";
+    if (policy != ssl_compliance_policy_none) {
+      ssl_compliance_policy_.emplace(policy);
+    }
   }
 
   const QuicSSLConfig& ssl_config() const { return ssl_config_; }
@@ -460,6 +485,10 @@ class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
   // The groups to use for key exchange in the TLS handshake.
   std::vector<uint16_t> preferred_groups_;
 
+  // If non-empty, the groups for which to send key shares in the initial
+  // ClientHello of the TLS handshake.
+  std::vector<uint16_t> client_key_shares_;
+
   // The |user_agent_id_| passed in QUIC's CHLO message.
   std::string user_agent_id_;
 
@@ -491,6 +520,11 @@ class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
   // Set whether ALPS uses the new codepoint or not.
   bool alps_use_new_codepoint_ =
       GetQuicReloadableFlag(quic_client_default_enable_new_alps_codepoint);
+
+  // If not nullopt, the SSL compliance policy to use. See documentation for
+  // ssl_compliance_policy_t values in BoringSSL:
+  // https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#Compliance-policy-configurations
+  std::optional<ssl_compliance_policy_t> ssl_compliance_policy_ = std::nullopt;
 
   // Configs applied to BoringSSL's SSL object. TLS only.
   QuicSSLConfig ssl_config_;

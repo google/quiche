@@ -5,9 +5,11 @@
 #include "quiche/quic/core/quic_crypto_client_stream.h"
 
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/crypto/crypto_utils.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
@@ -139,6 +141,11 @@ std::string QuicCryptoClientStream::chlo_hash() const {
 
 bool QuicCryptoClientStream::MatchedTrustAnchorIdForTesting() const {
   return handshaker_->MatchedTrustAnchorIdForTesting();
+}
+
+std::optional<ssl_compliance_policy_t>
+QuicCryptoClientStream::SslCompliancePolicyForTesting() const {
+  return handshaker_->SslCompliancePolicyForTesting();
 }
 
 void QuicCryptoClientStream::OnOneRttPacketAcknowledged() {

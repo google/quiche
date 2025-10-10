@@ -5,8 +5,10 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_CRYPTO_CLIENT_HANDSHAKER_H_
 #define QUICHE_QUIC_CORE_QUIC_CRYPTO_CLIENT_HANDSHAKER_H_
 
+#include <optional>
 #include <string>
 
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "quiche/quic/core/quic_crypto_client_stream.h"
@@ -76,6 +78,10 @@ class QUICHE_EXPORT QuicCryptoClientHandshaker
     return false;
   }
   bool MatchedTrustAnchorIdForTesting() const override { return false; }
+  std::optional<ssl_compliance_policy_t> SslCompliancePolicyForTesting()
+      const override {
+    return std::nullopt;
+  }
 
   // From QuicCryptoHandshaker
   void OnHandshakeMessage(const CryptoHandshakeMessage& message) override;
