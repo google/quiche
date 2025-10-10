@@ -168,7 +168,10 @@ MockableQuicClientDefaultNetworkHelper::CreateQuicPacketWriter() {
     return writer;
   }
   test_writer_->set_writer(writer);
-  return test_writer_;
+  QuicPacketWriterWrapper* test_writer = test_writer_;
+  // Reset the `test_writer_` so that it can't be used again.
+  test_writer_ = nullptr;
+  return test_writer;
 }
 
 void MockableQuicClientDefaultNetworkHelper::set_socket_fd_configurator(
@@ -262,9 +265,11 @@ void MockableQuicClient::UseWriter(QuicPacketWriterWrapper* writer) {
 }
 
 void MockableQuicClient::set_peer_address(const QuicSocketAddress& address) {
-  mockable_network_helper()->set_peer_address(address);
   if (client_session() != nullptr) {
     client_session()->connection()->AddKnownServerAddress(address);
+    static_cast<QuicPacketWriterWrapper*>(writer())->set_peer_address(address);
+  } else {
+    mockable_network_helper()->set_peer_address(address);
   }
 }
 

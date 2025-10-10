@@ -18,6 +18,7 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_crypto_client_stream.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_force_blockable_packet_writer.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/core/quic_server_id.h"
@@ -193,7 +194,18 @@ bool QuicClientBase::Connect() {
 void QuicClientBase::StartConnect() {
   QUICHE_DCHECK(initialized_);
   QUICHE_DCHECK(!connected());
-  QuicPacketWriter* writer = network_helper_->CreateQuicPacketWriter();
+  QuicPacketWriter* writer = nullptr;
+  if (!handle_migration_in_session_) {
+    writer = network_helper_->CreateQuicPacketWriter();
+  } else {
+    // To support connection/port migration using migration manager, the writer
+    // needs to be force blockable.
+    auto* force_blockable_writer = new QuicForceBlockablePacketWriter();
+    // Owns `inner_writer`.
+    force_blockable_writer->set_writer(
+        network_helper_->CreateQuicPacketWriter());
+    writer = force_blockable_writer;
+  }
   ParsedQuicVersion mutual_version = UnsupportedQuicVersion();
   const bool can_reconnect_with_different_version =
       CanReconnectWithDifferentVersion(&mutual_version);

@@ -56,6 +56,7 @@
 #include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/core/quic_dispatcher_stats.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_force_blockable_packet_writer.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/core/quic_interval_set.h"
@@ -1031,6 +1032,15 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     CreateClientWithWriter();
   }
 
+  // Customized writer can only apply to one session. Version negotiation tests
+  // will create a 2nd version-compatible session with a new writer in
+  // Initialize() and discard the initial writer. It is not safe to access the
+  // customized writer after initial Connect() call in and after Initialize().
+  void ResetClientWriterForVersionNegotiationTest() {
+    delete client_writer_;
+    client_writer_ = nullptr;
+  }
+
   void TestMultiPacketChaosProtection(int num_packets, bool drop_first_packet,
                                       bool kyber = false);
 
@@ -1177,6 +1187,24 @@ TEST_P(EndToEndTest, ExportKeyingMaterial) {
   ASSERT_EQ(client_keying_material_export.size(),
             static_cast<size_t>(kExportLen));
   EXPECT_EQ(client_keying_material_export, server_keying_material_export);
+}
+
+TEST_P(EndToEndTest, UseForceBlockableWriter) {
+  connect_to_server_on_initialize_ = false;
+  ASSERT_TRUE(Initialize());
+  client_.reset(CreateQuicClient(client_writer_, /*connect=*/false));
+  client_->client()->Initialize();
+  client_->client()->set_handle_migration_in_session(true);
+  client_->client()->Connect();
+  ASSERT_NE(client_->client()->session(), nullptr);
+  // Verify that the writer is a force blockable writer.
+  auto* force_blockable_writer = static_cast<QuicForceBlockablePacketWriter*>(
+      client_->client()->session()->connection()->writer());
+  EXPECT_NE(force_blockable_writer, nullptr);
+  EXPECT_FALSE(force_blockable_writer->IsWriteBlocked());
+  force_blockable_writer->ForceWriteBlocked(true);
+  EXPECT_TRUE(force_blockable_writer->IsWriteBlocked());
+  force_blockable_writer->ForceWriteBlocked(false);
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponse) {
@@ -1558,6 +1586,7 @@ TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
   NiceMock<MockQuicConnectionDebugVisitor> visitor;
   connection_debug_visitor_ = &visitor;
   EXPECT_CALL(visitor, OnVersionNegotiationPacket(_)).Times(1);
+  ResetClientWriterForVersionNegotiationTest();
   ASSERT_TRUE(Initialize());
   ASSERT_TRUE(ServerSendsVersionNegotiation());
 
@@ -1570,6 +1599,7 @@ TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
 TEST_P(EndToEndTest, ForcedVersionNegotiation) {
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());
+  ResetClientWriterForVersionNegotiationTest();
   ASSERT_TRUE(Initialize());
   ASSERT_TRUE(ServerSendsVersionNegotiation());
 
@@ -1644,6 +1674,7 @@ TEST_P(EndToEndTest, ClientConnectionId) {
 }
 
 TEST_P(EndToEndTest, ForcedVersionNegotiationAndClientConnectionId) {
+  ResetClientWriterForVersionNegotiationTest();
   if (!version_.SupportsClientConnectionIds()) {
     ASSERT_TRUE(Initialize());
     return;
@@ -1662,6 +1693,7 @@ TEST_P(EndToEndTest, ForcedVersionNegotiationAndClientConnectionId) {
 }
 
 TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
+  ResetClientWriterForVersionNegotiationTest();
   if (!version_.AllowsVariableLengthConnectionIds() ||
       override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
@@ -1683,6 +1715,7 @@ TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
 // Forced Version Negotiation with a client connection ID and a long
 // connection ID.
 TEST_P(EndToEndTest, ForcedVersNegoAndClientCIDAndLongCID) {
+  ResetClientWriterForVersionNegotiationTest();
   if (!version_.SupportsClientConnectionIds() ||
       !version_.AllowsVariableLengthConnectionIds() ||
       override_server_connection_id_length_ != kLongConnectionIdLength) {
@@ -3618,8 +3651,6 @@ TEST_P(EndToEndTest, ClientAddressSpoofedForSomePeriod) {
   if (!version_.HasIetfQuicFrames()) {
     return;
   }
-  auto writer = new DuplicatePacketWithSpoofedSelfAddressWriter();
-  client_.reset(CreateQuicClient(writer));
 
   // Make sure client has unused peer connection ID before migration.
   SendSynchronousFooRequestAndCheckResponse();
@@ -3628,6 +3659,9 @@ TEST_P(EndToEndTest, ClientAddressSpoofedForSomePeriod) {
 
   QuicIpAddress real_host =
       client_->client()->session()->connection()->self_address().host();
+  // Use a spoofed writer after migration.
+  auto writer = new DuplicatePacketWithSpoofedSelfAddressWriter();
+  client_->UseWriter(writer);
   ASSERT_TRUE(client_->MigrateSocket(real_host));
   SendSynchronousFooRequestAndCheckResponse();
   EXPECT_EQ(
@@ -3820,42 +3854,18 @@ TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {
   // Store the client address which was used to send the first request.
   QuicSocketAddress old_address =
       client_->client()->network_helper()->GetLatestClientAddress();
-  int old_fd = client_->client()->GetLatestFD();
 
-  // Create a new socket before closing the old one, which will result in a new
-  // ephemeral port.
-  client_->client()->network_helper()->CreateUDPSocketAndBind(
-      client_->client()->server_address(), client_->client()->bind_to_address(),
-      client_->client()->local_port());
-
-  // Stop listening and close the old FD.
-  client_->client()->default_network_helper()->CleanUpUDPSocket(old_fd);
-
-  // The packet writer needs to be updated to use the new FD.
-  client_->client()->network_helper()->CreateQuicPacketWriter();
-
-  // Change the internal state of the client and connection to use the new port,
-  // this is done because in a real NAT rebinding the client wouldn't see any
-  // port change, and so expects no change to incoming port.
-  // This is kind of ugly, but needed as we are simply swapping out the client
-  // FD rather than any more complex NAT rebinding simulation.
-  int new_port =
-      client_->client()->network_helper()->GetLatestClientAddress().port();
-  client_->client()->default_network_helper()->SetClientPort(new_port);
-  QuicConnection* client_connection = GetClientConnection();
-  ASSERT_TRUE(client_connection);
-  QuicConnectionPeer::SetSelfAddress(
-      client_connection,
-      QuicSocketAddress(client_connection->self_address().host(), new_port));
-
-  // Send a second request, using the new FD.
-  SendSynchronousBarRequestAndCheckResponse();
-
+  // Migrate to the same IP address which will result in using a new ephemeral
+  // port.
+  client_->client()->MigrateSocket(old_address.host());
   // Verify that the client's ephemeral port is different.
   QuicSocketAddress new_address =
       client_->client()->network_helper()->GetLatestClientAddress();
   EXPECT_EQ(old_address.host(), new_address.host());
   EXPECT_NE(old_address.port(), new_address.port());
+
+  // Send a second request, using the new FD.
+  SendSynchronousBarRequestAndCheckResponse();
 
   if (!version_.HasIetfQuicFrames()) {
     return;
@@ -4557,7 +4567,12 @@ class DowngradePacketWriter : public PacketDroppingTestWriter {
         client_(client),
         server_writer_(server_writer),
         server_thread_(server_thread) {}
-  ~DowngradePacketWriter() override {}
+  ~DowngradePacketWriter() override {
+    if (intercept_enabled_) {
+      // Resume the server thread if the writer is still intercepting.
+      server_thread_->Resume();
+    }
+  }
 
   WriteResult WritePacket(const char* buffer, size_t buf_len,
                           const QuicIpAddress& self_address,
@@ -4619,6 +4634,7 @@ class DowngradePacketWriter : public PacketDroppingTestWriter {
 };
 
 TEST_P(EndToEndTest, VersionNegotiationDowngradeAttackIsDetected) {
+  ResetClientWriterForVersionNegotiationTest();
   ParsedQuicVersion target_version = server_supported_versions_.back();
   if (!version_.UsesTls() || target_version == version_) {
     ASSERT_TRUE(Initialize());
@@ -4638,7 +4654,6 @@ TEST_P(EndToEndTest, VersionNegotiationDowngradeAttackIsDetected) {
                                    client_config_, client_supported_versions_,
                                    crypto_test_utils::ProofVerifierForTesting(),
                                    std::make_unique<QuicClientSessionCache>()));
-  delete client_writer_;
   client_writer_ = new DowngradePacketWriter(target_version, downgrade_versions,
                                              client_.get(), server_writer_,
                                              server_thread_.get());

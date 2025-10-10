@@ -351,6 +351,11 @@ class QuicClientBase : public QuicSession::Visitor {
 
   virtual void OnSocketMigrationProbingFailure() {}
 
+  // Must be called before the initial Connect() call.
+  void set_handle_migration_in_session(bool handle_migration_in_session) {
+    handle_migration_in_session_ = handle_migration_in_session;
+  }
+
  protected:
   // TODO(rch): Move GetNumSentClientHellosFromSession and
   // GetNumReceivedServerConfigUpdatesFromSession into a new/better
@@ -395,6 +400,10 @@ class QuicClientBase : public QuicSession::Visitor {
 
   // Allows derived classes to access this when creating connections.
   ConnectionIdGeneratorInterface& connection_id_generator();
+
+  bool handle_migration_in_session() const {
+    return handle_migration_in_session_;
+  }
 
  private:
   // Returns true and set |version| if client can reconnect with a different
@@ -493,6 +502,9 @@ class QuicClientBase : public QuicSession::Visitor {
 
   bool allow_port_migration_{false};
   uint32_t num_path_degrading_handled_{0};
+  // If true, the migration will be handled in the session instead of the
+  // client.
+  bool handle_migration_in_session_{false};
 };
 
 }  // namespace quic
