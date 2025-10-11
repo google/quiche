@@ -15,6 +15,7 @@
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -74,10 +75,12 @@ class MockStream : public webtransport::test::MockStream {
 
 class MoqtProbeManagerTest : public quiche::test::QuicheTest {
  protected:
-  MoqtProbeManagerTest() : manager_(&session_, &clock_, alarm_factory_) {}
+  MoqtProbeManagerTest()
+      : manager_(&session_, &clock_, alarm_factory_, &trace_recorder_) {}
 
   webtransport::test::MockSession session_;
   quic::MockClock clock_;
+  MoqtTraceRecorder trace_recorder_;
   quic::test::MockAlarmFactory alarm_factory_;
   MoqtProbeManager manager_;
 };

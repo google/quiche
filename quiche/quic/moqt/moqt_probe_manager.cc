@@ -42,6 +42,7 @@ std::optional<ProbeId> MoqtProbeManager::StartProbe(
   if (stream == nullptr) {
     return std::nullopt;
   }
+  trace_recorder_->RecordProbeStreamCreated(stream->GetStreamId(), id);
 
   probe_ = PendingProbe{
       id,         clock_->ApproximateNow(), clock_->ApproximateNow() + timeout,

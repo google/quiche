@@ -31,6 +31,7 @@
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simulator/test_harness.h"
+#include "quic_trace/quic_trace.pb.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace moqt::test {
@@ -60,6 +61,10 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
     server_->session()->callbacks() = server_callbacks_.AsSessionCallbacks();
     server_->session()->callbacks().clock =
         test_harness_.simulator().GetClock();
+
+    client_->RecordTrace();
+    client_->session()->trace_recorder().set_trace(
+        client_->trace_visitor()->trace());
   }
 
   void WireUpEndpoints() { test_harness_.WireUpEndpoints(); }
@@ -842,7 +847,8 @@ TEST_F(MoqtIntegrationTest, BandwidthProbe) {
   EstablishSession();
   MoqtProbeManager probe_manager(client_->session()->session(),
                                  test_harness_.simulator().GetClock(),
-                                 *test_harness_.simulator().GetAlarmFactory());
+                                 *test_harness_.simulator().GetAlarmFactory(),
+                                 &client_->session()->trace_recorder());
 
   constexpr quic::QuicBandwidth kModelBandwidth =
       quic::simulator::TestHarness::kServerBandwidth;
@@ -850,14 +856,77 @@ TEST_F(MoqtIntegrationTest, BandwidthProbe) {
   constexpr quic::QuicTimeDelta kProbeTimeout =
       kModelBandwidth.TransferTime(kProbeSize) * 10;
   bool probe_done = false;
-  probe_manager.StartProbe(kProbeSize, kProbeTimeout,
-                           [&probe_done](const ProbeResult& result) {
-                             probe_done = true;
-                             EXPECT_EQ(result.status, ProbeStatus::kSuccess);
-                           });
+  std::optional<ProbeId> probe_id = probe_manager.StartProbe(
+      kProbeSize, kProbeTimeout, [&probe_done](const ProbeResult& result) {
+        probe_done = true;
+        EXPECT_EQ(result.status, ProbeStatus::kSuccess);
+      });
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return probe_done; });
   EXPECT_TRUE(success);
+
+  int probe_streams = 0;
+  for (const quic_trace::StreamAnnotation& annotation :
+       client_->trace_visitor()->trace()->stream_annotations()) {
+    if (annotation.has_moqt_probe_stream()) {
+      ++probe_streams;
+      EXPECT_EQ(probe_id, annotation.moqt_probe_stream().probe_id());
+    }
+  }
+  EXPECT_EQ(probe_streams, 1);
+}
+
+TEST_F(MoqtIntegrationTest, RecordTrace) {
+  EstablishSession();
+  MoqtKnownTrackPublisher publisher;
+  client_->session()->set_publisher(&publisher);
+
+  MockSubscribeRemoteTrackVisitor client_visitor;
+  auto queue = std::make_shared<MoqtOutgoingQueue>(
+      FullTrackName{"test", "subgroup"}, MoqtForwardingPreference::kSubgroup);
+  publisher.Add(queue);
+
+  server_->session()->SubscribeCurrentObject(FullTrackName("test", "subgroup"),
+                                             &client_visitor,
+                                             VersionSpecificParameters());
+  bool subscribed = false;
+  EXPECT_CALL(client_visitor, OnReply)
+      .WillOnce([&](const FullTrackName&,
+                    std::variant<SubscribeOkData, MoqtRequestError>) {
+        subscribed = true;
+      });
+  bool success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return subscribed; });
+  EXPECT_TRUE(success);
+
+  queue->AddObject(MemSliceFromString("object"), /*key=*/true);
+  int received = 0;
+  EXPECT_CALL(client_visitor,
+              OnObjectFragment(_,
+                               MetadataLocationAndStatus(
+                                   Location{0, 0}, MoqtObjectStatus::kNormal),
+                               "object", true))
+      .WillOnce([&] { ++received; });
+
+  success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return received >= 1; });
+  EXPECT_TRUE(success);
+
+  int control_streams = 0;
+  int subgroup_streams = 0;
+  for (const quic_trace::StreamAnnotation& annotation :
+       client_->trace_visitor()->trace()->stream_annotations()) {
+    if (annotation.moqt_control_stream()) {
+      ++control_streams;
+    }
+    if (annotation.has_moqt_subgroup_stream()) {
+      ++subgroup_streams;
+      EXPECT_EQ(annotation.moqt_subgroup_stream().group_id(), 0);
+      EXPECT_EQ(annotation.moqt_subgroup_stream().subgroup_id(), 0);
+    }
+  }
+  EXPECT_EQ(control_streams, 1);
+  EXPECT_EQ(subgroup_streams, 1);
 }
 
 }  // namespace

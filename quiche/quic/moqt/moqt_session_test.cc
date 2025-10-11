@@ -265,7 +265,7 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
         visitor = std::move(new_visitor);
       });
   EXPECT_CALL(mock_stream_, GetStreamId())
-      .WillOnce(Return(webtransport::StreamId(4)));
+      .WillRepeatedly(Return(webtransport::StreamId(4)));
   EXPECT_CALL(mock_session_, GetStreamById(4)).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(mock_stream_, visitor()).WillOnce([&] { return visitor.get(); });
   EXPECT_CALL(mock_stream_,
@@ -1919,7 +1919,7 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamClient) {
         visitor = std::move(new_visitor);
       });
   EXPECT_CALL(mock_stream_, GetStreamId())
-      .WillOnce(Return(webtransport::StreamId(4)));
+      .WillRepeatedly(Return(webtransport::StreamId(4)));
   EXPECT_CALL(mock_session_, GetStreamById(4)).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(mock_stream_, visitor()).WillOnce([&] { return visitor.get(); });
   EXPECT_CALL(mock_stream_,

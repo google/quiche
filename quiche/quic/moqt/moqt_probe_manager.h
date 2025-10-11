@@ -14,6 +14,7 @@
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -68,9 +69,11 @@ class MoqtProbeManager : public MoqtProbeManagerInterface {
  public:
   explicit MoqtProbeManager(webtransport::Session* session,
                             const quic::QuicClock* clock,
-                            quic::QuicAlarmFactory& alarm_factory)
+                            quic::QuicAlarmFactory& alarm_factory,
+                            MoqtTraceRecorder* trace_recorder)
       : session_(session),
         clock_(clock),
+        trace_recorder_(trace_recorder),
         timeout_alarm_(alarm_factory.CreateAlarm(new AlarmDelegate(this))) {}
 
   // MoqtProbeManagerInterface implementation.
@@ -140,6 +143,7 @@ class MoqtProbeManager : public MoqtProbeManagerInterface {
   std::optional<PendingProbe> probe_;
   webtransport::Session* session_;
   const quic::QuicClock* clock_;
+  MoqtTraceRecorder* trace_recorder_;
   std::unique_ptr<quic::QuicAlarm> timeout_alarm_;
   ProbeId next_probe_id_ = 0;
 };

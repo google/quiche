@@ -39,6 +39,7 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 #include "quiche/quic/test_tools/simulator/actor.h"
 #include "quiche/quic/test_tools/simulator/link.h"
@@ -415,6 +416,9 @@ class MoqtSimulator {
                                                timeout);
     }
     client_endpoint_.RecordTrace();
+    QUICHE_DCHECK(client_endpoint_.trace_visitor() != nullptr);
+    client_endpoint_.session()->trace_recorder().set_trace(
+        client_endpoint_.trace_visitor()->trace());
   }
 
   MoqtSession* client_session() { return client_endpoint_.session(); }

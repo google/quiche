@@ -936,6 +936,7 @@ MoqtSession::ControlStream::ControlStream(MoqtSession* session,
   stream_->SetPriority(
       webtransport::StreamPriority{/*send_group_id=*/kMoqtSendGroupId,
                                    /*send_order=*/kMoqtControlStreamSendOrder});
+  session->trace_recorder_.RecordControlStreamCreated(stream->GetStreamId());
 }
 
 void MoqtSession::ControlStream::OnCanRead() {
@@ -2320,6 +2321,10 @@ MoqtSession::OutgoingDataStream::OutgoingDataStream(
       next_object_(parameters.first_object),
       session_liveness_(session->liveness_token_) {
   UpdateSendOrder(subscription);
+  if (subscription.track_alias().has_value()) {
+    session->trace_recorder_.RecordSubgroupStreamCreated(
+        stream->GetStreamId(), *subscription.track_alias(), parameters.index);
+  }
 }
 
 MoqtSession::OutgoingDataStream::~OutgoingDataStream() {
@@ -2572,6 +2577,15 @@ void MoqtSession::OutgoingDataStream::CreateAndSetAlarm(
   delivery_timeout_alarm_ = absl::WrapUnique(
       session_->alarm_factory_->CreateAlarm(new DeliveryTimeoutDelegate(this)));
   delivery_timeout_alarm_->Set(deadline);
+}
+
+MoqtSession::PublishedFetch::FetchStreamVisitor::FetchStreamVisitor(
+    std::shared_ptr<PublishedFetch> fetch, webtransport::Stream* stream)
+    : fetch_(fetch), stream_(stream) {
+  fetch->fetch_task()->SetObjectAvailableCallback(
+      [this]() { this->OnCanWrite(); });
+  fetch->session()->trace_recorder_.RecordFetchStreamCreated(
+      stream->GetStreamId());
 }
 
 }  // namespace moqt

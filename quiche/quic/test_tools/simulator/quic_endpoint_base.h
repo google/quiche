@@ -7,6 +7,7 @@
 
 #include <memory>
 
+#include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "quiche/quic/core/crypto/null_decrypter.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
@@ -68,6 +69,11 @@ class QuicEndpointBase : public Endpoint,
 
   // Queue::ListenerInterface method.
   void OnPacketDequeued() override;
+
+  // Returns the trace visitor associated with the connection.
+  QuicTraceVisitor* absl_nullable trace_visitor() {
+    return trace_visitor_.get();
+  }
 
  protected:
   // A Writer object that writes into the |nic_tx_queue_|.

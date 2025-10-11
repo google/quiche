@@ -31,6 +31,7 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
+#include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/session_namespace_tree.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -196,6 +197,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   void GrantMoreRequests(uint64_t num_requests);
 
   void UseAlternateDeliveryTimeout() { alternate_delivery_timeout_ = true; }
+
+  MoqtTraceRecorder& trace_recorder() { return trace_recorder_; }
 
  private:
   friend class test::MoqtSessionPeer;
@@ -582,11 +585,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     class FetchStreamVisitor : public webtransport::StreamVisitor {
      public:
       FetchStreamVisitor(std::shared_ptr<PublishedFetch> fetch,
-                         webtransport::Stream* stream)
-          : fetch_(fetch), stream_(stream) {
-        fetch->fetch_task()->SetObjectAvailableCallback(
-            [this]() { this->OnCanWrite(); });
-      }
+                         webtransport::Stream* stream);
       ~FetchStreamVisitor() {
         std::shared_ptr<PublishedFetch> fetch = fetch_.lock();
         if (fetch != nullptr) {
@@ -876,6 +875,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // If true, use a non-standard design where a timer starts for group n when
   // the first object of group n+1 arrives.
   bool alternate_delivery_timeout_ = false;
+
+  MoqtTraceRecorder trace_recorder_;
 
   quiche::QuicheWeakPtrFactory<MoqtSessionInterface> weak_ptr_factory_;
 
