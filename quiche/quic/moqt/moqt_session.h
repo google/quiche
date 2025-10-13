@@ -81,6 +81,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     if (goaway_timeout_alarm_ != nullptr) {
       goaway_timeout_alarm_->PermanentCancel();
     }
+    for (const TrackNamespace& track_namespace : incoming_publish_namespaces_) {
+      callbacks_.incoming_publish_namespace_callback(track_namespace,
+                                                     std::nullopt, nullptr);
+    }
     std::move(callbacks_.session_deleted_callback)();
   }
 
@@ -102,17 +106,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                           VersionSpecificParameters parameters);
   bool UnsubscribeNamespace(TrackNamespace track_namespace);
 
-  // Send a PUBLISH_NAMESPACE message for |track_namespace|, and call
-  // |publish_namespace_callback| when the response arrives. Will fail
-  // immediately if there is already an unresolved PUBLISH_NAMESPACE for that
-  // namespace.
-  void PublishNamespace(
-      TrackNamespace track_namespace,
-      MoqtOutgoingPublishNamespaceCallback publish_namespace_callback,
-      VersionSpecificParameters parameters);
-  // Returns true if message was sent, false if there is no PUBLISH_NAMESPACE to
-  // cancel.
-  bool PublishNamespaceDone(TrackNamespace track_namespace);
   // Allows the subscriber to declare it will not subscribe to |track_namespace|
   // anymore.
   void CancelPublishNamespace(TrackNamespace track_namespace,
@@ -155,6 +148,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                             uint64_t num_previous_groups, MoqtPriority priority,
                             std::optional<MoqtDeliveryOrder> delivery_order,
                             VersionSpecificParameters parameters) override;
+  void PublishNamespace(
+      TrackNamespace track_namespace,
+      MoqtOutgoingPublishNamespaceCallback publish_namespace_callback,
+      VersionSpecificParameters parameters) override;
+  bool PublishNamespaceDone(TrackNamespace track_namespace) override;
   quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() override {
     return weak_ptr_factory_.Create();
   }
@@ -846,6 +844,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // All outgoing PUBLISH_NAMESPACE.
   absl::flat_hash_map<TrackNamespace, MoqtOutgoingPublishNamespaceCallback>
       outgoing_publish_namespaces_;
+  absl::flat_hash_set<TrackNamespace> incoming_publish_namespaces_;
 
   // The value is nullptr after OK or ERROR is received. The entry is deleted
   // when sending UNSUBSCRIBE_NAMESPACE, to make sure the application doesn't

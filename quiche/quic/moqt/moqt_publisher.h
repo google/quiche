@@ -112,26 +112,6 @@ class MoqtTrackPublisher {
       uint64_t group, std::optional<MoqtDeliveryOrder> order) = 0;
 };
 
-// MoqtSession delivers a NamespaceListener to a TrackPublisher to receive
-// notifications that sub-namespaces are available, and receive tracks that
-// are published within that namespace. This generally occurs when the session
-// receives a SUBSCRIBE_NAMESPACE message.
-class NamespaceListener {
- public:
-  virtual ~NamespaceListener() = default;
-  // Called when a namespace is published. Will generally result in the
-  // receiving session sending a PUBLISH_NAMESPACE message.
-  virtual void OnNamespacePublished(const TrackNamespace& track_namespace) = 0;
-  // Called when a namespace is no longer available. Will generally result in
-  // the receiving session sending a PUBLISH_NAMESPACE_DONE message.
-  virtual void OnNamespaceDone(const TrackNamespace& track_namespace) = 0;
-  // Called when a track is published within the namespace. Will generally
-  // result in the receiving session sending a PUBLISH message. Track APIs are
-  // available in |publisher|.
-  virtual void OnTrackPublished(
-      std::shared_ptr<MoqtTrackPublisher> publisher) = 0;
-};
-
 // MoqtPublisher is an interface to a publisher that allows it to publish
 // multiple tracks.
 class MoqtPublisher {
@@ -141,8 +121,6 @@ class MoqtPublisher {
   // Called by MoqtSession based on messages arriving on the wire.
   virtual absl_nullable std::shared_ptr<MoqtTrackPublisher> GetTrack(
       const FullTrackName& track_name) = 0;
-  virtual void AddNamespaceListener(NamespaceListener* listener) = 0;
-  virtual void RemoveNamespaceListener(NamespaceListener* listener) = 0;
 };
 
 }  // namespace moqt

@@ -61,6 +61,7 @@ class ChatClient {
              absl::string_view localhost,
              quic::QuicEventLoop* event_loop = nullptr);
   ~ChatClient() {
+    session_is_open_ = false;
     if (session_ != nullptr) {
       session_->Close();
       session_ = nullptr;

@@ -27,9 +27,6 @@ class MoqtKnownTrackPublisher : public MoqtPublisher {
   // MoqtPublisher implementation.
   absl_nullable std::shared_ptr<MoqtTrackPublisher> GetTrack(
       const FullTrackName& track_name) override;
-  // TODO(martinduke): Implement namespace support.
-  void AddNamespaceListener(NamespaceListener* /*listener*/) override {}
-  void RemoveNamespaceListener(NamespaceListener* /*listener*/) override {}
 
   void Add(std::shared_ptr<MoqtTrackPublisher> track_publisher);
   void Delete(const FullTrackName& track_name);

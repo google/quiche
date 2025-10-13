@@ -30,12 +30,12 @@ absl_nullable std::shared_ptr<MoqtTrackPublisher> MoqtRelayPublisher::GetTrack(
   }
   // Make a copy, because this namespace might be truncated.
   TrackNamespace track_namespace = track_name.track_namespace();
-  QuicheWeakPtr<MoqtSessionInterface> upstream = GetUpstream(track_namespace);
-  if (!upstream.IsValid()) {
+  MoqtSessionInterface* upstream = GetUpstream(track_namespace);
+  if (upstream == nullptr) {
     return nullptr;
   }
   auto track_publisher = std::make_shared<MoqtRelayTrackPublisher>(
-      track_name, std::move(upstream),
+      track_name, upstream->GetWeakPtr(),
       [this, track_name] { tracks_.erase(track_name); }, std::nullopt,
       std::nullopt);
   tracks_[track_name] = track_publisher;
@@ -87,22 +87,12 @@ void MoqtRelayPublisher::OnPublishNamespaceDone(
   // TODO(martinduke): Notify subscribers listening for this namespace.
 }
 
-QuicheWeakPtr<MoqtSessionInterface> MoqtRelayPublisher::GetUpstream(
+MoqtSessionInterface* MoqtRelayPublisher::GetUpstream(
     TrackNamespace& track_namespace) {
-  quiche::QuicheWeakPtr<MoqtSessionInterface> upstream;
-  upstream = namespace_publishers_.GetValidPublisher(track_namespace);
-  if (upstream.IsValid()) {
-    return upstream;
-  }
-  if (!track_namespace.PopElement()) {
-    // This the last element; send the default upstream if valid.
-    if (default_upstream_session_.IsValid()) {
-      return default_upstream_session_.GetIfAvailable()->GetWeakPtr();
-    }
-    return QuicheWeakPtr<MoqtSessionInterface>();
-  }
-  // See if there's a subscriber for a parent namespace.
-  return GetUpstream(track_namespace);
+  MoqtSessionInterface* upstream =
+      namespace_publishers_.GetValidPublisher(track_namespace);
+  return (upstream == nullptr) ? default_upstream_session_.GetIfAvailable()
+                               : upstream;
 }
 
 }  // namespace moqt

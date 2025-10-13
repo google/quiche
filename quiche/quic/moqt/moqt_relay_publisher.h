@@ -33,9 +33,6 @@ class MoqtRelayPublisher : public MoqtPublisher {
   absl_nullable std::shared_ptr<MoqtTrackPublisher> GetTrack(
       const FullTrackName& track_name) override;
 
-  void AddNamespaceListener(NamespaceListener* /*listener*/) override {}
-  void RemoveNamespaceListener(NamespaceListener* /*listener*/) override {}
-
   // There is a new default upstream session. When there is no other namespace
   // information, requests will route here.
   void SetDefaultUpstreamSession(
@@ -55,8 +52,7 @@ class MoqtRelayPublisher : public MoqtPublisher {
                               MoqtSessionInterface* session);
 
  private:
-  quiche::QuicheWeakPtr<MoqtSessionInterface> GetUpstream(
-      TrackNamespace& track_namespace);
+  MoqtSessionInterface* GetUpstream(TrackNamespace& track_namespace);
 
   absl::flat_hash_map<FullTrackName, std::shared_ptr<MoqtRelayTrackPublisher>>
       tracks_;

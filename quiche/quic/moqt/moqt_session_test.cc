@@ -4037,6 +4037,61 @@ TEST_F(MoqtSessionTest, ResetReportedToVisitor) {
   data_stream.reset();
 }
 
+TEST_F(MoqtSessionTest, IncomingPublishNamespaceCleanup) {
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  // Register two incoming PUBLISH_NAMESPACE.
+  MoqtPublishNamespace publish_namespace{
+      /*request_id=*/1, TrackNamespace{"foo"}, VersionSpecificParameters()};
+  EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
+              Call(TrackNamespace{"foo"}, _, _))
+      .WillOnce([&](const TrackNamespace&,
+                    const std::optional<VersionSpecificParameters>&,
+                    MoqtResponseCallback callback) {
+        std::move(callback)(std::nullopt);
+      });
+  EXPECT_CALL(
+      control_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kPublishNamespaceOk), _));
+  stream_input->OnPublishNamespaceMessage(publish_namespace);
+
+  publish_namespace = MoqtPublishNamespace(
+      /*request_id=*/3, TrackNamespace{"bar"}, VersionSpecificParameters());
+  EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
+              Call(TrackNamespace{"bar"}, _, _))
+      .WillOnce([&](const TrackNamespace&,
+                    const std::optional<VersionSpecificParameters>&,
+                    MoqtResponseCallback callback) {
+        std::move(callback)(std::nullopt);
+      });
+  EXPECT_CALL(
+      control_stream,
+      Writev(ControlMessageOfType(MoqtMessageType::kPublishNamespaceOk), _));
+  stream_input->OnPublishNamespaceMessage(publish_namespace);
+
+  // Revoke "bar"
+  MoqtPublishNamespaceDone done{TrackNamespace{"bar"}};
+  EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
+              Call(TrackNamespace{"bar"},
+                   std::optional<VersionSpecificParameters>(), _))
+      .WillOnce(
+          [](const TrackNamespace&,
+             const std::optional<VersionSpecificParameters>&,
+             MoqtResponseCallback callback) { EXPECT_EQ(callback, nullptr); });
+  stream_input->OnPublishNamespaceDoneMessage(done);
+
+  // Destroying the session should revoke "foo".
+  EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
+              Call(TrackNamespace{"foo"},
+                   std::optional<VersionSpecificParameters>(), _))
+      .WillOnce(
+          [](const TrackNamespace&,
+             const std::optional<VersionSpecificParameters>&,
+             MoqtResponseCallback callback) { EXPECT_EQ(callback, nullptr); });
+  // Test teardown will destroy session_, triggering removal of "foo".
+}
+
 // TODO: re-enable this test once this behavior is re-implemented.
 #if 0
 TEST_F(MoqtSessionTest, SubscribeUpdateClosesSubscription) {

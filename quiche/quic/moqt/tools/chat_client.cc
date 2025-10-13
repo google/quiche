@@ -45,6 +45,9 @@ void ChatClient::OnIncomingPublishNamespace(
     const moqt::TrackNamespace& track_namespace,
     std::optional<VersionSpecificParameters> parameters,
     moqt::MoqtResponseCallback callback) {
+  if (!session_is_open_) {
+    return;
+  }
   if (track_namespace == GetUserNamespace(my_track_name_)) {
     // Ignore PUBLISH_NAMESPACE for my own track.
     std::move(callback)(std::nullopt);

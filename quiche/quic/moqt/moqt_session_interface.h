@@ -79,9 +79,9 @@ using FetchResponseCallback =
 // PUBLISH_NAMESPACE state immediately after calling this callback.
 // Alternatively, the application can call PublishNamespaceDone() to delete the
 // state.
-using MoqtOutgoingPublishNamespaceCallback = quiche::MultiUseCallback<void(
-    TrackNamespace track_namespace,
-    std::optional<MoqtPublishNamespaceErrorReason> error)>;
+using MoqtOutgoingPublishNamespaceCallback =
+    quiche::MultiUseCallback<void(const TrackNamespace& track_namespace,
+                                  std::optional<MoqtRequestError> error)>;
 
 using MoqtOutgoingSubscribeNamespaceCallback = quiche::SingleUseCallback<void(
     TrackNamespace track_namespace, std::optional<RequestErrorCode> error,
@@ -163,11 +163,21 @@ class MoqtSessionInterface {
       FetchResponseCallback callback, uint64_t num_previous_groups,
       MoqtPriority priority, std::optional<MoqtDeliveryOrder> delivery_order,
       VersionSpecificParameters parameters) = 0;
+  // Send a PUBLISH_NAMESPACE message for |track_namespace|, and call
+  // |publish_namespace_callback| when the response arrives. Will fail
+  // immediately if there is already an unresolved PUBLISH_NAMESPACE for that
+  // namespace.
+  virtual void PublishNamespace(
+      TrackNamespace track_namespace,
+      MoqtOutgoingPublishNamespaceCallback publish_namespace_callback,
+      VersionSpecificParameters parameters) = 0;
+  // Returns true if message was sent, false if there is no PUBLISH_NAMESPACE to
+  // cancel.
+  virtual bool PublishNamespaceDone(TrackNamespace track_namespace) = 0;
 
   // TODO(martinduke): Add an API for absolute joining fetch.
 
   // TODO: Add SubscribeNamespace, UnsubscribeNamespace method.
-  // TODO: Add PublishNamespace, PublishNamespaceDone method.
   // TODO: Add PublishNamespaceCancel method.
   // TODO: Add TrackStatusRequest method.
   // TODO: Add SubscribeUpdate, PublishDone method.

@@ -69,6 +69,13 @@ class MockMoqtSession : public MoqtSessionInterface {
                std::optional<MoqtDeliveryOrder> delivery_order,
                VersionSpecificParameters parameters),
               (override));
+  MOCK_METHOD(void, PublishNamespace,
+              (TrackNamespace track_namespace,
+               MoqtOutgoingPublishNamespaceCallback publish_namespace_callback,
+               VersionSpecificParameters parameters),
+              (override));
+  MOCK_METHOD(bool, PublishNamespaceDone, (TrackNamespace track_namespace),
+              (override));
 
   quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() override {
     return weak_factory_.Create();

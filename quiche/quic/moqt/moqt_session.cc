@@ -91,8 +91,6 @@ class DefaultPublisher : public MoqtPublisher {
     QUICHE_DCHECK(track_name.IsValid());
     return nullptr;
   }
-  void AddNamespaceListener(NamespaceListener*) override {}
-  void RemoveNamespaceListener(NamespaceListener*) override {}
 };
 }  // namespace
 
@@ -379,6 +377,7 @@ void MoqtSession::CancelPublishNamespace(TrackNamespace track_namespace,
   MoqtPublishNamespaceCancel message{track_namespace, code,
                                      std::string(reason)};
 
+  incoming_publish_namespaces_.erase(track_namespace);
   SendControlMessage(framer_.SerializePublishNamespaceCancel(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent PUBLISH_NAMESPACE_CANCEL message for "
                   << message.track_namespace << " with reason " << reason;
@@ -1239,6 +1238,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceMessage(
           MoqtPublishNamespaceOk ok;
           ok.request_id = message.request_id;
           SendOrBufferMessage(session->framer_.SerializePublishNamespaceOk(ok));
+          session->incoming_publish_namespaces_.insert(message.track_namespace);
         }
       });
 }
@@ -1289,6 +1289,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceErrorMessage(
 
 void MoqtSession::ControlStream::OnPublishNamespaceDoneMessage(
     const MoqtPublishNamespaceDone& message) {
+  session_->incoming_publish_namespaces_.erase(message.track_namespace);
   session_->callbacks_.incoming_publish_namespace_callback(
       message.track_namespace, std::nullopt, nullptr);
 }
