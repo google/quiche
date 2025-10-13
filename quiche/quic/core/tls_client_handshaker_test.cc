@@ -1009,14 +1009,6 @@ TEST_P(TlsClientHandshakerTest, SpecifyClientKeyShares) {
 #endif  // BORINGSSL_API_VERSION >= 37
 
 TEST_P(TlsClientHandshakerTest, SetCompliancePolicyCnsa202407) {
-  // This test checks that setting the client-side compliance policy results in
-  // a cipher preference order that affects the negotiated cipher. If ChaCha is
-  // preferred over AES on the server (such as in MSan builds, where assembly
-  // code is disabled), then the client-side preference for AES-256 over AES-128
-  // won't influence the negotiated cipher. Skip the test in that case.
-  if (EVP_has_aes_hardware() != 1) {
-    GTEST_SKIP() << "Test requires AES hardware.";
-  }
   crypto_config_->set_ssl_compliance_policy(ssl_compliance_policy_cnsa_202407);
   CreateConnection();
   CompleteCryptoHandshake();
@@ -1026,10 +1018,18 @@ TEST_P(TlsClientHandshakerTest, SetCompliancePolicyCnsa202407) {
   ASSERT_TRUE(stream()->SslCompliancePolicyForTesting().has_value());
   EXPECT_EQ(stream()->SslCompliancePolicyForTesting().value(),
             ssl_compliance_policy_cnsa_202407);
-  // AES-256 is only preferred over the default AES-128 under the CNSA 202407
-  // policy.
-  EXPECT_EQ(stream()->crypto_negotiated_params().cipher_suite,
-            TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff);
+  // This EXPECT_EQ checks that having set the client-side compliance policy
+  // results in a negotiated cipher that reflects the policy-specified
+  // preference order. If ChaCha is preferred over AES on the server due to not
+  // having AES hardware support (such as in MSan builds, where assembly code is
+  // disabled), then the client-side preference for AES-256 over AES-128 won't
+  // influence the negotiated cipher.  Skip this expectation in that case.
+  if (EVP_has_aes_hardware() == 1) {
+    // AES-256 is only preferred over the default AES-128 under the CNSA 202407
+    // policy.
+    EXPECT_EQ(stream()->crypto_negotiated_params().cipher_suite,
+              TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff);
+  }
 }
 
 }  // namespace
