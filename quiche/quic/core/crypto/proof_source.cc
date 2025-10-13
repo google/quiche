@@ -4,11 +4,19 @@
 
 #include "quiche/quic/core/crypto/proof_source.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
+#include "openssl/base.h"
+#include "openssl/pool.h"
+#include "openssl/ssl.h"
+#include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
 
@@ -19,8 +27,10 @@ CryptoBuffers::~CryptoBuffers() {
 }
 
 ProofSource::Chain::Chain(const std::vector<std::string>& certs,
-                          const std::string& trust_anchor_id)
-    : certs(certs), trust_anchor_id(trust_anchor_id) {}
+                          const std::string& trust_anchor_id, bool matches_sni)
+    : certs(certs),
+      trust_anchor_id(trust_anchor_id),
+      matches_sni(matches_sni) {}
 
 ProofSource::Chain::~Chain() {}
 
@@ -60,5 +70,19 @@ bool ValidateCertAndKey(
 }
 
 void ProofSource::OnNewSslCtx(SSL_CTX*) {}
+
+std::vector<quiche::QuicheReferenceCountedPointer<ProofSource::Chain>>
+ProofSource::GetCertChains(const QuicSocketAddress& server_address,
+                           const QuicSocketAddress& client_address,
+                           const std::string& hostname) {
+  bool cert_matched_sni;
+  quiche::QuicheReferenceCountedPointer<Chain> chain =
+      GetCertChain(server_address, client_address, hostname, &cert_matched_sni);
+  if (chain == nullptr) {
+    return {};
+  }
+  chain->matches_sni = cert_matched_sni;
+  return {chain};
+}
 
 }  // namespace quic

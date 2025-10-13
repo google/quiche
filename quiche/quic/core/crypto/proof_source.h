@@ -7,7 +7,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -54,7 +53,7 @@ class QUICHE_EXPORT ProofSource {
   // certificates.
   struct QUICHE_EXPORT Chain : public quiche::QuicheReferenceCounted {
     Chain(const std::vector<std::string>& certs,
-          const std::string& trust_anchor_id = "");
+          const std::string& trust_anchor_id = "", bool matches_sni = false);
     Chain(const Chain&) = delete;
     Chain& operator=(const Chain&) = delete;
 
@@ -64,6 +63,10 @@ class QUICHE_EXPORT ProofSource {
     // Trust anchor ID to be configured alongside the certificate. If empty, no
     // trust anchor ID will be set.
     const std::string trust_anchor_id;
+
+    // Indicates whether the leaf certificate matches the SNI hostname. Note
+    // that this field is NOT set by `ProofSource::GetCertChain()`.
+    bool matches_sni;
 
    protected:
     ~Chain() override;
@@ -170,10 +173,29 @@ class QUICHE_EXPORT ProofSource {
   //
   // Sets *cert_matched_sni to true if the certificate matched the given
   // hostname, false if a default cert not matching the hostname was used.
+  //
+  // Does not set `Chain::matches_sni` on the returned chain.
+  //
+  // TODO: b/450539617 - Update all implementations to set `Chain::matches_sni`
+  // on the returned chain.
   virtual quiche::QuicheReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
       const QuicSocketAddress& client_address, const std::string& hostname,
       bool* cert_matched_sni) = 0;
+
+  // Returns zero or more certificate chains for `hostname`. Chains are returned
+  // in decreasing order of preference, so earlier chains are preferred over
+  // later chains. Within each chain, certificates are in leaf-first order.
+  // Each chain's `Chain::matches_sni` field is set to true iff the leaf
+  // certificate matches `hostname`. None of the returned chains are nullptr.
+  //
+  // The default implementation returns a vector of zero or one elements based
+  // on the result of `GetCertChain()`. If `GetCertChain()` returns nullptr,
+  // this method returns the empty vector.
+  virtual std::vector<quiche::QuicheReferenceCountedPointer<Chain>>
+  GetCertChains(const QuicSocketAddress& server_address,
+                const QuicSocketAddress& client_address,
+                const std::string& hostname);
 
   // Computes a signature using the private key of the certificate for
   // |hostname|. The value in |in| is signed using the algorithm specified by

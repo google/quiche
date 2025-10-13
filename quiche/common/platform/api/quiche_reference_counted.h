@@ -54,6 +54,9 @@ class QUICHE_EXPORT QuicheReferenceCounted : public QuicheReferenceCountedImpl {
 template <class T>
 class QUICHE_NO_EXPORT QuicheReferenceCountedPointer {
  public:
+  // For compatibility with googletest's `Pointee` matcher.
+  using element_type = T;
+
   QuicheReferenceCountedPointer() = default;
 
   // Constructor from raw pointer |p|. This guarantees that the reference count

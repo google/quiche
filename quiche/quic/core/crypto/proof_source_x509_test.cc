@@ -24,6 +24,13 @@ namespace quic {
 namespace test {
 namespace {
 
+using ::testing::ElementsAre;
+using ::testing::Field;
+using ::testing::IsEmpty;
+using ::testing::IsFalse;
+using ::testing::IsTrue;
+using ::testing::Pointee;
+
 quiche::QuicheReferenceCountedPointer<ProofSource::Chain> MakeChain(
     absl::string_view cert) {
   return quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
@@ -109,6 +116,14 @@ TEST_F(ProofSourceX509CertificateSelectionTest, DefaultCertificate) {
                   ->certs,
               ::testing::ElementsAre(kTestCertificate));
   EXPECT_FALSE(cert_matched_sni);
+
+  EXPECT_THAT(
+      proof_source_->GetCertChains(QuicSocketAddress(), QuicSocketAddress(),
+                                   "unknown.test"),
+      ElementsAre(Pointee(AllOf(
+          Field(&ProofSource::Chain::certs, ElementsAre(kTestCertificate)),
+          Field(&ProofSource::Chain::trust_anchor_id, IsEmpty()),
+          Field(&ProofSource::Chain::matches_sni, IsFalse())))));
 }
 
 // mail.example.org is explicitly a SubjectAltName in `kTestCertificate`.
@@ -120,6 +135,14 @@ TEST_F(ProofSourceX509CertificateSelectionTest, SubjectAltName) {
                   ->certs,
               ::testing::ElementsAre(kTestCertificate));
   EXPECT_TRUE(cert_matched_sni);
+
+  EXPECT_THAT(
+      proof_source_->GetCertChains(QuicSocketAddress(), QuicSocketAddress(),
+                                   "mail.example.org"),
+      ElementsAre(Pointee(AllOf(
+          Field(&ProofSource::Chain::certs, ElementsAre(kTestCertificate)),
+          Field(&ProofSource::Chain::trust_anchor_id, IsEmpty()),
+          Field(&ProofSource::Chain::matches_sni, IsTrue())))));
 }
 
 // www.foo.test is in `kWildcardCertificate`.
@@ -131,6 +154,14 @@ TEST_F(ProofSourceX509CertificateSelectionTest, DomainInWildcardCertificate) {
                   ->certs,
               ::testing::ElementsAre(kWildcardCertificate));
   EXPECT_TRUE(cert_matched_sni);
+
+  EXPECT_THAT(
+      proof_source_->GetCertChains(QuicSocketAddress(), QuicSocketAddress(),
+                                   "www.foo.test"),
+      ElementsAre(Pointee(AllOf(
+          Field(&ProofSource::Chain::certs, ElementsAre(kWildcardCertificate)),
+          Field(&ProofSource::Chain::trust_anchor_id, IsEmpty()),
+          Field(&ProofSource::Chain::matches_sni, IsTrue())))));
 }
 
 // *.wildcard.test is in `kWildcardCertificate`.
@@ -144,12 +175,28 @@ TEST_F(ProofSourceX509CertificateSelectionTest,
               ::testing::ElementsAre(kWildcardCertificate));
   EXPECT_TRUE(cert_matched_sni);
 
+  EXPECT_THAT(
+      proof_source_->GetCertChains(QuicSocketAddress(), QuicSocketAddress(),
+                                   "www.wildcard.test"),
+      ElementsAre(Pointee(AllOf(
+          Field(&ProofSource::Chain::certs, ElementsAre(kWildcardCertificate)),
+          Field(&ProofSource::Chain::trust_anchor_id, IsEmpty()),
+          Field(&ProofSource::Chain::matches_sni, IsTrue())))));
+
   EXPECT_THAT(proof_source_
                   ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
                                  "etc.wildcard.test", &cert_matched_sni)
                   ->certs,
               ::testing::ElementsAre(kWildcardCertificate));
   EXPECT_TRUE(cert_matched_sni);
+
+  EXPECT_THAT(
+      proof_source_->GetCertChains(QuicSocketAddress(), QuicSocketAddress(),
+                                   "etc.wildcard.test"),
+      ElementsAre(Pointee(AllOf(
+          Field(&ProofSource::Chain::certs, ElementsAre(kWildcardCertificate)),
+          Field(&ProofSource::Chain::trust_anchor_id, IsEmpty()),
+          Field(&ProofSource::Chain::matches_sni, IsTrue())))));
 }
 
 // wildcard.test itself is not in `kWildcardCertificate`.
@@ -161,6 +208,14 @@ TEST_F(ProofSourceX509CertificateSelectionTest, NotInWildcardCertificate) {
                   ->certs,
               ::testing::ElementsAre(kTestCertificate));
   EXPECT_FALSE(cert_matched_sni);
+
+  EXPECT_THAT(
+      proof_source_->GetCertChains(QuicSocketAddress(), QuicSocketAddress(),
+                                   "wildcard.test"),
+      ElementsAre(Pointee(AllOf(
+          Field(&ProofSource::Chain::certs, ElementsAre(kTestCertificate)),
+          Field(&ProofSource::Chain::trust_anchor_id, IsEmpty()),
+          Field(&ProofSource::Chain::matches_sni, IsFalse())))));
 }
 
 }  // namespace
