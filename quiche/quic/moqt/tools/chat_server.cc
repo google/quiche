@@ -93,7 +93,8 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
       };
   session_->callbacks().incoming_subscribe_namespace_callback =
       [this](const moqt::TrackNamespace& chat_namespace,
-             std::optional<VersionSpecificParameters> parameters) {
+             std::optional<VersionSpecificParameters> parameters,
+             MoqtResponseCallback callback) {
         if (parameters.has_value()) {
           subscribed_namespaces_.insert(chat_namespace);
           std::cout << "Received SUBSCRIBE_NAMESPACE for ";
@@ -104,12 +105,13 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
         std::cout << chat_namespace.ToString() << "\n";
         if (!IsValidChatNamespace(chat_namespace)) {
           std::cout << "Not a valid moq-chat namespace.\n";
-          return std::make_optional(
-              MoqtSubscribeErrorReason{RequestErrorCode::kTrackDoesNotExist,
-                                       "Not a valid namespace for this chat."});
+          std::move(callback)(
+              MoqtRequestError{RequestErrorCode::kTrackDoesNotExist,
+                               "Not a valid namespace for this chat."});
+          return;
         }
-        if (!parameters.has_value()) {
-          return std::optional<MoqtSubscribeErrorReason>();
+        if (!parameters.has_value()) {  // UNSUBSCRIBE_NAMESPACE
+          return;
         }
         // Send all PUBLISH_NAMESPACE.
         for (auto& [track_name, queue] : server_->user_queues_) {
@@ -127,7 +129,7 @@ ChatServer::ChatServerSessionHandler::ChatServerSessionHandler(
                                this),
               moqt::VersionSpecificParameters());
         }
-        return std::optional<MoqtSubscribeErrorReason>();
+        std::move(callback)(std::nullopt);
       };
   session_->set_publisher(server_->publisher());
 }

@@ -73,7 +73,7 @@ using FetchResponseCallback =
 // TODO(martinduke): MoqtOutgoingPublishNamespaceCallback and
 // MoqtOutgoingSubscribeNamespaceCallback are deprecated. Remove.
 
-// If |error_message| is nullopt, this is triggered by a PUBLISH_NAMESPACE_OK.
+// If |error| is nullopt, this is triggered by a PUBLISH_NAMESPACE_OK.
 // Otherwise, it is triggered by PUBLISH_NAMESPACE_ERROR or
 // PUBLISH_NAMESPACE_CANCEL. For ERROR or CANCEL, MoqtSession is deleting all
 // PUBLISH_NAMESPACE state immediately after calling this callback.
@@ -167,10 +167,9 @@ class MoqtSessionInterface {
   // |publish_namespace_callback| when the response arrives. Will fail
   // immediately if there is already an unresolved PUBLISH_NAMESPACE for that
   // namespace.
-  virtual void PublishNamespace(
-      TrackNamespace track_namespace,
-      MoqtOutgoingPublishNamespaceCallback publish_namespace_callback,
-      VersionSpecificParameters parameters) = 0;
+  virtual void PublishNamespace(TrackNamespace track_namespace,
+                                MoqtOutgoingPublishNamespaceCallback callback,
+                                VersionSpecificParameters parameters) = 0;
   // Returns true if message was sent, false if there is no PUBLISH_NAMESPACE to
   // cancel.
   virtual bool PublishNamespaceDone(TrackNamespace track_namespace) = 0;

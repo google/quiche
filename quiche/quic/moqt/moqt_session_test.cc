@@ -2773,10 +2773,10 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
 }
 
 TEST_F(MoqtSessionTest, IncomingSubscribeNamespace) {
-  TrackNamespace track_namespace = TrackNamespace{"foo"};
+  TrackNamespace track_namespace{"foo"};
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
-  MoqtSubscribeNamespace publish_namespaces = {
+  MoqtSubscribeNamespace subscribe_namespace = {
       /*request_id=*/1,
       track_namespace,
       *parameters,
@@ -2785,26 +2785,31 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespace) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(session_callbacks_.incoming_subscribe_namespace_callback,
-              Call(_, parameters))
-      .WillOnce(Return(std::nullopt));
+              Call(track_namespace, parameters, _))
+      .WillOnce([](const TrackNamespace&,
+                   std::optional<VersionSpecificParameters>,
+                   MoqtResponseCallback callback) {
+        std::move(callback)(std::nullopt);
+      });
   EXPECT_CALL(
       control_stream,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceOk), _));
-  stream_input->OnSubscribeNamespaceMessage(publish_namespaces);
-  MoqtUnsubscribeNamespace ununsubscribe_namespaces = {
-      TrackNamespace{"foo"},
-  };
-  EXPECT_CALL(session_callbacks_.incoming_subscribe_namespace_callback,
-              Call(track_namespace, std::optional<VersionSpecificParameters>()))
-      .WillOnce(Return(std::nullopt));
-  stream_input->OnUnsubscribeNamespaceMessage(ununsubscribe_namespaces);
+  stream_input->OnSubscribeNamespaceMessage(subscribe_namespace);
+  MoqtUnsubscribeNamespace unsubscribe_namespace{track_namespace};
+  EXPECT_CALL(
+      session_callbacks_.incoming_subscribe_namespace_callback,
+      Call(track_namespace, std::optional<VersionSpecificParameters>(), _))
+      .WillOnce(
+          [](const TrackNamespace&, std::optional<VersionSpecificParameters>,
+             MoqtResponseCallback callback) { EXPECT_EQ(callback, nullptr); });
+  stream_input->OnUnsubscribeNamespaceMessage(unsubscribe_namespace);
 }
 
 TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithError) {
   TrackNamespace track_namespace{"foo"};
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
-  MoqtSubscribeNamespace publish_namespaces = {
+  MoqtSubscribeNamespace subscribe_namespace = {
       /*request_id=*/1,
       track_namespace,
       *parameters,
@@ -2813,73 +2818,109 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithError) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(session_callbacks_.incoming_subscribe_namespace_callback,
-              Call(_, parameters))
-      .WillOnce(Return(
-          MoqtSubscribeErrorReason{RequestErrorCode::kUnauthorized, "foo"}));
+              Call(track_namespace, parameters, _))
+      .WillOnce([](const TrackNamespace&,
+                   std::optional<VersionSpecificParameters>,
+                   MoqtResponseCallback callback) {
+        std::move(callback)(
+            MoqtSubscribeErrorReason{RequestErrorCode::kUnauthorized, "foo"});
+      });
   EXPECT_CALL(
       control_stream,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceError),
              _));
-  stream_input->OnSubscribeNamespaceMessage(publish_namespaces);
+  stream_input->OnSubscribeNamespaceMessage(subscribe_namespace);
 
   // Try again, to verify that it was purged from the tree.
-  publish_namespaces.request_id += 2;
+  subscribe_namespace.request_id += 2;
   EXPECT_CALL(session_callbacks_.incoming_subscribe_namespace_callback,
-              Call(_, parameters))
-      .WillOnce(Return(std::nullopt));
+              Call(track_namespace, parameters, _))
+      .WillOnce([](const TrackNamespace&,
+                   std::optional<VersionSpecificParameters>,
+                   MoqtResponseCallback callback) {
+        std::move(callback)(std::nullopt);
+      });
   EXPECT_CALL(
       control_stream,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceOk), _));
-  stream_input->OnSubscribeNamespaceMessage(publish_namespaces);
+  stream_input->OnSubscribeNamespaceMessage(subscribe_namespace);
+
+  // Cleanup.
+  MoqtUnsubscribeNamespace unsubscribe_namespace{track_namespace};
+  EXPECT_CALL(
+      session_callbacks_.incoming_subscribe_namespace_callback,
+      Call(track_namespace, std::optional<VersionSpecificParameters>(), _))
+      .WillOnce(
+          [](const TrackNamespace&, std::optional<VersionSpecificParameters>,
+             MoqtResponseCallback callback) { EXPECT_EQ(callback, nullptr); });
+  stream_input->OnUnsubscribeNamespaceMessage(unsubscribe_namespace);
 }
 
 TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithPrefixOverlap) {
-  TrackNamespace track_namespace{"foo"};
+  TrackNamespace foo{"foo"}, foobar{"foo", "bar"};
+
   auto parameters = std::make_optional<VersionSpecificParameters>(
       AuthTokenType::kOutOfBand, "foo");
-  MoqtSubscribeNamespace publish_namespaces = {
+  MoqtSubscribeNamespace subscribe_namespace = {
       /*request_id=*/1,
-      track_namespace,
+      foo,
       *parameters,
   };
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(session_callbacks_.incoming_subscribe_namespace_callback,
-              Call(_, parameters))
-      .WillOnce(Return(std::nullopt));
+              Call(foo, parameters, _))
+      .WillOnce([](const TrackNamespace&,
+                   std::optional<VersionSpecificParameters>,
+                   MoqtResponseCallback callback) {
+        std::move(callback)(std::nullopt);
+      });
   EXPECT_CALL(
       control_stream,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceOk), _));
-  stream_input->OnSubscribeNamespaceMessage(publish_namespaces);
+  stream_input->OnSubscribeNamespaceMessage(subscribe_namespace);
 
   // Overlapping request is rejected.
-  publish_namespaces.request_id += 2;
-  publish_namespaces.track_namespace = TrackNamespace{"foo", "bar"};
+  subscribe_namespace.request_id += 2;
+  subscribe_namespace.track_namespace = foobar;
   EXPECT_CALL(
       control_stream,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceError),
              _));
-  stream_input->OnSubscribeNamespaceMessage(publish_namespaces);
+  stream_input->OnSubscribeNamespaceMessage(subscribe_namespace);
 
   // Remove the subscription. Now a later one will work.
-  MoqtUnsubscribeNamespace ununsubscribe_namespaces = {
-      TrackNamespace{"foo"},
-  };
+  MoqtUnsubscribeNamespace unsubscribe_namespace{foo};
   EXPECT_CALL(session_callbacks_.incoming_subscribe_namespace_callback,
-              Call(track_namespace, std::optional<VersionSpecificParameters>()))
-      .WillOnce(Return(std::nullopt));
-  stream_input->OnUnsubscribeNamespaceMessage(ununsubscribe_namespaces);
+              Call(foo, std::optional<VersionSpecificParameters>(), _))
+      .WillOnce(
+          [](const TrackNamespace&, std::optional<VersionSpecificParameters>,
+             MoqtResponseCallback callback) { EXPECT_EQ(callback, nullptr); });
+  stream_input->OnUnsubscribeNamespaceMessage(unsubscribe_namespace);
 
   // Try again, it will work.
-  publish_namespaces.request_id += 2;
+  subscribe_namespace.request_id += 2;
   EXPECT_CALL(session_callbacks_.incoming_subscribe_namespace_callback,
-              Call(_, parameters))
-      .WillOnce(Return(std::nullopt));
+              Call(foobar, parameters, _))
+      .WillOnce([](const TrackNamespace&,
+                   std::optional<VersionSpecificParameters>,
+                   MoqtResponseCallback callback) {
+        std::move(callback)(std::nullopt);
+      });
   EXPECT_CALL(
       control_stream,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespaceOk), _));
-  stream_input->OnSubscribeNamespaceMessage(publish_namespaces);
+  stream_input->OnSubscribeNamespaceMessage(subscribe_namespace);
+
+  // Cleanup.
+  unsubscribe_namespace.track_namespace = foobar;
+  EXPECT_CALL(session_callbacks_.incoming_subscribe_namespace_callback,
+              Call(foobar, std::optional<VersionSpecificParameters>(), _))
+      .WillOnce(
+          [](const TrackNamespace&, std::optional<VersionSpecificParameters>,
+             MoqtResponseCallback callback) { EXPECT_EQ(callback, nullptr); });
+  stream_input->OnUnsubscribeNamespaceMessage(unsubscribe_namespace);
 }
 
 TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {

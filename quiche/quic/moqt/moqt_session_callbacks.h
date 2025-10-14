@@ -45,14 +45,13 @@ using MoqtIncomingPublishNamespaceCallback = quiche::MultiUseCallback<void(
     MoqtResponseCallback callback)>;
 
 // Called whenever SUBSCRIBE_NAMESPACE or UNSUBSCRIBE_NAMESPACE is received from
-// the peer.  For SUBSCRIBE_NAMESPACE, the return value indicates whether to
-// return an OK or an ERROR; for UNSUBSCRIBE_NAMESPACE, the return value is
-// ignored. SUBSCRIBE_NAMESPACE sets a value for |parameters|,
-// UNSUBSCRIBE_NAMESPACE does not.
-using MoqtIncomingSubscribeNamespaceCallback =
-    quiche::MultiUseCallback<std::optional<MoqtSubscribeErrorReason>(
-        const TrackNamespace& track_namespace,
-        std::optional<VersionSpecificParameters> parameters)>;
+// the peer. SUBSCRIBE_NAMESPACE sets a value for |parameters|,
+// UNSUBSCRIBE_NAMESPACE does not. For UNSUBSCRIBE_NAMESPACE, |callback| is
+// null.
+using MoqtIncomingSubscribeNamespaceCallback = quiche::MultiUseCallback<void(
+    const TrackNamespace& track_namespace,
+    std::optional<VersionSpecificParameters> parameters,
+    MoqtResponseCallback callback)>;
 
 inline void DefaultIncomingPublishNamespaceCallback(
     const TrackNamespace&, const std::optional<VersionSpecificParameters>&,
@@ -62,16 +61,13 @@ inline void DefaultIncomingPublishNamespaceCallback(
   }
   return std::move(callback)(MoqtRequestError{
       RequestErrorCode::kNotSupported,
-      "This endpoint does not accept incoming PUBLISH_NAMESPACE messages"});
+      "This endpoint does not support incoming SUBSCRIBE_NAMESPACE messages"});
 };
 
-inline std::optional<MoqtSubscribeErrorReason>
-DefaultIncomingSubscribeNamespaceCallback(
+inline void DefaultIncomingSubscribeNamespaceCallback(
     const TrackNamespace& track_namespace,
-    std::optional<VersionSpecificParameters> /*parameters*/) {
-  return MoqtSubscribeErrorReason{
-      RequestErrorCode::kNotSupported,
-      "This endpoint does not support incoming SUBSCRIBE_NAMESPACE messages"};
+    std::optional<VersionSpecificParameters>, MoqtResponseCallback callback) {
+  std::move(callback)(std::nullopt);
 }
 
 // Callbacks for session-level events.

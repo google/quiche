@@ -81,6 +81,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     if (goaway_timeout_alarm_ != nullptr) {
       goaway_timeout_alarm_->PermanentCancel();
     }
+    for (const TrackNamespace& track_namespace :
+         incoming_subscribe_namespace_.GetSubscribedNamespaces()) {
+      callbacks_.incoming_subscribe_namespace_callback(track_namespace,
+                                                       std::nullopt, nullptr);
+    }
     for (const TrackNamespace& track_namespace : incoming_publish_namespaces_) {
       callbacks_.incoming_publish_namespace_callback(track_namespace,
                                                      std::nullopt, nullptr);
@@ -148,10 +153,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                             uint64_t num_previous_groups, MoqtPriority priority,
                             std::optional<MoqtDeliveryOrder> delivery_order,
                             VersionSpecificParameters parameters) override;
-  void PublishNamespace(
-      TrackNamespace track_namespace,
-      MoqtOutgoingPublishNamespaceCallback publish_namespace_callback,
-      VersionSpecificParameters parameters) override;
+  void PublishNamespace(TrackNamespace track_namespace,
+                        MoqtOutgoingPublishNamespaceCallback callback,
+                        VersionSpecificParameters parameters) override;
   bool PublishNamespaceDone(TrackNamespace track_namespace) override;
   quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() override {
     return weak_ptr_factory_.Create();

@@ -71,7 +71,7 @@ class MockMoqtSession : public MoqtSessionInterface {
               (override));
   MOCK_METHOD(void, PublishNamespace,
               (TrackNamespace track_namespace,
-               MoqtOutgoingPublishNamespaceCallback publish_namespace_callback,
+               MoqtOutgoingPublishNamespaceCallback callback,
                VersionSpecificParameters parameters),
               (override));
   MOCK_METHOD(bool, PublishNamespaceDone, (TrackNamespace track_namespace),

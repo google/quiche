@@ -32,18 +32,18 @@ struct MockSessionCallbacks {
   testing::MockFunction<void(absl::string_view)> session_terminated_callback;
   testing::MockFunction<void()> session_deleted_callback;
   testing::MockFunction<void(const TrackNamespace&,
-                             const std::optional<VersionSpecificParameters>&,
+                             std::optional<VersionSpecificParameters>,
                              MoqtResponseCallback)>
       incoming_publish_namespace_callback;
-  testing::MockFunction<std::optional<MoqtSubscribeErrorReason>(
-      TrackNamespace, std::optional<VersionSpecificParameters>)>
+  testing::MockFunction<void(const TrackNamespace&,
+                             std::optional<VersionSpecificParameters>,
+                             MoqtResponseCallback)>
       incoming_subscribe_namespace_callback;
 
   MockSessionCallbacks() {
-    ON_CALL(incoming_publish_namespace_callback,
-            Call(testing::_, testing::_, testing::_))
+    ON_CALL(incoming_publish_namespace_callback, Call)
         .WillByDefault(DefaultIncomingPublishNamespaceCallback);
-    ON_CALL(incoming_subscribe_namespace_callback, Call(testing::_, testing::_))
+    ON_CALL(incoming_subscribe_namespace_callback, Call)
         .WillByDefault(DefaultIncomingSubscribeNamespaceCallback);
   }
 

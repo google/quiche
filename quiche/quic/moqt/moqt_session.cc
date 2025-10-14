@@ -312,13 +312,13 @@ bool MoqtSession::UnsubscribeNamespace(TrackNamespace track_namespace) {
 
 void MoqtSession::PublishNamespace(
     TrackNamespace track_namespace,
-    MoqtOutgoingPublishNamespaceCallback publish_namespace_callback,
+    MoqtOutgoingPublishNamespaceCallback callback,
     VersionSpecificParameters parameters) {
   QUICHE_DCHECK(track_namespace.IsValid());
   if (outgoing_publish_namespaces_.contains(track_namespace)) {
-    std::move(publish_namespace_callback)(
+    std::move(callback)(
         track_namespace,
-        MoqtPublishNamespaceErrorReason{
+        MoqtRequestError{
             RequestErrorCode::kInternalError,
             "PUBLISH_NAMESPACE already outstanding for namespace"});
     return;
@@ -351,8 +351,7 @@ void MoqtSession::PublishNamespace(
   QUIC_DLOG(INFO) << ENDPOINT << "Sent PUBLISH_NAMESPACE message for "
                   << message.track_namespace;
   pending_outgoing_publish_namespaces_[message.request_id] = track_namespace;
-  outgoing_publish_namespaces_[track_namespace] =
-      std::move(publish_namespace_callback);
+  outgoing_publish_namespaces_[track_namespace] = std::move(callback);
 }
 
 bool MoqtSession::PublishNamespaceDone(TrackNamespace track_namespace) {
@@ -1282,8 +1281,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceErrorMessage(
   }
   std::move(it2->second)(
       track_namespace,
-      MoqtPublishNamespaceErrorReason{message.error_code,
-                                      std::string(message.error_reason)});
+      MoqtRequestError{message.error_code, std::string(message.error_reason)});
   session_->outgoing_publish_namespaces_.erase(it2);
 }
 
@@ -1307,8 +1305,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceCancelMessage(
   }
   std::move(it->second)(
       message.track_namespace,
-      MoqtPublishNamespaceErrorReason{message.error_code,
-                                      std::string(message.error_reason)});
+      MoqtRequestError{message.error_code, std::string(message.error_reason)});
   session_->outgoing_publish_namespaces_.erase(it);
 }
 
@@ -1380,7 +1377,7 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
         session_->framer_.SerializeSubscribeNamespaceError(error));
     return;
   }
-  if (!session_->incoming_subscribe_namespace_.AddNamespace(
+  if (!session_->incoming_subscribe_namespace_.SubscribeNamespace(
           message.track_namespace)) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE_NAMESPACE for "
                     << message.track_namespace
@@ -1393,23 +1390,25 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
         session_->framer_.SerializeSubscribeNamespaceError(error));
     return;
   }
-  std::optional<MoqtSubscribeErrorReason> result =
-      session_->callbacks_.incoming_subscribe_namespace_callback(
-          message.track_namespace, message.parameters);
-  if (result.has_value()) {
-    MoqtSubscribeNamespaceError error;
-    error.request_id = message.request_id;
-    error.error_code = result->error_code;
-    error.error_reason = result->reason_phrase;
-    SendOrBufferMessage(
-        session_->framer_.SerializeSubscribeNamespaceError(error));
-    session_->incoming_subscribe_namespace_.RemoveNamespace(
-        message.track_namespace);
-    return;
-  }
-  MoqtSubscribeNamespaceOk ok;
-  ok.request_id = message.request_id;
-  SendOrBufferMessage(session_->framer_.SerializeSubscribeNamespaceOk(ok));
+  (session_->callbacks_.incoming_subscribe_namespace_callback)(
+      message.track_namespace, message.parameters,
+      [&](std::optional<MoqtRequestError> error) {
+        if (error.has_value()) {
+          MoqtSubscribeNamespaceError reply;
+          reply.request_id = message.request_id;
+          reply.error_code = error->error_code;
+          reply.error_reason = error->reason_phrase;
+          SendOrBufferMessage(
+              session_->framer_.SerializeSubscribeNamespaceError(reply));
+          session_->incoming_subscribe_namespace_.UnsubscribeNamespace(
+              message.track_namespace);
+        } else {
+          MoqtSubscribeNamespaceOk ok;
+          ok.request_id = message.request_id;
+          SendOrBufferMessage(
+              session_->framer_.SerializeSubscribeNamespaceOk(ok));
+        }
+      });
 }
 
 void MoqtSession::ControlStream::OnSubscribeNamespaceOkMessage(
@@ -1444,11 +1443,10 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceErrorMessage(
 void MoqtSession::ControlStream::OnUnsubscribeNamespaceMessage(
     const MoqtUnsubscribeNamespace& message) {
   // MoqtSession keeps no state here, so just tell the application.
-  std::optional<MoqtSubscribeErrorReason> result =
-      session_->callbacks_.incoming_subscribe_namespace_callback(
-          message.track_namespace, std::nullopt);
-  session_->incoming_subscribe_namespace_.RemoveNamespace(
+  session_->incoming_subscribe_namespace_.UnsubscribeNamespace(
       message.track_namespace);
+  session_->callbacks_.incoming_subscribe_namespace_callback(
+      message.track_namespace, std::nullopt, nullptr);
 }
 
 void MoqtSession::ControlStream::OnMaxRequestIdMessage(

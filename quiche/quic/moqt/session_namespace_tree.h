@@ -5,10 +5,10 @@
 #ifndef QUICHE_QUIC_MOQT_SESSION_NAMESPACE_TREE_H_
 #define QUICHE_QUIC_MOQT_SESSION_NAMESPACE_TREE_H_
 
-#include <string>
+#include <cstdint>
 
 #include "absl/container/flat_hash_map.h"
-#include "absl/types/span.h"
+#include "absl/container/flat_hash_set.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 
 namespace moqt {
@@ -23,87 +23,60 @@ namespace moqt {
 class SessionNamespaceTree {
  public:
   SessionNamespaceTree() = default;
-  ~SessionNamespaceTree() = default;
+  ~SessionNamespaceTree() {}
 
-  // Returns false if the namespace can't be added because it intersects with an
-  // existing namespace.
-  bool AddNamespace(const TrackNamespace& track_namespace) {
-    if (root_.children.empty()) {
-      AddToTree(track_namespace.tuple(), root_);
-      return true;
+  // Returns false if the namespace was not subscribed.
+  bool SubscribeNamespace(const TrackNamespace& track_namespace) {
+    if (prohibited_namespaces_.contains(track_namespace)) {
+      return false;
     }
-    return TraverseTree(track_namespace.tuple(), root_);
-  }
-  // Called when UNSUBSCRIBE_NAMESPACE is received.
-  void RemoveNamespace(const TrackNamespace& track_namespace) {
-    DeleteUniqueBranches(track_namespace.tuple(), root_);
+    TrackNamespace higher_namespace = track_namespace;
+    do {
+      if (subscribed_namespaces_.contains(higher_namespace)) {
+        return false;
+      }
+    } while (higher_namespace.PopElement());
+    subscribed_namespaces_.insert(track_namespace);
+    // Add a reference to every higher namespace to block future subscriptions.
+    higher_namespace = track_namespace;
+    while (higher_namespace.PopElement()) {
+      ++prohibited_namespaces_[higher_namespace];
+    }
+    return true;
   }
 
- private:
-  struct Node {
-    absl::flat_hash_map<std::string, struct Node> children;
-  };
-  // Recursively add new elements of the tuple to the tree. |start_index| is the
-  // element of |tuple| that is added directly to |parent_node|.
-  void AddToTree(absl::Span<const std::string> tuple, Node& parent_node) {
-    if (tuple.empty()) {
+  void UnsubscribeNamespace(const TrackNamespace& track_namespace) {
+    if (subscribed_namespaces_.erase(track_namespace) == 0) {
       return;
     }
-    auto [it, success] = parent_node.children.emplace(tuple[0], Node());
-    AddToTree(tuple.subspan(1), it->second);
+    // Delete one ref from prohibited_namespaces_.
+    TrackNamespace higher_namespace = track_namespace;
+    while (higher_namespace.PopElement()) {
+      auto it2 = prohibited_namespaces_.find(higher_namespace);
+      if (it2 == prohibited_namespaces_.end()) {
+        continue;
+      }
+      if (it2->second == 1) {
+        prohibited_namespaces_.erase(it2);
+      } else {
+        --it2->second;
+      }
+    }
   }
 
-  bool TraverseTree(absl::Span<const std::string> tuple, Node& node) {
-    if (node.children.empty()) {
-      // The new namespace would be a child of an existing namespace.
-      return false;
-    }
-    if (tuple.empty()) {
-      // The new namespace would be a parent of an existing namespace.
-      return false;
-    }
-    auto it = node.children.find(tuple[0]);
-    if (it == node.children.end()) {
-      // The new namespace would be a cousin of an existing namespace. This is
-      // allowed.
-      AddToTree(tuple, node);
-      return true;
-    }
-    return TraverseTree(tuple.subspan(1), it->second);
+  // Used only when the SessionNamespaceTree is being destroyed.
+  const absl::flat_hash_set<TrackNamespace>& GetSubscribedNamespaces() const {
+    return subscribed_namespaces_;
   }
 
-  // This recursive function finds the deepest leaf node for this namespace. It
-  // then keeps deleting towards the root until it finds a parent node with
-  // multiple children.
-  // Returns false if there are other children of parent_node, so that it's not
-  // safe to keep deleting.
-  bool DeleteUniqueBranches(absl::Span<const std::string> tuple,
-                            Node& parent_node) {
-    if (tuple.empty()) {
-      // We've reached the end of the namespace, it's unique if there are no
-      // children.
-      return parent_node.children.empty();
-    }
-    if (parent_node.children.empty()) {
-      // Ran out of leaves too early. The namespace is not present.
-      return false;
-    }
-    auto it = parent_node.children.find(tuple[0]);
-    if (it == parent_node.children.end()) {
-      // The namespace was not present.
-      return false;
-    }
-    // Go to the next leaf node.
-    if (!DeleteUniqueBranches(tuple.subspan(1), it->second)) {
-      // Do no more deletion.
-      return false;
-    }
-    parent_node.children.erase(it);
-    // If there other children at this level, stop deleting.
-    return parent_node.children.empty();
-  }
+ protected:
+  uint64_t NumSubscriptions() const { return subscribed_namespaces_.size(); }
 
-  Node root_;  // Not a legal namespace. It's the root of the tree.
+ private:
+  absl::flat_hash_set<TrackNamespace> subscribed_namespaces_;
+  // Namespaces that cannot be subscribed to because they intersect with an
+  // existing subscription. The value is a ref count.
+  absl::flat_hash_map<TrackNamespace, int> prohibited_namespaces_;
 };
 
 }  // namespace moqt
