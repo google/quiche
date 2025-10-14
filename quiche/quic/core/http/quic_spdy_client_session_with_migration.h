@@ -30,6 +30,7 @@ namespace quic {
 // 3. QuicConnection detected path degrading
 // 4. received server preferred address
 // 5. handshake completion on a non-default network.
+// TODO(danzh): Rename this class to be something more like a base class.
 class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
     : public QuicSpdyClientSessionBase {
  public:
@@ -41,7 +42,7 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
       const ParsedQuicVersionVector& supported_versions,
       QuicNetworkHandle default_network, QuicNetworkHandle current_network,
       std::unique_ptr<QuicPathContextFactory> path_context_factory,
-      QuicConnectionMigrationConfig migration_config,
+      const QuicConnectionMigrationConfig& migration_config,
       QuicPriorityType priority_type);
 
   ~QuicSpdyClientSessionWithMigration() override;
@@ -102,7 +103,7 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
 
   QuicForceBlockablePacketWriter* writer() { return writer_; }
 
- protected:
+ private:
   // Called in MigrateToNewPath() prior to calling MigratePath().
   // Return false if MigratePath() should be skipped.
   virtual bool PrepareForMigrationToPath(
@@ -113,7 +114,6 @@ class QUICHE_EXPORT QuicSpdyClientSessionWithMigration
       std::unique_ptr<QuicClientPathValidationContext> context,
       bool success) = 0;
 
- private:
   std::unique_ptr<QuicPathContextFactory> path_context_factory_;
   QuicConnectionMigrationManager migration_manager_;
   QuicForceBlockablePacketWriter* absl_nonnull writer_;

@@ -60,6 +60,38 @@ class MockableQuicClientDefaultNetworkHelper
 // A quic client which allows mocking out reads and writes.
 class MockableQuicClient : public QuicDefaultClient {
  public:
+  // A test implementation that supports network handle and caches multiple of
+  // them.
+  class QuicTestMigrationHelper : public QuicDefaultMigrationHelper {
+   public:
+    explicit QuicTestMigrationHelper(MockableQuicClient& client)
+        : QuicDefaultMigrationHelper(client) {}
+
+    // Overridden to return a different cached network handle from the given
+    // one. Returns `kInvalidNetworkHandle` if none is found.
+    QuicNetworkHandle FindAlternateNetwork(QuicNetworkHandle network) override;
+
+    QuicNetworkHandle GetDefaultNetwork() override {
+      return kInvalidNetworkHandle;
+    }
+    QuicNetworkHandle GetCurrentNetwork() override {
+      return kInvalidNetworkHandle;
+    }
+
+    // Adds a new network handle with a specific address to the cached map.
+    void AddNewNetwork(QuicNetworkHandle network, QuicIpAddress address);
+
+    // Overridden to search the cached map for the address.
+    // Invariant: `network` must have been cached via `AddNewNetwork()`.
+    QuicIpAddress GetAddressForNetwork(
+        QuicNetworkHandle network) const override;
+
+   private:
+    // Cached map of network handles to addresses.
+    absl::flat_hash_map<QuicNetworkHandle, QuicIpAddress>
+        network_to_address_map_;
+  };
+
   MockableQuicClient(QuicSocketAddress server_address,
                      const QuicServerId& server_id,
                      const ParsedQuicVersionVector& supported_versions,
@@ -88,10 +120,18 @@ class MockableQuicClient : public QuicDefaultClient {
   ~MockableQuicClient() override;
 
   QuicConnectionId GetClientConnectionId() override;
+  std::unique_ptr<QuicMigrationHelper> CreateQuicMigrationHelper() override;
   void UseClientConnectionIdLength(int client_connection_id_length);
 
   void UseWriter(QuicPacketWriterWrapper* writer);
   void set_peer_address(const QuicSocketAddress& address);
+
+  // Must be called after `Initialize()`.
+  void AddNewNetwork(QuicNetworkHandle network, QuicIpAddress address) {
+    QUICHE_DCHECK(migration_helper_ != nullptr)
+        << "use_migration_helper_ must be set to true.";
+    migration_helper_->AddNewNetwork(network, address);
+  }
 
   // Casts the network helper to a MockableQuicClientDefaultNetworkHelper.
   MockableQuicClientDefaultNetworkHelper* mockable_network_helper();
@@ -104,6 +144,8 @@ class MockableQuicClient : public QuicDefaultClient {
   bool client_connection_id_overridden_;
   int override_client_connection_id_length_ = -1;
   CachedNetworkParameters cached_network_paramaters_;
+  // Owned by the base class.
+  QuicTestMigrationHelper* migration_helper_ = nullptr;
 };
 
 // A toy QUIC client used for testing.

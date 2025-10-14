@@ -50,6 +50,8 @@ enum class PathValidationReason {
 using QuicNetworkHandle = int64_t;
 
 // An invalid NetworkHandle.
+// Used on platforms which do not support network handles or to represent an
+// unusable network.
 inline constexpr QuicNetworkHandle kInvalidNetworkHandle = -1;
 
 // Interface to provide the information of the path to be validated.

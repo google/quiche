@@ -255,6 +255,13 @@ QuicConnectionId MockableQuicClient::GetClientConnectionId() {
   return QuicDefaultClient::GetClientConnectionId();
 }
 
+std::unique_ptr<QuicMigrationHelper>
+MockableQuicClient::CreateQuicMigrationHelper() {
+  auto migration_helper = std::make_unique<QuicTestMigrationHelper>(*this);
+  migration_helper_ = migration_helper.get();
+  return migration_helper;
+}
+
 void MockableQuicClient::UseClientConnectionIdLength(
     int client_connection_id_length) {
   override_client_connection_id_length_ = client_connection_id_length;
@@ -271,6 +278,31 @@ void MockableQuicClient::set_peer_address(const QuicSocketAddress& address) {
   } else {
     mockable_network_helper()->set_peer_address(address);
   }
+}
+
+void MockableQuicClient::QuicTestMigrationHelper::AddNewNetwork(
+    QuicNetworkHandle network, QuicIpAddress address) {
+  network_to_address_map_[network] = address;
+}
+
+QuicIpAddress MockableQuicClient::QuicTestMigrationHelper::GetAddressForNetwork(
+    QuicNetworkHandle network) const {
+  QUICHE_DCHECK(network_to_address_map_.contains(network))
+      << "Network " << network << " not found in network_to_address_map_.";
+  return network_to_address_map_.at(network);
+}
+
+QuicNetworkHandle
+MockableQuicClient::QuicTestMigrationHelper::FindAlternateNetwork(
+    QuicNetworkHandle network) {
+  for (const auto& [key, value] : network_to_address_map_) {
+    if (key != network) {
+      QUICHE_DLOG(INFO) << "Found alternate network " << key << " with address "
+                        << value.ToString();
+      return key;
+    }
+  }
+  return kInvalidNetworkHandle;
 }
 
 QuicTestClient::QuicTestClient(

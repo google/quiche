@@ -35,6 +35,18 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
                           QuicCryptoClientConfig* crypto_config,
                           bool drop_response_body, bool enable_web_transport);
 
+  QuicSimpleClientSession(const QuicConfig& config,
+                          const ParsedQuicVersionVector& supported_versions,
+                          QuicConnection* connection,
+                          QuicSession::Visitor* visitor,
+                          QuicForceBlockablePacketWriter* absl_nullable writer,
+                          QuicMigrationHelper* absl_nullable migration_helper,
+                          const QuicConnectionMigrationConfig& migration_config,
+                          QuicClientBase::NetworkHelper* network_helper,
+                          const QuicServerId& server_id,
+                          QuicCryptoClientConfig* crypto_config,
+                          bool drop_response_body, bool enable_web_transport);
+
   std::unique_ptr<QuicSpdyClientStream> CreateClientStream() override;
   WebTransportHttp3VersionSet LocallySupportedWebTransportVersions()
       const override;

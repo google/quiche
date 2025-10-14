@@ -38,6 +38,7 @@
 #include "quiche/quic/core/frames/quic_ping_frame.h"
 #include "quiche/quic/core/frames/quic_window_update_frame.h"
 #include "quiche/quic/core/http/http_constants.h"
+#include "quiche/quic/core/http/quic_connection_migration_manager.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
@@ -160,7 +161,8 @@ struct TestParams {
         congestion_control_tag(congestion_control_tag),
         event_loop(event_loop),
         override_server_connection_id_length(
-            override_server_connection_id_length) {}
+            override_server_connection_id_length),
+        handle_migration_in_session(false) {}
 
   friend std::ostream& operator<<(std::ostream& os, const TestParams& p) {
     os << "{ version: " << ParsedQuicVersionToString(p.version);
@@ -168,7 +170,8 @@ struct TestParams {
        << QuicTagToString(p.congestion_control_tag)
        << " event loop: " << p.event_loop->GetName()
        << " connection ID length: " << p.override_server_connection_id_length
-       << " }";
+       << " handle_migration_in_session: " << p.handle_migration_in_session
+       << "}";
     return os;
   }
 
@@ -176,6 +179,7 @@ struct TestParams {
   QuicTag congestion_control_tag;
   QuicEventLoopFactory* event_loop;
   int override_server_connection_id_length;
+  bool handle_migration_in_session;
 };
 
 // Used by ::testing::PrintToStringParamName().
@@ -187,11 +191,15 @@ std::string PrintToString(const TestParams& p) {
       std::to_string((p.override_server_connection_id_length == -1)
                          ? static_cast<int>(kQuicDefaultConnectionIdLength)
                          : p.override_server_connection_id_length));
+  if (p.handle_migration_in_session) {
+    absl::StrAppend(&rv, "_handle_migration_in_session");
+  }
   return EscapeTestParamName(rv);
 }
 
 // Constructs various test permutations.
-std::vector<TestParams> GetTestParams() {
+std::vector<TestParams> GetTestParams(
+    bool handle_migration_in_session = false) {
   std::vector<TestParams> params;
   std::vector<int> connection_id_lengths{-1, kLongConnectionIdLength};
   for (auto connection_id_length : connection_id_lengths) {
@@ -211,6 +219,13 @@ std::vector<TestParams> GetTestParams() {
           params.push_back(TestParams(version, congestion_control_tag,
                                       GetDefaultEventLoop(),
                                       connection_id_length));
+          if (handle_migration_in_session) {
+            // Add additional test params with migration manager enabled.
+            params.push_back(TestParams(version, congestion_control_tag,
+                                        GetDefaultEventLoop(),
+                                        connection_id_length));
+            params.back().handle_migration_in_session = true;
+          }
         }
       }  // End of outer version loop.
     }  // End of congestion_control_tag loop.
@@ -1088,6 +1103,55 @@ INSTANTIATE_TEST_SUITE_P(EndToEndTests, EndToEndTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
+class EndToEndMigrationTest : public EndToEndTest {
+ public:
+  EndToEndMigrationTest()
+      : EndToEndTest(),
+        handle_migration_in_session_(GetParam().handle_migration_in_session) {}
+
+  // Recreate a client with proper setup for testing migration handling in
+  // the session.
+  void RecreateClient() {
+    QuicIpAddress self_address;
+    if (client_ != nullptr && client_->client() != nullptr &&
+        client_->client()->connected()) {
+      // Get the address used by the existing client.
+      self_address = GetClientConnection()->self_address().host();
+    }
+    client_.reset(CreateQuicClient(nullptr, /*connect=*/false));
+    //  Must be called before Connect() which will set up the migration manager.
+    client_->client()->set_handle_migration_in_session(
+        handle_migration_in_session_);
+    if (handle_migration_in_session_) {
+      client_->client()->set_migration_config(migration_config_);
+    }
+    client_->client()->Initialize();
+    if (handle_migration_in_session_ && self_address.IsInitialized()) {
+      // Tell the new client to use the current self address for the network
+      // represented by kInvalidNetworkHandle.
+      client_->client()->AddNewNetwork(kInvalidNetworkHandle, self_address);
+    }
+    client_->client()->Connect();
+    if (handle_migration_in_session_ && !self_address.IsInitialized()) {
+      // Try again to setup the network to address map with the current self
+      // address.
+      client_->client()->AddNewNetwork(
+          kInvalidNetworkHandle, GetClientConnection()->self_address().host());
+    }
+  }
+
+  void TestMigrationUponServerPreferredAddress();
+
+ protected:
+  const bool handle_migration_in_session_;
+  QuicConnectionMigrationConfig migration_config_;
+};
+
+INSTANTIATE_TEST_SUITE_P(
+    EndToEndTests, EndToEndMigrationTest,
+    ::testing::ValuesIn(GetTestParams(/*handle_migration_in_session=*/true)),
+    ::testing::PrintToStringParamName());
+
 TEST_P(EndToEndTest, HandshakeSuccessful) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
@@ -1189,6 +1253,8 @@ TEST_P(EndToEndTest, ExportKeyingMaterial) {
   EXPECT_EQ(client_keying_material_export, server_keying_material_export);
 }
 
+// Verify that the writer is a force blockable writer when the client handles
+// migration in the session.
 TEST_P(EndToEndTest, UseForceBlockableWriter) {
   connect_to_server_on_initialize_ = false;
   ASSERT_TRUE(Initialize());
@@ -5918,7 +5984,7 @@ TEST_P(EndToEndTest, ClientMultiPortProbeOnRto) {
   stream->Reset(QuicRstStreamErrorCode::QUIC_STREAM_NO_ERROR);
 }
 
-TEST_P(EndToEndTest, ClientPortMigrationOnPathDegrading) {
+TEST_P(EndToEndMigrationTest, ClientPortMigrationOnPathDegrading) {
   connect_to_server_on_initialize_ = false;
   Initialize();
   if (!version_.HasIetfQuicFrames()) {
@@ -5946,8 +6012,11 @@ TEST_P(EndToEndTest, ClientPortMigrationOnPathDegrading) {
   server_thread_->Resume();
 
   delete client_writer_;
-  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
-  client_->client()->EnablePortMigrationUponPathDegrading(std::nullopt);
+  migration_config_.allow_port_migration = true;
+  RecreateClient();
+  if (!handle_migration_in_session_) {
+    client_->client()->EnablePortMigrationUponPathDegrading(std::nullopt);
+  }
   ASSERT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   QuicConnection* client_connection = GetClientConnection();
   QuicSocketAddress original_self_addr = client_connection->self_address();
@@ -5976,7 +6045,11 @@ TEST_P(EndToEndTest, ClientPortMigrationOnPathDegrading) {
   // Wait for new connection id to be received.
   WaitForNewConnectionIds();
   // Use 1 PTO to detect path degrading more aggressively.
-  client_->client()->EnablePortMigrationUponPathDegrading({1});
+  client_->client()
+      ->session()
+      ->connection()
+      ->sent_packet_manager()
+      .set_num_ptos_for_path_degrading(1);
   new_writer->set_peer_address_to_drop(new_self_addr1);
   client_->SendSynchronousRequest("/eep");
   QuicSocketAddress new_self_addr2 = client_connection->self_address();
@@ -5986,11 +6059,12 @@ TEST_P(EndToEndTest, ClientPortMigrationOnPathDegrading) {
                     ->GetStats()
                     .num_forward_progress_after_path_degrading);
   EXPECT_EQ(2u, GetClientConnection()->GetStats().num_path_response_received);
-  // It should take fewer PTOs to trigger port migration than the default(4).
+  // It should take fewer PTOs to trigger port migration than the initial
+  // value(4).
   EXPECT_GT(pto_count + 4, GetClientConnection()->GetStats().pto_count);
 }
 
-TEST_P(EndToEndTest, ClientLimitPortMigrationOnPathDegrading) {
+TEST_P(EndToEndMigrationTest, ClientLimitPortMigrationOnPathDegrading) {
   connect_to_server_on_initialize_ = false;
   Initialize();
   if (!version_.HasIetfQuicFrames()) {
@@ -6001,8 +6075,14 @@ TEST_P(EndToEndTest, ClientLimitPortMigrationOnPathDegrading) {
       GetQuicFlag(quic_max_num_path_degrading_to_mitigate);
 
   delete client_writer_;
-  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
-  client_->client()->EnablePortMigrationUponPathDegrading(std::nullopt);
+  migration_config_.allow_port_migration = true;
+  migration_config_.migrate_idle_session = true;
+  migration_config_.max_port_migrations_per_session =
+      static_cast<int>(max_num_path_degrading_to_mitigate);
+  RecreateClient();
+  if (!handle_migration_in_session_) {
+    client_->client()->EnablePortMigrationUponPathDegrading(std::nullopt);
+  }
   ASSERT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   QuicConnection* client_connection = GetClientConnection();
   HttpHeaderBlock headers;
@@ -6151,13 +6231,14 @@ TEST_P(EndToEndTest, ClientMultiPortMigrationOnPathDegradingOnRTO) {
   stream->Reset(QuicRstStreamErrorCode::QUIC_STREAM_NO_ERROR);
 }
 
-TEST_P(EndToEndTest, SimpleServerPreferredAddressTest) {
+void EndToEndMigrationTest::TestMigrationUponServerPreferredAddress() {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {
     return;
   }
-  client_.reset(CreateQuicClient(nullptr));
+
+  RecreateClient();
   QuicConnection* client_connection = GetClientConnection();
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   EXPECT_EQ(server_address_, client_connection->effective_peer_address());
@@ -6179,43 +6260,24 @@ TEST_P(EndToEndTest, SimpleServerPreferredAddressTest) {
   EXPECT_FALSE(client_stats.failed_to_validate_server_preferred_address);
 }
 
-TEST_P(EndToEndTest, SimpleServerPreferredAddressTestNoSPAD) {
+TEST_P(EndToEndMigrationTest, SimpleServerPreferredAddressTest) {
+  TestMigrationUponServerPreferredAddress();
+}
+
+TEST_P(EndToEndMigrationTest, SimpleServerPreferredAddressTestNoSPAD) {
   SetQuicFlag(quic_always_support_server_preferred_address, true);
-  use_preferred_address_ = true;
-  ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
-    return;
-  }
-  client_.reset(CreateQuicClient(nullptr));
-  QuicConnection* client_connection = GetClientConnection();
-  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
-  EXPECT_EQ(server_address_, client_connection->effective_peer_address());
-  EXPECT_EQ(server_address_, client_connection->peer_address());
-  EXPECT_TRUE(client_->client()->HasPendingPathValidation());
-  QuicConnectionId server_cid1 = client_connection->connection_id();
-
-  SendSynchronousFooRequestAndCheckResponse();
-  while (client_->client()->HasPendingPathValidation()) {
-    client_->client()->WaitForEvents();
-  }
-  EXPECT_EQ(server_preferred_address_,
-            client_connection->effective_peer_address());
-  EXPECT_EQ(server_preferred_address_, client_connection->peer_address());
-  EXPECT_NE(server_cid1, client_connection->connection_id());
-
-  const auto client_stats = GetClientConnection()->GetStats();
-  EXPECT_TRUE(client_stats.server_preferred_address_validated);
-  EXPECT_FALSE(client_stats.failed_to_validate_server_preferred_address);
+  TestMigrationUponServerPreferredAddress();
 }
 
-TEST_P(EndToEndTest, OptimizedServerPreferredAddress) {
+TEST_P(EndToEndMigrationTest, OptimizedServerPreferredAddress) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {
     return;
   }
   client_config_.SetClientConnectionOptions(QuicTagVector{kSPA2});
-  client_.reset(CreateQuicClient(nullptr));
+  RecreateClient();
+
   QuicConnection* client_connection = GetClientConnection();
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   EXPECT_EQ(server_address_, client_connection->effective_peer_address());
@@ -8390,13 +8452,14 @@ TEST_P(EndToEndTest, FixTimeouts) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTest, ClientMigrationAfterHalfwayServerMigration) {
+TEST_P(EndToEndMigrationTest, ClientMigrationAfterHalfwayServerMigration) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {
     return;
   }
-  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
+  RecreateClient();
+
   QuicConnection* client_connection = GetClientConnection();
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   EXPECT_EQ(server_address_, client_connection->effective_peer_address());
@@ -8448,7 +8511,7 @@ TEST_P(EndToEndTest, ClientMigrationAfterHalfwayServerMigration) {
   server_thread_->Resume();
 }
 
-TEST_P(EndToEndTest, MultiPortCreationFollowingServerMigration) {
+TEST_P(EndToEndMigrationTest, MultiPortCreationFollowingServerMigration) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
   if (!version_.HasIetfQuicFrames()) {
@@ -8456,7 +8519,8 @@ TEST_P(EndToEndTest, MultiPortCreationFollowingServerMigration) {
   }
 
   client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC});
-  client_.reset(EndToEndTest::CreateQuicClient(nullptr));
+  RecreateClient();
+
   QuicConnection* client_connection = GetClientConnection();
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
   EXPECT_EQ(server_address_, client_connection->effective_peer_address());
@@ -8489,7 +8553,7 @@ TEST_P(EndToEndTest, MultiPortCreationFollowingServerMigration) {
   EXPECT_NE(server_cid1, server_cid3);
 }
 
-TEST_P(EndToEndTest, DoNotAdvertisePreferredAddressWithoutSPAD) {
+TEST_P(EndToEndMigrationTest, DoNotAdvertisePreferredAddressWithoutSPAD) {
   if (!version_.HasIetfQuicFrames()) {
     ASSERT_TRUE(Initialize());
     return;

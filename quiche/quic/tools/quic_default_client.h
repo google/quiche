@@ -12,9 +12,18 @@
 #include <memory>
 #include <string>
 
+#include "absl/container/flat_hash_map.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_path_context_factory.h"
+#include "quiche/quic/core/quic_path_validator.h"
+#include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_client_default_network_helper.h"
+#include "quiche/quic/tools/quic_simple_client_session.h"
 #include "quiche/quic/tools/quic_spdy_client_base.h"
 
 namespace quic {
@@ -27,6 +36,37 @@ class QuicDefaultClientPeer;
 
 class QuicDefaultClient : public QuicSpdyClientBase {
  public:
+  // An implementation that only creates path validation contexts but does not
+  // support network handles or alternative networks.
+  class QuicDefaultMigrationHelper : public QuicMigrationHelper {
+   public:
+    explicit QuicDefaultMigrationHelper(QuicDefaultClient& client)
+        : client_(client) {}
+
+    void OnMigrationToPathDone(
+        std::unique_ptr<QuicClientPathValidationContext> context,
+        bool success) override;
+
+    std::unique_ptr<QuicPathContextFactory> CreateQuicPathContextFactory()
+        override;
+
+    QuicNetworkHandle FindAlternateNetwork(QuicNetworkHandle network) override;
+
+    QuicNetworkHandle GetDefaultNetwork() override {
+      return kInvalidNetworkHandle;
+    }
+
+    QuicNetworkHandle GetCurrentNetwork() override {
+      return kInvalidNetworkHandle;
+    }
+
+    // Returns a specific address for a given network handle.
+    virtual QuicIpAddress GetAddressForNetwork(QuicNetworkHandle network) const;
+
+   private:
+    QuicDefaultClient& client_;
+  };
+
   // These will create their own QuicClientDefaultNetworkHelper.
   QuicDefaultClient(QuicSocketAddress server_address,
                     const QuicServerId& server_id,
@@ -71,6 +111,7 @@ class QuicDefaultClient : public QuicSpdyClientBase {
   ~QuicDefaultClient() override;
 
   // QuicSpdyClientBase overrides.
+  bool Initialize() override;
   std::unique_ptr<QuicSession> CreateQuicClientSession(
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection) override;
@@ -80,6 +121,27 @@ class QuicDefaultClient : public QuicSpdyClientBase {
 
   QuicClientDefaultNetworkHelper* default_network_helper();
   const QuicClientDefaultNetworkHelper* default_network_helper() const;
+
+  // Overridden to skip handling server preferred address and path degrading
+  // if the migration manager has already handled them according to the
+  // migration config.
+  void OnServerPreferredAddressAvailable(
+      const QuicSocketAddress& server_preferred_address) override;
+  void OnPathDegrading() override;
+
+  // Must be called before `Connect()`.
+  void set_migration_config(
+      const QuicConnectionMigrationConfig& migration_config) {
+    migration_config_ = migration_config;
+  }
+
+ protected:
+  // Called during Initialize() to create the migration helper.
+  virtual std::unique_ptr<QuicMigrationHelper> CreateQuicMigrationHelper();
+
+ private:
+  std::unique_ptr<QuicMigrationHelper> migration_helper_;
+  QuicConnectionMigrationConfig migration_config_;
 };
 
 }  // namespace quic

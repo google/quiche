@@ -10,7 +10,7 @@
 #include <memory>
 #include <string>
 
-#include "quiche/quic/core/http/quic_spdy_client_session_base.h"
+#include "quiche/quic/core/http/quic_spdy_client_session_with_migration.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/quic_crypto_client_stream.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -20,7 +20,28 @@ namespace quic {
 class QuicConnection;
 class QuicServerId;
 
-class QUICHE_EXPORT QuicSpdyClientSession : public QuicSpdyClientSessionBase {
+// An interface that provides migration related functionalities to the session:
+// network retrieval and path context creation.
+class QUIC_NO_EXPORT QuicMigrationHelper {
+ public:
+  virtual ~QuicMigrationHelper() = default;
+
+  virtual QuicNetworkHandle FindAlternateNetwork(QuicNetworkHandle network) = 0;
+
+  virtual std::unique_ptr<QuicPathContextFactory>
+  CreateQuicPathContextFactory() = 0;
+
+  virtual void OnMigrationToPathDone(
+      std::unique_ptr<QuicClientPathValidationContext> context,
+      bool success) = 0;
+
+  virtual QuicNetworkHandle GetDefaultNetwork() = 0;
+
+  virtual QuicNetworkHandle GetCurrentNetwork() = 0;
+};
+
+class QUICHE_EXPORT QuicSpdyClientSession
+    : public QuicSpdyClientSessionWithMigration {
  public:
   // Takes ownership of |connection|.
   QuicSpdyClientSession(
@@ -34,6 +55,20 @@ class QUICHE_EXPORT QuicSpdyClientSession : public QuicSpdyClientSessionBase {
       const QuicConfig& config,
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection, QuicSession::Visitor* visitor,
+      const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
+      QuicPriorityType priority_type = QuicPriorityType::kHttp);
+
+  // `writer` and `migration_helper` can be nullptr. However, if
+  // `migration_helper` is not nullptr, the session will support connection
+  // migration and port migration and `writer` must be the current writer of the
+  // `connection`.
+  QuicSpdyClientSession(
+      const QuicConfig& config,
+      const ParsedQuicVersionVector& supported_versions,
+      QuicConnection* connection, QuicSession::Visitor* visitor,
+      QuicForceBlockablePacketWriter* absl_nullable writer,
+      QuicMigrationHelper* absl_nullable migration_helper,
+      const QuicConnectionMigrationConfig& migration_config,
       const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
       QuicPriorityType priority_type = QuicPriorityType::kHttp);
 
@@ -52,6 +87,18 @@ class QUICHE_EXPORT QuicSpdyClientSession : public QuicSpdyClientSessionBase {
   void OnProofValid(const QuicCryptoClientConfig::CachedState& cached) override;
   void OnProofVerifyDetailsAvailable(
       const ProofVerifyDetails& verify_details) override;
+
+  // QuicSpdyClientSessionWithMigration methods:
+  void OnConnectionToBeClosedDueToMigrationError(
+      MigrationCause /*migration_cause*/,
+      QuicErrorCode /*quic_error*/) override {}
+  void ResetNonMigratableStreams() override {}
+  void OnNoNewNetworkForMigration() override {}
+  void StartDraining() override {}
+  void PrepareForProbingOnPath(QuicPathValidationContext& context) override;
+  bool IsSessionProxied() const override { return false; }
+  QuicNetworkHandle FindAlternateNetwork(
+      quic::QuicNetworkHandle network) override;
 
   // Performs a crypto handshake with the server.
   virtual void CryptoConnect();
@@ -118,9 +165,17 @@ class QUICHE_EXPORT QuicSpdyClientSession : public QuicSpdyClientSessionBase {
   QuicCryptoClientConfig* crypto_config() { return crypto_config_; }
 
  private:
+  // QuicSpdyClientSessionWithMigration methods:
+  bool PrepareForMigrationToPath(
+      QuicClientPathValidationContext& context) override;
+  void OnMigrationToPathDone(
+      std::unique_ptr<QuicClientPathValidationContext> context,
+      bool success) override;
+
   std::unique_ptr<QuicCryptoClientStreamBase> crypto_stream_;
   QuicServerId server_id_;
   QuicCryptoClientConfig* crypto_config_;
+  QuicMigrationHelper* absl_nullable migration_helper_;
 
   // If this is set to false, the client will ignore server GOAWAYs and allow
   // the creation of streams regardless of the high chance they will fail.

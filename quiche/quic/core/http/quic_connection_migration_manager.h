@@ -106,6 +106,8 @@ struct QUICHE_NO_EXPORT QuicConnectionMigrationConfig {
   // Maximum allowed number of migrations to non-default network triggered by
   // path degrading per default network.
   int max_migrations_to_non_default_network_on_path_degrading = 5;
+  // Maximum number of port migrations allowed per QUIC session.
+  int max_port_migrations_per_session = 4;
   // Whether to migrate to a different network upon the underlying platform's
   // network change signals and write error.
   bool migrate_session_on_network_change = false;

@@ -34,17 +34,40 @@ QuicSpdyClientSession::QuicSpdyClientSession(
     QuicConnection* connection, QuicSession::Visitor* visitor,
     const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
     QuicPriorityType priority_type)
-    : QuicSpdyClientSessionBase(connection, visitor, config, supported_versions,
-                                priority_type),
+    : QuicSpdyClientSession(config, supported_versions, connection, visitor,
+                            /*writer=*/nullptr, /*migration_helper=*/nullptr,
+                            QuicConnectionMigrationConfig{
+                                .allow_server_preferred_address = false},
+                            server_id, crypto_config, priority_type) {}
+
+QuicSpdyClientSession::QuicSpdyClientSession(
+    const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
+    QuicConnection* connection, QuicSession::Visitor* visitor,
+    QuicForceBlockablePacketWriter* absl_nullable writer,
+    QuicMigrationHelper* absl_nullable migration_helper,
+    const QuicConnectionMigrationConfig& migration_config,
+    const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
+    QuicPriorityType priority_type)
+    : QuicSpdyClientSessionWithMigration(
+          connection, writer, visitor, config, supported_versions,
+          (migration_helper == nullptr ? kInvalidNetworkHandle
+                                       : migration_helper->GetDefaultNetwork()),
+          (migration_helper == nullptr ? kInvalidNetworkHandle
+                                       : migration_helper->GetCurrentNetwork()),
+          (migration_helper == nullptr
+               ? nullptr
+               : migration_helper->CreateQuicPathContextFactory()),
+          migration_config, priority_type),
       server_id_(server_id),
       crypto_config_(crypto_config),
+      migration_helper_(migration_helper),
       respect_goaway_(true) {}
 
 QuicSpdyClientSession::~QuicSpdyClientSession() = default;
 
 void QuicSpdyClientSession::Initialize() {
   crypto_stream_ = CreateQuicCryptoStream();
-  QuicSpdyClientSessionBase::Initialize();
+  QuicSpdyClientSessionWithMigration::Initialize();
 }
 
 void QuicSpdyClientSession::OnProofValid(
@@ -196,6 +219,31 @@ QuicSpdyClientSession::CreateQuicCryptoStream() {
       server_id_, this,
       crypto_config_->proof_verifier()->CreateDefaultContext(), crypto_config_,
       this, /*has_application_state = */ version().UsesHttp3());
+}
+
+QuicNetworkHandle QuicSpdyClientSession::FindAlternateNetwork(
+    QuicNetworkHandle network) {
+  QUICHE_BUG_IF(migration_helper_not_initialized1,
+                migration_helper_ == nullptr);
+  return migration_helper_->FindAlternateNetwork(network);
+}
+
+void QuicSpdyClientSession::PrepareForProbingOnPath(
+    QuicPathValidationContext& context) {
+  QUIC_DVLOG(1) << "About to probe path " << context;
+}
+
+bool QuicSpdyClientSession::PrepareForMigrationToPath(
+    QuicClientPathValidationContext& context) {
+  QUIC_DVLOG(1) << "About to migrate to path " << context;
+  return true;
+}
+
+void QuicSpdyClientSession::OnMigrationToPathDone(
+    std::unique_ptr<QuicClientPathValidationContext> context, bool success) {
+  QUICHE_BUG_IF(migration_helper_not_initialized2,
+                migration_helper_ == nullptr);
+  migration_helper_->OnMigrationToPathDone(std::move(context), success);
 }
 
 }  // namespace quic

@@ -14,7 +14,7 @@ QuicSpdyClientSessionWithMigration::QuicSpdyClientSessionWithMigration(
     const ParsedQuicVersionVector& supported_versions,
     QuicNetworkHandle default_network, QuicNetworkHandle current_network,
     std::unique_ptr<QuicPathContextFactory> path_context_factory,
-    QuicConnectionMigrationConfig migration_config,
+    const QuicConnectionMigrationConfig& migration_config,
     QuicPriorityType priority_type)
     : QuicSpdyClientSessionBase(connection, visitor, config, supported_versions,
                                 priority_type),
