@@ -3,6 +3,8 @@ common --enable_platform_specific_config
 
 build --cxxopt=-std=c++20
 build --cxxopt=-fno-rtti
+build --cxxopt=-Wno-nullability-completeness
+build --cxxopt=-Wno-deprecated-declarations
 
 # Enable Abseil/Googletest integration
 build --define absl=1

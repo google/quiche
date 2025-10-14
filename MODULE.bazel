@@ -39,9 +39,9 @@ http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "ht
 
 http_archive(
     name = "com_google_quic_trace",
-    sha256 = "ba01a041ae37b423fb8d555c53e545dcc914ad1a9a03832f266c0107d4433b08",  # Last updated 2025-02-25
-    strip_prefix = "quic-trace-ed3deb8a056b260c59f2fd42af6dfa3db48a8cad",
-    urls = ["https://github.com/google/quic-trace/archive/ed3deb8a056b260c59f2fd42af6dfa3db48a8cad.tar.gz"],
+    sha256 = "b61b1e0f6fbfd531ca9831267930308a0697e3f1df8ec442b09a487602038562",  # Last updated 2025-10-14
+    strip_prefix = "quic-trace-ad07bb1957d47b596654f4a7003eec80166372af",
+    urls = ["https://github.com/google/quic-trace/archive/ad07bb1957d47b596654f4a7003eec80166372af.tar.gz"],
 )
 
 http_archive(
