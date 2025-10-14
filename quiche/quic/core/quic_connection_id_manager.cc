@@ -235,6 +235,7 @@ bool QuicPeerIssuedConnectionIdManager::IsConnectionIdActive(
 std::vector<uint64_t> QuicPeerIssuedConnectionIdManager::
     ConsumeToBeRetiredConnectionIdSequenceNumbers() {
   std::vector<uint64_t> result;
+  result.reserve(to_be_retired_connection_id_data_.size());
   for (auto const& cid_data : to_be_retired_connection_id_data_) {
     result.push_back(cid_data.sequence_number);
   }
