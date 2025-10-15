@@ -204,7 +204,7 @@ QuicConnectionMigrationManager::QuicConnectionMigrationManager(
     QuicSpdyClientSessionWithMigration* absl_nonnull session,
     const quic::QuicClock* absl_nonnull clock,
     QuicNetworkHandle default_network, QuicNetworkHandle current_network,
-    QuicPathContextFactory* absl_nonnull path_context_factory,
+    QuicPathContextFactory* absl_nullable path_context_factory,
     const QuicConnectionMigrationConfig& config)
     : session_(session),
       connection_(session->connection()),
