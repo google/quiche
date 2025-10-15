@@ -70,6 +70,12 @@ class QUICHE_NO_EXPORT InMemoryStream : public Stream {
   // and executing the visitor callback.
   void Receive(absl::string_view data, bool fin = false);
 
+  // If set to true, PeekNextReadableRegion() will return a single one-byte
+  // readable region at a time.
+  void set_peek_one_byte_at_a_time(bool peek_one_byte_at_a_time) {
+    peek_one_byte_at_a_time_ = peek_one_byte_at_a_time;
+  }
+
  private:
   void Terminate();
 
@@ -79,6 +85,7 @@ class QUICHE_NO_EXPORT InMemoryStream : public Stream {
   absl::Cord buffer_;
   bool fin_received_ = false;
   bool abruptly_terminated_ = false;
+  bool peek_one_byte_at_a_time_ = false;
 };
 
 }  // namespace webtransport::test

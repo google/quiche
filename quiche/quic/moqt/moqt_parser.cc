@@ -1601,7 +1601,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
         bool done = payload_length_remaining_ == 0;
         if (next_input_ == kData) {
           no_more_data_ = peek_result.all_data_received &&
-                          chunk_size == peek_result.peeked_data.size();
+                          chunk_size == stream_.ReadableBytes();
           if (!done && no_more_data_) {
             ParseError("FIN received at an unexpected point in the stream");
             return;
