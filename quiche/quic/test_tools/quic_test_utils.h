@@ -21,6 +21,7 @@
 #include "quiche/quic/core/congestion_control/loss_detection_interface.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
+#include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/http/http_decoder.h"
@@ -160,10 +161,11 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
     QuicConnectionId source_connection_id, bool version_flag, bool reset_flag,
     uint64_t packet_number, const std::string& data);
 
-// Creates a client-to-server ZERO-RTT packet that will fail to decrypt.
-std::unique_ptr<QuicEncryptedPacket> GetUndecryptableEarlyPacket(
+// Creates a long header packet for testing.
+std::unique_ptr<QuicEncryptedPacket> MakeLongHeaderPacket(
     const ParsedQuicVersion& version,
-    const QuicConnectionId& server_connection_id);
+    const QuicConnectionId& server_connection_id, const QuicFrames& frames,
+    QuicLongHeaderType long_header_type, EncryptionLevel encryption_level);
 
 // Constructs a received packet for testing. The caller must take ownership
 // of the returned pointer.

@@ -972,9 +972,10 @@ QuicEncryptedPacket* ConstructEncryptedPacket(
   return new QuicEncryptedPacket(buffer, encrypted_length, true);
 }
 
-std::unique_ptr<QuicEncryptedPacket> GetUndecryptableEarlyPacket(
+std::unique_ptr<QuicEncryptedPacket> MakeLongHeaderPacket(
     const ParsedQuicVersion& version,
-    const QuicConnectionId& server_connection_id) {
+    const QuicConnectionId& server_connection_id, const QuicFrames& frames,
+    QuicLongHeaderType long_header_type, EncryptionLevel encryption_level) {
   QuicPacketHeader header;
   header.destination_connection_id = server_connection_id;
   header.destination_connection_id_included = CONNECTION_ID_PRESENT;
@@ -987,30 +988,28 @@ std::unique_ptr<QuicEncryptedPacket> GetUndecryptableEarlyPacket(
   header.reset_flag = false;
   header.packet_number_length = PACKET_4BYTE_PACKET_NUMBER;
   header.packet_number = QuicPacketNumber(33);
-  header.long_packet_type = ZERO_RTT_PROTECTED;
+  header.long_packet_type = long_header_type;
   if (version.HasLongHeaderLengths()) {
     header.retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
     header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
 
-  QuicFrames frames;
-  frames.push_back(QuicFrame(QuicPingFrame()));
-  frames.push_back(QuicFrame(QuicPaddingFrame(100)));
   QuicFramer framer({version}, QuicTime::Zero(), Perspective::IS_CLIENT,
                     kQuicDefaultConnectionIdLength);
   framer.SetInitialObfuscators(server_connection_id);
 
-  framer.SetEncrypter(ENCRYPTION_ZERO_RTT,
-                      std::make_unique<TaggingEncrypter>(ENCRYPTION_ZERO_RTT));
+  if (long_header_type != INITIAL) {
+    framer.SetEncrypter(encryption_level,
+                        std::make_unique<TaggingEncrypter>(encryption_level));
+  }
   std::unique_ptr<QuicPacket> packet(
       BuildUnsizedDataPacket(&framer, header, frames));
   EXPECT_TRUE(packet != nullptr);
   char* buffer = new char[kMaxOutgoingPacketSize];
   size_t encrypted_length =
-      framer.EncryptPayload(ENCRYPTION_ZERO_RTT, header.packet_number, *packet,
+      framer.EncryptPayload(encryption_level, header.packet_number, *packet,
                             buffer, kMaxOutgoingPacketSize);
   EXPECT_NE(0u, encrypted_length);
-  DeleteFrames(&frames);
   return std::make_unique<QuicEncryptedPacket>(buffer, encrypted_length,
                                                /*owns_buffer=*/true);
 }

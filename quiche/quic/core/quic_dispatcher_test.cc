@@ -303,6 +303,13 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     return reinterpret_cast<MockQuicConnection*>(session2_->connection());
   }
 
+  QuicFrames CreatePaddedPingPacketFrames() {
+    QuicFrames frames;
+    frames.push_back(QuicFrame(QuicPingFrame()));
+    frames.push_back(QuicFrame(QuicPaddingFrame(100)));
+    return frames;
+  }
+
   // Process a packet with an 8 byte connection id,
   // 6 byte packet number, default path id, and packet number 1,
   // using the version under test.
@@ -450,14 +457,16 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       const QuicSocketAddress& peer_address,
       const QuicConnectionId& server_connection_id) {
     ProcessUndecryptableEarlyPacket(version_, peer_address,
-                                    server_connection_id);
+                                    server_connection_id,
+                                    CreatePaddedPingPacketFrames());
   }
 
   void ProcessUndecryptableEarlyPacket(
       const ParsedQuicVersion& version, const QuicSocketAddress& peer_address,
-      const QuicConnectionId& server_connection_id) {
+      const QuicConnectionId& server_connection_id, const QuicFrames& frames) {
     std::unique_ptr<QuicEncryptedPacket> encrypted_packet =
-        GetUndecryptableEarlyPacket(version, server_connection_id);
+        MakeLongHeaderPacket(version, server_connection_id, frames,
+                             ZERO_RTT_PROTECTED, ENCRYPTION_ZERO_RTT);
     std::unique_ptr<QuicReceivedPacket> received_packet(ConstructReceivedPacket(
         *encrypted_packet, mock_helper_.GetClock()->Now()));
     ProcessReceivedPacket(std::move(received_packet), peer_address, version,
@@ -2540,7 +2549,8 @@ class BufferedPacketStoreTest : public QuicDispatcherTestBase {
       const ParsedQuicVersion& version, const QuicSocketAddress& peer_address,
       const QuicConnectionId& server_connection_id) {
     QuicDispatcherTestBase::ProcessUndecryptableEarlyPacket(
-        version, peer_address, server_connection_id);
+        version, peer_address, server_connection_id,
+        CreatePaddedPingPacketFrames());
   }
 
   void ProcessUndecryptableEarlyPacket(
@@ -3163,10 +3173,12 @@ TEST_P(BufferedPacketStoreTest, BufferedChloWithEcn) {
   }
   InSequence s;
   QuicConnectionId conn_id = TestConnectionId(1);
+
   // Process non-CHLO packet. This ProcessUndecryptableEarlyPacket() but with
   // an injected step to set the ECN bits.
   std::unique_ptr<QuicEncryptedPacket> encrypted_packet =
-      GetUndecryptableEarlyPacket(version_, conn_id);
+      MakeLongHeaderPacket(version_, conn_id, CreatePaddedPingPacketFrames(),
+                           ZERO_RTT_PROTECTED, ENCRYPTION_ZERO_RTT);
   std::unique_ptr<QuicReceivedPacket> received_packet(ConstructReceivedPacket(
       *encrypted_packet, mock_helper_.GetClock()->Now(), ECN_ECT1));
   ProcessReceivedPacket(std::move(received_packet), client_addr_, version_,
