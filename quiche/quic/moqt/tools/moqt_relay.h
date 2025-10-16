@@ -54,7 +54,7 @@ class MoqtRelay {
   MoqtClient* client() { return default_upstream_client_.get(); }
   MoqtRelayPublisher* publisher() { return &publisher_; }
 
-  virtual void SetPublishNamespaceCallback(MoqtSessionInterface* session);
+  virtual void SetNamespaceCallbacks(MoqtSessionInterface* session);
 
  private:
   std::unique_ptr<moqt::MoqtClient> CreateClient(
@@ -69,10 +69,11 @@ class MoqtRelay {
   const bool ignore_certificate_;
   quic::QuicEventLoop* client_event_loop_;
 
+  MoqtRelayPublisher publisher_;
+
   // Pointer to a client that has received GOAWAY.
   std::unique_ptr<MoqtClient> default_upstream_client_;
   std::unique_ptr<MoqtServer> server_;
-  MoqtRelayPublisher publisher_;
 };
 
 }  // namespace moqt

@@ -95,7 +95,7 @@ MoqtSessionCallbacks MoqtRelay::CreateClientCallbacks() {
     MoqtSession* session = default_upstream_client_->session();
     session->set_publisher(&publisher_);
     publisher_.SetDefaultUpstreamSession(session);
-    SetPublishNamespaceCallback(session);
+    SetNamespaceCallbacks(session);
   };
   callbacks.goaway_received_callback = [](absl::string_view new_session_uri) {
     QUICHE_LOG(INFO) << "GoAway received, new session uri = "
@@ -106,7 +106,7 @@ MoqtSessionCallbacks MoqtRelay::CreateClientCallbacks() {
   return callbacks;
 }
 
-void MoqtRelay::SetPublishNamespaceCallback(MoqtSessionInterface* session) {
+void MoqtRelay::SetNamespaceCallbacks(MoqtSessionInterface* session) {
   session->callbacks().incoming_publish_namespace_callback =
       [this, session](
           const TrackNamespace& track_namespace,
@@ -119,6 +119,18 @@ void MoqtRelay::SetPublishNamespaceCallback(MoqtSessionInterface* session) {
           return publisher_.OnPublishNamespaceDone(track_namespace, session);
         }
       };
+  session->callbacks().incoming_subscribe_namespace_callback =
+      [this, session](
+          const TrackNamespace& track_namespace,
+          const std::optional<VersionSpecificParameters>& parameters,
+          MoqtResponseCallback callback) {
+        if (parameters.has_value()) {
+          publisher_.AddNamespaceSubscriber(track_namespace, session);
+          std::move(callback)(std::nullopt);
+        } else {
+          publisher_.RemoveNamespaceSubscriber(track_namespace, session);
+        }
+      };
 }
 
 absl::StatusOr<MoqtConfigureSessionCallback> MoqtRelay::IncomingSessionHandler(
@@ -127,7 +139,7 @@ absl::StatusOr<MoqtConfigureSessionCallback> MoqtRelay::IncomingSessionHandler(
     session->callbacks().session_established_callback = [this, session]() {
       session->set_publisher(&publisher_);
     };
-    SetPublishNamespaceCallback(session);
+    SetNamespaceCallbacks(session);
   };
 }
 

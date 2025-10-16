@@ -1216,6 +1216,8 @@ void MoqtSession::ControlStream::OnPublishNamespaceMessage(
         session_->framer_.SerializePublishNamespaceError(error));
     return;
   }
+  QUIC_DLOG(INFO) << ENDPOINT << "Received a PUBLISH_NAMESPACE for "
+                  << message.track_namespace;
   quiche::QuicheWeakPtr<MoqtSessionInterface> session_weakptr =
       session_->GetWeakPtr();
   session_->callbacks_.incoming_publish_namespace_callback(

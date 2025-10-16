@@ -33,6 +33,15 @@ class MoqtRelayPublisher : public MoqtPublisher {
   absl_nullable std::shared_ptr<MoqtTrackPublisher> GetTrack(
       const FullTrackName& track_name) override;
 
+  void AddNamespaceSubscriber(const TrackNamespace& track_namespace,
+                              MoqtSessionInterface* session) {
+    namespace_publishers_.AddSubscriber(track_namespace, session);
+  }
+  void RemoveNamespaceSubscriber(const TrackNamespace& track_namespace,
+                                 MoqtSessionInterface* session) {
+    namespace_publishers_.RemoveSubscriber(track_namespace, session);
+  }
+
   // There is a new default upstream session. When there is no other namespace
   // information, requests will route here.
   void SetDefaultUpstreamSession(
