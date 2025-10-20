@@ -212,6 +212,10 @@ class MoqtSimulator {
   // Runs the simulation and outputs the results to stdout.
   void Run();
 
+  // The fraction of objects received on time.
+  float received_on_time_fraction() const;
+
+  // Outputs the results of the simulation to stdout.
   void HumanReadableOutput();
   void CustomOutput(absl::string_view format);
 

@@ -1366,6 +1366,7 @@
     "quiche/quic/core/uber_quic_stream_id_manager_test.cc",
     "quiche/quic/core/uber_received_packet_manager_test.cc",
     "quiche/quic/core/web_transport_write_blocked_list_test.cc",
+    "quiche/quic/moqt/test_tools/moqt_simulator_test.cc",
     "quiche/quic/test_tools/crypto_test_utils_test.cc",
     "quiche/quic/test_tools/quic_test_utils_test.cc",
     "quiche/quic/test_tools/simple_session_notifier_test.cc",

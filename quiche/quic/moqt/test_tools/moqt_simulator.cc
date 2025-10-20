@@ -377,4 +377,10 @@ void MoqtSimulator::CustomOutput(absl::string_view format) {
   std::cout << output << std::endl;
 }
 
+float MoqtSimulator::received_on_time_fraction() const {
+  QUICHE_DCHECK_GE(generator_.total_objects_sent(), 0);
+  return static_cast<float>(receiver_.full_objects_received_on_time()) /
+         generator_.total_objects_sent();
+}
+
 }  // namespace moqt::test
