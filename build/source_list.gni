@@ -1645,11 +1645,13 @@ moqt_test_support_hdrs = [
     "src/quiche/quic/moqt/test_tools/moqt_mock_visitor.h",
     "src/quiche/quic/moqt/test_tools/moqt_parser_test_visitor.h",
     "src/quiche/quic/moqt/test_tools/moqt_session_peer.h",
+    "src/quiche/quic/moqt/test_tools/moqt_simulator.h",
     "src/quiche/quic/moqt/test_tools/moqt_simulator_harness.h",
     "src/quiche/quic/moqt/test_tools/moqt_test_message.h",
 ]
 moqt_test_support_srcs = [
     "src/quiche/quic/moqt/test_tools/moqt_framer_utils.cc",
+    "src/quiche/quic/moqt/test_tools/moqt_simulator.cc",
     "src/quiche/quic/moqt/test_tools/moqt_simulator_harness.cc",
 ]
 binary_http_hdrs = [
