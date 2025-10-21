@@ -13,6 +13,7 @@
 #include <variant>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
@@ -285,7 +286,11 @@ class QUICHE_EXPORT ProofSourceHandleCallback {
   // Configuration to use for configuring the SSL object when handshaking
   // locally.
   struct LocalSSLConfig {
-    const ProofSource::Chain* chain;
+    LocalSSLConfig(const ProofSource::Chain* absl_nullable chain,
+                   QuicDelayedSSLConfig delayed_ssl_config)
+        : chain(chain), delayed_ssl_config(delayed_ssl_config) {}
+
+    const ProofSource::Chain* absl_nullable chain = nullptr;
     QuicDelayedSSLConfig delayed_ssl_config;
   };
 
