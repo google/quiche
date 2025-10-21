@@ -591,6 +591,7 @@ bool MoqtSession::RelativeJoiningFetch(
   if (!Subscribe(subscribe, visitor)) {
     return false;
   }
+
   MoqtFetch fetch;
   fetch.request_id = next_request_id_;
   next_request_id_ += 2;
@@ -598,6 +599,7 @@ bool MoqtSession::RelativeJoiningFetch(
   fetch.group_order = delivery_order;
   fetch.fetch = JoiningFetchRelative{subscribe.request_id, num_previous_groups};
   fetch.parameters = parameters;
+  fetch.parameters.delivery_timeout = quic::QuicTimeDelta::Infinite();
   SendControlMessage(framer_.SerializeFetch(fetch));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent Joining FETCH message for " << name;
   auto upstream_fetch =
