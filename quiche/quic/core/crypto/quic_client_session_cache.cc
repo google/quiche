@@ -56,19 +56,27 @@ void QuicClientSessionCache::Insert(const QuicServerId& server_id,
     return;
   }
 
-  QUICHE_DCHECK(iter->second->params);
   // The states are both the same, so only need to insert sessions.
-  if (params == *iter->second->params &&
+  if (iter->second->params && params == *iter->second->params &&
       DoApplicationStatesMatch(application_state,
                                iter->second->application_state.get())) {
     iter->second->PushSession(std::move(session));
     return;
   }
-  // Erase the existing entry because this Insert call must come from a
-  // different QUIC session.
-  cache_.Erase(iter);
-  CreateAndInsertEntry(server_id, std::move(session), params,
-                       application_state);
+
+  // Copy potential address token received between the last sent Initial packet and now.
+  if (iter->second->token.empty()) {
+    // Erase the existing entry because this Insert call must come from a
+    // different QUIC session.
+    cache_.Erase(iter);
+    CreateAndInsertEntry(server_id, std::move(session), params,
+                         application_state);
+  } else {
+	auto token = std::move(iter->second->token);
+	cache_.Erase(iter);
+    CreateAndInsertEntry(server_id, std::move(session), params,
+                         application_state, std::move(token));
+  }
 }
 
 std::unique_ptr<QuicResumptionState> QuicClientSessionCache::Lookup(
@@ -118,6 +126,7 @@ void QuicClientSessionCache::OnNewTokenReceived(const QuicServerId& server_id,
   }
   auto iter = cache_.Lookup(server_id.cache_key());
   if (iter == cache_.end()) {
+	CreateAndInsertTokenDummy(server_id, token);
     return;
   }
   iter->second->token = std::string(token);
@@ -136,13 +145,23 @@ void QuicClientSessionCache::RemoveExpiredEntries(QuicWallTime now) {
 
 void QuicClientSessionCache::Clear() { cache_.Clear(); }
 
+void QuicClientSessionCache::CreateAndInsertTokenDummy(
+	const QuicServerId& server_id,
+	const absl::string_view& token) {
+	auto entry = std::make_unique<Entry>();
+	entry->token = std::string(token);
+	cache_.Insert(server_id.cache_key(), std::move(entry));
+}
+
 void QuicClientSessionCache::CreateAndInsertEntry(
     const QuicServerId& server_id, bssl::UniquePtr<SSL_SESSION> session,
     const TransportParameters& params,
-    const ApplicationState* application_state) {
+    const ApplicationState* application_state,
+    const std::string &token){
   auto entry = std::make_unique<Entry>();
   entry->PushSession(std::move(session));
   entry->params = std::make_unique<TransportParameters>(params);
+  entry->token = token;
   if (application_state) {
     entry->application_state =
         std::make_unique<ApplicationState>(*application_state);
