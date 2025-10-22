@@ -9,7 +9,6 @@
 #if defined(QUICHE_FLAG)
 
 QUICHE_FLAG(bool, quiche_reloadable_flag_enable_h3_origin_frame, false, true, "If true, enables support for parsing HTTP/3 ORIGIN frames.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_enable_tls_trust_anchor_ids, true, true, "When true, QUIC client and server will support TLS Trust Anchor IDs.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_act_upon_invalid_header, true, true, "If true, reject or send error response code upon receiving invalid request or response headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_add_stream_info_to_idle_close_detail, false, true, "If true, include stream information in idle timeout connection close detail.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_allow_client_enabled_2x_initial_cwnd, true, true, "Doubles the initial congestion window for QUIC connections when initiated by the client")

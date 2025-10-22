@@ -160,18 +160,15 @@ bool TlsClientHandshaker::CryptoConnect() {
   // Configure TLS Trust Anchor IDs
   // (https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html),
   // if set.
-  if (GetQuicReloadableFlag(enable_tls_trust_anchor_ids)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(enable_tls_trust_anchor_ids, 2, 2);
-    if (tls_connection_.ssl_config().trust_anchor_ids.has_value()) {
-      if (!SSL_set1_requested_trust_anchors(
-              ssl(),
-              reinterpret_cast<const uint8_t*>(
-                  tls_connection_.ssl_config().trust_anchor_ids->data()),
-              tls_connection_.ssl_config().trust_anchor_ids->size())) {
-        CloseConnection(QUIC_HANDSHAKE_FAILED,
-                        "Client failed to set TLS Trust Anchor IDs");
-        return false;
-      }
+  if (tls_connection_.ssl_config().trust_anchor_ids.has_value()) {
+    if (!SSL_set1_requested_trust_anchors(
+            ssl(),
+            reinterpret_cast<const uint8_t*>(
+                tls_connection_.ssl_config().trust_anchor_ids->data()),
+            tls_connection_.ssl_config().trust_anchor_ids->size())) {
+      CloseConnection(QUIC_HANDSHAKE_FAILED,
+                      "Client failed to set TLS Trust Anchor IDs");
+      return false;
     }
   }
 

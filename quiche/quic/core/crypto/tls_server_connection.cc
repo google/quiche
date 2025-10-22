@@ -76,30 +76,24 @@ absl::Status TlsServerConnection::ConfigureSSL(
 void TlsServerConnection::SetCertChain(
     const std::vector<CRYPTO_BUFFER*>& cert_chain,
     const std::string& trust_anchor_id) {
-  if (GetQuicReloadableFlag(enable_tls_trust_anchor_ids)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(enable_tls_trust_anchor_ids, 1, 2);
-    bssl::UniquePtr<SSL_CREDENTIAL> credential(SSL_CREDENTIAL_new_x509());
-    SSL_CREDENTIAL_set1_cert_chain(credential.get(), cert_chain.data(),
-                                   cert_chain.size());
-    if (ssl_config().signing_algorithm_prefs.has_value()) {
-      SSL_CREDENTIAL_set1_signing_algorithm_prefs(
-          credential.get(), ssl_config().signing_algorithm_prefs->data(),
-          ssl_config().signing_algorithm_prefs->size());
-    }
-    SSL_CREDENTIAL_set_private_key_method(
-        credential.get(), &TlsServerConnection::kPrivateKeyMethod);
-    if (!trust_anchor_id.empty()) {
-      SSL_CREDENTIAL_set1_trust_anchor_id(
-          credential.get(),
-          reinterpret_cast<const uint8_t*>(trust_anchor_id.data()),
-          trust_anchor_id.size());
-      SSL_CREDENTIAL_set_must_match_issuer(credential.get(), 1);
-    }
-    SSL_add1_credential(ssl(), credential.get());
-  } else {
-    SSL_set_chain_and_key(ssl(), cert_chain.data(), cert_chain.size(), nullptr,
-                          &TlsServerConnection::kPrivateKeyMethod);
+  bssl::UniquePtr<SSL_CREDENTIAL> credential(SSL_CREDENTIAL_new_x509());
+  SSL_CREDENTIAL_set1_cert_chain(credential.get(), cert_chain.data(),
+                                 cert_chain.size());
+  if (ssl_config().signing_algorithm_prefs.has_value()) {
+    SSL_CREDENTIAL_set1_signing_algorithm_prefs(
+        credential.get(), ssl_config().signing_algorithm_prefs->data(),
+        ssl_config().signing_algorithm_prefs->size());
   }
+  SSL_CREDENTIAL_set_private_key_method(
+      credential.get(), &TlsServerConnection::kPrivateKeyMethod);
+  if (!trust_anchor_id.empty()) {
+    SSL_CREDENTIAL_set1_trust_anchor_id(
+        credential.get(),
+        reinterpret_cast<const uint8_t*>(trust_anchor_id.data()),
+        trust_anchor_id.size());
+    SSL_CREDENTIAL_set_must_match_issuer(credential.get(), 1);
+  }
+  SSL_add1_credential(ssl(), credential.get());
 }
 
 void TlsServerConnection::SetClientCertMode(ClientCertMode client_cert_mode) {

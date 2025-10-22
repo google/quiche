@@ -369,7 +369,6 @@ TEST_P(TlsClientHandshakerTest, HandshakeWithAsyncProofVerifier) {
 }
 
 TEST_P(TlsClientHandshakerTest, HandshakeWithTrustAnchorIds) {
-  SetQuicReloadableFlag(enable_tls_trust_anchor_ids, true);
   const std::string kTestTrustAnchorId = {0x03, 0x01, 0x02, 0x03};
   const std::string kTestServerTrustAnchorId = {0x01, 0x02, 0x03};
   InitializeFakeServer(kTestServerTrustAnchorId);
@@ -385,7 +384,6 @@ TEST_P(TlsClientHandshakerTest, HandshakeWithTrustAnchorIds) {
 // Trust Anchor IDs, one which matches the server's credential and one which
 // doesn't.
 TEST_P(TlsClientHandshakerTest, HandshakeWithMultipleTrustAnchorIds) {
-  SetQuicReloadableFlag(enable_tls_trust_anchor_ids, true);
   // The client sends two trust anchor IDs, the first of which doesn't match the
   // server's credential and the second does.
   const std::string kTestTrustAnchorIds = {0x04, 0x00, 0x01, 0x02, 0x03,
@@ -403,7 +401,6 @@ TEST_P(TlsClientHandshakerTest, HandshakeWithMultipleTrustAnchorIds) {
 // Tests that the client can complete a handshake in which it sends no Trust
 // Anchor IDs.
 TEST_P(TlsClientHandshakerTest, HandshakeWithEmptyTrustAnchorIdList) {
-  SetQuicReloadableFlag(enable_tls_trust_anchor_ids, true);
   InitializeFakeServer("");
   ssl_config_.emplace();
   ssl_config_->trust_anchor_ids.emplace();
