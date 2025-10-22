@@ -5466,6 +5466,54 @@ TEST_P(EndToEndTest, DoNotCrashOnPacketWriteError) {
   client->SendCustomSynchronousRequest(headers, body);
 }
 
+// Tests that the connection will be migrated to a new socket upon packet write
+// error.
+TEST_P(EndToEndMigrationTest, MigrateUponPacketWriteError) {
+  // Write error mitigation is asynchronous, during which the old fd might
+  // receive write events but the old writer is forcefully blocked. This flag is
+  // needed to ensure such case doesn't cause QUICHE_CHECK or connection close.
+  SetQuicReloadableFlag(quic_client_check_blockage_before_on_can_write, true);
+  ASSERT_TRUE(Initialize());
+  if (!version_.HasIetfQuicFrames() || !handle_migration_in_session_) {
+    return;
+  }
+  // Setup the initial writer to let through the first 15 packets which should
+  // be enough to finish the handshake and then starts failing writes.
+  auto* bad_writer = new BadPacketWriter(/*packet_causing_write_error=*/15,
+                                         /*error_code=*/123);
+  client_.reset(CreateQuicClient(bad_writer, /*connect=*/false));
+  client_->client()->set_handle_migration_in_session(
+      handle_migration_in_session_);
+  // Enable connection migration upon write error before the connection is
+  // created.
+  migration_config_.migrate_session_on_network_change = true;
+  migration_config_.migrate_idle_session = true;
+  client_->client()->set_migration_config(migration_config_);
+  client_->client()->Initialize();
+  client_->client()->Connect();
+  ASSERT_TRUE(client_->connected());
+
+  // Add a new network as the alternative network to migrate to.
+  client_->client()->AddNewNetwork(/*network=*/2, TestLoopback(2));
+  QuicIpAddress self_address_before_error =
+      GetClientConnection()->self_address().host();
+  ASSERT_NE(self_address_before_error, TestLoopback(2));
+  WaitForNewConnectionIds();
+
+  // 1 MB body.
+  std::string body(1024 * 1024, 'a');
+  HttpHeaderBlock headers;
+  headers[":method"] = "POST";
+  headers[":path"] = "/foo";
+  headers[":scheme"] = "https";
+  headers[":authority"] = server_hostname_;
+
+  client_->SendCustomSynchronousRequest(headers, body);
+  EXPECT_TRUE(client_->client()->connected());
+  EXPECT_NE(self_address_before_error,
+            GetClientConnection()->self_address().host());
+}
+
 // Regression test for b/71711996. This test sends a connectivity probing packet
 // as its last sent packet, and makes sure the server's ACK of that packet does
 // not cause the client to fail.

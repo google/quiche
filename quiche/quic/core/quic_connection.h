@@ -310,6 +310,11 @@ class QUICHE_EXPORT QuicConnectionVisitorInterface {
 
   // Get from session the flow control send window for stream |id|.
   virtual QuicByteCount GetFlowControlSendWindowSize(QuicStreamId id) = 0;
+
+  // Called when the client encounters a write error.
+  // Returns true if the error can be mitigated by migrating to a different
+  // network.
+  virtual bool MaybeMitigateWriteError(const WriteResult& write_result) = 0;
 };
 
 // Interface which gets callbacks from the QuicConnection at interesting

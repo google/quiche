@@ -118,6 +118,9 @@ class QuicEndpoint : public QuicEndpointBase,
   QuicByteCount GetFlowControlSendWindowSize(QuicStreamId /*id*/) override {
     return std::numeric_limits<QuicByteCount>::max();
   }
+  bool MaybeMitigateWriteError(const WriteResult& /*write_result*/) override {
+    return false;
+  }
 
   // End QuicConnectionVisitorInterface implementation.
 

@@ -16,6 +16,7 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_udp_socket.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -176,7 +177,15 @@ void QuicClientDefaultNetworkHelper::OnSocketEvent(
   }
   if (client_->connected() && (events & kSocketEventWritable)) {
     client_->writer()->SetWritable();
-    client_->session()->connection()->OnCanWrite();
+    if (GetQuicReloadableFlag(quic_client_check_blockage_before_on_can_write)) {
+      QUIC_RELOADABLE_FLAG_COUNT(
+          quic_client_check_blockage_before_on_can_write);
+      // SetWritable() may not unblock the writer if it's forcefully blocked for
+      // migration.
+      client_->session()->connection()->WriteIfNotBlocked();
+    } else {
+      client_->session()->connection()->OnCanWrite();
+    }
   }
 }
 

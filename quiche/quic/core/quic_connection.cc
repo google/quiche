@@ -3200,14 +3200,20 @@ void QuicConnection::WriteQueuedPackets() {
       continue;
     }
     if (IsWriteError(result.status)) {
-      OnWriteError(result.error_code);
-      break;
+      if (perspective_ == Perspective::IS_CLIENT &&
+          visitor_->MaybeMitigateWriteError(result)) {
+        result.status = WRITE_STATUS_BLOCKED;
+      } else {
+        OnWriteError(result.error_code);
+        break;
+      }
     }
     if (result.status == WRITE_STATUS_OK ||
         result.status == WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
       buffered_packets_.pop_front();
     }
     if (IsWriteBlockedStatus(result.status)) {
+      QUICHE_DCHECK(writer_->IsWriteBlocked());
       visitor_->OnWriteBlocked();
       break;
     }
@@ -3606,6 +3612,11 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       WRITE_STATUS_NUM_VALUES,
       "Status code returned by writer_->WritePacket() in QuicConnection.");
 
+  if (IsWriteError(result.status) && perspective_ == Perspective::IS_CLIENT &&
+      visitor_->MaybeMitigateWriteError(result)) {
+    QUIC_DLOG(INFO) << "Write error mitigated. Treat it as write blocked.";
+    result.status = WRITE_STATUS_BLOCKED;
+  }
   if (IsWriteBlockedStatus(result.status)) {
     // Ensure the writer is still write blocked, otherwise QUIC may continue
     // trying to write when it will not be able to.
@@ -6205,10 +6216,16 @@ bool QuicConnection::FlushCoalescedPacket() {
         coalesced_packet_.peer_address(), writer_,
         coalesced_packet_.ecn_codepoint(), coalesced_packet_.flow_label());
     if (IsWriteError(result.status)) {
-      OnWriteError(result.error_code);
-      return false;
+      if (perspective_ == Perspective::IS_CLIENT &&
+          visitor_->MaybeMitigateWriteError(result)) {
+        result.status = WRITE_STATUS_BLOCKED;
+      } else {
+        OnWriteError(result.error_code);
+        return false;
+      }
     }
     if (IsWriteBlockedStatus(result.status)) {
+      QUICHE_DCHECK(writer_->IsWriteBlocked());
       visitor_->OnWriteBlocked();
       if (result.status != WRITE_STATUS_BLOCKED_DATA_BUFFERED) {
         QUIC_DVLOG(1) << ENDPOINT

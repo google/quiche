@@ -2983,6 +2983,11 @@ void QuicSession::OnServerPreferredAddressAvailable(
   }
 }
 
+bool QuicSession::MaybeMitigateWriteError(const WriteResult& /*write_result*/) {
+  QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+  return false;
+}
+
 QuicStream* QuicSession::ProcessPendingStream(PendingStream* pending) {
   QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
   QUICHE_DCHECK(connection()->connected());

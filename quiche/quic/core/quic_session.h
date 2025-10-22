@@ -198,6 +198,7 @@ class QUICHE_EXPORT QuicSession
       const QuicSocketAddress& /*server_preferred_address*/) override;
   void MaybeBundleOpportunistically() override {}
   QuicByteCount GetFlowControlSendWindowSize(QuicStreamId id) override;
+  bool MaybeMitigateWriteError(const WriteResult& write_result) override;
 
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId id,

@@ -5,6 +5,7 @@
 #include "quiche/quic/core/http/quic_spdy_client_session_with_migration.h"
 
 #include "quiche/quic/core/quic_force_blockable_packet_writer.h"
+#include "quiche/quic/core/quic_types.h"
 
 namespace quic {
 
@@ -106,6 +107,31 @@ void QuicSpdyClientSessionWithMigration::OnStreamClosed(
 QuicTimeDelta QuicSpdyClientSessionWithMigration::TimeSinceLastStreamClose() {
   return connection()->clock()->ApproximateNow() -
          most_recent_stream_close_time_;
+}
+
+bool QuicSpdyClientSessionWithMigration::MaybeMitigateWriteError(
+    const WriteResult& write_result) {
+  if (write_result.status == WRITE_STATUS_ERROR) {
+    // Only mitigate `WRITE_STATUS_ERROR`. `WRITE_STATUS_MSG_TOO_BIG` won't
+    // cause connection close. And `WRITE_STATUS_FAILED_TO_COALESCE_PACKET` is
+    // not caused by network issues.
+    if (migration_manager_.MaybeStartMigrateSessionOnWriteError(
+            write_result.error_code)) {
+      QUICHE_DCHECK(
+          GetConnectionMigrationConfig().migrate_session_on_network_change);
+      QUIC_DVLOG(1) << "Starting migration to mitigate write error";
+      // Since the migration is asynchronous. Force blocking the packet writer
+      // to avoid any more writes before switching to a new network.
+      writer_->ForceWriteBlocked(true);
+      return true;
+    }
+  } else if (write_result.status != WRITE_STATUS_MSG_TOO_BIG &&
+             write_result.status != WRITE_STATUS_FAILED_TO_COALESCE_PACKET) {
+    // If this gets hit, consider if the new error status should be mitigated.
+    QUICHE_BUG(unhandled_write_error_status)
+        << "Unhandled write error status: " << write_result.status;
+  }
+  return false;
 }
 
 }  // namespace quic

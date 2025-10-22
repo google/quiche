@@ -1939,4 +1939,36 @@ TEST_P(QuicSpdyClientSessionWithMigrationTest,
   EXPECT_EQ(path_context_factory_->num_creation_attempts(), 1u);
 }
 
+TEST_P(QuicSpdyClientSessionWithMigrationTest,
+       MaybeMitigateWriteErrorWithDifferentWriteStatus) {
+  migrate_idle_session_ = true;
+  Initialize();
+  // These write status and error code combination won't trigger migration.
+  EXPECT_FALSE(session_->MaybeMitigateWriteError(
+      WriteResult(WRITE_STATUS_MSG_TOO_BIG, 123)));
+  EXPECT_FALSE(session_->MaybeMitigateWriteError(
+      WriteResult(WRITE_STATUS_FAILED_TO_COALESCE_PACKET, 123)));
+  EXPECT_FALSE(session_->MaybeMitigateWriteError(
+      WriteResult(WRITE_STATUS_ERROR, kSocketErrorMsgSize)));
+
+  // `WRITE_STATUS_ERROR` with non-message-too-big error code should trigger
+  // migration.
+  EXPECT_TRUE(
+      session_->MaybeMitigateWriteError(WriteResult(WRITE_STATUS_ERROR, 123)));
+
+  QuicAlarm* pending_callbacks_alarm =
+      QuicConnectionMigrationManagerPeer::GetRunPendingCallbacksAlarm(
+          migration_manager_);
+  EXPECT_EQ(pending_callbacks_alarm->deadline(),
+            connection_helper_.GetClock()->Now());
+  // No alternative network available, an alarm should have been scheduled to
+  // wait for any new network.
+  EXPECT_CALL(*session_, OnNoNewNetworkForMigration());
+  alarm_factory_.FireAlarm(pending_callbacks_alarm);
+  QuicAlarm* migration_alarm =
+      QuicConnectionMigrationManagerPeer::GetWaitForMigrationAlarm(
+          migration_manager_);
+  EXPECT_TRUE(migration_alarm->IsSet());
+}
+
 }  // namespace quic::test

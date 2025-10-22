@@ -1598,6 +1598,8 @@ INSTANTIATE_TEST_SUITE_P(QuicConnectionTests, QuicConnectionTest,
 // Regression test for b/372756997.
 TEST_P(QuicConnectionTest, NoNestedCloseConnection) {
   EXPECT_TRUE(connection_.connected());
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_))
+      .WillRepeatedly(Return(false));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .WillRepeatedly(
           Invoke(this, &QuicConnectionTest::SaveConnectionCloseFrame));
@@ -2520,6 +2522,7 @@ TEST_P(QuicConnectionTest, DiscardQueuedPacketsAfterConnectionClose) {
   // Regression test for b/74073386.
   {
     InSequence seq;
+    EXPECT_CALL(visitor_, MaybeMitigateWriteError(_)).WillOnce(Return(false));
     EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
         .Times(AtLeast(1));
     EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(AtLeast(1));
@@ -6200,11 +6203,13 @@ TEST_P(QuicConnectionTest, FailToSendFirstPacket) {
   // Test that the connection does not crash when it fails to send the first
   // packet at which point self_address_ might be uninitialized.
   QuicFramerPeer::SetPerspective(&peer_framer_, Perspective::IS_CLIENT);
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_)).WillOnce(Return(false));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(1);
   std::unique_ptr<QuicPacket> packet =
       ConstructDataPacket(1, !kHasStopWaiting, ENCRYPTION_INITIAL);
   QuicPacketCreatorPeer::SetPacketNumber(creator_, 1);
   writer_->SetShouldWriteFail();
+  writer_->SetWriteError(-1);
   connection_.SendPacket(ENCRYPTION_INITIAL, 1, std::move(packet),
                          HAS_RETRANSMITTABLE_DATA, false, false);
 }
@@ -7912,6 +7917,8 @@ TEST_P(QuicConnectionTest, ClientReceivesRejOnNonCryptoStream) {
 
 TEST_P(QuicConnectionTest, CloseConnectionOnPacketTooLarge) {
   SimulateNextPacketTooLarge();
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_))
+      .WillRepeatedly(Return(false));
   // A connection close packet is sent
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .Times(1);
@@ -7923,10 +7930,69 @@ TEST_P(QuicConnectionTest, AlwaysGetPacketTooLarge) {
   // Test even we always get packet too large, we do not infinitely try to send
   // close packet.
   AlwaysGetPacketTooLarge();
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_))
+      .WillRepeatedly(Return(false));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .Times(1);
   connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
   TestConnectionCloseQuicErrorCode(QUIC_PACKET_WRITE_ERROR);
+}
+
+// Tests that FlushCoalescedPacket() encounters a write error, and the error can
+// be mitigated.
+TEST_P(QuicConnectionTest, FlushCoalescedPacketWithErrorAndMitigated) {
+  // Make sure packet is not coalesced so that WritePacket() error handling path
+  // will be exercised.
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_COMPLETE));
+
+  // Fail the next write.
+  writer_->SetShouldWriteFail();
+  writer_->SetWriteError(-1);
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_))
+      .WillOnce([&](WriteResult write_result) {
+        EXPECT_EQ(write_result.status, WRITE_STATUS_ERROR);
+        EXPECT_EQ(write_result.error_code, -1);
+        // If the write error is mitigated, this write should be treated as
+        // blocked.
+        writer_->SetWriteBlocked();
+        return true;
+      });
+  EXPECT_CALL(visitor_, OnWriteBlocked());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .Times(0);
+  connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_EQ(1u, connection_.NumQueuedPackets());
+}
+
+// Tests that WritePacket() encounters a write error, and the error can be
+// mitigated.
+TEST_P(QuicConnectionTest, WritePacketWithErrorAndMitigated) {
+  // Make sure packet is not coalesced so that WritePacket() error handling path
+  // will be exercised.
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  connection_.OnHandshakeComplete();
+
+  // Fail the next write.
+  writer_->SetShouldWriteFail();
+  writer_->SetWriteError(-1);
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_))
+      .WillOnce([&](WriteResult write_result) {
+        EXPECT_EQ(write_result.status, WRITE_STATUS_ERROR);
+        EXPECT_EQ(write_result.error_code, -1);
+        // If the write error is mitigated, this write should be treated as
+        // blocked.
+        writer_->SetWriteBlocked();
+        return true;
+      });
+  EXPECT_CALL(visitor_, OnWriteBlocked());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .Times(0);
+  connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
+  EXPECT_TRUE(connection_.connected());
+  EXPECT_EQ(1u, connection_.NumQueuedPackets());
 }
 
 TEST_P(QuicConnectionTest, CloseConnectionOnQueuedWriteError) {
@@ -7944,6 +8010,8 @@ TEST_P(QuicConnectionTest, CloseConnectionOnQueuedWriteError) {
   // Configure writer to always fail.
   AlwaysGetPacketTooLarge();
 
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_))
+      .WillRepeatedly(Return(false));
   // Expect that we attempt to close the connection exactly once.
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .Times(1);
@@ -7954,6 +8022,37 @@ TEST_P(QuicConnectionTest, CloseConnectionOnQueuedWriteError) {
   EXPECT_EQ(0u, connection_.NumQueuedPackets());
 
   TestConnectionCloseQuicErrorCode(QUIC_PACKET_WRITE_ERROR);
+}
+
+TEST_P(QuicConnectionTest, MitigateQueuedWriteErrorWithoutClosingConnection) {
+  // Queue 2 packets to write.
+  BlockOnNextWrite();
+  connection_.SendStreamDataWithString(3, "foo", 0, NO_FIN);
+  writer_->SetWritable();
+  connection_.SendStreamDataWithString(3, "bar", 0, NO_FIN);
+  EXPECT_EQ(2u, connection_.NumQueuedPackets());
+
+  writer_->SetShouldWriteFail();
+  writer_->SetWriteError(-1);
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_))
+      .WillOnce([&](WriteResult write_result) {
+        EXPECT_EQ(write_result.status, WRITE_STATUS_ERROR);
+        EXPECT_EQ(write_result.error_code, -1);
+        // If the write error is mitigated, this write should be treated as
+        // blocked.
+        writer_->SetWriteBlocked();
+        return true;
+      });
+  // Since the write error was mitigated, the connection should not be closed.
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
+      .Times(0);
+
+  // Unblock the writes which would fail and be mitigated.
+  writer_->SetWritable();
+  connection_.OnCanWrite();
+  // The queued packets are still queued.
+  EXPECT_EQ(2u, connection_.NumQueuedPackets());
+  EXPECT_TRUE(connection_.connected());
 }
 
 // Verify that if connection has no outstanding data, it notifies the send
@@ -8010,6 +8109,7 @@ TEST_P(QuicConnectionTest, DoNotForceSendingAckOnPacketTooLarge) {
   ProcessPacket(1);
   EXPECT_TRUE(connection_.HasPendingAcks());
   connection_.GetAckAlarm()->Fire();
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_)).WillOnce(Return(false));
   // Simulate data packet causes write error.
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
   SimulateNextPacketTooLarge();
@@ -8115,6 +8215,7 @@ TEST_P(QuicConnectionTest, DoNotPadServerInitialConnectionClose) {
 // Regression test for b/63620844.
 TEST_P(QuicConnectionTest, FailedToWriteHandshakePacket) {
   SimulateNextPacketTooLarge();
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_)).WillOnce(Return(false));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .Times(1);
 
@@ -12325,6 +12426,8 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnDefaultPath) {
   PathProbeTestInit(Perspective::IS_CLIENT);
 
   writer_->SetShouldWriteFail();
+  writer_->SetWriteError(-1);
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_)).WillOnce(Return(false));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .WillOnce([](QuicConnectionCloseFrame frame, ConnectionCloseSource) {
         EXPECT_EQ(QUIC_PACKET_WRITE_ERROR, frame.quic_error_code);
@@ -12359,7 +12462,9 @@ TEST_P(QuicConnectionTest, SendPathChallengeFailOnAlternativePeerAddress) {
   PathProbeTestInit(Perspective::IS_CLIENT);
 
   writer_->SetShouldWriteFail();
+  writer_->SetWriteError(-1);
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Any4(), 12345);
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_)).WillOnce(Return(false));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .WillOnce([](QuicConnectionCloseFrame frame, ConnectionCloseSource) {
         EXPECT_EQ(QUIC_PACKET_WRITE_ERROR, frame.quic_error_code);
@@ -12395,6 +12500,7 @@ TEST_P(QuicConnectionTest,
   writer_->SetShouldWriteFail();
   writer_->SetWriteError(*writer_->MessageTooBigErrorCode());
   const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Any4(), 12345);
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_)).WillOnce(Return(false));
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .Times(0u);
   EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0u);
@@ -18270,6 +18376,7 @@ TEST_P(QuicConnectionTest, DoNotUpdateAckStateAfterConnectionClose) {
   peer_frames.push_back(QuicFrame(QuicPathChallengeFrame()));
   writer_->SetShouldWriteFail();
   writer_->SetWriteError(-109);
+  EXPECT_CALL(visitor_, MaybeMitigateWriteError(_)).WillOnce(Return(false));
   EXPECT_CALL(visitor_, OnConnectionClosed);
   ProcessFramesPacketAtLevel(max_packet_number, peer_frames,
                              ENCRYPTION_FORWARD_SECURE);

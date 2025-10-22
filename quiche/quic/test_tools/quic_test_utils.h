@@ -532,6 +532,7 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, MaybeBundleOpportunistically, (), (override));
   MOCK_METHOD(QuicByteCount, GetFlowControlSendWindowSize, (QuicStreamId),
               (override));
+  MOCK_METHOD(bool, MaybeMitigateWriteError, (const WriteResult&), (override));
 };
 
 class MockQuicConnectionHelper : public QuicConnectionHelperInterface {
