@@ -242,19 +242,11 @@ bool QpackInstructionDecoder::DoVarintDone() {
     return true;
   }
 
-  if (GetQuicReloadableFlag(http2_hpack_varint_decoding_fix)) {
     if (varint_decoder_.value() > kStringLiteralLengthLimit) {
       OnError(ErrorCode::STRING_LITERAL_TOO_LONG, "String literal too long.");
       return false;
     }
     string_length_ = varint_decoder_.value();
-  } else {
-    string_length_ = varint_decoder_.value();
-    if (string_length_ > kStringLiteralLengthLimit) {
-      OnError(ErrorCode::STRING_LITERAL_TOO_LONG, "String literal too long.");
-      return false;
-    }
-  }
 
   std::string* const string =
       (field_->type == QpackInstructionFieldType::kName) ? &name_ : &value_;

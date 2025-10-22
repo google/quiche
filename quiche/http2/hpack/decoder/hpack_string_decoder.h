@@ -165,8 +165,7 @@ class QUICHE_EXPORT HpackStringDecoder {
   // false otherwise, in which case status set.
   template <class Listener>
   bool OnStringStart(Listener* cb, DecodeStatus* status) {
-    if (GetQuicheReloadableFlag(http2_hpack_varint_decoding_fix) &&
-        (length_decoder_.value() > std::numeric_limits<uint32_t>::max())) {
+    if (length_decoder_.value() > std::numeric_limits<uint32_t>::max()) {
       // Upper layer decoder is even more strict about the string length. But
       // for simplicity, and to avoid the possibility of integer overflow on
       // 32-bit platforms, strings with lengths greater than 2^32 are rejected.

@@ -161,15 +161,8 @@ TEST_F(HpackStringDecoderTest, ErrorOnExcessivelyLongStrings) {
   memcpy(input, length_prefix, sizeof(length_prefix));
   memcpy(input + sizeof(length_prefix), partial_string.data(), 1024);
   DecodeBuffer b(input);
-  if (GetQuicheReloadableFlag(http2_hpack_varint_decoding_fix)) {
     EXPECT_TRUE(DecodeAndValidateSeveralWays(&b, kMayReturnZeroOnFirst,
                                              ValidateError()));
-  } else {
-    // The decoder should be waiting for more bytes of the excessively long
-    // string.
-    EXPECT_TRUE(DecodeAndValidateSeveralWays(
-        &b, kMayReturnZeroOnFirst, ValidateInProgressAndOffset(b.FullSize())));
-  }
 }
 
 }  // namespace
