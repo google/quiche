@@ -1120,7 +1120,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
     if (auto* local_config = std::get_if<LocalSSLConfig>(&ssl_config);
         local_config != nullptr) {
       if (local_config->chain && !local_config->chain->certs.empty()) {
-        tls_connection_.SetCertChain(
+        tls_connection_.AddCertChain(
             local_config->chain->ToCryptoBuffers().value,
             local_config->chain->trust_anchor_id);
         select_cert_status_ = QUIC_SUCCESS;

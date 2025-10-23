@@ -73,9 +73,9 @@ absl::Status TlsServerConnection::ConfigureSSL(
                                   TlsServerConnection::kPrivateKeyMethod);
 }
 
-void TlsServerConnection::SetCertChain(
+void TlsServerConnection::AddCertChain(
     const std::vector<CRYPTO_BUFFER*>& cert_chain,
-    const std::string& trust_anchor_id) {
+    absl::string_view trust_anchor_id) {
   bssl::UniquePtr<SSL_CREDENTIAL> credential(SSL_CREDENTIAL_new_x509());
   SSL_CREDENTIAL_set1_cert_chain(credential.get(), cert_chain.data(),
                                  cert_chain.size());

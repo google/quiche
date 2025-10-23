@@ -133,12 +133,14 @@ class QUICHE_EXPORT TlsServerConnection : public TlsConnection {
   absl::Status ConfigureSSL(
       ProofSourceHandleCallback::ConfigureSSLFunc configure_ssl);
 
-  // If |trust_anchor_id| is non-empty, it will be configured as the
-  // trust anchor ID for |cert_chain|, and BoringSSL will be
-  // configured to enforce issuer matching on this certificate. See
+  // Adds a certificate chain to `ssl()` with `SSL_add1_credential()`. Call this
+  // method with cert chains in decreasing order of preference. If
+  // `trust_anchor_id` is non-empty, it will be configured as the trust anchor
+  // ID for `cert_chain`, and BoringSSL will be configured to enforce issuer
+  // matching on this certificate. See
   // https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html#section-4.1.
-  void SetCertChain(const std::vector<CRYPTO_BUFFER*>& cert_chain,
-                    const std::string& trust_anchor_id);
+  void AddCertChain(const std::vector<CRYPTO_BUFFER*>& cert_chain,
+                    absl::string_view trust_anchor_id);
 
   // Set the client cert mode to be used on this connection. This should be
   // called right after cert selection at the latest, otherwise it is too late
