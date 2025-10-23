@@ -26,10 +26,20 @@ namespace {
 
 using ::testing::ElementsAre;
 using ::testing::Field;
+using ::testing::FieldsAre;
 using ::testing::IsEmpty;
 using ::testing::IsFalse;
 using ::testing::IsTrue;
 using ::testing::Pointee;
+
+MATCHER_P2(ReferenceCountedChainIs, certs, trust_anchor_id, "") {
+  return ExplainMatchResult(
+      Pointee(
+          AllOf(Field("certs", &ProofSource::Chain::certs, certs),
+                Field("trust_anchor_id", &ProofSource::Chain::trust_anchor_id,
+                      trust_anchor_id))),
+      arg, result_listener);
+}
 
 quiche::QuicheReferenceCountedPointer<ProofSource::Chain> MakeChain(
     absl::string_view cert) {
@@ -117,13 +127,13 @@ TEST_F(ProofSourceX509CertificateSelectionTest, DefaultCertificate) {
               ::testing::ElementsAre(kTestCertificate));
   EXPECT_FALSE(cert_matched_sni);
 
-  EXPECT_THAT(
-      proof_source_->GetCertChains(QuicSocketAddress(), QuicSocketAddress(),
-                                   "unknown.test"),
-      ElementsAre(Pointee(AllOf(
-          Field(&ProofSource::Chain::certs, ElementsAre(kTestCertificate)),
-          Field(&ProofSource::Chain::trust_anchor_id, IsEmpty()),
-          Field(&ProofSource::Chain::matches_sni, IsFalse())))));
+  EXPECT_THAT(proof_source_->GetCertChains(QuicSocketAddress(),
+                                           QuicSocketAddress(), "unknown.test"),
+              FieldsAre(
+                  /*chains_match_sni=*/IsFalse(),
+                  /*chains=*/ElementsAre(ReferenceCountedChainIs(
+                      /*certs*/ ElementsAre(kTestCertificate),
+                      /*trust_anchor_id*/ IsEmpty()))));
 }
 
 // mail.example.org is explicitly a SubjectAltName in `kTestCertificate`.
@@ -136,13 +146,13 @@ TEST_F(ProofSourceX509CertificateSelectionTest, SubjectAltName) {
               ::testing::ElementsAre(kTestCertificate));
   EXPECT_TRUE(cert_matched_sni);
 
-  EXPECT_THAT(
-      proof_source_->GetCertChains(QuicSocketAddress(), QuicSocketAddress(),
-                                   "mail.example.org"),
-      ElementsAre(Pointee(AllOf(
-          Field(&ProofSource::Chain::certs, ElementsAre(kTestCertificate)),
-          Field(&ProofSource::Chain::trust_anchor_id, IsEmpty()),
-          Field(&ProofSource::Chain::matches_sni, IsTrue())))));
+  EXPECT_THAT(proof_source_->GetCertChains(
+                  QuicSocketAddress(), QuicSocketAddress(), "mail.example.org"),
+              FieldsAre(
+                  /*chains_match_sni=*/IsTrue(),
+                  /*chains=*/ElementsAre(ReferenceCountedChainIs(
+                      /*certs*/ ElementsAre(kTestCertificate),
+                      /*trust_anchor_id*/ IsEmpty()))));
 }
 
 // www.foo.test is in `kWildcardCertificate`.
@@ -155,13 +165,13 @@ TEST_F(ProofSourceX509CertificateSelectionTest, DomainInWildcardCertificate) {
               ::testing::ElementsAre(kWildcardCertificate));
   EXPECT_TRUE(cert_matched_sni);
 
-  EXPECT_THAT(
-      proof_source_->GetCertChains(QuicSocketAddress(), QuicSocketAddress(),
-                                   "www.foo.test"),
-      ElementsAre(Pointee(AllOf(
-          Field(&ProofSource::Chain::certs, ElementsAre(kWildcardCertificate)),
-          Field(&ProofSource::Chain::trust_anchor_id, IsEmpty()),
-          Field(&ProofSource::Chain::matches_sni, IsTrue())))));
+  EXPECT_THAT(proof_source_->GetCertChains(QuicSocketAddress(),
+                                           QuicSocketAddress(), "www.foo.test"),
+              FieldsAre(
+                  /*chains_match_sni=*/IsTrue(),
+                  /*chains=*/ElementsAre(ReferenceCountedChainIs(
+                      /*certs*/ ElementsAre(kWildcardCertificate),
+                      /*trust_anchor_id*/ IsEmpty()))));
 }
 
 // *.wildcard.test is in `kWildcardCertificate`.
@@ -178,10 +188,11 @@ TEST_F(ProofSourceX509CertificateSelectionTest,
   EXPECT_THAT(
       proof_source_->GetCertChains(QuicSocketAddress(), QuicSocketAddress(),
                                    "www.wildcard.test"),
-      ElementsAre(Pointee(AllOf(
-          Field(&ProofSource::Chain::certs, ElementsAre(kWildcardCertificate)),
-          Field(&ProofSource::Chain::trust_anchor_id, IsEmpty()),
-          Field(&ProofSource::Chain::matches_sni, IsTrue())))));
+      FieldsAre(
+          /*chains_match_sni=*/IsTrue(),
+          /*chains=*/ElementsAre(ReferenceCountedChainIs(
+              /*certs*/ ElementsAre(kWildcardCertificate),
+              /*trust_anchor_id*/ IsEmpty()))));
 
   EXPECT_THAT(proof_source_
                   ->GetCertChain(QuicSocketAddress(), QuicSocketAddress(),
@@ -193,10 +204,11 @@ TEST_F(ProofSourceX509CertificateSelectionTest,
   EXPECT_THAT(
       proof_source_->GetCertChains(QuicSocketAddress(), QuicSocketAddress(),
                                    "etc.wildcard.test"),
-      ElementsAre(Pointee(AllOf(
-          Field(&ProofSource::Chain::certs, ElementsAre(kWildcardCertificate)),
-          Field(&ProofSource::Chain::trust_anchor_id, IsEmpty()),
-          Field(&ProofSource::Chain::matches_sni, IsTrue())))));
+      FieldsAre(
+          /*chains_match_sni=*/IsTrue(),
+          /*chains=*/ElementsAre(ReferenceCountedChainIs(
+              /*certs*/ ElementsAre(kWildcardCertificate),
+              /*trust_anchor_id*/ IsEmpty()))));
 }
 
 // wildcard.test itself is not in `kWildcardCertificate`.
@@ -209,13 +221,13 @@ TEST_F(ProofSourceX509CertificateSelectionTest, NotInWildcardCertificate) {
               ::testing::ElementsAre(kTestCertificate));
   EXPECT_FALSE(cert_matched_sni);
 
-  EXPECT_THAT(
-      proof_source_->GetCertChains(QuicSocketAddress(), QuicSocketAddress(),
-                                   "wildcard.test"),
-      ElementsAre(Pointee(AllOf(
-          Field(&ProofSource::Chain::certs, ElementsAre(kTestCertificate)),
-          Field(&ProofSource::Chain::trust_anchor_id, IsEmpty()),
-          Field(&ProofSource::Chain::matches_sni, IsFalse())))));
+  EXPECT_THAT(proof_source_->GetCertChains(
+                  QuicSocketAddress(), QuicSocketAddress(), "wildcard.test"),
+              FieldsAre(
+                  /*chains_match_sni=*/IsFalse(),
+                  /*chains=*/ElementsAre(ReferenceCountedChainIs(
+                      /*certs*/ ElementsAre(kTestCertificate),
+                      /*trust_anchor_id*/ IsEmpty()))));
 }
 
 }  // namespace

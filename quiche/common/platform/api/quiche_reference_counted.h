@@ -7,6 +7,7 @@
 
 #include "quiche_platform_impl/quiche_reference_counted_impl.h"
 
+#include "absl/base/nullability.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
@@ -52,7 +53,8 @@ class QUICHE_EXPORT QuicheReferenceCounted : public QuicheReferenceCountedImpl {
 // QuicheReferenceCountedPointer<T> r_ptr_b = std::move(r_ptr_a);
 
 template <class T>
-class QUICHE_NO_EXPORT QuicheReferenceCountedPointer {
+class QUICHE_NO_EXPORT ABSL_NULLABILITY_COMPATIBLE
+    QuicheReferenceCountedPointer {
  public:
   // For compatibility with googletest's `Pointee` matcher.
   using element_type = T;
