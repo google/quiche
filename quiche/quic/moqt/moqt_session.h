@@ -359,7 +359,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
    public:
     PublishedSubscription(MoqtSession* session,
                           std::shared_ptr<MoqtTrackPublisher> track_publisher,
-                          const MoqtSubscribe& subscribe,
+                          const MoqtSubscribe& subscribe, uint64_t track_alias,
                           MoqtPublishingMonitorInterface* monitoring_interface);
     // TODO(martinduke): Immediately reset all the streams.
     ~PublishedSubscription();
@@ -371,7 +371,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     uint64_t request_id() const { return request_id_; }
     MoqtTrackPublisher& publisher() { return *track_publisher_; }
-    std::optional<uint64_t> track_alias() const { return track_alias_; }
+    uint64_t track_alias() const { return track_alias_; }
     std::optional<Location> largest_sent() const { return largest_sent_; }
     MoqtPriority subscriber_priority() const { return subscriber_priority_; }
     std::optional<MoqtDeliveryOrder> subscriber_delivery_order() const {
@@ -470,7 +470,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtSession* session_;
     std::shared_ptr<MoqtTrackPublisher> track_publisher_;
     uint64_t request_id_;
-    std::optional<const uint64_t> track_alias_;
+    const uint64_t track_alias_;
     MoqtFilterType filter_type_;
     bool forward_;
     // If window_ is nullopt, any arriving objects are ignored. This could be

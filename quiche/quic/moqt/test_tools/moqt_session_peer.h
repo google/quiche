@@ -111,10 +111,8 @@ class MoqtSessionPeer {
     subscribe.subscriber_priority = 0x80;
     session->published_subscriptions_.emplace(
         subscribe_id, std::make_unique<MoqtSession::PublishedSubscription>(
-                          session, std::move(publisher), subscribe,
+                          session, std::move(publisher), subscribe, track_alias,
                           /*monitoring_interface=*/nullptr));
-    session->published_subscriptions_[subscribe_id]->track_alias_.emplace(
-        track_alias);
     return session->published_subscriptions_[subscribe_id].get();
   }
 

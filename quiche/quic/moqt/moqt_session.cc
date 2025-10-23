@@ -1069,10 +1069,11 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   }
 
   MoqtTrackPublisher* track_publisher_ptr = track_publisher.get();
-  auto subscription = std::make_unique<MoqtSession::PublishedSubscription>(
-      session_, track_publisher, message, monitoring);
+  auto subscription = std::make_unique<PublishedSubscription>(
+      session_, track_publisher, message, session_->next_local_track_alias_++,
+      monitoring);
   subscription->set_delivery_timeout(message.parameters.delivery_timeout);
-  MoqtSession::PublishedSubscription* subscription_ptr = subscription.get();
+  PublishedSubscription* subscription_ptr = subscription.get();
   auto [it, success] = session_->published_subscriptions_.emplace(
       message.request_id, std::move(subscription));
   if (!success) {
@@ -1933,11 +1934,12 @@ void MoqtSession::IncomingDataStream::OnParsingError(MoqtError error_code,
 
 MoqtSession::PublishedSubscription::PublishedSubscription(
     MoqtSession* session, std::shared_ptr<MoqtTrackPublisher> track_publisher,
-    const MoqtSubscribe& subscribe,
+    const MoqtSubscribe& subscribe, uint64_t track_alias,
     MoqtPublishingMonitorInterface* monitoring_interface)
     : session_(session),
       track_publisher_(track_publisher),
       request_id_(subscribe.request_id),
+      track_alias_(track_alias),
       filter_type_(subscribe.filter_type),
       forward_(subscribe.forward),
       window_(SubscribeMessageToWindow(subscribe)),
@@ -2030,7 +2032,7 @@ void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
   }
   MoqtSubscribeOk subscribe_ok;
   subscribe_ok.request_id = request_id_;
-  subscribe_ok.track_alias = session_->next_local_track_alias_++;
+  subscribe_ok.track_alias = track_alias_;
   QUICHE_BUG_IF(quic_bug_subscribe_ok_no_expiration,
                 !track_publisher_->expiration().has_value())
       << "Request accepted without expiration";
@@ -2042,7 +2044,6 @@ void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
   subscribe_ok.group_order = track_publisher_->delivery_order().value_or(
       MoqtDeliveryOrder::kAscending);
   subscribe_ok.largest_location = largest_location;
-  track_alias_.emplace(subscribe_ok.track_alias);
   // TODO(martinduke): Support sending DELIVERY_TIMEOUT parameter as the
   // publisher.
   stream->SendOrBufferMessage(
@@ -2324,10 +2325,8 @@ MoqtSession::OutgoingDataStream::OutgoingDataStream(
       next_object_(parameters.first_object),
       session_liveness_(session->liveness_token_) {
   UpdateSendOrder(subscription);
-  if (subscription.track_alias().has_value()) {
-    session->trace_recorder_.RecordSubgroupStreamCreated(
-        stream->GetStreamId(), *subscription.track_alias(), parameters.index);
-  }
+  session->trace_recorder_.RecordSubgroupStreamCreated(
+      stream->GetStreamId(), subscription.track_alias(), parameters.index);
 }
 
 MoqtSession::OutgoingDataStream::~OutgoingDataStream() {
@@ -2389,9 +2388,6 @@ MoqtSession::OutgoingDataStream::GetSubscriptionIfValid() {
 
 void MoqtSession::OutgoingDataStream::SendObjects(
     PublishedSubscription& subscription) {
-  if (!subscription.track_alias().has_value()) {
-    return;
-  }
   while (stream_->CanWrite()) {
     std::optional<PublishedObject> object =
         subscription.publisher().GetCachedObject(index_.group, index_.subgroup,
@@ -2423,7 +2419,7 @@ void MoqtSession::OutgoingDataStream::SendObjects(
       return;
     }
     if (!session_->WriteObjectToStream(
-            stream_, *subscription.track_alias(), object->metadata,
+            stream_, subscription.track_alias(), object->metadata,
             std::move(object->payload), stream_type_, last_object_id_,
             object->fin_after_this)) {
       // WriteObjectToStream() closes the connection on error, meaning that
@@ -2546,11 +2542,8 @@ void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
         << "Got notification about an object that is not in the cache";
     return;
   }
-  if (!track_alias_.has_value()) {
-    return;
-  }
   MoqtObject header;
-  header.track_alias = *track_alias_;
+  header.track_alias = track_alias_;
   header.group_id = object->metadata.location.group;
   header.object_id = object->metadata.location.object;
   header.publisher_priority = object->metadata.publisher_priority;
