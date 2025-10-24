@@ -291,12 +291,6 @@ bool QuicConnectionPeer::SupportsReleaseTime(QuicConnection* connection) {
 }
 
 // static
-QuicConnection::PacketContent QuicConnectionPeer::GetCurrentPacketContent(
-    QuicConnection* connection) {
-  return connection->current_packet_content_;
-}
-
-// static
 void QuicConnectionPeer::AddBytesReceived(QuicConnection* connection,
                                           size_t length) {
   if (connection->EnforceAntiAmplificationLimit()) {

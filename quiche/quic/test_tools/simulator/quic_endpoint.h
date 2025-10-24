@@ -64,9 +64,6 @@ class QuicEndpoint : public QuicEndpointBase,
   void OnWriteBlocked() override {}
   void OnSuccessfulVersionNegotiation(
       const ParsedQuicVersion& /*version*/) override {}
-  void OnPacketReceived(const QuicSocketAddress& /*self_address*/,
-                        const QuicSocketAddress& /*peer_address*/,
-                        bool /*is_connectivity_probe*/) override {}
   void OnCongestionWindowChange(QuicTime /*now*/) override {}
   void OnConnectionMigration(AddressChangeType /*type*/) override {}
   void OnPathDegrading() override {}

@@ -1300,30 +1300,6 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayLargerIdThanBefore) {
   session_->OnHttp3GoAway(/* id = */ 1);
 }
 
-// Test that server session will send a connectivity probe in response to a
-// connectivity probe on the same path.
-TEST_P(QuicSpdySessionTestServer, ServerReplyToConnecitivityProbe) {
-  Initialize();
-  if (VersionHasIetfQuicFrames(transport_version()) ||
-      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
-    return;
-  }
-  connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  QuicSocketAddress old_peer_address =
-      QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort);
-  EXPECT_EQ(old_peer_address, session_->peer_address());
-
-  QuicSocketAddress new_peer_address =
-      QuicSocketAddress(QuicIpAddress::Loopback4(), kTestPort + 1);
-
-  EXPECT_CALL(*connection_,
-              SendConnectivityProbingPacket(nullptr, new_peer_address));
-
-  session_->OnPacketReceived(session_->self_address(), new_peer_address,
-                             /*is_connectivity_probe=*/true);
-  EXPECT_EQ(old_peer_address, session_->peer_address());
-}
-
 TEST_P(QuicSpdySessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
   Initialize();
   EXPECT_EQ(kInitialIdleTimeoutSecs + 3,

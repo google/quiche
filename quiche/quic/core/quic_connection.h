@@ -177,15 +177,6 @@ class QUICHE_EXPORT QuicConnectionVisitorInterface {
   virtual void OnSuccessfulVersionNegotiation(
       const ParsedQuicVersion& version) = 0;
 
-  // Called when a packet has been received by the connection, after being
-  // validated and parsed. Only called when the client receives a valid packet
-  // or the server receives a connectivity probing packet.
-  // |is_connectivity_probe| is true if the received packet is a connectivity
-  // probe.
-  virtual void OnPacketReceived(const QuicSocketAddress& self_address,
-                                const QuicSocketAddress& peer_address,
-                                bool is_connectivity_probe) = 0;
-
   // Called when a blocked socket becomes writable.
   virtual void OnCanWrite() = 0;
 
@@ -1464,8 +1455,6 @@ class QUICHE_EXPORT QuicConnection
     return peer_issued_cid_manager_ != nullptr;
   }
 
-  bool ignore_gquic_probing() const { return ignore_gquic_probing_; }
-
   // Sets the ECN marking for all outgoing packets, assuming that the congestion
   // control supports that codepoint. QuicConnection will revert to sending
   // ECN_NOT_ECT if there is evidence the path is dropping ECN-marked packets,
@@ -1589,11 +1578,6 @@ class QUICHE_EXPORT QuicConnection
   // Notify various components(Session etc.) that this connection has been
   // migrated.
   virtual void OnConnectionMigration();
-
-  // Return whether the packet being processed is a connectivity probing.
-  // A packet is a connectivity probing if it is a padded ping packet with self
-  // and/or peer address changes.
-  bool IsCurrentPacketConnectivityProbing() const;
 
   // Return true iff the writer is blocked, if blocked, call
   // visitor_->OnWriteBlocked() to add the connection into the write blocked
@@ -2075,14 +2059,6 @@ class QUICHE_EXPORT QuicConnection
   // Returns string which contains undecryptable packets information.
   std::string UndecryptablePacketsInfo() const;
 
-  // For Google Quic, if the current packet is connectivity probing packet, call
-  // session OnPacketReceived() which eventually sends connectivity probing
-  // response on server side. And no-op on client side. And for both Google Quic
-  // and IETF Quic, start migration if the current packet is a non-probing
-  // packet.
-  // TODO(danzh) remove it when deprecating ignore_gquic_probing_.
-  void MaybeRespondToConnectivityProbingOrMigration();
-
   // Called in IETF QUIC. Start peer migration if a non-probing frame is
   // received and the current packet number is largest received so far.
   void MaybeStartIetfPeerMigration();
@@ -2426,13 +2402,6 @@ class QUICHE_EXPORT QuicConnection
 
   RetransmittableOnWireBehavior retransmittable_on_wire_behavior_ = DEFAULT;
 
-  // TODO(danzh) remove `current_packet_content_` and
-  // `is_current_packet_connectivity_probing_` fields once
-  // quic_ignore_gquic_probing_ gets deprecated. Contents received in the
-  // current packet, especially used to identify whether the current packet is a
-  // padded PING packet.
-  PacketContent current_packet_content_;
-
   // Caches the current effective peer migration type if a effective peer
   // migration might be initiated. As soon as the current packet is confirmed
   // not a connectivity probe, effective peer migration will start.
@@ -2467,10 +2436,7 @@ class QUICHE_EXPORT QuicConnection
   // might be different from the next codepoint in per_packet_options_.
   QuicEcnCodepoint last_ecn_codepoint_sent_ = ECN_NOT_ECT;
 
-  // Set to true as soon as the packet currently being processed has been
-  // detected as a connectivity probing.
   // Always false outside the context of ProcessUdpPacket().
-  bool is_current_packet_connectivity_probing_ : 1 = false;
   bool has_path_challenge_in_current_packet_ : 1 = false;
   bool owns_writer_ : 1;
   // On the server, the connection ID is set when receiving the first packet.
@@ -2555,8 +2521,6 @@ class QUICHE_EXPORT QuicConnection
   bool multi_port_probing_on_rto_ : 1 = false;
   // Client side only.
   bool active_migration_disabled_ : 1 = false;
-  const bool ignore_gquic_probing_ : 1 =
-      GetQuicReloadableFlag(quic_ignore_gquic_probing);
   // If true, kicks off validation of server_preferred_address_ once it is
   // received. Also, send all coalesced packets on both paths until handshake is
   // confirmed.

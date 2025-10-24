@@ -488,11 +488,6 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(std::string, GetStreamsInfoForLogging, (), (const, override));
   MOCK_METHOD(void, OnSuccessfulVersionNegotiation,
               (const ParsedQuicVersion& version), (override));
-  MOCK_METHOD(void, OnPacketReceived,
-              (const QuicSocketAddress& self_address,
-               const QuicSocketAddress& peer_address,
-               bool is_connectivity_probe),
-              (override));
   MOCK_METHOD(void, OnAckNeedsRetransmittableFrame, (), (override));
   MOCK_METHOD(void, SendAckFrequency, (const QuicAckFrequencyFrame& frame),
               (override));

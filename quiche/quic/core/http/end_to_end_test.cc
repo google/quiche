@@ -5739,63 +5739,6 @@ INSTANTIATE_TEST_SUITE_P(EndToEndPacketReorderingTests,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
-TEST_P(EndToEndPacketReorderingTest, ReorderedConnectivityProbing) {
-  ASSERT_TRUE(Initialize());
-  if (version_.HasIetfQuicFrames() ||
-      GetQuicReloadableFlag(quic_ignore_gquic_probing)) {
-    return;
-  }
-
-  // Finish one request to make sure handshake established.
-  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
-
-  // Wait for the connection to become idle, to make sure the packet gets
-  // delayed is the connectivity probing packet.
-  client_->WaitForDelayedAcks();
-
-  QuicSocketAddress old_addr =
-      client_->client()->network_helper()->GetLatestClientAddress();
-
-  // Migrate socket to the new IP address.
-  QuicIpAddress new_host = TestLoopback(2);
-  EXPECT_NE(old_addr.host(), new_host);
-  ASSERT_TRUE(client_->client()->MigrateSocket(new_host));
-
-  // Write a connectivity probing after the next /foo request.
-  reorder_writer_->SetDelay(1);
-  client_->SendConnectivityProbing();
-
-  ASSERT_TRUE(client_->MigrateSocketWithSpecifiedPort(old_addr.host(),
-                                                      old_addr.port()));
-
-  // The (delayed) connectivity probing will be sent after this request.
-  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
-
-  // Send yet another request after the connectivity probing, when this request
-  // returns, the probing is guaranteed to have been received by the server, and
-  // the server's response to probing is guaranteed to have been received by the
-  // client.
-  EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
-
-  server_thread_->Pause();
-  QuicConnection* server_connection = GetServerConnection();
-  if (server_connection != nullptr) {
-    EXPECT_EQ(1u,
-              server_connection->GetStats().num_connectivity_probing_received);
-  } else {
-    ADD_FAILURE() << "Missing server connection";
-  }
-  server_thread_->Resume();
-
-  // Server definitely responded to the connectivity probing. Sometime it also
-  // sends a padded ping that is not a connectivity probing, which is recognized
-  // as connectivity probing because client's self address is ANY.
-  QuicConnection* client_connection = GetClientConnection();
-  ASSERT_TRUE(client_connection);
-  EXPECT_LE(1u,
-            client_connection->GetStats().num_connectivity_probing_received);
-}
-
 // A writer which holds the next packet to be sent till ReleasePacket() is
 // called.
 class PacketHoldingWriter : public QuicPacketWriterWrapper {
