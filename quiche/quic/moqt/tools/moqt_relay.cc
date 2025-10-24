@@ -112,6 +112,9 @@ void MoqtRelay::SetNamespaceCallbacks(MoqtSessionInterface* session) {
           const TrackNamespace& track_namespace,
           const std::optional<VersionSpecificParameters>& parameters,
           MoqtResponseCallback callback) {
+        if (is_closing_) {
+          return;
+        }
         if (parameters.has_value()) {
           return publisher_.OnPublishNamespace(track_namespace, *parameters,
                                                session, std::move(callback));
@@ -124,6 +127,9 @@ void MoqtRelay::SetNamespaceCallbacks(MoqtSessionInterface* session) {
           const TrackNamespace& track_namespace,
           const std::optional<VersionSpecificParameters>& parameters,
           MoqtResponseCallback callback) {
+        if (is_closing_) {
+          return;
+        }
         if (parameters.has_value()) {
           publisher_.AddNamespaceSubscriber(track_namespace, session);
           std::move(callback)(std::nullopt);

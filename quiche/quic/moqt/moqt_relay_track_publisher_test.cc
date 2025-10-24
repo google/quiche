@@ -302,7 +302,9 @@ TEST_F(MoqtRelayTrackPublisherTest, SubscribeRejected) {
   EXPECT_CALL(*session_, SubscribeCurrentObject)
       .WillOnce(testing::Return(true));
   publisher_.AddObjectListener(&listener_);
-  EXPECT_CALL(listener_, OnSubscribeRejected);
+  EXPECT_CALL(listener_, OnSubscribeRejected).WillOnce([this] {
+    publisher_.RemoveObjectListener(&listener_);
+  });
   publisher_.OnReply(
       kTrackName,
       MoqtRequestError{RequestErrorCode::kUnauthorized, "Unauthorized"});

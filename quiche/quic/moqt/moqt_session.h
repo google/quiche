@@ -77,19 +77,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
               std::unique_ptr<quic::QuicAlarmFactory> alarm_factory,
               MoqtSessionCallbacks callbacks = MoqtSessionCallbacks());
   ~MoqtSession() {
-    is_closing_ = true;
-    if (goaway_timeout_alarm_ != nullptr) {
-      goaway_timeout_alarm_->PermanentCancel();
-    }
-    for (const TrackNamespace& track_namespace :
-         incoming_subscribe_namespace_.GetSubscribedNamespaces()) {
-      callbacks_.incoming_subscribe_namespace_callback(track_namespace,
-                                                       std::nullopt, nullptr);
-    }
-    for (const TrackNamespace& track_namespace : incoming_publish_namespaces_) {
-      callbacks_.incoming_publish_namespace_callback(track_namespace,
-                                                     std::nullopt, nullptr);
-    }
+    CleanUpState();
     std::move(callbacks_.session_deleted_callback)();
   }
 
@@ -185,7 +173,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                                                         interface);
   }
 
-  void Close() { session_->CloseSession(0, "Application closed"); }
+  void Close() {
+    session_->CloseSession(0, "Application closed");
+    CleanUpState();
+  }
 
   // Tells the session that the highest send order for pending streams in a
   // subscription has changed. If |old_send_order| is nullopt, this is the
@@ -785,6 +776,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // draft-ietf-moqt-moq-transport-12. Unsubscribe and notify the application so
   // the error can be propagated downstream, if necessary.
   void OnMalformedTrack(RemoteTrack* track);
+
+  // When the session is closing, clean up state without waiting for the
+  // underlying WebTransport session to be destroyed.
+  void CleanUpState();
 
   bool is_closing_ = false;
   webtransport::Session* session_;

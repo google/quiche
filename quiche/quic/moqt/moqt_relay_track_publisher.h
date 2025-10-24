@@ -76,7 +76,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   void OnObjectFragment(const FullTrackName& full_track_name,
                         const PublishedObjectMetadata& metadata,
                         absl::string_view object, bool end_of_message) override;
-  void OnPublishDone(FullTrackName /*full_track_name*/) override {}
+  void OnPublishDone(FullTrackName full_track_name) override;
   void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {
     DeleteTrack();
   }
@@ -120,6 +120,8 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   void ForAllObjects(
       quiche::UnretainedCallback<void(const CachedObject&)> callback);
 
+  void Close() { is_closing_ = true; }
+
  private:
   // The number of recent groups to keep around for newly joined subscribers.
   static constexpr size_t kMaxQueuedGroups = 3;
@@ -135,6 +137,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
     absl::btree_map<uint64_t, Subgroup> subgroups;  // Ordered by subgroup id.
   };
 
+  bool is_closing_ = false;
   const quic::QuicClock* clock_;
   FullTrackName track_;
   quiche::QuicheWeakPtr<MoqtSessionInterface> upstream_;

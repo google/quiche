@@ -176,6 +176,7 @@ void MoqtSession::OnSessionClosed(webtransport::SessionErrorCode,
   QUICHE_DLOG(INFO) << ENDPOINT << "Underlying session closed with message: "
                     << error_message;
   error_ = error_message;
+  CleanUpState();
   std::move(callbacks_.session_terminated_callback)(error_message);
 }
 
@@ -241,7 +242,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
 }
 
 void MoqtSession::Error(MoqtError code, absl::string_view error) {
-  if (!error_.empty()) {
+  if (!error_.empty() || is_closing_) {
     // Avoid erroring out twice.
     return;
   }
@@ -250,6 +251,7 @@ void MoqtSession::Error(MoqtError code, absl::string_view error) {
   error_ = std::string(error);
   session_->CloseSession(static_cast<uint64_t>(code), error);
   std::move(callbacks_.session_terminated_callback)(error);
+  CleanUpState();
 }
 
 bool MoqtSession::SubscribeNamespace(
@@ -314,6 +316,9 @@ void MoqtSession::PublishNamespace(
     TrackNamespace track_namespace,
     MoqtOutgoingPublishNamespaceCallback callback,
     VersionSpecificParameters parameters) {
+  if (is_closing_) {
+    return;
+  }
   QUICHE_DCHECK(track_namespace.IsValid());
   if (outgoing_publish_namespaces_.contains(track_namespace)) {
     std::move(callback)(
@@ -355,6 +360,9 @@ void MoqtSession::PublishNamespace(
 }
 
 bool MoqtSession::PublishNamespaceDone(TrackNamespace track_namespace) {
+  if (is_closing_) {
+    return false;
+  }
   QUICHE_DCHECK(track_namespace.IsValid());
   auto it = outgoing_publish_namespaces_.find(track_namespace);
   if (it == outgoing_publish_namespaces_.end()) {
@@ -495,6 +503,9 @@ bool MoqtSession::SubscribeUpdate(
 };
 
 void MoqtSession::Unsubscribe(const FullTrackName& name) {
+  if (is_closing_) {
+    return;
+  }
   QUICHE_DCHECK(name.IsValid());
   SubscribeRemoteTrack* track = RemoteTrackByName(name);
   if (track == nullptr) {
@@ -680,6 +691,9 @@ void MoqtSession::GoAwayTimeoutDelegate::OnAlarm() {
 
 bool MoqtSession::PublishIsDone(uint64_t request_id, PublishDoneCode code,
                                 absl::string_view error_reason) {
+  if (is_closing_) {
+    return false;
+  }
   auto it = published_subscriptions_.find(request_id);
   if (it == published_subscriptions_.end()) {
     return false;
@@ -695,7 +709,7 @@ bool MoqtSession::PublishIsDone(uint64_t request_id, PublishDoneCode code,
   subscribe_done.stream_count = subscription.streams_opened();
   subscribe_done.error_reason = error_reason;
   SendControlMessage(framer_.SerializePublishDone(subscribe_done));
-  QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_DONE message for "
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent PUBLISH_DONE message for "
                   << subscription.publisher().GetTrackName();
   // Clean up the subscription
   published_subscriptions_.erase(it);
@@ -716,11 +730,19 @@ void MoqtSession::MaybeDestroySubscription(SubscribeRemoteTrack* subscribe) {
 }
 
 void MoqtSession::DestroySubscription(SubscribeRemoteTrack* subscribe) {
-  subscribe->visitor()->OnPublishDone(subscribe->full_track_name());
+  if (subscribe->ErrorIsAllowed()) {
+    subscribe->visitor()->OnReply(
+        subscribe->full_track_name(),
+        MoqtRequestError{RequestErrorCode::kNotSupported,
+                         "Subscription closed"});
+  } else {
+    subscribe->visitor()->OnPublishDone(subscribe->full_track_name());
+  }
   subscribe_by_name_.erase(subscribe->full_track_name());
   if (subscribe->track_alias().has_value()) {
     subscribe_by_alias_.erase(*subscribe->track_alias());
   }
+  upstream_by_id_.erase(subscribe->request_id());
 }
 
 bool MoqtSession::Subscribe(MoqtSubscribe& message, SubscribeVisitor* visitor) {
@@ -1163,7 +1185,10 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
         subscribe->full_track_name(),
         MoqtRequestError{message.error_code, message.reason_phrase});
   }
-  session_->upstream_by_id_.erase(subscribe->request_id());
+  if (!session_->is_closing_) {
+    // The visitor might have closed the session.
+    session_->upstream_by_id_.erase(subscribe->request_id());
+  }
 }
 
 void MoqtSession::ControlStream::OnUnsubscribeMessage(
@@ -1184,7 +1209,7 @@ void MoqtSession::ControlStream::OnPublishDoneMessage(
     return;
   }
   auto* subscribe = static_cast<SubscribeRemoteTrack*>(it->second.get());
-  QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE_DONE for "
+  QUIC_DLOG(INFO) << ENDPOINT << "Received a PUBLISH_DONE for "
                   << it->second->full_track_name();
   subscribe->OnPublishDone(
       message.stream_count, session_->callbacks_.clock,
@@ -1823,6 +1848,9 @@ MoqtSession::IncomingDataStream::~IncomingDataStream() {
     session_->upstream_by_id_.erase(*parser_.track_alias());
     return;
   }
+  if (session_->is_closing_) {
+    return;
+  }
   // It's a subscribe.
   SubscribeRemoteTrack* subscribe =
       static_cast<SubscribeRemoteTrack*>(track_.GetIfAvailable());
@@ -1956,8 +1984,8 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
 }
 
 MoqtSession::PublishedSubscription::~PublishedSubscription() {
-  track_publisher_->RemoveObjectListener(this);
   session_->subscribed_track_names_.erase(track_publisher_->GetTrackName());
+  track_publisher_->RemoveObjectListener(this);
 }
 
 SendStreamMap& MoqtSession::PublishedSubscription::stream_map() {
@@ -2157,6 +2185,9 @@ void MoqtSession::PublishedSubscription::OnNewFinAvailable(Location location,
 void MoqtSession::PublishedSubscription::OnSubgroupAbandoned(
     uint64_t group, uint64_t subgroup,
     webtransport::StreamErrorCode error_code) {
+  if (session_->is_closing_) {
+    return;
+  }
   if (!GroupInWindow(group)) {
     return;
   }
@@ -2180,6 +2211,9 @@ void MoqtSession::PublishedSubscription::OnSubgroupAbandoned(
 }
 
 void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
+  if (session_->is_closing_) {
+    return;
+  }
   if (!window_.has_value() || window_->end().group < group_id ||
       window_->start().group > group_id) {
     // The group is not in the window, ignore.
@@ -2513,6 +2547,42 @@ void MoqtSession::OnMalformedTrack(RemoteTrack* track) {
                                  "Malformed track received");
   }
   CancelFetch(track->request_id());
+}
+
+void MoqtSession::CleanUpState() {
+  if (is_closing_) {
+    return;
+  }
+  is_closing_ = true;
+  if (goaway_timeout_alarm_ != nullptr) {
+    goaway_timeout_alarm_->PermanentCancel();
+  }
+  // When the session closes, report to the application implied receipt of
+  // UNSUBSCRIBE_NAMESPACE, PUBLISH_NAMESPACE_DONE, PUBLISH_NAMESPACE_CANCEL,
+  // PUBLISH_DONE, and UNSUBSCRIBE.
+  for (const TrackNamespace& track_namespace :
+       incoming_subscribe_namespace_.GetSubscribedNamespaces()) {
+    callbacks_.incoming_subscribe_namespace_callback(track_namespace,
+                                                     std::nullopt, nullptr);
+  }
+  published_subscriptions_.clear();
+  for (const TrackNamespace& track_namespace : incoming_publish_namespaces_) {
+    callbacks_.incoming_publish_namespace_callback(track_namespace,
+                                                   std::nullopt, nullptr);
+  }
+  for (auto& [track_namespace, callback] : outgoing_publish_namespaces_) {
+    callback(track_namespace, MoqtRequestError{RequestErrorCode::kUninterested,
+                                               "Session closed"});
+  }
+  while (!upstream_by_id_.empty()) {
+    auto upstream = upstream_by_id_.begin();
+    if (upstream->second->is_fetch()) {
+      upstream_by_id_.erase(upstream);
+      continue;
+    }
+    DestroySubscription(
+        static_cast<SubscribeRemoteTrack*>(upstream->second.get()));
+  }
 }
 
 void MoqtSession::CancelFetch(uint64_t request_id) {

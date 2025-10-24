@@ -58,8 +58,7 @@ void ChatClient::OnIncomingPublishNamespace(
   if (!parameters.has_value()) {
     std::cout << "PUBLISH_NAMESPACE_DONE for " << track_namespace.ToString()
               << "\n";
-    if (track_name.has_value() && other_users_.contains(*track_name)) {
-      session_->Unsubscribe(*track_name);
+    if (track_name.has_value()) {
       other_users_.erase(*track_name);
     }
     return;
@@ -163,11 +162,14 @@ void ChatClient::OnTerminalLineInput(absl::string_view input_message) {
   if (input_message == "/exit") {
     // Clean teardown of SUBSCRIBE_NAMESPACE, PUBLISH_NAMESPACE, SUBSCRIBE.
     session_->UnsubscribeNamespace(GetChatNamespace(my_track_name_));
+    // TODO(martinduke): Add a session API to send PUBLISH_DONE.
     session_->PublishNamespaceDone(GetUserNamespace(my_track_name_));
     for (const auto& track_name : other_users_) {
       session_->Unsubscribe(track_name);
     }
+    session_->callbacks() = MoqtSessionCallbacks();
     other_users_.clear();
+    session_->Close();
     session_is_open_ = false;
     return;
   }
@@ -198,9 +200,8 @@ void ChatClient::RemoteTrackVisitor::OnReply(
 }
 
 void ChatClient::RemoteTrackVisitor::OnObjectFragment(
-    const FullTrackName& full_track_name,
-    const PublishedObjectMetadata& /*metadata*/, absl::string_view object,
-    bool end_of_message) {
+    const FullTrackName& full_track_name, const PublishedObjectMetadata&,
+    absl::string_view object, bool end_of_message) {
   if (!end_of_message) {
     std::cerr << "Error: received partial message despite requesting "
                  "buffering\n";
@@ -251,9 +252,12 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
 
   // Send SUBSCRIBE_NAMESPACE. Pop 3 levels of namespace to get to
   // {moq-chat, chat-id}
+  bool subscribe_response_received = false;
   MoqtOutgoingSubscribeNamespaceCallback subscribe_namespace_callback =
-      [this](TrackNamespace track_namespace,
-             std::optional<RequestErrorCode> error, absl::string_view reason) {
+      [&, this](TrackNamespace track_namespace,
+                std::optional<RequestErrorCode> error,
+                absl::string_view reason) {
+        subscribe_response_received = true;
         if (error.has_value()) {
           std::cout << "SUBSCRIBE_NAMESPACE rejected, " << reason << "\n";
           session_->Error(MoqtError::kInternalError,
@@ -270,7 +274,7 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
                                std::move(subscribe_namespace_callback),
                                parameters);
 
-  while (session_is_open_ && is_syncing()) {
+  while (session_is_open_ && !subscribe_response_received) {
     RunEventLoop();
   }
   return session_is_open_;

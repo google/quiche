@@ -20,18 +20,24 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_mem_slice.h"
+#include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
 
 void MoqtRelayTrackPublisher::OnReply(
     const FullTrackName&,
     std::variant<SubscribeOkData, MoqtRequestError> response) {
+  if (is_closing_) {
+    return;
+  }
   if (std::holds_alternative<MoqtRequestError>(response)) {
     auto request_error = std::get<MoqtRequestError>(response);
+    // Delete upstream_ to avoid sending UNSUBSCRIBE.
+    upstream_ = quiche::QuicheWeakPtr<MoqtSessionInterface>();
+    // Sessions will delete listeners, causing the track to delete itself.
     for (MoqtObjectListener* listener : listeners_) {
       listener->OnSubscribeRejected(request_error);
     }
-    DeleteTrack();
     return;
   }
   SubscribeOkData ok_data = std::get<SubscribeOkData>(response);
@@ -54,6 +60,12 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
     const FullTrackName& full_track_name,
     const PublishedObjectMetadata& metadata, absl::string_view object,
     bool end_of_message) {
+  if (is_closing_) {
+    return;
+  }
+  // TODO(martinduke): Add a way for SubscribeVisitor to determine if it's a
+  // datagram or stream object.
+  forwarding_preference_ = MoqtForwardingPreference::kSubgroup;
   if (!end_of_message) {
     QUICHE_BUG(moqt_relay_track_publisher_got_fragment)
         << "Received a fragment of an object.";
@@ -174,8 +186,34 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
   }
 }
 
+void MoqtRelayTrackPublisher::OnPublishDone(FullTrackName full_track_name) {
+  if (full_track_name != track_) {
+    QUICHE_BUG(moqt_got_wrong_track) << "Received object for wrong track.";
+    return;
+  }
+  if (is_closing_) {
+    return;
+  }
+  // Reset all the streams so that PUBLISH_DONE kills the subscription.
+  // TODO(martinduke): This should vary based on the error code. If it was a
+  // clean PUBLISH_DONE, allow the streams to complete.
+  for (auto& [group, group_data] : queue_) {
+    for (auto& [subgroup, subgroup_data] : group_data.subgroups) {
+      for (MoqtObjectListener* listener : listeners_) {
+        listener->OnSubgroupAbandoned(group, subgroup, kResetCodeCanceled);
+      }
+    }
+  }
+  for (MoqtObjectListener* listener : listeners_) {
+    listener->OnTrackPublisherGone();
+  }
+}
+
 void MoqtRelayTrackPublisher::OnStreamFin(const FullTrackName&,
                                           DataStreamIndex stream) {
+  if (is_closing_) {
+    return;
+  }
   auto group_it = queue_.find(stream.group);
   if (group_it == queue_.end()) {
     return;
@@ -197,6 +235,9 @@ void MoqtRelayTrackPublisher::OnStreamFin(const FullTrackName&,
 
 void MoqtRelayTrackPublisher::OnStreamReset(const FullTrackName&,
                                             DataStreamIndex stream) {
+  if (is_closing_) {
+    return;
+  }
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnSubgroupAbandoned(stream.group, stream.subgroup,
                                   kResetCodeCanceled);
@@ -230,6 +271,9 @@ std::optional<PublishedObject> MoqtRelayTrackPublisher::GetCachedObject(
 }
 
 void MoqtRelayTrackPublisher::AddObjectListener(MoqtObjectListener* listener) {
+  if (is_closing_) {
+    return;
+  }
   if (listeners_.empty()) {
     MoqtSessionInterface* session = upstream_.GetIfAvailable();
     if (session == nullptr) {
@@ -249,6 +293,9 @@ void MoqtRelayTrackPublisher::AddObjectListener(MoqtObjectListener* listener) {
 void MoqtRelayTrackPublisher::RemoveObjectListener(
     MoqtObjectListener* listener) {
   listeners_.erase(listener);
+  if (is_closing_) {
+    return;
+  }
   if (listeners_.empty()) {
     DeleteTrack();
   }
@@ -290,6 +337,7 @@ std::optional<quic::QuicTimeDelta> MoqtRelayTrackPublisher::expiration() const {
 }
 
 void MoqtRelayTrackPublisher::DeleteTrack() {
+  is_closing_ = true;
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnTrackPublisherGone();
   }

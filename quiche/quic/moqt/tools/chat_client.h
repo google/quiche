@@ -61,8 +61,13 @@ class ChatClient {
              absl::string_view localhost,
              quic::QuicEventLoop* event_loop = nullptr);
   ~ChatClient() {
+    if (!session_is_open_) {
+      return;
+    }
     session_is_open_ = false;
     if (session_ != nullptr) {
+      // Closing the session can trigger a number of callbacks. The application
+      // is tearing down too, so negate them.r;
       session_->Close();
       session_ = nullptr;
     }
@@ -104,7 +109,7 @@ class ChatClient {
                           absl::string_view object,
                           bool end_of_message) override;
 
-    void OnPublishDone(FullTrackName /*full_track_name*/) override {}
+    void OnPublishDone(FullTrackName) override {}
 
     // TODO(martinduke): Implement this.
     void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}
@@ -121,13 +126,8 @@ class ChatClient {
 
   bool session_is_open() const { return session_is_open_; }
 
-  // Returns true if the client is still doing initial sync: retrieving the
-  // catalog, subscribing to all the users in it, and waiting for the server
-  // to subscribe to the local track.
-  bool is_syncing() const {
-    return subscribes_to_make_ > 0 ||
-           (queue_ == nullptr || !queue_->HasSubscribers());
-  }
+  // Returns true if the client has outstanding subscribes.
+  bool is_syncing() const { return subscribes_to_make_ > 0; }
 
  private:
   void RunEventLoop() { event_loop_->RunEventLoopOnce(kChatEventLoopDuration); }
@@ -159,7 +159,6 @@ class ChatClient {
   // Related to syncing.
   absl::flat_hash_set<FullTrackName> other_users_;
   int subscribes_to_make_ = 0;
-
 
   // Handling outgoing messages
   std::shared_ptr<moqt::MoqtOutgoingQueue> queue_;

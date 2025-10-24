@@ -60,8 +60,17 @@ class MoqtRelayPublisher : public MoqtPublisher {
   void OnPublishNamespaceDone(const TrackNamespace& track_namespace,
                               MoqtSessionInterface* session);
 
+  void Close() {
+    is_closing_ = true;
+    for (auto& [track_name, track_publisher] : tracks_) {
+      track_publisher->Close();
+    }
+  }
+
  private:
   MoqtSessionInterface* GetUpstream(TrackNamespace& track_namespace);
+
+  bool is_closing_ = false;
 
   absl::flat_hash_map<FullTrackName, std::shared_ptr<MoqtRelayTrackPublisher>>
       tracks_;

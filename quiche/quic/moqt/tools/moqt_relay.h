@@ -36,7 +36,10 @@ class MoqtRelay {
   MoqtRelay(std::unique_ptr<quic::ProofSource> proof_source,
             std::string bind_address, uint16_t bind_port,
             absl::string_view default_upstream, bool ignore_certificate);
-  virtual ~MoqtRelay() = default;
+  virtual ~MoqtRelay() {
+    is_closing_ = true;
+    publisher_.Close();
+  }
 
   void HandleEventsForever() { server_->quic_server().HandleEventsForever(); }
 
@@ -66,6 +69,7 @@ class MoqtRelay {
   absl::StatusOr<MoqtConfigureSessionCallback> IncomingSessionHandler(
       absl::string_view path);
 
+  bool is_closing_ = false;
   const bool ignore_certificate_;
   quic::QuicEventLoop* client_event_loop_;
 
