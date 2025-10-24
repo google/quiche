@@ -233,9 +233,6 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
   // should set the ack timeout to now.
   bool ack_now_ = false;
 
-  // Latch for the flag.
-  bool least_unacked_plus_1_ = GetQuicReloadableFlag(quic_least_unacked_plus_1);
-
   // Last sent largest acked, which gets updated when ACK was successfully sent.
   QuicPacketNumber last_sent_largest_acked_;
 

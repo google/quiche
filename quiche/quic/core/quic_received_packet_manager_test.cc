@@ -673,11 +673,7 @@ TEST_F(QuicReceivedPacketManagerTest, ReorderingThresholdNoRangeBeforeMissing) {
   frame.ack_eliciting_threshold = 10;  // No non-reordering acks.
   frame.reordering_threshold = 2;
   received_manager_.OnAckFrequencyFrame(frame);
-  if (GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
-    received_manager_.DontWaitForPacketsBefore(QuicPacketNumber(2));
-  } else {
-    received_manager_.DontWaitForPacketsBefore(QuicPacketNumber(1));
-  }
+  received_manager_.DontWaitForPacketsBefore(QuicPacketNumber(2));
   // No ack after gap.
   RecordPacketReceipt(3, clock_.ApproximateNow());
   MaybeUpdateAckTimeout(kInstigateAck, 3);

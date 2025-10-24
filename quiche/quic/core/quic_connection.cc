@@ -231,8 +231,7 @@ QuicConnection::QuicConnection(
       current_packet_content_(NO_FRAMES_RECEIVED),
       perspective_(perspective),
       owns_writer_(owns_writer),
-      can_truncate_connection_ids_(perspective == Perspective::IS_SERVER),
-      least_unacked_plus_1_(GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
+      can_truncate_connection_ids_(perspective == Perspective::IS_SERVER) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
@@ -5842,9 +5841,10 @@ void QuicConnection::PostProcessAfterAckFrame(bool acked_new_packet) {
     QuicPacketNumber largest_packet_peer_knows_is_acked =
         sent_packet_manager_.GetLargestPacketPeerKnowsIsAcked(
             last_received_packet_info_.decrypted_level);
-    if (least_unacked_plus_1_ &&
-        largest_packet_peer_knows_is_acked.IsInitialized()) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_least_unacked_plus_1);
+    if (largest_packet_peer_knows_is_acked.IsInitialized()) {
+      // The ReceivedPacketManager should not wait for
+      // largest_packet_peer_knows_is_acked, so add one before calling
+      // DontWaitForPacketsBefore().
       ++largest_packet_peer_knows_is_acked;
     }
     uber_received_packet_manager_.DontWaitForPacketsBefore(

@@ -403,9 +403,6 @@ bool QuicReceivedPacketManager::ReorderingExceedsThreshold() const {
       (!smallest_unreported_missing.IsInitialized() ||
        smallest_unreported_missing < peer_least_packet_awaiting_ack_)) {
     smallest_unreported_missing = peer_least_packet_awaiting_ack_;
-    if (!least_unacked_plus_1_) {
-      ++smallest_unreported_missing;
-    }
   }
   if (smallest_unreported_missing.IsInitialized()) {
     auto it = ack_frame_.packets.LowerBound(smallest_unreported_missing);

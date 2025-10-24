@@ -18252,24 +18252,14 @@ TEST_P(QuicConnectionTest, LeastUnackedOffByOne) {
   ProcessFramesPacketAtLevel(4, peer_frames, ENCRYPTION_FORWARD_SECURE);
   const QuicAckFrame& local_ack_frame_2 = writer_->ack_frames()[0];
   EXPECT_EQ(local_ack_frame_2.largest_acked, QuicPacketNumber(4));
-  if (GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
-    EXPECT_EQ(local_ack_frame_2.packets.NumIntervals(), 1);
-    EXPECT_EQ(local_ack_frame_2.packets.Min(), QuicPacketNumber(4));
-  } else {
-    EXPECT_EQ(local_ack_frame_2.packets.NumIntervals(), 2);
-    EXPECT_EQ(local_ack_frame_2.packets.Min(), QuicPacketNumber(2));
-  }
+  EXPECT_EQ(local_ack_frame_2.packets.NumIntervals(), 1);
+  EXPECT_EQ(local_ack_frame_2.packets.Min(), QuicPacketNumber(4));
 }
 
 // Regression test for b/440033781 and
 // https://g-issues.chromium.org/issues/440833156.
-// This test will fail when gfe2_reloadable_flag_quic_least_unacked_plus_1 is
-// true.
 TEST_P(QuicConnectionTest, AllAckedPacketsCleared) {
   if (!version().UsesTls()) {
-    return;
-  }
-  if (!GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
     return;
   }
   SetQuicReloadableFlag(quic_fail_on_empty_ack, true);
@@ -18304,9 +18294,6 @@ TEST_P(QuicConnectionTest, AllAckedPacketsCleared) {
 // Regression test for b/440033781.
 TEST_P(QuicConnectionTest, DispatcherAckedOpportunisticAck) {
   if (!version().UsesTls()) {
-    return;
-  }
-  if (!GetQuicReloadableFlag(quic_least_unacked_plus_1)) {
     return;
   }
   SetQuicReloadableFlag(quic_fail_on_empty_ack, true);
