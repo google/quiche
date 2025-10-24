@@ -5,9 +5,19 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_TRACE_VISITOR_H_
 #define QUICHE_QUIC_CORE_QUIC_TRACE_VISITOR_H_
 
+#include <cstdint>
+
+#include "quiche/quic/core/frames/quic_ack_frame.h"
+#include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/frames/quic_window_update_frame.h"
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quic_trace/quic_trace.pb.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 
@@ -54,16 +64,22 @@ class QUICHE_NO_EXPORT QuicTraceVisitor : public QuicConnectionDebugVisitor {
   // finished.
   quic_trace::Trace* trace() { return &trace_; }
 
- private:
   // Converts QuicTime into a microsecond delta w.r.t. the beginning of the
   // connection.
   uint64_t ConvertTimestampToRecordedFormat(QuicTime timestamp);
-  // Populates a quic_trace::Frame message from |frame|.
-  void PopulateFrameInfo(const QuicFrame& frame,
-                         quic_trace::Frame* frame_record);
+
+  // Returns the current trace timestamp (i.e. number of microseconds since the
+  // start of the connection).
+  uint64_t NowInRecordedFormat();
+
   // Populates a quic_trace::TransportState message from the associated
   // connection.
   void PopulateTransportState(quic_trace::TransportState* state);
+
+ private:
+  // Populates a quic_trace::Frame message from |frame|.
+  void PopulateFrameInfo(const QuicFrame& frame,
+                         quic_trace::Frame* frame_record);
 
   quic_trace::Trace trace_;
   const QuicConnection* connection_;

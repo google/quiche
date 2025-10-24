@@ -794,6 +794,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   bool sent_goaway_ = false;
   bool received_goaway_ = false;
 
+  MoqtTraceRecorder trace_recorder_;
+
   // Upstream SUBSCRIBE state.
   // Upstream SUBSCRIBEs and FETCHes, indexed by subscribe_id.
   absl::flat_hash_map<uint64_t, std::unique_ptr<RemoteTrack>> upstream_by_id_;
@@ -873,8 +875,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // If true, use a non-standard design where a timer starts for group n when
   // the first object of group n+1 arrives.
   bool alternate_delivery_timeout_ = false;
-
-  MoqtTraceRecorder trace_recorder_;
 
   quiche::QuicheWeakPtrFactory<MoqtSessionInterface> weak_ptr_factory_;
 

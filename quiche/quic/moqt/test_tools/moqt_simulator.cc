@@ -280,8 +280,8 @@ MoqtSimulator::MoqtSimulator(const SimulationParameters& parameters)
   }
   client_endpoint_.RecordTrace();
   QUICHE_DCHECK(client_endpoint_.trace_visitor() != nullptr);
-  client_endpoint_.session()->trace_recorder().set_trace(
-      client_endpoint_.trace_visitor()->trace());
+  client_endpoint_.session()->trace_recorder().SetParentRecorder(
+      client_endpoint_.trace_visitor());
 }
 
 std::string MoqtSimulator::GetClientSessionCongestionControl() {

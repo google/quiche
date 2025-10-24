@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_trace_visitor.h"
 
+#include <cstdint>
 #include <string>
 
 #include "quiche/quic/core/quic_types.h"
@@ -287,8 +288,7 @@ void QuicTraceVisitor::OnSuccessfulVersionNegotiation(
 
 void QuicTraceVisitor::OnApplicationLimited() {
   quic_trace::Event* event = trace_.add_events();
-  event->set_time_us(
-      ConvertTimestampToRecordedFormat(connection_->clock()->ApproximateNow()));
+  event->set_time_us(NowInRecordedFormat());
   event->set_event_type(quic_trace::APPLICATION_LIMITED);
 }
 
@@ -297,8 +297,7 @@ void QuicTraceVisitor::OnAdjustNetworkParameters(QuicBandwidth bandwidth,
                                                  QuicByteCount /*old_cwnd*/,
                                                  QuicByteCount /*new_cwnd*/) {
   quic_trace::Event* event = trace_.add_events();
-  event->set_time_us(
-      ConvertTimestampToRecordedFormat(connection_->clock()->ApproximateNow()));
+  event->set_time_us(NowInRecordedFormat());
   event->set_event_type(quic_trace::EXTERNAL_PARAMETERS);
 
   quic_trace::ExternalNetworkParameters* parameters =
@@ -345,6 +344,11 @@ void QuicTraceVisitor::PopulateTransportState(
     state->set_congestion_control_state(
         connection_->sent_packet_manager().GetSendAlgorithm()->GetDebugState());
   }
+}
+
+uint64_t QuicTraceVisitor::NowInRecordedFormat() {
+  return ConvertTimestampToRecordedFormat(
+      connection_->clock()->ApproximateNow());
 }
 
 }  // namespace quic

@@ -8,6 +8,7 @@
 #include <string>
 #include <utility>
 #include <variant>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -34,12 +35,14 @@
 #include "quiche/quic/test_tools/simulator/test_harness.h"
 #include "quic_trace/quic_trace.pb.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace moqt::test {
 
 namespace {
 
 using ::quic::test::MemSliceFromString;
+using ::quiche::QuicheMemSlice;
 using ::testing::_;
 using ::testing::Assign;
 using ::testing::Return;
@@ -64,8 +67,8 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
         test_harness_.simulator().GetClock();
 
     client_->RecordTrace();
-    client_->session()->trace_recorder().set_trace(
-        client_->trace_visitor()->trace());
+    client_->session()->trace_recorder().SetParentRecorder(
+        client_->trace_visitor());
   }
 
   void WireUpEndpoints() { test_harness_.WireUpEndpoints(); }
@@ -891,6 +894,7 @@ TEST_F(MoqtIntegrationTest, BandwidthProbe) {
 }
 
 TEST_F(MoqtIntegrationTest, RecordTrace) {
+  constexpr absl::string_view kObjectPayload = "object";
   EstablishSession();
   MoqtKnownTrackPublisher publisher;
   client_->session()->set_publisher(&publisher);
@@ -912,23 +916,24 @@ TEST_F(MoqtIntegrationTest, RecordTrace) {
       test_harness_.RunUntilWithDefaultTimeout([&]() { return subscribed; });
   EXPECT_TRUE(success);
 
-  queue->AddObject(MemSliceFromString("object"), /*key=*/true);
+  queue->AddObject(QuicheMemSlice::Copy(kObjectPayload), /*key=*/true);
   int received = 0;
   EXPECT_CALL(subscribe_visitor_,
               OnObjectFragment(_,
                                MetadataLocationAndStatus(
                                    Location{0, 0}, MoqtObjectStatus::kNormal),
-                               "object", true))
+                               kObjectPayload, true))
       .WillOnce([&] { ++received; });
 
   success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return received >= 1; });
   EXPECT_TRUE(success);
+  const quic_trace::Trace& trace = *client_->trace_visitor()->trace();
 
   int control_streams = 0;
   int subgroup_streams = 0;
   for (const quic_trace::StreamAnnotation& annotation :
-       client_->trace_visitor()->trace()->stream_annotations()) {
+       trace.stream_annotations()) {
     if (annotation.moqt_control_stream()) {
       ++control_streams;
     }
@@ -940,6 +945,21 @@ TEST_F(MoqtIntegrationTest, RecordTrace) {
   }
   EXPECT_EQ(control_streams, 1);
   EXPECT_EQ(subgroup_streams, 1);
+
+  int objects_enqueued = 0;
+  for (const quic_trace::Event& event : trace.events()) {
+    if (event.event_type() == quic_trace::EventType::MOQT_OBJECT_ENQUEUED) {
+      ++objects_enqueued;
+      ASSERT_TRUE(event.has_moqt_object());
+      ASSERT_TRUE(event.moqt_object().has_group_id());
+      ASSERT_TRUE(event.moqt_object().has_object_id());
+      EXPECT_EQ(event.moqt_object().group_id(), 0);
+      EXPECT_EQ(event.moqt_object().object_id(), 0);
+      EXPECT_EQ(event.moqt_object().payload_size(), kObjectPayload.size());
+      EXPECT_TRUE(event.has_transport_state());
+    }
+  }
+  EXPECT_EQ(objects_enqueued, 1);
 }
 
 }  // namespace
