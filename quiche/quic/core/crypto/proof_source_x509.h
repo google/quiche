@@ -34,6 +34,7 @@ class QUICHE_EXPORT ProofSourceX509 : public ProofSource {
                 QuicTransportVersion transport_version,
                 absl::string_view chlo_hash,
                 std::unique_ptr<Callback> callback) override;
+  // TODO: b/451645567 - Define `GetCertChains()` instead of `GetCertChain()`.
   quiche::QuicheReferenceCountedPointer<Chain> GetCertChain(
       const QuicSocketAddress& server_address,
       const QuicSocketAddress& client_address, const std::string& hostname,

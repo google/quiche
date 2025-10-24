@@ -898,6 +898,8 @@ struct QUICHE_EXPORT QuicDelayedSSLConfig {
   std::optional<ClientCertMode> client_cert_mode;
   // QUIC transport parameters as serialized by ProofSourceHandle.
   std::optional<std::vector<uint8_t>> quic_transport_parameters;
+
+  bool operator==(const QuicDelayedSSLConfig& other) const = default;
 };
 
 // ParsedClientHello contains client hello information extracted from a fully

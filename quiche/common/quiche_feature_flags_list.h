@@ -60,6 +60,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_test_peer_addr_change_after_normal
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_false, false, false, "A testonly reloadable flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_true, true, true, "A testonly reloadable flag that will always default to true.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_inlining_send_buffer2, true, true, "Uses an inlining version of QuicSendStreamBuffer.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_proof_source_get_cert_chains, false, false, "When true, quic::TlsServerHandshaker will use ProofSource::GetCertChains() instead of ProofSource::GetCertChain()")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_received_client_addresses_cache, true, true, "If true, use a LRU cache to record client addresses of packets received on server's original address.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_support_release_time_for_gso, false, false, "If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_false, false, false, "A testonly restart flag that will always default to false.")

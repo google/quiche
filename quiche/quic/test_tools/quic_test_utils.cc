@@ -772,7 +772,7 @@ TestQuicSpdyClientSession::TestQuicSpdyClientSession(
     std::optional<QuicSSLConfig> ssl_config)
     : QuicSpdyClientSessionBase(connection, nullptr, config,
                                 supported_versions),
-      ssl_config_(std::move(ssl_config)) {
+      ssl_config_(std::move(ssl_config).value_or(crypto_config->ssl_config())) {
   // TODO(b/153726130): Consider adding SetServerApplicationStateForResumption
   // calls in tests and set |has_application_state| to true.
   crypto_stream_ = std::make_unique<QuicCryptoClientStream>(

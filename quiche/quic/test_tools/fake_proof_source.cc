@@ -4,19 +4,32 @@
 
 #include "quiche/quic/test_tools/fake_proof_source.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 namespace test {
 
-FakeProofSource::FakeProofSource()
-    : delegate_(crypto_test_utils::ProofSourceForTesting()) {}
+FakeProofSource::FakeProofSource(const std::string& trust_anchor_id)
+    : delegate_(crypto_test_utils::ProofSourceForTesting(trust_anchor_id)) {
+  ON_CALL(*this, GetCertChain)
+      .WillByDefault(
+          testing::Invoke(delegate_.get(), &ProofSource::GetCertChain));
+  ON_CALL(*this, GetCertChains)
+      .WillByDefault(
+          testing::Invoke(delegate_.get(), &ProofSource::GetCertChains));
+}
 
 FakeProofSource::~FakeProofSource() {}
 
@@ -85,15 +98,6 @@ void FakeProofSource::GetProof(
       server_address, client_address, hostname, server_config,
       transport_version, std::string(chlo_hash), std::move(callback),
       delegate_.get()));
-}
-
-quiche::QuicheReferenceCountedPointer<ProofSource::Chain>
-FakeProofSource::GetCertChain(const QuicSocketAddress& server_address,
-                              const QuicSocketAddress& client_address,
-                              const std::string& hostname,
-                              bool* cert_matched_sni) {
-  return delegate_->GetCertChain(server_address, client_address, hostname,
-                                 cert_matched_sni);
 }
 
 void FakeProofSource::ComputeTlsSignature(

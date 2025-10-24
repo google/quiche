@@ -14,6 +14,7 @@
 #include <variant>
 #include <vector>
 
+#include "absl/algorithm/container.h"
 #include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
@@ -111,6 +112,26 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
     QUIC_BUG(quic_bug_10341_1)
         << "SelectCertificate called on a detached handle";
     return QUIC_FAILURE;
+  }
+
+  if (handshaker_->DoesOnSelectCertificateDoneExpectChains()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_proof_source_get_cert_chains, 1, 2);
+
+    ProofSource::CertChainsResult cert_chains_result =
+        proof_source_->GetCertChains(server_address, client_address, hostname);
+
+    handshaker_->OnSelectCertificateDone(
+        /*ok=*/true, /*is_sync=*/true,
+        ProofSourceHandleCallback::LocalSSLConfig(cert_chains_result.chains,
+                                                  QuicDelayedSSLConfig()),
+        /*ticket_encryption_key=*/absl::string_view(),
+        /*cert_matched_sni=*/cert_chains_result.chains_match_sni);
+    if (!handshaker_->select_cert_status().has_value()) {
+      QUIC_BUG(select_cert_status_valueless_after_sync_select_cert);
+      // Return success to continue the handshake.
+      return QUIC_SUCCESS;
+    }
+    return *handshaker_->select_cert_status();
   }
 
   bool cert_matched_sni;
@@ -221,6 +242,8 @@ TlsServerHandshaker::TlsServerHandshaker(
       QuicCryptoServerStreamBase(session),
       proof_source_(crypto_config->proof_source()),
       proof_verifier_(crypto_config->proof_verifier()),
+      use_proof_source_get_cert_chains_(
+          GetQuicReloadableFlag(quic_use_proof_source_get_cert_chains)),
       pre_shared_key_(crypto_config->pre_shared_key()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       tls_connection_(crypto_config->ssl_ctx(), this, session->GetSSLConfig()),
@@ -1119,10 +1142,30 @@ void TlsServerHandshaker::OnSelectCertificateDone(
   if (ok) {
     if (auto* local_config = std::get_if<LocalSSLConfig>(&ssl_config);
         local_config != nullptr) {
-      if (local_config->chain && !local_config->chain->certs.empty()) {
+      if (!use_proof_source_get_cert_chains_ && local_config->chain &&
+          !local_config->chain->certs.empty()) {
         tls_connection_.AddCertChain(
             local_config->chain->ToCryptoBuffers().value,
             local_config->chain->trust_anchor_id);
+        select_cert_status_ = QUIC_SUCCESS;
+      } else if (use_proof_source_get_cert_chains_ &&
+                 !local_config->chains.empty() &&
+                 // Cert selection fails when there are no chains with certs.
+                 absl::c_any_of(local_config->chains,
+                                [](const quiche::QuicheReferenceCountedPointer<
+                                    ProofSource::Chain> absl_nonnull& chain) {
+                                  return !chain->certs.empty();
+                                })) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_proof_source_get_cert_chains, 2,
+                                     2);
+        for (const quiche::QuicheReferenceCountedPointer<
+                 ProofSource::Chain> absl_nonnull& chain :
+             local_config->chains) {
+          if (!chain->certs.empty()) {
+            tls_connection_.AddCertChain(chain->ToCryptoBuffers().value,
+                                         chain->trust_anchor_id);
+          }
+        }
         select_cert_status_ = QUIC_SUCCESS;
       } else {
         QUIC_DLOG(ERROR) << "No certs provided for host '"

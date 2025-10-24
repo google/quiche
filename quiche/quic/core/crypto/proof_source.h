@@ -10,12 +10,14 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
 #include <variant>
 #include <vector>
 
 #include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "openssl/base.h"
 #include "openssl/pool.h"
 #include "openssl/ssl.h"
@@ -291,11 +293,22 @@ class QUICHE_EXPORT ProofSourceHandleCallback {
   // Configuration to use for configuring the SSL object when handshaking
   // locally.
   struct LocalSSLConfig {
+    using ReferencedCountedChain =
+        quiche::QuicheReferenceCountedPointer<ProofSource::Chain>;
+
+    // TODO: b/451645567 - Remove this constructor.
     LocalSSLConfig(const ProofSource::Chain* absl_nullable chain,
                    QuicDelayedSSLConfig delayed_ssl_config)
         : chain(chain), delayed_ssl_config(delayed_ssl_config) {}
 
+    LocalSSLConfig(absl::Span<const ReferencedCountedChain> chains,
+                   QuicDelayedSSLConfig delayed_ssl_config)
+        : chains(std::move(chains)), delayed_ssl_config(delayed_ssl_config) {}
+
+    // TODO: b/451645567 - Once we remove `ProofSource::GetCertChain()`, we can
+    // delete the `chain` field.
     const ProofSource::Chain* absl_nullable chain = nullptr;
+    absl::Span<const ReferencedCountedChain absl_nonnull> chains;
     QuicDelayedSSLConfig delayed_ssl_config;
   };
 
@@ -331,10 +344,19 @@ class QUICHE_EXPORT ProofSourceHandleCallback {
   //
   // When called asynchronously(is_sync=false), this method will be responsible
   // to continue the handshake from where it left off.
+  //
+  // Callers that pass a `LocalSSLConfig` in `ssl_config` must use the result of
+  // `DoesOnSelectCertificateDoneExpectChains()` to decide which fields to
+  // populate.
   virtual void OnSelectCertificateDone(bool ok, bool is_sync,
                                        SSLConfig ssl_config,
                                        absl::string_view ticket_encryption_key,
                                        bool cert_matched_sni) = 0;
+
+  // Returns true when `OnSelectCertificateDone()` reads the
+  // `LocalSSLConfig::chains` field. Otherwise, it may read
+  // `LocalSSLConfig::chain`.
+  virtual bool DoesOnSelectCertificateDoneExpectChains() const = 0;
 
   // Called when a ProofSourceHandle::ComputeSignature operation completes.
   virtual void OnComputeSignatureDone(

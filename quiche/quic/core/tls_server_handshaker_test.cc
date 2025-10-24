@@ -43,6 +43,7 @@
 #include "quiche/quic/test_tools/quic_config_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simple_session_cache.h"
+#include "quiche/quic/test_tools/test_certificates.h"
 #include "quiche/quic/test_tools/test_ticket_crypter.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
@@ -53,9 +54,15 @@ class QuicStream;
 }  // namespace quic
 
 using testing::_;
+using testing::AllOf;
+using testing::ElementsAre;
+using testing::Eq;
+using testing::Field;
 using testing::HasSubstr;
+using testing::IsNull;
 using testing::NiceMock;
 using testing::Return;
+using testing::VariantWith;
 
 namespace quic {
 namespace test {
@@ -68,13 +75,15 @@ const uint16_t kServerPort = 443;
 struct TestParams {
   ParsedQuicVersion version;
   bool disable_resumption;
+  bool enable_get_cert_chains;
 };
 
 ABSL_ATTRIBUTE_UNUSED  // Used by ::testing::PrintToStringParamName().
     std::string PrintToString(const TestParams& p) {
-  return absl::StrCat(
-      ParsedQuicVersionToString(p.version), "_",
-      (p.disable_resumption ? "ResumptionDisabled" : "ResumptionEnabled"));
+  return absl::StrCat(ParsedQuicVersionToString(p.version), "AndResumption",
+                      (p.disable_resumption ? "Disabled" : "Enabled"),
+                      "AndGetCertChains",
+                      (p.enable_get_cert_chains ? "Enabled" : "Disabled"));
 }
 
 // Constructs test permutations.
@@ -82,7 +91,10 @@ std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
   for (const auto& version : AllSupportedVersionsWithTls()) {
     for (bool disable_resumption : {false, true}) {
-      params.push_back(TestParams{version, disable_resumption});
+      for (bool enable_get_cert_chains : {false, true}) {
+        params.push_back(
+            TestParams{version, disable_resumption, enable_get_cert_chains});
+      }
     }
   }
   return params;
@@ -131,6 +143,10 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
     ON_CALL(*this, OverrideQuicConfigDefaults(_))
         .WillByDefault(testing::Invoke(
             this, &TestTlsServerHandshaker::RealOverrideQuicConfigDefaults));
+
+    ON_CALL(*this, OnSelectCertificateDone)
+        .WillByDefault(testing::Invoke(
+            this, &TestTlsServerHandshaker::RealOnSelectCertificateDone));
   }
 
   MOCK_METHOD(std::unique_ptr<ProofSourceHandle>, MaybeCreateProofSourceHandle,
@@ -139,6 +155,11 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
   MOCK_METHOD(void, OverrideQuicConfigDefaults, (QuicConfig * config),
               (override));
 
+  MOCK_METHOD(void, OnSelectCertificateDone,
+              (bool, bool, SSLConfig, absl::string_view, bool), (override));
+
+  // Makes the next call to `MaybeCreateProofSourceHandle()` return a
+  // `FakeProofSourceHandle` instead of a real `ProofSourceHandle`.
   void SetupProofSourceHandle(
       FakeProofSourceHandle::Action select_cert_action,
       FakeProofSourceHandle::Action compute_signature_action,
@@ -192,6 +213,14 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
     return TlsServerHandshaker::OverrideQuicConfigDefaults(config);
   }
 
+  void RealOnSelectCertificateDone(bool ok, bool is_sync, SSLConfig ssl_config,
+                                   absl::string_view ticket_encryption_key,
+                                   bool cert_matched_sni) {
+    return TlsServerHandshaker::OnSelectCertificateDone(
+        ok, is_sync, std::move(ssl_config), ticket_encryption_key,
+        cert_matched_sni);
+  }
+
   // Owned by TlsServerHandshaker.
   FakeProofSourceHandle* fake_proof_source_handle_ = nullptr;
   ProofSource* proof_source_ = nullptr;
@@ -226,6 +255,9 @@ class TlsServerHandshakerTest : public QuicTestWithParam<TestParams> {
         supported_versions_({GetParam().version}) {
     SetQuicFlag(quic_disable_server_tls_resumption,
                 GetParam().disable_resumption);
+    SetQuicReloadableFlag(quic_use_proof_source_get_cert_chains,
+                          GetParam().enable_get_cert_chains);
+
     client_crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
         crypto_test_utils::ProofVerifierForTesting(),
         std::make_unique<test::SimpleSessionCache>());
@@ -723,6 +755,307 @@ TEST_P(TlsServerHandshakerTest, SSLConfigForCertSelection) {
   ExpectHandshakeSuccessful();
 
   EXPECT_FALSE(last_select_cert_args().ssl_config.early_data_enabled);
+}
+
+TEST_P(TlsServerHandshakerTest, SelectCertificateCallsGetCertChains) {
+  if (GetQuicReloadableFlag(quic_use_proof_source_get_cert_chains)) {
+    EXPECT_CALL(*proof_source_, GetCertChains(_, _, kServerHostname));
+    // Although the default implementation of `ProofSource::GetCertChains()`
+    // uses `ProofSource::GetCertChain()`, we're using a `FakeProofSource` that
+    // delegates to a `TestProofSource`, which does not have this behavior.
+    EXPECT_CALL(*proof_source_, GetCertChain).Times(0);
+  } else {
+    EXPECT_CALL(*proof_source_, GetCertChains).Times(0);
+    EXPECT_CALL(*proof_source_, GetCertChain(_, _, kServerHostname, _));
+  }
+
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+}
+
+TEST_P(TlsServerHandshakerTest, ZeroCertChainsFailsHandshake) {
+  if (GetQuicReloadableFlag(quic_use_proof_source_get_cert_chains)) {
+    EXPECT_CALL(*proof_source_, GetCertChains(_, _, kServerHostname))
+        .WillOnce(Return(ProofSource::CertChainsResult{
+            .chains_match_sni = false,
+            .chains = {},
+        }));
+    EXPECT_CALL(*proof_source_, GetCertChain).Times(0);
+  } else {
+    EXPECT_CALL(*proof_source_, GetCertChain)
+        .WillOnce([&](const QuicSocketAddress&, const QuicSocketAddress&,
+                      const std::string&, bool* cert_matched_sni)
+                      -> quiche::QuicheReferenceCountedPointer<
+                          ProofSource::Chain> {
+          *cert_matched_sni = false;
+          return  // quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
+              nullptr;
+        });
+    EXPECT_CALL(*proof_source_, GetCertChains).Times(0);
+  }
+
+  AdvanceHandshakeWithFakeClient();
+
+  EXPECT_FALSE(client_stream()->one_rtt_keys_available());
+  EXPECT_FALSE(client_stream()->encryption_established());
+  EXPECT_FALSE(server_stream()->one_rtt_keys_available());
+  EXPECT_FALSE(server_stream()->encryption_established());
+}
+
+// Test that `DefaultProofSourceHandle::SelectCertificate()` uses chains that do
+// not match the SNI when that's all that's available.
+TEST_P(TlsServerHandshakerTest, MultipleCertChainsNotMatchingSni) {
+  InitializeServerWithFakeProofSourceHandle();
+  ASSERT_TRUE(server_handshaker_ != nullptr);
+
+  // Note that if we called `server_handshaker_->SetupProofSourceHandle()` here,
+  // this test would incorrectly exercise `FakeProofSourceHandle` instead of
+  // `DefaultProofSourceHandle`.
+
+  if (GetQuicReloadableFlag(quic_use_proof_source_get_cert_chains)) {
+    // Return chains that claim not to match SNI. (Whether the certificate in
+    // `quic::test::kTestCertificate` actually matches `kServerHostname` is
+    // irrelevant.)
+    EXPECT_CALL(*proof_source_, GetCertChains(_, _, kServerHostname))
+        .WillOnce(Return(ProofSource::CertChainsResult{
+            .chains_match_sni = false,
+            .chains =
+                std::vector<
+                    quiche::QuicheReferenceCountedPointer<ProofSource::Chain>>{
+                    quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
+                        new ProofSource::Chain(
+                            /*certs=*/{std::string(
+                                quic::test::kTestCertificate)},
+                            /*trust_anchor_id=*/"")),
+                    quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
+                        new ProofSource::Chain(
+                            /*certs=*/{std::string(
+                                quic::test::kTestCertificate)},
+                            /*trust_anchor_id=*/"")),
+                },
+        }));
+
+    EXPECT_CALL(*proof_source_, GetCertChain).Times(0);
+
+    EXPECT_CALL(*server_handshaker_, OnSelectCertificateDone(
+                                         /*ok=*/true, /*is_sync=*/_,
+                                         /*ssl_config=*/_,
+                                         /*ticket_encryption_key=*/_,
+                                         /*cert_matched_sni=*/false));
+  } else {
+    EXPECT_CALL(*proof_source_, GetCertChains).Times(0);
+    EXPECT_CALL(*proof_source_, GetCertChain(_, _, kServerHostname, _));
+    EXPECT_CALL(*server_handshaker_, OnSelectCertificateDone);
+  }
+
+  CompleteCryptoHandshake();
+}
+
+// Test that `DefaultProofSourceHandle::SelectCertificate()` passes along chains
+// with and without Trust Anchor IDs .
+TEST_P(TlsServerHandshakerTest, SelectCertificateChainMatchesSni) {
+  // Set the client-advertised Trust Anchor IDs. Each ID is preceded by an 8-bit
+  // length prefix.
+  client_crypto_config_->ssl_config().trust_anchor_ids = "\x03\x11\x22\x33";
+  InitializeFakeClient();
+
+  InitializeServerWithFakeProofSourceHandle();
+  ASSERT_TRUE(server_handshaker_ != nullptr);
+
+  // Note that if we called `server_handshaker_->SetupProofSourceHandle()` here,
+  // this test would incorrectly exercise `FakeProofSourceHandle` instead of
+  // `DefaultProofSourceHandle`.
+
+  if (GetQuicReloadableFlag(quic_use_proof_source_get_cert_chains)) {
+    using LocalSSLConfig = ProofSourceHandleCallback::LocalSSLConfig;
+
+    std::vector<quiche::QuicheReferenceCountedPointer<ProofSource::Chain>>
+        chains = {
+            quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
+                new ProofSource::Chain(
+                    /*certs=*/{std::string(quic::test::kTestCertificate)},
+                    /*trust_anchor_id=*/"\x11\x22\x33")),
+            quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
+                new ProofSource::Chain(
+                    /*certs=*/{std::string(quic::test::kTestCertificate)},
+                    /*trust_anchor_id=*/"")),
+        };
+    EXPECT_CALL(*proof_source_, GetCertChains(_, _, kServerHostname))
+        .WillOnce(Return(ProofSource::CertChainsResult{
+            .chains_match_sni = true,
+            .chains = chains,
+        }));
+    EXPECT_CALL(*proof_source_, GetCertChain).Times(0);
+    // `DefaultProofSourceHandle::SelectCertificate()` should pick only the
+    // chains that claim to match SNI.
+    EXPECT_CALL(*server_handshaker_,
+                OnSelectCertificateDone(
+                    /*ok=*/true, /*is_sync=*/_,
+                    VariantWith<LocalSSLConfig>(
+                        AllOf(Field(&LocalSSLConfig::chain, IsNull()),
+                              Field(&LocalSSLConfig::chains,
+                                    ElementsAre(chains[0], chains[1])),
+                              Field(&LocalSSLConfig::delayed_ssl_config,
+                                    Eq(QuicDelayedSSLConfig())))),
+                    /*ticket_encryption_key=*/_,
+                    /*cert_matched_sni=*/true));
+  } else {
+    EXPECT_CALL(*proof_source_, GetCertChains).Times(0);
+    EXPECT_CALL(*proof_source_, GetCertChain(_, _, kServerHostname, _));
+    EXPECT_CALL(*server_handshaker_, OnSelectCertificateDone(
+                                         /*ok=*/true, /*is_sync=*/_,
+                                         /*ssl_config=*/_,
+                                         /*ticket_encryption_key=*/_,
+                                         /*cert_matched_sni=*/false));
+  }
+
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  EXPECT_EQ(client_stream()->MatchedTrustAnchorIdForTesting(),
+            GetQuicReloadableFlag(quic_use_proof_source_get_cert_chains));
+}
+
+// Test that `DefaultProofSourceHandle::SelectCertificate()` passes through
+// chains with Trust Anchor IDs when that's all that's available. The handshake
+// will succeed because one of the chains matches the client-advertised Trust
+// Anchor IDs.
+TEST_P(TlsServerHandshakerTest,
+       SelectCertificateNotFirstChainMatchesSniAndTrustAnchorId) {
+  // Set the client-advertised Trust Anchor IDs. Each ID is preceded by an 8-bit
+  // length prefix.
+  client_crypto_config_->ssl_config().trust_anchor_ids = "\x03\x11\x22\x33";
+  InitializeFakeClient();
+
+  InitializeServerWithFakeProofSourceHandle();
+  ASSERT_TRUE(server_handshaker_ != nullptr);
+
+  // Note that if we called `server_handshaker_->SetupProofSourceHandle()` here,
+  // this test would incorrectly exercise `FakeProofSourceHandle` instead of
+  // `DefaultProofSourceHandle`.
+
+  if (GetQuicReloadableFlag(quic_use_proof_source_get_cert_chains)) {
+    using LocalSSLConfig = ProofSourceHandleCallback::LocalSSLConfig;
+
+    std::vector<quiche::QuicheReferenceCountedPointer<ProofSource::Chain>>
+        chains = {
+            quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
+                new ProofSource::Chain(
+                    /*certs=*/{std::string(quic::test::kTestCertificate)},
+                    /*trust_anchor_id=*/"\x07\x08")),
+            quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
+                new ProofSource::Chain(
+                    /*certs=*/{std::string(quic::test::kTestCertificate)},
+                    /*trust_anchor_id=*/"\x11\x22\x33")),
+        };
+    EXPECT_CALL(*proof_source_, GetCertChains(_, _, kServerHostname))
+        .WillOnce(Return(ProofSource::CertChainsResult{
+            .chains_match_sni = true,
+            .chains = chains,
+        }));
+    EXPECT_CALL(*proof_source_, GetCertChain).Times(0);
+    // `DefaultProofSourceHandle::SelectCertificate()` should pick only the
+    // chains that claim to match SNI.
+    EXPECT_CALL(*server_handshaker_,
+                OnSelectCertificateDone(
+                    /*ok=*/true, /*is_sync=*/_,
+                    VariantWith<LocalSSLConfig>(
+                        AllOf(Field(&LocalSSLConfig::chain, IsNull()),
+                              Field(&LocalSSLConfig::chains,
+                                    ElementsAre(chains[0], chains[1])),
+                              Field(&LocalSSLConfig::delayed_ssl_config,
+                                    Eq(QuicDelayedSSLConfig())))),
+                    /*ticket_encryption_key=*/_,
+                    /*cert_matched_sni=*/true));
+  } else {
+    EXPECT_CALL(*proof_source_, GetCertChains).Times(0);
+    EXPECT_CALL(*proof_source_, GetCertChain(_, _, kServerHostname, _));
+    EXPECT_CALL(*server_handshaker_, OnSelectCertificateDone(
+                                         /*ok=*/true, /*is_sync=*/_,
+                                         /*ssl_config=*/_,
+                                         /*ticket_encryption_key=*/_,
+                                         /*cert_matched_sni=*/false));
+  }
+
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  EXPECT_EQ(client_stream()->MatchedTrustAnchorIdForTesting(),
+            GetQuicReloadableFlag(quic_use_proof_source_get_cert_chains));
+}
+
+// Test that the handshake fails when all chains returned by
+// `ProofSource::GetCertChains()` have Trust Anchor IDs, but none match the
+// client-advertised IDs. This pitfall can be avoided by returning at least one
+// (complete) certificate chain that is not associated with a Trust Anchor ID.
+TEST_P(TlsServerHandshakerTest,
+       SelectCertificateFailsWhenAllChainsHaveMismatchedTrustAnchorIds) {
+  // Set the client-advertised Trust Anchor IDs. Each ID is preceded by an 8-bit
+  // length prefix.
+  client_crypto_config_->ssl_config().trust_anchor_ids = "\x03\x11\x22\x33";
+  InitializeFakeClient();
+
+  InitializeServerWithFakeProofSourceHandle();
+  ASSERT_TRUE(server_handshaker_ != nullptr);
+
+  // Note that if we called `server_handshaker_->SetupProofSourceHandle()` here,
+  // this test would incorrectly exercise `FakeProofSourceHandle` instead of
+  // `DefaultProofSourceHandle`.
+
+  if (GetQuicReloadableFlag(quic_use_proof_source_get_cert_chains)) {
+    using LocalSSLConfig = ProofSourceHandleCallback::LocalSSLConfig;
+
+    std::vector<quiche::QuicheReferenceCountedPointer<ProofSource::Chain>>
+        chains = {
+            quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
+                new ProofSource::Chain(
+                    /*certs=*/{std::string(quic::test::kTestCertificate)},
+                    /*trust_anchor_id=*/"\x07\x08")),
+            quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
+                new ProofSource::Chain(
+                    /*certs=*/{std::string(quic::test::kTestCertificate)},
+                    /*trust_anchor_id=*/"\x42")),
+        };
+    EXPECT_CALL(*proof_source_, GetCertChains(_, _, kServerHostname))
+        .WillOnce(Return(ProofSource::CertChainsResult{
+            .chains_match_sni = true,
+            .chains = chains,
+        }));
+    EXPECT_CALL(*proof_source_, GetCertChain).Times(0);
+    // `DefaultProofSourceHandle::SelectCertificate()` should pick only the
+    // chains that claim to match SNI.
+    EXPECT_CALL(*server_handshaker_,
+                OnSelectCertificateDone(
+                    /*ok=*/true, /*is_sync=*/_,
+                    VariantWith<LocalSSLConfig>(
+                        AllOf(Field(&LocalSSLConfig::chain, IsNull()),
+                              Field(&LocalSSLConfig::chains,
+                                    ElementsAre(chains[0], chains[1])),
+                              Field(&LocalSSLConfig::delayed_ssl_config,
+                                    Eq(QuicDelayedSSLConfig())))),
+                    /*ticket_encryption_key=*/_,
+                    /*cert_matched_sni=*/true));
+    AdvanceHandshakeWithFakeClient();
+
+    EXPECT_FALSE(client_stream()->one_rtt_keys_available());
+    EXPECT_FALSE(client_stream()->encryption_established());
+    EXPECT_FALSE(server_stream()->one_rtt_keys_available());
+    EXPECT_FALSE(server_stream()->encryption_established());
+
+  } else {
+    EXPECT_CALL(*proof_source_, GetCertChains).Times(0);
+    EXPECT_CALL(*proof_source_, GetCertChain(_, _, kServerHostname, _));
+    EXPECT_CALL(*server_handshaker_, OnSelectCertificateDone(
+                                         /*ok=*/true, /*is_sync=*/_,
+                                         /*ssl_config=*/_,
+                                         /*ticket_encryption_key=*/_,
+                                         /*cert_matched_sni=*/false));
+
+    CompleteCryptoHandshake();
+    ExpectHandshakeSuccessful();
+  }
+
+  EXPECT_FALSE(client_stream()->MatchedTrustAnchorIdForTesting());
 }
 
 TEST_P(TlsServerHandshakerTest, ConnectionClosedOnTlsError) {

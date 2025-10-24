@@ -5,12 +5,18 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_FAKE_PROOF_SOURCE_H_
 #define QUICHE_QUIC_TEST_TOOLS_FAKE_PROOF_SOURCE_H_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_source.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
 namespace test {
@@ -24,7 +30,7 @@ namespace test {
 // FakeProofSource::GetTicketCrypter.
 class FakeProofSource : public ProofSource {
  public:
-  FakeProofSource();
+  explicit FakeProofSource(const std::string& trust_anchor_id = "");
   ~FakeProofSource() override;
 
   // Before this object is "active", all calls to GetProof will be delegated
@@ -40,10 +46,16 @@ class FakeProofSource : public ProofSource {
                 QuicTransportVersion transport_version,
                 absl::string_view chlo_hash,
                 std::unique_ptr<ProofSource::Callback> callback) override;
-  quiche::QuicheReferenceCountedPointer<Chain> GetCertChain(
-      const QuicSocketAddress& server_address,
-      const QuicSocketAddress& client_address, const std::string& hostname,
-      bool* cert_matched_sni) override;
+  MOCK_METHOD(quiche::QuicheReferenceCountedPointer<Chain>, GetCertChain,
+              (const QuicSocketAddress& server_address,
+               const QuicSocketAddress& client_address,
+               const std::string& hostname, bool* cert_matched_sni),
+              (override));
+  MOCK_METHOD(ProofSource::CertChainsResult, GetCertChains,
+              (const QuicSocketAddress& server_address,
+               const QuicSocketAddress& client_address,
+               const std::string& hostname),
+              (override));
   void ComputeTlsSignature(
       const QuicSocketAddress& server_address,
       const QuicSocketAddress& client_address, const std::string& hostname,
