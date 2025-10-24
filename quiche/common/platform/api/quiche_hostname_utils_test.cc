@@ -4,9 +4,14 @@
 
 #include "quiche/common/platform/api/quiche_hostname_utils.h"
 
+#include <cstddef>
 #include <string>
 
 #include "absl/base/macros.h"
+#include "absl/strings/escaping.h"
+#include "absl/strings/str_format.h"
+#include "absl/strings/string_view.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
@@ -88,6 +93,33 @@ TEST_F(QuicheHostnameUtilsTest, NormalizeHostname) {
         "", QuicheHostnameUtils::NormalizeHostname("\xe5\x85\x89.google.com"));
   }
 }
+
+void FuzzPropertyNormalizationIsIdempotentForValidSni(absl::string_view sni) {
+  const bool is_valid = QuicheHostnameUtils::IsValidSNI(sni);
+  const std::string normalized = QuicheHostnameUtils::NormalizeHostname(sni);
+  const std::string normalized_twice =
+      QuicheHostnameUtils::NormalizeHostname(normalized);
+
+  auto GetDebugMessage = [&]() {
+    return absl::StrFormat(
+        "Original SNI was valid? %v, Original SNI: \"%s\", Normalized SNI: "
+        "\"%s\", Double-normalized SNI: \"%s\"",
+        is_valid, absl::CEscape(sni), absl::CEscape(normalized),
+        absl::CEscape(normalized_twice));
+  };
+
+  if (is_valid) {
+    // Test idempotency.
+    EXPECT_EQ(normalized, normalized_twice) << GetDebugMessage();
+    // Test that normalization preserved validity.
+    EXPECT_TRUE(QuicheHostnameUtils::IsValidSNI(normalized))
+        << GetDebugMessage();
+  }
+}
+
+FUZZ_TEST(QuicheHostnameUtilsFuzzTest,
+          FuzzPropertyNormalizationIsIdempotentForValidSni)
+    .WithSeeds({"_._", "...", "!.example", "1.2.3.4"});
 
 }  // namespace
 }  // namespace test
