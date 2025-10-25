@@ -7,19 +7,28 @@
 #include <string>
 #include <vector>
 
+#include "quiche/quic/core/quic_bandwidth.h"
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_interval_set.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/quic/test_tools/simulator/link.h"
 #include "quiche/quic/test_tools/simulator/quic_endpoint.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/test_tools/simulator/switch.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic::test {
 namespace {
 
-const QuicByteCount kTransferSize = 1000 * kMaxOutgoingPacketSize;
-const QuicByteCount kTestStreamNumber = 3;
-const QuicTime::Delta kDelay = QuicTime::Delta::FromMilliseconds(20);
+constexpr QuicByteCount kTransferSize = 1000 * kMaxOutgoingPacketSize;
+constexpr QuicByteCount kTestStreamNumber = 3;
+constexpr QuicTime::Delta kDelay = QuicTime::Delta::FromMilliseconds(20);
+constexpr QuicBandwidth kBandwidth = QuicBandwidth::FromKBitsPerSecond(1000);
 
 // The trace for this test is generated using a simulator transfer.
 class QuicTraceVisitorTest : public QuicTest {
@@ -32,7 +41,6 @@ class QuicTraceVisitorTest : public QuicTest {
     simulator::QuicEndpoint server(&simulator, "Server", "Client",
                                    Perspective::IS_SERVER, connection_id);
 
-    const QuicBandwidth kBandwidth = QuicBandwidth::FromKBitsPerSecond(1000);
     const QuicByteCount kBdp = kBandwidth * (2 * kDelay);
 
     // Create parameters such that some loss is observed.
@@ -165,6 +173,11 @@ TEST_F(QuicTraceVisitorTest, TransportState) {
             acks.rbegin()->transport_state().min_rtt_us());
   EXPECT_GE((4 * kDelay).ToMicroseconds() * 1.25,
             acks.rbegin()->transport_state().min_rtt_us());
+
+  float trace_bandwidth_bps =
+      acks.rbegin()->transport_state().bandwidth_estimate_bps();
+  float actual_bandwidth_bps = kBandwidth.ToBitsPerSecond();
+  EXPECT_APPROX_EQ(actual_bandwidth_bps, trace_bandwidth_bps, 0.01);
 }
 
 TEST_F(QuicTraceVisitorTest, EncryptionLevels) {

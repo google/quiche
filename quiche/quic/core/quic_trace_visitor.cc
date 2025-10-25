@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <string>
 
+#include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/common/quiche_endian.h"
 
@@ -328,21 +329,20 @@ void QuicTraceVisitor::PopulateTransportState(
   state->set_smoothed_rtt_us(rtt_stats->smoothed_rtt().ToMicroseconds());
   state->set_last_rtt_us(rtt_stats->latest_rtt().ToMicroseconds());
 
+  const SendAlgorithmInterface* send_algorithm =
+      connection_->sent_packet_manager().GetSendAlgorithm();
   state->set_cwnd_bytes(
       connection_->sent_packet_manager().GetCongestionWindowInBytes());
   QuicByteCount in_flight =
       connection_->sent_packet_manager().GetBytesInFlight();
   state->set_in_flight_bytes(in_flight);
-  state->set_pacing_rate_bps(connection_->sent_packet_manager()
-                                 .GetSendAlgorithm()
-                                 ->PacingRate(in_flight)
-                                 .ToBitsPerSecond());
+  state->set_pacing_rate_bps(
+      send_algorithm->PacingRate(in_flight).ToBitsPerSecond());
+  state->set_bandwidth_estimate_bps(
+      send_algorithm->BandwidthEstimate().ToBitsPerSecond());
 
-  if (connection_->sent_packet_manager()
-          .GetSendAlgorithm()
-          ->GetCongestionControlType() == kPCC) {
-    state->set_congestion_control_state(
-        connection_->sent_packet_manager().GetSendAlgorithm()->GetDebugState());
+  if (send_algorithm->GetCongestionControlType() == kPCC) {
+    state->set_congestion_control_state(send_algorithm->GetDebugState());
   }
 }
 
