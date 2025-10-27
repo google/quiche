@@ -255,6 +255,7 @@ constexpr QuicByteCount AdjustedQueueSize(
 
 MoqtSimulator::MoqtSimulator(const SimulationParameters& parameters)
     : simulator_(quic::QuicRandom::GetInstance()),
+      receiver_(simulator_.GetClock(), parameters.deadline),
       client_endpoint_(&simulator_, "Client", "Server", kMoqtVersion),
       server_endpoint_(&simulator_, "Server", "Client", kMoqtVersion),
       switch_(&simulator_, "Switch", 8, AdjustedQueueSize(parameters)),
@@ -266,7 +267,6 @@ MoqtSimulator::MoqtSimulator(const SimulationParameters& parameters)
       generator_(&simulator_, "Client generator", client_endpoint_.session(),
                  TrackName(), parameters.keyframe_interval, parameters.fps,
                  parameters.i_to_p_ratio, parameters.bitrate),
-      receiver_(simulator_.GetClock(), parameters.deadline),
       adjuster_(simulator_.GetClock(), client_endpoint_.session()->session(),
                 &generator_),
       parameters_(parameters) {

@@ -221,6 +221,7 @@ class MoqtSimulator {
 
  private:
   quic::simulator::Simulator simulator_;
+  ObjectReceiver receiver_;
   MoqtClientEndpoint client_endpoint_;
   MoqtServerEndpoint server_endpoint_;
   quic::simulator::Switch switch_;
@@ -229,7 +230,6 @@ class MoqtSimulator {
   quic::simulator::SymmetricLink server_link_;
   MoqtKnownTrackPublisher publisher_;
   ObjectGenerator generator_;
-  ObjectReceiver receiver_;
   MoqtBitrateAdjuster adjuster_;
   SimulationParameters parameters_;
 
