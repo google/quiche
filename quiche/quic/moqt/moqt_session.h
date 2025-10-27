@@ -381,13 +381,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnSubgroupAbandoned(uint64_t group, uint64_t subgroup,
                              webtransport::StreamErrorCode error_code) override;
     void OnGroupAbandoned(uint64_t group_id) override;
-    void ProcessObjectAck(const MoqtObjectAck& message) {
-      if (monitoring_interface_ == nullptr) {
-        return;
-      }
-      monitoring_interface_->OnObjectAckReceived(
-          message.group_id, message.object_id, message.delta_from_deadline);
-    }
+    void ProcessObjectAck(const MoqtObjectAck& message);
 
     // Updates the window and other properties of the subscription in question.
     void Update(Location start, std::optional<uint64_t> end,

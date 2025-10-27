@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "absl/base/nullability.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_trace_visitor.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -54,6 +55,10 @@ class MoqtTraceRecorder {
                                 const MoqtTrackPublisher& publisher,
                                 Location location, uint64_t subgroup,
                                 MoqtPriority publisher_priority);
+
+  // Records an incoming MOQT Object ACK message.
+  void RecordObjectAck(uint64_t track_alias, Location location,
+                       quic::QuicTimeDelta ack_delta);
 
  private:
   // Adds a new event to the trace, and populates the timestamp.

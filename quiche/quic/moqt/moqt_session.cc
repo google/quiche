@@ -2656,4 +2656,17 @@ MoqtSession::PublishedFetch::FetchStreamVisitor::FetchStreamVisitor(
       stream->GetStreamId());
 }
 
+void MoqtSession::PublishedSubscription::ProcessObjectAck(
+    const MoqtObjectAck& message) {
+  session_->trace_recorder_.RecordObjectAck(
+      track_alias_, Location(message.group_id, message.object_id),
+      message.delta_from_deadline);
+
+  if (monitoring_interface_ == nullptr) {
+    return;
+  }
+  monitoring_interface_->OnObjectAckReceived(
+      message.group_id, message.object_id, message.delta_from_deadline);
+}
+
 }  // namespace moqt

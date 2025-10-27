@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
@@ -44,6 +45,7 @@ using ::quic::test::MemSliceFromString;
 using ::quiche::QuicheMemSlice;
 using ::testing::_;
 using ::testing::Assign;
+using ::testing::ElementsAre;
 using ::testing::Return;
 
 class MoqtIntegrationTest : public quiche::test::QuicheTest {
@@ -754,6 +756,15 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
       .WillOnce([&] { done = true; });
   bool success = test_harness_.RunUntilWithDefaultTimeout([&] { return done; });
   EXPECT_TRUE(success);
+
+  const quic_trace::Trace& trace = *server_->trace_visitor()->trace();
+  std::vector<int64_t> ack_deltas;
+  for (const quic_trace::Event& event : trace.events()) {
+    if (event.event_type() == quic_trace::EventType::MOQT_OBJECT_ACKNOWLEDGED) {
+      ack_deltas.push_back(event.moq_object_ack_time_delta_us());
+    }
+  }
+  EXPECT_THAT(ack_deltas, ElementsAre(-123, 456));
 }
 
 TEST_F(MoqtIntegrationTest, DeliveryTimeout) {

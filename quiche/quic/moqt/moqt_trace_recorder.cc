@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -99,6 +100,20 @@ void MoqtTraceRecorder::RecordNewObjectAvaliable(
                          << " as enqueued, but GetCachedObject was not able to "
                             "return the said object";
   }
+}
+
+void MoqtTraceRecorder::RecordObjectAck(uint64_t track_alias, Location location,
+                                        quic::QuicTimeDelta ack_delta) {
+  if (parent_ == nullptr) {
+    return;
+  }
+  quic_trace::Event* event = AddEvent();
+  event->set_event_type(EventType::MOQT_OBJECT_ACKNOWLEDGED);
+  event->set_moq_object_ack_time_delta_us(ack_delta.ToMicroseconds());
+  event->mutable_moqt_object()->set_track_alias(track_alias);
+  event->mutable_moqt_object()->set_group_id(location.group);
+  event->mutable_moqt_object()->set_object_id(location.object);
+  parent_->PopulateTransportState(event->mutable_transport_state());
 }
 
 }  // namespace moqt
