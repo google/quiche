@@ -11,9 +11,12 @@
 #include <utility>
 #include <variant>
 
+#include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -22,6 +25,7 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt::test {
@@ -90,6 +94,92 @@ class MockTrackPublisher : public MoqtTrackPublisher {
 
  private:
   FullTrackName track_name_;
+};
+
+// A very simple MoqtTrackPublisher that allows tests to add arbitrary objects.
+class TestTrackPublisher : public MoqtTrackPublisher {
+ public:
+  explicit TestTrackPublisher(FullTrackName name)
+      : track_name_(std::move(name)) {}
+  const FullTrackName& GetTrackName() const override { return track_name_; }
+  std::optional<PublishedObject> GetCachedObject(
+      uint64_t group, uint64_t subgroup, uint64_t object) const override {
+    Location location(group, object);
+    auto it = objects_.find(location);
+    if (it == objects_.end()) {
+      return std::nullopt;
+    }
+    return CachedObjectToPublishedObject(it->second);
+  }
+  void AddObjectListener(MoqtObjectListener* listener) override {
+    listeners_.insert(listener);
+    listener->OnSubscribeAccepted();
+  }
+  void RemoveObjectListener(MoqtObjectListener* listener) override {
+    listeners_.erase(listener);
+  }
+  std::optional<Location> largest_location() const override {
+    return largest_location_;
+  }
+  std::optional<MoqtForwardingPreference> forwarding_preference()
+      const override {
+    return MoqtForwardingPreference::kSubgroup;
+  }
+  std::optional<MoqtDeliveryOrder> delivery_order() const override {
+    return MoqtDeliveryOrder::kAscending;
+  }
+  std::optional<quic::QuicTimeDelta> expiration() const override {
+    return quic::QuicTimeDelta::Infinite();
+  }
+  // TODO(martinduke): Support Fetch
+  std::unique_ptr<MoqtFetchTask> StandaloneFetch(
+      Location start, Location end,
+      std::optional<MoqtDeliveryOrder> delivery_order) override {
+    return std::make_unique<MoqtFailedFetch>(
+        absl::UnimplementedError("Fetch not implemented"));
+  }
+  std::unique_ptr<MoqtFetchTask> RelativeFetch(
+      uint64_t offset,
+      std::optional<MoqtDeliveryOrder> delivery_order) override {
+    return std::make_unique<MoqtFailedFetch>(
+        absl::UnimplementedError("Fetch not implemented"));
+  }
+  std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
+      uint64_t offset,
+      std::optional<MoqtDeliveryOrder> delivery_order) override {
+    return std::make_unique<MoqtFailedFetch>(
+        absl::UnimplementedError("Fetch not implemented"));
+  }
+  void AddObject(Location location, uint64_t subgroup,
+                 absl::string_view payload, bool fin) {
+    CachedObject object;
+    object.metadata.location = location;
+    object.metadata.subgroup = subgroup;
+    object.metadata.extensions = "";
+    object.metadata.status = MoqtObjectStatus::kNormal;
+    object.metadata.publisher_priority = 128;
+    object.payload = std::make_shared<quiche::QuicheMemSlice>(
+        quiche::QuicheMemSlice::Copy(payload));
+    object.fin_after_this = fin;
+    objects_[location] = std::move(object);
+    if (!largest_location_.has_value() || *largest_location_ < location) {
+      largest_location_ = location;
+    }
+    for (MoqtObjectListener* listener : listeners_) {
+      listener->OnNewObjectAvailable(location, subgroup, 128);
+    }
+  }
+  void RemoveAllSubscriptions() {
+    for (MoqtObjectListener* listener : listeners_) {
+      listener->OnTrackPublisherGone();
+    }
+  }
+
+ private:
+  FullTrackName track_name_;
+  absl::flat_hash_set<MoqtObjectListener*> listeners_;
+  absl::flat_hash_map<Location, CachedObject> objects_;
+  std::optional<Location> largest_location_;
 };
 
 // TODO(martinduke): Rename to MockSubscribeVisitor.

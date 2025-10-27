@@ -17,7 +17,6 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
-#include "quiche/quic/moqt/moqt_live_relay_queue.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
@@ -660,9 +659,7 @@ TEST_F(MoqtIntegrationTest, CleanPublishDone) {
 
   MoqtKnownTrackPublisher publisher;
   server_->session()->set_publisher(&publisher);
-  auto queue = std::make_shared<MoqtLiveRelayQueue>(
-      full_track_name, MoqtForwardingPreference::kSubgroup,
-      MoqtDeliveryOrder::kAscending, quic::QuicTime::Infinite());
+  auto queue = std::make_shared<TestTrackPublisher>(full_track_name);
   publisher.Add(queue);
 
   SubscribeLatestObject(full_track_name, &subscribe_visitor_);
@@ -764,10 +761,7 @@ TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
 
   MoqtKnownTrackPublisher publisher;
   server_->session()->set_publisher(&publisher);
-  auto queue = std::make_shared<MoqtLiveRelayQueue>(
-      full_track_name, MoqtForwardingPreference::kSubgroup,
-      MoqtDeliveryOrder::kAscending, quic::QuicTime::Infinite(),
-      test_harness_.simulator().GetClock());
+  auto queue = std::make_shared<TestTrackPublisher>(full_track_name);
   auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
   publisher.Add(queue);
 
@@ -815,10 +809,7 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
   MoqtKnownTrackPublisher publisher;
   server_->session()->set_publisher(&publisher);
   server_->session()->UseAlternateDeliveryTimeout();
-  auto queue = std::make_shared<MoqtLiveRelayQueue>(
-      full_track_name, MoqtForwardingPreference::kSubgroup,
-      MoqtDeliveryOrder::kAscending, quic::QuicTime::Infinite(),
-      test_harness_.simulator().GetClock());
+  auto queue = std::make_shared<TestTrackPublisher>(full_track_name);
   auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
   publisher.Add(queue);
 
