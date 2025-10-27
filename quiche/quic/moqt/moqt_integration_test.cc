@@ -68,6 +68,9 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
     client_->RecordTrace();
     client_->session()->trace_recorder().SetParentRecorder(
         client_->trace_visitor());
+    server_->RecordTrace();
+    server_->session()->trace_recorder().SetParentRecorder(
+        server_->trace_visitor());
   }
 
   void WireUpEndpoints() { test_harness_.WireUpEndpoints(); }

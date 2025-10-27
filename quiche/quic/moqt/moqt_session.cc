@@ -1981,13 +1981,11 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
   QUIC_DLOG(INFO) << ENDPOINT << "Created subscription for "
                   << subscribe.full_track_name;
   session_->subscribed_track_names_.insert(subscribe.full_track_name);
-  session_->trace_recorder_.StartRecordingTrack(track_alias, track_publisher);
 }
 
 MoqtSession::PublishedSubscription::~PublishedSubscription() {
   session_->subscribed_track_names_.erase(track_publisher_->GetTrackName());
   track_publisher_->RemoveObjectListener(this);
-  session_->trace_recorder_.StopRecordingTrack(track_alias_);
 }
 
 SendStreamMap& MoqtSession::PublishedSubscription::stream_map() {
@@ -2096,6 +2094,8 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
   if (!InWindow(location)) {
     return;
   }
+  session_->trace_recorder_.RecordNewObjectAvaliable(
+      track_alias_, *track_publisher_, location, subgroup, publisher_priority);
   DataStreamIndex index(location.group, subgroup);
   if (reset_subgroups_.contains(index)) {
     // This subgroup has already been reset, ignore.

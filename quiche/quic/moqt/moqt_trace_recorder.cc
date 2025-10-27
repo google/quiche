@@ -4,13 +4,9 @@
 
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 
-#include <cstddef>
 #include <cstdint>
-#include <memory>
 #include <optional>
-#include <utility>
 
-#include "absl/hash/hash.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -76,65 +72,33 @@ quic_trace::Event* MoqtTraceRecorder::AddEvent() {
   return event;
 }
 
-MoqtTraceRecorder::Track::Track(MoqtTraceRecorder* recorder,
-                                std::shared_ptr<MoqtTrackPublisher> publisher,
-                                uint64_t track_alias)
-    : recorder_(recorder),
-      publisher_(std::move(publisher)),
-      track_alias_(track_alias) {
-  publisher_->AddObjectListener(this);
-}
-
-MoqtTraceRecorder::Track::~Track() { publisher_->RemoveObjectListener(this); }
-
-void MoqtTraceRecorder::Track::OnNewObjectAvailable(
-    Location sequence, uint64_t subgroup, MoqtPriority publisher_priority) {
-  if (recorder_->parent_ == nullptr) {
+void MoqtTraceRecorder::RecordNewObjectAvaliable(
+    uint64_t track_alias, const MoqtTrackPublisher& publisher,
+    Location location, uint64_t subgroup, MoqtPriority publisher_priority) {
+  if (parent_ == nullptr) {
     return;
   }
-  quic_trace::Event* event = recorder_->AddEvent();
+  quic_trace::Event* event = AddEvent();
   event->set_event_type(EventType::MOQT_OBJECT_ENQUEUED);
-  recorder_->parent_->PopulateTransportState(event->mutable_transport_state());
+  parent_->PopulateTransportState(event->mutable_transport_state());
 
   quic_trace::MoqtObject* object = event->mutable_moqt_object();
-  object->set_track_alias(track_alias_);
-  object->set_group_id(sequence.group);
-  object->set_object_id(sequence.object);
+  object->set_track_alias(track_alias);
+  object->set_group_id(location.group);
+  object->set_object_id(location.object);
   object->set_subgroup_id(subgroup);
   object->set_publisher_priority(publisher_priority);
 
   std::optional<PublishedObject> object_copy =
-      publisher_->GetCachedObject(sequence.group, subgroup, sequence.object);
-  if (object_copy.has_value() && object_copy->metadata.location == sequence) {
+      publisher.GetCachedObject(location.group, subgroup, location.object);
+  if (object_copy.has_value() && object_copy->metadata.location == location) {
     object->set_payload_size(object_copy->payload.length());
   } else {
-    QUICHE_DLOG(WARNING) << "Track " << track_alias_ << " has marked "
-                         << sequence
+    QUICHE_DLOG(WARNING) << "Track " << track_alias << " has marked "
+                         << location
                          << " as enqueued, but GetCachedObject was not able to "
                             "return the said object";
   }
-}
-
-size_t MoqtTraceRecorder::TrackAliasHash::operator()(
-    uint64_t track_alias) const {
-  return absl::HashOf(track_alias);
-}
-
-void MoqtTraceRecorder::StartRecordingTrack(
-    uint64_t track_alias, std::shared_ptr<MoqtTrackPublisher> publisher) {
-  if (parent_ == nullptr) {
-    return;
-  }
-  auto [it, added] = tracks_.emplace(this, std::move(publisher), track_alias);
-  QUICHE_DCHECK(added);
-}
-
-void MoqtTraceRecorder::StopRecordingTrack(uint64_t track_alias) {
-  if (parent_ == nullptr) {
-    return;
-  }
-  size_t erased = tracks_.erase(track_alias);
-  QUICHE_DCHECK_EQ(erased, 1);
 }
 
 }  // namespace moqt
