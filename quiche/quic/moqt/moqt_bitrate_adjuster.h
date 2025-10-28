@@ -12,6 +12,7 @@
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -75,15 +76,21 @@ class MoqtBitrateAdjuster : public MoqtPublishingMonitorInterface {
   void OnObjectAckReceived(uint64_t group_id, uint64_t object_id,
                            quic::QuicTimeDelta delta_from_deadline) override;
 
+  MoqtTraceRecorder& trace_recorder() { return trace_recorder_; }
+
  private:
   void Start();
 
   // Attempts adjusting the bitrate down.
   void AttemptAdjustingDown();
 
+  void SuggestNewBitrate(quic::QuicBandwidth bitrate,
+                         BitrateAdjustmentType type);
+
   const quic::QuicClock* clock_;    // Not owned.
   webtransport::Session* session_;  // Not owned.
   BitrateAdjustable* adjustable_;   // Not owned.
+  MoqtTraceRecorder trace_recorder_;
   MoqtBitrateAdjusterParameters parameters_;
   quic::QuicTime start_time_ = quic::QuicTime::Zero();
   quic::QuicTimeDelta time_window_ = quic::QuicTimeDelta::Zero();

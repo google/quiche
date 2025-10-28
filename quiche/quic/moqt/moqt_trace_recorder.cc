@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
@@ -114,6 +115,16 @@ void MoqtTraceRecorder::RecordObjectAck(uint64_t track_alias, Location location,
   event->mutable_moqt_object()->set_group_id(location.group);
   event->mutable_moqt_object()->set_object_id(location.object);
   parent_->PopulateTransportState(event->mutable_transport_state());
+}
+
+void MoqtTraceRecorder::RecordTargetBitrateSet(
+    quic::QuicBandwidth new_bandwidth) {
+  if (parent_ == nullptr) {
+    return;
+  }
+  quic_trace::Event* event = AddEvent();
+  event->set_event_type(EventType::MOQT_TARGET_BITRATE_SET);
+  event->set_bandwidth_estimate_bps(new_bandwidth.ToBitsPerSecond());
 }
 
 }  // namespace moqt

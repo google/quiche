@@ -219,6 +219,11 @@ class MoqtSimulator {
   // The fraction of objects received on time.
   float received_on_time_fraction() const;
 
+  // The trace of the client session (the publisher).
+  const quic_trace::Trace& client_trace() {
+    return *client_endpoint_.trace_visitor()->trace();
+  }
+
   // Outputs the results of the simulation to stdout.
   void HumanReadableOutput();
   void CustomOutput(absl::string_view format);

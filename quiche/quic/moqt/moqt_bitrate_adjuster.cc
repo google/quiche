@@ -63,8 +63,7 @@ void MoqtBitrateAdjuster::AttemptAdjustingDown() {
       parameters_.target_bitrate_multiplier_down *
       QuicBandwidth::FromBitsPerSecond(stats.estimated_send_rate_bps);
   QUICHE_DLOG(INFO) << "Adjusting the bitrate down to " << target_bandwidth;
-  adjustable_->ConsiderAdjustingBitrate(target_bandwidth,
-                                        BitrateAdjustmentType::kDown);
+  SuggestNewBitrate(target_bandwidth, BitrateAdjustmentType::kDown);
 }
 
 void MoqtBitrateAdjuster::OnObjectAckSupportKnown(
@@ -102,6 +101,12 @@ bool ShouldIgnoreBitrateAdjustment(quic::QuicBandwidth new_bitrate,
       break;
   }
   return false;
+}
+
+void MoqtBitrateAdjuster::SuggestNewBitrate(quic::QuicBandwidth bitrate,
+                                            BitrateAdjustmentType type) {
+  adjustable_->ConsiderAdjustingBitrate(bitrate, type);
+  trace_recorder_.RecordTargetBitrateSet(bitrate);
 }
 
 }  // namespace moqt
