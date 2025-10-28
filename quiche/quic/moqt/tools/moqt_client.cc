@@ -17,6 +17,7 @@
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_quic_config.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/quic_default_client.h"
@@ -33,6 +34,7 @@ MoqtClient::MoqtClient(quic::QuicSocketAddress peer_address,
                        quic::QuicEventLoop* event_loop)
     : spdy_client_(peer_address, server_id, GetMoqtSupportedQuicVersions(),
                    event_loop, std::move(proof_verifier)) {
+  TuneQuicConfig(*spdy_client_.config());
   spdy_client_.set_enable_web_transport(true);
 }
 

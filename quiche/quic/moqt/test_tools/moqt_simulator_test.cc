@@ -5,6 +5,7 @@
 #include "quiche/quic/moqt/test_tools/moqt_simulator.h"
 
 #include "quiche/quic/core/quic_bandwidth.h"
+#include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
@@ -30,6 +31,10 @@ TEST_F(MoqtSimulatorTest, BandwidthTooLow) {
   simulator.Run();
   EXPECT_GE(simulator.received_on_time_fraction(), 0.8f);
   EXPECT_LT(simulator.received_on_time_fraction(), 0.99f);
+
+  quic::QuicConnectionStats stats =
+      simulator.client_quic_session()->connection()->GetStats();
+  EXPECT_LT(stats.blocked_frames_sent, 16);
 }
 
 }  // namespace

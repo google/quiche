@@ -17,6 +17,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "quiche/quic/core/quic_bandwidth.h"
+#include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_bitrate_adjuster.h"
@@ -206,6 +207,9 @@ class MoqtSimulator {
 
   MoqtSession* client_session() { return client_endpoint_.session(); }
   MoqtSession* server_session() { return server_endpoint_.session(); }
+  quic::QuicSession* client_quic_session() {
+    return client_endpoint_.quic_session();
+  }
 
   std::string GetClientSessionCongestionControl();
 

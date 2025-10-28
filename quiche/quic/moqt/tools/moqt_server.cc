@@ -10,8 +10,12 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_source.h"
+#include "quiche/quic/core/crypto/quic_crypto_server_config.h"
+#include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_quic_config.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/tools/quic_server.h"
 #include "quiche/quic/tools/web_transport_only_backend.h"
@@ -41,6 +45,10 @@ quic::WebTransportRequestCallback CreateWebTransportCallback(
 MoqtServer::MoqtServer(std::unique_ptr<quic::ProofSource> proof_source,
                        MoqtIncomingSessionCallback callback)
     : backend_(CreateWebTransportCallback(std::move(callback), &server_)),
-      server_(std::move(proof_source), /*proof_verifier=*/nullptr, &backend_) {}
+      server_(std::move(proof_source), /*proof_verifier=*/nullptr,
+              GenerateQuicConfig(),
+              quic::QuicCryptoServerConfig::ConfigOptions(),
+              quic::CurrentSupportedVersionsWithTls(), &backend_,
+              quic::kQuicDefaultConnectionIdLength) {}
 
 }  // namespace moqt

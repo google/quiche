@@ -97,6 +97,14 @@ TEST_F(MoqtEndToEndTest, SuccessfulHandshake) {
   callbacks.session_deleted_callback = [&] { deleted = true; };
   std::unique_ptr<MoqtClient> client = CreateClient();
   client->Connect("/test", std::move(callbacks));
+  EXPECT_GT(client->quic_session()
+                ->config()
+                ->GetInitialMaxStreamDataBytesUnidirectionalToSend(),
+            64 * 1024);
+  EXPECT_GT(client->quic_session()
+                ->config()
+                ->ReceivedInitialMaxStreamDataBytesUnidirectional(),
+            64 * 1024);
   bool success = RunEventsUntil([&] { return established; });
   EXPECT_TRUE(success);
   EXPECT_FALSE(deleted);
