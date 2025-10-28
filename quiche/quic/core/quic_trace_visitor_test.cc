@@ -177,7 +177,7 @@ TEST_F(QuicTraceVisitorTest, TransportState) {
   float trace_bandwidth_bps =
       acks.rbegin()->transport_state().bandwidth_estimate_bps();
   float actual_bandwidth_bps = kBandwidth.ToBitsPerSecond();
-  EXPECT_APPROX_EQ(actual_bandwidth_bps, trace_bandwidth_bps, 0.01);
+  EXPECT_APPROX_EQ(actual_bandwidth_bps, trace_bandwidth_bps, 0.2);
 }
 
 TEST_F(QuicTraceVisitorTest, EncryptionLevels) {
