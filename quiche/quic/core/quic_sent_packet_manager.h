@@ -444,14 +444,6 @@ class QUICHE_EXPORT QuicSentPacketManager {
 
   QuicTime::Delta peer_max_ack_delay() const { return peer_max_ack_delay_; }
 
-  void set_peer_max_ack_delay(QuicTime::Delta peer_max_ack_delay) {
-    // The delayed ack time should never be more than one half the min RTO time.
-    QUICHE_DCHECK_LE(
-        peer_max_ack_delay,
-        (QuicTime::Delta::FromMilliseconds(kMinRetransmissionTimeMs) * 0.5));
-    peer_max_ack_delay_ = peer_max_ack_delay;
-  }
-
   const QuicUnackedPacketMap& unacked_packets() const {
     return unacked_packets_;
   }
