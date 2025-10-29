@@ -32,8 +32,8 @@ using http2::adapter::Http2KnownSettingsId;
 
 namespace quic {
 
-MasqueH2Connection::MasqueH2Connection(SSL *ssl, bool is_server,
-                                       Visitor *visitor)
+MasqueH2Connection::MasqueH2Connection(SSL* ssl, bool is_server,
+                                       Visitor* visitor)
     : ssl_(ssl), is_server_(is_server), visitor_(visitor) {}
 
 void MasqueH2Connection::OnTransportReadable() {
@@ -110,9 +110,9 @@ bool MasqueH2Connection::TryRead() {
   QUICHE_DVLOG(1) << "Read " << ssl_read_ret << " bytes from TLS";
   QUICHE_DVLOG(2) << "Read TLS bytes:" << std::endl
                   << quiche::QuicheTextUtils::HexDump(absl::string_view(
-                         reinterpret_cast<const char *>(buffer), ssl_read_ret));
+                         reinterpret_cast<const char*>(buffer), ssl_read_ret));
   h2_adapter_->ProcessBytes(
-      absl::string_view(reinterpret_cast<const char *>(buffer), ssl_read_ret));
+      absl::string_view(reinterpret_cast<const char*>(buffer), ssl_read_ret));
   return AttemptToSend();
 }
 
@@ -149,7 +149,7 @@ int64_t MasqueH2Connection::OnReadyToSend(absl::string_view serialized) {
 MasqueH2Connection::DataFrameHeaderInfo
 MasqueH2Connection::OnReadyToSendDataForStream(Http2StreamId stream_id,
                                                size_t max_length) {
-  MasqueH2Stream *stream = GetOrCreateH2Stream(stream_id);
+  MasqueH2Stream* stream = GetOrCreateH2Stream(stream_id);
   DataFrameHeaderInfo info;
   if (max_length < stream->body_to_send.size()) {
     info.payload_length = max_length;
@@ -168,7 +168,7 @@ bool MasqueH2Connection::SendDataFrame(Http2StreamId stream_id,
   if (!WriteDataToTls(frame_header)) {
     return false;
   }
-  MasqueH2Stream *stream = GetOrCreateH2Stream(stream_id);
+  MasqueH2Stream* stream = GetOrCreateH2Stream(stream_id);
   size_t length_to_write = std::min(payload_bytes, stream->body_to_send.size());
   int length_written =
       WriteDataToTls(stream->body_to_send.substr(0, length_to_write));
@@ -230,16 +230,16 @@ bool MasqueH2Connection::AttemptToSend() {
 }
 
 bool MasqueH2Connection::OnEndHeadersForStream(Http2StreamId stream_id) {
-  MasqueH2Stream *stream = GetOrCreateH2Stream(stream_id);
+  MasqueH2Stream* stream = GetOrCreateH2Stream(stream_id);
   QUICHE_LOG(INFO) << "OnEndHeadersForStream " << stream_id
                    << " headers: " << stream->received_headers.DebugString();
   return true;
 }
 
 void MasqueH2Connection::SendResponse(int32_t stream_id,
-                                      const quiche::HttpHeaderBlock &headers,
-                                      const std::string &body) {
-  MasqueH2Stream *stream = GetOrCreateH2Stream(stream_id);
+                                      const quiche::HttpHeaderBlock& headers,
+                                      const std::string& body) {
+  MasqueH2Stream* stream = GetOrCreateH2Stream(stream_id);
   std::vector<Header> h2_headers = ConvertHeaders(headers);
   stream->body_to_send = body;
   if (h2_adapter_->SubmitResponse(
@@ -250,8 +250,8 @@ void MasqueH2Connection::SendResponse(int32_t stream_id,
   }
 }
 
-int32_t MasqueH2Connection::SendRequest(const quiche::HttpHeaderBlock &headers,
-                                        const std::string &body) {
+int32_t MasqueH2Connection::SendRequest(const quiche::HttpHeaderBlock& headers,
+                                        const std::string& body) {
   if (is_server_) {
     QUICHE_LOG(FATAL) << "Server cannot send requests";
   }
@@ -275,9 +275,9 @@ int32_t MasqueH2Connection::SendRequest(const quiche::HttpHeaderBlock &headers,
 }
 
 std::vector<Header> MasqueH2Connection::ConvertHeaders(
-    const quiche::HttpHeaderBlock &headers) {
+    const quiche::HttpHeaderBlock& headers) {
   std::vector<Header> h2_headers;
-  for (const auto &[key, value] : headers) {
+  for (const auto& [key, value] : headers) {
     h2_headers.push_back({http2::adapter::HeaderRep(std::string(key)),
                           http2::adapter::HeaderRep(std::string(value))});
   }
@@ -307,7 +307,7 @@ bool MasqueH2Connection::OnDataForStream(Http2StreamId stream_id,
 }
 
 bool MasqueH2Connection::OnEndStream(Http2StreamId stream_id) {
-  MasqueH2Stream *stream = GetOrCreateH2Stream(stream_id);
+  MasqueH2Stream* stream = GetOrCreateH2Stream(stream_id);
   QUICHE_LOG(INFO) << "Received END_STREAM for stream " << stream_id
                    << " body length: " << stream->received_body.size()
                    << std::endl
@@ -420,7 +420,7 @@ void MasqueH2Connection::OnErrorDebug(absl::string_view message) {
   QUICHE_LOG(ERROR) << "OnErrorDebug: " << message;
 }
 
-MasqueH2Connection::MasqueH2Stream *MasqueH2Connection::GetOrCreateH2Stream(
+MasqueH2Connection::MasqueH2Stream* MasqueH2Connection::GetOrCreateH2Stream(
     Http2StreamId stream_id) {
   auto it = h2_streams_.find(stream_id);
   if (it != h2_streams_.end()) {
@@ -430,7 +430,7 @@ MasqueH2Connection::MasqueH2Stream *MasqueH2Connection::GetOrCreateH2Stream(
       .first->second.get();
 }
 
-void PrintSSLError(const char *msg, int ssl_err, int ret) {
+void PrintSSLError(const char* msg, int ssl_err, int ret) {
   switch (ssl_err) {
     case SSL_ERROR_SSL:
       QUICHE_LOG(ERROR) << msg << ": "

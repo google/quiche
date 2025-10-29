@@ -35,40 +35,41 @@
 namespace quic {
 
 MasqueConnectionPool::MasqueConnectionPool(
-    QuicEventLoop *event_loop, SSL_CTX *ssl_ctx,
+    QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
     bool disable_certificate_verification, int address_family_for_lookup,
-    Visitor *visitor)
+    Visitor* visitor)
     : event_loop_(event_loop),
       ssl_ctx_(ssl_ctx),
       disable_certificate_verification_(disable_certificate_verification),
       address_family_for_lookup_(address_family_for_lookup),
       visitor_(visitor) {}
 
-void MasqueConnectionPool::OnConnectionReady(MasqueH2Connection *connection) {
+void MasqueConnectionPool::OnConnectionReady(MasqueH2Connection* connection) {
   SendPendingRequests(connection);
 }
 
 void MasqueConnectionPool::OnConnectionFinished(
-    MasqueH2Connection *connection) {
+    MasqueH2Connection* connection) {
   FailPendingRequests(
       connection,
       absl::InternalError("Connection finished before receiving request"));
 }
 
-void MasqueConnectionPool::OnRequest(
-    MasqueH2Connection * /*connection*/, int32_t /*stream_id*/,
-    const quiche::HttpHeaderBlock & /*headers*/, const std::string & /*body*/) {
+void MasqueConnectionPool::OnRequest(MasqueH2Connection* /*connection*/,
+                                     int32_t /*stream_id*/,
+                                     const quiche::HttpHeaderBlock& /*headers*/,
+                                     const std::string& /*body*/) {
   QUICHE_LOG(FATAL) << "Client cannot receive requests";
 }
 
-void MasqueConnectionPool::OnResponse(MasqueH2Connection *connection,
+void MasqueConnectionPool::OnResponse(MasqueH2Connection* connection,
                                       int32_t stream_id,
-                                      const quiche::HttpHeaderBlock &headers,
-                                      const std::string &body) {
+                                      const quiche::HttpHeaderBlock& headers,
+                                      const std::string& body) {
   bool found = false;
   for (auto it = pending_requests_.begin(); it != pending_requests_.end();) {
     RequestId request_id = it->first;
-    PendingRequest &pending_request = *it->second;
+    PendingRequest& pending_request = *it->second;
     if (pending_request.connection == connection &&
         pending_request.stream_id == stream_id) {
       pending_requests_.erase(it++);
@@ -88,12 +89,12 @@ void MasqueConnectionPool::OnResponse(MasqueH2Connection *connection,
 }
 
 absl::StatusOr<MasqueConnectionPool::RequestId>
-MasqueConnectionPool::SendRequest(const Message &request) {
+MasqueConnectionPool::SendRequest(const Message& request) {
   auto authority = request.headers.find(":authority");
   if (authority == request.headers.end()) {
     return absl::InvalidArgumentError("Request missing :authority header");
   }
-  ConnectionState *connection =
+  ConnectionState* connection =
       GetOrCreateConnectionState(std::string(authority->second));
   if (connection == nullptr) {
     return absl::InternalError(
@@ -116,8 +117,8 @@ MasqueConnectionPool::SendRequest(const Message &request) {
   return request_id;
 }
 
-MasqueConnectionPool::ConnectionState *
-MasqueConnectionPool::GetOrCreateConnectionState(const std::string &authority) {
+MasqueConnectionPool::ConnectionState*
+MasqueConnectionPool::GetOrCreateConnectionState(const std::string& authority) {
   auto connection_state_it = connections_.find(authority);
   if (connection_state_it != connections_.end()) {
     return connection_state_it->second.get();
@@ -134,10 +135,10 @@ MasqueConnectionPool::GetOrCreateConnectionState(const std::string &authority) {
 }
 
 void MasqueConnectionPool::AttachConnectionToPendingRequests(
-    const std::string &authority, MasqueH2Connection *connection) {
+    const std::string& authority, MasqueH2Connection* connection) {
   for (auto it = pending_requests_.begin(); it != pending_requests_.end();
        ++it) {
-    PendingRequest &pending_request = *it->second;
+    PendingRequest& pending_request = *it->second;
     auto authority_header = pending_request.request.headers.find(":authority");
     if (authority_header == pending_request.request.headers.end()) {
       QUICHE_LOG(ERROR) << "Request missing :authority header";
@@ -150,10 +151,10 @@ void MasqueConnectionPool::AttachConnectionToPendingRequests(
   }
 }
 
-void MasqueConnectionPool::SendPendingRequests(MasqueH2Connection *connection) {
+void MasqueConnectionPool::SendPendingRequests(MasqueH2Connection* connection) {
   for (auto it = pending_requests_.begin(); it != pending_requests_.end();) {
     RequestId request_id = it->first;
-    PendingRequest &pending_request = *it->second;
+    PendingRequest& pending_request = *it->second;
     if (pending_request.connection != connection) {
       ++it;
       continue;
@@ -172,11 +173,11 @@ void MasqueConnectionPool::SendPendingRequests(MasqueH2Connection *connection) {
   }
 }
 
-void MasqueConnectionPool::FailPendingRequests(MasqueH2Connection *connection,
-                                               const absl::Status &error) {
+void MasqueConnectionPool::FailPendingRequests(MasqueH2Connection* connection,
+                                               const absl::Status& error) {
   for (auto it = pending_requests_.begin(); it != pending_requests_.end();) {
     RequestId request_id = it->first;
-    PendingRequest &pending_request = *it->second;
+    PendingRequest& pending_request = *it->second;
     if (pending_request.connection != connection) {
       ++it;
       continue;
@@ -187,7 +188,7 @@ void MasqueConnectionPool::FailPendingRequests(MasqueH2Connection *connection,
 }
 
 MasqueConnectionPool::ConnectionState::ConnectionState(
-    MasqueConnectionPool *connection_pool)
+    MasqueConnectionPool* connection_pool)
     : connection_pool_(connection_pool) {}
 
 MasqueConnectionPool::ConnectionState::~ConnectionState() {
@@ -203,7 +204,7 @@ MasqueConnectionPool::ConnectionState::~ConnectionState() {
 }
 
 bool MasqueConnectionPool::ConnectionState::SetupSocket(
-    const std::string &authority, bool disable_certificate_verification,
+    const std::string& authority, bool disable_certificate_verification,
     int address_family_for_lookup) {
   authority_ = authority;
   std::vector<std::string> authority_split =
@@ -249,7 +250,7 @@ bool MasqueConnectionPool::ConnectionState::SetupSocket(
 }
 
 void MasqueConnectionPool::ConnectionState::OnSocketEvent(
-    QuicEventLoop * /*event_loop*/, SocketFd fd, QuicSocketEventMask events) {
+    QuicEventLoop* /*event_loop*/, SocketFd fd, QuicSocketEventMask events) {
   if (fd != socket_) {
     return;
   }
@@ -277,7 +278,7 @@ void MasqueConnectionPool::ConnectionState::OnSocketEvent(
                               sizeof(kAlpnProtocols)) != 0) {
         QUICHE_LOG(FATAL) << "SSL_set_alpn_protos failed";
       }
-      BIO *bio = BIO_new_socket(socket_, BIO_CLOSE);
+      BIO* bio = BIO_new_socket(socket_, BIO_CLOSE);
       SSL_set_bio(ssl_.get(), bio, bio);
       // `SSL_set_bio` causes `ssl_` to take ownership of `bio`.
       connection_ = std::make_unique<MasqueH2Connection>(
@@ -292,36 +293,36 @@ void MasqueConnectionPool::ConnectionState::OnSocketEvent(
 
 // static
 enum ssl_verify_result_t MasqueConnectionPool::ConnectionState::VerifyCallback(
-    SSL *ssl, uint8_t *out_alert) {
-  return static_cast<MasqueConnectionPool::ConnectionState *>(
+    SSL* ssl, uint8_t* out_alert) {
+  return static_cast<MasqueConnectionPool::ConnectionState*>(
              SSL_get_app_data(ssl))
       ->VerifyCertificate(ssl, out_alert);
 }
 
 enum ssl_verify_result_t
-MasqueConnectionPool::ConnectionState::VerifyCertificate(SSL *ssl,
-                                                         uint8_t *out_alert) {
-  const STACK_OF(CRYPTO_BUFFER) *cert_chain = SSL_get0_peer_certificates(ssl);
+MasqueConnectionPool::ConnectionState::VerifyCertificate(SSL* ssl,
+                                                         uint8_t* out_alert) {
+  const STACK_OF(CRYPTO_BUFFER)* cert_chain = SSL_get0_peer_certificates(ssl);
   if (cert_chain == nullptr) {
     QUICHE_LOG(ERROR) << "No certificate chain";
     *out_alert = SSL_AD_INTERNAL_ERROR;
     return ssl_verify_invalid;
   }
   std::vector<std::string> certs;
-  for (CRYPTO_BUFFER *cert : cert_chain) {
+  for (CRYPTO_BUFFER* cert : cert_chain) {
     certs.push_back(
-        std::string(reinterpret_cast<const char *>(CRYPTO_BUFFER_data(cert)),
+        std::string(reinterpret_cast<const char*>(CRYPTO_BUFFER_data(cert)),
                     CRYPTO_BUFFER_len(cert)));
   }
-  const uint8_t *ocsp_response_raw;
+  const uint8_t* ocsp_response_raw;
   size_t ocsp_response_len;
   SSL_get0_ocsp_response(ssl, &ocsp_response_raw, &ocsp_response_len);
-  std::string ocsp_response(reinterpret_cast<const char *>(ocsp_response_raw),
+  std::string ocsp_response(reinterpret_cast<const char*>(ocsp_response_raw),
                             ocsp_response_len);
-  const uint8_t *sct_list_raw;
+  const uint8_t* sct_list_raw;
   size_t sct_list_len;
   SSL_get0_signed_cert_timestamp_list(ssl, &sct_list_raw, &sct_list_len);
-  std::string cert_sct(reinterpret_cast<const char *>(sct_list_raw),
+  std::string cert_sct(reinterpret_cast<const char*>(sct_list_raw),
                        sct_list_len);
   std::string error_details;
   std::unique_ptr<ProofVerifyDetails> details;
@@ -342,8 +343,8 @@ MasqueConnectionPool::ConnectionState::VerifyCertificate(SSL *ssl,
 
 // static
 absl::StatusOr<bssl::UniquePtr<SSL_CTX>> MasqueConnectionPool::CreateSslCtx(
-    const std::string &client_cert_file,
-    const std::string &client_cert_key_file) {
+    const std::string& client_cert_file,
+    const std::string& client_cert_key_file) {
   if (client_cert_file.empty() != client_cert_key_file.empty()) {
     return absl::InvalidArgumentError(
         "Both private key and certificate chain are required when using client "

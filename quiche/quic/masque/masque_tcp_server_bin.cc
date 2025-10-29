@@ -79,7 +79,7 @@ class MasqueOhttpGateway {
  public:
   MasqueOhttpGateway() {}
 
-  bool Setup(const std::string &ohttp_key) {
+  bool Setup(const std::string& ohttp_key) {
     hpke_key_.reset(EVP_HPKE_KEY_new());
     if (!ohttp_key.empty()) {
       if (!absl::HexStringToBytes(ohttp_key, &hpke_private_key_)) {
@@ -88,7 +88,7 @@ class MasqueOhttpGateway {
       }
       if (EVP_HPKE_KEY_init(
               hpke_key_.get(), kem_,
-              reinterpret_cast<const uint8_t *>(hpke_private_key_.data()),
+              reinterpret_cast<const uint8_t*>(hpke_private_key_.data()),
               hpke_private_key_.size()) != 1) {
         QUICHE_LOG(ERROR) << "Failed to ingest HPKE key";
         return false;
@@ -102,7 +102,7 @@ class MasqueOhttpGateway {
       hpke_private_key_ = std::string(private_key_len, '0');
       if (EVP_HPKE_KEY_private_key(
               hpke_key_.get(),
-              reinterpret_cast<uint8_t *>(hpke_private_key_.data()),
+              reinterpret_cast<uint8_t*>(hpke_private_key_.data()),
               &private_key_len, private_key_len) != 1 ||
           private_key_len != hpke_private_key_.size()) {
         QUICHE_LOG(ERROR) << "Failed to extract new HPKE private key";
@@ -115,7 +115,7 @@ class MasqueOhttpGateway {
     hpke_public_key_ = std::string(public_key_len, '0');
     if (EVP_HPKE_KEY_public_key(
             hpke_key_.get(),
-            reinterpret_cast<uint8_t *>(hpke_public_key_.data()),
+            reinterpret_cast<uint8_t*>(hpke_public_key_.data()),
             &public_key_len, public_key_len) != 1 ||
         public_key_len != hpke_public_key_.size()) {
       QUICHE_LOG(ERROR) << "Failed to extract new HPKE public key";
@@ -165,8 +165,8 @@ class MasqueOhttpGateway {
     return true;
   }
 
-  bool HandleRequest(MasqueH2Connection *connection, int32_t stream_id,
-                     const std::string &encapsulated_request) {
+  bool HandleRequest(MasqueH2Connection* connection, int32_t stream_id,
+                     const std::string& encapsulated_request) {
     if (!ohttp_gateway_.has_value()) {
       QUICHE_LOG(ERROR) << "Not ready to handle OHTTP request";
       return false;
@@ -185,7 +185,7 @@ class MasqueOhttpGateway {
                         << binary_request.status();
       return false;
     }
-    const BinaryHttpRequest::ControlData &control_data =
+    const BinaryHttpRequest::ControlData& control_data =
         binary_request->control_data();
     // TODO(dschinazi): Send the decapsulated request to the authority instead
     // of replying with a fake local response.
@@ -230,15 +230,15 @@ class MasqueOhttpGateway {
  private:
   std::string hpke_private_key_;
   std::string hpke_public_key_;
-  const EVP_HPKE_KEM *kem_ = EVP_hpke_x25519_hkdf_sha256();
+  const EVP_HPKE_KEM* kem_ = EVP_hpke_x25519_hkdf_sha256();
   bssl::UniquePtr<EVP_HPKE_KEY> hpke_key_;
   std::string concatenated_keys_;
   std::optional<ObliviousHttpGateway> ohttp_gateway_;
 };
 
-static int SelectAlpnCallback(SSL * /*ssl*/, const uint8_t **out,
-                              uint8_t *out_len, const uint8_t *in,
-                              unsigned in_len, void * /*arg*/) {
+static int SelectAlpnCallback(SSL* /*ssl*/, const uint8_t** out,
+                              uint8_t* out_len, const uint8_t* in,
+                              unsigned in_len, void* /*arg*/) {
   unsigned i = 0;
   while (i < in_len) {
     uint8_t alpn_length = in[i];
@@ -262,9 +262,9 @@ static int SelectAlpnCallback(SSL * /*ssl*/, const uint8_t **out,
 class MasqueH2SocketConnection : public QuicSocketEventListener {
  public:
   explicit MasqueH2SocketConnection(SocketFd connected_socket,
-                                    QuicEventLoop *event_loop, SSL_CTX *ctx,
+                                    QuicEventLoop* event_loop, SSL_CTX* ctx,
                                     bool is_server,
-                                    MasqueH2Connection::Visitor *visitor)
+                                    MasqueH2Connection::Visitor* visitor)
       : socket_(connected_socket),
         event_loop_(event_loop),
         connection_(CreateSsl(ctx), is_server, visitor) {
@@ -290,7 +290,7 @@ class MasqueH2SocketConnection : public QuicSocketEventListener {
   }
 
   // From QuicSocketEventListener.
-  void OnSocketEvent(QuicEventLoop * /*event_loop*/, SocketFd fd,
+  void OnSocketEvent(QuicEventLoop* /*event_loop*/, SocketFd fd,
                      QuicSocketEventMask events) {
     if (fd != socket_ || ((events & kSocketEventReadable) == 0)) {
       return;
@@ -298,13 +298,13 @@ class MasqueH2SocketConnection : public QuicSocketEventListener {
     connection_.OnTransportReadable();
   }
 
-  MasqueH2Connection *connection() { return &connection_; }
+  MasqueH2Connection* connection() { return &connection_; }
 
  private:
-  SSL *CreateSsl(SSL_CTX *ctx) {
+  SSL* CreateSsl(SSL_CTX* ctx) {
     ssl_.reset(SSL_new(ctx));
     SSL_set_accept_state(ssl_.get());
-    BIO *bio = BIO_new_socket(socket_, BIO_CLOSE);
+    BIO* bio = BIO_new_socket(socket_, BIO_CLOSE);
     SSL_set_bio(ssl_.get(), bio, bio);
     // `SSL_set_bio` causes `ssl_` to take ownership of `bio`.
     return ssl_.get();
@@ -312,21 +312,21 @@ class MasqueH2SocketConnection : public QuicSocketEventListener {
 
   SocketFd socket_;
   bssl::UniquePtr<SSL> ssl_;
-  QuicEventLoop *event_loop_;  // Unowned.
+  QuicEventLoop* event_loop_;  // Unowned.
   MasqueH2Connection connection_;
 };
 
 class MasqueTcpServer : public QuicSocketEventListener,
                         public MasqueH2Connection::Visitor {
  public:
-  explicit MasqueTcpServer(MasqueOhttpGateway *masque_ohttp_gateway)
+  explicit MasqueTcpServer(MasqueOhttpGateway* masque_ohttp_gateway)
       : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
         masque_ohttp_gateway_(masque_ohttp_gateway) {}
 
-  MasqueTcpServer(const MasqueTcpServer &) = delete;
-  MasqueTcpServer(MasqueTcpServer &&) = delete;
-  MasqueTcpServer &operator=(const MasqueTcpServer &) = delete;
-  MasqueTcpServer &operator=(MasqueTcpServer &&) = delete;
+  MasqueTcpServer(const MasqueTcpServer&) = delete;
+  MasqueTcpServer(MasqueTcpServer&&) = delete;
+  MasqueTcpServer& operator=(const MasqueTcpServer&) = delete;
+  MasqueTcpServer& operator=(MasqueTcpServer&&) = delete;
 
   ~MasqueTcpServer() {
     if (server_socket_ != kInvalidSocketFd) {
@@ -338,9 +338,9 @@ class MasqueTcpServer : public QuicSocketEventListener,
     }
   }
 
-  bool SetupSslCtx(const std::string &certificate_file,
-                   const std::string &key_file,
-                   const std::string &client_root_ca_file) {
+  bool SetupSslCtx(const std::string& certificate_file,
+                   const std::string& key_file,
+                   const std::string& client_root_ca_file) {
     ctx_.reset(SSL_CTX_new(TLS_method()));
 
     if (!SSL_CTX_use_PrivateKey_file(ctx_.get(), key_file.c_str(),
@@ -354,7 +354,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
       return false;
     }
     if (!client_root_ca_file.empty()) {
-      X509_STORE *store = SSL_CTX_get_cert_store(ctx_.get());
+      X509_STORE* store = SSL_CTX_get_cert_store(ctx_.get());
       if (store == nullptr) {
         QUICHE_LOG(ERROR) << "Failed to get certificate store";
         return false;
@@ -396,7 +396,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
 
     const int enable = 1;
     if (setsockopt(server_socket_, SOL_SOCKET, SO_REUSEADDR,
-                   (const char *)&enable, sizeof(enable)) < 0) {
+                   (const char*)&enable, sizeof(enable)) < 0) {
       QUICHE_LOG(ERROR) << "Failed to set SO_REUSEADDR on socket";
       return false;
     }
@@ -431,7 +431,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
     }
   }
 
-  void OnSocketEvent(QuicEventLoop * /*event_loop*/, SocketFd fd,
+  void OnSocketEvent(QuicEventLoop* /*event_loop*/, SocketFd fd,
                      QuicSocketEventMask events) override {
     if (fd != server_socket_ || ((events & kSocketEventReadable) == 0)) {
       return;
@@ -440,25 +440,25 @@ class MasqueTcpServer : public QuicSocketEventListener,
   }
 
   // From MasqueH2Connection::Visitor.
-  void OnConnectionReady(MasqueH2Connection * /*connection*/) override {}
-  void OnConnectionFinished(MasqueH2Connection *connection) override {
+  void OnConnectionReady(MasqueH2Connection* /*connection*/) override {}
+  void OnConnectionFinished(MasqueH2Connection* connection) override {
     connections_.erase(
         std::remove_if(connections_.begin(), connections_.end(),
-                       [connection](const auto &socket_connection) {
+                       [connection](const auto& socket_connection) {
                          return socket_connection->connection() == connection;
                        }),
         connections_.end());
   }
 
-  bool HandleOhttpRequest(MasqueH2Connection *connection, int32_t stream_id,
-                          const std::string &encapsulated_request) {
+  bool HandleOhttpRequest(MasqueH2Connection* connection, int32_t stream_id,
+                          const std::string& encapsulated_request) {
     return masque_ohttp_gateway_->HandleRequest(connection, stream_id,
                                                 encapsulated_request);
   }
 
-  void OnRequest(MasqueH2Connection *connection, int32_t stream_id,
-                 const quiche::HttpHeaderBlock &headers,
-                 const std::string &body) override {
+  void OnRequest(MasqueH2Connection* connection, int32_t stream_id,
+                 const quiche::HttpHeaderBlock& headers,
+                 const std::string& body) override {
     quiche::HttpHeaderBlock response_headers;
     std::string response_body;
     auto path_pair = headers.find(":path");
@@ -494,9 +494,9 @@ class MasqueTcpServer : public QuicSocketEventListener,
     connection->SendResponse(stream_id, response_headers, response_body);
   }
 
-  void OnResponse(MasqueH2Connection * /*connection*/, int32_t /*stream_id*/,
-                  const quiche::HttpHeaderBlock & /*headers*/,
-                  const std::string & /*body*/) override {
+  void OnResponse(MasqueH2Connection* /*connection*/, int32_t /*stream_id*/,
+                  const quiche::HttpHeaderBlock& /*headers*/,
+                  const std::string& /*body*/) override {
     QUICHE_LOG(FATAL) << "Server cannot receive responses";
   }
 
@@ -528,13 +528,13 @@ class MasqueTcpServer : public QuicSocketEventListener,
 
   std::unique_ptr<QuicEventLoop> event_loop_;
   bssl::UniquePtr<SSL_CTX> ctx_;
-  MasqueOhttpGateway *masque_ohttp_gateway_;  // Unowned.
+  MasqueOhttpGateway* masque_ohttp_gateway_;  // Unowned.
   SocketFd server_socket_ = kInvalidSocketFd;
   std::vector<std::unique_ptr<MasqueH2SocketConnection>> connections_;
 };
 
-int RunMasqueTcpServer(int argc, char *argv[]) {
-  const char *usage = "Usage: masque_server [options]";
+int RunMasqueTcpServer(int argc, char* argv[]) {
+  const char* usage = "Usage: masque_server [options]";
   std::vector<std::string> non_option_args =
       quiche::QuicheParseCommandLineFlags(usage, argc, argv);
   if (!non_option_args.empty()) {
@@ -582,6 +582,6 @@ int RunMasqueTcpServer(int argc, char *argv[]) {
 }  // namespace
 }  // namespace quic
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   return quic::RunMasqueTcpServer(argc, argv);
 }

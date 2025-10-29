@@ -67,11 +67,11 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
  public:
   using RequestId = MasqueConnectionPool::RequestId;
   using Message = MasqueConnectionPool::Message;
-  explicit MasqueOhttpClient(QuicEventLoop *event_loop, SSL_CTX *ssl_ctx,
+  explicit MasqueOhttpClient(QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
                              std::vector<std::string> urls,
                              bool disable_certificate_verification,
                              int address_family_for_lookup,
-                             const std::string &post_data)
+                             const std::string& post_data)
       : urls_(urls),
         post_data_(post_data),
         connection_pool_(event_loop, ssl_ctx, disable_certificate_verification,
@@ -101,8 +101,8 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
   }
 
   // From MasqueConnectionPool::Visitor.
-  void OnResponse(MasqueConnectionPool * /*pool*/, RequestId request_id,
-                  const absl::StatusOr<Message> &response) override {
+  void OnResponse(MasqueConnectionPool* /*pool*/, RequestId request_id,
+                  const absl::StatusOr<Message>& response) override {
     if (key_fetch_request_id_.has_value() &&
         *key_fetch_request_id_ == request_id) {
       key_fetch_request_id_ = std::nullopt;
@@ -152,7 +152,7 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
   }
 
  private:
-  bool StartKeyFetch(const std::string &url_string) {
+  bool StartKeyFetch(const std::string& url_string) {
     QuicUrl url(url_string, "https");
     if (url.host().empty() && !absl::StrContains(url_string, "://")) {
       url = QuicUrl(absl::StrCat("https://", url_string));
@@ -178,7 +178,7 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
     return true;
   }
 
-  void HandleKeyResponse(const absl::StatusOr<Message> &response) {
+  void HandleKeyResponse(const absl::StatusOr<Message>& response) {
     if (!response.ok()) {
       QUICHE_LOG(ERROR) << "Failed to fetch key: " << response.status();
       return;
@@ -230,7 +230,7 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
     }
   }
 
-  void SendOhttpRequestForUrl(const std::string &url_string) {
+  void SendOhttpRequestForUrl(const std::string& url_string) {
     QuicUrl url(url_string, "https");
     if (url.host().empty() && !absl::StrContains(url_string, "://")) {
       url = QuicUrl(absl::StrCat("https://", url_string));
@@ -297,8 +297,8 @@ class MasqueOhttpClient : public MasqueConnectionPool::Visitor {
       pending_ohttp_requests_;
 };
 
-int RunMasqueOhttpClient(int argc, char *argv[]) {
-  const char *usage =
+int RunMasqueOhttpClient(int argc, char* argv[]) {
+  const char* usage =
       "Usage: masque_ohttp_client <key-url> <relay-url> <url>...";
   std::vector<std::string> urls =
       quiche::QuicheParseCommandLineFlags(usage, argc, argv);
@@ -348,6 +348,6 @@ int RunMasqueOhttpClient(int argc, char *argv[]) {
 }  // namespace
 }  // namespace quic
 
-int main(int argc, char *argv[]) {
+int main(int argc, char* argv[]) {
   return quic::RunMasqueOhttpClient(argc, argv);
 }
