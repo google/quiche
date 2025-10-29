@@ -288,6 +288,15 @@ bool TlsClientHandshaker::SetTransportParameters() {
     return false;
   }
 
+  // The `debugging_sni` field must not be sent when attempting Encrypted Client
+  // Hello (ECH) because it would reveal the real SNI in cleartext. Further, it
+  // must not be sent when GREASEing ECH because that would reveal to observers
+  // whether the ECH was real or GREASE.
+  if (!tls_connection_.ssl_config().ech_config_list.empty() ||
+      tls_connection_.ssl_config().ech_grease_enabled) {
+    params.debugging_sni.reset();
+  }
+
   // Notify QuicConnectionDebugVisitor.
   session()->connection()->OnTransportParametersSent(params);
 

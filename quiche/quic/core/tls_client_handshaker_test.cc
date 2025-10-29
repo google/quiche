@@ -16,6 +16,8 @@
 #include "openssl/tls1.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/crypto/transport_parameters.h"
+#include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_server_id.h"
@@ -35,7 +37,9 @@
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
 using testing::_;
+using testing::Eq;
 using testing::HasSubstr;
+using testing::Optional;
 
 namespace quic {
 namespace test {
@@ -936,6 +940,98 @@ TEST_P(TlsClientHandshakerTest, ECHGrease) {
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   // Sending an ignored ECH GREASE extension does not count as negotiating ECH.
   EXPECT_FALSE(stream()->crypto_negotiated_params().encrypted_client_hello);
+}
+
+// Observes and stores the client's `TransportParameters::debugging_sni` field.
+class DebuggingSniExtractor : public QuicConnectionDebugVisitor {
+ public:
+  void OnTransportParametersSent(const TransportParameters& params) override {
+    debugging_sni_ = params.debugging_sni;
+  }
+
+  std::optional<std::string> debugging_sni() const { return debugging_sni_; }
+
+ private:
+  std::optional<std::string> debugging_sni_;
+};
+
+TEST_P(TlsClientHandshakerTest, DebuggingSniDisabledByECH) {
+  ssl_config_.emplace();
+  bssl::UniquePtr<SSL_ECH_KEYS> ech_keys =
+      MakeTestEchKeys("public-name.example", /*max_name_len=*/64,
+                      &ssl_config_->ech_config_list);
+  ASSERT_TRUE(ech_keys);
+
+  // Configure the server to use the test ECH keys.
+  ASSERT_TRUE(
+      SSL_CTX_set1_ech_keys(server_crypto_config_->ssl_ctx(), ech_keys.get()));
+
+  // Recreate the client to pick up the new `ssl_config_`.
+  CreateConnection();
+  session_->config()->SetDebuggingSniToSend("secret.example");
+
+  DebuggingSniExtractor debug_visitor;
+  connection_->set_debug_visitor(&debug_visitor);
+
+  // The handshake should complete and negotiate ECH.
+  CompleteCryptoHandshake();
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(stream()->crypto_negotiated_params().encrypted_client_hello);
+
+  EXPECT_EQ(debug_visitor.debugging_sni(), std::nullopt);
+}
+
+TEST_P(TlsClientHandshakerTest, DebuggingSniDisabledByECHGrease) {
+  ssl_config_.emplace();
+  ssl_config_->ech_grease_enabled = true;
+  CreateConnection();
+  session_->config()->SetDebuggingSniToSend("secret.example");
+
+  DebuggingSniExtractor debug_visitor;
+  connection_->set_debug_visitor(&debug_visitor);
+
+  stream()->CryptoConnect();
+
+  // Add a DoS callback on the server, to test that the client sent a GREASE
+  // message. This is a bit of a hack. TlsServerHandshaker already configures
+  // the certificate selection callback, but does not usefully expose any way
+  // for tests to inspect the ClientHello. So, instead, we register a different
+  // callback that also gets the ClientHello.
+  static bool callback_ran;
+  callback_ran = false;
+  SSL_CTX_set_dos_protection_cb(
+      server_crypto_config_->ssl_ctx(),
+      [](const SSL_CLIENT_HELLO* client_hello) -> int {
+        const uint8_t* data;
+        size_t len;
+        EXPECT_TRUE(SSL_early_callback_ctx_extension_get(
+            client_hello, TLSEXT_TYPE_encrypted_client_hello, &data, &len));
+        callback_ran = true;
+        return 1;
+      });
+
+  CompleteCryptoHandshake();
+  EXPECT_TRUE(callback_ran);
+
+  EXPECT_EQ(debug_visitor.debugging_sni(), std::nullopt);
+}
+
+TEST_P(TlsClientHandshakerTest, DebuggingSniSentWithoutECH) {
+  CreateConnection();
+  session_->config()->SetDebuggingSniToSend("secret.example");
+
+  DebuggingSniExtractor debug_visitor;
+  connection_->set_debug_visitor(&debug_visitor);
+
+  CompleteCryptoHandshake();
+  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->crypto_negotiated_params().encrypted_client_hello);
+
+  EXPECT_THAT(debug_visitor.debugging_sni(), Optional(Eq("secret.example")));
 }
 
 TEST_P(TlsClientHandshakerTest, EnableMLKEM) {
