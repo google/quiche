@@ -11,6 +11,16 @@ namespace quiche::header_properties {
 
 namespace {
 
+// The set of characters allowed in HTTP `token`s. See
+// https://datatracker.ietf.org/doc/html/rfc9110#section-5.6.2
+inline constexpr unsigned char kValidTokenCharList[] = {
+    'A', 'B', 'C',  'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M',
+    'N', 'O', 'P',  'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z',
+    'a', 'b', 'c',  'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm',
+    'n', 'o', 'p',  'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z',
+    '0', '1', '2',  '3', '4', '5', '6', '7', '8', '9', '!', '#', '$',
+    '%', '&', '\'', '*', '+', '-', '.', '^', '_', '`', '|', '~'};
+
 using MultivaluedHeadersSet =
     absl::flat_hash_set<absl::string_view, StringPieceCaseHash,
                         StringPieceCaseEqual>;
@@ -128,6 +138,14 @@ constexpr std::array<bool, 256> buildInvalidQueryCharLookupTable() {
   return invalidCharTable;
 }
 
+constexpr std::array<bool, 256> buildValidTokenCharLookupTable() {
+  std::array<bool, 256> validTokenCharTable{};
+  for (uint8_t c : kValidTokenCharList) {
+    validTokenCharTable[c] = true;
+  }
+  return validTokenCharTable;
+}
+
 }  // anonymous namespace
 
 bool IsMultivaluedHeader(absl::string_view header) {
@@ -157,6 +175,23 @@ bool IsInvalidHeaderChar(uint8_t c) {
   return invalidCharTable[c];
 }
 
+bool IsValidTokenChar(uint8_t c) {
+  static constexpr std::array<bool, 256> validTokenCharTable =
+      buildValidTokenCharLookupTable();
+  return validTokenCharTable[c];
+}
+
+bool IsValidToken(absl::string_view value) {
+  if (value.empty()) {
+    return false;
+  }
+  for (const char c : value) {
+    if (!IsValidTokenChar(static_cast<uint8_t>(c))) {
+      return false;
+    }
+  }
+  return true;
+}
 bool HasInvalidHeaderChars(absl::string_view value) {
   for (const char c : value) {
     if (IsInvalidHeaderChar(c)) {

@@ -1,5 +1,9 @@
 #include "quiche/balsa/header_properties.h"
 
+#include <string>
+
+#include "absl/container/flat_hash_set.h"
+#include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace quiche::header_properties::test {
@@ -138,6 +142,61 @@ TEST(HeaderPropertiesTest, HasInvalidQueryChar) {
   EXPECT_TRUE(HasInvalidQueryChar("query with spaces"));
   EXPECT_TRUE(HasInvalidQueryChar("query\rwith\tother\nwhitespace"));
   EXPECT_TRUE(HasInvalidQueryChar("query_with_angle<brackets>also_bad"));
+}
+
+TEST(HeaderPropertiesTest, IsValidTokenVsHasInvalidHeaderChars) {
+  absl::flat_hash_set<unsigned char> mismatch = {':'};
+  for (int c = 0; c < 128; ++c) {
+    if (mismatch.contains(c)) {
+      continue;
+    }
+
+    unsigned char u_c = static_cast<unsigned char>(c);
+    std::string s(1, u_c);
+    EXPECT_EQ(IsValidToken(s), !IsInvalidHeaderKeyChar(u_c))
+        << "char: [" << u_c << "], int = [" << c << "]";
+  }
+}
+
+TEST(HeaderPropertiesTest, IsValidTokenEmptyAndMultiChar) {
+  EXPECT_TRUE(IsValidToken("a"));
+  EXPECT_TRUE(IsValidToken("GET"));
+  EXPECT_TRUE(IsValidToken("GET'"));
+  EXPECT_TRUE(IsValidToken("a-b-c"));
+  EXPECT_TRUE(IsValidToken("!#$%&'*+-.^_`|~"));
+  EXPECT_TRUE(IsValidToken("abcefghijklmnopqrstuvwxyz0123456789"));
+  EXPECT_TRUE(
+      IsValidToken("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                   "abcdefghijklmnopqrstuvwxyz"
+                   "0123456789"
+                   "!#$%&'*+-.^_`|~"));
+
+  EXPECT_FALSE(IsValidToken("G ET"));
+  EXPECT_FALSE(IsValidToken("G,ET"));
+  EXPECT_FALSE(IsValidToken("G\tET"));
+  EXPECT_FALSE(IsValidToken(absl::string_view("G\0ET", 3)));
+  EXPECT_FALSE(IsValidToken("GET\""));
+  EXPECT_FALSE(IsValidToken("GET\x85"));
+  EXPECT_FALSE(IsValidToken("GET("));
+  EXPECT_FALSE(IsValidToken("GET)"));
+  EXPECT_FALSE(IsValidToken("GET{"));
+  EXPECT_FALSE(IsValidToken("GET}"));
+  EXPECT_FALSE(IsValidToken("GET}"));
+  EXPECT_FALSE(IsValidToken("GET@"));
+  EXPECT_FALSE(IsValidToken("GET["));
+  EXPECT_FALSE(IsValidToken("GET\\"));
+  EXPECT_FALSE(IsValidToken("GET]"));
+  EXPECT_FALSE(IsValidToken("GET:"));
+  EXPECT_FALSE(IsValidToken("GET;"));
+  EXPECT_FALSE(IsValidToken("GET?"));
+  EXPECT_FALSE(IsValidToken("GET="));
+  EXPECT_FALSE(IsValidToken("GET/"));
+  EXPECT_FALSE(IsValidToken("GET\""));
+  EXPECT_FALSE(IsValidToken("GET<"));
+  EXPECT_FALSE(IsValidToken("GET>"));
+  EXPECT_FALSE(IsValidToken("GET,"));
+  EXPECT_FALSE(IsValidToken("GET\x7F"));
+  EXPECT_FALSE(IsValidToken(""));
 }
 
 }  // namespace

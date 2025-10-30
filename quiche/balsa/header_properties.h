@@ -73,6 +73,15 @@ QUICHE_EXPORT bool IsInvalidHeaderKeyCharAllowDoubleQuote(uint8_t c);
 QUICHE_EXPORT bool IsInvalidHeaderChar(uint8_t c);
 QUICHE_EXPORT bool HasInvalidHeaderChars(absl::string_view value);
 
+// Returns true if the given `char` is in the set of ASCII characters valid for
+// `token`s specified in
+// https://datatracker.ietf.org/doc/html/rfc9110#section-5.6.2. Many lexical
+// entries in the grammar are tokens: method, parameter-names, protocol names,
+// content-codings etc. Note that this differs from `IsInvalidHeaderKeyChar`
+// which considers `:` to be a valid character for header keys.
+QUICHE_EXPORT bool IsValidTokenChar(uint8_t c);
+QUICHE_EXPORT bool IsValidToken(absl::string_view value);
+
 // Returns true if `value` contains a character not allowed in the path
 // component of a URI.
 QUICHE_EXPORT bool HasInvalidPathChar(absl::string_view value);
