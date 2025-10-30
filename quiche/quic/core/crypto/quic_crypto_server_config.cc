@@ -1784,12 +1784,12 @@ HandshakeFailureReason QuicCryptoServerConfig::ParseSourceAddressToken(
     return SOURCE_ADDRESS_TOKEN_DECRYPTION_FAILURE;
   }
 
-  if (!tokens.ParseFromArray(plaintext.data(), plaintext.size())) {
+  if (!tokens.ParseFromString(plaintext)) {
     // Some clients might still be using the old source token format so
     // attempt to parse that format.
     // TODO(rch): remove this code once the new format is ubiquitous.
     SourceAddressToken old_source_token;
-    if (!old_source_token.ParseFromArray(plaintext.data(), plaintext.size())) {
+    if (!old_source_token.ParseFromString(plaintext)) {
       return SOURCE_ADDRESS_TOKEN_PARSE_FAILURE;
     }
     *tokens.add_tokens() = old_source_token;
