@@ -293,7 +293,7 @@ class QUICHE_EXPORT ProofSourceHandleCallback {
   // Configuration to use for configuring the SSL object when handshaking
   // locally.
   struct LocalSSLConfig {
-    using ReferencedCountedChain =
+    using ReferenceCountedChain =
         quiche::QuicheReferenceCountedPointer<ProofSource::Chain>;
 
     // TODO: b/451645567 - Remove this constructor.
@@ -301,14 +301,14 @@ class QUICHE_EXPORT ProofSourceHandleCallback {
                    QuicDelayedSSLConfig delayed_ssl_config)
         : chain(chain), delayed_ssl_config(delayed_ssl_config) {}
 
-    LocalSSLConfig(absl::Span<const ReferencedCountedChain> chains,
+    LocalSSLConfig(absl::Span<const ReferenceCountedChain> chains,
                    QuicDelayedSSLConfig delayed_ssl_config)
         : chains(std::move(chains)), delayed_ssl_config(delayed_ssl_config) {}
 
     // TODO: b/451645567 - Once we remove `ProofSource::GetCertChain()`, we can
     // delete the `chain` field.
     const ProofSource::Chain* absl_nullable chain = nullptr;
-    absl::Span<const ReferencedCountedChain absl_nonnull> chains;
+    absl::Span<const ReferenceCountedChain absl_nonnull> chains;
     QuicDelayedSSLConfig delayed_ssl_config;
   };
 
