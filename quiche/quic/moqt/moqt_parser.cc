@@ -1104,6 +1104,7 @@ bool MoqtControlParser::ReadFullTrackName(quic::QuicDataReader& reader,
 
 bool MoqtControlParser::KeyValuePairListToMoqtSessionParameters(
     const KeyValuePairList& parameters, MoqtSessionParameters& out) {
+  out.moqt_implementation = "";
   return parameters.ForEach(
       [&](uint64_t key, uint64_t value) {
         SetupParameter parameter = static_cast<SetupParameter>(key);
@@ -1147,6 +1148,7 @@ bool MoqtControlParser::KeyValuePairListToMoqtSessionParameters(
             break;
           case SetupParameter::kMoqtImplementation:
             QUICHE_LOG(INFO) << "Peer MOQT implementation: " << value;
+            out.moqt_implementation = value;
             break;
           default:
             break;
