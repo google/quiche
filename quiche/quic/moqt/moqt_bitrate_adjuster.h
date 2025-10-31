@@ -11,6 +11,7 @@
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/web_transport/web_transport.h"
@@ -73,7 +74,7 @@ class MoqtBitrateAdjuster : public MoqtPublishingMonitorInterface {
   // MoqtPublishingMonitorInterface implementation.
   void OnObjectAckSupportKnown(
       std::optional<quic::QuicTimeDelta> time_window) override;
-  void OnObjectAckReceived(uint64_t group_id, uint64_t object_id,
+  void OnObjectAckReceived(Location location,
                            quic::QuicTimeDelta delta_from_deadline) override;
 
   MoqtTraceRecorder& trace_recorder() { return trace_recorder_; }

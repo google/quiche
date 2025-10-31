@@ -746,13 +746,13 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
   client_->session()->SubscribeCurrentObject(full_track_name,
                                              &subscribe_visitor_, parameters);
   EXPECT_CALL(monitoring, OnObjectAckSupportKnown(parameters.oack_window_size));
-  EXPECT_CALL(
-      monitoring,
-      OnObjectAckReceived(10, 20, quic::QuicTimeDelta::FromMicroseconds(-123)));
+  EXPECT_CALL(monitoring,
+              OnObjectAckReceived(Location(10, 20),
+                                  quic::QuicTimeDelta::FromMicroseconds(-123)));
   bool done = false;
-  EXPECT_CALL(
-      monitoring,
-      OnObjectAckReceived(100, 200, quic::QuicTimeDelta::FromMicroseconds(456)))
+  EXPECT_CALL(monitoring,
+              OnObjectAckReceived(Location(100, 200),
+                                  quic::QuicTimeDelta::FromMicroseconds(456)))
       .WillOnce([&] { done = true; });
   bool success = test_harness_.RunUntilWithDefaultTimeout([&] { return done; });
   EXPECT_TRUE(success);

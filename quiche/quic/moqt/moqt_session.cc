@@ -2665,7 +2665,8 @@ void MoqtSession::PublishedSubscription::ProcessObjectAck(
     return;
   }
   monitoring_interface_->OnObjectAckReceived(
-      message.group_id, message.object_id, message.delta_from_deadline);
+      Location(message.group_id, message.object_id),
+      message.delta_from_deadline);
 }
 
 }  // namespace moqt

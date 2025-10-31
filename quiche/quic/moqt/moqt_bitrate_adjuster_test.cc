@@ -6,6 +6,7 @@
 
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
@@ -75,7 +76,7 @@ TEST_F(MoqtBitrateAdjusterTest, SteadyState) {
   for (int i = 0; i < 250; ++i) {
     clock_.AdvanceTime(kDefaultRtt);
     for (int j = 0; j < 10; ++j) {
-      adjuster_.OnObjectAckReceived(i, j, kDefaultRtt * 2);
+      adjuster_.OnObjectAckReceived(Location(i, j), kDefaultRtt * 2);
     }
   }
 }
@@ -85,14 +86,16 @@ TEST_F(MoqtBitrateAdjusterTest, AdjustDownOnce) {
 
   // First time will be skipped, since we aren't far enough into connection.
   EXPECT_CALL(adjustable_, OnBitrateAdjusted(_)).Times(0);
-  adjuster_.OnObjectAckReceived(0, 0, QuicTimeDelta::FromMilliseconds(-1));
+  adjuster_.OnObjectAckReceived(Location(0, 0),
+                                QuicTimeDelta::FromMilliseconds(-1));
 
   clock_.AdvanceTime(100 * kDefaultRtt);
   EXPECT_CALL(adjustable_, OnBitrateAdjusted(_))
       .WillOnce([](QuicBandwidth new_bitrate) {
         EXPECT_LT(new_bitrate, kDefaultBitrate);
       });
-  adjuster_.OnObjectAckReceived(0, 1, QuicTimeDelta::FromMilliseconds(-1));
+  adjuster_.OnObjectAckReceived(Location(0, 1),
+                                QuicTimeDelta::FromMilliseconds(-1));
 }
 
 TEST_F(MoqtBitrateAdjusterTest, AdjustDownTwice) {
@@ -103,12 +106,14 @@ TEST_F(MoqtBitrateAdjusterTest, AdjustDownTwice) {
 
   clock_.AdvanceTime(100 * kDefaultRtt);
   stats_.estimated_send_rate_bps = (0.5 * kDefaultBitrate).ToBitsPerSecond();
-  adjuster_.OnObjectAckReceived(0, 0, QuicTimeDelta::FromMilliseconds(-1));
+  adjuster_.OnObjectAckReceived(Location(0, 0),
+                                QuicTimeDelta::FromMilliseconds(-1));
   EXPECT_EQ(adjusted_times, 1);
 
   clock_.AdvanceTime(100 * kDefaultRtt);
   stats_.estimated_send_rate_bps = (0.25 * kDefaultBitrate).ToBitsPerSecond();
-  adjuster_.OnObjectAckReceived(0, 1, QuicTimeDelta::FromMilliseconds(-1));
+  adjuster_.OnObjectAckReceived(Location(0, 1),
+                                QuicTimeDelta::FromMilliseconds(-1));
   EXPECT_EQ(adjusted_times, 2);
 }
 

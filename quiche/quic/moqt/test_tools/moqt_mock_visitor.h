@@ -212,8 +212,7 @@ class MockPublishingMonitorInterface : public MoqtPublishingMonitorInterface {
   MOCK_METHOD(void, OnObjectAckSupportKnown,
               (std::optional<quic::QuicTimeDelta> time_window), (override));
   MOCK_METHOD(void, OnObjectAckReceived,
-              (uint64_t group_id, uint64_t object_id,
-               quic::QuicTimeDelta delta_from_deadline),
+              (Location location, quic::QuicTimeDelta delta_from_deadline),
               (override));
 };
 
