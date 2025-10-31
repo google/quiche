@@ -8748,8 +8748,6 @@ TEST_P(EndToEndTest, CubicConnectionOptionSent) {
 }
 
 TEST_P(EndToEndTest, ChangeFlowLabelOnRTO) {
-  SetQuicReloadableFlag(quic_allow_flow_label_blackhole_avoidance_on_server,
-                        true);
   client_extra_copts_.push_back(kCFLS);
   server_address_ =
       QuicSocketAddress(QuicIpAddress::Loopback6(), server_address_.port());
