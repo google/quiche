@@ -191,9 +191,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
     initial_congestion_window_ = 50;
     send_algorithm_->SetInitialCongestionWindowInPackets(50);
   }
-  if (config.HasClientRequestedIndependentOption(kIW2X, perspective) &&
-      GetQuicReloadableFlag(quic_allow_client_enabled_2x_initial_cwnd)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_allow_client_enabled_2x_initial_cwnd);
+  if (config.HasClientRequestedIndependentOption(kIW2X, perspective)) {
     initial_congestion_window_ *= 2;
     send_algorithm_->SetInitialCongestionWindowInPackets(
         initial_congestion_window_);

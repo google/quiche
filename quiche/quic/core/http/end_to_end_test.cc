@@ -4026,7 +4026,6 @@ TEST_P(EndToEndTest, NegotiatedInitialCongestionWindow) {
 }
 
 TEST_P(EndToEndTest, NegotiatedDoubledInitialCongestionWindow) {
-  SetQuicReloadableFlag(quic_allow_client_enabled_2x_initial_cwnd, true);
   client_extra_copts_.push_back(kIW2X);
 
   ASSERT_TRUE(Initialize());
