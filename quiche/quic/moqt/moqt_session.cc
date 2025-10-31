@@ -48,7 +48,6 @@
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/quiche_weak_ptr.h"
-#include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/web_transport/web_transport.h"
 
 #define ENDPOINT \
@@ -101,7 +100,7 @@ MoqtSession::MoqtSession(webtransport::Session* session,
     : session_(session),
       parameters_(parameters),
       callbacks_(std::move(callbacks)),
-      framer_(quiche::SimpleBufferAllocator::Get(), parameters.using_webtrans),
+      framer_(parameters.using_webtrans),
       publisher_(DefaultPublisher::GetInstance()),
       local_max_request_id_(parameters.max_request_id),
       alarm_factory_(std::move(alarm_factory)),

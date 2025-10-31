@@ -37,7 +37,7 @@ using ::moqt::moq_chat::ChatUserInterface;
 // Writes messages to a file, when directed from the command line.
 class FileOutput : public ChatUserInterface {
  public:
-  explicit FileOutput(absl::string_view filename, absl::string_view username)
+  explicit FileOutput(std::string filename, absl::string_view username)
       : username_(username) {
     output_file_.open(filename);
     output_file_ << "Chat transcript:\n";

@@ -70,7 +70,6 @@ class MoqtRelay {
       absl::string_view path);
 
   bool is_closing_ = false;
-  const bool ignore_certificate_;
   quic::QuicEventLoop* client_event_loop_;
 
   MoqtRelayPublisher publisher_;

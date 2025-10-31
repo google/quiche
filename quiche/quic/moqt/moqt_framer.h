@@ -25,8 +25,7 @@ namespace moqt {
 // different streams.
 class QUICHE_EXPORT MoqtFramer {
  public:
-  MoqtFramer(quiche::QuicheBufferAllocator* allocator, bool using_webtrans)
-      : allocator_(allocator), using_webtrans_(using_webtrans) {}
+  MoqtFramer(bool using_webtrans) : using_webtrans_(using_webtrans) {}
 
   // Serialize functions. Takes structured data and serializes it into a
   // QuicheBuffer for delivery to the stream.
@@ -95,8 +94,6 @@ class QUICHE_EXPORT MoqtFramer {
   // Returns true if the metadata is internally consistent.
   static bool ValidateObjectMetadata(const MoqtObject& object,
                                      bool is_datagram);
-
-  quiche::QuicheBufferAllocator* allocator_;
   bool using_webtrans_;
 };
 

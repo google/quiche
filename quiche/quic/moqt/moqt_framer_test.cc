@@ -114,8 +114,7 @@ class MoqtFramerTest
   MoqtFramerTest()
       : message_type_(GetParam().message_type),
         webtrans_(GetParam().uses_web_transport),
-        buffer_allocator_(quiche::SimpleBufferAllocator::Get()),
-        framer_(buffer_allocator_, GetParam().uses_web_transport) {}
+        framer_(GetParam().uses_web_transport) {}
 
   std::unique_ptr<TestMessageBase> MakeMessage(MoqtMessageType message_type) {
     return CreateTestMessage(message_type, webtrans_);
@@ -252,7 +251,6 @@ class MoqtFramerTest
 
   MoqtMessageType message_type_;
   bool webtrans_;
-  quiche::SimpleBufferAllocator* buffer_allocator_;
   MoqtFramer framer_;
 };
 
@@ -272,13 +270,9 @@ TEST_P(MoqtFramerTest, OneMessage) {
 
 class MoqtFramerSimpleTest : public quic::test::QuicTest {
  public:
-  MoqtFramerSimpleTest()
-      : buffer_allocator_(quiche::SimpleBufferAllocator::Get()),
-        framer_(buffer_allocator_, /*web_transport=*/true) {}
+  MoqtFramerSimpleTest() : framer_(/*web_transport=*/true) {}
 
-  quiche::SimpleBufferAllocator* buffer_allocator_;
   MoqtFramer framer_;
-
   // Obtain a pointer to an arbitrary offset in a serialized buffer.
   const uint8_t* BufferAtOffset(quiche::QuicheBuffer& buffer, size_t offset) {
     const char* data = buffer.data();

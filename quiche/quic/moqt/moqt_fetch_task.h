@@ -73,7 +73,7 @@ class MoqtFailedFetch : public MoqtFetchTask {
   absl::Status GetStatus() override { return status_; }
   void SetObjectAvailableCallback(
       ObjectsAvailableCallback /*callback*/) override {}
-  void SetFetchResponseCallback(FetchResponseCallback callback) {
+  void SetFetchResponseCallback(FetchResponseCallback callback) override {
     MoqtFetchError error;
     error.request_id = 0;
     error.error_code = StatusToRequestErrorCode(status_);

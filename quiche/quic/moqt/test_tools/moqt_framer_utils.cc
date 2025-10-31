@@ -18,7 +18,6 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_stream.h"
-#include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/web_transport/test_tools/in_memory_stream.h"
 
 namespace moqt::test {
@@ -236,7 +235,7 @@ class GenericMessageParseVisitor : public MoqtControlParserVisitor {
 
 std::string SerializeGenericMessage(const MoqtGenericFrame& frame,
                                     bool use_webtrans) {
-  MoqtFramer framer(quiche::SimpleBufferAllocator::Get(), use_webtrans);
+  MoqtFramer framer(use_webtrans);
   return std::string(std::visit(FramingVisitor{framer}, frame).AsStringView());
 }
 

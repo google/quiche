@@ -629,6 +629,18 @@ cc_binary(
     ],
 )
 
+cc_binary(
+    name = "moq_chat",
+    srcs = ["quic/moqt/tools/chat_client_bin.cc"],
+    deps = [
+        ":io_tool_support",
+        ":moqt_core",
+        ":quiche_core",
+        ":quiche_tool_support",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
 # Indicate that QUICHE APIs are explicitly unstable by providing only
 # appropriately named aliases as publicly visible targets.
 alias(

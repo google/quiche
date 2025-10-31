@@ -40,7 +40,6 @@
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
-#include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/web_transport/test_tools/in_memory_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
@@ -192,7 +191,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
                      webtransport::test::MockStream* stream,
                      std::unique_ptr<webtransport::StreamVisitor>& visitor,
                      MockSubscribeRemoteTrackVisitor* track_visitor) {
-    MoqtFramer framer(quiche::SimpleBufferAllocator::Get(), true);
+    MoqtFramer framer(true);
     quiche::QuicheBuffer buffer = framer.SerializeObjectHeader(
         object,
         MoqtDataStreamType::Subgroup(object.subgroup_id, object.object_id,
@@ -2741,7 +2740,7 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
       /*subgroup=*/0,
       /*payload_length=*/3,
   };
-  MoqtFramer framer(quiche::SimpleBufferAllocator::Get(), true);
+  MoqtFramer framer(true);
   quiche::QuicheBuffer header = framer.SerializeObjectHeader(
       object, MoqtDataStreamType::Fetch(), std::nullopt);
 
@@ -2997,7 +2996,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
       /*subgroup=*/0,
       /*payload_length=*/3,
   };
-  MoqtFramer framer_(quiche::SimpleBufferAllocator::Get(), true);
+  MoqtFramer framer_(true);
   for (int i = 0; i < 4; ++i) {
     object.object_id = i;
     headers.push(framer_.SerializeObjectHeader(
@@ -3069,7 +3068,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
       /*subgroup=*/0,
       /*payload_length=*/3,
   };
-  MoqtFramer framer_(quiche::SimpleBufferAllocator::Get(), true);
+  MoqtFramer framer_(true);
   for (int i = 0; i < 4; ++i) {
     object.object_id = i;
     headers.push(framer_.SerializeObjectHeader(
@@ -3162,7 +3161,7 @@ TEST_F(MoqtSessionTest, PartialObjectFetch) {
       /*subgroup=*/0,
       /*payload_length=*/6,
   };
-  MoqtFramer framer_(quiche::SimpleBufferAllocator::Get(), true);
+  MoqtFramer framer_(true);
   quiche::QuicheBuffer header = framer_.SerializeObjectHeader(
       object, MoqtDataStreamType::Fetch(), std::nullopt);
   stream.Receive(header.AsStringView(), false);
