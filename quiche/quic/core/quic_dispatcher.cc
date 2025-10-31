@@ -565,17 +565,25 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
   QuicErrorCode connection_close_error_code =
       QUIC_HANDSHAKE_FAILED_INVALID_CONNECTION;
 
-  // If a fatal TLS alert was received when extracting Client Hello,
-  // |tls_alert_error_detail| will be set and will be used as the error_details
-  // of the connection close.
-  std::string tls_alert_error_detail;
+  // If a fatal TLS alert was received when extracting Client Hello or a packet
+  // with an invalid ack was received, |error_detail| will be set and will
+  // be used as the error_details of the connection close.
+  std::string error_detail;
 
   if (fate == kFateProcess) {
     ExtractChloResult extract_chlo_result =
         TryExtractChloOrBufferEarlyPacket(*packet_info);
     auto& parsed_chlo = extract_chlo_result.parsed_chlo;
 
-    if (extract_chlo_result.tls_alert.has_value()) {
+    if (GetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack) &&
+        extract_chlo_result.has_invalid_ack) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_close_connection_on_invalid_ack,
+                                6, 7);
+      // Invalid ack when parsing received packet.
+      fate = kFateTimeWait;
+      connection_close_error_code = IETF_QUIC_PROTOCOL_VIOLATION;
+      error_detail = "Received packet with invalid ack.";
+    } else if (extract_chlo_result.tls_alert.has_value()) {
       QUIC_BUG_IF(quic_dispatcher_parsed_chlo_and_tls_alert_coexist_1,
                   parsed_chlo.has_value())
           << "parsed_chlo and tls_alert should not be set at the same time.";
@@ -584,11 +592,10 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
       uint8_t tls_alert = *extract_chlo_result.tls_alert;
       connection_close_error_code = TlsAlertToQuicErrorCode(tls_alert).value_or(
           connection_close_error_code);
-      tls_alert_error_detail =
-          absl::StrCat("TLS handshake failure from dispatcher (",
-                       EncryptionLevelToString(ENCRYPTION_INITIAL), ") ",
-                       static_cast<int>(tls_alert), ": ",
-                       SSL_alert_desc_string_long(tls_alert));
+      error_detail = absl::StrCat("TLS handshake failure from dispatcher (",
+                                  EncryptionLevelToString(ENCRYPTION_INITIAL),
+                                  ") ", static_cast<int>(tls_alert), ": ",
+                                  SSL_alert_desc_string_long(tls_alert));
     } else if (!parsed_chlo.has_value()) {
       // Client Hello incomplete. Packet has been buffered or (rarely) dropped.
       return;
@@ -615,8 +622,7 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
                       << " to time-wait list.";
       QUIC_CODE_COUNT(quic_reject_fate_time_wait);
       const std::string& connection_close_error_detail =
-          tls_alert_error_detail.empty() ? "Reject connection"
-                                         : tls_alert_error_detail;
+          error_detail.empty() ? "Reject connection" : error_detail;
       StatelesslyTerminateConnection(
           packet_info->self_address, packet_info->peer_address,
           server_connection_id, packet_info->form, packet_info->version_flag,
@@ -657,13 +663,23 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
           packet_info.destination_connection_id, packet_info.version,
           packet_info.packet, &supported_groups, &cert_compression_algos,
           &alpns, &sni, &resumption_attempted, &early_data_attempted,
-          &result.tls_alert);
+          &result.tls_alert, &result.has_invalid_ack);
     } else {
       // If we do not have a BufferedPacketList for this connection ID,
       // create a single-use one to check whether this packet contains a
       // full single-packet CHLO.
       TlsChloExtractor tls_chlo_extractor;
-      tls_chlo_extractor.IngestPacket(packet_info.version, packet_info.packet);
+      if (GetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack)) {
+        QUIC_RESTART_FLAG_COUNT_N(
+            quic_dispatcher_close_connection_on_invalid_ack, 1, 7);
+        tls_chlo_extractor.IngestPacket(packet_info.version, packet_info.packet,
+                                        QuicPacketNumber());
+        result.has_invalid_ack = tls_chlo_extractor.has_invalid_ack();
+      } else {
+        tls_chlo_extractor.IngestPacket(packet_info.version,
+                                        packet_info.packet);
+      }
+
       if (tls_chlo_extractor.HasParsedFullChlo()) {
         // This packet contains a full single-packet CHLO.
         has_full_tls_chlo = true;
@@ -676,6 +692,13 @@ QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
       } else {
         result.tls_alert = tls_chlo_extractor.tls_alert();
       }
+    }
+
+    if (GetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack) &&
+        result.has_invalid_ack) {
+      QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_close_connection_on_invalid_ack,
+                                2, 7);
+      return result;
     }
 
     if (result.tls_alert.has_value()) {

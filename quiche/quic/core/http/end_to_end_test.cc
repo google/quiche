@@ -1570,6 +1570,63 @@ TEST_P(EndToEndTest,
   });
 }
 
+TEST_P(EndToEndTest, TestInvalidAckBeforeHandshakeClosesConnection) {
+  if (!version_.UsesTls()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  if (!version_.HasIetfQuicFrames()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  SetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack, true);
+  connect_to_server_on_initialize_ = false;
+  ASSERT_TRUE(Initialize());
+
+  // Create client without connecting.
+  client_writer_->set_fake_packet_loss_percentage(100);
+  client_.reset(CreateQuicClient(client_writer_));
+  client_->client()->Initialize();
+
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_TRUE(client_connection);
+  client_writer_->Initialize(
+      QuicConnectionPeer::GetHelper(client_connection),
+      QuicConnectionPeer::GetAlarmFactory(client_connection),
+      std::make_unique<ClientDelegate>(client_->client()));
+
+  // Generate connection IDs for the crafted packet. Since the client hasn't
+  // connected yet, these are effectively new, random IDs.
+  QuicConnectionId server_connection_id = TestConnectionId(1);
+  QuicConnectionId client_connection_id = TestConnectionId(2);
+
+  // Manually craft and send an INITIAL packet with an invalid ACK frame.
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicPingFrame()));
+  // This packet contains an invalid ack frame acking packet number 1 which has
+  // not been sent by the dispatcher yet.
+  frames.push_back(QuicFrame(new QuicAckFrame(InitAckFrame(1))));
+  frames.push_back(QuicFrame(QuicPaddingFrame(1200)));
+  std::unique_ptr<QuicEncryptedPacket> packet = MakeLongHeaderPacket(
+      version_, server_connection_id, frames, INITIAL, ENCRYPTION_INITIAL);
+  DeleteFrames(&frames);
+  ASSERT_TRUE(packet);
+
+  client_writer_->writer()->WritePacket(
+      packet->data(), packet->length(),
+      client_->client()->network_helper()->GetLatestClientAddress().host(),
+      server_address_, nullptr, packet_writer_params_);
+
+  // The server should see this as an invalid ACK and add the connection ID to a
+  // time-wait list. Subsequent connection attempts with the same connection ID
+  // should fail.
+  client_->UseConnectionId(server_connection_id);
+  client_->Connect();
+  EXPECT_FALSE(client_->connected());
+  EXPECT_THAT(client_->connection_error(),
+              IsError(IETF_QUIC_PROTOCOL_VIOLATION));
+}
+
 TEST_P(EndToEndTest, SendAndReceiveCoalescedPackets) {
   ASSERT_TRUE(Initialize());
   if (!version_.CanSendCoalescedPackets()) {

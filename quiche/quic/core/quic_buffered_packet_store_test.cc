@@ -125,16 +125,15 @@ class QuicBufferedPacketStoreTest : public QuicTest {
     EXPECT_CALL(mock_packet_writer_, IsWriteBlocked())
         .WillRepeatedly(Return(false));
     EXPECT_CALL(mock_packet_writer_, WritePacket(_, _, _, _, _, _))
-        .WillRepeatedly(
-            [&](const char* buffer, size_t buf_len, const QuicIpAddress&,
-                const QuicSocketAddress&, PerPacketOptions*,
-                const QuicPacketWriterParams&) {
-              // This packet is sent by the store and "received" by the client.
-              client_received_packets_.push_back(
-                  std::make_unique<ClientReceivedPacket>(
-                      buffer, buf_len, peer_address_, self_address_));
-              return WriteResult(WRITE_STATUS_OK, buf_len);
-            });
+        .WillRepeatedly([&](const char* buffer, size_t buf_len,
+                            const QuicIpAddress&, const QuicSocketAddress&,
+                            PerPacketOptions*, const QuicPacketWriterParams&) {
+          // This packet is sent by the store and "received" by the client.
+          client_received_packets_.push_back(
+              std::make_unique<ClientReceivedPacket>(
+                  buffer, buf_len, peer_address_, self_address_));
+          return WriteResult(WRITE_STATUS_OK, buf_len);
+        });
   }
 
  protected:
@@ -707,6 +706,7 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
   bool early_data_attempted = false;
   QuicConfig config;
   std::optional<uint8_t> tls_alert;
+  bool has_invalid_ack = false;
 
   EXPECT_FALSE(store_.HasBufferedPackets(connection_id));
   EnqueuePacketToStore(store_, connection_id, GOOGLE_QUIC_Q043_PACKET,
@@ -719,8 +719,8 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
   EXPECT_FALSE(store_.IngestPacketForTlsChloExtraction(
       connection_id, valid_version_, packet_, &supported_groups,
       &cert_compression_algos, &alpns, &sni, &resumption_attempted,
-      &early_data_attempted, &tls_alert));
-
+      &early_data_attempted, &tls_alert, &has_invalid_ack));
+  EXPECT_FALSE(has_invalid_ack);
   store_.DiscardPackets(connection_id);
 
   // Force the TLS CHLO to span multiple packets.
@@ -745,11 +745,13 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
   EXPECT_FALSE(store_.IngestPacketForTlsChloExtraction(
       connection_id, valid_version_, *packets[0], &supported_groups,
       &cert_compression_algos, &alpns, &sni, &resumption_attempted,
-      &early_data_attempted, &tls_alert));
+      &early_data_attempted, &tls_alert, &has_invalid_ack));
+  EXPECT_FALSE(has_invalid_ack);
   EXPECT_TRUE(store_.IngestPacketForTlsChloExtraction(
       connection_id, valid_version_, *packets[1], &supported_groups,
       &cert_compression_algos, &alpns, &sni, &resumption_attempted,
-      &early_data_attempted, &tls_alert));
+      &early_data_attempted, &tls_alert, &has_invalid_ack));
+  EXPECT_FALSE(has_invalid_ack);
 
   EXPECT_THAT(alpns, ElementsAre(AlpnForVersion(valid_version_)));
   EXPECT_FALSE(supported_groups.empty());
@@ -757,6 +759,73 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
 
   EXPECT_FALSE(resumption_attempted);
   EXPECT_FALSE(early_data_attempted);
+}
+
+TEST_F(QuicBufferedPacketStoreTest, MultiPacketChloInvalidAckDetected) {
+  QuicConnectionId connection_id = TestConnectionId();
+  std::vector<std::string> alpns;
+  std::vector<uint16_t> supported_groups;
+  std::vector<uint16_t> cert_compression_algos;
+  std::string sni;
+  bool resumption_attempted = false;
+  bool early_data_attempted = false;
+  QuicConfig config;
+  std::optional<uint8_t> tls_alert;
+  bool has_invalid_ack = false;
+
+  // Force the TLS CHLO to span multiple packets.
+  constexpr auto kCustomParameterId =
+      static_cast<TransportParameters::TransportParameterId>(0xff33);
+  std::string kCustomParameterValue(2000, '-');
+  config.custom_transport_parameters_to_send()[kCustomParameterId] =
+      kCustomParameterValue;
+  auto packets = GetFirstFlightOfPackets(valid_version_, config);
+  ASSERT_EQ(packets.size(), 2u);
+
+  // Create a packet with an invalid ack frame acking packet number 2, but the
+  // largest packet number sent is 1.
+  QuicFrames frames;
+  frames.push_back(QuicFrame(QuicPingFrame()));
+  frames.push_back(QuicFrame(QuicPaddingFrame(1200)));
+  // This ack frame is invalid because the largest packet number sent is 1 and
+  // the ack frame is acking packet number 1 and 2.
+  frames.push_back(
+      QuicFrame(new QuicAckFrame(InitAckFrame(QuicPacketNumber(2)))));
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted_packet = MakeLongHeaderPacket(
+      valid_version_, connection_id, frames, INITIAL, ENCRYPTION_INITIAL);
+  DeleteFrames(&frames);
+
+  std::unique_ptr<QuicReceivedPacket> received_packet_with_invalid_ack =
+      std::unique_ptr<QuicReceivedPacket>(
+          ConstructReceivedPacket(*encrypted_packet, packet_time_));
+
+  // Enqueue the first packet in the CHLO.
+  EnqueuePacketToStore(store_, connection_id, IETF_QUIC_LONG_HEADER_PACKET,
+                       INITIAL, *packets[0], self_address_, peer_address_,
+                       valid_version_, kNoParsedChlo, connection_id_generator_);
+
+  EXPECT_TRUE(store_.HasBufferedPackets(connection_id));
+
+  // Ingest the first packet in the CHLO.
+  EXPECT_FALSE(store_.IngestPacketForTlsChloExtraction(
+      connection_id, valid_version_, *packets[0], &supported_groups,
+      &cert_compression_algos, &alpns, &sni, &resumption_attempted,
+      &early_data_attempted, &tls_alert, &has_invalid_ack));
+  EXPECT_FALSE(has_invalid_ack);
+
+  // Ingest the second packet with invalid ack frame in the CHLO.
+  EXPECT_FALSE(store_.IngestPacketForTlsChloExtraction(
+      connection_id, valid_version_, *received_packet_with_invalid_ack,
+      &supported_groups, &cert_compression_algos, &alpns, &sni,
+      &resumption_attempted, &early_data_attempted, &tls_alert,
+      &has_invalid_ack));
+
+  if (GetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack)) {
+    EXPECT_TRUE(has_invalid_ack);
+  } else {
+    EXPECT_FALSE(has_invalid_ack);
+  }
 }
 
 TEST_F(QuicBufferedPacketStoreTest, DeliverInitialPacketsFirst) {

@@ -96,7 +96,7 @@ QuicAckFrame InitAckFrame(const std::vector<QuicAckBlock>& ack_blocks) {
   QUICHE_DCHECK_GT(ack_blocks.size(), 0u);
 
   QuicAckFrame ack;
-  QuicPacketNumber end_of_previous_block(1);
+  QuicPacketNumber end_of_previous_block(0);
   for (const QuicAckBlock& block : ack_blocks) {
     QUICHE_DCHECK_GE(block.start, end_of_previous_block);
     QUICHE_DCHECK_GT(block.limit, block.start);
@@ -989,6 +989,7 @@ std::unique_ptr<QuicEncryptedPacket> MakeLongHeaderPacket(
   header.packet_number_length = PACKET_4BYTE_PACKET_NUMBER;
   header.packet_number = QuicPacketNumber(33);
   header.long_packet_type = long_header_type;
+  header.form = IETF_QUIC_LONG_HEADER_PACKET;
   if (version.HasLongHeaderLengths()) {
     header.retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
     header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
@@ -998,7 +999,7 @@ std::unique_ptr<QuicEncryptedPacket> MakeLongHeaderPacket(
                     kQuicDefaultConnectionIdLength);
   framer.SetInitialObfuscators(server_connection_id);
 
-  if (long_header_type != INITIAL) {
+  if (encryption_level != ENCRYPTION_INITIAL) {
     framer.SetEncrypter(encryption_level,
                         std::make_unique<TaggingEncrypter>(encryption_level));
   }

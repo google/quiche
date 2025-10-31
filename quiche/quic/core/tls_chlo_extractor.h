@@ -7,6 +7,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -69,7 +70,18 @@ class QUICHE_EXPORT TlsChloExtractor
 
   // Ingests |packet| and attempts to parse out the CHLO.
   void IngestPacket(const ParsedQuicVersion& version,
-                    const QuicReceivedPacket& packet);
+                    const QuicReceivedPacket& packet) {
+    IngestPacket(version, packet, QuicPacketNumber());
+  }
+
+  // Ingests |packet| and attempts to parse out the CHLO.
+  // |dispatcher_largest_packet_number_sent| is the largest packet number the
+  // dispatcher has sent. It is used to validate ACKs in the client's initial
+  // packet. If the client acks a packet that has an invalid ack, then
+  // has_invalid_ack_ will be set to true.
+  void IngestPacket(const ParsedQuicVersion& version,
+                    const QuicReceivedPacket& packet,
+                    QuicPacketNumber dispatcher_largest_packet_number_sent);
 
   // Returns whether the ingested packets have allowed parsing a complete CHLO.
   bool HasParsedFullChlo() const {
@@ -85,7 +97,7 @@ class QUICHE_EXPORT TlsChloExtractor
   }
 
   // Methods from QuicFramerVisitorInterface.
-  void OnError(QuicFramer* /*framer*/) override {}
+  void OnError(QuicFramer* framer) override;
   bool OnProtocolVersionMismatch(ParsedQuicVersion version) override;
   void OnPacket() override {}
   void OnVersionNegotiationPacket(
@@ -110,10 +122,8 @@ class QUICHE_EXPORT TlsChloExtractor
                              bool /*has_decryption_key*/) override {}
   bool OnStreamFrame(const QuicStreamFrame& /*frame*/) override { return true; }
   bool OnCryptoFrame(const QuicCryptoFrame& frame) override;
-  bool OnAckFrameStart(QuicPacketNumber /*largest_acked*/,
-                       QuicTime::Delta /*ack_delay_time*/) override {
-    return true;
-  }
+  bool OnAckFrameStart(QuicPacketNumber largest_acked,
+                       QuicTime::Delta /*ack_delay_time*/) override;
   bool OnAckRange(QuicPacketNumber /*start*/,
                   QuicPacketNumber /*end*/) override {
     return true;
@@ -219,6 +229,7 @@ class QUICHE_EXPORT TlsChloExtractor
                             const std::string& details) override;
   QuicStreamId id() const override { return 0; }
   ParsedQuicVersion version() const override { return framer_->version(); }
+  bool has_invalid_ack() const { return has_invalid_ack_; }
 
  private:
   // Parses the length of the CHLO message by looking at the first four bytes.
@@ -293,6 +304,9 @@ class QUICHE_EXPORT TlsChloExtractor
   std::vector<uint8_t> transport_params_;
   // Exact TLS message bytes.
   std::vector<uint8_t> client_hello_bytes_;
+  QuicPacketNumber dispatcher_largest_packet_number_sent_;
+  // Whether the packet has an invalid ack.
+  bool has_invalid_ack_ = false;
 };
 
 // Convenience method to facilitate logging TlsChloExtractor::State.

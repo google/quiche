@@ -303,10 +303,17 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     return reinterpret_cast<MockQuicConnection*>(session2_->connection());
   }
 
-  QuicFrames CreatePaddedPingPacketFrames() {
+  QuicFrames CreatePaddedPingPacketFrames(int padding_length) {
     QuicFrames frames;
     frames.push_back(QuicFrame(QuicPingFrame()));
-    frames.push_back(QuicFrame(QuicPaddingFrame(100)));
+    frames.push_back(QuicFrame(QuicPaddingFrame(padding_length)));
+    return frames;
+  }
+
+  QuicFrames CreatePaddedPingAckPacketFrames(
+      int padding_length, std::vector<QuicAckBlock> ack_blocks) {
+    QuicFrames frames = CreatePaddedPingPacketFrames(padding_length);
+    frames.push_back(QuicFrame(new QuicAckFrame(InitAckFrame(ack_blocks))));
     return frames;
   }
 
@@ -458,7 +465,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       const QuicConnectionId& server_connection_id) {
     ProcessUndecryptableEarlyPacket(version_, peer_address,
                                     server_connection_id,
-                                    CreatePaddedPingPacketFrames());
+                                    CreatePaddedPingPacketFrames(100));
   }
 
   void ProcessUndecryptableEarlyPacket(
@@ -2550,7 +2557,7 @@ class BufferedPacketStoreTest : public QuicDispatcherTestBase {
       const QuicConnectionId& server_connection_id) {
     QuicDispatcherTestBase::ProcessUndecryptableEarlyPacket(
         version, peer_address, server_connection_id,
-        CreatePaddedPingPacketFrames());
+        CreatePaddedPingPacketFrames(100));
   }
 
   void ProcessUndecryptableEarlyPacket(
@@ -2564,6 +2571,34 @@ class BufferedPacketStoreTest : public QuicDispatcherTestBase {
       const QuicConnectionId& server_connection_id) {
     ProcessUndecryptableEarlyPacket(version_, client_addr_,
                                     server_connection_id);
+  }
+
+  std::unique_ptr<QuicReceivedPacket> ConstructEncryptedPacketWithAckFrames(
+      const QuicConnectionId& server_connection_id,
+      QuicLongHeaderType long_header_type, EncryptionLevel encryption_level,
+      const std::vector<QuicAckBlock>& ack_blocks) {
+    QuicFrames frames = CreatePaddedPingAckPacketFrames(
+        /*padding_length=*/1200, ack_blocks);
+    std::unique_ptr<QuicEncryptedPacket> encrypted_packet =
+        MakeLongHeaderPacket(version_, server_connection_id, frames,
+                             long_header_type, encryption_level);
+    DeleteFrames(&frames);
+    return std::unique_ptr<QuicReceivedPacket>(ConstructReceivedPacket(
+        *encrypted_packet, mock_helper_.GetClock()->Now()));
+  }
+
+  std::vector<std::unique_ptr<QuicReceivedPacket>> CreateMultiPacketChlo(
+      const QuicConnectionId conn_id) {
+    QuicConfig client_config = DefaultQuicConfig();
+    // Add a 2000-byte custom parameter to increase the length of the CHLO.
+    constexpr auto kCustomParameterId =
+        static_cast<TransportParameters::TransportParameterId>(0xff33);
+    std::string kCustomParameterValue(2000, '-');
+    client_config.custom_transport_parameters_to_send()[kCustomParameterId] =
+        kCustomParameterValue;
+    return GetFirstFlightOfPackets(version_, client_config, conn_id,
+                                   EmptyQuicConnectionId(),
+                                   TestClientCryptoConfig());
   }
 
  protected:
@@ -2605,6 +2640,182 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketBeforeChlo) {
           }));
   expect_generator_is_called_ = false;
   ProcessFirstFlight(conn_id);
+}
+
+TEST_P(BufferedPacketStoreTest,
+       ProcessNonChloPacketWithInvalidAckBeforeChloClosesConnection) {
+  if (!version_.UsesTls()) {
+    return;
+  }
+  CreateTimeWaitListManager();
+  QuicConnectionId conn_id = TestConnectionId(1);
+
+  // This packet contains an invalid ack frame acking packet number 1 which has
+  // not been sent by the dispatcher yet.
+  std::vector<QuicAckBlock> ack_blocks = {
+      {QuicPacketNumber(1), QuicPacketNumber(2)}};
+
+  std::unique_ptr<QuicReceivedPacket> received_packet_with_invalid_ack =
+      ConstructEncryptedPacketWithAckFrames(conn_id, INITIAL,
+                                            ENCRYPTION_INITIAL, ack_blocks);
+
+  if (GetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack)) {
+    //  As this packet contains an invalid ack, the dispatcher should add
+    //  the connection to time-wait list.
+    EXPECT_CALL(*time_wait_list_manager_,
+                ProcessPacket(_, _, conn_id, _, _, _));
+    ProcessReceivedPacket(std::move(received_packet_with_invalid_ack),
+                          client_addr_, version_, conn_id);
+    EXPECT_TRUE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
+  } else {
+    ProcessReceivedPacket(std::move(received_packet_with_invalid_ack),
+                          client_addr_, version_, conn_id);
+    EXPECT_FALSE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
+  }
+  EXPECT_EQ(dispatcher_->NumSessions(), 0u);
+}
+
+TEST_P(BufferedPacketStoreTest, ProcessMultiPacketChloWithValidAckFrame) {
+  if (!version_.UsesTls()) {
+    return;
+  }
+  QuicConnectionId conn_id = TestConnectionId(1);
+  CreateTimeWaitListManager();
+
+  std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
+      CreateMultiPacketChlo(conn_id);
+  ASSERT_EQ(packets.size(), 2u);
+
+  // This packet contains a valid ack frame acking packet number 1 which has
+  // been sent by the dispatcher in response to the first part of packets[0].
+  std::vector<QuicAckBlock> ack_blocks = {
+      {QuicPacketNumber(1), QuicPacketNumber(2)}};
+
+  // This packet contains a valid ack frame.
+  std::unique_ptr<QuicReceivedPacket> received_packet_with_valid_ack_frame =
+      ConstructEncryptedPacketWithAckFrames(conn_id, INITIAL,
+                                            ENCRYPTION_INITIAL, ack_blocks);
+
+  // Processing the first packet should not create a new session.
+  ProcessReceivedPacket(std::move(packets[0]), client_addr_, version_, conn_id);
+
+  EXPECT_EQ(dispatcher_->NumSessions(), 0u)
+      << "No session should be created before the rest of the CHLO arrives.";
+
+  // This is a valid ack frame as it acks the first packet sent by the
+  // dispatcher in response to the first part of packets[0].
+  ProcessReceivedPacket(std::move(received_packet_with_valid_ack_frame),
+                        client_addr_, version_, conn_id);
+  EXPECT_FALSE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
+
+  EXPECT_EQ(dispatcher_->NumSessions(), 0u)
+      << "No session should be created before the rest of the CHLO arrives.";
+
+  // Processing the second packet should create the new session.
+  EXPECT_CALL(*dispatcher_,
+              CreateQuicSession(conn_id, _, client_addr_, Eq(ExpectedAlpn()), _,
+                                MatchParsedClientHello(), _))
+      .WillOnce(Return(ByMove(CreateSession(
+          dispatcher_.get(), config_, conn_id, client_addr_, &mock_helper_,
+          &mock_alarm_factory_, &crypto_config_,
+          QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
+  EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
+              ProcessUdpPacket(_, _, _))
+      .Times(3);
+
+  ProcessReceivedPacket(std::move(packets[1]), client_addr_, version_, conn_id);
+  EXPECT_EQ(dispatcher_->NumSessions(), 1u);
+}
+
+TEST_P(BufferedPacketStoreTest,
+       ProcessNonChloPacketAckingPacketNumberZeroClosesConnection) {
+  if (!version_.UsesTls()) {
+    return;
+  }
+  QuicConnectionId conn_id = TestConnectionId(1);
+  CreateTimeWaitListManager();
+
+  std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
+      CreateMultiPacketChlo(conn_id);
+  ASSERT_EQ(packets.size(), 2u);
+
+  // This packet contains an invalid ack frame acking packet number 0 and 1 but
+  // packet number 0 is not a valid packet number.
+  std::vector<QuicAckBlock> ack_blocks = {
+      {QuicPacketNumber(0), QuicPacketNumber(2)}};
+
+  // This packet contains an invalid ack frame with invalid ack range acking
+  // packet number 0.
+  std::unique_ptr<QuicReceivedPacket> received_packet_with_invalid_ack =
+      ConstructEncryptedPacketWithAckFrames(conn_id, INITIAL,
+                                            ENCRYPTION_INITIAL, ack_blocks);
+
+  // Processing the first packet should not create a new session.
+  ProcessReceivedPacket(std::move(packets[0]), client_addr_, version_, conn_id);
+
+  EXPECT_EQ(dispatcher_->NumSessions(), 0u)
+      << "No session should be created before the rest of the CHLO arrives.";
+
+  if (GetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack)) {
+    // Processing the packet with invalid ack should not create a new
+    // session and the connection should be added to time-wait list. The
+    // dispatcher should close the connection.
+    EXPECT_CALL(*time_wait_list_manager_,
+                ProcessPacket(_, _, conn_id, _, _, _));
+    ProcessReceivedPacket(std::move(received_packet_with_invalid_ack),
+                          client_addr_, version_, conn_id);
+    EXPECT_TRUE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
+  } else {
+    ProcessReceivedPacket(std::move(received_packet_with_invalid_ack),
+                          client_addr_, version_, conn_id);
+    EXPECT_FALSE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
+  }
+  EXPECT_EQ(dispatcher_->NumSessions(), 0u)
+      << "No session should be created before the rest of the CHLO arrives.";
+}
+
+TEST_P(BufferedPacketStoreTest,
+       ProcessMultiPacketChloWithInvalidAckClosesConnection) {
+  if (!version_.UsesTls()) {
+    return;
+  }
+  CreateTimeWaitListManager();
+  QuicConnectionId conn_id = TestConnectionId(1);
+
+  std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
+      CreateMultiPacketChlo(conn_id);
+  ASSERT_EQ(packets.size(), 2u);
+
+  // This packet contains an invalid ack frame acking packet number 1 and 2 but
+  // packet number 2 has not been sent by the dispatcher yet.
+  std::vector<QuicAckBlock> ack_blocks = {
+      {QuicPacketNumber(1), QuicPacketNumber(3)}};
+
+  std::unique_ptr<QuicReceivedPacket> received_packet_with_invalid_ack =
+      ConstructEncryptedPacketWithAckFrames(conn_id, INITIAL,
+                                            ENCRYPTION_INITIAL, ack_blocks);
+
+  // Processing the first packet should not create a new session.
+  ProcessReceivedPacket(std::move(packets[0]), client_addr_, version_, conn_id);
+  EXPECT_EQ(dispatcher_->NumSessions(), 0u)
+      << "No session should be created before the rest of the CHLO arrives.";
+
+  if (GetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack)) {
+    // Processing the packet with invalid ack should not create a new
+    // session and the connection should be added to time-wait list. The
+    // dispatcher should close the connection.
+    EXPECT_CALL(*time_wait_list_manager_,
+                ProcessPacket(_, _, conn_id, _, _, _));
+    ProcessReceivedPacket(std::move(received_packet_with_invalid_ack),
+                          client_addr_, version_, conn_id);
+    EXPECT_TRUE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
+  } else {
+    ProcessReceivedPacket(std::move(received_packet_with_invalid_ack),
+                          client_addr_, version_, conn_id);
+    EXPECT_FALSE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
+  }
+  EXPECT_EQ(dispatcher_->NumSessions(), 0u)
+      << "No session should be created before the rest of the CHLO arrives.";
 }
 
 TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketsUptoLimitAndProcessChlo) {
@@ -3177,7 +3388,7 @@ TEST_P(BufferedPacketStoreTest, BufferedChloWithEcn) {
   // Process non-CHLO packet. This ProcessUndecryptableEarlyPacket() but with
   // an injected step to set the ECN bits.
   std::unique_ptr<QuicEncryptedPacket> encrypted_packet =
-      MakeLongHeaderPacket(version_, conn_id, CreatePaddedPingPacketFrames(),
+      MakeLongHeaderPacket(version_, conn_id, CreatePaddedPingPacketFrames(100),
                            ZERO_RTT_PROTECTED, ENCRYPTION_ZERO_RTT);
   std::unique_ptr<QuicReceivedPacket> received_packet(ConstructReceivedPacket(
       *encrypted_packet, mock_helper_.GetClock()->Now(), ECN_ECT1));

@@ -370,6 +370,8 @@ class QUICHE_EXPORT QuicDispatcher
     // If set, the TLS alert that will cause a connection close.
     // Always empty for Google QUIC.
     std::optional<uint8_t> tls_alert;
+    // If set, an invalid ack will cause a connection close.
+    bool has_invalid_ack = false;
   };
 
   // Try to extract information(sni, alpns, ...) if the full Client Hello has

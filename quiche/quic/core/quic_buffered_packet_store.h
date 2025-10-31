@@ -216,8 +216,11 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
   // populated with the SNI tag in CHLO. |out_resumption_attempted| is populated
   // if the CHLO has the 'pre_shared_key' TLS extension.
   // |out_early_data_attempted| is populated if the CHLO has the 'early_data'
-  // TLS extension. When this returns false, and an unrecoverable error happened
-  // due to a TLS alert, |*tls_alert| will be set to the alert value.
+  // TLS extension. When this returns false, either an unrecoverable error
+  // happened due to a TLS alert, |*tls_alert| will be set to the alert value or
+  // an invalid ack is received that will cause a connection close,
+  // |*out_invalid_ack| will be set to true. An invalid ack is an ack that the
+  // peer sent for a packet that was not sent by the dispatcher.
   bool IngestPacketForTlsChloExtraction(
       const QuicConnectionId& connection_id, const ParsedQuicVersion& version,
       const QuicReceivedPacket& packet,
@@ -225,7 +228,7 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
       std::vector<uint16_t>* out_cert_compression_algos,
       std::vector<std::string>* out_alpns, std::string* out_sni,
       bool* out_resumption_attempted, bool* out_early_data_attempted,
-      std::optional<uint8_t>* tls_alert);
+      std::optional<uint8_t>* tls_alert, bool* out_invalid_ack);
 
   // Returns the list of buffered packets for |connection_id| and removes them
   // from the store. Returns an empty list if no early arrived packets for this

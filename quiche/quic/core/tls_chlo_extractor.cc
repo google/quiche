@@ -160,8 +160,9 @@ TlsChloExtractor& TlsChloExtractor::operator=(TlsChloExtractor&& other) {
   return *this;
 }
 
-void TlsChloExtractor::IngestPacket(const ParsedQuicVersion& version,
-                                    const QuicReceivedPacket& packet) {
+void TlsChloExtractor::IngestPacket(
+    const ParsedQuicVersion& version, const QuicReceivedPacket& packet,
+    QuicPacketNumber dispatcher_largest_packet_number_sent) {
   if (state_ == State::kUnrecoverableFailure) {
     QUIC_DLOG(ERROR) << "Not ingesting packet after unrecoverable error";
     return;
@@ -190,6 +191,14 @@ void TlsChloExtractor::IngestPacket(const ParsedQuicVersion& version,
     // Note that expected_server_connection_id_length only matters for short
     // headers and we explicitly drop those so we can pass any value here.
     framer_->set_visitor(this);
+  }
+
+  if (GetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack) &&
+      dispatcher_largest_packet_number_sent.IsInitialized()) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_close_connection_on_invalid_ack,
+                              3, 7);
+    dispatcher_largest_packet_number_sent_ =
+        dispatcher_largest_packet_number_sent;
   }
 
   // When the framer parses |packet|, if it sees a CRYPTO frame it will call
@@ -236,6 +245,18 @@ bool TlsChloExtractor::OnUnauthenticatedPublicHeader(
   return true;
 }
 
+void TlsChloExtractor::OnError(QuicFramer* framer) {
+  // This is called when the framer encounters an error while parsing an ACK
+  // frame, including the case where the packet number 0 is acknowledged. Since
+  // QUICHE never sends packet number 0, this is invalid..
+  if (GetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack) &&
+      framer->error() == QUIC_INVALID_ACK_DATA) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_close_connection_on_invalid_ack,
+                              4, 7);
+    has_invalid_ack_ = true;
+  }
+}
+
 // This is called by the framer if it detects a change in version during
 // parsing.
 bool TlsChloExtractor::OnProtocolVersionMismatch(ParsedQuicVersion version) {
@@ -275,6 +296,24 @@ bool TlsChloExtractor::OnCryptoFrame(const QuicCryptoFrame& frame) {
   // and multi-packet CHLO.
   parsed_crypto_frame_in_this_packet_ = true;
   crypto_stream_sequencer_.OnCryptoFrame(frame);
+  return true;
+}
+
+bool TlsChloExtractor::OnAckFrameStart(QuicPacketNumber largest_acked,
+                                       QuicTime::Delta /*ack_delay_time*/) {
+  if (!GetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack)) {
+    return true;
+  }
+  if (!dispatcher_largest_packet_number_sent_.IsInitialized() ||
+      largest_acked > dispatcher_largest_packet_number_sent_) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_close_connection_on_invalid_ack,
+                              5, 7);
+    // The dispatcher sends packets sequentially from 1 to
+    // dispatcher_largest_packet_number_sent_ (inclusive), without skipping any
+    // packet numbers in between.
+    has_invalid_ack_ = true;
+    return false;
+  }
   return true;
 }
 

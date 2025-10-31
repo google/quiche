@@ -585,7 +585,7 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
     std::vector<uint16_t>* out_cert_compression_algos,
     std::vector<std::string>* out_alpns, std::string* out_sni,
     bool* out_resumption_attempted, bool* out_early_data_attempted,
-    std::optional<uint8_t>* tls_alert) {
+    std::optional<uint8_t>* tls_alert, bool* out_invalid_ack) {
   QUICHE_DCHECK_NE(out_alpns, nullptr);
   QUICHE_DCHECK_NE(out_sni, nullptr);
   QUICHE_DCHECK_NE(tls_alert, nullptr);
@@ -598,7 +598,16 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
     return false;
   }
   BufferedPacketListNode& node = *it->second;
-  node.tls_chlo_extractor.IngestPacket(version, packet);
+  if (GetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_dispatcher_close_connection_on_invalid_ack,
+                              7, 7);
+    node.tls_chlo_extractor.IngestPacket(version, packet,
+                                         node.GetLastSentPacketNumber());
+    *out_invalid_ack = node.tls_chlo_extractor.has_invalid_ack();
+  } else {
+    node.tls_chlo_extractor.IngestPacket(version, packet);
+  }
+
   if (!node.tls_chlo_extractor.HasParsedFullChlo()) {
     *tls_alert = node.tls_chlo_extractor.tls_alert();
     return false;
