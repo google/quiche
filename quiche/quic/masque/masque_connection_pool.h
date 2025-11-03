@@ -66,6 +66,10 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
       const std::string& client_cert_file,
       const std::string& client_cert_key_file);
 
+  static absl::StatusOr<bssl::UniquePtr<SSL_CTX>> CreateSslCtxFromData(
+      const std::string& client_cert_pem_data,
+      const std::string& client_cert_key_data);
+
  private:
   class ConnectionState : public QuicSocketEventListener {
    public:

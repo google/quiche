@@ -375,4 +375,36 @@ absl::StatusOr<bssl::UniquePtr<SSL_CTX>> MasqueConnectionPool::CreateSslCtx(
   return ctx;
 }
 
+// static
+absl::StatusOr<bssl::UniquePtr<SSL_CTX>>
+MasqueConnectionPool::CreateSslCtxFromData(
+    const std::string& client_cert_pem_data,
+    const std::string& client_cert_key_data) {
+  bssl::UniquePtr<SSL_CTX> ctx(SSL_CTX_new(TLS_method()));
+  // Load public cert.
+  BIO* cert_bio = BIO_new_mem_buf(client_cert_pem_data.c_str(), -1);
+  QUICHE_CHECK(cert_bio);
+  X509* cert = PEM_read_bio_X509(cert_bio, nullptr, nullptr, nullptr);
+  QUICHE_CHECK(cert);
+  BIO_free(cert_bio);
+  int rv = SSL_CTX_use_certificate(ctx.get(), cert);
+  QUICHE_CHECK_EQ(rv, 1);
+  X509_free(cert);
+
+  // Load private key.
+  BIO* key_bio = BIO_new_mem_buf(client_cert_key_data.c_str(), -1);
+  QUICHE_CHECK(key_bio);
+  EVP_PKEY* private_key =
+      PEM_read_bio_PrivateKey(key_bio, nullptr, nullptr, nullptr);
+  QUICHE_CHECK(private_key);
+  BIO_free(key_bio);
+  rv = SSL_CTX_use_PrivateKey(ctx.get(), private_key);
+  QUICHE_CHECK_EQ(rv, 1);
+  EVP_PKEY_free(private_key);
+
+  SSL_CTX_set_min_proto_version(ctx.get(), TLS1_2_VERSION);
+  SSL_CTX_set_max_proto_version(ctx.get(), TLS1_3_VERSION);
+  return ctx;
+}
+
 }  // namespace quic
