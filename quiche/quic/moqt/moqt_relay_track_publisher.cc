@@ -50,6 +50,7 @@ void MoqtRelayTrackPublisher::OnReply(
   next_location_ = ok_data.largest_location.has_value()
                        ? ok_data.largest_location->Next()
                        : Location(0, 0);
+  got_response_ = true;
   // TODO(martinduke): Handle parameters.
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnSubscribeAccepted();
@@ -288,6 +289,9 @@ void MoqtRelayTrackPublisher::AddObjectListener(MoqtObjectListener* listener) {
     session->SubscribeCurrentObject(track_, this, VersionSpecificParameters());
   }
   listeners_.insert(listener);
+  if (got_response_) {
+    listener->OnSubscribeAccepted();
+  }
 }
 
 void MoqtRelayTrackPublisher::RemoveObjectListener(

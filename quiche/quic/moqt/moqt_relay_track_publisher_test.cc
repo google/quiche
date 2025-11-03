@@ -332,7 +332,15 @@ TEST_F(MoqtRelayTrackPublisherTest, SecondListenerNoSubscribe) {
       .WillOnce(testing::Return(true));
   publisher_.AddObjectListener(&listener_);
   EXPECT_CALL(*session_, SubscribeCurrentObject).Times(0);
-  publisher_.AddObjectListener(&listener_);
+  EXPECT_CALL(listener_, OnSubscribeAccepted).Times(0);
+  MockMoqtObjectListener listener2;
+  publisher_.AddObjectListener(&listener2);
+  EXPECT_CALL(listener_, OnSubscribeAccepted);
+  EXPECT_CALL(listener2, OnSubscribeAccepted);
+  publisher_.OnReply(
+      kTrackName,
+      SubscribeOkData{quic::QuicTimeDelta::Infinite(),
+                      MoqtDeliveryOrder::kAscending, kLargestLocation});
 }
 
 TEST_F(MoqtRelayTrackPublisherTest, OnMalformedObject) {
@@ -367,6 +375,14 @@ TEST_F(MoqtRelayTrackPublisherTest, Reset) {
 
   EXPECT_CALL(listener_, OnSubgroupAbandoned(2, 0, kResetCodeCanceled));
   publisher_.OnStreamReset(kTrackName, DataStreamIndex{2, 0});
+}
+
+TEST_F(MoqtRelayTrackPublisherTest, SecondSubscribeAfterOk) {
+  SubscribeAndOk();
+  EXPECT_CALL(*session_, SubscribeCurrentObject).Times(0);
+  MockMoqtObjectListener listener2;
+  EXPECT_CALL(listener2, OnSubscribeAccepted);
+  publisher_.AddObjectListener(&listener2);
 }
 
 }  // namespace

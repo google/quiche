@@ -138,6 +138,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   };
 
   bool is_closing_ = false;
+  bool got_response_ = false;
   const quic::QuicClock* clock_;
   FullTrackName track_;
   quiche::QuicheWeakPtr<MoqtSessionInterface> upstream_;
