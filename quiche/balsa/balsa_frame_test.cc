@@ -16,6 +16,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/flat_hash_set.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
@@ -25,6 +27,8 @@
 #include "quiche/balsa/balsa_enums.h"
 #include "quiche/balsa/balsa_headers.h"
 #include "quiche/balsa/balsa_visitor_interface.h"
+#include "quiche/balsa/header_api.h"
+#include "quiche/balsa/header_properties.h"
 #include "quiche/balsa/http_validation_policy.h"
 #include "quiche/balsa/noop_balsa_visitor.h"
 #include "quiche/balsa/simple_buffer.h"
