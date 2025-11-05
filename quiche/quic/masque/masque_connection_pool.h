@@ -12,6 +12,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/string_view.h"
 #include "openssl/base.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
@@ -19,7 +20,9 @@
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/masque/masque_h2_connection.h"
 #include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/common/http/http_header_block.h"
+#include "quiche/common/quiche_socket_address.h"
 
 namespace quic {
 
@@ -29,6 +32,25 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
   struct Message {
     quiche::HttpHeaderBlock headers;
     std::string body;
+  };
+
+  // Default DNS resolver that uses the QuicNameLookup tool.
+  class QUIC_NO_EXPORT DnsResolver {
+   public:
+    virtual ~DnsResolver() = default;
+
+    // Address Resolution must be thread safe.
+    // Address family should be AF_UNSPEC, AF_INET, or AF_INET6.
+    virtual quiche::QuicheSocketAddress LookupAddress(
+        int address_family_for_lookup, absl::string_view host,
+        absl::string_view port) {
+      return tools::LookupAddress(address_family_for_lookup, std::string(host),
+                                  std::string(port));
+    }
+    quiche::QuicheSocketAddress LookupAddress(absl::string_view host,
+                                              absl::string_view port) {
+      return LookupAddress(AF_UNSPEC, host, port);
+    }
   };
 
   class QUIC_NO_EXPORT Visitor {
@@ -49,6 +71,11 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
                                 int address_family_for_lookup,
                                 Visitor* visitor);
 
+  explicit MasqueConnectionPool(QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
+                                bool disable_certificate_verification,
+                                int address_family_for_lookup, Visitor* visitor,
+                                std::shared_ptr<DnsResolver> dns_resolver);
+
   QuicEventLoop* event_loop() { return event_loop_; }
   SSL_CTX* ssl_ctx() { return ssl_ctx_; }
 
@@ -61,6 +88,9 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
   void OnResponse(MasqueH2Connection* connection, int32_t stream_id,
                   const quiche::HttpHeaderBlock& headers,
                   const std::string& body) override;
+  virtual std::shared_ptr<DnsResolver> GetDnsResolver() {
+    return dns_resolver_;
+  }
 
   static absl::StatusOr<bssl::UniquePtr<SSL_CTX>> CreateSslCtx(
       const std::string& client_cert_file,
@@ -119,6 +149,7 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
   absl::flat_hash_map<RequestId, std::unique_ptr<PendingRequest>>
       pending_requests_;
   RequestId next_request_id_ = 0;
+  std::shared_ptr<DnsResolver> dns_resolver_;
 };
 
 }  // namespace quic

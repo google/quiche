@@ -27,7 +27,6 @@
 #include "quiche/quic/masque/masque_h2_connection.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
-#include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_socket_address.h"
@@ -42,7 +41,19 @@ MasqueConnectionPool::MasqueConnectionPool(
       ssl_ctx_(ssl_ctx),
       disable_certificate_verification_(disable_certificate_verification),
       address_family_for_lookup_(address_family_for_lookup),
-      visitor_(visitor) {}
+      visitor_(visitor),
+      dns_resolver_(std::make_shared<DnsResolver>()) {}
+
+MasqueConnectionPool::MasqueConnectionPool(
+    QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
+    bool disable_certificate_verification, int address_family_for_lookup,
+    Visitor* visitor, std::shared_ptr<DnsResolver> dns_resolver)
+    : event_loop_(event_loop),
+      ssl_ctx_(ssl_ctx),
+      disable_certificate_verification_(disable_certificate_verification),
+      address_family_for_lookup_(address_family_for_lookup),
+      visitor_(visitor),
+      dns_resolver_(dns_resolver) {}
 
 void MasqueConnectionPool::OnConnectionReady(MasqueH2Connection* connection) {
   SendPendingRequests(connection);
@@ -218,7 +229,8 @@ bool MasqueConnectionPool::ConnectionState::SetupSocket(
     port = "443";
   }
   quiche::QuicheSocketAddress socket_address =
-      tools::LookupAddress(address_family_for_lookup, host_, port);
+      connection_pool_->GetDnsResolver()->LookupAddress(
+          address_family_for_lookup, host_, port);
   if (!socket_address.IsInitialized()) {
     QUICHE_LOG(ERROR) << "Failed to resolve address for \"" << authority_
                       << "\"";

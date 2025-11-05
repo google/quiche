@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MASQUE_MASQUE_OHTTP_CLIENT_H_
 #define QUICHE_QUIC_MASQUE_MASQUE_OHTTP_CLIENT_H_
 
+#include <memory>
 #include <optional>
 #include <string>
 #include <vector>
@@ -40,6 +41,16 @@ class QUICHE_EXPORT MasqueOhttpClient
         post_data_(post_data),
         connection_pool_(event_loop, ssl_ctx, disable_certificate_verification,
                          address_family_for_lookup, this) {}
+
+  explicit MasqueOhttpClient(
+      quic::QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
+      std::vector<std::string> urls, bool disable_certificate_verification,
+      int address_family_for_lookup, const std::string& post_data,
+      std::shared_ptr<MasqueConnectionPool::DnsResolver> dns_resolver)
+      : urls_(urls),
+        post_data_(post_data),
+        connection_pool_(event_loop, ssl_ctx, disable_certificate_verification,
+                         address_family_for_lookup, this, dns_resolver) {}
 
   // Starts fetching for the key and sends the OHTTP request.
   absl::Status Start();
