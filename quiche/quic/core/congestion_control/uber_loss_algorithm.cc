@@ -5,11 +5,20 @@
 #include "quiche/quic/core/congestion_control/uber_loss_algorithm.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <utility>
 
+#include "quiche/quic/core/congestion_control/loss_detection_interface.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_unacked_packet_map.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_logging.h"
 
 namespace quic {
 

@@ -16,8 +16,7 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 

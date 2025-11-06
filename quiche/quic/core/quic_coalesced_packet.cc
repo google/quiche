@@ -4,12 +4,22 @@
 
 #include "quiche/quic/core/quic_coalesced_packet.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <string>
 #include <vector>
 
 #include "absl/memory/memory.h"
 #include "absl/strings/str_cat.h"
+#include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_buffer_allocator.h"
 
 namespace quic {
 

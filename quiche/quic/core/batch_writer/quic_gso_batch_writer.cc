@@ -6,13 +6,25 @@
 
 #include <time.h>
 
+#include <cstdint>
 #include <ctime>
 #include <memory>
 #include <utility>
 
+#include "quiche/quic/core/batch_writer/quic_batch_writer_base.h"
+#include "quiche/quic/core/batch_writer/quic_batch_writer_buffer.h"
 #include "quiche/quic/core/flow_label.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_linux_socket_utils.h"
+#include "quiche/quic/core/quic_packet_writer.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
