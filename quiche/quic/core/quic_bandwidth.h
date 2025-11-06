@@ -10,6 +10,7 @@
 #include <cmath>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <ostream>
 #include <string>
 
@@ -17,15 +18,21 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
+// QuicBandwidth is a thin wrapper around an int64_t representing bits per
+// second. Methods and operators declared in this file do not perform range
+// checks on parameters unless otherwise specified.
 class QUICHE_EXPORT QuicBandwidth {
  public:
   // Creates a new QuicBandwidth with an internal value of 0.
   static constexpr QuicBandwidth Zero() { return QuicBandwidth(0); }
 
-  // Creates a new QuicBandwidth with an internal value of INT64_MAX.
+  // Creates a new QuicBandwidth with an internal value of INT64_MAX. The
+  // infinite QuicBandwidth is only useful as a sentinel value. It cannot be
+  // added to any non-zero QuicBandwidth without committing UB.
   static constexpr QuicBandwidth Infinite() {
     return QuicBandwidth(std::numeric_limits<int64_t>::max());
   }
@@ -75,7 +82,22 @@ class QUICHE_EXPORT QuicBandwidth {
 
   int64_t ToKBytesPerSecond() const { return bits_per_second_ / 8000; }
 
+  // Returns the product of `this` and the given `time_period` when the
+  // parameters are nonnegative and the computation would not overflow.
+  // Otherwise, returns `std::nullopt`.
+  constexpr std::optional<QuicByteCount> ToBytesPerPeriodSafe(
+      QuicTime::Delta time_period) const {
+    const std::optional<int64_t> bits_per_second_times_microseconds =
+        SafeMultiplyNonNegatives(bits_per_second_,
+                                 time_period.ToMicroseconds());
+    if (!bits_per_second_times_microseconds.has_value()) {
+      return std::nullopt;
+    }
+    return *bits_per_second_times_microseconds / 8 / kNumMicrosPerSecond;
+  }
+
   constexpr QuicByteCount ToBytesPerPeriod(QuicTime::Delta time_period) const {
+    QUICHE_DCHECK(ToBytesPerPeriodSafe(time_period).has_value());
     return bits_per_second_ * time_period.ToMicroseconds() / 8 /
            kNumMicrosPerSecond;
   }
@@ -106,6 +128,22 @@ class QUICHE_EXPORT QuicBandwidth {
   }
 
  private:
+  // Returns the value of `a * b` if both `a` and `b` are non-negative and the
+  // result fits in `int64_t`. Otherwise, returns `std::nullopt`.
+  static constexpr std::optional<int64_t> SafeMultiplyNonNegatives(int64_t a,
+                                                                   int64_t b) {
+    if (a < 0 || b < 0) {
+      return std::nullopt;
+    }
+    if (a == 0 || b == 0) {
+      return 0;
+    }
+    if (a > std::numeric_limits<int64_t>::max() / b) {
+      return std::nullopt;
+    }
+    return a * b;
+  }
+
   explicit constexpr QuicBandwidth(int64_t bits_per_second)
       : bits_per_second_(bits_per_second >= 0 ? bits_per_second : 0) {}
 
@@ -154,6 +192,7 @@ inline QuicBandwidth operator*(float lhs, QuicBandwidth rhs) {
 }
 inline constexpr QuicByteCount operator*(QuicBandwidth lhs,
                                          QuicTime::Delta rhs) {
+  QUICHE_DCHECK(lhs.ToBytesPerPeriodSafe(rhs).has_value());
   return lhs.ToBytesPerPeriod(rhs);
 }
 inline constexpr QuicByteCount operator*(QuicTime::Delta lhs,

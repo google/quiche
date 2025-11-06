@@ -360,7 +360,8 @@ TEST(NetworkParamsStringifyTest, Stringifies) {
             "rtt: 2s, "
             "max_initial_congestion_window: 42, "
             "allow_cwnd_to_decrease: true, "
-            "is_rtt_trusted: true }");
+            "is_rtt_trusted: true, "
+            "clamp_cwnd_and_rtt_before_send_algorithm: false}");
 }
 
 }  // namespace

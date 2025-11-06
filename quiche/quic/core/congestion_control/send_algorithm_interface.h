@@ -48,10 +48,12 @@ class QUICHE_EXPORT SendAlgorithmInterface {
                    "rtt: %v, "
                    "max_initial_congestion_window: %v, "
                    "allow_cwnd_to_decrease: %v, "
-                   "is_rtt_trusted: %v }",
+                   "is_rtt_trusted: %v, "
+                   "clamp_cwnd_and_rtt_before_send_algorithm: %v}",
                    params.bandwidth, params.rtt,
                    params.max_initial_congestion_window,
-                   params.allow_cwnd_to_decrease, params.is_rtt_trusted);
+                   params.allow_cwnd_to_decrease, params.is_rtt_trusted,
+                   params.clamp_cwnd_and_rtt_before_send_algorithm);
     }
 
     bool operator==(const NetworkParams& other) const = default;
@@ -61,6 +63,11 @@ class QUICHE_EXPORT SendAlgorithmInterface {
     int max_initial_congestion_window = 0;
     bool allow_cwnd_to_decrease = false;
     bool is_rtt_trusted = false;
+    // TODO: b/409269141 - Remove this field when deprecating the experiment.
+    // When true, `QuicSentPacketManager::AdjustNetworkParameters()` will clamp
+    // the bandwidth and rtt to large values before passing them to the send
+    // algorithm.
+    bool clamp_cwnd_and_rtt_before_send_algorithm = false;
   };
 
   static SendAlgorithmInterface* Create(

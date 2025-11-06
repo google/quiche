@@ -1266,6 +1266,25 @@ TEST_F(BbrSenderTest, 100InitialCongestionWindowWithNetworkParameterAdjusted) {
   EXPECT_GT(1024 * kTestLinkBandwidth, sender_->PacingRate(0));
 }
 
+// Regression test for b/457758791.
+TEST_F(BbrSenderTest,
+       AdjustNetworkParametersWithInfiniteBandwidthWithNonZeroRtt) {
+  CreateDefaultSetup();
+
+  EXPECT_FALSE(kTestRtt.IsZero());
+
+  SendAlgorithmInterface::NetworkParams network_params(
+      QuicBandwidth::Infinite(), kTestRtt, false);
+
+  // Without this, `BBRSender::AdjustNetworkParameters()` would commit a signed
+  // overflow when multiplying the bandwidth and rtt.
+  network_params.clamp_cwnd_and_rtt_before_send_algorithm = true;
+
+  bbr_sender_.connection()->AdjustNetworkParameters(network_params);
+  EXPECT_EQ(200 * kDefaultTCPMSS,
+            sender_->ExportDebugState().congestion_window);
+}
+
 // Ensures bandwidth estimate does not change after a loss only event.
 // Regression test for b/151239871.
 TEST_F(BbrSenderTest, LossOnlyCongestionEvent) {

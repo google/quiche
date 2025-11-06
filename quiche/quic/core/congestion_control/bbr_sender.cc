@@ -12,12 +12,15 @@
 #include "absl/base/attributes.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_time_accumulator.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -271,7 +274,7 @@ void BbrSender::ApplyConnectionOptions(
 }
 
 void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
-  const QuicBandwidth& bandwidth = params.bandwidth;
+  QuicBandwidth bandwidth = params.bandwidth;
   const QuicTime::Delta& rtt = params.rtt;
 
   if (!rtt.IsZero() && (min_rtt_ > rtt || min_rtt_.IsZero())) {
@@ -289,6 +292,11 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
       max_congestion_window_with_network_parameters_adjusted_ =
           params.max_initial_congestion_window * kDefaultTCPMSS;
     }
+
+    // It should be safe to multiply `bandwidth` and `cwnd_bootstrapping_rtt`.
+    QUICHE_DCHECK(
+        bandwidth.ToBytesPerPeriodSafe(cwnd_bootstrapping_rtt).has_value());
+
     const QuicByteCount new_cwnd = std::max(
         kMinInitialCongestionWindow * kDefaultTCPMSS,
         std::min(max_congestion_window_with_network_parameters_adjusted_,
