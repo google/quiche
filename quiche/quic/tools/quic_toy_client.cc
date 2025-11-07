@@ -137,6 +137,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "packets. Only works with QUIC+TLS.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, force_debugging_sni, "",
+    "When non-empty, overrides the debugging_sni transport parameter.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, redirect_is_success, true,
     "If true, an HTTP response code of 3xx is considered to be a "
     "successful response, otherwise a failure.");
@@ -318,6 +322,11 @@ int QuicToyClient::SendRequestsAndPrintResponses(
     // Make the ClientHello span multiple packets by adding a large 'discard'
     // transport parameter.
     config.SetDiscardLengthToSend(2000);
+  }
+  std::string force_debugging_sni =
+      quiche::GetQuicheCommandLineFlag(FLAGS_force_debugging_sni);
+  if (!force_debugging_sni.empty()) {
+    config.SetDebuggingSniToSend(force_debugging_sni);
   }
   config.set_max_time_before_crypto_handshake(
       QuicTime::Delta::FromMilliseconds(quiche::GetQuicheCommandLineFlag(
