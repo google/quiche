@@ -46,11 +46,11 @@ class QuicTimeWaitListManagerPeer;
 struct QUICHE_EXPORT TimeWaitConnectionInfo {
   TimeWaitConnectionInfo(
       bool ietf_quic,
-      std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets,
+      std::vector<std::unique_ptr<QuicEncryptedPacket>>* _Nonnull termination_packets,
       std::vector<QuicConnectionId> active_connection_ids);
   TimeWaitConnectionInfo(
       bool ietf_quic,
-      std::vector<std::unique_ptr<QuicEncryptedPacket>>* termination_packets,
+      std::vector<std::unique_ptr<QuicEncryptedPacket>>* _Nonnull termination_packets,
       std::vector<QuicConnectionId> active_connection_ids,
       QuicTime::Delta srtt);
 
@@ -179,7 +179,7 @@ class QUICHE_EXPORT QuicTimeWaitListManager
                           const QuicEncryptedPacket& packet);
 
   // Return a non-owning pointer to the packet writer.
-  QuicPacketWriter* writer() { return writer_; }
+  QuicPacketWriter* _Nonnull writer() { return writer_; }
 
  protected:
   virtual std::unique_ptr<QuicEncryptedPacket> BuildPublicReset(
@@ -339,13 +339,13 @@ class QUICHE_EXPORT QuicTimeWaitListManager
   std::unique_ptr<QuicAlarm> connection_id_clean_up_alarm_;
 
   // Clock to efficiently measure approximate time.
-  const QuicClock* clock_;
+  const QuicClock* _Nonnull clock_;
 
   // Interface that writes given buffer to the socket.
-  QuicPacketWriter* writer_;
+  QuicPacketWriter* _Nonnull writer_;
 
   // Interface that manages blocked writers.
-  Visitor* visitor_;
+  Visitor* _Nonnull visitor_;
 };
 
 }  // namespace quic
