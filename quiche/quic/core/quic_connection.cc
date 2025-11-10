@@ -2830,11 +2830,7 @@ void QuicConnection::OnCanWrite() {
     // Send an ACK now because either 1) we were write blocked when we last
     // tried to send an ACK, or 2) both ack alarm and send alarm were set to
     // go off together.
-    if (SupportsMultiplePacketNumberSpaces()) {
-      SendAllPendingAcks();
-    } else {
-      SendAck();
-    }
+    SendAllPendingAcks();
   }
 
   // Sending queued packets may have caused the socket to become write blocked,
@@ -4157,11 +4153,7 @@ void QuicConnection::OnAckAlarm() {
   QUICHE_DCHECK(ack_frame_updated());
   QUICHE_DCHECK(connected());
   QuicConnection::ScopedPacketFlusher flusher(this);
-  if (SupportsMultiplePacketNumberSpaces()) {
-    SendAllPendingAcks();
-  } else {
-    SendAck();
-  }
+  SendAllPendingAcks();
 }
 
 void QuicConnection::SendAck() {
@@ -4951,10 +4943,8 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
               connection_->clock_->ApproximateNow()) {
         // If send alarm will go off soon, let send alarm send the ACK.
         connection_->ack_alarm().Cancel();
-      } else if (connection_->SupportsMultiplePacketNumberSpaces()) {
-        connection_->SendAllPendingAcks();
       } else {
-        connection_->SendAck();
+        connection_->SendAllPendingAcks();
       }
     }
 
@@ -5909,7 +5899,11 @@ void QuicConnection::MaybeBundleCryptoDataWithAcks() {
 }
 
 void QuicConnection::SendAllPendingAcks() {
-  QUICHE_DCHECK(SupportsMultiplePacketNumberSpaces());
+  if (!SupportsMultiplePacketNumberSpaces()) {
+    // gQUIC only has one packet number space.
+    SendAck();
+    return;
+  }
   QUIC_DVLOG(1) << ENDPOINT << "Trying to send all pending ACKs";
   ack_alarm().Cancel();
   QuicTime earliest_ack_timeout =
