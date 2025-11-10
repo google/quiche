@@ -870,20 +870,20 @@ class QUICHE_NO_EXPORT PublishDoneMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtPublishDone>(values);
-    if (cast.request_id != subscribe_done_.request_id) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_DONE request ID mismatch";
+    if (cast.request_id != publish_done_.request_id) {
+      QUIC_LOG(INFO) << "PUBLISH_DONE request ID mismatch";
       return false;
     }
-    if (cast.status_code != subscribe_done_.status_code) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_DONE status code mismatch";
+    if (cast.status_code != publish_done_.status_code) {
+      QUIC_LOG(INFO) << "PUBLISH_DONE status code mismatch";
       return false;
     }
-    if (cast.stream_count != subscribe_done_.stream_count) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_DONE stream count mismatch";
+    if (cast.stream_count != publish_done_.stream_count) {
+      QUIC_LOG(INFO) << "PUBLISH_DONE stream count mismatch";
       return false;
     }
-    if (cast.error_reason != subscribe_done_.error_reason) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_DONE error reason mismatch";
+    if (cast.error_reason != publish_done_.error_reason) {
+      QUIC_LOG(INFO) << "PUBLISH_DONE error reason mismatch";
       return false;
     }
 
@@ -893,7 +893,7 @@ class QUICHE_NO_EXPORT PublishDoneMessage : public TestMessageBase {
   void ExpandVarints() override { ExpandVarintsImpl("vvvv--"); }
 
   MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(subscribe_done_);
+    return TestMessageBase::MessageStructuredData(publish_done_);
   }
 
  private:
@@ -903,7 +903,7 @@ class QUICHE_NO_EXPORT PublishDoneMessage : public TestMessageBase {
       0x02, 0x68, 0x69,              // error_reason = "hi"
   };
 
-  MoqtPublishDone subscribe_done_ = {
+  MoqtPublishDone publish_done_ = {
       /*request_id=*/2,
       /*error_code=*/PublishDoneCode::kTrackEnded,
       /*stream_count=*/5,

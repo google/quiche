@@ -100,8 +100,8 @@ class SubscribeRemoteTrack : public RemoteTrack {
         visitor_(visitor),
         delivery_timeout_(subscribe.parameters.delivery_timeout) {}
   ~SubscribeRemoteTrack() override {
-    if (subscribe_done_alarm_ != nullptr) {
-      subscribe_done_alarm_->PermanentCancel();
+    if (publish_done_alarm_ != nullptr) {
+      publish_done_alarm_->PermanentCancel();
     }
   }
 
@@ -134,7 +134,7 @@ class SubscribeRemoteTrack : public RemoteTrack {
   void OnStreamOpened();
   void OnStreamClosed(bool fin_received, std::optional<DataStreamIndex> index);
   void OnPublishDone(uint64_t stream_count, const quic::QuicClock* clock,
-                     std::unique_ptr<quic::QuicAlarm> subscribe_done_alarm);
+                     std::unique_ptr<quic::QuicAlarm> publish_done_alarm);
   bool all_streams_closed() const {
     return total_streams_.has_value() && *total_streams_ == streams_closed_;
   }
@@ -166,12 +166,12 @@ class SubscribeRemoteTrack : public RemoteTrack {
   int currently_open_streams_ = 0;
   // Every stream that has received FIN or RESET_STREAM.
   uint64_t streams_closed_ = 0;
-  // Value assigned on SUBSCRIBE_DONE. Can destroy subscription state if
+  // Value assigned on PUBLISH_DONE. Can destroy subscription state if
   // streams_closed_ == total_streams_.
   std::optional<uint64_t> total_streams_;
   // Timer to clean up the track if there are no open streams.
   quic::QuicTimeDelta delivery_timeout_ = quic::QuicTimeDelta::Infinite();
-  std::unique_ptr<quic::QuicAlarm> subscribe_done_alarm_ = nullptr;
+  std::unique_ptr<quic::QuicAlarm> publish_done_alarm_ = nullptr;
   const quic::QuicClock* clock_ = nullptr;
 };
 

@@ -685,12 +685,12 @@ TEST_F(MoqtIntegrationTest, CleanPublishDone) {
   EXPECT_FALSE(client_->session()->SubscribeCurrentObject(
       full_track_name, &subscribe_visitor_, VersionSpecificParameters()));
   queue->RemoveAllSubscriptions();  // Induce a PUBLISH_DONE.
-  bool subscribe_done = false;
+  bool publish_done = false;
   EXPECT_CALL(subscribe_visitor_, OnPublishDone).WillOnce([&]() {
-    subscribe_done = true;
+    publish_done = true;
   });
-  success = test_harness_.RunUntilWithDefaultTimeout(
-      [&]() { return subscribe_done; });
+  success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return publish_done; });
   EXPECT_TRUE(success);
   // Subscription is deleted; the client session should not immediately reject
   // a new attempt.

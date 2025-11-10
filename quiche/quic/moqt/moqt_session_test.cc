@@ -1413,7 +1413,7 @@ TEST_F(MoqtSessionTest, GroupAbandonedNoDeliveryTimeout) {
   EXPECT_TRUE(correct_message);
   EXPECT_TRUE(fin);
 
-  struct MoqtPublishDone expected_subscribe_done = {
+  struct MoqtPublishDone expected_publish_done = {
       /*request_id=*/0,
       PublishDoneCode::kTooFarBehind,
       /*stream_count=*/1,
@@ -1424,7 +1424,7 @@ TEST_F(MoqtSessionTest, GroupAbandonedNoDeliveryTimeout) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(control_stream,
-              Writev(SerializedControlMessage(expected_subscribe_done), _));
+              Writev(SerializedControlMessage(expected_publish_done), _));
   subscription->OnGroupAbandoned(5);
 }
 
@@ -1479,7 +1479,7 @@ TEST_F(MoqtSessionTest, GroupAbandonedDeliveryTimeout) {
   EXPECT_TRUE(correct_message);
   EXPECT_TRUE(fin);
 
-  struct MoqtPublishDone expected_subscribe_done = {
+  struct MoqtPublishDone expected_publish_done = {
       /*request_id=*/0,
       PublishDoneCode::kTooFarBehind,
       /*stream_count=*/1,
@@ -1490,7 +1490,7 @@ TEST_F(MoqtSessionTest, GroupAbandonedDeliveryTimeout) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(control_stream,
-              Writev(SerializedControlMessage(expected_subscribe_done), _));
+              Writev(SerializedControlMessage(expected_publish_done), _));
   subscription->OnGroupAbandoned(5);
 }
 
@@ -3754,12 +3754,12 @@ TEST_F(MoqtSessionTest, PublishDoneTimeout) {
   stream_input->OnPublishDoneMessage(
       MoqtPublishDone(0, PublishDoneCode::kTrackEnded, kNumStreams + 1, "foo"));
   EXPECT_FALSE(track->all_streams_closed());
-  auto* subscribe_done_alarm =
+  auto* publish_done_alarm =
       static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
           MoqtSessionPeer::GetPublishDoneAlarm(track));
   EXPECT_CALL(remote_track_visitor_, OnPublishDone(_));
-  subscribe_done_alarm->Fire();
-  // quic::test::MockAlarmFactory::FireAlarm(subscribe_done_alarm);;
+  publish_done_alarm->Fire();
+  // quic::test::MockAlarmFactory::FireAlarm(publish_done_alarm);;
   EXPECT_EQ(MoqtSessionPeer::remote_track(&session_, 0), nullptr);
 }
 

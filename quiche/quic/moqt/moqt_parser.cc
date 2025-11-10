@@ -532,16 +532,16 @@ size_t MoqtControlParser::ProcessUnsubscribe(quic::QuicDataReader& reader) {
 }
 
 size_t MoqtControlParser::ProcessPublishDone(quic::QuicDataReader& reader) {
-  MoqtPublishDone subscribe_done;
+  MoqtPublishDone publish_done;
   uint64_t value;
-  if (!reader.ReadVarInt62(&subscribe_done.request_id) ||
+  if (!reader.ReadVarInt62(&publish_done.request_id) ||
       !reader.ReadVarInt62(&value) ||
-      !reader.ReadVarInt62(&subscribe_done.stream_count) ||
-      !reader.ReadStringVarInt62(subscribe_done.error_reason)) {
+      !reader.ReadVarInt62(&publish_done.stream_count) ||
+      !reader.ReadStringVarInt62(publish_done.error_reason)) {
     return 0;
   }
-  subscribe_done.status_code = static_cast<PublishDoneCode>(value);
-  visitor_.OnPublishDoneMessage(subscribe_done);
+  publish_done.status_code = static_cast<PublishDoneCode>(value);
+  visitor_.OnPublishDoneMessage(publish_done);
   return reader.PreviouslyReadPayload().length();
 }
 

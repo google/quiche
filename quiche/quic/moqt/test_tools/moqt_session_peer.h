@@ -229,7 +229,7 @@ class MoqtSessionPeer {
 
   static quic::QuicAlarm* GetPublishDoneAlarm(
       SubscribeRemoteTrack* subscription) {
-    return subscription->subscribe_done_alarm_.get();
+    return subscription->publish_done_alarm_.get();
   }
 
   static quic::QuicAlarm* GetGoAwayTimeoutAlarm(MoqtSession* session) {
