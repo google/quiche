@@ -94,8 +94,8 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   // call allows all the listeners to delete their reference and actually
   // destroy the object.
   void RemoveAllSubscriptions() {
-    for (MoqtObjectListener* listener : listeners_) {
-      listener->OnTrackPublisherGone();
+    while (!listeners_.empty()) {
+      (*listeners_.begin())->OnTrackPublisherGone();
     }
   }
 

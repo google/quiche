@@ -170,8 +170,8 @@ class TestTrackPublisher : public MoqtTrackPublisher {
     }
   }
   void RemoveAllSubscriptions() {
-    for (MoqtObjectListener* listener : listeners_) {
-      listener->OnTrackPublisherGone();
+    while (!listeners_.empty()) {
+      (*listeners_.begin())->OnTrackPublisherGone();
     }
   }
 
