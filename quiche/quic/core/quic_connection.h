@@ -1082,9 +1082,7 @@ class QUICHE_EXPORT QuicConnection
   // Sends a connectivity probing packet to |peer_address| with
   // |probing_writer|. If |probing_writer| is nullptr, will use default
   // packet writer to write the packet. Returns true if subsequent packets can
-  // be written to the probing writer. If connection is V99, a padded IETF QUIC
-  // PATH_CHALLENGE packet is transmitted; if not V99, a Google QUIC padded PING
-  // packet is transmitted.
+  // be written to the probing writer.
   virtual bool SendConnectivityProbingPacket(
       QuicPacketWriter* probing_writer, const QuicSocketAddress& peer_address);
 
@@ -1223,16 +1221,6 @@ class QUICHE_EXPORT QuicConnection
   // Process previously queued coalesced packets. Returns true if any coalesced
   // packets have been successfully processed.
   bool MaybeProcessCoalescedPackets();
-
-  enum PacketContent : uint8_t {
-    NO_FRAMES_RECEIVED,
-    // TODO(fkastenholz): Change name when we get rid of padded ping/
-    // pre-version-99.
-    // Also PATH CHALLENGE and PATH RESPONSE.
-    FIRST_FRAME_IS_PING,
-    SECOND_FRAME_IS_PADDING,
-    NOT_PADDED_PING,  // Set if the packet is not {PING, PADDING}.
-  };
 
   // Whether the handshake completes from this connection's perspective.
   bool IsHandshakeComplete() const;

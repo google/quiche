@@ -961,7 +961,7 @@ TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {
     encrypted =
         creator_.SerializePathChallengeConnectivityProbingPacket(payload);
   } else {
-    encrypted = creator_.SerializeConnectivityProbingPacket();
+    encrypted = creator_.SerializeGQuicConnectivityProbingPacket();
   }
   {
     InSequence s;
@@ -3958,7 +3958,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
     probing_packet =
         creator_.SerializePathChallengeConnectivityProbingPacket(payload);
   } else {
-    probing_packet = creator_.SerializeConnectivityProbingPacket();
+    probing_packet = creator_.SerializeGQuicConnectivityProbingPacket();
   }
 
   ASSERT_TRUE(simple_framer_.ProcessPacket(QuicEncryptedPacket(

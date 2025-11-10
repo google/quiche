@@ -5190,9 +5190,9 @@ bool QuicConnection::SendConnectivityProbingPacket(
 
   std::unique_ptr<SerializedPacket> probing_packet;
   if (!version().HasIetfQuicFrames()) {
-    // Non-IETF QUIC, generate a padded ping regardless of whether this is a
+    // For gQUIC, generate a padded ping regardless of whether this is a
     // request or a response.
-    probing_packet = packet_creator_.SerializeConnectivityProbingPacket();
+    probing_packet = packet_creator_.SerializeGQuicConnectivityProbingPacket();
   } else {
     // IETF QUIC path challenge.
     // Send a path probe request using IETF QUIC PATH_CHALLENGE frame.

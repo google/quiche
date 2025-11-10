@@ -902,7 +902,7 @@ bool QuicPacketCreator::SerializePacket(QuicOwnedPacketBuffer encrypted_buffer,
 }
 
 std::unique_ptr<SerializedPacket>
-QuicPacketCreator::SerializeConnectivityProbingPacket() {
+QuicPacketCreator::SerializeGQuicConnectivityProbingPacket() {
   QUIC_BUG_IF(quic_bug_12398_11,
               VersionHasIetfQuicFrames(framer_->transport_version()))
       << ENDPOINT

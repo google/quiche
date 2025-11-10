@@ -243,8 +243,8 @@ class QUICHE_EXPORT QuicPacketCreator {
   bool AddPaddedSavedFrame(const QuicFrame& frame,
                            TransmissionType transmission_type);
 
-  // Creates a connectivity probing packet for versions prior to version 99.
-  std::unique_ptr<SerializedPacket> SerializeConnectivityProbingPacket();
+  // Creates a connectivity probing packet for gQUIC.
+  std::unique_ptr<SerializedPacket> SerializeGQuicConnectivityProbingPacket();
 
   // Create connectivity probing request and response packets using PATH
   // CHALLENGE and PATH RESPONSE frames, respectively, for version 99/IETF QUIC.
