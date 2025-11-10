@@ -365,7 +365,9 @@ cc_library(
     srcs = masque_support_srcs,
     hdrs = masque_support_hdrs,
     deps = [
+        ":binary_http",
         ":io_tool_support",
+        ":oblivious_http",
         ":quiche_core",
         ":quiche_tool_support",
         "@boringssl//:crypto",
