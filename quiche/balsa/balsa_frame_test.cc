@@ -2190,6 +2190,7 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesAllowed) {
   HttpValidationPolicy http_validation_policy{
       .sanitize_firstline_spaces =
           HttpValidationPolicy::FirstLineValidationOption::NONE};
+  balsa_frame_.set_is_request(false);
   balsa_frame_.set_http_validation_policy(http_validation_policy);
   EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
   EXPECT_CALL(visitor_mock_, HeaderDone());
@@ -2209,6 +2210,7 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesRejected) {
   HttpValidationPolicy http_validation_policy{
       .sanitize_firstline_spaces =
           HttpValidationPolicy::FirstLineValidationOption::REJECT};
+  balsa_frame_.set_is_request(false);
   balsa_frame_.set_http_validation_policy(http_validation_policy);
   EXPECT_CALL(visitor_mock_, ProcessHeaders(_)).Times(0);
   EXPECT_CALL(visitor_mock_, HeaderDone()).Times(0);
@@ -2219,7 +2221,7 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesRejected) {
   EXPECT_GT(message1.size(),
             balsa_frame_.ProcessInput(message1.data(), message1.size()));
   EXPECT_TRUE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::MULTIPLE_SPACES_IN_REQUEST_LINE,
+  EXPECT_EQ(BalsaFrameEnums::MULTIPLE_SPACES_IN_STATUS_LINE,
             balsa_frame_.ErrorCode());
 }
 
@@ -2228,6 +2230,7 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesSanitized) {
       .sanitize_firstline_spaces =
           HttpValidationPolicy::FirstLineValidationOption::SANITIZE};
   balsa_frame_.set_http_validation_policy(http_validation_policy);
+  balsa_frame_.set_is_request(false);
   EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
   EXPECT_CALL(visitor_mock_, HeaderDone());
   const std::string message1 =

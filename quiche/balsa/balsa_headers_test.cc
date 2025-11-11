@@ -2796,7 +2796,7 @@ TEST(BalsaHeaders, TestSetResponseReasonPhrase) {
   // twice-- once from the original, and once from the previous.
   for (size_t iteration = 0; iteration < arraysize_squared; ++iteration) {
     SCOPED_TRACE("Original firstline: \"HTTP/1.0 200 reason phrase\"");
-    BalsaHeaders headers = CreateHTTPHeaders(true,
+    BalsaHeaders headers = CreateHTTPHeaders(false,
                                              "HTTP/1.0 200 reason phrase\r\n"
                                              "content-length: 0\r\n"
                                              "\r\n");
