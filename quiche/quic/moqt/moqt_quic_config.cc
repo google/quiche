@@ -4,8 +4,10 @@
 
 #include "quiche/quic/moqt/moqt_quic_config.h"
 
+#include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 
 namespace moqt {
 
@@ -37,6 +39,11 @@ void TuneQuicConfig(quic::QuicConfig& config) {
       kDefaultInitialStreamWindow);
   config.SetInitialSessionFlowControlWindowToSend(
       kDefaultInitialConnectionWindow);
+
+  // Enable a workaround for a BBRv1 issue that MOQT can hit often.
+  SetQuicReloadableFlag(quic_bbr_exit_startup_on_loss, true);
+  config.AddConnectionOptionsToSend({quic::kB1AL});
+  config.SetClientConnectionOptions({quic::kB1AL});
 }
 
 quic::QuicConfig GenerateQuicConfig() {

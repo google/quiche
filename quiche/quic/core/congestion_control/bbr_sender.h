@@ -381,6 +381,10 @@ class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
 
   // Max congestion window when adjusting network parameters.
   QuicByteCount max_congestion_window_with_network_parameters_adjusted_;
+
+  // If true, exceeding loss limits will cause BBRv1 to exit STARTUP even if
+  // there are no app-limited samples.
+  bool exit_startup_on_loss_even_if_app_limited_;
 };
 
 QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,

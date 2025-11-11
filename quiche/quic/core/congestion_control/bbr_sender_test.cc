@@ -106,6 +106,7 @@ class BbrSenderTest : public QuicTest {
     sender_ = SetupBbrSender(&bbr_sender_);
     SetConnectionOption(kBBRA);
     clock_ = simulator_.GetClock();
+    SetQuicReloadableFlag(quic_bbr_always_exit_startup_on_loss, true);
   }
 
   void SetUp() override {
