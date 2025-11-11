@@ -23,13 +23,14 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
+#include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
-namespace moqt {
+namespace moqt::test {
 namespace {
 
 using ::quiche::test::IsOkAndHolds;
@@ -38,6 +39,7 @@ using ::testing::AnyOf;
 using ::testing::ElementsAre;
 using ::testing::Field;
 using ::testing::IsEmpty;
+using ::testing::Return;
 
 class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
                               public MoqtObjectListener {
@@ -477,5 +479,26 @@ TEST(MoqtOutgoingQueue, EndOfTrack) {
   EXPECT_EQ(end_location, Location(2, 0));
 }
 
+// Regression test for b/459527759. `RemoveAllSubscriptions()` calls
+// `MoqtObjectListener::OnTrackPublisherGone()` on each of its listeners. The
+// implementation must iterate carefully because `OnTrackPublisherGone()`
+// removes the listener from the container.
+TEST(MoqtOutgoingQueue, RemoveAllSubscriptionsDoesNotCrash) {
+  TestMoqtOutgoingQueue queue;
+  queue.RemoveObjectListener(&queue);
+
+  std::vector<MockMoqtObjectListener> listeners(2);
+  for (MockMoqtObjectListener& listener : listeners) {
+    EXPECT_CALL(listener, OnSubscribeAccepted).WillOnce(Return());
+    EXPECT_CALL(listener, OnTrackPublisherGone).WillOnce([&] {
+      queue.RemoveObjectListener(&listener);
+    });
+    queue.AddObjectListener(&listener);
+  }
+
+  queue.RemoveAllSubscriptions();
+  EXPECT_FALSE(queue.HasSubscribers());
+}
+
 }  // namespace
-}  // namespace moqt
+}  // namespace moqt::test
