@@ -18100,7 +18100,6 @@ TEST_P(QuicConnectionTest, AllAckedPacketsCleared) {
   if (!version().UsesTls()) {
     return;
   }
-  SetQuicReloadableFlag(quic_fail_on_empty_ack, true);
   // Two packets arrive to trigger an ACK.
   QuicPacketNumber largest_packet_sent;
   EXPECT_CALL(connection_, OnSerializedPacket)
@@ -18134,7 +18133,6 @@ TEST_P(QuicConnectionTest, DispatcherAckedOpportunisticAck) {
   if (!version().UsesTls()) {
     return;
   }
-  SetQuicReloadableFlag(quic_fail_on_empty_ack, true);
   set_perspective(Perspective::IS_SERVER);
   connection_.RemoveEncrypter(ENCRYPTION_FORWARD_SECURE);
 
@@ -18164,7 +18162,6 @@ TEST_P(QuicConnectionTest, DispatcherAckedOpportunisticAck) {
   EXPECT_CALL(visitor_, OnConnectionClosed);
   ProcessFramesPacketAtLevel(1, peer_frames, ENCRYPTION_INITIAL);
 
-  // If quic_fail_on_empty_ack is false, this will trigger a BUG.
   connection_.SendCryptoData(ENCRYPTION_INITIAL, /*length=*/1000, /*offset=*/0);
   TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
 }

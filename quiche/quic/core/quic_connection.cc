@@ -5728,9 +5728,7 @@ void QuicConnection::PostProcessAfterAckFrame(bool acked_new_packet) {
         largest_packet_peer_knows_is_acked);
     if (uber_received_packet_manager_.IsAckFrameEmpty(
             QuicUtils::GetPacketNumberSpace(
-                last_received_packet_info_.decrypted_level)) &&
-        GetQuicReloadableFlag(quic_fail_on_empty_ack)) {
-      QUIC_RELOADABLE_FLAG_COUNT(quic_fail_on_empty_ack);
+                last_received_packet_info_.decrypted_level))) {
       // A packet N arrived from the peer, and was ACKed. Then a packet M < N
       // arrived acknowledging the locally generated ACK. This implies that
       // the packet numbers are not increasing. Or, M was sent with an
