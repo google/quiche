@@ -5,7 +5,7 @@
 #include "quiche/quic/core/tls_client_handshaker.h"
 
 #include <algorithm>
-#include <cstring>
+#include <cstdint>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -13,17 +13,27 @@
 #include <utility>
 #include <vector>
 
-#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "openssl/ssl.h"
+#include "quiche/quic/core/crypto/client_proof_source.h"
+#include "quiche/quic/core/crypto/crypto_handshake.h"
+#include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
-#include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
+#include "quiche/quic/core/quic_crypto_client_stream.h"
+#include "quiche/quic/core/quic_data_writer.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/tls_handshaker.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_hostname_utils.h"
+#include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace quic {
@@ -289,11 +299,14 @@ bool TlsClientHandshaker::SetTransportParameters() {
   }
 
   // The `debugging_sni` field must not be sent when attempting Encrypted Client
-  // Hello (ECH) because it would reveal the real SNI in cleartext. Further, it
-  // must not be sent when GREASEing ECH because that would reveal to observers
-  // whether the ECH was real or GREASE.
+  // Hello (ECH) because it would reveal the real SNI in cleartext. When only
+  // ECH GREASE will be sent, it's still sensible to omit `debugging_sni`
+  // because it would enable observers to discriminate real ECH from GREASE. The
+  // `kDSNI` option forces `debugging_sni` to be sent despite ECH GREASE.
   if (!tls_connection_.ssl_config().ech_config_list.empty() ||
-      tls_connection_.ssl_config().ech_grease_enabled) {
+      (tls_connection_.ssl_config().ech_grease_enabled &&
+       !session_->config()->HasClientSentConnectionOption(
+           kDSNI, Perspective::IS_CLIENT))) {
     params.debugging_sni.reset();
   }
 

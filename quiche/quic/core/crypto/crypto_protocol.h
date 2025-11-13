@@ -419,6 +419,8 @@ DEFINE_STATIC_QUIC_TAG(TRTT);  // If server receives an rtt
                                // it as the initial rtt.
 DEFINE_STATIC_QUIC_TAG(SNI);   // Server name
                                // indication
+DEFINE_STATIC_QUIC_TAG(DSNI);  // Enables the debugging_sni transport parameter
+                               // to be sent alongside ECH GREASE, but not ECH.
 DEFINE_STATIC_QUIC_TAG(PUBS);  // Public key values
 DEFINE_STATIC_QUIC_TAG(SCID);  // Server config id
 DEFINE_STATIC_QUIC_TAG(OBIT);  // Server orbit.
