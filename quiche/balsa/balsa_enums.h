@@ -120,6 +120,9 @@ struct QUICHE_EXPORT BalsaFrameEnums {
     // that doesn't support it.
     UNSUPPORTED_100_CONTINUE,
 
+    // Request method violates RFC 9110, Section 5.6.2
+    INVALID_REQUEST_METHOD,
+
     NUM_ERROR_CODES
   };
   static const char* ParseStateToString(ParseState error_code);

@@ -400,6 +400,15 @@ void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
       headers_->whitespace_4_idx_ - headers_->non_whitespace_3_idx_);
 
   if (is_request_) {
+    const bool is_method_valid = header_properties::IsValidToken(part1);
+    if (http_validation_policy().disallow_invalid_request_methods &&
+        !is_method_valid) {
+      parse_state_ = BalsaFrameEnums::ERROR;
+      last_error_ = BalsaFrameEnums::INVALID_REQUEST_METHOD;
+      HandleError(last_error_);
+      return;
+    }
+
     is_valid_target_uri_ = IsValidTargetUri(part1, part2);
     if (http_validation_policy().disallow_invalid_target_uris &&
         !is_valid_target_uri_) {

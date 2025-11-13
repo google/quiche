@@ -24,6 +24,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/balsa/balsa_enums.h"
 #include "quiche/balsa/balsa_frame.h"
+#include "quiche/balsa/http_validation_policy.h"
 #include "quiche/balsa/simple_buffer.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_logging.h"

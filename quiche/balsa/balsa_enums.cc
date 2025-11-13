@@ -128,6 +128,9 @@ const char* BalsaFrameEnums::ErrorCodeToString(
       return "INVALID_TRAILER_NAME_CHARACTER";
     case UNSUPPORTED_100_CONTINUE:
       return "UNSUPPORTED_100_CONTINUE";
+    case INVALID_REQUEST_METHOD:
+      return "INVALID_REQUEST_METHOD";
+    // This should be the last case in the switch statement.
     case NUM_ERROR_CODES:
       return "UNKNOWN_ERROR";
   }
