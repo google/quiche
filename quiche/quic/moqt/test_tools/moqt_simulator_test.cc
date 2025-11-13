@@ -6,7 +6,9 @@
 
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_connection_stats.h"
+#include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quic_trace/quic_trace.pb.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
@@ -27,6 +29,14 @@ int CountEventType(const quic_trace::Trace& trace, quic_trace::EventType type) {
   return count;
 }
 
+quic::CongestionControlType GetCongestionControlType(
+    const quic::QuicSession& session) {
+  return session.connection()
+      ->sent_packet_manager()
+      .GetSendAlgorithm()
+      ->GetCongestionControlType();
+}
+
 // Ensure the simulation works with default parameters.
 TEST_F(MoqtSimulatorTest, DefaultSettings) {
   MoqtSimulator simulator(SimulationParameters{});
@@ -35,6 +45,11 @@ TEST_F(MoqtSimulatorTest, DefaultSettings) {
   EXPECT_EQ(CountEventType(simulator.client_trace(),
                            EventType::MOQT_TARGET_BITRATE_SET),
             0);
+
+  EXPECT_EQ(GetCongestionControlType(*simulator.client_quic_session()),
+            quic::CongestionControlType::kBBR);
+  EXPECT_EQ(GetCongestionControlType(*simulator.server_quic_session()),
+            quic::CongestionControlType::kBBR);
 }
 
 // Ensure that the bitrate adaptation down works.

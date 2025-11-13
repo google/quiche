@@ -210,6 +210,9 @@ class MoqtSimulator {
   quic::QuicSession* client_quic_session() {
     return client_endpoint_.quic_session();
   }
+  quic::QuicSession* server_quic_session() {
+    return server_endpoint_.quic_session();
+  }
 
   std::string GetClientSessionCongestionControl();
 
