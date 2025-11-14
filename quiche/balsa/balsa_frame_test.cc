@@ -734,12 +734,12 @@ TEST(HTTPBalsaFrame, RequestFirstLineParsedCorrectly) {
 
 TEST(HTTPBalsaFrame, InvalidMethodTestWithoutPolicy) {
   for (int i = 0; i < 256; ++i) {
-    const char c = static_cast<char>(i);
+    const unsigned char c = static_cast<unsigned char>(i);
     BalsaFrame framer;
     BalsaHeaders headers;
     HttpValidationPolicy policy;
     policy.disallow_invalid_request_methods = false;
-    absl::string_view char_str(&c, 1);
+    std::string char_str(1, c);
     std::string first_line_with_char =
         absl::StrCat("G", char_str, "ET", " / HTTP/1.1\r\n\r\n");
     framer.set_http_validation_policy(policy);
@@ -773,12 +773,12 @@ TEST(HTTPBalsaFrame, InvalidMethodTestWithoutPolicy) {
 
 TEST(HTTPBalsaFrame, InvalidMethodTestWithPolicy) {
   for (int i = 0; i < 256; ++i) {
-    char c = static_cast<char>(i);
+    char unsigned c = static_cast<unsigned char>(i);
     BalsaFrame framer;
     BalsaHeaders headers;
     HttpValidationPolicy policy;
     policy.disallow_invalid_request_methods = true;
-    absl::string_view char_str(&c, 1);
+    std::string char_str(1, c);
     std::string first_line_with_char =
         absl::StrCat("G", char_str, "ET", " / HTTP/1.1\r\n\r\n");
     framer.set_http_validation_policy(policy);
