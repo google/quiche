@@ -403,6 +403,7 @@ void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
     const bool is_method_valid = header_properties::IsValidToken(part1);
     if (http_validation_policy().disallow_invalid_request_methods &&
         !is_method_valid) {
+      QUICHE_CODE_COUNT(disallow_invalid_request_methods_enforced);
       parse_state_ = BalsaFrameEnums::ERROR;
       last_error_ = BalsaFrameEnums::INVALID_REQUEST_METHOD;
       HandleError(last_error_);
