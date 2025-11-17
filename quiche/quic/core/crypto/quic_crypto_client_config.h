@@ -26,7 +26,6 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
@@ -518,8 +517,7 @@ class QUICHE_EXPORT QuicCryptoClientConfig : public QuicCryptoConfig {
   bool pad_full_hello_ = true;
 
   // Set whether ALPS uses the new codepoint or not.
-  bool alps_use_new_codepoint_ =
-      GetQuicReloadableFlag(quic_client_default_enable_new_alps_codepoint);
+  bool alps_use_new_codepoint_ = true;
 
   // If not nullopt, the SSL compliance policy to use. See documentation for
   // ssl_compliance_policy_t values in BoringSSL:

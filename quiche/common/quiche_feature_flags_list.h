@@ -19,7 +19,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr_always_exit_startup_on_loss, f
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr_exit_startup_on_loss, false, false, "Enables negotiation of a connection option (B1AL) that lets BBRv1 exit STARTUP if a large number of packets was lost even if there is no non-app-limited sample.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_block_until_settings_received_copt, true, true, "If enabled and a BSUS connection is received, blocks server connections until SETTINGS frame is received.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_client_check_blockage_before_on_can_write, false, false, "If true, quic clients will only call OnCanWrite() upon write events if the writer is unblocked.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_client_default_enable_new_alps_codepoint, true, true, "If true, default-enable quic client to use new ALPS codepoint.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_conservative_bursts, false, false, "If true, set burst token to 2 in cwnd bootstrapping experiment.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false, false, "If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true, true, "If true, default-enable 5RTO blachole detection.")
