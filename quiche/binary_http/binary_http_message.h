@@ -184,91 +184,20 @@ class QUICHE_EXPORT BinaryHttpRequest : public BinaryHttpMessage {
   // Provides a Decode method that can be called multiple times as data is
   // received. The relevant MessageSectionHandler method will be called when
   // its corresponding section is successfully decoded.
-  class QUICHE_EXPORT IndeterminateLengthDecoder {
-   public:
-    // The handler to invoke when a section is decoded successfully. The
-    // handler can return an error if the decoded data cannot be processed
-    // successfully.
-    class QUICHE_EXPORT MessageSectionHandler {
-     public:
-      virtual ~MessageSectionHandler() = default;
-      virtual absl::Status OnControlData(const ControlData& control_data) = 0;
-      virtual absl::Status OnHeader(absl::string_view name,
-                                    absl::string_view value) = 0;
-      virtual absl::Status OnHeadersDone() = 0;
-      virtual absl::Status OnBodyChunk(absl::string_view body_chunk) = 0;
-      virtual absl::Status OnBodyChunksDone() = 0;
-      virtual absl::Status OnTrailer(absl::string_view name,
-                                     absl::string_view value) = 0;
-      virtual absl::Status OnTrailersDone() = 0;
-    };
-
-    explicit IndeterminateLengthDecoder(
-        MessageSectionHandler& message_section_handler)
-        : message_section_handler_(message_section_handler) {}
-
-    // Decodes an Indeterminate-Length BHTTP request. As the caller receives
-    // portions of the request, the caller can call this method with the request
-    // portion. The class keeps track of the current message section that is
-    // being decoded and buffers data if the section is not fully decoded so
-    // that the next call can continue decoding from where it left off. It will
-    // also invoke the appropriate MessageSectionHandler method when a section
-    // is decoded successfully.
-    // `end_stream` indicates that no more data will be provided to the decoder.
-    // This is used to determine if a valid message was decoded properly given
-    // the last piece of data provided, handling both complete messages and
-    // truncated messages.
-    absl::Status Decode(absl::string_view data, bool end_stream);
-
-   private:
-    // The sections of an Indeterminate-Length BHTTP request.
-    enum class MessageSection {
-      kControlData,
-      kHeader,
-      kBody,
-      kTrailer,
-      kPadding,
-      // The decoder is set to end after end_stream is received or when an error
-      // occurs while decoding.
-      kEnd,
-    };
-
-    // Initializes the checkpoint with the provided data and any buffered data.
-    void InitializeCheckpoint(absl::string_view data);
-    // Carries out the decode logic from the checkpoint. Returns
-    // OutOfRangeError if there is not enough data to decode the current
-    // section. When a section is fully decoded, the checkpoint is updated.
-    absl::Status DecodeCheckpointData(bool end_stream);
-    // Saves the checkpoint based on the current position of the reader.
-    void SaveCheckpoint(const QuicheDataReader& reader) {
-      checkpoint_view_ = reader.PeekRemainingPayload();
-    }
-    // Buffers the checkpoint.
-    void BufferCheckpoint() { buffer_ = std::string(checkpoint_view_); }
-    // Decodes a section 0 or more times until a content terminator is
-    // encountered.
-    absl::Status DecodeContentTerminatedSection(QuicheDataReader& reader);
-
-    MessageSectionHandler& message_section_handler_;
-    // Stores the data that could not be processed due to missing data.
-    std::string buffer_;
-    // Tracks the remaining data to be processed or buffered.
-    // When decoding fails due to missing data, we buffer based on this
-    // checkpoint and return. When decoding succeeds, we update the checkpoint
-    // to not buffer the already processed data.
-    absl::string_view checkpoint_view_;
-    // The current section that is being decoded.
-    MessageSection current_section_ = MessageSection::kControlData;
-    // Upon initial entry of the body or trailer section, the message is assumed
-    // to be truncated. This will be set to `false` upon the detection of data,
-    // and the state remains consistent for the remainder of the section. This
-    // serves to differentiate between true truncation and an `end_stream`
-    // occurring after partial processing of the section's content but before
-    // its content terminator.
-    bool maybe_truncated_ = true;
-  };
+  class QUICHE_EXPORT IndeterminateLengthDecoder;
 
  private:
+  // The sections of an Indeterminate-Length BHTTP request.
+  enum class IndeterminateLengthMessageSection {
+    kControlData,
+    kHeader,
+    kBody,
+    kTrailer,
+    kPadding,
+    // The decoder/encoder is set to end after the message is marked as complete
+    // or if an error occurs while processing the message.
+    kEnd,
+  };
   absl::Status EncodeControlData(quiche::QuicheDataWriter& writer) const;
 
   size_t EncodedControlDataSize() const;
@@ -277,6 +206,82 @@ class QUICHE_EXPORT BinaryHttpRequest : public BinaryHttpMessage {
   absl::StatusOr<std::string> EncodeAsKnownLength() const;
 
   const ControlData control_data_;
+};
+
+// Provides a Decode method that can be called multiple times as data is
+// received. The relevant MessageSectionHandler method will be called when
+// its corresponding section is successfully decoded.
+class QUICHE_EXPORT BinaryHttpRequest::IndeterminateLengthDecoder {
+ public:
+  // The handler to invoke when a section is decoded successfully. The
+  // handler can return an error if the decoded data cannot be processed
+  // successfully.
+  class QUICHE_EXPORT MessageSectionHandler {
+   public:
+    virtual ~MessageSectionHandler() = default;
+    virtual absl::Status OnControlData(const ControlData& control_data) = 0;
+    virtual absl::Status OnHeader(absl::string_view name,
+                                  absl::string_view value) = 0;
+    virtual absl::Status OnHeadersDone() = 0;
+    virtual absl::Status OnBodyChunk(absl::string_view body_chunk) = 0;
+    virtual absl::Status OnBodyChunksDone() = 0;
+    virtual absl::Status OnTrailer(absl::string_view name,
+                                   absl::string_view value) = 0;
+    virtual absl::Status OnTrailersDone() = 0;
+  };
+
+  explicit IndeterminateLengthDecoder(
+      MessageSectionHandler& message_section_handler)
+      : message_section_handler_(message_section_handler) {}
+
+  // Decodes an Indeterminate-Length BHTTP request. As the caller receives
+  // portions of the request, the caller can call this method with the request
+  // portion. The class keeps track of the current message section that is
+  // being decoded and buffers data if the section is not fully decoded so
+  // that the next call can continue decoding from where it left off. It will
+  // also invoke the appropriate MessageSectionHandler method when a section
+  // is decoded successfully.
+  // `end_stream` indicates that no more data will be provided to the decoder.
+  // This is used to determine if a valid message was decoded properly given
+  // the last piece of data provided, handling both complete messages and
+  // truncated messages.
+  absl::Status Decode(absl::string_view data, bool end_stream);
+
+ private:
+  // Initializes the checkpoint with the provided data and any buffered data.
+  void InitializeCheckpoint(absl::string_view data);
+  // Carries out the decode logic from the checkpoint. Returns
+  // OutOfRangeError if there is not enough data to decode the current
+  // section. When a section is fully decoded, the checkpoint is updated.
+  absl::Status DecodeCheckpointData(bool end_stream);
+  // Saves the checkpoint based on the current position of the reader.
+  void SaveCheckpoint(const QuicheDataReader& reader) {
+    checkpoint_view_ = reader.PeekRemainingPayload();
+  }
+  // Buffers the checkpoint.
+  void BufferCheckpoint() { buffer_ = std::string(checkpoint_view_); }
+  // Decodes a section 0 or more times until a content terminator is
+  // encountered.
+  absl::Status DecodeContentTerminatedSection(QuicheDataReader& reader);
+
+  MessageSectionHandler& message_section_handler_;
+  // Stores the data that could not be processed due to missing data.
+  std::string buffer_;
+  // Tracks the remaining data to be processed or buffered.
+  // When decoding fails due to missing data, we buffer based on this
+  // checkpoint and return. When decoding succeeds, we update the checkpoint
+  // to not buffer the already processed data.
+  absl::string_view checkpoint_view_;
+  // The current section that is being decoded.
+  IndeterminateLengthMessageSection current_section_ =
+      IndeterminateLengthMessageSection::kControlData;
+  // Upon initial entry of the body or trailer section, the message is assumed
+  // to be truncated. This will be set to `false` upon the detection of data,
+  // and the state remains consistent for the remainder of the section. This
+  // serves to differentiate between true truncation and an `end_stream`
+  // occurring after partial processing of the section's content but before
+  // its content terminator.
+  bool maybe_truncated_ = true;
 };
 
 void QUICHE_EXPORT PrintTo(const BinaryHttpRequest& msg, std::ostream* os);
@@ -378,44 +383,51 @@ class QUICHE_EXPORT BinaryHttpResponse : public BinaryHttpMessage {
   // encoder keeps track of what has been encoded so far to ensure sections are
   // encoded in the correct order, this means it can only be used for a single
   // BHTTP response message.
-  class QUICHE_EXPORT IndeterminateLengthEncoder {
-   public:
-    // Encodes the specified informational response status code, fields, and its
-    // content terminator.
-    absl::StatusOr<std::string> EncodeInformationalResponse(
-        uint16_t status_code, absl::Span<FieldView> fields);
-    // Encodes the specified status code, headers, and its content terminator.
-    absl::StatusOr<std::string> EncodeHeaders(uint16_t status_code,
-                                              absl::Span<FieldView> headers);
-    // Encodes the specified body chunks. If 'body_chunks_done' is true, the
-    // encoded body chunks are followed by the content terminator.
-    absl::StatusOr<std::string> EncodeBodyChunks(
-        absl::Span<absl::string_view> body_chunks, bool body_chunks_done);
-    // Encodes the specified trailers and its content terminator.
-    absl::StatusOr<std::string> EncodeTrailers(absl::Span<FieldView> trailers);
-
-   private:
-    enum class MessageSection {
-      kInformationalResponseOrHeader,
-      kBody,
-      kTrailer,
-      kEnd,
-    };
-    absl::StatusOr<std::string> EncodeFieldSection(
-        std::optional<uint16_t> status_code, absl::Span<FieldView> fields);
-    std::string GetMessageSectionString(MessageSection section) const;
-
-    MessageSection current_section_ =
-        MessageSection::kInformationalResponseOrHeader;
-    bool framing_indicator_encoded_ = false;
-  };
+  class QUICHE_EXPORT IndeterminateLengthEncoder;
 
  private:
+  enum class IndeterminateLengthMessageSection {
+    kInformationalResponseOrHeader,
+    kBody,
+    kTrailer,
+    kEnd,
+  };
   // Returns Binary Http known length request formatted response.
   absl::StatusOr<std::string> EncodeAsKnownLength() const;
 
   std::vector<InformationalResponse> informational_response_control_data_;
   const uint16_t status_code_;
+};
+
+// Provides encoding methods for an Indeterminate-Length BHTTP response. The
+// encoder keeps track of what has been encoded so far to ensure sections are
+// encoded in the correct order, this means it can only be used for a single
+// BHTTP response message.
+class QUICHE_EXPORT BinaryHttpResponse::IndeterminateLengthEncoder {
+ public:
+  // Encodes the specified informational response status code, fields, and its
+  // content terminator.
+  absl::StatusOr<std::string> EncodeInformationalResponse(
+      uint16_t status_code, absl::Span<FieldView> fields);
+  // Encodes the specified status code, headers, and its content terminator.
+  absl::StatusOr<std::string> EncodeHeaders(uint16_t status_code,
+                                            absl::Span<FieldView> headers);
+  // Encodes the specified body chunks. If 'body_chunks_done' is true, the
+  // encoded body chunks are followed by the content terminator.
+  absl::StatusOr<std::string> EncodeBodyChunks(
+      absl::Span<absl::string_view> body_chunks, bool body_chunks_done);
+  // Encodes the specified trailers and its content terminator.
+  absl::StatusOr<std::string> EncodeTrailers(absl::Span<FieldView> trailers);
+
+ private:
+  absl::StatusOr<std::string> EncodeFieldSection(
+      std::optional<uint16_t> status_code, absl::Span<FieldView> fields);
+  std::string GetMessageSectionString(
+      IndeterminateLengthMessageSection section) const;
+
+  IndeterminateLengthMessageSection current_section_ =
+      IndeterminateLengthMessageSection::kInformationalResponseOrHeader;
+  bool framing_indicator_encoded_ = false;
 };
 
 void QUICHE_EXPORT PrintTo(const BinaryHttpResponse& msg, std::ostream* os);

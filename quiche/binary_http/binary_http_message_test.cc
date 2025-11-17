@@ -96,31 +96,36 @@ class RequestMessageSectionTestHandler
   MessageData message_data_;
 };
 
-constexpr absl::string_view kIndeterminateLengthEncodedRequestHeaders =
-    "4002"                    // 2-byte framing indicator
+constexpr absl::string_view k2ByteFramingIndicator =
+    "4002";  // 2-byte framing indicator
+constexpr absl::string_view k8ByteContentTerminator =
+    "C000000000000000";  // 8-byte content terminator
+constexpr absl::string_view k4ByteContentTerminator =
+    "80000000";  // 4-byte content terminator
+constexpr absl::string_view kContentTerminator =
+    "00";                                         // 1-byte content terminator
+constexpr absl::string_view kPadding = "000000";  // 3-byte padding
+constexpr absl::string_view kIndeterminateLengthEncodedRequestControlData =
     "04504F5354"              // :method = POST
     "056874747073"            // :scheme = https
     "0A676F6F676C652E636F6D"  // :authority = "google.com"
-    "062F68656C6C6F"          // :path = /hello
+    "062F68656C6C6F";         // :path = /hello
+constexpr absl::string_view kIndeterminateLengthEncodedRequestHeaders =
     "0A757365722D6167656E74"  // user-agent
     "346375726C2F372E31362E33206C69626375726C2F372E31362E33204F70656E53534C2F"
     "302E392E376C207A6C69622F312E322E33"  // curl/7.16.3 libcurl/7.16.3
                                           // OpenSSL/0.9.7l zlib/1.2.3
     "0F6163636570742D6C616E6775616765"    // accept-language
-    "06656E2C206D69"                      // en, mi
-    "C000000000000000";                   // 8-byte content terminator
+    "06656E2C206D69";                     // en, mi
 constexpr absl::string_view kIndeterminateLengthEncodedRequestBodyChunks =
-    "066368756E6B31"  // chunk1
-    "066368756E6B32"  // chunk2
-    "066368756E6B33"  // chunk3
-    "80000000";       // 4-byte content terminator
+    "066368756E6B31"   // chunk1
+    "066368756E6B32"   // chunk2
+    "066368756E6B33";  // chunk3
 constexpr absl::string_view kIndeterminateLengthEncodedRequestTrailers =
     "08747261696C657231"  // trailer1
     "0676616C756531"      // value1
     "08747261696C657232"  // trailer2
-    "0676616C756532"      // value2
-    "00"                  // 1-byte content terminator
-    "000000";             // padding
+    "0676616C756532";     // value2
 }  // namespace
 // Test examples from
 // https://www.ietf.org/archive/id/draft-ietf-httpbis-binary-message-06.html
@@ -504,9 +509,12 @@ void ExpectRequestMessageSectionHandler(
 TEST(IndeterminateLengthDecoder, FullRequestDecodingSuccess) {
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(
-      absl::StrCat(kIndeterminateLengthEncodedRequestHeaders,
-                   kIndeterminateLengthEncodedRequestBodyChunks,
-                   kIndeterminateLengthEncodedRequestTrailers),
+      absl::StrCat(
+          k2ByteFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestBodyChunks, k4ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestTrailers, kContentTerminator,
+          kPadding),
       &request_bytes));
   RequestMessageSectionTestHandler handler;
   BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
@@ -555,9 +563,12 @@ GetMockMessageSectionHandler() {
 TEST(IndeterminateLengthDecoder, FailedMessageSectionHandler) {
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(
-      absl::StrCat(kIndeterminateLengthEncodedRequestHeaders,
-                   kIndeterminateLengthEncodedRequestBodyChunks,
-                   kIndeterminateLengthEncodedRequestTrailers),
+      absl::StrCat(
+          k2ByteFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestBodyChunks, k4ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestTrailers, kContentTerminator,
+          kPadding),
       &request_bytes));
 
   auto handler = GetMockMessageSectionHandler();
@@ -634,9 +645,12 @@ TEST(IndeterminateLengthDecoder, FailedMessageSectionHandler) {
 TEST(IndeterminateLengthDecoder, BufferedRequestDecodingSuccess) {
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(
-      absl::StrCat(kIndeterminateLengthEncodedRequestHeaders,
-                   kIndeterminateLengthEncodedRequestBodyChunks,
-                   kIndeterminateLengthEncodedRequestTrailers),
+      absl::StrCat(
+          k2ByteFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestBodyChunks, k4ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestTrailers, kContentTerminator,
+          kPadding),
       &request_bytes));
   RequestMessageSectionTestHandler handler;
   BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
@@ -677,9 +691,12 @@ TEST(IndeterminateLengthDecoder, InvalidPaddingError) {
   BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(
-      absl::StrCat(absl::StrCat(kIndeterminateLengthEncodedRequestHeaders,
-                                kIndeterminateLengthEncodedRequestBodyChunks,
-                                kIndeterminateLengthEncodedRequestTrailers)),
+      absl::StrCat(
+          k2ByteFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestBodyChunks, k4ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestTrailers, kContentTerminator,
+          kPadding),
       &request_bytes));
   QUICHE_EXPECT_OK(decoder.Decode(request_bytes, false));
   absl::Status status = decoder.Decode("\x01", false);
@@ -701,8 +718,11 @@ TEST(IndeterminateLengthDecoder, TruncatedBodyAndTrailers) {
   RequestMessageSectionTestHandler handler;
   BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
   std::string request_bytes;
-  EXPECT_TRUE(absl::HexStringToBytes(kIndeterminateLengthEncodedRequestHeaders,
-                                     &request_bytes));
+  EXPECT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(
+          k2ByteFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator),
+      &request_bytes));
 
   QUICHE_EXPECT_OK(decoder.Decode(request_bytes, true));
   auto message_data = handler.GetMessageData();
@@ -715,8 +735,11 @@ TEST(IndeterminateLengthDecoder, TruncatedBodyAndTrailersSplitEndStream) {
   RequestMessageSectionTestHandler handler;
   BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
   std::string request_bytes;
-  EXPECT_TRUE(absl::HexStringToBytes(kIndeterminateLengthEncodedRequestHeaders,
-                                     &request_bytes));
+  EXPECT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(
+          k2ByteFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator),
+      &request_bytes));
 
   QUICHE_EXPECT_OK(decoder.Decode(request_bytes, false));
   // Send `end_stream` with no data.
@@ -1000,8 +1023,11 @@ TEST(IndeterminateLengthDecoder, TruncatedTrailers) {
   BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(
-      absl::StrCat(kIndeterminateLengthEncodedRequestHeaders,
-                   kIndeterminateLengthEncodedRequestBodyChunks),
+      absl::StrCat(
+          k2ByteFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestBodyChunks,
+          k4ByteContentTerminator),
       &request_bytes));
 
   QUICHE_EXPECT_OK(decoder.Decode(request_bytes, true));
@@ -1018,8 +1044,11 @@ TEST(IndeterminateLengthDecoder, TruncatedTrailersSplitEndStream) {
   BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
   std::string request_bytes;
   EXPECT_TRUE(absl::HexStringToBytes(
-      absl::StrCat(kIndeterminateLengthEncodedRequestHeaders,
-                   kIndeterminateLengthEncodedRequestBodyChunks),
+      absl::StrCat(
+          k2ByteFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestBodyChunks,
+          k4ByteContentTerminator),
       &request_bytes));
 
   QUICHE_EXPECT_OK(decoder.Decode(request_bytes, false));
@@ -1035,8 +1064,11 @@ TEST(IndeterminateLengthDecoder, TruncatedTrailersSplitEndStream) {
 
 TEST(IndeterminateLengthDecoder, InvalidDecodeAfterEndStream) {
   std::string request_bytes;
-  EXPECT_TRUE(absl::HexStringToBytes(kIndeterminateLengthEncodedRequestHeaders,
-                                     &request_bytes));
+  EXPECT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(
+          k2ByteFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator),
+      &request_bytes));
   RequestMessageSectionTestHandler handler;
   BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
   QUICHE_EXPECT_OK(decoder.Decode(request_bytes, true));
