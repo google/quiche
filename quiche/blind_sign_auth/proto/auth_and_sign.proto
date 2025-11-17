@@ -81,7 +81,9 @@ message AuthAndSignResponse {
   // request. b64 encoded.
   repeated string blinded_token_signature = 4;
 
-  // The marconi server hostname bridge-proxy used to set up tunnel.
+  // The marconi server hostname bridge-proxy used to set up tunnel. This field
+  // is deprecated in favor of the more generic control_plane_override field.
+  // This field will be removed in the future.
   string copper_controller_hostname = 5;
 
   // The base64 encoding of override_region token and signature for white listed
@@ -90,4 +92,8 @@ message AuthAndSignResponse {
 
   // The APN type bridge-proxy use to deside which APN to use for connecting.
   string apn_type = 7;
+
+  // If set, the control plane address the client should use. This is used for
+  // testing and debugging only.
+  string control_plane_address_override = 8;
 }
