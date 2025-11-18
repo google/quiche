@@ -163,6 +163,9 @@ std::string TransportParameterIdToString(
     case TransportParameters::kGoogleConnectionOptions:
       return "google_connection_options";
     case TransportParameters::kGoogleQuicVersion:
+      if (GetQuicRestartFlag(quic_stop_parsing_legacy_version_info)) {
+        return absl::StrCat("Unknown(", param_id, ")");
+      }
       return "google-version";
     case TransportParameters::kMinAckDelayDraft10:
       return "min_ack_delay_us";
@@ -242,11 +245,12 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kDebuggingSni:
     case TransportParameters::kInitialRoundTripTime:
     case TransportParameters::kGoogleConnectionOptions:
-    case TransportParameters::kGoogleQuicVersion:
     case TransportParameters::kMinAckDelayDraft10:
     case TransportParameters::kReliableStreamReset:
     case TransportParameters::kVersionInformation:
       return true;
+    case TransportParameters::kGoogleQuicVersion:
+      return !GetQuicRestartFlag(quic_stop_parsing_legacy_version_info);
   }
   return false;
 }
@@ -771,12 +775,16 @@ bool SerializeTransportParameters(const TransportParameters& in,
         << "Not serializing invalid transport parameters: " << error_details;
     return false;
   }
-  if (!in.legacy_version_information.has_value() ||
-      in.legacy_version_information->version == 0 ||
-      (in.perspective == Perspective::IS_SERVER &&
-       in.legacy_version_information->supported_versions.empty())) {
-    QUIC_BUG(missing versions) << "Refusing to serialize without versions";
-    return false;
+  if (GetQuicRestartFlag(quic_stop_sending_legacy_version_info)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_stop_sending_legacy_version_info, 1, 4);
+  } else {
+    if (!in.legacy_version_information.has_value() ||
+        in.legacy_version_information->version == 0 ||
+        (in.perspective == Perspective::IS_SERVER &&
+         in.legacy_version_information->supported_versions.empty())) {
+      QUIC_BUG(missing versions) << "Refusing to serialize without versions";
+      return false;
+    }
   }
   TransportParameters::ParameterMap custom_parameters = in.custom_parameters;
   for (const auto& kv : custom_parameters) {
@@ -1266,6 +1274,11 @@ bool SerializeTransportParameters(const TransportParameters& in,
       } break;
       // Google-specific version extension.
       case TransportParameters::kGoogleQuicVersion: {
+        if (GetQuicRestartFlag(quic_stop_sending_legacy_version_info)) {
+          QUIC_RESTART_FLAG_COUNT_N(quic_stop_sending_legacy_version_info, 2,
+                                    4);
+          break;
+        }
         if (!in.legacy_version_information.has_value()) {
           break;
         }
@@ -1609,6 +1622,19 @@ bool ParseTransportParameters(ParsedQuicVersion version,
         }
       } break;
       case TransportParameters::kGoogleQuicVersion: {
+        if (GetQuicRestartFlag(quic_stop_parsing_legacy_version_info)) {
+          QUIC_RESTART_FLAG_COUNT_N(quic_stop_parsing_legacy_version_info, 3,
+                                    3);
+          if (out->custom_parameters.find(param_id) !=
+              out->custom_parameters.end()) {
+            *error_details = "Received a second unknown parameter" +
+                             TransportParameterIdToString(param_id);
+            return false;
+          }
+          out->custom_parameters[param_id] =
+              std::string(value_reader.ReadRemainingPayload());
+          break;
+        }
         if (!out->legacy_version_information.has_value()) {
           out->legacy_version_information =
               TransportParameters::LegacyVersionInformation();

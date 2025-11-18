@@ -108,8 +108,8 @@ struct QUICHE_EXPORT TransportParameters {
 
   // LegacyVersionInformation represents the Google QUIC downgrade prevention
   // mechanism ported to QUIC+TLS. It is exchanged using transport parameter ID
-  // 0x4752 and will eventually be deprecated in favor of
-  // draft-ietf-quic-version-negotiation.
+  // 0x4752 and is in the process of being deprecated in favor of RFC 9368
+  // which uses the VersionInformation class below.
   struct QUICHE_EXPORT LegacyVersionInformation {
     LegacyVersionInformation();
     LegacyVersionInformation(const LegacyVersionInformation& other) = default;
@@ -139,7 +139,7 @@ struct QUICHE_EXPORT TransportParameters {
   };
 
   // Version information used for version downgrade prevention and compatible
-  // version negotiation. See draft-ietf-quic-version-negotiation-05.
+  // version negotiation. See RFC 9368.
   struct QUICHE_EXPORT VersionInformation {
     VersionInformation();
     VersionInformation(const VersionInformation& other) = default;
@@ -176,11 +176,11 @@ struct QUICHE_EXPORT TransportParameters {
   // the encrypted_extensions handshake message.
   Perspective perspective;
 
-  // Google QUIC downgrade prevention mechanism sent over QUIC+TLS.
+  // Google QUIC downgrade prevention mechanism sent over QUIC+TLS. This is
+  // being deprecated in favor of the version_information field below.
   std::optional<LegacyVersionInformation> legacy_version_information;
 
-  // IETF downgrade prevention and compatible version negotiation, see
-  // draft-ietf-quic-version-negotiation.
+  // IETF downgrade prevention and compatible version negotiation, see RFC 9368.
   std::optional<VersionInformation> version_information;
 
   // The value of the Destination Connection ID field from the first
