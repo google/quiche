@@ -63,10 +63,6 @@ TEST(QuicVersionsTest, Features) {
 
   EXPECT_TRUE(parsed_version_q046.IsKnown());
   EXPECT_FALSE(parsed_version_q046.IsIetfQuic());
-  EXPECT_FALSE(parsed_version_q046.SupportsClientConnectionIds());
-  EXPECT_FALSE(parsed_version_q046.HasLengthPrefixedConnectionIds());
-  EXPECT_FALSE(parsed_version_q046.SupportsAntiAmplificationLimit());
-  EXPECT_FALSE(parsed_version_q046.CanSendCoalescedPackets());
   EXPECT_TRUE(parsed_version_q046.SupportsGoogleAltSvcFormat());
   EXPECT_FALSE(parsed_version_q046.UsesHttp3());
   EXPECT_FALSE(parsed_version_q046.HasLongHeaderLengths());
@@ -77,10 +73,6 @@ TEST(QuicVersionsTest, Features) {
 
   EXPECT_TRUE(parsed_version_draft_29.IsKnown());
   EXPECT_TRUE(parsed_version_draft_29.IsIetfQuic());
-  EXPECT_TRUE(parsed_version_draft_29.SupportsClientConnectionIds());
-  EXPECT_TRUE(parsed_version_draft_29.HasLengthPrefixedConnectionIds());
-  EXPECT_TRUE(parsed_version_draft_29.SupportsAntiAmplificationLimit());
-  EXPECT_TRUE(parsed_version_draft_29.CanSendCoalescedPackets());
   EXPECT_FALSE(parsed_version_draft_29.SupportsGoogleAltSvcFormat());
   EXPECT_TRUE(parsed_version_draft_29.UsesHttp3());
   EXPECT_TRUE(parsed_version_draft_29.HasLongHeaderLengths());

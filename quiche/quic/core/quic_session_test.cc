@@ -258,7 +258,7 @@ class TestSession : public QuicSession {
     this->connection()->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullEncrypter>(connection->perspective()));
-    if (this->connection()->version().SupportsAntiAmplificationLimit()) {
+    if (this->connection()->version().IsIetfQuic()) {
       QuicConnectionPeer::SetAddressValidated(this->connection());
     }
   }

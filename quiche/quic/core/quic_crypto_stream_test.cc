@@ -645,7 +645,7 @@ TEST_F(QuicCryptoStreamTest, CryptoMessageFramingOverhead) {
     if (version.HasLongHeaderLengths()) {
       expected_overhead += 3;
     }
-    if (version.HasLengthPrefixedConnectionIds()) {
+    if (version.IsIetfQuic()) {
       expected_overhead += 1;
     }
     EXPECT_EQ(expected_overhead,

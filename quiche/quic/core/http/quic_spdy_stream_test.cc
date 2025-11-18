@@ -431,7 +431,7 @@ class QuicSpdyStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     session_ = std::make_unique<StrictMock<TestSession>>(connection_);
     EXPECT_CALL(*session_, OnCongestionWindowChange(_)).Times(AnyNumber());
     session_->Initialize();
-    if (connection_->version().SupportsAntiAmplificationLimit()) {
+    if (connection_->version().IsIetfQuic()) {
       QuicConnectionPeer::SetAddressValidated(connection_);
     }
     connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));

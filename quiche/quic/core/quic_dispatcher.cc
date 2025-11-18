@@ -313,7 +313,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
           << "Invalid destination connection ID length for version";
       return;
     }
-    if (packet_info.version.SupportsClientConnectionIds() &&
+    if (packet_info.version.IsIetfQuic() &&
         !QuicUtils::IsConnectionIdValidForVersion(
             packet_info.source_connection_id,
             packet_info.version.transport_version)) {
@@ -1160,8 +1160,7 @@ void QuicDispatcher::OnExpiredPackets(
       self_address, peer_address, early_arrived_packets.original_connection_id,
       early_arrived_packets.ietf_quic ? IETF_QUIC_LONG_HEADER_PACKET
                                       : GOOGLE_QUIC_Q043_PACKET,
-      /*version_flag=*/true,
-      early_arrived_packets.version.HasLengthPrefixedConnectionIds(),
+      /*version_flag=*/true, early_arrived_packets.version.IsIetfQuic(),
       early_arrived_packets.version, error_code,
       "Packets buffered for too long",
       quic::QuicTimeWaitListManager::SEND_STATELESS_RESET,
@@ -1486,7 +1485,7 @@ QuicDispatcher::HandleConnectionIdCollision(
   StatelesslyTerminateConnection(
       self_address, peer_address, original_connection_id,
       IETF_QUIC_LONG_HEADER_PACKET,
-      /*version_flag=*/true, version.HasLengthPrefixedConnectionIds(), version,
+      /*version_flag=*/true, version.IsIetfQuic(), version,
       QUIC_HANDSHAKE_FAILED_CID_COLLISION,
       "Connection ID collision, please retry",
       QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS);

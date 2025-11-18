@@ -1583,7 +1583,7 @@ bool QuicFramer::ProcessRetryPacket(QuicDataReader* reader,
   }
 
   if (version_.UsesTls()) {
-    QUICHE_DCHECK(version_.HasLengthPrefixedConnectionIds()) << version_;
+    QUICHE_DCHECK(version_.IsIetfQuic()) << version_;
     const size_t bytes_remaining = reader->BytesRemaining();
     if (bytes_remaining <= kRetryIntegrityTagLength) {
       set_detailed_error("Retry packet too short to parse integrity tag.");
@@ -1607,7 +1607,7 @@ bool QuicFramer::ProcessRetryPacket(QuicDataReader* reader,
   }
 
   QuicConnectionId original_destination_connection_id;
-  if (version_.HasLengthPrefixedConnectionIds()) {
+  if (version_.IsIetfQuic()) {
     // Parse Original Destination Connection ID.
     if (!reader->ReadLengthPrefixedConnectionId(
             &original_destination_connection_id)) {
@@ -2041,7 +2041,7 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
 
   // Append connection ID.
   if (!AppendIetfConnectionIds(
-          header.version_flag, version_.HasLengthPrefixedConnectionIds(),
+          header.version_flag, version_.IsIetfQuic(),
           header.destination_connection_id_included != CONNECTION_ID_ABSENT
               ? header.destination_connection_id
               : EmptyQuicConnectionId(),
@@ -2239,13 +2239,11 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
     // In versions that do not support client connection IDs, we mark the
     // corresponding connection ID as absent.
     header->destination_connection_id_included =
-        (perspective_ == Perspective::IS_SERVER ||
-         version_.SupportsClientConnectionIds())
+        (perspective_ == Perspective::IS_SERVER || version_.IsIetfQuic())
             ? CONNECTION_ID_PRESENT
             : CONNECTION_ID_ABSENT;
     header->source_connection_id_included =
-        (perspective_ == Perspective::IS_CLIENT ||
-         version_.SupportsClientConnectionIds())
+        (perspective_ == Perspective::IS_CLIENT || version_.IsIetfQuic())
             ? CONNECTION_ID_PRESENT
             : CONNECTION_ID_ABSENT;
     // Read version tag.
@@ -2301,8 +2299,7 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
   // In versions that do not support client connection IDs, the client will not
   // receive destination connection IDs.
   header->destination_connection_id_included =
-      (perspective_ == Perspective::IS_SERVER ||
-       version_.SupportsClientConnectionIds())
+      (perspective_ == Perspective::IS_SERVER || version_.IsIetfQuic())
           ? CONNECTION_ID_PRESENT
           : CONNECTION_ID_ABSENT;
   header->source_connection_id_included = CONNECTION_ID_ABSENT;
@@ -2386,8 +2383,7 @@ bool QuicFramer::ValidateReceivedConnectionIds(const QuicPacketHeader& header) {
   bool skip_client_connection_id_validation =
       perspective_ == Perspective::IS_SERVER &&
       header.form == IETF_QUIC_SHORT_HEADER_PACKET;
-  if (!skip_client_connection_id_validation &&
-      version_.SupportsClientConnectionIds() &&
+  if (!skip_client_connection_id_validation && version_.IsIetfQuic() &&
       !QuicUtils::IsConnectionIdValidForVersion(
           GetClientConnectionIdAsRecipient(header, perspective_),
           transport_version())) {
@@ -2399,7 +2395,7 @@ bool QuicFramer::ValidateReceivedConnectionIds(const QuicPacketHeader& header) {
 
 bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
                                          QuicPacketHeader* header) {
-  if (version_.HasLengthPrefixedConnectionIds()) {
+  if (version_.IsIetfQuic()) {
     uint8_t expected_destination_connection_id_length =
         perspective_ == Perspective::IS_CLIENT
             ? expected_client_connection_id_length_
@@ -2509,7 +2505,7 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
 
   if (header->source_connection_id_included == CONNECTION_ID_ABSENT) {
     if (!header->source_connection_id.IsEmpty()) {
-      QUICHE_DCHECK(!version_.SupportsClientConnectionIds());
+      QUICHE_DCHECK(!version_.IsIetfQuic());
       set_detailed_error("Client connection ID not supported in this version.");
       return false;
     }
@@ -6640,11 +6636,12 @@ namespace {
 
 const QuicVersionLabel kProxVersionLabel = 0x50524F58;  // "PROX"
 
-inline bool PacketHasLengthPrefixedConnectionIds(
-    const QuicDataReader& reader, ParsedQuicVersion parsed_version,
-    QuicVersionLabel version_label, uint8_t first_byte) {
+inline bool PacketIsIetfQuic(const QuicDataReader& reader,
+                             ParsedQuicVersion parsed_version,
+                             QuicVersionLabel version_label,
+                             uint8_t first_byte) {
   if (parsed_version.IsKnown()) {
-    return parsed_version.HasLengthPrefixedConnectionIds();
+    return parsed_version.IsIetfQuic();
   }
 
   // Received unsupported version, check known old unsupported versions.
@@ -6799,8 +6796,8 @@ QuicErrorCode QuicFramer::ParsePublicHeader(
   *parsed_version = ParseQuicVersionLabel(*version_label);
 
   // Figure out which IETF QUIC invariants this packet follows.
-  *has_length_prefix = PacketHasLengthPrefixedConnectionIds(
-      *reader, *parsed_version, *version_label, *first_byte);
+  *has_length_prefix =
+      PacketIsIetfQuic(*reader, *parsed_version, *version_label, *first_byte);
 
   // Parse connection IDs.
   if (!ParseLongHeaderConnectionIds(*reader, *has_length_prefix, *version_label,

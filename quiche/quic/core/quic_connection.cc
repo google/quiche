@@ -1020,7 +1020,7 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
     return false;
   }
 
-  if (!version().SupportsClientConnectionIds()) {
+  if (!version().IsIetfQuic()) {
     return true;
   }
 
@@ -2484,8 +2484,8 @@ QuicConsumedData QuicConnection::SendStreamData(QuicStreamId id,
     return QuicConsumedData(0, false);
   }
 
-  if (perspective_ == Perspective::IS_SERVER &&
-      version().CanSendCoalescedPackets() && !IsHandshakeConfirmed()) {
+  if (perspective_ == Perspective::IS_SERVER && version().IsIetfQuic() &&
+      !IsHandshakeConfirmed()) {
     if (in_probe_time_out_ && coalesced_packet_.NumberOfPackets() == 0u) {
       // PTO fires while handshake is not confirmed. Do not preempt handshake
       // data with stream data.
@@ -3277,7 +3277,7 @@ bool QuicConnection::CanWrite(HasRetransmittableData retransmittable) {
     return false;
   }
 
-  if (version().CanSendCoalescedPackets() &&
+  if (version().IsIetfQuic() &&
       framer_.HasEncrypterOfEncryptionLevel(ENCRYPTION_INITIAL) &&
       framer_.is_processing_packet()) {
     // While we still have initial keys, suppress sending in mid of packet
@@ -3475,7 +3475,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
       return true;
     case COALESCE:
       QUIC_BUG_IF(quic_bug_12714_24,
-                  !version().CanSendCoalescedPackets() || coalescing_done_);
+                  !version().IsIetfQuic() || coalescing_done_);
       if (!coalesced_packet_.MaybeCoalescePacket(
               *packet, send_from_address, send_to_address,
               helper_->GetStreamSendBufferAllocator(),
@@ -3957,7 +3957,7 @@ void QuicConnection::OnWriteError(int error_code) {
 }
 
 QuicPacketBuffer QuicConnection::GetPacketBuffer() {
-  if (version().CanSendCoalescedPackets() && !coalescing_done_) {
+  if (version().IsIetfQuic() && !coalescing_done_) {
     // Do not use writer's packet buffer for coalesced packets which may
     // contain multiple QUIC packets.
     return {nullptr, nullptr};
@@ -4672,7 +4672,7 @@ void QuicConnection::SendConnectionClosePacket(
     QUIC_DLOG(INFO) << ENDPOINT << "Sending connection close packet.";
     ScopedEncryptionLevelContext encryption_level_context(
         this, GetConnectionCloseEncryptionLevel());
-    if (version().CanSendCoalescedPackets()) {
+    if (version().IsIetfQuic()) {
       coalesced_packet_.Clear();
     }
     ClearQueuedPackets();
@@ -4690,7 +4690,7 @@ void QuicConnection::SendConnectionClosePacket(
         framer_.current_received_frame_type());
     packet_creator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
     packet_creator_.FlushCurrentPacket();
-    if (version().CanSendCoalescedPackets()) {
+    if (version().IsIetfQuic()) {
       FlushCoalescedPacket();
     }
     ClearQueuedPackets();
@@ -4700,7 +4700,7 @@ void QuicConnection::SendConnectionClosePacket(
 
   // Now that the connection is being closed, discard any unsent packets
   // so the only packets to be sent will be connection close packets.
-  if (version().CanSendCoalescedPackets()) {
+  if (version().IsIetfQuic()) {
     coalesced_packet_.Clear();
   }
   ClearQueuedPackets();
@@ -4736,7 +4736,7 @@ void QuicConnection::SendConnectionClosePacket(
     packet_creator_.ConsumeRetransmittableControlFrame(QuicFrame(frame));
     packet_creator_.FlushCurrentPacket();
   }
-  if (version().CanSendCoalescedPackets()) {
+  if (version().IsIetfQuic()) {
     FlushCoalescedPacket();
   }
   // Since the connection is closing, if the connection close packets were not
@@ -4952,11 +4952,11 @@ QuicConnection::ScopedPacketFlusher::~ScopedPacketFlusher() {
     // many higher space packets as possible (via for loop inside
     // MaybeCoalescePacketOfHigherSpace) to fill the remaining space in the
     // coalescer.
-    if (connection_->version().CanSendCoalescedPackets()) {
+    if (connection_->version().IsIetfQuic()) {
       connection_->MaybeCoalescePacketOfHigherSpace();
     }
     connection_->packet_creator_.Flush();
-    if (connection_->version().CanSendCoalescedPackets()) {
+    if (connection_->version().IsIetfQuic()) {
       connection_->FlushCoalescedPacket();
     }
     connection_->FlushPackets();
@@ -6043,7 +6043,7 @@ bool QuicConnection::FlushCoalescedPacket() {
   if (!connected_) {
     return false;
   }
-  if (!version().CanSendCoalescedPackets()) {
+  if (!version().IsIetfQuic()) {
     QUIC_BUG_IF(quic_bug_12714_34, coalesced_packet_.length() > 0);
     return true;
   }
@@ -6228,8 +6228,8 @@ QuicPacketNumber QuicConnection::GetLargestReceivedPacket() const {
 }
 
 bool QuicConnection::EnforceAntiAmplificationLimit() const {
-  return version().SupportsAntiAmplificationLimit() &&
-         perspective_ == Perspective::IS_SERVER && !default_path_.validated;
+  return version().IsIetfQuic() && perspective_ == Perspective::IS_SERVER &&
+         !default_path_.validated;
 }
 
 bool QuicConnection::ShouldFixTimeouts(const QuicConfig& config) const {
@@ -6252,8 +6252,7 @@ SerializedPacketFate QuicConnection::GetSerializedPacketFate(
   if (ShouldDiscardPacket(encryption_level)) {
     return DISCARD;
   }
-  if (version().CanSendCoalescedPackets() && !coalescing_done_ &&
-      !is_mtu_discovery) {
+  if (version().IsIetfQuic() && !coalescing_done_ && !is_mtu_discovery) {
     if (!IsHandshakeConfirmed()) {
       // Before receiving ACK for any 1-RTT packets, always try to coalesce
       // packet (except MTU discovery packet).
@@ -6300,7 +6299,7 @@ const QuicAckFrame& QuicConnection::ack_frame() const {
 
 void QuicConnection::set_client_connection_id(
     QuicConnectionId client_connection_id) {
-  if (!version().SupportsClientConnectionIds()) {
+  if (!version().IsIetfQuic()) {
     QUIC_BUG_IF(quic_bug_12714_36, !client_connection_id.IsEmpty())
         << ENDPOINT << "Attempted to use client connection ID "
         << client_connection_id << " with unsupported version " << version();
@@ -7126,8 +7125,7 @@ void QuicConnection::SetSourceAddressTokenToSend(absl::string_view token) {
 
 void QuicConnection::MaybeUpdateBytesSentToAlternativeAddress(
     const QuicSocketAddress& peer_address, QuicByteCount sent_packet_size) {
-  if (!version().SupportsAntiAmplificationLimit() ||
-      perspective_ != Perspective::IS_SERVER) {
+  if (!version().IsIetfQuic() || perspective_ != Perspective::IS_SERVER) {
     return;
   }
   QUICHE_DCHECK(!IsDefaultPath(default_path_.self_address, peer_address));
@@ -7157,8 +7155,7 @@ void QuicConnection::MaybeUpdateBytesSentToAlternativeAddress(
 
 void QuicConnection::MaybeUpdateBytesReceivedFromAlternativeAddress(
     QuicByteCount received_packet_size) {
-  if (!version().SupportsAntiAmplificationLimit() ||
-      perspective_ != Perspective::IS_SERVER ||
+  if (!version().IsIetfQuic() || perspective_ != Perspective::IS_SERVER ||
       !IsAlternativePath(last_received_packet_info_.destination_address,
                          GetEffectivePeerAddressFromCurrentPacket()) ||
       last_received_packet_info_.received_bytes_counted) {

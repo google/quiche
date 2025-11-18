@@ -971,7 +971,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   std::unique_ptr<QuicEncryptedPacket> packet(
       QuicFramer::BuildVersionNegotiationPacket(
           TestConnectionId(), EmptyQuicConnectionId(), /*ietf_quic=*/true,
-          version_.HasLengthPrefixedConnectionIds(), supported_versions));
+          version_.IsIetfQuic(), supported_versions));
   ASSERT_GT(packet->length(), kMinPacketSizeForVersionNegotiation);
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);

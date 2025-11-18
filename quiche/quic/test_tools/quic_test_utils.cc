@@ -981,7 +981,7 @@ std::unique_ptr<QuicEncryptedPacket> MakeLongHeaderPacket(
   header.destination_connection_id_included = CONNECTION_ID_PRESENT;
   header.source_connection_id = EmptyQuicConnectionId();
   header.source_connection_id_included = CONNECTION_ID_PRESENT;
-  if (!version.SupportsClientConnectionIds()) {
+  if (!version.IsIetfQuic()) {
     header.source_connection_id_included = CONNECTION_ID_ABSENT;
   }
   header.version_flag = true;

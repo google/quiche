@@ -1623,7 +1623,7 @@ TEST_P(EndToEndTest, TestInvalidAckBeforeHandshakeClosesConnection) {
 
 TEST_P(EndToEndTest, SendAndReceiveCoalescedPackets) {
   ASSERT_TRUE(Initialize());
-  if (!version_.CanSendCoalescedPackets()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   SendSynchronousFooRequestAndCheckResponse();
@@ -1773,7 +1773,7 @@ TEST_P(EndToEndTest, BadConnectionIdLength) {
 }
 
 TEST_P(EndToEndTest, ClientConnectionId) {
-  if (!version_.SupportsClientConnectionIds()) {
+  if (!version_.IsIetfQuic()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1789,7 +1789,7 @@ TEST_P(EndToEndTest, ClientConnectionId) {
 
 TEST_P(EndToEndTest, ForcedVersionNegotiationAndClientConnectionId) {
   ResetClientWriterForVersionNegotiationTest();
-  if (!version_.SupportsClientConnectionIds()) {
+  if (!version_.IsIetfQuic()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1829,7 +1829,7 @@ TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
 // connection ID.
 TEST_P(EndToEndTest, ForcedVersNegoAndClientCIDAndLongCID) {
   ResetClientWriterForVersionNegotiationTest();
-  if (!version_.SupportsClientConnectionIds() || !version_.IsIetfQuic() ||
+  if (!version_.IsIetfQuic() ||
       override_server_connection_id_length_ != kLongConnectionIdLength) {
     ASSERT_TRUE(Initialize());
     return;
@@ -3284,7 +3284,7 @@ TEST_P(
   // by amplification factor during handshake.
   SetQuicFlag(quic_reject_retry_token_in_initial_packet, true);
   ASSERT_TRUE(Initialize());
-  if (!version_.SupportsAntiAmplificationLimit()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   // Perform a full 1-RTT handshake to get the new session ticket such that the
@@ -4639,8 +4639,7 @@ TEST_P(EndToEndTest, ServerSendVersionNegotiationWithDifferentConnectionId) {
   std::unique_ptr<QuicEncryptedPacket> packet(
       QuicFramer::BuildVersionNegotiationPacket(
           incorrect_connection_id, EmptyQuicConnectionId(), /*ietf_quic=*/true,
-          version_.HasLengthPrefixedConnectionIds(),
-          server_supported_versions_));
+          version_.IsIetfQuic(), server_supported_versions_));
   NiceMock<MockQuicConnectionDebugVisitor> visitor;
   client_connection->set_debug_visitor(&visitor);
   EXPECT_CALL(visitor, OnIncorrectConnectionId(incorrect_connection_id))

@@ -1255,7 +1255,7 @@ QuicConnectionIdIncluded QuicPacketCreator::GetDestinationConnectionIdIncluded()
   // In versions that do not support client connection IDs, the destination
   // connection ID is only sent from client to server.
   return (framer_->perspective() == Perspective::IS_CLIENT ||
-          framer_->version().SupportsClientConnectionIds())
+          framer_->version().IsIetfQuic())
              ? CONNECTION_ID_PRESENT
              : CONNECTION_ID_ABSENT;
 }
@@ -1267,7 +1267,7 @@ QuicConnectionIdIncluded QuicPacketCreator::GetSourceConnectionIdIncluded()
   // supports client connection IDs.
   if (HasIetfLongHeader() &&
       (framer_->perspective() == Perspective::IS_SERVER ||
-       framer_->version().SupportsClientConnectionIds())) {
+       framer_->version().IsIetfQuic())) {
     return CONNECTION_ID_PRESENT;
   }
   if (framer_->perspective() == Perspective::IS_SERVER) {
@@ -2209,7 +2209,7 @@ void QuicPacketCreator::SetServerConnectionId(
 void QuicPacketCreator::SetClientConnectionId(
     QuicConnectionId client_connection_id) {
   QUICHE_DCHECK(client_connection_id.IsEmpty() ||
-                framer_->version().SupportsClientConnectionIds())
+                framer_->version().IsIetfQuic())
       << ENDPOINT;
   client_connection_id_ = client_connection_id;
 }

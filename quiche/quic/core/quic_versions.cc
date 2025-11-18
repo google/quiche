@@ -71,28 +71,6 @@ bool ParsedQuicVersion::IsIetfQuic() const {
   return transport_version > QUIC_VERSION_46;
 }
 
-bool ParsedQuicVersion::SupportsClientConnectionIds() const {
-  QUICHE_DCHECK(IsKnown());
-  // Client connection IDs were added in version 49.
-  return transport_version > QUIC_VERSION_46;
-}
-
-bool ParsedQuicVersion::HasLengthPrefixedConnectionIds() const {
-  QUICHE_DCHECK(IsKnown());
-  return VersionHasLengthPrefixedConnectionIds(transport_version);
-}
-
-bool ParsedQuicVersion::SupportsAntiAmplificationLimit() const {
-  QUICHE_DCHECK(IsKnown());
-  // The anti-amplification limit is used for all IETF versions.
-  return UsesHttp3();
-}
-
-bool ParsedQuicVersion::CanSendCoalescedPackets() const {
-  QUICHE_DCHECK(IsKnown());
-  return HasLongHeaderLengths() && UsesTls();
-}
-
 bool ParsedQuicVersion::SupportsGoogleAltSvcFormat() const {
   QUICHE_DCHECK(IsKnown());
   return VersionSupportsGoogleAltSvcFormat(transport_version);
@@ -141,13 +119,6 @@ bool ParsedQuicVersion::UsesV2PacketTypes() const {
 bool ParsedQuicVersion::AlpnDeferToRFCv1() const {
   QUICHE_DCHECK(IsKnown());
   return transport_version == QUIC_VERSION_IETF_RFC_V2;
-}
-
-bool VersionHasLengthPrefixedConnectionIds(
-    QuicTransportVersion transport_version) {
-  QUICHE_DCHECK(transport_version != QUIC_VERSION_UNSUPPORTED);
-  // Length-prefixed connection IDs were added in version 49.
-  return transport_version > QUIC_VERSION_46;
 }
 
 std::ostream& operator<<(std::ostream& os, const ParsedQuicVersion& version) {

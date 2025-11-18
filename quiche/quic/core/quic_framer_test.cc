@@ -1244,8 +1244,7 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
       &detailed_error);
   EXPECT_THAT(error_code, IsQuicNoError());
   EXPECT_FALSE(retry_token.has_value());
-  EXPECT_EQ(framer_.version().HasLengthPrefixedConnectionIds(),
-            use_length_prefix);
+  EXPECT_EQ(framer_.version().IsIetfQuic(), use_length_prefix);
   EXPECT_EQ("", detailed_error);
   EXPECT_EQ(IETF_QUIC_LONG_HEADER_PACKET, format);
   EXPECT_TRUE(version_flag);
@@ -1345,8 +1344,7 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
   EXPECT_EQ("", detailed_error);
   EXPECT_EQ(p[0], first_byte);
   EXPECT_TRUE(version_present);
-  EXPECT_EQ(framer_.version().HasLengthPrefixedConnectionIds(),
-            has_length_prefix);
+  EXPECT_EQ(framer_.version().IsIetfQuic(), has_length_prefix);
   EXPECT_EQ(CreateQuicVersionLabel(framer_.version()), version_label);
   EXPECT_EQ(framer_.version(), parsed_version);
   EXPECT_EQ(FramerTestConnectionId().ToStringView(), destination_connection_id);
@@ -1359,7 +1357,7 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
 }
 
 TEST_P(QuicFramerTest, ParsePublicHeaderProxBadSourceConnectionIdLength) {
-  if (!framer_.version().HasLengthPrefixedConnectionIds()) {
+  if (!framer_.version().IsIetfQuic()) {
     return;
   }
   // clang-format off
@@ -1421,7 +1419,7 @@ TEST_P(QuicFramerTest, ParsePublicHeaderProxBadSourceConnectionIdLength) {
 }
 
 TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToClient) {
-  if (!framer_.version().SupportsClientConnectionIds()) {
+  if (!framer_.version().IsIetfQuic()) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -1453,7 +1451,7 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToClient) {
 // last serialized client connection ID. This test ensures that this
 // mechanism behaves as expected.
 TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToServer) {
-  if (!framer_.version().SupportsClientConnectionIds()) {
+  if (!framer_.version().IsIetfQuic()) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -5238,7 +5236,7 @@ TEST_P(QuicFramerTest, VersionNegotiationPacketServer) {
   // clang-format on
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasLengthPrefixedConnectionIds()) {
+  if (framer_.version().IsIetfQuic()) {
     p = packet2;
     p_length = ABSL_ARRAYSIZE(packet2);
   }
@@ -6113,14 +6111,13 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
   std::unique_ptr<QuicEncryptedPacket> data(
       QuicFramer::BuildVersionNegotiationPacket(
           connection_id, EmptyQuicConnectionId(), /*ietf_quic=*/true,
-          framer_.version().HasLengthPrefixedConnectionIds(),
-          SupportedVersions(GetParam())));
+          framer_.version().IsIetfQuic(), SupportedVersions(GetParam())));
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(p), p_size);
 }
 
 TEST_P(QuicFramerTest, BuildVersionNegotiationPacketWithClientConnectionId) {
-  if (!framer_.version().SupportsClientConnectionIds()) {
+  if (!framer_.version().IsIetfQuic()) {
     return;
   }
 
@@ -13235,7 +13232,7 @@ TEST_P(QuicFramerTest, ClientReceivesWrongVersion) {
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
-  if (!framer_.version().HasLengthPrefixedConnectionIds()) {
+  if (!framer_.version().IsIetfQuic()) {
     // Q046 will mis-parse the connection ID length.
     EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_PACKET_HEADER));
     EXPECT_EQ("Received server connection ID with invalid length.",
@@ -13524,7 +13521,7 @@ TEST_P(QuicFramerTest, WriteClientVersionNegotiationProbePacket) {
       reinterpret_cast<const char*>(expected_packet), sizeof(expected_packet));
   QuicEncryptedPacket encrypted(reinterpret_cast<const char*>(packet),
                                 sizeof(packet), false);
-  if (!framer_.version().HasLengthPrefixedConnectionIds()) {
+  if (!framer_.version().IsIetfQuic()) {
     // We can only parse the connection ID with a parser expecting
     // length-prefixed connection IDs.
     EXPECT_FALSE(framer_.ProcessPacket(encrypted));
@@ -14082,7 +14079,7 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToServer) {
     EXPECT_EQ("Invalid ConnectionId length.", framer_.detailed_error());
     return;
   }
-  if (!framer_.version().SupportsClientConnectionIds()) {
+  if (!framer_.version().IsIetfQuic()) {
     EXPECT_FALSE(parse_success);
     EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_PACKET_HEADER));
     EXPECT_EQ("Client connection ID not supported in this version.",

@@ -283,22 +283,6 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   // unique properties.
   bool IsIetfQuic() const;
 
-  // Returns whether this version supports client connection ID.
-  bool SupportsClientConnectionIds() const;
-
-  // Returns whether this version supports long header 8-bit encoded
-  // connection ID lengths as described in draft-ietf-quic-invariants-06 and
-  // draft-ietf-quic-transport-22.
-  bool HasLengthPrefixedConnectionIds() const;
-
-  // Returns whether this version supports IETF style anti-amplification limit,
-  // i.e., server will send no more than FLAGS_quic_anti_amplification_factor
-  // times received bytes until address can be validated.
-  bool SupportsAntiAmplificationLimit() const;
-
-  // Returns true if this version can send coalesced packets.
-  bool CanSendCoalescedPackets() const;
-
   // Returns true if this version supports the old Google-style Alt-Svc
   // advertisement format.
   bool SupportsGoogleAltSvcFormat() const;
@@ -565,12 +549,6 @@ QUICHE_EXPORT constexpr bool VersionHasIetfQuicFrames(
     QuicTransportVersion transport_version) {
   return VersionUsesHttp3(transport_version);
 }
-
-// Returns whether this version supports long header 8-bit encoded
-// connection ID lengths as described in draft-ietf-quic-invariants-06 and
-// draft-ietf-quic-transport-22.
-QUICHE_EXPORT bool VersionHasLengthPrefixedConnectionIds(
-    QuicTransportVersion transport_version);
 
 // Returns true if this version supports the old Google-style Alt-Svc
 // advertisement format.

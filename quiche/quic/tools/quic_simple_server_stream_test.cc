@@ -244,7 +244,7 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     connection_->SetEncrypter(
         quic::ENCRYPTION_FORWARD_SECURE,
         std::make_unique<quic::NullEncrypter>(connection_->perspective()));
-    if (connection_->version().SupportsAntiAmplificationLimit()) {
+    if (connection_->version().IsIetfQuic()) {
       QuicConnectionPeer::SetAddressValidated(connection_);
     }
     stream_ = new StrictMock<TestStream>(

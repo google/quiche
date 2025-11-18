@@ -75,7 +75,7 @@ class QpackSendStreamTest : public QuicTestWithParam<TestParams> {
     connection_->SetEncrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullEncrypter>(connection_->perspective()));
-    if (connection_->version().SupportsAntiAmplificationLimit()) {
+    if (connection_->version().IsIetfQuic()) {
       QuicConnectionPeer::SetAddressValidated(connection_);
     }
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(

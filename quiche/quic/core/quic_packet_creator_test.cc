@@ -565,7 +565,7 @@ TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
     EXPECT_CALL(delegate_, OnSerializedPacket(_))
         .WillRepeatedly(
             Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
-    if (client_framer_.version().CanSendCoalescedPackets()) {
+    if (client_framer_.version().IsIetfQuic()) {
       EXPECT_CALL(delegate_, GetSerializedPacketFate(_, _))
           .WillRepeatedly(Return(COALESCE));
     }
@@ -589,7 +589,7 @@ TEST_P(QuicPacketCreatorTest, CryptoStreamFramePacketPadding) {
     // (1 byte) and to expand the stream frame (another 2 bytes) the packet
     // will not be padded.
     // Padding is skipped when we try to send coalesced packets.
-    if (client_framer_.version().CanSendCoalescedPackets()) {
+    if (client_framer_.version().IsIetfQuic()) {
       EXPECT_EQ(kDefaultMaxPacketSize - bytes_free,
                 serialized_packet_->encrypted_length);
     } else {
@@ -1897,7 +1897,7 @@ TEST_P(QuicPacketCreatorTest, GetGuaranteedLargestDatagramPayload) {
   if (version.HasLongHeaderLengths()) {
     expected_largest_payload -= 2;
   }
-  if (version.HasLengthPrefixedConnectionIds()) {
+  if (version.IsIetfQuic()) {
     expected_largest_payload -= 1;
   }
   EXPECT_EQ(expected_largest_payload,
@@ -1948,7 +1948,7 @@ TEST_P(QuicPacketCreatorTest, GetCurrentLargestDatagramPayload) {
   if (version.HasLongHeaderLengths()) {
     expected_largest_payload -= 2;
   }
-  if (version.HasLengthPrefixedConnectionIds()) {
+  if (version.IsIetfQuic()) {
     expected_largest_payload -= 1;
   }
   EXPECT_EQ(expected_largest_payload,
@@ -2194,7 +2194,7 @@ TEST_P(QuicPacketCreatorTest, GetConnectionId) {
 }
 
 TEST_P(QuicPacketCreatorTest, ClientConnectionId) {
-  if (!client_framer_.version().SupportsClientConnectionIds()) {
+  if (!client_framer_.version().IsIetfQuic()) {
     return;
   }
   EXPECT_EQ(TestConnectionId(2), creator_.GetDestinationConnectionId());
@@ -2450,7 +2450,7 @@ TEST_P(QuicPacketCreatorTest, SoftMaxPacketLength) {
 
 TEST_P(QuicPacketCreatorTest,
        ChangingEncryptionLevelRemovesSoftMaxPacketLength) {
-  if (!client_framer_.version().CanSendCoalescedPackets()) {
+  if (!client_framer_.version().IsIetfQuic()) {
     return;
   }
   // First set encryption level to forward secure which has the shortest header.
@@ -4276,7 +4276,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConnectionId) {
   creator_.SetServerConnectionId(TestConnectionId(0x1337));
   EXPECT_EQ(TestConnectionId(0x1337), creator_.GetDestinationConnectionId());
   EXPECT_EQ(EmptyQuicConnectionId(), creator_.GetSourceConnectionId());
-  if (!framer_.version().SupportsClientConnectionIds()) {
+  if (!framer_.version().IsIetfQuic()) {
     return;
   }
   creator_.SetClientConnectionId(TestConnectionId(0x33));

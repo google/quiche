@@ -122,7 +122,7 @@ size_t GetPacketHeaderSize(
     if (include_diversification_nonce) {
       size += kDiversificationNonceSize;
     }
-    if (VersionHasLengthPrefixedConnectionIds(version)) {
+    if (VersionIsIetfQuic(version)) {
       size += kConnectionIdLengthSize;
     }
     QUICHE_DCHECK(
