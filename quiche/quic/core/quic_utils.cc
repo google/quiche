@@ -475,7 +475,7 @@ QuicConnectionId QuicUtils::CreateRandomConnectionId(
 // static
 QuicConnectionId QuicUtils::CreateZeroConnectionId(
     QuicTransportVersion version) {
-  if (!VersionAllowsVariableLengthConnectionIds(version)) {
+  if (!VersionIsIetfQuic(version)) {
     char connection_id_bytes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     return QuicConnectionId(static_cast<char*>(connection_id_bytes),
                             ABSL_ARRAYSIZE(connection_id_bytes));
@@ -501,7 +501,7 @@ bool QuicUtils::IsConnectionIdLengthValidForVersion(
   const uint8_t connection_id_length8 =
       static_cast<uint8_t>(connection_id_length);
   // Versions that do not support variable lengths only support length 8.
-  if (!VersionAllowsVariableLengthConnectionIds(transport_version)) {
+  if (!VersionIsIetfQuic(transport_version)) {
     return connection_id_length8 == kQuicDefaultConnectionIdLength;
   }
   return connection_id_length8 <= kQuicMaxConnectionIdWithLengthPrefixLength;

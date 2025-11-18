@@ -71,28 +71,6 @@ bool ParsedQuicVersion::IsIetfQuic() const {
   return transport_version > QUIC_VERSION_46;
 }
 
-bool ParsedQuicVersion::HasHeaderProtection() const {
-  QUICHE_DCHECK(IsKnown());
-  // Header protection was added in version 50.
-  return transport_version > QUIC_VERSION_46;
-}
-
-bool ParsedQuicVersion::SupportsRetry() const {
-  QUICHE_DCHECK(IsKnown());
-  // Retry was added in version 47.
-  return transport_version > QUIC_VERSION_46;
-}
-
-bool ParsedQuicVersion::SendsVariableLengthPacketNumberInLongHeader() const {
-  QUICHE_DCHECK(IsKnown());
-  return transport_version > QUIC_VERSION_46;
-}
-
-bool ParsedQuicVersion::AllowsVariableLengthConnectionIds() const {
-  QUICHE_DCHECK(IsKnown());
-  return VersionAllowsVariableLengthConnectionIds(transport_version);
-}
-
 bool ParsedQuicVersion::SupportsClientConnectionIds() const {
   QUICHE_DCHECK(IsKnown());
   // Client connection IDs were added in version 49.
@@ -579,8 +557,7 @@ bool VersionSupportsGoogleAltSvcFormat(QuicTransportVersion transport_version) {
   return transport_version <= QUIC_VERSION_46;
 }
 
-bool VersionAllowsVariableLengthConnectionIds(
-    QuicTransportVersion transport_version) {
+bool VersionIsIetfQuic(QuicTransportVersion transport_version) {
   QUICHE_DCHECK_NE(transport_version, QUIC_VERSION_UNSUPPORTED);
   return transport_version > QUIC_VERSION_46;
 }

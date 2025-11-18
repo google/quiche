@@ -209,12 +209,6 @@ std::vector<TestParams> GetTestParams(
         continue;
       }
       for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
-        // TODO(b/232269029): Q050 should be able to handle 0-RTT when the
-        // initial connection ID is > 8 bytes, but it cannot. This is an
-        // invasive fix that has no impact as long as gQUIC clients always use
-        // 8B server connection IDs. If this bug is fixed, we can change
-        // 'UsesTls' to 'AllowsVariableLengthConnectionIds()' below to test
-        // qQUIC as well.
         if (connection_id_length == -1 || version.UsesTls()) {
           params.push_back(TestParams(version, congestion_control_tag,
                                       GetDefaultEventLoop(),
@@ -1730,8 +1724,7 @@ TEST_P(EndToEndTest, ForcedVersionNegotiation) {
 }
 
 TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
-  if (!version_.AllowsVariableLengthConnectionIds() ||
-      override_server_connection_id_length_ > -1) {
+  if (!version_.IsIetfQuic() || override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1749,8 +1742,7 @@ TEST_P(EndToEndTest, SimpleRequestResponseZeroConnectionID) {
 }
 
 TEST_P(EndToEndTest, ZeroConnectionID) {
-  if (!version_.AllowsVariableLengthConnectionIds() ||
-      override_server_connection_id_length_ > -1) {
+  if (!version_.IsIetfQuic() || override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1766,8 +1758,7 @@ TEST_P(EndToEndTest, ZeroConnectionID) {
 }
 
 TEST_P(EndToEndTest, BadConnectionIdLength) {
-  if (!version_.AllowsVariableLengthConnectionIds() ||
-      override_server_connection_id_length_ > -1) {
+  if (!version_.IsIetfQuic() || override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1817,8 +1808,7 @@ TEST_P(EndToEndTest, ForcedVersionNegotiationAndClientConnectionId) {
 
 TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
   ResetClientWriterForVersionNegotiationTest();
-  if (!version_.AllowsVariableLengthConnectionIds() ||
-      override_server_connection_id_length_ > -1) {
+  if (!version_.IsIetfQuic() || override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1839,8 +1829,7 @@ TEST_P(EndToEndTest, ForcedVersionNegotiationAndBadConnectionIdLength) {
 // connection ID.
 TEST_P(EndToEndTest, ForcedVersNegoAndClientCIDAndLongCID) {
   ResetClientWriterForVersionNegotiationTest();
-  if (!version_.SupportsClientConnectionIds() ||
-      !version_.AllowsVariableLengthConnectionIds() ||
+  if (!version_.SupportsClientConnectionIds() || !version_.IsIetfQuic() ||
       override_server_connection_id_length_ != kLongConnectionIdLength) {
     ASSERT_TRUE(Initialize());
     return;
@@ -1864,8 +1853,7 @@ TEST_P(EndToEndTest, ForcedVersNegoAndClientCIDAndLongCID) {
 }
 
 TEST_P(EndToEndTest, MixGoodAndBadConnectionIdLengths) {
-  if (!version_.AllowsVariableLengthConnectionIds() ||
-      override_server_connection_id_length_ > -1) {
+  if (!version_.IsIetfQuic() || override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -2002,8 +1990,7 @@ TEST_P(EndToEndTest, MultipleRequestResponse) {
 }
 
 TEST_P(EndToEndTest, MultipleRequestResponseZeroConnectionID) {
-  if (!version_.AllowsVariableLengthConnectionIds() ||
-      override_server_connection_id_length_ > -1) {
+  if (!version_.IsIetfQuic() || override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }

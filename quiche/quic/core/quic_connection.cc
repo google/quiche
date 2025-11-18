@@ -136,8 +136,7 @@ bool PacketCanReplaceServerConnectionId(const QuicPacketHeader& header,
                                         Perspective perspective) {
   return perspective == Perspective::IS_CLIENT &&
          header.form == IETF_QUIC_LONG_HEADER_PACKET &&
-         header.version.IsKnown() &&
-         header.version.AllowsVariableLengthConnectionIds() &&
+         header.version.IsKnown() && header.version.IsIetfQuic() &&
          (header.long_packet_type == INITIAL ||
           header.long_packet_type == RETRY);
 }
@@ -150,8 +149,7 @@ bool NewServerConnectionIdMightBeValid(const QuicPacketHeader& header,
                                        bool connection_id_already_replaced) {
   return perspective == Perspective::IS_CLIENT &&
          header.form == IETF_QUIC_LONG_HEADER_PACKET &&
-         header.version.IsKnown() &&
-         header.version.AllowsVariableLengthConnectionIds() &&
+         header.version.IsKnown() && header.version.IsIetfQuic() &&
          header.long_packet_type == HANDSHAKE &&
          !connection_id_already_replaced;
 }

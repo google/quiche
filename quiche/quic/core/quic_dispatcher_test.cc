@@ -383,7 +383,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         ConstructReceivedPacket(*packet, mock_helper_.GetClock()->Now()));
     // Call ConnectionIdLength if the packet clears the Long Header bit, or
     // if the test involves sending a connection ID that is too short
-    if (!has_version_flag || !version.AllowsVariableLengthConnectionIds() ||
+    if (!has_version_flag || !version.IsIetfQuic() ||
         server_connection_id.length() == 0 ||
         server_connection_id_included == CONNECTION_ID_ABSENT) {
       // Short headers will ask for the length
@@ -506,7 +506,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       const QuicConnectionId& client_connection_id,
       std::unique_ptr<QuicCryptoClientConfig> client_crypto_config) {
     if (expect_generator_is_called_) {
-      if (version.AllowsVariableLengthConnectionIds()) {
+      if (version.IsIetfQuic()) {
         EXPECT_CALL(connection_id_generator_,
                     MaybeReplaceConnectionId(server_connection_id, version))
             .WillOnce(Return(generated_connection_id_));
@@ -1213,7 +1213,7 @@ TEST_P(QuicDispatcherTestAllVersions,
 
 // Makes sure nine-byte connection IDs are replaced by 8-byte ones.
 TEST_P(QuicDispatcherTestAllVersions, LongConnectionIdLengthReplaced) {
-  if (!version_.AllowsVariableLengthConnectionIds()) {
+  if (!version_.IsIetfQuic()) {
     // When variable length connection IDs are not supported, the connection
     // fails. See StrayPacketTruncatedConnectionId.
     return;
@@ -1242,7 +1242,7 @@ TEST_P(QuicDispatcherTestAllVersions, LongConnectionIdLengthReplaced) {
 // Makes sure TestConnectionId(1) creates a new connection and
 // TestConnectionIdNineBytesLong(2) gets replaced.
 TEST_P(QuicDispatcherTestAllVersions, MixGoodAndBadConnectionIdLengthPackets) {
-  if (!version_.AllowsVariableLengthConnectionIds()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -1343,7 +1343,7 @@ TEST_P(QuicDispatcherTestAllVersions, ProcessPacketWithNonBlockedPort) {
 
 TEST_P(QuicDispatcherTestAllVersions,
        DropPacketWithKnownVersionAndInvalidShortInitialConnectionId) {
-  if (!version_.AllowsVariableLengthConnectionIds()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   CreateTimeWaitListManager();

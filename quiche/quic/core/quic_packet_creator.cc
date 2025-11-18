@@ -1295,8 +1295,7 @@ uint8_t QuicPacketCreator::GetSourceConnectionIdLength() const {
 }
 
 QuicPacketNumberLength QuicPacketCreator::GetPacketNumberLength() const {
-  if (HasIetfLongHeader() &&
-      !framer_->version().SendsVariableLengthPacketNumberInLongHeader()) {
+  if (HasIetfLongHeader() && !framer_->version().IsIetfQuic()) {
     return PACKET_4BYTE_PACKET_NUMBER;
   }
   return packet_.packet_number_length;
@@ -1899,8 +1898,7 @@ size_t QuicPacketCreator::GetSerializedFrameLength(const QuicFrame& frame) {
   size_t serialized_frame_length = framer_->GetSerializedFrameLength(
       frame, BytesFree(), queued_frames_.empty(),
       /* last_frame_in_packet= */ true, GetPacketNumberLength());
-  if (!framer_->version().HasHeaderProtection() ||
-      serialized_frame_length == 0) {
+  if (!framer_->version().IsIetfQuic() || serialized_frame_length == 0) {
     return serialized_frame_length;
   }
   // Calculate frame bytes and bytes free with this frame added.
@@ -2043,7 +2041,7 @@ bool QuicPacketCreator::AddFrame(const QuicFrame& frame,
 }
 
 void QuicPacketCreator::MaybeAddExtraPaddingForHeaderProtection() {
-  if (!framer_->version().HasHeaderProtection() || needs_full_padding_) {
+  if (!framer_->version().IsIetfQuic() || needs_full_padding_) {
     return;
   }
   const size_t frame_bytes = PacketSize() - PacketHeaderSize();
@@ -2300,7 +2298,7 @@ bool QuicPacketCreator::HasIetfLongHeader() const {
 size_t QuicPacketCreator::MinPlaintextPacketSize(
     const ParsedQuicVersion& version,
     QuicPacketNumberLength packet_number_length) {
-  if (!version.HasHeaderProtection()) {
+  if (!version.IsIetfQuic()) {
     return 0;
   }
   // Header protection samples 16 bytes of ciphertext starting 4 bytes after the

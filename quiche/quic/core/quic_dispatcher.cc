@@ -298,8 +298,7 @@ void QuicDispatcher::ProcessPacket(const QuicSocketAddress& self_address,
   }
   if (packet_info.destination_connection_id.length() !=
           expected_server_connection_id_length_ &&
-      packet_info.version.IsKnown() &&
-      !packet_info.version.AllowsVariableLengthConnectionIds()) {
+      packet_info.version.IsKnown() && !packet_info.version.IsIetfQuic()) {
     SetLastError(QUIC_INVALID_PACKET_HEADER);
     QUIC_DLOG(ERROR) << "Invalid Connection Id Length";
     return;
@@ -438,7 +437,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
   if (packet_info.version_flag && packet_info.version.IsKnown() &&
       IsServerConnectionIdTooShort(server_connection_id)) {
     QUICHE_DCHECK(packet_info.version_flag);
-    QUICHE_DCHECK(packet_info.version.AllowsVariableLengthConnectionIds());
+    QUICHE_DCHECK(packet_info.version.IsIetfQuic());
     QUIC_DLOG(INFO) << "Packet with short destination connection ID "
                     << server_connection_id << " expected "
                     << static_cast<int>(expected_server_connection_id_length_);

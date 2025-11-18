@@ -303,8 +303,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
     frames_.clear();
     ASSERT_GT(payload_len, 0);  // Must have a frame!
     size_t min_payload = version.UsesTls() ? 3 : 7;
-    bool need_padding =
-        (version.HasHeaderProtection() && (payload_len < min_payload));
+    bool need_padding = (version.IsIetfQuic() && (payload_len < min_payload));
     {
       InSequence s;
       EXPECT_CALL(framer_visitor_, OnPacket());
@@ -1223,7 +1222,7 @@ TEST_P(QuicPacketCreatorTest, SerializeLargePacketNumberConnectionClosePacket) {
 }
 
 TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthLeastAwaiting) {
-  if (!GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
+  if (!GetParam().version.IsIetfQuic()) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
     creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
@@ -1260,7 +1259,7 @@ TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthLeastAwaiting) {
 
 TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthCwnd) {
   QuicPacketCreatorPeer::SetPacketNumber(&creator_, 1);
-  if (!GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
+  if (!GetParam().version.IsIetfQuic()) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
     creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
@@ -1293,7 +1292,7 @@ TEST_P(QuicPacketCreatorTest, UpdatePacketSequenceNumberLengthCwnd) {
 
 TEST_P(QuicPacketCreatorTest, SkipNPacketNumbers) {
   QuicPacketCreatorPeer::SetPacketNumber(&creator_, 1);
-  if (!GetParam().version.SendsVariableLengthPacketNumberInLongHeader()) {
+  if (!GetParam().version.IsIetfQuic()) {
     EXPECT_EQ(PACKET_4BYTE_PACKET_NUMBER,
               QuicPacketCreatorPeer::GetPacketNumberLength(&creator_));
     creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
@@ -1602,7 +1601,7 @@ TEST_P(QuicPacketCreatorTest, SerializeStreamFrameWithPadding) {
     EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader(_));
     EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_));
-    if (client_framer_.version().HasHeaderProtection()) {
+    if (client_framer_.version().IsIetfQuic()) {
       EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
       EXPECT_CALL(framer_visitor_, OnStreamFrame(_));
     } else {
@@ -1943,7 +1942,7 @@ TEST_P(QuicPacketCreatorTest, GetCurrentLargestDatagramPayload) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
   QuicPacketLength expected_largest_payload = 1215;
-  if (version.SendsVariableLengthPacketNumberInLongHeader()) {
+  if (version.IsIetfQuic()) {
     expected_largest_payload += 3;
   }
   if (version.HasLongHeaderLengths()) {
@@ -2174,7 +2173,7 @@ TEST_P(QuicPacketCreatorTest, RetryToken) {
     EXPECT_CALL(framer_visitor_, OnDecryptedPacket(_, _));
     EXPECT_CALL(framer_visitor_, OnPacketHeader(_))
         .WillOnce(DoAll(SaveArg<0>(&header), Return(true)));
-    if (client_framer_.version().HasHeaderProtection()) {
+    if (client_framer_.version().IsIetfQuic()) {
       EXPECT_CALL(framer_visitor_, OnPaddingFrame(_));
     }
     EXPECT_CALL(framer_visitor_, OnPingFrame(_));
@@ -2482,7 +2481,7 @@ TEST_P(QuicPacketCreatorTest, MinPayloadLength) {
   for (QuicPacketNumberLength pn_length :
        {PACKET_1BYTE_PACKET_NUMBER, PACKET_2BYTE_PACKET_NUMBER,
         PACKET_3BYTE_PACKET_NUMBER, PACKET_4BYTE_PACKET_NUMBER}) {
-    if (!version.HasHeaderProtection()) {
+    if (!version.IsIetfQuic()) {
       EXPECT_EQ(creator_.MinPlaintextPacketSize(version, pn_length), 0);
     } else {
       EXPECT_EQ(creator_.MinPlaintextPacketSize(version, pn_length),
@@ -4287,7 +4286,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, ConnectionId) {
 
 // Regresstion test for b/159812345.
 TEST_F(QuicPacketCreatorMultiplePacketsTest, ExtraPaddingNeeded) {
-  if (!framer_.version().HasHeaderProtection()) {
+  if (!framer_.version().IsIetfQuic()) {
     return;
   }
   delegate_.SetCanWriteAnything();

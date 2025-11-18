@@ -283,20 +283,6 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   // unique properties.
   bool IsIetfQuic() const;
 
-  // Returns whether header protection is used in this version of QUIC.
-  bool HasHeaderProtection() const;
-
-  // Returns whether this version supports IETF RETRY packets.
-  bool SupportsRetry() const;
-
-  // Returns true if this version sends variable length packet number in long
-  // header.
-  bool SendsVariableLengthPacketNumberInLongHeader() const;
-
-  // Returns whether this version allows server connection ID lengths
-  // that are not 64 bits.
-  bool AllowsVariableLengthConnectionIds() const;
-
   // Returns whether this version supports client connection ID.
   bool SupportsClientConnectionIds() const;
 
@@ -591,10 +577,8 @@ QUICHE_EXPORT bool VersionHasLengthPrefixedConnectionIds(
 QUICHE_EXPORT bool VersionSupportsGoogleAltSvcFormat(
     QuicTransportVersion transport_version);
 
-// Returns whether this version allows server connection ID lengths that are
-// not 64 bits.
-QUICHE_EXPORT bool VersionAllowsVariableLengthConnectionIds(
-    QuicTransportVersion transport_version);
+// Returns whether this version is documented by an IETF internet-draft or RFC.
+QUICHE_EXPORT bool VersionIsIetfQuic(QuicTransportVersion transport_version);
 
 // Returns whether this version label supports long header 4-bit encoded
 // connection ID lengths as described in draft-ietf-quic-invariants-05 and

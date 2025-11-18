@@ -1772,7 +1772,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
     }
     uint64_t full_packet_number;
     bool hp_removal_failed = false;
-    if (version_.HasHeaderProtection()) {
+    if (version_.IsIetfQuic()) {
       EncryptionLevel expected_decryption_level = GetEncryptionLevel(*header);
       QuicDecrypter* decrypter = decrypter_[expected_decryption_level].get();
       if (decrypter == nullptr) {
@@ -1852,7 +1852,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
   }
 
   absl::string_view encrypted = encrypted_reader->ReadRemainingPayload();
-  if (!version_.HasHeaderProtection()) {
+  if (!version_.IsIetfQuic()) {
     associated_data = GetAssociatedDataFromEncryptedPacket(
         version_.transport_version, packet,
         GetIncludedDestinationConnectionIdLength(*header),
@@ -2270,7 +2270,7 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
             set_detailed_error("Illegal long header type value.");
             return false;
           case RETRY:
-            if (!version().SupportsRetry()) {
+            if (!version().IsIetfQuic()) {
               set_detailed_error("RETRY not supported in this version.");
               return false;
             }
@@ -2280,7 +2280,7 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
             }
             break;
           default:
-            if (!header->version.HasHeaderProtection()) {
+            if (!header->version.IsIetfQuic()) {
               header->packet_number_length =
                   GetLongHeaderPacketNumberLength(type);
             }
@@ -2310,7 +2310,7 @@ bool QuicFramer::ProcessIetfHeaderTypeByte(QuicDataReader* reader,
     set_detailed_error("Fixed bit is 0 in short header.");
     return false;
   }
-  if (!version_.HasHeaderProtection()) {
+  if (!version_.IsIetfQuic()) {
     header->packet_number_length = GetShortHeaderPacketNumberLength(type);
   }
   QUIC_DVLOG(1) << "packet_number_length = " << header->packet_number_length;
@@ -2360,7 +2360,7 @@ bool QuicFramer::ProcessAndValidateIetfConnectionIdLength(
   if (!should_update_expected_server_connection_id_length &&
       (dcil != *destination_connection_id_length ||
        scil != *source_connection_id_length) &&
-      version.IsKnown() && !version.AllowsVariableLengthConnectionIds()) {
+      version.IsKnown() && !version.IsIetfQuic()) {
     QUIC_DVLOG(1) << "dcil: " << static_cast<uint32_t>(dcil)
                   << ", scil: " << static_cast<uint32_t>(scil);
     *detailed_error = "Invalid ConnectionId length.";
@@ -2442,14 +2442,14 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
       return false;
     }
     if (!header->version_flag) {
-      if (!version_.HasHeaderProtection()) {
+      if (!version_.IsIetfQuic()) {
         header->packet_number_length =
             GetShortHeaderPacketNumberLength(header->type_byte);
       }
       return true;
     }
     if (header->long_packet_type == RETRY) {
-      if (!version().SupportsRetry()) {
+      if (!version().IsIetfQuic()) {
         set_detailed_error("RETRY not supported in this version.");
         return false;
       }
@@ -2459,7 +2459,7 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
       }
       return true;
     }
-    if (header->version.IsKnown() && !header->version.HasHeaderProtection()) {
+    if (header->version.IsKnown() && !header->version.IsIetfQuic()) {
       header->packet_number_length =
           GetLongHeaderPacketNumberLength(header->type_byte);
     }
@@ -4221,7 +4221,7 @@ size_t QuicFramer::EncryptInPlace(EncryptionLevel level,
     RaiseError(QUIC_ENCRYPTION_FAILURE);
     return 0;
   }
-  if (version_.HasHeaderProtection() &&
+  if (version_.IsIetfQuic() &&
       !ApplyHeaderProtection(level, buffer, ad_len + output_length, ad_len)) {
     QUIC_DLOG(ERROR) << "Applying header protection failed.";
     RaiseError(QUIC_ENCRYPTION_FAILURE);
@@ -4468,7 +4468,7 @@ size_t QuicFramer::EncryptPayload(EncryptionLevel level,
     RaiseError(QUIC_ENCRYPTION_FAILURE);
     return 0;
   }
-  if (version_.HasHeaderProtection() &&
+  if (version_.IsIetfQuic() &&
       !ApplyHeaderProtection(level, buffer, ad_len + output_length, ad_len)) {
     QUIC_DLOG(ERROR) << "Applying header protection failed.";
     RaiseError(QUIC_ENCRYPTION_FAILURE);
@@ -6823,7 +6823,7 @@ QuicErrorCode QuicFramer::ParsePublicHeader(
                                 "Unable to parse long packet type.");
       return QUIC_INVALID_PACKET_HEADER;
     case INITIAL:
-      if (!parsed_version->SupportsRetry()) {
+      if (!parsed_version->IsIetfQuic()) {
         // Retry token is only present on initial packets for some versions.
         return QUIC_NO_ERROR;
       }

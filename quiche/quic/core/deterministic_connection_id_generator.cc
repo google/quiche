@@ -58,7 +58,7 @@ DeterministicConnectionIdGenerator::MaybeReplaceConnectionId(
   if (original.length() == expected_connection_id_length_) {
     return std::optional<QuicConnectionId>();
   }
-  QUICHE_DCHECK(version.AllowsVariableLengthConnectionIds());
+  QUICHE_DCHECK(version.IsIetfQuic());
   std::optional<QuicConnectionId> new_connection_id =
       GenerateNextConnectionId(original);
   // Verify that ReplaceShortServerConnectionId is deterministic.

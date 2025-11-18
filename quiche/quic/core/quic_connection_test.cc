@@ -4012,7 +4012,7 @@ TEST_P(QuicConnectionTest, SendingZeroBytes) {
 
   // Padding frames are added by v99 to ensure a minimum packet size.
   size_t extra_padding_frames = 0;
-  if (GetParam().version.HasHeaderProtection()) {
+  if (GetParam().version.IsIetfQuic()) {
     extra_padding_frames = 1;
   }
 
@@ -8732,7 +8732,7 @@ TEST_P(QuicConnectionTest, SendDatagram) {
 
 TEST_P(QuicConnectionTest, GetCurrentLargestDatagramPayload) {
   QuicPacketLength expected_largest_payload = 1215;
-  if (connection_.version().SendsVariableLengthPacketNumberInLongHeader()) {
+  if (connection_.version().IsIetfQuic()) {
     expected_largest_payload += 3;
   }
   if (connection_.version().HasLongHeaderLengths()) {
@@ -9309,7 +9309,7 @@ TEST_P(QuicConnectionTest, UpdateClientConnectionIdFromFirstPacket) {
   EXPECT_EQ(TestConnectionId(0x33), connection_.client_connection_id());
 }
 void QuicConnectionTest::TestReplaceConnectionIdFromInitial() {
-  if (!framer_.version().AllowsVariableLengthConnectionIds()) {
+  if (!framer_.version().IsIetfQuic()) {
     return;
   }
   // We start with a known connection ID.
