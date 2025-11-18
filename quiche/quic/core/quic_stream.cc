@@ -56,7 +56,7 @@ namespace quic {
 namespace {
 
 QuicByteCount DefaultFlowControlWindow(ParsedQuicVersion version) {
-  if (!version.AllowsLowFlowControlLimits()) {
+  if (!version.IsIetfQuic()) {
     return kDefaultFlowControlSendWindow;
   }
   return 0;
@@ -1232,7 +1232,7 @@ bool QuicStream::MaybeConfigSendWindowOffset(QuicStreamOffset new_offset,
               new_offset, " for stream ", id_, " is less than currently used: ",
               flow_controller_->bytes_sent()));
       return false;
-    } else if (session()->version().AllowsLowFlowControlLimits()) {
+    } else if (session()->version().IsIetfQuic()) {
       // In IETF QUIC, if the client receives flow control limit lower than what
       // was resumed from 0-RTT, depending on 0-RTT status, it's either the
       // peer's fault or our implementation's fault.

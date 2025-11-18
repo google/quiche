@@ -79,7 +79,7 @@ inline constexpr QuicPacketCount kMaxInitialCongestionWindow = 200;
 inline constexpr QuicPacketCount kMinInitialCongestionWindow = 10;
 
 // Minimum size of initial flow control window, for both stream and session.
-// This is only enforced when version.AllowsLowFlowControlLimits() is false.
+// This is only enforced when version.IsIetfQuic() is false.
 inline constexpr QuicByteCount kMinimumFlowControlSendWindow =
     16 * 1024;  // 16 KB
 // Default size of initial flow control window, for both stream and session.

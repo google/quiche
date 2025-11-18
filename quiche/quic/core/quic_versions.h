@@ -283,14 +283,6 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   // unique properties.
   bool IsIetfQuic() const;
 
-  // Returns whether this version uses keys derived from the Connection ID for
-  // ENCRYPTION_INITIAL keys (instead of NullEncrypter/NullDecrypter).
-  bool UsesInitialObfuscators() const;
-
-  // Indicates that this QUIC version does not have an enforced minimum value
-  // for flow control values negotiated during the handshake.
-  bool AllowsLowFlowControlLimits() const;
-
   // Returns whether header protection is used in this version of QUIC.
   bool HasHeaderProtection() const;
 

@@ -10,7 +10,7 @@ namespace quic {
 
 bool QuicCrypter::SetNoncePrefixOrIV(const ParsedQuicVersion& version,
                                      absl::string_view nonce_prefix_or_iv) {
-  if (version.UsesInitialObfuscators()) {
+  if (version.IsIetfQuic()) {
     return SetIV(nonce_prefix_or_iv);
   }
   return SetNoncePrefix(nonce_prefix_or_iv);

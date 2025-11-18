@@ -25,13 +25,13 @@ std::unique_ptr<QuicEncrypter> QuicEncrypter::Create(
     const ParsedQuicVersion& version, QuicTag algorithm) {
   switch (algorithm) {
     case kAESG:
-      if (version.UsesInitialObfuscators()) {
+      if (version.IsIetfQuic()) {
         return std::make_unique<Aes128GcmEncrypter>();
       } else {
         return std::make_unique<Aes128Gcm12Encrypter>();
       }
     case kCC20:
-      if (version.UsesInitialObfuscators()) {
+      if (version.IsIetfQuic()) {
         return std::make_unique<ChaCha20Poly1305TlsEncrypter>();
       } else {
         return std::make_unique<ChaCha20Poly1305Encrypter>();

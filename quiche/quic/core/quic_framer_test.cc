@@ -13128,7 +13128,7 @@ TEST_P(QuicFramerTest, InvalidCoalescedPacket) {
 // the initial correctly and ignore the zeroes.
 TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
   if (!QuicVersionHasLongHeaderLengths(framer_.transport_version()) ||
-      !framer_.version().UsesInitialObfuscators()) {
+      !framer_.version().IsIetfQuic()) {
     return;
   }
   ASSERT_TRUE(framer_.version().IsIetfQuic());

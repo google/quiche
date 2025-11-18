@@ -2237,12 +2237,11 @@ TEST_P(QuicSessionTestClient, InvalidSessionFlowControlWindowInHandshake) {
   const uint32_t kInvalidWindow = kMinimumFlowControlSendWindow - 1;
   QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(session_.config(),
                                                              kInvalidWindow);
-  EXPECT_CALL(
-      *connection_,
-      CloseConnection(connection_->version().AllowsLowFlowControlLimits()
-                          ? QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED
-                          : QUIC_FLOW_CONTROL_INVALID_WINDOW,
-                      _, _));
+  EXPECT_CALL(*connection_,
+              CloseConnection(connection_->version().IsIetfQuic()
+                                  ? QUIC_ZERO_RTT_RESUMPTION_LIMIT_REDUCED
+                                  : QUIC_FLOW_CONTROL_INVALID_WINDOW,
+                              _, _));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   session_.OnConfigNegotiated();
 }
@@ -3577,7 +3576,7 @@ INSTANTIATE_TEST_SUITE_P(Tests, QuicSessionTestClientUnconfigured,
                          ::testing::PrintToStringParamName());
 
 TEST_P(QuicSessionTestClientUnconfigured, StreamInitiallyBlockedThenUnblocked) {
-  if (!connection_->version().AllowsLowFlowControlLimits()) {
+  if (!connection_->version().IsIetfQuic()) {
     return;
   }
   // Create a stream before negotiating the config and verify it starts off

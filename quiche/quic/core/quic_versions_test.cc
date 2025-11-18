@@ -63,8 +63,6 @@ TEST(QuicVersionsTest, Features) {
 
   EXPECT_TRUE(parsed_version_q046.IsKnown());
   EXPECT_FALSE(parsed_version_q046.IsIetfQuic());
-  EXPECT_FALSE(parsed_version_q046.UsesInitialObfuscators());
-  EXPECT_FALSE(parsed_version_q046.AllowsLowFlowControlLimits());
   EXPECT_FALSE(parsed_version_q046.HasHeaderProtection());
   EXPECT_FALSE(parsed_version_q046.SupportsRetry());
   EXPECT_FALSE(
@@ -84,8 +82,6 @@ TEST(QuicVersionsTest, Features) {
 
   EXPECT_TRUE(parsed_version_draft_29.IsKnown());
   EXPECT_TRUE(parsed_version_draft_29.IsIetfQuic());
-  EXPECT_TRUE(parsed_version_draft_29.UsesInitialObfuscators());
-  EXPECT_TRUE(parsed_version_draft_29.AllowsLowFlowControlLimits());
   EXPECT_TRUE(parsed_version_draft_29.HasHeaderProtection());
   EXPECT_TRUE(parsed_version_draft_29.SupportsRetry());
   EXPECT_TRUE(

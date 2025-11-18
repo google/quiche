@@ -126,9 +126,8 @@ QuicSession::QuicSession(
       flow_controller_(
           this, QuicUtils::GetInvalidStreamId(connection->transport_version()),
           /*is_connection_flow_controller*/ true,
-          connection->version().AllowsLowFlowControlLimits()
-              ? 0
-              : kMinimumFlowControlSendWindow,
+          connection->version().IsIetfQuic() ? 0
+                                             : kMinimumFlowControlSendWindow,
           config.GetInitialSessionFlowControlWindowToSend(),
           kSessionReceiveWindowLimit, perspective() == Perspective::IS_SERVER,
           nullptr),
@@ -1551,8 +1550,7 @@ void QuicSession::OnConfigNegotiated() {
   // attempt to retransmit 0-RTT data if there's any.
   // TODO(fayang): consider removing this OnCanWrite call.
   if (!connection_->framer().is_processing_packet() &&
-      (connection_->version().AllowsLowFlowControlLimits() ||
-       version().UsesTls())) {
+      (connection_->version().IsIetfQuic() || version().UsesTls())) {
     QUIC_CODE_COUNT(quic_session_on_can_write_on_config_negotiated);
     OnCanWrite();
   }
@@ -1755,7 +1753,7 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return;
   }
-  if (!connection_->version().AllowsLowFlowControlLimits() &&
+  if (!connection_->version().IsIetfQuic() &&
       new_window < kMinimumFlowControlSendWindow) {
     std::string error_details = absl::StrCat(
         "Peer sent us an invalid session flow control send window: ",

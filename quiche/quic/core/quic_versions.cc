@@ -71,18 +71,6 @@ bool ParsedQuicVersion::IsIetfQuic() const {
   return transport_version > QUIC_VERSION_46;
 }
 
-bool ParsedQuicVersion::UsesInitialObfuscators() const {
-  QUICHE_DCHECK(IsKnown());
-  // Initial obfuscators were added in version 50.
-  return transport_version > QUIC_VERSION_46;
-}
-
-bool ParsedQuicVersion::AllowsLowFlowControlLimits() const {
-  QUICHE_DCHECK(IsKnown());
-  // Low flow-control limits are used for all IETF versions.
-  return UsesHttp3();
-}
-
 bool ParsedQuicVersion::HasHeaderProtection() const {
   QUICHE_DCHECK(IsKnown());
   // Header protection was added in version 50.

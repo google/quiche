@@ -377,7 +377,7 @@ void CryptoUtils::CreateInitialObfuscators(Perspective perspective,
                                            ParsedQuicVersion version,
                                            QuicConnectionId connection_id,
                                            CrypterPair* crypters) {
-  if (!version.UsesInitialObfuscators()) {
+  if (!version.IsIetfQuic()) {
     crypters->encrypter = std::make_unique<NullEncrypter>(perspective);
     crypters->decrypter = std::make_unique<NullDecrypter>(perspective);
     return;
@@ -499,7 +499,7 @@ bool CryptoUtils::DeriveKeys(
 
   size_t key_bytes = crypters->encrypter->GetKeySize();
   size_t nonce_prefix_bytes = crypters->encrypter->GetNoncePrefixSize();
-  if (version.UsesInitialObfuscators()) {
+  if (version.IsIetfQuic()) {
     nonce_prefix_bytes = crypters->encrypter->GetIVSize();
   }
   size_t subkey_secret_bytes =

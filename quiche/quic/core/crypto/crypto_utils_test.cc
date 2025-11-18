@@ -109,7 +109,7 @@ TEST_F(CryptoUtilsTest, AuthTagLengths) {
       std::unique_ptr<QuicEncrypter> encrypter(
           QuicEncrypter::Create(version, algo));
       size_t auth_tag_size = 12;
-      if (version.UsesInitialObfuscators()) {
+      if (version.IsIetfQuic()) {
         auth_tag_size = 16;
       }
       EXPECT_EQ(encrypter->GetCiphertextSize(0), auth_tag_size);
