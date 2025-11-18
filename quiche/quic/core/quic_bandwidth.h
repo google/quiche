@@ -97,7 +97,10 @@ class QUICHE_EXPORT QuicBandwidth {
   }
 
   constexpr QuicByteCount ToBytesPerPeriod(QuicTime::Delta time_period) const {
-    QUICHE_DCHECK(ToBytesPerPeriodSafe(time_period).has_value());
+    // TODO: b/461578611 - Remove the short-circuit on negative `time_period`
+    // once we're certain incoming deltas are non-negative.
+    QUICHE_DCHECK(time_period < QuicTime::Delta::Zero() ||
+                  ToBytesPerPeriodSafe(time_period).has_value());
     return bits_per_second_ * time_period.ToMicroseconds() / 8 /
            kNumMicrosPerSecond;
   }
@@ -192,7 +195,6 @@ inline QuicBandwidth operator*(float lhs, QuicBandwidth rhs) {
 }
 inline constexpr QuicByteCount operator*(QuicBandwidth lhs,
                                          QuicTime::Delta rhs) {
-  QUICHE_DCHECK(lhs.ToBytesPerPeriodSafe(rhs).has_value());
   return lhs.ToBytesPerPeriod(rhs);
 }
 inline constexpr QuicByteCount operator*(QuicTime::Delta lhs,
