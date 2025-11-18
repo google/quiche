@@ -1875,8 +1875,8 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
       return true;
     }
     const EncryptionLevel decryption_level = GetEncryptionLevel(*header);
-    const bool has_decryption_key = version_.KnowsWhichDecrypterToUse() &&
-                                    decrypter_[decryption_level] != nullptr;
+    const bool has_decryption_key =
+        version_.IsIetfQuic() && decrypter_[decryption_level] != nullptr;
     visitor_->OnUndecryptablePacket(
         QuicEncryptedPacket(encrypted_reader->FullPayload()), decryption_level,
         has_decryption_key);
@@ -1885,9 +1885,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
         " payload with reconstructed packet number ",
         header->packet_number.ToString(), " (largest decrypted was ",
         base_packet_number.ToString(), ")",
-        has_decryption_key || !version_.KnowsWhichDecrypterToUse()
-            ? ""
-            : " (missing key)",
+        has_decryption_key || !version_.IsIetfQuic() ? "" : " (missing key)",
         "."));
     RecordDroppedPacketReason(DroppedPacketReason::DECRYPTION_FAILURE);
     return RaiseError(QUIC_DECRYPTION_FAILURE);
@@ -4066,7 +4064,7 @@ absl::string_view QuicFramer::GetAssociatedDataFromEncryptedPacket(
 void QuicFramer::SetDecrypter(EncryptionLevel level,
                               std::unique_ptr<QuicDecrypter> decrypter) {
   QUICHE_DCHECK_GE(level, decrypter_level_);
-  QUICHE_DCHECK(!version_.KnowsWhichDecrypterToUse());
+  QUICHE_DCHECK(!version_.IsIetfQuic());
   QUIC_DVLOG(1) << ENDPOINT << "Setting decrypter from level "
                 << decrypter_level_ << " to " << level;
   decrypter_[decrypter_level_] = nullptr;
@@ -4078,7 +4076,7 @@ void QuicFramer::SetAlternativeDecrypter(
     EncryptionLevel level, std::unique_ptr<QuicDecrypter> decrypter,
     bool latch_once_used) {
   QUICHE_DCHECK_NE(level, decrypter_level_);
-  QUICHE_DCHECK(!version_.KnowsWhichDecrypterToUse());
+  QUICHE_DCHECK(!version_.IsIetfQuic());
   QUIC_DVLOG(1) << ENDPOINT << "Setting alternative decrypter from level "
                 << alternative_decrypter_level_ << " to " << level;
   if (alternative_decrypter_level_ != NUM_ENCRYPTION_LEVELS) {
@@ -4091,13 +4089,13 @@ void QuicFramer::SetAlternativeDecrypter(
 
 void QuicFramer::InstallDecrypter(EncryptionLevel level,
                                   std::unique_ptr<QuicDecrypter> decrypter) {
-  QUICHE_DCHECK(version_.KnowsWhichDecrypterToUse());
+  QUICHE_DCHECK(version_.IsIetfQuic());
   QUIC_DVLOG(1) << ENDPOINT << "Installing decrypter at level " << level;
   decrypter_[level] = std::move(decrypter);
 }
 
 void QuicFramer::RemoveDecrypter(EncryptionLevel level) {
-  QUICHE_DCHECK(version_.KnowsWhichDecrypterToUse());
+  QUICHE_DCHECK(version_.IsIetfQuic());
   QUIC_DVLOG(1) << ENDPOINT << "Removing decrypter at level " << level;
   decrypter_[level] = nullptr;
 }
@@ -4163,7 +4161,7 @@ QuicPacketCount QuicFramer::PotentialPeerKeyUpdateAttemptCount() const {
 }
 
 const QuicDecrypter* QuicFramer::GetDecrypter(EncryptionLevel level) const {
-  QUICHE_DCHECK(version_.KnowsWhichDecrypterToUse());
+  QUICHE_DCHECK(version_.IsIetfQuic());
   return decrypter_[level].get();
 }
 
@@ -4535,7 +4533,7 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
   bool key_phase_parsed = false;
   bool key_phase;
   bool attempt_key_update = false;
-  if (version().KnowsWhichDecrypterToUse()) {
+  if (version().IsIetfQuic()) {
     if (header.form == GOOGLE_QUIC_Q043_PACKET) {
       QUIC_BUG(quic_bug_10850_68)
           << "Attempted to decrypt GOOGLE_QUIC_Q043_PACKET with a version that "

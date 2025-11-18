@@ -62,7 +62,7 @@ TEST(QuicVersionsTest, Features) {
   ParsedQuicVersion parsed_version_draft_29 = ParsedQuicVersion::Draft29();
 
   EXPECT_TRUE(parsed_version_q046.IsKnown());
-  EXPECT_FALSE(parsed_version_q046.KnowsWhichDecrypterToUse());
+  EXPECT_FALSE(parsed_version_q046.IsIetfQuic());
   EXPECT_FALSE(parsed_version_q046.UsesInitialObfuscators());
   EXPECT_FALSE(parsed_version_q046.AllowsLowFlowControlLimits());
   EXPECT_FALSE(parsed_version_q046.HasHeaderProtection());
@@ -83,7 +83,7 @@ TEST(QuicVersionsTest, Features) {
   EXPECT_TRUE(parsed_version_q046.UsesQuicCrypto());
 
   EXPECT_TRUE(parsed_version_draft_29.IsKnown());
-  EXPECT_TRUE(parsed_version_draft_29.KnowsWhichDecrypterToUse());
+  EXPECT_TRUE(parsed_version_draft_29.IsIetfQuic());
   EXPECT_TRUE(parsed_version_draft_29.UsesInitialObfuscators());
   EXPECT_TRUE(parsed_version_draft_29.AllowsLowFlowControlLimits());
   EXPECT_TRUE(parsed_version_draft_29.HasHeaderProtection());

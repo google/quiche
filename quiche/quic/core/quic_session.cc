@@ -1797,7 +1797,7 @@ bool QuicSession::OnNewDecryptionKeyAvailable(
     // while an ACK for it cannot be encrypted.
     return false;
   }
-  if (connection()->version().KnowsWhichDecrypterToUse()) {
+  if (connection()->version().IsIetfQuic()) {
     connection()->InstallDecrypter(level, std::move(decrypter));
     return true;
   }
@@ -1927,7 +1927,7 @@ bool QuicSession::MaybeSendAddressToken() {
 }
 
 void QuicSession::DiscardOldDecryptionKey(EncryptionLevel level) {
-  if (!connection()->version().KnowsWhichDecrypterToUse()) {
+  if (!connection()->version().IsIetfQuic()) {
     return;
   }
   connection()->RemoveDecrypter(level);

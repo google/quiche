@@ -282,7 +282,7 @@ void QuicConnection::InstallInitialCrypters(QuicConnectionId connection_id) {
   CryptoUtils::CreateInitialObfuscators(perspective_, version(), connection_id,
                                         &crypters);
   SetEncrypter(ENCRYPTION_INITIAL, std::move(crypters.encrypter));
-  if (version().KnowsWhichDecrypterToUse()) {
+  if (version().IsIetfQuic()) {
     InstallDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
   } else {
     SetDecrypter(ENCRYPTION_INITIAL, std::move(crypters.decrypter));
@@ -2661,8 +2661,7 @@ bool QuicConnection::ShouldEnqueueUnDecryptablePacket(
     // We do not queue more than max_undecryptable_packets_ packets.
     return false;
   }
-  if (version().KnowsWhichDecrypterToUse() &&
-      decryption_level == ENCRYPTION_INITIAL) {
+  if (version().IsIetfQuic() && decryption_level == ENCRYPTION_INITIAL) {
     // When the corresponding decryption key is not available, all
     // non-Initial packets should be buffered until the handshake is complete.
     return false;
@@ -4553,9 +4552,9 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
       ++stats_.packets_processed;
       continue;
     }
-    const bool has_decryption_key = version().KnowsWhichDecrypterToUse() &&
-                                    framer_.HasDecrypterOfEncryptionLevel(
-                                        undecryptable_packet->encryption_level);
+    const bool has_decryption_key =
+        version().IsIetfQuic() && framer_.HasDecrypterOfEncryptionLevel(
+                                      undecryptable_packet->encryption_level);
     if (framer_.error() == QUIC_DECRYPTION_FAILURE &&
         ShouldEnqueueUnDecryptablePacket(undecryptable_packet->encryption_level,
                                          has_decryption_key)) {
@@ -5816,7 +5815,7 @@ QuicPacketLength QuicConnection::GetGuaranteedLargestDatagramPayload() const {
 }
 
 uint32_t QuicConnection::cipher_id() const {
-  if (version().KnowsWhichDecrypterToUse()) {
+  if (version().IsIetfQuic()) {
     if (quic_limit_new_streams_per_loop_2_) {
       QUIC_RELOADABLE_FLAG_COUNT_N(quic_limit_new_streams_per_loop_2, 4, 4);
       for (auto decryption_level :

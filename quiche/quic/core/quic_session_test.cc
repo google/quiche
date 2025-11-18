@@ -657,7 +657,7 @@ class QuicSessionTestServer : public QuicSessionTestBase {
                        Perspective::IS_CLIENT, kQuicDefaultConnectionIdLength) {
     client_framer_.set_visitor(&framer_visitor_);
     client_framer_.SetInitialObfuscators(TestConnectionId());
-    if (client_framer_.version().KnowsWhichDecrypterToUse()) {
+    if (client_framer_.version().IsIetfQuic()) {
       client_framer_.InstallDecrypter(
           ENCRYPTION_FORWARD_SECURE,
           std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));

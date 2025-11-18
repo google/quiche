@@ -43,7 +43,7 @@ QuicEndpoint::QuicEndpoint(Simulator* simulator, std::string name,
                             std::make_unique<quic::test::TaggingEncrypter>(
                                 ENCRYPTION_FORWARD_SECURE));
   connection_->SetEncrypter(ENCRYPTION_INITIAL, nullptr);
-  if (connection_->version().KnowsWhichDecrypterToUse()) {
+  if (connection_->version().IsIetfQuic()) {
     connection_->InstallDecrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<quic::test::StrictTaggingDecrypter>(

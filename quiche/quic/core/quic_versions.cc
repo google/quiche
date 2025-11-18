@@ -66,7 +66,7 @@ bool ParsedQuicVersion::IsKnown() const {
   return transport_version != QUIC_VERSION_UNSUPPORTED;
 }
 
-bool ParsedQuicVersion::KnowsWhichDecrypterToUse() const {
+bool ParsedQuicVersion::IsIetfQuic() const {
   QUICHE_DCHECK(IsKnown());
   return transport_version > QUIC_VERSION_46;
 }

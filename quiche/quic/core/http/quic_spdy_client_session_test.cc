@@ -497,7 +497,7 @@ TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
   const ParsedQuicVersion version = GetParam();
   QuicSocketAddress server_address(TestPeerIPAddress(), kTestPort);
   QuicSocketAddress client_address(TestPeerIPAddress(), kTestPort);
-  if (version.KnowsWhichDecrypterToUse()) {
+  if (version.IsIetfQuic()) {
     connection_->InstallDecrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<StrictTaggingDecrypter>(ENCRYPTION_FORWARD_SECURE));

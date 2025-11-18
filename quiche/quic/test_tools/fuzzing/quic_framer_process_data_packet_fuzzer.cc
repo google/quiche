@@ -124,13 +124,13 @@ void SetupFramer(QuicFramer* framer, QuicFramerVisitorInterface* visitor) {
         ENCRYPTION_FORWARD_SECURE}) {
     framer->SetEncrypter(
         level, std::make_unique<NullEncrypter>(framer->perspective()));
-    if (framer->version().KnowsWhichDecrypterToUse()) {
+    if (framer->version().IsIetfQuic()) {
       framer->InstallDecrypter(
           level, std::make_unique<NullDecrypter>(framer->perspective()));
     }
   }
 
-  if (!framer->version().KnowsWhichDecrypterToUse()) {
+  if (!framer->version().IsIetfQuic()) {
     framer->SetDecrypter(ENCRYPTION_INITIAL, std::make_unique<NullDecrypter>(
                                                  framer->perspective()));
   }

@@ -714,7 +714,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
         framer_(AllSupportedVersions(), start_, Perspective::IS_SERVER,
                 kQuicDefaultConnectionIdLength) {
     framer_.set_version(version_);
-    if (framer_.version().KnowsWhichDecrypterToUse()) {
+    if (framer_.version().IsIetfQuic()) {
       framer_.InstallDecrypter(ENCRYPTION_INITIAL,
                                std::unique_ptr<QuicDecrypter>(decrypter_));
     } else {
@@ -729,7 +729,7 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void SetDecrypterLevel(EncryptionLevel level) {
-    if (!framer_.version().KnowsWhichDecrypterToUse()) {
+    if (!framer_.version().IsIetfQuic()) {
       return;
     }
     decrypter_ = new TestDecrypter();
@@ -1977,7 +1977,7 @@ TEST_P(QuicFramerTest, LargePublicFlagWithMismatchedVersions) {
     framer_.SetEncrypter(ENCRYPTION_ZERO_RTT, std::move(encrypter));
     std::unique_ptr<TaggingDecrypter> decrypter =
         std::make_unique<TaggingDecrypter>();
-    if (version_.KnowsWhichDecrypterToUse()) {
+    if (version_.IsIetfQuic()) {
       framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT, std::move(decrypter));
     } else {
       framer_.SetDecrypter(ENCRYPTION_ZERO_RTT, std::move(decrypter));
@@ -2231,7 +2231,7 @@ TEST_P(QuicFramerTest, MissingDiversificationNonce) {
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   decrypter_ = new test::TestDecrypter();
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
+  if (framer_.version().IsIetfQuic()) {
     framer_.InstallDecrypter(
         ENCRYPTION_INITIAL,
         std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
@@ -5085,7 +5085,7 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacket) {
   // clang-format on
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   decrypter_ = new test::TestDecrypter();
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
+  if (framer_.version().IsIetfQuic()) {
     framer_.InstallDecrypter(
         ENCRYPTION_INITIAL,
         std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
@@ -5123,7 +5123,7 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
   // clang-format on
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   decrypter_ = new test::TestDecrypter();
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
+  if (framer_.version().IsIetfQuic()) {
     framer_.InstallDecrypter(
         ENCRYPTION_INITIAL,
         std::make_unique<NullDecrypter>(Perspective::IS_CLIENT));
@@ -9167,7 +9167,7 @@ MATCHER_P(ExpectedStreamFrame, version, "") {
 TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
   // Since we are using ConstructEncryptedPacket, we have to set the framer's
   // crypto to be Null.
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
+  if (framer_.version().IsIetfQuic()) {
     framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                              std::make_unique<StrictTaggingDecrypter>(
                                  (uint8_t)ENCRYPTION_FORWARD_SECURE));
@@ -9213,7 +9213,7 @@ TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
 TEST_P(QuicFramerTest, ConstructMisFramedEncryptedPacket) {
   // Since we are using ConstructEncryptedPacket, we have to set the framer's
   // crypto to be Null.
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
+  if (framer_.version().IsIetfQuic()) {
     framer_.InstallDecrypter(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<StrictTaggingDecrypter>(ENCRYPTION_FORWARD_SECURE));
@@ -12503,7 +12503,7 @@ TEST_P(QuicFramerTest, CoalescedPacketWithUnknownVersion) {
 TEST_P(QuicFramerTest, UndecryptablePacketWithoutDecrypter) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
 
-  if (!framer_.version().KnowsWhichDecrypterToUse()) {
+  if (!framer_.version().IsIetfQuic()) {
     // We create a bad client decrypter by using initial encryption with a
     // bogus connection ID; it should fail to decrypt everything.
     QuicConnectionId bogus_connection_id = TestConnectionId(0xbad);
@@ -12577,7 +12577,7 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithoutDecrypter) {
   quiche::test::CompareCharArraysWithHexError(
       "undecryptable packet", visitor_.undecryptable_packets_[0]->data(),
       visitor_.undecryptable_packets_[0]->length(), AsChars(p), p_length);
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
+  if (framer_.version().IsIetfQuic()) {
     EXPECT_EQ(ENCRYPTION_HANDSHAKE,
               visitor_.undecryptable_decryption_levels_[0]);
   }
@@ -12594,7 +12594,7 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithDecrypter) {
   CryptoUtils::CreateInitialObfuscators(Perspective::IS_CLIENT,
                                         framer_.version(), bogus_connection_id,
                                         &bad_handshake_crypters);
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
+  if (framer_.version().IsIetfQuic()) {
     framer_.InstallDecrypter(ENCRYPTION_HANDSHAKE,
                              std::move(bad_handshake_crypters.decrypter));
   } else {
@@ -12663,11 +12663,11 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithDecrypter) {
   quiche::test::CompareCharArraysWithHexError(
       "undecryptable packet", visitor_.undecryptable_packets_[0]->data(),
       visitor_.undecryptable_packets_[0]->length(), AsChars(p), p_length);
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
+  if (framer_.version().IsIetfQuic()) {
     EXPECT_EQ(ENCRYPTION_HANDSHAKE,
               visitor_.undecryptable_decryption_levels_[0]);
   }
-  EXPECT_EQ(framer_.version().KnowsWhichDecrypterToUse(),
+  EXPECT_EQ(framer_.version().IsIetfQuic(),
             visitor_.undecryptable_has_decryption_keys_[0]);
 }
 
@@ -12675,7 +12675,7 @@ TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
   if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
     return;
   }
-  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  ASSERT_TRUE(framer_.version().IsIetfQuic());
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
   // We create a bad client decrypter by using initial encryption with a
   // bogus connection ID; it should fail to decrypt everything.
@@ -13131,7 +13131,7 @@ TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
       !framer_.version().UsesInitialObfuscators()) {
     return;
   }
-  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  ASSERT_TRUE(framer_.version().IsIetfQuic());
   QuicConnectionId connection_id = FramerTestConnectionId();
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
 
@@ -13375,7 +13375,7 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
   };
   // clang-format on
 
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
+  if (framer_.version().IsIetfQuic()) {
     framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT,
                              std::make_unique<TestDecrypter>());
     framer_.RemoveDecrypter(ENCRYPTION_INITIAL);
@@ -13419,7 +13419,7 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
 
   QuicEncryptedPacket short_header_encrypted(
       AsChars(short_header_packet), ABSL_ARRAYSIZE(short_header_packet), false);
-  if (framer_.version().KnowsWhichDecrypterToUse()) {
+  if (framer_.version().IsIetfQuic()) {
     framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                              std::make_unique<TestDecrypter>());
     framer_.RemoveDecrypter(ENCRYPTION_ZERO_RTT);
@@ -13441,8 +13441,7 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
 }
 
 TEST_P(QuicFramerTest, IetfRetryPacketRejected) {
-  if (!framer_.version().KnowsWhichDecrypterToUse() ||
-      framer_.version().SupportsRetry()) {
+  if (!framer_.version().IsIetfQuic() || framer_.version().SupportsRetry()) {
     return;
   }
 
@@ -14323,7 +14322,7 @@ TEST_P(QuicFramerTest, KeyUpdate) {
     // Key update is only used in QUIC+TLS.
     return;
   }
-  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  ASSERT_TRUE(framer_.version().IsIetfQuic());
   // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
   // instead of TestDecrypter.
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -14400,7 +14399,7 @@ TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterUpdate) {
     // Key update is only used in QUIC+TLS.
     return;
   }
-  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  ASSERT_TRUE(framer_.version().IsIetfQuic());
   // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
   // instead of TestDecrypter.
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -14462,7 +14461,7 @@ TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterDiscardPreviousOneRttKeys) {
     // Key update is only used in QUIC+TLS.
     return;
   }
-  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  ASSERT_TRUE(framer_.version().IsIetfQuic());
   // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
   // instead of TestDecrypter.
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -14527,7 +14526,7 @@ TEST_P(QuicFramerTest, KeyUpdatePacketsOutOfOrder) {
     // Key update is only used in QUIC+TLS.
     return;
   }
-  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  ASSERT_TRUE(framer_.version().IsIetfQuic());
   // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
   // instead of TestDecrypter.
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -14589,7 +14588,7 @@ TEST_P(QuicFramerTest, KeyUpdateWrongKey) {
     // Key update is only used in QUIC+TLS.
     return;
   }
-  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  ASSERT_TRUE(framer_.version().IsIetfQuic());
   // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
   // instead of TestDecrypter.
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -14686,7 +14685,7 @@ TEST_P(QuicFramerTest, KeyUpdateReceivedWhenNotEnabled) {
     // Key update is only used in QUIC+TLS.
     return;
   }
-  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  ASSERT_TRUE(framer_.version().IsIetfQuic());
   // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
   // instead of TestDecrypter.
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -14722,7 +14721,7 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiated) {
     // Key update is only used in QUIC+TLS.
     return;
   }
-  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  ASSERT_TRUE(framer_.version().IsIetfQuic());
   // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
   // instead of TestDecrypter.
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -14798,7 +14797,7 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiatedReceivedOldPacket) {
     // Key update is only used in QUIC+TLS.
     return;
   }
-  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  ASSERT_TRUE(framer_.version().IsIetfQuic());
   // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
   // instead of TestDecrypter.
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -14875,7 +14874,7 @@ TEST_P(QuicFramerTest, KeyUpdateOnFirstReceivedPacket) {
     // Key update is only used in QUIC+TLS.
     return;
   }
-  ASSERT_TRUE(framer_.version().KnowsWhichDecrypterToUse());
+  ASSERT_TRUE(framer_.version().IsIetfQuic());
   // Doesn't use SetDecrypterLevel since we want to use StrictTaggingDecrypter
   // instead of TestDecrypter.
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,

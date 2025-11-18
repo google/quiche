@@ -161,7 +161,7 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
     client_framer_.set_visitor(&framer_visitor_);
     server_framer_.set_visitor(&framer_visitor_);
     client_framer_.set_data_producer(&producer_);
-    if (server_framer_.version().KnowsWhichDecrypterToUse()) {
+    if (server_framer_.version().IsIetfQuic()) {
       server_framer_.InstallDecrypter(ENCRYPTION_INITIAL,
                                       std::make_unique<TaggingDecrypter>());
       server_framer_.InstallDecrypter(ENCRYPTION_ZERO_RTT,
@@ -2711,7 +2711,7 @@ class QuicPacketCreatorMultiplePacketsTest : public QuicTest {
         std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
     creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
     framer_.set_data_producer(&producer_);
-    if (simple_framer_.framer()->version().KnowsWhichDecrypterToUse()) {
+    if (simple_framer_.framer()->version().IsIetfQuic()) {
       simple_framer_.framer()->InstallDecrypter(
           ENCRYPTION_FORWARD_SECURE, std::make_unique<TaggingDecrypter>());
     }
@@ -3209,7 +3209,7 @@ void QuicPacketCreatorMultiplePacketsTest::SetupInitialCrypto(
   creator_.SetEncrypter(ENCRYPTION_INITIAL,
                         std::make_unique<TaggingEncrypter>(ENCRYPTION_INITIAL));
   creator_.set_encryption_level(ENCRYPTION_INITIAL);
-  if (simple_framer_.framer()->version().KnowsWhichDecrypterToUse()) {
+  if (simple_framer_.framer()->version().IsIetfQuic()) {
     simple_framer_.framer()->InstallDecrypter(
         ENCRYPTION_INITIAL, std::make_unique<TaggingDecrypter>());
   }

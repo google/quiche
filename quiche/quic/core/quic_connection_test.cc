@@ -640,7 +640,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
                                           TestConnectionId(), &crypters);
     peer_creator_.SetEncrypter(ENCRYPTION_INITIAL,
                                std::move(crypters.encrypter));
-    if (version().KnowsWhichDecrypterToUse()) {
+    if (version().IsIetfQuic()) {
       peer_framer_.InstallDecrypter(ENCRYPTION_INITIAL,
                                     std::move(crypters.decrypter));
     } else {
@@ -708,7 +708,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         .Times(AnyNumber());
     EXPECT_CALL(visitor_, GetHandshakeState())
         .WillRepeatedly(Return(HANDSHAKE_START));
-    if (connection_.version().KnowsWhichDecrypterToUse()) {
+    if (connection_.version().IsIetfQuic()) {
       connection_.InstallDecrypter(
           ENCRYPTION_FORWARD_SECURE,
           std::make_unique<StrictTaggingDecrypter>(ENCRYPTION_FORWARD_SECURE));
@@ -734,7 +734,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
 
   void SetDecrypter(EncryptionLevel level,
                     std::unique_ptr<QuicDecrypter> decrypter) {
-    if (connection_.version().KnowsWhichDecrypterToUse()) {
+    if (connection_.version().IsIetfQuic()) {
       connection_.InstallDecrypter(level, std::move(decrypter));
     } else {
       connection_.SetAlternativeDecrypter(level, std::move(decrypter), false);
@@ -821,7 +821,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     QuicFrames frames;
     frames.push_back(QuicFrame(frame));
     bool send_version = connection_.perspective() == Perspective::IS_SERVER;
-    if (connection_.version().KnowsWhichDecrypterToUse()) {
+    if (connection_.version().IsIetfQuic()) {
       send_version = true;
     }
     QuicPacketCreatorPeer::SetSendVersionInPacket(&peer_creator_, send_version);
@@ -877,7 +877,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       peer_framer_.SetEncrypter(level,
                                 std::make_unique<TaggingEncrypter>(level));
       // Set the corresponding decrypter.
-      if (connection_.version().KnowsWhichDecrypterToUse()) {
+      if (connection_.version().IsIetfQuic()) {
         connection_.InstallDecrypter(
             level, std::make_unique<StrictTaggingDecrypter>(level));
       } else if (level != connection_.last_decrypted_level()) {
@@ -934,7 +934,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         peer_framer_.SetEncrypter(level,
                                   std::make_unique<TaggingEncrypter>(level));
         // Set the corresponding decrypter.
-        if (connection_.version().KnowsWhichDecrypterToUse()) {
+        if (connection_.version().IsIetfQuic()) {
           connection_.InstallDecrypter(
               level, std::make_unique<StrictTaggingDecrypter>(level));
         } else {
@@ -3170,8 +3170,7 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
       peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12),
                                   *packet, buffer, kMaxOutgoingPacketSize);
   EXPECT_EQ(kMaxOutgoingPacketSize,
-            encrypted_length +
-                (connection_.version().KnowsWhichDecrypterToUse() ? 0 : 4));
+            encrypted_length + (connection_.version().IsIetfQuic() ? 0 : 4));
 
   framer_.set_version(version());
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
@@ -3186,7 +3185,7 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSize) {
 
   EXPECT_EQ(kMaxOutgoingPacketSize,
             connection_.max_packet_length() +
-                (connection_.version().KnowsWhichDecrypterToUse() ? 0 : 4));
+                (connection_.version().IsIetfQuic() ? 0 : 4));
 }
 
 TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
@@ -3222,8 +3221,7 @@ TEST_P(QuicConnectionTest, IncreaseServerMaxPacketSizeWhileWriterLimited) {
       peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(12),
                                   *packet, buffer, kMaxOutgoingPacketSize);
   EXPECT_EQ(kMaxOutgoingPacketSize,
-            encrypted_length +
-                (connection_.version().KnowsWhichDecrypterToUse() ? 0 : 4));
+            encrypted_length + (connection_.version().IsIetfQuic() ? 0 : 4));
 
   framer_.set_version(version());
   if (QuicVersionUsesCryptoFrames(connection_.transport_version())) {
@@ -3853,7 +3851,7 @@ TEST_P(QuicConnectionTest, FramePackingNonCryptoThenCrypto) {
     connection_.SendStreamData3();
     connection_.SetDefaultEncryptionLevel(ENCRYPTION_INITIAL);
     // Set the crypters for INITIAL packets in the TestPacketWriter.
-    if (!connection_.version().KnowsWhichDecrypterToUse()) {
+    if (!connection_.version().IsIetfQuic()) {
       writer_->framer()->framer()->SetAlternativeDecrypter(
           ENCRYPTION_INITIAL,
           std::make_unique<NullDecrypter>(Perspective::IS_SERVER), false);
@@ -4737,7 +4735,7 @@ TEST_P(QuicConnectionTest, RetransmitPacketsWithInitialEncryption) {
       ENCRYPTION_ZERO_RTT,
       std::make_unique<TaggingEncrypter>(ENCRYPTION_ZERO_RTT));
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
-  if (!connection_.version().KnowsWhichDecrypterToUse()) {
+  if (!connection_.version().IsIetfQuic()) {
     writer_->framer()->framer()->SetAlternativeDecrypter(
         ENCRYPTION_ZERO_RTT,
         std::make_unique<StrictTaggingDecrypter>(ENCRYPTION_ZERO_RTT), false);
@@ -4764,7 +4762,7 @@ TEST_P(QuicConnectionTest, BufferNonDecryptablePackets) {
   peer_framer_.SetEncrypter(
       ENCRYPTION_ZERO_RTT,
       std::make_unique<TaggingEncrypter>(ENCRYPTION_ZERO_RTT));
-  if (!connection_.version().KnowsWhichDecrypterToUse()) {
+  if (!connection_.version().IsIetfQuic()) {
     writer_->framer()->framer()->SetDecrypter(
         ENCRYPTION_ZERO_RTT, std::make_unique<TaggingDecrypter>());
   }
@@ -4825,7 +4823,7 @@ TEST_P(QuicConnectionTest, Buffer100NonDecryptablePacketsThenKeyChange) {
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
 
   EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(100);
-  if (!connection_.version().KnowsWhichDecrypterToUse()) {
+  if (!connection_.version().IsIetfQuic()) {
     writer_->framer()->framer()->SetDecrypter(
         ENCRYPTION_ZERO_RTT, std::make_unique<TaggingDecrypter>());
   }

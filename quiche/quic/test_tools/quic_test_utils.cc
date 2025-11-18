@@ -1335,7 +1335,7 @@ WriteResult TestPacketWriter::WritePacket(
     memcpy(&final_bytes_of_last_packet_, packet.data() + packet.length() - 4,
            sizeof(final_bytes_of_last_packet_));
   }
-  if (framer_.framer()->version().KnowsWhichDecrypterToUse()) {
+  if (framer_.framer()->version().IsIetfQuic()) {
     framer_.framer()->InstallDecrypter(ENCRYPTION_HANDSHAKE,
                                        std::make_unique<TaggingDecrypter>());
     framer_.framer()->InstallDecrypter(ENCRYPTION_ZERO_RTT,

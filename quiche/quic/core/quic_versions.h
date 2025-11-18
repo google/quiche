@@ -278,7 +278,10 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   // UnsupportedQuicVersion.
   bool IsKnown() const;
 
-  bool KnowsWhichDecrypterToUse() const;
+  // Returns true if the version is not Q046. Q046 is the only supported version
+  // that is not documented by an IETF internet-draft or RFC, and has numerous
+  // unique properties.
+  bool IsIetfQuic() const;
 
   // Returns whether this version uses keys derived from the Connection ID for
   // ENCRYPTION_INITIAL keys (instead of NullEncrypter/NullDecrypter).
