@@ -157,11 +157,9 @@ enum HandshakeProtocol {
 QUICHE_EXPORT std::string HandshakeProtocolToString(
     HandshakeProtocol handshake_protocol);
 
-// Returns whether |transport_version| uses CRYPTO frames for the handshake
-// instead of stream 1.
-QUICHE_EXPORT constexpr bool QuicVersionUsesCryptoFrames(
+// Returns whether this version is documented by an IETF internet-draft or RFC.
+QUICHE_EXPORT constexpr bool VersionIsIetfQuic(
     QuicTransportVersion transport_version) {
-  // CRYPTO frames were added in version 48.
   return transport_version > QUIC_VERSION_46;
 }
 
@@ -201,7 +199,7 @@ QUICHE_EXPORT constexpr bool ParsedQuicVersionIsValid(
              transport_version != QUIC_VERSION_IETF_RFC_V2;
     case PROTOCOL_TLS1_3:
       return transport_version != QUIC_VERSION_UNSUPPORTED &&
-             QuicVersionUsesCryptoFrames(transport_version);
+             VersionIsIetfQuic(transport_version);
   }
   return false;
 }
@@ -291,16 +289,8 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   // Envoy.
   bool UsesHttp3() const;
 
-  // Returns whether the transport_version supports the variable length integer
-  // length field as defined by IETF QUIC draft-13 and later.
-  bool HasLongHeaderLengths() const;
-
-  // Returns whether |transport_version| uses CRYPTO frames for the handshake
-  // instead of stream 1.
-  bool UsesCryptoFrames() const;
-
-  // Returns whether |transport_version| makes use of IETF QUIC
-  // frames or not.
+  // TODO(martinduke): Remove this function when it has been deleted from
+  // external callers.
   bool HasIetfQuicFrames() const;
 
   // Returns whether this version uses the legacy TLS extension codepoint.
@@ -515,19 +505,8 @@ QUICHE_EXPORT inline std::string ParsedQuicVersionVectorToString(
                                          std::numeric_limits<size_t>::max());
 }
 
-// Returns whether this version is documented by an IETF internet-draft or RFC.
-QUICHE_EXPORT bool VersionIsIetfQuic(QuicTransportVersion transport_version);
-
-// Returns whether the transport_version supports the variable length integer
-// length field as defined by IETF QUIC draft-13 and later.
-QUICHE_EXPORT constexpr bool QuicVersionHasLongHeaderLengths(
-    QuicTransportVersion transport_version) {
-  // Long header lengths were added in version 49.
-  return transport_version > QUIC_VERSION_46;
-}
-
-// Returns whether |transport_version| makes use of IETF QUIC
-// frames or not.
+// TODO(martinduke): Remove this function when it has been deleted from
+// external callers.
 QUICHE_EXPORT constexpr bool VersionHasIetfQuicFrames(
     QuicTransportVersion transport_version) {
   return VersionIsIetfQuic(transport_version);

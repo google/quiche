@@ -41,7 +41,7 @@ std::vector<TestParams> GetTestParams() {
     for (auto perspective : {Perspective::IS_CLIENT, Perspective::IS_SERVER}) {
       // LegacyQuicStreamIdManager is only used when IETF QUIC frames are not
       // presented.
-      if (!VersionHasIetfQuicFrames(version.transport_version)) {
+      if (!VersionIsIetfQuic(version.transport_version)) {
         params.push_back(TestParams(version, perspective));
       }
     }

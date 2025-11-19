@@ -175,7 +175,7 @@ bool QuicSpdyClientSession::ShouldCreateIncomingStream(QuicStreamId id) {
     return false;
   }
 
-  if (VersionHasIetfQuicFrames(transport_version()) &&
+  if (VersionIsIetfQuic(transport_version()) &&
       QuicUtils::IsBidirectionalStreamId(id, version()) &&
       !WillNegotiateWebTransport()) {
     connection()->CloseConnection(

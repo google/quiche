@@ -142,7 +142,7 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
                                 connection, owner, helper, crypto_config,
                                 compressed_certs_cache,
                                 quic_simple_server_backend) {
-    if (VersionHasIetfQuicFrames(connection->transport_version())) {
+    if (VersionIsIetfQuic(connection->transport_version())) {
       QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(
           this, kMaxStreamsForTest);
       QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
@@ -701,7 +701,7 @@ TEST_P(QuicSimpleServerStreamTest,
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     EXPECT_CALL(session_owner_, OnStopSendingReceived(_));
     // Create and inject a STOP SENDING frame to complete the close
     // of the stream. This is only needed for version 99/IETF QUIC.
@@ -837,7 +837,7 @@ TEST_P(QuicSimpleServerStreamTest, ErrorOnUnhandledConnect) {
   // Expect single set of failure response headers with FIN in response to the
   // headers. Then, expect abrupt stream termination in response to the body.
   EXPECT_CALL(*stream_, WriteHeadersMock(true));
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     EXPECT_CALL(session_, MaybeSendStopSendingFrame(stream_->id(), _));
   }
   EXPECT_CALL(session_, MaybeSendRstStreamFrame(stream_->id(), _, _));
@@ -904,7 +904,7 @@ TEST_P(QuicSimpleServerStreamTest, BackendCanTerminateStream) {
       QuicResetStreamError::FromInternal(QUIC_STREAM_CONNECT_ERROR);
   EXPECT_CALL(*test_backend_ptr, HandleConnectHeaders(_, _))
       .WillOnce(TerminateStream(expected_error));
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     EXPECT_CALL(session_,
                 MaybeSendStopSendingFrame(stream_->id(), expected_error));
   }

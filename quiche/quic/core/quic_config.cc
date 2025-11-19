@@ -1081,7 +1081,7 @@ void QuicConfig::ToHandshakeMessage(
   // as "MIDS" -- the max initial dynamic streams tag -- if
   // doing some version other than IETF QUIC.
   max_bidirectional_streams_.ToHandshakeMessage(out);
-  if (VersionHasIetfQuicFrames(transport_version)) {
+  if (VersionIsIetfQuic(transport_version)) {
     max_unidirectional_streams_.ToHandshakeMessage(out);
     ack_delay_exponent_.ToHandshakeMessage(out);
   }

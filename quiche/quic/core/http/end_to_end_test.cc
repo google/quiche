@@ -519,7 +519,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     // client as well according to the test parameter.
     copt.push_back(GetParam().congestion_control_tag);
     copt.push_back(k2PTO);
-    if (version_.HasIetfQuicFrames()) {
+    if (version_.IsIetfQuic()) {
       copt.push_back(kILD0);
     }
     copt.push_back(kPLE1);
@@ -1339,7 +1339,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO) {
   SetQuicFlag(quic_dispatcher_max_ack_sent_per_connection, 1);
   client_extra_copts_.push_back(kCHP1);
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -1370,8 +1370,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO) {
 // second one is lost and retransmitted with a new server-chosen connection ID.
 TEST_P(EndToEndTest,
        TestDispatcherAckWithTwoPacketCHLO_SecondPacketRetransmitted) {
-  if (!version_.HasIetfQuicFrames() ||
-      override_server_connection_id_length_ > -1) {
+  if (!version_.IsIetfQuic() || override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1414,7 +1413,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO_BothBuffered) {
   client_config_.SetGoogleHandshakeMessageToSend(google_handshake_message);
   connect_to_server_on_initialize_ = false;
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     delete client_writer_;
     return;
   }
@@ -1459,7 +1458,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithThreePacketCHLO) {
   SetQuicFlag(quic_dispatcher_max_ack_sent_per_connection, 2);
   client_extra_copts_.push_back(kCHP2);
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -1496,7 +1495,7 @@ TEST_P(EndToEndTest,
   std::string google_handshake_message(2 * kEthernetMTU, 'a');
   client_config_.SetGoogleHandshakeMessageToSend(google_handshake_message);
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -1527,8 +1526,7 @@ TEST_P(EndToEndTest,
 // other two are lost and retransmitted with a new server-chosen connection ID.
 TEST_P(EndToEndTest,
        TestDispatcherAckWithThreePacketCHLO_SecondAndThirdRetransmitted) {
-  if (!version_.HasIetfQuicFrames() ||
-      override_server_connection_id_length_ > -1) {
+  if (!version_.IsIetfQuic() || override_server_connection_id_length_ > -1) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1569,7 +1567,7 @@ TEST_P(EndToEndTest, TestInvalidAckBeforeHandshakeClosesConnection) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -2248,7 +2246,7 @@ TEST_P(EndToEndTest, QUICHE_SLOW_TEST(AddressToken)) {
 
   client_extra_copts_.push_back(kTRTT);
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -2365,7 +2363,7 @@ TEST_P(EndToEndTest, QUICHE_SLOW_TEST(AddressTokenNotReusedByClient)) {
       QuicTime::Delta::FromSeconds(1));
 
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -2967,7 +2965,7 @@ TEST_P(EndToEndTest, MaxDynamicStreamsLimitRespected) {
   const uint32_t kServerMaxDynamicStreams = 1;
   server_config_.SetMaxBidirectionalStreamsToSend(kServerMaxDynamicStreams);
   ASSERT_TRUE(Initialize());
-  if (version_.HasIetfQuicFrames()) {
+  if (version_.IsIetfQuic()) {
     // Do not run this test for /IETF QUIC. This test relies on the fact that
     // Google QUIC allows a small number of additional streams beyond the
     // negotiated limit, which is not supported in IETF QUIC. Note that the test
@@ -3027,13 +3025,13 @@ TEST_P(EndToEndTest, SetIndependentMaxDynamicStreamsLimits) {
   // returned by max_allowed... by 2 to remove the static streams from the
   // count.
   size_t client_max_open_outgoing_bidirectional_streams =
-      version_.HasIetfQuicFrames()
+      version_.IsIetfQuic()
           ? QuicSessionPeer::ietf_streamid_manager(client_session)
                 ->max_outgoing_bidirectional_streams()
           : QuicSessionPeer::GetStreamIdManager(client_session)
                 ->max_open_outgoing_streams();
   size_t client_max_open_outgoing_unidirectional_streams =
-      version_.HasIetfQuicFrames()
+      version_.IsIetfQuic()
           ? QuicSessionPeer::ietf_streamid_manager(client_session)
                     ->max_outgoing_unidirectional_streams() -
                 kHttp3StaticUnidirectionalStreamCount
@@ -3047,13 +3045,13 @@ TEST_P(EndToEndTest, SetIndependentMaxDynamicStreamsLimits) {
   QuicSession* server_session = GetServerSession();
   if (server_session != nullptr) {
     size_t server_max_open_outgoing_bidirectional_streams =
-        version_.HasIetfQuicFrames()
+        version_.IsIetfQuic()
             ? QuicSessionPeer::ietf_streamid_manager(server_session)
                   ->max_outgoing_bidirectional_streams()
             : QuicSessionPeer::GetStreamIdManager(server_session)
                   ->max_open_outgoing_streams();
     size_t server_max_open_outgoing_unidirectional_streams =
-        version_.HasIetfQuicFrames()
+        version_.IsIetfQuic()
             ? QuicSessionPeer::ietf_streamid_manager(server_session)
                       ->max_outgoing_unidirectional_streams() -
                   kHttp3StaticUnidirectionalStreamCount
@@ -3392,7 +3390,7 @@ TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
   // Send a request using the new socket.
   SendSynchronousBarRequestAndCheckResponse();
 
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   QuicConnection* client_connection = GetClientConnection();
@@ -3417,7 +3415,7 @@ TEST_P(EndToEndTest, ConnectionMigrationClientIPChanged) {
 
 TEST_P(EndToEndTest, IetfConnectionMigrationClientIPChangedMultipleTimes) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames() ||
+  if (!version_.IsIetfQuic() ||
       GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
@@ -3529,7 +3527,7 @@ TEST_P(EndToEndTest, IetfConnectionMigrationClientIPChangedMultipleTimes) {
 
 TEST_P(EndToEndTest,
        ConnectionMigrationWithNonZeroConnectionIDClientIPChangedMultipleTimes) {
-  if (!version_.HasIetfQuicFrames() ||
+  if (!version_.IsIetfQuic() ||
       GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     ASSERT_TRUE(Initialize());
     return;
@@ -3676,7 +3674,7 @@ TEST_P(EndToEndTest,
 
 TEST_P(EndToEndTest, ConnectionMigrationNewTokenForNewIp) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames() ||
+  if (!version_.IsIetfQuic() ||
       GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     return;
   }
@@ -3758,7 +3756,7 @@ class DuplicatePacketWithSpoofedSelfAddressWriter
 
 TEST_P(EndToEndTest, ClientAddressSpoofedForSomePeriod) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -3814,7 +3812,7 @@ TEST_P(EndToEndTest, ClientAddressSpoofedForSomePeriod) {
 TEST_P(EndToEndTest,
        AsynchronousConnectionMigrationClientIPChangedMultipleTimes) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   client_.reset(CreateQuicClient(nullptr));
@@ -3905,7 +3903,7 @@ TEST_P(EndToEndTest,
 
 TEST_P(EndToEndTest,
        AsynchronousConnectionMigrationClientIPChangedWithNonEmptyClientCID) {
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -3977,7 +3975,7 @@ TEST_P(EndToEndTest, ConnectionMigrationClientPortChanged) {
   // Send a second request, using the new FD.
   SendSynchronousBarRequestAndCheckResponse();
 
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -4187,7 +4185,7 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
   ASSERT_TRUE(crypto_stream);
   // In v47 and later, the crypto handshake (sent in CRYPTO frames) is not
   // subject to flow control.
-  if (!version_.UsesCryptoFrames()) {
+  if (!version_.IsIetfQuic()) {
     EXPECT_LT(QuicStreamPeer::SendWindowSize(crypto_stream), kStreamIFCW);
   }
   // When stream type is enabled, control streams will send settings and
@@ -4276,7 +4274,7 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   }
 
   // Check crypto stream.
-  if (!version_.UsesCryptoFrames()) {
+  if (!version_.IsIetfQuic()) {
     ExpectFlowControlsSynced(
         QuicSessionPeer::GetMutableCryptoStream(client_session),
         QuicSessionPeer::GetMutableCryptoStream(server_session));
@@ -4583,7 +4581,7 @@ TEST_P(EndToEndTest, ServerSendPublicResetWithDifferentConnectionId) {
 
 TEST_P(EndToEndTest, InduceStatelessResetFromServer) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
@@ -5092,7 +5090,7 @@ class BlockedFrameObserver : public QuicConnectionDebugVisitor {
 };
 
 TEST_P(EndToEndTest, BlockedFrameIncludesOffset) {
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     // For Google QUIC, the BLOCKED frame offset is ignored.
     Initialize();
     return;
@@ -5516,7 +5514,7 @@ TEST_P(EndToEndMigrationTest, MigrateUponPacketWriteError) {
   // needed to ensure such case doesn't cause QUICHE_CHECK or connection close.
   SetQuicReloadableFlag(quic_client_check_blockage_before_on_can_write, true);
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames() || !handle_migration_in_session_) {
+  if (!version_.IsIetfQuic() || !handle_migration_in_session_) {
     return;
   }
   // Setup the initial writer to let through the first 15 packets which should
@@ -5830,7 +5828,7 @@ class PacketHoldingWriter : public QuicPacketWriterWrapper {
 
 TEST_P(EndToEndTest, ClientValidateNewNetwork) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   client_.reset(EndToEndTest::CreateQuicClient(nullptr));
@@ -5870,7 +5868,7 @@ TEST_P(EndToEndTest, ClientValidateNewNetwork) {
 TEST_P(EndToEndTest, ClientMultiPortConnection) {
   client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC, kMPQM});
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   client_.reset(EndToEndTest::CreateQuicClient(nullptr));
@@ -5916,7 +5914,7 @@ TEST_P(EndToEndTest, ClientMultiPortConnection) {
 TEST_P(EndToEndTest, ClientMultiPortProbeOnRto) {
   client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC, kMPR1});
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   client_.reset(EndToEndTest::CreateQuicClient(nullptr));
@@ -6020,7 +6018,7 @@ TEST_P(EndToEndTest, ClientMultiPortProbeOnRto) {
 TEST_P(EndToEndMigrationTest, ClientPortMigrationOnPathDegrading) {
   connect_to_server_on_initialize_ = false;
   Initialize();
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     CreateClientWithWriter();
     return;
   }
@@ -6100,7 +6098,7 @@ TEST_P(EndToEndMigrationTest, ClientPortMigrationOnPathDegrading) {
 TEST_P(EndToEndMigrationTest, ClientLimitPortMigrationOnPathDegrading) {
   connect_to_server_on_initialize_ = false;
   Initialize();
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     CreateClientWithWriter();
     return;
   }
@@ -6160,7 +6158,7 @@ TEST_P(EndToEndMigrationTest, ClientLimitPortMigrationOnPathDegrading) {
 TEST_P(EndToEndTest, ClientMultiPortMigrationOnPathDegrading) {
   client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC, kMPQM});
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   client_.reset(EndToEndTest::CreateQuicClient(nullptr));
@@ -6204,7 +6202,7 @@ TEST_P(EndToEndTest, ClientMultiPortMigrationOnPathDegrading) {
 TEST_P(EndToEndTest, ClientMultiPortMigrationOnPathDegradingOnRTO) {
   client_config_.SetClientConnectionOptions(QuicTagVector{kMPQC, kMPR1, kMPQM});
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   client_.reset(EndToEndTest::CreateQuicClient(nullptr));
@@ -6267,7 +6265,7 @@ TEST_P(EndToEndTest, ClientMultiPortMigrationOnPathDegradingOnRTO) {
 void EndToEndMigrationTest::TestMigrationUponServerPreferredAddress() {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -6305,7 +6303,7 @@ TEST_P(EndToEndMigrationTest, SimpleServerPreferredAddressTestNoSPAD) {
 TEST_P(EndToEndMigrationTest, OptimizedServerPreferredAddress) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   client_config_.SetClientConnectionOptions(QuicTagVector{kSPA2});
@@ -6328,7 +6326,7 @@ TEST_P(EndToEndMigrationTest, OptimizedServerPreferredAddress) {
 
 TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   client_.reset(EndToEndTest::CreateQuicClient(nullptr));
@@ -6388,7 +6386,7 @@ TEST_P(EndToEndPacketReorderingTest, ReorderedPathChallenge) {
 
 TEST_P(EndToEndPacketReorderingTest, PathValidationFailure) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -6429,7 +6427,7 @@ TEST_P(EndToEndPacketReorderingTest, PathValidationFailure) {
 
 TEST_P(EndToEndPacketReorderingTest, MigrateAgainAfterPathValidationFailure) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -6522,7 +6520,7 @@ TEST_P(EndToEndPacketReorderingTest, MigrateAgainAfterPathValidationFailure) {
 
 TEST_P(EndToEndPacketReorderingTest,
        MigrateAgainAfterPathValidationFailureWithNonZeroClientCid) {
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -6832,7 +6830,7 @@ TEST_P(EndToEndTest, ForwardSecureConnectionClose) {
 TEST_P(EndToEndTest, TooBigStreamIdClosesConnection) {
   // Has to be before version test, see EndToEndTest::TearDown()
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     // Only runs for IETF QUIC.
     return;
   }
@@ -7076,7 +7074,7 @@ TEST_P(EndToEndTest, FivePacketChaosProtection) {
 void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
                                                   bool drop_first_packet,
                                                   bool kyber) {
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -8380,7 +8378,7 @@ TEST_P(EndToEndTest, ServerReportsEct0) {
   EXPECT_EQ(ecn->ce, 0);
   EXPECT_TRUE(client_connection->set_ecn_codepoint(ECN_ECT0));
   client_->SendSynchronousRequest("/foo");
-  if (!VersionHasIetfQuicFrames(version_.transport_version)) {
+  if (!VersionIsIetfQuic(version_.transport_version)) {
     EXPECT_EQ(ecn->ect0, 0);
   } else {
     EXPECT_GT(ecn->ect0, 0);
@@ -8403,7 +8401,7 @@ TEST_P(EndToEndTest, ServerReportsEct1) {
   EXPECT_EQ(ecn->ce, 0);
   EXPECT_TRUE(client_connection->set_ecn_codepoint(ECN_ECT1));
   client_->SendSynchronousRequest("/foo");
-  if (!VersionHasIetfQuicFrames(version_.transport_version)) {
+  if (!VersionIsIetfQuic(version_.transport_version)) {
     EXPECT_EQ(ecn->ect1, 0);
   } else {
     EXPECT_GT(ecn->ect1, 0);
@@ -8426,7 +8424,7 @@ TEST_P(EndToEndTest, ServerReportsCe) {
   EXPECT_EQ(ecn->ce, 0);
   EXPECT_TRUE(client_connection->set_ecn_codepoint(ECN_CE));
   client_->SendSynchronousRequest("/foo");
-  if (!VersionHasIetfQuicFrames(version_.transport_version)) {
+  if (!VersionIsIetfQuic(version_.transport_version)) {
     EXPECT_EQ(ecn->ce, 0);
   } else {
     EXPECT_GT(ecn->ce, 0);
@@ -8455,7 +8453,7 @@ TEST_P(EndToEndTest, ClientReportsEct1) {
 
   server_thread_->ScheduleAndWaitForCompletion([&] {
     EXPECT_EQ(ecn->ce, 0);
-    if (!VersionHasIetfQuicFrames(version_.transport_version)) {
+    if (!VersionIsIetfQuic(version_.transport_version)) {
       EXPECT_EQ(ecn->ect1, 0);
     } else {
       EXPECT_GT(ecn->ect1, 0);
@@ -8488,7 +8486,7 @@ TEST_P(EndToEndTest, FixTimeouts) {
 TEST_P(EndToEndMigrationTest, ClientMigrationAfterHalfwayServerMigration) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   RecreateClient();
@@ -8547,7 +8545,7 @@ TEST_P(EndToEndMigrationTest, ClientMigrationAfterHalfwayServerMigration) {
 TEST_P(EndToEndMigrationTest, MultiPortCreationFollowingServerMigration) {
   use_preferred_address_ = true;
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -8587,7 +8585,7 @@ TEST_P(EndToEndMigrationTest, MultiPortCreationFollowingServerMigration) {
 }
 
 TEST_P(EndToEndMigrationTest, DoNotAdvertisePreferredAddressWithoutSPAD) {
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -8653,7 +8651,7 @@ TEST_P(EndToEndTest, MaxPacingRate) {
 
 TEST_P(EndToEndTest, RequestsBurstMitigation) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -8724,7 +8722,7 @@ TEST_P(EndToEndTest, SerializeConnectionClosePacketWithLargestPacketNumber) {
 
 TEST_P(EndToEndTest, EmptyResponseWithFin) {
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   memory_cache_backend_.AddSpecialResponse(
@@ -8794,7 +8792,7 @@ TEST_P(EndToEndTest, ChangeFlowLabelOnRTO) {
   server_address_ =
       QuicSocketAddress(QuicIpAddress::Loopback6(), server_address_.port());
   ASSERT_TRUE(Initialize());
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 

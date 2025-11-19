@@ -712,7 +712,7 @@ TEST_P(QuicDispatcherTestAllVersions, VariableServerConnectionIdLength) {
   QuicConnectionId old_id = TestConnectionId(1);
   // Return a connection ID that is not expected_server_connection_id_length_
   // bytes long.
-  if (version_.HasIetfQuicFrames()) {
+  if (version_.IsIetfQuic()) {
     generated_connection_id_ =
         QuicConnectionId({0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08,
                           0x09, 0x0a, 0x0b});
@@ -957,7 +957,7 @@ TEST_P(QuicDispatcherTestOneVersion, NoVersionNegotiationWithSmallPacket) {
 
 TEST_P(QuicDispatcherTestOneVersion,
        NoVersionNegotiationWithVersionNegotiationPacket) {
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   CreateTimeWaitListManager();
@@ -3379,7 +3379,7 @@ TEST_P(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
 }
 
 TEST_P(BufferedPacketStoreTest, BufferedChloWithEcn) {
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   InSequence s;

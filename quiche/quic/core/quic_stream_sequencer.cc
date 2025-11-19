@@ -57,7 +57,7 @@ void QuicStreamSequencer::OnStreamFrame(const QuicStreamFrame& frame) {
       (!CloseStreamAtOffset(frame.offset + data_len) || data_len == 0)) {
     return;
   }
-  if (stream_->version().HasIetfQuicFrames() && data_len == 0) {
+  if (stream_->version().IsIetfQuic() && data_len == 0) {
     QUICHE_DCHECK(!frame.fin);
     // Ignore empty frame with no fin.
     return;

@@ -65,7 +65,7 @@ class ChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
     header.reset_flag = false;
     header.packet_number_length = PACKET_4BYTE_PACKET_NUMBER;
     header.packet_number = QuicPacketNumber(1);
-    if (version_.HasLongHeaderLengths()) {
+    if (version_.IsIetfQuic()) {
       header.retry_token_length_length =
           quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
       header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
@@ -78,7 +78,7 @@ class ChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
     QuicFramer framer(SupportedVersions(version_), QuicTime::Zero(),
                       Perspective::IS_CLIENT, kQuicDefaultConnectionIdLength);
     framer.SetInitialObfuscators(TestConnectionId());
-    if (!version_.UsesCryptoFrames() || munge_stream_id) {
+    if (!version_.IsIetfQuic() || munge_stream_id) {
       QuicStreamId stream_id =
           QuicUtils::GetCryptoStreamId(version_.transport_version);
       if (munge_stream_id) {
@@ -130,7 +130,7 @@ TEST_P(ChloExtractorTest, FindsValidChlo) {
 }
 
 TEST_P(ChloExtractorTest, DoesNotFindValidChloOnWrongStream) {
-  if (version_.UsesCryptoFrames()) {
+  if (version_.IsIetfQuic()) {
     // When crypto frames are in use we do not use stream frames.
     return;
   }

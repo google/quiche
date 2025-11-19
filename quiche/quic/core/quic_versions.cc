@@ -81,19 +81,9 @@ bool ParsedQuicVersion::UsesHttp3() const {
   return IsIetfQuic();
 }
 
-bool ParsedQuicVersion::HasLongHeaderLengths() const {
-  QUICHE_DCHECK(IsKnown());
-  return QuicVersionHasLongHeaderLengths(transport_version);
-}
-
-bool ParsedQuicVersion::UsesCryptoFrames() const {
-  QUICHE_DCHECK(IsKnown());
-  return QuicVersionUsesCryptoFrames(transport_version);
-}
-
 bool ParsedQuicVersion::HasIetfQuicFrames() const {
   QUICHE_DCHECK(IsKnown());
-  return VersionHasIetfQuicFrames(transport_version);
+  return IsIetfQuic();
 }
 
 bool ParsedQuicVersion::UsesLegacyTlsExtension() const {
@@ -526,10 +516,6 @@ std::string ParsedQuicVersionVectorToString(
 
 bool VersionSupportsGoogleAltSvcFormat(QuicTransportVersion transport_version) {
   return transport_version <= QUIC_VERSION_46;
-}
-
-bool VersionIsIetfQuic(QuicTransportVersion transport_version) {
-  return transport_version > QUIC_VERSION_46;
 }
 
 bool QuicVersionLabelUses4BitConnectionIdLength(

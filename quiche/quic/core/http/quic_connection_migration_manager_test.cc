@@ -382,7 +382,7 @@ class TestQuicSpdyClientSessionWithMigration
 
   TestStream* CreateIncomingStream(QuicStreamId id) override {
     // Enforce the limit on the number of open streams.
-    if (!VersionHasIetfQuicFrames(connection()->transport_version()) &&
+    if (!VersionIsIetfQuic(connection()->transport_version()) &&
         stream_id_manager().num_open_incoming_streams() + 1 >
             max_open_incoming_bidirectional_streams()) {
       // No need to do this test for version 99; it's done by
@@ -487,7 +487,7 @@ class QuicConnectionMigrationManagerTest
     ASSERT_NE(extra_connection_id, connection_->connection_id());
     const StatelessResetToken reset_token =
         QuicUtils::GenerateStatelessResetToken(extra_connection_id);
-    if (version().HasIetfQuicFrames() && received_server_preferred_address) {
+    if (version().IsIetfQuic() && received_server_preferred_address) {
       // OnHandshakeMessage() will populate the received values with these.
       QuicIpAddress ipv4, ipv6;
       ASSERT_TRUE(ipv4.FromString("127.0.0.2"));
@@ -510,7 +510,7 @@ class QuicConnectionMigrationManagerTest
     }
 
     connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-    if (version().HasIetfQuicFrames() && !received_server_preferred_address) {
+    if (version().IsIetfQuic() && !received_server_preferred_address) {
       // Prepare an additional CID for future migration.
       QuicNewConnectionIdFrame frame;
       frame.connection_id = extra_connection_id;
@@ -1733,7 +1733,7 @@ TEST_P(QuicConnectionMigrationManagerTest,
 }
 
 TEST_P(QuicConnectionMigrationManagerTest, MigrationToServerPreferredAddress) {
-  if (!version().HasIetfQuicFrames()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   complete_handshake_ = false;

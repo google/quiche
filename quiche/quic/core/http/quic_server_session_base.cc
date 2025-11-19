@@ -194,7 +194,7 @@ void QuicServerSessionBase::OnCongestionWindowChange(QuicTime now) {
   }
 
   if (version().IsIetfQuic()) {
-    if (version().HasIetfQuicFrames() && MaybeSendAddressToken()) {
+    if (MaybeSendAddressToken()) {
       bandwidth_estimate_sent_to_client_ = new_bandwidth_estimate;
     }
   } else {

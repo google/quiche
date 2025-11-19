@@ -379,7 +379,7 @@ TEST_P(PendingStreamTest, FromPendingStreamThenData) {
 
 TEST_P(PendingStreamTest, ResetStreamAt) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
 
@@ -562,7 +562,7 @@ TEST_P(QuicStreamTest, ConnectionCloseAfterStreamClose) {
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
-  if (VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (VersionIsIetfQuic(session_->transport_version())) {
     // Create and inject a STOP SENDING frame to complete the close
     // of the stream. This is only needed for version 99/IETF QUIC.
     QuicStopSendingFrame stop_sending(kInvalidControlFrameId, stream_->id(),
@@ -603,7 +603,7 @@ TEST_P(QuicStreamTest, RstAlwaysSentIfNoFinSent) {
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
-  if (VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (VersionIsIetfQuic(session_->transport_version())) {
     // Create and inject a STOP SENDING frame to complete the close
     // of the stream. This is only needed for version 99/IETF QUIC.
     QuicStopSendingFrame stop_sending(kInvalidControlFrameId, stream_->id(),
@@ -1093,7 +1093,7 @@ TEST_P(QuicStreamTest, CancelStream) {
 }
 
 TEST_P(QuicStreamTest, RstFrameReceivedStreamNotFinishSending) {
-  if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
+  if (VersionIsIetfQuic(GetParam().transport_version)) {
     // In IETF QUIC, receiving a RESET_STREAM will only close the read side. The
     // stream itself is not closed and will not send reset.
     return;
@@ -1731,7 +1731,7 @@ TEST_P(QuicStreamTest, OnStreamResetReadOrReadWrite) {
   QuicRstStreamFrame rst_frame(kInvalidControlFrameId, stream_->id(),
                                QUIC_STREAM_CANCELLED, 1234);
   stream_->OnStreamReset(rst_frame);
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     // Version 99/IETF QUIC should close just the read side.
     EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
     EXPECT_FALSE(stream_->write_side_closed());
@@ -1775,7 +1775,7 @@ TEST_P(QuicStreamTest, RstStreamFrameChangesCloseOffset) {
 TEST_P(QuicStreamTest, EmptyStreamFrameWithNoFin) {
   Initialize();
   QuicStreamFrame empty_stream_frame(stream_->id(), false, 0, "");
-  if (stream_->version().HasIetfQuicFrames()) {
+  if (stream_->version().IsIetfQuic()) {
     EXPECT_CALL(*connection_,
                 CloseConnection(QUIC_EMPTY_STREAM_FRAME_NO_FIN, _, _))
         .Times(0);
@@ -1798,7 +1798,7 @@ TEST_P(QuicStreamTest, SendRstWithCustomIetfCode) {
 
 TEST_P(QuicStreamTest, ResetWhenOffsetReached) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   QuicResetStreamAtFrame rst(0, stream_->id(), QUIC_STREAM_CANCELLED, 400, 100);
@@ -1824,7 +1824,7 @@ TEST_P(QuicStreamTest, ResetWhenOffsetReached) {
 
 TEST_P(QuicStreamTest, ResetWhenOffsetReachedOutOfOrder) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   QuicResetStreamAtFrame rst(0, stream_->id(), QUIC_STREAM_CANCELLED, 400, 100);
@@ -1847,7 +1847,7 @@ TEST_P(QuicStreamTest, ResetWhenOffsetReachedOutOfOrder) {
 
 TEST_P(QuicStreamTest, HigherReliableSizeIgnored) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   QuicResetStreamAtFrame rst(0, stream_->id(), QUIC_STREAM_CANCELLED, 400, 100);
@@ -1876,7 +1876,7 @@ TEST_P(QuicStreamTest, HigherReliableSizeIgnored) {
 
 TEST_P(QuicStreamTest, InstantReset) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   char data[100];
@@ -1895,7 +1895,7 @@ TEST_P(QuicStreamTest, InstantReset) {
 
 TEST_P(QuicStreamTest, ResetIgnoredDueToFin) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   char data[100];
@@ -1922,7 +1922,7 @@ TEST_P(QuicStreamTest, ResetIgnoredDueToFin) {
 
 TEST_P(QuicStreamTest, ReliableOffsetBeyondFin) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   char data[100];
@@ -1936,7 +1936,7 @@ TEST_P(QuicStreamTest, ReliableOffsetBeyondFin) {
 
 TEST_P(QuicStreamTest, FinBeforeReliableOffset) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   QuicResetStreamAtFrame rst(0, stream_->id(), QUIC_STREAM_CANCELLED, 101, 101);
@@ -1950,7 +1950,7 @@ TEST_P(QuicStreamTest, FinBeforeReliableOffset) {
 
 TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfReset) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   char data[100];
@@ -1981,7 +1981,7 @@ TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfReset) {
 
 TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfResetAndRetransmitted) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   char data[100];
@@ -2025,7 +2025,7 @@ TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfResetAndRetransmitted) {
 
 TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfResetThenReadSideReset) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   char data[100];
@@ -2057,7 +2057,7 @@ TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfResetThenReadSideReset) {
 
 TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfResetThenReadSideFin) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   char data[100];
@@ -2105,7 +2105,7 @@ TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfResetThenReadSideFin) {
 
 TEST_P(QuicStreamTest, ReliableSizeAckedAtTimeOfReset) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   EXPECT_CALL(*session_, WritevData(_, _, _, _, _, _))
@@ -2126,7 +2126,7 @@ TEST_P(QuicStreamTest, ReliableSizeAckedAtTimeOfReset) {
 
 TEST_P(QuicStreamTest, BufferedDataInReliableSize) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   EXPECT_CALL(*session_, WritevData(stream_->id(), 100, 0, _, _, _))
@@ -2156,7 +2156,7 @@ TEST_P(QuicStreamTest, BufferedDataInReliableSize) {
 
 TEST_P(QuicStreamTest, ReliableSizeIsFinOffset) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   EXPECT_CALL(*session_, WritevData(_, 100, 0, FIN, _, _))
@@ -2180,7 +2180,7 @@ TEST_P(QuicStreamTest, ReliableSizeIsFinOffset) {
 
 TEST_P(QuicStreamTest, DataAfterResetStreamAt) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   char data[100];
@@ -2200,7 +2200,7 @@ TEST_P(QuicStreamTest, DataAfterResetStreamAt) {
 
 TEST_P(QuicStreamTest, SetReliableSizeOnUnidirectionalRead) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
@@ -2213,7 +2213,7 @@ TEST_P(QuicStreamTest, SetReliableSizeOnUnidirectionalRead) {
 // stream is cleaned up.
 TEST_P(QuicStreamTest, ResetStreamAtUnidirectionalWrite) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   const QuicStreamId kId = 3;
@@ -2247,7 +2247,7 @@ TEST_P(QuicStreamTest, ResetStreamAtUnidirectionalWrite) {
 // zombie stream is cleaned up.
 TEST_P(QuicStreamTest, ResetStreamAtReadSideFin) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   // Fin the read side.
@@ -2278,7 +2278,7 @@ TEST_P(QuicStreamTest, ResetStreamAtReadSideFin) {
 
 TEST_P(QuicStreamTest, ResetStreamAtAfterStopSending) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   char data[100];
@@ -2294,7 +2294,7 @@ TEST_P(QuicStreamTest, ResetStreamAtAfterStopSending) {
 
 TEST_P(QuicStreamTest, RejectReliableSizeOldVersion) {
   Initialize();
-  if (VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   char data[100];
@@ -2307,7 +2307,7 @@ TEST_P(QuicStreamTest, RejectReliableSizeOldVersion) {
 
 TEST_P(QuicStreamTest, RejectReliableSizeReadOnlyStream) {
   Initialize();
-  if (!VersionHasIetfQuicFrames(session_->transport_version())) {
+  if (!VersionIsIetfQuic(session_->transport_version())) {
     return;
   }
   auto uni = new StrictMock<TestStream>(6, session_.get(), READ_UNIDIRECTIONAL);

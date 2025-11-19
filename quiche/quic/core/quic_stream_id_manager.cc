@@ -155,7 +155,7 @@ QuicStreamId QuicStreamIdManager::GetNextOutgoingStreamId() {
 }
 
 bool QuicStreamIdManager::CanOpenNextOutgoingStream() const {
-  QUICHE_DCHECK(VersionHasIetfQuicFrames(version_.transport_version));
+  QUICHE_DCHECK(VersionIsIetfQuic(version_.transport_version));
   return outgoing_stream_count_ < outgoing_max_streams_;
 }
 

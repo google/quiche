@@ -168,7 +168,7 @@ TEST_F(QuicCryptoStreamTest, NotInitiallyConected) {
 }
 
 TEST_F(QuicCryptoStreamTest, ProcessRawData) {
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     stream_->OnStreamFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_->transport_version()),
         /*fin=*/false,
@@ -195,7 +195,7 @@ TEST_F(QuicCryptoStreamTest, ProcessBadData) {
 
   EXPECT_CALL(*connection_, CloseConnection(QUIC_CRYPTO_TAGS_OUT_OF_ORDER,
                                             testing::_, testing::_));
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     stream_->OnStreamFrame(QuicStreamFrame(
         QuicUtils::GetCryptoStreamId(connection_->transport_version()),
         /*fin=*/false, /*offset=*/0, bad));
@@ -211,7 +211,7 @@ TEST_F(QuicCryptoStreamTest, NoConnectionLevelFlowControl) {
 }
 
 TEST_F(QuicCryptoStreamTest, RetransmitCryptoData) {
-  if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   InSequence s;
@@ -265,7 +265,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoData) {
 }
 
 TEST_F(QuicCryptoStreamTest, RetransmitCryptoDataInCryptoFrames) {
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   EXPECT_CALL(*connection_, SendCryptoData(_, _, _)).Times(0);
@@ -335,7 +335,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoDataInCryptoFrames) {
 // RetransmitCryptoDataInCryptoFrames, except it uses ENCRYPTION_HANDSHAKE in
 // place of ENCRYPTION_ZERO_RTT.
 TEST_F(QuicCryptoStreamTest, RetransmitEncryptionHandshakeLevelCryptoFrames) {
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   EXPECT_CALL(*connection_, SendCryptoData(_, _, _)).Times(0);
@@ -376,7 +376,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitEncryptionHandshakeLevelCryptoFrames) {
 }
 
 TEST_F(QuicCryptoStreamTest, NeuterUnencryptedStreamData) {
-  if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   // Send [0, 1350) in ENCRYPTION_INITIAL.
@@ -416,7 +416,7 @@ TEST_F(QuicCryptoStreamTest, NeuterUnencryptedStreamData) {
 }
 
 TEST_F(QuicCryptoStreamTest, NeuterUnencryptedCryptoData) {
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   // Send [0, 1350) in ENCRYPTION_INITIAL.
@@ -462,7 +462,7 @@ TEST_F(QuicCryptoStreamTest, NeuterUnencryptedCryptoData) {
 }
 
 TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
-  if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   InSequence s;
@@ -533,7 +533,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
 }
 
 TEST_F(QuicCryptoStreamTest, RetransmitStreamDataWithCryptoFrames) {
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   InSequence s;
@@ -596,7 +596,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamDataWithCryptoFrames) {
 
 // Regression test for b/115926584.
 TEST_F(QuicCryptoStreamTest, HasUnackedCryptoData) {
-  if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   std::string data(1350, 'a');
@@ -622,7 +622,7 @@ TEST_F(QuicCryptoStreamTest, HasUnackedCryptoData) {
 }
 
 TEST_F(QuicCryptoStreamTest, HasUnackedCryptoDataWithCryptoFrames) {
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   // Send [0, 1350) in ENCRYPTION_INITIAL.
@@ -642,11 +642,8 @@ TEST_F(QuicCryptoStreamTest, CryptoMessageFramingOverhead) {
        AllSupportedVersionsWithQuicCrypto()) {
     SCOPED_TRACE(version);
     QuicByteCount expected_overhead = 52;
-    if (version.HasLongHeaderLengths()) {
-      expected_overhead += 3;
-    }
     if (version.IsIetfQuic()) {
-      expected_overhead += 1;
+      expected_overhead += 4;
     }
     EXPECT_EQ(expected_overhead,
               QuicCryptoStream::CryptoMessageFramingOverhead(
@@ -655,7 +652,7 @@ TEST_F(QuicCryptoStreamTest, CryptoMessageFramingOverhead) {
 }
 
 TEST_F(QuicCryptoStreamTest, WriteCryptoDataExceedsSendBufferLimit) {
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   EXPECT_EQ(ENCRYPTION_INITIAL, connection_->encryption_level());
@@ -698,7 +695,7 @@ TEST_F(QuicCryptoStreamTest, WriteCryptoDataExceedsSendBufferLimit) {
 }
 
 TEST_F(QuicCryptoStreamTest, WriteBufferedCryptoFrames) {
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   EXPECT_FALSE(stream_->HasBufferedCryptoFrames());
@@ -738,7 +735,7 @@ TEST_F(QuicCryptoStreamTest, WriteBufferedCryptoFrames) {
 }
 
 TEST_F(QuicCryptoStreamTest, LimitBufferedCryptoData) {
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
 
@@ -754,7 +751,7 @@ TEST_F(QuicCryptoStreamTest, LimitBufferedCryptoData) {
 }
 
 TEST_F(QuicCryptoStreamTest, CloseConnectionWithZeroRttCryptoFrame) {
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
 
@@ -768,7 +765,7 @@ TEST_F(QuicCryptoStreamTest, CloseConnectionWithZeroRttCryptoFrame) {
 }
 
 TEST_F(QuicCryptoStreamTest, RetransmitCryptoFramesAndPartialWrite) {
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
 
@@ -801,7 +798,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitCryptoFramesAndPartialWrite) {
 
 // Regression test for b/203199510
 TEST_F(QuicCryptoStreamTest, EmptyCryptoFrame) {
-  if (!QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);

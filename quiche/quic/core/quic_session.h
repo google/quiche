@@ -877,7 +877,7 @@ class QUICHE_EXPORT QuicSession
   }
 
   UberQuicStreamIdManager& ietf_streamid_manager() {
-    QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version()));
+    QUICHE_DCHECK(VersionIsIetfQuic(transport_version()));
     return ietf_streamid_manager_;
   }
 

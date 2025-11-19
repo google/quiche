@@ -30,7 +30,7 @@ QuicStreamId QuicSessionPeer::GetNextOutgoingUnidirectionalStreamId(
 // static
 void QuicSessionPeer::SetNextOutgoingBidirectionalStreamId(QuicSession* session,
                                                            QuicStreamId id) {
-  if (VersionHasIetfQuicFrames(session->transport_version())) {
+  if (VersionIsIetfQuic(session->transport_version())) {
     session->ietf_streamid_manager_.bidirectional_stream_id_manager_
         .next_outgoing_stream_id_ = id;
     return;
@@ -41,7 +41,7 @@ void QuicSessionPeer::SetNextOutgoingBidirectionalStreamId(QuicSession* session,
 // static
 void QuicSessionPeer::SetMaxOpenIncomingStreams(QuicSession* session,
                                                 uint32_t max_streams) {
-  if (VersionHasIetfQuicFrames(session->transport_version())) {
+  if (VersionIsIetfQuic(session->transport_version())) {
     QUIC_BUG(quic_bug_10193_1)
         << "SetmaxOpenIncomingStreams deprecated for IETF QUIC";
     session->ietf_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
@@ -56,7 +56,7 @@ void QuicSessionPeer::SetMaxOpenIncomingStreams(QuicSession* session,
 // static
 void QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
     QuicSession* session, uint32_t max_streams) {
-  QUICHE_DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
+  QUICHE_DCHECK(VersionIsIetfQuic(session->transport_version()))
       << "SetmaxOpenIncomingBidirectionalStreams not supported for Google "
          "QUIC";
   session->ietf_streamid_manager_.SetMaxOpenIncomingBidirectionalStreams(
@@ -65,7 +65,7 @@ void QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(
 // static
 void QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(
     QuicSession* session, uint32_t max_streams) {
-  QUICHE_DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
+  QUICHE_DCHECK(VersionIsIetfQuic(session->transport_version()))
       << "SetmaxOpenIncomingUnidirectionalStreams not supported for Google "
          "QUIC";
   session->ietf_streamid_manager_.SetMaxOpenIncomingUnidirectionalStreams(
@@ -75,7 +75,7 @@ void QuicSessionPeer::SetMaxOpenIncomingUnidirectionalStreams(
 // static
 void QuicSessionPeer::SetMaxOpenOutgoingStreams(QuicSession* session,
                                                 uint32_t max_streams) {
-  if (VersionHasIetfQuicFrames(session->transport_version())) {
+  if (VersionIsIetfQuic(session->transport_version())) {
     QUIC_BUG(quic_bug_10193_2)
         << "SetmaxOpenOutgoingStreams deprecated for IETF QUIC";
     return;
@@ -86,7 +86,7 @@ void QuicSessionPeer::SetMaxOpenOutgoingStreams(QuicSession* session,
 // static
 void QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(
     QuicSession* session, uint32_t max_streams) {
-  QUICHE_DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
+  QUICHE_DCHECK(VersionIsIetfQuic(session->transport_version()))
       << "SetmaxOpenOutgoingBidirectionalStreams not supported for Google "
          "QUIC";
   session->ietf_streamid_manager_.MaybeAllowNewOutgoingBidirectionalStreams(
@@ -95,7 +95,7 @@ void QuicSessionPeer::SetMaxOpenOutgoingBidirectionalStreams(
 // static
 void QuicSessionPeer::SetMaxOpenOutgoingUnidirectionalStreams(
     QuicSession* session, uint32_t max_streams) {
-  QUICHE_DCHECK(VersionHasIetfQuicFrames(session->transport_version()))
+  QUICHE_DCHECK(VersionIsIetfQuic(session->transport_version()))
       << "SetmaxOpenOutgoingUnidirectionalStreams not supported for Google "
          "QUIC";
   session->ietf_streamid_manager_.MaybeAllowNewOutgoingUnidirectionalStreams(
@@ -155,7 +155,7 @@ bool QuicSessionPeer::IsStreamCreated(QuicSession* session, QuicStreamId id) {
 
 // static
 bool QuicSessionPeer::IsStreamAvailable(QuicSession* session, QuicStreamId id) {
-  if (VersionHasIetfQuicFrames(session->transport_version())) {
+  if (VersionIsIetfQuic(session->transport_version())) {
     if (id % QuicUtils::StreamIdDelta(session->transport_version()) < 2) {
       return session->ietf_streamid_manager_.bidirectional_stream_id_manager_
           .available_streams_.contains(id);

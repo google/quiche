@@ -126,9 +126,9 @@ size_t GetPacketHeaderSize(
       size += kConnectionIdLengthSize;
     }
     QUICHE_DCHECK(
-        QuicVersionHasLongHeaderLengths(version) ||
+        VersionIsIetfQuic(version) ||
         retry_token_length_length + retry_token_length + length_length == 0);
-    if (QuicVersionHasLongHeaderLengths(version)) {
+    if (VersionIsIetfQuic(version)) {
       size += retry_token_length_length + retry_token_length + length_length;
     }
     return size;

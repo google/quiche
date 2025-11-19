@@ -297,7 +297,7 @@ class TestSession : public QuicSpdySession {
 
   TestStream* CreateIncomingStream(QuicStreamId id) override {
     // Enforce the limit on the number of open streams.
-    if (!VersionHasIetfQuicFrames(connection()->transport_version()) &&
+    if (!VersionIsIetfQuic(connection()->transport_version()) &&
         stream_id_manager().num_open_incoming_streams() + 1 >
             max_open_incoming_bidirectional_streams()) {
       connection()->CloseConnection(
@@ -466,7 +466,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   void CheckClosedStreams() {
     QuicStreamId first_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
         transport_version(), Perspective::IS_CLIENT);
-    if (!QuicVersionUsesCryptoFrames(transport_version())) {
+    if (!VersionIsIetfQuic(transport_version())) {
       first_stream_id = QuicUtils::GetCryptoStreamId(transport_version());
     }
     for (QuicStreamId i = first_stream_id; i < 100; i++) {
@@ -479,7 +479,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void CloseStream(QuicStreamId id) {
-    if (!VersionHasIetfQuicFrames(transport_version())) {
+    if (!VersionIsIetfQuic(transport_version())) {
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .WillOnce(&ClearControlFrame);
     } else {
@@ -534,7 +534,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void CompleteHandshake() {
-    if (VersionHasIetfQuicFrames(transport_version())) {
+    if (VersionIsIetfQuic(transport_version())) {
       EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _, _))
           .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
     }
@@ -673,7 +673,7 @@ TEST_P(QuicSpdySessionTestServer, IsClosedStreamDefault) {
   // Ensure that no streams are initially closed.
   QuicStreamId first_stream_id = QuicUtils::GetFirstBidirectionalStreamId(
       transport_version(), Perspective::IS_CLIENT);
-  if (!QuicVersionUsesCryptoFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     first_stream_id = QuicUtils::GetCryptoStreamId(transport_version());
   }
   for (QuicStreamId i = first_stream_id; i < 100; i++) {
@@ -733,7 +733,7 @@ TEST_P(QuicSpdySessionTestServer, IsClosedStreamPeerCreated) {
 
 TEST_P(QuicSpdySessionTestServer, MaximumAvailableOpenedStreams) {
   Initialize();
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     // For IETF QUIC, we should be able to obtain the max allowed
     // stream ID, the next ID should fail. Since the actual limit
     // is not the number of open streams, we allocate the max and the max+2.
@@ -788,7 +788,7 @@ TEST_P(QuicSpdySessionTestServer, TooManyAvailableStreams) {
   // A stream ID which is too large to create.
   stream_id2 = GetNthClientInitiatedBidirectionalId(
       2 * session_->MaxAvailableBidirectionalStreams() + 4);
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     EXPECT_CALL(*connection_, CloseConnection(QUIC_INVALID_STREAM_ID, _, _));
   } else {
     EXPECT_CALL(*connection_,
@@ -801,7 +801,7 @@ TEST_P(QuicSpdySessionTestServer, ManyAvailableStreams) {
   Initialize();
   // When max_open_streams_ is 200, should be able to create 200 streams
   // out-of-order, that is, creating the one with the largest stream ID first.
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(&*session_, 200);
   } else {
     QuicSessionPeer::SetMaxOpenIncomingStreams(&*session_, 200);
@@ -978,7 +978,7 @@ TEST_P(QuicSpdySessionTestServer, BufferedHandshake) {
   // This tests prioritization of the crypto stream when flow control limits are
   // reached. When CRYPTO frames are in use, there is no flow control for the
   // crypto handshake, so this test is irrelevant.
-  if (QuicVersionUsesCryptoFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     return;
   }
   session_->set_writev_consumes_all_data(true);
@@ -1072,7 +1072,7 @@ TEST_P(QuicSpdySessionTestServer,
 
   // Mark the crypto and headers streams as write blocked, we expect them to be
   // allowed to write later.
-  if (!QuicVersionUsesCryptoFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     session_->MarkConnectionLevelWriteBlocked(
         QuicUtils::GetCryptoStreamId(transport_version()));
   }
@@ -1085,7 +1085,7 @@ TEST_P(QuicSpdySessionTestServer,
 
   // The crypto and headers streams should be called even though we are
   // connection flow control blocked.
-  if (!QuicVersionUsesCryptoFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     TestCryptoStream* crypto_stream = session_->GetMutableCryptoStream();
     EXPECT_CALL(*crypto_stream, OnCanWrite());
   }
@@ -1111,7 +1111,7 @@ TEST_P(QuicSpdySessionTestServer,
 TEST_P(QuicSpdySessionTestServer, SendGoAway) {
   Initialize();
   CompleteHandshake();
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     // HTTP/3 GOAWAY has different semantic and thus has its own test.
     return;
   }
@@ -1135,7 +1135,7 @@ TEST_P(QuicSpdySessionTestServer, SendGoAway) {
 
 TEST_P(QuicSpdySessionTestServer, SendGoAwayWithoutEncryption) {
   Initialize();
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     // HTTP/3 GOAWAY has different semantic and thus has its own test.
     return;
   }
@@ -1259,7 +1259,7 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAfterStreamIsCreated) {
 TEST_P(QuicSpdySessionTestServer, DoNotSendGoAwayTwice) {
   Initialize();
   CompleteHandshake();
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     // HTTP/3 GOAWAY doesn't have such restriction.
     return;
   }
@@ -1271,7 +1271,7 @@ TEST_P(QuicSpdySessionTestServer, DoNotSendGoAwayTwice) {
 
 TEST_P(QuicSpdySessionTestServer, InvalidGoAway) {
   Initialize();
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     // HTTP/3 GOAWAY has different semantics and thus has its own test.
     return;
   }
@@ -1318,7 +1318,7 @@ TEST_P(QuicSpdySessionTestServer, RstStreamBeforeHeadersDecompressed) {
   session_->OnStreamFrame(data1);
   EXPECT_EQ(1u, QuicSessionPeer::GetNumOpenDynamicStreams(&*session_));
 
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     // For version99, OnStreamReset gets called because of the STOP_SENDING,
     // below. EXPECT the call there.
     EXPECT_CALL(*connection_,
@@ -1334,7 +1334,7 @@ TEST_P(QuicSpdySessionTestServer, RstStreamBeforeHeadersDecompressed) {
   // Create and inject a STOP_SENDING frame. In GOOGLE QUIC, receiving a
   // RST_STREAM frame causes a two-way close. For IETF QUIC, RST_STREAM causes a
   // one-way close.
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     // Only needed for version 99/IETF QUIC.
     QuicStopSendingFrame stop_sending(kInvalidControlFrameId,
                                       GetNthClientInitiatedBidirectionalId(0),
@@ -1480,7 +1480,7 @@ TEST_P(QuicSpdySessionTestServer,
   Initialize();
   // This test depends on stream-level flow control for the crypto stream, which
   // doesn't exist when CRYPTO frames are used.
-  if (QuicVersionUsesCryptoFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -1560,7 +1560,7 @@ TEST_P(QuicSpdySessionTestServer,
   const QuicStreamOffset kByteOffset =
       1 + kInitialSessionFlowControlWindowForTest / 2;
 
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     // For version99 the call to OnStreamReset happens as a result of receiving
     // the STOP_SENDING, so set up the EXPECT there.
     EXPECT_CALL(*connection_, OnStreamReset(stream->id(), _));
@@ -1572,7 +1572,7 @@ TEST_P(QuicSpdySessionTestServer,
   // Create and inject a STOP_SENDING frame. In GOOGLE QUIC, receiving a
   // RST_STREAM frame causes a two-way close. For IETF QUIC, RST_STREAM causes a
   // one-way close.
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     // Only needed for version 99/IETF QUIC.
     QuicStopSendingFrame stop_sending(kInvalidControlFrameId, stream->id(),
                                       QUIC_STREAM_CANCELLED);
@@ -1668,7 +1668,7 @@ TEST_P(QuicSpdySessionTestServer,
   // than version 99. In version 99 the connection gets closed.
   CompleteHandshake();
   const QuicStreamId kMaxStreams = 5;
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(&*session_,
                                                             kMaxStreams);
   } else {
@@ -1696,7 +1696,7 @@ TEST_P(QuicSpdySessionTestServer,
     CloseStream(i);
   }
   // Try and open a stream that exceeds the limit.
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     // On versions other than 99, opening such a stream results in a
     // RST_STREAM.
     EXPECT_CALL(*connection_, SendControlFrame(_)).Times(1);
@@ -1723,7 +1723,7 @@ TEST_P(QuicSpdySessionTestServer, DrainingStreamsDoNotCountAsOpened) {
   // it) does not count against the open quota (because it is closed from the
   // protocol point of view).
   CompleteHandshake();
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     // Simulate receiving a config. so that MAX_STREAMS/etc frames may
     // be transmitted
     QuicSessionPeer::set_is_configured(&*session_, true);
@@ -1738,7 +1738,7 @@ TEST_P(QuicSpdySessionTestServer, DrainingStreamsDoNotCountAsOpened) {
   }
   EXPECT_CALL(*connection_, OnStreamReset(_, QUIC_REFUSED_STREAM)).Times(0);
   const QuicStreamId kMaxStreams = 5;
-  if (VersionHasIetfQuicFrames(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     QuicSessionPeer::SetMaxOpenIncomingBidirectionalStreams(&*session_,
                                                             kMaxStreams);
   } else {
@@ -2090,13 +2090,13 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
 
   // Lost data on cryption stream, streams 2 and 4.
   EXPECT_CALL(*stream4, HasPendingRetransmission()).WillOnce(Return(true));
-  if (!QuicVersionUsesCryptoFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
         .WillOnce(Return(true));
   }
   EXPECT_CALL(*stream2, HasPendingRetransmission()).WillOnce(Return(true));
   session_->OnFrameLost(QuicFrame(frame3));
-  if (!QuicVersionUsesCryptoFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     QuicStreamFrame frame1(QuicUtils::GetCryptoStreamId(transport_version()),
                            false, 0, 1300);
     session_->OnFrameLost(QuicFrame(frame1));
@@ -2115,7 +2115,7 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameLost) {
   // stream go first.
   // Do not check congestion window when crypto stream has lost data.
   EXPECT_CALL(*send_algorithm, CanSend(_)).Times(0);
-  if (!QuicVersionUsesCryptoFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     EXPECT_CALL(*crypto_stream, OnCanWrite());
     EXPECT_CALL(*crypto_stream, HasPendingRetransmission())
         .WillOnce(Return(false));

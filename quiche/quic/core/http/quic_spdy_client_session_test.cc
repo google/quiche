@@ -142,7 +142,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   void CompleteCryptoHandshake(uint32_t server_max_incoming_streams) {
-    if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    if (VersionIsIetfQuic(connection_->transport_version())) {
       EXPECT_CALL(*connection_, SendControlFrame(_))
           .Times(::testing::AnyNumber())
           .WillRepeatedly(Invoke(
@@ -150,7 +150,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     }
     session_->CryptoConnect();
     QuicConfig config = DefaultQuicConfig();
-    if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+    if (VersionIsIetfQuic(connection_->transport_version())) {
       config.SetMaxUnidirectionalStreamsToSend(server_max_incoming_streams);
       config.SetMaxBidirectionalStreamsToSend(server_max_incoming_streams);
     } else {
@@ -289,7 +289,7 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
                                            QUIC_RST_ACKNOWLEDGEMENT, 0));
   // Check that a new one can be created.
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
-  if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
+  if (VersionIsIetfQuic(GetParam().transport_version)) {
     // In IETF QUIC the stream limit increases only if we get a MAX_STREAMS
     // frame; pretend we got one.
 
@@ -299,7 +299,7 @@ TEST_P(QuicSpdyClientSessionTest, MaxNumStreamsWithRst) {
   }
   stream = session_->CreateOutgoingBidirectionalStream();
   EXPECT_NE(nullptr, stream);
-  if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
+  if (VersionIsIetfQuic(GetParam().transport_version)) {
     // Ensure that we have 2 total streams, 1 open and 1 closed.
     QuicStreamCount expected_stream_count = 2;
     EXPECT_EQ(expected_stream_count,
@@ -319,7 +319,7 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
   QuicSpdyClientStream* stream = session_->CreateOutgoingBidirectionalStream();
   ASSERT_NE(nullptr, stream);
 
-  if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
+  if (VersionIsIetfQuic(GetParam().transport_version)) {
     // For IETF QUIC, trying to open a stream and failing due to lack
     // of stream ids will result in a STREAMS_BLOCKED. Make
     // sure we get one. Also clear out the frame because if it's
@@ -359,7 +359,7 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
   // The stream is now complete from the client's perspective, and it should
   // be able to create a new outgoing stream.
   EXPECT_EQ(0u, QuicSessionPeer::GetNumOpenDynamicStreams(session_.get()));
-  if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
+  if (VersionIsIetfQuic(GetParam().transport_version)) {
     QuicMaxStreamsFrame frame(0, 2,
                               /*unidirectional=*/false);
 
@@ -367,7 +367,7 @@ TEST_P(QuicSpdyClientSessionTest, ResetAndTrailers) {
   }
   stream = session_->CreateOutgoingBidirectionalStream();
   EXPECT_NE(nullptr, stream);
-  if (VersionHasIetfQuicFrames(GetParam().transport_version)) {
+  if (VersionIsIetfQuic(GetParam().transport_version)) {
     // Ensure that we have 2 open streams.
     QuicStreamCount expected_stream_count = 2;
     EXPECT_EQ(expected_stream_count,
@@ -432,7 +432,7 @@ TEST_P(QuicSpdyClientSessionTest, OnStreamHeaderListWithStaticStream) {
 }
 
 TEST_P(QuicSpdyClientSessionTest, GoAwayReceived) {
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   CompleteCryptoHandshake();
@@ -531,7 +531,7 @@ TEST_P(QuicSpdyClientSessionTest, InvalidFramedPacketReceived) {
 
 TEST_P(QuicSpdyClientSessionTest,
        TryToCreateServerInitiatedBidirectionalStream) {
-  if (VersionHasIetfQuicFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     EXPECT_CALL(
         *connection_,
         CloseConnection(QUIC_HTTP_SERVER_INITIATED_BIDIRECTIONAL_STREAM, _, _));

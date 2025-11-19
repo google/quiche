@@ -19,7 +19,7 @@ QuicConnectionCloseFrame::QuicConnectionCloseFrame(
     QuicIetfTransportErrorCodes ietf_error, std::string error_phrase,
     uint64_t frame_type)
     : quic_error_code(error_code), error_details(error_phrase) {
-  if (!VersionHasIetfQuicFrames(transport_version)) {
+  if (!VersionIsIetfQuic(transport_version)) {
     close_type = GOOGLE_QUIC_CONNECTION_CLOSE;
     wire_error_code = error_code;
     transport_close_frame_type = 0;

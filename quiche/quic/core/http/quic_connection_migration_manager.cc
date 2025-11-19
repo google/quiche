@@ -222,7 +222,7 @@ QuicConnectionMigrationManager::QuicConnectionMigrationManager(
           new RunPendingCallbackDelegate(this, connection_->context()))) {
   QUICHE_BUG_IF(gquic_session_created_on_non_default_network,
                 default_network_ != current_network_ &&
-                    !session_->version().HasIetfQuicFrames());
+                    !session_->version().IsIetfQuic());
   QUICHE_BUG_IF(inconsistent_migrate_session_config,
                 config_.migrate_session_early &&
                     !config_.migrate_session_on_network_change)
@@ -238,7 +238,7 @@ QuicConnectionMigrationManager::~QuicConnectionMigrationManager() {
 
 void QuicConnectionMigrationManager::OnNetworkConnected(
     QuicNetworkHandle network) {
-  if (!session_->version().HasIetfQuicFrames()) {
+  if (!session_->version().IsIetfQuic()) {
     return;
   }
   if (connection_->IsPathDegrading()) {
@@ -292,7 +292,7 @@ void QuicConnectionMigrationManager::OnNetworkDisconnected(
   if (debug_visitor_) {
     debug_visitor_->OnNetworkDisconnected(disconnected_network);
   }
-  if (!session_->version().HasIetfQuicFrames()) {
+  if (!session_->version().IsIetfQuic()) {
     return;
   }
   if (!config_.migrate_session_on_network_change) {
@@ -614,7 +614,7 @@ void QuicConnectionMigrationManager::CancelMigrateBackToDefaultNetworkTimer() {
 
 bool QuicConnectionMigrationManager::MaybeStartMigrateSessionOnWriteError(
     int error_code) {
-  if (!session_->version().HasIetfQuicFrames()) {
+  if (!session_->version().IsIetfQuic()) {
     return false;
   }
   QuicClientSparseHistogram("QuicSession.WriteError", -error_code);
@@ -750,7 +750,7 @@ void QuicConnectionMigrationManager::RunPendingCallbacks() {
 }
 
 void QuicConnectionMigrationManager::OnPathDegrading() {
-  if (!session_->version().HasIetfQuicFrames()) {
+  if (!session_->version().IsIetfQuic()) {
     return;
   }
   if (!most_recent_path_degrading_timestamp_.IsInitialized()) {
@@ -1152,7 +1152,7 @@ void QuicConnectionMigrationManager::
 
 void QuicConnectionMigrationManager::OnNetworkMadeDefault(
     QuicNetworkHandle new_network) {
-  if (!session_->version().HasIetfQuicFrames()) {
+  if (!session_->version().IsIetfQuic()) {
     return;
   }
   RecordMetricsOnNetworkMadeDefault();
@@ -1298,7 +1298,7 @@ void QuicConnectionMigrationManager::OnHandshakeCompleted(
   if (config_.migrate_session_on_network_change &&
       default_network_ != kInvalidNetworkHandle &&
       current_network() != default_network_) {
-    QUICHE_DCHECK(session_->version().HasIetfQuicFrames());
+    QUICHE_DCHECK(session_->version().IsIetfQuic());
     current_migration_cause_ =
         MigrationCause::ON_MIGRATE_BACK_TO_DEFAULT_NETWORK;
     StartMigrateBackToDefaultNetworkTimer(

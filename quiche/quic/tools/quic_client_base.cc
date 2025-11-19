@@ -331,8 +331,8 @@ bool QuicClientBase::MigrateSocketWithSpecifiedPort(
 }
 
 bool QuicClientBase::ValidateAndMigrateSocket(const QuicIpAddress& new_host) {
-  QUICHE_DCHECK(VersionHasIetfQuicFrames(
-      session_->connection()->version().transport_version));
+  QUICHE_DCHECK(
+      VersionIsIetfQuic(session_->connection()->version().transport_version));
   if (!connected()) {
     return false;
   }

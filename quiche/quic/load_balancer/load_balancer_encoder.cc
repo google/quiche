@@ -188,7 +188,7 @@ std::optional<QuicConnectionId> LoadBalancerEncoder::MaybeReplaceConnectionId(
   uint8_t needed_length = config_.has_value()
                               ? config_->total_len()
                               : connection_id_lengths_[kNumLoadBalancerConfigs];
-  return (!version.HasIetfQuicFrames() && original.length() == needed_length)
+  return (!version.IsIetfQuic() && original.length() == needed_length)
              ? std::optional<QuicConnectionId>()
              : GenerateConnectionId();
 }

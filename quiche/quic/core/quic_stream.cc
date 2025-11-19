@@ -70,7 +70,7 @@ QuicByteCount GetInitialStreamFlowControlWindowToSend(QuicSession* session,
   }
 
   // Unidirectional streams (v99 only).
-  if (VersionHasIetfQuicFrames(version.transport_version) &&
+  if (VersionIsIetfQuic(version.transport_version) &&
       !QuicUtils::IsBidirectionalStreamId(stream_id, version)) {
     return session->config()
         ->GetInitialMaxStreamDataBytesUnidirectionalToSend();
@@ -98,7 +98,7 @@ QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
   }
 
   // Unidirectional streams (v99 only).
-  if (VersionHasIetfQuicFrames(version.transport_version) &&
+  if (VersionIsIetfQuic(version.transport_version) &&
       !QuicUtils::IsBidirectionalStreamId(stream_id, version)) {
     if (session->config()
             ->HasReceivedInitialMaxStreamDataBytesUnidirectional()) {
@@ -352,7 +352,7 @@ QuicStream::QuicStream(PendingStream* pending, QuicSession* session,
           std::move(pending->flow_controller_),
           pending->connection_flow_controller_,
           (session->GetClock()->ApproximateNow() - pending->creation_time())) {
-  QUICHE_DCHECK(session->version().HasIetfQuicFrames());
+  QUICHE_DCHECK(session->version().IsIetfQuic());
   sequencer_.set_stream(this);
   buffered_reset_stream_at_ = pending->buffered_reset_stream_at();
 }
@@ -423,8 +423,7 @@ QuicStream::QuicStream(QuicStreamId id, QuicSession* session,
       is_static_(is_static),
       deadline_(QuicTime::Zero()),
       was_draining_(false),
-      type_(VersionHasIetfQuicFrames(session->transport_version()) &&
-                    type != CRYPTO
+      type_(VersionIsIetfQuic(session->transport_version()) && type != CRYPTO
                 ? QuicUtils::GetStreamType(id_, session->perspective(),
                                            session->IsIncomingStream(id_),
                                            session->version())
@@ -631,7 +630,7 @@ void QuicStream::OnStreamReset(const QuicRstStreamFrame& frame) {
   stream_error_ = frame.error();
   // Google QUIC closes both sides of the stream in response to a
   // RESET_STREAM, IETF QUIC closes only the read side.
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     CloseWriteSide();
   }
   CloseReadSide();
@@ -707,8 +706,7 @@ bool QuicStream::SetReliableSize() {
     return false;
   }
   if (!session_->connection()->reliable_stream_reset_enabled() ||
-      !VersionHasIetfQuicFrames(transport_version()) ||
-      type_ == READ_UNIDIRECTIONAL) {
+      !VersionIsIetfQuic(transport_version()) || type_ == READ_UNIDIRECTIONAL) {
     return false;
   }
   reliable_size_ = send_buffer_->stream_offset();
@@ -1055,9 +1053,9 @@ void QuicStream::MaybeSendRstStream(QuicResetStreamError error) {
 
 void QuicStream::MaybeSendResetStreamAt(QuicResetStreamError error) {
   if (!session_->connection()->reliable_stream_reset_enabled() ||
-      !VersionHasIetfQuicFrames(transport_version())) {
+      !VersionIsIetfQuic(transport_version())) {
     QUIC_BUG_IF(quic_bug_gquic_calling_reset_stream_at,
-                !VersionHasIetfQuicFrames(transport_version()))
+                !VersionIsIetfQuic(transport_version()))
         << "gQUIC is calling MaybeSendResetStreamAt";
     MaybeSendRstStream(error);
     return;

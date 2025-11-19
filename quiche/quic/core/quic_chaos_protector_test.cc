@@ -216,7 +216,7 @@ namespace {
 ParsedQuicVersionVector TestVersions() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    if (version.UsesCryptoFrames()) {
+    if (version.IsIetfQuic()) {
       versions.push_back(version);
     }
   }

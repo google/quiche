@@ -159,7 +159,7 @@ void ChloFramerVisitor::OnUndecryptablePacket(
     bool /*has_decryption_key*/) {}
 
 bool ChloFramerVisitor::OnStreamFrame(const QuicStreamFrame& frame) {
-  if (QuicVersionUsesCryptoFrames(framer_->transport_version())) {
+  if (VersionIsIetfQuic(framer_->transport_version())) {
     // CHLO will be sent in CRYPTO frames in v47 and above.
     return false;
   }
@@ -173,7 +173,7 @@ bool ChloFramerVisitor::OnStreamFrame(const QuicStreamFrame& frame) {
 }
 
 bool ChloFramerVisitor::OnCryptoFrame(const QuicCryptoFrame& frame) {
-  if (!QuicVersionUsesCryptoFrames(framer_->transport_version())) {
+  if (!VersionIsIetfQuic(framer_->transport_version())) {
     // CHLO will be in stream frames before v47.
     return false;
   }

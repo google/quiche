@@ -81,7 +81,7 @@ bool QuicSpdyClientSessionWithMigration::MigrateToNewPath(
 
 void QuicSpdyClientSessionWithMigration::OnServerPreferredAddressAvailable(
     const QuicSocketAddress& server_preferred_address) {
-  QUICHE_DCHECK(version().HasIetfQuicFrames());
+  QUICHE_DCHECK(version().IsIetfQuic());
   QuicSpdyClientSessionBase::OnServerPreferredAddressAvailable(
       server_preferred_address);
   migration_manager_.MaybeStartMigrateSessionToServerPreferredAddress(

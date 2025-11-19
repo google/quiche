@@ -21,7 +21,7 @@ LegacyQuicStreamIdManager::LegacyQuicStreamIdManager(
           transport_version_, perspective_)),
       largest_peer_created_stream_id_(
           perspective_ == Perspective::IS_SERVER
-              ? (QuicVersionUsesCryptoFrames(transport_version_)
+              ? (VersionIsIetfQuic(transport_version_)
                      ? QuicUtils::GetInvalidStreamId(transport_version_)
                      : QuicUtils::GetCryptoStreamId(transport_version_))
               : QuicUtils::GetInvalidStreamId(transport_version_)),

@@ -184,7 +184,7 @@ void SimpleSessionNotifier::WriteOrBufferAckFrequency(
 }
 
 void SimpleSessionNotifier::NeuterUnencryptedData() {
-  if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     for (const auto& interval : crypto_bytes_transferred_[ENCRYPTION_INITIAL]) {
       QuicCryptoFrame crypto_frame(ENCRYPTION_INITIAL, interval.min(),
                                    interval.max() - interval.min());
@@ -490,7 +490,7 @@ bool SimpleSessionNotifier::IsFrameOutstanding(const QuicFrame& frame) const {
 }
 
 bool SimpleSessionNotifier::HasUnackedCryptoData() const {
-  if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     for (size_t i = 0; i < NUM_ENCRYPTION_LEVELS; ++i) {
       const StreamState& state = crypto_state_[i];
       if (state.bytes_total > state.bytes_sent) {
@@ -594,7 +594,7 @@ bool SimpleSessionNotifier::RetransmitLostControlFrames() {
 }
 
 bool SimpleSessionNotifier::RetransmitLostCryptoData() {
-  if (QuicVersionUsesCryptoFrames(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     for (EncryptionLevel level :
          {ENCRYPTION_INITIAL, ENCRYPTION_HANDSHAKE, ENCRYPTION_ZERO_RTT,
           ENCRYPTION_FORWARD_SECURE}) {

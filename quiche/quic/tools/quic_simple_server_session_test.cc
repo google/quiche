@@ -205,7 +205,7 @@ class QuicSimpleServerSessionTest
         QuicCryptoServerConfig::ConfigOptions());
     session_->Initialize();
 
-    if (VersionHasIetfQuicFrames(transport_version())) {
+    if (VersionIsIetfQuic(transport_version())) {
       EXPECT_CALL(*session_, WriteControlFrame(_, _))
           .WillRepeatedly(&ClearControlFrameWithTransmissionType);
     }
@@ -232,7 +232,7 @@ class QuicSimpleServerSessionTest
     // Create and inject a STOP_SENDING frame. In GOOGLE QUIC, receiving a
     // RST_STREAM frame causes a two-way close. For IETF QUIC, RST_STREAM causes
     // a one-way close.
-    if (!VersionHasIetfQuicFrames(transport_version())) {
+    if (!VersionIsIetfQuic(transport_version())) {
       // Only needed for version 99/IETF QUIC.
       return;
     }
@@ -276,7 +276,7 @@ TEST_P(QuicSimpleServerSessionTest, CloseStreamDueToReset) {
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
   EXPECT_CALL(*session_, WriteControlFrame(_, _));
 
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     // For version 99, this is covered in InjectStopSending()
     EXPECT_CALL(*connection_,
                 OnStreamReset(GetNthClientInitiatedBidirectionalId(0),
@@ -304,7 +304,7 @@ TEST_P(QuicSimpleServerSessionTest, NeverOpenStreamDueToReset) {
                           GetNthClientInitiatedBidirectionalId(0),
                           QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     EXPECT_CALL(*session_, WriteControlFrame(_, _));
     // For version 99, this is covered in InjectStopSending()
     EXPECT_CALL(*connection_,
@@ -344,7 +344,7 @@ TEST_P(QuicSimpleServerSessionTest, AcceptClosedStream) {
                          GetNthClientInitiatedBidirectionalId(0),
                          QUIC_ERROR_PROCESSING_STREAM, 0);
   EXPECT_CALL(owner_, OnRstStreamReceived(_)).Times(1);
-  if (!VersionHasIetfQuicFrames(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     EXPECT_CALL(*session_, WriteControlFrame(_, _));
     // For version 99, this is covered in InjectStopSending()
     EXPECT_CALL(*connection_,

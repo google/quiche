@@ -321,7 +321,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     stream_data_.push_back(absl::WrapUnique(string_data));
     stream_frames_.push_back(std::make_unique<QuicStreamFrame>(
         frame.stream_id, frame.fin, frame.offset, *string_data));
-    if (VersionHasIetfQuicFrames(transport_version_)) {
+    if (VersionIsIetfQuic(transport_version_)) {
       // Low order bits of type encode flags, ignore them for this test.
       EXPECT_TRUE(IS_IETF_STREAM_FRAME(framer_->current_received_frame_type()));
     } else {
@@ -338,7 +338,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     crypto_data_.push_back(absl::WrapUnique(string_data));
     crypto_frames_.push_back(std::make_unique<QuicCryptoFrame>(
         frame.level, frame.offset, *string_data));
-    if (VersionHasIetfQuicFrames(transport_version_)) {
+    if (VersionIsIetfQuic(transport_version_)) {
       EXPECT_EQ(IETF_CRYPTO, framer_->current_received_frame_type());
     } else {
       EXPECT_EQ(0u, framer_->current_received_frame_type());
@@ -353,7 +353,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ack_frame.largest_acked = largest_acked;
     ack_frame.ack_delay_time = ack_delay_time;
     ack_frames_.push_back(std::make_unique<QuicAckFrame>(ack_frame));
-    if (VersionHasIetfQuicFrames(transport_version_)) {
+    if (VersionIsIetfQuic(transport_version_)) {
       EXPECT_TRUE(IETF_ACK == framer_->current_received_frame_type() ||
                   IETF_ACK_ECN == framer_->current_received_frame_type() ||
                   IETF_ACK_RECEIVE_TIMESTAMPS ==
@@ -367,7 +367,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   bool OnAckRange(QuicPacketNumber start, QuicPacketNumber end) override {
     QUICHE_DCHECK(!ack_frames_.empty());
     ack_frames_[ack_frames_.size() - 1]->packets.AddRange(start, end);
-    if (VersionHasIetfQuicFrames(transport_version_)) {
+    if (VersionIsIetfQuic(transport_version_)) {
       EXPECT_TRUE(IETF_ACK == framer_->current_received_frame_type() ||
                   IETF_ACK_ECN == framer_->current_received_frame_type() ||
                   IETF_ACK_RECEIVE_TIMESTAMPS ==
@@ -382,7 +382,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
                       QuicTime timestamp) override {
     ack_frames_[ack_frames_.size() - 1]->received_packet_times.push_back(
         std::make_pair(packet_number, timestamp));
-    if (VersionHasIetfQuicFrames(transport_version_)) {
+    if (VersionIsIetfQuic(transport_version_)) {
       EXPECT_TRUE(IETF_ACK == framer_->current_received_frame_type() ||
                   IETF_ACK_ECN == framer_->current_received_frame_type() ||
                   IETF_ACK_RECEIVE_TIMESTAMPS ==
@@ -409,7 +409,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   bool OnPaddingFrame(const QuicPaddingFrame& frame) override {
     padding_frames_.push_back(std::make_unique<QuicPaddingFrame>(frame));
-    if (VersionHasIetfQuicFrames(transport_version_)) {
+    if (VersionIsIetfQuic(transport_version_)) {
       EXPECT_EQ(IETF_PADDING, framer_->current_received_frame_type());
     } else {
       EXPECT_EQ(0u, framer_->current_received_frame_type());
@@ -420,7 +420,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   bool OnPingFrame(const QuicPingFrame& frame) override {
     ++frame_count_;
     ping_frames_.push_back(std::make_unique<QuicPingFrame>(frame));
-    if (VersionHasIetfQuicFrames(transport_version_)) {
+    if (VersionIsIetfQuic(transport_version_)) {
       EXPECT_EQ(IETF_PING, framer_->current_received_frame_type());
     } else {
       EXPECT_EQ(0u, framer_->current_received_frame_type());
@@ -432,7 +432,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ++frame_count_;
     datagram_frames_.push_back(
         std::make_unique<QuicDatagramFrame>(frame.data, frame.datagram_length));
-    if (VersionHasIetfQuicFrames(transport_version_)) {
+    if (VersionIsIetfQuic(transport_version_)) {
       EXPECT_TRUE(IETF_EXTENSION_DATAGRAM_NO_LENGTH_V99 ==
                       framer_->current_received_frame_type() ||
                   IETF_EXTENSION_DATAGRAM_V99 ==
@@ -447,7 +447,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ++frame_count_;
     handshake_done_frames_.push_back(
         std::make_unique<QuicHandshakeDoneFrame>(frame));
-    QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version_));
+    QUICHE_DCHECK(VersionIsIetfQuic(transport_version_));
     EXPECT_EQ(IETF_HANDSHAKE_DONE, framer_->current_received_frame_type());
     return true;
   }
@@ -456,7 +456,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ++frame_count_;
     ack_frequency_frames_.emplace_back(
         std::make_unique<QuicAckFrequencyFrame>(frame));
-    QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version_));
+    QUICHE_DCHECK(VersionIsIetfQuic(transport_version_));
     EXPECT_EQ(IETF_ACK_FREQUENCY, framer_->current_received_frame_type());
     return true;
   }
@@ -465,7 +465,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ++frame_count_;
     immediate_ack_frames_.emplace_back(
         std::make_unique<QuicImmediateAckFrame>(frame));
-    QUICHE_DCHECK(VersionHasIetfQuicFrames(transport_version_));
+    QUICHE_DCHECK(VersionIsIetfQuic(transport_version_));
     EXPECT_EQ(IETF_IMMEDIATE_ACK, framer_->current_received_frame_type());
     return true;
   }
@@ -474,7 +474,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     ++frame_count_;
     reset_stream_at_frames_.push_back(
         std::make_unique<QuicResetStreamAtFrame>(frame));
-    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_TRUE(VersionIsIetfQuic(transport_version_));
     EXPECT_EQ(IETF_RESET_STREAM_AT, framer_->current_received_frame_type());
     return true;
   }
@@ -483,7 +483,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   bool OnRstStreamFrame(const QuicRstStreamFrame& frame) override {
     rst_stream_frame_ = frame;
-    if (VersionHasIetfQuicFrames(transport_version_)) {
+    if (VersionIsIetfQuic(transport_version_)) {
       EXPECT_EQ(IETF_RST_STREAM, framer_->current_received_frame_type());
     } else {
       EXPECT_EQ(0u, framer_->current_received_frame_type());
@@ -493,7 +493,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   bool OnConnectionCloseFrame(const QuicConnectionCloseFrame& frame) override {
     connection_close_frame_ = frame;
-    if (VersionHasIetfQuicFrames(transport_version_)) {
+    if (VersionIsIetfQuic(transport_version_)) {
       EXPECT_NE(GOOGLE_QUIC_CONNECTION_CLOSE, frame.close_type);
       if (frame.close_type == IETF_QUIC_TRANSPORT_CONNECTION_CLOSE) {
         EXPECT_EQ(IETF_CONNECTION_CLOSE,
@@ -511,34 +511,34 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   bool OnStopSendingFrame(const QuicStopSendingFrame& frame) override {
     stop_sending_frame_ = frame;
     EXPECT_EQ(IETF_STOP_SENDING, framer_->current_received_frame_type());
-    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_TRUE(VersionIsIetfQuic(transport_version_));
     return true;
   }
 
   bool OnPathChallengeFrame(const QuicPathChallengeFrame& frame) override {
     path_challenge_frame_ = frame;
     EXPECT_EQ(IETF_PATH_CHALLENGE, framer_->current_received_frame_type());
-    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_TRUE(VersionIsIetfQuic(transport_version_));
     return true;
   }
 
   bool OnPathResponseFrame(const QuicPathResponseFrame& frame) override {
     path_response_frame_ = frame;
     EXPECT_EQ(IETF_PATH_RESPONSE, framer_->current_received_frame_type());
-    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_TRUE(VersionIsIetfQuic(transport_version_));
     return true;
   }
 
   bool OnGoAwayFrame(const QuicGoAwayFrame& frame) override {
     goaway_frame_ = frame;
-    EXPECT_FALSE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_FALSE(VersionIsIetfQuic(transport_version_));
     EXPECT_EQ(0u, framer_->current_received_frame_type());
     return true;
   }
 
   bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) override {
     max_streams_frame_ = frame;
-    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_TRUE(VersionIsIetfQuic(transport_version_));
     EXPECT_TRUE(IETF_MAX_STREAMS_UNIDIRECTIONAL ==
                     framer_->current_received_frame_type() ||
                 IETF_MAX_STREAMS_BIDIRECTIONAL ==
@@ -548,7 +548,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   bool OnStreamsBlockedFrame(const QuicStreamsBlockedFrame& frame) override {
     streams_blocked_frame_ = frame;
-    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_TRUE(VersionIsIetfQuic(transport_version_));
     EXPECT_TRUE(IETF_STREAMS_BLOCKED_UNIDIRECTIONAL ==
                     framer_->current_received_frame_type() ||
                 IETF_STREAMS_BLOCKED_BIDIRECTIONAL ==
@@ -558,7 +558,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   bool OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame) override {
     window_update_frame_ = frame;
-    if (VersionHasIetfQuicFrames(transport_version_)) {
+    if (VersionIsIetfQuic(transport_version_)) {
       EXPECT_TRUE(IETF_MAX_DATA == framer_->current_received_frame_type() ||
                   IETF_MAX_STREAM_DATA ==
                       framer_->current_received_frame_type());
@@ -570,7 +570,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
 
   bool OnBlockedFrame(const QuicBlockedFrame& frame) override {
     blocked_frame_ = frame;
-    if (VersionHasIetfQuicFrames(transport_version_)) {
+    if (VersionIsIetfQuic(transport_version_)) {
       EXPECT_TRUE(IETF_DATA_BLOCKED == framer_->current_received_frame_type() ||
                   IETF_STREAM_DATA_BLOCKED ==
                       framer_->current_received_frame_type());
@@ -583,7 +583,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   bool OnNewConnectionIdFrame(const QuicNewConnectionIdFrame& frame) override {
     new_connection_id_ = frame;
     EXPECT_EQ(IETF_NEW_CONNECTION_ID, framer_->current_received_frame_type());
-    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_TRUE(VersionIsIetfQuic(transport_version_));
     return true;
   }
 
@@ -591,7 +591,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
       const QuicRetireConnectionIdFrame& frame) override {
     EXPECT_EQ(IETF_RETIRE_CONNECTION_ID,
               framer_->current_received_frame_type());
-    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_TRUE(VersionIsIetfQuic(transport_version_));
     retire_connection_id_ = frame;
     return true;
   }
@@ -599,7 +599,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   bool OnNewTokenFrame(const QuicNewTokenFrame& frame) override {
     new_token_ = frame;
     EXPECT_EQ(IETF_NEW_TOKEN, framer_->current_received_frame_type());
-    EXPECT_TRUE(VersionHasIetfQuicFrames(transport_version_));
+    EXPECT_TRUE(VersionIsIetfQuic(transport_version_));
     return true;
   }
 
@@ -1132,7 +1132,7 @@ TEST_P(QuicFramerTest, LongPacketHeader) {
   };
   // clang-format on
 
-  if (QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -1221,7 +1221,7 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasLongHeaderLengths()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet49);
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
@@ -1315,7 +1315,7 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
   // clang-format on
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasLongHeaderLengths()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet49);
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
@@ -1567,7 +1567,7 @@ TEST_P(QuicFramerTest, PacketHeaderWithVersionFlag) {
 
   ReviseFirstByteByVersion(packet49);
   PacketFragments& fragments =
-      framer_.version().HasLongHeaderLengths() ? packet49 : packet;
+      framer_.version().IsIetfQuic() ? packet49 : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
@@ -1865,7 +1865,7 @@ TEST_P(QuicFramerTest, PacketWithDiversificationNonce) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasLongHeaderLengths()) {
+  if (framer_.version().IsIetfQuic()) {
     p = packet49;
     p_size = ABSL_ARRAYSIZE(packet49);
   }
@@ -2056,7 +2056,7 @@ TEST_P(QuicFramerTest, PaddingFrame) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -2145,8 +2145,7 @@ TEST_P(QuicFramerTest, StreamFrame) {
   // clang-format on
 
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version()) ? packet_ietf
-                                                            : packet;
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -2171,7 +2170,7 @@ TEST_P(QuicFramerTest, StreamFrame) {
 TEST_P(QuicFramerTest, EmptyStreamFrame) {
   // Only the IETF QUIC spec explicitly says that empty
   // stream frames are supported.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -2280,7 +2279,7 @@ TEST_P(QuicFramerTest, MissingDiversificationNonce) {
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasLongHeaderLengths()) {
+  if (framer_.version().IsIetfQuic()) {
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
   }
@@ -2362,8 +2361,7 @@ TEST_P(QuicFramerTest, StreamFrame2ByteStreamId) {
   // clang-format on
 
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version()) ? packet_ietf
-                                                            : packet;
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -2450,8 +2448,7 @@ TEST_P(QuicFramerTest, StreamFrame1ByteStreamId) {
   // clang-format on
 
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version()) ? packet_ietf
-                                                            : packet;
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -2604,15 +2601,13 @@ TEST_P(QuicFramerTest, StreamFrameWithVersion) {
       quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
   size_t retry_token_length = 0;
   quiche::QuicheVariableLengthIntegerLength length_length =
-      QuicVersionHasLongHeaderLengths(framer_.transport_version())
+      VersionIsIetfQuic(framer_.transport_version())
           ? quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1
           : quiche::VARIABLE_LENGTH_INTEGER_LENGTH_0;
 
   ReviseFirstByteByVersion(packet_ietf);
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version())
-          ? packet_ietf
-          : (framer_.version().HasLongHeaderLengths() ? packet49 : packet);
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -2632,7 +2627,7 @@ TEST_P(QuicFramerTest, StreamFrameWithVersion) {
   EXPECT_EQ(kStreamOffset, visitor_.stream_frames_[0]->offset);
   CheckStreamFrameData("hello world!", visitor_.stream_frames_[0].get());
 
-  CheckFramingBoundaries(fragments, framer_.version().HasLongHeaderLengths()
+  CheckFramingBoundaries(fragments, framer_.version().IsIetfQuic()
                                         ? QUIC_INVALID_PACKET_HEADER
                                         : QUIC_INVALID_STREAM_DATA);
 }
@@ -2769,8 +2764,7 @@ TEST_P(QuicFramerTest, AckFrameOneAckBlock) {
   // clang-format on
 
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version()) ? packet_ietf
-                                                            : packet;
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -2853,8 +2847,7 @@ TEST_P(QuicFramerTest, FirstAckFrameUnderflow) {
   // clang-format on
 
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version()) ? packet_ietf
-                                                            : packet;
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
@@ -2865,7 +2858,7 @@ TEST_P(QuicFramerTest, FirstAckFrameUnderflow) {
 // and handles the case where the third ack block's gap is larger than the
 // available space in the ack range.
 TEST_P(QuicFramerTest, ThirdAckBlockUnderflowGap) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Test originally written for development of IETF QUIC. The test may
     // also apply to Google QUIC. If so, the test should be extended to
     // include Google QUIC (frame formats, etc). See b/141858819.
@@ -2925,7 +2918,7 @@ TEST_P(QuicFramerTest, ThirdAckBlockUnderflowGap) {
 // and handles the case where the third ack block's length is larger than the
 // available space in the ack range.
 TEST_P(QuicFramerTest, ThirdAckBlockUnderflowAck) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Test originally written for development of IETF QUIC. The test may
     // also apply to Google QUIC. If so, the test should be extended to
     // include Google QUIC (frame formats, etc). See b/141858819.
@@ -2983,7 +2976,7 @@ TEST_P(QuicFramerTest, ThirdAckBlockUnderflowAck) {
 // around to 0x3fffffff ffffffff... Make sure we detect this
 // condition.
 TEST_P(QuicFramerTest, AckBlockUnderflowGapWrap) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Test originally written for development of IETF QUIC. The test may
     // also apply to Google QUIC. If so, the test should be extended to
     // include Google QUIC (frame formats, etc). See b/141858819.
@@ -3035,7 +3028,7 @@ TEST_P(QuicFramerTest, AckBlockUnderflowGapWrap) {
 // As AckBlockUnderflowGapWrap, but in this test, it's the ack
 // component of the ack-block that causes the wrap, not the gap.
 TEST_P(QuicFramerTest, AckBlockUnderflowAckWrap) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Test originally written for development of IETF QUIC. The test may
     // also apply to Google QUIC. If so, the test should be extended to
     // include Google QUIC (frame formats, etc). See b/141858819.
@@ -3086,7 +3079,7 @@ TEST_P(QuicFramerTest, AckBlockUnderflowAckWrap) {
 
 // An ack block that acks the entire range, 1...0x3fffffffffffffff
 TEST_P(QuicFramerTest, AckBlockAcksEverything) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Test originally written for development of IETF QUIC. The test may
     // also apply to Google QUIC. If so, the test should be extended to
     // include Google QUIC (frame formats, etc). See b/141858819.
@@ -3143,7 +3136,7 @@ TEST_P(QuicFramerTest, AckBlockAcksEverything) {
 //    additional ack blocks.
 //
 TEST_P(QuicFramerTest, AckFrameFirstAckBlockLengthZero) {
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // Not applicable to version 99 -- first ack block contains the
     // number of packets that preceed the largest_acked packet.
     // A value of 0 means no packets preceed --- that the block's
@@ -3270,8 +3263,7 @@ TEST_P(QuicFramerTest, AckFrameOneAckBlockMaxLength) {
   // clang-format on
 
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version()) ? packet_ietf
-                                                            : packet;
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -3434,8 +3426,7 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
 
   // clang-format on
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version()) ? packet_ietf
-                                                            : packet;
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
 
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
@@ -3459,7 +3450,7 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
 }
 
 TEST_P(QuicFramerTest, AckFrameMultipleReceiveTimestampRanges) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -3551,7 +3542,7 @@ TEST_P(QuicFramerTest, AckFrameMultipleReceiveTimestampRanges) {
 }
 
 TEST_P(QuicFramerTest, AckFrameReceiveTimestampWithExponent) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -3619,7 +3610,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampWithExponent) {
 }
 
 TEST_P(QuicFramerTest, AckFrameReceiveTimestampGapTooHigh) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -3673,7 +3664,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampGapTooHigh) {
 }
 
 TEST_P(QuicFramerTest, AckFrameReceiveTimestampCountTooHigh) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -3729,7 +3720,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampCountTooHigh) {
 }
 
 TEST_P(QuicFramerTest, AckFrameReceiveTimestampDeltaTooHigh) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -3810,7 +3801,7 @@ TEST_P(QuicFramerTest, AckFrameTimeStampDeltaTooHigh) {
       0x10, 0x32, 0x54, 0x76,
   };
   // clang-format on
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // ACK Timestamp is not a feature of IETF QUIC.
     return;
   }
@@ -3852,7 +3843,7 @@ TEST_P(QuicFramerTest, AckFrameTimeStampSecondDeltaTooHigh) {
       0x10, 0x32,
   };
   // clang-format on
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // ACK Timestamp is not a feature of IETF QUIC.
     return;
   }
@@ -3863,7 +3854,7 @@ TEST_P(QuicFramerTest, AckFrameTimeStampSecondDeltaTooHigh) {
 }
 
 TEST_P(QuicFramerTest, NewStopWaitingFrame) {
-  if (VersionHasIetfQuicFrames(version_.transport_version)) {
+  if (VersionIsIetfQuic(version_.transport_version)) {
     // The Stop Waiting frame is not in IETF QUIC
     return;
   }
@@ -3908,7 +3899,7 @@ TEST_P(QuicFramerTest, NewStopWaitingFrame) {
 
 TEST_P(QuicFramerTest, InvalidNewStopWaitingFrame) {
   // The Stop Waiting frame is not in IETF QUIC
-  if (VersionHasIetfQuicFrames(version_.transport_version)) {
+  if (VersionIsIetfQuic(version_.transport_version)) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -3988,8 +3979,7 @@ TEST_P(QuicFramerTest, RstStreamFrame) {
   // clang-format on
 
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version()) ? packet_ietf
-                                                            : packet;
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -4070,8 +4060,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrame) {
   // clang-format on
 
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version()) ? packet_ietf
-                                                            : packet;
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -4086,7 +4075,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrame) {
   EXPECT_EQ(0x11u, static_cast<unsigned>(
                        visitor_.connection_close_frame_.wire_error_code));
   EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     EXPECT_EQ(0x1234u,
               visitor_.connection_close_frame_.transport_close_frame_type);
     EXPECT_EQ(115u, visitor_.connection_close_frame_.quic_error_code);
@@ -4166,8 +4155,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrameWithUnknownErrorCode) {
   // clang-format on
 
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version()) ? packet_ietf
-                                                            : packet;
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -4180,7 +4168,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrameWithUnknownErrorCode) {
 
   EXPECT_EQ(0u, visitor_.stream_frames_.size());
   EXPECT_EQ("because I can", visitor_.connection_close_frame_.error_details);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     EXPECT_EQ(0x1234u,
               visitor_.connection_close_frame_.transport_close_frame_type);
     EXPECT_EQ(0xC0DEu, visitor_.connection_close_frame_.wire_error_code);
@@ -4266,8 +4254,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrameWithExtractedInfoIgnoreGQuic) {
   // clang-format on
 
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version()) ? packet_ietf
-                                                            : packet;
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -4282,7 +4269,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrameWithExtractedInfoIgnoreGQuic) {
   EXPECT_EQ(0x11u, static_cast<unsigned>(
                        visitor_.connection_close_frame_.wire_error_code));
 
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     EXPECT_EQ(0x1234u,
               visitor_.connection_close_frame_.transport_close_frame_type);
     EXPECT_EQ(17767u, visitor_.connection_close_frame_.quic_error_code);
@@ -4302,7 +4289,7 @@ TEST_P(QuicFramerTest, ConnectionCloseFrameWithExtractedInfoIgnoreGQuic) {
 
 // Test the CONNECTION_CLOSE/Application variant.
 TEST_P(QuicFramerTest, ApplicationCloseFrame) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only in IETF QUIC.
     return;
   }
@@ -4363,7 +4350,7 @@ TEST_P(QuicFramerTest, ApplicationCloseFrame) {
 
 // Check that we can extract an error code from an application close.
 TEST_P(QuicFramerTest, ApplicationCloseFrameExtract) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only in IETF QUIC.
     return;
   }
@@ -4424,7 +4411,7 @@ TEST_P(QuicFramerTest, ApplicationCloseFrameExtract) {
 }
 
 TEST_P(QuicFramerTest, GoAwayFrame) {
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is not in IETF QUIC.
     return;
   }
@@ -4481,7 +4468,7 @@ TEST_P(QuicFramerTest, GoAwayFrame) {
 }
 
 TEST_P(QuicFramerTest, GoAwayFrameWithUnknownErrorCode) {
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is not in IETF QUIC.
     return;
   }
@@ -4538,7 +4525,7 @@ TEST_P(QuicFramerTest, GoAwayFrameWithUnknownErrorCode) {
 }
 
 TEST_P(QuicFramerTest, WindowUpdateFrame) {
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is not in IETF QUIC, see MaxDataFrame and MaxStreamDataFrame
     // for IETF QUIC equivalents.
     return;
@@ -4586,7 +4573,7 @@ TEST_P(QuicFramerTest, WindowUpdateFrame) {
 }
 
 TEST_P(QuicFramerTest, MaxDataFrame) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is available only in IETF QUIC.
     return;
   }
@@ -4630,7 +4617,7 @@ TEST_P(QuicFramerTest, MaxDataFrame) {
 }
 
 TEST_P(QuicFramerTest, MaxStreamDataFrame) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame available only in IETF QUIC.
     return;
   }
@@ -4719,8 +4706,7 @@ TEST_P(QuicFramerTest, BlockedFrame) {
   // clang-format on
 
   PacketFragments& fragments =
-      VersionHasIetfQuicFrames(framer_.transport_version()) ? packet_ietf
-                                                            : packet;
+      VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -4731,14 +4717,14 @@ TEST_P(QuicFramerTest, BlockedFrame) {
       *encrypted, !kIncludeVersion, !kIncludeDiversificationNonce,
       kPacket8ByteConnectionId, kPacket0ByteConnectionId));
 
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     EXPECT_EQ(kStreamOffset, visitor_.blocked_frame_.offset);
   } else {
     EXPECT_EQ(0u, visitor_.blocked_frame_.offset);
   }
   EXPECT_EQ(kStreamId, visitor_.blocked_frame_.stream_id);
 
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     CheckFramingBoundaries(fragments, QUIC_INVALID_STREAM_BLOCKED_DATA);
   } else {
     CheckFramingBoundaries(fragments, QUIC_INVALID_BLOCKED_DATA);
@@ -4774,10 +4760,9 @@ TEST_P(QuicFramerTest, PingFrame) {
   // clang-format on
 
   QuicEncryptedPacket encrypted(
-      AsChars(VersionHasIetfQuicFrames(framer_.transport_version())
-                  ? packet_ietf
-                  : packet),
-      VersionHasIetfQuicFrames(framer_.transport_version())
+      AsChars(VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf
+                                                             : packet),
+      VersionIsIetfQuic(framer_.transport_version())
           ? ABSL_ARRAYSIZE(packet_ietf)
           : ABSL_ARRAYSIZE(packet),
       false);
@@ -4810,7 +4795,7 @@ TEST_P(QuicFramerTest, HandshakeDoneFrame) {
     };
   // clang-format on
 
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -4850,7 +4835,7 @@ TEST_P(QuicFramerTest, ParseAckFrequencyFrame) {
   };
   // clang-format on
 
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -4887,7 +4872,7 @@ TEST_P(QuicFramerTest, ParseImmediateAckFrame) {
   };
   // clang-format on
 
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -4927,7 +4912,7 @@ TEST_P(QuicFramerTest, ParseResetStreamAtFrame) {
   };
   // clang-format on
 
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   framer_.set_process_reset_stream_at(true);
@@ -4973,7 +4958,7 @@ TEST_P(QuicFramerTest, ParseInvalidResetStreamAtFrame) {
   };
   // clang-format on
 
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   framer_.set_process_reset_stream_at(true);
@@ -5042,7 +5027,7 @@ TEST_P(QuicFramerTest, DatagramFrame) {
   // clang-format on
 
   std::unique_ptr<QuicEncryptedPacket> encrypted;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     encrypted = AssemblePacketFromFragments(packet_ietf);
   } else {
     encrypted = AssemblePacketFromFragments(packet);
@@ -5059,7 +5044,7 @@ TEST_P(QuicFramerTest, DatagramFrame) {
   EXPECT_EQ(7u, visitor_.datagram_frames_[0]->datagram_length);
   EXPECT_EQ(8u, visitor_.datagram_frames_[1]->datagram_length);
 
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     CheckFramingBoundaries(packet_ietf, QUIC_INVALID_DATAGRAM_DATA);
   } else {
     CheckFramingBoundaries(packet, QUIC_INVALID_DATAGRAM_DATA);
@@ -5184,7 +5169,7 @@ TEST_P(QuicFramerTest, VersionNegotiationPacketClient) {
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
 
   PacketFragments& fragments =
-      framer_.version().HasLongHeaderLengths() ? packet49 : packet;
+      framer_.version().IsIetfQuic() ? packet49 : packet;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -5317,7 +5302,7 @@ TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
     ReviseFirstByteByVersion(packet_with_tag);
     p = packet_with_tag;
     p_length = ABSL_ARRAYSIZE(packet_with_tag);
-  } else if (framer_.version().HasLongHeaderLengths()) {
+  } else if (framer_.version().IsIetfQuic()) {
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
   }
@@ -5419,7 +5404,7 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
   // clang-format on
 
   unsigned char* p = packet;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
   }
 
@@ -5512,7 +5497,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithNewPaddingFrame) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -5562,7 +5547,7 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
   // clang-format on
 
   unsigned char* p = packet;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
   }
 
@@ -5621,7 +5606,7 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
   // clang-format on
 
   unsigned char* p = packet;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
   }
 
@@ -5680,7 +5665,7 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
   // clang-format on
 
   unsigned char* p = packet;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
   }
 
@@ -5706,7 +5691,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacket) {
   header.reset_flag = false;
   header.version_flag = false;
   header.packet_number = kPacketNumber;
-  if (QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
 
@@ -5764,7 +5749,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacket) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -5779,7 +5764,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithVersionFlag) {
   header.version_flag = true;
   header.long_packet_type = ZERO_RTT_PROTECTED;
   header.packet_number = kPacketNumber;
-  if (QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
   }
 
@@ -5869,11 +5854,11 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithVersionFlag) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     ReviseFirstByteByVersion(packet_ietf);
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
-  } else if (framer_.version().HasLongHeaderLengths()) {
+  } else if (framer_.version().IsIetfQuic()) {
     p = packet49;
     p_size = ABSL_ARRAYSIZE(packet49);
   }
@@ -5882,7 +5867,7 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithVersionFlag) {
 }
 
 TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
-  if (!QuicVersionUsesCryptoFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
@@ -5949,7 +5934,7 @@ TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
 
   unsigned char* packet = packet48;
   size_t packet_size = ABSL_ARRAYSIZE(packet48);
-  if (framer_.version().HasIetfQuicFrames()) {
+  if (framer_.version().IsIetfQuic()) {
     packet = packet_ietf;
     packet_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -5962,7 +5947,7 @@ TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
 }
 
 TEST_P(QuicFramerTest, CryptoFrame) {
-  if (!QuicVersionUsesCryptoFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // CRYPTO frames aren't supported prior to v48.
     return;
   }
@@ -6025,7 +6010,7 @@ TEST_P(QuicFramerTest, CryptoFrame) {
   // clang-format on
 
   PacketFragments& fragments =
-      framer_.version().HasIetfQuicFrames() ? packet_ietf : packet48;
+      framer_.version().IsIetfQuic() ? packet_ietf : packet48;
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(fragments));
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
@@ -6102,7 +6087,7 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
   // clang-format on
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasLongHeaderLengths()) {
+  if (framer_.version().IsIetfQuic()) {
     p = packet49;
     p_size = ABSL_ARRAYSIZE(packet49);
   }
@@ -6210,7 +6195,7 @@ TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlock) {
   // clang-format on
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -6222,7 +6207,7 @@ TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlock) {
 }
 
 TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameMultipleRanges) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -6332,7 +6317,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameMultipleRanges) {
 }
 
 TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameExceedsMaxTimestamps) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -6431,7 +6416,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameExceedsMaxTimestamps) {
 }
 
 TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameWithExponentEncoding) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -6537,7 +6522,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameWithExponentEncoding) {
 }
 
 TEST_P(QuicFramerTest, BuildAndProcessAckReceiveTimestampsWithMultipleRanges) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -6590,7 +6575,7 @@ TEST_P(QuicFramerTest, BuildAndProcessAckReceiveTimestampsWithMultipleRanges) {
 
 TEST_P(QuicFramerTest,
        BuildAndProcessAckReceiveTimestampsExceedsMaxTimestamps) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -6638,7 +6623,7 @@ TEST_P(QuicFramerTest,
 
 TEST_P(QuicFramerTest,
        BuildAndProcessAckReceiveTimestampsWithExponentNoTruncation) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -6686,7 +6671,7 @@ TEST_P(QuicFramerTest,
 
 TEST_P(QuicFramerTest,
        BuildAndProcessAckReceiveTimestampsWithExponentTruncation) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -6739,7 +6724,7 @@ TEST_P(QuicFramerTest,
 }
 
 TEST_P(QuicFramerTest, AckReceiveTimestamps) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -6787,7 +6772,7 @@ TEST_P(QuicFramerTest, AckReceiveTimestamps) {
 }
 
 TEST_P(QuicFramerTest, AckReceiveTimestampsPacketOutOfOrder) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -6826,7 +6811,7 @@ TEST_P(QuicFramerTest, AckReceiveTimestampsPacketOutOfOrder) {
 // If there's insufficient room for IETF ack receive timestamps, don't write any
 // timestamp ranges.
 TEST_P(QuicFramerTest, IetfAckReceiveTimestampsTruncate) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
@@ -6869,7 +6854,7 @@ TEST_P(QuicFramerTest, IetfAckReceiveTimestampsTruncate) {
 // If there are too many ack ranges, they will be truncated to make room for a
 // timestamp range count of 0.
 TEST_P(QuicFramerTest, IetfAckReceiveTimestampsAckRangeTruncation) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -6979,7 +6964,7 @@ TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlockMaxLength) {
   // clang-format on
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -7085,7 +7070,7 @@ TEST_P(QuicFramerTest, BuildAckFramePacketMultipleAckBlocks) {
   // clang-format on
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -7298,7 +7283,7 @@ TEST_P(QuicFramerTest, BuildAckFramePacketMaxAckBlocks) {
   // clang-format on
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -7320,7 +7305,7 @@ TEST_P(QuicFramerTest, BuildRstFramePacketQuic) {
 
   QuicRstStreamFrame rst_frame;
   rst_frame.stream_id = kStreamId;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     rst_frame.ietf_error_code = 0x01;
   } else {
     rst_frame.error_code = static_cast<QuicRstStreamErrorCode>(0x05060708);
@@ -7373,7 +7358,7 @@ TEST_P(QuicFramerTest, BuildRstFramePacketQuic) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -7444,7 +7429,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -7467,8 +7452,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacketExtendedInfo) {
   QuicConnectionCloseFrame close_frame(
       framer_.transport_version(),
       static_cast<QuicErrorCode>(
-          VersionHasIetfQuicFrames(framer_.transport_version()) ? 0x01
-                                                                : 0x05060708),
+          VersionIsIetfQuic(framer_.transport_version()) ? 0x01 : 0x05060708),
       NO_IETF_QUIC_ERROR, "because I can", 0x05);
   // Set this so that it is "there" for both Google QUIC and IETF QUIC
   // framing. It better not show up for Google QUIC!
@@ -7526,7 +7510,7 @@ TEST_P(QuicFramerTest, BuildCloseFramePacketExtendedInfo) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -7655,7 +7639,7 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -7668,7 +7652,7 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
 }
 
 TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for IETF QUIC.
     return;
   }
@@ -7719,7 +7703,7 @@ TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
 }
 
 TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for IETF QUIC.
     return;
   }
@@ -7800,7 +7784,7 @@ TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
 }
 
 TEST_P(QuicFramerTest, BuildGoAwayPacket) {
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for Google QUIC.
     return;
   }
@@ -7852,7 +7836,7 @@ TEST_P(QuicFramerTest, BuildGoAwayPacket) {
 }
 
 TEST_P(QuicFramerTest, BuildTruncatedGoAwayPacket) {
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for Google QUIC.
     return;
   }
@@ -7986,7 +7970,7 @@ TEST_P(QuicFramerTest, BuildWindowUpdatePacket) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -7996,7 +7980,7 @@ TEST_P(QuicFramerTest, BuildWindowUpdatePacket) {
 }
 
 TEST_P(QuicFramerTest, BuildMaxStreamDataPacket) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for IETF QUIC.
     return;
   }
@@ -8041,7 +8025,7 @@ TEST_P(QuicFramerTest, BuildMaxStreamDataPacket) {
 }
 
 TEST_P(QuicFramerTest, BuildMaxDataPacket) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for IETF QUIC.
     return;
   }
@@ -8093,7 +8077,7 @@ TEST_P(QuicFramerTest, BuildBlockedPacket) {
   header.packet_number = kPacketNumber;
 
   QuicBlockedFrame blocked_frame;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // For IETF QUIC, the stream ID must be <invalid> for the frame
     // to be a BLOCKED frame. if it's valid, it will be a
     // STREAM_BLOCKED frame.
@@ -8141,7 +8125,7 @@ TEST_P(QuicFramerTest, BuildBlockedPacket) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -8187,7 +8171,7 @@ TEST_P(QuicFramerTest, BuildPingPacket) {
   // clang-format on
 
   unsigned char* p = packet;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
   }
 
@@ -8221,7 +8205,7 @@ TEST_P(QuicFramerTest, BuildHandshakeDonePacket) {
     0x1e,
   };
   // clang-format on
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -8269,7 +8253,7 @@ TEST_P(QuicFramerTest, BuildAckFrequencyPacket) {
     0x03
   };
   // clang-format on
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -8304,7 +8288,7 @@ TEST_P(QuicFramerTest, BuildImmediateAckPacket) {
     0x1f,
   };
   // clang-format on
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -8317,7 +8301,7 @@ TEST_P(QuicFramerTest, BuildImmediateAckPacket) {
 }
 
 TEST_P(QuicFramerTest, BuildResetStreamAtPacket) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -8420,7 +8404,7 @@ TEST_P(QuicFramerTest, BuildDatagramPacket) {
   // clang-format on
 
   unsigned char* p = packet;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
   }
 
@@ -8473,7 +8457,7 @@ TEST_P(QuicFramerTest, BuildMtuDiscoveryPacket) {
   ASSERT_TRUE(data != nullptr);
 
   unsigned char* p = packet;
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
   }
 
@@ -8867,7 +8851,7 @@ TEST_P(QuicFramerTest, EncryptPacketWithVersionFlag) {
 }
 
 TEST_P(QuicFramerTest, AckTruncationLargePacket) {
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // This test is not applicable to this version; the range count is
     // effectively unlimited
     return;
@@ -8908,7 +8892,7 @@ TEST_P(QuicFramerTest, AckTruncationLargePacket) {
 
 // Regression test for b/150386368.
 TEST_P(QuicFramerTest, IetfAckFrameTruncation) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -8954,7 +8938,7 @@ TEST_P(QuicFramerTest, IetfAckFrameTruncation) {
 }
 
 TEST_P(QuicFramerTest, AckTruncationSmallPacket) {
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // This test is not applicable to this version; the range count is
     // effectively unlimited
     return;
@@ -8995,7 +8979,7 @@ TEST_P(QuicFramerTest, AckTruncationSmallPacket) {
 }
 
 TEST_P(QuicFramerTest, CleanTruncation) {
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // This test is not applicable to this version; the range count is
     // effectively unlimited
     return;
@@ -9137,7 +9121,7 @@ TEST_P(QuicFramerTest, StopPacketProcessing) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -9193,7 +9177,7 @@ TEST_P(QuicFramerTest, ConstructEncryptedPacket) {
   EXPECT_CALL(visitor, OnDecryptedPacket(_, _)).Times(1);
   EXPECT_CALL(visitor, OnError(_)).Times(0);
   EXPECT_CALL(visitor, OnStreamFrame(_)).Times(0);
-  if (!QuicVersionUsesCryptoFrames(framer_.version().transport_version)) {
+  if (!VersionIsIetfQuic(framer_.version().transport_version)) {
     EXPECT_CALL(visitor, OnStreamFrame(ExpectedStreamFrame(framer_.version())))
         .Times(1);
   } else {
@@ -9242,7 +9226,7 @@ TEST_P(QuicFramerTest, ConstructMisFramedEncryptedPacket) {
 
 TEST_P(QuicFramerTest, IetfBlockedFrame) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9284,7 +9268,7 @@ TEST_P(QuicFramerTest, IetfBlockedFrame) {
 
 TEST_P(QuicFramerTest, BuildIetfBlockedPacket) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -9325,7 +9309,7 @@ TEST_P(QuicFramerTest, BuildIetfBlockedPacket) {
 
 TEST_P(QuicFramerTest, IetfStreamBlockedFrame) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9370,7 +9354,7 @@ TEST_P(QuicFramerTest, IetfStreamBlockedFrame) {
 
 TEST_P(QuicFramerTest, BuildIetfStreamBlockedPacket) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -9413,7 +9397,7 @@ TEST_P(QuicFramerTest, BuildIetfStreamBlockedPacket) {
 
 TEST_P(QuicFramerTest, BiDiMaxStreamsFrame) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9455,7 +9439,7 @@ TEST_P(QuicFramerTest, BiDiMaxStreamsFrame) {
 
 TEST_P(QuicFramerTest, UniDiMaxStreamsFrame) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9496,7 +9480,7 @@ TEST_P(QuicFramerTest, UniDiMaxStreamsFrame) {
 
 TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrame) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9538,7 +9522,7 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrame) {
 
 TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrame) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9585,7 +9569,7 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrame) {
 // client- initiated.
 TEST_P(QuicFramerTest, BiDiMaxStreamsFrameTooBig) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9623,7 +9607,7 @@ TEST_P(QuicFramerTest, BiDiMaxStreamsFrameTooBig) {
 
 TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrameTooBig) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9662,7 +9646,7 @@ TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrameTooBig) {
 
 TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrameTooBig) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9701,7 +9685,7 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrameTooBig) {
 
 TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrameTooBig) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9741,7 +9725,7 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrameTooBig) {
 // Specifically test that count==0 is accepted.
 TEST_P(QuicFramerTest, MaxStreamsFrameZeroCount) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9768,7 +9752,7 @@ TEST_P(QuicFramerTest, MaxStreamsFrameZeroCount) {
 
 TEST_P(QuicFramerTest, ServerBiDiStreamsBlockedFrame) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9811,7 +9795,7 @@ TEST_P(QuicFramerTest, ServerBiDiStreamsBlockedFrame) {
 
 TEST_P(QuicFramerTest, BiDiStreamsBlockedFrame) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9855,7 +9839,7 @@ TEST_P(QuicFramerTest, BiDiStreamsBlockedFrame) {
 
 TEST_P(QuicFramerTest, UniDiStreamsBlockedFrame) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9898,7 +9882,7 @@ TEST_P(QuicFramerTest, UniDiStreamsBlockedFrame) {
 
 TEST_P(QuicFramerTest, ClientUniDiStreamsBlockedFrame) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9944,7 +9928,7 @@ TEST_P(QuicFramerTest, ClientUniDiStreamsBlockedFrame) {
 // initiated; the logic does not take these into account.
 TEST_P(QuicFramerTest, StreamsBlockedFrameTooBig) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -9979,7 +9963,7 @@ TEST_P(QuicFramerTest, StreamsBlockedFrameTooBig) {
 // Specifically test that count==0 is accepted.
 TEST_P(QuicFramerTest, StreamsBlockedFrameZeroCount) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -10024,7 +10008,7 @@ TEST_P(QuicFramerTest, StreamsBlockedFrameZeroCount) {
 
 TEST_P(QuicFramerTest, BuildBiDiStreamsBlockedPacket) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -10066,7 +10050,7 @@ TEST_P(QuicFramerTest, BuildBiDiStreamsBlockedPacket) {
 
 TEST_P(QuicFramerTest, BuildUniStreamsBlockedPacket) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -10108,7 +10092,7 @@ TEST_P(QuicFramerTest, BuildUniStreamsBlockedPacket) {
 
 TEST_P(QuicFramerTest, BuildBiDiMaxStreamsPacket) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -10150,7 +10134,7 @@ TEST_P(QuicFramerTest, BuildBiDiMaxStreamsPacket) {
 
 TEST_P(QuicFramerTest, BuildUniDiMaxStreamsPacket) {
   // This frame is only for IETF QUIC.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -10194,7 +10178,7 @@ TEST_P(QuicFramerTest, BuildUniDiMaxStreamsPacket) {
 }
 
 TEST_P(QuicFramerTest, NewConnectionIdFrame) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for IETF QUIC.
     return;
   }
@@ -10253,7 +10237,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrame) {
 }
 
 TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for IETF QUIC.
     return;
   }
@@ -10314,7 +10298,7 @@ TEST_P(QuicFramerTest, NewConnectionIdFrameVariableLength) {
 // Verifies that parsing a NEW_CONNECTION_ID frame with a length above the
 // specified maximum fails.
 TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // The NEW_CONNECTION_ID frame is only for IETF QUIC.
     return;
   }
@@ -10366,7 +10350,7 @@ TEST_P(QuicFramerTest, InvalidLongNewConnectionIdFrame) {
 // Verifies that parsing a NEW_CONNECTION_ID frame with an invalid
 // retire-prior-to fails.
 TEST_P(QuicFramerTest, InvalidRetirePriorToNewConnectionIdFrame) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for IETF QUIC only.
     return;
   }
@@ -10408,7 +10392,7 @@ TEST_P(QuicFramerTest, InvalidRetirePriorToNewConnectionIdFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for IETF QUIC only.
     return;
   }
@@ -10463,7 +10447,7 @@ TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {
 }
 
 TEST_P(QuicFramerTest, NewTokenFrame) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for IETF QUIC only.
     return;
   }
@@ -10512,7 +10496,7 @@ TEST_P(QuicFramerTest, NewTokenFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildNewTokenFramePacket) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for IETF QUIC only.
     return;
   }
@@ -10558,7 +10542,7 @@ TEST_P(QuicFramerTest, BuildNewTokenFramePacket) {
 }
 
 TEST_P(QuicFramerTest, IetfStopSendingFrame) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Stop sending frame is IETF QUIC only.
     return;
   }
@@ -10606,7 +10590,7 @@ TEST_P(QuicFramerTest, IetfStopSendingFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildIetfStopSendingPacket) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Stop sending frame is IETF QUIC only.
     return;
   }
@@ -10651,7 +10635,7 @@ TEST_P(QuicFramerTest, BuildIetfStopSendingPacket) {
 }
 
 TEST_P(QuicFramerTest, IetfPathChallengeFrame) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Path Challenge frame is IETF QUIC only.
     return;
   }
@@ -10694,7 +10678,7 @@ TEST_P(QuicFramerTest, IetfPathChallengeFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildIetfPathChallengePacket) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Path Challenge frame is IETF QUIC only.
     return;
   }
@@ -10734,7 +10718,7 @@ TEST_P(QuicFramerTest, BuildIetfPathChallengePacket) {
 }
 
 TEST_P(QuicFramerTest, IetfPathResponseFrame) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Path response frame is IETF QUIC only.
     return;
   }
@@ -10777,7 +10761,7 @@ TEST_P(QuicFramerTest, IetfPathResponseFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildIetfPathResponsePacket) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Path response frame is IETF QUIC only
     return;
   }
@@ -10852,7 +10836,7 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
           framer_.transport_version(), QuicFrame(blocked)));
 
   // Following frames are IETF QUIC frames only.
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
 
@@ -10900,7 +10884,7 @@ TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
 // (1/2/4/8 bytes).
 // This only for version 99.
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown1Byte) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
@@ -10932,7 +10916,7 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown1Byte) {
 }
 
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown2Bytes) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
@@ -10965,7 +10949,7 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown2Bytes) {
 }
 
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown4Bytes) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
@@ -10998,7 +10982,7 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown4Bytes) {
 }
 
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown8Bytes) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
@@ -11034,7 +11018,7 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorUnknown8Bytes) {
 // information "Frame type not minimally encoded."
 // Look at the frame-type encoded in 2, 4, and 8 bytes.
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown2Bytes) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
@@ -11067,7 +11051,7 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown2Bytes) {
 }
 
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown4Bytes) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
@@ -11100,7 +11084,7 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown4Bytes) {
 }
 
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown8Bytes) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
@@ -11136,7 +11120,7 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown8Bytes) {
 // information "Frame type not minimally encoded."
 // Just look at 2-byte encoding.
 TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown2BytesAllTypes) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // Only IETF QUIC encodes frame types such that this test is relevant.
     return;
   }
@@ -11537,7 +11521,7 @@ TEST_P(QuicFramerTest, IetfFrameTypeEncodingErrorKnown2BytesAllTypes) {
 }
 
 TEST_P(QuicFramerTest, RetireConnectionIdFrame) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for version 99.
     return;
   }
@@ -11582,7 +11566,7 @@ TEST_P(QuicFramerTest, RetireConnectionIdFrame) {
 }
 
 TEST_P(QuicFramerTest, BuildRetireConnectionIdFramePacket) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for version 99.
     return;
   }
@@ -11668,7 +11652,7 @@ TEST_P(QuicFramerTest, AckFrameWithInvalidLargestObserved) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -11724,7 +11708,7 @@ TEST_P(QuicFramerTest, FirstAckBlockJustUnderFlow) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
@@ -11799,14 +11783,14 @@ TEST_P(QuicFramerTest, ThirdAckBlockJustUnderflow) {
 
   unsigned char* p = packet;
   size_t p_size = ABSL_ARRAYSIZE(packet);
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
     p_size = ABSL_ARRAYSIZE(packet_ietf);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     EXPECT_EQ(framer_.detailed_error(),
               "Underflow with ack block length 6 latest ack block end is 5.");
   } else {
@@ -11816,7 +11800,7 @@ TEST_P(QuicFramerTest, ThirdAckBlockJustUnderflow) {
 }
 
 TEST_P(QuicFramerTest, CoalescedPacket) {
-  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
@@ -11947,7 +11931,7 @@ TEST_P(QuicFramerTest, CoalescedPacket) {
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasIetfQuicFrames()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_ietf);
     ReviseFirstByteByVersion(&packet_ietf[first_packet_ietf_size]);
     p = packet_ietf;
@@ -11986,7 +11970,7 @@ TEST_P(QuicFramerTest, CoalescedPacket) {
 }
 
 TEST_P(QuicFramerTest, CoalescedPacketWithUdpPadding) {
-  if (!framer_.version().HasLongHeaderLengths()) {
+  if (!framer_.version().IsIetfQuic()) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
@@ -12068,7 +12052,7 @@ TEST_P(QuicFramerTest, CoalescedPacketWithUdpPadding) {
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasIetfQuicFrames()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_ietf);
     p = packet_ietf;
     p_length = ABSL_ARRAYSIZE(packet_ietf);
@@ -12093,7 +12077,7 @@ TEST_P(QuicFramerTest, CoalescedPacketWithUdpPadding) {
 }
 
 TEST_P(QuicFramerTest, CoalescedPacketWithDifferentVersion) {
-  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
@@ -12333,7 +12317,7 @@ TEST_P(QuicFramerTest, CoalescedPacketWithDifferentVersion) {
 }
 
 TEST_P(QuicFramerTest, CoalescedPacketWithUnknownVersion) {
-  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
@@ -12464,7 +12448,7 @@ TEST_P(QuicFramerTest, CoalescedPacketWithUnknownVersion) {
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasIetfQuicFrames()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_ietf);
     ReviseFirstByteByVersion(&packet_ietf[first_packet_ietf_size]);
     p = packet_ietf;
@@ -12559,7 +12543,7 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithoutDecrypter) {
   // clang-format on
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasLongHeaderLengths()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet49);
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
@@ -12645,7 +12629,7 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithDecrypter) {
   // clang-format on
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasLongHeaderLengths()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet49);
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
@@ -12669,7 +12653,7 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithDecrypter) {
 }
 
 TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
-  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   ASSERT_TRUE(framer_.version().IsIetfQuic());
@@ -12810,7 +12794,7 @@ TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasIetfQuicFrames()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_ietf);
     ReviseFirstByteByVersion(&packet_ietf[length_of_first_coalesced_packet]);
     p = packet_ietf;
@@ -12852,7 +12836,7 @@ TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
 }
 
 TEST_P(QuicFramerTest, MismatchedCoalescedPacket) {
-  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
@@ -12983,7 +12967,7 @@ TEST_P(QuicFramerTest, MismatchedCoalescedPacket) {
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasIetfQuicFrames()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_ietf);
     ReviseFirstByteByVersion(&packet_ietf[length_of_first_coalesced_packet]);
     p = packet_ietf;
@@ -13010,7 +12994,7 @@ TEST_P(QuicFramerTest, MismatchedCoalescedPacket) {
 }
 
 TEST_P(QuicFramerTest, InvalidCoalescedPacket) {
-  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
@@ -13094,7 +13078,7 @@ TEST_P(QuicFramerTest, InvalidCoalescedPacket) {
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasIetfQuicFrames()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_ietf);
     ReviseFirstByteByVersion(&packet_ietf[length_of_first_coalesced_packet]);
     p = packet_ietf;
@@ -13124,7 +13108,7 @@ TEST_P(QuicFramerTest, InvalidCoalescedPacket) {
 // padding inside the initial. We need to make sure that we still process
 // the initial correctly and ignore the zeroes.
 TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
-  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version()) ||
+  if (!VersionIsIetfQuic(framer_.transport_version()) ||
       !framer_.version().IsIetfQuic()) {
     return;
   }
@@ -13380,7 +13364,7 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
     framer_.SetDecrypter(ENCRYPTION_ZERO_RTT,
                          std::make_unique<TestDecrypter>());
   }
-  if (!QuicVersionHasLongHeaderLengths(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     EXPECT_TRUE(framer_.ProcessPacket(
         QuicEncryptedPacket(AsChars(long_header_packet),
                             ABSL_ARRAYSIZE(long_header_packet), false)));
@@ -13692,7 +13676,7 @@ TEST_P(QuicFramerTest, DispatcherParseClientVersionNegotiationProbePacket) {
 }
 
 TEST_P(QuicFramerTest, DispatcherParseClientInitialPacketNumber) {
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   // clang-format off
@@ -13771,7 +13755,7 @@ TEST_P(QuicFramerTest, DispatcherParseClientInitialPacketNumber) {
 
 TEST_P(QuicFramerTest,
        DispatcherParseClientInitialPacketNumberFromCoalescedPacket) {
-  if (!version_.HasIetfQuicFrames()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_INITIAL);
@@ -14004,7 +13988,7 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToClient) {
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasLongHeaderLengths()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet49);
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
@@ -14066,7 +14050,7 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToServer) {
   // clang-format on
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().HasLongHeaderLengths()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet49);
     p = packet49;
     p_length = ABSL_ARRAYSIZE(packet49);
@@ -14163,7 +14147,7 @@ TEST_P(QuicFramerTest, ProcessAndValidateIetfConnectionIdLengthServer) {
 }
 
 TEST_P(QuicFramerTest, TestExtendedErrorCodeParser) {
-  if (VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (VersionIsIetfQuic(framer_.transport_version())) {
     // Extended error codes only in IETF QUIC
     return;
   }
@@ -14253,7 +14237,7 @@ TEST_P(QuicFramerTest, TestExtendedErrorCodeParser) {
 
 // Regression test for crbug/1029636.
 TEST_P(QuicFramerTest, OverlyLargeAckDelay) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
@@ -14875,9 +14859,7 @@ TEST_P(QuicFramerTest, KeyUpdateOnFirstReceivedPacket) {
 }
 
 TEST_P(QuicFramerTest, ErrorWhenUnexpectedFrameTypeEncountered) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version()) ||
-      !QuicVersionHasLongHeaderLengths(framer_.transport_version()) ||
-      !framer_.version().HasLongHeaderLengths()) {
+  if (!framer_.version().IsIetfQuic()) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_ZERO_RTT);
@@ -14976,7 +14958,7 @@ TEST_P(QuicFramerTest, ShortHeaderWithNonDefaultConnectionIdLength) {
 }
 
 TEST_P(QuicFramerTest, ReportEcnCountsIfPresent) {
-  if (!VersionHasIetfQuicFrames(framer_.transport_version())) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
