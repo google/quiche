@@ -133,7 +133,7 @@ QuicPacketCreator::QuicPacketCreator(QuicConnectionId server_connection_id,
       latched_hard_max_packet_length_(0),
       max_datagram_frame_size_(0) {
   SetMaxPacketLength(kDefaultMaxPacketSize);
-  if (!framer_->version().UsesTls()) {
+  if (!framer_->version().IsIetfQuic()) {
     // QUIC+TLS negotiates the maximum datagram frame size via the
     // IETF QUIC max_datagram_frame_size transport parameter.
     // QUIC_CRYPTO however does not negotiate this so we set its value here.
@@ -2319,7 +2319,7 @@ size_t QuicPacketCreator::MinPlaintextPacketSize(
   // 1.3 is used, unittests still use NullEncrypter/NullDecrypter (and other
   // test crypters) which also only use 12 byte tags.
   //
-  return (version.UsesTls() ? 4 : 8) - packet_number_length;
+  return (version.IsIetfQuic() ? 4 : 8) - packet_number_length;
 }
 
 QuicPacketNumber QuicPacketCreator::NextSendingPacketNumber() const {

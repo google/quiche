@@ -105,7 +105,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         kInitialStreamFlowControlWindowForTest);
     session()->config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
-    if (session()->version().UsesTls()) {
+    if (session()->version().IsIetfQuic()) {
       if (session()->perspective() == Perspective::IS_CLIENT) {
         session()->config()->SetOriginalConnectionIdToSend(
             session()->connection()->connection_id());
@@ -434,7 +434,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
           *qpack_maximum_dynamic_table_capacity_);
     }
     if (connection_->perspective() == Perspective::IS_SERVER &&
-        VersionUsesHttp3(transport_version())) {
+        VersionIsIetfQuic(transport_version())) {
       session_->set_allow_extended_connect(allow_extended_connect_);
     }
     session_->Initialize();
@@ -442,7 +442,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
         kInitialStreamFlowControlWindowForTest);
     session_->config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
-    if (VersionUsesHttp3(transport_version())) {
+    if (VersionIsIetfQuic(transport_version())) {
       QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(
           session_->config(), kHttp3StaticUnidirectionalStreamCount);
     }
@@ -538,7 +538,7 @@ class QuicSpdySessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _, _))
           .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
     }
-    if (connection_->version().UsesTls() &&
+    if (connection_->version().IsIetfQuic() &&
         connection_->perspective() == Perspective::IS_SERVER) {
       // HANDSHAKE_DONE frame.
       EXPECT_CALL(*connection_, SendControlFrame(_))
@@ -630,7 +630,7 @@ INSTANTIATE_TEST_SUITE_P(Tests, QuicSpdySessionTestServer,
 
 TEST_P(QuicSpdySessionTestServer, UsesPendingStreamsForFrame) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   EXPECT_TRUE(session_->UsesPendingStreamForFrame(
@@ -839,7 +839,7 @@ TEST_P(QuicSpdySessionTestServer,
 TEST_P(QuicSpdySessionTestServer, TooLargeStreamBlocked) {
   Initialize();
   // STREAMS_BLOCKED frame is IETF QUIC only.
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -1090,7 +1090,7 @@ TEST_P(QuicSpdySessionTestServer,
     EXPECT_CALL(*crypto_stream, OnCanWrite());
   }
 
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     TestHeadersStream* headers_stream;
     QuicSpdySessionPeer::SetHeadersStream(&*session_, nullptr);
     headers_stream = new TestHeadersStream(&*session_);
@@ -1150,7 +1150,7 @@ TEST_P(QuicSpdySessionTestServer, SendGoAwayWithoutEncryption) {
 
 TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -1178,7 +1178,7 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
 
 TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAndNoMoreMaxStreams) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -1219,7 +1219,7 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAndNoMoreMaxStreams) {
 
 TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayWithoutEncryption) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   EXPECT_CALL(
@@ -1232,7 +1232,7 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayWithoutEncryption) {
 
 TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAfterStreamIsCreated) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -1283,7 +1283,7 @@ TEST_P(QuicSpdySessionTestServer, InvalidGoAway) {
 
 TEST_P(QuicSpdySessionTestServer, Http3GoAwayLargerIdThanBefore) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -1356,7 +1356,7 @@ TEST_P(QuicSpdySessionTestServer, OnStreamFrameFinStaticStreamId) {
   Initialize();
   QuicStreamId id;
   // Initialize HTTP/3 control stream.
-  if (VersionUsesHttp3(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     CompleteHandshake();
     id = GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
     char type[] = {kControlStream};
@@ -1382,7 +1382,7 @@ TEST_P(QuicSpdySessionTestServer, OnRstStreamStaticStreamId) {
   QuicErrorCode expected_error;
   std::string error_message;
   // Initialize HTTP/3 control stream.
-  if (VersionUsesHttp3(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     CompleteHandshake();
     id = GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
     char type[] = {kControlStream};
@@ -1486,7 +1486,7 @@ TEST_P(QuicSpdySessionTestServer,
 
   // This test depends on the headers stream, which does not exist when QPACK is
   // used.
-  if (VersionUsesHttp3(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -1606,7 +1606,7 @@ TEST_P(QuicSpdySessionTestServer, InvalidStreamFlowControlWindowInHandshake) {
 
 TEST_P(QuicSpdySessionTestServer, TooLowUnidirectionalStreamLimitHttp3) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   session_->GetMutableCryptoStream()->EstablishZeroRttEncryption();
@@ -1634,7 +1634,7 @@ TEST_P(QuicSpdySessionTestServer, CustomFlowControlWindow) {
 
 TEST_P(QuicSpdySessionTestServer, WindowUpdateUnblocksHeadersStream) {
   Initialize();
-  if (VersionUsesHttp3(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     // The test relies on headers stream, which no longer exists in IETF QUIC.
     return;
   }
@@ -1770,7 +1770,7 @@ INSTANTIATE_TEST_SUITE_P(Tests, QuicSpdySessionTestClient,
 
 TEST_P(QuicSpdySessionTestClient, UsesPendingStreamsForFrame) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   EXPECT_TRUE(session_->UsesPendingStreamForFrame(
@@ -1793,7 +1793,7 @@ TEST_P(QuicSpdySessionTestClient, UsesPendingStreamsForFrame) {
 // Regression test for crbug.com/977581.
 TEST_P(QuicSpdySessionTestClient, BadStreamFramePendingStream) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -1808,7 +1808,7 @@ TEST_P(QuicSpdySessionTestClient, BadStreamFramePendingStream) {
 
 TEST_P(QuicSpdySessionTestClient, PendingStreamKeepsConnectionAlive) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -1848,7 +1848,7 @@ TEST_P(QuicSpdySessionTestClient, TooLargeHeadersMustNotCauseWriteAfterReset) {
   Initialize();
   // In IETF QUIC, HEADERS do not carry FIN flag, and OnStreamHeaderList() is
   // never called after an error, including too large headers.
-  if (VersionUsesHttp3(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -1906,7 +1906,7 @@ TEST_P(QuicSpdySessionTestClient, RecordFinAfterReadSideClosed) {
 
 TEST_P(QuicSpdySessionTestClient, WritePriority) {
   Initialize();
-  if (VersionUsesHttp3(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     // IETF QUIC currently doesn't support PRIORITY.
     return;
   }
@@ -1942,7 +1942,7 @@ TEST_P(QuicSpdySessionTestClient, WritePriority) {
 
 TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -1963,7 +1963,7 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPush) {
 
 TEST_P(QuicSpdySessionTestClient, Http3ServerPushOutofOrderFrame) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -1998,7 +1998,7 @@ TEST_P(QuicSpdySessionTestClient, Http3ServerPushOutofOrderFrame) {
 TEST_P(QuicSpdySessionTestClient, ServerDisableQpackDynamicTable) {
   SetQuicFlag(quic_server_disable_qpack_dynamic_table, true);
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -2038,7 +2038,7 @@ TEST_P(QuicSpdySessionTestClient, DisableQpackDynamicTable) {
   SetQuicFlag(quic_server_disable_qpack_dynamic_table, false);
   qpack_maximum_dynamic_table_capacity_ = 0;
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -2152,7 +2152,7 @@ TEST_P(QuicSpdySessionTestServer, DonotRetransmitDataOfClosedStreams) {
   // decoder stream.  For simplicity, ignore writes on this stream.
   CompleteHandshake();
   NoopQpackStreamSenderDelegate qpack_stream_sender_delegate;
-  if (VersionUsesHttp3(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     session_->qpack_decoder()->set_qpack_stream_sender_delegate(
         &qpack_stream_sender_delegate);
   }
@@ -2244,7 +2244,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityFrame) {
 
 TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2317,7 +2317,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
 
 TEST_P(QuicSpdySessionTestServer, OnInvalidPriorityUpdateFrame) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2366,7 +2366,7 @@ TEST_P(QuicSpdySessionTestServer, OnInvalidPriorityUpdateFrame) {
 
 TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrameOutOfBoundsUrgency) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2412,7 +2412,7 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrameOutOfBoundsUrgency) {
 
 TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -2460,7 +2460,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
 
 TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -2502,7 +2502,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
 TEST_P(QuicSpdySessionTestServer,
        MultipleBytesPendingStreamTypeOutOfOrderDelivery) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -2547,7 +2547,7 @@ TEST_P(QuicSpdySessionTestServer,
 
 TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2592,7 +2592,7 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStream) {
 TEST_P(QuicSpdySessionTestServer, ServerDisableQpackDynamicTable) {
   SetQuicFlag(quic_server_disable_qpack_dynamic_table, true);
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -2630,7 +2630,7 @@ TEST_P(QuicSpdySessionTestServer, DisableQpackDynamicTable) {
   SetQuicFlag(quic_server_disable_qpack_dynamic_table, false);
   qpack_maximum_dynamic_table_capacity_ = 0;
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -2666,7 +2666,7 @@ TEST_P(QuicSpdySessionTestServer, DisableQpackDynamicTable) {
 
 TEST_P(QuicSpdySessionTestServer, ReceiveControlStreamOutOfOrderDelivery) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -2691,7 +2691,7 @@ TEST_P(QuicSpdySessionTestServer, ReceiveControlStreamOutOfOrderDelivery) {
 // Regression test for https://crbug.com/1009551.
 TEST_P(QuicSpdySessionTestServer, StreamClosedWhileHeaderDecodingBlocked) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -2724,7 +2724,7 @@ TEST_P(QuicSpdySessionTestServer, StreamClosedWhileHeaderDecodingBlocked) {
 // Regression test for https://crbug.com/1011294.
 TEST_P(QuicSpdySessionTestServer, SessionDestroyedWhileHeaderDecodingBlocked) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2754,7 +2754,7 @@ TEST_P(QuicSpdySessionTestServer, SessionDestroyedWhileHeaderDecodingBlocked) {
 
 TEST_P(QuicSpdySessionTestClient, ResetAfterInvalidIncomingStreamType) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -2803,7 +2803,7 @@ TEST_P(QuicSpdySessionTestClient, ResetAfterInvalidIncomingStreamType) {
 
 TEST_P(QuicSpdySessionTestClient, FinAfterInvalidIncomingStreamType) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -2845,7 +2845,7 @@ TEST_P(QuicSpdySessionTestClient, FinAfterInvalidIncomingStreamType) {
 
 TEST_P(QuicSpdySessionTestClient, ResetInMiddleOfStreamType) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2876,7 +2876,7 @@ TEST_P(QuicSpdySessionTestClient, ResetInMiddleOfStreamType) {
 
 TEST_P(QuicSpdySessionTestClient, FinInMiddleOfStreamType) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2896,7 +2896,7 @@ TEST_P(QuicSpdySessionTestClient, FinInMiddleOfStreamType) {
 
 TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2971,7 +2971,7 @@ TEST_P(QuicSpdySessionTestClient, DuplicateHttp3UnidirectionalStreams) {
 
 TEST_P(QuicSpdySessionTestClient, EncoderStreamError) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2996,7 +2996,7 @@ TEST_P(QuicSpdySessionTestClient, EncoderStreamError) {
 
 TEST_P(QuicSpdySessionTestClient, DecoderStreamError) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3021,7 +3021,7 @@ TEST_P(QuicSpdySessionTestClient, DecoderStreamError) {
 
 TEST_P(QuicSpdySessionTestClient, InvalidHttp3GoAway) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   EXPECT_CALL(*connection_,
@@ -3034,7 +3034,7 @@ TEST_P(QuicSpdySessionTestClient, InvalidHttp3GoAway) {
 
 TEST_P(QuicSpdySessionTestClient, Http3GoAwayLargerIdThanBefore) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3057,7 +3057,7 @@ TEST_P(QuicSpdySessionTestClient, Http3GoAwayLargerIdThanBefore) {
 
 TEST_P(QuicSpdySessionTestClient, CloseConnectionOnCancelPush) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3109,7 +3109,7 @@ TEST_P(QuicSpdySessionTestClient, CloseConnectionOnCancelPush) {
 TEST_P(QuicSpdySessionTestServer, OnSetting) {
   Initialize();
   CompleteHandshake();
-  if (VersionUsesHttp3(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     EXPECT_EQ(std::numeric_limits<size_t>::max(),
               session_->max_outbound_header_list_size());
     session_->OnSetting(SETTINGS_MAX_FIELD_SECTION_SIZE, 5);
@@ -3145,7 +3145,7 @@ TEST_P(QuicSpdySessionTestServer, OnSetting) {
 
 TEST_P(QuicSpdySessionTestServer, FineGrainedHpackErrorCodes) {
   Initialize();
-  if (VersionUsesHttp3(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     // HPACK is not used in HTTP/3.
     return;
   }
@@ -3179,7 +3179,7 @@ TEST_P(QuicSpdySessionTestServer, FineGrainedHpackErrorCodes) {
 
 TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalReceiveStream) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -3212,7 +3212,7 @@ TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalReceiveStream) {
 TEST_P(QuicSpdySessionTestServer,
        H3ControlStreamsLimitedByConnectionFlowControl) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   // Ensure connection level flow control blockage.
@@ -3228,7 +3228,7 @@ TEST_P(QuicSpdySessionTestServer,
 
 TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalSendStream) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3271,7 +3271,7 @@ TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalSendStream) {
 
 TEST_P(QuicSpdySessionTestServer, CloseConnectionOnCancelPush) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3322,7 +3322,7 @@ TEST_P(QuicSpdySessionTestServer, CloseConnectionOnCancelPush) {
 
 TEST_P(QuicSpdySessionTestServer, Http3GoAwayWhenClosingConnection) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3369,7 +3369,7 @@ TEST_P(QuicSpdySessionTestServer, Http3GoAwayWhenClosingConnection) {
 
 TEST_P(QuicSpdySessionTestClient, DoNotSendInitialMaxPushIdIfNotSet) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3384,7 +3384,7 @@ TEST_P(QuicSpdySessionTestClient, DoNotSendInitialMaxPushIdIfNotSet) {
 
 TEST_P(QuicSpdySessionTestClient, ReceiveSpdySettingInHttp3) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3403,7 +3403,7 @@ TEST_P(QuicSpdySessionTestClient, ReceiveSpdySettingInHttp3) {
 
 TEST_P(QuicSpdySessionTestClient, ReceiveAcceptChFrame) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3451,7 +3451,7 @@ TEST_P(QuicSpdySessionTestClient, ReceiveAcceptChFrame) {
 
 TEST_P(QuicSpdySessionTestClient, AcceptChViaAlps) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3480,7 +3480,7 @@ TEST_P(QuicSpdySessionTestClient, AcceptChViaAlps) {
 
 TEST_P(QuicSpdySessionTestClient, AlpsForbiddenFrame) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3500,7 +3500,7 @@ TEST_P(QuicSpdySessionTestClient, AlpsForbiddenFrame) {
 
 TEST_P(QuicSpdySessionTestClient, AlpsIncompleteFrame) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3521,7 +3521,7 @@ TEST_P(QuicSpdySessionTestClient, AlpsIncompleteFrame) {
 // another SETTINGS frame is still allowed on control frame.
 TEST_P(QuicSpdySessionTestClient, SettingsViaAlpsThenOnControlStream) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3596,7 +3596,7 @@ TEST_P(QuicSpdySessionTestClient, SettingsViaAlpsThenOnControlStream) {
 TEST_P(QuicSpdySessionTestClient,
        SettingsViaAlpsConflictsSettingsViaControlStream) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3647,7 +3647,7 @@ TEST_P(QuicSpdySessionTestClient,
 
 TEST_P(QuicSpdySessionTestClient, AlpsTwoSettingsFrame) {
   Initialize();
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -3669,7 +3669,7 @@ TEST_P(QuicSpdySessionTestClient, AlpsTwoSettingsFrame) {
 void QuicSpdySessionTestBase::TestHttpDatagramSetting(
     HttpDatagramSupport local_support, HttpDatagramSupport remote_support,
     HttpDatagramSupport expected_support, bool expected_datagram_supported) {
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   CompleteHandshake();
@@ -3791,7 +3791,7 @@ TEST_P(QuicSpdySessionTestClient,
 
 TEST_P(QuicSpdySessionTestClient, WebTransportSettingDraft02OnlyBothSides) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   session_->set_local_http_datagram_support(
@@ -3811,7 +3811,7 @@ TEST_P(QuicSpdySessionTestClient, WebTransportSettingDraft02OnlyBothSides) {
 
 TEST_P(QuicSpdySessionTestClient, WebTransportSettingDraft07OnlyBothSides) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   session_->set_local_http_datagram_support(
@@ -3831,7 +3831,7 @@ TEST_P(QuicSpdySessionTestClient, WebTransportSettingDraft07OnlyBothSides) {
 
 TEST_P(QuicSpdySessionTestClient, WebTransportSettingBothDraftsBothSides) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   session_->set_local_http_datagram_support(
@@ -3853,7 +3853,7 @@ TEST_P(QuicSpdySessionTestClient, WebTransportSettingBothDraftsBothSides) {
 
 TEST_P(QuicSpdySessionTestClient, WebTransportSettingVersionMismatch) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   session_->set_local_http_datagram_support(
@@ -3871,7 +3871,7 @@ TEST_P(QuicSpdySessionTestClient, WebTransportSettingVersionMismatch) {
 
 TEST_P(QuicSpdySessionTestClient, WebTransportSettingSetToZero) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   session_->set_local_http_datagram_support(
@@ -3903,7 +3903,7 @@ TEST_P(QuicSpdySessionTestClient, WebTransportSettingSetToZero) {
 
 TEST_P(QuicSpdySessionTestServer, WebTransportSetting) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   session_->set_local_http_datagram_support(
@@ -3922,7 +3922,7 @@ TEST_P(QuicSpdySessionTestServer, WebTransportSetting) {
 
 TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreams) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   session_->set_local_http_datagram_support(
@@ -3957,7 +3957,7 @@ TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreams) {
 
 TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreamsLimit) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   session_->set_local_http_datagram_support(
@@ -4000,7 +4000,7 @@ TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreamsLimit) {
 
 TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreamsWithFin) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
 
@@ -4027,7 +4027,7 @@ TEST_P(QuicSpdySessionTestServer, BufferingIncomingStreamsWithFin) {
 
 TEST_P(QuicSpdySessionTestServer, ResetOutgoingWebTransportStreams) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   session_->set_local_http_datagram_support(
@@ -4064,7 +4064,7 @@ TEST_P(QuicSpdySessionTestServer, ResetOutgoingWebTransportStreams) {
 
 TEST_P(QuicSpdySessionTestClient, WebTransportWithoutExtendedConnect) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
@@ -4094,7 +4094,7 @@ TEST_P(QuicSpdySessionTestClient, WebTransportWithoutExtendedConnect) {
 // Regression test for b/208997000.
 TEST_P(QuicSpdySessionTestClient, LimitEncoderDynamicTableSize) {
   Initialize();
-  if (version().UsesHttp3()) {
+  if (version().IsIetfQuic()) {
     return;
   }
   CompleteHandshake();
@@ -4166,7 +4166,7 @@ INSTANTIATE_TEST_SUITE_P(Tests, QuicSpdySessionTestServerNoExtendedConnect,
 TEST_P(QuicSpdySessionTestServerNoExtendedConnect,
        WebTransportSettingNoEffect) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
 
@@ -4183,7 +4183,7 @@ TEST_P(QuicSpdySessionTestServerNoExtendedConnect,
 
 TEST_P(QuicSpdySessionTestServerNoExtendedConnect, BadExtendedConnectSetting) {
   Initialize();
-  if (!version().UsesHttp3()) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);

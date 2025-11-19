@@ -272,8 +272,8 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     return (*stream_->mutable_headers())[key].as_string();
   }
 
-  bool UsesHttp3() const {
-    return VersionUsesHttp3(connection_->transport_version());
+  bool IsIetfQuic() const {
+    return VersionIsIetfQuic(connection_->transport_version());
   }
 
   void ReplaceBackend(std::unique_ptr<QuicSimpleServerBackend> backend) {
@@ -310,7 +310,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFraming) {
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       body_.length(), quiche::SimpleBufferAllocator::Get());
   std::string data =
-      UsesHttp3() ? absl::StrCat(header.AsStringView(), body_) : body_;
+      IsIetfQuic() ? absl::StrCat(header.AsStringView(), body_) : body_;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_EQ("11", StreamHeadersValue("content-length"));
@@ -328,7 +328,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingOnePacket) {
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       body_.length(), quiche::SimpleBufferAllocator::Get());
   std::string data =
-      UsesHttp3() ? absl::StrCat(header.AsStringView(), body_) : body_;
+      IsIetfQuic() ? absl::StrCat(header.AsStringView(), body_) : body_;
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
   EXPECT_EQ("11", StreamHeadersValue("content-length"));
@@ -348,7 +348,7 @@ TEST_P(QuicSimpleServerStreamTest, SendQuicRstStreamNoErrorInStopReading) {
   QuicStreamPeer::SetFinSent(stream_);
   stream_->CloseWriteSide();
 
-  if (session_.version().UsesHttp3()) {
+  if (session_.version().IsIetfQuic()) {
     EXPECT_CALL(session_,
                 MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
                                                  QUIC_STREAM_NO_ERROR)))
@@ -369,7 +369,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
 
   // We'll automatically write out an error (headers + body)
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
-  if (UsesHttp3()) {
+  if (IsIetfQuic()) {
     EXPECT_CALL(session_,
                 WritevData(_, kDataFrameHeaderLength, _, NO_FIN, _, _));
   }
@@ -379,7 +379,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       body_.length(), quiche::SimpleBufferAllocator::Get());
   std::string data =
-      UsesHttp3() ? absl::StrCat(header.AsStringView(), body_) : body_;
+      IsIetfQuic() ? absl::StrCat(header.AsStringView(), body_) : body_;
 
   stream_->OnStreamFrame(
       QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, data));
@@ -387,7 +387,7 @@ TEST_P(QuicSimpleServerStreamTest, TestFramingExtraData) {
   // accept the bytes.
   header = HttpEncoder::SerializeDataFrameHeader(
       large_body.length(), quiche::SimpleBufferAllocator::Get());
-  std::string data2 = UsesHttp3()
+  std::string data2 = IsIetfQuic()
                           ? absl::StrCat(header.AsStringView(), large_body)
                           : large_body;
   stream_->OnStreamFrame(
@@ -418,7 +418,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus) {
 
   InSequence s;
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
-  if (UsesHttp3()) {
+  if (IsIetfQuic()) {
     EXPECT_CALL(session_, WritevData(_, header.size(), _, NO_FIN, _, _));
   }
   EXPECT_CALL(session_, WritevData(_, kErrorLength, _, FIN, _, _));
@@ -450,7 +450,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithIllegalResponseStatus2) {
 
   InSequence s;
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
-  if (UsesHttp3()) {
+  if (IsIetfQuic()) {
     EXPECT_CALL(session_, WritevData(_, header.size(), _, NO_FIN, _, _));
   }
   EXPECT_CALL(session_, WritevData(_, kErrorLength, _, FIN, _, _));
@@ -480,7 +480,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithValidHeaders) {
 
   InSequence s;
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
-  if (UsesHttp3()) {
+  if (IsIetfQuic()) {
     EXPECT_CALL(session_, WritevData(_, header.size(), _, NO_FIN, _, _));
   }
   EXPECT_CALL(session_, WritevData(_, body.length(), _, FIN, _, _));
@@ -523,7 +523,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithEarlyHints) {
     EXPECT_CALL(*stream_, WriteEarlyHintsHeadersMock(false));
   }
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
-  if (UsesHttp3()) {
+  if (IsIetfQuic()) {
     EXPECT_CALL(session_, WritevData(_, header.size(), _, NO_FIN, _, _));
   }
   EXPECT_CALL(session_, WritevData(_, body.length(), _, FIN, _, _));
@@ -576,7 +576,7 @@ TEST_P(QuicSimpleServerStreamTest, SendResponseWithDelay) {
   EXPECT_CALL(*stream_, FireAlarmMock());
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
 
-  if (UsesHttp3()) {
+  if (IsIetfQuic()) {
     EXPECT_CALL(session_, WritevData(_, header.size(), _, NO_FIN, _, _));
   }
   EXPECT_CALL(session_, WritevData(_, body.length(), _, FIN, _, _));
@@ -593,7 +593,7 @@ TEST_P(QuicSimpleServerStreamTest, TestSendErrorResponse) {
 
   InSequence s;
   EXPECT_CALL(*stream_, WriteHeadersMock(false));
-  if (UsesHttp3()) {
+  if (IsIetfQuic()) {
     EXPECT_CALL(session_,
                 WritevData(_, kDataFrameHeaderLength, _, NO_FIN, _, _));
   }
@@ -609,7 +609,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidMultipleContentLength) {
   // \000 is a way to write the null byte when followed by a literal digit.
   header_list_.OnHeader("content-length", absl::string_view("11\00012", 5));
 
-  if (session_.version().UsesHttp3()) {
+  if (session_.version().IsIetfQuic()) {
     EXPECT_CALL(session_,
                 MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
                                                  QUIC_STREAM_NO_ERROR)));
@@ -630,7 +630,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidLeadingNullContentLength) {
   // \000 is a way to write the null byte when followed by a literal digit.
   header_list_.OnHeader("content-length", absl::string_view("\00012", 3));
 
-  if (session_.version().UsesHttp3()) {
+  if (session_.version().IsIetfQuic()) {
     EXPECT_CALL(session_,
                 MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
                                                  QUIC_STREAM_NO_ERROR)));
@@ -651,7 +651,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidMultipleContentLengthII) {
   // \000 is a way to write the null byte when followed by a literal digit.
   header_list_.OnHeader("content-length", absl::string_view("11\00011", 5));
 
-  if (session_.version().UsesHttp3()) {
+  if (session_.version().IsIetfQuic()) {
     EXPECT_CALL(session_,
                 MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
                                                  QUIC_STREAM_NO_ERROR)));
@@ -663,7 +663,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidMultipleContentLengthII) {
 
   stream_->OnStreamHeaderList(false, kFakeFrameLen, header_list_);
 
-  if (session_.version().UsesHttp3()) {
+  if (session_.version().IsIetfQuic()) {
     EXPECT_TRUE(QuicStreamPeer::read_side_closed(stream_));
     EXPECT_TRUE(stream_->reading_stopped());
     EXPECT_TRUE(stream_->write_side_closed());
@@ -679,7 +679,7 @@ TEST_P(QuicSimpleServerStreamTest,
        DoNotSendQuicRstStreamNoErrorWithRstReceived) {
   EXPECT_FALSE(stream_->reading_stopped());
 
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     // Unidirectional stream type and then a Stream Cancellation instruction is
     // sent on the QPACK decoder stream.  Ignore these writes without any
     // assumption on their number or size.
@@ -693,7 +693,7 @@ TEST_P(QuicSimpleServerStreamTest,
       session_,
       MaybeSendRstStreamFrame(
           _,
-          session_.version().UsesHttp3()
+          session_.version().IsIetfQuic()
               ? QuicResetStreamError::FromInternal(QUIC_STREAM_CANCELLED)
               : QuicResetStreamError::FromInternal(QUIC_RST_ACKNOWLEDGEMENT),
           _))
@@ -741,7 +741,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidHeadersWithFin) {
   QuicStreamFrame frame(stream_->id(), true, 0, data);
   // Verify that we don't crash when we get a invalid headers in stream frame.
   if (GetQuicReloadableFlag(quic_fin_before_completed_http_headers) &&
-      UsesHttp3()) {
+      IsIetfQuic()) {
     EXPECT_CALL(
         *connection_,
         CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM, _, _));
@@ -820,7 +820,7 @@ TEST_P(QuicSimpleServerStreamTest, ConnectSendsIntermediateResponses) {
   stream_->OnStreamHeaderList(/*fin=*/false, kFakeFrameLen, header_list);
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       kRequestBody.length(), quiche::SimpleBufferAllocator::Get());
-  std::string data = UsesHttp3()
+  std::string data = IsIetfQuic()
                          ? absl::StrCat(header.AsStringView(), kRequestBody)
                          : std::string(kRequestBody);
   stream_->OnStreamFrame(
@@ -851,7 +851,7 @@ TEST_P(QuicSimpleServerStreamTest, ErrorOnUnhandledConnect) {
   stream_->OnStreamHeaderList(/*fin=*/false, kFakeFrameLen, header_list);
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       kRequestBody.length(), quiche::SimpleBufferAllocator::Get());
-  std::string data = UsesHttp3()
+  std::string data = IsIetfQuic()
                          ? absl::StrCat(header.AsStringView(), kRequestBody)
                          : std::string(kRequestBody);
   stream_->OnStreamFrame(
@@ -873,7 +873,7 @@ TEST_P(QuicSimpleServerStreamTest, ConnectWithInvalidHeader) {
   header_list.OnHeader("InVaLiD-HeAdEr", "Well that's just wrong!");
   header_list.OnHeaderBlockEnd(128, 128);
 
-  if (UsesHttp3()) {
+  if (IsIetfQuic()) {
     EXPECT_CALL(session_,
                 MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
                                                  QUIC_STREAM_NO_ERROR)))

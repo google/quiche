@@ -694,7 +694,7 @@ void QuicStream::OnFinRead() {
 }
 
 void QuicStream::SetFinSent() {
-  QUICHE_DCHECK(!VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(!VersionIsIetfQuic(transport_version()));
   fin_sent_ = true;
 }
 
@@ -1020,12 +1020,12 @@ void QuicStream::MaybeSendStopSending(QuicResetStreamError error) {
     return;
   }
 
-  if (!session()->version().UsesHttp3() && !error.ok()) {
+  if (!session()->version().IsIetfQuic() && !error.ok()) {
     // In gQUIC, RST with error closes both read and write side.
     return;
   }
 
-  if (session()->version().UsesHttp3()) {
+  if (session()->version().IsIetfQuic()) {
     session()->MaybeSendStopSendingFrame(id(), error);
   } else {
     QUICHE_DCHECK_EQ(QUIC_STREAM_NO_ERROR, error.internal_code());
@@ -1043,7 +1043,7 @@ void QuicStream::MaybeSendRstStream(QuicResetStreamError error) {
     return;
   }
 
-  if (!session()->version().UsesHttp3()) {
+  if (!session()->version().IsIetfQuic()) {
     QUIC_BUG_IF(quic_bug_12570_5, error.ok());
     stop_sending_sent_ = true;
     CloseReadSide();
@@ -1100,7 +1100,7 @@ void QuicStream::OnClose() {
 
   if (!fin_sent_ && !rst_sent_ && !rst_stream_at_sent_) {
     QUIC_BUG_IF(quic_bug_12570_6, session()->connection()->connected() &&
-                                      session()->version().UsesHttp3())
+                                      session()->version().IsIetfQuic())
         << "The stream should've already sent RESET_STREAM or RESET_STREAM_AT "
            "in response to STOP_SENDING";
     // For flow control accounting, tell the peer how many bytes have been
@@ -1219,7 +1219,7 @@ bool QuicStream::MaybeConfigSendWindowOffset(QuicStreamOffset new_offset,
 
   // The validation code below is for QUIC with TLS only.
   if (new_offset < flow_controller_->send_window_offset()) {
-    QUICHE_DCHECK(session()->version().UsesTls());
+    QUICHE_DCHECK(session()->version().IsIetfQuic());
     if (was_zero_rtt_rejected && new_offset < flow_controller_->bytes_sent()) {
       // The client is given flow control window lower than what's written in
       // 0-RTT. This QUIC implementation is unable to retransmit them.

@@ -200,7 +200,7 @@ QuicSpdyStream* QuicSpdyClientSession::CreateIncomingStream(QuicStreamId id) {
     return nullptr;
   }
   QuicSpdyStream* stream;
-  if (version().UsesHttp3() &&
+  if (version().IsIetfQuic() &&
       QuicUtils::IsBidirectionalStreamId(id, version())) {
     QUIC_BUG_IF(QuicServerInitiatedSpdyStream but no WebTransport support,
                 !WillNegotiateWebTransport())
@@ -218,7 +218,7 @@ QuicSpdyClientSession::CreateQuicCryptoStream() {
   return std::make_unique<QuicCryptoClientStream>(
       server_id_, this,
       crypto_config_->proof_verifier()->CreateDefaultContext(), crypto_config_,
-      this, /*has_application_state = */ version().UsesHttp3());
+      this, /*has_application_state = */ version().IsIetfQuic());
 }
 
 QuicNetworkHandle QuicSpdyClientSession::FindAlternateNetwork(

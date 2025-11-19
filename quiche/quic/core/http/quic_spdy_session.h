@@ -437,7 +437,7 @@ class QUICHE_EXPORT QuicSpdySession
   // are supported to ensure we know which one is used. The HTTP Datagram check
   // will be removed once we drop support for draft04.
   bool ShouldBufferRequestsUntilSettings() {
-    return version().UsesHttp3() && perspective() == Perspective::IS_SERVER &&
+    return version().IsIetfQuic() && perspective() == Perspective::IS_SERVER &&
            (ShouldNegotiateWebTransport() ||
             LocalHttpDatagramSupport() == HttpDatagramSupport::kRfcAndDraft04 ||
             force_buffer_requests_until_settings_);

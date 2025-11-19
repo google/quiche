@@ -20,13 +20,13 @@ namespace test {
 // static
 QuicHeadersStream* QuicSpdySessionPeer::GetHeadersStream(
     QuicSpdySession* session) {
-  QUICHE_DCHECK(!VersionUsesHttp3(session->transport_version()));
+  QUICHE_DCHECK(!VersionIsIetfQuic(session->transport_version()));
   return session->headers_stream();
 }
 
 void QuicSpdySessionPeer::SetHeadersStream(QuicSpdySession* session,
                                            QuicHeadersStream* headers_stream) {
-  QUICHE_DCHECK(!VersionUsesHttp3(session->transport_version()));
+  QUICHE_DCHECK(!VersionIsIetfQuic(session->transport_version()));
   for (auto& it : QuicSessionPeer::stream_map(session)) {
     if (it.first ==
         QuicUtils::GetHeadersStreamId(session->transport_version())) {

@@ -287,15 +287,8 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   // advertisement format.
   bool SupportsGoogleAltSvcFormat() const;
 
-  // If true, HTTP/3 instead of gQUIC will be used at the HTTP layer.
-  // Notable changes are:
-  // * Headers stream no longer exists.
-  // * PRIORITY, HEADERS are moved from headers stream to HTTP/3 control stream.
-  // * PUSH_PROMISE is moved to request stream.
-  // * Unidirectional streams will have their first byte as a stream type.
-  // * HEADERS frames are compressed using QPACK.
-  // * DATA frame has frame headers.
-  // * GOAWAY is moved to HTTP layer.
+  // TODO(martinduke): Remove this function when it has been deleted from
+  // Envoy.
   bool UsesHttp3() const;
 
   // Returns whether the transport_version supports the variable length integer
@@ -313,7 +306,8 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   // Returns whether this version uses the legacy TLS extension codepoint.
   bool UsesLegacyTlsExtension() const;
 
-  // Returns whether this version uses PROTOCOL_TLS1_3.
+  // TODO(martinduke): Remove this function when it has been deleted from
+  // Envoy and internal callers.
   bool UsesTls() const;
 
   // Returns whether this version uses PROTOCOL_QUIC_CRYPTO.
@@ -521,19 +515,8 @@ QUICHE_EXPORT inline std::string ParsedQuicVersionVectorToString(
                                          std::numeric_limits<size_t>::max());
 }
 
-// If true, HTTP/3 instead of gQUIC will be used at the HTTP layer.
-// Notable changes are:
-// * Headers stream no longer exists.
-// * PRIORITY, HEADERS are moved from headers stream to HTTP/3 control stream.
-// * PUSH_PROMISE is moved to request stream.
-// * Unidirectional streams will have their first byte as a stream type.
-// * HEADERS frames are compressed using QPACK.
-// * DATA frame has frame headers.
-// * GOAWAY is moved to HTTP layer.
-QUICHE_EXPORT constexpr bool VersionUsesHttp3(
-    QuicTransportVersion transport_version) {
-  return transport_version >= QUIC_VERSION_IETF_DRAFT_29;
-}
+// Returns whether this version is documented by an IETF internet-draft or RFC.
+QUICHE_EXPORT bool VersionIsIetfQuic(QuicTransportVersion transport_version);
 
 // Returns whether the transport_version supports the variable length integer
 // length field as defined by IETF QUIC draft-13 and later.
@@ -547,16 +530,13 @@ QUICHE_EXPORT constexpr bool QuicVersionHasLongHeaderLengths(
 // frames or not.
 QUICHE_EXPORT constexpr bool VersionHasIetfQuicFrames(
     QuicTransportVersion transport_version) {
-  return VersionUsesHttp3(transport_version);
+  return VersionIsIetfQuic(transport_version);
 }
 
 // Returns true if this version supports the old Google-style Alt-Svc
 // advertisement format.
 QUICHE_EXPORT bool VersionSupportsGoogleAltSvcFormat(
     QuicTransportVersion transport_version);
-
-// Returns whether this version is documented by an IETF internet-draft or RFC.
-QUICHE_EXPORT bool VersionIsIetfQuic(QuicTransportVersion transport_version);
 
 // Returns whether this version label supports long header 4-bit encoded
 // connection ID lengths as described in draft-ietf-quic-invariants-05 and

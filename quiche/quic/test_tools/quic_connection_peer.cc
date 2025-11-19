@@ -613,7 +613,7 @@ uint8_t QuicConnectionPeer::GetNumPtosForRetransmittableOnWireTimeout(
 // static
 uint64_t QuicConnectionPeer::GetPeerReorderingThreshold(
     QuicConnection* connection) {
-  if (!connection->version().UsesTls()) {
+  if (!connection->version().IsIetfQuic()) {
     return connection->uber_received_packet_manager_
         .received_packet_managers_[0]
         .reordering_threshold_;

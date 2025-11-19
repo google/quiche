@@ -209,7 +209,7 @@ std::vector<TestParams> GetTestParams(
         continue;
       }
       for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
-        if (connection_id_length == -1 || version.UsesTls()) {
+        if (connection_id_length == -1 || version.IsIetfQuic()) {
           params.push_back(TestParams(version, congestion_control_tag,
                                       GetDefaultEventLoop(),
                                       connection_id_length));
@@ -734,7 +734,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     if (!ServerSendsVersionNegotiation()) {
       EXPECT_EQ(0u, client_stats.packets_dropped);
     }
-    if (!version_.UsesTls()) {
+    if (!version_.IsIetfQuic()) {
       // Only enforce this for QUIC crypto because accounting of number of
       // packets received, processed gets complicated with packets coalescing
       // and key dropping. For example, a received undecryptable coalesced
@@ -1204,7 +1204,7 @@ TEST_P(EndToEndTest, HandshakeSuccessful) {
 
 TEST_P(EndToEndTest, ExportKeyingMaterial) {
   ASSERT_TRUE(Initialize());
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   const char* kExportLabel = "label";
@@ -1273,7 +1273,7 @@ TEST_P(EndToEndTest, SimpleRequestResponse) {
   SendSynchronousFooRequestAndCheckResponse();
   EXPECT_FALSE(client_->client()->EarlyDataAccepted());
   EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
-  if (version_.UsesHttp3()) {
+  if (version_.IsIetfQuic()) {
     QuicSpdyClientSession* client_session = GetClientSession();
     ASSERT_TRUE(client_session);
     EXPECT_TRUE(QuicSpdySessionPeer::GetSendControlStream(client_session));
@@ -1294,7 +1294,7 @@ TEST_P(EndToEndTest, SimpleRequestResponse) {
 
 TEST_P(EndToEndTest, HandshakeConfirmed) {
   ASSERT_TRUE(Initialize());
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   SendSynchronousFooRequestAndCheckResponse();
@@ -1314,7 +1314,7 @@ TEST_P(EndToEndTest, HandshakeConfirmed) {
 }
 
 TEST_P(EndToEndTest, InvalidSNI) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1344,7 +1344,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithTwoPacketCHLO) {
   }
 
   SendSynchronousFooRequestAndCheckResponse();
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     QuicConnectionStats client_stats = GetClientConnection()->GetStats();
     EXPECT_TRUE(client_stats.handshake_completion_time.IsInitialized());
     return;
@@ -1464,7 +1464,7 @@ TEST_P(EndToEndTest, TestDispatcherAckWithThreePacketCHLO) {
   }
 
   SendSynchronousFooRequestAndCheckResponse();
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     QuicConnectionStats client_stats = GetClientConnection()->GetStats();
     EXPECT_TRUE(client_stats.handshake_completion_time.IsInitialized());
     return;
@@ -1501,7 +1501,7 @@ TEST_P(EndToEndTest,
   }
 
   SendSynchronousFooRequestAndCheckResponse();
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     QuicConnectionStats client_stats = GetClientConnection()->GetStats();
     EXPECT_TRUE(client_stats.handshake_completion_time.IsInitialized());
     return;
@@ -1565,7 +1565,7 @@ TEST_P(EndToEndTest,
 }
 
 TEST_P(EndToEndTest, TestInvalidAckBeforeHandshakeClosesConnection) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -1679,7 +1679,7 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckExponentChange) {
   server_thread_->Pause();
   QuicConnection* server_connection = GetServerConnection();
   if (server_connection != nullptr) {
-    if (version_.UsesTls()) {
+    if (version_.IsIetfQuic()) {
       // Should be only sent with QUIC+TLS.
       EXPECT_EQ(kClientAckDelayExponent,
                 server_connection->framer().peer_ack_delay_exponent());
@@ -1895,7 +1895,7 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithLargeReject) {
 
   SendSynchronousFooRequestAndCheckResponse();
   EXPECT_FALSE(client_->client()->EarlyDataAccepted());
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // REJ messages are a QUIC crypto feature, so TLS always returns false.
     EXPECT_FALSE(client_->client()->ReceivedInchoateReject());
   } else {
@@ -2399,7 +2399,7 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
-  if (!version_.UsesTls() &&
+  if (!version_.IsIetfQuic() &&
       GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
     return;
   }
@@ -2458,7 +2458,7 @@ TEST_P(EndToEndTest, LargePostZeroRTTFailure) {
 // Regression test for b/168020146.
 TEST_P(EndToEndTest, MultipleZeroRtt) {
   ASSERT_TRUE(Initialize());
-  if (!version_.UsesTls() &&
+  if (!version_.IsIetfQuic() &&
       GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
     return;
   }
@@ -2503,7 +2503,7 @@ TEST_P(EndToEndTest, SynchronousRequestZeroRTTFailure) {
   // Send a request and then disconnect. This prepares the client to attempt
   // a 0-RTT handshake for the next request.
   ASSERT_TRUE(Initialize());
-  if (!version_.UsesTls() &&
+  if (!version_.IsIetfQuic() &&
       GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
     return;
   }
@@ -2583,10 +2583,10 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
 
   client_session = GetClientSession();
   ASSERT_TRUE(client_session);
-  EXPECT_EQ((version_.UsesTls() ||
+  EXPECT_EQ((version_.IsIetfQuic() ||
              !GetQuicReloadableFlag(quic_require_handshake_confirmation)),
             client_session->EarlyDataAccepted());
-  EXPECT_EQ((version_.UsesTls() ||
+  EXPECT_EQ((version_.IsIetfQuic() ||
              !GetQuicReloadableFlag(quic_require_handshake_confirmation)),
             client_->client()->EarlyDataAccepted());
 
@@ -2616,7 +2616,7 @@ TEST_P(EndToEndTest, LargePostSynchronousRequest) {
 TEST_P(EndToEndTest, DisableResumption) {
   client_extra_copts_.push_back(kNRES);
   ASSERT_TRUE(Initialize());
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   SendSynchronousFooRequestAndCheckResponse();
@@ -2640,7 +2640,7 @@ TEST_P(EndToEndTest, DisableResumption) {
 
 // This is a regression test for b/162595387
 TEST_P(EndToEndTest, PostZeroRTTRequestDuringHandshake) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // This test is TLS specific.
     ASSERT_TRUE(Initialize());
     return;
@@ -2700,7 +2700,7 @@ TEST_P(EndToEndTest, PostZeroRTTRequestDuringHandshake) {
 
 // Regression test for b/166836136.
 TEST_P(EndToEndTest, RetransmissionAfterZeroRTTRejectBeforeOneRtt) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // This test is TLS specific.
     ASSERT_TRUE(Initialize());
     return;
@@ -2896,7 +2896,7 @@ TEST_P(EndToEndTest, LargeHeaders) {
 
   client_->SendCustomSynchronousRequest(headers, body);
 
-  if (version_.UsesHttp3()) {
+  if (version_.IsIetfQuic()) {
     // QuicSpdyStream::OnHeadersTooLarge() resets the stream with
     // QUIC_HEADERS_TOO_LARGE.  This is sent as H3_EXCESSIVE_LOAD, the closest
     // HTTP/3 error code, and translated back to QUIC_STREAM_EXCESSIVE_LOAD on
@@ -3167,7 +3167,7 @@ TEST_P(EndToEndTest, ClientSuggestsIgnoredRTT) {
 
 // Regression test for b/171378845
 TEST_P(EndToEndTest, ClientDisablesGQuicZeroRtt) {
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // This feature is gQUIC only.
     ASSERT_TRUE(Initialize());
     return;
@@ -3357,7 +3357,7 @@ TEST_P(EndToEndTest, StreamCancelErrorTest) {
   const QuicPacketCount packets_sent_now =
       client_connection->GetStats().packets_sent;
 
-  if (version_.UsesHttp3()) {
+  if (version_.IsIetfQuic()) {
     // QPACK decoder instructions and RESET_STREAM and STOP_SENDING frames are
     // sent in a single packet.
     EXPECT_EQ(packets_sent_before + 1, packets_sent_now);
@@ -4060,7 +4060,7 @@ TEST_P(EndToEndTest, DifferentFlowControlWindows) {
   WriteHeadersOnStream(stream);
   stream->WriteOrBufferBody("hello", false);
 
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // IFWA only exists with QUIC_CRYPTO.
     // Client should have the right values for server's receive window.
     ASSERT_TRUE(client_->client()
@@ -4100,7 +4100,7 @@ TEST_P(EndToEndTest, DifferentFlowControlWindows) {
   EXPECT_EQ(kClientSessionIFCW, QuicFlowControllerPeer::SendWindowOffset(
                                     server_session->flow_controller()));
   server_thread_->Resume();
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // IFWA only exists with QUIC_CRYPTO.
     return;
   }
@@ -4143,7 +4143,7 @@ TEST_P(EndToEndTest, NegotiatedServerInitialFlowControlWindow) {
   QuicSpdyClientSession* client_session = GetClientSession();
   ASSERT_TRUE(client_session);
 
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // IFWA only exists with QUIC_CRYPTO.
     // Client should have the right values for server's receive window.
     ASSERT_TRUE(client_session->config()
@@ -4192,7 +4192,7 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
   }
   // When stream type is enabled, control streams will send settings and
   // contribute to flow control windows, so this expectation is no longer valid.
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     EXPECT_EQ(kSessionIFCW, QuicFlowControllerPeer::SendWindowSize(
                                 client_session->flow_controller()));
   }
@@ -4202,7 +4202,7 @@ TEST_P(EndToEndTest, HeadersAndCryptoStreamsNoConnectionFlowControl) {
   EXPECT_EQ(kFooResponseBody, client_->SendSynchronousRequest("/foo"));
 
   // No headers stream in IETF QUIC.
-  if (version_.UsesHttp3()) {
+  if (version_.IsIetfQuic()) {
     return;
   }
 
@@ -4239,7 +4239,7 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   QuicSpdySession* const client_session = GetClientSession();
   ASSERT_TRUE(client_session);
 
-  if (version_.UsesHttp3()) {
+  if (version_.IsIetfQuic()) {
     // Make sure that the client has received the initial SETTINGS frame, which
     // is sent in the first packet on the control stream.
     while (!QuicSpdySessionPeer::GetReceiveControlStream(client_session)) {
@@ -4266,7 +4266,7 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   ExpectFlowControlsSynced(client_session, server_session);
 
   // Check control streams.
-  if (version_.UsesHttp3()) {
+  if (version_.IsIetfQuic()) {
     ExpectFlowControlsSynced(
         QuicSpdySessionPeer::GetReceiveControlStream(client_session),
         QuicSpdySessionPeer::GetSendControlStream(server_session));
@@ -4283,7 +4283,7 @@ TEST_P(EndToEndTest, FlowControlsSynced) {
   }
 
   // Check headers stream.
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     SpdyFramer spdy_framer(SpdyFramer::ENABLE_COMPRESSION);
     SpdySettingsIR settings_frame;
     settings_frame.AddSetting(spdy::SETTINGS_MAX_HEADER_LIST_SIZE,
@@ -4402,7 +4402,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
 
   // Wait for SETTINGS frame from server that sets QPACK dynamic table capacity
   // to make sure request headers will be compressed using the dynamic table.
-  if (version_.UsesHttp3()) {
+  if (version_.IsIetfQuic()) {
     while (true) {
       // Waits for up to 50 ms.
       client_->client()->WaitForEvents();
@@ -4444,7 +4444,7 @@ TEST_P(EndToEndTest, AckNotifierWithPacketLossAndBlockedSocket) {
   // Size of headers on the request stream. This is zero if headers are sent on
   // the header stream.
   size_t header_size = 0;
-  if (version_.UsesHttp3()) {
+  if (version_.IsIetfQuic()) {
     // Determine size of headers after QPACK compression.
     NoopDecoderStreamErrorDelegate decoder_stream_error_delegate;
     NoopQpackStreamSenderDelegate encoder_stream_sender_delegate;
@@ -4744,7 +4744,7 @@ class DowngradePacketWriter : public PacketDroppingTestWriter {
 TEST_P(EndToEndTest, VersionNegotiationDowngradeAttackIsDetected) {
   ResetClientWriterForVersionNegotiationTest();
   ParsedQuicVersion target_version = server_supported_versions_.back();
-  if (!version_.UsesTls() || target_version == version_) {
+  if (!version_.IsIetfQuic() || target_version == version_) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -5306,7 +5306,7 @@ TEST_P(EndToEndTest, ReleaseHeadersStreamBufferWhenIdle) {
   // its headers stream's sequencer buffer should be released.
   ASSERT_TRUE(Initialize());
   client_->SendSynchronousRequest("/foo");
-  if (version_.UsesHttp3()) {
+  if (version_.IsIetfQuic()) {
     return;
   }
   QuicSpdyClientSession* client_session = GetClientSession();
@@ -5333,7 +5333,7 @@ TEST_P(EndToEndTest, WayTooLongRequestHeaders) {
 
   client_->SendMessage(headers, "");
   client_->WaitForResponse();
-  if (version_.UsesHttp3()) {
+  if (version_.IsIetfQuic()) {
     EXPECT_THAT(client_->connection_error(),
                 IsError(QUIC_QPACK_DECOMPRESSION_FAILED));
   } else {
@@ -5584,7 +5584,7 @@ TEST_P(EndToEndTest, PreSharedKey) {
   pre_shared_key_client_ = "foobar";
   pre_shared_key_server_ = "foobar";
 
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
     InitializeAndCheckForTlsPskFailure();
     return;
@@ -5604,7 +5604,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyMismatch)) {
   pre_shared_key_client_ = "foo";
   pre_shared_key_server_ = "bar";
 
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
     InitializeAndCheckForTlsPskFailure();
     return;
@@ -5628,7 +5628,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoClient)) {
       QuicTime::Delta::FromSeconds(1));
   pre_shared_key_server_ = "foobar";
 
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
     InitializeAndCheckForTlsPskFailure(/*expect_client_failure=*/false);
     return;
@@ -5646,7 +5646,7 @@ TEST_P(EndToEndTest, QUIC_TEST_DISABLED_IN_CHROME(PreSharedKeyNoServer)) {
       QuicTime::Delta::FromSeconds(1));
   pre_shared_key_client_ = "foobar";
 
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // TODO(b/154162689) add PSK support to QUIC+TLS.
     InitializeAndCheckForTlsPskFailure();
     return;
@@ -6627,7 +6627,7 @@ TEST_P(EndToEndPacketReorderingTest,
 
 TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
   ASSERT_TRUE(Initialize());
-  if (!version_.UsesTls() &&
+  if (!version_.IsIetfQuic() &&
       GetQuicReloadableFlag(quic_require_handshake_confirmation)) {
     return;
   }
@@ -6639,7 +6639,7 @@ TEST_P(EndToEndPacketReorderingTest, Buffer0RttRequest) {
   // Client has valid Session Ticket now. Do a 0-RTT request.
   // Buffer a CHLO till the request is sent out. HTTP/3 sends two packets: a
   // SETTINGS frame and a request.
-  reorder_writer_->SetDelay(version_.UsesHttp3() ? 2 : 1);
+  reorder_writer_->SetDelay(version_.IsIetfQuic() ? 2 : 1);
   // Only send out a CHLO.
   client_->client()->Initialize();
 
@@ -6866,7 +6866,7 @@ TEST_P(EndToEndTest, TooBigStreamIdClosesConnection) {
 }
 
 TEST_P(EndToEndTest, CustomTransportParameters) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // Custom transport parameters are only supported with TLS.
     ASSERT_TRUE(Initialize());
     return;
@@ -6912,7 +6912,7 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
 }
 
 TEST_P(EndToEndTest, SniInClientTransportParameters) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     ASSERT_TRUE(Initialize());
     return;
   }
@@ -6935,7 +6935,7 @@ TEST_P(EndToEndTest, SniInClientTransportParameters) {
 }
 
 TEST_P(EndToEndTest, NoSniInClientTransportParameters) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // SNI in transport parameters is only supported with TLS.
     ASSERT_TRUE(Initialize());
     return;
@@ -7184,7 +7184,7 @@ void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
 }
 
 TEST_P(EndToEndTest, KeyUpdateInitiatedByClient) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // Key Update is only supported in TLS handshake.
     ASSERT_TRUE(Initialize());
     return;
@@ -7222,7 +7222,7 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByClient) {
 }
 
 TEST_P(EndToEndTest, KeyUpdateInitiatedByServer) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // Key Update is only supported in TLS handshake.
     ASSERT_TRUE(Initialize());
     return;
@@ -7293,7 +7293,7 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByServer) {
 }
 
 TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // Key Update is only supported in TLS handshake.
     ASSERT_TRUE(Initialize());
     return;
@@ -7374,7 +7374,7 @@ TEST_P(EndToEndTest, KeyUpdateInitiatedByBoth) {
 TEST_P(EndToEndTest, KeyUpdateInitiatedByConfidentialityLimit) {
   SetQuicFlag(quic_key_update_confidentiality_limit, 16U);
 
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // Key Update is only supported in TLS handshake.
     ASSERT_TRUE(Initialize());
     return;
@@ -7422,7 +7422,7 @@ TEST_P(EndToEndTest, TlsResumptionEnabledOnTheFly) {
   SetQuicFlag(quic_disable_server_tls_resumption, true);
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // This test is TLS specific.
     return;
   }
@@ -7464,7 +7464,7 @@ TEST_P(EndToEndTest, TlsResumptionDisabledOnTheFly) {
   SetQuicFlag(quic_disable_server_tls_resumption, false);
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // This test is TLS specific.
     return;
   }
@@ -7527,7 +7527,7 @@ TEST_P(EndToEndTest, BlockServerUntilSettingsReceived) {
   client_extra_copts_.push_back(kBSUS);
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7546,7 +7546,7 @@ TEST_P(EndToEndTest, WebTransportSessionSetup) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7565,7 +7565,7 @@ TEST_P(EndToEndTest, WebTransportSessionProtocolNegotiation) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7599,7 +7599,7 @@ TEST_P(EndToEndTest, WebTransportSessionSetupWithEchoWithSuffix) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7626,7 +7626,7 @@ TEST_P(EndToEndTest, WebTransportSessionWithLoss) {
   SetPacketLossPercentage(30);
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7645,7 +7645,7 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7696,7 +7696,7 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
   SetPacketLossPercentage(30);
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7730,7 +7730,7 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStream) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7767,7 +7767,7 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStreamWithBuffering) {
   SetPacketLossPercentage(30);
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7788,7 +7788,7 @@ TEST_P(EndToEndTest, WebTransportSessionServerBidirectionalStream) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7824,7 +7824,7 @@ TEST_P(EndToEndTest, WebTransportDatagrams) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7851,7 +7851,7 @@ TEST_P(EndToEndTest, WebTransportSessionClose) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7883,7 +7883,7 @@ TEST_P(EndToEndTest, WebTransportSessionCloseWithoutCapsule) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7915,7 +7915,7 @@ TEST_P(EndToEndTest, WebTransportSessionReceiveClose) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7950,7 +7950,7 @@ TEST_P(EndToEndTest, WebTransportSessionReceiveDrain) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -7973,7 +7973,7 @@ TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -8033,7 +8033,7 @@ TEST_P(EndToEndTest, DISABLED_WebTransportSessionResetReliability) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -8073,7 +8073,7 @@ TEST_P(EndToEndTest, WebTransportSession404) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -8097,7 +8097,7 @@ TEST_P(EndToEndTest, WebTransportSessionGoaway) {
   enable_web_transport_ = true;
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
 
@@ -8159,7 +8159,7 @@ TEST_P(EndToEndTest, InvalidExtendedConnect) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   // Missing :path header.
@@ -8181,7 +8181,7 @@ TEST_P(EndToEndTest, RejectExtendedConnect) {
   memory_cache_backend_.set_enable_extended_connect(false);
   ASSERT_TRUE(Initialize());
 
-  if (!version_.UsesHttp3()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   // This extended CONNECT should be rejected.
@@ -8468,7 +8468,7 @@ TEST_P(EndToEndTest, ClientReportsEct1) {
 TEST_P(EndToEndTest, FixTimeouts) {
   client_extra_copts_.push_back(kFTOE);
   ASSERT_TRUE(Initialize());
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
@@ -8684,7 +8684,7 @@ TEST_P(EndToEndTest, RequestsBurstMitigation) {
 
 TEST_P(EndToEndTest, SerializeConnectionClosePacketWithLargestPacketNumber) {
   ASSERT_TRUE(Initialize());
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());

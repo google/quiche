@@ -64,21 +64,17 @@ TEST(QuicVersionsTest, Features) {
   EXPECT_TRUE(parsed_version_q046.IsKnown());
   EXPECT_FALSE(parsed_version_q046.IsIetfQuic());
   EXPECT_TRUE(parsed_version_q046.SupportsGoogleAltSvcFormat());
-  EXPECT_FALSE(parsed_version_q046.UsesHttp3());
   EXPECT_FALSE(parsed_version_q046.HasLongHeaderLengths());
   EXPECT_FALSE(parsed_version_q046.UsesCryptoFrames());
   EXPECT_FALSE(parsed_version_q046.HasIetfQuicFrames());
-  EXPECT_FALSE(parsed_version_q046.UsesTls());
   EXPECT_TRUE(parsed_version_q046.UsesQuicCrypto());
 
   EXPECT_TRUE(parsed_version_draft_29.IsKnown());
   EXPECT_TRUE(parsed_version_draft_29.IsIetfQuic());
   EXPECT_FALSE(parsed_version_draft_29.SupportsGoogleAltSvcFormat());
-  EXPECT_TRUE(parsed_version_draft_29.UsesHttp3());
   EXPECT_TRUE(parsed_version_draft_29.HasLongHeaderLengths());
   EXPECT_TRUE(parsed_version_draft_29.UsesCryptoFrames());
   EXPECT_TRUE(parsed_version_draft_29.HasIetfQuicFrames());
-  EXPECT_TRUE(parsed_version_draft_29.UsesTls());
   EXPECT_FALSE(parsed_version_draft_29.UsesQuicCrypto());
 }
 
@@ -478,13 +474,13 @@ TEST(QuicVersionsTest, CurrentSupportedHttp3Versions) {
     bool version_is_h3 = false;
     for (auto& h3_version : h3_versions) {
       if (version == h3_version) {
-        EXPECT_TRUE(version.UsesHttp3());
+        EXPECT_TRUE(version.IsIetfQuic());
         version_is_h3 = true;
         break;
       }
     }
     if (!version_is_h3) {
-      EXPECT_FALSE(version.UsesHttp3());
+      EXPECT_FALSE(version.IsIetfQuic());
     }
   }
 }

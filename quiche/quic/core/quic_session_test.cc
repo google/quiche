@@ -90,7 +90,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         kInitialStreamFlowControlWindowForTest);
     session()->config()->SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
-    if (session()->version().UsesTls()) {
+    if (session()->version().IsIetfQuic()) {
       if (session()->perspective() == Perspective::IS_CLIENT) {
         session()->config()->SetOriginalConnectionIdToSend(
             session()->connection()->connection_id());
@@ -553,7 +553,7 @@ class QuicSessionTestBase : public QuicTestWithParam<ParsedQuicVersion> {
 
   void CompleteHandshake() {
     CryptoHandshakeMessage msg;
-    if (connection_->version().UsesTls() &&
+    if (connection_->version().IsIetfQuic() &&
         connection_->perspective() == Perspective::IS_SERVER) {
       // HANDSHAKE_DONE frame.
       EXPECT_CALL(*connection_, SendControlFrame(_))
@@ -1523,7 +1523,7 @@ TEST_P(QuicSessionTestServer, IncreasedTimeoutAfterCryptoHandshake) {
 }
 
 TEST_P(QuicSessionTestServer, OnStreamFrameFinStaticStreamId) {
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     // The test relies on headers stream, which no longer exists in IETF QUIC.
     return;
   }
@@ -1876,7 +1876,7 @@ TEST_P(QuicSessionTestServer, NoPendingStreams) {
 }
 
 TEST_P(QuicSessionTestServer, PendingStreams) {
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -1896,7 +1896,7 @@ TEST_P(QuicSessionTestServer, PendingStreams) {
 }
 
 TEST_P(QuicSessionTestServer, BufferAllIncomingStreams) {
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   session_.set_uses_pending_streams(true);
@@ -1941,7 +1941,7 @@ TEST_P(QuicSessionTestServer, BufferAllIncomingStreams) {
 }
 
 TEST_P(QuicSessionTestServer, RstPendingStreams) {
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   session_.set_uses_pending_streams(true);
@@ -1990,7 +1990,7 @@ TEST_P(QuicSessionTestServer, RstPendingStreams) {
 }
 
 TEST_P(QuicSessionTestServer, OnFinPendingStreamsReadUnidirectional) {
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   CompleteHandshake();
@@ -2011,7 +2011,7 @@ TEST_P(QuicSessionTestServer, OnFinPendingStreamsReadUnidirectional) {
 }
 
 TEST_P(QuicSessionTestServer, OnFinPendingStreamsBidirectional) {
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   session_.set_uses_pending_streams(true);
@@ -2037,7 +2037,7 @@ TEST_P(QuicSessionTestServer, OnFinPendingStreamsBidirectional) {
 }
 
 TEST_P(QuicSessionTestServer, UnidirectionalPendingStreamOnWindowUpdate) {
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2059,7 +2059,7 @@ TEST_P(QuicSessionTestServer, UnidirectionalPendingStreamOnWindowUpdate) {
 }
 
 TEST_P(QuicSessionTestServer, BidirectionalPendingStreamOnWindowUpdate) {
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2085,7 +2085,7 @@ TEST_P(QuicSessionTestServer, BidirectionalPendingStreamOnWindowUpdate) {
 }
 
 TEST_P(QuicSessionTestServer, UnidirectionalPendingStreamOnStopSending) {
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2106,7 +2106,7 @@ TEST_P(QuicSessionTestServer, UnidirectionalPendingStreamOnStopSending) {
 }
 
 TEST_P(QuicSessionTestServer, BidirectionalPendingStreamOnStopSending) {
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
 
@@ -2292,7 +2292,7 @@ TEST_P(QuicSessionTestClient, InvalidStreamFlowControlWindowInHandshake) {
 }
 
 TEST_P(QuicSessionTestClient, OnMaxStreamFrame) {
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     return;
   }
   QuicMaxStreamsFrame frame;
@@ -3358,7 +3358,7 @@ TEST_P(QuicSessionTestServer, BufferedCryptoFrameCausesWriteError) {
 }
 
 TEST_P(QuicSessionTestServer, DonotPtoStreamDataBeforeHandshakeConfirmed) {
-  if (!session_.version().UsesTls()) {
+  if (!session_.version().IsIetfQuic()) {
     return;
   }
   EXPECT_NE(HANDSHAKE_CONFIRMED, session_.GetHandshakeState());

@@ -1679,7 +1679,7 @@ TEST_P(QuicStreamTest, ResetStreamOnTtlExpiresRetransmitLostData) {
 
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
   // Verify stream gets reset because TTL expires.
-  if (session_->version().UsesHttp3()) {
+  if (session_->version().IsIetfQuic()) {
     EXPECT_CALL(*session_,
                 MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
                                                  QUIC_STREAM_TTL_EXPIRED)))
@@ -1707,7 +1707,7 @@ TEST_P(QuicStreamTest, ResetStreamOnTtlExpiresEarlyRetransmitData) {
 
   connection_->AdvanceTime(QuicTime::Delta::FromSeconds(1));
   // Verify stream gets reset because TTL expires.
-  if (session_->version().UsesHttp3()) {
+  if (session_->version().IsIetfQuic()) {
     EXPECT_CALL(*session_,
                 MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
                                                  QUIC_STREAM_TTL_EXPIRED)))

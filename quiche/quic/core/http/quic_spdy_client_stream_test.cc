@@ -154,7 +154,7 @@ TEST_P(QuicSpdyClientStreamTest, TestFraming) {
                               headers);
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       body_.length(), quiche::SimpleBufferAllocator::Get());
-  std::string data = VersionUsesHttp3(connection_->transport_version())
+  std::string data = VersionIsIetfQuic(connection_->transport_version())
                          ? absl::StrCat(header.AsStringView(), body_)
                          : body_;
   stream_->OnStreamFrame(
@@ -195,7 +195,7 @@ TEST_P(QuicSpdyClientStreamTest, Test100ContinueBeforeSuccessful) {
                               headers);
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       body_.length(), quiche::SimpleBufferAllocator::Get());
-  std::string data = VersionUsesHttp3(connection_->transport_version())
+  std::string data = VersionIsIetfQuic(connection_->transport_version())
                          ? absl::StrCat(header.AsStringView(), body_)
                          : body_;
   stream_->OnStreamFrame(
@@ -229,7 +229,7 @@ TEST_P(QuicSpdyClientStreamTest, TestUnknownInformationalBeforeSuccessful) {
                               headers);
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       body_.length(), quiche::SimpleBufferAllocator::Get());
-  std::string data = VersionUsesHttp3(connection_->transport_version())
+  std::string data = VersionIsIetfQuic(connection_->transport_version())
                          ? absl::StrCat(header.AsStringView(), body_)
                          : body_;
   stream_->OnStreamFrame(
@@ -278,7 +278,7 @@ TEST_P(QuicSpdyClientStreamTest, TestMultipleInformationalBeforeSuccessful) {
                               headers);
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       body_.length(), quiche::SimpleBufferAllocator::Get());
-  std::string data = VersionUsesHttp3(connection_->transport_version())
+  std::string data = VersionIsIetfQuic(connection_->transport_version())
                          ? absl::StrCat(header.AsStringView(), body_)
                          : body_;
   stream_->OnStreamFrame(
@@ -317,7 +317,7 @@ TEST_P(QuicSpdyClientStreamTest, TestFramingOnePacket) {
                               headers);
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       body_.length(), quiche::SimpleBufferAllocator::Get());
-  std::string data = VersionUsesHttp3(connection_->transport_version())
+  std::string data = VersionIsIetfQuic(connection_->transport_version())
                          ? absl::StrCat(header.AsStringView(), body_)
                          : body_;
   stream_->OnStreamFrame(
@@ -340,7 +340,7 @@ TEST_P(QuicSpdyClientStreamTest,
   EXPECT_EQ(200, stream_->response_code());
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       large_body.length(), quiche::SimpleBufferAllocator::Get());
-  std::string data = VersionUsesHttp3(connection_->transport_version())
+  std::string data = VersionIsIetfQuic(connection_->transport_version())
                          ? absl::StrCat(header.AsStringView(), large_body)
                          : large_body;
   EXPECT_CALL(session_, WriteControlFrame(_, _));
@@ -360,7 +360,7 @@ TEST_P(QuicSpdyClientStreamTest,
 TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
   // There is no kFinalOffsetHeaderKey if trailers are sent on the
   // request/response stream.
-  if (VersionUsesHttp3(connection_->transport_version())) {
+  if (VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
 
@@ -383,7 +383,7 @@ TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
   // received, as well as all data.
   quiche::QuicheBuffer header = HttpEncoder::SerializeDataFrameHeader(
       body_.length(), quiche::SimpleBufferAllocator::Get());
-  std::string data = VersionUsesHttp3(connection_->transport_version())
+  std::string data = VersionIsIetfQuic(connection_->transport_version())
                          ? absl::StrCat(header.AsStringView(), body_)
                          : body_;
   stream_->OnStreamFrame(
@@ -392,7 +392,7 @@ TEST_P(QuicSpdyClientStreamTest, ReceivingTrailers) {
 }
 
 TEST_P(QuicSpdyClientStreamTest, Capsules) {
-  if (!VersionUsesHttp3(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   SavingHttp3DatagramVisitor h3_datagram_visitor;
@@ -425,7 +425,7 @@ TEST_P(QuicSpdyClientStreamTest, Capsules) {
 }
 
 TEST_P(QuicSpdyClientStreamTest, CapsulesOnUnsuccessfulResponse) {
-  if (!VersionUsesHttp3(connection_->transport_version())) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
     return;
   }
   SavingHttp3DatagramVisitor h3_datagram_visitor;

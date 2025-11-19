@@ -73,7 +73,7 @@ void QuicVersionManager::RefilterSupportedVersions() {
                   transport_version) == filtered_transport_versions_.end()) {
       filtered_transport_versions_.push_back(transport_version);
     }
-    if (version.UsesHttp3()) {
+    if (version.IsIetfQuic()) {
       filtered_supported_versions_with_http3_.push_back(version);
     }
     if (std::find(filtered_supported_alpns_.begin(),

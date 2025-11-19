@@ -219,7 +219,7 @@ QuicSession::~QuicSession() {
 
 PendingStream* QuicSession::PendingStreamOnStreamFrame(
     const QuicStreamFrame& frame) {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionIsIetfQuic(transport_version()));
   QuicStreamId stream_id = frame.stream_id;
 
   PendingStream* pending = GetOrCreatePendingStream(stream_id);
@@ -287,7 +287,7 @@ bool QuicSession::MaybeProcessPendingStream(PendingStream* pending) {
 
 void QuicSession::PendingStreamOnWindowUpdateFrame(
     const QuicWindowUpdateFrame& frame) {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionIsIetfQuic(transport_version()));
   PendingStream* pending = GetOrCreatePendingStream(frame.stream_id);
   if (pending) {
     pending->OnWindowUpdateFrame(frame);
@@ -296,7 +296,7 @@ void QuicSession::PendingStreamOnWindowUpdateFrame(
 
 void QuicSession::PendingStreamOnStopSendingFrame(
     const QuicStopSendingFrame& frame) {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionIsIetfQuic(transport_version()));
   PendingStream* pending = GetOrCreatePendingStream(frame.stream_id);
   if (pending) {
     pending->OnStopSending(frame.error());
@@ -430,7 +430,7 @@ std::unique_ptr<QuicEncrypter> QuicSession::CreateCurrentOneRttEncrypter() {
 }
 
 void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionIsIetfQuic(transport_version()));
   QuicStreamId stream_id = frame.stream_id;
 
   PendingStream* pending = GetOrCreatePendingStream(stream_id);
@@ -450,7 +450,7 @@ void QuicSession::PendingStreamOnRstStream(const QuicRstStreamFrame& frame) {
 
 void QuicSession::PendingStreamOnResetStreamAt(
     const QuicResetStreamAtFrame& frame) {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionIsIetfQuic(transport_version()));
   QuicStreamId stream_id = frame.stream_id;
 
   PendingStream* pending = GetOrCreatePendingStream(stream_id);
@@ -535,7 +535,7 @@ void QuicSession::OnResetStreamAt(const QuicResetStreamAtFrame& frame) {
 }
 
 void QuicSession::OnGoAway(const QuicGoAwayFrame& /*frame*/) {
-  QUIC_BUG_IF(quic_bug_12435_1, version().UsesHttp3())
+  QUIC_BUG_IF(quic_bug_12435_1, version().IsIetfQuic())
       << "gQUIC GOAWAY received on version " << version();
 
   transport_goaway_received_ = true;
@@ -808,7 +808,7 @@ void QuicSession::OnCanWrite() {
   if (control_frame_manager_.WillingToWrite()) {
     control_frame_manager_.OnCanWrite();
   }
-  if (version().UsesTls() && GetHandshakeState() != HANDSHAKE_CONFIRMED &&
+  if (version().IsIetfQuic() && GetHandshakeState() != HANDSHAKE_CONFIRMED &&
       connection_->in_probe_time_out()) {
     QUIC_CODE_COUNT(quic_donot_pto_stream_data_before_handshake_confirmed);
     // Do not PTO stream data before handshake gets confirmed.
@@ -887,7 +887,7 @@ bool QuicSession::WillingAndAbleToWrite() const {
     return true;
   }
   if (flow_controller_.IsBlocked()) {
-    if (VersionUsesHttp3(transport_version())) {
+    if (VersionIsIetfQuic(transport_version())) {
       return false;
     }
     // Crypto and headers streams are not blocked by connection level flow
@@ -966,13 +966,14 @@ QuicConsumedData QuicSession::WritevData(QuicStreamId id, size_t write_length,
     // Do not let streams write without encryption. The calling stream will end
     // up write blocked until OnCanWrite is next called.
     if (was_zero_rtt_rejected_ && !OneRttKeysAvailable()) {
-      QUICHE_DCHECK(version().UsesTls() &&
+      QUICHE_DCHECK(version().IsIetfQuic() &&
                     perspective() == Perspective::IS_CLIENT);
       QUIC_DLOG(INFO) << ENDPOINT
                       << "Suppress the write while 0-RTT gets rejected and "
                          "1-RTT keys are not available. Version: "
                       << ParsedQuicVersionToString(version());
-    } else if (version().UsesTls() || perspective() == Perspective::IS_SERVER) {
+    } else if (version().IsIetfQuic() ||
+               perspective() == Perspective::IS_SERVER) {
       QUIC_BUG(quic_bug_10866_2)
           << ENDPOINT << "Try to send data of stream " << id
           << " before encryption is established. Version: "
@@ -1314,7 +1315,7 @@ bool QuicSession::OneRttKeysAvailable() const {
 void QuicSession::OnConfigNegotiated() {
   // In versions with TLS, the configs will be set twice if 0-RTT is available.
   // In the second config setting, 1-RTT keys are guaranteed to be available.
-  if (version().UsesTls() && is_configured_ &&
+  if (version().IsIetfQuic() && is_configured_ &&
       connection_->encryption_level() != ENCRYPTION_FORWARD_SECURE) {
     QUIC_BUG(quic_bug_12435_6)
         << ENDPOINT
@@ -1550,7 +1551,7 @@ void QuicSession::OnConfigNegotiated() {
   // attempt to retransmit 0-RTT data if there's any.
   // TODO(fayang): consider removing this OnCanWrite call.
   if (!connection_->framer().is_processing_packet() &&
-      (connection_->version().IsIetfQuic() || version().UsesTls())) {
+      (connection_->version().IsIetfQuic() || version().IsIetfQuic())) {
     QUIC_CODE_COUNT(quic_session_on_can_write_on_config_negotiated);
     OnCanWrite();
   }
@@ -1888,7 +1889,7 @@ void QuicSession::OnTlsHandshakeComplete() {
     connection()->SetNetworkTimeouts(QuicTime::Delta::Infinite(),
                                      config_.IdleNetworkTimeout());
   }
-  if (connection()->version().UsesTls() &&
+  if (connection()->version().IsIetfQuic() &&
       perspective_ == Perspective::IS_SERVER) {
     // Server sends HANDSHAKE_DONE to signal confirmation of the handshake
     // to the client.
@@ -1976,7 +1977,7 @@ void QuicSession::OnZeroRttRejected(int reason) {
 }
 
 bool QuicSession::FillTransportParameters(TransportParameters* params) {
-  if (version().UsesTls()) {
+  if (version().IsIetfQuic()) {
     if (perspective() == Perspective::IS_SERVER) {
       config_.SetOriginalConnectionIdToSend(
           connection_->GetOriginalDestinationConnectionId());
@@ -2976,7 +2977,7 @@ bool QuicSession::MaybeMitigateWriteError(const WriteResult& /*write_result*/) {
 }
 
 QuicStream* QuicSession::ProcessPendingStream(PendingStream* pending) {
-  QUICHE_DCHECK(VersionUsesHttp3(transport_version()));
+  QUICHE_DCHECK(VersionIsIetfQuic(transport_version()));
   QUICHE_DCHECK(connection()->connected());
   QuicStreamId stream_id = pending->id();
   QUIC_BUG_IF(bad pending stream, !IsIncomingStream(stream_id))

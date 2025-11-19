@@ -1582,7 +1582,7 @@ bool QuicFramer::ProcessRetryPacket(QuicDataReader* reader,
     return true;
   }
 
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     QUICHE_DCHECK(version_.IsIetfQuic()) << version_;
     const size_t bytes_remaining = reader->BytesRemaining();
     if (bytes_remaining <= kRetryIntegrityTagLength) {
@@ -4551,7 +4551,7 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
     }
     if (support_key_update_for_connection_ &&
         header.form == IETF_QUIC_SHORT_HEADER_PACKET) {
-      QUICHE_DCHECK(version().UsesTls());
+      QUICHE_DCHECK(version().IsIetfQuic());
       QUICHE_DCHECK_EQ(level, ENCRYPTION_FORWARD_SECURE);
       key_phase = (header.type_byte & FLAGS_KEY_PHASE_BIT) != 0;
       key_phase_parsed = true;

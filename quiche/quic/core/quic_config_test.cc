@@ -97,7 +97,7 @@ TEST_P(QuicConfigTest, AutoSetIetfFlowControl) {
 }
 
 TEST_P(QuicConfigTest, ToHandshakeMessage) {
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
     return;
   }
@@ -124,7 +124,7 @@ TEST_P(QuicConfigTest, ToHandshakeMessage) {
 }
 
 TEST_P(QuicConfigTest, ProcessClientHello) {
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
     return;
   }
@@ -185,7 +185,7 @@ TEST_P(QuicConfigTest, ProcessClientHello) {
 }
 
 TEST_P(QuicConfigTest, ProcessServerHello) {
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
     return;
   }
@@ -241,7 +241,7 @@ TEST_P(QuicConfigTest, ProcessServerHello) {
 }
 
 TEST_P(QuicConfigTest, MissingOptionalValuesInCHLO) {
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
     return;
   }
@@ -261,7 +261,7 @@ TEST_P(QuicConfigTest, MissingOptionalValuesInCHLO) {
 }
 
 TEST_P(QuicConfigTest, MissingOptionalValuesInSHLO) {
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
     return;
   }
@@ -280,7 +280,7 @@ TEST_P(QuicConfigTest, MissingOptionalValuesInSHLO) {
 }
 
 TEST_P(QuicConfigTest, MissingValueInCHLO) {
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
     return;
   }
@@ -293,7 +293,7 @@ TEST_P(QuicConfigTest, MissingValueInCHLO) {
 }
 
 TEST_P(QuicConfigTest, MissingValueInSHLO) {
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
     return;
   }
@@ -306,7 +306,7 @@ TEST_P(QuicConfigTest, MissingValueInSHLO) {
 }
 
 TEST_P(QuicConfigTest, OutOfBoundSHLO) {
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
     return;
   }
@@ -336,7 +336,7 @@ TEST_P(QuicConfigTest, InvalidFlowControlWindow) {
 }
 
 TEST_P(QuicConfigTest, HasClientSentConnectionOption) {
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
     return;
   }
@@ -368,7 +368,7 @@ TEST_P(QuicConfigTest, HasClientSentConnectionOption) {
 }
 
 TEST_P(QuicConfigTest, DontSendClientConnectionOptions) {
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
     return;
   }
@@ -390,7 +390,7 @@ TEST_P(QuicConfigTest, DontSendClientConnectionOptions) {
 }
 
 TEST_P(QuicConfigTest, HasClientRequestedIndependentOption) {
-  if (version_.UsesTls()) {
+  if (version_.IsIetfQuic()) {
     // CryptoHandshakeMessage is only used for QUIC_CRYPTO.
     return;
   }
@@ -426,7 +426,7 @@ TEST_P(QuicConfigTest, HasClientRequestedIndependentOption) {
 }
 
 TEST_P(QuicConfigTest, IncomingLargeIdleTimeoutTransportParameter) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // TransportParameters are only used for QUIC+TLS.
     return;
   }
@@ -446,7 +446,7 @@ TEST_P(QuicConfigTest, IncomingLargeIdleTimeoutTransportParameter) {
 }
 
 TEST_P(QuicConfigTest, ReceivedInvalidMinAckDelayDraft10InTransportParameter) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // TransportParameters are only used for QUIC+TLS.
     return;
   }
@@ -469,7 +469,7 @@ TEST_P(QuicConfigTest, ReceivedInvalidMinAckDelayDraft10InTransportParameter) {
 }
 
 TEST_P(QuicConfigTest, FillTransportParams) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // TransportParameters are only used for QUIC+TLS.
     return;
   }
@@ -592,7 +592,7 @@ TEST_P(QuicConfigTest, DNATPreferredAddress) {
 }
 
 TEST_P(QuicConfigTest, FillTransportParamsNoV4PreferredAddress) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // TransportParameters are only used for QUIC+TLS.
     return;
   }
@@ -663,7 +663,7 @@ TEST_P(QuicConfigTest, AddConnectionOptionsToSend) {
 }
 
 TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // TransportParameters are only used for QUIC+TLS.
     return;
   }
@@ -817,7 +817,7 @@ TEST_P(QuicConfigTest, ProcessTransportParametersServer) {
 }
 
 TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // TransportParameters are only used for QUIC+TLS.
     return;
   }
@@ -831,7 +831,7 @@ TEST_P(QuicConfigTest, DisableMigrationTransportParameter) {
 }
 
 TEST_P(QuicConfigTest, SendPreferredIPv4Address) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     // TransportParameters are only used for QUIC+TLS.
     return;
   }

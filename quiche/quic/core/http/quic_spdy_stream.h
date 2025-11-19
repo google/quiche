@@ -162,7 +162,7 @@ class QUICHE_EXPORT QuicSpdyStream
   virtual void OnBodyAvailable() = 0;
 
   // Writes the headers contained in |header_block| on the dedicated headers
-  // stream or on this stream, depending on VersionUsesHttp3().  Returns the
+  // stream or on this stream, depending on VersionIsIetfQuic().  Returns the
   // number of bytes sent, including data sent on the encoder stream when using
   // QPACK.
   virtual size_t WriteHeaders(
@@ -174,7 +174,7 @@ class QUICHE_EXPORT QuicSpdyStream
   virtual void WriteOrBufferBody(absl::string_view data, bool fin);
 
   // Writes the trailers contained in |trailer_block| on the dedicated headers
-  // stream or on this stream, depending on VersionUsesHttp3().  Trailers will
+  // stream or on this stream, depending on VersionIsIetfQuic().  Trailers will
   // always have the FIN flag set.  Returns the number of bytes sent, including
   // data sent on the encoder stream when using QPACK.
   virtual size_t WriteTrailers(

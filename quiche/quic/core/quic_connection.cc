@@ -310,7 +310,7 @@ void QuicConnection::ClearQueuedPackets() { buffered_packets_.clear(); }
 
 bool QuicConnection::ValidateConfigConnectionIds(const QuicConfig& config) {
   QUICHE_DCHECK(config.negotiated());
-  if (!version().UsesTls()) {
+  if (!version().IsIetfQuic()) {
     // QUIC+TLS is required to transmit connection ID transport parameters.
     return true;
   }
@@ -428,7 +428,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     if (!ValidateConfigConnectionIds(config)) {
       return;
     }
-    support_key_update_for_connection_ = version().UsesTls();
+    support_key_update_for_connection_ = version().IsIetfQuic();
     framer_.SetKeyUpdateSupportForConnection(
         support_key_update_for_connection_);
   } else {
@@ -642,7 +642,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   framer_.set_process_reset_stream_at(config.SupportsReliableStreamReset());
 
   if (config.peer_reordering_threshold() != 1 &&
-      perspective_ == Perspective::IS_CLIENT && version().UsesTls() &&
+      perspective_ == Perspective::IS_CLIENT && version().IsIetfQuic() &&
       !config.HasMinAckDelayDraft10ToSend()) {
     QuicAckFrequencyFrame frame;
     frame.reordering_threshold = config.peer_reordering_threshold();
@@ -869,7 +869,7 @@ void QuicConnection::OnRetryPacket(QuicConnectionId original_connection_id,
                                    absl::string_view retry_integrity_tag,
                                    absl::string_view retry_without_tag) {
   QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective_);
-  if (version().UsesTls()) {
+  if (version().IsIetfQuic()) {
     if (!CryptoUtils::ValidateRetryIntegrityTag(
             version(), default_path_.server_connection_id, retry_without_tag,
             retry_integrity_tag)) {
@@ -1165,7 +1165,7 @@ void QuicConnection::OnDecryptedPacket(size_t /*length*/,
   if (level == ENCRYPTION_FORWARD_SECURE &&
       !have_decrypted_first_one_rtt_packet_) {
     have_decrypted_first_one_rtt_packet_ = true;
-    if (version().UsesTls() && perspective_ == Perspective::IS_SERVER) {
+    if (version().IsIetfQuic() && perspective_ == Perspective::IS_SERVER) {
       // Servers MAY temporarily retain 0-RTT keys to allow decrypting reordered
       // packets without requiring their contents to be retransmitted with 1-RTT
       // keys. After receiving a 1-RTT packet, servers MUST discard 0-RTT keys
@@ -1553,7 +1553,7 @@ bool QuicConnection::OnAckFrameEnd(
       sent_packet_manager_.one_rtt_packet_acked()) {
     visitor_->OnOneRttPacketAcknowledged();
   }
-  if (debug_visitor_ != nullptr && version().UsesTls() &&
+  if (debug_visitor_ != nullptr && version().IsIetfQuic() &&
       !zero_rtt_packet_was_acked &&
       sent_packet_manager_.zero_rtt_packet_acked()) {
     debug_visitor_->OnZeroRttPacketAcked();
@@ -2092,7 +2092,7 @@ bool QuicConnection::OnHandshakeDoneFrame(const QuicHandshakeDoneFrame& frame) {
          "is closed. Received packet "
          "info: "
       << last_received_packet_info_;
-  if (!version().UsesTls()) {
+  if (!version().IsIetfQuic()) {
     CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION,
                     "Handshake done frame is unsupported",
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
@@ -2611,7 +2611,7 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
 
   if (has_decryption_key) {
     stats_.num_failed_authentication_packets_received++;
-    if (version().UsesTls()) {
+    if (version().IsIetfQuic()) {
       // Should always be non-null if has_decryption_key is true.
       QUICHE_DCHECK(framer_.GetDecrypter(decryption_level));
       const QuicPacketCount integrity_limit =
@@ -2633,7 +2633,7 @@ void QuicConnection::OnUndecryptablePacket(const QuicEncryptedPacket& packet,
     }
   }
 
-  if (version().UsesTls() && perspective_ == Perspective::IS_SERVER &&
+  if (version().IsIetfQuic() && perspective_ == Perspective::IS_SERVER &&
       decryption_level == ENCRYPTION_ZERO_RTT && !has_decryption_key &&
       had_zero_rtt_decrypter_) {
     QUIC_CODE_COUNT_N(
@@ -2664,7 +2664,7 @@ bool QuicConnection::ShouldEnqueueUnDecryptablePacket(
     // non-Initial packets should be buffered until the handshake is complete.
     return false;
   }
-  if (perspective_ == Perspective::IS_CLIENT && version().UsesTls() &&
+  if (perspective_ == Perspective::IS_CLIENT && version().IsIetfQuic() &&
       decryption_level == ENCRYPTION_ZERO_RTT) {
     // Only clients send Zero RTT packets in IETF QUIC.
     QUIC_PEER_BUG(quic_peer_bug_client_received_zero_rtt)
@@ -3166,7 +3166,7 @@ void QuicConnection::WriteQueuedPackets() {
 
 void QuicConnection::MarkZeroRttPacketsForRetransmission(int reject_reason) {
   sent_packet_manager_.MarkZeroRttPacketsForRetransmission();
-  if (debug_visitor_ != nullptr && version().UsesTls()) {
+  if (debug_visitor_ != nullptr && version().IsIetfQuic()) {
     debug_visitor_->OnZeroRttRejected(reject_reason);
   }
 }
@@ -3744,7 +3744,7 @@ bool QuicConnection::WritePacket(SerializedPacket* packet) {
 
 bool QuicConnection::MaybeHandleAeadConfidentialityLimits(
     const SerializedPacket& packet) {
-  if (!version().UsesTls()) {
+  if (!version().IsIetfQuic()) {
     return false;
   }
 
@@ -6233,7 +6233,7 @@ bool QuicConnection::EnforceAntiAmplificationLimit() const {
 }
 
 bool QuicConnection::ShouldFixTimeouts(const QuicConfig& config) const {
-  return quic_fix_timeouts_ && version().UsesTls() &&
+  return quic_fix_timeouts_ && version().IsIetfQuic() &&
          config.HasClientSentConnectionOption(kFTOE, perspective_);
 }
 
@@ -6408,7 +6408,7 @@ void QuicConnection::OnHandshakeTimeout() {
       "Handshake timeout expired after ", duration.ToDebuggingValue(),
       ". Timeout:",
       idle_network_detector_.handshake_timeout().ToDebuggingValue());
-  if (perspective() == Perspective::IS_CLIENT && version().UsesTls()) {
+  if (perspective() == Perspective::IS_CLIENT && version().IsIetfQuic()) {
     absl::StrAppend(&error_details, " ", UndecryptablePacketsInfo());
   }
   QUIC_DVLOG(1) << ENDPOINT << error_details;
@@ -6424,7 +6424,7 @@ void QuicConnection::OnIdleNetworkDetected() {
       "No recent network activity after ", duration.ToDebuggingValue(),
       ". Timeout:",
       idle_network_detector_.idle_network_timeout().ToDebuggingValue());
-  if (perspective() == Perspective::IS_CLIENT && version().UsesTls() &&
+  if (perspective() == Perspective::IS_CLIENT && version().IsIetfQuic() &&
       !IsHandshakeComplete()) {
     absl::StrAppend(&error_details, " ", UndecryptablePacketsInfo());
   }
@@ -6974,10 +6974,10 @@ bool QuicConnection::MigratePath(const QuicSocketAddress& self_address,
     }
     return false;
   }
-  QUICHE_DCHECK(!version().UsesHttp3() || IsHandshakeConfirmed() ||
+  QUICHE_DCHECK(!version().IsIetfQuic() || IsHandshakeConfirmed() ||
                 accelerated_server_preferred_address_);
 
-  if (version().UsesHttp3()) {
+  if (version().IsIetfQuic()) {
     if (!UpdateConnectionIdsOnMigration(self_address, peer_address)) {
       if (owns_writer) {
         delete writer;

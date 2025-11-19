@@ -507,7 +507,7 @@ class MockTlsServerHandshaker : public TlsServerHandshaker {
 };
 
 TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
-  if (version().UsesTls() && !version().HasIetfQuicFrames()) {
+  if (version().IsIetfQuic() && !version().HasIetfQuicFrames()) {
     // Skip the Txxx versions.
     return;
   }
@@ -533,7 +533,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   const std::string serving_region = "not a real region";
   session_->set_serving_region(serving_region);
 
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     session_->UnregisterStreamPriority(
         QuicUtils::GetHeadersStreamId(transport_version()));
   }
@@ -552,7 +552,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
     QuicServerSessionBasePeer::SetCryptoStream(session_.get(),
                                                tls_server_stream);
   }
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     session_->RegisterStreamPriority(
         QuicUtils::GetHeadersStreamId(transport_version()),
         /*is_static=*/true, QuicStreamPriority());
@@ -574,7 +574,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
       &bandwidth_recorder, max_bandwidth_estimate_kbytes_per_second,
       max_bandwidth_estimate_timestamp);
   // Queue up some pending data.
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     session_->MarkConnectionLevelWriteBlocked(
         QuicUtils::GetHeadersStreamId(transport_version()));
   } else {
@@ -649,7 +649,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
 }
 
 TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
-  if (version().UsesTls()) {
+  if (version().IsIetfQuic()) {
     if (!version().HasIetfQuicFrames()) {
       // Skip the Txxx versions.
       return;

@@ -41,7 +41,7 @@ ParsedQuicVersionVector MasqueSupportedVersions() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     // Use all versions that support IETF QUIC except QUICv2.
-    if (version.UsesHttp3() && !version.AlpnDeferToRFCv1()) {
+    if (version.IsIetfQuic() && !version.AlpnDeferToRFCv1()) {
       QuicEnableVersion(version);
       versions.push_back(version);
     }

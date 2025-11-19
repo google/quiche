@@ -431,7 +431,7 @@ int main(int argc, char* argv[]) {
   } else {
     for (const quic::ParsedQuicVersion& vers : quic::AllSupportedVersions()) {
       // Use the most recent IETF QUIC version.
-      if (vers.HasIetfQuicFrames() && vers.UsesHttp3() && vers.UsesTls()) {
+      if (vers.HasIetfQuicFrames() && vers.IsIetfQuic()) {
         version = vers;
         break;
       }

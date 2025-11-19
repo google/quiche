@@ -603,13 +603,13 @@ TEST_P(TlsClientHandshakerTest, ZeroRttRejection) {
   // packet retransmission.
   EXPECT_CALL(*connection_,
               OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION));
-  if (VersionUsesHttp3(session_->transport_version())) {
+  if (VersionIsIetfQuic(session_->transport_version())) {
     EXPECT_CALL(*connection_,
                 OnPacketSent(ENCRYPTION_ZERO_RTT, NOT_RETRANSMISSION));
   }
   EXPECT_CALL(*connection_,
               OnPacketSent(ENCRYPTION_HANDSHAKE, NOT_RETRANSMISSION));
-  if (VersionUsesHttp3(session_->transport_version())) {
+  if (VersionIsIetfQuic(session_->transport_version())) {
     // TODO(b/158027651): change transmission type to
     // ALL_ZERO_RTT_RETRANSMISSION.
     EXPECT_CALL(*connection_,
@@ -652,13 +652,13 @@ TEST_P(TlsClientHandshakerTest, ZeroRttAndResumptionRejection) {
   // packet retransmission.
   EXPECT_CALL(*connection_,
               OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION));
-  if (VersionUsesHttp3(session_->transport_version())) {
+  if (VersionIsIetfQuic(session_->transport_version())) {
     EXPECT_CALL(*connection_,
                 OnPacketSent(ENCRYPTION_ZERO_RTT, NOT_RETRANSMISSION));
   }
   EXPECT_CALL(*connection_,
               OnPacketSent(ENCRYPTION_HANDSHAKE, NOT_RETRANSMISSION));
-  if (VersionUsesHttp3(session_->transport_version())) {
+  if (VersionIsIetfQuic(session_->transport_version())) {
     // TODO(b/158027651): change transmission type to
     // ALL_ZERO_RTT_RETRANSMISSION.
     EXPECT_CALL(*connection_,
@@ -794,7 +794,7 @@ TEST_P(TlsClientHandshakerTest, InvalidSNI) {
 }
 
 TEST_P(TlsClientHandshakerTest, BadTransportParams) {
-  if (!connection_->version().UsesHttp3()) {
+  if (!connection_->version().IsIetfQuic()) {
     return;
   }
   // Finish establishing the first connection:

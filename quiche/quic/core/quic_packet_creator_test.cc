@@ -285,7 +285,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
     if (level != ENCRYPTION_ZERO_RTT) {
       frames_.push_back(QuicFrame(new QuicAckFrame(InitAckFrame(1))));
       has_ack = true;
-      payload_len += version.UsesTls() ? 12 : 6;
+      payload_len += version.IsIetfQuic() ? 12 : 6;
     }
     if (level != ENCRYPTION_INITIAL && level != ENCRYPTION_HANDSHAKE) {
       QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
@@ -302,7 +302,7 @@ TEST_P(QuicPacketCreatorTest, SerializeFrames) {
     }
     frames_.clear();
     ASSERT_GT(payload_len, 0);  // Must have a frame!
-    size_t min_payload = version.UsesTls() ? 3 : 7;
+    size_t min_payload = version.IsIetfQuic() ? 3 : 7;
     bool need_padding = (version.IsIetfQuic() && (payload_len < min_payload));
     {
       InSequence s;
@@ -1798,7 +1798,7 @@ TEST_P(QuicPacketCreatorTest, IetfAckGapErrorRegression) {
 }
 
 TEST_P(QuicPacketCreatorTest, AddDatagramFrame) {
-  if (client_framer_.version().UsesTls()) {
+  if (client_framer_.version().IsIetfQuic()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
   creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
@@ -1848,7 +1848,7 @@ TEST_P(QuicPacketCreatorTest, AddDatagramFrame) {
 }
 
 TEST_P(QuicPacketCreatorTest, DatagramFrameConsumption) {
-  if (client_framer_.version().UsesTls()) {
+  if (client_framer_.version().IsIetfQuic()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
   std::string message_data(kDefaultMaxPacketSize, 'a');
@@ -1890,7 +1890,7 @@ TEST_P(QuicPacketCreatorTest, DatagramFrameConsumption) {
 
 TEST_P(QuicPacketCreatorTest, GetGuaranteedLargestDatagramPayload) {
   ParsedQuicVersion version = GetParam().version;
-  if (version.UsesTls()) {
+  if (version.IsIetfQuic()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
   QuicPacketLength expected_largest_payload = 1215;
@@ -1938,7 +1938,7 @@ TEST_P(QuicPacketCreatorTest, GetGuaranteedLargestDatagramPayload) {
 
 TEST_P(QuicPacketCreatorTest, GetCurrentLargestDatagramPayload) {
   ParsedQuicVersion version = GetParam().version;
-  if (version.UsesTls()) {
+  if (version.IsIetfQuic()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
   QuicPacketLength expected_largest_payload = 1215;
@@ -2404,7 +2404,7 @@ TEST_P(QuicPacketCreatorTest, SoftMaxPacketLength) {
 
   // Same for message frame.
   creator_.SetSoftMaxPacketLength(overhead);
-  if (client_framer_.version().UsesTls()) {
+  if (client_framer_.version().IsIetfQuic()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
   // Verify GetCurrentLargestDatagramPayload is based on the actual
@@ -2485,7 +2485,7 @@ TEST_P(QuicPacketCreatorTest, MinPayloadLength) {
       EXPECT_EQ(creator_.MinPlaintextPacketSize(version, pn_length), 0);
     } else {
       EXPECT_EQ(creator_.MinPlaintextPacketSize(version, pn_length),
-                (version.UsesTls() ? 4 : 8) - pn_length);
+                (version.IsIetfQuic() ? 4 : 8) - pn_length);
     }
   }
 }
@@ -4241,7 +4241,7 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
 }
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest, AddDatagramFrame) {
-  if (framer_.version().UsesTls()) {
+  if (framer_.version().IsIetfQuic()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
   delegate_.SetCanWriteAnything();

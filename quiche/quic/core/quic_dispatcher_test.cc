@@ -742,7 +742,7 @@ TEST_P(QuicDispatcherTestAllVersions, VariableServerConnectionIdLength) {
 
 void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
     bool add_reordering, bool long_connection_id) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   SetAddressToken("857293462398");
@@ -2644,7 +2644,7 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketBeforeChlo) {
 
 TEST_P(BufferedPacketStoreTest,
        ProcessNonChloPacketWithInvalidAckBeforeChloClosesConnection) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   CreateTimeWaitListManager();
@@ -2676,7 +2676,7 @@ TEST_P(BufferedPacketStoreTest,
 }
 
 TEST_P(BufferedPacketStoreTest, ProcessMultiPacketChloWithValidAckFrame) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   QuicConnectionId conn_id = TestConnectionId(1);
@@ -2729,7 +2729,7 @@ TEST_P(BufferedPacketStoreTest, ProcessMultiPacketChloWithValidAckFrame) {
 
 TEST_P(BufferedPacketStoreTest,
        ProcessNonChloPacketAckingPacketNumberZeroClosesConnection) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   QuicConnectionId conn_id = TestConnectionId(1);
@@ -2776,7 +2776,7 @@ TEST_P(BufferedPacketStoreTest,
 
 TEST_P(BufferedPacketStoreTest,
        ProcessMultiPacketChloWithInvalidAckClosesConnection) {
-  if (!version_.UsesTls()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   CreateTimeWaitListManager();
@@ -3113,7 +3113,7 @@ TEST_P(BufferedPacketStoreTest,
   MockConnectionIdGenerator generator2;
   EXPECT_CALL(*dispatcher_, ConnectionIdGenerator())
       .WillRepeatedly(ReturnRef(generator2));
-  const bool buffered_store_replace_cid = version_.UsesTls();
+  const bool buffered_store_replace_cid = version_.IsIetfQuic();
   if (buffered_store_replace_cid) {
     // generator2 should be used to replace the connection ID when the first
     // IETF INITIAL is enqueued.
@@ -3305,7 +3305,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
                   ValidatePacket(TestConnectionId(conn_id), packet);
                 }
               }));
-    } else if (!version_.UsesTls()) {
+    } else if (!version_.IsIetfQuic()) {
       expect_generator_is_called_ = false;
     }
     ProcessFirstFlight(TestConnectionId(conn_id));

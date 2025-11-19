@@ -414,7 +414,7 @@ bool QuicClientBase::WaitForOneRttKeysAvailable() {
 }
 
 bool QuicClientBase::WaitForHandshakeConfirmed() {
-  if (!session_->connection()->version().UsesTls()) {
+  if (!session_->connection()->version().IsIetfQuic()) {
     return WaitForOneRttKeysAvailable();
   }
   // Otherwise, wait for receipt of HANDSHAKE_DONE frame.

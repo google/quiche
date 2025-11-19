@@ -210,7 +210,7 @@ EnqueuePacketResult QuicBufferedPacketStore::EnqueuePacket(
 
   MaybeSetExpirationAlarm();
 
-  if (is_ietf_initial_packet && version.UsesTls() &&
+  if (is_ietf_initial_packet && version.IsIetfQuic() &&
       !queue.HasAttemptedToReplaceConnectionId()) {
     queue.SetAttemptedToReplaceConnectionId(&connection_id_generator);
     std::optional<QuicConnectionId> replaced_connection_id =

@@ -119,7 +119,7 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
           config(), connection, this, session_helper(), crypto_config(),
           compressed_certs_cache(), server_backend(), alpn);
     }
-    if (VersionUsesHttp3(version.transport_version)) {
+    if (VersionIsIetfQuic(version.transport_version)) {
       QUICHE_DCHECK(session->allow_extended_connect());
       // Do not allow extended CONNECT request if the backend doesn't support
       // it.
@@ -232,7 +232,7 @@ ImmediateGoAwaySession::ImmediateGoAwaySession(
           crypto_config, compressed_certs_cache, quic_simple_server_backend) {}
 
 void ImmediateGoAwaySession::OnStreamFrame(const QuicStreamFrame& frame) {
-  if (VersionUsesHttp3(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "");
   } else {
     SendGoAway(QUIC_PEER_GOING_AWAY, "");
@@ -244,7 +244,7 @@ void ImmediateGoAwaySession::OnCryptoFrame(const QuicCryptoFrame& frame) {
   // In IETF QUIC, GOAWAY lives up in HTTP/3 layer. It's sent in a QUIC stream
   // and requires encryption. Thus the sending is done in
   // OnNewEncryptionKeyAvailable().
-  if (!VersionUsesHttp3(transport_version())) {
+  if (!VersionIsIetfQuic(transport_version())) {
     SendGoAway(QUIC_PEER_GOING_AWAY, "");
   }
   QuicSimpleServerSession::OnCryptoFrame(frame);
@@ -254,7 +254,7 @@ void ImmediateGoAwaySession::OnNewEncryptionKeyAvailable(
     EncryptionLevel level, std::unique_ptr<QuicEncrypter> encrypter) {
   QuicSimpleServerSession::OnNewEncryptionKeyAvailable(level,
                                                        std::move(encrypter));
-  if (VersionUsesHttp3(transport_version())) {
+  if (VersionIsIetfQuic(transport_version())) {
     if (IsEncryptionEstablished() && !goaway_sent()) {
       SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "");
     }

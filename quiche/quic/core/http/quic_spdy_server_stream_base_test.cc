@@ -60,7 +60,7 @@ TEST_F(QuicSpdyServerStreamBaseTest,
        SendQuicRstStreamNoErrorWithEarlyResponse) {
   stream_->StopReading();
 
-  if (session_.version().UsesHttp3()) {
+  if (session_.version().IsIetfQuic()) {
     EXPECT_CALL(session_,
                 MaybeSendStopSendingFrame(_, QuicResetStreamError::FromInternal(
                                                  QUIC_STREAM_NO_ERROR)))
@@ -133,7 +133,7 @@ TEST_F(QuicSpdyServerStreamBaseTest, AllowExtendedConnectProtocolFirst) {
 }
 
 TEST_F(QuicSpdyServerStreamBaseTest, InvalidExtendedConnect) {
-  if (!session_.version().UsesHttp3()) {
+  if (!session_.version().IsIetfQuic()) {
     return;
   }
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);

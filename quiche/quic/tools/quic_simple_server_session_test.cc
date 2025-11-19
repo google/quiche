@@ -181,7 +181,7 @@ class QuicSimpleServerSessionTest
         kInitialStreamFlowControlWindowForTest);
     config_.SetInitialSessionFlowControlWindowToSend(
         kInitialSessionFlowControlWindowForTest);
-    if (VersionUsesHttp3(transport_version())) {
+    if (VersionIsIetfQuic(transport_version())) {
       QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(
           &config_, kMaxStreamsForTest + 3);
     } else {
@@ -401,7 +401,7 @@ TEST_P(QuicSimpleServerSessionTest, CreateIncomingStream) {
 TEST_P(QuicSimpleServerSessionTest, GetEvenIncomingError) {
   const size_t initial_num_open_stream =
       QuicSessionPeer::GetNumOpenDynamicStreams(session_.get());
-  const QuicErrorCode expected_error = VersionUsesHttp3(transport_version())
+  const QuicErrorCode expected_error = VersionIsIetfQuic(transport_version())
                                            ? QUIC_HTTP_STREAM_WRONG_DIRECTION
                                            : QUIC_INVALID_STREAM_ID;
   EXPECT_CALL(*connection_, CloseConnection(expected_error,

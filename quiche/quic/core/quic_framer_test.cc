@@ -5313,7 +5313,7 @@ TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
 
   unsigned char* p = packet;
   size_t p_length = ABSL_ARRAYSIZE(packet);
-  if (framer_.version().UsesTls()) {
+  if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_with_tag);
     p = packet_with_tag;
     p_length = ABSL_ARRAYSIZE(packet_with_tag);
@@ -5331,7 +5331,7 @@ TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
   ASSERT_TRUE(visitor_.retry_new_connection_id_.get());
   ASSERT_TRUE(visitor_.retry_token_.get());
 
-  if (framer_.version().UsesTls()) {
+  if (framer_.version().IsIetfQuic()) {
     ASSERT_TRUE(visitor_.retry_token_integrity_tag_.get());
     static const unsigned char expected_integrity_tag[16] = {
         0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
@@ -14288,7 +14288,7 @@ TEST_P(QuicFramerTest, OverlyLargeAckDelay) {
 }
 
 TEST_P(QuicFramerTest, KeyUpdate) {
-  if (!framer_.version().UsesTls()) {
+  if (!framer_.version().IsIetfQuic()) {
     // Key update is only used in QUIC+TLS.
     return;
   }
@@ -14365,7 +14365,7 @@ TEST_P(QuicFramerTest, KeyUpdate) {
 }
 
 TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterUpdate) {
-  if (!framer_.version().UsesTls()) {
+  if (!framer_.version().IsIetfQuic()) {
     // Key update is only used in QUIC+TLS.
     return;
   }
@@ -14427,7 +14427,7 @@ TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterUpdate) {
 }
 
 TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterDiscardPreviousOneRttKeys) {
-  if (!framer_.version().UsesTls()) {
+  if (!framer_.version().IsIetfQuic()) {
     // Key update is only used in QUIC+TLS.
     return;
   }
@@ -14492,7 +14492,7 @@ TEST_P(QuicFramerTest, KeyUpdateOldPacketAfterDiscardPreviousOneRttKeys) {
 }
 
 TEST_P(QuicFramerTest, KeyUpdatePacketsOutOfOrder) {
-  if (!framer_.version().UsesTls()) {
+  if (!framer_.version().IsIetfQuic()) {
     // Key update is only used in QUIC+TLS.
     return;
   }
@@ -14554,7 +14554,7 @@ TEST_P(QuicFramerTest, KeyUpdatePacketsOutOfOrder) {
 }
 
 TEST_P(QuicFramerTest, KeyUpdateWrongKey) {
-  if (!framer_.version().UsesTls()) {
+  if (!framer_.version().IsIetfQuic()) {
     // Key update is only used in QUIC+TLS.
     return;
   }
@@ -14651,7 +14651,7 @@ TEST_P(QuicFramerTest, KeyUpdateWrongKey) {
 }
 
 TEST_P(QuicFramerTest, KeyUpdateReceivedWhenNotEnabled) {
-  if (!framer_.version().UsesTls()) {
+  if (!framer_.version().IsIetfQuic()) {
     // Key update is only used in QUIC+TLS.
     return;
   }
@@ -14687,7 +14687,7 @@ TEST_P(QuicFramerTest, KeyUpdateReceivedWhenNotEnabled) {
 }
 
 TEST_P(QuicFramerTest, KeyUpdateLocallyInitiated) {
-  if (!framer_.version().UsesTls()) {
+  if (!framer_.version().IsIetfQuic()) {
     // Key update is only used in QUIC+TLS.
     return;
   }
@@ -14763,7 +14763,7 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiated) {
 }
 
 TEST_P(QuicFramerTest, KeyUpdateLocallyInitiatedReceivedOldPacket) {
-  if (!framer_.version().UsesTls()) {
+  if (!framer_.version().IsIetfQuic()) {
     // Key update is only used in QUIC+TLS.
     return;
   }
@@ -14840,7 +14840,7 @@ TEST_P(QuicFramerTest, KeyUpdateLocallyInitiatedReceivedOldPacket) {
 }
 
 TEST_P(QuicFramerTest, KeyUpdateOnFirstReceivedPacket) {
-  if (!framer_.version().UsesTls()) {
+  if (!framer_.version().IsIetfQuic()) {
     // Key update is only used in QUIC+TLS.
     return;
   }

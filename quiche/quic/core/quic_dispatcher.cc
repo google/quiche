@@ -647,7 +647,7 @@ QuicDispatcher::ExtractChloResult
 QuicDispatcher::TryExtractChloOrBufferEarlyPacket(
     const ReceivedPacketInfo& packet_info) {
   ExtractChloResult result;
-  if (packet_info.version.UsesTls()) {
+  if (packet_info.version.IsIetfQuic()) {
     bool has_full_tls_chlo = false;
     std::string sni;
     std::vector<uint16_t> supported_groups;

@@ -78,7 +78,7 @@ bool ParsedQuicVersion::SupportsGoogleAltSvcFormat() const {
 
 bool ParsedQuicVersion::UsesHttp3() const {
   QUICHE_DCHECK(IsKnown());
-  return VersionUsesHttp3(transport_version);
+  return IsIetfQuic();
 }
 
 bool ParsedQuicVersion::HasLongHeaderLengths() const {
@@ -98,7 +98,7 @@ bool ParsedQuicVersion::HasIetfQuicFrames() const {
 
 bool ParsedQuicVersion::UsesLegacyTlsExtension() const {
   QUICHE_DCHECK(IsKnown());
-  return UsesTls() && transport_version <= QUIC_VERSION_IETF_DRAFT_29;
+  return transport_version == QUIC_VERSION_IETF_DRAFT_29;
 }
 
 bool ParsedQuicVersion::UsesTls() const {
@@ -206,7 +206,7 @@ ParsedQuicVersionVector CurrentSupportedVersionsWithQuicCrypto() {
 ParsedQuicVersionVector AllSupportedVersionsWithTls() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    if (version.UsesTls()) {
+    if (version.IsIetfQuic()) {
       versions.push_back(version);
     }
   }
@@ -218,7 +218,7 @@ ParsedQuicVersionVector AllSupportedVersionsWithTls() {
 ParsedQuicVersionVector CurrentSupportedVersionsWithTls() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
-    if (version.UsesTls()) {
+    if (version.IsIetfQuic()) {
       versions.push_back(version);
     }
   }
@@ -259,7 +259,7 @@ ParsedQuicVersionVector CurrentSupportedVersionsForClients() {
 ParsedQuicVersionVector CurrentSupportedHttp3Versions() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
-    if (version.UsesHttp3()) {
+    if (version.IsIetfQuic()) {
       versions.push_back(version);
     }
   }
@@ -304,7 +304,7 @@ ParsedQuicVersion ParseQuicVersionString(absl::string_view version_string) {
     }
   }
   for (const ParsedQuicVersion& version : supported_versions) {
-    if (version.UsesHttp3() &&
+    if (version.IsIetfQuic() &&
         version_string ==
             QuicVersionLabelToString(CreateQuicVersionLabel(version))) {
       return version;
@@ -482,13 +482,13 @@ std::string ParsedQuicVersionToString(ParsedQuicVersion version) {
   if (version == UnsupportedQuicVersion()) {
     return "0";
   } else if (version == ParsedQuicVersion::RFCv2()) {
-    QUICHE_DCHECK(version.UsesHttp3());
+    QUICHE_DCHECK(version.IsIetfQuic());
     return "RFCv2";
   } else if (version == ParsedQuicVersion::RFCv1()) {
-    QUICHE_DCHECK(version.UsesHttp3());
+    QUICHE_DCHECK(version.IsIetfQuic());
     return "RFCv1";
   } else if (version == ParsedQuicVersion::Draft29()) {
-    QUICHE_DCHECK(version.UsesHttp3());
+    QUICHE_DCHECK(version.IsIetfQuic());
     return "draft29";
   }
 
@@ -529,7 +529,6 @@ bool VersionSupportsGoogleAltSvcFormat(QuicTransportVersion transport_version) {
 }
 
 bool VersionIsIetfQuic(QuicTransportVersion transport_version) {
-  QUICHE_DCHECK_NE(transport_version, QUIC_VERSION_UNSUPPORTED);
   return transport_version > QUIC_VERSION_46;
 }
 
