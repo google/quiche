@@ -23,15 +23,18 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_VERSIONS_H_
 #define QUICHE_QUIC_CORE_QUIC_VERSIONS_H_
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
+#include <limits>
+#include <ostream>
 #include <string>
 #include <vector>
 
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/quic_tag.h"
-#include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 

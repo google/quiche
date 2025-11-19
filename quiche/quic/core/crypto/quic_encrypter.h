@@ -6,12 +6,16 @@
 #define QUICHE_QUIC_CORE_CRYPTO_QUIC_ENCRYPTER_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <string>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_crypter.h"
-#include "quiche/quic/core/quic_packets.h"
-#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/core/quic_tag.h"
+#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 
