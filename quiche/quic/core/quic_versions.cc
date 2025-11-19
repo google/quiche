@@ -71,11 +71,6 @@ bool ParsedQuicVersion::IsIetfQuic() const {
   return transport_version > QUIC_VERSION_46;
 }
 
-bool ParsedQuicVersion::SupportsGoogleAltSvcFormat() const {
-  QUICHE_DCHECK(IsKnown());
-  return VersionSupportsGoogleAltSvcFormat(transport_version);
-}
-
 bool ParsedQuicVersion::UsesHttp3() const {
   QUICHE_DCHECK(IsKnown());
   return IsIetfQuic();
@@ -94,11 +89,6 @@ bool ParsedQuicVersion::UsesLegacyTlsExtension() const {
 bool ParsedQuicVersion::UsesTls() const {
   QUICHE_DCHECK(IsKnown());
   return handshake_protocol == PROTOCOL_TLS1_3;
-}
-
-bool ParsedQuicVersion::UsesQuicCrypto() const {
-  QUICHE_DCHECK(IsKnown());
-  return handshake_protocol == PROTOCOL_QUIC_CRYPTO;
 }
 
 bool ParsedQuicVersion::UsesV2PacketTypes() const {

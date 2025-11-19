@@ -281,10 +281,6 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   // unique properties.
   bool IsIetfQuic() const;
 
-  // Returns true if this version supports the old Google-style Alt-Svc
-  // advertisement format.
-  bool SupportsGoogleAltSvcFormat() const;
-
   // TODO(martinduke): Remove this function when it has been deleted from
   // Envoy.
   bool UsesHttp3() const;
@@ -299,9 +295,6 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   // TODO(martinduke): Remove this function when it has been deleted from
   // Envoy and internal callers.
   bool UsesTls() const;
-
-  // Returns whether this version uses PROTOCOL_QUIC_CRYPTO.
-  bool UsesQuicCrypto() const;
 
   // Returns whether this version uses the QUICv2 Long Header Packet Types.
   bool UsesV2PacketTypes() const;

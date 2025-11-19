@@ -581,7 +581,7 @@ TEST_P(QuicSpdyClientSessionTest, OnSettingsFrame) {
 
 TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
   // This feature is TLS-only.
-  if (session_->version().UsesQuicCrypto()) {
+  if (!session_->version().IsIetfQuic()) {
     return;
   }
 
@@ -670,7 +670,7 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
 // Regression test for b/159168475
 TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
   // This feature is TLS-only.
-  if (session_->version().UsesQuicCrypto()) {
+  if (!session_->version().IsIetfQuic()) {
     return;
   }
 
@@ -720,7 +720,7 @@ TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
 // lower than what the client has already used, connection will be closed.
 TEST_P(QuicSpdyClientSessionTest, ZeroRttRejectReducesStreamLimitTooMuch) {
   // This feature is TLS-only.
-  if (session_->version().UsesQuicCrypto()) {
+  if (!session_->version().IsIetfQuic()) {
     return;
   }
 
@@ -767,7 +767,7 @@ TEST_P(QuicSpdyClientSessionTest, ZeroRttRejectReducesStreamLimitTooMuch) {
 TEST_P(QuicSpdyClientSessionTest,
        ZeroRttRejectReducesStreamFlowControlTooMuch) {
   // This feature is TLS-only.
-  if (session_->version().UsesQuicCrypto()) {
+  if (!session_->version().IsIetfQuic()) {
     return;
   }
 
@@ -819,7 +819,7 @@ TEST_P(QuicSpdyClientSessionTest,
 TEST_P(QuicSpdyClientSessionTest,
        ZeroRttRejectReducesSessionFlowControlTooMuch) {
   // This feature is TLS-only.
-  if (session_->version().UsesQuicCrypto()) {
+  if (!session_->version().IsIetfQuic()) {
     return;
   }
 

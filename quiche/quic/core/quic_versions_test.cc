@@ -63,13 +63,9 @@ TEST(QuicVersionsTest, Features) {
 
   EXPECT_TRUE(parsed_version_q046.IsKnown());
   EXPECT_FALSE(parsed_version_q046.IsIetfQuic());
-  EXPECT_TRUE(parsed_version_q046.SupportsGoogleAltSvcFormat());
-  EXPECT_TRUE(parsed_version_q046.UsesQuicCrypto());
 
   EXPECT_TRUE(parsed_version_draft_29.IsKnown());
   EXPECT_TRUE(parsed_version_draft_29.IsIetfQuic());
-  EXPECT_FALSE(parsed_version_draft_29.SupportsGoogleAltSvcFormat());
-  EXPECT_FALSE(parsed_version_draft_29.UsesQuicCrypto());
 }
 
 TEST(QuicVersionsTest, ParseQuicVersionLabel) {

@@ -400,7 +400,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
       std::unique_ptr<QuicReceivedPacket> received_packet,
       const QuicSocketAddress& peer_address, const ParsedQuicVersion& version,
       const QuicConnectionId& server_connection_id) {
-    if (version.UsesQuicCrypto() &&
+    if (!version.IsIetfQuic() &&
         ChloExtractor::Extract(*received_packet, version, {}, nullptr,
                                server_connection_id.length())) {
       // Add CHLO packet to the beginning to be verified first, because it is
@@ -549,7 +549,7 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
   std::string ExpectedAlpn() { return ExpectedAlpnForVersion(version_); }
 
   auto MatchParsedClientHello() {
-    if (version_.UsesQuicCrypto()) {
+    if (!version_.IsIetfQuic()) {
       return AllOf(
           Field(&ParsedClientHello::alpns, ElementsAreArray({ExpectedAlpn()})),
           Field(&ParsedClientHello::sni, Eq(TestHostname())),
@@ -653,7 +653,7 @@ INSTANTIATE_TEST_SUITE_P(QuicDispatcherTestsNoVersion,
                          ::testing::PrintToStringParamName());
 
 TEST_P(QuicDispatcherTestAllVersions, TlsClientHelloCreatesSession) {
-  if (version_.UsesQuicCrypto()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   SetAddressToken("hsdifghdsaifnasdpfjdsk");
@@ -682,7 +682,7 @@ TEST_P(QuicDispatcherTestAllVersions, TlsClientHelloCreatesSession) {
 
 TEST_P(QuicDispatcherTestAllVersions,
        TlsClientHelloCreatesSessionWithCorrectConnectionIdGenerator) {
-  if (version_.UsesQuicCrypto()) {
+  if (!version_.IsIetfQuic()) {
     return;
   }
   SetAddressToken("hsdifghdsaifnasdpfjdsk");
@@ -2634,7 +2634,7 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketBeforeChlo) {
       .Times(2)  // non-CHLO + CHLO.
       .WillRepeatedly(
           WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-            if (version_.UsesQuicCrypto()) {
+            if (!version_.IsIetfQuic()) {
               ValidatePacket(conn_id, packet);
             }
           }));
@@ -2848,7 +2848,7 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketsUptoLimitAndProcessChlo) {
       .Times(kDefaultMaxUndecryptablePackets + 1)  // + 1 for CHLO.
       .WillRepeatedly(
           WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-            if (version_.UsesQuicCrypto()) {
+            if (!version_.IsIetfQuic()) {
               ValidatePacket(conn_id, packet);
             }
           }));
@@ -2899,7 +2899,7 @@ TEST_P(BufferedPacketStoreTest,
         .Times(num_packet_to_process)
         .WillRepeatedly(
             WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-              if (version_.UsesQuicCrypto()) {
+              if (!version_.IsIetfQuic()) {
                 ValidatePacket(conn_id, packet);
               }
             }));
@@ -2945,7 +2945,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveRetransmittedCHLO) {
       .Times(3)  // Triggered by 1 data packet and 2 CHLOs.
       .WillRepeatedly(
           WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-            if (version_.UsesQuicCrypto()) {
+            if (!version_.IsIetfQuic()) {
               ValidatePacket(conn_id, packet);
             }
           }));
@@ -3022,7 +3022,7 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
           ProcessUdpPacket(_, _, _))
           .WillOnce(
               WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-                if (version_.UsesQuicCrypto()) {
+                if (!version_.IsIetfQuic()) {
                   ValidatePacket(TestConnectionId(conn_id), packet);
                 }
               }));
@@ -3059,7 +3059,7 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
                 ProcessUdpPacket(_, _, _))
         .WillOnce(
             WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-              if (version_.UsesQuicCrypto()) {
+              if (!version_.IsIetfQuic()) {
                 ValidatePacket(TestConnectionId(conn_id), packet);
               }
             }));
@@ -3102,7 +3102,7 @@ TEST_P(BufferedPacketStoreTest,
                 ProcessUdpPacket(_, _, _))
         .WillOnce(
             WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-              if (version_.UsesQuicCrypto()) {
+              if (!version_.IsIetfQuic()) {
                 ValidatePacket(TestConnectionId(conn_id), packet);
               }
             }));
@@ -3145,7 +3145,7 @@ TEST_P(BufferedPacketStoreTest,
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
       .WillOnce(WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-        if (version_.UsesQuicCrypto()) {
+        if (!version_.IsIetfQuic()) {
           ValidatePacket(TestConnectionId(conn_id), packet);
         }
       }));
@@ -3173,7 +3173,7 @@ TEST_P(BufferedPacketStoreTest, BufferDuplicatedCHLO) {
           ProcessUdpPacket(_, _, _))
           .WillOnce(
               WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-                if (version_.UsesQuicCrypto()) {
+                if (!version_.IsIetfQuic()) {
                   ValidatePacket(TestConnectionId(conn_id), packet);
                 }
               }));
@@ -3201,7 +3201,7 @@ TEST_P(BufferedPacketStoreTest, BufferDuplicatedCHLO) {
       .Times(packets_buffered)
       .WillRepeatedly(WithArg<2>(
           [this, last_connection](const QuicEncryptedPacket& packet) {
-            if (version_.UsesQuicCrypto()) {
+            if (!version_.IsIetfQuic()) {
               ValidatePacket(last_connection, packet);
             }
           }));
@@ -3227,7 +3227,7 @@ TEST_P(BufferedPacketStoreTest, BufferNonChloPacketsUptoLimitWithChloBuffered) {
           ProcessUdpPacket(_, _, _))
           .WillRepeatedly(
               WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-                if (version_.UsesQuicCrypto()) {
+                if (!version_.IsIetfQuic()) {
                   ValidatePacket(TestConnectionId(conn_id), packet);
                 }
               }));
@@ -3266,7 +3266,7 @@ TEST_P(BufferedPacketStoreTest, BufferNonChloPacketsUptoLimitWithChloBuffered) {
       .Times(last_connection_buffered_packets->buffered_packets.size())
       .WillRepeatedly(WithArg<2>(
           [this, last_connection_id](const QuicEncryptedPacket& packet) {
-            if (version_.UsesQuicCrypto()) {
+            if (!version_.IsIetfQuic()) {
               ValidatePacket(last_connection_id, packet);
             }
           }));
@@ -3301,7 +3301,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
           ProcessUdpPacket(_, _, _))
           .WillOnce(
               WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-                if (version_.UsesQuicCrypto()) {
+                if (!version_.IsIetfQuic()) {
                   ValidatePacket(TestConnectionId(conn_id), packet);
                 }
               }));
@@ -3345,7 +3345,7 @@ TEST_P(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
           ProcessUdpPacket(_, _, _))
           .WillRepeatedly(
               WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-                if (version_.UsesQuicCrypto()) {
+                if (!version_.IsIetfQuic()) {
                   ValidatePacket(TestConnectionId(conn_id), packet);
                 }
               }));
@@ -3370,7 +3370,7 @@ TEST_P(BufferedPacketStoreTest, ProcessBufferedChloWithDifferentVersion) {
                 ProcessUdpPacket(_, _, _))
         .WillRepeatedly(
             WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-              if (version_.UsesQuicCrypto()) {
+              if (!version_.IsIetfQuic()) {
                 ValidatePacket(TestConnectionId(conn_id), packet);
               }
             }));

@@ -6710,7 +6710,7 @@ class BadShloPacketWriter : public QuicPacketWriterWrapper {
     if (version_.UsesV2PacketTypes()) {
       return ((type_byte & 0x30) >> 4) == 3;
     }
-    if (version_.UsesQuicCrypto()) {
+    if (!version_.IsIetfQuic()) {
       // ENCRYPTION_ZERO_RTT packet.
       return ((type_byte & 0x30) >> 4) == 1;
     }
