@@ -4,7 +4,6 @@
 
 #include "quiche/quic/moqt/moqt_bitrate_adjuster.h"
 
-#include <cstdint>
 #include <cstdlib>
 #include <optional>
 
@@ -32,29 +31,59 @@ void MoqtBitrateAdjuster::Start() {
     return;
   }
   start_time_ = clock_->Now();
+  outstanding_objects_.emplace(
+      /*max_out_of_order_objects=*/parameters_.max_out_of_order_objects);
 }
 
 void MoqtBitrateAdjuster::OnObjectAckReceived(
-    Location /*location*/, QuicTimeDelta delta_from_deadline) {
-  if (!start_time_.IsInitialized()) {
+    Location location, QuicTimeDelta delta_from_deadline) {
+  if (!start_time_.IsInitialized() || !outstanding_objects_.has_value()) {
     return;
   }
 
-  const QuicTime earliest_action_time = start_time_ + parameters_.initial_delay;
-  if (clock_->Now() < earliest_action_time) {
+  // Update the state.
+  int reordering_delta = outstanding_objects_->OnObjectAcked(location);
+
+  // Decide whether to act based on the latest signal.
+  if (!ShouldUseAckAsActionSignal(location)) {
     return;
   }
-
-  if (delta_from_deadline < QuicTimeDelta::Zero()) {
-    // While adjusting down upon the first sign of packets getting late might
-    // seem aggressive, note that:
-    //   - By the time user occurs, this is already a user-visible issue (so, in
-    //     some sense, this isn't aggressive enough).
-    //   - The adjustment won't happen if we're already bellow `k * max_bw`, so
-    //     if the delays are due to other factors like bufferbloat, the measured
-    //     bandwidth will likely not result in a downwards adjustment.
+  if (ShouldAttemptAdjustingDown(reordering_delta, delta_from_deadline)) {
     AttemptAdjustingDown();
   }
+}
+
+bool MoqtBitrateAdjuster::ShouldUseAckAsActionSignal(Location location) {
+  // Allow for some time to pass for the connection to reach the point at which
+  // the rate adaptation signals can become useful.
+  const QuicTime earliest_action_time = start_time_ + parameters_.initial_delay;
+  const bool too_early_in_the_connection = clock_->Now() < earliest_action_time;
+
+  // Ignore out-of-order acks for the purpose of deciding whether to adjust up
+  // or down.  Generally, if an ack is out of order, the bitrate adjuster has
+  // already reacted to the later object appropriately.
+  const bool is_out_of_order_ack = location < last_acked_object_;
+  last_acked_object_ = location;
+
+  return !too_early_in_the_connection && !is_out_of_order_ack;
+}
+
+bool MoqtBitrateAdjuster::ShouldAttemptAdjustingDown(
+    int reordering_delta, quic::QuicTimeDelta delta_from_deadline) const {
+  const bool has_exceeded_max_out_of_order =
+      reordering_delta > parameters_.max_out_of_order_objects;
+  QUICHE_DLOG_IF(INFO, has_exceeded_max_out_of_order)
+      << "Adjusting connection down due to reordering, delta: "
+      << reordering_delta;
+
+  const bool time_delta_too_close =
+      delta_from_deadline < parameters_.adjust_down_threshold * time_window_;
+  QUICHE_DLOG_IF(INFO, time_delta_too_close)
+      << "Adjusting connection down due to object arriving too late, time "
+         "delta: "
+      << delta_from_deadline;
+
+  return has_exceeded_max_out_of_order || time_delta_too_close;
 }
 
 void MoqtBitrateAdjuster::AttemptAdjustingDown() {
@@ -107,6 +136,13 @@ void MoqtBitrateAdjuster::SuggestNewBitrate(quic::QuicBandwidth bitrate,
                                             BitrateAdjustmentType type) {
   adjustable_->ConsiderAdjustingBitrate(bitrate, type);
   trace_recorder_.RecordTargetBitrateSet(bitrate);
+}
+
+void MoqtBitrateAdjuster::OnNewObjectEnqueued(Location location) {
+  if (!start_time_.IsInitialized() || !outstanding_objects_.has_value()) {
+    return;
+  }
+  outstanding_objects_->OnObjectAdded(location);
 }
 
 }  // namespace moqt

@@ -61,14 +61,10 @@ TEST_F(MoqtSimulatorTest, BandwidthTooLow) {
   MoqtSimulator simulator(parameters);
   simulator.Run();
   EXPECT_GE(simulator.received_on_time_fraction(), 0.8f);
-  EXPECT_LT(simulator.received_on_time_fraction(), 0.99f);
-  // TODO(vasilvv): re-enable once rate adaptation works well enough so that
-  // this is no longer flaky.
-#if 0
+  EXPECT_LT(simulator.received_on_time_fraction(), 0.999f);
   EXPECT_GT(CountEventType(simulator.client_trace(),
                            EventType::MOQT_TARGET_BITRATE_SET),
             0);
-#endif
 
   quic::QuicConnectionStats stats =
       simulator.client_quic_session()->connection()->GetStats();

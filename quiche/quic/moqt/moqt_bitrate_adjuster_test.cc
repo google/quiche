@@ -67,16 +67,23 @@ class MoqtBitrateAdjusterTest : public quiche::test::QuicheTest {
   MoqtBitrateAdjuster adjuster_;
 };
 
+TEST_F(MoqtBitrateAdjusterTest, IgnoreCallsBeforeStart) {
+  MoqtBitrateAdjuster uninitialized_adjuster(&clock_, &session_, &adjustable_);
+  uninitialized_adjuster.OnNewObjectEnqueued(Location(1, 0));
+  uninitialized_adjuster.OnObjectAckReceived(
+      Location(1, 0), QuicTimeDelta::FromMilliseconds(100));
+}
+
 TEST_F(MoqtBitrateAdjusterTest, SteadyState) {
   // The fact that estimated bitrate is 1bps should not matter, since we never
   // have a reason to adjust down.
   stats_.estimated_send_rate_bps = 1;
 
-  EXPECT_CALL(adjustable_, OnBitrateAdjusted(_)).Times(0);
+  EXPECT_CALL(adjustable_, OnBitrateAdjusted).Times(0);
   for (int i = 0; i < 250; ++i) {
     clock_.AdvanceTime(kDefaultRtt);
     for (int j = 0; j < 10; ++j) {
-      adjuster_.OnObjectAckReceived(Location(i, j), kDefaultRtt * 2);
+      adjuster_.OnObjectAckReceived(Location(i, j), kDefaultTimeScale * 0.9);
     }
   }
 }
@@ -115,6 +122,38 @@ TEST_F(MoqtBitrateAdjusterTest, AdjustDownTwice) {
   adjuster_.OnObjectAckReceived(Location(0, 1),
                                 QuicTimeDelta::FromMilliseconds(-1));
   EXPECT_EQ(adjusted_times, 2);
+}
+
+TEST_F(MoqtBitrateAdjusterTest, OutOfOrderAckIgnored) {
+  int adjusted_times = 0;
+  EXPECT_CALL(adjustable_, OnBitrateAdjusted).WillRepeatedly([&] {
+    ++adjusted_times;
+  });
+
+  clock_.AdvanceTime(100 * kDefaultRtt);
+  stats_.estimated_send_rate_bps = (0.5 * kDefaultBitrate).ToBitsPerSecond();
+  adjuster_.OnObjectAckReceived(Location(0, 1),
+                                QuicTimeDelta::FromMilliseconds(-1));
+  EXPECT_EQ(adjusted_times, 1);
+
+  clock_.AdvanceTime(100 * kDefaultRtt);
+  stats_.estimated_send_rate_bps = (0.25 * kDefaultBitrate).ToBitsPerSecond();
+  adjuster_.OnObjectAckReceived(Location(0, 0),
+                                QuicTimeDelta::FromMilliseconds(-1));
+  EXPECT_EQ(adjusted_times, 1);
+}
+
+TEST_F(MoqtBitrateAdjusterTest, Reordering) {
+  adjuster_.parameters().max_out_of_order_objects = 1;
+  clock_.AdvanceTime(100 * kDefaultRtt);
+  stats_.estimated_send_rate_bps = (0.5 * kDefaultBitrate).ToBitsPerSecond();
+
+  adjuster_.OnNewObjectEnqueued(Location(0, 0));
+  adjuster_.OnNewObjectEnqueued(Location(0, 1));
+  adjuster_.OnNewObjectEnqueued(Location(0, 2));
+
+  EXPECT_CALL(adjustable_, OnBitrateAdjusted);
+  adjuster_.OnObjectAckReceived(Location(0, 2), kDefaultTimeScale);
 }
 
 TEST_F(MoqtBitrateAdjusterTest, ShouldIgnoreBitrateAdjustment) {

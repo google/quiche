@@ -714,10 +714,12 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
 
   MoqtKnownTrackPublisher publisher;
   server_->session()->set_publisher(&publisher);
-  auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
+  auto track_publisher = std::make_shared<MoqtOutgoingQueue>(
+      full_track_name, MoqtForwardingPreference::kSubgroup,
+      test_harness_.simulator().GetClock());
   publisher.Add(track_publisher);
 
-  MockPublishingMonitorInterface monitoring;
+  testing::StrictMock<MockPublishingMonitorInterface> monitoring;
   server_->session()->SetMonitoringInterfaceForTrack(full_track_name,
                                                      &monitoring);
 
@@ -725,10 +727,6 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
   EXPECT_CALL(subscribe_visitor_, OnCanAckObjects(_))
       .WillOnce([&](MoqtObjectAckFunction new_ack_function) {
         ack_function = std::move(new_ack_function);
-      });
-  EXPECT_CALL(*track_publisher, AddObjectListener)
-      .WillOnce([&](MoqtObjectListener* listener) {
-        listener->OnSubscribeAccepted();
       });
   EXPECT_CALL(subscribe_visitor_, OnReply)
       .WillOnce([&](const FullTrackName&,
@@ -739,10 +737,6 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
 
   VersionSpecificParameters parameters;
   parameters.oack_window_size = quic::QuicTimeDelta::FromMilliseconds(100);
-  ON_CALL(*track_publisher, expiration)
-      .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
-  ON_CALL(*track_publisher, delivery_order)
-      .WillByDefault(Return(MoqtDeliveryOrder::kAscending));
   client_->session()->SubscribeCurrentObject(full_track_name,
                                              &subscribe_visitor_, parameters);
   EXPECT_CALL(monitoring, OnObjectAckSupportKnown(parameters.oack_window_size));
@@ -756,6 +750,9 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
       .WillOnce([&] { done = true; });
   bool success = test_harness_.RunUntilWithDefaultTimeout([&] { return done; });
   EXPECT_TRUE(success);
+
+  EXPECT_CALL(monitoring, OnNewObjectEnqueued(Location(0, 0)));
+  track_publisher->AddObject(QuicheMemSlice::Copy("test"), true);
 
   const quic_trace::Trace& trace = *server_->trace_visitor()->trace();
   std::vector<int64_t> ack_deltas;

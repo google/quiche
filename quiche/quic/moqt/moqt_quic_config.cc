@@ -22,7 +22,7 @@ using ::quic::QuicByteCount;
 // A typical I-frame in a high-bitrate FHD video tends to be in the low 100 KiB
 // range. Even for a higher-latency connection such as 100ms, that would imply
 // an instantaneous bitrate of 10 Mbps.
-constexpr QuicByteCount kDefaultInitialStreamWindow = 128 * 1024;
+constexpr QuicByteCount kDefaultInitialStreamWindow = 512 * 1024;
 
 // The flow control window autotuning does work with connection-level flow
 // control, but we still can make the startup smoother by setting a more
@@ -30,7 +30,7 @@ constexpr QuicByteCount kDefaultInitialStreamWindow = 128 * 1024;
 // much more than a single data stream at a time, since for most of the MOQT
 // users the bandwidth usage would be dominated by a single track.
 constexpr QuicByteCount kDefaultInitialConnectionWindow =
-    2 * kDefaultInitialStreamWindow;
+    3 * kDefaultInitialStreamWindow;
 
 }  // namespace
 

@@ -5,13 +5,13 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_BITRATE_ADJUSTER_H_
 #define QUICHE_QUIC_MOQT_MOQT_BITRATE_ADJUSTER_H_
 
-#include <cstdint>
 #include <optional>
 
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_outstanding_objects.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/web_transport/web_transport.h"
@@ -55,11 +55,22 @@ struct MoqtBitrateAdjusterParameters {
   // When bitrate is adjusted down, multiply the congestion controller estimate
   // by this factor.  This should be less than 1, since congestion controller
   // estimate tends to be overly optimistic in practice.
-  float target_bitrate_multiplier_down = 0.95f;
+  float target_bitrate_multiplier_down = 0.9f;
 
   // Do not perform any updates within `initial_delay` after the connection
   // start.
   quic::QuicTimeDelta initial_delay = quic::QuicTimeDelta::FromSeconds(2);
+
+  // If the object arrives too close to the deadline, the bitrate will be
+  // adjusted down.  The threshold is expressed as a fraction of `time_window`
+  // (which typically would be equal to the size of the buffer in seconds).
+  float adjust_down_threshold = 0.1f;
+
+  // The maximum gap between the next object expected to be received, and the
+  // actually received object, expressed as a number of objects.
+  //
+  // The default is 12, which corresponds to about 400ms for 30fps video.
+  int max_out_of_order_objects = 12;
 };
 
 // MoqtBitrateAdjuster monitors the progress of delivery for a single track, and
@@ -74,13 +85,23 @@ class MoqtBitrateAdjuster : public MoqtPublishingMonitorInterface {
   // MoqtPublishingMonitorInterface implementation.
   void OnObjectAckSupportKnown(
       std::optional<quic::QuicTimeDelta> time_window) override;
+  void OnNewObjectEnqueued(Location location) override;
   void OnObjectAckReceived(Location location,
                            quic::QuicTimeDelta delta_from_deadline) override;
 
   MoqtTraceRecorder& trace_recorder() { return trace_recorder_; }
+  MoqtBitrateAdjusterParameters& parameters() { return parameters_; }
 
  private:
   void Start();
+
+  // Checks if the bitrate adjuster should react to an individual ack.
+  bool ShouldUseAckAsActionSignal(Location location);
+
+  // Checks if the bitrate should be adjusted down based on the result of
+  // processing an object ACK.
+  bool ShouldAttemptAdjustingDown(
+      int reordering_delta, quic::QuicTimeDelta delta_from_deadline) const;
 
   // Attempts adjusting the bitrate down.
   void AttemptAdjustingDown();
@@ -93,8 +114,16 @@ class MoqtBitrateAdjuster : public MoqtPublishingMonitorInterface {
   BitrateAdjustable* adjustable_;   // Not owned.
   MoqtTraceRecorder trace_recorder_;
   MoqtBitrateAdjusterParameters parameters_;
+
+  // The time at which Start() has been called.
   quic::QuicTime start_time_ = quic::QuicTime::Zero();
+
+  // The window size received from the peer.  This amount is used to establish
+  // the scale for incoming time deltas in the object ACKs.
   quic::QuicTimeDelta time_window_ = quic::QuicTimeDelta::Zero();
+
+  std::optional<MoqtOutstandingObjects> outstanding_objects_;
+  Location last_acked_object_;
 };
 
 // Given a suggestion to change bitrate `old_bitrate` to `new_bitrate` with the

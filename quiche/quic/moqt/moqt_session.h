@@ -66,6 +66,7 @@ class MoqtPublishingMonitorInterface {
 
   virtual void OnObjectAckSupportKnown(
       std::optional<quic::QuicTimeDelta> time_window) = 0;
+  virtual void OnNewObjectEnqueued(Location location) = 0;
   virtual void OnObjectAckReceived(Location location,
                                    quic::QuicTimeDelta delta_from_deadline) = 0;
 };
