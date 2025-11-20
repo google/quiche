@@ -186,6 +186,12 @@ class QUICHE_EXPORT BinaryHttpRequest : public BinaryHttpMessage {
   // its corresponding section is successfully decoded.
   class QUICHE_EXPORT IndeterminateLengthDecoder;
 
+  // Provides encoding methods for an Indeterminate-Length BHTTP request. The
+  // encoder keeps track of what has been encoded so far to ensure sections are
+  // encoded in the correct order, this means it can only be used for a single
+  // request message.
+  class QUICHE_EXPORT IndeterminateLengthEncoder;
+
  private:
   // The sections of an Indeterminate-Length BHTTP request.
   enum class IndeterminateLengthMessageSection {
@@ -282,6 +288,34 @@ class QUICHE_EXPORT BinaryHttpRequest::IndeterminateLengthDecoder {
   // occurring after partial processing of the section's content but before
   // its content terminator.
   bool maybe_truncated_ = true;
+};
+
+// Provides encoding methods for an Indeterminate-Length BHTTP request. The
+// encoder keeps track of what has been encoded so far to ensure sections are
+// encoded in the correct order, this means it can only be used for a single
+// request message.
+class QUICHE_EXPORT BinaryHttpRequest::IndeterminateLengthEncoder {
+ public:
+  // Encodes the initial framing indicator and the specified control data.
+  absl::StatusOr<std::string> EncodeControlData(
+      const ControlData& control_data);
+  // Encodes the specified headers and its content terminator.
+  absl::StatusOr<std::string> EncodeHeaders(absl::Span<FieldView> headers);
+  // Encodes the specified body chunks. This can be called multiple times but
+  // it needs to be called exactly once with `body_chunks_done` set to true at
+  // the end to properly set the content terminator. Encoding body chunks is
+  // optional since valid chunked messages can be truncated.
+  absl::StatusOr<std::string> EncodeBodyChunks(
+      absl::Span<absl::string_view> body_chunks, bool body_chunks_done);
+  // Encodes the specified trailers and its content terminator. Encoding
+  // trailers is optional since valid chunked messages can be truncated.
+  absl::StatusOr<std::string> EncodeTrailers(absl::Span<FieldView> trailers);
+
+ private:
+  absl::StatusOr<std::string> EncodeFieldSection(absl::Span<FieldView> fields);
+
+  IndeterminateLengthMessageSection current_section_ =
+      IndeterminateLengthMessageSection::kControlData;
 };
 
 void QUICHE_EXPORT PrintTo(const BinaryHttpRequest& msg, std::ostream* os);
@@ -412,11 +446,14 @@ class QUICHE_EXPORT BinaryHttpResponse::IndeterminateLengthEncoder {
   // Encodes the specified status code, headers, and its content terminator.
   absl::StatusOr<std::string> EncodeHeaders(uint16_t status_code,
                                             absl::Span<FieldView> headers);
-  // Encodes the specified body chunks. If 'body_chunks_done' is true, the
-  // encoded body chunks are followed by the content terminator.
+  // Encodes the specified body chunks. This can be called multiple times but
+  // it needs to be called exactly once with `body_chunks_done` set to true at
+  // the end to properly set the content terminator. Encoding body chunks is
+  // optional since valid chunked messages can be truncated.
   absl::StatusOr<std::string> EncodeBodyChunks(
       absl::Span<absl::string_view> body_chunks, bool body_chunks_done);
-  // Encodes the specified trailers and its content terminator.
+  // Encodes the specified trailers and its content terminator. Encoding
+  // trailers is optional since valid chunked messages can be truncated.
   absl::StatusOr<std::string> EncodeTrailers(absl::Span<FieldView> trailers);
 
  private:

@@ -201,6 +201,44 @@ absl::StatusOr<BinaryHttpResponse> DecodeKnownLengthResponse(
 uint64_t StringPieceVarInt62Len(absl::string_view s) {
   return quiche::QuicheDataWriter::GetVarInt62Len(s.length()) + s.length();
 }
+
+absl::StatusOr<std::string> EncodeBodyChunksImpl(
+    absl::Span<absl::string_view> body_chunks, bool body_chunks_done) {
+  uint64_t total_length = 0;
+  for (const auto& body_chunk : body_chunks) {
+    uint8_t body_chunk_var_int_length =
+        QuicheDataWriter::GetVarInt62Len(body_chunk.size());
+    if (body_chunk_var_int_length == 0) {
+      return absl::InvalidArgumentError(
+          "Body chunk size exceeds maximum length.");
+    }
+    total_length += body_chunk_var_int_length + body_chunk.size();
+  }
+  if (body_chunks_done) {
+    total_length +=
+        quiche::QuicheDataWriter::GetVarInt62Len(kContentTerminator);
+  }
+
+  std::string data(total_length, '\0');
+  QuicheDataWriter writer(total_length, data.data());
+
+  for (const auto& body_chunk : body_chunks) {
+    if (!writer.WriteStringPieceVarInt62(body_chunk)) {
+      return absl::InternalError("Failed to write body chunk.");
+    }
+  }
+  if (body_chunks_done) {
+    if (!writer.WriteVarInt62(kContentTerminator)) {
+      return absl::InternalError("Failed to write content terminator.");
+    }
+  }
+
+  if (writer.remaining() != 0) {
+    return absl::InternalError("Failed to write all data.");
+  }
+  return data;
+}
+
 }  // namespace
 
 absl::StatusOr<uint64_t> GetFieldSectionLength(
@@ -692,6 +730,122 @@ absl::Status BinaryHttpRequest::IndeterminateLengthDecoder::Decode(
   return status;
 }
 
+absl::StatusOr<std::string>
+BinaryHttpRequest::IndeterminateLengthEncoder::EncodeFieldSection(
+    absl::Span<FieldView> fields) {
+  absl::StatusOr<uint64_t> field_section_length = GetFieldSectionLength(fields);
+  if (!field_section_length.ok()) {
+    return field_section_length.status();
+  }
+
+  std::string data(*field_section_length, '\0');
+  QuicheDataWriter writer(*field_section_length, data.data());
+
+  absl::Status fields_encoded = EncodeFields(fields, writer);
+  if (!fields_encoded.ok()) {
+    return fields_encoded;
+  }
+  if (writer.remaining() != 0) {
+    return absl::InternalError("Failed to write all fields.");
+  }
+  return data;
+}
+
+absl::StatusOr<std::string>
+BinaryHttpRequest::IndeterminateLengthEncoder::EncodeControlData(
+    const ControlData& control_data) {
+  if (current_section_ != IndeterminateLengthMessageSection::kControlData) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return absl::InvalidArgumentError(
+        "EncodeControlData called in wrong section.");
+  }
+
+  uint64_t total_length = quiche::QuicheDataWriter::GetVarInt62Len(
+                              kIndeterminateLengthRequestFraming) +
+                          StringPieceVarInt62Len(control_data.method) +
+                          StringPieceVarInt62Len(control_data.scheme) +
+                          StringPieceVarInt62Len(control_data.authority) +
+                          StringPieceVarInt62Len(control_data.path);
+
+  std::string data(total_length, '\0');
+  QuicheDataWriter writer(total_length, data.data());
+  if (!writer.WriteVarInt62(kIndeterminateLengthRequestFraming)) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return absl::InternalError("Failed to write framing indicator.");
+  }
+  if (!writer.WriteStringPieceVarInt62(control_data.method)) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return absl::InternalError("Failed to write method.");
+  }
+  if (!writer.WriteStringPieceVarInt62(control_data.scheme)) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return absl::InternalError("Failed to write scheme.");
+  }
+  if (!writer.WriteStringPieceVarInt62(control_data.authority)) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return absl::InternalError("Failed to write authority.");
+  }
+  if (!writer.WriteStringPieceVarInt62(control_data.path)) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return absl::InternalError("Failed to write path.");
+  }
+  if (writer.remaining() != 0) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return absl::InternalError("Failed to write all control data.");
+  }
+
+  current_section_ = IndeterminateLengthMessageSection::kHeader;
+  return data;
+}
+
+absl::StatusOr<std::string>
+BinaryHttpRequest::IndeterminateLengthEncoder::EncodeHeaders(
+    absl::Span<FieldView> headers) {
+  if (current_section_ != IndeterminateLengthMessageSection::kHeader) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return absl::InvalidArgumentError("EncodeHeaders called in wrong section.");
+  }
+  absl::StatusOr<std::string> data = EncodeFieldSection(headers);
+  if (!data.ok()) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return data;
+  }
+  current_section_ = IndeterminateLengthMessageSection::kBody;
+  return data;
+}
+
+absl::StatusOr<std::string>
+BinaryHttpRequest::IndeterminateLengthEncoder::EncodeBodyChunks(
+    absl::Span<absl::string_view> body_chunks, bool body_chunks_done) {
+  if (current_section_ != IndeterminateLengthMessageSection::kBody) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return absl::InvalidArgumentError(
+        "EncodeBodyChunks called in wrong section.");
+  }
+  absl::StatusOr<std::string> result =
+      EncodeBodyChunksImpl(body_chunks, body_chunks_done);
+  if (!result.ok()) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return result.status();
+  }
+  if (body_chunks_done) {
+    current_section_ = IndeterminateLengthMessageSection::kTrailer;
+  }
+  return result;
+}
+
+absl::StatusOr<std::string>
+BinaryHttpRequest::IndeterminateLengthEncoder::EncodeTrailers(
+    absl::Span<FieldView> trailers) {
+  if (current_section_ != IndeterminateLengthMessageSection::kTrailer) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return absl::InvalidArgumentError(
+        "EncodeTrailers called in wrong section.");
+  }
+  current_section_ = IndeterminateLengthMessageSection::kEnd;
+  return EncodeFieldSection(trailers);
+}
+
 absl::StatusOr<BinaryHttpResponse> BinaryHttpResponse::Create(
     absl::string_view data) {
   quiche::QuicheDataReader reader(data);
@@ -819,44 +973,16 @@ BinaryHttpResponse::IndeterminateLengthEncoder::EncodeBodyChunks(
         absl::StrCat("EncodeBodyChunks called in incorrect section: ",
                      GetMessageSectionString(current_section_)));
   }
-  uint64_t total_length = 0;
-  for (const auto& body_chunk : body_chunks) {
-    uint8_t body_chunk_var_int_length =
-        QuicheDataWriter::GetVarInt62Len(body_chunk.size());
-    if (body_chunk_var_int_length == 0) {
-      current_section_ = IndeterminateLengthMessageSection::kEnd;
-      return absl::InvalidArgumentError(
-          "Body chunk size exceeds maximum length.");
-    }
-    total_length += body_chunk_var_int_length + body_chunk.size();
+  absl::StatusOr<std::string> result =
+      EncodeBodyChunksImpl(body_chunks, body_chunks_done);
+  if (!result.ok()) {
+    current_section_ = IndeterminateLengthMessageSection::kEnd;
+    return result.status();
   }
   if (body_chunks_done) {
-    total_length +=
-        quiche::QuicheDataWriter::GetVarInt62Len(kContentTerminator);
-  }
-
-  std::string data(total_length, '\0');
-  QuicheDataWriter writer(total_length, data.data());
-
-  for (const auto& body_chunk : body_chunks) {
-    if (!writer.WriteStringPieceVarInt62(body_chunk)) {
-      current_section_ = IndeterminateLengthMessageSection::kEnd;
-      return absl::InternalError("Failed to write body chunk.");
-    }
-  }
-  if (body_chunks_done) {
-    if (!writer.WriteVarInt62(kContentTerminator)) {
-      current_section_ = IndeterminateLengthMessageSection::kEnd;
-      return absl::InternalError("Failed to write content terminator.");
-    }
     current_section_ = IndeterminateLengthMessageSection::kTrailer;
   }
-
-  if (writer.remaining() != 0) {
-    current_section_ = IndeterminateLengthMessageSection::kEnd;
-    return absl::InternalError("Failed to write all data.");
-  }
-  return data;
+  return result;
 }
 
 absl::StatusOr<std::string>

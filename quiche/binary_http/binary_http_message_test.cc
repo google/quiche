@@ -8,7 +8,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
@@ -96,6 +95,8 @@ class RequestMessageSectionTestHandler
   MessageData message_data_;
 };
 
+constexpr absl::string_view kFramingIndicator =
+    "02";  // 1-byte framing indicator
 constexpr absl::string_view k2ByteFramingIndicator =
     "4002";  // 2-byte framing indicator
 constexpr absl::string_view k8ByteContentTerminator =
@@ -748,6 +749,231 @@ TEST(IndeterminateLengthDecoder, TruncatedBodyAndTrailersSplitEndStream) {
   EXPECT_TRUE(message_data.body_chunks_done_);
   EXPECT_THAT(message_data.body_chunks_, testing::IsEmpty());
   ExpectTruncatedTrailerSection(message_data);
+}
+
+namespace {
+
+struct RequestIndeterminateLengthEncoderTestData {
+  BinaryHttpRequest::ControlData control_data{"POST", "https", "google.com",
+                                              "/hello"};
+  std::vector<BinaryHttpMessage::FieldView> headers{
+      {"User-Agent", "curl/7.16.3 libcurl/7.16.3 OpenSSL/0.9.7l zlib/1.2.3"},
+      {"accept-language", "en, mi"}};
+  std::vector<absl::string_view> body_chunks = {"chunk1", "chunk2", "chunk3"};
+  std::vector<BinaryHttpMessage::FieldView> trailers{{"trailer1", "value1"},
+                                                     {"trailer2", "value2"}};
+};
+
+}  // namespace
+
+TEST(RequestIndeterminateLengthEncoder, FullRequest) {
+  std::string expected;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(
+          kFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, kContentTerminator,
+          kIndeterminateLengthEncodedRequestBodyChunks, kContentTerminator,
+          kIndeterminateLengthEncodedRequestTrailers, kContentTerminator),
+      &expected));
+
+  BinaryHttpRequest::IndeterminateLengthEncoder encoder;
+  RequestIndeterminateLengthEncoderTestData test_data;
+  std::string encoded_data;
+
+  absl::StatusOr<std::string> status_or_encoded_data =
+      encoder.EncodeControlData(test_data.control_data);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+
+  status_or_encoded_data =
+      encoder.EncodeHeaders(absl::MakeSpan(test_data.headers));
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+
+  status_or_encoded_data =
+      encoder.EncodeBodyChunks(absl::MakeSpan(test_data.body_chunks), true);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+
+  status_or_encoded_data =
+      encoder.EncodeTrailers(absl::MakeSpan(test_data.trailers));
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+
+  EXPECT_EQ(encoded_data, expected);
+}
+
+TEST(RequestIndeterminateLengthEncoder, RequestNoBody) {
+  std::string expected;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(
+          kFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, kContentTerminator,
+          kContentTerminator,   // Empty body chunks
+          kContentTerminator),  // Empty trailers
+      &expected));
+
+  BinaryHttpRequest::IndeterminateLengthEncoder encoder;
+  RequestIndeterminateLengthEncoderTestData test_data;
+  std::string encoded_data;
+
+  absl::StatusOr<std::string> status_or_encoded_data =
+      encoder.EncodeControlData(test_data.control_data);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+
+  status_or_encoded_data =
+      encoder.EncodeHeaders(absl::MakeSpan(test_data.headers));
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+
+  status_or_encoded_data = encoder.EncodeBodyChunks({}, true);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+
+  status_or_encoded_data = encoder.EncodeTrailers({});
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+
+  EXPECT_EQ(encoded_data, expected);
+}
+
+TEST(RequestIndeterminateLengthEncoder, EncodingChunksMultipleTimes) {
+  std::string expected;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(
+          kFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, kContentTerminator,
+          kIndeterminateLengthEncodedRequestBodyChunks, kContentTerminator,
+          kIndeterminateLengthEncodedRequestTrailers, kContentTerminator),
+      &expected));
+
+  BinaryHttpRequest::IndeterminateLengthEncoder encoder;
+  RequestIndeterminateLengthEncoderTestData test_data;
+  std::string encoded_data;
+
+  absl::StatusOr<std::string> status_or_encoded_data =
+      encoder.EncodeControlData(test_data.control_data);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+
+  status_or_encoded_data =
+      encoder.EncodeHeaders(absl::MakeSpan(test_data.headers));
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+
+  status_or_encoded_data = encoder.EncodeBodyChunks(
+      absl::MakeSpan(test_data.body_chunks.data(), 1), false);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+  status_or_encoded_data = encoder.EncodeBodyChunks(
+      absl::MakeSpan(test_data.body_chunks.data() + 1, 1), false);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+  status_or_encoded_data = encoder.EncodeBodyChunks(
+      absl::MakeSpan(test_data.body_chunks.data() + 2, 1), false);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+  status_or_encoded_data = encoder.EncodeBodyChunks({}, true);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+
+  status_or_encoded_data =
+      encoder.EncodeTrailers(absl::MakeSpan(test_data.trailers));
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  if (status_or_encoded_data.ok()) {
+    encoded_data += *status_or_encoded_data;
+  }
+  EXPECT_EQ(encoded_data, expected);
+
+  RequestMessageSectionTestHandler handler;
+  BinaryHttpRequest::IndeterminateLengthDecoder decoder(handler);
+  QUICHE_EXPECT_OK(decoder.Decode(encoded_data, true));
+  ExpectRequestMessageSectionHandler(handler.GetMessageData());
+}
+
+TEST(RequestIndeterminateLengthEncoder, OutOfOrderHeaders) {
+  BinaryHttpRequest::IndeterminateLengthEncoder encoder;
+  EXPECT_THAT(encoder.EncodeHeaders({}),
+              test::StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST(RequestIndeterminateLengthEncoder, OutOfOrderBodyChunks) {
+  BinaryHttpRequest::IndeterminateLengthEncoder encoder;
+  EXPECT_THAT(encoder.EncodeBodyChunks({}, true),
+              test::StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST(RequestIndeterminateLengthEncoder, OutOfOrderTrailers) {
+  BinaryHttpRequest::IndeterminateLengthEncoder encoder;
+  EXPECT_THAT(encoder.EncodeTrailers({}),
+              test::StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST(RequestIndeterminateLengthEncoder, MustNotEncodeControlDataTwice) {
+  BinaryHttpRequest::IndeterminateLengthEncoder encoder;
+  RequestIndeterminateLengthEncoderTestData test_data;
+  QUICHE_EXPECT_OK(encoder.EncodeControlData(test_data.control_data));
+  EXPECT_THAT(encoder.EncodeControlData(test_data.control_data),
+              test::StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST(RequestIndeterminateLengthEncoder, MustNotEncodeHeadersTwice) {
+  BinaryHttpRequest::IndeterminateLengthEncoder encoder;
+  RequestIndeterminateLengthEncoderTestData test_data;
+  QUICHE_EXPECT_OK(encoder.EncodeControlData(test_data.control_data));
+  QUICHE_EXPECT_OK(encoder.EncodeHeaders({}));
+  EXPECT_THAT(encoder.EncodeHeaders({}),
+              test::StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST(RequestIndeterminateLengthEncoder, MustNotEncodeChunksAfterChunksDone) {
+  BinaryHttpRequest::IndeterminateLengthEncoder encoder;
+  RequestIndeterminateLengthEncoderTestData test_data;
+  QUICHE_EXPECT_OK(encoder.EncodeControlData(test_data.control_data));
+  QUICHE_EXPECT_OK(encoder.EncodeHeaders({}));
+  QUICHE_EXPECT_OK(encoder.EncodeBodyChunks({}, true));
+  EXPECT_THAT(encoder.EncodeBodyChunks({}, true),
+              test::StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST(RequestIndeterminateLengthEncoder, MustNotEncodeTrailersTwice) {
+  BinaryHttpRequest::IndeterminateLengthEncoder encoder;
+  RequestIndeterminateLengthEncoderTestData test_data;
+  QUICHE_EXPECT_OK(encoder.EncodeControlData(test_data.control_data));
+  QUICHE_EXPECT_OK(encoder.EncodeHeaders({}));
+  QUICHE_EXPECT_OK(encoder.EncodeBodyChunks({}, true));
+  QUICHE_EXPECT_OK(encoder.EncodeTrailers({}));
+  EXPECT_THAT(encoder.EncodeTrailers({}),
+              test::StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 namespace {
