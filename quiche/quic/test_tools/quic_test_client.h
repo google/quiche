@@ -136,6 +136,13 @@ class MockableQuicClient : public QuicDefaultClient {
   // Casts the network helper to a MockableQuicClientDefaultNetworkHelper.
   MockableQuicClientDefaultNetworkHelper* mockable_network_helper();
   const MockableQuicClientDefaultNetworkHelper* mockable_network_helper() const;
+  void OnConfigNegotiated(const quic::QuicConfig& config) override {
+    negotiated_config_.emplace(config);
+  }
+
+  const std::optional<QuicConfig>& negotiated_config() {
+    return negotiated_config_;
+  }
 
  private:
   // Client connection ID to use, if client_connection_id_overridden_.
@@ -146,6 +153,7 @@ class MockableQuicClient : public QuicDefaultClient {
   CachedNetworkParameters cached_network_paramaters_;
   // Owned by the base class.
   QuicTestMigrationHelper* migration_helper_ = nullptr;
+  std::optional<QuicConfig> negotiated_config_;
 };
 
 // A toy QUIC client used for testing.

@@ -1312,6 +1312,9 @@ bool QuicSession::OneRttKeysAvailable() const {
 }
 
 void QuicSession::OnConfigNegotiated() {
+  if (visitor_) {
+    visitor_->OnConfigNegotiated(*config());
+  }
   // In versions with TLS, the configs will be set twice if 0-RTT is available.
   // In the second config setting, 1-RTT keys are guaranteed to be available.
   if (version().IsIetfQuic() && is_configured_ &&

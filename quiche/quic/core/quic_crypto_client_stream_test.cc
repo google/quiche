@@ -135,9 +135,13 @@ TEST_F(QuicCryptoClientStreamTest, BadMessageType) {
 }
 
 TEST_F(QuicCryptoClientStreamTest, NegotiatedParameters) {
+  std::optional<QuicConfig> config;
+  EXPECT_CALL(*session_, OnConfigNegotiated()).WillOnce([&] {
+    config.emplace(*session_->config());
+  });
   CompleteCryptoHandshake();
 
-  const QuicConfig* config = session_->config();
+  ASSERT_TRUE(config.has_value());
   EXPECT_EQ(kMaximumIdleTimeoutSecs, config->IdleNetworkTimeout().ToSeconds());
 
   const QuicCryptoNegotiatedParameters& crypto_params(

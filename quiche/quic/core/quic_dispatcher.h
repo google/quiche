@@ -162,6 +162,7 @@ class QUICHE_EXPORT QuicDispatcher
       const QuicSocketAddress& peer_address, ParsedQuicVersion version,
       const ParsedClientHello* parsed_chlo) override;
   void OnPathDegrading() override {}
+  void OnConfigNegotiated(const QuicConfig&) override {}
 
   // Create connections for previously buffered CHLOs as many as allowed.
   virtual void ProcessBufferedChlos(size_t max_connections_to_create);

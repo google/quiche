@@ -160,6 +160,7 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
     session_->Initialize();
     QuicConfigPeer::SetReceivedInitialSessionFlowControlWindow(
         session_->config(), kMinimumFlowControlSendWindow);
+    EXPECT_CALL(owner_, OnConfigNegotiated(_));
     session_->OnConfigNegotiated();
     if (version().IsIetfQuic()) {
       QuicConnectionPeer::SetAddressValidated(connection_);
@@ -214,6 +215,7 @@ class QuicServerSessionBaseTest : public QuicTestWithParam<ParsedQuicVersion> {
   QuicMemoryCacheBackend memory_cache_backend_;
   std::unique_ptr<TestServerSession> session_;
   std::unique_ptr<CryptoHandshakeMessage> handshake_message_;
+  std::optional<QuicConfig> negotiated_config_;
 };
 
 // Compares CachedNetworkParameters.
@@ -355,7 +357,6 @@ TEST_P(QuicServerSessionBaseTest, MaxOpenStreams) {
   // more than the negotiated stream limit to deal with rare cases where a
   // client FIN/RST is lost.
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  session_->OnConfigNegotiated();
   if (!VersionIsIetfQuic(transport_version())) {
     // The slightly increased stream limit is set during config negotiation.  It
     // is either an increase of 10 over negotiated limit, or a fixed percentage
@@ -413,6 +414,7 @@ TEST_P(QuicServerSessionBaseTest, MaxAvailableBidirectionalStreams) {
   // streams available.  The server accepts slightly more than the negotiated
   // stream limit to deal with rare cases where a client FIN/RST is lost.
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
   const size_t kAvailableStreamLimit =
       session_->MaxAvailableBidirectionalStreams();
@@ -517,6 +519,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   copt.push_back(kBWID);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
   EXPECT_TRUE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
@@ -670,6 +673,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
 
   // No effect if no CachedNetworkParameters provided.
   EXPECT_CALL(*connection_, ResumeConnectionState(_, _)).Times(0);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
 
   // No effect if CachedNetworkParameters provided, but different serving
@@ -679,6 +683,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
   cached_network_params.set_serving_region("different serving region");
   crypto_stream->SetPreviousCachedNetworkParams(cached_network_params);
   EXPECT_CALL(*connection_, ResumeConnectionState(_, _)).Times(0);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
 
   // Same serving region, but timestamp is too old, should have no effect.
@@ -686,6 +691,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
   cached_network_params.set_timestamp(0);
   crypto_stream->SetPreviousCachedNetworkParams(cached_network_params);
   EXPECT_CALL(*connection_, ResumeConnectionState(_, _)).Times(0);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
 
   // Same serving region, and timestamp is recent: estimate is stored.
@@ -693,6 +699,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
       connection_->clock()->WallNow().ToUNIXSeconds());
   crypto_stream->SetPreviousCachedNetworkParams(cached_network_params);
   EXPECT_CALL(*connection_, ResumeConnectionState(_, _)).Times(1);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
 }
 
@@ -705,6 +712,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthMaxEnablesResumption) {
   copt.push_back(kBWMX);
   QuicConfigPeer::SetReceivedConnectionOptions(session_->config(), copt);
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
   EXPECT_TRUE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
@@ -714,6 +722,7 @@ TEST_P(QuicServerSessionBaseTest, NoBandwidthResumptionByDefault) {
   EXPECT_FALSE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
   EXPECT_FALSE(
       QuicServerSessionBasePeer::IsBandwidthResumptionEnabled(session_.get()));
@@ -730,6 +739,7 @@ TEST_P(QuicServerSessionBaseTest, OpenStreamLimitPerEventLoop) {
   EXPECT_CALL(*crypto_stream, encryption_established())
       .WillRepeatedly(testing::Return(true));
   connection_->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(owner_, OnConfigNegotiated(_));
   session_->OnConfigNegotiated();
 
   size_t i = 0u;

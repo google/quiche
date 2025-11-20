@@ -114,6 +114,7 @@ class QuicClientBase : public QuicSession::Visitor {
   void OnServerPreferredAddressAvailable(
       const QuicSocketAddress& server_preferred_address) override;
   void OnPathDegrading() override;
+  void OnConfigNegotiated(const QuicConfig&) override {}
 
   // Initializes the client to create a connection. Should be called exactly
   // once before calling StartConnect or Connect. Returns true if the

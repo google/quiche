@@ -95,6 +95,7 @@ class QUICHE_EXPORT QuicTimeWaitListManager
   class QUICHE_EXPORT Visitor : public QuicSession::Visitor {
    public:
     void OnPathDegrading() override {}
+    void OnConfigNegotiated(const quic::QuicConfig& confir) override {}
   };
 
   // writer - the entity that writes to the socket. (Owned by the caller)

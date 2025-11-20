@@ -111,6 +111,7 @@
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/quic/tools/quic_default_client.h"
 #include "quiche/quic/tools/quic_server.h"
+#include "quiche/quic/tools/quic_simple_dispatcher.h"
 #include "quiche/quic/tools/quic_simple_server_backend.h"
 #include "quiche/quic/tools/quic_simple_server_stream.h"
 #include "quiche/quic/tools/quic_spdy_client_base.h"
@@ -1048,6 +1049,18 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   void ResetClientWriterForVersionNegotiationTest() {
     delete client_writer_;
     client_writer_ = nullptr;
+  }
+
+  QuicConfig PauseServerAndGetLastNegotiatedConfigFromDispatcher() {
+    server_thread_->Pause();
+    QuicSimpleDispatcher* dispatcher = static_cast<QuicSimpleDispatcher*>(
+        QuicServerPeer::GetDispatcher(server_thread_->server()));
+    std::optional<QuicConfig> config = dispatcher->last_negotiated_config();
+    if (!config.has_value()) {
+      ADD_FAILURE() << "Missing negotiated config ";
+      return {};
+    }
+    return *dispatcher->last_negotiated_config();
   }
 
   void TestMultiPacketChaosProtection(int num_packets, bool drop_first_packet,
@@ -4062,22 +4075,18 @@ TEST_P(EndToEndTest, DifferentFlowControlWindows) {
     // IFWA only exists with QUIC_CRYPTO.
     // Client should have the right values for server's receive window.
     ASSERT_TRUE(client_->client()
-                    ->client_session()
-                    ->config()
+                    ->negotiated_config()
                     ->HasReceivedInitialStreamFlowControlWindowBytes());
     EXPECT_EQ(kServerStreamIFCW,
               client_->client()
-                  ->client_session()
-                  ->config()
+                  ->negotiated_config()
                   ->ReceivedInitialStreamFlowControlWindowBytes());
     ASSERT_TRUE(client_->client()
-                    ->client_session()
-                    ->config()
+                    ->negotiated_config()
                     ->HasReceivedInitialSessionFlowControlWindowBytes());
     EXPECT_EQ(kServerSessionIFCW,
               client_->client()
-                  ->client_session()
-                  ->config()
+                  ->negotiated_config()
                   ->ReceivedInitialSessionFlowControlWindowBytes());
   }
   EXPECT_EQ(kServerStreamIFCW, QuicStreamPeer::SendWindowOffset(stream));
@@ -4087,14 +4096,15 @@ TEST_P(EndToEndTest, DifferentFlowControlWindows) {
                                     client_session->flow_controller()));
 
   // Server should have the right values for client's receive window.
-  server_thread_->Pause();
+  QuicConfig server_config =
+      PauseServerAndGetLastNegotiatedConfigFromDispatcher();
+
   QuicSpdySession* server_session = GetServerSession();
   if (server_session == nullptr) {
     ADD_FAILURE() << "Missing server session";
     server_thread_->Resume();
     return;
   }
-  QuicConfig server_config = *server_session->config();
   EXPECT_EQ(kClientSessionIFCW, QuicFlowControllerPeer::SendWindowOffset(
                                     server_session->flow_controller()));
   server_thread_->Resume();
@@ -4142,18 +4152,17 @@ TEST_P(EndToEndTest, NegotiatedServerInitialFlowControlWindow) {
   ASSERT_TRUE(client_session);
 
   if (!version_.IsIetfQuic()) {
+    std::optional<QuicConfig> config = client_->client()->negotiated_config();
+    ASSERT_TRUE(config.has_value());
+
     // IFWA only exists with QUIC_CRYPTO.
     // Client should have the right values for server's receive window.
-    ASSERT_TRUE(client_session->config()
-                    ->HasReceivedInitialStreamFlowControlWindowBytes());
+    ASSERT_TRUE(config->HasReceivedInitialStreamFlowControlWindowBytes());
     EXPECT_EQ(kExpectedStreamIFCW,
-              client_session->config()
-                  ->ReceivedInitialStreamFlowControlWindowBytes());
-    ASSERT_TRUE(client_session->config()
-                    ->HasReceivedInitialSessionFlowControlWindowBytes());
+              config->ReceivedInitialStreamFlowControlWindowBytes());
+    ASSERT_TRUE(config->HasReceivedInitialSessionFlowControlWindowBytes());
     EXPECT_EQ(kExpectedSessionIFCW,
-              client_session->config()
-                  ->ReceivedInitialSessionFlowControlWindowBytes());
+              config->ReceivedInitialSessionFlowControlWindowBytes());
   }
   EXPECT_EQ(kExpectedStreamIFCW, QuicStreamPeer::SendWindowOffset(stream));
   EXPECT_EQ(kExpectedSessionIFCW, QuicFlowControllerPeer::SendWindowOffset(
@@ -4503,8 +4512,8 @@ TEST_P(EndToEndTest, ServerSendPublicReset) {
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   QuicSpdySession* client_session = GetClientSession();
   ASSERT_TRUE(client_session);
-  QuicConfig* config = client_session->config();
-  ASSERT_TRUE(config);
+  std::optional<QuicConfig> config = client_->client()->negotiated_config();
+  ASSERT_TRUE(config.has_value());
   EXPECT_TRUE(config->HasReceivedStatelessResetToken());
   StatelessResetToken stateless_reset_token =
       config->ReceivedStatelessResetToken();
@@ -4541,8 +4550,8 @@ TEST_P(EndToEndTest, ServerSendPublicResetWithDifferentConnectionId) {
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   QuicSpdySession* client_session = GetClientSession();
   ASSERT_TRUE(client_session);
-  QuicConfig* config = client_session->config();
-  ASSERT_TRUE(config);
+  std::optional<QuicConfig> config = client_->client()->negotiated_config();
+  ASSERT_TRUE(config.has_value());
   EXPECT_TRUE(config->HasReceivedStatelessResetToken());
   StatelessResetToken stateless_reset_token =
       config->ReceivedStatelessResetToken();
@@ -5390,9 +5399,8 @@ TEST_P(EndToEndTest, SendStatelessResetTokenInShlo) {
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
   QuicSpdyClientSession* client_session = GetClientSession();
-  ASSERT_TRUE(client_session);
-  QuicConfig* config = client_session->config();
-  ASSERT_TRUE(config);
+  std::optional<QuicConfig> config = client_->client()->negotiated_config();
+  ASSERT_TRUE(config.has_value());
   EXPECT_TRUE(config->HasReceivedStatelessResetToken());
   QuicConnection* client_connection = client_session->connection();
   ASSERT_TRUE(client_connection);
@@ -6887,24 +6895,15 @@ TEST_P(EndToEndTest, CustomTransportParameters) {
 
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
-  server_thread_->Pause();
-  QuicSpdySession* server_session = GetServerSession();
-  QuicConfig* server_config = nullptr;
-  if (server_session != nullptr) {
-    server_config = server_session->config();
+  QuicConfig server_config =
+      PauseServerAndGetLastNegotiatedConfigFromDispatcher();
+
+  if (auto it = server_config.received_custom_transport_parameters().find(
+          kCustomParameter);
+      it != server_config.received_custom_transport_parameters().end()) {
+    EXPECT_EQ(it->second, "test");
   } else {
-    ADD_FAILURE() << "Missing server session";
-  }
-  if (server_config != nullptr) {
-    if (auto it = server_config->received_custom_transport_parameters().find(
-            kCustomParameter);
-        it != server_config->received_custom_transport_parameters().end()) {
-      EXPECT_EQ(it->second, "test");
-    } else {
-      ADD_FAILURE() << "Did not find custom parameter";
-    }
-  } else {
-    ADD_FAILURE() << "Missing server config";
+    ADD_FAILURE() << "Did not find custom parameter";
   }
   server_thread_->Resume();
 }
@@ -6920,14 +6919,10 @@ TEST_P(EndToEndTest, SniInClientTransportParameters) {
 
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
-  server_thread_->Pause();
-  QuicSpdySession* server_session = GetServerSession();
-  QuicConfig* server_config = nullptr;
-  ASSERT_TRUE(server_session);
-  server_config = server_session->config();
-  ASSERT_TRUE(server_config);
+  QuicConfig server_config =
+      PauseServerAndGetLastNegotiatedConfigFromDispatcher();
   const std::optional<std::string>& received_sni =
-      server_config->GetReceivedDebuggingSni();
+      server_config.GetReceivedDebuggingSni();
   EXPECT_THAT(received_sni, testing::Optional(debugging_sni));
   server_thread_->Resume();
 }
@@ -6942,14 +6937,10 @@ TEST_P(EndToEndTest, NoSniInClientTransportParameters) {
 
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
 
-  server_thread_->Pause();
-  QuicSpdySession* server_session = GetServerSession();
-  QuicConfig* server_config = nullptr;
-  ASSERT_TRUE(server_session);
-  server_config = server_session->config();
-  ASSERT_TRUE(server_config);
+  QuicConfig server_config =
+      PauseServerAndGetLastNegotiatedConfigFromDispatcher();
   const std::optional<std::string>& received_sni =
-      server_config->GetReceivedDebuggingSni();
+      server_config.GetReceivedDebuggingSni();
   ASSERT_FALSE(received_sni.has_value());
   server_thread_->Resume();
 }
@@ -8749,12 +8740,12 @@ TEST_P(EndToEndTest, PragueConnectionOptionSent) {
   client_extra_copts_.push_back(kPRGC);
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
-  server_thread_->Pause();
-  QuicSession* session = GetServerSession();
+  QuicConfig server_config =
+      PauseServerAndGetLastNegotiatedConfigFromDispatcher();
   // Check the server received the copt.
-  ASSERT_TRUE(session->config()->HasReceivedConnectionOptions());
+  ASSERT_TRUE(server_config.HasReceivedConnectionOptions());
   bool found_prgc = false;
-  for (auto it : session->config()->ReceivedConnectionOptions()) {
+  for (auto it : server_config.ReceivedConnectionOptions()) {
     if (it == kPRGC) {
       found_prgc = true;
       break;
@@ -8770,12 +8761,12 @@ TEST_P(EndToEndTest, CubicConnectionOptionSent) {
   client_extra_copts_.push_back(kCQBC);
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
-  server_thread_->Pause();
-  QuicSession* session = GetServerSession();
+  QuicConfig server_config =
+      PauseServerAndGetLastNegotiatedConfigFromDispatcher();
   // Check the server received the copt.
-  ASSERT_TRUE(session->config()->HasReceivedConnectionOptions());
+  ASSERT_TRUE(server_config.HasReceivedConnectionOptions());
   bool found_cqbc = false;
-  for (auto it : session->config()->ReceivedConnectionOptions()) {
+  for (auto it : server_config.ReceivedConnectionOptions()) {
     if (it == kCQBC) {
       found_cqbc = true;
       break;

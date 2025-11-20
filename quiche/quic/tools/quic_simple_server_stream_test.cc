@@ -262,6 +262,7 @@ class QuicSimpleServerStreamTest : public QuicTestWithParam<ParsedQuicVersion> {
     QuicConfigPeer::SetReceivedInitialMaxStreamDataBytesOutgoingBidirectional(
         session_.config(), kMinimumFlowControlSendWindow);
     QuicConfigPeer::SetReceivedMaxUnidirectionalStreams(session_.config(), 10);
+    EXPECT_CALL(session_owner_, OnConfigNegotiated(_));
     session_.OnConfigNegotiated();
     simulator_.RunFor(QuicTime::Delta::FromSeconds(1));
   }

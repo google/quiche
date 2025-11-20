@@ -33,6 +33,14 @@ class QuicSimpleDispatcher : public QuicDispatcher {
 
   void OnRstStreamReceived(const QuicRstStreamFrame& frame) override;
 
+  void OnConfigNegotiated(const QuicConfig& config) override {
+    last_negotiated_config_.emplace(config);
+  }
+
+  const std::optional<QuicConfig>& last_negotiated_config() {
+    return last_negotiated_config_;
+  }
+
  protected:
   std::unique_ptr<QuicSession> CreateQuicSession(
       QuicConnectionId connection_id, const QuicSocketAddress& self_address,
@@ -49,6 +57,8 @@ class QuicSimpleDispatcher : public QuicDispatcher {
 
   // The map of the reset error code with its counter.
   std::map<QuicRstStreamErrorCode, int> rst_error_map_;
+
+  std::optional<QuicConfig> last_negotiated_config_;
 };
 
 }  // namespace quic

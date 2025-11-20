@@ -209,6 +209,7 @@ class QuicSimpleServerSessionTest
       EXPECT_CALL(*session_, WriteControlFrame(_, _))
           .WillRepeatedly(&ClearControlFrameWithTransmissionType);
     }
+    EXPECT_CALL(owner_, OnConfigNegotiated(_));
     session_->OnConfigNegotiated();
   }
 
