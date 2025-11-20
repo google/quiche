@@ -76,11 +76,6 @@ bool ParsedQuicVersion::UsesHttp3() const {
   return IsIetfQuic();
 }
 
-bool ParsedQuicVersion::HasIetfQuicFrames() const {
-  QUICHE_DCHECK(IsKnown());
-  return IsIetfQuic();
-}
-
 bool ParsedQuicVersion::UsesLegacyTlsExtension() const {
   QUICHE_DCHECK(IsKnown());
   return transport_version == QUIC_VERSION_IETF_DRAFT_29;
@@ -502,10 +497,6 @@ std::string ParsedQuicVersionVectorToString(
     result.append(ParsedQuicVersionToString(versions[i]));
   }
   return result;
-}
-
-bool VersionSupportsGoogleAltSvcFormat(QuicTransportVersion transport_version) {
-  return transport_version <= QUIC_VERSION_46;
 }
 
 bool QuicVersionLabelUses4BitConnectionIdLength(

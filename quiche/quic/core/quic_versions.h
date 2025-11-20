@@ -288,15 +288,11 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   // Envoy.
   bool UsesHttp3() const;
 
-  // TODO(martinduke): Remove this function when it has been deleted from
-  // external callers.
-  bool HasIetfQuicFrames() const;
-
   // Returns whether this version uses the legacy TLS extension codepoint.
   bool UsesLegacyTlsExtension() const;
 
   // TODO(martinduke): Remove this function when it has been deleted from
-  // Envoy and internal callers.
+  // Envoy.
   bool UsesTls() const;
 
   // Returns whether this version uses the QUICv2 Long Header Packet Types.
@@ -500,18 +496,6 @@ QUICHE_EXPORT inline std::string ParsedQuicVersionVectorToString(
   return ParsedQuicVersionVectorToString(versions, ",",
                                          std::numeric_limits<size_t>::max());
 }
-
-// TODO(martinduke): Remove this function when it has been deleted from
-// external callers.
-QUICHE_EXPORT constexpr bool VersionHasIetfQuicFrames(
-    QuicTransportVersion transport_version) {
-  return VersionIsIetfQuic(transport_version);
-}
-
-// Returns true if this version supports the old Google-style Alt-Svc
-// advertisement format.
-QUICHE_EXPORT bool VersionSupportsGoogleAltSvcFormat(
-    QuicTransportVersion transport_version);
 
 // Returns whether this version label supports long header 4-bit encoded
 // connection ID lengths as described in draft-ietf-quic-invariants-05 and
