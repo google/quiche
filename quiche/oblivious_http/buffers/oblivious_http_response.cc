@@ -417,7 +417,7 @@ absl::StatusOr<std::string> ObliviousHttpResponse::DecryptChunk(
           reinterpret_cast<const uint8_t*>(encrypted_chunk.data()),
           encrypted_chunk.size(), ad, ad_len)) {
     return SslErrorAsStatus(
-        "Failed to decrypt the response with derived AEAD key.");
+        "Failed to decrypt the response with derived AEAD key and nonce.");
   }
   decrypted.resize(decrypted_len);
   return decrypted;
