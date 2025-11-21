@@ -23,7 +23,7 @@ void QuicStreamPeer::SetWriteSideClosed(bool value, QuicStream* stream) {
 // static
 void QuicStreamPeer::SetStreamBytesWritten(
     QuicStreamOffset stream_bytes_written, QuicStream* stream) {
-  stream->send_buffer_->SetStreamOffsetForTest(stream_bytes_written);
+  stream->send_buffer_.SetStreamOffsetForTest(stream_bytes_written);
 }
 
 // static
