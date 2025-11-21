@@ -67,7 +67,6 @@ bool ParsedQuicVersion::IsKnown() const {
 }
 
 bool ParsedQuicVersion::IsIetfQuic() const {
-  QUICHE_DCHECK(IsKnown());
   return transport_version > QUIC_VERSION_46;
 }
 

@@ -166,14 +166,8 @@ QUICHE_EXPORT constexpr bool VersionIsIetfQuic(
   return transport_version > QUIC_VERSION_46;
 }
 
-// Returns whether this combination of handshake protocol and transport
-// version is allowed. For example, {PROTOCOL_TLS1_3, QUIC_VERSION_46} is NOT
-// allowed as TLS requires crypto frames which v46 does not support. Note that
-// UnsupportedQuicVersion is a valid version.
-QUICHE_EXPORT constexpr bool ParsedQuicVersionIsValid(
-    HandshakeProtocol handshake_protocol,
+QUICHE_EXPORT constexpr bool TransportVersionIsValid(
     QuicTransportVersion transport_version) {
-  bool transport_version_is_valid = false;
   constexpr QuicTransportVersion valid_transport_versions[] = {
       QUIC_VERSION_IETF_RFC_V2,
       QUIC_VERSION_IETF_RFC_V1,
@@ -184,11 +178,20 @@ QUICHE_EXPORT constexpr bool ParsedQuicVersionIsValid(
   };
   for (size_t i = 0; i < ABSL_ARRAYSIZE(valid_transport_versions); ++i) {
     if (transport_version == valid_transport_versions[i]) {
-      transport_version_is_valid = true;
-      break;
+      return true;
     }
   }
-  if (!transport_version_is_valid) {
+  return false;
+}
+
+// Returns whether this combination of handshake protocol and transport
+// version is allowed. For example, {PROTOCOL_TLS1_3, QUIC_VERSION_46} is NOT
+// allowed as TLS requires crypto frames which v46 does not support. Note that
+// UnsupportedQuicVersion is a valid version.
+QUICHE_EXPORT constexpr bool ParsedQuicVersionIsValid(
+    HandshakeProtocol handshake_protocol,
+    QuicTransportVersion transport_version) {
+  if (!TransportVersionIsValid(transport_version)) {
     return false;
   }
   switch (handshake_protocol) {
