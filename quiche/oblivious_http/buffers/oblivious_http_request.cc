@@ -101,10 +101,31 @@ absl::StatusOr<ObliviousHttpRequest> ObliviousHttpRequest::EncapsulateWithSeed(
   if (plaintext_payload.empty() || hpke_public_key.empty()) {
     return absl::InvalidArgumentError("Invalid input.");
   }
-  // Initialize HPKE key and context.
-  bssl::UniquePtr<EVP_HPKE_KEY> client_key(EVP_HPKE_KEY_new());
-  if (client_key == nullptr) {
-    return SslErrorAsStatus("Failed to initialize HPKE Client Key.");
+  absl::StatusOr<Context> context = CreateHpkeSenderContext(
+      hpke_public_key, ohttp_key_config, seed, request_label);
+  if (!context.ok()) {
+    return context.status();
+  }
+  std::string encapsulated_key = context->encapsulated_key_;
+  // EncryptChunk with `is_final_chunk` set to false is the same implementation
+  // as encrypting the full request.
+  absl::StatusOr<std::string> ciphertext =
+      EncryptChunk(plaintext_payload, *context, /*is_final_chunk=*/false);
+  if (!ciphertext.ok()) {
+    return ciphertext.status();
+  }
+  return ObliviousHttpRequest(
+      std::move(context->hpke_context_), std::move(encapsulated_key),
+      ohttp_key_config, std::move(*ciphertext), std::move(plaintext_payload));
+}
+
+absl::StatusOr<ObliviousHttpRequest::Context>
+ObliviousHttpRequest::CreateHpkeSenderContext(
+    absl::string_view hpke_public_key,
+    const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
+    absl::string_view seed, absl::string_view request_label) {
+  if (hpke_public_key.empty()) {
+    return absl::InvalidArgumentError("HPKE public key is empty.");
   }
   bssl::UniquePtr<EVP_HPKE_CTX> client_ctx(EVP_HPKE_CTX_new());
   if (client_ctx == nullptr) {
@@ -144,30 +165,45 @@ absl::StatusOr<ObliviousHttpRequest> ObliviousHttpRequest::EncapsulateWithSeed(
     }
   }
   encapsulated_key.resize(enc_len);
+
+  return Context(std::move(client_ctx), std::move(encapsulated_key));
+}
+
+absl::StatusOr<std::string> ObliviousHttpRequest::EncryptChunk(
+    absl::string_view plaintext_payload, const Context& context,
+    bool is_final_chunk) {
+  if (plaintext_payload.empty() && !is_final_chunk) {
+    return absl::InvalidArgumentError("Invalid input.");
+  }
+
+  uint8_t* ad = nullptr;
+  size_t ad_len = 0;
+  if (is_final_chunk) {
+    ad = const_cast<uint8_t*>(kFinalAdBytes);
+    ad_len = sizeof(kFinalAdBytes);
+  }
+
   std::string ciphertext(
-      plaintext_payload.size() + EVP_HPKE_CTX_max_overhead(client_ctx.get()),
+      plaintext_payload.size() +
+          EVP_HPKE_CTX_max_overhead(context.hpke_context_.get()),
       '\0');
   size_t ciphertext_len;
   if (!EVP_HPKE_CTX_seal(
-          client_ctx.get(), reinterpret_cast<uint8_t*>(ciphertext.data()),
-          &ciphertext_len, ciphertext.size(),
+          context.hpke_context_.get(),
+          reinterpret_cast<uint8_t*>(ciphertext.data()), &ciphertext_len,
+          ciphertext.size(),
           reinterpret_cast<const uint8_t*>(plaintext_payload.data()),
-          plaintext_payload.size(), nullptr, 0)) {
-    return SslErrorAsStatus(
-        "Failed to encrypt plaintext_payload with given public key param "
-        "hpke_public_key.");
+          plaintext_payload.size(), ad, ad_len)) {
+    return SslErrorAsStatus("Failed to encrypt plaintext_payload.");
   }
   ciphertext.resize(ciphertext_len);
-  if (encapsulated_key.empty() || ciphertext.empty()) {
+  if (context.encapsulated_key_.empty() || ciphertext.empty()) {
     return absl::InternalError(absl::StrCat(
-        "Failed to generate required data: ",
-        (encapsulated_key.empty() ? "encapsulated key is empty" : ""),
-        (ciphertext.empty() ? "encrypted data is empty" : ""), "."));
+        "Failed to generate required data:",
+        (context.encapsulated_key_.empty() ? " encapsulated key is empty" : ""),
+        (ciphertext.empty() ? " encrypted data is empty" : ""), "."));
   }
-
-  return ObliviousHttpRequest(
-      std::move(client_ctx), std::move(encapsulated_key), ohttp_key_config,
-      std::move(ciphertext), std::move(plaintext_payload));
+  return ciphertext;
 }
 
 // Request Serialize.

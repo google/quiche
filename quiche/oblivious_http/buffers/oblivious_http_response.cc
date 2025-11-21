@@ -78,37 +78,26 @@ ObliviousHttpResponse::CreateClientObliviousResponse(
   absl::string_view encrypted_response =
       absl::string_view(encrypted_data).substr(secret_len);
 
-  // Steps (1, 3 to 5) + AEAD context SetUp before 6th step is performed in
-  // CommonOperations.
-  auto common_ops_st = CommonOperationsToEncapDecap(
-      response_nonce, oblivious_http_request_context, resp_label,
-      aead_params_st.value().aead_key_len,
-      aead_params_st.value().aead_nonce_len, aead_params_st.value().secret_len);
-  if (!common_ops_st.ok()) {
-    return common_ops_st.status();
+  absl::StatusOr<AeadContextData> aead_context_data =
+      GetAeadContextData(oblivious_http_request_context, *aead_params_st,
+                         resp_label, response_nonce);
+  if (!aead_context_data.ok()) {
+    return aead_context_data.status();
   }
-
-  std::string decrypted(encrypted_response.size(), '\0');
-  size_t decrypted_len;
 
   // Decrypt with initialized AEAD context.
   // response, error = Open(aead_key, aead_nonce, "", ct)
   // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.4-6
-  if (!EVP_AEAD_CTX_open(
-          common_ops_st.value().aead_ctx.get(),
-          reinterpret_cast<uint8_t*>(decrypted.data()), &decrypted_len,
-          decrypted.size(),
-          reinterpret_cast<const uint8_t*>(
-              common_ops_st.value().aead_nonce.data()),
-          aead_params_st.value().aead_nonce_len,
-          reinterpret_cast<const uint8_t*>(encrypted_response.data()),
-          encrypted_response.size(), nullptr, 0)) {
-    return SslErrorAsStatus(
-        "Failed to decrypt the response with derived AEAD key and nonce.");
+  // DecryptChunk with `is_final_chunk` as false is the same implementation as
+  // decrypting the full encrypted response.
+  absl::StatusOr<std::string> decrypted =
+      DecryptChunk(encrypted_response, *aead_context_data,
+                   aead_context_data->aead_nonce, /*is_final_chunk=*/false);
+  if (!decrypted.ok()) {
+    return decrypted.status();
   }
-  decrypted.resize(decrypted_len);
   ObliviousHttpResponse oblivious_response(std::move(encrypted_data),
-                                           std::move(decrypted));
+                                           std::move(*decrypted));
   return oblivious_response;
 }
 
@@ -405,6 +394,33 @@ absl::StatusOr<std::string> ObliviousHttpResponse::EncryptChunk(
     return absl::InternalError("Generated Encrypted payload cannot be empty.");
   }
   return encrypted_data;
+}
+
+absl::StatusOr<std::string> ObliviousHttpResponse::DecryptChunk(
+    absl::string_view encrypted_chunk, const AeadContextData& aead_context_data,
+    absl::string_view chunk_nonce, bool is_final_chunk) {
+  uint8_t* ad = nullptr;
+  size_t ad_len = 0;
+  if (is_final_chunk) {
+    ad = const_cast<uint8_t*>(kFinalAdBytes);
+    ad_len = sizeof(kFinalAdBytes);
+  }
+
+  std::string decrypted(encrypted_chunk.size(), '\0');
+  size_t decrypted_len;
+  if (!EVP_AEAD_CTX_open(
+          aead_context_data.aead_ctx.get(),
+          reinterpret_cast<uint8_t*>(decrypted.data()), &decrypted_len,
+          decrypted.size(),
+          reinterpret_cast<const uint8_t*>(chunk_nonce.data()),
+          aead_context_data.aead_nonce.size(),
+          reinterpret_cast<const uint8_t*>(encrypted_chunk.data()),
+          encrypted_chunk.size(), ad, ad_len)) {
+    return SslErrorAsStatus(
+        "Failed to decrypt the response with derived AEAD key.");
+  }
+  decrypted.resize(decrypted_len);
+  return decrypted;
 }
 
 absl::StatusOr<ObliviousHttpResponse::ChunkCounter>

@@ -31,6 +31,8 @@ class QUICHE_EXPORT ObliviousHttpRequest {
     Context(Context&& other) = default;
     Context& operator=(Context&& other) = default;
 
+    std::string GetEncapsulatedKey() const { return encapsulated_key_; }
+
    private:
     explicit Context(bssl::UniquePtr<EVP_HPKE_CTX> hpke_context,
                      std::string encapsulated_key);
@@ -112,7 +114,20 @@ class QUICHE_EXPORT ObliviousHttpRequest {
       const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
       absl::string_view request_label);
 
-  // Decrypts an encrypted chunk.
+  // Creates the client's HPKE sender context.
+  static absl::StatusOr<Context> CreateHpkeSenderContext(
+      absl::string_view hpke_public_key,
+      const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
+      absl::string_view seed, absl::string_view request_label);
+
+  // Encrypts a chunk of plaintext. If `is_final_chunk` is true, the chunk will
+  // be encrypted with a final AAD.
+  static absl::StatusOr<std::string> EncryptChunk(
+      absl::string_view plaintext_payload, const Context& context,
+      bool is_final_chunk);
+
+  // Decrypts an encrypted chunk. If `is_final_chunk` is true, the chunk will
+  // be decrypted with a final AAD.
   static absl::StatusOr<std::string> DecryptChunk(
       Context& context, absl::string_view encrypted_chunk, bool is_final_chunk);
 

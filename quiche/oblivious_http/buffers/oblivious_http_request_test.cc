@@ -66,12 +66,12 @@ std::string GetSeededEncapsulatedKey() {
 
 bssl::UniquePtr<EVP_HPKE_KEY> ConstructHpkeKey(
     absl::string_view hpke_key,
-    const ObliviousHttpHeaderKeyConfig &ohttp_key_config) {
+    const ObliviousHttpHeaderKeyConfig& ohttp_key_config) {
   bssl::UniquePtr<EVP_HPKE_KEY> bssl_hpke_key(EVP_HPKE_KEY_new());
   EXPECT_NE(bssl_hpke_key, nullptr);
   EXPECT_TRUE(EVP_HPKE_KEY_init(
       bssl_hpke_key.get(), ohttp_key_config.GetHpkeKem(),
-      reinterpret_cast<const uint8_t *>(hpke_key.data()), hpke_key.size()));
+      reinterpret_cast<const uint8_t*>(hpke_key.data()), hpke_key.size()));
   return bssl_hpke_key;
 }
 
@@ -473,5 +473,61 @@ TEST(ObliviousHttpRequest, EndToEndTestForRequestWithWrongKey) {
       *(ConstructHpkeKey(GetHpkePrivateKey(), ohttp_key_config)),
       ohttp_key_config);
   EXPECT_EQ(decapsulate.status().code(), absl::StatusCode::kInvalidArgument);
+}
+
+TEST(ObliviousHttpRequest, CreateHpkeSenderContext) {
+  auto ohttp_key_config =
+      GetOhttpKeyConfig(1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                        EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM);
+  absl::StatusOr<ObliviousHttpRequest::Context> context =
+      ObliviousHttpRequest::CreateHpkeSenderContext(
+          GetHpkePublicKey(), ohttp_key_config, GetSeed(),
+          ObliviousHttpHeaderKeyConfig::kChunkedOhttpRequestLabel);
+  QUICHE_EXPECT_OK(context);
+}
+
+TEST(ObliviousHttpRequest, EncryptChunkAndDecryptChunkSuccess) {
+  ObliviousHttpHeaderKeyConfig ohttp_key_config =
+      GetOhttpKeyConfig(1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                        EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM);
+  absl::StatusOr<ObliviousHttpRequest::Context> sender_ctx =
+      ObliviousHttpRequest::CreateHpkeSenderContext(
+          GetHpkePublicKey(), ohttp_key_config, GetSeed(),
+          ObliviousHttpHeaderKeyConfig::kOhttpRequestLabel);
+  QUICHE_EXPECT_OK(sender_ctx);
+  if (!sender_ctx.ok()) {
+    return;
+  }
+
+  std::string plaintext_chunk = "test_chunk";
+  absl::StatusOr<std::string> encrypted_chunk =
+      ObliviousHttpRequest::EncryptChunk(plaintext_chunk, *sender_ctx,
+                                         /*is_final_chunk=*/false);
+  QUICHE_EXPECT_OK(encrypted_chunk);
+  if (!encrypted_chunk.ok()) {
+    return;
+  }
+
+  bssl::UniquePtr<EVP_HPKE_KEY> hpke_key =
+      ConstructHpkeKey(GetHpkePrivateKey(), ohttp_key_config);
+  std::string request_header = ohttp_key_config.SerializeOhttpPayloadHeader();
+  std::string oblivious_http_request_header =
+      absl::StrCat(request_header, sender_ctx->GetEncapsulatedKey());
+  QuicheDataReader reader(oblivious_http_request_header);
+  auto receiver_ctx = ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
+      reader, *hpke_key, ohttp_key_config,
+      ObliviousHttpHeaderKeyConfig::kOhttpRequestLabel);
+  QUICHE_EXPECT_OK(receiver_ctx);
+  if (!receiver_ctx.ok()) {
+    return;
+  }
+
+  auto decrypted_chunk = ObliviousHttpRequest::DecryptChunk(
+      *receiver_ctx, *encrypted_chunk, /*is_final_chunk=*/false);
+  QUICHE_EXPECT_OK(decrypted_chunk);
+  if (!decrypted_chunk.ok()) {
+    return;
+  }
+  EXPECT_EQ(*decrypted_chunk, plaintext_chunk);
 }
 }  // namespace quiche
