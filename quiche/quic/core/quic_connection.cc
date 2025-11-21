@@ -6148,7 +6148,7 @@ bool QuicConnection::FlushCoalescedPacket() {
 }
 
 void QuicConnection::MaybeEnableMultiplePacketNumberSpacesSupport() {
-  if (version().handshake_protocol != PROTOCOL_TLS1_3) {
+  if (!version().IsIetfQuic()) {
     return;
   }
   QUIC_DVLOG(1) << ENDPOINT << "connection " << connection_id()
@@ -6274,7 +6274,7 @@ bool QuicConnection::IsHandshakeComplete() const {
 }
 
 bool QuicConnection::IsHandshakeConfirmed() const {
-  QUICHE_DCHECK_EQ(PROTOCOL_TLS1_3, version().handshake_protocol);
+  QUICHE_DCHECK(version().IsIetfQuic());
   return visitor_->GetHandshakeState() == HANDSHAKE_CONFIRMED;
 }
 

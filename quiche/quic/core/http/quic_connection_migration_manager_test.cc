@@ -184,8 +184,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     session()->OnNewEncryptionKeyAvailable(
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullEncrypter>(session()->perspective()));
-    if (session()->connection()->version().handshake_protocol ==
-        PROTOCOL_TLS1_3) {
+    if (session()->connection()->version().IsIetfQuic()) {
       session()->OnTlsHandshakeComplete();
     } else {
       session()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);

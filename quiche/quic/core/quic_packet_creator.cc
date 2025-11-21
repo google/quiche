@@ -2234,7 +2234,7 @@ QuicPacketLength QuicPacketCreator::GetGuaranteedLargestDatagramPayload()
     const {
   // QUIC Crypto server packets may include a diversification nonce.
   const bool may_include_nonce =
-      framer_->version().handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
+      !framer_->version().IsIetfQuic() &&
       framer_->perspective() == Perspective::IS_SERVER;
   // IETF QUIC long headers include a length on client 0RTT packets.
   quiche::QuicheVariableLengthIntegerLength length_length =

@@ -1859,7 +1859,7 @@ TEST_P(QuicFramerTest, PacketWithDiversificationNonce) {
   };
   // clang-format on
 
-  if (framer_.version().handshake_protocol != PROTOCOL_QUIC_CRYPTO) {
+  if (framer_.version().IsIetfQuic()) {
     return;
   }
 
@@ -2222,7 +2222,7 @@ TEST_P(QuicFramerTest, EmptyStreamFrame) {
 }
 
 TEST_P(QuicFramerTest, MissingDiversificationNonce) {
-  if (framer_.version().handshake_protocol != PROTOCOL_QUIC_CRYPTO) {
+  if (framer_.version().IsIetfQuic()) {
     // TLS does not use diversification nonces.
     return;
   }

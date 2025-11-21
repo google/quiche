@@ -82,7 +82,7 @@ bool ParsedQuicVersion::UsesLegacyTlsExtension() const {
 
 bool ParsedQuicVersion::UsesTls() const {
   QUICHE_DCHECK(IsKnown());
-  return handshake_protocol == PROTOCOL_TLS1_3;
+  return IsIetfQuic();
 }
 
 bool ParsedQuicVersion::UsesV2PacketTypes() const {
@@ -156,7 +156,7 @@ QuicVersionLabelVector CreateQuicVersionLabelVector(
 ParsedQuicVersionVector AllSupportedVersionsWithQuicCrypto() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+    if (!version.IsIetfQuic()) {
       versions.push_back(version);
     }
   }
@@ -168,7 +168,7 @@ ParsedQuicVersionVector AllSupportedVersionsWithQuicCrypto() {
 ParsedQuicVersionVector CurrentSupportedVersionsWithQuicCrypto() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
-    if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+    if (!version.IsIetfQuic()) {
       versions.push_back(version);
     }
   }
@@ -220,7 +220,7 @@ bool IsObsoleteSupportedVersion(ParsedQuicVersion version) {
 ParsedQuicVersionVector CurrentSupportedVersionsForClients() {
   ParsedQuicVersionVector versions;
   for (const ParsedQuicVersion& version : CurrentSupportedVersionsWithTls()) {
-    QUICHE_DCHECK_EQ(version.handshake_protocol, PROTOCOL_TLS1_3);
+    QUICHE_DCHECK(version.IsIetfQuic());
     if (version.transport_version >= QUIC_VERSION_IETF_RFC_V1) {
       versions.push_back(version);
     }
@@ -272,7 +272,7 @@ ParsedQuicVersion ParseQuicVersionString(absl::string_view version_string) {
     if (version_string == ParsedQuicVersionToString(version) ||
         (version_string == AlpnForVersion(version) &&
          !version.AlpnDeferToRFCv1()) ||
-        (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
+        (!version.IsIetfQuic() &&
          version_string == QuicVersionToString(version.transport_version))) {
       return version;
     }

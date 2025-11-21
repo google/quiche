@@ -537,7 +537,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthEstimates) {
   QuicServerSessionBasePeer::SetCryptoStream(session_.get(), nullptr);
   MockQuicCryptoServerStream* quic_crypto_stream = nullptr;
   MockTlsServerHandshaker* tls_server_stream = nullptr;
-  if (version().handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+  if (!version().IsIetfQuic()) {
     quic_crypto_stream = new MockQuicCryptoServerStream(
         &crypto_config_, &compressed_certs_cache_, session_.get(),
         &stream_helper_);
@@ -819,7 +819,7 @@ INSTANTIATE_TEST_SUITE_P(StreamMemberLifetimeTests, StreamMemberLifetimeTest,
 // ProofSource::GetProof.  Delay the completion of the operation until after the
 // stream has been destroyed, and verify that there are no memory bugs.
 TEST_P(StreamMemberLifetimeTest, Basic) {
-  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version().IsIetfQuic()) {
     // This test depends on the QUIC crypto protocol, so it is disabled for the
     // TLS handshake.
     // TODO(nharper): Fix this test so it doesn't rely on QUIC crypto.

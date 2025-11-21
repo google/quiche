@@ -311,7 +311,7 @@ TEST_P(TlsClientHandshakerTest, NotInitiallyConnected) {
 
 TEST_P(TlsClientHandshakerTest, ConnectedAfterHandshake) {
   CompleteCryptoHandshake();
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_FALSE(stream()->MatchedTrustAnchorIdForTesting());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
@@ -344,7 +344,7 @@ TEST_P(TlsClientHandshakerTest, ProofVerifyDetailsAvailableAfterHandshake) {
   crypto_test_utils::HandshakeWithFakeServer(
       &config, server_crypto_config_.get(), &server_helper_, &alarm_factory_,
       connection_, stream(), AlpnForVersion(connection_->version()));
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
 }
@@ -448,7 +448,7 @@ TEST_P(TlsClientHandshakerTest, Resumption) {
   // Finish establishing the first connection:
   CompleteCryptoHandshake();
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->ResumptionAttempted());
@@ -458,7 +458,7 @@ TEST_P(TlsClientHandshakerTest, Resumption) {
   CreateConnection();
   CompleteCryptoHandshake();
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->ResumptionAttempted());
@@ -472,7 +472,7 @@ TEST_P(TlsClientHandshakerTest, ResumptionRejection) {
   // Finish establishing the first connection:
   CompleteCryptoHandshake();
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->ResumptionAttempted());
@@ -483,7 +483,7 @@ TEST_P(TlsClientHandshakerTest, ResumptionRejection) {
   CreateConnection();
   CompleteCryptoHandshake();
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->ResumptionAttempted());
@@ -497,7 +497,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
   // Finish establishing the first connection:
   CompleteCryptoHandshake();
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
@@ -523,7 +523,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
       &config, server_crypto_config_.get(), &server_helper_, &alarm_factory_,
       connection_, stream(), AlpnForVersion(connection_->version()));
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->IsResumption());
@@ -537,7 +537,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRttResumptionWithAyncProofVerifier) {
   // resume.
   CompleteCryptoHandshake();
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
@@ -584,7 +584,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRttRejection) {
   // Finish establishing the first connection:
   CompleteCryptoHandshake();
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
@@ -621,7 +621,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRttRejection) {
   QuicFramer* framer = QuicConnectionPeer::GetFramer(connection_);
   EXPECT_EQ(nullptr, QuicFramerPeer::GetEncrypter(framer, ENCRYPTION_ZERO_RTT));
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->IsResumption());
@@ -633,7 +633,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRttAndResumptionRejection) {
   // Finish establishing the first connection:
   CompleteCryptoHandshake();
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
@@ -670,7 +670,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRttAndResumptionRejection) {
   QuicFramer* framer = QuicConnectionPeer::GetFramer(connection_);
   EXPECT_EQ(nullptr, QuicFramerPeer::GetEncrypter(framer, ENCRYPTION_ZERO_RTT));
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
@@ -692,7 +692,7 @@ TEST_P(TlsClientHandshakerTest, ClientSendsNoSNI) {
   crypto_test_utils::CommunicateHandshakeMessages(
       connection_, stream(), server_connection_, server_stream());
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
 
@@ -750,7 +750,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRTTNotAttemptedOnALPNChange) {
   // Finish establishing the first connection:
   CompleteCryptoHandshake();
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
@@ -766,7 +766,7 @@ TEST_P(TlsClientHandshakerTest, ZeroRTTNotAttemptedOnALPNChange) {
   EXPECT_CALL(*session_, OnConfigNegotiated()).Times(1);
 
   CompleteCryptoHandshakeWithServerALPN(kTestAlpn);
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->EarlyDataAccepted());
@@ -786,7 +786,7 @@ TEST_P(TlsClientHandshakerTest, InvalidSNI) {
   crypto_test_utils::CommunicateHandshakeMessages(
       connection_, stream(), server_connection_, server_stream());
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
 
@@ -840,7 +840,7 @@ TEST_P(TlsClientHandshakerTest, ECH) {
 
   // The handshake should complete and negotiate ECH.
   CompleteCryptoHandshake();
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->crypto_negotiated_params().encrypted_client_hello);
@@ -864,7 +864,7 @@ TEST_P(TlsClientHandshakerTest, ECHWithConfigAndGREASE) {
   // When both ECH and ECH GREASE are enabled, ECH should take precedence.
   // The handshake should complete and negotiate ECH.
   CompleteCryptoHandshake();
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->crypto_negotiated_params().encrypted_client_hello);
@@ -939,7 +939,7 @@ TEST_P(TlsClientHandshakerTest, ECHGrease) {
   CompleteCryptoHandshake();
   EXPECT_TRUE(callback_ran);
 
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   // Sending an ignored ECH GREASE extension does not count as negotiating ECH.
@@ -979,7 +979,7 @@ TEST_P(TlsClientHandshakerTest, DebuggingSniDisabledByECH) {
 
   // The handshake should complete and negotiate ECH.
   CompleteCryptoHandshake();
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->crypto_negotiated_params().encrypted_client_hello);
@@ -1008,7 +1008,7 @@ TEST_P(TlsClientHandshakerTest, DebuggingSniDisabledByECHAndNotSavedByDSNI) {
 
   // The handshake should complete and negotiate ECH.
   CompleteCryptoHandshake();
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->crypto_negotiated_params().encrypted_client_hello);
@@ -1095,7 +1095,7 @@ TEST_P(TlsClientHandshakerTest, DebuggingSniSentWithoutECH) {
   connection_->set_debug_visitor(&debug_visitor);
 
   CompleteCryptoHandshake();
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->crypto_negotiated_params().encrypted_client_hello);
@@ -1139,7 +1139,7 @@ TEST_P(TlsClientHandshakerTest, EnableClientAlpsUseNewCodepoint) {
       });
 
   CompleteCryptoHandshake();
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(callback_ran);
 }
 
@@ -1174,7 +1174,7 @@ TEST_P(TlsClientHandshakerTest, SetCompliancePolicyCnsa202407) {
   crypto_config_->set_ssl_compliance_policy(ssl_compliance_policy_cnsa_202407);
   CreateConnection();
   CompleteCryptoHandshake();
-  EXPECT_EQ(PROTOCOL_TLS1_3, stream()->handshake_protocol());
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   ASSERT_TRUE(stream()->SslCompliancePolicyForTesting().has_value());

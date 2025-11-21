@@ -375,22 +375,16 @@ QUICHE_EXPORT ParsedQuicVersionVector CurrentSupportedVersionsForClients();
 QUICHE_EXPORT ParsedQuicVersionVector
 FilterSupportedVersions(ParsedQuicVersionVector versions);
 
-// Returns a subset of AllSupportedVersions() with
-// handshake_protocol == PROTOCOL_QUIC_CRYPTO, in the same order.
-// Deprecated; only to be used in components that do not yet support
-// PROTOCOL_TLS1_3.
+// Returns a subset of AllSupportedVersions() that are gQUIC.
 QUICHE_EXPORT ParsedQuicVersionVector AllSupportedVersionsWithQuicCrypto();
 
-// Returns a subset of CurrentSupportedVersions() with
-// handshake_protocol == PROTOCOL_QUIC_CRYPTO, in the same order.
+// Returns a subset of CurrentSupportedVersions() that are gQUIC.
 QUICHE_EXPORT ParsedQuicVersionVector CurrentSupportedVersionsWithQuicCrypto();
 
-// Returns a subset of AllSupportedVersions() with
-// handshake_protocol == PROTOCOL_TLS1_3, in the same order.
+// Returns a subset of AllSupportedVersions() that are IETF QUIC.
 QUICHE_EXPORT ParsedQuicVersionVector AllSupportedVersionsWithTls();
 
-// Returns a subset of CurrentSupportedVersions() with handshake_protocol ==
-// PROTOCOL_TLS1_3.
+// Returns a subset of CurrentSupportedVersions() that are IETF QUIC.
 QUICHE_EXPORT ParsedQuicVersionVector CurrentSupportedVersionsWithTls();
 
 // Returns a subset of CurrentSupportedVersions() using HTTP/3 at the HTTP

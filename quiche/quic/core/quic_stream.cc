@@ -65,7 +65,7 @@ QuicByteCount DefaultFlowControlWindow(ParsedQuicVersion version) {
 QuicByteCount GetInitialStreamFlowControlWindowToSend(QuicSession* session,
                                                       QuicStreamId stream_id) {
   ParsedQuicVersion version = session->connection()->version();
-  if (version.handshake_protocol != PROTOCOL_TLS1_3) {
+  if (!version.IsIetfQuic()) {
     return session->config()->GetInitialStreamFlowControlWindowToSend();
   }
 
@@ -89,7 +89,7 @@ QuicByteCount GetInitialStreamFlowControlWindowToSend(QuicSession* session,
 QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
                                            QuicStreamId stream_id) {
   ParsedQuicVersion version = session->connection()->version();
-  if (version.handshake_protocol != PROTOCOL_TLS1_3) {
+  if (!version.IsIetfQuic()) {
     if (session->config()->HasReceivedInitialStreamFlowControlWindowBytes()) {
       return session->config()->ReceivedInitialStreamFlowControlWindowBytes();
     }
@@ -1072,10 +1072,6 @@ ParsedQuicVersion QuicStream::version() const { return session_->version(); }
 
 QuicTransportVersion QuicStream::transport_version() const {
   return session_->transport_version();
-}
-
-HandshakeProtocol QuicStream::handshake_protocol() const {
-  return session_->connection()->version().handshake_protocol;
 }
 
 void QuicStream::StopReading() {

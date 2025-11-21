@@ -323,10 +323,6 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // Returns the version of QUIC being used for this stream.
   QuicTransportVersion transport_version() const;
 
-  // Returns the crypto handshake protocol that was used on this stream's
-  // connection.
-  HandshakeProtocol handshake_protocol() const;
-
   // Sets the sequencer to consume all incoming data itself and not call
   // OnDataAvailable().
   // When the FIN is received, the stream will be notified automatically (via

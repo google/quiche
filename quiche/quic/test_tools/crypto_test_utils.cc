@@ -138,7 +138,7 @@ void MovePackets(const QuicConnection& source_conn,
     dest_conn.OnDecryptedPacket(packet->length(),
                                 framer.last_decrypted_level());
 
-    if (dest_stream.handshake_protocol() == PROTOCOL_TLS1_3) {
+    if (dest_stream.version().IsIetfQuic()) {
       // Try to process the packet with a framer that only has the NullDecrypter
       // for decryption. If ProcessPacket succeeds, that means the packet was
       // encrypted with the NullEncrypter. With the TLS handshaker in use, no
@@ -161,8 +161,7 @@ void MovePackets(const QuicConnection& source_conn,
 
     QuicConnectionPeer::SetCurrentPacket(&dest_conn, packet->AsStringPiece());
     for (const auto& stream_frame : framer.stream_frames()) {
-      if (process_stream_data &&
-          dest_stream.handshake_protocol() == PROTOCOL_TLS1_3) {
+      if (process_stream_data && dest_stream.version().IsIetfQuic()) {
         // Deliver STREAM_FRAME such that application state is available and can
         // be stored along with resumption ticket in session cache,
         dest_conn.OnStreamFrame(*stream_frame);
@@ -384,7 +383,7 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
     supported_versions.erase(
         std::remove_if(supported_versions.begin(), supported_versions.end(),
                        [](const ParsedQuicVersion& version) {
-                         return version.handshake_protocol != PROTOCOL_TLS1_3;
+                         return !version.IsIetfQuic();
                        }),
         supported_versions.end());
     QUICHE_CHECK(!options.only_quic_crypto_versions);
@@ -392,8 +391,7 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
     supported_versions.erase(
         std::remove_if(supported_versions.begin(), supported_versions.end(),
                        [](const ParsedQuicVersion& version) {
-                         return version.handshake_protocol !=
-                                PROTOCOL_QUIC_CRYPTO;
+                         return version.IsIetfQuic();
                        }),
         supported_versions.end());
   }

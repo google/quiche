@@ -1829,8 +1829,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
   // using QUIC crypto.
   if (header->form == IETF_QUIC_LONG_HEADER_PACKET &&
       header->long_packet_type == ZERO_RTT_PROTECTED &&
-      perspective_ == Perspective::IS_CLIENT &&
-      version_.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+      perspective_ == Perspective::IS_CLIENT && !version_.IsIetfQuic()) {
     if (!encrypted_reader->ReadBytes(
             reinterpret_cast<uint8_t*>(last_nonce_.data()),
             last_nonce_.size())) {
@@ -4294,8 +4293,7 @@ bool QuicFramer::ApplyHeaderProtection(EncryptionLevel level, char* buffer,
 
   // Adjust |pn_offset| to account for the diversification nonce.
   if (IsLongHeader(type_byte) && header_type == ZERO_RTT_PROTECTED &&
-      perspective_ == Perspective::IS_SERVER &&
-      version_.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+      perspective_ == Perspective::IS_SERVER && !version_.IsIetfQuic()) {
     if (pn_offset <= kDiversificationNonceSize) {
       QUIC_BUG(quic_bug_10850_62)
           << "Expected diversification nonce, but not enough bytes";
@@ -4331,8 +4329,7 @@ bool QuicFramer::RemoveHeaderProtection(
   bool has_diversification_nonce =
       header->form == IETF_QUIC_LONG_HEADER_PACKET &&
       header->long_packet_type == ZERO_RTT_PROTECTED &&
-      perspective == Perspective::IS_CLIENT &&
-      version.handshake_protocol == PROTOCOL_QUIC_CRYPTO;
+      perspective == Perspective::IS_CLIENT && !version.IsIetfQuic();
 
   // Read a sample from the ciphertext and compute the mask to use for header
   // protection.

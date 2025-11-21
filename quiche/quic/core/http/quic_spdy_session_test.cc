@@ -131,8 +131,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
     session()->OnConfigNegotiated();
-    if (session()->connection()->version().handshake_protocol ==
-        PROTOCOL_TLS1_3) {
+    if (session()->connection()->version().IsIetfQuic()) {
       session()->OnTlsHandshakeComplete();
     } else {
       session()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -1434,7 +1433,7 @@ TEST_P(QuicSpdySessionTestServer, OnRstStreamInvalidStreamId) {
 
 TEST_P(QuicSpdySessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
   Initialize();
-  if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (connection_->version().IsIetfQuic()) {
     // This test requires Google QUIC crypto because it assumes streams start
     // off unblocked.
     return;
@@ -1589,7 +1588,7 @@ TEST_P(QuicSpdySessionTestServer,
 
 TEST_P(QuicSpdySessionTestServer, InvalidStreamFlowControlWindowInHandshake) {
   Initialize();
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (GetParam().IsIetfQuic()) {
     // IETF Quic doesn't require a minimum flow control window.
     return;
   }

@@ -31,19 +31,19 @@ std::unique_ptr<QuicCryptoServerStreamBase> CreateCryptoServerStream(
     const QuicCryptoServerConfig* crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache, QuicSession* session,
     QuicCryptoServerStreamBase::Helper* helper) {
-  switch (session->connection()->version().handshake_protocol) {
-    case PROTOCOL_QUIC_CRYPTO:
+  switch (session->connection()->version().transport_version) {
+    case QUIC_VERSION_UNSUPPORTED:
+      break;
+    case QUIC_VERSION_46:
       return std::unique_ptr<QuicCryptoServerStream>(new QuicCryptoServerStream(
           crypto_config, compressed_certs_cache, session, helper));
-    case PROTOCOL_TLS1_3:
+    default:
       return std::unique_ptr<TlsServerHandshaker>(
           new TlsServerHandshaker(session, crypto_config));
-    case PROTOCOL_UNSUPPORTED:
-      break;
   }
   QUIC_BUG(quic_bug_10492_1)
-      << "Unknown handshake protocol: "
-      << static_cast<int>(session->connection()->version().handshake_protocol);
+      << "Unknown QUIC version: "
+      << static_cast<int>(session->connection()->version().transport_version);
   return nullptr;
 }
 

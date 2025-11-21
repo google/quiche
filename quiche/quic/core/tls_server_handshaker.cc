@@ -251,8 +251,7 @@ TlsServerHandshaker::TlsServerHandshaker(
   QUIC_DVLOG(1) << "TlsServerHandshaker:  client_cert_mode initial value: "
                 << client_cert_mode();
 
-  QUICHE_DCHECK_EQ(PROTOCOL_TLS1_3,
-                   session->connection()->version().handshake_protocol);
+  QUICHE_DCHECK(session->connection()->version().IsIetfQuic());
 
   // Configure the SSL to be a server.
   SSL_set_accept_state(ssl());

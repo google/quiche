@@ -188,7 +188,7 @@ void QuicSession::Initialize() {
   }
   connection_->SetFromConfig(config_);
   if (perspective() == Perspective::IS_SERVER &&
-      connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
+      connection_->version().IsIetfQuic()) {
     config_.SetStatelessResetTokenToSend(GetStatelessResetToken());
   }
 
@@ -1480,7 +1480,7 @@ void QuicSession::OnConfigNegotiated() {
     stream_id_manager_.set_max_open_incoming_streams(max_incoming_streams);
   }
 
-  if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (connection_->version().IsIetfQuic()) {
     // When using IETF-style TLS transport parameters, inform existing streams
     // of new flow-control limits.
     if (config_.HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()) {
@@ -1651,7 +1651,7 @@ void QuicSession::OnNewStreamFlowControlWindow(QuicStreamOffset new_window) {
 
 void QuicSession::OnNewStreamUnidirectionalFlowControlWindow(
     QuicStreamOffset new_window) {
-  QUICHE_DCHECK_EQ(connection_->version().handshake_protocol, PROTOCOL_TLS1_3);
+  QUICHE_DCHECK(connection_->version().IsIetfQuic());
   QUIC_DVLOG(1) << ENDPOINT << "OnNewStreamUnidirectionalFlowControlWindow "
                 << new_window;
   // Inform all existing outgoing unidirectional streams about the new window.
@@ -1681,7 +1681,7 @@ void QuicSession::OnNewStreamUnidirectionalFlowControlWindow(
 
 void QuicSession::OnNewStreamOutgoingBidirectionalFlowControlWindow(
     QuicStreamOffset new_window) {
-  QUICHE_DCHECK_EQ(connection_->version().handshake_protocol, PROTOCOL_TLS1_3);
+  QUICHE_DCHECK(connection_->version().IsIetfQuic());
   QUIC_DVLOG(1) << ENDPOINT
                 << "OnNewStreamOutgoingBidirectionalFlowControlWindow "
                 << new_window;
@@ -1712,7 +1712,7 @@ void QuicSession::OnNewStreamOutgoingBidirectionalFlowControlWindow(
 
 void QuicSession::OnNewStreamIncomingBidirectionalFlowControlWindow(
     QuicStreamOffset new_window) {
-  QUICHE_DCHECK_EQ(connection_->version().handshake_protocol, PROTOCOL_TLS1_3);
+  QUICHE_DCHECK(connection_->version().IsIetfQuic());
   QUIC_DVLOG(1) << ENDPOINT
                 << "OnNewStreamIncomingBidirectionalFlowControlWindow "
                 << new_window;
@@ -1790,7 +1790,7 @@ void QuicSession::OnNewSessionFlowControlWindow(QuicStreamOffset new_window) {
 bool QuicSession::OnNewDecryptionKeyAvailable(
     EncryptionLevel level, std::unique_ptr<QuicDecrypter> decrypter,
     bool set_alternative_decrypter, bool latch_once_used) {
-  if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3 &&
+  if (connection_->version().IsIetfQuic() &&
       !connection()->framer().HasEncrypterOfEncryptionLevel(
           QuicUtils::GetEncryptionLevelToSendAckofSpace(
               QuicUtils::GetPacketNumberSpace(level)))) {
@@ -1814,7 +1814,7 @@ bool QuicSession::OnNewDecryptionKeyAvailable(
 void QuicSession::OnNewEncryptionKeyAvailable(
     EncryptionLevel level, std::unique_ptr<QuicEncrypter> encrypter) {
   connection()->SetEncrypter(level, std::move(encrypter));
-  if (connection_->version().handshake_protocol != PROTOCOL_TLS1_3) {
+  if (!connection_->version().IsIetfQuic()) {
     return;
   }
 
@@ -1841,8 +1841,7 @@ void QuicSession::OnNewEncryptionKeyAvailable(
 }
 
 void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
-  QUICHE_DCHECK_EQ(PROTOCOL_QUIC_CRYPTO,
-                   connection_->version().handshake_protocol);
+  QUICHE_DCHECK(!connection_->version().IsIetfQuic());
   QUIC_DVLOG(1) << ENDPOINT << "Set default encryption level to " << level;
   connection()->SetDefaultEncryptionLevel(level);
 
@@ -1877,7 +1876,7 @@ void QuicSession::SetDefaultEncryptionLevel(EncryptionLevel level) {
 }
 
 void QuicSession::OnTlsHandshakeComplete() {
-  QUICHE_DCHECK_EQ(PROTOCOL_TLS1_3, connection_->version().handshake_protocol);
+  QUICHE_DCHECK(connection_->version().IsIetfQuic());
   QUIC_BUG_IF(quic_bug_12435_9,
               !GetCryptoStream()->crypto_negotiated_params().cipher_suite)
       << ENDPOINT << "Handshake completes without cipher suite negotiation.";
@@ -1936,7 +1935,7 @@ void QuicSession::DiscardOldDecryptionKey(EncryptionLevel level) {
 
 void QuicSession::DiscardOldEncryptionKey(EncryptionLevel level) {
   QUIC_DLOG(INFO) << ENDPOINT << "Discarding " << level << " keys";
-  if (connection()->version().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (connection()->version().IsIetfQuic()) {
     connection()->RemoveEncrypter(level);
   }
   switch (level) {

@@ -69,7 +69,7 @@ class QuicCryptoClientStreamTest : public QuicTest {
 
   void CompleteCryptoHandshake() {
     int proof_verify_details_calls = 1;
-    if (stream()->handshake_protocol() != PROTOCOL_TLS1_3) {
+    if (!stream()->version().IsIetfQuic()) {
       EXPECT_CALL(*session_, OnProofValid(testing::_))
           .Times(testing::AtLeast(1));
       proof_verify_details_calls = 0;

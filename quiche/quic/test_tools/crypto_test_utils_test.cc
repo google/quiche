@@ -164,7 +164,7 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
   // first one from the list of supported versions.
   QuicTransportVersion transport_version = QUIC_VERSION_UNSUPPORTED;
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    if (version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+    if (!version.IsIetfQuic()) {
       transport_version = version.transport_version;
       break;
     }

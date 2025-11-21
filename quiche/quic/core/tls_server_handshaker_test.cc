@@ -235,13 +235,13 @@ class TlsServerHandshakerTestSession : public TestQuicSpdyServerSession {
   std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* /*compressed_certs_cache*/) override {
-    if (connection()->version().handshake_protocol == PROTOCOL_TLS1_3) {
+    if (connection()->version().IsIetfQuic()) {
       return std::make_unique<NiceMock<TestTlsServerHandshaker>>(this,
                                                                  crypto_config);
     }
 
-    QUICHE_CHECK(false) << "Unsupported handshake protocol: "
-                        << connection()->version().handshake_protocol;
+    QUICHE_CHECK(false) << "Unsupported QUIC version: "
+                        << connection()->version().transport_version;
     return nullptr;
   }
 };
@@ -555,7 +555,7 @@ TEST_P(TlsServerHandshakerTest, NotInitiallyConected) {
 
 TEST_P(TlsServerHandshakerTest, ConnectedAfterTlsHandshake) {
   CompleteCryptoHandshake();
-  EXPECT_EQ(PROTOCOL_TLS1_3, server_stream()->handshake_protocol());
+  EXPECT_TRUE(server_stream()->version().IsIetfQuic());
   ExpectHandshakeSuccessful();
 }
 
@@ -1674,7 +1674,7 @@ TEST_P(TlsServerHandshakerTest, EnableMLKEM) {
   InitializeFakeClient();
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
-  EXPECT_EQ(PROTOCOL_TLS1_3, server_stream()->handshake_protocol());
+  EXPECT_TRUE(server_stream()->version().IsIetfQuic());
   EXPECT_EQ(SSL_GROUP_X25519_MLKEM768,
             SSL_get_group_id(server_stream()->GetSsl()));
 }
@@ -1710,7 +1710,7 @@ TEST_P(TlsServerHandshakerTest, AlpsUseNewCodepoint) {
 
     CompleteCryptoHandshake();
     ExpectHandshakeSuccessful();
-    EXPECT_EQ(PROTOCOL_TLS1_3, server_stream()->handshake_protocol());
+    EXPECT_TRUE(server_stream()->version().IsIetfQuic());
   }
 }
 

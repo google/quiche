@@ -215,7 +215,7 @@ TEST_P(QuicSpdyClientSessionTest, GetSSLConfig) {
 TEST_P(QuicSpdyClientSessionTest, CryptoConnect) { CompleteCryptoHandshake(); }
 
 TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
-  if (GetParam().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (GetParam().IsIetfQuic()) {
     // This test relies on resumption and is QUIC crypto specific, so it is
     // disabled for TLS.
     return;

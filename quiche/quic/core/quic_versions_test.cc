@@ -483,7 +483,7 @@ TEST(QuicVersionsTest, ObsoleteSupportedVersions) {
 
 TEST(QuicVersionsTest, IsObsoleteSupportedVersion) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
-    bool is_obsolete = version.handshake_protocol != PROTOCOL_TLS1_3 ||
+    bool is_obsolete = !version.IsIetfQuic() ||
                        version.transport_version < QUIC_VERSION_IETF_RFC_V1;
     EXPECT_EQ(is_obsolete, IsObsoleteSupportedVersion(version));
   }

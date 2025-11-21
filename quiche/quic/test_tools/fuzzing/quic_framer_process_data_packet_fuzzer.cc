@@ -105,7 +105,7 @@ QuicSelfContainedPacketHeader ConsumeQuicPacketHeader(
   if (header.form == IETF_QUIC_LONG_HEADER_PACKET &&
       header.long_packet_type == ZERO_RTT_PROTECTED &&
       receiver_perspective == Perspective::IS_CLIENT &&
-      header.version.handshake_protocol == PROTOCOL_QUIC_CRYPTO) {
+      !header.version.IsIetfQuic()) {
     for (size_t i = 0; i < header.nonce_storage.size(); ++i) {
       header.nonce_storage[i] = provider->ConsumeIntegral<char>();
     }

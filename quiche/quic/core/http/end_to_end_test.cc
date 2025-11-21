@@ -777,7 +777,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   bool SupportsIetfQuicWithTls(ParsedQuicVersion version) {
-    return version.handshake_protocol == PROTOCOL_TLS1_3;
+    return version.IsIetfQuic();
   }
 
   static void ExpectFlowControlsSynced(QuicSession* client,

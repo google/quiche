@@ -1169,7 +1169,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
       if (header.version_flag) {
         header.source_connection_id = connection_id_;
         header.source_connection_id_included = CONNECTION_ID_PRESENT;
-        if (GetParam().version.handshake_protocol == PROTOCOL_QUIC_CRYPTO &&
+        if (!GetParam().version.IsIetfQuic() &&
             header.long_packet_type == ZERO_RTT_PROTECTED) {
           header.nonce = &kTestDiversificationNonce;
         }
@@ -7758,7 +7758,7 @@ TEST_P(QuicConnectionTest, ServerReceivesChloOnNonCryptoStream) {
   frame1_.data_buffer = data->data();
   frame1_.data_length = data->length();
 
-  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version().IsIetfQuic()) {
     EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
   }
   EXPECT_CALL(visitor_,
@@ -8074,7 +8074,7 @@ TEST_P(QuicConnectionTest, DoNotPadServerInitialConnectionClose) {
   EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
   ProcessCryptoPacketAtLevel(1000, ENCRYPTION_INITIAL);
 
-  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version().IsIetfQuic()) {
     EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
   }
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
@@ -10398,7 +10398,7 @@ TEST_P(QuicConnectionTest, ServerReceivedHandshakeDone) {
   }
   set_perspective(Perspective::IS_SERVER);
   EXPECT_CALL(visitor_, OnHandshakeDoneReceived()).Times(0);
-  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version().IsIetfQuic()) {
     EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
   }
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
@@ -11673,7 +11673,7 @@ TEST_P(QuicConnectionTest, SilentIdleTimeout) {
   EXPECT_TRUE(connection_.connected());
   EXPECT_TRUE(connection_.GetTimeoutAlarm()->IsSet());
 
-  if (version().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (version().IsIetfQuic()) {
     EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
   }
   EXPECT_CALL(visitor_,

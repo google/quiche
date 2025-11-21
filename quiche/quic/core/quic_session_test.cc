@@ -116,8 +116,7 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
         ENCRYPTION_FORWARD_SECURE,
         std::make_unique<NullEncrypter>(session()->perspective()));
     session()->OnConfigNegotiated();
-    if (session()->connection()->version().handshake_protocol ==
-        PROTOCOL_TLS1_3) {
+    if (session()->connection()->version().IsIetfQuic()) {
       session()->OnTlsHandshakeComplete();
     } else {
       session()->SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
@@ -1564,7 +1563,7 @@ TEST_P(QuicSessionTestServer, OnRstStreamInvalidStreamId) {
 }
 
 TEST_P(QuicSessionTestServer, OnResetStreamAtInvalidStreamId) {
-  if (connection_->version().handshake_protocol != PROTOCOL_TLS1_3) {
+  if (!connection_->version().IsIetfQuic()) {
     // This test requires IETF QUIC.
     return;
   }
@@ -1581,7 +1580,7 @@ TEST_P(QuicSessionTestServer, OnResetStreamAtInvalidStreamId) {
 }
 
 TEST_P(QuicSessionTestServer, HandshakeUnblocksFlowControlBlockedStream) {
-  if (connection_->version().handshake_protocol == PROTOCOL_TLS1_3) {
+  if (connection_->version().IsIetfQuic()) {
     // This test requires Google QUIC crypto because it assumes streams start
     // off unblocked.
     return;
@@ -1757,7 +1756,7 @@ TEST_P(QuicSessionTestServer, InvalidStreamFlowControlWindowInHandshake) {
   QuicConfigPeer::SetReceivedInitialStreamFlowControlWindow(session_.config(),
                                                             kInvalidWindow);
 
-  if (connection_->version().handshake_protocol != PROTOCOL_TLS1_3) {
+  if (!connection_->version().IsIetfQuic()) {
     EXPECT_CALL(*connection_,
                 CloseConnection(QUIC_FLOW_CONTROL_INVALID_WINDOW, _, _));
   } else {
@@ -3261,7 +3260,7 @@ TEST_P(QuicSessionTestServer, RejectReliableSizeNotNegotiated) {
 }
 
 TEST_P(QuicSessionTestServer, DecryptionKeyAvailableBeforeEncryptionKey) {
-  if (connection_->version().handshake_protocol != PROTOCOL_TLS1_3) {
+  if (!connection_->version().IsIetfQuic()) {
     return;
   }
   ASSERT_FALSE(connection_->framer().HasEncrypterOfEncryptionLevel(

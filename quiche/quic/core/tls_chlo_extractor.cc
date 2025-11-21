@@ -171,7 +171,7 @@ void TlsChloExtractor::IngestPacket(
     QUIC_DLOG(ERROR) << "Not ingesting packet with unsupported version";
     return;
   }
-  if (version.handshake_protocol != PROTOCOL_TLS1_3) {
+  if (!version.IsIetfQuic()) {
     QUIC_DLOG(ERROR) << "Not ingesting packet with non-TLS version " << version;
     return;
   }
