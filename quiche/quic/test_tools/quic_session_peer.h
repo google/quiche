@@ -10,6 +10,7 @@
 #include <memory>
 
 #include "absl/container/flat_hash_map.h"
+#include "quiche/quic/core/quic_datagram_queue.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_write_blocked_list.h"
@@ -73,6 +74,9 @@ class QuicSessionPeer {
   static QuicAlarm* GetCleanUpClosedStreamsAlarm(QuicSession* session);
   static LegacyQuicStreamIdManager* GetStreamIdManager(QuicSession* session);
   static UberQuicStreamIdManager* ietf_streamid_manager(QuicSession* session);
+  static QuicDatagramQueue* datagram_queue(QuicSession* session) {
+    return &session->datagram_queue_;
+  }
   static QuicStreamIdManager* ietf_bidirectional_stream_id_manager(
       QuicSession* session);
   static QuicStreamIdManager* ietf_unidirectional_stream_id_manager(

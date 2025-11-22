@@ -69,8 +69,8 @@ class QUICHE_EXPORT QuicDatagramQueue {
   // and related logic.
   void SetForceFlush(bool force_flush) { force_flush_ = force_flush; }
 
-  size_t queue_size() { return queue_.size(); }
-  bool empty() { return queue_.empty(); }
+  size_t queue_size() const { return queue_.size(); }
+  bool empty() const { return queue_.empty(); }
   uint64_t expired_datagram_count() const { return expired_datagram_count_; }
 
  private:

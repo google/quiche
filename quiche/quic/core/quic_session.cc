@@ -885,6 +885,12 @@ bool QuicSession::WillingAndAbleToWrite() const {
       !streams_with_pending_retransmission_.empty()) {
     return true;
   }
+  // Datagrams may be queued.
+  if (GetQuicReloadableFlag(quic_include_datagrams_in_willing_to_write) &&
+      !datagram_queue_.empty()) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_include_datagrams_in_willing_to_write);
+    return true;
+  }
   if (flow_controller_.IsBlocked()) {
     if (VersionIsIetfQuic(transport_version())) {
       return false;

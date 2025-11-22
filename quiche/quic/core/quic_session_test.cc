@@ -1230,6 +1230,28 @@ TEST_P(QuicSessionTestServer, OnCanWriteWriterBlocks) {
   EXPECT_TRUE(session_.WillingAndAbleToWrite());
 }
 
+TEST_P(QuicSessionTestServer, WillingAndAbleToWriteWithDatagrams) {
+  // Handshake needs to be complete to send datagrams.
+  CompleteHandshake();
+  EXPECT_FALSE(session_.WillingAndAbleToWrite());
+  // Set the connection write blocked to force buffering of datagram.
+  EXPECT_CALL(*connection_, SendDatagram(1, _, false))
+      .WillOnce(Return(DATAGRAM_STATUS_BLOCKED));
+
+  // Queue a datagram.
+  QuicSessionPeer::datagram_queue(&session_)->SendOrQueueDatagram(
+      MemSliceFromString("foo"));
+  EXPECT_LT(0u, QuicSessionPeer::datagram_queue(&session_)->queue_size());
+
+  // With the flag off, WillingAndAbleToWrite should be false.
+  SetQuicReloadableFlag(quic_include_datagrams_in_willing_to_write, false);
+  EXPECT_FALSE(session_.WillingAndAbleToWrite());
+
+  // With the flag on, WillingAndAbleToWrite should be true.
+  SetQuicReloadableFlag(quic_include_datagrams_in_willing_to_write, true);
+  EXPECT_TRUE(session_.WillingAndAbleToWrite());
+}
+
 TEST_P(QuicSessionTestServer, SendStreamsBlocked) {
   if (!VersionIsIetfQuic(transport_version())) {
     return;
