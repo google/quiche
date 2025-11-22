@@ -47,7 +47,10 @@ bool QuicPacketReader::ReadAndDispatchPackets(
 
   // Use clock.Now() as the packet receipt time, the time between packet
   // arriving at the host and now is considered part of the network delay.
-  QuicTime now = clock.Now();
+  QuicTime now = QuicTime::Zero();
+  if (!GetQuicReloadableFlag(quic_move_clock_now)) {
+    now = clock.Now();
+  }
 
   QuicUdpPacketInfoBitMask info_bits(
       {QuicUdpPacketInfoBit::DROPPED_PACKETS,
@@ -55,61 +58,65 @@ bool QuicPacketReader::ReadAndDispatchPackets(
        QuicUdpPacketInfoBit::V6_SELF_IP, QuicUdpPacketInfoBit::RECV_TIMESTAMP,
        QuicUdpPacketInfoBit::TTL, QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER,
        QuicUdpPacketInfoBit::V6_FLOW_LABEL});
-    QUIC_CODE_COUNT(quic_record_tos_byte);
-    // Note ToS bit will also populate ECN codepoint.
-    info_bits.Set(QuicUdpPacketInfoBit::TOS);
-    size_t packets_read =
-        socket_api_.ReadMultiplePackets(fd, info_bits, &read_results_);
-    for (size_t i = 0; i < packets_read; ++i) {
-      auto& result = read_results_[i];
-      if (!result.ok) {
-        QUIC_CODE_COUNT(quic_packet_reader_read_failure);
-        continue;
-      }
-
-      if (!result.packet_info.HasValue(QuicUdpPacketInfoBit::PEER_ADDRESS)) {
-        QUIC_BUG(quic_bug_10329_1) << "Unable to get peer socket address.";
-        continue;
-      }
-
-      QuicSocketAddress peer_address =
-          result.packet_info.peer_address().Normalized();
-
-      QuicIpAddress self_ip = GetSelfIpFromPacketInfo(
-          result.packet_info, peer_address.host().IsIPv6());
-      if (!self_ip.IsInitialized()) {
-        QUIC_BUG(quic_bug_10329_2) << "Unable to get self IP address.";
-        continue;
-      }
-
-      bool has_ttl = result.packet_info.HasValue(QuicUdpPacketInfoBit::TTL);
-      int ttl = has_ttl ? result.packet_info.ttl() : 0;
-      if (!has_ttl) {
-        QUIC_CODE_COUNT(quic_packet_reader_no_ttl);
-      }
-
-      char* headers = nullptr;
-      size_t headers_length = 0;
-      if (result.packet_info.HasValue(
-              QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER)) {
-        headers = result.packet_info.google_packet_headers().buffer;
-        headers_length = result.packet_info.google_packet_headers().buffer_len;
-      } else {
-        QUIC_CODE_COUNT(quic_packet_reader_no_google_packet_header);
-      }
-      uint32_t flow_label = 0;
-      if (result.packet_info.HasValue(QuicUdpPacketInfoBit::V6_FLOW_LABEL)) {
-        flow_label = result.packet_info.flow_label();
-      }
-
-      QuicReceivedPacket packet(
-          result.packet_buffer.buffer, result.packet_buffer.buffer_len, now,
-          /*owns_buffer=*/false, ttl, has_ttl, headers, headers_length,
-          /*owns_header_buffer=*/false, result.packet_info.ecn_codepoint(),
-          result.packet_info.GetTos(), flow_label);
-      QuicSocketAddress self_address(self_ip, port);
-      processor->ProcessPacket(self_address, peer_address, packet);
+  QUIC_CODE_COUNT(quic_record_tos_byte);
+  // Note ToS bit will also populate ECN codepoint.
+  info_bits.Set(QuicUdpPacketInfoBit::TOS);
+  size_t packets_read =
+      socket_api_.ReadMultiplePackets(fd, info_bits, &read_results_);
+  if (GetQuicReloadableFlag(quic_move_clock_now)) {
+    QUIC_CODE_COUNT(quic_move_clock_now);
+    now = clock.Now();
+  }
+  for (size_t i = 0; i < packets_read; ++i) {
+    auto& result = read_results_[i];
+    if (!result.ok) {
+      QUIC_CODE_COUNT(quic_packet_reader_read_failure);
+      continue;
     }
+
+    if (!result.packet_info.HasValue(QuicUdpPacketInfoBit::PEER_ADDRESS)) {
+      QUIC_BUG(quic_bug_10329_1) << "Unable to get peer socket address.";
+      continue;
+    }
+
+    QuicSocketAddress peer_address =
+        result.packet_info.peer_address().Normalized();
+
+    QuicIpAddress self_ip = GetSelfIpFromPacketInfo(
+        result.packet_info, peer_address.host().IsIPv6());
+    if (!self_ip.IsInitialized()) {
+      QUIC_BUG(quic_bug_10329_2) << "Unable to get self IP address.";
+      continue;
+    }
+
+    bool has_ttl = result.packet_info.HasValue(QuicUdpPacketInfoBit::TTL);
+    int ttl = has_ttl ? result.packet_info.ttl() : 0;
+    if (!has_ttl) {
+      QUIC_CODE_COUNT(quic_packet_reader_no_ttl);
+    }
+
+    char* headers = nullptr;
+    size_t headers_length = 0;
+    if (result.packet_info.HasValue(
+            QuicUdpPacketInfoBit::GOOGLE_PACKET_HEADER)) {
+      headers = result.packet_info.google_packet_headers().buffer;
+      headers_length = result.packet_info.google_packet_headers().buffer_len;
+    } else {
+      QUIC_CODE_COUNT(quic_packet_reader_no_google_packet_header);
+    }
+    uint32_t flow_label = 0;
+    if (result.packet_info.HasValue(QuicUdpPacketInfoBit::V6_FLOW_LABEL)) {
+      flow_label = result.packet_info.flow_label();
+    }
+
+    QuicReceivedPacket packet(
+        result.packet_buffer.buffer, result.packet_buffer.buffer_len, now,
+        /*owns_buffer=*/false, ttl, has_ttl, headers, headers_length,
+        /*owns_header_buffer=*/false, result.packet_info.ecn_codepoint(),
+        result.packet_info.GetTos(), flow_label);
+    QuicSocketAddress self_address(self_ip, port);
+    processor->ProcessPacket(self_address, peer_address, packet);
+  }
 
   // We may not have read all of the packets available on the socket.
   return packets_read == kNumPacketsPerReadMmsgCall;
