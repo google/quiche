@@ -94,8 +94,8 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     // Specifies the behavior of the HPACK encoder when compressing headers.
     enum CompressionOption {
       ENABLE_COMPRESSION,   // Dynamic table enabled, Huffman enabled.
-      DISABLE_COMPRESSION,  // Dynamic table enabled, Huffman disabled.
-      DISABLE_HUFFMAN,      // Dynamic table disabled, Huffman disabled.
+      DISABLE_COMPRESSION,  // Dynamic table disabled, Huffman disabled.
+      DISABLE_HUFFMAN,      // Dynamic table enabled, Huffman disabled.
     };
     CompressionOption compression_option = ENABLE_COMPRESSION;
   };
