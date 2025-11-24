@@ -322,11 +322,6 @@ class QUICHE_EXPORT QuicDispatcher
       const std::optional<QuicConnectionId>& replaced_connection_id,
       QuicPacketNumber last_sent_packet_number);
 
-  // Save/Restore per packet context.
-  virtual std::unique_ptr<QuicPerPacketContext> GetPerPacketContext() const;
-  virtual void RestorePerPacketContext(
-      std::unique_ptr<QuicPerPacketContext> /*context*/) {}
-
   // Called if a packet from an unseen connection is reset or rejected.
   virtual void OnNewConnectionRejected() {}
 

@@ -162,25 +162,6 @@ class TestDispatcher : public QuicDispatcher {
   MOCK_METHOD(ConnectionIdGeneratorInterface&, ConnectionIdGenerator, (),
               (override));
 
-  struct TestQuicPerPacketContext : public QuicPerPacketContext {
-    std::string custom_packet_context;
-  };
-
-  std::unique_ptr<QuicPerPacketContext> GetPerPacketContext() const override {
-    auto test_context = std::make_unique<TestQuicPerPacketContext>();
-    test_context->custom_packet_context = custom_packet_context_;
-    return std::move(test_context);
-  }
-
-  void RestorePerPacketContext(
-      std::unique_ptr<QuicPerPacketContext> context) override {
-    TestQuicPerPacketContext* test_context =
-        static_cast<TestQuicPerPacketContext*>(context.get());
-    custom_packet_context_ = test_context->custom_packet_context;
-  }
-
-  std::string custom_packet_context_;
-
   using QuicDispatcher::ConnectionIdGenerator;
   using QuicDispatcher::MaybeDispatchPacket;
   using QuicDispatcher::writer;
@@ -899,7 +880,7 @@ TEST_P(QuicDispatcherTestOneVersion, StatelessVersionNegotiation) {
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
-      SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _, _))
+      SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _))
       .Times(1);
   expect_generator_is_called_ = false;
   ProcessFirstFlight(QuicVersionReservedForNegotiation(), client_address,
@@ -914,7 +895,7 @@ TEST_P(QuicDispatcherTestOneVersion,
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(connection_id, _, _, _, _, _, _, _))
+              SendVersionNegotiationPacket(connection_id, _, _, _, _, _, _))
       .Times(1);
   expect_generator_is_called_ = false;
   ProcessFirstFlight(QuicVersionReservedForNegotiation(), client_address,
@@ -928,8 +909,8 @@ TEST_P(QuicDispatcherTestOneVersion,
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(
-                  TestConnectionId(1), TestConnectionId(2), _, _, _, _, _, _))
+              SendVersionNegotiationPacket(TestConnectionId(1),
+                                           TestConnectionId(2), _, _, _, _, _))
       .Times(1);
   expect_generator_is_called_ = false;
   ProcessFirstFlight(QuicVersionReservedForNegotiation(), client_address,
@@ -942,7 +923,7 @@ TEST_P(QuicDispatcherTestOneVersion, NoVersionNegotiationWithSmallPacket) {
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
       .Times(0);
   std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   // Truncate to 1100 bytes of payload which results in a packet just
@@ -976,7 +957,7 @@ TEST_P(QuicDispatcherTestOneVersion,
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
       .Times(0);
 
   dispatcher_->ProcessPacket(
@@ -996,7 +977,7 @@ TEST_P(QuicDispatcherTestOneVersion,
 
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              SendVersionNegotiationPacket(_, _, _, _, _, _, _, _))
+              SendVersionNegotiationPacket(_, _, _, _, _, _, _))
       .Times(1);
   std::string chlo = SerializeCHLO() + std::string(1200, 'a');
   // Truncate to 1100 bytes of payload which results in a packet just
@@ -1062,7 +1043,7 @@ TEST_P(QuicDispatcherTestAllVersions, TimeWaitListManager) {
   // Dispatcher forwards subsequent packets for this connection_id to the time
   // wait list manager.
   EXPECT_CALL(*time_wait_list_manager_,
-              ProcessPacket(_, _, connection_id, _, _, _))
+              ProcessPacket(_, _, connection_id, _, _))
       .Times(1);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
@@ -1078,11 +1059,11 @@ TEST_P(QuicDispatcherTestAllVersions, NoVersionPacketToTimeWaitListManager) {
   // list manager.
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
-              ProcessPacket(_, _, connection_id, _, _, _))
+              ProcessPacket(_, _, connection_id, _, _))
       .Times(0);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
       .Times(1);
   ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
                 "data");
@@ -1101,19 +1082,18 @@ TEST_P(QuicDispatcherTestAllVersions,
   QuicReceivedPacket packet2(reinterpret_cast<char*>(valid_size_packet),
                              short_packet_len + 1, QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
-      .Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   // Verify small packet is silently dropped.
   EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0xa7))
       .WillOnce(Return(kQuicDefaultConnectionIdLength));
-  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
       .Times(0);
   dispatcher_->ProcessPacket(server_address_, client_address, packet);
   EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0xa7))
       .WillOnce(Return(kQuicDefaultConnectionIdLength));
-  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, packet2);
 }
@@ -1125,11 +1105,10 @@ TEST_P(QuicDispatcherTestOneVersion, DropPacketWithInvalidFlags) {
   QuicReceivedPacket packet(reinterpret_cast<char*>(all_zero_packet),
                             sizeof(all_zero_packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
-      .Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
       .Times(0);
   EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_))
       .WillOnce(Return(kQuicDefaultConnectionIdLength));
@@ -1146,7 +1125,7 @@ TEST_P(QuicDispatcherTestAllVersions, LimitResetsToSameClientAddress) {
 
   // Verify only one reset is sent to the address, although multiple packets
   // are received.
-  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
       .Times(1);
   ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
                 "data");
@@ -1155,7 +1134,7 @@ TEST_P(QuicDispatcherTestAllVersions, LimitResetsToSameClientAddress) {
   ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
                 "data3");
 
-  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
       .Times(2);
   ProcessPacket(client_address2, connection_id, /*has_version_flag=*/false,
                 "data");
@@ -1176,7 +1155,7 @@ TEST_P(QuicDispatcherTestAllVersions,
   QuicSocketAddress client_address3(QuicIpAddress::Loopback6(), 1);
   QuicConnectionId connection_id = TestConnectionId(1);
 
-  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
       .Times(2);
   EXPECT_FALSE(GetClearResetAddressesAlarm()->IsSet());
   ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
@@ -1194,14 +1173,14 @@ TEST_P(QuicDispatcherTestAllVersions,
   // Verify deadline does not change.
   EXPECT_EQ(expected_deadline, GetClearResetAddressesAlarm()->deadline());
   // Verify reset gets throttled since there are too many recent addresses.
-  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
       .Times(0);
   ProcessPacket(client_address3, connection_id, /*has_version_flag=*/false,
                 "data");
 
   mock_helper_.AdvanceTime(QuicTime::Delta::FromMilliseconds(5));
   GetClearResetAddressesAlarm()->Fire();
-  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_, SendPublicReset(_, _, _, _, _))
       .Times(2);
   ProcessPacket(client_address, connection_id, /*has_version_flag=*/false,
                 "data");
@@ -1297,8 +1276,7 @@ TEST_P(QuicDispatcherTestAllVersions, ProcessPacketWithZeroPort) {
   EXPECT_CALL(*dispatcher_, CreateQuicSession(TestConnectionId(1), _,
                                               client_address, _, _, _, _))
       .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
-      .Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   ProcessPacket(client_address, TestConnectionId(1), /*has_version_flag=*/true,
@@ -1314,8 +1292,7 @@ TEST_P(QuicDispatcherTestAllVersions, ProcessPacketWithBlockedPort) {
   EXPECT_CALL(*dispatcher_, CreateQuicSession(TestConnectionId(1), _,
                                               client_address, _, _, _, _))
       .Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
-      .Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   ProcessPacket(client_address, TestConnectionId(1), /*has_version_flag=*/true,
@@ -1354,8 +1331,7 @@ TEST_P(QuicDispatcherTestAllVersions,
   EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0x00))
       .WillOnce(Return(10));
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
-      .Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   expect_generator_is_called_ = false;
@@ -1371,8 +1347,7 @@ TEST_P(QuicDispatcherTestAllVersions,
 
   // dispatcher_ should drop this packet with invalid connection ID.
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
-      .Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
   absl::string_view cid_str = "123456789abcdefg123456789abcdefg";
@@ -1399,7 +1374,7 @@ void QuicDispatcherTestBase::
               SendVersionNegotiationPacket(
                   server_connection_id, client_connection_id,
                   /*ietf_quic=*/true,
-                  /*use_length_prefix=*/true, _, _, client_address, _))
+                  /*use_length_prefix=*/true, _, _, client_address))
       .Times(1);
   expect_generator_is_called_ = false;
   EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
@@ -1452,10 +1427,9 @@ TEST_P(QuicDispatcherTestOneVersion,
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
                                      ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(
-      *time_wait_list_manager_,
-      SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
-                                   /*use_length_prefix=*/true, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
+                                           /*use_length_prefix=*/true, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
 }
@@ -1469,10 +1443,9 @@ TEST_P(QuicDispatcherTestOneVersion,
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
                                      ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(
-      *time_wait_list_manager_,
-      SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
-                                   /*use_length_prefix=*/true, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
+                                           /*use_length_prefix=*/true, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
 }
@@ -1486,10 +1459,9 @@ TEST_P(QuicDispatcherTestOneVersion,
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
                                      ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(
-      *time_wait_list_manager_,
-      SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
-                                   /*use_length_prefix=*/true, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
+                                           /*use_length_prefix=*/true, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
 }
@@ -1503,10 +1475,9 @@ TEST_P(QuicDispatcherTestOneVersion,
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
                                      ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(
-      *time_wait_list_manager_,
-      SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
-                                   /*use_length_prefix=*/true, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
+                                           /*use_length_prefix=*/true, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
 }
@@ -1520,10 +1491,9 @@ TEST_P(QuicDispatcherTestOneVersion,
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
                                      ABSL_ARRAYSIZE(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(
-      *time_wait_list_manager_,
-      SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
-                                   /*use_length_prefix=*/true, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
+                                           /*use_length_prefix=*/true, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
 }
@@ -1540,7 +1510,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   EXPECT_CALL(
       *time_wait_list_manager_,
       SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
-                                   /*use_length_prefix=*/false, _, _, _, _))
+                                   /*use_length_prefix=*/false, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
 }
@@ -1557,7 +1527,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   EXPECT_CALL(
       *time_wait_list_manager_,
       SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
-                                   /*use_length_prefix=*/false, _, _, _, _))
+                                   /*use_length_prefix=*/false, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
 }
@@ -1574,7 +1544,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   EXPECT_CALL(
       *time_wait_list_manager_,
       SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
-                                   /*use_length_prefix=*/false, _, _, _, _))
+                                   /*use_length_prefix=*/false, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
 }
@@ -1592,7 +1562,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   EXPECT_CALL(
       *time_wait_list_manager_,
       SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
-                                   /*use_length_prefix=*/false, _, _, _, _))
+                                   /*use_length_prefix=*/false, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address,
                              received_packet44);
@@ -1608,10 +1578,9 @@ TEST_P(QuicDispatcherTestOneVersion,
                                      kMinPacketSizeForVersionNegotiation,
                                      QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(
-      *time_wait_list_manager_,
-      SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
-                                   /*use_length_prefix=*/true, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
+                                           /*use_length_prefix=*/true, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
 }
@@ -1626,10 +1595,9 @@ TEST_P(QuicDispatcherTestOneVersion,
                                      kMinPacketSizeForVersionNegotiation,
                                      QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(
-      *time_wait_list_manager_,
-      SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
-                                   /*use_length_prefix=*/true, _, _, _, _))
+  EXPECT_CALL(*time_wait_list_manager_,
+              SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
+                                           /*use_length_prefix=*/true, _, _, _))
       .Times(1);
   dispatcher_->ProcessPacket(server_address_, client_address, received_packet);
 }
@@ -1656,7 +1624,7 @@ TEST_P(QuicDispatcherTestOneVersion, VersionNegotiationProbe) {
   EXPECT_CALL(*time_wait_list_manager_,
               SendVersionNegotiationPacket(
                   server_connection_id, client_connection_id,
-                  /*ietf_quic=*/true, /*use_length_prefix=*/true, _, _, _, _))
+                  /*ietf_quic=*/true, /*use_length_prefix=*/true, _, _, _))
       .Times(1);
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
 
@@ -1921,7 +1889,7 @@ TEST_P(QuicDispatcherTestNoVersions, VersionNegotiationFromReservedVersion) {
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
-      SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _, _))
+      SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _))
       .Times(1);
   expect_generator_is_called_ = false;
   ProcessFirstFlight(QuicVersionReservedForNegotiation(), client_address,
@@ -1935,7 +1903,7 @@ TEST_P(QuicDispatcherTestNoVersions, VersionNegotiationFromRealVersion) {
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
-      SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _, _))
+      SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _))
       .Times(1);
   expect_generator_is_called_ = false;
   ProcessFirstFlight(version_, client_address, TestConnectionId(1));
@@ -1959,8 +1927,7 @@ TEST_P(QuicDispatcherTestStrayPacketConnectionId,
   QuicSocketAddress client_address(QuicIpAddress::Loopback4(), 1);
   QuicConnectionId connection_id = TestConnectionId(1);
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
-  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _, _))
-      .Times(0);
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
       .Times(0);
 
@@ -2662,8 +2629,7 @@ TEST_P(BufferedPacketStoreTest,
   if (GetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack)) {
     //  As this packet contains an invalid ack, the dispatcher should add
     //  the connection to time-wait list.
-    EXPECT_CALL(*time_wait_list_manager_,
-                ProcessPacket(_, _, conn_id, _, _, _));
+    EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, conn_id, _, _));
     ProcessReceivedPacket(std::move(received_packet_with_invalid_ack),
                           client_addr_, version_, conn_id);
     EXPECT_TRUE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
@@ -2760,8 +2726,7 @@ TEST_P(BufferedPacketStoreTest,
     // Processing the packet with invalid ack should not create a new
     // session and the connection should be added to time-wait list. The
     // dispatcher should close the connection.
-    EXPECT_CALL(*time_wait_list_manager_,
-                ProcessPacket(_, _, conn_id, _, _, _));
+    EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, conn_id, _, _));
     ProcessReceivedPacket(std::move(received_packet_with_invalid_ack),
                           client_addr_, version_, conn_id);
     EXPECT_TRUE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
@@ -2804,8 +2769,7 @@ TEST_P(BufferedPacketStoreTest,
     // Processing the packet with invalid ack should not create a new
     // session and the connection should be added to time-wait list. The
     // dispatcher should close the connection.
-    EXPECT_CALL(*time_wait_list_manager_,
-                ProcessPacket(_, _, conn_id, _, _, _));
+    EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, conn_id, _, _));
     ProcessReceivedPacket(std::move(received_packet_with_invalid_ack),
                           client_addr_, version_, conn_id);
     EXPECT_TRUE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
@@ -2981,7 +2945,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOAfterExpiration) {
   // New arrived CHLO will be dropped because this connection is in time wait
   // list.
   ASSERT_TRUE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
-  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, conn_id, _, _, _));
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, conn_id, _, _));
   expect_generator_is_called_ = false;
   ProcessFirstFlight(conn_id);
 }

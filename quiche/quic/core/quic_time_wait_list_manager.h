@@ -131,11 +131,11 @@ class QUICHE_EXPORT QuicTimeWaitListManager
   // wait state. virtual to override in tests.
   // TODO(fayang): change ProcessPacket and SendPublicReset to take
   // ReceivedPacketInfo.
-  virtual void ProcessPacket(
-      const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address, QuicConnectionId connection_id,
-      PacketHeaderFormat header_format, size_t received_packet_length,
-      std::unique_ptr<QuicPerPacketContext> packet_context);
+  virtual void ProcessPacket(const QuicSocketAddress& self_address,
+                             const QuicSocketAddress& peer_address,
+                             QuicConnectionId connection_id,
+                             PacketHeaderFormat header_format,
+                             size_t received_packet_length);
 
   // Called by the dispatcher when the underlying socket becomes writable again,
   // since we might need to send pending public reset packets which we didn't
@@ -165,15 +165,13 @@ class QUICHE_EXPORT QuicTimeWaitListManager
       QuicConnectionId client_connection_id, bool ietf_quic,
       bool use_length_prefix, const ParsedQuicVersionVector& supported_versions,
       const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address,
-      std::unique_ptr<QuicPerPacketContext> packet_context);
+      const QuicSocketAddress& peer_address);
 
   // Creates a public reset packet and sends it or queues it to be sent later.
-  virtual void SendPublicReset(
-      const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address, QuicConnectionId connection_id,
-      bool ietf_quic, size_t received_packet_length,
-      std::unique_ptr<QuicPerPacketContext> packet_context);
+  virtual void SendPublicReset(const QuicSocketAddress& self_address,
+                               const QuicSocketAddress& peer_address,
+                               QuicConnectionId connection_id, bool ietf_quic,
+                               size_t received_packet_length);
 
   // Called to send |packet|.
   virtual void SendPacket(const QuicSocketAddress& self_address,
@@ -225,8 +223,7 @@ class QUICHE_EXPORT QuicTimeWaitListManager
   // Subclasses overriding this method should call this class's base
   // implementation at the end of the override.
   // Return true if |packet| is sent, false if it is queued.
-  virtual bool SendOrQueuePacket(std::unique_ptr<QueuedPacket> packet,
-                                 const QuicPerPacketContext* packet_context);
+  virtual bool SendOrQueuePacket(std::unique_ptr<QueuedPacket> packet);
 
   const quiche::QuicheCircularDeque<std::unique_ptr<QueuedPacket>>&
   pending_packets_queue() const {

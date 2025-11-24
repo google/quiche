@@ -49,17 +49,11 @@ class QuicDispatcherPeer {
   static void set_new_sessions_allowed_per_event_loop(
       QuicDispatcher* dispatcher, size_t num_session_allowed);
 
-  static void SendPublicReset(
-      QuicDispatcher* dispatcher, const QuicSocketAddress& self_address,
-      const QuicSocketAddress& peer_address, QuicConnectionId connection_id,
-      bool ietf_quic, size_t received_packet_length,
-      std::unique_ptr<QuicPerPacketContext> packet_context);
-
-  static std::unique_ptr<QuicPerPacketContext> GetPerPacketContext(
-      QuicDispatcher* dispatcher);
-
-  static void RestorePerPacketContext(QuicDispatcher* dispatcher,
-                                      std::unique_ptr<QuicPerPacketContext>);
+  static void SendPublicReset(QuicDispatcher* dispatcher,
+                              const QuicSocketAddress& self_address,
+                              const QuicSocketAddress& peer_address,
+                              QuicConnectionId connection_id, bool ietf_quic,
+                              size_t received_packet_length);
 
   static std::string SelectAlpn(QuicDispatcher* dispatcher,
                                 const std::vector<std::string>& alpns);

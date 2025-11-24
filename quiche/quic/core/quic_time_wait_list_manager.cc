@@ -150,8 +150,7 @@ void QuicTimeWaitListManager::OnBlockedWriterCanWrite() {
 void QuicTimeWaitListManager::ProcessPacket(
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address, QuicConnectionId connection_id,
-    PacketHeaderFormat header_format, size_t received_packet_length,
-    std::unique_ptr<QuicPerPacketContext> packet_context) {
+    PacketHeaderFormat header_format, size_t received_packet_length) {
   QUICHE_DCHECK(IsConnectionIdInTimeWait(connection_id));
   // TODO(satyamshekhar): Think about handling packets from different peer
   // addresses.
@@ -203,7 +202,7 @@ void QuicTimeWaitListManager::ProcessPacket(
           // Send stateless reset in response to short header packets.
           SendPublicReset(self_address, peer_address, connection_id,
                           connection_data->info.ietf_quic,
-                          received_packet_length, std::move(packet_context));
+                          received_packet_length);
           return;
         case GOOGLE_QUIC_Q043_PACKET:
           if (connection_data->info.ietf_quic) {
@@ -214,8 +213,7 @@ void QuicTimeWaitListManager::ProcessPacket(
 
       for (const auto& packet : connection_data->info.termination_packets) {
         SendOrQueuePacket(std::make_unique<QueuedPacket>(
-                              self_address, peer_address, packet->Clone()),
-                          packet_context.get());
+            self_address, peer_address, packet->Clone()));
       }
       return;
 
@@ -226,8 +224,7 @@ void QuicTimeWaitListManager::ProcessPacket(
       }
       for (const auto& packet : connection_data->info.termination_packets) {
         SendOrQueuePacket(std::make_unique<QueuedPacket>(
-                              self_address, peer_address, packet->Clone()),
-                          packet_context.get());
+            self_address, peer_address, packet->Clone()));
       }
       return;
 
@@ -236,8 +233,7 @@ void QuicTimeWaitListManager::ProcessPacket(
         QUIC_CODE_COUNT(quic_stateless_reset_long_header_packet);
       }
       SendPublicReset(self_address, peer_address, connection_id,
-                      connection_data->info.ietf_quic, received_packet_length,
-                      std::move(packet_context));
+                      connection_data->info.ietf_quic, received_packet_length);
       return;
     case DO_NOTHING:
       QUIC_CODE_COUNT(quic_time_wait_list_do_nothing);
@@ -250,8 +246,7 @@ void QuicTimeWaitListManager::SendVersionNegotiationPacket(
     QuicConnectionId client_connection_id, bool ietf_quic,
     bool use_length_prefix, const ParsedQuicVersionVector& supported_versions,
     const QuicSocketAddress& self_address,
-    const QuicSocketAddress& peer_address,
-    std::unique_ptr<QuicPerPacketContext> packet_context) {
+    const QuicSocketAddress& peer_address) {
   std::unique_ptr<QuicEncryptedPacket> version_packet =
       QuicFramer::BuildVersionNegotiationPacket(
           server_connection_id, client_connection_id, ietf_quic,
@@ -264,8 +259,7 @@ void QuicTimeWaitListManager::SendVersionNegotiationPacket(
                 << quiche::QuicheTextUtils::HexDump(absl::string_view(
                        version_packet->data(), version_packet->length()));
   SendOrQueuePacket(std::make_unique<QueuedPacket>(self_address, peer_address,
-                                                   std::move(version_packet)),
-                    packet_context.get());
+                                                   std::move(version_packet)));
 }
 
 // Returns true if the number of packets received for this connection_id is a
@@ -277,8 +271,7 @@ bool QuicTimeWaitListManager::ShouldSendResponse(int received_packet_count) {
 void QuicTimeWaitListManager::SendPublicReset(
     const QuicSocketAddress& self_address,
     const QuicSocketAddress& peer_address, QuicConnectionId connection_id,
-    bool ietf_quic, size_t received_packet_length,
-    std::unique_ptr<QuicPerPacketContext> packet_context) {
+    bool ietf_quic, size_t received_packet_length) {
   if (ietf_quic) {
     std::unique_ptr<QuicEncryptedPacket> ietf_reset_packet =
         BuildIetfStatelessResetPacket(connection_id, received_packet_length);
@@ -293,10 +286,8 @@ void QuicTimeWaitListManager::SendPublicReset(
                   << quiche::QuicheTextUtils::HexDump(
                          absl::string_view(ietf_reset_packet->data(),
                                            ietf_reset_packet->length()));
-    SendOrQueuePacket(
-        std::make_unique<QueuedPacket>(self_address, peer_address,
-                                       std::move(ietf_reset_packet)),
-        packet_context.get());
+    SendOrQueuePacket(std::make_unique<QueuedPacket>(
+        self_address, peer_address, std::move(ietf_reset_packet)));
     return;
   }
   // Google QUIC public resets donot elicit resets in response.
@@ -304,7 +295,6 @@ void QuicTimeWaitListManager::SendPublicReset(
   packet.connection_id = connection_id;
   // TODO(satyamshekhar): generate a valid nonce for this connection_id.
   packet.nonce_proof = 1010101;
-  // TODO(wub): This is wrong for proxied sessions. Fix it.
   packet.client_address = peer_address;
   GetEndpointId(&packet.endpoint_id);
   // Takes ownership of the packet.
@@ -314,16 +304,14 @@ void QuicTimeWaitListManager::SendPublicReset(
                 << quiche::QuicheTextUtils::HexDump(absl::string_view(
                        reset_packet->data(), reset_packet->length()));
   SendOrQueuePacket(std::make_unique<QueuedPacket>(self_address, peer_address,
-                                                   std::move(reset_packet)),
-                    packet_context.get());
+                                                   std::move(reset_packet)));
 }
 
 void QuicTimeWaitListManager::SendPacket(const QuicSocketAddress& self_address,
                                          const QuicSocketAddress& peer_address,
                                          const QuicEncryptedPacket& packet) {
   SendOrQueuePacket(std::make_unique<QueuedPacket>(self_address, peer_address,
-                                                   packet.Clone()),
-                    nullptr);
+                                                   packet.Clone()));
 }
 
 std::unique_ptr<QuicEncryptedPacket> QuicTimeWaitListManager::BuildPublicReset(
@@ -342,8 +330,7 @@ QuicTimeWaitListManager::BuildIetfStatelessResetPacket(
 // Either sends the packet and deletes it or makes pending queue the
 // owner of the packet.
 bool QuicTimeWaitListManager::SendOrQueuePacket(
-    std::unique_ptr<QueuedPacket> packet,
-    const QuicPerPacketContext* /*packet_context*/) {
+    std::unique_ptr<QueuedPacket> packet) {
   if (packet == nullptr) {
     QUIC_LOG(ERROR) << "Tried to send or queue a null packet";
     return true;

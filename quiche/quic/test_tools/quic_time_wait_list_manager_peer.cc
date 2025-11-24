@@ -33,9 +33,8 @@ void QuicTimeWaitListManagerPeer::set_clock(QuicTimeWaitListManager* manager,
 // static
 bool QuicTimeWaitListManagerPeer::SendOrQueuePacket(
     QuicTimeWaitListManager* manager,
-    std::unique_ptr<QuicTimeWaitListManager::QueuedPacket> packet,
-    const QuicPerPacketContext* packet_context) {
-  return manager->SendOrQueuePacket(std::move(packet), packet_context);
+    std::unique_ptr<QuicTimeWaitListManager::QueuedPacket> packet) {
+  return manager->SendOrQueuePacket(std::move(packet));
 }
 
 // static

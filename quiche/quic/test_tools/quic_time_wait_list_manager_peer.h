@@ -24,8 +24,7 @@ class QuicTimeWaitListManagerPeer {
 
   static bool SendOrQueuePacket(
       QuicTimeWaitListManager* manager,
-      std::unique_ptr<QuicTimeWaitListManager::QueuedPacket> packet,
-      const QuicPerPacketContext* packet_context);
+      std::unique_ptr<QuicTimeWaitListManager::QueuedPacket> packet);
 
   static size_t PendingPacketsQueueSize(QuicTimeWaitListManager* manager);
 };

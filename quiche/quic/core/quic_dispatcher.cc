@@ -498,7 +498,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
     time_wait_list_manager_->ProcessPacket(
         packet_info.self_address, packet_info.peer_address,
         packet_info.destination_connection_id, packet_info.form,
-        packet_info.packet.length(), GetPerPacketContext());
+        packet_info.packet.length());
     return true;
   }
 
@@ -520,7 +520,7 @@ bool QuicDispatcher::MaybeDispatchPacket(
     time_wait_list_manager()->ProcessPacket(
         packet_info.self_address, packet_info.peer_address,
         packet_info.destination_connection_id, packet_info.form,
-        packet_info.packet.length(), GetPerPacketContext());
+        packet_info.packet.length());
     OnNewConnectionRejected();
     return true;
   }
@@ -633,8 +633,8 @@ void QuicDispatcher::ProcessHeader(ReceivedPacketInfo* packet_info) {
           server_connection_id));
       time_wait_list_manager_->ProcessPacket(
           packet_info->self_address, packet_info->peer_address,
-          server_connection_id, packet_info->form, packet_info->packet.length(),
-          GetPerPacketContext());
+          server_connection_id, packet_info->form,
+          packet_info->packet.length());
 
       buffered_packets_.DiscardPackets(server_connection_id);
     } break;
@@ -890,11 +890,6 @@ std::vector<std::shared_ptr<QuicSession>> QuicDispatcher::GetSessionsSnapshot()
     }
   }
   return snapshot;
-}
-
-std::unique_ptr<QuicPerPacketContext> QuicDispatcher::GetPerPacketContext()
-    const {
-  return nullptr;
 }
 
 void QuicDispatcher::DeleteSessions() {
@@ -1540,8 +1535,7 @@ void QuicDispatcher::MaybeResetPacketsWithNoVersion(
   time_wait_list_manager()->SendPublicReset(
       packet_info.self_address, packet_info.peer_address,
       packet_info.destination_connection_id,
-      packet_info.form != GOOGLE_QUIC_Q043_PACKET, packet_info.packet.length(),
-      GetPerPacketContext());
+      packet_info.form != GOOGLE_QUIC_Q043_PACKET, packet_info.packet.length());
 }
 
 bool QuicDispatcher::MaybeSendVersionNegotiationPacket(
@@ -1558,8 +1552,7 @@ bool QuicDispatcher::MaybeSendVersionNegotiationPacket(
       packet_info.destination_connection_id, packet_info.source_connection_id,
       packet_info.form != GOOGLE_QUIC_Q043_PACKET,
       packet_info.use_length_prefix, GetSupportedVersions(),
-      packet_info.self_address, packet_info.peer_address,
-      GetPerPacketContext());
+      packet_info.self_address, packet_info.peer_address);
   return true;
 }
 

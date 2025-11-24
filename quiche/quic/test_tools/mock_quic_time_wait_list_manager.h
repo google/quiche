@@ -31,8 +31,7 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
 
   MOCK_METHOD(void, ProcessPacket,
               (const QuicSocketAddress&, const QuicSocketAddress&,
-               QuicConnectionId, PacketHeaderFormat, size_t,
-               std::unique_ptr<QuicPerPacketContext>),
+               QuicConnectionId, PacketHeaderFormat, size_t),
               (override));
 
   MOCK_METHOD(void, SendVersionNegotiationPacket,
@@ -41,14 +40,12 @@ class MockTimeWaitListManager : public QuicTimeWaitListManager {
                bool has_length_prefix,
                const ParsedQuicVersionVector& supported_versions,
                const QuicSocketAddress& server_address,
-               const QuicSocketAddress& client_address,
-               std::unique_ptr<QuicPerPacketContext> packet_context),
+               const QuicSocketAddress& client_address),
               (override));
 
   MOCK_METHOD(void, SendPublicReset,
               (const QuicSocketAddress&, const QuicSocketAddress&,
-               QuicConnectionId, bool, size_t,
-               std::unique_ptr<QuicPerPacketContext>),
+               QuicConnectionId, bool, size_t),
               (override));
 
   MOCK_METHOD(void, SendPacket,

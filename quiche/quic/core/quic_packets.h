@@ -451,11 +451,6 @@ QUICHE_EXPORT char* CopyBuffer(const SerializedPacket& packet);
 QUICHE_EXPORT char* CopyBuffer(const char* encrypted_buffer,
                                QuicPacketLength encrypted_length);
 
-// Context for an incoming packet.
-struct QUICHE_EXPORT QuicPerPacketContext {
-  virtual ~QuicPerPacketContext() {}
-};
-
 // ReceivedPacketInfo comprises information obtained by parsing the unencrypted
 // bytes of a received packet.
 struct QUICHE_EXPORT ReceivedPacketInfo {
