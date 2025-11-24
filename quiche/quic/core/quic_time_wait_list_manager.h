@@ -19,6 +19,7 @@
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_blocked_writer_interface.h"
+#include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
@@ -27,7 +28,6 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
@@ -95,7 +95,8 @@ class QUICHE_EXPORT QuicTimeWaitListManager
   class QUICHE_EXPORT Visitor : public QuicSession::Visitor {
    public:
     void OnPathDegrading() override {}
-    void OnConfigNegotiated(const quic::QuicConfig& confir) override {}
+    void OnConfigNegotiated(
+        [[maybe_unused]] const quic::QuicConfig& config) override {}
   };
 
   // writer - the entity that writes to the socket. (Owned by the caller)
