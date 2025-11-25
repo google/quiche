@@ -46,6 +46,7 @@ http_archive(
 
 http_archive(
     name = "com_google_googleurl",
-    sha256 = "515ed1c5ab441af62bb6d3bda46463c588c5dd79f4449e275caa12d473fdd6c8",  # Last updated 2023-07-06
-    urls = ["https://storage.googleapis.com/quiche-envoy-integration/googleurl-94ff147fe0b96b4cca5d6d316b9af6210c0b8051.tar.gz"],
+    sha256 = "d8a701123250e03b3c0865babdfc78540d66374db78f74aafd09bf08545c00bd",  # Last updated 2025-11-25
+    strip_prefix = "gurl-94ff147fe0b96b4cca5d6d316b9af6210c0b8051",
+    urls = ["https://github.com/google/gurl/archive/94ff147fe0b96b4cca5d6d316b9af6210c0b8051.tar.gz"],
 )
