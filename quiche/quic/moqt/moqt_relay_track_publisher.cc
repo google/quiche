@@ -205,9 +205,13 @@ void MoqtRelayTrackPublisher::OnPublishDone(FullTrackName full_track_name) {
       }
     }
   }
-  for (MoqtObjectListener* listener : listeners_) {
-    listener->OnTrackPublisherGone();
+  is_closing_ = true;
+  while (!listeners_.empty()) {
+    (*listeners_.begin())->OnTrackPublisherGone();
   }
+  upstream_ = quiche::QuicheWeakPtr<MoqtSessionInterface>();
+  DeleteTrack();
+  // No class access below this line!
 }
 
 void MoqtRelayTrackPublisher::OnStreamFin(const FullTrackName&,
