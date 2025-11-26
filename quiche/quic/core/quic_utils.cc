@@ -601,7 +601,7 @@ bool QuicUtils::AreStatelessResetTokensEqual(
 
 bool IsValidWebTransportSessionId(WebTransportSessionId id,
                                   ParsedQuicVersion version) {
-  QUICHE_DCHECK(version.UsesHttp3());
+  QUICHE_DCHECK(version.IsIetfQuic());
   return (id <= std::numeric_limits<QuicStreamId>::max()) &&
          QuicUtils::IsBidirectionalStreamId(id, version) &&
          QuicUtils::IsClientInitiatedStreamId(version.transport_version, id);
