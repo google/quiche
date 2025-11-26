@@ -623,5 +623,11 @@ uint64_t QuicConnectionPeer::GetPeerReorderingThreshold(
       .reordering_threshold_;
 }
 
+// static
+bool QuicConnectionPeer::ConnectionMigrationDisabled(
+    QuicConnection* connection) {
+  return connection->active_migration_disabled_;
+}
+
 }  // namespace test
 }  // namespace quic

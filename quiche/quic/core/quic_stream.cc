@@ -66,32 +66,34 @@ QuicByteCount GetInitialStreamFlowControlWindowToSend(QuicSession* session,
                                                       QuicStreamId stream_id) {
   ParsedQuicVersion version = session->connection()->version();
   if (!version.IsIetfQuic()) {
-    return session->config()->GetInitialStreamFlowControlWindowToSend();
+    return session->GetSavedConfig().GetInitialStreamFlowControlWindowToSend();
   }
 
   // Unidirectional streams (v99 only).
   if (VersionIsIetfQuic(version.transport_version) &&
       !QuicUtils::IsBidirectionalStreamId(stream_id, version)) {
-    return session->config()
-        ->GetInitialMaxStreamDataBytesUnidirectionalToSend();
+    return session->GetSavedConfig()
+        .GetInitialMaxStreamDataBytesUnidirectionalToSend();
   }
 
   if (QuicUtils::IsOutgoingStreamId(version, stream_id,
                                     session->perspective())) {
-    return session->config()
-        ->GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend();
+    return session->GetSavedConfig()
+        .GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend();
   }
 
-  return session->config()
-      ->GetInitialMaxStreamDataBytesIncomingBidirectionalToSend();
+  return session->GetSavedConfig()
+      .GetInitialMaxStreamDataBytesIncomingBidirectionalToSend();
 }
 
 QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
                                            QuicStreamId stream_id) {
   ParsedQuicVersion version = session->connection()->version();
   if (!version.IsIetfQuic()) {
-    if (session->config()->HasReceivedInitialStreamFlowControlWindowBytes()) {
-      return session->config()->ReceivedInitialStreamFlowControlWindowBytes();
+    if (session->GetSavedConfig()
+            .HasReceivedInitialStreamFlowControlWindowBytes()) {
+      return session->GetSavedConfig()
+          .ReceivedInitialStreamFlowControlWindowBytes();
     }
 
     return DefaultFlowControlWindow(version);
@@ -100,10 +102,10 @@ QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
   // Unidirectional streams (v99 only).
   if (VersionIsIetfQuic(version.transport_version) &&
       !QuicUtils::IsBidirectionalStreamId(stream_id, version)) {
-    if (session->config()
-            ->HasReceivedInitialMaxStreamDataBytesUnidirectional()) {
-      return session->config()
-          ->ReceivedInitialMaxStreamDataBytesUnidirectional();
+    if (session->GetSavedConfig()
+            .HasReceivedInitialMaxStreamDataBytesUnidirectional()) {
+      return session->GetSavedConfig()
+          .ReceivedInitialMaxStreamDataBytesUnidirectional();
     }
 
     return DefaultFlowControlWindow(version);
@@ -111,19 +113,19 @@ QuicByteCount GetReceivedFlowControlWindow(QuicSession* session,
 
   if (QuicUtils::IsOutgoingStreamId(version, stream_id,
                                     session->perspective())) {
-    if (session->config()
-            ->HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()) {
-      return session->config()
-          ->ReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
+    if (session->GetSavedConfig()
+            .HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()) {
+      return session->GetSavedConfig()
+          .ReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
     }
 
     return DefaultFlowControlWindow(version);
   }
 
-  if (session->config()
-          ->HasReceivedInitialMaxStreamDataBytesIncomingBidirectional()) {
-    return session->config()
-        ->ReceivedInitialMaxStreamDataBytesIncomingBidirectional();
+  if (session->GetSavedConfig()
+          .HasReceivedInitialMaxStreamDataBytesIncomingBidirectional()) {
+    return session->GetSavedConfig()
+        .ReceivedInitialMaxStreamDataBytesIncomingBidirectional();
   }
 
   return DefaultFlowControlWindow(version);

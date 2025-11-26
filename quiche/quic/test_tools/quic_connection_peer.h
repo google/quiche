@@ -256,6 +256,8 @@ class QuicConnectionPeer {
       const QuicConnection* connection);
 
   static uint64_t GetPeerReorderingThreshold(QuicConnection* connection);
+
+  static bool ConnectionMigrationDisabled(QuicConnection* connection);
 };
 
 }  // namespace test

@@ -115,6 +115,93 @@ class QUICHE_EXPORT QuicSession
     virtual void OnConfigNegotiated(const QuicConfig& config) = 0;
   };
 
+  // Wrapper around a `QuicConfig` which provides access to the underlying
+  // config.
+  class QUICHE_EXPORT SavedConfig {
+   public:
+    // Creates a new `SavedConfig` which stores a copy of `config`.
+    SavedConfig(const QuicConfig& config) : config_(config) {}
+
+    // Returns the underlying `QuicConfig`. Must not be called after the config
+    // is deleted.
+    QuicConfig* RawConfig() {
+      QUIC_BUG_IF(no_config, config_deleted_);
+      return &config_;
+    }
+
+    // Marks the config deleted but does not actually delete it.
+    // TODO(b/461482627): Store `config_` in a unique_ptr and reset it.
+    void DeleteConfig() { config_deleted_ = true; }
+
+    bool HasReceivedInitialStreamFlowControlWindowBytes() const {
+      return config_.HasReceivedInitialStreamFlowControlWindowBytes();
+    }
+
+    bool HasReceivedInitialMaxStreamDataBytesUnidirectional() const {
+      return config_.HasReceivedInitialMaxStreamDataBytesUnidirectional();
+    }
+
+    bool HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional() const {
+      return config_
+          .HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
+    }
+
+    bool HasReceivedInitialMaxStreamDataBytesIncomingBidirectional() const {
+      return config_
+          .HasReceivedInitialMaxStreamDataBytesIncomingBidirectional();
+    }
+
+    bool HasReceivedMaxBidirectionalStreams() const {
+      return config_.HasReceivedMaxBidirectionalStreams();
+    }
+
+    uint64_t ReceivedInitialStreamFlowControlWindowBytes() const {
+      return config_.ReceivedInitialStreamFlowControlWindowBytes();
+    }
+
+    uint64_t ReceivedInitialMaxStreamDataBytesUnidirectional() const {
+      return config_.ReceivedInitialMaxStreamDataBytesUnidirectional();
+    }
+
+    uint64_t ReceivedInitialMaxStreamDataBytesOutgoingBidirectional() const {
+      return config_.ReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
+    }
+
+    uint64_t ReceivedInitialMaxStreamDataBytesIncomingBidirectional() const {
+      return config_.ReceivedInitialMaxStreamDataBytesIncomingBidirectional();
+    }
+
+    uint64_t GetInitialStreamFlowControlWindowToSend() const {
+      return config_.GetInitialStreamFlowControlWindowToSend();
+    }
+
+    uint64_t GetInitialMaxStreamDataBytesUnidirectionalToSend() const {
+      return config_.GetInitialMaxStreamDataBytesUnidirectionalToSend();
+    }
+
+    uint64_t GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend() const {
+      return config_.GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend();
+    }
+
+    uint64_t GetInitialMaxStreamDataBytesIncomingBidirectionalToSend() const {
+      return config_.GetInitialMaxStreamDataBytesIncomingBidirectionalToSend();
+    }
+
+    uint64_t ReceivedMaxBidirectionalStreams() const {
+      return config_.ReceivedMaxBidirectionalStreams();
+    }
+
+    QuicTime::Delta IdleNetworkTimeout() const {
+      return config_.IdleNetworkTimeout();
+    }
+
+   private:
+    // TODO(b/461482627): Store `config_` in a unique_ptr and reset it in
+    // `DeleteConfig()`.
+    QuicConfig config_;
+    bool config_deleted_ = false;
+  };
+
   // Does not take ownership of |connection| or |visitor|.
   QuicSession(QuicConnection* connection, Visitor* owner,
               const QuicConfig& config,
@@ -384,9 +471,10 @@ class QUICHE_EXPORT QuicSession
       const CryptoHandshakeMessage& message);
 
   // Returns mutable config for this session. Returned config is owned
-  // by QuicSession.
-  QuicConfig* config() { return &config_; }
-  const QuicConfig* config() const { return &config_; }
+  // by QuicSession. Must not be called after the handshake completes.
+  QuicConfig* config() { return saved_config_.RawConfig(); }
+
+  const SavedConfig& GetSavedConfig() const { return saved_config_; }
 
   // Returns true if the stream existed previously and has been closed.
   // Returns false if the stream is still active or if the stream has
@@ -1133,7 +1221,7 @@ class QUICHE_EXPORT QuicSession
   // Manages stream IDs for version99/IETF QUIC
   UberQuicStreamIdManager ietf_streamid_manager_;
 
-  QuicConfig config_;
+  SavedConfig saved_config_;
 };
 
 }  // namespace quic
