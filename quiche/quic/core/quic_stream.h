@@ -19,29 +19,31 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <list>
-#include <memory>
 #include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_rst_stream_frame.h"
+#include "quiche/quic/core/frames/quic_stream_frame.h"
+#include "quiche/quic/core/frames/quic_window_update_frame.h"
+#include "quiche/quic/core/quic_ack_listener_interface.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_flow_controller.h"
-#include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_stream_send_buffer.h"
 #include "quiche/quic/core/quic_stream_send_buffer_base.h"
 #include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/core/session_notifier_interface.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/core/stream_delegate_interface.h"
-#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 #include "quiche/common/quiche_mem_slice.h"
 
@@ -573,7 +575,6 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   void MaybeCloseStreamWithBufferedReset();
 
   QuicStreamSequencer sequencer_;
-  QuicStreamId id_;
   // Pointer to the owning QuicSession object.
   // TODO(b/136274541): Remove session pointer from streams.
   QuicSession* session_;
@@ -587,62 +588,22 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // Stream error code received from a RstStreamFrame or error code sent by the
   // visitor or sequencer in the RstStreamFrame.
   QuicResetStreamError stream_error_;
+
+  QuicStreamId id_;
+
   // Connection error code due to which the stream was closed. |stream_error_|
   // is set to |QUIC_STREAM_CONNECTION_ERROR| when this happens and consumers
   // should check |connection_error_|.
   QuicErrorCode connection_error_;
-
-  // True if the read side is closed and further frames should be rejected.
-  bool read_side_closed_;
-  // True if the write side is closed, and further writes should fail.
-  bool write_side_closed_;
-
-  // True if OnWriteSideInDataRecvdState() has already been called.
-  bool write_side_data_recvd_state_notified_;
-
-  // True if the subclass has written a FIN with WriteOrBufferData, but it was
-  // buffered in queued_data_ rather than being sent to the session.
-  bool fin_buffered_;
-  // True if a FIN has been sent to the session.
-  bool fin_sent_;
-  // True if a FIN is waiting to be acked.
-  bool fin_outstanding_;
-  // True if a FIN is lost.
-  bool fin_lost_;
-
-  // True if this stream has received (and the sequencer has accepted) a
-  // StreamFrame with the FIN set.
-  bool fin_received_;
-
-  // True if an RST_STREAM or RESET_STREAM_AT has been sent to the session.
-  // In combination with fin_sent_, used to ensure that a FIN, RST_STREAM, or
-  // RESET_STREAM_AT is always sent to terminate the stream.
-  bool rst_sent_;
-  bool rst_stream_at_sent_;
-
-  // True if this stream has received a RST_STREAM frame.
-  bool rst_received_;
-
-  // True if the stream has sent STOP_SENDING to the session.
-  bool stop_sending_sent_;
 
   std::optional<QuicFlowController> flow_controller_;
 
   // The connection level flow controller. Not owned.
   QuicFlowController* connection_flow_controller_;
 
-  // Special streams, such as the crypto and headers streams, do not respect
-  // connection level flow control limits (but are stream level flow control
-  // limited).
-  bool stream_contributes_to_connection_flow_control_;
-
   // A counter incremented when OnCanWrite() is called and no progress is made.
   // For debugging only.
   size_t busy_counter_;
-
-  // Indicates whether paddings will be added after the fin is consumed for this
-  // stream.
-  bool add_random_padding_after_fin_;
 
   // Send buffer of this stream. Send buffer is cleaned up when data gets acked
   // or discarded.
@@ -651,19 +612,8 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // Latched value of quic_buffered_data_threshold.
   const QuicByteCount buffered_data_threshold_;
 
-  // If true, then this stream has precedence over other streams for write
-  // scheduling.
-  const bool is_static_;
-
   // If initialized, reset this stream at this deadline.
   QuicTime deadline_;
-
-  // True if this stream has entered draining state.
-  bool was_draining_;
-
-  // Indicates whether this stream is bidirectional, read unidirectional or
-  // write unidirectional.
-  const StreamType type_;
 
   // Creation time of this stream, as reported by the QuicClock.
   const QuicTime creation_time_;
@@ -675,14 +625,65 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // When RESET_STREAM_AT arrives,buffer it for when reliable_size is consumed.
   std::optional<QuicResetStreamAtFrame> buffered_reset_stream_at_;
 
-  Perspective perspective_;
-
-  const bool notify_ack_listener_earlier_ =
-      GetQuicReloadableFlag(quic_notify_ack_listener_earlier);
-
   // If the stream is reset, outgoing data up to reliable_size_will be
   // delivered (and acknowledged) before the write side of the stream is closed.
   QuicStreamOffset reliable_size_;
+
+  // Indicates whether this stream is bidirectional, read unidirectional or
+  // write unidirectional.
+  const StreamType type_;
+
+  Perspective perspective_;
+
+  // True if the read side is closed and further frames should be rejected.
+  bool read_side_closed_ : 1;
+  // True if the write side is closed, and further writes should fail.
+  bool write_side_closed_ : 1;
+  // True if OnWriteSideInDataRecvdState() has already been called.
+  bool write_side_data_recvd_state_notified_ : 1;
+
+  const bool notify_ack_listener_earlier_ : 1 =
+      GetQuicReloadableFlag(quic_notify_ack_listener_earlier);
+
+  // True if the subclass has written a FIN with WriteOrBufferData, but it was
+  // buffered in queued_data_ rather than being sent to the session.
+  bool fin_buffered_ : 1;
+  // True if a FIN has been sent to the session.
+  bool fin_sent_ : 1;
+  // True if a FIN is waiting to be acked.
+  bool fin_outstanding_ : 1;
+  // True if a FIN is lost.
+  bool fin_lost_ : 1;
+  // True if this stream has received (and the sequencer has accepted) a
+  // StreamFrame with the FIN set.
+  bool fin_received_ : 1;
+
+  // True if an RST_STREAM or RESET_STREAM_AT has been sent to the session.
+  // In combination with fin_sent_, used to ensure that a FIN, RST_STREAM, or
+  // RESET_STREAM_AT is always sent to terminate the stream.
+  bool rst_sent_ : 1;
+  bool rst_stream_at_sent_ : 1;
+  // True if this stream has received a RST_STREAM frame.
+  bool rst_received_ : 1;
+
+  // True if the stream has sent STOP_SENDING to the session.
+  bool stop_sending_sent_ : 1;
+
+  // Special streams, such as the crypto and headers streams, do not respect
+  // connection level flow control limits (but are stream level flow control
+  // limited).
+  bool stream_contributes_to_connection_flow_control_ : 1;
+
+  // Indicates whether paddings will be added after the fin is consumed for this
+  // stream.
+  bool add_random_padding_after_fin_ : 1;
+
+  // If true, then this stream has precedence over other streams for write
+  // scheduling.
+  const bool is_static_ : 1;
+
+  // True if this stream has entered draining state.
+  bool was_draining_ : 1;
 };
 
 }  // namespace quic
