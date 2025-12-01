@@ -120,86 +120,149 @@ class QUICHE_EXPORT QuicSession
   class QUICHE_EXPORT SavedConfig {
    public:
     // Creates a new `SavedConfig` which stores a copy of `config`.
-    SavedConfig(const QuicConfig& config) : config_(config) {}
+    explicit SavedConfig(const QuicConfig& config)
+        : config_(std::make_unique<QuicConfig>(config)) {}
 
     // Returns the underlying `QuicConfig`. Must not be called after the config
     // is deleted.
     QuicConfig* RawConfig() {
       QUIC_BUG_IF(no_config, config_deleted_);
-      return &config_;
+      QUIC_BUG_IF(no_config, delete_config_ && config_ == nullptr);
+      return config_.get();
     }
 
-    // Marks the config deleted but does not actually delete it.
-    // TODO(b/461482627): Store `config_` in a unique_ptr and reset it.
-    void DeleteConfig() { config_deleted_ = true; }
+    void DeleteConfig(ParsedQuicVersion version);
 
     bool HasReceivedInitialStreamFlowControlWindowBytes() const {
-      return config_.HasReceivedInitialStreamFlowControlWindowBytes();
+      if (delete_config_ && config_ == nullptr) {
+        return has_received_initial_stream_flow_control_window_bytes_;
+      }
+      return config_->HasReceivedInitialStreamFlowControlWindowBytes();
     }
 
     bool HasReceivedInitialMaxStreamDataBytesUnidirectional() const {
-      return config_.HasReceivedInitialMaxStreamDataBytesUnidirectional();
+      if (delete_config_ && config_ == nullptr) {
+        return has_received_initial_max_stream_data_bytes_unidirectional_;
+      }
+      return config_->HasReceivedInitialMaxStreamDataBytesUnidirectional();
     }
 
     bool HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional() const {
+      if (delete_config_ && config_ == nullptr) {
+        return has_received_initial_max_stream_data_bytes_outgoing_bidirectional_;  // NOLINT
+      }
       return config_
-          .HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
+          ->HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
     }
 
     bool HasReceivedInitialMaxStreamDataBytesIncomingBidirectional() const {
+      if (delete_config_ && config_ == nullptr) {
+        return has_received_initial_max_stream_data_bytes_incoming_bidirectional_;  // NOLINT
+      }
       return config_
-          .HasReceivedInitialMaxStreamDataBytesIncomingBidirectional();
+          ->HasReceivedInitialMaxStreamDataBytesIncomingBidirectional();
     }
 
     bool HasReceivedMaxBidirectionalStreams() const {
-      return config_.HasReceivedMaxBidirectionalStreams();
+      if (delete_config_ && config_ == nullptr) {
+        return has_received_max_bidirectional_streams_;
+      }
+      return config_->HasReceivedMaxBidirectionalStreams();
     }
 
     uint64_t ReceivedInitialStreamFlowControlWindowBytes() const {
-      return config_.ReceivedInitialStreamFlowControlWindowBytes();
+      if (delete_config_ && config_ == nullptr) {
+        return received_initial_stream_flow_control_window_bytes_;
+      }
+      return config_->ReceivedInitialStreamFlowControlWindowBytes();
     }
 
     uint64_t ReceivedInitialMaxStreamDataBytesUnidirectional() const {
-      return config_.ReceivedInitialMaxStreamDataBytesUnidirectional();
+      if (delete_config_ && config_ == nullptr) {
+        return received_initial_max_stream_data_bytes_unidirectional_;
+      }
+      return config_->ReceivedInitialMaxStreamDataBytesUnidirectional();
     }
 
     uint64_t ReceivedInitialMaxStreamDataBytesOutgoingBidirectional() const {
-      return config_.ReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
+      if (delete_config_ && config_ == nullptr) {
+        return received_initial_max_stream_data_bytes_outgoing_bidirectional_;
+      }
+      return config_->ReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
     }
 
     uint64_t ReceivedInitialMaxStreamDataBytesIncomingBidirectional() const {
-      return config_.ReceivedInitialMaxStreamDataBytesIncomingBidirectional();
+      if (delete_config_ && config_ == nullptr) {
+        return received_initial_max_stream_data_bytes_incoming_bidirectional_;
+      }
+      return config_->ReceivedInitialMaxStreamDataBytesIncomingBidirectional();
     }
 
     uint64_t GetInitialStreamFlowControlWindowToSend() const {
-      return config_.GetInitialStreamFlowControlWindowToSend();
+      if (delete_config_ && config_ == nullptr) {
+        return get_initial_stream_flow_control_window_to_send_;
+      }
+      return config_->GetInitialStreamFlowControlWindowToSend();
     }
 
     uint64_t GetInitialMaxStreamDataBytesUnidirectionalToSend() const {
-      return config_.GetInitialMaxStreamDataBytesUnidirectionalToSend();
+      if (delete_config_ && config_ == nullptr) {
+        return get_initial_max_stream_data_bytes_unidirectional_to_send_;
+      }
+      return config_->GetInitialMaxStreamDataBytesUnidirectionalToSend();
     }
 
     uint64_t GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend() const {
-      return config_.GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend();
+      if (delete_config_ && config_ == nullptr) {
+        return get_initial_max_stream_data_bytes_outgoing_bidirectional_to_send_;  // NOLINT
+      }
+      return config_->GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend();
     }
 
     uint64_t GetInitialMaxStreamDataBytesIncomingBidirectionalToSend() const {
-      return config_.GetInitialMaxStreamDataBytesIncomingBidirectionalToSend();
+      if (delete_config_ && config_ == nullptr) {
+        return get_initial_max_stream_data_bytes_incoming_bidirectional_to_send_;  // NOLINT
+      }
+      return config_->GetInitialMaxStreamDataBytesIncomingBidirectionalToSend();
     }
 
     uint64_t ReceivedMaxBidirectionalStreams() const {
-      return config_.ReceivedMaxBidirectionalStreams();
+      if (delete_config_ && config_ == nullptr) {
+        return received_max_bidirectional_streams_;
+      }
+      return config_->ReceivedMaxBidirectionalStreams();
     }
 
     QuicTime::Delta IdleNetworkTimeout() const {
-      return config_.IdleNetworkTimeout();
+      if (delete_config_ && config_ == nullptr) {
+        return idle_network_timeout_;
+      }
+      return config_->IdleNetworkTimeout();
     }
 
    private:
-    // TODO(b/461482627): Store `config_` in a unique_ptr and reset it in
-    // `DeleteConfig()`.
-    QuicConfig config_;
+    std::unique_ptr<QuicConfig> config_;
+    // TODO(b/461482627): Delete this when retiring the flag.
     bool config_deleted_ = false;
+    const bool delete_config_ = GetQuicReloadableFlag(quic_delete_config);
+
+    bool has_received_initial_stream_flow_control_window_bytes_ = false;
+    bool has_received_initial_max_stream_data_bytes_unidirectional_ = false;
+    bool has_received_initial_max_stream_data_bytes_outgoing_bidirectional_ =
+        false;
+    bool has_received_initial_max_stream_data_bytes_incoming_bidirectional_ =
+        false;
+    bool has_received_max_bidirectional_streams_ = false;
+    uint64_t received_initial_stream_flow_control_window_bytes_;
+    uint64_t received_initial_max_stream_data_bytes_unidirectional_;
+    uint64_t received_initial_max_stream_data_bytes_outgoing_bidirectional_;
+    uint64_t received_initial_max_stream_data_bytes_incoming_bidirectional_;
+    uint64_t get_initial_stream_flow_control_window_to_send_;
+    uint64_t get_initial_max_stream_data_bytes_unidirectional_to_send_;
+    uint64_t get_initial_max_stream_data_bytes_outgoing_bidirectional_to_send_;
+    uint64_t get_initial_max_stream_data_bytes_incoming_bidirectional_to_send_;
+    uint64_t received_max_bidirectional_streams_;
+    QuicTime::Delta idle_network_timeout_ = QuicTime::Delta::Zero();
   };
 
   // Does not take ownership of |connection| or |visitor|.

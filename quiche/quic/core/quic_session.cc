@@ -101,6 +101,58 @@ std::unique_ptr<QuicWriteBlockedListInterface> CreateWriteBlockedList(
 
 }  // namespace
 
+void QuicSession::SavedConfig::DeleteConfig(ParsedQuicVersion version) {
+  if (!delete_config_) {
+    config_deleted_ = true;
+    return;
+  }
+
+  if (version.IsIetfQuic()) {
+    QUIC_BUG_IF(no_config_in_delete_config, config_ == nullptr);
+  } else if (config_ == nullptr) {
+    return;
+  }
+
+  if (config_->HasReceivedInitialStreamFlowControlWindowBytes()) {
+    has_received_initial_stream_flow_control_window_bytes_ = true;
+    received_initial_stream_flow_control_window_bytes_ =
+        config_->ReceivedInitialStreamFlowControlWindowBytes();
+  }
+  if (config_->HasReceivedInitialMaxStreamDataBytesUnidirectional()) {
+    has_received_initial_max_stream_data_bytes_unidirectional_ = true;
+    received_initial_max_stream_data_bytes_unidirectional_ =
+        config_->ReceivedInitialMaxStreamDataBytesUnidirectional();
+  }
+  if (config_->HasReceivedInitialMaxStreamDataBytesOutgoingBidirectional()) {
+    has_received_initial_max_stream_data_bytes_outgoing_bidirectional_ = true;
+    received_initial_max_stream_data_bytes_outgoing_bidirectional_ =
+        config_->ReceivedInitialMaxStreamDataBytesOutgoingBidirectional();
+  }
+  if (config_->HasReceivedInitialMaxStreamDataBytesIncomingBidirectional()) {
+    has_received_initial_max_stream_data_bytes_incoming_bidirectional_ = true;
+    received_initial_max_stream_data_bytes_incoming_bidirectional_ =
+        config_->ReceivedInitialMaxStreamDataBytesIncomingBidirectional();
+  }
+  if (config_->HasReceivedMaxBidirectionalStreams()) {
+    has_received_max_bidirectional_streams_ = true;
+    received_max_bidirectional_streams_ =
+        config_->ReceivedMaxBidirectionalStreams();
+  }
+
+  get_initial_stream_flow_control_window_to_send_ =
+      config_->GetInitialStreamFlowControlWindowToSend();
+  get_initial_max_stream_data_bytes_unidirectional_to_send_ =
+      config_->GetInitialMaxStreamDataBytesUnidirectionalToSend();
+  get_initial_max_stream_data_bytes_outgoing_bidirectional_to_send_ =
+      config_->GetInitialMaxStreamDataBytesOutgoingBidirectionalToSend();
+  get_initial_max_stream_data_bytes_incoming_bidirectional_to_send_ =
+      config_->GetInitialMaxStreamDataBytesIncomingBidirectionalToSend();
+  received_max_bidirectional_streams_ =
+      config_->ReceivedMaxBidirectionalStreams();
+  idle_network_timeout_ = config_->IdleNetworkTimeout();
+  config_.reset();
+}
+
 #define ENDPOINT \
   (perspective() == Perspective::IS_SERVER ? "Server: " : "Client: ")
 
@@ -1970,7 +2022,7 @@ void QuicSession::NeuterHandshakeData() {
   GetMutableCryptoStream()->NeuterStreamDataOfEncryptionLevel(
       ENCRYPTION_HANDSHAKE);
   connection()->OnHandshakeComplete();
-  saved_config_.DeleteConfig();
+  saved_config_.DeleteConfig(version());
 }
 
 void QuicSession::OnZeroRttRejected(int reason) {
