@@ -120,6 +120,8 @@ MoqtSession::MoqtSession(webtransport::Session* session,
   } else {
     next_incoming_request_id_ = 1;
   }
+  QUICHE_DCHECK(parameters_.moqt_implementation.empty());
+  parameters_.moqt_implementation = kVersionString;
 }
 
 MoqtSession::ControlStream* MoqtSession::GetControlStream() {

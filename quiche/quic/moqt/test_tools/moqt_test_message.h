@@ -62,6 +62,9 @@ inline std::vector<MoqtDataStreamType> AllMoqtDataStreamTypes() {
   return types;
 }
 
+constexpr absl::string_view kTestImplementationString =
+    "Moq Test Implementation Type";
+
 // Base class containing a wire image and the corresponding structured
 // representation of an example of each message. It allows parser and framer
 // tests to iterate through all message types without much specialized code.
@@ -494,14 +497,16 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
  public:
   explicit ClientSetupMessage(bool webtrans) : TestMessageBase() {
     client_setup_.parameters.using_webtrans = webtrans;
+    client_setup_.parameters.moqt_implementation = kTestImplementationString;
     if (webtrans) {
       // Should not send PATH or AUTHORITY.
       client_setup_.parameters.path = "";
       client_setup_.parameters.authority = "";
-      raw_packet_[2] = 0x23;  // adjust payload length (-17)
+      raw_packet_[2] = 0x24;  // adjust payload length (-17)
       raw_packet_[6] = 0x02;  // only two parameters
       // Move MoqtImplementation up in the packet.
-      memmove(raw_packet_ + 9, raw_packet_ + 26, 29);
+      memmove(raw_packet_ + 9, raw_packet_ + 26,
+              kTestImplementationString.length() + 2);
       SetWireImage(raw_packet_, sizeof(raw_packet_) - 17);
     } else {
       SetWireImage(raw_packet_, sizeof(raw_packet_));
@@ -546,8 +551,8 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   // string parameters in order. Unfortunately, this means that
   // kMoqtImplementation goes last even though it is always present, while
   // kPath and KAuthority aren't.
-  uint8_t raw_packet_[55] = {
-      0x20, 0x00, 0x34,                    // type, length
+  uint8_t raw_packet_[56] = {
+      0x20, 0x00, 0x35,                    // type, length
       0x02, 0x01, 0x02,                    // versions
       0x04,                                // 4 parameters
       0x02, 0x32,                          // max_request_id = 50
@@ -555,9 +560,9 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       0x05, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74,
       0x79,  // authority = "authority"
       // moqt_implementation:
-      0x07, 0x1b, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65, 0x20, 0x51, 0x55, 0x49,
-      0x43, 0x48, 0x45, 0x20, 0x4d, 0x4f, 0x51, 0x54, 0x20, 0x64, 0x72, 0x61,
-      0x66, 0x74, 0x20, 0x31, 0x34};
+      0x07, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65, 0x73, 0x74, 0x20, 0x49,
+      0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
+      0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
   MoqtClientSetup client_setup_ = {
       /*supported_versions=*/std::vector<MoqtVersion>(
           {static_cast<MoqtVersion>(1), static_cast<MoqtVersion>(2)}),
@@ -570,6 +575,7 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
  public:
   explicit ServerSetupMessage(bool webtrans) : TestMessageBase() {
     server_setup_.parameters.using_webtrans = webtrans;
+    server_setup_.parameters.moqt_implementation = kTestImplementationString;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -589,17 +595,17 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[36] = {0x21, 0x00,
-                             0x21,  // type
+  uint8_t raw_packet_[37] = {0x21, 0x00,
+                             0x22,  // type
                              0x01,
                              0x02,  // version, two parameters
                              0x02,
                              0x32,  // max_subscribe_id = 50
                              // moqt_implementation:
-                             0x07, 0x1b, 0x47, 0x6f, 0x6f, 0x67, 0x6c, 0x65,
-                             0x20, 0x51, 0x55, 0x49, 0x43, 0x48, 0x45, 0x20,
-                             0x4d, 0x4f, 0x51, 0x54, 0x20, 0x64, 0x72, 0x61,
-                             0x66, 0x74, 0x20, 0x31, 0x34};
+                             0x07, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65,
+                             0x73, 0x74, 0x20, 0x49, 0x6d, 0x70, 0x6c, 0x65,
+                             0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
+                             0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
   MoqtServerSetup server_setup_ = {
       /*selected_version=*/static_cast<MoqtVersion>(1),
       MoqtSessionParameters(quic::Perspective::IS_SERVER, 50),

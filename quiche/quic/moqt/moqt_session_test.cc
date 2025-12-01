@@ -133,6 +133,8 @@ class MoqtSessionTest : public quic::test::QuicTest {
     MoqtSessionPeer::set_peer_max_request_id(&session_,
                                              kDefaultInitialMaxRequestId);
     ON_CALL(mock_session_, GetStreamById).WillByDefault(Return(&mock_stream_));
+    EXPECT_EQ(MoqtSessionPeer::GetImplementationString(&session_),
+              kVersionString);
   }
   ~MoqtSessionTest() {
     EXPECT_CALL(session_callbacks_.session_deleted_callback, Call());

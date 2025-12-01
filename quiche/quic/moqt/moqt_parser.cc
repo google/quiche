@@ -1104,7 +1104,6 @@ bool MoqtControlParser::ReadFullTrackName(quic::QuicDataReader& reader,
 
 bool MoqtControlParser::KeyValuePairListToMoqtSessionParameters(
     const KeyValuePairList& parameters, MoqtSessionParameters& out) {
-  out.moqt_implementation = "";
   return parameters.ForEach(
       [&](uint64_t key, uint64_t value) {
         SetupParameter parameter = static_cast<SetupParameter>(key);

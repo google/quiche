@@ -12,6 +12,7 @@
 
 
 #include "absl/status/status.h"
+#include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
@@ -252,6 +253,10 @@ class MoqtSessionPeer {
     return static_cast<MoqtSession::PublishedSubscription*>(subscription)
         ->reset_subgroups()
         .contains(index);
+  }
+
+  static absl::string_view GetImplementationString(MoqtSession* session) {
+    return session->parameters_.moqt_implementation;
   }
 };
 

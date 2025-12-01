@@ -46,6 +46,8 @@ enum class MoqtVersion : uint64_t {
 };
 
 inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft14;
+inline constexpr absl::string_view kVersionString =
+    "Google QUICHE MOQT draft 14";
 inline constexpr uint64_t kDefaultInitialMaxRequestId = 100;
 // TODO(martinduke): Implement an auth token cache.
 inline constexpr uint64_t kDefaultMaxAuthTokenCacheSize = 0;
@@ -111,7 +113,7 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   // TODO(martinduke): Turn authorization_token into structured data.
   std::vector<AuthToken> authorization_token;
   std::string authority;
-  std::string moqt_implementation = "Google QUICHE MOQT draft 14";
+  std::string moqt_implementation;
 };
 
 // The maximum length of a message, excluding any OBJECT payload. This prevents
