@@ -25,6 +25,7 @@
 #include <vector>
 
 #include "quiche/http2/core/http2_constants.h"
+#include "quiche/http2/hpack/hpack_entry.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_circular_deque.h"
 
@@ -32,41 +33,6 @@ namespace http2 {
 namespace test {
 class HpackDecoderTablesPeer;
 }  // namespace test
-
-struct QUICHE_EXPORT HpackStringPair {
-  HpackStringPair(std::string name, std::string value);
-  ~HpackStringPair();
-
-  // Returns the size of a header entry with this name and value, per the RFC:
-  // http://httpwg.org/specs/rfc7541.html#calculating.table.size
-  size_t size() const { return 32 + name.size() + value.size(); }
-
-  std::string DebugString() const;
-
-  const std::string name;
-  const std::string value;
-};
-
-QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
-                                       const HpackStringPair& p);
-
-// See http://httpwg.org/specs/rfc7541.html#static.table.definition for the
-// contents, and http://httpwg.org/specs/rfc7541.html#index.address.space for
-// info about accessing the static table.
-class QUICHE_EXPORT HpackDecoderStaticTable {
- public:
-  explicit HpackDecoderStaticTable(const std::vector<HpackStringPair>* table);
-  // Uses a global table shared by all threads.
-  HpackDecoderStaticTable();
-
-  // If index is valid, returns a pointer to the entry, otherwise returns
-  // nullptr.
-  const HpackStringPair* Lookup(size_t index) const;
-
- private:
-  friend class test::HpackDecoderTablesPeer;
-  const std::vector<HpackStringPair>* const table_;
-};
 
 // HpackDecoderDynamicTable implements HPACK compression feature "indexed
 // headers"; previously sent headers may be referenced later by their index
@@ -92,7 +58,7 @@ class QUICHE_EXPORT HpackDecoderDynamicTable {
 
   // If index is valid, returns a pointer to the entry, otherwise returns
   // nullptr.
-  const HpackStringPair* Lookup(size_t index) const;
+  const HpackEntry* Lookup(size_t index) const;
 
   size_t size_limit() const { return size_limit_; }
   size_t current_size() const { return current_size_; }
@@ -106,7 +72,7 @@ class QUICHE_EXPORT HpackDecoderDynamicTable {
   // Removes the oldest dynamic table entry.
   void RemoveLastEntry();
 
-  quiche::QuicheCircularDeque<HpackStringPair> table_;
+  quiche::QuicheCircularDeque<HpackEntry> table_;
 
   // The last received DynamicTableSizeUpdate value, initialized to
   // SETTINGS_HEADER_TABLE_SIZE.
@@ -118,7 +84,6 @@ class QUICHE_EXPORT HpackDecoderDynamicTable {
 class QUICHE_EXPORT HpackDecoderTables {
  public:
   HpackDecoderTables();
-  ~HpackDecoderTables();
 
   HpackDecoderTables(const HpackDecoderTables&) = delete;
   HpackDecoderTables& operator=(const HpackDecoderTables&) = delete;
@@ -139,7 +104,7 @@ class QUICHE_EXPORT HpackDecoderTables {
 
   // If index is valid, returns a pointer to the entry, otherwise returns
   // nullptr.
-  const HpackStringPair* Lookup(size_t index) const;
+  const HpackEntry* Lookup(size_t index) const;
 
   // The size limit that the peer (the HPACK encoder) has told the decoder it is
   // currently operating with. Defaults to SETTINGS_HEADER_TABLE_SIZE, 4096.
@@ -152,7 +117,12 @@ class QUICHE_EXPORT HpackDecoderTables {
 
  private:
   friend class test::HpackDecoderTablesPeer;
-  HpackDecoderStaticTable static_table_;
+
+  // Use a lightweight, memory efficient container for the static table, which
+  // is initialized once and never changed after.
+  using StaticEntryTable = std::vector<HpackEntry>;
+  const StaticEntryTable& static_entries_;
+
   HpackDecoderDynamicTable dynamic_table_;
 };
 

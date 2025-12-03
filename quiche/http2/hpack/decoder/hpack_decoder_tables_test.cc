@@ -9,6 +9,7 @@
 #include <tuple>
 #include <vector>
 
+#include "quiche/http2/hpack/hpack_entry.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/http2/test_tools/http2_random.h"
 #include "quiche/http2/test_tools/random_util.h"
@@ -29,71 +30,6 @@ class HpackDecoderTablesPeer {
 };
 
 namespace {
-struct StaticEntry {
-  const char* name;
-  const char* value;
-  size_t index;
-};
-
-std::vector<StaticEntry> MakeSpecStaticEntries() {
-  std::vector<StaticEntry> static_entries;
-
-#define STATIC_TABLE_ENTRY(name, value, index)                             \
-  QUICHE_DCHECK_EQ(static_entries.size() + 1, static_cast<size_t>(index)); \
-  static_entries.push_back({name, value, index});
-
-#include "quiche/http2/hpack/hpack_static_table_entries.inc"
-
-#undef STATIC_TABLE_ENTRY
-
-  return static_entries;
-}
-
-template <class C>
-void ShuffleCollection(C* collection, Http2Random* r) {
-  std::shuffle(collection->begin(), collection->end(), *r);
-}
-
-class HpackDecoderStaticTableTest : public quiche::test::QuicheTest {
- protected:
-  HpackDecoderStaticTableTest() = default;
-
-  std::vector<StaticEntry> shuffled_static_entries() {
-    std::vector<StaticEntry> entries = MakeSpecStaticEntries();
-    ShuffleCollection(&entries, &random_);
-    return entries;
-  }
-
-  // This test is in a function so that it can be applied to both the static
-  // table and the combined static+dynamic tables.
-  AssertionResult VerifyStaticTableContents() {
-    for (const auto& expected : shuffled_static_entries()) {
-      const HpackStringPair* found = Lookup(expected.index);
-      HTTP2_VERIFY_NE(found, nullptr);
-      HTTP2_VERIFY_EQ(expected.name, found->name) << expected.index;
-      HTTP2_VERIFY_EQ(expected.value, found->value) << expected.index;
-    }
-
-    // There should be no entry with index 0.
-    HTTP2_VERIFY_EQ(nullptr, Lookup(0));
-    return AssertionSuccess();
-  }
-
-  virtual const HpackStringPair* Lookup(size_t index) {
-    return static_table_.Lookup(index);
-  }
-
-  Http2Random* RandomPtr() { return &random_; }
-
-  Http2Random random_;
-
- private:
-  HpackDecoderStaticTable static_table_;
-};
-
-TEST_F(HpackDecoderStaticTableTest, StaticTableContents) {
-  EXPECT_TRUE(VerifyStaticTableContents());
-}
 
 size_t Size(const std::string& name, const std::string& value) {
   return name.size() + value.size() + 32;
@@ -113,11 +49,9 @@ const std::string& Value(const FakeHpackEntry& entry) {
 }
 size_t Size(const FakeHpackEntry& entry) { return std::get<2>(entry); }
 
-class HpackDecoderTablesTest : public HpackDecoderStaticTableTest {
+class HpackDecoderTablesTest : public quiche::test::QuicheTest {
  protected:
-  const HpackStringPair* Lookup(size_t index) override {
-    return tables_.Lookup(index);
-  }
+  const HpackEntry* Lookup(size_t index) { return tables_.Lookup(index); }
 
   size_t dynamic_size_limit() const {
     return tables_.header_table_size_limit();
@@ -170,12 +104,12 @@ class HpackDecoderTablesTest : public HpackDecoderStaticTableTest {
     HTTP2_VERIFY_EQ(num_dynamic_entries(), fake_dynamic_table_.size());
 
     for (size_t ndx = 0; ndx < fake_dynamic_table_.size(); ++ndx) {
-      const HpackStringPair* found = Lookup(ndx + kFirstDynamicTableIndex);
+      const HpackEntry* found = Lookup(ndx + kFirstDynamicTableIndex);
       HTTP2_VERIFY_NE(found, nullptr);
 
       const auto& expected = fake_dynamic_table_[ndx];
-      HTTP2_VERIFY_EQ(Name(expected), found->name);
-      HTTP2_VERIFY_EQ(Value(expected), found->value);
+      HTTP2_VERIFY_EQ(Name(expected), found->name());
+      HTTP2_VERIFY_EQ(Value(expected), found->value());
     }
 
     // Make sure there are no more entries.
@@ -212,22 +146,21 @@ class HpackDecoderTablesTest : public HpackDecoderStaticTableTest {
     return VerifyDynamicTableContents();
   }
 
+  Http2Random* RandomPtr() { return &random_; }
+
+  Http2Random random_;
+
  private:
   HpackDecoderTables tables_;
 
   std::vector<FakeHpackEntry> fake_dynamic_table_;
 };
 
-TEST_F(HpackDecoderTablesTest, StaticTableContents) {
-  EXPECT_TRUE(VerifyStaticTableContents());
-}
-
 // Generate a bunch of random header entries, insert them, and confirm they
 // present, as required by the RFC, using VerifyDynamicTableContents above on
 // each Insert. Also apply various resizings of the dynamic table.
 TEST_F(HpackDecoderTablesTest, RandomDynamicTable) {
   EXPECT_EQ(0u, current_dynamic_size());
-  EXPECT_TRUE(VerifyStaticTableContents());
   EXPECT_TRUE(VerifyDynamicTableContents());
 
   std::vector<size_t> table_sizes;
@@ -248,7 +181,6 @@ TEST_F(HpackDecoderTablesTest, RandomDynamicTable) {
           GenerateWebSafeString(random_.UniformInRange(2, 600), RandomPtr());
       ASSERT_TRUE(Insert(name, value));
     }
-    EXPECT_TRUE(VerifyStaticTableContents());
   }
 }
 

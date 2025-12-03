@@ -33,7 +33,6 @@
 #include "quiche/common/quiche_text_utils.h"
 
 using ::http2::HpackEntryType;
-using ::http2::HpackStringPair;
 using ::http2::test::HpackBlockBuilder;
 using ::http2::test::HpackDecoderPeer;
 using ::testing::ElementsAre;
@@ -79,7 +78,7 @@ class HpackDecoderAdapterPeer {
     return HpackDecoderPeer::GetDecoderTables(&decoder_->hpack_decoder_);
   }
 
-  const HpackStringPair* GetTableEntry(uint32_t index) {
+  const HpackEntry* GetTableEntry(uint32_t index) {
     return GetDecoderTables()->Lookup(index);
   }
 
@@ -207,10 +206,10 @@ class HpackDecoderAdapterTest : public quiche::test::QuicheTestWithParam<bool> {
 
   void expectEntry(size_t index, size_t size, const std::string& name,
                    const std::string& value) {
-    const HpackStringPair* entry = decoder_peer_.GetTableEntry(index);
-    EXPECT_EQ(name, entry->name) << "index " << index;
-    EXPECT_EQ(value, entry->value);
-    EXPECT_EQ(size, entry->size());
+    const HpackEntry* entry = decoder_peer_.GetTableEntry(index);
+    EXPECT_EQ(name, entry->name()) << "index " << index;
+    EXPECT_EQ(value, entry->value());
+    EXPECT_EQ(size, entry->Size());
   }
 
   quiche::HttpHeaderBlock MakeHeaderBlock(

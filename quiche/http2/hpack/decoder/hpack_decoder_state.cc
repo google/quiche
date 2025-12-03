@@ -88,9 +88,9 @@ void HpackDecoderState::OnIndexedHeader(size_t index) {
     return;
   }
   allow_dynamic_table_size_update_ = false;
-  const HpackStringPair* entry = decoder_tables_.Lookup(index);
+  const HpackEntry* entry = decoder_tables_.Lookup(index);
   if (entry != nullptr) {
-    listener_->OnHeader(entry->name, entry->value);
+    listener_->OnHeader(entry->name(), entry->value());
   } else {
     ReportError(HpackDecodingError::kInvalidIndex);
   }
@@ -110,12 +110,12 @@ void HpackDecoderState::OnNameIndexAndLiteralValue(
     return;
   }
   allow_dynamic_table_size_update_ = false;
-  const HpackStringPair* entry = decoder_tables_.Lookup(name_index);
+  const HpackEntry* entry = decoder_tables_.Lookup(name_index);
   if (entry != nullptr) {
     std::string value(ExtractString(value_buffer));
-    listener_->OnHeader(entry->name, value);
+    listener_->OnHeader(entry->name(), value);
     if (entry_type == HpackEntryType::kIndexedLiteralHeader) {
-      decoder_tables_.Insert(entry->name, std::move(value));
+      decoder_tables_.Insert(std::string(entry->name()), std::move(value));
     }
   } else {
     ReportError(HpackDecodingError::kInvalidNameIndex);

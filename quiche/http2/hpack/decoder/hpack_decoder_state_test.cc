@@ -11,6 +11,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/http2/core/http2_constants.h"
+#include "quiche/http2/hpack/hpack_entry.h"
 #include "quiche/http2/hpack/http2_hpack_constants.h"
 #include "quiche/http2/test_tools/verify_macros.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -53,7 +54,7 @@ class HpackDecoderStateTest : public quiche::test::QuicheTest {
     return HpackDecoderStatePeer::GetDecoderTables(&decoder_state_);
   }
 
-  const HpackStringPair* Lookup(size_t index) {
+  const HpackEntry* Lookup(size_t index) {
     return GetDecoderTables()->Lookup(index);
   }
 
@@ -140,15 +141,15 @@ class HpackDecoderStateTest : public quiche::test::QuicheTest {
   // dynamic_index is one-based, because that is the way RFC 7541 shows it.
   AssertionResult VerifyEntry(size_t dynamic_index, absl::string_view name,
                               absl::string_view value) {
-    const HpackStringPair* entry =
+    const HpackEntry* entry =
         Lookup(dynamic_index + kFirstDynamicTableIndex - 1);
     HTTP2_VERIFY_NE(entry, nullptr);
-    HTTP2_VERIFY_EQ(entry->name, name);
-    HTTP2_VERIFY_EQ(entry->value, value);
+    HTTP2_VERIFY_EQ(entry->name(), name);
+    HTTP2_VERIFY_EQ(entry->value(), value);
     return AssertionSuccess();
   }
   AssertionResult VerifyNoEntry(size_t dynamic_index) {
-    const HpackStringPair* entry =
+    const HpackEntry* entry =
         Lookup(dynamic_index + kFirstDynamicTableIndex - 1);
     HTTP2_VERIFY_EQ(entry, nullptr);
     return AssertionSuccess();

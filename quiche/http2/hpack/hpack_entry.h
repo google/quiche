@@ -77,4 +77,8 @@ class QUICHE_EXPORT HpackEntry {
 
 }  // namespace spdy
 
+namespace http2 {
+using ::spdy::HpackEntry;
+}  // namespace http2
+
 #endif  // QUICHE_HTTP2_HPACK_HPACK_ENTRY_H_

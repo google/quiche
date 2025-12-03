@@ -166,7 +166,7 @@ class HpackDecoderTest : public quiche::test::QuicheTestWithParam<bool>,
   const HpackDecoderTables& GetDecoderTables() {
     return *HpackDecoderPeer::GetDecoderTables(&decoder_);
   }
-  const HpackStringPair* Lookup(size_t index) {
+  const HpackEntry* Lookup(size_t index) {
     return GetDecoderTables().Lookup(index);
   }
   size_t current_header_table_size() {
@@ -182,15 +182,15 @@ class HpackDecoderTest : public quiche::test::QuicheTestWithParam<bool>,
   // dynamic_index is one-based, because that is the way RFC 7541 shows it.
   AssertionResult VerifyEntry(size_t dynamic_index, const char* name,
                               const char* value) {
-    const HpackStringPair* entry =
+    const HpackEntry* entry =
         Lookup(dynamic_index + kFirstDynamicTableIndex - 1);
     HTTP2_VERIFY_NE(entry, nullptr);
-    HTTP2_VERIFY_EQ(entry->name, name);
-    HTTP2_VERIFY_EQ(entry->value, value);
+    HTTP2_VERIFY_EQ(entry->name(), name);
+    HTTP2_VERIFY_EQ(entry->value(), value);
     return AssertionSuccess();
   }
   AssertionResult VerifyNoEntry(size_t dynamic_index) {
-    const HpackStringPair* entry =
+    const HpackEntry* entry =
         Lookup(dynamic_index + kFirstDynamicTableIndex - 1);
     HTTP2_VERIFY_EQ(entry, nullptr);
     return AssertionSuccess();
