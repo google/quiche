@@ -210,11 +210,27 @@ QUICHE_EXPORT constexpr bool ParsedQuicVersionIsValid(
   return false;
 }
 
+QUICHE_EXPORT constexpr HandshakeProtocol HandshakeProtocolForTransportVersion(
+    QuicTransportVersion transport_version) {
+  if (VersionIsIetfQuic(transport_version)) {
+    return PROTOCOL_TLS1_3;
+  }
+  if (transport_version == QUIC_VERSION_46) {
+    return PROTOCOL_QUIC_CRYPTO;
+  }
+  return PROTOCOL_UNSUPPORTED;
+}
+
 // A parsed QUIC version label which determines that handshake protocol
 // and the transport version.
 struct QUICHE_EXPORT ParsedQuicVersion {
   HandshakeProtocol handshake_protocol;
   QuicTransportVersion transport_version;
+
+  constexpr explicit ParsedQuicVersion(QuicTransportVersion transport_version)
+      : handshake_protocol(
+            HandshakeProtocolForTransportVersion(transport_version)),
+        transport_version(transport_version) {}
 
   constexpr ParsedQuicVersion(HandshakeProtocol handshake_protocol,
                               QuicTransportVersion transport_version)
