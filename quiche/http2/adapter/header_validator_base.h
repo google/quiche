@@ -35,7 +35,7 @@ class QUICHE_EXPORT HeaderValidatorBase {
     content_length_ = std::nullopt;
   }
 
-  enum HeaderStatus {
+  enum HeaderStatus : uint8_t {
     HEADER_OK,
     HEADER_SKIP,
     HEADER_FIELD_INVALID,

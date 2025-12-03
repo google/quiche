@@ -24,8 +24,8 @@ TEST(HpackEntryTypeTest, HpackEntryTypeToString) {
             HpackEntryTypeToString(HpackEntryType::kUnindexedLiteralHeader));
   EXPECT_EQ("kNeverIndexedLiteralHeader",
             HpackEntryTypeToString(HpackEntryType::kNeverIndexedLiteralHeader));
-  EXPECT_EQ("UnknownHpackEntryType(12321)",
-            HpackEntryTypeToString(static_cast<HpackEntryType>(12321)));
+  EXPECT_EQ("UnknownHpackEntryType(123)",
+            HpackEntryTypeToString(static_cast<HpackEntryType>(123)));
 }
 
 TEST(HpackEntryTypeTest, OutputHpackEntryType) {
@@ -56,8 +56,8 @@ TEST(HpackEntryTypeTest, OutputHpackEntryType) {
   }
   {
     std::stringstream log;
-    log << static_cast<HpackEntryType>(1234321);
-    EXPECT_EQ("UnknownHpackEntryType(1234321)", log.str());
+    log << static_cast<HpackEntryType>(124);
+    EXPECT_EQ("UnknownHpackEntryType(124)", log.str());
   }
 }
 

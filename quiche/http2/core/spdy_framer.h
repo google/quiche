@@ -44,7 +44,7 @@ class QUICHE_EXPORT SpdyFrameSequence {
 
 class QUICHE_EXPORT SpdyFramer {
  public:
-  enum CompressionOption {
+  enum CompressionOption : uint8_t {
     // Both the dynamic table and Huffman compression are enabled.
     ENABLE_COMPRESSION,
     // Both the dynamic table and Huffman compression are disabled.

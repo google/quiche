@@ -44,7 +44,7 @@ class QUICHE_EXPORT HeaderValidator : public HeaderValidatorBase {
   static bool IsValidPath(absl::string_view path, bool allow_fragment);
 
  private:
-  enum ContentLengthStatus {
+  enum ContentLengthStatus : uint8_t {
     CONTENT_LENGTH_OK,
     CONTENT_LENGTH_SKIP,  // Used to handle duplicate content length values.
     CONTENT_LENGTH_ERROR,
@@ -52,7 +52,7 @@ class QUICHE_EXPORT HeaderValidator : public HeaderValidatorBase {
   ContentLengthStatus HandleContentLength(absl::string_view value);
   bool ValidateAndSetAuthority(absl::string_view authority);
 
-  enum PseudoHeaderTag {
+  enum PseudoHeaderTag : uint8_t {
     TAG_AUTHORITY = 0,
     TAG_METHOD,
     TAG_PATH,
@@ -66,7 +66,7 @@ class QUICHE_EXPORT HeaderValidator : public HeaderValidatorBase {
 
   using PseudoHeaderTagSet = std::bitset<TAG_ENUM_SIZE>;
 
-  enum PseudoHeaderState {
+  enum PseudoHeaderState : uint8_t {
     STATE_AUTHORITY_IS_NONEMPTY,
     STATE_METHOD_IS_OPTIONS,
     STATE_METHOD_IS_CONNECT,

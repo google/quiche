@@ -19,7 +19,7 @@ namespace http2 {
 
 const size_t kFirstDynamicTableIndex = 62;
 
-enum class HpackEntryType {
+enum class HpackEntryType : uint8_t {
   // Entry is an index into the static or dynamic table. Decoding it has no
   // effect on the dynamic table.
   kIndexedHeader,

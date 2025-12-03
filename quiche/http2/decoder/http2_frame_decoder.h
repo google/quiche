@@ -104,7 +104,7 @@ class QUICHE_EXPORT Http2FrameDecoder {
   uint32_t remaining_padding() const;
 
  private:
-  enum class State {
+  enum class State : uint8_t {
     // Ready to start decoding a new frame's header.
     kStartDecodingHeader,
     // Was in state kStartDecodingHeader, but unable to read the entire frame
