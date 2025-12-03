@@ -71,10 +71,6 @@ const HpackStringPair* HpackDecoderStaticTable::Lookup(size_t index) const {
   return nullptr;
 }
 
-HpackDecoderDynamicTable::HpackDecoderDynamicTable()
-    : insert_count_(kFirstDynamicTableIndex - 1) {}
-HpackDecoderDynamicTable::~HpackDecoderDynamicTable() = default;
-
 void HpackDecoderDynamicTable::DynamicTableSizeUpdate(size_t size_limit) {
   QUICHE_DVLOG(3) << "HpackDecoderDynamicTable::DynamicTableSizeUpdate "
                   << size_limit;
@@ -99,7 +95,6 @@ void HpackDecoderDynamicTable::Insert(std::string name, std::string value) {
     current_size_ = 0;
     return;
   }
-  ++insert_count_;
   size_t insert_limit = size_limit_ - entry_size;
   EnsureSizeNoMoreThan(insert_limit);
   table_.push_front(std::move(entry));

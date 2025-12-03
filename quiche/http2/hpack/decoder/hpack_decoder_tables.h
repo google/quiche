@@ -75,8 +75,7 @@ class QUICHE_EXPORT HpackDecoderStaticTable {
 //   http://httpwg.org/specs/rfc7541.html#dynamic.table.management
 class QUICHE_EXPORT HpackDecoderDynamicTable {
  public:
-  HpackDecoderDynamicTable();
-  ~HpackDecoderDynamicTable();
+  HpackDecoderDynamicTable() = default;
 
   HpackDecoderDynamicTable(const HpackDecoderDynamicTable&) = delete;
   HpackDecoderDynamicTable& operator=(const HpackDecoderDynamicTable&) = delete;
@@ -114,10 +113,6 @@ class QUICHE_EXPORT HpackDecoderDynamicTable {
   size_t size_limit_ = Http2SettingsInfo::DefaultHeaderTableSize();
 
   size_t current_size_ = 0;
-
-  // insert_count_ and debug_listener_ are used by a QUIC experiment; remove
-  // when the experiment is done.
-  size_t insert_count_;
 };
 
 class QUICHE_EXPORT HpackDecoderTables {
