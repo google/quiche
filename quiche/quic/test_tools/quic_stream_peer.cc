@@ -10,7 +10,6 @@
 #include "quiche/quic/core/quic_stream_send_buffer_base.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/test_tools/quic_flow_controller_peer.h"
-#include "quiche/quic/test_tools/quic_stream_send_buffer_peer.h"
 
 namespace quic {
 namespace test {

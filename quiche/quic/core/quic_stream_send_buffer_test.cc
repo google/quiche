@@ -20,7 +20,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/quic/test_tools/quic_stream_send_buffer_peer.h"
+#include "quiche/quic/test_tools/quic_interval_deque_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -30,6 +30,16 @@
 
 namespace quic {
 namespace test {
+
+// TODO: b/417402601 - remove this after the old SendBuffer implementation is
+// gone.
+class QuicStreamSendBufferPeer {
+ public:
+  static int32_t write_index(QuicStreamSendBuffer* send_buffer) {
+    return QuicIntervalDequePeer::GetCachedIndex(&send_buffer->interval_deque_);
+  }
+};
+
 namespace {
 
 enum class SendBufferType {
@@ -263,24 +273,24 @@ TEST_P(QuicStreamSendBufferTest, AckStreamDataOutOfOrder) {
   EXPECT_TRUE(send_buffer_->OnStreamDataAcked(500, 1000, &newly_acked_length));
   EXPECT_EQ(1000u, newly_acked_length);
   EXPECT_EQ(4u, send_buffer_->size());
-  EXPECT_EQ(3840u, QuicStreamSendBufferPeer::TotalLength(send_buffer_.get()));
+  EXPECT_EQ(3840u, send_buffer_->TotalDataBufferedForTest());
 
   EXPECT_TRUE(send_buffer_->OnStreamDataAcked(1200, 1000, &newly_acked_length));
   EXPECT_EQ(700u, newly_acked_length);
   EXPECT_EQ(4u, send_buffer_->size());
   // Slice 2 gets fully acked.
-  EXPECT_EQ(2816u, QuicStreamSendBufferPeer::TotalLength(send_buffer_.get()));
+  EXPECT_EQ(2816u, send_buffer_->TotalDataBufferedForTest());
 
   EXPECT_TRUE(send_buffer_->OnStreamDataAcked(2000, 1840, &newly_acked_length));
   EXPECT_EQ(1640u, newly_acked_length);
   EXPECT_EQ(4u, send_buffer_->size());
   // Slices 3 and 4 get fully acked.
-  EXPECT_EQ(1024u, QuicStreamSendBufferPeer::TotalLength(send_buffer_.get()));
+  EXPECT_EQ(1024u, send_buffer_->TotalDataBufferedForTest());
 
   EXPECT_TRUE(send_buffer_->OnStreamDataAcked(0, 1000, &newly_acked_length));
   EXPECT_EQ(500u, newly_acked_length);
   EXPECT_EQ(0u, send_buffer_->size());
-  EXPECT_EQ(0u, QuicStreamSendBufferPeer::TotalLength(send_buffer_.get()));
+  EXPECT_EQ(0u, send_buffer_->TotalDataBufferedForTest());
 }
 
 TEST_P(QuicStreamSendBufferTest, PendingRetransmission) {
