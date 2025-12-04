@@ -268,28 +268,27 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   }
 
   static constexpr ParsedQuicVersion RFCv2() {
-    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_RFC_V2);
+    return ParsedQuicVersion(QUIC_VERSION_IETF_RFC_V2);
   }
 
   static constexpr ParsedQuicVersion RFCv1() {
-    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_RFC_V1);
+    return ParsedQuicVersion(QUIC_VERSION_IETF_RFC_V1);
   }
 
   static constexpr ParsedQuicVersion Draft29() {
-    return ParsedQuicVersion(PROTOCOL_TLS1_3, QUIC_VERSION_IETF_DRAFT_29);
+    return ParsedQuicVersion(QUIC_VERSION_IETF_DRAFT_29);
   }
 
   static constexpr ParsedQuicVersion Q046() {
-    return ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, QUIC_VERSION_46);
+    return ParsedQuicVersion(QUIC_VERSION_46);
   }
 
   static constexpr ParsedQuicVersion Unsupported() {
-    return ParsedQuicVersion(PROTOCOL_UNSUPPORTED, QUIC_VERSION_UNSUPPORTED);
+    return ParsedQuicVersion(QUIC_VERSION_UNSUPPORTED);
   }
 
   static constexpr ParsedQuicVersion ReservedForNegotiation() {
-    return ParsedQuicVersion(PROTOCOL_TLS1_3,
-                             QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
+    return ParsedQuicVersion(QUIC_VERSION_RESERVED_FOR_NEGOTIATION);
   }
 
   // Returns whether our codebase understands this version. This should only be

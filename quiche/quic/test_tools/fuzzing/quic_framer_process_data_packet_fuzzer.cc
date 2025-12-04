@@ -45,7 +45,6 @@ ParsedQuicVersion ConsumeParsedQuicVersion(FuzzedDataProvider* provider) {
   };
 
   return ParsedQuicVersion(
-      PROTOCOL_QUIC_CRYPTO,
       transport_versions[provider->ConsumeIntegralInRange<uint8_t>(
           0, ABSL_ARRAYSIZE(transport_versions) - 1)]);
 }

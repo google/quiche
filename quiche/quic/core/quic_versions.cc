@@ -293,7 +293,7 @@ ParsedQuicVersion ParseQuicVersionString(absl::string_view version_string) {
     if (!ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO, transport_version)) {
       return UnsupportedQuicVersion();
     }
-    ParsedQuicVersion version(PROTOCOL_QUIC_CRYPTO, transport_version);
+    ParsedQuicVersion version(transport_version);
     if (std::find(supported_versions.begin(), supported_versions.end(),
                   version) != supported_versions.end()) {
       return version;

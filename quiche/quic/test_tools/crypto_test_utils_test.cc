@@ -178,9 +178,8 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
        {"COPT", "SREJ"},
        {"PUBS", pub_hex},
        {"NONC", nonce_hex},
-       {"VER\0",
-        QuicVersionLabelToString(CreateQuicVersionLabel(
-            ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version)))}},
+       {"VER\0", QuicVersionLabelToString(CreateQuicVersionLabel(
+                     ParsedQuicVersion(transport_version)))}},
       kClientHelloMinimumSize);
 
   crypto_test_utils::GenerateFullCHLO(inchoate_chlo, &crypto_config,
@@ -188,20 +187,18 @@ TEST_F(CryptoTestUtilsTest, TestGenerateFullCHLO) {
                                       transport_version, &clock, signed_config,
                                       &compressed_certs_cache, &full_chlo);
   // Verify that full_chlo can pass crypto_config's verification.
-  ShloVerifier shlo_verifier(
-      &crypto_config, server_addr, client_addr, &clock, signed_config,
-      &compressed_certs_cache,
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version));
+  ShloVerifier shlo_verifier(&crypto_config, server_addr, client_addr, &clock,
+                             signed_config, &compressed_certs_cache,
+                             ParsedQuicVersion(transport_version));
   crypto_config.ValidateClientHello(
       full_chlo, client_addr, server_addr, transport_version, &clock,
       signed_config, shlo_verifier.GetValidateClientHelloCallback());
   ASSERT_EQ(shlo_verifier.chlo_accepted(),
             !GetQuicReloadableFlag(quic_require_handshake_confirmation));
   if (!shlo_verifier.chlo_accepted()) {
-    ShloVerifier shlo_verifier2(
-        &crypto_config, server_addr, client_addr, &clock, signed_config,
-        &compressed_certs_cache,
-        ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version));
+    ShloVerifier shlo_verifier2(&crypto_config, server_addr, client_addr,
+                                &clock, signed_config, &compressed_certs_cache,
+                                ParsedQuicVersion(transport_version));
     full_chlo.SetStringPiece(
         kServerNonceTag,
         "#" + absl::BytesToHexString(shlo_verifier.server_nonce()));

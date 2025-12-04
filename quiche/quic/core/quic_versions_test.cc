@@ -427,8 +427,7 @@ TEST(QuicVersionsTest, SupportedVersionsHasCorrectList) {
       SCOPED_TRACE(index);
       if (ParsedQuicVersionIsValid(handshake_protocol, transport_version)) {
         ParsedQuicVersion version = SupportedVersions()[index];
-        EXPECT_EQ(version,
-                  ParsedQuicVersion(handshake_protocol, transport_version));
+        EXPECT_EQ(version, ParsedQuicVersion(transport_version));
         index++;
       }
     }

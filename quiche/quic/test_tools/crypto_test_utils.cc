@@ -833,6 +833,7 @@ CryptoHandshakeMessage CreateCHLO(
 CryptoHandshakeMessage GenerateDefaultInchoateCHLO(
     const QuicClock* clock, QuicTransportVersion version,
     QuicCryptoServerConfig* crypto_config) {
+  QUICHE_DCHECK_EQ(version, QUIC_VERSION_46);
   // clang-format off
   return CreateCHLO(
       {{"PDMD", "X509"},
@@ -842,7 +843,7 @@ CryptoHandshakeMessage GenerateDefaultInchoateCHLO(
        {"NONC", GenerateClientNonceHex(clock, crypto_config).c_str()},
        {"VER\0", QuicVersionLabelToString(
            CreateQuicVersionLabel(
-            ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, version))).c_str()}},
+            ParsedQuicVersion(version))).c_str()}},
       kClientHelloMinimumSize);
   // clang-format on
 }
@@ -882,11 +883,11 @@ void GenerateFullCHLO(
     quiche::QuicheReferenceCountedPointer<QuicSignedServerConfig> signed_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     CryptoHandshakeMessage* out) {
+  QUICHE_DCHECK_EQ(transport_version, QUIC_VERSION_46);
   // Pass a inchoate CHLO.
-  FullChloGenerator generator(
-      crypto_config, server_addr, client_addr, clock,
-      ParsedQuicVersion(PROTOCOL_QUIC_CRYPTO, transport_version), signed_config,
-      compressed_certs_cache, out);
+  FullChloGenerator generator(crypto_config, server_addr, client_addr, clock,
+                              ParsedQuicVersion(transport_version),
+                              signed_config, compressed_certs_cache, out);
   crypto_config->ValidateClientHello(
       inchoate_chlo, client_addr, server_addr, transport_version, clock,
       signed_config, generator.GetValidateClientHelloCallback());
