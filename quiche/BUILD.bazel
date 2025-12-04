@@ -121,7 +121,6 @@ cc_library(
     srcs = quiche_core_srcs + default_platform_impl_srcs,
     hdrs = quiche_core_hdrs + default_platform_impl_hdrs,
     includes = ["common/platform/default"],
-    textual_hdrs = ["http2/hpack/hpack_static_table_entries.inc"],
     deps = [
         ":quiche_flags_list",
         ":quiche_protobufs_cc_proto",
