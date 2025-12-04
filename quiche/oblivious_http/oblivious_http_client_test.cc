@@ -5,15 +5,81 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "openssl/base.h"
+#include "openssl/hpke.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/platform/api/quiche_thread.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
+#include "quiche/oblivious_http/buffers/oblivious_http_request.h"
+#include "quiche/oblivious_http/buffers/oblivious_http_response.h"
+#include "quiche/oblivious_http/common/oblivious_http_chunk_handler.h"
+#include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
+#include "quiche/oblivious_http/oblivious_http_gateway.h"
 
 namespace quiche {
+
+namespace {
+
+constexpr absl::string_view kPlaintextRequest = "plaintext_request";
+constexpr absl::string_view kPlaintextResponse = "plaintext_response";
+
+using ::quiche::test::StatusIs;
+using ::testing::ElementsAre;
+
+}  // namespace
+
+// Chunk handler that tests the callback was called in the right order and
+// saves the decrypted chunks for later validation.
+class TestChunkHandler : public ObliviousHttpChunkHandler {
+ public:
+  TestChunkHandler() = default;
+  ~TestChunkHandler() override = default;
+  absl::Status OnDecryptedChunk(absl::string_view decrypted_chunk) override {
+    if (on_chunks_done_called_) {
+      return absl::FailedPreconditionError(
+          "OnDecryptedChunk called after OnChunksDone.");
+    }
+    if (fail_on_decrypted_chunk_) {
+      return absl::InternalError("Failed to decrypt chunk.");
+    }
+    decrypted_chunks_.push_back(std::string(decrypted_chunk));
+    return absl::OkStatus();
+  }
+
+  absl::Status OnChunksDone() override {
+    if (on_chunks_done_called_) {
+      return absl::FailedPreconditionError(
+          "OnChunksDone called more than once.");
+    }
+    if (fail_on_chunks_done_) {
+      return absl::InternalError("Failed to handle chunks done.");
+    }
+    on_chunks_done_called_ = true;
+    return absl::OkStatus();
+  }
+
+  bool OnChunksDoneCalled() const { return on_chunks_done_called_; }
+  const std::vector<std::string>& GetDecryptedChunks() const {
+    return decrypted_chunks_;
+  }
+
+  void SetFailOnDecryptedChunk(bool fail) { fail_on_decrypted_chunk_ = fail; }
+
+  void SetFailOnChunksDone(bool fail) { fail_on_chunks_done_ = fail; }
+
+ private:
+  bool on_chunks_done_called_ = false;
+  std::vector<std::string> decrypted_chunks_;
+  bool fail_on_decrypted_chunk_ = false;
+  bool fail_on_chunks_done_ = false;
+};
 
 std::string GetHpkePrivateKey() {
   // Dev/Test private key generated using Keystore.
@@ -40,6 +106,44 @@ ObliviousHttpHeaderKeyConfig GetOhttpKeyConfig(uint8_t key_id, uint16_t kem_id,
       ObliviousHttpHeaderKeyConfig::Create(key_id, kem_id, kdf_id, aead_id);
   EXPECT_TRUE(ohttp_key_config.ok());
   return ohttp_key_config.value();
+}
+
+absl::StatusOr<ChunkedObliviousHttpClient> CreateChunkedObliviousHttpClient(
+    ObliviousHttpChunkHandler& chunk_handler) {
+  // Public key from
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-06.html#appendix-A-4
+  constexpr absl::string_view hpke_public_key =
+      "668eb21aace159803974a4c67f08b4152d29bed10735fd08f98ccdd6fe095708";
+  std::string hpke_key_bytes;
+  if (!absl::HexStringToBytes(hpke_public_key, &hpke_key_bytes)) {
+    return absl::InvalidArgumentError("Invalid HPKE public key.");
+  }
+
+  return ChunkedObliviousHttpClient::Create(
+      hpke_key_bytes,
+      GetOhttpKeyConfig(
+          /*key_id=*/1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+          EVP_HPKE_AES_128_GCM),
+      &chunk_handler);
+}
+
+absl::StatusOr<ChunkedObliviousHttpGateway> CreateChunkedObliviousHttpGateway(
+    ObliviousHttpChunkHandler& chunk_handler) {
+  // Private key from
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-06.html#appendix-A-2
+  constexpr absl::string_view kX25519SecretKey =
+      "1c190d72acdbe4dbc69e680503bb781a932c70a12c8f3754434c67d8640d8698";
+  std::string x25519_secret_key_bytes;
+  if (!absl::HexStringToBytes(kX25519SecretKey, &x25519_secret_key_bytes)) {
+    return absl::FailedPreconditionError("Invalid X25519 secret key.");
+  }
+
+  return ChunkedObliviousHttpGateway::Create(
+      x25519_secret_key_bytes,
+      GetOhttpKeyConfig(
+          /*key_id=*/1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+          EVP_HPKE_AES_128_GCM),
+      chunk_handler);
 }
 
 bssl::UniquePtr<EVP_HPKE_KEY> ConstructHpkeKey(
@@ -250,6 +354,529 @@ TEST(ObliviousHttpClient, TestWithMultipleThreads) {
   t2.Start();
   t1.Join();
   t2.Join();
+}
+
+TEST(ChunkedObliviousHttpClient, EncryptRequestNonFinalChunkCanNotBeEmpty) {
+  TestChunkHandler chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  // TODO(b/425346950): Remove all the redundant checks once ClangTidy gets
+  // configured for QUICHE_ASSERT_OK
+  if (!chunk_client.ok()) {
+    return;
+  }
+  EXPECT_THAT(chunk_client->EncryptRequestChunk("", /*is_final_chunk=*/false),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST(ChunkedObliviousHttpClient, EncryptRequestFinalChunkCanBeEmpty) {
+  TestChunkHandler chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  if (!chunk_client.ok()) {
+    return;
+  }
+  absl::StatusOr<std::string> final_chunk =
+      chunk_client->EncryptRequestChunk("",
+                                        /*is_final_chunk=*/true);
+  QUICHE_ASSERT_OK(final_chunk);
+  if (!final_chunk.ok()) {
+    return;
+  }
+  // Final chunk uses a non-empty AAD, so encrypting an empty payload results in
+  // a non-empty ciphertext.
+  // https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-06.html#section-6.1-5
+  EXPECT_FALSE(final_chunk->empty());
+
+  TestChunkHandler gateway_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
+      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_gateway);
+  if (!chunk_gateway.ok()) {
+    return;
+  }
+  QUICHE_ASSERT_OK(chunk_gateway->DecryptRequest(*final_chunk,
+                                                 /*end_stream=*/true));
+  EXPECT_THAT(gateway_chunk_handler.GetDecryptedChunks(), ElementsAre(""));
+}
+
+TEST(ChunkedObliviousHttpClient, EncryptRequestAfterFinalChunkReturnsError) {
+  TestChunkHandler chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  if (!chunk_client.ok()) {
+    return;
+  }
+  absl::StatusOr<std::string> final_chunk =
+      chunk_client->EncryptRequestChunk("", /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(final_chunk);
+  absl::StatusOr<std::string> next_chunk =
+      chunk_client->EncryptRequestChunk(kPlaintextRequest,
+                                        /*is_final_chunk=*/false);
+  EXPECT_THAT(next_chunk.status(),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST(ChunkedObliviousHttpClient, EncryptRequestFirstChunkHasHeaderData) {
+  TestChunkHandler chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  if (!chunk_client.ok()) {
+    return;
+  }
+  absl::StatusOr<std::string> first_chunk = chunk_client->EncryptRequestChunk(
+      kPlaintextRequest, /*is_final_chunk=*/false);
+  QUICHE_ASSERT_OK(first_chunk);
+  if (!first_chunk.ok()) {
+    return;
+  }
+  absl::StatusOr<std::string> second_chunk = chunk_client->EncryptRequestChunk(
+      kPlaintextRequest, /*is_final_chunk=*/false);
+  QUICHE_ASSERT_OK(second_chunk);
+  if (!second_chunk.ok()) {
+    return;
+  }
+  // Encoded header data results in a bigger first chunk.
+  EXPECT_GT(first_chunk->size(), second_chunk->size());
+}
+
+TEST(ChunkedObliviousHttpClient,
+     EncryptRequestMultipleTimesWithSamePlaintextReturnsDifferentCiphertexts) {
+  TestChunkHandler chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  if (!chunk_client.ok()) {
+    return;
+  }
+  absl::StatusOr<std::string> request_with_header =
+      chunk_client->EncryptRequestChunk(kPlaintextRequest,
+                                        /*is_final_chunk=*/false);
+  QUICHE_ASSERT_OK(request_with_header);
+  if (!request_with_header.ok()) {
+    return;
+  }
+  absl::StatusOr<std::string> same_plaintext_chunk_1 =
+      chunk_client->EncryptRequestChunk(kPlaintextRequest,
+                                        /*is_final_chunk=*/false);
+  QUICHE_ASSERT_OK(same_plaintext_chunk_1);
+  if (!same_plaintext_chunk_1.ok()) {
+    return;
+  }
+  absl::StatusOr<std::string> same_plaintext_chunk_2 =
+      chunk_client->EncryptRequestChunk(kPlaintextRequest,
+                                        /*is_final_chunk=*/false);
+  QUICHE_ASSERT_OK(same_plaintext_chunk_2);
+  if (!same_plaintext_chunk_2.ok()) {
+    return;
+  }
+
+  EXPECT_GT(request_with_header->size(), same_plaintext_chunk_1->size());
+  EXPECT_GT(request_with_header->size(), same_plaintext_chunk_2->size());
+  EXPECT_NE(*same_plaintext_chunk_1, *same_plaintext_chunk_2);
+
+  TestChunkHandler gateway_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
+      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_gateway);
+  if (!chunk_gateway.ok()) {
+    return;
+  }
+  QUICHE_EXPECT_OK(chunk_gateway->DecryptRequest(*request_with_header,
+                                                 /*end_stream=*/false));
+  QUICHE_EXPECT_OK(chunk_gateway->DecryptRequest(*same_plaintext_chunk_1,
+                                                 /*end_stream=*/false));
+  QUICHE_EXPECT_OK(chunk_gateway->DecryptRequest(*same_plaintext_chunk_2,
+                                                 /*end_stream=*/false));
+
+  EXPECT_THAT(
+      gateway_chunk_handler.GetDecryptedChunks(),
+      ElementsAre(kPlaintextRequest, kPlaintextRequest, kPlaintextRequest));
+}
+
+TEST(ChunkedObliviousHttpClient,
+     SingleChunkEncryptRequestAndDecryptResponseSuccess) {
+  TestChunkHandler client_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(client_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  if (!chunk_client.ok()) {
+    return;
+  }
+  TestChunkHandler gateway_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
+      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_gateway);
+  if (!chunk_gateway.ok()) {
+    return;
+  }
+
+  absl::StatusOr<std::string> request_chunk =
+      chunk_client->EncryptRequestChunk(kPlaintextRequest,
+                                        /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(request_chunk);
+  if (!request_chunk.ok()) {
+    return;
+  }
+  QUICHE_EXPECT_OK(
+      chunk_gateway->DecryptRequest(*request_chunk, /*end_stream=*/true));
+  EXPECT_THAT(gateway_chunk_handler.GetDecryptedChunks(),
+              ElementsAre(kPlaintextRequest));
+
+  absl::StatusOr<std::string> response_chunk =
+      chunk_gateway->EncryptResponse(kPlaintextResponse,
+                                     /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(response_chunk);
+  if (!response_chunk.ok()) {
+    return;
+  }
+  QUICHE_EXPECT_OK(
+      chunk_client->DecryptResponse(*response_chunk, /*end_stream=*/true));
+  EXPECT_THAT(client_chunk_handler.GetDecryptedChunks(),
+              ElementsAre(kPlaintextResponse));
+  EXPECT_TRUE(client_chunk_handler.OnChunksDoneCalled());
+}
+
+TEST(ChunkedObliviousHttpClient,
+     MultipleChunksDecryptResponseWhileBufferingSuccess) {
+  TestChunkHandler client_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(client_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  if (!chunk_client.ok()) {
+    return;
+  }
+  TestChunkHandler gateway_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
+      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_gateway);
+  if (!chunk_gateway.ok()) {
+    return;
+  }
+  std::string plaintext_response_1 = "plaintext_response_1";
+  std::string plaintext_response_2 = "plaintext_response_2";
+  std::string plaintext_response_3 = "plaintext_response_3";
+
+  absl::StatusOr<std::string> request_chunk =
+      chunk_client->EncryptRequestChunk(kPlaintextRequest,
+                                        /*is_final_chunk=*/false);
+  QUICHE_ASSERT_OK(request_chunk);
+  if (!request_chunk.ok()) {
+    return;
+  }
+  // Initial gateway decrypt is needed to implicitly set up context.
+  QUICHE_EXPECT_OK(
+      chunk_gateway->DecryptRequest(*request_chunk, /*end_stream=*/false));
+
+  absl::StatusOr<std::string> response_chunk_1 =
+      chunk_gateway->EncryptResponse(plaintext_response_1,
+                                     /*is_final_chunk=*/false);
+  QUICHE_EXPECT_OK(response_chunk_1);
+  if (!response_chunk_1.ok()) {
+    return;
+  }
+  absl::StatusOr<std::string> response_chunk_2 =
+      chunk_gateway->EncryptResponse(plaintext_response_2,
+                                     /*is_final_chunk=*/false);
+  QUICHE_EXPECT_OK(response_chunk_2);
+  if (!response_chunk_2.ok()) {
+    return;
+  }
+  absl::StatusOr<std::string> response_chunk_3 =
+      chunk_gateway->EncryptResponse(plaintext_response_3,
+                                     /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(response_chunk_3);
+  if (!response_chunk_3.ok()) {
+    return;
+  }
+
+  std::string full_response =
+      absl::StrCat(*response_chunk_1, *response_chunk_2, *response_chunk_3);
+  // For each byte, call DecryptResponse with end_stream=false.
+  for (size_t i = 0; i < full_response.size() - 1; ++i) {
+    QUICHE_EXPECT_OK(chunk_client->DecryptResponse(full_response.substr(i, 1),
+                                                   /*end_stream=*/false));
+  }
+  // The last call to DecryptResponse will have end_stream=true.
+  QUICHE_EXPECT_OK(chunk_client->DecryptResponse(
+      full_response.substr(full_response.size() - 1, 1),
+      /*end_stream=*/true));
+
+  EXPECT_THAT(client_chunk_handler.GetDecryptedChunks(),
+              ElementsAre(plaintext_response_1, plaintext_response_2,
+                          plaintext_response_3));
+  EXPECT_TRUE(client_chunk_handler.OnChunksDoneCalled());
+}
+
+TEST(ChunkedObliviousHttpClient, CreateClientWithEmptyPublicKeyFails) {
+  TestChunkHandler chunk_handler;
+  EXPECT_THAT(ChunkedObliviousHttpClient::Create(
+                  /*hpke_public_key=*/"",
+                  GetOhttpKeyConfig(
+                      /*key_id=*/1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                      EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM),
+                  &chunk_handler),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST(ChunkedObliviousHttpClient, CreateClientWithInvalidPublicKeyFails) {
+  TestChunkHandler chunk_handler;
+  EXPECT_THAT(ChunkedObliviousHttpClient::Create(
+                  /*hpke_public_key=*/"invalid_key",
+                  GetOhttpKeyConfig(
+                      /*key_id=*/1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+                      EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM),
+                  &chunk_handler),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
+TEST(ChunkedObliviousHttpClient, DecryptResponseWithCorruptedNonceFails) {
+  TestChunkHandler client_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(client_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  if (!chunk_client.ok()) {
+    return;
+  }
+  TestChunkHandler gateway_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
+      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_gateway);
+  if (!chunk_gateway.ok()) {
+    return;
+  }
+
+  absl::StatusOr<std::string> request =
+      chunk_client->EncryptRequestChunk(kPlaintextRequest,
+                                        /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(request);
+  if (!request.ok()) {
+    return;
+  }
+  QUICHE_EXPECT_OK(
+      chunk_gateway->DecryptRequest(*request, /*end_stream=*/true));
+
+  absl::StatusOr<std::string> response =
+      chunk_gateway->EncryptResponse(kPlaintextResponse,
+                                     /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(response);
+  if (!response.ok()) {
+    return;
+  }
+  std::string corrupted_response = *response;
+  corrupted_response[0] ^= 0x01;  // Corrupt first byte of nonce.
+  EXPECT_THAT(
+      chunk_client->DecryptResponse(corrupted_response, /*end_stream=*/true),
+      StatusIs(absl::StatusCode::kInternal));
+}
+
+TEST(ChunkedObliviousHttpClient, DecryptResponseWithCorruptedChunkFails) {
+  TestChunkHandler client_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(client_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  if (!chunk_client.ok()) {
+    return;
+  }
+  TestChunkHandler gateway_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
+      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_gateway);
+  if (!chunk_gateway.ok()) {
+    return;
+  }
+
+  absl::StatusOr<std::string> request =
+      chunk_client->EncryptRequestChunk(kPlaintextRequest,
+                                        /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(request);
+  if (!request.ok()) {
+    return;
+  }
+  QUICHE_EXPECT_OK(
+      chunk_gateway->DecryptRequest(*request, /*end_stream=*/true));
+
+  absl::StatusOr<std::string> response1 =
+      chunk_gateway->EncryptResponse(kPlaintextResponse,
+                                     /*is_final_chunk=*/false);
+  QUICHE_EXPECT_OK(response1);
+  if (!response1.ok()) {
+    return;
+  }
+
+  std::string corrupted_chunk_response = *response1;
+  corrupted_chunk_response[15] ^= 0x01;  // Corrupt byte in chunk data.
+                                         // 12 bytes nonce + 1 byte len.
+  EXPECT_THAT(chunk_client->DecryptResponse(corrupted_chunk_response,
+                                            /*end_stream=*/false),
+              StatusIs(absl::StatusCode::kInternal));
+}
+
+TEST(ChunkedObliviousHttpClient, DecryptResponseWithCorruptedFinalChunkFails) {
+  TestChunkHandler client_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(client_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  if (!chunk_client.ok()) {
+    return;
+  }
+  TestChunkHandler gateway_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
+      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_gateway);
+  if (!chunk_gateway.ok()) {
+    return;
+  }
+
+  absl::StatusOr<std::string> request =
+      chunk_client->EncryptRequestChunk(kPlaintextRequest,
+                                        /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(request);
+  if (!request.ok()) {
+    return;
+  }
+  QUICHE_EXPECT_OK(
+      chunk_gateway->DecryptRequest(*request, /*end_stream=*/true));
+
+  absl::StatusOr<std::string> response =
+      chunk_gateway->EncryptResponse(kPlaintextResponse,
+                                     /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(response);
+  if (!response.ok()) {
+    return;
+  }
+  std::string corrupted_response = *response;
+  corrupted_response[15] ^=
+      0x01;  // Corrupt byte in chunk data.
+             // 12 bytes nonce + 1 byte chunk indicator==0.
+  EXPECT_THAT(
+      chunk_client->DecryptResponse(corrupted_response, /*end_stream=*/true),
+      StatusIs(absl::StatusCode::kInternal));
+}
+
+TEST(ChunkedObliviousHttpClient, DecryptResponseAfterEndStreamReturnsError) {
+  TestChunkHandler client_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(client_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  if (!chunk_client.ok()) {
+    return;
+  }
+  TestChunkHandler gateway_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
+      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_gateway);
+  if (!chunk_gateway.ok()) {
+    return;
+  }
+
+  absl::StatusOr<std::string> request =
+      chunk_client->EncryptRequestChunk(kPlaintextRequest,
+                                        /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(request);
+  if (!request.ok()) {
+    return;
+  }
+  QUICHE_EXPECT_OK(
+      chunk_gateway->DecryptRequest(*request, /*end_stream=*/true));
+
+  absl::StatusOr<std::string> response =
+      chunk_gateway->EncryptResponse(kPlaintextResponse,
+                                     /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(response);
+  if (!response.ok()) {
+    return;
+  }
+  QUICHE_EXPECT_OK(
+      chunk_client->DecryptResponse(*response, /*end_stream=*/true));
+  EXPECT_THAT(client_chunk_handler.GetDecryptedChunks(),
+              ElementsAre(kPlaintextResponse));
+  EXPECT_TRUE(client_chunk_handler.OnChunksDoneCalled());
+
+  EXPECT_THAT(chunk_client->DecryptResponse("data", /*end_stream=*/false),
+              StatusIs(absl::StatusCode::kInternal));
+}
+
+TEST(ChunkedObliviousHttpClient,
+     DecryptResponseFailsIfHandlerFailsOnDecryptedChunk) {
+  TestChunkHandler client_chunk_handler;
+  client_chunk_handler.SetFailOnDecryptedChunk(true);
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(client_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  if (!chunk_client.ok()) {
+    return;
+  }
+  TestChunkHandler gateway_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
+      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_gateway);
+  if (!chunk_gateway.ok()) {
+    return;
+  }
+
+  absl::StatusOr<std::string> request =
+      chunk_client->EncryptRequestChunk(kPlaintextRequest,
+                                        /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(request);
+  if (!request.ok()) {
+    return;
+  }
+  QUICHE_EXPECT_OK(
+      chunk_gateway->DecryptRequest(*request, /*end_stream=*/true));
+
+  absl::StatusOr<std::string> response =
+      chunk_gateway->EncryptResponse(kPlaintextResponse,
+                                     /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(response);
+  if (!response.ok()) {
+    return;
+  }
+  EXPECT_THAT(chunk_client->DecryptResponse(*response, /*end_stream=*/true),
+              StatusIs(absl::StatusCode::kInternal));
+}
+
+TEST(ChunkedObliviousHttpClient,
+     DecryptResponseFailsIfHandlerFailsOnChunksDone) {
+  TestChunkHandler client_chunk_handler;
+  client_chunk_handler.SetFailOnChunksDone(true);
+  absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
+      CreateChunkedObliviousHttpClient(client_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_client);
+  if (!chunk_client.ok()) {
+    return;
+  }
+  TestChunkHandler gateway_chunk_handler;
+  absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
+      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+  QUICHE_ASSERT_OK(chunk_gateway);
+  if (!chunk_gateway.ok()) {
+    return;
+  }
+
+  absl::StatusOr<std::string> request =
+      chunk_client->EncryptRequestChunk(kPlaintextRequest,
+                                        /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(request);
+  if (!request.ok()) {
+    return;
+  }
+  QUICHE_EXPECT_OK(
+      chunk_gateway->DecryptRequest(*request, /*end_stream=*/true));
+
+  absl::StatusOr<std::string> response =
+      chunk_gateway->EncryptResponse(kPlaintextResponse,
+                                     /*is_final_chunk=*/true);
+  QUICHE_EXPECT_OK(response);
+  if (!response.ok()) {
+    return;
+  }
+  EXPECT_THAT(chunk_client->DecryptResponse(*response, /*end_stream=*/true),
+              StatusIs(absl::StatusCode::kInternal));
 }
 
 }  // namespace quiche
