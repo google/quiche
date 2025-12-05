@@ -985,6 +985,7 @@ quiche_test_support_srcs = [
 balsa_hdrs = [
     "balsa/balsa_enums.h",
     "balsa/balsa_frame.h",
+    "balsa/balsa_fuzz_util.h",
     "balsa/balsa_headers.h",
     "balsa/balsa_headers_sequence.h",
     "balsa/balsa_visitor_interface.h",
@@ -999,6 +1000,7 @@ balsa_hdrs = [
 balsa_srcs = [
     "balsa/balsa_enums.cc",
     "balsa/balsa_frame.cc",
+    "balsa/balsa_fuzz_util.cc",
     "balsa/balsa_headers.cc",
     "balsa/balsa_headers_sequence.cc",
     "balsa/header_properties.cc",
@@ -1096,6 +1098,7 @@ io_test_support_srcs = [
 quiche_tests_hdrs = [
 ]
 quiche_tests_srcs = [
+    "balsa/balsa_frame_fuzz_test.cc",
     "balsa/balsa_frame_test.cc",
     "balsa/balsa_headers_sequence_test.cc",
     "balsa/balsa_headers_test.cc",

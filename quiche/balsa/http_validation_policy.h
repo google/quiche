@@ -6,8 +6,8 @@
 #define QUICHE_BALSA_HTTP_VALIDATION_POLICY_H_
 
 #include <cstdint>
-#include <ostream>
 
+#include "absl/strings/str_format.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
@@ -16,6 +16,9 @@ namespace quiche {
 // requests.  It offers individual Boolean members to be consulted during the
 // parsing of an HTTP request.  For historical reasons, every member is set up
 // such that `true` means more strict validation.
+//
+// NOTE: When modifying this struct's members, please update `AbslStringify()`
+// below and `ArbitraryHttpValidationPolicy()` in balsa_fuzz_util.h.
 struct QUICHE_EXPORT HttpValidationPolicy {
   // https://tools.ietf.org/html/rfc7230#section-3.2.4 deprecates "folding"
   // of long header lines onto continuation lines.
@@ -76,6 +79,8 @@ struct QUICHE_EXPORT HttpValidationPolicy {
     NONE,
     SANITIZE,
     REJECT,
+    kMinValue = NONE,
+    kMaxValue = REJECT,
   };
   FirstLineValidationOption sanitize_cr_tab_in_first_line =
       FirstLineValidationOption::NONE;
@@ -106,6 +111,65 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // 9110, Section 5.6.2.
   // https://datatracker.ietf.org/doc/html/rfc9110#section-5.6.2
   bool disallow_invalid_request_methods = false;
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, FirstLineValidationOption option) {
+    switch (option) {
+      case FirstLineValidationOption::NONE:
+        sink.Append("NONE");
+        return;
+      case FirstLineValidationOption::SANITIZE:
+        sink.Append("SANITIZE");
+        return;
+      case FirstLineValidationOption::REJECT:
+        sink.Append("REJECT");
+        return;
+    }
+    sink.Append("UNKNOWN");
+  }
+
+  template <typename Sink>
+  friend void AbslStringify(Sink& sink, const HttpValidationPolicy& policy) {
+    absl::Format(&sink,
+                 "{disallow_header_continuation_lines=%v, "
+                 "require_header_colon=%v, "
+                 "disallow_multiple_content_length=%v, "
+                 "disallow_transfer_encoding_with_content_length=%v, "
+                 "validate_transfer_encoding=%v, "
+                 "require_content_length_if_body_required=%v, "
+                 "disallow_double_quote_in_header_name=%v, "
+                 "disallow_invalid_header_characters_in_response=%v, "
+                 "disallow_lone_cr_in_request_headers=%v, "
+                 "disallow_lone_cr_in_chunk_extension=%v, "
+                 "disallow_invalid_target_uris=%v, "
+                 "sanitize_cr_tab_in_first_line=%v, "
+                 "disallow_obs_text_in_field_names=%v, "
+                 "disallow_lone_lf_in_chunk_extension=%v, "
+                 "require_chunked_body_end_with_crlf_crlf=%v, "
+                 "sanitize_firstline_spaces=%v, "
+                 "sanitize_obs_fold_in_header_values=%v, "
+                 "disallow_stray_data_after_chunk=%v, "
+                 "disallow_invalid_request_methods=%v}",
+                 policy.disallow_header_continuation_lines,
+                 policy.require_header_colon,
+                 policy.disallow_multiple_content_length,
+                 policy.disallow_transfer_encoding_with_content_length,
+                 policy.validate_transfer_encoding,
+                 policy.require_content_length_if_body_required,
+                 policy.disallow_double_quote_in_header_name,
+                 policy.disallow_invalid_header_characters_in_response,
+                 policy.disallow_lone_cr_in_request_headers,
+                 policy.disallow_lone_cr_in_chunk_extension,
+                 policy.disallow_invalid_target_uris,
+                 policy.sanitize_cr_tab_in_first_line,
+                 policy.disallow_obs_text_in_field_names,
+                 policy.disallow_lone_lf_in_chunk_extension,
+                 policy.require_chunked_body_end_with_crlf_crlf,
+                 policy.sanitize_firstline_spaces,
+                 policy.sanitize_obs_fold_in_header_values,
+                 policy.disallow_stray_data_after_chunk,
+                 policy.disallow_invalid_request_methods);
+  }
 };
 
 }  // namespace quiche
