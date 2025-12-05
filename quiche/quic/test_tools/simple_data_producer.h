@@ -9,6 +9,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_stream_frame_data_producer.h"
 #include "quiche/quic/core/quic_stream_send_buffer.h"
+#include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
 namespace quic {
@@ -41,7 +42,8 @@ class SimpleDataProducer : public QuicStreamFrameDataProducer {
 
  private:
   using SendBufferMap =
-      absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStreamSendBuffer>>;
+      absl::flat_hash_map<QuicStreamId,
+                          std::unique_ptr<QuicStreamSendBufferInlining>>;
 
   using CryptoBufferMap =
       absl::flat_hash_map<std::pair<EncryptionLevel, QuicStreamOffset>,

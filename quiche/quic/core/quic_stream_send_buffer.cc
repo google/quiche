@@ -49,11 +49,11 @@ QuicInterval<uint64_t> BufferedSlice::interval() const {
   return QuicInterval<uint64_t>(offset, offset + length);
 }
 
-QuicStreamSendBuffer::QuicStreamSendBuffer(
+QuicStreamSendBufferOld::QuicStreamSendBufferOld(
     quiche::QuicheBufferAllocator* allocator)
     : allocator_(allocator) {}
 
-void QuicStreamSendBuffer::SaveStreamData(absl::string_view data) {
+void QuicStreamSendBufferOld::SaveStreamData(absl::string_view data) {
   QUIC_DVLOG(2) << "Save stream data offset " << stream_offset_ << " length "
                 << data.length();
   QUICHE_DCHECK(!data.empty());
@@ -72,7 +72,7 @@ void QuicStreamSendBuffer::SaveStreamData(absl::string_view data) {
   }
 }
 
-void QuicStreamSendBuffer::SaveMemSlice(quiche::QuicheMemSlice slice) {
+void QuicStreamSendBufferOld::SaveMemSlice(quiche::QuicheMemSlice slice) {
   QUIC_DVLOG(2) << "Save slice offset " << stream_offset_ << " length "
                 << slice.length();
   if (slice.empty()) {
@@ -85,7 +85,7 @@ void QuicStreamSendBuffer::SaveMemSlice(quiche::QuicheMemSlice slice) {
   stream_offset_ += length;
 }
 
-QuicByteCount QuicStreamSendBuffer::SaveMemSliceSpan(
+QuicByteCount QuicStreamSendBufferOld::SaveMemSliceSpan(
     absl::Span<quiche::QuicheMemSlice> span) {
   QuicByteCount total = 0;
   for (quiche::QuicheMemSlice& slice : span) {
@@ -99,9 +99,9 @@ QuicByteCount QuicStreamSendBuffer::SaveMemSliceSpan(
   return total;
 }
 
-bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
-                                           QuicByteCount data_length,
-                                           QuicDataWriter* writer) {
+bool QuicStreamSendBufferOld::WriteStreamData(QuicStreamOffset offset,
+                                              QuicByteCount data_length,
+                                              QuicDataWriter* writer) {
   // The iterator returned from |interval_deque_| will automatically advance
   // the internal write index for the QuicIntervalDeque. The incrementing is
   // done in operator++.
@@ -126,8 +126,8 @@ bool QuicStreamSendBuffer::WriteStreamData(QuicStreamOffset offset,
   return data_length == 0;
 }
 
-bool QuicStreamSendBuffer::FreeMemSlices(QuicStreamOffset start,
-                                         QuicStreamOffset end) {
+bool QuicStreamSendBufferOld::FreeMemSlices(QuicStreamOffset start,
+                                            QuicStreamOffset end) {
   auto it = interval_deque_.DataBegin();
   if (it == interval_deque_.DataEnd() || it->slice.empty()) {
     QUIC_BUG(quic_bug_10853_4)
@@ -161,21 +161,22 @@ bool QuicStreamSendBuffer::FreeMemSlices(QuicStreamOffset start,
   return true;
 }
 
-void QuicStreamSendBuffer::CleanUpBufferedSlices() {
+void QuicStreamSendBufferOld::CleanUpBufferedSlices() {
   while (!interval_deque_.Empty() &&
          interval_deque_.DataBegin()->slice.empty()) {
     interval_deque_.PopFront();
   }
 }
 
-size_t QuicStreamSendBuffer::size() const { return interval_deque_.Size(); }
+size_t QuicStreamSendBufferOld::size() const { return interval_deque_.Size(); }
 
-void QuicStreamSendBuffer::SetStreamOffsetForTest(QuicStreamOffset new_offset) {
+void QuicStreamSendBufferOld::SetStreamOffsetForTest(
+    QuicStreamOffset new_offset) {
   QuicStreamSendBufferBase::SetStreamOffsetForTest(new_offset);
   stream_offset_ = new_offset;
 }
 
-absl::string_view QuicStreamSendBuffer::LatestWriteForTest() {
+absl::string_view QuicStreamSendBufferOld::LatestWriteForTest() {
   absl::string_view last_slice = "";
   for (auto it = interval_deque_.DataBegin(); it != interval_deque_.DataEnd();
        ++it) {
@@ -184,7 +185,7 @@ absl::string_view QuicStreamSendBuffer::LatestWriteForTest() {
   return last_slice;
 }
 
-QuicByteCount QuicStreamSendBuffer::TotalDataBufferedForTest() {
+QuicByteCount QuicStreamSendBufferOld::TotalDataBufferedForTest() {
   QuicByteCount length = 0;
   for (auto slice = interval_deque_.DataBegin();
        slice != interval_deque_.DataEnd(); ++slice) {

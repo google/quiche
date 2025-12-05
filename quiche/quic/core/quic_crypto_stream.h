@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstddef>
+#include <memory>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -17,6 +18,7 @@
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream.h"
+#include "quiche/quic/core/quic_stream_send_buffer_base.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
@@ -263,7 +265,7 @@ class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
     CryptoSubstream(QuicCryptoStream* crypto_stream);
 
     QuicStreamSequencer sequencer;
-    QuicStreamSendBuffer send_buffer;
+    const std::unique_ptr<QuicStreamSendBufferBase> send_buffer;
   };
 
   // Consumed data according to encryption levels.

@@ -10,6 +10,7 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_writer.h"
+#include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 
@@ -27,7 +28,8 @@ void SimpleDataProducer::SaveStreamData(QuicStreamId id,
     return;
   }
   if (!send_buffer_map_.contains(id)) {
-    send_buffer_map_[id] = std::make_unique<QuicStreamSendBuffer>(&allocator_);
+    send_buffer_map_[id] =
+        std::make_unique<QuicStreamSendBufferInlining>(&allocator_);
   }
   send_buffer_map_[id]->SaveStreamData(data);
 }

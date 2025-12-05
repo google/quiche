@@ -55,9 +55,9 @@ struct QUICHE_EXPORT BufferedSlice {
 // it cannot be written after it is marked as acked. Stream data can be written
 // out-of-order within those bounds, but note that in-order wites are O(1)
 // whereas out-of-order writes are O(log(n)), see QuicIntervalDeque for details.
-class QUICHE_EXPORT QuicStreamSendBuffer : public QuicStreamSendBufferBase {
+class QUICHE_EXPORT QuicStreamSendBufferOld : public QuicStreamSendBufferBase {
  public:
-  explicit QuicStreamSendBuffer(quiche::QuicheBufferAllocator* allocator);
+  explicit QuicStreamSendBufferOld(quiche::QuicheBufferAllocator* allocator);
 
   // Save |data| to send buffer.
   void SaveStreamData(absl::string_view data) override;

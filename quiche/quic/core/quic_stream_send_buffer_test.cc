@@ -35,7 +35,7 @@ namespace test {
 // gone.
 class QuicStreamSendBufferPeer {
  public:
-  static int32_t write_index(QuicStreamSendBuffer* send_buffer) {
+  static int32_t write_index(QuicStreamSendBufferOld* send_buffer) {
     return QuicIntervalDequePeer::GetCachedIndex(&send_buffer->interval_deque_);
   }
 };
@@ -98,7 +98,7 @@ class QuicStreamSendBufferTest
   std::unique_ptr<QuicStreamSendBufferBase> CreateBuffer() {
     switch (GetParam()) {
       case SendBufferType::kDefault:
-        return std::make_unique<QuicStreamSendBuffer>(&allocator_);
+        return std::make_unique<QuicStreamSendBufferOld>(&allocator_);
       case SendBufferType::kInlining:
         return std::make_unique<QuicStreamSendBufferInlining>(&allocator_);
     }
@@ -175,14 +175,16 @@ TEST_P(QuicStreamSendBufferTest,
   QuicDataWriter writer(6000, buf, quiche::HOST_BYTE_ORDER);
   // Write more than one slice.
   if (GetParam() == SendBufferType::kDefault) {
-    EXPECT_EQ(0, QuicStreamSendBufferPeer::write_index(
-                     static_cast<QuicStreamSendBuffer*>(send_buffer_.get())));
+    EXPECT_EQ(0,
+              QuicStreamSendBufferPeer::write_index(
+                  static_cast<QuicStreamSendBufferOld*>(send_buffer_.get())));
   }
   ASSERT_TRUE(send_buffer_->WriteStreamData(0, 1024, &writer));
   EXPECT_EQ(copy1, absl::string_view(buf, 1024));
   if (GetParam() == SendBufferType::kDefault) {
-    EXPECT_EQ(1, QuicStreamSendBufferPeer::write_index(
-                     static_cast<QuicStreamSendBuffer*>(send_buffer_.get())));
+    EXPECT_EQ(1,
+              QuicStreamSendBufferPeer::write_index(
+                  static_cast<QuicStreamSendBufferOld*>(send_buffer_.get())));
   }
 
   // Retransmit the first frame and also send new data.
