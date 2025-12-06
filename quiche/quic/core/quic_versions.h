@@ -230,11 +230,6 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   constexpr explicit ParsedQuicVersion(QuicTransportVersion transport_version)
       : handshake_protocol(
             HandshakeProtocolForTransportVersion(transport_version)),
-        transport_version(transport_version) {}
-
-  constexpr ParsedQuicVersion(HandshakeProtocol handshake_protocol,
-                              QuicTransportVersion transport_version)
-      : handshake_protocol(handshake_protocol),
         transport_version(transport_version) {
     QUICHE_DCHECK(
         ParsedQuicVersionIsValid(handshake_protocol, transport_version))
@@ -243,7 +238,7 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   }
 
   constexpr ParsedQuicVersion(const ParsedQuicVersion& other)
-      : ParsedQuicVersion(other.handshake_protocol, other.transport_version) {}
+      : ParsedQuicVersion(other.transport_version) {}
 
   ParsedQuicVersion& operator=(const ParsedQuicVersion& other) {
     QUICHE_DCHECK(ParsedQuicVersionIsValid(other.handshake_protocol,
