@@ -58,6 +58,9 @@ class QUICHE_EXPORT MasqueOhttpClient
   // Returns true if the client has completed all requests.
   bool IsDone();
 
+  // Returns the status of the client.
+  absl::Status status() const { return status_; }
+
  protected:
   // From quic::MasqueConnectionPool::Visitor.
   void OnResponse(quic::MasqueConnectionPool* /*pool*/, RequestId request_id,
@@ -73,13 +76,11 @@ class QUICHE_EXPORT MasqueOhttpClient
   absl::Status SendOhttpRequestForUrl(const std::string& url_string);
 
   // Signals the client to abort.
-  void Abort() {
-    QUICHE_LOG(INFO) << "Aborting";
-    aborted_ = true;
-  }
+  void Abort(absl::Status status);
+
   absl::StatusOr<quiche::BinaryHttpResponse> TryExtractBinaryResponse(
       RequestId request_id, quiche::ObliviousHttpRequest::Context& context,
-      const absl::StatusOr<Message>& response);
+      const Message& response);
   virtual absl::Status HandleOhttpResponse(
       RequestId request_id, const absl::StatusOr<Message>& response);
   virtual absl::Status HandleBinaryResponse(
@@ -88,11 +89,15 @@ class QUICHE_EXPORT MasqueOhttpClient
   }
 
  private:
+  absl::Status CheckStatusAndContentType(const Message& response,
+                                         const std::string& content_type);
+
   std::vector<std::string> urls_;
   std::string post_data_;
   quic::MasqueConnectionPool connection_pool_;
   std::optional<RequestId> key_fetch_request_id_;
   bool aborted_ = false;
+  absl::Status status_ = absl::OkStatus();
   std::optional<quiche::ObliviousHttpClient> ohttp_client_;
   quic::QuicUrl relay_url_;
   absl::flat_hash_map<RequestId, quiche::ObliviousHttpRequest::Context>
