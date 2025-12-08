@@ -51,6 +51,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_no_write_control_frame_upon_connec
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_notify_ack_listener_earlier, true, true, "If true, call QuicAckListenerInterface::OnPacketAcked() before moving the stream to closed stream list.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_notify_stream_soon_to_destroy, true, true, "If true, notify each QUIC stream before it gets destroyed and update ACK listener before that.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_on_packet_header_return_connected, false, true, "If true, QuicConnection::OnPacketHeader will return connected_ at the end of the function.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_one_dcid, false, false, "If true, stores only one copy of the destination connection ID in QuicConnection::ReceivedPacketInfo.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_optimize_qpack_blocking_manager, false, false, "If true, optimize qpack_blocking_manager for CPU efficiency.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_pacing_remove_non_initial_burst, false, false, "If true, remove the non-initial burst in QUIC PacingSender.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_parse_cert_compression_algos_from_chlo, true, true, "If true, parse offered cert compression algorithms from received CHLOs.")

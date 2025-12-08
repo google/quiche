@@ -228,7 +228,8 @@ QuicConnection::QuicConnection(
       received_client_addresses_cache_(kMaxReceivedClientAddressSize),
       perspective_(perspective),
       owns_writer_(owns_writer),
-      can_truncate_connection_ids_(perspective == Perspective::IS_SERVER) {
+      can_truncate_connection_ids_(perspective == Perspective::IS_SERVER),
+      store_one_dcid_(GetQuicReloadableFlag(quic_one_dcid)) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
@@ -987,17 +988,33 @@ bool QuicConnection::ValidateServerConnectionId(
 
 bool QuicConnection::OnUnauthenticatedPublicHeader(
     const QuicPacketHeader& header) {
-  last_received_packet_info_.destination_connection_id =
-      header.destination_connection_id;
-  // If last packet destination connection ID is the original server
-  // connection ID chosen by client, replaces it with the connection ID chosen
-  // by server.
-  if (perspective_ == Perspective::IS_SERVER &&
-      original_destination_connection_id_.has_value() &&
-      last_received_packet_info_.destination_connection_id ==
-          *original_destination_connection_id_) {
+  if (store_one_dcid_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_one_dcid, 2, 3);
+    last_received_packet_info_.header.destination_connection_id =
+        header.destination_connection_id;
+    // If last packet destination connection ID is the original server
+    // connection ID chosen by client, replaces it with the connection ID chosen
+    // by server.
+    if (perspective_ == Perspective::IS_SERVER &&
+        original_destination_connection_id_.has_value() &&
+        last_received_packet_info_.header.destination_connection_id ==
+            *original_destination_connection_id_) {
+      last_received_packet_info_.header.destination_connection_id =
+          original_destination_connection_id_replacement_;
+    }
+  } else {
     last_received_packet_info_.destination_connection_id =
-        original_destination_connection_id_replacement_;
+        header.destination_connection_id;
+    // If last packet destination connection ID is the original server
+    // connection ID chosen by client, replaces it with the connection ID chosen
+    // by server.
+    if (perspective_ == Perspective::IS_SERVER &&
+        original_destination_connection_id_.has_value() &&
+        last_received_packet_info_.destination_connection_id ==
+            *original_destination_connection_id_) {
+      last_received_packet_info_.destination_connection_id =
+          original_destination_connection_id_replacement_;
+    }
   }
 
   // As soon as we receive an initial we start ignoring subsequent retries.
@@ -1233,6 +1250,15 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
     }
   }
 
+  if (store_one_dcid_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_one_dcid, 3, 3);
+    // Save the stored destination connection ID, in case it was substituted.
+    QuicConnectionId destination_connection_id =
+        last_received_packet_info_.header.destination_connection_id;
+    last_received_packet_info_.header = header;
+    last_received_packet_info_.header.destination_connection_id =
+        destination_connection_id;
+  }
   if (perspective_ == Perspective::IS_CLIENT) {
     if (!GetLargestReceivedPacket().IsInitialized() ||
         header.packet_number > GetLargestReceivedPacket()) {
@@ -1276,34 +1302,33 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
       // connection ID set on path.
       // 1) If client uses 1 unique server connection ID per path and the packet
       // is received from an existing path, then
-      // last_received_packet_info_.destination_connection_id will always be the
-      // same as the server connection ID on path. Server side will maintain the
-      // 1-to-1 mapping from server connection ID to path. 2) If client uses
-      // multiple server connection IDs on the same path, compared to the
-      // server_connection_id on path,
-      // last_received_packet_info_.destination_connection_id has the advantage
-      // that it is still present in the session map since the packet can be
-      // routed here regardless of packet reordering.
+      // last_received_packet_info_.header.destination_connection_id will always
+      // be the same as the server connection ID on path. Server side will
+      // maintain the 1-to-1 mapping from server connection ID to path. 2) If
+      // client uses multiple server connection IDs on the same path, compared
+      // to the server_connection_id on path,
+      // last_received_packet_info_.header.destination_connection_id has the
+      // advantage that it is still present in the session map since the packet
+      // can be routed here regardless of packet reordering.
       if (IsDefaultPath(last_received_packet_info_.destination_address,
                         effective_peer_address)) {
         default_path_.server_connection_id =
-            last_received_packet_info_.destination_connection_id;
+            GetDestinationConnectionId(last_received_packet_info_);
       } else if (IsAlternativePath(
                      last_received_packet_info_.destination_address,
                      effective_peer_address)) {
         alternative_path_.server_connection_id =
-            last_received_packet_info_.destination_connection_id;
+            GetDestinationConnectionId(last_received_packet_info_);
       }
     }
 
-    if (last_received_packet_info_.destination_connection_id !=
+    if (GetDestinationConnectionId(last_received_packet_info_) !=
             default_path_.server_connection_id &&
         (!original_destination_connection_id_.has_value() ||
-         last_received_packet_info_.destination_connection_id !=
+         GetDestinationConnectionId(last_received_packet_info_) !=
              *original_destination_connection_id_)) {
       QUIC_CODE_COUNT(quic_connection_id_change);
     }
-
     QUIC_DLOG_IF(INFO, current_effective_peer_migration_type_ != NO_CHANGE)
         << ENDPOINT << "Effective peer's ip:port changed from "
         << default_path_.peer_address.ToString() << " to "
@@ -1314,7 +1339,19 @@ bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
 
   --stats_.packets_dropped;
   QUIC_DVLOG(1) << ENDPOINT << "Received packet header: " << header;
-  last_received_packet_info_.header = header;
+  if (store_one_dcid_) {
+    // last_received_packet_info_.header.destination_connection_id will often
+    // be different from header.destination_connection_id, so we can't simply
+    // compare the two headers.
+    QUIC_BUG_IF(
+        quic_bug_header_mismatch,
+        last_received_packet_info_.header.packet_number !=
+                header.packet_number ||
+            last_received_packet_info_.header.type_byte != header.type_byte)
+        << "last_received_packet_info.header not assigned";
+  } else {
+    last_received_packet_info_.header = header;
+  }
   if (!stats_.first_decrypted_packet.IsInitialized()) {
     stats_.first_decrypted_packet =
         last_received_packet_info_.header.packet_number;
@@ -5071,8 +5108,8 @@ std::ostream& operator<<(std::ostream& os,
   os << " { destination_address: " << info.destination_address.ToString()
      << ", source_address: " << info.source_address.ToString()
      << ", received_bytes_counted: " << info.received_bytes_counted
-     << ", length: " << info.length
-     << ", destination_connection_id: " << info.destination_connection_id;
+     << ", length: " << info.length << ", destination_connection_id: "
+     << info.header.destination_connection_id;
   if (!info.decrypted) {
     os << " }\n";
     return os;
@@ -5433,12 +5470,12 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
     std::optional<StatelessResetToken> stateless_reset_token;
     FindMatchingOrNewClientConnectionIdOrToken(
         previous_default_path, alternative_path_,
-        last_received_packet_info_.destination_connection_id,
+        GetDestinationConnectionId(last_received_packet_info_),
         &client_connection_id, &stateless_reset_token);
     SetDefaultPathState(
         PathState(last_received_packet_info_.destination_address,
                   current_effective_peer_address, client_connection_id,
-                  last_received_packet_info_.destination_connection_id,
+                  GetDestinationConnectionId(last_received_packet_info_),
                   stateless_reset_token));
     // The path is considered validated if its peer IP address matches any
     // validated path's peer IP address.
@@ -5636,15 +5673,15 @@ bool QuicConnection::UpdatePacketContent(QuicFrameType type) {
         std::optional<StatelessResetToken> stateless_reset_token;
         FindMatchingOrNewClientConnectionIdOrToken(
             default_path_, alternative_path_,
-            last_received_packet_info_.destination_connection_id,
+            GetDestinationConnectionId(last_received_packet_info_),
             &client_connection_id, &stateless_reset_token);
-        // Only override alternative path state upon receiving a PATH_CHALLENGE
-        // from an unvalidated peer address, and the connection isn't validating
-        // a recent peer migration.
+        // Only override alternative path state upon receiving a
+        // PATH_CHALLENGE from an unvalidated peer address, and the connection
+        // isn't validating a recent peer migration.
         alternative_path_ =
             PathState(last_received_packet_info_.destination_address,
                       current_effective_peer_address, client_connection_id,
-                      last_received_packet_info_.destination_connection_id,
+                      GetDestinationConnectionId(last_received_packet_info_),
                       stateless_reset_token);
         should_proactively_validate_peer_address_on_path_challenge_ = true;
       }

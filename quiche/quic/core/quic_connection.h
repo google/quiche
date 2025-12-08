@@ -1698,22 +1698,30 @@ class QUICHE_EXPORT QuicConnection
     QuicSocketAddress destination_address;
     QuicSocketAddress source_address;
     QuicTime receipt_time = QuicTime::Zero();
-    bool received_bytes_counted = false;
     QuicByteCount length = 0;
-    QuicConnectionId destination_connection_id;
-    // Fields below are only populated if packet gets decrypted successfully.
+    // END FIRST CACHELINE
+    // Fields below are only populated if packet gets decrypted successfully,
+    // except received_bytes_counted and header.destination_connection_id.
     // TODO(fayang): consider using std::optional for following fields.
+    QuicPacketHeader header;  // Placed to fall on the cacheline boundary, as it
+                              // fills two full cachelines including padding.
+    // END THIRD CACHELINE
+    bool received_bytes_counted = false;
     bool decrypted = false;
-    EncryptionLevel decrypted_level = ENCRYPTION_INITIAL;
-    QuicPacketHeader header;
-    absl::InlinedVector<QuicFrameType, 1> frames;
     QuicEcnCodepoint ecn_codepoint = ECN_NOT_ECT;
+    EncryptionLevel decrypted_level = ENCRYPTION_INITIAL;
     uint32_t flow_label = 0;
+    absl::InlinedVector<QuicFrameType, 1> frames;
     // Stores the actual address this packet is received on when it is received
     // on the preferred address. In this case, |destination_address| will
     // be overridden to the current default self address.
     QuicSocketAddress actual_destination_address;
+    // 8B remaining in the fourth cacheline.
+    // TODO(martinduke): Remove once gfe2_reloadable_flag_quic_one_dcid is
+    // deprecated.
+    QuicConnectionId destination_connection_id;
   };
+  static_assert(offsetof(ReceivedPacketInfo, received_bytes_counted) <= 192);
 
   QUICHE_EXPORT friend std::ostream& operator<<(
       std::ostream& os, const QuicConnection::ReceivedPacketInfo& info);
@@ -2171,6 +2179,16 @@ class QUICHE_EXPORT QuicConnection
     return QuicAlarmProxy(&alarms_, QuicAlarmSlot::kMultiPortProbing);
   }
 
+  // Extract destination connection ID from ReceivedPacketInfo.
+  inline QuicConnectionId GetDestinationConnectionId(
+      const ReceivedPacketInfo& packet_info) const {
+    if (store_one_dcid_) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_one_dcid, 1, 3);
+      return packet_info.header.destination_connection_id;
+    }
+    return packet_info.destination_connection_id;
+  }
+
   QuicConnectionContext context_;
 
   QuicFramer framer_;
@@ -2530,6 +2548,10 @@ class QUICHE_EXPORT QuicConnection
   // If true then flow labels will be changed when a PTO fires, or when
   // a PTO'd packet from a peer is detected.
   bool enable_black_hole_avoidance_via_flow_label_ : 1 = false;
+  // If true, stores only one copy of the destination connection ID in
+  // ReceivedPacketInfo.
+  const bool store_one_dcid_ : 1;
+
   const bool quic_limit_new_streams_per_loop_2_ : 1 =
       GetQuicReloadableFlag(quic_limit_new_streams_per_loop_2);
   const bool quic_test_peer_addr_change_after_normalize_ : 1 =
