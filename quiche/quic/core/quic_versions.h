@@ -184,15 +184,6 @@ QUICHE_EXPORT constexpr bool TransportVersionIsValid(
   return false;
 }
 
-// Returns whether this combination of handshake protocol and transport
-// version is allowed. For example, {PROTOCOL_TLS1_3, QUIC_VERSION_46} is NOT
-// allowed as TLS requires crypto frames which v46 does not support. Note that
-// UnsupportedQuicVersion is a valid version.
-QUICHE_EXPORT constexpr bool ParsedQuicVersionIsValid(
-    QuicTransportVersion transport_version) {
-  return TransportVersionIsValid(transport_version);
-}
-
 QUICHE_EXPORT constexpr HandshakeProtocol HandshakeProtocolForTransportVersion(
     QuicTransportVersion transport_version) {
   if (VersionIsIetfQuic(transport_version)) {
@@ -250,7 +241,7 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   }
 
   // Returns whether our codebase understands this version. This should only be
-  // called on valid versions, see ParsedQuicVersionIsValid. Assuming the
+  // called on valid versions, see TransportVersionIsValid. Assuming the
   // version is valid, IsKnown returns whether the version is not
   // UnsupportedQuicVersion.
   bool IsKnown() const;

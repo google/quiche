@@ -32,18 +32,18 @@ TEST(QuicVersionsTest, CreateQuicVersionLabelUnsupported) {
 TEST(QuicVersionsTest, KnownAndValid) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     EXPECT_TRUE(version.IsKnown());
-    EXPECT_TRUE(ParsedQuicVersionIsValid(version.transport_version));
+    EXPECT_TRUE(TransportVersionIsValid(version.transport_version));
   }
   ParsedQuicVersion unsupported = UnsupportedQuicVersion();
   EXPECT_FALSE(unsupported.IsKnown());
-  EXPECT_TRUE(ParsedQuicVersionIsValid(unsupported.transport_version));
+  EXPECT_TRUE(TransportVersionIsValid(unsupported.transport_version));
   ParsedQuicVersion reserved = QuicVersionReservedForNegotiation();
   EXPECT_TRUE(reserved.IsKnown());
-  EXPECT_TRUE(ParsedQuicVersionIsValid(reserved.transport_version));
+  EXPECT_TRUE(TransportVersionIsValid(reserved.transport_version));
   // Check that deprecated versions are not valid.
-  EXPECT_FALSE(ParsedQuicVersionIsValid(static_cast<QuicTransportVersion>(33)));
-  EXPECT_FALSE(ParsedQuicVersionIsValid(static_cast<QuicTransportVersion>(43)));
-  EXPECT_FALSE(ParsedQuicVersionIsValid(static_cast<QuicTransportVersion>(99)));
+  EXPECT_FALSE(TransportVersionIsValid(static_cast<QuicTransportVersion>(33)));
+  EXPECT_FALSE(TransportVersionIsValid(static_cast<QuicTransportVersion>(43)));
+  EXPECT_FALSE(TransportVersionIsValid(static_cast<QuicTransportVersion>(99)));
 }
 
 TEST(QuicVersionsTest, Features) {
@@ -413,7 +413,7 @@ TEST(QuicVersionsTest, SupportedVersionsHasCorrectList) {
     QuicTransportVersion transport_version =
         static_cast<QuicTransportVersion>(trans_vers);
     SCOPED_TRACE(index);
-    if (ParsedQuicVersionIsValid(transport_version)) {
+    if (TransportVersionIsValid(transport_version)) {
       ParsedQuicVersion version = SupportedVersions()[index];
       EXPECT_EQ(version, ParsedQuicVersion(transport_version));
       index++;
