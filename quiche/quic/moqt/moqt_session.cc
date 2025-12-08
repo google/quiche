@@ -236,6 +236,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     metadata.subgroup = message.object_id;
     metadata.status = message.object_status;
     metadata.publisher_priority = message.publisher_priority;
+    metadata.forwarding_preference = MoqtForwardingPreference::kDatagram;
     metadata.arrival_time = callbacks_.clock->Now();
     visitor->OnObjectFragment(track->full_track_name(), metadata, *payload,
                               true);
@@ -1805,6 +1806,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       metadata.extensions = message.extension_headers;
       metadata.status = message.object_status;
       metadata.publisher_priority = message.publisher_priority;
+      metadata.forwarding_preference = MoqtForwardingPreference::kSubgroup;
       metadata.arrival_time = session_->callbacks_.clock->Now();
       subscribe->visitor()->OnObjectFragment(track->full_track_name(), metadata,
                                              payload, end_of_message);
@@ -2091,7 +2093,8 @@ void MoqtSession::PublishedSubscription::OnSubscribeRejected(
 }
 
 void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
-    Location location, uint64_t subgroup, MoqtPriority publisher_priority) {
+    Location location, uint64_t subgroup, MoqtPriority publisher_priority,
+    MoqtForwardingPreference forwarding_preference) {
   if (!InWindow(location)) {
     return;
   }
@@ -2142,12 +2145,7 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
   }
   QUICHE_DCHECK_GE(location.group, first_active_group_);
 
-  std::optional<MoqtForwardingPreference> forwarding_preference =
-      track_publisher_->forwarding_preference();
-  if (!forwarding_preference.has_value()) {
-    return;
-  }
-  if (*forwarding_preference == MoqtForwardingPreference::kDatagram) {
+  if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
     SendDatagram(location);
     return;
   }
@@ -2275,9 +2273,6 @@ MoqtSession::PublishedSubscription::GetAllStreams() const {
 webtransport::SendOrder MoqtSession::PublishedSubscription::GetSendOrder(
     Location sequence, uint64_t subgroup,
     MoqtPriority publisher_priority) const {
-  QUICHE_BUG_IF(GetSendOrder_no_forwarding_preference,
-                !track_publisher_->forwarding_preference().has_value())
-      << "No forwarding preference";
   MoqtForwardingPreference forwarding_preference =
       track_publisher_->forwarding_preference().value_or(
           MoqtForwardingPreference::kSubgroup);
@@ -2453,8 +2448,6 @@ void MoqtSession::OutgoingDataStream::SendObjects(
 
     QUICHE_DCHECK_EQ(object->metadata.location.group, index_.group);
     QUICHE_DCHECK(object->metadata.subgroup == index_.subgroup);
-    QUICHE_DCHECK(subscription.publisher().forwarding_preference() ==
-                  MoqtForwardingPreference::kSubgroup);
     if (!subscription.InWindow(object->metadata.location)) {
       // It is possible that the next object became irrelevant due to a
       // SUBSCRIBE_UPDATE.  Close the stream if so.

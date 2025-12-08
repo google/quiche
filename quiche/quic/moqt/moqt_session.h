@@ -374,8 +374,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnSubscribeAccepted() override;
     void OnSubscribeRejected(MoqtSubscribeErrorReason reason) override;
     // This is only called for objects that have just arrived.
-    void OnNewObjectAvailable(Location location, uint64_t subgroup,
-                              MoqtPriority publisher_priority) override;
+    void OnNewObjectAvailable(
+        Location location, uint64_t subgroup, MoqtPriority publisher_priority,
+        MoqtForwardingPreference forwarding_preference) override;
     void OnTrackPublisherGone() override;
     void OnNewFinAvailable(Location location, uint64_t subgroup) override;
     void OnSubgroupAbandoned(uint64_t group, uint64_t subgroup,
@@ -658,8 +659,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       // No class access below this line!
     }
 
-    void OnNewObjectAvailable(Location /*sequence*/, uint64_t /*subgroup*/,
-                              MoqtPriority /*publisher_priority*/) override {}
+    void OnNewObjectAvailable(Location, uint64_t /*subgroup*/, MoqtPriority,
+                              MoqtForwardingPreference) override {}
     void OnNewFinAvailable(Location /*location*/,
                            uint64_t /*subgroup*/) override {}
     void OnSubgroupAbandoned(

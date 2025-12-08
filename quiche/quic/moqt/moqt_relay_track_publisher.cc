@@ -64,9 +64,6 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
   if (is_closing_) {
     return;
   }
-  // TODO(martinduke): Add a way for SubscribeVisitor to determine if it's a
-  // datagram or stream object.
-  forwarding_preference_ = MoqtForwardingPreference::kSubgroup;
   if (!end_of_message) {
     QUICHE_BUG(moqt_relay_track_publisher_got_fragment)
         << "Received a fragment of an object.";
@@ -180,7 +177,8 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
                    CachedObject{metadata, slice, last_object_in_stream});
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnNewObjectAvailable(metadata.location, metadata.subgroup,
-                                   metadata.publisher_priority);
+                                   metadata.publisher_priority,
+                                   metadata.forwarding_preference);
     if (last_object_in_stream) {
       listener->OnNewFinAvailable(metadata.location, metadata.subgroup);
     }

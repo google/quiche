@@ -36,8 +36,9 @@ class MoqtObjectListener {
   // Notifies that a new object is available on the track.  The object payload
   // itself may be retrieved via GetCachedObject method of the associated track
   // publisher.
-  virtual void OnNewObjectAvailable(Location sequence, uint64_t subgroup,
-                                    MoqtPriority publisher_priority) = 0;
+  virtual void OnNewObjectAvailable(
+      Location sequence, uint64_t subgroup, MoqtPriority publisher_priority,
+      MoqtForwardingPreference forwarding_preference) = 0;
   // Notifies that a pure FIN has arrived following |sequence|. Should not be
   // called unless all objects have already been delivered. If not delivered,
   // instead set the fin_after_this flag in the PublishedObject.
@@ -98,6 +99,8 @@ class MoqtTrackPublisher {
   // Track alias is not present because MoqtSession always uses locally
   // generated values.
   virtual std::optional<Location> largest_location() const = 0;
+  // TODO(martinduke): Delete this; datagrams and streams can coexist in a
+  // track.
   virtual std::optional<MoqtForwardingPreference> forwarding_preference()
       const = 0;
   virtual std::optional<MoqtDeliveryOrder> delivery_order() const = 0;

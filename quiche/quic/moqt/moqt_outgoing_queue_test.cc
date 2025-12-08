@@ -50,8 +50,11 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
     AddObjectListener(this);
   }
 
-  void OnNewObjectAvailable(Location sequence, uint64_t subgroup,
-                            MoqtPriority publisher_priority) override {
+  void OnNewObjectAvailable(
+      Location sequence, uint64_t subgroup, MoqtPriority publisher_priority,
+      MoqtForwardingPreference forwarding_preference) override {
+    // MoqtOutgoingQueue does not create datagrams.
+    ASSERT_EQ(forwarding_preference, MoqtForwardingPreference::kSubgroup);
     std::optional<PublishedObject> object =
         GetCachedObject(sequence.group, subgroup, sequence.object);
     ASSERT_THAT(object,
@@ -77,7 +80,8 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
         GetCachedObjectsInRange(Location(0, 0), *largest_location());
     for (Location object : objects) {
       if (window.InWindow(object)) {
-        OnNewObjectAvailable(object, 0, publisher_priority());
+        OnNewObjectAvailable(object, 0, publisher_priority(),
+                             MoqtForwardingPreference::kSubgroup);
       }
     }
   }

@@ -664,7 +664,7 @@ struct QUICHE_EXPORT MoqtServerSetup {
 };
 
 // These codes do not appear on the wire.
-enum class QUICHE_EXPORT MoqtForwardingPreference {
+enum class QUICHE_EXPORT MoqtForwardingPreference : uint8_t {
   kSubgroup,
   kDatagram,
 };

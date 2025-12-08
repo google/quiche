@@ -22,6 +22,7 @@ struct PublishedObjectMetadata {
   std::string extensions;
   MoqtObjectStatus status;
   MoqtPriority publisher_priority;
+  MoqtForwardingPreference forwarding_preference;
   quic::QuicTime arrival_time = quic::QuicTime::Zero();
 };
 
