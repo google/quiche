@@ -189,25 +189,8 @@ QUICHE_EXPORT constexpr bool TransportVersionIsValid(
 // allowed as TLS requires crypto frames which v46 does not support. Note that
 // UnsupportedQuicVersion is a valid version.
 QUICHE_EXPORT constexpr bool ParsedQuicVersionIsValid(
-    HandshakeProtocol handshake_protocol,
     QuicTransportVersion transport_version) {
-  if (!TransportVersionIsValid(transport_version)) {
-    return false;
-  }
-  switch (handshake_protocol) {
-    case PROTOCOL_UNSUPPORTED:
-      return transport_version == QUIC_VERSION_UNSUPPORTED;
-    case PROTOCOL_QUIC_CRYPTO:
-      return transport_version != QUIC_VERSION_UNSUPPORTED &&
-             transport_version != QUIC_VERSION_RESERVED_FOR_NEGOTIATION &&
-             transport_version != QUIC_VERSION_IETF_DRAFT_29 &&
-             transport_version != QUIC_VERSION_IETF_RFC_V1 &&
-             transport_version != QUIC_VERSION_IETF_RFC_V2;
-    case PROTOCOL_TLS1_3:
-      return transport_version != QUIC_VERSION_UNSUPPORTED &&
-             VersionIsIetfQuic(transport_version);
-  }
-  return false;
+  return TransportVersionIsValid(transport_version);
 }
 
 QUICHE_EXPORT constexpr HandshakeProtocol HandshakeProtocolForTransportVersion(
@@ -224,43 +207,23 @@ QUICHE_EXPORT constexpr HandshakeProtocol HandshakeProtocolForTransportVersion(
 // A parsed QUIC version label which determines that handshake protocol
 // and the transport version.
 struct QUICHE_EXPORT ParsedQuicVersion {
-  HandshakeProtocol handshake_protocol;
   QuicTransportVersion transport_version;
 
-  constexpr explicit ParsedQuicVersion(QuicTransportVersion transport_version)
-      : handshake_protocol(
-            HandshakeProtocolForTransportVersion(transport_version)),
-        transport_version(transport_version) {
-    QUICHE_DCHECK(
-        ParsedQuicVersionIsValid(handshake_protocol, transport_version))
-        << QuicVersionToString(transport_version) << " "
-        << HandshakeProtocolToString(handshake_protocol);
-  }
+  constexpr ParsedQuicVersion(QuicTransportVersion transport_version)
+      : transport_version(transport_version) {}
 
   constexpr ParsedQuicVersion(const ParsedQuicVersion& other)
       : ParsedQuicVersion(other.transport_version) {}
 
   ParsedQuicVersion& operator=(const ParsedQuicVersion& other) {
-    QUICHE_DCHECK(ParsedQuicVersionIsValid(other.handshake_protocol,
-                                           other.transport_version))
-        << QuicVersionToString(other.transport_version) << " "
-        << HandshakeProtocolToString(other.handshake_protocol);
     if (this != &other) {
-      handshake_protocol = other.handshake_protocol;
       transport_version = other.transport_version;
     }
     return *this;
   }
 
-  bool operator==(const ParsedQuicVersion& other) const {
-    return handshake_protocol == other.handshake_protocol &&
-           transport_version == other.transport_version;
-  }
-
-  bool operator!=(const ParsedQuicVersion& other) const {
-    return handshake_protocol != other.handshake_protocol ||
-           transport_version != other.transport_version;
-  }
+  bool operator==(const ParsedQuicVersion& other) const = default;
+  bool operator!=(const ParsedQuicVersion& other) const = default;
 
   static constexpr ParsedQuicVersion RFCv2() {
     return ParsedQuicVersion(QUIC_VERSION_IETF_RFC_V2);

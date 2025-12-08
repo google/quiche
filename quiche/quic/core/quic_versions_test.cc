@@ -25,36 +25,25 @@ using ::testing::ElementsAre;
 using ::testing::IsEmpty;
 
 TEST(QuicVersionsTest, CreateQuicVersionLabelUnsupported) {
-  EXPECT_QUIC_BUG(
-      CreateQuicVersionLabel(UnsupportedQuicVersion()),
-      "Unsupported version QUIC_VERSION_UNSUPPORTED PROTOCOL_UNSUPPORTED");
+  EXPECT_QUIC_BUG(CreateQuicVersionLabel(UnsupportedQuicVersion()),
+                  "Unsupported version QUIC_VERSION_UNSUPPORTED");
 }
 
 TEST(QuicVersionsTest, KnownAndValid) {
   for (const ParsedQuicVersion& version : AllSupportedVersions()) {
     EXPECT_TRUE(version.IsKnown());
-    EXPECT_TRUE(ParsedQuicVersionIsValid(version.handshake_protocol,
-                                         version.transport_version));
+    EXPECT_TRUE(ParsedQuicVersionIsValid(version.transport_version));
   }
   ParsedQuicVersion unsupported = UnsupportedQuicVersion();
   EXPECT_FALSE(unsupported.IsKnown());
-  EXPECT_TRUE(ParsedQuicVersionIsValid(unsupported.handshake_protocol,
-                                       unsupported.transport_version));
+  EXPECT_TRUE(ParsedQuicVersionIsValid(unsupported.transport_version));
   ParsedQuicVersion reserved = QuicVersionReservedForNegotiation();
   EXPECT_TRUE(reserved.IsKnown());
-  EXPECT_TRUE(ParsedQuicVersionIsValid(reserved.handshake_protocol,
-                                       reserved.transport_version));
-  // Check that invalid combinations are not valid.
-  EXPECT_FALSE(ParsedQuicVersionIsValid(PROTOCOL_TLS1_3, QUIC_VERSION_46));
-  EXPECT_FALSE(ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO,
-                                        QUIC_VERSION_IETF_DRAFT_29));
+  EXPECT_TRUE(ParsedQuicVersionIsValid(reserved.transport_version));
   // Check that deprecated versions are not valid.
-  EXPECT_FALSE(ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO,
-                                        static_cast<QuicTransportVersion>(33)));
-  EXPECT_FALSE(ParsedQuicVersionIsValid(PROTOCOL_QUIC_CRYPTO,
-                                        static_cast<QuicTransportVersion>(99)));
-  EXPECT_FALSE(ParsedQuicVersionIsValid(PROTOCOL_TLS1_3,
-                                        static_cast<QuicTransportVersion>(99)));
+  EXPECT_FALSE(ParsedQuicVersionIsValid(static_cast<QuicTransportVersion>(33)));
+  EXPECT_FALSE(ParsedQuicVersionIsValid(static_cast<QuicTransportVersion>(43)));
+  EXPECT_FALSE(ParsedQuicVersionIsValid(static_cast<QuicTransportVersion>(99)));
 }
 
 TEST(QuicVersionsTest, Features) {
@@ -420,18 +409,17 @@ TEST(QuicVersionsTest, ReservedForNegotiation) {
 
 TEST(QuicVersionsTest, SupportedVersionsHasCorrectList) {
   size_t index = 0;
-  for (HandshakeProtocol handshake_protocol : SupportedHandshakeProtocols()) {
-    for (int trans_vers = 255; trans_vers > 0; trans_vers--) {
-      QuicTransportVersion transport_version =
-          static_cast<QuicTransportVersion>(trans_vers);
-      SCOPED_TRACE(index);
-      if (ParsedQuicVersionIsValid(handshake_protocol, transport_version)) {
-        ParsedQuicVersion version = SupportedVersions()[index];
-        EXPECT_EQ(version, ParsedQuicVersion(transport_version));
-        index++;
-      }
+  for (int trans_vers = 255; trans_vers > 0; trans_vers--) {
+    QuicTransportVersion transport_version =
+        static_cast<QuicTransportVersion>(trans_vers);
+    SCOPED_TRACE(index);
+    if (ParsedQuicVersionIsValid(transport_version)) {
+      ParsedQuicVersion version = SupportedVersions()[index];
+      EXPECT_EQ(version, ParsedQuicVersion(transport_version));
+      index++;
     }
   }
+
   EXPECT_EQ(SupportedVersions().size(), index);
 }
 
