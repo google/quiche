@@ -433,16 +433,6 @@ std::string QuicVersionToString(QuicTransportVersion transport_version) {
                       static_cast<int>(transport_version), ")");
 }
 
-std::string HandshakeProtocolToString(HandshakeProtocol handshake_protocol) {
-  switch (handshake_protocol) {
-    RETURN_STRING_LITERAL(PROTOCOL_UNSUPPORTED);
-    RETURN_STRING_LITERAL(PROTOCOL_QUIC_CRYPTO);
-    RETURN_STRING_LITERAL(PROTOCOL_TLS1_3);
-  }
-  return absl::StrCat("PROTOCOL_UNKNOWN(", static_cast<int>(handshake_protocol),
-                      ")");
-}
-
 std::string ParsedQuicVersionToString(ParsedQuicVersion version) {
   static_assert(SupportedVersions().size() == 4u,
                 "Supported versions out of sync");

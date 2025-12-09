@@ -147,19 +147,6 @@ enum QuicTransportVersion {
 QUICHE_EXPORT std::string QuicVersionToString(
     QuicTransportVersion transport_version);
 
-// The crypto handshake protocols that can be used with QUIC.
-// We are planning on eventually deprecating PROTOCOL_QUIC_CRYPTO in favor of
-// PROTOCOL_TLS1_3.
-enum HandshakeProtocol {
-  PROTOCOL_UNSUPPORTED = 0,
-  PROTOCOL_QUIC_CRYPTO = 1,
-  PROTOCOL_TLS1_3 = 2,
-};
-
-// Helper function which translates from a HandshakeProtocol to a string.
-QUICHE_EXPORT std::string HandshakeProtocolToString(
-    HandshakeProtocol handshake_protocol);
-
 // Returns whether this version is documented by an IETF internet-draft or RFC.
 QUICHE_EXPORT constexpr bool VersionIsIetfQuic(
     QuicTransportVersion transport_version) {
@@ -182,17 +169,6 @@ QUICHE_EXPORT constexpr bool TransportVersionIsValid(
     }
   }
   return false;
-}
-
-QUICHE_EXPORT constexpr HandshakeProtocol HandshakeProtocolForTransportVersion(
-    QuicTransportVersion transport_version) {
-  if (VersionIsIetfQuic(transport_version)) {
-    return PROTOCOL_TLS1_3;
-  }
-  if (transport_version == QUIC_VERSION_46) {
-    return PROTOCOL_QUIC_CRYPTO;
-  }
-  return PROTOCOL_UNSUPPORTED;
 }
 
 // A parsed QUIC version label which determines that handshake protocol
@@ -295,11 +271,6 @@ QUICHE_EXPORT QuicVersionLabel MakeVersionLabel(uint8_t a, uint8_t b, uint8_t c,
 
 QUICHE_EXPORT std::ostream& operator<<(
     std::ostream& os, const QuicVersionLabelVector& version_labels);
-
-// This vector contains all crypto handshake protocols that are supported.
-constexpr std::array<HandshakeProtocol, 2> SupportedHandshakeProtocols() {
-  return {PROTOCOL_TLS1_3, PROTOCOL_QUIC_CRYPTO};
-}
 
 constexpr std::array<ParsedQuicVersion, 4> SupportedVersions() {
   return {
