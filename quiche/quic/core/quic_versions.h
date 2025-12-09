@@ -227,16 +227,8 @@ struct QUICHE_EXPORT ParsedQuicVersion {
   // unique properties.
   bool IsIetfQuic() const;
 
-  // TODO(martinduke): Remove this function when it has been deleted from
-  // Envoy.
-  bool UsesHttp3() const;
-
   // Returns whether this version uses the legacy TLS extension codepoint.
   bool UsesLegacyTlsExtension() const;
-
-  // TODO(martinduke): Remove this function when it has been deleted from
-  // Envoy.
-  bool UsesTls() const;
 
   // Returns whether this version uses the QUICv2 Long Header Packet Types.
   bool UsesV2PacketTypes() const;

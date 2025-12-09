@@ -67,19 +67,9 @@ bool ParsedQuicVersion::IsIetfQuic() const {
   return transport_version > QUIC_VERSION_46;
 }
 
-bool ParsedQuicVersion::UsesHttp3() const {
-  QUICHE_DCHECK(IsKnown());
-  return IsIetfQuic();
-}
-
 bool ParsedQuicVersion::UsesLegacyTlsExtension() const {
   QUICHE_DCHECK(IsKnown());
   return transport_version == QUIC_VERSION_IETF_DRAFT_29;
-}
-
-bool ParsedQuicVersion::UsesTls() const {
-  QUICHE_DCHECK(IsKnown());
-  return IsIetfQuic();
 }
 
 bool ParsedQuicVersion::UsesV2PacketTypes() const {
