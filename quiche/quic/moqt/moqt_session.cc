@@ -2474,8 +2474,8 @@ void MoqtSession::OutgoingDataStream::SendObjects(
       // there is no need to process the stream any further.
       return;
     }
-    ++next_object_;
     last_object_id_ = object->metadata.location.object;
+    next_object_ = *last_object_id_ + 1;
     subscription.OnObjectSent(object->metadata.location);
 
     if (object->fin_after_this && !delivery_timeout.IsInfinite() &&
