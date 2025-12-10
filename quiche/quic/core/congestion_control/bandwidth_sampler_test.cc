@@ -9,9 +9,11 @@
 #include <set>
 #include <string>
 
+#include "absl/base/nullability.h"
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -29,6 +31,12 @@ class BandwidthSamplerPeer {
   static QuicByteCount GetPacketSize(const BandwidthSampler& sampler,
                                      QuicPacketNumber packet_number) {
     return sampler.connection_state_map_.GetEntry(packet_number)->size();
+  }
+
+  static BandwidthSample OnPacketAcknowledged(
+      BandwidthSampler* absl_nonnull sampler, QuicTime ack_time,
+      QuicPacketNumber packet_number) {
+    return sampler->OnPacketAcknowledged(ack_time, packet_number);
   }
 };
 
@@ -706,6 +714,27 @@ TEST_P(BandwidthSamplerTest, AckHeightRespectBandwidthEstimateUpperBound) {
   EXPECT_EQ(max_bandwidth_, sample.sample_max_bandwidth);
 
   EXPECT_LT(2 * kRegularPacketSize, sample.extra_acked);
+}
+
+TEST_P(BandwidthSamplerTest, AckTimeBeforeSentTime) {
+  SendPacket(1);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+  SendPacket(2);
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(10));
+
+  BandwidthSamplerPeer::OnPacketAcknowledged(&sampler_, clock_.Now(),
+                                             QuicPacketNumber(1));
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(-11));
+
+  if (GetQuicReloadableFlag(quic_bandwidth_sampler_guard_rtt_subtraction)) {
+    EXPECT_QUIC_BUG(BandwidthSamplerPeer::OnPacketAcknowledged(
+                        &sampler_, clock_.Now(), QuicPacketNumber(2)),
+                    "quic_bandwidth_sampler_ack_time_before_sent_time");
+  } else {
+    BandwidthSample sample = BandwidthSamplerPeer::OnPacketAcknowledged(
+        &sampler_, clock_.Now(), QuicPacketNumber(2));
+    EXPECT_EQ(sample.rtt, QuicTime::Delta::FromMilliseconds(-1));
+  }
 }
 
 class MaxAckHeightTrackerTest : public QuicTest {

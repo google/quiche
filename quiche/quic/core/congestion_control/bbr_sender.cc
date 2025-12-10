@@ -457,6 +457,9 @@ QuicTime::Delta BbrSender::GetMinRtt() const {
 }
 
 QuicByteCount BbrSender::GetTargetCongestionWindow(float gain) const {
+  if (GetQuicReloadableFlag(quic_bandwidth_sampler_guard_rtt_subtraction)) {
+    QUICHE_DCHECK_GE(GetMinRtt(), QuicTime::Delta::Zero());
+  }
   QuicByteCount bdp = GetMinRtt() * BandwidthEstimate();
   QuicByteCount congestion_window = gain * bdp;
 

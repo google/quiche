@@ -100,7 +100,9 @@ class QUICHE_EXPORT QuicBandwidth {
     // TODO: b/461578611 - Remove the short-circuit on negative `time_period`
     // once we're certain incoming deltas are non-negative.
     QUICHE_DCHECK(time_period < QuicTime::Delta::Zero() ||
-                  ToBytesPerPeriodSafe(time_period).has_value());
+                  ToBytesPerPeriodSafe(time_period).has_value())
+        << "bits_per_second: " << bits_per_second_
+        << ", time_period: " << time_period.ToMicroseconds() << " us";
     return bits_per_second_ * time_period.ToMicroseconds() / 8 /
            kNumMicrosPerSecond;
   }

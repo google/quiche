@@ -487,6 +487,17 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
 
   BandwidthSample sample;
   sample.bandwidth = std::min(send_rate, ack_rate);
+  if (GetQuicReloadableFlag(quic_bandwidth_sampler_guard_rtt_subtraction)) {
+    // It's possible for the ACK time to precede the send time when the sender
+    // and receiver run concurrently.  Suppose that (1) the receiver gets the
+    // time, (2) the sender gets the time, (3) the receiver reads packets, and
+    // (4) the sender sends packets.  In this scenario, a packet's send time
+    // could be greater than its ACK time.  See b/461578611 for context.
+    if (ack_time < sent_packet.sent_time()) {
+      QUIC_BUG(quic_bandwidth_sampler_ack_time_before_sent_time);
+      return BandwidthSample();
+    }
+  }
   // Note: this sample does not account for delayed acknowledgement time.  This
   // means that the RTT measurements here can be artificially high, especially
   // on low bandwidth connections.
