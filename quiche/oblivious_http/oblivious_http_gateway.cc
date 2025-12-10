@@ -7,7 +7,6 @@
 #include <utility>
 
 #include "absl/base/attributes.h"
-#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -18,8 +17,8 @@
 #include "quiche/common/quiche_crypto_logging.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
-#include "quiche/common/quiche_endian.h"
 #include "quiche/common/quiche_random.h"
+#include "quiche/common/quiche_status_utils.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
 #include "quiche/oblivious_http/common/oblivious_http_chunk_handler.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
@@ -64,13 +63,11 @@ absl::StatusOr<ObliviousHttpGateway> ObliviousHttpGateway::Create(
     absl::string_view hpke_private_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
     QuicheRandom* quiche_random) {
-  absl::StatusOr<bssl::UniquePtr<EVP_HPKE_KEY>> recipient_key =
-      CreateServerRecipientKey(hpke_private_key, ohttp_key_config);
-  if (!recipient_key.ok()) {
-    return recipient_key.status();
-  }
+  QUICHE_ASSIGN_OR_RETURN(
+      bssl::UniquePtr<EVP_HPKE_KEY> recipient_key,
+      CreateServerRecipientKey(hpke_private_key, ohttp_key_config));
   if (quiche_random == nullptr) quiche_random = QuicheRandom::GetInstance();
-  return ObliviousHttpGateway(std::move(*recipient_key), ohttp_key_config,
+  return ObliviousHttpGateway(std::move(recipient_key), ohttp_key_config,
                               quiche_random);
 }
 
@@ -105,17 +102,14 @@ absl::StatusOr<ChunkedObliviousHttpGateway> ChunkedObliviousHttpGateway::Create(
     absl::string_view hpke_private_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
     ObliviousHttpChunkHandler& chunk_handler, QuicheRandom* quiche_random) {
-  absl::StatusOr<bssl::UniquePtr<EVP_HPKE_KEY>> recipient_key =
-      CreateServerRecipientKey(hpke_private_key, ohttp_key_config);
-  if (!recipient_key.ok()) {
-    return recipient_key.status();
-  }
+  QUICHE_ASSIGN_OR_RETURN(
+      bssl::UniquePtr<EVP_HPKE_KEY> recipient_key,
+      CreateServerRecipientKey(hpke_private_key, ohttp_key_config));
   if (quiche_random == nullptr) {
     quiche_random = QuicheRandom::GetInstance();
   }
-  return ChunkedObliviousHttpGateway(std::move(*recipient_key),
-                                     ohttp_key_config, chunk_handler,
-                                     quiche_random);
+  return ChunkedObliviousHttpGateway(std::move(recipient_key), ohttp_key_config,
+                                     chunk_handler, quiche_random);
 }
 
 void ChunkedObliviousHttpGateway::InitializeRequestCheckpoint(
@@ -145,15 +139,14 @@ absl::Status ChunkedObliviousHttpGateway::DecryptRequestCheckpoint(
               EVP_HPKE_KEM_enc_len(EVP_HPKE_KEY_kem(server_hpke_key_.get()))) {
         return absl::OutOfRangeError("Not enough data to read header.");
       }
-      absl::StatusOr<ObliviousHttpRequest::Context> context =
+
+      QUICHE_ASSIGN_OR_RETURN(
+          ObliviousHttpRequest::Context context,
           ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
               reader, *server_hpke_key_, ohttp_key_config_,
-              ObliviousHttpHeaderKeyConfig::kChunkedOhttpRequestLabel);
-      if (!context.ok()) {
-        return context.status();
-      }
+              ObliviousHttpHeaderKeyConfig::kChunkedOhttpRequestLabel));
 
-      oblivious_http_request_context_ = std::move(*context);
+      oblivious_http_request_context_ = std::move(context);
       SaveCheckpoint(reader);
       request_current_section_ = RequestMessageSection::kChunk;
     }
@@ -174,18 +167,12 @@ absl::Status ChunkedObliviousHttpGateway::DecryptRequestCheckpoint(
             return absl::InternalError(
                 "HPKE context has not been derived from an encrypted request.");
           }
-          absl::StatusOr<std::string> decrypted_chunk =
-              ObliviousHttpRequest::DecryptChunk(
-                  *oblivious_http_request_context_, chunk,
-                  /*is_final_chunk=*/false);
-          if (!decrypted_chunk.ok()) {
-            return decrypted_chunk.status();
-          }
-          absl::Status handle_chunk_status =
-              chunk_handler_.OnDecryptedChunk(*decrypted_chunk);
-          if (!handle_chunk_status.ok()) {
-            return handle_chunk_status;
-          }
+          QUICHE_ASSIGN_OR_RETURN(std::string decrypted_chunk,
+                                  ObliviousHttpRequest::DecryptChunk(
+                                      *oblivious_http_request_context_, chunk,
+                                      /*is_final_chunk=*/false));
+          QUICHE_RETURN_IF_ERROR(
+              chunk_handler_.OnDecryptedChunk(decrypted_chunk));
         }
 
         SaveCheckpoint(reader);
@@ -202,22 +189,13 @@ absl::Status ChunkedObliviousHttpGateway::DecryptRequestCheckpoint(
         return absl::InternalError(
             "HPKE context has not been derived from an encrypted request.");
       }
-      absl::StatusOr<std::string> decrypted_chunk =
+      QUICHE_ASSIGN_OR_RETURN(
+          std::string decrypted_chunk,
           ObliviousHttpRequest::DecryptChunk(*oblivious_http_request_context_,
                                              reader.PeekRemainingPayload(),
-                                             /*is_final_chunk=*/true);
-      if (!decrypted_chunk.ok()) {
-        return decrypted_chunk.status();
-      }
-      absl::Status handle_chunk_status =
-          chunk_handler_.OnDecryptedChunk(*decrypted_chunk);
-      if (!handle_chunk_status.ok()) {
-        return handle_chunk_status;
-      }
-      handle_chunk_status = chunk_handler_.OnChunksDone();
-      if (!handle_chunk_status.ok()) {
-        return handle_chunk_status;
-      }
+                                             /*is_final_chunk=*/true));
+      QUICHE_RETURN_IF_ERROR(chunk_handler_.OnDecryptedChunk(decrypted_chunk));
+      QUICHE_RETURN_IF_ERROR(chunk_handler_.OnChunksDone());
     }
   }
   return absl::OkStatus();
@@ -277,32 +255,29 @@ absl::StatusOr<std::string> ChunkedObliviousHttpGateway::EncryptResponseChunk(
   }
 
   if (!aead_context_data_.has_value()) {
-    absl::StatusOr<ObliviousHttpResponse::CommonAeadParamsResult> aead_params =
+    QUICHE_ASSIGN_OR_RETURN(
+        ObliviousHttpResponse::CommonAeadParamsResult aead_params,
         ObliviousHttpResponse::GetCommonAeadParams(
-            *oblivious_http_request_context_);
-    if (!aead_params.ok()) {
-      return aead_params.status();
-    }
+            *oblivious_http_request_context_));
 
     // secret_len represents max(Nn, Nk))
-    response_nonce_ = std::string(aead_params->secret_len, '\0');
+    response_nonce_ = std::string(aead_params.secret_len, '\0');
     quiche_random_->RandBytes(response_nonce_.data(), response_nonce_.size());
 
-    auto aead_context_data = ObliviousHttpResponse::GetAeadContextData(
-        *oblivious_http_request_context_, *aead_params,
-        ObliviousHttpHeaderKeyConfig::kChunkedOhttpResponseLabel,
-        response_nonce_);
-    if (!aead_context_data.ok()) {
-      return aead_context_data.status();
-    }
-    aead_context_data_.emplace(std::move(*aead_context_data));
+    QUICHE_ASSIGN_OR_RETURN(
+        ObliviousHttpResponse::AeadContextData aead_context_data,
+        ObliviousHttpResponse::GetAeadContextData(
+            *oblivious_http_request_context_, aead_params,
+            ObliviousHttpHeaderKeyConfig::kChunkedOhttpResponseLabel,
+            response_nonce_));
 
-    auto response_chunk_counter = ObliviousHttpResponse::ChunkCounter::Create(
-        aead_context_data_->aead_nonce);
-    if (!response_chunk_counter.ok()) {
-      return response_chunk_counter.status();
-    }
-    response_chunk_counter_.emplace(std::move(*response_chunk_counter));
+    aead_context_data_.emplace(std::move(aead_context_data));
+
+    QUICHE_ASSIGN_OR_RETURN(
+        ObliviousHttpResponse::ChunkCounter response_chunk_counter,
+        ObliviousHttpResponse::ChunkCounter::Create(
+            aead_context_data_->aead_nonce));
+    response_chunk_counter_.emplace(std::move(response_chunk_counter));
   }
 
   if (!response_chunk_counter_.has_value()) {
@@ -310,14 +285,12 @@ absl::StatusOr<std::string> ChunkedObliviousHttpGateway::EncryptResponseChunk(
         "Response chunk counter has not been initialized.");
   }
 
-  absl::StatusOr<std::string> encrypted_data =
+  QUICHE_ASSIGN_OR_RETURN(
+      std::string encrypted_data,
       ObliviousHttpResponse::EncryptChunk(
           *oblivious_http_request_context_, *aead_context_data_,
           plaintext_payload, response_chunk_counter_->GetChunkNonce(),
-          is_final_chunk);
-  if (!encrypted_data.ok()) {
-    return encrypted_data.status();
-  }
+          is_final_chunk));
 
   absl::string_view maybe_nonce;
   if (response_current_section_ == ResponseMessageSection::kNonce) {
@@ -326,8 +299,8 @@ absl::StatusOr<std::string> ChunkedObliviousHttpGateway::EncryptResponseChunk(
   }
 
   uint8_t chunk_var_int_length =
-      QuicheDataWriter::GetVarInt62Len(encrypted_data->size());
-  uint64_t chunk_var_int = encrypted_data->size();
+      QuicheDataWriter::GetVarInt62Len(encrypted_data.size());
+  uint64_t chunk_var_int = encrypted_data.size();
   if (is_final_chunk) {
     response_current_section_ = ResponseMessageSection::kEnd;
     chunk_var_int_length =
@@ -342,7 +315,7 @@ absl::StatusOr<std::string> ChunkedObliviousHttpGateway::EncryptResponseChunk(
   }
 
   std::string response_buffer(
-      maybe_nonce.size() + chunk_var_int_length + encrypted_data->size(), '\0');
+      maybe_nonce.size() + chunk_var_int_length + encrypted_data.size(), '\0');
   QuicheDataWriter writer(response_buffer.size(), response_buffer.data());
 
   if (!writer.WriteStringPiece(maybe_nonce)) {
@@ -351,7 +324,7 @@ absl::StatusOr<std::string> ChunkedObliviousHttpGateway::EncryptResponseChunk(
   if (!writer.WriteVarInt62(chunk_var_int)) {
     return absl::InternalError("Failed to write chunk to buffer.");
   }
-  if (!writer.WriteStringPiece(*encrypted_data)) {
+  if (!writer.WriteStringPiece(encrypted_data)) {
     return absl::InternalError("Failed to write encrypted data to buffer.");
   }
 

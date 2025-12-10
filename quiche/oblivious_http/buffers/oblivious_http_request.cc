@@ -3,22 +3,19 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 
-#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "openssl/hpke.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
-#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_crypto_logging.h"
 #include "quiche/common/quiche_data_reader.h"
+#include "quiche/common/quiche_status_utils.h"
 #include "quiche/oblivious_http/common/oblivious_http_definitions.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 
@@ -47,19 +44,17 @@ ObliviousHttpRequest::CreateServerObliviousRequest(
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
     absl::string_view request_label) {
   QuicheDataReader reader(encrypted_data);
-  absl::StatusOr<ObliviousHttpRequest::Context> gateway_context =
+  QUICHE_ASSIGN_OR_RETURN(
+      ObliviousHttpRequest::Context gateway_context,
       ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
-          reader, gateway_key, ohttp_key_config, request_label);
-  if (!gateway_context.ok()) {
-    return gateway_context.status();
-  }
+          reader, gateway_key, ohttp_key_config, request_label));
 
   absl::string_view ciphertext_received = reader.ReadRemainingPayload();
   // Decrypt the message.
   std::string decrypted(ciphertext_received.size(), '\0');
   size_t decrypted_len;
   if (!EVP_HPKE_CTX_open(
-          gateway_context->hpke_context_.get(),
+          gateway_context.hpke_context_.get(),
           reinterpret_cast<uint8_t*>(decrypted.data()), &decrypted_len,
           decrypted.size(),
           reinterpret_cast<const uint8_t*>(ciphertext_received.data()),
@@ -69,8 +64,8 @@ ObliviousHttpRequest::CreateServerObliviousRequest(
   }
   decrypted.resize(decrypted_len);
   return ObliviousHttpRequest(
-      std::move(gateway_context->hpke_context_),
-      std::string(gateway_context->encapsulated_key_), ohttp_key_config,
+      std::move(gateway_context.hpke_context_),
+      std::string(gateway_context.encapsulated_key_), ohttp_key_config,
       std::string(ciphertext_received), std::move(decrypted));
 }
 
@@ -101,22 +96,19 @@ absl::StatusOr<ObliviousHttpRequest> ObliviousHttpRequest::EncapsulateWithSeed(
   if (plaintext_payload.empty() || hpke_public_key.empty()) {
     return absl::InvalidArgumentError("Invalid input.");
   }
-  absl::StatusOr<Context> context = CreateHpkeSenderContext(
-      hpke_public_key, ohttp_key_config, seed, request_label);
-  if (!context.ok()) {
-    return context.status();
-  }
-  std::string encapsulated_key = context->encapsulated_key_;
+  QUICHE_ASSIGN_OR_RETURN(
+      Context context,
+      CreateHpkeSenderContext(hpke_public_key, ohttp_key_config, seed,
+                              request_label));
+  std::string encapsulated_key = context.encapsulated_key_;
   // EncryptChunk with `is_final_chunk` set to false is the same implementation
   // as encrypting the full request.
-  absl::StatusOr<std::string> ciphertext =
-      EncryptChunk(plaintext_payload, *context, /*is_final_chunk=*/false);
-  if (!ciphertext.ok()) {
-    return ciphertext.status();
-  }
+  QUICHE_ASSIGN_OR_RETURN(
+      std::string ciphertext,
+      EncryptChunk(plaintext_payload, context, /*is_final_chunk=*/false));
   return ObliviousHttpRequest(
-      std::move(context->hpke_context_), std::move(encapsulated_key),
-      ohttp_key_config, std::move(*ciphertext), std::move(plaintext_payload));
+      std::move(context.hpke_context_), std::move(encapsulated_key),
+      ohttp_key_config, std::move(ciphertext), std::move(plaintext_payload));
 }
 
 absl::StatusOr<ObliviousHttpRequest::Context>
@@ -240,10 +232,7 @@ ObliviousHttpRequest::DecodeEncapsulatedRequestHeader(
     return SslErrorAsStatus("Failed to initialize Gateway/Server's Context.");
   }
 
-  auto is_hdr_ok = ohttp_key_config.ParseOhttpPayloadHeader(reader);
-  if (!is_hdr_ok.ok()) {
-    return is_hdr_ok;
-  }
+  QUICHE_RETURN_IF_ERROR(ohttp_key_config.ParseOhttpPayloadHeader(reader));
 
   size_t enc_key_len = EVP_HPKE_KEM_enc_len(EVP_HPKE_KEY_kem(&gateway_key));
 

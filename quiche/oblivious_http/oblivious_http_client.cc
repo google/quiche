@@ -17,6 +17,7 @@
 #include "quiche/common/quiche_crypto_logging.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
+#include "quiche/common/quiche_status_utils.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_response.h"
 #include "quiche/oblivious_http/common/oblivious_http_chunk_handler.h"
@@ -124,22 +125,18 @@ absl::StatusOr<ChunkedObliviousHttpClient> ChunkedObliviousHttpClient::Create(
         absl::StrCat("Invalid input received in method parameters. ",
                      is_valid_input.message()));
   }
-  absl::StatusOr<ObliviousHttpRequest::Context> hpke_sender_context =
+  QUICHE_ASSIGN_OR_RETURN(
+      ObliviousHttpRequest::Context hpke_sender_context,
       ObliviousHttpRequest::CreateHpkeSenderContext(
           hpke_public_key, ohttp_key_config, seed,
-          ObliviousHttpHeaderKeyConfig::kChunkedOhttpRequestLabel);
-  if (!hpke_sender_context.ok()) {
-    return hpke_sender_context.status();
-  }
-  absl::StatusOr<ObliviousHttpResponse::CommonAeadParamsResult> aead_params =
-      ObliviousHttpResponse::GetCommonAeadParams(*hpke_sender_context);
-  if (!aead_params.ok()) {
-    return aead_params.status();
-  }
+          ObliviousHttpHeaderKeyConfig::kChunkedOhttpRequestLabel));
+  QUICHE_ASSIGN_OR_RETURN(
+      ObliviousHttpResponse::CommonAeadParamsResult aead_params,
+      ObliviousHttpResponse::GetCommonAeadParams(hpke_sender_context));
 
   return ChunkedObliviousHttpClient(ohttp_key_config,
-                                    *std::move(hpke_sender_context),
-                                    *std::move(aead_params), chunk_handler);
+                                    std::move(hpke_sender_context),
+                                    std::move(aead_params), chunk_handler);
 }
 
 absl::StatusOr<std::string> ChunkedObliviousHttpClient::EncryptRequestChunk(
@@ -157,12 +154,10 @@ absl::StatusOr<std::string> ChunkedObliviousHttpClient::EncryptRequestChunk(
 
 absl::StatusOr<std::string> ChunkedObliviousHttpClient::EncryptRequestChunkImpl(
     absl::string_view plaintext_payload, bool is_final_chunk) {
-  absl::StatusOr<std::string> encrypted_data =
+  QUICHE_ASSIGN_OR_RETURN(
+      std::string encrypted_data,
       ObliviousHttpRequest::EncryptChunk(plaintext_payload,
-                                         hpke_sender_context_, is_final_chunk);
-  if (!encrypted_data.ok()) {
-    return encrypted_data.status();
-  }
+                                         hpke_sender_context_, is_final_chunk));
 
   std::string maybe_key_header_data = "";
   if (request_current_section_ == RequestMessageSection::kHeader) {
@@ -173,12 +168,12 @@ absl::StatusOr<std::string> ChunkedObliviousHttpClient::EncryptRequestChunkImpl(
   }
 
   uint8_t chunk_var_int_length =
-      QuicheDataWriter::GetVarInt62Len(encrypted_data->size());
+      QuicheDataWriter::GetVarInt62Len(encrypted_data.size());
   if (chunk_var_int_length == 0) {
     return absl::InvalidArgumentError(
         "Encrypted data is too large to be represented as a varint.");
   }
-  uint64_t chunk_var_int = encrypted_data->size();
+  uint64_t chunk_var_int = encrypted_data.size();
   if (is_final_chunk) {
     request_current_section_ = RequestMessageSection::kEnd;
     chunk_var_int_length =
@@ -191,7 +186,7 @@ absl::StatusOr<std::string> ChunkedObliviousHttpClient::EncryptRequestChunkImpl(
   }
 
   std::string request_buffer(maybe_key_header_data.size() +
-                                 chunk_var_int_length + encrypted_data->size(),
+                                 chunk_var_int_length + encrypted_data.size(),
                              '\0');
 
   QuicheDataWriter writer(request_buffer.size(), request_buffer.data());
@@ -204,7 +199,7 @@ absl::StatusOr<std::string> ChunkedObliviousHttpClient::EncryptRequestChunkImpl(
     return absl::InternalError(
         "Failed to write encrypted chunk length to buffer.");
   }
-  if (!writer.WriteStringPiece(*encrypted_data)) {
+  if (!writer.WriteStringPiece(encrypted_data)) {
     return absl::InternalError(
         "Failed to write encrypted chunk to request buffer.");
   }
@@ -239,23 +234,20 @@ absl::Status ChunkedObliviousHttpClient::DecryptResponseCheckpoint(
         return absl::OutOfRangeError("Not enough data to read response nonce.");
       }
 
-      absl::StatusOr<ObliviousHttpResponse::AeadContextData> aead_context_data =
+      QUICHE_ASSIGN_OR_RETURN(
+          ObliviousHttpResponse::AeadContextData aead_context_data,
           ObliviousHttpResponse::GetAeadContextData(
               hpke_sender_context_, aead_params_,
               ObliviousHttpHeaderKeyConfig::kChunkedOhttpResponseLabel,
-              response_nonce);
-      if (!aead_context_data.ok()) {
-        return aead_context_data.status();
-      }
-      aead_context_data_.emplace(*std::move(aead_context_data));
+              response_nonce));
+      aead_context_data_.emplace(std::move(aead_context_data));
 
-      absl::StatusOr<ObliviousHttpResponse::ChunkCounter>
-          response_chunk_counter = ObliviousHttpResponse::ChunkCounter::Create(
-              aead_context_data_->aead_nonce);
-      if (!response_chunk_counter.ok()) {
-        return response_chunk_counter.status();
-      }
-      response_chunk_counter_.emplace(*std::move(response_chunk_counter));
+      QUICHE_ASSIGN_OR_RETURN(
+          ObliviousHttpResponse::ChunkCounter response_chunk_counter,
+          ObliviousHttpResponse::ChunkCounter::Create(
+              aead_context_data_->aead_nonce));
+
+      response_chunk_counter_.emplace(std::move(response_chunk_counter));
       UpdateCheckpoint(reader, response_checkpoint);
       response_current_section_ = ResponseMessageSection::kChunk;
     }
@@ -294,20 +286,18 @@ absl::Status ChunkedObliviousHttpClient::DecryptResponseCheckpoint(
             return absl::OutOfRangeError("Not enough data to read chunk.");
           }
 
-          absl::StatusOr<std::string> decrypted_chunk =
+          QUICHE_ASSIGN_OR_RETURN(
+              std::string decrypted_chunk,
               ObliviousHttpResponse::DecryptChunk(
                   chunk, aead_context_data,
-                  response_chunk_counter.GetChunkNonce(), is_final_chunk);
-          if (!decrypted_chunk.ok()) {
-            return decrypted_chunk.status();
-          }
+                  response_chunk_counter.GetChunkNonce(), is_final_chunk));
 
           response_chunk_counter.Increment();
           if (chunk_handler_ == nullptr) {
             return absl::InternalError("Chunk handler is null.");
           }
           absl::Status handler_status =
-              chunk_handler_->OnDecryptedChunk(*decrypted_chunk);
+              chunk_handler_->OnDecryptedChunk(decrypted_chunk);
           if (!handler_status.ok()) {
             return handler_status;
           }
@@ -334,20 +324,18 @@ absl::Status ChunkedObliviousHttpClient::DecryptResponseCheckpoint(
       }
       ObliviousHttpResponse::ChunkCounter& response_chunk_counter =
           *response_chunk_counter_;
-      absl::StatusOr<std::string> decrypted_chunk =
+      QUICHE_ASSIGN_OR_RETURN(
+          std::string decrypted_chunk,
           ObliviousHttpResponse::DecryptChunk(
               reader.PeekRemainingPayload(), aead_context_data,
               response_chunk_counter.GetChunkNonce(),
-              /*is_final_chunk=*/true);
-      if (!decrypted_chunk.ok()) {
-        return decrypted_chunk.status();
-      }
+              /*is_final_chunk=*/true));
 
       if (chunk_handler_ == nullptr) {
         return absl::InternalError("Chunk handler is null.");
       }
       absl::Status handler_status =
-          chunk_handler_->OnDecryptedChunk(*decrypted_chunk);
+          chunk_handler_->OnDecryptedChunk(decrypted_chunk);
       if (!handler_status.ok()) {
         return handler_status;
       }

@@ -101,12 +101,13 @@ absl::Status MasqueOhttpClient::StartKeyFetch(const std::string& url_string) {
   request.headers[":authority"] = url.HostPort();
   request.headers[":path"] = url.path();
   request.headers["accept"] = "application/ohttp-keys";
-  absl::StatusOr<RequestId> request_id = connection_pool_.SendRequest(request);
-  if (!request_id.ok()) {
-    QUICHE_LOG(ERROR) << "Failed to send request: " << request_id.status();
-    return request_id.status();
-  }
-  key_fetch_request_id_ = *request_id;
+
+  QUICHE_ASSIGN_OR_RETURN(
+      key_fetch_request_id_, connection_pool_.SendRequest(request),
+      [](const absl::Status& status) {
+        QUICHE_LOG(ERROR) << "Failed to send request: " << status;
+        return status;
+      });
   return absl::OkStatus();
 }
 

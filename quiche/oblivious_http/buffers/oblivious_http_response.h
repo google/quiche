@@ -79,7 +79,7 @@ class QUICHE_EXPORT ObliviousHttpResponse {
   static absl::StatusOr<ObliviousHttpResponse> CreateServerObliviousResponse(
       std::string plaintext_payload,
       ObliviousHttpRequest::Context& oblivious_http_request_context,
-      absl::string_view resp_label =
+      absl::string_view response_label =
           ObliviousHttpHeaderKeyConfig::kOhttpResponseLabel,
       QuicheRandom* quiche_random = nullptr);
 

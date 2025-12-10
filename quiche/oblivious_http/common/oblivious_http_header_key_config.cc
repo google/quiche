@@ -23,6 +23,7 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
+#include "quiche/common/quiche_status_utils.h"
 
 namespace quiche {
 namespace {
@@ -80,10 +81,7 @@ absl::StatusOr<ObliviousHttpHeaderKeyConfig>
 ObliviousHttpHeaderKeyConfig::Create(uint8_t key_id, uint16_t kem_id,
                                      uint16_t kdf_id, uint16_t aead_id) {
   ObliviousHttpHeaderKeyConfig instance(key_id, kem_id, kdf_id, aead_id);
-  auto is_config_ok = instance.ValidateKeyConfig();
-  if (!is_config_ok.ok()) {
-    return is_config_ok;
-  }
+  QUICHE_RETURN_IF_ERROR(instance.ValidateKeyConfig());
   return instance;
 }
 
@@ -434,11 +432,7 @@ absl::Status ObliviousHttpKeyConfigs::ReadSingleKeyConfig(
   }
 
   // Public key length depends on the kem_id.
-  auto maybe_key_length = KeyLength(kem_id);
-  if (!maybe_key_length.ok()) {
-    return maybe_key_length.status();
-  }
-  const int key_length = maybe_key_length.value();
+  QUICHE_ASSIGN_OR_RETURN(uint16_t key_length, KeyLength(kem_id));
   std::string key_str(key_length, '\0');
   if (!reader.ReadBytes(key_str.data(), key_length)) {
     return absl::InvalidArgumentError("Invalid key_config!");
@@ -461,14 +455,12 @@ absl::Status ObliviousHttpKeyConfigs::ReadSingleKeyConfig(
       return absl::InvalidArgumentError("Invalid key_config!");
     }
 
-    absl::StatusOr<ObliviousHttpHeaderKeyConfig> maybe_cfg =
-        ObliviousHttpHeaderKeyConfig::Create(key_id, kem_id, kdf_id, aead_id);
-    if (!maybe_cfg.ok()) {
-      // TODO(kmg): Add support to ignore key types in the server response that
-      // aren't supported by the client.
-      return maybe_cfg.status();
-    }
-    configs[key_id].emplace_back(std::move(maybe_cfg.value()));
+    // TODO(kmg): Add support to ignore key types in the server response that
+    // aren't supported by the client.
+    QUICHE_ASSIGN_OR_RETURN(
+        ObliviousHttpHeaderKeyConfig cfg,
+        ObliviousHttpHeaderKeyConfig::Create(key_id, kem_id, kdf_id, aead_id));
+    configs[key_id].emplace_back(std::move(cfg));
   }
   return absl::OkStatus();
 }
