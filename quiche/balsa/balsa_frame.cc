@@ -1074,55 +1074,6 @@ size_t BalsaFrame::ProcessHeaders(const char* message_start,
   return message_current - original_message_start;
 }
 
-size_t BalsaFrame::BytesSafeToSplice() const {
-  switch (parse_state_) {
-    case BalsaFrameEnums::READING_CHUNK_DATA:
-      return chunk_length_remaining_;
-    case BalsaFrameEnums::READING_UNTIL_CLOSE:
-      return std::numeric_limits<size_t>::max();
-    case BalsaFrameEnums::READING_CONTENT:
-      return content_length_remaining_;
-    default:
-      return 0;
-  }
-}
-
-void BalsaFrame::BytesSpliced(size_t bytes_spliced) {
-  switch (parse_state_) {
-    case BalsaFrameEnums::READING_CHUNK_DATA:
-      if (chunk_length_remaining_ < bytes_spliced) {
-        HandleError(BalsaFrameEnums::
-                        CALLED_BYTES_SPLICED_AND_EXCEEDED_SAFE_SPLICE_AMOUNT);
-        return;
-      }
-      chunk_length_remaining_ -= bytes_spliced;
-      if (chunk_length_remaining_ == 0) {
-        parse_state_ = BalsaFrameEnums::READING_CHUNK_TERM;
-      }
-      return;
-
-    case BalsaFrameEnums::READING_UNTIL_CLOSE:
-      return;
-
-    case BalsaFrameEnums::READING_CONTENT:
-      if (content_length_remaining_ < bytes_spliced) {
-        HandleError(BalsaFrameEnums::
-                        CALLED_BYTES_SPLICED_AND_EXCEEDED_SAFE_SPLICE_AMOUNT);
-        return;
-      }
-      content_length_remaining_ -= bytes_spliced;
-      if (content_length_remaining_ == 0) {
-        parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
-        visitor_->MessageDone();
-      }
-      return;
-
-    default:
-      HandleError(BalsaFrameEnums::CALLED_BYTES_SPLICED_WHEN_UNSAFE_TO_DO_SO);
-      return;
-  }
-}
-
 size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
   const char* current = input;
   const char* on_entry = current;

@@ -164,9 +164,6 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   const BalsaHeaders* headers() const { return headers_; }
   BalsaHeaders* mutable_headers() { return headers_; }
 
-  size_t BytesSafeToSplice() const;
-  void BytesSpliced(size_t bytes_spliced);
-
   size_t ProcessInput(const char* input, size_t size) override;
 
   void set_allow_reading_until_close_for_request(bool set) {
