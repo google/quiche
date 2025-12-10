@@ -2619,8 +2619,8 @@ void MoqtSession::CancelFetch(uint64_t request_id) {
 }
 
 void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
-  std::optional<PublishedObject> object =
-      track_publisher_->GetCachedObject(sequence.group, 0, sequence.object);
+  std::optional<PublishedObject> object = track_publisher_->GetCachedObject(
+      sequence.group, sequence.object, sequence.object);
   if (!object.has_value()) {
     QUICHE_BUG(PublishedSubscription_SendDatagram_object_not_in_cache)
         << "Got notification about an object that is not in the cache";
