@@ -1138,6 +1138,7 @@
     "quiche/common/quiche_random_test.cc",
     "quiche/common/quiche_simple_arena_test.cc",
     "quiche/common/quiche_socket_address_test.cc",
+    "quiche/common/quiche_status_utils_test.cc",
     "quiche/common/quiche_text_utils_test.cc",
     "quiche/common/quiche_weak_ptr_test.cc",
     "quiche/common/simple_buffer_allocator_test.cc",

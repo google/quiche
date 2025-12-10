@@ -1138,6 +1138,7 @@ quiche_tests_srcs = [
     "common/quiche_random_test.cc",
     "common/quiche_simple_arena_test.cc",
     "common/quiche_socket_address_test.cc",
+    "common/quiche_status_utils_test.cc",
     "common/quiche_text_utils_test.cc",
     "common/quiche_weak_ptr_test.cc",
     "common/simple_buffer_allocator_test.cc",
