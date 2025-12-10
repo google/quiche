@@ -728,6 +728,9 @@ std::string BlindSignAuthServiceTypeToString(
     case BlindSignAuthServiceType::kPrivateAratea: {
       return "privatearatea";
     }
+    case BlindSignAuthServiceType::kChromePrivateAratea: {
+      return "chromeprivatearatea";
+    }
   }
 }
 

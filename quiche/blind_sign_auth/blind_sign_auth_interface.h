@@ -37,6 +37,7 @@ enum class BlindSignAuthServiceType {
   kCronetIpBlinding,
   kWebviewIpBlinding,
   kPrivateAratea,
+  kChromePrivateAratea,
 };
 
 // A BlindSignToken is used to authenticate a request to a privacy proxy.
