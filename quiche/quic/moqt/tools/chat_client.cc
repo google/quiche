@@ -50,7 +50,9 @@ void ChatClient::OnIncomingPublishNamespace(
   }
   if (track_namespace == GetUserNamespace(my_track_name_)) {
     // Ignore PUBLISH_NAMESPACE for my own track.
-    std::move(callback)(std::nullopt);
+    if (parameters.has_value()) {  // callback exists.
+      std::move(callback)(std::nullopt);
+    }
     return;
   }
   std::optional<FullTrackName> track_name = ConstructTrackNameFromNamespace(
@@ -83,10 +85,13 @@ void ChatClient::OnIncomingPublishNamespace(
   }
   VersionSpecificParameters subscribe_parameters(
       AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
-  if (session_->SubscribeCurrentObject(*track_name, &remote_track_visitor_,
+  // session_ could be nullptr if we get unsolicited PUBLISH_NAMESPACE at the
+  // start of the session.
+  other_users_.emplace(*track_name);
+  if (session_ != nullptr &&
+      session_->SubscribeCurrentObject(*track_name, &remote_track_visitor_,
                                        subscribe_parameters)) {
     ++subscribes_to_make_;
-    other_users_.emplace(*track_name);
   }
   std::move(callback)(std::nullopt);  // Send PUBLISH_NAMESPACE_OK.
 }
@@ -223,6 +228,16 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
   if (session_ == nullptr) {
     std::cout << "Failed to connect.\n";
     return false;
+  }
+  // There might already be published namespaces that have populated
+  // other_users_. Subscribe to their tracks now.
+  for (const auto& track_name : other_users_) {
+    VersionSpecificParameters subscribe_parameters(
+        AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
+    if (session_->SubscribeCurrentObject(track_name, &remote_track_visitor_,
+                                         subscribe_parameters)) {
+      ++subscribes_to_make_;
+    }
   }
   // TODO: A server log might choose to not provide a username, thus getting all
   // the messages without adding itself to the catalog.
