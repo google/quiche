@@ -68,15 +68,15 @@ class MoqChatEndToEndTest : public quiche::test::QuicheTest {
     auto if2ptr = std::make_unique<MockChatUserInterface>();
     interface1_ = if1ptr.get();
     interface2_ = if2ptr.get();
-    uint16_t port = relay_.server()->quic_server().port();
+    uint16_t port = relay_.server()->port();
     client1_ = std::make_unique<moqt::moq_chat::ChatClient>(
         quic::QuicServerId(std::string(kChatHostname), port), true,
         std::move(if1ptr), "test_chat", "client1", "device1",
-        relay_.server()->quic_server().event_loop());
+        relay_.server()->event_loop());
     client2_ = std::make_unique<moqt::moq_chat::ChatClient>(
         quic::QuicServerId(std::string(kChatHostname), port), true,
         std::move(if2ptr), "test_chat", "client2", "device2",
-        relay_.server()->quic_server().event_loop());
+        relay_.server()->event_loop());
   }
 
   void SendAndWaitForOutput(MockChatUserInterface* sender,
@@ -89,7 +89,7 @@ class MoqChatEndToEndTest : public quiche::test::QuicheTest {
     });
     sender->SendMessage(message);
     while (!message_to_output) {
-      relay_.server()->quic_server().WaitForEvents();
+      relay_.server()->WaitForEvents();
     }
   }
 
@@ -104,7 +104,7 @@ TEST_F(MoqChatEndToEndTest, EndToEndTest) {
   EXPECT_TRUE(client1_->PublishNamespaceAndSubscribeNamespace());
   EXPECT_TRUE(client2_->PublishNamespaceAndSubscribeNamespace());
   while (client1_->is_syncing() || client2_->is_syncing()) {
-    relay_.server()->quic_server().WaitForEvents();
+    relay_.server()->WaitForEvents();
   }
   SendAndWaitForOutput(interface1_, interface2_, "client1", "Hello");
   SendAndWaitForOutput(interface2_, interface1_, "client2", "Hi");
@@ -115,7 +115,7 @@ TEST_F(MoqChatEndToEndTest, EndToEndTest) {
 
   interface1_->SendMessage("/exit");
   EXPECT_CALL(*interface2_, WriteToOutput(_, _)).Times(0);
-  relay_.server()->quic_server().WaitForEvents();
+  relay_.server()->WaitForEvents();
 }
 
 TEST_F(MoqChatEndToEndTest, EndToEndTestUngracefulClose) {
@@ -124,7 +124,7 @@ TEST_F(MoqChatEndToEndTest, EndToEndTestUngracefulClose) {
   EXPECT_TRUE(client1_->PublishNamespaceAndSubscribeNamespace());
   EXPECT_TRUE(client2_->PublishNamespaceAndSubscribeNamespace());
   while (client1_->is_syncing() || client2_->is_syncing()) {
-    relay_.server()->quic_server().WaitForEvents();
+    relay_.server()->WaitForEvents();
   }
   SendAndWaitForOutput(interface1_, interface2_, "client1", "Hello");
   SendAndWaitForOutput(interface2_, interface1_, "client2", "Hi");
@@ -140,7 +140,7 @@ TEST_F(MoqChatEndToEndTest, LeaveAndRejoin) {
   EXPECT_TRUE(client1_->PublishNamespaceAndSubscribeNamespace());
   EXPECT_TRUE(client2_->PublishNamespaceAndSubscribeNamespace());
   while (client1_->is_syncing() || client2_->is_syncing()) {
-    relay_.server()->quic_server().WaitForEvents();
+    relay_.server()->WaitForEvents();
   }
   SendAndWaitForOutput(interface1_, interface2_, "client1", "Hello");
   SendAndWaitForOutput(interface2_, interface1_, "client2", "Hi");
@@ -159,26 +159,26 @@ TEST_F(MoqChatEndToEndTest, LeaveAndRejoin) {
       });
   interface1_->SendMessage("/exit");
   while (client1_->session_is_open()) {
-    relay_.server()->quic_server().WaitForEvents();
+    relay_.server()->WaitForEvents();
   }
   client1_.reset();
   while (!namespace_done) {
     // Wait for the relay's session cleanup to send PUBLISH_NAMESPACE_DONE
     // and PUBLISH_DONE.
-    relay_.server()->quic_server().WaitForEvents();
+    relay_.server()->WaitForEvents();
   }
   // Create a new client with the same username and Reconnect.
   auto if1bptr = std::make_unique<MockChatUserInterface>();
   MockChatUserInterface* interface1b_ = if1bptr.get();
-  uint16_t port = relay_.server()->quic_server().port();
+  uint16_t port = relay_.server()->port();
   client1_ = std::make_unique<moqt::moq_chat::ChatClient>(
       quic::QuicServerId(std::string(kChatHostname), port), true,
       std::move(if1bptr), "test_chat", "client1", "device1",
-      relay_.server()->quic_server().event_loop());
+      relay_.server()->event_loop());
   EXPECT_TRUE(client1_->Connect(moqt::moq_chat::kWebtransPath));
   EXPECT_TRUE(client1_->PublishNamespaceAndSubscribeNamespace());
   while (client1_->is_syncing() || client2_->is_syncing()) {
-    relay_.server()->quic_server().WaitForEvents();
+    relay_.server()->WaitForEvents();
   }
   SendAndWaitForOutput(interface1b_, interface2_, "client1", "Hello again");
   SendAndWaitForOutput(interface2_, interface1b_, "client2", "Hi again");

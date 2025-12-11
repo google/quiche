@@ -57,12 +57,12 @@ MoqtRelay::MoqtRelay(std::unique_ptr<quic::ProofSource> proof_source,
   QUICHE_CHECK(bind_ip_address.FromString(bind_address));
   // CreateUDPSocketAndListen() creates the event loop that we will pass to
   // MoqtClient.
-  server_->quic_server().CreateUDPSocketAndListen(
+  server_->CreateUDPSocketAndListen(
       quic::QuicSocketAddress(bind_ip_address, bind_port));
   if (!default_upstream.empty()) {
     quic::QuicUrl url(default_upstream, "https");
     if (client_event_loop == nullptr) {
-      client_event_loop = server_->quic_server().event_loop();
+      client_event_loop = server_->event_loop();
     }
     default_upstream_client_ =
         CreateClient(url, ignore_certificate, client_event_loop_);

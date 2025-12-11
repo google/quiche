@@ -264,9 +264,9 @@ int main(int argc, char** argv) {
   quiche::QuicheIpAddress bind_address;
   QUICHE_CHECK(bind_address.FromString(
       quiche::GetQuicheCommandLineFlag(FLAGS_bind_address)));
-  server.quic_server().CreateUDPSocketAndListen(quic::QuicSocketAddress(
+  server.CreateUDPSocketAndListen(quic::QuicSocketAddress(
       bind_address, quiche::GetQuicheCommandLineFlag(FLAGS_port)));
-  server.quic_server().HandleEventsForever();
+  server.HandleEventsForever();
 
   return 0;
 }

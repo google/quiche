@@ -41,7 +41,7 @@ class MoqtRelay {
     publisher_.Close();
   }
 
-  void HandleEventsForever() { server_->quic_server().HandleEventsForever(); }
+  void HandleEventsForever() { server_->HandleEventsForever(); }
 
  protected:  // Constructor for MoqtTestRelay.
   // If |client_event_loop| is null, the event loop from |server_| is used. For

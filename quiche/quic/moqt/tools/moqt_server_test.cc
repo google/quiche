@@ -42,7 +42,7 @@ class MoqtServerTest : public quic::test::QuicTest {
     quiche::QuicheIpAddress bind_address;
     bind_address.FromString("127.0.0.1");
     // This will create an event loop that makes alarm factories.
-    EXPECT_TRUE(server_.quic_server().CreateUDPSocketAndListen(
+    EXPECT_TRUE(server_.CreateUDPSocketAndListen(
         quic::QuicSocketAddress(bind_address, 0)));
   }
 

@@ -45,9 +45,7 @@ class TestMoqtRelay : public MoqtRelay {
                   bind_address, bind_port, default_upstream, ignore_certificate,
                   event_loop) {}
 
-  quic::QuicEventLoop* server_event_loop() {
-    return server()->quic_server().event_loop();
-  }
+  quic::QuicEventLoop* server_event_loop() { return server()->event_loop(); }
 
   void RunOneEvent() {
     server_event_loop()->RunEventLoopOnce(kEventLoopDuration);
