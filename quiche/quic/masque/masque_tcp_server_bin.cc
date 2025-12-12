@@ -464,14 +464,14 @@ class MasqueTcpServer : public QuicSocketEventListener,
     auto path_pair = headers.find(":path");
     auto method_pair = headers.find(":method");
     auto content_type_pair = headers.find("content-type");
+    auto accept_pair = headers.find("accept");
     if (path_pair == headers.end() || method_pair == headers.end()) {
       // This should never happen because the h2 adapter should have rejected
       // the request, but handle it gracefully just in case.
       response_headers[":status"] = "400";
       response_body = "Request missing pseudo-headers";
-    } else if (method_pair->second == "GET" &&
-               content_type_pair != headers.end() &&
-               content_type_pair->second == "application/ohttp-keys") {
+    } else if (method_pair->second == "GET" && accept_pair != headers.end() &&
+               accept_pair->second == "application/ohttp-keys") {
       response_headers[":status"] = "200";
       response_headers["content-type"] = "application/ohttp-keys";
       response_body = masque_ohttp_gateway_->concatenated_keys();
