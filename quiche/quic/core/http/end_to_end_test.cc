@@ -18,6 +18,7 @@
 #include <utility>
 #include <vector>
 
+
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/notification.h"
@@ -35,6 +36,8 @@
 #include "quiche/quic/core/crypto/transport_parameters.h"
 #include "quiche/quic/core/frames/quic_blocked_frame.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
+#include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/frames/quic_padding_frame.h"
 #include "quiche/quic/core/frames/quic_ping_frame.h"
 #include "quiche/quic/core/frames/quic_window_update_frame.h"
 #include "quiche/quic/core/http/http_constants.h"
@@ -66,6 +69,7 @@
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packet_writer_wrapper.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_tag.h"
@@ -1576,34 +1580,24 @@ TEST_P(EndToEndTest,
 }
 
 TEST_P(EndToEndTest, TestInvalidAckBeforeHandshakeClosesConnection) {
+  ASSERT_TRUE(Initialize());
   if (!version_.IsIetfQuic()) {
-    ASSERT_TRUE(Initialize());
-    return;
-  }
-  if (!version_.IsIetfQuic()) {
-    ASSERT_TRUE(Initialize());
     return;
   }
   SetQuicRestartFlag(quic_dispatcher_close_connection_on_invalid_ack, true);
-  connect_to_server_on_initialize_ = false;
-  ASSERT_TRUE(Initialize());
 
-  // Create client without connecting.
-  client_writer_->set_fake_packet_loss_percentage(100);
-  client_.reset(CreateQuicClient(client_writer_));
-  client_->client()->Initialize();
+  // We've created this dummy connection for the sole purpose of borrowing its
+  // packet writer.
+  QuicConnection* dummy_client_connection = GetClientConnection();
+  ASSERT_TRUE(dummy_client_connection);
 
-  QuicConnection* client_connection = GetClientConnection();
-  ASSERT_TRUE(client_connection);
-  client_writer_->Initialize(
-      QuicConnectionPeer::GetHelper(client_connection),
-      QuicConnectionPeer::GetAlarmFactory(client_connection),
-      std::make_unique<ClientDelegate>(client_->client()));
-
-  // Generate connection IDs for the crafted packet. Since the client hasn't
-  // connected yet, these are effectively new, random IDs.
-  QuicConnectionId server_connection_id = TestConnectionId(1);
-  QuicConnectionId client_connection_id = TestConnectionId(2);
+  // When we send an invalid ACK frame, it should be associated with a fresh
+  // connection ID, not the dummy connection's ID.
+  QuicConnectionId server_connection_id(
+      dummy_client_connection->connection_id());
+  EXPECT_GT(server_connection_id.length(), 0u);
+  server_connection_id.mutable_data()[0] ^= 1;
+  ASSERT_NE(server_connection_id, dummy_client_connection->connection_id());
 
   // Manually craft and send an INITIAL packet with an invalid ACK frame.
   QuicFrames frames;
@@ -1617,18 +1611,23 @@ TEST_P(EndToEndTest, TestInvalidAckBeforeHandshakeClosesConnection) {
   DeleteFrames(&frames);
   ASSERT_TRUE(packet);
 
-  client_writer_->writer()->WritePacket(
+  // The server should see this as an invalid ACK and add the connection ID to a
+  // time-wait list.
+  const WriteResult write_result = client_writer_->writer()->WritePacket(
       packet->data(), packet->length(),
       client_->client()->network_helper()->GetLatestClientAddress().host(),
       server_address_, nullptr, packet_writer_params_);
+  EXPECT_EQ(write_result.status, WRITE_STATUS_OK);
 
-  // The server should see this as an invalid ACK and add the connection ID to a
-  // time-wait list. Subsequent connection attempts with the same connection ID
-  // should fail.
-  client_->UseConnectionId(server_connection_id);
-  client_->Connect();
-  EXPECT_FALSE(client_->connected());
-  EXPECT_THAT(client_->connection_error(),
+  // Subsequent connection attempts with the same connection ID should fail.
+  std::unique_ptr<QuicTestClient> client2(
+      CreateQuicClient(nullptr, /*connect=*/false));
+  client2->UseConnectionId(server_connection_id);
+  client2->Connect();
+  client2->WaitForWriteToFlush();
+  client2->WaitForResponse();
+  EXPECT_FALSE(client2->connected());
+  EXPECT_THAT(client2->connection_error(),
               IsError(IETF_QUIC_PROTOCOL_VIOLATION));
 }
 
