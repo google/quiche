@@ -303,9 +303,9 @@ absl::Status MasqueOhttpClient::HandleOhttpResponse(
   return status;
 }
 
-void MasqueOhttpClient::OnResponse(MasqueConnectionPool* /*pool*/,
-                                   RequestId request_id,
-                                   const absl::StatusOr<Message>& response) {
+void MasqueOhttpClient::OnPoolResponse(MasqueConnectionPool* /*pool*/,
+                                       RequestId request_id,
+                                       absl::StatusOr<Message>&& response) {
   if (key_fetch_request_id_.has_value() &&
       *key_fetch_request_id_ == request_id) {
     auto status = HandleKeyResponse(response);

@@ -80,7 +80,7 @@ void MasqueConnectionPool::OnResponse(MasqueH2Connection* connection,
       Message response;
       response.headers = headers.Clone();
       response.body = body;
-      visitor_->OnResponse(this, request_id, std::move(response));
+      visitor_->OnPoolResponse(this, request_id, std::move(response));
       found = true;
       break;
     }
@@ -170,8 +170,8 @@ void MasqueConnectionPool::SendPendingRequests(MasqueH2Connection* connection) {
                                                 pending_request.request.body);
     if (stream_id < 0) {
       QUICHE_LOG(ERROR) << "Failed to send request";
-      visitor_->OnResponse(this, request_id,
-                           absl::InternalError("Failed to send request"));
+      visitor_->OnPoolResponse(this, request_id,
+                               absl::InternalError("Failed to send request"));
       pending_requests_.erase(it++);
       continue;
     }
@@ -189,7 +189,7 @@ void MasqueConnectionPool::FailPendingRequests(MasqueH2Connection* connection,
       ++it;
       continue;
     }
-    visitor_->OnResponse(this, request_id, error);
+    visitor_->OnPoolResponse(this, request_id, error);
     pending_requests_.erase(it++);
   }
 }
@@ -280,7 +280,9 @@ void MasqueConnectionPool::ConnectionState::OnSocketEvent(
       }
 
       static constexpr uint8_t kAlpnProtocols[] = {
+          // clang-format off
           0x02, 'h', '2',  // h2
+          // clang-format on
       };
       if (SSL_set_alpn_protos(ssl_.get(), kAlpnProtocols,
                               sizeof(kAlpnProtocols)) != 0) {

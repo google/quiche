@@ -57,8 +57,9 @@ class QUICHE_EXPORT MasqueOhttpClient
 
  protected:
   // From quic::MasqueConnectionPool::Visitor.
-  void OnResponse(quic::MasqueConnectionPool* /*pool*/, RequestId request_id,
-                  const absl::StatusOr<Message>& response) override;
+  void OnPoolResponse(quic::MasqueConnectionPool* /*pool*/,
+                      RequestId request_id,
+                      absl::StatusOr<Message>&& response) override;
 
   // Fetch key from the key URL.
   absl::Status StartKeyFetch(const std::string& url_string);

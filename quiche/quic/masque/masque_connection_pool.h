@@ -56,8 +56,9 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
   class QUIC_NO_EXPORT Visitor {
    public:
     virtual ~Visitor() = default;
-    virtual void OnResponse(MasqueConnectionPool* pool, RequestId request_id,
-                            const absl::StatusOr<Message>& response) = 0;
+    virtual void OnPoolResponse(MasqueConnectionPool* pool,
+                                RequestId request_id,
+                                absl::StatusOr<Message>&& response) = 0;
   };
 
   // If the request fails immediately, the error will be returned. Otherwise, a
