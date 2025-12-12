@@ -32,25 +32,19 @@ class QUICHE_EXPORT MasqueOhttpClient
   using RequestId = quic::MasqueConnectionPool::RequestId;
   using Message = quic::MasqueConnectionPool::Message;
 
-  explicit MasqueOhttpClient(quic::QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
-                             std::vector<std::string> urls,
-                             bool disable_certificate_verification,
-                             int address_family_for_lookup,
-                             const std::string& post_data)
-      : urls_(urls),
-        post_data_(post_data),
-        connection_pool_(event_loop, ssl_ctx, disable_certificate_verification,
-                         address_family_for_lookup, this) {}
-
   explicit MasqueOhttpClient(
-      quic::QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
-      std::vector<std::string> urls, bool disable_certificate_verification,
-      int address_family_for_lookup, const std::string& post_data,
-      std::shared_ptr<MasqueConnectionPool::DnsResolver> dns_resolver)
+      quic::QuicEventLoop* event_loop, SSL_CTX* key_fetch_ssl_ctx,
+      SSL_CTX* ohttp_ssl_ctx, std::vector<std::string> urls,
+      bool disable_certificate_verification, int address_family_for_lookup,
+      const std::string& post_data,
+      std::shared_ptr<MasqueConnectionPool::DnsResolver> dns_resolver = nullptr)
       : urls_(urls),
         post_data_(post_data),
-        connection_pool_(event_loop, ssl_ctx, disable_certificate_verification,
-                         address_family_for_lookup, this, dns_resolver) {}
+        connection_pool_(event_loop, key_fetch_ssl_ctx,
+                         disable_certificate_verification,
+                         address_family_for_lookup, this, dns_resolver) {
+    connection_pool_.SetMtlsSslCtx(ohttp_ssl_ctx);
+  }
 
   // Starts fetching for the key and sends the OHTTP request.
   absl::Status Start();

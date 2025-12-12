@@ -63,21 +63,18 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
   // If the request fails immediately, the error will be returned. Otherwise, a
   // request ID will be returned and the result (the response or an error) will
   // be delivered later with that same request ID via Visitor::OnResponse.
-  absl::StatusOr<RequestId> SendRequest(const Message& request);
+  absl::StatusOr<RequestId> SendRequest(const Message& request,
+                                        bool mtls = false);
 
   // `event_loop`, `ssl_ctx`, and `visitor` must outlive this object.
-  explicit MasqueConnectionPool(QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
-                                bool disable_certificate_verification,
-                                int address_family_for_lookup,
-                                Visitor* visitor);
-
-  explicit MasqueConnectionPool(QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
-                                bool disable_certificate_verification,
-                                int address_family_for_lookup, Visitor* visitor,
-                                std::shared_ptr<DnsResolver> dns_resolver);
+  explicit MasqueConnectionPool(
+      QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
+      bool disable_certificate_verification, int address_family_for_lookup,
+      Visitor* visitor, std::shared_ptr<DnsResolver> dns_resolver = nullptr);
 
   QuicEventLoop* event_loop() { return event_loop_; }
-  SSL_CTX* ssl_ctx() { return ssl_ctx_; }
+  SSL_CTX* GetSslCtx(bool mtls) { return mtls ? mtls_ssl_ctx_ : tls_ssl_ctx_; }
+  void SetMtlsSslCtx(SSL_CTX* ssl_ctx) { mtls_ssl_ctx_ = ssl_ctx; }
 
   // From MasqueH2Connection::Visitor:
   void OnConnectionReady(MasqueH2Connection* connection) override;
@@ -113,6 +110,7 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
                        QuicSocketEventMask events) override;
 
     MasqueH2Connection* connection() { return connection_.get(); }
+    void set_mtls(bool mtls) { mtls_ = mtls; }
 
    private:
     static enum ssl_verify_result_t VerifyCallback(SSL* ssl,
@@ -125,6 +123,7 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
     SocketFd socket_ = kInvalidSocketFd;
     bssl::UniquePtr<SSL> ssl_;
     std::unique_ptr<MasqueH2Connection> connection_;
+    bool mtls_ = false;
   };
   struct PendingRequest {
     Message request;
@@ -132,15 +131,17 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
     int32_t stream_id = -1;
   };
 
-  ConnectionState* GetOrCreateConnectionState(const std::string& authority);
+  ConnectionState* GetOrCreateConnectionState(const std::string& authority,
+                                              bool mtls);
   void AttachConnectionToPendingRequests(const std::string& authority,
                                          MasqueH2Connection* connection);
   void SendPendingRequests(MasqueH2Connection* connection);
   void FailPendingRequests(MasqueH2Connection* connection,
                            const absl::Status& error);
 
-  QuicEventLoop* event_loop_;  // Not owned.
-  SSL_CTX* ssl_ctx_;           // Not owned.
+  QuicEventLoop* event_loop_;        // Not owned.
+  SSL_CTX* tls_ssl_ctx_;             // Not owned.
+  SSL_CTX* mtls_ssl_ctx_ = nullptr;  // Not owned.
   const bool disable_certificate_verification_;
   const int address_family_for_lookup_;
   Visitor* visitor_;  // Not owned.

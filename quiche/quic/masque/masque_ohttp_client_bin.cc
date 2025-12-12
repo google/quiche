@@ -25,6 +25,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, disable_certificate_verification, false,
     "If true, don't verify the server certificate.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, use_mtls_for_key_fetch, false,
+    "If true, use mTLS when fetching the OHTTP/HPKE keys.");
+
 DEFINE_QUICHE_COMMAND_LINE_FLAG(int, address_family, 0,
                                 "IP address family to use. Must be 0, 4 or 6. "
                                 "Defaults to 0 which means any.");
@@ -51,13 +55,31 @@ int RunMasqueOhttpClient(int argc, char* argv[]) {
   quiche::QuicheSystemEventLoop system_event_loop("masque_ohttp_client");
   const bool disable_certificate_verification =
       quiche::GetQuicheCommandLineFlag(FLAGS_disable_certificate_verification);
+  const bool use_mtls_for_key_fetch =
+      quiche::GetQuicheCommandLineFlag(FLAGS_use_mtls_for_key_fetch);
+  const std::string client_cert_file =
+      quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_file);
+  const std::string client_cert_key_file =
+      quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_key_file);
 
-  absl::StatusOr<bssl::UniquePtr<SSL_CTX>> ssl_ctx =
-      MasqueConnectionPool::CreateSslCtx(
-          quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_file),
-          quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_key_file));
-  if (!ssl_ctx.ok()) {
-    QUICHE_LOG(ERROR) << "Failed to create SSL context: " << ssl_ctx.status();
+  absl::StatusOr<bssl::UniquePtr<SSL_CTX>> key_fetch_ssl_ctx;
+  if (use_mtls_for_key_fetch) {
+    key_fetch_ssl_ctx = MasqueConnectionPool::CreateSslCtx(
+        client_cert_file, client_cert_key_file);
+  } else {
+    key_fetch_ssl_ctx = MasqueConnectionPool::CreateSslCtx("", "");
+  }
+  if (!key_fetch_ssl_ctx.ok()) {
+    QUICHE_LOG(ERROR) << "Failed to create key fetch SSL context: "
+                      << key_fetch_ssl_ctx.status();
+    return 1;
+  }
+  absl::StatusOr<bssl::UniquePtr<SSL_CTX>> ohttp_ssl_ctx =
+      MasqueConnectionPool::CreateSslCtx(client_cert_file,
+                                         client_cert_key_file);
+  if (!ohttp_ssl_ctx.ok()) {
+    QUICHE_LOG(ERROR) << "Failed to create OHTTP SSL context: "
+                      << ohttp_ssl_ctx.status();
     return 1;
   }
   const int address_family =
@@ -77,9 +99,9 @@ int RunMasqueOhttpClient(int argc, char* argv[]) {
       GetDefaultEventLoop()->Create(QuicDefaultClock::Get());
   std::string post_data = quiche::GetQuicheCommandLineFlag(FLAGS_post_data);
 
-  MasqueOhttpClient masque_ohttp_client(event_loop.get(), ssl_ctx->get(), urls,
-                                        disable_certificate_verification,
-                                        address_family_for_lookup, post_data);
+  MasqueOhttpClient masque_ohttp_client(
+      event_loop.get(), key_fetch_ssl_ctx->get(), ohttp_ssl_ctx->get(), urls,
+      disable_certificate_verification, address_family_for_lookup, post_data);
   if (!masque_ohttp_client.Start().ok()) {
     return 1;
   }

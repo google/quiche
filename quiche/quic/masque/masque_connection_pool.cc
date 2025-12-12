@@ -36,24 +36,17 @@ namespace quic {
 MasqueConnectionPool::MasqueConnectionPool(
     QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
     bool disable_certificate_verification, int address_family_for_lookup,
-    Visitor* visitor)
-    : event_loop_(event_loop),
-      ssl_ctx_(ssl_ctx),
-      disable_certificate_verification_(disable_certificate_verification),
-      address_family_for_lookup_(address_family_for_lookup),
-      visitor_(visitor),
-      dns_resolver_(std::make_shared<DnsResolver>()) {}
-
-MasqueConnectionPool::MasqueConnectionPool(
-    QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
-    bool disable_certificate_verification, int address_family_for_lookup,
     Visitor* visitor, std::shared_ptr<DnsResolver> dns_resolver)
     : event_loop_(event_loop),
-      ssl_ctx_(ssl_ctx),
+      tls_ssl_ctx_(ssl_ctx),
       disable_certificate_verification_(disable_certificate_verification),
       address_family_for_lookup_(address_family_for_lookup),
       visitor_(visitor),
-      dns_resolver_(dns_resolver) {}
+      dns_resolver_(dns_resolver) {
+  if (!dns_resolver_) {
+    dns_resolver_ = std::make_shared<DnsResolver>();
+  }
+}
 
 void MasqueConnectionPool::OnConnectionReady(MasqueH2Connection* connection) {
   SendPendingRequests(connection);
@@ -100,13 +93,13 @@ void MasqueConnectionPool::OnResponse(MasqueH2Connection* connection,
 }
 
 absl::StatusOr<MasqueConnectionPool::RequestId>
-MasqueConnectionPool::SendRequest(const Message& request) {
+MasqueConnectionPool::SendRequest(const Message& request, bool mtls) {
   auto authority = request.headers.find(":authority");
   if (authority == request.headers.end()) {
     return absl::InvalidArgumentError("Request missing :authority header");
   }
   ConnectionState* connection =
-      GetOrCreateConnectionState(std::string(authority->second));
+      GetOrCreateConnectionState(std::string(authority->second), mtls);
   if (connection == nullptr) {
     return absl::InternalError(
         absl::StrCat("Failed to create connection to ", authority->second));
@@ -129,19 +122,22 @@ MasqueConnectionPool::SendRequest(const Message& request) {
 }
 
 MasqueConnectionPool::ConnectionState*
-MasqueConnectionPool::GetOrCreateConnectionState(const std::string& authority) {
-  auto connection_state_it = connections_.find(authority);
+MasqueConnectionPool::GetOrCreateConnectionState(const std::string& authority,
+                                                 bool mtls) {
+  std::string entry = absl::StrCat((mtls ? "m" : ""), "tls:", authority);
+  auto connection_state_it = connections_.find(entry);
   if (connection_state_it != connections_.end()) {
     return connection_state_it->second.get();
   }
   auto connection_state = std::make_unique<ConnectionState>(this);
+  connection_state->set_mtls(mtls);
   if (!connection_state->SetupSocket(authority,
                                      disable_certificate_verification_,
                                      address_family_for_lookup_)) {
     QUICHE_LOG(ERROR) << "Failed to setup socket for " << authority;
     return nullptr;
   }
-  return connections_.insert({authority, std::move(connection_state)})
+  return connections_.insert({entry, std::move(connection_state)})
       .first->second.get();
 }
 
@@ -271,7 +267,7 @@ void MasqueConnectionPool::ConnectionState::OnSocketEvent(
   }
   if ((events & kSocketEventWritable) != 0) {
     if (!ssl_) {
-      ssl_.reset((SSL_new(connection_pool_->ssl_ctx())));
+      ssl_.reset((SSL_new(connection_pool_->GetSslCtx(mtls_))));
       SSL_set_connect_state(ssl_.get());
 
       if (SSL_set_app_data(ssl_.get(), this) != 1) {

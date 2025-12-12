@@ -102,12 +102,13 @@ absl::Status MasqueOhttpClient::StartKeyFetch(const std::string& url_string) {
   request.headers[":path"] = url.path();
   request.headers["accept"] = "application/ohttp-keys";
 
-  QUICHE_ASSIGN_OR_RETURN(
-      key_fetch_request_id_, connection_pool_.SendRequest(request),
-      [](const absl::Status& status) {
-        QUICHE_LOG(ERROR) << "Failed to send request: " << status;
-        return status;
-      });
+  QUICHE_ASSIGN_OR_RETURN(key_fetch_request_id_,
+                          connection_pool_.SendRequest(request, /*mtls=*/false),
+                          [](const absl::Status& status) {
+                            QUICHE_LOG(ERROR)
+                                << "Failed to send request: " << status;
+                            return status;
+                          });
   return absl::OkStatus();
 }
 
@@ -233,7 +234,8 @@ absl::Status MasqueOhttpClient::SendOhttpRequestForUrl(
   request.headers[":path"] = relay_url_.path();
   request.headers["content-type"] = "message/ohttp-req";
   request.body = ohttp_request->EncapsulateAndSerialize();
-  absl::StatusOr<RequestId> request_id = connection_pool_.SendRequest(request);
+  absl::StatusOr<RequestId> request_id =
+      connection_pool_.SendRequest(request, /*mtls=*/true);
   if (!request_id.ok()) {
     QUICHE_LOG(ERROR) << "Failed to send request: " << request_id.status();
     return request_id.status();
