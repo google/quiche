@@ -106,6 +106,7 @@ MasqueConnectionPool::SendRequest(const Message& request, bool mtls) {
   }
   auto pending_request = std::make_unique<PendingRequest>();
   if (connection->connection() != nullptr) {
+    QUICHE_LOG(INFO) << "Reusing existing connection to " << authority->second;
     pending_request->connection = connection->connection();
     pending_request->stream_id =
         connection->connection()->SendRequest(request.headers, request.body);
@@ -113,6 +114,9 @@ MasqueConnectionPool::SendRequest(const Message& request, bool mtls) {
       return absl::InternalError(
           absl::StrCat("Failed to send request to ", authority->second));
     }
+    connection->connection()->AttemptToSend();
+  } else {
+    QUICHE_LOG(INFO) << "No existing connection to " << authority->second;
   }
   RequestId request_id = ++next_request_id_;
   pending_request->request.headers = request.headers.Clone();
