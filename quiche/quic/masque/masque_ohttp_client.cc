@@ -280,7 +280,7 @@ absl::StatusOr<BinaryHttpResponse> MasqueOhttpClient::TryExtractBinaryResponse(
   }
 }
 
-absl::Status MasqueOhttpClient::HandleOhttpResponse(
+absl::Status MasqueOhttpClient::ProcessOhttpResponse(
     RequestId request_id, const absl::StatusOr<Message>& response) {
   auto it = pending_ohttp_requests_.find(request_id);
   if (it == pending_ohttp_requests_.end()) {
@@ -289,16 +289,18 @@ absl::Status MasqueOhttpClient::HandleOhttpResponse(
     return absl::InternalError(
         "Received unexpected response for unknown request");
   }
-  if (!response.ok()) {
-    QUICHE_LOG(ERROR) << "Failed to fetch OHTTP response: "
-                      << response.status();
-    return response.status();
+  absl::Status status = response.status();
+  if (status.ok()) {
+    status = CheckStatusAndContentType(*response, "message/ohttp-res");
+    if (status.ok()) {
+      status = HandleOhttpResponse(request_id, response);
+      if (status.ok()) {
+        absl::StatusOr<BinaryHttpResponse> binary_response =
+            TryExtractBinaryResponse(request_id, it->second, *response);
+        status = HandleBinaryResponse(binary_response);
+      }
+    }
   }
-  QUICHE_RETURN_IF_ERROR(
-      CheckStatusAndContentType(*response, "message/ohttp-res"));
-  absl::StatusOr<BinaryHttpResponse> binary_response =
-      TryExtractBinaryResponse(request_id, it->second, *response);
-  absl::Status status = HandleBinaryResponse(binary_response);
   pending_ohttp_requests_.erase(it);
   return status;
 }
@@ -314,7 +316,7 @@ void MasqueOhttpClient::OnPoolResponse(MasqueConnectionPool* /*pool*/,
       Abort(status);
     }
   } else {
-    auto status = HandleOhttpResponse(request_id, response);
+    auto status = ProcessOhttpResponse(request_id, response);
     if (!status.ok()) {
       QUICHE_LOG(ERROR) << "Failed to handle OHTTP response: " << status;
       Abort(status);

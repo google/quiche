@@ -77,13 +77,17 @@ class QUICHE_EXPORT MasqueOhttpClient
       RequestId request_id, quiche::ObliviousHttpRequest::Context& context,
       const Message& response);
   virtual absl::Status HandleOhttpResponse(
-      RequestId request_id, const absl::StatusOr<Message>& response);
+      RequestId request_id, const absl::StatusOr<Message>& response) {
+    return response.status();
+  }
   virtual absl::Status HandleBinaryResponse(
       const absl::StatusOr<quiche::BinaryHttpResponse>& binary_response) {
     return binary_response.status();
   }
 
  private:
+  absl::Status ProcessOhttpResponse(RequestId request_id,
+                                    const absl::StatusOr<Message>& response);
   absl::Status CheckStatusAndContentType(const Message& response,
                                          const std::string& content_type);
 
