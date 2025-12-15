@@ -76,13 +76,12 @@ class QUICHE_EXPORT MasqueOhttpClient
   absl::StatusOr<quiche::BinaryHttpResponse> TryExtractBinaryResponse(
       RequestId request_id, quiche::ObliviousHttpRequest::Context& context,
       const Message& response);
-  virtual absl::Status HandleOhttpResponse(
-      RequestId request_id, const absl::StatusOr<Message>& response) {
-    return response.status();
+  virtual absl::Status CheckGatewayResponse(const Message& response) {
+    return absl::OkStatus();
   }
-  virtual absl::Status HandleBinaryResponse(
-      const absl::StatusOr<quiche::BinaryHttpResponse>& binary_response) {
-    return binary_response.status();
+  virtual absl::Status CheckEncapsulatedResponse(
+      const quiche::BinaryHttpResponse& response) {
+    return absl::OkStatus();
   }
 
  private:

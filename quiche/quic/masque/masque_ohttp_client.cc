@@ -9,6 +9,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/match.h"
@@ -289,20 +290,17 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
     return absl::InternalError(
         "Received unexpected response for unknown request");
   }
-  absl::Status status = response.status();
-  if (status.ok()) {
-    status = CheckStatusAndContentType(*response, "message/ohttp-res");
-    if (status.ok()) {
-      status = HandleOhttpResponse(request_id, response);
-      if (status.ok()) {
-        absl::StatusOr<BinaryHttpResponse> binary_response =
-            TryExtractBinaryResponse(request_id, it->second, *response);
-        status = HandleBinaryResponse(binary_response);
-      }
-    }
-  }
-  pending_ohttp_requests_.erase(it);
-  return status;
+  auto cleanup =
+      absl::MakeCleanup([this, it]() { pending_ohttp_requests_.erase(it); });
+  QUICHE_RETURN_IF_ERROR(response.status());
+  QUICHE_RETURN_IF_ERROR(
+      CheckStatusAndContentType(*response, "message/ohttp-res"));
+  QUICHE_RETURN_IF_ERROR(CheckGatewayResponse(*response));
+  absl::StatusOr<BinaryHttpResponse> binary_response =
+      TryExtractBinaryResponse(request_id, it->second, *response);
+  QUICHE_RETURN_IF_ERROR(binary_response.status());
+  QUICHE_RETURN_IF_ERROR(CheckEncapsulatedResponse(*binary_response));
+  return absl::OkStatus();
 }
 
 void MasqueOhttpClient::OnPoolResponse(MasqueConnectionPool* /*pool*/,
