@@ -378,6 +378,7 @@ DEFINE_STATIC_QUIC_TAG(FIDT);  // Extend idle timer by PTO
                                // timeout.
 
 DEFINE_STATIC_QUIC_TAG(3AFF);  // 3 anti amplification factor.
+DEFINE_STATIC_QUIC_TAG(5AFF);  // 5 anti amplification factor.
 DEFINE_STATIC_QUIC_TAG(10AF);  // 10 anti amplification factor.
 
 // Enable path MTU discovery experiment.
