@@ -5,18 +5,32 @@
 #include "quiche/quic/core/quic_time_wait_list_manager.h"
 
 #include <cerrno>
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
+#include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_arena_scoped_ptr.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_framer.h"
+#include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/mock_quic_session_visitor.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/quic_time_wait_list_manager_peer.h"
@@ -741,6 +755,20 @@ TEST_F(QuicTimeWaitListManagerTest, TooManyPendingPackets) {
   // Verify pending packet queue size is limited.
   EXPECT_EQ(5u, QuicTimeWaitListManagerPeer::PendingPacketsQueueSize(
                     &time_wait_list_manager_));
+}
+
+TEST(TimeWaitActionTest, Stringify) {
+  EXPECT_EQ(absl::StrCat(QuicTimeWaitListManager::SEND_TERMINATION_PACKETS),
+            "SEND_TERMINATION_PACKETS");
+  EXPECT_EQ(
+      absl::StrCat(QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS),
+      "SEND_CONNECTION_CLOSE_PACKETS");
+  EXPECT_EQ(absl::StrCat(QuicTimeWaitListManager::SEND_STATELESS_RESET),
+            "SEND_STATELESS_RESET");
+  EXPECT_EQ(absl::StrCat(QuicTimeWaitListManager::DO_NOTHING), "DO_NOTHING");
+  EXPECT_EQ(
+      absl::StrCat(static_cast<QuicTimeWaitListManager::TimeWaitAction>(0xff)),
+      "Unknown TimeWaitAction (255)");
 }
 
 }  // namespace

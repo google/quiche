@@ -1359,6 +1359,7 @@ quiche_tests_srcs = [
     "quic/core/quic_time_test.cc",
     "quic/core/quic_time_wait_list_manager_test.cc",
     "quic/core/quic_trace_visitor_test.cc",
+    "quic/core/quic_types_test.cc",
     "quic/core/quic_unacked_packet_map_test.cc",
     "quic/core/quic_utils_test.cc",
     "quic/core/quic_version_manager_test.cc",

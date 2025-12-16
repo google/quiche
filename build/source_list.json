@@ -1359,6 +1359,7 @@
     "quiche/quic/core/quic_time_test.cc",
     "quiche/quic/core/quic_time_wait_list_manager_test.cc",
     "quiche/quic/core/quic_trace_visitor_test.cc",
+    "quiche/quic/core/quic_types_test.cc",
     "quiche/quic/core/quic_unacked_packet_map_test.cc",
     "quiche/quic/core/quic_utils_test.cc",
     "quiche/quic/core/quic_version_manager_test.cc",

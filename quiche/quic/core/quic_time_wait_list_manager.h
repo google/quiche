@@ -16,6 +16,7 @@
 #include <vector>
 
 #include "absl/base/nullability.h"
+#include "absl/strings/str_cat.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_blocked_writer_interface.h"
@@ -346,6 +347,25 @@ class QUICHE_EXPORT QuicTimeWaitListManager
   // Interface that manages blocked writers.
   Visitor* visitor_;
 };
+
+template <typename Sink>
+void AbslStringify(Sink& sink, QuicTimeWaitListManager::TimeWaitAction action) {
+  switch (action) {
+    case QuicTimeWaitListManager::SEND_TERMINATION_PACKETS:
+      sink.Append("SEND_TERMINATION_PACKETS");
+      return;
+    case QuicTimeWaitListManager::SEND_CONNECTION_CLOSE_PACKETS:
+      sink.Append("SEND_CONNECTION_CLOSE_PACKETS");
+      return;
+    case QuicTimeWaitListManager::SEND_STATELESS_RESET:
+      sink.Append("SEND_STATELESS_RESET");
+      return;
+    case QuicTimeWaitListManager::DO_NOTHING:
+      sink.Append("DO_NOTHING");
+      return;
+  }
+  sink.Append(absl::StrCat("Unknown TimeWaitAction (", int{action}, ")"));
+}
 
 }  // namespace quic
 

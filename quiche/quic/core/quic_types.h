@@ -581,6 +581,11 @@ enum PacketHeaderFormat : uint8_t {
 
 QUICHE_EXPORT std::string PacketHeaderFormatToString(PacketHeaderFormat format);
 
+template <typename Sink>
+void AbslStringify(Sink& sink, PacketHeaderFormat format) {
+  sink.Append(PacketHeaderFormatToString(format));
+}
+
 // Information about a newly acknowledged packet.
 struct QUICHE_EXPORT AckedPacket {
   constexpr AckedPacket(QuicPacketNumber packet_number,
