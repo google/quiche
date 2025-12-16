@@ -15,7 +15,7 @@ namespace test {
 // static
 bool QuicServerPeer::SetSmallSocket(QuicServer* server) {
   int size = 1024 * 10;
-  return setsockopt(server->fd_, SOL_SOCKET, SO_RCVBUF,
+  return setsockopt(*server->fd_, SOL_SOCKET, SO_RCVBUF,
                     reinterpret_cast<char*>(&size), sizeof(size)) != -1;
 }
 

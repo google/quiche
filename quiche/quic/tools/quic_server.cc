@@ -106,12 +106,6 @@ void QuicServer::Initialize() {
 }
 
 QuicServer::~QuicServer() {
-  // Ensure the I/O harness is gone before closing the socket.
-  io_.reset();
-
-  (void)socket_api::Close(fd_);
-  fd_ = kInvalidSocketFd;
-
   // Should be fine without because nothing should send requests to the backend
   // after `this` is destroyed, but for extra pointer safety, clear the socket
   // factory from the backend before the socket factory is destroyed.
@@ -127,16 +121,16 @@ bool QuicServer::CreateUDPSocketAndListen(const QuicSocketAddress& address) {
 
   dispatcher_.reset(CreateQuicDispatcher());
 
-  absl::StatusOr<SocketFd> fd = CreateAndBindServerSocket(address);
+  absl::StatusOr<OwnedSocketFd> fd = CreateAndBindServerSocket(address);
   if (!fd.ok()) {
-    QUIC_LOG(ERROR) << "Failed to create and bind socket: " << fd;
+    QUIC_LOG(ERROR) << "Failed to create and bind socket: " << fd.status();
     return false;
   }
-  fd_ = *fd;
-  dispatcher_->InitializeWithWriter(CreateWriter(fd_));
+  fd_ = *std::move(fd);
+  dispatcher_->InitializeWithWriter(CreateWriter(*fd_));
 
   absl::StatusOr<std::unique_ptr<QuicServerIoHarness>> io =
-      QuicServerIoHarness::Create(event_loop_.get(), dispatcher_.get(), fd_);
+      QuicServerIoHarness::Create(event_loop_.get(), dispatcher_.get(), *fd_);
   if (!io.ok()) {
     QUICHE_LOG(ERROR) << "Failed to create I/O harness: " << io.status();
     return false;

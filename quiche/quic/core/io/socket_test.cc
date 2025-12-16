@@ -5,6 +5,7 @@
 #include "quiche/quic/core/io/socket.h"
 
 #include <string>
+#include <utility>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -71,6 +72,10 @@ SocketFd CreateTestRawSocket(
                  absl::IsNotFound(socket.status()));
     return kInvalidSocketFd;
   }
+}
+
+bool IsValidSocket(SocketFd fd) {
+  return socket_api::GetSocketAddress(fd).ok();
 }
 
 TEST(SocketTest, CreateAndCloseSocket) {
@@ -368,6 +373,67 @@ TEST(SocketTest, SendToForRawWithIpHeader) {
   EXPECT_THAT(result.value(), SizeIs(Lt(packet.size())));
 
   QUICHE_EXPECT_OK(socket_api::Close(socket));
+}
+
+TEST(SocketTest, EmptyOwnedSocketFd) {
+  OwnedSocketFd owned_fd;
+  EXPECT_FALSE(owned_fd.valid());
+  EXPECT_EQ(*owned_fd, kInvalidSocketFd);
+}
+
+TEST(SocketTest, OwnedSocketFd) {
+  SocketFd fd = CreateTestSocket(socket_api::SocketProtocol::kUdp);
+  ASSERT_TRUE(IsValidSocket(fd));
+
+  OwnedSocketFd owned_fd(fd);
+  EXPECT_EQ(owned_fd.get(), fd);
+  EXPECT_TRUE(owned_fd.valid());
+  EXPECT_TRUE(IsValidSocket(fd));
+
+  OwnedSocketFd owned_fd2 = std::move(owned_fd);
+  EXPECT_EQ(owned_fd.get(),  // NOLINT(bugprone-use-after-move)
+            kInvalidSocketFd);
+  EXPECT_FALSE(owned_fd.valid());
+  EXPECT_EQ(owned_fd2.get(), fd);
+  EXPECT_TRUE(owned_fd2.valid());
+  EXPECT_TRUE(IsValidSocket(fd));
+
+  owned_fd2.reset();
+  EXPECT_EQ(owned_fd2.get(), kInvalidSocketFd);
+  EXPECT_FALSE(owned_fd2.valid());
+  EXPECT_FALSE(IsValidSocket(fd));
+}
+
+TEST(SocketTest, OwnedSocketFdMove) {
+  SocketFd fd = CreateTestSocket(socket_api::SocketProtocol::kUdp);
+  SocketFd fd2 = CreateTestSocket(socket_api::SocketProtocol::kUdp);
+  ASSERT_TRUE(IsValidSocket(fd));
+  ASSERT_TRUE(IsValidSocket(fd2));
+
+  OwnedSocketFd owned_fd(fd);
+  OwnedSocketFd owned_fd2(fd2);
+  owned_fd = std::move(owned_fd2);
+  EXPECT_TRUE(owned_fd.valid());
+  EXPECT_FALSE(owned_fd2.valid());  // NOLINT(bugprone-use-after-move)
+  EXPECT_FALSE(IsValidSocket(fd));
+  EXPECT_TRUE(IsValidSocket(fd2));
+}
+
+TEST(SocketTest, OwnedSocketFdRelease) {
+  SocketFd fd = CreateTestSocket(socket_api::SocketProtocol::kUdp);
+  ASSERT_TRUE(IsValidSocket(fd));
+
+  {
+    OwnedSocketFd owned_fd(fd);
+    EXPECT_TRUE(owned_fd.valid());
+
+    EXPECT_EQ(owned_fd.release(), fd);
+    ASSERT_TRUE(IsValidSocket(fd));
+    EXPECT_FALSE(owned_fd.valid());
+
+    owned_fd = OwnedSocketFd(fd);
+  }
+  EXPECT_FALSE(IsValidSocket(fd));
 }
 
 }  // namespace

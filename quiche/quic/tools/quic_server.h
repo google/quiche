@@ -160,7 +160,7 @@ class QuicServer : public QuicSpdyServerBase {
 
   DeterministicConnectionIdGenerator connection_id_generator_;
 
-  SocketFd fd_ = kInvalidSocketFd;
+  OwnedSocketFd fd_;
   std::unique_ptr<QuicServerIoHarness> io_;
 };
 

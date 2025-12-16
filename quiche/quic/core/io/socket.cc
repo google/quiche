@@ -24,7 +24,8 @@
 #include "quiche/quic/core/io/socket_posix.inc"
 #endif
 
-namespace quic::socket_api {
+namespace quic {
+namespace socket_api {
 
 namespace {
 
@@ -298,4 +299,20 @@ absl::StatusOr<absl::string_view> SendTo(SocketFd fd,
   }
 }
 
-}  // namespace quic::socket_api
+}  // namespace socket_api
+
+void OwnedSocketFd::reset() {
+  if (valid()) {
+    absl::Status status = socket_api::Close(fd_);
+    QUICHE_DLOG_IF(WARNING, !status.ok()) << "Failed to close FD: " << status;
+    fd_ = kInvalidSocketFd;
+  }
+}
+
+SocketFd OwnedSocketFd::release() {
+  SocketFd fd = fd_;
+  fd_ = kInvalidSocketFd;
+  return fd;
+}
+
+}  // namespace quic

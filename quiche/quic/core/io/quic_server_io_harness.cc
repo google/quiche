@@ -24,20 +24,19 @@
 
 namespace quic {
 
-absl::StatusOr<SocketFd> CreateAndBindServerSocket(
+absl::StatusOr<OwnedSocketFd> CreateAndBindServerSocket(
     const QuicSocketAddress& bind_address) {
-  SocketFd fd = QuicUdpSocketApi().Create(
+  OwnedSocketFd fd(QuicUdpSocketApi().Create(
       bind_address.host().AddressFamilyToInt(),
       /*receive_buffer_size=*/kDefaultSocketReceiveBuffer,
-      /*send_buffer_size=*/kDefaultSocketReceiveBuffer);
-  if (fd == kQuicInvalidSocketFd) {
+      /*send_buffer_size=*/kDefaultSocketReceiveBuffer));
+  if (!fd.valid()) {
     return absl::InternalError("Failed to create socket");
   }
 
-  bool success = QuicUdpSocketApi().Bind(fd, bind_address);
+  bool success = QuicUdpSocketApi().Bind(*fd, bind_address);
   if (!success) {
-    (void)socket_api::Close(fd);
-    return socket_api::GetSocketError(fd);
+    return socket_api::GetSocketError(*fd);
   }
 
   return fd;

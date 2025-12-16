@@ -31,6 +31,36 @@ inline constexpr SocketFd kInvalidSocketFd = -1;
 inline constexpr int kSocketErrorMsgSize = EMSGSIZE;
 #endif
 
+// An std::unique_ptr-like wrapper around SocketFd.
+class OwnedSocketFd {
+ public:
+  OwnedSocketFd() : fd_(kInvalidSocketFd) {}
+  explicit OwnedSocketFd(SocketFd fd) : fd_(fd) {}
+  ~OwnedSocketFd() { reset(); }
+
+  OwnedSocketFd(const OwnedSocketFd&) = delete;
+  OwnedSocketFd& operator=(const OwnedSocketFd&) = delete;
+
+  OwnedSocketFd(OwnedSocketFd&& other) noexcept {
+    fd_ = other.fd_;
+    other.fd_ = kInvalidSocketFd;
+  }
+  OwnedSocketFd& operator=(OwnedSocketFd&& other) noexcept {
+    reset();
+    std::swap(fd_, other.fd_);
+    return *this;
+  }
+
+  bool valid() const { return fd_ != kInvalidSocketFd; }
+  SocketFd get() const { return fd_; }
+  SocketFd operator*() const { return fd_; }
+  void reset();
+  SocketFd release();
+
+ private:
+  SocketFd fd_;
+};
+
 // Low-level platform-agnostic socket operations. Closely follows the behavior
 // of basic POSIX socket APIs, diverging mostly only to convert to/from cleaner
 // and platform-agnostic types.

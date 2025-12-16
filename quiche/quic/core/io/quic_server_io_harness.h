@@ -21,7 +21,7 @@
 namespace quic {
 
 // Creates a UDP socket and binds it to the specified address.
-absl::StatusOr<SocketFd> CreateAndBindServerSocket(
+absl::StatusOr<OwnedSocketFd> CreateAndBindServerSocket(
     const QuicSocketAddress& bind_address);
 
 // QuicServerIoHarness registers itself with the provided event loop, reads
