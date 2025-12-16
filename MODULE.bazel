@@ -10,8 +10,8 @@ bazel_dep(name = "bazel_skylib", version = "1.8.1")
 # Last updated 2025-09-09
 bazel_dep(name = "rules_cc", version = "0.2.4")
 
-# Last updated 2025-09-09
-bazel_dep(name = "abseil-cpp", version = "20250814.0", repo_name = "com_google_absl")
+# Last updated 2025-12-15
+bazel_dep(name = "abseil-cpp", version = "20250814.1", repo_name = "com_google_absl")
 
 # Last updated 2025-05-29
 bazel_dep(name = "protobuf", version = "31.1", repo_name = "com_google_protobuf")
@@ -19,8 +19,8 @@ bazel_dep(name = "protobuf", version = "31.1", repo_name = "com_google_protobuf"
 # Last updated 2025-05-01
 bazel_dep(name = "boringssl", version = "0.20250415.0")
 
-# Last updated 2025-02-25
-bazel_dep(name = "googletest", version = "1.16.0", repo_name = "com_google_googletest")
+# Last updated 2025-12-15
+bazel_dep(name = "googletest", version = "1.17.0", repo_name = "com_google_googletest")
 
 # Last updated 2025-02-25
 bazel_dep(name = "re2", version = "2024-07-02.bcr.1")
@@ -30,10 +30,6 @@ bazel_dep(name = "zlib", version = "1.3.1.bcr.5")
 
 # Last updated 2025-09-09
 bazel_dep(name = "fuzztest", version = "20250805.0")
-
-# Prevent fuzztest from pulling in a version of riegeli with compilation errors
-# (riegeli version "0.0.0-20240606-973b6f0").
-bazel_dep(name = "riegeli", version = "0.0.0-20241218-3385e3c")
 
 http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
 

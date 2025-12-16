@@ -8,7 +8,7 @@
 #include <cstddef>
 #include <type_traits>
 
-#include "quiche_platform_impl/quiche_iovec_impl.h"
+#include "quiche_platform_impl/quiche_iovec_impl.h"  // IWYU pragma: export
 
 // The impl header has to export struct iovec, or a POSIX-compatible polyfill.
 // Below, we mostly assert that what we have is appropriate.

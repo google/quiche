@@ -148,7 +148,6 @@ struct QUICHE_EXPORT HttpValidationPolicy {
                  "require_chunked_body_end_with_crlf_crlf=%v, "
                  "sanitize_firstline_spaces=%v, "
                  "sanitize_obs_fold_in_header_values=%v, "
-                 "disallow_stray_data_after_chunk=%v, "
                  "disallow_invalid_request_methods=%v}",
                  policy.disallow_header_continuation_lines,
                  policy.require_header_colon,
@@ -167,7 +166,6 @@ struct QUICHE_EXPORT HttpValidationPolicy {
                  policy.require_chunked_body_end_with_crlf_crlf,
                  policy.sanitize_firstline_spaces,
                  policy.sanitize_obs_fold_in_header_values,
-                 policy.disallow_stray_data_after_chunk,
                  policy.disallow_invalid_request_methods);
   }
 };

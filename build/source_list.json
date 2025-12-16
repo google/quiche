@@ -777,6 +777,7 @@
     "quiche/quic/tools/web_transport_only_backend.cc"
   ],
   "quiche_test_support_hdrs": [
+    "quiche/balsa/balsa_fuzz_util.h",
     "quiche/common/platform/api/quiche_expect_bug.h",
     "quiche/common/platform/api/quiche_fuzztest.h",
     "quiche/common/platform/api/quiche_test.h",
@@ -889,6 +890,7 @@
     "quiche/web_transport/test_tools/mock_web_transport.h"
   ],
   "quiche_test_support_srcs": [
+    "quiche/balsa/balsa_fuzz_util.cc",
     "quiche/common/platform/api/quiche_test_loopback.cc",
     "quiche/common/test_tools/quiche_test_utils.cc",
     "quiche/http2/adapter/recording_http2_visitor.cc",
@@ -984,7 +986,6 @@
   "balsa_hdrs": [
     "quiche/balsa/balsa_enums.h",
     "quiche/balsa/balsa_frame.h",
-    "quiche/balsa/balsa_fuzz_util.h",
     "quiche/balsa/balsa_headers.h",
     "quiche/balsa/balsa_headers_sequence.h",
     "quiche/balsa/balsa_visitor_interface.h",
@@ -999,7 +1000,6 @@
   "balsa_srcs": [
     "quiche/balsa/balsa_enums.cc",
     "quiche/balsa/balsa_frame.cc",
-    "quiche/balsa/balsa_fuzz_util.cc",
     "quiche/balsa/balsa_headers.cc",
     "quiche/balsa/balsa_headers_sequence.cc",
     "quiche/balsa/header_properties.cc",
