@@ -66,8 +66,9 @@ std::optional<std::string> AsciiUrlDecodeImpl(absl::string_view input) {
       input_encoded, url::DecodeURLMode::kUTF8,
       &canon_output);
   std::string output;
-  output.reserve(canon_output.length());
-  for (int i = 0; i < canon_output.length(); i++) {
+  const size_t length = canon_output.length();
+  output.reserve(length);
+  for (size_t i = 0; i < length; i++) {
     const uint16_t c = reinterpret_cast<uint16_t*>(canon_output.data())[i];
     if (c > std::numeric_limits<signed char>::max()) {
       return std::nullopt;

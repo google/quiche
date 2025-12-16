@@ -123,7 +123,7 @@ void InteractiveCli::OnSocketEvent(QuicEventLoop* event_loop, SocketFd fd,
     line_callback_(absl::StrCat(current_input_line_, lines.front()));
     current_input_line_.clear();
 
-    for (int i = 1; i < lines.size() - 1; ++i) {
+    for (size_t i = 1; i < lines.size() - 1; ++i) {
       line_callback_(lines[i]);
     }
     current_input_line_ = std::string(lines.back());
