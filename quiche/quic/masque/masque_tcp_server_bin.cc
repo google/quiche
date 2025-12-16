@@ -53,10 +53,10 @@
 DEFINE_QUICHE_COMMAND_LINE_FLAG(int32_t, port, 9661,
                                 "The port the MASQUE server will listen on.");
 
-DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, certificate_file, "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, server_certificate_file, "",
                                 "Path to the certificate chain.");
 
-DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, key_file, "",
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, server_key_file, "",
                                 "Path to the pkcs8 private key.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(std::string, client_root_ca_file, "",
@@ -374,19 +374,20 @@ class MasqueTcpServer : public QuicSocketEventListener,
     }
   }
 
-  bool SetupSslCtx(const std::string& certificate_file,
-                   const std::string& key_file,
+  bool SetupSslCtx(const std::string& server_certificate_file,
+                   const std::string& server_key_file,
                    const std::string& client_root_ca_file) {
     ctx_.reset(SSL_CTX_new(TLS_method()));
 
-    if (!SSL_CTX_use_PrivateKey_file(ctx_.get(), key_file.c_str(),
+    if (!SSL_CTX_use_PrivateKey_file(ctx_.get(), server_key_file.c_str(),
                                      SSL_FILETYPE_PEM)) {
-      QUICHE_LOG(ERROR) << "Failed to load private key: " << key_file;
+      QUICHE_LOG(ERROR) << "Failed to load private key: " << server_key_file;
       return false;
     }
     if (!SSL_CTX_use_certificate_chain_file(ctx_.get(),
-                                            certificate_file.c_str())) {
-      QUICHE_LOG(ERROR) << "Failed to load cert chain: " << certificate_file;
+                                            server_certificate_file.c_str())) {
+      QUICHE_LOG(ERROR) << "Failed to load cert chain: "
+                        << server_certificate_file;
       return false;
     }
     if (!client_root_ca_file.empty()) {
@@ -662,15 +663,16 @@ int RunMasqueTcpServer(int argc, char* argv[]) {
     return 1;
   }
 
-  std::string certificate_file =
-      quiche::GetQuicheCommandLineFlag(FLAGS_certificate_file);
-  if (certificate_file.empty()) {
-    QUICHE_LOG(ERROR) << "--certificate_file cannot be empty";
+  std::string server_certificate_file =
+      quiche::GetQuicheCommandLineFlag(FLAGS_server_certificate_file);
+  if (server_certificate_file.empty()) {
+    QUICHE_LOG(ERROR) << "--server_certificate_file cannot be empty";
     return 1;
   }
-  std::string key_file = quiche::GetQuicheCommandLineFlag(FLAGS_key_file);
-  if (key_file.empty()) {
-    QUICHE_LOG(ERROR) << "--key_file cannot be empty";
+  std::string server_key_file =
+      quiche::GetQuicheCommandLineFlag(FLAGS_server_key_file);
+  if (server_key_file.empty()) {
+    QUICHE_LOG(ERROR) << "--server_key_file cannot be empty";
     return 1;
   }
   std::string client_root_ca_file =
@@ -724,7 +726,8 @@ int RunMasqueTcpServer(int argc, char* argv[]) {
                          "set, or neither can be set";
     return 1;
   }
-  if (!server.SetupSslCtx(certificate_file, key_file, client_root_ca_file)) {
+  if (!server.SetupSslCtx(server_certificate_file, server_key_file,
+                          client_root_ca_file)) {
     QUICHE_LOG(ERROR) << "Failed to setup SSL context";
     return 1;
   }

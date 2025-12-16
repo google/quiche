@@ -611,6 +611,25 @@ cc_binary(
 )
 
 cc_binary(
+    name = "masque_tcp_server",
+    srcs = ["quic/masque/masque_tcp_server_bin.cc"],
+    deps = [
+        ":binary_http",
+        ":io_tool_support",
+        ":masque_support",
+        ":oblivious_http",
+        ":quiche_core",
+        ":quiche_tool_support",
+        "@boringssl//:crypto",
+        "@boringssl//:ssl",
+        "@com_google_absl//absl/container:flat_hash_map",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_binary(
     name = "web_transport_test_server",
     srcs = ["quic/tools/web_transport_test_server.cc"],
     deps = [
