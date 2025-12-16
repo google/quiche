@@ -1833,6 +1833,19 @@ DatagramStatus QuicPacketCreator::AddDatagramFrame(
   }
   if (!HasRoomForDatagramFrame(datagram_length)) {
     FlushCurrentPacket();
+    if (GetQuicReloadableFlag(quic_update_max_datagram)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_update_max_datagram);
+      // The above FlushCurrentPacket() can occasionally enlarge needed space
+      // for packet number encoding. Repeat previous validation once more.
+      const QuicPacketLength max_payload = GetCurrentLargestDatagramPayload();
+      if (datagram_length > max_payload) {
+        QUIC_LOG(INFO)
+            << ENDPOINT
+            << "LargestDatagramPayload changed when inserting datagram. Packet "
+            << "number length probably changed.";
+        return DATAGRAM_STATUS_TOO_LARGE;
+      }
+    }
   }
   QuicDatagramFrame* frame = new QuicDatagramFrame(datagram_id, datagram);
   const bool success = AddFrame(QuicFrame(frame), next_transmission_type_);

@@ -7,7 +7,6 @@
 #include <cstdint>
 #include <limits>
 #include <memory>
-#include <ostream>
 #include <string>
 #include <utility>
 #include <vector>
@@ -15,12 +14,13 @@
 #include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/crypto/quic_decrypter.h"
-#include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
@@ -4258,6 +4258,38 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, AddDatagramFrame) {
       creator_.AddDatagramFrame(
           3, MemSliceFromString(std::string(
                  creator_.GetCurrentLargestDatagramPayload() + 10, 'a'))));
+}
+
+TEST_F(QuicPacketCreatorMultiplePacketsTest, AddDatagramFrameSpaceChanges) {
+  SetQuicReloadableFlag(quic_update_max_datagram, true);
+  if (framer_.version().IsIetfQuic()) {
+    creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
+  }
+  delegate_.SetCanWriteAnything();
+  // The second packet will make the packet number longer.
+  creator_.set_packet_number(QuicPacketNumber(255));
+  EXPECT_CALL(delegate_, OnSerializedPacket)
+      .WillOnce([this](SerializedPacket packet) {
+        SavePacket(std::move(packet));
+        creator_.UpdatePacketNumberLength(QuicPacketNumber(1),
+                                          QuicPacketCount(256));
+      });
+  creator_.ConsumeData(QuicUtils::GetFirstBidirectionalStreamId(
+                           framer_.transport_version(), Perspective::IS_CLIENT),
+                       "foo", 0, FIN);
+  EXPECT_EQ(DATAGRAM_STATUS_SUCCESS,
+            creator_.AddDatagramFrame(1, MemSliceFromString("message")));
+  EXPECT_TRUE(creator_.HasPendingFrames());
+  EXPECT_TRUE(creator_.HasPendingRetransmittableFrames());
+
+  // Add a message which causes the flush of current packet. The first packet
+  // will lengthen the following packet number, which makes the datagram too
+  // large.
+  EXPECT_EQ(DATAGRAM_STATUS_TOO_LARGE,
+            creator_.AddDatagramFrame(
+                2, MemSliceFromString(std::string(
+                       creator_.GetCurrentLargestDatagramPayload(), 'a'))));
+  EXPECT_FALSE(creator_.HasPendingRetransmittableFrames());
 }
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest, ConnectionId) {

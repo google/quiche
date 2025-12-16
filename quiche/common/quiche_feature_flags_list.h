@@ -63,6 +63,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_require_handshake_confirmation, tr
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_test_peer_addr_change_after_normalize, false, false, "If true, QuicConnection::ProcessValidatedPacket will use normalized address to test peer address changes.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_false, false, false, "A testonly reloadable flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_true, true, true, "A testonly reloadable flag that will always default to true.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_update_max_datagram, false, false, "If true, updates the maximum datagram size after flushing pending packets.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_inlining_send_buffer_everywhere, false, false, "Use QuicStreamSendBufferInlining consistently everywhere in the codebase.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_proof_source_get_cert_chains, true, true, "When true, quic::TlsServerHandshaker will use ProofSource::GetCertChains() instead of ProofSource::GetCertChain()")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_use_received_client_addresses_cache, true, true, "If true, use a LRU cache to record client addresses of packets received on server's original address.")
