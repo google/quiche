@@ -687,6 +687,10 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
       return absl::OkStatus();
     }
   }
+  // This should never happen because current_section_ is private and we only
+  // ever set it to values handled by the switch statement above.
+  return absl::InternalError(
+      "Unexpected IndeterminateLengthMessageSection value.");
 }
 
 void BinaryHttpRequest::IndeterminateLengthDecoder::InitializeCheckpoint(

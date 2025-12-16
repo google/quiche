@@ -343,9 +343,12 @@ absl::Status ChunkedObliviousHttpClient::DecryptResponseCheckpoint(
       if (!handler_status.ok()) {
         return handler_status;
       }
-    }
       return absl::OkStatus();
+    }
   }
+  // This should never happen because response_current_section_ is private
+  // and we only ever set it to values handled by the switch statement above.
+  return absl::InternalError("Unexpected ResponseMessageSection value.");
 }
 
 absl::Status ChunkedObliviousHttpClient::DecryptResponse(
