@@ -544,6 +544,28 @@ TEST_F(QuicGenericSessionTest, WriteWhenBufferFull) {
   EXPECT_EQ(total_received, 128u * 1024u + 2);
 }
 
+TEST_F(QuicGenericSessionTest, ApplicationBytesAcknowledged) {
+  CreateDefaultEndpoints(kDiscardServer);
+  WireUpEndpoints();
+  RunHandshake();
+
+  webtransport::SessionStats start_stats =
+      client_->session()->GetSessionStats();
+
+  constexpr QuicByteCount kBytesToSend = 12345;
+  webtransport::Stream* stream =
+      client_->session()->OpenOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+  QUICHE_ASSERT_OK(SendZeroes(*stream, kBytesToSend, /*fin=*/true));
+  bool finished = test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return stream->PeekNextReadableRegion().fin_next; });
+  ASSERT_TRUE(finished);
+
+  webtransport::SessionStats end_stats = client_->session()->GetSessionStats();
+  EXPECT_EQ(kBytesToSend, end_stats.application_bytes_acknowledged -
+                              start_stats.application_bytes_acknowledged);
+}
+
 // Disable bandwidth measurement test in non-opt builds since it's slow.
 #if defined(NDEBUG)
 #define BANDWIDTH_MEASUREMENT_TEST BandwidthMeasurement

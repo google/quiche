@@ -673,6 +673,10 @@ class QUICHE_EXPORT QuicConnection
 
   // Returns statistics tracked for this connection.
   const QuicConnectionStats& GetStats();
+  // Same as above, but const.  Note that since GetStats() internally updates a
+  // lot of fields, some of the fields in the resulting QuicConnectionStats
+  // might be stale.
+  const QuicConnectionStats& GetStatsPotentiallyStale() const { return stats_; }
 
   // Processes an incoming UDP packet (consisting of a QuicEncryptedPacket) from
   // the peer.
@@ -2193,8 +2197,8 @@ class QUICHE_EXPORT QuicConnection
 
   QuicFramer framer_;
 
-  QuicConnectionHelperInterface* helper_;  // Not owned.
-  QuicAlarmFactory* alarm_factory_;        // Not owned.
+  QuicConnectionHelperInterface* helper_;           // Not owned.
+  QuicAlarmFactory* alarm_factory_;                 // Not owned.
   PerPacketOptions* per_packet_options_ = nullptr;  // Not owned.
   QuicPacketWriterParams packet_writer_params_;
   QuicPacketWriter* writer_;  // Owned or not depending on |owns_writer_|.

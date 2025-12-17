@@ -106,6 +106,8 @@ struct QUICHE_EXPORT SessionStats {
   absl::Duration smoothed_rtt;
   absl::Duration rtt_variation;
 
+  uint64_t application_bytes_acknowledged = 0;
+
   uint64_t estimated_send_rate_bps;  // In bits per second.
 
   DatagramStats datagram_stats;

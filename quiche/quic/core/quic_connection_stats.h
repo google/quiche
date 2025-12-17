@@ -266,6 +266,11 @@ struct QUICHE_EXPORT QuicConnectionStats {
   // Statistics to measure how many client path probes are reset.
   uint32_t num_client_probing_attempts = 0;
   uint32_t num_stateless_resets_on_alternate_path = 0;
+
+  // Total number of application data bytes acknowledged on the connection.
+  // TODO: b/469371101 - this currently does not include datagrams, since we do
+  // not retain the datagram length.
+  QuicByteCount application_data_acked = 0;
 };
 
 }  // namespace quic

@@ -2561,6 +2561,7 @@ bool QuicSession::OnFrameAcked(const QuicFrame& frame,
         frame.stream_frame.offset, frame.stream_frame.data_length,
         frame.stream_frame.fin, ack_delay_time, receive_timestamp,
         &newly_acked_length, is_retransmission);
+    connection_->mutable_stats().application_data_acked += newly_acked_length;
     if (!stream->HasPendingRetransmission()) {
       streams_with_pending_retransmission_.erase(stream->id());
     }

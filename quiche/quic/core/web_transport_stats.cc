@@ -6,6 +6,7 @@
 
 #include "absl/time/time.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
+#include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -28,6 +29,11 @@ webtransport::SessionStats WebTransportStatsForQuicSession(
   result.smoothed_rtt = rtt_stats->smoothed_rtt().ToAbsl();
   result.rtt_variation = rtt_stats->mean_deviation().ToAbsl();
   result.datagram_stats = WebTransportDatagramStatsForQuicSession(session);
+
+  const QuicConnectionStats& connection_stats =
+      session.connection()->GetStatsPotentiallyStale();
+  result.application_bytes_acknowledged =
+      connection_stats.application_data_acked;
 
   // "This estimate excludes any framing overhead and represents the rate at
   // which an application payload might be sent."
