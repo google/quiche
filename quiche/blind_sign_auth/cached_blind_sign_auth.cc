@@ -42,7 +42,7 @@ void CachedBlindSignAuth::GetTokens(std::optional<std::string> oauth_token,
 
   std::vector<BlindSignToken> output_tokens;
   {
-    absl::WriterMutexLock lock(&mutex_);
+    absl::WriterMutexLock lock(mutex_);
 
     RemoveExpiredTokens();
     // Try to fill the request from cache.
@@ -83,7 +83,7 @@ void CachedBlindSignAuth::HandleGetTokensResponse(
   std::vector<BlindSignToken> output_tokens;
   size_t cache_size;
   {
-    absl::WriterMutexLock lock(&mutex_);
+    absl::WriterMutexLock lock(mutex_);
 
     // Add returned tokens to cache.
     for (const BlindSignToken& token : *tokens) {
