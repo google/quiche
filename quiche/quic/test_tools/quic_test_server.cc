@@ -95,7 +95,7 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
       const ParsedQuicVersion& version,
       const ParsedClientHello& /*parsed_chlo*/,
       ConnectionIdGeneratorInterface& connection_id_generator) override {
-    absl::ReaderMutexLock lock(&factory_lock_);
+    absl::ReaderMutexLock lock(factory_lock_);
     // The QuicServerSessionBase takes ownership of |connection| below.
     QuicConnection* connection = new QuicConnection(
         id, self_address, peer_address, helper(), alarm_factory(), writer(),
@@ -131,7 +131,7 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
   }
 
   void SetSessionFactory(QuicTestServer::SessionFactory* factory) {
-    absl::WriterMutexLock lock(&factory_lock_);
+    absl::WriterMutexLock lock(factory_lock_);
     QUICHE_DCHECK(session_factory_ == nullptr);
     QUICHE_DCHECK(stream_factory_ == nullptr);
     QUICHE_DCHECK(crypto_stream_factory_ == nullptr);
@@ -139,14 +139,14 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
   }
 
   void SetStreamFactory(QuicTestServer::StreamFactory* factory) {
-    absl::WriterMutexLock lock(&factory_lock_);
+    absl::WriterMutexLock lock(factory_lock_);
     QUICHE_DCHECK(session_factory_ == nullptr);
     QUICHE_DCHECK(stream_factory_ == nullptr);
     stream_factory_ = factory;
   }
 
   void SetCryptoStreamFactory(QuicTestServer::CryptoStreamFactory* factory) {
-    absl::WriterMutexLock lock(&factory_lock_);
+    absl::WriterMutexLock lock(factory_lock_);
     QUICHE_DCHECK(session_factory_ == nullptr);
     QUICHE_DCHECK(crypto_stream_factory_ == nullptr);
     crypto_stream_factory_ = factory;
