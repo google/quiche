@@ -106,7 +106,7 @@ ChunkedObliviousHttpClient::ChunkedObliviousHttpClient(
     : ohttp_key_config_(ohttp_key_config),
       hpke_sender_context_(std::move(hpke_sender_context)),
       aead_params_(aead_params),
-      chunk_handler_(chunk_handler) {};
+      chunk_handler_(chunk_handler) {}
 
 absl::StatusOr<ChunkedObliviousHttpClient> ChunkedObliviousHttpClient::Create(
     absl::string_view hpke_public_key,
