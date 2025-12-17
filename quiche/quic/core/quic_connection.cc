@@ -4615,7 +4615,7 @@ void QuicConnection::MaybeProcessUndecryptablePackets() {
             undecryptable_packet.encryption_level, /*dropped=*/true);
       }
     }
-    undecryptable_packets_.clear();
+    std::deque<UndecryptablePacket>().swap(undecryptable_packets_);
   }
   if (perspective_ == Perspective::IS_CLIENT) {
     SetRetransmissionAlarm();
