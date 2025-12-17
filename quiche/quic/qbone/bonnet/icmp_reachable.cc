@@ -176,8 +176,9 @@ void IcmpReachable::OnAlarm() {
                          reinterpret_cast<struct sockaddr*>(&dst_),
                          sizeof(sockaddr_in6));
 
-                     if (size < packet.size()) {
+                     if (size < static_cast<ssize_t>(packet.size())) {
                        stats_->OnWriteError(errno);
+                       QUIC_PLOG(ERROR) << "Unable to send ICMP echo request:";
                      }
                      start_ = clock_->Now();
                    });
