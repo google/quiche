@@ -257,6 +257,10 @@ bool MasqueConnectionPool::ConnectionState::SetupSocket(
     proof_verifier_ = std::make_unique<FakeProofVerifier>();
   } else {
     proof_verifier_ = CreateDefaultProofVerifier(host_);
+    if (!proof_verifier_) {
+      QUICHE_LOG(FATAL) << "The default proof verifier is not supported. Pass "
+                           "in --disable_certificate_verification.";
+    }
   }
   return true;
 }

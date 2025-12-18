@@ -128,6 +128,12 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
       proof_verifier_ = std::make_unique<FakeProofVerifier>();
     } else {
       proof_verifier_ = CreateDefaultProofVerifier(url_.host());
+      if (!proof_verifier_) {
+        QUICHE_LOG(ERROR)
+            << "The default proof verifier is not supported. Pass "
+               "in --disable_certificate_verification.";
+        return false;
+      }
     }
     socket_address_ = tools::LookupAddress(
         address_family_for_lookup_, url_.host(), absl::StrCat(url_.port()));

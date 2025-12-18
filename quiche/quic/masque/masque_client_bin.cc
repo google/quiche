@@ -470,6 +470,12 @@ int RunMasqueClient(int argc, char* argv[]) {
         proof_verifier = std::make_unique<FakeProofVerifier>();
       } else {
         proof_verifier = CreateDefaultProofVerifier(host);
+        if (!proof_verifier) {
+          QUICHE_LOG(ERROR)
+              << "The default proof verifier is not supported. Pass "
+                 "in --disable_certificate_verification.";
+          return 1;
+        }
       }
 
       std::unique_ptr<ClientProofSource> proof_source;
