@@ -55,6 +55,7 @@ void MasqueH2Connection::Abort() {
 }
 
 void MasqueH2Connection::StartH2() {
+  QUICHE_LOG(INFO) << ENDPOINT << "Starting H2";
   http2::adapter::OgHttp2Adapter::Options options;
   std::vector<Http2Setting> settings;
   if (is_server_) {

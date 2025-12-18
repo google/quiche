@@ -20,6 +20,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -316,8 +317,16 @@ class MasqueH2SocketConnection : public QuicSocketEventListener {
   }
 
   // From QuicSocketEventListener.
-  void OnSocketEvent(QuicEventLoop* /*event_loop*/, SocketFd fd,
+  void OnSocketEvent(QuicEventLoop* event_loop, SocketFd fd,
                      QuicSocketEventMask events) {
+    auto cleanup = absl::MakeCleanup([event_loop, fd]() {
+      if (!event_loop->SupportsEdgeTriggered()) {
+        if (!event_loop->RearmSocket(
+                fd, kSocketEventReadable | kSocketEventWritable)) {
+          QUICHE_LOG(FATAL) << "Failed to re-arm socket " << fd;
+        }
+      }
+    });
     if (fd != socket_ || ((events & kSocketEventReadable) == 0)) {
       return;
     }

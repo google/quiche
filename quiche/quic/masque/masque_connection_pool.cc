@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -158,6 +159,8 @@ void MasqueConnectionPool::AttachConnectionToPendingRequests(
     if (authority_header->second != authority) {
       continue;
     }
+    QUICHE_LOG(INFO) << "Attaching connection to pending request for "
+                     << authority;
     pending_request.connection = connection;
   }
 }
@@ -170,6 +173,7 @@ void MasqueConnectionPool::SendPendingRequests(MasqueH2Connection* connection) {
       ++it;
       continue;
     }
+    QUICHE_LOG(INFO) << "Sending pending request ID " << request_id;
     int32_t stream_id = connection->SendRequest(pending_request.request.headers,
                                                 pending_request.request.body);
     if (stream_id < 0) {
@@ -179,6 +183,7 @@ void MasqueConnectionPool::SendPendingRequests(MasqueH2Connection* connection) {
       pending_requests_.erase(it++);
       continue;
     }
+    connection->AttemptToSend();
     pending_request.stream_id = stream_id;
     ++it;
   }
@@ -251,7 +256,8 @@ bool MasqueConnectionPool::ConnectionState::SetupSocket(
     QUICHE_LOG(ERROR) << "Failed to register socket with the event loop";
     return false;
   }
-  QUICHE_LOG(INFO) << "Socket connect in progress to " << socket_address;
+  QUICHE_LOG(INFO) << "Socket fd " << socket_ << " connect in progress to "
+                   << socket_address;
 
   if (disable_certificate_verification) {
     proof_verifier_ = std::make_unique<FakeProofVerifier>();
@@ -266,7 +272,16 @@ bool MasqueConnectionPool::ConnectionState::SetupSocket(
 }
 
 void MasqueConnectionPool::ConnectionState::OnSocketEvent(
-    QuicEventLoop* /*event_loop*/, SocketFd fd, QuicSocketEventMask events) {
+    QuicEventLoop* event_loop, SocketFd fd, QuicSocketEventMask events) {
+  auto cleanup = absl::MakeCleanup([event_loop, fd]() {
+    if (!event_loop->SupportsEdgeTriggered()) {
+      if (!event_loop->RearmSocket(
+              fd, kSocketEventReadable | kSocketEventWritable)) {
+        QUICHE_LOG(FATAL) << "Failed to re-arm socket " << fd;
+      }
+    }
+  });
+
   if (fd != socket_) {
     return;
   }
