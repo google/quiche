@@ -21,6 +21,29 @@ class QUICHE_EXPORT ChunkedBuffer {
   void Append(absl::string_view data);
   void Append(std::unique_ptr<char[]> data, size_t size);
 
+  // A region of memory into which data may be written by the caller.
+  class AppendRegion {
+   public:
+    // Data may be written here.
+    char* data;
+    // At most `size` bytes may be written at the address in `data`.
+    const size_t size;
+    // Once bytes are written to `data`, this member should be updated.
+    size_t written;
+
+    // Updates the state in `parent` once the write operation is complete.
+    ~AppendRegion();
+
+   private:
+    friend class ChunkedBuffer;
+
+    AppendRegion(char* d, size_t s, size_t w, ChunkedBuffer* p)
+        : data(d), size(s), written(w), parent(p) {}
+
+    ChunkedBuffer* const parent;
+  };
+  AppendRegion GetAppendRegion();
+
   // Reads data from the buffer non-destructively.
   absl::string_view GetPrefix() const;
   std::vector<absl::string_view> Read() const;
@@ -31,6 +54,8 @@ class QUICHE_EXPORT ChunkedBuffer {
 
   // Returns true iff the buffer contains no data to read.
   bool Empty() const;
+
+  size_t TotalSize() const { return total_size_; }
 
  private:
   static constexpr size_t kDefaultChunkSize = 1024;
@@ -75,6 +100,7 @@ class QUICHE_EXPORT ChunkedBuffer {
   void TrimFirstChunk();
 
   quiche::QuicheCircularDeque<Chunk> chunks_;
+  size_t total_size_ = 0;
 };
 
 }  // namespace adapter

@@ -11,8 +11,8 @@
 #include <vector>
 
 #include "absl/cleanup/cleanup.h"
-#include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
+#include "quiche/http2/adapter/chunked_buffer.h"
 #include "quiche/http2/adapter/header_validator.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/http2_util.h"
@@ -953,21 +953,30 @@ void OgHttp2Session::SerializeMetadata(Http2StreamId stream_id,
                                        std::unique_ptr<MetadataSource> source) {
   const uint32_t max_payload_size =
       std::min(kMaxAllowedMetadataFrameSize, max_frame_payload_);
-  auto payload_buffer = std::make_unique<uint8_t[]>(max_payload_size);
 
   while (true) {
-    auto [written, end_metadata] =
-        source->Pack(payload_buffer.get(), max_payload_size);
-    if (written < 0) {
-      // Unable to pack any metadata.
-      return;
+    ChunkedBuffer payload_buffer;
+    int64_t written = 0;
+    bool end_metadata = false;
+    while (payload_buffer.TotalSize() < max_payload_size) {
+      auto region = payload_buffer.GetAppendRegion();
+      // Packs as much of the payload as will fit into `region`.
+      std::tie(written, end_metadata) = source->Pack(
+          reinterpret_cast<uint8_t*>(region.data),
+          std::min(region.size, max_payload_size - payload_buffer.TotalSize()));
+      if (written < 0) {
+        // Unable to pack any metadata.
+        return;
+      }
+      region.written = written;
+      if (end_metadata) {
+        break;
+      }
     }
-    QUICHE_DCHECK_LE(static_cast<size_t>(written), max_payload_size);
-    auto payload = absl::string_view(
-        reinterpret_cast<const char*>(payload_buffer.get()), written);
+    std::string payload = absl::StrJoin(payload_buffer.Read(), "");
     EnqueueFrame(std::make_unique<spdy::SpdyUnknownIR>(
         stream_id, kMetadataFrameType, end_metadata ? kMetadataEndFlag : 0u,
-        std::string(payload)));
+        std::move(payload)));
     if (end_metadata) {
       return;
     }
@@ -977,21 +986,33 @@ void OgHttp2Session::SerializeMetadata(Http2StreamId stream_id,
 void OgHttp2Session::SerializeMetadata(Http2StreamId stream_id) {
   const uint32_t max_payload_size =
       std::min(kMaxAllowedMetadataFrameSize, max_frame_payload_);
-  auto payload_buffer = std::make_unique<uint8_t[]>(max_payload_size);
 
   while (true) {
-    auto [written, end_metadata] = visitor_.PackMetadataForStream(
-        stream_id, payload_buffer.get(), max_payload_size);
-    if (written < 0) {
-      // Unable to pack any metadata.
-      return;
+    ChunkedBuffer payload_buffer;
+    int64_t written = 0;
+    bool end_metadata = false;
+
+    while (payload_buffer.TotalSize() < max_payload_size) {
+      auto region = payload_buffer.GetAppendRegion();
+      // Packs as much of the payload as will fit into `region`.
+      std::tie(written, end_metadata) = visitor_.PackMetadataForStream(
+          stream_id, reinterpret_cast<uint8_t*>(region.data),
+          std::min(region.size, max_payload_size - payload_buffer.TotalSize()));
+      if (written < 0) {
+        // Unable to pack any metadata.
+        return;
+      }
+      region.written = written;
+      if (end_metadata) {
+        break;
+      }
     }
-    QUICHE_DCHECK_LE(static_cast<size_t>(written), max_payload_size);
-    auto payload = absl::string_view(
-        reinterpret_cast<const char*>(payload_buffer.get()), written);
+    QUICHE_DCHECK_LE(static_cast<size_t>(payload_buffer.TotalSize()),
+                     max_payload_size);
+    std::string payload = absl::StrJoin(payload_buffer.Read(), "");
     EnqueueFrame(std::make_unique<spdy::SpdyUnknownIR>(
         stream_id, kMetadataFrameType, end_metadata ? kMetadataEndFlag : 0u,
-        std::string(payload)));
+        std::move(payload)));
     if (end_metadata) {
       return;
     }

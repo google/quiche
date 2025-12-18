@@ -29,6 +29,17 @@ enum FrameType {
   WINDOW_UPDATE,
 };
 
+// A metadata source that always fails to pack data.
+class FailingMetadataSource : public MetadataSource {
+ public:
+  size_t NumFrames(size_t /*max_frame_size*/) const override { return 1; }
+  std::pair<int64_t, bool> Pack(uint8_t* /*dest*/,
+                                size_t /*dest_len*/) override {
+    return {-1, false};
+  }
+  void OnFailure() override {}
+};
+
 }  // namespace
 
 TEST(OgHttp2SessionTest, ClientConstruction) {
@@ -1384,6 +1395,29 @@ TEST(OgHttp2SessionTest, ResetAndCloseStreamRaceWithIncomingData) {
   EXPECT_CALL(visitor, OnFrameSent(WINDOW_UPDATE, 0, _, 0x0, 0));
   EXPECT_EQ(0, session.Send());
   EXPECT_EQ(session.GetReceiveWindowSize(), kInitialFlowControlWindowSize);
+}
+
+TEST(OgHttp2SessionTest, FailingMetadataSourceDoesNotSend) {
+  TestVisitor visitor;
+  OgHttp2Session::Options options;
+  options.perspective = Perspective::kClient;
+  OgHttp2Session session(visitor, options);
+
+  // A failing metadata source should not cause any METADATA frames to be sent.
+  auto failing_source = std::make_unique<FailingMetadataSource>();
+  session.SubmitMetadata(1, std::move(failing_source));
+
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(16 /*kMetadataFrameType*/, _, _, _))
+      .Times(0);
+
+  EXPECT_EQ(0, session.Send());
+  absl::string_view serialized = visitor.data();
+  EXPECT_THAT(serialized,
+              testing::StartsWith(spdy::kHttp2ConnectionHeaderPrefix));
+  serialized.remove_prefix(strlen(spdy::kHttp2ConnectionHeaderPrefix));
+  EXPECT_THAT(serialized, EqualsFrames({SpdyFrameType::SETTINGS}));
 }
 
 }  // namespace test

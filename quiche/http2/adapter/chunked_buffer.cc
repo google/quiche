@@ -21,6 +21,7 @@ size_t RoundUpToNearestKilobyte(size_t n) {
 }  // namespace
 
 void ChunkedBuffer::Append(absl::string_view data) {
+  total_size_ += data.size();
   // Appends the data by copying it.
   const size_t to_copy = std::min(TailBytesFree(), data.size());
   if (to_copy > 0) {
@@ -32,6 +33,7 @@ void ChunkedBuffer::Append(absl::string_view data) {
 }
 
 void ChunkedBuffer::Append(std::unique_ptr<char[]> data, size_t size) {
+  total_size_ += size;
   if (TailBytesFree() >= size) {
     // Copies the data into the existing last chunk, since it will fit.
     Chunk& c = chunks_.back();
@@ -45,6 +47,21 @@ void ChunkedBuffer::Append(std::unique_ptr<char[]> data, size_t size) {
   // existing chunk.
   absl::string_view v = {data.get(), size};
   chunks_.push_back({std::move(data), size, v});
+}
+
+ChunkedBuffer::AppendRegion::~AppendRegion() {
+  Chunk& c = parent->chunks_.back();
+  c.live = absl::string_view(c.live.data(), c.live.size() + written);
+  parent->total_size_ += written;
+}
+
+ChunkedBuffer::AppendRegion ChunkedBuffer::GetAppendRegion() {
+  if (TailBytesFree() == 0) {
+    EnsureTailBytesFree(kDefaultChunkSize);
+  }
+  Chunk& c = chunks_.back();
+  return AppendRegion(c.data.get() + c.LiveDataOffset() + c.live.size(),
+                      c.TailBytesFree(), 0, this);
 }
 
 absl::string_view ChunkedBuffer::GetPrefix() const {
@@ -69,6 +86,7 @@ void ChunkedBuffer::RemovePrefix(size_t n) {
     const size_t to_remove = std::min(n, c.live.size());
     c.RemovePrefix(to_remove);
     n -= to_remove;
+    total_size_ -= to_remove;
     if (c.Empty()) {
       TrimFirstChunk();
     }
@@ -112,7 +130,8 @@ void ChunkedBuffer::EnsureTailBytesFree(size_t n) {
   }
   const size_t to_allocate = RoundUpToNearestKilobyte(n);
   auto data = std::unique_ptr<char[]>(new char[to_allocate]);
-  chunks_.push_back({std::move(data), to_allocate, ""});
+  absl::string_view live(data.get(), 0);
+  chunks_.push_back({std::move(data), to_allocate, live});
 }
 
 void ChunkedBuffer::TrimFirstChunk() {
