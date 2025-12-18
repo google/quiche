@@ -243,7 +243,7 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
       return;
     }
     SSL_set_bio(ssl_.get(), tls_io, tls_io);
-    BIO_free(tls_io);
+    // `SSL_set_bio` causes `ssl_` to take ownership of `tls_io`.
 
     int ret = SSL_connect(ssl_.get());
     if (ret != 1) {
