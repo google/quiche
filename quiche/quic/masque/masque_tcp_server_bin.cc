@@ -319,8 +319,8 @@ class MasqueH2SocketConnection : public QuicSocketEventListener {
   // From QuicSocketEventListener.
   void OnSocketEvent(QuicEventLoop* event_loop, SocketFd fd,
                      QuicSocketEventMask events) {
-    auto cleanup = absl::MakeCleanup([event_loop, fd]() {
-      if (!event_loop->SupportsEdgeTriggered()) {
+    auto cleanup = absl::MakeCleanup([this, event_loop, fd]() {
+      if (!event_loop->SupportsEdgeTriggered() && !connection_.aborted()) {
         if (!event_loop->RearmSocket(
                 fd, kSocketEventReadable | kSocketEventWritable)) {
           QUICHE_LOG(FATAL) << "Failed to re-arm socket " << fd;
@@ -477,12 +477,17 @@ class MasqueTcpServer : public QuicSocketEventListener,
     }
   }
 
-  void OnSocketEvent(QuicEventLoop* /*event_loop*/, SocketFd fd,
+  void OnSocketEvent(QuicEventLoop* event_loop, SocketFd fd,
                      QuicSocketEventMask events) override {
     if (fd != server_socket_ || ((events & kSocketEventReadable) == 0)) {
       return;
     }
     AcceptConnection();
+    if (!event_loop->SupportsEdgeTriggered()) {
+      if (!event_loop->RearmSocket(server_socket_, kSocketEventReadable)) {
+        QUICHE_LOG(FATAL) << "Failed to re-arm socket " << server_socket_;
+      }
+    }
   }
 
   // From MasqueH2Connection::Visitor.

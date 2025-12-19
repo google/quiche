@@ -273,8 +273,9 @@ bool MasqueConnectionPool::ConnectionState::SetupSocket(
 
 void MasqueConnectionPool::ConnectionState::OnSocketEvent(
     QuicEventLoop* event_loop, SocketFd fd, QuicSocketEventMask events) {
-  auto cleanup = absl::MakeCleanup([event_loop, fd]() {
-    if (!event_loop->SupportsEdgeTriggered()) {
+  auto cleanup = absl::MakeCleanup([this, event_loop, fd]() {
+    if (!event_loop->SupportsEdgeTriggered() &&
+        (!connection_ || !connection_->aborted())) {
       if (!event_loop->RearmSocket(
               fd, kSocketEventReadable | kSocketEventWritable)) {
         QUICHE_LOG(FATAL) << "Failed to re-arm socket " << fd;

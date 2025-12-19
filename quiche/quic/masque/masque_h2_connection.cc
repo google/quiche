@@ -109,6 +109,7 @@ bool MasqueH2Connection::TryRead() {
   }
   if (ssl_read_ret == 0) {
     QUICHE_LOG(INFO) << ENDPOINT << "TLS read closed";
+    Abort();
     return false;
   }
   QUICHE_DVLOG(1) << ENDPOINT << "Read " << ssl_read_ret << " bytes from TLS";
