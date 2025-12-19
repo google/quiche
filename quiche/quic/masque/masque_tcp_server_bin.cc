@@ -26,6 +26,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
 #include "openssl/bio.h"
@@ -68,12 +69,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "Hex-encoded bytes of the OHTTP HPKE private key.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
-    std::string, relay_path, "",
-    "Path of the relay server to accept requests on.");
-
-DEFINE_QUICHE_COMMAND_LINE_FLAG(
-    std::string, relay_gateway_url, "",
-    "URL of the gateway that this relay will forward requests to.");
+    std::string, relay, "",
+    "Enables and configures an OHTTP relay. The format is a list of (path, "
+    "URL) pairs where each local path is relayed to the corresponding URL, "
+    "formatted as \"path1>url1|path2>url2\". For example: "
+    "\"/foo>https://foo.example:8443/|/bar>https://example.com/bar\".");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, disable_certificate_verification, false,
@@ -508,14 +508,15 @@ class MasqueTcpServer : public QuicSocketEventListener,
                                                 encapsulated_request);
   }
 
-  absl::Status HandleOhttpRelayRequest(
-      MasqueH2Connection* connection, int32_t stream_id,
-      const std::string& encapsulated_request) {
+  absl::Status HandleOhttpRelayRequest(MasqueH2Connection* connection,
+                                       int32_t stream_id,
+                                       const std::string& encapsulated_request,
+                                       const QuicUrl& relay_gateway_url) {
     Message request;
     request.headers[":method"] = "POST";
-    request.headers[":scheme"] = relay_gateway_url_.scheme();
-    request.headers[":authority"] = relay_gateway_url_.HostPort();
-    request.headers[":path"] = relay_gateway_url_.path();
+    request.headers[":scheme"] = relay_gateway_url.scheme();
+    request.headers[":authority"] = relay_gateway_url.HostPort();
+    request.headers[":path"] = relay_gateway_url.path();
     request.headers["content-type"] = "message/ohttp-req";
     request.body = encapsulated_request;
     absl::StatusOr<RequestId> request_id =
@@ -552,11 +553,14 @@ class MasqueTcpServer : public QuicSocketEventListener,
       response_headers[":status"] = "200";
       response_headers["content-type"] = "application/ohttp-keys";
       response_body = masque_ohttp_gateway_->concatenated_keys();
-    } else if (!relay_path_.empty() && path_pair->second == relay_path_ &&
+    } else if (auto relay_pair = relay_gateway_urls_.find(path_pair->second);
+               relay_pair != relay_gateway_urls_.end() &&
                method_pair->second == "POST" &&
                content_type_pair != headers.end() &&
                content_type_pair->second == "message/ohttp-req") {
-      if (HandleOhttpRelayRequest(connection, stream_id, body).ok()) {
+      if (HandleOhttpRelayRequest(connection, stream_id, body,
+                                  relay_pair->second)
+              .ok()) {
         return;
       } else {
         response_headers[":status"] = "500";
@@ -616,13 +620,28 @@ class MasqueTcpServer : public QuicSocketEventListener,
     pending_request.connection->AttemptToSend();
   }
 
-  bool SetupRelay(const std::string& relay_path,
-                  const std::string& relay_gateway_url) {
-    if (relay_path.empty() != relay_gateway_url.empty()) {
-      return false;
+  bool SetupRelay(const std::string& relay) {
+    if (relay.empty()) {
+      return true;
     }
-    relay_path_ = relay_path;
-    relay_gateway_url_ = QuicUrl(relay_gateway_url, "https");
+    std::vector<absl::string_view> relay_split = absl::StrSplit(relay, '|');
+    for (absl::string_view relay_param : relay_split) {
+      std::vector<absl::string_view> relay_param_split =
+          absl::StrSplit(relay_param, '>');
+      if (relay_param_split.size() != 2) {
+        QUICHE_LOG(ERROR) << "Invalid relay parameter: \"" << relay_param
+                          << "\". It should be in the format of \"path>url\"";
+        return false;
+      }
+      absl::string_view path = relay_param_split[0];
+      absl::string_view gateway_url = relay_param_split[1];
+      auto [it, inserted] = relay_gateway_urls_.insert(
+          {std::string(path), QuicUrl(gateway_url, "https")});
+      if (!inserted) {
+        QUICHE_LOG(ERROR) << "Duplicate relay path: \"" << path << "\"";
+        return false;
+      }
+    }
     return true;
   }
 
@@ -662,8 +681,8 @@ class MasqueTcpServer : public QuicSocketEventListener,
   MasqueOhttpGateway* masque_ohttp_gateway_;  // Unowned.
   SocketFd server_socket_ = kInvalidSocketFd;
   std::vector<std::unique_ptr<MasqueH2SocketConnection>> connections_;
-  std::string relay_path_;
-  QuicUrl relay_gateway_url_;
+  // Maps from local paths to remote gateway URLs.
+  absl::flat_hash_map<std::string, QuicUrl> relay_gateway_urls_;
   MasqueConnectionPool connection_pool_;
   absl::flat_hash_map<RequestId, PendingRequest> pending_requests_;
 };
@@ -733,11 +752,8 @@ int RunMasqueTcpServer(int argc, char* argv[]) {
                          disable_certificate_verification,
                          address_family_for_lookup);
 
-  if (!server.SetupRelay(
-          quiche::GetQuicheCommandLineFlag(FLAGS_relay_path),
-          quiche::GetQuicheCommandLineFlag(FLAGS_relay_gateway_url))) {
-    QUICHE_LOG(ERROR) << "Both --relay_path and --relay_gateway_url must be "
-                         "set, or neither can be set";
+  if (!server.SetupRelay(quiche::GetQuicheCommandLineFlag(FLAGS_relay))) {
+    QUICHE_LOG(ERROR) << "Invalid --relay input";
     return 1;
   }
   if (!server.SetupSslCtx(server_certificate_file, server_key_file,
