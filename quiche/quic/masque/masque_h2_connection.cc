@@ -77,6 +77,8 @@ void MasqueH2Connection::StartH2() {
       Http2Setting{Http2KnownSettingsId::MAX_HEADER_LIST_SIZE, 65535});
   h2_adapter_ = http2::adapter::OgHttp2Adapter::Create(*this, options);
   h2_adapter_->SubmitSettings(settings);
+  // Increase connection-level flow control window to 256MB.
+  h2_adapter_->SubmitWindowUpdate(0, 268435456);
   visitor_->OnConnectionReady(this);
 }
 bool MasqueH2Connection::TryRead() {
@@ -251,8 +253,16 @@ void MasqueH2Connection::SendResponse(int32_t stream_id,
           stream_id, h2_headers,
           /*end_stream=*/stream->body_to_send.empty()) != 0) {
     QUICHE_LOG(ERROR) << ENDPOINT << "Failed to submit response for stream "
-                      << stream_id;
+                      << stream_id << " with body of length " << body.size()
+                      << ", headers: " << headers.DebugString();
     Abort();
+  }
+  QUICHE_LOG(INFO) << ENDPOINT << "Sending response on stream ID " << stream_id
+                   << " with body of length " << body.size()
+                   << ", headers: " << headers.DebugString();
+  if (!body.empty()) {
+    QUICHE_DVLOG(2) << ENDPOINT << "Body to be sent:" << std::endl
+                    << quiche::QuicheTextUtils::HexDump(body);
   }
 }
 
@@ -266,15 +276,21 @@ int32_t MasqueH2Connection::SendRequest(const quiche::HttpHeaderBlock& headers,
     return -1;
   }
   std::vector<Header> h2_headers = ConvertHeaders(headers);
-  QUICHE_LOG(INFO) << "Sending request with body of length " << body.size()
-                   << ", headers: " << headers.DebugString();
   int32_t stream_id =
       h2_adapter_->SubmitRequest(h2_headers, /*end_stream=*/body.empty(),
                                  /*user_data=*/nullptr);
   if (stream_id < 0) {
-    QUICHE_LOG(ERROR) << "Failed to submit request";
+    QUICHE_LOG(ERROR) << "Failed to submit request with body of length "
+                      << body.size() << ", headers: " << headers.DebugString();
     Abort();
     return -1;
+  }
+  QUICHE_LOG(INFO) << ENDPOINT << "Sending request on stream ID " << stream_id
+                   << " with body of length " << body.size()
+                   << ", headers: " << headers.DebugString();
+  if (!body.empty()) {
+    QUICHE_DVLOG(2) << ENDPOINT << "Body to be sent:" << std::endl
+                    << quiche::QuicheTextUtils::HexDump(body);
   }
   GetOrCreateH2Stream(stream_id)->body_to_send = body;
   return stream_id;
@@ -306,9 +322,10 @@ bool MasqueH2Connection::OnDataPaddingLength(Http2StreamId stream_id,
 
 bool MasqueH2Connection::OnDataForStream(Http2StreamId stream_id,
                                          absl::string_view data) {
-  QUICHE_DVLOG(1) << ENDPOINT << "OnDataForStream " << stream_id
-                  << " data length: " << data.size();
   GetOrCreateH2Stream(stream_id)->received_body.append(data);
+  QUICHE_DVLOG(1) << ENDPOINT << "OnDataForStream " << stream_id
+                  << " new data length: " << data.size() << " total length: "
+                  << GetOrCreateH2Stream(stream_id)->received_body.size();
   return true;
 }
 
@@ -316,7 +333,8 @@ bool MasqueH2Connection::OnEndStream(Http2StreamId stream_id) {
   MasqueH2Stream* stream = GetOrCreateH2Stream(stream_id);
   QUICHE_LOG(INFO) << ENDPOINT << "Received END_STREAM for stream " << stream_id
                    << " body length: " << stream->received_body.size();
-  QUICHE_DVLOG(2) << ENDPOINT << "Body: " << std::endl << stream->received_body;
+  QUICHE_DVLOG(2) << ENDPOINT << "Body: " << std::endl
+                  << quiche::QuicheTextUtils::HexDump(stream->received_body);
   if (is_server_) {
     visitor_->OnRequest(this, stream_id, stream->received_headers,
                         stream->received_body);

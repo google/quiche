@@ -57,7 +57,8 @@ void MasqueConnectionPool::OnConnectionFinished(
     MasqueH2Connection* connection) {
   FailPendingRequests(
       connection,
-      absl::InternalError("Connection finished before receiving request"));
+      absl::InternalError(
+          "Connection finished before receiving complete response"));
 }
 
 void MasqueConnectionPool::OnRequest(MasqueH2Connection* /*connection*/,
