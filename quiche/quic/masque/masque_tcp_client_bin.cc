@@ -454,7 +454,7 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
   }
 
   void SendH1Request() {
-    std::string request = absl::StrCat("GET ", url_.path(),
+    std::string request = absl::StrCat("GET ", url_.PathParamsQuery(),
                                        " HTTP/1.1\r\nHost: ", url_.HostPort(),
                                        "\r\nConnection: close\r\n\r\n");
     QUICHE_DVLOG(1) << "Sending h1 request of length " << request.size()
@@ -481,7 +481,7 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
     headers[":method"] = "GET";
     headers[":scheme"] = url_.scheme();
     headers[":authority"] = url_.HostPort();
-    headers[":path"] = url_.path();
+    headers[":path"] = url_.PathParamsQuery();
     stream_id_ = h2_connection_->SendRequest(headers, std::string());
     h2_connection_->AttemptToSend();
     if (stream_id_ >= 0) {

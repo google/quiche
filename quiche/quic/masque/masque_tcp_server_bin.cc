@@ -540,7 +540,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
     request.headers[":method"] = "POST";
     request.headers[":scheme"] = relay_gateway_url.scheme();
     request.headers[":authority"] = relay_gateway_url.HostPort();
-    request.headers[":path"] = relay_gateway_url.path();
+    request.headers[":path"] = relay_gateway_url.PathParamsQuery();
     request.headers["content-type"] = "message/ohttp-req";
     request.body = encapsulated_request;
     absl::StatusOr<RequestId> request_id =
@@ -561,7 +561,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
     request.headers[":method"] = "GET";
     request.headers[":scheme"] = key_proxy_url.scheme();
     request.headers[":authority"] = key_proxy_url.HostPort();
-    request.headers[":path"] = key_proxy_url.path();
+    request.headers[":path"] = key_proxy_url.PathParamsQuery();
     request.headers["accept"] = "application/ohttp-keys";
     absl::StatusOr<RequestId> request_id =
         connection_pool_.SendRequest(request);
@@ -581,21 +581,27 @@ class MasqueTcpServer : public QuicSocketEventListener,
     std::string response_body;
     auto path_pair = headers.find(":path");
     auto method_pair = headers.find(":method");
-    auto content_type_pair = headers.find("content-type");
-    auto accept_pair = headers.find("accept");
     if (path_pair == headers.end() || method_pair == headers.end()) {
       // This should never happen because the h2 adapter should have rejected
       // the request, but handle it gracefully just in case.
       response_headers[":status"] = "400";
       response_body = "Request missing pseudo-headers";
-    } else if (!gateway_path_.empty() && path_pair->second == gateway_path_ &&
-               masque_ohttp_gateway_ && method_pair->second == "GET" &&
-               accept_pair != headers.end() &&
-               accept_pair->second == "application/ohttp-keys") {
+      connection->SendResponse(stream_id, response_headers, response_body);
+      return;
+    }
+    std::vector<absl::string_view> path_parts =
+        absl::StrSplit(path_pair->second, absl::MaxSplits('?', 1));
+    absl::string_view path = path_parts[0];
+    auto content_type_pair = headers.find("content-type");
+    auto accept_pair = headers.find("accept");
+    if (!gateway_path_.empty() && path == gateway_path_ &&
+        masque_ohttp_gateway_ && method_pair->second == "GET" &&
+        accept_pair != headers.end() &&
+        accept_pair->second == "application/ohttp-keys") {
       response_headers[":status"] = "200";
       response_headers["content-type"] = "application/ohttp-keys";
       response_body = masque_ohttp_gateway_->concatenated_keys();
-    } else if (auto key_proxy_pair = key_proxy_urls_.find(path_pair->second);
+    } else if (auto key_proxy_pair = key_proxy_urls_.find(path);
                key_proxy_pair != key_proxy_urls_.end() &&
                method_pair->second == "GET" && accept_pair != headers.end() &&
                accept_pair->second == "application/ohttp-keys" &&
@@ -606,11 +612,11 @@ class MasqueTcpServer : public QuicSocketEventListener,
         return;
       } else {
         QUICHE_LOG(ERROR) << "Failed to handle OHTTP key proxy request for "
-                          << path_pair->second << ": " << status;
+                          << path << ": " << status;
         response_headers[":status"] = "500";
         response_body = status.message();
       }
-    } else if (auto relay_pair = relay_gateway_urls_.find(path_pair->second);
+    } else if (auto relay_pair = relay_gateway_urls_.find(path);
                relay_pair != relay_gateway_urls_.end() &&
                method_pair->second == "POST" &&
                content_type_pair != headers.end() &&
@@ -620,12 +626,12 @@ class MasqueTcpServer : public QuicSocketEventListener,
       if (status.ok()) {
         return;
       } else {
-        QUICHE_LOG(ERROR) << "Failed to handle OHTTP relay request for "
-                          << path_pair->second << ": " << status;
+        QUICHE_LOG(ERROR) << "Failed to handle OHTTP relay request for " << path
+                          << ": " << status;
         response_headers[":status"] = "500";
         response_body = status.message();
       }
-    } else if (!gateway_path_.empty() && path_pair->second == gateway_path_ &&
+    } else if (!gateway_path_.empty() && path == gateway_path_ &&
                method_pair->second == "POST" &&
                content_type_pair != headers.end() &&
                content_type_pair->second == "message/ohttp-req") {
@@ -639,7 +645,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
                           << status;
         response_body = status.message();
       }
-    } else if (method_pair->second == "GET" && path_pair->second == "/") {
+    } else if (method_pair->second == "GET" && path == "/") {
       response_headers[":status"] = "200";
       response_body = "<h1>This is a response body</h1>";
     } else {

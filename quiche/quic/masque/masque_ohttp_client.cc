@@ -100,7 +100,7 @@ absl::Status MasqueOhttpClient::StartKeyFetch(const std::string& url_string) {
   request.headers[":method"] = "GET";
   request.headers[":scheme"] = url.scheme();
   request.headers[":authority"] = url.HostPort();
-  request.headers[":path"] = url.path();
+  request.headers[":path"] = url.PathParamsQuery();
   request.headers["accept"] = "application/ohttp-keys";
 
   QUICHE_ASSIGN_OR_RETURN(key_fetch_request_id_,
@@ -209,7 +209,7 @@ absl::Status MasqueOhttpClient::SendOhttpRequestForUrl(
   control_data.method = post_data_.empty() ? "GET" : "POST";
   control_data.scheme = url.scheme();
   control_data.authority = url.HostPort();
-  control_data.path = url.path();
+  control_data.path = url.PathParamsQuery();
   BinaryHttpRequest binary_request(control_data);
   binary_request.set_body(post_data_);
   absl::StatusOr<std::string> encoded_request = binary_request.Serialize();
@@ -232,7 +232,7 @@ absl::Status MasqueOhttpClient::SendOhttpRequestForUrl(
   request.headers[":method"] = "POST";
   request.headers[":scheme"] = relay_url_.scheme();
   request.headers[":authority"] = relay_url_.HostPort();
-  request.headers[":path"] = relay_url_.path();
+  request.headers[":path"] = relay_url_.PathParamsQuery();
   request.headers["content-type"] = "message/ohttp-req";
   request.body = ohttp_request->EncapsulateAndSerialize();
   absl::StatusOr<RequestId> request_id =
