@@ -85,6 +85,14 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "\"/foo>https://foo.example:8443/|/bar>https://example.com/bar\".");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, key_proxy, "",
+    "Enables and configures proxying of OHTTP key requests. The format is a "
+    "list of (path, URL) pairs where each local path is proxied to the "
+    "corresponding "
+    "URL, formatted as \"path1>url1|path2>url2\". For example: "
+    "\"/foo>https://foo.example:8443/|/bar>https://example.com/bar\".");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, disable_certificate_verification, false,
     "If true, don't verify the server certificate.");
 
@@ -546,6 +554,26 @@ class MasqueTcpServer : public QuicSocketEventListener,
     return absl::OkStatus();
   }
 
+  absl::Status HandleOhttpKeyProxyRequest(MasqueH2Connection* connection,
+                                          int32_t stream_id,
+                                          const QuicUrl& key_proxy_url) {
+    Message request;
+    request.headers[":method"] = "GET";
+    request.headers[":scheme"] = key_proxy_url.scheme();
+    request.headers[":authority"] = key_proxy_url.HostPort();
+    request.headers[":path"] = key_proxy_url.path();
+    request.headers["accept"] = "application/ohttp-keys";
+    absl::StatusOr<RequestId> request_id =
+        connection_pool_.SendRequest(request);
+    QUICHE_RETURN_IF_ERROR(request_id.status());
+    QUICHE_LOG(INFO) << "Sent relayed request";
+    PendingRequest pending_request;
+    pending_request.connection = connection;
+    pending_request.stream_id = stream_id;
+    pending_requests_.insert({*request_id, std::move(pending_request)});
+    return absl::OkStatus();
+  }
+
   void OnRequest(MasqueH2Connection* connection, int32_t stream_id,
                  const quiche::HttpHeaderBlock& headers,
                  const std::string& body) override {
@@ -566,6 +594,21 @@ class MasqueTcpServer : public QuicSocketEventListener,
       response_headers[":status"] = "200";
       response_headers["content-type"] = "application/ohttp-keys";
       response_body = masque_ohttp_gateway_->concatenated_keys();
+    } else if (auto key_proxy_pair = key_proxy_urls_.find(path_pair->second);
+               key_proxy_pair != key_proxy_urls_.end() &&
+               method_pair->second == "GET" && accept_pair != headers.end() &&
+               accept_pair->second == "application/ohttp-keys" &&
+               body.empty()) {
+      absl::Status status = HandleOhttpKeyProxyRequest(connection, stream_id,
+                                                       key_proxy_pair->second);
+      if (status.ok()) {
+        return;
+      } else {
+        QUICHE_LOG(ERROR) << "Failed to handle OHTTP key proxy request for "
+                          << path_pair->second << ": " << status;
+        response_headers[":status"] = "500";
+        response_body = status.message();
+      }
     } else if (auto relay_pair = relay_gateway_urls_.find(path_pair->second);
                relay_pair != relay_gateway_urls_.end() &&
                method_pair->second == "POST" &&
@@ -697,6 +740,35 @@ class MasqueTcpServer : public QuicSocketEventListener,
     return true;
   }
 
+  bool SetupKeyProxy(const std::string& key_proxy) {
+    if (key_proxy.empty()) {
+      return true;
+    }
+    std::vector<absl::string_view> key_proxy_split =
+        absl::StrSplit(key_proxy, '|');
+    for (absl::string_view key_proxy_param : key_proxy_split) {
+      std::vector<absl::string_view> key_proxy_param_split =
+          absl::StrSplit(key_proxy_param, '>');
+      if (key_proxy_param_split.size() != 2) {
+        QUICHE_LOG(ERROR) << "Invalid key proxy parameter: \""
+                          << key_proxy_param
+                          << "\". It should be in the format of \"path>url\"";
+        return false;
+      }
+      absl::string_view path = key_proxy_param_split[0];
+      absl::string_view key_proxy_url = key_proxy_param_split[1];
+      auto [it, inserted] = key_proxy_urls_.insert(
+          {std::string(path), QuicUrl(key_proxy_url, "https")});
+      if (!inserted) {
+        QUICHE_LOG(ERROR) << "Duplicate relay path: \"" << path << "\"";
+        return false;
+      }
+      QUICHE_LOG(INFO) << "Added key proxy for " << path << ": "
+                       << key_proxy_url;
+    }
+    return true;
+  }
+
   void SavePendingGatewayRequest(
       MasqueH2Connection* connection, int32_t stream_id,
       MasqueConnectionPool::RequestId request_id,
@@ -748,6 +820,8 @@ class MasqueTcpServer : public QuicSocketEventListener,
   std::vector<std::unique_ptr<MasqueH2SocketConnection>> connections_;
   // Maps from local paths to remote gateway URLs.
   absl::flat_hash_map<std::string, QuicUrl> relay_gateway_urls_;
+  // Maps from local paths to remote key fetch URLs.
+  absl::flat_hash_map<std::string, QuicUrl> key_proxy_urls_;
   MasqueConnectionPool connection_pool_;
   absl::flat_hash_map<RequestId, PendingRequest> pending_requests_;
 };
@@ -828,6 +902,11 @@ int RunMasqueTcpServer(int argc, char* argv[]) {
   }
   if (!server.SetupRelay(quiche::GetQuicheCommandLineFlag(FLAGS_relay))) {
     QUICHE_LOG(ERROR) << "Invalid --relay input";
+    return 1;
+  }
+  if (!server.SetupKeyProxy(
+          quiche::GetQuicheCommandLineFlag(FLAGS_key_proxy))) {
+    QUICHE_LOG(ERROR) << "Invalid --key_proxy input";
     return 1;
   }
   if (!server.SetupSslCtx(server_certificate_file, server_key_file,
