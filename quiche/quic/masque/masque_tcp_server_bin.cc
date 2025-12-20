@@ -588,7 +588,8 @@ class MasqueTcpServer : public QuicSocketEventListener,
       // the request, but handle it gracefully just in case.
       response_headers[":status"] = "400";
       response_body = "Request missing pseudo-headers";
-    } else if (masque_ohttp_gateway_ && method_pair->second == "GET" &&
+    } else if (!gateway_path_.empty() && path_pair->second == gateway_path_ &&
+               masque_ohttp_gateway_ && method_pair->second == "GET" &&
                accept_pair != headers.end() &&
                accept_pair->second == "application/ohttp-keys") {
       response_headers[":status"] = "200";
