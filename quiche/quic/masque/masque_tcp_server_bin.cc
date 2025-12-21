@@ -52,6 +52,7 @@
 #include "quiche/common/quiche_ip_address_family.h"
 #include "quiche/common/quiche_socket_address.h"
 #include "quiche/common/quiche_status_utils.h"
+#include "quiche/common/quiche_text_utils.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_gateway.h"
 
@@ -118,6 +119,23 @@ using quiche::ObliviousHttpResponse;
 namespace quic {
 
 namespace {
+
+bool ListHeaderContainsValue(absl::string_view header,
+                             absl::string_view value) {
+  std::vector<absl::string_view> header_split = absl::StrSplit(header, ',');
+  for (absl::string_view header_value : header_split) {
+    quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&header_value);
+    std::vector<absl::string_view> header_value_split =
+        absl::StrSplit(header_value, absl::MaxSplits(';', 1));
+    absl::string_view header_value_without_params = header_value_split[0];
+    quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(
+        &header_value_without_params);
+    if (header_value_without_params == value) {
+      return true;
+    }
+  }
+  return false;
+}
 
 class MasqueOhttpGateway {
  public:
@@ -596,15 +614,18 @@ class MasqueTcpServer : public QuicSocketEventListener,
     auto accept_pair = headers.find("accept");
     if (!gateway_path_.empty() && path == gateway_path_ &&
         masque_ohttp_gateway_ && method_pair->second == "GET" &&
-        accept_pair != headers.end() &&
-        accept_pair->second == "application/ohttp-keys") {
+        (accept_pair == headers.end() ||
+         ListHeaderContainsValue(accept_pair->second,
+                                 "application/ohttp-keys"))) {
       response_headers[":status"] = "200";
       response_headers["content-type"] = "application/ohttp-keys";
       response_body = masque_ohttp_gateway_->concatenated_keys();
     } else if (auto key_proxy_pair = key_proxy_urls_.find(path);
                key_proxy_pair != key_proxy_urls_.end() &&
-               method_pair->second == "GET" && accept_pair != headers.end() &&
-               accept_pair->second == "application/ohttp-keys" &&
+               method_pair->second == "GET" &&
+               (accept_pair == headers.end() ||
+                ListHeaderContainsValue(accept_pair->second,
+                                        "application/ohttp-keys")) &&
                body.empty()) {
       absl::Status status = HandleOhttpKeyProxyRequest(connection, stream_id,
                                                        key_proxy_pair->second);
