@@ -95,7 +95,9 @@ bool MasqueH2Connection::TryRead() {
                         << "SSL_do_handshake will require another read";
         return false;
       }
-      PrintSSLError("Error while connecting", ssl_err, ssl_handshake_ret);
+      PrintSSLError("Error while connecting to TLS", ssl_err,
+                    ssl_handshake_ret);
+      Abort();
       return false;
     }
   }
@@ -106,7 +108,8 @@ bool MasqueH2Connection::TryRead() {
     if (ssl_err == SSL_ERROR_WANT_READ) {
       return false;
     }
-    PrintSSLError("Error while connecting", ssl_err, ssl_read_ret);
+    PrintSSLError("Error while reading from TLS", ssl_err, ssl_read_ret);
+    Abort();
     return false;
   }
   if (ssl_read_ret == 0) {
