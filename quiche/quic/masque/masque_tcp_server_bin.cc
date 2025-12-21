@@ -120,17 +120,19 @@ namespace quic {
 
 namespace {
 
+absl::string_view RemoveParameters(absl::string_view value) {
+  std::vector<absl::string_view> split =
+      absl::StrSplit(value, absl::MaxSplits(';', 1));
+  absl::string_view without_params = split[0];
+  quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&without_params);
+  return without_params;
+}
+
 bool ListHeaderContainsValue(absl::string_view header,
                              absl::string_view value) {
   std::vector<absl::string_view> header_split = absl::StrSplit(header, ',');
   for (absl::string_view header_value : header_split) {
-    quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(&header_value);
-    std::vector<absl::string_view> header_value_split =
-        absl::StrSplit(header_value, absl::MaxSplits(';', 1));
-    absl::string_view header_value_without_params = header_value_split[0];
-    quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(
-        &header_value_without_params);
-    if (header_value_without_params == value) {
+    if (RemoveParameters(header_value) == value) {
       return true;
     }
   }
@@ -610,7 +612,11 @@ class MasqueTcpServer : public QuicSocketEventListener,
     std::vector<absl::string_view> path_parts =
         absl::StrSplit(path_pair->second, absl::MaxSplits('?', 1));
     absl::string_view path = path_parts[0];
+    absl::string_view content_type;
     auto content_type_pair = headers.find("content-type");
+    if (content_type_pair != headers.end()) {
+      content_type = RemoveParameters(content_type_pair->second);
+    }
     auto accept_pair = headers.find("accept");
     if (!gateway_path_.empty() && path == gateway_path_ &&
         masque_ohttp_gateway_ && method_pair->second == "GET" &&
@@ -640,8 +646,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
     } else if (auto relay_pair = relay_gateway_urls_.find(path);
                relay_pair != relay_gateway_urls_.end() &&
                method_pair->second == "POST" &&
-               content_type_pair != headers.end() &&
-               content_type_pair->second == "message/ohttp-req") {
+               content_type == "message/ohttp-req") {
       absl::Status status = HandleOhttpRelayRequest(connection, stream_id, body,
                                                     relay_pair->second);
       if (status.ok()) {
@@ -654,8 +659,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
       }
     } else if (!gateway_path_.empty() && path == gateway_path_ &&
                method_pair->second == "POST" &&
-               content_type_pair != headers.end() &&
-               content_type_pair->second == "message/ohttp-req") {
+               content_type == "message/ohttp-req") {
       absl::Status status =
           HandleOhttpGatewayRequest(connection, stream_id, body);
       if (status.ok()) {

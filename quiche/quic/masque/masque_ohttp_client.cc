@@ -8,6 +8,7 @@
 #include <ostream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
@@ -15,6 +16,7 @@
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
 #include "quiche/quic/masque/masque_connection_pool.h"
@@ -22,6 +24,7 @@
 #include "quiche/binary_http/binary_http_message.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_status_utils.h"
+#include "quiche/common/quiche_text_utils.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_response.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
@@ -135,7 +138,12 @@ absl::Status MasqueOhttpClient::CheckStatusAndContentType(
     return absl::InvalidArgumentError(
         absl::StrCat("No content-type header in ", content_type, " response."));
   }
-  if (content_type_it->second != content_type) {
+  std::vector<absl::string_view> content_type_split =
+      absl::StrSplit(content_type_it->second, absl::MaxSplits(';', 1));
+  absl::string_view content_type_without_params = content_type_split[0];
+  quiche::QuicheTextUtils::RemoveLeadingAndTrailingWhitespace(
+      &content_type_without_params);
+  if (content_type_without_params != content_type) {
     return absl::InvalidArgumentError(
         absl::StrCat("Unexpected content-type in ", content_type,
                      " response: ", content_type_it->second));
