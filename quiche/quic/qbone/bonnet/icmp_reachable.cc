@@ -30,7 +30,8 @@ constexpr size_t kIPv6AddrSize = sizeof(in6_addr);
 const char kUnknownSource[] = "UNKNOWN";
 const char kNoSource[] = "N/A";
 
-IcmpReachable::IcmpReachable(QuicIpAddress source, QuicIpAddress destination,
+IcmpReachable::IcmpReachable(absl::string_view interface_name,
+                             QuicIpAddress source, QuicIpAddress destination,
                              QuicTime::Delta timeout, KernelInterface* kernel,
                              QuicEventLoop* event_loop, StatsInterface* stats)
     : timeout_(timeout),
@@ -45,6 +46,9 @@ IcmpReachable::IcmpReachable(QuicIpAddress source, QuicIpAddress destination,
       recv_fd_(0) {
   src_.sin6_family = AF_INET6;
   dst_.sin6_family = AF_INET6;
+  // Ensure the destination has its scope set to the QBONE TUN/TAP device.
+  dst_.sin6_scope_id =
+      kernel_->if_nametoindex(std::string(interface_name).c_str());
 
   memcpy(&src_.sin6_addr, source.ToPackedString().data(), kIPv6AddrSize);
   memcpy(&dst_.sin6_addr, destination.ToPackedString().data(), kIPv6AddrSize);
@@ -63,28 +67,29 @@ IcmpReachable::~IcmpReachable() {
 }
 
 bool IcmpReachable::Init() {
-  send_fd_ = kernel_->socket(PF_INET6, SOCK_RAW | SOCK_NONBLOCK, IPPROTO_RAW);
+  send_fd_ =
+      kernel_->socket(PF_INET6, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_ICMPV6);
   if (send_fd_ < 0) {
-    QUIC_PLOG(ERROR) << "Unable to open socket.";
+    QUIC_PLOG(ERROR) << "Unable to open send socket.";
     return false;
   }
 
   if (kernel_->bind(send_fd_, reinterpret_cast<struct sockaddr*>(&src_),
                     sizeof(sockaddr_in6)) < 0) {
-    QUIC_PLOG(ERROR) << "Unable to bind socket.";
+    QUIC_PLOG(ERROR) << "Unable to bind send socket.";
     return false;
   }
 
   recv_fd_ =
       kernel_->socket(PF_INET6, SOCK_RAW | SOCK_NONBLOCK, IPPROTO_ICMPV6);
   if (recv_fd_ < 0) {
-    QUIC_PLOG(ERROR) << "Unable to open socket.";
+    QUIC_PLOG(ERROR) << "Unable to open recv socket.";
     return false;
   }
 
   if (kernel_->bind(recv_fd_, reinterpret_cast<struct sockaddr*>(&src_),
                     sizeof(sockaddr_in6)) < 0) {
-    QUIC_PLOG(ERROR) << "Unable to bind socket.";
+    QUIC_PLOG(ERROR) << "Unable to bind recv socket.";
     return false;
   }
 
@@ -103,12 +108,25 @@ bool IcmpReachable::Init() {
   }
   alarm_->Set(clock_->Now());
 
+  // Obtain the local port assigned to send_fd_.
+  struct sockaddr_in6 sa = {};
+  socklen_t addrlen = sizeof(sa);
+  if (kernel_->getsockname(send_fd_, reinterpret_cast<struct sockaddr*>(&sa),
+                           &addrlen) == -1) {
+    QUIC_PLOG(ERROR) << "Unable to getsockname:";
+  }
+
+  // Per the "ping socket" kernel commit message:
+  //   "ICMP headers given to send() are checked and sanitized."
+  //   "The type must be ICMP_ECHO and the code must be zero"
+  //   "The id is set to the number (local port) of the socket, the
+  //    checksum is always recomputed."
   absl::WriterMutexLock mu(header_lock_);
   icmp_header_.icmp6_type = ICMP6_ECHO_REQUEST;
   icmp_header_.icmp6_code = 0;
-
-  QuicRandom::GetInstance()->RandBytes(&icmp_header_.icmp6_id,
-                                       sizeof(uint16_t));
+  icmp_header_.icmp6_id = sa.sin6_port;
+  icmp_header_.icmp6_cksum = 0;
+  icmp_header_.icmp6_seq = 0;
 
   return true;
 }
@@ -165,23 +183,22 @@ void IcmpReachable::OnAlarm() {
     QUIC_VLOG(1) << "Timed out on sequence: " << icmp_header_.icmp6_seq;
     stats_->OnEvent({Status::UNREACHABLE, QuicTime::Delta::Zero(), kNoSource});
   }
-
   icmp_header_.icmp6_seq++;
-  CreateIcmpPacket(src_.sin6_addr, dst_.sin6_addr, icmp_header_, "",
-                   [this](absl::string_view packet) {
-                     QUIC_VLOG(2) << quiche::QuicheTextUtils::HexDump(packet);
 
-                     ssize_t size = kernel_->sendto(
-                         send_fd_, packet.data(), packet.size(), 0,
-                         reinterpret_cast<struct sockaddr*>(&dst_),
-                         sizeof(sockaddr_in6));
+  QUIC_VLOG(2) << "ICMP Header: "
+               << quiche::QuicheTextUtils::HexDump(absl::string_view(
+                      reinterpret_cast<const char*>(&icmp_header_),
+                      sizeof(icmp_header_)));
 
-                     if (size < static_cast<ssize_t>(packet.size())) {
-                       stats_->OnWriteError(errno);
-                       QUIC_PLOG(ERROR) << "Unable to send ICMP echo request:";
-                     }
-                     start_ = clock_->Now();
-                   });
+  ssize_t size = kernel_->sendto(send_fd_, &icmp_header_, sizeof(icmp6_hdr), 0,
+                                 reinterpret_cast<struct sockaddr*>(&dst_),
+                                 sizeof(sockaddr_in6));
+
+  if (size < static_cast<ssize_t>(sizeof(icmp6_hdr))) {
+    stats_->OnWriteError(errno);
+    QUIC_PLOG(ERROR) << "Unable to send ICMP echo request:";
+  }
+  start_ = clock_->Now();
 
   alarm_->Set(clock_->ApproximateNow() + timeout_);
 }

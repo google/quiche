@@ -60,6 +60,7 @@ class IcmpReachable : public IcmpReachableInterface {
     virtual void OnWriteError(int error) = 0;
   };
 
+  // |interface_name| is the name of the TUN/TAP device bound in the kernel.
   // |source| is the IPv6 address bound to the interface that IcmpReachable will
   //          send Echo Requests on.
   // |destination| is the IPv6 address of the destination of the Echo Requests.
@@ -72,9 +73,10 @@ class IcmpReachable : public IcmpReachableInterface {
   //                Server's thread.
   // |stats| is not owned, but should outlive this instance. It will be called
   //         back on Echo Replies, timeouts, and I/O errors.
-  IcmpReachable(QuicIpAddress source, QuicIpAddress destination,
-                QuicTime::Delta timeout, KernelInterface* kernel,
-                QuicEventLoop* event_loop, StatsInterface* stats);
+  IcmpReachable(absl::string_view interface_name, QuicIpAddress source,
+                QuicIpAddress destination, QuicTime::Delta timeout,
+                KernelInterface* kernel, QuicEventLoop* event_loop,
+                StatsInterface* stats);
 
   ~IcmpReachable() override;
 

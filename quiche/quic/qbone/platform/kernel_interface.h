@@ -7,6 +7,7 @@
 
 #include <errno.h>
 #include <fcntl.h>
+#include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -41,6 +42,9 @@ class KernelInterface {
   virtual int setsockopt(int fd, int level, int optname, const void* optval,
                          socklen_t optlen) = 0;
   virtual ssize_t write(int fd, const void* buf, size_t count) = 0;
+  virtual int getsockname(int sockfd, struct sockaddr* addr,
+                          socklen_t* addrlen) = 0;
+  virtual unsigned int if_nametoindex(const char* ifname) = 0;
 };
 
 // It is unfortunate to have R here, but std::result_of cannot be used.
@@ -125,6 +129,15 @@ class ParametrizedKernel final : public KernelInterface {
   ssize_t write(int fd, const void* buf, size_t count) override {
     static Runner syscall("write");
     return syscall.Run(&::write, fd, buf, count);
+  }
+  int getsockname(int sockfd, struct sockaddr* addr,
+                  socklen_t* addrlen) override {
+    static Runner syscall("getsockname");
+    return syscall.Run(&::getsockname, sockfd, addr, addrlen);
+  }
+  unsigned int if_nametoindex(const char* ifname) override {
+    static Runner syscall("if_nametoindex");
+    return syscall.Run(&::if_nametoindex, ifname);
   }
 };
 

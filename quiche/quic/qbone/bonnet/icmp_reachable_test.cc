@@ -21,20 +21,23 @@ namespace quic::test {
 namespace {
 
 using ::testing::_;
+using ::testing::DoAll;
 using ::testing::InSequence;
 using ::testing::Return;
+using ::testing::SetArgPointee;
 using ::testing::StrictMock;
 
+constexpr absl::string_view kInterfaceName = "qbone0";
 constexpr char kSourceAddress[] = "fe80:1:2:3:4::1";
 constexpr char kDestinationAddress[] = "fe80:4:3:2:1::1";
 
 constexpr int kFakeWriteFd = 0;
+constexpr int kSendPort = 12345;
 
-icmp6_hdr GetHeaderFromPacket(const void* buf, size_t len) {
-  QUICHE_CHECK_GE(len, sizeof(ip6_hdr) + sizeof(icmp6_hdr));
-
-  auto* buffer = reinterpret_cast<const char*>(buf);
-  return *reinterpret_cast<const icmp6_hdr*>(&buffer[sizeof(ip6_hdr)]);
+icmp6_hdr ParseIcmpHeader(const void* buf, size_t len) {
+  QUICHE_CHECK_EQ(len, sizeof(icmp6_hdr));
+  return *reinterpret_cast<const icmp6_hdr*>(
+      &(reinterpret_cast<const char*>(buf))[0]);
 }
 
 class StatsInterface : public IcmpReachable::StatsInterface {
@@ -97,6 +100,7 @@ class IcmpReachableTest : public QuicTest {
 
   void SetFdExpectations() {
     InSequence seq;
+    EXPECT_CALL(kernel_, if_nametoindex(_));
     EXPECT_CALL(kernel_, socket(_, _, _)).WillOnce(Return(kFakeWriteFd));
     EXPECT_CALL(kernel_, bind(kFakeWriteFd, _, _)).WillOnce(Return(0));
 
@@ -104,6 +108,10 @@ class IcmpReachableTest : public QuicTest {
     EXPECT_CALL(kernel_, bind(read_fd_, _, _)).WillOnce(Return(0));
 
     EXPECT_CALL(kernel_, setsockopt(read_fd_, SOL_ICMPV6, ICMP6_FILTER, _, _));
+    EXPECT_CALL(kernel_, getsockname(_, _, _))
+        .WillOnce(DoAll(SetArgPointee<1>(
+                            *reinterpret_cast<struct sockaddr*>(&send_socket_)),
+                        Return(0)));
 
     EXPECT_CALL(kernel_, close(read_fd_)).WillOnce([](int fd) {
       return close(fd);
@@ -114,6 +122,8 @@ class IcmpReachableTest : public QuicTest {
   QuicIpAddress source_;
   QuicIpAddress destination_;
 
+  struct sockaddr_in6 send_socket_ = {.sin6_port = kSendPort};
+
   int read_fd_;
   int read_src_fd_;
 
@@ -123,18 +133,20 @@ class IcmpReachableTest : public QuicTest {
 };
 
 TEST_F(IcmpReachableTest, SendsPings) {
-  IcmpReachable reachable(source_, destination_, QuicTime::Delta::Zero(),
-                          &kernel_, event_loop_.get(), &stats_);
-
   SetFdExpectations();
+  IcmpReachable reachable(kInterfaceName, source_, destination_,
+                          QuicTime::Delta::Zero(), &kernel_, event_loop_.get(),
+                          &stats_);
+
   ASSERT_TRUE(reachable.Init());
 
   EXPECT_CALL(kernel_, sendto(kFakeWriteFd, _, _, _, _, _))
       .WillOnce([](int sockfd, const void* buf, size_t len, int flags,
                    const struct sockaddr* dest_addr, socklen_t addrlen) {
-        auto icmp_header = GetHeaderFromPacket(buf, len);
+        auto icmp_header = ParseIcmpHeader(buf, len);
         EXPECT_EQ(icmp_header.icmp6_type, ICMP6_ECHO_REQUEST);
         EXPECT_EQ(icmp_header.icmp6_seq, 1);
+        EXPECT_EQ(icmp_header.icmp6_id, kSendPort);
         return len;
       });
 
@@ -143,10 +155,11 @@ TEST_F(IcmpReachableTest, SendsPings) {
 }
 
 TEST_F(IcmpReachableTest, HandlesUnreachableEvents) {
-  IcmpReachable reachable(source_, destination_, QuicTime::Delta::Zero(),
-                          &kernel_, event_loop_.get(), &stats_);
-
   SetFdExpectations();
+  IcmpReachable reachable(kInterfaceName, source_, destination_,
+                          QuicTime::Delta::Zero(), &kernel_, event_loop_.get(),
+                          &stats_);
+
   ASSERT_TRUE(reachable.Init());
 
   EXPECT_CALL(kernel_, sendto(kFakeWriteFd, _, _, _, _, _))
@@ -165,10 +178,11 @@ TEST_F(IcmpReachableTest, HandlesUnreachableEvents) {
 }
 
 TEST_F(IcmpReachableTest, HandlesReachableEvents) {
-  IcmpReachable reachable(source_, destination_, QuicTime::Delta::Zero(),
-                          &kernel_, event_loop_.get(), &stats_);
-
   SetFdExpectations();
+  IcmpReachable reachable(kInterfaceName, source_, destination_,
+                          QuicTime::Delta::Zero(), &kernel_, event_loop_.get(),
+                          &stats_);
+
   ASSERT_TRUE(reachable.Init());
 
   icmp6_hdr last_request_hdr{};
@@ -177,7 +191,7 @@ TEST_F(IcmpReachableTest, HandlesReachableEvents) {
       .WillRepeatedly([&last_request_hdr](
                           int sockfd, const void* buf, size_t len, int flags,
                           const struct sockaddr* dest_addr, socklen_t addrlen) {
-        last_request_hdr = GetHeaderFromPacket(buf, len);
+        last_request_hdr = ParseIcmpHeader(buf, len);
         return len;
       });
 
@@ -209,10 +223,11 @@ TEST_F(IcmpReachableTest, HandlesReachableEvents) {
 }
 
 TEST_F(IcmpReachableTest, HandlesWriteErrors) {
-  IcmpReachable reachable(source_, destination_, QuicTime::Delta::Zero(),
-                          &kernel_, event_loop_.get(), &stats_);
-
   SetFdExpectations();
+  IcmpReachable reachable(kInterfaceName, source_, destination_,
+                          QuicTime::Delta::Zero(), &kernel_, event_loop_.get(),
+                          &stats_);
+
   ASSERT_TRUE(reachable.Init());
 
   EXPECT_CALL(kernel_, sendto(kFakeWriteFd, _, _, _, _, _))
@@ -227,10 +242,11 @@ TEST_F(IcmpReachableTest, HandlesWriteErrors) {
 }
 
 TEST_F(IcmpReachableTest, HandlesReadErrors) {
-  IcmpReachable reachable(source_, destination_, QuicTime::Delta::Zero(),
-                          &kernel_, event_loop_.get(), &stats_);
-
   SetFdExpectations();
+  IcmpReachable reachable(kInterfaceName, source_, destination_,
+                          QuicTime::Delta::Zero(), &kernel_, event_loop_.get(),
+                          &stats_);
+
   ASSERT_TRUE(reachable.Init());
 
   EXPECT_CALL(kernel_, sendto(kFakeWriteFd, _, _, _, _, _))

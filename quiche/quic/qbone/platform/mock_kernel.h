@@ -41,6 +41,10 @@ class MockKernel : public KernelInterface {
   MOCK_METHOD(int, setsockopt, (int, int, int, const void*, socklen_t),
               (override));
   MOCK_METHOD(ssize_t, write, (int fd, const void*, size_t count), (override));
+  MOCK_METHOD(int, getsockname,
+              (int sockfd, struct sockaddr* addr, socklen_t* addrlen),
+              (override));
+  MOCK_METHOD(unsigned int, if_nametoindex, (const char* ifname), (override));
 };
 
 }  // namespace quic
