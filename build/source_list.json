@@ -776,8 +776,13 @@
     "quiche/quic/tools/simple_ticket_crypter.cc",
     "quiche/quic/tools/web_transport_only_backend.cc"
   ],
+  "quiche_fuzz_support_hdrs": [
+    "quiche/balsa/balsa_fuzz_util.h"
+  ],
+  "quiche_fuzz_support_srcs": [
+    "quiche/balsa/balsa_fuzz_util.cc"
+  ],
   "quiche_test_support_hdrs": [
-    "quiche/balsa/balsa_fuzz_util.h",
     "quiche/common/platform/api/quiche_expect_bug.h",
     "quiche/common/platform/api/quiche_fuzztest.h",
     "quiche/common/platform/api/quiche_test.h",
@@ -890,7 +895,6 @@
     "quiche/web_transport/test_tools/mock_web_transport.h"
   ],
   "quiche_test_support_srcs": [
-    "quiche/balsa/balsa_fuzz_util.cc",
     "quiche/common/platform/api/quiche_test_loopback.cc",
     "quiche/common/test_tools/quiche_test_utils.cc",
     "quiche/http2/adapter/recording_http2_visitor.cc",
