@@ -301,9 +301,9 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
   auto cleanup =
       absl::MakeCleanup([this, it]() { pending_ohttp_requests_.erase(it); });
   QUICHE_RETURN_IF_ERROR(response.status());
+  QUICHE_RETURN_IF_ERROR(CheckGatewayResponse(*response));
   QUICHE_RETURN_IF_ERROR(
       CheckStatusAndContentType(*response, "message/ohttp-res"));
-  QUICHE_RETURN_IF_ERROR(CheckGatewayResponse(*response));
   absl::StatusOr<BinaryHttpResponse> binary_response =
       TryExtractBinaryResponse(request_id, it->second, *response);
   QUICHE_RETURN_IF_ERROR(binary_response.status());
