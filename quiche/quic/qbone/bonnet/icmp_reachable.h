@@ -134,8 +134,8 @@ class IcmpReachable : public IcmpReachableInterface {
 
   StatsInterface* stats_;
 
-  int send_fd_;
-  int recv_fd_;
+  int sock_fd_;
+  bool polling_registered_ = false;
 
   absl::Mutex header_lock_;
   icmp6_hdr icmp_header_ ABSL_GUARDED_BY(header_lock_){};

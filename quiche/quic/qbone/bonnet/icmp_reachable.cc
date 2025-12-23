@@ -42,8 +42,7 @@ IcmpReachable::IcmpReachable(absl::string_view interface_name,
       alarm_(alarm_factory_->CreateAlarm(new AlarmCallback(this))),
       kernel_(kernel),
       stats_(stats),
-      send_fd_(0),
-      recv_fd_(0) {
+      sock_fd_(0) {
   src_.sin6_family = AF_INET6;
   dst_.sin6_family = AF_INET6;
   // Ensure the destination has its scope set to the QBONE TUN/TAP device.
@@ -55,63 +54,40 @@ IcmpReachable::IcmpReachable(absl::string_view interface_name,
 }
 
 IcmpReachable::~IcmpReachable() {
-  if (send_fd_ > 0) {
-    kernel_->close(send_fd_);
-  }
-  if (recv_fd_ > 0) {
-    bool success = event_loop_->UnregisterSocket(recv_fd_);
-    QUICHE_DCHECK(success);
-
-    kernel_->close(recv_fd_);
+  if (sock_fd_ > 0) {
+    if (polling_registered_) {
+      bool success = event_loop_->UnregisterSocket(sock_fd_);
+      QUICHE_DCHECK(success);
+    }
+    kernel_->close(sock_fd_);
   }
 }
 
 bool IcmpReachable::Init() {
-  send_fd_ =
+  sock_fd_ =
       kernel_->socket(PF_INET6, SOCK_DGRAM | SOCK_NONBLOCK, IPPROTO_ICMPV6);
-  if (send_fd_ < 0) {
-    QUIC_PLOG(ERROR) << "Unable to open send socket.";
+  if (sock_fd_ < 0) {
+    QUIC_PLOG(ERROR) << "Unable to open ICMP socket.";
     return false;
   }
 
-  if (kernel_->bind(send_fd_, reinterpret_cast<struct sockaddr*>(&src_),
+  if (kernel_->bind(sock_fd_, reinterpret_cast<struct sockaddr*>(&src_),
                     sizeof(sockaddr_in6)) < 0) {
-    QUIC_PLOG(ERROR) << "Unable to bind send socket.";
+    QUIC_PLOG(ERROR) << "Unable to bind ICMP socket.";
     return false;
   }
 
-  recv_fd_ =
-      kernel_->socket(PF_INET6, SOCK_RAW | SOCK_NONBLOCK, IPPROTO_ICMPV6);
-  if (recv_fd_ < 0) {
-    QUIC_PLOG(ERROR) << "Unable to open recv socket.";
+  if (!event_loop_->RegisterSocket(sock_fd_, kEventMask, &cb_)) {
+    QUIC_LOG(ERROR) << "Unable to register ICMP socket";
     return false;
   }
-
-  if (kernel_->bind(recv_fd_, reinterpret_cast<struct sockaddr*>(&src_),
-                    sizeof(sockaddr_in6)) < 0) {
-    QUIC_PLOG(ERROR) << "Unable to bind recv socket.";
-    return false;
-  }
-
-  icmp6_filter filter;
-  ICMP6_FILTER_SETBLOCKALL(&filter);
-  ICMP6_FILTER_SETPASS(ICMP6_ECHO_REPLY, &filter);
-  if (kernel_->setsockopt(recv_fd_, SOL_ICMPV6, ICMP6_FILTER, &filter,
-                          sizeof(filter)) < 0) {
-    QUIC_LOG(ERROR) << "Unable to set ICMP6 filter.";
-    return false;
-  }
-
-  if (!event_loop_->RegisterSocket(recv_fd_, kEventMask, &cb_)) {
-    QUIC_LOG(ERROR) << "Unable to register recv ICMP socket";
-    return false;
-  }
+  polling_registered_ = true;
   alarm_->Set(clock_->Now());
 
-  // Obtain the local port assigned to send_fd_.
+  // Obtain the local port assigned to sock_fd_.
   struct sockaddr_in6 sa = {};
   socklen_t addrlen = sizeof(sa);
-  if (kernel_->getsockname(send_fd_, reinterpret_cast<struct sockaddr*>(&sa),
+  if (kernel_->getsockname(sock_fd_, reinterpret_cast<struct sockaddr*>(&sa),
                            &addrlen) == -1) {
     QUIC_PLOG(ERROR) << "Unable to getsockname:";
   }
@@ -190,7 +166,7 @@ void IcmpReachable::OnAlarm() {
                       reinterpret_cast<const char*>(&icmp_header_),
                       sizeof(icmp_header_)));
 
-  ssize_t size = kernel_->sendto(send_fd_, &icmp_header_, sizeof(icmp6_hdr), 0,
+  ssize_t size = kernel_->sendto(sock_fd_, &icmp_header_, sizeof(icmp6_hdr), 0,
                                  reinterpret_cast<struct sockaddr*>(&dst_),
                                  sizeof(sockaddr_in6));
 
