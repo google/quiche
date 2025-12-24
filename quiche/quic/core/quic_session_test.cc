@@ -355,6 +355,8 @@ class TestSession : public QuicSession {
     return consumed;
   }
 
+  MOCK_METHOD(bool, ShouldRefuseIncomingStream, (QuicStreamId stream_id),
+              (override));
   MOCK_METHOD(void, OnCanCreateNewOutgoingStream, (bool unidirectional),
               (override));
 
@@ -725,6 +727,18 @@ TEST_P(QuicSessionTestServer, AvailableBidirectionalStreams) {
                   GetNthClientInitiatedBidirectionalId(2)) != nullptr);
   ASSERT_TRUE(session_.GetOrCreateStream(
                   GetNthClientInitiatedBidirectionalId(1)) != nullptr);
+}
+
+TEST_P(QuicSessionTestServer, StreamRefused) {
+  QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(3);
+  if (!GetQuicReloadableFlag(quic_enforce_immediate_goaway)) {
+    ASSERT_TRUE(session_.GetOrCreateStream(stream_id) != nullptr);
+    return;
+  }
+  EXPECT_CALL(session_, ShouldRefuseIncomingStream(stream_id))
+      .WillOnce(Return(true));
+  EXPECT_CALL(*connection_, OnStreamReset(stream_id, _));
+  ASSERT_TRUE(session_.GetOrCreateStream(stream_id) == nullptr);
 }
 
 TEST_P(QuicSessionTestServer, AvailableUnidirectionalStreams) {

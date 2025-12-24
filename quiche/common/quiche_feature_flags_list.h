@@ -40,6 +40,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_disable_resumption, true, t
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_mtu_discovery_at_server, false, false, "If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_server_on_wire_ping, true, true, "If true, enable server retransmittable on wire PING.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_version_rfcv2, false, false, "When true, support RFC9369.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enforce_immediate_goaway, false, false, "If true, QUIC will support sending immediate GOAWAYS and will refuse streams above the limit.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enobufs_blocked, true, true, "If true, ENOBUFS socket errors are reported as socket blocked instead of socket failure.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fin_before_completed_http_headers, false, true, "If true, close the connection with error if FIN is received before finish receiving the whole HTTP headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_timeouts, true, true, "If true, postpone setting handshake timeout to infinite to handshake complete.")

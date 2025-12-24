@@ -2245,6 +2245,16 @@ QuicStream* QuicSession::GetOrCreateStream(const QuicStreamId stream_id) {
     return nullptr;
   }
 
+  if (enforce_immediate_goaway_) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_enforce_immediate_goaway, 1, 3);
+    if (ShouldRefuseIncomingStream(stream_id)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_enforce_immediate_goaway, 2, 3);
+      // Refuse to open the stream.
+      ResetStream(stream_id, QUIC_REFUSED_STREAM);
+      return nullptr;
+    }
+  }
+
   return CreateIncomingStream(stream_id);
 }
 

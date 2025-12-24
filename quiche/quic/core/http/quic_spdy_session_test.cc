@@ -1174,6 +1174,48 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3GoAway) {
   session_->SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway");
 }
 
+TEST_P(QuicSpdySessionTestServer, SendHttp3ImmediateGoAway) {
+  Initialize();
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+
+  CompleteHandshake();
+  if (!session_.has_value()) {
+    FAIL();
+    return;
+  }
+  TestSession& session = *session_;
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session.set_debug_visitor(&debug_visitor);
+
+  EXPECT_CALL(*writer_, WritePacket(_, _, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  if (!GetQuicReloadableFlag(quic_enforce_immediate_goaway)) {
+    // Send max stream id (currently 32 bits).
+    EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 0xfffffffc));
+  } else {
+    EXPECT_CALL(debug_visitor, OnGoAwayFrameSent(/* stream_id = */ 0));
+  }
+  session.SendHttp3GoAway(QUIC_PEER_GOING_AWAY, "Goaway", true);
+  EXPECT_TRUE(session.goaway_sent());
+
+  if (!GetQuicReloadableFlag(quic_enforce_immediate_goaway)) {
+    // New incoming stream is not reset.
+    const QuicStreamId kTestStreamId =
+        GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);
+    EXPECT_CALL(*connection_, OnStreamReset(kTestStreamId, _)).Times(0);
+    EXPECT_TRUE(session.GetOrCreateStream(kTestStreamId));
+    return;
+  }
+  // New incoming stream is refused.
+  const QuicStreamId kTestStreamId =
+      GetNthClientInitiatedBidirectionalStreamId(transport_version(), 0);
+  EXPECT_CALL(*connection_, OnStreamReset(kTestStreamId, _));
+  EXPECT_CALL(*connection_, SendControlFrame(_));
+  EXPECT_FALSE(session.GetOrCreateStream(kTestStreamId));
+}
+
 TEST_P(QuicSpdySessionTestServer, SendHttp3GoAwayAndNoMoreMaxStreams) {
   Initialize();
   if (!VersionIsIetfQuic(transport_version())) {

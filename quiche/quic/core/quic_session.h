@@ -884,6 +884,8 @@ class QUICHE_EXPORT QuicSession
   // Returns nullptr and does error handling if the stream can not be created.
   virtual QuicStream* CreateIncomingStream(QuicStreamId id) = 0;
   virtual QuicStream* CreateIncomingStream(PendingStream* pending) = 0;
+  // Return true if the specified stream should be refused.
+  virtual bool ShouldRefuseIncomingStream(QuicStreamId id) { return false; }
 
   // Return the reserved crypto stream.
   virtual QuicCryptoStream* GetMutableCryptoStream() = 0;
@@ -1057,6 +1059,8 @@ class QUICHE_EXPORT QuicSession
     max_streams_accepted_per_loop_ = max_streams_accepted_per_loop;
   }
 
+  bool enforce_immediate_goaway() const { return enforce_immediate_goaway_; }
+
  private:
   friend class test::QuicSessionPeer;
 
@@ -1211,6 +1215,9 @@ class QUICHE_EXPORT QuicSession
   bool transport_goaway_sent_;
   const bool notify_stream_soon_to_destroy_ =
       GetQuicReloadableFlag(quic_notify_stream_soon_to_destroy);
+
+  const bool enforce_immediate_goaway_ =
+      GetQuicReloadableFlag(quic_enforce_immediate_goaway);
 
   // Whether a transport layer GOAWAY frame has been received.
   // Such a frame only exists in Google QUIC, therefore

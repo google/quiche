@@ -258,6 +258,9 @@ class QUICHE_EXPORT QuicSpdySession
   // before encryption gets established.
   void SendHttp3GoAway(QuicErrorCode error_code, const std::string& reason);
 
+  void SendHttp3GoAway(QuicErrorCode error_code, const std::string& reason,
+                       bool immediate);
+
   QpackEncoder* qpack_encoder();
   QpackDecoder* qpack_decoder();
   QuicHeadersStream* headers_stream() { return headers_stream_; }
@@ -494,6 +497,7 @@ class QUICHE_EXPORT QuicSpdySession
   // ensure that all data streams are QuicSpdyStreams.
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override = 0;
   QuicSpdyStream* CreateIncomingStream(PendingStream* pending) override = 0;
+  bool ShouldRefuseIncomingStream(QuicStreamId id) override;
   // Called to create a new outgoing bidirectional stream.
   virtual QuicSpdyStream* CreateOutgoingBidirectionalStream() = 0;
 
@@ -631,6 +635,8 @@ class QUICHE_EXPORT QuicSpdySession
   }
 
   bool ValidateWebTransportSettingsConsistency();
+
+  QuicStreamId GetStreamIdForHttp3Goaway(bool immediate) const;
 
   std::unique_ptr<QpackDecoder> qpack_decoder_;
   http2::Http2DecoderAdapter h2_deframer_;
