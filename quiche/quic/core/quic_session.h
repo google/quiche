@@ -885,7 +885,7 @@ class QUICHE_EXPORT QuicSession
   virtual QuicStream* CreateIncomingStream(QuicStreamId id) = 0;
   virtual QuicStream* CreateIncomingStream(PendingStream* pending) = 0;
   // Return true if the specified stream should be refused.
-  virtual bool ShouldRefuseIncomingStream(QuicStreamId id) { return false; }
+  virtual bool ShouldRefuseIncomingStream(QuicStreamId) { return false; }
 
   // Return the reserved crypto stream.
   virtual QuicCryptoStream* GetMutableCryptoStream() = 0;
