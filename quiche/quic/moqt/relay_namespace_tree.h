@@ -16,6 +16,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {

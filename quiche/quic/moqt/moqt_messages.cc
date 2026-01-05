@@ -14,11 +14,8 @@
 #include "absl/algorithm/container.h"
 #include "absl/container/btree_map.h"
 #include "absl/status/status.h"
-#include "absl/strings/escaping.h"
 #include "absl/strings/str_cat.h"
-#include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/span.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -316,62 +313,6 @@ std::string MoqtForwardingPreferenceToString(
   QUIC_BUG(quic_bug_bad_moqt_message_type_01)
       << "Unknown preference " << std::to_string(static_cast<int>(preference));
   return "Unknown preference " + std::to_string(static_cast<int>(preference));
-}
-
-TrackNamespace::TrackNamespace(absl::Span<const absl::string_view> elements)
-    : tuple_(elements.begin(), elements.end()) {
-  if (std::size(elements) > kMaxNamespaceElements) {
-    tuple_.clear();
-    QUICHE_BUG(Moqt_namespace_too_large_01)
-        << "Constructing a namespace that is too large.";
-    return;
-  }
-  for (auto it : elements) {
-    length_ += it.size();
-    if (length_ > kMaxFullTrackNameSize) {
-      tuple_.clear();
-      QUICHE_BUG(Moqt_namespace_too_large_02)
-          << "Constructing a namespace that is too large.";
-      return;
-    }
-  }
-}
-
-bool TrackNamespace::InNamespace(const TrackNamespace& other) const {
-  if (tuple_.size() < other.tuple_.size()) {
-    return false;
-  }
-  for (int i = 0; i < other.tuple_.size(); ++i) {
-    if (tuple_[i] != other.tuple_[i]) {
-      return false;
-    }
-  }
-  return true;
-}
-
-void TrackNamespace::AddElement(absl::string_view element) {
-  if (!CanAddElement(element)) {
-    QUICHE_BUG(Moqt_namespace_too_large_03)
-        << "Constructing a namespace that is too large.";
-    return;
-  }
-  length_ += element.length();
-  tuple_.push_back(std::string(element));
-}
-
-std::string TrackNamespace::ToString() const {
-  std::vector<std::string> bits;
-  bits.reserve(tuple_.size());
-  for (absl::string_view raw_bit : tuple_) {
-    bits.push_back(absl::StrCat("\"", absl::CHexEscape(raw_bit), "\""));
-  }
-  return absl::StrCat("{", absl::StrJoin(bits, "::"), "}");
-}
-
-void FullTrackName::set_name(absl::string_view name) {
-  QUIC_BUG_IF(Moqt_name_too_large_03, !CanAddName(name))
-      << "Setting a name that is too large.";
-  name_ = name;
 }
 
 absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
