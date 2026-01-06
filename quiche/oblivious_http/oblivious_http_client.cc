@@ -224,6 +224,9 @@ absl::string_view ChunkedObliviousHttpClient::InitializeResponseCheckpoint(
 
 absl::Status ChunkedObliviousHttpClient::DecryptResponseCheckpoint(
     absl::string_view& response_checkpoint, bool end_stream) {
+  if (chunk_handler_ == nullptr) {
+    return absl::InternalError("Chunk handler is null.");
+  }
   QuicheDataReader reader(response_checkpoint);
   switch (response_current_section_) {
     case ResponseMessageSection::kEnd:
@@ -293,13 +296,12 @@ absl::Status ChunkedObliviousHttpClient::DecryptResponseCheckpoint(
                   response_chunk_counter.GetChunkNonce(), is_final_chunk));
 
           response_chunk_counter.Increment();
-          if (chunk_handler_ == nullptr) {
-            return absl::InternalError("Chunk handler is null.");
-          }
           absl::Status handler_status =
               chunk_handler_->OnDecryptedChunk(decrypted_chunk);
           if (!handler_status.ok()) {
-            return handler_status;
+            return absl::InternalError(absl::StrCat(
+                "Chunk handler failed to process decrypted chunk: ",
+                handler_status.message()));
           }
         }
 
@@ -331,17 +333,18 @@ absl::Status ChunkedObliviousHttpClient::DecryptResponseCheckpoint(
               response_chunk_counter.GetChunkNonce(),
               /*is_final_chunk=*/true));
 
-      if (chunk_handler_ == nullptr) {
-        return absl::InternalError("Chunk handler is null.");
-      }
       absl::Status handler_status =
           chunk_handler_->OnDecryptedChunk(decrypted_chunk);
       if (!handler_status.ok()) {
-        return handler_status;
+        return absl::InternalError(
+            absl::StrCat("Chunk handler failed to process decrypted chunk: ",
+                         handler_status.message()));
       }
       handler_status = chunk_handler_->OnChunksDone();
       if (!handler_status.ok()) {
-        return handler_status;
+        return absl::InternalError(
+            absl::StrCat("Chunk handler failed to process chunks done: ",
+                         handler_status.message()));
       }
       return absl::OkStatus();
     }

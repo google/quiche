@@ -47,7 +47,7 @@ class TestChunkHandler : public ObliviousHttpChunkHandler {
           "OnDecryptedChunk called after OnChunksDone.");
     }
     if (fail_on_decrypted_chunk_) {
-      return absl::InternalError("Failed to decrypt chunk.");
+      return absl::OutOfRangeError("Some custom supplied error.");
     }
     decrypted_chunks_.push_back(std::string(decrypted_chunk));
     return absl::OkStatus();
@@ -59,7 +59,7 @@ class TestChunkHandler : public ObliviousHttpChunkHandler {
           "OnChunksDone called more than once.");
     }
     if (fail_on_chunks_done_) {
-      return absl::InternalError("Failed to handle chunks done.");
+      return absl::OutOfRangeError("Some custom supplied error.");
     }
     on_chunks_done_called_ = true;
     return absl::OkStatus();

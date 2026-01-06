@@ -233,14 +233,15 @@ TEST(ChunkedObliviousHttpGateway, InvalidKeyConfigReturnsInvalidArgument) {
             absl::StatusCode::kInvalidArgument);
 }
 
-TEST(ChunkedObliviousHttpGateway, ChunkHandlerOnChunkErrorPropagates) {
+TEST(ChunkedObliviousHttpGateway,
+     ChunkHandlerOnChunkErrorPropagatesAsInternalError) {
   class FailingChunkHandler : public ObliviousHttpChunkHandler {
    public:
     FailingChunkHandler() = default;
     ~FailingChunkHandler() override = default;
     absl::Status OnDecryptedChunk(
         absl::string_view /*decrypted_chunk*/) override {
-      return absl::InvalidArgumentError("Invalid data");
+      return absl::OutOfRangeError("Some custom supplied error");
     }
     absl::Status OnChunksDone() override {
       return absl::InvalidArgumentError("Invalid data");
@@ -254,10 +255,11 @@ TEST(ChunkedObliviousHttpGateway, ChunkHandlerOnChunkErrorPropagates) {
                                      &encapsulated_request_bytes));
 
   EXPECT_EQ(instance->DecryptRequest(encapsulated_request_bytes, true).code(),
-            absl::StatusCode::kInvalidArgument);
+            absl::StatusCode::kInternal);
 }
 
-TEST(ChunkedObliviousHttpGateway, ChunkHandlerOnChunksDoneErrorPropagates) {
+TEST(ChunkedObliviousHttpGateway,
+     ChunkHandlerOnChunksDoneErrorPropagatesAsInternalError) {
   class FailingChunkHandler : public ObliviousHttpChunkHandler {
    public:
     FailingChunkHandler() = default;
@@ -267,7 +269,7 @@ TEST(ChunkedObliviousHttpGateway, ChunkHandlerOnChunksDoneErrorPropagates) {
       return absl::OkStatus();
     }
     absl::Status OnChunksDone() override {
-      return absl::InvalidArgumentError("Invalid data");
+      return absl::OutOfRangeError("Some custom supplied error");
     }
   };
   FailingChunkHandler chunk_handler;
@@ -278,7 +280,7 @@ TEST(ChunkedObliviousHttpGateway, ChunkHandlerOnChunksDoneErrorPropagates) {
                                      &encapsulated_request_bytes));
 
   EXPECT_EQ(instance->DecryptRequest(encapsulated_request_bytes, true).code(),
-            absl::StatusCode::kInvalidArgument);
+            absl::StatusCode::kInternal);
 }
 
 TEST(ObliviousHttpGateway, TestDecryptingMultipleRequestsWithSingleInstance) {

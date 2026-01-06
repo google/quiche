@@ -171,8 +171,13 @@ absl::Status ChunkedObliviousHttpGateway::DecryptRequestCheckpoint(
                                   ObliviousHttpRequest::DecryptChunk(
                                       *oblivious_http_request_context_, chunk,
                                       /*is_final_chunk=*/false));
-          QUICHE_RETURN_IF_ERROR(
-              chunk_handler_.OnDecryptedChunk(decrypted_chunk));
+          absl::Status handler_status =
+              chunk_handler_.OnDecryptedChunk(decrypted_chunk);
+          if (!handler_status.ok()) {
+            return absl::InternalError(absl::StrCat(
+                "Chunk handler failed to process decrypted chunk: ",
+                handler_status.message()));
+          }
         }
 
         SaveCheckpoint(reader);
@@ -194,8 +199,19 @@ absl::Status ChunkedObliviousHttpGateway::DecryptRequestCheckpoint(
           ObliviousHttpRequest::DecryptChunk(*oblivious_http_request_context_,
                                              reader.PeekRemainingPayload(),
                                              /*is_final_chunk=*/true));
-      QUICHE_RETURN_IF_ERROR(chunk_handler_.OnDecryptedChunk(decrypted_chunk));
-      QUICHE_RETURN_IF_ERROR(chunk_handler_.OnChunksDone());
+      absl::Status handler_status =
+          chunk_handler_.OnDecryptedChunk(decrypted_chunk);
+      if (!handler_status.ok()) {
+        return absl::InternalError(
+            absl::StrCat("Chunk handler failed to process decrypted chunk: ",
+                         handler_status.message()));
+      }
+      handler_status = chunk_handler_.OnChunksDone();
+      if (!handler_status.ok()) {
+        return absl::InternalError(
+            absl::StrCat("Chunk handler failed to process chunks done: ",
+                         handler_status.message()));
+      }
     }
   }
   return absl::OkStatus();
