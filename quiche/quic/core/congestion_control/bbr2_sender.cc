@@ -200,9 +200,7 @@ void Bbr2Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kB206)) {
     params_.startup_full_loss_count = params_.probe_bw_full_loss_count;
   }
-  if (GetQuicReloadableFlag(quic_bbr2_simplify_inflight_hi) &&
-      ContainsQuicTag(connection_options, kBBHI)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_bbr2_simplify_inflight_hi);
+  if (ContainsQuicTag(connection_options, kBBHI)) {
     params_.probe_up_simplify_inflight_hi = true;
     // Simplify inflight_hi is intended as an alternative to ignoring it,
     // so ensure we're not ignoring it.
