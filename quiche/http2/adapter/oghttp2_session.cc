@@ -696,6 +696,10 @@ OgHttp2Session::SendResult OgHttp2Session::SendQueuedFrames() {
   // Serialize and send frames in the queue.
   while (!frames_.empty()) {
     const auto& frame_ptr = frames_.front();
+    if (frame_ptr == nullptr) {
+      frames_.pop_front();
+      continue;
+    }
     FrameAttributeCollector c;
     frame_ptr->Visit(&c);
 
@@ -1960,11 +1964,10 @@ void OgHttp2Session::CloseStream(Http2StreamId stream_id,
     for (auto it = frames_.begin();
          frames_remaining > 0 && it != frames_.end();) {
       if (static_cast<Http2StreamId>((*it)->stream_id()) == stream_id) {
-        it = frames_.erase(it);
+        *it = nullptr;
         --frames_remaining;
-      } else {
-        ++it;
       }
+      ++it;
     }
   }
   if (write_scheduler_.StreamRegistered(stream_id)) {
@@ -2051,9 +2054,11 @@ void OgHttp2Session::PrepareForImmediateGoAway() {
   // TODO(diannahu): Consider informing the visitor of dropped frames. This may
   // mean keeping the frames and invoking a frame-not-sent callback, similar to
   // nghttp2. Could add a closure to each frame in the frames queue.
-  frames_.remove_if([](const auto& frame) {
-    return frame->frame_type() != spdy::SpdyFrameType::RST_STREAM;
-  });
+  for (std::unique_ptr<spdy::SpdyFrameIR>& frame : frames_) {
+    if (frame->frame_type() != spdy::SpdyFrameType::RST_STREAM) {
+      frame = nullptr;
+    }
+  };
 
   if (initial_settings != nullptr) {
     frames_.push_front(std::move(initial_settings));

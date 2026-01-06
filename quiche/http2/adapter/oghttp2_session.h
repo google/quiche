@@ -508,8 +508,9 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   quiche::QuicheLinkedHashMap<Http2StreamId, PendingStreamState>
       pending_streams_;
 
-  // The queue of outbound frames.
-  std::list<std::unique_ptr<spdy::SpdyFrameIR>> frames_;
+  // The queue of outbound frames. May contain nullptr entries for frames that
+  // have been removed from the queue.
+  quiche::QuicheCircularDeque<std::unique_ptr<spdy::SpdyFrameIR>> frames_;
   // Buffered data (connection preface, serialized frames) that has not yet been
   // sent.
   ChunkedBuffer buffered_data_;
