@@ -278,7 +278,7 @@ void QuicConnectionMigrationManager::OnNetworkConnected(
     }
     // `wait_for_new_network_` is true, there was no working network previously.
     // `network` is now the only possible candidate, migrate immediately.
-    MigrateNetworkImmediately(network);
+    StartMigrateNetworkImmediately(network);
   } else {
     // The connection is path degrading.
     QUICHE_DCHECK(connection_->IsPathDegrading());
@@ -359,10 +359,10 @@ void QuicConnectionMigrationManager::OnNetworkDisconnected(
   }
   // Current network is being disconnected, migrate immediately to the
   // alternative network.
-  MigrateNetworkImmediately(new_network);
+  StartMigrateNetworkImmediately(new_network);
 }
 
-void QuicConnectionMigrationManager::MigrateNetworkImmediately(
+void QuicConnectionMigrationManager::StartMigrateNetworkImmediately(
     QuicNetworkHandle network) {
   // There is no choice but to migrate to |network|. If any error encountered,
   // close the session. When migration succeeds:
@@ -402,7 +402,7 @@ void QuicConnectionMigrationManager::MigrateNetworkImmediately(
   Migrate(network, connection_->peer_address(),
           /*close_session_on_error=*/true,
           [this](QuicNetworkHandle network, MigrationResult result) {
-            FinishMigrateNetworkImmediately(network, result);
+            DoneWithMigrateNetworkImmediately(network, result);
           });
 }
 
@@ -418,8 +418,9 @@ QuicConnectionMigrationManager::
 void QuicConnectionMigrationManager::
     PathContextCreationResultDelegateForImmediateMigration::OnCreationSucceeded(
         std::unique_ptr<QuicClientPathValidationContext> context) {
-  migration_manager_->FinishMigrate(std::move(context), close_session_on_error_,
-                                    std::move(migration_callback_));
+  migration_manager_->ContinueMigrating(std::move(context),
+                                        close_session_on_error_,
+                                        std::move(migration_callback_));
 }
 
 void QuicConnectionMigrationManager::
@@ -450,8 +451,8 @@ QuicConnectionMigrationManager::PathContextCreationResultDelegateForProbing::
 void QuicConnectionMigrationManager::
     PathContextCreationResultDelegateForProbing::OnCreationSucceeded(
         std::unique_ptr<QuicClientPathValidationContext> context) {
-  migration_manager_->FinishStartProbing(std::move(probing_callback_),
-                                         std::move(context));
+  migration_manager_->ContinueProbing(std::move(probing_callback_),
+                                      std::move(context));
 }
 
 void QuicConnectionMigrationManager::
@@ -510,7 +511,7 @@ void QuicConnectionMigrationManager::Migrate(
           this, close_session_on_error, std::move(migration_callback)));
 }
 
-void QuicConnectionMigrationManager::FinishMigrateNetworkImmediately(
+void QuicConnectionMigrationManager::DoneWithMigrateNetworkImmediately(
     QuicNetworkHandle network, MigrationResult result) {
   pending_migrate_network_immediately_ = false;
   if (result == MigrationResult::FAILURE) {
@@ -527,7 +528,7 @@ void QuicConnectionMigrationManager::FinishMigrateNetworkImmediately(
       QuicTimeDelta::FromSeconds(kMinRetryTimeForDefaultNetworkSecs));
 }
 
-void QuicConnectionMigrationManager::FinishMigrate(
+void QuicConnectionMigrationManager::ContinueMigrating(
     std::unique_ptr<QuicClientPathValidationContext> path_context,
     bool close_session_on_error, MigrationCallback callback) {
   // Migrate to the new socket.
@@ -703,14 +704,14 @@ void QuicConnectionMigrationManager::StartMigrateSessionOnWriteError(
   Migrate(new_network, connection_->peer_address(),
           /*close_session_on_error=*/false,
           [this](QuicNetworkHandle new_network, MigrationResult rv) {
-            FinishMigrateSessionOnWriteError(new_network, rv);
+            DoneWithMigratingSessionOnWriteError(new_network, rv);
           });
   if (debug_visitor_) {
     debug_visitor_->OnConnectionMigrationStarted();
   }
 }
 
-void QuicConnectionMigrationManager::FinishMigrateSessionOnWriteError(
+void QuicConnectionMigrationManager::DoneWithMigratingSessionOnWriteError(
     QuicNetworkHandle new_network, MigrationResult result) {
   pending_migrate_session_on_write_error_ = false;
   if (result == MigrationResult::FAILURE) {
@@ -891,15 +892,13 @@ void QuicConnectionMigrationManager::TryMigrateBackToDefaultNetwork(
         retry_migrate_back_count_);
   }
   if (!path_context_factory_) {
-    FinishTryMigrateBackToDefaultNetwork(
-        next_try_timeout, ProbingResult::DISABLED_WITH_IDLE_SESSION);
+    StopMigratingBackToDefaultNetwork();
     return;
   }
   if (MaybeCloseIdleSession(
           /*has_write_error=*/false,
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET)) {
-    FinishTryMigrateBackToDefaultNetwork(
-        next_try_timeout, ProbingResult::DISABLED_WITH_IDLE_SESSION);
+    StopMigratingBackToDefaultNetwork();
     return;
   }
   if (migration_disabled_) {
@@ -909,8 +908,7 @@ void QuicConnectionMigrationManager::TryMigrateBackToDefaultNetwork(
     OnMigrationFailure(
         QuicConnectionMigrationStatus::MIGRATION_STATUS_DISABLED_BY_CONFIG,
         "Migration disabled by config");
-    FinishTryMigrateBackToDefaultNetwork(next_try_timeout,
-                                         ProbingResult::DISABLED_BY_CONFIG);
+    StopMigratingBackToDefaultNetwork();
     return;
   }
   // Start probe default network immediately, if this observer is probing
@@ -919,23 +917,22 @@ void QuicConnectionMigrationManager::TryMigrateBackToDefaultNetwork(
   // immediately.
   StartProbing(
       [this, next_try_timeout](ProbingResult rv) {
-        FinishTryMigrateBackToDefaultNetwork(next_try_timeout, rv);
+        if (rv != ProbingResult::PENDING) {
+          StopMigratingBackToDefaultNetwork();
+          return;
+        }
+        ++retry_migrate_back_count_;
+        migrate_back_to_default_timer_->Set(clock_->ApproximateNow() +
+                                            next_try_timeout);
       },
       default_network_, connection_->peer_address());
 }
 
-void QuicConnectionMigrationManager::FinishTryMigrateBackToDefaultNetwork(
-    QuicTimeDelta next_try_timeout, ProbingResult result) {
-  if (result != ProbingResult::PENDING) {
-    // Session is not allowed to migrate, mark session as going away, cancel
-    // migrate back to default timer.
-    session_->StartDraining();
-    CancelMigrateBackToDefaultNetworkTimer();
-    return;
-  }
-  ++retry_migrate_back_count_;
-  migrate_back_to_default_timer_->Set(clock_->ApproximateNow() +
-                                      next_try_timeout);
+void QuicConnectionMigrationManager::StopMigratingBackToDefaultNetwork() {
+  // Session is not allowed to migrate, mark session as going away, cancel
+  // migrate back to default timer.
+  session_->StartDraining();
+  CancelMigrateBackToDefaultNetworkTimer();
 }
 
 void QuicConnectionMigrationManager::StartProbing(
@@ -959,7 +956,7 @@ void QuicConnectionMigrationManager::StartProbing(
           this, std::move(probing_callback)));
 }
 
-void QuicConnectionMigrationManager::FinishStartProbing(
+void QuicConnectionMigrationManager::ContinueProbing(
     StartProbingCallback probing_callback,
     std::unique_ptr<QuicClientPathValidationContext> path_context) {
   session_->PrepareForProbingOnPath(*path_context);

@@ -309,10 +309,10 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
   //    default network;
   //  - If now on the default network, cancel timer to migrate back to default
   //    network.
-  void MigrateNetworkImmediately(QuicNetworkHandle network);
+  void StartMigrateNetworkImmediately(QuicNetworkHandle network);
 
-  void FinishMigrateNetworkImmediately(QuicNetworkHandle network,
-                                       MigrationResult result);
+  void DoneWithMigrateNetworkImmediately(QuicNetworkHandle network,
+                                         MigrationResult result);
 
   // Migrates session over to use |peer_address| and |network|.
   // If |network| is kInvalidNetworkHandle, default network is used. If
@@ -322,7 +322,7 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
                bool close_session_on_error,
                MigrationCallback migration_callback);
   // Helper to finish session migration once the |path_context| is provided.
-  void FinishMigrate(
+  void ContinueMigrating(
       std::unique_ptr<QuicClientPathValidationContext> path_context,
       bool close_session_on_error, MigrationCallback callback);
 
@@ -331,22 +331,21 @@ class QUICHE_EXPORT QuicConnectionMigrationManager {
 
   void TryMigrateBackToDefaultNetwork(QuicTimeDelta next_try_timeout);
 
-  void FinishTryMigrateBackToDefaultNetwork(QuicTimeDelta next_try_timeout,
-                                            ProbingResult result);
+  void StopMigratingBackToDefaultNetwork();
 
   // Migration might happen asynchronously (async socket creation or no new
   // network).
   void StartMigrateSessionOnWriteError(QuicPacketWriter* writer);
 
-  void FinishMigrateSessionOnWriteError(QuicNetworkHandle new_network,
-                                        MigrationResult result);
+  void DoneWithMigratingSessionOnWriteError(QuicNetworkHandle new_network,
+                                            MigrationResult result);
 
   void MaybeProbeAndMigrateToAlternateNetworkOnPathDegrading();
 
   void StartProbing(StartProbingCallback probing_callback,
                     QuicNetworkHandle network,
                     const QuicSocketAddress& peer_address);
-  void FinishStartProbing(
+  void ContinueProbing(
       StartProbingCallback probing_callback,
       std::unique_ptr<QuicClientPathValidationContext> path_context);
 
