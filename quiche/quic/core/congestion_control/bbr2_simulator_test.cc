@@ -451,7 +451,6 @@ TEST_F(Bbr2DefaultTopologyTest, NormalStartupB207andB205) {
 
 // Add extra_acked to CWND in STARTUP and exit STARTUP on a persistent queue.
 TEST_F(Bbr2DefaultTopologyTest, NormalStartupBB2S) {
-  SetQuicReloadableFlag(quic_bbr2_probe_two_rounds, true);
   SetConnectionOption(kBB2S);
   DefaultTopologyParams params;
   CreateNetwork(params);
@@ -1282,7 +1281,6 @@ TEST_F(Bbr2DefaultTopologyTest,
 
 // Test Bbr2's reaction to a 100x bandwidth increase during a transfer with BB2U
 TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseBB2U)) {
-  SetQuicReloadableFlag(quic_bbr2_probe_two_rounds, true);
   SetConnectionOption(kBB2U);
   DefaultTopologyParams params;
   params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
@@ -1316,7 +1314,6 @@ TEST_F(Bbr2DefaultTopologyTest, QUIC_SLOW_TEST(BandwidthIncreaseBB2U)) {
 // in the presence of ACK aggregation.
 TEST_F(Bbr2DefaultTopologyTest,
        QUIC_SLOW_TEST(BandwidthIncreaseBB2UAggregation)) {
-  SetQuicReloadableFlag(quic_bbr2_probe_two_rounds, true);
   SetConnectionOption(kBB2U);
   DefaultTopologyParams params;
   params.local_link.bandwidth = QuicBandwidth::FromKBitsPerSecond(15000);
@@ -1356,7 +1353,6 @@ TEST_F(Bbr2DefaultTopologyTest,
 // and BBHI in the presence of ACK aggregation.
 TEST_F(Bbr2DefaultTopologyTest,
        QUIC_SLOW_TEST(BandwidthIncreaseBB2UandBBHIAggregation)) {
-  SetQuicReloadableFlag(quic_bbr2_probe_two_rounds, true);
   SetConnectionOption(kBB2U);
   SetConnectionOption(kBBHI);
   DefaultTopologyParams params;
