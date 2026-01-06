@@ -279,6 +279,33 @@ absl::Status EncodeFields(absl::Span<BinaryHttpMessage::FieldView> fields,
   return absl::OkStatus();
 }
 
+// Initializes the checkpoint based on the provided data and any buffered data.
+// If the buffer has data, the new data is appended to the buffer.
+absl::string_view InitializeChunkedDecodingCheckpoint(absl::string_view data,
+                                                      std::string& buffer) {
+  absl::string_view checkpoint = data;
+  // Prepend buffered data if present.
+  if (!buffer.empty()) {
+    absl::StrAppend(&buffer, data);
+    checkpoint = buffer;
+  }
+  return checkpoint;
+}
+
+// Updates the checkpoint based on the current position of the reader.
+void UpdateChunkedDecodingCheckpoint(const QuicheDataReader& reader,
+                                     absl::string_view& checkpoint) {
+  checkpoint = reader.PeekRemainingPayload();
+}
+
+// Buffers the checkpoint.
+void BufferChunkedDecodingCheckpoint(absl::string_view checkpoint,
+                                     std::string& buffer) {
+  if (buffer != checkpoint) {
+    buffer.assign(checkpoint);
+  }
+}
+
 void BinaryHttpMessage::Fields::AddField(BinaryHttpMessage::Field field) {
   fields_.push_back(std::move(field));
 }
@@ -502,7 +529,7 @@ absl::StatusOr<BinaryHttpRequest> BinaryHttpRequest::Create(
 
 absl::Status
 BinaryHttpRequest::IndeterminateLengthDecoder::DecodeContentTerminatedSection(
-    QuicheDataReader& reader) {
+    QuicheDataReader& reader, absl::string_view& checkpoint) {
   uint64_t length_or_content_terminator;
   do {
     if (!reader.ReadVarInt62(&length_or_content_terminator)) {
@@ -558,8 +585,8 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeContentTerminatedSection(
       }
     }
     // Either a section was successfully decoded or a content terminator was
-    // encountered, save the checkpoint.
-    SaveCheckpoint(reader);
+    // encountered, update the checkpoint.
+    UpdateChunkedDecodingCheckpoint(reader, checkpoint);
   } while (length_or_content_terminator != kContentTerminator);
   return absl::OkStatus();
 }
@@ -569,8 +596,8 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeContentTerminatedSection(
 // return are errors.
 absl::Status
 BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
-    bool end_stream) {
-  QuicheDataReader reader(checkpoint_view_);
+    bool end_stream, absl::string_view& checkpoint) {
+  QuicheDataReader reader(checkpoint);
   switch (current_section_) {
     case IndeterminateLengthMessageSection::kEnd:
       return absl::InternalError("Decoder is invalid.");
@@ -597,12 +624,13 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
         return absl::InternalError(absl::StrCat(
             "Failed to handle control data: ", section_status.message()));
       }
-      SaveCheckpoint(reader);
+      UpdateChunkedDecodingCheckpoint(reader, checkpoint);
       current_section_ = IndeterminateLengthMessageSection::kHeader;
     }
       ABSL_FALLTHROUGH_INTENDED;
     case IndeterminateLengthMessageSection::kHeader: {
-      const absl::Status status = DecodeContentTerminatedSection(reader);
+      const absl::Status status =
+          DecodeContentTerminatedSection(reader, checkpoint);
       if (!status.ok()) {
         return status;
       }
@@ -616,13 +644,10 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
     }
       ABSL_FALLTHROUGH_INTENDED;
     case IndeterminateLengthMessageSection::kBody: {
-      if (!reader.IsDoneReading()) {
-        maybe_truncated_ = false;
-      }
       // Body and trailers truncation is valid only if:
       // 1. There is no data to read after the headers section.
       // 2. This is signaled as the last piece of data (end_stream).
-      if (maybe_truncated_ && end_stream) {
+      if (reader.IsDoneReading() && end_stream) {
         absl::Status section_status =
             message_section_handler_.OnBodyChunksDone();
         if (!section_status.ok()) {
@@ -637,7 +662,8 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
         return absl::OkStatus();
       }
 
-      absl::Status section_status = DecodeContentTerminatedSection(reader);
+      absl::Status section_status =
+          DecodeContentTerminatedSection(reader, checkpoint);
       if (!section_status.ok()) {
         return section_status;
       }
@@ -647,18 +673,13 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
             "Failed to handle body chunks done: ", section_status.message()));
       }
       current_section_ = IndeterminateLengthMessageSection::kTrailer;
-      // Reset the truncation flag before entering the trailers section.
-      maybe_truncated_ = true;
     }
       ABSL_FALLTHROUGH_INTENDED;
     case IndeterminateLengthMessageSection::kTrailer: {
-      if (!reader.IsDoneReading()) {
-        maybe_truncated_ = false;
-      }
       // Trailers truncation is valid only if:
       // 1. There is no data to read after the body section.
       // 2. This is signaled as the last piece of data (end_stream).
-      if (maybe_truncated_ && end_stream) {
+      if (reader.IsDoneReading() && end_stream) {
         const absl::Status section_status =
             message_section_handler_.OnTrailersDone();
         if (!section_status.ok()) {
@@ -668,7 +689,8 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
         return absl::OkStatus();
       }
 
-      absl::Status section_status = DecodeContentTerminatedSection(reader);
+      absl::Status section_status =
+          DecodeContentTerminatedSection(reader, checkpoint);
       if (!section_status.ok()) {
         return section_status;
       }
@@ -693,25 +715,15 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
       "Unexpected IndeterminateLengthMessageSection value.");
 }
 
-void BinaryHttpRequest::IndeterminateLengthDecoder::InitializeCheckpoint(
-    absl::string_view data) {
-  checkpoint_view_ = data;
-  // Prepend buffered data if present. This is the data from a previous call to
-  // Decode that could not finish because it needed this new data.
-  if (!buffer_.empty()) {
-    absl::StrAppend(&buffer_, data);
-    checkpoint_view_ = buffer_;
-  }
-}
-
 absl::Status BinaryHttpRequest::IndeterminateLengthDecoder::Decode(
     absl::string_view data, bool end_stream) {
   if (current_section_ == IndeterminateLengthMessageSection::kEnd) {
     return absl::InternalError("Decoder is invalid.");
   }
 
-  InitializeCheckpoint(data);
-  absl::Status status = DecodeCheckpointData(end_stream);
+  absl::string_view checkpoint =
+      InitializeChunkedDecodingCheckpoint(data, buffer_);
+  absl::Status status = DecodeCheckpointData(end_stream, checkpoint);
   if (end_stream) {
     current_section_ = IndeterminateLengthMessageSection::kEnd;
     buffer_.clear();
@@ -723,7 +735,7 @@ absl::Status BinaryHttpRequest::IndeterminateLengthDecoder::Decode(
     return status;
   }
   if (absl::IsOutOfRange(status)) {
-    BufferCheckpoint();
+    BufferChunkedDecodingCheckpoint(checkpoint, buffer_);
     return absl::OkStatus();
   }
   if (!status.ok()) {
