@@ -1183,7 +1183,6 @@ TEST_P(QuicSpdySessionTestServer, SendHttp3ImmediateGoAway) {
   CompleteHandshake();
   if (!session_.has_value()) {
     FAIL();
-    return;
   }
   TestSession& session = *session_;
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
