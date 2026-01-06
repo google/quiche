@@ -4,8 +4,13 @@
 
 #include "quiche/quic/moqt/tools/moqt_server.h"
 
+#include <utility>
+
+#include "absl/base/nullability.h"
 #include "absl/memory/memory.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/http/web_transport_only_server_session.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_session.h"
@@ -16,14 +21,18 @@
 #include "quiche/quic/tools/web_transport_only_backend.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/quiche_ip_address.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt::test {
 
 class MoqtServerPeer {
  public:
-  static quic::WebTransportOnlyBackend* backend(MoqtServer& server) {
-    return &server.backend_;
+  static absl::StatusOr<quic::WebTransportConnectResponse> CallHandlerFactory(
+      MoqtServer& server, webtransport::Session* session,
+      const quic::WebTransportIncomingRequestDetails& details) {
+    return server.dispatcher_.parameters().handler_factory(session, details);
   }
 };
 
@@ -42,7 +51,7 @@ class MoqtServerTest : public quic::test::QuicTest {
     quiche::QuicheIpAddress bind_address;
     bind_address.FromString("127.0.0.1");
     // This will create an event loop that makes alarm factories.
-    EXPECT_TRUE(server_.CreateUDPSocketAndListen(
+    QUICHE_EXPECT_OK(server_.CreateUDPSocketAndListen(
         quic::QuicSocketAddress(bind_address, 0)));
   }
 
@@ -55,9 +64,12 @@ class MoqtServerTest : public quic::test::QuicTest {
 TEST_F(MoqtServerTest, NewSessionHasAlarmFactory) {
   quiche::HttpHeaderBlock headers;
   headers.AppendValueOrAddHeader(":path", "/foo");
-  quic::WebTransportOnlyBackend::WebTransportResponse response =
-      MoqtServerPeer::backend(server_)->ProcessWebTransportRequest(
-          headers, &mock_session_);
+  absl::StatusOr<quic::WebTransportConnectResponse> response =
+      MoqtServerPeer::CallHandlerFactory(
+          server_, &mock_session_,
+          quic::WebTransportIncomingRequestDetails{.headers =
+                                                       std::move(headers)});
+  QUICHE_EXPECT_OK(response.status());
   ASSERT_NE(session_, nullptr);
   ASSERT_NE(MoqtSessionPeer::GetAlarmFactory(session_), nullptr);
   auto delegate = new MockAlarmDelegate();

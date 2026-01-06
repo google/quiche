@@ -8,14 +8,20 @@
 
 #include <memory>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_source.h"
+#include "quiche/quic/core/crypto/quic_crypto_server_config.h"
+#include "quiche/quic/core/deterministic_connection_id_generator.h"
+#include "quiche/quic/core/http/web_transport_only_dispatcher.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/io/quic_server_io_harness.h"
+#include "quiche/quic/core/io/socket.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_version_manager.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/quic/tools/quic_server.h"
-#include "quiche/quic/tools/web_transport_only_backend.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
 
@@ -40,18 +46,28 @@ class QUICHE_EXPORT MoqtServer {
   explicit MoqtServer(std::unique_ptr<quic::ProofSource> proof_source,
                       MoqtIncomingSessionCallback callback);
 
-  bool CreateUDPSocketAndListen(const quic::QuicSocketAddress& address) {
-    return server_.CreateUDPSocketAndListen(address);
-  }
-  void WaitForEvents() { server_.WaitForEvents(); }
-  void HandleEventsForever() { server_.HandleEventsForever(); }
-  quic::QuicEventLoop* event_loop() { return server_.event_loop(); }
-  int port() { return server_.port(); }
+  MoqtServer(const MoqtServer&) = delete;
+  MoqtServer(MoqtServer&&) = delete;
+  MoqtServer& operator=(const MoqtServer&) = delete;
+  MoqtServer& operator=(MoqtServer&&) = delete;
+
+  absl::Status CreateUDPSocketAndListen(const quic::QuicSocketAddress& address);
+  void WaitForEvents();
+  void HandleEventsForever();
+  quic::QuicEventLoop* event_loop() { return event_loop_.get(); }
+  int port() { return io_->local_address().port(); }
 
  private:
   friend class test::MoqtServerPeer;
-  quic::WebTransportOnlyBackend backend_;
-  quic::QuicServer server_;
+  quic::QuicConfig config_;
+  quic::QuicCryptoServerConfig crypto_config_;
+  quic::QuicVersionManager version_manager_;
+  quic::DeterministicConnectionIdGenerator connection_id_generator_;
+  std::unique_ptr<quic::QuicEventLoop> event_loop_;
+  quic::WebTransportOnlyDispatcher dispatcher_;
+
+  quic::OwnedSocketFd fd_;
+  std::unique_ptr<quic::QuicServerIoHarness> io_;
 };
 
 }  // namespace moqt

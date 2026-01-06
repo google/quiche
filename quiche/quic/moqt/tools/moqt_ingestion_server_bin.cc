@@ -264,8 +264,10 @@ int main(int argc, char** argv) {
   quiche::QuicheIpAddress bind_address;
   QUICHE_CHECK(bind_address.FromString(
       quiche::GetQuicheCommandLineFlag(FLAGS_bind_address)));
-  server.CreateUDPSocketAndListen(quic::QuicSocketAddress(
-      bind_address, quiche::GetQuicheCommandLineFlag(FLAGS_port)));
+  absl::Status socket_status =
+      server.CreateUDPSocketAndListen(quic::QuicSocketAddress(
+          bind_address, quiche::GetQuicheCommandLineFlag(FLAGS_port)));
+  QUICHE_CHECK_OK(socket_status);
   server.HandleEventsForever();
 
   return 0;

@@ -8,10 +8,11 @@
 #include <string>
 #include <utility>
 
-#include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "quiche/quic/tools/quic_backend_response.h"
 #include "quiche/common/http/http_header_block.h"
+#include "quiche/common/http/status_code_mapping.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic {
@@ -45,24 +46,14 @@ WebTransportOnlyBackend::ProcessWebTransportRequest(
 
   absl::StatusOr<std::unique_ptr<webtransport::SessionVisitor>> processed =
       callback_(path->second, session);
-  switch (processed.status().code()) {
-    case absl::StatusCode::kOk:
-      response.response_headers[":status"] = "200";
-      response.visitor = *std::move(processed);
-      return response;
-    case absl::StatusCode::kNotFound:
-      response.response_headers[":status"] = "404";
-      return response;
-    case absl::StatusCode::kInvalidArgument:
-      response.response_headers[":status"] = "400";
-      return response;
-    case absl::StatusCode::kResourceExhausted:
-      response.response_headers[":status"] = "429";
-      return response;
-    default:
-      response.response_headers[":status"] = "500";
-      return response;
+  if (!processed.ok()) {
+    response.response_headers[":status"] =
+        absl::StrCat(quiche::StatusToHttpStatusCode(processed.status()));
+    return response;
   }
+  response.response_headers[":status"] = "200";
+  response.visitor = *std::move(processed);
+  return response;
 }
 
 }  // namespace quic

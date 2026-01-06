@@ -48,17 +48,17 @@ MoqtRelay::MoqtRelay(std::unique_ptr<quic::ProofSource> proof_source,
     : client_event_loop_(client_event_loop),
       // TODO(martinduke): Extend MoqtServer so that partial objects can be
       // received.
-      server_(std::make_unique<MoqtServer>(std::move(proof_source),
-                                           [this](absl::string_view path) {
-                                             return IncomingSessionHandler(
-                                                 path);
-                                           })) {
+      server_(std::make_unique<MoqtServer>(
+          std::move(proof_source), [this](absl::string_view path) {
+            return IncomingSessionHandler(path);
+          })) {
   quiche::QuicheIpAddress bind_ip_address;
   QUICHE_CHECK(bind_ip_address.FromString(bind_address));
   // CreateUDPSocketAndListen() creates the event loop that we will pass to
   // MoqtClient.
-  server_->CreateUDPSocketAndListen(
+  absl::Status socket_status = server_->CreateUDPSocketAndListen(
       quic::QuicSocketAddress(bind_ip_address, bind_port));
+  QUICHE_CHECK_OK(socket_status);
   if (!default_upstream.empty()) {
     quic::QuicUrl url(default_upstream, "https");
     if (client_event_loop == nullptr) {
