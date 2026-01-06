@@ -60,6 +60,7 @@ class QUICHE_EXPORT QuicGenericStream : public QuicStream {
                        id, session->connection()->perspective(),
                        session->IsIncomingStream(id), session->version())),
         adapter_(session, this, sequencer(), std::nullopt) {
+    sequencer()->set_level_triggered(true);
     adapter_.SetPriority(webtransport::StreamPriority{0, 0});
   }
 

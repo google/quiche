@@ -128,6 +128,7 @@ void WebTransportStreamAdapter::AbruptlyTerminate(absl::Status error) {
 }
 
 size_t WebTransportStreamAdapter::ReadableBytes() const {
+  QUICHE_DCHECK(sequencer_->level_triggered());
   return sequencer_->ReadableBytes();
 }
 
