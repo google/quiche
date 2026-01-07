@@ -12,6 +12,7 @@
 #include "quiche/common/platform/api/quiche_test.h"
 
 using ::testing::ElementsAre;
+using ::testing::IsEmpty;
 
 namespace quiche {
 namespace test {
@@ -23,10 +24,19 @@ class ValueProxyPeer {
   }
 };
 
-std::pair<absl::string_view, absl::string_view> Pair(absl::string_view k,
-                                                     absl::string_view v) {
+using HeaderField = std::pair<absl::string_view, absl::string_view>;
+
+HeaderField Pair(absl::string_view k, absl::string_view v) {
   return std::make_pair(k, v);
 }
+
+struct Gatherer {
+  void operator()(absl::string_view name, absl::string_view value) {
+    fields.push_back({name, value});
+  }
+
+  std::vector<HeaderField> fields;
+};
 
 // This test verifies that HttpHeaderBlock behaves correctly when empty.
 TEST(HttpHeaderBlockTest, EmptyBlock) {
@@ -39,6 +49,12 @@ TEST(HttpHeaderBlockTest, EmptyBlock) {
 
   // Should have no effect.
   block.erase("bar");
+
+  Gatherer g;
+  block.ForEach(g);
+  EXPECT_THAT(g.fields, IsEmpty());
+
+  EXPECT_THAT(block, IsEmpty());
 }
 
 TEST(HttpHeaderBlockTest, KeyMemoryReclaimedOnLookup) {
@@ -74,13 +90,21 @@ TEST(HttpHeaderBlockTest, KeyMemoryReclaimedOnLookup) {
 // This test verifies that headers can be set in a variety of ways.
 TEST(HttpHeaderBlockTest, AddHeaders) {
   HttpHeaderBlock block;
-  block["foo"] = std::string(300, 'x');
+  const std::string foo_value = std::string(300, 'x');
+  block["foo"] = foo_value;
   block["bar"] = "baz";
   block["qux"] = "qux1";
   block["qux"] = "qux2";
   block.insert(std::make_pair("key", "value"));
 
-  EXPECT_EQ(Pair("foo", std::string(300, 'x')), *block.find("foo"));
+  Gatherer g;
+  block.ForEach(g);
+  EXPECT_THAT(
+      g.fields,
+      ElementsAre(HeaderField{"foo", foo_value}, HeaderField{"bar", "baz"},
+                  HeaderField{"qux", "qux2"}, HeaderField{"key", "value"}));
+
+  EXPECT_EQ(Pair("foo", foo_value), *block.find("foo"));
   EXPECT_EQ("baz", block["bar"]);
   std::string qux("qux");
   EXPECT_EQ("qux2", block[qux]);
@@ -90,6 +114,13 @@ TEST(HttpHeaderBlockTest, AddHeaders) {
 
   block.erase("key");
   EXPECT_EQ(block.end(), block.find("key"));
+
+  g = {};
+  block.ForEach(g);
+  ASSERT_EQ(g.fields.size(), 3);
+  EXPECT_THAT(g.fields, ElementsAre(HeaderField{"foo", foo_value},
+                                    HeaderField{"bar", "baz"},
+                                    HeaderField{"qux", "qux2"}));
 }
 
 // This test verifies that HttpHeaderBlock can be copied using Clone().
@@ -198,6 +229,34 @@ TEST(HttpHeaderBlockTest, AppendHeaders) {
   EXPECT_EQ(std::string("h3v2\0h3v3", 9), block["h3"]);
   EXPECT_EQ("singleton", block["h4"]);
   EXPECT_EQ(std::string("yummy\0scrumptious", 17), block["set-cookie"]);
+
+  // Iterating over the block yields field names and consolidated values.
+  EXPECT_THAT(
+      block,
+      ElementsAre(
+          HeaderField{"foo", "baz"},
+          HeaderField{"cookie", "key1=value1; key2=value2; key3=value3"},
+          HeaderField{"h1", std::string("h1v1\0h1v2\0h1v3", 14)},
+          HeaderField{"h2", std::string("h2v1\0h2v2\0h2v3", 14)},
+          HeaderField{"h3", std::string("h3v2\0h3v3", 9)},
+          HeaderField{"h4", "singleton"},
+          HeaderField{"set-cookie", std::string("yummy\0scrumptious", 17)}));
+
+  Gatherer g;
+  block.ForEach(g);
+  // Iterating with ForEach yields each name/value pair individually.
+  EXPECT_THAT(g.fields,
+              ElementsAre(HeaderField{"foo", "baz"},
+                          HeaderField{"cookie", "key1=value1"},
+                          HeaderField{"cookie", "key2=value2"},
+                          HeaderField{"cookie", "key3=value3"},
+                          HeaderField{"h1", "h1v1"}, HeaderField{"h1", "h1v2"},
+                          HeaderField{"h1", "h1v3"}, HeaderField{"h2", "h2v1"},
+                          HeaderField{"h2", "h2v2"}, HeaderField{"h2", "h2v3"},
+                          HeaderField{"h3", "h3v2"}, HeaderField{"h3", "h3v3"},
+                          HeaderField{"h4", "singleton"},
+                          HeaderField{"set-cookie", "yummy"},
+                          HeaderField{"set-cookie", "scrumptious"}));
 }
 
 TEST(HttpHeaderBlockTest, CompareValueToStringPiece) {

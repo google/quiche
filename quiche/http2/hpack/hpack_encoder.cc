@@ -20,7 +20,10 @@
 #include "quiche/http2/hpack/huffman/hpack_huffman_encoder.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_feature_flags_list.h"
 
 namespace spdy {
 
@@ -98,22 +101,43 @@ std::string HpackEncoder::EncodeHeaderBlock(
   // Separate header set into pseudo-headers and regular headers.
   Representations pseudo_headers;
   Representations regular_headers;
-  bool found_cookie = false;
-  for (const auto& header : header_set) {
-    if (!found_cookie && header.first == "cookie") {
-      // Note that there can only be one "cookie" header, because header_set is
-      // a map.
-      found_cookie = true;
-      if (crumble_cookies_) {
-        CookieToCrumbs(header, &regular_headers);
+  if (GetQuicheReloadableFlag(http2_avoid_decompose_representation)) {
+    QUICHE_RELOADABLE_FLAG_COUNT_N(http2_avoid_decompose_representation, 1, 4);
+    header_set.ForEach(
+        [&pseudo_headers, &regular_headers, crumble_cookies = crumble_cookies_](
+            absl::string_view name, absl::string_view value) {
+          QUICHE_RELOADABLE_FLAG_COUNT_N(http2_avoid_decompose_representation,
+                                         2, 4);
+          if (name == "cookie") {
+            if (crumble_cookies) {
+              CookieToCrumbs({name, value}, &regular_headers);
+            } else {
+              regular_headers.push_back({name, value});
+            }
+          } else if (!name.empty() && name[0] == kPseudoHeaderPrefix) {
+            pseudo_headers.push_back({name, value});
+          } else {
+            regular_headers.push_back({name, value});
+          }
+        });
+  } else {
+    bool found_cookie = false;
+    for (const auto& header : header_set) {
+      if (!found_cookie && header.first == "cookie") {
+        // Note that there can only be one "cookie" header, because header_set
+        // is a map.
+        found_cookie = true;
+        if (crumble_cookies_) {
+          CookieToCrumbs(header, &regular_headers);
+        } else {
+          DecomposeRepresentation(header, &regular_headers);
+        }
+      } else if (!header.first.empty() &&
+                 header.first[0] == kPseudoHeaderPrefix) {
+        DecomposeRepresentation(header, &pseudo_headers);
       } else {
         DecomposeRepresentation(header, &regular_headers);
       }
-    } else if (!header.first.empty() &&
-               header.first[0] == kPseudoHeaderPrefix) {
-      DecomposeRepresentation(header, &pseudo_headers);
-    } else {
-      DecomposeRepresentation(header, &regular_headers);
     }
   }
 
@@ -320,23 +344,43 @@ class HpackEncoder::Encoderator : public ProgressiveEncoder {
 HpackEncoder::Encoderator::Encoderator(
     const quiche::HttpHeaderBlock& header_set, HpackEncoder* encoder)
     : encoder_(encoder), has_next_(true) {
-  // Separate header set into pseudo-headers and regular headers.
-  bool found_cookie = false;
-  for (const auto& header : header_set) {
-    if (!found_cookie && header.first == "cookie") {
-      // Note that there can only be one "cookie" header, because header_set
-      // is a map.
-      found_cookie = true;
-      if (encoder_->crumble_cookies_) {
-        CookieToCrumbs(header, &regular_headers_);
+  if (GetQuicheReloadableFlag(http2_avoid_decompose_representation)) {
+    QUICHE_RELOADABLE_FLAG_COUNT_N(http2_avoid_decompose_representation, 3, 4);
+    header_set.ForEach([this](absl::string_view name, absl::string_view value) {
+      QUICHE_RELOADABLE_FLAG_COUNT_N(http2_avoid_decompose_representation, 4,
+                                     4);
+      if (name == "cookie") {
+        if (encoder_->crumble_cookies_) {
+          CookieToCrumbs({name, value}, &regular_headers_);
+        } else {
+          regular_headers_.push_back({name, value});
+        }
+      } else if (!name.empty() && name[0] == kPseudoHeaderPrefix) {
+        pseudo_headers_.push_back({name, value});
+      } else {
+        regular_headers_.push_back({name, value});
+      }
+    });
+
+  } else {
+    // Separate header set into pseudo-headers and regular headers.
+    bool found_cookie = false;
+    for (const auto& header : header_set) {
+      if (!found_cookie && header.first == "cookie") {
+        // Note that there can only be one "cookie" header, because header_set
+        // is a map.
+        found_cookie = true;
+        if (encoder_->crumble_cookies_) {
+          CookieToCrumbs(header, &regular_headers_);
+        } else {
+          DecomposeRepresentation(header, &regular_headers_);
+        }
+      } else if (!header.first.empty() &&
+                 header.first[0] == kPseudoHeaderPrefix) {
+        DecomposeRepresentation(header, &pseudo_headers_);
       } else {
         DecomposeRepresentation(header, &regular_headers_);
       }
-    } else if (!header.first.empty() &&
-               header.first[0] == kPseudoHeaderPrefix) {
-      DecomposeRepresentation(header, &pseudo_headers_);
-    } else {
-      DecomposeRepresentation(header, &regular_headers_);
     }
   }
   header_it_ = std::make_unique<RepresentationIterator>(pseudo_headers_,

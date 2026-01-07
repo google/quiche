@@ -7292,8 +7292,13 @@ TEST(OgHttp2AdapterInteractionTest, ClientServerInteractionWithCookies) {
               OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(server_visitor,
               OnHeaderForStream(1, ":path", "/this/is/request/one"));
-  EXPECT_CALL(server_visitor,
-              OnHeaderForStream(1, "cookie", "a; b=2; c; d=e, f, g; h"));
+  if (GetQuicheReloadableFlag(http2_avoid_decompose_representation)) {
+    EXPECT_CALL(server_visitor, OnHeaderForStream(1, "cookie", "a; b=2; c"));
+    EXPECT_CALL(server_visitor, OnHeaderForStream(1, "cookie", "d=e, f, g; h"));
+  } else {
+    EXPECT_CALL(server_visitor,
+                OnHeaderForStream(1, "cookie", "a; b=2; c; d=e, f, g; h"));
+  }
   EXPECT_CALL(server_visitor, OnEndHeadersForStream(1));
   EXPECT_CALL(server_visitor, OnEndStream(1));
 

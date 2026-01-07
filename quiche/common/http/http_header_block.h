@@ -18,6 +18,7 @@
 #include "quiche/common/http/http_header_storage.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_linked_hash_map.h"
 #include "quiche/common/quiche_text_utils.h"
 
@@ -73,6 +74,7 @@ class QUICHE_EXPORT HttpHeaderBlock {
 
     absl::string_view value() const { return as_pair().second; }
     const std::pair<absl::string_view, absl::string_view>& as_pair() const;
+    absl::Span<const absl::string_view> fragments() const;
 
     // Size estimate including separators. Used when keys are erased from
     // HttpHeaderBlock.
@@ -85,6 +87,7 @@ class QUICHE_EXPORT HttpHeaderBlock {
 
     mutable HttpHeaderStorage* storage_;
     mutable Fragments fragments_;
+    mutable absl::string_view consolidated_;
     // The first element is the key; the second is the consolidated value.
     mutable std::pair<absl::string_view, absl::string_view> pair_;
     size_t size_ = 0;
@@ -249,6 +252,12 @@ class QUICHE_EXPORT HttpHeaderBlock {
 
   // Allows either lookup or mutation of the value associated with a key.
   ABSL_MUST_USE_RESULT ValueProxy operator[](const absl::string_view key);
+
+  // The function is invoked on each (name, value) pair, where individual value
+  // fragments receive their own invocation.
+  void ForEach(
+      quiche::UnretainedCallback<void(absl::string_view, absl::string_view)> fn)
+      const;
 
   size_t TotalBytesUsed() const { return key_size_ + value_size_; }
 

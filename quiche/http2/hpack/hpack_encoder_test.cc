@@ -821,7 +821,9 @@ TEST_P(HpackEncoderTest, CrumbleNullByteDelimitedValue) {
   }
   quiche::HttpHeaderBlock headers;
   // A header field to be crumbled: "spam: foo\0bar".
-  headers["spam"] = std::string("foo\0bar", 7);
+  headers["spam"] = "foo";
+  headers.AppendValueOrAddHeader("spam", "bar");
+  EXPECT_EQ(headers["spam"], std::string("foo\0bar", 7));
 
   ExpectIndexedLiteral("spam", "foo");
   expected_.AppendPrefix(kLiteralIncrementalIndexOpcode);
