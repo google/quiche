@@ -295,16 +295,27 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     return;
   }
 
-  // Limiting this to reordering_threshold_ > 0 is not compliant with
-  // draft-ietf-quic-ack-frequency-11, but there is an issue to add this
-  // behavior.
-  if (reordering_threshold_ > 0 && was_last_packet_missing_ &&
-      last_sent_largest_acked_.IsInitialized() &&
-      last_received_packet_number < last_sent_largest_acked_) {
-    // Ack immediately if an ACK frame was sent with a larger largest acked than
-    // the newly received packet number.
-    ack_timeout_ = now;
-    return;
+  if (GetQuicReloadableFlag(quic_fix_gap_filling_ack_logic)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_gap_filling_ack_logic);
+    if (reordering_threshold_ > 0 && was_last_packet_missing_ &&
+        last_sent_largest_acked_.IsInitialized() &&
+        last_sent_largest_acked_ >= QuicPacketNumber(reordering_threshold_) &&
+        (last_received_packet_number <=
+         last_sent_largest_acked_ - reordering_threshold_)) {
+      // Ack immediately if the received packet number is less than or equal to
+      // largest acked - reordering threshold.
+      ack_timeout_ = now;
+      return;
+    }
+  } else {
+    if (reordering_threshold_ > 0 && was_last_packet_missing_ &&
+        last_sent_largest_acked_.IsInitialized() &&
+        last_received_packet_number < last_sent_largest_acked_) {
+      // Ack immediately if an ACK frame was sent with a larger
+      // largest acked than the newly received packet number.
+      ack_timeout_ = now;
+      return;
+    }
   }
 
   if (changed_to_ce_marked_) {

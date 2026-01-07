@@ -823,6 +823,197 @@ TEST_F(QuicReceivedPacketManagerTest, NewCeTriggersImmediateAck) {
   CheckAckTimeout(clock_.ApproximateNow());
 }
 
+TEST_F(QuicReceivedPacketManagerTest, LegacyLogicIgnoresReorderingThreshold) {
+  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, false);
+
+  // Setup a reordering threshold of 10.
+  QuicAckFrequencyFrame frame;
+  frame.sequence_number = 1;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 1000;
+  frame.reordering_threshold = 10;
+  received_manager_.OnAckFrequencyFrame(frame);
+
+  // Establish a baseline: We have ACKed up to 100.
+  RecordPacketReceipt(100, clock_.ApproximateNow());
+  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  received_manager_.ResetAckStates();  // last_sent_largest_acked_ = 100
+
+  // Receive Packet 95.
+  // Legacy Logic: Is 95 < 100? YES -> Immediate ACK.
+  // (New Logic would say: Gap is 5, Threshold is 10 -> Delay ACK).
+  RecordPacketReceipt(95, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 95);
+
+  // Verify Immediate ACK (The inefficient legacy behavior).
+  CheckAckTimeout(clock_.ApproximateNow());
+}
+
+TEST_F(QuicReceivedPacketManagerTest, ReorderingThresholdTriggersImmediateAck) {
+  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
+
+  QuicAckFrequencyFrame frame;
+  frame.sequence_number = 1;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 1000;
+  frame.reordering_threshold = 10;
+  received_manager_.OnAckFrequencyFrame(frame);
+
+  RecordPacketReceipt(100, clock_.ApproximateNow());
+  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+
+  // This sets last_sent_largest_acked_ = 100
+  received_manager_.ResetAckStates();
+
+  // Receive Packet 90 (Matches boundary: 100 - 10 = 90)
+  RecordPacketReceipt(90, clock_.ApproximateNow());
+
+  MaybeUpdateAckTimeout(kInstigateAck, 90);
+  CheckAckTimeout(clock_.ApproximateNow());
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       ReorderingThresholdDelaysAckForRecentPackets) {
+  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
+  QuicAckFrequencyFrame frame;
+  frame.sequence_number = 1;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 1000;
+  frame.reordering_threshold = 10;
+  received_manager_.OnAckFrequencyFrame(frame);
+
+  RecordPacketReceipt(100, clock_.ApproximateNow());
+  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+
+  // Simulate that the ACK for 100 was actually SENT.
+  received_manager_.ResetAckStates();
+
+  // Receive a packet RECENT (inside boundary)
+  // Packet 95 > (100 - 10 = 90). Should NOT trigger immediate ACK.
+  RecordPacketReceipt(95, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 95);
+
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+}
+
+TEST_F(QuicReceivedPacketManagerTest, ReorderingThresholdUnderflowGuard) {
+  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
+
+  QuicAckFrequencyFrame frame;
+  frame.sequence_number = 1;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 1000;
+  frame.reordering_threshold = 10;
+  received_manager_.OnAckFrequencyFrame(frame);
+
+  // Largest Acked (5) is SMALLER than threshold (10)
+  RecordPacketReceipt(5, clock_.ApproximateNow());
+  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+
+  received_manager_.ResetAckStates();
+
+  // (5 > 10) -> FALSE. Boundary stays 0.
+  // (3 <= 0) -> FALSE.
+  // Result: Delayed ACK.
+  RecordPacketReceipt(3, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 3);
+
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+}
+
+TEST_F(QuicReceivedPacketManagerTest, ReorderingThresholdOneTriggersAck) {
+  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
+
+  QuicAckFrequencyFrame frame;
+  frame.sequence_number = 1;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 1000;
+  frame.reordering_threshold = 1;
+  received_manager_.OnAckFrequencyFrame(frame);
+
+  RecordPacketReceipt(100, clock_.ApproximateNow());
+  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  received_manager_.ResetAckStates();
+
+  // Receive Packet 99 (100 - 1 = 99). Should trigger immediate ACK.
+  // Condition: 99 <= (100 - 1) -> True.
+  RecordPacketReceipt(99, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 99);
+  CheckAckTimeout(clock_.ApproximateNow());
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       ReorderingThresholdBoundaryPlusOneDelaysAck) {
+  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
+
+  QuicAckFrequencyFrame frame;
+  frame.sequence_number = 1;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 1000;
+  frame.reordering_threshold = 10;
+  received_manager_.OnAckFrequencyFrame(frame);
+
+  RecordPacketReceipt(100, clock_.ApproximateNow());
+  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  received_manager_.ResetAckStates();
+
+  // Receive Packet 91 (100 - 10 = 90). 91 > 90.
+  // Should NOT trigger immediate ACK.
+  RecordPacketReceipt(91, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 91);
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       ReorderingThresholdUnderflowGuardsPacketZero) {
+  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
+
+  QuicAckFrequencyFrame frame;
+  frame.sequence_number = 1;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 1000;
+  frame.reordering_threshold = 10;
+  received_manager_.OnAckFrequencyFrame(frame);
+
+  // Largest Acked = 5. Threshold = 10.
+  // Effective Boundary = 5 - 10 = -5.
+  RecordPacketReceipt(5, clock_.ApproximateNow());
+  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  received_manager_.ResetAckStates();
+
+  // Receive Packet 0.
+  // Condition: 0 <= -5 -> False.
+  // Should NOT trigger immediate ACK.
+  RecordPacketReceipt(0, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 0);
+  CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       ReorderingThresholdExactZeroBoundaryTriggersAck) {
+  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
+
+  QuicAckFrequencyFrame frame;
+  frame.sequence_number = 1;
+  frame.requested_max_ack_delay = kDelayedAckTime;
+  frame.ack_eliciting_threshold = 1000;
+  frame.reordering_threshold = 10;
+  received_manager_.OnAckFrequencyFrame(frame);
+
+  // Largest Acked = 10. Threshold = 10.
+  // Effective Boundary = 10 - 10 = 0.
+  RecordPacketReceipt(10, clock_.ApproximateNow());
+  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  received_manager_.ResetAckStates();
+
+  // Receive Packet 0.
+  // Condition: 0 <= 0 -> True.
+  // Should trigger immediate ACK.
+  RecordPacketReceipt(0, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, 0);
+  CheckAckTimeout(clock_.ApproximateNow());
+}
+
 }  // namespace
 
 }  // namespace test
