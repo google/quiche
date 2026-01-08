@@ -106,11 +106,13 @@ bool ParseKeyValuePairList(quic::QuicDataReader& reader,
   if (!reader.ReadVarInt62(&num_params)) {
     return false;
   }
+  uint64_t type = 0;
   for (uint64_t i = 0; i < num_params; ++i) {
-    uint64_t type;
-    if (!reader.ReadVarInt62(&type)) {
+    uint64_t type_diff;
+    if (!reader.ReadVarInt62(&type_diff)) {
       return false;
     }
+    type += type_diff;
     if (type % 2 == 1) {
       absl::string_view bytes;
       if (!reader.ReadStringPieceVarInt62(&bytes)) {

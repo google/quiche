@@ -494,8 +494,8 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupMaxRequestIdAppearsTwice) {
       0x20, 0x00, 0x0d, 0x02, 0x01, 0x02,  // versions
       0x03,                                // 3 params
       0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
-      0x02, 0x32,                          // max_request_id = 50
-      0x02, 0x32,                          // max_request_id = 50
+      0x01, 0x32,                          // max_request_id = 50
+      0x00, 0x32,                          // max_request_id = 50
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
@@ -512,8 +512,8 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupAuthorizationTokenTagRegister) {
       0x20, 0x00, 0x13, 0x02, 0x01, 0x02,              // versions
       0x03,                                            // 3 params
       0x01, 0x03, 0x66, 0x6f, 0x6f,                    // path = "foo"
-      0x02, 0x32,                                      // max_request_id = 50
-      0x03, 0x06, 0x01, 0x10, 0x00, 0x62, 0x61, 0x72,  // REGISTER 0x01
+      0x01, 0x32,                                      // max_request_id = 50
+      0x01, 0x06, 0x01, 0x10, 0x00, 0x62, 0x61, 0x72,  // REGISTER 0x01
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
@@ -562,7 +562,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
       0x20, 0x00, 0x0e, 0x02, 0x01, 0x02,  // versions = 1, 2
       0x02,                                // 2 params
       0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
-      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
+      0x00, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
@@ -626,8 +626,8 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMaxRequestIdAppearsTwice) {
       0x20, 0x00, 0x0d, 0x02, 0x01, 0x02,  // versions = 1, 2
       0x03,                                // 4 params
       0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
-      0x02, 0x32,                          // max_request_id = 50
-      0x02, 0x32,                          // max_request_id = 50
+      0x01, 0x32,                          // max_request_id = 50
+      0x00, 0x32,                          // max_request_id = 50
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
@@ -659,7 +659,7 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMalformedAuthority) {
       0x20, 0x00, 0x0e, 0x02, 0x01, 0x02,  // versions = 1, 2
       0x02,                                // 2 params
       0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
-      0x05, 0x03, 0x66, 0x5c, 0x6f,        // authority = "f\o"
+      0x04, 0x03, 0x66, 0x5c, 0x6f,        // authority = "f\o"
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
@@ -679,7 +679,7 @@ TEST_F(MoqtMessageSpecificTest, UnknownParameterTwiceIsOk) {
       0x02,                          // filter_type = kLatestObject
       0x02,                          // two params
       0x1f, 0x03, 0x62, 0x61, 0x72,  // 0x1f = "bar"
-      0x1f, 0x03, 0x62, 0x61, 0x72,  // 0x1f = "bar"
+      0x00, 0x03, 0x62, 0x61, 0x72,  // 0x1f = "bar"
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -697,7 +697,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeDeliveryTimeoutTwice) {
       0x02,                          // filter_type = kLatestObject
       0x02,                          // two params
       0x02, 0x67, 0x10,              // delivery_timeout = 10000
-      0x02, 0x67, 0x10,              // delivery_timeout = 10000
+      0x00, 0x67, 0x10,              // delivery_timeout = 10000
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -717,7 +717,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeMaxCacheDurationTwice) {
       0x02,                          // filter_type = kLatestObject
       0x02,                          // two params
       0x04, 0x67, 0x10,              // max_cache_duration = 10000
-      0x04, 0x67, 0x10,              // max_cache_duration = 10000
+      0x00, 0x67, 0x10,              // max_cache_duration = 10000
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
@@ -852,7 +852,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeInvalidGroupOrder) {
       0x02,
       0x67,
       0x10,  // delivery_timeout = 10000 ms
-      0x03,
+      0x01,
       0x05,
       0x03,
       0x00,
@@ -896,7 +896,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeInvalidForward) {
       0x02,
       0x67,
       0x10,  // delivery_timeout = 10000 ms
-      0x03,
+      0x01,
       0x05,
       0x03,
       0x00,
@@ -940,7 +940,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeInvalidFilter) {
       0x02,
       0x67,
       0x10,  // delivery_timeout = 10000 ms
-      0x03,
+      0x01,
       0x05,
       0x03,
       0x00,
@@ -964,7 +964,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkHasAuthorizationToken) {
       0x0c, 0x14,        // largest_group_id = 12, largest_object_id = 20,
       0x02,              // 2 parameters
       0x02, 0x67, 0x10,  // delivery_timeout = 10000
-      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_token = "bar"
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_token = "bar"
   };
   stream.Receive(absl::string_view(subscribe_ok, sizeof(subscribe_ok)), false);
   parser.ReadAndDispatchMessages();
@@ -982,7 +982,7 @@ TEST_F(MoqtMessageSpecificTest, PublishNamespaceAuthorizationTokenTwice) {
       0x6f, 0x6f,                                // track_namespace = "foo"
       0x02,                                      // 2 params
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
-      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
+      0x00, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization = "bar"
   };
   stream.Receive(
       absl::string_view(publish_namespace, sizeof(publish_namespace)), false);
@@ -997,8 +997,8 @@ TEST_F(MoqtMessageSpecificTest, PublishNamespaceHasDeliveryTimeout) {
       0x06, 0x00, 0x11, 0x02, 0x01, 0x03, 0x66,
       0x6f, 0x6f,                                // track_namespace = "foo"
       0x02,                                      // 2 params
-      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_info = "bar"
       0x02, 0x67, 0x10,                          // delivery_timeout = 10000
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_info = "bar"
   };
   stream.Receive(
       absl::string_view(publish_namespace, sizeof(publish_namespace)), false);

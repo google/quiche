@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/algorithm/container.h"
@@ -23,34 +24,21 @@
 
 namespace moqt {
 
-void KeyValuePairList::insert(uint64_t key, absl::string_view value) {
-  if (key % 2 == 0) {
+void KeyValuePairList::insert(uint64_t key,
+                              std::variant<uint64_t, absl::string_view> value) {
+  if (key % 2 == 0 && std::holds_alternative<absl::string_view>(value)) {
     QUICHE_BUG(key_value_pair_string_is_even) << "Key value pair of wrong type";
     return;
   }
-  string_map_.emplace(key, value);
-}
-
-void KeyValuePairList::insert(uint64_t key, uint64_t value) {
-  if (key % 2 == 1) {
+  if (key % 2 == 1 && std::holds_alternative<uint64_t>(value)) {
     QUICHE_BUG(key_value_pair_int_is_odd) << "Key value pair of wrong type";
     return;
   }
-  integer_map_.emplace(key, value);
-}
-
-size_t KeyValuePairList::count(uint64_t key) const {
-  if (key % 2 == 0) {
-    return integer_map_.count(key);
+  if (key % 2 == 1) {
+    map_.emplace(key, std::string(std::get<absl::string_view>(value)));
+  } else {
+    map_.emplace(key, std::get<uint64_t>(value));
   }
-  return string_map_.count(key);
-}
-
-bool KeyValuePairList::contains(uint64_t key) const {
-  if (key % 2 == 0) {
-    return integer_map_.contains(key);
-  }
-  return string_map_.contains(key);
 }
 
 std::vector<uint64_t> KeyValuePairList::GetIntegers(uint64_t key) const {
@@ -59,9 +47,9 @@ std::vector<uint64_t> KeyValuePairList::GetIntegers(uint64_t key) const {
     return {};
   }
   std::vector<uint64_t> result;
-  auto [range_start, range_end] = integer_map_.equal_range(key);
+  auto [range_start, range_end] = map_.equal_range(key);
   for (auto& it = range_start; it != range_end; ++it) {
-    result.push_back(it->second);
+    result.push_back(std::get<uint64_t>(it->second));
   }
   return result;
 }
@@ -73,9 +61,9 @@ std::vector<absl::string_view> KeyValuePairList::GetStrings(
     return {};
   }
   std::vector<absl::string_view> result;
-  auto [range_start, range_end] = string_map_.equal_range(key);
+  auto [range_start, range_end] = map_.equal_range(key);
   for (auto& it = range_start; it != range_end; ++it) {
-    result.push_back(it->second);
+    result.push_back(std::get<std::string>(it->second));
   }
   return result;
 }

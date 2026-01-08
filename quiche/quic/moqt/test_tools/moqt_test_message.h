@@ -504,9 +504,13 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       client_setup_.parameters.authority = "";
       raw_packet_[2] = 0x24;  // adjust payload length (-17)
       raw_packet_[6] = 0x02;  // only two parameters
+      // Move MaxRequestId up in the packet.
+      memmove(raw_packet_ + 7, raw_packet_ + 13, 2);
       // Move MoqtImplementation up in the packet.
       memmove(raw_packet_ + 9, raw_packet_ + 26,
               kTestImplementationString.length() + 2);
+      raw_packet_[7] = 0x02;  // Diff from 0.
+      raw_packet_[9] = 0x05;  // Diff from 2.
       SetWireImage(raw_packet_, sizeof(raw_packet_) - 17);
     } else {
       SetWireImage(raw_packet_, sizeof(raw_packet_));
@@ -536,7 +540,7 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
 
   void ExpandVarints() override {
     if (!client_setup_.parameters.path.empty()) {
-      ExpandVarintsImpl("vvvvvvvv----vv---------vv---------------------------");
+      ExpandVarintsImpl("vvvvvv----vvvv---------vv---------------------------");
     } else {
       ExpandVarintsImpl("vvvvvvvv---------------------------");
     }
@@ -555,12 +559,12 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       0x20, 0x00, 0x35,                    // type, length
       0x02, 0x01, 0x02,                    // versions
       0x04,                                // 4 parameters
-      0x02, 0x32,                          // max_request_id = 50
       0x01, 0x04, 0x70, 0x61, 0x74, 0x68,  // path = "path"
-      0x05, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74,
+      0x01, 0x32,                          // max_request_id = 50
+      0x03, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74,
       0x79,  // authority = "authority"
       // moqt_implementation:
-      0x07, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65, 0x73, 0x74, 0x20, 0x49,
+      0x02, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65, 0x73, 0x74, 0x20, 0x49,
       0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
       0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
   MoqtClientSetup client_setup_ = {
@@ -598,11 +602,10 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
   uint8_t raw_packet_[37] = {0x21, 0x00,
                              0x22,  // type
                              0x01,
-                             0x02,  // version, two parameters
-                             0x02,
-                             0x32,  // max_subscribe_id = 50
+                             0x02,        // version, two parameters
+                             0x02, 0x32,  // max_subscribe_id = 50
                              // moqt_implementation:
-                             0x07, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65,
+                             0x05, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65,
                              0x73, 0x74, 0x20, 0x49, 0x6d, 0x70, 0x6c, 0x65,
                              0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
                              0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
@@ -708,7 +711,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       0x02,
       0x67,
       0x10,  // delivery_timeout = 10000 ms
-      0x03,
+      0x01,
       0x05,
       0x03,
       0x00,
@@ -788,7 +791,7 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       0x0c, 0x14,                          // largest_location = (12, 20)
       0x02,                                // 2 parameters
       0x02, 0x67, 0x10,                    // delivery_timeout = 10000
-      0x04, 0x67, 0x10,                    // max_cache_duration = 10000
+      0x02, 0x67, 0x10,                    // max_cache_duration = 10000
   };
 };
 

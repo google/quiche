@@ -82,28 +82,34 @@ class WireKeyValuePairList {
 
   size_t GetLengthOnWire() {
     size_t total = WireVarInt62(list_.size()).GetLengthOnWire();
+    uint64_t last_key = 0;
     list_.ForEach(
         [&](uint64_t key, uint64_t value) {
-          total += WireKeyVarIntPair(key, value).GetLengthOnWire();
+          total += WireKeyVarIntPair(key - last_key, value).GetLengthOnWire();
+          last_key = key;
           return true;
         },
         [&](uint64_t key, absl::string_view value) {
-          total += WireKeyStringPair(key, value).GetLengthOnWire();
+          total += WireKeyStringPair(key - last_key, value).GetLengthOnWire();
+          last_key = key;
           return true;
         });
     return total;
   }
   absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
     WireVarInt62(list_.size()).SerializeIntoWriter(writer);
+    uint64_t last_key = 0;
     list_.ForEach(
         [&](uint64_t key, uint64_t value) {
-          absl::Status status =
-              WireKeyVarIntPair(key, value).SerializeIntoWriter(writer);
+          absl::Status status = WireKeyVarIntPair(key - last_key, value)
+                                    .SerializeIntoWriter(writer);
+          last_key = key;
           return quiche::IsWriterStatusOk(status);
         },
         [&](uint64_t key, absl::string_view value) {
-          absl::Status status =
-              WireKeyStringPair(key, value).SerializeIntoWriter(writer);
+          absl::Status status = WireKeyStringPair(key - last_key, value)
+                                    .SerializeIntoWriter(writer);
+          last_key = key;
           return quiche::IsWriterStatusOk(status);
         });
     return absl::OkStatus();
@@ -250,7 +256,7 @@ void VersionSpecificParametersToKeyValuePairList(
         Serialize(WireVarInt62(AuthTokenAliasType::kUseValue),
                   WireVarInt62(it.type), WireBytes(it.token));
     out.insert(VersionSpecificParameter::kAuthorizationToken,
-               std::string(parameter_value.AsStringView()));
+               parameter_value.AsStringView());
   }
   if (!parameters.delivery_timeout.IsInfinite()) {
     out.insert(

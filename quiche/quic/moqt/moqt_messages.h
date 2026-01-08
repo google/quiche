@@ -463,36 +463,36 @@ H AbslHashValue(H h, const Location& m) {
 // This class does not interpret the semantic meaning of the keys and values,
 // although it does accept various uint64_t-based enums to reduce the burden of
 // casting on the caller.
+// Keys must be ordered.
 class KeyValuePairList {
  public:
   KeyValuePairList() = default;
-  size_t size() const { return integer_map_.size() + string_map_.size(); }
-  void insert(VersionSpecificParameter key, uint64_t value) {
+  size_t size() const { return map_.size(); }
+
+  void insert(VersionSpecificParameter key,
+              std::variant<uint64_t, absl::string_view> value) {
     insert(static_cast<uint64_t>(key), value);
   }
-  void insert(SetupParameter key, uint64_t value) {
+  void insert(SetupParameter key,
+              std::variant<uint64_t, absl::string_view> value) {
     insert(static_cast<uint64_t>(key), value);
   }
-  void insert(VersionSpecificParameter key, absl::string_view value) {
-    insert(static_cast<uint64_t>(key), value);
-  }
-  void insert(SetupParameter key, absl::string_view value) {
-    insert(static_cast<uint64_t>(key), value);
-  }
-  void insert(uint64_t key, absl::string_view value);
-  void insert(uint64_t key, uint64_t value);
+  void insert(uint64_t key, std::variant<uint64_t, absl::string_view> value);
+
   size_t count(VersionSpecificParameter key) const {
-    return count(static_cast<uint64_t>(key));
+    return map_.count(static_cast<uint64_t>(key));
   }
   size_t count(SetupParameter key) const {
-    return count(static_cast<uint64_t>(key));
+    return map_.count(static_cast<uint64_t>(key));
   }
+
   bool contains(VersionSpecificParameter key) const {
-    return contains(static_cast<uint64_t>(key));
+    return map_.contains(static_cast<uint64_t>(key));
   }
   bool contains(SetupParameter key) const {
-    return contains(static_cast<uint64_t>(key));
+    return map_.contains(static_cast<uint64_t>(key));
   }
+
   // If either of these callbacks returns false, ForEach will return early.
   using IntCallback = quiche::UnretainedCallback<bool(uint64_t, uint64_t)>;
   using StringCallback =
@@ -500,13 +500,12 @@ class KeyValuePairList {
   // Iterates through the whole list, and executes int_callback for each integer
   // value and string_callback for each string value.
   bool ForEach(IntCallback int_callback, StringCallback string_callback) const {
-    for (const auto& [key, value] : integer_map_) {
-      if (!int_callback(key, value)) {
-        return false;
-      }
-    }
-    for (const auto& [key, value] : string_map_) {
-      if (!string_callback(key, value)) {
+    for (const auto& [key, value] : map_) {
+      if (std::holds_alternative<uint64_t>(value)) {
+        if (!int_callback(key, std::get<uint64_t>(value))) {
+          return false;
+        }
+      } else if (!string_callback(key, std::get<std::string>(value))) {
         return false;
       }
     }
@@ -525,18 +524,13 @@ class KeyValuePairList {
   std::vector<absl::string_view> GetStrings(SetupParameter key) const {
     return GetStrings(static_cast<uint64_t>(key));
   }
-  void clear() {
-    integer_map_.clear();
-    string_map_.clear();
-  }
+
+  void clear() { map_.clear(); }
 
  private:
-  size_t count(uint64_t key) const;
-  bool contains(uint64_t key) const;
   std::vector<uint64_t> GetIntegers(uint64_t key) const;
   std::vector<absl::string_view> GetStrings(uint64_t key) const;
-  absl::btree_multimap<uint64_t, uint64_t> integer_map_;
-  absl::btree_multimap<uint64_t, std::string> string_map_;
+  absl::btree_multimap<uint64_t, std::variant<uint64_t, std::string>> map_;
 };
 
 // TODO(martinduke): Collapse both Setup messages into MoqtSessionParameters.
