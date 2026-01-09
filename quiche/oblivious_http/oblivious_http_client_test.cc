@@ -128,7 +128,7 @@ absl::StatusOr<ChunkedObliviousHttpClient> CreateChunkedObliviousHttpClient(
 }
 
 absl::StatusOr<ChunkedObliviousHttpGateway> CreateChunkedObliviousHttpGateway(
-    ObliviousHttpChunkHandler& chunk_handler) {
+    ObliviousHttpChunkHandler* chunk_handler) {
   // Private key from
   // https://www.ietf.org/archive/id/draft-ietf-ohai-chunked-ohttp-06.html#appendix-A-2
   constexpr absl::string_view kX25519SecretKey =
@@ -392,7 +392,7 @@ TEST(ChunkedObliviousHttpClient, EncryptRequestFinalChunkCanBeEmpty) {
 
   TestChunkHandler gateway_chunk_handler;
   absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
-      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+      CreateChunkedObliviousHttpGateway(&gateway_chunk_handler);
   QUICHE_ASSERT_OK(chunk_gateway);
   if (!chunk_gateway.ok()) {
     return;
@@ -481,7 +481,7 @@ TEST(ChunkedObliviousHttpClient,
 
   TestChunkHandler gateway_chunk_handler;
   absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
-      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+      CreateChunkedObliviousHttpGateway(&gateway_chunk_handler);
   QUICHE_ASSERT_OK(chunk_gateway);
   if (!chunk_gateway.ok()) {
     return;
@@ -509,7 +509,7 @@ TEST(ChunkedObliviousHttpClient,
   }
   TestChunkHandler gateway_chunk_handler;
   absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
-      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+      CreateChunkedObliviousHttpGateway(&gateway_chunk_handler);
   QUICHE_ASSERT_OK(chunk_gateway);
   if (!chunk_gateway.ok()) {
     return;
@@ -552,7 +552,7 @@ TEST(ChunkedObliviousHttpClient,
   }
   TestChunkHandler gateway_chunk_handler;
   absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
-      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+      CreateChunkedObliviousHttpGateway(&gateway_chunk_handler);
   QUICHE_ASSERT_OK(chunk_gateway);
   if (!chunk_gateway.ok()) {
     return;
@@ -644,7 +644,7 @@ TEST(ChunkedObliviousHttpClient, DecryptResponseWithCorruptedNonceFails) {
   }
   TestChunkHandler gateway_chunk_handler;
   absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
-      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+      CreateChunkedObliviousHttpGateway(&gateway_chunk_handler);
   QUICHE_ASSERT_OK(chunk_gateway);
   if (!chunk_gateway.ok()) {
     return;
@@ -684,7 +684,7 @@ TEST(ChunkedObliviousHttpClient, DecryptResponseWithCorruptedChunkFails) {
   }
   TestChunkHandler gateway_chunk_handler;
   absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
-      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+      CreateChunkedObliviousHttpGateway(&gateway_chunk_handler);
   QUICHE_ASSERT_OK(chunk_gateway);
   if (!chunk_gateway.ok()) {
     return;
@@ -726,7 +726,7 @@ TEST(ChunkedObliviousHttpClient, DecryptResponseWithCorruptedFinalChunkFails) {
   }
   TestChunkHandler gateway_chunk_handler;
   absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
-      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+      CreateChunkedObliviousHttpGateway(&gateway_chunk_handler);
   QUICHE_ASSERT_OK(chunk_gateway);
   if (!chunk_gateway.ok()) {
     return;
@@ -768,7 +768,7 @@ TEST(ChunkedObliviousHttpClient, DecryptResponseAfterEndStreamReturnsError) {
   }
   TestChunkHandler gateway_chunk_handler;
   absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
-      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+      CreateChunkedObliviousHttpGateway(&gateway_chunk_handler);
   QUICHE_ASSERT_OK(chunk_gateway);
   if (!chunk_gateway.ok()) {
     return;
@@ -813,7 +813,7 @@ TEST(ChunkedObliviousHttpClient,
   }
   TestChunkHandler gateway_chunk_handler;
   absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
-      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+      CreateChunkedObliviousHttpGateway(&gateway_chunk_handler);
   QUICHE_ASSERT_OK(chunk_gateway);
   if (!chunk_gateway.ok()) {
     return;
@@ -852,7 +852,7 @@ TEST(ChunkedObliviousHttpClient,
   }
   TestChunkHandler gateway_chunk_handler;
   absl::StatusOr<ChunkedObliviousHttpGateway> chunk_gateway =
-      CreateChunkedObliviousHttpGateway(gateway_chunk_handler);
+      CreateChunkedObliviousHttpGateway(&gateway_chunk_handler);
   QUICHE_ASSERT_OK(chunk_gateway);
   if (!chunk_gateway.ok()) {
     return;

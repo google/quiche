@@ -530,7 +530,7 @@ absl::StatusOr<BinaryHttpRequest> BinaryHttpRequest::Create(
 absl::Status
 BinaryHttpRequest::IndeterminateLengthDecoder::DecodeContentTerminatedSection(
     QuicheDataReader& reader, absl::string_view& checkpoint) {
-  uint64_t length_or_content_terminator;
+  uint64_t length_or_content_terminator = kContentTerminator;
   do {
     if (!reader.ReadVarInt62(&length_or_content_terminator)) {
       return absl::OutOfRangeError("Not enough data to read section.");

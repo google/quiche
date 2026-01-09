@@ -170,9 +170,8 @@ class QUICHE_EXPORT ChunkedObliviousHttpClient {
   ObliviousHttpRequest::Context hpke_sender_context_;
   ObliviousHttpResponse::CommonAeadParamsResult aead_params_;
 
-  // The handler to invoke when a chunk is decrypted successfully. This is not
-  // owned by this class.
-  ObliviousHttpChunkHandler* absl_nonnull chunk_handler_;
+  // The handler to invoke when a chunk is decrypted successfully. Not owned.
+  ObliviousHttpChunkHandler& chunk_handler_;
 
   RequestMessageSection request_current_section_ =
       RequestMessageSection::kHeader;

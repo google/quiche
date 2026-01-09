@@ -92,16 +92,19 @@ ObliviousHttpGateway::CreateObliviousHttpResponse(
 ChunkedObliviousHttpGateway::ChunkedObliviousHttpGateway(
     bssl::UniquePtr<EVP_HPKE_KEY> recipient_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
-    ObliviousHttpChunkHandler& chunk_handler, QuicheRandom* quiche_random)
+    ObliviousHttpChunkHandler* chunk_handler, QuicheRandom* quiche_random)
     : server_hpke_key_(std::move(recipient_key)),
       ohttp_key_config_(ohttp_key_config),
-      chunk_handler_(chunk_handler),
+      chunk_handler_(*chunk_handler),
       quiche_random_(quiche_random) {}
 
 absl::StatusOr<ChunkedObliviousHttpGateway> ChunkedObliviousHttpGateway::Create(
     absl::string_view hpke_private_key,
     const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
-    ObliviousHttpChunkHandler& chunk_handler, QuicheRandom* quiche_random) {
+    ObliviousHttpChunkHandler* chunk_handler, QuicheRandom* quiche_random) {
+  if (chunk_handler == nullptr) {
+    return absl::InvalidArgumentError("Chunk handler is null");
+  }
   QUICHE_ASSIGN_OR_RETURN(
       bssl::UniquePtr<EVP_HPKE_KEY> recipient_key,
       CreateServerRecipientKey(hpke_private_key, ohttp_key_config));

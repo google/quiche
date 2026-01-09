@@ -1,12 +1,11 @@
 #ifndef QUICHE_OBLIVIOUS_HTTP_OBLIVIOUS_HTTP_GATEWAY_H_
 #define QUICHE_OBLIVIOUS_HTTP_OBLIVIOUS_HTTP_GATEWAY_H_
 
-#include <cmath>
-#include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 
+#include "absl/base/attributes.h"
+#include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -96,14 +95,16 @@ class QUICHE_EXPORT ObliviousHttpGateway {
 class QUICHE_EXPORT ChunkedObliviousHttpGateway {
  public:
   // Creates a ChunkedObliviousHttpGateway. Like `ObliviousHttpGateway`,
-  // `hpke_private_key` must outlive the gateway. `quiche_random` can be
-  // initialized to nullptr, in which case the default
-  // `QuicheRandom::GetInstance()` will be used.
+  // `hpke_private_key` must outlive the gateway. `chunk_handler` must outlive
+  // the gateway. `quiche_random` can be initialized to nullptr, in which case
+  // the default `QuicheRandom::GetInstance()` will be used.
   static absl::StatusOr<ChunkedObliviousHttpGateway> Create(
       absl::string_view hpke_private_key,
       const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
-      ObliviousHttpChunkHandler& chunk_handler,
-      QuicheRandom* quiche_random = nullptr);
+      ObliviousHttpChunkHandler* absl_nonnull chunk_handler
+          ABSL_ATTRIBUTE_LIFETIME_BOUND,
+      QuicheRandom* absl_nullable quiche_random ABSL_ATTRIBUTE_LIFETIME_BOUND =
+          nullptr);
 
   // only Movable (due to `UniquePtr server_hpke_key_`).
   ChunkedObliviousHttpGateway(ChunkedObliviousHttpGateway&& other) = default;
@@ -141,7 +142,9 @@ class QUICHE_EXPORT ChunkedObliviousHttpGateway {
   explicit ChunkedObliviousHttpGateway(
       bssl::UniquePtr<EVP_HPKE_KEY> recipient_key,
       const ObliviousHttpHeaderKeyConfig& ohttp_key_config,
-      ObliviousHttpChunkHandler& chunk_handler, QuicheRandom* quiche_random);
+      ObliviousHttpChunkHandler* absl_nonnull chunk_handler
+          ABSL_ATTRIBUTE_LIFETIME_BOUND,
+      QuicheRandom* absl_nullable quiche_random ABSL_ATTRIBUTE_LIFETIME_BOUND);
 
   // Initializes the checkpoint with the provided data and any buffered data.
   void InitializeRequestCheckpoint(absl::string_view data);
@@ -167,9 +170,10 @@ class QUICHE_EXPORT ChunkedObliviousHttpGateway {
   // public Key configuration.
   // https://www.rfc-editor.org/rfc/rfc9458.html#section-3
   ObliviousHttpHeaderKeyConfig ohttp_key_config_;
-  // The handler to invoke when a chunk is decrypted successfully.
+  // The handler to invoke when a chunk is decrypted successfully. Not owned.
   ObliviousHttpChunkHandler& chunk_handler_;
-  QuicheRandom* quiche_random_;
+  // Not owned.
+  QuicheRandom* absl_nullable quiche_random_;
 
   std::string request_buffer_;
   // Tracks the remaining data to be processed or buffered.

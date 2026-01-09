@@ -106,7 +106,7 @@ ChunkedObliviousHttpClient::ChunkedObliviousHttpClient(
     : ohttp_key_config_(ohttp_key_config),
       hpke_sender_context_(std::move(hpke_sender_context)),
       aead_params_(aead_params),
-      chunk_handler_(chunk_handler) {}
+      chunk_handler_(*chunk_handler) {}
 
 absl::StatusOr<ChunkedObliviousHttpClient> ChunkedObliviousHttpClient::Create(
     absl::string_view hpke_public_key,
@@ -224,9 +224,6 @@ absl::string_view ChunkedObliviousHttpClient::InitializeResponseCheckpoint(
 
 absl::Status ChunkedObliviousHttpClient::DecryptResponseCheckpoint(
     absl::string_view& response_checkpoint, bool end_stream) {
-  if (chunk_handler_ == nullptr) {
-    return absl::InternalError("Chunk handler is null.");
-  }
   QuicheDataReader reader(response_checkpoint);
   switch (response_current_section_) {
     case ResponseMessageSection::kEnd:
@@ -297,7 +294,7 @@ absl::Status ChunkedObliviousHttpClient::DecryptResponseCheckpoint(
 
           response_chunk_counter.Increment();
           absl::Status handler_status =
-              chunk_handler_->OnDecryptedChunk(decrypted_chunk);
+              chunk_handler_.OnDecryptedChunk(decrypted_chunk);
           if (!handler_status.ok()) {
             return absl::InternalError(absl::StrCat(
                 "Chunk handler failed to process decrypted chunk: ",
@@ -334,13 +331,13 @@ absl::Status ChunkedObliviousHttpClient::DecryptResponseCheckpoint(
               /*is_final_chunk=*/true));
 
       absl::Status handler_status =
-          chunk_handler_->OnDecryptedChunk(decrypted_chunk);
+          chunk_handler_.OnDecryptedChunk(decrypted_chunk);
       if (!handler_status.ok()) {
         return absl::InternalError(
             absl::StrCat("Chunk handler failed to process decrypted chunk: ",
                          handler_status.message()));
       }
-      handler_status = chunk_handler_->OnChunksDone();
+      handler_status = chunk_handler_.OnChunksDone();
       if (!handler_status.ok()) {
         return absl::InternalError(
             absl::StrCat("Chunk handler failed to process chunks done: ",
