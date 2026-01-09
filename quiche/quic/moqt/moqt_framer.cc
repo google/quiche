@@ -401,8 +401,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
   }
   return SerializeControlMessage(
       MoqtMessageType::kClientSetup,
-      WireVarInt62(message.supported_versions.size()),
-      WireSpan<WireVarInt62, MoqtVersion>(message.supported_versions),
       WireKeyValuePairList(parameters));
 }
 
@@ -418,7 +416,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
     return quiche::QuicheBuffer();
   }
   return SerializeControlMessage(MoqtMessageType::kServerSetup,
-                                 WireVarInt62(message.selected_version),
                                  WireKeyValuePairList(parameters));
 }
 

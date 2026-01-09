@@ -142,9 +142,9 @@ TEST_F(MoqtIntegrationTest, Handshake) {
 }
 
 TEST_F(MoqtIntegrationTest, VersionMismatch) {
-  client_ = std::make_unique<MoqtClientEndpoint>(
-      &test_harness_.simulator(), "Client", "Server",
-      MoqtVersion::kUnrecognizedVersionForTests);
+  client_ = std::make_unique<MoqtClientEndpoint>(&test_harness_.simulator(),
+                                                 "Client", "Server",
+                                                 kUnrecognizedVersionForTests);
   server_ = std::make_unique<MoqtServerEndpoint>(
       &test_harness_.simulator(), "Server", "Client", kDefaultMoqtVersion);
   SetupCallbacks();

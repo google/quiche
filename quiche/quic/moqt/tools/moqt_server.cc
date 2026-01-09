@@ -9,9 +9,11 @@
 #include <string>
 #include <utility>
 
+#include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/crypto/quic_random.h"
@@ -87,6 +89,11 @@ MoqtServer::MoqtServer(std::unique_ptr<quic::ProofSource> proof_source,
                   connection_id_generator_) {
   dispatcher_.parameters().handler_factory =
       CreateWebTransportCallback(std::move(callback), event_loop_.get());
+  dispatcher_.parameters().subprotocol_callback =
+      +[](absl::Span<const absl::string_view> subprotocols) {
+        return absl::c_find(subprotocols, kDefaultMoqtVersion) -
+               subprotocols.begin();
+      };
 }
 
 absl::Status MoqtServer::CreateUDPSocketAndListen(

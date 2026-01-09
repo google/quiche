@@ -8,12 +8,12 @@
 #include <optional>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/quic_generic_session.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/test_tools/simulator/test_harness.h"
@@ -25,7 +25,7 @@ class MoqtClientEndpoint : public quic::simulator::QuicEndpointWithConnection {
  public:
   MoqtClientEndpoint(quic::simulator::Simulator* simulator,
                      const std::string& name, const std::string& peer_name,
-                     MoqtVersion version);
+                     absl::string_view version);
 
   MoqtSession* session() { return &session_; }
   quic::QuicGenericClientSession* quic_session() { return &quic_session_; }
@@ -41,7 +41,7 @@ class MoqtServerEndpoint : public quic::simulator::QuicEndpointWithConnection {
  public:
   MoqtServerEndpoint(quic::simulator::Simulator* simulator,
                      const std::string& name, const std::string& peer_name,
-                     MoqtVersion version);
+                     absl::string_view version);
 
   MoqtSession* session() { return &session_; }
   quic::QuicGenericServerSession* quic_session() { return &quic_session_; }

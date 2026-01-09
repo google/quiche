@@ -491,11 +491,11 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupMaxRequestIdAppearsTwice) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
-      0x20, 0x00, 0x0d, 0x02, 0x01, 0x02,  // versions
-      0x03,                                // 3 params
-      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
-      0x01, 0x32,                          // max_request_id = 50
-      0x00, 0x32,                          // max_request_id = 50
+      0x20, 0x00, 0x0a,
+      0x03,                          // 3 params
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
+      0x01, 0x32,                    // max_request_id = 50
+      0x00, 0x32,                    // max_request_id = 50
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
@@ -509,7 +509,7 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupAuthorizationTokenTagRegister) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
-      0x20, 0x00, 0x13, 0x02, 0x01, 0x02,              // versions
+      0x20, 0x00, 0x10,
       0x03,                                            // 3 params
       0x01, 0x03, 0x66, 0x6f, 0x6f,                    // path = "foo"
       0x01, 0x32,                                      // max_request_id = 50
@@ -525,8 +525,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
-      0x21, 0x00, 0x07,
-      0x01,                          // version = 1
+      0x21, 0x00, 0x06,
       0x01,                          // 1 param
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
   };
@@ -542,8 +541,7 @@ TEST_F(MoqtMessageSpecificTest, SetupAuthorityFromServer) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
-      0x21, 0x00, 0x07,
-      0x01,                          // version = 1
+      0x21, 0x00, 0x06,
       0x01,                          // 1 param
       0x05, 0x03, 0x66, 0x6f, 0x6f,  // authority = "foo"
   };
@@ -559,10 +557,10 @@ TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
-      0x20, 0x00, 0x0e, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x02,                                // 2 params
-      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
-      0x00, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
+      0x20, 0x00, 0x0b,
+      0x02,                          // 2 params
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
+      0x00, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
@@ -576,9 +574,9 @@ TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
   char setup[] = {
-      0x20, 0x00, 0x09, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x01,                                // 1 param
-      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
+      0x20, 0x00, 0x06,
+      0x01,                          // 1 param
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
@@ -592,9 +590,9 @@ TEST_F(MoqtMessageSpecificTest, SetupAuthorityOverWebtrans) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
   char setup[] = {
-      0x20, 0x00, 0x09, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x01,                                // 1 param
-      0x05, 0x03, 0x66, 0x6f, 0x6f,        // authority = "foo"
+      0x20, 0x00, 0x06,
+      0x01,                          // 1 param
+      0x05, 0x03, 0x66, 0x6f, 0x6f,  // authority = "foo"
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
@@ -608,8 +606,10 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
-      0x20, 0x00, 0x04, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x00,                                // no param
+      0x20,
+      0x00,
+      0x01,
+      0x00,  // no param
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
@@ -623,11 +623,11 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMaxRequestIdAppearsTwice) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
-      0x20, 0x00, 0x0d, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x03,                                // 4 params
-      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
-      0x01, 0x32,                          // max_request_id = 50
-      0x00, 0x32,                          // max_request_id = 50
+      0x20, 0x00, 0x0a,
+      0x03,                          // 3 params
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
+      0x01, 0x32,                    // max_request_id = 50
+      0x00, 0x32,                    // max_request_id = 50
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
@@ -641,9 +641,9 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMalformedPath) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
-      0x20, 0x00, 0x09, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x01,                                // 1 param
-      0x01, 0x03, 0x66, 0x5c, 0x6f,        // path = "f\o"
+      0x20, 0x00, 0x06,
+      0x01,                          // 1 param
+      0x01, 0x03, 0x66, 0x5c, 0x6f,  // path = "f\o"
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
@@ -656,10 +656,10 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMalformedAuthority) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
-      0x20, 0x00, 0x0e, 0x02, 0x01, 0x02,  // versions = 1, 2
-      0x02,                                // 2 params
-      0x01, 0x03, 0x66, 0x6f, 0x6f,        // path = "foo"
-      0x04, 0x03, 0x66, 0x5c, 0x6f,        // authority = "f\o"
+      0x20, 0x00, 0x0b,
+      0x02,                          // 2 params
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
+      0x04, 0x03, 0x66, 0x5c, 0x6f,  // authority = "f\o"
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();

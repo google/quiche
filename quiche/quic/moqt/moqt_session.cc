@@ -15,7 +15,6 @@
 #include <vector>
 
 
-#include "absl/algorithm/container.h"
 #include "absl/base/nullability.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
@@ -121,7 +120,7 @@ MoqtSession::MoqtSession(webtransport::Session* session,
     next_incoming_request_id_ = 1;
   }
   QUICHE_DCHECK(parameters_.moqt_implementation.empty());
-  parameters_.moqt_implementation = kVersionString;
+  parameters_.moqt_implementation = kImplementationName;
 }
 
 MoqtSession::ControlStream* MoqtSession::GetControlStream() {
@@ -147,10 +146,15 @@ void MoqtSession::SendControlMessage(quiche::QuicheBuffer message) {
 
 void MoqtSession::OnSessionReady() {
   QUICHE_DLOG(INFO) << ENDPOINT << "Underlying session ready";
+  std::optional<std::string> version = session_->GetNegotiatedSubprotocol();
+  if (version != parameters_.version) {
+    Error(MoqtError::kVersionNegotiationFailed,
+          "MOQT peer chose wrong subprotocol");
+    return;
+  }
   if (parameters_.perspective == Perspective::IS_SERVER) {
     return;
   }
-
   webtransport::Stream* control_stream =
       session_->OpenOutgoingBidirectionalStream();
   if (control_stream == nullptr) {
@@ -161,7 +165,6 @@ void MoqtSession::OnSessionReady() {
       std::make_unique<ControlStream>(this, control_stream));
   control_stream_ = control_stream->GetStreamId();
   MoqtClientSetup setup = MoqtClientSetup{
-      .supported_versions = std::vector<MoqtVersion>{parameters_.version},
       .parameters = parameters_,
   };
   SendControlMessage(framer_.SerializeClientSetup(setup));
@@ -990,20 +993,11 @@ void MoqtSession::ControlStream::OnClientSetupMessage(
                     "Received CLIENT_SETUP from server");
     return;
   }
-  if (absl::c_find(message.supported_versions, session_->parameters_.version) ==
-      message.supported_versions.end()) {
-    // TODO(martinduke): Is this the right error code? See issue #346.
-    session_->Error(MoqtError::kVersionNegotiationFailed,
-                    absl::StrCat("Version mismatch: expected 0x",
-                                 absl::Hex(session_->parameters_.version)));
-    return;
-  }
   session_->peer_supports_object_ack_ = message.parameters.support_object_acks;
   QUICHE_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   if (session_->parameters_.perspective == Perspective::IS_SERVER) {
     MoqtServerSetup response;
     response.parameters = session_->parameters_;
-    response.selected_version = session_->parameters_.version;
     SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
     QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   }
@@ -1017,13 +1011,6 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
   if (perspective() == Perspective::IS_SERVER) {
     session_->Error(MoqtError::kProtocolViolation,
                     "Received SERVER_SETUP from client");
-    return;
-  }
-  if (message.selected_version != session_->parameters_.version) {
-    // TODO(martinduke): Is this the right error code? See issue #346.
-    session_->Error(MoqtError::kProtocolViolation,
-                    absl::StrCat("Version mismatch: expected 0x",
-                                 absl::Hex(session_->parameters_.version)));
     return;
   }
   session_->peer_supports_object_ack_ = message.parameters.support_object_acks;

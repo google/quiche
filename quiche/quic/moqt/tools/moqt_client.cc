@@ -9,7 +9,9 @@
 #include <utility>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
@@ -25,6 +27,7 @@
 #include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/web_transport/web_transport_headers.h"
 
 namespace moqt {
 
@@ -83,6 +86,14 @@ absl::Status MoqtClient::ConnectInner(std::string path,
   headers[":path"] = path;
   headers[":method"] = "CONNECT";
   headers[":protocol"] = "webtransport";
+  std::string version = std::string(kDefaultMoqtVersion);
+  absl::StatusOr<std::string> serialized_version =
+      webtransport::SerializeSubprotocolRequestHeader(
+          absl::MakeSpan(&version, 1));
+  if (!serialized_version.ok()) {
+    return serialized_version.status();
+  }
+  headers["wt-available-protocols"] = *serialized_version;
   stream->SendRequest(std::move(headers), "", false);
 
   quic::WebTransportHttp3* web_transport = stream->web_transport();

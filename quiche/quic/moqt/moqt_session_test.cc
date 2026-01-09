@@ -37,6 +37,7 @@
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
@@ -134,7 +135,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
                                              kDefaultInitialMaxRequestId);
     ON_CALL(mock_session_, GetStreamById).WillByDefault(Return(&mock_stream_));
     EXPECT_EQ(MoqtSessionPeer::GetImplementationString(&session_),
-              kVersionString);
+              kImplementationName);
   }
   ~MoqtSessionTest() {
     EXPECT_CALL(session_callbacks_.session_deleted_callback, Call());
@@ -258,6 +259,8 @@ TEST_F(MoqtSessionTest, Queries) {
 
 // Verify the session sends CLIENT_SETUP on the control stream.
 TEST_F(MoqtSessionTest, OnSessionReady) {
+  EXPECT_CALL(mock_session_, GetNegotiatedSubprotocol)
+      .WillOnce(Return(std::optional<std::string>(kDefaultMoqtVersion)));
   EXPECT_CALL(mock_session_, OpenOutgoingBidirectionalStream())
       .WillOnce(Return(&mock_stream_));
   std::unique_ptr<webtransport::StreamVisitor> visitor;
@@ -279,9 +282,7 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
       MoqtSessionPeer::FetchParserVisitorFromWebtransportStreamVisitor(
           &session_, visitor.get());
   // Handle the server setup
-  MoqtServerSetup setup = {
-      kDefaultMoqtVersion,
-  };
+  MoqtServerSetup setup;  // No fields are set.
   EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
   stream_input->OnServerSetupMessage(setup);
 }
@@ -294,7 +295,6 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream_);
   MoqtClientSetup setup = {
-      /*supported_versions=*/{kDefaultMoqtVersion},
       MoqtSessionParameters(quic::Perspective::IS_CLIENT),
   };
   EXPECT_CALL(mock_stream_,
@@ -1927,6 +1927,8 @@ TEST_F(MoqtSessionTest, OutgoingStreamDisappears) {
 }
 
 TEST_F(MoqtSessionTest, OneBidirectionalStreamClient) {
+  EXPECT_CALL(mock_session_, GetNegotiatedSubprotocol)
+      .WillOnce(Return(std::optional<std::string>(kDefaultMoqtVersion)));
   EXPECT_CALL(mock_session_, OpenOutgoingBidirectionalStream())
       .WillOnce(Return(&mock_stream_));
   std::unique_ptr<webtransport::StreamVisitor> visitor;
@@ -1967,7 +1969,6 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream_);
   MoqtClientSetup setup = {
-      /*supported_versions*/ {kDefaultMoqtVersion},
       MoqtSessionParameters(),
   };
   EXPECT_CALL(mock_stream_,
@@ -4156,6 +4157,23 @@ TEST_F(MoqtSessionTest, IncomingPublishNamespaceCleanup) {
              const std::optional<VersionSpecificParameters>&,
              MoqtResponseCallback callback) { EXPECT_EQ(callback, nullptr); });
   // Test teardown will destroy session_, triggering removal of "foo".
+}
+
+TEST_F(MoqtSessionTest, WrongSubprotocol) {
+  EXPECT_CALL(mock_session_, GetNegotiatedSubprotocol)
+      .WillOnce(
+          Return(std::optional<std::string>(kUnrecognizedVersionForTests)));
+  EXPECT_CALL(mock_session_, CloseSession);
+  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call);
+  session_.OnSessionReady();
+}
+
+TEST_F(MoqtSessionTest, NoSubprotocol) {
+  EXPECT_CALL(mock_session_, GetNegotiatedSubprotocol)
+      .WillOnce(Return(std::optional<std::string>()));
+  EXPECT_CALL(mock_session_, CloseSession);
+  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call);
+  session_.OnSessionReady();
 }
 
 // TODO: re-enable this test once this behavior is re-implemented.

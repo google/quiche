@@ -30,7 +30,7 @@ namespace moqt::test {
 
 namespace {
 MoqtSessionParameters CreateParameters(quic::Perspective perspective,
-                                       MoqtVersion version) {
+                                       absl::string_view version) {
   MoqtSessionParameters parameters(perspective, "", "");
   parameters.version = version;
   parameters.deliver_partial_objects = false;
@@ -48,14 +48,15 @@ MoqtSessionCallbacks CreateCallbacks(quic::simulator::Simulator* simulator) {
 MoqtClientEndpoint::MoqtClientEndpoint(quic::simulator::Simulator* simulator,
                                        const std::string& name,
                                        const std::string& peer_name,
-                                       MoqtVersion version)
+                                       absl::string_view version)
     : QuicEndpointWithConnection(simulator, name, peer_name,
                                  quic::Perspective::IS_CLIENT,
                                  quic::GetQuicVersionsForGenericSession()),
       crypto_config_(quic::test::crypto_test_utils::ProofVerifierForTesting()),
       quic_session_(connection_.get(), false, nullptr, GenerateQuicConfig(),
-                    "test.example.com", 443, "moqt", &session_,
-                    /*visitor_owned=*/false, nullptr, &crypto_config_),
+                    "test.example.com", 443, std::string(kDefaultMoqtVersion),
+                    &session_, /*visitor_owned=*/false, nullptr,
+                    &crypto_config_),
       session_(&quic_session_,
                CreateParameters(quic::Perspective::IS_CLIENT, version),
                std::make_unique<quic::QuicAlarmFactoryProxy>(
@@ -67,7 +68,7 @@ MoqtClientEndpoint::MoqtClientEndpoint(quic::simulator::Simulator* simulator,
 MoqtServerEndpoint::MoqtServerEndpoint(quic::simulator::Simulator* simulator,
                                        const std::string& name,
                                        const std::string& peer_name,
-                                       MoqtVersion version)
+                                       absl::string_view version)
     : QuicEndpointWithConnection(simulator, name, peer_name,
                                  quic::Perspective::IS_SERVER,
                                  quic::GetQuicVersionsForGenericSession()),
@@ -78,7 +79,7 @@ MoqtServerEndpoint::MoqtServerEndpoint(quic::simulator::Simulator* simulator,
                      quic::test::crypto_test_utils::ProofSourceForTesting(),
                      quic::KeyExchangeSource::Default()),
       quic_session_(connection_.get(), false, nullptr, GenerateQuicConfig(),
-                    "moqt", &session_,
+                    std::string(kDefaultMoqtVersion), &session_,
                     /*visitor_owned=*/false, nullptr, &crypto_config_,
                     &compressed_certs_cache_),
       session_(&quic_session_,

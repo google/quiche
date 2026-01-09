@@ -38,14 +38,12 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
   return quic::ParsedQuicVersionVector{quic::ParsedQuicVersion::RFCv1()};
 }
 
-enum class MoqtVersion : uint64_t {
-  kDraft14 = 0xff00000e,
-  kUnrecognizedVersionForTests = 0xfe0000ff,
-};
+inline constexpr absl::string_view kDraft16 = "moqt-16";
+inline constexpr absl::string_view kDefaultMoqtVersion = kDraft16;
+inline constexpr absl::string_view kImplementationName =
+    "Google QUICHE MOQT draft 16";
+inline constexpr absl::string_view kUnrecognizedVersionForTests = "moqt-15";
 
-inline constexpr MoqtVersion kDefaultMoqtVersion = MoqtVersion::kDraft14;
-inline constexpr absl::string_view kVersionString =
-    "Google QUICHE MOQT draft 14";
 inline constexpr uint64_t kDefaultInitialMaxRequestId = 100;
 // TODO(martinduke): Implement an auth token cache.
 inline constexpr uint64_t kDefaultMaxAuthTokenCacheSize = 0;
@@ -97,7 +95,7 @@ struct QUICHE_EXPORT MoqtSessionParameters {
       : perspective(perspective), max_request_id(max_request_id) {}
   bool operator==(const MoqtSessionParameters& other) const = default;
 
-  MoqtVersion version = kDefaultMoqtVersion;
+  std::string version = std::string(kDefaultMoqtVersion);
   bool deliver_partial_objects = false;
   quic::Perspective perspective = quic::Perspective::IS_SERVER;
   bool using_webtrans = true;
@@ -535,12 +533,10 @@ class KeyValuePairList {
 
 // TODO(martinduke): Collapse both Setup messages into MoqtSessionParameters.
 struct QUICHE_EXPORT MoqtClientSetup {
-  std::vector<MoqtVersion> supported_versions;
   MoqtSessionParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtServerSetup {
-  MoqtVersion selected_version;
   MoqtSessionParameters parameters;
 };
 

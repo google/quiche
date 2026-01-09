@@ -502,15 +502,15 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       // Should not send PATH or AUTHORITY.
       client_setup_.parameters.path = "";
       client_setup_.parameters.authority = "";
-      raw_packet_[2] = 0x24;  // adjust payload length (-17)
-      raw_packet_[6] = 0x02;  // only two parameters
+      raw_packet_[2] -= 17;   // adjust payload length
+      raw_packet_[3] = 0x02;  // only two parameters
       // Move MaxRequestId up in the packet.
-      memmove(raw_packet_ + 7, raw_packet_ + 13, 2);
+      memmove(raw_packet_ + 4, raw_packet_ + 10, 2);
       // Move MoqtImplementation up in the packet.
-      memmove(raw_packet_ + 9, raw_packet_ + 26,
+      memmove(raw_packet_ + 6, raw_packet_ + 23,
               kTestImplementationString.length() + 2);
-      raw_packet_[7] = 0x02;  // Diff from 0.
-      raw_packet_[9] = 0x05;  // Diff from 2.
+      raw_packet_[4] = 0x02;  // Diff from 0.
+      raw_packet_[6] = 0x05;  // Diff from 2.
       SetWireImage(raw_packet_, sizeof(raw_packet_) - 17);
     } else {
       SetWireImage(raw_packet_, sizeof(raw_packet_));
@@ -519,18 +519,6 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtClientSetup>(values);
-    if (cast.supported_versions.size() !=
-        client_setup_.supported_versions.size()) {
-      QUIC_LOG(INFO) << "CLIENT_SETUP number of supported versions mismatch";
-      return false;
-    }
-    for (uint64_t i = 0; i < cast.supported_versions.size(); ++i) {
-      // Listed versions are 1 and 2, in that order.
-      if (cast.supported_versions[i] != client_setup_.supported_versions[i]) {
-        QUIC_LOG(INFO) << "CLIENT_SETUP supported version mismatch";
-        return false;
-      }
-    }
     if (cast.parameters != client_setup_.parameters) {
       QUIC_LOG(INFO) << "CLIENT_SETUP parameter mismatch";
       return false;
@@ -540,9 +528,9 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
 
   void ExpandVarints() override {
     if (!client_setup_.parameters.path.empty()) {
-      ExpandVarintsImpl("vvvvvv----vvvv---------vv---------------------------");
+      ExpandVarintsImpl("vvv----vvvv---------vv---------------------------");
     } else {
-      ExpandVarintsImpl("vvvvvvvv---------------------------");
+      ExpandVarintsImpl("vvvvv---------------------------");
     }
   }
 
@@ -555,9 +543,8 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   // string parameters in order. Unfortunately, this means that
   // kMoqtImplementation goes last even though it is always present, while
   // kPath and KAuthority aren't.
-  uint8_t raw_packet_[56] = {
-      0x20, 0x00, 0x35,                    // type, length
-      0x02, 0x01, 0x02,                    // versions
+  uint8_t raw_packet_[53] = {
+      0x20, 0x00, 0x32,                    // type, length
       0x04,                                // 4 parameters
       0x01, 0x04, 0x70, 0x61, 0x74, 0x68,  // path = "path"
       0x01, 0x32,                          // max_request_id = 50
@@ -568,8 +555,6 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
       0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
   MoqtClientSetup client_setup_ = {
-      /*supported_versions=*/std::vector<MoqtVersion>(
-          {static_cast<MoqtVersion>(1), static_cast<MoqtVersion>(2)}),
       MoqtSessionParameters(quic::Perspective::IS_CLIENT, "path", "authority",
                             50),
   };
@@ -592,25 +577,22 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(server_setup_);
   }
 
  private:
-  uint8_t raw_packet_[37] = {0x21, 0x00,
-                             0x22,  // type
-                             0x01,
-                             0x02,        // version, two parameters
-                             0x02, 0x32,  // max_subscribe_id = 50
+  uint8_t raw_packet_[36] = {0x21, 0x00, 0x21,  // type, length
+                             0x02,              // two parameters
+                             0x02, 0x32,        // max_subscribe_id = 50
                              // moqt_implementation:
                              0x05, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65,
                              0x73, 0x74, 0x20, 0x49, 0x6d, 0x70, 0x6c, 0x65,
                              0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
                              0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
   MoqtServerSetup server_setup_ = {
-      /*selected_version=*/static_cast<MoqtVersion>(1),
       MoqtSessionParameters(quic::Perspective::IS_SERVER, 50),
   };
 };

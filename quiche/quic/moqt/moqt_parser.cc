@@ -325,17 +325,6 @@ size_t MoqtControlParser::ProcessClientSetup(quic::QuicDataReader& reader) {
   MoqtClientSetup setup;
   setup.parameters.using_webtrans = uses_web_transport_;
   setup.parameters.perspective = quic::Perspective::IS_CLIENT;
-  uint64_t number_of_supported_versions;
-  if (!reader.ReadVarInt62(&number_of_supported_versions)) {
-    return 0;
-  }
-  uint64_t version;
-  for (uint64_t i = 0; i < number_of_supported_versions; ++i) {
-    if (!reader.ReadVarInt62(&version)) {
-      return 0;
-    }
-    setup.supported_versions.push_back(static_cast<MoqtVersion>(version));
-  }
   KeyValuePairList parameters;
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
@@ -358,11 +347,6 @@ size_t MoqtControlParser::ProcessServerSetup(quic::QuicDataReader& reader) {
   MoqtServerSetup setup;
   setup.parameters.using_webtrans = uses_web_transport_;
   setup.parameters.perspective = quic::Perspective::IS_SERVER;
-  uint64_t version;
-  if (!reader.ReadVarInt62(&version)) {
-    return 0;
-  }
-  setup.selected_version = static_cast<MoqtVersion>(version);
   KeyValuePairList parameters;
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
