@@ -221,10 +221,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   if (track == nullptr) {
     return;
   }
-  if (!track->OnObject(/*is_datagram=*/true)) {
-    OnMalformedTrack(track);
-    return;
-  }
+  track->OnObjectOrOk();
   if (!track->InWindow(Location(message.group_id, message.object_id))) {
     // TODO(martinduke): a recent SUBSCRIBE_UPDATE could put us here, and it's
     // not an error.
@@ -1770,7 +1767,9 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
   }
   if (!track->is_fetch()) {
     if (no_more_objects_) {
-      // Already got a stream-ending object.
+      // Already got a stream-ending object. While the lower layer won't
+      // deliver data after the FIN, there could have been an EndOfGroup or
+      // EndOfTrack signal.
       session_->OnMalformedTrack(track);
       return;
     }
@@ -1782,10 +1781,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       }
     }
     SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
-    if (!subscribe->OnObject(/*is_datagram=*/false)) {
-      session_->OnMalformedTrack(track);
-      return;
-    }
+    subscribe->OnObjectOrOk();
     if (subscribe->visitor() != nullptr) {
       PublishedObjectMetadata metadata;
       metadata.location = Location(message.group_id, message.object_id);
@@ -1803,6 +1799,11 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
     UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
     if (!fetch->LocationIsValid(Location(message.group_id, message.object_id),
                                 message.object_status, end_of_message)) {
+      // TODO(martinduke): in https://github.com/moq-wg/moq-transport/pull/1409
+      // I make the case that this should be a protocol violation. Update if
+      // that proposal is accepted (at which point
+      // QuicSession::OnMalformedTrack can be removed, since all the
+      // remaining conditions are at the application layer).
       session_->OnMalformedTrack(track);
       return;
     }

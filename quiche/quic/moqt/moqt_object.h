@@ -24,6 +24,13 @@ struct PublishedObjectMetadata {
   MoqtPriority publisher_priority;
   MoqtForwardingPreference forwarding_preference;
   quic::QuicTime arrival_time = quic::QuicTime::Zero();
+  bool IsMalformed(const PublishedObjectMetadata& other) const {
+    // It's OK for arrival_time to be different when checking immutables.
+    return (location != other.location || subgroup != other.subgroup ||
+            status != other.status ||
+            publisher_priority != other.publisher_priority ||
+            forwarding_preference != other.forwarding_preference);
+  }
 };
 
 // PublishedObject is a description of an object that is sufficient to publish

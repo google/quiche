@@ -114,15 +114,6 @@ class SubscribeRemoteTrack : public RemoteTrack {
   }
   SubscribeVisitor* visitor() { return visitor_; }
 
-  // Returns false if the forwarding preference is changing on the track.
-  bool OnObject(bool is_datagram) {
-    OnObjectOrOk();
-    if (!is_datagram_.has_value()) {
-      is_datagram_ = is_datagram;
-      return true;
-    }
-    return (is_datagram_ == is_datagram);
-  }
   // Called on SUBSCRIBE_OK or SUBSCRIBE_UPDATE.
   bool TruncateStart(Location start) {
     return window_mutable().TruncateStart(start);
@@ -162,7 +153,6 @@ class SubscribeRemoteTrack : public RemoteTrack {
   std::optional<const uint64_t> track_alias_;
   bool forward_;
   SubscribeVisitor* visitor_;
-  std::optional<bool> is_datagram_;
   int currently_open_streams_ = 0;
   // Every stream that has received FIN or RESET_STREAM.
   uint64_t streams_closed_ = 0;

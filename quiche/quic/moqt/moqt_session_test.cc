@@ -2074,38 +2074,6 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
   session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
 }
 
-TEST_F(MoqtSessionTest, DataStreamTypeMismatch) {
-  std::string payload = "deadbeef";
-  MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(),
-                                     /*track_alias=*/2, &remote_track_visitor_);
-  MoqtObject object = {
-      /*track_alias=*/2,
-      /*group_sequence=*/0,
-      /*object_sequence=*/0,
-      /*publisher_priority=*/0,
-      /*extension_headers=*/"",
-      /*object_status=*/MoqtObjectStatus::kNormal,
-      /*subgroup_id=*/0,
-      /*payload_length=*/8,
-  };
-  std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream_,
-                                                kDefaultSubgroupStreamType);
-
-  EXPECT_CALL(remote_track_visitor_, OnObjectFragment).Times(1);
-  EXPECT_CALL(mock_stream_, GetStreamId())
-      .WillRepeatedly(Return(kIncomingUniStreamId));
-  object_stream->OnObjectMessage(object, payload, true);
-  char datagram[] = {0x00, 0x02, 0x00, 0x10, 0x00, 0x64, 0x65,
-                     0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
-  // Arrival of a datagram creates a malformed track. Unsubscribe.
-  std::unique_ptr<MoqtControlParserVisitor> control_stream =
-      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  EXPECT_CALL(mock_stream_,
-              Writev(ControlMessageOfType(MoqtMessageType::kUnsubscribe), _));
-  session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
-}
-
 TEST_F(MoqtSessionTest, StreamObjectOutOfWindow) {
   std::string payload = "deadbeef";
   MoqtSubscribe subscribe = DefaultSubscribe();

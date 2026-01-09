@@ -357,6 +357,83 @@ TEST_F(MoqtRelayTrackPublisherTest, OnMalformedObject) {
   EXPECT_TRUE(track_deleted_);
 }
 
+TEST_F(MoqtRelayTrackPublisherTest, DuplicateObject) {
+  EXPECT_CALL(*session_, SubscribeCurrentObject)
+      .WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener_);
+  Location location = kLargestLocation.Next();
+  EXPECT_CALL(listener_,
+              OnNewObjectAvailable(location, /*subgroup=*/0,
+                                   /*publisher_priority=*/128,
+                                   MoqtForwardingPreference::kSubgroup));
+  publisher_.OnObjectFragment(
+      kTrackName,
+      PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
+                              128, MoqtForwardingPreference::kSubgroup},
+      "object", /*end_of_message=*/true);
+  // Exact duplicate is ignored. It doesn't matter that the arrival time
+  // changed.
+  EXPECT_CALL(listener_, OnNewObjectAvailable).Times(0);
+  EXPECT_CALL(listener_, OnTrackPublisherGone).Times(0);
+  EXPECT_FALSE(track_deleted_);
+  publisher_.OnObjectFragment(
+      kTrackName,
+      PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
+                              128, MoqtForwardingPreference::kSubgroup,
+                              quic::QuicTime::Infinite()},
+      "object", /*end_of_message=*/true);
+}
+
+TEST_F(MoqtRelayTrackPublisherTest, DuplicateObjectChangedMetadata) {
+  EXPECT_CALL(*session_, SubscribeCurrentObject)
+      .WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener_);
+  Location location = kLargestLocation.Next();
+  EXPECT_CALL(listener_,
+              OnNewObjectAvailable(location, /*subgroup=*/0,
+                                   /*publisher_priority=*/128,
+                                   MoqtForwardingPreference::kSubgroup));
+  publisher_.OnObjectFragment(
+      kTrackName,
+      PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
+                              128, MoqtForwardingPreference::kSubgroup},
+      "object", /*end_of_message=*/true);
+  // Priority change; malformed track.
+  EXPECT_CALL(listener_, OnNewObjectAvailable).Times(0);
+  EXPECT_CALL(listener_, OnTrackPublisherGone);
+  publisher_.OnObjectFragment(
+      kTrackName,
+      PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal, 64,
+                              MoqtForwardingPreference::kSubgroup},
+      "object", /*end_of_message=*/true);
+  EXPECT_TRUE(track_deleted_);
+}
+
+TEST_F(MoqtRelayTrackPublisherTest, DuplicateObjectChangedPayload) {
+  EXPECT_CALL(*session_, SubscribeCurrentObject)
+      .WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener_);
+  Location location = kLargestLocation.Next();
+  EXPECT_CALL(listener_,
+              OnNewObjectAvailable(location, /*subgroup=*/0,
+                                   /*publisher_priority=*/128,
+                                   MoqtForwardingPreference::kSubgroup));
+  publisher_.OnObjectFragment(
+      kTrackName,
+      PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
+                              128, MoqtForwardingPreference::kSubgroup},
+      "payload", /*end_of_message=*/true);
+  // Payload change; malformed track.
+  EXPECT_CALL(listener_, OnNewObjectAvailable).Times(0);
+  EXPECT_CALL(listener_, OnTrackPublisherGone);
+  publisher_.OnObjectFragment(
+      kTrackName,
+      PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
+                              128, MoqtForwardingPreference::kSubgroup},
+      "foobar", /*end_of_message=*/true);
+  EXPECT_TRUE(track_deleted_);
+}
+
 TEST_F(MoqtRelayTrackPublisherTest, Fin) {
   SubscribeAndOk();
 
