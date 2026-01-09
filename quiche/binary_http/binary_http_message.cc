@@ -1,10 +1,8 @@
 #include "quiche/binary_http/binary_http_message.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
-#include <functional>
-#include <iterator>
-#include <memory>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -12,7 +10,7 @@
 #include <vector>
 
 #include "absl/base/attributes.h"
-#include "absl/container/flat_hash_map.h"
+#include "absl/functional/bind_front.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/ascii.h"
@@ -21,9 +19,11 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
+#include "quiche/common/quiche_status_utils.h"
 
 namespace quiche {
 namespace {
@@ -239,6 +239,95 @@ absl::StatusOr<std::string> EncodeBodyChunksImpl(
   return data;
 }
 
+// Initializes the checkpoint based on the provided data and any buffered data.
+// If the buffer has data, the new data is appended to the buffer.
+absl::string_view InitializeChunkedDecodingCheckpoint(absl::string_view data,
+                                                      std::string& buffer) {
+  absl::string_view checkpoint = data;
+  // Prepend buffered data if present.
+  if (!buffer.empty()) {
+    absl::StrAppend(&buffer, data);
+    checkpoint = buffer;
+  }
+  return checkpoint;
+}
+
+// Updates the checkpoint based on the current position of the reader.
+void UpdateChunkedDecodingCheckpoint(const QuicheDataReader& reader,
+                                     absl::string_view& checkpoint) {
+  checkpoint = reader.PeekRemainingPayload();
+}
+
+// Buffers the checkpoint.
+void BufferChunkedDecodingCheckpoint(absl::string_view checkpoint,
+                                     std::string& buffer) {
+  if (buffer != checkpoint) {
+    buffer.assign(checkpoint);
+  }
+}
+
+// Decodes the fields in the reader. Calls the field_handler for each field
+// until the reader is done or the content terminator is encountered.
+absl::Status DecodeContentTerminatedFieldSection(
+    QuicheDataReader& reader, absl::string_view& checkpoint,
+    quiche::UnretainedCallback<absl::Status(absl::string_view,
+                                            absl::string_view)>
+        field_handler) {
+  uint64_t length_or_content_terminator = kContentTerminator;
+  do {
+    if (!reader.ReadVarInt62(&length_or_content_terminator)) {
+      return absl::OutOfRangeError("Not enough data to read section.");
+    }
+    if (length_or_content_terminator != kContentTerminator) {
+      const absl::StatusOr<BinaryHttpMessage::FieldView> field =
+          DecodeField(reader, length_or_content_terminator);
+      if (!field.ok()) {
+        return field.status();
+      }
+      const absl::Status section_status =
+          field_handler(field->name, field->value);
+      if (!section_status.ok()) {
+        return absl::InternalError(absl::StrCat("Failed to handle header: ",
+                                                section_status.message()));
+      }
+    }
+    // Either a field was successfully decoded or a content terminator was
+    // encountered, update the checkpoint.
+    UpdateChunkedDecodingCheckpoint(reader, checkpoint);
+  } while (length_or_content_terminator != kContentTerminator);
+  return absl::OkStatus();
+}
+
+// Decodes the body chunks in the reader. Calls the body_chunk_handler for
+// each body chunk until the reader is done or the content terminator is
+// encountered.
+absl::Status DecodeContentTerminatedBodyChunkSection(
+    QuicheDataReader& reader, absl::string_view& checkpoint,
+    quiche::UnretainedCallback<absl::Status(absl::string_view)>
+        body_chunk_handler) {
+  uint64_t length_or_content_terminator = kContentTerminator;
+  do {
+    if (!reader.ReadVarInt62(&length_or_content_terminator)) {
+      return absl::OutOfRangeError("Not enough data to read section.");
+    }
+    if (length_or_content_terminator != kContentTerminator) {
+      absl::string_view body_chunk;
+      if (!reader.ReadStringPiece(&body_chunk, length_or_content_terminator)) {
+        return absl::OutOfRangeError("Failed to read body chunk.");
+      }
+      const absl::Status section_status = body_chunk_handler(body_chunk);
+      if (!section_status.ok()) {
+        return absl::InternalError(absl::StrCat("Failed to handle body chunk: ",
+                                                section_status.message()));
+      }
+    }
+    // Either a body chunk was successfully decoded or a content terminator was
+    // encountered, update the checkpoint.
+    UpdateChunkedDecodingCheckpoint(reader, checkpoint);
+  } while (length_or_content_terminator != kContentTerminator);
+  return absl::OkStatus();
+}
+
 }  // namespace
 
 absl::StatusOr<uint64_t> GetFieldSectionLength(
@@ -277,33 +366,6 @@ absl::Status EncodeFields(absl::Span<BinaryHttpMessage::FieldView> fields,
     return absl::InternalError("Failed to write content terminator.");
   }
   return absl::OkStatus();
-}
-
-// Initializes the checkpoint based on the provided data and any buffered data.
-// If the buffer has data, the new data is appended to the buffer.
-absl::string_view InitializeChunkedDecodingCheckpoint(absl::string_view data,
-                                                      std::string& buffer) {
-  absl::string_view checkpoint = data;
-  // Prepend buffered data if present.
-  if (!buffer.empty()) {
-    absl::StrAppend(&buffer, data);
-    checkpoint = buffer;
-  }
-  return checkpoint;
-}
-
-// Updates the checkpoint based on the current position of the reader.
-void UpdateChunkedDecodingCheckpoint(const QuicheDataReader& reader,
-                                     absl::string_view& checkpoint) {
-  checkpoint = reader.PeekRemainingPayload();
-}
-
-// Buffers the checkpoint.
-void BufferChunkedDecodingCheckpoint(absl::string_view checkpoint,
-                                     std::string& buffer) {
-  if (buffer != checkpoint) {
-    buffer.assign(checkpoint);
-  }
 }
 
 void BinaryHttpMessage::Fields::AddField(BinaryHttpMessage::Field field) {
@@ -527,70 +589,6 @@ absl::StatusOr<BinaryHttpRequest> BinaryHttpRequest::Create(
       absl::StrCat("Unsupported framing type ", framing));
 }
 
-absl::Status
-BinaryHttpRequest::IndeterminateLengthDecoder::DecodeContentTerminatedSection(
-    QuicheDataReader& reader, absl::string_view& checkpoint) {
-  uint64_t length_or_content_terminator = kContentTerminator;
-  do {
-    if (!reader.ReadVarInt62(&length_or_content_terminator)) {
-      return absl::OutOfRangeError("Not enough data to read section.");
-    }
-    if (length_or_content_terminator != kContentTerminator) {
-      switch (current_section_) {
-        case IndeterminateLengthMessageSection::kHeader: {
-          const absl::StatusOr<FieldView> field =
-              DecodeField(reader, length_or_content_terminator);
-          if (!field.ok()) {
-            return field.status();
-          }
-          const absl::Status section_status =
-              message_section_handler_.OnHeader(field->name, field->value);
-          if (!section_status.ok()) {
-            return absl::InternalError(absl::StrCat("Failed to handle header: ",
-                                                    section_status.message()));
-          }
-          break;
-        }
-        case IndeterminateLengthMessageSection::kBody: {
-          absl::string_view body_chunk;
-          if (!reader.ReadStringPiece(&body_chunk,
-                                      length_or_content_terminator)) {
-            return absl::OutOfRangeError("Failed to read body chunk.");
-          }
-          const absl::Status section_status =
-              message_section_handler_.OnBodyChunk(body_chunk);
-          if (!section_status.ok()) {
-            return absl::InternalError(absl::StrCat(
-                "Failed to handle body chunk: ", section_status.message()));
-          }
-          break;
-        }
-        case IndeterminateLengthMessageSection::kTrailer: {
-          const absl::StatusOr<FieldView> field =
-              DecodeField(reader, length_or_content_terminator);
-          if (!field.ok()) {
-            return field.status();
-          }
-          const absl::Status section_status =
-              message_section_handler_.OnTrailer(field->name, field->value);
-          if (!section_status.ok()) {
-            return absl::InternalError(absl::StrCat(
-                "Failed to handle trailer: ", section_status.message()));
-          }
-          break;
-        }
-        default:
-          return absl::InternalError(
-              "Unexpected section in DecodeContentTerminatedSection.");
-      }
-    }
-    // Either a section was successfully decoded or a content terminator was
-    // encountered, update the checkpoint.
-    UpdateChunkedDecodingCheckpoint(reader, checkpoint);
-  } while (length_or_content_terminator != kContentTerminator);
-  return absl::OkStatus();
-}
-
 // Returns Ok status only if the decoding processes the Padding section
 // successfully or if the message is truncated properly. All other points of
 // return are errors.
@@ -629,11 +627,10 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
     }
       ABSL_FALLTHROUGH_INTENDED;
     case IndeterminateLengthMessageSection::kHeader: {
-      const absl::Status status =
-          DecodeContentTerminatedSection(reader, checkpoint);
-      if (!status.ok()) {
-        return status;
-      }
+      QUICHE_RETURN_IF_ERROR(DecodeContentTerminatedFieldSection(
+          reader, checkpoint,
+          absl::bind_front(&MessageSectionHandler::OnHeader,
+                           &message_section_handler_)));
       const absl::Status section_status =
           message_section_handler_.OnHeadersDone();
       if (!section_status.ok()) {
@@ -662,12 +659,12 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
         return absl::OkStatus();
       }
 
-      absl::Status section_status =
-          DecodeContentTerminatedSection(reader, checkpoint);
-      if (!section_status.ok()) {
-        return section_status;
-      }
-      section_status = message_section_handler_.OnBodyChunksDone();
+      QUICHE_RETURN_IF_ERROR(DecodeContentTerminatedBodyChunkSection(
+          reader, checkpoint,
+          absl::bind_front(&MessageSectionHandler::OnBodyChunk,
+                           &message_section_handler_)));
+      const absl::Status section_status =
+          message_section_handler_.OnBodyChunksDone();
       if (!section_status.ok()) {
         return absl::InternalError(absl::StrCat(
             "Failed to handle body chunks done: ", section_status.message()));
@@ -689,12 +686,12 @@ BinaryHttpRequest::IndeterminateLengthDecoder::DecodeCheckpointData(
         return absl::OkStatus();
       }
 
-      absl::Status section_status =
-          DecodeContentTerminatedSection(reader, checkpoint);
-      if (!section_status.ok()) {
-        return section_status;
-      }
-      section_status = message_section_handler_.OnTrailersDone();
+      QUICHE_RETURN_IF_ERROR(DecodeContentTerminatedFieldSection(
+          reader, checkpoint,
+          absl::bind_front(&MessageSectionHandler::OnTrailer,
+                           &message_section_handler_)));
+      const absl::Status section_status =
+          message_section_handler_.OnTrailersDone();
       if (!section_status.ok()) {
         return absl::InternalError(absl::StrCat(
             "Failed to handle trailers done: ", section_status.message()));

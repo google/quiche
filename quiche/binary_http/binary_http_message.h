@@ -274,10 +274,6 @@ class QUICHE_EXPORT BinaryHttpRequest::IndeterminateLengthDecoder {
   // section. When a section is fully decoded, the checkpoint is updated.
   absl::Status DecodeCheckpointData(bool end_stream,
                                     absl::string_view& checkpoint);
-  // Decodes a section 0 or more times until a content terminator is
-  // encountered.
-  absl::Status DecodeContentTerminatedSection(QuicheDataReader& reader,
-                                              absl::string_view& checkpoint);
 
   // The handler to invoke when a section is decoded successfully. The
   // handler can return an error if the decoded data cannot be processed
