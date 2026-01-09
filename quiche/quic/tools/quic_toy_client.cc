@@ -42,29 +42,46 @@
 
 #include "quiche/quic/tools/quic_toy_client.h"
 
+#include <cstddef>
+#include <cstdint>
 #include <fstream>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "openssl/base.h"
+#include "openssl/bytestring.h"
+#include "quiche/quic/core/crypto/certificate_view.h"
+#include "quiche/quic/core/crypto/client_proof_source.h"
+#include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"
-#include "quiche/quic/core/quic_packets.h"
-#include "quiche/quic/core/quic_server_id.h"
-#include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/crypto/quic_crypto_client_config.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_tag.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
-#include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
+#include "quiche/quic/tools/quic_spdy_client_base.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_reference_counted.h"
 #include "quiche/common/quiche_text_utils.h"
 
 namespace {
@@ -171,6 +188,19 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "default certificate for signing, if server requested client certs.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, request_trust_anchors, "",
+    "A space-separated list of Trust Anchor IDs to request from the server via "
+    "the TLS trust_anchors extension, e.g. \"11129.9.1 11129.9.2\". When the "
+    "flag is not specified or its value is the empty string, the trust_anchors "
+    "extension will not be sent. When its value is \"EMPTY_TRUST_ANCHORS\", "
+    "the client will send the trust_anchors extension with an empty value. "
+    "Presently, Trust Anchor ID assignments are recorded here: "
+    // clang-format off
+    "<https://github.com/tlswg/tls-trust-anchor-ids/blob/main/assignments.md>."
+    // clang-format on
+);
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, drop_response_body, false,
     "If true, drop response body immediately after it is received.");
 
@@ -249,6 +279,38 @@ std::unique_ptr<ClientProofSource> CreateTestClientProofSource(
   }
 
   return proof_source;
+}
+
+// Parses `text_oid_list` as a list of ASN.1 relative OIDs representing Trust
+// Anchor IDs and serializes the corresponding TLS `trust_anchors` extension, as
+// defined by draft-ietf-tls-trust-anchor-ids-02. Returns an error if the list
+// is empty, any of the OIDs cannot be parsed, or if serialization fails. Note
+// that on success, the returned serialization elides the 16-bit length prefix
+// on the `TrustAnchorIDList` structure.
+absl::StatusOr<std::optional<std::string>> SerializeTrustAnchorIdsFromTextOids(
+    absl::string_view text_oid_list) {
+  const std::vector<absl::string_view> text_oids =
+      absl::StrSplit(text_oid_list, ' ', absl::SkipWhitespace());
+  if (text_oids.empty()) {
+    return absl::InvalidArgumentError(
+        "Expected a non-empty list of Trust Anchor IDs.");
+  }
+  bssl::ScopedCBB cbb;
+  if (!CBB_init(cbb.get(), 32)) {
+    return absl::InternalError("Failed to initialize CBB.");
+  }
+  for (absl::string_view text_oid : text_oids) {
+    CBB id;
+    if (!CBB_add_u8_length_prefixed(cbb.get(), &id) ||
+        !CBB_add_asn1_relative_oid_from_text(&id, text_oid.data(),
+                                             text_oid.size()) ||
+        !CBB_flush(cbb.get())) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Invalid Trust Anchor ID: ", text_oid));
+    }
+  }
+  return std::string(reinterpret_cast<const char*>(CBB_data(cbb.get())),
+                     CBB_len(cbb.get()));
 }
 
 }  // namespace
@@ -363,6 +425,24 @@ int QuicToyClient::SendRequestsAndPrintResponses(
       return 1;
     }
     client->crypto_config()->set_proof_source(std::move(proof_source));
+  }
+
+  if (const std::string request_trust_anchors =
+          quiche::GetQuicheCommandLineFlag(FLAGS_request_trust_anchors);
+      !request_trust_anchors.empty()) {
+    if (request_trust_anchors == "EMPTY_TRUST_ANCHORS") {
+      client->crypto_config()->ssl_config().trust_anchor_ids = "";
+    } else {
+      absl::StatusOr<std::optional<std::string>> serialized =
+          SerializeTrustAnchorIdsFromTextOids(request_trust_anchors);
+      if (!serialized.ok()) {
+        std::cerr << "Failed to serialize trust_anchors extension: "
+                  << serialized.status() << std::endl;
+        return 1;
+      }
+      client->crypto_config()->ssl_config().trust_anchor_ids =
+          std::move(*serialized);
+    }
   }
 
   int32_t initial_mtu = quiche::GetQuicheCommandLineFlag(FLAGS_initial_mtu);
