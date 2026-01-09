@@ -6,14 +6,15 @@
 #define QUICHE_COMMON_HTTP_STATUS_CODE_MAPPING_H_
 
 #include "absl/status/status.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quiche {
 
 // Converts an absl::StatusCode to an HTTP status code.
-int StatusCodeAbslToHttp(absl::StatusCode code);
+QUICHE_EXPORT int StatusCodeAbslToHttp(absl::StatusCode code);
 
 // Converts an absl::Status to an HTTP status code.
-int StatusToHttpStatusCode(const absl::Status& status);
+QUICHE_EXPORT int StatusToHttpStatusCode(const absl::Status& status);
 
 }  // namespace quiche
 
