@@ -884,7 +884,8 @@ BinaryHttpResponse::IndeterminateLengthEncoder::EncodeFieldSection(
     return field_section_length.status();
   }
   uint64_t total_length = *field_section_length;
-  if (!framing_indicator_encoded_) {
+  if (current_section_ ==
+      IndeterminateLengthMessageSection::kFramingIndicator) {
     total_length += quiche::QuicheDataWriter::GetVarInt62Len(
         kIndeterminateLengthResponseFraming);
   }
@@ -895,11 +896,13 @@ BinaryHttpResponse::IndeterminateLengthEncoder::EncodeFieldSection(
   std::string data(total_length, '\0');
   QuicheDataWriter writer(total_length, data.data());
 
-  if (!framing_indicator_encoded_) {
+  if (current_section_ ==
+      IndeterminateLengthMessageSection::kFramingIndicator) {
     if (!writer.WriteVarInt62(kIndeterminateLengthResponseFraming)) {
       return absl::InternalError("Failed to write framing indicator.");
     }
-    framing_indicator_encoded_ = true;
+    current_section_ =
+        IndeterminateLengthMessageSection::kInformationalOrFinalStatusCode;
   }
   if (status_code.has_value() && !writer.WriteVarInt62(*status_code)) {
     return absl::InternalError("Failed to write status code.");
@@ -918,12 +921,20 @@ std::string
 BinaryHttpResponse::IndeterminateLengthEncoder::GetMessageSectionString(
     IndeterminateLengthMessageSection section) const {
   switch (section) {
-    case IndeterminateLengthMessageSection::kInformationalResponseOrHeader:
-      return "InformationalResponseOrHeader";
+    case IndeterminateLengthMessageSection::kFramingIndicator:
+      return "FramingIndicator";
+    case IndeterminateLengthMessageSection::kInformationalOrFinalStatusCode:
+      return "InformationalOrFinalStatusCode";
+    case IndeterminateLengthMessageSection::kInformationalResponseHeader:
+      return "InformationalResponseHeader";
+    case IndeterminateLengthMessageSection::kFinalResponseHeader:
+      return "FinalResponseHeader";
     case IndeterminateLengthMessageSection::kBody:
       return "Body";
     case IndeterminateLengthMessageSection::kTrailer:
       return "Trailer";
+    case IndeterminateLengthMessageSection::kPadding:
+      return "Padding";
     case IndeterminateLengthMessageSection::kEnd:
       return "End";
     default:
@@ -935,7 +946,9 @@ absl::StatusOr<std::string>
 BinaryHttpResponse::IndeterminateLengthEncoder::EncodeInformationalResponse(
     uint16_t status_code, absl::Span<FieldView> fields) {
   if (current_section_ !=
-      IndeterminateLengthMessageSection::kInformationalResponseOrHeader) {
+          IndeterminateLengthMessageSection::kFramingIndicator &&
+      current_section_ !=
+          IndeterminateLengthMessageSection::kInformationalOrFinalStatusCode) {
     current_section_ = IndeterminateLengthMessageSection::kEnd;
     return absl::InvalidArgumentError(absl::StrCat(
         "EncodeInformationalResponse called in incorrect section: ",
@@ -951,7 +964,8 @@ BinaryHttpResponse::IndeterminateLengthEncoder::EncodeInformationalResponse(
   if (!data.ok()) {
     current_section_ = IndeterminateLengthMessageSection::kEnd;
   }
-
+  current_section_ =
+      IndeterminateLengthMessageSection::kInformationalOrFinalStatusCode;
   return data;
 }
 
@@ -959,7 +973,9 @@ absl::StatusOr<std::string>
 BinaryHttpResponse::IndeterminateLengthEncoder::EncodeHeaders(
     uint16_t status_code, absl::Span<FieldView> headers) {
   if (current_section_ !=
-      IndeterminateLengthMessageSection::kInformationalResponseOrHeader) {
+          IndeterminateLengthMessageSection::kFramingIndicator &&
+      current_section_ !=
+          IndeterminateLengthMessageSection::kInformationalOrFinalStatusCode) {
     current_section_ = IndeterminateLengthMessageSection::kEnd;
     return absl::InvalidArgumentError(
         absl::StrCat("EncodeHeaders called in incorrect section: ",

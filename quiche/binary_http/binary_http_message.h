@@ -421,9 +421,13 @@ class QUICHE_EXPORT BinaryHttpResponse : public BinaryHttpMessage {
 
  private:
   enum class IndeterminateLengthMessageSection {
-    kInformationalResponseOrHeader,
+    kFramingIndicator,
+    kInformationalOrFinalStatusCode,
+    kInformationalResponseHeader,
+    kFinalResponseHeader,
     kBody,
     kTrailer,
+    kPadding,
     kEnd,
   };
   // Returns Binary Http known length request formatted response.
@@ -463,8 +467,7 @@ class QUICHE_EXPORT BinaryHttpResponse::IndeterminateLengthEncoder {
       IndeterminateLengthMessageSection section) const;
 
   IndeterminateLengthMessageSection current_section_ =
-      IndeterminateLengthMessageSection::kInformationalResponseOrHeader;
-  bool framing_indicator_encoded_ = false;
+      IndeterminateLengthMessageSection::kFramingIndicator;
 };
 
 void QUICHE_EXPORT PrintTo(const BinaryHttpResponse& msg, std::ostream* os);
