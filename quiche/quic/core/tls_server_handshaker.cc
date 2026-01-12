@@ -1002,15 +1002,13 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     crypto_negotiated_params_->sni =
         QuicHostnameUtils::NormalizeHostname(hostname);
     if (!ValidateHostname(hostname)) {
-      if (GetQuicReloadableFlag(quic_delay_connection_close_on_invalid_sni)) {
-        std::string error_details;
-        const bool success =
-            ProcessTransportParameters(client_hello, &error_details);
-        if (success) {
-          QUIC_CODE_COUNT(quic_tls_server_invalid_hostname_but_tp_succeeded);
-        } else {
-          QUIC_CODE_COUNT(quic_tls_server_invalid_hostname_and_tp_failed);
-        }
+      std::string error_details;
+      const bool success =
+          ProcessTransportParameters(client_hello, &error_details);
+      if (success) {
+        QUIC_CODE_COUNT(quic_tls_server_invalid_hostname_but_tp_succeeded);
+      } else {
+        QUIC_CODE_COUNT(quic_tls_server_invalid_hostname_and_tp_failed);
       }
       CloseConnection(QUIC_HANDSHAKE_FAILED_INVALID_HOSTNAME,
                       absl::StrCat("Invalid SNI provided: ", hostname));

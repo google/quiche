@@ -24,7 +24,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_conservative_cwnd_and_pacing_gains
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_default_enable_5rto_blackhole_detection2, true, true, "If true, default-enable 5RTO blachole detection.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_default_to_bbr, true, false, "When true, defaults to BBR congestion control instead of Cubic.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_default_to_bbr_v2, false, false, "If true, use BBRv2 as the default congestion controller. Takes precedence over --quic_default_to_bbr.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_delay_connection_close_on_invalid_sni, true, true, "Delay closing the connection on invalid SNI in client hello till after the transport parameters are parsed.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_delete_config, false, false, "If true, the QuicSession will delete the QuicConfig after the handshake completes.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_deliver_stop_sending_to_zombie_streams, true, true, "If true, deliver STOP_SENDING to zombie streams.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_disable_batch_write, false, false, "If true, round-robin stream writes instead of batching in QuicWriteBlockedList.")
