@@ -1080,13 +1080,14 @@ struct ResponseIndeterminateLengthEncoderTestData {
        "1111111111111111111111111111111111111111111111111111111111111111"}};
 };
 
-constexpr absl::string_view kEncodedInformationalResponses =
-    "4066"                    // status code: 102
-    "0772756e6e696e67"        // running
-    "0a22736C65657020313522"  // "sleep 15"
-    "00"                      // content terminator
-    "4067"                    // status code: 103
-    "046C696E6B"              // link
+constexpr absl::string_view kIndeterminateLengthResponseFramingIndicator = "03";
+constexpr absl::string_view kInfoResp1StatusCode = "4066";  // status code: 102
+constexpr absl::string_view kInfoResp1Headers =
+    "0772756e6e696e67"                                      // running
+    "0a22736C65657020313522";                               // "sleep 15"
+constexpr absl::string_view kInfoResp2StatusCode = "4067";  // status code: 103
+constexpr absl::string_view kInfoResp2Headers =
+    "046C696E6B"  // link
     "233C2F7374796C652E6373733E3B2072656C3D7072656C6F6"
     "1643B2061733D737479"
     "6C65"        // </style.css>; rel=preload; as=style
@@ -1096,11 +1097,10 @@ constexpr absl::string_view kEncodedInformationalResponses =
     "697074"  // </script.js>; rel=preload; as=script
     "136C6F6E6765725F6865616465725F76616C7565"  // longer_header_value
     "40403131313131313131313131313131313131313131313131313131313131313131313131"
-    "3131313131313131313131313131313131313131313131313131313131"  // 64 1s
-    "00";  // content terminator
+    "3131313131313131313131313131313131313131313131313131313131";  // 64 1s
 
-constexpr absl::string_view kEncodedResponse =
-    "40C8"        // status code: 200
+constexpr absl::string_view kFinalResponseStatusCode = "40C8";  // 200
+constexpr absl::string_view kFinalResponseHeaders =
     "0464617465"  // date
     "1D4D6F6E2C203237204A756C20323030392031323A32383A3"
     "53320474D54"                               // Mon, 27
@@ -1112,29 +1112,33 @@ constexpr absl::string_view kEncodedResponse =
     "06417061636865"                            // Apache
     "136C6F6E6765725F6865616465725F76616C7565"  // longer_header_value
     "40403131313131313131313131313131313131313131313131313131313131313131313131"
-    "3131313131313131313131313131313131313131313131313131313131"  // 64 1s
-    "00"              // content terminator
+    "3131313131313131313131313131313131313131313131313131313131";  // 64 1s
+constexpr absl::string_view kFinalResponseBody =
     "066368756E6B31"  // chunk1
     "066368756E6B32"  // chunk2
     "066368756E6B33"  // chunk3
     "40403131313131313131313131313131313131313131313131313131313131313131313131"
-    "3131313131313131313131313131313131313131313131313131313131"  // 64 1s
-    "00"                                          // content terminator
+    "3131313131313131313131313131313131313131313131313131313131";  // 64 1s
+constexpr absl::string_view kFinalResponseTrailers =
     "08747261696C657231"                          // trailer1
     "0676616C756531"                              // value1
     "08747261696C657232"                          // trailer2
     "0676616C756532"                              // value2
     "146C6F6E6765725F747261696C65725F76616C7565"  // longer_trailer_value
     "40403131313131313131313131313131313131313131313131313131313131313131313131"
-    "3131313131313131313131313131313131313131313131313131313131"  // 64 1s
-    "00";
+    "3131313131313131313131313131313131313131313131313131313131";  // 64 1s
 
 }  // namespace
 
 TEST(ResponseIndeterminateLengthEncoder, WithInformationalResponses) {
   std::string expected;
   ASSERT_TRUE(absl::HexStringToBytes(
-      absl::StrCat("03", kEncodedInformationalResponses, kEncodedResponse),
+      absl::StrCat(kIndeterminateLengthResponseFramingIndicator,
+                   kInfoResp1StatusCode, kInfoResp1Headers, kContentTerminator,
+                   kInfoResp2StatusCode, kInfoResp2Headers, kContentTerminator,
+                   kFinalResponseStatusCode, kFinalResponseHeaders,
+                   kContentTerminator, kFinalResponseBody, kContentTerminator,
+                   kFinalResponseTrailers, kContentTerminator),
       &expected));
 
   BinaryHttpResponse::IndeterminateLengthEncoder encoder;
@@ -1171,8 +1175,12 @@ TEST(ResponseIndeterminateLengthEncoder, WithInformationalResponses) {
 
 TEST(ResponseIndeterminateLengthEncoder, NoInformationalResponses) {
   std::string expected;
-  ASSERT_TRUE(
-      absl::HexStringToBytes(absl::StrCat("03", kEncodedResponse), &expected));
+  ASSERT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(kIndeterminateLengthResponseFramingIndicator,
+                   kFinalResponseStatusCode, kFinalResponseHeaders,
+                   kContentTerminator, kFinalResponseBody, kContentTerminator,
+                   kFinalResponseTrailers, kContentTerminator),
+      &expected));
 
   BinaryHttpResponse::IndeterminateLengthEncoder encoder;
   ResponseIndeterminateLengthEncoderTestData test_data;
@@ -1198,8 +1206,12 @@ TEST(ResponseIndeterminateLengthEncoder, NoInformationalResponses) {
 
 TEST(ResponseIndeterminateLengthEncoder, EncodingChunksMultipleTimes) {
   std::string expected;
-  ASSERT_TRUE(
-      absl::HexStringToBytes(absl::StrCat("03", kEncodedResponse), &expected));
+  ASSERT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(kIndeterminateLengthResponseFramingIndicator,
+                   kFinalResponseStatusCode, kFinalResponseHeaders,
+                   kContentTerminator, kFinalResponseBody, kContentTerminator,
+                   kFinalResponseTrailers, kContentTerminator),
+      &expected));
 
   BinaryHttpResponse::IndeterminateLengthEncoder encoder;
   ResponseIndeterminateLengthEncoderTestData test_data;
