@@ -8,7 +8,6 @@
 #include <type_traits>
 
 #include "absl/status/status.h"
-#include "absl/status/status_matchers.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -50,7 +49,7 @@ TEST(QuicheAssignOrReturnTest, HandlesError) {
     return absl::OkStatus();
   };
   EXPECT_THAT(TestLambda(),
-              absl_testing::StatusIs(absl::StatusCode::kInternal, "error"));
+              quiche::test::StatusIs(absl::StatusCode::kInternal, "error"));
 }
 
 TEST(QuicheAssignOrReturnTest, HandlesErrorAndCallsErrorLambda) {
@@ -62,12 +61,12 @@ TEST(QuicheAssignOrReturnTest, HandlesErrorAndCallsErrorLambda) {
                               captured_status = status;
                               return status;
                             });
-    EXPECT_THAT(captured_status, testing::Optional(absl_testing::StatusIs(
+    EXPECT_THAT(captured_status, testing::Optional(quiche::test::StatusIs(
                                      absl::StatusCode::kInternal, "error")));
     return absl::OkStatus();
   };
   EXPECT_THAT(TestLambda(),
-              absl_testing::StatusIs(absl::StatusCode::kInternal, "error"));
+              quiche::test::StatusIs(absl::StatusCode::kInternal, "error"));
 }
 
 TEST(QuicheAssignOrReturnTest, HandlesErrorAndUsesReturnValueFromLambda) {
@@ -81,7 +80,7 @@ TEST(QuicheAssignOrReturnTest, HandlesErrorAndUsesReturnValueFromLambda) {
     return absl::OkStatus();
   };
   EXPECT_THAT(TestLambda(),
-              absl_testing::StatusIs(absl::StatusCode::kInvalidArgument,
+              quiche::test::StatusIs(absl::StatusCode::kInvalidArgument,
                                      "custom message: error"));
 }
 
@@ -98,7 +97,7 @@ TEST(QuicheAssignOrReturnTest, CanBeUsedMultipleTimesInOneFunction) {
     return absl::OkStatus();
   };
   EXPECT_THAT(TestLambda(),
-              absl_testing::StatusIs(absl::StatusCode::kInternal, "error"));
+              quiche::test::StatusIs(absl::StatusCode::kInternal, "error"));
 }
 
 // Demonstrates that we can use `QUICHE_LOG` in an on-error lambda.
@@ -113,7 +112,7 @@ TEST(QuicheAssignOrReturnTest, CanLogOnError) {
     return absl::OkStatus();
   };
   EXPECT_THAT(TestLambda(),
-              absl_testing::StatusIs(absl::StatusCode::kInternal, "error"));
+              quiche::test::StatusIs(absl::StatusCode::kInternal, "error"));
 }
 
 struct FinickyNonCopyableInt {

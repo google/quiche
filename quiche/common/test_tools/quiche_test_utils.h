@@ -7,8 +7,8 @@
 
 #include <string>
 
-#include "absl/base/macros.h"  // IWYU pragma: keep for ABSL_REFACTOR_INLINE
-#include "absl/status/status_matchers.h"
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_iovec.h"  // IWYU pragma: keep for iovec
 #include "quiche/common/platform/api/quiche_test.h"
@@ -23,8 +23,9 @@ namespace quiche {
 namespace test {
 
 void CompareCharArraysWithHexError(const std::string& description,
-                                   const char* actual, int actual_len,
-                                   const char* expected, int expected_len);
+                                   const char* actual, const int actual_len,
+                                   const char* expected,
+                                   const int expected_len);
 
 // Create iovec that points to that data that `str` points to.
 iovec MakeIOVector(absl::string_view str);
@@ -34,37 +35,55 @@ iovec MakeIOVector(absl::string_view str);
 // This function checks if IDNAs are supported.
 bool GoogleUrlSupportsIdnaForTest();
 
-[[deprecated(
-    "Use absl_testing::IsOk directly.")]] ABSL_REFACTOR_INLINE inline auto
-IsOk() {
-  return absl_testing::IsOk();
+// Takes either a Status or StatusOr<T>, and returns just the Status.
+inline const absl::Status& ExtractStatus(const absl::Status& status) {
+  return status;
+}
+template <typename T>
+const absl::Status& ExtractStatus(const absl::StatusOr<T>& status_or) {
+  return status_or.status();
 }
 
-template <typename InnerMatcherT>
-[[deprecated(
-    "Use absl_testing::IsOkAndHolds "
-    "directly.")]] ABSL_REFACTOR_INLINE inline auto
-IsOkAndHolds(InnerMatcherT&& matcher) {
-  return absl_testing::IsOkAndHolds(matcher);
+// Abseil does not provide absl::Status-related macros, so we have to provide
+// those instead.
+MATCHER(IsOk, "Checks if an instance of absl::Status is ok.") {
+  if (arg.ok()) {
+    return true;
+  }
+  *result_listener << "Expected status OK, got " << ExtractStatus(arg);
+  return false;
 }
 
-template <typename InnerMatcherT>
-[[deprecated(
-    "Use absl_testing::StatusIs directly.")]] ABSL_REFACTOR_INLINE inline auto
-StatusIs(InnerMatcherT&& matcher) {
-  return absl_testing::StatusIs(matcher);
+MATCHER_P(IsOkAndHolds, matcher,
+          "Matcher against the inner value of absl::StatusOr") {
+  if (!arg.ok()) {
+    *result_listener << "Expected status OK, got " << arg.status();
+    return false;
+  }
+  return ::testing::ExplainMatchResult(matcher, arg.value(), result_listener);
 }
 
-template <typename MatcherT, typename MessageT>
-[[deprecated(
-    "Use absl_testing::StatusIs directly.")]] ABSL_REFACTOR_INLINE inline auto
-StatusIs(MatcherT&& matcher, MessageT&& message) {
-  return absl_testing::StatusIs(matcher, message);
+MATCHER_P(StatusIs, code, "Matcher against only a specific status code") {
+  if (ExtractStatus(arg).code() != code) {
+    *result_listener << "Expected status " << absl::StatusCodeToString(code)
+                     << ", got " << ExtractStatus(arg);
+    return false;
+  }
+  return true;
 }
 
-// We can't deprecate these directly, since they're macros.
-#define QUICHE_EXPECT_OK(arg) EXPECT_THAT(arg, ::quiche::test::IsOk())
-#define QUICHE_ASSERT_OK(arg) ASSERT_THAT(arg, ::quiche::test::IsOk())
+MATCHER_P2(StatusIs, code, matcher, "Matcher against a specific status code") {
+  if (ExtractStatus(arg).code() != code) {
+    *result_listener << "Expected status " << absl::StatusCodeToString(code)
+                     << ", got " << ExtractStatus(arg);
+    return false;
+  }
+  return ::testing::ExplainMatchResult(matcher, ExtractStatus(arg).message(),
+                                       result_listener);
+}
+
+#define QUICHE_EXPECT_OK(arg) EXPECT_THAT((arg), ::quiche::test::IsOk())
+#define QUICHE_ASSERT_OK(arg) ASSERT_THAT((arg), ::quiche::test::IsOk())
 
 }  // namespace test
 }  // namespace quiche
