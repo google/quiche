@@ -33,6 +33,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "Bandwidth of the simulated link, in kilobits per second.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    uint64_t, bitrate,
+    moqt::test::SimulationParameters().bitrate.ToKBitsPerSecond(),
+    "Initial bitrate of the simulated media.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     absl::Duration, deadline,
     moqt::test::SimulationParameters().deadline.ToAbsl(),
     "Frame delivery deadline (used for measurement only).");
@@ -102,6 +107,8 @@ int main(int argc, char** argv) {
   quiche::QuicheParseCommandLineFlags("moqt_simulator", argc, argv);
   parameters.bandwidth = quic::QuicBandwidth::FromKBitsPerSecond(
       quiche::GetQuicheCommandLineFlag(FLAGS_bandwidth));
+  parameters.bitrate = quic::QuicBandwidth::FromKBitsPerSecond(
+      quiche::GetQuicheCommandLineFlag(FLAGS_bitrate));
   parameters.deadline =
       quic::QuicTimeDelta(quiche::GetQuicheCommandLineFlag(FLAGS_deadline));
   parameters.duration =

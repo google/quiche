@@ -122,6 +122,7 @@ void MoqtProbeManager::OnAlarm() {
 
 void MoqtProbeManager::ClosePendingProbe(ProbeStatus status) {
   std::optional<PendingProbe> probe = std::move(probe_);
+  probe_.reset();
   if (!probe.has_value()) {
     QUICHE_BUG(ClosePendingProbe_no_probe);
     return;

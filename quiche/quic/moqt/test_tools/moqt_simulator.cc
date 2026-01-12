@@ -268,7 +268,7 @@ MoqtSimulator::MoqtSimulator(const SimulationParameters& parameters)
                  TrackName(), parameters.keyframe_interval, parameters.fps,
                  parameters.i_to_p_ratio, parameters.bitrate),
       adjuster_(simulator_.GetClock(), client_endpoint_.session()->session(),
-                &generator_),
+                simulator_.GetAlarmFactory(), &generator_),
       parameters_(parameters) {
   if (parameters.aggregation_threshold > 0) {
     QuicTimeDelta timeout = parameters.aggregation_timeout;

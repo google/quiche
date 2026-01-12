@@ -5,13 +5,17 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_BITRATE_ADJUSTER_H_
 #define QUICHE_QUIC_MOQT_MOQT_BITRATE_ADJUSTER_H_
 
+#include <memory>
 #include <optional>
+#include <string>
 
+#include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_outstanding_objects.h"
+#include "quiche/quic/moqt/moqt_probe_manager.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/web_transport/web_transport.h"
@@ -49,6 +53,35 @@ class BitrateAdjustable {
                                         BitrateAdjustmentType type) = 0;
 };
 
+// Connection quality levels.  Used by the bitrate adjuster to decide when to
+// probe up or down.
+enum class ConnectionQualityLevel {
+  // Lowest quality level.  Reaching it will result in the bitrate adjuster
+  // attempting to immediately lower the bitrate.
+  kCritical,
+  // At this level, no new bandwidth probes will be started and all existing
+  // bandwidth probes are cancelled.
+  kVeryPrecarious,
+  // At this level, the adjuster will not start any new probes, but all of the
+  // previous probes will be allowed to continue.  This level is separate from
+  // the previous one to avoid unstable behavior around the boundaries.
+  kPrecarious,
+  // Highest quality level.  The adjuster will attempt to probe bandwidth if
+  // necessary.
+  kStable,
+
+  kNumLevels,
+};
+
+std::string ConnectionQualityLevelToString(ConnectionQualityLevel level);
+template <typename Sink>
+void AbslStringify(Sink& sink, ConnectionQualityLevel level) {
+  sink.Append(ConnectionQualityLevelToString(level));
+}
+
+inline constexpr int kNumQualityLevels =
+    static_cast<int>(ConnectionQualityLevel::kNumLevels);
+
 // Parameters (mostly magic numbers) that determine behavior of
 // MoqtBitrateAdjuster.
 struct MoqtBitrateAdjusterParameters {
@@ -57,20 +90,47 @@ struct MoqtBitrateAdjusterParameters {
   // estimate tends to be overly optimistic in practice.
   float target_bitrate_multiplier_down = 0.9f;
 
+  // Same, but applies for adjusting up.  Similar considerations for selecting
+  // the value apply.
+  float target_bitrate_multiplier_up = 0.9f;
+
   // Do not perform any updates within `initial_delay` after the connection
   // start.
   quic::QuicTimeDelta initial_delay = quic::QuicTimeDelta::FromSeconds(2);
 
-  // If the object arrives too close to the deadline, the bitrate will be
-  // adjusted down.  The threshold is expressed as a fraction of `time_window`
-  // (which typically would be equal to the size of the buffer in seconds).
-  float adjust_down_threshold = 0.1f;
+  // Quality level thresholds.  If the object arrives with the
+  // time-before-deadline that is lower than the first number listed here, it
+  // will result in the connection being assigned the lowest quality level, and
+  // so on.  The thresholds are expressed as a fraction of `time_window` (which
+  // typically would be equal to the size of the buffer in seconds).
+  float quality_level_time_thresholds[kNumQualityLevels - 1] = {0.2f, 0.4f,
+                                                                0.6f};
 
   // The maximum gap between the next object expected to be received, and the
-  // actually received object, expressed as a number of objects.
+  // actually received object, expressed as a number of objects. If the
+  // reordering gap exceeds the configured threshold, the connection is marked
+  // as being in that quality level. The thresholds correspond to kCritical,
+  // kVeryPrecarious, and kPrecarious.
   //
-  // The default is 12, which corresponds to about 400ms for 30fps video.
-  int max_out_of_order_objects = 12;
+  // The default for the worst-case reordering is 12, which corresponds to about
+  // 400ms for 30fps video.
+  int quality_level_reordering_thresholds[kNumQualityLevels - 1] = {12, 6, 3};
+
+  // Amount of time the connection has to spend in good state before attempting
+  // to probe for bandwidth.
+  quic::QuicTimeDelta time_before_probing = quic::QuicTimeDelta::FromSeconds(2);
+
+  // When probing, attempt to increase the bandwidth by the specified factor.
+  // Used when determining the probe size and timeout.
+  float probe_increase_target = 1.2;
+
+  // Expected duration of a probe, expressed in the number of round-trips
+  // necessary. Selecting values below 8 might interact negatively with BBR.
+  float round_trips_for_probe = 16;
+
+  // Probe results will be ignored if the probe was cancelled before lasting for
+  // the specified duration.
+  float min_probe_duration_in_rtts = 4;
 };
 
 // MoqtBitrateAdjuster monitors the progress of delivery for a single track, and
@@ -79,8 +139,12 @@ class MoqtBitrateAdjuster : public MoqtPublishingMonitorInterface {
  public:
   MoqtBitrateAdjuster(const quic::QuicClock* clock,
                       webtransport::Session* session,
-                      BitrateAdjustable* adjustable)
-      : clock_(clock), session_(session), adjustable_(adjustable) {}
+                      quic::QuicAlarmFactory* alarm_factory,
+                      BitrateAdjustable* adjustable);
+  MoqtBitrateAdjuster(const quic::QuicClock* clock,
+                      webtransport::Session* session,
+                      std::unique_ptr<MoqtProbeManagerInterface> probe_manager,
+                      BitrateAdjustable* adjustable);
 
   // MoqtPublishingMonitorInterface implementation.
   void OnObjectAckSupportKnown(
@@ -100,8 +164,14 @@ class MoqtBitrateAdjuster : public MoqtPublishingMonitorInterface {
 
   // Checks if the bitrate should be adjusted down based on the result of
   // processing an object ACK.
-  bool ShouldAttemptAdjustingDown(
+  ConnectionQualityLevel GetQualityLevel(
       int reordering_delta, quic::QuicTimeDelta delta_from_deadline) const;
+
+  // Starts a bandwidth probe if all the conditions are met.
+  void MaybeStartProbing(quic::QuicTime now);
+  // Callback called whenever the bandwidth probe is finished.
+  void OnProbeResult(const webtransport::SessionStats& old_stats,
+                     const ProbeResult& result);
 
   // Attempts adjusting the bitrate down.
   void AttemptAdjustingDown();
@@ -122,7 +192,12 @@ class MoqtBitrateAdjuster : public MoqtPublishingMonitorInterface {
   // the scale for incoming time deltas in the object ACKs.
   quic::QuicTimeDelta time_window_ = quic::QuicTimeDelta::Zero();
 
+  // The earliest point at which the connection has been continuously in the
+  // stable state.  Used to time bandwidth probes.
+  std::optional<quic::QuicTime> in_stable_state_since_;
+
   std::optional<MoqtOutstandingObjects> outstanding_objects_;
+  std::unique_ptr<MoqtProbeManagerInterface> probe_manager_;
   Location last_acked_object_;
 };
 

@@ -57,6 +57,8 @@ class MoqtProbeManagerInterface {
                                             Callback callback) = 0;
   // Cancels the currently pending probe.
   virtual std::optional<ProbeId> StopProbe() = 0;
+
+  virtual bool HasActiveProbe() const = 0;
 };
 
 namespace test {
@@ -81,6 +83,7 @@ class MoqtProbeManager : public MoqtProbeManagerInterface {
                                     quic::QuicTimeDelta timeout,
                                     Callback callback) override;
   std::optional<ProbeId> StopProbe() override;
+  bool HasActiveProbe() const override { return probe_.has_value(); }
 
  private:
   friend class ::moqt::test::MoqtProbeManagerPeer;

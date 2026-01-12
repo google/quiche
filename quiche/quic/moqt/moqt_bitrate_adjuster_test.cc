@@ -4,9 +4,16 @@
 
 #include "quiche/quic/moqt/moqt_bitrate_adjuster.h"
 
+#include <memory>
+#include <optional>
+#include <utility>
+
+#include "absl/time/time.h"
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_probe_manager.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
@@ -18,6 +25,7 @@ namespace {
 using ::quic::QuicBandwidth;
 using ::quic::QuicTimeDelta;
 using ::testing::_;
+using ::testing::Return;
 
 // Simple adjustable object that just keeps track of whatever value has been
 // assigned to it, and has a mock method to notify of it changing.
@@ -40,8 +48,18 @@ class MockBitrateAdjustable : public BitrateAdjustable {
   QuicBandwidth bitrate_;
 };
 
+class MockProbeManager : public MoqtProbeManagerInterface {
+ public:
+  MOCK_METHOD(std::optional<ProbeId>, StartProbe,
+              (quic::QuicByteCount probe_size, quic::QuicTimeDelta timeout,
+               Callback callback),
+              (override));
+  MOCK_METHOD(std::optional<ProbeId>, StopProbe, (), (override));
+  MOCK_METHOD(bool, HasActiveProbe, (), (const, override));
+};
+
 constexpr QuicBandwidth kDefaultBitrate =
-    QuicBandwidth::FromBitsPerSecond(2000);
+    QuicBandwidth::FromKBitsPerSecond(2000);
 constexpr QuicTimeDelta kDefaultRtt = QuicTimeDelta::FromMilliseconds(20);
 constexpr QuicTimeDelta kDefaultTimeScale = QuicTimeDelta::FromSeconds(1);
 
@@ -49,7 +67,7 @@ class MoqtBitrateAdjusterTest : public quiche::test::QuicheTest {
  protected:
   MoqtBitrateAdjusterTest()
       : adjustable_(kDefaultBitrate),
-        adjuster_(&clock_, &session_, &adjustable_) {
+        adjuster_(&clock_, &session_, CreateProbeManager(), &adjustable_) {
     stats_.min_rtt = stats_.smoothed_rtt = kDefaultRtt.ToAbsl();
     stats_.estimated_send_rate_bps = (1.2 * kDefaultBitrate).ToBitsPerSecond();
     ON_CALL(session_, GetSessionStats()).WillByDefault([this] {
@@ -60,15 +78,24 @@ class MoqtBitrateAdjusterTest : public quiche::test::QuicheTest {
     adjuster_.OnObjectAckSupportKnown(kDefaultTimeScale);
   }
 
+  std::unique_ptr<MoqtProbeManagerInterface> CreateProbeManager() {
+    auto manager = std::make_unique<MockProbeManager>();
+    ON_CALL(*manager, HasActiveProbe).WillByDefault(Return(false));
+    probe_manager_ = manager.get();
+    return manager;
+  }
+
   MockBitrateAdjustable adjustable_;
   webtransport::SessionStats stats_;
   quic::MockClock clock_;
   webtransport::test::MockSession session_;
+  MockProbeManager* probe_manager_ = nullptr;
   MoqtBitrateAdjuster adjuster_;
 };
 
 TEST_F(MoqtBitrateAdjusterTest, IgnoreCallsBeforeStart) {
-  MoqtBitrateAdjuster uninitialized_adjuster(&clock_, &session_, &adjustable_);
+  MoqtBitrateAdjuster uninitialized_adjuster(
+      &clock_, &session_, CreateProbeManager(), &adjustable_);
   uninitialized_adjuster.OnNewObjectEnqueued(Location(1, 0));
   uninitialized_adjuster.OnObjectAckReceived(
       Location(1, 0), QuicTimeDelta::FromMilliseconds(100));
@@ -80,12 +107,183 @@ TEST_F(MoqtBitrateAdjusterTest, SteadyState) {
   stats_.estimated_send_rate_bps = 1;
 
   EXPECT_CALL(adjustable_, OnBitrateAdjusted).Times(0);
+  EXPECT_CALL(*probe_manager_, StartProbe).WillRepeatedly(Return(std::nullopt));
   for (int i = 0; i < 250; ++i) {
     clock_.AdvanceTime(kDefaultRtt);
     for (int j = 0; j < 10; ++j) {
       adjuster_.OnObjectAckReceived(Location(i, j), kDefaultTimeScale * 0.9);
     }
   }
+}
+
+TEST_F(MoqtBitrateAdjusterTest, ProbeUp) {
+  stats_.min_rtt = kDefaultRtt.ToAbsl();
+  stats_.smoothed_rtt = kDefaultRtt.ToAbsl();
+  stats_.rtt_variation = absl::ZeroDuration();
+  stats_.application_bytes_acknowledged = 0;
+  stats_.estimated_send_rate_bps = kDefaultBitrate.ToBitsPerSecond();
+
+  // Drive the connection in the steady state until the probe is activated.
+  EXPECT_CALL(adjustable_, OnBitrateAdjusted).Times(0);
+  std::optional<MoqtProbeManagerInterface::Callback> probe_callback;
+  quic::QuicByteCount requested_probe_size;
+  EXPECT_CALL(*probe_manager_, StartProbe)
+      .WillOnce([&](quic::QuicByteCount probe_size, quic::QuicTimeDelta timeout,
+                    MoqtProbeManagerInterface::Callback callback) {
+        requested_probe_size = probe_size;
+        probe_callback = std::move(callback);
+        return 12345;
+      });
+  for (int i = 0; i < 2500; ++i) {
+    clock_.AdvanceTime(kDefaultRtt);
+    adjuster_.OnObjectAckReceived(Location(i, 0), kDefaultTimeScale * 0.9);
+    if (probe_callback.has_value()) {
+      break;
+    }
+  }
+  ASSERT_TRUE(probe_callback.has_value());
+
+  const QuicTimeDelta kProbeDuration = 20 * kDefaultRtt;
+  clock_.AdvanceTime(kProbeDuration);
+  stats_.application_bytes_acknowledged += (1 << 30);  // Arbitrary big number.
+  stats_.estimated_send_rate_bps = 2 * kDefaultBitrate.ToBitsPerSecond();
+  ProbeResult result{.id = 12345,
+                     .status = ProbeStatus::kSuccess,
+                     .probe_size = requested_probe_size,
+                     .time_elapsed = kProbeDuration};
+  EXPECT_CALL(adjustable_, OnBitrateAdjusted(kDefaultBitrate * 1.8));
+  std::move (*probe_callback)(result);
+}
+
+TEST_F(MoqtBitrateAdjusterTest, ProbeUpNotEnteredInPrecariousState) {
+  stats_.min_rtt = kDefaultRtt.ToAbsl();
+  stats_.smoothed_rtt = kDefaultRtt.ToAbsl();
+  stats_.rtt_variation = absl::ZeroDuration();
+  stats_.application_bytes_acknowledged = 0;
+  stats_.estimated_send_rate_bps = kDefaultBitrate.ToBitsPerSecond();
+
+  EXPECT_CALL(adjustable_, OnBitrateAdjusted).Times(0);
+  EXPECT_CALL(*probe_manager_, StartProbe).Times(0);
+  for (int i = 0; i < 2500; ++i) {
+    clock_.AdvanceTime(kDefaultRtt);
+    adjuster_.OnObjectAckReceived(Location(i, 0), kDefaultTimeScale * 0.5);
+  }
+}
+
+TEST_F(MoqtBitrateAdjusterTest, ProbeUpIgnoredDueToBeingTooShort) {
+  stats_.min_rtt = kDefaultRtt.ToAbsl();
+  stats_.smoothed_rtt = kDefaultRtt.ToAbsl();
+  stats_.rtt_variation = absl::ZeroDuration();
+  stats_.application_bytes_acknowledged = 0;
+  stats_.estimated_send_rate_bps = kDefaultBitrate.ToBitsPerSecond();
+
+  // Drive the connection in the steady state until the probe is activated.
+  EXPECT_CALL(adjustable_, OnBitrateAdjusted).Times(0);
+  std::optional<MoqtProbeManagerInterface::Callback> probe_callback;
+  quic::QuicByteCount requested_probe_size;
+  EXPECT_CALL(*probe_manager_, StartProbe)
+      .WillOnce([&](quic::QuicByteCount probe_size, quic::QuicTimeDelta timeout,
+                    MoqtProbeManagerInterface::Callback callback) {
+        requested_probe_size = probe_size;
+        probe_callback = std::move(callback);
+        return 12345;
+      });
+  for (int i = 0; i < 2500; ++i) {
+    clock_.AdvanceTime(kDefaultRtt);
+    adjuster_.OnObjectAckReceived(Location(i, 0), kDefaultTimeScale * 0.9);
+    if (probe_callback.has_value()) {
+      break;
+    }
+  }
+  ASSERT_TRUE(probe_callback.has_value());
+
+  const QuicTimeDelta kProbeDuration = kDefaultRtt;
+  clock_.AdvanceTime(kProbeDuration);
+  stats_.application_bytes_acknowledged += (1 << 30);  // Arbitrary big number.
+  stats_.estimated_send_rate_bps = 2 * kDefaultBitrate.ToBitsPerSecond();
+  ProbeResult result{.id = 12345,
+                     .status = ProbeStatus::kSuccess,
+                     .probe_size = requested_probe_size,
+                     .time_elapsed = kProbeDuration};
+  std::move (*probe_callback)(result);
+}
+
+TEST_F(MoqtBitrateAdjusterTest, ProbeUpUsesAverage) {
+  stats_.min_rtt = kDefaultRtt.ToAbsl();
+  stats_.smoothed_rtt = kDefaultRtt.ToAbsl();
+  stats_.rtt_variation = absl::ZeroDuration();
+  stats_.application_bytes_acknowledged = 0;
+  stats_.estimated_send_rate_bps = kDefaultBitrate.ToBitsPerSecond();
+
+  // Drive the connection in the steady state until the probe is activated.
+  EXPECT_CALL(adjustable_, OnBitrateAdjusted).Times(0);
+  std::optional<MoqtProbeManagerInterface::Callback> probe_callback;
+  quic::QuicByteCount requested_probe_size;
+  EXPECT_CALL(*probe_manager_, StartProbe)
+      .WillOnce([&](quic::QuicByteCount probe_size, quic::QuicTimeDelta timeout,
+                    MoqtProbeManagerInterface::Callback callback) {
+        requested_probe_size = probe_size;
+        probe_callback = std::move(callback);
+        return 12345;
+      });
+  for (int i = 0; i < 2500; ++i) {
+    clock_.AdvanceTime(kDefaultRtt);
+    adjuster_.OnObjectAckReceived(Location(i, 0), kDefaultTimeScale * 0.9);
+    if (probe_callback.has_value()) {
+      break;
+    }
+  }
+  ASSERT_TRUE(probe_callback.has_value());
+
+  const QuicTimeDelta kProbeDuration = 19 * kDefaultRtt;
+  const QuicBandwidth kNewBandwidth = 2 * kDefaultBitrate;
+  clock_.AdvanceTime(kProbeDuration);
+  stats_.application_bytes_acknowledged += kNewBandwidth * kProbeDuration;
+  stats_.estimated_send_rate_bps = (100 * kDefaultBitrate).ToBitsPerSecond();
+  ProbeResult result{.id = 12345,
+                     .status = ProbeStatus::kSuccess,
+                     .probe_size = requested_probe_size,
+                     .time_elapsed = kProbeDuration};
+  EXPECT_CALL(adjustable_, OnBitrateAdjusted(kNewBandwidth * (19.0 / 20.0)));
+  std::move (*probe_callback)(result);
+}
+
+TEST_F(MoqtBitrateAdjusterTest, ProbeUpCancelInBadState) {
+  stats_.min_rtt = kDefaultRtt.ToAbsl();
+  stats_.smoothed_rtt = kDefaultRtt.ToAbsl();
+  stats_.rtt_variation = absl::ZeroDuration();
+  stats_.application_bytes_acknowledged = 0;
+  stats_.estimated_send_rate_bps = kDefaultBitrate.ToBitsPerSecond();
+
+  // Drive the connection in the steady state until the probe is activated.
+  EXPECT_CALL(adjustable_, OnBitrateAdjusted).Times(0);
+  std::optional<MoqtProbeManagerInterface::Callback> probe_callback;
+  quic::QuicByteCount requested_probe_size;
+  EXPECT_CALL(*probe_manager_, StartProbe)
+      .WillOnce([&](quic::QuicByteCount probe_size, quic::QuicTimeDelta timeout,
+                    MoqtProbeManagerInterface::Callback callback) {
+        requested_probe_size = probe_size;
+        probe_callback = std::move(callback);
+        return 12345;
+      });
+  for (int i = 0; i < 2500; ++i) {
+    clock_.AdvanceTime(kDefaultRtt);
+    adjuster_.OnObjectAckReceived(Location(i, 0), kDefaultTimeScale * 0.9);
+    if (probe_callback.has_value()) {
+      break;
+    }
+  }
+  ASSERT_TRUE(probe_callback.has_value());
+
+  EXPECT_CALL(*probe_manager_, HasActiveProbe).WillRepeatedly(Return(true));
+  EXPECT_CALL(*probe_manager_, StopProbe).Times(0);
+  clock_.AdvanceTime(0.1 * kDefaultRtt);
+  adjuster_.OnObjectAckReceived(Location(1000, 0), kDefaultTimeScale * 0.9);
+  clock_.AdvanceTime(0.1 * kDefaultRtt);
+  adjuster_.OnObjectAckReceived(Location(1001, 0), kDefaultTimeScale * 0.5);
+  EXPECT_CALL(*probe_manager_, StopProbe).Times(1);
+  EXPECT_CALL(adjustable_, OnBitrateAdjusted(kDefaultBitrate * 0.9));
+  adjuster_.OnObjectAckReceived(Location(1002, 0), kDefaultTimeScale * 0.1);
 }
 
 TEST_F(MoqtBitrateAdjusterTest, AdjustDownOnce) {
@@ -144,7 +342,7 @@ TEST_F(MoqtBitrateAdjusterTest, OutOfOrderAckIgnored) {
 }
 
 TEST_F(MoqtBitrateAdjusterTest, Reordering) {
-  adjuster_.parameters().max_out_of_order_objects = 1;
+  adjuster_.parameters().quality_level_reordering_thresholds[0] = 1;
   clock_.AdvanceTime(100 * kDefaultRtt);
   stats_.estimated_send_rate_bps = (0.5 * kDefaultBitrate).ToBitsPerSecond();
 
