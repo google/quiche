@@ -384,13 +384,10 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kExpiredAuthToken = 0x12,
 };
 
-struct MoqtRequestError {
+struct MoqtErrorPair {
   RequestErrorCode error_code;
   std::string reason_phrase;
 };
-// TODO(martinduke): These are deprecated. Replace them in the code.
-using MoqtSubscribeErrorReason = MoqtRequestError;
-using MoqtPublishNamespaceErrorReason = MoqtSubscribeErrorReason;
 
 // Location as defined in
 // https://moq-wg.github.io/moq-transport/draft-ietf-moq-transport.html#location-structure

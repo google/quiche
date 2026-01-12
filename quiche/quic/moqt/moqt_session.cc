@@ -325,9 +325,8 @@ void MoqtSession::PublishNamespace(
   if (outgoing_publish_namespaces_.contains(track_namespace)) {
     std::move(callback)(
         track_namespace,
-        MoqtRequestError{
-            RequestErrorCode::kInternalError,
-            "PUBLISH_NAMESPACE already outstanding for namespace"});
+        MoqtErrorPair{RequestErrorCode::kInternalError,
+                      "PUBLISH_NAMESPACE already outstanding for namespace"});
     return;
   }
   if (next_request_id_ >= peer_max_request_id_) {
@@ -735,8 +734,7 @@ void MoqtSession::DestroySubscription(SubscribeRemoteTrack* subscribe) {
   if (subscribe->ErrorIsAllowed()) {
     subscribe->visitor()->OnReply(
         subscribe->full_track_name(),
-        MoqtRequestError{RequestErrorCode::kNotSupported,
-                         "Subscription closed"});
+        MoqtErrorPair{RequestErrorCode::kNotSupported, "Subscription closed"});
   } else {
     subscribe->visitor()->OnPublishDone(subscribe->full_track_name());
   }
@@ -1169,7 +1167,7 @@ void MoqtSession::ControlStream::OnSubscribeErrorMessage(
   if (subscribe->visitor() != nullptr) {
     subscribe->visitor()->OnReply(
         subscribe->full_track_name(),
-        MoqtRequestError{message.error_code, message.reason_phrase});
+        MoqtErrorPair{message.error_code, message.reason_phrase});
   }
   if (!session_->is_closing_) {
     // The visitor might have closed the session.
@@ -1236,7 +1234,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceMessage(
       session_->GetWeakPtr();
   session_->callbacks_.incoming_publish_namespace_callback(
       message.track_namespace, message.parameters,
-      [&](std::optional<MoqtRequestError> error) {
+      [&](std::optional<MoqtErrorPair> error) {
         MoqtSession* session =
             static_cast<MoqtSession*>(session_weakptr.GetIfAvailable());
         if (session == nullptr) {
@@ -1297,7 +1295,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceErrorMessage(
   }
   std::move(it2->second)(
       track_namespace,
-      MoqtRequestError{message.error_code, std::string(message.error_reason)});
+      MoqtErrorPair{message.error_code, std::string(message.error_reason)});
   session_->outgoing_publish_namespaces_.erase(it2);
 }
 
@@ -1321,7 +1319,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceCancelMessage(
   }
   std::move(it->second)(
       message.track_namespace,
-      MoqtRequestError{message.error_code, std::string(message.error_reason)});
+      MoqtErrorPair{message.error_code, std::string(message.error_reason)});
   session_->outgoing_publish_namespaces_.erase(it);
 }
 
@@ -1408,7 +1406,7 @@ void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
   }
   (session_->callbacks_.incoming_subscribe_namespace_callback)(
       message.track_namespace, message.parameters,
-      [&](std::optional<MoqtRequestError> error) {
+      [&](std::optional<MoqtErrorPair> error) {
         if (error.has_value()) {
           MoqtSubscribeNamespaceError reply;
           reply.request_id = message.request_id;
@@ -2073,7 +2071,7 @@ void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
 }
 
 void MoqtSession::PublishedSubscription::OnSubscribeRejected(
-    MoqtSubscribeErrorReason reason) {
+    MoqtErrorPair reason) {
   session_->GetControlStream()->SendSubscribeError(
       request_id_, reason.error_code, reason.reason_phrase);
   session_->published_subscriptions_.erase(request_id_);
@@ -2573,8 +2571,8 @@ void MoqtSession::CleanUpState() {
                                                    std::nullopt, nullptr);
   }
   for (auto& [track_namespace, callback] : outgoing_publish_namespaces_) {
-    callback(track_namespace, MoqtRequestError{RequestErrorCode::kUninterested,
-                                               "Session closed"});
+    callback(track_namespace,
+             MoqtErrorPair{RequestErrorCode::kUninterested, "Session closed"});
   }
   while (!upstream_by_id_.empty()) {
     auto upstream = upstream_by_id_.begin();

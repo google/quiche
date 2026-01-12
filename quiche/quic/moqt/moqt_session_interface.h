@@ -41,7 +41,7 @@ class SubscribeVisitor {
   // automatically retry.
   virtual void OnReply(
       const FullTrackName& full_track_name,
-      std::variant<SubscribeOkData, MoqtRequestError> response) = 0;
+      std::variant<SubscribeOkData, MoqtErrorPair> response) = 0;
   // Called when the subscription process is far enough that it is possible to
   // send OBJECT_ACK messages; provides a callback to do so. The callback is
   // valid for as long as the session is valid.
@@ -79,9 +79,8 @@ using FetchResponseCallback =
 // PUBLISH_NAMESPACE state immediately after calling this callback.
 // Alternatively, the application can call PublishNamespaceDone() to delete the
 // state.
-using MoqtOutgoingPublishNamespaceCallback =
-    quiche::MultiUseCallback<void(const TrackNamespace& track_namespace,
-                                  std::optional<MoqtRequestError> error)>;
+using MoqtOutgoingPublishNamespaceCallback = quiche::MultiUseCallback<void(
+    const TrackNamespace& track_namespace, std::optional<MoqtErrorPair> error)>;
 
 using MoqtOutgoingSubscribeNamespaceCallback = quiche::SingleUseCallback<void(
     TrackNamespace track_namespace, std::optional<RequestErrorCode> error,

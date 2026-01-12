@@ -188,7 +188,7 @@ class MockSubscribeRemoteTrackVisitor : public SubscribeVisitor {
  public:
   MOCK_METHOD(void, OnReply,
               (const FullTrackName& full_track_name,
-               (std::variant<SubscribeOkData, MoqtRequestError> response)),
+               (std::variant<SubscribeOkData, MoqtErrorPair> response)),
               (override));
   MOCK_METHOD(void, OnCanAckObjects, (MoqtObjectAckFunction ack_function),
               (override));
@@ -275,7 +275,7 @@ class MockFetchTask : public MoqtFetchTask {
 class MockMoqtObjectListener : public MoqtObjectListener {
  public:
   MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
-  MOCK_METHOD(void, OnSubscribeRejected, (MoqtRequestError), (override));
+  MOCK_METHOD(void, OnSubscribeRejected, (MoqtErrorPair), (override));
   MOCK_METHOD(void, OnNewObjectAvailable,
               (Location, uint64_t, MoqtPriority, MoqtForwardingPreference),
               (override));

@@ -131,7 +131,7 @@ TEST_F(MoqtRelayTest, PublishNamespace) {
   // relay_ publishes a namespace, so upstream_ will route to relay_.
   relay_.client_session()->PublishNamespace(
       TrackNamespace({"foo"}),
-      [](TrackNamespace, std::optional<MoqtRequestError>) {},
+      [](TrackNamespace, std::optional<MoqtErrorPair>) {},
       VersionSpecificParameters());
   upstream_.RunOneEvent();
   // There is now an upstream session for "Foo".
@@ -187,7 +187,7 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   // Downstream publishes a namespace. It's stored in relay_ but upstream_
   // hasn't been notified.
   downstream_.client_session()->PublishNamespace(
-      foobar, [](TrackNamespace, std::optional<MoqtRequestError>) {},
+      foobar, [](TrackNamespace, std::optional<MoqtErrorPair>) {},
       VersionSpecificParameters());
   relay_.RunOneEvent();
   upstream_.RunOneEvent();
@@ -205,7 +205,7 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
 
   // Downstream publishes another namespace. Everyone is notified.
   downstream_.client_session()->PublishNamespace(
-      foobaz, [](TrackNamespace, std::optional<MoqtRequestError>) {},
+      foobaz, [](TrackNamespace, std::optional<MoqtErrorPair>) {},
       VersionSpecificParameters());
   relay_.RunOneEvent();
   upstream_.RunOneEvent();

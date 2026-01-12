@@ -98,8 +98,7 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
               ());
   MOCK_METHOD(void, OnTrackPublisherGone, (), (override));
   MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
-  MOCK_METHOD(void, OnSubscribeRejected, (MoqtSubscribeErrorReason reason),
-              (override));
+  MOCK_METHOD(void, OnSubscribeRejected, (MoqtErrorPair reason), (override));
 };
 
 absl::StatusOr<std::vector<std::string>> FetchToVector(

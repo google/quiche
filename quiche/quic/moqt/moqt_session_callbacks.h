@@ -20,7 +20,7 @@ namespace moqt {
 // once; if the argument is nullopt, an OK response was received. Otherwise, an
 // ERROR response was received.
 using MoqtResponseCallback =
-    quiche::SingleUseCallback<void(std::optional<MoqtRequestError>)>;
+    quiche::SingleUseCallback<void(std::optional<MoqtErrorPair>)>;
 
 // Called when the SETUP message from the peer is received.
 using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
@@ -59,7 +59,7 @@ inline void DefaultIncomingPublishNamespaceCallback(
   if (callback == nullptr) {
     return;
   }
-  return std::move(callback)(MoqtRequestError{
+  return std::move(callback)(MoqtErrorPair{
       RequestErrorCode::kNotSupported,
       "This endpoint does not support incoming SUBSCRIBE_NAMESPACE messages"});
 };

@@ -31,7 +31,7 @@ class MoqtObjectListener {
   virtual void OnSubscribeAccepted() = 0;
   // Called when the publisher is sure that it cannot serve the subscription.
   // This could happen synchronously or asynchronously.
-  virtual void OnSubscribeRejected(MoqtSubscribeErrorReason reason) = 0;
+  virtual void OnSubscribeRejected(MoqtErrorPair reason) = 0;
 
   // Notifies that a new object is available on the track.  The object payload
   // itself may be retrieved via GetCachedObject method of the associated track

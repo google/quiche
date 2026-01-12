@@ -129,9 +129,9 @@ class MoqtIngestionHandler {
           << "Rejected remote publish_namespace as it contained "
              "disallowed characters; namespace: "
           << track_namespace;
-      std::move(callback)(MoqtPublishNamespaceErrorReason{
-          RequestErrorCode::kInternalError,
-          "Track namespace contains disallowed characters"});
+      std::move(callback)(
+          MoqtErrorPair{RequestErrorCode::kInternalError,
+                        "Track namespace contains disallowed characters"});
       return;
     }
 
@@ -151,9 +151,8 @@ class MoqtIngestionHandler {
       subscribed_namespaces_.erase(it);
       QUICHE_LOG(ERROR) << "Failed to create directory " << directory_path
                         << "; " << status;
-      std::move(callback)(
-          MoqtPublishNamespaceErrorReason{RequestErrorCode::kInternalError,
-                                          "Failed to create output directory"});
+      std::move(callback)(MoqtErrorPair{RequestErrorCode::kInternalError,
+                                        "Failed to create output directory"});
       return;
     }
 
@@ -176,11 +175,11 @@ class MoqtIngestionHandler {
 
     void OnReply(
         const FullTrackName& full_track_name,
-        std::variant<SubscribeOkData, MoqtRequestError> response) override {
-      if (std::holds_alternative<MoqtRequestError>(response)) {
+        std::variant<SubscribeOkData, MoqtErrorPair> response) override {
+      if (std::holds_alternative<MoqtErrorPair>(response)) {
         QUICHE_LOG(ERROR) << "Failed to subscribe to the peer track "
                           << full_track_name << ": "
-                          << std::get<MoqtRequestError>(response).reason_phrase;
+                          << std::get<MoqtErrorPair>(response).reason_phrase;
       }
     }
 

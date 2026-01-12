@@ -155,9 +155,8 @@ class ObjectReceiver : public SubscribeVisitor {
                           quic::QuicTimeDelta deadline)
       : clock_(clock), deadline_(deadline) {}
 
-  void OnReply(
-      const FullTrackName& full_track_name,
-      std::variant<SubscribeOkData, MoqtRequestError> response) override;
+  void OnReply(const FullTrackName& full_track_name,
+               std::variant<SubscribeOkData, MoqtErrorPair> response) override;
 
   void OnCanAckObjects(MoqtObjectAckFunction ack_function) override {
     object_ack_function_ = std::move(ack_function);

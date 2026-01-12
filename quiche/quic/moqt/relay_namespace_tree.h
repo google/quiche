@@ -157,7 +157,7 @@ class RelayNamespaceTree {
     if (!node->publishers.empty()) {
       subscriber->PublishNamespace(
           track_namespace,
-          [](const TrackNamespace&, std::optional<MoqtRequestError>) {},
+          [](const TrackNamespace&, std::optional<MoqtErrorPair>) {},
           // TODO(martinduke): Add parameters.
           VersionSpecificParameters());
     }
@@ -189,7 +189,7 @@ class RelayNamespaceTree {
         if (adding) {
           subscriber->PublishNamespace(
               track_namespace,
-              [](const TrackNamespace&, std::optional<MoqtRequestError>) {},
+              [](const TrackNamespace&, std::optional<MoqtErrorPair>) {},
               // TODO(martinduke): Add parameters.
               VersionSpecificParameters());
         } else {

@@ -196,10 +196,10 @@ std::string ObjectGenerator::FormatBitrateHistory() const {
 
 void ObjectReceiver::OnReply(
     const FullTrackName& full_track_name,
-    std::variant<SubscribeOkData, MoqtRequestError> response) {
+    std::variant<SubscribeOkData, MoqtErrorPair> response) {
   QUICHE_CHECK(full_track_name == TrackName());
-  if (std::holds_alternative<MoqtRequestError>(response)) {
-    MoqtRequestError error = std::get<MoqtRequestError>(response);
+  if (std::holds_alternative<MoqtErrorPair>(response)) {
+    MoqtErrorPair error = std::get<MoqtErrorPair>(response);
     QUICHE_CHECK(!error.reason_phrase.empty()) << error.reason_phrase;
   }
 }

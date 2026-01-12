@@ -372,7 +372,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     // MoqtObjectListener implementation.
     void OnSubscribeAccepted() override;
-    void OnSubscribeRejected(MoqtSubscribeErrorReason reason) override;
+    void OnSubscribeRejected(MoqtErrorPair reason) override;
     // This is only called for objects that have just arrived.
     void OnNewObjectAvailable(
         Location location, uint64_t subgroup, MoqtPriority publisher_priority,
@@ -648,7 +648,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       // No class access below this line!
     }
 
-    void OnSubscribeRejected(MoqtSubscribeErrorReason error_reason) override {
+    void OnSubscribeRejected(MoqtErrorPair error_reason) override {
       MoqtTrackStatusError track_status_error;
       track_status_error.request_id = request_id_;
       track_status_error.error_code = error_reason.error_code;
@@ -669,8 +669,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnGroupAbandoned(uint64_t /*group_id*/) override {}
     void OnTrackPublisherGone() override {
       publisher_ = nullptr;
-      OnSubscribeRejected(MoqtSubscribeErrorReason(
-          RequestErrorCode::kTrackDoesNotExist, "Track publisher gone"));
+      OnSubscribeRejected(MoqtErrorPair(RequestErrorCode::kTrackDoesNotExist,
+                                        "Track publisher gone"));
     }
 
    private:
