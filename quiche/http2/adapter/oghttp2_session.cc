@@ -1963,7 +1963,8 @@ void OgHttp2Session::CloseStream(Http2StreamId stream_id,
     queued_frames_.erase(queued_it);
     for (auto it = frames_.begin();
          frames_remaining > 0 && it != frames_.end();) {
-      if (static_cast<Http2StreamId>((*it)->stream_id()) == stream_id) {
+      if (*it != nullptr &&
+          static_cast<Http2StreamId>((*it)->stream_id()) == stream_id) {
         *it = nullptr;
         --frames_remaining;
       }
