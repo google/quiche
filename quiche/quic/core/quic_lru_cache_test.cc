@@ -26,18 +26,18 @@ TEST(QuicLRUCacheTest, InsertAndLookup) {
   EXPECT_EQ(5u, cache.MaxSize());
 
   // Check that item 1 was properly inserted.
-  std::unique_ptr<CachedItem> item1(new CachedItem(11));
+  auto item1 = std::make_unique<CachedItem>(11);
   cache.Insert(1, std::move(item1));
   EXPECT_EQ(1u, cache.Size());
   EXPECT_EQ(11u, cache.Lookup(1)->second->value);
 
   // Check that item 2 overrides item 1.
-  std::unique_ptr<CachedItem> item2(new CachedItem(12));
+  auto item2 = std::make_unique<CachedItem>(12);
   cache.Insert(1, std::move(item2));
   EXPECT_EQ(1u, cache.Size());
   EXPECT_EQ(12u, cache.Lookup(1)->second->value);
 
-  std::unique_ptr<CachedItem> item3(new CachedItem(13));
+  auto item3 = std::make_unique<CachedItem>(13);
   cache.Insert(3, std::move(item3));
   EXPECT_EQ(2u, cache.Size());
   auto iter = cache.Lookup(3);
@@ -56,7 +56,7 @@ TEST(QuicLRUCacheTest, Eviction) {
   QuicLRUCache<int, CachedItem> cache(3);
 
   for (size_t i = 1; i <= 4; ++i) {
-    std::unique_ptr<CachedItem> item(new CachedItem(10 + i));
+    auto item = std::make_unique<CachedItem>(10 + i);
     cache.Insert(i, std::move(item));
   }
 
@@ -68,7 +68,7 @@ TEST(QuicLRUCacheTest, Eviction) {
   EXPECT_EQ(14u, cache.Lookup(4)->second->value);
 
   EXPECT_EQ(12u, cache.Lookup(2)->second->value);
-  std::unique_ptr<CachedItem> item5(new CachedItem(15));
+  auto item5 = std::make_unique<CachedItem>(15);
   cache.Insert(5, std::move(item5));
   // Make sure item 3 is evicted.
   EXPECT_EQ(cache.end(), cache.Lookup(3));
@@ -77,6 +77,73 @@ TEST(QuicLRUCacheTest, Eviction) {
   // No memory leakage.
   cache.Clear();
   EXPECT_EQ(0u, cache.Size());
+}
+
+TEST(QuicLRUCacheTest, UpdateMaxSize) {
+  QuicLRUCache<int, CachedItem> cache(3);
+
+  // Insert 3 items, filling the cache.
+  for (size_t i = 1; i <= 3; ++i) {
+    auto item = std::make_unique<CachedItem>(10 + i);
+    cache.Insert(i, std::move(item));
+  }
+  EXPECT_EQ(3u, cache.Size());
+  EXPECT_EQ(3u, cache.MaxSize());
+
+  // Update max size to a larger value.
+  cache.UpdateMaxSize(5);
+  EXPECT_EQ(3u, cache.Size());
+  EXPECT_EQ(5u, cache.MaxSize());
+
+  // Insert more items, up to the new max size.
+  for (size_t i = 4; i <= 5; ++i) {
+    auto item = std::make_unique<CachedItem>(10 + i);
+    cache.Insert(i, std::move(item));
+  }
+  EXPECT_EQ(5u, cache.Size());
+  EXPECT_EQ(5u, cache.MaxSize());
+
+  // Update max size to a smaller value, causing evictions.
+  cache.UpdateMaxSize(2);
+  EXPECT_EQ(2u, cache.Size());
+  EXPECT_EQ(2u, cache.MaxSize());
+  // Items 1, 2, and 3 should be evicted.
+  EXPECT_EQ(cache.end(), cache.Lookup(1));
+  EXPECT_EQ(cache.end(), cache.Lookup(2));
+  EXPECT_EQ(cache.end(), cache.Lookup(3));
+  // Items 4 and 5 should remain.
+  EXPECT_NE(cache.end(), cache.Lookup(4));
+  EXPECT_NE(cache.end(), cache.Lookup(5));
+
+  // Insert an item after reducing max size to 2. This should evict item 4.
+  auto item6 = std::make_unique<CachedItem>(16);
+  cache.Insert(6, std::move(item6));
+  EXPECT_EQ(2u, cache.Size());
+  EXPECT_EQ(cache.end(), cache.Lookup(4));
+  EXPECT_NE(cache.end(), cache.Lookup(5));
+  EXPECT_NE(cache.end(), cache.Lookup(6));
+
+  // Update max size to 0.
+  cache.UpdateMaxSize(0);
+  EXPECT_EQ(0u, cache.Size());
+  EXPECT_EQ(0u, cache.MaxSize());
+  EXPECT_EQ(cache.end(), cache.Lookup(5));
+  EXPECT_EQ(cache.end(), cache.Lookup(6));
+}
+
+TEST(QuicLRUCacheTest, InsertWithZeroMaxSize) {
+  QuicLRUCache<int, CachedItem> cache(0);
+  EXPECT_EQ(0u, cache.Size());
+  EXPECT_EQ(0u, cache.MaxSize());
+
+  // Attempt to insert an item.
+  auto item1 = std::make_unique<CachedItem>(1);
+  cache.Insert(1, std::move(item1));
+
+  // The cache should still be empty.
+  EXPECT_EQ(0u, cache.Size());
+  EXPECT_EQ(0u, cache.MaxSize());
+  EXPECT_EQ(cache.end(), cache.Lookup(1));
 }
 
 }  // namespace
