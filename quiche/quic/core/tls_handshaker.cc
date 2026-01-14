@@ -348,6 +348,10 @@ bool TlsHandshaker::SetReadSecret(EncryptionLevel level,
       /*latch_once_used=*/false);
 }
 
+const SSL_CIPHER* TlsHandshaker::GetCipher() const {
+  return SSL_get_current_cipher(ssl());
+}
+
 std::unique_ptr<QuicDecrypter>
 TlsHandshaker::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
   if (latest_read_secret_.empty() || latest_write_secret_.empty() ||
@@ -358,7 +362,7 @@ TlsHandshaker::AdvanceKeysAndCreateCurrentOneRttDecrypter() {
     CloseConnection(QUIC_INTERNAL_ERROR, error_details);
     return nullptr;
   }
-  const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
+  const SSL_CIPHER* cipher = GetCipher();
   const EVP_MD* prf = Prf(cipher);
   CryptoUtils::GenerateNextKeyPhaseSecret(
       prf, handshaker_delegate_->parsed_version(), latest_read_secret_,
@@ -387,7 +391,7 @@ std::unique_ptr<QuicEncrypter> TlsHandshaker::CreateCurrentOneRttEncrypter() {
     CloseConnection(QUIC_INTERNAL_ERROR, error_details);
     return nullptr;
   }
-  const SSL_CIPHER* cipher = SSL_get_current_cipher(ssl());
+  const SSL_CIPHER* cipher = GetCipher();
   std::unique_ptr<QuicEncrypter> encrypter =
       QuicEncrypter::CreateFromCipherSuite(SSL_CIPHER_get_id(cipher));
   CryptoUtils::SetKeyAndIV(Prf(cipher), latest_write_secret_,

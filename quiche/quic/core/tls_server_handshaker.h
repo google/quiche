@@ -91,6 +91,7 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   bool ExportKeyingMaterial(absl::string_view label, absl::string_view context,
                             size_t result_len, std::string* result) override;
   SSL* GetSsl() const override;
+  void ResetSsl() override;
   bool IsCryptoFrameExpectedForEncryptionLevel(
       EncryptionLevel level) const override;
   EncryptionLevel GetEncryptionLevelToSendCryptoDataOfSpace(
@@ -222,6 +223,13 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   std::optional<uint16_t> GetCiphersuite() const override;
 
   void SetIgnoreTicketOpen(bool value) { ignore_ticket_open_ = value; }
+
+  const SSL_CIPHER* GetCipher() const override {
+    if (cached_ssl_info_.has_value()) {
+      return cached_ssl_info_->cipher;
+    }
+    return TlsHandshaker::GetCipher();
+  }
 
  private:
   class QUICHE_EXPORT DecryptCallback : public ProofSource::DecryptCallback {
@@ -403,6 +411,17 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   std::optional<QuicTimeAccumulator> async_op_timer_;
 
   std::unique_ptr<ApplicationState> application_state_;
+
+  // Used to cache the state of the SSL object after it is reset.
+  struct CachedSSLInfo {
+    bool is_resumption = false;
+    bool is_zero_rtt = false;
+    ssl_early_data_reason_t early_data_reason = ssl_early_data_unknown;
+    // Note SSL_get_current_cipher returns a static allocated pointer and as a
+    // result it is safe to cache a raw pointer here.
+    const SSL_CIPHER* cipher = nullptr;
+  };
+  std::optional<CachedSSLInfo> cached_ssl_info_;
 
   // Pre-shared key used during the handshake.
   std::string pre_shared_key_;

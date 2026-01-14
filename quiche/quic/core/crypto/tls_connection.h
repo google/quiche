@@ -107,6 +107,12 @@ class QUICHE_EXPORT TlsConnection {
 
   SSL* ssl() const { return ssl_.get(); }
 
+  // ResetSsl can be called to reset the SSL and release the associated memory.
+  // After this is called, ssl() will return nullptr. Hence it should only be
+  // called when there is absolutely no expectation that ssl() will be called
+  // again.
+  void ResetSsl() { ssl_.reset(); }
+
   const QuicSSLConfig& ssl_config() const { return ssl_config_; }
 
  protected:

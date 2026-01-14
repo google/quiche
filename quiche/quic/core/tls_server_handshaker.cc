@@ -344,10 +344,16 @@ bool TlsServerHandshaker::DisableResumption() {
 }
 
 bool TlsServerHandshaker::IsZeroRtt() const {
+  if (cached_ssl_info_.has_value()) {
+    return cached_ssl_info_->is_zero_rtt;
+  }
   return SSL_early_data_accepted(ssl());
 }
 
 bool TlsServerHandshaker::IsResumption() const {
+  if (cached_ssl_info_.has_value()) {
+    return cached_ssl_info_->is_resumption;
+  }
   return SSL_session_reused(ssl());
 }
 
@@ -448,6 +454,9 @@ void TlsServerHandshaker::OnConnectionClosed(
 }
 
 ssl_early_data_reason_t TlsServerHandshaker::EarlyDataReason() const {
+  if (cached_ssl_info_.has_value()) {
+    return cached_ssl_info_->early_data_reason;
+  }
   return TlsHandshaker::EarlyDataReason();
 }
 
@@ -656,7 +665,7 @@ void TlsServerHandshaker::SetWriteSecret(
   if (level == ENCRYPTION_FORWARD_SECURE) {
     encryption_established_ = true;
     // Fill crypto_negotiated_params_:
-    const SSL_CIPHER* ssl_cipher = SSL_get_current_cipher(ssl());
+    const SSL_CIPHER* ssl_cipher = GetCipher();
     if (ssl_cipher) {
       crypto_negotiated_params_->cipher_suite =
           SSL_CIPHER_get_protocol_id(ssl_cipher);
@@ -1230,7 +1239,7 @@ bool TlsServerHandshaker::WillNotCallComputeSignature() const {
 }
 
 std::optional<uint16_t> TlsServerHandshaker::GetCiphersuite() const {
-  const SSL_CIPHER* cipher = SSL_get_pending_cipher(ssl());
+  const SSL_CIPHER* cipher = GetCipher();
   if (cipher == nullptr) {
     return std::nullopt;
   }
@@ -1342,6 +1351,20 @@ TlsServerHandshaker::SetApplicationSettings(absl::string_view alpn) {
 }
 
 SSL* TlsServerHandshaker::GetSsl() const { return ssl(); }
+
+void TlsServerHandshaker::ResetSsl() {
+  if (cached_ssl_info_.has_value()) {
+    QUIC_BUG(quic_bug_ssl_is_reset_again);
+    return;
+  }
+  cached_ssl_info_.emplace(CachedSSLInfo{
+      .is_resumption = IsResumption(),
+      .is_zero_rtt = IsZeroRtt(),
+      .early_data_reason = EarlyDataReason(),
+      .cipher = GetCipher(),
+  });
+  tls_connection_.ResetSsl();
+}
 
 bool TlsServerHandshaker::IsCryptoFrameExpectedForEncryptionLevel(
     EncryptionLevel level) const {

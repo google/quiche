@@ -14,6 +14,7 @@
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -56,6 +57,7 @@ class QUICHE_EXPORT QuicCryptoServerStream : public QuicCryptoServerStreamBase,
   bool ShouldSendExpectCTHeader() const override;
   bool DidCertMatchSni() const override;
   const ProofSource::Details* ProofSourceDetails() const override;
+  void ResetSsl() override { QUICHE_DCHECK(false); }
 
   // From QuicCryptoStream
   ssl_early_data_reason_t EarlyDataReason() const override;

@@ -12,6 +12,9 @@
 #include <string>
 #include <utility>
 
+#include "quiche/quic/core/frames/quic_crypto_frame.h"
+#include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/proto/cached_network_parameters_proto.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_stream.h"
@@ -23,6 +26,7 @@
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
@@ -302,6 +306,38 @@ QuicSSLConfig QuicServerSessionBase::GetSSLConfig() const {
   }
 
   return ssl_config;
+}
+
+bool QuicServerSessionBase::OnFrameAcked(const quic::QuicFrame& frame,
+                                         quic::QuicTime::Delta ack_delay_time,
+                                         quic::QuicTime receive_timestamp,
+                                         bool is_retransmission) {
+  bool result = QuicSpdySession::OnFrameAcked(
+      frame, ack_delay_time, receive_timestamp, is_retransmission);
+  if (!reset_ssl_after_handshake_ || ssl_reset_) {
+    return result;
+  }
+  if (frame.type == quic::HANDSHAKE_DONE_FRAME) {
+    handshake_done_acked_ = true;
+  }
+  // When resumption is enabled, the resumption tickets must have been
+  // buffered at the time the handshake_done frame is ACKed.
+  if (handshake_done_acked_ && !HasUnackedCryptoData()) {
+    QUICHE_CODE_COUNT(quic_reset_ssl_after_handshake);
+    crypto_stream_->ResetSsl();
+    ssl_reset_ = true;
+  }
+  return result;
+}
+
+void QuicServerSessionBase::OnCryptoFrame(const quic::QuicCryptoFrame& frame) {
+  if (ssl_reset_) {
+    // This code path can happen due to retransmission of crypto data but
+    // should be rare. Add a code count to monitor.
+    QUICHE_CODE_COUNT(quic_reset_ssl_after_handshake);
+    return;
+  }
+  QuicSpdySession::OnCryptoFrame(frame);
 }
 
 std::optional<CachedNetworkParameters>

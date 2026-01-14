@@ -105,6 +105,10 @@ class QUICHE_EXPORT QuicCryptoServerStreamBase : public QuicCryptoStream {
     QUICHE_NOTREACHED();
     return false;
   }
+
+  // ResetSsl can be called to reset the SSL and release the associated memory.
+  // After this is called, GetSsl() should return nullptr.
+  virtual void ResetSsl() = 0;
 };
 
 // Creates an appropriate QuicCryptoServerStream for the provided parameters,

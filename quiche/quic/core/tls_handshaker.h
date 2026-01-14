@@ -177,6 +177,8 @@ class QUICHE_EXPORT TlsHandshaker : public TlsConnection::Delegate,
     extra_error_details_ = std::move(extra_error_details);
   }
 
+  virtual const SSL_CIPHER* GetCipher() const;
+
  private:
   // ProofVerifierCallbackImpl handles the result of an asynchronous certificate
   // verification operation.

@@ -14,9 +14,12 @@
 #include <vector>
 
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
+#include "quiche/quic/core/frames/quic_crypto_frame.h"
+#include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/quic_crypto_server_stream_base.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_export.h"
 
 namespace quic {
@@ -73,6 +76,15 @@ class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
 
   QuicSSLConfig GetSSLConfig() const override;
 
+  // Override to reset the SSL when HANDSHAKE_DONE frame has been ACKed and
+  // there is no unacked crypto data.
+  bool OnFrameAcked(const QuicFrame& frame, QuicTime::Delta ack_delay_time,
+                    QuicTime receive_timestamp,
+                    bool is_retransmission) override;
+
+  // Override to ignore the crypto frame after resetting the SSL.
+  void OnCryptoFrame(const QuicCryptoFrame& frame) override;
+
  protected:
   // QuicSession methods(override them with return type of QuicSpdyStream*):
   QuicCryptoServerStreamBase* GetMutableCryptoStream() override;
@@ -102,6 +114,12 @@ class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
 
   QuicCryptoServerStreamBase::Helper* stream_helper() { return helper_; }
 
+  void enable_reset_ssl_after_handshake() {
+    if (version().IsIetfQuic()) {
+      reset_ssl_after_handshake_ = true;
+    }
+  }
+
  private:
   friend class test::QuicServerSessionBasePeer;
   friend class test::QuicSimpleServerSessionPeer;
@@ -115,6 +133,12 @@ class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
 
   // Whether bandwidth resumption is enabled for this connection.
   bool bandwidth_resumption_enabled_;
+
+  // Whether to reset the SSL after the handshake is done.
+  bool reset_ssl_after_handshake_ = false;
+  // Whether the SSL has been reset.
+  bool ssl_reset_ = false;
+  bool handshake_done_acked_ = false;
 
   // The cache which contains most recently compressed certs.
   // Owned by QuicDispatcher.
