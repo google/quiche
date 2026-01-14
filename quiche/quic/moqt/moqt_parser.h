@@ -37,7 +37,7 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnServerSetupMessage(const MoqtServerSetup& message) = 0;
   virtual void OnSubscribeMessage(const MoqtSubscribe& message) = 0;
   virtual void OnSubscribeOkMessage(const MoqtSubscribeOk& message) = 0;
-  virtual void OnSubscribeErrorMessage(const MoqtSubscribeError& message) = 0;
+  virtual void OnRequestErrorMessage(const MoqtRequestError& message) = 0;
   virtual void OnUnsubscribeMessage(const MoqtUnsubscribe& message) = 0;
   virtual void OnPublishDoneMessage(const MoqtPublishDone& message) = 0;
   virtual void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) = 0;
@@ -45,34 +45,26 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
       const MoqtPublishNamespace& message) = 0;
   virtual void OnPublishNamespaceOkMessage(
       const MoqtPublishNamespaceOk& message) = 0;
-  virtual void OnPublishNamespaceErrorMessage(
-      const MoqtPublishNamespaceError& message) = 0;
   virtual void OnPublishNamespaceDoneMessage(
       const MoqtPublishNamespaceDone& message) = 0;
   virtual void OnPublishNamespaceCancelMessage(
       const MoqtPublishNamespaceCancel& message) = 0;
   virtual void OnTrackStatusMessage(const MoqtTrackStatus& message) = 0;
   virtual void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) = 0;
-  virtual void OnTrackStatusErrorMessage(
-      const MoqtTrackStatusError& message) = 0;
   virtual void OnGoAwayMessage(const MoqtGoAway& message) = 0;
   virtual void OnSubscribeNamespaceMessage(
       const MoqtSubscribeNamespace& message) = 0;
   virtual void OnSubscribeNamespaceOkMessage(
       const MoqtSubscribeNamespaceOk& message) = 0;
-  virtual void OnSubscribeNamespaceErrorMessage(
-      const MoqtSubscribeNamespaceError& message) = 0;
   virtual void OnUnsubscribeNamespaceMessage(
       const MoqtUnsubscribeNamespace& message) = 0;
   virtual void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) = 0;
   virtual void OnFetchMessage(const MoqtFetch& message) = 0;
   virtual void OnFetchCancelMessage(const MoqtFetchCancel& message) = 0;
   virtual void OnFetchOkMessage(const MoqtFetchOk& message) = 0;
-  virtual void OnFetchErrorMessage(const MoqtFetchError& message) = 0;
   virtual void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) = 0;
   virtual void OnPublishMessage(const MoqtPublish& message) = 0;
   virtual void OnPublishOkMessage(const MoqtPublishOk& message) = 0;
-  virtual void OnPublishErrorMessage(const MoqtPublishError& message) = 0;
   virtual void OnObjectAckMessage(const MoqtObjectAck& message) = 0;
 
   virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
@@ -128,34 +120,27 @@ class QUICHE_EXPORT MoqtControlParser {
   size_t ProcessSubscribeOk(
       quic::QuicDataReader& reader,
       MoqtMessageType message_type = MoqtMessageType::kSubscribeOk);
-  size_t ProcessSubscribeError(
-      quic::QuicDataReader& reader,
-      MoqtMessageType message_type = MoqtMessageType::kSubscribeError);
+  size_t ProcessRequestError(quic::QuicDataReader& reader);
   size_t ProcessUnsubscribe(quic::QuicDataReader& reader);
   size_t ProcessPublishDone(quic::QuicDataReader& reader);
   size_t ProcessSubscribeUpdate(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespace(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespaceOk(quic::QuicDataReader& reader);
-  size_t ProcessPublishNamespaceError(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespaceDone(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespaceCancel(quic::QuicDataReader& reader);
   size_t ProcessTrackStatus(quic::QuicDataReader& reader);
   size_t ProcessTrackStatusOk(quic::QuicDataReader& reader);
-  size_t ProcessTrackStatusError(quic::QuicDataReader& reader);
   size_t ProcessGoAway(quic::QuicDataReader& reader);
   size_t ProcessSubscribeNamespace(quic::QuicDataReader& reader);
   size_t ProcessSubscribeNamespaceOk(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeNamespaceError(quic::QuicDataReader& reader);
   size_t ProcessUnsubscribeNamespace(quic::QuicDataReader& reader);
   size_t ProcessMaxRequestId(quic::QuicDataReader& reader);
   size_t ProcessFetch(quic::QuicDataReader& reader);
   size_t ProcessFetchCancel(quic::QuicDataReader& reader);
   size_t ProcessFetchOk(quic::QuicDataReader& reader);
-  size_t ProcessFetchError(quic::QuicDataReader& reader);
   size_t ProcessRequestsBlocked(quic::QuicDataReader& reader);
   size_t ProcessPublish(quic::QuicDataReader& reader);
   size_t ProcessPublishOk(quic::QuicDataReader& reader);
-  size_t ProcessPublishError(quic::QuicDataReader& reader);
   size_t ProcessObjectAck(quic::QuicDataReader& reader);
 
   // If |error| is not provided, assumes kProtocolViolation.

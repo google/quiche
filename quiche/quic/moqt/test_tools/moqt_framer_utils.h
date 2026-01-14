@@ -27,14 +27,12 @@ namespace moqt::test {
 // those two types.
 using MoqtGenericFrame = std::variant<
     MoqtClientSetup, MoqtServerSetup, MoqtSubscribe, MoqtSubscribeOk,
-    MoqtSubscribeError, MoqtUnsubscribe, MoqtPublishDone, MoqtSubscribeUpdate,
-    MoqtPublishNamespace, MoqtPublishNamespaceOk, MoqtPublishNamespaceError,
-    MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
-    MoqtTrackStatusOk, MoqtTrackStatusError, MoqtGoAway, MoqtSubscribeNamespace,
-    MoqtSubscribeNamespaceOk, MoqtSubscribeNamespaceError,
-    MoqtUnsubscribeNamespace, MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel,
-    MoqtFetchOk, MoqtFetchError, MoqtRequestsBlocked, MoqtPublish,
-    MoqtPublishOk, MoqtPublishError, MoqtObjectAck>;
+    MoqtRequestError, MoqtUnsubscribe, MoqtPublishDone, MoqtSubscribeUpdate,
+    MoqtPublishNamespace, MoqtPublishNamespaceOk, MoqtPublishNamespaceDone,
+    MoqtPublishNamespaceCancel, MoqtTrackStatus, MoqtTrackStatusOk, MoqtGoAway,
+    MoqtSubscribeNamespace, MoqtSubscribeNamespaceOk, MoqtUnsubscribeNamespace,
+    MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
+    MoqtRequestsBlocked, MoqtPublish, MoqtPublishOk, MoqtObjectAck>;
 
 std::string SerializeGenericMessage(const MoqtGenericFrame& frame,
                                     bool use_webtrans = false);

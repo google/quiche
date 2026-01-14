@@ -55,7 +55,7 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override {
     OnControlMessage(message);
   }
-  void OnSubscribeErrorMessage(const MoqtSubscribeError& message) override {
+  void OnRequestErrorMessage(const MoqtRequestError& message) override {
     OnControlMessage(message);
   }
   void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override {
@@ -74,10 +74,6 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
       const MoqtPublishNamespaceOk& message) override {
     OnControlMessage(message);
   }
-  void OnPublishNamespaceErrorMessage(
-      const MoqtPublishNamespaceError& message) override {
-    OnControlMessage(message);
-  }
   void OnPublishNamespaceDoneMessage(
       const MoqtPublishNamespaceDone& message) override {
     OnControlMessage(message);
@@ -92,9 +88,6 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) override {
     OnControlMessage(message);
   }
-  void OnTrackStatusErrorMessage(const MoqtTrackStatusError& message) override {
-    OnControlMessage(message);
-  }
   void OnGoAwayMessage(const MoqtGoAway& message) override {
     OnControlMessage(message);
   }
@@ -104,10 +97,6 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   }
   void OnSubscribeNamespaceOkMessage(
       const MoqtSubscribeNamespaceOk& message) override {
-    OnControlMessage(message);
-  }
-  void OnSubscribeNamespaceErrorMessage(
-      const MoqtSubscribeNamespaceError& message) override {
     OnControlMessage(message);
   }
   void OnUnsubscribeNamespaceMessage(
@@ -126,9 +115,6 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnFetchOkMessage(const MoqtFetchOk& message) override {
     OnControlMessage(message);
   }
-  void OnFetchErrorMessage(const MoqtFetchError& message) override {
-    OnControlMessage(message);
-  }
   void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) override {
     OnControlMessage(message);
   }
@@ -136,9 +122,6 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
     OnControlMessage(message);
   }
   void OnPublishOkMessage(const MoqtPublishOk& message) override {
-    OnControlMessage(message);
-  }
-  void OnPublishErrorMessage(const MoqtPublishError& message) override {
     OnControlMessage(message);
   }
   void OnObjectAckMessage(const MoqtObjectAck& message) override {

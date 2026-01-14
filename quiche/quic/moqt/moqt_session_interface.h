@@ -37,7 +37,7 @@ class SubscribeVisitor {
  public:
   virtual ~SubscribeVisitor() = default;
   // Called when the session receives a response to the SUBSCRIBE, unless it's
-  // a SUBSCRIBE_ERROR with a new track_alias. In that case, the session will
+  // a REQUEST_ERROR with a new track_alias. In that case, the session will
   // automatically retry.
   virtual void OnReply(
       const FullTrackName& full_track_name,
@@ -64,7 +64,7 @@ class SubscribeVisitor {
                              DataStreamIndex stream) = 0;
 };
 
-// MoqtSession calls this when a FETCH_OK or FETCH_ERROR is received. The
+// MoqtSession calls this when a FETCH_OK or REQUEST_ERROR is received. The
 // destination of the callback owns |fetch_task| and MoqtSession will react
 // safely if the owner destroys it.
 using FetchResponseCallback =
@@ -74,9 +74,9 @@ using FetchResponseCallback =
 // MoqtOutgoingSubscribeNamespaceCallback are deprecated. Remove.
 
 // If |error| is nullopt, this is triggered by a PUBLISH_NAMESPACE_OK.
-// Otherwise, it is triggered by PUBLISH_NAMESPACE_ERROR or
-// PUBLISH_NAMESPACE_CANCEL. For ERROR or CANCEL, MoqtSession is deleting all
-// PUBLISH_NAMESPACE state immediately after calling this callback.
+// Otherwise, it is triggered by REQUEST_ERROR or PUBLISH_NAMESPACE_CANCEL. For
+// ERROR or CANCEL, MoqtSession is deleting all PUBLISH_NAMESPACE state
+// immediately after calling this callback.
 // Alternatively, the application can call PublishNamespaceDone() to delete the
 // state.
 using MoqtOutgoingPublishNamespaceCallback = quiche::MultiUseCallback<void(

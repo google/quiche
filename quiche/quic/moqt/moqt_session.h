@@ -228,7 +228,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnServerSetupMessage(const MoqtServerSetup& message) override;
     void OnSubscribeMessage(const MoqtSubscribe& message) override;
     void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override;
-    void OnSubscribeErrorMessage(const MoqtSubscribeError& message) override;
+    void OnRequestErrorMessage(const MoqtRequestError& message) override;
     void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override;
     void OnPublishDoneMessage(const MoqtPublishDone& /*message*/) override;
     void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override;
@@ -236,8 +236,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
         const MoqtPublishNamespace& message) override;
     void OnPublishNamespaceOkMessage(
         const MoqtPublishNamespaceOk& message) override;
-    void OnPublishNamespaceErrorMessage(
-        const MoqtPublishNamespaceError& message) override;
     void OnPublishNamespaceDoneMessage(
         const MoqtPublishNamespaceDone& /*message*/) override;
     void OnPublishNamespaceCancelMessage(
@@ -245,26 +243,20 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnTrackStatusMessage(const MoqtTrackStatus& message) override;
     void OnTrackStatusOkMessage(const MoqtTrackStatusOk& /*message*/) override {
     }
-    void OnTrackStatusErrorMessage(
-        const MoqtTrackStatusError& /*message*/) override {}
     void OnGoAwayMessage(const MoqtGoAway& /*message*/) override;
     void OnSubscribeNamespaceMessage(
         const MoqtSubscribeNamespace& message) override;
     void OnSubscribeNamespaceOkMessage(
         const MoqtSubscribeNamespaceOk& message) override;
-    void OnSubscribeNamespaceErrorMessage(
-        const MoqtSubscribeNamespaceError& message) override;
     void OnUnsubscribeNamespaceMessage(
         const MoqtUnsubscribeNamespace& message) override;
     void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) override;
     void OnFetchMessage(const MoqtFetch& message) override;
     void OnFetchCancelMessage(const MoqtFetchCancel& /*message*/) override {}
     void OnFetchOkMessage(const MoqtFetchOk& message) override;
-    void OnFetchErrorMessage(const MoqtFetchError& message) override;
     void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) override;
     void OnPublishMessage(const MoqtPublish& message) override;
     void OnPublishOkMessage(const MoqtPublishOk& /*message*/) override {}
-    void OnPublishErrorMessage(const MoqtPublishError& /*message*/) override {}
     void OnObjectAckMessage(const MoqtObjectAck& message) override {
       auto subscription_it =
           session_->published_subscriptions_.find(message.subscribe_id);
@@ -286,13 +278,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // control credit.
     void SendOrBufferMessage(quiche::QuicheBuffer message, bool fin = false);
 
-    void SendSubscribeError(uint64_t request_id, RequestErrorCode error_code,
-                            absl::string_view reason_phrase);
+    void SendRequestError(uint64_t request_id, RequestErrorCode error_code,
+                          absl::string_view reason_phrase);
 
    private:
     friend class test::MoqtSessionPeer;
-    void SendFetchError(uint64_t request_id, RequestErrorCode error_code,
-                        absl::string_view error_reason);
 
     MoqtSession* session_;
     webtransport::Stream* stream_;
@@ -649,12 +639,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     }
 
     void OnSubscribeRejected(MoqtErrorPair error_reason) override {
-      MoqtTrackStatusError track_status_error;
-      track_status_error.request_id = request_id_;
-      track_status_error.error_code = error_reason.error_code;
-      track_status_error.reason_phrase = error_reason.reason_phrase;
-      session_->SendControlMessage(
-          session_->framer_.SerializeTrackStatusError(track_status_error));
+      session_->GetControlStream()->SendRequestError(
+          request_id_, error_reason.error_code, error_reason.reason_phrase);
       session_->incoming_track_status_.erase(request_id_);
       // No class access below this line!
     }

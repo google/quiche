@@ -48,9 +48,7 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeSubscribeOk(
       const MoqtSubscribeOk& message,
       MoqtMessageType message_type = MoqtMessageType::kSubscribeOk);
-  quiche::QuicheBuffer SerializeSubscribeError(
-      const MoqtSubscribeError& message,
-      MoqtMessageType message_type = MoqtMessageType::kSubscribeError);
+  quiche::QuicheBuffer SerializeRequestError(const MoqtRequestError& message);
   quiche::QuicheBuffer SerializeUnsubscribe(const MoqtUnsubscribe& message);
   quiche::QuicheBuffer SerializePublishDone(const MoqtPublishDone& message);
   quiche::QuicheBuffer SerializeSubscribeUpdate(
@@ -59,35 +57,27 @@ class QUICHE_EXPORT MoqtFramer {
       const MoqtPublishNamespace& message);
   quiche::QuicheBuffer SerializePublishNamespaceOk(
       const MoqtPublishNamespaceOk& message);
-  quiche::QuicheBuffer SerializePublishNamespaceError(
-      const MoqtPublishNamespaceError& message);
   quiche::QuicheBuffer SerializePublishNamespaceDone(
       const MoqtPublishNamespaceDone& message);
   quiche::QuicheBuffer SerializePublishNamespaceCancel(
       const MoqtPublishNamespaceCancel& message);
   quiche::QuicheBuffer SerializeTrackStatus(const MoqtTrackStatus& message);
   quiche::QuicheBuffer SerializeTrackStatusOk(const MoqtTrackStatusOk& message);
-  quiche::QuicheBuffer SerializeTrackStatusError(
-      const MoqtTrackStatusError& message);
   quiche::QuicheBuffer SerializeGoAway(const MoqtGoAway& message);
   quiche::QuicheBuffer SerializeSubscribeNamespace(
       const MoqtSubscribeNamespace& message);
   quiche::QuicheBuffer SerializeSubscribeNamespaceOk(
       const MoqtSubscribeNamespaceOk& message);
-  quiche::QuicheBuffer SerializeSubscribeNamespaceError(
-      const MoqtSubscribeNamespaceError& message);
   quiche::QuicheBuffer SerializeUnsubscribeNamespace(
       const MoqtUnsubscribeNamespace& message);
   quiche::QuicheBuffer SerializeMaxRequestId(const MoqtMaxRequestId& message);
   quiche::QuicheBuffer SerializeFetch(const MoqtFetch& message);
   quiche::QuicheBuffer SerializeFetchCancel(const MoqtFetchCancel& message);
   quiche::QuicheBuffer SerializeFetchOk(const MoqtFetchOk& message);
-  quiche::QuicheBuffer SerializeFetchError(const MoqtFetchError& message);
   quiche::QuicheBuffer SerializeRequestsBlocked(
       const MoqtRequestsBlocked& message);
   quiche::QuicheBuffer SerializePublish(const MoqtPublish& message);
   quiche::QuicheBuffer SerializePublishOk(const MoqtPublishOk& message);
-  quiche::QuicheBuffer SerializePublishError(const MoqtPublishError& message);
   quiche::QuicheBuffer SerializeObjectAck(const MoqtObjectAck& message);
 
  private:

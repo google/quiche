@@ -218,8 +218,8 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "SUBSCRIBE";
     case MoqtMessageType::kSubscribeOk:
       return "SUBSCRIBE_OK";
-    case MoqtMessageType::kSubscribeError:
-      return "SUBSCRIBE_ERROR";
+    case MoqtMessageType::kRequestError:
+      return "REQUEST_ERROR";
     case MoqtMessageType::kUnsubscribe:
       return "UNSUBSCRIBE";
     case MoqtMessageType::kPublishDone:
@@ -232,14 +232,10 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "TRACK_STATUS";
     case MoqtMessageType::kTrackStatusOk:
       return "TRACK_STATUS_OK";
-    case MoqtMessageType::kTrackStatusError:
-      return "TRACK_STATUS_ERROR";
     case MoqtMessageType::kPublishNamespace:
       return "PUBLISH_NAMESPACE";
     case MoqtMessageType::kPublishNamespaceOk:
       return "PUBLISH_NAMESPACE_OK";
-    case MoqtMessageType::kPublishNamespaceError:
-      return "PUBLISH_NAMESPACE_ERROR";
     case MoqtMessageType::kPublishNamespaceDone:
       return "PUBLISH_NAMESPACE_DONE";
     case MoqtMessageType::kGoAway:
@@ -248,8 +244,6 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "SUBSCRIBE_NAMESPACE";
     case MoqtMessageType::kSubscribeNamespaceOk:
       return "SUBSCRIBE_NAMESPACE_OK";
-    case MoqtMessageType::kSubscribeNamespaceError:
-      return "SUBSCRIBE_NAMESPACE_ERROR";
     case MoqtMessageType::kUnsubscribeNamespace:
       return "UNSUBSCRIBE_NAMESPACE";
     case MoqtMessageType::kMaxRequestId:
@@ -258,16 +252,12 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "PUBLISH";
     case MoqtMessageType::kPublishOk:
       return "PUBLISH_OK";
-    case MoqtMessageType::kPublishError:
-      return "PUBLISH_ERROR";
     case MoqtMessageType::kFetch:
       return "FETCH";
     case MoqtMessageType::kFetchCancel:
       return "FETCH_CANCEL";
     case MoqtMessageType::kFetchOk:
       return "FETCH_OK";
-    case MoqtMessageType::kFetchError:
-      return "FETCH_ERROR";
     case MoqtMessageType::kRequestsBlocked:
       return "REQUESTS_BLOCKED";
     case MoqtMessageType::kObjectAck:

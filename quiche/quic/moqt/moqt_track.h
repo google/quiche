@@ -45,8 +45,7 @@ class RemoteTrack {
   virtual ~RemoteTrack() = default;
 
   FullTrackName full_track_name() const { return full_track_name_; }
-  // If FETCH_ERROR or SUBSCRIBE_ERROR arrives after OK or an object, it is a
-  // protocol violation.
+  // If REQUEST_ERROR arrives after OK or an object, it is a protocol violation.
   virtual void OnObjectOrOk() { error_is_allowed_ = false; }
   bool ErrorIsAllowed() const { return error_is_allowed_; }
 
@@ -175,7 +174,7 @@ using CanReadCallback = quiche::MultiUseCallback<void()>;
 using TaskDestroyedCallback = quiche::SingleUseCallback<void()>;
 
 // Class for upstream FETCH. It will notify the application using |callback|
-// when a FETCH_OK or FETCH_ERROR is received.
+// when a FETCH_OK or REQUEST_ERROR is received.
 class UpstreamFetch : public RemoteTrack {
  public:
   // Standalone Fetch constructor
@@ -287,7 +286,7 @@ class UpstreamFetch : public RemoteTrack {
     quiche::QuicheWeakPtrFactory<UpstreamFetchTask> weak_ptr_factory_;
   };
 
-  // Arrival of FETCH_OK/FETCH_ERROR.
+  // Arrival of FETCH_OK/REQUEST_ERROR.
   void OnFetchResult(Location largest_location, MoqtDeliveryOrder group_order,
                      absl::Status status, TaskDestroyedCallback callback);
 

@@ -222,7 +222,7 @@ class MockFetchTask : public MoqtFetchTask {
  public:
   MockFetchTask() {};  // No synchronous callbacks.
   MockFetchTask(std::optional<MoqtFetchOk> fetch_ok,
-                std::optional<MoqtFetchError> fetch_error,
+                std::optional<MoqtRequestError> fetch_error,
                 bool synchronous_object_available)
       : synchronous_fetch_ok_(fetch_ok),
         synchronous_fetch_error_(fetch_error),
@@ -260,7 +260,7 @@ class MockFetchTask : public MoqtFetchTask {
 
   void CallObjectsAvailableCallback() { objects_available_callback_(); };
   void CallFetchResponseCallback(
-      std::variant<MoqtFetchOk, MoqtFetchError> response) {
+      std::variant<MoqtFetchOk, MoqtRequestError> response) {
     std::move(fetch_response_callback_)(response);
   }
 
@@ -268,7 +268,7 @@ class MockFetchTask : public MoqtFetchTask {
   FetchResponseCallback fetch_response_callback_;
   ObjectsAvailableCallback objects_available_callback_;
   std::optional<MoqtFetchOk> synchronous_fetch_ok_;
-  std::optional<MoqtFetchError> synchronous_fetch_error_;
+  std::optional<MoqtRequestError> synchronous_fetch_error_;
   bool synchronous_object_available_ = false;
 };
 

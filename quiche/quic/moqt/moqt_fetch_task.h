@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_FETCH_TASK_H_
 #define QUICHE_QUIC_MOQT_MOQT_FETCH_TASK_H_
 
+#include <string>
 #include <utility>
 #include <variant>
 
@@ -22,7 +23,7 @@ class MoqtFetchTask {
   using ObjectsAvailableCallback = quiche::MultiUseCallback<void()>;
   // The request_id field will be ignored.
   using FetchResponseCallback = quiche::SingleUseCallback<void(
-      std::variant<MoqtFetchOk, MoqtFetchError>)>;
+      std::variant<MoqtFetchOk, MoqtRequestError>)>;
 
   virtual ~MoqtFetchTask() = default;
 
@@ -74,10 +75,8 @@ class MoqtFailedFetch : public MoqtFetchTask {
   void SetObjectAvailableCallback(
       ObjectsAvailableCallback /*callback*/) override {}
   void SetFetchResponseCallback(FetchResponseCallback callback) override {
-    MoqtFetchError error;
-    error.request_id = 0;
-    error.error_code = StatusToRequestErrorCode(status_);
-    error.error_reason = status_.message();
+    MoqtRequestError error{/*request_id=*/0, StatusToRequestErrorCode(status_),
+                           std::string(status_.message())};
     std::move(callback)(error);
   }
 

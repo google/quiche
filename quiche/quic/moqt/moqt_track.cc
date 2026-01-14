@@ -152,7 +152,7 @@ void UpstreamFetch::OnFetchResult(Location largest_location,
   }
   if (!status.ok()) {
     std::move(ok_callback_)(std::make_unique<MoqtFailedFetch>(status));
-    // This is called from OnFetchError, which will delete UpstreamFetch. So
+    // This is called from OnRequestError, which will delete UpstreamFetch. So
     // there is no need to call |callback|, which would inappropriately send a
     // FETCH_CANCEL.
     return;

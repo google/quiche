@@ -448,7 +448,7 @@ TEST(MoqtOutgoingQueue, EndOfTrack) {
   // end_of_track is false before Close() is called.
   fetch->SetFetchResponseCallback(
       [&end_of_track,
-       &end_location](std::variant<MoqtFetchOk, MoqtFetchError> arg) {
+       &end_location](std::variant<MoqtFetchOk, MoqtRequestError> arg) {
         end_of_track = std::get<MoqtFetchOk>(arg).end_of_track;
         end_location = std::get<MoqtFetchOk>(arg).end_location;
       });
@@ -462,7 +462,7 @@ TEST(MoqtOutgoingQueue, EndOfTrack) {
   // end_of_track is false if the fetch does not include the last object.
   fetch->SetFetchResponseCallback(
       [&end_of_track,
-       &end_location](std::variant<MoqtFetchOk, MoqtFetchError> arg) {
+       &end_location](std::variant<MoqtFetchOk, MoqtRequestError> arg) {
         end_of_track = std::get<MoqtFetchOk>(arg).end_of_track;
         end_location = std::get<MoqtFetchOk>(arg).end_location;
       });
@@ -474,7 +474,7 @@ TEST(MoqtOutgoingQueue, EndOfTrack) {
   // end_of_track is true if the fetch includes the last object.
   fetch->SetFetchResponseCallback(
       [&end_of_track,
-       &end_location](std::variant<MoqtFetchOk, MoqtFetchError> arg) {
+       &end_location](std::variant<MoqtFetchOk, MoqtRequestError> arg) {
         end_of_track = std::get<MoqtFetchOk>(arg).end_of_track;
         end_location = std::get<MoqtFetchOk>(arg).end_location;
       });

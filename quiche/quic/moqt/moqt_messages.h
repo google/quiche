@@ -248,31 +248,26 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kSubscribeUpdate = 0x02,
   kSubscribe = 0x03,
   kSubscribeOk = 0x04,
-  kSubscribeError = 0x05,
+  kRequestError = 0x05,
   kPublishNamespace = 0x06,
-  kPublishNamespaceOk = 0x7,
-  kPublishNamespaceError = 0x08,
+  kPublishNamespaceOk = 0x07,
   kPublishNamespaceDone = 0x09,
   kUnsubscribe = 0x0a,
   kPublishDone = 0x0b,
   kPublishNamespaceCancel = 0x0c,
   kTrackStatus = 0x0d,
   kTrackStatusOk = 0x0e,
-  kTrackStatusError = 0x0f,
   kGoAway = 0x10,
   kSubscribeNamespace = 0x11,
   kSubscribeNamespaceOk = 0x12,
-  kSubscribeNamespaceError = 0x13,
   kUnsubscribeNamespace = 0x14,
   kMaxRequestId = 0x15,
   kFetch = 0x16,
   kFetchCancel = 0x17,
   kFetchOk = 0x18,
-  kFetchError = 0x19,
   kRequestsBlocked = 0x1a,
   kPublish = 0x1d,
   kPublishOk = 0x1e,
-  kPublishError = 0x1f,
   kClientSetup = 0x20,
   kServerSetup = 0x21,
 
@@ -574,6 +569,12 @@ enum class QUICHE_EXPORT MoqtFilterType : uint64_t {
   kAbsoluteRange = 0x4,
 };
 
+struct QUICHE_EXPORT MoqtRequestError {
+  uint64_t request_id;
+  RequestErrorCode error_code;
+  std::string reason_phrase;
+};
+
 struct QUICHE_EXPORT MoqtSubscribe {
   uint64_t request_id;
   FullTrackName full_track_name;
@@ -595,12 +596,6 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
   // If ContextExists on the wire is zero, largest_id has no value.
   std::optional<Location> largest_location;
   VersionSpecificParameters parameters;
-};
-
-struct QUICHE_EXPORT MoqtSubscribeError {
-  uint64_t request_id;
-  RequestErrorCode error_code;
-  std::string reason_phrase;
 };
 
 struct QUICHE_EXPORT MoqtUnsubscribe {
@@ -644,12 +639,6 @@ struct QUICHE_EXPORT MoqtPublishNamespaceOk {
   uint64_t request_id;
 };
 
-struct QUICHE_EXPORT MoqtPublishNamespaceError {
-  uint64_t request_id;
-  RequestErrorCode error_code;
-  std::string error_reason;
-};
-
 struct QUICHE_EXPORT MoqtPublishNamespaceDone {
   TrackNamespace track_namespace;
 };
@@ -671,12 +660,6 @@ struct QUICHE_EXPORT MoqtTrackStatusOk : public MoqtSubscribeOk {
       : MoqtSubscribeOk(subscribe_ok) {}
 };
 
-struct QUICHE_EXPORT MoqtTrackStatusError : public MoqtSubscribeError {
-  MoqtTrackStatusError() = default;
-  MoqtTrackStatusError(MoqtSubscribeError subscribe_error)
-      : MoqtSubscribeError(subscribe_error) {}
-};
-
 struct QUICHE_EXPORT MoqtGoAway {
   std::string new_session_uri;
 };
@@ -689,12 +672,6 @@ struct QUICHE_EXPORT MoqtSubscribeNamespace {
 
 struct QUICHE_EXPORT MoqtSubscribeNamespaceOk {
   uint64_t request_id;
-};
-
-struct QUICHE_EXPORT MoqtSubscribeNamespaceError {
-  uint64_t request_id;
-  RequestErrorCode error_code;
-  std::string error_reason;
 };
 
 struct QUICHE_EXPORT MoqtUnsubscribeNamespace {
@@ -776,12 +753,6 @@ struct QUICHE_EXPORT MoqtFetchOk {
   VersionSpecificParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtFetchError {
-  uint64_t request_id;
-  RequestErrorCode error_code;
-  std::string error_reason;
-};
-
 struct QUICHE_EXPORT MoqtFetchCancel {
   uint64_t request_id;
 };
@@ -809,12 +780,6 @@ struct QUICHE_EXPORT MoqtPublishOk {
   std::optional<Location> start;
   std::optional<uint64_t> end_group;
   VersionSpecificParameters parameters;
-};
-
-struct QUICHE_EXPORT MoqtPublishError {
-  uint64_t request_id;
-  RequestErrorCode error_code;
-  std::string error_reason;
 };
 
 // All of the four values in this message are encoded as varints.

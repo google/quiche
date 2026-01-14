@@ -36,31 +36,26 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
   std::vector<MoqtMessageType> message_types = {
       MoqtMessageType::kSubscribe,
       MoqtMessageType::kSubscribeOk,
-      MoqtMessageType::kSubscribeError,
+      MoqtMessageType::kRequestError,
       MoqtMessageType::kUnsubscribe,
       MoqtMessageType::kPublishDone,
       MoqtMessageType::kPublishNamespace,
       MoqtMessageType::kPublishNamespaceOk,
-      MoqtMessageType::kPublishNamespaceError,
       MoqtMessageType::kPublishNamespaceDone,
       MoqtMessageType::kPublishNamespaceCancel,
       MoqtMessageType::kTrackStatus,
       MoqtMessageType::kTrackStatusOk,
-      MoqtMessageType::kTrackStatusError,
       MoqtMessageType::kGoAway,
       MoqtMessageType::kSubscribeNamespace,
       MoqtMessageType::kSubscribeNamespaceOk,
-      MoqtMessageType::kSubscribeNamespaceError,
       MoqtMessageType::kUnsubscribeNamespace,
       MoqtMessageType::kMaxRequestId,
       MoqtMessageType::kFetch,
       MoqtMessageType::kFetchCancel,
       MoqtMessageType::kFetchOk,
-      MoqtMessageType::kFetchError,
       MoqtMessageType::kRequestsBlocked,
       MoqtMessageType::kPublish,
       MoqtMessageType::kPublishOk,
-      MoqtMessageType::kPublishError,
       MoqtMessageType::kObjectAck,
       MoqtMessageType::kClientSetup,
       MoqtMessageType::kServerSetup,
@@ -131,9 +126,9 @@ class MoqtFramerTest
         auto data = std::get<MoqtSubscribeOk>(structured_data);
         return framer_.SerializeSubscribeOk(data);
       }
-      case MoqtMessageType::kSubscribeError: {
-        auto data = std::get<MoqtSubscribeError>(structured_data);
-        return framer_.SerializeSubscribeError(data);
+      case MoqtMessageType::kRequestError: {
+        auto data = std::get<MoqtRequestError>(structured_data);
+        return framer_.SerializeRequestError(data);
       }
       case MoqtMessageType::kUnsubscribe: {
         auto data = std::get<MoqtUnsubscribe>(structured_data);
@@ -151,10 +146,6 @@ class MoqtFramerTest
         auto data = std::get<MoqtPublishNamespaceOk>(structured_data);
         return framer_.SerializePublishNamespaceOk(data);
       }
-      case moqt::MoqtMessageType::kPublishNamespaceError: {
-        auto data = std::get<MoqtPublishNamespaceError>(structured_data);
-        return framer_.SerializePublishNamespaceError(data);
-      }
       case MoqtMessageType::kPublishNamespaceDone: {
         auto data = std::get<MoqtPublishNamespaceDone>(structured_data);
         return framer_.SerializePublishNamespaceDone(data);
@@ -171,10 +162,6 @@ class MoqtFramerTest
         auto data = std::get<MoqtTrackStatusOk>(structured_data);
         return framer_.SerializeTrackStatusOk(data);
       }
-      case moqt::MoqtMessageType::kTrackStatusError: {
-        auto data = std::get<MoqtTrackStatusError>(structured_data);
-        return framer_.SerializeTrackStatusError(data);
-      }
       case moqt::MoqtMessageType::kGoAway: {
         auto data = std::get<MoqtGoAway>(structured_data);
         return framer_.SerializeGoAway(data);
@@ -186,10 +173,6 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kSubscribeNamespaceOk: {
         auto data = std::get<MoqtSubscribeNamespaceOk>(structured_data);
         return framer_.SerializeSubscribeNamespaceOk(data);
-      }
-      case moqt::MoqtMessageType::kSubscribeNamespaceError: {
-        auto data = std::get<MoqtSubscribeNamespaceError>(structured_data);
-        return framer_.SerializeSubscribeNamespaceError(data);
       }
       case moqt::MoqtMessageType::kUnsubscribeNamespace: {
         auto data = std::get<MoqtUnsubscribeNamespace>(structured_data);
@@ -211,10 +194,6 @@ class MoqtFramerTest
         auto data = std::get<MoqtFetchOk>(structured_data);
         return framer_.SerializeFetchOk(data);
       }
-      case moqt::MoqtMessageType::kFetchError: {
-        auto data = std::get<MoqtFetchError>(structured_data);
-        return framer_.SerializeFetchError(data);
-      }
       case moqt::MoqtMessageType::kRequestsBlocked: {
         auto data = std::get<MoqtRequestsBlocked>(structured_data);
         return framer_.SerializeRequestsBlocked(data);
@@ -226,10 +205,6 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kPublishOk: {
         auto data = std::get<MoqtPublishOk>(structured_data);
         return framer_.SerializePublishOk(data);
-      }
-      case moqt::MoqtMessageType::kPublishError: {
-        auto data = std::get<MoqtPublishError>(structured_data);
-        return framer_.SerializePublishError(data);
       }
       case moqt::MoqtMessageType::kObjectAck: {
         auto data = std::get<MoqtObjectAck>(structured_data);

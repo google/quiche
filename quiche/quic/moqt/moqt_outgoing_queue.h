@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -129,16 +130,14 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
     }
     void SetFetchResponseCallback(FetchResponseCallback callback) override {
       if (!status_.ok()) {
-        MoqtFetchError error(0, StatusToRequestErrorCode(status_),
-                             std::string(status_.message()));
-        error.error_code = StatusToRequestErrorCode(status_);
-        error.error_reason = status_.message();
+        MoqtRequestError error(0, StatusToRequestErrorCode(status_),
+                               std::string(status_.message()));
         std::move(callback)(error);
         return;
       }
       if (objects_.empty()) {
-        MoqtFetchError error(0, StatusToRequestErrorCode(status_),
-                             "No objects in range");
+        MoqtRequestError error(0, StatusToRequestErrorCode(status_),
+                               "No objects in range");
         std::move(callback)(error);
         return;
       }
