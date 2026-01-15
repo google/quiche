@@ -174,12 +174,12 @@ const std::array<MoqtMessageType, 9> kAllowsAuthorization = {
     MoqtMessageType::kTrackStatus,
     MoqtMessageType::kFetch};
 const std::array<MoqtMessageType, 7> kAllowsDeliveryTimeout = {
-    MoqtMessageType::kTrackStatus,    MoqtMessageType::kTrackStatusOk,
+    MoqtMessageType::kTrackStatus,    MoqtMessageType::kRequestOk,
     MoqtMessageType::kPublish,        MoqtMessageType::kPublishOk,
     MoqtMessageType::kSubscribe,      MoqtMessageType::kSubscribeOk,
     MoqtMessageType::kSubscribeUpdate};
 const std::array<MoqtMessageType, 4> kAllowsMaxCacheDuration = {
-    MoqtMessageType::kSubscribeOk, MoqtMessageType::kTrackStatusOk,
+    MoqtMessageType::kSubscribeOk, MoqtMessageType::kRequestOk,
     MoqtMessageType::kFetchOk, MoqtMessageType::kPublish};
 bool ValidateVersionSpecificParameters(const KeyValuePairList& parameters,
                                        MoqtMessageType message_type) {
@@ -230,20 +230,16 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "PUBLISH_NAMESPACE_CANCEL";
     case MoqtMessageType::kTrackStatus:
       return "TRACK_STATUS";
-    case MoqtMessageType::kTrackStatusOk:
-      return "TRACK_STATUS_OK";
     case MoqtMessageType::kPublishNamespace:
       return "PUBLISH_NAMESPACE";
-    case MoqtMessageType::kPublishNamespaceOk:
-      return "PUBLISH_NAMESPACE_OK";
+    case MoqtMessageType::kRequestOk:
+      return "REQUEST_OK";
     case MoqtMessageType::kPublishNamespaceDone:
       return "PUBLISH_NAMESPACE_DONE";
     case MoqtMessageType::kGoAway:
       return "GOAWAY";
     case MoqtMessageType::kSubscribeNamespace:
       return "SUBSCRIBE_NAMESPACE";
-    case MoqtMessageType::kSubscribeNamespaceOk:
-      return "SUBSCRIBE_NAMESPACE_OK";
     case MoqtMessageType::kUnsubscribeNamespace:
       return "UNSUBSCRIBE_NAMESPACE";
     case MoqtMessageType::kMaxRequestId:

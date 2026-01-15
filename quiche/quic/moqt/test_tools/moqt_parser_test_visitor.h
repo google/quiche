@@ -49,13 +49,16 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnServerSetupMessage(const MoqtServerSetup& message) override {
     OnControlMessage(message);
   }
+  void OnRequestOkMessage(const MoqtRequestOk& message) override {
+    OnControlMessage(message);
+  }
+  void OnRequestErrorMessage(const MoqtRequestError& message) override {
+    OnControlMessage(message);
+  }
   void OnSubscribeMessage(const MoqtSubscribe& message) override {
     OnControlMessage(message);
   }
   void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override {
-    OnControlMessage(message);
-  }
-  void OnRequestErrorMessage(const MoqtRequestError& message) override {
     OnControlMessage(message);
   }
   void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override {
@@ -70,10 +73,6 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnPublishNamespaceMessage(const MoqtPublishNamespace& message) override {
     OnControlMessage(message);
   }
-  void OnPublishNamespaceOkMessage(
-      const MoqtPublishNamespaceOk& message) override {
-    OnControlMessage(message);
-  }
   void OnPublishNamespaceDoneMessage(
       const MoqtPublishNamespaceDone& message) override {
     OnControlMessage(message);
@@ -85,18 +84,11 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
   void OnTrackStatusMessage(const MoqtTrackStatus& message) override {
     OnControlMessage(message);
   }
-  void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) override {
-    OnControlMessage(message);
-  }
   void OnGoAwayMessage(const MoqtGoAway& message) override {
     OnControlMessage(message);
   }
   void OnSubscribeNamespaceMessage(
       const MoqtSubscribeNamespace& message) override {
-    OnControlMessage(message);
-  }
-  void OnSubscribeNamespaceOkMessage(
-      const MoqtSubscribeNamespaceOk& message) override {
     OnControlMessage(message);
   }
   void OnUnsubscribeNamespaceMessage(

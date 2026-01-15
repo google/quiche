@@ -73,14 +73,13 @@ class QUICHE_NO_EXPORT TestMessageBase {
   virtual ~TestMessageBase() = default;
 
   using MessageStructuredData = std::variant<
-      MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtSubscribe,
-      MoqtSubscribeOk, MoqtRequestError, MoqtUnsubscribe, MoqtPublishDone,
-      MoqtSubscribeUpdate, MoqtPublishNamespace, MoqtPublishNamespaceOk,
+      MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtRequestOk,
+      MoqtRequestError, MoqtSubscribe, MoqtSubscribeOk, MoqtUnsubscribe,
+      MoqtPublishDone, MoqtSubscribeUpdate, MoqtPublishNamespace,
       MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
-      MoqtTrackStatusOk, MoqtGoAway, MoqtSubscribeNamespace,
-      MoqtSubscribeNamespaceOk, MoqtUnsubscribeNamespace, MoqtMaxRequestId,
-      MoqtFetch, MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish,
-      MoqtPublishOk, MoqtObjectAck>;
+      MoqtGoAway, MoqtSubscribeNamespace, MoqtUnsubscribeNamespace,
+      MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
+      MoqtRequestsBlocked, MoqtPublish, MoqtPublishOk, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -1003,34 +1002,39 @@ class QUICHE_NO_EXPORT PublishNamespaceMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT PublishNamespaceOkMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
  public:
-  PublishNamespaceOkMessage() : TestMessageBase() {
+  RequestOkMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtPublishNamespaceOk>(values);
-    if (cast.request_id != publish_namespace_ok_.request_id) {
-      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE OK MESSAGE request ID mismatch";
+    auto cast = std::get<MoqtRequestOk>(values);
+    if (cast.request_id != request_ok_.request_id) {
+      QUIC_LOG(INFO) << "REQUEST_OK request ID mismatch";
       return false;
     }
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("v"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv--v--"); }
 
   MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(publish_namespace_ok_);
+    return TestMessageBase::MessageStructuredData(request_ok_);
   }
 
  private:
-  uint8_t raw_packet_[4] = {
-      0x07, 0x00, 0x01, 0x01,  // request_id = 1
+  uint8_t raw_packet_[11] = {
+      0x07, 0x00, 0x08, 0x01,  // request_id = 1
+      0x02,                    // 2 parameters
+      0x02, 0x67, 0x10,        // delivery_timeout = 10000 ms
+      0x02, 0x67, 0x10,        // max_cache_duration = 10000 ms
   };
 
-  MoqtPublishNamespaceOk publish_namespace_ok_ = {
+  MoqtRequestOk request_ok_ = {
       /*request_id=*/1,
+      VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
+                                quic::QuicTimeDelta::FromMilliseconds(10000)),
   };
 };
 
@@ -1128,29 +1132,6 @@ class QUICHE_NO_EXPORT TrackStatusMessage : public SubscribeMessage {
   }
 };
 
-class QUICHE_NO_EXPORT TrackStatusOkMessage : public SubscribeOkMessage {
- public:
-  TrackStatusOkMessage() : SubscribeOkMessage() {
-    SetByte(0, static_cast<uint8_t>(MoqtMessageType::kTrackStatusOk));
-    // Track alias is zero.
-    SetByte(4, 0x00);
-    subscribe_ok_.track_alias = 0;
-  }
-
-  bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto value = std::get<MoqtTrackStatusOk>(values);
-    auto* subscribe = reinterpret_cast<MoqtSubscribeOk*>(&value);
-    MessageStructuredData structured_data =
-        TestMessageBase::MessageStructuredData(*subscribe);
-    return SubscribeOkMessage::EqualFieldValues(structured_data);
-  }
-
-  MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(
-        MoqtTrackStatusOk(subscribe_ok_));
-  }
-};
-
 class QUICHE_NO_EXPORT GoAwayMessage : public TestMessageBase {
  public:
   GoAwayMessage() : TestMessageBase() {
@@ -1223,37 +1204,6 @@ class QUICHE_NO_EXPORT SubscribeNamespaceMessage : public TestMessageBase {
       /*request_id=*/1,
       TrackNamespace("foo"),
       VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
-  };
-};
-
-class QUICHE_NO_EXPORT SubscribeNamespaceOkMessage : public TestMessageBase {
- public:
-  SubscribeNamespaceOkMessage() : TestMessageBase() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-  }
-
-  bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtSubscribeNamespaceOk>(values);
-    if (cast.request_id != subscribe_namespace_ok_.request_id) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_NAMESPACE_OK request_id mismatch";
-      return false;
-    }
-    return true;
-  }
-
-  void ExpandVarints() override { ExpandVarintsImpl("v"); }
-
-  MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(subscribe_namespace_ok_);
-  }
-
- private:
-  uint8_t raw_packet_[4] = {
-      0x12, 0x00, 0x01, 0x01,  // request_id = 1
-  };
-
-  MoqtSubscribeNamespaceOk subscribe_namespace_ok_ = {
-      /*request_id=*/1,
   };
 };
 
@@ -1848,12 +1798,14 @@ class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
 static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
     MoqtMessageType message_type, bool is_webtrans) {
   switch (message_type) {
+    case MoqtMessageType::kRequestOk:
+      return std::make_unique<RequestOkMessage>();
+    case MoqtMessageType::kRequestError:
+      return std::make_unique<RequestErrorMessage>();
     case MoqtMessageType::kSubscribe:
       return std::make_unique<SubscribeMessage>();
     case MoqtMessageType::kSubscribeOk:
       return std::make_unique<SubscribeOkMessage>();
-    case MoqtMessageType::kRequestError:
-      return std::make_unique<RequestErrorMessage>();
     case MoqtMessageType::kUnsubscribe:
       return std::make_unique<UnsubscribeMessage>();
     case MoqtMessageType::kPublishDone:
@@ -1862,22 +1814,16 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<SubscribeUpdateMessage>();
     case MoqtMessageType::kPublishNamespace:
       return std::make_unique<PublishNamespaceMessage>();
-    case MoqtMessageType::kPublishNamespaceOk:
-      return std::make_unique<PublishNamespaceOkMessage>();
     case MoqtMessageType::kPublishNamespaceDone:
       return std::make_unique<PublishNamespaceDoneMessage>();
     case MoqtMessageType::kPublishNamespaceCancel:
       return std::make_unique<PublishNamespaceCancelMessage>();
     case MoqtMessageType::kTrackStatus:
       return std::make_unique<TrackStatusMessage>();
-    case MoqtMessageType::kTrackStatusOk:
-      return std::make_unique<TrackStatusOkMessage>();
     case MoqtMessageType::kGoAway:
       return std::make_unique<GoAwayMessage>();
     case MoqtMessageType::kSubscribeNamespace:
       return std::make_unique<SubscribeNamespaceMessage>();
-    case MoqtMessageType::kSubscribeNamespaceOk:
-      return std::make_unique<SubscribeNamespaceOkMessage>();
     case MoqtMessageType::kUnsubscribeNamespace:
       return std::make_unique<UnsubscribeNamespaceMessage>();
     case MoqtMessageType::kMaxRequestId:

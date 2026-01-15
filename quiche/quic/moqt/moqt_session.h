@@ -226,28 +226,23 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // MoqtControlParserVisitor implementation.
     void OnClientSetupMessage(const MoqtClientSetup& message) override;
     void OnServerSetupMessage(const MoqtServerSetup& message) override;
+    void OnRequestOkMessage(const MoqtRequestOk& message) override;
+    void OnRequestErrorMessage(const MoqtRequestError& message) override;
     void OnSubscribeMessage(const MoqtSubscribe& message) override;
     void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override;
-    void OnRequestErrorMessage(const MoqtRequestError& message) override;
     void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override;
     void OnPublishDoneMessage(const MoqtPublishDone& /*message*/) override;
     void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override;
     void OnPublishNamespaceMessage(
         const MoqtPublishNamespace& message) override;
-    void OnPublishNamespaceOkMessage(
-        const MoqtPublishNamespaceOk& message) override;
     void OnPublishNamespaceDoneMessage(
         const MoqtPublishNamespaceDone& /*message*/) override;
     void OnPublishNamespaceCancelMessage(
         const MoqtPublishNamespaceCancel& message) override;
     void OnTrackStatusMessage(const MoqtTrackStatus& message) override;
-    void OnTrackStatusOkMessage(const MoqtTrackStatusOk& /*message*/) override {
-    }
     void OnGoAwayMessage(const MoqtGoAway& /*message*/) override;
     void OnSubscribeNamespaceMessage(
         const MoqtSubscribeNamespace& message) override;
-    void OnSubscribeNamespaceOkMessage(
-        const MoqtSubscribeNamespaceOk& message) override;
     void OnUnsubscribeNamespaceMessage(
         const MoqtUnsubscribeNamespace& message) override;
     void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) override;
@@ -278,6 +273,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // control credit.
     void SendOrBufferMessage(quiche::QuicheBuffer message, bool fin = false);
 
+    void SendRequestOk(uint64_t request_id,
+                       const VersionSpecificParameters& parameters);
     void SendRequestError(uint64_t request_id, RequestErrorCode error_code,
                           absl::string_view reason_phrase);
 
@@ -618,15 +615,15 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
         QUICHE_NOTREACHED();
         return;
       }
-      MoqtTrackStatusOk track_status_ok;
-      track_status_ok.request_id = request_id_;
-      track_status_ok.track_alias = 0;
+      VersionSpecificParameters parameters;
+      // TODO(martinduke): Turn these into parameters.
+#if 0
       QUICHE_BUG_IF(quic_bug_track_status_ok_no_expiration,
                     !publisher_->expiration().has_value())
           << "Request accepted without expiration";
       track_status_ok.expires =
           publisher_->expiration().value_or(quic::QuicTimeDelta::Zero());
-      QUICHE_BUG_IF(quic_bug_track_status_ok_no_delivery_order,
+               QUICHE_BUG_IF(quic_bug_track_status_ok_no_delivery_order,
                     !publisher_->delivery_order().has_value())
           << "Request accepted without delivery order";
       track_status_ok.group_order =
@@ -634,6 +631,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       track_status_ok.largest_location = publisher_->largest_location();
       session_->SendControlMessage(
           session_->framer_.SerializeTrackStatusOk(track_status_ok));
+#endif
+      session_->GetControlStream()->SendRequestOk(request_id_, parameters);
       session_->incoming_track_status_.erase(request_id_);
       // No class access below this line!
     }

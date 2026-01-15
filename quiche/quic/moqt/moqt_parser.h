@@ -35,27 +35,23 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   // parser retains ownership of the memory.
   virtual void OnClientSetupMessage(const MoqtClientSetup& message) = 0;
   virtual void OnServerSetupMessage(const MoqtServerSetup& message) = 0;
+  virtual void OnRequestOkMessage(const MoqtRequestOk& message) = 0;
+  virtual void OnRequestErrorMessage(const MoqtRequestError& message) = 0;
   virtual void OnSubscribeMessage(const MoqtSubscribe& message) = 0;
   virtual void OnSubscribeOkMessage(const MoqtSubscribeOk& message) = 0;
-  virtual void OnRequestErrorMessage(const MoqtRequestError& message) = 0;
   virtual void OnUnsubscribeMessage(const MoqtUnsubscribe& message) = 0;
   virtual void OnPublishDoneMessage(const MoqtPublishDone& message) = 0;
   virtual void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) = 0;
   virtual void OnPublishNamespaceMessage(
       const MoqtPublishNamespace& message) = 0;
-  virtual void OnPublishNamespaceOkMessage(
-      const MoqtPublishNamespaceOk& message) = 0;
   virtual void OnPublishNamespaceDoneMessage(
       const MoqtPublishNamespaceDone& message) = 0;
   virtual void OnPublishNamespaceCancelMessage(
       const MoqtPublishNamespaceCancel& message) = 0;
   virtual void OnTrackStatusMessage(const MoqtTrackStatus& message) = 0;
-  virtual void OnTrackStatusOkMessage(const MoqtTrackStatusOk& message) = 0;
   virtual void OnGoAwayMessage(const MoqtGoAway& message) = 0;
   virtual void OnSubscribeNamespaceMessage(
       const MoqtSubscribeNamespace& message) = 0;
-  virtual void OnSubscribeNamespaceOkMessage(
-      const MoqtSubscribeNamespaceOk& message) = 0;
   virtual void OnUnsubscribeNamespaceMessage(
       const MoqtUnsubscribeNamespace& message) = 0;
   virtual void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) = 0;
@@ -112,27 +108,23 @@ class QUICHE_EXPORT MoqtControlParser {
   // otherwise.
   size_t ProcessClientSetup(quic::QuicDataReader& reader);
   size_t ProcessServerSetup(quic::QuicDataReader& reader);
+  size_t ProcessRequestOk(quic::QuicDataReader& reader);
+  size_t ProcessRequestError(quic::QuicDataReader& reader);
   // Subscribe formats are used for TrackStatus as well, so take the message
   // type as an argument, defaulting to the subscribe version.
   size_t ProcessSubscribe(
       quic::QuicDataReader& reader,
       MoqtMessageType message_type = MoqtMessageType::kSubscribe);
-  size_t ProcessSubscribeOk(
-      quic::QuicDataReader& reader,
-      MoqtMessageType message_type = MoqtMessageType::kSubscribeOk);
-  size_t ProcessRequestError(quic::QuicDataReader& reader);
+  size_t ProcessSubscribeOk(quic::QuicDataReader& reader);
   size_t ProcessUnsubscribe(quic::QuicDataReader& reader);
   size_t ProcessPublishDone(quic::QuicDataReader& reader);
   size_t ProcessSubscribeUpdate(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespace(quic::QuicDataReader& reader);
-  size_t ProcessPublishNamespaceOk(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespaceDone(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespaceCancel(quic::QuicDataReader& reader);
   size_t ProcessTrackStatus(quic::QuicDataReader& reader);
-  size_t ProcessTrackStatusOk(quic::QuicDataReader& reader);
   size_t ProcessGoAway(quic::QuicDataReader& reader);
   size_t ProcessSubscribeNamespace(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeNamespaceOk(quic::QuicDataReader& reader);
   size_t ProcessUnsubscribeNamespace(quic::QuicDataReader& reader);
   size_t ProcessMaxRequestId(quic::QuicDataReader& reader);
   size_t ProcessFetch(quic::QuicDataReader& reader);

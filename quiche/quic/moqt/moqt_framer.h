@@ -41,6 +41,8 @@ class QUICHE_EXPORT MoqtFramer {
                                                absl::string_view payload);
   quiche::QuicheBuffer SerializeClientSetup(const MoqtClientSetup& message);
   quiche::QuicheBuffer SerializeServerSetup(const MoqtServerSetup& message);
+  quiche::QuicheBuffer SerializeRequestOk(const MoqtRequestOk& message);
+  quiche::QuicheBuffer SerializeRequestError(const MoqtRequestError& message);
   // Returns an empty buffer if there is an illegal combination of locations.
   quiche::QuicheBuffer SerializeSubscribe(
       const MoqtSubscribe& message,
@@ -48,26 +50,20 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeSubscribeOk(
       const MoqtSubscribeOk& message,
       MoqtMessageType message_type = MoqtMessageType::kSubscribeOk);
-  quiche::QuicheBuffer SerializeRequestError(const MoqtRequestError& message);
   quiche::QuicheBuffer SerializeUnsubscribe(const MoqtUnsubscribe& message);
   quiche::QuicheBuffer SerializePublishDone(const MoqtPublishDone& message);
   quiche::QuicheBuffer SerializeSubscribeUpdate(
       const MoqtSubscribeUpdate& message);
   quiche::QuicheBuffer SerializePublishNamespace(
       const MoqtPublishNamespace& message);
-  quiche::QuicheBuffer SerializePublishNamespaceOk(
-      const MoqtPublishNamespaceOk& message);
   quiche::QuicheBuffer SerializePublishNamespaceDone(
       const MoqtPublishNamespaceDone& message);
   quiche::QuicheBuffer SerializePublishNamespaceCancel(
       const MoqtPublishNamespaceCancel& message);
   quiche::QuicheBuffer SerializeTrackStatus(const MoqtTrackStatus& message);
-  quiche::QuicheBuffer SerializeTrackStatusOk(const MoqtTrackStatusOk& message);
   quiche::QuicheBuffer SerializeGoAway(const MoqtGoAway& message);
   quiche::QuicheBuffer SerializeSubscribeNamespace(
       const MoqtSubscribeNamespace& message);
-  quiche::QuicheBuffer SerializeSubscribeNamespaceOk(
-      const MoqtSubscribeNamespaceOk& message);
   quiche::QuicheBuffer SerializeUnsubscribeNamespace(
       const MoqtUnsubscribeNamespace& message);
   quiche::QuicheBuffer SerializeMaxRequestId(const MoqtMaxRequestId& message);

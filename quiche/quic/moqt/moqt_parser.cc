@@ -222,14 +222,17 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kServerSetup:
       bytes_read = ProcessServerSetup(reader);
       break;
+    case MoqtMessageType::kRequestOk:
+      bytes_read = ProcessRequestOk(reader);
+      break;
+    case MoqtMessageType::kRequestError:
+      bytes_read = ProcessRequestError(reader);
+      break;
     case MoqtMessageType::kSubscribe:
       bytes_read = ProcessSubscribe(reader);
       break;
     case MoqtMessageType::kSubscribeOk:
       bytes_read = ProcessSubscribeOk(reader);
-      break;
-    case MoqtMessageType::kRequestError:
-      bytes_read = ProcessRequestError(reader);
       break;
     case MoqtMessageType::kUnsubscribe:
       bytes_read = ProcessUnsubscribe(reader);
@@ -243,9 +246,6 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kPublishNamespace:
       bytes_read = ProcessPublishNamespace(reader);
       break;
-    case MoqtMessageType::kPublishNamespaceOk:
-      bytes_read = ProcessPublishNamespaceOk(reader);
-      break;
     case MoqtMessageType::kPublishNamespaceDone:
       bytes_read = ProcessPublishNamespaceDone(reader);
       break;
@@ -255,17 +255,11 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kTrackStatus:
       bytes_read = ProcessTrackStatus(reader);
       break;
-    case MoqtMessageType::kTrackStatusOk:
-      bytes_read = ProcessTrackStatusOk(reader);
-      break;
     case MoqtMessageType::kGoAway:
       bytes_read = ProcessGoAway(reader);
       break;
     case MoqtMessageType::kSubscribeNamespace:
       bytes_read = ProcessSubscribeNamespace(reader);
-      break;
-    case MoqtMessageType::kSubscribeNamespaceOk:
-      bytes_read = ProcessSubscribeNamespaceOk(reader);
       break;
     case MoqtMessageType::kUnsubscribeNamespace:
       bytes_read = ProcessUnsubscribeNamespace(reader);
@@ -418,8 +412,7 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader,
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader,
-                                             MoqtMessageType message_type) {
+size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
   MoqtSubscribeOk subscribe_ok;
   uint64_t milliseconds;
   uint8_t group_order;
@@ -467,11 +460,7 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader,
                                                    subscribe_ok.parameters)) {
     return 0;
   }
-  if (message_type == MoqtMessageType::kTrackStatusOk) {
-    visitor_.OnTrackStatusOkMessage(subscribe_ok);
-  } else {
-    visitor_.OnSubscribeOkMessage(subscribe_ok);
-  }
+  visitor_.OnSubscribeOkMessage(subscribe_ok);
   return reader.PreviouslyReadPayload().length();
 }
 
@@ -576,13 +565,25 @@ size_t MoqtControlParser::ProcessPublishNamespace(
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessPublishNamespaceOk(
-    quic::QuicDataReader& reader) {
-  MoqtPublishNamespaceOk publish_namespace_ok;
-  if (!reader.ReadVarInt62(&publish_namespace_ok.request_id)) {
+size_t MoqtControlParser::ProcessRequestOk(quic::QuicDataReader& reader) {
+  MoqtRequestOk request_ok;
+  if (!reader.ReadVarInt62(&request_ok.request_id)) {
     return 0;
   }
-  visitor_.OnPublishNamespaceOkMessage(publish_namespace_ok);
+  KeyValuePairList parameters;
+  if (!ParseKeyValuePairList(reader, parameters)) {
+    return 0;
+  }
+  if (!ValidateVersionSpecificParameters(parameters,
+                                         MoqtMessageType::kRequestOk)) {
+    ParseError("REQUEST_OK contains invalid parameters");
+    return 0;
+  }
+  if (!KeyValuePairListToVersionSpecificParameters(parameters,
+                                                   request_ok.parameters)) {
+    return 0;
+  }
+  visitor_.OnRequestOkMessage(request_ok);
   return reader.PreviouslyReadPayload().length();
 }
 
@@ -617,10 +618,6 @@ size_t MoqtControlParser::ProcessTrackStatus(quic::QuicDataReader& reader) {
   return ProcessSubscribe(reader, MoqtMessageType::kTrackStatus);
 }
 
-size_t MoqtControlParser::ProcessTrackStatusOk(quic::QuicDataReader& reader) {
-  return ProcessSubscribeOk(reader, MoqtMessageType::kTrackStatusOk);
-}
-
 size_t MoqtControlParser::ProcessGoAway(quic::QuicDataReader& reader) {
   MoqtGoAway goaway;
   if (!reader.ReadStringVarInt62(goaway.new_session_uri)) {
@@ -651,16 +648,6 @@ size_t MoqtControlParser::ProcessSubscribeNamespace(
     return 0;
   }
   visitor_.OnSubscribeNamespaceMessage(subscribe_namespace);
-  return reader.PreviouslyReadPayload().length();
-}
-
-size_t MoqtControlParser::ProcessSubscribeNamespaceOk(
-    quic::QuicDataReader& reader) {
-  MoqtSubscribeNamespaceOk subscribe_namespace_ok;
-  if (!reader.ReadVarInt62(&subscribe_namespace_ok.request_id)) {
-    return 0;
-  }
-  visitor_.OnSubscribeNamespaceOkMessage(subscribe_namespace_ok);
   return reader.PreviouslyReadPayload().length();
 }
 

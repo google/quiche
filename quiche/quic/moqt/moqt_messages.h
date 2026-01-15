@@ -250,16 +250,14 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kSubscribeOk = 0x04,
   kRequestError = 0x05,
   kPublishNamespace = 0x06,
-  kPublishNamespaceOk = 0x07,
+  kRequestOk = 0x07,
   kPublishNamespaceDone = 0x09,
   kUnsubscribe = 0x0a,
   kPublishDone = 0x0b,
   kPublishNamespaceCancel = 0x0c,
   kTrackStatus = 0x0d,
-  kTrackStatusOk = 0x0e,
   kGoAway = 0x10,
   kSubscribeNamespace = 0x11,
-  kSubscribeNamespaceOk = 0x12,
   kUnsubscribeNamespace = 0x14,
   kMaxRequestId = 0x15,
   kFetch = 0x16,
@@ -635,8 +633,9 @@ struct QUICHE_EXPORT MoqtPublishNamespace {
   VersionSpecificParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtPublishNamespaceOk {
+struct QUICHE_EXPORT MoqtRequestOk {
   uint64_t request_id;
+  VersionSpecificParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtPublishNamespaceDone {
@@ -654,12 +653,6 @@ struct QUICHE_EXPORT MoqtTrackStatus : public MoqtSubscribe {
   MoqtTrackStatus(MoqtSubscribe subscribe) : MoqtSubscribe(subscribe) {}
 };
 
-struct QUICHE_EXPORT MoqtTrackStatusOk : public MoqtSubscribeOk {
-  MoqtTrackStatusOk() = default;
-  MoqtTrackStatusOk(MoqtSubscribeOk subscribe_ok)
-      : MoqtSubscribeOk(subscribe_ok) {}
-};
-
 struct QUICHE_EXPORT MoqtGoAway {
   std::string new_session_uri;
 };
@@ -668,10 +661,6 @@ struct QUICHE_EXPORT MoqtSubscribeNamespace {
   uint64_t request_id;
   TrackNamespace track_namespace;
   VersionSpecificParameters parameters;
-};
-
-struct QUICHE_EXPORT MoqtSubscribeNamespaceOk {
-  uint64_t request_id;
 };
 
 struct QUICHE_EXPORT MoqtUnsubscribeNamespace {

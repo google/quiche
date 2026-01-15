@@ -34,20 +34,18 @@ struct MoqtFramerTestParams {
 std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
   std::vector<MoqtFramerTestParams> params;
   std::vector<MoqtMessageType> message_types = {
+      MoqtMessageType::kRequestOk,
+      MoqtMessageType::kRequestError,
       MoqtMessageType::kSubscribe,
       MoqtMessageType::kSubscribeOk,
-      MoqtMessageType::kRequestError,
       MoqtMessageType::kUnsubscribe,
       MoqtMessageType::kPublishDone,
       MoqtMessageType::kPublishNamespace,
-      MoqtMessageType::kPublishNamespaceOk,
       MoqtMessageType::kPublishNamespaceDone,
       MoqtMessageType::kPublishNamespaceCancel,
       MoqtMessageType::kTrackStatus,
-      MoqtMessageType::kTrackStatusOk,
       MoqtMessageType::kGoAway,
       MoqtMessageType::kSubscribeNamespace,
-      MoqtMessageType::kSubscribeNamespaceOk,
       MoqtMessageType::kUnsubscribeNamespace,
       MoqtMessageType::kMaxRequestId,
       MoqtMessageType::kFetch,
@@ -118,6 +116,14 @@ class MoqtFramerTest
   quiche::QuicheBuffer SerializeMessage(
       TestMessageBase::MessageStructuredData& structured_data) {
     switch (message_type_) {
+      case MoqtMessageType::kRequestOk: {
+        auto data = std::get<MoqtRequestOk>(structured_data);
+        return framer_.SerializeRequestOk(data);
+      }
+      case MoqtMessageType::kRequestError: {
+        auto data = std::get<MoqtRequestError>(structured_data);
+        return framer_.SerializeRequestError(data);
+      }
       case MoqtMessageType::kSubscribe: {
         auto data = std::get<MoqtSubscribe>(structured_data);
         return framer_.SerializeSubscribe(data);
@@ -126,10 +132,7 @@ class MoqtFramerTest
         auto data = std::get<MoqtSubscribeOk>(structured_data);
         return framer_.SerializeSubscribeOk(data);
       }
-      case MoqtMessageType::kRequestError: {
-        auto data = std::get<MoqtRequestError>(structured_data);
-        return framer_.SerializeRequestError(data);
-      }
+
       case MoqtMessageType::kUnsubscribe: {
         auto data = std::get<MoqtUnsubscribe>(structured_data);
         return framer_.SerializeUnsubscribe(data);
@@ -141,10 +144,6 @@ class MoqtFramerTest
       case MoqtMessageType::kPublishNamespace: {
         auto data = std::get<MoqtPublishNamespace>(structured_data);
         return framer_.SerializePublishNamespace(data);
-      }
-      case moqt::MoqtMessageType::kPublishNamespaceOk: {
-        auto data = std::get<MoqtPublishNamespaceOk>(structured_data);
-        return framer_.SerializePublishNamespaceOk(data);
       }
       case MoqtMessageType::kPublishNamespaceDone: {
         auto data = std::get<MoqtPublishNamespaceDone>(structured_data);
@@ -158,10 +157,6 @@ class MoqtFramerTest
         auto data = std::get<MoqtTrackStatus>(structured_data);
         return framer_.SerializeTrackStatus(data);
       }
-      case moqt::MoqtMessageType::kTrackStatusOk: {
-        auto data = std::get<MoqtTrackStatusOk>(structured_data);
-        return framer_.SerializeTrackStatusOk(data);
-      }
       case moqt::MoqtMessageType::kGoAway: {
         auto data = std::get<MoqtGoAway>(structured_data);
         return framer_.SerializeGoAway(data);
@@ -169,10 +164,6 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kSubscribeNamespace: {
         auto data = std::get<MoqtSubscribeNamespace>(structured_data);
         return framer_.SerializeSubscribeNamespace(data);
-      }
-      case moqt::MoqtMessageType::kSubscribeNamespaceOk: {
-        auto data = std::get<MoqtSubscribeNamespaceOk>(structured_data);
-        return framer_.SerializeSubscribeNamespaceOk(data);
       }
       case moqt::MoqtMessageType::kUnsubscribeNamespace: {
         auto data = std::get<MoqtUnsubscribeNamespace>(structured_data);

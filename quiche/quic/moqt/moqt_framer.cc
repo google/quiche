@@ -11,7 +11,6 @@
 #include <string>
 #include <utility>
 #include <variant>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -419,6 +418,15 @@ quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
                                  WireKeyValuePairList(parameters));
 }
 
+quiche::QuicheBuffer MoqtFramer::SerializeRequestOk(
+    const MoqtRequestOk& message) {
+  KeyValuePairList parameters;
+  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
+  return SerializeControlMessage(MoqtMessageType::kRequestOk,
+                                 WireVarInt62(message.request_id),
+                                 WireKeyValuePairList(parameters));
+}
+
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
     const MoqtSubscribe& message, MoqtMessageType message_type) {
   KeyValuePairList parameters;
@@ -552,12 +560,6 @@ quiche::QuicheBuffer MoqtFramer::SerializePublishNamespace(
                                  WireKeyValuePairList(parameters));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceOk(
-    const MoqtPublishNamespaceOk& message) {
-  return SerializeControlMessage(MoqtMessageType::kPublishNamespaceOk,
-                                 WireVarInt62(message.request_id));
-}
-
 quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceDone(
     const MoqtPublishNamespaceDone& message) {
   return SerializeControlMessage(MoqtMessageType::kPublishNamespaceDone,
@@ -578,10 +580,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(
   return SerializeSubscribe(message, MoqtMessageType::kTrackStatus);
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeTrackStatusOk(
-    const MoqtTrackStatusOk& message) {
-  return SerializeSubscribeOk(message, MoqtMessageType::kTrackStatusOk);
-}
 
 quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {
   return SerializeControlMessage(
@@ -603,12 +601,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespace(
                                  WireVarInt62(message.request_id),
                                  WireTrackNamespace(message.track_namespace),
                                  WireKeyValuePairList(parameters));
-}
-
-quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespaceOk(
-    const MoqtSubscribeNamespaceOk& message) {
-  return SerializeControlMessage(MoqtMessageType::kSubscribeNamespaceOk,
-                                 WireVarInt62(message.request_id));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribeNamespace(
