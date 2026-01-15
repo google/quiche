@@ -4,10 +4,14 @@
 
 #include "quiche/common/http/http_header_block.h"
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
+#include "absl/functional/bind_front.h"
+#include "absl/strings/string_view.h"
 #include "quiche/http2/test_tools/spdy_test_utils.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
@@ -30,12 +34,16 @@ HeaderField Pair(absl::string_view k, absl::string_view v) {
   return std::make_pair(k, v);
 }
 
-struct Gatherer {
-  void operator()(absl::string_view name, absl::string_view value) {
-    fields.push_back({name, value});
+class Gatherer {
+ public:
+  void AddField(absl::string_view name, absl::string_view value) {
+    fields_.emplace_back(name, value);
   }
 
-  std::vector<HeaderField> fields;
+  const std::vector<HeaderField>& fields() const { return fields_; }
+
+ private:
+  std::vector<HeaderField> fields_;
 };
 
 // This test verifies that HttpHeaderBlock behaves correctly when empty.
@@ -51,8 +59,8 @@ TEST(HttpHeaderBlockTest, EmptyBlock) {
   block.erase("bar");
 
   Gatherer g;
-  block.ForEach(g);
-  EXPECT_THAT(g.fields, IsEmpty());
+  block.ForEach(absl::bind_front(&Gatherer::AddField, &g));
+  EXPECT_THAT(g.fields(), IsEmpty());
 
   EXPECT_THAT(block, IsEmpty());
 }
@@ -98,9 +106,9 @@ TEST(HttpHeaderBlockTest, AddHeaders) {
   block.insert(std::make_pair("key", "value"));
 
   Gatherer g;
-  block.ForEach(g);
+  block.ForEach(absl::bind_front(&Gatherer::AddField, &g));
   EXPECT_THAT(
-      g.fields,
+      g.fields(),
       ElementsAre(HeaderField{"foo", foo_value}, HeaderField{"bar", "baz"},
                   HeaderField{"qux", "qux2"}, HeaderField{"key", "value"}));
 
@@ -116,11 +124,11 @@ TEST(HttpHeaderBlockTest, AddHeaders) {
   EXPECT_EQ(block.end(), block.find("key"));
 
   g = {};
-  block.ForEach(g);
-  ASSERT_EQ(g.fields.size(), 3);
-  EXPECT_THAT(g.fields, ElementsAre(HeaderField{"foo", foo_value},
-                                    HeaderField{"bar", "baz"},
-                                    HeaderField{"qux", "qux2"}));
+  block.ForEach(absl::bind_front(&Gatherer::AddField, &g));
+  ASSERT_EQ(g.fields().size(), 3);
+  EXPECT_THAT(g.fields(), ElementsAre(HeaderField{"foo", foo_value},
+                                      HeaderField{"bar", "baz"},
+                                      HeaderField{"qux", "qux2"}));
 }
 
 // This test verifies that HttpHeaderBlock can be copied using Clone().
@@ -243,9 +251,9 @@ TEST(HttpHeaderBlockTest, AppendHeaders) {
           HeaderField{"set-cookie", std::string("yummy\0scrumptious", 17)}));
 
   Gatherer g;
-  block.ForEach(g);
+  block.ForEach(absl::bind_front(&Gatherer::AddField, &g));
   // Iterating with ForEach yields each name/value pair individually.
-  EXPECT_THAT(g.fields,
+  EXPECT_THAT(g.fields(),
               ElementsAre(HeaderField{"foo", "baz"},
                           HeaderField{"cookie", "key1=value1"},
                           HeaderField{"cookie", "key2=value2"},
