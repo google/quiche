@@ -3,8 +3,6 @@
 
 #include <cstddef>
 #include <cstdint>
-#include <functional>
-#include <memory>
 #include <optional>
 #include <ostream>
 #include <string>
@@ -13,7 +11,6 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/nullability.h"
-#include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -241,15 +238,10 @@ class QUICHE_EXPORT BinaryHttpRequest::IndeterminateLengthDecoder {
   // Creates a new IndeterminateLengthDecoder. Does not take ownership of
   // `message_section_handler`, which must refer to a valid handler that
   // outlives this decoder.
-  static absl::StatusOr<BinaryHttpRequest::IndeterminateLengthDecoder> Create(
+  explicit IndeterminateLengthDecoder(
       MessageSectionHandler* absl_nonnull message_section_handler
-          ABSL_ATTRIBUTE_LIFETIME_BOUND) {
-    if (message_section_handler == nullptr) {
-      return absl::InvalidArgumentError("MessageSectionHandler is null");
-    }
-    return BinaryHttpRequest::IndeterminateLengthDecoder(
-        message_section_handler);
-  }
+          ABSL_ATTRIBUTE_LIFETIME_BOUND)
+      : message_section_handler_(*message_section_handler) {}
 
   // Decodes an Indeterminate-Length BHTTP request. As the caller receives
   // portions of the request, the caller can call this method with the request
@@ -265,10 +257,6 @@ class QUICHE_EXPORT BinaryHttpRequest::IndeterminateLengthDecoder {
   absl::Status Decode(absl::string_view data, bool end_stream);
 
  private:
-  explicit IndeterminateLengthDecoder(
-      MessageSectionHandler* absl_nonnull message_section_handler
-          ABSL_ATTRIBUTE_LIFETIME_BOUND)
-      : message_section_handler_(*message_section_handler) {}
   // Carries out the decode logic from the checkpoint. Returns
   // OutOfRangeError if there is not enough data to decode the current
   // section. When a section is fully decoded, the checkpoint is updated.
