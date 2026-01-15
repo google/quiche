@@ -1479,6 +1479,64 @@ TEST(OgHttp2SessionTest, RstStreamCausesCloseStreamCrash) {
   session.ProcessBytes(rst_frames);
 }
 
+// Regression test for pending frame queue behavior in
+// PrepareForImmediateGoAway.
+TEST(OgHttp2SessionTest, NullFrameInQueueDuringImmediateGoAway) {
+  TestVisitor visitor;
+  OgHttp2Session::Options options;
+  options.perspective = Perspective::kServer;
+  OgHttp2Session session(visitor, options);
+
+  const std::string client_preface =
+      TestFrameSequence().ClientPreface().Serialize();
+  EXPECT_CALL(visitor, OnFrameHeader(0, 0, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(visitor, OnSettingsEnd());
+  int64_t result = session.ProcessBytes(client_preface);
+  ASSERT_EQ(client_preface.size(), result);
+
+  const std::string stream_frames = TestFrameSequence()
+                                        .Headers(1,
+                                                 {{":method", "GET"},
+                                                  {":scheme", "https"},
+                                                  {":authority", "example.com"},
+                                                  {":path", "/"}},
+                                                 true)
+                                        .Serialize();
+  EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
+  EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+  EXPECT_CALL(visitor, OnHeaderForStream(1, _, _)).Times(4);
+  EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+  EXPECT_CALL(visitor, OnEndStream(1));
+  result = session.ProcessBytes(stream_frames);
+  EXPECT_EQ(stream_frames.size(), result);
+
+  session.SubmitResponse(1, ToHeaders({{":status", "200"}}), false);
+
+  const std::string rst_stream_frame =
+      TestFrameSequence().RstStream(1, Http2ErrorCode::CANCEL).Serialize();
+  EXPECT_CALL(visitor, OnFrameHeader(1, 4, RST_STREAM, 0));
+  EXPECT_CALL(visitor, OnRstStream(1, Http2ErrorCode::CANCEL));
+  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::CANCEL));
+  result = session.ProcessBytes(rst_stream_frame);
+  EXPECT_EQ(rst_stream_frame.size(), result);
+
+  const std::string settings_frame =
+      TestFrameSequence()
+          .Settings({{Http2KnownSettingsId::ENABLE_PUSH, 2}})
+          .Serialize();
+  EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+  EXPECT_CALL(visitor, OnSettingsStart());
+  EXPECT_CALL(
+      visitor,
+      OnInvalidFrame(0, Http2VisitorInterface::InvalidFrameError::kProtocol));
+  EXPECT_CALL(visitor,
+              OnConnectionError(
+                  Http2VisitorInterface::ConnectionError::kInvalidSetting));
+  result = session.ProcessBytes(settings_frame);
+  EXPECT_EQ(settings_frame.size(), result);
+}
+
 }  // namespace test
 }  // namespace adapter
 }  // namespace http2

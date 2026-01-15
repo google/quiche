@@ -2056,7 +2056,8 @@ void OgHttp2Session::PrepareForImmediateGoAway() {
   // mean keeping the frames and invoking a frame-not-sent callback, similar to
   // nghttp2. Could add a closure to each frame in the frames queue.
   for (std::unique_ptr<spdy::SpdyFrameIR>& frame : frames_) {
-    if (frame->frame_type() != spdy::SpdyFrameType::RST_STREAM) {
+    if (frame != nullptr &&
+        frame->frame_type() != spdy::SpdyFrameType::RST_STREAM) {
       frame = nullptr;
     }
   };
