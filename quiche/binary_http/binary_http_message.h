@@ -415,6 +415,11 @@ class QUICHE_EXPORT BinaryHttpResponse : public BinaryHttpMessage {
   // BHTTP response message.
   class QUICHE_EXPORT IndeterminateLengthEncoder;
 
+  // Provides a Decode method that can be called multiple times as data is
+  // received. The relevant MessageSectionHandler method will be called when
+  // its corresponding section is successfully decoded.
+  class QUICHE_EXPORT IndeterminateLengthDecoder;
+
  private:
   enum class IndeterminateLengthMessageSection {
     kFramingIndicator,
@@ -431,6 +436,75 @@ class QUICHE_EXPORT BinaryHttpResponse : public BinaryHttpMessage {
 
   std::vector<InformationalResponse> informational_response_control_data_;
   const uint16_t status_code_;
+};
+
+// Provides a Decode method that can be called multiple times as data is
+// received. The relevant MessageSectionHandler method will be called when
+// its corresponding section is successfully decoded.
+class QUICHE_EXPORT BinaryHttpResponse::IndeterminateLengthDecoder {
+ public:
+  // The handler to invoke when a section is decoded successfully. The
+  // handler can return an error if the decoded data cannot be processed
+  // successfully.
+  class QUICHE_EXPORT MessageSectionHandler {
+   public:
+    virtual ~MessageSectionHandler() = default;
+    virtual absl::Status OnInformationalResponseStatusCode(
+        uint16_t status_code) = 0;
+    virtual absl::Status OnInformationalResponseHeader(
+        absl::string_view name, absl::string_view value) = 0;
+    virtual absl::Status OnInformationalResponseDone() = 0;
+    virtual absl::Status OnInformationalResponsesSectionDone() = 0;
+    virtual absl::Status OnFinalResponseStatusCode(uint16_t status_code) = 0;
+    virtual absl::Status OnFinalResponseHeader(absl::string_view name,
+                                               absl::string_view value) = 0;
+    virtual absl::Status OnFinalResponseHeadersDone() = 0;
+    virtual absl::Status OnBodyChunk(absl::string_view body_chunk) = 0;
+    virtual absl::Status OnBodyChunksDone() = 0;
+    virtual absl::Status OnTrailer(absl::string_view name,
+                                   absl::string_view value) = 0;
+    virtual absl::Status OnTrailersDone() = 0;
+  };
+
+  // Does not take ownership of `message_section_handler`, which must refer to a
+  // valid handler that outlives this decoder.
+  explicit IndeterminateLengthDecoder(
+      MessageSectionHandler* absl_nonnull message_section_handler
+          ABSL_ATTRIBUTE_LIFETIME_BOUND)
+      : message_section_handler_(*message_section_handler) {}
+
+  // Decodes an Indeterminate-Length BHTTP response. As the caller receives
+  // portions of the response, the caller can call this method with the
+  // response portion. The class keeps track of the current message section
+  // that is being decoded and buffers data if the section is not fully
+  // decoded so that the next call can continue decoding from where it left
+  // off. It will also invoke the appropriate MessageSectionHandler method
+  // when a section is decoded successfully. `end_stream` indicates that no
+  // more data will be provided to the decoder. This is used to determine if a
+  // valid message was decoded properly given the last piece of data provided,
+  // handling both complete messages and valid truncated messages.
+  absl::Status Decode(absl::string_view data, bool end_stream);
+
+ private:
+  // Carries out the decode logic from the checkpoint. Returns
+  // OutOfRangeError if there is not enough data to decode the current
+  // section. When a section is fully decoded, the checkpoint is updated.
+  absl::Status DecodeCheckpointData(bool end_stream,
+                                    absl::string_view& checkpoint);
+  // Decodes the informational response or final response status code and
+  // updates the checkpoint.
+  absl::Status DecodeStatusCode(QuicheDataReader& reader,
+                                absl::string_view& checkpoint);
+
+  // The handler to invoke when a section is decoded successfully. The
+  // handler can return an error if the decoded data cannot be processed
+  // successfully. Not owned.
+  MessageSectionHandler& message_section_handler_;
+  // Stores the data that could not be processed due to missing data.
+  std::string buffer_;
+  // The current section that is being decoded.
+  IndeterminateLengthMessageSection current_section_ =
+      IndeterminateLengthMessageSection::kFramingIndicator;
 };
 
 // Provides encoding methods for an Indeterminate-Length BHTTP response. The
