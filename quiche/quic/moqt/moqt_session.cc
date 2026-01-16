@@ -29,6 +29,7 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -165,9 +166,8 @@ void MoqtSession::OnSessionReady() {
   control_stream->SetVisitor(
       std::make_unique<ControlStream>(this, control_stream));
   control_stream_ = control_stream->GetStreamId();
-  MoqtClientSetup setup = MoqtClientSetup{
-      .parameters = parameters_,
-  };
+  MoqtClientSetup setup;
+  parameters_.ToSetupParameters(setup.parameters);
   SendControlMessage(framer_.SerializeClientSetup(setup));
   QUIC_DLOG(INFO) << ENDPOINT << "Send the SETUP message";
 }
@@ -989,16 +989,17 @@ void MoqtSession::ControlStream::OnClientSetupMessage(
                     "Received CLIENT_SETUP from server");
     return;
   }
-  session_->peer_supports_object_ack_ = message.parameters.support_object_acks;
+  session_->peer_supports_object_ack_ =
+      message.parameters.support_object_acks.value_or(
+          kDefaultSupportObjectAcks);
+  session_->peer_max_request_id_ =
+      message.parameters.max_request_id.value_or(kDefaultMaxRequestId);
   QUICHE_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
-  if (session_->parameters_.perspective == Perspective::IS_SERVER) {
-    MoqtServerSetup response;
-    response.parameters = session_->parameters_;
-    SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
-    QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
-  }
+  MoqtServerSetup response;
+  session_->parameters_.ToSetupParameters(response.parameters);
+  SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
+  QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
   // TODO: handle path.
-  session_->peer_max_request_id_ = message.parameters.max_request_id;
   std::move(session_->callbacks_.session_established_callback)();
 }
 
@@ -1009,10 +1010,13 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
                     "Received SERVER_SETUP from client");
     return;
   }
-  session_->peer_supports_object_ack_ = message.parameters.support_object_acks;
+  session_->peer_supports_object_ack_ =
+      message.parameters.support_object_acks.value_or(
+          kDefaultSupportObjectAcks);
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   // TODO: handle path.
-  session_->peer_max_request_id_ = message.parameters.max_request_id;
+  session_->peer_max_request_id_ =
+      message.parameters.max_request_id.value_or(kDefaultMaxRequestId);
   std::move(session_->callbacks_.session_established_callback)();
 }
 

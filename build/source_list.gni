@@ -1576,8 +1576,10 @@ load_balancer_srcs = [
 ]
 moqt_hdrs = [
     "src/quiche/quic/moqt/moqt_bitrate_adjuster.h",
+    "src/quiche/quic/moqt/moqt_error.h",
     "src/quiche/quic/moqt/moqt_fetch_task.h",
     "src/quiche/quic/moqt/moqt_framer.h",
+    "src/quiche/quic/moqt/moqt_key_value_pair.h",
     "src/quiche/quic/moqt/moqt_known_track_publisher.h",
     "src/quiche/quic/moqt/moqt_messages.h",
     "src/quiche/quic/moqt/moqt_names.h",
@@ -1607,7 +1609,9 @@ moqt_hdrs = [
 ]
 moqt_srcs = [
     "src/quiche/quic/moqt/moqt_bitrate_adjuster.cc",
+    "src/quiche/quic/moqt/moqt_error.cc",
     "src/quiche/quic/moqt/moqt_framer.cc",
+    "src/quiche/quic/moqt/moqt_key_value_pair.cc",
     "src/quiche/quic/moqt/moqt_known_track_publisher.cc",
     "src/quiche/quic/moqt/moqt_messages.cc",
     "src/quiche/quic/moqt/moqt_names.cc",

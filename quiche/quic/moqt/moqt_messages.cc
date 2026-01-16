@@ -5,67 +5,39 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 
 #include <array>
-#include <cstddef>
 #include <cstdint>
 #include <string>
-#include <utility>
-#include <variant>
-#include <vector>
 
 #include "absl/algorithm/container.h"
-#include "absl/container/btree_map.h"
-#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
-#include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/common/platform/api/quiche_bug_tracker.h"
-#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 
-void KeyValuePairList::insert(uint64_t key,
-                              std::variant<uint64_t, absl::string_view> value) {
-  if (key % 2 == 0 && std::holds_alternative<absl::string_view>(value)) {
-    QUICHE_BUG(key_value_pair_string_is_even) << "Key value pair of wrong type";
-    return;
+void MoqtSessionParameters::ToSetupParameters(SetupParameters& out) const {
+  if (perspective == quic::Perspective::IS_CLIENT && !using_webtrans) {
+    out.path = path;
+    out.authority = authority;
   }
-  if (key % 2 == 1 && std::holds_alternative<uint64_t>(value)) {
-    QUICHE_BUG(key_value_pair_int_is_odd) << "Key value pair of wrong type";
-    return;
+  if (max_request_id != kDefaultMaxRequestId) {
+    out.max_request_id = max_request_id;
   }
-  if (key % 2 == 1) {
-    map_.emplace(key, std::string(std::get<absl::string_view>(value)));
-  } else {
-    map_.emplace(key, std::get<uint64_t>(value));
+  if (max_auth_token_cache_size != kDefaultMaxAuthTokenCacheSize) {
+    out.max_auth_token_cache_size = max_auth_token_cache_size;
   }
-}
-
-std::vector<uint64_t> KeyValuePairList::GetIntegers(uint64_t key) const {
-  if (key % 2 == 1) {
-    QUICHE_BUG(key_value_pair_int_is_odd) << "Key value pair of wrong type";
-    return {};
+  if (support_object_acks != kDefaultSupportObjectAcks) {
+    out.support_object_acks = support_object_acks;
   }
-  std::vector<uint64_t> result;
-  auto [range_start, range_end] = map_.equal_range(key);
-  for (auto& it = range_start; it != range_end; ++it) {
-    result.push_back(std::get<uint64_t>(it->second));
+  if (!moqt_implementation.empty()) {
+    out.moqt_implementation = moqt_implementation;
   }
-  return result;
-}
-
-std::vector<absl::string_view> KeyValuePairList::GetStrings(
-    uint64_t key) const {
-  if (key % 2 == 0) {
-    QUICHE_BUG(key_value_pair_string_is_even) << "Key value pair of wrong type";
-    return {};
+  for (const AuthToken& token : authorization_token) {
+    out.authorization_tokens.push_back(token);
   }
-  std::vector<absl::string_view> result;
-  auto [range_start, range_end] = map_.equal_range(key);
-  for (auto& it = range_start; it != range_end; ++it) {
-    result.push_back(std::get<std::string>(it->second));
-  }
-  return result;
 }
 
 MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
@@ -76,89 +48,16 @@ MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
   return static_cast<MoqtObjectStatus>(integer);
 }
 
-RequestErrorCode StatusToRequestErrorCode(absl::Status status) {
-  QUICHE_DCHECK(!status.ok());
-  switch (status.code()) {
-    case absl::StatusCode::kPermissionDenied:
-      return RequestErrorCode::kUnauthorized;
-    case absl::StatusCode::kDeadlineExceeded:
-      return RequestErrorCode::kTimeout;
-    case absl::StatusCode::kUnimplemented:
-      return RequestErrorCode::kNotSupported;
-    case absl::StatusCode::kNotFound:
-      return RequestErrorCode::kTrackDoesNotExist;
-    case absl::StatusCode::kOutOfRange:
-      return RequestErrorCode::kInvalidRange;
-    case absl::StatusCode::kInvalidArgument:
-      return RequestErrorCode::kInvalidJoiningRequestId;
-    case absl::StatusCode::kUnauthenticated:
-      return RequestErrorCode::kExpiredAuthToken;
-    default:
-      return RequestErrorCode::kInternalError;
-  }
-}
-
-absl::StatusCode RequestErrorCodeToStatusCode(RequestErrorCode error_code) {
-  switch (error_code) {
-    case RequestErrorCode::kInternalError:
-      return absl::StatusCode::kInternal;
-    case RequestErrorCode::kUnauthorized:
-      return absl::StatusCode::kPermissionDenied;
-    case RequestErrorCode::kTimeout:
-      return absl::StatusCode::kDeadlineExceeded;
-    case RequestErrorCode::kNotSupported:
-      return absl::StatusCode::kUnimplemented;
-    case RequestErrorCode::kTrackDoesNotExist:
-      // Equivalently, kUninterested and kNamespacePrefixUnknown.
-      return absl::StatusCode::kNotFound;
-    case RequestErrorCode::kInvalidRange:
-      // Equivalently, kNamespacePrefixOverlap.
-      return absl::StatusCode::kOutOfRange;
-    case RequestErrorCode::kNoObjects:
-      // Equivalently, kRetryTrackAlias.
-      return absl::StatusCode::kNotFound;
-    case RequestErrorCode::kInvalidJoiningRequestId:
-    case RequestErrorCode::kMalformedAuthToken:
-      return absl::StatusCode::kInvalidArgument;
-    case RequestErrorCode::kExpiredAuthToken:
-      return absl::StatusCode::kUnauthenticated;
-    default:
-      return absl::StatusCode::kUnknown;
-  }
-}
-
-absl::Status RequestErrorCodeToStatus(RequestErrorCode error_code,
-                                      absl::string_view reason_phrase) {
-  return absl::Status(RequestErrorCodeToStatusCode(error_code), reason_phrase);
-};
-
-MoqtError ValidateSetupParameters(const KeyValuePairList& parameters,
-                                  bool webtrans,
-                                  quic::Perspective perspective) {
-  if (parameters.count(SetupParameter::kPath) > 1 ||
-      parameters.count(SetupParameter::kMaxRequestId) > 1 ||
-      parameters.count(SetupParameter::kMaxAuthTokenCacheSize) > 1 ||
-      parameters.count(SetupParameter::kSupportObjectAcks) > 1) {
-    return MoqtError::kKeyValueFormattingError;
-  }
-  if ((webtrans || perspective == quic::Perspective::IS_CLIENT) ==
-      parameters.contains(SetupParameter::kPath)) {
-    // Only non-webtrans servers should receive kPath.
+MoqtError SetupParametersAllowedByMessage(const SetupParameters& parameters,
+                                          MoqtMessageType message_type,
+                                          bool webtrans) {
+  bool should_have_path_and_authority =
+      !webtrans && message_type == MoqtMessageType::kClientSetup;
+  if (should_have_path_and_authority != parameters.path.has_value()) {
     return MoqtError::kInvalidPath;
   }
-  if ((webtrans || perspective == quic::Perspective::IS_CLIENT) &&
-      parameters.contains(SetupParameter::kAuthority)) {
-    // Only non-webtrans servers should receive kAuthority.
+  if (should_have_path_and_authority != parameters.authority.has_value()) {
     return MoqtError::kInvalidAuthority;
-  }
-  if (!parameters.contains(SetupParameter::kSupportObjectAcks)) {
-    return MoqtError::kNoError;
-  }
-  std::vector<uint64_t> support_object_acks =
-      parameters.GetIntegers(SetupParameter::kSupportObjectAcks);
-  QUICHE_DCHECK(support_object_acks.size() == 1);
-  if (support_object_acks.front() > 1) {
-    return MoqtError::kKeyValueFormattingError;
   }
   return MoqtError::kNoError;
 }
@@ -181,27 +80,17 @@ const std::array<MoqtMessageType, 7> kAllowsDeliveryTimeout = {
 const std::array<MoqtMessageType, 4> kAllowsMaxCacheDuration = {
     MoqtMessageType::kSubscribeOk, MoqtMessageType::kRequestOk,
     MoqtMessageType::kFetchOk, MoqtMessageType::kPublish};
-bool ValidateVersionSpecificParameters(const KeyValuePairList& parameters,
-                                       MoqtMessageType message_type) {
-  size_t authorization_token =
-      parameters.count(VersionSpecificParameter::kAuthorizationToken);
-  size_t delivery_timeout =
-      parameters.count(VersionSpecificParameter::kDeliveryTimeout);
-  size_t max_cache_duration =
-      parameters.count(VersionSpecificParameter::kMaxCacheDuration);
-  if (delivery_timeout > 1 || max_cache_duration > 1) {
-    // Disallowed duplicate.
-    return false;
-  }
-  if (authorization_token > 0 &&
+bool VersionSpecificParametersAllowedByMessage(
+    const VersionSpecificParameters& parameters, MoqtMessageType message_type) {
+  if (!parameters.authorization_tokens.empty() &&
       !absl::c_linear_search(kAllowsAuthorization, message_type)) {
     return false;
   }
-  if (delivery_timeout > 0 &&
+  if (parameters.delivery_timeout != quic::QuicTimeDelta::Infinite() &&
       !absl::c_linear_search(kAllowsDeliveryTimeout, message_type)) {
     return false;
   }
-  if (max_cache_duration > 0 &&
+  if (parameters.max_cache_duration != quic::QuicTimeDelta::Infinite() &&
       !absl::c_linear_search(kAllowsMaxCacheDuration, message_type)) {
     return false;
   }
@@ -287,22 +176,6 @@ std::string MoqtForwardingPreferenceToString(
   QUIC_BUG(quic_bug_bad_moqt_message_type_01)
       << "Unknown preference " << std::to_string(static_cast<int>(preference));
   return "Unknown preference " + std::to_string(static_cast<int>(preference));
-}
-
-absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
-                                     absl::string_view reason_phrase) {
-  switch (error_code) {
-    case kResetCodeCanceled:
-      return absl::CancelledError(reason_phrase);
-    case kResetCodeDeliveryTimeout:
-      return absl::DeadlineExceededError(reason_phrase);
-    case kResetCodeSessionClosed:
-      return absl::AbortedError(reason_phrase);
-    case kResetCodeMalformedTrack:
-      return absl::InvalidArgumentError(reason_phrase);
-    default:
-      return absl::UnknownError(reason_phrase);
-  }
 }
 
 }  // namespace moqt

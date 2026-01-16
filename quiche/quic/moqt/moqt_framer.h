@@ -9,6 +9,7 @@
 #include <optional>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -77,6 +78,13 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeObjectAck(const MoqtObjectAck& message);
 
  private:
+  // Returns true if the parameters are valid for the message type.
+  bool FillAndValidateSetupParameters(MoqtMessageType message_type,
+                                      const SetupParameters& parameters,
+                                      KeyValuePairList& out);
+  bool FillAndValidateVersionSpecificParameters(
+      MoqtMessageType message_type, const VersionSpecificParameters& parameters,
+      KeyValuePairList& out);
   // Returns true if the metadata is internally consistent.
   static bool ValidateObjectMetadata(const MoqtObject& object,
                                      bool is_datagram);

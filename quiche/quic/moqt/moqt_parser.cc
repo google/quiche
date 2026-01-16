@@ -20,10 +20,11 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "quiche/http2/adapter/header_validator.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -302,19 +303,12 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
 
 size_t MoqtControlParser::ProcessClientSetup(quic::QuicDataReader& reader) {
   MoqtClientSetup setup;
-  setup.parameters.using_webtrans = uses_web_transport_;
-  setup.parameters.perspective = quic::Perspective::IS_CLIENT;
   KeyValuePairList parameters;
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  MoqtError error = ValidateSetupParameters(parameters, uses_web_transport_,
-                                            quic::Perspective::IS_SERVER);
-  if (error != MoqtError::kNoError) {
-    ParseError(error, "Client SETUP contains invalid parameters");
-    return 0;
-  }
-  if (!KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters)) {
+  if (!FillAndValidateSetupParameters(parameters, setup.parameters,
+                                      MoqtMessageType::kClientSetup)) {
     return 0;
   }
   // TODO(martinduke): Validate construction of the PATH (Sec 8.3.2.1)
@@ -324,19 +318,12 @@ size_t MoqtControlParser::ProcessClientSetup(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessServerSetup(quic::QuicDataReader& reader) {
   MoqtServerSetup setup;
-  setup.parameters.using_webtrans = uses_web_transport_;
-  setup.parameters.perspective = quic::Perspective::IS_SERVER;
   KeyValuePairList parameters;
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  MoqtError error = ValidateSetupParameters(parameters, uses_web_transport_,
-                                            quic::Perspective::IS_CLIENT);
-  if (error != MoqtError::kNoError) {
-    ParseError(error, "Server SETUP contains invalid parameters");
-    return 0;
-  }
-  if (!KeyValuePairListToMoqtSessionParameters(parameters, setup.parameters)) {
+  if (!FillAndValidateSetupParameters(parameters, setup.parameters,
+                                      MoqtMessageType::kServerSetup)) {
     return 0;
   }
   visitor_.OnServerSetupMessage(setup);
@@ -395,13 +382,8 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader,
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kSubscribe)) {
-    ParseError("SUBSCRIBE contains invalid parameters");
-    return 0;
-  }
-  if (!KeyValuePairListToVersionSpecificParameters(parameters,
-                                                   subscribe.parameters)) {
+  if (!FillAndValidateVersionSpecificParameters(
+          parameters, subscribe.parameters, message_type)) {
     return 0;
   }
   if (message_type == MoqtMessageType::kTrackStatus) {
@@ -451,13 +433,8 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kSubscribeOk)) {
-    ParseError("SUBSCRIBE_OK contains invalid parameters");
-    return 0;
-  }
-  if (!KeyValuePairListToVersionSpecificParameters(parameters,
-                                                   subscribe_ok.parameters)) {
+  if (!FillAndValidateVersionSpecificParameters(
+          parameters, subscribe_ok.parameters, MoqtMessageType::kSubscribeOk)) {
     return 0;
   }
   visitor_.OnSubscribeOkMessage(subscribe_ok);
@@ -515,13 +492,9 @@ size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kSubscribeUpdate)) {
-    ParseError("SUBSCRIBE_UPDATE contains invalid parameters");
-    return 0;
-  }
-  if (!KeyValuePairListToVersionSpecificParameters(
-          parameters, subscribe_update.parameters)) {
+  if (!FillAndValidateVersionSpecificParameters(
+          parameters, subscribe_update.parameters,
+          MoqtMessageType::kSubscribeUpdate)) {
     return 0;
   }
   subscribe_update.start = Location(start_group, start_object);
@@ -552,13 +525,9 @@ size_t MoqtControlParser::ProcessPublishNamespace(
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kPublishNamespace)) {
-    ParseError("PUBLISH_NAMESPACE contains invalid parameters");
-    return 0;
-  }
-  if (!KeyValuePairListToVersionSpecificParameters(
-          parameters, publish_namespace.parameters)) {
+  if (!FillAndValidateVersionSpecificParameters(
+          parameters, publish_namespace.parameters,
+          MoqtMessageType::kPublishNamespace)) {
     return 0;
   }
   visitor_.OnPublishNamespaceMessage(publish_namespace);
@@ -574,13 +543,8 @@ size_t MoqtControlParser::ProcessRequestOk(quic::QuicDataReader& reader) {
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kRequestOk)) {
-    ParseError("REQUEST_OK contains invalid parameters");
-    return 0;
-  }
-  if (!KeyValuePairListToVersionSpecificParameters(parameters,
-                                                   request_ok.parameters)) {
+  if (!FillAndValidateVersionSpecificParameters(
+          parameters, request_ok.parameters, MoqtMessageType::kRequestOk)) {
     return 0;
   }
   visitor_.OnRequestOkMessage(request_ok);
@@ -638,13 +602,9 @@ size_t MoqtControlParser::ProcessSubscribeNamespace(
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (!ValidateVersionSpecificParameters(
-          parameters, MoqtMessageType::kSubscribeNamespace)) {
-    ParseError("SUBSCRIBE_NAMESPACE message contains invalid parameters");
-    return 0;
-  }
-  if (!KeyValuePairListToVersionSpecificParameters(
-          parameters, subscribe_namespace.parameters)) {
+  if (!FillAndValidateVersionSpecificParameters(
+          parameters, subscribe_namespace.parameters,
+          MoqtMessageType::kSubscribeNamespace)) {
     return 0;
   }
   visitor_.OnSubscribeNamespaceMessage(subscribe_namespace);
@@ -734,14 +694,10 @@ size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (!ValidateVersionSpecificParameters(parameters, MoqtMessageType::kFetch)) {
-    ParseError("FETCH message contains invalid parameters");
+  if (!FillAndValidateVersionSpecificParameters(parameters, fetch.parameters,
+                                                MoqtMessageType::kFetch)) {
     return 0;
   }
-  if (!KeyValuePairListToVersionSpecificParameters(parameters,
-                                                   fetch.parameters)) {
-    return 0;
-  };
   visitor_.OnFetchMessage(fetch);
   return reader.PreviouslyReadPayload().length();
 }
@@ -765,11 +721,6 @@ size_t MoqtControlParser::ProcessFetchOk(quic::QuicDataReader& reader) {
     ParseError("Invalid end of track value in FETCH_OK");
     return 0;
   }
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kFetchOk)) {
-    ParseError("FETCH_OK message contains invalid parameters");
-    return 0;
-  }
   if (fetch_ok.end_location.object == 0) {
     fetch_ok.end_location.object = kMaxObjectId;
   } else {
@@ -777,8 +728,8 @@ size_t MoqtControlParser::ProcessFetchOk(quic::QuicDataReader& reader) {
   }
   fetch_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
   fetch_ok.end_of_track = end_of_track == 1;
-  if (!KeyValuePairListToVersionSpecificParameters(parameters,
-                                                   fetch_ok.parameters)) {
+  if (!FillAndValidateVersionSpecificParameters(parameters, fetch_ok.parameters,
+                                                MoqtMessageType::kFetchOk)) {
     return 0;
   }
   visitor_.OnFetchOkMessage(fetch_ok);
@@ -842,15 +793,10 @@ size_t MoqtControlParser::ProcessPublish(quic::QuicDataReader& reader) {
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kPublish)) {
-    ParseError("PUBLISH message contains invalid parameters");
+  if (!FillAndValidateVersionSpecificParameters(parameters, publish.parameters,
+                                                MoqtMessageType::kPublish)) {
     return 0;
   }
-  if (!KeyValuePairListToVersionSpecificParameters(
-          parameters, /*out=*/publish.parameters)) {
-    return 0;
-  };
   visitor_.OnPublishMessage(publish);
   return reader.PreviouslyReadPayload().length();
 }
@@ -907,15 +853,10 @@ size_t MoqtControlParser::ProcessPublishOk(quic::QuicDataReader& reader) {
   if (!ParseKeyValuePairList(reader, parameters)) {
     return 0;
   }
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kPublishOk)) {
-    ParseError("PUBLISH_OK message contains invalid parameters");
+  if (!FillAndValidateVersionSpecificParameters(
+          parameters, publish_ok.parameters, MoqtMessageType::kPublishOk)) {
     return 0;
   }
-  if (!KeyValuePairListToVersionSpecificParameters(parameters,
-                                                   publish_ok.parameters)) {
-    return 0;
-  };
   visitor_.OnPublishOkMessage(publish_ok);
   return reader.PreviouslyReadPayload().length();
 }
@@ -994,184 +935,43 @@ bool MoqtControlParser::ReadFullTrackName(quic::QuicDataReader& reader,
   return true;
 }
 
-bool MoqtControlParser::KeyValuePairListToMoqtSessionParameters(
-    const KeyValuePairList& parameters, MoqtSessionParameters& out) {
-  return parameters.ForEach(
-      [&](uint64_t key, uint64_t value) {
-        SetupParameter parameter = static_cast<SetupParameter>(key);
-        switch (parameter) {
-          case SetupParameter::kMaxRequestId:
-            out.max_request_id = value;
-            break;
-          case SetupParameter::kMaxAuthTokenCacheSize:
-            out.max_auth_token_cache_size = value;
-            break;
-          case SetupParameter::kSupportObjectAcks:
-            out.support_object_acks = (value == 1);
-            break;
-          default:
-            break;
-        }
-        return true;
-      },
-      [&](uint64_t key, absl::string_view value) {
-        SetupParameter parameter = static_cast<SetupParameter>(key);
-        switch (parameter) {
-          case SetupParameter::kPath:
-            if (!http2::adapter::HeaderValidator::IsValidPath(
-                    value, /*allow_fragment=*/false)) {
-              ParseError(MoqtError::kMalformedPath, "Malformed path");
-              return false;
-            }
-            out.path = value;
-            break;
-          case SetupParameter::kAuthorizationToken:
-            if (!ParseAuthTokenParameter(value, out.authorization_token)) {
-              return false;
-            }
-            break;
-          case SetupParameter::kAuthority:
-            if (!http2::adapter::HeaderValidator::IsValidAuthority(value)) {
-              ParseError(MoqtError::kMalformedAuthority, "Malformed authority");
-              return false;
-            }
-            out.authority = value;
-            break;
-          case SetupParameter::kMoqtImplementation:
-            QUICHE_LOG(INFO) << "Peer MOQT implementation: " << value;
-            out.moqt_implementation = value;
-            break;
-          default:
-            break;
-        }
-        return true;
-      });
-}
-
-// Returns false if there is a protocol violation.
-bool MoqtControlParser::KeyValuePairListToVersionSpecificParameters(
-    const KeyValuePairList& parameters, VersionSpecificParameters& out) {
-  return parameters.ForEach(
-      [&](uint64_t key, uint64_t value) {
-        VersionSpecificParameter parameter =
-            static_cast<VersionSpecificParameter>(key);
-        switch (parameter) {
-          case VersionSpecificParameter::kDeliveryTimeout:
-            out.delivery_timeout =
-                quic::QuicTimeDelta::TryFromMilliseconds(value).value_or(
-                    quic::QuicTimeDelta::Infinite());
-            break;
-          case VersionSpecificParameter::kMaxCacheDuration:
-            out.max_cache_duration =
-                quic::QuicTimeDelta::TryFromMilliseconds(value).value_or(
-                    quic::QuicTimeDelta::Infinite());
-            break;
-          case VersionSpecificParameter::kOackWindowSize:
-            out.oack_window_size = quic::QuicTimeDelta::FromMicroseconds(value);
-            break;
-          default:
-            break;
-        }
-        return true;
-      },
-      [&](uint64_t key, absl::string_view value) {
-        VersionSpecificParameter parameter =
-            static_cast<VersionSpecificParameter>(key);
-        switch (parameter) {
-          case VersionSpecificParameter::kAuthorizationToken:
-            if (!ParseAuthTokenParameter(value, out.authorization_token)) {
-              return false;
-            }
-            break;
-          default:
-            break;
-        }
-        return true;
-      });
-}
-
-bool MoqtControlParser::ParseAuthTokenParameter(absl::string_view field,
-                                                std::vector<AuthToken>& out) {
-  quic::QuicDataReader reader(field);
-  AuthTokenType token_type;
-  absl::string_view token;
-  uint64_t value;
-  if (!reader.ReadVarInt62(&value) || value > AuthTokenAliasType::kMaxValue) {
-    ParseError(MoqtError::kKeyValueFormattingError,
-               "Invalid Authorization Token Alias type");
+bool MoqtControlParser::FillAndValidateSetupParameters(
+    const KeyValuePairList& in, SetupParameters& out,
+    MoqtMessageType message_type) {
+  MoqtError error = KeyValuePairListToSetupParameters(in, out);
+  if (error != MoqtError::kNoError) {
+    absl::string_view error_message = (error == MoqtError::kProtocolViolation)
+                                          ? "Duplicate Setup Parameter"
+                                          : "Setup Parameter parsing error";
+    ParseError(error, error_message);
     return false;
   }
-  AuthTokenAliasType alias_type = static_cast<AuthTokenAliasType>(value);
-  switch (alias_type) {
-    case AuthTokenAliasType::kUseValue:
-      if (!reader.ReadVarInt62(&value)) {
-        ParseError(MoqtError::kKeyValueFormattingError,
-                   "Malformed Authorization Token Parameter");
-        return false;
-      }
-      if (value > AuthTokenType::kMaxAuthTokenType) {
-        ParseError(MoqtError::kKeyValueFormattingError,
-                   "Invalid Authorization Token Type");
-        return false;
-      }
-      token_type = static_cast<AuthTokenType>(value);
-      token = reader.PeekRemainingPayload();
-      break;
-    case AuthTokenAliasType::kUseAlias:
-      if (!reader.ReadVarInt62(&value)) {
-        ParseError(MoqtError::kKeyValueFormattingError,
-                   "Malformed Authorization Token Parameter");
-        return false;
-      }
-      // TODO: Implement support for cache_size > 0
-      ParseError(MoqtError::kKeyValueFormattingError,
-                 "Unknown Auth Token Alias");
-      return false;
-    case AuthTokenAliasType::kRegister:
-      if (!reader.ReadVarInt62(&value)) {
-        ParseError(MoqtError::kKeyValueFormattingError,
-                   "Malformed Authorization Token Parameter");
-        return false;
-      }
-      if (!reader.ReadVarInt62(&value)) {
-        ParseError(MoqtError::kKeyValueFormattingError,
-                   "Malformed Authorization Token Parameter");
-        return false;
-      }
-      token_type = static_cast<AuthTokenType>(value);
-      token = reader.PeekRemainingPayload();
-      if (message_type_.has_value() &&
-          *message_type_ ==
-              static_cast<uint64_t>(MoqtMessageType::kClientSetup)) {
-        // Do not check the max cache size. Since the max size isn't sent until
-        // SERVER_SETUP, it's not yet known. Since draft-12, this is not an
-        // error and tokens in excess of the cache limit are simply ignored.
-        break;
-      }
-      if (auth_token_cache_size_ + sizeof(uint64_t) + token.length() >
-          max_auth_token_cache_size_) {
-        ParseError(MoqtError::kAuthTokenCacheOverflow,
-                   "Too many authorization token tags");
-        return false;
-      }
-      break;
-      // TODO: Add to the cache.
-      // TODO: Check if the alias is already in use.
-      QUICHE_NOTREACHED();
-      break;
-    case AuthTokenAliasType::kDelete:
-      if (!reader.ReadVarInt62(&value)) {
-        ParseError(MoqtError::kKeyValueFormattingError,
-                   "Malformed Authorization Token Parameter");
-        return false;
-      }
-      // TODO: Implement support for cache_size > 0
-      ParseError(MoqtError::kKeyValueFormattingError,
-                 "Unknown Auth Token Alias");
-      return false;
+  error =
+      SetupParametersAllowedByMessage(out, message_type, uses_web_transport_);
+  if (error != MoqtError::kNoError) {
+    ParseError(error, "");
+    return false;
   }
-  // Validate cache operations.
-  out.push_back(AuthToken(token_type, token));
+  return true;
+}
+
+bool MoqtControlParser::FillAndValidateVersionSpecificParameters(
+    const KeyValuePairList& in, VersionSpecificParameters& out,
+    MoqtMessageType message_type) {
+  MoqtError error = KeyValuePairListToVersionSpecificParameters(in, out);
+  if (error != MoqtError::kNoError) {
+    absl::string_view error_message =
+        (error == MoqtError::kProtocolViolation)
+            ? "Duplicate Version Specific Parameter"
+            : "Version Specific Parameter parsing error";
+    ParseError(error, error_message);
+    return false;
+  }
+  if (!VersionSpecificParametersAllowedByMessage(out, message_type)) {
+    ParseError(MoqtError::kProtocolViolation,
+               "Version Specific Parameter not allowed for this message type");
+    return false;
+  }
   return true;
 }
 

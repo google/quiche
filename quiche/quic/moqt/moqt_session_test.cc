@@ -21,8 +21,10 @@
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
@@ -294,9 +296,10 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
       session_callbacks_.AsSessionCallbacks());
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream_);
-  MoqtClientSetup setup = {
-      MoqtSessionParameters(quic::Perspective::IS_CLIENT),
-  };
+  MoqtClientSetup setup;
+  MoqtSessionParameters parameters(quic::Perspective::IS_CLIENT);
+
+  parameters.ToSetupParameters(setup.parameters);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kServerSetup), _));
   EXPECT_CALL(mock_stream_, GetStreamId()).WillOnce(Return(0));
@@ -1953,9 +1956,9 @@ TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
       session_callbacks_.AsSessionCallbacks());
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream_);
-  MoqtClientSetup setup = {
-      MoqtSessionParameters(),
-  };
+  MoqtClientSetup setup;
+  MoqtSessionParameters params;
+  params.ToSetupParameters(setup.parameters);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kServerSetup), _));
   EXPECT_CALL(mock_stream_, GetStreamId()).WillOnce(Return(0));

@@ -12,11 +12,13 @@
 #include <utility>
 #include <variant>
 
+#include "absl/functional/overload.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -82,32 +84,37 @@ class WireKeyValuePairList {
   size_t GetLengthOnWire() {
     size_t total = WireVarInt62(list_.size()).GetLengthOnWire();
     uint64_t last_key = 0;
-    list_.ForEach(
-        [&](uint64_t key, uint64_t value) {
-          total += WireKeyVarIntPair(key - last_key, value).GetLengthOnWire();
-          last_key = key;
-          return true;
-        },
-        [&](uint64_t key, absl::string_view value) {
-          total += WireKeyStringPair(key - last_key, value).GetLengthOnWire();
-          last_key = key;
-          return true;
-        });
+    list_.ForEach([&](uint64_t key,
+                      std::variant<uint64_t, absl::string_view> value) {
+      total += std::visit(
+          absl::Overload{
+              [&](uint64_t val) {
+                return WireKeyVarIntPair(key - last_key, val).GetLengthOnWire();
+              },
+              [&](absl::string_view val) {
+                return WireKeyStringPair(key - last_key, val).GetLengthOnWire();
+              }},
+          value);
+      last_key = key;
+      return true;
+    });
     return total;
   }
   absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
     WireVarInt62(list_.size()).SerializeIntoWriter(writer);
     uint64_t last_key = 0;
     list_.ForEach(
-        [&](uint64_t key, uint64_t value) {
-          absl::Status status = WireKeyVarIntPair(key - last_key, value)
-                                    .SerializeIntoWriter(writer);
-          last_key = key;
-          return quiche::IsWriterStatusOk(status);
-        },
-        [&](uint64_t key, absl::string_view value) {
-          absl::Status status = WireKeyStringPair(key - last_key, value)
-                                    .SerializeIntoWriter(writer);
+        [&](uint64_t key, std::variant<uint64_t, absl::string_view> value) {
+          absl::Status status = std::visit(
+              absl::Overload{[&](uint64_t val) {
+                               return WireKeyVarIntPair(key - last_key, val)
+                                   .SerializeIntoWriter(writer);
+                             },
+                             [&](absl::string_view val) {
+                               return WireKeyStringPair(key - last_key, val)
+                                   .SerializeIntoWriter(writer);
+                             }},
+              value);
           last_key = key;
           return quiche::IsWriterStatusOk(status);
         });
@@ -220,58 +227,11 @@ uint64_t SignedVarintSerializedForm(int64_t value) {
   return value << 1;
 }
 
-void SessionParametersToKeyValuePairList(
-    const MoqtSessionParameters& parameters, KeyValuePairList& out) {
-  if (!parameters.using_webtrans &&
-      parameters.perspective == quic::Perspective::IS_CLIENT) {
-    out.insert(SetupParameter::kPath, parameters.path);
-    out.insert(SetupParameter::kAuthority, parameters.authority);
-  }
-  out.insert(SetupParameter::kMoqtImplementation,
-             parameters.moqt_implementation);
-  if (parameters.max_request_id > 0) {
-    out.insert(SetupParameter::kMaxRequestId, parameters.max_request_id);
-  }
-  if (parameters.max_auth_token_cache_size > 0) {
-    out.insert(SetupParameter::kMaxAuthTokenCacheSize,
-               parameters.max_auth_token_cache_size);
-  }
-  if (parameters.support_object_acks) {
-    out.insert(SetupParameter::kSupportObjectAcks, 1ULL);
-  }
-}
-
-void VersionSpecificParametersToKeyValuePairList(
-    const VersionSpecificParameters& parameters, KeyValuePairList& out) {
-  out.clear();
-  for (const auto& it : parameters.authorization_token) {
-    if (it.type > AuthTokenType::kMaxAuthTokenType) {
-      QUICHE_BUG(moqt_invalid_auth_token_type)
-          << "Invalid Auth Token Type: " << static_cast<uint64_t>(it.type);
-      continue;
-    }
-    // Just support USE_VALUE for now.
-    quiche::QuicheBuffer parameter_value =
-        Serialize(WireVarInt62(AuthTokenAliasType::kUseValue),
-                  WireVarInt62(it.type), WireBytes(it.token));
-    out.insert(VersionSpecificParameter::kAuthorizationToken,
-               parameter_value.AsStringView());
-  }
-  if (!parameters.delivery_timeout.IsInfinite()) {
-    out.insert(
-        VersionSpecificParameter::kDeliveryTimeout,
-        static_cast<uint64_t>(parameters.delivery_timeout.ToMilliseconds()));
-  }
-  if (!parameters.max_cache_duration.IsInfinite()) {
-    out.insert(
-        VersionSpecificParameter::kMaxCacheDuration,
-        static_cast<uint64_t>(parameters.max_cache_duration.ToMilliseconds()));
-  }
-  if (parameters.oack_window_size.has_value()) {
-    out.insert(
-        VersionSpecificParameter::kOackWindowSize,
-        static_cast<uint64_t>(parameters.oack_window_size->ToMicroseconds()));
-  }
+quiche::QuicheBuffer SerializeAuthToken(const AuthToken& token) {
+  return Serialize(WireVarInt62(token.alias_type),
+                   WireOptional<WireVarInt62>(token.alias),
+                   WireOptional<WireVarInt62>(token.type),
+                   WireOptional<WireBytes>(token.value));
 }
 
 }  // namespace
@@ -390,12 +350,8 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
 quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
     const MoqtClientSetup& message) {
   KeyValuePairList parameters;
-  SessionParametersToKeyValuePairList(message.parameters, parameters);
-  if (ValidateSetupParameters(parameters, using_webtrans_,
-                              quic::Perspective::IS_SERVER) !=
-      MoqtError::kNoError) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateSetupParameters(MoqtMessageType::kClientSetup,
+                                      message.parameters, parameters)) {
     return quiche::QuicheBuffer();
   }
   return SerializeControlMessage(
@@ -406,12 +362,8 @@ quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
 quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
     const MoqtServerSetup& message) {
   KeyValuePairList parameters;
-  SessionParametersToKeyValuePairList(message.parameters, parameters);
-  if (ValidateSetupParameters(parameters, using_webtrans_,
-                              quic::Perspective::IS_CLIENT) !=
-      MoqtError::kNoError) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateSetupParameters(MoqtMessageType::kServerSetup,
+                                      message.parameters, parameters)) {
     return quiche::QuicheBuffer();
   }
   return SerializeControlMessage(MoqtMessageType::kServerSetup,
@@ -421,7 +373,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
 quiche::QuicheBuffer MoqtFramer::SerializeRequestOk(
     const MoqtRequestOk& message) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kRequestOk, message.parameters, parameters)) {
+    return quiche::QuicheBuffer();
+  };
   return SerializeControlMessage(MoqtMessageType::kRequestOk,
                                  WireVarInt62(message.request_id),
                                  WireKeyValuePairList(parameters));
@@ -430,13 +385,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeRequestOk(
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
     const MoqtSubscribe& message, MoqtMessageType message_type) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kSubscribe)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kSubscribe, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   std::optional<uint64_t> start_group, start_object, end_group;
   switch (message.filter_type) {
     case MoqtFilterType::kNextGroupStart:
@@ -476,11 +428,8 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
     const MoqtSubscribeOk& message, MoqtMessageType message_type) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kSubscribeOk)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kSubscribeOk, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
   }
   if (message.largest_location.has_value()) {
@@ -528,13 +477,10 @@ quiche::QuicheBuffer MoqtFramer::SerializePublishDone(
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeUpdate(
     const MoqtSubscribeUpdate& message) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kSubscribeUpdate)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kSubscribeUpdate, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   uint64_t end_group =
       message.end_group.has_value() ? *message.end_group + 1 : 0;
   return SerializeControlMessage(
@@ -547,13 +493,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeUpdate(
 quiche::QuicheBuffer MoqtFramer::SerializePublishNamespace(
     const MoqtPublishNamespace& message) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kPublishNamespace)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kPublishNamespace, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   return SerializeControlMessage(MoqtMessageType::kPublishNamespace,
                                  WireVarInt62(message.request_id),
                                  WireTrackNamespace(message.track_namespace),
@@ -590,13 +533,11 @@ quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespace(
     const MoqtSubscribeNamespace& message) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(
-          parameters, MoqtMessageType::kSubscribeNamespace)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kSubscribeNamespace, message.parameters,
+          parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   return SerializeControlMessage(MoqtMessageType::kSubscribeNamespace,
                                  WireVarInt62(message.request_id),
                                  WireTrackNamespace(message.track_namespace),
@@ -625,12 +566,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
     }
   }
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters, MoqtMessageType::kFetch)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kFetch, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   if (std::holds_alternative<StandaloneFetch>(message.fetch)) {
     const StandaloneFetch& standalone_fetch =
         std::get<StandaloneFetch>(message.fetch);
@@ -670,13 +609,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
 
 quiche::QuicheBuffer MoqtFramer::SerializeFetchOk(const MoqtFetchOk& message) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kFetchOk)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kFetchOk, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   return SerializeControlMessage(
       MoqtMessageType::kFetchOk, WireVarInt62(message.request_id),
       WireDeliveryOrder(message.group_order), WireBoolean(message.end_of_track),
@@ -701,13 +637,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeRequestsBlocked(
 
 quiche::QuicheBuffer MoqtFramer::SerializePublish(const MoqtPublish& message) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kPublish)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kPublish, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   std::optional<uint64_t> group, object;
   if (message.largest_location.has_value()) {
     group = message.largest_location->group;
@@ -725,13 +658,10 @@ quiche::QuicheBuffer MoqtFramer::SerializePublish(const MoqtPublish& message) {
 quiche::QuicheBuffer MoqtFramer::SerializePublishOk(
     const MoqtPublishOk& message) {
   KeyValuePairList parameters;
-  VersionSpecificParametersToKeyValuePairList(message.parameters, parameters);
-  if (!ValidateVersionSpecificParameters(parameters,
-                                         MoqtMessageType::kPublishOk)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Serializing invalid MoQT parameters";
+  if (!FillAndValidateVersionSpecificParameters(
+          MoqtMessageType::kPublishOk, message.parameters, parameters)) {
     return quiche::QuicheBuffer();
-  }
+  };
   std::optional<uint64_t> start_group, start_object, end_group;
   switch (message.filter_type) {
     case MoqtFilterType::kNextGroupStart:
@@ -782,6 +712,33 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(
       WireVarInt62(message.group_id), WireVarInt62(message.object_id),
       WireVarInt62(SignedVarintSerializedForm(
           message.delta_from_deadline.ToMicroseconds())));
+}
+
+bool MoqtFramer::FillAndValidateSetupParameters(
+    MoqtMessageType message_type, const SetupParameters& parameters,
+    KeyValuePairList& out) {
+  if (SetupParametersAllowedByMessage(parameters, message_type,
+                                      using_webtrans_) != MoqtError::kNoError) {
+    QUICHE_BUG(QUICHE_BUG_invalid_setup_parameters)
+        << "Invalid setup parameters for "
+        << MoqtMessageTypeToString(message_type);
+    return false;
+  }
+  SetupParametersToKeyValuePairList(parameters, out, SerializeAuthToken);
+  return true;
+}
+
+bool MoqtFramer::FillAndValidateVersionSpecificParameters(
+    MoqtMessageType message_type, const VersionSpecificParameters& parameters,
+    KeyValuePairList& out) {
+  if (!VersionSpecificParametersAllowedByMessage(parameters, message_type)) {
+    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
+        << "Invalid parameters for " << MoqtMessageTypeToString(message_type);
+    return false;
+  }
+  VersionSpecificParametersToKeyValuePairList(parameters, out,
+                                              SerializeAuthToken);
+  return true;
 }
 
 // static

@@ -16,6 +16,8 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_reader.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -147,14 +149,12 @@ class QUICHE_EXPORT MoqtControlParser {
   // large. Sets a ParseError if the name is malformed.
   bool ReadFullTrackName(quic::QuicDataReader& reader,
                          FullTrackName& full_track_name);
-  // Translates raw key/value pairs into semantically meaningful formats.
-  // Returns false if the parameters contain a protocol violation.
-  bool KeyValuePairListToMoqtSessionParameters(
-      const KeyValuePairList& parameters, MoqtSessionParameters& out);
-  bool KeyValuePairListToVersionSpecificParameters(
-      const KeyValuePairList& parameters, VersionSpecificParameters& out);
-  bool ParseAuthTokenParameter(absl::string_view field,
-                               std::vector<AuthToken>& out);
+  bool FillAndValidateSetupParameters(const KeyValuePairList& in,
+                                      SetupParameters& out,
+                                      MoqtMessageType message_type);
+  bool FillAndValidateVersionSpecificParameters(const KeyValuePairList& in,
+                                                VersionSpecificParameters& out,
+                                                MoqtMessageType message_type);
 
   MoqtControlParserVisitor& visitor_;
   quiche::ReadStream& stream_;

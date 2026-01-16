@@ -18,6 +18,8 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/test_tools/moqt_parser_test_visitor.h"
 #include "quiche/quic/moqt/test_tools/moqt_test_message.h"
@@ -493,19 +495,17 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupMaxRequestIdAppearsTwice) {
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "Client SETUP contains invalid parameters");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
+  EXPECT_EQ(visitor_.parsing_error_, "Duplicate Setup Parameter");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
-TEST_F(MoqtMessageSpecificTest, ClientSetupAuthorizationTokenTagRegister) {
+TEST_F(MoqtMessageSpecificTest, ServerSetupAuthorizationTokenTagRegister) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  MoqtControlParser parser(kWebTrans, &stream, visitor_);
   char setup[] = {
-      0x20, 0x00, 0x10,
-      0x03,                                            // 3 params
-      0x01, 0x03, 0x66, 0x6f, 0x6f,                    // path = "foo"
-      0x01, 0x32,                                      // max_request_id = 50
+      0x21, 0x00, 0x0b,
+      0x02,                                            // 2 params
+      0x02, 0x32,                                      // max_request_id = 50
       0x01, 0x06, 0x01, 0x10, 0x00, 0x62, 0x61, 0x72,  // REGISTER 0x01
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
@@ -525,8 +525,6 @@ TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "Server SETUP contains invalid parameters");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidPath);
 }
 
@@ -541,8 +539,6 @@ TEST_F(MoqtMessageSpecificTest, SetupAuthorityFromServer) {
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "Server SETUP contains invalid parameters");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidAuthority);
 }
 
@@ -558,9 +554,8 @@ TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "Client SETUP contains invalid parameters");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
+  EXPECT_EQ(visitor_.parsing_error_, "Duplicate Setup Parameter");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
@@ -574,8 +569,6 @@ TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "Client SETUP contains invalid parameters");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidPath);
 }
 
@@ -590,8 +583,6 @@ TEST_F(MoqtMessageSpecificTest, SetupAuthorityOverWebtrans) {
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "Client SETUP contains invalid parameters");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidAuthority);
 }
 
@@ -607,8 +598,6 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "Client SETUP contains invalid parameters");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kInvalidPath);
 }
 
@@ -616,21 +605,18 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMaxRequestIdAppearsTwice) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
-      0x20, 0x00, 0x0a,
-      0x03,                          // 3 params
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
-      0x01, 0x32,                    // max_request_id = 50
-      0x00, 0x32,                    // max_request_id = 50
+      0x21, 0x00, 0x05, 0x02,  // 2 params
+      0x02, 0x32,              // max_request_id = 50
+      0x00, 0x32,              // max_request_id = 50
   };
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "Client SETUP contains invalid parameters");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
+  EXPECT_EQ(visitor_.parsing_error_, "Duplicate Setup Parameter");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
-TEST_F(MoqtMessageSpecificTest, ServerSetupMalformedPath) {
+TEST_F(MoqtMessageSpecificTest, ClientSetupMalformedPath) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
@@ -641,11 +627,10 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMalformedPath) {
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Malformed path");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kMalformedPath);
 }
 
-TEST_F(MoqtMessageSpecificTest, ServerSetupMalformedAuthority) {
+TEST_F(MoqtMessageSpecificTest, ClientSetupMalformedAuthority) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
   char setup[] = {
@@ -657,10 +642,27 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMalformedAuthority) {
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Malformed authority");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kMalformedAuthority);
 }
 
+TEST_F(MoqtMessageSpecificTest, ServerSetupUnknownParameterIsOk) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  char setup[] = {
+      0x21, 0x00, 0x0b,
+      0x02,                          // 2 params
+      0x1f, 0x03, 0x62, 0x61, 0x72,  // 0x1f = "bar"
+      0x00, 0x03, 0x62, 0x61, 0x72,  // 0x1f = "bar"
+  };
+  stream.Receive(absl::string_view(setup, sizeof(setup)), false);
+  parser.ReadAndDispatchMessages();
+  ASSERT_EQ(visitor_.messages_received_, 1);
+  MoqtServerSetup message =
+      std::get<MoqtServerSetup>(visitor_.last_message_.value());
+  EXPECT_EQ(message.parameters, SetupParameters());
+}
+
+// TODO(martinduke): This is not OK for SUBSCRIBE.
 TEST_F(MoqtMessageSpecificTest, UnknownParameterTwiceIsOk) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kWebTrans, &stream, visitor_);
@@ -695,7 +697,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeDeliveryTimeoutTwice) {
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "SUBSCRIBE contains invalid parameters");
+  EXPECT_EQ(visitor_.parsing_error_, "Duplicate Version Specific Parameter");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
@@ -715,7 +717,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeMaxCacheDurationTwice) {
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "SUBSCRIBE contains invalid parameters");
+  EXPECT_EQ(visitor_.parsing_error_, "Duplicate Version Specific Parameter");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
@@ -733,9 +735,12 @@ TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationTokenTagDelete) {
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Unknown Auth Token Alias");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  MoqtSubscribe message =
+      std::get<MoqtSubscribe>(visitor_.last_message_.value());
+  ASSERT_FALSE(message.parameters.authorization_tokens.empty());
+  EXPECT_EQ(message.parameters.authorization_tokens[0].alias_type,
+            AuthTokenAliasType::kDelete);
 }
 
 TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationTokenTagRegister) {
@@ -752,9 +757,12 @@ TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationTokenTagRegister) {
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Too many authorization token tags");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kAuthTokenCacheOverflow);
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  MoqtSubscribe message =
+      std::get<MoqtSubscribe>(visitor_.last_message_.value());
+  ASSERT_FALSE(message.parameters.authorization_tokens.empty());
+  EXPECT_EQ(message.parameters.authorization_tokens[0].alias_type,
+            AuthTokenAliasType::kRegister);
 }
 
 TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationTokenTagUseAlias) {
@@ -771,9 +779,12 @@ TEST_F(MoqtMessageSpecificTest, SubscribeAuthorizationTokenTagUseAlias) {
   };
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Unknown Auth Token Alias");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
+  EXPECT_EQ(visitor_.messages_received_, 1);
+  MoqtSubscribe message =
+      std::get<MoqtSubscribe>(visitor_.last_message_.value());
+  ASSERT_FALSE(message.parameters.authorization_tokens.empty());
+  EXPECT_EQ(message.parameters.authorization_tokens[0].alias_type,
+            AuthTokenAliasType::kUseAlias);
 }
 
 TEST_F(MoqtMessageSpecificTest,
@@ -792,7 +803,6 @@ TEST_F(MoqtMessageSpecificTest,
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Invalid Authorization Token Alias type");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
 }
 
@@ -812,7 +822,6 @@ TEST_F(MoqtMessageSpecificTest,
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Invalid Authorization Token Type");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kKeyValueFormattingError);
 }
 
@@ -963,7 +972,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkHasAuthorizationToken) {
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_EQ(visitor_.parsing_error_,
-            "SUBSCRIBE_OK contains invalid parameters");
+            "Version Specific Parameter not allowed for this message type");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
@@ -998,7 +1007,7 @@ TEST_F(MoqtMessageSpecificTest, PublishNamespaceHasDeliveryTimeout) {
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_EQ(visitor_.parsing_error_,
-            "PUBLISH_NAMESPACE contains invalid parameters");
+            "Version Specific Parameter not allowed for this message type");
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
@@ -1720,8 +1729,7 @@ TEST_F(MoqtMessageSpecificTest, PublishOkHasMaxCacheDuration) {
   stream.Receive(absl::string_view(publish_ok, sizeof(publish_ok)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "PUBLISH_OK message contains invalid parameters");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 class MoqtDataParserStateMachineTest : public quic::test::QuicTest {

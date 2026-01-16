@@ -1575,8 +1575,10 @@
   ],
   "moqt_hdrs": [
     "quiche/quic/moqt/moqt_bitrate_adjuster.h",
+    "quiche/quic/moqt/moqt_error.h",
     "quiche/quic/moqt/moqt_fetch_task.h",
     "quiche/quic/moqt/moqt_framer.h",
+    "quiche/quic/moqt/moqt_key_value_pair.h",
     "quiche/quic/moqt/moqt_known_track_publisher.h",
     "quiche/quic/moqt/moqt_messages.h",
     "quiche/quic/moqt/moqt_names.h",
@@ -1606,7 +1608,9 @@
   ],
   "moqt_srcs": [
     "quiche/quic/moqt/moqt_bitrate_adjuster.cc",
+    "quiche/quic/moqt/moqt_error.cc",
     "quiche/quic/moqt/moqt_framer.cc",
+    "quiche/quic/moqt/moqt_key_value_pair.cc",
     "quiche/quic/moqt/moqt_known_track_publisher.cc",
     "quiche/quic/moqt/moqt_messages.cc",
     "quiche/quic/moqt/moqt_names.cc",
