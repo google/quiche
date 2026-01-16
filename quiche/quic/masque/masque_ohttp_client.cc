@@ -302,8 +302,17 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
       absl::MakeCleanup([this, it]() { pending_ohttp_requests_.erase(it); });
   QUICHE_RETURN_IF_ERROR(response.status());
   QUICHE_RETURN_IF_ERROR(CheckGatewayResponse(*response));
-  QUICHE_RETURN_IF_ERROR(
-      CheckStatusAndContentType(*response, "message/ohttp-res"));
+  absl::Status status =
+      CheckStatusAndContentType(*response, "message/ohttp-res");
+  if (!status.ok()) {
+    if (!response->body.empty()) {
+      QUICHE_LOG(ERROR) << "Bad ohttp-res with body:" << std::endl
+                        << response->body;
+    } else {
+      QUICHE_LOG(ERROR) << "Bad ohttp-res with empty body";
+    }
+    return status;
+  }
   absl::StatusOr<BinaryHttpResponse> binary_response =
       TryExtractBinaryResponse(request_id, it->second, *response);
   QUICHE_RETURN_IF_ERROR(binary_response.status());
