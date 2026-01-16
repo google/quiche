@@ -24,6 +24,7 @@
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/proto/crypto_server_config_proto.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_connection.h"
@@ -40,6 +41,7 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
+#include "quiche/quic/test_tools/quic_crypto_stream_peer.h"
 #include "quiche/quic/test_tools/quic_framer_peer.h"
 #include "quiche/quic/test_tools/quic_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -452,8 +454,9 @@ void SendHandshakeMessageToStream(QuicCryptoStream* stream,
     stream->OnStreamFrame(frame);
   } else {
     EncryptionLevel level = session->connection()->last_decrypted_level();
-    QuicCryptoFrame frame(level, stream->BytesReadOnLevel(level),
-                          data.AsStringPiece());
+    QuicCryptoFrame frame(
+        level, QuicCryptoStreamPeer::BytesReadOnLevel(*stream, level),
+        data.AsStringPiece());
     stream->OnCryptoFrame(frame);
   }
 }

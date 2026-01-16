@@ -22,6 +22,7 @@
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/mock_connection_id_generator.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
+#include "quiche/quic/test_tools/quic_crypto_stream_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
@@ -98,8 +99,8 @@ class FirstFlightExtractor : public DelegatedPacketWriter::Delegate {
   uint64_t GetCryptoStreamBytesWritten() const {
     QUICHE_DCHECK(session_);
     QUICHE_DCHECK(session_->GetCryptoStream());
-    return session_->GetCryptoStream()->BytesSentOnLevel(
-        EncryptionLevel::ENCRYPTION_INITIAL);
+    return QuicCryptoStreamPeer::BytesSentOnLevel(
+        *session_->GetCryptoStream(), EncryptionLevel::ENCRYPTION_INITIAL);
   }
 
  private:

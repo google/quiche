@@ -377,18 +377,6 @@ uint64_t QuicCryptoStream::crypto_bytes_read() const {
   return bytes_read;
 }
 
-// TODO(haoyuewang) Move this test-only method under
-// quiche/quic/test_tools.
-uint64_t QuicCryptoStream::BytesReadOnLevel(EncryptionLevel level) const {
-  return substreams_[QuicUtils::GetPacketNumberSpace(level)]
-      .sequencer.NumBytesConsumed();
-}
-
-uint64_t QuicCryptoStream::BytesSentOnLevel(EncryptionLevel level) const {
-  return substreams_[QuicUtils::GetPacketNumberSpace(level)]
-      .send_buffer->stream_bytes_written();
-}
-
 bool QuicCryptoStream::WriteCryptoFrame(EncryptionLevel level,
                                         QuicStreamOffset offset,
                                         QuicByteCount data_length,

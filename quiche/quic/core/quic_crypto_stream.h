@@ -24,6 +24,10 @@
 
 namespace quic {
 
+namespace test {
+class QuicCryptoStreamPeer;
+}  // namespace test
+
 class CachedNetworkParameters;
 class QuicSession;
 
@@ -198,14 +202,6 @@ class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
   // the peer in either CRYPTO or STREAM frames.
   uint64_t crypto_bytes_read() const;
 
-  // Returns the number of bytes of handshake data that have been received from
-  // the peer in CRYPTO frames at a particular encryption level.
-  QuicByteCount BytesReadOnLevel(EncryptionLevel level) const;
-
-  // Returns the number of bytes of handshake data that have been sent to
-  // the peer in CRYPTO frames at a particular encryption level.
-  QuicByteCount BytesSentOnLevel(EncryptionLevel level) const;
-
   // Writes |data_length| of data of a crypto frame to |writer|. The data
   // written is from the send buffer for encryption level |level| and starts at
   // |offset|.
@@ -257,6 +253,8 @@ class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
       PacketNumberSpace space) const = 0;
 
  private:
+  friend class test::QuicCryptoStreamPeer;
+
   // Data sent and received in CRYPTO frames is sent at multiple packet number
   // spaces. Some of the state for the single logical crypto stream is split
   // across packet number spaces, and a CryptoSubstream is used to manage that
