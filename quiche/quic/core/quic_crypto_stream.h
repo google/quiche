@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/strings/string_view.h"
 #include "openssl/ssl.h"
@@ -16,6 +17,7 @@
 #include "quiche/quic/core/crypto/crypto_utils.h"
 #include "quiche/quic/core/proto/cached_network_parameters_proto.h"
 #include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_stream_send_buffer_base.h"
@@ -252,6 +254,11 @@ class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
   virtual EncryptionLevel GetEncryptionLevelToSendCryptoDataOfSpace(
       PacketNumberSpace space) const = 0;
 
+ protected:
+  // Can be called to free up memory associated with the crypto substreams. Only
+  // works for IETF QUIC.
+  void ResetCryptoSubstreams();
+
  private:
   friend class test::QuicCryptoStreamPeer;
 
@@ -263,17 +270,17 @@ class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
     CryptoSubstream(QuicCryptoStream* crypto_stream);
 
     QuicStreamSequencer sequencer;
-    const std::unique_ptr<QuicStreamSendBufferBase> send_buffer;
+    std::unique_ptr<QuicStreamSendBufferBase> send_buffer;
   };
 
   // Consumed data according to encryption levels.
   // TODO(fayang): This is not needed once switching from QUIC crypto to
   // TLS 1.3, which never encrypts crypto data.
-  QuicIntervalSet<QuicStreamOffset> bytes_consumed_[NUM_ENCRYPTION_LEVELS];
+  std::vector<QuicIntervalSet<QuicStreamOffset>> bytes_consumed_;
 
   // Keeps state for data sent/received in CRYPTO frames at each packet number
   // space;
-  std::array<CryptoSubstream, NUM_PACKET_NUMBER_SPACES> substreams_;
+  std::vector<CryptoSubstream> substreams_;
 };
 
 }  // namespace quic

@@ -20,12 +20,23 @@
 #include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 
 namespace quic {
+
+namespace {
+
+void ReportCryptoSubStreamResetBug() {
+  QUICHE_BUG(quic_bug_substreams_has_been_reset);
+}
+
+}  // namespace
 
 #define ENDPOINT                                                   \
   (session()->perspective() == Perspective::IS_SERVER ? "Server: " \
@@ -41,7 +52,11 @@ QuicCryptoStream::QuicCryptoStream(QuicSession* session)
           /*is_static=*/true,
           VersionIsIetfQuic(session->transport_version()) ? CRYPTO
                                                           : BIDIRECTIONAL),
-      substreams_{{{this}, {this}, {this}}} {
+      bytes_consumed_(NUM_ENCRYPTION_LEVELS) {
+  substreams_.reserve(NUM_PACKET_NUMBER_SPACES);
+  for (int i = 0; i < NUM_PACKET_NUMBER_SPACES; ++i) {
+    substreams_.emplace_back(this);
+  }
   // The crypto stream is exempt from connection level flow control.
   DisableConnectionFlowControlForThisStream();
 }
@@ -72,6 +87,10 @@ void QuicCryptoStream::OnCryptoFrame(const QuicCryptoFrame& frame) {
   QUIC_BUG_IF(quic_bug_12573_1,
               !VersionIsIetfQuic(session()->transport_version()))
       << "Versions less than 47 shouldn't receive CRYPTO frames";
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+    return;
+  }
   EncryptionLevel level = session()->connection()->last_decrypted_level();
   if (!IsCryptoFrameExpectedForEncryptionLevel(level)) {
     OnUnrecoverableError(
@@ -108,6 +127,10 @@ void QuicCryptoStream::OnDataAvailable() {
     OnDataAvailableInSequencer(sequencer(), level);
     return;
   }
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+    return;
+  }
   OnDataAvailableInSequencer(
       &substreams_[QuicUtils::GetPacketNumberSpace(level)].sequencer, level);
 }
@@ -138,6 +161,10 @@ void QuicCryptoStream::WriteCryptoData(EncryptionLevel level,
   if (!VersionIsIetfQuic(session()->transport_version())) {
     WriteOrBufferDataAtLevel(data, /*fin=*/false, level,
                              /*ack_listener=*/nullptr);
+    return;
+  }
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
     return;
   }
   if (data.empty()) {
@@ -197,6 +224,10 @@ size_t QuicCryptoStream::BufferSizeLimitForLevel(EncryptionLevel) const {
 
 bool QuicCryptoStream::OnCryptoFrameAcked(const QuicCryptoFrame& frame,
                                           QuicTime::Delta /*ack_delay_time*/) {
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+    return false;
+  }
   QuicByteCount newly_acked_length = 0;
   if (!substreams_[QuicUtils::GetPacketNumberSpace(frame.level)]
            .send_buffer->OnStreamDataAcked(frame.offset, frame.data_length,
@@ -227,6 +258,10 @@ void QuicCryptoStream::NeuterStreamDataOfEncryptionLevel(
     }
     return;
   }
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+    return;
+  }
   QuicStreamSendBufferBase* send_buffer =
       substreams_[QuicUtils::GetPacketNumberSpace(level)].send_buffer.get();
   // TODO(nharper): Consider adding a Clear() method to QuicStreamSendBuffer
@@ -244,6 +279,9 @@ void QuicCryptoStream::OnStreamDataConsumed(QuicByteCount bytes_consumed) {
   if (VersionIsIetfQuic(session()->transport_version())) {
     QUIC_BUG(quic_bug_10322_3)
         << "Stream data consumed when CRYPTO frames should be in use";
+    if (substreams_.empty()) {
+      return;
+    }
   }
   if (bytes_consumed > 0) {
     bytes_consumed_[session()->connection()->encryption_level()].Add(
@@ -265,6 +303,10 @@ bool QuicCryptoStream::HasPendingCryptoRetransmission() const {
 }
 
 void QuicCryptoStream::WritePendingCryptoRetransmission() {
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+    return;
+  }
   QUIC_BUG_IF(quic_bug_12573_3,
               !VersionIsIetfQuic(session()->transport_version()))
       << "Versions less than 47 don't write CRYPTO frames";
@@ -286,6 +328,10 @@ void QuicCryptoStream::WritePendingCryptoRetransmission() {
 }
 
 void QuicCryptoStream::WritePendingRetransmission() {
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+    return;
+  }
   while (HasPendingRetransmission()) {
     StreamPendingRetransmission pending =
         send_buffer().NextPendingRetransmission();
@@ -319,6 +365,11 @@ bool QuicCryptoStream::RetransmitStreamData(QuicStreamOffset offset,
                                             QuicByteCount data_length,
                                             bool /*fin*/,
                                             TransmissionType type) {
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+    return false;
+  }
+
   QUICHE_DCHECK(type == HANDSHAKE_RETRANSMISSION || type == PTO_RETRANSMISSION);
   QuicIntervalSet<QuicStreamOffset> retransmission(offset,
                                                    offset + data_length);
@@ -381,6 +432,10 @@ bool QuicCryptoStream::WriteCryptoFrame(EncryptionLevel level,
                                         QuicStreamOffset offset,
                                         QuicByteCount data_length,
                                         QuicDataWriter* writer) {
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+    return false;
+  }
   QUIC_BUG_IF(quic_bug_12573_4,
               !VersionIsIetfQuic(session()->transport_version()))
       << "Versions less than 47 don't write CRYPTO frames (2)";
@@ -389,6 +444,10 @@ bool QuicCryptoStream::WriteCryptoFrame(EncryptionLevel level,
 }
 
 void QuicCryptoStream::OnCryptoFrameLost(QuicCryptoFrame* crypto_frame) {
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+    return;
+  }
   QUIC_BUG_IF(quic_bug_12573_5,
               !VersionIsIetfQuic(session()->transport_version()))
       << "Versions less than 47 don't lose CRYPTO frames";
@@ -399,6 +458,10 @@ void QuicCryptoStream::OnCryptoFrameLost(QuicCryptoFrame* crypto_frame) {
 
 bool QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame,
                                       TransmissionType type) {
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+    return false;
+  }
   QUIC_BUG_IF(quic_bug_12573_6,
               !VersionIsIetfQuic(session()->transport_version()))
       << "Versions less than 47 don't retransmit CRYPTO frames";
@@ -430,6 +493,10 @@ bool QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame,
 }
 
 void QuicCryptoStream::WriteBufferedCryptoFrames() {
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+    return;
+  }
   QUIC_BUG_IF(quic_bug_12573_7,
               !VersionIsIetfQuic(session()->transport_version()))
       << "Versions less than 47 don't use CRYPTO frames";
@@ -480,6 +547,10 @@ bool QuicCryptoStream::IsFrameOutstanding(EncryptionLevel level, size_t offset,
     // the wrong transport version.
     return false;
   }
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+    return false;
+  }
   return substreams_[QuicUtils::GetPacketNumberSpace(level)]
       .send_buffer->IsStreamDataOutstanding(offset, length);
 }
@@ -512,6 +583,16 @@ QuicCryptoStream::CryptoSubstream::CryptoSubstream(
     QuicCryptoStream* crypto_stream)
     : sequencer(crypto_stream),
       send_buffer(CreateSendBuffer(crypto_stream->session())) {}
+
+void QuicCryptoStream::ResetCryptoSubstreams() {
+  if (!VersionIsIetfQuic(session()->transport_version())) {
+    return;
+  }
+  NeuterStreamDataOfEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  bytes_consumed_.clear();
+  substreams_.clear();
+  QUICHE_CODE_COUNT(quic_crypto_stream_reset_crypto_substreams);
+}
 
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

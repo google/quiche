@@ -1364,6 +1364,7 @@ void TlsServerHandshaker::ResetSsl() {
       .cipher = GetCipher(),
   });
   tls_connection_.ResetSsl();
+  ResetCryptoSubstreams();
 }
 
 bool TlsServerHandshaker::IsCryptoFrameExpectedForEncryptionLevel(
