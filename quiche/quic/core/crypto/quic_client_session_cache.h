@@ -70,11 +70,17 @@ class QUICHE_EXPORT QuicClientSessionCache : public SessionCache {
     std::string token;  // An opaque string received in NEW_TOKEN frame.
   };
 
+  // Creates a dummy entry that only contains a token and inserts into |cache_|
+  void CreateAndInsertTokenDummy(
+         const QuicServerId& server_id,
+         const absl::string_view& token);
+
   // Creates a new entry and insert into |cache_|.
   void CreateAndInsertEntry(const QuicServerId& server_id,
                             bssl::UniquePtr<SSL_SESSION> session,
                             const TransportParameters& params,
-                            const ApplicationState* application_state);
+                            const ApplicationState* application_state,
+                            const std::string &token = std::string());
 
   QuicLRUCache<std::string, Entry, absl::Hash<std::string>> cache_;
 };
