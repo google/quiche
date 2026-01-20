@@ -5,6 +5,7 @@
 #include "quiche/quic/core/quic_crypto_stream.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <memory>
 #include <string>
 
@@ -421,11 +422,28 @@ uint64_t QuicCryptoStream::crypto_bytes_read() const {
   if (!VersionIsIetfQuic(session()->transport_version())) {
     return stream_bytes_read();
   }
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+  }
   uint64_t bytes_read = 0;
   for (const CryptoSubstream& substream : substreams_) {
     bytes_read += substream.sequencer.NumBytesConsumed();
   }
   return bytes_read;
+}
+
+uint64_t QuicCryptoStream::crypto_bytes_written() const {
+  if (!VersionIsIetfQuic(session()->transport_version())) {
+    return stream_bytes_written();
+  }
+  if (substreams_.empty()) {
+    ReportCryptoSubStreamResetBug();
+  }
+  uint64_t bytes_written = 0;
+  for (const CryptoSubstream& substream : substreams_) {
+    bytes_written += substream.send_buffer->stream_bytes_written();
+  }
+  return bytes_written;
 }
 
 bool QuicCryptoStream::WriteCryptoFrame(EncryptionLevel level,

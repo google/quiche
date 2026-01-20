@@ -7,6 +7,7 @@
 
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -203,6 +204,10 @@ class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
   // Returns the number of bytes of handshake data that have been received from
   // the peer in either CRYPTO or STREAM frames.
   uint64_t crypto_bytes_read() const;
+
+  // Returns the number of bytes of handshake data that have been written to
+  // the peer in either CRYPTO or STREAM frames.
+  uint64_t crypto_bytes_written() const;
 
   // Writes |data_length| of data of a crypto frame to |writer|. The data
   // written is from the send buffer for encryption level |level| and starts at

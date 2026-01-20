@@ -165,6 +165,8 @@ class QuicCryptoStreamTest : public QuicTest {
 TEST_F(QuicCryptoStreamTest, NotInitiallyConected) {
   EXPECT_FALSE(stream_->encryption_established());
   EXPECT_FALSE(stream_->one_rtt_keys_available());
+  EXPECT_EQ(stream_->crypto_bytes_read(), 0u);
+  EXPECT_EQ(stream_->crypto_bytes_written(), 0u);
 }
 
 TEST_F(QuicCryptoStreamTest, ProcessRawData) {
@@ -183,6 +185,7 @@ TEST_F(QuicCryptoStreamTest, ProcessRawData) {
   EXPECT_EQ(2u, message.tag_value_map().size());
   EXPECT_EQ("abc", crypto_test_utils::GetValueForTag(message, 1));
   EXPECT_EQ("def", crypto_test_utils::GetValueForTag(message, 2));
+  EXPECT_GT(stream_->crypto_bytes_read(), 0u);
 }
 
 TEST_F(QuicCryptoStreamTest, ProcessBadData) {
@@ -530,6 +533,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
   // Force to send an empty frame.
   EXPECT_TRUE(
       stream_->RetransmitStreamData(0, 0, false, HANDSHAKE_RETRANSMISSION));
+  EXPECT_GT(stream_->crypto_bytes_written(), 0u);
 }
 
 TEST_F(QuicCryptoStreamTest, RetransmitStreamDataWithCryptoFrames) {
@@ -592,6 +596,8 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamDataWithCryptoFrames) {
   // Force to send an empty frame.
   QuicCryptoFrame empty_frame(ENCRYPTION_FORWARD_SECURE, 0, 0);
   stream_->RetransmitData(&empty_frame, HANDSHAKE_RETRANSMISSION);
+
+  EXPECT_GT(stream_->crypto_bytes_written(), 0u);
 }
 
 // Regression test for b/115926584.
