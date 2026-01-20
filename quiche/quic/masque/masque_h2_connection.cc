@@ -227,7 +227,6 @@ MasqueH2Connection::OnHeaderResult MasqueH2Connection::OnHeaderForStream(
 
 bool MasqueH2Connection::AttemptToSend() {
   if (!h2_adapter_) {
-    QUICHE_LOG(ERROR) << ENDPOINT << "Connection is not ready to send yet";
     return false;
   }
   int h2_send_result = h2_adapter_->Send();
