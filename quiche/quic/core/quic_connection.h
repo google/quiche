@@ -1462,6 +1462,10 @@ class QUICHE_EXPORT QuicConnection
     return quic_limit_new_streams_per_loop_2_;
   }
 
+  bool quic_close_on_idle_timeout() const {
+    return quic_close_on_idle_timeout_;
+  }
+
   void set_outgoing_flow_label(uint32_t flow_label);
 
   // Returns the flow label used for outgoing IPv6 packets, or 0 if no
@@ -2561,6 +2565,8 @@ class QUICHE_EXPORT QuicConnection
   const bool quic_test_peer_addr_change_after_normalize_ : 1 =
       GetQuicReloadableFlag(quic_test_peer_addr_change_after_normalize);
   const bool quic_fix_timeouts_ : 1 = GetQuicReloadableFlag(quic_fix_timeouts);
+  bool quic_close_on_idle_timeout_ : 1 =
+      GetQuicReloadableFlag(quic_close_on_idle_timeout);
 };
 
 }  // namespace quic

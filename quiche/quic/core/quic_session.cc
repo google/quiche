@@ -2153,6 +2153,10 @@ QuicStreamId QuicSession::GetNextOutgoingUnidirectionalStreamId() {
 }
 
 bool QuicSession::CanOpenNextOutgoingBidirectionalStream() {
+  if (connection_->quic_close_on_idle_timeout() && !connection_->connected()) {
+    return false;
+  }
+
   if (liveness_testing_in_progress_) {
     QUICHE_DCHECK_EQ(Perspective::IS_CLIENT, perspective());
     QUIC_CODE_COUNT(
@@ -2184,10 +2188,15 @@ bool QuicSession::CanOpenNextOutgoingBidirectionalStream() {
     QUIC_CODE_COUNT(quic_client_fails_to_create_stream_close_to_idle_timeout);
     return false;
   }
+  // It's possible that the connection was closed in MaybeTestLiveness().
+  if (connection_->quic_close_on_idle_timeout()) {
+    return connection_->connected();
+  }
   return true;
 }
 
 bool QuicSession::CanOpenNextOutgoingUnidirectionalStream() {
+  // TODO(ianswett): Should this also check liveness?
   if (!VersionIsIetfQuic(transport_version())) {
     return stream_id_manager_.CanOpenNextOutgoingStream();
   }

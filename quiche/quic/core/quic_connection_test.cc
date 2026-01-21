@@ -10837,7 +10837,7 @@ TEST_P(QuicConnectionTest, ClientReceivesRetrySourceConnectionIdWithoutRetry) {
   EXPECT_CALL(visitor_, OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF))
       .Times(1);
   connection_.SetFromConfig(received_config);
-  EXPECT_FALSE(connection_.connected());
+  ASSERT_FALSE(connection_.connected());
   TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
 }
 
@@ -11603,6 +11603,19 @@ TEST_P(QuicConnectionTest, TestingLiveness) {
   EXPECT_TRUE(connection_.MaybeTestLiveness());
   // Verify idle deadline does not change.
   EXPECT_EQ(deadline, QuicConnectionPeer::GetIdleNetworkDeadline(&connection_));
+  EXPECT_TRUE(connection_.connected());
+
+  // Advance time past the idle timeout.
+  if (GetQuicReloadableFlag(quic_close_on_idle_timeout)) {
+    EXPECT_CALL(visitor_,
+                OnConnectionClosed(_, ConnectionCloseSource::FROM_SELF));
+  }
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(2));
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(0);
+  EXPECT_FALSE(connection_.MaybeTestLiveness());
+  // The connection will be closed if the flag is enabled.
+  EXPECT_EQ(connection_.connected(),
+            !GetQuicReloadableFlag(quic_close_on_idle_timeout));
 }
 
 TEST_P(QuicConnectionTest, DisableLivenessTesting) {

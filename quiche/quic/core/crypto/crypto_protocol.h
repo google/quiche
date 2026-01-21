@@ -376,6 +376,8 @@ DEFINE_STATIC_QUIC_TAG(DTOS);  // Enable overshooting
 DEFINE_STATIC_QUIC_TAG(FIDT);  // Extend idle timer by PTO
                                // instead of the whole idle
                                // timeout.
+DEFINE_STATIC_QUIC_TAG(CIDT);  // Check the idle timeout on the client before
+                               // opening a new stream.
 
 DEFINE_STATIC_QUIC_TAG(3AFF);  // 3 anti amplification factor.
 DEFINE_STATIC_QUIC_TAG(5AFF);  // 5 anti amplification factor.

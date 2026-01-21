@@ -426,6 +426,9 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
       idle_timeout_connection_close_behavior_ =
           ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET;
     }
+    if (config.HasClientRequestedIndependentOption(kCIDT, perspective_)) {
+      quic_close_on_idle_timeout_ = true;
+    }
     if (!ValidateConfigConnectionIds(config)) {
       return;
     }
@@ -685,6 +688,7 @@ void QuicConnection::AddDispatcherSentPackets(
 
 bool QuicConnection::MaybeTestLiveness() {
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
+  QUICHE_DCHECK(connected());
   if (liveness_testing_disabled_ ||
       encryption_level_ != ENCRYPTION_FORWARD_SECURE) {
     return false;
@@ -697,6 +701,12 @@ bool QuicConnection::MaybeTestLiveness() {
   const QuicTime now = clock_->ApproximateNow();
   if (now > idle_network_deadline) {
     QUIC_DLOG(WARNING) << "Idle network deadline has passed";
+    if (quic_close_on_idle_timeout_) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_close_on_idle_timeout);
+      CloseConnection(QUIC_NETWORK_IDLE_TIMEOUT,
+                      "Idle network deadline has already passed",
+                      ConnectionCloseBehavior::SILENT_CLOSE);
+    }
     return false;
   }
   const QuicTime::Delta timeout = idle_network_deadline - now;
