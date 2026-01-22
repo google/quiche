@@ -98,6 +98,10 @@ class QUICHE_EXPORT SessionCache {
 
   // Clear the session cache.
   virtual void Clear() = 0;
+
+  // Update the maximum size of the cache. If the new capacity is smaller than
+  // current size, evicts the oldest entries.
+  virtual void UpdateMaxSize(size_t max_entries) = 0;
 };
 
 // QuicCryptoClientConfig contains crypto-related configuration settings for a

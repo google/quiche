@@ -38,6 +38,7 @@ class SimpleSessionCache : public SessionCache {
                           absl::string_view token) override;
   void RemoveExpiredEntries(QuicWallTime now) override;
   void Clear() override;
+  void UpdateMaxSize(size_t max_entries) override;
 
  private:
   struct Entry {

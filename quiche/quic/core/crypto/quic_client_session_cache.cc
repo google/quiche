@@ -136,6 +136,10 @@ void QuicClientSessionCache::RemoveExpiredEntries(QuicWallTime now) {
 
 void QuicClientSessionCache::Clear() { cache_.Clear(); }
 
+void QuicClientSessionCache::UpdateMaxSize(size_t max_entries) {
+  cache_.UpdateMaxSize(max_entries);
+}
+
 void QuicClientSessionCache::CreateAndInsertEntry(
     const QuicServerId& server_id, bssl::UniquePtr<SSL_SESSION> session,
     const TransportParameters& params,
