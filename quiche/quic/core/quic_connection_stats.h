@@ -97,12 +97,11 @@ struct QUICHE_EXPORT QuicConnectionStats {
   // before the handshake was complete.
   QuicPacketCount undecryptable_packets_received_before_handshake_complete = 0;
 
-  size_t crypto_retransmit_count = 0;
+  uint32_t crypto_retransmit_count = 0;
   // Count of times the loss detection alarm fired.  At least one packet should
   // be lost when the alarm fires.
-  size_t loss_timeout_count = 0;
-  size_t tlp_count = 0;
-  size_t pto_count = 0;
+  uint32_t loss_timeout_count = 0;
+  uint32_t pto_count = 0;
 
   int64_t min_rtt_us = 0;                 // Minimum RTT in microseconds.
   int64_t srtt_us = 0;                    // Smoothed RTT in microseconds.
@@ -142,14 +141,14 @@ struct QUICHE_EXPORT QuicConnectionStats {
   // Handshake completion time.
   QuicTime handshake_completion_time = QuicTime::Zero();
 
-  uint64_t blocked_frames_received = 0;
-  uint64_t blocked_frames_sent = 0;
+  uint32_t blocked_frames_received = 0;
+  uint32_t blocked_frames_sent = 0;
 
   // Number of connectivity probing packets received by this connection.
-  uint64_t num_connectivity_probing_received = 0;
+  uint32_t num_connectivity_probing_received = 0;
 
   // Number of PATH_RESPONSE frame received by this connection.
-  uint64_t num_path_response_received = 0;
+  uint32_t num_path_response_received = 0;
 
   // Whether a RETRY packet was successfully processed.
   bool retry_packet_processed = false;
@@ -173,11 +172,11 @@ struct QUICHE_EXPORT QuicConnectionStats {
   QuicPacketNumber first_decrypted_packet;
 
   // Max consecutive retransmission timeout before making forward progress.
-  size_t max_consecutive_rto_with_forward_progress = 0;
+  uint32_t max_consecutive_rto_with_forward_progress = 0;
 
   // Number of times when the connection tries to send data but gets throttled
   // by amplification factor.
-  size_t num_amplification_throttling = 0;
+  uint32_t num_amplification_throttling = 0;
 
   // Number of key phase updates that have occurred. In the case of a locally
   // initiated key update, this is incremented when the keys are updated, before
@@ -208,42 +207,42 @@ struct QUICHE_EXPORT QuicConnectionStats {
   // packet.
   bool address_validated_via_token = false;
 
-  size_t ping_frames_sent = 0;
+  uint32_t ping_frames_sent = 0;
 
   // Number of detected peer address changes which changes to a peer address
   // validated by earlier path validation.
-  size_t num_peer_migration_to_proactively_validated_address = 0;
+  uint32_t num_peer_migration_to_proactively_validated_address = 0;
   // Number of detected peer address changes which triggers reverse path
   // validation.
-  size_t num_reverse_path_validtion_upon_migration = 0;
+  uint32_t num_reverse_path_validtion_upon_migration = 0;
   // Number of detected peer migrations which either succeed reverse path
   // validation or no need to be validated.
-  size_t num_validated_peer_migration = 0;
+  uint32_t num_validated_peer_migration = 0;
   // Number of detected peer migrations which triggered reverse path validation
   // and failed and fell back to the old path.
-  size_t num_invalid_peer_migration = 0;
+  uint32_t num_invalid_peer_migration = 0;
   // Number of detected peer migrations which triggered reverse path validation
   // which was canceled because the peer migrated again. Such migration is also
   // counted as invalid peer migration.
-  size_t num_peer_migration_while_validating_default_path = 0;
+  uint32_t num_peer_migration_while_validating_default_path = 0;
   // Number of NEW_CONNECTION_ID frames sent.
-  size_t num_new_connection_id_sent = 0;
+  uint32_t num_new_connection_id_sent = 0;
   // Number of RETIRE_CONNECTION_ID frames sent.
-  size_t num_retire_connection_id_sent = 0;
+  uint32_t num_retire_connection_id_sent = 0;
   // Number of path degrading.
-  size_t num_path_degrading = 0;
+  uint32_t num_path_degrading = 0;
   // Number of forward progress made after path degrading.
-  size_t num_forward_progress_after_path_degrading = 0;
+  uint32_t num_forward_progress_after_path_degrading = 0;
   // Number of path degrading.
-  size_t num_flow_label_changes = 0;
+  uint32_t num_flow_label_changes = 0;
   // Number of forward progress made after aflow label change.
-  size_t num_forward_progress_after_flow_label_change = 0;
+  uint32_t num_forward_progress_after_flow_label_change = 0;
 
   bool server_preferred_address_validated = false;
   bool failed_to_validate_server_preferred_address = false;
   // Number of duplicated packets that have been sent to server preferred
   // address while the validation is pending.
-  size_t num_duplicated_packets_sent_to_server_preferred_address = 0;
+  uint32_t num_duplicated_packets_sent_to_server_preferred_address = 0;
 
   struct QUICHE_EXPORT TlsServerOperationStats {
     bool success = false;
@@ -261,7 +260,7 @@ struct QUICHE_EXPORT QuicConnectionStats {
   std::optional<TlsServerOperationStats> tls_server_decrypt_ticket_stats;
 
   // The total number of streams which were pending from some time.
-  size_t num_total_pending_streams = 0;
+  uint32_t num_total_pending_streams = 0;
 
   // Statistics to measure how many client path probes are reset.
   uint32_t num_client_probing_attempts = 0;
