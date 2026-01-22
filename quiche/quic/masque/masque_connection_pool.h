@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <utility>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/status/status.h"
@@ -59,9 +60,15 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
     void SetResolver(const DnsResolver* resolver) { resolver_ = resolver; }
     const DnsResolver* resolver() const { return resolver_; }
 
+    absl::Status SetOverrides(const std::string& overrides);
+    void ApplyOverrides(absl::string_view* host, absl::string_view* port) const;
+
    private:
     int address_family_for_lookup_ = AF_UNSPEC;
     const DnsResolver* resolver_ = nullptr;
+    absl::flat_hash_map<std::pair<std::string, std::string>,
+                        std::pair<std::string, std::string>>
+        overrides_;
   };
 
   class QUIC_NO_EXPORT Visitor {

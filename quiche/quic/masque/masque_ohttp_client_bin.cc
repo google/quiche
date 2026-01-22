@@ -45,6 +45,14 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, post_data, "",
     "When set, the client will send a POST request with this data.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, dns_override, "",
+    "Allows replacing DNS resolution results, similar to curl --connect-to. "
+    "Format is HOST1:PORT1:HOST2:PORT2 where HOST1:PORT1 will be replaced by "
+    "HOST2:PORT2. HOST1 and PORT1 can be empty, which matches any host and "
+    "port. PORT2 can be empty to not override ports. Multiple overrides can be "
+    "specified separated by semi-colons.");
+
 namespace quic {
 namespace {
 int RunMasqueOhttpClient(int argc, char* argv[]) {
@@ -88,6 +96,12 @@ int RunMasqueOhttpClient(int argc, char* argv[]) {
       quiche::GetQuicheCommandLineFlag(FLAGS_address_family));
   if (!address_family_status.ok()) {
     QUICHE_LOG(ERROR) << address_family_status;
+    return 1;
+  }
+  absl::Status dns_overrides_status = dns_config.SetOverrides(
+      quiche::GetQuicheCommandLineFlag(FLAGS_dns_override));
+  if (!dns_overrides_status.ok()) {
+    QUICHE_LOG(ERROR) << dns_overrides_status;
     return 1;
   }
   std::unique_ptr<QuicEventLoop> event_loop =

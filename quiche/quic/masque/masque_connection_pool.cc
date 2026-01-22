@@ -62,6 +62,7 @@ quiche::QuicheSocketAddress MasqueConnectionPool::LookupAddress(
   if (dns_resolver == nullptr) {
     dns_resolver = DefaultDnsResolver::Get();
   }
+  dns_config_.ApplyOverrides(&host, &port);
   return dns_resolver->LookupAddress(dns_config_.address_family_for_lookup(),
                                      host, port);
 }
@@ -79,6 +80,50 @@ absl::Status MasqueConnectionPool::DnsConfig::SetAddressFamily(
         absl::StrCat("Invalid address_family ", address_family));
   }
   return absl::OkStatus();
+}
+
+absl::Status MasqueConnectionPool::DnsConfig::SetOverrides(
+    const std::string& overrides) {
+  if (overrides.empty()) {
+    return absl::OkStatus();
+  }
+  std::vector<absl::string_view> overrides_split =
+      absl::StrSplit(overrides, ';');
+  for (absl::string_view override : overrides_split) {
+    std::vector<absl::string_view> override_split =
+        absl::StrSplit(override, ':');
+    if (override_split.size() < 3 || override_split.size() > 4) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Invalid override: \"", override, "\""));
+    }
+    absl::string_view input_host = override_split[0];
+    absl::string_view input_port = override_split[1];
+    absl::string_view output_host = override_split[2];
+    absl::string_view output_port =
+        override_split.size() > 3 ? override_split[3] : "";
+    auto [it, inserted] = overrides_.insert(
+        {std::make_pair(std::string(input_host), std::string(input_port)),
+         std::make_pair(std::string(output_host), std::string(output_port))});
+    if (!inserted) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Duplicate override entry: \"", input_host, ":", input_port, "\""));
+    }
+  }
+  return absl::OkStatus();
+}
+
+void MasqueConnectionPool::DnsConfig::ApplyOverrides(
+    absl::string_view* host, absl::string_view* port) const {
+  for (const auto& [input, output] : overrides_) {
+    if ((input.first == *host || input.first.empty()) &&
+        (input.second == *port || input.second.empty())) {
+      *host = output.first;
+      if (!output.second.empty()) {
+        *port = output.second;
+      }
+      return;
+    }
+  }
 }
 
 MasqueConnectionPool::MasqueConnectionPool(
