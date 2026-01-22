@@ -16,6 +16,7 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
+#include "absl/strings/string_view.h"
 #include "openssl/base.h"
 #include "openssl/bio.h"
 #include "openssl/pool.h"
@@ -28,26 +29,67 @@
 #include "quiche/quic/masque/masque_h2_connection.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
+#include "quiche/quic/tools/quic_name_lookup.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_socket_address.h"
 
 namespace quic {
 
+namespace {
+
+// Default DNS resolver that uses getaddrinfo().
+class DefaultDnsResolver : public MasqueConnectionPool::DnsResolver {
+ public:
+  quiche::QuicheSocketAddress LookupAddress(
+      int address_family_for_lookup, absl::string_view host,
+      absl::string_view port) const override {
+    return tools::LookupAddress(address_family_for_lookup, std::string(host),
+                                std::string(port));
+  }
+
+  static DefaultDnsResolver* Get() {
+    static DefaultDnsResolver resolver;
+    return &resolver;
+  }
+};
+
+}  // namespace
+
+quiche::QuicheSocketAddress MasqueConnectionPool::LookupAddress(
+    absl::string_view host, absl::string_view port) {
+  const DnsResolver* dns_resolver = dns_config_.resolver();
+  if (dns_resolver == nullptr) {
+    dns_resolver = DefaultDnsResolver::Get();
+  }
+  return dns_resolver->LookupAddress(dns_config_.address_family_for_lookup(),
+                                     host, port);
+}
+
+absl::Status MasqueConnectionPool::DnsConfig::SetAddressFamily(
+    int address_family) {
+  if (address_family == 0) {
+    address_family_for_lookup_ = AF_UNSPEC;
+  } else if (address_family == 4) {
+    address_family_for_lookup_ = AF_INET;
+  } else if (address_family == 6) {
+    address_family_for_lookup_ = AF_INET6;
+  } else {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Invalid address_family ", address_family));
+  }
+  return absl::OkStatus();
+}
+
 MasqueConnectionPool::MasqueConnectionPool(
     QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
-    bool disable_certificate_verification, int address_family_for_lookup,
-    Visitor* visitor, std::shared_ptr<DnsResolver> dns_resolver)
+    bool disable_certificate_verification, const DnsConfig& dns_config,
+    Visitor* visitor)
     : event_loop_(event_loop),
       tls_ssl_ctx_(ssl_ctx),
       disable_certificate_verification_(disable_certificate_verification),
-      address_family_for_lookup_(address_family_for_lookup),
-      visitor_(visitor),
-      dns_resolver_(dns_resolver) {
-  if (!dns_resolver_) {
-    dns_resolver_ = std::make_shared<DnsResolver>();
-  }
-}
+      dns_config_(dns_config),
+      visitor_(visitor) {}
 
 void MasqueConnectionPool::OnConnectionReady(MasqueH2Connection* connection) {
   SendPendingRequests(connection);
@@ -138,8 +180,7 @@ MasqueConnectionPool::GetOrCreateConnectionState(const std::string& authority,
   auto connection_state = std::make_unique<ConnectionState>(this);
   connection_state->set_mtls(mtls);
   if (!connection_state->SetupSocket(authority,
-                                     disable_certificate_verification_,
-                                     address_family_for_lookup_)) {
+                                     disable_certificate_verification_)) {
     QUICHE_LOG(ERROR) << "Failed to setup socket for " << authority;
     return nullptr;
   }
@@ -221,8 +262,7 @@ MasqueConnectionPool::ConnectionState::~ConnectionState() {
 }
 
 bool MasqueConnectionPool::ConnectionState::SetupSocket(
-    const std::string& authority, bool disable_certificate_verification,
-    int address_family_for_lookup) {
+    const std::string& authority, bool disable_certificate_verification) {
   authority_ = authority;
   std::vector<std::string> authority_split =
       absl::StrSplit(authority_, absl::MaxSplits(':', 1));
@@ -235,8 +275,7 @@ bool MasqueConnectionPool::ConnectionState::SetupSocket(
     port = "443";
   }
   quiche::QuicheSocketAddress socket_address =
-      connection_pool_->GetDnsResolver()->LookupAddress(
-          address_family_for_lookup, host_, port);
+      connection_pool_->LookupAddress(host_, port);
   if (!socket_address.IsInitialized()) {
     QUICHE_LOG(ERROR) << "Failed to resolve address for \"" << authority_
                       << "\"";

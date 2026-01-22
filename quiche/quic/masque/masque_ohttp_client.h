@@ -32,17 +32,16 @@ class QUICHE_EXPORT MasqueOhttpClient
   using RequestId = quic::MasqueConnectionPool::RequestId;
   using Message = quic::MasqueConnectionPool::Message;
 
-  explicit MasqueOhttpClient(
-      quic::QuicEventLoop* event_loop, SSL_CTX* key_fetch_ssl_ctx,
-      SSL_CTX* ohttp_ssl_ctx, std::vector<std::string> urls,
-      bool disable_certificate_verification, int address_family_for_lookup,
-      const std::string& post_data,
-      std::shared_ptr<MasqueConnectionPool::DnsResolver> dns_resolver = nullptr)
+  explicit MasqueOhttpClient(quic::QuicEventLoop* event_loop,
+                             SSL_CTX* key_fetch_ssl_ctx, SSL_CTX* ohttp_ssl_ctx,
+                             std::vector<std::string> urls,
+                             bool disable_certificate_verification,
+                             const MasqueConnectionPool::DnsConfig& dns_config,
+                             const std::string& post_data)
       : urls_(urls),
         post_data_(post_data),
         connection_pool_(event_loop, key_fetch_ssl_ctx,
-                         disable_certificate_verification,
-                         address_family_for_lookup, this, dns_resolver) {
+                         disable_certificate_verification, dns_config, this) {
     connection_pool_.SetMtlsSslCtx(ohttp_ssl_ctx);
   }
 

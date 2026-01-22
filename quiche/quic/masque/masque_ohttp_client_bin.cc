@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
@@ -82,17 +83,11 @@ int RunMasqueOhttpClient(int argc, char* argv[]) {
                       << ohttp_ssl_ctx.status();
     return 1;
   }
-  const int address_family =
-      quiche::GetQuicheCommandLineFlag(FLAGS_address_family);
-  int address_family_for_lookup;
-  if (address_family == 0) {
-    address_family_for_lookup = AF_UNSPEC;
-  } else if (address_family == 4) {
-    address_family_for_lookup = AF_INET;
-  } else if (address_family == 6) {
-    address_family_for_lookup = AF_INET6;
-  } else {
-    QUICHE_LOG(ERROR) << "Invalid address_family " << address_family;
+  MasqueConnectionPool::DnsConfig dns_config;
+  absl::Status address_family_status = dns_config.SetAddressFamily(
+      quiche::GetQuicheCommandLineFlag(FLAGS_address_family));
+  if (!address_family_status.ok()) {
+    QUICHE_LOG(ERROR) << address_family_status;
     return 1;
   }
   std::unique_ptr<QuicEventLoop> event_loop =
@@ -101,7 +96,7 @@ int RunMasqueOhttpClient(int argc, char* argv[]) {
 
   MasqueOhttpClient masque_ohttp_client(
       event_loop.get(), key_fetch_ssl_ctx->get(), ohttp_ssl_ctx->get(), urls,
-      disable_certificate_verification, address_family_for_lookup, post_data);
+      disable_certificate_verification, dns_config, post_data);
   if (!masque_ohttp_client.Start().ok()) {
     return 1;
   }
