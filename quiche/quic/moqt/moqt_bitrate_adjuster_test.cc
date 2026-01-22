@@ -34,7 +34,7 @@ class MockBitrateAdjustable : public BitrateAdjustable {
   explicit MockBitrateAdjustable(QuicBandwidth initial_bitrate)
       : bitrate_(initial_bitrate) {}
 
-  quic::QuicBandwidth GetCurrentBitrate() const { return bitrate_; }
+  quic::QuicBandwidth GetCurrentBitrate() const override { return bitrate_; }
   bool CouldUseExtraBandwidth() override { return true; }
   void ConsiderAdjustingBitrate(QuicBandwidth bandwidth,
                                 BitrateAdjustmentType /*type*/) override {

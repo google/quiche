@@ -289,6 +289,7 @@ std::unique_ptr<ClientProofSource> CreateTestClientProofSource(
 // on the `TrustAnchorIDList` structure.
 absl::StatusOr<std::optional<std::string>> SerializeTrustAnchorIdsFromTextOids(
     absl::string_view text_oid_list) {
+#if BORINGSSL_API_VERSION >= 38
   const std::vector<absl::string_view> text_oids =
       absl::StrSplit(text_oid_list, ' ', absl::SkipWhitespace());
   if (text_oids.empty()) {
@@ -311,6 +312,12 @@ absl::StatusOr<std::optional<std::string>> SerializeTrustAnchorIdsFromTextOids(
   }
   return std::string(reinterpret_cast<const char*>(CBB_data(cbb.get())),
                      CBB_len(cbb.get()));
+#else   // BORINGSSL_API_VERSION
+  (void)text_oid_list;
+  return absl::UnimplementedError(
+      "SerializeTrustAnchorIdsFromTextOids requires BORINGSSL_API_VERSION >= "
+      "38");
+#endif  // BORINGSSL_API_VERSION
 }
 
 }  // namespace

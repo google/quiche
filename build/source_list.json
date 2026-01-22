@@ -1110,7 +1110,6 @@
 
   ],
   "quiche_tests_srcs": [
-    "quiche/balsa/balsa_frame_fuzz_test.cc",
     "quiche/balsa/balsa_frame_test.cc",
     "quiche/balsa/balsa_headers_sequence_test.cc",
     "quiche/balsa/balsa_headers_test.cc",

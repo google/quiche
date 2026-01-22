@@ -1111,7 +1111,6 @@ quiche_tests_hdrs = [
 
 ]
 quiche_tests_srcs = [
-    "src/quiche/balsa/balsa_frame_fuzz_test.cc",
     "src/quiche/balsa/balsa_frame_test.cc",
     "src/quiche/balsa/balsa_headers_sequence_test.cc",
     "src/quiche/balsa/balsa_headers_test.cc",

@@ -1110,7 +1110,6 @@ io_test_support_srcs = [
 quiche_tests_hdrs = [
 ]
 quiche_tests_srcs = [
-    "balsa/balsa_frame_fuzz_test.cc",
     "balsa/balsa_frame_test.cc",
     "balsa/balsa_headers_sequence_test.cc",
     "balsa/balsa_headers_test.cc",

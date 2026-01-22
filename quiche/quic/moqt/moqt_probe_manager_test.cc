@@ -58,7 +58,8 @@ class MockStream : public webtransport::test::MockStream {
     fin_ = options.send_fin();
     return absl::OkStatus();
   }
-  void SetVisitor(std::unique_ptr<webtransport::StreamVisitor> visitor) {
+  void SetVisitor(
+      std::unique_ptr<webtransport::StreamVisitor> visitor) override {
     visitor_ = std::move(visitor);
   }
   webtransport::StreamVisitor* visitor() override { return visitor_.get(); }
