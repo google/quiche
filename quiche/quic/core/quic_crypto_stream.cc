@@ -226,7 +226,11 @@ size_t QuicCryptoStream::BufferSizeLimitForLevel(EncryptionLevel) const {
 bool QuicCryptoStream::OnCryptoFrameAcked(const QuicCryptoFrame& frame,
                                           QuicTime::Delta /*ack_delay_time*/) {
   if (substreams_.empty()) {
-    ReportCryptoSubStreamResetBug();
+    // Due to retransmission, there can be multiple packets containing the last
+    // unacked crypto data sent to peer. After one of these packets is acked,
+    // the substreams can be reset, but acking any of the other packets will
+    // cause OnCryptoFrameAcked to be called again.
+    QUICHE_CODE_COUNT(quic_ack_crypto_frame_after_substream_reset);
     return false;
   }
   QuicByteCount newly_acked_length = 0;
@@ -463,7 +467,11 @@ bool QuicCryptoStream::WriteCryptoFrame(EncryptionLevel level,
 
 void QuicCryptoStream::OnCryptoFrameLost(QuicCryptoFrame* crypto_frame) {
   if (substreams_.empty()) {
-    ReportCryptoSubStreamResetBug();
+    // Due to retransmission, there can be multiple packets containing the last
+    // unacked crypto data sent to peer. After one of these packets is acked,
+    // the substreams can be reset, but losing any of the other packets will
+    // cause OnCryptoFrameLost to be called again.
+    QUICHE_CODE_COUNT(quic_crypto_frame_lost_after_substream_reset);
     return;
   }
   QUIC_BUG_IF(quic_bug_12573_5,
