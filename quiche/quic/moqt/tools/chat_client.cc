@@ -22,6 +22,7 @@
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
@@ -83,14 +84,15 @@ void ChatClient::OnIncomingPublishNamespace(
     std::move(callback)(std::nullopt);
     return;
   }
-  VersionSpecificParameters subscribe_parameters(
+  MessageParameters subscribe_parameters(MoqtFilterType::kLargestObject);
+  subscribe_parameters.authorization_tokens.emplace_back(
       AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
   // session_ could be nullptr if we get unsolicited PUBLISH_NAMESPACE at the
   // start of the session.
   other_users_.emplace(*track_name);
   if (session_ != nullptr &&
-      session_->SubscribeCurrentObject(*track_name, &remote_track_visitor_,
-                                       subscribe_parameters)) {
+      session_->Subscribe(*track_name, &remote_track_visitor_,
+                          subscribe_parameters)) {
     ++subscribes_to_make_;
   }
   std::move(callback)(std::nullopt);  // Send PUBLISH_NAMESPACE_OK.
@@ -232,10 +234,11 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
   // There might already be published namespaces that have populated
   // other_users_. Subscribe to their tracks now.
   for (const auto& track_name : other_users_) {
-    VersionSpecificParameters subscribe_parameters(
+    MessageParameters subscribe_parameters(MoqtFilterType::kLargestObject);
+    subscribe_parameters.authorization_tokens.emplace_back(
         AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
-    if (session_->SubscribeCurrentObject(track_name, &remote_track_visitor_,
-                                         subscribe_parameters)) {
+    if (session_->Subscribe(track_name, &remote_track_visitor_,
+                            subscribe_parameters)) {
       ++subscribes_to_make_;
     }
   }

@@ -63,6 +63,18 @@ inline std::vector<MoqtDataStreamType> AllMoqtDataStreamTypes() {
   return types;
 }
 
+inline MessageParameters SubscribeForTest() {
+  MessageParameters parameters;
+  parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(10000);
+  parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
+                                               "bar");
+  parameters.set_forward(true);
+  parameters.subscriber_priority = 0x20;
+  parameters.subscription_filter.emplace(Location(4, 1));
+  parameters.group_order = MoqtDeliveryOrder::kDescending;
+  return parameters;
+}
+
 constexpr absl::string_view kTestImplementationString =
     "Moq Test Implementation Type";
 
@@ -607,39 +619,14 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE track name mismatch";
       return false;
     }
-    if (cast.subscriber_priority != subscribe_.subscriber_priority) {
-      QUIC_LOG(INFO) << "SUBSCRIBE subscriber priority mismatch";
-      return false;
-    }
-    if (cast.group_order != subscribe_.group_order) {
-      QUIC_LOG(INFO) << "SUBSCRIBE group order mismatch";
-      return false;
-    }
-    if (cast.forward != subscribe_.forward) {
-      QUIC_LOG(INFO) << "SUBSCRIBE forward mismatch";
-      return false;
-    }
-    if (cast.filter_type != subscribe_.filter_type) {
-      QUIC_LOG(INFO) << "SUBSCRIBE filter type mismatch";
-      return false;
-    }
-    if (cast.start != subscribe_.start) {
-      QUIC_LOG(INFO) << "SUBSCRIBE start mismatch";
-      return false;
-    }
-    if (cast.end_group != subscribe_.end_group) {
-      QUIC_LOG(INFO) << "SUBSCRIBE end group mismatch";
-      return false;
-    }
     if (cast.parameters != subscribe_.parameters) {
-      QUIC_LOG(INFO) << "SUBSCRIBE parameter mismatch";
       return false;
     }
     return true;
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvv---v-------vvvvv--vv-----");
+    ExpandVarintsImpl("vvv---v----vv--vv-----vvvvvv---vv");
   }
 
   MessageStructuredData structured_data() const override {
@@ -650,50 +637,21 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   MoqtSubscribe subscribe_ = {
       /*request_id=*/1,
       FullTrackName("foo", "abcd"),
-      /*subscriber_priority=*/0x20,
-      /*group_order=*/MoqtDeliveryOrder::kDescending,
-      /*forward=*/true,
-      /*filter_type=*/MoqtFilterType::kAbsoluteStart,
-      /*start=*/Location(4, 1),
-      /*end_group=*/std::nullopt,
-      VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
-                                AuthTokenType::kOutOfBand, "bar"),
+      SubscribeForTest(),
   };
 
  private:
-  uint8_t raw_packet_[31] = {
-      0x03,
-      0x00,
-      0x1c,
-      0x01,  // request_id = 1
-      0x01,
-      0x03,
-      0x66,
-      0x6f,
-      0x6f,  // track_namespace = "foo"
-      0x04,
-      0x61,
-      0x62,
-      0x63,
-      0x64,  // track_name = "abcd"
-      0x20,  // subscriber priority = 0x20
-      0x02,  // group order = descending
-      0x01,  // forward = true
-      0x03,  // Filter type: Absolute Start
-      0x04,  // start_group = 4
-      0x01,  // start_object = 1
-      // No EndGroup or EndObject
-      0x02,  // 2 parameters
-      0x02,
-      0x67,
-      0x10,  // delivery_timeout = 10000 ms
-      0x01,
-      0x05,
-      0x03,
-      0x00,
-      0x62,
-      0x61,
-      0x72,  // authorization_tag = "bar"
+  uint8_t raw_packet_[36] = {
+      0x03, 0x00, 0x21, 0x01,                    // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
+      0x06,                                      // 6 parameters
+      0x02, 0x67, 0x10,                          // delivery_timeout = 10000 ms
+      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x0d, 0x01,                                // forward = true
+      0x10, 0x20,                                // subscriber_priority = 0x20
+      0x01, 0x03, 0x03, 0x04, 0x01,  // filter_type = kAbsoluteStart (4, 1)
+      0x01, 0x02,                    // group_order = kDescending
   };
 };
 

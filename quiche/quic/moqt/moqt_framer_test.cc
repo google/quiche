@@ -13,7 +13,9 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/test_tools/moqt_test_message.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
@@ -345,77 +347,26 @@ TEST_F(MoqtFramerSimpleTest, AllDatagramTypes) {
 
 TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
   for (auto filter :
-       {MoqtFilterType::kNextGroupStart, MoqtFilterType::kLatestObject,
+       {MoqtFilterType::kNextGroupStart, MoqtFilterType::kLargestObject,
         MoqtFilterType::kAbsoluteStart, MoqtFilterType::kAbsoluteRange}) {
-    MoqtSubscribe subscribe = {
-        /*subscribe_id=*/3,
-        /*full_track_name=*/FullTrackName({"foo", "abcd"}),
-        /*subscriber_priority=*/0x20,
-        /*group_order=*/std::nullopt,
-        /*forward=*/true,
-        /*filter_type=*/filter,
-        /*start=*/std::make_optional<Location>(4, 1),
-        /*end_group=*/std::make_optional<uint64_t>(6ULL),
-        VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
-    };
+    MessageParameters parameters = SubscribeForTest();
+    switch (filter) {
+      case MoqtFilterType::kAbsoluteRange:
+        parameters.subscription_filter.emplace(Location(4, 3));
+        break;
+      case MoqtFilterType::kAbsoluteStart:
+        parameters.subscription_filter.emplace(Location(4, 3), 5);
+        break;
+      default:
+        parameters.subscription_filter.emplace(filter);
+        break;
+    }
+    MoqtSubscribe subscribe = {/*request_id=*/3, FullTrackName({"foo", "abcd"}),
+                               parameters};
     quiche::QuicheBuffer buffer;
     buffer = framer_.SerializeSubscribe(subscribe);
     EXPECT_GT(buffer.size(), 0);
   }
-}
-
-TEST_F(MoqtFramerSimpleTest, SubscribeEndBeforeStart) {
-  MoqtSubscribe subscribe = {
-      /*subscribe_id=*/3,
-      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
-      /*subscriber_priority=*/0x20,
-      /*group_order=*/std::nullopt,
-      /*forward=*/true,
-      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
-      /*start=*/std::make_optional<Location>(4, 3),
-      /*end_group=*/std::make_optional<uint64_t>(3ULL),
-      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
-  };
-  quiche::QuicheBuffer buffer;
-  EXPECT_QUICHE_BUG(buffer = framer_.SerializeSubscribe(subscribe),
-                    "Invalid object range");
-  EXPECT_EQ(buffer.size(), 0);
-}
-
-TEST_F(MoqtFramerSimpleTest, AbsoluteRangeStartMissing) {
-  MoqtSubscribe subscribe = {
-      /*subscribe_id=*/3,
-      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
-      /*subscriber_priority=*/0x20,
-      /*group_order=*/std::nullopt,
-      /*forward=*/true,
-      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
-      /*start=*/std::nullopt,
-      /*end_group=*/std::make_optional<uint64_t>(3ULL),
-      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
-  };
-  quiche::QuicheBuffer buffer;
-  EXPECT_QUICHE_BUG(buffer = framer_.SerializeSubscribe(subscribe),
-                    "Invalid object range");
-  EXPECT_EQ(buffer.size(), 0);
-}
-
-TEST_F(MoqtFramerSimpleTest, AbsoluteRangeEndMissing) {
-  MoqtSubscribe subscribe = {
-      /*subscribe_id=*/3,
-      /*full_track_name=*/FullTrackName({"foo", "abcd"}),
-      /*subscriber_priority=*/0x20,
-      /*group_order=*/std::nullopt,
-      /*forward=*/true,
-      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
-      /*start=*/std::make_optional<Location>(4, 3),
-      /*end_group=*/std::nullopt,
-      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
-  };
-  quiche::QuicheBuffer buffer;
-  EXPECT_QUICHE_BUG(buffer = framer_.SerializeSubscribe(subscribe),
-                    "Invalid object range");
-  EXPECT_EQ(buffer.size(), 0);
 }
 
 TEST_F(MoqtFramerSimpleTest, PublishOkEndBeforeStart) {

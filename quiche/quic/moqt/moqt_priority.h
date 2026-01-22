@@ -15,6 +15,7 @@ namespace moqt {
 // Priority that can be assigned to a track or individual streams associated
 // with the track by either the publisher or the subscriber.
 using MoqtPriority = uint8_t;
+static constexpr uint64_t kMaxPriority = 0xff;
 
 // Indicates the desired order of delivering groups associated with a given
 // track.
@@ -22,6 +23,10 @@ enum class MoqtDeliveryOrder : uint8_t {
   kAscending = 0x01,
   kDescending = 0x02,
 };
+static constexpr uint64_t kMinMoqtDeliveryOrder =
+    static_cast<uint64_t>(MoqtDeliveryOrder::kAscending);
+static constexpr uint64_t kMaxMoqtDeliveryOrder =
+    static_cast<uint64_t>(MoqtDeliveryOrder::kDescending);
 
 // Computes WebTransport send order for an MoQT data stream with the specified
 // parameters.

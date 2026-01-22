@@ -12,8 +12,11 @@
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
@@ -98,29 +101,9 @@ class MoqtSessionInterface {
   // Close the session with a fatal error.
   virtual void Error(MoqtError code, absl::string_view error) = 0;
 
-  // Methods below send a SUBSCRIBE for the specified track, and return true if
-  // SUBSCRIBE was actually sent.
-
-  // Subscribe from (start_group, start_object) to the end of the track.
-  virtual bool SubscribeAbsolute(const FullTrackName& name,
-                                 uint64_t start_group, uint64_t start_object,
-                                 SubscribeVisitor* visitor,
-                                 VersionSpecificParameters parameters) = 0;
-  // Subscribe from (start_group, start_object) to the end of end_group.
-  virtual bool SubscribeAbsolute(const FullTrackName& name,
-                                 uint64_t start_group, uint64_t start_object,
-                                 uint64_t end_group, SubscribeVisitor* visitor,
-                                 VersionSpecificParameters parameters) = 0;
-  // Subscribe to all objects that are larger than the current Largest
-  // Group/Object ID.
-  virtual bool SubscribeCurrentObject(const FullTrackName& name,
-                                      SubscribeVisitor* visitor,
-                                      VersionSpecificParameters parameters) = 0;
-  // Start with the first group after the current Largest Group/Object ID.
-  virtual bool SubscribeNextGroup(const FullTrackName& name,
-                                  SubscribeVisitor* visitor,
-                                  VersionSpecificParameters parameters) = 0;
-
+  // Return true if SUBSCRIBE was actually sent.
+  virtual bool Subscribe(const FullTrackName& name, SubscribeVisitor* visitor,
+                         const MessageParameters& parameters) = 0;
   // If an argument is nullopt, there is no change to the current value.
   virtual bool SubscribeUpdate(const FullTrackName& name,
                                std::optional<Location> start,

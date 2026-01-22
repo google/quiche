@@ -9,7 +9,9 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
@@ -85,7 +87,7 @@ TEST_F(MoqtRelayPublisherTest, PublishNamespaceLifecycle) {
   std::shared_ptr<MoqtTrackPublisher> track =
       publisher_.GetTrack(FullTrackName("foo", "bar"));
   EXPECT_NE(track, nullptr);
-  EXPECT_CALL(session_, SubscribeCurrentObject);
+  EXPECT_CALL(session_, Subscribe);
   track->AddObjectListener(&object_listener_);
   track->RemoveObjectListener(&object_listener_);
   publisher_.OnPublishNamespaceDone(TrackNamespace({"foo"}), &session_);

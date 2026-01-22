@@ -4,6 +4,7 @@
 
 #include "quiche/quic/moqt/moqt_framer.h"
 
+#include <algorithm>
 #include <cstddef>
 #include <cstdint>
 #include <cstdlib>
@@ -234,7 +235,133 @@ quiche::QuicheBuffer SerializeAuthToken(const AuthToken& token) {
                    WireOptional<WireBytes>(token.value));
 }
 
+quiche::QuicheBuffer SerializeSubscriptionFilter(
+    const SubscriptionFilter& filter) {
+  switch (filter.type()) {
+    case MoqtFilterType::kNextGroupStart:
+      return Serialize(WireVarInt62(filter.type()));
+    case MoqtFilterType::kLargestObject:
+      return Serialize(WireVarInt62(filter.type()));
+    case MoqtFilterType::kAbsoluteStart:
+      return Serialize(
+          WireVarInt62(filter.type()),
+          WireKeyVarIntPair(filter.start().group, filter.start().object));
+    case MoqtFilterType::kAbsoluteRange:
+      return Serialize(
+          WireVarInt62(filter.type()),
+          WireKeyVarIntPair(filter.start().group, filter.start().object),
+          WireVarInt62(filter.end_group()));
+  }
+}
+
+quiche::QuicheBuffer SerializeLocation(const Location& location) {
+  return Serialize(WireKeyVarIntPair(location.group, location.object));
+}
+
 }  // namespace
+
+KeyValuePairList SetupParameters::ToKeyValuePairList() const {
+  KeyValuePairList out;
+  if (max_request_id.has_value()) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kMaxRequestId),
+               *max_request_id);
+  }
+  if (max_auth_token_cache_size.has_value()) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kMaxAuthTokenCacheSize),
+               *max_auth_token_cache_size);
+  }
+  if (path.has_value()) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kPath), *path);
+  }
+  for (const AuthToken& token : authorization_tokens) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kAuthorizationToken),
+               SerializeAuthToken(token).AsStringView());
+  }
+  if (authority.has_value()) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kAuthority), *authority);
+  }
+  if (moqt_implementation.has_value()) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kMoqtImplementation),
+               *moqt_implementation);
+  }
+  if (support_object_acks.has_value()) {
+    out.insert(static_cast<uint64_t>(SetupParameter::kSupportObjectAcks),
+               *support_object_acks ? 1ULL : 0ULL);
+  }
+  return out;
+}
+
+KeyValuePairList MessageParameters::ToKeyValuePairList() const {
+  KeyValuePairList list;
+  if (delivery_timeout.has_value()) {
+    // Value cannot be zero.
+    int64_t milliseconds = std::max(delivery_timeout->ToMilliseconds(), 1L);
+    list.insert(static_cast<uint64_t>(MessageParameter::kDeliveryTimeout),
+                static_cast<uint64_t>(milliseconds));
+  }
+  for (const AuthToken& token : authorization_tokens) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kAuthorizationToken),
+                SerializeAuthToken(token).AsStringView());
+  }
+  if (expires.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kExpires),
+                static_cast<uint64_t>(expires->ToMilliseconds()));
+  }
+  if (largest_object.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kLargestObject),
+                SerializeLocation(*largest_object).AsStringView());
+  }
+  if (forward_has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kForward),
+                forward() ? 1ULL : 0ULL);
+  }
+  if (subscriber_priority.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kSubscriberPriority),
+                *subscriber_priority);
+  }
+  if (subscription_filter.has_value()) {
+    list.insert(
+        static_cast<uint64_t>(MessageParameter::kSubscriptionFilter),
+        SerializeSubscriptionFilter(*subscription_filter).AsStringView());
+  }
+  if (group_order.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kGroupOrder),
+                static_cast<uint64_t>(*group_order));
+  }
+  if (new_group_request.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kNewGroupRequest),
+                *new_group_request);
+  }
+  if (oack_window_size.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kOackWindowSize),
+                static_cast<uint64_t>(oack_window_size->ToMicroseconds()));
+  }
+  return list;
+}
+
+KeyValuePairList VersionSpecificParameters::ToKeyValuePairList() const {
+  KeyValuePairList out;
+  if (delivery_timeout != quic::QuicTimeDelta::Infinite()) {
+    out.insert(
+        static_cast<uint64_t>(VersionSpecificParameter::kDeliveryTimeout),
+        static_cast<uint64_t>(delivery_timeout.ToMilliseconds()));
+  }
+  for (const AuthToken& token : authorization_tokens) {
+    out.insert(
+        static_cast<uint64_t>(VersionSpecificParameter::kAuthorizationToken),
+        SerializeAuthToken(token).AsStringView());
+  }
+  if (max_cache_duration != quic::QuicTimeDelta::Infinite()) {
+    out.insert(
+        static_cast<uint64_t>(VersionSpecificParameter::kMaxCacheDuration),
+        static_cast<uint64_t>(max_cache_duration.ToMilliseconds()));
+  }
+  if (oack_window_size.has_value()) {
+    out.insert(static_cast<uint64_t>(VersionSpecificParameter::kOackWindowSize),
+               static_cast<uint64_t>(oack_window_size->ToMicroseconds()));
+  }
+  return out;
+}
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
     const MoqtObject& message, MoqtDataStreamType message_type,
@@ -384,45 +511,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeRequestOk(
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
     const MoqtSubscribe& message, MoqtMessageType message_type) {
-  KeyValuePairList parameters;
-  if (!FillAndValidateVersionSpecificParameters(
-          MoqtMessageType::kSubscribe, message.parameters, parameters)) {
-    return quiche::QuicheBuffer();
-  };
-  std::optional<uint64_t> start_group, start_object, end_group;
-  switch (message.filter_type) {
-    case MoqtFilterType::kNextGroupStart:
-    case MoqtFilterType::kLatestObject:
-      break;
-    case MoqtFilterType::kAbsoluteRange:
-      if (!message.end_group.has_value() || !message.start.has_value() ||
-          *message.end_group < message.start->group) {
-        QUICHE_BUG(MoqtFramer_invalid_end_group) << "Invalid object range";
-        return quiche::QuicheBuffer();
-      }
-      end_group = *message.end_group;
-      [[fallthrough]];
-    case MoqtFilterType::kAbsoluteStart:
-      if (!message.start.has_value()) {
-        QUICHE_BUG(MoqtFramer_invalid_start) << "Filter requires start";
-        return quiche::QuicheBuffer();
-      }
-      start_group = message.start->group;
-      start_object = message.start->object;
-      break;
-    default:
-      QUICHE_BUG(MoqtFramer_end_group_missing) << "Subscribe framing error.";
-      return quiche::QuicheBuffer();
-  }
   return SerializeControlMessage(
       message_type, WireVarInt62(message.request_id),
       WireFullTrackName(message.full_track_name),
-      WireUint8(message.subscriber_priority),
-      WireDeliveryOrder(message.group_order), WireBoolean(message.forward),
-      WireVarInt62(message.filter_type),
-      WireOptional<WireVarInt62>(start_group),
-      WireOptional<WireVarInt62>(start_object),
-      WireOptional<WireVarInt62>(end_group), WireKeyValuePairList(parameters));
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
@@ -665,7 +757,7 @@ quiche::QuicheBuffer MoqtFramer::SerializePublishOk(
   std::optional<uint64_t> start_group, start_object, end_group;
   switch (message.filter_type) {
     case MoqtFilterType::kNextGroupStart:
-    case MoqtFilterType::kLatestObject:
+    case MoqtFilterType::kLargestObject:
       break;
     case MoqtFilterType::kAbsoluteStart:
     case MoqtFilterType::kAbsoluteRange:
@@ -724,7 +816,7 @@ bool MoqtFramer::FillAndValidateSetupParameters(
         << MoqtMessageTypeToString(message_type);
     return false;
   }
-  SetupParametersToKeyValuePairList(parameters, out, SerializeAuthToken);
+  out = parameters.ToKeyValuePairList();
   return true;
 }
 
@@ -736,8 +828,7 @@ bool MoqtFramer::FillAndValidateVersionSpecificParameters(
         << "Invalid parameters for " << MoqtMessageTypeToString(message_type);
     return false;
   }
-  VersionSpecificParametersToKeyValuePairList(parameters, out,
-                                              SerializeAuthToken);
+  out = parameters.ToKeyValuePairList();
   return true;
 }
 

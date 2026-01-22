@@ -152,6 +152,11 @@ class QUICHE_EXPORT MoqtControlParser {
   bool FillAndValidateSetupParameters(const KeyValuePairList& in,
                                       SetupParameters& out,
                                       MoqtMessageType message_type);
+  // |reader| points to the beginning of a KeyValuePairList. Returns false if
+  // there is any sort of error. (The function calls ParseError(), so the
+  // caller has no need to do so.)
+  bool FillAndValidateMessageParameters(quic::QuicDataReader& reader,
+                                        MessageParameters& out);
   bool FillAndValidateVersionSpecificParameters(const KeyValuePairList& in,
                                                 VersionSpecificParameters& out,
                                                 MoqtMessageType message_type);

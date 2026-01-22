@@ -17,6 +17,7 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -103,13 +104,14 @@ class MoqtSessionPeer {
       MoqtSession* session, std::shared_ptr<MoqtTrackPublisher> publisher,
       uint64_t subscribe_id, uint64_t track_alias, uint64_t start_group,
       uint64_t start_object) {
-    MoqtSubscribe subscribe;
-    subscribe.full_track_name = publisher->GetTrackName();
-    subscribe.request_id = subscribe_id;
-    subscribe.forward = true;
-    subscribe.filter_type = MoqtFilterType::kAbsoluteStart;
-    subscribe.start = Location(start_group, start_object);
-    subscribe.subscriber_priority = 0x80;
+    MessageParameters parameters;
+    parameters.subscription_filter.emplace(Location(start_group, start_object));
+    MoqtSubscribe subscribe(subscribe_id, publisher->GetTrackName(),
+                            parameters);
+    subscribe.parameters.set_forward(true);
+    subscribe.parameters.subscription_filter.emplace(
+        Location(start_group, start_object));
+    subscribe.parameters.subscriber_priority = 0x80;
     session->published_subscriptions_.emplace(
         subscribe_id, std::make_unique<MoqtSession::PublishedSubscription>(
                           session, std::move(publisher), subscribe, track_alias,
@@ -119,8 +121,10 @@ class MoqtSessionPeer {
 
   static bool InSubscriptionWindow(MoqtObjectListener* subscription,
                                    Location sequence) {
-    return static_cast<MoqtSession::PublishedSubscription*>(subscription)
-        ->InWindow(sequence);
+    std::optional<SubscriptionFilter> filter =
+        static_cast<MoqtSession::PublishedSubscription*>(subscription)
+            ->parameters_.subscription_filter;
+    return (!filter.has_value() || filter->InWindow(sequence));
   }
 
   static MoqtObjectListener* GetSubscription(MoqtSession* session,
@@ -245,7 +249,7 @@ class MoqtSessionPeer {
   static void SetDeliveryTimeout(MoqtObjectListener* subscription,
                                  quic::QuicTimeDelta timeout) {
     static_cast<MoqtSession::PublishedSubscription*>(subscription)
-        ->set_delivery_timeout(timeout);
+        ->parameters_.delivery_timeout = timeout;
   }
 
   static bool SubgroupHasBeenReset(MoqtObjectListener* subscription,

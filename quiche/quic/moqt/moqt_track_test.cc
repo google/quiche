@@ -11,7 +11,9 @@
 #include "absl/status/status.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
@@ -45,17 +47,8 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
   SubscribeRemoteTrackTest() : track_(subscribe_, &visitor_) {}
 
   MockSubscribeRemoteTrackVisitor visitor_;
-  MoqtSubscribe subscribe_ = {
-      /*subscribe_id=*/1,
-      /*full_track_name=*/FullTrackName("foo", "bar"),
-      /*subscriber_priority=*/128,
-      /*group_order=*/std::nullopt,
-      /*forward=*/true,
-      /*filter_type=*/MoqtFilterType::kAbsoluteStart,
-      /*start=*/Location(2, 0),
-      std::nullopt,
-      VersionSpecificParameters(),
-  };
+  MoqtSubscribe subscribe_ = {/*request_id=*/1, FullTrackName("foo", "bar"),
+                              MessageParameters(Location(2, 0))};
   SubscribeRemoteTrack track_;
 };
 
@@ -83,10 +76,7 @@ TEST_F(SubscribeRemoteTrackTest, AllowError) {
 
 TEST_F(SubscribeRemoteTrackTest, Windows) {
   EXPECT_TRUE(track_.InWindow(Location(2, 0)));
-  track_.TruncateStart(Location(2, 1));
-  EXPECT_FALSE(track_.InWindow(Location(2, 0)));
-  track_.TruncateEnd(2);
-  EXPECT_FALSE(track_.InWindow(Location(3, 0)));
+  EXPECT_FALSE(track_.InWindow(Location(1, 25)));
 }
 
 class UpstreamFetchTest : public quic::test::QuicTest {

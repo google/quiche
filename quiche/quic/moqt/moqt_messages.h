@@ -28,7 +28,6 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/quiche_data_writer.h"
 
 namespace moqt {
 
@@ -250,40 +249,6 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kObjectAck = 0x3184,
 };
 
-inline constexpr uint64_t kMaxGroup = quiche::kVarInt62MaxValue;
-inline constexpr uint64_t kMaxObjectId = quiche::kVarInt62MaxValue;
-// Location as defined in
-// https://moq-wg.github.io/moq-transport/draft-ietf-moq-transport.html#location-structure
-struct Location {
-  uint64_t group = 0;
-  uint64_t object = 0;
-
-  Location() = default;
-  Location(uint64_t group, uint64_t object) : group(group), object(object) {}
-
-  // Location order as described in
-  // https://moq-wg.github.io/moq-transport/draft-ietf-moq-transport.html#location-structure
-  auto operator<=>(const Location&) const = default;
-
-  Location Next() const {
-    if (object == kMaxObjectId) {
-      if (group == kMaxObjectId) {
-        return Location(0, 0);
-      }
-      return Location(group + 1, 0);
-    }
-    return Location(group, object + 1);
-  }
-
-  template <typename H>
-  friend H AbslHashValue(H h, const Location& m);
-
-  template <typename Sink>
-  friend void AbslStringify(Sink& sink, const Location& sequence) {
-    absl::Format(&sink, "(%d; %d)", sequence.group, sequence.object);
-  }
-};
-
 // A tuple uniquely identifying a WebTransport data stream associated with a
 // subscription. By convention, if a DataStreamIndex is necessary for a datagram
 // track, `subgroup` is set to zero.
@@ -353,14 +318,6 @@ struct QUICHE_EXPORT MoqtObject {
   uint64_t payload_length;
 };
 
-enum class QUICHE_EXPORT MoqtFilterType : uint64_t {
-  kNone = 0x0,
-  kNextGroupStart = 0x1,
-  kLatestObject = 0x2,
-  kAbsoluteStart = 0x3,
-  kAbsoluteRange = 0x4,
-};
-
 struct QUICHE_EXPORT MoqtRequestError {
   uint64_t request_id;
   RequestErrorCode error_code;
@@ -368,15 +325,15 @@ struct QUICHE_EXPORT MoqtRequestError {
 };
 
 struct QUICHE_EXPORT MoqtSubscribe {
+  MoqtSubscribe() = default;
+  MoqtSubscribe(uint64_t request_id, FullTrackName full_track_name,
+                MessageParameters parameters)
+      : request_id(request_id),
+        full_track_name(full_track_name),
+        parameters(parameters) {}
   uint64_t request_id;
   FullTrackName full_track_name;
-  MoqtPriority subscriber_priority;
-  std::optional<MoqtDeliveryOrder> group_order;
-  bool forward;
-  MoqtFilterType filter_type;
-  std::optional<Location> start;
-  std::optional<uint64_t> end_group;
-  VersionSpecificParameters parameters;
+  MessageParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeOk {

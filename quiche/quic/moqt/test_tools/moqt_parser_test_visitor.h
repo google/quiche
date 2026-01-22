@@ -34,14 +34,14 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
     if (end_of_message) {
       ++messages_received_;
     }
-    last_message_ = TestMessageBase::MessageStructuredData(object);
+    last_message_.emplace(TestMessageBase::MessageStructuredData(object));
   }
   void OnFin() override { fin_received_ = true; }
   template <typename Message>
   void OnControlMessage(const Message& message) {
     end_of_message_ = true;
     ++messages_received_;
-    last_message_ = TestMessageBase::MessageStructuredData(message);
+    last_message_.emplace(TestMessageBase::MessageStructuredData(message));
   }
   void OnClientSetupMessage(const MoqtClientSetup& message) override {
     OnControlMessage(message);

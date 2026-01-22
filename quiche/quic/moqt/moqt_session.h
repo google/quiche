@@ -23,8 +23,11 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_framer.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
@@ -47,7 +50,6 @@ namespace test {
 class MoqtSessionPeer;
 }
 
-inline constexpr MoqtPriority kDefaultSubscriberPriority = 0x80;
 inline constexpr quic::QuicTimeDelta kDefaultGoAwayTimeout =
     quic::QuicTime::Delta::FromSeconds(10);
 
@@ -109,18 +111,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // MoqtSessionInterface implementation.
   MoqtSessionCallbacks& callbacks() override { return callbacks_; }
   void Error(MoqtError code, absl::string_view error) override;
-  bool SubscribeAbsolute(const FullTrackName& name, uint64_t start_group,
-                         uint64_t start_object, SubscribeVisitor* visitor,
-                         VersionSpecificParameters parameters) override;
-  bool SubscribeAbsolute(const FullTrackName& name, uint64_t start_group,
-                         uint64_t start_object, uint64_t end_group,
-                         SubscribeVisitor* visitor,
-                         VersionSpecificParameters parameters) override;
-  bool SubscribeCurrentObject(const FullTrackName& name,
-                              SubscribeVisitor* visitor,
-                              VersionSpecificParameters parameters) override;
-  bool SubscribeNextGroup(const FullTrackName& name, SubscribeVisitor* visitor,
-                          VersionSpecificParameters parameters) override;
+  // Returns false if the SUBSCRIBE isn't sent.
+  bool Subscribe(const FullTrackName& name, SubscribeVisitor* visitor,
+                 const MessageParameters& parameters) override;
   bool SubscribeUpdate(const FullTrackName& name, std::optional<Location> start,
                        std::optional<uint64_t> end_group,
                        std::optional<MoqtPriority> subscriber_priority,
@@ -350,11 +343,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     uint64_t request_id() const { return request_id_; }
     MoqtTrackPublisher& publisher() { return *track_publisher_; }
     uint64_t track_alias() const { return track_alias_; }
+    MessageParameters& parameters() { return parameters_; }
     std::optional<Location> largest_sent() const { return largest_sent_; }
-    MoqtPriority subscriber_priority() const { return subscriber_priority_; }
-    std::optional<MoqtDeliveryOrder> subscriber_delivery_order() const {
-      return subscriber_delivery_order_;
-    }
     void set_subscriber_priority(MoqtPriority priority);
 
     // MoqtObjectListener implementation.
@@ -374,19 +364,20 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // Updates the window and other properties of the subscription in question.
     void Update(Location start, std::optional<uint64_t> end,
                 MoqtPriority subscriber_priority);
-    // Checks if the specified sequence is within the window of this
-    // subscription.
-    bool InWindow(Location sequence) {
-      return forward_ && window_.has_value() && window_->InWindow(sequence);
+    // Checks if a given Location or Group should be forwarded to the
+    // subscriber.
+    bool InWindow(Location location) {
+      return parameters_.forward() &&
+             (!parameters_.subscription_filter.has_value() ||
+              (parameters_.subscription_filter->WindowKnown() &&
+               parameters_.subscription_filter->InWindow(location)));
     }
-    bool GroupInWindow(uint64_t group) {
-      return forward_ && window_.has_value() && window_->GroupInWindow(group);
+    bool InWindow(uint64_t group) {
+      return parameters_.forward() &&
+             (!parameters_.subscription_filter.has_value() ||
+              (parameters_.subscription_filter->WindowKnown() &&
+               parameters_.subscription_filter->InWindow(group)));
     }
-    Location GetWindowStart() const {
-      QUICHE_CHECK(window_.has_value());
-      return window_->start();
-    }
-    MoqtFilterType filter_type() const { return filter_type_; }
 
     void OnDataStreamCreated(webtransport::StreamId id,
                              DataStreamIndex start_sequence);
@@ -406,9 +397,16 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // streams.
     NewStreamParameters NextQueuedOutgoingDataStream();
 
-    quic::QuicTimeDelta delivery_timeout() const { return delivery_timeout_; }
-    void set_delivery_timeout(quic::QuicTimeDelta timeout) {
-      delivery_timeout_ = timeout;
+    quic::QuicTimeDelta delivery_timeout() const {
+      return std::min(
+          parameters_.delivery_timeout.value_or(kDefaultDeliveryTimeout),
+          publisher_delivery_timeout_.value_or(kDefaultDeliveryTimeout));
+    }
+    void set_subscriber_delivery_timeout(quic::QuicTimeDelta timeout) {
+      parameters_.delivery_timeout = timeout;
+    }
+    void set_publisher_delivery_timeout(quic::QuicTimeDelta timeout) {
+      publisher_delivery_timeout_ = timeout;
     }
 
     void OnStreamTimeout(DataStreamIndex index) {
@@ -426,6 +424,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     uint64_t streams_opened() const { return streams_opened_; }
 
+    bool can_have_joining_fetch() const { return can_have_joining_fetch_; }
+
    private:
     friend class test::MoqtSessionPeer;
     SendStreamMap& stream_map();
@@ -436,21 +436,21 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void SendDatagram(Location sequence);
     webtransport::SendOrder FinalizeSendOrder(
         webtransport::SendOrder send_order) {
-      return UpdateSendOrderForSubscriberPriority(send_order,
-                                                  subscriber_priority_);
+      return UpdateSendOrderForSubscriberPriority(
+          send_order,
+          parameters_.subscriber_priority.value_or(kDefaultSubscriberPriority));
     }
 
     MoqtSession* session_;
     std::shared_ptr<MoqtTrackPublisher> track_publisher_;
     uint64_t request_id_;
+    bool can_have_joining_fetch_ = false;
     const uint64_t track_alias_;
-    MoqtFilterType filter_type_;
-    bool forward_;
-    // If window_ is nullopt, any arriving objects are ignored. This could be
-    // because forward=0, or because the subscription is waiting for a
-    // SUBSCRIBE_OK and doesn't know what the window should be yet.
-    std::optional<SubscribeWindow> window_;
-    MoqtPriority subscriber_priority_;
+    MessageParameters parameters_;
+    // TODO(martinduke): Once SUBSCRIBE_OK has track extensions, store the
+    // publisher's delivery timeout there instead.
+    std::optional<quic::QuicTimeDelta> publisher_delivery_timeout_;
+    std::optional<MoqtPriority> default_publisher_priority_;
     uint64_t streams_opened_ = 0;
 
     // The subscription will ignore any groups with a lower ID, so it doesn't
@@ -459,10 +459,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // If a stream has been reset due to delivery timeout, do not open a new
     // stream if more object arrive for it.
     absl::flat_hash_set<DataStreamIndex> reset_subgroups_;
-    // The min of DELIVERY_TIMEOUT from SUBSCRIBE and SUBSCRIBE_OK.
-    quic::QuicTimeDelta delivery_timeout_ = quic::QuicTimeDelta::Infinite();
 
-    std::optional<MoqtDeliveryOrder> subscriber_delivery_order_;
     MoqtPublishingMonitorInterface* monitoring_interface_;
     // Largest sequence number ever sent via this subscription.
     std::optional<Location> largest_sent_;
@@ -697,9 +694,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // Sends a message on the control stream; QUICHE_DCHECKs if no control stream
   // is present.
   void SendControlMessage(quiche::QuicheBuffer message);
-
-  // Returns false if the SUBSCRIBE isn't sent.
-  bool Subscribe(MoqtSubscribe& message, SubscribeVisitor* visitor);
 
   // Opens a new data stream, or queues it if the session is flow control
   // blocked.

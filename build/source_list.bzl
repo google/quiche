@@ -1636,6 +1636,7 @@ moqt_test_srcs = [
     "quic/moqt/moqt_bitrate_adjuster_test.cc",
     "quic/moqt/moqt_framer_test.cc",
     "quic/moqt/moqt_integration_test.cc",
+    "quic/moqt/moqt_key_value_pair_test.cc",
     "quic/moqt/moqt_messages_test.cc",
     "quic/moqt/moqt_names_test.cc",
     "quic/moqt/moqt_outgoing_queue_test.cc",

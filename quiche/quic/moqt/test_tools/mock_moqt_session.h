@@ -9,7 +9,8 @@
 #include <optional>
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
@@ -24,23 +25,9 @@ class MockMoqtSession : public MoqtSessionInterface {
   MOCK_METHOD(MoqtSessionCallbacks&, callbacks, (), (override));
   MOCK_METHOD(void, Error, (MoqtError code, absl::string_view error),
               (override));
-  MOCK_METHOD(bool, SubscribeAbsolute,
-              (const FullTrackName& name, uint64_t start_group,
-               uint64_t start_object, SubscribeVisitor* visitor,
-               VersionSpecificParameters parameters),
-              (override));
-  MOCK_METHOD(bool, SubscribeAbsolute,
-              (const FullTrackName& name, uint64_t start_group,
-               uint64_t start_object, uint64_t end_group,
-               SubscribeVisitor* visitor, VersionSpecificParameters parameters),
-              (override));
-  MOCK_METHOD(bool, SubscribeCurrentObject,
+  MOCK_METHOD(bool, Subscribe,
               (const FullTrackName& name, SubscribeVisitor* visitor,
-               VersionSpecificParameters parameters),
-              (override));
-  MOCK_METHOD(bool, SubscribeNextGroup,
-              (const FullTrackName& name, SubscribeVisitor* visitor,
-               VersionSpecificParameters parameters),
+               const MessageParameters& parameters),
               (override));
   MOCK_METHOD(bool, SubscribeUpdate,
               (const FullTrackName& name, std::optional<Location> start,

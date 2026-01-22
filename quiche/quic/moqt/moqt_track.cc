@@ -17,6 +17,7 @@
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -86,7 +87,9 @@ void SubscribeRemoteTrack::MaybeSetPublishDoneAlarm() {
   if (currently_open_streams_ == 0 && total_streams_.has_value() &&
       clock_ != nullptr) {
     quic::QuicTimeDelta timeout =
-        std::min(delivery_timeout_, kMaxPublishDoneTimeout);
+        std::min(parameters_.delivery_timeout.value_or(kDefaultDeliveryTimeout),
+                 publisher_delivery_timeout_.value_or(kDefaultDeliveryTimeout));
+    timeout = std::min(timeout, kMaxPublishDoneTimeout);
     timeout = std::max(timeout, kMinPublishDoneTimeout);
     publish_done_alarm_->Set(clock_->ApproximateNow() + timeout);
   }
@@ -160,7 +163,7 @@ void UpstreamFetch::OnFetchResult(Location largest_location,
   auto task = std::make_unique<UpstreamFetchTask>(largest_location, status,
                                                   std::move(callback));
   task_ = task->weak_ptr();
-  window_mutable().TruncateEnd(largest_location);
+  window_.TruncateEnd(largest_location);
   std::move(ok_callback_)(std::move(task));
   if (can_read_callback_) {
     task_.GetIfAvailable()->set_can_read_callback(

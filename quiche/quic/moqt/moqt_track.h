@@ -15,7 +15,9 @@
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
@@ -35,12 +37,9 @@ class SubscribeRemoteTrackPeer;
 // State common to both SUBSCRIBE and FETCH upstream.
 class RemoteTrack {
  public:
-  RemoteTrack(const FullTrackName& full_track_name, uint64_t id,
-              SubscribeWindow window, MoqtPriority priority)
+  RemoteTrack(const FullTrackName& full_track_name, uint64_t id)
       : full_track_name_(full_track_name),
         request_id_(id),
-        subscriber_priority_(priority),
-        window_(window),
         weak_ptr_factory_(this) {}
   virtual ~RemoteTrack() = default;
 
@@ -55,29 +54,21 @@ class RemoteTrack {
   uint64_t request_id() const { return request_id_; }
 
   // Is the object one that was requested?
-  bool InWindow(Location sequence) const { return window_.InWindow(sequence); }
+  virtual bool InWindow(Location sequence) const = 0;
 
   quiche::QuicheWeakPtr<RemoteTrack> weak_ptr() {
     return weak_ptr_factory_.Create();
   }
 
-  const SubscribeWindow& window() const { return window_; }
-
-  MoqtPriority subscriber_priority() const { return subscriber_priority_; }
-  void set_subscriber_priority(MoqtPriority priority) {
-    subscriber_priority_ = priority;
-  }
+  virtual MoqtPriority subscriber_priority() const = 0;
+  virtual void set_subscriber_priority(MoqtPriority priority) = 0;
 
   virtual bool is_fetch() const = 0;
-
- protected:
-  SubscribeWindow& window_mutable() { return window_; };
 
  private:
   const FullTrackName full_track_name_;
   const uint64_t request_id_;
   MoqtPriority subscriber_priority_;
-  SubscribeWindow window_;
   // If false, an object or OK message has been received, so any ERROR message
   // is a protocol violation.
   bool error_is_allowed_ = true;
@@ -91,13 +82,9 @@ class SubscribeRemoteTrack : public RemoteTrack {
  public:
   SubscribeRemoteTrack(const MoqtSubscribe& subscribe,
                        SubscribeVisitor* visitor)
-      : RemoteTrack(subscribe.full_track_name, subscribe.request_id,
-                    SubscribeWindow(subscribe.start.value_or(Location()),
-                                    subscribe.end_group),
-                    subscribe.subscriber_priority),
-        forward_(subscribe.forward),
-        visitor_(visitor),
-        delivery_timeout_(subscribe.parameters.delivery_timeout) {}
+      : RemoteTrack(subscribe.full_track_name, subscribe.request_id),
+        parameters_(subscribe.parameters),
+        visitor_(visitor) {}
   ~SubscribeRemoteTrack() override {
     if (publish_done_alarm_ != nullptr) {
       publish_done_alarm_->PermanentCancel();
@@ -113,14 +100,6 @@ class SubscribeRemoteTrack : public RemoteTrack {
   }
   SubscribeVisitor* visitor() { return visitor_; }
 
-  // Called on SUBSCRIBE_OK or SUBSCRIBE_UPDATE.
-  bool TruncateStart(Location start) {
-    return window_mutable().TruncateStart(start);
-  }
-  // Called on SUBSCRIBE_UPDATE.
-  bool TruncateEnd(uint64_t end_group) {
-    return window_mutable().TruncateEnd(end_group);
-  }
   void OnStreamOpened();
   void OnStreamClosed(bool fin_received, std::optional<DataStreamIndex> index);
   void OnPublishDone(uint64_t stream_count, const quic::QuicClock* clock,
@@ -135,10 +114,28 @@ class SubscribeRemoteTrack : public RemoteTrack {
   // FETCH objects to pipe directly into the visitor.
   void OnJoiningFetchReady(std::unique_ptr<MoqtFetchTask> fetch_task);
 
-  bool forward() const { return forward_; }
-  void set_forward(bool forward) { forward_ = forward; }
+  bool forward() const { return parameters_.forward(); }
+  void set_forward(bool forward) { parameters_.set_forward(forward); }
 
   bool is_fetch() const override { return false; }
+
+  MessageParameters& parameters() { return parameters_; }
+
+  bool InWindow(Location location) const override {
+    return parameters_.forward() &&
+           (!parameters_.subscription_filter.has_value() ||
+            parameters_.subscription_filter->InWindow(location));
+  }
+  void NewSubscriptionFilter(const SubscriptionFilter& filter) {
+    parameters_.subscription_filter.emplace(filter);
+  }
+
+  MoqtPriority subscriber_priority() const override {
+    return parameters_.subscriber_priority.value_or(kDefaultSubscriberPriority);
+  }
+  void set_subscriber_priority(MoqtPriority priority) override {
+    parameters_.subscriber_priority = priority;
+  }
 
  private:
   friend class test::MoqtSessionPeer;
@@ -146,11 +143,12 @@ class SubscribeRemoteTrack : public RemoteTrack {
 
   void MaybeSetPublishDoneAlarm();
 
+  MessageParameters parameters_;
+  std::optional<quic::QuicTimeDelta> publisher_delivery_timeout_;
   void FetchObjects();
   std::unique_ptr<MoqtFetchTask> fetch_task_;
 
   std::optional<const uint64_t> track_alias_;
-  bool forward_;
   SubscribeVisitor* visitor_;
   int currently_open_streams_ = 0;
   // Every stream that has received FIN or RESET_STREAM.
@@ -158,8 +156,6 @@ class SubscribeRemoteTrack : public RemoteTrack {
   // Value assigned on PUBLISH_DONE. Can destroy subscription state if
   // streams_closed_ == total_streams_.
   std::optional<uint64_t> total_streams_;
-  // Timer to clean up the track if there are no open streams.
-  quic::QuicTimeDelta delivery_timeout_ = quic::QuicTimeDelta::Infinite();
   std::unique_ptr<quic::QuicAlarm> publish_done_alarm_ = nullptr;
   const quic::QuicClock* clock_ = nullptr;
 };
@@ -180,28 +176,39 @@ class UpstreamFetch : public RemoteTrack {
   // Standalone Fetch constructor
   UpstreamFetch(const MoqtFetch& fetch, const StandaloneFetch standalone,
                 FetchResponseCallback callback)
-      : RemoteTrack(
-            standalone.full_track_name, fetch.request_id,
-            SubscribeWindow(standalone.start_location, standalone.end_location),
-            fetch.subscriber_priority),
+      : RemoteTrack(standalone.full_track_name, fetch.request_id),
+        window_(SubscribeWindow(standalone.start_location,
+                                standalone.end_location)),
+        subscriber_priority_(fetch.subscriber_priority),
         ok_callback_(std::move(callback)) {}
   // Relative Joining Fetch constructor
   UpstreamFetch(const MoqtFetch& fetch, FullTrackName full_track_name,
                 FetchResponseCallback callback)
-      : RemoteTrack(full_track_name, fetch.request_id,
-                    SubscribeWindow(Location(0, 0)), fetch.subscriber_priority),
+      : RemoteTrack(full_track_name, fetch.request_id),
+        window_(SubscribeWindow(Location(0, 0))),
+        subscriber_priority_(fetch.subscriber_priority),
         ok_callback_(std::move(callback)) {}
   // Absolute Joining Fetch constructor
   UpstreamFetch(const MoqtFetch& fetch, FullTrackName full_track_name,
                 JoiningFetchAbsolute absolute_joining,
                 FetchResponseCallback callback)
-      : RemoteTrack(
-            full_track_name, fetch.request_id,
-            SubscribeWindow(Location(absolute_joining.joining_start, 0)),
-            fetch.subscriber_priority),
+      : RemoteTrack(full_track_name, fetch.request_id),
+        window_(SubscribeWindow(Location(absolute_joining.joining_start, 0))),
+        subscriber_priority_(fetch.subscriber_priority),
         ok_callback_(std::move(callback)) {}
   UpstreamFetch(const UpstreamFetch&) = delete;
   ~UpstreamFetch();
+
+  bool InWindow(Location location) const override {
+    return (window_.InWindow(location));
+  }
+
+  MoqtPriority subscriber_priority() const override {
+    return subscriber_priority_;
+  }
+  void set_subscriber_priority(MoqtPriority priority) override {
+    subscriber_priority_ = priority;
+  }
 
   class UpstreamFetchTask : public MoqtFetchTask {
    public:
@@ -304,6 +311,8 @@ class UpstreamFetch : public RemoteTrack {
 
  private:
   std::optional<MoqtDeliveryOrder> group_order_;  // nullopt if not yet known.
+  SubscribeWindow window_;
+  MoqtPriority subscriber_priority_;
   // The last object received on the stream.
   std::optional<Location> last_location_;
   // The highest location received on the stream.

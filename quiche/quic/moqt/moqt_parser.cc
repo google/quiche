@@ -12,6 +12,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/base/casts.h"
@@ -20,6 +21,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/http2/adapter/header_validator.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -131,7 +133,317 @@ bool ParseKeyValuePairList(quic::QuicDataReader& reader,
   return true;
 }
 
+MoqtError ParseAuthTokenParameter(absl::string_view field,
+                                  std::vector<AuthToken>& out) {
+  quic::QuicDataReader reader(field);
+  AuthTokenAliasType alias_type;
+  uint64_t alias;
+  AuthTokenType type;
+  absl::string_view token;
+  uint64_t value;
+  if (!reader.ReadVarInt62(&value)) {
+    return MoqtError::kKeyValueFormattingError;
+  }
+  alias_type = static_cast<AuthTokenAliasType>(value);
+  switch (alias_type) {
+    case AuthTokenAliasType::kUseValue:
+      if (!reader.ReadVarInt62(&value) ||
+          value > AuthTokenType::kMaxAuthTokenType) {
+        return MoqtError::kKeyValueFormattingError;
+      }
+      type = static_cast<AuthTokenType>(value);
+      token = reader.PeekRemainingPayload();
+      out.push_back(AuthToken(type, token));
+      break;
+    case AuthTokenAliasType::kUseAlias:
+      if (!reader.ReadVarInt62(&value)) {
+        return MoqtError::kKeyValueFormattingError;
+      }
+      out.push_back(AuthToken(value, alias_type));
+      break;
+    case AuthTokenAliasType::kRegister:
+      if (!reader.ReadVarInt62(&alias) || !reader.ReadVarInt62(&value)) {
+        return MoqtError::kKeyValueFormattingError;
+      }
+      type = static_cast<AuthTokenType>(value);
+      token = reader.PeekRemainingPayload();
+      out.push_back(AuthToken(alias, type, token));
+      break;
+    case AuthTokenAliasType::kDelete:
+      if (!reader.ReadVarInt62(&alias)) {
+        return MoqtError::kKeyValueFormattingError;
+      }
+      out.push_back(AuthToken(alias, alias_type));
+      break;
+    default:  // invalid alias type
+      return MoqtError::kKeyValueFormattingError;
+  }
+  return MoqtError::kNoError;
+}
+
+MoqtError ParseLocation(absl::string_view field, Location& out) {
+  quic::QuicDataReader reader(field);
+  if (!reader.ReadVarInt62(&out.group) || !reader.ReadVarInt62(&out.object)) {
+    return MoqtError::kKeyValueFormattingError;
+  }
+  return MoqtError::kNoError;
+}
+
+MoqtError ParseSubscriptionFilter(absl::string_view field,
+                                  std::optional<SubscriptionFilter>& out) {
+  quic::QuicDataReader reader(field);
+  uint64_t value;
+  if (!reader.ReadVarInt62(&value)) {
+    return MoqtError::kKeyValueFormattingError;
+  }
+  uint64_t group, object;
+  switch (static_cast<MoqtFilterType>(value)) {
+    case MoqtFilterType::kLargestObject:
+    case MoqtFilterType::kNextGroupStart:
+      out.emplace(static_cast<MoqtFilterType>(value));
+      break;
+    case MoqtFilterType::kAbsoluteStart:
+      if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
+        return MoqtError::kKeyValueFormattingError;
+      }
+      out.emplace(Location(group, object));
+      break;
+    case MoqtFilterType::kAbsoluteRange:
+      if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object) ||
+          !reader.ReadVarInt62(&value)) {
+        return MoqtError::kKeyValueFormattingError;
+      }
+      if (value < group) {  // end before start
+        return MoqtError::kProtocolViolation;
+      }
+      out.emplace(Location(group, object), value);
+      break;
+    default:  // invalid filter type
+      return MoqtError::kProtocolViolation;
+  }
+  return MoqtError::kNoError;
+}
+
 }  // namespace
+
+MoqtError SetupParameters::FromKeyValuePairList(const KeyValuePairList& list) {
+  MoqtError error = MoqtError::kNoError;
+  // If this callback returns false without explicitly setting an error, then
+  // the error is a kProtocolViolation.
+  bool result = list.ForEach(
+      [&](uint64_t key, std::variant<uint64_t, absl::string_view> value) {
+        switch (static_cast<SetupParameter>(key)) {
+          case SetupParameter::kMaxRequestId:
+            if (max_request_id.has_value()) {
+              return false;
+            }
+            max_request_id = std::get<uint64_t>(value);
+            break;
+          case SetupParameter::kMaxAuthTokenCacheSize:
+            if (max_auth_token_cache_size.has_value()) {
+              return false;
+            }
+            max_auth_token_cache_size = std::get<uint64_t>(value);
+            break;
+          case SetupParameter::kPath:
+            if (path.has_value()) {
+              return false;
+            }
+            if (!http2::adapter::HeaderValidator::IsValidPath(
+                    std::get<absl::string_view>(value),
+                    /*allow_fragment=*/false)) {
+              error = MoqtError::kMalformedPath;
+              return false;
+            }
+            path = std::get<absl::string_view>(value);
+            break;
+          case SetupParameter::kAuthorizationToken:
+            error = ParseAuthTokenParameter(std::get<absl::string_view>(value),
+                                            authorization_tokens);
+            if (error != MoqtError::kNoError) {
+              return false;
+            }
+            break;
+          case SetupParameter::kAuthority:
+            if (!http2::adapter::HeaderValidator::IsValidAuthority(
+                    std::get<absl::string_view>(value))) {
+              error = MoqtError::kMalformedAuthority;
+              return false;
+            }
+            authority = std::get<absl::string_view>(value);
+            break;
+          case SetupParameter::kMoqtImplementation:
+            if (moqt_implementation.has_value()) {
+              return false;
+            }
+            QUICHE_LOG(INFO) << "Peer MOQT implementation: "
+                             << std::get<absl::string_view>(value);
+            moqt_implementation = std::get<absl::string_view>(value);
+            break;
+          case SetupParameter::kSupportObjectAcks:
+            if (support_object_acks.has_value()) {
+              return false;
+            }
+            if (std::get<uint64_t>(value) > 1) {
+              error = MoqtError::kKeyValueFormattingError;
+              return false;
+            }
+            support_object_acks = (std::get<uint64_t>(value) == 1);
+            break;
+          default:
+            break;
+        }
+        return true;
+      });
+  if (!result && error == MoqtError::kNoError) {
+    return MoqtError::kProtocolViolation;
+  }
+  return error;
+}
+
+MoqtError MessageParameters::FromKeyValuePairList(
+    const KeyValuePairList& list) {
+  MoqtError error = MoqtError::kNoError;
+  bool error_occurred = !list.ForEach(
+      [&](uint64_t key, std::variant<uint64_t, absl::string_view> value) {
+        switch (static_cast<MessageParameter>(key)) {
+          case MessageParameter::kDeliveryTimeout:
+            if (delivery_timeout.has_value() ||
+                std::get<uint64_t>(value) == 0) {
+              return false;
+            }
+            delivery_timeout = quic::QuicTimeDelta::TryFromMilliseconds(
+                                   std::get<uint64_t>(value))
+                                   .value_or(quic::QuicTimeDelta::Infinite());
+            break;
+          case MessageParameter::kAuthorizationToken:
+            error = ParseAuthTokenParameter(std::get<absl::string_view>(value),
+                                            authorization_tokens);
+            if (error != MoqtError::kNoError) {
+              return false;
+            }
+            break;
+          case MessageParameter::kExpires:
+            if (expires.has_value()) {
+              return false;
+            }
+            expires = quic::QuicTimeDelta::TryFromMilliseconds(
+                          std::get<uint64_t>(value))
+                          .value_or(quic::QuicTimeDelta::Infinite());
+            break;
+          case MessageParameter::kLargestObject:
+            if (largest_object.has_value()) {
+              return false;
+            }
+            largest_object = Location();
+            error = ParseLocation(std::get<absl::string_view>(value),
+                                  *largest_object);
+            if (error != MoqtError::kNoError) {
+              return false;
+            }
+            break;
+          case MessageParameter::kForward:
+            if (forward_has_value() || std::get<uint64_t>(value) > 1) {
+              return false;
+            }
+            set_forward(std::get<uint64_t>(value) != 0);
+            break;
+          case MessageParameter::kSubscriberPriority:
+            if (subscriber_priority.has_value() ||
+                std::get<uint64_t>(value) > kMaxPriority) {
+              return false;
+            }
+            subscriber_priority =
+                static_cast<MoqtPriority>(std::get<uint64_t>(value));
+            break;
+          case MessageParameter::kSubscriptionFilter:
+            if (subscription_filter.has_value()) {
+              // TODO(martinduke): Support multiple subscription filters.
+              return false;
+            }
+            error = ParseSubscriptionFilter(std::get<absl::string_view>(value),
+                                            subscription_filter);
+            if (error != MoqtError::kNoError) {
+              return false;
+            }
+            break;
+          case MessageParameter::kGroupOrder:
+            if (group_order.has_value() ||
+                std::get<uint64_t>(value) > kMaxMoqtDeliveryOrder ||
+                std::get<uint64_t>(value) < kMinMoqtDeliveryOrder) {
+              return false;
+            }
+            group_order =
+                static_cast<MoqtDeliveryOrder>(std::get<uint64_t>(value));
+            break;
+          case MessageParameter::kNewGroupRequest:
+            if (new_group_request.has_value()) {
+              return false;
+            }
+            new_group_request = std::get<uint64_t>(value);
+            break;
+          case MessageParameter::kOackWindowSize:
+            if (oack_window_size.has_value()) {
+              return false;
+            }
+            oack_window_size = quic::QuicTimeDelta::FromMicroseconds(
+                std::get<uint64_t>(value));
+            break;
+          default:
+            // Unknown MessageParameters not allowed!
+            return false;
+        }
+        return true;
+      });
+  if (error_occurred && error == MoqtError::kNoError) {
+    // Illegal duplicate parameter.
+    return MoqtError::kProtocolViolation;
+  }
+  return error;
+}
+
+MoqtError VersionSpecificParameters::FromKeyValuePairList(
+    const KeyValuePairList& list) {
+  MoqtError error = MoqtError::kNoError;
+  if (list.count(static_cast<uint64_t>(
+          VersionSpecificParameter::kDeliveryTimeout)) > 1 ||
+      list.count(static_cast<uint64_t>(
+          VersionSpecificParameter::kMaxCacheDuration)) > 1) {
+    return MoqtError::kProtocolViolation;
+  }
+  list.ForEach([&](uint64_t key,
+                   std::variant<uint64_t, absl::string_view> value) {
+    VersionSpecificParameter parameter =
+        static_cast<VersionSpecificParameter>(key);
+    switch (parameter) {
+      case VersionSpecificParameter::kDeliveryTimeout:
+        delivery_timeout =
+            quic::QuicTimeDelta::TryFromMilliseconds(std::get<uint64_t>(value))
+                .value_or(quic::QuicTimeDelta::Infinite());
+        break;
+      case VersionSpecificParameter::kMaxCacheDuration:
+        max_cache_duration =
+            quic::QuicTimeDelta::TryFromMilliseconds(std::get<uint64_t>(value))
+                .value_or(quic::QuicTimeDelta::Infinite());
+        break;
+      case VersionSpecificParameter::kOackWindowSize:
+        oack_window_size =
+            quic::QuicTimeDelta::FromMicroseconds(std::get<uint64_t>(value));
+        break;
+      case VersionSpecificParameter::kAuthorizationToken:
+        error = ParseAuthTokenParameter(std::get<absl::string_view>(value),
+                                        authorization_tokens);
+        if (error != MoqtError::kNoError) {
+          return false;
+        }
+        break;
+      default:
+        break;
+    }
+    return true;
+  });
+  return error;
+}
 
 void MoqtControlParser::ReadAndDispatchMessages() {
   if (no_more_data_) {
@@ -333,57 +645,11 @@ size_t MoqtControlParser::ProcessServerSetup(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader,
                                            MoqtMessageType message_type) {
   MoqtSubscribe subscribe;
-  uint64_t filter, group, object;
-  uint8_t group_order, forward;
   if (!reader.ReadVarInt62(&subscribe.request_id) ||
-      !ReadFullTrackName(reader, subscribe.full_track_name) ||
-      !reader.ReadUInt8(&subscribe.subscriber_priority) ||
-      !reader.ReadUInt8(&group_order) || !reader.ReadUInt8(&forward) ||
-      !reader.ReadVarInt62(&filter)) {
+      !ReadFullTrackName(reader, subscribe.full_track_name)) {
     return 0;
   }
-  if (!ParseDeliveryOrder(group_order, subscribe.group_order)) {
-    ParseError("Invalid group order value in SUBSCRIBE");
-    return 0;
-  }
-  if (forward > 1) {
-    ParseError("Invalid forward value in SUBSCRIBE");
-    return 0;
-  }
-  subscribe.forward = (forward == 1);
-  subscribe.filter_type = static_cast<MoqtFilterType>(filter);
-  switch (subscribe.filter_type) {
-    case MoqtFilterType::kNextGroupStart:
-    case MoqtFilterType::kLatestObject:
-      break;
-    case MoqtFilterType::kAbsoluteStart:
-    case MoqtFilterType::kAbsoluteRange:
-      if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
-        return 0;
-      }
-      subscribe.start = Location(group, object);
-      if (subscribe.filter_type == MoqtFilterType::kAbsoluteStart) {
-        break;
-      }
-      if (!reader.ReadVarInt62(&group)) {
-        return 0;
-      }
-      subscribe.end_group = group;
-      if (*subscribe.end_group < subscribe.start->group) {
-        ParseError("End group is less than start group");
-        return 0;
-      }
-      break;
-    default:
-      ParseError("Invalid filter type");
-      return 0;
-  }
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (!FillAndValidateVersionSpecificParameters(
-          parameters, subscribe.parameters, message_type)) {
+  if (!FillAndValidateMessageParameters(reader, subscribe.parameters)) {
     return 0;
   }
   if (message_type == MoqtMessageType::kTrackStatus) {
@@ -826,7 +1092,7 @@ size_t MoqtControlParser::ProcessPublishOk(quic::QuicDataReader& reader) {
   uint64_t group, object, end_group;
   switch (publish_ok.filter_type) {
     case MoqtFilterType::kNextGroupStart:
-    case MoqtFilterType::kLatestObject:
+    case MoqtFilterType::kLargestObject:
       break;
     case MoqtFilterType::kAbsoluteStart:
     case MoqtFilterType::kAbsoluteRange:
@@ -938,7 +1204,7 @@ bool MoqtControlParser::ReadFullTrackName(quic::QuicDataReader& reader,
 bool MoqtControlParser::FillAndValidateSetupParameters(
     const KeyValuePairList& in, SetupParameters& out,
     MoqtMessageType message_type) {
-  MoqtError error = KeyValuePairListToSetupParameters(in, out);
+  MoqtError error = out.FromKeyValuePairList(in);
   if (error != MoqtError::kNoError) {
     absl::string_view error_message = (error == MoqtError::kProtocolViolation)
                                           ? "Duplicate Setup Parameter"
@@ -955,10 +1221,28 @@ bool MoqtControlParser::FillAndValidateSetupParameters(
   return true;
 }
 
+bool MoqtControlParser::FillAndValidateMessageParameters(
+    quic::QuicDataReader& reader, MessageParameters& out) {
+  KeyValuePairList pairs;
+  if (!ParseKeyValuePairList(reader, pairs)) {
+    return false;
+  }
+  MoqtError error = out.FromKeyValuePairList(pairs);
+  if (error != MoqtError::kNoError) {
+    absl::string_view error_message = (error == MoqtError::kProtocolViolation)
+                                          ? "Duplicate Message Parameter"
+                                          : "Message Parameter parsing error";
+    ParseError(error, error_message);
+    return false;
+  }
+  // All parameter types are allowed in all messages.
+  return true;
+}
+
 bool MoqtControlParser::FillAndValidateVersionSpecificParameters(
     const KeyValuePairList& in, VersionSpecificParameters& out,
     MoqtMessageType message_type) {
-  MoqtError error = KeyValuePairListToVersionSpecificParameters(in, out);
+  MoqtError error = out.FromKeyValuePairList(in);
   if (error != MoqtError::kNoError) {
     absl::string_view error_message =
         (error == MoqtError::kProtocolViolation)

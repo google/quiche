@@ -13,7 +13,10 @@
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
@@ -308,7 +311,8 @@ void MoqtRelayTrackPublisher::AddObjectListener(MoqtObjectListener* listener) {
       DeleteTrack();
       return;
     }
-    session->SubscribeCurrentObject(track_, this, VersionSpecificParameters());
+    MessageParameters parameters;
+    session->Subscribe(track_, this, parameters);
   }
   listeners_.insert(listener);
   if (got_response_) {

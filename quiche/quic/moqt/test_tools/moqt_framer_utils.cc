@@ -214,7 +214,7 @@ absl::Status StoreSubscribe::operator()(
     ADD_FAILURE() << "Expected one SUBSCRIBE frame in a write";
     return absl::InternalError("Expected one SUBSCRIBE frame in a write");
   }
-  *subscribe_ = std::get<MoqtSubscribe>(frames[0]);
+  subscribe_->emplace(std::get<MoqtSubscribe>(frames[0]));
   return absl::OkStatus();
 }
 
