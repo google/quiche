@@ -88,6 +88,16 @@ class QUICHE_EXPORT ObliviousHttpClient {
 // cycle.
 class QUICHE_EXPORT ChunkedObliviousHttpClient {
  public:
+  // Movable but not copyable.
+  ChunkedObliviousHttpClient(const ChunkedObliviousHttpClient& other) = delete;
+  ChunkedObliviousHttpClient& operator=(
+      const ChunkedObliviousHttpClient& other) = delete;
+  ChunkedObliviousHttpClient(ChunkedObliviousHttpClient&& other) = default;
+  // Move assignment disabled because chunk_handler_ is a reference. If we
+  // ever need move assignment, we'll have to switch that to a pointer.
+  ChunkedObliviousHttpClient& operator=(ChunkedObliviousHttpClient&& other) =
+      delete;
+
   // Creates a new ChunkedObliviousHttpClient. Does not take ownership of
   // `chunk_handler`, which must refer to a valid handler that outlives this
   // client. The `seed` parameter is used to initialize the HPKE sender context.
