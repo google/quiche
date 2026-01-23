@@ -30,6 +30,9 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, use_mtls_for_key_fetch, false,
     "If true, use mTLS when fetching the OHTTP/HPKE keys.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, chunked, false,
+                                "If true, use chunked OHTTP.");
+
 DEFINE_QUICHE_COMMAND_LINE_FLAG(int, address_family, 0,
                                 "IP address family to use. Must be 0, 4 or 6. "
                                 "Defaults to 0 which means any.");
@@ -66,6 +69,8 @@ int RunMasqueOhttpClient(int argc, char* argv[]) {
       quiche::GetQuicheCommandLineFlag(FLAGS_disable_certificate_verification);
   const bool use_mtls_for_key_fetch =
       quiche::GetQuicheCommandLineFlag(FLAGS_use_mtls_for_key_fetch);
+  const bool use_chunked_ohttp =
+      quiche::GetQuicheCommandLineFlag(FLAGS_chunked);
   const std::string client_cert_file =
       quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_file);
   const std::string client_cert_key_file =
@@ -110,7 +115,8 @@ int RunMasqueOhttpClient(int argc, char* argv[]) {
 
   MasqueOhttpClient masque_ohttp_client(
       event_loop.get(), key_fetch_ssl_ctx->get(), ohttp_ssl_ctx->get(), urls,
-      disable_certificate_verification, dns_config, post_data);
+      disable_certificate_verification, use_chunked_ohttp, dns_config,
+      post_data);
   if (!masque_ohttp_client.Start().ok()) {
     return 1;
   }
