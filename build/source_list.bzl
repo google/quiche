@@ -1234,6 +1234,7 @@ quiche_tests_srcs = [
     "oblivious_http/common/oblivious_http_header_key_config_test.cc",
     "oblivious_http/oblivious_http_client_test.cc",
     "oblivious_http/oblivious_http_gateway_test.cc",
+    "oblivious_http/oblivious_http_integration_test.cc",
     "quic/core/congestion_control/bandwidth_sampler_test.cc",
     "quic/core/congestion_control/bbr2_simulator_test.cc",
     "quic/core/congestion_control/bbr_sender_test.cc",
