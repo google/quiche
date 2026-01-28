@@ -208,7 +208,7 @@ uint64_t StringPieceVarInt62Len(absl::string_view s) {
 }
 
 absl::StatusOr<std::string> EncodeBodyChunksImpl(
-    absl::Span<absl::string_view> body_chunks, bool body_chunks_done) {
+    absl::Span<const absl::string_view> body_chunks, bool body_chunks_done) {
   uint64_t total_length = 0;
   for (const auto& body_chunk : body_chunks) {
     uint8_t body_chunk_var_int_length =
@@ -333,10 +333,8 @@ absl::Status DecodeContentTerminatedBodyChunkSection(
   return absl::OkStatus();
 }
 
-}  // namespace
-
 absl::StatusOr<uint64_t> GetFieldSectionLength(
-    absl::Span<BinaryHttpMessage::FieldView> fields) {
+    absl::Span<const BinaryHttpMessage::FieldView> fields) {
   uint64_t field_section_length = 0;
   for (const auto& field : fields) {
     uint8_t var_int_length =
@@ -357,7 +355,7 @@ absl::StatusOr<uint64_t> GetFieldSectionLength(
   return field_section_length;
 }
 
-absl::Status EncodeFields(absl::Span<BinaryHttpMessage::FieldView> fields,
+absl::Status EncodeFields(absl::Span<const BinaryHttpMessage::FieldView> fields,
                           quiche::QuicheDataWriter& writer) {
   for (const auto& field : fields) {
     if (!writer.WriteStringPieceVarInt62(absl::AsciiStrToLower(field.name))) {
@@ -372,6 +370,8 @@ absl::Status EncodeFields(absl::Span<BinaryHttpMessage::FieldView> fields,
   }
   return absl::OkStatus();
 }
+
+}  // namespace
 
 void BinaryHttpMessage::Fields::AddField(BinaryHttpMessage::Field field) {
   fields_.push_back(std::move(field));
@@ -749,7 +749,7 @@ absl::Status BinaryHttpRequest::IndeterminateLengthDecoder::Decode(
 
 absl::StatusOr<std::string>
 BinaryHttpRequest::IndeterminateLengthEncoder::EncodeFieldSection(
-    absl::Span<FieldView> fields) {
+    absl::Span<const FieldView> fields) {
   absl::StatusOr<uint64_t> field_section_length = GetFieldSectionLength(fields);
   if (!field_section_length.ok()) {
     return field_section_length.status();
@@ -817,7 +817,7 @@ BinaryHttpRequest::IndeterminateLengthEncoder::EncodeControlData(
 
 absl::StatusOr<std::string>
 BinaryHttpRequest::IndeterminateLengthEncoder::EncodeHeaders(
-    absl::Span<FieldView> headers) {
+    absl::Span<const FieldView> headers) {
   if (current_section_ != IndeterminateLengthMessageSection::kHeader) {
     current_section_ = IndeterminateLengthMessageSection::kEnd;
     return absl::InvalidArgumentError("EncodeHeaders called in wrong section.");
@@ -833,7 +833,7 @@ BinaryHttpRequest::IndeterminateLengthEncoder::EncodeHeaders(
 
 absl::StatusOr<std::string>
 BinaryHttpRequest::IndeterminateLengthEncoder::EncodeBodyChunks(
-    absl::Span<absl::string_view> body_chunks, bool body_chunks_done) {
+    absl::Span<const absl::string_view> body_chunks, bool body_chunks_done) {
   if (current_section_ != IndeterminateLengthMessageSection::kBody) {
     current_section_ = IndeterminateLengthMessageSection::kEnd;
     return absl::InvalidArgumentError(
@@ -853,7 +853,7 @@ BinaryHttpRequest::IndeterminateLengthEncoder::EncodeBodyChunks(
 
 absl::StatusOr<std::string>
 BinaryHttpRequest::IndeterminateLengthEncoder::EncodeTrailers(
-    absl::Span<FieldView> trailers) {
+    absl::Span<const FieldView> trailers) {
   if (current_section_ != IndeterminateLengthMessageSection::kTrailer) {
     current_section_ = IndeterminateLengthMessageSection::kEnd;
     return absl::InvalidArgumentError(
@@ -879,7 +879,7 @@ absl::StatusOr<BinaryHttpResponse> BinaryHttpResponse::Create(
 
 absl::StatusOr<std::string>
 BinaryHttpResponse::IndeterminateLengthEncoder::EncodeFieldSection(
-    std::optional<uint16_t> status_code, absl::Span<FieldView> fields) {
+    std::optional<uint16_t> status_code, absl::Span<const FieldView> fields) {
   absl::StatusOr<uint64_t> field_section_length = GetFieldSectionLength(fields);
   if (!field_section_length.ok()) {
     return field_section_length.status();
@@ -945,7 +945,7 @@ BinaryHttpResponse::IndeterminateLengthEncoder::GetMessageSectionString(
 
 absl::StatusOr<std::string>
 BinaryHttpResponse::IndeterminateLengthEncoder::EncodeInformationalResponse(
-    uint16_t status_code, absl::Span<FieldView> fields) {
+    uint16_t status_code, absl::Span<const FieldView> fields) {
   if (current_section_ !=
           IndeterminateLengthMessageSection::kFramingIndicator &&
       current_section_ !=
@@ -973,7 +973,7 @@ BinaryHttpResponse::IndeterminateLengthEncoder::EncodeInformationalResponse(
 
 absl::StatusOr<std::string>
 BinaryHttpResponse::IndeterminateLengthEncoder::EncodeHeaders(
-    uint16_t status_code, absl::Span<FieldView> headers) {
+    uint16_t status_code, absl::Span<const FieldView> headers) {
   if (current_section_ !=
           IndeterminateLengthMessageSection::kFramingIndicator &&
       current_section_ !=
@@ -1000,7 +1000,7 @@ BinaryHttpResponse::IndeterminateLengthEncoder::EncodeHeaders(
 
 absl::StatusOr<std::string>
 BinaryHttpResponse::IndeterminateLengthEncoder::EncodeBodyChunks(
-    absl::Span<absl::string_view> body_chunks, bool body_chunks_done) {
+    absl::Span<const absl::string_view> body_chunks, bool body_chunks_done) {
   if (current_section_ != IndeterminateLengthMessageSection::kBody) {
     current_section_ = IndeterminateLengthMessageSection::kEnd;
     return absl::InvalidArgumentError(
@@ -1021,7 +1021,7 @@ BinaryHttpResponse::IndeterminateLengthEncoder::EncodeBodyChunks(
 
 absl::StatusOr<std::string>
 BinaryHttpResponse::IndeterminateLengthEncoder::EncodeTrailers(
-    absl::Span<FieldView> trailers) {
+    absl::Span<const FieldView> trailers) {
   if (current_section_ != IndeterminateLengthMessageSection::kTrailer) {
     current_section_ = IndeterminateLengthMessageSection::kEnd;
     return absl::InvalidArgumentError(

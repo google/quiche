@@ -284,19 +284,22 @@ class QUICHE_EXPORT BinaryHttpRequest::IndeterminateLengthEncoder {
   absl::StatusOr<std::string> EncodeControlData(
       const ControlData& control_data);
   // Encodes the specified headers and its content terminator.
-  absl::StatusOr<std::string> EncodeHeaders(absl::Span<FieldView> headers);
+  absl::StatusOr<std::string> EncodeHeaders(
+      absl::Span<const FieldView> headers);
   // Encodes the specified body chunks. This can be called multiple times but
   // it needs to be called exactly once with `body_chunks_done` set to true at
   // the end to properly set the content terminator. Encoding body chunks is
   // optional since valid chunked messages can be truncated.
   absl::StatusOr<std::string> EncodeBodyChunks(
-      absl::Span<absl::string_view> body_chunks, bool body_chunks_done);
+      absl::Span<const absl::string_view> body_chunks, bool body_chunks_done);
   // Encodes the specified trailers and its content terminator. Encoding
   // trailers is optional since valid chunked messages can be truncated.
-  absl::StatusOr<std::string> EncodeTrailers(absl::Span<FieldView> trailers);
+  absl::StatusOr<std::string> EncodeTrailers(
+      absl::Span<const FieldView> trailers);
 
  private:
-  absl::StatusOr<std::string> EncodeFieldSection(absl::Span<FieldView> fields);
+  absl::StatusOr<std::string> EncodeFieldSection(
+      absl::Span<const FieldView> fields);
 
   IndeterminateLengthMessageSection current_section_ =
       IndeterminateLengthMessageSection::kControlData;
@@ -504,23 +507,24 @@ class QUICHE_EXPORT BinaryHttpResponse::IndeterminateLengthEncoder {
   // Encodes the specified informational response status code, fields, and its
   // content terminator.
   absl::StatusOr<std::string> EncodeInformationalResponse(
-      uint16_t status_code, absl::Span<FieldView> fields);
+      uint16_t status_code, absl::Span<const FieldView> fields);
   // Encodes the specified status code, headers, and its content terminator.
-  absl::StatusOr<std::string> EncodeHeaders(uint16_t status_code,
-                                            absl::Span<FieldView> headers);
+  absl::StatusOr<std::string> EncodeHeaders(
+      uint16_t status_code, absl::Span<const FieldView> headers);
   // Encodes the specified body chunks. This can be called multiple times but
   // it needs to be called exactly once with `body_chunks_done` set to true at
   // the end to properly set the content terminator. Encoding body chunks is
   // optional since valid chunked messages can be truncated.
   absl::StatusOr<std::string> EncodeBodyChunks(
-      absl::Span<absl::string_view> body_chunks, bool body_chunks_done);
+      absl::Span<const absl::string_view> body_chunks, bool body_chunks_done);
   // Encodes the specified trailers and its content terminator. Encoding
   // trailers is optional since valid chunked messages can be truncated.
-  absl::StatusOr<std::string> EncodeTrailers(absl::Span<FieldView> trailers);
+  absl::StatusOr<std::string> EncodeTrailers(
+      absl::Span<const FieldView> trailers);
 
  private:
   absl::StatusOr<std::string> EncodeFieldSection(
-      std::optional<uint16_t> status_code, absl::Span<FieldView> fields);
+      std::optional<uint16_t> status_code, absl::Span<const FieldView> fields);
   std::string GetMessageSectionString(
       IndeterminateLengthMessageSection section) const;
 

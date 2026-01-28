@@ -826,22 +826,20 @@ TEST(RequestIndeterminateLengthEncoder, FullRequest) {
     encoded_data += *status_or_encoded_data;
   }
 
-  status_or_encoded_data =
-      encoder.EncodeHeaders(absl::MakeSpan(test_data.headers));
+  status_or_encoded_data = encoder.EncodeHeaders(test_data.headers);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   if (status_or_encoded_data.ok()) {
     encoded_data += *status_or_encoded_data;
   }
 
   status_or_encoded_data =
-      encoder.EncodeBodyChunks(absl::MakeSpan(test_data.body_chunks), true);
+      encoder.EncodeBodyChunks(test_data.body_chunks, true);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   if (status_or_encoded_data.ok()) {
     encoded_data += *status_or_encoded_data;
   }
 
-  status_or_encoded_data =
-      encoder.EncodeTrailers(absl::MakeSpan(test_data.trailers));
+  status_or_encoded_data = encoder.EncodeTrailers(test_data.trailers);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   if (status_or_encoded_data.ok()) {
     encoded_data += *status_or_encoded_data;
@@ -871,8 +869,7 @@ TEST(RequestIndeterminateLengthEncoder, RequestNoBody) {
     encoded_data += *status_or_encoded_data;
   }
 
-  status_or_encoded_data =
-      encoder.EncodeHeaders(absl::MakeSpan(test_data.headers));
+  status_or_encoded_data = encoder.EncodeHeaders(test_data.headers);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   if (status_or_encoded_data.ok()) {
     encoded_data += *status_or_encoded_data;
@@ -914,27 +911,26 @@ TEST(RequestIndeterminateLengthEncoder, EncodingChunksMultipleTimes) {
     encoded_data += *status_or_encoded_data;
   }
 
-  status_or_encoded_data =
-      encoder.EncodeHeaders(absl::MakeSpan(test_data.headers));
+  status_or_encoded_data = encoder.EncodeHeaders(test_data.headers);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   if (status_or_encoded_data.ok()) {
     encoded_data += *status_or_encoded_data;
   }
 
-  status_or_encoded_data = encoder.EncodeBodyChunks(
-      absl::MakeSpan(test_data.body_chunks.data(), 1), false);
+  status_or_encoded_data =
+      encoder.EncodeBodyChunks({test_data.body_chunks[0]}, false);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   if (status_or_encoded_data.ok()) {
     encoded_data += *status_or_encoded_data;
   }
-  status_or_encoded_data = encoder.EncodeBodyChunks(
-      absl::MakeSpan(test_data.body_chunks.data() + 1, 1), false);
+  status_or_encoded_data =
+      encoder.EncodeBodyChunks({test_data.body_chunks[1]}, false);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   if (status_or_encoded_data.ok()) {
     encoded_data += *status_or_encoded_data;
   }
-  status_or_encoded_data = encoder.EncodeBodyChunks(
-      absl::MakeSpan(test_data.body_chunks.data() + 2, 1), false);
+  status_or_encoded_data =
+      encoder.EncodeBodyChunks({test_data.body_chunks[2]}, false);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   if (status_or_encoded_data.ok()) {
     encoded_data += *status_or_encoded_data;
@@ -945,8 +941,7 @@ TEST(RequestIndeterminateLengthEncoder, EncodingChunksMultipleTimes) {
     encoded_data += *status_or_encoded_data;
   }
 
-  status_or_encoded_data =
-      encoder.EncodeTrailers(absl::MakeSpan(test_data.trailers));
+  status_or_encoded_data = encoder.EncodeTrailers(test_data.trailers);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   if (status_or_encoded_data.ok()) {
     encoded_data += *status_or_encoded_data;
@@ -1712,27 +1707,25 @@ TEST(ResponseIndeterminateLengthEncoder, WithInformationalResponses) {
   std::string encoded_data;
 
   absl::StatusOr<std::string> status_or_encoded_data =
-      encoder.EncodeInformationalResponse(
-          102, absl::MakeSpan(test_data.informationalResponse1));
+      encoder.EncodeInformationalResponse(102,
+                                          test_data.informationalResponse1);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
   status_or_encoded_data = encoder.EncodeInformationalResponse(
-      103, absl::MakeSpan(test_data.informationalResponse2));
+      103, test_data.informationalResponse2);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  encoded_data += *status_or_encoded_data;
+
+  status_or_encoded_data = encoder.EncodeHeaders(200, test_data.headers);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
 
   status_or_encoded_data =
-      encoder.EncodeHeaders(200, absl::MakeSpan(test_data.headers));
+      encoder.EncodeBodyChunks(test_data.body_chunks, true);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
 
-  status_or_encoded_data =
-      encoder.EncodeBodyChunks(absl::MakeSpan(test_data.body_chunks), true);
-  QUICHE_EXPECT_OK(status_or_encoded_data);
-  encoded_data += *status_or_encoded_data;
-
-  status_or_encoded_data =
-      encoder.EncodeTrailers(absl::MakeSpan(test_data.trailers));
+  status_or_encoded_data = encoder.EncodeTrailers(test_data.trailers);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
 
@@ -1753,17 +1746,16 @@ TEST(ResponseIndeterminateLengthEncoder, NoInformationalResponses) {
   std::string encoded_data;
 
   absl::StatusOr<std::string> status_or_encoded_data =
-      encoder.EncodeHeaders(200, absl::MakeSpan(test_data.headers));
+      encoder.EncodeHeaders(200, test_data.headers);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
 
   status_or_encoded_data =
-      encoder.EncodeBodyChunks(absl::MakeSpan(test_data.body_chunks), true);
+      encoder.EncodeBodyChunks(test_data.body_chunks, true);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
 
-  status_or_encoded_data =
-      encoder.EncodeTrailers(absl::MakeSpan(test_data.trailers));
+  status_or_encoded_data = encoder.EncodeTrailers(test_data.trailers);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
 
@@ -1784,32 +1776,31 @@ TEST(ResponseIndeterminateLengthEncoder, EncodingChunksMultipleTimes) {
   std::string encoded_data;
 
   absl::StatusOr<std::string> status_or_encoded_data =
-      encoder.EncodeHeaders(200, absl::MakeSpan(test_data.headers));
+      encoder.EncodeHeaders(200, test_data.headers);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
 
-  status_or_encoded_data = encoder.EncodeBodyChunks(
-      absl::MakeSpan(test_data.body_chunks.data(), 1), false);
+  status_or_encoded_data =
+      encoder.EncodeBodyChunks({test_data.body_chunks[0]}, false);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
-  status_or_encoded_data = encoder.EncodeBodyChunks(
-      absl::MakeSpan(test_data.body_chunks.data() + 1, 1), false);
+  status_or_encoded_data =
+      encoder.EncodeBodyChunks({test_data.body_chunks[1]}, false);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
-  status_or_encoded_data = encoder.EncodeBodyChunks(
-      absl::MakeSpan(test_data.body_chunks.data() + 2, 1), false);
+  status_or_encoded_data =
+      encoder.EncodeBodyChunks({test_data.body_chunks[2]}, false);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
-  status_or_encoded_data = encoder.EncodeBodyChunks(
-      absl::MakeSpan(test_data.body_chunks.data() + 3, 1), false);
+  status_or_encoded_data =
+      encoder.EncodeBodyChunks({test_data.body_chunks[3]}, false);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
   status_or_encoded_data = encoder.EncodeBodyChunks({}, true);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
 
-  status_or_encoded_data =
-      encoder.EncodeTrailers(absl::MakeSpan(test_data.trailers));
+  status_or_encoded_data = encoder.EncodeTrailers(test_data.trailers);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   encoded_data += *status_or_encoded_data;
   EXPECT_EQ(encoded_data, expected);
