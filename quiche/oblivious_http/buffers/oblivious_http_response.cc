@@ -346,7 +346,7 @@ absl::StatusOr<std::string> ObliviousHttpResponse::EncryptChunk(
   // Empty plaintext_payload is only allowed for the final chunk.
   if (!is_final_chunk && plaintext_payload.empty()) {
     return absl::InvalidArgumentError(
-        "Payload cannot be empty for non-final chunks.");
+        "A non-final chunk MUST NOT contain a zero-length plaintext.");
   }
   if (chunk_nonce.empty()) {
     return absl::InvalidArgumentError("Chunk nonce cannot be empty.");
@@ -405,7 +405,13 @@ absl::StatusOr<std::string> ObliviousHttpResponse::DecryptChunk(
           reinterpret_cast<const uint8_t*>(encrypted_chunk.data()),
           encrypted_chunk.size(), ad, ad_len)) {
     return SslErrorAsStatus(
-        "Failed to decrypt the response with derived AEAD key and nonce.");
+        "Failed to decrypt the response with derived AEAD key and nonce.",
+        absl::StatusCode::kInvalidArgument);
+  }
+  if (decrypted_len == 0 && !is_final_chunk) {
+    return absl::InvalidArgumentError(
+        "Decrypted non-final chunk plaintext is zero-length. A non-final chunk "
+        "MUST NOT contain a zero-length plaintext.");
   }
   decrypted.resize(decrypted_len);
   return decrypted;

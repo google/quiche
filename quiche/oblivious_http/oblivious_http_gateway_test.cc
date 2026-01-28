@@ -283,6 +283,35 @@ TEST(ChunkedObliviousHttpGateway,
             absl::StatusCode::kInternal);
 }
 
+TEST(ChunkedObliviousHttpGateway, DecryptZeroLengthNonFinalRequestChunkFails) {
+  TestChunkHandler chunk_handler;
+  // Contains the initial encapsulated request header and a zero-length
+  // encrypted request chunk.
+  std::string nonFinalZeroLengthEncryptedRequestChunk;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("010020000100013d9dde87c236fcbcfa540087557a8653738"
+                             "0e4731385cdcfcc391f7948b9"
+                             "590b108495352919fa03b19a997bb5621b1480",
+                             &nonFinalZeroLengthEncryptedRequestChunk));
+
+  // The key used to generate the above request.
+  std::string privateKey;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "b77431ecfa8f4cfc30d6e467aafa06944dffe28cb9dd1409e33a3045f5adc8a1",
+      &privateKey));
+  auto gateway = ChunkedObliviousHttpGateway::Create(
+      privateKey,
+      GetOhttpKeyConfig(
+          /*key_id=*/1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+          EVP_HPKE_AES_128_GCM),
+      &chunk_handler);
+
+  EXPECT_EQ(
+      gateway->DecryptRequest(nonFinalZeroLengthEncryptedRequestChunk, false)
+          .code(),
+      absl::StatusCode::kInvalidArgument);
+}
+
 TEST(ObliviousHttpGateway, TestDecryptingMultipleRequestsWithSingleInstance) {
   auto instance = ObliviousHttpGateway::Create(
       GetHpkePrivateKey(),

@@ -186,6 +186,41 @@ TEST(ObliviousHttpClient, TestEncryptingMultipleRequestsWithSingleInstance) {
   EXPECT_NE(serialized_ohttp_req_1, serialized_ohttp_req_2);
 }
 
+TEST(ChunkedObliviousHttpClient, DecryptZeroLengthNonFinalResponseChunkFails) {
+  TestChunkHandler chunk_handler;
+  // Contains the nonce and a zero-length
+  // encrypted response chunk.
+  std::string nonFinalZeroLengthEncryptedResponseChunk;
+  EXPECT_TRUE(absl::HexStringToBytes(
+      "a58cfdb3f69b5cb9ae328e25516dfed2109ac5a0b0ce59b9ff5bf6fe1ab2274715",
+      &nonFinalZeroLengthEncryptedResponseChunk));
+
+  // The seed used for generating the response context.
+  std::string seed;
+  EXPECT_TRUE(absl::HexStringToBytes(
+      "52c4a758a802cd8b936eceea314432798d5baf2d7e9235dc084ab1b9cfa2f736",
+      &seed));
+
+  absl::StatusOr<ObliviousHttpHeaderKeyConfig> key_config =
+      ObliviousHttpHeaderKeyConfig::Create(
+          /*key_id=*/1, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+          EVP_HPKE_AES_128_GCM);
+  QUICHE_ASSERT_OK(key_config);
+
+  absl::StatusOr<ChunkedObliviousHttpClient> chunked_client =
+      ChunkedObliviousHttpClient::Create(GetHpkePublicKey(), key_config.value(),
+                                         &chunk_handler,
+
+                                         seed);
+
+  QUICHE_ASSERT_OK(chunked_client);
+  EXPECT_EQ(
+      chunked_client
+          ->DecryptResponse(nonFinalZeroLengthEncryptedResponseChunk, false)
+          .code(),
+      absl::StatusCode::kInvalidArgument);
+}
+
 TEST(ObliviousHttpClient, TestInvalidHPKEKey) {
   // Invalid public key.
   EXPECT_EQ(ObliviousHttpClient::Create(
@@ -671,7 +706,7 @@ TEST(ChunkedObliviousHttpClient, DecryptResponseWithCorruptedNonceFails) {
   corrupted_response[0] ^= 0x01;  // Corrupt first byte of nonce.
   EXPECT_THAT(
       chunk_client->DecryptResponse(corrupted_response, /*end_stream=*/true),
-      StatusIs(absl::StatusCode::kInternal));
+      StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST(ChunkedObliviousHttpClient, DecryptResponseWithCorruptedChunkFails) {
@@ -713,7 +748,7 @@ TEST(ChunkedObliviousHttpClient, DecryptResponseWithCorruptedChunkFails) {
                                          // 12 bytes nonce + 1 byte len.
   EXPECT_THAT(chunk_client->DecryptResponse(corrupted_chunk_response,
                                             /*end_stream=*/false),
-              StatusIs(absl::StatusCode::kInternal));
+              StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST(ChunkedObliviousHttpClient, DecryptResponseWithCorruptedFinalChunkFails) {
@@ -755,7 +790,7 @@ TEST(ChunkedObliviousHttpClient, DecryptResponseWithCorruptedFinalChunkFails) {
              // 12 bytes nonce + 1 byte chunk indicator==0.
   EXPECT_THAT(
       chunk_client->DecryptResponse(corrupted_response, /*end_stream=*/true),
-      StatusIs(absl::StatusCode::kInternal));
+      StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST(ChunkedObliviousHttpClient, DecryptResponseAfterEndStreamReturnsError) {

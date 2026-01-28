@@ -165,7 +165,8 @@ absl::StatusOr<std::string> ObliviousHttpRequest::EncryptChunk(
     absl::string_view plaintext_payload, const Context& context,
     bool is_final_chunk) {
   if (plaintext_payload.empty() && !is_final_chunk) {
-    return absl::InvalidArgumentError("Invalid input.");
+    return absl::InvalidArgumentError(
+        "A non-final chunk MUST NOT contain a zero-length plaintext.");
   }
 
   uint8_t* ad = nullptr;
@@ -276,6 +277,12 @@ absl::StatusOr<std::string> ObliviousHttpRequest::DecryptChunk(
           encrypted_chunk.size(), ad, ad_len)) {
     return SslErrorAsStatus("Failed to decrypt.",
                             absl::StatusCode::kInvalidArgument);
+  }
+
+  if (decrypted_len == 0 && !is_final_chunk) {
+    return absl::InvalidArgumentError(
+        "Decrypted non-final chunk plaintext is zero-length. A non-final chunk "
+        "MUST NOT contain a zero-length plaintext.");
   }
   decrypted.resize(decrypted_len);
   return decrypted;
