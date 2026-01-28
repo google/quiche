@@ -30,10 +30,8 @@ using MoqtObjectAckFunction =
                                   quic::QuicTimeDelta delta_from_deadline)>;
 
 struct SubscribeOkData {
-  quic::QuicTimeDelta expires;
-  MoqtDeliveryOrder delivery_order;
-  std::optional<Location> largest_location;
-  VersionSpecificParameters parameters = VersionSpecificParameters();
+  MessageParameters parameters;
+  TrackExtensions extensions;
 };
 
 class SubscribeVisitor {

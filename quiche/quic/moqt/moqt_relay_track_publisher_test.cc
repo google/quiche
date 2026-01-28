@@ -54,17 +54,17 @@ class MoqtRelayTrackPublisherTest : public quiche::test::QuicheTest {
       : session_(std::make_unique<MockMoqtSession>()),
         publisher_(
             kTrackName, session_->GetWeakPtr(),
-            [this]() { track_deleted_ = true; }, std::nullopt, std::nullopt,
-            std::nullopt) {}
+            [this]() { track_deleted_ = true; }, std::nullopt) {}
 
   void SubscribeAndOk() {
     EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
     publisher_.AddObjectListener(&listener_);
     EXPECT_CALL(listener_, OnSubscribeAccepted);
-    publisher_.OnReply(
-        kTrackName,
-        SubscribeOkData{quic::QuicTimeDelta::Infinite(),
-                        MoqtDeliveryOrder::kAscending, kLargestLocation});
+    MessageParameters parameters;
+    parameters.largest_object = kLargestLocation;
+    parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
+    publisher_.OnReply(kTrackName,
+                       SubscribeOkData{parameters, TrackExtensions()});
   }
 
   void ObjectArrives(Location location, uint64_t subgroup,
@@ -105,26 +105,23 @@ class MoqtRelayTrackPublisherTest : public quiche::test::QuicheTest {
 TEST_F(MoqtRelayTrackPublisherTest, Queries) {
   EXPECT_EQ(publisher_.GetTrackName(), kTrackName);
   EXPECT_EQ(publisher_.largest_location(), std::nullopt);
-  EXPECT_EQ(publisher_.forwarding_preference(), std::nullopt);
-  EXPECT_EQ(publisher_.delivery_order(), std::nullopt);
   EXPECT_EQ(publisher_.expiration(), std::nullopt);
 
   SubscribeAndOk();
   EXPECT_EQ(publisher_.largest_location(), kLargestLocation);
-  EXPECT_EQ(publisher_.forwarding_preference(), std::nullopt);
-  EXPECT_EQ(publisher_.delivery_order(), MoqtDeliveryOrder::kAscending);
   EXPECT_TRUE(publisher_.expiration().has_value() &&
-              publisher_.expiration()->IsInfinite());
+              *publisher_.expiration() <= quic::QuicTimeDelta::FromSeconds(30));
 }
 
 TEST_F(MoqtRelayTrackPublisherTest, FiniteExpiration) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
   publisher_.AddObjectListener(&listener_);
   EXPECT_CALL(listener_, OnSubscribeAccepted);
-  publisher_.OnReply(
-      kTrackName,
-      SubscribeOkData{quic::QuicTimeDelta::FromSeconds(30),
-                      MoqtDeliveryOrder::kAscending, kLargestLocation});
+  MessageParameters parameters;
+  parameters.largest_object = kLargestLocation;
+  parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
+  publisher_.OnReply(kTrackName,
+                     SubscribeOkData{parameters, TrackExtensions()});
   EXPECT_LT(publisher_.expiration(), quic::QuicTimeDelta::FromSeconds(31));
 }
 
@@ -338,10 +335,10 @@ TEST_F(MoqtRelayTrackPublisherTest, SecondListenerNoSubscribe) {
   publisher_.AddObjectListener(&listener2);
   EXPECT_CALL(listener_, OnSubscribeAccepted);
   EXPECT_CALL(listener2, OnSubscribeAccepted);
-  publisher_.OnReply(
-      kTrackName,
-      SubscribeOkData{quic::QuicTimeDelta::Infinite(),
-                      MoqtDeliveryOrder::kAscending, kLargestLocation});
+  MessageParameters parameters;
+  parameters.largest_object = kLargestLocation;
+  publisher_.OnReply(kTrackName,
+                     SubscribeOkData{parameters, TrackExtensions()});
 }
 
 TEST_F(MoqtRelayTrackPublisherTest, OnMalformedObject) {

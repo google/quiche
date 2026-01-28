@@ -24,7 +24,6 @@
 #include "quiche/http2/adapter/header_validator.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -111,6 +110,33 @@ bool ParseKeyValuePairList(quic::QuicDataReader& reader,
   }
   uint64_t type = 0;
   for (uint64_t i = 0; i < num_params; ++i) {
+    uint64_t type_diff;
+    if (!reader.ReadVarInt62(&type_diff)) {
+      return false;
+    }
+    type += type_diff;
+    if (type % 2 == 1) {
+      absl::string_view bytes;
+      if (!reader.ReadStringPieceVarInt62(&bytes)) {
+        return false;
+      }
+      list.insert(type, bytes);
+      continue;
+    }
+    uint64_t value;
+    if (!reader.ReadVarInt62(&value)) {
+      return false;
+    }
+    list.insert(type, value);
+  }
+  return true;
+}
+
+bool ParseKeyValuePairListWithNoPrefix(quic::QuicDataReader& reader,
+                                       KeyValuePairList& list) {
+  list.clear();
+  uint64_t type = 0;
+  while (reader.BytesRemaining() > 0) {
     uint64_t type_diff;
     if (!reader.ReadVarInt62(&type_diff)) {
       return false;
@@ -662,45 +688,24 @@ size_t MoqtControlParser::ProcessSubscribe(quic::QuicDataReader& reader,
 
 size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
   MoqtSubscribeOk subscribe_ok;
-  uint64_t milliseconds;
-  uint8_t group_order;
-  uint8_t content_exists;
   if (!reader.ReadVarInt62(&subscribe_ok.request_id) ||
-      !reader.ReadVarInt62(&subscribe_ok.track_alias) ||
-      !reader.ReadVarInt62(&milliseconds) || !reader.ReadUInt8(&group_order) ||
-      !reader.ReadUInt8(&content_exists)) {
+      !reader.ReadVarInt62(&subscribe_ok.track_alias)) {
     return 0;
   }
-  // TODO(martinduke): If track_alias > 0 is an error for TrackStatusOk, then
-  // throw an error here.
-  if (content_exists > 1) {
-    ParseError("SUBSCRIBE_OK ContentExists has invalid value");
+  KeyValuePairList pairs;
+  if (!ParseKeyValuePairList(reader, pairs)) {
     return 0;
   }
-  if (group_order != 0x01 && group_order != 0x02) {
-    ParseError("Invalid group order value in SUBSCRIBE_OK");
+  MoqtError error = subscribe_ok.parameters.FromKeyValuePairList(pairs);
+  if (error != MoqtError::kNoError) {
+    ParseError(error, "Failed to parse SUBSCRIBE_OK message parameters");
     return 0;
   }
-  subscribe_ok.expires =
-      (milliseconds == 0
-           ? std::nullopt
-           : quic::QuicTimeDelta::TryFromMilliseconds(milliseconds))
-          .value_or(quic::QuicTimeDelta::Infinite());
-
-  subscribe_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
-  if (content_exists) {
-    subscribe_ok.largest_location = Location();
-    if (!reader.ReadVarInt62(&subscribe_ok.largest_location->group) ||
-        !reader.ReadVarInt62(&subscribe_ok.largest_location->object)) {
-      return 0;
-    }
-  }
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
+  if (!ParseKeyValuePairListWithNoPrefix(reader, subscribe_ok.extensions)) {
     return 0;
   }
-  if (!FillAndValidateVersionSpecificParameters(
-          parameters, subscribe_ok.parameters, MoqtMessageType::kSubscribeOk)) {
+  if (!subscribe_ok.extensions.Validate()) {
+    ParseError("Invalid SUBSCRIBE_OK track extensions");
     return 0;
   }
   visitor_.OnSubscribeOkMessage(subscribe_ok);

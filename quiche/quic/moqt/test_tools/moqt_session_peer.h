@@ -112,6 +112,7 @@ class MoqtSessionPeer {
     subscribe.parameters.subscription_filter.emplace(
         Location(start_group, start_object));
     subscribe.parameters.subscriber_priority = 0x80;
+    subscribe.parameters.group_order = MoqtDeliveryOrder::kAscending;
     session->published_subscriptions_.emplace(
         subscribe_id, std::make_unique<MoqtSession::PublishedSubscription>(
                           session, std::move(publisher), subscribe, track_alias,

@@ -88,7 +88,7 @@ void SubscribeRemoteTrack::MaybeSetPublishDoneAlarm() {
       clock_ != nullptr) {
     quic::QuicTimeDelta timeout =
         std::min(parameters_.delivery_timeout.value_or(kDefaultDeliveryTimeout),
-                 publisher_delivery_timeout_.value_or(kDefaultDeliveryTimeout));
+                 publisher_delivery_timeout_);
     timeout = std::min(timeout, kMaxPublishDoneTimeout);
     timeout = std::max(timeout, kMinPublishDoneTimeout);
     publish_done_alarm_->Set(clock_->ApproximateNow() + timeout);

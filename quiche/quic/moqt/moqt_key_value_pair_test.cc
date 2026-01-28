@@ -10,6 +10,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/platform/api/quic_test.h"
 
 namespace moqt::test {
@@ -226,6 +227,118 @@ TEST_F(MessageParametersTest, DuplicateParameters) {
     EXPECT_EQ(parameters.FromKeyValuePairList(list),
               MoqtError::kProtocolViolation);
   }
+}
+
+class TrackExtensionsTest : public quic::test::QuicTest {};
+
+TEST_F(TrackExtensionsTest, DefaultConstructor) {
+  TrackExtensions extensions;
+  EXPECT_TRUE(extensions.Validate());
+  EXPECT_EQ(extensions.delivery_timeout(), kDefaultDeliveryTimeout);
+  EXPECT_EQ(extensions.max_cache_duration(), kDefaultMaxCacheDuration);
+  EXPECT_EQ(extensions.default_publisher_priority(), kDefaultPublisherPriority);
+  EXPECT_EQ(extensions.default_publisher_group_order(), kDefaultGroupOrder);
+  EXPECT_EQ(extensions.dynamic_groups(), kDefaultDynamicGroups);
+  EXPECT_TRUE(extensions.immutable_extensions().empty());
+}
+
+TEST_F(TrackExtensionsTest, AllExtensions) {
+  TrackExtensions extensions(quic::QuicTimeDelta::FromMilliseconds(1),
+                             quic::QuicTimeDelta::FromMilliseconds(2),
+                             MoqtPriority(10), MoqtDeliveryOrder::kDescending,
+                             true, "extensions");
+  EXPECT_TRUE(extensions.Validate());
+  EXPECT_EQ(extensions.delivery_timeout(),
+            quic::QuicTimeDelta::FromMilliseconds(1));
+  EXPECT_EQ(extensions.max_cache_duration(),
+            quic::QuicTimeDelta::FromMilliseconds(2));
+  EXPECT_EQ(extensions.default_publisher_priority(), MoqtPriority(10));
+  EXPECT_EQ(extensions.default_publisher_group_order(),
+            MoqtDeliveryOrder::kDescending);
+  EXPECT_TRUE(extensions.dynamic_groups());
+  EXPECT_EQ(extensions.immutable_extensions(), "extensions");
+}
+
+TEST_F(TrackExtensionsTest, ExplicitDefaults) {
+  TrackExtensions extensions(kDefaultDeliveryTimeout, kDefaultMaxCacheDuration,
+                             kDefaultPublisherPriority, kDefaultGroupOrder,
+                             kDefaultDynamicGroups, "");
+  EXPECT_TRUE(extensions.Validate());
+  EXPECT_EQ(extensions.size(), 0);
+  EXPECT_EQ(extensions.delivery_timeout(), kDefaultDeliveryTimeout);
+  EXPECT_EQ(extensions.max_cache_duration(), kDefaultMaxCacheDuration);
+  EXPECT_EQ(extensions.default_publisher_priority(), kDefaultPublisherPriority);
+  EXPECT_EQ(extensions.default_publisher_group_order(), kDefaultGroupOrder);
+  EXPECT_EQ(extensions.dynamic_groups(), kDefaultDynamicGroups);
+  EXPECT_TRUE(extensions.immutable_extensions().empty());
+}
+
+TEST_F(TrackExtensionsTest, Validate) {
+  TrackExtensions extensions;
+  // Unknown extension.
+  extensions.insert(0x42, 15ULL);
+  extensions.insert(0x42, 25ULL);
+  EXPECT_TRUE(extensions.Validate());
+
+  extensions.insert(static_cast<uint64_t>(ExtensionHeader::kDeliveryTimeout),
+                    5ULL);
+  extensions.insert(static_cast<uint64_t>(ExtensionHeader::kDeliveryTimeout),
+                    6ULL);
+  EXPECT_FALSE(extensions.Validate());
+
+  extensions.clear();
+  extensions.insert(static_cast<uint64_t>(ExtensionHeader::kMaxCacheDuration),
+                    5ULL);
+  extensions.insert(static_cast<uint64_t>(ExtensionHeader::kMaxCacheDuration),
+                    6ULL);
+  EXPECT_FALSE(extensions.Validate());
+
+  extensions.clear();
+  extensions.insert(
+      static_cast<uint64_t>(ExtensionHeader::kDefaultPublisherPriority),
+      256ULL);
+  EXPECT_FALSE(extensions.Validate());
+  extensions.clear();
+  extensions.insert(
+      static_cast<uint64_t>(ExtensionHeader::kDefaultPublisherPriority), 0ULL);
+  extensions.insert(
+      static_cast<uint64_t>(ExtensionHeader::kDefaultPublisherPriority), 1ULL);
+  EXPECT_FALSE(extensions.Validate());
+
+  extensions.clear();
+  extensions.insert(
+      static_cast<uint64_t>(ExtensionHeader::kDefaultPublisherGroupOrder),
+      0ULL);
+  EXPECT_FALSE(extensions.Validate());
+  extensions.clear();
+  extensions.insert(
+      static_cast<uint64_t>(ExtensionHeader::kDefaultPublisherGroupOrder),
+      3ULL);
+  EXPECT_FALSE(extensions.Validate());
+  extensions.clear();
+  extensions.insert(static_cast<uint64_t>(ExtensionHeader::kDynamicGroups),
+                    2ULL);
+  extensions.insert(static_cast<uint64_t>(ExtensionHeader::kDynamicGroups),
+                    1ULL);
+  EXPECT_FALSE(extensions.Validate());
+
+  extensions.clear();
+  extensions.insert(static_cast<uint64_t>(ExtensionHeader::kDynamicGroups),
+                    2ULL);
+  EXPECT_FALSE(extensions.Validate());
+  extensions.clear();
+  extensions.insert(static_cast<uint64_t>(ExtensionHeader::kDynamicGroups),
+                    0ULL);
+  extensions.insert(static_cast<uint64_t>(ExtensionHeader::kDynamicGroups),
+                    1ULL);
+  EXPECT_FALSE(extensions.Validate());
+
+  extensions.clear();
+  extensions.insert(
+      static_cast<uint64_t>(ExtensionHeader::kImmutableExtensions), "foo");
+  extensions.insert(
+      static_cast<uint64_t>(ExtensionHeader::kImmutableExtensions), "bar");
+  EXPECT_FALSE(extensions.Validate());
 }
 
 }  // namespace moqt::test

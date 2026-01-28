@@ -47,6 +47,8 @@ class QUICHE_EXPORT KeyValuePairList {
   using ValueVector = std::vector<std::variant<uint64_t, absl::string_view>>;
   ValueVector Get(uint64_t key) const;
   void clear() { map_.clear(); }
+  bool operator==(const KeyValuePairList& other) const = default;
+  KeyValuePairList& operator=(const KeyValuePairList& other) = default;
 
  private:
   absl::btree_multimap<uint64_t, std::variant<uint64_t, std::string>> map_;
@@ -191,6 +193,7 @@ enum class QUICHE_EXPORT SetupParameter : uint64_t {
   // Indicates support for OACK messages.
   kSupportObjectAcks = 0xbbf1438,
 };
+// TODO(martinduke): Refactor this to be more like TrackExtensions.
 struct QUICHE_EXPORT SetupParameters {
   SetupParameters() = default;
   // Constructors for tests.
@@ -235,10 +238,11 @@ constexpr quic::QuicTimeDelta kDefaultDeliveryTimeout =
 constexpr quic::QuicTimeDelta kDefaultExpires = quic::QuicTimeDelta::Infinite();
 constexpr bool kDefaultForward = true;
 constexpr uint8_t kDefaultSubscriberPriority = 128;
-constexpr MoqtDeliveryOrder kDefaultGroupOrder = MoqtDeliveryOrder::kAscending;
+// TODO(martinduke): Refactor this to be more like TrackExtensions.
 struct MessageParameters {
   MessageParameters() = default;
-  // Constructors for subscription filters.
+  MessageParameters(const MessageParameters&) = default;
+  // Constructors for subscription filters with Auth tokens.
   MessageParameters(const MoqtFilterType& filter_type) {
     subscription_filter.emplace(filter_type);
   }
@@ -273,6 +277,60 @@ struct MessageParameters {
   // "if (forward)" is bug-prone because it returns forward_.has_value(). Make
   // it private and use public accessors instead.
   std::optional<bool> forward_;
+};
+
+enum class ExtensionHeader : uint64_t {
+  kDeliveryTimeout = 0x02,
+  kMaxCacheDuration = 0x04,
+  kImmutableExtensions = 0x0b,
+  kDefaultPublisherPriority = 0x0e,
+  kDefaultPublisherGroupOrder = 0x22,
+  kDynamicGroups = 0x30,
+  kPriorGroupIdGap = 0x3c,
+  kPriorObjectIdGap = 0x3e,
+};
+inline constexpr quic::QuicTimeDelta kDefaultMaxCacheDuration =
+    quic::QuicTimeDelta::Infinite();
+inline constexpr bool kDefaultImmutableExtensions = false;
+inline constexpr MoqtPriority kDefaultPublisherPriority = 128;
+inline constexpr MoqtDeliveryOrder kDefaultGroupOrder =
+    MoqtDeliveryOrder::kAscending;
+inline constexpr bool kDefaultDynamicGroups = false;
+class TrackExtensions : public KeyValuePairList {
+ public:
+  TrackExtensions() = default;
+  TrackExtensions(const TrackExtensions&) = default;
+  // Constructor for Original publishers to create their extensions.
+  TrackExtensions(std::optional<quic::QuicTimeDelta> delivery_timeout,
+                  std::optional<quic::QuicTimeDelta> max_cache_duration,
+                  std::optional<MoqtPriority> publisher_priority,
+                  std::optional<MoqtDeliveryOrder> group_order,
+                  std::optional<bool> dynamic_groups,
+                  std::optional<absl::string_view> immutable_extensions);
+
+  // If present and well-formed, returns the value of the extension. Returns the
+  // default value if missing or ill-formed.
+  quic::QuicTimeDelta delivery_timeout() const;
+  quic::QuicTimeDelta max_cache_duration() const;
+  absl::string_view immutable_extensions() const;
+  MoqtPriority default_publisher_priority() const;
+  MoqtDeliveryOrder default_publisher_group_order() const;
+  bool dynamic_groups() const;
+
+  // Returns false if the extension list contains illegal values or illegally
+  // duplicated extensions.
+  bool Validate() const;
+  bool operator==(const TrackExtensions& other) const = default;
+  TrackExtensions& operator=(const TrackExtensions& other) = default;
+
+ private:
+  // Returns the value of the extension if there is exactly one, otherwise
+  // returns std::nullopt. Must not be called on odd extension types.
+  std::optional<uint64_t> GetValueIfExactlyOne(ExtensionHeader header) const;
+  // Verifies that there is no more that one instance of an extension, and if
+  // present, that the value is acceptable.
+  bool ValidateInner(ExtensionHeader header, std::optional<uint64_t> min_value,
+                     std::optional<uint64_t> max_value) const;
 };
 
 // Version specific parameters.

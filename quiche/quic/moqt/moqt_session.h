@@ -177,7 +177,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // first pending stream. If |new_send_order| is nullopt, the subscription
   // has no pending streams anymore.
   void UpdateQueuedSendOrder(
-      uint64_t subscribe_id,
+      uint64_t request_id,
       std::optional<webtransport::SendOrder> old_send_order,
       std::optional<webtransport::SendOrder> new_send_order);
 
@@ -387,7 +387,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     std::vector<webtransport::StreamId> GetAllStreams() const;
 
-    webtransport::SendOrder GetSendOrder(Location sequence, uint64_t subgroup,
+    // If subgroup is nullopt, returns the send order for a datagram.
+    webtransport::SendOrder GetSendOrder(Location sequence,
+                                         std::optional<uint64_t> subgroup,
                                          MoqtPriority publisher_priority) const;
 
     void AddQueuedOutgoingDataStream(const NewStreamParameters& parameters);
@@ -446,6 +448,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     uint64_t request_id_;
     bool can_have_joining_fetch_ = false;
     const uint64_t track_alias_;
+    // These are (mostly) the parameters from the SUBSCRIBE message. However,
+    // group_order and largest_object may be updated by SUBSCRIBE_OK because
+    // have no effect in a future REQUEST_UPDATE message.
     MessageParameters parameters_;
     // TODO(martinduke): Once SUBSCRIBE_OK has track extensions, store the
     // publisher's delivery timeout there instead.
@@ -708,7 +713,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                                     webtransport::SendOrder send_order);
 
   SubscribeRemoteTrack* RemoteTrackByAlias(uint64_t track_alias);
-  RemoteTrack* RemoteTrackById(uint64_t subscribe_id);
+  RemoteTrack* RemoteTrackById(uint64_t request_id);
   SubscribeRemoteTrack* RemoteTrackByName(const FullTrackName& name);
 
   // Checks that a subscribe ID from a SUBSCRIBE or FETCH is valid, and throws

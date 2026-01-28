@@ -24,7 +24,7 @@
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
-#include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_session.h"
@@ -244,8 +244,7 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
   }
   // TODO: A server log might choose to not provide a username, thus getting all
   // the messages without adding itself to the catalog.
-  queue_ = std::make_shared<MoqtOutgoingQueue>(
-      my_track_name_, MoqtForwardingPreference::kSubgroup);
+  queue_ = std::make_shared<MoqtOutgoingQueue>(my_track_name_);
   publisher_.Add(queue_);
   session_->set_publisher(&publisher_);
   MoqtOutgoingPublishNamespaceCallback publish_namespace_callback =

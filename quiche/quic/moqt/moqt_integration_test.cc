@@ -320,8 +320,8 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSendDataInResponse) {
                                       parameters);
       });
 
-  auto queue = std::make_shared<MoqtOutgoingQueue>(
-      FullTrackName{"test", "data"}, MoqtForwardingPreference::kSubgroup);
+  auto queue =
+      std::make_shared<MoqtOutgoingQueue>(FullTrackName{"test", "data"});
   MoqtKnownTrackPublisher known_track_publisher;
   known_track_publisher.Add(queue);
   client_->session()->set_publisher(&known_track_publisher);
@@ -376,8 +376,8 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
     SCOPED_TRACE(MoqtForwardingPreferenceToString(forwarding_preference));
     std::string name =
         absl::StrCat("pref_", static_cast<int>(forwarding_preference));
-    auto queue = std::make_shared<MoqtOutgoingQueue>(
-        FullTrackName{"test", name}, forwarding_preference);
+    auto queue =
+        std::make_shared<MoqtOutgoingQueue>(FullTrackName{"test", name});
     publisher.Add(queue);
 
     // These will not be delivered.
@@ -391,7 +391,8 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
         .WillOnce([&](const FullTrackName&,
                       std::variant<SubscribeOkData, MoqtErrorPair> response) {
           EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(response));
-          largest_id = std::get<SubscribeOkData>(response).largest_location;
+          largest_id =
+              std::get<SubscribeOkData>(response).parameters.largest_object;
         });
     bool success = test_harness_.RunUntilWithDefaultTimeout([&]() {
       return largest_id.has_value() && *largest_id == Location(0, 2);
@@ -485,8 +486,7 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
   server_->session()->set_publisher(&publisher);
 
   FullTrackName full_track_name("test", "fetch");
-  auto queue = std::make_shared<MoqtOutgoingQueue>(
-      full_track_name, MoqtForwardingPreference::kSubgroup);
+  auto queue = std::make_shared<MoqtOutgoingQueue>(full_track_name);
   publisher.Add(queue);
   for (int i = 0; i < 100; ++i) {
     queue->AddObject(MemSliceFromString("object"), /*key=*/true);
@@ -560,10 +560,7 @@ TEST_F(MoqtIntegrationTest, SubscribeAbsoluteOk) {
   publisher.Add(track_publisher);
 
   bool received_ok = false;
-  ON_CALL(*track_publisher, expiration)
-      .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
-  ON_CALL(*track_publisher, delivery_order)
-      .WillByDefault(Return(MoqtDeliveryOrder::kAscending));
+  ON_CALL(*track_publisher, expiration).WillByDefault(Return(std::nullopt));
   EXPECT_CALL(*track_publisher, AddObjectListener)
       .WillOnce([&](MoqtObjectListener* listener) {
         listener->OnSubscribeAccepted();
@@ -594,8 +591,6 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentObjectOk) {
   bool received_ok = false;
   ON_CALL(*track_publisher, expiration)
       .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
-  ON_CALL(*track_publisher, delivery_order)
-      .WillByDefault(Return(MoqtDeliveryOrder::kAscending));
   EXPECT_CALL(*track_publisher, AddObjectListener)
       .WillOnce([&](MoqtObjectListener* listener) {
         listener->OnSubscribeAccepted();
@@ -626,8 +621,6 @@ TEST_F(MoqtIntegrationTest, SubscribeNextGroupOk) {
   bool received_ok = false;
   ON_CALL(*track_publisher, expiration)
       .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
-  ON_CALL(*track_publisher, delivery_order)
-      .WillByDefault(Return(MoqtDeliveryOrder::kAscending));
   EXPECT_CALL(*track_publisher, AddObjectListener)
       .WillOnce([&](MoqtObjectListener* listener) {
         listener->OnSubscribeAccepted();
@@ -720,8 +713,7 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
   MoqtKnownTrackPublisher publisher;
   server_->session()->set_publisher(&publisher);
   auto track_publisher = std::make_shared<MoqtOutgoingQueue>(
-      full_track_name, MoqtForwardingPreference::kSubgroup,
-      test_harness_.simulator().GetClock());
+      full_track_name, test_harness_.simulator().GetClock());
   publisher.Add(track_publisher);
 
   testing::StrictMock<MockPublishingMonitorInterface> monitoring;
@@ -840,8 +832,6 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
   parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
   ON_CALL(*track_publisher, expiration)
       .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
-  ON_CALL(*track_publisher, delivery_order)
-      .WillByDefault(Return(MoqtDeliveryOrder::kAscending));
   client_->session()->Subscribe(full_track_name, &subscribe_visitor_,
                                 parameters);
   bool success =
@@ -906,8 +896,8 @@ TEST_F(MoqtIntegrationTest, RecordTrace) {
   MoqtKnownTrackPublisher publisher;
   client_->session()->set_publisher(&publisher);
 
-  auto queue = std::make_shared<MoqtOutgoingQueue>(
-      FullTrackName{"test", "subgroup"}, MoqtForwardingPreference::kSubgroup);
+  auto queue =
+      std::make_shared<MoqtOutgoingQueue>(FullTrackName{"test", "subgroup"});
   publisher.Add(queue);
 
   MessageParameters parameters(MoqtFilterType::kLargestObject);

@@ -126,15 +126,31 @@ class SubscribeRemoteTrack : public RemoteTrack {
            (!parameters_.subscription_filter.has_value() ||
             parameters_.subscription_filter->InWindow(location));
   }
-  void NewSubscriptionFilter(const SubscriptionFilter& filter) {
-    parameters_.subscription_filter.emplace(filter);
-  }
-
   MoqtPriority subscriber_priority() const override {
     return parameters_.subscriber_priority.value_or(kDefaultSubscriberPriority);
   }
   void set_subscriber_priority(MoqtPriority priority) override {
     parameters_.subscriber_priority = priority;
+  }
+
+  MoqtPriority default_publisher_priority() const {
+    return default_publisher_priority_;
+  }
+  void set_default_publisher_priority(MoqtPriority priority) {
+    default_publisher_priority_ = priority;
+  }
+
+  bool dynamic_groups() { return dynamic_groups_; }
+  void set_dynamic_groups(bool dynamic_groups) {
+    dynamic_groups_ = dynamic_groups;
+  }
+
+  quic::QuicTimeDelta publisher_delivery_timeout() const {
+    return publisher_delivery_timeout_;
+  }
+  void set_publisher_delivery_timeout(
+      quic::QuicTimeDelta publisher_delivery_timeout) {
+    publisher_delivery_timeout_ = publisher_delivery_timeout;
   }
 
  private:
@@ -144,7 +160,9 @@ class SubscribeRemoteTrack : public RemoteTrack {
   void MaybeSetPublishDoneAlarm();
 
   MessageParameters parameters_;
-  std::optional<quic::QuicTimeDelta> publisher_delivery_timeout_;
+  quic::QuicTimeDelta publisher_delivery_timeout_ = kDefaultDeliveryTimeout;
+  MoqtPriority default_publisher_priority_ = kDefaultPublisherPriority;
+  bool dynamic_groups_ = kDefaultDynamicGroups;
   void FetchObjects();
   std::unique_ptr<MoqtFetchTask> fetch_task_;
 

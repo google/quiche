@@ -1032,11 +1032,11 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
                     "Received SUBSCRIBE_OK for a FETCH");
     return;
   }
-  if (message.largest_location.has_value()) {
+  if (message.parameters.largest_object.has_value()) {
     QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
                     << "request_id = " << message.request_id << " "
                     << track->full_track_name()
-                    << " largest_id = " << *message.largest_location;
+                    << " largest_id = " << *message.parameters.largest_object;
   } else {
     QUIC_DLOG(INFO) << ENDPOINT << "Received the SUBSCRIBE_OK for "
                     << "request_id = " << message.request_id << " "
@@ -1051,17 +1051,26 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
     return;
   }
   subscribe->set_track_alias(message.track_alias);
-  // TODO(martinduke): Handle expires field.
   std::optional<SubscriptionFilter> filter =
       subscribe->parameters().subscription_filter;
   if (filter.has_value()) {
-    filter->OnLargestObject(message.largest_location);
+    filter->OnLargestObject(message.parameters.largest_object);
   }
+  subscribe->set_publisher_delivery_timeout(
+      message.extensions.delivery_timeout());
+  // TODO(martinduke): Is there anything to do with EXPIRES?
+  subscribe->set_default_publisher_priority(
+      message.extensions.default_publisher_priority());
+  if (!subscribe->parameters().group_order.has_value()) {
+    // Use publisher default because the subscriber didn't care.
+    subscribe->parameters().group_order =
+        message.extensions.default_publisher_group_order();
+  }
+  subscribe->set_dynamic_groups(message.extensions.dynamic_groups());
   if (subscribe->visitor() != nullptr) {
     subscribe->visitor()->OnReply(
         track->full_track_name(),
-        SubscribeOkData{message.expires, message.group_order,
-                        message.largest_location, message.parameters});
+        SubscribeOkData{message.parameters, message.extensions});
   }
 }
 
@@ -1842,7 +1851,6 @@ SendStreamMap& MoqtSession::PublishedSubscription::stream_map() {
   // knowing the forwarding preference in advance, and it might not be known
   // when the subscription is first created.
   if (!lazily_initialized_stream_map_.has_value()) {
-    QUICHE_DCHECK(track_publisher_->largest_location().has_value());
     lazily_initialized_stream_map_.emplace();
   }
   return *lazily_initialized_stream_map_;
@@ -1895,24 +1903,20 @@ void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
   MoqtSubscribeOk subscribe_ok;
   subscribe_ok.request_id = request_id_;
   subscribe_ok.track_alias = track_alias_;
-  QUICHE_BUG_IF(quic_bug_subscribe_ok_no_expiration,
-                !track_publisher_->expiration().has_value())
-      << "Request accepted without expiration";
-  subscribe_ok.expires =
-      track_publisher_->expiration().value_or(quic::QuicTimeDelta::Zero());
-  QUICHE_BUG_IF(quic_bug_subscribe_ok_no_delivery_order,
-                !track_publisher_->delivery_order().has_value())
-      << "Request accepted without delivery order";
-  subscribe_ok.group_order = track_publisher_->delivery_order().value_or(
-      MoqtDeliveryOrder::kAscending);
-  subscribe_ok.largest_location = parameters_.largest_object;
+  subscribe_ok.parameters.expires = track_publisher_->expiration();
+  subscribe_ok.parameters.largest_object = parameters_.largest_object;
+  subscribe_ok.extensions = track_publisher_->extensions();
+  if (!parameters_.group_order.has_value()) {
+    parameters_.group_order =
+        subscribe_ok.extensions.default_publisher_group_order();
+  }
   // TODO(martinduke): Support sending DELIVERY_TIMEOUT parameter as the
   // publisher.
   stream->SendOrBufferMessage(
       session_->framer_.SerializeSubscribeOk(subscribe_ok));
   // TODO(martinduke): If we buffer objects that arrived previously, the arrival
   // of the track alias disambiguates what subscription they belong to. Send
-  // them.
+  // them.";
 }
 
 void MoqtSession::PublishedSubscription::OnSubscribeRejected(
@@ -2101,25 +2105,22 @@ MoqtSession::PublishedSubscription::GetAllStreams() const {
 }
 
 webtransport::SendOrder MoqtSession::PublishedSubscription::GetSendOrder(
-    Location sequence, uint64_t subgroup,
+    Location sequence, std::optional<uint64_t> subgroup,
     MoqtPriority publisher_priority) const {
-  MoqtForwardingPreference forwarding_preference =
-      track_publisher_->forwarding_preference().value_or(
-          MoqtForwardingPreference::kSubgroup);
-  QUICHE_BUG_IF(GetSendOrder_no_delivery_order,
-                !track_publisher_->delivery_order().has_value())
-      << "No delivery order";
-  MoqtDeliveryOrder delivery_order =
-      track_publisher_->delivery_order().value_or(
-          MoqtDeliveryOrder::kAscending);
-  if (forwarding_preference == MoqtForwardingPreference::kDatagram) {
+  if (!parameters_.group_order.has_value()) {
+    QUICHE_BUG(GetSendOrder_no_delivery_order)
+        << "Can't compute send order without a group order.";
+    return 0;
+  }
+  if (!subgroup.has_value()) {
     return SendOrderForDatagram(
         parameters_.subscriber_priority.value_or(kDefaultSubscriberPriority),
-        publisher_priority, sequence.group, sequence.object, delivery_order);
+        publisher_priority, sequence.group, sequence.object,
+        *parameters_.group_order);
   }
   return SendOrderForStream(
       parameters_.subscriber_priority.value_or(kDefaultSubscriberPriority),
-      publisher_priority, sequence.group, subgroup, delivery_order);
+      publisher_priority, sequence.group, *subgroup, *parameters_.group_order);
 }
 
 // Returns the highest send order in the subscription.

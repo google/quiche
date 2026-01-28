@@ -339,12 +339,8 @@ struct QUICHE_EXPORT MoqtSubscribe {
 struct QUICHE_EXPORT MoqtSubscribeOk {
   uint64_t request_id;
   uint64_t track_alias;
-  // The message uses ms, but expires is in us.
-  quic::QuicTimeDelta expires = quic::QuicTimeDelta::FromMilliseconds(0);
-  MoqtDeliveryOrder group_order;
-  // If ContextExists on the wire is zero, largest_id has no value.
-  std::optional<Location> largest_location;
-  VersionSpecificParameters parameters;
+  MessageParameters parameters;
+  TrackExtensions extensions;
 };
 
 struct QUICHE_EXPORT MoqtUnsubscribe {
