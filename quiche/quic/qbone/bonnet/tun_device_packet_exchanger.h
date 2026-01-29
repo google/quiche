@@ -10,7 +10,6 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
 #include "quiche/quic/qbone/platform/netlink_interface.h"
-#include "quiche/quic/qbone/qbone_client_interface.h"
 #include "quiche/quic/qbone/qbone_packet_exchanger.h"
 
 namespace quic {
@@ -41,14 +40,11 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
   // |mtu| is the mtu of the TUN device.
   // |kernel| is not owned but should out live objects of this class.
   // |visitor| is not owned but should out live objects of this class.
-  // |max_pending_packets| controls the number of packets to be queued should
-  // the TUN device become blocked.
   // |stats| is notified about packet read/write statistics. It is not owned,
   // but should outlive objects of this class.
   TunDevicePacketExchanger(size_t mtu, KernelInterface* kernel,
                            NetlinkInterface* netlink,
-                           QbonePacketExchanger::Visitor* visitor,
-                           size_t max_pending_packets, bool is_tap,
+                           QbonePacketExchanger::Visitor* visitor, bool is_tap,
                            StatsInterface* stats, absl::string_view ifname);
 
   void set_file_descriptor(int fd);
@@ -57,11 +53,10 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
 
  private:
   // From QbonePacketExchanger.
-  std::unique_ptr<QuicData> ReadPacket(bool* blocked,
-                                       std::string* error) override;
+  std::unique_ptr<QuicData> ReadPacket(std::string* error) override;
 
   // From QbonePacketExchanger.
-  bool WritePacket(const char* packet, size_t size, bool* blocked,
+  bool WritePacket(const char* packet, size_t size,
                    std::string* error) override;
 
   std::unique_ptr<QuicData> ApplyL2Headers(const QuicData& l3_packet);

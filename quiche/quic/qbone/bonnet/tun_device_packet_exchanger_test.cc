@@ -17,7 +17,6 @@ namespace quic::test {
 namespace {
 
 const size_t kMtu = 1000;
-const size_t kMaxPendingPackets = 5;
 const int kFd = 15;
 
 using ::testing::_;
@@ -34,9 +33,8 @@ class MockVisitor : public QbonePacketExchanger::Visitor {
 class TunDevicePacketExchangerTest : public QuicTest {
  protected:
   TunDevicePacketExchangerTest()
-      : exchanger_(kMtu, &mock_kernel_, nullptr, &mock_visitor_,
-                   kMaxPendingPackets, false, &mock_stats_,
-                   absl::string_view()) {
+      : exchanger_(kMtu, &mock_kernel_, nullptr, &mock_visitor_, false,
+                   &mock_stats_, absl::string_view()) {
     exchanger_.set_file_descriptor(kFd);
   }
 
@@ -73,6 +71,7 @@ TEST_F(TunDevicePacketExchangerTest,
 
   EXPECT_CALL(mock_stats_, OnWriteError(_)).Times(1);
   EXPECT_CALL(mock_visitor_, OnWrite(StrEq(packet))).Times(1);
+  EXPECT_CALL(mock_visitor_, OnWriteError(_)).Times(1);
   exchanger_.WritePacketToNetwork(packet.data(), packet.size());
 }
 
@@ -106,6 +105,7 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketReturnsNullOnBlockedRead) {
         return -1;
       });
   EXPECT_CALL(mock_stats_, OnReadError(_)).Times(1);
+  EXPECT_CALL(mock_visitor_, OnReadError(_)).Times(1);
   EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
 }
 
