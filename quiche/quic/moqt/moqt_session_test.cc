@@ -260,8 +260,11 @@ TEST_F(MoqtSessionTest, Queries) {
 TEST_F(MoqtSessionTest, OnSessionReady) {
   EXPECT_CALL(mock_session_, GetNegotiatedSubprotocol)
       .WillOnce(Return(std::optional<std::string>(kDefaultMoqtVersion)));
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingBidirectionalStream())
+      .WillOnce(Return(true));
   EXPECT_CALL(mock_session_, OpenOutgoingBidirectionalStream())
       .WillOnce(Return(&mock_stream_));
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));
   std::unique_ptr<webtransport::StreamVisitor> visitor;
   // Save a reference to MoqtSession::Stream
   EXPECT_CALL(mock_stream_, SetVisitor(_))
@@ -270,8 +273,6 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
       });
   EXPECT_CALL(mock_stream_, GetStreamId())
       .WillRepeatedly(Return(webtransport::StreamId(4)));
-  EXPECT_CALL(mock_session_, GetStreamById(4)).WillOnce(Return(&mock_stream_));
-  EXPECT_CALL(mock_stream_, visitor()).WillOnce([&] { return visitor.get(); });
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kClientSetup), _));
   session_.OnSessionReady();
@@ -286,22 +287,57 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
   stream_input->OnServerSetupMessage(setup);
 }
 
+TEST_F(MoqtSessionTest, OnSessionReadyNoControlStream) {
+  EXPECT_CALL(mock_session_, GetNegotiatedSubprotocol)
+      .WillOnce(Return(std::optional<std::string>(kDefaultMoqtVersion)));
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingBidirectionalStream)
+      .WillOnce(Return(false));
+  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call);
+  session_.OnSessionReady();
+}
+
+TEST_F(MoqtSessionTest, PeerOpensBidiStream) {
+  MoqtSession server_session(
+      &mock_session_, MoqtSessionParameters(quic::Perspective::IS_SERVER),
+      std::make_unique<quic::test::TestAlarmFactory>(),
+      session_callbacks_.AsSessionCallbacks());
+  EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream())
+      .WillOnce(Return(&mock_stream_))
+      .WillOnce(Return(nullptr));
+  std::unique_ptr<webtransport::StreamVisitor> visitor;
+  webtransport::test::MockStreamVisitor mock_stream_visitor;
+  EXPECT_CALL(mock_stream_, SetVisitor)
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> new_visitor) {
+        visitor = std::move(new_visitor);
+        EXPECT_CALL(mock_stream_, visitor).WillOnce(Return(visitor.get()));
+      });
+  EXPECT_CALL(mock_stream_, PeekNextReadableRegion())
+      .WillOnce(Return(
+          quiche::ReadStream::PeekResult(absl::string_view(), false, false)));
+  server_session.OnIncomingBidirectionalStreamAvailable();
+}
+
 TEST_F(MoqtSessionTest, OnClientSetup) {
   MoqtSession server_session(
       &mock_session_, MoqtSessionParameters(quic::Perspective::IS_SERVER),
       std::make_unique<quic::test::TestAlarmFactory>(),
       session_callbacks_.AsSessionCallbacks());
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
-      MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream_);
+  std::unique_ptr<MoqtControlParserVisitor> unknown_stream =
+      MoqtSessionPeer::CreateUnknownBidiStream(&server_session, &mock_stream_);
   MoqtClientSetup setup;
   MoqtSessionParameters parameters(quic::Perspective::IS_CLIENT);
-
   parameters.ToSetupParameters(setup.parameters);
+  EXPECT_CALL(mock_stream_, CanWrite).WillOnce(Return(true));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kServerSetup), _));
-  EXPECT_CALL(mock_stream_, GetStreamId()).WillOnce(Return(0));
-  EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
-  stream_input->OnClientSetupMessage(setup);
+  EXPECT_CALL(session_callbacks_.session_established_callback, Call());
+  std::unique_ptr<webtransport::StreamVisitor> visitor;
+  EXPECT_CALL(mock_stream_, SetVisitor)
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> new_visitor) {
+        visitor = std::move(new_visitor);
+      });
+  unknown_stream->OnClientSetupMessage(setup);
+  EXPECT_NE(MoqtSessionPeer::GetControlStream(&server_session), nullptr);
 }
 
 TEST_F(MoqtSessionTest, OnSessionClosed) {
@@ -395,7 +431,6 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndCancel) {
       publish_namespace_resolved_callback;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kPublishNamespace), _));
@@ -436,7 +471,6 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndPublishNamespaceDone) {
       publish_namespace_resolved_callback;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kPublishNamespace), _));
@@ -453,7 +487,6 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndPublishNamespaceDone) {
       });
   stream_input->OnRequestOkMessage(ok);
 
-  EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kPublishNamespaceDone), _));
@@ -468,7 +501,6 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithError) {
       publish_namespace_resolved_callback;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  EXPECT_CALL(mock_session_, GetStreamById).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kPublishNamespace), _));
@@ -721,7 +753,6 @@ TEST_F(MoqtSessionTest, SubscribeDuplicateTrackName) {
 TEST_F(MoqtSessionTest, SubscribeWithOk) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   MessageParameters parameters(SubscribeForTest());
@@ -746,7 +777,6 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
 TEST_F(MoqtSessionTest, SubscribeNextGroupWithOk) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream_));
   MoqtSubscribe subscribe = DefaultLocalSubscribe();
   subscribe.parameters.subscription_filter.emplace(
       MoqtFilterType::kNextGroupStart);
@@ -890,7 +920,6 @@ TEST_F(MoqtSessionTest, GrantMoreRequests) {
 TEST_F(MoqtSessionTest, SubscribeWithError) {
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  EXPECT_CALL(mock_session_, GetStreamById(_)).WillOnce(Return(&mock_stream_));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   MessageParameters parameters(SubscribeForTest());
@@ -1903,73 +1932,6 @@ TEST_F(MoqtSessionTest, OutgoingStreamDisappears) {
   subscription->OnNewObjectAvailable(Location(5, 1), 0,
                                      kDefaultPublisherPriority,
                                      MoqtForwardingPreference::kSubgroup);
-}
-
-TEST_F(MoqtSessionTest, OneBidirectionalStreamClient) {
-  EXPECT_CALL(mock_session_, GetNegotiatedSubprotocol)
-      .WillOnce(Return(std::optional<std::string>(kDefaultMoqtVersion)));
-  EXPECT_CALL(mock_session_, OpenOutgoingBidirectionalStream())
-      .WillOnce(Return(&mock_stream_));
-  std::unique_ptr<webtransport::StreamVisitor> visitor;
-  // Save a reference to MoqtSession::Stream
-  EXPECT_CALL(mock_stream_, SetVisitor(_))
-      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> new_visitor) {
-        visitor = std::move(new_visitor);
-      });
-  EXPECT_CALL(mock_stream_, GetStreamId())
-      .WillRepeatedly(Return(webtransport::StreamId(4)));
-  EXPECT_CALL(mock_session_, GetStreamById(4)).WillOnce(Return(&mock_stream_));
-  EXPECT_CALL(mock_stream_, visitor()).WillOnce([&] { return visitor.get(); });
-  EXPECT_CALL(mock_stream_,
-              Writev(ControlMessageOfType(MoqtMessageType::kClientSetup), _));
-  session_.OnSessionReady();
-
-  // Peer tries to open a bidi stream.
-  bool reported_error = false;
-  EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream())
-      .WillOnce(Return(&mock_stream_));
-  EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "Bidirectional stream already open"))
-      .Times(1);
-  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
-      .WillOnce([&](absl::string_view error_message) {
-        reported_error = (error_message == "Bidirectional stream already open");
-      });
-  session_.OnIncomingBidirectionalStreamAvailable();
-  EXPECT_TRUE(reported_error);
-}
-
-TEST_F(MoqtSessionTest, OneBidirectionalStreamServer) {
-  MoqtSession server_session(
-      &mock_session_, MoqtSessionParameters(quic::Perspective::IS_SERVER),
-      std::make_unique<quic::test::TestAlarmFactory>(),
-      session_callbacks_.AsSessionCallbacks());
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
-      MoqtSessionPeer::CreateControlStream(&server_session, &mock_stream_);
-  MoqtClientSetup setup;
-  MoqtSessionParameters params;
-  params.ToSetupParameters(setup.parameters);
-  EXPECT_CALL(mock_stream_,
-              Writev(ControlMessageOfType(MoqtMessageType::kServerSetup), _));
-  EXPECT_CALL(mock_stream_, GetStreamId()).WillOnce(Return(0));
-  EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
-  stream_input->OnClientSetupMessage(setup);
-
-  // Peer tries to open a bidi stream.
-  bool reported_error = false;
-  EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream())
-      .WillOnce(Return(&mock_stream_));
-  EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "Bidirectional stream already open"))
-      .Times(1);
-  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
-      .WillOnce([&](absl::string_view error_message) {
-        reported_error = (error_message == "Bidirectional stream already open");
-      });
-  server_session.OnIncomingBidirectionalStreamAvailable();
-  EXPECT_TRUE(reported_error);
 }
 
 TEST_F(MoqtSessionTest, ReceiveUnsubscribe) {
@@ -3523,7 +3485,6 @@ TEST_F(MoqtSessionTest, ServerCannotReceiveNewSessionUri) {
                       session_callbacks_.AsSessionCallbacks());
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session, &mock_stream_);
-  MoqtSessionPeer::CreateControlStream(&session, &mock_stream_);
   EXPECT_CALL(
       mock_session,
       CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),

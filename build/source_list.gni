@@ -1577,6 +1577,7 @@ load_balancer_srcs = [
     "src/quiche/quic/load_balancer/load_balancer_server_id_test.cc",
 ]
 moqt_hdrs = [
+    "src/quiche/quic/moqt/moqt_bidi_stream.h",
     "src/quiche/quic/moqt/moqt_bitrate_adjuster.h",
     "src/quiche/quic/moqt/moqt_error.h",
     "src/quiche/quic/moqt/moqt_fetch_task.h",
@@ -1640,6 +1641,7 @@ moqt_test_hdrs = [
 
 ]
 moqt_test_srcs = [
+    "src/quiche/quic/moqt/moqt_bidi_stream_test.cc",
     "src/quiche/quic/moqt/moqt_bitrate_adjuster_test.cc",
     "src/quiche/quic/moqt/moqt_framer_test.cc",
     "src/quiche/quic/moqt/moqt_integration_test.cc",
