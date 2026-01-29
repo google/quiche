@@ -222,7 +222,7 @@ WebTransportStream* WebTransportHttp3::AcceptIncomingUnidirectionalStream() {
       // receieved and the time the client has polled for them.
       continue;
     }
-    return static_cast<WebTransportHttp3UnidirectionalStream*>(stream)
+    return absl::static_cast<WebTransportHttp3UnidirectionalStream*>(stream)
         ->interface();
   }
   return nullptr;
@@ -264,9 +264,9 @@ webtransport::Stream* WebTransportHttp3::GetStreamById(
   const bool bidi = QuicUtils::IsBidirectionalStreamId(
       id, ParsedQuicVersion::RFCv1());  // Assume IETF QUIC for WebTransport
   if (bidi) {
-    return static_cast<QuicSpdyStream*>(stream)->web_transport_stream();
+    return absl::static_cast<QuicSpdyStream*>(stream)->web_transport_stream();
   } else {
-    return static_cast<WebTransportHttp3UnidirectionalStream*>(stream)
+    return absl::static_cast<WebTransportHttp3UnidirectionalStream*>(stream)
         ->interface();
   }
 }
