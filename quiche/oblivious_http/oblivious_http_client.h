@@ -70,6 +70,11 @@ class QUICHE_EXPORT ObliviousHttpClient {
       std::string encrypted_data,
       ObliviousHttpRequest::Context& oblivious_http_request_context) const;
 
+  const std::string& GetPublicKey() const { return hpke_public_key_; }
+  const ObliviousHttpHeaderKeyConfig& GetKeyConfig() const {
+    return ohttp_key_config_;
+  }
+
  private:
   explicit ObliviousHttpClient(
       std::string client_public_key,

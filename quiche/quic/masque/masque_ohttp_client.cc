@@ -21,10 +21,15 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "openssl/base.h"
+#include "quiche/quic/core/io/quic_default_event_loop.h"
+#include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/quic_default_clock.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/masque/masque_connection_pool.h"
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/binary_http/binary_http_message.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_system_event_loop.h"
 #include "quiche/common/quiche_status_utils.h"
 #include "quiche/common/quiche_text_utils.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
@@ -47,13 +52,67 @@ using ::quiche::ObliviousHttpResponse;
 using RequestId = ::quic::MasqueConnectionPool::RequestId;
 using Message = ::quic::MasqueConnectionPool::Message;
 
-absl::Status MasqueOhttpClient::Start() {
-  if (urls_.empty()) {
-    QUICHE_LOG(ERROR) << "No URLs to request";
-    Abort(absl::InvalidArgumentError("No URLs to request"));
-    return status();
+absl::Status MasqueOhttpClient::Config::ConfigureKeyFetchClientCert(
+    const std::string& client_cert_file,
+    const std::string& client_cert_key_file) {
+  QUICHE_ASSIGN_OR_RETURN(key_fetch_ssl_ctx_,
+                          MasqueConnectionPool::CreateSslCtx(
+                              client_cert_file, client_cert_key_file));
+  return absl::OkStatus();
+}
+
+absl::Status MasqueOhttpClient::Config::ConfigureOhttpMtls(
+    const std::string& client_cert_file,
+    const std::string& client_cert_key_file) {
+  QUICHE_ASSIGN_OR_RETURN(
+      ohttp_ssl_ctx_, MasqueConnectionPool::CreateSslCtx(client_cert_file,
+                                                         client_cert_key_file));
+  return absl::OkStatus();
+}
+
+absl::Status MasqueOhttpClient::Config::ConfigureOhttpMtlsFromData(
+    const std::string& client_cert_pem_data,
+    const std::string& client_cert_key_data) {
+  QUICHE_ASSIGN_OR_RETURN(ohttp_ssl_ctx_,
+                          MasqueConnectionPool::CreateSslCtxFromData(
+                              client_cert_pem_data, client_cert_key_data));
+  return absl::OkStatus();
+}
+
+MasqueOhttpClient::MasqueOhttpClient(Config config,
+                                     quic::QuicEventLoop* event_loop)
+    : config_(std::move(config)),
+      connection_pool_(event_loop, config_.key_fetch_ssl_ctx(),
+                       config_.disable_certificate_verification(),
+                       config_.dns_config(), this) {
+  connection_pool_.SetMtlsSslCtx(config_.ohttp_ssl_ctx());
+}
+
+// static
+absl::Status MasqueOhttpClient::Run(Config config) {
+  if (config.per_request_configs().empty()) {
+    return absl::InvalidArgumentError("No OHTTP URLs to request");
   }
-  absl::Status status = StartKeyFetch(urls_[0]);
+  if (config.key_fetch_ssl_ctx() == nullptr) {
+    QUICHE_RETURN_IF_ERROR(config.ConfigureKeyFetchClientCert("", ""));
+  }
+  if (config.ohttp_ssl_ctx() == nullptr) {
+    QUICHE_RETURN_IF_ERROR(config.ConfigureOhttpMtls("", ""));
+  }
+  quiche::QuicheSystemEventLoop system_event_loop("masque_ohttp_client");
+  std::unique_ptr<QuicEventLoop> event_loop =
+      GetDefaultEventLoop()->Create(QuicDefaultClock::Get());
+  MasqueOhttpClient ohttp_client(std::move(config), event_loop.get());
+  QUICHE_RETURN_IF_ERROR(ohttp_client.Start());
+  while (!ohttp_client.IsDone()) {
+    ohttp_client.connection_pool_.event_loop()->RunEventLoopOnce(
+        quic::QuicTime::Delta::FromMilliseconds(50));
+  }
+  return ohttp_client.status_;
+}
+
+absl::Status MasqueOhttpClient::Start() {
+  absl::Status status = StartKeyFetch(config_.key_fetch_url());
   if (!status.ok()) {
     Abort(status);
     return status;
@@ -64,7 +123,7 @@ bool MasqueOhttpClient::IsDone() {
   if (aborted_) {
     return true;
   }
-  if (!ohttp_client_.has_value() && !chunked_public_key_.has_value()) {
+  if (!ohttp_client_.has_value()) {
     // Key fetch request is still pending.
     return false;
   }
@@ -175,12 +234,13 @@ absl::Status MasqueOhttpClient::HandleKeyResponse(
   QUICHE_LOG(INFO) << "Successfully got " << key_configs->NumKeys()
                    << " OHTTP keys: " << std::endl
                    << key_configs->DebugString();
-  if (urls_.size() <= 2) {
+  if (config_.per_request_configs().empty()) {
     return absl::InvalidArgumentError("No OHTTP URLs to request, exiting.");
   }
-  relay_url_ = QuicUrl(urls_[1], "https");
-  if (relay_url_.host().empty() && !absl::StrContains(urls_[1], "://")) {
-    relay_url_ = QuicUrl(absl::StrCat("https://", urls_[1]));
+  relay_url_ = QuicUrl(config_.relay_url(), "https");
+  if (relay_url_.host().empty() &&
+      !absl::StrContains(config_.relay_url(), "://")) {
+    relay_url_ = QuicUrl(absl::StrCat("https://", config_.relay_url()));
   }
   QUICHE_LOG(INFO) << "Using relay URL: " << relay_url_.ToString();
   ObliviousHttpHeaderKeyConfig key_config = key_configs->PreferredConfig();
@@ -192,57 +252,57 @@ absl::Status MasqueOhttpClient::HandleKeyResponse(
                       << public_key.status();
     return public_key.status();
   }
-  if (use_chunked_ohttp_) {
-    chunked_public_key_ = *public_key;
-    chunked_key_config_ = key_config;
-  } else {
-    absl::StatusOr<ObliviousHttpClient> ohttp_client =
-        ObliviousHttpClient::Create(*public_key, key_config);
-    if (!ohttp_client.ok()) {
-      QUICHE_LOG(ERROR) << "Failed to create OHTTP client: "
-                        << ohttp_client.status();
-      return ohttp_client.status();
-    }
-    ohttp_client_.emplace(std::move(*ohttp_client));
+
+  absl::StatusOr<ObliviousHttpClient> ohttp_client =
+      ObliviousHttpClient::Create(*public_key, key_config);
+  if (!ohttp_client.ok()) {
+    QUICHE_LOG(ERROR) << "Failed to create OHTTP client: "
+                      << ohttp_client.status();
+    return ohttp_client.status();
   }
-  for (size_t i = 2; i < urls_.size(); ++i) {
-    QUICHE_RETURN_IF_ERROR(SendOhttpRequestForUrl(urls_[i]));
+  ohttp_client_.emplace(std::move(*ohttp_client));
+
+  for (const auto& per_request_config : config_.per_request_configs()) {
+    QUICHE_RETURN_IF_ERROR(SendOhttpRequest(per_request_config));
   }
   return absl::OkStatus();
 }
 
-absl::Status MasqueOhttpClient::SendOhttpRequestForUrl(
-    const std::string& url_string) {
-  QuicUrl url(url_string, "https");
-  if (url.host().empty() && !absl::StrContains(url_string, "://")) {
-    url = QuicUrl(absl::StrCat("https://", url_string));
+absl::Status MasqueOhttpClient::SendOhttpRequest(
+    const Config::PerRequestConfig& per_request_config) {
+  QuicUrl url(per_request_config.url(), "https");
+  if (url.host().empty() &&
+      !absl::StrContains(per_request_config.url(), "://")) {
+    url = QuicUrl(absl::StrCat("https://", per_request_config.url()));
   }
   if (url.host().empty()) {
     return absl::InvalidArgumentError(
-        absl::StrCat("Failed to parse key URL ", url_string));
+        absl::StrCat("Failed to parse URL ", per_request_config.url()));
   }
   BinaryHttpRequest::ControlData control_data;
-  control_data.method = post_data_.empty() ? "GET" : "POST";
+  std::string post_data = per_request_config.post_data();
+  control_data.method = post_data.empty() ? "GET" : "POST";
   control_data.scheme = url.scheme();
   control_data.authority = url.HostPort();
   control_data.path = url.PathParamsQuery();
   BinaryHttpRequest binary_request(control_data);
-  binary_request.set_body(post_data_);
+  binary_request.set_body(post_data);
   absl::StatusOr<std::string> encoded_request = binary_request.Serialize();
   if (!encoded_request.ok()) {
     return encoded_request.status();
   }
   std::string encrypted_data;
-  PendingRequest pending_request;
-  if (use_chunked_ohttp_) {
+  PendingRequest pending_request(per_request_config);
+  if (!ohttp_client_.has_value()) {
+    QUICHE_LOG(FATAL) << "Cannot send OHTTP request without OHTTP client";
+    return absl::InternalError(
+        "Cannot send OHTTP request without OHTTP client");
+  }
+  if (pending_request.per_request_config.use_chunked_ohttp()) {
     pending_request.chunk_handler = std::make_unique<ChunkHandler>();
-    if (!chunked_public_key_.has_value() || !chunked_key_config_.has_value()) {
-      return absl::InternalError(
-          "Cannot send chunked OHTTP request without key");
-    }
     absl::StatusOr<ChunkedObliviousHttpClient> chunked_client =
-        ChunkedObliviousHttpClient::Create(*chunked_public_key_,
-                                           *chunked_key_config_,
+        ChunkedObliviousHttpClient::Create(ohttp_client_->GetPublicKey(),
+                                           ohttp_client_->GetKeyConfig(),
                                            pending_request.chunk_handler.get());
     if (!chunked_client.ok()) {
       QUICHE_LOG(ERROR) << "Failed to create chunked OHTTP client: "
@@ -258,8 +318,8 @@ absl::Status MasqueOhttpClient::SendOhttpRequestForUrl(
     QUICHE_ASSIGN_OR_RETURN(std::string encoded_headers,
                             encoder.EncodeHeaders(absl::MakeSpan(headers)));
     encoded_data += encoded_headers;
-    if (!post_data_.empty()) {
-      absl::string_view body = post_data_;
+    if (!post_data.empty()) {
+      absl::string_view body = post_data;
       std::vector<absl::string_view> body_chunks;
       if (body.size() > 1) {
         // Intentionally split the data into two chunks to test body chunking.
@@ -298,11 +358,6 @@ absl::Status MasqueOhttpClient::SendOhttpRequestForUrl(
 
     pending_request.chunk_handler->SetChunkedClient(std::move(*chunked_client));
   } else {
-    if (!ohttp_client_.has_value()) {
-      QUICHE_LOG(FATAL) << "Cannot send OHTTP request without OHTTP client";
-      return absl::InternalError(
-          "Cannot send OHTTP request without OHTTP client");
-    }
     absl::StatusOr<ObliviousHttpRequest> ohttp_request =
         ohttp_client_->CreateObliviousHttpRequest(*encoded_request);
     if (!ohttp_request.ok()) {
@@ -319,7 +374,9 @@ absl::Status MasqueOhttpClient::SendOhttpRequestForUrl(
   request.headers[":authority"] = relay_url_.HostPort();
   request.headers[":path"] = relay_url_.PathParamsQuery();
   request.headers["content-type"] =
-      use_chunked_ohttp_ ? "message/ohttp-chunked-req" : "message/ohttp-req";
+      pending_request.per_request_config.use_chunked_ohttp()
+          ? "message/ohttp-chunked-req"
+          : "message/ohttp-req";
   request.body = encrypted_data;
   absl::StatusOr<RequestId> request_id =
       connection_pool_.SendRequest(request, /*mtls=*/true);
@@ -327,7 +384,7 @@ absl::Status MasqueOhttpClient::SendOhttpRequestForUrl(
     QUICHE_LOG(ERROR) << "Failed to send request: " << request_id.status();
     return request_id.status();
   }
-  QUICHE_LOG(INFO) << "Sent OHTTP request for " << url_string;
+  QUICHE_LOG(INFO) << "Sent OHTTP request for " << per_request_config.url();
 
   pending_ohttp_requests_.insert({*request_id, std::move(pending_request)});
   return absl::OkStatus();
@@ -370,9 +427,22 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
   auto cleanup =
       absl::MakeCleanup([this, it]() { pending_ohttp_requests_.erase(it); });
   QUICHE_RETURN_IF_ERROR(response.status());
-  QUICHE_RETURN_IF_ERROR(CheckGatewayResponse(*response));
-  std::string content_type =
-      use_chunked_ohttp_ ? "message/ohttp-chunked-res" : "message/ohttp-res";
+  int16_t gateway_status_code = MasqueConnectionPool::GetStatusCode(*response);
+  if (it->second.per_request_config.expected_gateway_status_code()
+          .has_value()) {
+    if (gateway_status_code !=
+        *it->second.per_request_config.expected_gateway_status_code()) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Unexpected gateway status code: ", gateway_status_code, " != ",
+          *it->second.per_request_config.expected_gateway_status_code()));
+    }
+  } else if (gateway_status_code < 200 || gateway_status_code >= 300) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Bad gateway status code: ", gateway_status_code));
+  }
+  std::string content_type = it->second.per_request_config.use_chunked_ohttp()
+                                 ? "message/ohttp-chunked-res"
+                                 : "message/ohttp-res";
   absl::Status status = CheckStatusAndContentType(*response, content_type);
   if (!status.ok()) {
     if (!response->body.empty()) {
@@ -384,7 +454,7 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
     return status;
   }
   std::optional<Message> encapsulated_response;
-  if (use_chunked_ohttp_) {
+  if (it->second.per_request_config.use_chunked_ohttp()) {
     QUICHE_ASSIGN_OR_RETURN(
         encapsulated_response,
         it->second.chunk_handler->DecryptFullResponse(response->body));
@@ -398,12 +468,38 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
                             TryExtractEncapsulatedResponse(
                                 request_id, *it->second.context, *response));
   }
-  QUICHE_RETURN_IF_ERROR(CheckEncapsulatedResponse(*encapsulated_response));
   QUICHE_LOG(INFO) << "Successfully decapsulated response for request ID "
                    << request_id << ". Headers:"
                    << encapsulated_response->headers.DebugString()
                    << "Body:" << std::endl
                    << encapsulated_response->body;
+  int16_t encapsulated_status_code =
+      MasqueConnectionPool::GetStatusCode(*encapsulated_response);
+  if (it->second.per_request_config.expected_encapsulated_status_code()
+          .has_value()) {
+    if (encapsulated_status_code !=
+        *it->second.per_request_config.expected_encapsulated_status_code()) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Unexpected encapsulated status code: ", encapsulated_status_code,
+          " != ",
+          *it->second.per_request_config.expected_encapsulated_status_code()));
+    }
+  } else if (encapsulated_status_code < 200 ||
+             encapsulated_status_code >= 300) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Bad encapsulated status code: ", encapsulated_status_code));
+  }
+  if (it->second.per_request_config.expected_encapsulated_response_body()
+          .has_value() &&
+      encapsulated_response->body !=
+          *it->second.per_request_config
+               .expected_encapsulated_response_body()) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Unexpected encapsulated response body: \"",
+        encapsulated_response->body, "\" != \"",
+        *it->second.per_request_config.expected_encapsulated_response_body(),
+        "\""));
+  }
   return absl::OkStatus();
 }
 

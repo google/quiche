@@ -14,6 +14,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
@@ -55,6 +56,19 @@ class DefaultDnsResolver : public MasqueConnectionPool::DnsResolver {
 };
 
 }  // namespace
+
+// static
+int16_t MasqueConnectionPool::GetStatusCode(const Message& message) {
+  auto it = message.headers.find(":status");
+  if (it == message.headers.end()) {
+    return 0;
+  }
+  int16_t status_code = 0;
+  if (!absl::SimpleAtoi(it->second, &status_code)) {
+    return 0;
+  }
+  return status_code;
+}
 
 quiche::QuicheSocketAddress MasqueConnectionPool::LookupAddress(
     absl::string_view host, absl::string_view port) {

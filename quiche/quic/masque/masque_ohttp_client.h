@@ -21,10 +21,8 @@
 #include "quiche/quic/tools/quic_url.h"
 #include "quiche/binary_http/binary_http_message.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
 #include "quiche/oblivious_http/common/oblivious_http_chunk_handler.h"
-#include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
 
 namespace quic {
@@ -36,29 +34,110 @@ class QUICHE_EXPORT MasqueOhttpClient
   using RequestId = quic::MasqueConnectionPool::RequestId;
   using Message = quic::MasqueConnectionPool::Message;
 
-  explicit MasqueOhttpClient(quic::QuicEventLoop* event_loop,
-                             SSL_CTX* key_fetch_ssl_ctx, SSL_CTX* ohttp_ssl_ctx,
-                             std::vector<std::string> urls,
-                             bool disable_certificate_verification,
-                             bool use_chunked_ohttp,
-                             const MasqueConnectionPool::DnsConfig& dns_config,
-                             const std::string& post_data)
-      : urls_(urls),
-        use_chunked_ohttp_(use_chunked_ohttp),
-        post_data_(post_data),
-        connection_pool_(event_loop, key_fetch_ssl_ctx,
-                         disable_certificate_verification, dns_config, this) {
-    connection_pool_.SetMtlsSslCtx(ohttp_ssl_ctx);
-  }
+  class QUICHE_NO_EXPORT Config {
+   public:
+    class QUICHE_NO_EXPORT PerRequestConfig {
+     public:
+      explicit PerRequestConfig(const std::string& url) : url_(url) {}
+      // Copyable and movable.
+      PerRequestConfig(const PerRequestConfig& other) = default;
+      PerRequestConfig& operator=(const PerRequestConfig& other) = default;
+      PerRequestConfig(PerRequestConfig&& other) = default;
+      PerRequestConfig& operator=(PerRequestConfig&& other) = default;
 
-  // Starts fetching for the key and sends the OHTTP request.
-  absl::Status Start();
+      void SetPostData(const std::string& post_data) { post_data_ = post_data; }
+      void SetUseChunkedOhttp(bool use_chunked_ohttp) {
+        use_chunked_ohttp_ = use_chunked_ohttp;
+      }
+      void SetExpectedGatewayStatusCode(uint16_t status_code) {
+        expected_gateway_status_code_ = status_code;
+      }
+      void SetExpectedEncapsulatedStatusCode(uint16_t status_code) {
+        expected_encapsulated_status_code_ = status_code;
+      }
+      void SetExpectedEncapsulatedResponseBody(
+          const std::string& expected_encapsulated_response_body) {
+        expected_encapsulated_response_body_ =
+            expected_encapsulated_response_body;
+      }
 
-  // Returns true if the client has completed all requests.
-  bool IsDone();
+      std::string url() const { return url_; }
+      std::string post_data() const { return post_data_; }
+      bool use_chunked_ohttp() const { return use_chunked_ohttp_; }
+      std::optional<uint16_t> expected_gateway_status_code() const {
+        return expected_gateway_status_code_;
+      }
+      std::optional<uint16_t> expected_encapsulated_status_code() const {
+        return expected_encapsulated_status_code_;
+      }
+      std::optional<std::string> expected_encapsulated_response_body() const {
+        return expected_encapsulated_response_body_;
+      }
 
-  // Returns the status of the client.
-  absl::Status status() const { return status_; }
+     private:
+      std::string url_;
+      std::string post_data_;
+      bool use_chunked_ohttp_ = false;
+      std::optional<uint16_t> expected_gateway_status_code_;
+      std::optional<uint16_t> expected_encapsulated_status_code_;
+      std::optional<std::string> expected_encapsulated_response_body_;
+    };
+
+    explicit Config(const std::string& key_fetch_url,
+                    const std::string& relay_url)
+        : key_fetch_url_(key_fetch_url), relay_url_(relay_url) {}
+    // Movable but not copyable.
+    Config(const Config& other) = delete;
+    Config& operator=(const Config& other) = delete;
+    Config(Config&& other) = default;
+    Config& operator=(Config&& other) = default;
+
+    absl::Status ConfigureKeyFetchClientCert(
+        const std::string& client_cert_file,
+        const std::string& client_cert_key_file);
+    absl::Status ConfigureOhttpMtls(const std::string& client_cert_file,
+                                    const std::string& client_cert_key_file);
+    absl::Status ConfigureOhttpMtlsFromData(
+        const std::string& client_cert_pem_data,
+        const std::string& client_cert_key_data);
+    void SetDisableCertificateVerification(
+        bool disable_certificate_verification) {
+      disable_certificate_verification_ = disable_certificate_verification;
+    }
+    void SetDnsConfig(const MasqueConnectionPool::DnsConfig& dns_config) {
+      dns_config_ = dns_config;
+    }
+    void AddPerRequestConfig(const PerRequestConfig& per_request_config) {
+      per_request_configs_.push_back(per_request_config);
+    }
+
+    const std::string& key_fetch_url() const { return key_fetch_url_; }
+    const std::string& relay_url() const { return relay_url_; }
+    SSL_CTX* key_fetch_ssl_ctx() const { return key_fetch_ssl_ctx_.get(); }
+    SSL_CTX* ohttp_ssl_ctx() const { return ohttp_ssl_ctx_.get(); }
+    const std::vector<PerRequestConfig>& per_request_configs() const {
+      return per_request_configs_;
+    }
+    bool disable_certificate_verification() const {
+      return disable_certificate_verification_;
+    }
+    const MasqueConnectionPool::DnsConfig& dns_config() const {
+      return dns_config_;
+    }
+
+   private:
+    std::string key_fetch_url_;
+    std::string relay_url_;
+    bssl::UniquePtr<SSL_CTX> key_fetch_ssl_ctx_;
+    bssl::UniquePtr<SSL_CTX> ohttp_ssl_ctx_;
+    bool disable_certificate_verification_ = false;
+    MasqueConnectionPool::DnsConfig dns_config_;
+    std::vector<PerRequestConfig> per_request_configs_;
+  };
+
+  // Starts by fetching the HPKE keys and then runs the client until all
+  // requests are complete or aborted.
+  static absl::Status Run(Config config);
 
  protected:
   // From quic::MasqueConnectionPool::Visitor.
@@ -73,18 +152,11 @@ class QUICHE_EXPORT MasqueOhttpClient
   absl::Status HandleKeyResponse(const absl::StatusOr<Message>& response);
 
   // Sends the OHTTP request for the given URL.
-  absl::Status SendOhttpRequestForUrl(const std::string& url_string);
+  absl::Status SendOhttpRequest(
+      const Config::PerRequestConfig& per_request_config);
 
   // Signals the client to abort.
   void Abort(absl::Status status);
-
-  // Can be overridden by subclasses to check responses.
-  virtual absl::Status CheckGatewayResponse(const Message& response) {
-    return absl::OkStatus();
-  }
-  virtual absl::Status CheckEncapsulatedResponse(const Message& response) {
-    return absl::OkStatus();
-  }
 
  private:
   class QUICHE_NO_EXPORT ChunkHandler
@@ -137,6 +209,10 @@ class QUICHE_EXPORT MasqueOhttpClient
   };
 
   struct PendingRequest {
+    explicit PendingRequest(const Config::PerRequestConfig& per_request_config)
+        : per_request_config(per_request_config) {}
+
+    const Config::PerRequestConfig& per_request_config;
     // `context` is only used for non-chunked OHTTP requests.
     std::optional<quiche::ObliviousHttpRequest::Context> context;
     // `chunk_handler` is only used for chunked OHTTP requests. We use
@@ -144,6 +220,14 @@ class QUICHE_EXPORT MasqueOhttpClient
     // a callback target.
     std::unique_ptr<ChunkHandler> chunk_handler;
   };
+
+  explicit MasqueOhttpClient(Config config, quic::QuicEventLoop* event_loop);
+
+  // Starts fetching for the key and sends the OHTTP request.
+  absl::Status Start();
+
+  // Returns true if the client has completed all requests.
+  bool IsDone();
 
   absl::StatusOr<Message> TryExtractEncapsulatedResponse(
       RequestId request_id, quiche::ObliviousHttpRequest::Context& context,
@@ -153,16 +237,12 @@ class QUICHE_EXPORT MasqueOhttpClient
   absl::Status CheckStatusAndContentType(const Message& response,
                                          const std::string& content_type);
 
-  std::vector<std::string> urls_;
-  bool use_chunked_ohttp_;
-  std::string post_data_;
+  Config config_;
   quic::MasqueConnectionPool connection_pool_;
   std::optional<RequestId> key_fetch_request_id_;
   bool aborted_ = false;
   absl::Status status_ = absl::OkStatus();
   std::optional<quiche::ObliviousHttpClient> ohttp_client_;
-  std::optional<std::string> chunked_public_key_;
-  std::optional<quiche::ObliviousHttpHeaderKeyConfig> chunked_key_config_;
   quic::QuicUrl relay_url_;
   absl::flat_hash_map<RequestId, PendingRequest> pending_ohttp_requests_;
 };

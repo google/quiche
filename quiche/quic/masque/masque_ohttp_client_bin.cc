@@ -4,23 +4,18 @@
 
 #include <stdbool.h>
 
-#include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
-#include "quiche/quic/core/io/quic_default_event_loop.h"
-#include "quiche/quic/core/io/quic_event_loop.h"
-#include "quiche/quic/core/quic_default_clock.h"
-#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/masque/masque_connection_pool.h"
 #include "quiche/quic/masque/masque_ohttp_client.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/platform/api/quiche_system_event_loop.h"
+#include "quiche/common/quiche_status_utils.h"
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, disable_certificate_verification, false,
@@ -58,13 +53,12 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
 
 namespace quic {
 namespace {
-int RunMasqueOhttpClient(int argc, char* argv[]) {
+absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
   const char* usage =
       "Usage: masque_ohttp_client <key-url> <relay-url> <url>...";
   std::vector<std::string> urls =
       quiche::QuicheParseCommandLineFlags(usage, argc, argv);
 
-  quiche::QuicheSystemEventLoop system_event_loop("masque_ohttp_client");
   const bool disable_certificate_verification =
       quiche::GetQuicheCommandLineFlag(FLAGS_disable_certificate_verification);
   const bool use_mtls_for_key_fetch =
@@ -76,59 +70,43 @@ int RunMasqueOhttpClient(int argc, char* argv[]) {
   const std::string client_cert_key_file =
       quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_key_file);
 
-  absl::StatusOr<bssl::UniquePtr<SSL_CTX>> key_fetch_ssl_ctx;
-  if (use_mtls_for_key_fetch) {
-    key_fetch_ssl_ctx = MasqueConnectionPool::CreateSslCtx(
-        client_cert_file, client_cert_key_file);
-  } else {
-    key_fetch_ssl_ctx = MasqueConnectionPool::CreateSslCtx("", "");
-  }
-  if (!key_fetch_ssl_ctx.ok()) {
-    QUICHE_LOG(ERROR) << "Failed to create key fetch SSL context: "
-                      << key_fetch_ssl_ctx.status();
-    return 1;
-  }
-  absl::StatusOr<bssl::UniquePtr<SSL_CTX>> ohttp_ssl_ctx =
-      MasqueConnectionPool::CreateSslCtx(client_cert_file,
-                                         client_cert_key_file);
-  if (!ohttp_ssl_ctx.ok()) {
-    QUICHE_LOG(ERROR) << "Failed to create OHTTP SSL context: "
-                      << ohttp_ssl_ctx.status();
-    return 1;
-  }
   MasqueConnectionPool::DnsConfig dns_config;
-  absl::Status address_family_status = dns_config.SetAddressFamily(
-      quiche::GetQuicheCommandLineFlag(FLAGS_address_family));
-  if (!address_family_status.ok()) {
-    QUICHE_LOG(ERROR) << address_family_status;
-    return 1;
-  }
-  absl::Status dns_overrides_status = dns_config.SetOverrides(
-      quiche::GetQuicheCommandLineFlag(FLAGS_dns_override));
-  if (!dns_overrides_status.ok()) {
-    QUICHE_LOG(ERROR) << dns_overrides_status;
-    return 1;
-  }
-  std::unique_ptr<QuicEventLoop> event_loop =
-      GetDefaultEventLoop()->Create(QuicDefaultClock::Get());
+  QUICHE_RETURN_IF_ERROR(dns_config.SetAddressFamily(
+      quiche::GetQuicheCommandLineFlag(FLAGS_address_family)));
+  QUICHE_RETURN_IF_ERROR(dns_config.SetOverrides(
+      quiche::GetQuicheCommandLineFlag(FLAGS_dns_override)));
   std::string post_data = quiche::GetQuicheCommandLineFlag(FLAGS_post_data);
 
-  MasqueOhttpClient masque_ohttp_client(
-      event_loop.get(), key_fetch_ssl_ctx->get(), ohttp_ssl_ctx->get(), urls,
-      disable_certificate_verification, use_chunked_ohttp, dns_config,
-      post_data);
-  if (!masque_ohttp_client.Start().ok()) {
-    return 1;
+  if (urls.size() < 3) {
+    return absl::InvalidArgumentError(usage);
   }
-  while (!masque_ohttp_client.IsDone()) {
-    event_loop->RunEventLoopOnce(QuicTime::Delta::FromMilliseconds(50));
+  MasqueOhttpClient::Config config(/*key_fetch_url=*/urls[0],
+                                   /*relay_url=*/urls[1]);
+  if (use_mtls_for_key_fetch) {
+    QUICHE_RETURN_IF_ERROR(config.ConfigureKeyFetchClientCert(
+        client_cert_file, client_cert_key_file));
   }
-  return 0;
+  QUICHE_RETURN_IF_ERROR(
+      config.ConfigureOhttpMtls(client_cert_file, client_cert_key_file));
+  config.SetDisableCertificateVerification(disable_certificate_verification);
+  config.SetDnsConfig(dns_config);
+  for (size_t i = 2; i < urls.size(); ++i) {
+    MasqueOhttpClient::Config::PerRequestConfig per_request_config(urls[i]);
+    per_request_config.SetPostData(post_data);
+    per_request_config.SetUseChunkedOhttp(use_chunked_ohttp);
+    config.AddPerRequestConfig(per_request_config);
+  }
+  return MasqueOhttpClient::Run(std::move(config));
 }
 
 }  // namespace
 }  // namespace quic
 
 int main(int argc, char* argv[]) {
-  return quic::RunMasqueOhttpClient(argc, argv);
+  absl::Status status = quic::RunMasqueOhttpClient(argc, argv);
+  if (!status.ok()) {
+    QUICHE_LOG(ERROR) << status;
+    return 1;
+  }
+  return 0;
 }

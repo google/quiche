@@ -34,6 +34,9 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
     std::string body;
   };
 
+  // Returns the HTTP status code from the message, or 0 if not available.
+  static int16_t GetStatusCode(const Message& message);
+
   // Interface for resolving addresses.
   class QUIC_NO_EXPORT DnsResolver {
    public:
