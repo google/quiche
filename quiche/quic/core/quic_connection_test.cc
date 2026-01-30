@@ -543,7 +543,7 @@ class TestConnection : public QuicConnection {
 
  private:
   TestPacketWriter* writer() {
-    return static_cast<TestPacketWriter*>(QuicConnection::writer());
+    return absl::static_cast<TestPacketWriter*>(QuicConnection::writer());
   }
 
   SimpleDataProducer producer_;
