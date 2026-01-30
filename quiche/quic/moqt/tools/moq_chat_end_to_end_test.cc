@@ -10,7 +10,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_server_id.h"
-#include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
 #include "quiche/quic/moqt/tools/chat_client.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"

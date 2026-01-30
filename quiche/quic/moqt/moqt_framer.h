@@ -77,8 +77,6 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializePublishOk(const MoqtPublishOk& message);
   quiche::QuicheBuffer SerializeObjectAck(const MoqtObjectAck& message);
 
-  bool using_webtrans() const { return using_webtrans_; }
-
  private:
   // Returns true if the parameters are valid for the message type.
   bool FillAndValidateSetupParameters(MoqtMessageType message_type,
@@ -90,7 +88,7 @@ class QUICHE_EXPORT MoqtFramer {
   // Returns true if the metadata is internally consistent.
   static bool ValidateObjectMetadata(const MoqtObject& object,
                                      bool is_datagram);
-  const bool using_webtrans_;
+  bool using_webtrans_;
 };
 
 }  // namespace moqt

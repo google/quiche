@@ -12,14 +12,13 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <vector>
 
-#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
-#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_stream.h"
@@ -96,7 +95,7 @@ class QUICHE_EXPORT MoqtControlParser {
         uses_web_transport_(uses_web_transport) {}
   ~MoqtControlParser() = default;
 
-  void ReadAndDispatchMessages(bool stop_after_one_message = false);
+  void ReadAndDispatchMessages();
 
  private:
   // The central switch statement to dispatch a message to the correct

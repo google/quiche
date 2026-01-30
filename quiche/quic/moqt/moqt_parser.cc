@@ -471,7 +471,7 @@ MoqtError VersionSpecificParameters::FromKeyValuePairList(
   return error;
 }
 
-void MoqtControlParser::ReadAndDispatchMessages(bool stop_after_one_message) {
+void MoqtControlParser::ReadAndDispatchMessages() {
   if (no_more_data_) {
     ParseError("Data after end of stream");
     return;
@@ -547,9 +547,6 @@ void MoqtControlParser::ReadAndDispatchMessages(bool stop_after_one_message) {
                    static_cast<MoqtMessageType>(*message_type_));
     message_type_.reset();
     message_size_.reset();
-    if (stop_after_one_message) {
-      return;
-    }
   }
 }
 

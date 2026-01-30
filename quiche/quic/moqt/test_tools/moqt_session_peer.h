@@ -42,20 +42,16 @@ class MoqtSessionPeer {
 
   static std::unique_ptr<MoqtControlParserVisitor> CreateControlStream(
       MoqtSession* session, webtransport::test::MockStream* stream) {
-    auto new_stream = std::make_unique<MoqtSession::ControlStream>(session);
-    session->control_stream_ = new_stream->GetWeakPtr();
-    new_stream->set_stream(stream);
+    auto new_stream =
+        std::make_unique<MoqtSession::ControlStream>(session, stream);
+    session->control_stream_ = kControlStreamId;
     ON_CALL(*stream, visitor())
         .WillByDefault(::testing::Return(new_stream.get()));
-    ON_CALL(*stream, CanWrite).WillByDefault(::testing::Return(true));
-    return new_stream;
-  }
-
-  static std::unique_ptr<MoqtControlParserVisitor> CreateUnknownBidiStream(
-      MoqtSession* session, webtransport::Stream* stream) {
-    auto new_stream =
-        std::make_unique<MoqtSession::UnknownBidiStream>(session, stream);
-    new_stream->set_stream(stream);
+    webtransport::test::MockSession* mock_session =
+        static_cast<webtransport::test::MockSession*>(session->session());
+    EXPECT_CALL(*mock_session, GetStreamById(kControlStreamId))
+        .Times(::testing::AnyNumber())
+        .WillRepeatedly(::testing::Return(stream));
     return new_stream;
   }
 
@@ -266,10 +262,6 @@ class MoqtSessionPeer {
 
   static absl::string_view GetImplementationString(MoqtSession* session) {
     return session->parameters_.moqt_implementation;
-  }
-
-  static MoqtSession::ControlStream* GetControlStream(MoqtSession* session) {
-    return session->control_stream_.GetIfAvailable();
   }
 };
 

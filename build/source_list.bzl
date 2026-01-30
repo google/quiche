@@ -1573,7 +1573,6 @@ load_balancer_srcs = [
     "quic/load_balancer/load_balancer_server_id_test.cc",
 ]
 moqt_hdrs = [
-    "quic/moqt/moqt_bidi_stream.h",
     "quic/moqt/moqt_bitrate_adjuster.h",
     "quic/moqt/moqt_error.h",
     "quic/moqt/moqt_fetch_task.h",
@@ -1636,7 +1635,6 @@ moqt_srcs = [
 moqt_test_hdrs = [
 ]
 moqt_test_srcs = [
-    "quic/moqt/moqt_bidi_stream_test.cc",
     "quic/moqt/moqt_bitrate_adjuster_test.cc",
     "quic/moqt/moqt_framer_test.cc",
     "quic/moqt/moqt_integration_test.cc",
