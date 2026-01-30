@@ -1213,26 +1213,30 @@ TEST_F(MoqtMessageSpecificTest, AllMessagesTogether) {
   EXPECT_FALSE(visitor_.parsing_error_.has_value());
 }
 
-TEST_F(MoqtMessageSpecificTest, ReadOnlyOneMessage) {
-  char buffer[5000];
+TEST_F(MoqtMessageSpecificTest, ReadOnlyMessageType) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  size_t write = 0;
-  std::unique_ptr<TestMessageBase> first_message =
-      CreateTestMessage(MoqtMessageType::kRequestOk, kRawQuic);
-  std::unique_ptr<TestMessageBase> second_message =
-      CreateTestMessage(MoqtMessageType::kRequestError, kRawQuic);
-  memcpy(buffer, first_message->PacketSample().data(),
-         first_message->total_message_size());
-  write += first_message->total_message_size();
-  memcpy(buffer + write, second_message->PacketSample().data(),
-         second_message->total_message_size());
-  write += second_message->total_message_size();
-  stream.Receive(absl::string_view(buffer, write), false);
-  parser.ReadAndDispatchMessages(true);
-  EXPECT_EQ(visitor_.messages_received_, 1);
-  parser.ReadAndDispatchMessages(true);
-  EXPECT_EQ(visitor_.messages_received_, 2);
+  MoqtMessageTypeParser parser(&stream);
+  char buffer[] = {0x40, 0x03};
+  stream.Receive(absl::string_view(buffer, sizeof(buffer)), false);
+  EXPECT_TRUE(parser.ReadUntilMessageTypeKnown());
+  EXPECT_EQ(parser.message_type(), 0x03);
+}
+
+TEST_F(MoqtMessageSpecificTest, ReadOnlyMessageTypeIncomplete) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtMessageTypeParser parser(&stream);
+  char buffer[] = {0x40};
+  stream.Receive(absl::string_view(buffer, sizeof(buffer)), false);
+  EXPECT_TRUE(parser.ReadUntilMessageTypeKnown());
+  EXPECT_FALSE(parser.message_type().has_value());
+}
+
+TEST_F(MoqtMessageSpecificTest, ReadOnlyMessageTypeEarlyFin) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtMessageTypeParser parser(&stream);
+  char buffer[] = {0x03};
+  stream.Receive(absl::string_view(buffer, sizeof(buffer)), true);
+  EXPECT_FALSE(parser.ReadUntilMessageTypeKnown());
 }
 
 TEST_F(MoqtMessageSpecificTest, DatagramSuccessful) {

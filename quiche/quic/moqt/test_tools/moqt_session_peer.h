@@ -51,14 +51,6 @@ class MoqtSessionPeer {
     return new_stream;
   }
 
-  static std::unique_ptr<MoqtControlParserVisitor> CreateUnknownBidiStream(
-      MoqtSession* session, webtransport::Stream* stream) {
-    auto new_stream =
-        std::make_unique<MoqtSession::UnknownBidiStream>(session, stream);
-    new_stream->set_stream(stream);
-    return new_stream;
-  }
-
   static std::unique_ptr<MoqtDataParserVisitor> CreateIncomingDataStream(
       MoqtSession* session, webtransport::Stream* stream,
       MoqtDataStreamType type) {

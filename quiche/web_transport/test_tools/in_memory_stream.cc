@@ -8,10 +8,12 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
 #include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/vectorized_io_utils.h"
 
@@ -52,6 +54,16 @@ quiche::ReadStream::PeekResult InMemoryStream::PeekNextReadableRegion() const {
 bool InMemoryStream::SkipBytes(size_t bytes) {
   buffer_.RemovePrefix(bytes);
   return buffer_.empty() && fin_received_;
+}
+
+absl::Status InMemoryStream::Writev(absl::Span<quiche::QuicheMemSlice> data,
+                                    const quiche::StreamWriteOptions& options) {
+  if (!CanWrite()) {
+    return absl::PermissionDeniedError("Stream is not writable.");
+  }
+  last_data_sent_ = std::string(data[0].AsStringView());
+  fin_sent_ |= options.send_fin();
+  return absl::OkStatus();
 }
 
 void InMemoryStream::Receive(absl::string_view data, bool fin) {

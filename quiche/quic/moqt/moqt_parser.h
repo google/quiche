@@ -13,7 +13,6 @@
 #include <optional>
 #include <string>
 
-#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/moqt/moqt_error.h"
@@ -88,6 +87,20 @@ class MoqtDataParserVisitor {
   virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
 };
 
+class QUICHE_EXPORT MoqtMessageTypeParser {
+ public:
+  MoqtMessageTypeParser(quiche::ReadStream* stream) : stream_(*stream) {}
+  ~MoqtMessageTypeParser() = default;
+
+  // Returns false if there was a FIN.
+  bool ReadUntilMessageTypeKnown();
+  std::optional<uint64_t> message_type() const { return message_type_; }
+
+ private:
+  quiche::ReadStream& stream_;
+  std::optional<uint64_t> message_type_;
+};
+
 class QUICHE_EXPORT MoqtControlParser {
  public:
   MoqtControlParser(bool uses_web_transport, quiche::ReadStream* stream,
@@ -97,7 +110,8 @@ class QUICHE_EXPORT MoqtControlParser {
         uses_web_transport_(uses_web_transport) {}
   ~MoqtControlParser() = default;
 
-  void ReadAndDispatchMessages(bool stop_after_one_message = false);
+  void set_message_type(uint64_t message_type) { message_type_ = message_type; }
+  void ReadAndDispatchMessages();
 
  private:
   // The central switch statement to dispatch a message to the correct

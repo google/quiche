@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <queue>
 #include <utility>
 
@@ -55,12 +56,8 @@ class MoqtBidiStreamBase : public MoqtControlParserVisitor,
         stream_deleted_callback_(std::move(stream_deleted_callback)),
         session_error_callback_(std::move(session_error_callback)) {}
   ~MoqtBidiStreamBase() override { std::move(stream_deleted_callback_)(); }
-  // The caller is responsible for calling stream->SetVisitor(). Derived
-  // classes will wrap this with a call to stream->SetPriority().
   virtual void set_stream(webtransport::Stream* absl_nonnull stream) {
-    stream_ = stream;
-    parser_ = std::make_unique<MoqtControlParser>(framer_->using_webtrans(),
-                                                  stream_, *this);
+    set_stream(stream, std::nullopt);
   }
 
   // MoqtControlParserVisitor implementation. All control messages are protocol
@@ -217,6 +214,17 @@ class MoqtBidiStreamBase : public MoqtControlParserVisitor,
   }
 
  protected:
+  // The caller is responsible for calling stream->SetVisitor(). Derived
+  // classes will wrap this with a call to stream->SetPriority().
+  void set_stream(webtransport::Stream* absl_nonnull stream,
+                  std::optional<MoqtMessageType> first_message_type) {
+    stream_ = stream;
+    parser_ = std::make_unique<MoqtControlParser>(framer_->using_webtrans(),
+                                                  stream_, *this);
+    if (first_message_type.has_value()) {
+      parser_->set_message_type(static_cast<uint64_t>(*first_message_type));
+    }
+  }
   const size_t kMaxPendingMessages = 100;
   void AddToQueue(quiche::QuicheBuffer message) {
     if (pending_messages_.size() == kMaxPendingMessages) {

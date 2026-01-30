@@ -36,11 +36,8 @@ class QUICHE_NO_EXPORT InMemoryStream : public Stream {
 
   // quiche::WriteStream implementation.
   absl::Status Writev(absl::Span<quiche::QuicheMemSlice> data,
-                      const quiche::StreamWriteOptions& options) override {
-    QUICHE_NOTREACHED() << "Writev called on a read-only stream";
-    return absl::UnimplementedError("Writev called on a read-only stream");
-  }
-  bool CanWrite() const override { return false; }
+                      const quiche::StreamWriteOptions& options) override;
+  bool CanWrite() const override { return !fin_sent_; }
 
   void AbruptlyTerminate(absl::Status) override { Terminate(); }
 
@@ -76,6 +73,10 @@ class QUICHE_NO_EXPORT InMemoryStream : public Stream {
     peek_one_byte_at_a_time_ = peek_one_byte_at_a_time;
   }
 
+  // Returns what was last written to the stream.
+  absl::string_view last_data_sent() const { return last_data_sent_; }
+  bool fin_sent() const { return fin_sent_; }
+
  private:
   void Terminate();
 
@@ -86,6 +87,8 @@ class QUICHE_NO_EXPORT InMemoryStream : public Stream {
   bool fin_received_ = false;
   bool abruptly_terminated_ = false;
   bool peek_one_byte_at_a_time_ = false;
+  std::string last_data_sent_;
+  bool fin_sent_ = false;
 };
 
 }  // namespace webtransport::test

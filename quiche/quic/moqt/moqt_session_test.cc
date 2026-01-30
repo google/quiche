@@ -319,25 +319,26 @@ TEST_F(MoqtSessionTest, PeerOpensBidiStream) {
 }
 
 TEST_F(MoqtSessionTest, OnClientSetup) {
-  MoqtSession server_session(
-      &mock_session_, MoqtSessionParameters(quic::Perspective::IS_SERVER),
-      std::make_unique<quic::test::TestAlarmFactory>(),
-      session_callbacks_.AsSessionCallbacks());
-  std::unique_ptr<MoqtControlParserVisitor> unknown_stream =
-      MoqtSessionPeer::CreateUnknownBidiStream(&server_session, &mock_stream_);
+  MoqtSessionParameters session_parameters(quic::Perspective::IS_SERVER);
+  MoqtSession server_session(&mock_session_, session_parameters,
+                             std::make_unique<quic::test::TestAlarmFactory>(),
+                             session_callbacks_.AsSessionCallbacks());
+  // Load a CLIENT_SETUP message into an in-memory stream.
+  webtransport::test::InMemoryStream in_memory_stream(0);
+  MoqtFramer framer(session_parameters.using_webtrans);
   MoqtClientSetup setup;
-  MoqtSessionParameters parameters(quic::Perspective::IS_CLIENT);
-  parameters.ToSetupParameters(setup.parameters);
-  EXPECT_CALL(mock_stream_, CanWrite).WillOnce(Return(true));
-  EXPECT_CALL(mock_stream_,
-              Writev(ControlMessageOfType(MoqtMessageType::kServerSetup), _));
+  session_parameters.ToSetupParameters(setup.parameters);
+  quiche::QuicheBuffer buffer = framer.SerializeClientSetup(setup);
+  in_memory_stream.Receive(absl::string_view(buffer.data(), buffer.size()),
+                           /*fin=*/false);
+
+  EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream())
+      .WillOnce(Return(&in_memory_stream))
+      .WillOnce(Return(nullptr));
   EXPECT_CALL(session_callbacks_.session_established_callback, Call());
-  std::unique_ptr<webtransport::StreamVisitor> visitor;
-  EXPECT_CALL(mock_stream_, SetVisitor)
-      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> new_visitor) {
-        visitor = std::move(new_visitor);
-      });
-  unknown_stream->OnClientSetupMessage(setup);
+  server_session.OnIncomingBidirectionalStreamAvailable();
+  EXPECT_EQ(static_cast<uint8_t>(in_memory_stream.last_data_sent()[0]),
+            static_cast<uint8_t>(MoqtMessageType::kServerSetup));
   EXPECT_NE(MoqtSessionPeer::GetControlStream(&server_session), nullptr);
 }
 

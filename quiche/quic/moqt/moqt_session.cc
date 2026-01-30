@@ -893,7 +893,56 @@ bool MoqtSession::ValidateRequestId(uint64_t request_id) {
   return true;
 }
 
-void MoqtSession::UnknownBidiStream::OnClientSetupMessage(
+void MoqtSession::UnknownBidiStream::OnCanRead() {
+  if (!parser_.ReadUntilMessageTypeKnown()) {
+    // Got an early FIN.
+    stream_->ResetWithUserCode(kResetCodeCanceled);
+    return;
+  }
+  if (!parser_.message_type().has_value()) {
+    return;
+  }
+  MoqtMessageType message_type =
+      static_cast<MoqtMessageType>(*parser_.message_type());
+  switch (message_type) {
+    case MoqtMessageType::kClientSetup: {
+      if (session_->control_stream_.GetIfAvailable() != nullptr) {
+        session_->Error(MoqtError::kProtocolViolation,
+                        "Multiple control streams");
+        return;
+      }
+      auto control_stream = std::make_unique<ControlStream>(session_);
+      // Store a reference to the stream context when the current context is
+      // destroyed below.
+      ControlStream* temp_stream = control_stream.get();
+      session_->control_stream_ = temp_stream->GetWeakPtr();
+      control_stream->set_stream(stream_);
+      // Deletes the UnknownBidiStream object; no class access after this
+      // point.
+      stream_->SetVisitor(std::move(control_stream));
+      temp_stream->OnCanRead();
+      break;
+    }
+    default:
+      session_->Error(MoqtError::kProtocolViolation,
+                      "Unexpected message type received to start bidi stream");
+      return;
+  }
+}
+
+void MoqtSession::ControlStream::set_stream(
+    webtransport::Stream* absl_nonnull stream) {
+  stream->SetPriority(
+      webtransport::StreamPriority{/*send_group_id=*/kMoqtSendGroupId,
+                                   /*send_order=*/kMoqtControlStreamSendOrder});
+  if (session_->perspective() == Perspective::IS_SERVER) {
+    MoqtBidiStreamBase::set_stream(stream, MoqtMessageType::kClientSetup);
+  } else {
+    MoqtBidiStreamBase::set_stream(stream, std::nullopt);
+  }
+}
+
+void MoqtSession::ControlStream::OnClientSetupMessage(
     const MoqtClientSetup& message) {
   if (session_->perspective() == Perspective::IS_CLIENT) {
     session_->Error(MoqtError::kProtocolViolation,
@@ -911,28 +960,7 @@ void MoqtSession::UnknownBidiStream::OnClientSetupMessage(
   SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
   QUICHE_DLOG(INFO) << "Sent SERVER_SETUP";
   // TODO: handle path.
-  if (session_->control_stream_.GetIfAvailable() != nullptr) {
-    session_->Error(MoqtError::kProtocolViolation, "Multiple control streams");
-    return;
-  }
-  auto control_stream = std::make_unique<ControlStream>(session_);
-  // Store a reference to the stream context when the current context is
-  // destroyed below.
-  ControlStream* temp_stream = control_stream.get();
-  session_->control_stream_ = temp_stream->GetWeakPtr();
-  control_stream->set_stream(stream());
   std::move(session_->callbacks_.session_established_callback)();
-  // Deletes the UnknownBidiStream object; no class access after this point.
-  stream()->SetVisitor(std::move(control_stream));
-  temp_stream->OnCanRead();
-}
-
-void MoqtSession::ControlStream::set_stream(
-    webtransport::Stream* absl_nonnull stream) {
-  stream->SetPriority(
-      webtransport::StreamPriority{/*send_group_id=*/kMoqtSendGroupId,
-                                   /*send_order=*/kMoqtControlStreamSendOrder});
-  MoqtBidiStreamBase::set_stream(stream);
 }
 
 void MoqtSession::ControlStream::OnServerSetupMessage(

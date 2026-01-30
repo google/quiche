@@ -209,31 +209,26 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   };
 
   // A stream is open, but we don't know the type until we receive a message.
-  class QUICHE_EXPORT UnknownBidiStream : public MoqtBidiStreamBase {
+  class QUICHE_EXPORT UnknownBidiStream : public webtransport::StreamVisitor {
    public:
     // Constructor for a stream initiated by the remote peer. The caller is
     // responsible for calling stream->SetVisitor().
     UnknownBidiStream(MoqtSession* session,
                       webtransport::Stream* absl_nonnull stream)
-        : MoqtBidiStreamBase(
-              &session->framer_, []() { /* Do nothing when deleted. */ },
-              [session](MoqtError code, absl::string_view reason) {
-                session->Error(code, reason);
-              }),
-          session_(session) {
-      set_stream(stream);
-    }
+        : session_(session), stream_(stream), parser_(stream) {}
+    ~UnknownBidiStream() {}
 
     // webtransport::StreamVisitor overrides.
-    void OnCanRead() override {
-      parser()->ReadAndDispatchMessages(/*one_message=*/true);
-    }
-
-    // MoqtControlParserVisitor overrides.
-    void OnClientSetupMessage(const MoqtClientSetup& message) override;
+    void OnResetStreamReceived(webtransport::StreamErrorCode error) override {}
+    void OnStopSendingReceived(webtransport::StreamErrorCode error) override {}
+    void OnWriteSideInDataRecvdState() override {}
+    void OnCanRead() override;
+    void OnCanWrite() override {}
 
    private:
     MoqtSession* session_;
+    webtransport::Stream* stream_;
+    MoqtMessageTypeParser parser_;
   };
 
   class QUICHE_EXPORT ControlStream : public MoqtBidiStreamBase {
@@ -256,6 +251,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void set_stream(webtransport::Stream* absl_nonnull stream) override;
 
     // MoqtControlParserVisitor implementation.
+    void OnClientSetupMessage(const MoqtClientSetup& message) override;
     void OnServerSetupMessage(const MoqtServerSetup& message) override;
     void OnRequestOkMessage(const MoqtRequestOk& message) override;
     void OnRequestErrorMessage(const MoqtRequestError& message) override;

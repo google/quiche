@@ -471,7 +471,19 @@ MoqtError VersionSpecificParameters::FromKeyValuePairList(
   return error;
 }
 
-void MoqtControlParser::ReadAndDispatchMessages(bool stop_after_one_message) {
+bool MoqtMessageTypeParser::ReadUntilMessageTypeKnown() {
+  if (message_type_.has_value()) {
+    return true;
+  }
+  bool fin_read = false;
+  message_type_ = ReadVarInt62FromStream(stream_, fin_read);
+  if (fin_read) {
+    return false;
+  }
+  return true;
+}
+
+void MoqtControlParser::ReadAndDispatchMessages() {
   if (no_more_data_) {
     ParseError("Data after end of stream");
     return;
@@ -480,12 +492,7 @@ void MoqtControlParser::ReadAndDispatchMessages(bool stop_after_one_message) {
     return;
   }
   processing_ = true;
-  bool clear_processing_on_return = true;
-  auto on_return = absl::MakeCleanup([&] {
-    if (clear_processing_on_return) {
-      processing_ = false;
-    }
-  });
+  auto on_return = absl::MakeCleanup([&] { processing_ = false; });
   while (!no_more_data_) {
     bool fin_read = false;
     // Read the message type.
@@ -547,23 +554,10 @@ void MoqtControlParser::ReadAndDispatchMessages(bool stop_after_one_message) {
       ParseError("FIN on control stream");
       return;
     }
-    // It's possible ProcessMessage destroys the parser if
-    // stop_after_one_message is true, so extract what is needed so it can be
-    // reset beforehand.
-    QUICHE_DCHECK(message_type_.has_value());
-    MoqtMessageType message_type = static_cast<MoqtMessageType>(*message_type_);
+    ProcessMessage(absl::string_view(message.data(), message.size()),
+                   static_cast<MoqtMessageType>(*message_type_));
     message_type_.reset();
     message_size_.reset();
-    if (stop_after_one_message) {
-      clear_processing_on_return = false;
-      processing_ = false;
-    }
-    ProcessMessage(absl::string_view(message.data(), message.size()),
-                   message_type);
-    if (stop_after_one_message) {
-      return;
-    }
-    processing_ = true;
   }
 }
 
