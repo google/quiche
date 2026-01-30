@@ -1175,8 +1175,11 @@ void TlsServerHandshaker::OnSelectCertificateDone(
                  ProofSource::Chain> absl_nonnull& chain :
              local_config->chains) {
           if (!chain->certs.empty()) {
+            QUIC_CODE_COUNT(quic_tls_server_chain_with_certs_nonempty);
             tls_connection_.AddCertChain(chain->ToCryptoBuffers().value,
                                          chain->trust_anchor_id);
+          } else {
+            QUIC_CODE_COUNT(quic_tls_server_chain_with_certs_empty);
           }
         }
         select_cert_status_ = QUIC_SUCCESS;

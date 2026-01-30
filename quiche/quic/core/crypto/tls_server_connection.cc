@@ -87,11 +87,14 @@ void TlsServerConnection::AddCertChain(
   SSL_CREDENTIAL_set_private_key_method(
       credential.get(), &TlsServerConnection::kPrivateKeyMethod);
   if (!trust_anchor_id.empty()) {
+    QUIC_CODE_COUNT(quic_tls_server_connection_trust_anchor_id_present);
     SSL_CREDENTIAL_set1_trust_anchor_id(
         credential.get(),
         reinterpret_cast<const uint8_t*>(trust_anchor_id.data()),
         trust_anchor_id.size());
     SSL_CREDENTIAL_set_must_match_issuer(credential.get(), 1);
+  } else {
+    QUIC_CODE_COUNT(quic_tls_server_connection_trust_anchor_id_empty);
   }
   SSL_add1_credential(ssl(), credential.get());
 }
