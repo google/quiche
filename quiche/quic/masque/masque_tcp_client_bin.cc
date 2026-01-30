@@ -254,7 +254,8 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
         socket_->ReceiveAsync(kBioBufferSize);
         return;
       }
-      PrintSSLError("Error while TLS connecting", ssl_err, ret);
+      QUICHE_LOG(ERROR) << FormatSslError("Error while TLS connecting", ssl_err,
+                                          ret);
       done_ = true;
       return;
     }
@@ -282,8 +283,8 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
     if (write_ret < 0) {
       QUICHE_LOG(ERROR) << "Failed to write data from transport to TLS";
       int ssl_err = SSL_get_error(ssl_.get(), write_ret);
-      PrintSSLError("Error while writing data from transport to TLS", ssl_err,
-                    write_ret);
+      QUICHE_LOG(ERROR) << FormatSslError(
+          "Error while writing data from transport to TLS", ssl_err, write_ret);
       done_ = true;
       return;
     }
@@ -308,8 +309,8 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
         socket_->ReceiveAsync(kBioBufferSize);
         return;
       }
-      PrintSSLError("Error while performing TLS handshake", ssl_err,
-                    handshake_ret);
+      QUICHE_LOG(ERROR) << FormatSslError(
+          "Error while performing TLS handshake", ssl_err, handshake_ret);
       done_ = true;
       return;
     }
@@ -325,7 +326,8 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
           socket_->ReceiveAsync(kBioBufferSize);
           return;
         }
-        PrintSSLError("Error while reading from TLS", ssl_err, ssl_read_ret);
+        QUICHE_LOG(ERROR) << FormatSslError("Error while reading from TLS",
+                                            ssl_err, ssl_read_ret);
         done_ = true;
         return;
       }
@@ -357,7 +359,8 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
 
   // From MasqueH2Connection::Visitor.
   void OnConnectionReady(MasqueH2Connection* /*connection*/) override {}
-  void OnConnectionFinished(MasqueH2Connection* /*connection*/) override {
+  void OnConnectionFinished(MasqueH2Connection* /*connection*/,
+                            absl::Status /*error*/) override {
     done_ = true;
   }
 
@@ -421,8 +424,8 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
       } else if (ssl_err == SSL_ERROR_SYSCALL && errno == 0) {
         QUICHE_DVLOG(1) << "TLS recoverable failure from underlying socket";
       } else {
-        PrintSSLError("Error while reading from transport_io_", ssl_err,
-                      read_ret);
+        QUICHE_LOG(ERROR) << FormatSslError(
+            "Error while reading from transport_io_", ssl_err, read_ret);
       }
     } else {
       QUICHE_DVLOG(1) << "TLS wrote " << read_ret << " bytes to transport";
@@ -437,19 +440,18 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
     int ssl_write_ret = SSL_write(ssl_.get(), data.data(), data.size());
     if (ssl_write_ret <= 0) {
       int ssl_err = SSL_get_error(ssl_.get(), ssl_write_ret);
-      PrintSSLError("Error while writing request to TLS", ssl_err,
-                    ssl_write_ret);
+      QUICHE_LOG(ERROR) << FormatSslError("Error while writing request to TLS",
+                                          ssl_err, ssl_write_ret);
       done_ = true;
       return -1;
-    } else {
-      if (ssl_write_ret == static_cast<int>(data.size())) {
-        QUICHE_DVLOG(1) << "Wrote " << data.size() << " bytes to TLS";
-      } else {
-        QUICHE_DVLOG(1) << "Wrote " << ssl_write_ret << " / " << data.size()
-                        << "bytes to TLS";
-      }
-      SendToTransport();
     }
+    if (ssl_write_ret == static_cast<int>(data.size())) {
+      QUICHE_DVLOG(1) << "Wrote " << data.size() << " bytes to TLS";
+    } else {
+      QUICHE_DVLOG(1) << "Wrote " << ssl_write_ret << " / " << data.size()
+                      << "bytes to TLS";
+    }
+    SendToTransport();
     return ssl_write_ret;
   }
 

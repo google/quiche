@@ -105,8 +105,9 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
 int main(int argc, char* argv[]) {
   absl::Status status = quic::RunMasqueOhttpClient(argc, argv);
   if (!status.ok()) {
-    QUICHE_LOG(ERROR) << status;
+    QUICHE_LOG(ERROR) << status.message();
     return 1;
   }
+  QUICHE_LOG(INFO) << "MasqueOhttpClient finished successfully";
   return 0;
 }

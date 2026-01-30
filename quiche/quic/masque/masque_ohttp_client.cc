@@ -120,7 +120,7 @@ absl::Status MasqueOhttpClient::Start() {
   return absl::OkStatus();
 }
 bool MasqueOhttpClient::IsDone() {
-  if (aborted_) {
+  if (!status_.ok()) {
     return true;
   }
   if (!ohttp_client_.has_value()) {
@@ -132,11 +132,14 @@ bool MasqueOhttpClient::IsDone() {
 
 void MasqueOhttpClient::Abort(absl::Status status) {
   QUICHE_CHECK(!status.ok());
-  QUICHE_LOG(ERROR) << "Aborting: " << status;
-  aborted_ = true;
-  if (status_.ok()) {  // Only keep the first abort status.
-    status_ = status;
+  if (!status_.ok()) {
+    QUICHE_LOG(ERROR)
+        << "MasqueOhttpClient already aborted, ignoring new error: "
+        << status.message();
+    return;
   }
+  status_ = status;
+  QUICHE_LOG(ERROR) << "Aborting MasqueOhttpClient: " << status_.message();
 }
 
 absl::StatusOr<QuicUrl> ParseUrl(const std::string& url_string) {
@@ -146,7 +149,7 @@ absl::StatusOr<QuicUrl> ParseUrl(const std::string& url_string) {
   }
   if (url.host().empty()) {
     return absl::InvalidArgumentError(
-        absl::StrCat("Failed to parse key URL ", url_string));
+        absl::StrCat("Failed to parse OHTTP key URL ", url_string));
   }
   return url;
 }
@@ -157,9 +160,8 @@ absl::Status MasqueOhttpClient::StartKeyFetch(const std::string& url_string) {
     url = QuicUrl(absl::StrCat("https://", url_string));
   }
   if (url.host().empty()) {
-    QUICHE_LOG(ERROR) << "Failed to parse key URL \"" << url_string << "\"";
     return absl::InvalidArgumentError(
-        absl::StrCat("Failed to parse key URL ", url_string));
+        absl::StrCat("Failed to parse OHTTP key URL \"", url_string, "\""));
   }
   Message request;
   request.headers[":method"] = "GET";
@@ -168,13 +170,14 @@ absl::Status MasqueOhttpClient::StartKeyFetch(const std::string& url_string) {
   request.headers[":path"] = url.PathParamsQuery();
   request.headers["accept"] = "application/ohttp-keys";
 
-  QUICHE_ASSIGN_OR_RETURN(key_fetch_request_id_,
-                          connection_pool_.SendRequest(request, /*mtls=*/false),
-                          [](const absl::Status& status) {
-                            QUICHE_LOG(ERROR)
-                                << "Failed to send request: " << status;
-                            return status;
-                          });
+  absl::StatusOr<RequestId> request_id =
+      connection_pool_.SendRequest(request, /*mtls=*/false);
+  if (!request_id.ok()) {
+    return absl::FailedPreconditionError(
+        absl::StrCat("Failed to send OHTTP key fetch request: ",
+                     request_id.status().message()));
+  }
+  key_fetch_request_id_ = *request_id;
   return absl::OkStatus();
 }
 
@@ -218,18 +221,18 @@ absl::Status MasqueOhttpClient::HandleKeyResponse(
   key_fetch_request_id_ = std::nullopt;
 
   if (!response.ok()) {
-    QUICHE_LOG(ERROR) << "Failed to fetch key: " << response.status();
-    return response.status();
+    return absl::FailedPreconditionError(absl::StrCat(
+        "Failed to fetch OHTTP keys: ", response.status().message()));
   }
-  QUICHE_LOG(INFO) << "Received key response: "
+  QUICHE_LOG(INFO) << "Received OHTTP keys response: "
                    << response->headers.DebugString();
   QUICHE_RETURN_IF_ERROR(
       CheckStatusAndContentType(*response, "application/ohttp-keys"));
   absl::StatusOr<ObliviousHttpKeyConfigs> key_configs =
       ObliviousHttpKeyConfigs::ParseConcatenatedKeys(response->body);
   if (!key_configs.ok()) {
-    QUICHE_LOG(ERROR) << "Failed to parse OHTTP keys: " << key_configs.status();
-    return key_configs.status();
+    return absl::FailedPreconditionError(absl::StrCat(
+        "Failed to parse OHTTP keys: ", key_configs.status().message()));
   }
   QUICHE_LOG(INFO) << "Successfully got " << key_configs->NumKeys()
                    << " OHTTP keys: " << std::endl
@@ -247,18 +250,17 @@ absl::Status MasqueOhttpClient::HandleKeyResponse(
   absl::StatusOr<absl::string_view> public_key =
       key_configs->GetPublicKeyForId(key_config.GetKeyId());
   if (!public_key.ok()) {
-    QUICHE_LOG(ERROR) << "Failed to get public key for key ID "
-                      << static_cast<int>(key_config.GetKeyId()) << ": "
-                      << public_key.status();
-    return public_key.status();
+    return absl::InternalError(
+        absl::StrCat("Failed to get OHTTP public key for key ID ",
+                     static_cast<int>(key_config.GetKeyId()), ": ",
+                     public_key.status().message()));
   }
 
   absl::StatusOr<ObliviousHttpClient> ohttp_client =
       ObliviousHttpClient::Create(*public_key, key_config);
   if (!ohttp_client.ok()) {
-    QUICHE_LOG(ERROR) << "Failed to create OHTTP client: "
-                      << ohttp_client.status();
-    return ohttp_client.status();
+    return absl::InternalError(absl::StrCat("Failed to create OHTTP client: ",
+                                            ohttp_client.status().message()));
   }
   ohttp_client_.emplace(std::move(*ohttp_client));
 
@@ -289,7 +291,9 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
   binary_request.set_body(post_data);
   absl::StatusOr<std::string> encoded_request = binary_request.Serialize();
   if (!encoded_request.ok()) {
-    return encoded_request.status();
+    return absl::InternalError(
+        absl::StrCat("Failed to serialize OHTTP request: ",
+                     encoded_request.status().message()));
   }
   std::string encrypted_data;
   PendingRequest pending_request(per_request_config);
@@ -305,9 +309,9 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
                                            ohttp_client_->GetKeyConfig(),
                                            pending_request.chunk_handler.get());
     if (!chunked_client.ok()) {
-      QUICHE_LOG(ERROR) << "Failed to create chunked OHTTP client: "
-                        << chunked_client.status();
-      return chunked_client.status();
+      return absl::InternalError(
+          absl::StrCat("Failed to create chunked OHTTP client: ",
+                       chunked_client.status().message()));
     }
 
     BinaryHttpRequest::IndeterminateLengthEncoder encoder;
@@ -361,9 +365,9 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
     absl::StatusOr<ObliviousHttpRequest> ohttp_request =
         ohttp_client_->CreateObliviousHttpRequest(*encoded_request);
     if (!ohttp_request.ok()) {
-      QUICHE_LOG(ERROR) << "Failed to create OHTTP request: "
-                        << ohttp_request.status();
-      return ohttp_request.status();
+      return absl::InternalError(
+          absl::StrCat("Failed to create OHTTP request: ",
+                       ohttp_request.status().message()));
     }
     encrypted_data = ohttp_request->EncapsulateAndSerialize();
     pending_request.context.emplace(std::move(*ohttp_request).ReleaseContext());
@@ -381,8 +385,8 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
   absl::StatusOr<RequestId> request_id =
       connection_pool_.SendRequest(request, /*mtls=*/true);
   if (!request_id.ok()) {
-    QUICHE_LOG(ERROR) << "Failed to send request: " << request_id.status();
-    return request_id.status();
+    return absl::InternalError(absl::StrCat("Failed to send request: ",
+                                            request_id.status().message()));
   }
   QUICHE_LOG(INFO) << "Sent OHTTP request for " << per_request_config.url();
 
@@ -419,10 +423,8 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
     RequestId request_id, const absl::StatusOr<Message>& response) {
   auto it = pending_ohttp_requests_.find(request_id);
   if (it == pending_ohttp_requests_.end()) {
-    QUICHE_LOG(ERROR) << "Received unexpected response for unknown request "
-                      << request_id;
-    return absl::InternalError(
-        "Received unexpected response for unknown request");
+    return absl::InternalError(absl::StrCat(
+        "Received unexpected response for unknown request ", request_id));
   }
   auto cleanup =
       absl::MakeCleanup([this, it]() { pending_ohttp_requests_.erase(it); });
@@ -471,8 +473,10 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
   QUICHE_LOG(INFO) << "Successfully decapsulated response for request ID "
                    << request_id << ". Headers:"
                    << encapsulated_response->headers.DebugString()
-                   << "Body:" << std::endl
-                   << encapsulated_response->body;
+                   << (encapsulated_response->body.empty()
+                           ? "Empty body"
+                           : absl::StrCat("Body: \n",
+                                          encapsulated_response->body));
   int16_t encapsulated_status_code =
       MasqueConnectionPool::GetStatusCode(*encapsulated_response);
   if (it->second.per_request_config.expected_encapsulated_status_code()
@@ -508,15 +512,13 @@ void MasqueOhttpClient::OnPoolResponse(MasqueConnectionPool* /*pool*/,
                                        absl::StatusOr<Message>&& response) {
   if (key_fetch_request_id_.has_value() &&
       *key_fetch_request_id_ == request_id) {
-    auto status = HandleKeyResponse(response);
+    absl::Status status = HandleKeyResponse(response);
     if (!status.ok()) {
-      QUICHE_LOG(ERROR) << "Failed to handle key response: " << status;
       Abort(status);
     }
   } else {
-    auto status = ProcessOhttpResponse(request_id, response);
+    absl::Status status = ProcessOhttpResponse(request_id, response);
     if (!status.ok()) {
-      QUICHE_LOG(ERROR) << "Failed to handle OHTTP response: " << status;
       Abort(status);
     }
   }

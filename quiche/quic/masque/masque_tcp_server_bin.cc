@@ -535,7 +535,8 @@ class MasqueTcpServer : public QuicSocketEventListener,
 
   // From MasqueH2Connection::Visitor.
   void OnConnectionReady(MasqueH2Connection* /*connection*/) override {}
-  void OnConnectionFinished(MasqueH2Connection* connection) override {
+  void OnConnectionFinished(MasqueH2Connection* connection,
+                            absl::Status /*error*/) override {
     connections_.erase(
         std::remove_if(connections_.begin(), connections_.end(),
                        [connection](const auto& socket_connection) {

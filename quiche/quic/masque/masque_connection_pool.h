@@ -99,7 +99,8 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
 
   // From MasqueH2Connection::Visitor:
   void OnConnectionReady(MasqueH2Connection* connection) override;
-  void OnConnectionFinished(MasqueH2Connection* connection) override;
+  void OnConnectionFinished(MasqueH2Connection* connection,
+                            absl::Status error) override;
   void OnRequest(MasqueH2Connection* connection, int32_t stream_id,
                  const quiche::HttpHeaderBlock& headers,
                  const std::string& body) override;

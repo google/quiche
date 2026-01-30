@@ -15,6 +15,8 @@
 #include <utility>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/http2_util.h"
@@ -34,6 +36,45 @@ using http2::adapter::Http2KnownSettingsId;
 
 namespace quic {
 
+namespace {
+
+int AppendErrorToString(const char* msg, size_t msg_len, void* ctx) {
+  std::string* result = reinterpret_cast<std::string*>(ctx);
+  absl::StrAppend(result, "\n", absl::string_view(msg, msg_len));
+  return 1;
+}
+
+absl::Status SslErrorStatus(const char* msg, int ssl_err, int ret) {
+  return absl::FailedPreconditionError(FormatSslError(msg, ssl_err, ret));
+}
+
+}  // namespace
+
+std::string FormatSslError(const char* msg, int ssl_err, int ret) {
+  std::string result = absl::StrCat(msg, ": ");
+  switch (ssl_err) {
+    case SSL_ERROR_SSL:
+      absl::StrAppend(&result, ERR_reason_error_string(ERR_peek_error()));
+      break;
+    case SSL_ERROR_SYSCALL:
+      if (ret == 0) {
+        absl::StrAppend(&result, "peer closed connection");
+      } else {
+        absl::StrAppend(&result, strerror(errno));
+      }
+      break;
+    case SSL_ERROR_ZERO_RETURN:
+      absl::StrAppend(&result, "received close_notify");
+      break;
+    default:
+      absl::StrAppend(&result,
+                      "unexpected error: ", SSL_error_description(ssl_err));
+      break;
+  }
+  ERR_print_errors_cb(AppendErrorToString, &result);
+  return result;
+}
+
 MasqueH2Connection::MasqueH2Connection(SSL* ssl, bool is_server,
                                        Visitor* visitor)
     : ssl_(ssl), is_server_(is_server), visitor_(visitor) {}
@@ -45,13 +86,17 @@ void MasqueH2Connection::OnTransportReadable() {
 
 MasqueH2Connection::~MasqueH2Connection() {}
 
-void MasqueH2Connection::Abort() {
-  if (aborted_) {
+void MasqueH2Connection::Abort(absl::Status error) {
+  QUICHE_CHECK(!error.ok());
+  if (aborted()) {
+    QUICHE_LOG(ERROR) << ENDPOINT
+                      << "Connection already aborted, ignoring new error: "
+                      << error.message();
     return;
   }
-  aborted_ = true;
-  QUICHE_LOG(ERROR) << ENDPOINT << "Aborting connection";
-  visitor_->OnConnectionFinished(this);
+  error_ = error;
+  QUICHE_LOG(ERROR) << ENDPOINT << "Aborting connection: " << error_.message();
+  visitor_->OnConnectionFinished(this, error_);
 }
 
 void MasqueH2Connection::StartH2() {
@@ -95,9 +140,8 @@ bool MasqueH2Connection::TryRead() {
                         << "SSL_do_handshake will require another read";
         return false;
       }
-      PrintSSLError("Error while connecting to TLS", ssl_err,
-                    ssl_handshake_ret);
-      Abort();
+      Abort(SslErrorStatus("Error while connecting to TLS", ssl_err,
+                           ssl_handshake_ret));
       return false;
     }
   }
@@ -108,13 +152,12 @@ bool MasqueH2Connection::TryRead() {
     if (ssl_err == SSL_ERROR_WANT_READ) {
       return false;
     }
-    PrintSSLError("Error while reading from TLS", ssl_err, ssl_read_ret);
-    Abort();
+    Abort(
+        SslErrorStatus("Error while reading from TLS", ssl_err, ssl_read_ret));
     return false;
   }
   if (ssl_read_ret == 0) {
-    QUICHE_LOG(INFO) << ENDPOINT << "TLS read closed";
-    Abort();
+    Abort(absl::AbortedError("TLS read closed"));
     return false;
   }
   QUICHE_DVLOG(1) << ENDPOINT << "Read " << ssl_read_ret << " bytes from TLS";
@@ -133,15 +176,15 @@ int MasqueH2Connection::WriteDataToTls(absl::string_view data) {
   int ssl_write_ret = SSL_write(ssl_, data.data(), data.size());
   if (ssl_write_ret <= 0) {
     int ssl_err = SSL_get_error(ssl_, ssl_write_ret);
-    PrintSSLError("Error while writing request to TLS", ssl_err, ssl_write_ret);
+    QUICHE_LOG(ERROR) << FormatSslError("Error while writing data to TLS",
+                                        ssl_err, ssl_write_ret);
     return -1;
+  }
+  if (ssl_write_ret == static_cast<int>(data.size())) {
+    QUICHE_DVLOG(1) << ENDPOINT << "Wrote " << data.size() << " bytes to TLS";
   } else {
-    if (ssl_write_ret == static_cast<int>(data.size())) {
-      QUICHE_DVLOG(1) << ENDPOINT << "Wrote " << data.size() << " bytes to TLS";
-    } else {
-      QUICHE_DVLOG(1) << ENDPOINT << "Wrote " << ssl_write_ret << " / "
-                      << data.size() << "bytes to TLS";
-    }
+    QUICHE_DVLOG(1) << ENDPOINT << "Wrote " << ssl_write_ret << " / "
+                    << data.size() << "bytes to TLS";
   }
   return ssl_write_ret;
 }
@@ -175,7 +218,7 @@ MasqueH2Connection::OnReadyToSendDataForStream(Http2StreamId stream_id,
 bool MasqueH2Connection::SendDataFrame(Http2StreamId stream_id,
                                        absl::string_view frame_header,
                                        size_t payload_bytes) {
-  if (!WriteDataToTls(frame_header)) {
+  if (WriteDataToTls(frame_header) < 0) {
     return false;
   }
   MasqueH2Stream* stream = GetOrCreateH2Stream(stream_id);
@@ -195,9 +238,8 @@ bool MasqueH2Connection::SendDataFrame(Http2StreamId stream_id,
 }
 
 void MasqueH2Connection::OnConnectionError(ConnectionError error) {
-  QUICHE_LOG(ERROR) << ENDPOINT << "OnConnectionError: "
-                    << http2::adapter::ConnectionErrorToString(error);
-  Abort();
+  Abort(absl::AbortedError(absl::StrCat(
+      "OnConnectionError: ", http2::adapter::ConnectionErrorToString(error))));
 }
 
 void MasqueH2Connection::OnSettingsStart() {}
@@ -231,8 +273,7 @@ bool MasqueH2Connection::AttemptToSend() {
   }
   int h2_send_result = h2_adapter_->Send();
   if (h2_send_result != 0) {
-    QUICHE_LOG(ERROR) << ENDPOINT << "h2 adapter failed to send";
-    Abort();
+    Abort(absl::AbortedError("h2 adapter failed to send"));
     return false;
   }
   return true;
@@ -254,10 +295,10 @@ void MasqueH2Connection::SendResponse(int32_t stream_id,
   if (h2_adapter_->SubmitResponse(
           stream_id, h2_headers,
           /*end_stream=*/stream->body_to_send.empty()) != 0) {
-    QUICHE_LOG(ERROR) << ENDPOINT << "Failed to submit response for stream "
-                      << stream_id << " with body of length " << body.size()
-                      << ", headers: " << headers.DebugString();
-    Abort();
+    Abort(absl::InternalError(
+        absl::StrCat("Failed to submit response for stream ", stream_id,
+                     " with body of length ", body.size(),
+                     ", headers: ", headers.DebugString())));
   }
   QUICHE_LOG(INFO) << ENDPOINT << "Sending response on stream ID " << stream_id
                    << " with body of length " << body.size()
@@ -282,9 +323,9 @@ int32_t MasqueH2Connection::SendRequest(const quiche::HttpHeaderBlock& headers,
       h2_adapter_->SubmitRequest(h2_headers, /*end_stream=*/body.empty(),
                                  /*user_data=*/nullptr);
   if (stream_id < 0) {
-    QUICHE_LOG(ERROR) << "Failed to submit request with body of length "
-                      << body.size() << ", headers: " << headers.DebugString();
-    Abort();
+    Abort(absl::InvalidArgumentError(
+        absl::StrCat("Failed to submit request with body of length ",
+                     body.size(), ", headers: ", headers.DebugString())));
     return -1;
   }
   QUICHE_LOG(INFO) << ENDPOINT << "Sending request on stream ID " << stream_id
@@ -461,30 +502,6 @@ MasqueH2Connection::MasqueH2Stream* MasqueH2Connection::GetOrCreateH2Stream(
   }
   return h2_streams_.insert({stream_id, std::make_unique<MasqueH2Stream>()})
       .first->second.get();
-}
-
-void PrintSSLError(const char* msg, int ssl_err, int ret) {
-  switch (ssl_err) {
-    case SSL_ERROR_SSL:
-      QUICHE_LOG(ERROR) << msg << ": "
-                        << ERR_reason_error_string(ERR_peek_error());
-      break;
-    case SSL_ERROR_SYSCALL:
-      if (ret == 0) {
-        QUICHE_LOG(ERROR) << msg << ": peer closed connection";
-      } else {
-        QUICHE_LOG(ERROR) << msg << ": " << strerror(errno);
-      }
-      break;
-    case SSL_ERROR_ZERO_RETURN:
-      QUICHE_LOG(ERROR) << msg << ": received close_notify";
-      break;
-    default:
-      QUICHE_LOG(ERROR) << msg << ": unexpected error: "
-                        << SSL_error_description(ssl_err);
-      break;
-  }
-  ERR_print_errors_fp(stderr);
 }
 
 }  // namespace quic

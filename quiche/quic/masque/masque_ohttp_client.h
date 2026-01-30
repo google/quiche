@@ -240,7 +240,6 @@ class QUICHE_EXPORT MasqueOhttpClient
   Config config_;
   quic::MasqueConnectionPool connection_pool_;
   std::optional<RequestId> key_fetch_request_id_;
-  bool aborted_ = false;
   absl::Status status_ = absl::OkStatus();
   std::optional<quiche::ObliviousHttpClient> ohttp_client_;
   quic::QuicUrl relay_url_;

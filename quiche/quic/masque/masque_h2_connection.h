@@ -12,6 +12,7 @@
 #include <vector>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"
@@ -38,7 +39,8 @@ class QUICHE_NO_EXPORT MasqueH2Connection
    public:
     virtual ~Visitor() = default;
     virtual void OnConnectionReady(MasqueH2Connection* connection) = 0;
-    virtual void OnConnectionFinished(MasqueH2Connection* connection) = 0;
+    virtual void OnConnectionFinished(MasqueH2Connection* connection,
+                                      absl::Status error) = 0;
     virtual void OnRequest(MasqueH2Connection* connection, int32_t stream_id,
                            const quiche::HttpHeaderBlock& headers,
                            const std::string& body) = 0;
@@ -57,7 +59,7 @@ class QUICHE_NO_EXPORT MasqueH2Connection
 
   ~MasqueH2Connection();
 
-  bool aborted() const { return aborted_; }
+  bool aborted() const { return !error_.ok(); }
   // Call when there is more data to be read from SSL.
   void OnTransportReadable();
   // Call when there is more data to be written to SSL.
@@ -74,7 +76,7 @@ class QUICHE_NO_EXPORT MasqueH2Connection
     std::string body_to_send;
   };
   static constexpr size_t kBioBufferSize = 16384;
-  void Abort();
+  void Abort(absl::Status error);
   void StartH2();
   bool TryRead();
   MasqueH2Stream* GetOrCreateH2Stream(Http2StreamId stream_id);
@@ -136,14 +138,14 @@ class QUICHE_NO_EXPORT MasqueH2Connection
   std::unique_ptr<http2::adapter::OgHttp2Adapter> h2_adapter_;
   const bool is_server_;
   bool tls_connected_ = false;
-  bool aborted_ = false;
+  absl::Status error_ = absl::OkStatus();
   absl::flat_hash_map<Http2StreamId, std::unique_ptr<MasqueH2Stream>>
       h2_streams_;
   Visitor* visitor_;
 };
 
-// Logs an SSL error that was provided by BoringSSL.
-void PrintSSLError(const char* msg, int ssl_err, int ret);
+// Formats an SSL error that was provided by BoringSSL.
+std::string FormatSslError(const char* msg, int ssl_err, int ret);
 
 }  // namespace quic
 
