@@ -29,6 +29,7 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
@@ -113,17 +114,6 @@ MoqtSession::MoqtSession(webtransport::Session* session,
   parameters_.moqt_implementation = kImplementationName;
 }
 
-MoqtSession::ControlStream* MoqtSession::GetControlStream() {
-  if (!control_stream_.has_value()) {
-    return nullptr;
-  }
-  webtransport::Stream* raw_stream = session_->GetStreamById(*control_stream_);
-  if (raw_stream == nullptr) {
-    return nullptr;
-  }
-  return static_cast<ControlStream*>(raw_stream->visitor());
-}
-
 void MoqtSession::SendControlMessage(quiche::QuicheBuffer message) {
   ControlStream* control_stream = GetControlStream();
   if (control_stream == nullptr) {
@@ -145,19 +135,24 @@ void MoqtSession::OnSessionReady() {
   if (parameters_.perspective == Perspective::IS_SERVER) {
     return;
   }
-  webtransport::Stream* control_stream =
-      session_->OpenOutgoingBidirectionalStream();
-  if (control_stream == nullptr) {
+  auto control_stream = std::make_unique<ControlStream>(this);
+  if (!session_->CanOpenNextOutgoingBidirectionalStream()) {
+    Error(MoqtError::kControlMessageTimeout, "Unable to open a control stream");
+    return;
+  }
+  webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
+  if (stream == nullptr) {
     Error(MoqtError::kInternalError, "Unable to open a control stream");
     return;
   }
-  control_stream->SetVisitor(
-      std::make_unique<ControlStream>(this, control_stream));
-  control_stream_ = control_stream->GetStreamId();
+  control_stream_ = control_stream->GetWeakPtr();
+  control_stream->set_stream(stream);
+  trace_recorder_.RecordControlStreamCreated(stream->GetStreamId());
+  stream->SetVisitor(std::move(control_stream));
   MoqtClientSetup setup;
   parameters_.ToSetupParameters(setup.parameters);
   SendControlMessage(framer_.SerializeClientSetup(setup));
-  QUIC_DLOG(INFO) << ENDPOINT << "Send the SETUP message";
+  QUIC_DLOG(INFO) << ENDPOINT << "Send CLIENT_SETUP";
 }
 
 void MoqtSession::OnSessionClosed(webtransport::SessionErrorCode,
@@ -176,14 +171,12 @@ void MoqtSession::OnSessionClosed(webtransport::SessionErrorCode,
 void MoqtSession::OnIncomingBidirectionalStreamAvailable() {
   while (webtransport::Stream* stream =
              session_->AcceptIncomingBidirectionalStream()) {
-    if (control_stream_.has_value()) {
-      Error(MoqtError::kProtocolViolation, "Bidirectional stream already open");
-      return;
-    }
-    stream->SetVisitor(std::make_unique<ControlStream>(this, stream));
+    auto bidi_stream = std::make_unique<UnknownBidiStream>(this, stream);
+    stream->SetVisitor(std::move(bidi_stream));
     stream->visitor()->OnCanRead();
   }
 }
+
 void MoqtSession::OnIncomingUnidirectionalStreamAvailable() {
   while (webtransport::Stream* stream =
              session_->AcceptIncomingUnidirectionalStream()) {
@@ -229,6 +222,20 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     metadata.arrival_time = callbacks_.clock->Now();
     visitor->OnObjectFragment(track->full_track_name(), metadata, *payload,
                               true);
+  }
+}
+
+void MoqtSession::OnCanCreateNewOutgoingBidirectionalStream() {
+  while (!pending_bidi_streams_.empty() &&
+         session_->CanOpenNextOutgoingBidirectionalStream()) {
+    webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
+    pending_bidi_streams_.front()->set_stream(stream);
+    // TODO(vasilvv): Distinguish between control and and non-control bidi
+    // streams in trace_recorder_.
+    trace_recorder_.RecordControlStreamCreated(stream->GetStreamId());
+    stream->SetVisitor(std::move(pending_bidi_streams_.front()));
+    pending_bidi_streams_.pop_front();
+    stream->visitor()->OnCanWrite();
   }
 }
 
@@ -872,7 +879,7 @@ bool MoqtSession::ValidateRequestId(uint64_t request_id) {
     return false;
   }
   if (request_id != next_incoming_request_id_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Request ID not monotonically increasing";
+    QUICHE_DLOG(INFO) << ENDPOINT << "Request ID not monotonically increasing";
     Error(MoqtError::kInvalidRequestId,
           "Request ID not monotonically increasing");
     return false;
@@ -881,40 +888,9 @@ bool MoqtSession::ValidateRequestId(uint64_t request_id) {
   return true;
 }
 
-MoqtSession::ControlStream::ControlStream(MoqtSession* session,
-                                          webtransport::Stream* stream)
-    : session_(session),
-      stream_(stream),
-      parser_(session->parameters_.using_webtrans, stream, *this) {
-  stream_->SetPriority(
-      webtransport::StreamPriority{/*send_group_id=*/kMoqtSendGroupId,
-                                   /*send_order=*/kMoqtControlStreamSendOrder});
-  session->trace_recorder_.RecordControlStreamCreated(stream->GetStreamId());
-}
-
-void MoqtSession::ControlStream::OnCanRead() {
-  parser_.ReadAndDispatchMessages();
-}
-void MoqtSession::ControlStream::OnCanWrite() {
-  // We buffer serialized control frames unconditionally, thus OnCanWrite()
-  // requires no handling for control streams.
-}
-
-void MoqtSession::ControlStream::OnResetStreamReceived(
-    webtransport::StreamErrorCode error) {
-  session_->Error(MoqtError::kProtocolViolation,
-                  absl::StrCat("Control stream reset with error code ", error));
-}
-void MoqtSession::ControlStream::OnStopSendingReceived(
-    webtransport::StreamErrorCode error) {
-  session_->Error(MoqtError::kProtocolViolation,
-                  absl::StrCat("Control stream reset with error code ", error));
-}
-
-void MoqtSession::ControlStream::OnClientSetupMessage(
+void MoqtSession::UnknownBidiStream::OnClientSetupMessage(
     const MoqtClientSetup& message) {
-  session_->control_stream_ = stream_->GetStreamId();
-  if (perspective() == Perspective::IS_CLIENT) {
+  if (session_->perspective() == Perspective::IS_CLIENT) {
     session_->Error(MoqtError::kProtocolViolation,
                     "Received CLIENT_SETUP from server");
     return;
@@ -924,13 +900,34 @@ void MoqtSession::ControlStream::OnClientSetupMessage(
           kDefaultSupportObjectAcks);
   session_->peer_max_request_id_ =
       message.parameters.max_request_id.value_or(kDefaultMaxRequestId);
-  QUICHE_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
+  QUICHE_DLOG(INFO) << "Received CLIENT_SETUP";
   MoqtServerSetup response;
   session_->parameters_.ToSetupParameters(response.parameters);
   SendOrBufferMessage(session_->framer_.SerializeServerSetup(response));
-  QUIC_DLOG(INFO) << ENDPOINT << "Sent the SETUP message";
+  QUICHE_DLOG(INFO) << "Sent SERVER_SETUP";
   // TODO: handle path.
+  if (session_->control_stream_.GetIfAvailable() != nullptr) {
+    session_->Error(MoqtError::kProtocolViolation, "Multiple control streams");
+    return;
+  }
+  auto control_stream = std::make_unique<ControlStream>(session_);
+  // Store a reference to the stream context when the current context is
+  // destroyed below.
+  ControlStream* temp_stream = control_stream.get();
+  session_->control_stream_ = temp_stream->GetWeakPtr();
+  control_stream->set_stream(stream());
   std::move(session_->callbacks_.session_established_callback)();
+  // Deletes the UnknownBidiStream object; no class access after this point.
+  stream()->SetVisitor(std::move(control_stream));
+  temp_stream->OnCanRead();
+}
+
+void MoqtSession::ControlStream::set_stream(
+    webtransport::Stream* absl_nonnull stream) {
+  stream->SetPriority(
+      webtransport::StreamPriority{/*send_group_id=*/kMoqtSendGroupId,
+                                   /*send_order=*/kMoqtControlStreamSendOrder});
+  MoqtBidiStreamBase::set_stream(stream);
 }
 
 void MoqtSession::ControlStream::OnServerSetupMessage(
@@ -948,22 +945,6 @@ void MoqtSession::ControlStream::OnServerSetupMessage(
   session_->peer_max_request_id_ =
       message.parameters.max_request_id.value_or(kDefaultMaxRequestId);
   std::move(session_->callbacks_.session_established_callback)();
-}
-
-void MoqtSession::ControlStream::SendRequestOk(
-    uint64_t request_id, const VersionSpecificParameters& parameters) {
-  SendOrBufferMessage(session_->framer_.SerializeRequestOk(
-      MoqtRequestOk{request_id, parameters}));
-}
-
-void MoqtSession::ControlStream::SendRequestError(
-    uint64_t request_id, RequestErrorCode error_code,
-    absl::string_view reason_phrase) {
-  MoqtRequestError request_error;
-  request_error.request_id = request_id;
-  request_error.error_code = error_code;
-  request_error.reason_phrase = reason_phrase;
-  SendOrBufferMessage(session_->framer_.SerializeRequestError(request_error));
 }
 
 void MoqtSession::ControlStream::OnSubscribeMessage(
@@ -1551,27 +1532,6 @@ void MoqtSession::ControlStream::OnPublishMessage(const MoqtPublish& message) {
                                        ? "Received a PUBLISH after GOAWAY"
                                        : "PUBLISH is not supported";
   SendRequestError(message.request_id, error_code, error_reason);
-}
-
-void MoqtSession::ControlStream::OnParsingError(MoqtError error_code,
-                                                absl::string_view reason) {
-  session_->Error(error_code, absl::StrCat("Parse error: ", reason));
-}
-
-void MoqtSession::ControlStream::SendOrBufferMessage(
-    quiche::QuicheBuffer message, bool fin) {
-  quiche::StreamWriteOptions options;
-  options.set_send_fin(fin);
-  // TODO: while we buffer unconditionally, we should still at some point tear
-  // down the connection if we've buffered too many control messages; otherwise,
-  // there is potential for memory exhaustion attacks.
-  options.set_buffer_unconditionally(true);
-  std::array write_vector = {quiche::QuicheMemSlice(std::move(message))};
-  absl::Status success = stream_->Writev(absl::MakeSpan(write_vector), options);
-  if (!success.ok()) {
-    session_->Error(MoqtError::kInternalError,
-                    "Failed to write a control message");
-  }
 }
 
 void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,

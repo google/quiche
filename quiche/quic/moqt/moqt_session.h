@@ -23,6 +23,7 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
@@ -40,6 +41,7 @@
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
@@ -91,7 +93,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   void OnIncomingBidirectionalStreamAvailable() override;
   void OnIncomingUnidirectionalStreamAvailable() override;
   void OnDatagramReceived(absl::string_view datagram) override;
-  void OnCanCreateNewOutgoingBidirectionalStream() override {}
+  void OnCanCreateNewOutgoingBidirectionalStream() override;
   void OnCanCreateNewOutgoingUnidirectionalStream() override;
 
   quic::Perspective perspective() const { return parameters_.perspective; }
@@ -153,7 +155,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   void set_publisher(MoqtPublisher* publisher) { publisher_ = publisher; }
   bool support_object_acks() const { return parameters_.support_object_acks; }
   void set_support_object_acks(bool value) {
-    QUICHE_DCHECK(!control_stream_.has_value())
+    QUICHE_DCHECK(!control_stream_.IsValid())
         << "support_object_acks needs to be set before handshake";
     parameters_.support_object_acks = value;
   }
@@ -204,20 +206,54 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
           publisher_priority(publisher_priority) {}
   };
 
-  class QUICHE_EXPORT ControlStream : public webtransport::StreamVisitor,
-                                      public MoqtControlParserVisitor {
+  // A stream is open, but we don't know the type until we receive a message.
+  class QUICHE_EXPORT UnknownBidiStream : public MoqtBidiStreamBase {
    public:
-    ControlStream(MoqtSession* session, webtransport::Stream* stream);
+    // Constructor for a stream initiated by the remote peer. The caller is
+    // responsible for calling stream->SetVisitor().
+    UnknownBidiStream(MoqtSession* session,
+                      webtransport::Stream* absl_nonnull stream)
+        : MoqtBidiStreamBase(
+              &session->framer_, []() { /* Do nothing when deleted. */ },
+              [session](MoqtError code, absl::string_view reason) {
+                session->Error(code, reason);
+              }),
+          session_(session) {
+      set_stream(stream);
+    }
 
-    // webtransport::StreamVisitor implementation.
-    void OnCanRead() override;
-    void OnCanWrite() override;
-    void OnResetStreamReceived(webtransport::StreamErrorCode error) override;
-    void OnStopSendingReceived(webtransport::StreamErrorCode error) override;
-    void OnWriteSideInDataRecvdState() override {}
+    // webtransport::StreamVisitor overrides.
+    void OnCanRead() override {
+      parser()->ReadAndDispatchMessages(/*one_message=*/true);
+    }
+
+    // MoqtControlParserVisitor overrides.
+    void OnClientSetupMessage(const MoqtClientSetup& message) override;
+
+   private:
+    MoqtSession* session_;
+  };
+
+  class QUICHE_EXPORT ControlStream : public MoqtBidiStreamBase {
+   public:
+    explicit ControlStream(MoqtSession* session)
+        : MoqtBidiStreamBase(
+              &session->framer_,
+              // Do nothing on deletion. It threw an error on RESET_STREAM or
+              // FIN, and we're here because the session is being destroyed.
+              []() {},
+              [session](MoqtError code, absl::string_view reason) {
+                session->control_stream_ =
+                    quiche::QuicheWeakPtr<ControlStream>();
+                if (!session->is_closing_) {
+                  session->Error(code, reason);
+                }
+              }),
+          session_(session),
+          weak_ptr_factory_(this) {}
+    void set_stream(webtransport::Stream* absl_nonnull stream) override;
 
     // MoqtControlParserVisitor implementation.
-    void OnClientSetupMessage(const MoqtClientSetup& message) override;
     void OnServerSetupMessage(const MoqtServerSetup& message) override;
     void OnRequestOkMessage(const MoqtRequestOk& message) override;
     void OnRequestErrorMessage(const MoqtRequestError& message) override;
@@ -253,30 +289,30 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       }
       subscription_it->second->ProcessObjectAck(message);
     }
-    void OnParsingError(MoqtError error_code,
-                        absl::string_view reason) override;
+
+    // webtransport::StreamVisitor overrides
+    void OnResetStreamReceived(webtransport::StreamErrorCode error) override {
+      session_->Error(MoqtError::kProtocolViolation,
+                      "Control stream reset received");
+    }
+    void OnStopSendingReceived(webtransport::StreamErrorCode error) override {
+      session_->Error(MoqtError::kProtocolViolation,
+                      "Control stream stop sending received");
+    }
 
     quic::Perspective perspective() const {
       return session_->parameters_.perspective;
     }
-
-    webtransport::Stream* stream() const { return stream_; }
-
-    // Sends a control message, or buffers it if there is insufficient flow
-    // control credit.
-    void SendOrBufferMessage(quiche::QuicheBuffer message, bool fin = false);
-
-    void SendRequestOk(uint64_t request_id,
-                       const VersionSpecificParameters& parameters);
-    void SendRequestError(uint64_t request_id, RequestErrorCode error_code,
-                          absl::string_view reason_phrase);
+    quiche::QuicheWeakPtr<ControlStream> GetWeakPtr() {
+      return weak_ptr_factory_.Create();
+    }
 
    private:
     friend class test::MoqtSessionPeer;
 
     MoqtSession* session_;
-    webtransport::Stream* stream_;
-    MoqtControlParser parser_;
+    // Must be last.
+    quiche::QuicheWeakPtrFactory<ControlStream> weak_ptr_factory_;
   };
   class QUICHE_EXPORT IncomingDataStream : public webtransport::StreamVisitor,
                                            public MoqtDataParserVisitor {
@@ -695,7 +731,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   void DestroySubscription(SubscribeRemoteTrack* subscribe);
 
   // Returns the pointer to the control stream, or nullptr if none is present.
-  ControlStream* GetControlStream();
+  ControlStream* GetControlStream() { return control_stream_.GetIfAvailable(); }
   // Sends a message on the control stream; QUICHE_DCHECKs if no control stream
   // is present.
   void SendControlMessage(quiche::QuicheBuffer message);
@@ -766,7 +802,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   MoqtSessionCallbacks callbacks_;
   MoqtFramer framer_;
 
-  std::optional<webtransport::StreamId> control_stream_;
+  quiche::QuicheWeakPtr<ControlStream> control_stream_ =
+      quiche::QuicheWeakPtr<ControlStream>();
+  quiche::QuicheCircularDeque<std::unique_ptr<MoqtBidiStreamBase>>
+      pending_bidi_streams_;
   bool peer_supports_object_ack_ = false;
   std::string error_;
 
