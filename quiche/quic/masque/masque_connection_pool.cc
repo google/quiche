@@ -34,6 +34,7 @@
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_socket_address.h"
+#include "quiche/common/quiche_status_utils.h"
 
 namespace quic {
 
@@ -202,12 +203,9 @@ MasqueConnectionPool::SendRequest(const Message& request, bool mtls) {
   if (authority == request.headers.end()) {
     return absl::InvalidArgumentError("Request missing :authority header");
   }
-  ConnectionState* connection =
-      GetOrCreateConnectionState(std::string(authority->second), mtls);
-  if (connection == nullptr) {
-    return absl::InternalError(
-        absl::StrCat("Failed to create connection to ", authority->second));
-  }
+  QUICHE_ASSIGN_OR_RETURN(
+      ConnectionState * connection,
+      GetOrCreateConnectionState(std::string(authority->second), mtls));
   auto pending_request = std::make_unique<PendingRequest>();
   if (connection->connection() != nullptr) {
     QUICHE_LOG(INFO) << "Reusing existing connection to " << authority->second;
@@ -229,7 +227,7 @@ MasqueConnectionPool::SendRequest(const Message& request, bool mtls) {
   return request_id;
 }
 
-MasqueConnectionPool::ConnectionState*
+absl::StatusOr<MasqueConnectionPool::ConnectionState*>
 MasqueConnectionPool::GetOrCreateConnectionState(const std::string& authority,
                                                  bool mtls) {
   std::string entry = absl::StrCat((mtls ? "m" : ""), "tls:", authority);
@@ -239,11 +237,8 @@ MasqueConnectionPool::GetOrCreateConnectionState(const std::string& authority,
   }
   auto connection_state = std::make_unique<ConnectionState>(this);
   connection_state->set_mtls(mtls);
-  if (!connection_state->SetupSocket(authority,
-                                     disable_certificate_verification_)) {
-    QUICHE_LOG(ERROR) << "Failed to setup socket for " << authority;
-    return nullptr;
-  }
+  QUICHE_RETURN_IF_ERROR(connection_state->SetupSocket(
+      authority, disable_certificate_verification_));
   return connections_.insert({entry, std::move(connection_state)})
       .first->second.get();
 }
@@ -321,7 +316,7 @@ MasqueConnectionPool::ConnectionState::~ConnectionState() {
   }
 }
 
-bool MasqueConnectionPool::ConnectionState::SetupSocket(
+absl::Status MasqueConnectionPool::ConnectionState::SetupSocket(
     const std::string& authority, bool disable_certificate_verification) {
   authority_ = authority;
   std::vector<std::string> authority_split =
@@ -337,24 +332,22 @@ bool MasqueConnectionPool::ConnectionState::SetupSocket(
   quiche::QuicheSocketAddress socket_address =
       connection_pool_->LookupAddress(host_, port);
   if (!socket_address.IsInitialized()) {
-    QUICHE_LOG(ERROR) << "Failed to resolve address for \"" << authority_
-                      << "\"";
-    return false;
+    return absl::InvalidArgumentError(
+        absl::StrCat("Failed to resolve address for \"", authority_, "\""));
   }
   absl::StatusOr<SocketFd> create_result = socket_api::CreateSocket(
       socket_address.host().address_family(), socket_api::SocketProtocol::kTcp,
       /*blocking=*/false);
   if (!create_result.ok() || create_result.value() == kInvalidSocketFd) {
-    QUICHE_LOG(ERROR) << "Failed to create socket: " << create_result.status();
-    return false;
+    return absl::InternalError(absl::StrCat("Failed to create socket: ",
+                                            create_result.status().message()));
   }
   socket_ = create_result.value();
   // Ignore result because asynchronous connect is expected to fail.
   (void)socket_api::Connect(socket_, socket_address);
   if (!connection_pool_->event_loop()->RegisterSocket(
           socket_, kSocketEventReadable | kSocketEventWritable, this)) {
-    QUICHE_LOG(ERROR) << "Failed to register socket with the event loop";
-    return false;
+    return absl::InternalError("Failed to register socket with the event loop");
   }
   QUICHE_LOG(INFO) << "Socket fd " << socket_ << " connect in progress to "
                    << socket_address;
@@ -368,7 +361,7 @@ bool MasqueConnectionPool::ConnectionState::SetupSocket(
                            "in --disable_certificate_verification.";
     }
   }
-  return true;
+  return absl::OkStatus();
 }
 
 void MasqueConnectionPool::ConnectionState::OnSocketEvent(

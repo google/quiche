@@ -121,8 +121,8 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
    public:
     explicit ConnectionState(MasqueConnectionPool* connection_pool);
     ~ConnectionState() override;
-    bool SetupSocket(const std::string& authority,
-                     bool disable_certificate_verification);
+    absl::Status SetupSocket(const std::string& authority,
+                             bool disable_certificate_verification);
     // From QuicSocketEventListener.
     void OnSocketEvent(QuicEventLoop* event_loop, SocketFd fd,
                        QuicSocketEventMask events) override;
@@ -149,8 +149,8 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
     int32_t stream_id = -1;
   };
 
-  ConnectionState* GetOrCreateConnectionState(const std::string& authority,
-                                              bool mtls);
+  absl::StatusOr<MasqueConnectionPool::ConnectionState*>
+  GetOrCreateConnectionState(const std::string& authority, bool mtls);
   void AttachConnectionToPendingRequests(const std::string& authority,
                                          MasqueH2Connection* connection);
   void SendPendingRequests(MasqueH2Connection* connection);
