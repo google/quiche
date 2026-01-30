@@ -3006,8 +3006,7 @@ bool QuicConnection::FindOnPathConnectionIds(
   // will be generated on this path.
   // TODO(danzh) fix SendPathResponse() to respond to probes from a different
   // client port with non-Zero client CID.
-  QUIC_BUG_IF(failed to find on path connection ids,
-              perspective_ == Perspective::IS_CLIENT)
+  QUICHE_DCHECK_NE(perspective_, Perspective::IS_CLIENT)
       << "Fails to find on path connection IDs";
   return false;
 }
