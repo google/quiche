@@ -213,7 +213,8 @@ absl::Status MasqueOhttpClient::StartKeyFetch(const std::string& url_string) {
 }
 
 absl::Status MasqueOhttpClient::CheckStatusAndContentType(
-    const Message& response, const std::string& content_type) {
+    const Message& response, const std::string& content_type,
+    std::optional<uint16_t> expected_status_code) {
   auto status_it = response.headers.find(":status");
   if (status_it == response.headers.end()) {
     return absl::InvalidArgumentError(
@@ -224,10 +225,22 @@ absl::Status MasqueOhttpClient::CheckStatusAndContentType(
     return absl::InvalidArgumentError(
         absl::StrCat("Failed to parse ", content_type, " status code."));
   }
-  if (status_code < 200 || status_code >= 300) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Unexpected status in ", content_type,
-                     " response: ", status_it->second));
+  if (expected_status_code.has_value()) {
+    if (status_code != *expected_status_code) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Unexpected status in ", content_type, " response: ", status_code,
+          " (expected ", *expected_status_code, ")"));
+    }
+    if (*expected_status_code < 200 || *expected_status_code >= 300) {
+      // If we expect a failure status code, skip the content-type check.
+      return absl::OkStatus();
+    }
+  } else {
+    if (status_code < 200 || status_code >= 300) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Unexpected status in ", content_type,
+                       " response: ", status_it->second));
+    }
   }
   auto content_type_it = response.headers.find("content-type");
   if (content_type_it == response.headers.end()) {
@@ -257,8 +270,8 @@ absl::Status MasqueOhttpClient::HandleKeyResponse(
   }
   QUICHE_LOG(INFO) << "Received OHTTP keys response: "
                    << response->headers.DebugString();
-  QUICHE_RETURN_IF_ERROR(
-      CheckStatusAndContentType(*response, "application/ohttp-keys"));
+  QUICHE_RETURN_IF_ERROR(CheckStatusAndContentType(
+      *response, "application/ohttp-keys", std::nullopt));
   absl::StatusOr<ObliviousHttpKeyConfigs> key_configs =
       ObliviousHttpKeyConfigs::ParseConcatenatedKeys(response->body);
   if (!key_configs.ok()) {
@@ -482,7 +495,10 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
   std::string content_type = it->second.per_request_config.use_chunked_ohttp()
                                  ? "message/ohttp-chunked-res"
                                  : "message/ohttp-res";
-  absl::Status status = CheckStatusAndContentType(*response, content_type);
+  std::optional<uint16_t> expected_gateway_status_code =
+      it->second.per_request_config.expected_gateway_status_code();
+  absl::Status status = CheckStatusAndContentType(*response, content_type,
+                                                  expected_gateway_status_code);
   if (!status.ok()) {
     if (!response->body.empty()) {
       QUICHE_LOG(ERROR) << "Bad " << content_type << " with body:" << std::endl
@@ -491,6 +507,12 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
       QUICHE_LOG(ERROR) << "Bad " << content_type << " with empty body";
     }
     return status;
+  }
+  if (expected_gateway_status_code.has_value() &&
+      (*expected_gateway_status_code < 200 ||
+       *expected_gateway_status_code >= 300)) {
+    // If we expect a failure status code, skip decapsulation.
+    return absl::OkStatus();
   }
   std::optional<Message> encapsulated_response;
   if (it->second.per_request_config.use_chunked_ohttp()) {

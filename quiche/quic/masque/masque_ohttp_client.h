@@ -242,8 +242,9 @@ class QUICHE_EXPORT MasqueOhttpClient
       const Message& response);
   absl::Status ProcessOhttpResponse(RequestId request_id,
                                     const absl::StatusOr<Message>& response);
-  absl::Status CheckStatusAndContentType(const Message& response,
-                                         const std::string& content_type);
+  absl::Status CheckStatusAndContentType(
+      const Message& response, const std::string& content_type,
+      std::optional<uint16_t> expected_status_code);
 
   Config config_;
   quic::MasqueConnectionPool connection_pool_;
