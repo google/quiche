@@ -44,6 +44,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "When set, the client will send a POST request with this data.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, private_token, "",
+    "When set, the client will attach a base64-encoded private token to the "
+    "encapsulated request. Accepts any base64 encoding.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, dns_override, "",
     "Allows replacing DNS resolution results, similar to curl --connect-to. "
     "Format is HOST1:PORT1:HOST2:PORT2 where HOST1:PORT1 will be replaced by "
@@ -76,6 +81,8 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
   QUICHE_RETURN_IF_ERROR(dns_config.SetOverrides(
       quiche::GetQuicheCommandLineFlag(FLAGS_dns_override)));
   std::string post_data = quiche::GetQuicheCommandLineFlag(FLAGS_post_data);
+  std::string private_token =
+      quiche::GetQuicheCommandLineFlag(FLAGS_private_token);
 
   if (urls.size() < 3) {
     return absl::InvalidArgumentError(usage);
@@ -94,6 +101,7 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
     MasqueOhttpClient::Config::PerRequestConfig per_request_config(urls[i]);
     per_request_config.SetPostData(post_data);
     per_request_config.SetUseChunkedOhttp(use_chunked_ohttp);
+    per_request_config.SetPrivateToken(private_token);
     config.AddPerRequestConfig(per_request_config);
   }
   return MasqueOhttpClient::Run(std::move(config));

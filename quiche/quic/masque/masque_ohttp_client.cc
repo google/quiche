@@ -14,9 +14,11 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_replace.h"
 #include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -51,6 +53,26 @@ using ::quiche::ObliviousHttpRequest;
 using ::quiche::ObliviousHttpResponse;
 using RequestId = ::quic::MasqueConnectionPool::RequestId;
 using Message = ::quic::MasqueConnectionPool::Message;
+
+namespace {
+
+absl::StatusOr<std::string> FormatPrivateToken(
+    const std::string& private_token) {
+  // Private tokens require padded base64url and we allow any encoding for
+  // convenience, so we need to unescape and re-escape.
+  // https://www.rfc-editor.org/rfc/rfc9577#section-2.2.2
+  std::string formatted_token;
+  if (!absl::Base64Unescape(private_token, &formatted_token) &&
+      !absl::WebSafeBase64Unescape(private_token, &formatted_token)) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Invalid base64 encoding in private token: \"", private_token, "\""));
+  }
+  formatted_token = absl::Base64Escape(formatted_token);
+  absl::StrReplaceAll({{"+", "-"}, {"/", "_"}}, &formatted_token);
+  return absl::StrCat("PrivateToken token=\"", formatted_token, "\"");
+}
+
+}  // namespace
 
 absl::Status MasqueOhttpClient::Config::ConfigureKeyFetchClientCert(
     const std::string& client_cert_file,
@@ -298,6 +320,12 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
   control_data.path = url.PathParamsQuery();
   BinaryHttpRequest binary_request(control_data);
   binary_request.set_body(post_data);
+  if (!per_request_config.private_token().empty()) {
+    QUICHE_ASSIGN_OR_RETURN(
+        std::string formatted_token,
+        FormatPrivateToken(per_request_config.private_token()));
+    binary_request.AddHeaderField({"authorization", formatted_token});
+  }
   absl::StatusOr<std::string> encoded_request = binary_request.Serialize();
   if (!encoded_request.ok()) {
     return absl::InternalError(

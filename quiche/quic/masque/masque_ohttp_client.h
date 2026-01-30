@@ -55,6 +55,9 @@ class QUICHE_EXPORT MasqueOhttpClient
       void SetExpectedEncapsulatedStatusCode(uint16_t status_code) {
         expected_encapsulated_status_code_ = status_code;
       }
+      void SetPrivateToken(const std::string& private_token) {
+        private_token_ = private_token;
+      }
       void SetExpectedEncapsulatedResponseBody(
           const std::string& expected_encapsulated_response_body) {
         expected_encapsulated_response_body_ =
@@ -63,6 +66,7 @@ class QUICHE_EXPORT MasqueOhttpClient
 
       std::string url() const { return url_; }
       std::string post_data() const { return post_data_; }
+      std::string private_token() const { return private_token_; }
       bool use_chunked_ohttp() const { return use_chunked_ohttp_; }
       std::optional<uint16_t> expected_gateway_status_code() const {
         return expected_gateway_status_code_;
@@ -77,6 +81,7 @@ class QUICHE_EXPORT MasqueOhttpClient
      private:
       std::string url_;
       std::string post_data_;
+      std::string private_token_;
       bool use_chunked_ohttp_ = false;
       std::optional<uint16_t> expected_gateway_status_code_;
       std::optional<uint16_t> expected_encapsulated_status_code_;
