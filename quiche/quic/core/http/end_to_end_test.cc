@@ -209,10 +209,6 @@ std::vector<TestParams> GetTestParams(
   std::vector<int> connection_id_lengths{-1, kLongConnectionIdLength};
   for (auto connection_id_length : connection_id_lengths) {
     for (const QuicTag congestion_control_tag : {kTBBR, kQBIC, kB2ON}) {
-      if (!GetQuicReloadableFlag(quic_allow_client_enabled_bbr_v2) &&
-          congestion_control_tag == kB2ON) {
-        continue;
-      }
       for (const ParsedQuicVersion& version : CurrentSupportedVersions()) {
         if (connection_id_length == -1 || version.IsIetfQuic()) {
           params.push_back(TestParams(version, congestion_control_tag,

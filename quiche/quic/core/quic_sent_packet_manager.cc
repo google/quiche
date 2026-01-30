@@ -153,9 +153,7 @@ void QuicSentPacketManager::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientRequestedIndependentOption(kTBBR, perspective)) {
     SetSendAlgorithm(kBBR);
   }
-  if (GetQuicReloadableFlag(quic_allow_client_enabled_bbr_v2) &&
-      config.HasClientRequestedIndependentOption(kB2ON, perspective)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_allow_client_enabled_bbr_v2);
+  if (config.HasClientRequestedIndependentOption(kB2ON, perspective)) {
     SetSendAlgorithm(kBBRv2);
   }
 
