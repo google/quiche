@@ -480,7 +480,12 @@ void MoqtControlParser::ReadAndDispatchMessages(bool stop_after_one_message) {
     return;
   }
   processing_ = true;
-  auto on_return = absl::MakeCleanup([&] { processing_ = false; });
+  bool clear_processing_on_return = true;
+  auto on_return = absl::MakeCleanup([&] {
+    if (clear_processing_on_return) {
+      processing_ = false;
+    }
+  });
   while (!no_more_data_) {
     bool fin_read = false;
     // Read the message type.
@@ -549,11 +554,16 @@ void MoqtControlParser::ReadAndDispatchMessages(bool stop_after_one_message) {
     MoqtMessageType message_type = static_cast<MoqtMessageType>(*message_type_);
     message_type_.reset();
     message_size_.reset();
+    if (stop_after_one_message) {
+      clear_processing_on_return = false;
+      processing_ = false;
+    }
     ProcessMessage(absl::string_view(message.data(), message.size()),
                    message_type);
     if (stop_after_one_message) {
       return;
     }
+    processing_ = true;
   }
 }
 
