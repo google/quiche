@@ -374,6 +374,10 @@ QuicErrorCode QuicSelfIssuedConnectionIdManager::OnRetireConnectionIdFrame(
   active_connection_ids_.erase(it);
   MaybeSendNewConnectionIds();
 
+  if (active_connection_ids_.empty()) {
+    *error_detail = "The last active connection ID should not be retired.";
+    return IETF_QUIC_PROTOCOL_VIOLATION;
+  }
   return QUIC_NO_ERROR;
 }
 

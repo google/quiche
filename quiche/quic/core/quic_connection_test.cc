@@ -15384,18 +15384,9 @@ TEST_P(QuicConnectionTest,
   QuicRetireConnectionIdFrame frame;
   frame.sequence_number = 0u;
 
-  if (!connection_.connection_id().IsEmpty()) {
-    EXPECT_CALL(connection_id_generator_, GenerateNextConnectionId(cid0))
-        .WillOnce(Return(TestConnectionId(456)));
-    EXPECT_CALL(connection_id_generator_,
-                GenerateNextConnectionId(TestConnectionId(456)))
-        .WillOnce(Return(TestConnectionId(789)));
-  }
-  EXPECT_CALL(visitor_, MaybeReserveConnectionId(_))
-      .Times(2)
-      .WillRepeatedly(Return(true));
-  EXPECT_CALL(visitor_, SendNewConnectionId(_)).Times(2);
-  EXPECT_TRUE(connection_.OnRetireConnectionIdFrame(frame));
+  EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+  EXPECT_FALSE(connection_.OnRetireConnectionIdFrame(frame));
 }
 
 TEST_P(QuicConnectionTest, ServerRetireSelfIssuedConnectionId) {
