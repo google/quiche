@@ -61,6 +61,15 @@ absl::Status MasqueOhttpClient::Config::ConfigureKeyFetchClientCert(
   return absl::OkStatus();
 }
 
+absl::Status MasqueOhttpClient::Config::ConfigureKeyFetchClientCertFromData(
+    const std::string& client_cert_pem_data,
+    const std::string& client_cert_key_data) {
+  QUICHE_ASSIGN_OR_RETURN(key_fetch_ssl_ctx_,
+                          MasqueConnectionPool::CreateSslCtxFromData(
+                              client_cert_pem_data, client_cert_key_data));
+  return absl::OkStatus();
+}
+
 absl::Status MasqueOhttpClient::Config::ConfigureOhttpMtls(
     const std::string& client_cert_file,
     const std::string& client_cert_key_file) {

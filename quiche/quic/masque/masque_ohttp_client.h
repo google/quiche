@@ -95,6 +95,9 @@ class QUICHE_EXPORT MasqueOhttpClient
     absl::Status ConfigureKeyFetchClientCert(
         const std::string& client_cert_file,
         const std::string& client_cert_key_file);
+    absl::Status ConfigureKeyFetchClientCertFromData(
+        const std::string& client_cert_pem_data,
+        const std::string& client_cert_key_data);
     absl::Status ConfigureOhttpMtls(const std::string& client_cert_file,
                                     const std::string& client_cert_key_file);
     absl::Status ConfigureOhttpMtlsFromData(
