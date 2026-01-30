@@ -384,10 +384,6 @@ void MasqueConnectionPool::ConnectionState::OnSocketEvent(
   }
   if ((events & kSocketEventWritable) != 0) {
     if (!ssl_) {
-      QUICHE_LOG(INFO) << "ds33Creating SSL object "
-                       << (connection_pool_->GetSslCtx(mtls_) == nullptr
-                               ? "NULLPTR"
-                               : "NOT NULLPTR");
       ssl_.reset((SSL_new(connection_pool_->GetSslCtx(mtls_))));
       SSL_set_connect_state(ssl_.get());
 
