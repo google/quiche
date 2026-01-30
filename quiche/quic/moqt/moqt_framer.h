@@ -11,6 +11,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 
@@ -39,7 +40,8 @@ class QUICHE_EXPORT MoqtFramer {
       std::optional<uint64_t> previous_object_in_stream);
   // Serializes both OBJECT and OBJECT_STATUS datagrams.
   quiche::QuicheBuffer SerializeObjectDatagram(const MoqtObject& message,
-                                               absl::string_view payload);
+                                               absl::string_view payload,
+                                               MoqtPriority default_priority);
   quiche::QuicheBuffer SerializeClientSetup(const MoqtClientSetup& message);
   quiche::QuicheBuffer SerializeServerSetup(const MoqtServerSetup& message);
   quiche::QuicheBuffer SerializeRequestOk(const MoqtRequestOk& message);

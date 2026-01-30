@@ -187,7 +187,9 @@ void MoqtSession::OnIncomingUnidirectionalStreamAvailable() {
 
 void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   MoqtObject message;
-  std::optional<absl::string_view> payload = ParseDatagram(datagram, message);
+  bool use_default_priority;
+  std::optional<absl::string_view> payload =
+      ParseDatagram(datagram, message, use_default_priority);
   if (!payload.has_value()) {
     Error(MoqtError::kProtocolViolation, "Malformed datagram received");
     return;
@@ -204,6 +206,9 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     return;
   }
   track->OnObjectOrOk();
+  if (use_default_priority) {
+    message.publisher_priority = track->default_publisher_priority();
+  }
   if (!track->InWindow(Location(message.group_id, message.object_id))) {
     // TODO(martinduke): a recent SUBSCRIBE_UPDATE could put us here, and it's
     // not an error.
@@ -1718,29 +1723,29 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
     return;
   }
   bool knew_track_alias = parser_.track_alias().has_value();
-  if (parser_.stream_type()->IsSubgroup()) {
-    parser_.ReadAllData();
-  } else if (!knew_track_alias) {
+  if (!knew_track_alias) {
     parser_.ReadTrackAlias();
-  }
-  if (!parser_.track_alias().has_value()) {
-    return;
+    if (!parser_.track_alias().has_value()) {
+      return;
+    }
   }
   if (parser_.stream_type()->IsSubgroup()) {
-    if (knew_track_alias) {
-      return;
+    if (!knew_track_alias) {
+      // This is a new stream for a subscribe. Notify the subscription.
+      auto it = session_->subscribe_by_alias_.find(*parser_.track_alias());
+      if (it == session_->subscribe_by_alias_.end()) {
+        QUIC_DLOG(INFO) << ENDPOINT
+                        << "Received object for a track with no SUBSCRIBE";
+        // This is a not a session error because there might be an UNSUBSCRIBE
+        // or SUBSCRIBE_OK (containing the track alias) in flight.
+        stream_->SendStopSending(kResetCodeCanceled);
+        return;
+      }
+      it->second->OnStreamOpened();
+      parser_.set_default_publisher_priority(
+          it->second->default_publisher_priority());
     }
-    // This is a new stream for a subscribe. Notify the subscription.
-    auto it = session_->subscribe_by_alias_.find(*parser_.track_alias());
-    if (it == session_->subscribe_by_alias_.end()) {
-      QUIC_DLOG(INFO) << ENDPOINT
-                      << "Received object for a track with no SUBSCRIBE";
-      // This is a not a session error because there might be an UNSUBSCRIBE or
-      // SUBSCRIBE_OK (containing the track alias) in flight.
-      stream_->SendStopSending(kResetCodeCanceled);
-      return;
-    }
-    it->second->OnStreamOpened();
+    parser_.ReadAllData();
     return;
   }
   auto it = session_->upstream_by_id_.find(*parser_.track_alias());
@@ -1872,6 +1877,8 @@ void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
   }
   // TODO(martinduke): Support sending DELIVERY_TIMEOUT parameter as the
   // publisher.
+  default_publisher_priority_ =
+      subscribe_ok.extensions.default_publisher_priority();
   stream->SendOrBufferMessage(
       session_->framer_.SerializeSubscribeOk(subscribe_ok));
   // TODO(martinduke): If we buffer objects that arrived previously, the arrival
@@ -1952,8 +1959,11 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
     raw_stream = session_->session_->GetStreamById(*stream_id);
   } else {
     raw_stream = session_->OpenOrQueueDataStream(
-        request_id_, NewStreamParameters(location.group, subgroup,
-                                         location.object, publisher_priority));
+        request_id_,
+        NewStreamParameters(location.group, subgroup, location.object,
+                            (publisher_priority == default_publisher_priority_)
+                                ? std::nullopt
+                                : std::make_optional(publisher_priority)));
   }
   if (raw_stream == nullptr) {
     return;
@@ -2090,9 +2100,10 @@ void MoqtSession::PublishedSubscription::AddQueuedOutgoingDataStream(
       queued_outgoing_data_streams_.empty()
           ? std::optional<webtransport::SendOrder>()
           : queued_outgoing_data_streams_.rbegin()->first;
-  webtransport::SendOrder send_order =
-      GetSendOrder(Location(parameters.index.group, parameters.first_object),
-                   parameters.index.subgroup, parameters.publisher_priority);
+  webtransport::SendOrder send_order = GetSendOrder(
+      Location(parameters.index.group, parameters.first_object),
+      parameters.index.subgroup,
+      parameters.publisher_priority.value_or(default_publisher_priority()));
   // Zero out the subscriber priority bits, since these will be added when
   // updating the session.
   queued_outgoing_data_streams_.emplace(
@@ -2159,11 +2170,13 @@ MoqtSession::OutgoingDataStream::OutgoingDataStream(
       stream_(stream),
       subscription_id_(subscription.request_id()),
       index_(parameters.index),
-      publisher_priority_(parameters.publisher_priority),
+      publisher_priority_(parameters.publisher_priority.value_or(
+          subscription.default_publisher_priority())),
       // Always include extension header length, because it's difficult to know
       // a priori if they're going to appear on a stream.
       stream_type_(MoqtDataStreamType::Subgroup(
-          index_.subgroup, parameters.first_object, false, false)),
+          index_.subgroup, parameters.first_object, false,
+          !parameters.publisher_priority.has_value())),
       next_object_(parameters.first_object),
       session_liveness_(session->liveness_token_) {
   UpdateSendOrder(subscription);
@@ -2428,7 +2441,8 @@ void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
   header.subgroup_id = header.object_id;
   header.payload_length = object->payload.length();
   quiche::QuicheBuffer datagram = session_->framer_.SerializeObjectDatagram(
-      header, object->payload.AsStringView());
+      header, object->payload.AsStringView(),
+      default_publisher_priority_.value_or(kDefaultPublisherPriority));
   session_->session_->SendOrQueueDatagram(datagram.AsStringView());
   OnObjectSent(object->metadata.location);
 }

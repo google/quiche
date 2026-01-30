@@ -62,7 +62,7 @@ constexpr webtransport::StreamId kOutgoingUniStreamId = 14;
 constexpr uint64_t kDefaultLocalRequestId = 0;
 constexpr uint64_t kDefaultPeerRequestId = 1;
 const MoqtDataStreamType kDefaultSubgroupStreamType =
-    MoqtDataStreamType::Subgroup(2, 4, false);
+    MoqtDataStreamType::Subgroup(2, 4, false, false);
 constexpr MoqtPriority kDefaultPublisherPriority = 0x80;
 const TrackExtensions kNoExtensions;
 
@@ -164,7 +164,8 @@ class MoqtSessionTest : public quic::test::QuicTest {
   // supports.
   MoqtObjectListener* ReceiveSubscribeSynchronousOk(
       MockTrackPublisher* publisher, MoqtSubscribe& subscribe,
-      MoqtControlParserVisitor* control_parser, uint64_t track_alias = 0) {
+      MoqtControlParserVisitor* control_parser, uint64_t track_alias = 0,
+      TrackExtensions extensions = TrackExtensions()) {
     MoqtObjectListener* listener_ptr = nullptr;
     EXPECT_CALL(*publisher, AddObjectListener)
         .WillOnce([&](MoqtObjectListener* listener) {
@@ -178,7 +179,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
         subscribe.request_id,
         track_alias,
         parameters,
-        TrackExtensions(),
+        extensions,
     };
     EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _));
     control_parser->OnSubscribeMessage(subscribe);
@@ -197,7 +198,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
     quiche::QuicheBuffer buffer = framer.SerializeObjectHeader(
         object,
         MoqtDataStreamType::Subgroup(object.subgroup_id, object.object_id,
-                                     false),
+                                     false, false),
         (visitor == nullptr) ? std::nullopt
                              : std::optional<uint64_t>(object.object_id - 1));
     size_t data_read = 0;
@@ -1958,7 +1959,7 @@ TEST_F(MoqtSessionTest, SendDatagram) {
   // Publish in window.
   bool correct_message = false;
   uint8_t kExpectedMessage[] = {
-      0x05, 0x02, 0x05, 0x80, 0x03, 0x65, 0x78, 0x74,
+      0x05, 0x02, 0x05, 0x20, 0x03, 0x65, 0x78, 0x74,
       0x64, 0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66,  // "deadbeef"
   };
   EXPECT_CALL(mock_session_, SendOrQueueDatagram(_))
@@ -1973,7 +1974,7 @@ TEST_F(MoqtSessionTest, SendDatagram) {
   EXPECT_CALL(*track_publisher, GetCachedObject(5, 0, 0)).WillRepeatedly([] {
     return PublishedObject{
         PublishedObjectMetadata{Location{5, 0}, 0, "ext",
-                                MoqtObjectStatus::kNormal, 128},
+                                MoqtObjectStatus::kNormal, 32},
         quiche::QuicheMemSlice::Copy("deadbeef")};
   });
   listener->OnNewObjectAvailable(Location(5, 0), 0, kDefaultPublisherPriority,
@@ -2013,6 +2014,131 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
         EXPECT_TRUE(fin);
       });
   session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
+}
+
+TEST_F(MoqtSessionTest, UsePeerDefaultPriority) {
+  FullTrackName ftn("foo", "bar");
+  const MoqtPriority kPeerDefaultPriority = 0x20;
+  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
+  session_.Subscribe(ftn, &remote_track_visitor_, MessageParameters());
+  MoqtSubscribeOk ok;
+  ok.request_id = 0;
+  ok.track_alias = 2;
+  ok.extensions =
+      TrackExtensions(std::nullopt, std::nullopt, kPeerDefaultPriority,
+                      std::nullopt, std::nullopt, std::nullopt);
+  EXPECT_CALL(remote_track_visitor_, OnReply);
+  stream_input->OnSubscribeOkMessage(ok);
+  // Omit priority from a datagram.
+  char datagram[] = {0x0c, 0x02, 0x05, 0x64, 0x65, 0x61,
+                     0x64, 0x62, 0x65, 0x65, 0x66};
+  EXPECT_CALL(remote_track_visitor_, OnObjectFragment)
+      .WillOnce([&](const FullTrackName&,
+                    const PublishedObjectMetadata& metadata, absl::string_view,
+                    bool) {
+        EXPECT_EQ(metadata.publisher_priority, kPeerDefaultPriority);
+      });
+  session_.OnDatagramReceived(absl::string_view(datagram, sizeof(datagram)));
+  // Omit priority from a stream.
+  webtransport::test::InMemoryStream in_memory_stream(2);
+  std::unique_ptr<webtransport::StreamVisitor> stream_visitor =
+      MoqtSessionPeer::CreateIncomingStreamVisitor(&session_,
+                                                   &in_memory_stream);
+  in_memory_stream.SetVisitor(std::move(stream_visitor));
+  char stream_data[] = {0x30, 0x02, 0x06, 0x00, 0x03, 0x66, 0x6f, 0x6f};
+  EXPECT_CALL(remote_track_visitor_, OnObjectFragment)
+      .WillOnce([&](const FullTrackName&,
+                    const PublishedObjectMetadata& metadata, absl::string_view,
+                    bool) {
+        EXPECT_EQ(metadata.publisher_priority, kPeerDefaultPriority);
+      });
+  in_memory_stream.Receive(absl::string_view(stream_data, sizeof(stream_data)),
+                           false);
+}
+
+TEST_F(MoqtSessionTest, OmitPublisherPriority) {
+  MoqtSubscribe request = DefaultSubscribe();
+  const MoqtPriority kLocalDefaultPriority = 0x20;
+  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  // Create the publisher and the SUBSCRIBE with kLocalDefaultPriority.
+  MockTrackPublisher* track = CreateTrackPublisher();
+  std::make_shared<MockTrackPublisher>(request.full_track_name);
+  TrackExtensions extensions(std::nullopt, std::nullopt, kLocalDefaultPriority,
+                             std::nullopt, std::nullopt, std::nullopt);
+  EXPECT_CALL(*track, extensions).WillOnce(testing::ReturnRef(extensions));
+  MoqtObjectListener* listener = ReceiveSubscribeSynchronousOk(
+      track, request, control_stream.get(), /*track_alias=*/0, extensions);
+
+  // Deliver an object with kLocalDefaultPriority; stream_type will omit
+  // the priority.
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(true));
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
+      .WillOnce(Return(&mock_stream_));
+  EXPECT_CALL(mock_stream_, GetStreamId()).WillRepeatedly(Return(1));
+  std::unique_ptr<webtransport::StreamVisitor> stream_visitor;
+  EXPECT_CALL(mock_stream_, SetVisitor)
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor = std::move(visitor);
+      });
+  EXPECT_CALL(mock_stream_, SetPriority);
+  EXPECT_CALL(mock_stream_, visitor()).WillRepeatedly([&]() {
+    return stream_visitor.get();
+  });
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));
+  EXPECT_CALL(*track, GetCachedObject)
+      .WillOnce(Return(
+          PublishedObject{PublishedObjectMetadata{Location(0, 0), 0, "",
+                                                  MoqtObjectStatus::kNormal,
+                                                  kLocalDefaultPriority},
+                          MemSliceFromString("deadbeef")}))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(mock_stream_, Writev)
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
+                    const quiche::StreamWriteOptions& options) {
+        // The stream type omits the priority.
+        EXPECT_TRUE(static_cast<const uint8_t>(data[0].AsStringView()[0]) &
+                    MoqtDataStreamType::kDefaultPriority);
+        return absl::OkStatus();
+      });
+  listener->OnNewObjectAvailable(Location(0, 0), 0, kLocalDefaultPriority,
+                                 MoqtForwardingPreference::kSubgroup);
+  // Send a datagram with the default priority.
+  EXPECT_CALL(*track, GetCachedObject)
+      .WillOnce(Return(
+          PublishedObject{PublishedObjectMetadata{Location(0, 1), 0, "",
+                                                  MoqtObjectStatus::kNormal,
+                                                  kLocalDefaultPriority},
+                          MemSliceFromString("deadbeef")}));
+  EXPECT_CALL(mock_session_, SendOrQueueDatagram)
+      .WillOnce([](absl::string_view datagram) {
+        EXPECT_TRUE(static_cast<const uint8_t>(datagram[0]) &
+                    MoqtDatagramType::kDefaultPriority);
+        return webtransport::DatagramStatus{
+            webtransport::DatagramStatusCode::kSuccess, ""};
+      });
+  listener->OnNewObjectAvailable(Location(0, 1), 0, kLocalDefaultPriority,
+                                 MoqtForwardingPreference::kDatagram);
+  // Non-default priority
+  EXPECT_CALL(*track, GetCachedObject)
+      .WillOnce(Return(
+          PublishedObject{PublishedObjectMetadata{Location(0, 2), 0, "",
+                                                  MoqtObjectStatus::kNormal,
+                                                  kLocalDefaultPriority + 1},
+                          MemSliceFromString("deadbeef")}));
+  EXPECT_CALL(mock_session_, SendOrQueueDatagram)
+      .WillOnce([](absl::string_view datagram) {
+        EXPECT_FALSE(static_cast<const uint8_t>(datagram[0]) &
+                     MoqtDatagramType::kDefaultPriority);
+        return webtransport::DatagramStatus{
+            webtransport::DatagramStatusCode::kSuccess, ""};
+      });
+  listener->OnNewObjectAvailable(Location(0, 2), 0, kLocalDefaultPriority + 1,
+                                 MoqtForwardingPreference::kDatagram);
 }
 
 TEST_F(MoqtSessionTest, StreamObjectOutOfWindow) {
@@ -3686,7 +3812,8 @@ TEST_F(MoqtSessionTest, SubgroupStreamObjectAfterGroupEnd) {
       MoqtSessionPeer::CreateIncomingDataStream(
           &session_, &mock_stream_,
           MoqtDataStreamType::Subgroup(/*subgroup_id=*/0, /*first_object_id=*/0,
-                                       /*no_extension_headers=*/true));
+                                       /*no_extension_headers=*/true,
+                                       /*has_default_priority=*/false));
   object_stream->OnObjectMessage(
       MoqtObject(/*track_alias=*/2, /*group_id=*/0, /*object_id=*/0,
                  /*publisher_priority=*/0x80, /*extension_headers=*/"",
@@ -3717,7 +3844,8 @@ TEST_F(MoqtSessionTest, SubgroupStreamObjectAfterTrackEnd) {
       MoqtSessionPeer::CreateIncomingDataStream(
           &session_, &mock_stream_,
           MoqtDataStreamType::Subgroup(/*subgroup_id=*/0, /*first_object_id=*/0,
-                                       /*no_extension_headers=*/true));
+                                       /*no_extension_headers=*/true,
+                                       /*has_default_priority=*/false));
   object_stream->OnObjectMessage(
       MoqtObject(/*track_alias=*/2, /*group_id=*/0, /*object_id=*/0,
                  /*publisher_priority=*/0x80, /*extension_headers=*/"",

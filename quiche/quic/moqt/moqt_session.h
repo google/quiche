@@ -197,10 +197,12 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   struct NewStreamParameters {
     DataStreamIndex index;
     uint64_t first_object;
-    MoqtPriority publisher_priority;
+    // nullopt if the default priority is used.
+    std::optional<MoqtPriority> publisher_priority;
 
     NewStreamParameters(uint64_t group, uint64_t subgroup,
-                        uint64_t first_object, MoqtPriority publisher_priority)
+                        uint64_t first_object,
+                        std::optional<MoqtPriority> publisher_priority)
         : index(group, subgroup),
           first_object(first_object),
           publisher_priority(publisher_priority) {}
@@ -464,6 +466,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     bool can_have_joining_fetch() const { return can_have_joining_fetch_; }
 
+    MoqtPriority default_publisher_priority() const {
+      return default_publisher_priority_.value_or(kDefaultPublisherPriority);
+    }
+
    private:
     friend class test::MoqtSessionPeer;
     SendStreamMap& stream_map();
@@ -488,8 +494,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // group_order and largest_object may be updated by SUBSCRIBE_OK because
     // have no effect in a future REQUEST_UPDATE message.
     MessageParameters parameters_;
-    // TODO(martinduke): Once SUBSCRIBE_OK has track extensions, store the
-    // publisher's delivery timeout there instead.
     std::optional<quic::QuicTimeDelta> publisher_delivery_timeout_;
     std::optional<MoqtPriority> default_publisher_priority_;
     uint64_t streams_opened_ = 0;

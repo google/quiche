@@ -38,9 +38,11 @@ inline std::vector<MoqtDatagramType> AllMoqtDatagramTypes() {
   for (bool payload : {false, true}) {
     for (bool extension : {false, true}) {
       for (bool end_of_group : {false, true}) {
-        for (bool zero_object_id : {false, true}) {
-          types.push_back(MoqtDatagramType(payload, extension, end_of_group,
-                                           zero_object_id));
+        for (bool default_priority : {false, true}) {
+          for (bool zero_object_id : {false, true}) {
+            types.push_back(MoqtDatagramType(payload, extension, end_of_group,
+                                             default_priority, zero_object_id));
+          }
         }
       }
     }
@@ -54,9 +56,12 @@ inline std::vector<MoqtDataStreamType> AllMoqtDataStreamTypes() {
   uint64_t first_object_id = 1;
   for (uint64_t subgroup_id : {0, 1, 2}) {
     for (bool no_extension_headers : {true, false}) {
-      for (bool end_of_group : {false, true}) {
-        types.push_back(MoqtDataStreamType::Subgroup(
-            subgroup_id, first_object_id, no_extension_headers, end_of_group));
+      for (bool default_priority : {true, false}) {
+        for (bool end_of_group : {false, true}) {
+          types.push_back(MoqtDataStreamType::Subgroup(
+              subgroup_id, first_object_id, no_extension_headers,
+              default_priority, end_of_group));
+        }
       }
     }
   }
@@ -286,7 +291,9 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     if (datagram_type.has_object_id()) {
       EXPECT_TRUE(writer.WriteStringPiece(kRawObject));
     }
-    EXPECT_TRUE(writer.WriteStringPiece(kRawPriority));
+    if (!datagram_type.has_default_priority()) {
+      EXPECT_TRUE(writer.WriteStringPiece(kRawPriority));
+    }
     if (datagram_type.has_extension()) {
       EXPECT_TRUE(writer.WriteStringPiece(kRawExtensions));
     }
@@ -305,7 +312,9 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     if (datagram_type_.has_object_id()) {
       varints += "v";
     }
-    varints += "-";  // priority
+    if (!datagram_type_.has_default_priority()) {
+      varints += "-";  // priority
+    }
     if (datagram_type_.has_extension()) {
       varints += "v-------";
     }
@@ -314,6 +323,8 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     }
     ExpandVarintsImpl(varints, false);
   }
+
+  MoqtPriority publisher_priority() const { return object_.publisher_priority; }
 
  private:
   uint8_t raw_packet_[17];
@@ -347,9 +358,14 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
         writer.WriteVarInt62(type.value()) &&
         writer.WriteBytes(kRawBeginning.data(), kRawBeginning.length()));
     if (type.IsSubgroupPresent()) {
-      EXPECT_TRUE(writer.WriteUInt8(object_.subgroup_id));
+      EXPECT_TRUE(
+          writer.WriteBytes(kRawSubgroupId.data(), kRawSubgroupId.length()));
     }
-    EXPECT_TRUE(writer.WriteBytes(kRawMiddle.data(), kRawMiddle.length()));
+    if (!type.HasDefaultPriority()) {
+      EXPECT_TRUE(writer.WriteBytes(kRawPublisherPriority.data(),
+                                    kRawPublisherPriority.length()));
+    }
+    EXPECT_TRUE(writer.WriteBytes(kRawObjectId.data(), kRawObjectId.length()));
     if (type.AreExtensionHeadersPresent()) {
       EXPECT_TRUE(
           writer.WriteBytes(kRawExtensions.data(), kRawExtensions.length()));
@@ -361,19 +377,19 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
   }
 
   void ExpandVarints() override {
-    if (!type_.IsSubgroupPresent()) {
-      if (!type_.AreExtensionHeadersPresent()) {
-        ExpandVarintsImpl("vvv-vv---", false);
-      } else {
-        ExpandVarintsImpl("vvv-vv-------v---", false);
-      }
-    } else {
-      if (!type_.AreExtensionHeadersPresent()) {
-        ExpandVarintsImpl("vvvv-vv---", false);
-      } else {
-        ExpandVarintsImpl("vvvv-vv-------v---", false);
-      }
+    std::string varints = "vvv";
+    if (type_.IsSubgroupPresent()) {
+      varints += "v";
     }
+    if (!type_.HasDefaultPriority()) {
+      varints += "-";  // priority
+    }
+    varints += "v";  // object ID
+    if (type_.AreExtensionHeadersPresent()) {
+      varints += "v-------";
+    }
+    varints += "v---";  // payload with length
+    ExpandVarintsImpl(varints, false);
   }
 
   bool SetPayloadLength(uint8_t payload_length) {
@@ -399,8 +415,9 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
   MoqtDataStreamType type_;
   static constexpr absl::string_view kRawBeginning = "\x04\x05";
   // track alias, group ID
-  static constexpr absl::string_view kRawMiddle = "\x07\x06";
-  // publisher priority, object ID
+  static constexpr absl::string_view kRawSubgroupId = "\x08";
+  static constexpr absl::string_view kRawPublisherPriority = "\x07";
+  static constexpr absl::string_view kRawObjectId = "\x06";
   static constexpr absl::string_view kRawExtensions{
       "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultExtensionBlob
   static constexpr absl::string_view kRawPayload = "\x03\x66\x6f\x6f";

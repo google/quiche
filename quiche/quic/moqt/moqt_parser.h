@@ -20,6 +20,7 @@
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_stream.h"
@@ -180,8 +181,11 @@ class QUICHE_EXPORT MoqtControlParser {
 // Parses an MoQT datagram. Returns the payload bytes, or std::nullopt on error.
 // The caller provides the whole datagram in `data`.  The function puts the
 // object metadata in `object_metadata`.
+// If |use_default_priority| returns true, there was no reported
+// publisher_priority and the caller should use the default for the SUBSCRIBE.
 std::optional<absl::string_view> ParseDatagram(absl::string_view data,
-                                               MoqtObject& object_metadata);
+                                               MoqtObject& object_metadata,
+                                               bool& use_default_priority);
 
 // Parser for MoQT unidirectional data stream.
 class QUICHE_EXPORT MoqtDataParser {
@@ -208,6 +212,10 @@ class QUICHE_EXPORT MoqtDataParser {
     return (next_input_ == kStreamType || next_input_ == kTrackAlias)
                ? std::optional<uint64_t>()
                : metadata_.track_alias;
+  }
+
+  void set_default_publisher_priority(MoqtPriority priority) {
+    default_publisher_priority_ = priority;
   }
 
  private:
@@ -268,6 +276,7 @@ class QUICHE_EXPORT MoqtDataParser {
   bool parsing_error_ = false;
   bool contains_end_of_group_ = false;  // True if the stream contains an
                                         // implied END_OF_GROUP object.
+  MoqtPriority default_publisher_priority_;
 
   std::string buffered_message_;
 

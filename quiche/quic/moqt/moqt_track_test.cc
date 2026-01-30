@@ -63,8 +63,8 @@ TEST_F(SubscribeRemoteTrackTest, Queries) {
 }
 
 TEST_F(SubscribeRemoteTrackTest, UpdateDataStreamType) {
-  EXPECT_TRUE(
-      track_.CheckDataStreamType(MoqtDataStreamType::Subgroup(1, 1, true)));
+  EXPECT_TRUE(track_.CheckDataStreamType(
+      MoqtDataStreamType::Subgroup(1, 1, true, false)));
   EXPECT_FALSE(track_.CheckDataStreamType(MoqtDataStreamType::Fetch()));
 }
 
@@ -104,8 +104,8 @@ class UpstreamFetchTest : public quic::test::QuicTest {
 TEST_F(UpstreamFetchTest, Queries) {
   EXPECT_EQ(fetch_.request_id(), 1);
   EXPECT_EQ(fetch_.full_track_name(), FullTrackName("foo", "bar"));
-  EXPECT_FALSE(
-      fetch_.CheckDataStreamType(MoqtDataStreamType::Subgroup(1, 2, true)));
+  EXPECT_FALSE(fetch_.CheckDataStreamType(
+      MoqtDataStreamType::Subgroup(1, 2, true, false)));
   EXPECT_TRUE(fetch_.CheckDataStreamType(MoqtDataStreamType::Fetch()));
   EXPECT_TRUE(fetch_.is_fetch());
   EXPECT_FALSE(fetch_.InWindow(Location{1, 0}));

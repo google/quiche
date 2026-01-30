@@ -1282,7 +1282,8 @@ void MoqtDataParser::ParseError(absl::string_view reason) {
 }
 
 std::optional<absl::string_view> ParseDatagram(absl::string_view data,
-                                               MoqtObject& object_metadata) {
+                                               MoqtObject& object_metadata,
+                                               bool& use_default_priority) {
   uint64_t type_raw, object_status_raw;
   absl::string_view extensions;
   quic::QuicDataReader reader(data);
@@ -1316,7 +1317,9 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
     object_metadata.object_id = 0;
   }
   object_metadata.subgroup_id = object_metadata.object_id;
-  if (!reader.ReadUInt8(&object_metadata.publisher_priority)) {
+  use_default_priority = datagram_type->has_default_priority();
+  if (!use_default_priority &&
+      !reader.ReadUInt8(&object_metadata.publisher_priority)) {
     return std::nullopt;
   }
   if (datagram_type->has_extension()) {
@@ -1405,15 +1408,21 @@ void MoqtDataParser::AdvanceParserState() {
       if (type_->SubgroupIsZero()) {
         metadata_.subgroup_id = 0;
       }
-      next_input_ = kPublisherPriority;
+      next_input_ =
+          type_->HasDefaultPriority() ? kObjectId : kPublisherPriority;
       break;
     case kSubgroupId:
-      next_input_ = type_->IsFetch() ? kObjectId : kPublisherPriority;
+      next_input_ = (type_->IsFetch() || type_->HasDefaultPriority())
+                        ? kObjectId
+                        : kPublisherPriority;
       break;
     case kPublisherPriority:
       next_input_ = type_->IsFetch() ? kExtensionSize : kObjectId;
       break;
     case kObjectId:
+      if (type_->HasDefaultPriority()) {
+        metadata_.publisher_priority = default_publisher_priority_;
+      }
       if (num_objects_read_ == 0 && type_->SubgroupIsFirstObjectId()) {
         metadata_.subgroup_id = metadata_.object_id;
       }

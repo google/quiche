@@ -424,8 +424,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
           ? std::optional<uint64_t>(message.subgroup_id)
           : std::nullopt;
   std::optional<uint8_t> publisher_priority =
-      is_first_in_stream ? std::optional<uint8_t>(message.publisher_priority)
-                         : std::nullopt;
+      (is_first_in_stream && !message_type.HasDefaultPriority())
+          ? std::optional<uint8_t>(message.publisher_priority)
+          : std::nullopt;
   std::optional<absl::string_view> extension_headers =
       (message_type.AreExtensionHeadersPresent())
           ? std::optional<absl::string_view>(message.extension_headers)
@@ -442,7 +443,8 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
-    const MoqtObject& message, absl::string_view payload) {
+    const MoqtObject& message, absl::string_view payload,
+    MoqtPriority default_priority) {
   if (!ValidateObjectMetadata(message, /*is_datagram=*/true)) {
     QUICHE_BUG(QUICHE_BUG_serialize_object_datagram_01)
         << "Object metadata is invalid";
@@ -456,10 +458,14 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
   MoqtDatagramType datagram_type(
       !payload.empty(), !message.extension_headers.empty(),
       message.object_status == MoqtObjectStatus::kEndOfGroup,
-      message.object_id == 0);
+      message.publisher_priority == default_priority, message.object_id == 0);
   std::optional<uint64_t> object_id =
       datagram_type.has_object_id() ? std::optional<uint64_t>(message.object_id)
                                     : std::nullopt;
+  std::optional<uint8_t> publisher_priority =
+      datagram_type.has_default_priority()
+          ? std::nullopt
+          : std::optional<uint8_t>(message.publisher_priority);
   std::optional<absl::string_view> extensions =
       datagram_type.has_extension()
           ? std::optional<absl::string_view>(message.extension_headers)
@@ -474,7 +480,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
   return Serialize(
       WireVarInt62(datagram_type.value()), WireVarInt62(message.track_alias),
       WireVarInt62(message.group_id), WireOptional<WireVarInt62>(object_id),
-      WireUint8(message.publisher_priority),
+      WireOptional<WireUint8>(publisher_priority),
       WireOptional<WireStringWithVarInt62Length>(extensions),
       WireOptional<WireVarInt62>(object_status),
       WireOptional<WireBytes>(raw_payload));

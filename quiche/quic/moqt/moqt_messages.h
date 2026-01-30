@@ -91,69 +91,81 @@ class QUICHE_EXPORT MoqtDataStreamType {
  public:
   static constexpr uint64_t kFetch = 0x05;
   static constexpr uint64_t kPadding = 0x26d3;
-  static constexpr uint64_t kSubgroupFlag = 0x10;
-  static constexpr uint64_t kExtensionFlag = 0x01;
-  static constexpr uint64_t kEndOfGroupFlag = 0x08;
+  static constexpr uint64_t kSubgroup = 0x10;
+  static constexpr uint64_t kExtensions = 0x01;
+  static constexpr uint64_t kEndOfGroup = 0x08;
+  static constexpr uint64_t kDefaultPriority = 0x20;
   // These two cannot simultaneously be true;
-  static constexpr uint64_t kFirstObjectIdFlag = 0x02;
-  static constexpr uint64_t kSubgroupIdFlag = 0x04;
+  static constexpr uint64_t kFirstObjectId = 0x02;
+  static constexpr uint64_t kSubgroupId = 0x04;
 
   // Factory functions.
   static std::optional<MoqtDataStreamType> FromValue(uint64_t value) {
     MoqtDataStreamType stream_type(value);
-    if (stream_type.IsFetch() || stream_type.IsPadding() ||
-        (!((value & kSubgroupIdFlag) && (value & kFirstObjectIdFlag)) &&
-         stream_type.IsSubgroup())) {
+    if (stream_type.IsFetch() || stream_type.IsPadding()) {
       return stream_type;
     }
-    return std::nullopt;
+    if (!(value & kSubgroup)) {
+      return std::nullopt;
+    }
+    if (value > (kSubgroup | kExtensions | kEndOfGroup | kDefaultPriority |
+                 kFirstObjectId | kSubgroupId)) {
+      // Reserved bits.
+      return std::nullopt;
+    }
+    if ((value & kSubgroupId) && (value & kFirstObjectId)) {
+      return std::nullopt;
+    }
+    return stream_type;
   }
   static MoqtDataStreamType Fetch() { return MoqtDataStreamType(kFetch); }
   static MoqtDataStreamType Padding() { return MoqtDataStreamType(kPadding); }
   static MoqtDataStreamType Subgroup(uint64_t subgroup_id,
                                      uint64_t first_object_id,
                                      bool no_extension_headers,
+                                     bool default_priority,
                                      bool end_of_group = false) {
-    uint64_t value = kSubgroupFlag;
+    uint64_t value = kSubgroup;
     if (!no_extension_headers) {
-      value |= kExtensionFlag;
+      value |= kExtensions;
     }
     if (end_of_group) {
-      value |= kEndOfGroupFlag;
+      value |= kEndOfGroup;
+    }
+    if (default_priority) {
+      value |= kDefaultPriority;
     }
     if (subgroup_id == 0) {
       return MoqtDataStreamType(value);
     }
     if (subgroup_id == first_object_id) {
-      value |= kFirstObjectIdFlag;
+      value |= kFirstObjectId;
     } else {
-      value |= kSubgroupIdFlag;
+      value |= kSubgroupId;
     }
     return MoqtDataStreamType(value);
   }
   MoqtDataStreamType(const MoqtDataStreamType& other) = default;
   bool IsFetch() const { return value_ == kFetch; }
   bool IsPadding() const { return value_ == kPadding; }
-  bool IsSubgroup() const {
-    QUICHE_CHECK(
-        !((value_ & kSubgroupIdFlag) && (value_ & kFirstObjectIdFlag)));
-    return (value_ & kSubgroupFlag) && (value_ & ~0x1f) == 0;
-  }
+  bool IsSubgroup() const { return value_ & kSubgroup; }
   bool IsSubgroupPresent() const {
-    return IsSubgroup() && (value_ & kSubgroupIdFlag);
+    return IsSubgroup() && (value_ & kSubgroupId);
   }
   bool SubgroupIsZero() const {
-    return IsSubgroup() && !(value_ & kSubgroupIdFlag) &&
-           !(value_ & kFirstObjectIdFlag);
+    return IsSubgroup() && !(value_ & (kSubgroupId | kFirstObjectId));
   }
   bool SubgroupIsFirstObjectId() const {
-    return IsSubgroup() && (value_ & kFirstObjectIdFlag);
+    return IsSubgroup() && (value_ & kFirstObjectId);
   }
   bool AreExtensionHeadersPresent() const {
-    return IsSubgroup() && (value_ & kExtensionFlag);
+    return IsSubgroup() && (value_ & kExtensions);
   }
   bool EndOfGroupInStream() const {
-    return IsSubgroup() && (value_ & kEndOfGroupFlag);
+    return IsSubgroup() && (value_ & kEndOfGroup);
+  }
+  bool HasDefaultPriority() const {
+    return IsSubgroup() && (value_ & kDefaultPriority);
   }
 
   uint64_t value() const { return value_; }
@@ -166,10 +178,15 @@ class QUICHE_EXPORT MoqtDataStreamType {
 
 class QUICHE_EXPORT MoqtDatagramType {
  public:
+  static constexpr uint64_t kExtensions = 0x01;
+  static constexpr uint64_t kEndOfGroup = 0x02;
+  static constexpr uint64_t kZeroObjectId = 0x04;
+  static constexpr uint64_t kDefaultPriority = 0x08;
+  static constexpr uint64_t kStatus = 0x20;
   // The arguments here are properties of the object. The constructor creates
   // the appropriate type given those properties and the spec restrictions.
   MoqtDatagramType(bool payload, bool extension, bool end_of_group,
-                   bool zero_object_id)
+                   bool default_priority, bool zero_object_id)
       : value_(0) {
     // Avoid illegal types. Status cannot coexist with the zero-object-id flag
     // or the end-of-group flag.
@@ -186,28 +203,36 @@ class QUICHE_EXPORT MoqtDatagramType {
       end_of_group = false;
     }
     if (extension) {
-      value_ |= 0x01;
+      value_ |= kExtensions;
     }
     if (end_of_group) {
-      value_ |= 0x02;
+      value_ |= kEndOfGroup;
     }
     if (zero_object_id) {
-      value_ |= 0x04;
+      value_ |= kZeroObjectId;
+    }
+    if (default_priority) {
+      value_ |= kDefaultPriority;
     }
     if (!payload) {
-      value_ |= 0x20;
+      value_ |= kStatus;
     }
   }
   static std::optional<MoqtDatagramType> FromValue(uint64_t value) {
-    if (value <= 7 || value == 0x20 || value == 0x21) {
-      return MoqtDatagramType(value);
+    if (value > (kExtensions | kEndOfGroup | kZeroObjectId | kDefaultPriority |
+                 kStatus)) {
+      return std::nullopt;
     }
-    return std::nullopt;
+    if ((value & kStatus) && (value & kEndOfGroup)) {
+      return std::nullopt;
+    }
+    return MoqtDatagramType(value);
   }
-  bool has_status() const { return value_ & 0x20; }
-  bool has_object_id() const { return !(value_ & 0x04); }
-  bool end_of_group() const { return value_ & 0x02; }
-  bool has_extension() const { return value_ & 0x01; }
+  bool has_status() const { return value_ & kStatus; }
+  bool has_default_priority() const { return value_ & kDefaultPriority; }
+  bool has_object_id() const { return !(value_ & kZeroObjectId); }
+  bool end_of_group() const { return value_ & kEndOfGroup; }
+  bool has_extension() const { return value_ & kExtensions; }
   uint64_t value() const { return value_; }
 
   bool operator==(const MoqtDatagramType& other) const = default;
