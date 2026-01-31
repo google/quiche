@@ -477,7 +477,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       return nullptr;
     }
     EXPECT_EQ(1u, dispatcher->NumSessions());
-    return absl::static_cast<QuicSpdySession*>(
+    return static_cast<QuicSpdySession*>(
         QuicDispatcherPeer::GetFirstSessionIfAny(dispatcher));
   }
 
@@ -658,7 +658,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
                                QuicDispatcherPeer::GetAlarmFactory(dispatcher),
                                std::make_unique<ServerDelegate>(dispatcher));
     if (stream_factory_ != nullptr) {
-      absl::static_cast<QuicTestServer*>(server_thread_->server())
+      static_cast<QuicTestServer*>(server_thread_->server())
           ->SetSpdyStreamFactory(stream_factory_);
     }
 
@@ -1053,7 +1053,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 
   QuicConfig PauseServerAndGetLastNegotiatedConfigFromDispatcher() {
     server_thread_->Pause();
-    QuicSimpleDispatcher* dispatcher = absl::static_cast<QuicSimpleDispatcher*>(
+    QuicSimpleDispatcher* dispatcher = static_cast<QuicSimpleDispatcher*>(
         QuicServerPeer::GetDispatcher(server_thread_->server()));
     std::optional<QuicConfig> config = dispatcher->last_negotiated_config();
     if (!config.has_value()) {
@@ -2385,7 +2385,7 @@ TEST_P(EndToEndTest, QUICHE_SLOW_TEST(AddressTokenNotReusedByClient)) {
   client_->Disconnect();
 
   QuicClientSessionCache* session_cache =
-      absl::static_cast<QuicClientSessionCache*>(
+      static_cast<QuicClientSessionCache*>(
           client_crypto_config->session_cache());
   ASSERT_TRUE(
       !QuicClientSessionCachePeer::GetToken(session_cache, server_id).empty());

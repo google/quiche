@@ -183,7 +183,7 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   relay_.publisher()->AddNamespaceSubscriber(foo, &relay_probe);
   upstream_.publisher()->AddNamespaceSubscriber(foo, &upstream_probe);
   MoqtSession* upstream_session =
-      absl::static_cast<MoqtSession*>(upstream_.last_server_session);
+      static_cast<MoqtSession*>(upstream_.last_server_session);
   // Downstream publishes a namespace. It's stored in relay_ but upstream_
   // hasn't been notified.
   downstream_.client_session()->PublishNamespace(

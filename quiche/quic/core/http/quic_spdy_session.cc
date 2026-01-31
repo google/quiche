@@ -864,7 +864,7 @@ void QuicSpdySession::OnHttp3GoAway(uint64_t id) {
               stream->version().transport_version, stream->id())) {
         return true;
       }
-      QuicSpdyStream* spdy_stream = absl::static_cast<QuicSpdyStream*>(stream);
+      QuicSpdyStream* spdy_stream = static_cast<QuicSpdyStream*>(stream);
       WebTransportHttp3* web_transport = spdy_stream->web_transport();
       if (web_transport == nullptr) {
         return true;
@@ -981,7 +981,7 @@ QuicSpdyStream* QuicSpdySession::GetOrCreateSpdyDataStream(
         ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return nullptr;
   }
-  return absl::static_cast<QuicSpdyStream*>(stream);
+  return static_cast<QuicSpdyStream*>(stream);
 }
 
 void QuicSpdySession::OnNewEncryptionKeyAvailable(
@@ -1858,7 +1858,7 @@ void QuicSpdySession::OnDatagramReceived(absl::string_view datagram) {
   stream_id64 *= kHttpDatagramStreamIdDivisor;
   QuicStreamId stream_id = static_cast<QuicStreamId>(stream_id64);
   QuicSpdyStream* stream =
-      absl::static_cast<QuicSpdyStream*>(GetActiveStream(stream_id));
+      static_cast<QuicSpdyStream*>(GetActiveStream(stream_id));
   if (stream == nullptr) {
     QUIC_DLOG(INFO) << "Received HTTP/3 datagram for unknown stream ID "
                     << stream_id;

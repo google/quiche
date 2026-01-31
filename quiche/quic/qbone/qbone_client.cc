@@ -50,7 +50,7 @@ QboneClient::QboneClient(QuicSocketAddress server_address,
 QboneClient::~QboneClient() { ResetSession(); }
 
 QboneClientSession* QboneClient::qbone_session() {
-  return absl::static_cast<QboneClientSession*>(QuicClientBase::session());
+  return static_cast<QboneClientSession*>(QuicClientBase::session());
 }
 
 void QboneClient::ProcessPacketFromNetwork(absl::string_view packet) {
