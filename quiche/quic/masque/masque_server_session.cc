@@ -648,8 +648,8 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     use_ipv6 = target_server_address.host().AddressFamilyToInt() == AF_INET6;
   }
 
-  QuicSpdyStream* stream =
-      static_cast<QuicSpdyStream*>(GetActiveStream(request_handler->stream_id()));
+  QuicSpdyStream* stream = static_cast<QuicSpdyStream*>(
+      GetActiveStream(request_handler->stream_id()));
   if (stream == nullptr) {
     QUIC_BUG(bad masque server stream type)
         << "Unexpected stream type for stream ID "
