@@ -31,7 +31,8 @@ void QuicSpdySessionPeer::SetHeadersStream(QuicSpdySession* session,
     if (it.first ==
         QuicUtils::GetHeadersStreamId(session->transport_version())) {
       it.second.reset(headers_stream);
-      session->headers_stream_ = static_cast<QuicHeadersStream*>(it.second.get());
+      session->headers_stream_ =
+          static_cast<QuicHeadersStream*>(it.second.get());
       break;
     }
   }
