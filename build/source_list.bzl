@@ -1034,6 +1034,7 @@ masque_support_hdrs = [
     "quic/masque/masque_server_backend.h",
     "quic/masque/masque_server_session.h",
     "quic/masque/masque_utils.h",
+    "quic/masque/private_tokens.h",
 ]
 masque_support_srcs = [
     "quic/masque/masque_client.cc",
@@ -1049,6 +1050,7 @@ masque_support_srcs = [
     "quic/masque/masque_server_backend.cc",
     "quic/masque/masque_server_session.cc",
     "quic/masque/masque_utils.cc",
+    "quic/masque/private_tokens.cc",
 ]
 io_tool_support_hdrs = [
     "common/platform/api/quiche_event_loop.h",
@@ -1449,6 +1451,7 @@ cli_tools_srcs = [
     "quic/masque/masque_server_bin.cc",
     "quic/masque/masque_tcp_client_bin.cc",
     "quic/masque/masque_tcp_server_bin.cc",
+    "quic/masque/private_tokens_bin.cc",
     "quic/moqt/tools/chat_client_bin.cc",
     "quic/moqt/tools/moqt_ingestion_server_bin.cc",
     "quic/moqt/tools/moqt_relay_bin.cc",

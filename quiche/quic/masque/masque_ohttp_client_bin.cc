@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include <stdbool.h>
-
+#include <cstddef>
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
