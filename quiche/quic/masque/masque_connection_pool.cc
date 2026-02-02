@@ -410,9 +410,9 @@ void MasqueConnectionPool::ConnectionState::OnSocketEvent(
       // `SSL_set_bio` causes `ssl_` to take ownership of `bio`.
       connection_ = std::make_unique<MasqueH2Connection>(
           ssl_.get(), /*is_server=*/false, connection_pool_);
-      connection_->OnTransportReadable();
       connection_pool_->AttachConnectionToPendingRequests(authority_,
                                                           connection_.get());
+      connection_->OnTransportReadable();
     }
     connection_->AttemptToSend();
   }
