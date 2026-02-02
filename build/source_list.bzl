@@ -1228,7 +1228,7 @@ quiche_tests_srcs = [
     "http2/test_tools/http2_frame_builder_test.cc",
     "http2/test_tools/http2_random_test.cc",
     "http2/test_tools/random_decoder_test_base_test.cc",
-    "oblivious_http/buffers/oblivious_http_integration_test.cc",
+    "oblivious_http/buffers/oblivious_http_buffers_integration_test.cc",
     "oblivious_http/buffers/oblivious_http_request_test.cc",
     "oblivious_http/buffers/oblivious_http_response_test.cc",
     "oblivious_http/common/oblivious_http_header_key_config_test.cc",
