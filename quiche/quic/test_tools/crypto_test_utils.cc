@@ -437,7 +437,6 @@ int HandshakeWithFakeClient(MockQuicConnectionHelper* helper,
 void SetupCryptoServerConfigForTest(const QuicClock* clock, QuicRandom* rand,
                                     QuicCryptoServerConfig* crypto_config) {
   QuicCryptoServerConfig::ConfigOptions options;
-  options.channel_id_enabled = true;
   std::unique_ptr<CryptoHandshakeMessage> scfg =
       crypto_config->AddDefaultConfig(rand, clock, options);
 }

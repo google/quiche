@@ -23,7 +23,6 @@
 #include "quiche/quic/core/crypto/cert_compressor.h"
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/core/crypto/chacha20_poly1305_encrypter.h"
-#include "quiche/quic/core/crypto/channel_id.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
 #include "quiche/quic/core/crypto/crypto_utils.h"
@@ -234,7 +233,6 @@ ProcessClientHelloResultCallback::~ProcessClientHelloResultCallback() {}
 
 QuicCryptoServerConfig::ConfigOptions::ConfigOptions()
     : expiry_time(QuicWallTime::Zero()),
-      channel_id_enabled(false),
       p256(false) {}
 
 QuicCryptoServerConfig::ConfigOptions::ConfigOptions(
@@ -379,10 +377,6 @@ QuicServerConfigProtobuf QuicCryptoServerConfig::GenerateConfig(
   }
   msg.SetStringPiece(kOBIT,
                      absl::string_view(orbit_bytes, sizeof(orbit_bytes)));
-
-  if (options.channel_id_enabled) {
-    msg.SetVector(kPDMD, QuicTagVector{kCHID});
-  }
 
   if (options.id.empty()) {
     // We need to ensure that the SCID changes whenever the server config does
@@ -920,66 +914,6 @@ void QuicCryptoServerConfig::ProcessClientHelloAfterCalculateSharedKeys(
     return;
   }
   hkdf_suffix.append(context->signed_config()->chain->certs[0]);
-
-  absl::string_view cetv_ciphertext;
-  if (configs.requested->channel_id_enabled &&
-      context->client_hello().GetStringPiece(kCETV, &cetv_ciphertext)) {
-    CryptoHandshakeMessage client_hello_copy(context->client_hello());
-    client_hello_copy.Erase(kCETV);
-    client_hello_copy.Erase(kPAD);
-
-    const QuicData& client_hello_copy_serialized =
-        client_hello_copy.GetSerialized();
-    std::string hkdf_input;
-    hkdf_input.append(QuicCryptoConfig::kCETVLabel,
-                      strlen(QuicCryptoConfig::kCETVLabel) + 1);
-    hkdf_input.append(context->connection_id().data(),
-                      context->connection_id().length());
-    hkdf_input.append(client_hello_copy_serialized.data(),
-                      client_hello_copy_serialized.length());
-    hkdf_input.append(configs.requested->serialized);
-
-    CrypterPair crypters;
-    if (!CryptoUtils::DeriveKeys(
-            context->version(), context->params()->initial_premaster_secret,
-            context->params()->aead, context->info().client_nonce,
-            context->info().server_nonce, pre_shared_key_, hkdf_input,
-            Perspective::IS_SERVER, CryptoUtils::Diversification::Never(),
-            &crypters, nullptr /* subkey secret */)) {
-      context->Fail(QUIC_CRYPTO_SYMMETRIC_KEY_SETUP_FAILED,
-                    "Symmetric key setup failed");
-      return;
-    }
-
-    char plaintext[kMaxOutgoingPacketSize];
-    size_t plaintext_length = 0;
-    const bool success = crypters.decrypter->DecryptPacket(
-        0 /* packet number */, absl::string_view() /* associated data */,
-        cetv_ciphertext, plaintext, &plaintext_length, kMaxOutgoingPacketSize);
-    if (!success) {
-      context->Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
-                    "CETV decryption failure");
-      return;
-    }
-    std::unique_ptr<CryptoHandshakeMessage> cetv(CryptoFramer::ParseMessage(
-        absl::string_view(plaintext, plaintext_length)));
-    if (!cetv) {
-      context->Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER, "CETV parse error");
-      return;
-    }
-
-    absl::string_view key, signature;
-    if (cetv->GetStringPiece(kCIDK, &key) &&
-        cetv->GetStringPiece(kCIDS, &signature)) {
-      if (!ChannelIDVerifier::Verify(key, hkdf_input, signature)) {
-        context->Fail(QUIC_INVALID_CRYPTO_MESSAGE_PARAMETER,
-                      "ChannelID signature failure");
-        return;
-      }
-
-      context->params()->channel_id = std::string(key);
-    }
-  }
 
   std::string hkdf_input;
   size_t label_len = strlen(QuicCryptoConfig::kInitialLabel) + 1;
@@ -1648,14 +1582,6 @@ QuicCryptoServerConfig::ParseConfigProtobuf(
   memcpy(config->orbit, orbit.data(), sizeof(config->orbit));
 
   QuicTagVector proof_demand_tags;
-  if (msg->GetTaglist(kPDMD, &proof_demand_tags) == QUIC_NO_ERROR) {
-    for (QuicTag tag : proof_demand_tags) {
-      if (tag == kCHID) {
-        config->channel_id_enabled = true;
-        break;
-      }
-    }
-  }
 
   for (size_t i = 0; i < kexs_tags.size(); i++) {
     const QuicTag tag = kexs_tags[i];
@@ -1890,8 +1816,7 @@ bool QuicCryptoServerConfig::IsNextConfigReady(QuicWallTime now) const {
 }
 
 QuicCryptoServerConfig::Config::Config()
-    : channel_id_enabled(false),
-      is_primary(false),
+    : is_primary(false),
       primary_time(QuicWallTime::Zero()),
       expiry_time(QuicWallTime::Zero()),
       priority(0),

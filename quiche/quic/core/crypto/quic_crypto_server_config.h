@@ -188,9 +188,6 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
     // expiry_time is the time, in UNIX seconds, when the server config will
     // expire. If unset, it defaults to the current time plus six months.
     QuicWallTime expiry_time;
-    // channel_id_enabled controls whether the server config will indicate
-    // support for ChannelIDs.
-    bool channel_id_enabled;
     // id contains the server config id for the resulting config. If empty, a
     // random id is generated.
     std::string id;
@@ -502,10 +499,6 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
     // key_exchanges contains key exchange objects. The values correspond,
     // one-to-one, with the tags in |kexs| from the parent class.
     std::vector<std::unique_ptr<AsynchronousKeyExchange>> key_exchanges;
-
-    // channel_id_enabled is true if the config in |serialized| specifies that
-    // ChannelIDs are supported.
-    bool channel_id_enabled;
 
     // is_primary is true if this config is the one that we'll give out to
     // clients as the current one.
