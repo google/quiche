@@ -1018,6 +1018,12 @@ balsa_srcs = [
     "balsa/simple_buffer.cc",
     "balsa/standard_header_map.cc",
 ]
+masque_private_tokens_hdrs = [
+    "quic/masque/private_tokens.h",
+]
+masque_private_tokens_srcs = [
+    "quic/masque/private_tokens.cc",
+]
 masque_support_hdrs = [
     "quic/masque/masque_client.h",
     "quic/masque/masque_client_session.h",
@@ -1032,7 +1038,6 @@ masque_support_hdrs = [
     "quic/masque/masque_server_backend.h",
     "quic/masque/masque_server_session.h",
     "quic/masque/masque_utils.h",
-    "quic/masque/private_tokens.h",
 ]
 masque_support_srcs = [
     "quic/masque/masque_client.cc",
@@ -1048,7 +1053,6 @@ masque_support_srcs = [
     "quic/masque/masque_server_backend.cc",
     "quic/masque/masque_server_session.cc",
     "quic/masque/masque_utils.cc",
-    "quic/masque/private_tokens.cc",
 ]
 io_tool_support_hdrs = [
     "common/platform/api/quiche_event_loop.h",
