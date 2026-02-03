@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_MASQUE_PRIVATE_TOKENS_H_
 
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -39,6 +40,11 @@ absl::StatusOr<std::string> CreateTokenLocally(RSA* private_key,
 // public key as base64 encoded strings in the format from RFC 9578.
 absl::Status ValidateToken(absl::string_view base64_public_key,
                            absl::string_view base64_token);
+
+// Checks the token against all keys using ValidateToken above.
+absl::Status TokenValidatesFromAtLeastOneKey(
+    const std::vector<std::string>& base64_public_keys,
+    absl::string_view base64_token);
 
 }  // namespace quic
 

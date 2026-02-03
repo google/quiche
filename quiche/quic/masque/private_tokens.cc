@@ -6,6 +6,7 @@
 
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -179,6 +180,12 @@ absl::Status ValidateToken(absl::string_view base64_public_key,
   if (!absl::WebSafeBase64Unescape(base64_public_key, &der_public_key)) {
     return absl::InvalidArgumentError("Failed to decode the base64 public key");
   }
+  std::string token_key_id(SHA256_DIGEST_LENGTH, '\0');
+  if (SHA256(reinterpret_cast<const uint8_t*>(der_public_key.data()),
+             der_public_key.size(),
+             reinterpret_cast<uint8_t*>(token_key_id.data())) == nullptr) {
+    return absl::InternalError("Failed to compute token_key_id");
+  }
   QUICHE_ASSIGN_OR_RETURN(
       bssl::UniquePtr<RSA> public_key,
       AT::RsaSsaPssPublicKeyFromDerEncoding(der_public_key));
@@ -188,7 +195,28 @@ absl::Status ValidateToken(absl::string_view base64_public_key,
   }
 
   QUICHE_ASSIGN_OR_RETURN(AT::Token token, AT::UnmarshalToken(binary_token));
+  if (token.token_key_id != token_key_id) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Token key ID ", absl::BytesToHexString(token.token_key_id),
+        " does not match the public key ID ",
+        absl::BytesToHexString(token_key_id)));
+  }
   return AT::PrivacyPassRsaBssaClient::Verify(token, *public_key);
+}
+
+absl::Status TokenValidatesFromAtLeastOneKey(
+    const std::vector<std::string>& base64_public_keys,
+    absl::string_view base64_token) {
+  absl::Status last_error =
+      absl::InvalidArgumentError("No public keys provided");
+  for (const std::string& base64_public_key : base64_public_keys) {
+    absl::Status status = ValidateToken(base64_public_key, base64_token);
+    if (status.ok()) {
+      return absl::OkStatus();
+    }
+    last_error = status;
+  }
+  return last_error;
 }
 
 }  // namespace quic
