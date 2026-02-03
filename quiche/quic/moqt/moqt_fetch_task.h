@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_FETCH_TASK_H_
 #define QUICHE_QUIC_MOQT_MOQT_FETCH_TASK_H_
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <utility>
@@ -13,22 +14,44 @@
 #include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/common/quiche_callbacks.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
+
+// TODO(martinduke): There are will be multiple instances of flow-controlled
+// "pull" data retrieval tasks. It might be worthwhile to extract some common
+// features into a base class.
+
+using ObjectsAvailableCallback = quiche::MultiUseCallback<void()>;
+// Potential results of a GetNextObject/GetNextMessage() call.
+enum GetNextResult {
+  // The next object or message is available, and is placed into the reference
+  // specified by the caller.
+  kSuccess,
+  // The next object or message is not yet available (equivalent of EAGAIN).
+  kPending,
+  // The end of the response has been reached.
+  kEof,
+  // The request has failed; the error is available.
+  kError,
+};
+
+enum class TransactionType : uint8_t { kAdd, kDelete };
 
 // A handle representing a fetch in progress.  The fetch in question can be
 // cancelled by deleting the object.
 class MoqtFetchTask {
  public:
-  using ObjectsAvailableCallback = quiche::MultiUseCallback<void()>;
   // The request_id field will be ignored.
   using FetchResponseCallback = quiche::SingleUseCallback<void(
       std::variant<MoqtFetchOk, MoqtRequestError>)>;
 
   virtual ~MoqtFetchTask() = default;
 
+  // TODO(martinduke): Replace with GetNextResult above.
   // Potential results of a GetNextObject() call.
   enum GetNextObjectResult {
     // The next object is available, and is placed into the reference specified
@@ -63,6 +86,29 @@ class MoqtFetchTask {
 
   // Returns the error if fetch has completely failed, and OK otherwise.
   virtual absl::Status GetStatus() = 0;
+};
+
+class MoqtNamespaceTask {
+ public:
+  virtual ~MoqtNamespaceTask() = default;
+
+  // Returns the state of the message queue. If available, writes the suffix
+  // into |suffix|. If |type| is kAdd, it is from a NAMESPACE message. If |type|
+  // is kDelete, it is from a NAMESPACE_DONE message.
+  virtual GetNextResult GetNextSuffix(TrackNamespace& suffix,
+                                      TransactionType& type) = 0;
+
+  // Sets the callback that is called when a NAMESPACE or NAMESPACE_DONE message
+  // is received. If a message is available immediately, the callback will be
+  // called immediately.
+  virtual void SetObjectAvailableCallback(
+      ObjectsAvailableCallback callback) = 0;
+
+  // Returns the error if request has completely failed, and nullopt otherwise.
+  virtual std::optional<webtransport::StreamErrorCode> GetStatus() = 0;
+
+  // Returns the prefix for this task.
+  virtual const TrackNamespace& prefix() = 0;
 };
 
 // A fetch that starts out in the failed state.

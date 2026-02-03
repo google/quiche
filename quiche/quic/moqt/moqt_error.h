@@ -50,6 +50,7 @@ inline constexpr webtransport::StreamErrorCode kResetCodeSessionClosed = 0x03;
 // TODO(martinduke): This is not in the spec, but is needed. The number might
 // change.
 inline constexpr webtransport::StreamErrorCode kResetCodeMalformedTrack = 0x04;
+inline constexpr webtransport::StreamErrorCode kResetCodeTooFarBehind = 0x05;
 
 // Used for SUBSCRIBE_ERROR, PUBLISH_NAMESPACE_ERROR, PUBLISH_NAMESPACE_CANCEL,
 // SUBSCRIBE_NAMESPACE_ERROR, and FETCH_ERROR.
@@ -70,6 +71,7 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kMalformedTrack = 0x9,
   kMalformedAuthToken = 0x10,
   kExpiredAuthToken = 0x12,
+  kPrefixOverlap = 0x30,
 };
 
 struct MoqtRequestErrorInfo {

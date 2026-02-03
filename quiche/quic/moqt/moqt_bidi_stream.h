@@ -214,7 +214,7 @@ class MoqtBidiStreamBase : public MoqtControlParserVisitor,
   void Fin() {
     fin_queued_ = true;
     if (pending_messages_.empty()) {
-      if (!stream_->SendFin()) {
+      if (stream_ != nullptr && !SendFinOnStream(*stream_).ok()) {
         std::move(session_error_callback_)(MoqtError::kInternalError,
                                            "Failed to send FIN");
       }
