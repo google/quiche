@@ -57,6 +57,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "port. PORT2 can be empty to not override ports. Multiple overrides can be "
     "specified separated by semi-colons.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::optional<std::string>,
+                                expect_gateway_error, std::nullopt,
+                                "If set, the client will expect this text in "
+                                "the error message for the gateway response.");
+
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::optional<int16_t>, expect_gateway_response_code, std::nullopt,
     "If set, the client will expect this response code from the gateway.");
@@ -79,6 +84,8 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
       quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_file);
   const std::string client_cert_key_file =
       quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_key_file);
+  const std::optional<std::string> expect_gateway_error =
+      quiche::GetQuicheCommandLineFlag(FLAGS_expect_gateway_error);
   const std::optional<int16_t> expect_gateway_response_code =
       quiche::GetQuicheCommandLineFlag(FLAGS_expect_gateway_response_code);
 
@@ -109,6 +116,9 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
     per_request_config.SetPostData(post_data);
     per_request_config.SetUseChunkedOhttp(use_chunked_ohttp);
     per_request_config.SetPrivateToken(private_token);
+    if (expect_gateway_error.has_value()) {
+      per_request_config.SetExpectedGatewayError(*expect_gateway_error);
+    }
     if (expect_gateway_response_code.has_value()) {
       per_request_config.SetExpectedGatewayStatusCode(
           *expect_gateway_response_code);

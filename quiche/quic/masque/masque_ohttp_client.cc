@@ -478,7 +478,15 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
   }
   auto cleanup =
       absl::MakeCleanup([this, it]() { pending_ohttp_requests_.erase(it); });
-  QUICHE_RETURN_IF_ERROR(response.status());
+  if (!response.ok()) {
+    if (it->second.per_request_config.expected_gateway_error().has_value() &&
+        absl::StrContains(
+            response.status().message(),
+            *it->second.per_request_config.expected_gateway_error())) {
+      return absl::OkStatus();
+    }
+    return response.status();
+  }
   int16_t gateway_status_code = MasqueConnectionPool::GetStatusCode(*response);
   if (it->second.per_request_config.expected_gateway_status_code()
           .has_value()) {
