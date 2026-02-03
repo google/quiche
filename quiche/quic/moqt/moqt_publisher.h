@@ -11,6 +11,7 @@
 
 #include "absl/base/nullability.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -33,7 +34,7 @@ class MoqtObjectListener {
   virtual void OnSubscribeAccepted() = 0;
   // Called when the publisher is sure that it cannot serve the subscription.
   // This could happen synchronously or asynchronously.
-  virtual void OnSubscribeRejected(MoqtErrorPair reason) = 0;
+  virtual void OnSubscribeRejected(MoqtRequestErrorInfo info) = 0;
 
   // Notifies that a new object is available on the track.  The object payload
   // itself may be retrieved via GetCachedObject method of the associated track

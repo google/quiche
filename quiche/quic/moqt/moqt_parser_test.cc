@@ -44,6 +44,8 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kTrackStatus,
     MoqtMessageType::kPublishNamespace,
     MoqtMessageType::kPublishNamespaceDone,
+    MoqtMessageType::kNamespace,
+    MoqtMessageType::kNamespaceDone,
     MoqtMessageType::kPublishNamespaceCancel,
     MoqtMessageType::kClientSetup,
     MoqtMessageType::kServerSetup,
@@ -1619,6 +1621,25 @@ TEST_F(MoqtMessageSpecificTest, PublishOkHasMaxCacheDuration) {
       0x01, 0x04, 0x67, 0x10,  // MaxCacheDuration = 10000
   };
   stream.Receive(absl::string_view(publish_ok, sizeof(publish_ok)), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.messages_received_, 0);
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+}
+
+TEST_F(MoqtMessageSpecificTest, InvalidSubscribeNamespaceOption) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  char subscribe_namespace[] = {
+      0x11, 0x00, 0x11, 0x01,                    // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,              // namespace = "foo"
+      0x03,                                      // subscribe_options invalid
+      0x02,                                      // 2 parameters
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x0d, 0x01,                                // forward = true
+  };
+  stream.Receive(
+      absl::string_view(subscribe_namespace, sizeof(subscribe_namespace)),
+      false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);

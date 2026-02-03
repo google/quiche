@@ -101,7 +101,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // Returns true if message was sent.
   bool SubscribeNamespace(TrackNamespace track_namespace,
                           MoqtOutgoingSubscribeNamespaceCallback callback,
-                          VersionSpecificParameters parameters);
+                          MessageParameters parameters);
   bool UnsubscribeNamespace(TrackNamespace track_namespace);
 
   // Allows the subscriber to declare it will not subscribe to |track_namespace|
@@ -383,7 +383,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     // MoqtObjectListener implementation.
     void OnSubscribeAccepted() override;
-    void OnSubscribeRejected(MoqtErrorPair reason) override;
+    void OnSubscribeRejected(MoqtRequestErrorInfo info) override;
     // This is only called for objects that have just arrived.
     void OnNewObjectAvailable(
         Location location, uint64_t subgroup, MoqtPriority publisher_priority,
@@ -653,31 +653,18 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
         QUICHE_NOTREACHED();
         return;
       }
-      VersionSpecificParameters parameters;
-      // TODO(martinduke): Turn these into parameters.
-#if 0
-      QUICHE_BUG_IF(quic_bug_track_status_ok_no_expiration,
-                    !publisher_->expiration().has_value())
-          << "Request accepted without expiration";
-      track_status_ok.expires =
-          publisher_->expiration().value_or(quic::QuicTimeDelta::Zero());
-               QUICHE_BUG_IF(quic_bug_track_status_ok_no_delivery_order,
-                    !publisher_->delivery_order().has_value())
-          << "Request accepted without delivery order";
-      track_status_ok.group_order =
-          publisher_->delivery_order().value_or(MoqtDeliveryOrder::kAscending);
-      track_status_ok.largest_location = publisher_->largest_location();
-      session_->SendControlMessage(
-          session_->framer_.SerializeTrackStatusOk(track_status_ok));
-#endif
+      MessageParameters parameters;
+      parameters.expires = publisher_->expiration();
+      parameters.largest_object = publisher_->largest_location();
       session_->GetControlStream()->SendRequestOk(request_id_, parameters);
       session_->incoming_track_status_.erase(request_id_);
       // No class access below this line!
     }
 
-    void OnSubscribeRejected(MoqtErrorPair error_reason) override {
+    void OnSubscribeRejected(MoqtRequestErrorInfo info) override {
       session_->GetControlStream()->SendRequestError(
-          request_id_, error_reason.error_code, error_reason.reason_phrase);
+          request_id_, info.error_code, info.retry_interval,
+          info.reason_phrase);
       session_->incoming_track_status_.erase(request_id_);
       // No class access below this line!
     }
@@ -692,8 +679,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnGroupAbandoned(uint64_t /*group_id*/) override {}
     void OnTrackPublisherGone() override {
       publisher_ = nullptr;
-      OnSubscribeRejected(MoqtErrorPair(RequestErrorCode::kTrackDoesNotExist,
-                                        "Track publisher gone"));
+      OnSubscribeRejected(
+          MoqtRequestErrorInfo(RequestErrorCode::kTrackDoesNotExist,
+                               std::nullopt, "Track publisher gone"));
     }
 
    private:

@@ -511,14 +511,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
 
 quiche::QuicheBuffer MoqtFramer::SerializeRequestOk(
     const MoqtRequestOk& message) {
-  KeyValuePairList parameters;
-  if (!FillAndValidateVersionSpecificParameters(
-          MoqtMessageType::kRequestOk, message.parameters, parameters)) {
-    return quiche::QuicheBuffer();
-  };
-  return SerializeControlMessage(MoqtMessageType::kRequestOk,
-                                 WireVarInt62(message.request_id),
-                                 WireKeyValuePairList(parameters));
+  return SerializeControlMessage(
+      MoqtMessageType::kRequestOk, WireVarInt62(message.request_id),
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
@@ -548,6 +543,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeRequestError(
   return SerializeControlMessage(
       MoqtMessageType::kRequestError, WireVarInt62(message.request_id),
       WireVarInt62(message.error_code),
+      WireVarInt62(message.retry_interval.has_value()
+                       ? message.retry_interval->ToMilliseconds() + 1
+                       : 0),
       WireStringWithVarInt62Length(message.reason_phrase));
 }
 
@@ -600,6 +598,20 @@ quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceDone(
                                  WireTrackNamespace(message.track_namespace));
 }
 
+quiche::QuicheBuffer MoqtFramer::SerializeNamespace(
+    const MoqtNamespace& message) {
+  return SerializeControlMessage(
+      MoqtMessageType::kNamespace,
+      WireTrackNamespace(message.track_namespace_suffix));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeNamespaceDone(
+    const MoqtNamespaceDone& message) {
+  return SerializeControlMessage(
+      MoqtMessageType::kNamespaceDone,
+      WireTrackNamespace(message.track_namespace_suffix));
+}
+
 quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceCancel(
     const MoqtPublishNamespaceCancel& message) {
   return SerializeControlMessage(
@@ -623,16 +635,11 @@ quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespace(
     const MoqtSubscribeNamespace& message) {
-  KeyValuePairList parameters;
-  if (!FillAndValidateVersionSpecificParameters(
-          MoqtMessageType::kSubscribeNamespace, message.parameters,
-          parameters)) {
-    return quiche::QuicheBuffer();
-  };
-  return SerializeControlMessage(MoqtMessageType::kSubscribeNamespace,
-                                 WireVarInt62(message.request_id),
-                                 WireTrackNamespace(message.track_namespace),
-                                 WireKeyValuePairList(parameters));
+  return SerializeControlMessage(
+      MoqtMessageType::kSubscribeNamespace, WireVarInt62(message.request_id),
+      WireTrackNamespace(message.track_namespace_prefix),
+      WireVarInt62(message.subscribe_options),
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribeNamespace(

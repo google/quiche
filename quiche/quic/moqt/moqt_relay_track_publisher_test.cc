@@ -31,7 +31,8 @@ const FullTrackName kTrackName = {"test", "track"};
 class MockMoqtObjectListener : public MoqtObjectListener {
  public:
   MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
-  MOCK_METHOD(void, OnSubscribeRejected, (MoqtErrorPair reason), (override));
+  MOCK_METHOD(void, OnSubscribeRejected, (MoqtRequestErrorInfo reason),
+              (override));
   MOCK_METHOD(void, OnNewObjectAvailable,
               (Location sequence, uint64_t subgroup,
                MoqtPriority publisher_priority,
@@ -306,8 +307,9 @@ TEST_F(MoqtRelayTrackPublisherTest, SubscribeRejected) {
   EXPECT_CALL(listener_, OnSubscribeRejected).WillOnce([this] {
     publisher_.RemoveObjectListener(&listener_);
   });
-  publisher_.OnReply(kTrackName, MoqtErrorPair{RequestErrorCode::kUnauthorized,
-                                               "Unauthorized"});
+  publisher_.OnReply(kTrackName,
+                     MoqtRequestErrorInfo{RequestErrorCode::kUnauthorized,
+                                          std::nullopt, "Unauthorized"});
   EXPECT_TRUE(track_deleted_);
 }
 

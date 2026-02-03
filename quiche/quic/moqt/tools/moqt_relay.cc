@@ -16,7 +16,8 @@
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_server_id.h"
-#include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
@@ -122,10 +123,9 @@ void MoqtRelay::SetNamespaceCallbacks(MoqtSessionInterface* session) {
         }
       };
   session->callbacks().incoming_subscribe_namespace_callback =
-      [this, session](
-          const TrackNamespace& track_namespace,
-          const std::optional<VersionSpecificParameters>& parameters,
-          MoqtResponseCallback callback) {
+      [this, session](const TrackNamespace& track_namespace,
+                      const std::optional<MessageParameters>& parameters,
+                      MoqtResponseCallback callback) {
         if (is_closing_) {
           return;
         }

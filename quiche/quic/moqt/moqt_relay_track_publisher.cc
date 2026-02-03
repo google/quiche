@@ -30,12 +30,12 @@ namespace moqt {
 
 void MoqtRelayTrackPublisher::OnReply(
     const FullTrackName&,
-    std::variant<SubscribeOkData, MoqtErrorPair> response) {
+    std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) {
   if (is_closing_) {
     return;
   }
-  if (std::holds_alternative<MoqtErrorPair>(response)) {
-    auto request_error = std::get<MoqtErrorPair>(response);
+  if (std::holds_alternative<MoqtRequestErrorInfo>(response)) {
+    auto request_error = std::get<MoqtRequestErrorInfo>(response);
     // Delete upstream_ to avoid sending UNSUBSCRIBE.
     upstream_ = quiche::QuicheWeakPtr<MoqtSessionInterface>();
     // Sessions will delete listeners, causing the track to delete itself.
@@ -303,8 +303,8 @@ void MoqtRelayTrackPublisher::AddObjectListener(MoqtObjectListener* listener) {
     MoqtSessionInterface* session = upstream_.GetIfAvailable();
     if (session == nullptr) {
       // upstream went away, reject the subscribe.
-      listener->OnSubscribeRejected(MoqtErrorPair{
-          RequestErrorCode::kInternalError,
+      listener->OnSubscribeRejected(MoqtRequestErrorInfo{
+          RequestErrorCode::kInternalError, std::nullopt,
           "The upstream session was closed before a subscription could be "
           "established."});
       DeleteTrack();

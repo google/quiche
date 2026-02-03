@@ -49,6 +49,8 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
       const MoqtPublishNamespace& message) = 0;
   virtual void OnPublishNamespaceDoneMessage(
       const MoqtPublishNamespaceDone& message) = 0;
+  virtual void OnNamespaceMessage(const MoqtNamespace& message) = 0;
+  virtual void OnNamespaceDoneMessage(const MoqtNamespaceDone& message) = 0;
   virtual void OnPublishNamespaceCancelMessage(
       const MoqtPublishNamespaceCancel& message) = 0;
   virtual void OnTrackStatusMessage(const MoqtTrackStatus& message) = 0;
@@ -139,6 +141,8 @@ class QUICHE_EXPORT MoqtControlParser {
   size_t ProcessSubscribeUpdate(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespace(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespaceDone(quic::QuicDataReader& reader);
+  size_t ProcessNamespace(quic::QuicDataReader& reader);
+  size_t ProcessNamespaceDone(quic::QuicDataReader& reader);
   size_t ProcessPublishNamespaceCancel(quic::QuicDataReader& reader);
   size_t ProcessTrackStatus(quic::QuicDataReader& reader);
   size_t ProcessGoAway(quic::QuicDataReader& reader);

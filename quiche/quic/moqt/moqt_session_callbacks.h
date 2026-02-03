@@ -11,7 +11,9 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_default_clock.h"
-#include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/common/quiche_callbacks.h"
 
 namespace moqt {
@@ -20,7 +22,7 @@ namespace moqt {
 // once; if the argument is nullopt, an OK response was received. Otherwise, an
 // ERROR response was received.
 using MoqtResponseCallback =
-    quiche::SingleUseCallback<void(std::optional<MoqtErrorPair>)>;
+    quiche::SingleUseCallback<void(std::optional<MoqtRequestErrorInfo>)>;
 
 // Called when the SETUP message from the peer is received.
 using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
@@ -48,10 +50,10 @@ using MoqtIncomingPublishNamespaceCallback = quiche::MultiUseCallback<void(
 // the peer. SUBSCRIBE_NAMESPACE sets a value for |parameters|,
 // UNSUBSCRIBE_NAMESPACE does not. For UNSUBSCRIBE_NAMESPACE, |callback| is
 // null.
-using MoqtIncomingSubscribeNamespaceCallback = quiche::MultiUseCallback<void(
-    const TrackNamespace& track_namespace,
-    std::optional<VersionSpecificParameters> parameters,
-    MoqtResponseCallback callback)>;
+using MoqtIncomingSubscribeNamespaceCallback =
+    quiche::MultiUseCallback<void(const TrackNamespace& track_namespace,
+                                  std::optional<MessageParameters> parameters,
+                                  MoqtResponseCallback callback)>;
 
 inline void DefaultIncomingPublishNamespaceCallback(
     const TrackNamespace&, const std::optional<VersionSpecificParameters>&,
@@ -59,14 +61,14 @@ inline void DefaultIncomingPublishNamespaceCallback(
   if (callback == nullptr) {
     return;
   }
-  return std::move(callback)(MoqtErrorPair{
-      RequestErrorCode::kNotSupported,
+  return std::move(callback)(MoqtRequestErrorInfo{
+      RequestErrorCode::kNotSupported, std::nullopt,
       "This endpoint does not support incoming SUBSCRIBE_NAMESPACE messages"});
 };
 
 inline void DefaultIncomingSubscribeNamespaceCallback(
-    const TrackNamespace& track_namespace,
-    std::optional<VersionSpecificParameters>, MoqtResponseCallback callback) {
+    const TrackNamespace& track_namespace, std::optional<MessageParameters>,
+    MoqtResponseCallback callback) {
   std::move(callback)(std::nullopt);
 }
 

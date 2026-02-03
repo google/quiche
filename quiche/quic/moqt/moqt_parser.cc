@@ -599,6 +599,12 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kPublishNamespaceDone:
       bytes_read = ProcessPublishNamespaceDone(reader);
       break;
+    case MoqtMessageType::kNamespace:
+      bytes_read = ProcessNamespace(reader);
+      break;
+    case MoqtMessageType::kNamespaceDone:
+      bytes_read = ProcessNamespaceDone(reader);
+      break;
     case MoqtMessageType::kPublishNamespaceCancel:
       bytes_read = ProcessPublishNamespaceCancel(reader);
       break;
@@ -726,12 +732,19 @@ size_t MoqtControlParser::ProcessSubscribeOk(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessRequestError(quic::QuicDataReader& reader) {
   MoqtRequestError request_error;
   uint64_t error_code;
+  uint64_t raw_interval;
   if (!reader.ReadVarInt62(&request_error.request_id) ||
       !reader.ReadVarInt62(&error_code) ||
+      !reader.ReadVarInt62(&raw_interval) ||
       !reader.ReadStringVarInt62(request_error.reason_phrase)) {
     return 0;
   }
   request_error.error_code = static_cast<RequestErrorCode>(error_code);
+  request_error.retry_interval =
+      (raw_interval == 0)
+          ? std::nullopt
+          : std::make_optional(
+                quic::QuicTimeDelta::FromMilliseconds(raw_interval - 1));
   visitor_.OnRequestErrorMessage(request_error);
   return reader.PreviouslyReadPayload().length();
 }
@@ -816,17 +829,30 @@ size_t MoqtControlParser::ProcessPublishNamespace(
   return reader.PreviouslyReadPayload().length();
 }
 
+size_t MoqtControlParser::ProcessNamespace(quic::QuicDataReader& reader) {
+  MoqtNamespace _namespace;
+  if (!ReadTrackNamespace(reader, _namespace.track_namespace_suffix)) {
+    return 0;
+  }
+  visitor_.OnNamespaceMessage(_namespace);
+  return reader.PreviouslyReadPayload().length();
+}
+
+size_t MoqtControlParser::ProcessNamespaceDone(quic::QuicDataReader& reader) {
+  MoqtNamespaceDone namespace_done;
+  if (!ReadTrackNamespace(reader, namespace_done.track_namespace_suffix)) {
+    return 0;
+  }
+  visitor_.OnNamespaceDoneMessage(namespace_done);
+  return reader.PreviouslyReadPayload().length();
+}
+
 size_t MoqtControlParser::ProcessRequestOk(quic::QuicDataReader& reader) {
   MoqtRequestOk request_ok;
   if (!reader.ReadVarInt62(&request_ok.request_id)) {
     return 0;
   }
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (!FillAndValidateVersionSpecificParameters(
-          parameters, request_ok.parameters, MoqtMessageType::kRequestOk)) {
+  if (!FillAndValidateMessageParameters(reader, request_ok.parameters)) {
     return 0;
   }
   visitor_.OnRequestOkMessage(request_ok);
@@ -876,17 +902,20 @@ size_t MoqtControlParser::ProcessGoAway(quic::QuicDataReader& reader) {
 size_t MoqtControlParser::ProcessSubscribeNamespace(
     quic::QuicDataReader& reader) {
   MoqtSubscribeNamespace subscribe_namespace;
+  uint64_t raw_option;
   if (!reader.ReadVarInt62(&subscribe_namespace.request_id) ||
-      !ReadTrackNamespace(reader, subscribe_namespace.track_namespace)) {
+      !ReadTrackNamespace(reader, subscribe_namespace.track_namespace_prefix) ||
+      !reader.ReadVarInt62(&raw_option)) {
     return 0;
   }
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
+  if (raw_option > kMaxSubscribeOption) {
+    ParseError("Invalid SUBSCRIBE_NAMESPACE option");
     return 0;
   }
-  if (!FillAndValidateVersionSpecificParameters(
-          parameters, subscribe_namespace.parameters,
-          MoqtMessageType::kSubscribeNamespace)) {
+  subscribe_namespace.subscribe_options =
+      static_cast<SubscribeNamespaceOption>(raw_option);
+  if (!FillAndValidateMessageParameters(reader,
+                                        subscribe_namespace.parameters)) {
     return 0;
   }
   visitor_.OnSubscribeNamespaceMessage(subscribe_namespace);
@@ -1405,6 +1434,7 @@ void MoqtDataParser::AdvanceParserState() {
       next_input_ = kGroupId;
       break;
     case kGroupId:
+      QUICHE_CHECK(type_.has_value());
       if (type_->IsFetch() || type_->IsSubgroupPresent()) {
         next_input_ = kSubgroupId;
         break;
@@ -1416,14 +1446,17 @@ void MoqtDataParser::AdvanceParserState() {
           type_->HasDefaultPriority() ? kObjectId : kPublisherPriority;
       break;
     case kSubgroupId:
+      QUICHE_CHECK(type_.has_value());
       next_input_ = (type_->IsFetch() || type_->HasDefaultPriority())
                         ? kObjectId
                         : kPublisherPriority;
       break;
     case kPublisherPriority:
+      QUICHE_CHECK(type_.has_value());
       next_input_ = type_->IsFetch() ? kExtensionSize : kObjectId;
       break;
     case kObjectId:
+      QUICHE_CHECK(type_.has_value());
       if (type_->HasDefaultPriority()) {
         metadata_.publisher_priority = default_publisher_priority_;
       }

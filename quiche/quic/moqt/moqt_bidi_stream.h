@@ -17,6 +17,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
@@ -96,6 +97,13 @@ class MoqtBidiStreamBase : public MoqtControlParserVisitor,
   }
   virtual void OnPublishNamespaceDoneMessage(
       const MoqtPublishNamespaceDone& message) override {
+    OnParsingError(wrong_message_error_, wrong_message_reason_);
+  }
+  virtual void OnNamespaceMessage(const MoqtNamespace& message) override {
+    OnParsingError(wrong_message_error_, wrong_message_reason_);
+  }
+  virtual void OnNamespaceDoneMessage(
+      const MoqtNamespaceDone& message) override {
     OnParsingError(wrong_message_error_, wrong_message_reason_);
   }
   virtual void OnPublishNamespaceCancelMessage(
@@ -182,20 +190,26 @@ class MoqtBidiStreamBase : public MoqtControlParserVisitor,
     }
     SendMessage(std::move(message), fin);
   }
-  void SendRequestOk(uint64_t request_id,
-                     const VersionSpecificParameters& parameters,
+  void SendRequestOk(uint64_t request_id, const MessageParameters& parameters,
                      bool fin = false) {
     SendOrBufferMessage(
         framer_->SerializeRequestOk(MoqtRequestOk{request_id, parameters}),
         fin);
   }
   void SendRequestError(uint64_t request_id, RequestErrorCode error_code,
+                        std::optional<quic::QuicTimeDelta> retry_interval,
                         absl::string_view reason_phrase, bool fin = false) {
     MoqtRequestError request_error;
     request_error.request_id = request_id;
     request_error.error_code = error_code;
+    request_error.retry_interval = retry_interval;
     request_error.reason_phrase = reason_phrase;
     SendOrBufferMessage(framer_->SerializeRequestError(request_error), fin);
+  }
+  void SendRequestError(uint64_t request_id, MoqtRequestErrorInfo info,
+                        bool fin = false) {
+    SendRequestError(request_id, info.error_code, info.retry_interval,
+                     info.reason_phrase, fin);
   }
   void Fin() {
     fin_queued_ = true;

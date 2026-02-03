@@ -44,6 +44,8 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kPublishDone,
       MoqtMessageType::kPublishNamespace,
       MoqtMessageType::kPublishNamespaceDone,
+      MoqtMessageType::kNamespace,
+      MoqtMessageType::kNamespaceDone,
       MoqtMessageType::kPublishNamespaceCancel,
       MoqtMessageType::kTrackStatus,
       MoqtMessageType::kGoAway,
@@ -134,7 +136,6 @@ class MoqtFramerTest
         auto data = std::get<MoqtSubscribeOk>(structured_data);
         return framer_.SerializeSubscribeOk(data);
       }
-
       case MoqtMessageType::kUnsubscribe: {
         auto data = std::get<MoqtUnsubscribe>(structured_data);
         return framer_.SerializeUnsubscribe(data);
@@ -150,6 +151,14 @@ class MoqtFramerTest
       case MoqtMessageType::kPublishNamespaceDone: {
         auto data = std::get<MoqtPublishNamespaceDone>(structured_data);
         return framer_.SerializePublishNamespaceDone(data);
+      }
+      case MoqtMessageType::kNamespace: {
+        auto data = std::get<MoqtNamespace>(structured_data);
+        return framer_.SerializeNamespace(data);
+      }
+      case MoqtMessageType::kNamespaceDone: {
+        auto data = std::get<MoqtNamespaceDone>(structured_data);
+        return framer_.SerializeNamespaceDone(data);
       }
       case moqt::MoqtMessageType::kPublishNamespaceCancel: {
         auto data = std::get<MoqtPublishNamespaceCancel>(structured_data);

@@ -77,6 +77,12 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
       const MoqtPublishNamespaceDone& message) override {
     OnControlMessage(message);
   }
+  void OnNamespaceMessage(const MoqtNamespace& message) override {
+    OnControlMessage(message);
+  }
+  void OnNamespaceDoneMessage(const MoqtNamespaceDone& message) override {
+    OnControlMessage(message);
+  }
   void OnPublishNamespaceCancelMessage(
       const MoqtPublishNamespaceCancel& message) override {
     OnControlMessage(message);

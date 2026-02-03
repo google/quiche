@@ -100,7 +100,7 @@ class ChatClient {
 
     void OnReply(
         const moqt::FullTrackName& full_track_name,
-        std::variant<SubscribeOkData, MoqtErrorPair> response) override;
+        std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) override;
 
     void OnCanAckObjects(MoqtObjectAckFunction) override {}
 

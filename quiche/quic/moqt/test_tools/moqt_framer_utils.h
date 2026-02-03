@@ -25,14 +25,16 @@ namespace moqt::test {
 
 // TODO: remove MoqtObject from TestMessageBase::MessageStructuredData and merge
 // those two types.
-using MoqtGenericFrame = std::variant<
-    MoqtClientSetup, MoqtServerSetup, MoqtRequestOk, MoqtRequestError,
-    MoqtSubscribe, MoqtSubscribeOk, MoqtUnsubscribe, MoqtPublishDone,
-    MoqtSubscribeUpdate, MoqtPublishNamespace, MoqtPublishNamespaceDone,
-    MoqtPublishNamespaceCancel, MoqtTrackStatus, MoqtGoAway,
-    MoqtSubscribeNamespace, MoqtUnsubscribeNamespace, MoqtMaxRequestId,
-    MoqtFetch, MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish,
-    MoqtPublishOk, MoqtObjectAck>;
+using MoqtGenericFrame =
+    std::variant<MoqtClientSetup, MoqtServerSetup, MoqtRequestOk,
+                 MoqtRequestError, MoqtSubscribe, MoqtSubscribeOk,
+                 MoqtUnsubscribe, MoqtPublishDone, MoqtSubscribeUpdate,
+                 MoqtPublishNamespace, MoqtPublishNamespaceDone, MoqtNamespace,
+                 MoqtNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
+                 MoqtGoAway, MoqtSubscribeNamespace, MoqtUnsubscribeNamespace,
+                 MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
+                 MoqtRequestsBlocked, MoqtPublish, MoqtPublishOk,
+                 MoqtObjectAck>;
 
 std::string SerializeGenericMessage(const MoqtGenericFrame& frame,
                                     bool use_webtrans = false);

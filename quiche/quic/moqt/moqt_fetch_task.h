@@ -5,11 +5,13 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_FETCH_TASK_H_
 #define QUICHE_QUIC_MOQT_MOQT_FETCH_TASK_H_
 
+#include <optional>
 #include <string>
 #include <utility>
 #include <variant>
 
 #include "absl/status/status.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -76,7 +78,7 @@ class MoqtFailedFetch : public MoqtFetchTask {
       ObjectsAvailableCallback /*callback*/) override {}
   void SetFetchResponseCallback(FetchResponseCallback callback) override {
     MoqtRequestError error{/*request_id=*/0, StatusToRequestErrorCode(status_),
-                           std::string(status_.message())};
+                           std::nullopt, std::string(status_.message())};
     std::move(callback)(error);
   }
 

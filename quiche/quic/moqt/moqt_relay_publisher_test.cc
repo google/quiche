@@ -77,10 +77,10 @@ TEST_F(MoqtRelayPublisherTest, GetTrackFromDefaultUpstream) {
 
 TEST_F(MoqtRelayPublisherTest, PublishNamespaceLifecycle) {
   EXPECT_EQ(publisher_.GetTrack(FullTrackName("foo", "bar")), nullptr);
-  std::optional<MoqtErrorPair> response;
+  std::optional<MoqtRequestErrorInfo> response;
   publisher_.OnPublishNamespace(
       TrackNamespace({"foo"}), VersionSpecificParameters(), &session_,
-      [&](std::optional<MoqtErrorPair> error_response) {
+      [&](std::optional<MoqtRequestErrorInfo> error_response) {
         response = error_response;
       });
   EXPECT_EQ(response, std::nullopt);

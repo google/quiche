@@ -121,6 +121,10 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "TRACK_STATUS";
     case MoqtMessageType::kPublishNamespace:
       return "PUBLISH_NAMESPACE";
+    case MoqtMessageType::kNamespace:
+      return "NAMESPACE";
+    case MoqtMessageType::kNamespaceDone:
+      return "NAMESPACE_DONE";
     case MoqtMessageType::kRequestOk:
       return "REQUEST_OK";
     case MoqtMessageType::kPublishNamespaceDone:

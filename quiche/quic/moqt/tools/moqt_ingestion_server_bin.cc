@@ -29,6 +29,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_session.h"
@@ -129,9 +130,9 @@ class MoqtIngestionHandler {
           << "Rejected remote publish_namespace as it contained "
              "disallowed characters; namespace: "
           << track_namespace;
-      std::move(callback)(
-          MoqtErrorPair{RequestErrorCode::kInternalError,
-                        "Track namespace contains disallowed characters"});
+      std::move(callback)(MoqtRequestErrorInfo{
+          RequestErrorCode::kInternalError, std::nullopt,
+          "Track namespace contains disallowed characters"});
       return;
     }
 
@@ -151,8 +152,9 @@ class MoqtIngestionHandler {
       subscribed_namespaces_.erase(it);
       QUICHE_LOG(ERROR) << "Failed to create directory " << directory_path
                         << "; " << status;
-      std::move(callback)(MoqtErrorPair{RequestErrorCode::kInternalError,
-                                        "Failed to create output directory"});
+      std::move(callback)(
+          MoqtRequestErrorInfo{RequestErrorCode::kInternalError, std::nullopt,
+                               "Failed to create output directory"});
       return;
     }
 
@@ -175,11 +177,11 @@ class MoqtIngestionHandler {
 
     void OnReply(
         const FullTrackName& full_track_name,
-        std::variant<SubscribeOkData, MoqtErrorPair> response) override {
-      if (std::holds_alternative<MoqtErrorPair>(response)) {
-        QUICHE_LOG(ERROR) << "Failed to subscribe to the peer track "
-                          << full_track_name << ": "
-                          << std::get<MoqtErrorPair>(response).reason_phrase;
+        std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) override {
+      if (std::holds_alternative<MoqtRequestErrorInfo>(response)) {
+        QUICHE_LOG(ERROR)
+            << "Failed to subscribe to the peer track " << full_track_name
+            << ": " << std::get<MoqtRequestErrorInfo>(response).reason_phrase;
       }
     }
 

@@ -6,10 +6,12 @@
 #define QUICHE_QUIC_MOQT_MOQT_ERROR_H_
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -70,8 +72,9 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kExpiredAuthToken = 0x12,
 };
 
-struct MoqtErrorPair {
+struct MoqtRequestErrorInfo {
   RequestErrorCode error_code;
+  std::optional<quic::QuicTimeDelta> retry_interval;
   std::string reason_phrase;
 };
 

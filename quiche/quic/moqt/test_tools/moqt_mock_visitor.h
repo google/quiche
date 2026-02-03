@@ -42,7 +42,7 @@ struct MockSessionCallbacks {
                              MoqtResponseCallback)>
       incoming_publish_namespace_callback;
   testing::MockFunction<void(const TrackNamespace&,
-                             std::optional<VersionSpecificParameters>,
+                             std::optional<MessageParameters>,
                              MoqtResponseCallback)>
       incoming_subscribe_namespace_callback;
 
@@ -182,7 +182,7 @@ class MockSubscribeRemoteTrackVisitor : public SubscribeVisitor {
  public:
   MOCK_METHOD(void, OnReply,
               (const FullTrackName& full_track_name,
-               (std::variant<SubscribeOkData, MoqtErrorPair> response)),
+               (std::variant<SubscribeOkData, MoqtRequestErrorInfo> response)),
               (override));
   MOCK_METHOD(void, OnCanAckObjects, (MoqtObjectAckFunction ack_function),
               (override));
@@ -269,7 +269,7 @@ class MockFetchTask : public MoqtFetchTask {
 class MockMoqtObjectListener : public MoqtObjectListener {
  public:
   MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
-  MOCK_METHOD(void, OnSubscribeRejected, (MoqtErrorPair), (override));
+  MOCK_METHOD(void, OnSubscribeRejected, (MoqtRequestErrorInfo), (override));
   MOCK_METHOD(void, OnNewObjectAvailable,
               (Location, uint64_t, MoqtPriority, MoqtForwardingPreference),
               (override));

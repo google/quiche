@@ -66,8 +66,9 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   MoqtRelayTrackPublisher& operator=(MoqtRelayTrackPublisher&&) = default;
 
   // SubscribeVisitor implementation.
-  void OnReply(const FullTrackName& full_track_name,
-               std::variant<SubscribeOkData, MoqtErrorPair> response) override;
+  void OnReply(
+      const FullTrackName& full_track_name,
+      std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) override;
   // TODO(vasilvv): Implement this if we want to support Object Acks across
   // relays.
   void OnCanAckObjects(MoqtObjectAckFunction /*ack_function*/) override {}

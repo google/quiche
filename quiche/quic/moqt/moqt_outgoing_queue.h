@@ -124,13 +124,13 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
     void SetFetchResponseCallback(FetchResponseCallback callback) override {
       if (!status_.ok()) {
         MoqtRequestError error(0, StatusToRequestErrorCode(status_),
-                               std::string(status_.message()));
+                               std::nullopt, std::string(status_.message()));
         std::move(callback)(error);
         return;
       }
       if (objects_.empty()) {
         MoqtRequestError error(0, StatusToRequestErrorCode(status_),
-                               "No objects in range");
+                               std::nullopt, "No objects in range");
         std::move(callback)(error);
         return;
       }
