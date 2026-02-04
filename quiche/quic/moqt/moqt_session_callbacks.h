@@ -60,9 +60,9 @@ using MoqtIncomingSubscribeNamespaceCallback =
                                   MoqtResponseCallback callback)>;
 using MoqtIncomingSubscribeNamespaceCallbackNew =
     quiche::MultiUseCallback<std::unique_ptr<MoqtNamespaceTask>(
-        const TrackNamespace& prefix,
-        std::optional<MessageParameters> parameters,
-        MoqtResponseCallback callback)>;
+        const TrackNamespace& prefix, const MessageParameters& parameters,
+        MoqtResponseCallback response_callback,
+        ObjectsAvailableCallback objects_available_callback)>;
 
 inline void DefaultIncomingPublishNamespaceCallback(
     const TrackNamespace&, const std::optional<VersionSpecificParameters>&,
@@ -83,11 +83,11 @@ inline void DefaultIncomingSubscribeNamespaceCallback(
 }
 inline std::unique_ptr<MoqtNamespaceTask>
 DefaultIncomingSubscribeNamespaceCallbackNew(
-    const TrackNamespace& track_namespace, std::optional<MessageParameters>,
-    MoqtResponseCallback callback) {
-  std::move(callback)(MoqtRequestErrorInfo{RequestErrorCode::kNotSupported,
-                                           std::nullopt,
-                                           "This endpoint cannot publish."});
+    const TrackNamespace&, const MessageParameters&,
+    MoqtResponseCallback response_callback, ObjectsAvailableCallback) {
+  std::move(response_callback)(
+      MoqtRequestErrorInfo{RequestErrorCode::kNotSupported, std::nullopt,
+                           "This endpoint cannot publish."});
   return nullptr;
 }
 

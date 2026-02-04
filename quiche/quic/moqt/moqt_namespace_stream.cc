@@ -126,8 +126,10 @@ void MoqtNamespaceSubscriberStream::OnNamespaceDoneMessage(
 }
 
 std::unique_ptr<MoqtNamespaceTask> MoqtNamespaceSubscriberStream::CreateTask(
-    const TrackNamespace& prefix) {
-  auto task = std::make_unique<NamespaceTask>(this, prefix);
+    const TrackNamespace& prefix,
+    ObjectsAvailableCallback absl_nonnull callback) {
+  auto task =
+      std::make_unique<NamespaceTask>(this, prefix, std::move(callback));
   QUICHE_DCHECK(task != nullptr);
   task_ = task->GetWeakPtr();
   QUICHE_DCHECK(task_.IsValid());
@@ -157,14 +159,6 @@ GetNextResult MoqtNamespaceSubscriberStream::NamespaceTask::GetNextSuffix(
   return kSuccess;
 }
 
-void MoqtNamespaceSubscriberStream::NamespaceTask::SetObjectAvailableCallback(
-    ObjectsAvailableCallback callback) {
-  callback_ = std::move(callback);
-  if (!pending_suffixes_.empty() || eof_ || error_.has_value()) {
-    std::move(callback_)();
-  }
-}
-
 void MoqtNamespaceSubscriberStream::NamespaceTask::AddPendingSuffix(
     TrackNamespace suffix, TransactionType type) {
   if (pending_suffixes_.size() == kMaxPendingSuffixes) {
@@ -176,7 +170,7 @@ void MoqtNamespaceSubscriberStream::NamespaceTask::AddPendingSuffix(
   }
   pending_suffixes_.push_back(PendingSuffix{std::move(suffix), type});
   if (callback_ != nullptr) {
-    std::move(callback_)();
+    callback_();
   }
 }
 
@@ -187,7 +181,7 @@ void MoqtNamespaceSubscriberStream::NamespaceTask::DeclareEof() {
   eof_ = true;
   state_ = nullptr;
   if (callback_ != nullptr) {
-    std::move(callback_)();
+    callback_();
   }
 }
 
@@ -220,64 +214,66 @@ void MoqtNamespacePublisherStream::OnSubscribeNamespaceMessage(
     return;
   }
   QUICHE_DCHECK(task_ == nullptr);
-  task_ = application_(message.track_namespace_prefix, message.parameters,
-                       [this](std::optional<MoqtRequestErrorInfo> error) {
-                         if (error.has_value()) {
-                           SendRequestError(request_id_, *error, /*fin=*/true);
-                         } else {
-                           SendRequestOk(request_id_, MessageParameters());
-                         }
-                       });
+  task_ = application_(
+      message.track_namespace_prefix, message.parameters,
+      // Response callback
+      [this](std::optional<MoqtRequestErrorInfo> error) {
+        if (error.has_value()) {
+          SendRequestError(request_id_, *error, /*fin=*/true);
+        } else {
+          SendRequestOk(request_id_, MessageParameters());
+        }
+      },
+      // Objects available callback
+      [this]() { ProcessNamespaces(); });
+}
+
+void MoqtNamespacePublisherStream::ProcessNamespaces() {
   if (task_ == nullptr) {
     return;
   }
-  task_->SetObjectAvailableCallback([this]() {
-    if (task_ == nullptr) {
-      return;
-    }
-    TrackNamespace suffix;
-    TransactionType type;
-    for (;;) {
-      GetNextResult result = task_->GetNextSuffix(suffix, type);
-      switch (result) {
-        case kPending:
-          return;
-        case kEof:
-          if (!SendFinOnStream(*stream()).ok()) {
-            OnParsingError(MoqtError::kInternalError, "Failed to send FIN");
-          };
-          return;
-        case kError:
-          Reset(kResetCodeCanceled);
-          return;
-        case kSuccess: {
-          switch (type) {
-            case TransactionType::kAdd: {
-              auto [it, inserted] = published_suffixes_.insert(suffix);
-              if (!inserted) {
-                // This should never happen. Do not send something that would
-                // cause a protocol violation.
-                return;
-              }
-              SendOrBufferMessage(
-                  framer_->SerializeNamespace(MoqtNamespace{suffix}));
-              break;
+  TrackNamespace suffix;
+  TransactionType type;
+  while (!QueueIsFull()) {
+    GetNextResult result = task_->GetNextSuffix(suffix, type);
+    switch (result) {
+      case kPending:
+        return;
+      case kEof:
+        if (!SendFinOnStream(*stream()).ok()) {
+          OnParsingError(MoqtError::kInternalError, "Failed to send FIN");
+        };
+        return;
+      case kError:
+        Reset(kResetCodeCanceled);
+        return;
+      case kSuccess: {
+        switch (type) {
+          case TransactionType::kAdd: {
+            auto [it, inserted] = published_suffixes_.insert(suffix);
+            if (!inserted) {
+              // This should never happen. Do not send something that would
+              // cause a protocol violation.
+              return;
             }
-            case TransactionType::kDelete: {
-              if (published_suffixes_.erase(suffix) == 0) {
-                // This should never happen. Do not send something that would
-                // cause a protocol violation.
-                return;
-              }
-              SendOrBufferMessage(
-                  framer_->SerializeNamespaceDone(MoqtNamespaceDone{suffix}));
-              break;
+            SendOrBufferMessage(
+                framer_->SerializeNamespace(MoqtNamespace{suffix}));
+            break;
+          }
+          case TransactionType::kDelete: {
+            if (published_suffixes_.erase(suffix) == 0) {
+              // This should never happen. Do not send something that would
+              // cause a protocol violation.
+              return;
             }
+            SendOrBufferMessage(
+                framer_->SerializeNamespaceDone(MoqtNamespaceDone{suffix}));
+            break;
           }
         }
       }
     }
-  });
+  }
 }
 
 }  // namespace moqt

@@ -49,7 +49,9 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
   void OnNamespaceDoneMessage(const MoqtNamespaceDone& message) override;
 
   // Send the prefix now so it is only stored in one place (the task).
-  std::unique_ptr<MoqtNamespaceTask> CreateTask(const TrackNamespace& prefix);
+  std::unique_ptr<MoqtNamespaceTask> CreateTask(const TrackNamespace& prefix,
+                                                ObjectsAvailableCallback
+                                                absl_nonnull callback);
 
  private:
   // The class that will be passed to the application to consume namespace
@@ -57,17 +59,18 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
   class NamespaceTask : public MoqtNamespaceTask {
    public:
     NamespaceTask(MoqtNamespaceSubscriberStream* absl_nonnull state,
-                  const TrackNamespace& prefix)
+                  const TrackNamespace& prefix,
+                  ObjectsAvailableCallback absl_nonnull callback)
         : MoqtNamespaceTask(),
           prefix_(prefix),
           state_(state),
+          callback_(std::move(callback)),
           weak_ptr_factory_(this) {}
     ~NamespaceTask() override;
     // MoqtNamespaceTask methods. A return value of kEof implies
     // NAMESPACE_DONE for all outstanding namespaces.
     GetNextResult GetNextSuffix(TrackNamespace& suffix,
                                 TransactionType& type) override;
-    void SetObjectAvailableCallback(ObjectsAvailableCallback callback) override;
     std::optional<webtransport::StreamErrorCode> GetStatus() override {
       return error_;
     }
@@ -125,6 +128,8 @@ class MoqtNamespacePublisherStream : public MoqtBidiStreamBase {
   }
 
  private:
+  void ProcessNamespaces();
+
   uint64_t request_id_;
   SessionNamespaceTree& tree_;
   MoqtIncomingSubscribeNamespaceCallbackNew& application_;

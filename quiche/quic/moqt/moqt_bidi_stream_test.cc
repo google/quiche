@@ -257,4 +257,19 @@ TEST_F(MoqtBidiStreamTest, DeletedCallback) {
   stream_.reset();
 }
 
+TEST_F(MoqtBidiStreamTest, PendingQueueFull) {
+  stream_->set_stream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(false));
+  for (int i = 0; i < 100; ++i) {  // kMaxPendingMessages = 100.
+    EXPECT_FALSE(stream_->QueueIsFull());
+    stream_->SendOrBufferMessage(
+        framer_.SerializeSubscribeUpdate(MoqtSubscribeUpdate{}));
+  }
+  EXPECT_TRUE(stream_->QueueIsFull());
+  EXPECT_CALL(error_callback_, Call(MoqtError::kInternalError, _));
+  stream_->SendOrBufferMessage(
+      framer_.SerializeSubscribeUpdate(MoqtSubscribeUpdate{}));
+  EXPECT_TRUE(stream_->QueueIsFull());
+}
+
 }  // namespace moqt::test

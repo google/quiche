@@ -98,12 +98,6 @@ class MoqtNamespaceTask {
   virtual GetNextResult GetNextSuffix(TrackNamespace& suffix,
                                       TransactionType& type) = 0;
 
-  // Sets the callback that is called when a NAMESPACE or NAMESPACE_DONE message
-  // is received. If a message is available immediately, the callback will be
-  // called immediately.
-  virtual void SetObjectAvailableCallback(
-      ObjectsAvailableCallback callback) = 0;
-
   // Returns the error if request has completely failed, and nullopt otherwise.
   virtual std::optional<webtransport::StreamErrorCode> GetStatus() = 0;
 

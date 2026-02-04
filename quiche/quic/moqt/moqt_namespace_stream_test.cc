@@ -44,8 +44,6 @@ class MockNamespaceTask : public MoqtNamespaceTask {
   MOCK_METHOD(GetNextResult, GetNextSuffix,
               (TrackNamespace & whole_namespace, TransactionType& type),
               (override));
-  MOCK_METHOD(void, SetObjectAvailableCallback,
-              (ObjectsAvailableCallback callback), (override));
   MOCK_METHOD(std::optional<webtransport::StreamErrorCode>, GetStatus, (),
               (override));
   const TrackNamespace& prefix() override { return prefix_; }
@@ -61,8 +59,12 @@ class MoqtNamespaceSubscriberStreamTest : public quiche::test::QuicheTest {
         stream_(&framer_, kRequestId, deleted_callback_.AsStdFunction(),
                 error_callback_.AsStdFunction(),
                 response_callback_.AsStdFunction()),
-        task_(stream_.CreateTask(kPrefix)) {
+        task_(stream_.CreateTask(kPrefix, [this]() { ++objects_available_; })) {
     stream_.set_stream(&mock_stream_);
+  }
+
+  void CheckNumberOfObjectsAvailable(int expected_count) {
+    EXPECT_EQ(objects_available_, expected_count);
   }
 
   MoqtFramer framer_;
@@ -72,7 +74,8 @@ class MoqtNamespaceSubscriberStreamTest : public quiche::test::QuicheTest {
       response_callback_;
   webtransport::test::MockStream mock_stream_;
   MoqtNamespaceSubscriberStream stream_;
-  std::unique_ptr<MoqtNamespaceTask> task_ = stream_.CreateTask(kPrefix);
+  int objects_available_ = 0;
+  std::unique_ptr<MoqtNamespaceTask> task_;
 };
 
 TEST_F(MoqtNamespaceSubscriberStreamTest, RequestOk) {
@@ -119,6 +122,7 @@ TEST_F(MoqtNamespaceSubscriberStreamTest, NamespaceAfterResponse) {
   EXPECT_CALL(response_callback_, Call(Eq(std::nullopt)));
   stream_.OnRequestOkMessage({kRequestId});
   stream_.OnNamespaceMessage({TrackNamespace({"bar"})});
+  CheckNumberOfObjectsAvailable(1);
   TrackNamespace received_namespace;
   TransactionType type;
   EXPECT_EQ(task_->GetNextSuffix(received_namespace, type), kSuccess);
@@ -131,7 +135,9 @@ TEST_F(MoqtNamespaceSubscriberStreamTest, NamespaceDoneAfterResponse) {
   EXPECT_CALL(response_callback_, Call(Eq(std::nullopt)));
   stream_.OnRequestOkMessage({kRequestId});
   stream_.OnNamespaceMessage({TrackNamespace({"bar"})});
+  CheckNumberOfObjectsAvailable(1);
   stream_.OnNamespaceDoneMessage({TrackNamespace({"bar"})});
+  CheckNumberOfObjectsAvailable(2);
   TrackNamespace received_namespace;
   TransactionType type;
   EXPECT_EQ(task_->GetNextSuffix(received_namespace, type), kSuccess);
@@ -147,6 +153,7 @@ TEST_F(MoqtNamespaceSubscriberStreamTest, DuplicateNamespace) {
   EXPECT_CALL(response_callback_, Call(Eq(std::nullopt)));
   stream_.OnRequestOkMessage({kRequestId});
   stream_.OnNamespaceMessage({TrackNamespace({"bar"})});
+  CheckNumberOfObjectsAvailable(1);
   EXPECT_CALL(error_callback_,
               Call(MoqtError::kProtocolViolation,
                    "Two NAMESPACE messages for the same track namespace"));
@@ -166,21 +173,24 @@ TEST_F(MoqtNamespaceSubscriberStreamTest, NamespaceDoneThenNamespace) {
   stream_.OnRequestOkMessage({kRequestId});
   EXPECT_CALL(error_callback_, Call).Times(0);
   stream_.OnNamespaceMessage({TrackNamespace({"bar"})});
+  CheckNumberOfObjectsAvailable(1);
   stream_.OnNamespaceDoneMessage({TrackNamespace({"bar"})});
+  CheckNumberOfObjectsAvailable(2);
   stream_.OnNamespaceMessage({TrackNamespace({"buzz"})});
+  CheckNumberOfObjectsAvailable(3);
 }
 
 TEST_F(MoqtNamespaceSubscriberStreamTest, TaskGetNextSuffix) {
   EXPECT_CALL(response_callback_, Call(Eq(std::nullopt)));
   stream_.OnRequestOkMessage({kRequestId});
   stream_.OnNamespaceMessage({TrackNamespace({"bar"})});
+  CheckNumberOfObjectsAvailable(1);
   stream_.OnNamespaceMessage({TrackNamespace({"buzz"})});
+  CheckNumberOfObjectsAvailable(2);
   stream_.OnNamespaceDoneMessage({TrackNamespace({"bar"})});
+  CheckNumberOfObjectsAvailable(3);
   TrackNamespace received_namespace;
   TransactionType type;
-  bool object_available = false;
-  task_->SetObjectAvailableCallback([&]() { object_available = true; });
-  EXPECT_TRUE(object_available);
   EXPECT_EQ(task_->GetNextSuffix(received_namespace, type), kSuccess);
   EXPECT_EQ(received_namespace, TrackNamespace({"bar"}));
   EXPECT_EQ(type, TransactionType::kAdd);
@@ -191,14 +201,32 @@ TEST_F(MoqtNamespaceSubscriberStreamTest, TaskGetNextSuffix) {
   EXPECT_EQ(received_namespace, TrackNamespace({"bar"}));
   EXPECT_EQ(type, TransactionType::kDelete);
   EXPECT_EQ(task_->GetNextSuffix(received_namespace, type), kPending);
-  object_available = false;
   stream_.OnNamespaceMessage({TrackNamespace({"another"})});
-  EXPECT_TRUE(object_available);
-  object_available = false;
+  CheckNumberOfObjectsAvailable(4);
   EXPECT_EQ(task_->GetNextSuffix(received_namespace, type), kSuccess);
   EXPECT_EQ(received_namespace, TrackNamespace({"another"}));
   EXPECT_EQ(type, TransactionType::kAdd);
   EXPECT_EQ(task_->GetNextSuffix(received_namespace, type), kPending);
+}
+
+TEST_F(MoqtNamespaceSubscriberStreamTest, DeclareEof) {
+  auto stream = std::make_unique<MoqtNamespaceSubscriberStream>(
+      &framer_, kRequestId, deleted_callback_.AsStdFunction(),
+      error_callback_.AsStdFunction(), response_callback_.AsStdFunction());
+  std::unique_ptr<MoqtNamespaceTask> task =
+      stream->CreateTask(kPrefix, [this]() { ++objects_available_; });
+  EXPECT_CALL(response_callback_, Call(Eq(std::nullopt)));
+  stream->OnRequestOkMessage({kRequestId});
+  stream->OnNamespaceMessage({TrackNamespace({"bar"})});
+  CheckNumberOfObjectsAvailable(1);
+  stream.reset();
+  CheckNumberOfObjectsAvailable(2);
+  TrackNamespace received_namespace;
+  TransactionType type;
+  EXPECT_EQ(task->GetNextSuffix(received_namespace, type), kSuccess);
+  EXPECT_EQ(received_namespace, TrackNamespace({"bar"}));
+  EXPECT_EQ(type, TransactionType::kAdd);
+  EXPECT_EQ(task->GetNextSuffix(received_namespace, type), kEof);
 }
 
 class MoqtNamespacePublisherStreamTest : public quiche::test::QuicheTest {
@@ -217,8 +245,8 @@ class MoqtNamespacePublisherStreamTest : public quiche::test::QuicheTest {
   webtransport::test::MockStream mock_stream_;
   SessionNamespaceTree tree_;
   testing::MockFunction<std::unique_ptr<MoqtNamespaceTask>(
-      const TrackNamespace&, std::optional<MessageParameters>,
-      MoqtResponseCallback)>
+      const TrackNamespace&, const MessageParameters&, MoqtResponseCallback,
+      ObjectsAvailableCallback)>
       mock_application_;
   MoqtIncomingSubscribeNamespaceCallbackNew application_callback_;
   MoqtNamespacePublisherStream stream_;
@@ -234,15 +262,13 @@ TEST_F(MoqtNamespacePublisherStreamTest, Subscribe) {
   ObjectsAvailableCallback callback;
   MockNamespaceTask* task_ptr;
   EXPECT_CALL(mock_application_, Call)
-      .WillOnce([&](const TrackNamespace&, std::optional<MessageParameters>,
-                    MoqtResponseCallback response_callback) {
+      .WillOnce([&](const TrackNamespace&, const MessageParameters&,
+                    MoqtResponseCallback response_callback,
+                    ObjectsAvailableCallback available_callback) {
         std::move(response_callback)(std::nullopt);
         auto task =
             std::make_unique<MockNamespaceTask>(message.track_namespace_prefix);
-        EXPECT_CALL(*task, SetObjectAvailableCallback)
-            .WillOnce([&](ObjectsAvailableCallback oa_callback) {
-              callback = std::move(oa_callback);
-            });
+        callback = std::move(available_callback);
         task_ptr = task.get();
         return task;
       });
@@ -303,14 +329,13 @@ TEST_F(MoqtNamespacePublisherStreamTest, RequestError) {
       MessageParameters(),
   };
   EXPECT_CALL(mock_application_, Call)
-      .WillOnce([&](const TrackNamespace&, std::optional<MessageParameters>,
-                    MoqtResponseCallback response_callback) {
+      .WillOnce([&](const TrackNamespace&, const MessageParameters&,
+                    MoqtResponseCallback response_callback,
+                    ObjectsAvailableCallback) {
         std::move(response_callback)(MoqtRequestErrorInfo{
             RequestErrorCode::kInternalError,
             quic::QuicTimeDelta::FromMilliseconds(100), "bar"});
-        auto task =
-            std::make_unique<MockNamespaceTask>(message.track_namespace_prefix);
-        return task;
+        return nullptr;
       });
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));

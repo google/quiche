@@ -180,6 +180,10 @@ class MoqtBidiStreamBase : public MoqtControlParserVisitor,
     }
   }
 
+  bool QueueIsFull() const {
+    return pending_messages_.size() == kMaxPendingMessages;
+  }
+
   void SendOrBufferMessage(quiche::QuicheBuffer message, bool fin = false) {
     if (fin_queued_) {
       return;
