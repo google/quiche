@@ -344,21 +344,14 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
     return absl::InternalError(
         "Cannot send OHTTP request without OHTTP client");
   }
-  if (pending_request.per_request_config.use_chunked_ohttp()) {
-    pending_request.chunk_handler = std::make_unique<ChunkHandler>();
-    absl::StatusOr<ChunkedObliviousHttpClient> chunked_client =
-        ChunkedObliviousHttpClient::Create(ohttp_client_->GetPublicKey(),
-                                           ohttp_client_->GetKeyConfig(),
-                                           pending_request.chunk_handler.get());
-    if (!chunked_client.ok()) {
-      return absl::InternalError(
-          absl::StrCat("Failed to create chunked OHTTP client: ",
-                       chunked_client.status().message()));
-    }
-
+  std::string encoded_data;
+  const bool use_indeterminate_length =
+      per_request_config.use_indeterminate_length().value_or(
+          per_request_config.use_chunked_ohttp());
+  if (use_indeterminate_length) {
     BinaryHttpRequest::IndeterminateLengthEncoder encoder;
 
-    QUICHE_ASSIGN_OR_RETURN(std::string encoded_data,
+    QUICHE_ASSIGN_OR_RETURN(encoded_data,
                             encoder.EncodeControlData(control_data));
     std::vector<quiche::BinaryHttpMessage::FieldView> headers;
     if (!formatted_token.empty()) {
@@ -393,40 +386,39 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
     QUICHE_ASSIGN_OR_RETURN(std::string encoded_trailers,
                             encoder.EncodeTrailers(absl::MakeSpan(trailers)));
     encoded_data += encoded_trailers;
-
-    // Intentionally split the data into two chunks to test encryption chunking.
-    QUICHE_ASSIGN_OR_RETURN(encrypted_data,
-                            chunked_client->EncryptRequestChunk(
-                                absl::string_view(encoded_data).substr(0, 1),
-                                /*is_final_chunk=*/false));
-    QUICHE_ASSIGN_OR_RETURN(std::string encrypted_data2,
-                            chunked_client->EncryptRequestChunk(
-                                absl::string_view(encoded_data).substr(1),
-                                /*is_final_chunk=*/true));
-    encrypted_data += encrypted_data2;
-
-    pending_request.chunk_handler->SetChunkedClient(std::move(*chunked_client));
   } else {
     BinaryHttpRequest binary_request(control_data);
     binary_request.set_body(post_data);
     if (!formatted_token.empty()) {
       binary_request.AddHeaderField({"authorization", formatted_token});
     }
-    absl::StatusOr<std::string> encoded_request = binary_request.Serialize();
-    if (!encoded_request.ok()) {
-      return absl::InternalError(
-          absl::StrCat("Failed to serialize OHTTP request: ",
-                       encoded_request.status().message()));
-    }
-    absl::StatusOr<ObliviousHttpRequest> ohttp_request =
-        ohttp_client_->CreateObliviousHttpRequest(*encoded_request);
-    if (!ohttp_request.ok()) {
-      return absl::InternalError(
-          absl::StrCat("Failed to create OHTTP request: ",
-                       ohttp_request.status().message()));
-    }
-    encrypted_data = ohttp_request->EncapsulateAndSerialize();
-    pending_request.context.emplace(std::move(*ohttp_request).ReleaseContext());
+    QUICHE_ASSIGN_OR_RETURN(encoded_data, binary_request.Serialize());
+  }
+  if (pending_request.per_request_config.use_chunked_ohttp()) {
+    pending_request.chunk_handler = std::make_unique<ChunkHandler>();
+    QUICHE_ASSIGN_OR_RETURN(
+        ChunkedObliviousHttpClient chunked_client,
+        ChunkedObliviousHttpClient::Create(
+            ohttp_client_->GetPublicKey(), ohttp_client_->GetKeyConfig(),
+            pending_request.chunk_handler.get()));
+    // Intentionally split the data into two chunks to test encryption chunking.
+    QUICHE_ASSIGN_OR_RETURN(encrypted_data,
+                            chunked_client.EncryptRequestChunk(
+                                absl::string_view(encoded_data).substr(0, 1),
+                                /*is_final_chunk=*/false));
+    QUICHE_ASSIGN_OR_RETURN(std::string encrypted_data2,
+                            chunked_client.EncryptRequestChunk(
+                                absl::string_view(encoded_data).substr(1),
+                                /*is_final_chunk=*/true));
+    encrypted_data += encrypted_data2;
+
+    pending_request.chunk_handler->SetChunkedClient(std::move(chunked_client));
+  } else {
+    QUICHE_ASSIGN_OR_RETURN(
+        ObliviousHttpRequest ohttp_request,
+        ohttp_client_->CreateObliviousHttpRequest(encoded_data));
+    encrypted_data = ohttp_request.EncapsulateAndSerialize();
+    pending_request.context.emplace(std::move(ohttp_request).ReleaseContext());
   }
   Message request;
   request.headers[":method"] = "POST";

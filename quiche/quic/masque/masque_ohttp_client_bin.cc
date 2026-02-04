@@ -31,6 +31,12 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
 DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, chunked, false,
                                 "If true, use chunked OHTTP.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(std::optional<bool>, indeterminate_length,
+                                std::nullopt,
+                                "If set, overrides whether to use the "
+                                "indeterminate length binary HTTP encoding. If "
+                                "unset, uses the value of --chunked.");
+
 DEFINE_QUICHE_COMMAND_LINE_FLAG(int, address_family, 0,
                                 "IP address family to use. Must be 0, 4 or 6. "
                                 "Defaults to 0 which means any.");
@@ -87,6 +93,8 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
       quiche::GetQuicheCommandLineFlag(FLAGS_use_mtls_for_key_fetch);
   const bool use_chunked_ohttp =
       quiche::GetQuicheCommandLineFlag(FLAGS_chunked);
+  const std::optional<bool> indeterminate_length =
+      quiche::GetQuicheCommandLineFlag(FLAGS_indeterminate_length);
   const std::string client_cert_file =
       quiche::GetQuicheCommandLineFlag(FLAGS_client_cert_file);
   const std::string client_cert_key_file =
@@ -137,6 +145,7 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
     MasqueOhttpClient::Config::PerRequestConfig per_request_config(urls[i]);
     per_request_config.SetPostData(post_data);
     per_request_config.SetUseChunkedOhttp(use_chunked_ohttp);
+    per_request_config.SetUseIndeterminateLength(indeterminate_length);
     per_request_config.SetPrivateToken(private_token);
     if (expect_gateway_error.has_value()) {
       per_request_config.SetExpectedGatewayError(*expect_gateway_error);
