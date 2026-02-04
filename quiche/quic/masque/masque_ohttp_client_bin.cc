@@ -10,11 +10,13 @@
 #include <vector>
 
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
 #include "quiche/quic/masque/masque_connection_pool.h"
 #include "quiche/quic/masque/masque_ohttp_client.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
+#include "quiche/common/platform/api/quiche_file_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_status_utils.h"
 
@@ -43,6 +45,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, post_data, "",
     "When set, the client will send a POST request with this data.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, post_data_file, "",
+    "When set, the client will send a POST request with the contents of this "
+    "file.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, private_token, "",
@@ -95,6 +102,21 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
   QUICHE_RETURN_IF_ERROR(dns_config.SetOverrides(
       quiche::GetQuicheCommandLineFlag(FLAGS_dns_override)));
   std::string post_data = quiche::GetQuicheCommandLineFlag(FLAGS_post_data);
+  std::string post_data_file =
+      quiche::GetQuicheCommandLineFlag(FLAGS_post_data_file);
+  if (!post_data_file.empty()) {
+    if (!post_data.empty()) {
+      return absl::InvalidArgumentError(
+          "Only one of --post_data and --post_data_file can be set.");
+    }
+    std::optional<std::string> post_data_from_file =
+        quiche::ReadFileContents(post_data_file);
+    if (!post_data_from_file.has_value()) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "Failed to read post data from file \"", post_data_file, "\""));
+    }
+    post_data = *post_data_from_file;
+  }
   std::string private_token =
       quiche::GetQuicheCommandLineFlag(FLAGS_private_token);
 
