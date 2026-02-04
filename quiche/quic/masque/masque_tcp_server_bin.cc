@@ -463,6 +463,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
 
     SSL_CTX_set_min_proto_version(ctx_.get(), TLS1_2_VERSION);
     SSL_CTX_set_max_proto_version(ctx_.get(), TLS1_3_VERSION);
+    SSL_CTX_set_mode(ctx_.get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
     return true;
   }

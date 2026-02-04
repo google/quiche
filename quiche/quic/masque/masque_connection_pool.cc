@@ -498,6 +498,7 @@ absl::StatusOr<bssl::UniquePtr<SSL_CTX>> MasqueConnectionPool::CreateSslCtx(
 
   SSL_CTX_set_min_proto_version(ctx.get(), TLS1_2_VERSION);
   SSL_CTX_set_max_proto_version(ctx.get(), TLS1_3_VERSION);
+  SSL_CTX_set_mode(ctx.get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
   return ctx;
 }
@@ -531,6 +532,8 @@ MasqueConnectionPool::CreateSslCtxFromData(
 
   SSL_CTX_set_min_proto_version(ctx.get(), TLS1_2_VERSION);
   SSL_CTX_set_max_proto_version(ctx.get(), TLS1_3_VERSION);
+  SSL_CTX_set_mode(ctx.get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+
   return ctx;
 }
 

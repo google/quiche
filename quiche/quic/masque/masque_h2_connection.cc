@@ -169,34 +169,60 @@ bool MasqueH2Connection::TryRead() {
   return AttemptToSend();
 }
 
-int MasqueH2Connection::WriteDataToTls(absl::string_view data) {
+bool MasqueH2Connection::WriteDataToTls(absl::string_view data) {
   QUICHE_DVLOG(2) << ENDPOINT << "Writing " << data.size()
                   << " app bytes to TLS:" << std::endl
                   << quiche::QuicheTextUtils::HexDump(data);
-  int ssl_write_ret = SSL_write(ssl_, data.data(), data.size());
+  const bool buffered = !tls_write_buffer_.empty();
+  const char* buffer_to_write;
+  size_t size_to_write;
+  if (buffered) {
+    absl::StrAppend(&tls_write_buffer_, data);
+    buffer_to_write = tls_write_buffer_.data();
+    size_to_write = tls_write_buffer_.size();
+  } else {
+    buffer_to_write = data.data();
+    size_to_write = data.size();
+  }
+  const int ssl_write_ret = SSL_write(ssl_, buffer_to_write, size_to_write);
   if (ssl_write_ret <= 0) {
     int ssl_err = SSL_get_error(ssl_, ssl_write_ret);
-    QUICHE_LOG(ERROR) << FormatSslError("Error while writing data to TLS",
-                                        ssl_err, ssl_write_ret);
-    return -1;
+    if (ssl_err == SSL_ERROR_WANT_WRITE) {
+      if (!buffered) {
+        tls_write_buffer_ = std::string(data);
+      }
+      QUICHE_DVLOG(1) << ENDPOINT << "SSL_write will require another write, "
+                      << "buffered " << tls_write_buffer_.size() << " bytes";
+      return true;
+    }
+    Abort(SslErrorStatus("Error while writing data to TLS", ssl_err,
+                         ssl_write_ret));
+    return false;
   }
-  if (ssl_write_ret == static_cast<int>(data.size())) {
-    QUICHE_DVLOG(1) << ENDPOINT << "Wrote " << data.size() << " bytes to TLS";
+  if (ssl_write_ret == static_cast<int>(size_to_write)) {
+    QUICHE_DVLOG(1) << ENDPOINT << "Wrote " << size_to_write << " bytes to TLS";
+    if (buffered) {
+      tls_write_buffer_.clear();
+    }
   } else {
     QUICHE_DVLOG(1) << ENDPOINT << "Wrote " << ssl_write_ret << " / "
-                    << data.size() << "bytes to TLS";
+                    << size_to_write << " bytes to TLS and buffered the rest";
+    if (buffered) {
+      tls_write_buffer_.erase(0, ssl_write_ret);
+    } else {
+      tls_write_buffer_ = std::string(data.substr(ssl_write_ret));
+    }
   }
-  return ssl_write_ret;
+  return true;
 }
 
 int64_t MasqueH2Connection::OnReadyToSend(absl::string_view serialized) {
   QUICHE_DVLOG(1) << ENDPOINT << "Writing " << serialized.size()
                   << " bytes of h2 data to TLS";
-  int write_res = WriteDataToTls(serialized);
-  if (write_res < 0) {
+  if (!WriteDataToTls(serialized)) {
     return kSendError;
   }
-  return write_res;
+  return serialized.size();
 }
 
 MasqueH2Connection::DataFrameHeaderInfo
@@ -218,21 +244,19 @@ MasqueH2Connection::OnReadyToSendDataForStream(Http2StreamId stream_id,
 bool MasqueH2Connection::SendDataFrame(Http2StreamId stream_id,
                                        absl::string_view frame_header,
                                        size_t payload_bytes) {
-  if (WriteDataToTls(frame_header) < 0) {
+  if (!WriteDataToTls(frame_header)) {
     return false;
   }
   MasqueH2Stream* stream = GetOrCreateH2Stream(stream_id);
   size_t length_to_write = std::min(payload_bytes, stream->body_to_send.size());
-  int length_written =
-      WriteDataToTls(stream->body_to_send.substr(0, length_to_write));
-  if (length_written < 0) {
+  if (!WriteDataToTls(stream->body_to_send.substr(0, length_to_write))) {
     return false;
   }
-  if (length_written == static_cast<int>(stream->body_to_send.size())) {
+  if (length_to_write == stream->body_to_send.size()) {
     stream->body_to_send.clear();
   } else {
     // Remove the written bytes from the start of `body_to_send`.
-    stream->body_to_send = stream->body_to_send.substr(length_written);
+    stream->body_to_send = stream->body_to_send.substr(length_to_write);
   }
   return true;
 }
@@ -268,6 +292,13 @@ MasqueH2Connection::OnHeaderResult MasqueH2Connection::OnHeaderForStream(
 }
 
 bool MasqueH2Connection::AttemptToSend() {
+  if (!tls_write_buffer_.empty()) {
+    QUICHE_DVLOG(1) << ENDPOINT << "Attempting to write "
+                    << tls_write_buffer_.size() << " buffered bytes to TLS";
+    if (!WriteDataToTls("")) {
+      return false;
+    }
+  }
   if (!h2_adapter_) {
     return false;
   }

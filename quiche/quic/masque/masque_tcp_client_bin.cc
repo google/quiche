@@ -98,6 +98,7 @@ std::optional<bssl::UniquePtr<SSL_CTX>> CreateSslCtx(
 
   SSL_CTX_set_min_proto_version(ctx.get(), TLS1_2_VERSION);
   SSL_CTX_set_max_proto_version(ctx.get(), TLS1_3_VERSION);
+  SSL_CTX_set_mode(ctx.get(), SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
 
   return ctx;
 }
@@ -437,19 +438,47 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
     QUICHE_DVLOG(2) << "Writing " << data.size()
                     << " app bytes to TLS:" << std::endl
                     << quiche::QuicheTextUtils::HexDump(data);
-    int ssl_write_ret = SSL_write(ssl_.get(), data.data(), data.size());
+    const bool buffered = !tls_write_buffer_.empty();
+    const char* buffer_to_write;
+    size_t size_to_write;
+    if (buffered) {
+      absl::StrAppend(&tls_write_buffer_, data);
+      buffer_to_write = tls_write_buffer_.data();
+      size_to_write = tls_write_buffer_.size();
+    } else {
+      buffer_to_write = data.data();
+      size_to_write = data.size();
+    }
+    const int ssl_write_ret =
+        SSL_write(ssl_.get(), buffer_to_write, size_to_write);
     if (ssl_write_ret <= 0) {
       int ssl_err = SSL_get_error(ssl_.get(), ssl_write_ret);
+      if (ssl_err == SSL_ERROR_WANT_WRITE) {
+        QUICHE_DVLOG(1) << "SSL_write will require another write, "
+                        << "buffered " << tls_write_buffer_.size() << " bytes";
+        if (!buffered) {
+          tls_write_buffer_ = std::string(data);
+        }
+        return data.size();
+      }
       QUICHE_LOG(ERROR) << FormatSslError("Error while writing request to TLS",
                                           ssl_err, ssl_write_ret);
       done_ = true;
       return -1;
     }
-    if (ssl_write_ret == static_cast<int>(data.size())) {
-      QUICHE_DVLOG(1) << "Wrote " << data.size() << " bytes to TLS";
+    if (ssl_write_ret == static_cast<int>(size_to_write)) {
+      QUICHE_DVLOG(1) << "Wrote " << size_to_write << " bytes to TLS";
+      if (buffered) {
+        tls_write_buffer_.clear();
+      }
     } else {
-      QUICHE_DVLOG(1) << "Wrote " << ssl_write_ret << " / " << data.size()
-                      << "bytes to TLS";
+      QUICHE_DVLOG(1) << "Wrote " << ssl_write_ret << " / " << size_to_write
+                      << " bytes to TLS and buffered the rest";
+      if (buffered) {
+        tls_write_buffer_.erase(0, ssl_write_ret);
+      } else {
+        tls_write_buffer_ = std::string(data.substr(ssl_write_ret));
+      }
     }
     SendToTransport();
     return ssl_write_ret;
@@ -514,6 +543,7 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
   bool done_ = false;
   int32_t stream_id_ = -1;
   std::unique_ptr<MasqueH2Connection> h2_connection_;
+  std::string tls_write_buffer_;
 };
 
 int RunMasqueTcpClient(int argc, char* argv[]) {

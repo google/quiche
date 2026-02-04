@@ -83,7 +83,7 @@ class QUICHE_NO_EXPORT MasqueH2Connection
   std::vector<http2::adapter::Header> ConvertHeaders(
       const quiche::HttpHeaderBlock& headers);
 
-  int WriteDataToTls(absl::string_view data);
+  bool WriteDataToTls(absl::string_view data);
 
   // From http2::adapter::Http2VisitorInterface.
   int64_t OnReadyToSend(absl::string_view serialized) override;
@@ -142,6 +142,7 @@ class QUICHE_NO_EXPORT MasqueH2Connection
   absl::flat_hash_map<Http2StreamId, std::unique_ptr<MasqueH2Stream>>
       h2_streams_;
   Visitor* visitor_;
+  std::string tls_write_buffer_;
 };
 
 // Formats an SSL error that was provided by BoringSSL.
