@@ -2618,7 +2618,7 @@ class MultiplePacketsTestPacketCreator : public QuicPacketCreator {
       SimpleDataProducer* producer)
       : QuicPacketCreator(connection_id, framer, random_generator, delegate),
         ack_frame_(InitAckFrame(1)),
-        delegate_(static_cast<MockDelegate*>(delegate)),
+        delegate_(absl::down_cast<MockDelegate*>(delegate)),
         producer_(producer) {}
 
   bool ConsumeRetransmittableControlFrame(const QuicFrame& frame,

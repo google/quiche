@@ -14,7 +14,7 @@
 #include <variant>
 #include <vector>
 
-
+#include "absl/base/casts.h"
 #include "absl/base/nullability.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
@@ -565,7 +565,7 @@ bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
           fetch_task.release();
           return;
         }
-        auto* subscribe = static_cast<SubscribeRemoteTrack*>(track);
+        auto* subscribe = absl::down_cast<SubscribeRemoteTrack*>(track);
         RemoteTrackByName(track->full_track_name());
         subscribe->OnJoiningFetchReady(std::move(fetch_task));
       },
@@ -1062,7 +1062,8 @@ void MoqtSession::ControlStream::OnSubscribeOkMessage(
                     << "request_id = " << message.request_id << " "
                     << track->full_track_name();
   }
-  SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
+  SubscribeRemoteTrack* subscribe =
+      absl::down_cast<SubscribeRemoteTrack*>(track);
   subscribe->OnObjectOrOk();
   auto [it, success] =
       session_->subscribe_by_alias_.try_emplace(message.track_alias, subscribe);
@@ -1151,13 +1152,14 @@ void MoqtSession::ControlStream::OnRequestErrorMessage(
                     << ", error = " << static_cast<uint64_t>(message.error_code)
                     << " (" << message.reason_phrase << ")";
     if (track->is_fetch()) {
-      UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
+      UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(track);
       absl::Status status =
           RequestErrorCodeToStatus(message.error_code, message.reason_phrase);
       fetch->OnFetchResult(Location(0, 0), MoqtDeliveryOrder::kAscending,
                            status, nullptr);
     } else {
-      SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
+      SubscribeRemoteTrack* subscribe =
+          absl::down_cast<SubscribeRemoteTrack*>(track);
       // Delete the by-name entry at this point prevents Subscribe() from
       // throwing an error due to a duplicate track name. The other entries for
       // this subscribe will be deleted after calling Subscribe().
@@ -1220,7 +1222,7 @@ void MoqtSession::ControlStream::OnPublishDoneMessage(
   if (it == session_->upstream_by_id_.end()) {
     return;
   }
-  auto* subscribe = static_cast<SubscribeRemoteTrack*>(it->second.get());
+  auto* subscribe = absl::down_cast<SubscribeRemoteTrack*>(it->second.get());
   QUIC_DLOG(INFO) << ENDPOINT << "Received a PUBLISH_DONE for "
                   << it->second->full_track_name();
   subscribe->OnPublishDone(
@@ -1261,7 +1263,7 @@ void MoqtSession::ControlStream::OnPublishNamespaceMessage(
       message.track_namespace, message.parameters,
       [&](std::optional<MoqtRequestErrorInfo> error) {
         MoqtSession* session =
-            static_cast<MoqtSession*>(session_weakptr.GetIfAvailable());
+            absl::down_cast<MoqtSession*>(session_weakptr.GetIfAvailable());
         if (session == nullptr) {
           return;
         }
@@ -1548,7 +1550,7 @@ void MoqtSession::ControlStream::OnFetchOkMessage(const MoqtFetchOk& message) {
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Received the FETCH_OK for request_id = "
                   << message.request_id << " " << track->full_track_name();
-  UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
+  UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(track);
   fetch->OnFetchResult(
       message.end_location, message.group_order, absl::OkStatus(),
       [=, session = session_]() { session->CancelFetch(message.request_id); });
@@ -1644,7 +1646,8 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
         no_more_objects_ = true;
       }
     }
-    SubscribeRemoteTrack* subscribe = static_cast<SubscribeRemoteTrack*>(track);
+    SubscribeRemoteTrack* subscribe =
+        absl::down_cast<SubscribeRemoteTrack*>(track);
     subscribe->OnObjectOrOk();
     if (subscribe->visitor() != nullptr) {
       PublishedObjectMetadata metadata;
@@ -1660,7 +1663,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
     }
   } else {  // FETCH
     track->OnObjectOrOk();
-    UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
+    UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(track);
     if (!fetch->LocationIsValid(Location(message.group_id, message.object_id),
                                 message.object_status, end_of_message)) {
       // TODO(martinduke): in https://github.com/moq-wg/moq-transport/pull/1409
@@ -1708,7 +1711,7 @@ MoqtSession::IncomingDataStream::~IncomingDataStream() {
   }
   // It's a subscribe.
   SubscribeRemoteTrack* subscribe =
-      static_cast<SubscribeRemoteTrack*>(track_.GetIfAvailable());
+      absl::down_cast<SubscribeRemoteTrack*>(track_.GetIfAvailable());
   if (subscribe == nullptr) {
     return;
   }
@@ -1728,7 +1731,7 @@ void MoqtSession::IncomingDataStream::MaybeReadOneObject() {
         << "Requesting object, track in unexpected state";
     return;
   }
-  UpstreamFetch* fetch = static_cast<UpstreamFetch*>(track);
+  UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(track);
   UpstreamFetch::UpstreamFetchTask* task = fetch->task();
   if (task == nullptr) {
     return;
@@ -1796,7 +1799,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
         << "Fetch pointer is null";
     return;
   }
-  UpstreamFetch* fetch = static_cast<UpstreamFetch*>(it->second.get());
+  UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(it->second.get());
   if (!knew_track_alias) {
     // If the task already exists (FETCH_OK has arrived), the callback will
     // immediately execute to read the first object. Otherwise, it will only
@@ -1973,7 +1976,7 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
           continue;
         }
         OutgoingDataStream* stream =
-            static_cast<OutgoingDataStream*>(raw_stream->visitor());
+            absl::down_cast<OutgoingDataStream*>(raw_stream->visitor());
         stream->CreateAndSetAlarm(session_->callbacks_.clock->ApproximateNow() +
                                   delivery_timeout());
       }
@@ -2004,7 +2007,7 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
   }
 
   OutgoingDataStream* stream =
-      static_cast<OutgoingDataStream*>(raw_stream->visitor());
+      absl::down_cast<OutgoingDataStream*>(raw_stream->visitor());
   stream->SendObjects(*this);
 }
 
@@ -2036,7 +2039,7 @@ void MoqtSession::PublishedSubscription::OnNewFinAvailable(Location location,
     return;
   }
   OutgoingDataStream* stream =
-      static_cast<OutgoingDataStream*>(raw_stream->visitor());
+      absl::down_cast<OutgoingDataStream*>(raw_stream->visitor());
   stream->Fin(location);
 }
 
@@ -2388,13 +2391,13 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
 
 void MoqtSession::OnMalformedTrack(RemoteTrack* track) {
   if (!track->is_fetch()) {
-    static_cast<SubscribeRemoteTrack*>(track)->visitor()->OnMalformedTrack(
+    absl::down_cast<SubscribeRemoteTrack*>(track)->visitor()->OnMalformedTrack(
         track->full_track_name());
     Unsubscribe(track->full_track_name());
     return;
   }
   UpstreamFetch::UpstreamFetchTask* task =
-      static_cast<UpstreamFetch*>(track)->task();
+      absl::down_cast<UpstreamFetch*>(track)->task();
   if (task != nullptr) {
     task->OnStreamAndFetchClosed(kResetCodeMalformedTrack,
                                  "Malformed track received");
@@ -2435,7 +2438,7 @@ void MoqtSession::CleanUpState() {
       continue;
     }
     DestroySubscription(
-        static_cast<SubscribeRemoteTrack*>(upstream->second.get()));
+        absl::down_cast<SubscribeRemoteTrack*>(upstream->second.get()));
   }
 }
 

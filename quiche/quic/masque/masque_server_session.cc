@@ -22,8 +22,8 @@
 #include <utility>
 #include <vector>
 
-
 #include "absl/algorithm/container.h"
+#include "absl/base/casts.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
@@ -508,7 +508,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
   }
 
   if (protocol == "connect-ip") {
-    QuicSpdyStream* stream = static_cast<QuicSpdyStream*>(
+    QuicSpdyStream* stream = absl::down_cast<QuicSpdyStream*>(
         GetActiveStream(request_handler->stream_id()));
     if (stream == nullptr) {
       QUIC_BUG(bad masque server stream type)
@@ -648,7 +648,7 @@ std::unique_ptr<QuicBackendResponse> MasqueServerSession::HandleMasqueRequest(
     use_ipv6 = target_server_address.host().AddressFamilyToInt() == AF_INET6;
   }
 
-  QuicSpdyStream* stream = static_cast<QuicSpdyStream*>(
+  QuicSpdyStream* stream = absl::down_cast<QuicSpdyStream*>(
       GetActiveStream(request_handler->stream_id()));
   if (stream == nullptr) {
     QUIC_BUG(bad masque server stream type)

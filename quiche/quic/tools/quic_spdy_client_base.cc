@@ -10,7 +10,7 @@
 #include <utility>
 #include <vector>
 
-
+#include "absl/base/casts.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -38,16 +38,15 @@ QuicSpdyClientBase::QuicSpdyClientBase(
       store_response_(false),
       latest_response_code_(-1) {}
 
-QuicSpdyClientBase::~QuicSpdyClientBase() {
-  ResetSession();
-}
+QuicSpdyClientBase::~QuicSpdyClientBase() { ResetSession(); }
 
 QuicSpdyClientSession* QuicSpdyClientBase::client_session() {
-  return static_cast<QuicSpdyClientSession*>(QuicClientBase::session());
+  return absl::down_cast<QuicSpdyClientSession*>(QuicClientBase::session());
 }
 
 const QuicSpdyClientSession* QuicSpdyClientBase::client_session() const {
-  return static_cast<const QuicSpdyClientSession*>(QuicClientBase::session());
+  return absl::down_cast<const QuicSpdyClientSession*>(
+      QuicClientBase::session());
 }
 
 void QuicSpdyClientBase::InitializeSession() {

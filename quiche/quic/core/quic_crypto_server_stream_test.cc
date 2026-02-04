@@ -354,7 +354,7 @@ class QuicCryptoServerStreamTestWithFakeProofSource
         crypto_config_peer_(&server_crypto_config_) {}
 
   FakeProofSource* GetFakeProofSource() const {
-    return static_cast<FakeProofSource*>(
+    return absl::down_cast<FakeProofSource*>(
         crypto_config_peer_.GetProofSource());
   }
 

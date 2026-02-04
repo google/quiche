@@ -668,7 +668,7 @@ TEST_P(QuicServerSessionBaseTest, BandwidthResumptionExperiment) {
       QuicTime::Delta::FromSeconds(kNumSecondsPerHour + 1));
 
   QuicCryptoServerStreamBase* crypto_stream =
-      static_cast<QuicCryptoServerStreamBase*>(
+      absl::down_cast<QuicCryptoServerStreamBase*>(
           QuicSessionPeer::GetMutableCryptoStream(session_.get()));
 
   // No effect if no CachedNetworkParameters provided.
@@ -804,7 +804,7 @@ class StreamMemberLifetimeTest : public QuicServerSessionBaseTest {
   }
 
   FakeProofSource* GetFakeProofSource() const {
-    return static_cast<FakeProofSource*>(
+    return absl::down_cast<FakeProofSource*>(
         crypto_config_peer_.GetProofSource());
   }
 

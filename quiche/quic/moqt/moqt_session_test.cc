@@ -13,6 +13,7 @@
 #include <utility>
 #include <variant>
 
+#include "absl/base/casts.h"
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
@@ -3203,7 +3204,7 @@ TEST_F(MoqtSessionTest, PartialObjectFetch) {
   std::unique_ptr<MoqtFetchTask> fetch_task =
       MoqtSessionPeer::CreateUpstreamFetch(&session, &stream);
   UpstreamFetch::UpstreamFetchTask* task =
-      static_cast<UpstreamFetch::UpstreamFetchTask*>(fetch_task.get());
+      absl::down_cast<UpstreamFetch::UpstreamFetchTask*>(fetch_task.get());
   ASSERT_NE(task, nullptr);
   EXPECT_FALSE(task->HasObject());
   bool object_ready = false;
@@ -3356,8 +3357,9 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAfterIntegratedFin) {
   subscription->OnNewObjectAvailable(Location(0, 0), 0,
                                      kDefaultPublisherPriority,
                                      MoqtForwardingPreference::kSubgroup);
-  auto* delivery_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
-      MoqtSessionPeer::GetAlarm(stream_visitor.get()));
+  auto* delivery_alarm =
+      absl::down_cast<quic::test::MockAlarmFactory::TestAlarm*>(
+          MoqtSessionPeer::GetAlarm(stream_visitor.get()));
   EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeDeliveryTimeout))
       .WillOnce([&](webtransport::StreamErrorCode /*error*/) {
         stream_visitor.reset();
@@ -3409,8 +3411,9 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAfterSeparateFin) {
 
   EXPECT_CALL(data_mock, Writev(_, _)).WillOnce(Return(absl::OkStatus()));
   subscription->OnNewFinAvailable(Location(0, 0), 0);
-  auto* delivery_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
-      MoqtSessionPeer::GetAlarm(stream_visitor.get()));
+  auto* delivery_alarm =
+      absl::down_cast<quic::test::MockAlarmFactory::TestAlarm*>(
+          MoqtSessionPeer::GetAlarm(stream_visitor.get()));
   EXPECT_CALL(data_mock, ResetWithUserCode(kResetCodeDeliveryTimeout))
       .WillOnce([&](webtransport::StreamErrorCode /*error*/) {
         stream_visitor.reset();
@@ -3493,8 +3496,9 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAlternateDesign) {
                                      MoqtForwardingPreference::kSubgroup);
 
   // Group 1 should start the timer on the Group 0 stream.
-  auto* delivery_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
-      MoqtSessionPeer::GetAlarm(stream_visitor1.get()));
+  auto* delivery_alarm =
+      absl::down_cast<quic::test::MockAlarmFactory::TestAlarm*>(
+          MoqtSessionPeer::GetAlarm(stream_visitor1.get()));
   EXPECT_CALL(data_mock1, ResetWithUserCode(kResetCodeDeliveryTimeout))
       .WillOnce([&](webtransport::StreamErrorCode /*error*/) {
         stream_visitor1.reset();
@@ -3586,8 +3590,9 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
       127, std::nullopt, VersionSpecificParameters()));
   session_.GoAway("");
   // GoAway timer fires.
-  auto* goaway_alarm = static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
-      MoqtSessionPeer::GetGoAwayTimeoutAlarm(&session_));
+  auto* goaway_alarm =
+      absl::down_cast<quic::test::MockAlarmFactory::TestAlarm*>(
+          MoqtSessionPeer::GetGoAwayTimeoutAlarm(&session_));
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<webtransport::SessionErrorCode>(
                                MoqtError::kGoawayTimeout),
@@ -3795,7 +3800,7 @@ TEST_F(MoqtSessionTest, PublishDoneTimeout) {
       MoqtPublishDone(0, PublishDoneCode::kTrackEnded, kNumStreams + 1, "foo"));
   EXPECT_FALSE(track->all_streams_closed());
   auto* publish_done_alarm =
-      static_cast<quic::test::MockAlarmFactory::TestAlarm*>(
+      absl::down_cast<quic::test::MockAlarmFactory::TestAlarm*>(
           MoqtSessionPeer::GetPublishDoneAlarm(track));
   EXPECT_CALL(remote_track_visitor_, OnPublishDone(_));
   publish_done_alarm->Fire();

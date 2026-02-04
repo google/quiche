@@ -11,7 +11,7 @@
 #include <string>
 #include <utility>
 
-
+#include "absl/base/casts.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_time.h"
@@ -185,7 +185,7 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   relay_.publisher()->AddNamespaceSubscriber(foo, &relay_probe);
   upstream_.publisher()->AddNamespaceSubscriber(foo, &upstream_probe);
   MoqtSession* upstream_session =
-      static_cast<MoqtSession*>(upstream_.last_server_session);
+      absl::down_cast<MoqtSession*>(upstream_.last_server_session);
   // Downstream publishes a namespace. It's stored in relay_ but upstream_
   // hasn't been notified.
   downstream_.client_session()->PublishNamespace(

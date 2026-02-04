@@ -234,13 +234,13 @@ MockableQuicClient::~MockableQuicClient() {
 
 MockableQuicClientDefaultNetworkHelper*
 MockableQuicClient::mockable_network_helper() {
-  return static_cast<MockableQuicClientDefaultNetworkHelper*>(
+  return absl::down_cast<MockableQuicClientDefaultNetworkHelper*>(
       default_network_helper());
 }
 
 const MockableQuicClientDefaultNetworkHelper*
 MockableQuicClient::mockable_network_helper() const {
-  return static_cast<const MockableQuicClientDefaultNetworkHelper*>(
+  return absl::down_cast<const MockableQuicClientDefaultNetworkHelper*>(
       default_network_helper());
 }
 
@@ -739,7 +739,7 @@ void QuicTestClient::OnClose(QuicSpdyStream* stream) {
     latest_created_stream_ = nullptr;
   }
   QuicSpdyClientStream* client_stream =
-      static_cast<QuicSpdyClientStream*>(stream);
+      absl::down_cast<QuicSpdyClientStream*>(stream);
   QuicStreamId id = client_stream->id();
   closed_stream_states_.insert(std::make_pair(
       id,

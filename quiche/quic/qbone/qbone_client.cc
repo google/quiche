@@ -7,7 +7,7 @@
 #include <memory>
 #include <utility>
 
-
+#include "absl/base/casts.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_bandwidth.h"
@@ -50,7 +50,7 @@ QboneClient::QboneClient(QuicSocketAddress server_address,
 QboneClient::~QboneClient() { ResetSession(); }
 
 QboneClientSession* QboneClient::qbone_session() {
-  return static_cast<QboneClientSession*>(QuicClientBase::session());
+  return absl::down_cast<QboneClientSession*>(QuicClientBase::session());
 }
 
 void QboneClient::ProcessPacketFromNetwork(absl::string_view packet) {

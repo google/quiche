@@ -10,7 +10,7 @@
 #include <optional>
 #include <utility>
 
-
+#include "absl/base/casts.h"
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm.h"
@@ -119,7 +119,7 @@ class MoqtSessionPeer {
   static bool InSubscriptionWindow(MoqtObjectListener* subscription,
                                    Location sequence) {
     std::optional<SubscriptionFilter> filter =
-        static_cast<MoqtSession::PublishedSubscription*>(subscription)
+        absl::down_cast<MoqtSession::PublishedSubscription*>(subscription)
             ->parameters_.subscription_filter;
     return (!filter.has_value() || filter->InWindow(sequence));
   }
@@ -199,7 +199,7 @@ class MoqtSessionPeer {
                  task = std::move(fetch_task);
                }));
     QUICHE_DCHECK(success);
-    UpstreamFetch* fetch = static_cast<UpstreamFetch*>(it->second.get());
+    UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(it->second.get());
     // Initialize the fetch task
     fetch->OnFetchResult(
         Location{4, 10}, order, absl::OkStatus(),
@@ -208,7 +208,7 @@ class MoqtSessionPeer {
         });
     ;
     auto mock_session =
-        static_cast<webtransport::test::MockSession*>(session->session());
+        absl::down_cast<webtransport::test::MockSession*>(session->session());
     EXPECT_CALL(*mock_session, AcceptIncomingUnidirectionalStream())
         .WillOnce(testing::Return(stream))
         .WillOnce(testing::Return(nullptr));
@@ -225,7 +225,7 @@ class MoqtSessionPeer {
   }
 
   static quic::QuicAlarm* GetAlarm(webtransport::StreamVisitor* visitor) {
-    return static_cast<MoqtSession::OutgoingDataStream*>(visitor)
+    return absl::down_cast<MoqtSession::OutgoingDataStream*>(visitor)
         ->delivery_timeout_alarm_.get();
   }
 
@@ -240,18 +240,18 @@ class MoqtSessionPeer {
 
   static quic::QuicTimeDelta GetDeliveryTimeout(
       MoqtObjectListener* subscription) {
-    return static_cast<MoqtSession::PublishedSubscription*>(subscription)
+    return absl::down_cast<MoqtSession::PublishedSubscription*>(subscription)
         ->delivery_timeout();
   }
   static void SetDeliveryTimeout(MoqtObjectListener* subscription,
                                  quic::QuicTimeDelta timeout) {
-    static_cast<MoqtSession::PublishedSubscription*>(subscription)
+    absl::down_cast<MoqtSession::PublishedSubscription*>(subscription)
         ->parameters_.delivery_timeout = timeout;
   }
 
   static bool SubgroupHasBeenReset(MoqtObjectListener* subscription,
                                    DataStreamIndex index) {
-    return static_cast<MoqtSession::PublishedSubscription*>(subscription)
+    return absl::down_cast<MoqtSession::PublishedSubscription*>(subscription)
         ->reset_subgroups()
         .contains(index);
   }

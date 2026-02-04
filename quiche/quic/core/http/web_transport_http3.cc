@@ -11,8 +11,8 @@
 #include <utility>
 #include <vector>
 
-
 #include "absl/algorithm/container.h"
+#include "absl/base/casts.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
@@ -222,7 +222,7 @@ WebTransportStream* WebTransportHttp3::AcceptIncomingUnidirectionalStream() {
       // receieved and the time the client has polled for them.
       continue;
     }
-    return static_cast<WebTransportHttp3UnidirectionalStream*>(stream)
+    return absl::down_cast<WebTransportHttp3UnidirectionalStream*>(stream)
         ->interface();
   }
   return nullptr;
@@ -264,9 +264,9 @@ webtransport::Stream* WebTransportHttp3::GetStreamById(
   const bool bidi = QuicUtils::IsBidirectionalStreamId(
       id, ParsedQuicVersion::RFCv1());  // Assume IETF QUIC for WebTransport
   if (bidi) {
-    return static_cast<QuicSpdyStream*>(stream)->web_transport_stream();
+    return absl::down_cast<QuicSpdyStream*>(stream)->web_transport_stream();
   } else {
-    return static_cast<WebTransportHttp3UnidirectionalStream*>(stream)
+    return absl::down_cast<WebTransportHttp3UnidirectionalStream*>(stream)
         ->interface();
   }
 }
