@@ -331,22 +331,14 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
   control_data.scheme = url.scheme();
   control_data.authority = url.HostPort();
   control_data.path = url.PathParamsQuery();
-  BinaryHttpRequest binary_request(control_data);
-  binary_request.set_body(post_data);
-  if (!per_request_config.private_token().empty()) {
-    QUICHE_ASSIGN_OR_RETURN(
-        std::string formatted_token,
-        FormatPrivateToken(per_request_config.private_token()));
-    binary_request.AddHeaderField({"authorization", formatted_token});
-  }
-  absl::StatusOr<std::string> encoded_request = binary_request.Serialize();
-  if (!encoded_request.ok()) {
-    return absl::InternalError(
-        absl::StrCat("Failed to serialize OHTTP request: ",
-                     encoded_request.status().message()));
-  }
   std::string encrypted_data;
   PendingRequest pending_request(per_request_config);
+  std::string formatted_token;
+  if (!per_request_config.private_token().empty()) {
+    QUICHE_ASSIGN_OR_RETURN(
+        formatted_token,
+        FormatPrivateToken(per_request_config.private_token()));
+  }
   if (!ohttp_client_.has_value()) {
     QUICHE_LOG(FATAL) << "Cannot send OHTTP request without OHTTP client";
     return absl::InternalError(
@@ -369,6 +361,9 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
     QUICHE_ASSIGN_OR_RETURN(std::string encoded_data,
                             encoder.EncodeControlData(control_data));
     std::vector<quiche::BinaryHttpMessage::FieldView> headers;
+    if (!formatted_token.empty()) {
+      headers.push_back({"authorization", formatted_token});
+    }
     QUICHE_ASSIGN_OR_RETURN(std::string encoded_headers,
                             encoder.EncodeHeaders(absl::MakeSpan(headers)));
     encoded_data += encoded_headers;
@@ -412,6 +407,17 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
 
     pending_request.chunk_handler->SetChunkedClient(std::move(*chunked_client));
   } else {
+    BinaryHttpRequest binary_request(control_data);
+    binary_request.set_body(post_data);
+    if (!formatted_token.empty()) {
+      binary_request.AddHeaderField({"authorization", formatted_token});
+    }
+    absl::StatusOr<std::string> encoded_request = binary_request.Serialize();
+    if (!encoded_request.ok()) {
+      return absl::InternalError(
+          absl::StrCat("Failed to serialize OHTTP request: ",
+                       encoded_request.status().message()));
+    }
     absl::StatusOr<ObliviousHttpRequest> ohttp_request =
         ohttp_client_->CreateObliviousHttpRequest(*encoded_request);
     if (!ohttp_request.ok()) {
