@@ -32,6 +32,7 @@
 #include "quiche/binary_http/binary_http_message.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_system_event_loop.h"
+#include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_status_utils.h"
 #include "quiche/common/quiche_text_utils.h"
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
@@ -55,6 +56,8 @@ using RequestId = ::quic::MasqueConnectionPool::RequestId;
 using Message = ::quic::MasqueConnectionPool::Message;
 
 namespace {
+
+static constexpr uint64_t kFixedSizeResponseFramingIndicator = 0x01;
 
 absl::StatusOr<std::string> FormatPrivateToken(
     const std::string& private_token) {
@@ -443,7 +446,7 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
 }
 
 absl::StatusOr<Message> MasqueOhttpClient::TryExtractEncapsulatedResponse(
-    const RequestId request_id, quiche::ObliviousHttpRequest::Context& context,
+    RequestId request_id, quiche::ObliviousHttpRequest::Context& context,
     const Message& response) {
   if (!ohttp_client_.has_value()) {
     QUICHE_LOG(FATAL) << "Received OHTTP response without OHTTP client";
@@ -453,18 +456,40 @@ absl::StatusOr<Message> MasqueOhttpClient::TryExtractEncapsulatedResponse(
       ObliviousHttpResponse ohttp_response,
       ohttp_client_->DecryptObliviousHttpResponse(response.body, context));
   QUICHE_LOG(INFO) << "Received OHTTP response for " << request_id;
-  absl::StatusOr<BinaryHttpResponse> binary_response =
-      BinaryHttpResponse::Create(ohttp_response.GetPlaintextData());
-  QUICHE_RETURN_IF_ERROR(binary_response.status());
-  Message encapsulated_response;
-  encapsulated_response.headers[":status"] =
-      absl::StrCat(binary_response->status_code());
-  for (const quiche::BinaryHttpMessage::Field& field :
-       binary_response->GetHeaderFields()) {
-    encapsulated_response.headers[field.name] = field.value;
+  QUICHE_VLOG(2) << "Decrypted unchunked response body: "
+                 << absl::BytesToHexString(ohttp_response.GetPlaintextData());
+  quiche::QuicheDataReader reader(ohttp_response.GetPlaintextData());
+  uint64_t framing_indicator;
+  if (!reader.ReadVarInt62(&framing_indicator)) {
+    return absl::InvalidArgumentError(
+        "Failed to read framing indicator for unchunked response");
   }
-  encapsulated_response.body = binary_response->body();
-  return encapsulated_response;
+  if (framing_indicator == kFixedSizeResponseFramingIndicator) {
+    absl::StatusOr<BinaryHttpResponse> binary_response =
+        BinaryHttpResponse::Create(ohttp_response.GetPlaintextData());
+    QUICHE_RETURN_IF_ERROR(binary_response.status());
+    Message encapsulated_response;
+    encapsulated_response.headers[":status"] =
+        absl::StrCat(binary_response->status_code());
+    for (const quiche::BinaryHttpMessage::Field& field :
+         binary_response->GetHeaderFields()) {
+      encapsulated_response.headers[field.name] = field.value;
+    }
+    encapsulated_response.body = binary_response->body();
+    return encapsulated_response;
+  }
+  ChunkHandler chunk_handler;
+  QUICHE_RETURN_IF_ERROR(
+      chunk_handler.OnDecryptedChunk(ohttp_response.GetPlaintextData()));
+  QUICHE_RETURN_IF_ERROR(chunk_handler.OnChunksDone());
+  QUICHE_ASSIGN_OR_RETURN(ChunkedObliviousHttpClient chunked_client,
+                          ChunkedObliviousHttpClient::Create(
+                              ohttp_client_->GetPublicKey(),
+                              ohttp_client_->GetKeyConfig(), &chunk_handler));
+  QUICHE_RETURN_IF_ERROR(
+      chunked_client.DecryptResponse(ohttp_response.GetPlaintextData(),
+                                     /*end_stream=*/true));
+  return std::move(chunk_handler).ExtractResponse();
 }
 
 absl::Status MasqueOhttpClient::ProcessOhttpResponse(
@@ -521,6 +546,8 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
     return absl::OkStatus();
   }
   std::optional<Message> encapsulated_response;
+  QUICHE_VLOG(2) << "Received encrypted response body: "
+                 << absl::BytesToHexString(response->body);
   if (it->second.per_request_config.use_chunked_ohttp()) {
     QUICHE_ASSIGN_OR_RETURN(
         encapsulated_response,
@@ -605,10 +632,45 @@ absl::StatusOr<Message> MasqueOhttpClient::ChunkHandler::DecryptFullResponse(
 
 absl::Status MasqueOhttpClient::ChunkHandler::OnDecryptedChunk(
     absl::string_view decrypted_chunk) {
-  return decoder_.Decode(decrypted_chunk, /*end_stream=*/false);
+  absl::StrAppend(&buffered_binary_response_, decrypted_chunk);
+  if (!is_chunked_response_.has_value()) {
+    quiche::QuicheDataReader reader(buffered_binary_response_);
+    uint64_t framing_indicator;
+    if (!reader.ReadVarInt62(&framing_indicator)) {
+      // Not enough data to read the framing indicator yet.
+      return absl::OkStatus();
+    }
+    is_chunked_response_ =
+        framing_indicator != kFixedSizeResponseFramingIndicator;
+  }
+  if (*is_chunked_response_) {
+    return decoder_.Decode(decrypted_chunk, /*end_stream=*/false);
+  } else {
+    // Buffer and wait for OnChunksDone().
+    return absl::OkStatus();
+  }
 }
 absl::Status MasqueOhttpClient::ChunkHandler::OnChunksDone() {
-  return decoder_.Decode("", /*end_stream=*/true);
+  QUICHE_VLOG(2) << "Decrypted chunked response body: "
+                 << absl::BytesToHexString(buffered_binary_response_);
+  if (!is_chunked_response_.has_value()) {
+    return absl::InvalidArgumentError(
+        "OnChunksDone called without framing indicator");
+  }
+  if (*is_chunked_response_) {
+    return decoder_.Decode("", /*end_stream=*/true);
+  } else {
+    absl::StatusOr<BinaryHttpResponse> binary_response =
+        BinaryHttpResponse::Create(buffered_binary_response_);
+    QUICHE_RETURN_IF_ERROR(binary_response.status());
+    response_.headers[":status"] = absl::StrCat(binary_response->status_code());
+    for (const quiche::BinaryHttpMessage::Field& field :
+         binary_response->GetHeaderFields()) {
+      response_.headers[field.name] = field.value;
+    }
+    response_.body = binary_response->body();
+    return absl::OkStatus();
+  }
 }
 
 absl::Status MasqueOhttpClient::ChunkHandler::OnInformationalResponseStatusCode(

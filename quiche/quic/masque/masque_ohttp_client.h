@@ -203,6 +203,8 @@ class QUICHE_EXPORT MasqueOhttpClient
       chunked_client_.emplace(std::move(chunked_client));
     }
 
+    Message ExtractResponse() && { return std::move(response_); }
+
     // From quiche::ObliviousHttpChunkHandler.
     absl::Status OnDecryptedChunk(absl::string_view decrypted_chunk) override;
     absl::Status OnChunksDone() override;
@@ -229,6 +231,8 @@ class QUICHE_EXPORT MasqueOhttpClient
     std::optional<quiche::ChunkedObliviousHttpClient> chunked_client_;
     quiche::BinaryHttpResponse::IndeterminateLengthDecoder decoder_;
     Message response_;
+    std::string buffered_binary_response_;
+    std::optional<bool> is_chunked_response_;
   };
 
   struct PendingRequest {
