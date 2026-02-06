@@ -58,6 +58,11 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "file.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::vector<std::string>, header, {},
+    "Adds a header field to the encapsulated binary request. Separate the "
+    "header name and value with a colon. Can be specified multiple times.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, private_token, "",
     "When set, the client will attach a base64-encoded private token to the "
     "encapsulated request. Accepts any base64 encoding.");
@@ -125,6 +130,8 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
     }
     post_data = *post_data_from_file;
   }
+  std::vector<std::string> headers =
+      quiche::GetQuicheCommandLineFlag(FLAGS_header);
   std::string private_token =
       quiche::GetQuicheCommandLineFlag(FLAGS_private_token);
 
@@ -144,9 +151,12 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
   for (size_t i = 2; i < urls.size(); ++i) {
     MasqueOhttpClient::Config::PerRequestConfig per_request_config(urls[i]);
     per_request_config.SetPostData(post_data);
+    QUICHE_RETURN_IF_ERROR(per_request_config.AddHeaders(headers));
+    if (!private_token.empty()) {
+      QUICHE_RETURN_IF_ERROR(per_request_config.AddPrivateToken(private_token));
+    }
     per_request_config.SetUseChunkedOhttp(use_chunked_ohttp);
     per_request_config.SetUseIndeterminateLength(indeterminate_length);
-    per_request_config.SetPrivateToken(private_token);
     if (expect_gateway_error.has_value()) {
       per_request_config.SetExpectedGatewayError(*expect_gateway_error);
     }

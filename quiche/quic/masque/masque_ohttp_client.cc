@@ -15,6 +15,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
@@ -60,7 +61,28 @@ namespace {
 
 static constexpr uint64_t kFixedSizeResponseFramingIndicator = 0x01;
 
-absl::StatusOr<std::string> FormatPrivateToken(
+}  // namespace
+
+absl::Status MasqueOhttpClient::Config::PerRequestConfig::AddHeaders(
+    const std::vector<std::string>& headers) {
+  for (const std::string& header : headers) {
+    std::vector<absl::string_view> header_split =
+        absl::StrSplit(header, absl::MaxSplits(':', 1));
+    if (header_split.size() != 2) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("Failed to parse header \"", header, "\""));
+    }
+    std::string header_name = std::string(header_split[0]);
+    absl::StripAsciiWhitespace(&header_name);
+    absl::AsciiStrToLower(&header_name);
+    std::string header_value = std::string(header_split[1]);
+    absl::StripAsciiWhitespace(&header_value);
+    headers_.push_back({std::move(header_name), std::move(header_value)});
+  }
+  return absl::OkStatus();
+}
+
+absl::Status MasqueOhttpClient::Config::PerRequestConfig::AddPrivateToken(
     const std::string& private_token) {
   // Private tokens require padded base64url and we allow any encoding for
   // convenience, so we need to unescape and re-escape.
@@ -73,10 +95,10 @@ absl::StatusOr<std::string> FormatPrivateToken(
   }
   formatted_token = absl::Base64Escape(formatted_token);
   absl::StrReplaceAll({{"+", "-"}, {"/", "_"}}, &formatted_token);
-  return absl::StrCat("PrivateToken token=\"", formatted_token, "\"");
+  headers_.push_back({"authorization", absl::StrCat("PrivateToken token=\"",
+                                                    formatted_token, "\"")});
+  return absl::OkStatus();
 }
-
-}  // namespace
 
 absl::Status MasqueOhttpClient::Config::ConfigureKeyFetchClientCert(
     const std::string& client_cert_file,
@@ -337,12 +359,6 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
   control_data.path = url.PathParamsQuery();
   std::string encrypted_data;
   PendingRequest pending_request(per_request_config);
-  std::string formatted_token;
-  if (!per_request_config.private_token().empty()) {
-    QUICHE_ASSIGN_OR_RETURN(
-        formatted_token,
-        FormatPrivateToken(per_request_config.private_token()));
-  }
   if (!ohttp_client_.has_value()) {
     QUICHE_LOG(FATAL) << "Cannot send OHTTP request without OHTTP client";
     return absl::InternalError(
@@ -358,8 +374,9 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
     QUICHE_ASSIGN_OR_RETURN(encoded_data,
                             encoder.EncodeControlData(control_data));
     std::vector<quiche::BinaryHttpMessage::FieldView> headers;
-    if (!formatted_token.empty()) {
-      headers.push_back({"authorization", formatted_token});
+    for (const std::pair<std::string, std::string>& header :
+         per_request_config.headers()) {
+      headers.push_back({header.first, header.second});
     }
     QUICHE_ASSIGN_OR_RETURN(std::string encoded_headers,
                             encoder.EncodeHeaders(absl::MakeSpan(headers)));
@@ -392,10 +409,11 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
     encoded_data += encoded_trailers;
   } else {
     BinaryHttpRequest binary_request(control_data);
-    binary_request.set_body(post_data);
-    if (!formatted_token.empty()) {
-      binary_request.AddHeaderField({"authorization", formatted_token});
+    for (const std::pair<std::string, std::string>& header :
+         per_request_config.headers()) {
+      binary_request.AddHeaderField({header.first, header.second});
     }
+    binary_request.set_body(post_data);
     QUICHE_ASSIGN_OR_RETURN(encoded_data, binary_request.Serialize());
   }
   if (pending_request.per_request_config.use_chunked_ohttp()) {
