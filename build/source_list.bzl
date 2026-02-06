@@ -1633,6 +1633,7 @@ moqt_srcs = [
     "quic/moqt/moqt_subscribe_windows.cc",
     "quic/moqt/moqt_trace_recorder.cc",
     "quic/moqt/moqt_track.cc",
+    "quic/moqt/relay_namespace_tree.cc",
     "quic/moqt/tools/chat_client.cc",
     "quic/moqt/tools/moq_chat.cc",
     "quic/moqt/tools/moqt_client.cc",

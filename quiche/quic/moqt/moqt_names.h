@@ -13,6 +13,8 @@
 #include <string>
 #include <vector>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 
@@ -26,6 +28,7 @@ inline constexpr size_t kMaxFullTrackNameSize = 1024;
 class TrackNamespace {
  public:
   explicit TrackNamespace(absl::Span<const absl::string_view> elements);
+  explicit TrackNamespace(absl::Span<const std::string> elements);
   explicit TrackNamespace(
       std::initializer_list<const absl::string_view> elements)
       : TrackNamespace(absl::Span<const absl::string_view>(
@@ -46,12 +49,31 @@ class TrackNamespace {
   }
   void AddElement(absl::string_view element);
   bool PopElement() {
-    if (tuple_.size() == 1) {
+    if (tuple_.size() == 0) {
       return false;
     }
     length_ -= tuple_.back().length();
     tuple_.pop_back();
     return true;
+  }
+  absl::StatusOr<TrackNamespace> AddSuffix(const TrackNamespace& suffix) const {
+    TrackNamespace result = *this;
+    result.tuple_.reserve(tuple_.size() + suffix.tuple_.size());
+    for (const auto& element : suffix.tuple()) {
+      if (!result.CanAddElement(element)) {
+        return absl::OutOfRangeError("Combined namespace is too large");
+      }
+      result.AddElement(element);
+    }
+    return result;
+  }
+  absl::StatusOr<TrackNamespace> ExtractSuffix(
+      const TrackNamespace& prefix) const {
+    if (!InNamespace(prefix)) {
+      return absl::InvalidArgumentError("Prefix is not in namespace");
+    }
+    return TrackNamespace(
+        absl::MakeSpan(tuple_).subspan(prefix.number_of_elements()));
   }
   std::string ToString() const;
   // Returns the number of elements in the tuple.

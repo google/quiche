@@ -90,16 +90,14 @@ class QUICHE_NO_EXPORT TestMessageBase {
  public:
   virtual ~TestMessageBase() = default;
 
-  using MessageStructuredData =
-      std::variant<MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtRequestOk,
-                   MoqtRequestError, MoqtSubscribe, MoqtSubscribeOk,
-                   MoqtUnsubscribe, MoqtPublishDone, MoqtSubscribeUpdate,
-                   MoqtPublishNamespace, MoqtPublishNamespaceDone,
-                   MoqtPublishNamespaceCancel, MoqtTrackStatus, MoqtGoAway,
-                   MoqtSubscribeNamespace, MoqtUnsubscribeNamespace,
-                   MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
-                   MoqtRequestsBlocked, MoqtPublish, MoqtPublishOk,
-                   MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
+  using MessageStructuredData = std::variant<
+      MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtRequestOk,
+      MoqtRequestError, MoqtSubscribe, MoqtSubscribeOk, MoqtUnsubscribe,
+      MoqtPublishDone, MoqtSubscribeUpdate, MoqtPublishNamespace,
+      MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
+      MoqtGoAway, MoqtSubscribeNamespace, MoqtMaxRequestId, MoqtFetch,
+      MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish,
+      MoqtPublishOk, MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -1259,37 +1257,6 @@ class QUICHE_NO_EXPORT SubscribeNamespaceMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT UnsubscribeNamespaceMessage : public TestMessageBase {
- public:
-  UnsubscribeNamespaceMessage() : TestMessageBase() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-  }
-
-  bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtUnsubscribeNamespace>(values);
-    if (cast.track_namespace != unsubscribe_namespace_.track_namespace) {
-      QUIC_LOG(INFO) << "UNSUBSCRIBE_NAMESPACE track namespace mismatch";
-      return false;
-    }
-    return true;
-  }
-
-  void ExpandVarints() override { ExpandVarintsImpl("vv---"); }
-
-  MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(unsubscribe_namespace_);
-  }
-
- private:
-  uint8_t raw_packet_[8] = {
-      0x14, 0x00, 0x05, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace
-  };
-
-  MoqtUnsubscribeNamespace unsubscribe_namespace_ = {
-      TrackNamespace("foo"),
-  };
-};
-
 class QUICHE_NO_EXPORT MaxRequestIdMessage : public TestMessageBase {
  public:
   MaxRequestIdMessage() : TestMessageBase() {
@@ -1880,8 +1847,6 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<GoAwayMessage>();
     case MoqtMessageType::kSubscribeNamespace:
       return std::make_unique<SubscribeNamespaceMessage>();
-    case MoqtMessageType::kUnsubscribeNamespace:
-      return std::make_unique<UnsubscribeNamespaceMessage>();
     case MoqtMessageType::kMaxRequestId:
       return std::make_unique<MaxRequestIdMessage>();
     case MoqtMessageType::kFetch:

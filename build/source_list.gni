@@ -1637,6 +1637,7 @@ moqt_srcs = [
     "src/quiche/quic/moqt/moqt_subscribe_windows.cc",
     "src/quiche/quic/moqt/moqt_trace_recorder.cc",
     "src/quiche/quic/moqt/moqt_track.cc",
+    "src/quiche/quic/moqt/relay_namespace_tree.cc",
     "src/quiche/quic/moqt/tools/chat_client.cc",
     "src/quiche/quic/moqt/tools/moq_chat.cc",
     "src/quiche/quic/moqt/tools/moqt_client.cc",

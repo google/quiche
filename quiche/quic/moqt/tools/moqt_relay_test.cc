@@ -16,7 +16,9 @@
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_relay_publisher.h"
@@ -154,36 +156,37 @@ TEST_F(MoqtRelayTest, PublishNamespace) {
 
 TEST_F(MoqtRelayTest, SubscribeNamespace) {
   TrackNamespace foo({"foo"}), foobar({"foo", "bar"}), foobaz({"foo", "baz"});
-  // These will be used to ascertain the namespace state.
-  MockMoqtSession relay_probe, upstream_probe;
   std::set<TrackNamespace> relay_published_namespaces,
       upstream_published_namespaces;
-  EXPECT_CALL(relay_probe, PublishNamespace)
-      .WillRepeatedly([&](TrackNamespace track_namespace,
-                          MoqtOutgoingPublishNamespaceCallback callback,
-                          VersionSpecificParameters) {
-        relay_published_namespaces.insert(track_namespace);
-        (callback)(track_namespace, std::nullopt);
-      });
-  EXPECT_CALL(relay_probe, PublishNamespaceDone)
-      .WillRepeatedly([&](TrackNamespace track_namespace) {
-        relay_published_namespaces.erase(track_namespace);
-        return true;
-      });
-  EXPECT_CALL(upstream_probe, PublishNamespace)
-      .WillRepeatedly([&](TrackNamespace track_namespace,
-                          MoqtOutgoingPublishNamespaceCallback callback,
-                          VersionSpecificParameters) {
-        upstream_published_namespaces.insert(track_namespace);
-        (callback)(track_namespace, std::nullopt);
-      });
-  EXPECT_CALL(upstream_probe, PublishNamespaceDone)
-      .WillRepeatedly([&](TrackNamespace track_namespace) {
-        upstream_published_namespaces.erase(track_namespace);
-        return true;
-      });
-  relay_.publisher()->AddNamespaceSubscriber(foo, &relay_probe);
-  upstream_.publisher()->AddNamespaceSubscriber(foo, &upstream_probe);
+  // These will be used to ascertain the namespace state.
+  TrackNamespace suffix;
+  TransactionType type;
+  std::unique_ptr<MoqtNamespaceTask> relay_probe =
+      relay_.publisher()->AddNamespaceSubscriber(foo, nullptr);
+  relay_probe->SetObjectsAvailableCallback([&]() {
+    while (relay_probe->GetNextSuffix(suffix, type) == kSuccess) {
+      if (type == TransactionType::kAdd) {
+        relay_published_namespaces.insert(
+            *relay_probe->prefix().AddSuffix(suffix));
+      } else {
+        relay_published_namespaces.erase(
+            *relay_probe->prefix().AddSuffix(suffix));
+      }
+    }
+  });
+  std::unique_ptr<MoqtNamespaceTask> upstream_probe =
+      upstream_.publisher()->AddNamespaceSubscriber(foo, nullptr);
+  upstream_probe->SetObjectsAvailableCallback([&]() {
+    while (upstream_probe->GetNextSuffix(suffix, type) == kSuccess) {
+      if (type == TransactionType::kAdd) {
+        upstream_published_namespaces.insert(
+            *upstream_probe->prefix().AddSuffix(suffix));
+      } else {
+        upstream_published_namespaces.erase(
+            *upstream_probe->prefix().AddSuffix(suffix));
+      }
+    }
+  });
   MoqtSession* upstream_session =
       absl::down_cast<MoqtSession*>(upstream_.last_server_session);
   // Downstream publishes a namespace. It's stored in relay_ but upstream_
@@ -197,9 +200,23 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   EXPECT_TRUE(upstream_published_namespaces.empty());
 
   // Upstream subscribes. Now it's notified and forwards it to the probe.
-  upstream_session->SubscribeNamespace(
-      foo, [](TrackNamespace, std::optional<MoqtRequestErrorInfo>) {},
-      MessageParameters());
+  std::unique_ptr<MoqtNamespaceTask> task =
+      upstream_session->SubscribeNamespace(
+          foo, SubscribeNamespaceOption::kNamespace, MessageParameters(),
+          [](std::optional<MoqtRequestErrorInfo>) {});
+  EXPECT_NE(task, nullptr);
+  task->SetObjectsAvailableCallback([&]() {
+    while (task->GetNextSuffix(suffix, type) == kSuccess) {
+      if (type == TransactionType::kAdd) {
+        upstream_.publisher()->OnPublishNamespace(
+            *task->prefix().AddSuffix(suffix), VersionSpecificParameters(),
+            upstream_session, nullptr);
+      } else {
+        upstream_.publisher()->OnPublishNamespaceDone(
+            *task->prefix().AddSuffix(suffix), upstream_session);
+      }
+    }
+  });
   upstream_.RunOneEvent();
   upstream_.RunOneEvent();
   EXPECT_THAT(upstream_published_namespaces, ElementsAre(foobar));
@@ -221,7 +238,9 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   EXPECT_THAT(upstream_published_namespaces, ElementsAre(foobaz));
 
   // upstream_ unsubscribes. New PUBLISH_NAMESPACE_DONE doesn't arrive.
-  upstream_session->UnsubscribeNamespace(foo);
+  task.reset();
+  upstream_.RunOneEvent();
+  relay_.RunOneEvent();
   downstream_.client_session()->PublishNamespaceDone(foobaz);
   upstream_.RunOneEvent();
   relay_.RunOneEvent();
@@ -229,8 +248,8 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   EXPECT_THAT(upstream_published_namespaces, ElementsAre(foobaz));
 
   // Remove the probes to avoid accessing an invalid WeakPtr on teardown.
-  relay_.publisher()->RemoveNamespaceSubscriber(foo, &relay_probe);
-  upstream_.publisher()->RemoveNamespaceSubscriber(foo, &upstream_probe);
+  relay_probe.reset();
+  upstream_probe.reset();
 }
 
 #if 0  // TODO(martinduke): Re-enable these tests when GOAWAY support exists.

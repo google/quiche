@@ -14,8 +14,10 @@
 #include <utility>
 #include <variant>
 
+#include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/functional/bind_front.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
@@ -23,8 +25,10 @@
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
+#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
@@ -46,13 +50,13 @@ namespace moqt::moq_chat {
 void ChatClient::OnIncomingPublishNamespace(
     const moqt::TrackNamespace& track_namespace,
     std::optional<VersionSpecificParameters> parameters,
-    moqt::MoqtResponseCallback callback) {
+    moqt::MoqtResponseCallback absl_nullable callback) {
   if (!session_is_open_) {
     return;
   }
   if (track_namespace == GetUserNamespace(my_track_name_)) {
     // Ignore PUBLISH_NAMESPACE for my own track.
-    if (parameters.has_value()) {  // callback exists.
+    if (parameters.has_value() && callback != nullptr) {  // callback exists.
       std::move(callback)(std::nullopt);
     }
     return;
@@ -70,20 +74,26 @@ void ChatClient::OnIncomingPublishNamespace(
   std::cout << "PUBLISH_NAMESPACE for " << track_namespace.ToString() << "\n";
   if (!track_name.has_value()) {
     std::cout << "PUBLISH_NAMESPACE rejected, invalid namespace\n";
-    std::move(callback)(std::make_optional<MoqtRequestErrorInfo>(
-        RequestErrorCode::kTrackDoesNotExist, std::nullopt,
-        "Not a subscribed namespace"));
+    if (callback != nullptr) {
+      std::move(callback)(std::make_optional<MoqtRequestErrorInfo>(
+          RequestErrorCode::kTrackDoesNotExist, std::nullopt,
+          "Not a subscribed namespace"));
+    }
     return;
   }
   if (other_users_.contains(*track_name)) {
     std::cout << "Duplicate PUBLISH_NAMESPACE, send OK and ignore\n";
-    std::move(callback)(std::nullopt);
+    if (callback != nullptr) {
+      std::move(callback)(std::nullopt);
+    }
     return;
   }
   if (GetUsername(my_track_name_) == GetUsername(*track_name)) {
     std::cout << "PUBLISH_NAMESPACE for a previous instance of my track, "
                  "do not subscribe\n";
-    std::move(callback)(std::nullopt);
+    if (callback != nullptr) {
+      std::move(callback)(std::nullopt);
+    }
     return;
   }
   MessageParameters subscribe_parameters(MoqtFilterType::kLargestObject);
@@ -97,7 +107,9 @@ void ChatClient::OnIncomingPublishNamespace(
                           subscribe_parameters)) {
     ++subscribes_to_make_;
   }
-  std::move(callback)(std::nullopt);  // Send PUBLISH_NAMESPACE_OK.
+  if (callback != nullptr) {
+    std::move(callback)(std::nullopt);  // Send PUBLISH_NAMESPACE_OK.
+  }
 }
 
 ChatClient::ChatClient(const quic::QuicServerId& server_id,
@@ -170,7 +182,7 @@ void ChatClient::OnTerminalLineInput(absl::string_view input_message) {
   }
   if (input_message == "/exit") {
     // Clean teardown of SUBSCRIBE_NAMESPACE, PUBLISH_NAMESPACE, SUBSCRIBE.
-    session_->UnsubscribeNamespace(GetChatNamespace(my_track_name_));
+    namespace_task_.reset();
     // TODO(martinduke): Add a session API to send PUBLISH_DONE.
     session_->PublishNamespaceDone(GetUserNamespace(my_track_name_));
     for (const auto& track_name : other_users_) {
@@ -272,9 +284,9 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
   // Send SUBSCRIBE_NAMESPACE. Pop 3 levels of namespace to get to
   // {moq-chat, chat-id}
   bool subscribe_response_received = false;
-  MoqtOutgoingSubscribeNamespaceCallback subscribe_namespace_callback =
-      [&, this](TrackNamespace track_namespace,
-                std::optional<MoqtRequestErrorInfo> error) {
+  TrackNamespace prefix = GetChatNamespace(my_track_name_);
+  MoqtResponseCallback response_callback =
+      [&, this, prefix](std::optional<MoqtRequestErrorInfo> error) {
         subscribe_response_received = true;
         if (error.has_value()) {
           std::cout << "SUBSCRIBE_NAMESPACE rejected, " << error->reason_phrase
@@ -283,16 +295,50 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
                           "Local SUBSCRIBE_NAMESPACE rejected");
           return;
         }
-        std::cout << "SUBSCRIBE_NAMESPACE for " << track_namespace.ToString()
+        std::cout << "SUBSCRIBE_NAMESPACE for " << prefix.ToString()
                   << " accepted\n";
         return;
       };
   MessageParameters parameters;
   parameters.authorization_tokens.emplace_back(
       AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
-  session_->SubscribeNamespace(GetChatNamespace(my_track_name_),
-                               std::move(subscribe_namespace_callback),
-                               parameters);
+  namespace_task_ =
+      session_->SubscribeNamespace(prefix, SubscribeNamespaceOption::kNamespace,
+                                   parameters, std::move(response_callback));
+  if (namespace_task_ != nullptr) {
+    namespace_task_->SetObjectsAvailableCallback(
+        [this]() {
+          TrackNamespace suffix;
+          TransactionType type;
+          for (;;) {
+            GetNextResult result = namespace_task_->GetNextSuffix(suffix, type);
+            switch (result) {
+              case GetNextResult::kPending:
+                return;
+              case GetNextResult::kEof:
+                return;
+              case GetNextResult::kError:
+                std::cerr << "Error: received error from namespace task\n";
+                return;
+              case GetNextResult::kSuccess:
+                absl::StatusOr<TrackNamespace> track_namespace =
+                    namespace_task_->prefix().AddSuffix(suffix);
+                if (!track_namespace.ok()) {
+                  std::cerr
+                      << "Error: received invalid suffix from namespace task\n";
+                  return;
+                }
+                OnIncomingPublishNamespace(
+                    *track_namespace,
+                    (type == TransactionType::kAdd)
+                        ? std::make_optional(VersionSpecificParameters())
+                        : std::nullopt,
+                    /*callback=*/nullptr);
+                break;
+            }
+          }
+        });
+  }
 
   while (session_is_open_ && !subscribe_response_received) {
     RunEventLoop();

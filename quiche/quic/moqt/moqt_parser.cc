@@ -617,9 +617,6 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kSubscribeNamespace:
       bytes_read = ProcessSubscribeNamespace(reader);
       break;
-    case MoqtMessageType::kUnsubscribeNamespace:
-      bytes_read = ProcessUnsubscribeNamespace(reader);
-      break;
     case MoqtMessageType::kMaxRequestId:
       bytes_read = ProcessMaxRequestId(reader);
       break;
@@ -919,16 +916,6 @@ size_t MoqtControlParser::ProcessSubscribeNamespace(
     return 0;
   }
   visitor_.OnSubscribeNamespaceMessage(subscribe_namespace);
-  return reader.PreviouslyReadPayload().length();
-}
-
-size_t MoqtControlParser::ProcessUnsubscribeNamespace(
-    quic::QuicDataReader& reader) {
-  MoqtUnsubscribeNamespace unsubscribe_namespace;
-  if (!ReadTrackNamespace(reader, unsubscribe_namespace.track_namespace)) {
-    return 0;
-  }
-  visitor_.OnUnsubscribeNamespaceMessage(unsubscribe_namespace);
   return reader.PreviouslyReadPayload().length();
 }
 

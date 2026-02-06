@@ -1636,6 +1636,7 @@
     "quiche/quic/moqt/moqt_subscribe_windows.cc",
     "quiche/quic/moqt/moqt_trace_recorder.cc",
     "quiche/quic/moqt/moqt_track.cc",
+    "quiche/quic/moqt/relay_namespace_tree.cc",
     "quiche/quic/moqt/tools/chat_client.cc",
     "quiche/quic/moqt/tools/moq_chat.cc",
     "quiche/quic/moqt/tools/moqt_client.cc",

@@ -11,6 +11,7 @@
 #include <utility>
 #include <variant>
 
+#include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -91,6 +92,10 @@ class MoqtFetchTask {
 class MoqtNamespaceTask {
  public:
   virtual ~MoqtNamespaceTask() = default;
+
+  // The provided callback may be immediately invoked.
+  virtual void SetObjectsAvailableCallback(ObjectsAvailableCallback
+                                           absl_nullable callback) = 0;
 
   // Returns the state of the message queue. If available, writes the suffix
   // into |suffix|. If |type| is kAdd, it is from a NAMESPACE message. If |type|

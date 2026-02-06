@@ -66,7 +66,8 @@ void MoqtRelayPublisher::SetDefaultUpstreamSession(
 void MoqtRelayPublisher::OnPublishNamespace(
     const TrackNamespace& track_namespace,
     const VersionSpecificParameters& /*parameters*/,
-    MoqtSessionInterface* session, MoqtResponseCallback callback) {
+    MoqtSessionInterface* session,
+    MoqtResponseCallback absl_nullable callback) {
   if (session == nullptr) {
     return;
   }
@@ -74,7 +75,9 @@ void MoqtRelayPublisher::OnPublishNamespace(
   namespace_publishers_.AddPublisher(track_namespace, session);
   // TODO(martinduke): Notify subscribers listening for this namespace.
   // Send PUBLISH_NAMESPACE_OK.
-  std::move(callback)(std::nullopt);
+  if (callback != nullptr) {
+    std::move(callback)(std::nullopt);
+  }
 }
 
 void MoqtRelayPublisher::OnPublishNamespaceDone(

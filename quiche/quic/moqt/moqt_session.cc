@@ -36,6 +36,7 @@
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_namespace_stream.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -257,15 +258,15 @@ void MoqtSession::Error(MoqtError code, absl::string_view error) {
   CleanUpState();
 }
 
-bool MoqtSession::SubscribeNamespace(
-    TrackNamespace track_namespace,
-    MoqtOutgoingSubscribeNamespaceCallback callback,
-    MessageParameters parameters) {
-  QUICHE_DCHECK(track_namespace.IsValid());
+std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
+    TrackNamespace& prefix, SubscribeNamespaceOption option,
+    const MessageParameters& parameters,
+    MoqtResponseCallback response_callback) {
+  QUICHE_DCHECK(prefix.IsValid());
   if (received_goaway_ || sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Tried to send SUBSCRIBE_NAMESPACE after GOAWAY";
-    return false;
+    return nullptr;
   }
   if (next_request_id_ >= peer_max_request_id_) {
     if (!last_requests_blocked_sent_.has_value() ||
@@ -279,44 +280,55 @@ bool MoqtSession::SubscribeNamespace(
                     << next_request_id_
                     << " which is greater than the maximum ID "
                     << peer_max_request_id_;
-    return false;
+    return nullptr;
   }
-  if (outgoing_subscribe_namespaces_.contains(track_namespace)) {
-    std::move(callback)(
-        track_namespace,
-        MoqtRequestErrorInfo{
-            RequestErrorCode::kInternalError, std::nullopt,
-            "SUBSCRIBE_NAMESPACE already outstanding for namespace"});
-    return false;
+  // Sanitize the option.
+  switch (option) {
+    case SubscribeNamespaceOption::kNamespace:
+      break;
+    case SubscribeNamespaceOption::kPublish:
+      // TODO(martinduke): Support PUBLISH.
+      return nullptr;
+    case SubscribeNamespaceOption::kBoth:
+      option = SubscribeNamespaceOption::kNamespace;
+      break;
+  }
+  QUICHE_DCHECK(option == SubscribeNamespaceOption::kNamespace);
+  if (!outgoing_subscribe_namespace_.SubscribeNamespace(prefix)) {
+    std::move(response_callback)(MoqtRequestErrorInfo{
+        RequestErrorCode::kInternalError, std::nullopt,
+        "SUBSCRIBE_NAMESPACE already outstanding for namespace"});
+    return nullptr;
+  }
+  std::unique_ptr<MoqtNamespaceSubscriberStream> state =
+      std::make_unique<MoqtNamespaceSubscriberStream>(
+          &framer_, next_request_id_,
+          [this, prefix]() {
+            if (!is_closing_) {
+              outgoing_subscribe_namespace_.UnsubscribeNamespace(prefix);
+            }
+          },
+          [this](MoqtError error, absl::string_view reason) {
+            Error(error, reason);
+          },
+          std::move(response_callback));
+  MoqtNamespaceSubscriberStream* state_ptr = state.get();
+  if (session_->CanOpenNextOutgoingBidirectionalStream()) {
+    webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
+    state->set_stream(stream);
+    stream->SetVisitor(std::move(state));
+  } else {
+    pending_bidi_streams_.push_back(std::move(state));
   }
   MoqtSubscribeNamespace message;
   message.request_id = next_request_id_;
-  next_request_id_ += 2;
-  message.track_namespace_prefix = track_namespace;
-  // We don't support PUBLISH, so don't ask for it.
+  message.track_namespace_prefix = prefix;
   message.subscribe_options = SubscribeNamespaceOption::kNamespace;
   message.parameters = parameters;
-  SendControlMessage(framer_.SerializeSubscribeNamespace(message));
+  state_ptr->SendOrBufferMessage(framer_.SerializeSubscribeNamespace(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_NAMESPACE message for "
                   << message.track_namespace_prefix;
-  pending_outgoing_subscribe_namespaces_[message.request_id] =
-      PendingSubscribeNamespaceData{track_namespace, std::move(callback)};
-  outgoing_subscribe_namespaces_.emplace(track_namespace);
-  return true;
-}
-
-bool MoqtSession::UnsubscribeNamespace(TrackNamespace track_namespace) {
-  QUICHE_DCHECK(track_namespace.IsValid());
-  if (!outgoing_subscribe_namespaces_.contains(track_namespace)) {
-    return false;
-  }
-  MoqtUnsubscribeNamespace message;
-  message.track_namespace = track_namespace;
-  SendControlMessage(framer_.SerializeUnsubscribeNamespace(message));
-  QUIC_DLOG(INFO) << ENDPOINT << "Sent UNSUBSCRIBE_NAMESPACE message for "
-                  << message.track_namespace;
-  outgoing_subscribe_namespaces_.erase(track_namespace);
-  return true;
+  return state_ptr->CreateTask(prefix);
 }
 
 void MoqtSession::PublishNamespace(
@@ -929,6 +941,21 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
       temp_stream->OnCanRead();
       break;
     }
+    case MoqtMessageType::kSubscribeNamespace: {
+      auto namespace_stream = std::make_unique<MoqtNamespacePublisherStream>(
+          &session_->framer_, stream_,
+          [session = session_](MoqtError code, absl::string_view reason) {
+            session->Error(code, reason);
+          },
+          &session_->incoming_subscribe_namespace_,
+          session_->callbacks_.incoming_subscribe_namespace_callback);
+      MoqtNamespacePublisherStream* temp_stream = namespace_stream.get();
+      stream_->SetVisitor(std::move(namespace_stream));
+      // The UnknownBidiStream object is deleted; no class access after this
+      // point.
+      temp_stream->OnCanRead();
+      break;
+    }
     default:
       session_->Error(MoqtError::kProtocolViolation,
                       "Unexpected message type received to start bidi stream");
@@ -1117,15 +1144,7 @@ void MoqtSession::ControlStream::OnRequestOkMessage(
     std::move(callback_it->second)(track_namespace, std::nullopt);
     return;
   }
-  // Response to SUBSCRIBE_NAMESPACE.
-  auto sn_it =
-      session_->pending_outgoing_subscribe_namespaces_.find(message.request_id);
-  if (sn_it != session_->pending_outgoing_subscribe_namespaces_.end()) {
-    std::move(sn_it->second.callback)(sn_it->second.track_namespace,
-                                      std::nullopt);
-    session_->pending_outgoing_subscribe_namespaces_.erase(sn_it);
-    return;
-  }
+  // Response to SUBSCRIBE_NAMESPACE is handled in the NamespaceStream.
   // TRACK_STATUS response would go here, but we don't support upstream
   // TRACK_STATUS.
   // If it doesn't match any state, it might be because the local application
@@ -1188,17 +1207,7 @@ void MoqtSession::ControlStream::OnRequestErrorMessage(
     session_->outgoing_publish_namespaces_.erase(it2);
     return;
   }
-  // Response to SUBSCRIBE_NAMESPACE.
-  auto sn_it =
-      session_->pending_outgoing_subscribe_namespaces_.find(message.request_id);
-  if (sn_it != session_->pending_outgoing_subscribe_namespaces_.end()) {
-    std::move(sn_it->second.callback)(sn_it->second.track_namespace,
-                                      error_info);
-    session_->outgoing_subscribe_namespaces_.erase(
-        sn_it->second.track_namespace);
-    session_->pending_outgoing_subscribe_namespaces_.erase(sn_it);
-    return;
-  }
+  // Response to SUBSCRIBE_NAMESPACE is handled in the NamespaceStream.
   // TRACK_STATUS response would go here, but we don't support upstream
   // TRACK_STATUS.
   // If it doesn't match any state, it might be because the local application
@@ -1344,51 +1353,6 @@ void MoqtSession::ControlStream::OnGoAwayMessage(const MoqtGoAway& message) {
     std::move(session_->callbacks_.goaway_received_callback)(
         message.new_session_uri);
   }
-}
-
-void MoqtSession::ControlStream::OnSubscribeNamespaceMessage(
-    const MoqtSubscribeNamespace& message) {
-  if (!session_->ValidateRequestId(message.request_id)) {
-    return;
-  }
-  // TODO(martinduke): Handle authentication.
-  if (session_->sent_goaway_) {
-    QUIC_DLOG(INFO) << ENDPOINT
-                    << "Received a SUBSCRIBE_NAMESPACE after GOAWAY";
-    SendRequestError(message.request_id, RequestErrorCode::kUnauthorized,
-                     std::nullopt, "SUBSCRIBE_NAMESPACE after GOAWAY");
-    return;
-  }
-  if (!session_->incoming_subscribe_namespace_.SubscribeNamespace(
-          message.track_namespace_prefix)) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Received a SUBSCRIBE_NAMESPACE for "
-                    << message.track_namespace_prefix
-                    << " that is already subscribed to";
-    SendRequestError(message.request_id,
-                     RequestErrorCode::kNamespacePrefixOverlap, std::nullopt,
-                     "SUBSCRIBE_NAMESPACE for similar subscribed namespace");
-    return;
-  }
-  (session_->callbacks_.incoming_subscribe_namespace_callback)(
-      message.track_namespace_prefix, message.parameters,
-      [&](std::optional<MoqtRequestErrorInfo> error) {
-        if (error.has_value()) {
-          SendRequestError(message.request_id, *error);
-          session_->incoming_subscribe_namespace_.UnsubscribeNamespace(
-              message.track_namespace_prefix);
-        } else {
-          SendRequestOk(message.request_id, MessageParameters());
-        }
-      });
-}
-
-void MoqtSession::ControlStream::OnUnsubscribeNamespaceMessage(
-    const MoqtUnsubscribeNamespace& message) {
-  // MoqtSession keeps no state here, so just tell the application.
-  session_->incoming_subscribe_namespace_.UnsubscribeNamespace(
-      message.track_namespace);
-  session_->callbacks_.incoming_subscribe_namespace_callback(
-      message.track_namespace, std::nullopt, nullptr);
 }
 
 void MoqtSession::ControlStream::OnMaxRequestIdMessage(
@@ -2413,14 +2377,9 @@ void MoqtSession::CleanUpState() {
   if (goaway_timeout_alarm_ != nullptr) {
     goaway_timeout_alarm_->PermanentCancel();
   }
-  // When the session closes, report to the application implied receipt of
-  // UNSUBSCRIBE_NAMESPACE, PUBLISH_NAMESPACE_DONE, PUBLISH_NAMESPACE_CANCEL,
-  // PUBLISH_DONE, and UNSUBSCRIBE.
-  for (const TrackNamespace& track_namespace :
-       incoming_subscribe_namespace_.GetSubscribedNamespaces()) {
-    callbacks_.incoming_subscribe_namespace_callback(track_namespace,
-                                                     std::nullopt, nullptr);
-  }
+  // Incoming SUBSCRIBE_NAMESPACE is automatically cleaned up; the destroyed
+  // session owns the webtransport stream, which owns the StreamVisitor, which
+  // owns the task. Destroying the task notifies the application.
   published_subscriptions_.clear();
   for (const TrackNamespace& track_namespace : incoming_publish_namespaces_) {
     callbacks_.incoming_publish_namespace_callback(track_namespace,

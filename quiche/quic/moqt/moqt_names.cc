@@ -36,6 +36,25 @@ TrackNamespace::TrackNamespace(absl::Span<const absl::string_view> elements)
   }
 }
 
+TrackNamespace::TrackNamespace(absl::Span<const std::string> elements)
+    : tuple_(elements.begin(), elements.end()) {
+  if (std::size(elements) > kMaxNamespaceElements) {
+    tuple_.clear();
+    QUICHE_BUG(Moqt_namespace_too_large_01)
+        << "Constructing a namespace that is too large.";
+    return;
+  }
+  for (const auto& it : elements) {
+    length_ += it.size();
+    if (length_ > kMaxFullTrackNameSize) {
+      tuple_.clear();
+      QUICHE_BUG(Moqt_namespace_too_large_02)
+          << "Constructing a namespace that is too large.";
+      return;
+    }
+  }
+}
+
 bool TrackNamespace::InNamespace(const TrackNamespace& other) const {
   if (tuple_.size() < other.tuple_.size()) {
     return false;

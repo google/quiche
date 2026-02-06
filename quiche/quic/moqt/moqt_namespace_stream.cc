@@ -102,6 +102,8 @@ void MoqtNamespaceSubscriberStream::OnNamespaceMessage(
                    "Two NAMESPACE messages for the same track namespace");
     return;
   }
+  QUIC_DLOG(INFO) << "Received NAMESPACE message for "
+                  << message.track_namespace_suffix;
   task->AddPendingSuffix(message.track_namespace_suffix, TransactionType::kAdd);
 }
 
@@ -121,15 +123,15 @@ void MoqtNamespaceSubscriberStream::OnNamespaceDoneMessage(
                    "NAMESPACE_DONE with no active namespace");
     return;
   }
+  QUIC_DLOG(INFO) << "Received NAMESPACE_DONE message for "
+                  << message.track_namespace_suffix;
   task->AddPendingSuffix(message.track_namespace_suffix,
                          TransactionType::kDelete);
 }
 
 std::unique_ptr<MoqtNamespaceTask> MoqtNamespaceSubscriberStream::CreateTask(
-    const TrackNamespace& prefix,
-    ObjectsAvailableCallback absl_nonnull callback) {
-  auto task =
-      std::make_unique<NamespaceTask>(this, prefix, std::move(callback));
+    const TrackNamespace& prefix) {
+  auto task = std::make_unique<NamespaceTask>(this, prefix);
   QUICHE_DCHECK(task != nullptr);
   task_ = task->GetWeakPtr();
   QUICHE_DCHECK(task_.IsValid());
@@ -139,6 +141,14 @@ std::unique_ptr<MoqtNamespaceTask> MoqtNamespaceSubscriberStream::CreateTask(
 MoqtNamespaceSubscriberStream::NamespaceTask::~NamespaceTask() {
   if (state_ != nullptr) {
     state_->Reset(kResetCodeCanceled);
+  }
+}
+
+void MoqtNamespaceSubscriberStream::NamespaceTask::SetObjectsAvailableCallback(
+    ObjectsAvailableCallback absl_nullable callback) {
+  callback_ = std::move(callback);
+  if (!pending_suffixes_.empty() && callback_ != nullptr) {
+    callback_();
   }
 }
 
@@ -187,45 +197,57 @@ void MoqtNamespaceSubscriberStream::NamespaceTask::DeclareEof() {
 
 MoqtNamespacePublisherStream::MoqtNamespacePublisherStream(
     MoqtFramer* framer, webtransport::Stream* stream,
-    SessionErrorCallback session_error_callback, SessionNamespaceTree& tree,
-    MoqtIncomingSubscribeNamespaceCallbackNew& application)
+    SessionErrorCallback session_error_callback,
+    SessionNamespaceTree* absl_nonnull tree,
+    MoqtIncomingSubscribeNamespaceCallback& application)
     // No stream_deleted_callback because there's no state yet.
     : MoqtBidiStreamBase(
           framer, []() {}, std::move(session_error_callback)),
-      tree_(tree),
+      tree_(tree->GetWeakPtr()),
       application_(application) {
   // TODO(martinduke): Set the priority for this stream.
   MoqtBidiStreamBase::set_stream(stream, MoqtMessageType::kSubscribeNamespace);
 }
 
 MoqtNamespacePublisherStream::~MoqtNamespacePublisherStream() {
-  if (task_ != nullptr) {
+  if (task_ == nullptr) {
+    return;
+  }
+  SessionNamespaceTree* tree = tree_.GetIfAvailable();
+  if (tree != nullptr) {
     // Could be null if the stream died early.
-    tree_.UnsubscribeNamespace(task_->prefix());
+    tree->UnsubscribeNamespace(task_->prefix());
   }
 }
 
 void MoqtNamespacePublisherStream::OnSubscribeNamespaceMessage(
     const MoqtSubscribeNamespace& message) {
   request_id_ = message.request_id;
-  if (!tree_.SubscribeNamespace(message.track_namespace_prefix)) {
+  SessionNamespaceTree* tree = tree_.GetIfAvailable();
+  if (tree == nullptr) {
+    SendRequestError(request_id_, RequestErrorCode::kInternalError,
+                     std::nullopt, "Session is gone", /*fin=*/true);
+    return;
+  }
+  if (!tree->SubscribeNamespace(message.track_namespace_prefix)) {
     SendRequestError(request_id_, RequestErrorCode::kPrefixOverlap,
-                     std::nullopt, "");
+                     std::nullopt, "", /*fin=*/true);
     return;
   }
   QUICHE_DCHECK(task_ == nullptr);
-  task_ = application_(
-      message.track_namespace_prefix, message.parameters,
-      // Response callback
-      [this](std::optional<MoqtRequestErrorInfo> error) {
-        if (error.has_value()) {
-          SendRequestError(request_id_, *error, /*fin=*/true);
-        } else {
-          SendRequestOk(request_id_, MessageParameters());
-        }
-      },
-      // Objects available callback
-      [this]() { ProcessNamespaces(); });
+  task_ = application_(message.track_namespace_prefix,
+                       message.subscribe_options, message.parameters,
+                       // Response callback
+                       [this](std::optional<MoqtRequestErrorInfo> error) {
+                         if (error.has_value()) {
+                           SendRequestError(request_id_, *error, /*fin=*/true);
+                         } else {
+                           SendRequestOk(request_id_, MessageParameters());
+                         }
+                       });
+  if (task_ != nullptr) {
+    task_->SetObjectsAvailableCallback([this]() { ProcessNamespaces(); });
+  }
 }
 
 void MoqtNamespacePublisherStream::ProcessNamespaces() {

@@ -97,10 +97,6 @@ class MoqtParserTestVisitor : public MoqtControlParserVisitor,
       const MoqtSubscribeNamespace& message) override {
     OnControlMessage(message);
   }
-  void OnUnsubscribeNamespaceMessage(
-      const MoqtUnsubscribeNamespace& message) override {
-    OnControlMessage(message);
-  }
   void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) override {
     OnControlMessage(message);
   }

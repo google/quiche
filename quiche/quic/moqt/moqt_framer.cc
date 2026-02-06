@@ -642,12 +642,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespace(
       WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeUnsubscribeNamespace(
-    const MoqtUnsubscribeNamespace& message) {
-  return SerializeControlMessage(MoqtMessageType::kUnsubscribeNamespace,
-                                 WireTrackNamespace(message.track_namespace));
-}
-
 quiche::QuicheBuffer MoqtFramer::SerializeMaxRequestId(
     const MoqtMaxRequestId& message) {
   return SerializeControlMessage(MoqtMessageType::kMaxRequestId,

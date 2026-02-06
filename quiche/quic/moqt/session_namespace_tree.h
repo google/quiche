@@ -9,7 +9,8 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
-#include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
 
@@ -22,7 +23,7 @@ namespace moqt {
 // a/b and a/b/c/d would not be.
 class SessionNamespaceTree {
  public:
-  SessionNamespaceTree() = default;
+  SessionNamespaceTree() : weak_ptr_factory_(this) {}
   ~SessionNamespaceTree() {}
 
   // Returns false if the namespace was not subscribed.
@@ -69,6 +70,10 @@ class SessionNamespaceTree {
     return subscribed_namespaces_;
   }
 
+  quiche::QuicheWeakPtr<SessionNamespaceTree> GetWeakPtr() {
+    return weak_ptr_factory_.Create();
+  }
+
  protected:
   uint64_t NumSubscriptions() const { return subscribed_namespaces_.size(); }
 
@@ -77,6 +82,7 @@ class SessionNamespaceTree {
   // Namespaces that cannot be subscribed to because they intersect with an
   // existing subscription. The value is a ref count.
   absl::flat_hash_map<TrackNamespace, int> prohibited_namespaces_;
+  quiche::QuicheWeakPtrFactory<SessionNamespaceTree> weak_ptr_factory_;
 };
 
 }  // namespace moqt

@@ -10,8 +10,8 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_names.h"
-#include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
 #include "quiche/quic/moqt/tools/chat_client.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_relay.h"
@@ -146,27 +146,34 @@ TEST_F(MoqChatEndToEndTest, LeaveAndRejoin) {
   SendAndWaitForOutput(interface2_, interface1_, "client2", "Hi");
 
   // Add a probe to see how many publishers are tracked on the relay.
-  MockMoqtSession namespace_probe;
-  EXPECT_CALL(namespace_probe, PublishNamespace).Times(3);
-  relay_.publisher()->AddNamespaceSubscriber(
-      TrackNamespace(moq_chat::kBasePath), &namespace_probe);
+  int namespaces_announced = 0;
+  TrackNamespace last_suffix;
+  TransactionType last_type;
+  std::unique_ptr<MoqtNamespaceTask> namespace_probe =
+      relay_.publisher()->AddNamespaceSubscriber(
+          TrackNamespace(moq_chat::kBasePath), nullptr);
+  namespace_probe->SetObjectsAvailableCallback([&]() {
+    while (namespace_probe->GetNextSuffix(last_suffix, last_type) == kSuccess) {
+      if (last_type == TransactionType::kAdd) {
+        ++namespaces_announced;
+      } else {
+        --namespaces_announced;
+      }
+    }
+  });
+  EXPECT_EQ(namespaces_announced, 2);
 
-  bool namespace_done = false;
-  EXPECT_CALL(namespace_probe, PublishNamespaceDone)
-      .WillOnce([&](const TrackNamespace&) {
-        namespace_done = true;
-        return true;
-      });
   interface1_->SendMessage("/exit");
   while (client1_->session_is_open()) {
     relay_.server()->WaitForEvents();
   }
   client1_.reset();
-  while (!namespace_done) {
+  while (last_type != TransactionType::kDelete) {
     // Wait for the relay's session cleanup to send PUBLISH_NAMESPACE_DONE
     // and PUBLISH_DONE.
     relay_.server()->WaitForEvents();
   }
+  EXPECT_EQ(namespaces_announced, 1);
   // Create a new client with the same username and Reconnect.
   auto if1bptr = std::make_unique<MockChatUserInterface>();
   MockChatUserInterface* interface1b_ = if1bptr.get();
@@ -182,9 +189,9 @@ TEST_F(MoqChatEndToEndTest, LeaveAndRejoin) {
   }
   SendAndWaitForOutput(interface1b_, interface2_, "client1", "Hello again");
   SendAndWaitForOutput(interface2_, interface1b_, "client2", "Hi again");
+  EXPECT_EQ(namespaces_announced, 2);
   // Cleanup the probe.
-  relay_.publisher()->RemoveNamespaceSubscriber(
-      TrackNamespace(moq_chat::kBasePath), &namespace_probe);
+  namespace_probe.reset();
 }
 
 }  // namespace test

@@ -7,9 +7,11 @@
 #include <vector>
 
 #include "absl/hash/hash.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace moqt::test {
 namespace {
@@ -49,6 +51,8 @@ TEST(MoqtNamesTest, TrackNamespacePushPop) {
   EXPECT_FALSE(original.InNamespace(name));
   EXPECT_TRUE(name.PopElement());
   EXPECT_EQ(name, original);
+  EXPECT_TRUE(name.PopElement());
+  EXPECT_EQ(name.number_of_elements(), 0);
   EXPECT_FALSE(name.PopElement());
 }
 
@@ -63,6 +67,22 @@ TEST(MoqtNamesTest, TrackNamespaceToString) {
 TEST(MoqtNamesTest, FullTrackNameToString) {
   FullTrackName name1(TrackNamespace{"a", "b"}, "c");
   EXPECT_EQ(name1.ToString(), R"({"a"::"b"}::c)");
+}
+
+TEST(MoqtNamesTest, TrackNamespaceSuffixes) {
+  using quiche::test::IsOkAndHolds;
+  TrackNamespace name1({"a", "b"});
+  TrackNamespace name2({"c", "d"});
+  TrackNamespace name3({"a", "b", "c", "d"});
+  EXPECT_THAT(name1.AddSuffix(name2), IsOkAndHolds(name3));
+  EXPECT_THAT(name3.ExtractSuffix(name1), IsOkAndHolds(name2));
+  EXPECT_THAT(name1.AddSuffix(TrackNamespace()), IsOkAndHolds(name1));
+  EXPECT_THAT(TrackNamespace().AddSuffix(name1), IsOkAndHolds(name1));
+  EXPECT_THAT(name1.ExtractSuffix(TrackNamespace()), IsOkAndHolds(name1));
+  EXPECT_THAT(name1.ExtractSuffix(name1), IsOkAndHolds(TrackNamespace()));
+  TrackNamespace name4({"c", "b"});
+  EXPECT_EQ(name1.ExtractSuffix(name4).status(),
+            absl::InvalidArgumentError("Prefix is not in namespace"));
 }
 
 TEST(MoqtNamesTest, TooManyNamespaceElements) {

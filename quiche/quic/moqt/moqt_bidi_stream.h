@@ -120,10 +120,6 @@ class MoqtBidiStreamBase : public MoqtControlParserVisitor,
       const MoqtSubscribeNamespace& message) override {
     OnParsingError(wrong_message_error_, wrong_message_reason_);
   }
-  virtual void OnUnsubscribeNamespaceMessage(
-      const MoqtUnsubscribeNamespace& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
   virtual void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) override {
     OnParsingError(wrong_message_error_, wrong_message_reason_);
   }

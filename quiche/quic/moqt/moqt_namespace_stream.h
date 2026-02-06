@@ -49,9 +49,7 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
   void OnNamespaceDoneMessage(const MoqtNamespaceDone& message) override;
 
   // Send the prefix now so it is only stored in one place (the task).
-  std::unique_ptr<MoqtNamespaceTask> CreateTask(const TrackNamespace& prefix,
-                                                ObjectsAvailableCallback
-                                                absl_nonnull callback);
+  std::unique_ptr<MoqtNamespaceTask> CreateTask(const TrackNamespace& prefix);
 
  private:
   // The class that will be passed to the application to consume namespace
@@ -59,14 +57,16 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
   class NamespaceTask : public MoqtNamespaceTask {
    public:
     NamespaceTask(MoqtNamespaceSubscriberStream* absl_nonnull state,
-                  const TrackNamespace& prefix,
-                  ObjectsAvailableCallback absl_nonnull callback)
+                  const TrackNamespace& prefix)
         : MoqtNamespaceTask(),
           prefix_(prefix),
           state_(state),
-          callback_(std::move(callback)),
           weak_ptr_factory_(this) {}
     ~NamespaceTask() override;
+
+    void SetObjectsAvailableCallback(ObjectsAvailableCallback
+                                     absl_nullable callback) override;
+
     // MoqtNamespaceTask methods. A return value of kEof implies
     // NAMESPACE_DONE for all outstanding namespaces.
     GetNextResult GetNextSuffix(TrackNamespace& suffix,
@@ -97,7 +97,7 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
     // Must be nonnull initially, will be nullptr if the stream is closed.
     MoqtNamespaceSubscriberStream* state_;
     quiche::QuicheCircularDeque<PendingSuffix> pending_suffixes_;
-    ObjectsAvailableCallback callback_;
+    ObjectsAvailableCallback absl_nullable callback_ = nullptr;
     std::optional<webtransport::StreamErrorCode> error_;
     bool eof_ = false;
     // Must be last.
@@ -115,15 +115,16 @@ class MoqtNamespacePublisherStream : public MoqtBidiStreamBase {
   // Constructor for the publisher side.
   MoqtNamespacePublisherStream(
       MoqtFramer* framer, webtransport::Stream* stream,
-      SessionErrorCallback session_error_callback, SessionNamespaceTree& tree,
-      MoqtIncomingSubscribeNamespaceCallbackNew& application);
+      SessionErrorCallback session_error_callback,
+      SessionNamespaceTree* absl_nonnull tree,
+      MoqtIncomingSubscribeNamespaceCallback& application);
   ~MoqtNamespacePublisherStream() override;
 
   // MoqtBidiStreamBase overrides.
   void OnSubscribeNamespaceMessage(
       const MoqtSubscribeNamespace& message) override;
   // TODO(martinduke): Implement this.
-  void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override {
+  void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate&) override {
     QUICHE_DLOG(INFO) << "Got SUBSCRIBE_UPDATE on Namespace stream";
   }
 
@@ -131,8 +132,8 @@ class MoqtNamespacePublisherStream : public MoqtBidiStreamBase {
   void ProcessNamespaces();
 
   uint64_t request_id_;
-  SessionNamespaceTree& tree_;
-  MoqtIncomingSubscribeNamespaceCallbackNew& application_;
+  quiche::QuicheWeakPtr<SessionNamespaceTree> tree_;
+  MoqtIncomingSubscribeNamespaceCallback& application_;
   std::unique_ptr<MoqtNamespaceTask> task_;
   absl::flat_hash_set<TrackNamespace> published_suffixes_;
 };

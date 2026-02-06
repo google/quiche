@@ -16,7 +16,9 @@
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
@@ -123,19 +125,27 @@ void MoqtRelay::SetNamespaceCallbacks(MoqtSessionInterface* session) {
         }
       };
   session->callbacks().incoming_subscribe_namespace_callback =
-      [this, session](const TrackNamespace& track_namespace,
-                      const std::optional<MessageParameters>& parameters,
-                      MoqtResponseCallback callback) {
-        if (is_closing_) {
-          return;
-        }
-        if (parameters.has_value()) {
-          publisher_.AddNamespaceSubscriber(track_namespace, session);
-          std::move(callback)(std::nullopt);
-        } else {
-          publisher_.RemoveNamespaceSubscriber(track_namespace, session);
-        }
-      };
+      [this, session](const TrackNamespace& prefix,
+                      SubscribeNamespaceOption option,
+                      const MessageParameters& parameters,
+                      MoqtResponseCallback response_callback)
+      -> std::unique_ptr<MoqtNamespaceTask> {
+    if (is_closing_) {
+      return nullptr;
+    }
+    std::unique_ptr<MoqtNamespaceTask> task;
+    switch (option) {
+      case SubscribeNamespaceOption::kNamespace:
+        task = publisher_.AddNamespaceSubscriber(prefix, nullptr);
+        break;
+      case SubscribeNamespaceOption::kBoth:
+      case SubscribeNamespaceOption::kPublish:
+        task = publisher_.AddNamespaceSubscriber(prefix, session);
+        break;
+    }
+    std::move(response_callback)(std::nullopt);
+    return task;
+  };
 }
 
 absl::StatusOr<MoqtConfigureSessionCallback> MoqtRelay::IncomingSessionHandler(

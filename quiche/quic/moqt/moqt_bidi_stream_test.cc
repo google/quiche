@@ -148,13 +148,6 @@ TEST_F(MoqtBidiStreamTest, AllMessagesRejected) {
   EXPECT_CALL(error_callback_,
               Call(MoqtError::kProtocolViolation,
                    "Message not allowed for this stream type"));
-  stream_->OnUnsubscribeNamespaceMessage(MoqtUnsubscribeNamespace{});
-  stream_ = std::make_unique<MoqtBidiStreamBase>(
-      &framer_, deleted_callback_.AsStdFunction(),
-      error_callback_.AsStdFunction());
-  EXPECT_CALL(error_callback_,
-              Call(MoqtError::kProtocolViolation,
-                   "Message not allowed for this stream type"));
   stream_->OnMaxRequestIdMessage(MoqtMaxRequestId{});
   stream_ = std::make_unique<MoqtBidiStreamBase>(
       &framer_, deleted_callback_.AsStdFunction(),

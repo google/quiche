@@ -9,13 +9,18 @@
 #include <optional>
 #include <variant>
 
+#include "absl/base/nullability.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_session.h"
@@ -131,11 +136,13 @@ class ChatClient {
 
  private:
   void RunEventLoop() { event_loop_->RunEventLoopOnce(kChatEventLoopDuration); }
-  // Callback for incoming publish_namespaces.
+  // Callback for incoming publish_namespaces. If |parameters| is not nullopt,
+  // it's a PUBLISH_NAMESPACE or NAMESPACE. If |callback| is not nullptr, it's
+  // a PUBLISH_NAMESPACE.
   void OnIncomingPublishNamespace(
       const moqt::TrackNamespace& track_namespace,
       std::optional<VersionSpecificParameters> parameters,
-      moqt::MoqtResponseCallback callback);
+      moqt::MoqtResponseCallback absl_nullable callback);
 
   // Basic session information
   FullTrackName my_track_name_;
@@ -155,6 +162,7 @@ class ChatClient {
   moqt::MoqtKnownTrackPublisher publisher_;
   std::unique_ptr<moqt::MoqtClient> client_;
   moqt::MoqtSessionCallbacks session_callbacks_;
+  std::unique_ptr<moqt::MoqtNamespaceTask> namespace_task_;
 
   // Related to syncing.
   absl::flat_hash_set<FullTrackName> other_users_;

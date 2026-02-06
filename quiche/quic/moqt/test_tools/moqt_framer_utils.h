@@ -31,10 +31,9 @@ using MoqtGenericFrame =
                  MoqtUnsubscribe, MoqtPublishDone, MoqtSubscribeUpdate,
                  MoqtPublishNamespace, MoqtPublishNamespaceDone, MoqtNamespace,
                  MoqtNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
-                 MoqtGoAway, MoqtSubscribeNamespace, MoqtUnsubscribeNamespace,
-                 MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
-                 MoqtRequestsBlocked, MoqtPublish, MoqtPublishOk,
-                 MoqtObjectAck>;
+                 MoqtGoAway, MoqtSubscribeNamespace, MoqtMaxRequestId,
+                 MoqtFetch, MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked,
+                 MoqtPublish, MoqtPublishOk, MoqtObjectAck>;
 
 std::string SerializeGenericMessage(const MoqtGenericFrame& frame,
                                     bool use_webtrans = false);

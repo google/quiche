@@ -16,6 +16,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -28,6 +29,7 @@
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
+#include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt::test {
@@ -41,9 +43,9 @@ struct MockSessionCallbacks {
                              std::optional<VersionSpecificParameters>,
                              MoqtResponseCallback)>
       incoming_publish_namespace_callback;
-  testing::MockFunction<void(const TrackNamespace&,
-                             std::optional<MessageParameters>,
-                             MoqtResponseCallback)>
+  testing::MockFunction<std::unique_ptr<MoqtNamespaceTask>(
+      const TrackNamespace&, SubscribeNamespaceOption, const MessageParameters&,
+      MoqtResponseCallback)>
       incoming_subscribe_namespace_callback;
 
   MockSessionCallbacks() {
@@ -264,6 +266,36 @@ class MockFetchTask : public MoqtFetchTask {
   std::optional<MoqtFetchOk> synchronous_fetch_ok_;
   std::optional<MoqtRequestError> synchronous_fetch_error_;
   bool synchronous_object_available_ = false;
+};
+
+class MockNamespaceTask : public MoqtNamespaceTask {
+ public:
+  explicit MockNamespaceTask(const TrackNamespace& prefix)
+      : prefix_(prefix), weak_ptr_factory_(this) {}
+  void SetObjectsAvailableCallback(ObjectsAvailableCallback
+                                   absl_nullable callback) override {
+    callback_ = std::move(callback);
+  }
+  MOCK_METHOD(GetNextResult, GetNextSuffix,
+              (TrackNamespace & whole_namespace, TransactionType& type),
+              (override));
+  MOCK_METHOD(std::optional<webtransport::StreamErrorCode>, GetStatus, (),
+              (override));
+  const TrackNamespace& prefix() override { return prefix_; }
+
+  void InvokeCallback() {
+    if (callback_ != nullptr) {
+      callback_();
+    }
+  }
+  quiche::QuicheWeakPtr<MockNamespaceTask> GetWeakPtr() {
+    return weak_ptr_factory_.Create();
+  }
+
+ private:
+  ObjectsAvailableCallback callback_;
+  TrackNamespace prefix_;
+  quiche::QuicheWeakPtrFactory<MockNamespaceTask> weak_ptr_factory_;
 };
 
 class MockMoqtObjectListener : public MoqtObjectListener {

@@ -6,10 +6,13 @@
 #define QUICHE_QUIC_MOQT_MOQT_RELAY_PUBLISHER_H_
 
 #include <memory>
+#include <utility>
 
 #include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
-#include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_relay_track_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
@@ -33,13 +36,10 @@ class MoqtRelayPublisher : public MoqtPublisher {
   absl_nullable std::shared_ptr<MoqtTrackPublisher> GetTrack(
       const FullTrackName& track_name) override;
 
-  void AddNamespaceSubscriber(const TrackNamespace& track_namespace,
-                              MoqtSessionInterface* session) {
-    namespace_publishers_.AddSubscriber(track_namespace, session);
-  }
-  void RemoveNamespaceSubscriber(const TrackNamespace& track_namespace,
-                                 MoqtSessionInterface* session) {
-    namespace_publishers_.RemoveSubscriber(track_namespace, session);
+  std::unique_ptr<MoqtNamespaceTask> AddNamespaceSubscriber(
+      const TrackNamespace& track_namespace,
+      MoqtSessionInterface* absl_nullable session) {
+    return namespace_publishers_.AddSubscriber(track_namespace, session);
   }
 
   // There is a new default upstream session. When there is no other namespace
@@ -55,7 +55,7 @@ class MoqtRelayPublisher : public MoqtPublisher {
   void OnPublishNamespace(const TrackNamespace& track_namespace,
                           const VersionSpecificParameters& parameters,
                           MoqtSessionInterface* session,
-                          MoqtResponseCallback callback);
+                          MoqtResponseCallback absl_nullable callback);
 
   void OnPublishNamespaceDone(const TrackNamespace& track_namespace,
                               MoqtSessionInterface* session);

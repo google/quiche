@@ -25,6 +25,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -98,12 +99,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   quic::Perspective perspective() const { return parameters_.perspective; }
 
-  // Returns true if message was sent.
-  bool SubscribeNamespace(TrackNamespace track_namespace,
-                          MoqtOutgoingSubscribeNamespaceCallback callback,
-                          MessageParameters parameters);
-  bool UnsubscribeNamespace(TrackNamespace track_namespace);
-
   // Allows the subscriber to declare it will not subscribe to |track_namespace|
   // anymore.
   void CancelPublishNamespace(TrackNamespace track_namespace,
@@ -141,6 +136,15 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                         MoqtOutgoingPublishNamespaceCallback callback,
                         VersionSpecificParameters parameters) override;
   bool PublishNamespaceDone(TrackNamespace track_namespace) override;
+  // TODO(martinduke): Support PUBLISH. For now, PUBLISH-only requests will be
+  // rejected with nullptr, and kBoth requests will change to kNamespace.
+  // After receiving MoqtNamespaceTask, call
+  // MoqtNamespaceTask::SetObjectsAvailableCallback() to actually retrieve
+  // namespaces.
+  std::unique_ptr<MoqtNamespaceTask> SubscribeNamespace(
+      TrackNamespace& prefix, SubscribeNamespaceOption option,
+      const MessageParameters& parameters,
+      MoqtResponseCallback response_callback) override;
   quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() override {
     return weak_ptr_factory_.Create();
   }
@@ -268,10 +272,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
         const MoqtPublishNamespaceCancel& message) override;
     void OnTrackStatusMessage(const MoqtTrackStatus& message) override;
     void OnGoAwayMessage(const MoqtGoAway& /*message*/) override;
-    void OnSubscribeNamespaceMessage(
-        const MoqtSubscribeNamespace& message) override;
-    void OnUnsubscribeNamespaceMessage(
-        const MoqtUnsubscribeNamespace& message) override;
     void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) override;
     void OnFetchMessage(const MoqtFetch& message) override;
     void OnFetchCancelMessage(const MoqtFetchCancel& /*message*/) override {}
@@ -853,19 +853,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       outgoing_publish_namespaces_;
   absl::flat_hash_set<TrackNamespace> incoming_publish_namespaces_;
 
-  // The value is nullptr after OK or ERROR is received. The entry is deleted
-  // when sending UNSUBSCRIBE_NAMESPACE, to make sure the application doesn't
-  // unsubscribe from something that it isn't subscribed to. PUBLISH_NAMESPACEs
-  // that result from this subscription use incoming_publish_namespace_callback.
-  struct PendingSubscribeNamespaceData {
-    TrackNamespace track_namespace;
-    MoqtOutgoingSubscribeNamespaceCallback callback;
-  };
-  absl::flat_hash_map<uint64_t, PendingSubscribeNamespaceData>
-      pending_outgoing_subscribe_namespaces_;
-  absl::flat_hash_set<TrackNamespace> outgoing_subscribe_namespaces_;
   // It's an error if the namespaces overlap, so keep track of them.
   SessionNamespaceTree incoming_subscribe_namespace_;
+  SessionNamespaceTree outgoing_subscribe_namespace_;
 
   // The minimum request ID the peer can use that is monotonically increasing.
   uint64_t next_incoming_request_id_ = 0;

@@ -22,11 +22,11 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/session_namespace_tree.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
+#include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
-#include "quiche/web_transport/web_transport.h"
 
 namespace moqt::test {
 namespace {
@@ -38,20 +38,6 @@ using ::testing::Return;
 constexpr uint64_t kRequestId = 3;
 const TrackNamespace kPrefix({"foo"});
 
-class MockNamespaceTask : public MoqtNamespaceTask {
- public:
-  MockNamespaceTask(TrackNamespace& prefix) : prefix_(prefix) {}
-  MOCK_METHOD(GetNextResult, GetNextSuffix,
-              (TrackNamespace & whole_namespace, TransactionType& type),
-              (override));
-  MOCK_METHOD(std::optional<webtransport::StreamErrorCode>, GetStatus, (),
-              (override));
-  const TrackNamespace& prefix() override { return prefix_; }
-
- private:
-  TrackNamespace prefix_;
-};
-
 class MoqtNamespaceSubscriberStreamTest : public quiche::test::QuicheTest {
  public:
   MoqtNamespaceSubscriberStreamTest()
@@ -59,7 +45,8 @@ class MoqtNamespaceSubscriberStreamTest : public quiche::test::QuicheTest {
         stream_(&framer_, kRequestId, deleted_callback_.AsStdFunction(),
                 error_callback_.AsStdFunction(),
                 response_callback_.AsStdFunction()),
-        task_(stream_.CreateTask(kPrefix, [this]() { ++objects_available_; })) {
+        task_(stream_.CreateTask(kPrefix)) {
+    task_->SetObjectsAvailableCallback([this]() { ++objects_available_; });
     stream_.set_stream(&mock_stream_);
   }
 
@@ -213,8 +200,9 @@ TEST_F(MoqtNamespaceSubscriberStreamTest, DeclareEof) {
   auto stream = std::make_unique<MoqtNamespaceSubscriberStream>(
       &framer_, kRequestId, deleted_callback_.AsStdFunction(),
       error_callback_.AsStdFunction(), response_callback_.AsStdFunction());
-  std::unique_ptr<MoqtNamespaceTask> task =
-      stream->CreateTask(kPrefix, [this]() { ++objects_available_; });
+  std::unique_ptr<MoqtNamespaceTask> task = stream->CreateTask(kPrefix);
+  ASSERT_TRUE(task != nullptr);
+  task->SetObjectsAvailableCallback([this]() { ++objects_available_; });
   EXPECT_CALL(response_callback_, Call(Eq(std::nullopt)));
   stream->OnRequestOkMessage({kRequestId});
   stream->OnNamespaceMessage({TrackNamespace({"bar"})});
@@ -235,8 +223,8 @@ class MoqtNamespacePublisherStreamTest : public quiche::test::QuicheTest {
       : framer_(false),
         tree_(),
         application_callback_(mock_application_.AsStdFunction()),
-        stream_(&framer_, &mock_stream_, error_callback_.AsStdFunction(), tree_,
-                application_callback_) {
+        stream_(&framer_, &mock_stream_, error_callback_.AsStdFunction(),
+                &tree_, application_callback_) {
     EXPECT_CALL(mock_stream_, CanWrite()).WillRepeatedly(Return(true));
   }
 
@@ -245,10 +233,10 @@ class MoqtNamespacePublisherStreamTest : public quiche::test::QuicheTest {
   webtransport::test::MockStream mock_stream_;
   SessionNamespaceTree tree_;
   testing::MockFunction<std::unique_ptr<MoqtNamespaceTask>(
-      const TrackNamespace&, const MessageParameters&, MoqtResponseCallback,
-      ObjectsAvailableCallback)>
+      const TrackNamespace&, SubscribeNamespaceOption, const MessageParameters&,
+      MoqtResponseCallback)>
       mock_application_;
-  MoqtIncomingSubscribeNamespaceCallbackNew application_callback_;
+  MoqtIncomingSubscribeNamespaceCallback application_callback_;
   MoqtNamespacePublisherStream stream_;
 };
 
@@ -260,21 +248,21 @@ TEST_F(MoqtNamespacePublisherStreamTest, Subscribe) {
       MessageParameters(),
   };
   ObjectsAvailableCallback callback;
-  MockNamespaceTask* task_ptr;
+  MockNamespaceTask* task_ptr = nullptr;
   EXPECT_CALL(mock_application_, Call)
-      .WillOnce([&](const TrackNamespace&, const MessageParameters&,
-                    MoqtResponseCallback response_callback,
-                    ObjectsAvailableCallback available_callback) {
+      .WillOnce([&](const TrackNamespace&, SubscribeNamespaceOption,
+                    const MessageParameters&,
+                    MoqtResponseCallback response_callback) {
         std::move(response_callback)(std::nullopt);
         auto task =
             std::make_unique<MockNamespaceTask>(message.track_namespace_prefix);
-        callback = std::move(available_callback);
         task_ptr = task.get();
         return task;
       });
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
   stream_.OnSubscribeNamespaceMessage(message);
+  ASSERT_TRUE(task_ptr != nullptr);
   EXPECT_EQ(task_ptr->prefix(), message.track_namespace_prefix);
 
   // Deliver NAMESPACE.
@@ -293,7 +281,7 @@ TEST_F(MoqtNamespacePublisherStreamTest, Subscribe) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kNamespace), _))
       .Times(2);
-  callback();
+  task_ptr->InvokeCallback();
 
   // Deliver NAMESPACE_DONE and FIN.
   EXPECT_CALL(*task_ptr, GetNextSuffix)
@@ -318,7 +306,7 @@ TEST_F(MoqtNamespacePublisherStreamTest, Subscribe) {
         EXPECT_TRUE(options.send_fin());
         return absl::OkStatus();
       });
-  callback();
+  task_ptr->InvokeCallback();
 }
 
 TEST_F(MoqtNamespacePublisherStreamTest, RequestError) {
@@ -329,9 +317,9 @@ TEST_F(MoqtNamespacePublisherStreamTest, RequestError) {
       MessageParameters(),
   };
   EXPECT_CALL(mock_application_, Call)
-      .WillOnce([&](const TrackNamespace&, const MessageParameters&,
-                    MoqtResponseCallback response_callback,
-                    ObjectsAvailableCallback) {
+      .WillOnce([&](const TrackNamespace&, SubscribeNamespaceOption,
+                    const MessageParameters&,
+                    MoqtResponseCallback response_callback) {
         std::move(response_callback)(MoqtRequestErrorInfo{
             RequestErrorCode::kInternalError,
             quic::QuicTimeDelta::FromMilliseconds(100), "bar"});

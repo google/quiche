@@ -57,8 +57,6 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnGoAwayMessage(const MoqtGoAway& message) = 0;
   virtual void OnSubscribeNamespaceMessage(
       const MoqtSubscribeNamespace& message) = 0;
-  virtual void OnUnsubscribeNamespaceMessage(
-      const MoqtUnsubscribeNamespace& message) = 0;
   virtual void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) = 0;
   virtual void OnFetchMessage(const MoqtFetch& message) = 0;
   virtual void OnFetchCancelMessage(const MoqtFetchCancel& message) = 0;

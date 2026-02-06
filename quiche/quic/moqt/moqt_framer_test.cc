@@ -50,7 +50,6 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kTrackStatus,
       MoqtMessageType::kGoAway,
       MoqtMessageType::kSubscribeNamespace,
-      MoqtMessageType::kUnsubscribeNamespace,
       MoqtMessageType::kMaxRequestId,
       MoqtMessageType::kFetch,
       MoqtMessageType::kFetchCancel,
@@ -175,10 +174,6 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kSubscribeNamespace: {
         auto data = std::get<MoqtSubscribeNamespace>(structured_data);
         return framer_.SerializeSubscribeNamespace(data);
-      }
-      case moqt::MoqtMessageType::kUnsubscribeNamespace: {
-        auto data = std::get<MoqtUnsubscribeNamespace>(structured_data);
-        return framer_.SerializeUnsubscribeNamespace(data);
       }
       case moqt::MoqtMessageType::kMaxRequestId: {
         auto data = std::get<MoqtMaxRequestId>(structured_data);
