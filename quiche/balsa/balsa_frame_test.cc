@@ -1921,6 +1921,43 @@ TEST_F(HTTPBalsaFrameTest,
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
+TEST_F(HTTPBalsaFrameTest, ChunkExtensionWithThreeExtensionsAndDquote) {
+  std::string headers =
+      "POST / HTTP/1.1\r\n"
+      "Transfer-Encoding: chunked\r\n"
+      "\r\n";
+
+  std::string chunks =
+      "8"                                  // chunk-size
+      ";foo"                               // chunk-ext-name alone
+      ";bar=baz"                           // chunk-ext-name=token
+      ";baz=\"za\\\"quote-ception\\\"p\""  // chunk-ext-name=quoted-string
+      "\r\n"                               // done with extensions
+      "deadbeef\r\n"                       // chunk-data
+      "0\r\n"                              // last-chunk
+      "\r\n";
+
+  ASSERT_EQ(headers.size(),
+            balsa_frame_.ProcessInput(headers.data(), headers.size()));
+
+  balsa_frame_.set_balsa_visitor(&visitor_mock_);
+  {
+    InSequence s1;
+    EXPECT_CALL(visitor_mock_, OnChunkLength(8));
+    EXPECT_CALL(
+        visitor_mock_,
+        OnChunkExtensionInput(";foo;bar=baz;baz=\"za\\\"quote-ception\\\"p\""));
+    EXPECT_CALL(visitor_mock_, OnBodyChunkInput("deadbeef"));
+    EXPECT_CALL(visitor_mock_, OnChunkLength(0));
+    EXPECT_CALL(visitor_mock_, OnChunkExtensionInput(""));
+  }
+
+  EXPECT_EQ(chunks.size(),
+            balsa_frame_.ProcessInput(chunks.data(), chunks.size()));
+  EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame_.Error());
+}
+
 TEST_F(HTTPBalsaFrameTest, InvalidChunkExtensionWithCarriageReturn) {
   balsa_frame_.set_http_validation_policy(
       HttpValidationPolicy{.disallow_lone_cr_in_chunk_extension = true});

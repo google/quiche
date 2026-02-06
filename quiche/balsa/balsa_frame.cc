@@ -1568,6 +1568,7 @@ bool BalsaFrame::IsValidChunkExtensionCharacter(char c, const char* current,
       return false;
     }
   }
+
   return true;
 }
 
