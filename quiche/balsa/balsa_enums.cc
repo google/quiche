@@ -90,6 +90,8 @@ const char* BalsaFrameEnums::ErrorCodeToString(
       return "INVALID_CHUNK_EXTENSION";
     case INVALID_CHUNK_FRAMING:
       return "INVALID_CHUNK_FRAMING";
+    case STRAY_DATA_AFTER_CHUNK:
+      return "STRAY_DATA_AFTER_CHUNK";
     case MULTIPLE_CONTENT_LENGTH_KEYS:
       return "MULTIPLE_CONTENT_LENGTH_KEYS";
     case MULTIPLE_TRANSFER_ENCODING_KEYS:

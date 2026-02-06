@@ -310,6 +310,10 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   // set_continue_headers().
   bool use_interim_headers_callback_ : 1;
 
+  // Whether we've already processed the CR that should come right after
+  // chunk data before the \n and then the next chunk length.
+  bool saw_slash_r_after_chunk_ : 1;
+
   // This is not reset in Reset().
   bool parse_truncated_headers_even_when_headers_too_long_ : 1;
 };

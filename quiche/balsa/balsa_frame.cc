@@ -1305,6 +1305,7 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
 
         if (chunk_length_remaining_ == 0) {
           parse_state_ = BalsaFrameEnums::READING_CHUNK_TERM;
+          saw_slash_r_after_chunk_ = false;
           continue;
         }
 
@@ -1323,8 +1324,36 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
 
           const char c = *current;
           ++current;
-          if (c == '\n') {
+          // Right after the chunk should be a \r then a \n.
+          if (c == '\r') {
+            if (saw_slash_r_after_chunk_) {
+              if (http_validation_policy().disallow_stray_data_after_chunk) {
+                HandleError(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK);
+                return current - input;
+              } else {
+                HandleWarning(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK);
+              }
+            }
+            saw_slash_r_after_chunk_ = true;
+          } else if (c == '\n') {
+            // Can't use last_char_was_slash_r_ because a \r might've been part
+            // of the chunk data.
+            if (!saw_slash_r_after_chunk_) {
+              if (http_validation_policy().disallow_stray_data_after_chunk) {
+                HandleError(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK);
+                return current - input;
+              } else {
+                HandleWarning(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK);
+              }
+            }
             break;
+          } else {
+            if (http_validation_policy().disallow_stray_data_after_chunk) {
+              HandleError(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK);
+              return current - input;
+            } else {
+              HandleWarning(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK);
+            }
           }
         }
         parse_state_ = BalsaFrameEnums::READING_CHUNK_LENGTH;

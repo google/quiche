@@ -2130,10 +2130,53 @@ TEST_F(HTTPBalsaFrameTest,
                                       message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK, balsa_frame_.ErrorCode());
 
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
+}
+
+TEST_F(HTTPBalsaFrameTest, StrayDataAfterChunkRejected) {
+  HttpValidationPolicy http_validation_policy{.disallow_stray_data_after_chunk =
+                                                  true};
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  constexpr absl::string_view headers(
+      "POST / HTTP/1.1\r\n"
+      "transfer-encoding: chunked\r\n\r\n");
+  ASSERT_EQ(headers.size(),
+            balsa_frame_.ProcessInput(headers.data(), headers.size()));
+
+  constexpr absl::string_view body1("3\r\nfood\r\n");
+  ASSERT_EQ(body1.size() - 2,
+            balsa_frame_.ProcessInput(body1.data(), body1.size()));
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK, balsa_frame_.ErrorCode());
+}
+
+// A LF character preceded by CR is allowed even if separated into multiple
+// calls to ProcessInput().
+TEST_F(HTTPBalsaFrameTest, ChunkLoneCarriageReturnAtBoundaryWithLineFeed) {
+  EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
+  EXPECT_CALL(visitor_mock_, HeaderDone());
+  constexpr absl::string_view headers(
+      "POST / HTTP/1.1\r\n"
+      "transfer-encoding: chunked\r\n\r\n");
+  ASSERT_EQ(headers.size(),
+            balsa_frame_.ProcessInput(headers.data(), headers.size()));
+
+  constexpr absl::string_view body1("3\r\nfoo\r");
+  ASSERT_EQ(body1.size(),
+            balsa_frame_.ProcessInput(body1.data(), body1.size()));
+  EXPECT_FALSE(balsa_frame_.Error());
+  ASSERT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+
+  constexpr absl::string_view body2("\n0\r\n\r\n");
+  EXPECT_EQ(body2.size(),
+            balsa_frame_.ProcessInput(body2.data(), body2.size()));
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
 // Validates that chunked requests terminated by \r\n\n are accepted.
@@ -2396,7 +2439,7 @@ TEST_F(HTTPBalsaFrameTest,
                                       message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::OBS_FOLD_IN_HEADERS, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK, balsa_frame_.ErrorCode());
 
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
@@ -2947,7 +2990,7 @@ TEST_F(HTTPBalsaFrameTest,
                                       message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK, balsa_frame_.ErrorCode());
 
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
@@ -3016,8 +3059,7 @@ TEST_F(HTTPBalsaFrameTest,
                                       message.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
-
+  EXPECT_EQ(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK, balsa_frame_.ErrorCode());
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
 }

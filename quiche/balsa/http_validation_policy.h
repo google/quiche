@@ -107,6 +107,10 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // or more space characters.
   bool sanitize_obs_fold_in_header_values = false;
 
+  // If true, rejects messages with stray bytes after a HTTP chunk (before the
+  // \r\n that separates it from the next chunk length).
+  bool disallow_stray_data_after_chunk = false;
+
   // If true, disallow HTTP request methods that do not conform to RFC
   // 9110, Section 5.6.2.
   // https://datatracker.ietf.org/doc/html/rfc9110#section-5.6.2
@@ -148,6 +152,7 @@ struct QUICHE_EXPORT HttpValidationPolicy {
                  "require_chunked_body_end_with_crlf_crlf=%v, "
                  "sanitize_firstline_spaces=%v, "
                  "sanitize_obs_fold_in_header_values=%v, "
+                 "disallow_stray_data_after_chunk=%v, "
                  "disallow_invalid_request_methods=%v}",
                  policy.disallow_header_continuation_lines,
                  policy.require_header_colon,
@@ -166,6 +171,7 @@ struct QUICHE_EXPORT HttpValidationPolicy {
                  policy.require_chunked_body_end_with_crlf_crlf,
                  policy.sanitize_firstline_spaces,
                  policy.sanitize_obs_fold_in_header_values,
+                 policy.disallow_stray_data_after_chunk,
                  policy.disallow_invalid_request_methods);
   }
 };
