@@ -567,8 +567,9 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
                    << encapsulated_response->headers.DebugString()
                    << (encapsulated_response->body.empty()
                            ? "Empty body"
-                           : absl::StrCat("Body: \n",
-                                          encapsulated_response->body));
+                           : absl::StrCat("Body of length ",
+                                          encapsulated_response->body.size(),
+                                          ":\n", encapsulated_response->body));
   int16_t encapsulated_status_code =
       MasqueConnectionPool::GetStatusCode(*encapsulated_response);
   if (it->second.per_request_config.expected_encapsulated_status_code()
