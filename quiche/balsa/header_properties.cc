@@ -146,6 +146,26 @@ constexpr std::array<bool, 256> buildValidTokenCharLookupTable() {
   return validTokenCharTable;
 }
 
+constexpr std::array<bool, 256> buildValidChunkExtensionValCharLookupTable() {
+  std::array<bool, 256> validChunkExtValCharTable = kAllTrueArray;
+  constexpr uint8_t US_ASCII_CONTROL_START = 0;
+  constexpr uint8_t US_ASCII_CONTROL_END = 32;  // exclusive
+  // Valid chunk-ext-val characters are the entire range of visible US-ASCII
+  // characters and all extended ASCII characters. Of the control characters,
+  // only HTAB is allowed. There are some more precise rules for when DQUOTE
+  // and backslash can appear in a quoted-string which we skip here.
+  for (uint8_t c = US_ASCII_CONTROL_START; c < US_ASCII_CONTROL_END; ++c) {
+    if (c == '\t') {
+      continue;
+    }
+    validChunkExtValCharTable[c] = false;
+  }
+  // Also exclude the control character DEL.
+  validChunkExtValCharTable[127] = false;
+
+  return validChunkExtValCharTable;
+}
+
 }  // anonymous namespace
 
 bool IsMultivaluedHeader(absl::string_view header) {
@@ -192,6 +212,23 @@ bool IsValidToken(absl::string_view value) {
   }
   return true;
 }
+
+bool IsValidChunkExtension(absl::string_view value) {
+  for (const char c : value) {
+    if (!IsValidChunkExtensionValChar(static_cast<uint8_t>(c))) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool IsValidChunkExtensionValChar(uint8_t c) {
+  static constexpr std::array<bool, 256> validChunkExtValCharTable =
+      buildValidChunkExtensionValCharLookupTable();
+
+  return validChunkExtValCharTable[c];
+}
+
 bool HasInvalidHeaderChars(absl::string_view value) {
   for (const char c : value) {
     if (IsInvalidHeaderChar(c)) {

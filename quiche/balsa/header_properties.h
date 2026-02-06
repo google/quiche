@@ -82,6 +82,12 @@ QUICHE_EXPORT bool HasInvalidHeaderChars(absl::string_view value);
 QUICHE_EXPORT bool IsValidTokenChar(uint8_t c);
 QUICHE_EXPORT bool IsValidToken(absl::string_view value);
 
+// Returns true if the given `char` is in the set of ASCII characters valid for
+// `chunk-ext-val` specified in RFC 9112 Section 7.1.1. Note that Section 7.1.1
+// defines specific ordering of certain characters, which is not checked here.
+QUICHE_EXPORT bool IsValidChunkExtensionValChar(uint8_t c);
+QUICHE_EXPORT bool IsValidChunkExtension(absl::string_view value);
+
 // Returns true if `value` contains a character not allowed in the path
 // component of a URI.
 QUICHE_EXPORT bool HasInvalidPathChar(absl::string_view value);

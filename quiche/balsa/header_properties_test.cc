@@ -3,6 +3,7 @@
 #include <string>
 
 #include "absl/container/flat_hash_set.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
@@ -185,6 +186,7 @@ TEST(HeaderPropertiesTest, IsValidTokenEmptyAndMultiChar) {
   EXPECT_FALSE(IsValidToken("GET@"));
   EXPECT_FALSE(IsValidToken("GET["));
   EXPECT_FALSE(IsValidToken("GET\\"));
+  EXPECT_FALSE(IsValidToken("GET\""));
   EXPECT_FALSE(IsValidToken("GET]"));
   EXPECT_FALSE(IsValidToken("GET:"));
   EXPECT_FALSE(IsValidToken("GET;"));
@@ -197,6 +199,58 @@ TEST(HeaderPropertiesTest, IsValidTokenEmptyAndMultiChar) {
   EXPECT_FALSE(IsValidToken("GET,"));
   EXPECT_FALSE(IsValidToken("GET\x7F"));
   EXPECT_FALSE(IsValidToken(""));
+}
+
+TEST(HeaderPropertiesTest, IsValidChunkExtensionValChar) {
+  EXPECT_TRUE(IsValidChunkExtension(""));
+  EXPECT_TRUE(IsValidChunkExtension(";"));
+  EXPECT_TRUE(IsValidChunkExtension(";a"));
+  EXPECT_TRUE(IsValidChunkExtension("; a"));
+  EXPECT_TRUE(IsValidChunkExtension("\""));
+  EXPECT_TRUE(IsValidChunkExtension(";\t a"));
+  EXPECT_TRUE(IsValidChunkExtension(";a="));
+  EXPECT_TRUE(IsValidChunkExtension(";a=b"));
+  EXPECT_TRUE(IsValidChunkExtension(";a=\"\""));
+  EXPECT_TRUE(IsValidChunkExtension(";a=\"ba\"z\""));
+  EXPECT_TRUE(IsValidChunkExtension(";a=foo-quote'"));
+  EXPECT_TRUE(IsValidChunkExtension(";foo=bar;baz=qux"));
+  EXPECT_TRUE(IsValidChunkExtension(";foo=bar;baz=\"qu\";x"));
+  EXPECT_TRUE(IsValidChunkExtension(";foo=bar;baz=\"q \tu\";x"));
+  EXPECT_TRUE(IsValidChunkExtension("!#$%&'*+-.^_`|~"));
+  EXPECT_TRUE(IsValidChunkExtension("abcefghijklmnopqrstuvwxyz0123456789"));
+  EXPECT_TRUE(
+      IsValidChunkExtension("ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                            "abcdefghijklmnopqrstuvwxyz"
+                            "0123456789"
+                            "!#$%&'*+-.^_`|~"));
+  EXPECT_TRUE(IsValidChunkExtension("GET\xFF"));
+  EXPECT_TRUE(IsValidChunkExtension("GET\x80"));
+
+  EXPECT_FALSE(
+      IsValidChunkExtension(absl::string_view(";chunky-nulls=\0", 15)));
+  EXPECT_FALSE(IsValidChunkExtension(";\x1"));
+  EXPECT_FALSE(IsValidChunkExtension(";\n"));
+  EXPECT_FALSE(IsValidChunkExtension(";\r"));
+}
+
+TEST(HeaderPropertiesTest, IsValidChunkExtension) {
+  for (int i = 0; i < 256; ++i) {
+    unsigned char c = static_cast<unsigned char>(i);
+    if (c == ' ' || c == '\t') {
+      continue;
+    }
+    if (absl::ascii_iscntrl(c)) {
+      EXPECT_FALSE(IsValidChunkExtensionValChar(c));
+    } else if (absl::ascii_isprint(c)) {
+      EXPECT_TRUE(IsValidChunkExtensionValChar(c));
+    } else if (absl::ascii_isspace(c)) {
+      EXPECT_TRUE(IsValidChunkExtensionValChar(c));
+    } else if (i >= 128) {
+      EXPECT_TRUE(IsValidChunkExtensionValChar(c));
+    } else {
+      FAIL() << "Unexpected character: [" << c << "], int = [" << i << "]";
+    }
+  }
 }
 
 }  // namespace
