@@ -3166,8 +3166,7 @@ TEST_F(
   }
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
-
+  EXPECT_EQ(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK, balsa_frame_.ErrorCode());
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
   EXPECT_EQ(trailer_data, trailer_input);
@@ -3226,6 +3225,9 @@ TEST(HTTPBalsaFrame,
       EXPECT_CALL(visitor_mock, MessageDone());
     }
     EXPECT_CALL(visitor_mock, OnHeaderInput(message_headers));
+    EXPECT_CALL(visitor_mock,
+                HandleWarning(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK))
+        .Times(AtLeast(1));
     std::string body_input;
     EXPECT_CALL(visitor_mock, OnRawBodyInput(_))
         .WillRepeatedly([&body_input](absl::string_view input) {
@@ -3257,8 +3259,7 @@ TEST(HTTPBalsaFrame,
     EXPECT_EQ(message.size(), total_processed);
     EXPECT_TRUE(balsa_frame.MessageFullyRead());
     EXPECT_FALSE(balsa_frame.Error());
-    EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame.ErrorCode());
-
+    EXPECT_EQ(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK, balsa_frame.ErrorCode());
     EXPECT_EQ(message_body, body_input);
     EXPECT_EQ(message_body_data, body_data);
     EXPECT_EQ(trailer_data, trailer_input);
@@ -4112,7 +4113,7 @@ TEST_F(HTTPBalsaFrameTest, MultipleHeadersInTrailer) {
                                      trailer_data.data(), trailer_data.size()));
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
-  EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_EQ(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK, balsa_frame_.ErrorCode());
 
   EXPECT_EQ(chunks, body_input);
 }
