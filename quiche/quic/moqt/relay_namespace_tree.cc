@@ -16,6 +16,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -42,6 +43,12 @@ void RelayNamespaceTree::RelayNamespaceListener::SetObjectsAvailableCallback(
     TrackNamespace suffix;
     tree_.NotifyOfAllChildren(tree_.FindNode(prefix_), suffix, this);
   }
+}
+
+void RelayNamespaceTree::RelayNamespaceListener::Update(
+    const MessageParameters&, MoqtResponseCallback response_callback) {
+  // Don't do anything!
+  std::move(response_callback)(std::nullopt);
 }
 
 GetNextResult RelayNamespaceTree::RelayNamespaceListener::GetNextSuffix(

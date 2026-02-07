@@ -48,6 +48,7 @@ class MoqtNamespaceSubscriberStreamTest : public quiche::test::QuicheTest {
         task_(stream_.CreateTask(kPrefix)) {
     task_->SetObjectsAvailableCallback([this]() { ++objects_available_; });
     stream_.set_stream(&mock_stream_);
+    ON_CALL(mock_stream_, CanWrite()).WillByDefault(Return(true));
   }
 
   void CheckNumberOfObjectsAvailable(int expected_count) {
@@ -85,7 +86,7 @@ TEST_F(MoqtNamespaceSubscriberStreamTest, RequestError) {
 
 TEST_F(MoqtNamespaceSubscriberStreamTest, RequestErrorWrongId) {
   EXPECT_CALL(error_callback_, Call(MoqtError::kProtocolViolation,
-                                    "Unexpected request ID in error"));
+                                    "Unexpected request ID in response"));
   stream_.OnRequestErrorMessage(
       {kRequestId + 1, RequestErrorCode::kInternalError,
        quic::QuicTimeDelta::FromMilliseconds(100), "bar"});
@@ -217,6 +218,36 @@ TEST_F(MoqtNamespaceSubscriberStreamTest, DeclareEof) {
   EXPECT_EQ(task->GetNextSuffix(received_namespace, type), kEof);
 }
 
+TEST_F(MoqtNamespaceSubscriberStreamTest, UpdateAndRequestOk) {
+  EXPECT_CALL(response_callback_, Call(Eq(std::nullopt)));
+  stream_.OnRequestOkMessage({kRequestId});
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestUpdate), _));
+  MessageParameters update_params;
+  update_params.subscriber_priority = 10;
+  testing::MockFunction<void(std::optional<MoqtRequestErrorInfo>)>
+      update_response_callback;
+  task_->Update(update_params, update_response_callback.AsStdFunction());
+  EXPECT_CALL(update_response_callback, Call(Eq(std::nullopt)));
+  stream_.OnRequestOkMessage({kRequestId + 2});
+}
+
+TEST_F(MoqtNamespaceSubscriberStreamTest, UpdateAndRequestError) {
+  EXPECT_CALL(response_callback_, Call(Eq(std::nullopt)));
+  stream_.OnRequestOkMessage({kRequestId});
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestUpdate), _));
+  MessageParameters update_params;
+  update_params.subscriber_priority = 10;
+  testing::MockFunction<void(std::optional<MoqtRequestErrorInfo>)>
+      update_response_callback;
+  task_->Update(update_params, update_response_callback.AsStdFunction());
+  EXPECT_CALL(update_response_callback, Call(_));
+  stream_.OnRequestErrorMessage(
+      {kRequestId + 2, RequestErrorCode::kInternalError,
+       quic::QuicTimeDelta::FromMilliseconds(100), "bar"});
+}
+
 class MoqtNamespacePublisherStreamTest : public quiche::test::QuicheTest {
  public:
   MoqtNamespacePublisherStreamTest()
@@ -328,6 +359,88 @@ TEST_F(MoqtNamespacePublisherStreamTest, RequestError) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
   stream_.OnSubscribeNamespaceMessage(message);
+}
+
+TEST_F(MoqtNamespacePublisherStreamTest, RequestUpdateOk) {
+  MoqtSubscribeNamespace message = {
+      kRequestId,
+      TrackNamespace({"foo"}),
+      SubscribeNamespaceOption::kNamespace,
+      MessageParameters(),
+  };
+  MockNamespaceTask* task_ptr = nullptr;
+  EXPECT_CALL(mock_application_, Call)
+      .WillOnce([&](const TrackNamespace&, SubscribeNamespaceOption,
+                    const MessageParameters&,
+                    MoqtResponseCallback response_callback) {
+        std::move(response_callback)(std::nullopt);
+        auto task =
+            std::make_unique<MockNamespaceTask>(message.track_namespace_prefix);
+        task_ptr = task.get();
+        return task;
+      });
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
+  stream_.OnSubscribeNamespaceMessage(message);
+  ASSERT_TRUE(task_ptr != nullptr);
+
+  // Now send RequestUpdate
+  MoqtRequestUpdate update_message = {
+      kRequestId + 2,
+      kRequestId,
+      MessageParameters(),
+  };
+  update_message.parameters.subscriber_priority = 10;
+  EXPECT_CALL(*task_ptr, Update(_, _))
+      .WillOnce([&](const MessageParameters& params, MoqtResponseCallback cb) {
+        EXPECT_EQ(params.subscriber_priority, 10);
+        std::move(cb)(std::nullopt);
+      });
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
+  stream_.OnRequestUpdateMessage(update_message);
+}
+
+TEST_F(MoqtNamespacePublisherStreamTest, RequestUpdateError) {
+  MoqtSubscribeNamespace message = {
+      kRequestId,
+      TrackNamespace({"foo"}),
+      SubscribeNamespaceOption::kNamespace,
+      MessageParameters(),
+  };
+  MockNamespaceTask* task_ptr = nullptr;
+  EXPECT_CALL(mock_application_, Call)
+      .WillOnce([&](const TrackNamespace&, SubscribeNamespaceOption,
+                    const MessageParameters&,
+                    MoqtResponseCallback response_callback) {
+        std::move(response_callback)(std::nullopt);
+        auto task =
+            std::make_unique<MockNamespaceTask>(message.track_namespace_prefix);
+        task_ptr = task.get();
+        return task;
+      });
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
+  stream_.OnSubscribeNamespaceMessage(message);
+  ASSERT_TRUE(task_ptr != nullptr);
+
+  // Now send RequestUpdate
+  MoqtRequestUpdate update_message = {
+      kRequestId + 2,
+      kRequestId,
+      MessageParameters(),
+  };
+  update_message.parameters.subscriber_priority = 10;
+  EXPECT_CALL(*task_ptr, Update(_, _))
+      .WillOnce([&](const MessageParameters& params, MoqtResponseCallback cb) {
+        EXPECT_EQ(params.subscriber_priority, 10);
+        std::move(cb)(MoqtRequestErrorInfo{
+            RequestErrorCode::kInternalError,
+            quic::QuicTimeDelta::FromMilliseconds(100), "bar"});
+      });
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
+  stream_.OnRequestUpdateMessage(update_message);
 }
 
 TEST_F(MoqtNamespacePublisherStreamTest, SubscribePrefixOverlap) {

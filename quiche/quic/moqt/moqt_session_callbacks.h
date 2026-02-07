@@ -21,12 +21,6 @@
 
 namespace moqt {
 
-// The callback we'll use for all request types going forward. Can only be used
-// once; if the argument is nullopt, an OK response was received. Otherwise, an
-// ERROR response was received.
-using MoqtResponseCallback =
-    quiche::SingleUseCallback<void(std::optional<MoqtRequestErrorInfo>)>;
-
 // Called when the SETUP message from the peer is received.
 using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
 

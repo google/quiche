@@ -12,10 +12,12 @@
 #include <utility>
 
 #include "absl/base/nullability.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
@@ -61,6 +63,7 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
         : MoqtNamespaceTask(),
           prefix_(prefix),
           state_(state),
+          next_request_id_(state->request_id_ + 2),
           weak_ptr_factory_(this) {}
     ~NamespaceTask() override;
 
@@ -75,6 +78,8 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
       return error_;
     }
     const TrackNamespace& prefix() override { return prefix_; }
+    void Update(const MessageParameters& parameters,
+                MoqtResponseCallback response_callback) override;
 
     // Queues a suffix corresponding to a NAMESPACE (if |type| is kAdd) or a
     // NAMESPACE_DONE (if |type| is kDelete).
@@ -82,6 +87,7 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
     // The stream is closed, so no more NAMESPACE messages are forthcoming.
     // This is an implicit NAMESPACE_DONE for all published namespaces.
     void DeclareEof();
+    MoqtResponseCallback GetResponseCallback(uint64_t request_id);
     quiche::QuicheWeakPtr<NamespaceTask> GetWeakPtr() {
       return weak_ptr_factory_.Create();
     }
@@ -100,6 +106,8 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
     ObjectsAvailableCallback absl_nullable callback_ = nullptr;
     std::optional<webtransport::StreamErrorCode> error_;
     bool eof_ = false;
+    uint64_t next_request_id_;
+    absl::flat_hash_map<uint64_t, MoqtResponseCallback> pending_updates_;
     // Must be last.
     quiche::QuicheWeakPtrFactory<NamespaceTask> weak_ptr_factory_;
   };
@@ -123,10 +131,7 @@ class MoqtNamespacePublisherStream : public MoqtBidiStreamBase {
   // MoqtBidiStreamBase overrides.
   void OnSubscribeNamespaceMessage(
       const MoqtSubscribeNamespace& message) override;
-  // TODO(martinduke): Implement this.
-  void OnRequestUpdateMessage(const MoqtRequestUpdate&) override {
-    QUICHE_DLOG(INFO) << "Got REQUEST_UPDATE on Namespace stream";
-  }
+  void OnRequestUpdateMessage(const MoqtRequestUpdate&) override;
 
  private:
   void ProcessNamespaces();

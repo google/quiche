@@ -10,13 +10,13 @@
 #include <memory>
 #include <optional>
 #include <string>
-#include <utility>
 
 #include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/common/quiche_circular_deque.h"
@@ -55,6 +55,8 @@ class RelayNamespaceTree {
       return error_;
     }
     const TrackNamespace& prefix() override { return prefix_; }
+    void Update(const MessageParameters& parameters,
+                MoqtResponseCallback response_callback) override;
 
     // Queues a suffix corresponding to a NAMESPACE (if |type| is kAdd) or a
     // NAMESPACE_DONE (if |type| is kDelete).

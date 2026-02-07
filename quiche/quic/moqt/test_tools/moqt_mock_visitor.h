@@ -11,6 +11,7 @@
 #include <utility>
 #include <variant>
 
+#include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
@@ -282,6 +283,10 @@ class MockNamespaceTask : public MoqtNamespaceTask {
   MOCK_METHOD(std::optional<webtransport::StreamErrorCode>, GetStatus, (),
               (override));
   const TrackNamespace& prefix() override { return prefix_; }
+  MOCK_METHOD(void, Update,
+              (const MessageParameters& parameters,
+               MoqtResponseCallback response_callback),
+              (override));
 
   void InvokeCallback() {
     if (callback_ != nullptr) {
