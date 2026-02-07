@@ -409,12 +409,15 @@ bool MasqueH2Connection::OnEndStream(Http2StreamId stream_id) {
                    << " body length: " << stream->received_body.size();
   QUICHE_DVLOG(2) << ENDPOINT << "Body: " << std::endl
                   << quiche::QuicheTextUtils::HexDump(stream->received_body);
-  if (is_server_) {
-    visitor_->OnRequest(this, stream_id, stream->received_headers,
-                        stream->received_body);
-  } else {
-    visitor_->OnResponse(this, stream_id, stream->received_headers,
-                         stream->received_body);
+  if (!stream->callback_fired) {
+    stream->callback_fired = true;
+    if (is_server_) {
+      visitor_->OnRequest(this, stream_id, stream->received_headers,
+                          stream->received_body);
+    } else {
+      visitor_->OnResponse(this, stream_id, stream->received_headers,
+                           stream->received_body);
+    }
   }
   return true;
 }
@@ -424,6 +427,17 @@ void MasqueH2Connection::OnRstStream(Http2StreamId stream_id,
   QUICHE_LOG(INFO) << ENDPOINT << "Stream " << stream_id
                    << " reset with error code "
                    << Http2ErrorCodeToString(error_code);
+  auto it = h2_streams_.find(stream_id);
+  if (it != h2_streams_.end()) {
+    if (!it->second->callback_fired) {
+      it->second->callback_fired = true;
+      visitor_->OnStreamFailure(
+          this, stream_id,
+          absl::InvalidArgumentError(
+              absl::StrCat("Stream ", stream_id, " reset with error code ",
+                           Http2ErrorCodeToString(error_code))));
+    }
+  }
 }
 
 bool MasqueH2Connection::OnCloseStream(Http2StreamId stream_id,
@@ -431,7 +445,17 @@ bool MasqueH2Connection::OnCloseStream(Http2StreamId stream_id,
   QUICHE_LOG(INFO) << ENDPOINT << "Stream " << stream_id
                    << " closed with error code "
                    << Http2ErrorCodeToString(error_code);
-  h2_streams_.erase(stream_id);
+  auto it = h2_streams_.find(stream_id);
+  if (it != h2_streams_.end()) {
+    if (!it->second->callback_fired) {
+      visitor_->OnStreamFailure(
+          this, stream_id,
+          absl::InternalError(
+              absl::StrCat("Stream ", stream_id, " closed with error code ",
+                           Http2ErrorCodeToString(error_code))));
+    }
+    h2_streams_.erase(it);
+  }
   return true;
 }
 

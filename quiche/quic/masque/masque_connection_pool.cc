@@ -197,6 +197,22 @@ void MasqueConnectionPool::OnResponse(MasqueH2Connection* connection,
   }
 }
 
+void MasqueConnectionPool::OnStreamFailure(MasqueH2Connection* connection,
+                                           int32_t stream_id,
+                                           absl::Status error) {
+  for (auto it = pending_requests_.begin(); it != pending_requests_.end();) {
+    RequestId request_id = it->first;
+    PendingRequest& pending_request = *it->second;
+    if (pending_request.connection == connection &&
+        pending_request.stream_id == stream_id) {
+      pending_requests_.erase(it++);
+      visitor_->OnPoolResponse(this, request_id, error);
+      break;
+    }
+    ++it;
+  }
+}
+
 absl::StatusOr<MasqueConnectionPool::RequestId>
 MasqueConnectionPool::SendRequest(const Message& request, bool mtls) {
   auto authority = request.headers.find(":authority");

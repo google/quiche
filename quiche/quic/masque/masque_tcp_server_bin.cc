@@ -687,6 +687,11 @@ class MasqueTcpServer : public QuicSocketEventListener,
     QUICHE_LOG(FATAL) << "Server cannot receive responses";
   }
 
+  void OnStreamFailure(MasqueH2Connection* /*connection*/, int32_t stream_id,
+                       absl::Status error) override {
+    QUICHE_LOG(ERROR) << "Stream " << stream_id << " failed: " << error;
+  }
+
   // From MasqueConnectionPool::Visitor.
   void OnPoolResponse(MasqueConnectionPool* /*pool*/, RequestId request_id,
                       absl::StatusOr<Message>&& response) override {

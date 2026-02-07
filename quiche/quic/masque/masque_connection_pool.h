@@ -107,6 +107,8 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
   void OnResponse(MasqueH2Connection* connection, int32_t stream_id,
                   const quiche::HttpHeaderBlock& headers,
                   const std::string& body) override;
+  void OnStreamFailure(MasqueH2Connection* connection, int32_t stream_id,
+                       absl::Status error) override;
 
   static absl::StatusOr<bssl::UniquePtr<SSL_CTX>> CreateSslCtx(
       const std::string& client_cert_file,

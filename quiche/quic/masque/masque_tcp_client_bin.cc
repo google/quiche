@@ -385,6 +385,19 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
     done_ = true;
   }
 
+  void OnStreamFailure(MasqueH2Connection* connection, int32_t stream_id,
+                       absl::Status error) override {
+    if (connection != h2_connection_.get()) {
+      QUICHE_LOG(FATAL) << "Unexpected connection";
+    }
+    if (stream_id != stream_id_) {
+      QUICHE_LOG(FATAL) << "Unexpected stream id";
+    }
+    QUICHE_LOG(ERROR) << "Stream " << stream_id
+                      << " failed: " << error.message();
+    done_ = true;
+  }
+
  private:
   void MaybeSendRequest() {
     if (request_sent_ || done_ || !tls_connected_) {
