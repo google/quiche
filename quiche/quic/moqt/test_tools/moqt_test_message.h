@@ -93,7 +93,7 @@ class QUICHE_NO_EXPORT TestMessageBase {
   using MessageStructuredData = std::variant<
       MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtRequestOk,
       MoqtRequestError, MoqtSubscribe, MoqtSubscribeOk, MoqtUnsubscribe,
-      MoqtPublishDone, MoqtSubscribeUpdate, MoqtPublishNamespace,
+      MoqtPublishDone, MoqtRequestUpdate, MoqtPublishNamespace,
       MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
       MoqtGoAway, MoqtSubscribeNamespace, MoqtMaxRequestId, MoqtFetch,
       MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish,
@@ -870,63 +870,54 @@ class QUICHE_NO_EXPORT PublishDoneMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT SubscribeUpdateMessage : public TestMessageBase {
+class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
  public:
-  SubscribeUpdateMessage() : TestMessageBase() {
+  RequestUpdateMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
+    request_update_.parameters.delivery_timeout =
+        quic::QuicTimeDelta::FromMilliseconds(10000);
+    request_update_.parameters.set_forward(true);
+    request_update_.parameters.subscriber_priority = 0xaa;
+    request_update_.parameters.subscription_filter.emplace(Location(3, 1), 5);
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtSubscribeUpdate>(values);
-    if (cast.request_id != subscribe_update_.request_id) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE subscribe ID mismatch";
+    auto cast = std::get<MoqtRequestUpdate>(values);
+    if (cast.request_id != request_update_.request_id) {
+      QUIC_LOG(INFO) << "REQUEST_UPDATE request ID mismatch";
       return false;
     }
-    if (cast.start != subscribe_update_.start) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE start group mismatch";
+    if (cast.existing_request_id != request_update_.existing_request_id) {
+      QUIC_LOG(INFO) << "REQUEST_UPDATE existing request ID mismatch";
       return false;
     }
-    if (cast.end_group != subscribe_update_.end_group) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE end group mismatch";
-      return false;
-    }
-    if (cast.subscriber_priority != subscribe_update_.subscriber_priority) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE subscriber priority mismatch";
-      return false;
-    }
-    if (cast.forward != subscribe_update_.forward) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE forward mismatch";
-      return false;
-    }
-    if (cast.parameters != subscribe_update_.parameters) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_UPDATE parameter mismatch";
+    if (cast.parameters != request_update_.parameters) {
+      QUIC_LOG(INFO) << "REQUEST_UPDATE parameter mismatch";
       return false;
     }
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv--vv--"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv--vvv--vv----"); }
 
   MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(subscribe_update_);
+    return TestMessageBase::MessageStructuredData(request_update_);
   }
 
  private:
-  uint8_t raw_packet_[13] = {
-      0x02, 0x00, 0x0a, 0x02, 0x03, 0x01, 0x05,  // start and end sequences
-      0xaa, 0x01,                                // subscriber_priority, forward
-      0x01,                                      // 1 parameter
-      0x02, 0x67, 0x10,                          // delivery_timeout = 10000
+  uint8_t raw_packet_[20] = {
+      0x02, 0x00, 0x11, 0x02, 0x00,        // request IDs 2 and 0
+      0x04,                                // Four parameters
+      0x02, 0x67, 0x10,                    // delivery_timeout = 10000
+      0x0e, 0x01,                          // forward = true
+      0x10, 0x40, 0xaa,                    // subscriber_priority = 0xaa
+      0x01, 0x04, 0x04, 0x03, 0x01, 0x05,  // Absolute Range: (3, 1) to 5.
   };
 
-  MoqtSubscribeUpdate subscribe_update_ = {
+  MoqtRequestUpdate request_update_ = {
       /*request_id=*/2,
-      /*start=*/Location(3, 1),
-      /*end_group=*/4,
-      /*subscriber_priority=*/0xaa,
-      /*forward=*/true,
-      VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
-                                quic::QuicTimeDelta::Infinite()),
+      /*existing_request_id=*/0,
+      MessageParameters(),  // Set in the constructor.
   };
 };
 
@@ -1829,8 +1820,8 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<UnsubscribeMessage>();
     case MoqtMessageType::kPublishDone:
       return std::make_unique<PublishDoneMessage>();
-    case MoqtMessageType::kSubscribeUpdate:
-      return std::make_unique<SubscribeUpdateMessage>();
+    case MoqtMessageType::kRequestUpdate:
+      return std::make_unique<RequestUpdateMessage>();
     case MoqtMessageType::kPublishNamespace:
       return std::make_unique<PublishNamespaceMessage>();
     case MoqtMessageType::kPublishNamespaceDone:

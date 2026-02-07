@@ -49,8 +49,8 @@ struct FramingVisitor {
   quiche::QuicheBuffer operator()(const MoqtPublishDone& message) {
     return framer.SerializePublishDone(message);
   }
-  quiche::QuicheBuffer operator()(const MoqtSubscribeUpdate& message) {
-    return framer.SerializeSubscribeUpdate(message);
+  quiche::QuicheBuffer operator()(const MoqtRequestUpdate& message) {
+    return framer.SerializeRequestUpdate(message);
   }
   quiche::QuicheBuffer operator()(const MoqtPublishNamespace& message) {
     return framer.SerializePublishNamespace(message);
@@ -134,7 +134,7 @@ class GenericMessageParseVisitor : public MoqtControlParserVisitor {
   void OnPublishDoneMessage(const MoqtPublishDone& message) {
     frames_.push_back(message);
   }
-  void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) {
+  void OnRequestUpdateMessage(const MoqtRequestUpdate& message) {
     frames_.push_back(message);
   }
   void OnPublishNamespaceMessage(const MoqtPublishNamespace& message) {

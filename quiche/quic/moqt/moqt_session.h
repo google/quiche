@@ -111,11 +111,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // Returns false if the SUBSCRIBE isn't sent.
   bool Subscribe(const FullTrackName& name, SubscribeVisitor* visitor,
                  const MessageParameters& parameters) override;
-  bool SubscribeUpdate(const FullTrackName& name, std::optional<Location> start,
-                       std::optional<uint64_t> end_group,
-                       std::optional<MoqtPriority> subscriber_priority,
-                       std::optional<bool> forward,
-                       VersionSpecificParameters parameters) override;
+  bool SubscribeUpdate(const FullTrackName& name,
+                       const MessageParameters& parameters,
+                       MoqtResponseCallback response_callback) override;
   void Unsubscribe(const FullTrackName& name) override;
   bool Fetch(const FullTrackName& name, FetchResponseCallback callback,
              Location start, uint64_t end_group,
@@ -263,7 +261,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override;
     void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override;
     void OnPublishDoneMessage(const MoqtPublishDone& /*message*/) override;
-    void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate& message) override;
+    void OnRequestUpdateMessage(const MoqtRequestUpdate& message) override;
     void OnPublishNamespaceMessage(
         const MoqtPublishNamespace& message) override;
     void OnPublishNamespaceDoneMessage(
@@ -396,8 +394,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void ProcessObjectAck(const MoqtObjectAck& message);
 
     // Updates the window and other properties of the subscription in question.
-    void Update(Location start, std::optional<uint64_t> end,
-                MoqtPriority subscriber_priority);
+    void Update(const MessageParameters& parameters);
     // Checks if a given Location or Group should be forwarded to the
     // subscriber.
     bool InWindow(Location location) {
@@ -809,6 +806,15 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::flat_hash_map<uint64_t, SubscribeRemoteTrack*> subscribe_by_alias_;
   // All SUBSCRIBEs, indexed by track name.
   absl::flat_hash_map<FullTrackName, SubscribeRemoteTrack*> subscribe_by_name_;
+  struct SubscribeUpdateStatus {
+    FullTrackName name;
+    MessageParameters parameters;
+    MoqtResponseCallback response_callback;
+  };
+  // Outgoing Subscribe Updates. We should not update parameters until a
+  // REQUEST_OK arrives.
+  absl::flat_hash_map<uint64_t, SubscribeUpdateStatus>
+      pending_subscribe_updates_;
 
   // The next subscribe ID that the local endpoint can send.
   uint64_t next_request_id_ = 0;

@@ -98,13 +98,11 @@ class MoqtSessionInterface {
   // Return true if SUBSCRIBE was actually sent.
   virtual bool Subscribe(const FullTrackName& name, SubscribeVisitor* visitor,
                          const MessageParameters& parameters) = 0;
-  // If an argument is nullopt, there is no change to the current value.
+  // If a parameter is nullopt, there is no change to the current value.
+  // Returns false if the subscription is not found.
   virtual bool SubscribeUpdate(const FullTrackName& name,
-                               std::optional<Location> start,
-                               std::optional<uint64_t> end_group,
-                               std::optional<MoqtPriority> subscriber_priority,
-                               std::optional<bool> forward,
-                               VersionSpecificParameters parameters) = 0;
+                               const MessageParameters& parameters,
+                               MoqtResponseCallback response_callback) = 0;
 
   // Sends an UNSUBSCRIBE message and removes all of the state related to the
   // subscription.  Returns false if the subscription is not found.
@@ -164,7 +162,7 @@ class MoqtSessionInterface {
   // TODO: Add SubscribeNamespace, UnsubscribeNamespace method.
   // TODO: Add PublishNamespaceCancel method.
   // TODO: Add TrackStatusRequest method.
-  // TODO: Add SubscribeUpdate, PublishDone method.
+  // TODO: Add RequestUpdate, PublishDone method.
   virtual quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() = 0;
 };
 

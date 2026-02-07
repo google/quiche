@@ -590,8 +590,8 @@ size_t MoqtControlParser::ProcessMessage(absl::string_view data,
     case MoqtMessageType::kPublishDone:
       bytes_read = ProcessPublishDone(reader);
       break;
-    case MoqtMessageType::kSubscribeUpdate:
-      bytes_read = ProcessSubscribeUpdate(reader);
+    case MoqtMessageType::kRequestUpdate:
+      bytes_read = ProcessRequestUpdate(reader);
       break;
     case MoqtMessageType::kPublishNamespace:
       bytes_read = ProcessPublishNamespace(reader);
@@ -769,40 +769,16 @@ size_t MoqtControlParser::ProcessPublishDone(quic::QuicDataReader& reader) {
   return reader.PreviouslyReadPayload().length();
 }
 
-size_t MoqtControlParser::ProcessSubscribeUpdate(quic::QuicDataReader& reader) {
-  MoqtSubscribeUpdate subscribe_update;
-  uint64_t start_group, start_object, end_group;
-  uint8_t forward;
-  if (!reader.ReadVarInt62(&subscribe_update.request_id) ||
-      !reader.ReadVarInt62(&start_group) ||
-      !reader.ReadVarInt62(&start_object) || !reader.ReadVarInt62(&end_group) ||
-      !reader.ReadUInt8(&subscribe_update.subscriber_priority) ||
-      !reader.ReadUInt8(&forward)) {
+size_t MoqtControlParser::ProcessRequestUpdate(quic::QuicDataReader& reader) {
+  MoqtRequestUpdate request_update;
+  if (!reader.ReadVarInt62(&request_update.request_id) ||
+      !reader.ReadVarInt62(&request_update.existing_request_id)) {
     return 0;
   }
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
+  if (!FillAndValidateMessageParameters(reader, request_update.parameters)) {
     return 0;
   }
-  if (!FillAndValidateVersionSpecificParameters(
-          parameters, subscribe_update.parameters,
-          MoqtMessageType::kSubscribeUpdate)) {
-    return 0;
-  }
-  subscribe_update.start = Location(start_group, start_object);
-  if (end_group > 0) {
-    subscribe_update.end_group = end_group - 1;
-    if (subscribe_update.end_group < start_group) {
-      ParseError("End group is less than start group");
-      return 0;
-    }
-  }
-  if (forward > 1) {
-    ParseError("Invalid forward value in SUBSCRIBE_UPDATE");
-    return 0;
-  }
-  subscribe_update.forward = (forward == 1);
-  visitor_.OnSubscribeUpdateMessage(subscribe_update);
+  visitor_.OnRequestUpdateMessage(request_update);
   return reader.PreviouslyReadPayload().length();
 }
 

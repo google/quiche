@@ -468,38 +468,6 @@ TEST_F(MoqtFramerSimpleTest, FetchOkWholeGroup) {
   EXPECT_EQ(static_cast<uint8_t>(buffer.AsSpan()[7]), 0);
 }
 
-TEST_F(MoqtFramerSimpleTest, SubscribeUpdateEndGroupOnly) {
-  MoqtSubscribeUpdate subscribe_update = {
-      /*subscribe_id=*/3,
-      /*start=*/Location(4, 3),
-      /*end_group=*/4,
-      /*subscriber_priority=*/0xaa,
-      /*forward=*/true,
-      VersionSpecificParameters(),
-  };
-  quiche::QuicheBuffer buffer;
-  buffer = framer_.SerializeSubscribeUpdate(subscribe_update);
-  EXPECT_GT(buffer.size(), 0);
-  const uint8_t* end_group = BufferAtOffset(buffer, 6);
-  EXPECT_EQ(*end_group, 5);
-}
-
-TEST_F(MoqtFramerSimpleTest, SubscribeUpdateIncrementsEnd) {
-  MoqtSubscribeUpdate subscribe_update = {
-      /*subscribe_id=*/3,
-      /*start=*/Location(4, 3),
-      /*end_group=*/4,
-      /*subscriber_priority=*/0xaa,
-      /*forward=*/true,
-      VersionSpecificParameters(),
-  };
-  quiche::QuicheBuffer buffer;
-  buffer = framer_.SerializeSubscribeUpdate(subscribe_update);
-  EXPECT_GT(buffer.size(), 0);
-  const uint8_t* end_group = BufferAtOffset(buffer, 6);
-  EXPECT_EQ(*end_group, 5);
-}
-
 TEST_F(MoqtFramerSimpleTest, RelativeJoiningFetch) {
   RelativeJoiningFetchMessage message;
   quiche::QuicheBuffer buffer =

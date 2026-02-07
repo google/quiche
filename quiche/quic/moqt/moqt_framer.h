@@ -55,8 +55,7 @@ class QUICHE_EXPORT MoqtFramer {
       MoqtMessageType message_type = MoqtMessageType::kSubscribeOk);
   quiche::QuicheBuffer SerializeUnsubscribe(const MoqtUnsubscribe& message);
   quiche::QuicheBuffer SerializePublishDone(const MoqtPublishDone& message);
-  quiche::QuicheBuffer SerializeSubscribeUpdate(
-      const MoqtSubscribeUpdate& message);
+  quiche::QuicheBuffer SerializeRequestUpdate(const MoqtRequestUpdate& message);
   quiche::QuicheBuffer SerializePublishNamespace(
       const MoqtPublishNamespace& message);
   quiche::QuicheBuffer SerializePublishNamespaceDone(

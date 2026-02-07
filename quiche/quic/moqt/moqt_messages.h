@@ -243,7 +243,7 @@ class QUICHE_EXPORT MoqtDatagramType {
 };
 
 enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
-  kSubscribeUpdate = 0x02,
+  kRequestUpdate = 0x02,
   kSubscribe = 0x03,
   kSubscribeOk = 0x04,
   kRequestError = 0x05,
@@ -392,13 +392,10 @@ struct QUICHE_EXPORT MoqtPublishDone {
   std::string error_reason;
 };
 
-struct QUICHE_EXPORT MoqtSubscribeUpdate {
+struct QUICHE_EXPORT MoqtRequestUpdate {
   uint64_t request_id;
-  Location start;
-  std::optional<uint64_t> end_group;
-  MoqtPriority subscriber_priority;
-  bool forward;
-  VersionSpecificParameters parameters;
+  uint64_t existing_request_id;
+  MessageParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtPublishNamespace {

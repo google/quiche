@@ -67,16 +67,16 @@ const std::array<MoqtMessageType, 9> kAllowsAuthorization = {
     MoqtMessageType::kServerSetup,
     MoqtMessageType::kPublish,
     MoqtMessageType::kSubscribe,
-    MoqtMessageType::kSubscribeUpdate,
+    MoqtMessageType::kRequestUpdate,
     MoqtMessageType::kSubscribeNamespace,
     MoqtMessageType::kPublishNamespace,
     MoqtMessageType::kTrackStatus,
     MoqtMessageType::kFetch};
 const std::array<MoqtMessageType, 7> kAllowsDeliveryTimeout = {
-    MoqtMessageType::kTrackStatus,    MoqtMessageType::kRequestOk,
-    MoqtMessageType::kPublish,        MoqtMessageType::kPublishOk,
-    MoqtMessageType::kSubscribe,      MoqtMessageType::kSubscribeOk,
-    MoqtMessageType::kSubscribeUpdate};
+    MoqtMessageType::kTrackStatus,  MoqtMessageType::kRequestOk,
+    MoqtMessageType::kPublish,      MoqtMessageType::kPublishOk,
+    MoqtMessageType::kSubscribe,    MoqtMessageType::kSubscribeOk,
+    MoqtMessageType::kRequestUpdate};
 const std::array<MoqtMessageType, 4> kAllowsMaxCacheDuration = {
     MoqtMessageType::kSubscribeOk, MoqtMessageType::kRequestOk,
     MoqtMessageType::kFetchOk, MoqtMessageType::kPublish};
@@ -113,8 +113,8 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "UNSUBSCRIBE";
     case MoqtMessageType::kPublishDone:
       return "PUBLISH_DONE";
-    case MoqtMessageType::kSubscribeUpdate:
-      return "SUBSCRIBE_UPDATE";
+    case MoqtMessageType::kRequestUpdate:
+      return "REQUEST_UPDATE";
     case MoqtMessageType::kPublishNamespaceCancel:
       return "PUBLISH_NAMESPACE_CANCEL";
     case MoqtMessageType::kTrackStatus:

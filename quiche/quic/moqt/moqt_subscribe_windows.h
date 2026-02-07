@@ -40,9 +40,9 @@ class QUICHE_EXPORT SubscribeWindow {
 
   // Updates the subscription window. Returns true if the update is valid (in
   // MoQT, subscription windows are only allowed to shrink, not to expand).
-  // Called only as a result of SUBSCRIBE_OK (largest_id) or SUBSCRIBE_UPDATE.
+  // Called only as a result of SUBSCRIBE_OK (largest_id) or REQUEST_UPDATE.
   bool TruncateStart(Location start);
-  // Called only as a result of SUBSCRIBE_UPDATE.
+  // Called only as a result of REQUEST_UPDATE.
   bool TruncateEnd(uint64_t end_group);
   // Called only as a result of FETCH_OK (largest_id)
   bool TruncateEnd(Location largest_id);

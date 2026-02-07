@@ -229,6 +229,31 @@ TEST_F(MessageParametersTest, DuplicateParameters) {
   }
 }
 
+TEST_F(MessageParametersTest, Update) {
+  MessageParameters p1;
+  p1.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(10);
+  p1.expires = quic::QuicTimeDelta::FromMilliseconds(100);
+  p1.set_forward(false);
+  p1.subscriber_priority = 100;
+  p1.new_group_request = 1;
+  MessageParameters p2;
+  p2.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(20);
+  p2.authorization_tokens.push_back(
+      AuthToken(AuthTokenType::kOutOfBand, "token"));
+  p2.set_forward(true);
+  p2.group_order = MoqtDeliveryOrder::kDescending;
+  p1.Update(p2);
+  EXPECT_EQ(p1.delivery_timeout, quic::QuicTimeDelta::FromMilliseconds(20));
+  EXPECT_EQ(p1.expires, quic::QuicTimeDelta::FromMilliseconds(100));
+  ASSERT_EQ(p1.authorization_tokens.size(), 1);
+  EXPECT_EQ(p1.authorization_tokens[0],
+            AuthToken(AuthTokenType::kOutOfBand, "token"));
+  EXPECT_TRUE(p1.forward());
+  EXPECT_EQ(p1.subscriber_priority, 100);
+  EXPECT_EQ(p1.group_order, MoqtDeliveryOrder::kDescending);
+  EXPECT_EQ(p1.new_group_request, 1);
+}
+
 class TrackExtensionsTest : public quic::test::QuicTest {};
 
 TEST_F(TrackExtensionsTest, DefaultConstructor) {

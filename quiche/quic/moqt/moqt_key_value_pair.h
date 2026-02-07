@@ -250,6 +250,10 @@ struct MessageParameters {
     subscription_filter.emplace(location);
   }
 
+  // If |other| has a value in a particular field, replace the current value
+  // with it. Otherwise, leave unchanged.
+  void Update(const MessageParameters& other);
+
   std::optional<quic::QuicTimeDelta> delivery_timeout;
   std::vector<AuthToken> authorization_tokens;
   std::optional<quic::QuicTimeDelta> expires;

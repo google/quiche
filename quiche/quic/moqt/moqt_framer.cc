@@ -563,20 +563,12 @@ quiche::QuicheBuffer MoqtFramer::SerializePublishDone(
       WireStringWithVarInt62Length(message.error_reason));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeSubscribeUpdate(
-    const MoqtSubscribeUpdate& message) {
-  KeyValuePairList parameters;
-  if (!FillAndValidateVersionSpecificParameters(
-          MoqtMessageType::kSubscribeUpdate, message.parameters, parameters)) {
-    return quiche::QuicheBuffer();
-  };
-  uint64_t end_group =
-      message.end_group.has_value() ? *message.end_group + 1 : 0;
+quiche::QuicheBuffer MoqtFramer::SerializeRequestUpdate(
+    const MoqtRequestUpdate& message) {
   return SerializeControlMessage(
-      MoqtMessageType::kSubscribeUpdate, WireVarInt62(message.request_id),
-      WireVarInt62(message.start.group), WireVarInt62(message.start.object),
-      WireVarInt62(end_group), WireUint8(message.subscriber_priority),
-      WireBoolean(message.forward), WireKeyValuePairList(parameters));
+      MoqtMessageType::kRequestUpdate, WireVarInt62(message.request_id),
+      WireVarInt62(message.existing_request_id),
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializePublishNamespace(

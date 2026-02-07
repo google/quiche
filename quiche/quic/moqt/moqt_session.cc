@@ -211,7 +211,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     message.publisher_priority = track->default_publisher_priority();
   }
   if (!track->InWindow(Location(message.group_id, message.object_id))) {
-    // TODO(martinduke): a recent SUBSCRIBE_UPDATE could put us here, and it's
+    // TODO(martinduke): a recent REQUEST_UPDATE could put us here, and it's
     // not an error.
     return;
   }
@@ -459,56 +459,36 @@ bool MoqtSession::Subscribe(const FullTrackName& name,
   return true;
 }
 
-bool MoqtSession::SubscribeUpdate(
-    const FullTrackName& name, std::optional<Location> start,
-    std::optional<uint64_t> end_group,
-    std::optional<MoqtPriority> subscriber_priority,
-    std::optional<bool> forward, VersionSpecificParameters parameters) {
+bool MoqtSession::SubscribeUpdate(const FullTrackName& name,
+                                  const MessageParameters& parameters,
+                                  MoqtResponseCallback response_callback) {
   QUICHE_DCHECK(name.IsValid());
+  if (next_request_id_ >= peer_max_request_id_) {
+    if (!last_requests_blocked_sent_.has_value() ||
+        peer_max_request_id_ > *last_requests_blocked_sent_) {
+      MoqtRequestsBlocked requests_blocked;
+      requests_blocked.max_request_id = peer_max_request_id_;
+      SendControlMessage(framer_.SerializeRequestsBlocked(requests_blocked));
+      last_requests_blocked_sent_ = peer_max_request_id_;
+    }
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE with ID "
+                    << next_request_id_
+                    << " which is greater than the maximum ID "
+                    << peer_max_request_id_;
+    return false;
+  }
   auto it = subscribe_by_name_.find(name);
   if (it == subscribe_by_name_.end()) {
     return false;
   }
-  QUICHE_DCHECK(name.IsValid());
-  SubscribeRemoteTrack* track = it->second;
-  MoqtSubscribeUpdate subscribe_update;
-  subscribe_update.request_id = track->request_id();
-  // TODO(martinduke): Temporary code to keep this compiling until it is
-  // replaced with REQUEST_UPDATE.
-  std::optional<SubscriptionFilter> filter =
-      track->parameters().subscription_filter;
-  Location original_start =
-      filter.has_value() ? filter->start() : Location(0, 0);
-  uint64_t original_end =
-      filter.has_value() ? filter->end_group() : kMaxGroupId;
-  subscribe_update.start = start.value_or(original_start);
-  subscribe_update.end_group = end_group.value_or(original_end);
-  if (subscribe_update.end_group == kMaxGroupId) {
-    subscribe_update.end_group = std::nullopt;
-  }
-  subscribe_update.subscriber_priority =
-      subscriber_priority.value_or(track->subscriber_priority());
-  subscribe_update.forward = forward.value_or(track->forward());
-  subscribe_update.parameters = parameters;
-  if (subscribe_update.start < original_start ||
-      (subscribe_update.end_group.has_value() &&
-       (*subscribe_update.end_group > original_end ||
-        *subscribe_update.end_group < subscribe_update.start.group))) {
-    // Invalid range.
-    return false;
-  }
-  // Input is valid. Update subscription properties.
-  if (subscribe_update.end_group.has_value()) {
-    track->parameters().subscription_filter.emplace(
-        subscribe_update.start, *subscribe_update.end_group);
-  } else {
-    track->parameters().subscription_filter.emplace(subscribe_update.start);
-  }
-  track->set_subscriber_priority(subscribe_update.subscriber_priority);
-  track->set_forward(subscribe_update.forward);
-  SendControlMessage(framer_.SerializeSubscribeUpdate(subscribe_update));
+  pending_subscribe_updates_[next_request_id_] = {name, parameters,
+                                                  std::move(response_callback)};
+  MoqtRequestUpdate update{next_request_id_, it->second->request_id(),
+                           parameters};
+  next_request_id_ += 2;
+  SendControlMessage(framer_.SerializeRequestUpdate(update));
   return true;
-};
+}
 
 void MoqtSession::Unsubscribe(const FullTrackName& name) {
   if (is_closing_) {
@@ -1129,6 +1109,22 @@ void MoqtSession::ControlStream::OnRequestOkMessage(
                     "Received REQUEST_OK for SUBSCRIBE, FETCH, or PUBLISH");
     return;
   }
+  // Response to REQUEST_UPDATE for a subscribe.
+  auto ru_it = session_->pending_subscribe_updates_.find(message.request_id);
+  if (ru_it != session_->pending_subscribe_updates_.end()) {
+    auto sub_it = session_->subscribe_by_name_.find(ru_it->second.name);
+    if (sub_it == session_->subscribe_by_name_.end()) {
+      std::move(ru_it->second.response_callback)(MoqtRequestErrorInfo{
+          RequestErrorCode::kTrackDoesNotExist, std::nullopt,
+          "subscription does not exist anymore"});
+      session_->pending_subscribe_updates_.erase(ru_it);
+      return;
+    }
+    sub_it->second->parameters().Update(ru_it->second.parameters);
+    std::move(ru_it->second.response_callback)(std::nullopt);
+    session_->pending_subscribe_updates_.erase(ru_it);
+    return;
+  }
   // Response to PUBLISH_NAMESPACE.
   auto pn_it =
       session_->pending_outgoing_publish_namespaces_.find(message.request_id);
@@ -1193,6 +1189,13 @@ void MoqtSession::ControlStream::OnRequestErrorMessage(
     }
     return;
   }
+  // Response to REQUEST_UPDATE for a subscribe.
+  auto ru_it = session_->pending_subscribe_updates_.find(message.request_id);
+  if (ru_it != session_->pending_subscribe_updates_.end()) {
+    std::move(ru_it->second.response_callback)(error_info);
+    session_->pending_subscribe_updates_.erase(ru_it);
+    return;
+  }
   // Response to PUBLISH_NAMESPACE.
   auto pn_it =
       session_->pending_outgoing_publish_namespaces_.find(message.request_id);
@@ -1241,16 +1244,20 @@ void MoqtSession::ControlStream::OnPublishDoneMessage(
   session_->MaybeDestroySubscription(subscribe);
 }
 
-void MoqtSession::ControlStream::OnSubscribeUpdateMessage(
-    const MoqtSubscribeUpdate& message) {
-  auto it = session_->published_subscriptions_.find(message.request_id);
-  if (it == session_->published_subscriptions_.end()) {
+void MoqtSession::ControlStream::OnRequestUpdateMessage(
+    const MoqtRequestUpdate& message) {
+  auto it =
+      session_->published_subscriptions_.find(message.existing_request_id);
+  if (it != session_->published_subscriptions_.end()) {
+    // It's updating SUBSCRIBE.
+    it->second->Update(message.parameters);
+    SendRequestOk(message.request_id, MessageParameters());
     return;
   }
-  it->second->Update(message.start, message.end_group,
-                     message.subscriber_priority);
-  it->second->set_subscriber_delivery_timeout(
-      message.parameters.delivery_timeout);
+  // TODO(martinduke): Check all the request types.
+  // Does not match any known request.
+  SendRequestError(message.request_id, RequestErrorCode::kNotSupported,
+                   std::nullopt, "No support for update of this type");
 }
 
 void MoqtSession::ControlStream::OnPublishNamespaceMessage(
@@ -1592,7 +1599,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
   }
   Location location(message.group_id, message.object_id);
   if (!track->InWindow(Location(message.group_id, message.object_id))) {
-    // This is not an error. It can be the result of a recent SUBSCRIBE_UPDATE.
+    // This is not an error. It can be the result of a recent REQUEST_UPDATE.
     return;
   }
   if (!track->is_fetch()) {
@@ -1824,23 +1831,13 @@ SendStreamMap& MoqtSession::PublishedSubscription::stream_map() {
 }
 
 void MoqtSession::PublishedSubscription::Update(
-    Location start, std::optional<uint64_t> end_group,
-    MoqtPriority subscriber_priority) {
-  // TODO(martinduke): Revise once SUBSCRIBE_UPDATE has become REQUEST_UPDATE.
-  parameters_.subscriber_priority = subscriber_priority;
-  if (end_group.has_value()) {
-    parameters_.subscription_filter.emplace(start, *end_group);
-  } else {
-    parameters_.subscription_filter.emplace(start);
-  }
-  can_have_joining_fetch_ = false;
-  // TODO: update priority of all data streams that are currently open.
-  // TODO: update delivery timeout.
-  // TODO: update forward and subscribe filter.
-
-  // TODO: reset streams that are no longer in-window.
-  // TODO: send PUBLISH_DONE if required.
-  // TODO: send an error for invalid updates now that it's a part of draft-05.
+    const MessageParameters& parameters) {
+  // TODO(martinduke): If there are auth tokens, this probably has to go to the
+  // application.
+  parameters_.Update(parameters);
+  can_have_joining_fetch_ = (parameters_.subscription_filter.has_value() &&
+                             parameters_.subscription_filter->type() ==
+                                 MoqtFilterType::kLargestObject);
 }
 
 void MoqtSession::PublishedSubscription::set_subscriber_priority(
@@ -2256,7 +2253,7 @@ void MoqtSession::OutgoingDataStream::SendObjects(
     QUICHE_DCHECK(object->metadata.subgroup == index_.subgroup);
     if (!subscription.InWindow(object->metadata.location)) {
       // It is possible that the next object became irrelevant due to a
-      // SUBSCRIBE_UPDATE.  Close the stream if so.
+      // REQUEST_UPDATE.  Close the stream if so.
       bool success = stream_->SendFin();
       QUICHE_BUG_IF(OutgoingDataStream_fin_due_to_update, !success)
           << "Writing FIN failed despite CanWrite() being true.";

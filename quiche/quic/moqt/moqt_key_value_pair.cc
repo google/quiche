@@ -69,6 +69,39 @@ void SubscriptionFilter::OnLargestObject(
   type_ = MoqtFilterType::kAbsoluteStart;
 }
 
+void MessageParameters::Update(const MessageParameters& other) {
+  if (other.delivery_timeout.has_value()) {
+    delivery_timeout = other.delivery_timeout;
+  }
+  if (!other.authorization_tokens.empty()) {
+    authorization_tokens = other.authorization_tokens;
+  }
+  if (other.expires.has_value()) {
+    expires = other.expires;
+  }
+  if (other.largest_object.has_value()) {
+    largest_object = other.largest_object;
+  }
+  if (other.forward_.has_value()) {
+    forward_ = other.forward_;
+  }
+  if (other.subscriber_priority.has_value()) {
+    subscriber_priority = other.subscriber_priority;
+  }
+  if (other.subscription_filter.has_value()) {
+    subscription_filter = other.subscription_filter;
+  }
+  if (other.group_order.has_value()) {
+    group_order = other.group_order;
+  }
+  if (other.new_group_request.has_value()) {
+    new_group_request = other.new_group_request;
+  }
+  if (other.oack_window_size.has_value()) {
+    oack_window_size = other.oack_window_size;
+  }
+}
+
 TrackExtensions::TrackExtensions(
     std::optional<quic::QuicTimeDelta> delivery_timeout,
     std::optional<quic::QuicTimeDelta> max_cache_duration,

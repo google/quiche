@@ -124,8 +124,8 @@ class MoqtNamespacePublisherStream : public MoqtBidiStreamBase {
   void OnSubscribeNamespaceMessage(
       const MoqtSubscribeNamespace& message) override;
   // TODO(martinduke): Implement this.
-  void OnSubscribeUpdateMessage(const MoqtSubscribeUpdate&) override {
-    QUICHE_DLOG(INFO) << "Got SUBSCRIBE_UPDATE on Namespace stream";
+  void OnRequestUpdateMessage(const MoqtRequestUpdate&) override {
+    QUICHE_DLOG(INFO) << "Got REQUEST_UPDATE on Namespace stream";
   }
 
  private:

@@ -34,11 +34,8 @@ class MockMoqtSession : public MoqtSessionInterface {
                const MessageParameters& parameters),
               (override));
   MOCK_METHOD(bool, SubscribeUpdate,
-              (const FullTrackName& name, std::optional<Location> start,
-               std::optional<uint64_t> end_group,
-               std::optional<MoqtPriority> subscriber_priority,
-               std::optional<bool> forward,
-               VersionSpecificParameters parameters),
+              (const FullTrackName&, const MessageParameters&,
+               MoqtResponseCallback),
               (override));
   MOCK_METHOD(void, Unsubscribe, (const FullTrackName& name), (override));
   MOCK_METHOD(bool, Fetch,

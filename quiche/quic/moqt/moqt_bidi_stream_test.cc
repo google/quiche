@@ -99,7 +99,7 @@ TEST_F(MoqtBidiStreamTest, AllMessagesRejected) {
   EXPECT_CALL(error_callback_,
               Call(MoqtError::kProtocolViolation,
                    "Message not allowed for this stream type"));
-  stream_->OnSubscribeUpdateMessage(MoqtSubscribeUpdate{});
+  stream_->OnRequestUpdateMessage(MoqtRequestUpdate{});
   stream_ = std::make_unique<MoqtBidiStreamBase>(
       &framer_, deleted_callback_.AsStdFunction(),
       error_callback_.AsStdFunction());
@@ -256,12 +256,12 @@ TEST_F(MoqtBidiStreamTest, PendingQueueFull) {
   for (int i = 0; i < 100; ++i) {  // kMaxPendingMessages = 100.
     EXPECT_FALSE(stream_->QueueIsFull());
     stream_->SendOrBufferMessage(
-        framer_.SerializeSubscribeUpdate(MoqtSubscribeUpdate{}));
+        framer_.SerializeRequestUpdate(MoqtRequestUpdate{}));
   }
   EXPECT_TRUE(stream_->QueueIsFull());
   EXPECT_CALL(error_callback_, Call(MoqtError::kInternalError, _));
   stream_->SendOrBufferMessage(
-      framer_.SerializeSubscribeUpdate(MoqtSubscribeUpdate{}));
+      framer_.SerializeRequestUpdate(MoqtRequestUpdate{}));
   EXPECT_TRUE(stream_->QueueIsFull());
 }
 

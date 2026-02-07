@@ -38,7 +38,7 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kRequestError,
     MoqtMessageType::kSubscribe,
     MoqtMessageType::kSubscribeOk,
-    MoqtMessageType::kSubscribeUpdate,
+    MoqtMessageType::kRequestUpdate,
     MoqtMessageType::kUnsubscribe,
     MoqtMessageType::kPublishDone,
     MoqtMessageType::kTrackStatus,
@@ -1128,34 +1128,18 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteRangeExactlyOneGroup) {
   EXPECT_EQ(visitor_.messages_received_, 1);
 }
 
-TEST_F(MoqtMessageSpecificTest, SubscribeUpdateExactlyOneObject) {
+TEST_F(MoqtMessageSpecificTest, RequestUpdateEndGroupTooLow) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char subscribe_update[] = {
-      0x02, 0x00, 0x07, 0x02, 0x03, 0x01, 0x04,  // start and end sequences
-      0x20, 0x01,                                // priority, forward
-      0x00,                                      // No parameters
+  char request_update[] = {
+      0x02, 0x00, 0x09, 0x02, 0x00,              // request IDs
+      0x01, 0x21, 0x04, 0x04, 0x04, 0x01, 0x03,  // filter
   };
-  stream.Receive(absl::string_view(subscribe_update, sizeof(subscribe_update)),
-                 false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 1);
-}
-
-TEST_F(MoqtMessageSpecificTest, SubscribeUpdateEndGroupTooLow) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char subscribe_update[] = {
-      0x02, 0x00, 0x09, 0x02, 0x03, 0x01, 0x03,  // start and end sequences
-      0x20, 0x01,                                // priority, forward
-      0x01,                                      // 1 parameter
-      0x02, 0x20,                                // delivery_timeout = 32 ms
-  };
-  stream.Receive(absl::string_view(subscribe_update, sizeof(subscribe_update)),
+  stream.Receive(absl::string_view(request_update, sizeof(request_update)),
                  false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "End group is less than start group");
+  EXPECT_EQ(visitor_.parsing_error_, "Duplicate Message Parameter");
 }
 
 TEST_F(MoqtMessageSpecificTest, ObjectAckNegativeDelta) {
