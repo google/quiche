@@ -211,6 +211,9 @@ absl::StatusOr<std::string> EncodeBodyChunksImpl(
     absl::Span<const absl::string_view> body_chunks, bool body_chunks_done) {
   uint64_t total_length = 0;
   for (const auto& body_chunk : body_chunks) {
+    if (body_chunk.empty()) {
+      continue;
+    }
     uint8_t body_chunk_var_int_length =
         QuicheDataWriter::GetVarInt62Len(body_chunk.size());
     if (body_chunk_var_int_length == 0) {
@@ -223,11 +226,19 @@ absl::StatusOr<std::string> EncodeBodyChunksImpl(
     total_length +=
         quiche::QuicheDataWriter::GetVarInt62Len(kContentTerminator);
   }
+  if (total_length == 0) {
+    return absl::InvalidArgumentError(
+        "EncodeBodyChunks cannot be called without data unless "
+        "body_chunks_done is true.");
+  }
 
   std::string data(total_length, '\0');
   QuicheDataWriter writer(total_length, data.data());
 
   for (const auto& body_chunk : body_chunks) {
+    if (body_chunk.empty()) {
+      continue;
+    }
     if (!writer.WriteStringPieceVarInt62(body_chunk)) {
       return absl::InternalError("Failed to write body chunk.");
     }
