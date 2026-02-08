@@ -303,12 +303,17 @@ std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
   std::unique_ptr<MoqtNamespaceSubscriberStream> state =
       std::make_unique<MoqtNamespaceSubscriberStream>(
           &framer_, next_request_id_,
-          [this, prefix]() {
-            if (!is_closing_) {
-              outgoing_subscribe_namespace_.UnsubscribeNamespace(prefix);
+          [session_weak_ptr = GetWeakPtr(), this, pref = prefix]() {
+            if (!session_weak_ptr.IsValid() || is_closing_) {
+              return;
             }
+            outgoing_subscribe_namespace_.UnsubscribeNamespace(pref);
           },
-          [this](MoqtError error, absl::string_view reason) {
+          [session_weak_ptr = GetWeakPtr(), this](MoqtError error,
+                                                  absl::string_view reason) {
+            if (!session_weak_ptr.IsValid() || is_closing_) {
+              return;
+            }
             Error(error, reason);
           },
           std::move(response_callback));
