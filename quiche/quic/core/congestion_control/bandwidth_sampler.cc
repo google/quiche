@@ -8,11 +8,17 @@
 #include <cstddef>
 #include <ostream>
 
+#include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
+#include "quiche/quic/core/quic_bandwidth.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_unacked_packet_map.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -135,21 +141,9 @@ QuicByteCount MaxAckHeightTracker::Update(
 BandwidthSampler::BandwidthSampler(
     const QuicUnackedPacketMap* unacked_packet_map,
     QuicRoundTripCount max_height_tracker_window_length)
-    : total_bytes_sent_(0),
-      total_bytes_acked_(0),
-      total_bytes_lost_(0),
-      total_bytes_neutered_(0),
-      total_bytes_sent_at_last_acked_packet_(0),
-      last_acked_packet_sent_time_(QuicTime::Zero()),
-      last_acked_packet_ack_time_(QuicTime::Zero()),
-      is_app_limited_(true),
-      connection_state_map_(),
-      max_tracked_packets_(GetQuicFlag(quic_max_tracked_packet_count)),
+    : max_tracked_packets_(GetQuicFlag(quic_max_tracked_packet_count)),
       unacked_packet_map_(unacked_packet_map),
-      max_ack_height_tracker_(max_height_tracker_window_length),
-      total_bytes_acked_after_last_ack_event_(0),
-      overestimate_avoidance_(false),
-      limit_max_ack_height_tracker_by_send_rate_(false) {
+      max_ack_height_tracker_(max_height_tracker_window_length) {
   const size_t preallocate_count =
       GetQuicFlag(quic_preallocate_unacked_packets);
   if (preallocate_count > 0) {
@@ -157,30 +151,7 @@ BandwidthSampler::BandwidthSampler(
   }
 }
 
-BandwidthSampler::BandwidthSampler(const BandwidthSampler& other)
-    : total_bytes_sent_(other.total_bytes_sent_),
-      total_bytes_acked_(other.total_bytes_acked_),
-      total_bytes_lost_(other.total_bytes_lost_),
-      total_bytes_neutered_(other.total_bytes_neutered_),
-      total_bytes_sent_at_last_acked_packet_(
-          other.total_bytes_sent_at_last_acked_packet_),
-      last_acked_packet_sent_time_(other.last_acked_packet_sent_time_),
-      last_acked_packet_ack_time_(other.last_acked_packet_ack_time_),
-      last_sent_packet_(other.last_sent_packet_),
-      last_acked_packet_(other.last_acked_packet_),
-      is_app_limited_(other.is_app_limited_),
-      end_of_app_limited_phase_(other.end_of_app_limited_phase_),
-      connection_state_map_(other.connection_state_map_),
-      recent_ack_points_(other.recent_ack_points_),
-      a0_candidates_(other.a0_candidates_),
-      max_tracked_packets_(other.max_tracked_packets_),
-      unacked_packet_map_(other.unacked_packet_map_),
-      max_ack_height_tracker_(other.max_ack_height_tracker_),
-      total_bytes_acked_after_last_ack_event_(
-          other.total_bytes_acked_after_last_ack_event_),
-      overestimate_avoidance_(other.overestimate_avoidance_),
-      limit_max_ack_height_tracker_by_send_rate_(
-          other.limit_max_ack_height_tracker_by_send_rate_) {}
+BandwidthSampler::BandwidthSampler(const BandwidthSampler& other) = default;
 
 void BandwidthSampler::EnableOverestimateAvoidance() {
   if (overestimate_avoidance_) {
@@ -192,8 +163,6 @@ void BandwidthSampler::EnableOverestimateAvoidance() {
   // --quic_ack_aggregation_bandwidth_threshold to 2.0.
   max_ack_height_tracker_.SetAckAggregationBandwidthThreshold(2.0);
 }
-
-BandwidthSampler::~BandwidthSampler() {}
 
 void BandwidthSampler::OnPacketSent(
     QuicTime sent_time, QuicPacketNumber packet_number, QuicByteCount bytes,

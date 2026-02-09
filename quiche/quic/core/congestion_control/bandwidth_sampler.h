@@ -5,17 +5,20 @@
 #ifndef QUICHE_QUIC_CORE_CONGESTION_CONTROL_BANDWIDTH_SAMPLER_H_
 #define QUICHE_QUIC_CORE_CONGESTION_CONTROL_BANDWIDTH_SAMPLER_H_
 
+#include <cstdint>
+#include <ostream>
+
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/congestion_control/windowed_filter.h"
 #include "quiche/quic/core/packet_number_indexed_queue.h"
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_packet_number.h"
-#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_unacked_packet_map.h"
-#include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_circular_deque.h"
 
 namespace quic {
@@ -27,14 +30,7 @@ class BandwidthSamplerPeer;
 // A subset of BandwidthSampler::ConnectionStateOnSentPacket which is returned
 // to the caller when the packet is acked or lost.
 struct QUICHE_EXPORT SendTimeState {
-  SendTimeState()
-      : is_valid(false),
-        is_app_limited(false),
-        total_bytes_sent(0),
-        total_bytes_acked(0),
-        total_bytes_lost(0),
-        bytes_in_flight(0) {}
-
+  SendTimeState() = default;
   SendTimeState(bool is_app_limited, QuicByteCount total_bytes_sent,
                 QuicByteCount total_bytes_acked, QuicByteCount total_bytes_lost,
                 QuicByteCount bytes_in_flight)
@@ -52,28 +48,28 @@ struct QUICHE_EXPORT SendTimeState {
                                                 const SendTimeState& s);
 
   // Whether other states in this object is valid.
-  bool is_valid;
+  bool is_valid = false;
 
   // Whether the sender is app limited at the time the packet was sent.
   // App limited bandwidth sample might be artificially low because the sender
   // did not have enough data to send in order to saturate the link.
-  bool is_app_limited;
+  bool is_app_limited = false;
 
   // Total number of sent bytes at the time the packet was sent.
   // Includes the packet itself.
-  QuicByteCount total_bytes_sent;
+  QuicByteCount total_bytes_sent = 0;
 
   // Total number of acked bytes at the time the packet was sent.
-  QuicByteCount total_bytes_acked;
+  QuicByteCount total_bytes_acked = 0;
 
   // Total number of lost bytes at the time the packet was sent.
-  QuicByteCount total_bytes_lost;
+  QuicByteCount total_bytes_lost = 0;
 
   // Total number of inflight bytes at the time the packet was sent.
   // Includes the packet itself.
   // It should be equal to |total_bytes_sent| minus the sum of
   // |total_bytes_acked|, |total_bytes_lost| and total neutered bytes.
-  QuicByteCount bytes_in_flight;
+  QuicByteCount bytes_in_flight = 0;
 };
 
 struct QUICHE_EXPORT ExtraAckedEvent {
@@ -340,7 +336,6 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
   // Copy states from |other|. This is useful when changing send algorithms in
   // the middle of a connection.
   BandwidthSampler(const BandwidthSampler& other);
-  ~BandwidthSampler() override;
 
   void OnPacketSent(QuicTime sent_time, QuicPacketNumber packet_number,
                     QuicByteCount bytes, QuicByteCount bytes_in_flight,
@@ -502,12 +497,7 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
 
     // Default constructor.  Required to put this structure into
     // PacketNumberIndexedQueue.
-    ConnectionStateOnSentPacket()
-        : sent_time_(QuicTime::Zero()),
-          size_(0),
-          total_bytes_sent_at_last_acked_packet_(0),
-          last_acked_packet_sent_time_(QuicTime::Zero()),
-          last_acked_packet_ack_time_(QuicTime::Zero()) {}
+    ConnectionStateOnSentPacket() = default;
 
     friend QUICHE_EXPORT std::ostream& operator<<(
         std::ostream& os, const ConnectionStateOnSentPacket& p) {
@@ -521,11 +511,11 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
     }
 
    private:
-    QuicTime sent_time_;
-    QuicByteCount size_;
-    QuicByteCount total_bytes_sent_at_last_acked_packet_;
-    QuicTime last_acked_packet_sent_time_;
-    QuicTime last_acked_packet_ack_time_;
+    QuicTime sent_time_ = QuicTime::Zero();
+    QuicByteCount size_ = 0;
+    QuicByteCount total_bytes_sent_at_last_acked_packet_ = 0;
+    QuicTime last_acked_packet_sent_time_ = QuicTime::Zero();
+    QuicTime last_acked_packet_ack_time_ = QuicTime::Zero();
     SendTimeState send_time_state_;
   };
 
@@ -555,27 +545,27 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
   bool ChooseA0Point(QuicByteCount total_bytes_acked, AckPoint* a0);
 
   // The total number of congestion controlled bytes sent during the connection.
-  QuicByteCount total_bytes_sent_;
+  QuicByteCount total_bytes_sent_ = 0;
 
   // The total number of congestion controlled bytes which were acknowledged.
-  QuicByteCount total_bytes_acked_;
+  QuicByteCount total_bytes_acked_ = 0;
 
   // The total number of congestion controlled bytes which were lost.
-  QuicByteCount total_bytes_lost_;
+  QuicByteCount total_bytes_lost_ = 0;
 
   // The total number of congestion controlled bytes which have been neutered.
-  QuicByteCount total_bytes_neutered_;
+  QuicByteCount total_bytes_neutered_ = 0;
 
   // The value of |total_bytes_sent_| at the time the last acknowledged packet
   // was sent. Valid only when |last_acked_packet_sent_time_| is valid.
-  QuicByteCount total_bytes_sent_at_last_acked_packet_;
+  QuicByteCount total_bytes_sent_at_last_acked_packet_ = 0;
 
   // The time at which the last acknowledged packet was sent. Set to
   // QuicTime::Zero() if no valid timestamp is available.
-  QuicTime last_acked_packet_sent_time_;
+  QuicTime last_acked_packet_sent_time_ = QuicTime::Zero();
 
   // The time at which the most recent packet was acknowledged.
-  QuicTime last_acked_packet_ack_time_;
+  QuicTime last_acked_packet_ack_time_ = QuicTime::Zero();
 
   // The most recently sent packet.
   QuicPacketNumber last_sent_packet_;
@@ -585,7 +575,7 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
 
   // Indicates whether the bandwidth sampler is currently in an app-limited
   // phase.
-  bool is_app_limited_;
+  bool is_app_limited_ = true;
 
   // The packet that will be acknowledged after this one will cause the sampler
   // to exit the app-limited phase.
@@ -613,13 +603,13 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
       const ConnectionStateOnSentPacket& sent_packet);
 
   MaxAckHeightTracker max_ack_height_tracker_;
-  QuicByteCount total_bytes_acked_after_last_ack_event_;
+  QuicByteCount total_bytes_acked_after_last_ack_event_ = 0;
 
   // True if connection option 'BSAO' is set.
-  bool overestimate_avoidance_;
+  bool overestimate_avoidance_ = false;
 
   // True if connection option 'BBRB' is set.
-  bool limit_max_ack_height_tracker_by_send_rate_;
+  bool limit_max_ack_height_tracker_by_send_rate_ = false;
 };
 
 }  // namespace quic
