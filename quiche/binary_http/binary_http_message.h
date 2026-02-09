@@ -514,7 +514,8 @@ class QUICHE_EXPORT BinaryHttpResponse::IndeterminateLengthEncoder {
   // Encodes the specified body chunks. This can be called multiple times but
   // it needs to be called exactly once with `body_chunks_done` set to true at
   // the end to properly set the content terminator. Encoding body chunks is
-  // optional since valid chunked messages can be truncated.
+  // optional since valid chunked messages can be truncated. Cannot be called
+  // without any data unless `body_chunks_done` is true.
   absl::StatusOr<std::string> EncodeBodyChunks(
       absl::Span<const absl::string_view> body_chunks, bool body_chunks_done);
   // Encodes the specified trailers and its content terminator. Encoding

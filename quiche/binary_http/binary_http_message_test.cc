@@ -1849,6 +1849,28 @@ TEST(ResponseIndeterminateLengthEncoder, OutOfOrderInformationalResponse) {
   EXPECT_THAT(status_or_encoded_data, test::StatusIs(kInvalidArgument));
 }
 
+TEST(ResponseIndeterminateLengthEncoder, NoFinalChunk) {
+  BinaryHttpResponse::IndeterminateLengthEncoder encoder;
+  absl::StatusOr<std::string> status_or_encoded_data =
+      encoder.EncodeHeaders(200, {});
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  status_or_encoded_data = encoder.EncodeBodyChunks({"foobar"}, false);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  status_or_encoded_data = encoder.EncodeBodyChunks({}, true);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+}
+
+TEST(ResponseIndeterminateLengthEncoder, EmptyFinalChunk) {
+  BinaryHttpResponse::IndeterminateLengthEncoder encoder;
+  absl::StatusOr<std::string> status_or_encoded_data =
+      encoder.EncodeHeaders(200, {});
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  status_or_encoded_data = encoder.EncodeBodyChunks({"foobar"}, false);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  status_or_encoded_data = encoder.EncodeBodyChunks({""}, true);
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+}
+
 TEST(ResponseIndeterminateLengthEncoder, MustNotEncodeChunksAfterChunksDone) {
   BinaryHttpResponse::IndeterminateLengthEncoder encoder;
   absl::StatusOr<std::string> status_or_encoded_data =
@@ -1857,6 +1879,24 @@ TEST(ResponseIndeterminateLengthEncoder, MustNotEncodeChunksAfterChunksDone) {
   status_or_encoded_data = encoder.EncodeBodyChunks({}, true);
   QUICHE_EXPECT_OK(status_or_encoded_data);
   status_or_encoded_data = encoder.EncodeBodyChunks({}, true);
+  EXPECT_THAT(status_or_encoded_data, test::StatusIs(kInvalidArgument));
+}
+
+TEST(ResponseIndeterminateLengthEncoder, MustNotEncodeNonFinalNoChunks) {
+  BinaryHttpResponse::IndeterminateLengthEncoder encoder;
+  absl::StatusOr<std::string> status_or_encoded_data =
+      encoder.EncodeHeaders(200, {});
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  status_or_encoded_data = encoder.EncodeBodyChunks({}, false);
+  EXPECT_THAT(status_or_encoded_data, test::StatusIs(kInvalidArgument));
+}
+
+TEST(ResponseIndeterminateLengthEncoder, MustNotEncodeNonFinalEmptyChunk) {
+  BinaryHttpResponse::IndeterminateLengthEncoder encoder;
+  absl::StatusOr<std::string> status_or_encoded_data =
+      encoder.EncodeHeaders(200, {});
+  QUICHE_EXPECT_OK(status_or_encoded_data);
+  status_or_encoded_data = encoder.EncodeBodyChunks({""}, false);
   EXPECT_THAT(status_or_encoded_data, test::StatusIs(kInvalidArgument));
 }
 
