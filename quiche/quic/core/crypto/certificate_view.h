@@ -88,12 +88,16 @@ class QUICHE_EXPORT CertificateView {
   // Returns the type of the key used in the certificate's SPKI.
   PublicKeyType public_key_type() const;
 
+  // Returns the raw bytes of SubjectPublicKeyInfo.
+  absl::string_view raw_spki() const { return spki_; }
+
  private:
   CertificateView() = default;
 
   QuicWallTime validity_start_ = QuicWallTime::Zero();
   QuicWallTime validity_end_ = QuicWallTime::Zero();
   absl::string_view subject_der_;
+  absl::string_view spki_;
 
   // Public key parsed from SPKI.
   bssl::UniquePtr<EVP_PKEY> public_key_;

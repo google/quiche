@@ -4,11 +4,16 @@
 
 #include "quiche/quic/core/crypto/web_transport_fingerprint_proof_verifier.h"
 
+#include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
+#include "absl/memory/memory.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/crypto/proof_verifier.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -27,6 +32,7 @@ constexpr QuicTime::Delta kValidTime = QuicTime::Delta::FromSeconds(1580560556);
 struct VerifyResult {
   QuicAsyncStatus status;
   WebTransportFingerprintProofVerifier::Status detailed_status;
+  std::unique_ptr<WebTransportFingerprintProofVerifier::Details> details;
   std::string error;
 };
 
@@ -51,10 +57,10 @@ class WebTransportFingerprintProofVerifierTest : public QuicTest {
         /*cert_sct=*/"",
         /*context=*/nullptr, &result.error, &details, &tls_alert,
         /*callback=*/nullptr);
-    result.detailed_status =
+    result.details = absl::WrapUnique(
         static_cast<WebTransportFingerprintProofVerifier::Details*>(
-            details.get())
-            ->status();
+            details.release()));
+    result.detailed_status = result.details->status();
     return result;
   }
 
@@ -79,6 +85,11 @@ TEST_F(WebTransportFingerprintProofVerifierTest, SimpleFingerprint) {
   EXPECT_EQ(result.status, QUIC_SUCCESS);
   EXPECT_EQ(result.detailed_status,
             WebTransportFingerprintProofVerifier::Status::kValidCertificate);
+  EXPECT_EQ(result.details->cert(), kTestCertificate);
+  // Hash manually computed from the test certificate by extracting the SPKI
+  // using ascii2der/der2ascii.
+  EXPECT_EQ(absl::BytesToHexString(result.details->spki_sha256_hash()),
+            "dfbf620ab8c5c16acc9f1ce52bad06381095f157f9cc2ad8d28e71ecd6b0b8dd");
 
   result = Verify(kWildcardCertificate);
   EXPECT_EQ(result.status, QUIC_FAILURE);
@@ -148,6 +159,7 @@ TEST_F(WebTransportFingerprintProofVerifierTest, InvalidCertificate) {
   EXPECT_EQ(
       result.detailed_status,
       WebTransportFingerprintProofVerifier::Status::kCertificateParseFailure);
+  EXPECT_EQ(result.details->cert(), "");
 }
 
 TEST_F(WebTransportFingerprintProofVerifierTest, AddCertificate) {

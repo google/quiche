@@ -375,6 +375,7 @@ std::unique_ptr<CertificateView> CertificateView::ParseSingleCertificate(
   result->validity_start_ = *not_before_parsed;
   result->validity_end_ = *not_after_parsed;
 
+  result->spki_ = CbsToStringPiece(spki);
   result->public_key_.reset(EVP_parse_public_key(&spki));
   if (result->public_key_ == nullptr) {
     QUIC_DLOG(WARNING) << "Failed to parse the public key";
