@@ -240,11 +240,15 @@ class QUICHE_EXPORT QuicSession
       return config_->IdleNetworkTimeout();
     }
 
+    void set_delete_config(bool delete_config) {
+      delete_config_ = delete_config;
+    }
+
    private:
     std::unique_ptr<QuicConfig> config_;
     // TODO(b/461482627): Delete this when retiring the flag.
     bool config_deleted_ = false;
-    const bool delete_config_ = GetQuicReloadableFlag(quic_delete_config);
+    bool delete_config_ = GetQuicReloadableFlag(quic_delete_config);
 
     bool has_received_initial_stream_flow_control_window_bytes_ = false;
     bool has_received_initial_max_stream_data_bytes_unidirectional_ = false;
@@ -1060,6 +1064,10 @@ class QUICHE_EXPORT QuicSession
   }
 
   bool enforce_immediate_goaway() const { return enforce_immediate_goaway_; }
+
+  void set_delete_config(bool delete_config) {
+    saved_config_.set_delete_config(delete_config);
+  }
 
  private:
   friend class test::QuicSessionPeer;

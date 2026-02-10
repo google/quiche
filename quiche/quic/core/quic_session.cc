@@ -39,6 +39,7 @@
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_server_stats.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_text_utils.h"
@@ -150,6 +151,7 @@ void QuicSession::SavedConfig::DeleteConfig(ParsedQuicVersion version) {
   received_max_bidirectional_streams_ =
       config_->ReceivedMaxBidirectionalStreams();
   idle_network_timeout_ = config_->IdleNetworkTimeout();
+  QUICHE_RELOADABLE_FLAG_COUNT(quic_delete_config);
   config_.reset();
 }
 
