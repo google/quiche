@@ -51,9 +51,15 @@ class TunTapDevice : public TunDeviceInterface {
   // CloseDevice.
   void CloseDevice() override;
 
-  // Gets the file descriptor that can be used to send/receive packets.
-  // This returns -1 when the TUN device is in an invalid state.
-  int GetFileDescriptor() const override;
+  // Get the file descriptors that can be used to send/receive packets.
+  // These return -1 when the TUN device is in an invalid state.
+  int GetReadFileDescriptor() const override { return file_descriptor_; }
+  int GetWriteFileDescriptor() const override { return file_descriptor_; }
+
+  static bool CheckFeatures(KernelInterface& kernel, int tun_device_fd);
+  static bool OpenFileDescriptor(KernelInterface& kernel,
+                                 const std::string& path, ifreq if_request,
+                                 int flags, bool persist, int* return_fd);
 
  private:
   // Creates or reopens the tun device.
@@ -61,9 +67,6 @@ class TunTapDevice : public TunDeviceInterface {
 
   // Configure the interface.
   bool ConfigureInterface();
-
-  // Checks if the required kernel features exists.
-  bool CheckFeatures(int tun_device_fd);
 
   // Opens a socket and makes netdevice ioctl call
   bool NetdeviceIoctl(int request, void* argp);

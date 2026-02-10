@@ -5,6 +5,7 @@
 #include "quiche/quic/qbone/bonnet/tun_device.h"
 
 #include <fcntl.h>
+#include <linux/filter.h>
 #include <linux/if_tun.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
@@ -14,6 +15,7 @@
 #include <string>
 
 #include "absl/cleanup/cleanup.h"
+#include "absl/flags/flag.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
@@ -93,7 +95,50 @@ bool TunTapDevice::Down() {
   return NetdeviceIoctl(SIOCSIFFLAGS, reinterpret_cast<void*>(&if_request));
 }
 
-int TunTapDevice::GetFileDescriptor() const { return file_descriptor_; }
+bool TunTapDevice::CheckFeatures(KernelInterface& kernel, int tun_device_fd) {
+  unsigned int actual_features;
+  if (kernel.ioctl(tun_device_fd, TUNGETFEATURES, &actual_features) != 0) {
+    QUIC_PLOG(WARNING) << "Failed to TUNGETFEATURES";
+    return false;
+  }
+  unsigned int required_features = IFF_TUN | IFF_NO_PI;
+  if ((required_features & actual_features) != required_features) {
+    QUIC_LOG(WARNING)
+        << "Required feature does not exist. required_features: 0x" << std::hex
+        << required_features << " vs actual_features: 0x" << std::hex
+        << actual_features;
+    return false;
+  }
+  return true;
+}
+
+bool TunTapDevice::OpenFileDescriptor(KernelInterface& kernel,
+                                      const std::string& path, ifreq if_request,
+                                      int flags, bool persist, int* return_fd) {
+  *return_fd = kernel.open(path.c_str(), flags);
+  if (*return_fd < 0) {
+    QUIC_PLOG(WARNING) << "Failed to open " << path;
+    *return_fd = kInvalidFd;
+    return false;
+  }
+  if (!CheckFeatures(kernel, *return_fd)) {
+    return false;
+  }
+
+  if (kernel.ioctl(*return_fd, TUNSETIFF,
+                   reinterpret_cast<void*>(&if_request)) != 0) {
+    QUIC_PLOG(WARNING) << "Failed to TUNSETIFF on fd(" << *return_fd << ")";
+    return false;
+  }
+
+  if (kernel.ioctl(*return_fd, TUNSETPERSIST,
+                   persist ? reinterpret_cast<void*>(&if_request) : nullptr) !=
+      0) {
+    QUIC_PLOG(WARNING) << "Failed to TUNSETPERSIST on fd(" << *return_fd << ")";
+    return false;
+  }
+  return true;
+}
 
 bool TunTapDevice::OpenDevice() {
   if (file_descriptor_ != kInvalidFd) {
@@ -127,28 +172,10 @@ bool TunTapDevice::OpenDevice() {
     }
   });
 
-  const std::string tun_device_path =
-      absl::GetFlag(FLAGS_qbone_client_tun_device_path);
-  int fd = kernel_.open(tun_device_path.c_str(), O_RDWR);
-  if (fd < 0) {
-    QUIC_PLOG(WARNING) << "Failed to open " << tun_device_path;
-    return successfully_opened;
-  }
-  file_descriptor_ = fd;
-  if (!CheckFeatures(fd)) {
-    return successfully_opened;
-  }
-
-  if (kernel_.ioctl(fd, TUNSETIFF, reinterpret_cast<void*>(&if_request)) != 0) {
-    QUIC_PLOG(WARNING) << "Failed to TUNSETIFF on fd(" << fd << ")";
-    return successfully_opened;
-  }
-
-  if (kernel_.ioctl(
-          fd, TUNSETPERSIST,
-          persist_ ? reinterpret_cast<void*>(&if_request) : nullptr) != 0) {
-    QUIC_PLOG(WARNING) << "Failed to TUNSETPERSIST on fd(" << fd << ")";
-    return successfully_opened;
+  if (!OpenFileDescriptor(kernel_,
+                          absl::GetFlag(FLAGS_qbone_client_tun_device_path),
+                          if_request, O_RDWR, persist_, &file_descriptor_)) {
+    return false;
   }
 
   successfully_opened = true;
@@ -174,23 +201,6 @@ bool TunTapDevice::ConfigureInterface() {
     return false;
   }
 
-  return true;
-}
-
-bool TunTapDevice::CheckFeatures(int tun_device_fd) {
-  unsigned int actual_features;
-  if (kernel_.ioctl(tun_device_fd, TUNGETFEATURES, &actual_features) != 0) {
-    QUIC_PLOG(WARNING) << "Failed to TUNGETFEATURES";
-    return false;
-  }
-  unsigned int required_features = IFF_TUN | IFF_NO_PI;
-  if ((required_features & actual_features) != required_features) {
-    QUIC_LOG(WARNING)
-        << "Required feature does not exist. required_features: 0x" << std::hex
-        << required_features << " vs actual_features: 0x" << std::hex
-        << actual_features;
-    return false;
-  }
   return true;
 }
 

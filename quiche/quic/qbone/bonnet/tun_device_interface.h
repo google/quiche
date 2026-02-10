@@ -28,9 +28,10 @@ class TunDeviceInterface {
   // CloseDevice.
   virtual void CloseDevice() = 0;
 
-  // Gets the file descriptor that can be used to send/receive packets.
-  // This returns -1 when the TUN device is in an invalid state.
-  virtual int GetFileDescriptor() const = 0;
+  // Get the file descriptors that can be used to send/receive packets.
+  // These return -1 when the TUN device is in an invalid state.
+  virtual int GetReadFileDescriptor() const = 0;
+  virtual int GetWriteFileDescriptor() const = 0;
 };
 
 }  // namespace quic

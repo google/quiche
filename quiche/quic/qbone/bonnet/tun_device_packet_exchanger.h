@@ -47,7 +47,8 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
                            QbonePacketExchanger::Visitor* visitor, bool is_tap,
                            StatsInterface* stats, absl::string_view ifname);
 
-  void set_file_descriptor(int fd);
+  void set_read_file_descriptor(int fd);
+  void set_write_file_descriptor(int fd);
 
   ABSL_MUST_USE_RESULT const StatsInterface* stats_interface() const;
 
@@ -63,7 +64,8 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
 
   std::unique_ptr<QuicData> ConsumeL2Headers(const QuicData& l2_packet);
 
-  int fd_ = -1;
+  int read_fd_ = -1;
+  int write_fd_ = -1;
   size_t mtu_;
   KernelInterface* kernel_;
   NetlinkInterface* netlink_;
