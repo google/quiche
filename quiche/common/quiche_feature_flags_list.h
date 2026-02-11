@@ -9,7 +9,7 @@
 #if defined(QUICHE_FLAG)
 
 QUICHE_FLAG(bool, quiche_reloadable_flag_enable_h3_origin_frame, false, true, "If true, enables support for parsing HTTP/3 ORIGIN frames.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_http2_avoid_decompose_representation, false, false, "If true, HPACK encoding will use a different iteration method that avoids unnecessary copies and string splitting.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_http2_avoid_decompose_representation, false, true, "If true, HPACK encoding will use a different iteration method that avoids unnecessary copies and string splitting.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_act_upon_invalid_header, true, true, "If true, reject or send error response code upon receiving invalid request or response headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_add_stream_info_to_idle_close_detail, false, true, "If true, include stream information in idle timeout connection close detail.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bandwidth_sampler_guard_rtt_subtraction, false, false, "When true, BandwidthSampler::OnPacketAcknowledgedInner() will return early rather than compute a negative RTT.")
