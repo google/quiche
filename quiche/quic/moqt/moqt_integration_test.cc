@@ -51,6 +51,7 @@ using ::quiche::QuicheMemSlice;
 using ::testing::_;
 using ::testing::Assign;
 using ::testing::ElementsAre;
+using ::testing::IsNull;
 using ::testing::Return;
 
 class MoqtIntegrationTest : public quiche::test::QuicheTest {
@@ -201,7 +202,7 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessThenPublishNamespaceDone) {
   matches = false;
   EXPECT_CALL(
       server_callbacks_.incoming_publish_namespace_callback,
-      Call(TrackNamespace{"foo"}, std::optional<MessageParameters>(), nullptr))
+      Call(TrackNamespace{"foo"}, std::optional<MessageParameters>(), IsNull()))
       .WillOnce([&](const TrackNamespace&,
                     const std::optional<MessageParameters>&,
                     MoqtResponseCallback) { matches = true; });
@@ -282,7 +283,7 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSubscribeInResponse) {
   EXPECT_TRUE(success);
   // Session tears down PUBLISH_NAMESPACE.
   EXPECT_CALL(server_callbacks_.incoming_publish_namespace_callback,
-              Call(prefix, std::optional<MessageParameters>(), nullptr));
+              Call(prefix, std::optional<MessageParameters>(), IsNull()));
 }
 
 TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSendDataInResponse) {
@@ -344,7 +345,7 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSendDataInResponse) {
   // Session tears down PUBLISH_NAMESPACE.
   EXPECT_CALL(server_callbacks_.incoming_publish_namespace_callback,
               Call(TrackNamespace{"test"}, std::optional<MessageParameters>(),
-                   nullptr));
+                   IsNull()));
 }
 
 TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
