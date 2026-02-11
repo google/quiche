@@ -38,6 +38,12 @@ TEST_F(QuicheStringTupleTest, BasicOperations) {
   EXPECT_EQ(tuple.size(), 1);
   EXPECT_TRUE(tuple.Add("bar"));
   EXPECT_EQ(tuple.size(), 2);
+
+  EXPECT_EQ(tuple[0], "foo");
+  EXPECT_EQ(tuple[1], "bar");
+  EXPECT_EQ(tuple.front(), "foo");
+  EXPECT_EQ(tuple.back(), "bar");
+
   EXPECT_TRUE(tuple.Pop());
   EXPECT_EQ(tuple.size(), 1);
   EXPECT_TRUE(tuple.Pop());
@@ -151,6 +157,35 @@ TEST_F(QuicheStringTupleTest, IsPrefix) {
   EXPECT_TRUE(abc.IsPrefix(a));
   EXPECT_FALSE(abc.IsPrefix(ac));
   EXPECT_FALSE(a.IsPrefix(abc));
+}
+
+TEST_F(QuicheStringTupleTest, AppendTuple) {
+  QuicheStringTuple<> prefix({"a", "bc"});
+  QuicheStringTuple<> suffix({"def", "ghijk"});
+  ASSERT_TRUE(prefix.Append(suffix));
+  EXPECT_THAT(prefix, ElementsAre("a", "bc", "def", "ghijk"));
+}
+
+TEST_F(QuicheStringTupleTest, AppendSpan) {
+  QuicheStringTuple<> prefix({"a", "bc"});
+  std::vector<absl::string_view> suffix({"def", "ghijk"});
+  ASSERT_TRUE(prefix.Append(suffix));
+  EXPECT_THAT(prefix, ElementsAre("a", "bc", "def", "ghijk"));
+}
+
+TEST_F(QuicheStringTupleTest, RemovePrefix) {
+  QuicheStringTuple<> prefix({"a", "bc"});
+  QuicheStringTuple<> full({"a", "bc", "def", "ghijk", "lmn"});
+  ASSERT_FALSE(prefix.ConsumePrefix(full));
+  ASSERT_TRUE(full.ConsumePrefix(prefix));
+  EXPECT_THAT(full, ElementsAre("def", "ghijk", "lmn"));
+}
+
+TEST_F(QuicheStringTupleTest, RemovePrefixThatIsTheSameTuple) {
+  QuicheStringTuple<> prefix({"a", "bc"});
+  QuicheStringTuple<> full({"a", "bc"});
+  ASSERT_TRUE(full.ConsumePrefix(prefix));
+  EXPECT_THAT(full, IsEmpty());
 }
 
 }  // namespace

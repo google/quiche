@@ -18,6 +18,7 @@
 #include "absl/base/casts.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/container/fixed_array.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -27,6 +28,7 @@
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -1158,7 +1160,7 @@ void MoqtControlParser::ParseError(MoqtError error_code,
 
 bool MoqtControlParser::ReadTrackNamespace(quic::QuicDataReader& reader,
                                            TrackNamespace& track_namespace) {
-  QUICHE_DCHECK(!track_namespace.IsValid());
+  QUICHE_DCHECK(track_namespace.empty());
   uint64_t num_elements;
   if (!reader.ReadVarInt62(&num_elements)) {
     return false;
@@ -1168,36 +1170,38 @@ bool MoqtControlParser::ReadTrackNamespace(quic::QuicDataReader& reader,
                "Invalid number of namespace elements");
     return false;
   }
+  absl::FixedArray<absl::string_view> elements(num_elements);
   for (uint64_t i = 0; i < num_elements; ++i) {
-    absl::string_view element;
-    if (!reader.ReadStringPieceVarInt62(&element)) {
+    if (!reader.ReadStringPieceVarInt62(&elements[i])) {
       return false;
     }
-    if (!track_namespace.CanAddElement(element)) {
-      ParseError(MoqtError::kProtocolViolation, "Full track name is too large");
-      return false;
-    }
-    track_namespace.AddElement(element);
   }
-  QUICHE_DCHECK(track_namespace.IsValid());
+  if (!track_namespace.Append(elements)) {
+    ParseError(MoqtError::kProtocolViolation, "Track namespace is too large");
+    return false;
+  }
   return true;
 }
 
 bool MoqtControlParser::ReadFullTrackName(quic::QuicDataReader& reader,
                                           FullTrackName& full_track_name) {
   QUICHE_DCHECK(!full_track_name.IsValid());
-  if (!ReadTrackNamespace(reader, full_track_name.track_namespace())) {
+  TrackNamespace track_namespace;
+  if (!ReadTrackNamespace(reader, track_namespace)) {
     return false;
   }
   absl::string_view name;
   if (!reader.ReadStringPieceVarInt62(&name)) {
     return false;
   }
-  if (!full_track_name.CanAddName(name)) {
-    ParseError(MoqtError::kProtocolViolation, "Full track name is too large");
+  absl::StatusOr<FullTrackName> full_track_name_or =
+      FullTrackName::Create(std::move(track_namespace), std::string(name));
+  if (!full_track_name_or.ok()) {
+    ParseError(MoqtError::kProtocolViolation,
+               full_track_name_or.status().message());
     return false;
   }
-  full_track_name.set_name(name);
+  full_track_name = *std::move(full_track_name_or);
   return true;
 }
 

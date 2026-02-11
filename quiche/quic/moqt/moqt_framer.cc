@@ -13,14 +13,17 @@
 #include <utility>
 #include <variant>
 
+#include "absl/container/fixed_array.h"
 #include "absl/functional/overload.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -137,16 +140,20 @@ class WireTrackNamespace {
   WireTrackNamespace(const TrackNamespace& name) : namespace_(name) {}
 
   size_t GetLengthOnWire() {
+    absl::FixedArray<absl::string_view> tuple(namespace_.tuple().begin(),
+                                              namespace_.tuple().end());
     return quiche::ComputeLengthOnWire(
         WireVarInt62(namespace_.number_of_elements()),
-        WireSpan<WireStringWithVarInt62Length, std::string>(
-            namespace_.tuple()));
+        WireSpan<WireStringWithVarInt62Length, absl::string_view>(
+            absl::MakeSpan(tuple)));
   }
   absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
+    absl::FixedArray<absl::string_view> tuple(namespace_.tuple().begin(),
+                                              namespace_.tuple().end());
     return quiche::SerializeIntoWriter(
         writer, WireVarInt62(namespace_.number_of_elements()),
-        WireSpan<WireStringWithVarInt62Length, std::string>(
-            namespace_.tuple()));
+        WireSpan<WireStringWithVarInt62Length, absl::string_view>(
+            absl::MakeSpan(tuple)));
   }
 
  private:
@@ -493,9 +500,8 @@ quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
                                       message.parameters, parameters)) {
     return quiche::QuicheBuffer();
   }
-  return SerializeControlMessage(
-      MoqtMessageType::kClientSetup,
-      WireKeyValuePairList(parameters));
+  return SerializeControlMessage(MoqtMessageType::kClientSetup,
+                                 WireKeyValuePairList(parameters));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
@@ -611,7 +617,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(
     const MoqtTrackStatus& message) {
   return SerializeSubscribe(message, MoqtMessageType::kTrackStatus);
 }
-
 
 quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {
   return SerializeControlMessage(

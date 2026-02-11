@@ -40,7 +40,7 @@ TEST_F(MoqChatTest, InvalidNamespace) {
   TrackNamespace short_base_path({"moq-chat2", "chat-id", "user", "device"});
   EXPECT_FALSE(
       ConstructTrackNameFromNamespace(short_base_path, "chat-id").has_value());
-  track_namespace.AddElement("chat");  // Restore to correct value.
+  (void)track_namespace.AddElement("chat");  // Restore to correct value.
   // Base Path is wrong.
   TrackNamespace bad_base_path(
       {"moq-chat2", "chat-id", "user", "device", "timestamp"});
@@ -50,8 +50,7 @@ TEST_F(MoqChatTest, InvalidNamespace) {
 
 TEST_F(MoqChatTest, Queries) {
   FullTrackName local_name(
-      TrackNamespace({kBasePath, "chat-id", "user", "device", "timestamp"}),
-      kNameField);
+      {kBasePath, "chat-id", "user", "device", "timestamp"}, kNameField);
   EXPECT_EQ(GetChatId(local_name), "chat-id");
   EXPECT_EQ(GetUsername(local_name), "user");
   TrackNamespace track_namespace(

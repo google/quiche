@@ -88,7 +88,7 @@ bool IsValidTrackNamespaceChar(char c) {
 }
 
 bool IsValidTrackNamespace(TrackNamespace track_namespace) {
-  for (const auto& element : track_namespace.tuple()) {
+  for (const absl::string_view element : track_namespace.tuple()) {
     if (!absl::c_all_of(element, IsValidTrackNamespaceChar)) {
       return false;
     }
@@ -98,14 +98,16 @@ bool IsValidTrackNamespace(TrackNamespace track_namespace) {
 
 TrackNamespace CleanUpTrackNamespace(TrackNamespace track_namespace) {
   TrackNamespace output;
-  for (auto& it : track_namespace.tuple()) {
-    std::string element = it;
+  for (absl::string_view input : track_namespace.tuple()) {
+    std::string element(input);
     for (char& c : element) {
       if (!IsValidTrackNamespaceChar(c)) {
         c = '_';
       }
     }
-    output.AddElement(element);
+    // The replacement above will not change the tuple size, which means that
+    // the result will be always valid.
+    (void)output.AddElement(element);
   }
   return output;
 }
@@ -165,8 +167,15 @@ class MoqtIngestionHandler {
     std::vector<absl::string_view> tracks_to_subscribe =
         absl::StrSplit(track_list, ',', absl::AllowEmpty());
     for (absl::string_view track : tracks_to_subscribe) {
-      FullTrackName full_track_name(track_namespace, track);
-      session_->RelativeJoiningFetch(full_track_name, &it->second, 0,
+      absl::StatusOr<FullTrackName> full_track_name =
+          FullTrackName::Create({track_namespace}, std::string(track));
+      if (!full_track_name.ok()) {
+        std::move(callback)(
+            MoqtRequestErrorInfo{RequestErrorCode::kInternalError, std::nullopt,
+                                 "Namespace too long"});
+        return;
+      }
+      session_->RelativeJoiningFetch(*full_track_name, &it->second, 0,
                                      VersionSpecificParameters());
     }
     std::move(callback)(std::nullopt);

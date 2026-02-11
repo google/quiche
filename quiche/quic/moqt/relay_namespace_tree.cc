@@ -20,6 +20,7 @@
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
@@ -209,7 +210,8 @@ void RelayNamespaceTree::NotifyOfAllChildren(
   for (auto child = node->children.begin(); child != node->children.end();
        ++child) {
     if (std::optional<absl::string_view> element = (*child)->element) {
-      suffix.AddElement(*element);
+      bool success = suffix.AddElement(*element);
+      QUICHE_DCHECK(success);
       NotifyOfAllChildren(*child, suffix, listener);
       suffix.PopElement();
     }

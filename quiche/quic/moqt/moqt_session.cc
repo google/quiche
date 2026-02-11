@@ -262,7 +262,6 @@ std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
     TrackNamespace& prefix, SubscribeNamespaceOption option,
     const MessageParameters& parameters,
     MoqtResponseCallback response_callback) {
-  QUICHE_DCHECK(prefix.IsValid());
   if (received_goaway_ || sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Tried to send SUBSCRIBE_NAMESPACE after GOAWAY";
@@ -343,7 +342,6 @@ bool MoqtSession::PublishNamespace(
   if (is_closing_) {
     return false;
   }
-  QUICHE_DCHECK(track_namespace.IsValid());
   if (publish_namespace_by_namespace_.contains(track_namespace)) {
     return false;
   }
@@ -387,7 +385,6 @@ bool MoqtSession::PublishNamespaceUpdate(
   if (is_closing_) {
     return false;
   }
-  QUICHE_DCHECK(track_namespace.IsValid());
   auto it = publish_namespace_by_namespace_.find(track_namespace);
   if (it == publish_namespace_by_namespace_.end()) {
     return false;  // Could have been destroyed by PUBLISH_NAMESPACE_CANCEL.
@@ -420,7 +417,6 @@ bool MoqtSession::PublishNamespaceDone(const TrackNamespace& track_namespace) {
   if (is_closing_) {
     return false;
   }
-  QUICHE_DCHECK(track_namespace.IsValid());
   auto it = publish_namespace_by_namespace_.find(track_namespace);
   if (it == publish_namespace_by_namespace_.end()) {
     return false;  // Could have been destroyed by PUBLISH_NAMESPACE_CANCEL.
@@ -438,7 +434,6 @@ bool MoqtSession::PublishNamespaceDone(const TrackNamespace& track_namespace) {
 bool MoqtSession::PublishNamespaceCancel(const TrackNamespace& track_namespace,
                                          RequestErrorCode code,
                                          absl::string_view reason) {
-  QUICHE_DCHECK(track_namespace.IsValid());
   auto it = incoming_publish_namespaces_by_namespace_.find(track_namespace);
   if (it == publish_namespace_by_namespace_.end()) {
     return false;  // Could have been destroyed by PUBLISH_NAMESPACE_DONE.

@@ -11,6 +11,7 @@
 #include <variant>
 #include <vector>
 
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_bandwidth.h"
@@ -39,6 +40,7 @@
 #include "quic_trace/quic_trace.pb.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace moqt::test {
 
@@ -257,9 +259,11 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSubscribeInResponse) {
                     const std::optional<MessageParameters>&,
                     MoqtResponseCallback callback) {
         std::move(callback)(std::nullopt);
-        FullTrackName track_name(track_namespace, "/catalog");
+        absl::StatusOr<FullTrackName> track_name =
+            FullTrackName::Create(track_namespace, "/catalog");
+        QUICHE_ASSERT_OK(track_name.status());
         MessageParameters parameters(MoqtFilterType::kLargestObject);
-        server_->session()->Subscribe(track_name, &subscribe_visitor_,
+        server_->session()->Subscribe(*track_name, &subscribe_visitor_,
                                       parameters);
       });
   testing::MockFunction<void(std::optional<MoqtRequestErrorInfo>)>
@@ -294,10 +298,12 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSendDataInResponse) {
       .WillOnce([&](const TrackNamespace& track_namespace,
                     const std::optional<MessageParameters>&,
                     MoqtResponseCallback callback) {
-        FullTrackName track_name(track_namespace, "data");
+        absl::StatusOr<FullTrackName> track_name =
+            FullTrackName::Create(track_namespace, "data");
+        QUICHE_ASSERT_OK(track_name.status());
         std::move(callback)(std::nullopt);
         MessageParameters parameters;
-        server_->session()->Subscribe(track_name, &subscribe_visitor_,
+        server_->session()->Subscribe(*track_name, &subscribe_visitor_,
                                       parameters);
       });
 

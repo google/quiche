@@ -23,8 +23,10 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/vectorized_io_utils.h"
 
 namespace quiche {
 
@@ -126,8 +128,59 @@ class QUICHE_NO_EXPORT QuicheStringTuple {
     if (element.size() + data_.size() > kMaxDataSize) {
       return false;
     }
-    elements_start_offsets_.push_back(data_.size());
-    data_.append(element.data(), element.size());
+    AddUnchecked(element);
+    return true;
+  }
+
+  // Appends another tuple to the end of this one.  Returns false if this
+  // operation results in the size limit being exceeded.
+  [[nodiscard]] bool Append(const QuicheStringTuple& suffix) {
+    if (data_.size() + suffix.data_.size() > kMaxDataSize) {
+      return false;
+    }
+    OffsetT current_offset = data_.size();
+    elements_start_offsets_.reserve(elements_start_offsets_.size() +
+                                    suffix.elements_start_offsets_.size());
+    for (const absl::string_view element : suffix) {
+      elements_start_offsets_.push_back(current_offset);
+      current_offset += element.size();
+    }
+    data_.append(suffix.data_);
+    return true;
+  }
+
+  // Appends a span of string_views to the end of the tuple.  Returns false if
+  // this operation results in the size limit being exceeded.
+  [[nodiscard]] bool Append(absl::Span<const absl::string_view> span) {
+    size_t total_size = TotalStringViewSpanSize(span);
+    if (data_.size() + total_size > kMaxDataSize) {
+      return false;
+    }
+    elements_start_offsets_.reserve(elements_start_offsets_.size() +
+                                    span.size());
+    data_.reserve(data_.size() + total_size);
+    for (absl::string_view element : span) {
+      AddUnchecked(element);
+    }
+    return true;
+  }
+
+  // If `prefix` is a prefix of this current tuple, the prefix is removed.
+  [[nodiscard]] bool ConsumePrefix(const QuicheStringTuple& prefix) {
+    if (!IsPrefix(prefix)) {
+      return false;
+    }
+
+    data_ = data_.substr(prefix.data_.size());
+    const OffsetT prefix_offset = prefix.data_.size();
+    const size_t prefix_element_count = prefix.elements_start_offsets_.size();
+    for (size_t i = prefix_element_count; i < elements_start_offsets_.size();
+         ++i) {
+      elements_start_offsets_[i - prefix_element_count] =
+          elements_start_offsets_[i] - prefix_offset;
+    }
+    elements_start_offsets_.resize(elements_start_offsets_.size() -
+                                   prefix_element_count);
     return true;
   }
 
@@ -192,6 +245,9 @@ class QUICHE_NO_EXPORT QuicheStringTuple {
   size_t TotalBytes() const { return data_.size(); }
   size_t BytesLeft() const { return kMaxDataSize - data_.size(); }
 
+  absl::string_view front() const { return (*this)[0]; }
+  absl::string_view back() const { return (*this)[size() - 1]; }
+
   iterator begin() const { return iterator(this, 0); }
   iterator end() const { return iterator(this, size()); }
 
@@ -219,6 +275,11 @@ class QUICHE_NO_EXPORT QuicheStringTuple {
   }
 
  private:
+  void AddUnchecked(absl::string_view element) {
+    elements_start_offsets_.push_back(data_.size());
+    data_.append(element.data(), element.size());
+  }
+
   std::string data_;
   absl::InlinedVector<OffsetT, InlinedSizes> elements_start_offsets_;
 };

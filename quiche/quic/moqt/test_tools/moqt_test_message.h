@@ -1247,7 +1247,7 @@ class QUICHE_NO_EXPORT SubscribeNamespaceMessage : public TestMessageBase {
 
   MoqtSubscribeNamespace subscribe_namespace_ = {
       /*request_id=*/1,
-      TrackNamespace("foo"),
+      TrackNamespace({"foo"}),
       SubscribeNamespaceOption::kBoth,
       MessageParameters(),  // set in constructor.
   };

@@ -6,11 +6,13 @@
 
 #include <optional>
 
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace moqt::moq_chat {
@@ -30,10 +32,9 @@ bool IsValidChatNamespace(const TrackNamespace& track_namespace) {
 FullTrackName ConstructTrackName(absl::string_view chat_id,
                                  absl::string_view username,
                                  absl::string_view device_id) {
-  return FullTrackName(
-      TrackNamespace({kBasePath, chat_id, username, device_id,
-                      absl::StrCat(ToUnixSeconds(::absl::Now()))}),
-      kNameField);
+  return FullTrackName({kBasePath, chat_id, username, device_id,
+                        absl::StrCat(ToUnixSeconds(::absl::Now()))},
+                       kNameField);
 }
 
 std::optional<FullTrackName> ConstructTrackNameFromNamespace(
@@ -45,7 +46,12 @@ std::optional<FullTrackName> ConstructTrackNameFromNamespace(
       track_namespace.tuple()[1] != chat_id) {
     return std::nullopt;
   }
-  return FullTrackName(track_namespace, kNameField);
+  absl::StatusOr<FullTrackName> name =
+      FullTrackName::Create(track_namespace, std::string(kNameField));
+  if (!name.ok()) {
+    return std::nullopt;
+  }
+  return *std::move(name);
 }
 
 absl::string_view GetUsername(const TrackNamespace& track_namespace) {

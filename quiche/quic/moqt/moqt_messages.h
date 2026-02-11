@@ -352,12 +352,6 @@ struct QUICHE_EXPORT MoqtRequestError {
 };
 
 struct QUICHE_EXPORT MoqtSubscribe {
-  MoqtSubscribe() = default;
-  MoqtSubscribe(uint64_t request_id, FullTrackName full_track_name,
-                MessageParameters parameters)
-      : request_id(request_id),
-        full_track_name(full_track_name),
-        parameters(parameters) {}
   uint64_t request_id;
   FullTrackName full_track_name;
   MessageParameters parameters;
@@ -461,23 +455,12 @@ enum class QUICHE_EXPORT FetchType : uint64_t {
 };
 
 struct StandaloneFetch {
-  StandaloneFetch() = default;
-  StandaloneFetch(FullTrackName full_track_name, Location start_location,
-                  Location end_location)
-      : full_track_name(full_track_name),
-        start_location(start_location),
-        end_location(end_location) {}
   FullTrackName full_track_name;
   Location start_location;
   Location end_location;
-  bool operator==(const StandaloneFetch& other) const {
-    return full_track_name == other.full_track_name &&
-           start_location == other.start_location &&
-           end_location == other.end_location;
-  }
-  bool operator!=(const StandaloneFetch& other) const {
-    return !(*this == other);
-  }
+
+  bool operator==(const StandaloneFetch& other) const = default;
+  bool operator!=(const StandaloneFetch& other) const = default;
 };
 
 struct JoiningFetchRelative {

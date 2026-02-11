@@ -151,7 +151,7 @@ TEST_F(MoqChatEndToEndTest, LeaveAndRejoin) {
   TransactionType last_type;
   std::unique_ptr<MoqtNamespaceTask> namespace_probe =
       relay_.publisher()->AddNamespaceSubscriber(
-          TrackNamespace(moq_chat::kBasePath), nullptr);
+          TrackNamespace({moq_chat::kBasePath}), nullptr);
   namespace_probe->SetObjectsAvailableCallback([&]() {
     while (namespace_probe->GetNextSuffix(last_suffix, last_type) == kSuccess) {
       if (last_type == TransactionType::kAdd) {

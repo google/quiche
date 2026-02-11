@@ -442,7 +442,7 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndCancel) {
       Writev(ControlMessageOfType(MoqtMessageType::kPublishNamespace), _));
   MoqtRequestErrorInfo cancel_error_info;
   session_.PublishNamespace(
-      TrackNamespace("foo"), MessageParameters(),
+      TrackNamespace({"foo"}), MessageParameters(),
       publish_namespace_response_callback.AsStdFunction(),
       [&](MoqtRequestErrorInfo info) { cancel_error_info = info; });
 
@@ -462,7 +462,7 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndCancel) {
   EXPECT_EQ(cancel_error_info.error_code, RequestErrorCode::kInternalError);
   EXPECT_EQ(cancel_error_info.reason_phrase, "Test error");
   // State is gone.
-  EXPECT_FALSE(session_.PublishNamespaceDone(TrackNamespace("foo")));
+  EXPECT_FALSE(session_.PublishNamespaceDone(TrackNamespace({"foo"})));
 }
 
 TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndPublishNamespaceDone) {
@@ -1039,7 +1039,7 @@ TEST_F(MoqtSessionTest, ReplyToPublishNamespaceWithError) {
 }
 
 TEST_F(MoqtSessionTest, SubscribeNamespaceLifeCycle) {
-  TrackNamespace prefix("foo");
+  TrackNamespace prefix({"foo"});
   bool got_callback = false;
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingBidirectionalStream())
       .WillOnce(Return(true));
@@ -1069,7 +1069,7 @@ TEST_F(MoqtSessionTest, SubscribeNamespaceLifeCycle) {
 }
 
 TEST_F(MoqtSessionTest, SubscribeNamespaceError) {
-  TrackNamespace prefix("foo");
+  TrackNamespace prefix({"foo"});
   bool got_callback = false;
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingBidirectionalStream())
       .WillOnce(Return(true));
@@ -1102,7 +1102,7 @@ TEST_F(MoqtSessionTest, SubscribeNamespaceError) {
 }
 
 TEST_F(MoqtSessionTest, SubscribeNamespacePublishOnly) {
-  TrackNamespace prefix("foo");
+  TrackNamespace prefix({"foo"});
   // kPublish is not allowed.
   EXPECT_EQ(session_.SubscribeNamespace(
                 prefix, SubscribeNamespaceOption::kPublish, MessageParameters(),
@@ -3520,9 +3520,9 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
       +[](std::optional<MoqtRequestErrorInfo>) {},
       +[](MoqtRequestErrorInfo) {});
   EXPECT_FALSE(session_.Fetch(
-      FullTrackName{TrackNamespace("foo"), "bar"},
-      +[](std::unique_ptr<MoqtFetchTask>) {}, Location(0, 0), 5, std::nullopt,
-      127, std::nullopt, VersionSpecificParameters()));
+      FullTrackName{{"foo"}, "bar"}, +[](std::unique_ptr<MoqtFetchTask>) {},
+      Location(0, 0), 5, std::nullopt, 127, std::nullopt,
+      VersionSpecificParameters()));
   // Error on additional GOAWAY.
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
@@ -3550,7 +3550,7 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
   stream_input->OnPublishNamespaceMessage(
-      MoqtPublishNamespace(3, TrackNamespace("foo"), MessageParameters()));
+      MoqtPublishNamespace(3, TrackNamespace({"foo"}), MessageParameters()));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
   MoqtFetch fetch = DefaultFetch();
@@ -3575,7 +3575,7 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   EXPECT_CALL(mock_stream_, Writev).Times(0);
   MessageParameters parameters = SubscribeForTest();
   parameters.subscription_filter.emplace(MoqtFilterType::kLargestObject);
-  EXPECT_FALSE(session_.Subscribe(FullTrackName(TrackNamespace("foo"), "bar"),
+  EXPECT_FALSE(session_.Subscribe(FullTrackName({"foo"}, "bar"),
                                   &remote_track_visitor_, parameters));
   TrackNamespace prefix({"foo"});
   EXPECT_EQ(
@@ -3588,9 +3588,9 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
       +[](std::optional<MoqtRequestErrorInfo>) {},
       +[](MoqtRequestErrorInfo) {});
   EXPECT_FALSE(session_.Fetch(
-      FullTrackName(TrackNamespace("foo"), "bar"),
-      +[](std::unique_ptr<MoqtFetchTask>) {}, Location(0, 0), 5, std::nullopt,
-      127, std::nullopt, VersionSpecificParameters()));
+      FullTrackName({"foo"}, "bar"), +[](std::unique_ptr<MoqtFetchTask>) {},
+      Location(0, 0), 5, std::nullopt, 127, std::nullopt,
+      VersionSpecificParameters()));
   session_.GoAway("");
   // GoAway timer fires.
   auto* goaway_alarm =
