@@ -394,10 +394,15 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
   // AckPoint represents a point on the ack line.
   struct QUICHE_EXPORT AckPoint {
     QuicTime ack_time = QuicTime::Zero();
+    QuicTime receive_time = QuicTime::Zero();
     QuicByteCount total_bytes_acked = 0;
 
     friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                                   const AckPoint& ack_point) {
+      if (ack_point.receive_time.IsInitialized()) {
+        return os << ack_point.ack_time << "(" << ack_point.receive_time
+                  << "):" << ack_point.total_bytes_acked;
+      }
       return os << ack_point.ack_time << ":" << ack_point.total_bytes_acked;
     }
   };
@@ -475,6 +480,12 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
       return last_acked_packet_ack_time_;
     }
 
+    // The value of |last_acked_packet_receive_time_| at the time the packet was
+    // sent.
+    QuicTime last_acked_packet_receive_time() const {
+      return last_acked_packet_receive_time_;
+    }
+
     // Send time states that are returned to the congestion controller when the
     // packet is acked or lost.
     const SendTimeState& send_time_state() const { return send_time_state_; }
@@ -491,6 +502,8 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
               sampler.total_bytes_sent_at_last_acked_packet_),
           last_acked_packet_sent_time_(sampler.last_acked_packet_sent_time_),
           last_acked_packet_ack_time_(sampler.last_acked_packet_ack_time_),
+          last_acked_packet_receive_time_(
+              sampler.last_acked_packet_receive_time_),
           send_time_state_(sampler.is_app_limited_, sampler.total_bytes_sent_,
                            sampler.total_bytes_acked_,
                            sampler.total_bytes_lost_, bytes_in_flight) {}
@@ -516,11 +529,12 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
     QuicByteCount total_bytes_sent_at_last_acked_packet_ = 0;
     QuicTime last_acked_packet_sent_time_ = QuicTime::Zero();
     QuicTime last_acked_packet_ack_time_ = QuicTime::Zero();
+    QuicTime last_acked_packet_receive_time_ = QuicTime::Zero();
     SendTimeState send_time_state_;
   };
 
   BandwidthSample OnPacketAcknowledged(QuicTime ack_time,
-                                       QuicPacketNumber packet_number);
+                                       const AckedPacket& acked_packet);
 
   SendTimeState OnPacketLost(QuicPacketNumber packet_number,
                              QuicPacketLength bytes_lost);
@@ -567,6 +581,10 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
   // The time at which the most recent packet was acknowledged.
   QuicTime last_acked_packet_ack_time_ = QuicTime::Zero();
 
+  // The peer-specified receive time of the most recent packet.  Zero if receive
+  // timestamps are not supported.
+  QuicTime last_acked_packet_receive_time_ = QuicTime::Zero();
+
   // The most recently sent packet.
   QuicPacketNumber last_sent_packet_;
 
@@ -599,7 +617,7 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
   // Handles the actual bandwidth calculations, whereas the outer method handles
   // retrieving and removing |sent_packet|.
   BandwidthSample OnPacketAcknowledgedInner(
-      QuicTime ack_time, QuicPacketNumber packet_number,
+      QuicTime ack_time, const AckedPacket& acked_packet,
       const ConnectionStateOnSentPacket& sent_packet);
 
   MaxAckHeightTracker max_ack_height_tracker_;

@@ -36,7 +36,9 @@ class BandwidthSamplerPeer {
   static BandwidthSample OnPacketAcknowledged(
       BandwidthSampler* absl_nonnull sampler, QuicTime ack_time,
       QuicPacketNumber packet_number) {
-    return sampler->OnPacketAcknowledged(ack_time, packet_number);
+    // `bytes_acked` is not used by the BandwidthSampler.
+    AckedPacket packet(packet_number, /*bytes_acked=*/0, QuicTime::Zero());
+    return sampler->OnPacketAcknowledged(ack_time, packet);
   }
 };
 
@@ -98,13 +100,14 @@ class BandwidthSamplerTest : public QuicTestWithParam<TestParameters> {
                     HAS_RETRANSMITTABLE_DATA);
   }
 
-  BandwidthSample AckPacketInner(uint64_t packet_number) {
+  BandwidthSample AckPacketInner(uint64_t packet_number,
+                                 QuicTime receive_time = QuicTime::Zero()) {
     QuicByteCount size = BandwidthSamplerPeer::GetPacketSize(
         sampler_, QuicPacketNumber(packet_number));
     bytes_in_flight_ -= size;
     BandwidthSampler::CongestionEventSample sample = sampler_.OnCongestionEvent(
-        clock_.Now(), {MakeAckedPacket(packet_number)}, {}, max_bandwidth_,
-        est_bandwidth_upper_bound_, round_trip_count_);
+        clock_.Now(), {MakeAckedPacket(packet_number, receive_time)}, {},
+        max_bandwidth_, est_bandwidth_upper_bound_, round_trip_count_);
     max_bandwidth_ = std::max(max_bandwidth_, sample.sample_max_bandwidth);
     BandwidthSample bandwidth_sample;
     bandwidth_sample.bandwidth = sample.sample_max_bandwidth;
@@ -114,10 +117,11 @@ class BandwidthSamplerTest : public QuicTestWithParam<TestParameters> {
     return bandwidth_sample;
   }
 
-  AckedPacket MakeAckedPacket(uint64_t packet_number) const {
+  AckedPacket MakeAckedPacket(uint64_t packet_number,
+                              QuicTime receive_time) const {
     QuicByteCount size = BandwidthSamplerPeer::GetPacketSize(
         sampler_, QuicPacketNumber(packet_number));
-    return AckedPacket(QuicPacketNumber(packet_number), size, clock_.Now());
+    return AckedPacket(QuicPacketNumber(packet_number), size, receive_time);
   }
 
   LostPacket MakeLostPacket(uint64_t packet_number) const {
@@ -127,8 +131,9 @@ class BandwidthSamplerTest : public QuicTestWithParam<TestParameters> {
   }
 
   // Acknowledge receipt of a packet and expect it to be not app-limited.
-  QuicBandwidth AckPacket(uint64_t packet_number) {
-    BandwidthSample sample = AckPacketInner(packet_number);
+  QuicBandwidth AckPacket(uint64_t packet_number,
+                          QuicTime receive_time = QuicTime::Zero()) {
+    BandwidthSample sample = AckPacketInner(packet_number, receive_time);
     return sample.bandwidth;
   }
 
@@ -138,7 +143,7 @@ class BandwidthSamplerTest : public QuicTestWithParam<TestParameters> {
     AckedPacketVector acked_packets;
     for (auto it = acked_packet_numbers.begin();
          it != acked_packet_numbers.end(); ++it) {
-      acked_packets.push_back(MakeAckedPacket(*it));
+      acked_packets.push_back(MakeAckedPacket(*it, QuicTime::Zero()));
       bytes_in_flight_ -= acked_packets.back().bytes_acked;
     }
 
@@ -913,6 +918,47 @@ TEST_F(MaxAckHeightTrackerTest, StartNewEpochAfterAFullRound) {
                   100);
 
   EXPECT_EQ(2u, tracker_.num_ack_aggregation_epochs());
+}
+
+TEST_P(BandwidthSamplerTest, ReceiveTimestamps) {
+  if (GetParam().overestimate_avoidance) {
+    // Receive timestamps are not used when overestimate avoidance is on.
+    GTEST_SKIP();
+  }
+
+  constexpr QuicTimeDelta kTimeBetweenPackets =
+      QuicTimeDelta::FromMilliseconds(10);
+  constexpr QuicBandwidth kExpectedBandwidth =
+      QuicBandwidth::FromBytesPerSecond(kRegularPacketSize * 100);
+  QuicTime current_peer_clock = QuicTime::Zero() + 12345 * kTimeBetweenPackets;
+
+  // We need to be in the middle of a flight of packets in order to compute a
+  // rate based on receive timestamps, otherwise the A_0 value will be missing.
+  // Because of that, all examples below send packet `i`, followed by an ack of
+  // `i - 1`.
+  SendPacket(1);
+
+  // Run the peer clock at the same frequency as the local clock.
+  for (int i = 2; i <= 20; ++i) {
+    SendPacket(i);
+    clock_.AdvanceTime(kTimeBetweenPackets);
+    current_peer_clock = current_peer_clock + kTimeBetweenPackets;
+    QuicBandwidth current_sample = AckPacket(i - 1, current_peer_clock);
+    EXPECT_EQ(kExpectedBandwidth, current_sample);
+  }
+
+  // Run the peer clock 2x slower than the local clock.  That should result in
+  // 2x lower bandwidth measured.
+  for (int i = 21; i <= 40; ++i) {
+    SendPacket(i);
+    clock_.AdvanceTime(kTimeBetweenPackets);
+    current_peer_clock = current_peer_clock + 2 * kTimeBetweenPackets;
+    QuicBandwidth current_sample = AckPacket(i - 1, current_peer_clock);
+    if (i > 21) {
+      // i=21 is the transitional packet, and thus has to be skipped.
+      EXPECT_EQ(0.5 * kExpectedBandwidth, current_sample);
+    }
+  }
 }
 
 }  // namespace test
