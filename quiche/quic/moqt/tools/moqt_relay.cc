@@ -110,10 +110,9 @@ MoqtSessionCallbacks MoqtRelay::CreateClientCallbacks() {
 
 void MoqtRelay::SetNamespaceCallbacks(MoqtSessionInterface* session) {
   session->callbacks().incoming_publish_namespace_callback =
-      [this, session](
-          const TrackNamespace& track_namespace,
-          const std::optional<VersionSpecificParameters>& parameters,
-          MoqtResponseCallback callback) {
+      [this, session](const TrackNamespace& track_namespace,
+                      const std::optional<MessageParameters>& parameters,
+                      MoqtResponseCallback callback) {
         if (is_closing_) {
           return;
         }

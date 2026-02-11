@@ -831,25 +831,6 @@ TEST_F(MoqtMessageSpecificTest, PublishNamespaceAuthorizationTokenTwice) {
   EXPECT_EQ(visitor_.messages_received_, 1);
 }
 
-TEST_F(MoqtMessageSpecificTest, PublishNamespaceHasDeliveryTimeout) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kWebTrans, &stream, visitor_);
-  char publish_namespace[] = {
-      0x06, 0x00, 0x11, 0x02, 0x01, 0x03, 0x66,
-      0x6f, 0x6f,                                // track_namespace = "foo"
-      0x02,                                      // 2 params
-      0x02, 0x67, 0x10,                          // delivery_timeout = 10000
-      0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_info = "bar"
-  };
-  stream.Receive(
-      absl::string_view(publish_namespace, sizeof(publish_namespace)), false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "Version Specific Parameter not allowed for this message type");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
-}
-
 TEST_F(MoqtMessageSpecificTest, FinMidPayload) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtDataParser parser(&stream, &visitor_);

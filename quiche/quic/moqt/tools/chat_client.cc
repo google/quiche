@@ -49,7 +49,7 @@ namespace moqt::moq_chat {
 
 void ChatClient::OnIncomingPublishNamespace(
     const moqt::TrackNamespace& track_namespace,
-    std::optional<VersionSpecificParameters> parameters,
+    const std::optional<MessageParameters>& parameters,
     moqt::MoqtResponseCallback absl_nullable callback) {
   if (!session_is_open_) {
     return;
@@ -261,9 +261,8 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
   queue_ = std::make_shared<MoqtOutgoingQueue>(my_track_name_);
   publisher_.Add(queue_);
   session_->set_publisher(&publisher_);
-  MoqtOutgoingPublishNamespaceCallback publish_namespace_callback =
-      [this](TrackNamespace track_namespace,
-             std::optional<MoqtRequestErrorInfo> reason) {
+  MoqtResponseCallback publish_namespace_callback =
+      [this](std::optional<MoqtRequestErrorInfo> reason) {
         if (reason.has_value()) {
           std::cout << "PUBLISH_NAMESPACE rejected, " << reason->reason_phrase
                     << "\n";
@@ -271,15 +270,27 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
                           "Local PUBLISH_NAMESPACE rejected");
           return;
         }
-        std::cout << "PUBLISH_NAMESPACE for " << track_namespace.ToString()
-                  << " accepted\n";
+        std::cout << "PUBLISH_NAMESPACE accepted\n";
         return;
       };
   std::cout << "Announcing " << GetUserNamespace(my_track_name_).ToString()
             << "\n";
-  session_->PublishNamespace(GetUserNamespace(my_track_name_),
-                             std::move(publish_namespace_callback),
-                             VersionSpecificParameters());
+  session_->PublishNamespace(
+      GetUserNamespace(my_track_name_), MessageParameters(),
+      [this](std::optional<MoqtRequestErrorInfo> reason) {
+        if (reason.has_value()) {
+          std::cout << "PUBLISH_NAMESPACE rejected, " << reason->reason_phrase
+                    << "\n";
+          session_->Error(MoqtError::kInternalError,
+                          "Local PUBLISH_NAMESPACE rejected");
+          return;
+        }
+        std::cout << "PUBLISH_NAMESPACE for "
+                  << GetUserNamespace(my_track_name_).ToString()
+                  << " accepted\n";
+        return;
+      },
+      [](MoqtRequestErrorInfo) {});
 
   // Send SUBSCRIBE_NAMESPACE. Pop 3 levels of namespace to get to
   // {moq-chat, chat-id}
@@ -331,7 +342,7 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
                 OnIncomingPublishNamespace(
                     *track_namespace,
                     (type == TransactionType::kAdd)
-                        ? std::make_optional(VersionSpecificParameters())
+                        ? std::make_optional(MessageParameters())
                         : std::nullopt,
                     /*callback=*/nullptr);
                 break;

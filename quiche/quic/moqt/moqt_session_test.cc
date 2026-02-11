@@ -433,63 +433,53 @@ TEST_F(MoqtSessionTest, IncomingPublishRejected) {
 }
 
 TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndCancel) {
-  testing::MockFunction<void(TrackNamespace track_namespace,
-                             std::optional<MoqtRequestErrorInfo> error_message)>
-      publish_namespace_resolved_callback;
+  testing::MockFunction<void(std::optional<MoqtRequestErrorInfo> error_message)>
+      publish_namespace_response_callback;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kPublishNamespace), _));
-  session_.PublishNamespace(TrackNamespace("foo"),
-                            publish_namespace_resolved_callback.AsStdFunction(),
-                            VersionSpecificParameters());
+  MoqtRequestErrorInfo cancel_error_info;
+  session_.PublishNamespace(
+      TrackNamespace("foo"), MessageParameters(),
+      publish_namespace_response_callback.AsStdFunction(),
+      [&](MoqtRequestErrorInfo info) { cancel_error_info = info; });
 
   MoqtRequestOk ok = {/*request_id=*/0, MessageParameters()};
-  EXPECT_CALL(publish_namespace_resolved_callback, Call(_, _))
-      .WillOnce([&](TrackNamespace track_namespace,
-                    std::optional<MoqtRequestErrorInfo> error) {
-        EXPECT_EQ(track_namespace, TrackNamespace("foo"));
+  EXPECT_CALL(publish_namespace_response_callback, Call)
+      .WillOnce([&](std::optional<MoqtRequestErrorInfo> error) {
         EXPECT_FALSE(error.has_value());
       });
   stream_input->OnRequestOkMessage(ok);
 
   MoqtPublishNamespaceCancel cancel = {
-      TrackNamespace("foo"),
+      /*request_id=*/0,
       RequestErrorCode::kInternalError,
       /*error_reason=*/"Test error",
   };
-  EXPECT_CALL(publish_namespace_resolved_callback, Call(_, _))
-      .WillOnce([&](TrackNamespace track_namespace,
-                    std::optional<MoqtRequestErrorInfo> error) {
-        EXPECT_EQ(track_namespace, TrackNamespace("foo"));
-        ASSERT_TRUE(error.has_value());
-        EXPECT_EQ(error->error_code, RequestErrorCode::kInternalError);
-        EXPECT_EQ(error->reason_phrase, "Test error");
-      });
   stream_input->OnPublishNamespaceCancelMessage(cancel);
+  EXPECT_EQ(cancel_error_info.error_code, RequestErrorCode::kInternalError);
+  EXPECT_EQ(cancel_error_info.reason_phrase, "Test error");
   // State is gone.
   EXPECT_FALSE(session_.PublishNamespaceDone(TrackNamespace("foo")));
 }
 
 TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndPublishNamespaceDone) {
-  testing::MockFunction<void(TrackNamespace track_namespace,
-                             std::optional<MoqtRequestErrorInfo> error_message)>
+  testing::MockFunction<void(std::optional<MoqtRequestErrorInfo> error_message)>
       publish_namespace_resolved_callback;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kPublishNamespace), _));
-  session_.PublishNamespace(TrackNamespace{"foo"},
+  session_.PublishNamespace(TrackNamespace{"foo"}, MessageParameters(),
                             publish_namespace_resolved_callback.AsStdFunction(),
-                            VersionSpecificParameters());
+                            [](MoqtRequestErrorInfo) {});
 
   MoqtRequestOk ok = {/*request_id=*/0, MessageParameters()};
-  EXPECT_CALL(publish_namespace_resolved_callback, Call(_, _))
-      .WillOnce([&](TrackNamespace track_namespace,
-                    std::optional<MoqtRequestErrorInfo> error) {
-        EXPECT_EQ(track_namespace, TrackNamespace{"foo"});
+  EXPECT_CALL(publish_namespace_resolved_callback, Call)
+      .WillOnce([&](std::optional<MoqtRequestErrorInfo> error) {
         EXPECT_FALSE(error.has_value());
       });
   stream_input->OnRequestOkMessage(ok);
@@ -503,24 +493,21 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndPublishNamespaceDone) {
 }
 
 TEST_F(MoqtSessionTest, PublishNamespaceWithError) {
-  testing::MockFunction<void(TrackNamespace track_namespace,
-                             std::optional<MoqtRequestErrorInfo> error_message)>
+  testing::MockFunction<void(std::optional<MoqtRequestErrorInfo> error_message)>
       publish_namespace_resolved_callback;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(
       mock_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kPublishNamespace), _));
-  session_.PublishNamespace(TrackNamespace{"foo"},
+  session_.PublishNamespace(TrackNamespace{"foo"}, MessageParameters(),
                             publish_namespace_resolved_callback.AsStdFunction(),
-                            VersionSpecificParameters());
+                            [](MoqtRequestErrorInfo) {});
 
   MoqtRequestError error{/*request_id=*/0, RequestErrorCode::kInternalError,
                          std::nullopt, "Test error"};
-  EXPECT_CALL(publish_namespace_resolved_callback, Call(_, _))
-      .WillOnce([&](TrackNamespace track_namespace,
-                    std::optional<MoqtRequestErrorInfo> error) {
-        EXPECT_EQ(track_namespace, TrackNamespace{"foo"});
+  EXPECT_CALL(publish_namespace_resolved_callback, Call)
+      .WillOnce([&](std::optional<MoqtRequestErrorInfo> error) {
         ASSERT_TRUE(error.has_value());
         EXPECT_EQ(error->error_code, RequestErrorCode::kInternalError);
         EXPECT_EQ(error->reason_phrase, "Test error");
@@ -954,17 +941,18 @@ TEST_F(MoqtSessionTest, ReplyToPublishNamespaceWithOkThenPublishNamespaceDone) {
   TrackNamespace track_namespace{"foo"};
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  auto parameters = std::make_optional<VersionSpecificParameters>(
-      AuthTokenType::kOutOfBand, "foo");
+  MessageParameters parameters;
+  parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
+                                               "foo");
   MoqtPublishNamespace publish_namespace = {
       kDefaultPeerRequestId,
       track_namespace,
-      *parameters,
+      parameters,
   };
   EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
-              Call(track_namespace, parameters, _))
+              Call(track_namespace, std::make_optional(parameters), _))
       .WillOnce([](const TrackNamespace&,
-                   const std::optional<VersionSpecificParameters>&,
+                   const std::optional<MessageParameters>&,
                    MoqtResponseCallback callback) {
         std::move(callback)(std::nullopt);
       });
@@ -973,17 +961,15 @@ TEST_F(MoqtSessionTest, ReplyToPublishNamespaceWithOkThenPublishNamespaceDone) {
                          kDefaultPeerRequestId, MessageParameters()}),
                      _));
   stream_input->OnPublishNamespaceMessage(publish_namespace);
-  MoqtPublishNamespaceDone unpublish_namespace = {
-      track_namespace,
+  MoqtPublishNamespaceDone publish_namespace_done = {
+      /*request_id=*/0,
   };
-  EXPECT_CALL(
-      session_callbacks_.incoming_publish_namespace_callback,
-      Call(track_namespace, std::optional<VersionSpecificParameters>(), _))
+  EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
+              Call(track_namespace, std::optional<MessageParameters>(), _))
       .WillOnce(
-          [](const TrackNamespace&,
-             const std::optional<VersionSpecificParameters>&,
+          [](const TrackNamespace&, const std::optional<MessageParameters>&,
              MoqtResponseCallback callback) { EXPECT_EQ(callback, nullptr); });
-  stream_input->OnPublishNamespaceDoneMessage(unpublish_namespace);
+  stream_input->OnPublishNamespaceDoneMessage(publish_namespace_done);
 }
 
 TEST_F(MoqtSessionTest,
@@ -992,17 +978,18 @@ TEST_F(MoqtSessionTest,
 
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  auto parameters = std::make_optional<VersionSpecificParameters>(
-      AuthTokenType::kOutOfBand, "foo");
+  MessageParameters parameters;
+  parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
+                                               "foo");
   MoqtPublishNamespace publish_namespace = {
       kDefaultPeerRequestId,
       track_namespace,
-      *parameters,
+      parameters,
   };
   EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
-              Call(track_namespace, parameters, _))
+              Call(track_namespace, std::make_optional(parameters), _))
       .WillOnce([](const TrackNamespace&,
-                   const std::optional<VersionSpecificParameters>&,
+                   const std::optional<MessageParameters>&,
                    MoqtResponseCallback callback) {
         std::move(callback)(std::nullopt);
       });
@@ -1013,10 +1000,10 @@ TEST_F(MoqtSessionTest,
   stream_input->OnPublishNamespaceMessage(publish_namespace);
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(MoqtPublishNamespaceCancel{
-                         track_namespace, RequestErrorCode::kInternalError,
-                         "deadbeef"}),
+                         kDefaultPeerRequestId,
+                         RequestErrorCode::kInternalError, "deadbeef"}),
                      _));
-  session_.CancelPublishNamespace(track_namespace,
+  session_.PublishNamespaceCancel(track_namespace,
                                   RequestErrorCode::kInternalError, "deadbeef");
 }
 
@@ -1025,12 +1012,13 @@ TEST_F(MoqtSessionTest, ReplyToPublishNamespaceWithError) {
 
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  auto parameters = std::make_optional<VersionSpecificParameters>(
-      AuthTokenType::kOutOfBand, "foo");
+  MessageParameters parameters;
+  parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
+                                               "foo");
   MoqtPublishNamespace publish_namespace = {
       kDefaultPeerRequestId,
       track_namespace,
-      *parameters,
+      parameters,
   };
   MoqtRequestErrorInfo error = {
       RequestErrorCode::kNotSupported,
@@ -1038,10 +1026,9 @@ TEST_F(MoqtSessionTest, ReplyToPublishNamespaceWithError) {
       "deadbeef",
   };
   EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
-              Call(track_namespace, parameters, _))
+              Call(track_namespace, std::make_optional(parameters), _))
       .WillOnce(
-          [&](const TrackNamespace&,
-              const std::optional<VersionSpecificParameters>&,
+          [&](const TrackNamespace&, const std::optional<MessageParameters>&,
               MoqtResponseCallback callback) { std::move(callback)(error); });
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(MoqtRequestError{
@@ -3529,9 +3516,9 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
           +[](std::optional<MoqtRequestErrorInfo>) {}),
       nullptr);
   session_.PublishNamespace(
-      TrackNamespace{"foo"},
-      +[](TrackNamespace, std::optional<MoqtRequestErrorInfo>) {},
-      VersionSpecificParameters());
+      TrackNamespace{"foo"}, MessageParameters(),
+      +[](std::optional<MoqtRequestErrorInfo>) {},
+      +[](MoqtRequestErrorInfo) {});
   EXPECT_FALSE(session_.Fetch(
       FullTrackName{TrackNamespace("foo"), "bar"},
       +[](std::unique_ptr<MoqtFetchTask>) {}, Location(0, 0), 5, std::nullopt,
@@ -3562,8 +3549,8 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   stream_input->OnSubscribeMessage(DefaultSubscribe());
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
-  stream_input->OnPublishNamespaceMessage(MoqtPublishNamespace(
-      3, TrackNamespace("foo"), VersionSpecificParameters()));
+  stream_input->OnPublishNamespaceMessage(
+      MoqtPublishNamespace(3, TrackNamespace("foo"), MessageParameters()));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
   MoqtFetch fetch = DefaultFetch();
@@ -3597,9 +3584,9 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
           +[](std::optional<MoqtRequestErrorInfo>) {}),
       nullptr);
   session_.PublishNamespace(
-      TrackNamespace{"foo"},
-      +[](TrackNamespace, std::optional<MoqtRequestErrorInfo>) {},
-      VersionSpecificParameters());
+      TrackNamespace{"foo"}, MessageParameters(),
+      +[](std::optional<MoqtRequestErrorInfo>) {},
+      +[](MoqtRequestErrorInfo) {});
   EXPECT_FALSE(session_.Fetch(
       FullTrackName(TrackNamespace("foo"), "bar"),
       +[](std::unique_ptr<MoqtFetchTask>) {}, Location(0, 0), 5, std::nullopt,
@@ -4109,11 +4096,11 @@ TEST_F(MoqtSessionTest, IncomingPublishNamespaceCleanup) {
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   // Register two incoming PUBLISH_NAMESPACE.
   MoqtPublishNamespace publish_namespace{
-      /*request_id=*/1, TrackNamespace{"foo"}, VersionSpecificParameters()};
+      /*request_id=*/1, TrackNamespace{"foo"}, MessageParameters()};
   EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
               Call(TrackNamespace{"foo"}, _, _))
       .WillOnce([&](const TrackNamespace&,
-                    const std::optional<VersionSpecificParameters>&,
+                    const std::optional<MessageParameters>&,
                     MoqtResponseCallback callback) {
         std::move(callback)(std::nullopt);
       });
@@ -4122,11 +4109,11 @@ TEST_F(MoqtSessionTest, IncomingPublishNamespaceCleanup) {
   stream_input->OnPublishNamespaceMessage(publish_namespace);
 
   publish_namespace = MoqtPublishNamespace(
-      /*request_id=*/3, TrackNamespace{"bar"}, VersionSpecificParameters());
+      /*request_id=*/3, TrackNamespace{"bar"}, MessageParameters());
   EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
               Call(TrackNamespace{"bar"}, _, _))
       .WillOnce([&](const TrackNamespace&,
-                    const std::optional<VersionSpecificParameters>&,
+                    const std::optional<MessageParameters>&,
                     MoqtResponseCallback callback) {
         std::move(callback)(std::nullopt);
       });
@@ -4135,23 +4122,21 @@ TEST_F(MoqtSessionTest, IncomingPublishNamespaceCleanup) {
   stream_input->OnPublishNamespaceMessage(publish_namespace);
 
   // Revoke "bar"
-  MoqtPublishNamespaceDone done{TrackNamespace{"bar"}};
-  EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
-              Call(TrackNamespace{"bar"},
-                   std::optional<VersionSpecificParameters>(), _))
+  MoqtPublishNamespaceDone done{/*request_id=*/3};
+  EXPECT_CALL(
+      session_callbacks_.incoming_publish_namespace_callback,
+      Call(TrackNamespace{"bar"}, std::optional<MessageParameters>(), _))
       .WillOnce(
-          [](const TrackNamespace&,
-             const std::optional<VersionSpecificParameters>&,
+          [](const TrackNamespace&, const std::optional<MessageParameters>&,
              MoqtResponseCallback callback) { EXPECT_EQ(callback, nullptr); });
   stream_input->OnPublishNamespaceDoneMessage(done);
 
   // Destroying the session should revoke "foo".
-  EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
-              Call(TrackNamespace{"foo"},
-                   std::optional<VersionSpecificParameters>(), _))
+  EXPECT_CALL(
+      session_callbacks_.incoming_publish_namespace_callback,
+      Call(TrackNamespace{"foo"}, std::optional<MessageParameters>(), _))
       .WillOnce(
-          [](const TrackNamespace&,
-             const std::optional<VersionSpecificParameters>&,
+          [](const TrackNamespace&, const std::optional<MessageParameters>&,
              MoqtResponseCallback callback) { EXPECT_EQ(callback, nullptr); });
   // Test teardown will destroy session_, triggering removal of "foo".
 }

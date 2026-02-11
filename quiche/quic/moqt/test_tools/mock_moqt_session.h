@@ -57,12 +57,23 @@ class MockMoqtSession : public MoqtSessionInterface {
                std::optional<MoqtDeliveryOrder> delivery_order,
                VersionSpecificParameters parameters),
               (override));
-  MOCK_METHOD(void, PublishNamespace,
-              (TrackNamespace track_namespace,
-               MoqtOutgoingPublishNamespaceCallback callback,
-               VersionSpecificParameters parameters),
+  MOCK_METHOD(
+      bool, PublishNamespace,
+      (const TrackNamespace& track_namespace,
+       const MessageParameters& parameters,
+       MoqtResponseCallback response_callback,
+       quiche::SingleUseCallback<void(MoqtRequestErrorInfo)> cancel_callback),
+      (override));
+  MOCK_METHOD(bool, PublishNamespaceUpdate,
+              (const TrackNamespace& track_namespace,
+               MessageParameters& parameters,
+               MoqtResponseCallback response_callback),
               (override));
-  MOCK_METHOD(bool, PublishNamespaceDone, (TrackNamespace track_namespace),
+  MOCK_METHOD(bool, PublishNamespaceDone,
+              (const TrackNamespace& track_namespace), (override));
+  MOCK_METHOD(bool, PublishNamespaceCancel,
+              (const TrackNamespace& track_namespace,
+               RequestErrorCode error_code, absl::string_view error_reason),
               (override));
   MOCK_METHOD(std::unique_ptr<MoqtNamespaceTask>, SubscribeNamespace,
               (TrackNamespace&, SubscribeNamespaceOption,

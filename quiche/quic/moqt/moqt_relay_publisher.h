@@ -53,7 +53,7 @@ class MoqtRelayPublisher : public MoqtPublisher {
   }
 
   void OnPublishNamespace(const TrackNamespace& track_namespace,
-                          const VersionSpecificParameters& parameters,
+                          const MessageParameters& parameters,
                           MoqtSessionInterface* session,
                           MoqtResponseCallback absl_nullable callback);
 

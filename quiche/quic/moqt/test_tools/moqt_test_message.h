@@ -19,6 +19,7 @@
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
@@ -925,6 +926,8 @@ class QUICHE_NO_EXPORT PublishNamespaceMessage : public TestMessageBase {
  public:
   PublishNamespaceMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
+    publish_namespace_.parameters.authorization_tokens.push_back(
+        AuthToken(AuthTokenType::kOutOfBand, "bar"));
   }
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
@@ -961,7 +964,7 @@ class QUICHE_NO_EXPORT PublishNamespaceMessage : public TestMessageBase {
   MoqtPublishNamespace publish_namespace_ = {
       /*request_id=*/2,
       TrackNamespace{"foo"},
-      VersionSpecificParameters(AuthTokenType::kOutOfBand, "bar"),
+      MessageParameters(),
   };
 };
 
@@ -1076,26 +1079,29 @@ class QUICHE_NO_EXPORT PublishNamespaceDoneMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtPublishNamespaceDone>(values);
-    if (cast.track_namespace != publish_namespace_done_.track_namespace) {
-      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE_DONE track namespace mismatch";
+    if (cast.request_id != publish_namespace_done_.request_id) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE_DONE request ID mismatch";
       return false;
     }
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vv---"); }
+  void ExpandVarints() override { ExpandVarintsImpl("v"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(publish_namespace_done_);
   }
 
  private:
-  uint8_t raw_packet_[8] = {
-      0x09, 0x00, 0x05, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace
+  uint8_t raw_packet_[4] = {
+      0x09,
+      0x00,
+      0x01,
+      0x01,  // request_id = 1
   };
 
   MoqtPublishNamespaceDone publish_namespace_done_ = {
-      TrackNamespace("foo"),
+      /*request_id=*/1,
   };
 };
 
@@ -1107,8 +1113,8 @@ class QUICHE_NO_EXPORT PublishNamespaceCancelMessage : public TestMessageBase {
 
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtPublishNamespaceCancel>(values);
-    if (cast.track_namespace != publish_namespace_cancel_.track_namespace) {
-      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE CANCEL track namespace mismatch";
+    if (cast.request_id != publish_namespace_cancel_.request_id) {
+      QUIC_LOG(INFO) << "PUBLISH_NAMESPACE CANCEL request ID mismatch";
       return false;
     }
     if (cast.error_code != publish_namespace_cancel_.error_code) {
@@ -1122,22 +1128,21 @@ class QUICHE_NO_EXPORT PublishNamespaceCancelMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vv---vv---"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv---"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(publish_namespace_cancel_);
   }
 
  private:
-  uint8_t raw_packet_[13] = {
-      0x0c, 0x00, 0x0a, 0x01,
-      0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+  uint8_t raw_packet_[9] = {
+      0x0c, 0x00, 0x06, 0x02,  // request_id = 2
       0x03,                    // error_code = 3
       0x03, 0x62, 0x61, 0x72,  // error_reason = "bar"
   };
 
   MoqtPublishNamespaceCancel publish_namespace_cancel_ = {
-      TrackNamespace("foo"),
+      /*request_id=*/2,
       RequestErrorCode::kNotSupported,
       /*error_reason=*/"bar",
   };

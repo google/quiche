@@ -11,6 +11,8 @@
 #include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_relay_track_publisher.h"
@@ -65,8 +67,7 @@ void MoqtRelayPublisher::SetDefaultUpstreamSession(
 
 void MoqtRelayPublisher::OnPublishNamespace(
     const TrackNamespace& track_namespace,
-    const VersionSpecificParameters& /*parameters*/,
-    MoqtSessionInterface* session,
+    const MessageParameters& /*parameters*/, MoqtSessionInterface* session,
     MoqtResponseCallback absl_nullable callback) {
   if (session == nullptr) {
     return;

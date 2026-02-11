@@ -30,7 +30,10 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
@@ -121,7 +124,7 @@ class MoqtIngestionHandler {
   // TODO(martinduke): Handle when |publish_namespace| is false
   // (PUBLISH_NAMESPACE_DONE).
   void OnPublishNamespaceReceived(TrackNamespace track_namespace,
-                                  std::optional<VersionSpecificParameters>,
+                                  std::optional<MessageParameters>,
                                   MoqtResponseCallback callback) {
     if (!IsValidTrackNamespace(track_namespace) &&
         !quiche::GetQuicheCommandLineFlag(

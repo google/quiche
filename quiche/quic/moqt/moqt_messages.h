@@ -401,7 +401,7 @@ struct QUICHE_EXPORT MoqtRequestUpdate {
 struct QUICHE_EXPORT MoqtPublishNamespace {
   uint64_t request_id;
   TrackNamespace track_namespace;
-  VersionSpecificParameters parameters;
+  MessageParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtRequestOk {
@@ -410,11 +410,11 @@ struct QUICHE_EXPORT MoqtRequestOk {
 };
 
 struct QUICHE_EXPORT MoqtPublishNamespaceDone {
-  TrackNamespace track_namespace;
+  uint64_t request_id;
 };
 
 struct QUICHE_EXPORT MoqtPublishNamespaceCancel {
-  TrackNamespace track_namespace;
+  uint64_t request_id;
   RequestErrorCode error_code;
   std::string error_reason;
 };

@@ -39,9 +39,11 @@ using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
 // received from the peer. PUBLISH_NAMESPACE sets a value for |parameters|,
 // PUBLISH_NAMESPACE_DONE does not. This callback is not invoked by NAMESPACE or
 // NAMESPACE_DONE messages that arrive on a SUBSCRIBE_NAMESPACE stream.
+// If the PUBLISH_NAMESPACE is updated, it will be called again, so be prepared
+// for duplicates.
 using MoqtIncomingPublishNamespaceCallback = quiche::MultiUseCallback<void(
     const TrackNamespace& track_namespace,
-    const std::optional<VersionSpecificParameters>& parameters,
+    const std::optional<MessageParameters>& parameters,
     MoqtResponseCallback callback)>;
 
 // Called whenever SUBSCRIBE_NAMESPACE is received from the peer. Unsubscribe
@@ -55,14 +57,14 @@ using MoqtIncomingSubscribeNamespaceCallback =
         MoqtResponseCallback response_callback)>;
 
 inline void DefaultIncomingPublishNamespaceCallback(
-    const TrackNamespace&, const std::optional<VersionSpecificParameters>&,
+    const TrackNamespace&, const std::optional<MessageParameters>&,
     MoqtResponseCallback callback) {
   if (callback == nullptr) {
     return;
   }
   return std::move(callback)(MoqtRequestErrorInfo{
       RequestErrorCode::kNotSupported, std::nullopt,
-      "This endpoint does not support incoming SUBSCRIBE_NAMESPACE messages"});
+      "This endpoint does not support incoming PUBLISH_NAMESPACE messages"});
 };
 
 inline std::unique_ptr<MoqtNamespaceTask>

@@ -71,18 +71,6 @@ class SubscribeVisitor {
 using FetchResponseCallback =
     quiche::SingleUseCallback<void(std::unique_ptr<MoqtFetchTask> fetch_task)>;
 
-// TODO(martinduke): MoqtOutgoingPublishNamespaceCallback is deprecated. Remove.
-
-// If |error| is nullopt, this is triggered by a PUBLISH_NAMESPACE_OK.
-// Otherwise, it is triggered by REQUEST_ERROR or PUBLISH_NAMESPACE_CANCEL. For
-// ERROR or CANCEL, MoqtSession is deleting all PUBLISH_NAMESPACE state
-// immediately after calling this callback.
-// Alternatively, the application can call PublishNamespaceDone() to delete the
-// state.
-using MoqtOutgoingPublishNamespaceCallback =
-    quiche::MultiUseCallback<void(const TrackNamespace& track_namespace,
-                                  std::optional<MoqtRequestErrorInfo> error)>;
-
 class MoqtSessionInterface {
  public:
   virtual ~MoqtSessionInterface() = default;
@@ -138,15 +126,25 @@ class MoqtSessionInterface {
       MoqtPriority priority, std::optional<MoqtDeliveryOrder> delivery_order,
       VersionSpecificParameters parameters) = 0;
   // Send a PUBLISH_NAMESPACE message for |track_namespace|, and call
-  // |publish_namespace_callback| when the response arrives. Will fail
+  // |response_callback| when the response arrives. Will fail
   // immediately if there is already an unresolved PUBLISH_NAMESPACE for that
-  // namespace.
-  virtual void PublishNamespace(TrackNamespace track_namespace,
-                                MoqtOutgoingPublishNamespaceCallback callback,
-                                VersionSpecificParameters parameters) = 0;
-  // Returns true if message was sent, false if there is no PUBLISH_NAMESPACE to
-  // cancel.
-  virtual bool PublishNamespaceDone(TrackNamespace track_namespace) = 0;
+  // namespace. Calls |cancel_callback| if the peer sends a
+  // PUBLISH_NAMESPACE_CANCEL. Returns true if the message was sent.
+  virtual bool PublishNamespace(
+      const TrackNamespace& track_namespace,
+      const MessageParameters& parameters,
+      MoqtResponseCallback response_callback,
+      quiche::SingleUseCallback<void(MoqtRequestErrorInfo)>
+          cancel_callback) = 0;
+  virtual bool PublishNamespaceUpdate(
+      const TrackNamespace& track_namespace, MessageParameters& parameters,
+      MoqtResponseCallback response_callback) = 0;
+  // Returns true if message was sent, false if there is no PUBLISH_NAMESPACE
+  // that relates.
+  virtual bool PublishNamespaceDone(const TrackNamespace& track_namespace) = 0;
+  virtual bool PublishNamespaceCancel(const TrackNamespace& track_namespace,
+                                      RequestErrorCode error_code,
+                                      absl::string_view error_reason) = 0;
 
   // Sends a SUBSCRIBE_NAMESPACE message for |prefix| and returns a
   // MoqtNamespaceTask that can be used to process the response.

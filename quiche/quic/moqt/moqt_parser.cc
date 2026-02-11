@@ -789,13 +789,7 @@ size_t MoqtControlParser::ProcessPublishNamespace(
       !ReadTrackNamespace(reader, publish_namespace.track_namespace)) {
     return 0;
   }
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (!FillAndValidateVersionSpecificParameters(
-          parameters, publish_namespace.parameters,
-          MoqtMessageType::kPublishNamespace)) {
+  if (!FillAndValidateMessageParameters(reader, publish_namespace.parameters)) {
     return 0;
   }
   visitor_.OnPublishNamespaceMessage(publish_namespace);
@@ -834,22 +828,20 @@ size_t MoqtControlParser::ProcessRequestOk(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessPublishNamespaceDone(
     quic::QuicDataReader& reader) {
-  MoqtPublishNamespaceDone unpublish_namespace;
-  if (!ReadTrackNamespace(reader, unpublish_namespace.track_namespace)) {
+  MoqtPublishNamespaceDone pn_done;
+  if (!reader.ReadVarInt62(&pn_done.request_id)) {
     return 0;
   }
-  visitor_.OnPublishNamespaceDoneMessage(unpublish_namespace);
+  visitor_.OnPublishNamespaceDoneMessage(pn_done);
   return reader.PreviouslyReadPayload().length();
 }
 
 size_t MoqtControlParser::ProcessPublishNamespaceCancel(
     quic::QuicDataReader& reader) {
   MoqtPublishNamespaceCancel publish_namespace_cancel;
-  if (!ReadTrackNamespace(reader, publish_namespace_cancel.track_namespace)) {
-    return 0;
-  }
   uint64_t error_code;
-  if (!reader.ReadVarInt62(&error_code) ||
+  if (!reader.ReadVarInt62(&publish_namespace_cancel.request_id) ||
+      !reader.ReadVarInt62(&error_code) ||
       !reader.ReadStringVarInt62(publish_namespace_cancel.error_reason)) {
     return 0;
   }

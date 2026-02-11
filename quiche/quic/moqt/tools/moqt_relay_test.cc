@@ -134,9 +134,8 @@ TEST_F(MoqtRelayTest, PublishNamespace) {
             nullptr);
   // relay_ publishes a namespace, so upstream_ will route to relay_.
   relay_.client_session()->PublishNamespace(
-      TrackNamespace({"foo"}),
-      [](TrackNamespace, std::optional<MoqtRequestErrorInfo>) {},
-      VersionSpecificParameters());
+      TrackNamespace({"foo"}), MessageParameters(),
+      [](std::optional<MoqtRequestErrorInfo>) {}, [](MoqtRequestErrorInfo) {});
   upstream_.RunOneEvent();
   // There is now an upstream session for "Foo".
   std::shared_ptr<MoqtTrackPublisher> track =
@@ -192,8 +191,8 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   // Downstream publishes a namespace. It's stored in relay_ but upstream_
   // hasn't been notified.
   downstream_.client_session()->PublishNamespace(
-      foobar, [](TrackNamespace, std::optional<MoqtRequestErrorInfo>) {},
-      VersionSpecificParameters());
+      foobar, MessageParameters(), [](std::optional<MoqtRequestErrorInfo>) {},
+      [](MoqtRequestErrorInfo) {});
   relay_.RunOneEvent();
   upstream_.RunOneEvent();
   EXPECT_THAT(relay_published_namespaces, ElementsAre(foobar));
@@ -209,7 +208,7 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
     while (task->GetNextSuffix(suffix, type) == kSuccess) {
       if (type == TransactionType::kAdd) {
         upstream_.publisher()->OnPublishNamespace(
-            *task->prefix().AddSuffix(suffix), VersionSpecificParameters(),
+            *task->prefix().AddSuffix(suffix), MessageParameters(),
             upstream_session, nullptr);
       } else {
         upstream_.publisher()->OnPublishNamespaceDone(
@@ -223,8 +222,8 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
 
   // Downstream publishes another namespace. Everyone is notified.
   downstream_.client_session()->PublishNamespace(
-      foobaz, [](TrackNamespace, std::optional<MoqtRequestErrorInfo>) {},
-      VersionSpecificParameters());
+      foobaz, MessageParameters(), [](std::optional<MoqtRequestErrorInfo>) {},
+      [](MoqtRequestErrorInfo) {});
   relay_.RunOneEvent();
   upstream_.RunOneEvent();
   EXPECT_THAT(relay_published_namespaces, ElementsAre(foobar, foobaz));

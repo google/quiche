@@ -71,6 +71,7 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kMalformedTrack = 0x9,
   kMalformedAuthToken = 0x10,
   kExpiredAuthToken = 0x12,
+  kDuplicateSubscription = 0x19,
   kPrefixOverlap = 0x30,
 };
 
@@ -78,6 +79,7 @@ struct MoqtRequestErrorInfo {
   RequestErrorCode error_code;
   std::optional<quic::QuicTimeDelta> retry_interval;
   std::string reason_phrase;
+  bool operator==(const MoqtRequestErrorInfo& other) const = default;
 };
 
 RequestErrorCode StatusToRequestErrorCode(absl::Status status);
