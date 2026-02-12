@@ -5101,5 +5101,48 @@ TEST_F(HTTPBalsaFrameTest, ObsTextInReasonPhraseAllowed) {
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
 }
 
+TEST_F(HTTPBalsaFrameTest, MostRestrictiveTest) {
+  BalsaFrame balsa_frame;
+  BalsaHeaders headers;
+  balsa_frame.set_is_request(true);
+  balsa_frame.set_balsa_headers(&headers);
+  balsa_frame.set_http_validation_policy(kMostStrictHttpValidationPolicy);
+
+  std::string message_headers =
+      "POST /search?q=benchy \t HTTP/1.1 \t \r\n"
+      "Transfer-Encoding:  chunked\r\n"
+      "header_1: a\r\n"
+      "header_2: b\r\n"
+      "header_3: c\r\n"
+      "header_4: d\r\n"
+      "header_5: e\r\n"
+      "\r\n";
+  std::string message_body =
+      "A;chunked_extension=\"foobar\"quote\"\"\r\n"
+      "0123456789\r\n"
+      "3f\r\n"
+      "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\r\n"
+      "2; chunked_extension=\"foobar\"quote\"\"\r\n"
+      "x \r\n"
+      "0; that's all folks\r\n";
+  std::string trailer_data =
+      "a_trailer_key: and a trailer value\r\n"
+      "\r\n";
+
+  std::string message =
+      absl::StrCat(message_headers, message_body, trailer_data);
+
+  size_t header_bytes_consumed =
+      balsa_frame.ProcessInput(message.data(), message.size());
+  EXPECT_EQ(header_bytes_consumed, message_headers.size());
+
+  size_t body_bytes_consumed = balsa_frame.ProcessInput(
+      message.data() + message_headers.size(), message.size());
+  EXPECT_EQ(body_bytes_consumed, message_body.size() + trailer_data.size());
+  EXPECT_TRUE(balsa_frame.MessageFullyRead());
+  EXPECT_FALSE(balsa_frame.Error());
+  EXPECT_EQ(balsa_frame.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
+}
+
 }  // namespace
 }  // namespace quiche::test

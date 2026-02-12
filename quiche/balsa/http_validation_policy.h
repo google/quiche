@@ -176,6 +176,29 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   }
 };
 
+static constexpr HttpValidationPolicy kMostStrictHttpValidationPolicy = {
+    .disallow_header_continuation_lines = true,
+    .require_header_colon = true,
+    .disallow_multiple_content_length = true,
+    .disallow_transfer_encoding_with_content_length = true,
+    .validate_transfer_encoding = true,
+    .require_content_length_if_body_required = true,
+    .disallow_double_quote_in_header_name = true,
+    .disallow_invalid_header_characters_in_response = true,
+    .disallow_lone_cr_in_request_headers = true,
+    .disallow_lone_cr_in_chunk_extension = true,
+    .disallow_invalid_target_uris = true,
+    .sanitize_cr_tab_in_first_line =
+        quiche::HttpValidationPolicy::FirstLineValidationOption::SANITIZE,
+    .disallow_obs_text_in_field_names = true,
+    .disallow_lone_lf_in_chunk_extension = true,
+    .require_chunked_body_end_with_crlf_crlf = true,
+    .sanitize_firstline_spaces =
+        quiche::HttpValidationPolicy::FirstLineValidationOption::SANITIZE,
+    .sanitize_obs_fold_in_header_values = true,
+    .disallow_stray_data_after_chunk = true,
+    .disallow_invalid_request_methods = true};
+
 }  // namespace quiche
 
 #endif  // QUICHE_BALSA_HTTP_VALIDATION_POLICY_H_
