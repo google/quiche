@@ -358,6 +358,9 @@ MoqtError MessageParameters::FromKeyValuePairList(
             expires = quic::QuicTimeDelta::TryFromMilliseconds(
                           std::get<uint64_t>(value))
                           .value_or(quic::QuicTimeDelta::Infinite());
+            if (expires->IsZero()) {
+              expires = quic::QuicTimeDelta::Infinite();
+            }
             break;
           case MessageParameter::kLargestObject:
             if (largest_object.has_value()) {

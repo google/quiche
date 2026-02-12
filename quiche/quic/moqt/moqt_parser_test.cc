@@ -1291,6 +1291,22 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkInvalidDeliveryOrder) {
   EXPECT_EQ(visitor_.parsing_error_, "Invalid SUBSCRIBE_OK track extensions");
 }
 
+TEST_F(MoqtMessageSpecificTest, SubscribeOkExpirationIsZero) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtControlParser parser(kRawQuic, &stream, visitor_);
+  char subscribe_ok[] = {
+      0x04, 0x00, 0x05, 0x02, 0x01,  // request_id = 2, track_alias = 1
+      0x01, 0x08, 0x00               // expires = 0
+  };
+  stream.Receive(absl::string_view(subscribe_ok, sizeof(subscribe_ok)), false);
+  parser.ReadAndDispatchMessages();
+  EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
+  ASSERT_EQ(visitor_.messages_received_, 1);
+  MoqtSubscribeOk message =
+      std::get<MoqtSubscribeOk>(visitor_.last_message_.value());
+  EXPECT_EQ(message.parameters.expires, quic::QuicTimeDelta::Infinite());
+}
+
 TEST_F(MoqtMessageSpecificTest, FetchWholeGroup) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtControlParser parser(kRawQuic, &stream, visitor_);
