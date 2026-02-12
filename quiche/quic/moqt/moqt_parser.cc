@@ -1685,6 +1685,7 @@ bool MoqtDataParser::CheckForFinWithoutData() {
       // Data arrived; the last object was not EndOfGroup.
       visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
       AdvanceParserState();
+      ++num_objects_read_;
     }
     return false;
   }
