@@ -112,19 +112,17 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   void Unsubscribe(const FullTrackName& name) override;
   bool Fetch(const FullTrackName& name, FetchResponseCallback callback,
              Location start, uint64_t end_group,
-             std::optional<uint64_t> end_object, MoqtPriority priority,
-             std::optional<MoqtDeliveryOrder> delivery_order,
-             VersionSpecificParameters parameters) override;
+             std::optional<uint64_t> end_object,
+             MessageParameters parameters) override;
   bool RelativeJoiningFetch(const FullTrackName& name,
                             SubscribeVisitor* visitor,
                             uint64_t num_previous_groups,
-                            VersionSpecificParameters parameters) override;
+                            MessageParameters parameters) override;
   bool RelativeJoiningFetch(const FullTrackName& name,
                             SubscribeVisitor* visitor,
                             FetchResponseCallback callback,
-                            uint64_t num_previous_groups, MoqtPriority priority,
-                            std::optional<MoqtDeliveryOrder> delivery_order,
-                            VersionSpecificParameters parameters) override;
+                            uint64_t num_previous_groups,
+                            MessageParameters parameters) override;
   bool PublishNamespace(const TrackNamespace& track_namespace,
                         const MessageParameters& parameters,
                         MoqtResponseCallback response_callback,

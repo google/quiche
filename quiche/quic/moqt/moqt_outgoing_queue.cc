@@ -13,8 +13,8 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -137,7 +137,7 @@ std::optional<Location> MoqtOutgoingQueue::largest_location() const {
 }
 
 std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::StandaloneFetch(
-    Location start, Location end, std::optional<MoqtDeliveryOrder> order) {
+    Location start, Location end, MoqtDeliveryOrder order) {
   if (queue_.empty()) {
     return std::make_unique<MoqtFailedFetch>(
         absl::NotFoundError("No objects available on the track"));
@@ -168,7 +168,7 @@ std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::StandaloneFetch(
 }
 
 std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::RelativeFetch(
-    uint64_t group_diff, std::optional<MoqtDeliveryOrder> order) {
+    uint64_t group_diff, MoqtDeliveryOrder order) {
   if (queue_.empty()) {
     return std::make_unique<MoqtFailedFetch>(
         absl::NotFoundError("No objects available on the track"));
@@ -189,7 +189,7 @@ std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::RelativeFetch(
 }
 
 std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::AbsoluteFetch(
-    uint64_t group, std::optional<MoqtDeliveryOrder> order) {
+    uint64_t group, MoqtDeliveryOrder order) {
   if (queue_.empty()) {
     return std::make_unique<MoqtFailedFetch>(
         absl::NotFoundError("No objects available on the track"));

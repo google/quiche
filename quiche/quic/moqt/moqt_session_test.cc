@@ -107,12 +107,9 @@ MoqtSubscribe DefaultLocalSubscribe() {
 MoqtFetch DefaultFetch() {
   MoqtFetch fetch = {
       kDefaultPeerRequestId,
-      /*subscriber_priority=*/0x80,
-      /*group_order=*/std::nullopt,
-      /*fetch=*/
       StandaloneFetch(kDefaultTrackName(), Location(0, 0),
                       Location(1, kMaxObjectId)),
-      /*parameters=*/VersionSpecificParameters(),
+      MessageParameters(),
   };
   return fetch;
 }
@@ -419,11 +416,9 @@ TEST_F(MoqtSessionTest, IncomingPublishRejected) {
       .request_id = 1,
       .full_track_name = FullTrackName("foo", "bar"),
       .track_alias = 2,
-      .group_order = MoqtDeliveryOrder::kAscending,
-      .largest_location = Location(4, 5),
-      .forward = true,
-      .parameters = VersionSpecificParameters(),
+      .parameters = MessageParameters(),
   };
+  publish.parameters.largest_object = Location(4, 5);
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   // Request for track returns REQUEST_ERROR.
@@ -2509,7 +2504,6 @@ TEST_F(MoqtSessionTest, ProcessFetchGetEverythingFromUpstream) {
   // Compose and send the FETCH_OK.
   MoqtFetchOk expected_ok;
   expected_ok.request_id = fetch.request_id;
-  expected_ok.group_order = MoqtDeliveryOrder::kAscending;
   expected_ok.end_of_track = false;
   expected_ok.end_location = Location(1, 4);
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _));
@@ -2534,7 +2528,6 @@ TEST_F(MoqtSessionTest, ProcessFetchWholeRangeIsPresent) {
 
   MoqtFetchOk expected_ok;
   expected_ok.request_id = fetch.request_id;
-  expected_ok.group_order = MoqtDeliveryOrder::kAscending;
   expected_ok.end_of_track = false;
   expected_ok.end_location = Location(1, 4);
   auto fetch_task_ptr =
@@ -2578,7 +2571,6 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeOk) {
 
   MoqtFetchOk expected_ok;
   expected_ok.request_id = fetch.request_id;
-  expected_ok.group_order = MoqtDeliveryOrder::kAscending;
   expected_ok.end_of_track = false;
   expected_ok.end_location = Location(1, 4);
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _));
@@ -2770,20 +2762,18 @@ TEST_F(MoqtSessionTest, SendJoiningFetch) {
   MoqtSubscribe expected_subscribe(
       0, FullTrackName("foo", "bar"),
       MessageParameters(MoqtFilterType::kLargestObject));
-  expected_subscribe.parameters.group_order = MoqtDeliveryOrder::kAscending;
   MoqtFetch expected_fetch = {
       /*request_id=*/2,
-      /*subscriber_priority=*/0x80,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*fetch=*/JoiningFetchRelative(0, 1),
+      MessageParameters(),
   };
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(expected_subscribe), _));
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(expected_fetch), _));
-  EXPECT_TRUE(session_.RelativeJoiningFetch(
-      expected_subscribe.full_track_name, &remote_track_visitor_, nullptr, 1,
-      0x80, MoqtDeliveryOrder::kAscending, VersionSpecificParameters()));
+  EXPECT_TRUE(session_.RelativeJoiningFetch(expected_subscribe.full_track_name,
+                                            &remote_track_visitor_, nullptr, 1,
+                                            MessageParameters()));
 }
 
 TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
@@ -2797,16 +2787,15 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
               Writev(ControlMessageOfType(MoqtMessageType::kFetch), _));
   EXPECT_TRUE(session_.RelativeJoiningFetch(FullTrackName("foo", "bar"),
                                             &remote_track_visitor_, 0,
-                                            VersionSpecificParameters()));
+                                            MessageParameters()));
 
   EXPECT_CALL(remote_track_visitor_, OnReply).Times(1);
   MessageParameters parameters;
   parameters.largest_object = Location(2, 0);
   stream_input->OnSubscribeOkMessage(
       MoqtSubscribeOk(0, 2, parameters, TrackExtensions()));
-  stream_input->OnFetchOkMessage(MoqtFetchOk(2, MoqtDeliveryOrder::kAscending,
-                                             false, Location(2, 0),
-                                             VersionSpecificParameters()));
+  stream_input->OnFetchOkMessage(MoqtFetchOk(
+      2, false, Location(2, 0), MessageParameters(), TrackExtensions()));
   // Packet arrives on FETCH stream.
   MoqtObject object = {
       /*request_id=*/2,
@@ -2962,14 +2951,11 @@ TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {
       [&](std::unique_ptr<MoqtFetchTask> task) {
         fetch_task = std::move(task);
       },
-      Location(0, 0), 4, std::nullopt, kDefaultPublisherPriority, std::nullopt,
-      VersionSpecificParameters());
+      Location(0, 0), 4, std::nullopt, MessageParameters());
   MoqtFetchOk ok = {
       /*request_id=*/0,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*end_of_track=*/false,
-      /*end_location=*/Location(3, 25),
-      VersionSpecificParameters(),
+      /*end_of_track=*/false, Location(3, 25),
+      MessageParameters(),    TrackExtensions(),
   };
   stream_input->OnFetchOkMessage(ok);
   ASSERT_NE(fetch_task, nullptr);
@@ -2992,8 +2978,7 @@ TEST_F(MoqtSessionTest, FetchThenError) {
       [&](std::unique_ptr<MoqtFetchTask> task) {
         fetch_task = std::move(task);
       },
-      Location(0, 0), 4, std::nullopt, kDefaultPublisherPriority, std::nullopt,
-      VersionSpecificParameters());
+      Location(0, 0), 4, std::nullopt, MessageParameters());
   MoqtRequestError error = {
       /*request_id=*/0,
       RequestErrorCode::kUnauthorized,
@@ -3031,8 +3016,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
           } while (result != MoqtFetchTask::GetNextObjectResult::kPending);
         });
       },
-      Location(0, 0), 4, std::nullopt, kDefaultPublisherPriority, std::nullopt,
-      VersionSpecificParameters());
+      Location(0, 0), 4, std::nullopt, MessageParameters());
   // Build queue of packets to arrive.
   std::queue<quiche::QuicheBuffer> headers;
   std::queue<std::string> payloads;
@@ -3071,10 +3055,10 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
   // FETCH_OK arrives, objects are delivered.
   MoqtFetchOk ok = {
       /*request_id=*/0,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*end_of_track=*/false,
       /*end_location=*/Location(3, 25),
-      VersionSpecificParameters(),
+      MessageParameters(),
+      TrackExtensions(),
   };
   stream_input->OnFetchOkMessage(ok);
   ASSERT_NE(fetch_task, nullptr);
@@ -3103,8 +3087,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
         fetch_task->SetObjectAvailableCallback(
             [&]() { objects_available = true; });
       },
-      Location(0, 0), 4, std::nullopt, kDefaultPublisherPriority, std::nullopt,
-      VersionSpecificParameters());
+      Location(0, 0), 4, std::nullopt, MessageParameters());
   // Build queue of packets to arrive.
   std::queue<quiche::QuicheBuffer> headers;
   std::queue<std::string> payloads;
@@ -3143,10 +3126,8 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
   // FETCH_OK arrives, objects are available.
   MoqtFetchOk ok = {
       /*request_id=*/0,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*end_of_track=*/false,
-      /*end_location=*/Location(3, 25),
-      VersionSpecificParameters(),
+      /*end_of_track=*/false, Location(3, 25),
+      MessageParameters(),    TrackExtensions(),
   };
   stream_input->OnFetchOkMessage(ok);
   ASSERT_NE(fetch_task, nullptr);
@@ -3520,9 +3501,9 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
       +[](std::optional<MoqtRequestErrorInfo>) {},
       +[](MoqtRequestErrorInfo) {});
   EXPECT_FALSE(session_.Fetch(
-      FullTrackName{{"foo"}, "bar"}, +[](std::unique_ptr<MoqtFetchTask>) {},
-      Location(0, 0), 5, std::nullopt, 127, std::nullopt,
-      VersionSpecificParameters()));
+      FullTrackName{TrackNamespace({"foo"}), "bar"},
+      +[](std::unique_ptr<MoqtFetchTask>) {}, Location(0, 0), 5, std::nullopt,
+      MessageParameters()));
   // Error on additional GOAWAY.
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
@@ -3588,9 +3569,9 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
       +[](std::optional<MoqtRequestErrorInfo>) {},
       +[](MoqtRequestErrorInfo) {});
   EXPECT_FALSE(session_.Fetch(
-      FullTrackName({"foo"}, "bar"), +[](std::unique_ptr<MoqtFetchTask>) {},
-      Location(0, 0), 5, std::nullopt, 127, std::nullopt,
-      VersionSpecificParameters()));
+      FullTrackName(TrackNamespace({"foo"}), "bar"),
+      +[](std::unique_ptr<MoqtFetchTask>) {}, Location(0, 0), 5, std::nullopt,
+      MessageParameters()));
   session_.GoAway("");
   // GoAway timer fires.
   auto* goaway_alarm =

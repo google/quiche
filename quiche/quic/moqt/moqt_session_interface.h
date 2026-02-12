@@ -102,9 +102,8 @@ class MoqtSessionInterface {
   // the MoqtFetchTask.
   virtual bool Fetch(const FullTrackName& name, FetchResponseCallback callback,
                      Location start, uint64_t end_group,
-                     std::optional<uint64_t> end_object, MoqtPriority priority,
-                     std::optional<MoqtDeliveryOrder> delivery_order,
-                     VersionSpecificParameters parameters) = 0;
+                     std::optional<uint64_t> end_object,
+                     MessageParameters parameters) = 0;
 
   // Sends both a SUBSCRIBE and a joining FETCH, beginning `num_previous_groups`
   // groups before the current group. The Fetch will not be flow controlled,
@@ -115,16 +114,16 @@ class MoqtSessionInterface {
   virtual bool RelativeJoiningFetch(const FullTrackName& name,
                                     SubscribeVisitor* visitor,
                                     uint64_t num_previous_groups,
-                                    VersionSpecificParameters parameters) = 0;
+                                    MessageParameters parameters) = 0;
 
   // Sends both a SUBSCRIBE and a joining FETCH, beginning `num_previous_groups`
   // groups before the current group.  `callback` acts the same way as the
   // callback for the regular Fetch() call.
-  virtual bool RelativeJoiningFetch(
-      const FullTrackName& name, SubscribeVisitor* visitor,
-      FetchResponseCallback callback, uint64_t num_previous_groups,
-      MoqtPriority priority, std::optional<MoqtDeliveryOrder> delivery_order,
-      VersionSpecificParameters parameters) = 0;
+  virtual bool RelativeJoiningFetch(const FullTrackName& name,
+                                    SubscribeVisitor* visitor,
+                                    FetchResponseCallback callback,
+                                    uint64_t num_previous_groups,
+                                    MessageParameters parameters) = 0;
   // Send a PUBLISH_NAMESPACE message for |track_namespace|, and call
   // |response_callback| when the response arrives. Will fail
   // immediately if there is already an unresolved PUBLISH_NAMESPACE for that

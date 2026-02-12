@@ -41,21 +41,17 @@ class MockMoqtSession : public MoqtSessionInterface {
   MOCK_METHOD(bool, Fetch,
               (const FullTrackName& name, FetchResponseCallback callback,
                Location start, uint64_t end_group,
-               std::optional<uint64_t> end_object, MoqtPriority priority,
-               std::optional<MoqtDeliveryOrder> delivery_order,
-               VersionSpecificParameters parameters),
+               std::optional<uint64_t> end_object,
+               MessageParameters parameters),
               (override));
   MOCK_METHOD(bool, RelativeJoiningFetch,
               (const FullTrackName& name, SubscribeVisitor* visitor,
-               uint64_t num_previous_groups,
-               VersionSpecificParameters parameters),
+               uint64_t num_previous_groups, MessageParameters parameters),
               (override));
   MOCK_METHOD(bool, RelativeJoiningFetch,
               (const FullTrackName& name, SubscribeVisitor* visitor,
                FetchResponseCallback callback, uint64_t num_previous_groups,
-               MoqtPriority priority,
-               std::optional<MoqtDeliveryOrder> delivery_order,
-               VersionSpecificParameters parameters),
+               MessageParameters parameters),
               (override));
   MOCK_METHOD(
       bool, PublishNamespace,

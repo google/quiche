@@ -1291,19 +1291,15 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
  public:
   FetchMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
+    fetch_.parameters.authorization_tokens.push_back(
+        AuthToken(AuthTokenType::kOutOfBand, "baz"));
+    fetch_.parameters.group_order = MoqtDeliveryOrder::kAscending;
+    fetch_.parameters.subscriber_priority = 2;
   }
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetch>(values);
     if (cast.request_id != fetch_.request_id) {
       QUIC_LOG(INFO) << "FETCH request_id mismatch";
-      return false;
-    }
-    if (cast.subscriber_priority != fetch_.subscriber_priority) {
-      QUIC_LOG(INFO) << "FETCH subscriber_priority mismatch";
-      return false;
-    }
-    if (cast.group_order != fetch_.group_order) {
-      QUIC_LOG(INFO) << "FETCH group_order mismatch";
       return false;
     }
     if (cast.fetch != fetch_.fetch) {
@@ -1318,7 +1314,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("v--vvv---v---vvvvvv-----");
+    ExpandVarintsImpl("vvvv---v---vvvvvvv-----vvvv");
   }
 
   MessageStructuredData structured_data() const override {
@@ -1332,41 +1328,39 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
     std::get<StandaloneFetch>(fetch_.fetch).end_location.group = group;
     std::get<StandaloneFetch>(fetch_.fetch).end_location.object =
         object.has_value() ? *object : kMaxObjectId;
-    raw_packet_[18] = group;
-    raw_packet_[19] = object.has_value() ? (*object + 1) : 0;
+    raw_packet_[16] = group;
+    raw_packet_[17] = object.has_value() ? (*object + 1) : 0;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   void SetGroupOrder(uint8_t group_order) {
-    raw_packet_[5] = static_cast<uint8_t>(group_order);
+    raw_packet_[29] = static_cast<uint8_t>(group_order);
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
  private:
-  uint8_t raw_packet_[28] = {
-      0x16, 0x00, 0x19,
-      0x01,                          // request_id = 1
-      0x02,                          // priority = kHigh
-      0x01,                          // group_order = kAscending
-      0x01,                          // type = kStandalone
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x03, 0x62, 0x61, 0x72,        // track_name = "bar"
-      0x01, 0x02,                    // start_location = 1, 2
-      0x05, 0x07,                    // end_location = 5, 6
-      0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
+  uint8_t raw_packet_[30] = {
+      0x16, 0x00, 0x1b,
+      0x01,                                      // request_id = 1
+      0x01,                                      // type = kStandalone
+      0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
+      0x03, 0x62, 0x61, 0x72,                    // track_name = "bar"
+      0x01, 0x02,                                // start_location = 1, 2
+      0x05, 0x07,                                // end_location = 5, 6
+      0x03,                                      // 3 parameters
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // token = "baz"
+      0x1d, 0x02,                                // priority = kHigh
+      0x02, 0x01,                                // group_order = kAscending
   };
 
   MoqtFetch fetch_ = {
       /*request_id=*/1,
-      /*subscriber_priority=*/2,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*fetch =*/
       StandaloneFetch{
           FullTrackName("foo", "bar"),
           /*start_location=*/Location{1, 2},
           /*end_location=*/Location{5, 6},
       },
-      VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
+      MessageParameters(),  // set in constructor.
   };
 };
 
@@ -1376,19 +1370,15 @@ class QUICHE_NO_EXPORT RelativeJoiningFetchMessage : public TestMessageBase {
  public:
   RelativeJoiningFetchMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
+    fetch_.parameters.authorization_tokens.push_back(
+        AuthToken(AuthTokenType::kOutOfBand, "baz"));
+    fetch_.parameters.group_order = MoqtDeliveryOrder::kAscending;
+    fetch_.parameters.subscriber_priority = 2;
   }
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetch>(values);
     if (cast.request_id != fetch_.request_id) {
       QUIC_LOG(INFO) << "FETCH request_id mismatch";
-      return false;
-    }
-    if (cast.subscriber_priority != fetch_.subscriber_priority) {
-      QUIC_LOG(INFO) << "FETCH subscriber_priority mismatch";
-      return false;
-    }
-    if (cast.group_order != fetch_.group_order) {
-      QUIC_LOG(INFO) << "FETCH group_order mismatch";
       return false;
     }
     if (cast.fetch != fetch_.fetch) {
@@ -1402,36 +1392,33 @@ class QUICHE_NO_EXPORT RelativeJoiningFetchMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override {
-    ExpandVarintsImpl("v--vvv---v---vvvvvv-----");
-  }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvvv-----vvvv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(fetch_);
   }
 
   void SetGroupOrder(uint8_t group_order) {
-    raw_packet_[5] = static_cast<uint8_t>(group_order);
+    raw_packet_[18] = static_cast<uint8_t>(group_order);
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
  private:
-  uint8_t raw_packet_[17] = {
-      0x16, 0x00, 0x0e,
+  uint8_t raw_packet_[19] = {
+      0x16, 0x00, 0x10,
       0x01,        // request_id = 1
-      0x02,        // priority = kHigh
-      0x01,        // group_order = kAscending
       0x02,        // type = kRelativeJoining
       0x02, 0x02,  // joining_request_id = 2, 2 groups
-      0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
+      0x03,        // 3 parameters
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // token = "baz"
+      0x1d, 0x02,                                // priority = kHigh
+      0x02, 0x01,                                // group_order = kAscending
   };
 
   MoqtFetch fetch_ = {
       /*request_id =*/1,
-      /*subscriber_priority=*/2,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*fetch=*/JoiningFetchRelative{2, 2},
-      VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
+      JoiningFetchRelative{2, 2},
+      MessageParameters(),  // set in constructor.
   };
 };
 
@@ -1441,19 +1428,15 @@ class QUICHE_NO_EXPORT AbsoluteJoiningFetchMessage : public TestMessageBase {
  public:
   AbsoluteJoiningFetchMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
+    fetch_.parameters.authorization_tokens.push_back(
+        AuthToken(AuthTokenType::kOutOfBand, "baz"));
+    fetch_.parameters.group_order = MoqtDeliveryOrder::kAscending;
+    fetch_.parameters.subscriber_priority = 2;
   }
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetch>(values);
     if (cast.request_id != fetch_.request_id) {
       QUIC_LOG(INFO) << "FETCH request_id mismatch";
-      return false;
-    }
-    if (cast.subscriber_priority != fetch_.subscriber_priority) {
-      QUIC_LOG(INFO) << "FETCH subscriber_priority mismatch";
-      return false;
-    }
-    if (cast.group_order != fetch_.group_order) {
-      QUIC_LOG(INFO) << "FETCH group_order mismatch";
       return false;
     }
     if (cast.fetch != fetch_.fetch) {
@@ -1467,9 +1450,7 @@ class QUICHE_NO_EXPORT AbsoluteJoiningFetchMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override {
-    ExpandVarintsImpl("v--vvv---v---vvvvvv-----");
-  }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvvv-----vvvv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(fetch_);
@@ -1481,22 +1462,21 @@ class QUICHE_NO_EXPORT AbsoluteJoiningFetchMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[17] = {
-      0x16, 0x00, 0x0e,
+  uint8_t raw_packet_[19] = {
+      0x16, 0x00, 0x10,
       0x01,        // request_id = 1
-      0x02,        // priority = kHigh
-      0x01,        // group_order = kAscending
       0x03,        // type = kAbsoluteJoining
       0x02, 0x02,  // joining_request_id = 2, group_id = 2
-      0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
+      0x03,        // 3 parameters
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // token = "baz"
+      0x1d, 0x02,                                // priority = kHigh
+      0x02, 0x01,                                // group_order = kAscending
   };
 
   MoqtFetch fetch_ = {
       /*request_id=*/1,
-      /*subscriber_priority=*/2,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*fetch=*/JoiningFetchAbsolute{2, 2},
-      VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
+      JoiningFetchAbsolute{2, 2},
+      MessageParameters(),  // set in constructor.
   };
 };
 
@@ -1511,10 +1491,6 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "FETCH_OK request_id mismatch";
       return false;
     }
-    if (cast.group_order != fetch_ok_.group_order) {
-      QUIC_LOG(INFO) << "FETCH_OK group_order mismatch";
-      return false;
-    }
     if (cast.end_of_track != fetch_ok_.end_of_track) {
       QUIC_LOG(INFO) << "FETCH_OK end_of_track mismatch";
       return false;
@@ -1527,32 +1503,39 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "FETCH_OK parameters mismatch";
       return false;
     }
+    if (cast.extensions != fetch_ok_.extensions) {
+      QUIC_LOG(INFO) << "FETCH_OK extensions mismatch";
+      return false;
+    }
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("v--vvvvv---"); }
+  void ExpandVarints() override { ExpandVarintsImpl("v-vvvv--vv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(fetch_ok_);
   }
 
  private:
-  uint8_t raw_packet_[12] = {
-      0x18, 0x00, 0x09,
-      0x01,                    // request_id = 1
-      0x01,                    // group_order = kAscending
-      0x00,                    // end_of_track = false
-      0x05, 0x04,              // end_location = 5, 3
-      0x01, 0x04, 0x67, 0x10,  // MaxCacheDuration = 10000
+  uint8_t raw_packet_[13] = {
+      0x18, 0x00, 0x0a,
+      0x01,              // request_id = 1
+      0x00,              // end_of_track = false
+      0x05, 0x04,        // end_location = 5, 3
+      0x00,              // no parameters
+      0x04, 0x67, 0x10,  // MaxCacheDuration = 10000
+      0x1e, 0x02,        // group_order = kDescending
   };
 
   MoqtFetchOk fetch_ok_ = {
       /*request_id =*/1,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
       /*end_of_track=*/false,
       /*end_location=*/Location{5, 3},
-      VersionSpecificParameters(quic::QuicTimeDelta::Infinite(),
-                                quic::QuicTimeDelta::FromMilliseconds(10000)),
+      MessageParameters(),
+      TrackExtensions(std::nullopt,
+                      quic::QuicTimeDelta::FromMilliseconds(10000),
+                      std::nullopt, MoqtDeliveryOrder::kDescending,
+                      std::nullopt, std::nullopt),
   };
 };
 
@@ -1622,6 +1605,10 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
  public:
   PublishMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
+    publish_.parameters.authorization_tokens.push_back(
+        AuthToken(AuthTokenType::kOutOfBand, "baz"));
+    publish_.parameters.largest_object = Location(10, 1);
+    publish_.parameters.set_forward(true);
   }
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtPublish>(values);
@@ -1637,27 +1624,19 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "PUBLISH track_alias mismatch";
       return false;
     }
-    if (cast.group_order != publish_.group_order) {
-      QUIC_LOG(INFO) << "PUBLISH group_order mismatch";
-      return false;
-    }
-    if (cast.largest_location != publish_.largest_location) {
-      QUIC_LOG(INFO) << "PUBLISH largest_location mismatch";
-      return false;
-    }
-    if (cast.forward != publish_.forward) {
-      QUIC_LOG(INFO) << "PUBLISH forward mismatch";
-      return false;
-    }
     if (cast.parameters != publish_.parameters) {
       QUIC_LOG(INFO) << "PUBLISH parameters mismatch";
+      return false;
+    }
+    if (cast.extensions != publish_.extensions) {
+      QUIC_LOG(INFO) << "PUBLISH extensions mismatch";
       return false;
     }
     return true;
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvv---v---v--vv-vvv-----");
+    ExpandVarintsImpl("vvv---v---vvvv-----vv--vvvv");
   }
 
   MessageStructuredData structured_data() const override {
@@ -1665,26 +1644,27 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[27] = {
-      0x1d, 0x00, 0x18,
-      0x01,                          // request_id = 1
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x03, 0x62, 0x61, 0x72,        // track_name = "bar"
-      0x04,                          // track_alias = 4
-      0x01,                          // group_order = kAscending
-      0x01, 0x0a, 0x01,              // content exists, largest_location = 10, 1
-      0x01,                          // forward = true
-      0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
+  uint8_t raw_packet_[30] = {
+      0x1d, 0x00, 0x1b,
+      0x01,                                      // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
+      0x03, 0x62, 0x61, 0x72,                    // track_name = "bar"
+      0x04,                                      // track_alias = 4
+      0x03,                                      // 3 parameters
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // token = "baz"
+      0x06, 0x02, 0x0a, 0x01,                    // largest_object = 10, 1
+      0x07, 0x01,                                // forward = 1
+      0x22, 0x02,                                // group_order = kAscending
   };
 
   MoqtPublish publish_ = {
       /*request_id=*/1,
       FullTrackName("foo", "bar"),
       /*track_alias=*/4,
-      MoqtDeliveryOrder::kAscending,
-      /*largest_location=*/Location(10, 1),
-      /*forward=*/true,
-      VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
+      MessageParameters(),
+      TrackExtensions(std::nullopt, std::nullopt, std::nullopt,
+                      MoqtDeliveryOrder::kDescending, std::nullopt,
+                      std::nullopt),
   };
 };
 
@@ -1692,35 +1672,18 @@ class QUICHE_NO_EXPORT PublishOkMessage : public TestMessageBase {
  public:
   PublishOkMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
+    publish_ok_.parameters.delivery_timeout =
+        quic::QuicTimeDelta::FromMilliseconds(10000);
+    publish_ok_.parameters.set_forward(true);
+    publish_ok_.parameters.subscriber_priority = 2;
+    publish_ok_.parameters.group_order = MoqtDeliveryOrder::kAscending;
+    publish_ok_.parameters.subscription_filter =
+        SubscriptionFilter(Location(5, 4), 6);
   }
   bool EqualFieldValues(MessageStructuredData& values) const override {
     auto cast = std::get<MoqtPublishOk>(values);
     if (cast.request_id != publish_ok_.request_id) {
       QUIC_LOG(INFO) << "PUBLISH_OK request_id mismatch";
-      return false;
-    }
-    if (cast.forward != publish_ok_.forward) {
-      QUIC_LOG(INFO) << "PUBLISH_OK forward mismatch";
-      return false;
-    }
-    if (cast.subscriber_priority != publish_ok_.subscriber_priority) {
-      QUIC_LOG(INFO) << "PUBLISH_OK subscriber_priority mismatch";
-      return false;
-    }
-    if (cast.group_order != publish_ok_.group_order) {
-      QUIC_LOG(INFO) << "PUBLISH_OK group_order mismatch";
-      return false;
-    }
-    if (cast.filter_type != publish_ok_.filter_type) {
-      QUIC_LOG(INFO) << "PUBLISH_OK filter_type mismatch";
-      return false;
-    }
-    if (cast.start != publish_ok_.start) {
-      QUIC_LOG(INFO) << "PUBLISH_OK start mismatch";
-      return false;
-    }
-    if (cast.end_group != publish_ok_.end_group) {
-      QUIC_LOG(INFO) << "PUBLISH_OK end_group mismatch";
       return false;
     }
     if (cast.parameters != publish_ok_.parameters) {
@@ -1730,34 +1693,26 @@ class QUICHE_NO_EXPORT PublishOkMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("v---vvvvvv--"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv--vvvvvv----vv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(publish_ok_);
   }
 
  private:
-  uint8_t raw_packet_[15] = {
-      0x1e, 0x00, 0x0c,
-      0x01,                    // request_id = 1
-      0x01,                    // forward = true
-      0x02,                    // subscriber_priority = 2
-      0x01,                    // group_order = kAscending
-      0x04,                    // filter_type = kAbsoluteRange
-      0x05, 0x04,              // start = 5, 4
-      0x06,                    // end_group = 6
-      0x01, 0x02, 0x67, 0x10,  // delivery_timeout = 10000 ms
+  uint8_t raw_packet_[20] = {
+      0x1e, 0x00, 0x11,
+      0x01,                                // request_id = 1
+      0x05,                                // 5 parameters
+      0x02, 0x67, 0x10,                    // delivery_timeout = 10000 ms
+      0x0e, 0x01,                          // forward = true
+      0x10, 0x02,                          // subscriber_priority = 2
+      0x01, 0x04, 0x04, 0x05, 0x04, 0x06,  // subscription filter: (5, 4) to 6
+      0x01, 0x01,                          // group_order = kAscending
   };
   MoqtPublishOk publish_ok_ = {
       /*request_id=*/1,
-      /*forward=*/true,
-      /*subscriber_priority=*/2,
-      MoqtDeliveryOrder::kAscending,
-      MoqtFilterType::kAbsoluteRange,
-      /*start=*/Location(5, 4),
-      /*end_group=*/6,
-      VersionSpecificParameters(quic::QuicTimeDelta::FromMilliseconds(10000),
-                                quic::QuicTimeDelta::Infinite()),
+      MessageParameters(),  // set in constructor.
   };
 };
 

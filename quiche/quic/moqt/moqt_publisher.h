@@ -106,11 +106,11 @@ class MoqtTrackPublisher {
 
   // Performs a fetch for the specified range of objects.
   virtual std::unique_ptr<MoqtFetchTask> StandaloneFetch(
-      Location start, Location end, std::optional<MoqtDeliveryOrder> order) = 0;
+      Location start, Location end, MoqtDeliveryOrder order) = 0;
   virtual std::unique_ptr<MoqtFetchTask> RelativeFetch(
-      uint64_t group_diff, std::optional<MoqtDeliveryOrder> order) = 0;
+      uint64_t group_diff, MoqtDeliveryOrder order) = 0;
   virtual std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
-      uint64_t group, std::optional<MoqtDeliveryOrder> order) = 0;
+      uint64_t group, MoqtDeliveryOrder order) = 0;
 };
 
 // MoqtPublisher is an interface to a publisher that allows it to publish

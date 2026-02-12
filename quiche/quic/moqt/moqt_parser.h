@@ -175,9 +175,6 @@ class QUICHE_EXPORT MoqtControlParser {
   // caller has no need to do so.)
   bool FillAndValidateMessageParameters(quic::QuicDataReader& reader,
                                         MessageParameters& out);
-  bool FillAndValidateVersionSpecificParameters(const KeyValuePairList& in,
-                                                VersionSpecificParameters& out,
-                                                MoqtMessageType message_type);
 
   MoqtControlParserVisitor& visitor_;
   quiche::ReadStream& stream_;

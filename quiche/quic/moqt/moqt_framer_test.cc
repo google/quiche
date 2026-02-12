@@ -379,70 +379,15 @@ TEST_F(MoqtFramerSimpleTest, AllSubscribeInputs) {
   }
 }
 
-TEST_F(MoqtFramerSimpleTest, PublishOkEndBeforeStart) {
-  MoqtPublishOk publish_ok = {
-      /*request_id=*/1,
-      /*forward=*/true,
-      /*subscriber_priority=*/2,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
-      /*start=*/Location{1, 2},
-      /*end_group=*/0,
-      /*parameters=*/VersionSpecificParameters(),
-  };
-  quiche::QuicheBuffer buffer;
-  EXPECT_QUICHE_BUG(buffer = framer_.SerializePublishOk(publish_ok),
-                    "End group is less than start group");
-  EXPECT_EQ(buffer.size(), 0);
-}
-
-TEST_F(MoqtFramerSimpleTest, PublishOkMissingEndGroup) {
-  MoqtPublishOk publish_ok = {
-      /*request_id=*/1,
-      /*forward=*/true,
-      /*subscriber_priority=*/2,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*filter_type=*/MoqtFilterType::kAbsoluteRange,
-      /*start=*/Location{1, 2},
-      /*end_group=*/std::nullopt,
-      /*parameters=*/VersionSpecificParameters(),
-  };
-  quiche::QuicheBuffer buffer;
-  EXPECT_QUICHE_BUG(buffer = framer_.SerializePublishOk(publish_ok),
-                    "Serializing invalid MoQT filter type");
-  EXPECT_EQ(buffer.size(), 0);
-}
-
-TEST_F(MoqtFramerSimpleTest, PublishOkMissingStart) {
-  MoqtPublishOk publish_ok = {
-      /*request_id=*/1,
-      /*forward=*/true,
-      /*subscriber_priority=*/2,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*filter_type=*/MoqtFilterType::kAbsoluteStart,
-      /*start=*/std::nullopt,
-      /*end_group=*/std::nullopt,
-      /*parameters=*/VersionSpecificParameters(),
-  };
-  quiche::QuicheBuffer buffer;
-  EXPECT_QUICHE_BUG(buffer = framer_.SerializePublishOk(publish_ok),
-                    "Serializing invalid MoQT filter type");
-  EXPECT_EQ(buffer.size(), 0);
-}
-
 TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
   MoqtFetch fetch = {
       /*request_id=*/1,
-      /*subscriber_priority=*/2,
-      /*group_order=*/MoqtDeliveryOrder::kAscending,
-      /*fetch=*/
       StandaloneFetch{
           FullTrackName("foo", "bar"),
           /*start_location=*/Location{1, 2},
           /*end_location=*/Location{1, 1},
       },
-      /*parameters=*/
-      VersionSpecificParameters(AuthTokenType::kOutOfBand, "baz"),
+      MessageParameters(),
   };
   quiche::QuicheBuffer buffer;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeFetch(fetch),
@@ -458,10 +403,10 @@ TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
 TEST_F(MoqtFramerSimpleTest, FetchOkWholeGroup) {
   MoqtFetchOk fetch_ok = {
       /*request_id=*/1,
-      MoqtDeliveryOrder::kAscending,
       /*end_of_track=*/false,
       /*end_location=*/Location{4, kMaxObjectId},
-      VersionSpecificParameters(),
+      MessageParameters(),
+      TrackExtensions(),
   };
   quiche::QuicheBuffer buffer = framer_.SerializeFetchOk(fetch_ok);
   // Check that object ID is zero.

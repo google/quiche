@@ -195,24 +195,33 @@ class UpstreamFetch : public RemoteTrack {
   UpstreamFetch(const MoqtFetch& fetch, const StandaloneFetch standalone,
                 FetchResponseCallback callback)
       : RemoteTrack(standalone.full_track_name, fetch.request_id),
+        group_order_(fetch.parameters.group_order.value_or(
+            MoqtDeliveryOrder::kAscending)),
         window_(SubscribeWindow(standalone.start_location,
                                 standalone.end_location)),
-        subscriber_priority_(fetch.subscriber_priority),
+        subscriber_priority_(fetch.parameters.subscriber_priority.value_or(
+            kDefaultSubscriberPriority)),
         ok_callback_(std::move(callback)) {}
   // Relative Joining Fetch constructor
   UpstreamFetch(const MoqtFetch& fetch, FullTrackName full_track_name,
                 FetchResponseCallback callback)
       : RemoteTrack(full_track_name, fetch.request_id),
+        group_order_(fetch.parameters.group_order.value_or(
+            MoqtDeliveryOrder::kAscending)),
         window_(SubscribeWindow(Location(0, 0))),
-        subscriber_priority_(fetch.subscriber_priority),
+        subscriber_priority_(fetch.parameters.subscriber_priority.value_or(
+            kDefaultSubscriberPriority)),
         ok_callback_(std::move(callback)) {}
   // Absolute Joining Fetch constructor
   UpstreamFetch(const MoqtFetch& fetch, FullTrackName full_track_name,
                 JoiningFetchAbsolute absolute_joining,
                 FetchResponseCallback callback)
       : RemoteTrack(full_track_name, fetch.request_id),
+        group_order_(fetch.parameters.group_order.value_or(
+            MoqtDeliveryOrder::kAscending)),
         window_(SubscribeWindow(Location(absolute_joining.joining_start, 0))),
-        subscriber_priority_(fetch.subscriber_priority),
+        subscriber_priority_(fetch.parameters.subscriber_priority.value_or(
+            kDefaultSubscriberPriority)),
         ok_callback_(std::move(callback)) {}
   UpstreamFetch(const UpstreamFetch&) = delete;
   ~UpstreamFetch();
@@ -312,8 +321,8 @@ class UpstreamFetch : public RemoteTrack {
   };
 
   // Arrival of FETCH_OK/REQUEST_ERROR.
-  void OnFetchResult(Location largest_location, MoqtDeliveryOrder group_order,
-                     absl::Status status, TaskDestroyedCallback callback);
+  void OnFetchResult(Location largest_location, absl::Status status,
+                     TaskDestroyedCallback callback);
 
   UpstreamFetchTask* task() { return task_.GetIfAvailable(); }
 
@@ -328,7 +337,7 @@ class UpstreamFetch : public RemoteTrack {
                        bool end_of_message);
 
  private:
-  std::optional<MoqtDeliveryOrder> group_order_;  // nullopt if not yet known.
+  MoqtDeliveryOrder group_order_;
   SubscribeWindow window_;
   MoqtPriority subscriber_priority_;
   // The last object received on the stream.

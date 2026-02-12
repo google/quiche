@@ -176,7 +176,7 @@ class MoqtIngestionHandler {
         return;
       }
       session_->RelativeJoiningFetch(*full_track_name, &it->second, 0,
-                                     VersionSpecificParameters());
+                                     MessageParameters());
     }
     std::move(callback)(std::nullopt);
   }

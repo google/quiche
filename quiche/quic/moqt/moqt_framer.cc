@@ -353,30 +353,6 @@ KeyValuePairList MessageParameters::ToKeyValuePairList() const {
   return list;
 }
 
-KeyValuePairList VersionSpecificParameters::ToKeyValuePairList() const {
-  KeyValuePairList out;
-  if (delivery_timeout != quic::QuicTimeDelta::Infinite()) {
-    out.insert(
-        static_cast<uint64_t>(VersionSpecificParameter::kDeliveryTimeout),
-        static_cast<uint64_t>(delivery_timeout.ToMilliseconds()));
-  }
-  for (const AuthToken& token : authorization_tokens) {
-    out.insert(
-        static_cast<uint64_t>(VersionSpecificParameter::kAuthorizationToken),
-        SerializeAuthToken(token).AsStringView());
-  }
-  if (max_cache_duration != quic::QuicTimeDelta::Infinite()) {
-    out.insert(
-        static_cast<uint64_t>(VersionSpecificParameter::kMaxCacheDuration),
-        static_cast<uint64_t>(max_cache_duration.ToMilliseconds()));
-  }
-  if (oack_window_size.has_value()) {
-    out.insert(static_cast<uint64_t>(VersionSpecificParameter::kOackWindowSize),
-               static_cast<uint64_t>(oack_window_size->ToMicroseconds()));
-  }
-  return out;
-}
-
 quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
     const MoqtObject& message, MoqtDataStreamType message_type,
     std::optional<uint64_t> previous_object_in_stream) {
@@ -649,18 +625,11 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
       return quiche::QuicheBuffer();
     }
   }
-  KeyValuePairList parameters;
-  if (!FillAndValidateVersionSpecificParameters(
-          MoqtMessageType::kFetch, message.parameters, parameters)) {
-    return quiche::QuicheBuffer();
-  };
   if (std::holds_alternative<StandaloneFetch>(message.fetch)) {
     const StandaloneFetch& standalone_fetch =
         std::get<StandaloneFetch>(message.fetch);
     return SerializeControlMessage(
         MoqtMessageType::kFetch, WireVarInt62(message.request_id),
-        WireUint8(message.subscriber_priority),
-        WireDeliveryOrder(message.group_order),
         WireVarInt62(FetchType::kStandalone),
         WireFullTrackName(standalone_fetch.full_track_name),
         WireVarInt62(standalone_fetch.start_location.group),
@@ -669,7 +638,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
         WireVarInt62(standalone_fetch.end_location.object == kMaxObjectId
                          ? 0
                          : standalone_fetch.end_location.object + 1),
-        WireKeyValuePairList(parameters));
+        WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
   }
   uint64_t request_id, joining_start;
   if (std::holds_alternative<JoiningFetchRelative>(message.fetch)) {
@@ -685,26 +654,21 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
   }
   return SerializeControlMessage(
       MoqtMessageType::kFetch, WireVarInt62(message.request_id),
-      WireUint8(message.subscriber_priority),
-      WireDeliveryOrder(message.group_order),
       WireVarInt62(message.fetch.index() + 1), WireVarInt62(request_id),
-      WireVarInt62(joining_start), WireKeyValuePairList(parameters));
+      WireVarInt62(joining_start),
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeFetchOk(const MoqtFetchOk& message) {
-  KeyValuePairList parameters;
-  if (!FillAndValidateVersionSpecificParameters(
-          MoqtMessageType::kFetchOk, message.parameters, parameters)) {
-    return quiche::QuicheBuffer();
-  };
   return SerializeControlMessage(
       MoqtMessageType::kFetchOk, WireVarInt62(message.request_id),
-      WireDeliveryOrder(message.group_order), WireBoolean(message.end_of_track),
+      WireBoolean(message.end_of_track),
       WireVarInt62(message.end_location.group),
       WireVarInt62(message.end_location.object == kMaxObjectId
                        ? 0
                        : (message.end_location.object + 1)),
-      WireKeyValuePairList(parameters));
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()),
+      WireKeyValuePairList(message.extensions, false));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeFetchCancel(
@@ -720,73 +684,19 @@ quiche::QuicheBuffer MoqtFramer::SerializeRequestsBlocked(
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializePublish(const MoqtPublish& message) {
-  KeyValuePairList parameters;
-  if (!FillAndValidateVersionSpecificParameters(
-          MoqtMessageType::kPublish, message.parameters, parameters)) {
-    return quiche::QuicheBuffer();
-  };
-  std::optional<uint64_t> group, object;
-  if (message.largest_location.has_value()) {
-    group = message.largest_location->group;
-    object = message.largest_location->object;
-  }
   return SerializeControlMessage(
       MoqtMessageType::kPublish, WireVarInt62(message.request_id),
       WireFullTrackName(message.full_track_name),
-      WireVarInt62(message.track_alias), WireDeliveryOrder(message.group_order),
-      WireBoolean(message.largest_location.has_value()),
-      WireOptional<WireVarInt62>(group), WireOptional<WireVarInt62>(object),
-      WireBoolean(message.forward), WireKeyValuePairList(parameters));
+      WireVarInt62(message.track_alias),
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()),
+      WireKeyValuePairList(message.extensions, false));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializePublishOk(
     const MoqtPublishOk& message) {
-  KeyValuePairList parameters;
-  if (!FillAndValidateVersionSpecificParameters(
-          MoqtMessageType::kPublishOk, message.parameters, parameters)) {
-    return quiche::QuicheBuffer();
-  };
-  std::optional<uint64_t> start_group, start_object, end_group;
-  switch (message.filter_type) {
-    case MoqtFilterType::kNextGroupStart:
-    case MoqtFilterType::kLargestObject:
-      break;
-    case MoqtFilterType::kAbsoluteStart:
-    case MoqtFilterType::kAbsoluteRange:
-      if (!message.start.has_value()) {
-        QUICHE_BUG(QUICHE_BUG_invalid_filter_type)
-            << "Serializing invalid MoQT filter type";
-        return quiche::QuicheBuffer();
-      }
-      start_group = message.start->group;
-      start_object = message.start->object;
-      if (message.filter_type == MoqtFilterType::kAbsoluteStart) {
-        break;
-      }
-      if (!message.end_group.has_value()) {
-        QUICHE_BUG(QUICHE_BUG_invalid_filter_type)
-            << "Serializing invalid MoQT filter type";
-        return quiche::QuicheBuffer();
-      }
-      end_group = message.end_group;
-      if (*end_group < *start_group) {
-        QUICHE_BUG(QUICHE_BUG_invalid_filter_type)
-            << "End group is less than start group";
-        return quiche::QuicheBuffer();
-      }
-      break;
-    default:
-      QUICHE_BUG(QUICHE_BUG_invalid_filter_type)
-          << "Serializing invalid MoQT filter type";
-      return quiche::QuicheBuffer();
-  }
   return SerializeControlMessage(
       MoqtMessageType::kPublishOk, WireVarInt62(message.request_id),
-      WireBoolean(message.forward), WireUint8(message.subscriber_priority),
-      WireDeliveryOrder(message.group_order), WireVarInt62(message.filter_type),
-      WireOptional<WireVarInt62>(start_group),
-      WireOptional<WireVarInt62>(start_object),
-      WireOptional<WireVarInt62>(end_group), WireKeyValuePairList(parameters));
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(
@@ -806,18 +716,6 @@ bool MoqtFramer::FillAndValidateSetupParameters(
     QUICHE_BUG(QUICHE_BUG_invalid_setup_parameters)
         << "Invalid setup parameters for "
         << MoqtMessageTypeToString(message_type);
-    return false;
-  }
-  out = parameters.ToKeyValuePairList();
-  return true;
-}
-
-bool MoqtFramer::FillAndValidateVersionSpecificParameters(
-    MoqtMessageType message_type, const VersionSpecificParameters& parameters,
-    KeyValuePairList& out) {
-  if (!VersionSpecificParametersAllowedByMessage(parameters, message_type)) {
-    QUICHE_BUG(QUICHE_BUG_invalid_parameters)
-        << "Invalid parameters for " << MoqtMessageTypeToString(message_type);
     return false;
   }
   out = parameters.ToKeyValuePairList();

@@ -315,7 +315,7 @@ void MoqtSimulator::Run() {
   //       server does not yet have an active subscription, so the client has
   //       some catching up to do.
   generator_.Start();
-  VersionSpecificParameters subscription_parameters;
+  MessageParameters subscription_parameters;
   if (parameters_.bitrate_adaptation) {
     subscription_parameters.oack_window_size = parameters_.deadline;
   }

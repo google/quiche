@@ -493,19 +493,17 @@ struct JoiningFetchAbsolute {
 
 struct QUICHE_EXPORT MoqtFetch {
   uint64_t request_id;
-  MoqtPriority subscriber_priority;
-  std::optional<MoqtDeliveryOrder> group_order;
   std::variant<StandaloneFetch, JoiningFetchRelative, JoiningFetchAbsolute>
       fetch;
-  VersionSpecificParameters parameters;
+  MessageParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtFetchOk {
   uint64_t request_id;
-  MoqtDeliveryOrder group_order;
   bool end_of_track;
   Location end_location;
-  VersionSpecificParameters parameters;
+  MessageParameters parameters;
+  TrackExtensions extensions;
 };
 
 struct QUICHE_EXPORT MoqtFetchCancel {
@@ -520,21 +518,13 @@ struct QUICHE_EXPORT MoqtPublish {
   uint64_t request_id;
   FullTrackName full_track_name;
   uint64_t track_alias;
-  MoqtDeliveryOrder group_order;
-  std::optional<Location> largest_location;
-  bool forward;
-  VersionSpecificParameters parameters;
+  MessageParameters parameters;
+  TrackExtensions extensions;
 };
 
 struct QUICHE_EXPORT MoqtPublishOk {
   uint64_t request_id;
-  bool forward;
-  MoqtPriority subscriber_priority;
-  MoqtDeliveryOrder group_order;
-  MoqtFilterType filter_type;
-  std::optional<Location> start;
-  std::optional<uint64_t> end_group;
-  VersionSpecificParameters parameters;
+  MessageParameters parameters;
 };
 
 // All of the four values in this message are encoded as varints.
@@ -552,9 +542,6 @@ struct QUICHE_EXPORT MoqtObjectAck {
 MoqtError SetupParametersAllowedByMessage(const SetupParameters& parameters,
                                           MoqtMessageType message_type,
                                           bool webtrans);
-// Returns false if the parameters cannot be in |message type|.
-bool VersionSpecificParametersAllowedByMessage(
-    const VersionSpecificParameters& parameters, MoqtMessageType message_type);
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);
 std::string MoqtDataStreamTypeToString(MoqtDataStreamType type);

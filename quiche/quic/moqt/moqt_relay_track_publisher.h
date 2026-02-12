@@ -92,20 +92,19 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   std::optional<Location> largest_location() const override;
   const TrackExtensions& extensions() const override { return extensions_; }
   std::optional<quic::QuicTimeDelta> expiration() const override;
-  std::unique_ptr<MoqtFetchTask> StandaloneFetch(
-      Location /*start*/, Location /*end*/,
-      std::optional<MoqtDeliveryOrder> /*order*/) override {
+  std::unique_ptr<MoqtFetchTask> StandaloneFetch(Location /*start*/,
+                                                 Location /*end*/,
+                                                 MoqtDeliveryOrder) override {
     return std::make_unique<MoqtFailedFetch>(
         absl::UnimplementedError("Fetch not implemented"));
   }
-  std::unique_ptr<MoqtFetchTask> RelativeFetch(
-      uint64_t /*group_diff*/,
-      std::optional<MoqtDeliveryOrder> /*order*/) override {
+  std::unique_ptr<MoqtFetchTask> RelativeFetch(uint64_t /*group_diff*/,
+                                               MoqtDeliveryOrder) override {
     return std::make_unique<MoqtFailedFetch>(
         absl::UnimplementedError("Fetch not implemented"));
   }
-  std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
-      uint64_t /*group*/, std::optional<MoqtDeliveryOrder> /*order*/) override {
+  std::unique_ptr<MoqtFetchTask> AbsoluteFetch(uint64_t /*group*/,
+                                               MoqtDeliveryOrder) override {
     return std::make_unique<MoqtFailedFetch>(
         absl::UnimplementedError("Fetch not implemented"));
   }

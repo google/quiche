@@ -39,23 +39,6 @@ namespace moqt {
 
 namespace {
 
-bool ParseDeliveryOrder(uint8_t raw_value,
-                        std::optional<MoqtDeliveryOrder>& output) {
-  switch (raw_value) {
-    case 0x00:
-      output = std::nullopt;
-      return true;
-    case 0x01:
-      output = MoqtDeliveryOrder::kAscending;
-      return true;
-    case 0x02:
-      output = MoqtDeliveryOrder::kDescending;
-      return true;
-    default:
-      return false;
-  }
-}
-
 uint64_t SignedVarintUnserializedForm(uint64_t value) {
   if (value & 0x01) {
     return -(value >> 1);
@@ -430,49 +413,6 @@ MoqtError MessageParameters::FromKeyValuePairList(
     // Illegal duplicate parameter.
     return MoqtError::kProtocolViolation;
   }
-  return error;
-}
-
-MoqtError VersionSpecificParameters::FromKeyValuePairList(
-    const KeyValuePairList& list) {
-  MoqtError error = MoqtError::kNoError;
-  if (list.count(static_cast<uint64_t>(
-          VersionSpecificParameter::kDeliveryTimeout)) > 1 ||
-      list.count(static_cast<uint64_t>(
-          VersionSpecificParameter::kMaxCacheDuration)) > 1) {
-    return MoqtError::kProtocolViolation;
-  }
-  list.ForEach([&](uint64_t key,
-                   std::variant<uint64_t, absl::string_view> value) {
-    VersionSpecificParameter parameter =
-        static_cast<VersionSpecificParameter>(key);
-    switch (parameter) {
-      case VersionSpecificParameter::kDeliveryTimeout:
-        delivery_timeout =
-            quic::QuicTimeDelta::TryFromMilliseconds(std::get<uint64_t>(value))
-                .value_or(quic::QuicTimeDelta::Infinite());
-        break;
-      case VersionSpecificParameter::kMaxCacheDuration:
-        max_cache_duration =
-            quic::QuicTimeDelta::TryFromMilliseconds(std::get<uint64_t>(value))
-                .value_or(quic::QuicTimeDelta::Infinite());
-        break;
-      case VersionSpecificParameter::kOackWindowSize:
-        oack_window_size =
-            quic::QuicTimeDelta::FromMicroseconds(std::get<uint64_t>(value));
-        break;
-      case VersionSpecificParameter::kAuthorizationToken:
-        error = ParseAuthTokenParameter(std::get<absl::string_view>(value),
-                                        authorization_tokens);
-        if (error != MoqtError::kNoError) {
-          return false;
-        }
-        break;
-      default:
-        break;
-    }
-    return true;
-  });
   return error;
 }
 
@@ -903,15 +843,8 @@ size_t MoqtControlParser::ProcessMaxRequestId(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
   MoqtFetch fetch;
-  uint8_t group_order;
   uint64_t type;
-  if (!reader.ReadVarInt62(&fetch.request_id) ||
-      !reader.ReadUInt8(&fetch.subscriber_priority) ||
-      !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&type)) {
-    return 0;
-  }
-  if (!ParseDeliveryOrder(group_order, fetch.group_order)) {
-    ParseError("Invalid group order value in FETCH message");
+  if (!reader.ReadVarInt62(&fetch.request_id) || !reader.ReadVarInt62(&type)) {
     return 0;
   }
   switch (static_cast<FetchType>(type)) {
@@ -961,12 +894,7 @@ size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
       ParseError("Invalid FETCH type");
       return 0;
   }
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (!FillAndValidateVersionSpecificParameters(parameters, fetch.parameters,
-                                                MoqtMessageType::kFetch)) {
+  if (!FillAndValidateMessageParameters(reader, fetch.parameters)) {
     return 0;
   }
   visitor_.OnFetchMessage(fetch);
@@ -975,17 +903,11 @@ size_t MoqtControlParser::ProcessFetch(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessFetchOk(quic::QuicDataReader& reader) {
   MoqtFetchOk fetch_ok;
-  uint8_t group_order, end_of_track;
-  KeyValuePairList parameters;
+  uint8_t end_of_track;
   if (!reader.ReadVarInt62(&fetch_ok.request_id) ||
-      !reader.ReadUInt8(&group_order) || !reader.ReadUInt8(&end_of_track) ||
+      !reader.ReadUInt8(&end_of_track) ||
       !reader.ReadVarInt62(&fetch_ok.end_location.group) ||
-      !reader.ReadVarInt62(&fetch_ok.end_location.object) ||
-      !ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (group_order != 0x01 && group_order != 0x02) {
-    ParseError("Invalid group order value in FETCH_OK");
+      !reader.ReadVarInt62(&fetch_ok.end_location.object)) {
     return 0;
   }
   if (end_of_track > 0x01) {
@@ -997,10 +919,15 @@ size_t MoqtControlParser::ProcessFetchOk(quic::QuicDataReader& reader) {
   } else {
     --fetch_ok.end_location.object;
   }
-  fetch_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
   fetch_ok.end_of_track = end_of_track == 1;
-  if (!FillAndValidateVersionSpecificParameters(parameters, fetch_ok.parameters,
-                                                MoqtMessageType::kFetchOk)) {
+  if (!FillAndValidateMessageParameters(reader, fetch_ok.parameters)) {
+    return 0;
+  }
+  if (!ParseKeyValuePairListWithNoPrefix(reader, fetch_ok.extensions)) {
+    return 0;
+  }
+  if (!fetch_ok.extensions.Validate()) {
+    ParseError("Invalid FETCH_OK track extensions");
     return 0;
   }
   visitor_.OnFetchOkMessage(fetch_ok);
@@ -1027,45 +954,20 @@ size_t MoqtControlParser::ProcessRequestsBlocked(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessPublish(quic::QuicDataReader& reader) {
   MoqtPublish publish;
-  uint8_t group_order, content_exists;
   QUICHE_DCHECK(reader.PreviouslyReadPayload().empty());
   if (!reader.ReadVarInt62(&publish.request_id) ||
       !ReadFullTrackName(reader, publish.full_track_name) ||
-      !reader.ReadVarInt62(&publish.track_alias) ||
-      !reader.ReadUInt8(&group_order) || !reader.ReadUInt8(&content_exists)) {
+      !reader.ReadVarInt62(&publish.track_alias)) {
     return 0;
   }
-  publish.group_order = static_cast<MoqtDeliveryOrder>(group_order);
-  if (group_order != 0x01 && group_order != 0x02) {
-    ParseError("Invalid group order value in PUBLISH");
+  if (!FillAndValidateMessageParameters(reader, publish.parameters)) {
     return 0;
   }
-  if (content_exists > 1) {
-    ParseError("PUBLISH ContentExists has invalid value");
+  if (!ParseKeyValuePairListWithNoPrefix(reader, publish.extensions)) {
     return 0;
   }
-  if (content_exists == 1) {
-    uint64_t group, object;
-    if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
-      return 0;
-    }
-    publish.largest_location = Location(group, object);
-  }
-  uint8_t forward;
-  if (!reader.ReadUInt8(&forward)) {
-    return 0;
-  }
-  if (forward > 0x01) {
-    ParseError("Invalid forward value in PUBLISH");
-    return 0;
-  }
-  publish.forward = forward == 1;
-  KeyValuePairList parameters;
-  if (!ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (!FillAndValidateVersionSpecificParameters(parameters, publish.parameters,
-                                                MoqtMessageType::kPublish)) {
+  if (!publish.extensions.Validate()) {
+    ParseError("Invalid PUBLISH track extensions");
     return 0;
   }
   visitor_.OnPublishMessage(publish);
@@ -1074,58 +976,10 @@ size_t MoqtControlParser::ProcessPublish(quic::QuicDataReader& reader) {
 
 size_t MoqtControlParser::ProcessPublishOk(quic::QuicDataReader& reader) {
   MoqtPublishOk publish_ok;
-  uint8_t forward, group_order;
-  uint64_t filter_type;
-  KeyValuePairList parameters;
-  if (!reader.ReadVarInt62(&publish_ok.request_id) ||
-      !reader.ReadUInt8(&forward) ||
-      !reader.ReadUInt8(&publish_ok.subscriber_priority) ||
-      !reader.ReadUInt8(&group_order) || !reader.ReadVarInt62(&filter_type)) {
+  if (!reader.ReadVarInt62(&publish_ok.request_id)) {
     return 0;
   }
-  if (forward > 0x01) {
-    ParseError("Invalid forward value in PUBLISH_OK");
-    return 0;
-  }
-  publish_ok.forward = forward == 1;
-  if (group_order != 0x01 && group_order != 0x02) {
-    ParseError("Invalid group order value in PUBLISH_OK");
-    return 0;
-  }
-  publish_ok.group_order = static_cast<MoqtDeliveryOrder>(group_order);
-  publish_ok.filter_type = static_cast<MoqtFilterType>(filter_type);
-  uint64_t group, object, end_group;
-  switch (publish_ok.filter_type) {
-    case MoqtFilterType::kNextGroupStart:
-    case MoqtFilterType::kLargestObject:
-      break;
-    case MoqtFilterType::kAbsoluteStart:
-    case MoqtFilterType::kAbsoluteRange:
-      if (!reader.ReadVarInt62(&group) || !reader.ReadVarInt62(&object)) {
-        return 0;
-      }
-      publish_ok.start = Location(group, object);
-      if (publish_ok.filter_type == MoqtFilterType::kAbsoluteStart) {
-        break;
-      }
-      if (!reader.ReadVarInt62(&end_group)) {
-        return 0;
-      }
-      publish_ok.end_group = end_group;
-      if (*publish_ok.end_group < publish_ok.start->group) {
-        ParseError("End group is less than start group");
-        return 0;
-      }
-      break;
-    default:
-      ParseError("Invalid filter type");
-      return 0;
-  }
-  if (!ParseKeyValuePairList(reader, parameters)) {
-    return 0;
-  }
-  if (!FillAndValidateVersionSpecificParameters(
-          parameters, publish_ok.parameters, MoqtMessageType::kPublishOk)) {
+  if (!FillAndValidateMessageParameters(reader, publish_ok.parameters)) {
     return 0;
   }
   visitor_.OnPublishOkMessage(publish_ok);
@@ -1243,26 +1097,6 @@ bool MoqtControlParser::FillAndValidateMessageParameters(
     return false;
   }
   // All parameter types are allowed in all messages.
-  return true;
-}
-
-bool MoqtControlParser::FillAndValidateVersionSpecificParameters(
-    const KeyValuePairList& in, VersionSpecificParameters& out,
-    MoqtMessageType message_type) {
-  MoqtError error = out.FromKeyValuePairList(in);
-  if (error != MoqtError::kNoError) {
-    absl::string_view error_message =
-        (error == MoqtError::kProtocolViolation)
-            ? "Duplicate Version Specific Parameter"
-            : "Version Specific Parameter parsing error";
-    ParseError(error, error_message);
-    return false;
-  }
-  if (!VersionSpecificParametersAllowedByMessage(out, message_type)) {
-    ParseError(MoqtError::kProtocolViolation,
-               "Version Specific Parameter not allowed for this message type");
-    return false;
-  }
   return true;
 }
 

@@ -62,6 +62,9 @@ MoqtError SetupParametersAllowedByMessage(const SetupParameters& parameters,
   return MoqtError::kNoError;
 }
 
+// Parameter types are not enforced by message in draft-16, but apparently this
+// is coming back later.
+#if 0
 const std::array<MoqtMessageType, 9> kAllowsAuthorization = {
     MoqtMessageType::kClientSetup,
     MoqtMessageType::kServerSetup,
@@ -77,11 +80,8 @@ const std::array<MoqtMessageType, 7> kAllowsDeliveryTimeout = {
     MoqtMessageType::kPublish,      MoqtMessageType::kPublishOk,
     MoqtMessageType::kSubscribe,    MoqtMessageType::kSubscribeOk,
     MoqtMessageType::kRequestUpdate};
-const std::array<MoqtMessageType, 4> kAllowsMaxCacheDuration = {
-    MoqtMessageType::kSubscribeOk, MoqtMessageType::kRequestOk,
-    MoqtMessageType::kFetchOk, MoqtMessageType::kPublish};
-bool VersionSpecificParametersAllowedByMessage(
-    const VersionSpecificParameters& parameters, MoqtMessageType message_type) {
+bool MessageParametersAllowedByMessage(
+    const MessageParameters& parameters, MoqtMessageType message_type) {
   if (!parameters.authorization_tokens.empty() &&
       !absl::c_linear_search(kAllowsAuthorization, message_type)) {
     return false;
@@ -90,12 +90,9 @@ bool VersionSpecificParametersAllowedByMessage(
       !absl::c_linear_search(kAllowsDeliveryTimeout, message_type)) {
     return false;
   }
-  if (parameters.max_cache_duration != quic::QuicTimeDelta::Infinite() &&
-      !absl::c_linear_search(kAllowsMaxCacheDuration, message_type)) {
-    return false;
-  }
   return true;
 }
+#endif
 
 std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
   switch (message_type) {

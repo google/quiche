@@ -85,9 +85,6 @@ class QUICHE_EXPORT MoqtFramer {
   bool FillAndValidateSetupParameters(MoqtMessageType message_type,
                                       const SetupParameters& parameters,
                                       KeyValuePairList& out);
-  bool FillAndValidateVersionSpecificParameters(
-      MoqtMessageType message_type, const VersionSpecificParameters& parameters,
-      KeyValuePairList& out);
   // Returns true if the metadata is internally consistent.
   static bool ValidateObjectMetadata(const MoqtObject& object,
                                      bool is_datagram);

@@ -548,9 +548,7 @@ void MoqtSession::Unsubscribe(const FullTrackName& name) {
 bool MoqtSession::Fetch(const FullTrackName& name,
                         FetchResponseCallback callback, Location start,
                         uint64_t end_group, std::optional<uint64_t> end_object,
-                        MoqtPriority priority,
-                        std::optional<MoqtDeliveryOrder> delivery_order,
-                        VersionSpecificParameters parameters) {
+                        MessageParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
   if (next_request_id_ >= peer_max_request_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH with ID "
@@ -570,8 +568,6 @@ bool MoqtSession::Fetch(const FullTrackName& name,
   message.fetch = StandaloneFetch(name, start, end_location);
   message.request_id = next_request_id_;
   next_request_id_ += 2;
-  message.subscriber_priority = priority;
-  message.group_order = delivery_order;
   message.parameters = parameters;
   SendControlMessage(framer_.SerializeFetch(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent FETCH message for " << name;
@@ -584,7 +580,7 @@ bool MoqtSession::Fetch(const FullTrackName& name,
 bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
                                        SubscribeVisitor* visitor,
                                        uint64_t num_previous_groups,
-                                       VersionSpecificParameters parameters) {
+                                       MessageParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
   return RelativeJoiningFetch(
       name, visitor,
@@ -599,15 +595,14 @@ bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
         RemoteTrackByName(track->full_track_name());
         subscribe->OnJoiningFetchReady(std::move(fetch_task));
       },
-      num_previous_groups, kDefaultSubscriberPriority, std::nullopt,
-      parameters);
+      num_previous_groups, parameters);
 }
 
-bool MoqtSession::RelativeJoiningFetch(
-    const FullTrackName& name, SubscribeVisitor* visitor,
-    FetchResponseCallback callback, uint64_t num_previous_groups,
-    MoqtPriority priority, std::optional<MoqtDeliveryOrder> delivery_order,
-    VersionSpecificParameters parameters) {
+bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
+                                       SubscribeVisitor* visitor,
+                                       FetchResponseCallback callback,
+                                       uint64_t num_previous_groups,
+                                       MessageParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
   if ((next_request_id_ + 2) >= peer_max_request_id_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send JOINING_FETCH with ID "
@@ -616,16 +611,9 @@ bool MoqtSession::RelativeJoiningFetch(
                     << peer_max_request_id_;
     return false;
   }
-  MessageParameters subscribe_parameters(MoqtFilterType::kLargestObject);
-  if (parameters.delivery_timeout != kDefaultDeliveryTimeout) {
-    subscribe_parameters.delivery_timeout = parameters.delivery_timeout;
-  }
-  if (priority != kDefaultSubscriberPriority) {
-    subscribe_parameters.subscriber_priority = priority;
-  }
-  subscribe_parameters.group_order = delivery_order;
-  subscribe_parameters.authorization_tokens = parameters.authorization_tokens;
-  subscribe_parameters.oack_window_size = parameters.oack_window_size;
+  MessageParameters subscribe_parameters = parameters;
+  subscribe_parameters.subscription_filter.emplace(
+      MoqtFilterType::kLargestObject);
   if (!Subscribe(name, visitor, subscribe_parameters)) {
     return false;
   }
@@ -633,11 +621,8 @@ bool MoqtSession::RelativeJoiningFetch(
   MoqtFetch fetch;
   fetch.request_id = next_request_id_;
   next_request_id_ += 2;
-  fetch.subscriber_priority = priority;
-  fetch.group_order = delivery_order;
   fetch.fetch = JoiningFetchRelative{fetch.request_id - 2, num_previous_groups};
   fetch.parameters = parameters;
-  fetch.parameters.delivery_timeout = quic::QuicTimeDelta::Infinite();
   SendControlMessage(framer_.SerializeFetch(fetch));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent Joining FETCH message for " << name;
   auto upstream_fetch =
@@ -1204,8 +1189,7 @@ void MoqtSession::ControlStream::OnRequestErrorMessage(
       UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(track);
       absl::Status status =
           RequestErrorCodeToStatus(message.error_code, message.reason_phrase);
-      fetch->OnFetchResult(Location(0, 0), MoqtDeliveryOrder::kAscending,
-                           status, nullptr);
+      fetch->OnFetchResult(Location(0, 0), status, nullptr);
     } else {
       SubscribeRemoteTrack* subscribe =
           absl::down_cast<SubscribeRemoteTrack*>(track);
@@ -1472,14 +1456,15 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
                       << " rejected by the application: not found";
       SendRequestError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
                        std::nullopt, "not found");
+      return;
     }
     QUIC_DLOG(INFO) << ENDPOINT << "Received a StandaloneFETCH for "
                     << track_name;
     // The check for end_object < start_object is done in
     // MoqtTrackPublisher::Fetch().
-    fetch = track_publisher->StandaloneFetch(standalone_fetch.start_location,
-                                             standalone_fetch.end_location,
-                                             message.group_order);
+    fetch = track_publisher->StandaloneFetch(
+        standalone_fetch.start_location, standalone_fetch.end_location,
+        message.parameters.group_order.value_or(MoqtDeliveryOrder::kAscending));
   } else {
     // Joining Fetch processing.
     uint64_t joining_request_id =
@@ -1512,14 +1497,16 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
       QUIC_DLOG(INFO) << ENDPOINT << "Received a Relative Joining FETCH for "
                       << track_name;
       fetch = it->second->publisher().RelativeFetch(
-          relative_fetch.joining_start, message.group_order);
+          relative_fetch.joining_start, message.parameters.group_order.value_or(
+                                            MoqtDeliveryOrder::kAscending));
     } else {
       const JoiningFetchAbsolute& absolute_fetch =
           std::get<JoiningFetchAbsolute>(message.fetch);
       QUIC_DLOG(INFO) << ENDPOINT << "Received a Absolute Joining FETCH for "
                       << track_name;
       fetch = it->second->publisher().AbsoluteFetch(
-          absolute_fetch.joining_start, message.group_order);
+          absolute_fetch.joining_start, message.parameters.group_order.value_or(
+                                            MoqtDeliveryOrder::kAscending));
     }
   }
   if (!fetch->GetStatus().ok()) {
@@ -1560,7 +1547,10 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
   // Set a temporary new-object callback that creates a data stream. When
   // created, the stream visitor will replace this callback.
   fetch_task->SetObjectAvailableCallback(
-      [this, send_order = SendOrderForFetch(message.subscriber_priority),
+      [this,
+       send_order =
+           SendOrderForFetch(message.parameters.subscriber_priority.value_or(
+               kDefaultSubscriberPriority)),
        request_id = message.request_id]() {
         auto it = session_->incoming_fetches_.find(request_id);
         if (it == session_->incoming_fetches_.end()) {
@@ -1597,7 +1587,7 @@ void MoqtSession::ControlStream::OnFetchOkMessage(const MoqtFetchOk& message) {
                   << message.request_id << " " << track->full_track_name();
   UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(track);
   fetch->OnFetchResult(
-      message.end_location, message.group_order, absl::OkStatus(),
+      message.end_location, absl::OkStatus(),
       [=, session = session_]() { session->CancelFetch(message.request_id); });
 }
 

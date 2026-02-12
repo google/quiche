@@ -480,8 +480,7 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
   EXPECT_TRUE(client_->session()->Fetch(
       full_track_name,
       [&](std::unique_ptr<MoqtFetchTask> task) { fetch = std::move(task); },
-      Location{0, 0}, 99, std::nullopt, 128, std::nullopt,
-      VersionSpecificParameters()));
+      Location{0, 0}, 99, std::nullopt, MessageParameters()));
   // Run until we get FETCH_OK.
   bool success = test_harness_.RunUntilWithDefaultTimeout(
       [&]() { return fetch != nullptr; });

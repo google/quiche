@@ -337,43 +337,6 @@ class TrackExtensions : public KeyValuePairList {
                      std::optional<uint64_t> max_value) const;
 };
 
-// Version specific parameters.
-// TODO(martinduke): Replace with MessageParameters and delete when all
-// messages are migrated.
-enum class QUICHE_EXPORT VersionSpecificParameter : uint64_t {
-  kDeliveryTimeout = 0x2,
-  kAuthorizationToken = 0x3,
-  kMaxCacheDuration = 0x4,
-
-  // QUICHE-specific extensions.
-  kOackWindowSize = 0xbbf1438,
-};
-struct VersionSpecificParameters {
-  VersionSpecificParameters() = default;
-  // Likely parameter combinations.
-  VersionSpecificParameters(quic::QuicTimeDelta delivery_timeout,
-                            quic::QuicTimeDelta max_cache_duration)
-      : delivery_timeout(delivery_timeout),
-        max_cache_duration(max_cache_duration) {}
-  VersionSpecificParameters(AuthTokenType token_type, absl::string_view token) {
-    authorization_tokens.emplace_back(token_type, token);
-  }
-  VersionSpecificParameters(quic::QuicTimeDelta delivery_timeout,
-                            AuthTokenType token_type, absl::string_view token)
-      : delivery_timeout(delivery_timeout) {
-    authorization_tokens.emplace_back(token_type, token);
-  }
-
-  std::vector<AuthToken> authorization_tokens;
-  quic::QuicTimeDelta delivery_timeout = quic::QuicTimeDelta::Infinite();
-  quic::QuicTimeDelta max_cache_duration = quic::QuicTimeDelta::Infinite();
-  std::optional<quic::QuicTimeDelta> oack_window_size;
-
-  bool operator==(const VersionSpecificParameters& other) const = default;
-  KeyValuePairList ToKeyValuePairList() const;
-  MoqtError FromKeyValuePairList(const KeyValuePairList& list);
-};
-
 // TODO(martinduke): Extension Headers (MOQT draft-16 Sec 11)
 
 }  // namespace moqt

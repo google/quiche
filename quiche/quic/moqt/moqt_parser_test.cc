@@ -311,9 +311,10 @@ TEST_P(MoqtParserTest, PayloadLengthTooLong) {
     return;
   }
   MoqtMessageType type = std::get<MoqtMessageType>(message_type_);
-  if (type == MoqtMessageType::kSubscribeOk) {
-    // SUBSCRIBE_OK has extensions, which use the length field to determine
-    // the size. It is therefore not processed correctly.
+  if (type == MoqtMessageType::kSubscribeOk ||
+      type == MoqtMessageType::kFetchOk || type == MoqtMessageType::kPublish) {
+    // These message types have extensions, which use the length field to
+    // determine the size. It is therefore not processed correctly.
     return;
   }
   std::unique_ptr<TestMessageBase> message = MakeMessage();
@@ -1348,18 +1349,6 @@ TEST_F(MoqtMessageSpecificTest, FetchInvalidRange2) {
             "End object comes before start object in FETCH");
 }
 
-TEST_F(MoqtMessageSpecificTest, FetchInvalidGroupOrder) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  FetchMessage fetch;
-  fetch.SetGroupOrder(3);
-  stream.Receive(fetch.PacketSample(), false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "Invalid group order value in FETCH message");
-}
-
 TEST_F(MoqtMessageSpecificTest, PaddingStream) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtDataParser parser(&stream, &visitor_);
@@ -1444,166 +1433,6 @@ TEST_F(MoqtMessageSpecificTest, AbsoluteJoiningFetch) {
   EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
   EXPECT_TRUE(visitor_.last_message_.has_value() &&
               message.EqualFieldValues(*visitor_.last_message_));
-}
-
-TEST_F(MoqtMessageSpecificTest, PublishGroupOrder0) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char publish[27] = {
-      0x1d, 0x00, 0x18,
-      0x01,                          // request_id = 1
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x03, 0x62, 0x61, 0x72,        // track_name = "bar"
-      0x04,                          // track_alias = 4
-      0x00,                          // group_order
-      0x01, 0x0a, 0x01,              // content exists, largest_location = 10, 1
-      0x01,                          // forward = true
-      0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
-  };
-  stream.Receive(absl::string_view(publish, sizeof(publish)), false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Invalid group order value in PUBLISH");
-}
-
-TEST_F(MoqtMessageSpecificTest, PublishContentExists2) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char publish[27] = {
-      0x1d, 0x00, 0x18,
-      0x01,                          // request_id = 1
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x03, 0x62, 0x61, 0x72,        // track_name = "bar"
-      0x04,                          // track_alias = 4
-      0x01,                          // group_order
-      0x02, 0x0a, 0x01,              // content exists, largest_location = 10, 1
-      0x01,                          // forward = true
-      0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
-  };
-  stream.Receive(absl::string_view(publish, sizeof(publish)), false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "PUBLISH ContentExists has invalid value");
-}
-
-TEST_F(MoqtMessageSpecificTest, PublishForward2) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char publish[27] = {
-      0x1d, 0x00, 0x18,
-      0x01,                          // request_id = 1
-      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
-      0x03, 0x62, 0x61, 0x72,        // track_name = "bar"
-      0x04,                          // track_alias = 4
-      0x01,                          // group_order
-      0x01, 0x0a, 0x01,              // content exists, largest_location = 10, 1
-      0x02,                          // forward = true
-      0x01, 0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // parameters = "baz"
-  };
-  stream.Receive(absl::string_view(publish, sizeof(publish)), false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Invalid forward value in PUBLISH");
-}
-
-TEST_F(MoqtMessageSpecificTest, PublishOkForward2) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char publish_ok[15] = {
-      0x1e, 0x00, 0x0c,
-      0x01,                    // request_id = 1
-      0x02,                    // forward
-      0x02,                    // subscriber_priority = 2
-      0x01,                    // group_order = kAscending
-      0x04,                    // filter_type = kAbsoluteRange
-      0x05, 0x04,              // start = 5, 4
-      0x06,                    // end_group = 6
-      0x01, 0x02, 0x67, 0x10,  // delivery_timeout = 10000 ms
-  };
-  stream.Receive(absl::string_view(publish_ok, sizeof(publish_ok)), false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Invalid forward value in PUBLISH_OK");
-}
-
-TEST_F(MoqtMessageSpecificTest, PublishOkGroupOrder0) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char publish_ok[15] = {
-      0x1e, 0x00, 0x0c,
-      0x01,                    // request_id = 1
-      0x01,                    // forward
-      0x02,                    // subscriber_priority = 2
-      0x00,                    // group_order
-      0x04,                    // filter_type = kAbsoluteRange
-      0x05, 0x04,              // start = 5, 4
-      0x06,                    // end_group = 6
-      0x01, 0x02, 0x67, 0x10,  // delivery_timeout = 10000 ms
-  };
-  stream.Receive(absl::string_view(publish_ok, sizeof(publish_ok)), false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Invalid group order value in PUBLISH_OK");
-}
-
-TEST_F(MoqtMessageSpecificTest, PublishOkFilter5) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char publish_ok[15] = {
-      0x1e, 0x00, 0x0c,
-      0x01,                    // request_id = 1
-      0x01,                    // forward
-      0x02,                    // subscriber_priority = 2
-      0x01,                    // group_order
-      0x05,                    // filter_type
-      0x05, 0x04,              // start = 5, 4
-      0x06,                    // end_group = 6
-      0x01, 0x02, 0x67, 0x10,  // delivery_timeout = 10000 ms
-  };
-  stream.Receive(absl::string_view(publish_ok, sizeof(publish_ok)), false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Invalid filter type");
-}
-
-TEST_F(MoqtMessageSpecificTest, PublishOkEndBeforeStart) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char publish_ok[15] = {
-      0x1e, 0x00, 0x0c,
-      0x01,                    // request_id = 1
-      0x01,                    // forward
-      0x02,                    // subscriber_priority = 2
-      0x01,                    // group_order
-      0x04,                    // filter_type
-      0x05, 0x04,              // start = 5, 4
-      0x04,                    // end_group = 4
-      0x01, 0x02, 0x67, 0x10,  // delivery_timeout = 10000 ms
-  };
-  stream.Receive(absl::string_view(publish_ok, sizeof(publish_ok)), false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "End group is less than start group");
-}
-
-TEST_F(MoqtMessageSpecificTest, PublishOkHasMaxCacheDuration) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char publish_ok[15] = {
-      0x1e, 0x00, 0x0c,
-      0x01,                    // request_id = 1
-      0x01,                    // forward
-      0x02,                    // subscriber_priority = 2
-      0x01,                    // group_order
-      0x04,                    // filter_type
-      0x05, 0x04,              // start = 5, 4
-      0x06,                    // end_group = 6
-      0x01, 0x04, 0x67, 0x10,  // MaxCacheDuration = 10000
-  };
-  stream.Receive(absl::string_view(publish_ok, sizeof(publish_ok)), false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, InvalidSubscribeNamespaceOption) {
