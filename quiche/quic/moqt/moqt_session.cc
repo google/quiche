@@ -435,12 +435,12 @@ bool MoqtSession::PublishNamespaceCancel(const TrackNamespace& track_namespace,
                                          RequestErrorCode code,
                                          absl::string_view reason) {
   auto it = incoming_publish_namespaces_by_namespace_.find(track_namespace);
-  if (it == publish_namespace_by_namespace_.end()) {
+  if (it == incoming_publish_namespaces_by_namespace_.end()) {
     return false;  // Could have been destroyed by PUBLISH_NAMESPACE_DONE.
   }
   MoqtPublishNamespaceCancel message{it->second, code, std::string(reason)};
   incoming_publish_namespaces_by_id_.erase(it->second);
-  incoming_publish_namespaces_by_namespace_.erase(track_namespace);
+  incoming_publish_namespaces_by_namespace_.erase(it);
   SendControlMessage(framer_.SerializePublishNamespaceCancel(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent PUBLISH_NAMESPACE_CANCEL message for "
                   << track_namespace << " with reason " << reason;
