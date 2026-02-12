@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <memory>
 #include <string>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -15,6 +16,7 @@
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_session.h"
 #include "quiche/quic/core/quic_stream_send_buffer.h"
 #include "quiche/quic/core/quic_stream_send_buffer_base.h"
@@ -616,7 +618,9 @@ void QuicCryptoStream::ResetCryptoSubstreams() {
   }
   NeuterStreamDataOfEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   bytes_consumed_.clear();
+  std::vector<QuicIntervalSet<QuicStreamOffset>>().swap(bytes_consumed_);
   substreams_.clear();
+  std::vector<CryptoSubstream>().swap(substreams_);
   QUICHE_CODE_COUNT(quic_crypto_stream_reset_crypto_substreams);
 }
 
