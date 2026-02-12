@@ -36,6 +36,8 @@ class TrackNamespace {
  public:
   static absl::StatusOr<TrackNamespace> Create(MoqtStringTuple tuple);
 
+  static absl::StatusOr<TrackNamespace> Parse(absl::string_view input);
+
   TrackNamespace() = default;
 
   explicit TrackNamespace(std::initializer_list<absl::string_view> tuple);
@@ -109,6 +111,8 @@ class FullTrackName {
  public:
   static absl::StatusOr<FullTrackName> Create(TrackNamespace ns,
                                               std::string name);
+
+  static absl::StatusOr<FullTrackName> Parse(absl::string_view input);
 
   FullTrackName() = default;
 

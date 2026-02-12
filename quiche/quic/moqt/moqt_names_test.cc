@@ -4,20 +4,26 @@
 
 #include "quiche/quic/moqt/moqt_names.h"
 
+#include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/hash/hash.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
+#include "quiche/common/platform/api/quiche_fuzztest.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_status_utils.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace moqt::test {
 namespace {
 
+using ::quiche::test::IsOkAndHolds;
 using ::quiche::test::StatusIs;
+using ::testing::ElementsAre;
 using ::testing::HasSubstr;
 
 TEST(MoqtNamesTest, TrackNamespaceConstructors) {
@@ -128,6 +134,101 @@ TEST(MoqtNamesTest, FullTrackNameTooLong) {
   EXPECT_QUICHE_BUG(TrackNamespace({big_namespace}),
                     "TrackNamspace constructor");
 }
+
+absl::StatusOr<MoqtStringTuple> ParseNamespace(absl::string_view input) {
+  absl::StatusOr<TrackNamespace> ns = TrackNamespace::Parse(input);
+  QUICHE_RETURN_IF_ERROR(ns.status());
+  return ns->tuple();
+}
+
+TEST(MoqtNamesTest, ParseNamespace) {
+  EXPECT_THAT(ParseNamespace(""), IsOkAndHolds(ElementsAre()));
+  EXPECT_THAT(ParseNamespace("foo"), IsOkAndHolds(ElementsAre("foo")));
+  EXPECT_THAT(ParseNamespace("foo-bar"),
+              IsOkAndHolds(ElementsAre("foo", "bar")));
+  EXPECT_THAT(ParseNamespace("foo-bar--test"),
+              IsOkAndHolds(ElementsAre("foo", "bar", "", "test")));
+  EXPECT_THAT(ParseNamespace("foo-.ff"),
+              IsOkAndHolds(ElementsAre("foo", "\xff")));
+  EXPECT_THAT(ParseNamespace("foo-.f"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       "Incomplete escape sequence"));
+  EXPECT_THAT(
+      ParseNamespace("foo-.zz"),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("Invalid hex")));
+  EXPECT_THAT(
+      ParseNamespace("foo-.FF"),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("Invalid hex")));
+  EXPECT_THAT(
+      ParseNamespace("foo-.0z"),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("Invalid hex")));
+  EXPECT_THAT(ParseNamespace("foo-.61"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Hex-encoding a safe character")));
+  EXPECT_THAT(
+      ParseNamespace("................"),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("Invalid hex")));
+  EXPECT_THAT(ParseNamespace("foo-\xff"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Invalid character 0xff")));
+  std::string long_string(2 * kMaxFullTrackNameSize, 'a');
+  EXPECT_THAT(
+      ParseNamespace(long_string),
+      StatusIs(absl::StatusCode::kOutOfRange, "Maximum tuple size exceeded"));
+}
+
+TEST(MoqtNamesTest, ParseFullTrackName) {
+  EXPECT_THAT(FullTrackName::Parse("foo-bar--test"),
+              IsOkAndHolds(FullTrackName({"foo", "bar"}, "test")));
+  EXPECT_THAT(FullTrackName::Parse("foo--bar--test"),
+              IsOkAndHolds(FullTrackName({"foo", "", "bar"}, "test")));
+  EXPECT_THAT(FullTrackName::Parse("--test"),
+              IsOkAndHolds(FullTrackName({}, "test")));
+  EXPECT_THAT(
+      FullTrackName::Parse("a-b-c-d-e-f"),
+      StatusIs(absl::StatusCode::kInvalidArgument, HasSubstr("must use --")));
+  EXPECT_THAT(FullTrackName::Parse("foo-bar"),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("missing elements")));
+}
+
+void FuzzParseNamespace(absl::string_view encoded_namespace) {
+  (void)TrackNamespace::Parse(encoded_namespace);
+}
+
+void FuzzParseFullTrackName(absl::string_view encoded_track_name) {
+  (void)FullTrackName::Parse(encoded_track_name);
+}
+
+void SerializeAndParseNamespace(const std::vector<std::string>& elements) {
+  if (elements.empty() || elements[0].empty()) {
+    return;
+  }
+
+  TrackNamespace ns;
+  for (const std::string& element : elements) {
+    if (!ns.AddElement(element)) {
+      return;
+    }
+  }
+  absl::StatusOr<TrackNamespace> round_trip_result =
+      TrackNamespace::Parse(ns.ToString());
+  QUICHE_ASSERT_OK(round_trip_result.status());
+  EXPECT_EQ(ns, *round_trip_result);
+}
+
+void ParseAndSerializeNamespace(absl::string_view encoded_namespace) {
+  absl::StatusOr<TrackNamespace> ns = TrackNamespace::Parse(encoded_namespace);
+  if (!ns.ok()) {
+    return;
+  }
+  EXPECT_EQ(ns->ToString(), encoded_namespace);
+}
+
+FUZZ_TEST(MoqtNamesTest, FuzzParseNamespace);
+FUZZ_TEST(MoqtNamesTest, FuzzParseFullTrackName);
+FUZZ_TEST(MoqtNamesTest, SerializeAndParseNamespace);
+FUZZ_TEST(MoqtNamesTest, ParseAndSerializeNamespace);
 
 }  // namespace
 }  // namespace moqt::test
