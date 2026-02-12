@@ -308,7 +308,8 @@ KeyValuePairList MessageParameters::ToKeyValuePairList() const {
   KeyValuePairList list;
   if (delivery_timeout.has_value()) {
     // Value cannot be zero.
-    int64_t milliseconds = std::max(delivery_timeout->ToMilliseconds(), 1L);
+    int64_t milliseconds =
+        std::max(delivery_timeout->ToMilliseconds(), int64_t{1});
     list.insert(static_cast<uint64_t>(MessageParameter::kDeliveryTimeout),
                 static_cast<uint64_t>(milliseconds));
   }
