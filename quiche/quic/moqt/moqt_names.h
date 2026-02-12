@@ -18,7 +18,6 @@
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "quiche/common/quiche_status_utils.h"
 #include "quiche/common/quiche_string_tuple.h"
 
 namespace moqt {
@@ -73,7 +72,10 @@ class TrackNamespace {
     return result;
   }
 
+  // Encodes the string representation of MOQT track namespace in the format
+  // prescribed by the MOQT specification.
   std::string ToString() const;
+
   // Returns the number of elements in the tuple.
   size_t number_of_elements() const { return tuple_.size(); }
   // Returns the sum of the lengths of all elements in the tuple.
@@ -128,6 +130,8 @@ class FullTrackName {
   absl::string_view name() const ABSL_ATTRIBUTE_LIFETIME_BOUND { return name_; }
   size_t length() const { return namespace_.total_length() + name_.length(); }
 
+  // Encodes the string representation of MOQT full track name in the format
+  // prescribed by the MOQT specification.
   std::string ToString() const;
 
   auto operator<=>(const FullTrackName&) const = default;

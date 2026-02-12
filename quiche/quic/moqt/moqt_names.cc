@@ -11,6 +11,7 @@
 
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/ascii.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
@@ -18,6 +19,41 @@
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 namespace moqt {
+
+namespace {
+
+bool IsTrackNameSafeCharacter(char c) {
+  return absl::ascii_isalnum(c) || c == '_';
+}
+
+// Appends escaped version of a track name component into `output`.  It is up to
+// the caller to reserve() an appropriate amount of space in advance.  The text
+// format is defined in
+// https://www.ietf.org/archive/id/draft-ietf-moq-transport-16.html#name-representing-namespace-and-amount
+void EscapeTrackNameComponent(absl::string_view input, std::string& output) {
+  for (char c : input) {
+    if (IsTrackNameSafeCharacter(c)) {
+      output.push_back(c);
+    } else {
+      output.push_back('.');
+      absl::StrAppend(&output, absl::Hex(c, absl::kZeroPad2));
+    }
+  }
+}
+
+// Similarly to the function above, the caller should call reserve() on `output`
+// before calling.
+void AppendEscapedTrackNameTuple(const MoqtStringTuple& tuple,
+                                 std::string& output) {
+  for (size_t i = 0; i < tuple.size(); ++i) {
+    EscapeTrackNameComponent(tuple[i], output);
+    if (i < (tuple.size() - 1)) {
+      output.push_back('-');
+    }
+  }
+}
+
+}  // namespace
 
 absl::StatusOr<TrackNamespace> TrackNamespace::Create(MoqtStringTuple tuple) {
   if (tuple.size() > kMaxNamespaceElements) {
@@ -56,8 +92,10 @@ bool TrackNamespace::PopElement() {
 }
 
 std::string TrackNamespace::ToString() const {
-  // TODO(vasilvv): switch to the standard encoding.
-  return absl::StrCat(tuple_);
+  std::string output;
+  output.reserve(3 * tuple_.TotalBytes() + tuple_.size());
+  AppendEscapedTrackNameTuple(tuple_, output);
+  return output;
 }
 
 absl::StatusOr<FullTrackName> FullTrackName::Create(TrackNamespace ns,
@@ -84,7 +122,7 @@ FullTrackName::FullTrackName(TrackNamespace ns, absl::string_view name)
 }
 FullTrackName::FullTrackName(absl::string_view ns, absl::string_view name)
     : namespace_(TrackNamespace({ns})), name_(name) {
-  if (ns.size() + name.size() > kMaxFullTrackNameSize) {
+  if (namespace_.total_length() + name.size() > kMaxFullTrackNameSize) {
     QUICHE_BUG(Moqt_full_track_name_too_large_02)
         << "Constructing a Full Track Name that is too large.";
     namespace_.Clear();
@@ -107,8 +145,13 @@ FullTrackName::FullTrackName(TrackNamespace ns, std::string name,
     : namespace_(std::move(ns)), name_(std::move(name)) {}
 
 std::string FullTrackName::ToString() const {
-  // TODO(vasilvv): switch to the standard encoding.
-  return absl::StrCat(namespace_.ToString(), "::", name_);
+  std::string output;
+  output.reserve(3 * namespace_.total_length() +
+                 namespace_.number_of_elements() + 3 * name_.size() + 2);
+  AppendEscapedTrackNameTuple(namespace_.tuple(), output);
+  output.append("--");
+  EscapeTrackNameComponent(name_, output);
+  return output;
 }
 
 }  // namespace moqt

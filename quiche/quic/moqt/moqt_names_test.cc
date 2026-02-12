@@ -5,7 +5,6 @@
 #include "quiche/quic/moqt/moqt_names.h"
 
 #include <utility>
-#include <vector>
 
 #include "absl/hash/hash.h"
 #include "absl/status/status.h"
@@ -65,15 +64,18 @@ TEST(MoqtNamesTest, TrackNamespacePushPop) {
 
 TEST(MoqtNamesTest, TrackNamespaceToString) {
   TrackNamespace name1({"a", "b"});
-  EXPECT_EQ(name1.ToString(), R"({"a", "b"})");
+  EXPECT_EQ(name1.ToString(), "a-b");
 
-  TrackNamespace name2({"\xff", "\x61"});
-  EXPECT_EQ(name2.ToString(), R"({"\xff", "a"})");
+  TrackNamespace name2({"\xff\x01", "\x61"});
+  EXPECT_EQ(name2.ToString(), ".ff.01-a");
+
+  TrackNamespace name3({"a_b", "c_d?"});
+  EXPECT_EQ(name3.ToString(), "a_b-c_d.3f");
 }
 
 TEST(MoqtNamesTest, FullTrackNameToString) {
-  FullTrackName name1({"a", "b"}, "c");
-  EXPECT_EQ(name1.ToString(), R"({"a", "b"}::c)");
+  FullTrackName name1(TrackNamespace{"a", "b"}, "c");
+  EXPECT_EQ(name1.ToString(), "a-b--c");
 }
 
 TEST(MoqtNamesTest, TrackNamespaceSuffixes) {
