@@ -13,9 +13,11 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/vectorized_io_utils.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace webtransport::test {
 
@@ -58,11 +60,21 @@ bool InMemoryStream::SkipBytes(size_t bytes) {
 
 absl::Status InMemoryStream::Writev(absl::Span<quiche::QuicheMemSlice> data,
                                     const quiche::StreamWriteOptions& options) {
-  if (!CanWrite()) {
-    return absl::PermissionDeniedError("Stream is not writable.");
+  absl::Status status = GetWriteStatusWithExtraChecks();
+  if (!status.ok()) {
+    return status;
   }
-  last_data_sent_ = std::string(data[0].AsStringView());
-  fin_sent_ |= options.send_fin();
+
+  std::string merged_data;
+  for (const quiche::QuicheMemSlice& slice : data) {
+    merged_data.append(slice.AsStringView());
+  }
+  OnWrite(merged_data);
+
+  if (options.send_fin()) {
+    OnFin();
+    fin_sent_ = true;
+  }
   return absl::OkStatus();
 }
 
@@ -79,6 +91,25 @@ void InMemoryStream::Terminate() {
   abruptly_terminated_ = true;
   buffer_.Clear();
   fin_received_ = false;
+}
+
+absl::Status InMemoryStream::GetWriteStatus() const {
+  return absl::UnimplementedError(
+      "Writing not implemented; use InMemoryStreamWithMockWrite");
+}
+
+absl::Status InMemoryStream::GetWriteStatusWithExtraChecks() const {
+  if (fin_sent_) {
+    return absl::FailedPreconditionError(
+        "Can't write on a stream with FIN sent.");
+  }
+  return GetWriteStatus();
+}
+
+InMemoryStreamWithMockWrite::InMemoryStreamWithMockWrite(StreamId id)
+    : InMemoryStream(id) {
+  ON_CALL(*this, GetWriteStatus)
+      .WillByDefault(testing::Return(absl::OkStatus()));
 }
 
 }  // namespace webtransport::test

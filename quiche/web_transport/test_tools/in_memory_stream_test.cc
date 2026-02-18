@@ -7,6 +7,7 @@
 #include <array>
 #include <string>
 
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -19,6 +20,7 @@
 namespace webtransport::test {
 namespace {
 
+using ::quiche::test::StatusIs;
 using ::testing::ElementsAre;
 
 TEST(InMemoryStreamTest, ReadSpan) {
@@ -82,22 +84,47 @@ TEST(InMemoryStreamTest, Peek) {
   EXPECT_TRUE(fin_reached);
 }
 
-TEST(InMemoryStreamTest, Write) {
-  InMemoryStream stream(0);
+TEST(InMemoryStreamTest, InMemoryStreamWithMockWrite) {
+  InMemoryStreamWithMockWrite stream(0);
   EXPECT_TRUE(stream.CanWrite());
+
   std::array write_vector = {quiche::QuicheMemSlice::Copy("test")};
   quiche::StreamWriteOptions options;
+  EXPECT_CALL(stream, OnWrite("test"));
   QUICHE_EXPECT_OK(stream.Writev(absl::MakeSpan(write_vector), options));
-  EXPECT_EQ(stream.last_data_sent(), "test");
   EXPECT_FALSE(stream.fin_sent());
+
   // Send FIN.
   options.set_send_fin(true);
   write_vector = {quiche::QuicheMemSlice::Copy("test2")};
+  {
+    testing::InSequence sequence;
+    EXPECT_CALL(stream, OnWrite("test2"));
+    EXPECT_CALL(stream, OnFin());
+  }
   QUICHE_EXPECT_OK(stream.Writev(absl::MakeSpan(write_vector), options));
-  EXPECT_EQ(stream.last_data_sent(), "test2");
   EXPECT_TRUE(stream.fin_sent());
   EXPECT_FALSE(stream.CanWrite());
-  EXPECT_FALSE(stream.Writev(absl::MakeSpan(write_vector), options).ok());
+  EXPECT_THAT(stream.Writev(absl::MakeSpan(write_vector), options),
+              StatusIs(absl::StatusCode::kFailedPrecondition));
+}
+
+TEST(InMemoryStreamTest, InMemoryStreamWithWriteBuffer) {
+  InMemoryStreamWithWriteBuffer stream(0);
+  EXPECT_TRUE(stream.CanWrite());
+
+  std::array write_vector = {quiche::QuicheMemSlice::Copy("foo")};
+  quiche::StreamWriteOptions options;
+  QUICHE_EXPECT_OK(stream.Writev(absl::MakeSpan(write_vector), options));
+  EXPECT_FALSE(stream.fin_sent());
+
+  // Send FIN.
+  options.set_send_fin(true);
+  write_vector = {quiche::QuicheMemSlice::Copy("bar")};
+  QUICHE_EXPECT_OK(stream.Writev(absl::MakeSpan(write_vector), options));
+  EXPECT_EQ(stream.write_buffer(), "foobar");
+  EXPECT_TRUE(stream.fin_sent());
+  EXPECT_FALSE(stream.CanWrite());
 }
 
 }  // namespace

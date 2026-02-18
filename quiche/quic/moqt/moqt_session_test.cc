@@ -44,6 +44,7 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_stream.h"
 #include "quiche/common/quiche_weak_ptr.h"
@@ -126,6 +127,15 @@ static std::shared_ptr<MockTrackPublisher> SetupPublisher(
       .WillByDefault(testing::ReturnRef(kNoExtensions));
   ON_CALL(*publisher, expiration()).WillByDefault(Return(std::nullopt));
   return publisher;
+}
+
+std::optional<MoqtMessageType> PeekControlMessageType(absl::string_view data) {
+  quiche::QuicheDataReader reader(data);
+  uint64_t varint;
+  if (!reader.ReadVarInt62(&varint)) {
+    return std::nullopt;
+  }
+  return static_cast<MoqtMessageType>(varint);
 }
 
 }  // namespace
@@ -326,7 +336,7 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
                              std::make_unique<quic::test::TestAlarmFactory>(),
                              session_callbacks_.AsSessionCallbacks());
   // Load a CLIENT_SETUP message into an in-memory stream.
-  webtransport::test::InMemoryStream in_memory_stream(0);
+  webtransport::test::InMemoryStreamWithWriteBuffer in_memory_stream(0);
   MoqtFramer framer(session_parameters.using_webtrans);
   MoqtClientSetup setup;
   session_parameters.ToSetupParameters(setup.parameters);
@@ -339,8 +349,8 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
       .WillOnce(Return(nullptr));
   EXPECT_CALL(session_callbacks_.session_established_callback, Call());
   server_session.OnIncomingBidirectionalStreamAvailable();
-  EXPECT_EQ(static_cast<uint8_t>(in_memory_stream.last_data_sent()[0]),
-            static_cast<uint8_t>(MoqtMessageType::kServerSetup));
+  EXPECT_EQ(PeekControlMessageType(in_memory_stream.write_buffer()),
+            MoqtMessageType::kServerSetup);
   EXPECT_NE(MoqtSessionPeer::GetControlStream(&server_session), nullptr);
 }
 
@@ -2825,7 +2835,8 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespace) {
   MessageParameters parameters;
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
                                                "foo");
-  auto bidi_stream = std::make_unique<webtransport::test::InMemoryStream>(4);
+  auto bidi_stream =
+      std::make_unique<webtransport::test::InMemoryStreamWithWriteBuffer>(4);
   MoqtFramer framer(true);
   MoqtSubscribeNamespace subscribe_namespace = {
       /*request_id=*/1, prefix, SubscribeNamespaceOption::kBoth, parameters};
@@ -2847,8 +2858,9 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespace) {
         return task_ptr;
       });
   session_.OnIncomingBidirectionalStreamAvailable();
-  EXPECT_EQ(static_cast<uint8_t>(bidi_stream->last_data_sent().data()[0]),
-            static_cast<uint8_t>(MoqtMessageType::kRequestOk));
+  EXPECT_EQ(PeekControlMessageType(bidi_stream->write_buffer()),
+            MoqtMessageType::kRequestOk);
+  bidi_stream->write_buffer().clear();
 
   // Deliver a NAMESPACE
   ASSERT_TRUE(task.IsValid());
@@ -2862,8 +2874,8 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespace) {
   task.GetIfAvailable()->InvokeCallback();
   char expected_data[] = {0x08, 0x00, 0x05, 0x01, 0x03, 'b', 'a', 'r'};
   absl::string_view expected_data_view(expected_data, sizeof(expected_data));
-  EXPECT_EQ(expected_data_view, bidi_stream->last_data_sent().substr(
-                                    0, expected_data_view.length()));
+  EXPECT_EQ(expected_data_view,
+            bidi_stream->write_buffer().substr(0, expected_data_view.length()));
 
   // Unsubscribe
   bidi_stream.reset();
@@ -2875,7 +2887,7 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithSynchronousError) {
   MessageParameters parameters;
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
                                                "foo");
-  webtransport::test::InMemoryStream bidi_stream(4);
+  webtransport::test::InMemoryStreamWithWriteBuffer bidi_stream(4);
   MoqtFramer framer(true);
   MoqtSubscribeNamespace subscribe_namespace = {
       /*request_id=*/1, prefix, SubscribeNamespaceOption::kBoth, parameters};
@@ -2895,8 +2907,8 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithSynchronousError) {
         return nullptr;
       });
   session_.OnIncomingBidirectionalStreamAvailable();
-  EXPECT_EQ(static_cast<uint8_t>(bidi_stream.last_data_sent().data()[0]),
-            static_cast<uint8_t>(MoqtMessageType::kRequestError));
+  EXPECT_EQ(PeekControlMessageType(bidi_stream.write_buffer()),
+            MoqtMessageType::kRequestError);
   EXPECT_TRUE(bidi_stream.fin_sent());
 }
 
@@ -2905,7 +2917,8 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithPrefixOverlap) {
   MessageParameters parameters;
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
                                                "foo");
-  webtransport::test::InMemoryStream bidi_stream1(4), bidi_stream2(8);
+  webtransport::test::InMemoryStreamWithWriteBuffer bidi_stream1(4),
+      bidi_stream2(8);
   MoqtFramer framer(true);
   MoqtSubscribeNamespace subscribe_namespace = {
       /*request_id=*/1, foo, SubscribeNamespaceOption::kBoth, parameters};
@@ -2925,8 +2938,8 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithPrefixOverlap) {
         return task_ptr;
       });
   session_.OnIncomingBidirectionalStreamAvailable();
-  EXPECT_EQ(static_cast<uint8_t>(bidi_stream1.last_data_sent().data()[0]),
-            static_cast<uint8_t>(MoqtMessageType::kRequestOk));
+  EXPECT_EQ(PeekControlMessageType(bidi_stream1.write_buffer()),
+            MoqtMessageType::kRequestOk);
 
   subscribe_namespace.request_id += 2;
   subscribe_namespace.track_namespace_prefix = foobar;
@@ -2937,8 +2950,8 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithPrefixOverlap) {
       .WillOnce(Return(&bidi_stream2))
       .WillOnce(Return(nullptr));
   session_.OnIncomingBidirectionalStreamAvailable();
-  EXPECT_EQ(static_cast<uint8_t>(bidi_stream2.last_data_sent().data()[0]),
-            static_cast<uint8_t>(MoqtMessageType::kRequestError));
+  EXPECT_EQ(PeekControlMessageType(bidi_stream2.write_buffer()),
+            MoqtMessageType::kRequestError);
   EXPECT_TRUE(bidi_stream2.fin_sent());
 }
 
