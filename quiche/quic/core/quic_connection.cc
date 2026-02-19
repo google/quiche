@@ -529,9 +529,7 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientRequestedIndependentOption(k3AFF, perspective_)) {
     anti_amplification_factor_ = 3;
   }
-  if (GetQuicReloadableFlag(quic_enable_5aff_connection_option) &&
-      config.HasClientRequestedIndependentOption(k5AFF, perspective_)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_enable_5aff_connection_option);
+  if (config.HasClientRequestedIndependentOption(k5AFF, perspective_)) {
     anti_amplification_factor_ = 5;
   }
   if (config.HasClientRequestedIndependentOption(k10AF, perspective_)) {
