@@ -124,9 +124,10 @@
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
+#include "quiche/web_transport/stream_helpers.h"
+#include "quiche/web_transport/web_transport.h"
 #include "quiche/web_transport/web_transport_headers.h"
 
 using quiche::HttpHeaderBlock;
@@ -7653,7 +7654,7 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
       .WillOnce(Assign(&data_acknowledged, true));
   outgoing_stream->SetVisitor(std::move(stream_visitor));
 
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*outgoing_stream, "test"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*outgoing_stream, "test"));
   EXPECT_TRUE(outgoing_stream->SendFin());
 
   bool stream_received = false;
@@ -7694,7 +7695,7 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
   WebTransportStream* outgoing_stream =
       session->OpenOutgoingUnidirectionalStream();
   ASSERT_TRUE(outgoing_stream != nullptr);
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*outgoing_stream, "test"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*outgoing_stream, "test"));
   EXPECT_TRUE(outgoing_stream->SendFin());
 
   bool stream_received = false;
@@ -7735,7 +7736,7 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStream) {
       .WillOnce(Assign(&data_acknowledged, true));
   stream->SetVisitor(std::move(stream_visitor_owned));
 
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*stream, "test"));
   EXPECT_TRUE(stream->SendFin());
 
   std::string received_data =
@@ -7762,7 +7763,7 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStreamWithBuffering) {
 
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*stream, "test"));
   EXPECT_TRUE(stream->SendFin());
 
   std::string received_data = ReadDataFromWebTransportStreamUntilFin(stream);
@@ -7797,7 +7798,7 @@ TEST_P(EndToEndTest, WebTransportSessionServerBidirectionalStream) {
                              quiche::QuicheMemSlice::Copy("bar"),
                              quiche::QuicheMemSlice::Copy("test"),
                              quiche::QuicheMemSlice::Copy(kLongString)};
-  quiche::StreamWriteOptions options;
+  webtransport::StreamWriteOptions options;
   options.set_send_fin(true);
   QUICHE_EXPECT_OK(stream->Writev(absl::MakeSpan(write_vector), options));
 
@@ -7849,7 +7850,7 @@ TEST_P(EndToEndTest, WebTransportSessionClose) {
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
   QuicStreamId stream_id = stream->GetStreamId();
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*stream, "test"));
   // Keep stream open.
 
   bool close_received = false;
@@ -7881,7 +7882,7 @@ TEST_P(EndToEndTest, WebTransportSessionCloseWithoutCapsule) {
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
   QuicStreamId stream_id = stream->GetStreamId();
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*stream, "test"));
   // Keep stream open.
 
   bool close_received = false;
@@ -7913,7 +7914,7 @@ TEST_P(EndToEndTest, WebTransportSessionReceiveClose) {
   WebTransportStream* stream = session->OpenOutgoingUnidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
   QuicStreamId stream_id = stream->GetStreamId();
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "42 test error"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*stream, "42 test error"));
   EXPECT_TRUE(stream->SendFin());
 
   // Have some other streams open pending, to ensure they are closed properly.
@@ -7945,7 +7946,7 @@ TEST_P(EndToEndTest, WebTransportSessionReceiveDrain) {
 
   WebTransportStream* stream = session->OpenOutgoingUnidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "DRAIN"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*stream, "DRAIN"));
   EXPECT_TRUE(stream->SendFin());
 
   bool drain_received = false;
@@ -7976,7 +7977,7 @@ TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   QuicStreamId id1 = stream->GetStreamId();
   ASSERT_TRUE(stream != nullptr);
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*stream, "test"));
   stream->ResetWithUserCode(42);
 
   // This read fails if the stream is closed in both directions, since that
@@ -7987,7 +7988,7 @@ TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
   stream = session->OpenOutgoingBidirectionalStream();
   QuicStreamId id2 = stream->GetStreamId();
   ASSERT_TRUE(stream != nullptr);
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*stream, "test"));
   stream->SendStopSending(100024);
 
   std::array<std::string, 2> expected_log = {
@@ -8070,7 +8071,7 @@ TEST_P(EndToEndTest, WebTransportSession404) {
 
   WebTransportStream* stream = session->OpenOutgoingBidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*stream, "test"));
   EXPECT_TRUE(stream->SendFin());
 
   EXPECT_TRUE(client_->WaitUntil(-1, [this, connect_stream_id]() {
@@ -8106,7 +8107,7 @@ TEST_P(EndToEndTest, WebTransportSessionGoaway) {
   WebTransportStream* outgoing_stream =
       session->OpenOutgoingUnidirectionalStream();
   ASSERT_TRUE(outgoing_stream != nullptr);
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*outgoing_stream, "test"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*outgoing_stream, "test"));
   EXPECT_TRUE(outgoing_stream->SendFin());
 
   EXPECT_CALL(visitor, OnIncomingUnidirectionalStreamAvailable())
@@ -8131,7 +8132,7 @@ TEST_P(EndToEndTest, WebTransportSessionGoaway) {
   MockWebTransportStreamVisitor* stream_visitor = stream_visitor_owned.get();
   stream->SetVisitor(std::move(stream_visitor_owned));
 
-  QUICHE_EXPECT_OK(quiche::WriteIntoStream(*stream, "test"));
+  QUICHE_EXPECT_OK(webtransport::WriteIntoStream(*stream, "test"));
   EXPECT_TRUE(stream->SendFin());
 
   std::string received_data =

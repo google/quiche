@@ -25,7 +25,6 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic {
@@ -66,7 +65,7 @@ WebTransportStream::ReadResult WebTransportStreamAdapter::Read(
 
 absl::Status WebTransportStreamAdapter::Writev(
     absl::Span<quiche::QuicheMemSlice> data,
-    const quiche::StreamWriteOptions& options) {
+    const webtransport::StreamWriteOptions& options) {
   if (data.empty() && !options.send_fin()) {
     return absl::InvalidArgumentError(
         "Writev() called without any data or a FIN");
@@ -118,21 +117,12 @@ bool WebTransportStreamAdapter::CanWrite() const {
   return CheckBeforeStreamWrite().ok();
 }
 
-void WebTransportStreamAdapter::AbruptlyTerminate(absl::Status error) {
-  QUIC_DLOG(WARNING) << (session_->perspective() == Perspective::IS_CLIENT
-                             ? "Client: "
-                             : "Server: ")
-                     << "Abruptly terminating stream " << stream_->id()
-                     << " due to the following error: " << error;
-  ResetDueToInternalError();
-}
-
 size_t WebTransportStreamAdapter::ReadableBytes() const {
   QUICHE_DCHECK(sequencer_->level_triggered());
   return sequencer_->ReadableBytes();
 }
 
-quiche::ReadStream::PeekResult
+webtransport::Stream::PeekResult
 WebTransportStreamAdapter::PeekNextReadableRegion() const {
   iovec iov;
   PeekResult result;

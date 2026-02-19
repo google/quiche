@@ -16,8 +16,8 @@
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
+#include "quiche/web_transport/web_transport.h"
 
 using ::testing::_;
 using ::testing::Return;
@@ -220,7 +220,7 @@ TEST_F(MoqtBidiStreamTest, MessageBufferedThenSent) {
     EXPECT_CALL(mock_stream_,
                 Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
         .WillOnce([](absl::Span<quiche::QuicheMemSlice>,
-                     const quiche::StreamWriteOptions& options) {
+                     const webtransport::StreamWriteOptions& options) {
           EXPECT_TRUE(options.send_fin());
           return absl::OkStatus();
         });
@@ -232,7 +232,7 @@ TEST_F(MoqtBidiStreamTest, FinSentWhenDrained) {
   stream_->set_stream(&mock_stream_);
   EXPECT_CALL(mock_stream_, Writev)
       .WillOnce([](absl::Span<quiche::QuicheMemSlice>,
-                   const quiche::StreamWriteOptions& options) {
+                   const webtransport::StreamWriteOptions& options) {
         EXPECT_TRUE(options.send_fin());
         return absl::OkStatus();
       });

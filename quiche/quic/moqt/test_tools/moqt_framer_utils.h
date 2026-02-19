@@ -19,7 +19,7 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt::test {
 
@@ -83,8 +83,9 @@ class StoreSubscribe {
       : subscribe_(subscribe) {}
 
   // quiche::WriteStream::Writev() implementation.
-  absl::Status operator()(absl::Span<const absl::string_view> data,
-                          const quiche::StreamWriteOptions& options) const;
+  absl::Status operator()(
+      absl::Span<const absl::string_view> data,
+      const webtransport::StreamWriteOptions& options) const;
 
  private:
   std::optional<MoqtSubscribe>* subscribe_;

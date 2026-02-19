@@ -25,8 +25,8 @@
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt::test {
 namespace {
@@ -324,7 +324,7 @@ TEST_F(MoqtNamespacePublisherStreamTest, Subscribe) {
       .WillOnce([](TrackNamespace& ns, TransactionType& type) { return kEof; });
   EXPECT_CALL(mock_stream_, Writev)
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> slices,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         EXPECT_EQ(slices.size(), 1);
         EXPECT_EQ(slices[0].data()[0],
                   static_cast<uint8_t>(MoqtMessageType::kNamespaceDone));
@@ -332,7 +332,7 @@ TEST_F(MoqtNamespacePublisherStreamTest, Subscribe) {
         return absl::OkStatus();
       })
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> slices,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         EXPECT_EQ(slices.size(), 0);
         EXPECT_TRUE(options.send_fin());
         return absl::OkStatus();

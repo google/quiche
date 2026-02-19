@@ -26,7 +26,6 @@
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/web_transport/web_transport.h"
 #include "quiche/web_transport/web_transport_priority_scheduler.h"
@@ -47,9 +46,8 @@ using FatalErrorCallback = quiche::SingleUseCallback<void(absl::string_view)>;
 // arbitrary bidirectional bytestream that can be prefixed with HTTP headers.
 // Specification: https://datatracker.ietf.org/doc/draft-ietf-webtrans-http2/
 class QUICHE_EXPORT EncapsulatedSession
-    : public webtransport::Session,
-      public quiche::WriteStreamVisitor,
-      public quiche::ReadStreamVisitor,
+    : public Session,
+      public StreamVisitor,
       public quiche::CapsuleParser::Visitor {
  public:
   // The state machine of the transport.
@@ -77,16 +75,14 @@ class QUICHE_EXPORT EncapsulatedSession
   // thus, the headers are necessary to initialize the session.
   void InitializeClient(std::unique_ptr<SessionVisitor> visitor,
                         quiche::HttpHeaderBlock& outgoing_headers,
-                        quiche::WriteStream* writer,
-                        quiche::ReadStream* reader);
+                        Stream* underlying);
   void InitializeServer(std::unique_ptr<SessionVisitor> visitor,
                         const quiche::HttpHeaderBlock& incoming_headers,
                         quiche::HttpHeaderBlock& outgoing_headers,
-                        quiche::WriteStream* writer,
-                        quiche::ReadStream* reader);
+                        Stream* underlying);
   void ProcessIncomingServerHeaders(const quiche::HttpHeaderBlock& headers);
 
-  // webtransport::Session implementation.
+  // Session implementation.
   void CloseSession(SessionErrorCode error_code,
                     absl::string_view error_message) override;
   Stream* AcceptIncomingBidirectionalStream() override;
@@ -105,10 +101,16 @@ class QUICHE_EXPORT EncapsulatedSession
   void SetOnDraining(quiche::SingleUseCallback<void()> callback) override;
   std::optional<std::string> GetNegotiatedSubprotocol() const override;
 
-  // quiche::WriteStreamVisitor implementation.
+  // StreamVisitor implementation.
   void OnCanWrite() override;
-  // quiche::ReadStreamVisitor implementation.
   void OnCanRead() override;
+  void OnResetStreamReceived(StreamErrorCode) override {
+    OnFatalError("Underlying stream was reset");
+  }
+  void OnStopSendingReceived(StreamErrorCode) override {
+    OnFatalError("Underlying stream was reset");
+  }
+  void OnWriteSideInDataRecvdState() override {}
   // quiche::CapsuleParser::Visitor implementation.
   bool OnCapsule(const quiche::Capsule& capsule) override;
   void OnCapsuleParseFailure(absl::string_view error_message) override;
@@ -147,11 +149,8 @@ class QUICHE_EXPORT EncapsulatedSession
 
     // WriteStream implementation.
     absl::Status Writev(absl::Span<quiche::QuicheMemSlice> data,
-                        const quiche::StreamWriteOptions& options) override;
+                        const StreamWriteOptions& options) override;
     bool CanWrite() const override;
-
-    // TerminableStream implementation.
-    void AbruptlyTerminate(absl::Status error) override;
 
     // Stream implementation.
     StreamId GetStreamId() const override { return id_; }
@@ -224,8 +223,7 @@ class QUICHE_EXPORT EncapsulatedSession
   std::unique_ptr<SessionVisitor> visitor_ = nullptr;
   FatalErrorCallback fatal_error_callback_;
   quiche::SingleUseCallback<void()> draining_callback_;
-  quiche::WriteStream* writer_ = nullptr;  // Not owned.
-  quiche::ReadStream* reader_ = nullptr;   // Not owned.
+  Stream* underlying_ = nullptr;  // Not owned.
   quiche::QuicheBufferAllocator* allocator_ =
       quiche::SimpleBufferAllocator::Get();
   quiche::CapsuleParser capsule_parser_;

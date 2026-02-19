@@ -21,7 +21,6 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/session_namespace_tree.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {

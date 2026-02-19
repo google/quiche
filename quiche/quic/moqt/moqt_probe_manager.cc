@@ -19,8 +19,8 @@
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/common/wire_serialization.h"
+#include "quiche/web_transport/stream_helpers.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -73,7 +73,7 @@ void MoqtProbeManager::ProbeStreamVisitor::OnCanWrite() {
   }
 
   if (!header_sent_) {
-    absl::Status status = quiche::WriteIntoStream(
+    absl::Status status = webtransport::WriteIntoStream(
         *stream_, *quiche::SerializeIntoString(quiche::WireVarInt62(
                       MoqtDataStreamType::Padding().value())));
     QUICHE_DCHECK(status.ok()) << status;  // Should succeed if CanWrite().
@@ -84,7 +84,7 @@ void MoqtProbeManager::ProbeStreamVisitor::OnCanWrite() {
     quic::QuicByteCount chunk_size = std::min(kWriteChunkSize, data_remaining_);
     quiche::QuicheMemSlice chunk(
         kZeroes, chunk_size, +[](absl::string_view) {});
-    quiche::StreamWriteOptions options;
+    webtransport::StreamWriteOptions options;
     options.set_send_fin(chunk_size == data_remaining_);
     absl::Status status = stream_->Writev(absl::MakeSpan(&chunk, 1), options);
     QUICHE_DCHECK(status.ok()) << status;  // Should succeed if CanWrite().

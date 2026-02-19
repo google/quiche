@@ -21,7 +21,6 @@
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace webtransport {
@@ -42,12 +41,11 @@ class QUICHE_NO_EXPORT MockStream : public Stream {
   MOCK_METHOD(ReadResult, Read, (std::string * output), (override));
   MOCK_METHOD(absl::Status, Writev,
               (absl::Span<quiche::QuicheMemSlice> data,
-               const quiche::StreamWriteOptions& options),
+               const StreamWriteOptions& options),
               (override));
   MOCK_METHOD(PeekResult, PeekNextReadableRegion, (), (const, override));
   MOCK_METHOD(bool, SkipBytes, (size_t bytes), (override));
   MOCK_METHOD(bool, CanWrite, (), (const, override));
-  MOCK_METHOD(void, AbruptlyTerminate, (absl::Status), (override));
   MOCK_METHOD(size_t, ReadableBytes, (), (const, override));
   MOCK_METHOD(StreamId, GetStreamId, (), (const, override));
   MOCK_METHOD(void, ResetWithUserCode, (StreamErrorCode error), (override));

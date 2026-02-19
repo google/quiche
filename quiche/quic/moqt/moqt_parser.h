@@ -22,7 +22,7 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/common/quiche_stream.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 
@@ -89,7 +89,7 @@ class MoqtDataParserVisitor {
 
 class QUICHE_EXPORT MoqtMessageTypeParser {
  public:
-  MoqtMessageTypeParser(quiche::ReadStream* stream) : stream_(*stream) {}
+  MoqtMessageTypeParser(webtransport::Stream* stream) : stream_(*stream) {}
   ~MoqtMessageTypeParser() = default;
 
   // Returns false if there was a FIN.
@@ -97,13 +97,13 @@ class QUICHE_EXPORT MoqtMessageTypeParser {
   std::optional<uint64_t> message_type() const { return message_type_; }
 
  private:
-  quiche::ReadStream& stream_;
+  webtransport::Stream& stream_;
   std::optional<uint64_t> message_type_;
 };
 
 class QUICHE_EXPORT MoqtControlParser {
  public:
-  MoqtControlParser(bool uses_web_transport, quiche::ReadStream* stream,
+  MoqtControlParser(bool uses_web_transport, webtransport::Stream* stream,
                     MoqtControlParserVisitor& visitor)
       : visitor_(visitor),
         stream_(*stream),
@@ -177,7 +177,7 @@ class QUICHE_EXPORT MoqtControlParser {
                                         MessageParameters& out);
 
   MoqtControlParserVisitor& visitor_;
-  quiche::ReadStream& stream_;
+  webtransport::Stream& stream_;
   bool uses_web_transport_;
   bool no_more_data_ = false;  // Fatal error or fin. No more parsing.
   bool parsing_error_ = false;
@@ -206,7 +206,7 @@ class QUICHE_EXPORT MoqtDataParser {
   // `stream` must outlive the parser.  The parser does not configure itself as
   // a listener for the read events of the stream; it is responsibility of the
   // caller to do so via one of the read methods below.
-  explicit MoqtDataParser(quiche::ReadStream* stream,
+  explicit MoqtDataParser(webtransport::Stream* stream,
                           MoqtDataParserVisitor* visitor)
       : stream_(*stream), visitor_(*visitor) {}
 
@@ -282,7 +282,7 @@ class QUICHE_EXPORT MoqtDataParser {
 
   void ParseError(absl::string_view reason);
 
-  quiche::ReadStream& stream_;
+  webtransport::Stream& stream_;
   MoqtDataParserVisitor& visitor_;
 
   bool no_more_data_ = false;  // Fatal error or fin. No more parsing.

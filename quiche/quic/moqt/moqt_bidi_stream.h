@@ -27,7 +27,7 @@
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
+#include "quiche/web_transport/stream_helpers.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -214,7 +214,7 @@ class MoqtBidiStreamBase : public MoqtControlParserVisitor,
   void Fin() {
     fin_queued_ = true;
     if (pending_messages_.empty()) {
-      if (stream_ != nullptr && !SendFinOnStream(*stream_).ok()) {
+      if (stream_ != nullptr && !webtransport::SendFinOnStream(*stream_).ok()) {
         std::move(session_error_callback_)(MoqtError::kInternalError,
                                            "Failed to send FIN");
       }
@@ -260,7 +260,7 @@ class MoqtBidiStreamBase : public MoqtControlParserVisitor,
 
  private:
   void SendMessage(quiche::QuicheBuffer message, bool fin) {
-    quiche::StreamWriteOptions options;
+    webtransport::StreamWriteOptions options;
     options.set_send_fin(fin);
     // TODO: while we buffer unconditionally, we should still at some point tear
     // down the connection if we've buffered too many control messages;

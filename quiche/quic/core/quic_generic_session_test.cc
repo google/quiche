@@ -43,8 +43,8 @@
 #include "quiche/quic/tools/web_transport_test_visitors.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
+#include "quiche/web_transport/stream_helpers.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -55,7 +55,7 @@ enum ServerType { kDiscardServer, kEchoServer };
 
 constexpr char kZeroes[8192] = {0};
 
-absl::Status SendZeroes(quiche::WriteStream& stream, int num_of_zeroes,
+absl::Status SendZeroes(webtransport::Stream& stream, int num_of_zeroes,
                         bool fin = false) {
   std::vector<quiche::QuicheMemSlice> slices;
   slices.reserve(num_of_zeroes / sizeof(kZeroes) + 1);
@@ -66,7 +66,7 @@ absl::Status SendZeroes(quiche::WriteStream& stream, int num_of_zeroes,
         quiche::QuicheMemSlice(kZeroes, chunk_size, +[](absl::string_view) {}));
     remaining -= chunk_size;
   }
-  quiche::StreamWriteOptions options;
+  webtransport::StreamWriteOptions options;
   options.set_send_fin(fin);
   return stream.Writev(absl::MakeSpan(slices), options);
 }
@@ -330,12 +330,13 @@ TEST_F(QuicGenericSessionTest, EchoStreamsUsingPeekApi) {
       client_->session()->AcceptIncomingUnidirectionalStream();
   ASSERT_TRUE(reply != nullptr);
   std::string buffer;
-  quiche::ReadStream::PeekResult peek_result = reply->PeekNextReadableRegion();
+  webtransport::Stream::PeekResult peek_result =
+      reply->PeekNextReadableRegion();
   EXPECT_EQ(peek_result.peeked_data, "Stream Two");
   EXPECT_EQ(peek_result.fin_next, false);
   EXPECT_EQ(peek_result.all_data_received, true);
-  bool fin_received =
-      quiche::ProcessAllReadableRegions(*reply, [&](absl::string_view chunk) {
+  bool fin_received = webtransport::ProcessAllReadableRegions(
+      *reply, [&](absl::string_view chunk) {
         buffer.append(chunk.data(), chunk.size());
         return true;
       });
@@ -516,17 +517,17 @@ TEST_F(QuicGenericSessionTest, WriteWhenBufferFull) {
   ASSERT_TRUE(stream != nullptr);
 
   ASSERT_TRUE(stream->CanWrite());
-  absl::Status status = quiche::WriteIntoStream(*stream, buffer);
+  absl::Status status = webtransport::WriteIntoStream(*stream, buffer);
   QUICHE_EXPECT_OK(status);
   EXPECT_FALSE(stream->CanWrite());
 
-  status = quiche::WriteIntoStream(*stream, buffer);
+  status = webtransport::WriteIntoStream(*stream, buffer);
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kUnavailable));
 
-  quiche::StreamWriteOptions options;
+  webtransport::StreamWriteOptions options;
   options.set_buffer_unconditionally(true);
   options.set_send_fin(true);
-  status = quiche::WriteIntoStream(*stream, buffer, options);
+  status = webtransport::WriteIntoStream(*stream, buffer, options);
   QUICHE_EXPECT_OK(status);
   EXPECT_FALSE(stream->CanWrite());
 
@@ -534,7 +535,7 @@ TEST_F(QuicGenericSessionTest, WriteWhenBufferFull) {
   for (;;) {
     test_harness_.RunUntilWithDefaultTimeout(
         [&] { return stream->PeekNextReadableRegion().has_data(); });
-    quiche::ReadStream::PeekResult result = stream->PeekNextReadableRegion();
+    webtransport::Stream::PeekResult result = stream->PeekNextReadableRegion();
     total_received += result.peeked_data.size();
     bool fin_consumed = stream->SkipBytes(result.peeked_data.size());
     if (fin_consumed) {

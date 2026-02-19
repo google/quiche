@@ -8,7 +8,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-#include <vector>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
@@ -17,11 +16,10 @@
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_buffer_allocator.h"
-#include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/common/simple_buffer_allocator.h"
-#include "quiche/common/test_tools/mock_streams.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
+#include "quiche/web_transport/stream_helpers.h"
+#include "quiche/web_transport/test_tools/in_memory_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -41,20 +39,15 @@ using ::testing::StrEq;
 class EncapsulatedWebTransportTest : public quiche::test::QuicheTest,
                                      public quiche::CapsuleParser::Visitor {
  public:
-  EncapsulatedWebTransportTest() : parser_(this), reader_(&read_buffer_) {
+  EncapsulatedWebTransportTest() : parser_(this), underlying_(0) {
     ON_CALL(fatal_error_callback_, Call(_))
         .WillByDefault([](absl::string_view error) {
           ADD_FAILURE() << "Fatal session error: " << error;
         });
-    ON_CALL(writer_, Writev(_, _))
-        .WillByDefault([&](absl::Span<quiche::QuicheMemSlice> data,
-                           const quiche::StreamWriteOptions& options) {
-          for (const quiche::QuicheMemSlice& fragment : data) {
-            parser_.IngestCapsuleFragment(fragment.AsStringView());
-          }
-          writer_.ProcessOptions(options);
-          return absl::OkStatus();
-        });
+    ON_CALL(underlying_, OnWrite).WillByDefault([&](absl::string_view data) {
+      parser_.IngestCapsuleFragment(data);
+      return absl::OkStatus();
+    });
   }
 
   std::unique_ptr<EncapsulatedSession> CreateTransport(
@@ -80,7 +73,7 @@ class EncapsulatedWebTransportTest : public quiche::test::QuicheTest,
   void ProcessIncomingCapsule(const Capsule& capsule) {
     quiche::QuicheBuffer buffer =
         quiche::SerializeCapsule(capsule, quiche::SimpleBufferAllocator::Get());
-    read_buffer_.append(buffer.data(), buffer.size());
+    underlying_.Receive(buffer.AsStringView());
     session_->OnCanRead();
   }
 
@@ -88,23 +81,21 @@ class EncapsulatedWebTransportTest : public quiche::test::QuicheTest,
   void ProcessIncomingCapsule(const CapsuleType& capsule) {
     quiche::QuicheBuffer buffer = quiche::SerializeCapsule(
         quiche::Capsule(capsule), quiche::SimpleBufferAllocator::Get());
-    read_buffer_.append(buffer.data(), buffer.size());
+    underlying_.Receive(buffer.AsStringView());
     session_->OnCanRead();
   }
 
   void DefaultHandshakeForClient(EncapsulatedSession& session) {
     quiche::HttpHeaderBlock outgoing_headers, incoming_headers;
     session.InitializeClient(CreateAndStoreVisitor(), outgoing_headers,
-                             &writer_, &reader_);
+                             &underlying_);
     EXPECT_CALL(*visitor_, OnSessionReady());
     session.ProcessIncomingServerHeaders(incoming_headers);
   }
 
  protected:
   quiche::CapsuleParser parser_;
-  quiche::test::MockWriteStream writer_;
-  std::string read_buffer_;
-  quiche::test::ReadStreamFromString reader_;
+  InMemoryStreamWithMockWrite underlying_;
   MockSessionVisitor* visitor_ = nullptr;
   EncapsulatedSession* session_ = nullptr;
   testing::MockFunction<void(absl::string_view)> fatal_error_callback_;
@@ -127,8 +118,8 @@ TEST_F(EncapsulatedWebTransportTest, SetupClientSession) {
       CreateTransport(Perspective::kClient);
   quiche::HttpHeaderBlock outgoing_headers, incoming_headers;
   EXPECT_EQ(session->state(), EncapsulatedSession::kUninitialized);
-  session->InitializeClient(CreateAndStoreVisitor(), outgoing_headers, &writer_,
-                            &reader_);
+  session->InitializeClient(CreateAndStoreVisitor(), outgoing_headers,
+                            &underlying_);
   EXPECT_EQ(session->state(), EncapsulatedSession::kWaitingForHeaders);
   EXPECT_CALL(*visitor_, OnSessionReady());
   session->ProcessIncomingServerHeaders(incoming_headers);
@@ -143,7 +134,7 @@ TEST_F(EncapsulatedWebTransportTest, SetupServerSession) {
   std::unique_ptr<SessionVisitor> visitor = CreateAndStoreVisitor();
   EXPECT_CALL(*visitor_, OnSessionReady());
   session->InitializeServer(std::move(visitor), outgoing_headers,
-                            incoming_headers, &writer_, &reader_);
+                            incoming_headers, &underlying_);
   EXPECT_EQ(session->state(), EncapsulatedSession::kSessionOpen);
 }
 
@@ -162,7 +153,7 @@ TEST_F(EncapsulatedWebTransportTest, CloseSession) {
   EXPECT_CALL(*visitor_, OnSessionClosed(0x1234, StrEq("test close")));
   session->CloseSession(0x1234, "test close");
   EXPECT_EQ(session->state(), EncapsulatedSession::kSessionClosed);
-  EXPECT_TRUE(writer_.fin_written());
+  EXPECT_TRUE(underlying_.fin_sent());
 
   EXPECT_CALL(fatal_error_callback_, Call(_))
       .WillOnce([](absl::string_view error) {
@@ -175,7 +166,8 @@ TEST_F(EncapsulatedWebTransportTest, CloseSessionWriteBlocked) {
   std::unique_ptr<EncapsulatedSession> session =
       CreateTransport(Perspective::kClient);
   DefaultHandshakeForClient(*session);
-  EXPECT_CALL(writer_, CanWrite()).WillOnce(Return(false));
+  EXPECT_CALL(underlying_, GetWriteStatus)
+      .WillOnce(Return(absl::UnavailableError("Write-blocked")));
   EXPECT_CALL(*this, OnCapsule(_)).Times(0);
   EXPECT_EQ(session->state(), EncapsulatedSession::kSessionOpen);
   session->CloseSession(0x1234, "test close");
@@ -188,11 +180,12 @@ TEST_F(EncapsulatedWebTransportTest, CloseSessionWriteBlocked) {
               "test close");
     return true;
   });
-  EXPECT_CALL(writer_, CanWrite()).WillOnce(Return(true));
+  EXPECT_CALL(underlying_, GetWriteStatus)
+      .WillRepeatedly(Return(absl::OkStatus()));
   EXPECT_CALL(*visitor_, OnSessionClosed(0x1234, StrEq("test close")));
   session->OnCanWrite();
   EXPECT_EQ(session->state(), EncapsulatedSession::kSessionClosed);
-  EXPECT_TRUE(writer_.fin_written());
+  EXPECT_TRUE(underlying_.fin_sent());
 }
 
 TEST_F(EncapsulatedWebTransportTest, ReceiveFin) {
@@ -201,9 +194,9 @@ TEST_F(EncapsulatedWebTransportTest, ReceiveFin) {
   DefaultHandshakeForClient(*session);
 
   EXPECT_CALL(*visitor_, OnSessionClosed(0, IsEmpty()));
-  reader_.set_fin();
+  underlying_.Receive("", /*fin=*/true);
   session->OnCanRead();
-  EXPECT_TRUE(writer_.fin_written());
+  EXPECT_TRUE(underlying_.fin_sent());
 }
 
 TEST_F(EncapsulatedWebTransportTest, ReceiveCloseSession) {
@@ -213,8 +206,8 @@ TEST_F(EncapsulatedWebTransportTest, ReceiveCloseSession) {
 
   EXPECT_CALL(*visitor_, OnSessionClosed(0x1234, StrEq("test")));
   ProcessIncomingCapsule(Capsule::CloseWebTransportSession(0x1234, "test"));
-  EXPECT_TRUE(writer_.fin_written());
-  reader_.set_fin();
+  EXPECT_TRUE(underlying_.fin_sent());
+  underlying_.Receive("", /*fin=*/true);
   session->OnCanRead();
 }
 
@@ -225,7 +218,7 @@ TEST_F(EncapsulatedWebTransportTest, ReceiveMalformedData) {
 
   EXPECT_CALL(fatal_error_callback_, Call(HasSubstr("too much capsule data")))
       .WillOnce([] {});
-  read_buffer_ = std::string(2 * 1024 * 1024, '\xff');
+  underlying_.Receive(std::string(2 * 1024 * 1024, '\xff'));
   session->OnCanRead();
 }
 
@@ -246,8 +239,8 @@ TEST_F(EncapsulatedWebTransportTest, SendDatagramsEarly) {
   std::unique_ptr<EncapsulatedSession> session =
       CreateTransport(Perspective::kClient);
   quiche::HttpHeaderBlock outgoing_headers;
-  session->InitializeClient(CreateAndStoreVisitor(), outgoing_headers, &writer_,
-                            &reader_);
+  session->InitializeClient(CreateAndStoreVisitor(), outgoing_headers,
+                            &underlying_);
   EXPECT_CALL(*this, OnCapsule(_)).WillOnce([](const Capsule& capsule) {
     EXPECT_EQ(capsule.capsule_type(), quiche::CapsuleType::DATAGRAM);
     EXPECT_EQ(capsule.datagram_capsule().http_datagram_payload, "test");
@@ -317,9 +310,11 @@ TEST_F(EncapsulatedWebTransportTest, WriteErrorDatagram) {
   std::unique_ptr<EncapsulatedSession> session =
       CreateTransport(Perspective::kClient);
   DefaultHandshakeForClient(*session);
-  EXPECT_CALL(writer_, Writev(_, _))
+  // Let the CanWrite() check pass, then fail on the actual write.
+  EXPECT_CALL(underlying_, GetWriteStatus)
+      .WillOnce(Return(absl::OkStatus()))
       .WillOnce(Return(absl::InternalError("Test write error")));
-  EXPECT_CALL(fatal_error_callback_, Call(_))
+  EXPECT_CALL(fatal_error_callback_, Call)
       .WillOnce([](absl::string_view error) {
         EXPECT_THAT(error, HasSubstr("Test write error"));
       });
@@ -331,9 +326,11 @@ TEST_F(EncapsulatedWebTransportTest, WriteErrorControlCapsule) {
   std::unique_ptr<EncapsulatedSession> session =
       CreateTransport(Perspective::kClient);
   DefaultHandshakeForClient(*session);
-  EXPECT_CALL(writer_, Writev(_, _))
+  // Let the CanWrite() check pass, then fail on the actual write.
+  EXPECT_CALL(underlying_, GetWriteStatus)
+      .WillOnce(Return(absl::OkStatus()))
       .WillOnce(Return(absl::InternalError("Test write error")));
-  EXPECT_CALL(fatal_error_callback_, Call(_))
+  EXPECT_CALL(fatal_error_callback_, Call)
       .WillOnce([](absl::string_view error) {
         EXPECT_THAT(error, HasSubstr("Test write error"));
       });
@@ -358,13 +355,13 @@ TEST_F(EncapsulatedWebTransportTest, SimpleRead) {
   EXPECT_EQ(stream->visitor(), nullptr);
   EXPECT_EQ(stream->ReadableBytes(), 4u);
 
-  quiche::ReadStream::PeekResult peek = stream->PeekNextReadableRegion();
+  Stream::PeekResult peek = stream->PeekNextReadableRegion();
   EXPECT_EQ(peek.peeked_data, "test");
   EXPECT_FALSE(peek.fin_next);
   EXPECT_FALSE(peek.all_data_received);
 
   std::string buffer;
-  quiche::ReadStream::ReadResult read = stream->Read(&buffer);
+  Stream::ReadResult read = stream->Read(&buffer);
   EXPECT_EQ(read.bytes_read, 4);
   EXPECT_FALSE(read.fin);
   EXPECT_EQ(buffer, "test");
@@ -418,7 +415,7 @@ TEST_F(EncapsulatedWebTransportTest, FinPeek) {
 
   ProcessIncomingCapsule(quiche::WebTransportStreamDataCapsule{1, "ef", true});
 
-  quiche::ReadStream::PeekResult peek = stream->PeekNextReadableRegion();
+  Stream::PeekResult peek = stream->PeekNextReadableRegion();
   EXPECT_EQ(peek.peeked_data, "abcd");
   EXPECT_FALSE(peek.fin_next);
   EXPECT_TRUE(peek.all_data_received);
@@ -449,7 +446,7 @@ TEST_F(EncapsulatedWebTransportTest, FinRead) {
   EXPECT_EQ(stream->ReadableBytes(), 6u);
 
   std::array<char, 3> buffer;
-  quiche::ReadStream::ReadResult read = stream->Read(absl::MakeSpan(buffer));
+  Stream::ReadResult read = stream->Read(absl::MakeSpan(buffer));
   EXPECT_THAT(buffer, ElementsAre('a', 'b', 'c'));
   EXPECT_EQ(read.bytes_read, 3);
   EXPECT_FALSE(read.fin);
@@ -473,7 +470,7 @@ TEST_F(EncapsulatedWebTransportTest, LargeRead) {
 
   for (int i = 0; i < 64; i++) {
     std::array<char, 1024> buffer;
-    quiche::ReadStream::ReadResult read = stream->Read(absl::MakeSpan(buffer));
+    Stream::ReadResult read = stream->Read(absl::MakeSpan(buffer));
     EXPECT_EQ(read.bytes_read, 1024);
     EXPECT_EQ(read.fin, i == 63);
   }
@@ -552,7 +549,7 @@ TEST_F(EncapsulatedWebTransportTest, WriteOnlyGarbageCollection) {
   EXPECT_CALL(*visitor, OnDelete()).WillOnce([&] { deleted = true; });
   EXPECT_CALL(*this, OnCapsule(_)).WillOnce(Return(true));
 
-  quiche::StreamWriteOptions options;
+  StreamWriteOptions options;
   options.set_send_fin(true);
   EXPECT_THAT(stream->Writev(absl::Span<quiche::QuicheMemSlice>(), options),
               StatusIs(absl::StatusCode::kOk));
@@ -576,7 +573,7 @@ TEST_F(EncapsulatedWebTransportTest, SimpleWrite) {
     EXPECT_EQ(capsule.web_transport_stream_data().data, "test");
     return true;
   });
-  absl::Status status = quiche::WriteIntoStream(*stream, "test");
+  absl::Status status = WriteIntoStream(*stream, "test");
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kOk));
 }
 
@@ -594,10 +591,10 @@ TEST_F(EncapsulatedWebTransportTest, WriteWithFin) {
     EXPECT_EQ(capsule.web_transport_stream_data().data, "test");
     return true;
   });
-  quiche::StreamWriteOptions options;
+  StreamWriteOptions options;
   options.set_send_fin(true);
   EXPECT_TRUE(stream->CanWrite());
-  absl::Status status = quiche::WriteIntoStream(*stream, "test", options);
+  absl::Status status = WriteIntoStream(*stream, "test", options);
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kOk));
   EXPECT_FALSE(stream->CanWrite());
 }
@@ -616,7 +613,7 @@ TEST_F(EncapsulatedWebTransportTest, FinOnlyWrite) {
     EXPECT_EQ(capsule.web_transport_stream_data().data, "");
     return true;
   });
-  quiche::StreamWriteOptions options;
+  StreamWriteOptions options;
   options.set_send_fin(true);
   EXPECT_TRUE(stream->CanWrite());
   absl::Status status =
@@ -632,15 +629,17 @@ TEST_F(EncapsulatedWebTransportTest, BufferedWriteThenUnbuffer) {
   Stream* stream = session->OpenOutgoingUnidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
 
-  EXPECT_CALL(writer_, CanWrite()).WillOnce(Return(false));
-  absl::Status status = quiche::WriteIntoStream(*stream, "abc");
+  EXPECT_CALL(underlying_, GetWriteStatus)
+      .WillOnce(Return(absl::UnavailableError("Write-blocked")));
+  absl::Status status = WriteIntoStream(*stream, "abc");
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kOk));
 
   // While the stream cannot be written right now, we should be still able to
   // buffer data into it.
   EXPECT_TRUE(stream->CanWrite());
-  EXPECT_CALL(writer_, CanWrite()).WillRepeatedly(Return(true));
-  status = quiche::WriteIntoStream(*stream, "def");
+  EXPECT_CALL(underlying_, GetWriteStatus)
+      .WillRepeatedly(Return(absl::OkStatus()));
+  status = WriteIntoStream(*stream, "def");
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kOk));
 
   EXPECT_CALL(*this, OnCapsule(_)).WillOnce([](const Capsule& capsule) {
@@ -659,13 +658,16 @@ TEST_F(EncapsulatedWebTransportTest, BufferedWriteThenFlush) {
   Stream* stream = session->OpenOutgoingUnidirectionalStream();
   ASSERT_TRUE(stream != nullptr);
 
-  EXPECT_CALL(writer_, CanWrite()).Times(2).WillRepeatedly(Return(false));
-  absl::Status status = quiche::WriteIntoStream(*stream, "abc");
+  EXPECT_CALL(underlying_, GetWriteStatus)
+      .Times(2)
+      .WillRepeatedly(Return(absl::UnavailableError("Write-blocked")));
+  absl::Status status = WriteIntoStream(*stream, "abc");
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kOk));
-  status = quiche::WriteIntoStream(*stream, "def");
+  status = WriteIntoStream(*stream, "def");
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kOk));
 
-  EXPECT_CALL(writer_, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(underlying_, GetWriteStatus)
+      .WillRepeatedly(Return(absl::OkStatus()));
   EXPECT_CALL(*this, OnCapsule(_)).WillOnce([](const Capsule& capsule) {
     EXPECT_EQ(capsule.capsule_type(), CapsuleType::WT_STREAM);
     EXPECT_EQ(capsule.web_transport_stream_data().stream_id, 2u);
@@ -685,12 +687,14 @@ TEST_F(EncapsulatedWebTransportTest, BufferedStreamBlocksAnother) {
   ASSERT_TRUE(stream2 != nullptr);
 
   EXPECT_CALL(*this, OnCapsule(_)).Times(0);
-  EXPECT_CALL(writer_, CanWrite()).WillOnce(Return(false));
-  absl::Status status = quiche::WriteIntoStream(*stream1, "abc");
+  EXPECT_CALL(underlying_, GetWriteStatus)
+      .WillOnce(Return(absl::UnavailableError("Write-blocked")));
+  absl::Status status = WriteIntoStream(*stream1, "abc");
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kOk));
   // ShouldYield will return false here, causing the write to get buffered.
-  EXPECT_CALL(writer_, CanWrite()).WillRepeatedly(Return(true));
-  status = quiche::WriteIntoStream(*stream2, "abc");
+  EXPECT_CALL(underlying_, GetWriteStatus)
+      .WillRepeatedly(Return(absl::OkStatus()));
+  status = WriteIntoStream(*stream2, "abc");
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kOk));
 
   std::vector<StreamId> writes;

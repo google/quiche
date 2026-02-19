@@ -11,7 +11,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
-#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -19,7 +18,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/algorithm/container.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -36,8 +34,8 @@
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_status_utils.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/common/vectorized_io_utils.h"
+#include "quiche/web_transport/stream_helpers.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace webtransport {
@@ -69,8 +67,7 @@ EncapsulatedSession::EncapsulatedSession(
 
 void EncapsulatedSession::InitializeClient(
     std::unique_ptr<SessionVisitor> visitor,
-    quiche::HttpHeaderBlock& /*outgoing_headers*/, quiche::WriteStream* writer,
-    quiche::ReadStream* reader) {
+    quiche::HttpHeaderBlock& /*outgoing_headers*/, Stream* underlying) {
   if (state_ != kUninitialized) {
     OnFatalError("Called InitializeClient() in an invalid state");
     return;
@@ -81,16 +78,14 @@ void EncapsulatedSession::InitializeClient(
   }
 
   visitor_ = std::move(visitor);
-  writer_ = writer;
-  reader_ = reader;
+  underlying_ = underlying;
   state_ = kWaitingForHeaders;
 }
 
 void EncapsulatedSession::InitializeServer(
     std::unique_ptr<SessionVisitor> visitor,
     const quiche::HttpHeaderBlock& /*incoming_headers*/,
-    quiche::HttpHeaderBlock& /*outgoing_headers*/, quiche::WriteStream* writer,
-    quiche::ReadStream* reader) {
+    quiche::HttpHeaderBlock& /*outgoing_headers*/, Stream* underlying) {
   if (state_ != kUninitialized) {
     OnFatalError("Called InitializeServer() in an invalid state");
     return;
@@ -101,8 +96,7 @@ void EncapsulatedSession::InitializeServer(
   }
 
   visitor_ = std::move(visitor);
-  writer_ = writer;
-  reader_ = reader;
+  underlying_ = underlying;
   OpenSession();
 }
 void EncapsulatedSession::ProcessIncomingServerHeaders(
@@ -239,7 +233,7 @@ DatagramStatus EncapsulatedSession::SendOrQueueDatagram(
     // datagrams are not subject to queueing.
     case kWaitingForHeaders:
     case kSessionOpen:
-      write_blocked = !writer_->CanWrite();
+      write_blocked = !underlying_->CanWrite();
       break;
     case kSessionClosing:
     case kSessionClosed:
@@ -261,7 +255,7 @@ DatagramStatus EncapsulatedSession::SendOrQueueDatagram(
   std::array spans = {quiche::QuicheMemSlice(std::move(buffer)),
                       quiche::QuicheMemSlice::Copy(datagram)};
   absl::Status write_status =
-      writer_->Writev(absl::MakeSpan(spans), quiche::StreamWriteOptions());
+      underlying_->Writev(absl::MakeSpan(spans), StreamWriteOptions());
   if (!write_status.ok()) {
     OnWriteError(write_status);
     return DatagramStatus{
@@ -281,7 +275,7 @@ void EncapsulatedSession::SetDatagramMaxTimeInQueue(
 }
 
 void EncapsulatedSession::OnCanWrite() {
-  if (state_ == kUninitialized || !writer_) {
+  if (state_ == kUninitialized || !underlying_) {
     OnFatalError("Trying to write before the session is initialized");
     return;
   }
@@ -291,7 +285,7 @@ void EncapsulatedSession::OnCanWrite() {
   }
 
   if (state_ == kSessionClosing) {
-    if (writer_->CanWrite()) {
+    if (underlying_->CanWrite()) {
       CloseWebTransportSessionCapsule capsule{
           buffered_session_close_.error_code,
           buffered_session_close_.error_message};
@@ -309,9 +303,9 @@ void EncapsulatedSession::OnCanWrite() {
     return;
   }
 
-  while (writer_->CanWrite() && !control_capsule_queue_.empty()) {
-    absl::Status write_status = quiche::WriteIntoStream(
-        *writer_, control_capsule_queue_.front().AsStringView());
+  while (underlying_->CanWrite() && !control_capsule_queue_.empty()) {
+    absl::Status write_status = WriteIntoStream(
+        *underlying_, control_capsule_queue_.front().AsStringView());
     if (!write_status.ok()) {
       OnWriteError(write_status);
       return;
@@ -319,7 +313,7 @@ void EncapsulatedSession::OnCanWrite() {
     control_capsule_queue_.pop_front();
   }
 
-  while (writer_->CanWrite()) {
+  while (underlying_->CanWrite()) {
     absl::StatusOr<StreamId> next_id = scheduler_.PopFront();
     if (!next_id.ok()) {
       QUICHE_DCHECK_EQ(next_id.status().code(), absl::StatusCode::kNotFound);
@@ -340,8 +334,8 @@ void EncapsulatedSession::OnCanRead() {
   if (state_ == kSessionClosed || state_ == kSessionClosing) {
     return;
   }
-  bool has_fin = quiche::ProcessAllReadableRegions(
-      *reader_, [&](absl::string_view fragment) {
+  bool has_fin =
+      ProcessAllReadableRegions(*underlying_, [&](absl::string_view fragment) {
         capsule_parser_.IngestCapsuleFragment(fragment);
       });
   if (has_fin) {
@@ -488,9 +482,9 @@ void EncapsulatedSession::OpenSession() {
 absl::Status EncapsulatedSession::SendFin(absl::string_view data) {
   QUICHE_DCHECK(!fin_sent_);
   fin_sent_ = true;
-  quiche::StreamWriteOptions options;
+  StreamWriteOptions options;
   options.set_send_fin(true);
-  return quiche::WriteIntoStream(*writer_, data, options);
+  return WriteIntoStream(*underlying_, data, options);
 }
 
 void EncapsulatedSession::OnSessionClosed(SessionErrorCode error_code,
@@ -516,8 +510,7 @@ void EncapsulatedSession::OnSessionClosed(SessionErrorCode error_code,
 }
 
 void EncapsulatedSession::OnFatalError(absl::string_view error_message) {
-  QUICHE_DLOG(ERROR) << "Fatal error in encapsulated WebTransport: "
-                     << error_message;
+  QUICHE_DLOG(ERROR) << "Fatal error in encapsulated  " << error_message;
   state_ = kSessionClosed;
   if (fatal_error_callback_) {
     std::move(fatal_error_callback_)(error_message);
@@ -549,7 +542,7 @@ EncapsulatedSession::InnerStream::InnerStream(EncapsulatedSession* session,
   }
 }
 
-quiche::ReadStream::ReadResult EncapsulatedSession::InnerStream::Read(
+Stream::ReadResult EncapsulatedSession::InnerStream::Read(
     absl::Span<char> output) {
   const size_t total_size = output.size();
   for (const IncomingRead& read : incoming_reads_) {
@@ -563,8 +556,7 @@ quiche::ReadStream::ReadResult EncapsulatedSession::InnerStream::Read(
   bool fin_consumed = SkipBytes(total_size);
   return ReadResult{total_size, fin_consumed};
 }
-quiche::ReadStream::ReadResult EncapsulatedSession::InnerStream::Read(
-    std::string* output) {
+Stream::ReadResult EncapsulatedSession::InnerStream::Read(std::string* output) {
   const size_t total_size = ReadableBytes();
   const size_t initial_offset = output->size();
   output->resize(initial_offset + total_size);
@@ -577,8 +569,8 @@ size_t EncapsulatedSession::InnerStream::ReadableBytes() const {
   }
   return total_size;
 }
-quiche::ReadStream::PeekResult
-EncapsulatedSession::InnerStream::PeekNextReadableRegion() const {
+Stream::PeekResult EncapsulatedSession::InnerStream::PeekNextReadableRegion()
+    const {
   if (incoming_reads_.empty()) {
     return PeekResult{absl::string_view(), fin_received_, fin_received_};
   }
@@ -614,7 +606,7 @@ bool EncapsulatedSession::InnerStream::SkipBytes(size_t bytes) {
 
 absl::Status EncapsulatedSession::InnerStream::Writev(
     const absl::Span<quiche::QuicheMemSlice> data,
-    const quiche::StreamWriteOptions& options) {
+    const StreamWriteOptions& options) {
   // TODO: support zero copy.
   std::vector<absl::string_view> views;
   views.reserve(data.size());
@@ -641,8 +633,8 @@ absl::Status EncapsulatedSession::InnerStream::Writev(
     session_->OnFatalError("Stream not registered with the scheduler");
     return absl::InternalError("Stream not registered with the scheduler");
   }
-  const bool write_blocked = !session_->writer_->CanWrite() || *should_yield ||
-                             !pending_write_.empty();
+  const bool write_blocked = !session_->underlying_->CanWrite() ||
+                             *should_yield || !pending_write_.empty();
   if (write_blocked) {
     fin_buffered_ = options.send_fin();
     for (absl::string_view chunk : views) {
@@ -681,7 +673,7 @@ bool EncapsulatedSession::InnerStream::CanWrite() const {
 
 void EncapsulatedSession::InnerStream::FlushPendingWrite() {
   QUICHE_DCHECK(!write_side_closed_);
-  QUICHE_DCHECK(session_->writer_->CanWrite());
+  QUICHE_DCHECK(session_->underlying_->CanWrite());
   QUICHE_DCHECK(!pending_write_.empty());
   absl::string_view to_write = pending_write_;
   size_t bytes_written =
@@ -716,19 +708,13 @@ size_t EncapsulatedSession::InnerStream::WriteInner(
     // TODO: support zero copy.
     views_to_write.push_back(quiche::QuicheMemSlice::Copy(view));
   }
-  absl::Status write_status = session_->writer_->Writev(
-      absl::MakeSpan(views_to_write), quiche::kDefaultStreamWriteOptions);
+  absl::Status write_status = session_->underlying_->Writev(
+      absl::MakeSpan(views_to_write), kDefaultStreamWriteOptions);
   if (!write_status.ok()) {
     session_->OnWriteError(write_status);
     return 0;
   }
   return total_size;
-}
-
-void EncapsulatedSession::InnerStream::AbruptlyTerminate(absl::Status error) {
-  QUICHE_DLOG(INFO) << "Abruptly terminating the stream due to error: "
-                    << error;
-  ResetDueToInternalError();
 }
 
 void EncapsulatedSession::InnerStream::ResetWithUserCode(

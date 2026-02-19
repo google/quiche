@@ -13,8 +13,8 @@
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
+#include "quiche/web_transport/stream_helpers.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace webtransport::test {
@@ -77,7 +77,7 @@ TEST(InMemoryStreamTest, Peek) {
   EXPECT_TRUE(result.all_data_received);
 
   std::string merged_result;
-  bool fin_reached = quiche::ProcessAllReadableRegions(
+  bool fin_reached = ProcessAllReadableRegions(
       stream,
       [&](absl::string_view chunk) { absl::StrAppend(&merged_result, chunk); });
   EXPECT_EQ(merged_result, absl::StrCat(chunk_a, chunk_b));
@@ -89,8 +89,8 @@ TEST(InMemoryStreamTest, InMemoryStreamWithMockWrite) {
   EXPECT_TRUE(stream.CanWrite());
 
   std::array write_vector = {quiche::QuicheMemSlice::Copy("test")};
-  quiche::StreamWriteOptions options;
   EXPECT_CALL(stream, OnWrite("test"));
+  StreamWriteOptions options;
   QUICHE_EXPECT_OK(stream.Writev(absl::MakeSpan(write_vector), options));
   EXPECT_FALSE(stream.fin_sent());
 
@@ -114,7 +114,7 @@ TEST(InMemoryStreamTest, InMemoryStreamWithWriteBuffer) {
   EXPECT_TRUE(stream.CanWrite());
 
   std::array write_vector = {quiche::QuicheMemSlice::Copy("foo")};
-  quiche::StreamWriteOptions options;
+  StreamWriteOptions options;
   QUICHE_EXPECT_OK(stream.Writev(absl::MakeSpan(write_vector), options));
   EXPECT_FALSE(stream.fin_sent());
 

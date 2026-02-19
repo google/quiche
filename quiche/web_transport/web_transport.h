@@ -16,12 +16,13 @@
 
 // The dependencies of this API should be kept minimal and independent of
 // specific transport implementations.
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/common/quiche_stream.h"
+#include "quiche/common/quiche_mem_slice.h"
 
 namespace webtransport {
 
@@ -117,10 +118,18 @@ struct QUICHE_EXPORT SessionStats {
 // events related to a WebTransport stream.  The visitor object is owned by the
 // stream itself, meaning that if the stream is ever fully closed, the visitor
 // will be garbage-collected.
-class QUICHE_EXPORT StreamVisitor : public quiche::ReadStreamVisitor,
-                                    public quiche::WriteStreamVisitor {
+class QUICHE_EXPORT StreamVisitor {
  public:
   virtual ~StreamVisitor() {}
+
+  // Called whenever the stream has new data available to read. Unless otherwise
+  // specified, QUICHE stream reads are level-triggered, which means that the
+  // callback will be called repeatedly as long as there is still data in the
+  // buffer.
+  virtual void OnCanRead() = 0;
+
+  // Called whenever the stream is not write-blocked and can accept new data.
+  virtual void OnCanWrite() = 0;
 
   // Called when RESET_STREAM is received for the stream.
   virtual void OnResetStreamReceived(StreamErrorCode error) = 0;
@@ -132,13 +141,118 @@ class QUICHE_EXPORT StreamVisitor : public quiche::ReadStreamVisitor,
   virtual void OnWriteSideInDataRecvdState() = 0;
 };
 
+// Options for writing data into a WriteStream.
+class QUICHE_EXPORT StreamWriteOptions {
+ public:
+  StreamWriteOptions() = default;
+
+  // If send_fin() is set to true, the write operation also sends a FIN on the
+  // stream.
+  bool send_fin() const { return send_fin_; }
+  void set_send_fin(bool send_fin) { send_fin_ = send_fin; }
+
+  // If buffer_unconditionally() is set to true, the write operation will buffer
+  // data even if the internal buffer limit is exceeded.
+  bool buffer_unconditionally() const { return buffer_unconditionally_; }
+  void set_buffer_unconditionally(bool value) {
+    buffer_unconditionally_ = value;
+  }
+
+ private:
+  bool send_fin_ = false;
+  bool buffer_unconditionally_ = false;
+};
+
+inline constexpr StreamWriteOptions kDefaultStreamWriteOptions =
+    StreamWriteOptions();
+
 // A stream (either bidirectional or unidirectional) that is contained within a
 // WebTransport session.
-class QUICHE_EXPORT Stream : public quiche::ReadStream,
-                             public quiche::WriteStream,
-                             public quiche::TerminableStream {
+//
+// This interface is designed around the idea that a network stream stores all
+// of the received data in a sequence of contiguous buffers. Because of that,
+// there are two ways to read from a stream:
+//   - Read() will copy data into a user-provided buffer, reassembling it if it
+//     is split across multiple buffers internally.
+//   - PeekNextReadableRegion()/SkipBytes() let the caller access the underlying
+//     buffers directly, potentially avoiding the copying at the cost of the
+//     caller having to deal with discontinuities.
+//
+// The writes into a WebTransport stream are all-or-nothing.  A Stream object
+// has to either accept all data written into it by returning absl::OkStatus, or
+// ask the caller to try again once via OnCanWrite() by returning
+// absl::UnavailableError.
+class QUICHE_EXPORT Stream {
  public:
+  struct QUICHE_EXPORT ReadResult {
+    // Number of bytes actually read.
+    size_t bytes_read = 0;
+    // Whether the FIN has been received; if true, no further data will arrive
+    // on the stream, and the stream object can be soon potentially garbage
+    // collected.
+    bool fin = false;
+  };
+
+  struct PeekResult {
+    // The next available chunk in the sequencer buffer.
+    absl::string_view peeked_data;
+    // True if all of the data up to the FIN has been read.
+    bool fin_next = false;
+    // True if all of the data up to the FIN has been received (but not
+    // necessarily read).
+    bool all_data_received = false;
+
+    // Indicates that `SkipBytes()` will make progress if called.
+    bool has_data() const { return !peeked_data.empty() || fin_next; }
+  };
+
   virtual ~Stream() {}
+
+  // Reads at most `buffer.size()` bytes into `buffer`.
+  [[nodiscard]] virtual ReadResult Read(absl::Span<char> buffer) = 0;
+
+  // Reads all available data and appends it to the end of `output`.
+  [[nodiscard]] virtual ReadResult Read(std::string* output) = 0;
+
+  // Indicates the total number of bytes that can be read from the stream.
+  virtual size_t ReadableBytes() const = 0;
+
+  // Returns a contiguous buffer to read (or an empty buffer, if there is no
+  // data to read). See `ProcessAllReadableRegions` below for an example of how
+  // to use this method while handling FIN correctly.
+  virtual PeekResult PeekNextReadableRegion() const = 0;
+
+  // Equivalent to reading `bytes`, but does not perform any copying. `bytes`
+  // must be less than or equal to `ReadableBytes()`. The return value indicates
+  // if the FIN has been reached. `SkipBytes(0)` can be used to consume the FIN
+  // if it's the only thing remaining on the stream.
+  [[nodiscard]] virtual bool SkipBytes(size_t bytes) = 0;
+
+  // Writes `data` into the stream.  If the write succeeds, the ownership is
+  // transferred to the stream; if it does not, the behavior is undefined -- the
+  // users of this API should check `CanWrite()` before calling `Writev()`.
+  virtual absl::Status Writev(absl::Span<quiche::QuicheMemSlice> data,
+                              const StreamWriteOptions& options) = 0;
+
+  // Indicates whether it is possible to write into stream right now.
+  virtual bool CanWrite() const = 0;
+
+  // Legacy convenience method for writing a single string_view.  New users
+  // should use quiche::SendFinOnStream instead, since this method does not
+  // return useful failure information.
+  [[nodiscard]] bool SendFin() {
+    StreamWriteOptions options;
+    options.set_send_fin(true);
+    return Writev(absl::Span<quiche::QuicheMemSlice>(), options).ok();
+  }
+
+  // Legacy convenience method for writing a single string_view.  New users
+  // should use quiche::WriteIntoStream instead, since this method does not
+  // return useful failure information.
+  [[nodiscard]] bool Write(absl::string_view data) {
+    quiche::QuicheMemSlice slice = quiche::QuicheMemSlice::Copy(data);
+    return Writev(absl::MakeSpan(&slice, 1), kDefaultStreamWriteOptions).ok();
+  }
 
   // An ID that is unique within the session.  Those are not exposed to the user
   // via the web API, but can be used internally for bookkeeping and

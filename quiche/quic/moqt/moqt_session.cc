@@ -50,7 +50,6 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -681,7 +680,7 @@ void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
       case MoqtFetchTask::GetNextObjectResult::kEof:
         // TODO(martinduke): Either prefetch the next object, or alter the API
         // so that we're not sending FIN in a separate frame.
-        if (!quiche::SendFinOnStream(*stream_).ok()) {
+        if (!webtransport::SendFinOnStream(*stream_).ok()) {
           QUIC_DVLOG(1) << "Sending FIN onStream " << stream_->GetStreamId()
                         << " failed";
         }
@@ -2405,7 +2404,7 @@ bool MoqtSession::WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
   // memslices so that we can avoid a copy here.
   std::array write_vector = {
       quiche::QuicheMemSlice(std::move(serialized_header)), std::move(payload)};
-  quiche::StreamWriteOptions options;
+  webtransport::StreamWriteOptions options;
   options.set_send_fin(fin);
   absl::Status write_status =
       stream->Writev(absl::MakeSpan(write_vector), options);

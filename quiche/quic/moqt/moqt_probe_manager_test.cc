@@ -21,7 +21,6 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -49,8 +48,9 @@ class MockStream : public webtransport::test::MockStream {
   MockStream(webtransport::StreamId id) : id_(id) {}
 
   webtransport::StreamId GetStreamId() const override { return id_; }
-  absl::Status Writev(absl::Span<quiche::QuicheMemSlice> data,
-                      const quiche::StreamWriteOptions& options) override {
+  absl::Status Writev(
+      absl::Span<quiche::QuicheMemSlice> data,
+      const webtransport::StreamWriteOptions& options) override {
     QUICHE_CHECK(!fin_) << "FIN written twice.";
     for (const quiche::QuicheMemSlice& slice : data) {
       data_.append(slice.AsStringView());

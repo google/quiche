@@ -18,7 +18,6 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace webtransport::test {
@@ -31,21 +30,18 @@ class QUICHE_NO_EXPORT InMemoryStream : public Stream {
  public:
   explicit InMemoryStream(StreamId id) : id_(id) {}
 
-  // quiche::ReadStream implementation.
+  // webtransport::Stream implementation.
   [[nodiscard]] ReadResult Read(absl::Span<char> output) override;
   [[nodiscard]] ReadResult Read(std::string* output) override;
   size_t ReadableBytes() const override;
   PeekResult PeekNextReadableRegion() const override;
   bool SkipBytes(size_t bytes) override;
 
-  // quiche::WriteStream implementation.
   absl::Status Writev(absl::Span<quiche::QuicheMemSlice> data,
-                      const quiche::StreamWriteOptions& options) override;
+                      const StreamWriteOptions& options) override;
   bool CanWrite() const override {
     return GetWriteStatusWithExtraChecks().ok();
   }
-
-  void AbruptlyTerminate(absl::Status) override { Terminate(); }
 
   // webtransport::Stream implementation.
   StreamId GetStreamId() const override { return id_; }

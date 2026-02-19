@@ -46,7 +46,6 @@
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/test_tools/in_memory_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
@@ -228,7 +227,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
       });
     }
     EXPECT_CALL(*stream, PeekNextReadableRegion()).WillRepeatedly([&]() {
-      return quiche::ReadStream::PeekResult(
+      return webtransport::Stream::PeekResult(
           absl::string_view(buffer.data() + data_read,
                             buffer.size() - data_read),
           fin && data_read == buffer.size(), fin);
@@ -242,7 +241,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
               std::min(bytes_to_read.size(), buffer.size() - data_read);
           memcpy(bytes_to_read.data(), buffer.data() + data_read, read_size);
           data_read += read_size;
-          return quiche::ReadStream::ReadResult(
+          return webtransport::Stream::ReadResult(
               read_size, fin && data_read == buffer.size());
         });
     EXPECT_CALL(*stream, SkipBytes(_)).WillRepeatedly([&](size_t bytes) {
@@ -326,7 +325,7 @@ TEST_F(MoqtSessionTest, PeerOpensBidiStream) {
       });
   EXPECT_CALL(mock_stream_, PeekNextReadableRegion())
       .WillOnce(Return(
-          quiche::ReadStream::PeekResult(absl::string_view(), false, false)));
+          webtransport::Stream::PeekResult(absl::string_view(), false, false)));
   server_session.OnIncomingBidirectionalStreamAvailable();
 }
 
@@ -1320,7 +1319,7 @@ TEST_F(MoqtSessionTest, CreateOutgoingDataStreamAndSend) {
   const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f, 0x00, 0x0a};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         correct_message =
             absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin |= options.send_fin();
@@ -1377,7 +1376,7 @@ TEST_F(MoqtSessionTest, FinDataStreamFromCache) {
   const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         correct_message =
             absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin = options.send_fin();
@@ -1431,7 +1430,7 @@ TEST_F(MoqtSessionTest, GroupAbandonedNoDeliveryTimeout) {
   const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         correct_message =
             absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin |= options.send_fin();
@@ -1499,7 +1498,7 @@ TEST_F(MoqtSessionTest, GroupAbandonedDeliveryTimeout) {
   const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         correct_message =
             absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin |= options.send_fin();
@@ -1569,7 +1568,7 @@ TEST_F(MoqtSessionTest, GroupAbandoned) {
   const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         correct_message =
             absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin |= options.send_fin();
@@ -1625,7 +1624,7 @@ TEST_F(MoqtSessionTest, LateFinDataStream) {
   const std::string kExpectedMessage = {0x11, 0x02, 0x05, 0x7f};
   EXPECT_CALL(mock_stream_, Writev)
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         correct_message =
             absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin = options.send_fin();
@@ -1649,7 +1648,7 @@ TEST_F(MoqtSessionTest, LateFinDataStream) {
   fin = false;
   EXPECT_CALL(mock_stream_, Writev)
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         EXPECT_TRUE(data.empty());
         fin = options.send_fin();
         return absl::OkStatus();
@@ -1688,7 +1687,7 @@ TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
   const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x7f, 0x00, 0x00};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         correct_message =
             absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin = options.send_fin();
@@ -1737,7 +1736,7 @@ TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
   });
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         correct_message =
             absl::StartsWith(data[0].AsStringView(), kExpectedMessage2);
         fin = options.send_fin();
@@ -1779,7 +1778,7 @@ TEST_F(MoqtSessionTest, PublisherAbandonsSubgroup) {
   const std::string kExpectedMessage = {0x04, 0x02, 0x05, 0x7f, 0x00, 0x00};
   EXPECT_CALL(mock_stream_, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         correct_message =
             absl::StartsWith(data[0].AsStringView(), kExpectedMessage);
         fin = options.send_fin();
@@ -2117,7 +2116,7 @@ TEST_F(MoqtSessionTest, OmitPublisherPriority) {
       .WillOnce(Return(std::nullopt));
   EXPECT_CALL(mock_stream_, Writev)
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         // The stream type omits the priority.
         EXPECT_TRUE(static_cast<const uint8_t>(data[0].AsStringView()[0]) &
                     MoqtDataStreamType::kDefaultPriority);
@@ -2269,21 +2268,21 @@ TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
   EXPECT_CALL(mock_stream2, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream0, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         // The Group ID is the 3rd byte of the stream.
         EXPECT_EQ(static_cast<const uint8_t>(data[0].AsStringView()[2]), 0);
         return absl::OkStatus();
       });
   EXPECT_CALL(mock_stream1, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         // The Group ID is the 3rd byte of the stream.
         EXPECT_EQ(static_cast<const uint8_t>(data[0].AsStringView()[2]), 1);
         return absl::OkStatus();
       });
   EXPECT_CALL(mock_stream2, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         // The Group ID is the 3rd byte of the stream.
         EXPECT_EQ(static_cast<const uint8_t>(data[0].AsStringView()[2]), 2);
         return absl::OkStatus();
@@ -2369,7 +2368,7 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   EXPECT_CALL(mock_stream0, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream0, Writev)
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         // Check track alias is 14.
         EXPECT_EQ(static_cast<const uint8_t>(data[0].AsStringView()[1]), 14);
         // Check Group ID is 0
@@ -2405,7 +2404,7 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   EXPECT_CALL(mock_stream1, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream1, Writev(_, _))
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const quiche::StreamWriteOptions& options) {
+                    const webtransport::StreamWriteOptions& options) {
         // Check track alias is 15.
         EXPECT_EQ(static_cast<const uint8_t>(data[0].AsStringView()[1]), 15);
         // Check Group ID is 0
@@ -2460,7 +2459,7 @@ void ExpectSendObject(MockFetchTask* fetch_task,
   if (second_result == MoqtFetchTask::GetNextObjectResult::kEof) {
     EXPECT_CALL(data_stream, Writev)
         .WillOnce([](absl::Span<quiche::QuicheMemSlice> data,
-                     const quiche::StreamWriteOptions& options) {
+                     const webtransport::StreamWriteOptions& options) {
           quic::QuicDataReader reader(data[0].AsStringView());
           uint64_t type;
           EXPECT_TRUE(reader.ReadVarInt62(&type));
@@ -2469,7 +2468,7 @@ void ExpectSendObject(MockFetchTask* fetch_task,
           return absl::OkStatus();
         })
         .WillOnce([](absl::Span<quiche::QuicheMemSlice> data,
-                     const quiche::StreamWriteOptions& options) {
+                     const webtransport::StreamWriteOptions& options) {
           EXPECT_TRUE(data.empty());
           EXPECT_TRUE(options.send_fin());
           return absl::OkStatus();
@@ -2478,7 +2477,7 @@ void ExpectSendObject(MockFetchTask* fetch_task,
   }
   EXPECT_CALL(data_stream, Writev)
       .WillOnce([](absl::Span<quiche::QuicheMemSlice> data,
-                   const quiche::StreamWriteOptions& options) {
+                   const webtransport::StreamWriteOptions& options) {
         quic::QuicDataReader reader(data[0].AsStringView());
         uint64_t type;
         EXPECT_TRUE(reader.ReadVarInt62(&type));

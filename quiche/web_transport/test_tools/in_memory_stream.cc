@@ -15,13 +15,12 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/common/vectorized_io_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace webtransport::test {
 
-quiche::ReadStream::ReadResult InMemoryStream::Read(absl::Span<char> output) {
+Stream::ReadResult InMemoryStream::Read(absl::Span<char> output) {
   std::vector<absl::string_view> chunks;
   for (absl::string_view chunk : buffer_.Chunks()) {
     chunks.push_back(chunk);
@@ -31,7 +30,7 @@ quiche::ReadStream::ReadResult InMemoryStream::Read(absl::Span<char> output) {
   return ReadResult{bytes_read, buffer_.empty() && fin_received_};
 }
 
-quiche::ReadStream::ReadResult InMemoryStream::Read(std::string* output) {
+Stream::ReadResult InMemoryStream::Read(std::string* output) {
   ReadResult result;
   result.bytes_read = buffer_.size();
   result.fin = fin_received_;
@@ -42,7 +41,7 @@ quiche::ReadStream::ReadResult InMemoryStream::Read(std::string* output) {
 
 size_t InMemoryStream::ReadableBytes() const { return buffer_.size(); }
 
-quiche::ReadStream::PeekResult InMemoryStream::PeekNextReadableRegion() const {
+Stream::PeekResult InMemoryStream::PeekNextReadableRegion() const {
   if (buffer_.empty()) {
     return PeekResult{"", fin_received_, fin_received_};
   }
@@ -58,8 +57,9 @@ bool InMemoryStream::SkipBytes(size_t bytes) {
   return buffer_.empty() && fin_received_;
 }
 
-absl::Status InMemoryStream::Writev(absl::Span<quiche::QuicheMemSlice> data,
-                                    const quiche::StreamWriteOptions& options) {
+absl::Status InMemoryStream::Writev(
+    absl::Span<quiche::QuicheMemSlice> data,
+    const webtransport::StreamWriteOptions& options) {
   absl::Status status = GetWriteStatusWithExtraChecks();
   if (!status.ok()) {
     return status;

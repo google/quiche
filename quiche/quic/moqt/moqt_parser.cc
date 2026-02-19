@@ -33,7 +33,7 @@
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_data_reader.h"
-#include "quiche/common/quiche_stream.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 
@@ -48,11 +48,12 @@ uint64_t SignedVarintUnserializedForm(uint64_t value) {
 
 // |fin_read| is set to true if there is a FIN anywhere before the end of the
 // varint.
-std::optional<uint64_t> ReadVarInt62FromStream(quiche::ReadStream& stream,
+std::optional<uint64_t> ReadVarInt62FromStream(webtransport::Stream& stream,
                                                bool& fin_read) {
   fin_read = false;
 
-  quiche::ReadStream::PeekResult peek_result = stream.PeekNextReadableRegion();
+  webtransport::Stream::PeekResult peek_result =
+      stream.PeekNextReadableRegion();
   if (peek_result.peeked_data.empty()) {
     if (peek_result.fin_next) {
       fin_read = stream.SkipBytes(0);
@@ -73,7 +74,7 @@ std::optional<uint64_t> ReadVarInt62FromStream(quiche::ReadStream& stream,
   char buffer[8];
   absl::Span<char> bytes_to_read =
       absl::MakeSpan(buffer).subspan(0, varint_size);
-  quiche::ReadStream::ReadResult read_result = stream.Read(bytes_to_read);
+  webtransport::Stream::ReadResult read_result = stream.Read(bytes_to_read);
   QUICHE_DCHECK_EQ(read_result.bytes_read, varint_size);
   fin_read = read_result.fin;
 
@@ -459,7 +460,7 @@ void MoqtControlParser::ReadAndDispatchMessages() {
         return;
       }
       std::array<char, 2> size_bytes;
-      quiche::ReadStream::ReadResult result =
+      webtransport::Stream::ReadResult result =
           stream_.Read(absl::MakeSpan(size_bytes));
       if (result.bytes_read != 2) {
         ParseError(MoqtError::kInternalError,
@@ -489,7 +490,7 @@ void MoqtControlParser::ReadAndDispatchMessages() {
       return;
     }
     absl::FixedArray<char> message(*message_size_);
-    quiche::ReadStream::ReadResult result =
+    webtransport::Stream::ReadResult result =
         stream_.Read(absl::MakeSpan(message));
     if (result.bytes_read != *message_size_) {
       ParseError("Stream returned incorrect ReadableBytes");
@@ -1205,7 +1206,7 @@ std::optional<uint64_t> MoqtDataParser::ReadVarInt62NoFin() {
 
 std::optional<uint8_t> MoqtDataParser::ReadUint8NoFin() {
   char buffer[1];
-  quiche::ReadStream::ReadResult read_result =
+  webtransport::Stream::ReadResult read_result =
       stream_.Read(absl::MakeSpan(buffer));
   if (read_result.bytes_read == 0) {
     return std::nullopt;
@@ -1421,7 +1422,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
     case kExtensionBody:
     case kData: {
       while (payload_length_remaining_ > 0) {
-        quiche::ReadStream::PeekResult peek_result =
+        webtransport::Stream::PeekResult peek_result =
             stream_.PeekNextReadableRegion();
         if (!peek_result.has_data()) {
           return;

@@ -17,8 +17,8 @@
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_buffer_allocator.h"
-#include "quiche/common/quiche_stream.h"
 #include "quiche/web_transport/test_tools/in_memory_stream.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt::test {
 
@@ -213,7 +213,7 @@ std::vector<MoqtGenericFrame> ParseGenericMessage(absl::string_view body) {
 
 absl::Status StoreSubscribe::operator()(
     absl::Span<const absl::string_view> data,
-    const quiche::StreamWriteOptions& options) const {
+    const webtransport::StreamWriteOptions& options) const {
   std::string merged_message = absl::StrJoin(data, "");
   std::vector<MoqtGenericFrame> frames = ParseGenericMessage(merged_message);
   if (frames.size() != 1 || !std::holds_alternative<MoqtSubscribe>(frames[0])) {
