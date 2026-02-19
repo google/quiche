@@ -14,7 +14,8 @@
 namespace quiche {
 
 // Computes the total size of all strings in the provided span.
-size_t TotalStringViewSpanSize(absl::Span<const absl::string_view> span);
+size_t QUICHE_EXPORT
+TotalStringViewSpanSize(absl::Span<const absl::string_view> span);
 
 // Copies data contained in `inputs` into `output`, up until either the `output`
 // is full or the `inputs` are copied fully; returns the actual number of bytes
