@@ -1956,6 +1956,10 @@ bool QuicSpdyStream::AreHeaderFieldValuesValid(
 
 void QuicSpdyStream::StopReading() {
   QuicStream::StopReading();
+  if (GetQuicReloadableFlag(quic_clear_body_manager_along_with_sequencer)) {
+    QUICHE_RELOADABLE_FLAG_COUNT(quic_clear_body_manager_along_with_sequencer);
+    body_manager_.Clear();
+  }
   if (VersionIsIetfQuic(transport_version()) && !fin_received() &&
       spdy_session_->qpack_decoder()) {
     // Clean up Qpack decoding states.

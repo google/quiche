@@ -18,9 +18,11 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/frames/quic_stream_frame.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_encoder.h"
 #include "quiche/quic/core/http/http_frames.h"
+#include "quiche/quic/core/http/quic_header_list.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
@@ -292,6 +294,8 @@ class TestStream : public QuicSpdyStream {
   bool on_soon_to_be_destroyed_called() const {
     return on_soon_to_be_destroyed_called_;
   }
+
+  void set_should_process_data(bool value) { should_process_data_ = value; }
 
  private:
   bool should_process_data_;
@@ -3780,6 +3784,45 @@ TEST_P(QuicSpdyStreamTest, HostHeaderInRequest) {
 
   headers_["host"] = "foo";
   EXPECT_TRUE(stream_->ValidateReceivedHeaders(AsHeaderList(headers_)));
+}
+
+// Regression test for b/485124494 (that body_manager & sequencer are not
+// consistently cleared after StopReading).
+TEST_P(QuicSpdyStreamTest, DiscardBodyOnStopReading) {
+  if (!IsIetfQuic()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+
+  QuicHeaderList headers = ProcessHeaders(false, headers_);
+  stream_->ConsumeHeaderList();
+
+  // In Envoy QUIC, application can stop processing data before getting read
+  // blocked.
+  stream_->set_should_process_data(false);
+  std::string body = "this is the body";
+  std::string data = DataFrame(body);
+  QuicStreamFrame frame(GetNthClientInitiatedBidirectionalId(0), /*fin=*/true,
+                        0, data);
+  // Body manager should contain the un-processed data.
+  stream_->OnStreamFrame(frame);
+
+  // In Envoy QUIC, there can be a delay between Application get blocked and
+  // QUIC being blocked.
+  stream_->sequencer()->SetBlockedUntilFlush();
+
+  // This should cause the sequencer to clear its buffers and body_manager to
+  // clear its reference to these buffers.
+  stream_->StopReading();
+  EXPECT_TRUE(stream_->sequencer()->IsClosed());
+  stream_->set_should_process_data(true);
+  if (GetQuicReloadableFlag(quic_clear_body_manager_along_with_sequencer)) {
+    std::string old_data = stream_->data();
+    stream_->sequencer()->SetUnblocked();
+    // No new data should have been consumed.
+    EXPECT_EQ(old_data, stream_->data());
+  }
 }
 
 }  // namespace
