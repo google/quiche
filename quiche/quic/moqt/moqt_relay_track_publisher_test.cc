@@ -446,7 +446,7 @@ TEST_F(MoqtRelayTrackPublisherTest, Fin) {
 TEST_F(MoqtRelayTrackPublisherTest, Reset) {
   SubscribeAndOk();
 
-  EXPECT_CALL(listener_, OnSubgroupAbandoned(2, 0, kResetCodeCanceled));
+  EXPECT_CALL(listener_, OnSubgroupAbandoned(2, 0, kResetCodeCancelled));
   publisher_.OnStreamReset(kTrackName, DataStreamIndex{2, 0});
 }
 

@@ -108,8 +108,6 @@ MoqtSession::MoqtSession(webtransport::Session* session,
   }
   if (parameters_.perspective == Perspective::IS_SERVER) {
     next_request_id_ = 1;
-  } else {
-    next_incoming_request_id_ = 1;
   }
   QUICHE_DCHECK(parameters_.moqt_implementation.empty());
   parameters_.moqt_implementation = kImplementationName;
@@ -712,26 +710,19 @@ bool MoqtSession::PublishIsDone(uint64_t request_id, PublishDoneCode code,
   }
 
   PublishedSubscription& subscription = *it->second;
-  std::vector<webtransport::StreamId> streams_to_reset =
-      subscription.GetAllStreams();
 
   MoqtPublishDone publish_done;
   publish_done.request_id = request_id;
   publish_done.status_code = code;
   publish_done.stream_count = subscription.streams_opened();
   publish_done.error_reason = error_reason;
-  SendControlMessage(framer_.SerializePublishDone(publish_done));
-  QUIC_DLOG(INFO) << ENDPOINT << "Sent PUBLISH_DONE message for "
+  // TODO(martinduke): It is technically correct, but not good, to simply
+  // reset all the streams in order to send PUBLISH_DONE. It's better to wait
+  // until streams FIN naturally, where possible.
+  QUIC_DLOG(INFO) << ENDPOINT << "Sending PUBLISH_DONE message for "
                   << subscription.publisher().GetTrackName();
-  // Clean up the subscription
   published_subscriptions_.erase(it);
-  for (webtransport::StreamId stream_id : streams_to_reset) {
-    webtransport::Stream* stream = session_->GetStreamById(stream_id);
-    if (stream == nullptr) {
-      continue;
-    }
-    stream->ResetWithUserCode(kResetCodeCanceled);
-  }
+  SendControlMessage(framer_.SerializePublishDone(publish_done));
   return true;
 }
 
@@ -904,20 +895,27 @@ bool MoqtSession::ValidateRequestId(uint64_t request_id) {
     Error(MoqtError::kTooManyRequests, "Received request with too large ID");
     return false;
   }
-  if (request_id != next_incoming_request_id_) {
-    QUICHE_DLOG(INFO) << ENDPOINT << "Request ID not monotonically increasing";
-    Error(MoqtError::kInvalidRequestId,
-          "Request ID not monotonically increasing");
+  if ((request_id % 2 == 0) !=
+      (parameters_.perspective == Perspective::IS_SERVER)) {
+    QUICHE_DLOG(INFO) << ENDPOINT << "Request ID evenness incorrect";
+    Error(MoqtError::kInvalidRequestId, "Request ID evenness incorrect");
     return false;
   }
-  next_incoming_request_id_ = request_id + 2;
+  if (published_subscriptions_.contains(request_id) ||
+      incoming_fetches_.contains(request_id) ||
+      incoming_track_status_.contains(request_id) ||
+      incoming_publish_namespaces_by_id_.contains(request_id)) {
+    QUICHE_DLOG(INFO) << ENDPOINT << "Duplicate request ID";
+    Error(MoqtError::kInvalidRequestId, "Duplicate request ID");
+    return false;
+  }
   return true;
 }
 
 void MoqtSession::UnknownBidiStream::OnCanRead() {
   if (!parser_.ReadUntilMessageTypeKnown()) {
     // Got an early FIN.
-    stream_->ResetWithUserCode(kResetCodeCanceled);
+    stream_->ResetWithUserCode(kResetCodeCancelled);
     return;
   }
   if (!parser_.message_type().has_value()) {
@@ -1030,8 +1028,9 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
     return;
   }
   if (session_->subscribed_track_names_.contains(message.full_track_name)) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Duplicate subscribe for track");
+    SendRequestError(message.request_id,
+                     RequestErrorCode::kDuplicateSubscription, std::nullopt,
+                     "");
     return;
   }
   const FullTrackName& track_name = message.full_track_name;
@@ -1040,7 +1039,7 @@ void MoqtSession::ControlStream::OnSubscribeMessage(
   if (track_publisher == nullptr) {
     QUIC_DLOG(INFO) << ENDPOINT << "SUBSCRIBE for " << track_name
                     << " rejected by the application: does not exist";
-    SendRequestError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
+    SendRequestError(message.request_id, RequestErrorCode::kDoesNotExist,
                      std::nullopt, "not found");
     return;
   }
@@ -1137,9 +1136,9 @@ void MoqtSession::ControlStream::OnRequestOkMessage(
   if (ru_it != session_->pending_subscribe_updates_.end()) {
     auto sub_it = session_->subscribe_by_name_.find(ru_it->second.name);
     if (sub_it == session_->subscribe_by_name_.end()) {
-      std::move(ru_it->second.response_callback)(MoqtRequestErrorInfo{
-          RequestErrorCode::kTrackDoesNotExist, std::nullopt,
-          "subscription does not exist anymore"});
+      std::move(ru_it->second.response_callback)(
+          MoqtRequestErrorInfo{RequestErrorCode::kDoesNotExist, std::nullopt,
+                               "subscription does not exist anymore"});
       session_->pending_subscribe_updates_.erase(ru_it);
       return;
     }
@@ -1391,7 +1390,7 @@ void MoqtSession::ControlStream::OnTrackStatusMessage(
   std::shared_ptr<MoqtTrackPublisher> track =
       session_->publisher_->GetTrack(message.full_track_name);
   if (track == nullptr) {
-    SendRequestError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
+    SendRequestError(message.request_id, RequestErrorCode::kDoesNotExist,
                      std::nullopt, "Track does not exist");
     return;
   }
@@ -1454,7 +1453,7 @@ void MoqtSession::ControlStream::OnFetchMessage(const MoqtFetch& message) {
     if (track_publisher == nullptr) {
       QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
                       << " rejected by the application: not found";
-      SendRequestError(message.request_id, RequestErrorCode::kTrackDoesNotExist,
+      SendRequestError(message.request_id, RequestErrorCode::kDoesNotExist,
                        std::nullopt, "not found");
       return;
     }
@@ -1650,7 +1649,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
                 ? session_->RemoteTrackById(message.track_alias)
                 : session_->RemoteTrackByAlias(message.track_alias);
     if (track == nullptr) {
-      stream_->SendStopSending(kResetCodeCanceled);
+      stream_->SendStopSending(kResetCodeCancelled);
       // Received object for nonexistent track.
       return;
     }
@@ -1712,7 +1711,7 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
     UpstreamFetch::UpstreamFetchTask* task = fetch->task();
     if (task == nullptr) {
       // The application killed the FETCH.
-      stream_->SendStopSending(kResetCodeCanceled);
+      stream_->SendStopSending(kResetCodeCancelled);
       return;
     }
     if (!task->HasObject()) {
@@ -1811,7 +1810,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
                         << "Received object for a track with no SUBSCRIBE";
         // This is a not a session error because there might be an UNSUBSCRIBE
         // or SUBSCRIBE_OK (containing the track alias) in flight.
-        stream_->SendStopSending(kResetCodeCanceled);
+        stream_->SendStopSending(kResetCodeCancelled);
         return;
       }
       it->second->OnStreamOpened();
@@ -1826,7 +1825,7 @@ void MoqtSession::IncomingDataStream::OnCanRead() {
     QUIC_DLOG(INFO) << ENDPOINT << "Received object for a track with no FETCH";
     // This is a not a session error because there might be an UNSUBSCRIBE in
     // flight.
-    stream_->SendStopSending(kResetCodeCanceled);
+    stream_->SendStopSending(kResetCodeCancelled);
     return;
   }
   if (it->second == nullptr) {
@@ -1880,8 +1879,18 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
 }
 
 MoqtSession::PublishedSubscription::~PublishedSubscription() {
-  session_->subscribed_track_names_.erase(track_publisher_->GetTrackName());
   track_publisher_->RemoveObjectListener(this);
+  if (session_->is_closing_) {
+    return;
+  }
+  session_->subscribed_track_names_.erase(track_publisher_->GetTrackName());
+  // Reset all streams.
+  for (const webtransport::StreamId stream_id : stream_map().GetAllStreams()) {
+    webtransport::Stream* stream = session_->session_->GetStreamById(stream_id);
+    if (stream != nullptr) {
+      stream->ResetWithUserCode(kResetCodeCancelled);
+    }
+  }
 }
 
 SendStreamMap& MoqtSession::PublishedSubscription::stream_map() {
@@ -2287,7 +2296,7 @@ MoqtSession::PublishedSubscription*
 MoqtSession::OutgoingDataStream::GetSubscriptionIfValid() {
   auto it = session_->published_subscriptions_.find(subscription_id_);
   if (it == session_->published_subscriptions_.end()) {
-    stream_->ResetWithUserCode(kResetCodeCanceled);
+    stream_->ResetWithUserCode(kResetCodeCancelled);
     return nullptr;
   }
 

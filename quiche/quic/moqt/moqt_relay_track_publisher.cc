@@ -221,7 +221,7 @@ void MoqtRelayTrackPublisher::OnPublishDone(FullTrackName full_track_name) {
   for (auto& [group, group_data] : queue_) {
     for (auto& [subgroup, subgroup_data] : group_data.subgroups) {
       for (MoqtObjectListener* listener : listeners_) {
-        listener->OnSubgroupAbandoned(group, subgroup, kResetCodeCanceled);
+        listener->OnSubgroupAbandoned(group, subgroup, kResetCodeCancelled);
       }
     }
   }
@@ -265,7 +265,7 @@ void MoqtRelayTrackPublisher::OnStreamReset(const FullTrackName&,
   }
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnSubgroupAbandoned(stream.group, stream.subgroup,
-                                  kResetCodeCanceled);
+                                  kResetCodeCancelled);
   }
 }
 

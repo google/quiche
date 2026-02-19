@@ -43,13 +43,14 @@ enum QUICHE_EXPORT MoqtError : uint64_t {
 };
 
 // Error codes used by MoQT to reset streams.
-inline constexpr webtransport::StreamErrorCode kResetCodeUnknown = 0x00;
-inline constexpr webtransport::StreamErrorCode kResetCodeCanceled = 0x01;
+inline constexpr webtransport::StreamErrorCode kResetCodeInternalError = 0x00;
+inline constexpr webtransport::StreamErrorCode kResetCodeCancelled = 0x01;
 inline constexpr webtransport::StreamErrorCode kResetCodeDeliveryTimeout = 0x02;
 inline constexpr webtransport::StreamErrorCode kResetCodeSessionClosed = 0x03;
-// TODO(martinduke): This is not in the spec, but is needed. The number might
-// change.
-inline constexpr webtransport::StreamErrorCode kResetCodeMalformedTrack = 0x04;
+inline constexpr webtransport::StreamErrorCode kResetCodeUnknownObjectStatus =
+    0x04;
+inline constexpr webtransport::StreamErrorCode kResetCodeMalformedTrack = 0x12;
+// Proposed in a PR post draft-16.
 inline constexpr webtransport::StreamErrorCode kResetCodeTooFarBehind = 0x05;
 
 // Used for SUBSCRIBE_ERROR, PUBLISH_NAMESPACE_ERROR, PUBLISH_NAMESPACE_CANCEL,
@@ -59,20 +60,28 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kUnauthorized = 0x1,
   kTimeout = 0x2,
   kNotSupported = 0x3,
-  kTrackDoesNotExist = 0x4,  // SUBSCRIBE_ERROR and FETCH_ERROR only.
-  kUninterested =
-      0x4,  // PUBLISH_NAMESPACE_ERROR and PUBLISH_NAMESPACE_CANCEL only.
-  kNamespacePrefixUnknown = 0x4,   // SUBSCRIBE_NAMESPACE_ERROR only.
-  kInvalidRange = 0x5,             // SUBSCRIBE_ERROR and FETCH_ERROR only.
-  kNamespacePrefixOverlap = 0x5,   // SUBSCRIBE_NAMESPACE_ERROR only.
-  kNoObjects = 0x6,                // FETCH_ERROR only.
-  kInvalidJoiningRequestId = 0x7,  // FETCH_ERROR only.
-  kUnknownStatusInRange = 0x8,     // FETCH_ERROR only.
-  kMalformedTrack = 0x9,
-  kMalformedAuthToken = 0x10,
-  kExpiredAuthToken = 0x12,
+  kMalformedAuthToken = 0x4,
+  kExpiredAuthToken = 0x5,
+  kDoesNotExist = 0x10,
+  kInvalidRange = 0x11,
+  kMalformedTrack = 0x12,
   kDuplicateSubscription = 0x19,
+  kUninterested = 0x20,
+  kNamespacePrefixUnknown = 0x21,
   kPrefixOverlap = 0x30,
+  kInvalidJoiningRequestId = 0x32,
+};
+
+enum class QUICHE_EXPORT PublishDoneCode : uint64_t {
+  kInternalError = 0x0,
+  kUnauthorized = 0x1,
+  kTrackEnded = 0x2,
+  kSubscriptionEnded = 0x3,
+  kGoingAway = 0x4,
+  kExpired = 0x5,
+  kTooFarBehind = 0x6,
+  kUpdateFailed = 0x8,
+  kMalformedTrack = 0x12,
 };
 
 struct MoqtRequestErrorInfo {

@@ -649,10 +649,8 @@ TEST_F(MoqtSessionTest, TwoSubscribesForTrack) {
 
   request.request_id = 3;
   request.parameters.subscription_filter.emplace(Location(12, 0));
-  EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "Duplicate subscribe for track"))
-      .Times(1);
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
   stream_input->OnSubscribeMessage(request);
 }
 
@@ -698,16 +696,15 @@ TEST_F(MoqtSessionTest, SubscribeIdNotIncreasing) {
   MoqtSubscribe request = DefaultSubscribe();
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
-  // Request for track returns REQUEST_ERROR.
-  EXPECT_CALL(mock_stream_,
-              Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
+  MockTrackPublisher* track = CreateTrackPublisher();
+  EXPECT_CALL(*track, AddObjectListener);
   stream_input->OnSubscribeMessage(request);
 
   // Second request is a protocol violation.
   request.full_track_name = FullTrackName({"dead", "beef"});
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
-                           "Request ID not monotonically increasing"));
+                           "Duplicate request ID"));
   stream_input->OnSubscribeMessage(request);
 }
 
@@ -893,8 +890,6 @@ TEST_F(MoqtSessionTest, GrantMoreRequests) {
   session_.GrantMoreRequests(1);
   // Peer subscribes to (0, 0)
   MoqtSubscribe request = DefaultSubscribe();
-  MoqtSessionPeer::set_next_incoming_request_id(
-      &session_, kDefaultInitialMaxRequestId + 1);
   request.request_id = kDefaultInitialMaxRequestId + 1;
   MockTrackPublisher* track = CreateTrackPublisher();
   ReceiveSubscribeSynchronousOk(track, request, stream_input.get());
@@ -1464,7 +1459,7 @@ TEST_F(MoqtSessionTest, GroupAbandonedNoDeliveryTimeout) {
       /*stream_count=*/1,
       /*error_reason=*/"",
   };
-  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeCanceled));
+  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeCancelled));
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
@@ -1532,7 +1527,7 @@ TEST_F(MoqtSessionTest, GroupAbandonedDeliveryTimeout) {
       /*stream_count=*/1,
       /*error_reason=*/"",
   };
-  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeCanceled));
+  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeCancelled));
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
@@ -2606,25 +2601,25 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeError) {
                    MoqtFetchTask::GetNextObjectResult::kPending);
   stream_input->OnFetchMessage(fetch);
 
-  MoqtRequestError expected_error{fetch.request_id,
-                                  RequestErrorCode::kTrackDoesNotExist,
-                                  std::nullopt, "foo"};
+  MoqtRequestError expected_error{
+      fetch.request_id, RequestErrorCode::kDoesNotExist, std::nullopt, "foo"};
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(expected_error), _));
   fetch_task->CallFetchResponseCallback(expected_error);
 }
 
 TEST_F(MoqtSessionTest, InvalidFetch) {
-  // Update the state so that it expects ID > 0 next time.
-  MoqtSessionPeer::ValidateRequestId(&session_, 1);
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtControlParserVisitor> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  MockTrackPublisher* track = CreateTrackPublisher();
   MoqtFetch fetch = DefaultFetch();
-  fetch.request_id = 1;  // Too low.
+  EXPECT_CALL(*track, StandaloneFetch)
+      .WillOnce(Return(std::make_unique<MockFetchTask>()));
+  stream_input->OnFetchMessage(fetch);
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
-                           "Request ID not monotonically increasing"))
+                           "Duplicate request ID"))
       .Times(1);
   stream_input->OnFetchMessage(fetch);
 }
@@ -4078,7 +4073,7 @@ TEST_F(MoqtSessionTest, ResetReportedToVisitor) {
   DeliverObject(object, /*fin=*/false, mock_session_, &mock_stream_,
                 data_stream, &remote_track_visitor_);
   // The data stream died and destroyed the visitor (IncomingDataStream).
-  data_stream->OnResetStreamReceived(kResetCodeCanceled);
+  data_stream->OnResetStreamReceived(kResetCodeCancelled);
   EXPECT_CALL(remote_track_visitor_, OnStreamReset(FullTrackName("foo", "bar"),
                                                    DataStreamIndex(0, 0)));
   data_stream.reset();

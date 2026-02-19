@@ -165,7 +165,7 @@ std::unique_ptr<MoqtNamespaceTask> MoqtNamespaceSubscriberStream::CreateTask(
 
 MoqtNamespaceSubscriberStream::NamespaceTask::~NamespaceTask() {
   if (state_ != nullptr) {
-    state_->Reset(kResetCodeCanceled);
+    state_->Reset(kResetCodeCancelled);
   }
 }
 
@@ -336,7 +336,7 @@ void MoqtNamespacePublisherStream::ProcessNamespaces() {
         };
         return;
       case kError:
-        Reset(kResetCodeCanceled);
+        Reset(kResetCodeCancelled);
         return;
       case kSuccess: {
         switch (type) {

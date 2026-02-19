@@ -21,7 +21,7 @@ RequestErrorCode StatusToRequestErrorCode(absl::Status status) {
     case absl::StatusCode::kUnimplemented:
       return RequestErrorCode::kNotSupported;
     case absl::StatusCode::kNotFound:
-      return RequestErrorCode::kTrackDoesNotExist;
+      return RequestErrorCode::kDoesNotExist;
     case absl::StatusCode::kOutOfRange:
       return RequestErrorCode::kInvalidRange;
     case absl::StatusCode::kInvalidArgument:
@@ -43,15 +43,10 @@ absl::StatusCode RequestErrorCodeToStatusCode(RequestErrorCode error_code) {
       return absl::StatusCode::kDeadlineExceeded;
     case RequestErrorCode::kNotSupported:
       return absl::StatusCode::kUnimplemented;
-    case RequestErrorCode::kTrackDoesNotExist:
-      // Equivalently, kUninterested and kNamespacePrefixUnknown.
+    case RequestErrorCode::kDoesNotExist:
       return absl::StatusCode::kNotFound;
     case RequestErrorCode::kInvalidRange:
-      // Equivalently, kNamespacePrefixOverlap.
       return absl::StatusCode::kOutOfRange;
-    case RequestErrorCode::kNoObjects:
-      // Equivalently, kRetryTrackAlias.
-      return absl::StatusCode::kNotFound;
     case RequestErrorCode::kInvalidJoiningRequestId:
     case RequestErrorCode::kMalformedAuthToken:
       return absl::StatusCode::kInvalidArgument;
@@ -70,12 +65,18 @@ absl::Status RequestErrorCodeToStatus(RequestErrorCode error_code,
 absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
                                      absl::string_view reason_phrase) {
   switch (error_code) {
-    case kResetCodeCanceled:
+    case kResetCodeInternalError:
+      return absl::InternalError(reason_phrase);
+    case kResetCodeCancelled:
       return absl::CancelledError(reason_phrase);
     case kResetCodeDeliveryTimeout:
       return absl::DeadlineExceededError(reason_phrase);
     case kResetCodeSessionClosed:
       return absl::AbortedError(reason_phrase);
+    case kResetCodeUnknownObjectStatus:
+      return absl::FailedPreconditionError(reason_phrase);
+    case kResetCodeTooFarBehind:
+      return absl::DeadlineExceededError(reason_phrase);
     case kResetCodeMalformedTrack:
       return absl::InvalidArgumentError(reason_phrase);
     default:

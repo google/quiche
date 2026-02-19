@@ -153,10 +153,6 @@ class MoqtSessionPeer {
     session->next_request_id_ = id;
   }
 
-  static void set_next_incoming_request_id(MoqtSession* session, uint64_t id) {
-    session->next_incoming_request_id_ = id;
-  }
-
   static void set_peer_max_request_id(MoqtSession* session, uint64_t id) {
     session->peer_max_request_id_ = id;
   }

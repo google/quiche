@@ -368,17 +368,6 @@ struct QUICHE_EXPORT MoqtUnsubscribe {
   uint64_t request_id;
 };
 
-enum class QUICHE_EXPORT PublishDoneCode : uint64_t {
-  kInternalError = 0x0,
-  kUnauthorized = 0x1,
-  kTrackEnded = 0x2,
-  kSubscriptionEnded = 0x3,
-  kGoingAway = 0x4,
-  kExpired = 0x5,
-  kTooFarBehind = 0x6,
-  kMalformedTrack = 0x7,
-};
-
 struct QUICHE_EXPORT MoqtPublishDone {
   uint64_t request_id;
   PublishDoneCode status_code;

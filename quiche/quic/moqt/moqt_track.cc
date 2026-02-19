@@ -16,6 +16,7 @@
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -128,10 +129,11 @@ void SubscribeRemoteTrack::FetchObjects() {
 }
 
 UpstreamFetch::~UpstreamFetch() {
-  if (task_.IsValid()) {
+  UpstreamFetchTask* task = task_.GetIfAvailable();
+  if (task != nullptr) {
     // Notify the task (which the application owns) that nothing more is coming.
     // If this has already been called, UpstreamFetchTask will ignore it.
-    task_.GetIfAvailable()->OnStreamAndFetchClosed(kResetCodeUnknown, "");
+    task->OnStreamAndFetchClosed(kResetCodeCancelled, "");
   }
 }
 

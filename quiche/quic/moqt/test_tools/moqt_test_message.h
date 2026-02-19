@@ -785,7 +785,7 @@ class QUICHE_NO_EXPORT RequestErrorMessage : public TestMessageBase {
   uint8_t raw_packet_[11] = {
       0x05, 0x00, 0x08,
       0x02,                    // request_id = 2
-      0x05,                    // error_code = 5
+      0x11,                    // error_code = 17
       0x67, 0x11,              // retry_interval = 10000 ms
       0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
   };

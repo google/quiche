@@ -677,9 +677,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnGroupAbandoned(uint64_t /*group_id*/) override {}
     void OnTrackPublisherGone() override {
       publisher_ = nullptr;
-      OnSubscribeRejected(
-          MoqtRequestErrorInfo(RequestErrorCode::kTrackDoesNotExist,
-                               std::nullopt, "Track publisher gone"));
+      OnSubscribeRejected(MoqtRequestErrorInfo(RequestErrorCode::kDoesNotExist,
+                                               std::nullopt,
+                                               "Track publisher gone"));
     }
 
    private:
@@ -871,8 +871,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   SessionNamespaceTree incoming_subscribe_namespace_;
   SessionNamespaceTree outgoing_subscribe_namespace_;
 
-  // The minimum request ID the peer can use that is monotonically increasing.
-  uint64_t next_incoming_request_id_ = 0;
   // The maximum request ID sent to the peer. Peer-generated IDs must be less
   // than this value.
   uint64_t local_max_request_id_ = 0;

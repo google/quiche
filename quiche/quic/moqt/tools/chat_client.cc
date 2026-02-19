@@ -76,7 +76,7 @@ void ChatClient::OnIncomingPublishNamespace(
     std::cout << "PUBLISH_NAMESPACE rejected, invalid namespace\n";
     if (callback != nullptr) {
       std::move(callback)(std::make_optional<MoqtRequestErrorInfo>(
-          RequestErrorCode::kTrackDoesNotExist, std::nullopt,
+          RequestErrorCode::kDoesNotExist, std::nullopt,
           "Not a subscribed namespace"));
     }
     return;
