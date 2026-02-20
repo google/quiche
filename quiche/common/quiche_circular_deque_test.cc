@@ -540,6 +540,84 @@ TEST_F(QuicheCircularDequeTest, Resize) {
   EXPECT_EQ(5, *(dq2.rbegin() + 1));
 }
 
+TEST_F(QuicheCircularDequeTest, ShrinkToFitOnEmptyDeque) {
+  QuicheCircularDeque<int> dq;
+  EXPECT_EQ(0u, dq.size());
+  EXPECT_EQ(0u, dq.capacity());
+  dq.shrink_to_fit();
+  EXPECT_EQ(0u, dq.size());
+  EXPECT_EQ(0u, dq.capacity());
+}
+
+TEST_F(QuicheCircularDequeTest, ShrinkToFitOnSmallDeque) {
+  QuicheCircularDeque<int> dq;
+  dq.push_back(1);
+  EXPECT_EQ(1u, dq.size());
+  EXPECT_EQ(3u, dq.capacity());
+  dq.shrink_to_fit();
+  EXPECT_EQ(1u, dq.size());
+  EXPECT_EQ(3u, dq.capacity());
+  dq.clear();
+  EXPECT_EQ(0u, dq.size());
+  EXPECT_EQ(3u, dq.capacity());
+  dq.shrink_to_fit();
+  EXPECT_EQ(0u, dq.size());
+  EXPECT_EQ(3u, dq.capacity());
+}
+
+TEST_F(QuicheCircularDequeTest, ShrinkToFitOnLargeDeque) {
+  QuicheCircularDeque<int> dq;
+  dq.assign(64, 1);
+  dq.push_back(2);
+  EXPECT_EQ(65u, dq.size());
+  EXPECT_EQ(80u, dq.capacity());
+  dq.shrink_to_fit();
+  EXPECT_EQ(65u, dq.size());
+  EXPECT_EQ(80u, dq.capacity());
+  dq.pop_front_n(33);
+  EXPECT_EQ(32u, dq.size());
+  EXPECT_EQ(80u, dq.capacity());
+  dq.shrink_to_fit();
+  EXPECT_EQ(32u, dq.size());
+  EXPECT_EQ(40u, dq.capacity());
+  dq.pop_front_n(16);
+  EXPECT_EQ(16u, dq.size());
+  EXPECT_EQ(40u, dq.capacity());
+  dq.shrink_to_fit();
+  EXPECT_EQ(16u, dq.size());
+  EXPECT_EQ(20u, dq.capacity());
+  dq.pop_front_n(8);
+  EXPECT_EQ(8u, dq.size());
+  EXPECT_EQ(20u, dq.capacity());
+  dq.shrink_to_fit();
+  EXPECT_EQ(8u, dq.size());
+  EXPECT_EQ(11u, dq.capacity());
+  dq.pop_front_n(4);
+  EXPECT_EQ(4u, dq.size());
+  EXPECT_EQ(11u, dq.capacity());
+  dq.shrink_to_fit();
+  EXPECT_EQ(4u, dq.size());
+  EXPECT_EQ(7u, dq.capacity());
+  dq.pop_front_n(2);
+  EXPECT_EQ(2u, dq.size());
+  EXPECT_EQ(7u, dq.capacity());
+  dq.shrink_to_fit();
+  EXPECT_EQ(2u, dq.size());
+  EXPECT_EQ(5u, dq.capacity());
+  dq.pop_front();
+  EXPECT_EQ(1u, dq.size());
+  EXPECT_EQ(5u, dq.capacity());
+  dq.shrink_to_fit();
+  EXPECT_EQ(1u, dq.size());
+  EXPECT_EQ(4u, dq.capacity());
+  dq.pop_front();
+  EXPECT_EQ(0u, dq.size());
+  EXPECT_EQ(4u, dq.capacity());
+  dq.shrink_to_fit();
+  EXPECT_EQ(0u, dq.size());
+  EXPECT_EQ(3u, dq.capacity());
+}
+
 namespace {
 class Foo {
  public:

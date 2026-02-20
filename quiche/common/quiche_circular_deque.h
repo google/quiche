@@ -457,6 +457,15 @@ class QUICHE_NO_EXPORT QuicheCircularDeque {
     return num_elements_to_pop;
   }
 
+  // Requests the reduction of unused capacity. A bit headroom is still kept.
+  void shrink_to_fit() {
+    size_type new_capacity =
+        size() + std::max(MinCapacityIncrement, size() / 4);
+    if (capacity() > new_capacity) {
+      Relocate(new_capacity);
+    }
+  }
+
   void swap(QuicheCircularDeque& other) {
     using std::swap;
     swap(begin_, other.begin_);
