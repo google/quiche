@@ -262,13 +262,9 @@ QuicTime::Delta QuicReceivedPacketManager::GetMaxAckDelay(
   return std::max(ack_delay, kAlarmGranularity);
 }
 
-void QuicReceivedPacketManager::MaybeUpdateAckFrequency(
+void QuicReceivedPacketManager::MaybeEnableAckDecimation(
     QuicPacketNumber last_received_packet_number) {
-  if (AckFrequencyFrameReceived()) {
-    // Skip Ack Decimation below after receiving an AckFrequencyFrame from the
-    // other end point.
-    return;
-  }
+  QUICHE_DCHECK(!AckFrequencyFrameReceived());
   if (last_received_packet_number <
       PeerFirstSendingPacketNumber() + min_received_before_ack_decimation_) {
     return;
@@ -330,7 +326,9 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
 
   ++num_retransmittable_packets_received_since_last_ack_sent_;
 
-  MaybeUpdateAckFrequency(last_received_packet_number);
+  if (!AckFrequencyFrameReceived()) {
+    MaybeEnableAckDecimation(last_received_packet_number);
+  }
   if (num_retransmittable_packets_received_since_last_ack_sent_ >=
       ack_frequency_) {
     ack_timeout_ = now;

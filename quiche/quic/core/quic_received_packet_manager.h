@@ -149,8 +149,8 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
   // Sets ack_timeout_ to |time| if ack_timeout_ is not initialized or > time.
   void MaybeUpdateAckTimeoutTo(QuicTime time);
 
-  // Maybe update ack_frequency_ when condition meets.
-  void MaybeUpdateAckFrequency(QuicPacketNumber last_received_packet_number);
+  // Sets ack_frequency_ when enough packets have been received.
+  void MaybeEnableAckDecimation(QuicPacketNumber last_received_packet_number);
 
   QuicTime::Delta GetMaxAckDelay(QuicPacketNumber last_received_packet_number,
                                  const RttStats& rtt_stats) const;
