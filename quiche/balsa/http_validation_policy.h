@@ -116,6 +116,14 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // https://datatracker.ietf.org/doc/html/rfc9110#section-5.6.2
   bool disallow_invalid_request_methods = false;
 
+  // Chunk extensions are optional but, if they are present, they MUST be
+  // preceded by a semicolon and follow the grammar:
+  // chunk-ext = *( BWS ";" BWS chunk-ext-name [ BWS "=" BWS chunk-ext-val ] )
+  // where BWS is SP or HTAB. See
+  // https://datatracker.ietf.org/doc/html/rfc9112#name-chunk-extensions for
+  // more information
+  bool require_semicolon_delimited_chunk_extension = false;
+
   template <typename Sink>
   friend void AbslStringify(Sink& sink, FirstLineValidationOption option) {
     switch (option) {
@@ -153,7 +161,8 @@ struct QUICHE_EXPORT HttpValidationPolicy {
                  "sanitize_firstline_spaces=%v, "
                  "sanitize_obs_fold_in_header_values=%v, "
                  "disallow_stray_data_after_chunk=%v, "
-                 "disallow_invalid_request_methods=%v}",
+                 "disallow_invalid_request_methods=%v, "
+                 "require_semicolon_delimited_chunk_extension=%v}",
                  policy.disallow_header_continuation_lines,
                  policy.require_header_colon,
                  policy.disallow_multiple_content_length,
@@ -172,7 +181,8 @@ struct QUICHE_EXPORT HttpValidationPolicy {
                  policy.sanitize_firstline_spaces,
                  policy.sanitize_obs_fold_in_header_values,
                  policy.disallow_stray_data_after_chunk,
-                 policy.disallow_invalid_request_methods);
+                 policy.disallow_invalid_request_methods,
+                 policy.require_semicolon_delimited_chunk_extension);
   }
 };
 
@@ -197,7 +207,8 @@ static constexpr HttpValidationPolicy kMostStrictHttpValidationPolicy = {
         quiche::HttpValidationPolicy::FirstLineValidationOption::SANITIZE,
     .sanitize_obs_fold_in_header_values = true,
     .disallow_stray_data_after_chunk = true,
-    .disallow_invalid_request_methods = true};
+    .disallow_invalid_request_methods = true,
+    .require_semicolon_delimited_chunk_extension = true};
 
 }  // namespace quiche
 

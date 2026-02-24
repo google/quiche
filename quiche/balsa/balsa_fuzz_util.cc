@@ -23,7 +23,7 @@ fuzztest::Domain<HttpValidationPolicy> ArbitraryHttpValidationPolicy() {
       fuzztest::Arbitrary<bool>(), fuzztest::Arbitrary<bool>(),
       fuzztest::Arbitrary<bool>(), ArbitraryFirstLineValidationOption(),
       fuzztest::Arbitrary<bool>(), fuzztest::Arbitrary<bool>(),
-      fuzztest::Arbitrary<bool>());
+      fuzztest::Arbitrary<bool>(), fuzztest::Arbitrary<bool>());
 }
 
 fuzztest::Domain<HttpValidationPolicy::FirstLineValidationOption>

@@ -1237,10 +1237,10 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
         continue;
 
       case BalsaFrameEnums::READING_CHUNK_EXTENSION: {
-        // TODO(phython): Convert this scanning to be 16 bytes at a time if
-        // there is data to be read.
         const char* extensions_start = current;
         size_t extensions_length = 0;
+        bool found_semicolon = false;
+        bool found_non_bws_before_semicolon = false;
         QUICHE_DCHECK_LE(current, end);
         while (true) {
           if (current == end) {
@@ -1251,6 +1251,12 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
             return current - input;
           }
           const char c = *current;
+          if (c == ';') {
+            found_semicolon = true;
+          }
+          if (!found_semicolon && (c != ' ' && c != '\t')) {
+            found_non_bws_before_semicolon = true;
+          }
           if (!IsValidChunkExtensionCharacter(c, current, input, end)) {
             HandleError(BalsaFrameEnums::INVALID_CHUNK_EXTENSION);
             return current - input;
@@ -1268,6 +1274,14 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
           if (c == '\n') {
             break;
           }
+        }
+
+        if (http_validation_policy_
+                .require_semicolon_delimited_chunk_extension &&
+            extensions_length > 0 &&
+            (!found_semicolon || found_non_bws_before_semicolon)) {
+          HandleError(BalsaFrameEnums::INVALID_CHUNK_EXTENSION);
+          return current - input;
         }
 
         chunk_length_character_extracted_ = false;

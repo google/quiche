@@ -24,6 +24,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/balsa/balsa_enums.h"
 #include "quiche/balsa/balsa_headers.h"
 #include "quiche/balsa/balsa_visitor_interface.h"
@@ -47,6 +48,7 @@ using ::testing::NiceMock;
 using ::testing::Pointee;
 using ::testing::Property;
 using ::testing::Range;
+using ::testing::Sequence;
 using ::testing::StrEq;
 using ::testing::StrictMock;
 
@@ -5099,6 +5101,207 @@ TEST_F(HTTPBalsaFrameTest, ObsTextInReasonPhraseAllowed) {
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+}
+
+TEST_F(HTTPBalsaFrameTest, MoreChunkExtensions) {
+  struct TestCase {
+    absl::string_view chunks;  // chunks to process.
+    absl::Span<const size_t> expected_chunk_sizes;
+    absl::Span<const absl::string_view> expected_chunk_extensions;
+    HttpValidationPolicy policy;
+    BalsaFrameEnums::ErrorCode expected_error;
+  };
+
+  HttpValidationPolicy strict_chunks_policy;
+  strict_chunks_policy.disallow_stray_data_after_chunk = true;
+  strict_chunks_policy.disallow_lone_lf_in_chunk_extension = true;
+  strict_chunks_policy.disallow_lone_cr_in_chunk_extension = true;
+  strict_chunks_policy.require_chunked_body_end_with_crlf_crlf = true;
+
+  HttpValidationPolicy strict_chunk_and_ext_validation;
+  strict_chunk_and_ext_validation.disallow_stray_data_after_chunk = true;
+  strict_chunk_and_ext_validation.disallow_lone_lf_in_chunk_extension = true;
+  strict_chunk_and_ext_validation.disallow_lone_cr_in_chunk_extension = true;
+  strict_chunk_and_ext_validation.require_chunked_body_end_with_crlf_crlf =
+      true;
+  strict_chunk_and_ext_validation.require_semicolon_delimited_chunk_extension =
+      true;
+
+  std::vector<TestCase> cases = {
+      // no body, just the last-chunk
+      {"0\r\n"
+       "\r\n",
+       {0},
+       {""},
+       strict_chunks_policy,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+
+      // no body, just last chunk with valid extension
+      {"0;chunked_extension=\"foobar\"quote\"\"\r\n"
+       "\r\n",
+       {0},
+       {";chunked_extension=\"foobar\"quote\"\""},
+       strict_chunks_policy,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+
+      // Two valid chunks, last chunk has non-delimited extension
+      {"1;ext1\r\n"
+       "A\r\n"
+       "1;ext2\r\n"
+       "B\r\n"
+       "0 ext3\r\n"  // non-semicolon delimited extension
+       "\r\n",
+       {1, 1, 0},
+       {";ext1", ";ext2"},  // last-chunks's extension is rejected
+       strict_chunk_and_ext_validation,
+       BalsaFrameEnums::INVALID_CHUNK_EXTENSION},
+
+      // Two valid chunks, last chunk has non-delimited extension
+      {"1;ext1\r\n"
+       "A\r\n"
+       "1;ext2\r\n"
+       "B\r\n"
+       "0 ext3\r\n"  // non-semicolon delimited extension
+       "\r\n",
+       {1, 1, 0},
+       {";ext1", ";ext2", " ext3"},
+       strict_chunks_policy,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+
+      // Trailing WS before semicolon
+      {"1 \t;ext\r\n"  // BWS before semicolon is valid
+       "Q\r\n"
+       "0\r\n"
+       "\r\n",
+       {1, 0},
+       {" \t;ext", ""},
+       strict_chunks_policy,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+
+      // Non BWS before semicolon
+      {"1 \tnon-bws;ext\r\n"
+       "Q\r\n"
+       "0\r\n"
+       "\r\n",
+       {1, 0},
+       {" \tnon-bws;ext", ""},
+       strict_chunks_policy,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+
+      // Non BWS before semicolon
+      {"1 \tnon-bws;ext\r\n"
+       "Q\r\n"
+       "0\r\n"
+       "\r\n",
+       {1},
+       {},
+       strict_chunk_and_ext_validation,
+       BalsaFrameEnums::INVALID_CHUNK_EXTENSION},
+
+      // BWS with no extension
+      {"1 \t \r\n"
+       "Q\r\n"
+       "0\r\n"
+       "\r\n",
+       {1},
+       {},
+       strict_chunk_and_ext_validation,
+       BalsaFrameEnums::INVALID_CHUNK_EXTENSION},
+
+      // BWS with no extension is invalid
+      {"1 \t \r\n"
+       "Q\r\n"
+       "0\r\n"
+       "\r\n",
+       {1, 0},
+       {" \t ", ""},
+       strict_chunks_policy,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+
+      // Trailing BWS after semicolon
+      {"1; \t ext\r\n"
+       "Q\r\n"
+       "0\r\n"
+       "\r\n",
+       {1, 0},
+       {"; \t ext", ""},
+       strict_chunks_policy,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+
+      // Trailing illegal characters before semicolon
+      {"1ERROR;ext\r\n"  // not valid hex
+       "Q\r\n"
+       "0\r\n"
+       "\r\n",
+       {},
+       {},
+       strict_chunks_policy,
+       BalsaFrameEnums::INVALID_CHUNK_LENGTH},
+
+      // Extension with semicolon & CRLF
+      {"1;ext=\";foo\"\r\n"
+       "Q\r\n"
+       "0\r\n"
+       "\r\n",
+       {1, 0},
+       {";ext=\";foo\"", ""},
+       strict_chunks_policy,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+
+      // Bare semicolon
+      {"A;\r\n"
+       "0123456789\r\n"
+       "0\r\n"
+       "\r\n",
+       {10, 0},
+       {";", ""},
+       strict_chunks_policy,
+       BalsaFrameEnums::BALSA_NO_ERROR},
+  };
+
+  for (const TestCase& test : cases) {
+    SCOPED_TRACE(absl::StrCat("Testing chunks: ", absl::CEscape(test.chunks)));
+    NiceMock<BalsaVisitorMock> visitor_mock;
+    BalsaFrame balsa_frame;
+    BalsaHeaders headers;
+    balsa_frame.set_is_request(true);
+    balsa_frame.set_balsa_headers(&headers);
+    balsa_frame.set_http_validation_policy(test.policy);
+    balsa_frame.set_balsa_visitor(&visitor_mock);
+
+    std::string message_headers =
+        "POST / HTTP/1.1\r\n"
+        "Transfer-Encoding:  chunked\r\n"
+        "\r\n";
+
+    ASSERT_EQ(balsa_frame.ProcessInput(message_headers.data(),
+                                       message_headers.size()),
+              message_headers.size());
+    ASSERT_FALSE(balsa_frame.Error());
+
+    Sequence size_sequence, extension_sequence;
+    for (size_t chunk_size : test.expected_chunk_sizes) {
+      EXPECT_CALL(visitor_mock, OnChunkLength(chunk_size))
+          .InSequence(size_sequence);
+    }
+
+    for (absl::string_view extension : test.expected_chunk_extensions) {
+      EXPECT_CALL(visitor_mock, OnChunkExtensionInput(extension))
+          .InSequence(extension_sequence);
+    }
+
+    size_t bytes_consumed =
+        balsa_frame.ProcessInput(test.chunks.data(), test.chunks.size());
+    EXPECT_EQ(balsa_frame.ErrorCode(), test.expected_error);
+
+    if (test.expected_error == BalsaFrameEnums::BALSA_NO_ERROR) {
+      EXPECT_EQ(bytes_consumed, test.chunks.size());
+      EXPECT_TRUE(balsa_frame.MessageFullyRead());
+      EXPECT_FALSE(balsa_frame.Error());
+    }
+
+    Mock::VerifyAndClearExpectations(&visitor_mock);
+  }
 }
 
 TEST_F(HTTPBalsaFrameTest, MostRestrictiveTest) {
