@@ -51,7 +51,8 @@ class QUICHE_EXPORT LibeventQuicEventLoop : public QuicEventLoop {
 
   // Can be called from another thread to wake up the event loop from a blocking
   // RunEventLoopOnce() call.
-  void WakeUp();
+  void WakeUp() override;
+  bool SupportsWakeUp() const override { return true; }
 
   event_base* base() { return base_; }
   QuicClock* clock() const { return clock_; }

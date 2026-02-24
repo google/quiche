@@ -60,6 +60,8 @@ class QuicPollEventLoop : public QuicEventLoop {
   void RunEventLoopOnce(QuicTime::Delta default_timeout) override;
   std::unique_ptr<QuicAlarmFactory> CreateAlarmFactory() override;
   const QuicClock* GetClock() override { return clock_; }
+  bool SupportsWakeUp() const override;
+  void WakeUp() override;
 
  protected:
   // Allows poll(2) calls to be mocked out in unit tests.
@@ -110,6 +112,7 @@ class QuicPollEventLoop : public QuicEventLoop {
   const QuicClock* clock_;
   RegistrationMap registrations_;
   QuicQueueAlarmFactory alarms_;
+  OwnedSocketFd wake_up_eventfd_;  // Only populated on Linux.
   bool has_artificial_events_pending_ = false;
 };
 

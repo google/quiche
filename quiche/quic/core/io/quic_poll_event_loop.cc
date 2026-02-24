@@ -13,6 +13,7 @@
 #include <utility>
 #include <vector>
 
+#include "absl/base/no_destructor.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/io/socket.h"
@@ -21,6 +22,17 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+
+// On Linux, use eventfd(2) to implement QuicEventLoop::WakeUp() API.
+// The API in question is not implemented on other QUICHE-supported platforms.
+// libevent supports this on other platforms, and should be used if such
+// functionality is required.
+#if defined(__linux__)
+#include <sys/eventfd.h>
+#define QUIC_SUPPORTS_EVENTFD 1
+#else
+#define QUIC_SUPPORTS_EVENTFD 0
+#endif  // defined(__linux__)
 
 namespace quic {
 
@@ -40,9 +52,36 @@ QuicSocketEventMask GetEventMask(PollMask poll_mask) {
          ((poll_mask & POLLERR) ? kSocketEventError : 0);
 }
 
+#if QUIC_SUPPORTS_EVENTFD
+class QuicPollEventLoopDrainListener : public QuicSocketEventListener {
+ public:
+  void OnSocketEvent(QuicEventLoop* loop, SocketFd fd,
+                     QuicSocketEventMask event) override {
+    QUICHE_DCHECK_EQ(event, kSocketEventReadable);
+    // eventfd_read will reset the associated event counter to zero.
+    eventfd_t value;
+    int result = eventfd_read(fd, &value);
+    QUIC_BUG_IF(QuicPollEventLoopDrainListener_read_failed, result != 0)
+        << "eventfd_read call failed: " << errno;
+    // Rearm the `fd`, since the poll-based loop is level-triggered.
+    bool success = loop->RearmSocket(fd, kSocketEventReadable);
+    QUICHE_DCHECK(success);
+  }
+};
+#endif
+
 }  // namespace
 
-QuicPollEventLoop::QuicPollEventLoop(QuicClock* clock) : clock_(clock) {}
+QuicPollEventLoop::QuicPollEventLoop(QuicClock* clock) : clock_(clock) {
+#if QUIC_SUPPORTS_EVENTFD
+  static absl::NoDestructor<QuicPollEventLoopDrainListener>
+      poll_event_loop_drain_listener;
+  wake_up_eventfd_ = OwnedSocketFd(::eventfd(0, EFD_NONBLOCK | EFD_CLOEXEC));
+  bool success = RegisterSocket(wake_up_eventfd_.get(), kSocketEventReadable,
+                                poll_event_loop_drain_listener.get());
+  QUICHE_DCHECK(success);
+#endif
+}
 
 bool QuicPollEventLoop::RegisterSocket(SocketFd fd, QuicSocketEventMask events,
                                        QuicSocketEventListener* listener) {
@@ -211,6 +250,24 @@ void QuicPollEventLoop::RunReadyCallbacks(
 
 std::unique_ptr<QuicAlarmFactory> QuicPollEventLoop::CreateAlarmFactory() {
   return std::make_unique<QuicAlarmFactoryProxy>(&alarms_);
+}
+
+bool QuicPollEventLoop::SupportsWakeUp() const {
+  return wake_up_eventfd_.valid();
+}
+
+void QuicPollEventLoop::WakeUp() {
+#if QUIC_SUPPORTS_EVENTFD
+  if (SupportsWakeUp()) {
+    int result = eventfd_write(*wake_up_eventfd_, 1);
+    QUIC_BUG_IF(QuicPollEventLoop_WakeUp_Failed, result != 0)
+        << "eventfd_write call failed: " << errno;
+    return;
+  }
+#endif
+
+  QUIC_BUG(QuicPollEventLoop_WakeUp_Unimplemented)
+      << "QuicPollEventLoop::WakeUp() is not supported on this platform";
 }
 
 int QuicPollEventLoop::PollSyscall(pollfd* fds, size_t nfds, int timeout) {

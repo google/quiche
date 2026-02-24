@@ -14,11 +14,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+#include <atomic>
 #include <memory>
 #include <string>
 #include <utility>
 
-#include "absl/cleanup/cleanup.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
@@ -29,6 +29,7 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/platform/api/quiche_thread.h"
 
 namespace quic::test {
 namespace {
@@ -465,6 +466,52 @@ TEST_P(QuicEventLoopFactoryTest, ScheduleAlarmInPastFromInsideAlarm) {
 
   RunEventLoopUntil([&]() { return fired; },
                     QuicTime::Delta::FromMilliseconds(100));
+}
+
+constexpr int kWakeUpTestIterations = 1000;
+constexpr QuicTimeDelta kWakeUpTestTimeout = QuicTimeDelta::FromSeconds(5);
+
+class WakeUpThread : public quiche::QuicheThread {
+ public:
+  explicit WakeUpThread(QuicEventLoop* loop)
+      : QuicheThread("WakeUpThread"), loop_(loop) {}
+
+  void Run() override {
+    while (counter_.load() < kWakeUpTestIterations) {
+      loop_->WakeUp();
+    }
+  }
+
+  std::atomic<int>& counter() { return counter_; }
+
+ private:
+  QuicEventLoop* loop_;
+  std::atomic<int> counter_ = 0;
+};
+
+TEST_P(QuicEventLoopFactoryTest, WakeUp) {
+  if (!loop_->SupportsWakeUp()) {
+    GTEST_SKIP();
+  }
+
+  WakeUpThread thread(loop_.get());
+  thread.Start();
+  const QuicTime start = clock_.Now();
+  // If `WakeUp()` does not work, the event loop will take about
+  // `kWakeUpTestIterations` seconds to finish.
+  for (int i = 0; i < kWakeUpTestIterations; ++i) {
+    loop_->RunEventLoopOnce(QuicTimeDelta::FromSeconds(1));
+    ++thread.counter();
+    const QuicTimeDelta time_elapsed = clock_.Now() - start;
+    if (time_elapsed > kWakeUpTestTimeout) {
+      ADD_FAILURE() << "WakeUp test timed out with " << thread.counter().load()
+                    << " iterations ran";
+      thread.counter().store(
+          kWakeUpTestIterations);  // Cause the thread to exit.
+      break;
+    }
+  }
+  thread.Join();
 }
 
 }  // namespace

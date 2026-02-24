@@ -12,6 +12,7 @@
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
+#include "quiche/quic/core/quic_time.h"
 
 namespace quic {
 
@@ -70,7 +71,7 @@ class QuicEventLoop {
 
   // Runs a single iteration of the event loop.  The iteration will run for at
   // most |default_timeout|.
-  virtual void RunEventLoopOnce(QuicTime::Delta default_timeout) = 0;
+  virtual void RunEventLoopOnce(QuicTimeDelta default_timeout) = 0;
 
   // Returns an alarm factory that allows alarms to be scheduled on this event
   // loop.
@@ -79,6 +80,18 @@ class QuicEventLoop {
   // Returns the clock that is used by the alarm factory that the event loop
   // provides.
   virtual const QuicClock* GetClock() = 0;
+
+  // Returns true if the event loop implementation supports the `WakeUp()` call.
+  virtual bool SupportsWakeUp() const = 0;
+
+  // If `RunEventLoopOnce` is called in another thread, causes that call to exit
+  // even if no event occurred.  Thread-safe, unlike all other methods in the
+  // class; the caller still has to ensure the lifetime safety across both of
+  // the threads involved.
+  //
+  // `WakeUp()` is not supported in all implementations and/or platforms; the
+  // caller has to call `SupportsWakeUp()` to ensure it is enabled.
+  virtual void WakeUp() = 0;
 };
 
 // A factory object for the event loop. Every implementation is expected to have
