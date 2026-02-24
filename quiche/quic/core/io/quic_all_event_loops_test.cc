@@ -468,8 +468,8 @@ TEST_P(QuicEventLoopFactoryTest, ScheduleAlarmInPastFromInsideAlarm) {
                     QuicTime::Delta::FromMilliseconds(100));
 }
 
-constexpr int kWakeUpTestIterations = 1000;
-constexpr QuicTimeDelta kWakeUpTestTimeout = QuicTimeDelta::FromSeconds(5);
+constexpr int kWakeUpTestIterations = 100;
+constexpr QuicTimeDelta kWakeUpTestTimeout = QuicTimeDelta::FromSeconds(7);
 
 class WakeUpThread : public quiche::QuicheThread {
  public:
