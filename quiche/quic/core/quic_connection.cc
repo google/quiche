@@ -2196,6 +2196,7 @@ bool QuicConnection::OnAckFrequencyFrame(const QuicAckFrequencyFrame& frame) {
                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
     return false;
   }
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 3, 7);
   if (auto packet_number_space =
           QuicUtils::GetPacketNumberSpace(
               last_received_packet_info_.decrypted_level) == APPLICATION_DATA) {
@@ -2224,7 +2225,7 @@ bool QuicConnection::OnImmediateAckFrame(const QuicImmediateAckFrame& frame) {
     QUIC_LOG_EVERY_N_SEC(ERROR, 120) << "Got unexpected ImmediateAck Frame.";
     return false;
   }
-  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 1, 2);
+  QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 1, 7);
   if (last_received_packet_info_.decrypted_level == ENCRYPTION_FORWARD_SECURE) {
     uber_received_packet_manager_.OnImmediateAckFrame();
   } else {
