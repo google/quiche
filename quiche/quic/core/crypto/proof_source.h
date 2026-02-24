@@ -418,7 +418,8 @@ class QUICHE_EXPORT ProofSourceHandle {
       std::optional<std::string> alps,
       const std::vector<uint8_t>& quic_transport_params,
       const std::optional<std::vector<uint8_t>>& early_data_context,
-      const QuicSSLConfig& ssl_config) = 0;
+      const QuicSSLConfig& ssl_config,
+      bool disable_alps_explicit_codepoint) = 0;
 
   // Starts a compute signature operation. If the operation is not cancelled
   // when it completes, callback()->OnComputeSignatureDone will be invoked.

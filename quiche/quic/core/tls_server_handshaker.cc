@@ -107,7 +107,8 @@ TlsServerHandshaker::DefaultProofSourceHandle::SelectCertificate(
     std::optional<std::string> /*alps*/,
     const std::vector<uint8_t>& /*quic_transport_params*/,
     const std::optional<std::vector<uint8_t>>& /*early_data_context*/,
-    const QuicSSLConfig& /*ssl_config*/) {
+    const QuicSSLConfig& /*ssl_config*/,
+    bool /*disable_alps_explicit_codepoint*/) {
   if (!handshaker_ || !proof_source_) {
     QUIC_BUG(quic_bug_10341_1)
         << "SelectCertificate called on a detached handle";
@@ -1084,7 +1085,7 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
       AlpnForVersion(session()->version()), std::move(alps_result.alps_buffer),
       set_transport_params_result.quic_transport_params,
       set_transport_params_result.early_data_context,
-      tls_connection_.ssl_config());
+      tls_connection_.ssl_config(), /*disable_alps_explicit_codepoint=*/false);
 
   QUICHE_DCHECK_EQ(status, *select_cert_status());
 
