@@ -1204,6 +1204,26 @@ TEST(HTTPBalsaFrame, WhitespaceInRequestsProcessedProperly) {
       "test: test\r\n"
       "\r\n",
       true, BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
+  WhitespaceHeaderTestHelper(
+      "GET / HTTP/1.1\r\n"
+      "test : test\r\n"
+      "\r\n",
+      true, BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
+  WhitespaceHeaderTestHelper(
+      "GET / HTTP/1.1\r\n"
+      "test\t: test\r\n"
+      "\r\n",
+      true, BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
+  WhitespaceHeaderTestHelper(
+      "GET / HTTP/1.1\r\n"
+      "\ttest: test\r\n"
+      "\r\n",
+      true, BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
+  WhitespaceHeaderTestHelper(
+      "GET / HTTP/1.1\r\n"
+      "te st: test\r\n"
+      "\r\n",
+      true, BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
 
   SCOPED_TRACE("Test proper handling for line continuation in requests.");
   WhitespaceHeaderTestHelper(
