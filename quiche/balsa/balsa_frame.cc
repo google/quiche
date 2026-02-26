@@ -797,13 +797,29 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
         content_length_remaining_ = length;
         continue;
       }
-      if ((headers->content_length_status_ != content_length_status) ||
-          ((headers->content_length_status_ ==
-            BalsaHeadersEnums::VALID_CONTENT_LENGTH) &&
-           (http_validation_policy().disallow_multiple_content_length ||
-            length != headers->content_length_))) {
+
+      // There are multiple content-length keys in this request.
+
+      // First case: the second CL header conflicts with the first CL. This
+      // request _must_ be rejected.
+      bool found_new_invalid_content_length =
+          headers->content_length_status_ != content_length_status;
+      bool found_new_content_length_with_different_value =
+          length != headers->content_length_;
+      if (found_new_invalid_content_length ||
+          found_new_content_length_with_different_value) {
         HandleError(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS);
         return;
+      }
+
+      // Second case: CL is duplicated but the value is valid and the same.
+      // Optionally, reject this per the RFC or simply keep one value.
+      if (headers->content_length_status_ ==
+          BalsaHeadersEnums::VALID_CONTENT_LENGTH) {
+        if (http_validation_policy().disallow_multiple_content_length) {
+          HandleError(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS);
+          return;
+        }
       }
       continue;
     }

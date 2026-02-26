@@ -3622,6 +3622,19 @@ TEST_F(HTTPBalsaFrameTest, ReadUntilCloseStateEnteredAsExpectedAndNotExited) {
   }
 }
 
+TEST_F(HTTPBalsaFrameTest, TwoContentLengthFirstValidSecondOverflow) {
+  std::string header =
+      "HTTP/1.1 200 OK\r\n"
+      "content-length: 12\r\n"
+      "content-length: 9223372036854775807999999\r\n"
+      "\r\n";
+  balsa_frame_.set_is_request(false);
+  balsa_frame_.ProcessInput(header.data(), header.size());
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS,
+            balsa_frame_.ErrorCode());
+}
+
 TEST_F(HTTPBalsaFrameTest, TwoDifferentContentLengthHeadersIsAnError) {
   std::string header =
       "HTTP/1.1 200 OK\r\n"
@@ -3649,6 +3662,7 @@ TEST_F(HTTPBalsaFrameTest, TwoSameContentLengthHeadersIsNotAnError) {
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_THAT(headers_.GetAllOfHeaderAsString("Content-Length"), "1,1");
 }
 
 TEST_F(HTTPBalsaFrameTest, TwoSameContentLengthHeadersIsAnError) {
