@@ -1276,12 +1276,13 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
           }
         }
 
-        if (http_validation_policy_
-                .require_semicolon_delimited_chunk_extension &&
-            extensions_length > 0 &&
+        if (extensions_length > 0 &&
             (!found_semicolon || found_non_bws_before_semicolon)) {
-          HandleError(BalsaFrameEnums::INVALID_CHUNK_EXTENSION);
-          return current - input;
+          if (http_validation_policy_
+                  .require_semicolon_delimited_chunk_extension) {
+            HandleError(BalsaFrameEnums::INVALID_CHUNK_EXTENSION);
+            return current - input;
+          }
         }
 
         chunk_length_character_extracted_ = false;
