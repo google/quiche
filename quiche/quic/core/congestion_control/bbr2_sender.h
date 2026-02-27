@@ -100,6 +100,7 @@ class QUICHE_EXPORT Bbr2Sender final : public SendAlgorithmInterface {
 
   bool EnableECT0() override { return false; }
   bool EnableECT1() override { return false; }
+  void ReduceMemoryUsage() override { model_.ReduceMemoryUsage(); }
   // End implementation of SendAlgorithmInterface.
 
   const Bbr2Params& Params() const { return params_; }

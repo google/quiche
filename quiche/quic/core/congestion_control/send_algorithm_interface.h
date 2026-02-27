@@ -194,6 +194,9 @@ class QUICHE_EXPORT SendAlgorithmInterface {
   // ECN mode is enabled, it is an error to call either of these methods.
   virtual bool EnableECT0() = 0;
   virtual bool EnableECT1() = 0;
+
+  // Called to reduce the memory usage of the send algorithm.
+  virtual void ReduceMemoryUsage() = 0;
 };
 
 }  // namespace quic

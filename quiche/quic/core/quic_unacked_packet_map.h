@@ -269,6 +269,8 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
         ", packets_in_flight: ", packets_in_flight_, "}");
   }
 
+  void ReduceMemoryUsage() { unacked_packets_.shrink_to_fit(); }
+
  private:
   friend class test::QuicUnackedPacketMapPeer;
 

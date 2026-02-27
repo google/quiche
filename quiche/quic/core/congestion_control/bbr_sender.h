@@ -136,6 +136,7 @@ class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
   void PopulateConnectionStats(QuicConnectionStats* stats) const override;
   bool EnableECT0() override { return false; }
   bool EnableECT1() override { return false; }
+  void ReduceMemoryUsage() override { sampler_.ReduceMemoryUsage(); }
   // End implementation of SendAlgorithmInterface.
 
   // Gets the number of RTTs BBR remains in STARTUP phase.

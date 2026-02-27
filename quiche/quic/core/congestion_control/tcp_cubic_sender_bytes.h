@@ -78,6 +78,7 @@ class QUICHE_EXPORT TcpCubicSenderBytes : public SendAlgorithmInterface {
   void PopulateConnectionStats(QuicConnectionStats* /*stats*/) const override {}
   bool EnableECT0() override { return false; }
   bool EnableECT1() override { return false; }
+  void ReduceMemoryUsage() override {}
   // End implementation of SendAlgorithmInterface.
 
   QuicByteCount min_congestion_window() const { return min_congestion_window_; }

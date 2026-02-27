@@ -417,6 +417,11 @@ class QUICHE_EXPORT QuicSentPacketManager {
     return send_algorithm_.get();
   }
 
+  void ReduceMemoryUsage() {
+    unacked_packets_.ReduceMemoryUsage();
+    send_algorithm_->ReduceMemoryUsage();
+  }
+
   // Wrapper for SendAlgorithmInterface functions, since these functions are
   // not const.
   bool EnableECT0() {

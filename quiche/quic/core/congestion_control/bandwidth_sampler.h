@@ -447,6 +447,8 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
     return overestimate_avoidance_;
   }
 
+  void ReduceMemoryUsage() { connection_state_map_.shrink_to_fit(); }
+
  private:
   friend class test::BandwidthSamplerPeer;
 

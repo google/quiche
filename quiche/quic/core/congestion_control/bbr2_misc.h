@@ -546,6 +546,8 @@ class QUICHE_EXPORT Bbr2NetworkModel {
     return rounds_with_queueing_;
   }
 
+  void ReduceMemoryUsage() { bandwidth_sampler_.ReduceMemoryUsage(); }
+
  private:
   // Called when a new round trip starts.
   void OnNewRound();

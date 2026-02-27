@@ -96,6 +96,9 @@ class QUICHE_NO_EXPORT PacketNumberIndexedQueue {
   // Reserves the specified memory capacity in the underlying deque.
   void Reserve(size_t capacity) { entries_.reserve(capacity); }
 
+  // Reduces the capacity of the underlying deque.
+  void shrink_to_fit() { entries_.shrink_to_fit(); }
+
  private:
   // Wrapper around T used to mark whether the entry is actually in the map.
   struct QUICHE_NO_EXPORT EntryWrapper : T {
