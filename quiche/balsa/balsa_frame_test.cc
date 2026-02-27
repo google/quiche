@@ -24,7 +24,6 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_replace.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/span.h"
 #include "quiche/balsa/balsa_enums.h"
 #include "quiche/balsa/balsa_headers.h"
 #include "quiche/balsa/balsa_visitor_interface.h"
@@ -5139,9 +5138,9 @@ TEST_F(HTTPBalsaFrameTest, ObsTextInReasonPhraseAllowed) {
 
 TEST_F(HTTPBalsaFrameTest, MoreChunkExtensions) {
   struct TestCase {
-    absl::string_view chunks;  // chunks to process.
-    absl::Span<const size_t> expected_chunk_sizes;
-    absl::Span<const absl::string_view> expected_chunk_extensions;
+    std::string chunks;  // chunks to process.
+    std::vector<size_t> expected_chunk_sizes;
+    std::vector<absl::string_view> expected_chunk_extensions;
     HttpValidationPolicy policy;
     BalsaFrameEnums::ErrorCode expected_error;
   };
