@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "absl/memory/memory.h"
+#include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
@@ -493,6 +494,13 @@ TEST_P(QuicEventLoopFactoryTest, WakeUp) {
   if (!loop_->SupportsWakeUp()) {
     GTEST_SKIP();
   }
+#if defined(THREAD_SANITIZER)
+  if (absl::StrContains(GetParam()->GetName(), "libevent")) {
+    // libevent version of this test causes the test runner to run out of memory
+    // under TSAN (b/488009874).
+    GTEST_SKIP();
+  }
+#endif
 
   WakeUpThread thread(loop_.get());
   thread.Start();
