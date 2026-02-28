@@ -1458,10 +1458,6 @@ class QUICHE_EXPORT QuicConnection
     return packet_writer_params_.ecn_codepoint;
   }
 
-  bool quic_limit_new_streams_per_loop_2() const {
-    return quic_limit_new_streams_per_loop_2_;
-  }
-
   bool quic_close_on_idle_timeout() const {
     return quic_close_on_idle_timeout_;
   }
@@ -2560,8 +2556,6 @@ class QUICHE_EXPORT QuicConnection
   // ReceivedPacketInfo.
   const bool store_one_dcid_ : 1;
 
-  const bool quic_limit_new_streams_per_loop_2_ : 1 =
-      GetQuicReloadableFlag(quic_limit_new_streams_per_loop_2);
   const bool quic_test_peer_addr_change_after_normalize_ : 1 =
       GetQuicReloadableFlag(quic_test_peer_addr_change_after_normalize);
   const bool quic_fix_timeouts_ : 1 = GetQuicReloadableFlag(quic_fix_timeouts);
