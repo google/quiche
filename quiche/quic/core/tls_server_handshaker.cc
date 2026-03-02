@@ -1250,6 +1250,10 @@ std::optional<uint16_t> TlsServerHandshaker::GetCiphersuite() const {
   return SSL_CIPHER_get_protocol_id(cipher);
 }
 
+uint16_t TlsServerHandshaker::GetNegotiatedCurve() const {
+  return SSL_get_group_id(ssl());
+}
+
 bool TlsServerHandshaker::ValidateHostname(const std::string& hostname) const {
   if (!QuicHostnameUtils::IsValidSNI(hostname)) {
     // TODO(b/151676147): Include this error string in the CONNECTION_CLOSE

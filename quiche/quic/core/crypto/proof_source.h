@@ -370,6 +370,9 @@ class QUICHE_EXPORT ProofSourceHandleCallback {
   // Get the TLS ciphersuite negotiated during the handshake, or nullopt if the
   // handshake has not selected one yet.
   virtual std::optional<uint16_t> GetCiphersuite() const = 0;
+
+  // Get the ID of the NamedGroup negotiated during the handshake.
+  virtual uint16_t GetNegotiatedCurve() const = 0;
 };
 
 // ProofSourceHandle is an interface by which a TlsServerHandshaker can obtain

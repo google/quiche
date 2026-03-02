@@ -222,6 +222,8 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
 
   std::optional<uint16_t> GetCiphersuite() const override;
 
+  uint16_t GetNegotiatedCurve() const override;
+
   void SetIgnoreTicketOpen(bool value) { ignore_ticket_open_ = value; }
 
   const SSL_CIPHER* GetCipher() const override {
