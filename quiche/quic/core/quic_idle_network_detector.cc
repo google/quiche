@@ -6,7 +6,6 @@
 
 #include <algorithm>
 
-#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -58,6 +57,7 @@ void QuicIdleNetworkDetector::StopDetection() {
   alarm_.PermanentCancel();
   handshake_timeout_ = QuicTime::Delta::Infinite();
   idle_network_timeout_ = QuicTime::Delta::Infinite();
+  last_alarm_type_ = AlarmType::kUnknown;
   stopped_ = true;
 }
 
@@ -93,8 +93,10 @@ void QuicIdleNetworkDetector::SetAlarm() {
     return;
   }
   // Set alarm to the nearer deadline.
+  AlarmType alarm_type = AlarmType::kUnknown;
   QuicTime new_deadline = QuicTime::Zero();
   if (!handshake_timeout_.IsInfinite()) {
+    alarm_type = AlarmType::kHandshakeTimeout;
     new_deadline = start_time_ + handshake_timeout_;
   }
   if (!idle_network_timeout_.IsInfinite()) {
@@ -104,8 +106,11 @@ void QuicIdleNetworkDetector::SetAlarm() {
     } else {
       new_deadline = idle_network_deadline;
     }
+    if (new_deadline == idle_network_deadline) {
+      alarm_type = AlarmType::kIdleNetworkTimeout;
+    }
   }
-  alarm_.Update(new_deadline, kAlarmGranularity);
+  UpdateAlarm(alarm_type, new_deadline);
 }
 
 void QuicIdleNetworkDetector::MaybeSetAlarmOnSentPacket(
@@ -121,7 +126,7 @@ void QuicIdleNetworkDetector::MaybeSetAlarmOnSentPacket(
   if (deadline > min_deadline) {
     return;
   }
-  alarm_.Update(min_deadline, kAlarmGranularity);
+  UpdateAlarm(AlarmType::kPtoDelay, min_deadline);
 }
 
 QuicTime QuicIdleNetworkDetector::GetIdleNetworkDeadline() const {

@@ -5,9 +5,12 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_IDLE_NETWORK_DETECTOR_H_
 #define QUICHE_QUIC_CORE_QUIC_IDLE_NETWORK_DETECTOR_H_
 
+#include <cstdint>
+
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_connection_alarms.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_one_block_arena.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_export.h"
@@ -78,6 +81,18 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
   friend class test::QuicConnectionPeer;
   friend class test::QuicIdleNetworkDetectorTestPeer;
 
+  enum class AlarmType : uint8_t {
+    kHandshakeTimeout,
+    kIdleNetworkTimeout,
+    kPtoDelay,
+    kUnknown,
+  };
+
+  void UpdateAlarm(AlarmType alarm_type, QuicTime deadline) {
+    last_alarm_type_ = alarm_type;
+    alarm_.Update(deadline, kAlarmGranularity);
+  }
+
   void SetAlarm();
 
   void MaybeSetAlarmOnSentPacket(QuicTime::Delta pto_delay);
@@ -107,6 +122,8 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
   QuicTime::Delta idle_network_timeout_;
 
   QuicAlarmProxy alarm_;
+
+  AlarmType last_alarm_type_ = AlarmType::kUnknown;
 
   bool shorter_idle_timeout_on_sent_packet_ = false;
 
