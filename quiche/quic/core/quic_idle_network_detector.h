@@ -38,6 +38,10 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
 
     // Called when idle network has been detected.
     virtual void OnIdleNetworkDetected() = 0;
+
+    // Called when network has been idle for a while such that per-connection
+    // memory usage can be reduced.
+    virtual void OnMemoryReductionTimeout() = 0;
   };
 
   QuicIdleNetworkDetector(Delegate* delegate, QuicTime now,
@@ -48,6 +52,12 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
   // Called to set handshake_timeout_ and idle_network_timeout_.
   void SetTimeouts(QuicTime::Delta handshake_timeout,
                    QuicTime::Delta idle_network_timeout);
+
+  // Called to set memory_reduction_timeout_, which may be used in SetAlarm to
+  // schedule a memory reduction callback.
+  void SetMemoryReductionTimeout(QuicTime::Delta timeout) {
+    memory_reduction_timeout_ = timeout;
+  }
 
   // Stop the detection once and for all.
   void StopDetection();
@@ -84,6 +94,7 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
   enum class AlarmType : uint8_t {
     kHandshakeTimeout,
     kIdleNetworkTimeout,
+    kMemoryReductionTimeout,
     kPtoDelay,
     kUnknown,
   };
@@ -97,7 +108,8 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
 
   void MaybeSetAlarmOnSentPacket(QuicTime::Delta pto_delay);
 
-  QuicTime GetBandwidthUpdateDeadline() const;
+  // Whether memory_reduction_timeout_ should be used when setting the alarm.
+  bool ShouldMemoryReductionTimeoutBeUsed() const;
 
   Delegate* delegate_;  // Not owned.
 
@@ -120,6 +132,10 @@ class QUICHE_EXPORT QuicIdleNetworkDetector {
 
   // Idle network timeout. Infinite means no idle network timeout.
   QuicTime::Delta idle_network_timeout_;
+
+  // Timeout for scheulduling a memory reduction callback when network has
+  // been idle for a while. Infinite means no timeout.
+  QuicTime::Delta memory_reduction_timeout_ = QuicTime::Delta::Infinite();
 
   QuicAlarmProxy alarm_;
 

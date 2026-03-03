@@ -6496,6 +6496,10 @@ void QuicConnection::OnIdleNetworkDetected() {
                   idle_timeout_connection_close_behavior_);
 }
 
+void QuicConnection::OnMemoryReductionTimeout() {
+  sent_packet_manager_.ReduceMemoryUsage();
+}
+
 void QuicConnection::OnKeepAliveTimeout() {
   if (retransmission_alarm().IsSet() ||
       !visitor_->ShouldKeepConnectionAlive()) {

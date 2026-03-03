@@ -30,6 +30,7 @@ class MockDelegate : public QuicIdleNetworkDetector::Delegate {
  public:
   MOCK_METHOD(void, OnHandshakeTimeout, (), (override));
   MOCK_METHOD(void, OnIdleNetworkDetected, (), (override));
+  MOCK_METHOD(void, OnMemoryReductionTimeout, (), (override));
 };
 
 class QuicIdleNetworkDetectorTest : public QuicTest {
@@ -201,6 +202,82 @@ TEST_F(QuicIdleNetworkDetectorTest, NoAlarmAfterStopped) {
           /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20)),
       "SetAlarm called after stopped");
   EXPECT_FALSE(alarm_->IsSet());
+}
+
+TEST_F(QuicIdleNetworkDetectorTest, MemoryReductionTimeout) {
+  detector_.SetMemoryReductionTimeout(QuicTime::Delta::FromSeconds(200));
+  // Memory reduction timeout is only set along with idle network timeout alarm.
+  EXPECT_FALSE(alarm_->IsSet());
+
+  detector_.SetTimeouts(
+      /*handshake_timeout=*/QuicTime::Delta::FromSeconds(30),
+      /*idle_network_timeout=*/QuicTime::Delta::FromSeconds(20));
+  EXPECT_TRUE(alarm_->IsSet());
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(20),
+            alarm_->deadline());
+
+  // Handshake completes in 200ms.
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(200));
+  detector_.OnPacketReceived(clock_.Now());
+  detector_.SetTimeouts(
+      /*handshake_timeout=*/QuicTime::Delta::Infinite(),
+      QuicTime::Delta::FromSeconds(600));
+  // Verify memory reduction alarm is set.
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(200),
+            alarm_->deadline());
+
+  // Fires the memory reduction alarm.
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(200));
+  EXPECT_CALL(delegate_, OnMemoryReductionTimeout());
+  alarm_->Fire();
+  // Verifies that idle timeout alarm is set to tigger in (600s - 200s) = 400s.
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(400),
+            alarm_->deadline());
+
+  // Fires the idle network alarm.
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(400));
+  EXPECT_CALL(delegate_, OnIdleNetworkDetected());
+  alarm_->Fire();
+}
+
+TEST_F(QuicIdleNetworkDetectorTest,
+       MemoryReductionTimeoutTooCloseToIdleTimeoutIgnored) {
+  detector_.SetMemoryReductionTimeout(QuicTime::Delta::FromSeconds(590));
+  // Handshake completes.
+  detector_.OnPacketReceived(clock_.Now());
+  detector_.SetTimeouts(
+      /*handshake_timeout=*/QuicTime::Delta::Infinite(),
+      QuicTime::Delta::FromSeconds(600));
+  // Verify memory reduction alarm is NOT set.
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(600),
+            alarm_->deadline());
+}
+
+TEST_F(QuicIdleNetworkDetectorTest,
+       MemoryReductionTimeoutIgnoredBeforeHandshakeCompletes) {
+  detector_.SetMemoryReductionTimeout(QuicTime::Delta::FromSeconds(5));
+  // Handshake not yet completed.
+  detector_.OnPacketReceived(clock_.Now());
+  detector_.SetTimeouts(QuicTime::Delta::FromSeconds(30),
+                        QuicTime::Delta::FromSeconds(200));
+  // Verify memory reduction alarm is NOT set.
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(30),
+            alarm_->deadline());
+}
+
+TEST_F(QuicIdleNetworkDetectorTest,
+       MemoryReductionTimeoutDisabledByShorterIdleTimeoutOnSentPacket) {
+  detector_.SetMemoryReductionTimeout(QuicTime::Delta::FromSeconds(200));
+  detector_.enable_shorter_idle_timeout_on_sent_packet();
+
+  // Handshake completes.
+  detector_.OnPacketReceived(clock_.Now());
+  detector_.SetTimeouts(
+      /*handshake_timeout=*/QuicTime::Delta::Infinite(),
+      QuicTime::Delta::FromSeconds(600));
+  // Verify memory reduction alarm is NOT set.
+  EXPECT_EQ(clock_.Now() + QuicTime::Delta::FromSeconds(600),
+            alarm_->deadline());
 }
 
 }  // namespace

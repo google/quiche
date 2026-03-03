@@ -13,10 +13,6 @@
 
 namespace quic {
 
-namespace {
-
-}  // namespace
-
 QuicIdleNetworkDetector::QuicIdleNetworkDetector(Delegate* delegate,
                                                  QuicTime now,
                                                  QuicAlarmProxy alarm)
@@ -30,7 +26,14 @@ QuicIdleNetworkDetector::QuicIdleNetworkDetector(Delegate* delegate,
 
 void QuicIdleNetworkDetector::OnAlarm() {
   if (handshake_timeout_.IsInfinite()) {
-    delegate_->OnIdleNetworkDetected();
+    if (last_alarm_type_ != AlarmType::kMemoryReductionTimeout) {
+      delegate_->OnIdleNetworkDetected();
+    } else {
+      QUICHE_DCHECK(last_alarm_type_ == AlarmType::kMemoryReductionTimeout);
+      delegate_->OnMemoryReductionTimeout();
+      // Rearms the alarm to idle network deadline.
+      UpdateAlarm(AlarmType::kIdleNetworkTimeout, GetIdleNetworkDeadline());
+    }
     return;
   }
   if (idle_network_timeout_.IsInfinite()) {
@@ -57,6 +60,7 @@ void QuicIdleNetworkDetector::StopDetection() {
   alarm_.PermanentCancel();
   handshake_timeout_ = QuicTime::Delta::Infinite();
   idle_network_timeout_ = QuicTime::Delta::Infinite();
+  memory_reduction_timeout_ = QuicTime::Delta::Infinite();
   last_alarm_type_ = AlarmType::kUnknown;
   stopped_ = true;
 }
@@ -81,6 +85,26 @@ void QuicIdleNetworkDetector::OnPacketReceived(QuicTime now) {
   time_of_last_received_packet_ = std::max(time_of_last_received_packet_, now);
 
   SetAlarm();
+}
+
+bool QuicIdleNetworkDetector::ShouldMemoryReductionTimeoutBeUsed() const {
+  if (shorter_idle_timeout_on_sent_packet_) {
+    // No benefit to consider memory reduction if shorter idle timeout on sent
+    // packet is enabled.
+    return false;
+  }
+  if (!handshake_timeout_.IsInfinite()) {
+    // No benefit to consider memory reduction if handshake has not completed.
+    return false;
+  }
+  if (memory_reduction_timeout_ >= idle_network_timeout_ ||
+      (idle_network_timeout_ - memory_reduction_timeout_ <
+       QuicTime::Delta::FromSeconds(60))) {
+    // No benefit to consider memory reduction if memory reduction timeout is
+    // too close to idle network timeout.
+    return false;
+  }
+  return true;
 }
 
 void QuicIdleNetworkDetector::SetAlarm() {
@@ -109,6 +133,11 @@ void QuicIdleNetworkDetector::SetAlarm() {
     if (new_deadline == idle_network_deadline) {
       alarm_type = AlarmType::kIdleNetworkTimeout;
     }
+  }
+  if (!memory_reduction_timeout_.IsInfinite() &&
+      ShouldMemoryReductionTimeoutBeUsed()) {
+    alarm_type = AlarmType::kMemoryReductionTimeout;
+    new_deadline = last_network_activity_time() + memory_reduction_timeout_;
   }
   UpdateAlarm(alarm_type, new_deadline);
 }

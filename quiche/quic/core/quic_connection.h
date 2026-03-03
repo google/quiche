@@ -836,6 +836,7 @@ class QUICHE_EXPORT QuicConnection
   // QuicIdleNetworkDetector::Delegate
   void OnHandshakeTimeout() override;
   void OnIdleNetworkDetected() override;
+  void OnMemoryReductionTimeout() override;
 
   // QuicPingManager::Delegate
   void OnKeepAliveTimeout() override;
@@ -935,6 +936,12 @@ class QUICHE_EXPORT QuicConnection
   // Sets the handshake and idle state connection timeouts.
   void SetNetworkTimeouts(QuicTime::Delta handshake_timeout,
                           QuicTime::Delta idle_timeout);
+  // Trim memory usage when network has been idle for
+  // `memory_reduction_timeout`. The timeout only takes effect after handshake
+  // completes.
+  void SetMemoryReductionTimeout(QuicTime::Delta memory_reduction_timeout) {
+    idle_network_detector_.SetMemoryReductionTimeout(memory_reduction_timeout);
+  }
 
   void SetMultiPortProbingInterval(QuicTime::Delta probing_interval) {
     multi_port_probing_interval_ = probing_interval;
