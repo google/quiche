@@ -96,7 +96,7 @@ std::string Base64UrlEncodeWithPadding(absl::string_view input) {
   return base64_encoded;
 }
 
-absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPrivateKey(
+absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPrivateKeyFile(
     absl::string_view file_path) {
   BIO* bio = BIO_new_file(file_path.data(), "r");
   if (!bio) {
@@ -112,7 +112,22 @@ absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPrivateKey(
   return bssl::UniquePtr<RSA>(rsa_key);
 }
 
-absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPublicKey(
+absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPrivateKeyData(
+    absl::string_view pem_data) {
+  BIO* bio = BIO_new_mem_buf(pem_data.data(), pem_data.size());
+  if (!bio) {
+    return absl::InvalidArgumentError("Failed to create BIO from PEM data");
+  }
+  RSA* rsa_key = PEM_read_bio_RSAPrivateKey(bio, nullptr, nullptr, nullptr);
+  BIO_free(bio);
+  if (!rsa_key) {
+    return absl::InvalidArgumentError(
+        "Failed to read RSA private key from PEM data");
+  }
+  return bssl::UniquePtr<RSA>(rsa_key);
+}
+
+absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPublicKeyFile(
     absl::string_view file_path) {
   BIO* bio = BIO_new_file(file_path.data(), "r");
   if (!bio) {
@@ -124,6 +139,21 @@ absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPublicKey(
   if (!rsa_key) {
     return absl::InvalidArgumentError(absl::StrCat(
         "Failed to read RSA public key from file \"", file_path, "\""));
+  }
+  return bssl::UniquePtr<RSA>(rsa_key);
+}
+
+absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPublicKeyData(
+    absl::string_view pem_data) {
+  BIO* bio = BIO_new_mem_buf(pem_data.data(), pem_data.size());
+  if (!bio) {
+    return absl::InvalidArgumentError("Failed to create BIO from PEM data");
+  }
+  RSA* rsa_key = PEM_read_bio_RSA_PUBKEY(bio, nullptr, nullptr, nullptr);
+  BIO_free(bio);
+  if (!rsa_key) {
+    return absl::InvalidArgumentError(
+        "Failed to read RSA public key from PEM data");
   }
   return bssl::UniquePtr<RSA>(rsa_key);
 }

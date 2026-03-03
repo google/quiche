@@ -20,12 +20,20 @@ namespace quic {
 std::string Base64UrlEncodeWithPadding(absl::string_view input);
 
 // Parse an RSA private key from the given file path in PEM format.
-absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPrivateKey(
+absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPrivateKeyFile(
     absl::string_view file_path);
 
+// Parse an RSA private key from the given string in PEM format.
+absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPrivateKeyData(
+    absl::string_view pem_data);
+
 // Parse an RSA public key from the given file path in PEM format.
-absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPublicKey(
+absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPublicKeyFile(
     absl::string_view file_path);
+
+// Parse an RSA public key from the given string in PEM format.
+absl::StatusOr<bssl::UniquePtr<RSA>> ParseRsaPublicKeyData(
+    absl::string_view pem_data);
 
 // Encodes the key into a entry in the base64 token-key object from the
 // PRIVACYPASS RFC. https://www.rfc-editor.org/rfc/rfc9578.html#section-4

@@ -68,7 +68,7 @@ absl::Status RunPrivateTokens(int argc, char* argv[]) {
   bssl::UniquePtr<RSA> public_key;
   std::string encoded_public_key;
   if (!public_key_file.empty()) {
-    QUICHE_ASSIGN_OR_RETURN(public_key, ParseRsaPublicKey(public_key_file));
+    QUICHE_ASSIGN_OR_RETURN(public_key, ParseRsaPublicKeyFile(public_key_file));
     QUICHE_ASSIGN_OR_RETURN(encoded_public_key,
                             EncodePrivacyPassPublicKey(public_key.get()));
     if (!encoded_public_keys.empty()) {
@@ -99,7 +99,7 @@ absl::Status RunPrivateTokens(int argc, char* argv[]) {
   }
   if (!private_key_file.empty()) {
     QUICHE_ASSIGN_OR_RETURN(bssl::UniquePtr<RSA> private_key,
-                            ParseRsaPrivateKey(private_key_file));
+                            ParseRsaPrivateKeyFile(private_key_file));
     if (public_key == nullptr) {
       return absl::InvalidArgumentError(
           "--public_key_file is required when --private_key_file is set.");
