@@ -6497,6 +6497,8 @@ void QuicConnection::OnIdleNetworkDetected() {
 }
 
 void QuicConnection::OnMemoryReductionTimeout() {
+  // TODO(haoyuewang): Remove this counter after testing.
+  QUICHE_CODE_COUNT(quic_connection_on_memory_reduction_timeout);
   sent_packet_manager_.ReduceMemoryUsage();
 }
 
