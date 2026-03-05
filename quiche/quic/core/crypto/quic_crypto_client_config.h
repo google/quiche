@@ -99,6 +99,12 @@ class QUICHE_EXPORT SessionCache {
   // Clear the session cache.
   virtual void Clear() = 0;
 
+  // Returns the current size of the cache.
+  virtual size_t GetSize() const = 0;
+
+  // Returns the maximum size of the cache.
+  virtual size_t GetMaxSize() const = 0;
+
   // Update the maximum size of the cache. If the new capacity is smaller than
   // current size, evicts the oldest entries.
   virtual void UpdateMaxSize(size_t max_entries) = 0;

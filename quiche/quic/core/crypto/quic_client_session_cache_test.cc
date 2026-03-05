@@ -199,26 +199,26 @@ TEST_F(QuicClientSessionCacheTest, SingleSession) {
 
   EXPECT_EQ(nullptr, cache.Lookup(id1, clock_.WallNow(), ssl_ctx_.get()));
   EXPECT_EQ(nullptr, cache.Lookup(id2, clock_.WallNow(), ssl_ctx_.get()));
-  EXPECT_EQ(0u, cache.size());
+  EXPECT_EQ(0u, cache.GetSize());
 
   cache.Insert(id1, std::move(session), *params, nullptr);
-  EXPECT_EQ(1u, cache.size());
+  EXPECT_EQ(1u, cache.GetSize());
   EXPECT_EQ(
       *params,
       *(cache.Lookup(id1, clock_.WallNow(), ssl_ctx_.get())->transport_params));
   EXPECT_EQ(nullptr, cache.Lookup(id2, clock_.WallNow(), ssl_ctx_.get()));
   // No session is available for id1, even though the entry exists.
-  EXPECT_EQ(1u, cache.size());
+  EXPECT_EQ(1u, cache.GetSize());
   EXPECT_EQ(nullptr, cache.Lookup(id1, clock_.WallNow(), ssl_ctx_.get()));
   // Lookup() will trigger a deletion of invalid entry.
-  EXPECT_EQ(0u, cache.size());
+  EXPECT_EQ(0u, cache.GetSize());
 
   auto session3 = MakeTestSession();
   SSL_SESSION* unowned3 = session3.get();
   QuicServerId id3("c.com", 443);
   cache.Insert(id3, std::move(session3), *params, nullptr);
   cache.Insert(id2, std::move(session2), *params2, nullptr);
-  EXPECT_EQ(2u, cache.size());
+  EXPECT_EQ(2u, cache.GetSize());
   EXPECT_EQ(
       unowned2,
       cache.Lookup(id2, clock_.WallNow(), ssl_ctx_.get())->tls_session.get());
@@ -230,7 +230,7 @@ TEST_F(QuicClientSessionCacheTest, SingleSession) {
   EXPECT_EQ(nullptr, cache.Lookup(id1, clock_.WallNow(), ssl_ctx_.get()));
   EXPECT_EQ(nullptr, cache.Lookup(id2, clock_.WallNow(), ssl_ctx_.get()));
   EXPECT_EQ(nullptr, cache.Lookup(id3, clock_.WallNow(), ssl_ctx_.get()));
-  EXPECT_EQ(0u, cache.size());
+  EXPECT_EQ(0u, cache.GetSize());
 }
 
 TEST_F(QuicClientSessionCacheTest, MultipleSessions) {
@@ -345,7 +345,7 @@ TEST_F(QuicClientSessionCacheTest, SizeLimit) {
   cache.Insert(id2, std::move(session2), *params, nullptr);
   cache.Insert(id3, std::move(session3), *params, nullptr);
 
-  EXPECT_EQ(2u, cache.size());
+  EXPECT_EQ(2u, cache.GetSize());
   EXPECT_EQ(
       unowned2,
       cache.Lookup(id2, clock_.WallNow(), ssl_ctx_.get())->tls_session.get());
@@ -396,18 +396,18 @@ TEST_F(QuicClientSessionCacheTest, Expiration) {
   cache.Insert(id1, std::move(session), *params, nullptr);
   cache.Insert(id2, std::move(session2), *params, nullptr);
 
-  EXPECT_EQ(2u, cache.size());
+  EXPECT_EQ(2u, cache.GetSize());
   // Expire the session.
   clock_.AdvanceTime(kTimeout * 2);
   // The entry has not been removed yet.
-  EXPECT_EQ(2u, cache.size());
+  EXPECT_EQ(2u, cache.GetSize());
 
   EXPECT_EQ(nullptr, cache.Lookup(id1, clock_.WallNow(), ssl_ctx_.get()));
-  EXPECT_EQ(1u, cache.size());
+  EXPECT_EQ(1u, cache.GetSize());
   EXPECT_EQ(
       unowned2,
       cache.Lookup(id2, clock_.WallNow(), ssl_ctx_.get())->tls_session.get());
-  EXPECT_EQ(1u, cache.size());
+  EXPECT_EQ(1u, cache.GetSize());
 }
 
 TEST_F(QuicClientSessionCacheTest, RemoveExpiredEntriesAndClear) {
@@ -423,21 +423,21 @@ TEST_F(QuicClientSessionCacheTest, RemoveExpiredEntriesAndClear) {
   cache.Insert(id1, std::move(session), *params, nullptr);
   cache.Insert(id2, std::move(session2), *params, nullptr);
 
-  EXPECT_EQ(2u, cache.size());
+  EXPECT_EQ(2u, cache.GetSize());
   // Expire the session.
   clock_.AdvanceTime(kTimeout * 2);
   // The entry has not been removed yet.
-  EXPECT_EQ(2u, cache.size());
+  EXPECT_EQ(2u, cache.GetSize());
 
   // Flush expired sessions.
   cache.RemoveExpiredEntries(clock_.WallNow());
 
   // session is expired and should be flushed.
   EXPECT_EQ(nullptr, cache.Lookup(id1, clock_.WallNow(), ssl_ctx_.get()));
-  EXPECT_EQ(1u, cache.size());
+  EXPECT_EQ(1u, cache.GetSize());
 
   cache.Clear();
-  EXPECT_EQ(0u, cache.size());
+  EXPECT_EQ(0u, cache.GetSize());
 }
 
 }  // namespace
