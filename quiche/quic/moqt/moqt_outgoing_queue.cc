@@ -14,12 +14,11 @@
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
-#include "quiche/quic/moqt/moqt_key_value_pair.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_mem_slice.h"
 
@@ -77,29 +76,20 @@ void MoqtOutgoingQueue::AddRawObject(MoqtObjectStatus status,
   Location sequence{current_group_id_, queue_.back().size()};
   bool fin = status == MoqtObjectStatus::kEndOfGroup;
   queue_.back().push_back(CachedObject{
-      PublishedObjectMetadata{
-          sequence, 0, "", status, default_publisher_priority(),
-          MoqtForwardingPreference::kSubgroup, clock_->ApproximateNow()},
+      PublishedObjectMetadata{sequence, 0, "", status,
+                              default_publisher_priority(),
+                              clock_->ApproximateNow()},
       std::make_shared<quiche::QuicheMemSlice>(std::move(payload)), fin});
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnNewObjectAvailable(sequence, /*subgroup=*/0,
-                                   default_publisher_priority(),
-                                   MoqtForwardingPreference::kSubgroup);
+                                   default_publisher_priority());
   }
 }
 
 std::optional<PublishedObject> MoqtOutgoingQueue::GetCachedObject(
-    uint64_t group, uint64_t subgroup, uint64_t object) const {
-  QUICHE_DCHECK_EQ(subgroup, 0u);
+    uint64_t group, std::optional<uint64_t> subgroup, uint64_t object) const {
+  QUICHE_DCHECK(subgroup.has_value() && subgroup == 0u);
   if (group < first_group_in_queue()) {
-    if (object == 0) {
-      return PublishedObject{
-          PublishedObjectMetadata{
-              Location(group, object), /*subgroup=*/0, "",
-              MoqtObjectStatus::kEndOfGroup, default_publisher_priority(),
-              MoqtForwardingPreference::kSubgroup, clock_->ApproximateNow()},
-          quiche::QuicheMemSlice{}};
-    }
     return std::nullopt;
   }
   if (group > current_group_id_) {
@@ -211,45 +201,20 @@ std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::AbsoluteFetch(
 
 MoqtFetchTask::GetNextObjectResult MoqtOutgoingQueue::FetchTask::GetNextObject(
     PublishedObject& object) {
-  MoqtFetchTask::GetNextObjectResult result;
-  do {
-    result = GetNextObjectInner(object);
-    // The specification for FETCH requires that all missing objects are simply
-    // skipped.
-  } while (result == MoqtFetchTask::GetNextObjectResult::kSuccess &&
-           object.metadata.status == MoqtObjectStatus::kObjectDoesNotExist);
-  return result;
-}
-
-MoqtFetchTask::GetNextObjectResult
-MoqtOutgoingQueue::FetchTask::GetNextObjectInner(PublishedObject& object) {
   if (!status_.ok()) {
     return kError;
   }
-  if (objects_.empty()) {
-    return kEof;
+  while (!objects_.empty()) {
+    std::optional<PublishedObject> new_object = queue_->GetCachedObject(
+        objects_.front().group, 0, objects_.front().object);
+    objects_.pop_front();
+    if (new_object.has_value() &&
+        new_object->metadata.status == MoqtObjectStatus::kNormal) {
+      object = *std::move(new_object);
+      return kSuccess;
+    }
   }
-
-  std::optional<PublishedObject> result = queue_->GetCachedObject(
-      objects_.front().group, 0, objects_.front().object);
-  if (!result.has_value()) {
-    // Create a synthetic object of status kEndOfGroup (if the object ID is
-    // zero) or kObjectDoesNotExist, which will result in the Fetch response
-    // skipping it.
-    object.metadata.location = objects_.front();
-    object.metadata.subgroup = 0;
-    object.metadata.publisher_priority = queue_->default_publisher_priority();
-    object.metadata.status = object.metadata.location.object == 0
-                                 ? MoqtObjectStatus::kEndOfGroup
-                                 : MoqtObjectStatus::kObjectDoesNotExist;
-    object.metadata.arrival_time = queue_->clock_->ApproximateNow();
-    object.payload = quiche::QuicheMemSlice();
-    object.fin_after_this = false;
-  } else {
-    object = *std::move(result);
-  }
-  objects_.pop_front();
-  return kSuccess;
+  return kEof;
 }
 
 void MoqtOutgoingQueue::Close() {

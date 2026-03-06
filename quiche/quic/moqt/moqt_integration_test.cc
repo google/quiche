@@ -32,6 +32,7 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
@@ -497,18 +498,12 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
     }
     EXPECT_EQ(result, MoqtFetchTask::GetNextObjectResult::kSuccess);
     EXPECT_EQ(object.metadata.location, expected);
-    if (object.metadata.location.object == 1) {
-      EXPECT_EQ(object.metadata.status, MoqtObjectStatus::kEndOfGroup);
-      expected.object = 0;
-      ++expected.group;
-    } else {
-      EXPECT_EQ(object.metadata.status, MoqtObjectStatus::kNormal);
-      EXPECT_EQ(object.payload.AsStringView(), "object");
-      ++expected.object;
-    }
+    EXPECT_EQ(object.metadata.status, MoqtObjectStatus::kNormal);
+    EXPECT_EQ(object.payload.AsStringView(), "object");
+    ++expected.group;
   } while (result == MoqtFetchTask::GetNextObjectResult::kSuccess);
   EXPECT_EQ(result, MoqtFetchTask::GetNextObjectResult::kEof);
-  EXPECT_EQ(expected, Location(99, 1));
+  EXPECT_EQ(expected, Location(100, 0));
 }
 
 TEST_F(MoqtIntegrationTest, PublishNamespaceFailure) {

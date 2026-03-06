@@ -164,6 +164,10 @@ std::string MoqtDatagramTypeToString(MoqtDatagramType type) {
                       type.has_extension() ? "_EXTENSION" : "");
 }
 
+std::string MoqtFetchSerializationToString(MoqtFetchSerialization type) {
+  return absl::StrCat("FETCH_SERIALIZATION_", type.value());
+}
+
 std::string MoqtForwardingPreferenceToString(
     MoqtForwardingPreference preference) {
   switch (preference) {

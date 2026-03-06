@@ -1601,6 +1601,7 @@ moqt_hdrs = [
     "quic/moqt/moqt_subscribe_windows.h",
     "quic/moqt/moqt_trace_recorder.h",
     "quic/moqt/moqt_track.h",
+    "quic/moqt/moqt_types.h",
     "quic/moqt/relay_namespace_tree.h",
     "quic/moqt/session_namespace_tree.h",
     "quic/moqt/tools/chat_client.h",

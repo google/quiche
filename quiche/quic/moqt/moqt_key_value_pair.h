@@ -17,6 +17,7 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -52,40 +53,6 @@ class QUICHE_EXPORT KeyValuePairList {
 
  private:
   absl::btree_multimap<uint64_t, std::variant<uint64_t, std::string>> map_;
-};
-
-inline constexpr uint64_t kMaxGroupId = quiche::kVarInt62MaxValue;
-inline constexpr uint64_t kMaxObjectId = quiche::kVarInt62MaxValue;
-// Location as defined in
-// https://moq-wg.github.io/moq-transport/draft-ietf-moq-transport.html#location-structure
-struct Location {
-  uint64_t group = 0;
-  uint64_t object = 0;
-
-  Location() = default;
-  Location(uint64_t group, uint64_t object) : group(group), object(object) {}
-
-  // Location order as described in
-  // https://moq-wg.github.io/moq-transport/draft-ietf-moq-transport.html#location-structure
-  auto operator<=>(const Location&) const = default;
-
-  Location Next() const {
-    if (object == kMaxObjectId) {
-      if (group == kMaxObjectId) {
-        return Location(0, 0);
-      }
-      return Location(group + 1, 0);
-    }
-    return Location(group, object + 1);
-  }
-
-  template <typename H>
-  friend H AbslHashValue(H h, const Location& m);
-
-  template <typename Sink>
-  friend void AbslStringify(Sink& sink, const Location& sequence) {
-    absl::Format(&sink, "(%d; %d)", sequence.group, sequence.object);
-  }
 };
 
 enum AuthTokenType : uint64_t {

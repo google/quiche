@@ -14,10 +14,10 @@
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -38,10 +38,10 @@ class MoqtObjectListener {
 
   // Notifies that a new object is available on the track.  The object payload
   // itself may be retrieved via GetCachedObject method of the associated track
-  // publisher.
-  virtual void OnNewObjectAvailable(
-      Location sequence, uint64_t subgroup, MoqtPriority publisher_priority,
-      MoqtForwardingPreference forwarding_preference) = 0;
+  // publisher. If |subgroup| is nullopt, the object is a datagram.
+  virtual void OnNewObjectAvailable(Location sequence,
+                                    std::optional<uint64_t> subgroup,
+                                    MoqtPriority publisher_priority) = 0;
   // Notifies that a pure FIN has arrived following |sequence|. Should not be
   // called unless all objects have already been delivered. If not delivered,
   // instead set the fin_after_this flag in the PublishedObject.
@@ -82,13 +82,11 @@ class MoqtTrackPublisher {
   // whenever they are sent.  Once an object is not available via the cache, it
   // can no longer be sent; this ensures that objects are not buffered forever.
   //
-  // This method returns nullopt if the object is not currently available, but
-  // might become available in the future.  If the object is gone forever,
-  // kEndOfGroup/kObjectDoesNotExist has to be returned instead;
-  // otherwise, the corresponding QUIC streams will be stuck waiting for objects
-  // that will never arrive.
+  // This method returns nullopt if the object is not currently available.
+  // If |subgroup| is nullopt, the object is a datagram.
   virtual std::optional<PublishedObject> GetCachedObject(
-      uint64_t group, uint64_t subgroup, uint64_t min_object) const = 0;
+      uint64_t group, std::optional<uint64_t> subgroup,
+      uint64_t min_object) const = 0;
 
   // Registers a listener with the track.  The listener will be notified of all
   // newly arriving objects. The pointer to the listener must be valid until

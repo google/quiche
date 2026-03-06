@@ -28,6 +28,7 @@
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
@@ -76,7 +77,7 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   const FullTrackName& GetTrackName() const override { return track_name_; }
 
   MOCK_METHOD(std::optional<PublishedObject>, GetCachedObject,
-              (uint64_t, uint64_t, uint64_t), (const, override));
+              (uint64_t, std::optional<uint64_t>, uint64_t), (const, override));
   MOCK_METHOD(void, AddObjectListener, (MoqtObjectListener * listener),
               (override));
   MOCK_METHOD(void, RemoveObjectListener, (MoqtObjectListener * listener),
@@ -104,7 +105,8 @@ class TestTrackPublisher : public MoqtTrackPublisher {
       : track_name_(std::move(name)) {}
   const FullTrackName& GetTrackName() const override { return track_name_; }
   std::optional<PublishedObject> GetCachedObject(
-      uint64_t group, uint64_t subgroup, uint64_t object) const override {
+      uint64_t group, std::optional<uint64_t> subgroup,
+      uint64_t object) const override {
     Location location(group, object);
     auto it = objects_.find(location);
     if (it == objects_.end()) {
@@ -158,8 +160,7 @@ class TestTrackPublisher : public MoqtTrackPublisher {
       largest_location_ = location;
     }
     for (MoqtObjectListener* listener : listeners_) {
-      listener->OnNewObjectAvailable(location, subgroup, 128,
-                                     MoqtForwardingPreference::kSubgroup);
+      listener->OnNewObjectAvailable(location, subgroup, 128);
     }
   }
   void RemoveAllSubscriptions() {
@@ -304,8 +305,7 @@ class MockMoqtObjectListener : public MoqtObjectListener {
   MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
   MOCK_METHOD(void, OnSubscribeRejected, (MoqtRequestErrorInfo), (override));
   MOCK_METHOD(void, OnNewObjectAvailable,
-              (Location, uint64_t, MoqtPriority, MoqtForwardingPreference),
-              (override));
+              (Location, std::optional<uint64_t>, MoqtPriority), (override));
   MOCK_METHOD(void, OnNewFinAvailable, (Location, uint64_t), (override));
   MOCK_METHOD(void, OnSubgroupAbandoned,
               (uint64_t, uint64_t, webtransport::StreamErrorCode), (override));

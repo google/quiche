@@ -24,6 +24,7 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -49,11 +50,10 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
     AddObjectListener(this);
   }
 
-  void OnNewObjectAvailable(
-      Location sequence, uint64_t subgroup, MoqtPriority publisher_priority,
-      MoqtForwardingPreference forwarding_preference) override {
+  void OnNewObjectAvailable(Location sequence, std::optional<uint64_t> subgroup,
+                            MoqtPriority publisher_priority) override {
     // MoqtOutgoingQueue does not create datagrams.
-    ASSERT_EQ(forwarding_preference, MoqtForwardingPreference::kSubgroup);
+    ASSERT_THAT(subgroup, testing::Optional(0));
     std::optional<PublishedObject> object =
         GetCachedObject(sequence.group, subgroup, sequence.object);
     ASSERT_THAT(object,
@@ -79,8 +79,7 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
         GetCachedObjectsInRange(Location(0, 0), *largest_location());
     for (Location object : objects) {
       if (window.InWindow(object)) {
-        OnNewObjectAvailable(object, 0, default_publisher_priority(),
-                             MoqtForwardingPreference::kSubgroup);
+        OnNewObjectAvailable(object, 0, default_publisher_priority());
       }
     }
   }

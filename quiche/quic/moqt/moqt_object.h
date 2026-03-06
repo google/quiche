@@ -7,29 +7,28 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/quiche_mem_slice.h"
 
 namespace moqt {
 
 struct PublishedObjectMetadata {
   Location location;
-  uint64_t subgroup;  // Equal to object_id for datagrams.
+  std::optional<uint64_t> subgroup;  // nullopt for datagrams.
   std::string extensions;
   MoqtObjectStatus status;
   MoqtPriority publisher_priority;
-  MoqtForwardingPreference forwarding_preference;
   quic::QuicTime arrival_time = quic::QuicTime::Zero();
   bool IsMalformed(const PublishedObjectMetadata& other) const {
     // It's OK for arrival_time to be different when checking immutables.
     return (location != other.location || subgroup != other.subgroup ||
             status != other.status ||
-            publisher_priority != other.publisher_priority ||
-            forwarding_preference != other.forwarding_preference);
+            publisher_priority != other.publisher_priority);
   }
 };
 

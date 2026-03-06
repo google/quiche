@@ -28,6 +28,7 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
@@ -85,7 +86,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   // MoqtTrackPublisher implementation.
   const FullTrackName& GetTrackName() const override { return track_; }
   std::optional<PublishedObject> GetCachedObject(
-      uint64_t group_id, uint64_t subgroup_id,
+      uint64_t group_id, std::optional<uint64_t> subgroup_id,
       uint64_t min_object) const override;
   void AddObjectListener(MoqtObjectListener* listener) override;
   void RemoveObjectListener(MoqtObjectListener* listener) override;
@@ -127,6 +128,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
     uint64_t next_object = 0;
     bool complete = false;  // If true, kEndOfGroup has been received.
     absl::btree_map<uint64_t, Subgroup> subgroups;  // Ordered by subgroup id.
+    absl::btree_map<uint64_t, CachedObject> datagrams;
   };
 
   bool is_closing_ = false;

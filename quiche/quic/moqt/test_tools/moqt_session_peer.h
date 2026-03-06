@@ -24,6 +24,7 @@
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -32,7 +33,8 @@ namespace moqt::test {
 class MoqtDataParserPeer {
  public:
   static void SetType(MoqtDataParser* parser, MoqtDataStreamType type) {
-    parser->type_.emplace(std::move(type));
+    parser->type_ = type;
+    parser->next_input_ = MoqtDataParser::NextInput::kTrackAlias;
   }
 };
 

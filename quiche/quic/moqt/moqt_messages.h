@@ -8,6 +8,7 @@
 #define QUICHE_QUIC_MOQT_MOQT_MESSAGES_H_
 
 #include <algorithm>
+#include <bit>
 #include <cstddef>
 #include <cstdint>
 #include <initializer_list>
@@ -17,7 +18,6 @@
 #include <variant>
 #include <vector>
 
-#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -25,9 +25,11 @@
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_endian.h"
 
 namespace moqt {
 
@@ -99,6 +101,7 @@ class QUICHE_EXPORT MoqtDataStreamType {
   static constexpr uint64_t kFirstObjectId = 0x02;
   static constexpr uint64_t kSubgroupId = 0x04;
 
+  MoqtDataStreamType() : value_(0) {}
   // Factory functions.
   static std::optional<MoqtDataStreamType> FromValue(uint64_t value) {
     MoqtDataStreamType stream_type(value);
@@ -169,11 +172,12 @@ class QUICHE_EXPORT MoqtDataStreamType {
   }
 
   uint64_t value() const { return value_; }
+  MoqtDataStreamType& operator=(const MoqtDataStreamType& other) = default;
   bool operator==(const MoqtDataStreamType& other) const = default;
 
  private:
   explicit MoqtDataStreamType(uint64_t value) : value_(value) {}
-  const uint64_t value_;
+  uint64_t value_;
 };
 
 class QUICHE_EXPORT MoqtDatagramType {
@@ -301,11 +305,6 @@ struct SubgroupPriority {
   auto operator<=>(const SubgroupPriority&) const = default;
 };
 
-template <typename H>
-H AbslHashValue(H h, const Location& m) {
-  return H::combine(std::move(h), m.group, m.object);
-}
-
 // TODO(martinduke): Collapse both Setup messages into SetupParameters.
 struct QUICHE_EXPORT MoqtClientSetup {
   SetupParameters parameters;
@@ -321,14 +320,6 @@ enum class QUICHE_EXPORT MoqtForwardingPreference : uint8_t {
   kDatagram,
 };
 
-enum class QUICHE_EXPORT MoqtObjectStatus : uint64_t {
-  kNormal = 0x0,
-  kObjectDoesNotExist = 0x1,
-  kEndOfGroup = 0x3,
-  kEndOfTrack = 0x4,
-  kInvalidObjectStatus = 0x5,
-};
-
 MoqtObjectStatus IntegerToObjectStatus(uint64_t integer);
 
 // The data contained in every Object message, although the message type
@@ -340,8 +331,112 @@ struct QUICHE_EXPORT MoqtObject {
   MoqtPriority publisher_priority;
   std::string extension_headers;  // Raw, unparsed extension headers.
   MoqtObjectStatus object_status;
-  uint64_t subgroup_id;
+  std::optional<uint64_t> subgroup_id;  // Only for subgroup objects.
   uint64_t payload_length;
+};
+
+class QUICHE_EXPORT MoqtFetchSerialization {
+ public:
+  static constexpr uint64_t kSubgroupIdMask = 0x03;
+  static constexpr uint64_t kSubgroupIdZero = 0x00;
+  static constexpr uint64_t kPriorSubgroupId = 0x01;
+  static constexpr uint64_t kPriorSubgroupIdPlusOne = 0x02;
+  static constexpr uint64_t kHasSubgroupId = 0x03;
+  static constexpr uint64_t kHasObjectId = 0x04;
+  static constexpr uint64_t kHasGroupId = 0x08;
+  static constexpr uint64_t kHasPriority = 0x10;
+  static constexpr uint64_t kHasExtensions = 0x20;
+  static constexpr uint64_t kIsDatagram = 0x40;
+
+  static constexpr uint64_t kMaxFetchSerialization =
+      kIsDatagram | kHasExtensions | kHasPriority | kHasGroupId | kHasObjectId |
+      kSubgroupIdMask;
+
+  static constexpr uint64_t kEndOfNonExistentRange = 0x8c;
+  static constexpr uint64_t kEndOfUnknownRange = 0x10c;
+
+  MoqtFetchSerialization() = default;
+  // Serialization for the first object in a stream.
+  MoqtFetchSerialization(const MoqtObject& object) {
+    if (!object.subgroup_id.has_value()) {
+      value_ |= kIsDatagram;
+    } else {
+      if (*object.subgroup_id == 0) {
+        value_ |= kSubgroupIdZero;
+      } else {
+        value_ |= kHasSubgroupId;
+      }
+    }
+    value_ |= (kHasGroupId | kHasObjectId | kHasPriority);
+    if (!object.extension_headers.empty()) {
+      value_ |= kHasExtensions;
+    }
+  }
+  // Serialization for a subsequent object in a stream.
+  MoqtFetchSerialization(const MoqtObject& object,
+                         const PublishedObjectMetadata& previous_object) {
+    uint64_t value = 0;
+    if (!object.subgroup_id.has_value()) {
+      value |= kIsDatagram;
+    } else if (object.subgroup_id == 0) {
+      value |= kSubgroupIdZero;
+    } else if (!previous_object.subgroup.has_value()) {
+      value |= kHasSubgroupId;  // Can't use previous value.
+    } else if (object.subgroup_id == previous_object.subgroup) {
+      value |= kPriorSubgroupId;
+    } else if (*object.subgroup_id == *previous_object.subgroup + 1) {
+      value |= kPriorSubgroupIdPlusOne;
+    } else {
+      value |= kHasSubgroupId;
+    }
+    if (object.object_id != previous_object.location.object + 1) {
+      value |= kHasObjectId;
+    }
+    if (object.group_id != previous_object.location.group) {
+      value |= kHasGroupId;
+    }
+    if (object.publisher_priority != previous_object.publisher_priority) {
+      value |= kHasPriority;
+    }
+    if (!object.extension_headers.empty()) {
+      value |= kHasExtensions;
+    }
+    value_ = value;
+  }
+  static std::optional<MoqtFetchSerialization> FromValue(uint64_t value) {
+    if (value > kMaxFetchSerialization && value != kEndOfUnknownRange &&
+        value != kEndOfNonExistentRange) {
+      return std::nullopt;
+    }
+    return MoqtFetchSerialization(value);
+  }
+  bool has_subgroup_id() const {
+    return ((value_ & kSubgroupIdMask) == kHasSubgroupId) && !is_datagram();
+  }
+  bool zero_subgroup_id() const {
+    return (value_ & kSubgroupIdMask) == kSubgroupIdZero && !is_datagram();
+  }
+  bool prior_subgroup_id() const {
+    return (value_ & kSubgroupIdMask) == kPriorSubgroupId && !is_datagram();
+  }
+  bool prior_subgroup_id_plus_one() const {
+    return (value_ & kSubgroupIdMask) == kPriorSubgroupIdPlusOne &&
+           !is_datagram();
+  }
+  bool has_object_id() const { return value_ & kHasObjectId; }
+  bool has_group_id() const { return value_ & kHasGroupId; }
+  bool has_priority() const { return value_ & kHasPriority; }
+  bool has_extensions() const { return value_ & kHasExtensions; }
+  bool is_datagram() const { return value_ & kIsDatagram; }
+  bool end_of_non_existent_range() const {
+    return value_ == kEndOfNonExistentRange;
+  }
+  bool end_of_unknown_range() const { return value_ == kEndOfUnknownRange; }
+  uint64_t value() const { return value_; }
+
+ private:
+  MoqtFetchSerialization(uint64_t value) : value_(value) {}
+  uint64_t value_ = 0;
 };
 
 struct QUICHE_EXPORT MoqtRequestError {
@@ -534,6 +629,7 @@ MoqtError SetupParametersAllowedByMessage(const SetupParameters& parameters,
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);
 std::string MoqtDataStreamTypeToString(MoqtDataStreamType type);
+std::string MoqtFetchSerializationToString(MoqtFetchSerialization type);
 std::string MoqtDatagramTypeToString(MoqtDatagramType type);
 
 std::string MoqtForwardingPreferenceToString(

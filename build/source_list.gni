@@ -1605,6 +1605,7 @@ moqt_hdrs = [
     "src/quiche/quic/moqt/moqt_subscribe_windows.h",
     "src/quiche/quic/moqt/moqt_trace_recorder.h",
     "src/quiche/quic/moqt/moqt_track.h",
+    "src/quiche/quic/moqt/moqt_types.h",
     "src/quiche/quic/moqt/relay_namespace_tree.h",
     "src/quiche/quic/moqt/session_namespace_tree.h",
     "src/quiche/quic/moqt/tools/chat_client.h",

@@ -24,6 +24,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -49,6 +50,20 @@ inline std::vector<MoqtDatagramType> AllMoqtDatagramTypes() {
     }
   }
   return types;
+}
+
+inline std::vector<MoqtFetchSerialization> AllMoqtFetchSerializations() {
+  std::vector<MoqtFetchSerialization> serializations;
+  for (uint64_t i = 0; i < 128; ++i) {
+    std::optional<MoqtFetchSerialization> value =
+        MoqtFetchSerialization::FromValue(i);
+    if (value.has_value()) {
+      serializations.push_back(*value);
+    } else {
+      break;
+    }
+  }
+  return serializations;
 }
 
 inline std::vector<MoqtDataStreamType> AllMoqtDataStreamTypes() {
@@ -136,7 +151,9 @@ class QUICHE_NO_EXPORT TestMessageBase {
   }
 
   // Objects might need a different status if at the end of the stream.
-  virtual void MakeObjectEndOfStream() {}
+  virtual void MakeObjectEndOfStream() {
+    QUIC_LOG(INFO) << "MakeObjectEndOfStream not implemented";
+  }
 
  protected:
   void SetWireImage(uint8_t* wire_image, size_t wire_image_size) {
@@ -284,7 +301,7 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     object_.extension_headers =
         datagram_type.has_extension() ? std::string(kDefaultExtensionBlob) : "";
     object_.object_id = datagram_type.has_object_id() ? 6 : 0;
-    object_.subgroup_id = object_.object_id;
+    object_.subgroup_id = std::nullopt;
     quic::QuicDataWriter writer(sizeof(raw_packet_),
                                 reinterpret_cast<char*>(raw_packet_));
     EXPECT_TRUE(writer.WriteVarInt62(datagram_type.value()));
@@ -429,7 +446,7 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
 // Used only for tests that process multiple objects on one stream.
 class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
  public:
-  StreamMiddlerSubgroupMessage(MoqtDataStreamType type)
+  StreamMiddlerSubgroupMessage(const MoqtDataStreamType type)
       : ObjectMessage(), type_(type) {
     SetWireImage(reinterpret_cast<uint8_t*>(raw_packet_), sizeof(raw_packet_));
     if (type.SubgroupIsZero()) {
@@ -473,7 +490,7 @@ class QUICHE_NO_EXPORT StreamHeaderFetchMessage : public ObjectMessage {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvvvv-v-------v---", false);
+    ExpandVarintsImpl("vvvvvv-v-------v---", false);
   }
 
   bool SetPayloadLength(uint8_t payload_length) {
@@ -488,10 +505,10 @@ class QUICHE_NO_EXPORT StreamHeaderFetchMessage : public ObjectMessage {
   }
 
  private:
-  uint8_t raw_packet_[18] = {
+  uint8_t raw_packet_[19] = {
       0x05,              // type field
-      0x04,              // subscribe ID
-                         // object middler:
+      0x04,              // request ID
+      0x3f,              // object serialization flag
       0x05, 0x08, 0x06,  // sequence
       0x07, 0x07,        // publisher priority, 7B extensions
       0x00, 0x0c, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // extensions
@@ -502,22 +519,82 @@ class QUICHE_NO_EXPORT StreamHeaderFetchMessage : public ObjectMessage {
 // Used only for tests that process multiple objects on one stream.
 class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
  public:
-  StreamMiddlerFetchMessage() : ObjectMessage() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-    object_.subgroup_id = 8;
-    object_.object_id = 9;
+  StreamMiddlerFetchMessage(MoqtFetchSerialization serialization)
+      : ObjectMessage(), serialization_(serialization) {
+    size_t length = 0;
+    if (serialization.is_datagram()) {  // Two byte varint.
+      raw_packet_[length++] = 0x40;
+    }
+    raw_packet_[length++] = static_cast<uint8_t>(serialization.value());
+    if (serialization.has_group_id()) {
+      raw_packet_[length++] = 0x06;  // group ID
+      object_.group_id = 6;
+    }
+    if (serialization.zero_subgroup_id()) {
+      object_.subgroup_id = 0;
+    } else if (serialization.has_subgroup_id()) {
+      raw_packet_[length++] = 0x0a;
+      object_.subgroup_id = 10;
+    } else if (serialization.prior_subgroup_id_plus_one()) {
+      if (!object_.subgroup_id.has_value()) {
+        QUICHE_BUG(quiche_bug_moqt_prior_subgroup_id_without_previous_subgroup)
+            << "prior_subgroup_id_plus_one without previous subgroup ID";
+        return;
+      }
+      ++(*object_.subgroup_id);
+    } else if (serialization.is_datagram()) {
+      object_.subgroup_id = std::nullopt;
+    }  // If prior_subgroup_id, subgroup_id is already set properly.
+    if (serialization.has_object_id()) {
+      raw_packet_[length++] = 0x0a;
+      object_.object_id = 10;
+    } else {
+      ++object_.object_id;
+    }
+    if (serialization.has_priority()) {
+      raw_packet_[length++] = 0x09;
+      object_.publisher_priority = MoqtPriority(0x09);
+    }
+    if (serialization.has_extensions()) {
+      memcpy(&raw_packet_[length], kRawExtensions.data(),
+             kRawExtensions.length());
+      length += kRawExtensions.length();
+    } else {
+      object_.extension_headers = "";
+    }
+    memcpy(&raw_packet_[length], kRawPayload.data(), kRawPayload.length());
+    length += kRawPayload.length();
+
+    SetWireImage(raw_packet_, length);
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvv-v-------v---", false);
+    std::string varints = "v";
+    if (serialization_.has_group_id()) {
+      varints += "v";
+    }
+    if (serialization_.has_subgroup_id()) {
+      varints += "v";
+    }
+    if (serialization_.has_object_id()) {
+      varints += "v";
+    }
+    if (serialization_.has_priority()) {
+      varints += "-";
+    }
+    if (serialization_.has_extensions()) {
+      varints += "v-------";
+    }
+    varints += "v---";
+    ExpandVarintsImpl(varints, false);
   }
 
  private:
-  uint8_t raw_packet_[16] = {
-      0x05, 0x08, 0x09, 0x07,                          // Object metadata
-      0x07, 0x00, 0x0c, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // extensions
-      0x03, 0x62, 0x61, 0x72,                          // Payload = "bar"
-  };
+  MoqtFetchSerialization serialization_;
+  uint8_t raw_packet_[17];
+  static constexpr absl::string_view kRawExtensions{
+      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultExtensionBlob
+  static constexpr absl::string_view kRawPayload = "\x03\x62\x61\x72";
 };
 
 class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
@@ -1832,6 +1909,11 @@ static inline std::unique_ptr<TestMessageBase> CreateTestDataStream(
     return std::make_unique<StreamHeaderFetchMessage>();
   }
   return std::make_unique<StreamHeaderSubgroupMessage>(type);
+}
+
+static inline std::unique_ptr<TestMessageBase> CreateTestFetch(
+    MoqtFetchSerialization type) {
+  return std::make_unique<StreamMiddlerFetchMessage>(type);
 }
 
 static inline std::unique_ptr<TestMessageBase> CreateTestDatagram(

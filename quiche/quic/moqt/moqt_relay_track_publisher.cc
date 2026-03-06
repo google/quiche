@@ -20,6 +20,7 @@
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -124,57 +125,72 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
       return;
     }
   }
-  auto subgroup_it = group.subgroups.try_emplace(metadata.subgroup);
-  auto& subgroup = subgroup_it.first->second;
-  if (!subgroup.empty()) {  // Check if the new object is valid
-    CachedObject& last_object = subgroup.rbegin()->second;
-    if (last_object.metadata.publisher_priority !=
-        metadata.publisher_priority) {
-      QUICHE_DLOG(INFO) << "Publisher priority changing in a subgroup";
-      OnMalformedTrack(full_track_name);
-      return;
+  CachedObject* duplicate_object = nullptr;
+  if (!metadata.subgroup.has_value()) {  // It's a datagram.
+    std::shared_ptr<quiche::QuicheMemSlice> slice;
+    if (!object.empty()) {
+      slice = std::make_shared<quiche::QuicheMemSlice>(
+          quiche::QuicheMemSlice::Copy(object));
     }
-    if (last_object.fin_after_this) {
-      QUICHE_DLOG(INFO) << "Skipping object because it is after the end of the "
-                        << "subgroup";
-      OnMalformedTrack(full_track_name);
-      return;
+    auto [it, inserted] = group.datagrams.try_emplace(
+        metadata.location.object, CachedObject{metadata, slice, false});
+    if (!inserted) {
+      duplicate_object = &it->second;
     }
-    // If last_object has stream-ending status, it should have been caught by
-    // the fin_after_this check above.
-    QUICHE_DCHECK(
-        last_object.metadata.status != MoqtObjectStatus::kEndOfGroup &&
-        last_object.metadata.status != MoqtObjectStatus::kEndOfTrack);
-    if (last_object.metadata.location.object > metadata.location.object) {
-      QUICHE_DLOG(INFO) << "Skipping object because it decreases the "
-                        << "object ID in the subgroup.";
-      return;
+  } else {
+    auto subgroup_it = group.subgroups.try_emplace(*metadata.subgroup);
+    auto& subgroup = subgroup_it.first->second;
+    if (!subgroup.empty()) {  // Check if the new object is valid
+      CachedObject& last_object = subgroup.rbegin()->second;
+      if (last_object.metadata.publisher_priority !=
+          metadata.publisher_priority) {
+        QUICHE_DLOG(INFO) << "Publisher priority changing in a subgroup";
+        OnMalformedTrack(full_track_name);
+        return;
+      }
+      if (last_object.fin_after_this) {
+        QUICHE_DLOG(INFO) << "Skipping object because it is after the end of "
+                          << "the subgroup";
+        OnMalformedTrack(full_track_name);
+        return;
+      }
+      // If last_object has stream-ending status, it should have been caught by
+      // the fin_after_this check above.
+      QUICHE_DCHECK(
+          last_object.metadata.status != MoqtObjectStatus::kEndOfGroup &&
+          last_object.metadata.status != MoqtObjectStatus::kEndOfTrack);
+      if (last_object.metadata.location.object > metadata.location.object) {
+        QUICHE_DLOG(INFO) << "Skipping object because it decreases the "
+                          << "object ID in the subgroup.";
+        return;
+      }
+    }
+    if (metadata.status == MoqtObjectStatus::kEndOfGroup ||
+        metadata.status == MoqtObjectStatus::kEndOfTrack) {
+      // Anticipate stream FIN.
+      last_object_in_stream = true;
+    }
+    std::shared_ptr<quiche::QuicheMemSlice> slice;
+    if (!object.empty()) {
+      slice = std::make_shared<quiche::QuicheMemSlice>(
+          quiche::QuicheMemSlice::Copy(object));
+    }
+    auto [it, inserted] = subgroup.try_emplace(
+        metadata.location.object,
+        CachedObject{metadata, slice, last_object_in_stream});
+    if (!inserted) {
+      duplicate_object = &it->second;
     }
   }
-  if (metadata.status == MoqtObjectStatus::kEndOfGroup ||
-      metadata.status == MoqtObjectStatus::kEndOfTrack) {
-    // Anticipate stream FIN.
-    last_object_in_stream = true;
-  }
-  std::shared_ptr<quiche::QuicheMemSlice> slice;
-  if (!object.empty()) {
-    slice = std::make_shared<quiche::QuicheMemSlice>(
-        quiche::QuicheMemSlice::Copy(object));
-  }
-  auto [it, inserted] = subgroup.try_emplace(
-      metadata.location.object,
-      CachedObject{metadata, slice, last_object_in_stream});
-  if (!inserted) {
-    // It's a duplicate object.
-    CachedObject& old_object = it->second;
-    if (metadata.IsMalformed(old_object.metadata)) {
+  if (duplicate_object != nullptr) {
+    if (metadata.IsMalformed(duplicate_object->metadata)) {
       // Something besides the arrival time and extension headers changed.
       OnMalformedTrack(full_track_name);
       return;
     }
     // TODO(b/467718801): Fix this when the class supports partial object
     // delivery. When objects are complete, we can simply compare payloads.
-    if (old_object.payload->AsStringView() != object) {
+    if (duplicate_object->payload->AsStringView() != object) {
       OnMalformedTrack(full_track_name);
     }
     // No need to update state.
@@ -199,10 +215,9 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
   }
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnNewObjectAvailable(metadata.location, metadata.subgroup,
-                                   metadata.publisher_priority,
-                                   metadata.forwarding_preference);
+                                   metadata.publisher_priority);
     if (last_object_in_stream) {
-      listener->OnNewFinAvailable(metadata.location, metadata.subgroup);
+      listener->OnNewFinAvailable(metadata.location, *(metadata.subgroup));
     }
   }
 }
@@ -270,14 +285,23 @@ void MoqtRelayTrackPublisher::OnStreamReset(const FullTrackName&,
 }
 
 std::optional<PublishedObject> MoqtRelayTrackPublisher::GetCachedObject(
-    uint64_t group_id, uint64_t subgroup_id, uint64_t min_object_id) const {
+    uint64_t group_id, std::optional<uint64_t> subgroup_id,
+    uint64_t min_object_id) const {
   auto group_it = queue_.find(group_id);
   if (group_it == queue_.end()) {
     // Group does not exist.
     return std::nullopt;
   }
   const Group& group = group_it->second;
-  auto subgroup_it = group.subgroups.find(subgroup_id);
+  if (!subgroup_id.has_value()) {
+    auto object_it = group.datagrams.lower_bound(min_object_id);
+    if (object_it == group.datagrams.end()) {
+      // No object after the last one received.
+      return std::nullopt;
+    }
+    return CachedObjectToPublishedObject(object_it->second);
+  }
+  auto subgroup_it = group.subgroups.find(*subgroup_id);
   if (subgroup_it == group.subgroups.end()) {
     // Subgroup does not exist.
     return std::nullopt;

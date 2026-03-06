@@ -30,6 +30,7 @@
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
@@ -38,6 +39,7 @@
 #include "quiche/quic/moqt/moqt_subscribe_windows.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/session_namespace_tree.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -384,9 +386,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnSubscribeAccepted() override;
     void OnSubscribeRejected(MoqtRequestErrorInfo info) override;
     // This is only called for objects that have just arrived.
-    void OnNewObjectAvailable(
-        Location location, uint64_t subgroup, MoqtPriority publisher_priority,
-        MoqtForwardingPreference forwarding_preference) override;
+    void OnNewObjectAvailable(Location location,
+                              std::optional<uint64_t> subgroup,
+                              MoqtPriority publisher_priority) override;
     void OnTrackPublisherGone() override;
     void OnNewFinAvailable(Location location, uint64_t subgroup) override;
     void OnSubgroupAbandoned(uint64_t group, uint64_t subgroup,
@@ -576,7 +578,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     uint64_t next_object_;
     // Used in subgroup streams to compute the object ID diff. If nullopt, the
     // stream header has not been written yet.
-    std::optional<uint64_t> last_object_id_;
+    std::optional<PublishedObjectMetadata> last_object_;
     // If this data stream is for SUBSCRIBE, reset it if an object has been
     // excessively delayed per Section 7.1.1.2.
     std::unique_ptr<quic::QuicAlarm> delivery_timeout_alarm_;
@@ -615,8 +617,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
      private:
       std::weak_ptr<PublishedFetch> fetch_;
+      std::optional<PublishedObjectMetadata> last_object_;
       webtransport::Stream* stream_;
-      bool stream_header_written_ = false;
     };
 
     MoqtFetchTask* fetch_task() { return fetch_.get(); }
@@ -667,8 +669,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       // No class access below this line!
     }
 
-    void OnNewObjectAvailable(Location, uint64_t /*subgroup*/, MoqtPriority,
-                              MoqtForwardingPreference) override {}
+    void OnNewObjectAvailable(Location, std::optional<uint64_t> /*subgroup*/,
+                              MoqtPriority) override {}
     void OnNewFinAvailable(Location /*location*/,
                            uint64_t /*subgroup*/) override {}
     void OnSubgroupAbandoned(
@@ -749,7 +751,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                            const PublishedObjectMetadata& metadata,
                            quiche::QuicheMemSlice payload,
                            MoqtDataStreamType type,
-                           std::optional<uint64_t> last_id, bool fin);
+                           std::optional<PublishedObjectMetadata> last_object,
+                           bool fin);
 
   void CancelFetch(uint64_t request_id);
 

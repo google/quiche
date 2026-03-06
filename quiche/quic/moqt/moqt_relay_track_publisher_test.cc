@@ -18,6 +18,7 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/web_transport/web_transport.h"
@@ -25,6 +26,8 @@
 namespace moqt::test {
 
 namespace {
+
+using ::testing::Optional;
 
 const FullTrackName kTrackName = {"test", "track"};
 
@@ -34,9 +37,8 @@ class MockMoqtObjectListener : public MoqtObjectListener {
   MOCK_METHOD(void, OnSubscribeRejected, (MoqtRequestErrorInfo reason),
               (override));
   MOCK_METHOD(void, OnNewObjectAvailable,
-              (Location sequence, uint64_t subgroup,
-               MoqtPriority publisher_priority,
-               MoqtForwardingPreference forwarding_preference),
+              (Location sequence, std::optional<uint64_t> subgroup,
+               MoqtPriority publisher_priority),
               (override));
   MOCK_METHOD(void, OnNewFinAvailable,
               (Location final_object_in_subgroup, uint64_t subgroup_id),
@@ -72,8 +74,7 @@ class MoqtRelayTrackPublisherTest : public quiche::test::QuicheTest {
                      MoqtObjectStatus status, absl::string_view payload,
                      bool fin_after_this = false) {
     EXPECT_CALL(listener_,
-                OnNewObjectAvailable(location, subgroup, 128,
-                                     MoqtForwardingPreference::kSubgroup));
+                OnNewObjectAvailable(location, Optional(subgroup), 128));
     if (fin_after_this || status == MoqtObjectStatus::kEndOfTrack ||
         status == MoqtObjectStatus::kEndOfGroup) {
       EXPECT_CALL(listener_, OnNewFinAvailable(location, subgroup));
@@ -162,8 +163,7 @@ TEST_F(MoqtRelayTrackPublisherTest, GroupAbandoned) {
       EXPECT_CALL(listener_, OnGroupAbandoned(group - 3));
     }
     EXPECT_CALL(listener_,
-                OnNewObjectAvailable(Location(group, 0), 0, 128,
-                                     MoqtForwardingPreference::kSubgroup));
+                OnNewObjectAvailable(Location(group, 0), Optional(0), 128));
     publisher_.OnObjectFragment(
         kTrackName,
         PublishedObjectMetadata{Location(group, 0), 0, "",
@@ -355,14 +355,12 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObject) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
   publisher_.AddObjectListener(&listener_);
   Location location = kLargestLocation.Next();
-  EXPECT_CALL(listener_,
-              OnNewObjectAvailable(location, /*subgroup=*/0,
-                                   /*publisher_priority=*/128,
-                                   MoqtForwardingPreference::kSubgroup));
+  EXPECT_CALL(listener_, OnNewObjectAvailable(location, Optional(0),
+                                              /*publisher_priority=*/128));
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
-                              128, MoqtForwardingPreference::kSubgroup},
+                              128},
       "object", /*end_of_message=*/true);
   // Exact duplicate is ignored. It doesn't matter that the arrival time
   // changed.
@@ -372,8 +370,7 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObject) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
-                              128, MoqtForwardingPreference::kSubgroup,
-                              quic::QuicTime::Infinite()},
+                              128, quic::QuicTime::Infinite()},
       "object", /*end_of_message=*/true);
 }
 
@@ -381,22 +378,20 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObjectChangedMetadata) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
   publisher_.AddObjectListener(&listener_);
   Location location = kLargestLocation.Next();
-  EXPECT_CALL(listener_,
-              OnNewObjectAvailable(location, /*subgroup=*/0,
-                                   /*publisher_priority=*/128,
-                                   MoqtForwardingPreference::kSubgroup));
+  EXPECT_CALL(listener_, OnNewObjectAvailable(location, Optional(0),
+                                              /*publisher_priority=*/128));
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
-                              128, MoqtForwardingPreference::kSubgroup},
+                              128},
       "object", /*end_of_message=*/true);
   // Priority change; malformed track.
   EXPECT_CALL(listener_, OnNewObjectAvailable).Times(0);
   EXPECT_CALL(listener_, OnTrackPublisherGone);
   publisher_.OnObjectFragment(
       kTrackName,
-      PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal, 64,
-                              MoqtForwardingPreference::kSubgroup},
+      PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
+                              64},
       "object", /*end_of_message=*/true);
   EXPECT_TRUE(track_deleted_);
 }
@@ -405,14 +400,12 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObjectChangedPayload) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
   publisher_.AddObjectListener(&listener_);
   Location location = kLargestLocation.Next();
-  EXPECT_CALL(listener_,
-              OnNewObjectAvailable(location, /*subgroup=*/0,
-                                   /*publisher_priority=*/128,
-                                   MoqtForwardingPreference::kSubgroup));
+  EXPECT_CALL(listener_, OnNewObjectAvailable(location, Optional(0),
+                                              /*publisher_priority=*/128));
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
-                              128, MoqtForwardingPreference::kSubgroup},
+                              128},
       "payload", /*end_of_message=*/true);
   // Payload change; malformed track.
   EXPECT_CALL(listener_, OnNewObjectAvailable).Times(0);
@@ -420,7 +413,7 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObjectChangedPayload) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
-                              128, MoqtForwardingPreference::kSubgroup},
+                              128},
       "foobar", /*end_of_message=*/true);
   EXPECT_TRUE(track_deleted_);
 }
@@ -462,19 +455,16 @@ TEST_F(MoqtRelayTrackPublisherTest, DatagramPreference) {
   SubscribeAndOk();
   Location location = kLargestLocation.Next();
   EXPECT_CALL(listener_,
-              OnNewObjectAvailable(location, /*subgroup=*/location.object,
-                                   /*publisher_priority=*/128,
-                                   MoqtForwardingPreference::kDatagram));
+              OnNewObjectAvailable(location, testing::Eq(std::nullopt),
+                                   /*publisher_priority=*/128));
   publisher_.OnObjectFragment(
       kTrackName,
-      PublishedObjectMetadata{location, location.object, "",
-                              MoqtObjectStatus::kNormal, 128,
-                              MoqtForwardingPreference::kDatagram},
+      PublishedObjectMetadata{location, std::nullopt, "",
+                              MoqtObjectStatus::kNormal, 128},
       "object", /*end_of_message=*/true);
   std::optional<PublishedObject> object =
-      publisher_.GetCachedObject(location.group, location.object, 0);
-  EXPECT_TRUE(object.has_value() && object->metadata.forwarding_preference ==
-                                        MoqtForwardingPreference::kDatagram);
+      publisher_.GetCachedObject(location.group, std::nullopt, 0);
+  EXPECT_TRUE(object.has_value() && !object->metadata.subgroup.has_value());
 }
 
 }  // namespace

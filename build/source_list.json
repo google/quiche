@@ -1604,6 +1604,7 @@
     "quiche/quic/moqt/moqt_subscribe_windows.h",
     "quiche/quic/moqt/moqt_trace_recorder.h",
     "quiche/quic/moqt/moqt_track.h",
+    "quiche/quic/moqt/moqt_types.h",
     "quiche/quic/moqt/relay_namespace_tree.h",
     "quiche/quic/moqt/session_namespace_tree.h",
     "quiche/quic/moqt/tools/chat_client.h",

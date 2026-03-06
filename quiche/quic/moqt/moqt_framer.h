@@ -5,12 +5,12 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_FRAMER_H_
 #define QUICHE_QUIC_MOQT_MOQT_FRAMER_H_
 
-#include <cstdint>
 #include <optional>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -37,7 +37,7 @@ class QUICHE_EXPORT MoqtFramer {
   // one otherwise.
   quiche::QuicheBuffer SerializeObjectHeader(
       const MoqtObject& message, MoqtDataStreamType message_type,
-      std::optional<uint64_t> previous_object_in_stream);
+      std::optional<PublishedObjectMetadata>& previous_object_in_stream);
   // Serializes both OBJECT and OBJECT_STATUS datagrams.
   quiche::QuicheBuffer SerializeObjectDatagram(const MoqtObject& message,
                                                absl::string_view payload,
@@ -86,8 +86,7 @@ class QUICHE_EXPORT MoqtFramer {
                                       const SetupParameters& parameters,
                                       KeyValuePairList& out);
   // Returns true if the metadata is internally consistent.
-  static bool ValidateObjectMetadata(const MoqtObject& object,
-                                     bool is_datagram);
+  static bool ValidateObjectMetadata(const MoqtObject& object);
   const bool using_webtrans_;
 };
 

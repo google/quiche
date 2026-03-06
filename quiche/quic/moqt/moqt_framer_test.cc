@@ -16,7 +16,8 @@
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
-#include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_object.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_test_message.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -91,11 +92,18 @@ quiche::QuicheBuffer SerializeObject(MoqtFramer& framer,
   MoqtObject adjusted_message = message;
   adjusted_message.payload_length = payload.size();
   QUICHE_DCHECK(message.object_id > change_in_object_id);
+  std::optional<PublishedObjectMetadata> previous_object;
+  if (change_in_object_id > 0) {
+    previous_object.emplace();
+    previous_object->location =
+        Location(message.group_id, message.object_id - change_in_object_id);
+    previous_object->subgroup = message.subgroup_id;
+    previous_object->extensions = message.extension_headers;
+    previous_object->status = message.object_status;
+    previous_object->publisher_priority = message.publisher_priority;
+  }
   quiche::QuicheBuffer header = framer.SerializeObjectHeader(
-      adjusted_message, stream_type,
-      change_in_object_id == 0
-          ? std::nullopt
-          : std::optional<uint64_t>(message.object_id - change_in_object_id));
+      adjusted_message, stream_type, previous_object);
   if (header.empty()) {
     return quiche::QuicheBuffer();
   }
@@ -269,43 +277,58 @@ TEST_F(MoqtFramerSimpleTest, GroupMiddler) {
 }
 
 TEST_F(MoqtFramerSimpleTest, FetchMiddler) {
-  auto header = std::make_unique<StreamHeaderFetchMessage>();
-  auto buffer1 =
-      SerializeObject(framer_, std::get<MoqtObject>(header->structured_data()),
-                      "foo", MoqtDataStreamType::Fetch(), 0);
-  EXPECT_EQ(buffer1.size(), header->total_message_size());
-  EXPECT_EQ(buffer1.AsStringView(), header->PacketSample());
+  for (const MoqtFetchSerialization& flags : AllMoqtFetchSerializations()) {
+    SCOPED_TRACE(testing::Message() << "flags: " << flags.value());
+    if (flags.is_datagram() && !flags.zero_subgroup_id()) {
+      // The framer will not encode these, although they are legal.
+      continue;
+    }
+    auto header = std::make_unique<StreamHeaderFetchMessage>();
+    MoqtObject object = std::get<MoqtObject>(header->structured_data());
+    std::optional<PublishedObjectMetadata> previous;
+    auto buffer1 = framer_.SerializeObjectHeader(
+        object, MoqtDataStreamType::Fetch(), previous);
+    auto whole_object =
+        quiche::QuicheBuffer::Copy(quiche::SimpleBufferAllocator::Get(),
+                                   absl::StrCat(buffer1.AsStringView(), "foo"));
+    EXPECT_EQ(whole_object.size(), header->total_message_size());
+    EXPECT_EQ(whole_object.AsStringView(), header->PacketSample());
 
-  auto middler = std::make_unique<StreamMiddlerFetchMessage>();
-  auto buffer2 =
-      SerializeObject(framer_, std::get<MoqtObject>(middler->structured_data()),
-                      "bar", MoqtDataStreamType::Fetch(), 3);
-  EXPECT_EQ(buffer2.size(), middler->total_message_size());
-  EXPECT_EQ(buffer2.AsStringView(), middler->PacketSample());
+    auto middler = std::make_unique<StreamMiddlerFetchMessage>(flags);
+    // Populate previous object metadata.
+    previous.emplace(Location(object.group_id, object.object_id),
+                     object.subgroup_id, object.extension_headers,
+                     object.object_status, object.publisher_priority);
+    auto buffer2 = framer_.SerializeObjectHeader(
+        std::get<MoqtObject>(middler->structured_data()),
+        MoqtDataStreamType::Fetch(), previous);
+    whole_object =
+        quiche::QuicheBuffer::Copy(quiche::SimpleBufferAllocator::Get(),
+                                   absl::StrCat(buffer2.AsStringView(), "bar"));
+    EXPECT_EQ(whole_object.size(), middler->total_message_size());
+    EXPECT_EQ(whole_object.AsStringView(), middler->PacketSample());
+  }
 }
 
 TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
   MoqtObject object = {
-      // This is a valid object.
+      // Invalid: DoesNotExist with non-zero payload length.
       /*track_alias=*/4,
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
       std::string(kDefaultExtensionBlob.data(), kDefaultExtensionBlob.size()),
-      /*object_status=*/MoqtObjectStatus::kNormal,
+      /*object_status=*/MoqtObjectStatus::kObjectDoesNotExist,
       /*subgroup_id=*/8,
       /*payload_length=*/3,
   };
   quiche::QuicheBuffer buffer;
-
-  // Non-normal status must have no payload.
-  object.object_status = MoqtObjectStatus::kObjectDoesNotExist;
+  std::optional<PublishedObjectMetadata> previous;
   EXPECT_QUIC_BUG(
       buffer = framer_.SerializeObjectHeader(
-          object, MoqtDataStreamType::Subgroup(8, 0, false, false), false),
+          object, MoqtDataStreamType::Subgroup(8, 0, false, false), previous),
       "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
-  // object.object_status = MoqtObjectStatus::kNormal;
 }
 
 TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
@@ -317,7 +340,7 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
       /*publisher_priority=*/7,
       std::string(kDefaultExtensionBlob),
       /*object_status=*/MoqtObjectStatus::kNormal,
-      /*subgroup_id=*/6,
+      /*subgroup_id=*/std::nullopt,
       /*payload_length=*/3,
   };
   quiche::QuicheBuffer buffer;
@@ -334,7 +357,7 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
                       object, "foo", kDefaultPublisherPriority),
                   "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
-  object.subgroup_id = 6;
+  object.subgroup_id = std::nullopt;
 
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(
                       object, "foobar", kDefaultPublisherPriority),

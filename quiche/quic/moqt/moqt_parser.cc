@@ -30,6 +30,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_data_reader.h"
@@ -1146,7 +1147,7 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
   } else {
     object_metadata.object_id = 0;
   }
-  object_metadata.subgroup_id = object_metadata.object_id;
+  object_metadata.subgroup_id = std::nullopt;
   use_default_priority = datagram_type->has_default_priority();
   if (!use_default_priority &&
       !reader.ReadUInt8(&object_metadata.publisher_priority)) {
@@ -1214,75 +1215,124 @@ std::optional<uint8_t> MoqtDataParser::ReadUint8NoFin() {
   return absl::bit_cast<uint8_t>(buffer[0]);
 }
 
-void MoqtDataParser::AdvanceParserState() {
-  if (next_input_ != kStreamType && !type_.has_value()) {
-    QUICHE_BUG(quic_bug_advance_parser_state_no_type)
-        << "Advancing parser state without a stream type";
-    return;
+MoqtDataParser::NextInput MoqtDataParser::AdvanceParserState() {
+  if (type_.IsFetch()) {
+    switch (next_input_) {
+      case kStreamType:
+        return kRequestId;
+      case kRequestId:
+        return kSerializationFlags;
+      case kSerializationFlags:
+        if (fetch_serialization_.has_group_id()) {
+          return kGroupId;
+        }
+        [[fallthrough]];
+      case kGroupId:
+        if (fetch_serialization_.is_datagram()) {
+          metadata_.subgroup_id = std::nullopt;
+        } else {
+          if (fetch_serialization_.has_subgroup_id()) {
+            return kSubgroupId;
+          }
+          if (fetch_serialization_.prior_subgroup_id_plus_one()) {
+            if (!metadata_.subgroup_id.has_value()) {
+              ParseError("reference to subgroup ID of prior datagram");
+              return kFailed;
+            }
+            ++(*metadata_.subgroup_id);
+          } else if (fetch_serialization_.zero_subgroup_id()) {
+            metadata_.subgroup_id = 0;
+          } else if (!metadata_.subgroup_id.has_value()) {
+            QUICHE_DCHECK(fetch_serialization_.prior_subgroup_id());
+            ParseError("reference to subgroup ID of prior datagram");
+            return kFailed;
+          }
+        }
+        [[fallthrough]];
+      case kSubgroupId:
+        if (fetch_serialization_.has_object_id()) {
+          return kObjectId;
+        }
+        ++metadata_.object_id;
+        [[fallthrough]];
+      case kObjectId:
+        if (fetch_serialization_.end_of_non_existent_range() ||
+            fetch_serialization_.end_of_unknown_range()) {
+          return kSerializationFlags;
+        }
+        if (fetch_serialization_.has_priority()) {
+          return kPublisherPriority;
+        }
+        [[fallthrough]];
+      case kPublisherPriority:
+        if (fetch_serialization_.has_extensions()) {
+          return kExtensionSize;
+        }
+        metadata_.extension_headers = "";
+        return kObjectPayloadLength;
+      case kExtensionBody:
+        return kObjectPayloadLength;
+      case kData:
+        return kSerializationFlags;
+      case kTrackAlias:
+      case kObjectPayloadLength:
+      case kAwaitingNextByte:
+      case kStatus:
+      case kFailed:
+      case kExtensionSize:
+      case kPadding:
+        QUICHE_NOTREACHED();
+        return next_input_;
+    }
   }
   switch (next_input_) {
     // The state table is factored into a separate function (rather than
     // inlined) in order to separate the order of elements from the way they are
     // parsed.
     case kStreamType:
-      next_input_ = kTrackAlias;
-      break;
+      return kTrackAlias;
     case kTrackAlias:
-      next_input_ = kGroupId;
-      break;
+      return kGroupId;
     case kGroupId:
-      QUICHE_CHECK(type_.has_value());
-      if (type_->IsFetch() || type_->IsSubgroupPresent()) {
-        next_input_ = kSubgroupId;
-        break;
+      if (type_.IsSubgroupPresent()) {
+        return kSubgroupId;
       }
-      if (type_->SubgroupIsZero()) {
+      if (type_.SubgroupIsZero()) {
         metadata_.subgroup_id = 0;
       }
-      next_input_ =
-          type_->HasDefaultPriority() ? kObjectId : kPublisherPriority;
-      break;
+      [[fallthrough]];
     case kSubgroupId:
-      QUICHE_CHECK(type_.has_value());
-      next_input_ = (type_->IsFetch() || type_->HasDefaultPriority())
-                        ? kObjectId
-                        : kPublisherPriority;
-      break;
-    case kPublisherPriority:
-      QUICHE_CHECK(type_.has_value());
-      next_input_ = type_->IsFetch() ? kExtensionSize : kObjectId;
-      break;
-    case kObjectId:
-      QUICHE_CHECK(type_.has_value());
-      if (type_->HasDefaultPriority()) {
-        metadata_.publisher_priority = default_publisher_priority_;
+      if (!type_.HasDefaultPriority()) {
+        return kPublisherPriority;
       }
-      if (num_objects_read_ == 0 && type_->SubgroupIsFirstObjectId()) {
+      metadata_.publisher_priority = default_publisher_priority_;
+      [[fallthrough]];
+    case kPublisherPriority:
+      return kObjectId;
+    case kObjectId:
+      if (num_objects_read_ == 0 && type_.SubgroupIsFirstObjectId()) {
         metadata_.subgroup_id = metadata_.object_id;
       }
-      if (type_->IsFetch()) {
-        next_input_ = kPublisherPriority;
-      } else if (type_->AreExtensionHeadersPresent()) {
-        next_input_ = kExtensionSize;
-      } else {
-        next_input_ = kObjectPayloadLength;
+      if (type_.AreExtensionHeadersPresent()) {
+        return kExtensionSize;
       }
-      break;
+      [[fallthrough]];
     case kExtensionBody:
-      next_input_ = kObjectPayloadLength;
-      break;
+      return kObjectPayloadLength;
     case kStatus:
     case kData:
     case kAwaitingNextByte:
-      next_input_ = type_->IsFetch() ? kGroupId : kObjectId;
-      break;
-    case kExtensionSize:        // Either kExtensionBody or
-                                // kObjectPayloadLength.
-    case kObjectPayloadLength:  // Either kStatus or kData depending on length.
-    case kPadding:              // Handled separately.
-    case kFailed:               // Should cause parsing to cease.
+      return kObjectId;
+    case kRequestId:
+    case kSerializationFlags:
+    case kExtensionSize:
+    case kObjectPayloadLength:
+    case kPadding:
+    case kFailed:
+      // Other transitions are either Fetch-only or handled in
+      // ParseNextItemFromStream.
       QUICHE_NOTREACHED();
-      break;
+      return next_input_;
   }
 }
 
@@ -1302,23 +1352,48 @@ void MoqtDataParser::ParseNextItemFromStream() {
         ParseError("Invalid stream type supplied");
         return;
       }
-      type_.emplace(std::move(*type));
-      if (type_->IsPadding()) {
+      type_ = *type;
+      if (type_.IsPadding()) {
         next_input_ = kPadding;
         return;
       }
-      if (type_->EndOfGroupInStream()) {
+      if (type_.EndOfGroupInStream()) {
         contains_end_of_group_ = true;
       }
-      AdvanceParserState();
+      next_input_ = AdvanceParserState();
       return;
     }
 
+    case kRequestId:
     case kTrackAlias: {
       std::optional<uint64_t> value_read = ReadVarInt62NoFin();
       if (value_read.has_value()) {
         metadata_.track_alias = *value_read;
-        AdvanceParserState();
+        next_input_ = AdvanceParserState();
+      }
+      return;
+    }
+
+    case kSerializationFlags: {
+      std::optional<uint64_t> value_read = ReadVarInt62NoFin();
+      if (value_read.has_value()) {
+        std::optional<MoqtFetchSerialization> serialization =
+            MoqtFetchSerialization::FromValue(*value_read);
+        if (!serialization.has_value()) {
+          ParseError("Invalid serialization flags");
+          return;
+        }
+        if (num_objects_read_ == 0 &&
+            (serialization->prior_subgroup_id() ||
+             serialization->prior_subgroup_id_plus_one() ||
+             !serialization->has_object_id() ||
+             !serialization->has_group_id() ||
+             !serialization->has_priority())) {
+          ParseError("Invalid serialization flags for first object");
+          return;
+        }
+        fetch_serialization_ = *serialization;
+        next_input_ = AdvanceParserState();
       }
       return;
     }
@@ -1326,8 +1401,14 @@ void MoqtDataParser::ParseNextItemFromStream() {
     case kGroupId: {
       std::optional<uint64_t> value_read = ReadVarInt62NoFin();
       if (value_read.has_value()) {
-        metadata_.group_id = *value_read;
-        AdvanceParserState();
+        if (type_.IsFetch() ||
+            !fetch_serialization_.end_of_non_existent_range() ||
+            !fetch_serialization_.end_of_unknown_range()) {
+          // Do not record range indicator group IDs because it will corrupt
+          // references to the previous object.
+          metadata_.group_id = *value_read;
+        }
+        next_input_ = AdvanceParserState();
       }
       return;
     }
@@ -1336,7 +1417,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
       std::optional<uint64_t> value_read = ReadVarInt62NoFin();
       if (value_read.has_value()) {
         metadata_.subgroup_id = *value_read;
-        AdvanceParserState();
+        next_input_ = AdvanceParserState();
       }
       return;
     }
@@ -1345,7 +1426,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
       std::optional<uint8_t> value_read = ReadUint8NoFin();
       if (value_read.has_value()) {
         metadata_.publisher_priority = *value_read;
-        AdvanceParserState();
+        next_input_ = AdvanceParserState();
       }
       return;
     }
@@ -1353,15 +1434,22 @@ void MoqtDataParser::ParseNextItemFromStream() {
     case kObjectId: {
       std::optional<uint64_t> value_read = ReadVarInt62NoFin();
       if (value_read.has_value()) {
-        if (type_.has_value() && type_->IsSubgroup() &&
-            last_object_id_.has_value()) {
-          metadata_.object_id = *value_read + *last_object_id_ + 1;
-        } else {
-          metadata_.object_id = *value_read;
+        if (type_.IsFetch() ||
+            !fetch_serialization_.end_of_non_existent_range() ||
+            !fetch_serialization_.end_of_unknown_range()) {
+          // Do not record range indicator object IDs because it will corrupt
+          // references to the previous object.
+          if (type_.IsSubgroup() && last_object_id_.has_value()) {
+            metadata_.object_id = *value_read + *last_object_id_ + 1;
+          } else {
+            metadata_.object_id = *value_read;
+          }
         }
         last_object_id_ = metadata_.object_id;
-        AdvanceParserState();
+        next_input_ = AdvanceParserState();
       }
+      // TODO(martinduke): Report something if the fetch serialization is an end
+      // of range indicator.
       return;
     }
 
@@ -1409,7 +1497,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
         // stream was supposed to conclude with kEndOfGroup and end it with the
         // encoded status instead.
         visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
-        AdvanceParserState();
+        next_input_ = AdvanceParserState();
       }
       if (fin_read) {
         visitor_.OnFin();
@@ -1454,7 +1542,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
               visitor_.OnFin();
             }
             ++num_objects_read_;
-            AdvanceParserState();
+            next_input_ = AdvanceParserState();
           }
           if (stream_.SkipBytes(chunk_size) && !no_more_data_) {
             // Although there was no FIN, SkipBytes() can return true if the
@@ -1474,7 +1562,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
             return;
           }
           if (done) {
-            AdvanceParserState();
+            next_input_ = AdvanceParserState();
           }
         }
       }
@@ -1500,12 +1588,11 @@ void MoqtDataParser::ReadAllData() {
 }
 
 void MoqtDataParser::ReadStreamType() {
-  return ReadDataUntil([this]() { return type_.has_value(); });
+  return ReadDataUntil([this]() { return next_input_ != kStreamType; });
 }
 
 void MoqtDataParser::ReadTrackAlias() {
-  return ReadDataUntil(
-      [this]() { return type_.has_value() && next_input_ != kTrackAlias; });
+  return ReadDataUntil([this]() { return next_input_ > kTrackAlias; });
 }
 
 void MoqtDataParser::ReadAtMostOneObject() {
@@ -1519,17 +1606,17 @@ bool MoqtDataParser::CheckForFinWithoutData() {
     if (next_input_ == kAwaitingNextByte) {
       // Data arrived; the last object was not EndOfGroup.
       visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
-      AdvanceParserState();
+      next_input_ = AdvanceParserState();
       ++num_objects_read_;
     }
     return false;
   }
   no_more_data_ = true;
-  const bool valid_state = type_.has_value() &&
-                           payload_length_remaining_ == 0 &&
-                           ((type_->IsSubgroup() && next_input_ == kObjectId) ||
-                            (type_->IsFetch() && next_input_ == kGroupId));
-  if (!valid_state || num_objects_read_ == 0) {
+  const bool valid_state =
+      payload_length_remaining_ == 0 &&
+      ((type_.IsSubgroup() && next_input_ == kObjectId) ||
+       (type_.IsFetch() && next_input_ == kSerializationFlags));
+  if (!valid_state) {
     ParseError("FIN received at an unexpected point in the stream");
     return true;
   }

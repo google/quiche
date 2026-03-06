@@ -218,11 +218,17 @@ class QUICHE_EXPORT MoqtDataParser {
   void ReadAtMostOneObject();
 
   // Returns the type of the unidirectional stream, if already known.
-  std::optional<MoqtDataStreamType> stream_type() const { return type_; }
+  std::optional<MoqtDataStreamType> stream_type() const {
+    if (next_input_ == kStreamType) {
+      return std::nullopt;
+    }
+    return type_;
+  }
 
   // Returns the track alias, if already known.
   std::optional<uint64_t> track_alias() const {
-    return (next_input_ == kStreamType || next_input_ == kTrackAlias)
+    return (next_input_ == kStreamType || next_input_ == kTrackAlias ||
+            next_input_ == kRequestId)
                ? std::optional<uint64_t>()
                : metadata_.track_alias;
   }
@@ -237,7 +243,9 @@ class QUICHE_EXPORT MoqtDataParser {
   // Current state of the parser.
   enum NextInput {
     kStreamType,
-    kTrackAlias,
+    kTrackAlias,          // SUBSCRIBE/PUBLISH only.
+    kRequestId,           // FETCH only.
+    kSerializationFlags,  // FETCH only.
     kGroupId,
     kSubgroupId,
     kPublisherPriority,
@@ -273,7 +281,7 @@ class QUICHE_EXPORT MoqtDataParser {
   std::optional<uint8_t> ReadUint8NoFin();
 
   // Advances the state machine of the parser to the next expected state.
-  void AdvanceParserState();
+  [[nodiscard]] NextInput AdvanceParserState();
   // Reads the next available item from the stream.
   void ParseNextItemFromStream();
   // Checks if we have encountered a FIN without data.  If so, processes it and
@@ -293,7 +301,8 @@ class QUICHE_EXPORT MoqtDataParser {
 
   std::string buffered_message_;
 
-  std::optional<MoqtDataStreamType> type_ = std::nullopt;
+  MoqtDataStreamType type_;
+  MoqtFetchSerialization fetch_serialization_;
   NextInput next_input_ = kStreamType;
   MoqtObject metadata_;
   std::optional<uint64_t> last_object_id_;

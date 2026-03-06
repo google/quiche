@@ -21,6 +21,7 @@
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_parser_test_visitor.h"
 #include "quiche/quic/moqt/test_tools/moqt_test_message.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -1510,6 +1511,103 @@ TEST_F(MoqtDataParserStateMachineTest, ReadTypeThenObjects) {
   EXPECT_EQ(visitor_.object_payloads_[1], "bar");
   EXPECT_EQ(visitor_.parsing_error_, std::nullopt);
   EXPECT_TRUE(visitor_.fin_received_);
+}
+
+TEST_F(MoqtDataParserStateMachineTest, ReadTypeThenObjectsFetch) {
+  for (MoqtFetchSerialization serialization : AllMoqtFetchSerializations()) {
+    SCOPED_TRACE(testing::Message() << "flags: " << serialization.value());
+    MoqtParserTestVisitor visitor;
+    webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+    MoqtDataParser parser(&stream, &visitor);
+    StreamHeaderFetchMessage header;
+    StreamMiddlerFetchMessage middler(serialization);
+    stream.Receive(header.PacketSample());
+    stream.Receive(middler.PacketSample(), /*fin=*/true);
+    parser.ReadStreamType();
+    ASSERT_EQ(visitor.messages_received_, 0);
+    parser.ReadAtMostOneObject();
+    ASSERT_EQ(visitor.messages_received_, 1);
+    EXPECT_TRUE(header.EqualFieldValues(visitor.last_message_.value()));
+    EXPECT_EQ(visitor.object_payloads_[0], "foo");
+    parser.ReadAtMostOneObject();
+    ASSERT_EQ(visitor.messages_received_, 2);
+    EXPECT_TRUE(middler.EqualFieldValues(visitor.last_message_.value()));
+    EXPECT_EQ(visitor.object_payloads_[1], "bar");
+    EXPECT_EQ(visitor.parsing_error_, std::nullopt);
+    EXPECT_TRUE(visitor.fin_received_);
+  }
+}
+
+TEST_F(MoqtDataParserStateMachineTest, StreamHeaderFetchRefersToPrior) {
+  char data[] = {0x05, 0x01, 0x00};
+  // Iterate through the 5 serializations that refer to the prior object.
+  for (char value : {0x0f, 0x17, 0x1b, 0x1d, 0x1e}) {
+    data[2] = value;
+    MoqtParserTestVisitor visitor;
+    webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+    MoqtDataParser parser(&stream, &visitor);
+    stream.Receive(absl::string_view(data, sizeof(data)));
+    parser.ReadStreamType();
+    parser.ReadAtMostOneObject();
+    EXPECT_EQ(visitor.parsing_error_,
+              "Invalid serialization flags for first object");
+    EXPECT_EQ(visitor.parsing_error_code_, MoqtError::kProtocolViolation);
+  }
+}
+
+TEST_F(MoqtDataParserStateMachineTest, DatagramThenPriorSubgroupId) {
+  char data[] = {0x05, 0x01, 0x40, 0x5c, 0x05, 0x01,  // datagram (5, 1)
+                 0x80, 0x03, 0x61, 0x61, 0x61,        // priority, payload
+                 0xff};  // serialization flag to be overwritten
+  // Iterate through the 2 serializations that refer to the prior subgroup.
+  for (char value : {0x01, 0x02}) {
+    data[11] = value;
+    MoqtParserTestVisitor visitor;
+    webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+    MoqtDataParser parser(&stream, &visitor);
+    stream.Receive(absl::string_view(data, sizeof(data)));
+    parser.ReadStreamType();
+    parser.ReadAtMostOneObject();
+    parser.ReadAtMostOneObject();
+    EXPECT_EQ(visitor.parsing_error_,
+              "reference to subgroup ID of prior datagram");
+    EXPECT_EQ(visitor.parsing_error_code_, MoqtError::kProtocolViolation);
+  }
+}
+
+TEST_F(MoqtDataParserStateMachineTest, InvalidNonexistentRange) {
+  char data[] = {0x05, 0x01, 0x40, 0x80};
+  stream_.Receive(absl::string_view(data, sizeof(data)));
+  parser_.ReadStreamType();
+  parser_.ReadAtMostOneObject();
+  EXPECT_EQ(visitor_.parsing_error_, "Invalid serialization flags");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+}
+
+TEST_F(MoqtDataParserStateMachineTest, InvalidNonexistentRangeUnknownRange) {
+  char data[] = {0x05, 0x01, 0x41, 0x8c};
+  stream_.Receive(absl::string_view(data, sizeof(data)));
+  parser_.ReadStreamType();
+  parser_.ReadAtMostOneObject();
+  EXPECT_EQ(visitor_.parsing_error_, "Invalid serialization flags");
+  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
+}
+
+TEST_F(MoqtDataParserStateMachineTest, IgnoresEndRangeIndicators) {
+  // Header, Range Indicator, Middler
+  stream_.Receive(StreamHeaderFetchMessage().PacketSample());
+  char data[] = {0x40, 0x8c, 0x05, 0x07,   // non-existent range
+                 0x41, 0x0c, 0x05, 0x09};  // unknown range
+  stream_.Receive(absl::string_view(data, sizeof(data)));
+  std::optional<MoqtFetchSerialization> serialization =
+      MoqtFetchSerialization::FromValue(0x40);  // Datagram + explicit object ID
+  ASSERT_TRUE(serialization.has_value());
+  StreamMiddlerFetchMessage middler(*serialization);
+  stream_.Receive(middler.PacketSample(), /*fin=*/true);
+  parser_.ReadAllData();
+  EXPECT_EQ(visitor_.messages_received_, 2);
+  // TODO(martinduke): Once Issue #1506 is resolved, check that the values
+  // are reported correctly.
 }
 
 }  // namespace moqt::test
