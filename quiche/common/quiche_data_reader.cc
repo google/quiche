@@ -5,12 +5,15 @@
 #include "quiche/common/quiche_data_reader.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <cstring>
+#include <optional>
 #include <string>
 
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/common/moq_varint.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
@@ -243,6 +246,37 @@ bool QuicheDataReader::ReadStringPieceVarInt62(absl::string_view* result) {
 bool QuicheDataReader::ReadStringVarInt62(std::string& result) {
   absl::string_view result_view;
   bool success = ReadStringPieceVarInt62(&result_view);
+  result = std::string(result_view);
+  return success;
+}
+
+std::optional<size_t> QuicheDataReader::PeekMoqVarIntLength() {
+  if (PeekRemainingPayload().empty()) {
+    return std::nullopt;
+  }
+  return GetMoqVarintLengthForFirstByte(PeekByte());
+}
+
+bool QuicheDataReader::ReadMoqVarInt(uint64_t* result) {
+  std::optional<uint64_t> value = ReadMoqVarint(*this);
+  if (!value.has_value()) {
+    return false;
+  }
+  *result = *value;
+  return true;
+}
+
+bool QuicheDataReader::ReadStringPieceMoqVarInt(absl::string_view* result) {
+  uint64_t result_length;
+  if (!ReadMoqVarInt(&result_length)) {
+    return false;
+  }
+  return ReadStringPiece(result, result_length);
+}
+
+bool QuicheDataReader::ReadStringMoqVarInt(std::string& result) {
+  absl::string_view result_view;
+  bool success = ReadStringPieceMoqVarInt(&result_view);
   result = std::string(result_view);
   return success;
 }

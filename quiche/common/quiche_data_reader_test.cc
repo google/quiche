@@ -5,6 +5,7 @@
 #include "quiche/common/quiche_data_reader.h"
 
 #include <cstdint>
+#include <string>
 
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -192,6 +193,24 @@ TEST(QuicheDataReaderTest, ReadAtMost) {
   EXPECT_EQ(reader.ReadAtMost(3), "foo");
   EXPECT_EQ(reader.ReadAtMost(6), "bar");
   EXPECT_EQ(reader.ReadAtMost(1000), "");
+}
+
+TEST(QuicheDataReaderTest, MoqVarint) {
+  constexpr absl::string_view kData = "\xbb\xbd";
+  QuicheDataReader reader(kData);
+  uint64_t out = 0;
+  ASSERT_TRUE(reader.ReadMoqVarInt(&out));
+  EXPECT_EQ(out, 15293u);
+  EXPECT_TRUE(reader.IsDoneReading());
+}
+
+TEST(QuicheDataReaderTest, MoqVarintString) {
+  constexpr absl::string_view kData = "\x04test";
+  QuicheDataReader reader(kData);
+  std::string out;
+  ASSERT_TRUE(reader.ReadStringMoqVarInt(out));
+  EXPECT_EQ(out, "test");
+  EXPECT_TRUE(reader.IsDoneReading());
 }
 
 }  // namespace quiche

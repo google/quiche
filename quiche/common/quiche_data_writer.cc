@@ -5,11 +5,13 @@
 #include "quiche/common/quiche_data_writer.h"
 
 #include <algorithm>
+#include <cstdint>
 #include <limits>
 #include <string>
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/common/moq_varint.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_endian.h"
 
@@ -220,6 +222,10 @@ bool QuicheDataWriter::WriteVarInt62(uint64_t value) {
   return false;
 }
 
+bool QuicheDataWriter::WriteMoqVarInt(uint64_t value) {
+  return WriteMoqVarint(*this, value);
+}
+
 bool QuicheDataWriter::WriteStringPieceVarInt62(
     const absl::string_view& string_piece) {
   if (!WriteVarInt62(string_piece.size())) {
@@ -231,6 +237,12 @@ bool QuicheDataWriter::WriteStringPieceVarInt62(
     }
   }
   return true;
+}
+
+bool QuicheDataWriter::WriteStringPieceMoqVarInt(
+    absl::string_view string_piece) {
+  return WriteMoqVarInt(string_piece.size()) &&
+         WriteBytes(string_piece.data(), string_piece.size());
 }
 
 // static

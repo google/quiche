@@ -4,6 +4,7 @@
 
 #include "quiche/common/quiche_data_writer.h"
 
+#include <array>
 #include <cstdint>
 #include <cstring>
 #include <string>
@@ -20,6 +21,8 @@
 namespace quiche {
 namespace test {
 namespace {
+
+using ::testing::ElementsAre;
 
 char* AsChars(unsigned char* data) { return reinterpret_cast<char*>(data); }
 
@@ -830,6 +833,14 @@ TEST_P(QuicheDataWriterTest, PayloadReads) {
   test::CompareCharArraysWithHexError(
       "previously_read_payload3", previously_read_payload3.data(),
       previously_read_payload3.length(), buffer, sizeof(buffer));
+}
+
+TEST_P(QuicheDataWriterTest, MoqVarint) {
+  std::array<char, 3> buffer;
+  QuicheDataWriter writer(buffer.size(), buffer.data());
+  ASSERT_TRUE(writer.WriteStringPieceMoqVarInt(""));
+  ASSERT_TRUE(writer.WriteStringPieceMoqVarInt(" "));
+  EXPECT_THAT(buffer, ElementsAre(0x00, 0x01, 0x20));
 }
 
 }  // namespace

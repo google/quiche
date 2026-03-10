@@ -92,6 +92,9 @@ class QUICHE_EXPORT QuicheDataWriter {
   // in the buffer. Requires that the endianness is NETWORK_BYTE_ORDER.
   bool WriteVarInt62(uint64_t value);
 
+  // Writes a 64-bit unsigned integer encoded using the MOQT varint syntax.
+  bool WriteMoqVarInt(uint64_t value);
+
   // Same as WriteVarInt62(uint64_t), but forces an encoding size to write to.
   // This is not as optimized as WriteVarInt62(uint64_t). Returns false if the
   // value does not fit in the specified write_length or if there is no room in
@@ -103,6 +106,9 @@ class QUICHE_EXPORT QuicheDataWriter {
   // RFC 9000 Variable Length Integer encoding. Requires that the endianness is
   // NETWORK_BYTE_ORDER.
   bool WriteStringPieceVarInt62(const absl::string_view& string_piece);
+
+  // Same as above but with MOQ-style varints.
+  bool WriteStringPieceMoqVarInt(absl::string_view string_piece);
 
   // Utility function to return the number of bytes needed to encode
   // the given value using IETF VarInt62 encoding. Returns the number

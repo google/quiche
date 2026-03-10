@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
+#include <optional>
 #include <string>
 
 #include "absl/strings/string_view.h"
@@ -121,6 +122,13 @@ class QUICHE_EXPORT QuicheDataReader {
   // Returns false if there is not enough space in the buffer to read
   // the number and subsequent string, true otherwise.
   bool ReadStringVarInt62(std::string& result);
+
+  // The equivalent of the functions above that uses 64-bit MOQ varints
+  // instead of 62-bit RFC 9000 ones.
+  std::optional<size_t> PeekMoqVarIntLength();
+  bool ReadMoqVarInt(uint64_t* result);
+  bool ReadStringPieceMoqVarInt(absl::string_view* result);
+  bool ReadStringMoqVarInt(std::string& result);
 
   // Returns the remaining payload as a absl::string_view.
   //
