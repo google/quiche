@@ -1329,6 +1329,15 @@ void QuicSession::OnFinalByteOffsetReceived(
 
   QUIC_DVLOG(1) << ENDPOINT << "Received final byte offset "
                 << final_byte_offset << " for stream " << stream_id;
+  if (GetQuicReloadableFlag(quic_close_connection_on_underflow)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_close_connection_on_underflow);
+    if (final_byte_offset < it->second) {
+      connection_->CloseConnection(
+          QUIC_FLOW_CONTROL_FINAL_SIZE_CHANGED, "Invalid final byte offset",
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
+  }
   QuicByteCount offset_diff = final_byte_offset - it->second;
   if (flow_controller_.UpdateHighestReceivedOffset(
           flow_controller_.highest_received_byte_offset() + offset_diff)) {

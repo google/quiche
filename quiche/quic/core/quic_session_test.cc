@@ -225,6 +225,7 @@ class TestStream : public QuicStream {
   TestStream(PendingStream* pending, QuicSession* session)
       : QuicStream(pending, session, /*is_static=*/false) {}
 
+  using QuicStream::AddBytesConsumed;
   using QuicStream::CloseWriteSide;
   using QuicStream::WriteMemSlices;
 
@@ -3626,6 +3627,64 @@ TEST_P(QuicSessionTestClientUnconfigured, StreamInitiallyBlockedThenUnblocked) {
   EXPECT_FALSE(stream2->IsFlowControlBlocked());
   EXPECT_FALSE(session_.IsConnectionFlowControlBlocked());
   EXPECT_FALSE(session_.IsStreamFlowControlBlocked());
+}
+
+TEST_P(QuicSessionTestServer, FlowControlFinalByteUnderflow) {
+  CompleteHandshake();
+
+  // Server creates an outgoing bidirectional stream.
+  TestStream* stream = session_.CreateOutgoingBidirectionalStream();
+  ASSERT_NE(stream, nullptr);
+  const QuicStreamId stream_id = stream->id();
+  const QuicStreamOffset kDataSize = 8000;
+
+  // Peer sends 8000 bytes of data (no FIN) on this stream.
+  std::string data(kDataSize, 'a');
+  QuicStreamFrame data_frame(stream_id, /*fin=*/false, /*offset=*/0,
+                             absl::string_view(data));
+  session_.OnStreamFrame(data_frame);
+
+  EXPECT_EQ(session_.flow_controller()->highest_received_byte_offset(),
+            kDataSize);
+  EXPECT_EQ(stream->highest_received_byte_offset(), kDataSize);
+
+  // Consume all data at stream level so connection bytes_consumed advances.
+  stream->AddBytesConsumed(kDataSize);
+
+  // Server locally resets the stream. Since no FIN was received,
+  // the stream goes into locally_closed_streams_highest_offset_
+  // with offset = 8000.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).Times(AtLeast(1));
+  EXPECT_CALL(*connection_, OnStreamReset(stream_id, _));
+  stream->Reset(QUIC_STREAM_CANCELLED);
+
+  // Peer sends RESET_STREAM with an invalid final_size = 0, which should
+  // trigger the connection to be closed.
+  QuicRstStreamFrame malicious_rst(
+      /*control_frame_id=*/kInvalidControlFrameId, stream_id,
+      QUIC_STREAM_CANCELLED,
+      /*bytes_written=*/0);
+  if (GetQuicReloadableFlag(quic_close_connection_on_underflow)) {
+    EXPECT_CALL(
+        *connection_,
+        CloseConnection(QUIC_FLOW_CONTROL_FINAL_SIZE_CHANGED,
+                        "Invalid final byte offset",
+                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
+  } else {
+    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
+  }
+  session_.OnRstStream(malicious_rst);
+
+  EXPECT_EQ(session_.flow_controller()->highest_received_byte_offset(),
+            kDataSize);
+  const QuicByteCount bytes_consumed_after =
+      session_.flow_controller()->bytes_consumed();
+
+  if (GetQuicReloadableFlag(quic_close_connection_on_underflow)) {
+    EXPECT_EQ(bytes_consumed_after, kDataSize);
+  } else {
+    EXPECT_NE(bytes_consumed_after, kDataSize);
+  }
 }
 
 }  // namespace

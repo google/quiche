@@ -229,6 +229,9 @@ enum QuicErrorCode : uint32_t {
   QUIC_FLOW_CONTROL_SENT_TOO_MUCH_DATA = 63,
   // The peer received an invalid flow control window.
   QUIC_FLOW_CONTROL_INVALID_WINDOW = 64,
+  // The peer sent a RESET_STREAM or STREAM frame indicating a change in the
+  // final size for the stream.
+  QUIC_FLOW_CONTROL_FINAL_SIZE_CHANGED = 221,
   // The connection has been IP pooled into an existing connection.
   QUIC_CONNECTION_IP_POOLED = 62,
   // The connection has too many outstanding sent packets.
@@ -644,7 +647,7 @@ enum QuicErrorCode : uint32_t {
   QUIC_CLIENT_LOST_NETWORK_ACCESS = 215,
 
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 221,
+  QUIC_LAST_ERROR = 222,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
