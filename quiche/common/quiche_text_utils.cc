@@ -17,8 +17,8 @@ namespace quiche {
 // static
 void QuicheTextUtils::Base64Encode(const uint8_t* data, size_t data_len,
                                    std::string* output) {
-  absl::Base64Escape(std::string(reinterpret_cast<const char*>(data), data_len),
-                     output);
+  *output = absl::Base64Escape(
+      std::string(reinterpret_cast<const char*>(data), data_len));
   // Remove padding.
   size_t len = output->size();
   if (len >= 2) {
