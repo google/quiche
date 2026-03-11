@@ -1518,7 +1518,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
           metadata_.object_status = MoqtObjectStatus::kNormal;
           next_input_ = kData;
         } else {
-          next_input_ = kStatus;
+          next_input_ = type_.IsFetch() ? kSerializationFlags : kStatus;
         }
       }
       return;
