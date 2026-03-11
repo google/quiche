@@ -7,13 +7,17 @@
 #include <cstdint>
 #include <optional>
 
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace moqt::test {
+
+using ::quiche::test::StatusIs;
 
 class LocationTest : public quic::test::QuicTest {};
 
@@ -137,7 +141,7 @@ TEST_F(MessageParametersTest, FromKeyValuePairList) {
   list.insert(static_cast<uint64_t>(MessageParameter::kOackWindowSize),
               12345678ULL);
   MessageParameters parameters;
-  parameters.FromKeyValuePairList(list);
+  QUICHE_EXPECT_OK(parameters.FromKeyValuePairList(list));
   EXPECT_EQ(parameters.delivery_timeout,
             quic::QuicTimeDelta::FromMilliseconds(1));
   EXPECT_FALSE(parameters.forward());
@@ -149,30 +153,30 @@ TEST_F(MessageParametersTest, IllegalKeyValuePairs) {
   KeyValuePairList list;
   MessageParameters parameters;
   list.insert(static_cast<uint64_t>(MessageParameter::kDeliveryTimeout), 0ULL);
-  EXPECT_EQ(parameters.FromKeyValuePairList(list),
-            MoqtError::kProtocolViolation);
+  EXPECT_THAT(parameters.FromKeyValuePairList(list),
+              StatusIs(absl::StatusCode::kInvalidArgument));
   list.clear();
   list.insert(static_cast<uint64_t>(MessageParameter::kForward), 2ULL);
-  EXPECT_EQ(parameters.FromKeyValuePairList(list),
-            MoqtError::kProtocolViolation);
+  EXPECT_THAT(parameters.FromKeyValuePairList(list),
+              StatusIs(absl::StatusCode::kInvalidArgument));
   list.clear();
   list.insert(static_cast<uint64_t>(MessageParameter::kSubscriberPriority),
               256ULL);
-  EXPECT_EQ(parameters.FromKeyValuePairList(list),
-            MoqtError::kProtocolViolation);
+  EXPECT_THAT(parameters.FromKeyValuePairList(list),
+              StatusIs(absl::StatusCode::kInvalidArgument));
   list.clear();
   list.insert(static_cast<uint64_t>(MessageParameter::kGroupOrder), 0ULL);
-  EXPECT_EQ(parameters.FromKeyValuePairList(list),
-            MoqtError::kProtocolViolation);
+  EXPECT_THAT(parameters.FromKeyValuePairList(list),
+              StatusIs(absl::StatusCode::kInvalidArgument));
   list.clear();
   list.insert(static_cast<uint64_t>(MessageParameter::kGroupOrder), 3ULL);
-  EXPECT_EQ(parameters.FromKeyValuePairList(list),
-            MoqtError::kProtocolViolation);
+  EXPECT_THAT(parameters.FromKeyValuePairList(list),
+              StatusIs(absl::StatusCode::kInvalidArgument));
   // Unknown MessageParameter.
   list.clear();
   list.insert(0x12345678, 12345678ULL);
-  EXPECT_EQ(parameters.FromKeyValuePairList(list),
-            MoqtError::kProtocolViolation);
+  EXPECT_THAT(parameters.FromKeyValuePairList(list),
+              StatusIs(absl::StatusCode::kInvalidArgument));
 }
 
 TEST_F(MessageParametersTest, DuplicateParameters) {
@@ -224,8 +228,8 @@ TEST_F(MessageParametersTest, DuplicateParameters) {
         break;
       }
     }
-    EXPECT_EQ(parameters.FromKeyValuePairList(list),
-              MoqtError::kProtocolViolation);
+    EXPECT_THAT(parameters.FromKeyValuePairList(list),
+                StatusIs(absl::StatusCode::kInvalidArgument));
   }
 }
 

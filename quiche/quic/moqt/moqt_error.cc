@@ -4,12 +4,22 @@
 
 #include "quiche/quic/moqt/moqt_error.h"
 
+#include <cstring>
+#include <optional>
+
+#include "absl/base/casts.h"
 #include "absl/status/status.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
+
+namespace {
+constexpr absl::string_view kMoqtErrorStatusPayloadUrl =
+    "quiche.googlesource.com/MoqtError";
+}
 
 RequestErrorCode StatusToRequestErrorCode(absl::Status status) {
   QUICHE_DCHECK(!status.ok());
@@ -82,6 +92,35 @@ absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
     default:
       return absl::UnknownError(reason_phrase);
   }
+}
+
+std::optional<MoqtError> GetMoqtErrorForStatus(const absl::Status& status) {
+  std::optional<absl::Cord> raw_code_cord =
+      status.GetPayload(kMoqtErrorStatusPayloadUrl);
+  if (!raw_code_cord.has_value()) {
+    return std::nullopt;
+  }
+  absl::string_view raw_code = raw_code_cord->Flatten();
+  if (raw_code.size() != sizeof(MoqtError)) {
+    QUICHE_LOG(DFATAL) << "MoqtError is incorrect size";
+    return std::nullopt;
+  }
+  MoqtError error;
+  memcpy(&error, raw_code.data(), sizeof(MoqtError));
+  return error;
+}
+
+void SetMoqtErrorForStatus(absl::Status& status, MoqtError error) {
+  char buffer[sizeof(error)];
+  memcpy(buffer, &error, sizeof(error));
+  status.SetPayload(kMoqtErrorStatusPayloadUrl,
+                    absl::Cord(absl::string_view(buffer, sizeof(buffer))));
+}
+
+absl::Status MoqtErrorStatusWithCode(absl::string_view data, MoqtError error) {
+  absl::Status status = absl::InvalidArgumentError(data);
+  SetMoqtErrorForStatus(status, error);
+  return status;
 }
 
 }  // namespace moqt

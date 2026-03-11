@@ -13,6 +13,7 @@
 #include <optional>
 #include <string>
 
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/moqt/moqt_error.h"
@@ -115,66 +116,64 @@ class QUICHE_EXPORT MoqtControlParser {
 
  private:
   // The central switch statement to dispatch a message to the correct
-  // Process* function. Returns 0 if it could not parse the full messsage
-  // (except for object payload). Otherwise, returns the number of bytes
-  // processed.
-  size_t ProcessMessage(absl::string_view data, MoqtMessageType message_type);
+  // Process* function. Invokles an error callback if parsing fails.
+  void ProcessMessage(absl::string_view data, MoqtMessageType message_type);
 
   // The Process* functions parse the serialized data into the appropriate
   // structs, and call the relevant visitor function for further action. Returns
   // the number of bytes consumed if the message is complete; returns 0
   // otherwise.
-  size_t ProcessClientSetup(quic::QuicDataReader& reader);
-  size_t ProcessServerSetup(quic::QuicDataReader& reader);
-  size_t ProcessRequestOk(quic::QuicDataReader& reader);
-  size_t ProcessRequestError(quic::QuicDataReader& reader);
+  absl::Status ProcessClientSetup(absl::string_view data);
+  absl::Status ProcessServerSetup(absl::string_view data);
+  absl::Status ProcessRequestOk(absl::string_view data);
+  absl::Status ProcessRequestError(absl::string_view data);
   // Subscribe formats are used for TrackStatus as well, so take the message
   // type as an argument, defaulting to the subscribe version.
-  size_t ProcessSubscribe(
-      quic::QuicDataReader& reader,
+  absl::Status ProcessSubscribe(
+      absl::string_view data,
       MoqtMessageType message_type = MoqtMessageType::kSubscribe);
-  size_t ProcessSubscribeOk(quic::QuicDataReader& reader);
-  size_t ProcessUnsubscribe(quic::QuicDataReader& reader);
-  size_t ProcessPublishDone(quic::QuicDataReader& reader);
-  size_t ProcessRequestUpdate(quic::QuicDataReader& reader);
-  size_t ProcessPublishNamespace(quic::QuicDataReader& reader);
-  size_t ProcessPublishNamespaceDone(quic::QuicDataReader& reader);
-  size_t ProcessNamespace(quic::QuicDataReader& reader);
-  size_t ProcessNamespaceDone(quic::QuicDataReader& reader);
-  size_t ProcessPublishNamespaceCancel(quic::QuicDataReader& reader);
-  size_t ProcessTrackStatus(quic::QuicDataReader& reader);
-  size_t ProcessGoAway(quic::QuicDataReader& reader);
-  size_t ProcessSubscribeNamespace(quic::QuicDataReader& reader);
-  size_t ProcessUnsubscribeNamespace(quic::QuicDataReader& reader);
-  size_t ProcessMaxRequestId(quic::QuicDataReader& reader);
-  size_t ProcessFetch(quic::QuicDataReader& reader);
-  size_t ProcessFetchCancel(quic::QuicDataReader& reader);
-  size_t ProcessFetchOk(quic::QuicDataReader& reader);
-  size_t ProcessRequestsBlocked(quic::QuicDataReader& reader);
-  size_t ProcessPublish(quic::QuicDataReader& reader);
-  size_t ProcessPublishOk(quic::QuicDataReader& reader);
-  size_t ProcessObjectAck(quic::QuicDataReader& reader);
+  absl::Status ProcessSubscribeOk(absl::string_view data);
+  absl::Status ProcessUnsubscribe(absl::string_view data);
+  absl::Status ProcessPublishDone(absl::string_view data);
+  absl::Status ProcessRequestUpdate(absl::string_view data);
+  absl::Status ProcessPublishNamespace(absl::string_view data);
+  absl::Status ProcessPublishNamespaceDone(absl::string_view data);
+  absl::Status ProcessNamespace(absl::string_view data);
+  absl::Status ProcessNamespaceDone(absl::string_view data);
+  absl::Status ProcessPublishNamespaceCancel(absl::string_view data);
+  absl::Status ProcessTrackStatus(absl::string_view data);
+  absl::Status ProcessGoAway(absl::string_view data);
+  absl::Status ProcessSubscribeNamespace(absl::string_view data);
+  absl::Status ProcessMaxRequestId(absl::string_view data);
+  absl::Status ProcessFetch(absl::string_view data);
+  absl::Status ProcessFetchCancel(absl::string_view data);
+  absl::Status ProcessFetchOk(absl::string_view data);
+  absl::Status ProcessRequestsBlocked(absl::string_view data);
+  absl::Status ProcessPublish(absl::string_view data);
+  absl::Status ProcessPublishOk(absl::string_view data);
+  absl::Status ProcessObjectAck(absl::string_view data);
 
   // If |error| is not provided, assumes kProtocolViolation.
   void ParseError(absl::string_view reason);
+  void ParseError(const absl::Status& status);
   void ParseError(MoqtError error, absl::string_view reason);
 
   // Reads a TrackNamespace from the reader. Returns false if the namespace is
   // too large. Sets a ParseError if the namespace is malformed.
-  bool ReadTrackNamespace(quic::QuicDataReader& reader,
-                          TrackNamespace& track_namespace);
+  absl::Status ReadTrackNamespace(quic::QuicDataReader& reader,
+                                  TrackNamespace& track_namespace);
   // Reads a FullTrackName from the reader. Returns false if the name is too
   // large. Sets a ParseError if the name is malformed.
-  bool ReadFullTrackName(quic::QuicDataReader& reader,
-                         FullTrackName& full_track_name);
-  bool FillAndValidateSetupParameters(const KeyValuePairList& in,
-                                      SetupParameters& out,
-                                      MoqtMessageType message_type);
+  absl::Status ReadFullTrackName(quic::QuicDataReader& reader,
+                                 FullTrackName& full_track_name);
+  absl::Status FillAndValidateSetupParameters(const KeyValuePairList& in,
+                                              SetupParameters& out,
+                                              MoqtMessageType message_type);
   // |reader| points to the beginning of a KeyValuePairList. Returns false if
   // there is any sort of error. (The function calls ParseError(), so the
   // caller has no need to do so.)
-  bool FillAndValidateMessageParameters(quic::QuicDataReader& reader,
-                                        MessageParameters& out);
+  absl::Status FillAndValidateMessageParameters(quic::QuicDataReader& reader,
+                                                MessageParameters& out);
 
   MoqtControlParserVisitor& visitor_;
   webtransport::Stream& stream_;

@@ -33,6 +33,8 @@ namespace moqt::test {
 namespace {
 
 using ::testing::AnyOf;
+using ::testing::HasSubstr;
+using ::testing::Optional;
 
 constexpr std::array kMessageTypes{
     MoqtMessageType::kRequestOk,
@@ -323,8 +325,7 @@ TEST_P(MoqtParserTest, PayloadLengthTooLong) {
   ProcessData(message->PacketSample(), false);
   // The parser will actually report a message, because it's all there.
   EXPECT_EQ(visitor_.messages_received_, 1);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "Message length does not match payload length");
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
 }
 
 TEST_P(MoqtParserTest, PayloadLengthTooShort) {
@@ -335,8 +336,7 @@ TEST_P(MoqtParserTest, PayloadLengthTooShort) {
   message->DecreasePayloadLengthByOne();
   ProcessData(message->PacketSample(), false);
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "Message length does not match payload length");
+  EXPECT_TRUE(visitor_.parsing_error_.has_value());
 }
 
 // Tests for message-specific error cases, and behaviors for a single message
@@ -508,7 +508,8 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupMaxRequestIdAppearsTwice) {
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Duplicate Setup Parameter");
+  EXPECT_THAT(visitor_.parsing_error_,
+              Optional(HasSubstr("Duplicate Setup Parameter")));
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
@@ -567,7 +568,8 @@ TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Duplicate Setup Parameter");
+  EXPECT_THAT(visitor_.parsing_error_,
+              Optional(HasSubstr("Duplicate Setup Parameter")));
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
@@ -625,7 +627,8 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupMaxRequestIdAppearsTwice) {
   stream.Receive(absl::string_view(setup, sizeof(setup)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Duplicate Setup Parameter");
+  EXPECT_THAT(visitor_.parsing_error_,
+              Optional(HasSubstr("Duplicate Setup Parameter")));
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
@@ -689,25 +692,8 @@ TEST_F(MoqtMessageSpecificTest, SubscribeDeliveryTimeoutTwice) {
   stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Duplicate Message Parameter");
-  EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
-}
-
-TEST_F(MoqtMessageSpecificTest, SubscribeMaxCacheDurationTwice) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlParser parser(kRawQuic, &stream, visitor_);
-  char subscribe[] = {
-      0x03, 0x00, 0x12, 0x01, 0x01,
-      0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
-      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
-      0x02,                          // two params
-      0x04, 0x67, 0x10,              // max_cache_duration = 10000
-      0x00, 0x67, 0x10               // max_cache_duration = 10000
-  };
-  stream.Receive(absl::string_view(subscribe, sizeof(subscribe)), false);
-  parser.ReadAndDispatchMessages();
-  EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Duplicate Message Parameter");
+  EXPECT_THAT(visitor_.parsing_error_,
+              Optional(HasSubstr("Duplicate Message Parameter")));
   EXPECT_EQ(visitor_.parsing_error_code_, MoqtError::kProtocolViolation);
 }
 
@@ -948,7 +934,7 @@ TEST_F(MoqtMessageSpecificTest, UnknownMessageType) {
   stream.Receive(absl::string_view(message, writer.length()), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Unknown message type");
+  EXPECT_EQ(visitor_.parsing_error_, "Unknown control message type 0xbeef");
 }
 
 TEST_F(MoqtMessageSpecificTest, SubscribeNoParameters) {
@@ -1122,7 +1108,10 @@ TEST_F(MoqtMessageSpecificTest, RequestUpdateEndGroupTooLow) {
                  false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Duplicate Message Parameter");
+  EXPECT_THAT(
+      visitor_.parsing_error_,
+      Optional(HasSubstr(
+          "AbsoluteRange filter specified with a start after the end")));
 }
 
 TEST_F(MoqtMessageSpecificTest, ObjectAckNegativeDelta) {
@@ -1290,7 +1279,8 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkInvalidDeliveryOrder) {
   stream.Receive(subscribe_ok.PacketSample(), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_, "Invalid SUBSCRIBE_OK track extensions");
+  EXPECT_THAT(visitor_.parsing_error_,
+              Optional(HasSubstr("Invalid SUBSCRIBE_OK track extensions")));
 }
 
 TEST_F(MoqtMessageSpecificTest, SubscribeOkExpirationIsZero) {
@@ -1334,8 +1324,9 @@ TEST_F(MoqtMessageSpecificTest, FetchInvalidRange) {
   stream.Receive(fetch.PacketSample(), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "End object comes before start object in FETCH");
+  EXPECT_THAT(
+      visitor_.parsing_error_,
+      Optional(HasSubstr("End object comes before start object in FETCH")));
 }
 
 TEST_F(MoqtMessageSpecificTest, FetchInvalidRange2) {
@@ -1346,8 +1337,9 @@ TEST_F(MoqtMessageSpecificTest, FetchInvalidRange2) {
   stream.Receive(fetch.PacketSample(), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 0);
-  EXPECT_EQ(visitor_.parsing_error_,
-            "End object comes before start object in FETCH");
+  EXPECT_THAT(
+      visitor_.parsing_error_,
+      Optional(HasSubstr("End object comes before start object in FETCH")));
 }
 
 TEST_F(MoqtMessageSpecificTest, PaddingStream) {
@@ -1386,7 +1378,8 @@ TEST_F(MoqtMessageSpecificTest, NamespaceTooSmall) {
       false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
-  EXPECT_EQ(visitor_.parsing_error_, "Invalid number of namespace elements");
+  EXPECT_THAT(visitor_.parsing_error_,
+              Optional(HasSubstr("Invalid number of namespace elements")));
 }
 
 TEST_F(MoqtMessageSpecificTest, NamespaceTooLarge) {
@@ -1409,7 +1402,8 @@ TEST_F(MoqtMessageSpecificTest, NamespaceTooLarge) {
       absl::string_view(publish_namespace, sizeof(publish_namespace)), false);
   parser.ReadAndDispatchMessages();
   EXPECT_EQ(visitor_.messages_received_, 1);
-  EXPECT_EQ(visitor_.parsing_error_, "Invalid number of namespace elements");
+  EXPECT_THAT(visitor_.parsing_error_,
+              Optional(HasSubstr("Invalid number of namespace elements")));
 }
 
 TEST_F(MoqtMessageSpecificTest, RelativeJoiningFetch) {

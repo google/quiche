@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "absl/container/btree_map.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
@@ -184,7 +185,7 @@ struct QUICHE_EXPORT SetupParameters {
   // Defined in moqt_parser.cc.
   // If the class is not initialized with the default constructor, it is likely
   // to return an error if a non-default field duplicates what is in |list|.
-  MoqtError FromKeyValuePairList(const KeyValuePairList& list);
+  absl::Status FromKeyValuePairList(const KeyValuePairList& list);
 };
 
 enum class MessageParameter : uint64_t {
@@ -242,7 +243,7 @@ struct MessageParameters {
   // Defined in moqt_parser.cc.
   // If the class is not initialized with the default constructor, it is likely
   // to return an error if a non-default field duplicates what is in |list|.
-  MoqtError FromKeyValuePairList(const KeyValuePairList& list);
+  absl::Status FromKeyValuePairList(const KeyValuePairList& list);
 
  private:
   // "if (forward)" is bug-prone because it returns forward_.has_value(). Make

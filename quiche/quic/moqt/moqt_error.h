@@ -42,6 +42,11 @@ enum QUICHE_EXPORT MoqtError : uint64_t {
   kMalformedAuthority = 0x1a,
 };
 
+// Utility functions to attach MoqtError to an absl::Status.
+std::optional<MoqtError> GetMoqtErrorForStatus(const absl::Status& status);
+void SetMoqtErrorForStatus(absl::Status& status, MoqtError error);
+absl::Status MoqtErrorStatusWithCode(absl::string_view data, MoqtError error);
+
 // Error codes used by MoQT to reset streams.
 inline constexpr webtransport::StreamErrorCode kResetCodeInternalError = 0x00;
 inline constexpr webtransport::StreamErrorCode kResetCodeCancelled = 0x01;
