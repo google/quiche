@@ -68,6 +68,10 @@ class QUICHE_EXPORT SendAlgorithmInterface {
     // the bandwidth and rtt to large values before passing them to the send
     // algorithm.
     bool clamp_cwnd_and_rtt_before_send_algorithm = false;
+    // TODO: b/409269141 - Remove this field when deprecating the experiment.
+    // When true, `BbrSender` will enable the exit-startup-on-loss behavior
+    // without requiring the `kB1AL` connection option.
+    bool enable_bbr_exit_startup_on_loss = false;
   };
 
   static SendAlgorithmInterface* Create(

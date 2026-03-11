@@ -89,6 +89,8 @@ class QUICHE_EXPORT BbrSender : public SendAlgorithmInterface {
 
     bool last_sample_is_app_limited;
     QuicPacketNumber end_of_app_limited_phase;
+
+    bool exit_startup_on_loss_even_if_app_limited;
   };
 
   BbrSender(QuicTime now, const RttStats* rtt_stats,

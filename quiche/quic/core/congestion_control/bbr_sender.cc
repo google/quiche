@@ -78,7 +78,9 @@ BbrSender::DebugState::DebugState(const BbrSender& sender)
       recovery_state(sender.recovery_state_),
       recovery_window(sender.recovery_window_),
       last_sample_is_app_limited(sender.last_sample_is_app_limited_),
-      end_of_app_limited_phase(sender.sampler_.end_of_app_limited_phase()) {}
+      end_of_app_limited_phase(sender.sampler_.end_of_app_limited_phase()),
+      exit_startup_on_loss_even_if_app_limited(
+          sender.exit_startup_on_loss_even_if_app_limited_) {}
 
 BbrSender::DebugState::DebugState(const DebugState& state) = default;
 
@@ -298,6 +300,11 @@ void BbrSender::AdjustNetworkParameters(const NetworkParams& params) {
   }
 
   if (mode_ == STARTUP) {
+    if (params.enable_bbr_exit_startup_on_loss) {
+      QUIC_CODE_COUNT(quic_bbr_exit_startup_on_loss_network_param_true);
+      exit_startup_on_loss_even_if_app_limited_ = true;
+    }
+
     if (bandwidth.IsZero()) {
       // Ignore bad bandwidth samples.
       return;

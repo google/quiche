@@ -1294,6 +1294,29 @@ TEST_F(BbrSenderTest,
             sender_->ExportDebugState().congestion_window);
 }
 
+TEST_F(BbrSenderTest, ExitStartupOnLossAdjustedByNetworkParameter) {
+  SetQuicReloadableFlag(quic_bbr_always_exit_startup_on_loss, false);
+
+  sender_ = SetupBbrSender(&bbr_sender_);
+  CreateDefaultSetup();
+
+  EXPECT_FALSE(
+      sender_->ExportDebugState().exit_startup_on_loss_even_if_app_limited)
+      << "Precondition failed: exit-startup-on-loss behavior must be disabled "
+      << "before the test adjusts network parameters.";
+
+  SendAlgorithmInterface::NetworkParams network_params;
+
+  bbr_sender_.connection()->AdjustNetworkParameters(network_params);
+  EXPECT_FALSE(
+      sender_->ExportDebugState().exit_startup_on_loss_even_if_app_limited);
+
+  network_params.enable_bbr_exit_startup_on_loss = true;
+  bbr_sender_.connection()->AdjustNetworkParameters(network_params);
+  EXPECT_TRUE(
+      sender_->ExportDebugState().exit_startup_on_loss_even_if_app_limited);
+}
+
 // Ensures bandwidth estimate does not change after a loss only event.
 // Regression test for b/151239871.
 TEST_F(BbrSenderTest, LossOnlyCongestionEvent) {
