@@ -3170,24 +3170,7 @@ TEST(BalsaHeaders, SetNoTransferEncodingByRemoveHeader) {
   EXPECT_FALSE(headers.transfer_encoding_is_chunked());
 }
 
-class BalsaHeadersClearContentLengthTest : public QuicheTestWithParam<bool> {
- public:
-  BalsaHeadersClearContentLengthTest()
-      : flag_reset_content_length_status_when_removing_content_length_header_(
-            GetParam()) {
-    SetQuicheReloadableFlag(
-        reset_content_length_status_when_removing_content_length_header,
-        flag_reset_content_length_status_when_removing_content_length_header_);
-  }
-
- protected:
-  bool flag_reset_content_length_status_when_removing_content_length_header_;
-};
-
-INSTANTIATE_TEST_SUITE_P(BalsaHeadersClearContentLengthTest,
-                         BalsaHeadersClearContentLengthTest, testing::Bool());
-
-TEST_P(BalsaHeadersClearContentLengthTest, ClearContentLength) {
+TEST(BalsaHeaders, ClearContentLength) {
   // Test that ClearContentLength() removes the content-length header and
   // resets content_length_status().
   BalsaHeaders headers;
@@ -3235,20 +3218,13 @@ TEST_P(BalsaHeadersClearContentLengthTest, ClearContentLength) {
   EXPECT_EQ("chunked", headers.GetAllOfHeaderAsString("Transfer-Encoding"));
   EXPECT_TRUE(headers.transfer_encoding_is_chunked());
   EXPECT_FALSE(headers.HasHeader("Content-length"));
-  if (flag_reset_content_length_status_when_removing_content_length_header_) {
-    EXPECT_EQ(BalsaHeadersEnums::NO_CONTENT_LENGTH,
-              headers.content_length_status());
-    EXPECT_FALSE(headers.content_length_valid());
-    EXPECT_EQ(0u, headers.content_length());
-  } else {
-    EXPECT_EQ(BalsaHeadersEnums::VALID_CONTENT_LENGTH,
-              headers.content_length_status());
-    EXPECT_TRUE(headers.content_length_valid());
-    EXPECT_EQ(10u, headers.content_length());
-  }
+  EXPECT_EQ(BalsaHeadersEnums::NO_CONTENT_LENGTH,
+            headers.content_length_status());
+  EXPECT_FALSE(headers.content_length_valid());
+  EXPECT_EQ(0u, headers.content_length());
 }
 
-TEST_P(BalsaHeadersClearContentLengthTest, ClearContentLengthByRemoveHeader) {
+TEST(BalsaHeaders, ClearContentLengthByRemoveHeader) {
   // Test that calling Remove() methods to clear the content-length header
   // correctly resets internal content length fields.
   BalsaHeaders headers;
@@ -3279,8 +3255,7 @@ TEST_P(BalsaHeadersClearContentLengthTest, ClearContentLengthByRemoveHeader) {
 // Test that calling Remove() methods to clear the content-length header
 // correctly resets internal content length fields when the Transfer-Encoding
 // header is present.
-TEST_P(BalsaHeadersClearContentLengthTest,
-       ClearContentLengthByRemoveHeaderWithTransferEncodingHeader) {
+TEST(BalsaHeaders, ClearContentLengthByRemoveHeaderWithTransferEncodingHeader) {
   BalsaHeaders headers;
   headers.SetContentLength(10);
   // We cannot use SetTransferEncodingToChunkedAndClearContentLength() here
@@ -3288,17 +3263,10 @@ TEST_P(BalsaHeadersClearContentLengthTest,
   headers.ReplaceOrAppendHeader("Transfer-Encoding", "chunked");
   BalsaHeadersTestPeer::set_transfer_encoding_is_chunked(&headers, true);
   headers.RemoveAllOfHeader("Content-Length");
-  if (flag_reset_content_length_status_when_removing_content_length_header_) {
-    EXPECT_EQ(BalsaHeadersEnums::NO_CONTENT_LENGTH,
-              headers.content_length_status());
-    EXPECT_EQ(0u, headers.content_length());
-    EXPECT_FALSE(headers.content_length_valid());
-  } else {
-    EXPECT_EQ(BalsaHeadersEnums::VALID_CONTENT_LENGTH,
-              headers.content_length_status());
-    EXPECT_EQ(10u, headers.content_length());
-    EXPECT_TRUE(headers.content_length_valid());
-  }
+  EXPECT_EQ(BalsaHeadersEnums::NO_CONTENT_LENGTH,
+            headers.content_length_status());
+  EXPECT_EQ(0u, headers.content_length());
+  EXPECT_FALSE(headers.content_length_valid());
 
   headers.SetContentLength(11);
   headers.ReplaceOrAppendHeader("Transfer-Encoding", "chunked");
@@ -3306,37 +3274,23 @@ TEST_P(BalsaHeadersClearContentLengthTest,
   std::vector<absl::string_view> headers_to_remove;
   headers_to_remove.emplace_back("Content-Length");
   headers.RemoveAllOfHeaderInList(headers_to_remove);
-  if (flag_reset_content_length_status_when_removing_content_length_header_) {
-    EXPECT_EQ(BalsaHeadersEnums::NO_CONTENT_LENGTH,
-              headers.content_length_status());
-    EXPECT_EQ(0u, headers.content_length());
-    EXPECT_FALSE(headers.content_length_valid());
-  } else {
-    EXPECT_EQ(BalsaHeadersEnums::VALID_CONTENT_LENGTH,
-              headers.content_length_status());
-    EXPECT_EQ(11u, headers.content_length());
-    EXPECT_TRUE(headers.content_length_valid());
-  }
+  EXPECT_EQ(BalsaHeadersEnums::NO_CONTENT_LENGTH,
+            headers.content_length_status());
+  EXPECT_EQ(0u, headers.content_length());
+  EXPECT_FALSE(headers.content_length_valid());
 
   headers.SetContentLength(12);
   headers.ReplaceOrAppendHeader("Transfer-Encoding", "chunked");
   BalsaHeadersTestPeer::set_transfer_encoding_is_chunked(&headers, true);
   headers.RemoveAllHeadersWithPrefix("Content");
-  if (flag_reset_content_length_status_when_removing_content_length_header_) {
-    EXPECT_EQ(BalsaHeadersEnums::NO_CONTENT_LENGTH,
-              headers.content_length_status());
-    EXPECT_EQ(0u, headers.content_length());
-    EXPECT_FALSE(headers.content_length_valid());
-  } else {
-    EXPECT_EQ(BalsaHeadersEnums::VALID_CONTENT_LENGTH,
-              headers.content_length_status());
-    EXPECT_EQ(12u, headers.content_length());
-    EXPECT_TRUE(headers.content_length_valid());
-  }
+  EXPECT_EQ(BalsaHeadersEnums::NO_CONTENT_LENGTH,
+            headers.content_length_status());
+  EXPECT_EQ(0u, headers.content_length());
+  EXPECT_FALSE(headers.content_length_valid());
 }
 
 // Chunk-encoding an identity-coded BalsaHeaders removes the identity-coding.
-TEST_P(BalsaHeadersClearContentLengthTest, IdentityCodingToChunked) {
+TEST(BalsaHeaders, IdentityCodingToChunked) {
   std::string message =
       "HTTP/1.1 200 OK\r\n"
       "Transfer-Encoding: identity\r\n\r\n";
@@ -3360,7 +3314,7 @@ TEST_P(BalsaHeadersClearContentLengthTest, IdentityCodingToChunked) {
               ElementsAre("chunked"));
 }
 
-TEST_P(BalsaHeadersClearContentLengthTest, SwitchContentLengthToChunk) {
+TEST(BalsaHeaders, SwitchContentLengthToChunk) {
   // Test that a header originally with content length header is correctly
   // switched to using chunk encoding.
   BalsaHeaders headers;
@@ -3379,7 +3333,7 @@ TEST_P(BalsaHeadersClearContentLengthTest, SwitchContentLengthToChunk) {
   EXPECT_FALSE(headers.content_length_valid());
 }
 
-TEST_P(BalsaHeadersClearContentLengthTest, SwitchChunkedToContentLength) {
+TEST(BalsaHeaders, SwitchChunkedToContentLength) {
   // Test that a header originally with chunk encoding is correctly
   // switched to using content length.
   BalsaHeaders headers;

@@ -325,12 +325,6 @@ void BalsaHeaders::AppendAndMakeDescription(absl::string_view key,
 // header we're removing is one of those headers.
 void BalsaHeaders::MaybeClearSpecialHeaderValues(absl::string_view key) {
   if (absl::EqualsIgnoreCase(key, kContentLength)) {
-    if (transfer_encoding_is_chunked_ &&
-        !GetQuicheReloadableFlag(
-            reset_content_length_status_when_removing_content_length_header)) {
-      return;
-    }
-
     content_length_status_ = BalsaHeadersEnums::NO_CONTENT_LENGTH;
     content_length_ = 0;
     return;
