@@ -324,7 +324,8 @@ TEST(SocketTest, SendToWithConnection) {
   QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
-TEST(SocketTest, SendToForRaw) {
+// TODO(b/485901584): Very flaky
+TEST(SocketTest, DISABLED_SendToForRaw) {
   SocketFd socket = CreateTestRawSocket(/*blocking=*/true);
   if (socket == kInvalidSocketFd) {
     GTEST_SKIP();
@@ -349,7 +350,8 @@ TEST(SocketTest, SendToForRaw) {
   QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
-TEST(SocketTest, SendToForRawWithIpHeader) {
+// TODO(b/485901584): Very flaky
+TEST(SocketTest, DISABLED_SendToForRawWithIpHeader) {
   SocketFd socket = CreateTestRawSocket(/*blocking=*/true);
   if (socket == kInvalidSocketFd) {
     GTEST_SKIP();
