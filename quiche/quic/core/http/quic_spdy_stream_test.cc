@@ -30,6 +30,7 @@
 #include "quiche/quic/core/quic_connection.h"
 #include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_stream_sequencer_buffer.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/core/quic_write_blocked_list.h"
@@ -250,12 +251,21 @@ class TestStream : public QuicSpdyStream {
     if (!should_process_data_) {
       return;
     }
-    char buffer[2048];
-    struct iovec vec;
-    vec.iov_base = buffer;
-    vec.iov_len = ABSL_ARRAYSIZE(buffer);
-    size_t bytes_read = Readv(&vec, 1);
-    data_ += std::string(buffer, bytes_read);
+    if (read_side_closed()) {
+      return;
+    }
+    if (HasBytesToRead()) {
+      char buffer[2048];
+      struct iovec vec;
+      vec.iov_base = buffer;
+      vec.iov_len = ABSL_ARRAYSIZE(buffer);
+      size_t bytes_read = Readv(&vec, 1);
+      data_ += std::string(buffer, bytes_read);
+    }
+    if (!sequencer()->IsClosed() || read_side_closed()) {
+      return;
+    }
+    OnFinRead();
   }
 
   void OnSoonToBeDestroyed() override {
@@ -3823,6 +3833,62 @@ TEST_P(QuicSpdyStreamTest, DiscardBodyOnStopReading) {
     // No new data should have been consumed.
     EXPECT_EQ(old_data, stream_->data());
   }
+}
+
+// Regression test for b/488057588.
+TEST_P(QuicSpdyStreamTest, ReadSideNotClosedAfterStopReading) {
+  if (!IsIetfQuic()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_clear_body_manager_along_with_sequencer, true);
+
+  Initialize(kShouldProcessData);
+
+  QuicHeaderList headers = ProcessHeaders(false, headers_);
+  stream_->ConsumeHeaderList();
+
+  // In Envoy QUIC, application can stop processing data before getting read
+  // blocked.
+  stream_->set_should_process_data(false);
+  std::string body = "this is the body";
+  std::string data = DataFrame(body);
+  QuicStreamOffset offset = 0;
+  QuicStreamFrame frame1(GetNthClientInitiatedBidirectionalId(0), /*fin=*/false,
+                         offset, data);
+  offset += data.size();
+  stream_->OnStreamFrame(frame1);
+  EXPECT_TRUE(stream_->sequencer()->HasBytesToRead());
+  EXPECT_TRUE(QuicSpdyStreamPeer::BodyManager(stream_).HasBytesToRead());
+
+  // QUIC gets blocked.
+  stream_->sequencer()->SetBlockedUntilFlush();
+
+  // In Envoy QUIC, StopReading can be called after local reset.
+  stream_->StopReading();
+  // Sequencer is not closed but the bytes in body_manager is cleared.
+  EXPECT_FALSE(stream_->sequencer()->IsClosed());
+  EXPECT_FALSE(QuicSpdyStreamPeer::BodyManager(stream_).HasBytesToRead());
+
+  // FIN does not close the read side since the stream is blocked.
+  QuicStreamFrame frame2(GetNthClientInitiatedBidirectionalId(0), /*fin=*/true,
+                         offset, "second body");
+  stream_->OnStreamFrame(frame2);
+  EXPECT_FALSE(stream_->sequencer()->IsClosed());
+
+  // Because sequencer has bytes to read, On DataAvailable is called.
+  // However, since neither body_manager has bytes to read nor sequencer is
+  // closed,  OnBodyAvailable is not called to close the read side when
+  // SetUnblocked is called.
+  EXPECT_FALSE(QuicSpdyStreamPeer::BodyManager(stream_).HasBytesToRead());
+  EXPECT_FALSE(stream_->sequencer()->IsClosed());
+  EXPECT_TRUE(stream_->sequencer()->HasBytesToRead());
+
+  // Application gets unblocked.
+  stream_->set_should_process_data(true);
+  // QUIC gets unblocked.
+  stream_->sequencer()->SetUnblocked();
+
+  EXPECT_FALSE(stream_->read_side_closed());
 }
 
 }  // namespace

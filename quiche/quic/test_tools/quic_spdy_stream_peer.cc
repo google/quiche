@@ -7,6 +7,7 @@
 #include <utility>
 
 #include "quiche/quic/core/http/quic_spdy_stream.h"
+#include "quiche/quic/core/http/quic_spdy_stream_body_manager.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 
 namespace quic {
@@ -31,6 +32,11 @@ bool QuicSpdyStreamPeer::OnHeadersFrameEnd(QuicSpdyStream* stream) {
 void QuicSpdyStreamPeer::set_header_decoding_delay(QuicSpdyStream* stream,
                                                    QuicTime::Delta delay) {
   stream->header_decoding_delay_ = delay;
+}
+
+QuicSpdyStreamBodyManager& QuicSpdyStreamPeer::BodyManager(
+    QuicSpdyStream* stream) {
+  return stream->body_manager_;
 }
 
 }  // namespace test

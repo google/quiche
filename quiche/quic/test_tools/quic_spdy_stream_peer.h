@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_SPDY_STREAM_PEER_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_SPDY_STREAM_PEER_H_
 
+#include "quiche/quic/core/http/quic_spdy_stream_body_manager.h"
 #include "quiche/quic/core/quic_ack_listener_interface.h"
 #include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_time.h"
@@ -27,6 +28,7 @@ class QuicSpdyStreamPeer {
   static bool OnHeadersFrameEnd(QuicSpdyStream* stream);
   static void set_header_decoding_delay(QuicSpdyStream* stream,
                                         QuicTime::Delta delay);
+  static QuicSpdyStreamBodyManager& BodyManager(QuicSpdyStream* stream);
 };
 
 }  // namespace test
