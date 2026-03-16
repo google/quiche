@@ -425,6 +425,16 @@ void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
     return;
   }
 
+  if (headers_->parsed_response_code_ < 100 ||
+      headers_->parsed_response_code_ > 599) {
+    if (http_validation_policy().disallow_invalid_response_codes) {
+      parse_state_ = BalsaFrameEnums::ERROR;
+      last_error_ = BalsaFrameEnums::INVALID_STATUS_CODE;
+      HandleError(last_error_);
+      return;
+    }
+  }
+
   visitor_->OnResponseFirstLineInput(line_input, part1, part2, part3);
 }
 

@@ -474,6 +474,9 @@ TEST(HTTPBalsaFrame, ErrorCodeToString) {
   EXPECT_STREQ("INVALID_HEADER_CHARACTER",
                BalsaFrameEnums::ErrorCodeToString(
                    BalsaFrameEnums::INVALID_HEADER_CHARACTER));
+  EXPECT_STREQ(
+      "INVALID_STATUS_CODE",
+      BalsaFrameEnums::ErrorCodeToString(BalsaFrameEnums::INVALID_STATUS_CODE));
 
   EXPECT_STREQ("UNKNOWN_ERROR", BalsaFrameEnums::ErrorCodeToString(
                                     BalsaFrameEnums::NUM_ERROR_CODES));
@@ -933,6 +936,52 @@ TEST(HTTPBalsaFrame, ResponseFirstLineParsedCorrectly) {
   FirstLineParsedCorrectlyHelper(response_tokens, 4242, false, "\t    ");
   FirstLineParsedCorrectlyHelper(response_tokens, 4242, false, "   \t");
   FirstLineParsedCorrectlyHelper(response_tokens, 4242, false, "   \t \t  ");
+}
+
+TEST(HTTPBalsaFrame, LargeAndSmallStatusCodesWithPolicy) {
+  struct TestCase {
+    const absl::string_view status_code;
+    const BalsaFrameEnums::ErrorCode expected_error;
+  };
+  std::vector<TestCase> cases = {
+      {"0", BalsaFrameEnums::INVALID_STATUS_CODE},
+      {"99", BalsaFrameEnums::INVALID_STATUS_CODE},
+      {"100", BalsaFrameEnums::BALSA_NO_ERROR},
+      {"200", BalsaFrameEnums::BALSA_NO_ERROR},
+      {"599", BalsaFrameEnums::BALSA_NO_ERROR},
+      {"600", BalsaFrameEnums::INVALID_STATUS_CODE},
+      {"1000", BalsaFrameEnums::INVALID_STATUS_CODE},
+      {"65740", BalsaFrameEnums::INVALID_STATUS_CODE},
+      {"99999999999999999999999",
+       BalsaFrameEnums::FAILED_CONVERTING_STATUS_CODE_TO_INT}};
+  HttpValidationPolicy policy;
+  policy.disallow_invalid_response_codes = true;
+  for (const TestCase& tcase : cases) {
+    BalsaHeaders headers;
+    BalsaFrame framer;
+    framer.set_http_validation_policy(policy);
+    framer.set_is_request(false);
+    framer.set_balsa_headers(&headers);
+    framer.set_http_validation_policy(policy);
+    std::string firstline = absl::StrFormat(
+        "HTTP/1.1 %s OK\r\n"
+        "Content-Length: 0\r\n"
+        "\r\n",
+        tcase.status_code);
+    SCOPED_TRACE(absl::StrCat("Input: ", absl::CEscape(firstline)));
+
+    if (tcase.expected_error == BalsaFrameEnums::BALSA_NO_ERROR) {
+      EXPECT_EQ(framer.ProcessInput(firstline.data(), firstline.size()),
+                firstline.size());
+      EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
+      EXPECT_TRUE(framer.MessageFullyRead());
+    } else {
+      EXPECT_LT(framer.ProcessInput(firstline.data(), firstline.size()),
+                firstline.size());
+      EXPECT_EQ(framer.ErrorCode(), tcase.expected_error);
+      EXPECT_FALSE(framer.MessageFullyRead());
+    }
+  }
 }
 
 TEST(HTTPBalsaFrame, StatusLineSanitizedProperly) {

@@ -128,6 +128,8 @@ const char* BalsaFrameEnums::ErrorCodeToString(
       return "UNSUPPORTED_100_CONTINUE";
     case INVALID_REQUEST_METHOD:
       return "INVALID_REQUEST_METHOD";
+    case INVALID_STATUS_CODE:
+      return "INVALID_STATUS_CODE";
     // This should be the last case in the switch statement.
     case NUM_ERROR_CODES:
       return "UNKNOWN_ERROR";

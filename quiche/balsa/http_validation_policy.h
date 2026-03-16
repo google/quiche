@@ -124,6 +124,10 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   // more information
   bool require_semicolon_delimited_chunk_extension = false;
 
+  // Status codes outside the range [100, 599] are invalid, per RFC 9110,
+  // Section 15 https://www.rfc-editor.org/rfc/rfc9110#section-15
+  bool disallow_invalid_response_codes = false;
+
   template <typename Sink>
   friend void AbslStringify(Sink& sink, FirstLineValidationOption option) {
     switch (option) {
@@ -162,7 +166,8 @@ struct QUICHE_EXPORT HttpValidationPolicy {
                  "sanitize_obs_fold_in_header_values=%v, "
                  "disallow_stray_data_after_chunk=%v, "
                  "disallow_invalid_request_methods=%v, "
-                 "require_semicolon_delimited_chunk_extension=%v}",
+                 "require_semicolon_delimited_chunk_extension=%v, "
+                 "disallow_invalid_response_codes=%v}",
                  policy.disallow_header_continuation_lines,
                  policy.require_header_colon,
                  policy.disallow_multiple_content_length,
@@ -182,7 +187,8 @@ struct QUICHE_EXPORT HttpValidationPolicy {
                  policy.sanitize_obs_fold_in_header_values,
                  policy.disallow_stray_data_after_chunk,
                  policy.disallow_invalid_request_methods,
-                 policy.require_semicolon_delimited_chunk_extension);
+                 policy.require_semicolon_delimited_chunk_extension,
+                 policy.disallow_invalid_response_codes);
   }
 };
 
@@ -208,7 +214,8 @@ static constexpr HttpValidationPolicy kMostStrictHttpValidationPolicy = {
     .sanitize_obs_fold_in_header_values = true,
     .disallow_stray_data_after_chunk = true,
     .disallow_invalid_request_methods = true,
-    .require_semicolon_delimited_chunk_extension = true};
+    .require_semicolon_delimited_chunk_extension = true,
+    .disallow_invalid_response_codes = true};
 
 }  // namespace quiche
 
