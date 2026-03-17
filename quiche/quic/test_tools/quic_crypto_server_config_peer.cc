@@ -153,5 +153,9 @@ uint32_t QuicCryptoServerConfigPeer::source_address_token_lifetime_secs() {
   return server_config_->source_address_token_lifetime_secs_;
 }
 
+QuicSSLConfig* QuicCryptoServerConfigPeer::mutable_ssl_config() {
+  return &server_config_->ssl_config_;
+}
+
 }  // namespace test
 }  // namespace quic

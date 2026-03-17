@@ -79,6 +79,8 @@ class QuicCryptoServerConfigPeer {
 
   uint32_t source_address_token_lifetime_secs();
 
+  QuicSSLConfig* mutable_ssl_config();
+
  private:
   QuicCryptoServerConfig* server_config_;
 };
