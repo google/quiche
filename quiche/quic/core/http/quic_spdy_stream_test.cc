@@ -3860,14 +3860,14 @@ TEST_P(QuicSpdyStreamTest, ReadSideNotClosedAfterStopReading) {
   EXPECT_TRUE(stream_->sequencer()->HasBytesToRead());
   EXPECT_TRUE(QuicSpdyStreamPeer::BodyManager(stream_).HasBytesToRead());
 
-  // QUIC gets blocked.
-  stream_->sequencer()->SetBlockedUntilFlush();
-
   // In Envoy QUIC, StopReading can be called after local reset.
   stream_->StopReading();
   // Sequencer is not closed but the bytes in body_manager is cleared.
   EXPECT_FALSE(stream_->sequencer()->IsClosed());
   EXPECT_FALSE(QuicSpdyStreamPeer::BodyManager(stream_).HasBytesToRead());
+
+  // QUIC gets blocked.
+  stream_->sequencer()->SetBlockedUntilFlush();
 
   // FIN does not close the read side since the stream is blocked.
   QuicStreamFrame frame2(GetNthClientInitiatedBidirectionalId(0), /*fin=*/true,
@@ -3888,7 +3888,11 @@ TEST_P(QuicSpdyStreamTest, ReadSideNotClosedAfterStopReading) {
   // QUIC gets unblocked.
   stream_->sequencer()->SetUnblocked();
 
-  EXPECT_FALSE(stream_->read_side_closed());
+  if (GetQuicReloadableFlag(quic_fix_ignore_read_data_when_unblocked)) {
+    EXPECT_TRUE(stream_->read_side_closed());
+  } else {
+    EXPECT_FALSE(stream_->read_side_closed());
+  }
 }
 
 }  // namespace

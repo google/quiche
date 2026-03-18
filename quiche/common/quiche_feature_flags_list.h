@@ -43,6 +43,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enforce_immediate_goaway, false, t
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enobufs_blocked, true, true, "If true, ENOBUFS socket errors are reported as socket blocked instead of socket failure.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fin_before_completed_http_headers, false, true, "If true, close the connection with error if FIN is received before finish receiving the whole HTTP headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_gap_filling_ack_logic, false, false, "If true, fix the gap filling ack logic in QuicAckFrame.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_ignore_read_data_when_unblocked, false, false, "If true, correctly handle ignore_read_data case when sequencer gets unblocked.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_timeouts, true, true, "If true, postpone setting handshake timeout to infinite to handshake complete.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_include_datagrams_in_willing_to_write, false, false, "If true, checks for queued datagrams when determining if a connection is willing to write.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_move_clock_now, false, false, "If true, move the call to clock.Now() in QuicPacketReader::ReadAndDispatchPackets to after socket_api_.ReadMultiplePackets().")
