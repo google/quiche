@@ -93,9 +93,11 @@ class QUICHE_EXPORT TlsClientHandshaker
   using TlsHandshaker::ssl;
 
  protected:
-  const TlsConnection* tls_connection() const override {
-    return &tls_connection_;
+  const TlsConnection& tls_connection() const override {
+    return tls_connection_;
   }
+
+  TlsConnection& tls_connection() override { return tls_connection_; }
 
   void FinishHandshake() override;
   void OnEnterEarlyData() override;

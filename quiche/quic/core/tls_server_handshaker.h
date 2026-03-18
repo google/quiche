@@ -141,9 +141,11 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
 
   virtual bool ValidateHostname(const std::string& hostname) const;
 
-  const TlsConnection* tls_connection() const override {
-    return &tls_connection_;
+  const TlsConnection& tls_connection() const override {
+    return tls_connection_;
   }
+
+  TlsConnection& tls_connection() override { return tls_connection_; }
 
   // Returns true if the handshake should continue. If false is returned, the
   // caller should fail the handshake.
