@@ -163,6 +163,8 @@ absl::StatusOr<absl::string_view> Send(SocketFd fd, absl::string_view buffer);
 
 // Same as Send() except a specific address (`peer_address`) is specified for
 // where to send the data to. Typically used for non-connected sockets.
+// When `fd` is a raw IP socket, it's caller's responsibility to set
+// `peer_address.port()` to 0, otherwise the send operation may fail.
 absl::StatusOr<absl::string_view> SendTo(SocketFd fd,
                                          const QuicSocketAddress& peer_address,
                                          absl::string_view buffer);

@@ -324,8 +324,7 @@ TEST(SocketTest, SendToWithConnection) {
   QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
-// TODO(b/485901584): Very flaky
-TEST(SocketTest, DISABLED_SendToForRaw) {
+TEST(SocketTest, SendToForRaw) {
   SocketFd socket = CreateTestRawSocket(/*blocking=*/true);
   if (socket == kInvalidSocketFd) {
     GTEST_SKIP();
@@ -341,7 +340,7 @@ TEST(SocketTest, DISABLED_SendToForRaw) {
   QuicSocketAddress server_address(localhost_address, /*port=*/56362);
   std::string packet = CreateUdpPacket(client_address, server_address, "foo");
   absl::StatusOr<absl::string_view> result = socket_api::SendTo(
-      socket, QuicSocketAddress(localhost_address, /*port=*/56362), packet);
+      socket, QuicSocketAddress(localhost_address, /*port=*/0), packet);
 
   // Expect at least some data to be sent successfully.
   QUICHE_ASSERT_OK(result.status());
@@ -350,8 +349,7 @@ TEST(SocketTest, DISABLED_SendToForRaw) {
   QUICHE_EXPECT_OK(socket_api::Close(socket));
 }
 
-// TODO(b/485901584): Very flaky
-TEST(SocketTest, DISABLED_SendToForRawWithIpHeader) {
+TEST(SocketTest, SendToForRawWithIpHeader) {
   SocketFd socket = CreateTestRawSocket(/*blocking=*/true);
   if (socket == kInvalidSocketFd) {
     GTEST_SKIP();
@@ -368,7 +366,7 @@ TEST(SocketTest, DISABLED_SendToForRawWithIpHeader) {
       CreateIpPacket(client_address.host(), server_address.host(),
                      CreateUdpPacket(client_address, server_address, "foo"));
   absl::StatusOr<absl::string_view> result = socket_api::SendTo(
-      socket, QuicSocketAddress(localhost_address, /*port=*/56362), packet);
+      socket, QuicSocketAddress(localhost_address, /*port=*/0), packet);
 
   // Expect at least some data to be sent successfully.
   QUICHE_ASSERT_OK(result.status());
