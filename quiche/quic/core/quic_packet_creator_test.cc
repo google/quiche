@@ -56,28 +56,36 @@ QuicConnectionId CreateTestConnectionId() {
 }
 
 // Run tests with combinations of {ParsedQuicVersion,
-// ToggleVersionSerialization}.
+// ToggleVersionSerialization, and spin bit}.
 struct TestParams {
-  TestParams(ParsedQuicVersion version, bool version_serialization)
-      : version(version), version_serialization(version_serialization) {}
+  TestParams(ParsedQuicVersion version, bool version_serialization,
+             bool spin_bit)
+      : version(version),
+        version_serialization(version_serialization),
+        spin_bit(spin_bit) {}
 
   ParsedQuicVersion version;
   bool version_serialization;
+  bool spin_bit;
 };
 
 // Used by ::testing::PrintToStringParamName().
 std::string PrintToString(const TestParams& p) {
   return absl::StrCat(ParsedQuicVersionToString(p.version), "_",
-                      (p.version_serialization ? "Include" : "No"), "Version");
+                      (p.version_serialization ? "Include" : "No"), "Version",
+                      "_", (p.spin_bit ? "Spin" : "NoSpin"));
 }
 
 // Constructs various test permutations.
 std::vector<TestParams> GetTestParams() {
   std::vector<TestParams> params;
   ParsedQuicVersionVector all_supported_versions = AllSupportedVersions();
-  for (size_t i = 0; i < all_supported_versions.size(); ++i) {
-    params.push_back(TestParams(all_supported_versions[i], true));
-    params.push_back(TestParams(all_supported_versions[i], false));
+  for (const auto& version : all_supported_versions) {
+    for (bool version_serialization : {true, false}) {
+      for (bool spin_bit : {true, false}) {
+        params.push_back(TestParams(version, version_serialization, spin_bit));
+      }
+    }
   }
   return params;
 }
@@ -146,6 +154,8 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
         .WillRepeatedly(Return(QuicPacketBuffer()));
     EXPECT_CALL(delegate_, GetSerializedPacketFate(_, _))
         .WillRepeatedly(Return(SEND_TO_WRITER));
+    EXPECT_CALL(delegate_, NextSpinBitToSend())
+        .WillRepeatedly(Return(GetParam().spin_bit));
     creator_.SetEncrypter(
         ENCRYPTION_INITIAL,
         std::make_unique<TaggingEncrypter>(ENCRYPTION_INITIAL));
@@ -2558,6 +2568,7 @@ class MockDelegate : public QuicPacketCreator::DelegateInterface {
               (override));
   MOCK_METHOD(SerializedPacketFate, GetSerializedPacketFate,
               (bool, EncryptionLevel), (override));
+  MOCK_METHOD(bool, NextSpinBitToSend, (), (override));
 
   void SetCanWriteAnything() {
     EXPECT_CALL(*this, ShouldGeneratePacket(_, _)).WillRepeatedly(Return(true));
@@ -2691,6 +2702,7 @@ class QuicPacketCreatorMultiplePacketsTest : public QuicTest {
         .WillRepeatedly(Return(QuicPacketBuffer()));
     EXPECT_CALL(delegate_, GetSerializedPacketFate(_, _))
         .WillRepeatedly(Return(SEND_TO_WRITER));
+    EXPECT_CALL(delegate_, NextSpinBitToSend()).WillRepeatedly(Return(false));
     EXPECT_CALL(delegate_, GetFlowControlSendWindowSize(_))
         .WillRepeatedly(Return(std::numeric_limits<QuicByteCount>::max()));
     creator_.SetEncrypter(

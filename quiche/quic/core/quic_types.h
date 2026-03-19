@@ -649,9 +649,10 @@ enum QuicPacketHeaderTypeFlags : uint8_t {
   // bit to 0, allowing to distinguish Google QUIC packets from short header
   // packets.
   FLAGS_DEMULTIPLEXING_BIT = 1 << 3,
-  // Bits 4 and 5: Reserved bits for short header.
+  // Bits 4: Reserved bit for short header.
   FLAGS_SHORT_HEADER_RESERVED_1 = 1 << 4,
-  FLAGS_SHORT_HEADER_RESERVED_2 = 1 << 5,
+  // Bit 5: the spin bit.
+  FLAGS_SPIN_BIT = 1 << 5,
   // Bit 6: the 'QUIC' bit.
   FLAGS_FIXED_BIT = 1 << 6,
   // Bit 7: Indicates the header is long or short header.

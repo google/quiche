@@ -120,6 +120,12 @@ const size_t kMaxReceivedClientAddressSize = 20;
 // but doesn't allow multiple RTTs of user delay in the hope of using ECN.
 const uint8_t kEcnPtoLimit = 2;
 
+// Constant representing a 7/8 probability of enabling the spin bit for each
+// direction of communication. Since the spin bit only works when both sides
+// choose to enable it, this results in a 3/4 probability that any given
+// connection will have the spin bit enabled, per guidance in RFC 9000.
+const uint8_t kSpinDefaultProbability = 223;
+
 // When the clearer goes out of scope, the coalesced packet gets cleared.
 class ScopedCoalescedPacketClearer {
  public:
@@ -229,7 +235,8 @@ QuicConnection::QuicConnection(
       perspective_(perspective),
       owns_writer_(owns_writer),
       can_truncate_connection_ids_(perspective == Perspective::IS_SERVER),
-      store_one_dcid_(GetQuicReloadableFlag(quic_one_dcid)) {
+      store_one_dcid_(GetQuicReloadableFlag(quic_one_dcid)),
+      spin_bit_enabled_(false) {
   QUICHE_DCHECK(perspective_ == Perspective::IS_CLIENT ||
                 default_path_.self_address.IsInitialized());
 
@@ -1227,6 +1234,39 @@ QuicSocketAddress QuicConnection::GetEffectivePeerAddressFromCurrentPacket()
 }
 
 bool QuicConnection::OnPacketHeader(const QuicPacketHeader& header) {
+  if (spin_bit_enabled_ && header.form == IETF_QUIC_SHORT_HEADER_PACKET) {
+    QUIC_CODE_COUNT(quic_enable_spin_bit);
+    QuicPacketNumber largest_observed =
+        uber_received_packet_manager_.GetLargestObserved(
+            ENCRYPTION_FORWARD_SECURE);
+    if (!largest_observed.IsInitialized() ||
+        header.packet_number > largest_observed) {
+      PathState* absl_nonnull path = &default_path_;
+
+      if (perspective_ == Perspective::IS_CLIENT) {
+        if ((header.destination_connection_id ==
+             alternative_path_.client_connection_id) &&
+            (alternative_path_.client_connection_id !=
+             default_path_.client_connection_id)) {
+          path = &alternative_path_;
+        }
+      } else {
+        if ((header.destination_connection_id ==
+             alternative_path_.server_connection_id) &&
+            (alternative_path_.server_connection_id !=
+             default_path_.server_connection_id)) {
+          path = &alternative_path_;
+        }
+      }
+
+      if (perspective_ == Perspective::IS_SERVER) {
+        path->next_spin_bit = header.spin_bit;
+      } else {
+        path->next_spin_bit = !header.spin_bit;
+      }
+    }
+  }
+
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnPacketHeader(header, clock_->ApproximateNow(),
                                    last_received_packet_info_.decrypted_level);
@@ -7248,6 +7288,7 @@ void QuicConnection::PathState::Clear() {
   stateless_reset_token.reset();
   ecn_marked_packet_acked = false;
   ecn_pto_count = 0;
+  next_spin_bit = false;
 }
 
 QuicConnection::PathState::PathState(PathState&& other) {
@@ -7603,5 +7644,19 @@ QuicConnection::SerializeLargePacketNumberConnectionClosePacket(
 }
 
 #undef ENDPOINT  // undef for jumbo builds
+
+bool QuicConnection::ShouldEnableSpinBit() const {
+  // Whether this connection will use the spin bit depends on (1) the flag
+  // being enabled and, if so, (2) a coin flip to generate probabilistic
+  // participation.
+  if (!GetQuicReloadableFlag(quic_enable_spin_bit)) {
+    return false;
+  }
+
+  QUIC_RELOADABLE_FLAG_COUNT(quic_enable_spin_bit);
+  uint8_t r;
+  random_generator_->RandBytes(&r, 1);
+  return (r < kSpinDefaultProbability);
+}
 
 }  // namespace quic

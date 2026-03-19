@@ -26,6 +26,7 @@
 #include "quiche/quic/core/frames/quic_path_response_frame.h"
 #include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_rst_stream_frame.h"
+#include "quiche/quic/core/quic_buffered_packet_store.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -614,8 +615,8 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
         alarm_factory_(new TestAlarmFactory()),
         peer_framer_(SupportedVersions(version()), QuicTime::Zero(),
                      Perspective::IS_SERVER, connection_id_.length()),
-        peer_creator_(connection_id_, &peer_framer_,
-                      /*delegate=*/nullptr),
+        peer_creator_delegate_(&buffer_allocator_),
+        peer_creator_(connection_id_, &peer_framer_, &peer_creator_delegate_),
         writer_(
             new TestPacketWriter(version(), &clock_, Perspective::IS_CLIENT)),
         connection_(connection_id_, kSelfAddress, kPeerAddress, helper_.get(),
@@ -749,10 +750,49 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
     }
   }
 
+  void ProcessPacketWithSpinBit(bool spin_bit, uint64_t pkn) {
+    QuicPacketHeader header =
+        ConstructPacketHeader(pkn, ENCRYPTION_FORWARD_SECURE);
+    header.spin_bit = spin_bit;
+    QuicFrames frames;
+    frames.push_back(QuicFrame(QuicPingFrame()));
+    std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
+    char buffer[kMaxOutgoingPacketSize];
+    size_t encrypted_length = peer_framer_.EncryptPayload(
+        ENCRYPTION_FORWARD_SECURE, header.packet_number, *packet, buffer,
+        kMaxOutgoingPacketSize);
+    connection_.ProcessUdpPacket(
+        kSelfAddress, kPeerAddress,
+        QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
+    if (connection_.GetSendAlarm()->IsSet()) {
+      connection_.GetSendAlarm()->Fire();
+    }
+  }
+
   void ProcessReceivedPacket(const QuicSocketAddress& self_address,
                              const QuicSocketAddress& peer_address,
                              const QuicReceivedPacket& packet) {
     connection_.ProcessUdpPacket(self_address, peer_address, packet);
+    if (connection_.GetSendAlarm()->IsSet()) {
+      connection_.GetSendAlarm()->Fire();
+    }
+  }
+
+  void ProcessPacketWithSpinBitAndAddress(
+      bool spin_bit, uint64_t pkn, const QuicSocketAddress& peer_address) {
+    QuicPacketHeader header =
+        ConstructPacketHeader(pkn, ENCRYPTION_FORWARD_SECURE);
+    header.spin_bit = spin_bit;
+    QuicFrames frames;
+    frames.push_back(QuicFrame(QuicPingFrame()));
+    std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
+    char buffer[kMaxOutgoingPacketSize];
+    size_t encrypted_length = peer_framer_.EncryptPayload(
+        ENCRYPTION_FORWARD_SECURE, header.packet_number, *packet, buffer,
+        kMaxOutgoingPacketSize);
+    connection_.ProcessUdpPacket(
+        kSelfAddress, peer_address,
+        QuicReceivedPacket(buffer, encrypted_length, clock_.Now(), false));
     if (connection_.GetSendAlarm()->IsSet()) {
       connection_.GetSendAlarm()->Fire();
     }
@@ -1560,6 +1600,7 @@ class QuicConnectionTest : public QuicTestWithParam<TestParams> {
   std::unique_ptr<TestConnectionHelper> helper_;
   std::unique_ptr<TestAlarmFactory> alarm_factory_;
   QuicFramer peer_framer_;
+  PacketCollector peer_creator_delegate_;
   QuicPacketCreator peer_creator_;
   std::unique_ptr<TestPacketWriter> writer_;
   TestConnection connection_;
@@ -18179,6 +18220,113 @@ TEST_P(QuicConnectionTest, DoNotUpdateAckStateAfterConnectionClose) {
   EXPECT_CALL(visitor_, OnConnectionClosed);
   ProcessFramesPacketAtLevel(max_packet_number, peer_frames,
                              ENCRYPTION_FORWARD_SECURE);
+}
+
+TEST_P(QuicConnectionTest, DisabledSpinBit) {
+  const int iterations = 10;
+
+  SetQuicReloadableFlag(quic_enable_spin_bit, false);
+
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+
+  QuicConfig config;
+  connection_.SetFromConfig(config);
+  bool saw_enabled = false;
+  for (int i = 0; i < iterations; i++) {
+    saw_enabled |= QuicConnectionPeer::GetSpinBitEnabled(&connection_);
+  }
+  EXPECT_FALSE(saw_enabled);
+}
+
+TEST_P(QuicConnectionTest, EnabledSpinBit) {
+  SetQuicReloadableFlag(quic_enable_spin_bit, true);
+  ON_CALL(random_generator_, RandBytes(_, 1))
+      .WillByDefault([](void* data, size_t len) {
+        ASSERT_EQ(1u, len);
+        *static_cast<uint8_t*>(data) = 0x00;
+      });
+
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+
+  QuicConfig config;
+  connection_.SetFromConfig(config);
+  EXPECT_FALSE(QuicConnectionPeer::GetSpinBitEnabled(&connection_));
+}
+
+TEST_P(QuicConnectionTest, ClientSpinsSpinBit) {
+  SetQuicReloadableFlag(quic_enable_spin_bit, true);
+  set_perspective(Perspective::IS_CLIENT);
+  // Skip test for non-IETF versions,
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  QuicConfig config;
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  QuicConnectionPeer::SetSpinBitEnabled(&connection_, true);
+  ASSERT_TRUE(QuicConnectionPeer::GetSpinBitEnabled(&connection_));
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  peer_framer_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+
+  const int kPacketCount = 4;
+  bool next_spin = false;
+  QuicStreamOffset offset = 0;
+
+  for (int i = 0; i < kPacketCount; i++) {
+    ProcessPacketWithSpinBit(next_spin, i + 1);
+    connection_.SendStreamDataWithString(3, "foo", offset, NO_FIN);
+    EXPECT_EQ(!next_spin, writer_->last_packet_header().spin_bit);
+    next_spin = !next_spin;
+    offset += 3;
+  }
+}
+
+TEST_P(QuicConnectionTest, ServerReflectsSpinBit) {
+  SetQuicReloadableFlag(quic_enable_spin_bit, true);
+  set_perspective(Perspective::IS_SERVER);
+  // Skip test for non-IETF versions,
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  QuicConfig config;
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  QuicConnectionPeer::SetSpinBitEnabled(&connection_, true);
+  ASSERT_TRUE(QuicConnectionPeer::GetSpinBitEnabled(&connection_));
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  peer_framer_.SetEncrypter(
+      ENCRYPTION_FORWARD_SECURE,
+      std::make_unique<TaggingEncrypter>(ENCRYPTION_FORWARD_SECURE));
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+
+  const int kPacketCount = 4;
+  bool next_spin = false;
+  QuicStreamOffset offset = 0;
+
+  for (int i = 0; i < kPacketCount; i++) {
+    ProcessPacketWithSpinBit(next_spin, i + 1);
+    connection_.SendStreamDataWithString(3, "foo", offset, NO_FIN);
+    EXPECT_EQ(next_spin, writer_->last_packet_header().spin_bit);
+    next_spin = !next_spin;
+    offset += 3;
+  }
 }
 
 }  // namespace

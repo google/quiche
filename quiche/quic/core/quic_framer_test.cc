@@ -15014,6 +15014,59 @@ TEST_P(QuicFramerTest, ReportEcnCountsIfPresent) {
   }
 }
 
+TEST_P(QuicFramerTest, SpinBit) {
+  if (!framer_.version().IsIetfQuic()) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  QuicFramerPeer::SetLargestPacketNumber(&framer_, kPacketNumber - 2);
+
+  // clang-format off
+  unsigned char packet[] = {
+    // type (short header, 1 byte packet number, spin bit on)
+    0x40 | FLAGS_SPIN_BIT,
+    // connection_id
+    0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10,
+    // packet number
+    0x78,
+    // padding
+    0x00, 0x00, 0x00,
+  };
+  // clang-format on
+
+  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  EXPECT_TRUE(framer_.ProcessPacket(encrypted));
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+  ASSERT_TRUE(visitor_.header_.get());
+  EXPECT_EQ(FramerTestConnectionId(),
+            visitor_.header_->destination_connection_id);
+  EXPECT_FALSE(visitor_.header_->reset_flag);
+  EXPECT_FALSE(visitor_.header_->version_flag);
+  EXPECT_EQ(PACKET_1BYTE_PACKET_NUMBER, visitor_.header_->packet_number_length);
+  EXPECT_EQ(kPacketNumber, visitor_.header_->packet_number);
+  EXPECT_TRUE(visitor_.header_->spin_bit);
+}
+
+TEST_P(QuicFramerTest, BuildPacketWithSpinBit) {
+  if (!framer_.version().IsIetfQuic()) {
+    return;
+  }
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number_length = PACKET_1BYTE_PACKET_NUMBER;
+  header.packet_number = kPacketNumber;
+  header.spin_bit = true;
+
+  QuicFrames frames = {QuicFrame(QuicPingFrame())};
+
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  EXPECT_TRUE(data->data()[0] & FLAGS_SPIN_BIT);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

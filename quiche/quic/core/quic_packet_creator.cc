@@ -1895,6 +1895,9 @@ void QuicPacketCreator::FillPacketHeader(QuicPacketHeader* header) {
   header->retry_token = GetRetryToken();
   header->length_length = GetLengthLength();
   header->remaining_packet_length = 0;
+
+  header->spin_bit = delegate_->NextSpinBitToSend();
+
   if (!HasIetfLongHeader()) {
     return;
   }

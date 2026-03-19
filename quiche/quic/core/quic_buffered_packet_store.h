@@ -389,6 +389,8 @@ class QUICHE_NO_EXPORT PacketCollector
     return SEND_TO_WRITER;
   }
 
+  bool NextSpinBitToSend() override { return false; }
+
   // QuicStreamFrameDataProducer
   WriteStreamDataResult WriteStreamData(QuicStreamId /*id*/,
                                         QuicStreamOffset offset,

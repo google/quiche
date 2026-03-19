@@ -1433,6 +1433,7 @@ class MockPacketCreatorDelegate : public QuicPacketCreator::DelegateInterface {
               (override));
   MOCK_METHOD(SerializedPacketFate, GetSerializedPacketFate,
               (bool, EncryptionLevel), (override));
+  MOCK_METHOD(bool, NextSpinBitToSend, (), (override));
 };
 
 class MockSessionNotifier : public SessionNotifierInterface {

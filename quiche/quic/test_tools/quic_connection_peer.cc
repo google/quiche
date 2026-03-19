@@ -629,5 +629,16 @@ bool QuicConnectionPeer::ConnectionMigrationDisabled(
   return connection->active_migration_disabled_;
 }
 
+// static
+void QuicConnectionPeer::SetSpinBitEnabled(QuicConnection* connection,
+                                           bool enabled) {
+  connection->spin_bit_enabled_ = enabled;
+}
+
+// static
+bool QuicConnectionPeer::GetSpinBitEnabled(QuicConnection* connection) {
+  return connection->spin_bit_enabled_;
+}
+
 }  // namespace test
 }  // namespace quic

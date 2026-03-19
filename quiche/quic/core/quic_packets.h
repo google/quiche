@@ -134,15 +134,18 @@ struct QUICHE_EXPORT QuicPacketHeader {
   uint8_t type_byte;
   QuicConnectionIdIncluded destination_connection_id_included;
   QuicConnectionIdIncluded source_connection_id_included;
-  // TODO(martinduke): Compress these into bitfields.
-  // This is only used for Google QUIC.
-  bool reset_flag;
   // For Google QUIC, version flag in packets from the server means version
   // negotiation packet. For IETF QUIC, version flag means long header.
   bool version_flag;
+  // --- bitfield-able bools in the first cacheline go here ---
+  // This is only used for Google QUIC.
+  bool reset_flag : 1;
   // Indicates whether |possible_stateless_reset_token| contains a valid value
   // parsed from the packet buffer. IETF QUIC only, always false for GQUIC.
-  bool has_possible_stateless_reset_token;
+  bool has_possible_stateless_reset_token : 1;
+  // Latency spin bit on the short packet header (RFC 9000 Section 17.4)
+  bool spin_bit : 1;
+  // -- end bitfield-able bools in the first cacheline --
 
   // There are 8 bytes still available in the first cacheline.  Start with long
   // header stuff.

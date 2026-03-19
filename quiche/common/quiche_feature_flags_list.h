@@ -38,6 +38,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_disconnect_early_exit, true, true,
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_disable_resumption, true, true, "If true, disable resumption when receiving NRES connection option.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_mtu_discovery_at_server, false, false, "If true, QUIC will default enable MTU discovery at server, with a target of 1450 bytes.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_server_on_wire_ping, true, true, "If true, enable server retransmittable on wire PING.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_spin_bit, false, false, "When true, enable the QUIC latency spin bit (RFC 9000 section 17.3) on 3/4 of QUIC connections.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enable_version_rfcv2, false, false, "When true, support RFC9369.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enforce_immediate_goaway, false, true, "If true, QUIC will support sending immediate GOAWAYS and will refuse streams above the limit.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_enobufs_blocked, true, true, "If true, ENOBUFS socket errors are reported as socket blocked instead of socket failure.")

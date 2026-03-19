@@ -2006,8 +2006,10 @@ bool QuicFramer::AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
   } else {
     type = static_cast<uint8_t>(
         FLAGS_FIXED_BIT | (current_key_phase_bit_ ? FLAGS_KEY_PHASE_BIT : 0) |
+        (header.spin_bit ? FLAGS_SPIN_BIT : 0) |
         PacketNumberLengthToOnWireValue(header.packet_number_length));
   }
+
   return writer->WriteUInt8(type);
 }
 
@@ -2440,8 +2442,10 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
         header->packet_number_length =
             GetShortHeaderPacketNumberLength(header->type_byte);
       }
+      header->spin_bit = (header->type_byte & FLAGS_SPIN_BIT) > 0;
       return true;
     }
+
     if (header->long_packet_type == RETRY) {
       if (!version().IsIetfQuic()) {
         set_detailed_error("RETRY not supported in this version.");

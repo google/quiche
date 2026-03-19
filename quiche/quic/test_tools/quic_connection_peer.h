@@ -258,6 +258,10 @@ class QuicConnectionPeer {
   static uint64_t GetPeerReorderingThreshold(QuicConnection* connection);
 
   static bool ConnectionMigrationDisabled(QuicConnection* connection);
+
+  static void SetSpinBitEnabled(QuicConnection* connection, bool enabled);
+
+  static bool GetSpinBitEnabled(QuicConnection* connection);
 };
 
 }  // namespace test

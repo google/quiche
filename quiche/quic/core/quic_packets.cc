@@ -166,9 +166,10 @@ QuicPacketHeader::QuicPacketHeader()
       type_byte(0),
       destination_connection_id_included(CONNECTION_ID_PRESENT),
       source_connection_id_included(CONNECTION_ID_ABSENT),
-      reset_flag(false),
       version_flag(false),
+      reset_flag(false),
       has_possible_stateless_reset_token(false),
+      spin_bit(false),
       version(UnsupportedQuicVersion()),
       source_connection_id(EmptyQuicConnectionId()),
       remaining_packet_length(0),
@@ -255,7 +256,8 @@ std::ostream& operator<<(std::ostream& os, const QuicPacketHeader& header) {
        << absl::BytesToHexString(
               absl::string_view(header.nonce->data(), header.nonce->size()));
   }
-  os << ", packet_number: " << header.packet_number << " }\n";
+  os << ", packet_number: " << header.packet_number
+     << ", spin_bit: " << header.spin_bit << " }\n";
   return os;
 }
 
@@ -604,6 +606,7 @@ bool QuicPacketHeader::operator==(const QuicPacketHeader& other) const {
          form == other.form && long_packet_type == other.long_packet_type &&
          possible_stateless_reset_token ==
              other.possible_stateless_reset_token &&
+         spin_bit == other.spin_bit &&
          retry_token_length_length == other.retry_token_length_length &&
          retry_token == other.retry_token &&
          length_length == other.length_length &&

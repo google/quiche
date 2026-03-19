@@ -79,6 +79,9 @@ class QUICHE_EXPORT QuicPacketCreator {
     // serialized.
     virtual SerializedPacketFate GetSerializedPacketFate(
         bool is_mtu_discovery, EncryptionLevel encryption_level) = 0;
+
+    // Return the spin bit value to send in the next short header packet.
+    virtual bool NextSpinBitToSend() = 0;
   };
 
   // Interface which gets callbacks from the QuicPacketCreator at interesting
