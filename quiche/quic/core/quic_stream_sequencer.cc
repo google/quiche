@@ -24,7 +24,6 @@
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_stack_trace.h"
-#include "quiche/common/platform/api/quiche_flag_utils.h"
 
 namespace quic {
 
@@ -266,16 +265,6 @@ void QuicStreamSequencer::SetBlockedUntilFlush() { blocked_ = true; }
 
 void QuicStreamSequencer::SetUnblocked() {
   blocked_ = false;
-  if (GetQuicReloadableFlag(quic_fix_ignore_read_data_when_unblocked)) {
-    QUICHE_RELOADABLE_FLAG_COUNT_N(quic_fix_ignore_read_data_when_unblocked, 1,
-                                   2);
-    if (ignore_read_data_) {
-      QUICHE_RELOADABLE_FLAG_COUNT_N(quic_fix_ignore_read_data_when_unblocked,
-                                     2, 2);
-      FlushBufferedFrames();
-      return;
-    }
-  }
   if (IsClosed() || HasBytesToRead()) {
     stream_->OnDataAvailable();
   }
