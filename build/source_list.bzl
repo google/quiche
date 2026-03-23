@@ -1755,6 +1755,7 @@ qbone_srcs = [
     "quic/qbone/bonnet/tun_device.cc",
     "quic/qbone/bonnet/tun_device_controller.cc",
     "quic/qbone/bonnet/tun_device_controller_test.cc",
+    "quic/qbone/bonnet/tun_device_integration_test.cc",
     "quic/qbone/bonnet/tun_device_packet_exchanger.cc",
     "quic/qbone/bonnet/tun_device_packet_exchanger_test.cc",
     "quic/qbone/bonnet/tun_device_test.cc",
