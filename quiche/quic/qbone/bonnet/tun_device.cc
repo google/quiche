@@ -172,9 +172,11 @@ bool TunTapDevice::OpenDevice() {
     }
   });
 
-  if (!OpenFileDescriptor(kernel_,
-                          absl::GetFlag(FLAGS_qbone_client_tun_device_path),
-                          if_request, O_RDWR, persist_, &file_descriptor_)) {
+  // We set O_NONBLOCK for good measure, but, from observation, all write()
+  // syscalls to the device seem to be synchronous regardless.
+  if (!OpenFileDescriptor(
+          kernel_, absl::GetFlag(FLAGS_qbone_client_tun_device_path),
+          if_request, O_NONBLOCK | O_RDWR, persist_, &file_descriptor_)) {
     return false;
   }
 
