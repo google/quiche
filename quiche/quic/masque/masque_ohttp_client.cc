@@ -61,10 +61,9 @@ namespace {
 
 static constexpr uint64_t kFixedSizeResponseFramingIndicator = 0x01;
 
-}  // namespace
-
-absl::Status MasqueOhttpClient::Config::PerRequestConfig::AddHeaders(
-    const std::vector<std::string>& headers) {
+absl::Status ParseHeadersIntoMap(
+    const std::vector<std::string>& headers,
+    std::vector<std::pair<std::string, std::string>>& headers_map) {
   for (const std::string& header : headers) {
     std::vector<absl::string_view> header_split =
         absl::StrSplit(header, absl::MaxSplits(':', 1));
@@ -77,9 +76,26 @@ absl::Status MasqueOhttpClient::Config::PerRequestConfig::AddHeaders(
     absl::AsciiStrToLower(&header_name);
     std::string header_value = std::string(header_split[1]);
     absl::StripAsciiWhitespace(&header_value);
-    headers_.push_back({std::move(header_name), std::move(header_value)});
+    headers_map.push_back({std::move(header_name), std::move(header_value)});
   }
   return absl::OkStatus();
+}
+
+}  // namespace
+
+absl::Status MasqueOhttpClient::Config::PerRequestConfig::AddHeaders(
+    const std::vector<std::string>& headers) {
+  return ParseHeadersIntoMap(headers, headers_);
+}
+
+absl::Status MasqueOhttpClient::Config::PerRequestConfig::AddOuterHeaders(
+    const std::vector<std::string>& headers) {
+  return ParseHeadersIntoMap(headers, outer_headers_);
+}
+
+absl::Status MasqueOhttpClient::Config::AddKeyFetchHeaders(
+    const std::vector<std::string>& headers) {
+  return ParseHeadersIntoMap(headers, key_fetch_headers_);
 }
 
 absl::Status MasqueOhttpClient::Config::PerRequestConfig::AddPrivateToken(
@@ -226,6 +242,10 @@ absl::Status MasqueOhttpClient::StartKeyFetch(const std::string& url_string) {
   request.headers[":authority"] = url.HostPort();
   request.headers[":path"] = url.PathParamsQuery();
   request.headers["accept"] = "application/ohttp-keys";
+  for (const std::pair<std::string, std::string>& header :
+       config_.key_fetch_headers()) {
+    request.headers[header.first] = header.second;
+  }
 
   absl::StatusOr<RequestId> request_id =
       connection_pool_.SendRequest(request, /*mtls=*/false);
@@ -451,6 +471,10 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
       pending_request.per_request_config.use_chunked_ohttp()
           ? "message/ohttp-chunked-req"
           : "message/ohttp-req";
+  for (const std::pair<std::string, std::string>& header :
+       per_request_config.outer_headers()) {
+    request.headers[header.first] = header.second;
+  }
   request.body = encrypted_data;
   absl::StatusOr<RequestId> request_id =
       connection_pool_.SendRequest(request, /*mtls=*/true);

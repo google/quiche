@@ -47,6 +47,8 @@ class QUICHE_EXPORT MasqueOhttpClient
 
       void SetPostData(const std::string& post_data) { post_data_ = post_data; }
       absl::Status AddHeaders(const std::vector<std::string>& headers);
+      absl::Status AddOuterHeaders(
+          const std::vector<std::string>& outer_headers);
       absl::Status AddPrivateToken(const std::string& private_token);
       void SetUseChunkedOhttp(bool use_chunked_ohttp) {
         use_chunked_ohttp_ = use_chunked_ohttp;
@@ -75,6 +77,10 @@ class QUICHE_EXPORT MasqueOhttpClient
       const std::vector<std::pair<std::string, std::string>>& headers() const {
         return headers_;
       }
+      const std::vector<std::pair<std::string, std::string>>& outer_headers()
+          const {
+        return outer_headers_;
+      }
       bool use_chunked_ohttp() const { return use_chunked_ohttp_; }
       std::optional<bool> use_indeterminate_length() const {
         return use_indeterminate_length_;
@@ -96,6 +102,7 @@ class QUICHE_EXPORT MasqueOhttpClient
       std::string url_;
       std::string post_data_;
       std::vector<std::pair<std::string, std::string>> headers_;
+      std::vector<std::pair<std::string, std::string>> outer_headers_;
       bool use_chunked_ohttp_ = false;
       std::optional<bool> use_indeterminate_length_;
       std::optional<std::string> expected_gateway_error_;
@@ -131,6 +138,8 @@ class QUICHE_EXPORT MasqueOhttpClient
     void SetDnsConfig(const MasqueConnectionPool::DnsConfig& dns_config) {
       dns_config_ = dns_config;
     }
+    absl::Status AddKeyFetchHeaders(
+        const std::vector<std::string>& key_fetch_headers);
     void AddPerRequestConfig(const PerRequestConfig& per_request_config) {
       per_request_configs_.push_back(per_request_config);
     }
@@ -148,6 +157,10 @@ class QUICHE_EXPORT MasqueOhttpClient
     const MasqueConnectionPool::DnsConfig& dns_config() const {
       return dns_config_;
     }
+    const std::vector<std::pair<std::string, std::string>>& key_fetch_headers()
+        const {
+      return key_fetch_headers_;
+    }
 
    private:
     std::string key_fetch_url_;
@@ -156,6 +169,7 @@ class QUICHE_EXPORT MasqueOhttpClient
     bssl::UniquePtr<SSL_CTX> ohttp_ssl_ctx_;
     bool disable_certificate_verification_ = false;
     MasqueConnectionPool::DnsConfig dns_config_;
+    std::vector<std::pair<std::string, std::string>> key_fetch_headers_;
     std::vector<PerRequestConfig> per_request_configs_;
   };
 

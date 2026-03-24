@@ -63,6 +63,16 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "header name and value with a colon. Can be specified multiple times.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::vector<std::string>, key_fetch_header, {},
+    "Adds a header field to the key fetch request. Separate the header name "
+    "and value with a colon. Can be specified multiple times.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::vector<std::string>, outer_header, {},
+    "Adds a header field to the outer gateway request. Separate the header "
+    "name and value with a colon. Can be specified multiple times.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, private_token, "",
     "When set, the client will attach a base64-encoded private token to the "
     "encapsulated request. Accepts any base64 encoding.");
@@ -132,6 +142,10 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
   }
   std::vector<std::string> headers =
       quiche::GetQuicheCommandLineFlag(FLAGS_header);
+  std::vector<std::string> key_fetch_headers =
+      quiche::GetQuicheCommandLineFlag(FLAGS_key_fetch_header);
+  std::vector<std::string> outer_headers =
+      quiche::GetQuicheCommandLineFlag(FLAGS_outer_header);
   std::string private_token =
       quiche::GetQuicheCommandLineFlag(FLAGS_private_token);
 
@@ -148,10 +162,12 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
       config.ConfigureOhttpMtls(client_cert_file, client_cert_key_file));
   config.SetDisableCertificateVerification(disable_certificate_verification);
   config.SetDnsConfig(dns_config);
+  QUICHE_RETURN_IF_ERROR(config.AddKeyFetchHeaders(key_fetch_headers));
   for (size_t i = 2; i < urls.size(); ++i) {
     MasqueOhttpClient::Config::PerRequestConfig per_request_config(urls[i]);
     per_request_config.SetPostData(post_data);
     QUICHE_RETURN_IF_ERROR(per_request_config.AddHeaders(headers));
+    QUICHE_RETURN_IF_ERROR(per_request_config.AddOuterHeaders(outer_headers));
     if (!private_token.empty()) {
       QUICHE_RETURN_IF_ERROR(per_request_config.AddPrivateToken(private_token));
     }
