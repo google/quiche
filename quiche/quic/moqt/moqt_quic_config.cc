@@ -41,7 +41,6 @@ void TuneQuicConfig(quic::QuicConfig& config) {
       kDefaultInitialConnectionWindow);
 
   // Enable BBRv1 along with a workaround for an issue that MOQT can hit often.
-  SetQuicReloadableFlag(quic_bbr_exit_startup_on_loss, true);
   config.AddConnectionOptionsToSend({quic::kTBBR, quic::kB1AL});
   config.SetClientConnectionOptions({quic::kTBBR, quic::kB1AL});
 }
