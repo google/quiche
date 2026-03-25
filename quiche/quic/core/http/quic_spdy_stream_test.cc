@@ -3835,6 +3835,51 @@ TEST_P(QuicSpdyStreamTest, DiscardBodyOnStopReading) {
   }
 }
 
+// Regression test for b/488057588.
+TEST_P(QuicSpdyStreamTest, ReadSideNotClosedAfterStopReading) {
+  if (!IsIetfQuic()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_clear_body_manager_along_with_sequencer, true);
+
+  Initialize(kShouldProcessData);
+
+  QuicHeaderList headers = ProcessHeaders(false, headers_);
+  stream_->ConsumeHeaderList();
+
+  std::string body = "body-1";
+  std::string data = DataFrame(body);
+  QuicStreamOffset offset = 0;
+  QuicStreamFrame frame1(GetNthClientInitiatedBidirectionalId(0), /*fin=*/false,
+                         offset, data);
+  offset += data.size();
+  stream_->OnStreamFrame(frame1);
+  EXPECT_FALSE(stream_->sequencer()->IsClosed());
+
+  // In Envoy QUIC, application can stop processing data before getting read
+  // blocked.
+  stream_->set_should_process_data(false);
+  QuicStreamFrame frame2(GetNthClientInitiatedBidirectionalId(0), /*fin=*/true,
+                         offset, "");
+  // Since FIN is true and there is no new data,
+  // QuicStreamSequencer::CloseStreamAtOffset will call OnDataAvailable, which
+  // in term sets on_body_available_called_because_sequencer_is_closed_ to true.
+  stream_->OnStreamFrame(frame2);
+
+  EXPECT_TRUE(stream_->sequencer()->IsClosed());
+  EXPECT_FALSE(stream_->sequencer()->HasBytesToRead());
+  EXPECT_FALSE(stream_->reading_stopped());
+  EXPECT_FALSE(stream_->read_side_closed());
+
+  stream_->sequencer()->SetBlockedUntilFlush();
+  stream_->set_should_process_data(false);
+  // Since on_body_available_called_because_sequencer_is_closed_ is true,
+  // OnDataAvailable will not invoke OnBodyAvailable again.
+  stream_->sequencer()->SetUnblocked();
+  EXPECT_FALSE(stream_->reading_stopped());
+  EXPECT_FALSE(stream_->read_side_closed());
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
