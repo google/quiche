@@ -8803,6 +8803,14 @@ TEST_P(EndToEndTest, ChangeFlowLabelOnRTO) {
   client_->Disconnect();
 }
 
+TEST_P(EndToEndTest, SpinBitEnableSafety) {
+  SetQuicReloadableFlag(quic_enable_spin_bit, true);
+
+  ASSERT_TRUE(Initialize());
+
+  SendSynchronousFooRequestAndCheckResponse();
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
