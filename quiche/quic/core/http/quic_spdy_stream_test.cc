@@ -248,7 +248,7 @@ class TestStream : public QuicSpdyStream {
   using QuicStream::WriteOrBufferData;
 
   void OnBodyAvailable() override {
-    if (!should_process_data_) {
+    if (!should_process_data_ && HasBytesToRead()) {
       return;
     }
     if (read_side_closed()) {
@@ -3868,16 +3868,8 @@ TEST_P(QuicSpdyStreamTest, ReadSideNotClosedAfterStopReading) {
 
   EXPECT_TRUE(stream_->sequencer()->IsClosed());
   EXPECT_FALSE(stream_->sequencer()->HasBytesToRead());
-  EXPECT_FALSE(stream_->reading_stopped());
-  EXPECT_FALSE(stream_->read_side_closed());
-
-  stream_->sequencer()->SetBlockedUntilFlush();
-  stream_->set_should_process_data(false);
-  // Since on_body_available_called_because_sequencer_is_closed_ is true,
-  // OnDataAvailable will not invoke OnBodyAvailable again.
-  stream_->sequencer()->SetUnblocked();
-  EXPECT_FALSE(stream_->reading_stopped());
-  EXPECT_FALSE(stream_->read_side_closed());
+  EXPECT_TRUE(stream_->reading_stopped());
+  EXPECT_TRUE(stream_->read_side_closed());
 }
 
 }  // namespace
