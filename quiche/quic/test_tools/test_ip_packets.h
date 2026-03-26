@@ -15,6 +15,7 @@ namespace quic::test {
 
 enum class IpPacketPayloadType {
   kUdp,
+  kTcp,
 };
 
 // Create an IP packet, appropriate for sending to a raw IP socket.

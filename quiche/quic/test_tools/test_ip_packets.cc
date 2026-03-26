@@ -39,6 +39,9 @@ constexpr uint16_t kIpv6HeaderSize = 40;
 constexpr uint16_t kUdpHeaderSize = 8;
 constexpr uint8_t kUdpProtocol = 0x11;
 
+// RFC9293
+constexpr uint8_t kTcpProtocol = 0x06;
+
 // For Windows compatibility, avoid dependency on netinet, but when building on
 // Linux, check that the constants match.
 #if defined(__linux__)
@@ -46,6 +49,7 @@ static_assert(kIpv4HeaderSize == sizeof(iphdr));
 static_assert(kIpv6HeaderSize == sizeof(ip6_hdr));
 static_assert(kUdpHeaderSize == sizeof(udphdr));
 static_assert(kUdpProtocol == IPPROTO_UDP);
+static_assert(kTcpProtocol == IPPROTO_TCP);
 #endif
 
 std::string CreateIpv4Header(int payload_length,
@@ -120,6 +124,9 @@ std::string CreateIpPacket(const quiche::QuicheIpAddress& source_address,
   switch (payload_type) {
     case IpPacketPayloadType::kUdp:
       payload_protocol = kUdpProtocol;
+      break;
+    case IpPacketPayloadType::kTcp:
+      payload_protocol = kTcpProtocol;
       break;
     default:
       QUICHE_NOTREACHED();
