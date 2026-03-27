@@ -15,7 +15,9 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/frames/quic_ping_frame.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
+#include "quiche/quic/core/quic_coalesced_packet.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_data_writer.h"
@@ -23,8 +25,10 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_framer_peer.h"
@@ -258,6 +262,39 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
     return QuicUtils::GetFirstBidirectionalStreamId(
                creator_.transport_version(), Perspective::IS_CLIENT) +
            n * 2;
+  }
+
+  // Builds a minimal packet at |level| and tries to coalesce it with
+  // |coalesced|. Returns true if successful. Tries to mimic the responses of
+  // QuicConnection before the Handshake is confirmed.
+  bool BuildAndCoalescePacket(QuicCoalescedPacket& coalesced,
+                              EncryptionLevel level) {
+    creator_.set_encryption_level(level);
+    creator_.AttachPacketFlusher();
+    if (level == ENCRYPTION_INITIAL || level == ENCRYPTION_HANDSHAKE) {
+      EXPECT_CALL(delegate_, MaybeBundleOpportunistically);
+    }
+    EXPECT_CALL(delegate_, ShouldGeneratePacket).WillRepeatedly(Return(true));
+    if (level == ENCRYPTION_FORWARD_SECURE || level == ENCRYPTION_ZERO_RTT) {
+      creator_.AddFrame(QuicFrame(QuicPingFrame()), NOT_RETRANSMISSION);
+    } else {
+      std::string data = "crypto data";
+      producer_.SaveCryptoData(ENCRYPTION_INITIAL, 0, data);
+      creator_.ConsumeCryptoData(ENCRYPTION_INITIAL, data.length(), 0);
+    }
+    EXPECT_CALL(delegate_, GetSerializedPacketFate(false, level))
+        .WillRepeatedly(Return(COALESCE));
+    // OnSerializedPacket() will call WritePacket(), which sees the fate is
+    // COALESCE and puts in QuicConnection::coalesced_packet_.
+    EXPECT_CALL(delegate_, OnSerializedPacket)
+        .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+    creator_.Flush();
+
+    QuicSocketAddress self_address(QuicIpAddress::Loopback4(), 1);
+    QuicSocketAddress peer_address(QuicIpAddress::Loopback4(), 2);
+    return coalesced.MaybeCoalescePacket(
+        *serialized_packet_, self_address, peer_address, &allocator_,
+        creator_.max_packet_length(), ECN_NOT_ECT, 0);
   }
 
   void TestChaosProtection(bool enabled);
@@ -4489,6 +4526,22 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest,
         EXPECT_EQ(STREAM_FRAME, packet.retransmittable_frames.front().type);
       });
   creator_.FlushCurrentPacket();
+}
+
+TEST_P(QuicPacketCreatorTest, InitialPacketBufferOverflow) {
+  if (!VersionIsIetfQuic(creator_.transport_version())) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_clear_packet_on_serialization_failure, true);
+  creator_.SetMaxPacketLength(kMaxOutgoingPacketSize);
+  QuicCoalescedPacket coalesced;
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_INITIAL));
+  char buffer[kMaxOutgoingPacketSize];
+  EXPECT_CALL(framer_visitor_, OnError);
+  EXPECT_CALL(delegate_, OnUnrecoverableError);
+  EXPECT_QUIC_BUG(creator_.SerializeCoalescedPacket(coalesced, buffer,
+                                                    kMaxOutgoingPacketSize - 1),
+                  "Client: Failed to encrypt packet number 1");
 }
 
 }  // namespace

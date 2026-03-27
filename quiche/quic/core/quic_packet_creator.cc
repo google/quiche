@@ -2415,6 +2415,12 @@ QuicPacketCreator::ScopedSerializationFailureHandler::
     QUIC_BUG(quic_bug_10752_38) << ENDPOINT2 << error_details;
     creator_->delegate_->OnUnrecoverableError(QUIC_FAILED_TO_SERIALIZE_PACKET,
                                               error_details);
+    if (GetQuicReloadableFlag(quic_clear_packet_on_serialization_failure)) {
+      QUIC_RELOADABLE_FLAG_COUNT(quic_clear_packet_on_serialization_failure);
+      creator_->packet_.retransmittable_frames.clear();
+      creator_->packet_.nonretransmittable_frames.clear();
+      creator_->ClearPacket();
+    }
   }
 }
 
