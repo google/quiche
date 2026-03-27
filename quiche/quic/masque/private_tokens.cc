@@ -26,7 +26,6 @@
 #include "openssl/rand.h"
 #include "openssl/rsa.h"
 #include "openssl/sha.h"
-#include "openssl/sha2.h"
 #include "quiche/common/quiche_status_utils.h"
 
 namespace quic {

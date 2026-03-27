@@ -19,6 +19,8 @@ load(
     "io_tests_srcs",
     "io_tool_support_hdrs",
     "io_tool_support_srcs",
+    "masque_private_tokens_hdrs",
+    "masque_private_tokens_srcs",
     "masque_support_hdrs",
     "masque_support_srcs",
     "moqt_hdrs",
@@ -375,6 +377,38 @@ cc_library(
 )
 
 cc_library(
+    name = "masque_private_tokens_lib",
+    srcs = masque_private_tokens_srcs,
+    hdrs = masque_private_tokens_hdrs,
+    deps = [
+        ":quiche_core",
+        "@boringssl//:crypto",
+        "@boringssl//:ssl",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+        "@com_google_anonymous_tokens//anonymous_tokens/cpp/crypto:crypto_utils",
+        "@com_google_anonymous_tokens//anonymous_tokens/cpp/crypto:rsa_blinder",
+        "@com_google_anonymous_tokens//anonymous_tokens/cpp/privacy_pass:rsa_bssa_client",
+        "@com_google_anonymous_tokens//anonymous_tokens/cpp/privacy_pass:token_encodings",
+    ],
+)
+
+cc_binary(
+    name = "masque_private_tokens",
+    srcs = ["quic/masque/private_tokens_bin.cc"],
+    deps = [
+        ":masque_private_tokens_lib",
+        ":quiche_core",
+        ":quiche_tool_support",
+        "@boringssl//:crypto",
+        "@com_google_absl//absl/status",
+        "@com_google_absl//absl/status:statusor",
+        "@com_google_absl//absl/strings",
+    ],
+)
+
+cc_library(
     name = "masque_support",
     srcs = masque_support_srcs,
     hdrs = masque_support_hdrs,
@@ -671,6 +705,7 @@ cc_binary(
     deps = [
         ":binary_http",
         ":io_tool_support",
+        ":masque_private_tokens_lib",
         ":masque_support",
         ":oblivious_http",
         ":quiche_core",

@@ -220,7 +220,8 @@ QuicheBuffer SerializeControlMessage(MoqtMessageType type, Ts... data) {
   return buffer;
 }
 
-WireUint8 WireDeliveryOrder(std::optional<MoqtDeliveryOrder> delivery_order) {
+[[maybe_unused]] WireUint8 WireDeliveryOrder(
+    std::optional<MoqtDeliveryOrder> delivery_order) {
   if (!delivery_order.has_value()) {
     return WireUint8(0x00);
   }

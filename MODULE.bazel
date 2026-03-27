@@ -50,3 +50,10 @@ http_archive(
     strip_prefix = "gurl-94ff147fe0b96b4cca5d6d316b9af6210c0b8051",
     urls = ["https://github.com/google/gurl/archive/94ff147fe0b96b4cca5d6d316b9af6210c0b8051.tar.gz"],
 )
+
+http_archive(
+    name = "com_google_anonymous_tokens",
+    sha256 = "60fc9e1d7c9250c0b87d2d5aa1e78bbe34f6f839c8ae954a02adff2338967957",  # Last updated 2026-03-27
+    strip_prefix = "anonymous-tokens-e31089547b3d14a8a441bb58df086b171ebc915e",
+    urls = ["https://github.com/google/anonymous-tokens/archive/e31089547b3d14a8a441bb58df086b171ebc915e.tar.gz"],
+)
