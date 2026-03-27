@@ -4,6 +4,7 @@
 
 #include "quiche/quic/qbone/qbone_client.h"
 
+#include <limits>
 #include <memory>
 #include <utility>
 
@@ -13,14 +14,27 @@
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_default_connection_helper.h"
 #include "quiche/quic/platform/api/quic_testvalue.h"
+#include "quiche/quic/tools/quic_client_base.h"
 #include "quiche/quic/tools/quic_client_default_network_helper.h"
+#include "quiche/common/platform/api/quiche_command_line_flags.h"
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    int, qbone_client_max_tunnel_reads, std::numeric_limits<int>::max(),
+    "Maximum number of reads from the tunnel socket per event. Note that "
+    "each read represents a single syscall and QUICHE will read multiple "
+    "packets per syscall (currently 16).");
 
 namespace quic {
 namespace {
 std::unique_ptr<QuicClientBase::NetworkHelper> CreateNetworkHelper(
     QuicEventLoop* event_loop, QboneClient* client) {
-  std::unique_ptr<QuicClientBase::NetworkHelper> helper =
+  auto helper_impl =
       std::make_unique<QuicClientDefaultNetworkHelper>(event_loop, client);
+  helper_impl->set_max_reads_per_event_loop(
+      quiche::GetQuicheCommandLineFlag(FLAGS_qbone_client_max_tunnel_reads));
+
+  std::unique_ptr<QuicClientBase::NetworkHelper> helper =
+      std::move(helper_impl);
   quic::AdjustTestValue("QboneClient/network_helper", &helper);
   return helper;
 }
