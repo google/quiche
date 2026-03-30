@@ -16,7 +16,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr2_extra_acked_window, false, tr
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr_always_exit_startup_on_loss, false, false, "Lets BBRv1 exit STARTUP if a large number of packets was lost even if there is no non-app-limited samples. Similar to applying connection option B1AL to all connection.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr_exit_startup_on_loss_network_param, false, false, "Enables adjustment of BBRv1's exit-startup-on-loss behavior on established connections via NetworkParams::enable_bbr_exit_startup_on_loss.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_block_until_settings_received_copt, true, true, "If enabled and a BSUS connection is received, blocks server connections until SETTINGS frame is received.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_clear_body_manager_along_with_sequencer, false, true, "If true, QuicSpdyStream::StopReading always clears BodyManager along with the SequenceBuffer.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_clear_body_manager_along_with_sequencer, true, true, "If true, QuicSpdyStream::StopReading always clears BodyManager along with the SequenceBuffer.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_clear_packet_on_serialization_failure, false, false, "If true, clear QuicPacketCreator state when serialization failure.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_client_check_blockage_before_on_can_write, false, false, "If true, quic clients will only call OnCanWrite() upon write events if the writer is unblocked.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_close_connection_on_underflow, true, true, "If true, close QUIC connections if a RESET_STREAM frame is received with a too-small final byte offset value.")
