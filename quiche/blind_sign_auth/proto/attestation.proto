@@ -105,6 +105,12 @@ message IosAttestationData {
   // AppAttest attestation token.
   // Encoded in CBOR format.
   bytes attestation_token = 1;
+
+  // AppAttest vendor ID.
+  string ios_vendor_id = 2;
+
+  // Device ID for quota checking.
+  string device_id = 3;
 }
 
 message AttestationData {
