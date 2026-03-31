@@ -34,7 +34,6 @@
 #include "quiche/quic/core/quic_flow_controller.h"
 #include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_stream_priority.h"
-#include "quiche/quic/core/quic_stream_send_buffer.h"
 #include "quiche/quic/core/quic_stream_send_buffer_base.h"
 #include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 #include "quiche/quic/core/quic_stream_sequencer.h"

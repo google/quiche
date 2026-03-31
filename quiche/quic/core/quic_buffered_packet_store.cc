@@ -27,7 +27,6 @@
 #include "quiche/quic/core/quic_packet_creator.h"
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_packets.h"
-#include "quiche/quic/core/quic_stream_send_buffer.h"
 #include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -626,12 +625,7 @@ bool QuicBufferedPacketStore::IngestPacketForTlsChloExtraction(
 
 static std::unique_ptr<QuicStreamSendBufferBase> CreateSendBuffer(
     quiche::QuicheBufferAllocator* allocator) {
-  if (GetQuicReloadableFlag(quic_use_inlining_send_buffer_everywhere)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_inlining_send_buffer_everywhere, 2,
-                                 2);
-    return std::make_unique<QuicStreamSendBufferInlining>(allocator);
-  }
-  return std::make_unique<QuicStreamSendBufferOld>(allocator);
+  return std::make_unique<QuicStreamSendBufferInlining>(allocator);
 }
 
 PacketCollector::PacketCollector(quiche::QuicheBufferAllocator* allocator)

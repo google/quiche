@@ -18,7 +18,6 @@
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_session.h"
-#include "quiche/quic/core/quic_stream_send_buffer.h"
 #include "quiche/quic/core/quic_stream_send_buffer_base.h"
 #include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 #include "quiche/quic/core/quic_types.h"
@@ -599,12 +598,7 @@ static std::unique_ptr<QuicStreamSendBufferBase> CreateSendBuffer(
     QuicSession* session) {
   quiche::QuicheBufferAllocator* allocator =
       session->connection()->helper()->GetStreamSendBufferAllocator();
-  if (GetQuicReloadableFlag(quic_use_inlining_send_buffer_everywhere)) {
-    QUIC_RELOADABLE_FLAG_COUNT_N(quic_use_inlining_send_buffer_everywhere, 1,
-                                 2);
-    return std::make_unique<QuicStreamSendBufferInlining>(allocator);
-  }
-  return std::make_unique<QuicStreamSendBufferOld>(allocator);
+  return std::make_unique<QuicStreamSendBufferInlining>(allocator);
 }
 
 QuicCryptoStream::CryptoSubstream::CryptoSubstream(

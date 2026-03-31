@@ -8,7 +8,6 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_stream_frame_data_producer.h"
-#include "quiche/quic/core/quic_stream_send_buffer.h"
 #include "quiche/quic/core/quic_stream_send_buffer_inlining.h"
 #include "quiche/common/simple_buffer_allocator.h"
 

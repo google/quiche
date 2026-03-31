@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/core/quic_stream_send_buffer.h"
-
 #include <cstddef>
 #include <cstring>
 #include <memory>
@@ -20,7 +18,6 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
-#include "quiche/quic/test_tools/quic_interval_deque_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -31,35 +28,9 @@
 namespace quic {
 namespace test {
 
-// TODO: b/417402601 - remove this after the old SendBuffer implementation is
-// gone.
-class QuicStreamSendBufferPeer {
- public:
-  static int32_t write_index(QuicStreamSendBufferOld* send_buffer) {
-    return QuicIntervalDequePeer::GetCachedIndex(&send_buffer->interval_deque_);
-  }
-};
-
 namespace {
 
-enum class SendBufferType {
-  kDefault,
-  kInlining,
-};
-
-std::string SendBufferTypeName(
-    const testing::TestParamInfo<SendBufferType>& type) {
-  switch (type.param) {
-    case SendBufferType::kDefault:
-      return "Default";
-    case SendBufferType::kInlining:
-      return "Inlining";
-  }
-  return "<invalid>";
-}
-
-class QuicStreamSendBufferTest
-    : public quiche::test::QuicheTestWithParam<SendBufferType> {
+class QuicStreamSendBufferTest : public quiche::test::QuicheTest {
  public:
   QuicStreamSendBufferTest() {
     send_buffer_ = CreateBuffer();
@@ -96,13 +67,7 @@ class QuicStreamSendBufferTest
   }
 
   std::unique_ptr<QuicStreamSendBufferBase> CreateBuffer() {
-    switch (GetParam()) {
-      case SendBufferType::kDefault:
-        return std::make_unique<QuicStreamSendBufferOld>(&allocator_);
-      case SendBufferType::kInlining:
         return std::make_unique<QuicStreamSendBufferInlining>(&allocator_);
-    }
-    return nullptr;
   }
 
   void WriteAllData() {
@@ -120,12 +85,7 @@ class QuicStreamSendBufferTest
   std::unique_ptr<QuicStreamSendBufferBase> send_buffer_;
 };
 
-INSTANTIATE_TEST_SUITE_P(QuicStreamSendBufferTests, QuicStreamSendBufferTest,
-                         testing::Values(SendBufferType::kDefault,
-                                         SendBufferType::kInlining),
-                         SendBufferTypeName);
-
-TEST_P(QuicStreamSendBufferTest, CopyDataToBuffer) {
+TEST_F(QuicStreamSendBufferTest, CopyDataToBuffer) {
   char buf[4000];
   QuicDataWriter writer(4000, buf, quiche::HOST_BYTE_ORDER);
   std::string copy1(1024, 'a');
@@ -165,7 +125,7 @@ TEST_P(QuicStreamSendBufferTest, CopyDataToBuffer) {
 }
 
 // Regression test for b/143491027.
-TEST_P(QuicStreamSendBufferTest,
+TEST_F(QuicStreamSendBufferTest,
        WriteStreamDataContainsBothRetransmissionAndNewData) {
   std::string copy1(1024, 'a');
   std::string copy2 =
@@ -174,18 +134,8 @@ TEST_P(QuicStreamSendBufferTest,
   char buf[6000];
   QuicDataWriter writer(6000, buf, quiche::HOST_BYTE_ORDER);
   // Write more than one slice.
-  if (GetParam() == SendBufferType::kDefault) {
-    EXPECT_EQ(0,
-              QuicStreamSendBufferPeer::write_index(
-                  static_cast<QuicStreamSendBufferOld*>(send_buffer_.get())));
-  }
   ASSERT_TRUE(send_buffer_->WriteStreamData(0, 1024, &writer));
   EXPECT_EQ(copy1, absl::string_view(buf, 1024));
-  if (GetParam() == SendBufferType::kDefault) {
-    EXPECT_EQ(1,
-              QuicStreamSendBufferPeer::write_index(
-                  static_cast<QuicStreamSendBufferOld*>(send_buffer_.get())));
-  }
 
   // Retransmit the first frame and also send new data.
   ASSERT_TRUE(send_buffer_->WriteStreamData(0, 2048, &writer));
@@ -198,7 +148,7 @@ TEST_P(QuicStreamSendBufferTest,
   EXPECT_EQ(copy3, absl::string_view(buf + 1024 + 2048 + 50, 1124));
 }
 
-TEST_P(QuicStreamSendBufferTest, RemoveStreamFrame) {
+TEST_F(QuicStreamSendBufferTest, RemoveStreamFrame) {
   WriteAllData();
 
   QuicByteCount newly_acked_length;
@@ -220,7 +170,7 @@ TEST_P(QuicStreamSendBufferTest, RemoveStreamFrame) {
   EXPECT_EQ(0u, send_buffer_->size());
 }
 
-TEST_P(QuicStreamSendBufferTest, RemoveStreamFrameAcrossBoundaries) {
+TEST_F(QuicStreamSendBufferTest, RemoveStreamFrameAcrossBoundaries) {
   WriteAllData();
 
   QuicByteCount newly_acked_length;
@@ -246,7 +196,7 @@ TEST_P(QuicStreamSendBufferTest, RemoveStreamFrameAcrossBoundaries) {
   EXPECT_EQ(0u, send_buffer_->size());
 }
 
-TEST_P(QuicStreamSendBufferTest, AckStreamDataMultipleTimes) {
+TEST_F(QuicStreamSendBufferTest, AckStreamDataMultipleTimes) {
   WriteAllData();
   QuicByteCount newly_acked_length;
   EXPECT_TRUE(send_buffer_->OnStreamDataAcked(100, 1500, &newly_acked_length));
@@ -269,7 +219,7 @@ TEST_P(QuicStreamSendBufferTest, AckStreamDataMultipleTimes) {
   EXPECT_FALSE(send_buffer_->OnStreamDataAcked(4000, 100, &newly_acked_length));
 }
 
-TEST_P(QuicStreamSendBufferTest, AckStreamDataOutOfOrder) {
+TEST_F(QuicStreamSendBufferTest, AckStreamDataOutOfOrder) {
   WriteAllData();
   QuicByteCount newly_acked_length;
   EXPECT_TRUE(send_buffer_->OnStreamDataAcked(500, 1000, &newly_acked_length));
@@ -295,7 +245,7 @@ TEST_P(QuicStreamSendBufferTest, AckStreamDataOutOfOrder) {
   EXPECT_EQ(0u, send_buffer_->TotalDataBufferedForTest());
 }
 
-TEST_P(QuicStreamSendBufferTest, PendingRetransmission) {
+TEST_F(QuicStreamSendBufferTest, PendingRetransmission) {
   WriteAllData();
   EXPECT_TRUE(send_buffer_->IsStreamDataOutstanding(0, 3840));
   EXPECT_FALSE(send_buffer_->HasPendingRetransmission());
@@ -336,7 +286,7 @@ TEST_P(QuicStreamSendBufferTest, PendingRetransmission) {
   EXPECT_TRUE(send_buffer_->IsStreamDataOutstanding(400, 800));
 }
 
-TEST_P(QuicStreamSendBufferTest, OutOfOrderWrites) {
+TEST_F(QuicStreamSendBufferTest, OutOfOrderWrites) {
   char buf[3840] = {};
   // Write data out of order.
   QuicDataWriter writer2(sizeof(buf) - 1000, buf + 1000);
@@ -353,7 +303,7 @@ TEST_P(QuicStreamSendBufferTest, OutOfOrderWrites) {
                          std::string(1280, 'c'), std::string(768, 'd')));
 }
 
-TEST_P(QuicStreamSendBufferTest, SaveMemSliceSpan) {
+TEST_F(QuicStreamSendBufferTest, SaveMemSliceSpan) {
   std::unique_ptr<QuicStreamSendBufferBase> send_buffer = CreateBuffer();
 
   std::string data(1024, 'a');
@@ -366,7 +316,7 @@ TEST_P(QuicStreamSendBufferTest, SaveMemSliceSpan) {
   EXPECT_EQ(10u, send_buffer->size());
 }
 
-TEST_P(QuicStreamSendBufferTest, SaveEmptyMemSliceSpan) {
+TEST_F(QuicStreamSendBufferTest, SaveEmptyMemSliceSpan) {
   std::unique_ptr<QuicStreamSendBufferBase> send_buffer = CreateBuffer();
 
   std::string data(1024, 'a');
@@ -380,7 +330,7 @@ TEST_P(QuicStreamSendBufferTest, SaveEmptyMemSliceSpan) {
   EXPECT_EQ(10u, send_buffer->size());
 }
 
-TEST_P(QuicStreamSendBufferTest, SmallWrite) {
+TEST_F(QuicStreamSendBufferTest, SmallWrite) {
   std::unique_ptr<QuicStreamSendBufferBase> send_buffer = CreateBuffer();
 
   constexpr absl::string_view kData = "abcd";
