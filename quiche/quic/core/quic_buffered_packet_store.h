@@ -343,7 +343,7 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
 };
 
 // Collects packets serialized by a QuicPacketCreator.
-class QUICHE_NO_EXPORT PacketCollector
+class QUICHE_EXPORT PacketCollector
     : public QuicPacketCreator::DelegateInterface,
       public QuicStreamFrameDataProducer {
  public:
