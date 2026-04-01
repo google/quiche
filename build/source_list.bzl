@@ -1412,6 +1412,7 @@ quiche_tests_srcs = [
     "quic/core/http/web_transport_error_codes_draft15_test.cc",
     "quic/core/http/web_transport_streams_draft15_test.cc",
     "quic/core/http/web_transport_session_limiting_draft15_test.cc",
+    "quic/core/http/web_transport_flow_control_draft15_test.cc",
 ]
 io_tests_hdrs = [
 ]

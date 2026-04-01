@@ -659,6 +659,18 @@ void QuicSpdySession::FillSettingsFrame() {
           perspective() == Perspective::IS_SERVER && !allow_extended_connect())
           << "WebTransport draft-15 enabled, but extended CONNECT is not";
       settings_.values[SETTINGS_WT_ENABLED] = 1;
+      if (local_wt_initial_max_streams_bidi_ > 0) {
+        settings_.values[SETTINGS_WT_INITIAL_MAX_STREAMS_BIDI] =
+            local_wt_initial_max_streams_bidi_;
+      }
+      if (local_wt_initial_max_streams_uni_ > 0) {
+        settings_.values[SETTINGS_WT_INITIAL_MAX_STREAMS_UNI] =
+            local_wt_initial_max_streams_uni_;
+      }
+      if (local_wt_initial_max_data_ > 0) {
+        settings_.values[SETTINGS_WT_INITIAL_MAX_DATA] =
+            local_wt_initial_max_data_;
+      }
     }
   }
   if (allow_extended_connect()) {
@@ -2031,9 +2043,9 @@ bool QuicSpdySession::CanCreateNewWebTransportSession() {
   if (!SupportsWebTransport()) {
     return false;
   }
-  // Draft-15, Section 5.1: Without session-level flow control, only one
-  // session is allowed.
-  if (NegotiatedWebTransportVersion() == WebTransportHttp3Version::kDraft15) {
+  // Section 5.1: Without FC, at most one session is allowed.
+  if (NegotiatedWebTransportVersion() == WebTransportHttp3Version::kDraft15 &&
+      !wt_flow_control_enabled()) {
     if (active_web_transport_sessions_ >= 1) {
       return false;
     }

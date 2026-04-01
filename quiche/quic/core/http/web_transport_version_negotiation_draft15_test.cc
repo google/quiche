@@ -168,5 +168,114 @@ TEST_P(VersionNegotiationDraft15SessionTest, Draft07OnlyNoNewSettings) {
       << "Draft-07 only: must NOT emit SETTINGS_WT_ENABLED";
 }
 
+// --- Draft-07 compatibility tests ---
+// Draft-07 sessions should silently ignore draft-15-only FC capsules.
+
+class Draft07CompatibilityTest : public test::Draft15SessionTest {
+ protected:
+  Draft07CompatibilityTest() : Draft15SessionTest(Perspective::IS_SERVER) {}
+
+  // Sends a CONNECT request with :protocol = "webtransport" (draft-07 style).
+  // Unlike ReceiveWebTransportSession() in quic_spdy_session_test_utils.h,
+  // does NOT send fin=true on headers (WT sessions keep the CONNECT stream
+  // open).
+  WebTransportHttp3* AttemptDraft07Session(QuicStreamId session_id) {
+    QuicStreamFrame frame(session_id, /*fin=*/false, /*offset=*/0,
+                          absl::string_view());
+    session_->OnStreamFrame(frame);
+    QuicSpdyStream* connect_stream = static_cast<QuicSpdyStream*>(
+        session_->GetOrCreateStream(session_id));
+    if (connect_stream == nullptr) return nullptr;
+    QuicHeaderList headers;
+    headers.OnHeader(":method", "CONNECT");
+    headers.OnHeader(":protocol", "webtransport");
+    connect_stream->OnStreamHeaderList(/*fin=*/false, 0, headers);
+    WebTransportHttp3* wt = session_->GetWebTransportSession(session_id);
+    if (wt != nullptr) {
+      quiche::HttpHeaderBlock header_block;
+      wt->HeadersReceived(header_block);
+    }
+    return wt;
+  }
+};
+
+INSTANTIATE_TEST_SUITE_P(Draft07Compatibility, Draft07CompatibilityTest,
+                         ::testing::ValuesIn(CurrentSupportedVersions()));
+
+TEST_P(Draft07CompatibilityTest, Draft07_IgnoresWtMaxStreamDataCapsule) {
+  // In draft-07, WT_MAX_STREAM_DATA is irrelevant (it's a draft-15 /
+  // WT-over-HTTP/2 capsule) and should be silently ignored.
+  if (!VersionIsIetfQuic(GetParam().transport_version)) return;
+  Initialize(
+      WebTransportHttp3VersionSet({WebTransportHttp3Version::kDraft07}),
+      HttpDatagramSupport::kRfc);
+  CompleteHandshake();
+  ReceiveWebTransportDraft07Settings();
+
+  QuicStreamId session_id = GetNthClientInitiatedBidirectionalId(0);
+  auto* wt = AttemptDraft07Session(session_id);
+  ASSERT_NE(wt, nullptr) << "Draft-07 session could not be established";
+  auto* visitor = AttachMockVisitor(wt);
+
+  // The session must NOT be closed.
+  EXPECT_CALL(*visitor, OnSessionClosed(_, _)).Times(0);
+
+  session_->set_writev_consumes_all_data(true);
+  EXPECT_CALL(*writer_,
+              WritePacket(_, _, _, _, _, _))
+      .WillRepeatedly(testing::Return(WriteResult(WRITE_STATUS_OK, 0)));
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly(&test::ClearControlFrame);
+  EXPECT_CALL(*connection_, OnStreamReset(_, _))
+      .Times(testing::AnyNumber());
+
+  // Inject a WT_MAX_STREAM_DATA capsule — should be silently ignored.
+  InjectCapsuleOnConnectStream(
+      session_id,
+      quiche::Capsule(quiche::WebTransportMaxStreamDataCapsule{
+          /*stream_id=*/0, /*max_stream_data=*/1024}));
+
+  EXPECT_TRUE(connection_->connected())
+      << "Draft-07: WT_MAX_STREAM_DATA should be silently ignored.";
+  testing::Mock::VerifyAndClearExpectations(visitor);
+}
+
+TEST_P(Draft07CompatibilityTest, Draft07_IgnoresWtStreamDataBlockedCapsule) {
+  // Same as above but for WT_STREAM_DATA_BLOCKED.
+  if (!VersionIsIetfQuic(GetParam().transport_version)) return;
+  Initialize(
+      WebTransportHttp3VersionSet({WebTransportHttp3Version::kDraft07}),
+      HttpDatagramSupport::kRfc);
+  CompleteHandshake();
+  ReceiveWebTransportDraft07Settings();
+
+  QuicStreamId session_id = GetNthClientInitiatedBidirectionalId(0);
+  auto* wt = AttemptDraft07Session(session_id);
+  ASSERT_NE(wt, nullptr) << "Draft-07 session could not be established";
+  auto* visitor = AttachMockVisitor(wt);
+
+  // The session must NOT be closed.
+  EXPECT_CALL(*visitor, OnSessionClosed(_, _)).Times(0);
+
+  session_->set_writev_consumes_all_data(true);
+  EXPECT_CALL(*writer_,
+              WritePacket(_, _, _, _, _, _))
+      .WillRepeatedly(testing::Return(WriteResult(WRITE_STATUS_OK, 0)));
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly(&test::ClearControlFrame);
+  EXPECT_CALL(*connection_, OnStreamReset(_, _))
+      .Times(testing::AnyNumber());
+
+  // Inject a WT_STREAM_DATA_BLOCKED capsule — should be silently ignored.
+  InjectCapsuleOnConnectStream(
+      session_id,
+      quiche::Capsule(quiche::WebTransportStreamDataBlockedCapsule{
+          /*stream_id=*/0, /*stream_data_limit=*/512}));
+
+  EXPECT_TRUE(connection_->connected())
+      << "Draft-07: WT_STREAM_DATA_BLOCKED should be silently ignored.";
+  testing::Mock::VerifyAndClearExpectations(visitor);
+}
+
 }  // namespace
 }  // namespace quic

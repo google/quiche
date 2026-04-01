@@ -75,6 +75,10 @@ class QUICHE_EXPORT WebTransportStreamAdapter : public webtransport::Stream {
   void SetSessionId(QuicStreamId id);
   void SetWebTransportSession(WebTransportHttp3* session);
 
+  // Accounts for any received-but-unconsumed bytes as consumed.  Called when
+  // the stream is closing without the application having read all data.
+  void OnClosingWithUnreadData();
+
  private:
   absl::Status CheckBeforeStreamWrite() const;
 
@@ -85,6 +89,7 @@ class QUICHE_EXPORT WebTransportStreamAdapter : public webtransport::Stream {
   std::unique_ptr<WebTransportStreamVisitor> visitor_;
   std::optional<QuicStreamId> session_id_;
   bool fin_read_ = false;
+  size_t last_reported_readable_ = 0;
 };
 
 }  // namespace quic

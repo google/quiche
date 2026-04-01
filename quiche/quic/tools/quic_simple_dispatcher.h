@@ -52,6 +52,11 @@ class QuicSimpleDispatcher : public QuicDispatcher {
     return quic_simple_server_backend_;
   }
 
+  // Applies WebTransport draft-15 FC limits from the backend to a session.
+  // Must be called before session->Initialize().
+  void ApplyWebTransportFlowControlLimits(QuicServerSessionBase* session);
+
+
  private:
   QuicSimpleServerBackend* quic_simple_server_backend_;  // Unowned.
 

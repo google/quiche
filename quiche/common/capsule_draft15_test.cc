@@ -247,5 +247,6 @@ TEST(CapsuleDraft15, WtStreamsBlockedUnidiSerializeRoundTrip) {
       25u);
 }
 
+
 }  // namespace
 }  // namespace quiche

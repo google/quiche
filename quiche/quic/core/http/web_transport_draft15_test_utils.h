@@ -82,7 +82,10 @@ class Draft15SessionTest : public QuicSpdySessionTestBase {
 
   void Initialize(
       WebTransportHttp3VersionSet wt_versions = WebTransportHttp3VersionSet(),
-      HttpDatagramSupport datagram_support = HttpDatagramSupport::kNone) {
+      HttpDatagramSupport datagram_support = HttpDatagramSupport::kNone,
+      uint64_t local_max_streams_uni = 0,
+      uint64_t local_max_streams_bidi = 0,
+      uint64_t local_max_data = 0) {
     session_.emplace(connection_);
     if (connection_->perspective() == Perspective::IS_SERVER &&
         VersionIsIetfQuic(transport_version())) {
@@ -90,6 +93,16 @@ class Draft15SessionTest : public QuicSpdySessionTestBase {
     }
     session_->set_locally_supported_web_transport_versions(wt_versions);
     session_->set_local_http_datagram_support(datagram_support);
+    // Set local WT FC limits before Initialize() so they appear in SETTINGS.
+    if (local_max_streams_bidi > 0) {
+      session_->set_wt_initial_max_streams_bidi(local_max_streams_bidi);
+    }
+    if (local_max_streams_uni > 0) {
+      session_->set_wt_initial_max_streams_uni(local_max_streams_uni);
+    }
+    if (local_max_data > 0) {
+      session_->set_wt_initial_max_data(local_max_data);
+    }
     session_->Initialize();
     session_->config()->SetInitialStreamFlowControlWindowToSend(
         kInitialStreamFlowControlWindowForTest);
@@ -237,7 +250,10 @@ class Draft15SessionTest : public QuicSpdySessionTestBase {
       uint64_t initial_max_data = 0) {
     Initialize(
         WebTransportHttp3VersionSet({WebTransportHttp3Version::kDraft15}),
-        HttpDatagramSupport::kRfc);
+        HttpDatagramSupport::kRfc,
+        initial_max_streams_uni,
+        initial_max_streams_bidi,
+        initial_max_data);
     CompleteHandshake();
     ReceiveWebTransportDraft15Settings(/*wt_enabled_value=*/1,
                            initial_max_streams_uni,
@@ -254,7 +270,10 @@ class Draft15SessionTest : public QuicSpdySessionTestBase {
       const std::string& path = "/wt") {
     Initialize(
         WebTransportHttp3VersionSet({WebTransportHttp3Version::kDraft15}),
-        HttpDatagramSupport::kRfc);
+        HttpDatagramSupport::kRfc,
+        initial_max_streams_uni,
+        initial_max_streams_bidi,
+        initial_max_data);
     CompleteHandshake();
     ReceiveWebTransportDraft15Settings(/*wt_enabled_value=*/1,
                            initial_max_streams_uni,

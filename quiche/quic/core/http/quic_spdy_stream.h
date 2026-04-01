@@ -481,6 +481,8 @@ class QUICHE_EXPORT QuicSpdyStream
 
   void MaybeProcessSentWebTransportHeaders(quiche::HttpHeaderBlock& headers);
   void MaybeProcessReceivedWebTransportHeaders();
+  // Applies peer's draft-15 flow control limits to a newly created WT session.
+  void ApplyWebTransportFlowControlLimits();
 
   // Writes HTTP/3 DATA frame header. If |force_write| is true, use
   // WriteOrBufferData if send buffer cannot accomodate the header + data.

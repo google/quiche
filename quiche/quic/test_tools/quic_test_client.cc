@@ -267,6 +267,25 @@ void MockableQuicClient::UseClientConnectionIdLength(
   override_client_connection_id_length_ = client_connection_id_length;
 }
 
+std::unique_ptr<QuicSession> MockableQuicClient::CreateQuicClientSession(
+    const ParsedQuicVersionVector& supported_versions,
+    QuicConnection* connection) {
+  auto session =
+      QuicDefaultClient::CreateQuicClientSession(supported_versions, connection);
+  auto* spdy_session = static_cast<QuicSpdySession*>(session.get());
+  if (wt_initial_max_streams_bidi_ > 0) {
+    spdy_session->set_wt_initial_max_streams_bidi(
+        wt_initial_max_streams_bidi_);
+  }
+  if (wt_initial_max_streams_uni_ > 0) {
+    spdy_session->set_wt_initial_max_streams_uni(wt_initial_max_streams_uni_);
+  }
+  if (wt_initial_max_data_ > 0) {
+    spdy_session->set_wt_initial_max_data(wt_initial_max_data_);
+  }
+  return session;
+}
+
 void MockableQuicClient::UseWriter(QuicPacketWriterWrapper* writer) {
   mockable_network_helper()->UseWriter(writer);
 }

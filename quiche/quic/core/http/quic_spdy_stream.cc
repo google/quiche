@@ -945,6 +945,7 @@ void QuicSpdyStream::OnClose() {
                          << ", but the session could not be found.";
       return;
     }
+    web_transport_data_->adapter.OnClosingWithUnreadData();
     web_transport->OnStreamClosed(id());
   }
 }
@@ -1490,6 +1491,7 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
   }
   web_transport_ =
       std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
+  ApplyWebTransportFlowControlLimits();
   if (!subprotocol_offer.empty()) {
     absl::StatusOr<std::vector<std::string>> subprotocols_offered =
         webtransport::ParseSubprotocolRequestHeader(subprotocol_offer);
@@ -1540,6 +1542,7 @@ void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
 
   web_transport_ =
       std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
+  ApplyWebTransportFlowControlLimits();
   spdy_session_->OnWebTransportSessionCreated();
   web_transport_->set_session_counted(true);
 
@@ -1558,6 +1561,23 @@ void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
       QUIC_DLOG(WARNING) << "Attempting to send WebTransport subprotocols that "
                             "cannot be parsed.";
     }
+  }
+}
+
+void QuicSpdyStream::ApplyWebTransportFlowControlLimits() {
+  QUICHE_DCHECK(web_transport_ != nullptr);
+  if (spdy_session_->wt_flow_control_enabled()) {
+    web_transport_->SetInitialStreamLimits(
+        spdy_session_->peer_wt_initial_max_streams_bidi(),
+        spdy_session_->peer_wt_initial_max_streams_uni(),
+        spdy_session_->local_wt_initial_max_streams_bidi(),
+        spdy_session_->local_wt_initial_max_streams_uni());
+    // Section 5.5.3: initial_max_data=0 means "peer must send WT_MAX_DATA
+    // before any data may be sent," not "data FC disabled."  Always enable
+    // data limits when FC is negotiated.
+    web_transport_->SetInitialDataLimit(
+        spdy_session_->peer_wt_initial_max_data(),
+        spdy_session_->local_wt_initial_max_data());
   }
 }
 
@@ -1699,14 +1719,61 @@ bool QuicSpdyStream::OnCapsule(const Capsule& capsule) {
       }
       return connect_udp_bind_visitor_->OnCompressionCloseCapsule(
           capsule.compression_close_capsule());
+    // Draft-15 session-level flow control capsules.
+    case CapsuleType::WT_MAX_STREAMS_BIDI:
+      if (web_transport_ != nullptr &&
+          spdy_session_->SupportedWebTransportVersion() ==
+              WebTransportHttp3Version::kDraft15) {
+        web_transport_->OnMaxStreamsCapsuleReceived(
+            webtransport::StreamType::kBidirectional,
+            capsule.web_transport_max_streams().max_stream_count);
+      }
+      return true;
+    case CapsuleType::WT_MAX_STREAMS_UNIDI:
+      if (web_transport_ != nullptr &&
+          spdy_session_->SupportedWebTransportVersion() ==
+              WebTransportHttp3Version::kDraft15) {
+        web_transport_->OnMaxStreamsCapsuleReceived(
+            webtransport::StreamType::kUnidirectional,
+            capsule.web_transport_max_streams().max_stream_count);
+      }
+      return true;
+    case CapsuleType::WT_MAX_DATA:
+      if (web_transport_ != nullptr &&
+          spdy_session_->SupportedWebTransportVersion() ==
+              WebTransportHttp3Version::kDraft15) {
+        web_transport_->OnMaxDataCapsuleReceived(
+            capsule.web_transport_max_data().max_data);
+      }
+      return true;
+    // Draft-15 FC capsules that are silently accepted (Section 5.1).
+    case CapsuleType::WT_DATA_BLOCKED:
+    case CapsuleType::WT_STREAMS_BLOCKED_BIDI:
+    case CapsuleType::WT_STREAMS_BLOCKED_UNIDI:
+      if (web_transport_ != nullptr &&
+          spdy_session_->SupportedWebTransportVersion() ==
+              WebTransportHttp3Version::kDraft15) {
+        return true;
+      }
+      break;
+    // Section 5.4 MUST: WT_MAX_STREAM_DATA and WT_STREAM_DATA_BLOCKED are
+    // prohibited in draft-15 (per-stream FC is provided by QUIC natively).
+    // Receipt MUST be treated as a session error.
+    case CapsuleType::WT_MAX_STREAM_DATA:
+    case CapsuleType::WT_STREAM_DATA_BLOCKED:
+      if (web_transport_ != nullptr &&
+          spdy_session_->SupportedWebTransportVersion() ==
+              WebTransportHttp3Version::kDraft15) {
+        web_transport_->OnInternalError(kWtFlowControlError,
+            "Prohibited per-stream FC capsule received");
+        return false;
+      }
+      return true;
     // Ignore WebTransport over HTTP/2 capsules.
     case CapsuleType::WT_RESET_STREAM:
     case CapsuleType::WT_STOP_SENDING:
     case CapsuleType::WT_STREAM:
     case CapsuleType::WT_STREAM_WITH_FIN:
-    case CapsuleType::WT_MAX_STREAM_DATA:
-    case CapsuleType::WT_MAX_STREAMS_BIDI:
-    case CapsuleType::WT_MAX_STREAMS_UNIDI:
       return true;
   }
   if (datagram_visitor_) {
