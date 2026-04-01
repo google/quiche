@@ -510,7 +510,11 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
 
   bool Initialize() {
     if (wt_versions_.Any()) {
-      memory_cache_backend_.set_enable_webtransport(true);
+      memory_cache_backend_.set_supported_web_transport_versions(wt_versions_);
+      if (wt_versions_.IsSet(WebTransportHttp3Version::kDraft15)) {
+        client_config_.SetReliableStreamReset(true);
+        server_config_.SetReliableStreamReset(true);
+      }
     }
 
     QuicTagVector copt;
@@ -910,7 +914,12 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     headers[":authority"] = "localhost";
     headers[":path"] = path;
     headers[":method"] = "CONNECT";
-    headers[":protocol"] = "webtransport";
+    if (GetClientSession()->SupportedWebTransportVersion() ==
+        WebTransportHttp3Version::kDraft15) {
+      headers[":protocol"] = "webtransport-h3";
+    } else {
+      headers[":protocol"] = "webtransport";
+    }
     for (const auto& [key, value] : extra_headers) {
       headers[key] = std::string(value);
     }
