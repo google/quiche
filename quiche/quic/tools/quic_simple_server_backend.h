@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
@@ -115,6 +116,10 @@ class QuicSimpleServerBackend {
     return response;
   }
   virtual bool SupportsWebTransport() { return false; }
+  virtual WebTransportHttp3VersionSet SupportedWebTransportVersions() {
+    return SupportsWebTransport() ? kDefaultSupportedWebTransportVersions
+                                 : WebTransportHttp3VersionSet();
+  }
   virtual bool SupportsExtendedConnect() { return true; }
 };
 
