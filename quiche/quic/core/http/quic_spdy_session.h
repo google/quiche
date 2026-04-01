@@ -419,6 +419,12 @@ class QUICHE_EXPORT QuicSpdySession
   // Override from QuicSession to support HTTP/3 datagrams.
   void OnDatagramReceived(absl::string_view datagram) override;
 
+  bool ExportKeyingMaterial(absl::string_view label, absl::string_view context,
+                            size_t result_len, std::string* result) {
+    return GetMutableCryptoStream()->ExportKeyingMaterial(label, context,
+                                                         result_len, result);
+  }
+
   // Indicates whether the HTTP/3 session supports WebTransport.
   bool SupportsWebTransport();
 

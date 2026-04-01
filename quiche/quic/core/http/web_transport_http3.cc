@@ -920,4 +920,42 @@ void WebTransportHttp3::MaybeSetSubprotocolFromResponseHeaders(
   subprotocol_selected_ = *std::move(subprotocol);
 }
 
+absl::StatusOr<std::string> WebTransportHttp3::GetKeyingMaterial(
+    absl::string_view label, absl::string_view context, size_t length) {
+  if (session_->SupportedWebTransportVersion() !=
+      WebTransportHttp3Version::kDraft15) {
+    return absl::UnimplementedError(
+        "Keying material export requires draft-15");
+  }
+  if (IsTerminated()) {
+    return absl::FailedPreconditionError("Session is closed");
+  }
+  // Section 4.8: label and context fields are each limited to 255 bytes.
+  if (label.size() > 255) {
+    return absl::InvalidArgumentError("label exceeds 255 bytes");
+  }
+  if (context.size() > 255) {
+    return absl::InvalidArgumentError("context exceeds 255 bytes");
+  }
+  // Section 4.8: Build the "WebTransport Exporter Context" struct.
+  std::string exporter_context;
+  exporter_context.resize(8 + 1 + label.size() + 1 + context.size());
+  QuicDataWriter writer(exporter_context.size(), exporter_context.data());
+  writer.WriteUInt64(id_);
+  writer.WriteUInt8(static_cast<uint8_t>(label.size()));
+  if (!label.empty()) {
+    writer.WriteStringPiece(label);
+  }
+  writer.WriteUInt8(static_cast<uint8_t>(context.size()));
+  if (!context.empty()) {
+    writer.WriteStringPiece(context);
+  }
+  std::string result;
+  if (!session_->ExportKeyingMaterial("EXPORTER-WebTransport",
+                                      exporter_context, length, &result)) {
+    return absl::InternalError("TLS exporter failed");
+  }
+  return result;
+}
+
 }  // namespace quic

@@ -1409,9 +1409,13 @@ quiche_tests_srcs = [
     "quic/core/http/web_transport_buffering_draft15_test.cc",
     "quic/core/http/web_transport_capsule_dispatch_draft15_test.cc",
     "quic/core/http/web_transport_error_codes_draft15_test.cc",
-    "quic/core/http/web_transport_streams_draft15_test.cc",
-    "quic/core/http/web_transport_session_limiting_draft15_test.cc",
     "quic/core/http/web_transport_flow_control_draft15_test.cc",
+    "quic/core/http/web_transport_keying_material_draft15_test.cc",
+    "quic/core/http/web_transport_session_establishment_draft15_test.cc",
+    "quic/core/http/web_transport_session_limiting_draft15_test.cc",
+    "quic/core/http/web_transport_streams_draft15_test.cc",
+    "quic/core/http/web_transport_version_negotiation_draft15_test.cc",
+    "web_transport/web_transport_headers_draft15_test.cc",
 ]
 io_tests_hdrs = [
 ]

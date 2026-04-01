@@ -13,6 +13,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "quiche/quic/core/http/http_constants.h"
@@ -160,6 +161,11 @@ class QUICHE_EXPORT WebTransportHttp3
   // detected by the WT implementation (as opposed to the application).
   void OnInternalError(WebTransportSessionError error_code,
                        absl::string_view error_message);
+
+  // Section 4.8: Derives per-session keying material via TLS exporters.
+  absl::StatusOr<std::string> GetKeyingMaterial(absl::string_view label,
+                                                absl::string_view context,
+                                                size_t length);
 
  private:
   // Returns true if the session has been closed (either locally or by peer).
