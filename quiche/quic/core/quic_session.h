@@ -240,6 +240,20 @@ class QUICHE_EXPORT QuicSession
       return config_->IdleNetworkTimeout();
     }
 
+    bool HasReceivedMaxDatagramFrameSize() const {
+      if (delete_config_ && config_ == nullptr) {
+        return has_received_max_datagram_frame_size_;
+      }
+      return config_->HasReceivedMaxDatagramFrameSize();
+    }
+
+    uint64_t ReceivedMaxDatagramFrameSize() const {
+      if (delete_config_ && config_ == nullptr) {
+        return received_max_datagram_frame_size_;
+      }
+      return config_->ReceivedMaxDatagramFrameSize();
+    }
+
     void set_delete_config(bool delete_config) {
       delete_config_ = delete_config;
     }
@@ -267,6 +281,8 @@ class QUICHE_EXPORT QuicSession
     uint64_t get_initial_max_stream_data_bytes_incoming_bidirectional_to_send_;
     uint64_t received_max_bidirectional_streams_;
     QuicTime::Delta idle_network_timeout_ = QuicTime::Delta::Zero();
+    bool has_received_max_datagram_frame_size_ = false;
+    uint64_t received_max_datagram_frame_size_ = 0;
   };
 
   // Does not take ownership of |connection| or |visitor|.
@@ -444,7 +460,10 @@ class QUICHE_EXPORT QuicSession
 
   // Called to send RST_STREAM (and STOP_SENDING) and close stream. If stream
   // |id| does not exist, just send RST_STREAM (and STOP_SENDING).
-  virtual void ResetStream(QuicStreamId id, QuicRstStreamErrorCode error);
+  virtual void ResetStream(QuicStreamId id, QuicResetStreamError error);
+  virtual void ResetStream(QuicStreamId id, QuicRstStreamErrorCode error) {
+    ResetStream(id, QuicResetStreamError::FromInternal(error));
+  }
 
   // Called when the session wants to go away and not accept any new streams.
   virtual void SendGoAway(QuicErrorCode error_code, const std::string& reason);

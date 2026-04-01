@@ -659,6 +659,10 @@ class QUICHE_EXPORT QuicSpdySession
 
   // WebTransport protocol versions supported by the peer.
   WebTransportHttp3VersionSet peer_web_transport_versions_;
+  // Peer's initial WT stream limits from SETTINGS (Section 5.5).
+  uint64_t peer_wt_initial_max_streams_bidi_ = 0;
+  uint64_t peer_wt_initial_max_streams_uni_ = 0;
+  uint64_t peer_wt_initial_max_data_ = 0;
   CookieCrumbling cookie_crumbling_ = CookieCrumbling::kEnabled;
   // An integer used for live check. The indicator is assigned a value in
   // constructor. As long as it is not the assigned value, that would indicate

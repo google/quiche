@@ -1413,8 +1413,16 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
   }
   QUICHE_DCHECK(IsValidWebTransportSessionId(id(), version()));
 
+  const auto wt_version = spdy_session_->SupportedWebTransportVersion();
+  const bool is_draft15 =
+      wt_version == WebTransportHttp3Version::kDraft15;
+
   std::string method;
   std::string protocol;
+  std::string scheme;
+  std::string subprotocol_offer;
+  bool has_authority = false;
+  bool has_path = false;
   for (const auto& [header_name, header_value] : header_list_) {
     if (header_name == ":method") {
       if (!method.empty() || header_value.empty()) {
@@ -1428,6 +1436,18 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
       }
       protocol = header_value;
     }
+    if (header_name == ":scheme") {
+      scheme = header_value;
+    }
+    if (header_name == ":authority") {
+      has_authority = true;
+    }
+    if (header_name == ":path") {
+      has_path = true;
+    }
+    if (header_name == webtransport::kSubprotocolRequestHeader) {
+      subprotocol_offer = header_value;
+    }
     if (header_name == "datagram-flow-id") {
       QUIC_DLOG(ERROR) << ENDPOINT
                        << "Rejecting WebTransport due to unexpected "
@@ -1436,12 +1456,39 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
     }
   }
 
-  if (method != "CONNECT" || protocol != "webtransport") {
+  if (method != "CONNECT") {
     return;
+  }
+  if (is_draft15 ? protocol != "webtransport-h3"
+                 : protocol != "webtransport") {
+    return;
+  }
+
+  // Section 3.2: :scheme, :authority, and :path are required.
+  if (is_draft15) {
+    if (scheme != "https") {
+      QUIC_DLOG(WARNING) << ENDPOINT
+                         << "Rejecting WebTransport: :scheme is not 'https'";
+      return;
+    }
+    if (!has_authority || !has_path) {
+      QUIC_DLOG(WARNING)
+          << ENDPOINT
+          << "Rejecting WebTransport: missing :authority or :path";
+      return;
+    }
   }
 
   web_transport_ =
       std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
+  if (!subprotocol_offer.empty()) {
+    absl::StatusOr<std::vector<std::string>> subprotocols_offered =
+        webtransport::ParseSubprotocolRequestHeader(subprotocol_offer);
+    if (subprotocols_offered.ok()) {
+      web_transport_->set_subprotocols_offered(
+          *std::move(subprotocols_offered));
+    }
+  }
 }
 
 void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
@@ -1462,7 +1509,9 @@ void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
   if (method_it == headers.end() || protocol_it == headers.end()) {
     return;
   }
-  if (method_it->second != "CONNECT" && protocol_it->second != "webtransport") {
+  if (method_it->second != "CONNECT" ||
+      (protocol_it->second != "webtransport" &&
+       protocol_it->second != "webtransport-h3")) {
     return;
   }
 

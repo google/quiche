@@ -150,6 +150,11 @@ void QuicSession::SavedConfig::DeleteConfig(ParsedQuicVersion version) {
       config_->GetInitialMaxStreamDataBytesIncomingBidirectionalToSend();
   received_max_bidirectional_streams_ =
       config_->ReceivedMaxBidirectionalStreams();
+  if (config_->HasReceivedMaxDatagramFrameSize()) {
+    has_received_max_datagram_frame_size_ = true;
+    received_max_datagram_frame_size_ =
+        config_->ReceivedMaxDatagramFrameSize();
+  }
   idle_network_timeout_ = config_->IdleNetworkTimeout();
   QUICHE_RELOADABLE_FLAG_COUNT(quic_delete_config);
   config_.reset();
@@ -1109,7 +1114,7 @@ bool QuicSession::WriteControlFrame(const QuicFrame& frame,
   return connection_->SendControlFrame(frame);
 }
 
-void QuicSession::ResetStream(QuicStreamId id, QuicRstStreamErrorCode error) {
+void QuicSession::ResetStream(QuicStreamId id, QuicResetStreamError error) {
   QuicStream* stream = GetStream(id);
   if (stream != nullptr && stream->is_static()) {
     connection()->CloseConnection(
@@ -1119,13 +1124,13 @@ void QuicSession::ResetStream(QuicStreamId id, QuicRstStreamErrorCode error) {
   }
 
   if (stream != nullptr) {
-    stream->Reset(error);
+    stream->ResetWithError(error);
     return;
   }
 
   QuicConnection::ScopedPacketFlusher flusher(connection());
-  MaybeSendStopSendingFrame(id, QuicResetStreamError::FromInternal(error));
-  MaybeSendRstStreamFrame(id, QuicResetStreamError::FromInternal(error), 0);
+  MaybeSendStopSendingFrame(id, error);
+  MaybeSendRstStreamFrame(id, error, 0);
 }
 
 void QuicSession::MaybeSendRstStreamFrame(QuicStreamId id,

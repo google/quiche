@@ -15,6 +15,7 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
+#include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/web_transport_stream_adapter.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -38,6 +39,7 @@ enum class WebTransportHttp3RejectionReason {
   kWrongStatusCode,
   kMissingDraftVersion,
   kUnsupportedDraftVersion,
+  kSubprotocolNegotiationFailed,
 };
 
 // A session of WebTransport over HTTP/3.  The session is owned by
@@ -132,6 +134,11 @@ class QUICHE_EXPORT WebTransportHttp3
   }
   void MaybeSetSubprotocolFromResponseHeaders(
       const quiche::HttpHeaderBlock& headers);
+
+  // Closes the session and notifies the visitor due to a protocol error
+  // detected by the WT implementation (as opposed to the application).
+  void OnInternalError(WebTransportSessionError error_code,
+                       absl::string_view error_message);
 
  private:
   // Notifies the visitor that the connection has been closed.  Ensures that the

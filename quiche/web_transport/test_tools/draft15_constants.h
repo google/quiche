@@ -49,11 +49,11 @@ inline constexpr uint64_t kWtStreamsBlockedUnidi =
     static_cast<uint64_t>(quiche::CapsuleType::WT_STREAMS_BLOCKED_UNIDI);
 
 // --- Error codes (Section 9.5) ---
-// kWtFlowControlError and kWtAlpnError are production constants defined in
-// quiche/quic/core/http/web_transport_http3.h (quic::kWtFlowControlError,
-// quic::kWtAlpnError). Use those directly to avoid duplicate definitions.
-inline constexpr uint64_t kWtBufferedStreamRejected = 0x3994bd84;
-inline constexpr uint64_t kWtSessionGone = 0x170d7b68;
+// Production constants defined in quiche/quic/core/http/http_constants.h.
+// Reference them here to avoid duplicate definitions.
+inline constexpr uint64_t kWtBufferedStreamRejected =
+    quic::kWtBufferedStreamRejected;
+inline constexpr uint64_t kWtSessionGone = quic::kWtSessionGone;
 inline constexpr uint64_t kWtRequirementsNotMet = 0x212c0d48;
 
 // --- WT_APPLICATION_ERROR range (Section 4.4) ---

@@ -8168,6 +8168,22 @@ TEST_P(EndToEndTest, WebTransportSessionGoaway) {
 #endif
 }
 
+TEST_P(EndToEndTest, WebTransportDraft15SessionEstablishment) {
+  // Verify draft-15 is negotiated when both sides support it.
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session, nullptr);
+
+  // The negotiated version must be draft-15.
+  EXPECT_EQ(GetClientSession()->SupportedWebTransportVersion(),
+            WebTransportHttp3Version::kDraft15);
+}
+
 TEST_P(EndToEndTest, InvalidExtendedConnect) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   ASSERT_TRUE(Initialize());
