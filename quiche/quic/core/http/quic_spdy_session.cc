@@ -652,6 +652,13 @@ void QuicSpdySession::FillSettingsFrame() {
       settings_.values[SETTINGS_WEBTRANS_MAX_SESSIONS_DRAFT07] =
           kDefaultMaxWebTransportSessions;
     }
+    if (versions.IsSet(WebTransportHttp3Version::kDraft15)) {
+      QUICHE_BUG_IF(
+          WT_draft15_enabled_extended_connect_disabled,
+          perspective() == Perspective::IS_SERVER && !allow_extended_connect())
+          << "WebTransport draft-15 enabled, but extended CONNECT is not";
+      settings_.values[SETTINGS_WT_ENABLED] = 1;
+    }
   }
   if (allow_extended_connect()) {
     settings_.values[SETTINGS_ENABLE_CONNECT_PROTOCOL] = 1;
@@ -1155,26 +1162,50 @@ bool QuicSpdySession::ValidateWebTransportSettingsConsistency() {
     return true;
   }
 
+  const bool is_draft15 = *version == WebTransportHttp3Version::kDraft15;
+  auto close_for_missing_setting = [&](const std::string& details) {
+    if (is_draft15) {
+      connection()->CloseConnection(
+          QUIC_HTTP_INVALID_SETTING_VALUE,
+          static_cast<QuicIetfTransportErrorCodes>(kWtRequirementsNotMet),
+          details, ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    } else {
+      CloseConnectionWithDetails(QUIC_HTTP_INVALID_SETTING_VALUE, details);
+    }
+  };
+
   if (!allow_extended_connect_) {
-    CloseConnectionWithDetails(
-        QUIC_HTTP_INVALID_SETTING_VALUE,
-        "Negotiated use of WebTransport over HTTP/3 (draft-07 or later), but "
-        "failed to negotiate extended CONNECT");
+    close_for_missing_setting(
+        "Negotiated use of WebTransport over HTTP/3, but failed to negotiate "
+        "extended CONNECT");
     return false;
   }
 
   if (http_datagram_support_ == HttpDatagramSupport::kDraft04) {
-    CloseConnectionWithDetails(
-        QUIC_HTTP_INVALID_SETTING_VALUE,
-        "WebTransport over HTTP/3 version draft-07 and beyond requires the "
-        "RFC version of HTTP datagrams");
+    close_for_missing_setting(
+        "WebTransport over HTTP/3 requires the RFC version of HTTP datagrams");
     return false;
   }
 
   if (http_datagram_support_ != HttpDatagramSupport::kRfc) {
-    CloseConnectionWithDetails(
-        QUIC_HTTP_INVALID_SETTING_VALUE,
+    close_for_missing_setting(
         "WebTransport over HTTP/3 requires HTTP datagrams support");
+    return false;
+  }
+
+  if (is_draft15 && !connection()->reliable_stream_reset_enabled()) {
+    close_for_missing_setting(
+        "WebTransport over HTTP/3 (draft-15) requires the reset_stream_at "
+        "transport parameter");
+    return false;
+  }
+
+  if (is_draft15 &&
+      (!GetSavedConfig().HasReceivedMaxDatagramFrameSize() ||
+       GetSavedConfig().ReceivedMaxDatagramFrameSize() == 0)) {
+    close_for_missing_setting(
+        "WebTransport over HTTP/3 (draft-15) requires "
+        "max_datagram_frame_size > 0");
     return false;
   }
 
@@ -1384,6 +1415,101 @@ bool QuicSpdySession::OnSetting(uint64_t id, uint64_t value) {
                 value;
           }
         }
+        break;
+      case SETTINGS_WT_ENABLED:
+        if (!WillNegotiateWebTransport()) {
+          break;
+        }
+        QUIC_DVLOG(1) << ENDPOINT
+                      << "SETTINGS_WT_ENABLED received with value " << value;
+        if (!VerifySettingIsZeroOrOne(id, value)) {
+          return false;
+        }
+        if (value == 1) {
+          peer_web_transport_versions_.Set(WebTransportHttp3Version::kDraft15);
+        } else if (peer_web_transport_versions_.IsSet(
+                       WebTransportHttp3Version::kDraft15)) {
+          // Section 3.2: Server must not disable WT after 0-RTT acceptance.
+          CloseConnectionWithDetails(
+              was_zero_rtt_rejected()
+                  ? QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH
+                  : QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
+              "Server sent SETTINGS_WT_ENABLED: 0 which reduces previously "
+              "negotiated value: 1");
+          return false;
+        }
+        break;
+      case SETTINGS_WT_INITIAL_MAX_STREAMS_UNI:
+        QUIC_DVLOG(1) << ENDPOINT
+                      << "SETTINGS_WT_INITIAL_MAX_STREAMS_UNI received with "
+                         "value "
+                      << value;
+        // Section 5.6.2: Maximum Streams cannot exceed 2^60.
+        if (value > (1ULL << 60)) {
+          CloseConnectionWithDetails(
+              QUIC_HTTP_INVALID_SETTING_VALUE,
+              "SETTINGS_WT_INITIAL_MAX_STREAMS_UNI exceeds 2^60");
+          return false;
+        }
+        // Section 3.2: 0-RTT limits must not decrease.
+        if (peer_wt_initial_max_streams_uni_ != 0 &&
+            peer_wt_initial_max_streams_uni_ > value) {
+          CloseConnectionWithDetails(
+              was_zero_rtt_rejected()
+                  ? QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH
+                  : QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
+              absl::StrCat(
+                  "Server sent SETTINGS_WT_INITIAL_MAX_STREAMS_UNI: ", value,
+                  " which reduces current value: ",
+                  peer_wt_initial_max_streams_uni_));
+          return false;
+        }
+        peer_wt_initial_max_streams_uni_ = value;
+        break;
+      case SETTINGS_WT_INITIAL_MAX_STREAMS_BIDI:
+        QUIC_DVLOG(1) << ENDPOINT
+                      << "SETTINGS_WT_INITIAL_MAX_STREAMS_BIDI received with "
+                         "value "
+                      << value;
+        // Section 5.6.2: Maximum Streams cannot exceed 2^60.
+        if (value > (1ULL << 60)) {
+          CloseConnectionWithDetails(
+              QUIC_HTTP_INVALID_SETTING_VALUE,
+              "SETTINGS_WT_INITIAL_MAX_STREAMS_BIDI exceeds 2^60");
+          return false;
+        }
+        // Section 3.2: 0-RTT limits must not decrease.
+        if (peer_wt_initial_max_streams_bidi_ != 0 &&
+            peer_wt_initial_max_streams_bidi_ > value) {
+          CloseConnectionWithDetails(
+              was_zero_rtt_rejected()
+                  ? QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH
+                  : QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
+              absl::StrCat(
+                  "Server sent SETTINGS_WT_INITIAL_MAX_STREAMS_BIDI: ", value,
+                  " which reduces current value: ",
+                  peer_wt_initial_max_streams_bidi_));
+          return false;
+        }
+        peer_wt_initial_max_streams_bidi_ = value;
+        break;
+      case SETTINGS_WT_INITIAL_MAX_DATA:
+        QUIC_DVLOG(1) << ENDPOINT
+                      << "SETTINGS_WT_INITIAL_MAX_DATA received with value "
+                      << value;
+        // Section 3.2: 0-RTT limits must not decrease.
+        if (peer_wt_initial_max_data_ != 0 &&
+            peer_wt_initial_max_data_ > value) {
+          CloseConnectionWithDetails(
+              was_zero_rtt_rejected()
+                  ? QUIC_HTTP_ZERO_RTT_REJECTION_SETTINGS_MISMATCH
+                  : QUIC_HTTP_ZERO_RTT_RESUMPTION_SETTINGS_MISMATCH,
+              absl::StrCat("Server sent SETTINGS_WT_INITIAL_MAX_DATA: ", value,
+                           " which reduces current value: ",
+                           peer_wt_initial_max_data_));
+          return false;
+        }
+        peer_wt_initial_max_data_ = value;
         break;
       default:
         QUIC_DVLOG(1) << ENDPOINT << "Unknown setting identifier " << id
@@ -1927,6 +2053,16 @@ void QuicSpdySession::AssociateIncomingWebTransportStreamWithSession(
         << stream_id;
     return;
   }
+  if (!IsValidWebTransportSessionId(session_id, version())) {
+    QUIC_DLOG(ERROR) << ENDPOINT << "Received WebTransport stream "
+                     << stream_id << " with invalid session ID "
+                     << session_id;
+    CloseConnectionWithDetails(
+        QUIC_HTTP_FRAME_ERROR,
+        absl::StrCat("WebTransport stream ", stream_id,
+                     " references invalid session ID ", session_id));
+    return;
+  }
   WebTransportHttp3* session = GetWebTransportSession(session_id);
   if (session != nullptr) {
     QUIC_DVLOG(1) << ENDPOINT
@@ -1938,11 +2074,18 @@ void QuicSpdySession::AssociateIncomingWebTransportStreamWithSession(
   }
   // Evict the oldest streams until we are under the limit.
   while (buffered_streams_.size() >= kMaxUnassociatedWebTransportStreams) {
-    QUIC_DVLOG(1) << ENDPOINT << "Removing stream "
-                  << buffered_streams_.front().stream_id
+    QuicStreamId evict_id = buffered_streams_.front().stream_id;
+    QUIC_DVLOG(1) << ENDPOINT << "Removing stream " << evict_id
                   << " from buffered streams as the queue is full.";
-    ResetStream(buffered_streams_.front().stream_id,
-                QUIC_STREAM_WEBTRANSPORT_BUFFERED_STREAMS_LIMIT_EXCEEDED);
+    if (SupportedWebTransportVersion() ==
+        WebTransportHttp3Version::kDraft15) {
+      ResetStream(evict_id, QuicResetStreamError(
+          QUIC_STREAM_WEBTRANSPORT_BUFFERED_STREAMS_LIMIT_EXCEEDED,
+          kWtBufferedStreamRejected));
+    } else {
+      ResetStream(evict_id,
+                  QUIC_STREAM_WEBTRANSPORT_BUFFERED_STREAMS_LIMIT_EXCEEDED);
+    }
     buffered_streams_.pop_front();
   }
   QUIC_DVLOG(1) << ENDPOINT << "Received a WebTransport stream " << stream_id

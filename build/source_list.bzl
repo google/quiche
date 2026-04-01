@@ -898,6 +898,7 @@ quiche_test_support_hdrs = [
     "quic/test_tools/quic_spdy_session_test_utils.h",
     "quic/test_tools/web_transport_resets_backend.h",
     "quic/test_tools/web_transport_test_tools.h",
+    "quic/core/http/web_transport_draft15_test_utils.h",
     "web_transport/test_tools/in_memory_stream.h",
     "web_transport/test_tools/draft15_constants.h",
     "web_transport/test_tools/mock_web_transport.h",

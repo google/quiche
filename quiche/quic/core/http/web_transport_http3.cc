@@ -189,6 +189,17 @@ void WebTransportHttp3::HeadersReceived(
       return;
     }
     MaybeSetSubprotocolFromResponseHeaders(headers);
+
+    // Section 3.3: Client MUST close with WT_ALPN_ERROR if it offered
+    // subprotocols and the server did not select a valid one.
+    if (session_->SupportedWebTransportVersion() ==
+            WebTransportHttp3Version::kDraft15 &&
+        !subprotocols_offered_.empty() && !subprotocol_selected_.has_value()) {
+      rejection_reason_ =
+          WebTransportHttp3RejectionReason::kSubprotocolNegotiationFailed;
+      OnInternalError(kWtAlpnError, "ALPN negotiation failed");
+      return;
+    }
   }
 
   QUIC_DVLOG(1) << ENDPOINT << "WebTransport session " << id_ << " ready.";
@@ -298,6 +309,15 @@ void WebTransportHttp3::OnHttp3Datagram(QuicStreamId stream_id,
                                         absl::string_view payload) {
   QUICHE_DCHECK_EQ(stream_id, connect_stream_->id());
   visitor_->OnDatagramReceived(payload);
+}
+
+void WebTransportHttp3::OnInternalError(WebTransportSessionError error_code,
+                                        absl::string_view error_message) {
+  if (IsTerminated()) {
+    return;
+  }
+  CloseSession(error_code, error_message);
+  MaybeNotifyClose();
 }
 
 void WebTransportHttp3::MaybeNotifyClose() {
