@@ -100,11 +100,18 @@ void WebTransportHttp3::AssociateStream(QuicStreamId stream_id) {
   }
 }
 
+void WebTransportHttp3::MaybeDecrementSessionCount() {
+  if (session_counted_) {
+    session_counted_ = false;
+    session_->OnWebTransportSessionDestroyed();
+  }
+}
+
 void WebTransportHttp3::OnConnectStreamClosing() {
   ResetAssociatedStreams();
   connect_stream_->UnregisterHttp3DatagramVisitor();
 
-  session_->OnWebTransportSessionDestroyed();
+  MaybeDecrementSessionCount();
   MaybeNotifyClose();
 }
 
@@ -117,6 +124,7 @@ void WebTransportHttp3::CloseSession(WebTransportSessionError error_code,
     return;
   }
   close_sent_ = true;
+  MaybeDecrementSessionCount();
 
   // There can be a race between us trying to send our close and peer sending
   // one.  If we received a close, however, we cannot send ours since we already
@@ -161,6 +169,7 @@ void WebTransportHttp3::OnCloseReceived(WebTransportSessionError error_code,
     return;
   }
   close_received_ = true;
+  MaybeDecrementSessionCount();
 
   // Section 6: Reset all associated streams upon session termination.
   ResetAssociatedStreams();
@@ -192,6 +201,7 @@ void WebTransportHttp3::OnConnectStreamFinReceived() {
     return;
   }
   close_received_ = true;
+  MaybeDecrementSessionCount();
 
   ResetAssociatedStreams();
 

@@ -8184,6 +8184,25 @@ TEST_P(EndToEndTest, WebTransportDraft15SessionEstablishment) {
             WebTransportHttp3Version::kDraft15);
 }
 
+TEST_P(EndToEndTest, WebTransportDraft15SessionLimiting) {
+  // Section 5.1: Without FC, at most one session is allowed.
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session1 =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session1, nullptr);
+
+  // Second session should fail — no FC means 1 session limit.
+  WebTransportHttp3* session2 =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/false);
+  EXPECT_EQ(session2, nullptr)
+      << "Section 5.1: Without FC, client must not establish more than "
+         "one simultaneous WebTransport session";
+}
+
 TEST_P(EndToEndTest, WebTransportDraft15NoDatagramsAfterClose) {
   // Section 6 MUST NOT: After session termination, no new datagrams
   // may be sent.

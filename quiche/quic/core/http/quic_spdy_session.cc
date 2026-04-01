@@ -2027,6 +2027,20 @@ QuicSpdySession::SupportedWebTransportVersion() {
   return NegotiatedWebTransportVersion();
 }
 
+bool QuicSpdySession::CanCreateNewWebTransportSession() {
+  if (!SupportsWebTransport()) {
+    return false;
+  }
+  // Draft-15, Section 5.1: Without session-level flow control, only one
+  // session is allowed.
+  if (NegotiatedWebTransportVersion() == WebTransportHttp3Version::kDraft15) {
+    if (active_web_transport_sessions_ >= 1) {
+      return false;
+    }
+  }
+  return true;
+}
+
 bool QuicSpdySession::SupportsH3Datagram() const {
   return http_datagram_support_ != HttpDatagramSupport::kNone;
 }
