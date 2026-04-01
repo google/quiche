@@ -8348,6 +8348,43 @@ TEST_P(EndToEndTest, WebTransportDraft15ResetStreamAt) {
          "the peer can associate the stream with its session";
 }
 
+TEST_P(EndToEndTest, WebTransportKeyingMaterial) {
+  // Section 4.8: GetKeyingMaterial with real BoringSSL TLS exporter.
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session, nullptr);
+
+  // Section 4.8 SHALL: export keying material of the requested length.
+  auto result = session->GetKeyingMaterial("test-label", "test-context", 32);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_EQ(result->size(), 32u);
+
+  // Deterministic: same inputs produce the same output.
+  auto result2 = session->GetKeyingMaterial("test-label", "test-context", 32);
+  ASSERT_TRUE(result2.ok()) << result2.status();
+  EXPECT_EQ(*result, *result2);
+
+  // Different label produces different output.
+  auto result3 = session->GetKeyingMaterial("other-label", "test-context", 32);
+  ASSERT_TRUE(result3.ok()) << result3.status();
+  EXPECT_NE(*result, *result3);
+
+  // Different context produces different output.
+  auto result4 = session->GetKeyingMaterial("test-label", "other-context", 32);
+  ASSERT_TRUE(result4.ok()) << result4.status();
+  EXPECT_NE(*result, *result4);
+
+  // Empty context works and produces different output from non-empty.
+  auto result5 = session->GetKeyingMaterial("test-label", "", 32);
+  ASSERT_TRUE(result5.ok()) << result5.status();
+  EXPECT_NE(*result, *result5);
+}
+
 TEST_P(EndToEndTest, InvalidExtendedConnect) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   ASSERT_TRUE(Initialize());

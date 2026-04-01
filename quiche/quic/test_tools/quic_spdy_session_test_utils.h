@@ -187,15 +187,39 @@ class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
     }
   }
 
-  bool ExportKeyingMaterial(absl::string_view /*label*/,
-                            absl::string_view /*context*/,
-                            size_t /*result_len*/, std::string*
-                            /*result*/) override {
-    return false;
+  bool ExportKeyingMaterial(absl::string_view label,
+                            absl::string_view context,
+                            size_t result_len, std::string*
+                            result) override {
+    last_export_label_ = std::string(label);
+    last_export_context_ = std::string(context);
+    if (result != nullptr) {
+      // Produce deterministic output that varies with label+context so
+      // tests can distinguish calls with different arguments.
+      result->resize(result_len);
+      for (size_t i = 0; i < result_len; ++i) {
+        uint8_t byte = 0xAB;
+        if (i < label.size()) {
+          byte ^= static_cast<uint8_t>(label[i]);
+        }
+        if (i < context.size()) {
+          byte ^= static_cast<uint8_t>(context[i]);
+        }
+        (*result)[i] = static_cast<char>(byte);
+      }
+    }
+    return true;
+  }
+
+  const std::string& last_export_label() const { return last_export_label_; }
+  const std::string& last_export_context() const {
+    return last_export_context_;
   }
 
  private:
   using QuicCryptoStream::session;
+  std::string last_export_label_;
+  std::string last_export_context_;
 
   bool encryption_established_;
   bool one_rtt_keys_available_;
