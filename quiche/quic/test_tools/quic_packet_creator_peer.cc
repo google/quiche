@@ -148,5 +148,11 @@ void QuicPacketCreatorPeer::SetRandom(QuicPacketCreator* creator,
   creator->random_ = random;
 }
 
+// static
+bool QuicPacketCreatorPeer::WillAttachSconeIndicator(
+    const QuicPacketCreator& creator) {
+  return creator.append_scone_indicator_;
+}
+
 }  // namespace test
 }  // namespace quic

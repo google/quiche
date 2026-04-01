@@ -60,10 +60,16 @@ bool QuicCoalescedPacket::MaybeCoalescePacket(
           << "Cannot coalesce packet because self/peer address changed";
       return false;
     }
-    if (max_packet_length_ != current_max_packet_length) {
-      QUIC_BUG(quic_bug_10611_2)
-          << "Max packet length changes in the middle of the write path";
+    if (max_packet_length_ > current_max_packet_length) {
+      QUIC_BUG(quic_bug_coalesced_packet_max_packet_length_shrinks)
+          << "Max packet length shrinks in the middle of the write path";
       return false;
+    }
+    if (max_packet_length_ < current_max_packet_length) {
+      QUIC_BUG_IF(quic_bug_coalesced_packet_max_packet_length_increases,
+                  !max_packet_length_may_increase_)
+          << "Max packet length increases in the middle of the write path";
+      max_packet_length_ = current_max_packet_length;
     }
     if (ContainsPacketOfEncryptionLevel(packet.encryption_level)) {
       // Do not coalesce packets of the same encryption level.

@@ -14945,6 +14945,170 @@ TEST_P(QuicConnectionTest,
   EXPECT_TRUE(connection_.HasPendingPathValidation());
 }
 
+TEST_P(QuicConnectionTest, PeerAddressMigrationWithScone) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  QuicConfig config;
+  config.set_scone_packet_interval(QuicTime::Delta::FromSeconds(10));
+  QuicConfigPeer::SetNegotiated(&config, true);
+  QuicConfigPeer::SetReceivedInitialSourceConnectionId(&config,
+                                                       TestConnectionId(0x2a));
+  QuicConfigPeer::SetReceivedOriginalConnectionId(&config,
+                                                  TestConnectionId(0x2a));
+  EXPECT_CALL(*send_algorithm_, SetFromConfig);
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+  connection_.SetFromConfig(config);
+  PathProbeTestInit(Perspective::IS_SERVER);
+
+  // Use a MockPacketWriter to intercept packets.
+  testing::NiceMock<MockPacketWriter> scone_writer;
+  QuicConnectionPeer::SetWriter(&connection_, &scone_writer,
+                                /*owns_writer=*/false);
+  // Send a PING to clear the initial SCONE packet.
+  EXPECT_CALL(scone_writer, WritePacket)
+      .WillOnce([](const char* buffer, size_t buf_len,
+                   const QuicIpAddress& /*self_address*/,
+                   const QuicSocketAddress& /*peer_address*/, PerPacketOptions*,
+                   const QuicPacketWriterParams&) {
+        EXPECT_GE(buf_len, 1u);
+        EXPECT_EQ(static_cast<uint8_t>(buffer[0]), 255);
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      });
+  connection_.SendPing();
+
+  const QuicSocketAddress kNewPeerAddress(QuicIpAddress::Loopback4(),
+                                          /*port=*/23456);
+
+  // Process a packet with a new peer address will start connection migration.
+  EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE)).Times(1);
+  // IETF QUIC send algorithm should be changed to a different object, so no
+  // OnPacketSent() called on the old send algorithm.
+  EXPECT_CALL(visitor_, OnStreamFrame).WillOnce([=, this]() {
+    EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
+  });
+  QuicFrames frames2;
+  frames2.push_back(QuicFrame(frame2_));
+  // Validation packet should have SCONE header.
+  EXPECT_CALL(scone_writer, WritePacket)
+      .WillOnce([](const char* buffer, size_t buf_len,
+                   const QuicIpAddress& /*self_address*/,
+                   const QuicSocketAddress& /*peer_address*/, PerPacketOptions*,
+                   const QuicPacketWriterParams&) {
+        EXPECT_GE(buf_len, 1u);
+        EXPECT_EQ(static_cast<uint8_t>(buffer[0]), 255);
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      });
+  ProcessFramesPacketWithAddresses(frames2, kSelfAddress, kNewPeerAddress,
+                                   ENCRYPTION_FORWARD_SECURE);
+  EXPECT_TRUE(QuicConnectionPeer::IsAlternativePathValidated(&connection_));
+  EXPECT_TRUE(connection_.HasPendingPathValidation());
+
+  // Advance by 5 seconds. Ping should NOT have SCONE header.
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(5));
+  EXPECT_CALL(scone_writer, WritePacket)
+      .WillOnce([](const char* buffer, size_t buf_len,
+                   const QuicIpAddress& /*self_address*/,
+                   const QuicSocketAddress& /*peer_address*/, PerPacketOptions*,
+                   const QuicPacketWriterParams&) {
+        EXPECT_GE(buf_len, 1u);
+        EXPECT_NE(static_cast<uint8_t>(buffer[0]), 255);
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      });
+  connection_.SendPing();
+
+  // Advance by another 5 seconds (total 10s). Second ping should have SCONE
+  // header.
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(5));
+  EXPECT_CALL(scone_writer, WritePacket)
+      .WillOnce([](const char* buffer, size_t buf_len,
+                   const QuicIpAddress& /*self_address*/,
+                   const QuicSocketAddress& /*peer_address*/, PerPacketOptions*,
+                   const QuicPacketWriterParams&) {
+        EXPECT_GE(buf_len, 1u);
+        EXPECT_EQ(static_cast<uint8_t>(buffer[0]), 255);
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      });
+  connection_.SendPing();
+}
+
+TEST_P(QuicConnectionTest, ClientSendsSconeAfterConnectionMigration) {
+  if (!GetParam().version.IsIetfQuic()) {
+    return;
+  }
+  QuicConfig config;
+  config.set_scone_packet_interval(QuicTime::Delta::FromSeconds(10));
+  QuicConfigPeer::SetNegotiated(&config, true);
+  QuicConfigPeer::SetReceivedInitialSourceConnectionId(&config,
+                                                       TestConnectionId(0x2a));
+  QuicConfigPeer::SetReceivedOriginalConnectionId(&config,
+                                                  TestConnectionId(0x2a));
+  EXPECT_CALL(*send_algorithm_, SetFromConfig);
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
+  PathProbeTestInit(Perspective::IS_CLIENT);
+  EXPECT_EQ(kSelfAddress, connection_.self_address());
+
+  // Use a MockPacketWriter to intercept packets.
+  testing::NiceMock<MockPacketWriter> scone_writer;
+  QuicConnectionPeer::SetWriter(&connection_, &scone_writer,
+                                /*owns_writer=*/false);
+  // Send a PING to clear the initial SCONE packet.
+  EXPECT_CALL(scone_writer, WritePacket)
+      .WillOnce([](const char* buffer, size_t buf_len,
+                   const QuicIpAddress& /*self_address*/,
+                   const QuicSocketAddress& /*peer_address*/, PerPacketOptions*,
+                   const QuicPacketWriterParams&) {
+        EXPECT_GE(buf_len, 1u);
+        EXPECT_EQ(static_cast<uint8_t>(buffer[0]), 255);
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      });
+  connection_.SendPing();
+
+  // Migrate to a new address with different IP.
+  const QuicSocketAddress kNewSelfAddress =
+      QuicSocketAddress(QuicIpAddress::Loopback4(), /*port=*/23456);
+  connection_.MigratePath(kNewSelfAddress, connection_.peer_address(),
+                          &scone_writer, false);
+  // Send three pings spaced 5 seconds apart, of which two should have SCONE
+  // headers.
+  EXPECT_CALL(scone_writer, WritePacket)
+      .WillOnce([](const char* buffer, size_t buf_len,
+                   const QuicIpAddress& /*self_address*/,
+                   const QuicSocketAddress& /*peer_address*/, PerPacketOptions*,
+                   const QuicPacketWriterParams&) {
+        EXPECT_GE(buf_len, 1u);
+        EXPECT_EQ(static_cast<uint8_t>(buffer[0]), 255);
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      });
+  connection_.SendPing();
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(5));
+  EXPECT_CALL(scone_writer, WritePacket)
+      .WillOnce([](const char* buffer, size_t buf_len,
+                   const QuicIpAddress& /*self_address*/,
+                   const QuicSocketAddress& /*peer_address*/, PerPacketOptions*,
+                   const QuicPacketWriterParams&) {
+        EXPECT_GE(buf_len, 1u);
+        EXPECT_NE(static_cast<uint8_t>(buffer[0]), 255);
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      });
+  connection_.SendPing();
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(5));
+  EXPECT_CALL(scone_writer, WritePacket)
+      .WillOnce([](const char* buffer, size_t buf_len,
+                   const QuicIpAddress& /*self_address*/,
+                   const QuicSocketAddress& /*peer_address*/, PerPacketOptions*,
+                   const QuicPacketWriterParams&) {
+        EXPECT_GE(buf_len, 1u);
+        EXPECT_EQ(static_cast<uint8_t>(buffer[0]), 255);
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      });
+  connection_.SendPing();
+}
+
 TEST_P(QuicConnectionTest,
        PathValidationFailedOnClientDueToLackOfServerConnectionId) {
   if (!version().IsIetfQuic()) {
@@ -18220,6 +18384,109 @@ TEST_P(QuicConnectionTest, DoNotUpdateAckStateAfterConnectionClose) {
   EXPECT_CALL(visitor_, OnConnectionClosed);
   ProcessFramesPacketAtLevel(max_packet_number, peer_frames,
                              ENCRYPTION_FORWARD_SECURE);
+}
+
+TEST_P(QuicConnectionTest, SconeInterval) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  connection_.OnConfigNegotiated();
+
+  QuicConfig config;
+  config.set_scone_packet_interval(QuicTimeDelta::FromSeconds(10));
+  QuicConfigPeer::SetNegotiated(&config, true);
+  QuicConfigPeer::SetReceivedInitialSourceConnectionId(&config,
+                                                       TestConnectionId(0x2a));
+  QuicConfigPeer::SetReceivedOriginalConnectionId(&config,
+                                                  TestConnectionId(0x2a));
+  EXPECT_CALL(*send_algorithm_, SetFromConfig);
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+  connection_.SetFromConfig(config);
+
+  // Use a MockPacketWriter to intercept packets.
+  testing::NiceMock<MockPacketWriter> scone_writer;
+  QuicConnectionPeer::SetWriter(&connection_, &scone_writer,
+                                /*owns_writer=*/false);
+
+  // First ping should have SCONE header.
+  EXPECT_CALL(scone_writer, WritePacket)
+      .WillOnce([](const char* buffer, size_t buf_len,
+                   const QuicIpAddress& /*self_address*/,
+                   const QuicSocketAddress& /*peer_address*/, PerPacketOptions*,
+                   const QuicPacketWriterParams&) {
+        EXPECT_GE(buf_len, 1u);
+        EXPECT_EQ(static_cast<uint8_t>(buffer[0]), 255);
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      });
+  connection_.SendPing();
+
+  // Advance by 5 seconds. Second ping should NOT have SCONE header.
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(5));
+  EXPECT_CALL(scone_writer, WritePacket)
+      .WillOnce([](const char* buffer, size_t buf_len,
+                   const QuicIpAddress& /*self_address*/,
+                   const QuicSocketAddress& /*peer_address*/, PerPacketOptions*,
+                   const QuicPacketWriterParams&) {
+        EXPECT_GE(buf_len, 1u);
+        EXPECT_NE(static_cast<uint8_t>(buffer[0]), 255);
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      });
+  connection_.SendPing();
+
+  // Advance by another 5 seconds (total 10s). Third ping should have SCONE
+  // header.
+  clock_.AdvanceTime(QuicTime::Delta::FromSeconds(5));
+  EXPECT_CALL(scone_writer, WritePacket)
+      .WillOnce([](const char* buffer, size_t buf_len,
+                   const QuicIpAddress& /*self_address*/,
+                   const QuicSocketAddress& /*peer_address*/, PerPacketOptions*,
+                   const QuicPacketWriterParams&) {
+        EXPECT_GE(buf_len, 1u);
+        EXPECT_EQ(static_cast<uint8_t>(buffer[0]), 255);
+        return WriteResult(WRITE_STATUS_OK, buf_len);
+      });
+  connection_.SendPing();
+}
+
+TEST_P(QuicConnectionTest, SendSconeBlockedByPendingPacket) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+
+  connection_.OnConfigNegotiated();
+  QuicConfig config;
+  config.set_scone_packet_interval(QuicTimeDelta::FromSeconds(10));
+  QuicConfigPeer::SetNegotiated(&config, true);
+  QuicConfigPeer::SetReceivedInitialSourceConnectionId(&config,
+                                                       TestConnectionId(0x2a));
+  QuicConfigPeer::SetReceivedOriginalConnectionId(&config,
+                                                  TestConnectionId(0x2a));
+  EXPECT_CALL(*send_algorithm_, SetFromConfig);
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+  connection_.SetFromConfig(config);
+
+  // Use a MockPacketWriter to intercept packets.
+  testing::NiceMock<MockPacketWriter> scone_writer;
+  QuicConnectionPeer::SetWriter(&connection_, &scone_writer,
+                                /*owns_writer=*/false);
+}
+
+TEST_P(QuicConnectionTest, SconeIndicatorInClientHello) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  QuicConfig config;
+  config.set_scone_packet_interval(QuicTimeDelta::FromSeconds(10));
+  EXPECT_CALL(*send_algorithm_, SetFromConfig);
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+  EXPECT_FALSE(QuicPacketCreatorPeer::WillAttachSconeIndicator(
+      connection_.packet_creator()));
+  connection_.SetFromConfig(config);
+  EXPECT_TRUE(QuicPacketCreatorPeer::WillAttachSconeIndicator(
+      connection_.packet_creator()));
 }
 
 TEST_P(QuicConnectionTest, DisabledSpinBit) {

@@ -654,6 +654,15 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   }
 
   framer_.set_process_reset_stream_at(config.SupportsReliableStreamReset());
+  if (!config.scone_packet_interval().IsZero()) {
+    if (config.negotiated()) {
+      scone_packet_interval_ = config.scone_packet_interval();
+      next_scone_packet_time_ = clock_->ApproximateNow();
+    } else {
+      packet_creator_.IndicateSconeSupport();
+      coalesced_packet_.AllowMaxPacketLengthToIncrease();
+    }
+  }
 
   if (config.peer_reordering_threshold() != 1 &&
       perspective_ == Perspective::IS_CLIENT && version().IsIetfQuic() &&
@@ -1139,6 +1148,10 @@ void QuicConnection::OnSuccessfulMigration(bool is_port_change) {
     // Reset alternative path state even if it is still under validation.
     alternative_path_.Clear();
   }
+  if (!is_port_change) {
+    MaybeSendSconePacketAfterMigration();
+  }
+
   // TODO(b/159074035): notify SentPacketManger with RTT sample from probing.
   if (version().IsIetfQuic() && !is_port_change) {
     sent_packet_manager_.OnConnectionMigration(/*reset_send_algorithm=*/true);
@@ -3074,6 +3087,14 @@ void QuicConnection::GenerateNewOutgoingFlowLabel() {
   set_outgoing_flow_label(flow_label);
 }
 
+void QuicConnection::MaybeSendSconePacketAfterMigration() {
+  if (!next_scone_packet_time_.has_value()) {
+    return;
+  }
+  next_scone_packet_time_ = clock_->ApproximateNow();
+  MaybeSendSconePacket();
+}
+
 bool QuicConnection::ProcessValidatedPacket(const QuicPacketHeader& header) {
   if (perspective_ == Perspective::IS_CLIENT && version().IsIetfQuic() &&
       direct_peer_address_.IsInitialized() &&
@@ -4996,6 +5017,7 @@ QuicConnection::ScopedPacketFlusher::ScopedPacketFlusher(
     active_ = true;
     connection->packet_creator_.AttachPacketFlusher();
     connection_->alarms_.DeferUnderlyingAlarmScheduling();
+    connection_->MaybeSendSconePacket();
   }
 }
 
@@ -5627,6 +5649,7 @@ void QuicConnection::OnConnectionMigration() {
           now - stats_.handshake_completion_time);
     }
   }
+  MaybeSendSconePacketAfterMigration();
   visitor_->OnConnectionMigration(active_effective_peer_migration_type_);
   if (active_effective_peer_migration_type_ != PORT_CHANGE &&
       active_effective_peer_migration_type_ != IPV4_SUBNET_CHANGE &&
@@ -7642,6 +7665,23 @@ QuicConnection::SerializeLargePacketNumberConnectionClosePacket(
   }
   return packet_creator_.SerializeLargePacketNumberConnectionClosePacket(
       GetLargestAckedPacket(), error, error_details);
+}
+
+void QuicConnection::MaybeSendSconePacket() {
+  if (!next_scone_packet_time_.has_value()) {
+    return;
+  }
+  if (packet_creator_.HasPendingFrames() || coalesced_packet_.length() > 0) {
+    QUIC_BUG(queueing_scone_packet_with_pending_frames)
+        << "Tried to send SCONE packet with pending frames";
+    return;
+  }
+  const QuicTime now = clock_->ApproximateNow();
+  if (now < *next_scone_packet_time_) {
+    return;
+  }
+  packet_creator_.PrependSconePacket();
+  next_scone_packet_time_ = now + scone_packet_interval_;
 }
 
 #undef ENDPOINT  // undef for jumbo builds

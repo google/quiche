@@ -557,6 +557,10 @@ class QUICHE_EXPORT QuicFramer {
       QuicConnectionId client_connection_id,
       const ParsedQuicVersionVector& versions);
 
+  // Writes a SCONE header to the packet, using the connection IDs in |header|.
+  bool AppendSconeHeader(const QuicPacketHeader& header,
+                         QuicDataWriter* writer);
+
   // If header.version_flag is set, the version in the
   // packet will be set -- but it will be set from version_ not
   // header.versions.

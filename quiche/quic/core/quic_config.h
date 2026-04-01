@@ -18,6 +18,8 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_ip_address_family.h"
@@ -347,6 +349,12 @@ class QUICHE_EXPORT QuicConfig {
   size_t max_undecryptable_packets() const {
     return max_undecryptable_packets_;
   }
+
+  void set_scone_packet_interval(QuicTimeDelta interval) {
+    scone_packet_interval_ = interval;
+  }
+
+  QuicTimeDelta scone_packet_interval() const { return scone_packet_interval_; }
 
   // Peer's connection id length, in bytes. Only used in Q043 and Q046.
   bool HasSetBytesForConnectionIdToSend() const;
@@ -753,6 +761,9 @@ class QUICHE_EXPORT QuicConfig {
   // debugging purposes only.
   std::optional<std::string> debugging_sni_to_send_;
   std::optional<std::string> received_debugging_sni_;
+
+  // SCONE send interval in seconds. Zero means no SCONE packets will be sent.
+  QuicTimeDelta scone_packet_interval_ = QuicTimeDelta::Zero();
 
   // Support for RESET_STREAM_AT frame.
   bool reliable_stream_reset_;

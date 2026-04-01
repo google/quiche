@@ -386,7 +386,7 @@ class QUICHE_EXPORT QuicReceivedPacket : public QuicEncryptedPacket {
 // WARNING:
 //
 //   If you add a member field to this class, please make sure it is properly
-//   copied in |CopySerializedPacket|.
+//   copied in |CopySerializedPacket| and in the move constructor.
 //
 struct QUICHE_EXPORT SerializedPacket {
   SerializedPacket(QuicPacketNumber packet_number,
@@ -429,6 +429,7 @@ struct QUICHE_EXPORT SerializedPacket {
   bool has_ack_frame_copy;
   bool has_ack_frequency;
   bool has_datagram;
+  bool has_scone_packet = false;
   SerializedPacketFate fate;
   QuicSocketAddress peer_address;
   // Sum of bytes from frames that are not retransmissions. This field is only

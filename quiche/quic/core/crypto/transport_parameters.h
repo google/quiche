@@ -256,6 +256,9 @@ struct QUICHE_EXPORT TransportParameters {
   // the sender accepts. See draft-ietf-quic-datagram.
   IntegerParameter max_datagram_frame_size;
 
+  // If true, indicates support for draft-ietf-scone-protocol-04.
+  bool scone_supported;
+
   // Google-specific transport parameter that carries an estimate of the
   // initial round-trip time in microseconds.
   IntegerParameter initial_round_trip_time_us;

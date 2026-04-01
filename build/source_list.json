@@ -384,6 +384,7 @@
     "quiche/quic/core/quic_version_manager.h",
     "quiche/quic/core/quic_versions.h",
     "quiche/quic/core/quic_write_blocked_list.h",
+    "quiche/quic/core/scone.h",
     "quiche/quic/core/session_notifier_interface.h",
     "quiche/quic/core/socket_factory.h",
     "quiche/quic/core/stream_delegate_interface.h",

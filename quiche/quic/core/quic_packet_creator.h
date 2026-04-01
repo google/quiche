@@ -16,22 +16,32 @@
 #define QUICHE_QUIC_CORE_QUIC_PACKET_CREATOR_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
-#include <utility>
-#include <vector>
+#include <string>
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
+#include "quiche/quic/core/crypto/quic_encrypter.h"
+#include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
 #include "quiche/quic/core/quic_coalesced_packet.h"
 #include "quiche/quic/core/quic_connection_id.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_framer.h"
+#include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/platform/api/quic_export.h"
-#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/scone.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_circular_deque.h"
+#include "quiche/common/quiche_endian.h"
 #include "quiche/common/quiche_mem_slice.h"
 
 namespace quic {
@@ -284,7 +294,7 @@ class QUICHE_EXPORT QuicPacketCreator {
   bool AddPathResponseFrame(const QuicPathFrameBuffer& data_buffer);
 
   // Add PATH_CHALLENGE to current packet, flush before or afterwards if needed.
-  // This is a best effort adding. It may fail becasue of delegate state, but
+  // This is a best effort adding. It may fail because of delegate state, but
   // it's okay because of path validation retry mechanism.
   void AddPathChallengeFrame(const QuicPathFrameBuffer& payload);
 
@@ -509,6 +519,18 @@ class QUICHE_EXPORT QuicPacketCreator {
 
   const QuicSocketAddress& peer_address() const { return packet_.peer_address; }
 
+  // Prepend a SCONE packet when initiating a new QUIC datagram. There must not
+  // be pending frames or a partially complete coalesced packet when this is
+  // called.
+  void PrependSconePacket();
+
+  void IndicateSconeSupport() {
+    if (framer_->perspective() == Perspective::IS_CLIENT) {
+      append_scone_indicator_ = true;
+      SetMaxPacketLength(max_packet_length() - kSconeIndicatorLength);
+    }
+  }
+
  private:
   friend class test::QuicPacketCreatorPeer;
 
@@ -572,6 +594,10 @@ class QUICHE_EXPORT QuicPacketCreator {
   size_t ReserializeInitialPacketInCoalescedPacket(
       const SerializedPacket& packet, size_t padding_size, char* buffer,
       size_t buffer_len);
+
+  // Reduce the available space in the datagram by the space needed for a SCONE
+  // packet.
+  void ReserveSpaceForScone();
 
   // Tries to coalesce |frame| with the back of |queued_frames_|.
   // Returns true on success.
@@ -724,6 +750,13 @@ class QUICHE_EXPORT QuicPacketCreator {
   // accept. There is no limit for QUIC_CRYPTO connections, but QUIC+TLS
   // negotiates this during the handshake.
   QuicByteCount max_datagram_frame_size_;
+
+  // The connection has requested a SCONE packet be prepended to the next
+  // packet.
+  bool send_scone_packet_ = false;
+
+  // If true, the current packet should append 0xc813 to end of the datagram.
+  bool append_scone_indicator_ = false;
 };
 
 }  // namespace quic

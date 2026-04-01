@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_packet_creator.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <memory>
@@ -20,12 +21,14 @@
 #include "quiche/quic/core/quic_coalesced_packet.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/scone.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
@@ -36,6 +39,7 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simple_data_producer.h"
 #include "quiche/quic/test_tools/simple_quic_framer.h"
+#include "quiche/common/quiche_endian.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
@@ -295,6 +299,59 @@ class QuicPacketCreatorTest : public QuicTestWithParam<TestParams> {
     return coalesced.MaybeCoalescePacket(
         *serialized_packet_, self_address, peer_address, &allocator_,
         creator_.max_packet_length(), ECN_NOT_ECT, 0);
+  }
+
+  void CheckPacketIsDecrypted(const char* buffer, size_t length) {
+    QuicEncryptedPacket encrypted_packet(buffer, length);
+    EXPECT_CALL(framer_visitor_, OnPacket);
+    EXPECT_CALL(framer_visitor_, OnUnauthenticatedPublicHeader);
+    EXPECT_CALL(framer_visitor_, OnUnauthenticatedHeader);
+    EXPECT_CALL(framer_visitor_, OnDecryptedPacket);
+    EXPECT_CALL(framer_visitor_, OnPacketHeader);
+    EXPECT_CALL(framer_visitor_, OnCryptoFrame).Times(testing::AnyNumber());
+    EXPECT_CALL(framer_visitor_, OnPaddingFrame).Times(testing::AnyNumber());
+    EXPECT_CALL(framer_visitor_, OnPingFrame).Times(testing::AnyNumber());
+    EXPECT_CALL(framer_visitor_, OnPacketComplete);
+    server_framer_.ProcessPacket(encrypted_packet);
+  }
+
+  // Returns the number of bytes consumed by the SCONE header in |buffer|. If
+  // |long_header_follows|, the source connection ID will be non-empty. Returns
+  // 0 if the packet does not start with a SCONE header. Will fail an EXPECT if
+  // it's a SCONE header but the CIDs aren't right, or reading fails.
+  size_t CheckSconeHeader(const char* buffer, size_t length,
+                          bool long_header_follows) {
+    QuicDataReader reader(buffer, length);
+    uint8_t first_byte;
+    EXPECT_TRUE(reader.ReadUInt8(&first_byte));
+    if (first_byte != 255) {
+      return 0;
+    }
+    QuicVersionLabel version_label;
+    EXPECT_TRUE(reader.ReadUInt32(&version_label));
+    if (version_label != kSconeVersionHigh) {
+      return 0;
+    }
+    // This is a SCONE header. Verify the CIDs and return the size.
+    QuicConnectionId dest_cid, source_cid;
+    EXPECT_TRUE(reader.ReadLengthPrefixedConnectionId(&dest_cid));
+    EXPECT_TRUE(reader.ReadLengthPrefixedConnectionId(&source_cid));
+    EXPECT_EQ(creator_.GetDestinationConnectionId(), dest_cid);
+    if (long_header_follows) {
+      EXPECT_EQ(creator_.GetSourceConnectionId(), source_cid);
+    } else {
+      EXPECT_EQ(source_cid, EmptyQuicConnectionId());
+    }
+    return length - reader.BytesRemaining();
+  }
+  size_t CheckSconeHeader(SerializedPacket& packet, bool long_header_follows) {
+    return CheckSconeHeader(packet.encrypted_buffer, packet.encrypted_length,
+                            long_header_follows);
+  }
+
+  bool LastTwoBytesAreSconeIndicator(const char* buffer, size_t length) {
+    return (buffer[length - 2] == ((kSconeIndicator & 0xff00) >> 8) &&
+            buffer[length - 1] == (kSconeIndicator & 0xff));
   }
 
   void TestChaosProtection(bool enabled);
@@ -4534,6 +4591,244 @@ TEST_P(QuicPacketCreatorTest, InitialPacketBufferOverflow) {
   }
   SetQuicReloadableFlag(quic_clear_packet_on_serialization_failure, true);
   creator_.SetMaxPacketLength(kMaxOutgoingPacketSize);
+  QuicCoalescedPacket coalesced;
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_INITIAL));
+  char buffer[kMaxOutgoingPacketSize];
+  EXPECT_CALL(framer_visitor_, OnError);
+  EXPECT_CALL(delegate_, OnUnrecoverableError);
+  EXPECT_QUIC_BUG(creator_.SerializeCoalescedPacket(coalesced, buffer,
+                                                    kMaxOutgoingPacketSize - 1),
+                  "Client: Failed to encrypt packet number 1");
+}
+
+TEST_P(QuicPacketCreatorTest, SendSconeIndicatorInClientInitial) {
+  if (!VersionIsIetfQuic(creator_.transport_version())) {
+    return;
+  }
+  QuicCoalescedPacket coalesced;
+  char buffer[kMaxOutgoingPacketSize];
+  creator_.IndicateSconeSupport();
+  // INITIAL packet has the SCONE indicator.
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_INITIAL));
+  size_t length =
+      creator_.SerializeCoalescedPacket(coalesced, buffer, sizeof(buffer));
+  EXPECT_EQ(creator_.max_packet_length() + kSconeIndicatorLength, length);
+  EXPECT_TRUE(LastTwoBytesAreSconeIndicator(buffer, length));
+  CheckPacketIsDecrypted(buffer, length);
+  coalesced.Clear();
+
+  // HANDSHAKE packet clears the indicator.
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_HANDSHAKE));
+  length = creator_.SerializeCoalescedPacket(coalesced, buffer, sizeof(buffer));
+  EXPECT_FALSE(LastTwoBytesAreSconeIndicator(buffer, length));
+  CheckPacketIsDecrypted(buffer, length);
+}
+
+TEST_P(QuicPacketCreatorTest,
+       SendSconeIndicatorInClientInitialAndZeroRttCoalesced) {
+  if (!VersionIsIetfQuic(creator_.transport_version())) {
+    return;
+  }
+  creator_.IndicateSconeSupport();
+  QuicCoalescedPacket coalesced;
+  char buffer[kMaxOutgoingPacketSize];
+
+  // Send an INITIAL + 0-RTT packet.
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_INITIAL));
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_ZERO_RTT));
+  size_t length =
+      creator_.SerializeCoalescedPacket(coalesced, buffer, sizeof(buffer));
+  EXPECT_EQ(creator_.max_packet_length() + kSconeIndicatorLength, length);
+  // No indicator after the INITIAL packet.
+  EXPECT_FALSE(LastTwoBytesAreSconeIndicator(
+      buffer, coalesced.initial_packet()->encrypted_length));
+  EXPECT_TRUE(LastTwoBytesAreSconeIndicator(buffer, length));
+  coalesced.Clear();
+
+  // Send another 0-RTT packet. Verify this also has the SCONE indicator.
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_ZERO_RTT));
+  length = creator_.SerializeCoalescedPacket(coalesced, buffer, sizeof(buffer));
+  EXPECT_TRUE(LastTwoBytesAreSconeIndicator(buffer, length));
+}
+
+TEST_P(QuicPacketCreatorTest, NoSconeIndicatorInInitialAndHandshakeCoalesced) {
+  if (!VersionIsIetfQuic(creator_.transport_version())) {
+    return;
+  }
+  creator_.IndicateSconeSupport();
+  QuicCoalescedPacket coalesced;
+  coalesced.AllowMaxPacketLengthToIncrease();
+  char buffer[kMaxOutgoingPacketSize];
+
+  // Send an INITIAL + Handshake packet.
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_INITIAL));
+  // This call will turn off the SCONE indicator.
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_HANDSHAKE));
+  size_t length =
+      creator_.SerializeCoalescedPacket(coalesced, buffer, sizeof(buffer));
+  EXPECT_EQ(creator_.max_packet_length(), length);
+  // No indicator after the INITIAL packet.
+  EXPECT_FALSE(LastTwoBytesAreSconeIndicator(
+      buffer, coalesced.initial_packet()->encrypted_length));
+  EXPECT_FALSE(LastTwoBytesAreSconeIndicator(buffer, length));
+}
+
+TEST_P(QuicPacketCreatorTest, SendSconeBeforeLongHeader) {
+  if (!VersionIsIetfQuic(creator_.transport_version())) {
+    return;
+  }
+  // Use up the whole encrypted_buffer so that accounting for SCONE matters.
+  creator_.SetMaxPacketLength(kMaxOutgoingPacketSize);
+  creator_.PrependSconePacket();
+  creator_.AddPaddedSavedFrame(QuicFrame(QuicPingFrame()), NOT_RETRANSMISSION);
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  creator_.FlushCurrentPacket();
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+
+  size_t scone_header_len = CheckSconeHeader(*serialized_packet_,
+                                             /*long_header_follows=*/true);
+  EXPECT_GT(scone_header_len, 0u);
+  CheckPacketIsDecrypted(
+      serialized_packet_->encrypted_buffer + scone_header_len,
+      serialized_packet_->encrypted_length - scone_header_len);
+
+  // Next packet doesn't have a SCONE header.
+  creator_.AddFrame(QuicFrame(QuicPingFrame()), NOT_RETRANSMISSION);
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  creator_.FlushCurrentPacket();
+  EXPECT_EQ(CheckSconeHeader(*serialized_packet_, /*long_header_follows=*/true),
+            0u);
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  EXPECT_NE(serialized_packet_->encrypted_buffer[0], 0xff);
+  CheckPacketIsDecrypted(serialized_packet_->encrypted_buffer,
+                         serialized_packet_->encrypted_length);
+}
+
+TEST_P(QuicPacketCreatorTest, SendSconeWithMaxSizePacket) {
+  if (!VersionIsIetfQuic(creator_.transport_version())) {
+    return;
+  }
+  creator_.PrependSconePacket();
+  creator_.AddPaddedSavedFrame(QuicFrame(QuicPingFrame()), NOT_RETRANSMISSION);
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  creator_.FlushCurrentPacket();
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  EXPECT_GT(CheckSconeHeader(*serialized_packet_,
+                             /*long_header_follows=*/true),
+            0u);
+  EXPECT_EQ(serialized_packet_->encrypted_length, creator_.max_packet_length());
+}
+
+TEST_P(QuicPacketCreatorTest, SendSconeBeforeShortHeader) {
+  if (!VersionIsIetfQuic(creator_.transport_version())) {
+    return;
+  }
+  creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  creator_.PrependSconePacket();
+
+  const size_t data_len = kDefaultMaxPacketSize;
+  const std::string data(data_len, '?');
+  QuicFrame frame;
+  QuicStreamId stream_id = QuicUtils::GetFirstBidirectionalStreamId(
+      client_framer_.transport_version(), Perspective::IS_CLIENT);
+  ASSERT_TRUE(creator_.ConsumeDataToFillCurrentPacket(
+      stream_id, data, 0u, false, false, NOT_RETRANSMISSION, &frame));
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  creator_.Flush();
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  const size_t scone_header_len =
+      CheckSconeHeader(*serialized_packet_, /*long_header_follows=*/false);
+  EXPECT_GT(scone_header_len, 0u);
+  // Verify the Short header packet decrypts.
+  EXPECT_EQ(kDefaultMaxPacketSize, serialized_packet_->encrypted_length);
+  EXPECT_CALL(framer_visitor_, OnStreamFrame).WillOnce(Return(true));
+  CheckPacketIsDecrypted(
+      serialized_packet_->encrypted_buffer + scone_header_len,
+      serialized_packet_->encrypted_length - scone_header_len);
+
+  // Check that packet 2 is not SCONE.
+  creator_.AddFrame(QuicFrame(QuicPingFrame()), NOT_RETRANSMISSION);
+  EXPECT_CALL(delegate_, OnSerializedPacket(_))
+      .WillOnce(Invoke(this, &QuicPacketCreatorTest::SaveSerializedPacket));
+  creator_.Flush();
+  EXPECT_EQ(
+      CheckSconeHeader(*serialized_packet_, /*long_header_follows=*/false), 0u);
+  ASSERT_TRUE(serialized_packet_->encrypted_buffer);
+  CheckPacketIsDecrypted(serialized_packet_->encrypted_buffer,
+                         serialized_packet_->encrypted_length);
+}
+
+TEST_P(QuicPacketCreatorTest, CoalescedHandshakeAndForwardSecureWithScone) {
+  if (!VersionIsIetfQuic(creator_.transport_version())) {
+    return;
+  }
+  creator_.PrependSconePacket();
+  QuicCoalescedPacket coalesced;
+
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_HANDSHAKE));
+  size_t forward_secure_offset = serialized_packet_->encrypted_length;
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_FORWARD_SECURE));
+  char buffer[kMaxOutgoingPacketSize];
+  size_t length =
+      creator_.SerializeCoalescedPacket(coalesced, buffer, sizeof(buffer));
+  ASSERT_GT(length, 0u);
+
+  // Verify SCONE header is at the beginning.
+  EXPECT_GT(CheckSconeHeader(buffer, forward_secure_offset,
+                             /*long_header_follows=*/true),
+            0u);
+
+  // Verify no other SCONE header.
+  EXPECT_EQ(CheckSconeHeader(buffer + forward_secure_offset,
+                             length - forward_secure_offset,
+                             /*long_header_follows=*/false),
+            0u);
+}
+
+TEST_P(QuicPacketCreatorTest, CannotPrependSconeWithQueuedFrames) {
+  if (!VersionIsIetfQuic(creator_.transport_version())) {
+    return;
+  }
+  creator_.AddFrame(QuicFrame(QuicPingFrame()), NOT_RETRANSMISSION);
+  EXPECT_QUIC_BUG(creator_.PrependSconePacket(),
+                  "Cannot send SCONE packet with queued frames");
+}
+
+// The server can send SCONE packets with Initial packets. This follows a
+// different serialization path than non-Initial packets: in
+// SerializeCoalescedPacket(), the packet is reserialized. Therefore, it needs
+// its own test.
+// Using the client packet creator, while not something that can actually
+// happen, causes it to automatically add padding so we can easily check that
+// packet size is managed correctly.
+TEST_P(QuicPacketCreatorTest, SconePacketWithInitialPacket) {
+  if (!VersionIsIetfQuic(creator_.transport_version())) {
+    return;
+  }
+  creator_.SetMaxPacketLength(kMaxOutgoingPacketSize);
+  creator_.PrependSconePacket();
+  QuicCoalescedPacket coalesced;
+  EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_INITIAL));
+  char buffer[kMaxOutgoingPacketSize];
+  size_t length = creator_.SerializeCoalescedPacket(coalesced, buffer,
+                                                    kMaxOutgoingPacketSize);
+  EXPECT_EQ(length, kMaxOutgoingPacketSize);
+  EXPECT_GT(CheckSconeHeader(buffer, sizeof(buffer),
+                             /*long_header_follows=*/true),
+            0u);
+}
+
+TEST_P(QuicPacketCreatorTest, SconePacketWithInitialPacketBufferOverflow) {
+  if (!VersionIsIetfQuic(creator_.transport_version())) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_clear_packet_on_serialization_failure, true);
+  creator_.SetMaxPacketLength(kMaxOutgoingPacketSize);
+  creator_.PrependSconePacket();
   QuicCoalescedPacket coalesced;
   EXPECT_TRUE(BuildAndCoalescePacket(coalesced, ENCRYPTION_INITIAL));
   char buffer[kMaxOutgoingPacketSize];

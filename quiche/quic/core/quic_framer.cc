@@ -51,6 +51,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
+#include "quiche/quic/core/scone.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_client_stats.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
@@ -1993,6 +1994,37 @@ EncryptionLevel QuicFramer::GetEncryptionLevelToSendApplicationData() const {
   }
   QUICHE_DCHECK(HasEncrypterOfEncryptionLevel(ENCRYPTION_ZERO_RTT));
   return ENCRYPTION_ZERO_RTT;
+}
+
+// Appends the SCONE header from
+// https://www.ietf.org/archive/id/draft-ietf-scone-protocol-04.html
+bool QuicFramer::AppendSconeHeader(const QuicPacketHeader& header,
+                                   QuicDataWriter* writer) {
+  // The most significant bit (0x80) of the packet indicates that this is a QUIC
+  // long header packet. The subsequent bits (0x7F) indicate unknown throughput
+  // advice as specified by the "high rate signal" QUIC version.
+  QUICHE_DCHECK_EQ(writer->length(), 0ULL);
+  if (!writer->WriteUInt8(255)) {
+    return false;
+  }
+  if (!writer->WriteUInt32(kSconeVersionHigh)) {
+    return false;
+  }
+  if (!writer->WriteLengthPrefixedConnectionId(
+          header.destination_connection_id)) {
+    return false;
+  }
+  if (header.version_flag) {
+    if (!writer->WriteLengthPrefixedConnectionId(header.source_connection_id)) {
+      return false;
+    }
+  } else {
+    // If a short header follows, don't write the source connection ID.
+    if (!writer->WriteLengthPrefixedConnectionId(EmptyQuicConnectionId())) {
+      return false;
+    }
+  }
+  return true;
 }
 
 bool QuicFramer::AppendIetfHeaderTypeByte(const QuicPacketHeader& header,
@@ -6808,6 +6840,8 @@ QuicErrorCode QuicFramer::ParsePublicHeader(
 
   if (!parsed_version->IsKnown()) {
     // Skip parsing of long packet type and retry token for unknown versions.
+    // Scone packets, whether or not they are being processed, also are not
+    // parseable beyond the connection ID.
     return QUIC_NO_ERROR;
   }
 

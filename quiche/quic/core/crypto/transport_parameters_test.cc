@@ -202,6 +202,10 @@ TEST_P(TransportParametersTest, Comparator) {
   new_params.disable_active_migration = true;
   orig_params.reliable_stream_reset = true;
   new_params.reliable_stream_reset = true;
+  orig_params.scone_supported = true;
+  new_params.scone_supported = false;
+  EXPECT_NE(orig_params, new_params);
+  new_params.scone_supported = true;
   EXPECT_EQ(orig_params, new_params);
   EXPECT_TRUE(orig_params == new_params);
   EXPECT_FALSE(orig_params != new_params);
@@ -303,6 +307,7 @@ TEST_P(TransportParametersTest, CopyConstructor) {
   orig_params.min_ack_delay_us_draft10 = kMinAckDelayUsForTest;
   orig_params.disable_active_migration = kFakeDisableMigration;
   orig_params.reliable_stream_reset = kFakeReliableStreamReset;
+  orig_params.scone_supported = true;
   orig_params.preferred_address = CreateFakePreferredAddress();
   orig_params.active_connection_id_limit.set_value(
       kActiveConnectionIdLimitForTest);
@@ -348,6 +353,7 @@ TEST_P(TransportParametersTest, RoundTripClient) {
   orig_params.min_ack_delay_us_draft10 = kMinAckDelayUsForTest;
   orig_params.disable_active_migration = kFakeDisableMigration;
   orig_params.reliable_stream_reset = kFakeReliableStreamReset;
+  orig_params.scone_supported = true;
   orig_params.active_connection_id_limit.set_value(
       kActiveConnectionIdLimitForTest);
   orig_params.initial_source_connection_id =
@@ -409,6 +415,7 @@ TEST_P(TransportParametersTest, RoundTripServer) {
   orig_params.min_ack_delay_us_draft10 = kMinAckDelayUsForTest;
   orig_params.disable_active_migration = kFakeDisableMigration;
   orig_params.reliable_stream_reset = kFakeReliableStreamReset;
+  orig_params.scone_supported = true;
   orig_params.preferred_address = CreateFakePreferredAddress();
   orig_params.active_connection_id_limit.set_value(
       kActiveConnectionIdLimitForTest);
@@ -651,6 +658,9 @@ TEST_P(TransportParametersTest, ParseClientParams) {
       0x01, 0x23, 0x45, 0x67,  // chosen version
       0x01, 0x23, 0x45, 0x67,  // other version 1
       0x89, 0xab, 0xcd, 0xef,  // other version 2
+      // scone_supported
+      0x61, 0x9e,  // parameter id
+      0x00,  // length
   };
   // clang-format on
   const uint8_t* client_params =
@@ -715,6 +725,7 @@ TEST_P(TransportParametersTest, ParseClientParams) {
             new_params.google_handshake_message);
 
   EXPECT_EQ(kFakeSni, new_params.debugging_sni);
+  EXPECT_TRUE(new_params.scone_supported);
 }
 
 TEST_P(TransportParametersTest,

@@ -1057,6 +1057,7 @@ void QuicConfig::SetDefaults() {
   SetMaxPacketSizeToSend(kMaxIncomingPacketSize);
   SetMaxDatagramFrameSizeToSend(kMaxAcceptedDatagramFrameSize);
   SetReliableStreamReset(false);
+  scone_packet_interval_ = QuicTimeDelta::Zero();
 }
 
 void QuicConfig::ToHandshakeMessage(
@@ -1450,6 +1451,10 @@ QuicErrorCode QuicConfig::ProcessTransportParameters(
 
   if (reliable_stream_reset_) {
     reliable_stream_reset_ = params.reliable_stream_reset;
+  }
+
+  if (!params.scone_supported) {
+    scone_packet_interval_ = QuicTimeDelta::Zero();
   }
 
   if (!is_resumption) {

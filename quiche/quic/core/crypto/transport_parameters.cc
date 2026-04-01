@@ -81,6 +81,9 @@ enum TransportParameters::TransportParameterId : uint64_t {
   // https://github.com/quicwg/base-drafts/wiki/Quantum-Readiness-test
   kDiscard = 0x173E,
 
+  // https://www.ietf.org/archive/id/draft-ietf-scone-protocol-04.html
+  kSconeSupported = 0x219e,
+
   kGoogleHandshakeMessage = 0x26ab,
   kDebuggingSni = 0x219bbcd0,
 
@@ -158,6 +161,8 @@ std::string TransportParameterIdToString(
       return "max_datagram_frame_size";
     case TransportParameters::kDiscard:
       return "discard";
+    case TransportParameters::kSconeSupported:
+      return "scone_supported";
     case TransportParameters::kGoogleHandshakeMessage:
       return "google_handshake_message";
     case TransportParameters::kDebuggingSni:
@@ -245,6 +250,7 @@ bool TransportParameterIdIsKnown(
     case TransportParameters::kRetrySourceConnectionId:
     case TransportParameters::kMaxDatagramFrameSize:
     case TransportParameters::kDiscard:
+    case TransportParameters::kSconeSupported:
     case TransportParameters::kGoogleHandshakeMessage:
     case TransportParameters::kDebuggingSni:
     case TransportParameters::kInitialRoundTripTime:
@@ -480,6 +486,9 @@ std::string TransportParameters::ToString() const {
   if (reliable_stream_reset) {
     rv += " " + TransportParameterIdToString(kReliableStreamReset);
   }
+  if (scone_supported) {
+    rv += " " + TransportParameterIdToString(kSconeSupported);
+  }
   if (preferred_address) {
     rv += " " + TransportParameterIdToString(kPreferredAddress) + " " +
           preferred_address->ToString();
@@ -557,6 +566,7 @@ TransportParameters::TransportParameters()
                                  kMinActiveConnectionIdLimitTransportParam,
                                  quiche::kVarInt62MaxValue),
       max_datagram_frame_size(kMaxDatagramFrameSize),
+      scone_supported(false),
       initial_round_trip_time_us(kInitialRoundTripTime),
       disable_active_migration(false),
       reliable_stream_reset(false)
@@ -589,6 +599,7 @@ TransportParameters::TransportParameters(const TransportParameters& other)
       initial_source_connection_id(other.initial_source_connection_id),
       retry_source_connection_id(other.retry_source_connection_id),
       max_datagram_frame_size(other.max_datagram_frame_size),
+      scone_supported(other.scone_supported),
       initial_round_trip_time_us(other.initial_round_trip_time_us),
       google_handshake_message(other.google_handshake_message),
       discard_length(other.discard_length),
@@ -635,6 +646,7 @@ bool TransportParameters::operator==(const TransportParameters& rhs) const {
         max_datagram_frame_size.value() ==
             rhs.max_datagram_frame_size.value() &&
         reliable_stream_reset == rhs.reliable_stream_reset &&
+        scone_supported == rhs.scone_supported &&
         initial_round_trip_time_us.value() ==
             rhs.initial_round_trip_time_us.value() &&
         discard_length == rhs.discard_length &&
@@ -840,6 +852,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       kConnectionIdParameterLength +      // retry_source_connection_id
       kIntegerParameterLength +           // max_datagram_frame_size
       kTypeAndValueLength +               // reliable_stream_reset
+      kTypeAndValueLength +               // scone_supported
       kIntegerParameterLength +           // initial_round_trip_time_us
       kTypeAndValueLength +               // discard
       kTypeAndValueLength +               // google_handshake_message
@@ -865,6 +878,7 @@ bool SerializeTransportParameters(const TransportParameters& in,
       TransportParameters::kMaxDatagramFrameSize,
       TransportParameters::kReliableStreamReset,
       TransportParameters::kDiscard,
+      TransportParameters::kSconeSupported,
       TransportParameters::kGoogleHandshakeMessage,
       TransportParameters::kDebuggingSni,
       TransportParameters::kInitialRoundTripTime,
@@ -1166,6 +1180,17 @@ bool SerializeTransportParameters(const TransportParameters& in,
               !writer.WriteVarInt62(/* transport parameter length */ 0)) {
             QUIC_BUG(Failed to write reliable_stream_reset)
                 << "Failed to write reliable_stream_reset for " << in;
+            return false;
+          }
+        }
+      } break;
+      // scone_supported
+      case TransportParameters::kSconeSupported: {
+        if (in.scone_supported) {
+          if (!writer.WriteVarInt62(TransportParameters::kSconeSupported) ||
+              !writer.WriteVarInt62(/* transport parameter length */ 0)) {
+            QUIC_BUG(failed_to_write_scone_supported)
+                << "Failed to write scone_supported for " << in;
             return false;
           }
         }
@@ -1609,6 +1634,13 @@ bool ParseTransportParameters(ParsedQuicVersion version,
           return false;
         }
         out->reliable_stream_reset = true;
+        break;
+      case TransportParameters::kSconeSupported:
+        if (out->scone_supported) {
+          *error_details = "Received a second scone_supported";
+          return false;
+        }
+        out->scone_supported = true;
         break;
       case TransportParameters::kGoogleConnectionOptions: {
         if (out->google_connection_options.has_value()) {

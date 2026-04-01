@@ -385,6 +385,7 @@ quiche_core_hdrs = [
     "quic/core/quic_version_manager.h",
     "quic/core/quic_versions.h",
     "quic/core/quic_write_blocked_list.h",
+    "quic/core/scone.h",
     "quic/core/session_notifier_interface.h",
     "quic/core/socket_factory.h",
     "quic/core/stream_delegate_interface.h",

@@ -4,11 +4,23 @@
 
 #include "quiche/quic/core/quic_coalesced_packet.h"
 
+#include <cstddef>
+#include <cstring>
 #include <string>
 
+#include "quiche/quic/core/frames/quic_ack_frame.h"
+#include "quiche/quic/core/frames/quic_frame.h"
+#include "quiche/quic/core/frames/quic_padding_frame.h"
+#include "quiche/quic/core/frames/quic_stream_frame.h"
+#include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
+#include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace quic {
@@ -95,7 +107,7 @@ TEST(QuicCoalescedPacketTest, MaybeCoalescePacket) {
   EXPECT_QUIC_BUG(
       coalesced.MaybeCoalescePacket(packet6, self_address, peer_address,
                                     &allocator, 1000, ECN_NOT_ECT, 0),
-      "Max packet length changes in the middle of the write path");
+      "Max packet length shrinks in the middle of the write path");
   EXPECT_EQ(1500u, coalesced.max_packet_length());
   EXPECT_EQ(1000u, coalesced.length());
   EXPECT_EQ(2u, coalesced.NumberOfPackets());
@@ -251,6 +263,39 @@ TEST(QuicCoalescedPacketTest, DoNotCoalesceDifferentEcn) {
   EXPECT_FALSE(coalesced.MaybeCoalescePacket(
       packet2, self_address, peer_address, &allocator, 1500, ECN_NOT_ECT, 0));
   EXPECT_EQ(coalesced.ecn_codepoint(), ECN_ECT1);
+}
+
+TEST(QuicCoalescedPacketTest, AllowMaxPacketLengthToIncrease) {
+  QuicCoalescedPacket coalesced;
+  quiche::SimpleBufferAllocator allocator;
+  char buffer[1000];
+  QuicSocketAddress self_address(QuicIpAddress::Loopback4(), 1);
+  QuicSocketAddress peer_address(QuicIpAddress::Loopback4(), 2);
+  SerializedPacket packet1(QuicPacketNumber(1), PACKET_4BYTE_PACKET_NUMBER,
+                           buffer, 500, false, false);
+  ASSERT_TRUE(coalesced.MaybeCoalescePacket(packet1, self_address, peer_address,
+                                            &allocator, 1500, ECN_NOT_ECT, 0));
+  EXPECT_EQ(1500u, coalesced.max_packet_length());
+
+  SerializedPacket packet2(QuicPacketNumber(2), PACKET_4BYTE_PACKET_NUMBER,
+                           buffer, 500, false, false);
+  packet2.encryption_level = ENCRYPTION_ZERO_RTT;
+
+  // Max packet length increases.
+  EXPECT_QUIC_BUG(
+      coalesced.MaybeCoalescePacket(packet2, self_address, peer_address,
+                                    &allocator, 1600, ECN_NOT_ECT, 0),
+      "Max packet length increases in the middle of the write path");
+  EXPECT_EQ(1600u, coalesced.max_packet_length());
+
+  // Allow max packet length to increase.
+  coalesced.AllowMaxPacketLengthToIncrease();
+  SerializedPacket packet3(QuicPacketNumber(3), PACKET_4BYTE_PACKET_NUMBER,
+                           buffer, 500, false, false);
+  packet3.encryption_level = ENCRYPTION_FORWARD_SECURE;
+  EXPECT_TRUE(coalesced.MaybeCoalescePacket(packet3, self_address, peer_address,
+                                            &allocator, 1700, ECN_NOT_ECT, 0));
+  EXPECT_EQ(1700u, coalesced.max_packet_length());
 }
 
 }  // namespace
