@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_TEST_TOOLS_QUIC_TEST_BACKEND_H_
 #define QUICHE_QUIC_TEST_TOOLS_QUIC_TEST_BACKEND_H_
 
+#include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/tools/quic_memory_cache_backend.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -20,11 +21,19 @@ class QuicTestBackend : public QuicMemoryCacheBackend {
   WebTransportResponse ProcessWebTransportRequest(
       const quiche::HttpHeaderBlock& request_headers,
       WebTransportSession* session) override;
-  bool SupportsWebTransport() override { return enable_webtransport_; }
+  bool SupportsWebTransport() override { return wt_versions_.Any(); }
+  WebTransportHttp3VersionSet SupportedWebTransportVersions() override {
+    return wt_versions_;
+  }
 
   void set_enable_webtransport(bool enable_webtransport) {
     QUICHE_DCHECK(!enable_webtransport || enable_extended_connect_);
-    enable_webtransport_ = enable_webtransport;
+    wt_versions_ = enable_webtransport ? kDefaultSupportedWebTransportVersions
+                                       : WebTransportHttp3VersionSet();
+  }
+  void set_supported_web_transport_versions(
+      WebTransportHttp3VersionSet versions) {
+    wt_versions_ = versions;
   }
 
   bool SupportsExtendedConnect() override { return enable_extended_connect_; }
@@ -34,7 +43,7 @@ class QuicTestBackend : public QuicMemoryCacheBackend {
   }
 
  private:
-  bool enable_webtransport_ = false;
+  WebTransportHttp3VersionSet wt_versions_;
   bool enable_extended_connect_ = true;
 };
 
