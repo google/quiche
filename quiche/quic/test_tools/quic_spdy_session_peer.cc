@@ -119,5 +119,13 @@ void QuicSpdySessionPeer::EnableWebTransport(QuicSpdySession* session) {
   session->peer_web_transport_versions_ = kDefaultSupportedWebTransportVersions;
 }
 
+// static
+void QuicSpdySessionPeer::EnableWebTransport(
+    QuicSpdySession* session, WebTransportHttp3VersionSet versions) {
+  QUICHE_DCHECK(session->WillNegotiateWebTransport());
+  SetHttpDatagramSupport(session, HttpDatagramSupport::kRfc);
+  session->peer_web_transport_versions_ = versions;
+}
+
 }  // namespace test
 }  // namespace quic
