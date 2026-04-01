@@ -67,6 +67,16 @@ std::string CapsuleTypeToString(CapsuleType capsule_type) {
       return "WT_MAX_STREAMS_BIDI";
     case CapsuleType::WT_MAX_STREAMS_UNIDI:
       return "WT_MAX_STREAMS_UNIDI";
+    case CapsuleType::WT_MAX_DATA:
+      return "WT_MAX_DATA";
+    case CapsuleType::WT_DATA_BLOCKED:
+      return "WT_DATA_BLOCKED";
+    case CapsuleType::WT_STREAM_DATA_BLOCKED:
+      return "WT_STREAM_DATA_BLOCKED";
+    case CapsuleType::WT_STREAMS_BLOCKED_BIDI:
+      return "WT_STREAMS_BLOCKED_BIDI";
+    case CapsuleType::WT_STREAMS_BLOCKED_UNIDI:
+      return "WT_STREAMS_BLOCKED_UNIDI";
     case CapsuleType::COMPRESSION_ASSIGN:
       return "COMPRESSION_ASSIGN";
     case CapsuleType::COMPRESSION_CLOSE:
@@ -229,6 +239,24 @@ std::string WebTransportMaxStreamsCapsule::ToString() const {
                       " (max_streams=", max_stream_count, ")");
 }
 
+std::string WebTransportMaxDataCapsule::ToString() const {
+  return absl::StrCat("WT_MAX_DATA (max_data=", max_data, ")");
+}
+
+std::string WebTransportDataBlockedCapsule::ToString() const {
+  return absl::StrCat("WT_DATA_BLOCKED (data_limit=", data_limit, ")");
+}
+
+std::string WebTransportStreamDataBlockedCapsule::ToString() const {
+  return absl::StrCat("WT_STREAM_DATA_BLOCKED (stream_id=", stream_id,
+                      ", stream_data_limit=", stream_data_limit, ")");
+}
+
+std::string WebTransportStreamsBlockedCapsule::ToString() const {
+  return absl::StrCat(CapsuleTypeToString(capsule_type()),
+                      " (stream_limit=", stream_limit, ")");
+}
+
 std::string Capsule::ToString() const {
   return std::visit([](const auto& capsule) { return capsule.ToString(); },
                     capsule_);
@@ -375,6 +403,27 @@ absl::StatusOr<quiche::QuicheBuffer> SerializeCapsuleWithStatus(
       return SerializeCapsuleFields(
           capsule.capsule_type(), allocator,
           WireVarInt62(capsule.web_transport_max_streams().max_stream_count));
+    case CapsuleType::WT_MAX_DATA:
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireVarInt62(capsule.web_transport_max_data().max_data));
+    case CapsuleType::WT_DATA_BLOCKED:
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireVarInt62(capsule.web_transport_data_blocked().data_limit));
+    case CapsuleType::WT_STREAM_DATA_BLOCKED:
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireVarInt62(
+              capsule.web_transport_stream_data_blocked().stream_id),
+          WireVarInt62(
+              capsule.web_transport_stream_data_blocked().stream_data_limit));
+    case CapsuleType::WT_STREAMS_BLOCKED_BIDI:
+    case CapsuleType::WT_STREAMS_BLOCKED_UNIDI:
+      return SerializeCapsuleFields(
+          capsule.capsule_type(), allocator,
+          WireVarInt62(
+              capsule.web_transport_streams_blocked().stream_limit));
     case CapsuleType::COMPRESSION_ASSIGN:
       QUICHE_DCHECK(capsule.compression_assign_capsule().ip_address_port ==
                         quiche::QuicheSocketAddress() ||
@@ -702,6 +751,44 @@ absl::StatusOr<Capsule> ParseCapsulePayload(QuicheDataReader& reader,
       }
       return Capsule(std::move(capsule));
     }
+    case CapsuleType::WT_MAX_DATA: {
+      WebTransportMaxDataCapsule capsule;
+      if (!reader.ReadVarInt62(&capsule.max_data)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse the max data field");
+      }
+      return Capsule(std::move(capsule));
+    }
+    case CapsuleType::WT_DATA_BLOCKED: {
+      WebTransportDataBlockedCapsule capsule;
+      if (!reader.ReadVarInt62(&capsule.data_limit)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse the data blocked limit field");
+      }
+      return Capsule(std::move(capsule));
+    }
+    case CapsuleType::WT_STREAM_DATA_BLOCKED: {
+      WebTransportStreamDataBlockedCapsule capsule;
+      QUICHE_RETURN_IF_ERROR(
+          ReadWebTransportStreamId(reader, capsule.stream_id));
+      if (!reader.ReadVarInt62(&capsule.stream_data_limit)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse the stream data blocked limit field");
+      }
+      return Capsule(std::move(capsule));
+    }
+    case CapsuleType::WT_STREAMS_BLOCKED_UNIDI:
+    case CapsuleType::WT_STREAMS_BLOCKED_BIDI: {
+      WebTransportStreamsBlockedCapsule capsule;
+      capsule.stream_type = type == CapsuleType::WT_STREAMS_BLOCKED_UNIDI
+                                ? webtransport::StreamType::kUnidirectional
+                                : webtransport::StreamType::kBidirectional;
+      if (!reader.ReadVarInt62(&capsule.stream_limit)) {
+        return absl::InvalidArgumentError(
+            "Failed to parse the streams blocked limit field");
+      }
+      return Capsule(std::move(capsule));
+    }
     case CapsuleType::COMPRESSION_ASSIGN: {
       CompressionAssignCapsule capsule;
       if (!reader.ReadVarInt62(&capsule.context_id)) {
@@ -877,6 +964,28 @@ bool WebTransportMaxStreamsCapsule::operator==(
     const WebTransportMaxStreamsCapsule& other) const {
   return stream_type == other.stream_type &&
          max_stream_count == other.max_stream_count;
+}
+
+bool WebTransportMaxDataCapsule::operator==(
+    const WebTransportMaxDataCapsule& other) const {
+  return max_data == other.max_data;
+}
+
+bool WebTransportDataBlockedCapsule::operator==(
+    const WebTransportDataBlockedCapsule& other) const {
+  return data_limit == other.data_limit;
+}
+
+bool WebTransportStreamDataBlockedCapsule::operator==(
+    const WebTransportStreamDataBlockedCapsule& other) const {
+  return stream_id == other.stream_id &&
+         stream_data_limit == other.stream_data_limit;
+}
+
+bool WebTransportStreamsBlockedCapsule::operator==(
+    const WebTransportStreamsBlockedCapsule& other) const {
+  return stream_type == other.stream_type &&
+         stream_limit == other.stream_limit;
 }
 
 }  // namespace quiche

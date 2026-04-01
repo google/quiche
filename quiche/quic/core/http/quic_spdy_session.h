@@ -143,6 +143,8 @@ enum class WebTransportHttp3Version : uint8_t {
   // See the changelog in the appendix for differences between draft-02 and
   // draft-07.
   kDraft07,
+  // <https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-15.html>
+  kDraft15,
 };
 using WebTransportHttp3VersionSet = BitMask<WebTransportHttp3Version, uint8_t>;
 
