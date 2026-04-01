@@ -5618,6 +5618,7 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
 }
 
 void QuicConnection::OnConnectionMigration() {
+  QUICHE_DCHECK_EQ(perspective_, Perspective::IS_SERVER);
   if (debug_visitor_ != nullptr) {
     const QuicTime now = clock_->ApproximateNow();
     if (now >= stats_.handshake_completion_time) {
