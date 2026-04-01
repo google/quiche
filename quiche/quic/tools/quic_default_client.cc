@@ -229,12 +229,12 @@ std::unique_ptr<QuicSession> QuicDefaultClient::CreateQuicClientSession(
         static_cast<QuicForceBlockablePacketWriter*>(connection->writer()),
         migration_helper_.get(), migration_config_, network_helper(),
         server_id(), crypto_config(), drop_response_body(),
-        enable_web_transport());
+        supported_web_transport_versions());
   }
   return std::make_unique<QuicSimpleClientSession>(
       *config(), supported_versions, connection, this, network_helper(),
       server_id(), crypto_config(), drop_response_body(),
-      enable_web_transport());
+      supported_web_transport_versions());
 }
 
 QuicClientDefaultNetworkHelper* QuicDefaultClient::default_network_helper() {
