@@ -62,8 +62,29 @@ WebTransportHttp3::WebTransportHttp3(QuicSpdySession* session,
   connect_stream_->RegisterHttp3DatagramVisitor(this);
 }
 
+void WebTransportHttp3::SetWebTransportSessionOnAdapter(
+    QuicStreamId stream_id) {
+  QuicStream* stream = session_->GetActiveStream(stream_id);
+  if (stream == nullptr) {
+    return;
+  }
+  if (QuicUtils::IsBidirectionalStreamId(stream_id, session_->version())) {
+    auto* spdy_stream = static_cast<QuicSpdyStream*>(stream);
+    if (spdy_stream->web_transport_stream_adapter() != nullptr) {
+      spdy_stream->web_transport_stream_adapter()
+          ->SetWebTransportSession(this);
+    }
+  } else {
+    static_cast<WebTransportHttp3UnidirectionalStream*>(stream)
+        ->SetWebTransportSession(this);
+  }
+}
+
 void WebTransportHttp3::AssociateStream(QuicStreamId stream_id) {
   streams_.insert(stream_id);
+
+  // Set direct WT session pointer on the stream's adapter for FC.
+  SetWebTransportSessionOnAdapter(stream_id);
 
   ParsedQuicVersion version = session_->version();
   if (QuicUtils::IsOutgoingStreamId(version, stream_id,
@@ -80,15 +101,10 @@ void WebTransportHttp3::AssociateStream(QuicStreamId stream_id) {
 }
 
 void WebTransportHttp3::OnConnectStreamClosing() {
-  // Copy the stream list before iterating over it, as calls to ResetStream()
-  // can potentially mutate the |session_| list.
-  std::vector<QuicStreamId> streams(streams_.begin(), streams_.end());
-  streams_.clear();
-  for (QuicStreamId id : streams) {
-    session_->ResetStream(id, QUIC_STREAM_WEBTRANSPORT_SESSION_GONE);
-  }
+  ResetAssociatedStreams();
   connect_stream_->UnregisterHttp3DatagramVisitor();
 
+  session_->OnWebTransportSessionDestroyed();
   MaybeNotifyClose();
 }
 
@@ -112,12 +128,24 @@ void WebTransportHttp3::CloseSession(WebTransportSessionError error_code,
   }
 
   error_code_ = error_code;
-  error_message_ = std::string(error_message);
+  // Section 6: "its length MUST NOT exceed 1024 bytes."
+  if (error_message.size() > 1024) {
+    QUICHE_BUG(webtransport_close_message_too_long)
+        << "CloseSession error message exceeds 1024 bytes, truncating";
+    error_message_ = std::string(error_message.substr(0, 1024));
+  } else {
+    error_message_ = std::string(error_message);
+  }
+
+  // Section 6: Reset all associated streams upon session termination.
+  ResetAssociatedStreams();
+
   QuicConnection::ScopedPacketFlusher flusher(
       connect_stream_->spdy_session()->connection());
   connect_stream_->WriteCapsule(
-      quiche::Capsule::CloseWebTransportSession(error_code, error_message),
+      quiche::Capsule::CloseWebTransportSession(error_code, error_message_),
       /*fin=*/true);
+  connect_stream_->StopReading();
 }
 
 void WebTransportHttp3::OnCloseReceived(WebTransportSessionError error_code,
@@ -125,8 +153,17 @@ void WebTransportHttp3::OnCloseReceived(WebTransportSessionError error_code,
   if (close_received_) {
     QUIC_BUG(WebTransportHttp3 notified of close received twice)
         << "WebTransportHttp3::OnCloseReceived() may be only called once.";
+    return;
+  }
+  // Section 6: "its length MUST NOT exceed 1024 bytes."
+  if (error_message.size() > 1024) {
+    OnInternalError(0, "WT_CLOSE_SESSION error message exceeds 1024 bytes");
+    return;
   }
   close_received_ = true;
+
+  // Section 6: Reset all associated streams upon session termination.
+  ResetAssociatedStreams();
 
   // If the peer has sent a close after we sent our own, keep the local error.
   if (close_sent_) {
@@ -138,6 +175,12 @@ void WebTransportHttp3::OnCloseReceived(WebTransportSessionError error_code,
   error_code_ = error_code;
   error_message_ = std::string(error_message);
   connect_stream_->WriteOrBufferBody("", /*fin=*/true);
+  // Section 6 MUST: "If any additional stream data is received on the CONNECT
+  // stream after receiving a WT_CLOSE_SESSION capsule, the stream MUST be
+  // reset with code H3_MESSAGE_ERROR."
+  connect_stream_->SendStopSending(QuicResetStreamError(
+      QUIC_STREAM_CANCELLED,
+      static_cast<uint64_t>(QuicHttp3ErrorCode::MESSAGE_ERROR)));
   MaybeNotifyClose();
 }
 
@@ -149,6 +192,9 @@ void WebTransportHttp3::OnConnectStreamFinReceived() {
     return;
   }
   close_received_ = true;
+
+  ResetAssociatedStreams();
+
   if (close_sent_) {
     QUIC_DLOG(INFO) << "Ignoring received FIN as we've already sent our close.";
     return;
@@ -227,7 +273,7 @@ WebTransportStream* WebTransportHttp3::AcceptIncomingUnidirectionalStream() {
   while (!incoming_unidirectional_streams_.empty()) {
     QuicStreamId id = incoming_unidirectional_streams_.front();
     incoming_unidirectional_streams_.pop_front();
-    QuicStream* stream = session_->GetOrCreateStream(id);
+    QuicStream* stream = session_->GetActiveStream(id);
     if (stream == nullptr) {
       // Skip the streams that were reset in between the time they were
       // receieved and the time the client has polled for them.
@@ -240,27 +286,38 @@ WebTransportStream* WebTransportHttp3::AcceptIncomingUnidirectionalStream() {
 }
 
 bool WebTransportHttp3::CanOpenNextOutgoingBidirectionalStream() {
+  if (IsTerminated()) {
+    return false;
+  }
   return session_->CanOpenOutgoingBidirectionalWebTransportStream(id_);
 }
 bool WebTransportHttp3::CanOpenNextOutgoingUnidirectionalStream() {
+  if (IsTerminated()) {
+    return false;
+  }
   return session_->CanOpenOutgoingUnidirectionalWebTransportStream(id_);
 }
 WebTransportStream* WebTransportHttp3::OpenOutgoingBidirectionalStream() {
+  // Section 6: After session termination, no new streams may be opened.
+  if (IsTerminated()) {
+    return nullptr;
+  }
   QuicSpdyStream* stream =
       session_->CreateOutgoingBidirectionalWebTransportStream(this);
   if (stream == nullptr) {
-    // If stream cannot be created due to flow control or other errors, return
-    // nullptr.
     return nullptr;
   }
   return stream->web_transport_stream();
 }
 
 WebTransportStream* WebTransportHttp3::OpenOutgoingUnidirectionalStream() {
+  // Section 6: After session termination, no new streams may be opened.
+  if (IsTerminated()) {
+    return nullptr;
+  }
   WebTransportHttp3UnidirectionalStream* stream =
       session_->CreateOutgoingUnidirectionalWebTransportStream(this);
   if (stream == nullptr) {
-    // If stream cannot be created due to flow control, return nullptr.
     return nullptr;
   }
   return stream->interface();
@@ -284,6 +341,11 @@ webtransport::Stream* WebTransportHttp3::GetStreamById(
 
 webtransport::DatagramStatus WebTransportHttp3::SendOrQueueDatagram(
     absl::string_view datagram) {
+  if (IsTerminated()) {
+    return webtransport::DatagramStatus(
+        webtransport::DatagramStatusCode::kInternalError,
+        "Session is closed");
+  }
   return DatagramStatusToWebTransportStatus(
       connect_stream_->SendHttp3Datagram(datagram));
 }
@@ -305,6 +367,19 @@ void WebTransportHttp3::NotifySessionDraining() {
   }
 }
 
+void WebTransportHttp3::SetVisitor(
+    std::unique_ptr<WebTransportVisitor> visitor) {
+  visitor_ = std::move(visitor);
+  // Draft-15 Section 4.6: streams and datagrams that arrive before the
+  // session is fully established must be buffered and delivered once the
+  // session is ready. So, flush any buffered datagrams now — SetVisitor is the
+  // earliest point where both ready_ and a real visitor exist (the noop
+  // visitor is still active during HeadersReceived).
+  if (ready_) {
+    session_->FlushBufferedDatagramsForSession(this);
+  }
+}
+
 void WebTransportHttp3::OnHttp3Datagram(QuicStreamId stream_id,
                                         absl::string_view payload) {
   QUICHE_DCHECK_EQ(stream_id, connect_stream_->id());
@@ -318,6 +393,37 @@ void WebTransportHttp3::OnInternalError(WebTransportSessionError error_code,
   }
   CloseSession(error_code, error_message);
   MaybeNotifyClose();
+}
+
+void WebTransportHttp3::ResetAssociatedStreams() {
+  // Copy the stream list before iterating over it, as calls below can
+  // potentially mutate the |session_| stream map.
+  std::vector<QuicStreamId> streams(streams_.begin(), streams_.end());
+  streams_.clear();
+  for (QuicStreamId id : streams) {
+    QuicStream* stream = session_->GetOrCreateStream(id);
+    if (stream == nullptr) {
+      continue;
+    }
+    QuicResetStreamError error =
+        (session_->SupportedWebTransportVersion() ==
+         WebTransportHttp3Version::kDraft15)
+            ? QuicResetStreamError(QUIC_STREAM_WEBTRANSPORT_SESSION_GONE,
+                                   kWtSessionGone)
+            : QuicResetStreamError::FromInternal(
+                  QUIC_STREAM_WEBTRANSPORT_SESSION_GONE);
+    // Section 4.4: Use RESET_STREAM_AT when available to ensure the peer
+    // can associate the stream with the correct session even after reset.
+    // Only use RESET_STREAM_AT when data has been written (the stream header
+    // counts); without data, there is nothing to reliably deliver.
+    if (stream->stream_bytes_written() > 0 && stream->SetReliableSize()) {
+      stream->PartialResetWriteSide(error);
+    } else {
+      stream->ResetWriteSide(error);
+    }
+    // Section 6: "abort reading on the receive side"
+    stream->SendStopSending(error);
+  }
 }
 
 void WebTransportHttp3::MaybeNotifyClose() {

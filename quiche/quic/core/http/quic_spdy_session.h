@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <deque>
 #include <optional>
 #include <string>
 
@@ -45,6 +46,7 @@ class QuicSpdySessionPeer;
 class WebTransportHttp3UnidirectionalStream;
 
 QUICHE_EXPORT extern const size_t kMaxUnassociatedWebTransportStreams;
+QUICHE_EXPORT extern const size_t kMaxBufferedWebTransportDatagrams;
 
 class QUICHE_EXPORT Http3DebugVisitor {
  public:
@@ -424,6 +426,12 @@ class QUICHE_EXPORT QuicSpdySession
   // currently in use (which is the highest version supported by both peers).
   std::optional<WebTransportHttp3Version> SupportedWebTransportVersion();
 
+  void OnWebTransportSessionCreated() { ++active_web_transport_sessions_; }
+  void OnWebTransportSessionDestroyed() {
+    QUICHE_DCHECK_GT(active_web_transport_sessions_, 0u);
+    --active_web_transport_sessions_;
+  }
+
   // Indicates whether both the peer and us support HTTP/3 Datagrams.
   bool SupportsH3Datagram() const;
 
@@ -461,6 +469,11 @@ class QUICHE_EXPORT QuicSpdySession
       WebTransportSessionId session_id, QuicStreamId stream_id);
 
   void ProcessBufferedWebTransportStreamsForSession(WebTransportHttp3* session);
+  void FlushBufferedDatagramsForSession(WebTransportHttp3* session);
+
+  void set_buffer_web_transport_datagrams(bool v) {
+    buffer_web_transport_datagrams_ = v;
+  }
 
   bool CanOpenOutgoingUnidirectionalWebTransportStream(
       WebTransportSessionId /*id*/) {
@@ -611,6 +624,11 @@ class QUICHE_EXPORT QuicSpdySession
     QuicStreamId stream_id;
   };
 
+  struct QUICHE_EXPORT BufferedWebTransportDatagram {
+    QuicStreamId stream_id;
+    std::string payload;
+  };
+
   // The following methods are called by the SimpleVisitor.
 
   // Called when a HEADERS frame has been received.
@@ -733,6 +751,11 @@ class QUICHE_EXPORT QuicSpdySession
   // oldest streams are evicated first.
   std::list<BufferedWebTransportStream> buffered_streams_;
 
+  // WebTransport datagrams received before their session was established
+  // (draft-15 Section 4.6). Globally capped at kMaxBufferedWebTransportDatagrams.
+  bool buffer_web_transport_datagrams_ = false;
+  std::deque<BufferedWebTransportDatagram> buffered_datagrams_;
+
   spdy::SpdyFramer spdy_framer_;
 
   // Priority values received in PRIORITY_UPDATE frames for streams that are not
@@ -752,6 +775,8 @@ class QUICHE_EXPORT QuicSpdySession
   // server cannot initiate WebTransport sessions.
   absl::flat_hash_map<WebTransportHttp3Version, QuicStreamCount>
       max_webtransport_sessions_;
+
+  size_t active_web_transport_sessions_ = 0;
 };
 
 }  // namespace quic

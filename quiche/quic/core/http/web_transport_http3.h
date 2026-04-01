@@ -55,9 +55,7 @@ class QUICHE_EXPORT WebTransportHttp3
                     WebTransportSessionId id);
 
   void HeadersReceived(const quiche::HttpHeaderBlock& headers);
-  void SetVisitor(std::unique_ptr<WebTransportVisitor> visitor) {
-    visitor_ = std::move(visitor);
-  }
+  void SetVisitor(std::unique_ptr<WebTransportVisitor> visitor);
 
   WebTransportSessionId id() { return id_; }
   bool ready() { return ready_; }
@@ -141,6 +139,16 @@ class QUICHE_EXPORT WebTransportHttp3
                        absl::string_view error_message);
 
  private:
+  // Returns true if the session has been closed (either locally or by peer).
+  bool IsTerminated() const { return close_sent_ || close_received_; }
+
+  // Sets the direct WebTransportHttp3 pointer on a stream's adapter.
+  void SetWebTransportSessionOnAdapter(QuicStreamId stream_id);
+
+  // Resets all associated streams with QUIC_STREAM_WEBTRANSPORT_SESSION_GONE
+  // and clears the stream set.
+  void ResetAssociatedStreams();
+
   // Notifies the visitor that the connection has been closed.  Ensures that the
   // visitor is only ever called once.
   void MaybeNotifyClose();
@@ -199,6 +207,9 @@ class QUICHE_EXPORT WebTransportHttp3UnidirectionalStream : public QuicStream {
 
   WebTransportStream* interface() { return &adapter_; }
   void SetUnblocked() { sequencer()->SetUnblocked(); }
+  void SetWebTransportSession(WebTransportHttp3* session) {
+    adapter_.SetWebTransportSession(session);
+  }
 
  private:
   QuicSpdySession* session_;

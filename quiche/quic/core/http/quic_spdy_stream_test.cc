@@ -3683,7 +3683,7 @@ TEST_P(QuicSpdyStreamTest, IncomingWebTransportStreamWithPaddingDraft07) {
                                /* offset = */ 0, webtransport_stream_frame);
 
   EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
+              CloseConnection(QUIC_HTTP_FRAME_ERROR,
                               HasSubstr("non-zero offset"), _));
   stream_->OnStreamFrame(stream_frame);
   EXPECT_TRUE(stream_->web_transport_stream() == nullptr);

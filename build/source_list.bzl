@@ -1405,6 +1405,9 @@ quiche_tests_srcs = [
     "web_transport/test_tools/in_memory_stream_test.cc",
     "web_transport/web_transport_headers_test.cc",
     "web_transport/web_transport_priority_scheduler_test.cc",
+    "quic/core/http/web_transport_buffering_draft15_test.cc",
+    "quic/core/http/web_transport_error_codes_draft15_test.cc",
+    "quic/core/http/web_transport_streams_draft15_test.cc",
 ]
 io_tests_hdrs = [
 ]

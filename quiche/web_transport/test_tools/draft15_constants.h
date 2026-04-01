@@ -54,7 +54,7 @@ inline constexpr uint64_t kWtStreamsBlockedUnidi =
 inline constexpr uint64_t kWtBufferedStreamRejected =
     quic::kWtBufferedStreamRejected;
 inline constexpr uint64_t kWtSessionGone = quic::kWtSessionGone;
-inline constexpr uint64_t kWtRequirementsNotMet = 0x212c0d48;
+inline constexpr uint64_t kWtRequirementsNotMet = quic::kWtRequirementsNotMet;
 
 // --- WT_APPLICATION_ERROR range (Section 4.4) ---
 inline constexpr uint64_t kWtApplicationErrorFirst = 0x52e4a40fa8db;

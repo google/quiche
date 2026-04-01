@@ -1226,8 +1226,7 @@ void QuicSpdyStream::OnWebTransportStreamFrameType(
           absl::StrCat("Stream ", id(),
                        " received WEBTRANSPORT_STREAM at a non-zero offset");
       QUIC_DLOG(ERROR) << ENDPOINT << error;
-      OnUnrecoverableError(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
-                           error);
+      OnUnrecoverableError(QUIC_HTTP_FRAME_ERROR, error);
       return;
     }
   }
@@ -1489,6 +1488,8 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
           *std::move(subprotocols_offered));
     }
   }
+
+  spdy_session_->OnWebTransportSessionCreated();
 }
 
 void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
@@ -1522,6 +1523,7 @@ void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
 
   web_transport_ =
       std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
+  spdy_session_->OnWebTransportSessionCreated();
 
   // Store the offered subprotocols so that we can later validate the
   // server-selected one against those.
@@ -1911,6 +1913,9 @@ void QuicSpdyStream::HandleBodyAvailable() {
     }
     if (!capsule_parser_->IngestCapsuleFragment(absl::string_view(
             reinterpret_cast<const char*>(iov.iov_base), iov.iov_len))) {
+      break;
+    }
+    if (reading_stopped()) {
       break;
     }
     MarkConsumed(iov.iov_len);
