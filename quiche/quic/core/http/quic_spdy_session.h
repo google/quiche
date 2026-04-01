@@ -155,7 +155,8 @@ using WebTransportHttp3VersionSet = BitMask<WebTransportHttp3Version, uint8_t>;
 inline constexpr WebTransportHttp3VersionSet
     kDefaultSupportedWebTransportVersions =
         WebTransportHttp3VersionSet({WebTransportHttp3Version::kDraft02,
-                                     WebTransportHttp3Version::kDraft07});
+                                     WebTransportHttp3Version::kDraft07,
+                                     WebTransportHttp3Version::kDraft15});
 
 QUICHE_EXPORT std::string HttpDatagramSupportToString(
     HttpDatagramSupport http_datagram_support);
