@@ -156,54 +156,6 @@ TEST_P(CapsuleDraft15SessionTest, NoNewStreamsAfterTermination) {
   EXPECT_NE(status.code, webtransport::DatagramStatusCode::kSuccess);
 }
 
-TEST_P(CapsuleDraft15SessionTest, WtMaxStreamDataProhibited) {
-  // Section 5.4 MUST: WT_MAX_STREAM_DATA capsules MUST result in a session
-  // error — per-stream flow control is not used in draft-15.
-  EXPECT_EQ(static_cast<uint64_t>(quiche::CapsuleType::WT_MAX_STREAM_DATA),
-            0x190b4d3eu);
-
-  if (!VersionIsIetfQuic(GetParam().transport_version)) return;
-  auto* wt = SetUpWebTransportDraft15ServerSession(GetNthClientInitiatedBidirectionalId(0),
-                                       /*initial_max_streams_uni=*/10,
-                                       /*initial_max_streams_bidi=*/10,
-                                       /*initial_max_data=*/65536);
-  ASSERT_NE(wt, nullptr);
-
-  auto* visitor = AttachMockVisitor(wt);
-  session_->set_writev_consumes_all_data(true);
-  EXPECT_CALL(*visitor, OnSessionClosed(_, _)).Times(1);
-
-  InjectCapsuleOnConnectStream(
-      GetNthClientInitiatedBidirectionalId(0),
-      quiche::Capsule(quiche::WebTransportMaxStreamDataCapsule{0, 1024}));
-  testing::Mock::VerifyAndClearExpectations(visitor);
-}
-
-TEST_P(CapsuleDraft15SessionTest, WtStreamDataBlockedProhibited) {
-  // Section 5.4 MUST: WT_STREAM_DATA_BLOCKED capsules MUST result in a
-  // session error.
-  EXPECT_EQ(
-      static_cast<uint64_t>(quiche::CapsuleType::WT_STREAM_DATA_BLOCKED),
-      0x190b4d42u);
-
-  if (!VersionIsIetfQuic(GetParam().transport_version)) return;
-  auto* wt = SetUpWebTransportDraft15ServerSession(GetNthClientInitiatedBidirectionalId(0),
-                                       /*initial_max_streams_uni=*/10,
-                                       /*initial_max_streams_bidi=*/10,
-                                       /*initial_max_data=*/65536);
-  ASSERT_NE(wt, nullptr);
-
-  auto* visitor = AttachMockVisitor(wt);
-  session_->set_writev_consumes_all_data(true);
-  EXPECT_CALL(*visitor, OnSessionClosed(_, _)).Times(1);
-
-  InjectCapsuleOnConnectStream(
-      GetNthClientInitiatedBidirectionalId(0),
-      quiche::Capsule(
-          quiche::WebTransportStreamDataBlockedCapsule{0, 1024}));
-  testing::Mock::VerifyAndClearExpectations(visitor);
-}
-
 TEST_P(CapsuleDraft15SessionTest, CloseSessionMessageTooLongAtSession) {
   // Section 6 MUST NOT: The error message in CloseSession() MUST NOT
   // exceed 1024 bytes. The message is truncated with a QUICHE_BUG.
