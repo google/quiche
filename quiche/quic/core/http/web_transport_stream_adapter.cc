@@ -29,6 +29,11 @@
 
 namespace quic {
 
+void WebTransportStreamAdapter::SetWebTransportSession(
+    WebTransportHttp3* session) {
+  wt_session_ = session;
+}
+
 WebTransportStreamAdapter::WebTransportStreamAdapter(
     QuicSession* session, QuicStream* stream, QuicStreamSequencer* sequencer,
     std::optional<QuicStreamId> session_id)

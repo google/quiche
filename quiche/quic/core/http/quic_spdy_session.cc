@@ -60,6 +60,7 @@ using spdy::SpdyStreamId;
 namespace quic {
 
 ABSL_CONST_INIT const size_t kMaxUnassociatedWebTransportStreams = 24;
+ABSL_CONST_INIT const size_t kMaxBufferedWebTransportDatagrams = 32;
 
 namespace {
 
@@ -1983,8 +1984,26 @@ void QuicSpdySession::OnDatagramReceived(absl::string_view datagram) {
   }
   stream_id64 *= kHttpDatagramStreamIdDivisor;
   QuicStreamId stream_id = static_cast<QuicStreamId>(stream_id64);
+
   QuicSpdyStream* stream =
       absl::down_cast<QuicSpdyStream*>(GetActiveStream(stream_id));
+
+  // Draft-15 Section 4.6: when enabled, buffer datagrams that arrive before
+  // their stream is ready for dispatch (stream missing, headers not received,
+  // or WebTransport session not yet created).
+  if (buffer_web_transport_datagrams_) {
+    bool ready = stream != nullptr && stream->headers_decompressed() &&
+                 GetWebTransportSession(stream_id) != nullptr;
+    if (!ready) {
+      if (buffered_datagrams_.size() >= kMaxBufferedWebTransportDatagrams) {
+        buffered_datagrams_.pop_front();
+      }
+      buffered_datagrams_.push_back(
+          {stream_id, std::string(reader.ReadRemainingPayload())});
+      return;
+    }
+  }
+
   if (stream == nullptr) {
     QUIC_DLOG(INFO) << "Received HTTP/3 datagram for unknown stream ID "
                     << stream_id;
@@ -2058,7 +2077,7 @@ void QuicSpdySession::AssociateIncomingWebTransportStreamWithSession(
                      << stream_id << " with invalid session ID "
                      << session_id;
     CloseConnectionWithDetails(
-        QUIC_HTTP_FRAME_ERROR,
+        QUIC_HTTP_INVALID_SESSION_ID,
         absl::StrCat("WebTransport stream ", stream_id,
                      " references invalid session ID ", session_id));
     return;
@@ -2107,6 +2126,20 @@ void QuicSpdySession::ProcessBufferedWebTransportStreamsForSession(
                     << it->stream_id << " with session " << it->session_id;
       session->AssociateStream(it->stream_id);
       it = buffered_streams_.erase(it);
+    } else {
+      it++;
+    }
+  }
+}
+
+void QuicSpdySession::FlushBufferedDatagramsForSession(
+    WebTransportHttp3* session) {
+  const QuicStreamId session_id = session->id();
+  auto it = buffered_datagrams_.begin();
+  while (it != buffered_datagrams_.end()) {
+    if (it->stream_id == session_id) {
+      session->OnHttp3Datagram(session_id, it->payload);
+      it = buffered_datagrams_.erase(it);
     } else {
       it++;
     }

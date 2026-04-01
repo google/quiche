@@ -48,9 +48,24 @@ MATCHER_P(IsRstStreamWithIetfCode, expected_code,
   if (arg.type != RST_STREAM_FRAME || arg.rst_stream_frame == nullptr) {
     return false;
   }
-  *result_listener << "ietf_error_code=0x"
-                   << absl::Hex(arg.rst_stream_frame->ietf_error_code);
+  *result_listener
+      << "ietf_error_code=0x"
+      << absl::StrCat(absl::Hex(arg.rst_stream_frame->ietf_error_code));
   return arg.rst_stream_frame->ietf_error_code ==
+         static_cast<uint64_t>(expected_code);
+}
+
+// Matches a QuicFrame that is a STOP_SENDING with the given ietf_error_code.
+MATCHER_P(IsStopSendingWithIetfCode, expected_code,
+          absl::StrCat("is STOP_SENDING with ietf_error_code=0x",
+                       absl::Hex(static_cast<uint64_t>(expected_code)))) {
+  if (arg.type != STOP_SENDING_FRAME) {
+    return false;
+  }
+  *result_listener
+      << "ietf_error_code=0x"
+      << absl::StrCat(absl::Hex(arg.stop_sending_frame.ietf_error_code));
+  return arg.stop_sending_frame.ietf_error_code ==
          static_cast<uint64_t>(expected_code);
 }
 

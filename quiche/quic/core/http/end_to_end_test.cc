@@ -8184,6 +8184,25 @@ TEST_P(EndToEndTest, WebTransportDraft15SessionEstablishment) {
             WebTransportHttp3Version::kDraft15);
 }
 
+TEST_P(EndToEndTest, WebTransportDraft15NoDatagramsAfterClose) {
+  // Section 6 MUST NOT: After session termination, no new datagrams
+  // may be sent.
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session, nullptr);
+
+  session->CloseSession(0, "done");
+
+  auto status = session->SendOrQueueDatagram("post-close datagram");
+  EXPECT_NE(status.code, webtransport::DatagramStatusCode::kSuccess)
+      << "SendOrQueueDatagram must fail after session termination";
+}
+
 TEST_P(EndToEndTest, InvalidExtendedConnect) {
   SetQuicReloadableFlag(quic_act_upon_invalid_header, true);
   ASSERT_TRUE(Initialize());

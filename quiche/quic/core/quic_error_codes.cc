@@ -293,6 +293,7 @@ const char* QuicErrorCodeToString(QuicErrorCode error) {
     RETURN_STRING_LITERAL(QUIC_UNEXPECTED_DATA_BEFORE_ENCRYPTION_ESTABLISHED);
     RETURN_STRING_LITERAL(QUIC_SERVER_UNHEALTHY);
     RETURN_STRING_LITERAL(QUIC_CLIENT_LOST_NETWORK_ACCESS);
+    RETURN_STRING_LITERAL(QUIC_HTTP_INVALID_SESSION_ID);
 
     RETURN_STRING_LITERAL(QUIC_LAST_ERROR);
     // Intentionally have no default case, so we'll break the build
@@ -810,6 +811,8 @@ QuicErrorCodeToIetfMapping QuicErrorCodeToTransportErrorCode(
       return {true, static_cast<uint64_t>(NO_IETF_QUIC_ERROR)};
     case QUIC_CLIENT_LOST_NETWORK_ACCESS:
       return {true, static_cast<uint64_t>(NO_IETF_QUIC_ERROR)};
+    case QUIC_HTTP_INVALID_SESSION_ID:
+      return {false, static_cast<uint64_t>(QuicHttp3ErrorCode::ID_ERROR)};
     case QUIC_HANDSHAKE_FAILED_INVALID_HOSTNAME:
       return {true, static_cast<uint64_t>(NO_IETF_QUIC_ERROR)};
     case QUIC_HANDSHAKE_FAILED_REJECTING_ALL_CONNECTIONS:

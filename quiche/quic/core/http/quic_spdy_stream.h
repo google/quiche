@@ -285,6 +285,13 @@ class QUICHE_EXPORT QuicSpdyStream
     }
     return &web_transport_data_->adapter;
   }
+  // Returns the WebTransport stream adapter, or null.
+  WebTransportStreamAdapter* web_transport_stream_adapter() {
+    if (web_transport_data_ == nullptr) {
+      return nullptr;
+    }
+    return &web_transport_data_->adapter;
+  }
 
   // Sends a WEBTRANSPORT_STREAM frame and sets up the appropriate metadata.
   void ConvertToWebTransportDataStream(WebTransportSessionId session_id);
