@@ -45,6 +45,11 @@ enum Http3AndQpackSettingsIdentifiers : uint64_t {
   // draft-ietf-webtrans-http3
   SETTINGS_WEBTRANS_DRAFT00 = 0x2b603742,
   SETTINGS_WEBTRANS_MAX_SESSIONS_DRAFT07 = 0xc671706a,
+  // draft-ietf-webtrans-http3-15
+  SETTINGS_WT_ENABLED = 0x2c7cf000,
+  SETTINGS_WT_INITIAL_MAX_STREAMS_UNI = 0x2b64,
+  SETTINGS_WT_INITIAL_MAX_STREAMS_BIDI = 0x2b65,
+  SETTINGS_WT_INITIAL_MAX_DATA = 0x2b61,
   // draft-ietf-httpbis-h3-websockets
   SETTINGS_ENABLE_CONNECT_PROTOCOL = 0x08,
   SETTINGS_ENABLE_METADATA = 0x4d44,
@@ -72,6 +77,26 @@ enum : uint64_t { kDefaultMaximumBlockedStreams = 100 };
 
 ABSL_CONST_INIT QUICHE_EXPORT extern const absl::string_view
     kUserAgentHeaderName;
+
+// Draft-15 WebTransport HTTP/3 error codes (Section 9.5 of
+// draft-ietf-webtrans-http3-15).
+
+// Session error codes — used in WT_CLOSE_SESSION capsule Application Error
+// Code field (32-bit).
+inline constexpr WebTransportSessionError kWtFlowControlError =
+    static_cast<WebTransportSessionError>(0x045d4487);
+inline constexpr WebTransportSessionError kWtAlpnError =
+    static_cast<WebTransportSessionError>(0x0817b3dd);
+
+// Stream error codes — used in RST_STREAM / STOP_SENDING frames.
+inline constexpr uint64_t kWtSessionGone = 0x170d7b68;
+inline constexpr uint64_t kWtBufferedStreamRejected = 0x3994bd84;
+
+// Connection error code — used in CONNECTION_CLOSE.
+inline constexpr uint64_t kWtRequirementsNotMet = 0x212c0d48;
+
+// H3_DATAGRAM_ERROR (RFC 9297 §9.1, referenced by draft-15 Section 5.6.2).
+inline constexpr uint64_t kH3DatagramError = 0x33;
 
 }  // namespace quic
 

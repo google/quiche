@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <deque>
 #include <optional>
 #include <string>
 
@@ -45,6 +46,7 @@ class QuicSpdySessionPeer;
 class WebTransportHttp3UnidirectionalStream;
 
 QUICHE_EXPORT extern const size_t kMaxUnassociatedWebTransportStreams;
+QUICHE_EXPORT extern const size_t kMaxBufferedWebTransportDatagrams;
 
 class QUICHE_EXPORT Http3DebugVisitor {
  public:
@@ -143,6 +145,8 @@ enum class WebTransportHttp3Version : uint8_t {
   // See the changelog in the appendix for differences between draft-02 and
   // draft-07.
   kDraft07,
+  // <https://www.ietf.org/archive/id/draft-ietf-webtrans-http3-15.html>
+  kDraft15,
 };
 using WebTransportHttp3VersionSet = BitMask<WebTransportHttp3Version, uint8_t>;
 
@@ -151,7 +155,8 @@ using WebTransportHttp3VersionSet = BitMask<WebTransportHttp3Version, uint8_t>;
 inline constexpr WebTransportHttp3VersionSet
     kDefaultSupportedWebTransportVersions =
         WebTransportHttp3VersionSet({WebTransportHttp3Version::kDraft02,
-                                     WebTransportHttp3Version::kDraft07});
+                                     WebTransportHttp3Version::kDraft07,
+                                     WebTransportHttp3Version::kDraft15});
 
 QUICHE_EXPORT std::string HttpDatagramSupportToString(
     HttpDatagramSupport http_datagram_support);
@@ -415,12 +420,72 @@ class QUICHE_EXPORT QuicSpdySession
   // Override from QuicSession to support HTTP/3 datagrams.
   void OnDatagramReceived(absl::string_view datagram) override;
 
+  bool ExportKeyingMaterial(absl::string_view label, absl::string_view context,
+                            size_t result_len, std::string* result) {
+    return GetMutableCryptoStream()->ExportKeyingMaterial(label, context,
+                                                         result_len, result);
+  }
+
   // Indicates whether the HTTP/3 session supports WebTransport.
   bool SupportsWebTransport();
 
   // If SupportsWebTransport() is true, returns the version of WebTransport
   // currently in use (which is the highest version supported by both peers).
   std::optional<WebTransportHttp3Version> SupportedWebTransportVersion();
+
+  // Section 5.1: Without session-level flow control, at most one session is
+  // allowed.
+  bool CanCreateNewWebTransportSession();
+  void OnWebTransportSessionCreated() { ++active_web_transport_sessions_; }
+  void OnWebTransportSessionDestroyed() {
+    QUICHE_DCHECK_GT(active_web_transport_sessions_, 0u);
+    --active_web_transport_sessions_;
+  }
+
+  // Must be called before Initialize() to take effect.
+  void set_wt_initial_max_streams_bidi(uint64_t value) {
+    local_wt_initial_max_streams_bidi_ = value;
+  }
+  void set_wt_initial_max_streams_uni(uint64_t value) {
+    local_wt_initial_max_streams_uni_ = value;
+  }
+  void set_wt_initial_max_data(uint64_t value) {
+    local_wt_initial_max_data_ = value;
+  }
+
+  uint64_t local_wt_initial_max_streams_bidi() const {
+    return local_wt_initial_max_streams_bidi_;
+  }
+  uint64_t local_wt_initial_max_streams_uni() const {
+    return local_wt_initial_max_streams_uni_;
+  }
+  uint64_t local_wt_initial_max_data() const {
+    return local_wt_initial_max_data_;
+  }
+
+  bool peer_wt_flow_control_enabled() const {
+    return peer_wt_initial_max_streams_bidi_ > 0 ||
+           peer_wt_initial_max_streams_uni_ > 0 ||
+           peer_wt_initial_max_data_ > 0;
+  }
+  bool local_wt_flow_control_enabled() const {
+    return local_wt_initial_max_streams_bidi_ > 0 ||
+           local_wt_initial_max_streams_uni_ > 0 ||
+           local_wt_initial_max_data_ > 0;
+  }
+  // Section 5.1: FC is enabled only when both sides advertise non-zero.
+  bool wt_flow_control_enabled() const {
+    return peer_wt_flow_control_enabled() && local_wt_flow_control_enabled();
+  }
+  uint64_t peer_wt_initial_max_streams_bidi() const {
+    return peer_wt_initial_max_streams_bidi_;
+  }
+  uint64_t peer_wt_initial_max_streams_uni() const {
+    return peer_wt_initial_max_streams_uni_;
+  }
+  uint64_t peer_wt_initial_max_data() const {
+    return peer_wt_initial_max_data_;
+  }
 
   // Indicates whether both the peer and us support HTTP/3 Datagrams.
   bool SupportsH3Datagram() const;
@@ -459,6 +524,11 @@ class QUICHE_EXPORT QuicSpdySession
       WebTransportSessionId session_id, QuicStreamId stream_id);
 
   void ProcessBufferedWebTransportStreamsForSession(WebTransportHttp3* session);
+  void FlushBufferedDatagramsForSession(WebTransportHttp3* session);
+
+  void set_buffer_web_transport_datagrams(bool v) {
+    buffer_web_transport_datagrams_ = v;
+  }
 
   bool CanOpenOutgoingUnidirectionalWebTransportStream(
       WebTransportSessionId /*id*/) {
@@ -609,6 +679,11 @@ class QUICHE_EXPORT QuicSpdySession
     QuicStreamId stream_id;
   };
 
+  struct QUICHE_EXPORT BufferedWebTransportDatagram {
+    QuicStreamId stream_id;
+    std::string payload;
+  };
+
   // The following methods are called by the SimpleVisitor.
 
   // Called when a HEADERS frame has been received.
@@ -727,6 +802,11 @@ class QUICHE_EXPORT QuicSpdySession
   // oldest streams are evicated first.
   std::list<BufferedWebTransportStream> buffered_streams_;
 
+  // WebTransport datagrams received before their session was established
+  // (draft-15 Section 4.6). Globally capped at kMaxBufferedWebTransportDatagrams.
+  bool buffer_web_transport_datagrams_ = false;
+  std::deque<BufferedWebTransportDatagram> buffered_datagrams_;
+
   spdy::SpdyFramer spdy_framer_;
 
   // Priority values received in PRIORITY_UPDATE frames for streams that are not
@@ -746,6 +826,14 @@ class QUICHE_EXPORT QuicSpdySession
   // server cannot initiate WebTransport sessions.
   absl::flat_hash_map<WebTransportHttp3Version, QuicStreamCount>
       max_webtransport_sessions_;
+
+  size_t active_web_transport_sessions_ = 0;
+  uint64_t peer_wt_initial_max_streams_bidi_ = 0;
+  uint64_t peer_wt_initial_max_streams_uni_ = 0;
+  uint64_t peer_wt_initial_max_data_ = 0;
+  uint64_t local_wt_initial_max_streams_bidi_ = 0;
+  uint64_t local_wt_initial_max_streams_uni_ = 0;
+  uint64_t local_wt_initial_max_data_ = 0;
 };
 
 }  // namespace quic

@@ -18,25 +18,25 @@ QuicSimpleClientSession::QuicSimpleClientSession(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, QuicClientBase::NetworkHelper* network_helper,
     const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
-    bool drop_response_body, bool enable_web_transport)
+    bool drop_response_body, WebTransportHttp3VersionSet wt_versions)
     : QuicSimpleClientSession(config, supported_versions, connection,
                               /*visitor=*/nullptr, network_helper, server_id,
                               crypto_config, drop_response_body,
-                              enable_web_transport) {}
+                              wt_versions) {}
 
 QuicSimpleClientSession::QuicSimpleClientSession(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, QuicSession::Visitor* visitor,
     QuicClientBase::NetworkHelper* network_helper,
     const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
-    bool drop_response_body, bool enable_web_transport)
+    bool drop_response_body, WebTransportHttp3VersionSet wt_versions)
     : QuicSimpleClientSession(config, supported_versions, connection, visitor,
                               /*writer=*/nullptr,
                               /*migration_helper=*/nullptr,
                               QuicConnectionMigrationConfig{
                                   .allow_server_preferred_address = false},
                               network_helper, server_id, crypto_config,
-                              drop_response_body, enable_web_transport) {}
+                              drop_response_body, wt_versions) {}
 
 QuicSimpleClientSession::QuicSimpleClientSession(
     const QuicConfig& config, const ParsedQuicVersionVector& supported_versions,
@@ -46,15 +46,15 @@ QuicSimpleClientSession::QuicSimpleClientSession(
     const QuicConnectionMigrationConfig& migration_config,
     QuicClientBase::NetworkHelper* network_helper,
     const QuicServerId& server_id, QuicCryptoClientConfig* crypto_config,
-    bool drop_response_body, bool enable_web_transport)
+    bool drop_response_body, WebTransportHttp3VersionSet wt_versions)
     : QuicSpdyClientSession(
           config, supported_versions, connection, visitor, writer,
           migration_helper, migration_config, server_id, crypto_config,
-          enable_web_transport ? QuicPriorityType::kWebTransport
-                               : QuicPriorityType::kHttp),
+          wt_versions.Any() ? QuicPriorityType::kWebTransport
+                           : QuicPriorityType::kHttp),
       network_helper_(network_helper),
       drop_response_body_(drop_response_body),
-      enable_web_transport_(enable_web_transport) {}
+      wt_versions_(wt_versions) {}
 
 std::unique_ptr<QuicSpdyClientStream>
 QuicSimpleClientSession::CreateClientStream() {
@@ -70,12 +70,11 @@ QuicSimpleClientSession::CreateClientStream() {
 
 WebTransportHttp3VersionSet
 QuicSimpleClientSession::LocallySupportedWebTransportVersions() const {
-  return enable_web_transport_ ? kDefaultSupportedWebTransportVersions
-                               : WebTransportHttp3VersionSet();
+  return wt_versions_;
 }
 
 HttpDatagramSupport QuicSimpleClientSession::LocalHttpDatagramSupport() {
-  return enable_web_transport_ ? HttpDatagramSupport::kRfcAndDraft04
+  return wt_versions_.Any() ? HttpDatagramSupport::kRfcAndDraft04
                                : HttpDatagramSupport::kNone;
 }
 

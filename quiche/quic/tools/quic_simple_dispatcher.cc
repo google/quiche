@@ -65,8 +65,25 @@ std::unique_ptr<QuicSession> QuicSimpleDispatcher::CreateQuicSession(
   auto session = std::make_unique<QuicSimpleServerSession>(
       config(), GetSupportedVersions(), connection, this, session_helper(),
       crypto_config(), compressed_certs_cache(), quic_simple_server_backend_);
+  ApplyWebTransportFlowControlLimits(session.get());
   session->Initialize();
   return session;
+}
+
+void QuicSimpleDispatcher::ApplyWebTransportFlowControlLimits(
+    QuicServerSessionBase* session) {
+  if (quic_simple_server_backend_->wt_initial_max_streams_bidi() > 0) {
+    session->set_wt_initial_max_streams_bidi(
+        quic_simple_server_backend_->wt_initial_max_streams_bidi());
+  }
+  if (quic_simple_server_backend_->wt_initial_max_streams_uni() > 0) {
+    session->set_wt_initial_max_streams_uni(
+        quic_simple_server_backend_->wt_initial_max_streams_uni());
+  }
+  if (quic_simple_server_backend_->wt_initial_max_data() > 0) {
+    session->set_wt_initial_max_data(
+        quic_simple_server_backend_->wt_initial_max_data());
+  }
 }
 
 }  // namespace quic

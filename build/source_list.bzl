@@ -896,9 +896,12 @@ quiche_test_support_hdrs = [
     "quic/test_tools/test_certificates.h",
     "quic/test_tools/test_ip_packets.h",
     "quic/test_tools/test_ticket_crypter.h",
+    "quic/test_tools/quic_spdy_session_test_utils.h",
     "quic/test_tools/web_transport_resets_backend.h",
     "quic/test_tools/web_transport_test_tools.h",
+    "quic/core/http/web_transport_draft15_test_utils.h",
     "web_transport/test_tools/in_memory_stream.h",
+    "web_transport/test_tools/draft15_constants.h",
     "web_transport/test_tools/mock_web_transport.h",
 ]
 quiche_test_support_srcs = [
@@ -1403,6 +1406,17 @@ quiche_tests_srcs = [
     "web_transport/test_tools/in_memory_stream_test.cc",
     "web_transport/web_transport_headers_test.cc",
     "web_transport/web_transport_priority_scheduler_test.cc",
+    "common/capsule_draft15_test.cc",
+    "quic/core/http/web_transport_buffering_draft15_test.cc",
+    "quic/core/http/web_transport_capsule_dispatch_draft15_test.cc",
+    "quic/core/http/web_transport_error_codes_draft15_test.cc",
+    "quic/core/http/web_transport_flow_control_draft15_test.cc",
+    "quic/core/http/web_transport_keying_material_draft15_test.cc",
+    "quic/core/http/web_transport_session_establishment_draft15_test.cc",
+    "quic/core/http/web_transport_session_limiting_draft15_test.cc",
+    "quic/core/http/web_transport_streams_draft15_test.cc",
+    "quic/core/http/web_transport_version_negotiation_draft15_test.cc",
+    "web_transport/web_transport_headers_draft15_test.cc",
 ]
 io_tests_hdrs = [
 ]

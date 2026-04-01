@@ -351,7 +351,12 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
           override_client_connection_id_length_);
     }
     client->client()->set_connection_debug_visitor(connection_debug_visitor_);
-    client->client()->set_enable_web_transport(enable_web_transport_);
+    client->client()->set_supported_web_transport_versions(wt_versions_);
+    client->client()->set_wt_initial_max_streams_bidi(
+        client_wt_max_streams_bidi_);
+    client->client()->set_wt_initial_max_streams_uni(
+        client_wt_max_streams_uni_);
+    client->client()->set_wt_initial_max_data(client_wt_max_data_);
     if (connect) {
       client->Connect();
     }
@@ -509,8 +514,12 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   bool Initialize() {
-    if (enable_web_transport_) {
-      memory_cache_backend_.set_enable_webtransport(true);
+    if (wt_versions_.Any()) {
+      memory_cache_backend_.set_supported_web_transport_versions(wt_versions_);
+      if (wt_versions_.IsSet(WebTransportHttp3Version::kDraft15)) {
+        client_config_.SetReliableStreamReset(true);
+        server_config_.SetReliableStreamReset(true);
+      }
     }
 
     QuicTagVector copt;
@@ -910,7 +919,12 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     headers[":authority"] = "localhost";
     headers[":path"] = path;
     headers[":method"] = "CONNECT";
-    headers[":protocol"] = "webtransport";
+    if (GetClientSession()->SupportedWebTransportVersion() ==
+        WebTransportHttp3Version::kDraft15) {
+      headers[":protocol"] = "webtransport-h3";
+    } else {
+      headers[":protocol"] = "webtransport";
+    }
     for (const auto& [key, value] : extra_headers) {
       headers[key] = std::string(value);
     }
@@ -1098,7 +1112,10 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   int override_server_connection_id_length_;
   int override_client_connection_id_length_ = -1;
   uint8_t expected_server_connection_id_length_;
-  bool enable_web_transport_ = false;
+  WebTransportHttp3VersionSet wt_versions_;
+  uint64_t client_wt_max_streams_bidi_ = 0;
+  uint64_t client_wt_max_streams_uni_ = 0;
+  uint64_t client_wt_max_data_ = 0;
   bool enable_mlkem_in_client_ = false;
   std::vector<std::string> received_webtransport_unidirectional_streams_;
   bool use_preferred_address_ = false;
@@ -7529,7 +7546,8 @@ TEST_P(EndToEndTest, BlockServerUntilSettingsReceived) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionSetup) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7548,7 +7566,8 @@ TEST_P(EndToEndTest, WebTransportSessionSetup) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionProtocolNegotiation) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7582,7 +7601,8 @@ TEST_P(EndToEndTest, WebTransportSessionProtocolNegotiation) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionSetupWithEchoWithSuffix) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7606,7 +7626,8 @@ TEST_P(EndToEndTest, WebTransportSessionSetupWithEchoWithSuffix) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionWithLoss) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   // Enable loss to verify all permutations of receiving SETTINGS and
   // request/response data.
   SetPacketLossPercentage(30);
@@ -7628,7 +7649,8 @@ TEST_P(EndToEndTest, WebTransportSessionWithLoss) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7678,7 +7700,8 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   SetPacketLossPercentage(30);
   ASSERT_TRUE(Initialize());
 
@@ -7713,7 +7736,8 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionBidirectionalStream) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7749,7 +7773,8 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStream) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionBidirectionalStreamWithBuffering) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   SetPacketLossPercentage(30);
   ASSERT_TRUE(Initialize());
 
@@ -7771,7 +7796,8 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStreamWithBuffering) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionServerBidirectionalStream) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7807,7 +7833,8 @@ TEST_P(EndToEndTest, WebTransportSessionServerBidirectionalStream) {
 }
 
 TEST_P(EndToEndTest, WebTransportDatagrams) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7834,7 +7861,8 @@ TEST_P(EndToEndTest, WebTransportDatagrams) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionClose) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7866,7 +7894,8 @@ TEST_P(EndToEndTest, WebTransportSessionClose) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionCloseWithoutCapsule) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7898,7 +7927,8 @@ TEST_P(EndToEndTest, WebTransportSessionCloseWithoutCapsule) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionReceiveClose) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7933,7 +7963,8 @@ TEST_P(EndToEndTest, WebTransportSessionReceiveClose) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionReceiveDrain) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7956,7 +7987,8 @@ TEST_P(EndToEndTest, WebTransportSessionReceiveDrain) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -8016,7 +8048,8 @@ TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
 // https://datatracker.ietf.org/doc/draft-seemann-quic-reliable-stream-reset/ in
 // order to make this work.
 TEST_P(EndToEndTest, DISABLED_WebTransportSessionResetReliability) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -8056,7 +8089,8 @@ TEST_P(EndToEndTest, DISABLED_WebTransportSessionResetReliability) {
 }
 
 TEST_P(EndToEndTest, WebTransportSession404) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -8080,7 +8114,8 @@ TEST_P(EndToEndTest, WebTransportSession404) {
   }));
 }
 TEST_P(EndToEndTest, WebTransportSessionGoaway) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -8139,6 +8174,215 @@ TEST_P(EndToEndTest, WebTransportSessionGoaway) {
       ReadDataFromWebTransportStreamUntilFin(stream, stream_visitor);
   EXPECT_EQ(received_data, "test");
 #endif
+}
+
+TEST_P(EndToEndTest, WebTransportDraft15SessionEstablishment) {
+  // Verify draft-15 is negotiated when both sides support it.
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session, nullptr);
+
+  // The negotiated version must be draft-15.
+  EXPECT_EQ(GetClientSession()->SupportedWebTransportVersion(),
+            WebTransportHttp3Version::kDraft15);
+}
+
+TEST_P(EndToEndTest, WebTransportDraft15SessionLimiting) {
+  // Section 5.1: Without FC, at most one session is allowed.
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session1 =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session1, nullptr);
+
+  // Second session should fail — no FC means 1 session limit.
+  WebTransportHttp3* session2 =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/false);
+  EXPECT_EQ(session2, nullptr)
+      << "Section 5.1: Without FC, client must not establish more than "
+         "one simultaneous WebTransport session";
+}
+
+TEST_P(EndToEndTest, WebTransportDraft15NoDatagramsAfterClose) {
+  // Section 6 MUST NOT: After session termination, no new datagrams
+  // may be sent.
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session, nullptr);
+
+  session->CloseSession(0, "done");
+
+  auto status = session->SendOrQueueDatagram("post-close datagram");
+  EXPECT_NE(status.code, webtransport::DatagramStatusCode::kSuccess)
+      << "SendOrQueueDatagram must fail after session termination";
+}
+
+TEST_P(EndToEndTest, WebTransportDraft15FlowControlLimits) {
+  // Section 5.1 + 5.3: FC is enabled when both endpoints send at least
+  // one non-zero FC SETTING. With FC enabled, the server's default
+  // initial_max_streams_bidi=0 blocks the client from opening bidi
+  // streams (Section 5.5.2: default 0 means "must wait for capsule").
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  // Both sides declare FC intent with non-zero limits.
+  client_wt_max_streams_bidi_ = 10;
+  client_wt_max_streams_uni_ = 10;
+  client_wt_max_data_ = 65536;
+  // Server enables FC but keeps bidi=0 (the default).
+  memory_cache_backend_.set_wt_initial_max_streams_uni(10);
+  memory_cache_backend_.set_wt_initial_max_data(65536);
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session, nullptr);
+
+  // Server's initial_max_streams_bidi defaults to 0 — no bidi streams
+  // allowed until the server sends non-zero limits or WT_MAX_STREAMS.
+  EXPECT_FALSE(session->CanOpenNextOutgoingBidirectionalStream())
+      << "Section 5.3: With server's initial_max_streams_bidi=0, client "
+         "must not be able to open bidirectional streams";
+
+  webtransport::Stream* blocked = session->OpenOutgoingBidirectionalStream();
+  EXPECT_EQ(blocked, nullptr)
+      << "Section 5.3: OpenOutgoingBidirectionalStream must return nullptr "
+         "when stream limit is 0";
+}
+
+TEST_P(EndToEndTest, WebTransportDraft15DataFlowControl) {
+  // Section 5.1 + 5.3: FC is enabled when both endpoints send at least
+  // one non-zero FC SETTING. With FC enabled, the server's default
+  // initial_max_streams_uni=0 blocks the client from opening uni
+  // streams (Section 5.5.1: default 0 means "must wait for capsule").
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  // Both sides declare FC intent with non-zero limits.
+  client_wt_max_streams_bidi_ = 10;
+  client_wt_max_streams_uni_ = 10;
+  client_wt_max_data_ = 65536;
+  // Server enables FC but keeps uni=0 (the default).
+  memory_cache_backend_.set_wt_initial_max_streams_bidi(10);
+  memory_cache_backend_.set_wt_initial_max_data(65536);
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session, nullptr);
+
+  // Server's initial_max_data defaults to 0. Even if we could open a
+  // stream, we can't send data.
+  EXPECT_FALSE(session->CanOpenNextOutgoingUnidirectionalStream())
+      << "Section 5.4: With server's initial_max_streams_uni=0, client "
+         "must not be able to open unidirectional streams";
+}
+
+TEST_P(EndToEndTest, WebTransportDraft15ResetStreamAt) {
+  // Section 4.4: Resetting a WT data stream must use RESET_STREAM_AT with
+  // reliable_offset >= stream header size, ensuring the peer can associate
+  // the stream with the correct session even after reset.
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  client_wt_max_streams_bidi_ = 10;
+  client_wt_max_streams_uni_ = 10;
+  client_wt_max_data_ = 65536;
+  memory_cache_backend_.set_wt_initial_max_streams_bidi(10);
+  memory_cache_backend_.set_wt_initial_max_streams_uni(10);
+  memory_cache_backend_.set_wt_initial_max_data(65536);
+
+  bool saw_reset_stream_at = false;
+  QuicStreamOffset observed_reliable_offset = 0;
+  NiceMock<MockQuicConnectionDebugVisitor> visitor;
+  connection_debug_visitor_ = &visitor;
+  ON_CALL(visitor, OnPacketSent(_, _, _, _, _, _, _, _, _))
+      .WillByDefault(
+          [&](QuicPacketNumber, QuicPacketLength, bool, TransmissionType,
+              EncryptionLevel, const QuicFrames& retransmittable_frames,
+              const QuicFrames& /*nonretransmittable_frames*/, QuicTime,
+              uint32_t) {
+            for (const auto& frame : retransmittable_frames) {
+              if (frame.type == RESET_STREAM_AT_FRAME) {
+                saw_reset_stream_at = true;
+                observed_reliable_offset =
+                    frame.reset_stream_at_frame->reliable_offset;
+              }
+            }
+          });
+
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session, nullptr);
+
+  webtransport::Stream* stream = session->OpenOutgoingBidirectionalStream();
+  ASSERT_NE(stream, nullptr);
+
+  // Write some data so the stream header is sent.
+  EXPECT_TRUE(stream->Write("hello"));
+
+  // Reset the stream — Section 4.4 requires RESET_STREAM_AT.
+  stream->ResetWithUserCode(0);
+  client_->WaitForWriteToFlush();
+
+  EXPECT_TRUE(saw_reset_stream_at)
+      << "Section 4.4: Draft-15 stream reset must use RESET_STREAM_AT, "
+         "not plain RST_STREAM";
+  EXPECT_GT(observed_reliable_offset, 0u)
+      << "Section 4.4: reliable_offset must be >= stream header size so "
+         "the peer can associate the stream with its session";
+}
+
+TEST_P(EndToEndTest, WebTransportKeyingMaterial) {
+  // Section 4.8: GetKeyingMaterial with real BoringSSL TLS exporter.
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session, nullptr);
+
+  // Section 4.8 SHALL: export keying material of the requested length.
+  auto result = session->GetKeyingMaterial("test-label", "test-context", 32);
+  ASSERT_TRUE(result.ok()) << result.status();
+  EXPECT_EQ(result->size(), 32u);
+
+  // Deterministic: same inputs produce the same output.
+  auto result2 = session->GetKeyingMaterial("test-label", "test-context", 32);
+  ASSERT_TRUE(result2.ok()) << result2.status();
+  EXPECT_EQ(*result, *result2);
+
+  // Different label produces different output.
+  auto result3 = session->GetKeyingMaterial("other-label", "test-context", 32);
+  ASSERT_TRUE(result3.ok()) << result3.status();
+  EXPECT_NE(*result, *result3);
+
+  // Different context produces different output.
+  auto result4 = session->GetKeyingMaterial("test-label", "other-context", 32);
+  ASSERT_TRUE(result4.ok()) << result4.status();
+  EXPECT_NE(*result, *result4);
+
+  // Empty context works and produces different output from non-empty.
+  auto result5 = session->GetKeyingMaterial("test-label", "", 32);
+  ASSERT_TRUE(result5.ok()) << result5.status();
+  EXPECT_NE(*result, *result5);
 }
 
 TEST_P(EndToEndTest, InvalidExtendedConnect) {

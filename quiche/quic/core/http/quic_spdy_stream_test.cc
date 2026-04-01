@@ -3297,16 +3297,18 @@ TEST_P(QuicSpdyStreamTest, TwoResetStreamFrames) {
   EXPECT_FALSE(stream_->write_side_closed());
 }
 
-TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsClient) {
+TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsClientDraft07) {
   if (!IsIetfQuic()) {
     return;
   }
 
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+  WebTransportHttp3VersionSet draft07_only(
+      {WebTransportHttp3Version::kDraft07});
   session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
-  session_->EnableWebTransport();
+  session_->EnableWebTransport(draft07_only);
   session_->OnSetting(SETTINGS_ENABLE_CONNECT_PROTOCOL, 1);
-  QuicSpdySessionPeer::EnableWebTransport(session_.get());
+  QuicSpdySessionPeer::EnableWebTransport(session_.get(), draft07_only);
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
                                               HttpDatagramSupport::kRfc);
 
@@ -3333,16 +3335,58 @@ TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsClient) {
   EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), "moqt-01");
 }
 
-TEST_P(QuicSpdyStreamTest, WebTransportIgnoreSubprotocolsThatWereNotOffered) {
+TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsClientDraft15) {
   if (!IsIetfQuic()) {
     return;
   }
 
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+  WebTransportHttp3VersionSet draft15_only(
+      {WebTransportHttp3Version::kDraft15});
   session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
-  session_->EnableWebTransport();
+  session_->EnableWebTransport(draft15_only);
   session_->OnSetting(SETTINGS_ENABLE_CONNECT_PROTOCOL, 1);
-  QuicSpdySessionPeer::EnableWebTransport(session_.get());
+  session_->OnSetting(SETTINGS_WT_ENABLED, 1);
+  QuicSpdySessionPeer::EnableWebTransport(session_.get(), draft15_only);
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kRfc);
+
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _))
+      .Times(AnyNumber());
+
+  quiche::HttpHeaderBlock request_headers;
+  request_headers[":method"] = "CONNECT";
+  request_headers[":protocol"] = "webtransport-h3";
+  request_headers["wt-available-protocols"] = R"("moqt-00", "moqt-01"; a=b)";
+  stream_->WriteHeaders(std::move(request_headers), /*fin=*/false, nullptr);
+  ASSERT_TRUE(stream_->web_transport() != nullptr);
+  EXPECT_EQ(stream_->id(), stream_->web_transport()->id());
+  EXPECT_THAT(stream_->web_transport()->subprotocols_offered(),
+              ElementsAre("moqt-00", "moqt-01"));
+
+  quiche::HttpHeaderBlock response_headers;
+  response_headers[":status"] = "200";
+  response_headers["wt-protocol"] = "\"moqt-01\"";
+  stream_->web_transport()->HeadersReceived(response_headers);
+  EXPECT_EQ(stream_->web_transport()->rejection_reason(),
+            WebTransportHttp3RejectionReason::kNone);
+  EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), "moqt-01");
+}
+
+TEST_P(QuicSpdyStreamTest,
+       WebTransportIgnoreSubprotocolsThatWereNotOfferedDraft07) {
+  if (!IsIetfQuic()) {
+    return;
+  }
+
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+  WebTransportHttp3VersionSet draft07_only(
+      {WebTransportHttp3Version::kDraft07});
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
+  session_->EnableWebTransport(draft07_only);
+  session_->OnSetting(SETTINGS_ENABLE_CONNECT_PROTOCOL, 1);
+  QuicSpdySessionPeer::EnableWebTransport(session_.get(), draft07_only);
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
                                               HttpDatagramSupport::kRfc);
 
@@ -3366,16 +3410,54 @@ TEST_P(QuicSpdyStreamTest, WebTransportIgnoreSubprotocolsThatWereNotOffered) {
   EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), std::nullopt);
 }
 
-TEST_P(QuicSpdyStreamTest, WebTransportInvalidSubprotocolResponse) {
+TEST_P(QuicSpdyStreamTest,
+       WebTransportIgnoreSubprotocolsThatWereNotOfferedDraft15) {
   if (!IsIetfQuic()) {
     return;
   }
 
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+  WebTransportHttp3VersionSet draft15_only(
+      {WebTransportHttp3Version::kDraft15});
   session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
-  session_->EnableWebTransport();
+  session_->EnableWebTransport(draft15_only);
   session_->OnSetting(SETTINGS_ENABLE_CONNECT_PROTOCOL, 1);
-  QuicSpdySessionPeer::EnableWebTransport(session_.get());
+  session_->OnSetting(SETTINGS_WT_ENABLED, 1);
+  QuicSpdySessionPeer::EnableWebTransport(session_.get(), draft15_only);
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kRfc);
+
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _))
+      .Times(AnyNumber());
+
+  quiche::HttpHeaderBlock request_headers;
+  request_headers[":method"] = "CONNECT";
+  request_headers[":protocol"] = "webtransport-h3";
+  request_headers["wt-available-protocols"] = R"("moqt-00", "moqt-01"; a=b)";
+  stream_->WriteHeaders(std::move(request_headers), /*fin=*/false, nullptr);
+  ASSERT_TRUE(stream_->web_transport() != nullptr);
+
+  quiche::HttpHeaderBlock response_headers;
+  response_headers[":status"] = "200";
+  response_headers["wt-protocol"] = "\"moqt-02\"";
+  stream_->web_transport()->HeadersReceived(response_headers);
+  EXPECT_EQ(stream_->web_transport()->rejection_reason(),
+            WebTransportHttp3RejectionReason::kSubprotocolNegotiationFailed);
+}
+
+TEST_P(QuicSpdyStreamTest, WebTransportInvalidSubprotocolResponseDraft07) {
+  if (!IsIetfQuic()) {
+    return;
+  }
+
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+  WebTransportHttp3VersionSet draft07_only(
+      {WebTransportHttp3Version::kDraft07});
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
+  session_->EnableWebTransport(draft07_only);
+  session_->OnSetting(SETTINGS_ENABLE_CONNECT_PROTOCOL, 1);
+  QuicSpdySessionPeer::EnableWebTransport(session_.get(), draft07_only);
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
                                               HttpDatagramSupport::kRfc);
 
@@ -3399,20 +3481,97 @@ TEST_P(QuicSpdyStreamTest, WebTransportInvalidSubprotocolResponse) {
   EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), std::nullopt);
 }
 
-TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsServer) {
+TEST_P(QuicSpdyStreamTest, WebTransportInvalidSubprotocolResponseDraft15) {
+  if (!IsIetfQuic()) {
+    return;
+  }
+
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+  WebTransportHttp3VersionSet draft15_only(
+      {WebTransportHttp3Version::kDraft15});
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
+  session_->EnableWebTransport(draft15_only);
+  session_->OnSetting(SETTINGS_ENABLE_CONNECT_PROTOCOL, 1);
+  session_->OnSetting(SETTINGS_WT_ENABLED, 1);
+  QuicSpdySessionPeer::EnableWebTransport(session_.get(), draft15_only);
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kRfc);
+
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _))
+      .Times(AnyNumber());
+
+  quiche::HttpHeaderBlock request_headers;
+  request_headers[":method"] = "CONNECT";
+  request_headers[":protocol"] = "webtransport-h3";
+  request_headers["wt-available-protocols"] = R"("moqt-00", "moqt-01"; a=b)";
+  stream_->WriteHeaders(std::move(request_headers), /*fin=*/false, nullptr);
+  ASSERT_TRUE(stream_->web_transport() != nullptr);
+
+  quiche::HttpHeaderBlock response_headers;
+  response_headers[":status"] = "200";
+  response_headers["wt-protocol"] = "12345.67";
+  stream_->web_transport()->HeadersReceived(response_headers);
+  EXPECT_EQ(stream_->web_transport()->rejection_reason(),
+            WebTransportHttp3RejectionReason::kSubprotocolNegotiationFailed);
+}
+
+TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsServerDraft07) {
   if (!IsIetfQuic()) {
     return;
   }
 
   InitializeWithPerspective(kShouldProcessData, Perspective::IS_SERVER);
+  WebTransportHttp3VersionSet draft07_only(
+      {WebTransportHttp3Version::kDraft07});
   session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
-  session_->EnableWebTransport();
-  QuicSpdySessionPeer::EnableWebTransport(session_.get());
+  session_->EnableWebTransport(draft07_only);
+  QuicSpdySessionPeer::EnableWebTransport(session_.get(), draft07_only);
   QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
                                               HttpDatagramSupport::kRfc);
 
   headers_[":method"] = "CONNECT";
   headers_[":protocol"] = "webtransport";
+  headers_["wt-available-protocols"] = R"("moqt-00", "moqt-01"; a=b)";
+
+  stream_->OnStreamHeadersPriority(
+      spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  ProcessHeaders(false, headers_);
+  EXPECT_EQ("", stream_->data());
+  EXPECT_FALSE(stream_->header_list().empty());
+  EXPECT_FALSE(stream_->IsDoneReading());
+  ASSERT_TRUE(stream_->web_transport() != nullptr);
+  EXPECT_EQ(stream_->id(), stream_->web_transport()->id());
+
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _))
+      .Times(AnyNumber());
+  quiche::HttpHeaderBlock response_headers;
+  response_headers[":status"] = "200";
+  response_headers["wt-protocol"] = "\"moqt-01\"";
+  stream_->WriteHeaders(std::move(response_headers), /*fin=*/false, nullptr);
+  EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), "moqt-01");
+}
+
+TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsServerDraft15) {
+  if (!IsIetfQuic()) {
+    return;
+  }
+
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_SERVER);
+  WebTransportHttp3VersionSet draft15_only(
+      {WebTransportHttp3Version::kDraft15});
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
+  session_->EnableWebTransport(draft15_only);
+  QuicSpdySessionPeer::EnableWebTransport(session_.get(), draft15_only);
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kRfc);
+
+  headers_[":method"] = "CONNECT";
+  headers_[":protocol"] = "webtransport-h3";
+  headers_[":scheme"] = "https";
+  headers_[":authority"] = "www.google.com";
+  headers_[":path"] = "/wt";
   headers_["wt-available-protocols"] = R"("moqt-00", "moqt-01"; a=b)";
 
   stream_->OnStreamHeadersPriority(
@@ -3524,7 +3683,7 @@ TEST_P(QuicSpdyStreamTest, IncomingWebTransportStreamWithPaddingDraft07) {
                                /* offset = */ 0, webtransport_stream_frame);
 
   EXPECT_CALL(*connection_,
-              CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
+              CloseConnection(QUIC_HTTP_FRAME_ERROR,
                               HasSubstr("non-zero offset"), _));
   stream_->OnStreamFrame(stream_frame);
   EXPECT_TRUE(stream_->web_transport_stream() == nullptr);

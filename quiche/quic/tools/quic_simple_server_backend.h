@@ -9,6 +9,7 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
@@ -115,7 +116,32 @@ class QuicSimpleServerBackend {
     return response;
   }
   virtual bool SupportsWebTransport() { return false; }
+  virtual WebTransportHttp3VersionSet SupportedWebTransportVersions() {
+    return SupportsWebTransport() ? kDefaultSupportedWebTransportVersions
+                                 : WebTransportHttp3VersionSet();
+  }
   virtual bool SupportsExtendedConnect() { return true; }
+
+  // Draft-15 session-level flow control limits advertised by the server.
+  void set_wt_initial_max_streams_bidi(uint64_t v) {
+    wt_initial_max_streams_bidi_ = v;
+  }
+  void set_wt_initial_max_streams_uni(uint64_t v) {
+    wt_initial_max_streams_uni_ = v;
+  }
+  void set_wt_initial_max_data(uint64_t v) { wt_initial_max_data_ = v; }
+  uint64_t wt_initial_max_streams_bidi() const {
+    return wt_initial_max_streams_bidi_;
+  }
+  uint64_t wt_initial_max_streams_uni() const {
+    return wt_initial_max_streams_uni_;
+  }
+  uint64_t wt_initial_max_data() const { return wt_initial_max_data_; }
+
+ private:
+  uint64_t wt_initial_max_streams_bidi_ = 0;
+  uint64_t wt_initial_max_streams_uni_ = 0;
+  uint64_t wt_initial_max_data_ = 0;
 };
 
 }  // namespace quic

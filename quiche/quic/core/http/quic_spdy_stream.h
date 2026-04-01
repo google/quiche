@@ -285,6 +285,13 @@ class QUICHE_EXPORT QuicSpdyStream
     }
     return &web_transport_data_->adapter;
   }
+  // Returns the WebTransport stream adapter, or null.
+  WebTransportStreamAdapter* web_transport_stream_adapter() {
+    if (web_transport_data_ == nullptr) {
+      return nullptr;
+    }
+    return &web_transport_data_->adapter;
+  }
 
   // Sends a WEBTRANSPORT_STREAM frame and sets up the appropriate metadata.
   void ConvertToWebTransportDataStream(WebTransportSessionId session_id);
@@ -474,6 +481,8 @@ class QUICHE_EXPORT QuicSpdyStream
 
   void MaybeProcessSentWebTransportHeaders(quiche::HttpHeaderBlock& headers);
   void MaybeProcessReceivedWebTransportHeaders();
+  // Applies peer's draft-15 flow control limits to a newly created WT session.
+  void ApplyWebTransportFlowControlLimits();
 
   // Writes HTTP/3 DATA frame header. If |force_write| is true, use
   // WriteOrBufferData if send buffer cannot accomodate the header + data.

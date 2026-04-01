@@ -28,6 +28,8 @@
 
 namespace quic {
 
+class WebTransportHttp3;
+
 // Converts WebTransportStream API calls into QuicStream API calls.  The users
 // of this class can either subclass it, or wrap around it.
 class QUICHE_EXPORT WebTransportStreamAdapter : public webtransport::Stream {
@@ -71,6 +73,11 @@ class QUICHE_EXPORT WebTransportStreamAdapter : public webtransport::Stream {
   void OnCanWriteNewData();
 
   void SetSessionId(QuicStreamId id);
+  void SetWebTransportSession(WebTransportHttp3* session);
+
+  // Accounts for any received-but-unconsumed bytes as consumed.  Called when
+  // the stream is closing without the application having read all data.
+  void OnClosingWithUnreadData();
 
  private:
   absl::Status CheckBeforeStreamWrite() const;
@@ -78,9 +85,11 @@ class QUICHE_EXPORT WebTransportStreamAdapter : public webtransport::Stream {
   QuicSession* session_;            // Unowned.
   QuicStream* stream_;              // Unowned.
   QuicStreamSequencer* sequencer_;  // Unowned.
+  WebTransportHttp3* wt_session_ = nullptr;  // Unowned.
   std::unique_ptr<WebTransportStreamVisitor> visitor_;
   std::optional<QuicStreamId> session_id_;
   bool fin_read_ = false;
+  size_t last_reported_readable_ = 0;
 };
 
 }  // namespace quic

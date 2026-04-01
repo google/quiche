@@ -71,9 +71,7 @@ class QuicSimpleServerSession : public QuicServerSessionBase {
 
   WebTransportHttp3VersionSet LocallySupportedWebTransportVersions()
       const override {
-    return quic_simple_server_backend_->SupportsWebTransport()
-               ? kDefaultSupportedWebTransportVersions
-               : WebTransportHttp3VersionSet();
+    return quic_simple_server_backend_->SupportedWebTransportVersions();
   }
   HttpDatagramSupport LocalHttpDatagramSupport() override {
     if (ShouldNegotiateWebTransport()) {

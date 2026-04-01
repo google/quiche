@@ -144,6 +144,20 @@ class MockableQuicClient : public QuicDefaultClient {
     return negotiated_config_;
   }
 
+  // WebTransport draft-15 session-level flow control limits for the client.
+  // Must be called before Connect().
+  void set_wt_initial_max_streams_bidi(uint64_t v) {
+    wt_initial_max_streams_bidi_ = v;
+  }
+  void set_wt_initial_max_streams_uni(uint64_t v) {
+    wt_initial_max_streams_uni_ = v;
+  }
+  void set_wt_initial_max_data(uint64_t v) { wt_initial_max_data_ = v; }
+
+  std::unique_ptr<QuicSession> CreateQuicClientSession(
+      const ParsedQuicVersionVector& supported_versions,
+      QuicConnection* connection) override;
+
  private:
   // Client connection ID to use, if client_connection_id_overridden_.
   // TODO(wub): Move client_connection_id_(length_) overrides to QuicClientBase.
@@ -154,6 +168,9 @@ class MockableQuicClient : public QuicDefaultClient {
   // Owned by the base class.
   QuicTestMigrationHelper* migration_helper_ = nullptr;
   std::optional<QuicConfig> negotiated_config_;
+  uint64_t wt_initial_max_streams_bidi_ = 0;
+  uint64_t wt_initial_max_streams_uni_ = 0;
+  uint64_t wt_initial_max_data_ = 0;
 };
 
 // A toy QUIC client used for testing.

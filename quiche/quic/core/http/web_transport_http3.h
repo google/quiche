@@ -13,8 +13,10 @@
 
 #include "absl/base/attributes.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
+#include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/web_transport_stream_adapter.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -38,6 +40,7 @@ enum class WebTransportHttp3RejectionReason {
   kWrongStatusCode,
   kMissingDraftVersion,
   kUnsupportedDraftVersion,
+  kSubprotocolNegotiationFailed,
 };
 
 // A session of WebTransport over HTTP/3.  The session is owned by
@@ -53,15 +56,13 @@ class QUICHE_EXPORT WebTransportHttp3
                     WebTransportSessionId id);
 
   void HeadersReceived(const quiche::HttpHeaderBlock& headers);
-  void SetVisitor(std::unique_ptr<WebTransportVisitor> visitor) {
-    visitor_ = std::move(visitor);
-  }
+  void SetVisitor(std::unique_ptr<WebTransportVisitor> visitor);
 
   WebTransportSessionId id() { return id_; }
   bool ready() { return ready_; }
 
   void AssociateStream(QuicStreamId stream_id);
-  void OnStreamClosed(QuicStreamId stream_id) { streams_.erase(stream_id); }
+  void OnStreamClosed(QuicStreamId stream_id);
   void OnConnectStreamClosing();
 
   size_t NumberOfAssociatedStreams() { return streams_.size(); }
@@ -114,12 +115,35 @@ class QUICHE_EXPORT WebTransportHttp3
                         const quiche::UnknownCapsule& /*capsule*/) override {}
 
   bool close_received() const { return close_received_; }
+  void set_session_counted(bool counted) { session_counted_ = counted; }
   WebTransportHttp3RejectionReason rejection_reason() const {
     return rejection_reason_;
   }
 
   void OnGoAwayReceived();
   void OnDrainSessionReceived();
+
+  // Session-level stream limits (Section 5.3).
+  void OnMaxStreamsCapsuleReceived(webtransport::StreamType stream_type,
+                                   uint64_t max_stream_count);
+  void SetInitialStreamLimits(uint64_t max_outgoing_bidi,
+                              uint64_t max_outgoing_uni,
+                              uint64_t max_incoming_bidi,
+                              uint64_t max_incoming_uni);
+  bool CanOpenNextOutgoingStream(webtransport::StreamType stream_type) const;
+
+  // Session-level data limits (Section 5.4).
+  void SetInitialDataLimit(uint64_t max_data_send, uint64_t max_data_receive);
+  void OnMaxDataCapsuleReceived(uint64_t max_data);
+  bool CanSendData(size_t bytes) const;
+  void OnDataSent(size_t bytes);
+  void OnIncomingDataReceived(size_t bytes);
+  void OnIncomingDataConsumed(size_t bytes);
+
+  void OnIncomingStreamAssociated(QuicStreamId stream_id);
+  void MaybeReplenishStreamLimit(webtransport::StreamType type);
+  void MaybeSendStreamsBlocked(webtransport::StreamType type);
+  void MaybeSendDataBlocked();
 
   const std::vector<std::string>& subprotocols_offered() const {
     return subprotocols_offered_;
@@ -133,7 +157,30 @@ class QUICHE_EXPORT WebTransportHttp3
   void MaybeSetSubprotocolFromResponseHeaders(
       const quiche::HttpHeaderBlock& headers);
 
+  // Closes the session and notifies the visitor due to a protocol error
+  // detected by the WT implementation (as opposed to the application).
+  void OnInternalError(WebTransportSessionError error_code,
+                       absl::string_view error_message);
+
+  // Section 4.8: Derives per-session keying material via TLS exporters.
+  absl::StatusOr<std::string> GetKeyingMaterial(absl::string_view label,
+                                                absl::string_view context,
+                                                size_t length);
+
  private:
+  // Returns true if the session has been closed (either locally or by peer).
+  bool IsTerminated() const { return close_sent_ || close_received_; }
+
+  // Sets the direct WebTransportHttp3 pointer on a stream's adapter.
+  void SetWebTransportSessionOnAdapter(QuicStreamId stream_id);
+
+  // Resets all associated streams with QUIC_STREAM_WEBTRANSPORT_SESSION_GONE
+  // and clears the stream set.
+  void ResetAssociatedStreams();
+
+  // Decrements the session counter if this session is still counted.
+  void MaybeDecrementSessionCount();
+
   // Notifies the visitor that the connection has been closed.  Ensures that the
   // visitor is only ever called once.
   void MaybeNotifyClose();
@@ -151,6 +198,7 @@ class QUICHE_EXPORT WebTransportHttp3
   bool close_sent_ = false;
   bool close_received_ = false;
   bool close_notified_ = false;
+  bool session_counted_ = false;
 
   // On client side, stores the offered subprotocols.
   std::vector<std::string> subprotocols_offered_;
@@ -159,6 +207,41 @@ class QUICHE_EXPORT WebTransportHttp3
   std::optional<std::string> subprotocol_selected_;
 
   quiche::SingleUseCallback<void()> drain_callback_ = nullptr;
+
+  // Draft-15 session-level stream limits (Section 5).
+  // Cumulative count of outgoing streams opened on this session.
+  uint64_t outgoing_bidi_stream_count_ = 0;
+  uint64_t outgoing_uni_stream_count_ = 0;
+  // Maximum number of outgoing streams allowed by the peer (from SETTINGS
+  // initial values and WT_MAX_STREAMS capsules). 0 means unlimited when
+  // WT FC is not negotiated.
+  uint64_t max_outgoing_bidi_streams_ = 0;
+  uint64_t max_outgoing_uni_streams_ = 0;
+  // Whether WT-level stream/data limits are active for this session.
+  bool wt_stream_limits_enabled_ = false;
+  // Tracks whether BLOCKED capsules have been sent at the current limit,
+  // to avoid redundant sends. Reset when the limit is raised.
+  bool bidi_streams_blocked_sent_ = false;
+  bool uni_streams_blocked_sent_ = false;
+  bool data_blocked_sent_ = false;
+
+  // Draft-15 session-level data limits (Section 5.4).
+  uint64_t total_data_sent_ = 0;
+  uint64_t max_data_send_ = 0;       // Peer's WT_MAX_DATA for data we send
+  uint64_t total_data_received_ = 0;
+  uint64_t total_data_consumed_ = 0; // Bytes consumed by the application
+  uint64_t max_data_receive_ = 0;    // Our WT_MAX_DATA for data we receive
+  uint64_t initial_max_data_receive_ = 0;  // Initial window size for threshold
+  bool wt_data_limits_enabled_ = false;
+
+  // Incoming stream count tracking for enforcement.
+  uint64_t incoming_bidi_stream_count_ = 0;
+  uint64_t incoming_uni_stream_count_ = 0;
+  // Max incoming streams (from our SETTINGS, not peer's).
+  uint64_t max_incoming_bidi_streams_ = 0;
+  uint64_t max_incoming_uni_streams_ = 0;
+  uint64_t initial_max_incoming_bidi_streams_ = 0;
+  uint64_t initial_max_incoming_uni_streams_ = 0;
 
   WebTransportHttp3RejectionReason rejection_reason_ =
       WebTransportHttp3RejectionReason::kNone;
@@ -192,6 +275,9 @@ class QUICHE_EXPORT WebTransportHttp3UnidirectionalStream : public QuicStream {
 
   WebTransportStream* interface() { return &adapter_; }
   void SetUnblocked() { sequencer()->SetUnblocked(); }
+  void SetWebTransportSession(WebTransportHttp3* session) {
+    adapter_.SetWebTransportSession(session);
+  }
 
  private:
   QuicSpdySession* session_;

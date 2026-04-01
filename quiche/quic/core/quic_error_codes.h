@@ -646,8 +646,12 @@ enum QuicErrorCode : uint32_t {
   // Client application lost network access.
   QUIC_CLIENT_LOST_NETWORK_ACCESS = 215,
 
+  // WebTransport stream references an invalid session ID (not a
+  // client-initiated bidirectional stream). Maps to H3_ID_ERROR.
+  QUIC_HTTP_INVALID_SESSION_ID = 222,
+
   // No error. Used as bound while iterating.
-  QUIC_LAST_ERROR = 222,
+  QUIC_LAST_ERROR = 223,
 };
 // QuicErrorCodes is encoded as four octets on-the-wire when doing Google QUIC,
 // or a varint62 when doing IETF QUIC. Ensure that its value does not exceed
