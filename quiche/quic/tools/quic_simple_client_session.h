@@ -9,6 +9,7 @@
 #include <utility>
 
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
+#include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/tools/quic_client_base.h"
 #include "quiche/quic/tools/quic_simple_client_stream.h"
 #include "quiche/common/http/http_header_block.h"
@@ -24,7 +25,7 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
                           QuicClientBase::NetworkHelper* network_helper,
                           const QuicServerId& server_id,
                           QuicCryptoClientConfig* crypto_config,
-                          bool drop_response_body, bool enable_web_transport);
+                          bool drop_response_body, WebTransportHttp3VersionSet wt_versions);
 
   QuicSimpleClientSession(const QuicConfig& config,
                           const ParsedQuicVersionVector& supported_versions,
@@ -33,7 +34,7 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
                           QuicClientBase::NetworkHelper* network_helper,
                           const QuicServerId& server_id,
                           QuicCryptoClientConfig* crypto_config,
-                          bool drop_response_body, bool enable_web_transport);
+                          bool drop_response_body, WebTransportHttp3VersionSet wt_versions);
 
   QuicSimpleClientSession(const QuicConfig& config,
                           const ParsedQuicVersionVector& supported_versions,
@@ -45,7 +46,7 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
                           QuicClientBase::NetworkHelper* network_helper,
                           const QuicServerId& server_id,
                           QuicCryptoClientConfig* crypto_config,
-                          bool drop_response_body, bool enable_web_transport);
+                          bool drop_response_body, WebTransportHttp3VersionSet wt_versions);
 
   std::unique_ptr<QuicSpdyClientStream> CreateClientStream() override;
   WebTransportHttp3VersionSet LocallySupportedWebTransportVersions()
@@ -68,7 +69,7 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
       on_interim_headers_;
   QuicClientBase::NetworkHelper* network_helper_;
   const bool drop_response_body_;
-  const bool enable_web_transport_;
+  const WebTransportHttp3VersionSet wt_versions_;
 };
 
 }  // namespace quic

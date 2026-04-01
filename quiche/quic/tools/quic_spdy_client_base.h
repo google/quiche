@@ -13,6 +13,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
+#include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/http/quic_spdy_client_stream.h"
 #include "quiche/quic/core/quic_config.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
@@ -99,10 +100,14 @@ class QuicSpdyClientBase : public QuicClientBase,
   }
   bool drop_response_body() const { return drop_response_body_; }
 
-  void set_enable_web_transport(bool enable_web_transport) {
-    enable_web_transport_ = enable_web_transport;
+  void set_supported_web_transport_versions(
+      WebTransportHttp3VersionSet versions) {
+    supported_wt_versions_ = versions;
   }
-  bool enable_web_transport() const { return enable_web_transport_; }
+  const WebTransportHttp3VersionSet& supported_web_transport_versions() const {
+    return supported_wt_versions_;
+  }
+  bool web_transport_enabled() const { return supported_wt_versions_.Any(); }
 
   // QuicClientBase methods.
   bool goaway_received() const override;
@@ -152,7 +157,7 @@ class QuicSpdyClientBase : public QuicClientBase,
   std::unique_ptr<ResponseListener> response_listener_;
 
   bool drop_response_body_ = false;
-  bool enable_web_transport_ = false;
+  WebTransportHttp3VersionSet supported_wt_versions_;
   // If not zero, used to set client's max inbound header size before session
   // initialize.
   size_t max_inbound_header_list_size_ = 0;

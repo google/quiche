@@ -351,7 +351,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
           override_client_connection_id_length_);
     }
     client->client()->set_connection_debug_visitor(connection_debug_visitor_);
-    client->client()->set_enable_web_transport(enable_web_transport_);
+    client->client()->set_supported_web_transport_versions(wt_versions_);
     if (connect) {
       client->Connect();
     }
@@ -509,7 +509,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   bool Initialize() {
-    if (enable_web_transport_) {
+    if (wt_versions_.Any()) {
       memory_cache_backend_.set_enable_webtransport(true);
     }
 
@@ -1098,7 +1098,7 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   int override_server_connection_id_length_;
   int override_client_connection_id_length_ = -1;
   uint8_t expected_server_connection_id_length_;
-  bool enable_web_transport_ = false;
+  WebTransportHttp3VersionSet wt_versions_;
   bool enable_mlkem_in_client_ = false;
   std::vector<std::string> received_webtransport_unidirectional_streams_;
   bool use_preferred_address_ = false;
@@ -7529,7 +7529,8 @@ TEST_P(EndToEndTest, BlockServerUntilSettingsReceived) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionSetup) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7548,7 +7549,8 @@ TEST_P(EndToEndTest, WebTransportSessionSetup) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionProtocolNegotiation) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7582,7 +7584,8 @@ TEST_P(EndToEndTest, WebTransportSessionProtocolNegotiation) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionSetupWithEchoWithSuffix) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7606,7 +7609,8 @@ TEST_P(EndToEndTest, WebTransportSessionSetupWithEchoWithSuffix) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionWithLoss) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   // Enable loss to verify all permutations of receiving SETTINGS and
   // request/response data.
   SetPacketLossPercentage(30);
@@ -7628,7 +7632,8 @@ TEST_P(EndToEndTest, WebTransportSessionWithLoss) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7678,7 +7683,8 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStream) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   SetPacketLossPercentage(30);
   ASSERT_TRUE(Initialize());
 
@@ -7713,7 +7719,8 @@ TEST_P(EndToEndTest, WebTransportSessionUnidirectionalStreamSentEarly) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionBidirectionalStream) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7749,7 +7756,8 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStream) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionBidirectionalStreamWithBuffering) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   SetPacketLossPercentage(30);
   ASSERT_TRUE(Initialize());
 
@@ -7771,7 +7779,8 @@ TEST_P(EndToEndTest, WebTransportSessionBidirectionalStreamWithBuffering) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionServerBidirectionalStream) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7807,7 +7816,8 @@ TEST_P(EndToEndTest, WebTransportSessionServerBidirectionalStream) {
 }
 
 TEST_P(EndToEndTest, WebTransportDatagrams) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7834,7 +7844,8 @@ TEST_P(EndToEndTest, WebTransportDatagrams) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionClose) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7866,7 +7877,8 @@ TEST_P(EndToEndTest, WebTransportSessionClose) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionCloseWithoutCapsule) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7898,7 +7910,8 @@ TEST_P(EndToEndTest, WebTransportSessionCloseWithoutCapsule) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionReceiveClose) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7933,7 +7946,8 @@ TEST_P(EndToEndTest, WebTransportSessionReceiveClose) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionReceiveDrain) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -7956,7 +7970,8 @@ TEST_P(EndToEndTest, WebTransportSessionReceiveDrain) {
 }
 
 TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -8016,7 +8031,8 @@ TEST_P(EndToEndTest, WebTransportSessionStreamTermination) {
 // https://datatracker.ietf.org/doc/draft-seemann-quic-reliable-stream-reset/ in
 // order to make this work.
 TEST_P(EndToEndTest, DISABLED_WebTransportSessionResetReliability) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -8056,7 +8072,8 @@ TEST_P(EndToEndTest, DISABLED_WebTransportSessionResetReliability) {
 }
 
 TEST_P(EndToEndTest, WebTransportSession404) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {
@@ -8080,7 +8097,8 @@ TEST_P(EndToEndTest, WebTransportSession404) {
   }));
 }
 TEST_P(EndToEndTest, WebTransportSessionGoaway) {
-  enable_web_transport_ = true;
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft02, WebTransportHttp3Version::kDraft07});
   ASSERT_TRUE(Initialize());
 
   if (!version_.IsIetfQuic()) {

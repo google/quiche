@@ -38,7 +38,8 @@ MoqtClient::MoqtClient(quic::QuicSocketAddress peer_address,
     : spdy_client_(peer_address, server_id, GetMoqtSupportedQuicVersions(),
                    event_loop, std::move(proof_verifier)) {
   TuneQuicConfig(*spdy_client_.config());
-  spdy_client_.set_enable_web_transport(true);
+  spdy_client_.set_supported_web_transport_versions(
+      quic::kDefaultSupportedWebTransportVersions);
 }
 
 void MoqtClient::Connect(std::string path, MoqtSessionCallbacks callbacks) {
