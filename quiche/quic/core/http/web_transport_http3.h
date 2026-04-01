@@ -114,6 +114,7 @@ class QUICHE_EXPORT WebTransportHttp3
                         const quiche::UnknownCapsule& /*capsule*/) override {}
 
   bool close_received() const { return close_received_; }
+  void set_session_counted(bool counted) { session_counted_ = counted; }
   WebTransportHttp3RejectionReason rejection_reason() const {
     return rejection_reason_;
   }
@@ -149,6 +150,9 @@ class QUICHE_EXPORT WebTransportHttp3
   // and clears the stream set.
   void ResetAssociatedStreams();
 
+  // Decrements the session counter if this session is still counted.
+  void MaybeDecrementSessionCount();
+
   // Notifies the visitor that the connection has been closed.  Ensures that the
   // visitor is only ever called once.
   void MaybeNotifyClose();
@@ -166,6 +170,7 @@ class QUICHE_EXPORT WebTransportHttp3
   bool close_sent_ = false;
   bool close_received_ = false;
   bool close_notified_ = false;
+  bool session_counted_ = false;
 
   // On client side, stores the offered subprotocols.
   std::vector<std::string> subprotocols_offered_;

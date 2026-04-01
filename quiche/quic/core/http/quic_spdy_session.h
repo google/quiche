@@ -426,6 +426,9 @@ class QUICHE_EXPORT QuicSpdySession
   // currently in use (which is the highest version supported by both peers).
   std::optional<WebTransportHttp3Version> SupportedWebTransportVersion();
 
+  // Section 5.1: Without session-level flow control, at most one session is
+  // allowed.
+  bool CanCreateNewWebTransportSession();
   void OnWebTransportSessionCreated() { ++active_web_transport_sessions_; }
   void OnWebTransportSessionDestroyed() {
     QUICHE_DCHECK_GT(active_web_transport_sessions_, 0u);

@@ -1478,6 +1478,16 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
     }
   }
 
+  // Section 5.2: Reject excess sessions with H3_REQUEST_REJECTED.
+  if (!spdy_session_->CanCreateNewWebTransportSession()) {
+    QUIC_DLOG(WARNING) << ENDPOINT
+                       << "Rejecting WebTransport: session limit exceeded";
+    spdy_session_->ResetStream(
+        id(), QuicResetStreamError(
+            QUIC_STREAM_CANCELLED,
+            static_cast<uint64_t>(QuicHttp3ErrorCode::REQUEST_REJECTED)));
+    return;
+  }
   web_transport_ =
       std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
   if (!subprotocol_offer.empty()) {
@@ -1490,6 +1500,7 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
   }
 
   spdy_session_->OnWebTransportSessionCreated();
+  web_transport_->set_session_counted(true);
 }
 
 void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
@@ -1521,9 +1532,16 @@ void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
     headers["sec-webtransport-http3-draft02"] = "1";
   }
 
+  if (!spdy_session_->CanCreateNewWebTransportSession()) {
+    QUIC_DLOG(WARNING) << ENDPOINT
+                       << "Not creating WebTransport session: limit exceeded";
+    return;
+  }
+
   web_transport_ =
       std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
   spdy_session_->OnWebTransportSessionCreated();
+  web_transport_->set_session_counted(true);
 
   // Store the offered subprotocols so that we can later validate the
   // server-selected one against those.
