@@ -54,6 +54,8 @@ class QuicSpdySessionPeer {
                                      HttpDatagramSupport http_datagram_support);
   static HttpDatagramSupport LocalHttpDatagramSupport(QuicSpdySession* session);
   static void EnableWebTransport(QuicSpdySession* session);
+  static void EnableWebTransport(QuicSpdySession* session,
+                                 WebTransportHttp3VersionSet versions);
 };
 
 }  // namespace test
