@@ -435,6 +435,51 @@ class QUICHE_EXPORT QuicSpdySession
     --active_web_transport_sessions_;
   }
 
+  // Must be called before Initialize() to take effect.
+  void set_wt_initial_max_streams_bidi(uint64_t value) {
+    local_wt_initial_max_streams_bidi_ = value;
+  }
+  void set_wt_initial_max_streams_uni(uint64_t value) {
+    local_wt_initial_max_streams_uni_ = value;
+  }
+  void set_wt_initial_max_data(uint64_t value) {
+    local_wt_initial_max_data_ = value;
+  }
+
+  uint64_t local_wt_initial_max_streams_bidi() const {
+    return local_wt_initial_max_streams_bidi_;
+  }
+  uint64_t local_wt_initial_max_streams_uni() const {
+    return local_wt_initial_max_streams_uni_;
+  }
+  uint64_t local_wt_initial_max_data() const {
+    return local_wt_initial_max_data_;
+  }
+
+  bool peer_wt_flow_control_enabled() const {
+    return peer_wt_initial_max_streams_bidi_ > 0 ||
+           peer_wt_initial_max_streams_uni_ > 0 ||
+           peer_wt_initial_max_data_ > 0;
+  }
+  bool local_wt_flow_control_enabled() const {
+    return local_wt_initial_max_streams_bidi_ > 0 ||
+           local_wt_initial_max_streams_uni_ > 0 ||
+           local_wt_initial_max_data_ > 0;
+  }
+  // Section 5.1: FC is enabled only when both sides advertise non-zero.
+  bool wt_flow_control_enabled() const {
+    return peer_wt_flow_control_enabled() && local_wt_flow_control_enabled();
+  }
+  uint64_t peer_wt_initial_max_streams_bidi() const {
+    return peer_wt_initial_max_streams_bidi_;
+  }
+  uint64_t peer_wt_initial_max_streams_uni() const {
+    return peer_wt_initial_max_streams_uni_;
+  }
+  uint64_t peer_wt_initial_max_data() const {
+    return peer_wt_initial_max_data_;
+  }
+
   // Indicates whether both the peer and us support HTTP/3 Datagrams.
   bool SupportsH3Datagram() const;
 
@@ -680,10 +725,6 @@ class QUICHE_EXPORT QuicSpdySession
 
   // WebTransport protocol versions supported by the peer.
   WebTransportHttp3VersionSet peer_web_transport_versions_;
-  // Peer's initial WT stream limits from SETTINGS (Section 5.5).
-  uint64_t peer_wt_initial_max_streams_bidi_ = 0;
-  uint64_t peer_wt_initial_max_streams_uni_ = 0;
-  uint64_t peer_wt_initial_max_data_ = 0;
   CookieCrumbling cookie_crumbling_ = CookieCrumbling::kEnabled;
   // An integer used for live check. The indicator is assigned a value in
   // constructor. As long as it is not the assigned value, that would indicate
@@ -780,6 +821,12 @@ class QUICHE_EXPORT QuicSpdySession
       max_webtransport_sessions_;
 
   size_t active_web_transport_sessions_ = 0;
+  uint64_t peer_wt_initial_max_streams_bidi_ = 0;
+  uint64_t peer_wt_initial_max_streams_uni_ = 0;
+  uint64_t peer_wt_initial_max_data_ = 0;
+  uint64_t local_wt_initial_max_streams_bidi_ = 0;
+  uint64_t local_wt_initial_max_streams_uni_ = 0;
+  uint64_t local_wt_initial_max_data_ = 0;
 };
 
 }  // namespace quic

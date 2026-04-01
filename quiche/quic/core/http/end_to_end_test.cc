@@ -352,6 +352,11 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     }
     client->client()->set_connection_debug_visitor(connection_debug_visitor_);
     client->client()->set_supported_web_transport_versions(wt_versions_);
+    client->client()->set_wt_initial_max_streams_bidi(
+        client_wt_max_streams_bidi_);
+    client->client()->set_wt_initial_max_streams_uni(
+        client_wt_max_streams_uni_);
+    client->client()->set_wt_initial_max_data(client_wt_max_data_);
     if (connect) {
       client->Connect();
     }
@@ -1108,6 +1113,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   int override_client_connection_id_length_ = -1;
   uint8_t expected_server_connection_id_length_;
   WebTransportHttp3VersionSet wt_versions_;
+  uint64_t client_wt_max_streams_bidi_ = 0;
+  uint64_t client_wt_max_streams_uni_ = 0;
+  uint64_t client_wt_max_data_ = 0;
   bool enable_mlkem_in_client_ = false;
   std::vector<std::string> received_webtransport_unidirectional_streams_;
   bool use_preferred_address_ = false;
@@ -8220,6 +8228,124 @@ TEST_P(EndToEndTest, WebTransportDraft15NoDatagramsAfterClose) {
   auto status = session->SendOrQueueDatagram("post-close datagram");
   EXPECT_NE(status.code, webtransport::DatagramStatusCode::kSuccess)
       << "SendOrQueueDatagram must fail after session termination";
+}
+
+TEST_P(EndToEndTest, WebTransportDraft15FlowControlLimits) {
+  // Section 5.1 + 5.3: FC is enabled when both endpoints send at least
+  // one non-zero FC SETTING. With FC enabled, the server's default
+  // initial_max_streams_bidi=0 blocks the client from opening bidi
+  // streams (Section 5.5.2: default 0 means "must wait for capsule").
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  // Both sides declare FC intent with non-zero limits.
+  client_wt_max_streams_bidi_ = 10;
+  client_wt_max_streams_uni_ = 10;
+  client_wt_max_data_ = 65536;
+  // Server enables FC but keeps bidi=0 (the default).
+  memory_cache_backend_.set_wt_initial_max_streams_uni(10);
+  memory_cache_backend_.set_wt_initial_max_data(65536);
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session, nullptr);
+
+  // Server's initial_max_streams_bidi defaults to 0 — no bidi streams
+  // allowed until the server sends non-zero limits or WT_MAX_STREAMS.
+  EXPECT_FALSE(session->CanOpenNextOutgoingBidirectionalStream())
+      << "Section 5.3: With server's initial_max_streams_bidi=0, client "
+         "must not be able to open bidirectional streams";
+
+  webtransport::Stream* blocked = session->OpenOutgoingBidirectionalStream();
+  EXPECT_EQ(blocked, nullptr)
+      << "Section 5.3: OpenOutgoingBidirectionalStream must return nullptr "
+         "when stream limit is 0";
+}
+
+TEST_P(EndToEndTest, WebTransportDraft15DataFlowControl) {
+  // Section 5.1 + 5.3: FC is enabled when both endpoints send at least
+  // one non-zero FC SETTING. With FC enabled, the server's default
+  // initial_max_streams_uni=0 blocks the client from opening uni
+  // streams (Section 5.5.1: default 0 means "must wait for capsule").
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  // Both sides declare FC intent with non-zero limits.
+  client_wt_max_streams_bidi_ = 10;
+  client_wt_max_streams_uni_ = 10;
+  client_wt_max_data_ = 65536;
+  // Server enables FC but keeps uni=0 (the default).
+  memory_cache_backend_.set_wt_initial_max_streams_bidi(10);
+  memory_cache_backend_.set_wt_initial_max_data(65536);
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session, nullptr);
+
+  // Server's initial_max_data defaults to 0. Even if we could open a
+  // stream, we can't send data.
+  EXPECT_FALSE(session->CanOpenNextOutgoingUnidirectionalStream())
+      << "Section 5.4: With server's initial_max_streams_uni=0, client "
+         "must not be able to open unidirectional streams";
+}
+
+TEST_P(EndToEndTest, WebTransportDraft15ResetStreamAt) {
+  // Section 4.4: Resetting a WT data stream must use RESET_STREAM_AT with
+  // reliable_offset >= stream header size, ensuring the peer can associate
+  // the stream with the correct session even after reset.
+  wt_versions_ = WebTransportHttp3VersionSet(
+      {WebTransportHttp3Version::kDraft15});
+  client_wt_max_streams_bidi_ = 10;
+  client_wt_max_streams_uni_ = 10;
+  client_wt_max_data_ = 65536;
+  memory_cache_backend_.set_wt_initial_max_streams_bidi(10);
+  memory_cache_backend_.set_wt_initial_max_streams_uni(10);
+  memory_cache_backend_.set_wt_initial_max_data(65536);
+
+  bool saw_reset_stream_at = false;
+  QuicStreamOffset observed_reliable_offset = 0;
+  NiceMock<MockQuicConnectionDebugVisitor> visitor;
+  connection_debug_visitor_ = &visitor;
+  ON_CALL(visitor, OnPacketSent(_, _, _, _, _, _, _, _, _))
+      .WillByDefault(
+          [&](QuicPacketNumber, QuicPacketLength, bool, TransmissionType,
+              EncryptionLevel, const QuicFrames& retransmittable_frames,
+              const QuicFrames& /*nonretransmittable_frames*/, QuicTime,
+              uint32_t) {
+            for (const auto& frame : retransmittable_frames) {
+              if (frame.type == RESET_STREAM_AT_FRAME) {
+                saw_reset_stream_at = true;
+                observed_reliable_offset =
+                    frame.reset_stream_at_frame->reliable_offset;
+              }
+            }
+          });
+
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) return;
+
+  WebTransportHttp3* session =
+      CreateWebTransportSession("/echo", /*wait_for_server_response=*/true);
+  ASSERT_NE(session, nullptr);
+
+  webtransport::Stream* stream = session->OpenOutgoingBidirectionalStream();
+  ASSERT_NE(stream, nullptr);
+
+  // Write some data so the stream header is sent.
+  EXPECT_TRUE(stream->Write("hello"));
+
+  // Reset the stream — Section 4.4 requires RESET_STREAM_AT.
+  stream->ResetWithUserCode(0);
+  client_->WaitForWriteToFlush();
+
+  EXPECT_TRUE(saw_reset_stream_at)
+      << "Section 4.4: Draft-15 stream reset must use RESET_STREAM_AT, "
+         "not plain RST_STREAM";
+  EXPECT_GT(observed_reliable_offset, 0u)
+      << "Section 4.4: reliable_offset must be >= stream header size so "
+         "the peer can associate the stream with its session";
 }
 
 TEST_P(EndToEndTest, InvalidExtendedConnect) {

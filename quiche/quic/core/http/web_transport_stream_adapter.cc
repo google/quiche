@@ -32,6 +32,11 @@ namespace quic {
 void WebTransportStreamAdapter::SetWebTransportSession(
     WebTransportHttp3* session) {
   wt_session_ = session;
+  // Report any data that arrived before the session was associated, so it
+  // is counted against WT_MAX_DATA (Section 5.4).
+  if (wt_session_ != nullptr && last_reported_readable_ > 0) {
+    wt_session_->OnIncomingDataReceived(last_reported_readable_);
+  }
 }
 
 WebTransportStreamAdapter::WebTransportStreamAdapter(
@@ -49,6 +54,16 @@ WebTransportStream::ReadResult WebTransportStreamAdapter::Read(
   iov.iov_base = buffer.data();
   iov.iov_len = buffer.size();
   const size_t result = sequencer_->Readv(&iov, 1);
+  if (result > 0) {
+    if (last_reported_readable_ >= result) {
+      last_reported_readable_ -= result;
+    } else {
+      last_reported_readable_ = 0;
+    }
+    if (wt_session_ != nullptr) {
+      wt_session_->OnIncomingDataConsumed(result);
+    }
+  }
   if (!fin_read_ && sequencer_->IsClosed()) {
     fin_read_ = true;
     stream_->OnFinRead();
@@ -83,11 +98,21 @@ absl::Status WebTransportStreamAdapter::Writev(
   }
 
   size_t total_size = MemSliceSpanTotalSize(data);
+
+  // Section 5.4: Check WT session data limit before writing.
+  if (wt_session_ != nullptr && !wt_session_->CanSendData(total_size)) {
+    return absl::ResourceExhaustedError(
+        "WT session data limit exceeded");
+  }
+
   QuicConsumedData consumed = stream_->WriteMemSlices(
       data, /*fin=*/options.send_fin(),
       /*buffer_unconditionally=*/options.buffer_unconditionally());
 
   if (consumed.bytes_consumed == total_size) {
+    if (wt_session_ != nullptr && total_size > 0) {
+      wt_session_->OnDataSent(total_size);
+    }
     return absl::OkStatus();
   }
   if (consumed.bytes_consumed == 0) {
@@ -119,7 +144,14 @@ absl::Status WebTransportStreamAdapter::CheckBeforeStreamWrite() const {
 }
 
 bool WebTransportStreamAdapter::CanWrite() const {
-  return CheckBeforeStreamWrite().ok();
+  if (!CheckBeforeStreamWrite().ok()) {
+    return false;
+  }
+  // Section 5.4: Also check WT session data limit.
+  if (wt_session_ != nullptr && !wt_session_->CanSendData(1)) {
+    return false;
+  }
+  return true;
 }
 
 size_t WebTransportStreamAdapter::ReadableBytes() const {
@@ -146,6 +178,16 @@ bool WebTransportStreamAdapter::SkipBytes(size_t bytes) {
     return true;
   }
   sequencer_->MarkConsumed(bytes);
+  if (bytes > 0) {
+    if (last_reported_readable_ >= bytes) {
+      last_reported_readable_ -= bytes;
+    } else {
+      last_reported_readable_ = 0;
+    }
+    if (wt_session_ != nullptr) {
+      wt_session_->OnIncomingDataConsumed(bytes);
+    }
+  }
   if (!fin_read_ && sequencer_->IsClosed()) {
     fin_read_ = true;
     stream_->OnFinRead();
@@ -154,11 +196,22 @@ bool WebTransportStreamAdapter::SkipBytes(size_t bytes) {
 }
 
 void WebTransportStreamAdapter::OnDataAvailable() {
+  // Section 5.4: Count incoming payload bytes against WT_MAX_DATA before
+  // any early returns — the FC check must fire even if no visitor is set yet.
+  // Only report the delta since the last call to avoid double-counting.
+  size_t readable = ReadableBytes();
+  if (readable > last_reported_readable_) {
+    size_t delta = readable - last_reported_readable_;
+    if (wt_session_ != nullptr) {
+      wt_session_->OnIncomingDataReceived(delta);
+    }
+  }
+  last_reported_readable_ = readable;
   if (visitor_ == nullptr) {
     return;
   }
   const bool fin_readable = sequencer_->IsClosed() && !fin_read_;
-  if (ReadableBytes() == 0 && !fin_readable) {
+  if (readable == 0 && !fin_readable) {
     return;
   }
   visitor_->OnCanRead();
@@ -177,8 +230,18 @@ void WebTransportStreamAdapter::OnCanWriteNewData() {
 
 void WebTransportStreamAdapter::ResetWithUserCode(
     WebTransportStreamError error) {
-  stream_->ResetWriteSide(QuicResetStreamError(
-      QUIC_STREAM_CANCELLED, WebTransportErrorToHttp3(error)));
+  // Section 4.4: WebTransport MUST use RESET_STREAM_AT with reliable_size
+  // >= stream header size, ensuring the peer can associate the stream
+  // with the correct session even after reset. Only use RESET_STREAM_AT
+  // when data has been written; without data, there is nothing to
+  // reliably deliver.
+  if (stream_->stream_bytes_written() > 0 && stream_->SetReliableSize()) {
+    stream_->PartialResetWriteSide(QuicResetStreamError(
+        QUIC_STREAM_CANCELLED, WebTransportErrorToHttp3(error)));
+  } else {
+    stream_->ResetWriteSide(QuicResetStreamError(
+        QUIC_STREAM_CANCELLED, WebTransportErrorToHttp3(error)));
+  }
 }
 
 void WebTransportStreamAdapter::SendStopSending(WebTransportStreamError error) {
@@ -223,6 +286,13 @@ void WebTransportStreamAdapter::SetSessionId(QuicStreamId id) {
           id, old_priority.web_transport().send_group_number,
           old_priority.web_transport().send_order}));
       break;
+  }
+}
+
+void WebTransportStreamAdapter::OnClosingWithUnreadData() {
+  if (last_reported_readable_ > 0 && wt_session_ != nullptr) {
+    wt_session_->OnIncomingDataConsumed(last_reported_readable_);
+    last_reported_readable_ = 0;
   }
 }
 

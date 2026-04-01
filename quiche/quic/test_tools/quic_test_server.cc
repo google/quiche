@@ -126,6 +126,7 @@ class QuicTestDispatcher : public QuicSimpleDispatcher {
       session->set_allow_extended_connect(
           server_backend()->SupportsExtendedConnect());
     }
+    ApplyWebTransportFlowControlLimits(session.get());
     session->Initialize();
     return session;
   }

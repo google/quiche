@@ -121,6 +121,27 @@ class QuicSimpleServerBackend {
                                  : WebTransportHttp3VersionSet();
   }
   virtual bool SupportsExtendedConnect() { return true; }
+
+  // Draft-15 session-level flow control limits advertised by the server.
+  void set_wt_initial_max_streams_bidi(uint64_t v) {
+    wt_initial_max_streams_bidi_ = v;
+  }
+  void set_wt_initial_max_streams_uni(uint64_t v) {
+    wt_initial_max_streams_uni_ = v;
+  }
+  void set_wt_initial_max_data(uint64_t v) { wt_initial_max_data_ = v; }
+  uint64_t wt_initial_max_streams_bidi() const {
+    return wt_initial_max_streams_bidi_;
+  }
+  uint64_t wt_initial_max_streams_uni() const {
+    return wt_initial_max_streams_uni_;
+  }
+  uint64_t wt_initial_max_data() const { return wt_initial_max_data_; }
+
+ private:
+  uint64_t wt_initial_max_streams_bidi_ = 0;
+  uint64_t wt_initial_max_streams_uni_ = 0;
+  uint64_t wt_initial_max_data_ = 0;
 };
 
 }  // namespace quic

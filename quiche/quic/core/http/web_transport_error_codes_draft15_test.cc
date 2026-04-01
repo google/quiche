@@ -8,10 +8,12 @@
 #include <cstdint>
 #include <optional>
 
+#include "quiche/quic/core/http/quic_spdy_stream.h"
 #include "quiche/quic/core/http/web_transport_draft15_test_utils.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/quic_framer.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/capsule.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/web_transport/test_tools/draft15_constants.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
@@ -197,6 +199,56 @@ TEST_P(ErrorCodesDraft15SessionTest,
   testing::Mock::VerifyAndClearExpectations(connection_);
 }
 
+TEST_P(ErrorCodesDraft15SessionTest, ResetStreamAtReliableSize) {
+  // Section 4.4 MUST: When resetting a WT stream, the endpoint MUST use
+  // RESET_STREAM_AT with Reliable Size >= the stream header size.
+  if (!VersionIsIetfQuic(GetParam().transport_version)) return;
+  auto* wt = SetUpWebTransportDraft15ServerSession(GetNthClientInitiatedBidirectionalId(0),
+                                       /*initial_max_streams_uni=*/10,
+                                       /*initial_max_streams_bidi=*/10,
+                                       /*initial_max_data=*/65536);
+  ASSERT_NE(wt, nullptr) << "Draft-15 session could not be established";
+
+  session_->set_writev_consumes_all_data(true);
+  EXPECT_CALL(*writer_,
+              WritePacket(_, _, _, _, _, _))
+      .WillRepeatedly(testing::Return(WriteResult(WRITE_STATUS_OK, 0)));
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly(&test::ClearControlFrame);
+  EXPECT_CALL(*connection_, OnStreamReset(_, _))
+      .Times(testing::AnyNumber());
+
+  // Open a WT stream and write some data.
+  webtransport::Stream* stream = wt->OpenOutgoingUnidirectionalStream();
+  ASSERT_NE(stream, nullptr);
+  EXPECT_TRUE(stream->Write("hello"));
+
+  // Section 4.4 MUST: ResetWithUserCode must send RESET_STREAM_AT (not
+  // plain RST_STREAM) with reliable_offset >= stream header size.
+  bool got_rst_stream_at = false;
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly([&got_rst_stream_at](const QuicFrame& frame) {
+        if (frame.type == RESET_STREAM_AT_FRAME) {
+          got_rst_stream_at = true;
+          // WT uni stream preamble: varint(stream_type) + varint(session_id).
+          // For small session_ids, this is at least 2 bytes.
+          EXPECT_GE(frame.reset_stream_at_frame->reliable_offset, 2u)
+              << "RESET_STREAM_AT reliable_offset must be >= "
+                 "stream header size";
+        }
+        test::ClearControlFrame(frame);
+        return true;
+      });
+
+  stream->ResetWithUserCode(0);
+
+  EXPECT_TRUE(got_rst_stream_at)
+      << "WT stream reset must use RESET_STREAM_AT, "
+         "not plain RST_STREAM";
+  testing::Mock::VerifyAndClearExpectations(writer_);
+  testing::Mock::VerifyAndClearExpectations(connection_);
+}
+
 TEST_P(ErrorCodesDraft15SessionTest,
        Section4_4_NonWtErrorCodeDeliveredAsZero) {
   // Section 4.4.2 SHOULD: "If an endpoint receives a RESET_STREAM [...]
@@ -314,6 +366,109 @@ TEST(WebTransportErrorCodesDraft15, WtAlpnErrorValue) {
 
 TEST(WebTransportErrorCodesDraft15, WtRequirementsNotMetValue) {
   EXPECT_EQ(webtransport::draft15::kWtRequirementsNotMet, 0x212c0d48u);
+}
+
+// --- Prohibited per-stream FC capsules (Section 5.4) ---
+
+TEST_P(ErrorCodesDraft15SessionTest, Section5_4_ProhibitedWtMaxStreamData) {
+  // Section 5.4 MUST: WT_MAX_STREAM_DATA is prohibited in draft-15 (per-stream
+  // FC is provided by QUIC natively). Receipt MUST close the session with
+  // WT_FLOW_CONTROL_ERROR, not SESSION_NO_ERROR (0).
+  if (!VersionIsIetfQuic(GetParam().transport_version)) return;
+  auto* wt = SetUpWebTransportDraft15ServerSession(GetNthClientInitiatedBidirectionalId(0),
+                                       /*initial_max_streams_uni=*/10,
+                                       /*initial_max_streams_bidi=*/10,
+                                       /*initial_max_data=*/65536);
+  ASSERT_NE(wt, nullptr);
+  auto* visitor = AttachMockVisitor(wt);
+
+  session_->set_writev_consumes_all_data(true);
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly(&test::ClearControlFrame);
+  EXPECT_CALL(*connection_, OnStreamReset(_, _))
+      .Times(testing::AnyNumber());
+
+  // Section 5.4 MUST: Session closed with WT_FLOW_CONTROL_ERROR.
+  EXPECT_CALL(*visitor, OnSessionClosed(
+      static_cast<webtransport::SessionErrorCode>(kWtFlowControlError), _))
+      .Times(1);
+
+  InjectCapsuleOnConnectStream(
+      GetNthClientInitiatedBidirectionalId(0),
+      quiche::Capsule(quiche::WebTransportMaxStreamDataCapsule{
+          /*stream_id=*/0, /*max_stream_data=*/1024}));
+}
+
+TEST_P(ErrorCodesDraft15SessionTest, Section5_4_ProhibitedWtStreamDataBlocked) {
+  // Section 5.4 MUST: WT_STREAM_DATA_BLOCKED is prohibited in draft-15.
+  // Receipt MUST close the session with WT_FLOW_CONTROL_ERROR.
+  if (!VersionIsIetfQuic(GetParam().transport_version)) return;
+  auto* wt = SetUpWebTransportDraft15ServerSession(GetNthClientInitiatedBidirectionalId(0),
+                                       /*initial_max_streams_uni=*/10,
+                                       /*initial_max_streams_bidi=*/10,
+                                       /*initial_max_data=*/65536);
+  ASSERT_NE(wt, nullptr);
+  auto* visitor = AttachMockVisitor(wt);
+
+  session_->set_writev_consumes_all_data(true);
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly(&test::ClearControlFrame);
+  EXPECT_CALL(*connection_, OnStreamReset(_, _))
+      .Times(testing::AnyNumber());
+
+  // Section 5.4 MUST: Session closed with WT_FLOW_CONTROL_ERROR.
+  EXPECT_CALL(*visitor, OnSessionClosed(
+      static_cast<webtransport::SessionErrorCode>(kWtFlowControlError), _))
+      .Times(1);
+
+  InjectCapsuleOnConnectStream(
+      GetNthClientInitiatedBidirectionalId(0),
+      quiche::Capsule(quiche::WebTransportStreamDataBlockedCapsule{
+          /*stream_id=*/0, /*stream_data_limit=*/512}));
+}
+
+TEST_P(ErrorCodesDraft15SessionTest, Section6_ConnectStreamStopsReadingAfterInternalError) {
+  // Section 6: After CloseSession() via OnInternalError(), the CONNECT
+  // stream should stop reading to prevent processing further capsules.
+  if (!VersionIsIetfQuic(GetParam().transport_version)) return;
+  auto* wt = SetUpWebTransportDraft15ServerSession(GetNthClientInitiatedBidirectionalId(0),
+                                       /*initial_max_streams_uni=*/10,
+                                       /*initial_max_streams_bidi=*/10,
+                                       /*initial_max_data=*/65536);
+  ASSERT_NE(wt, nullptr) << "Draft-15 session could not be established";
+  auto* visitor = AttachMockVisitor(wt);
+
+  session_->set_writev_consumes_all_data(true);
+  EXPECT_CALL(*writer_,
+              WritePacket(_, _, _, _, _, _))
+      .WillRepeatedly(testing::Return(WriteResult(WRITE_STATUS_OK, 0)));
+  EXPECT_CALL(*connection_, SendControlFrame(_))
+      .WillRepeatedly(&test::ClearControlFrame);
+  EXPECT_CALL(*connection_, OnStreamReset(_, _))
+      .Times(testing::AnyNumber());
+  EXPECT_CALL(*visitor, OnSessionClosed(_, _)).Times(testing::AnyNumber());
+
+  QuicStreamId session_id = GetNthClientInitiatedBidirectionalId(0);
+
+  // Inject WT_MAX_DATA(65536) to set max_data_send_ = 65536.
+  InjectCapsuleOnConnectStream(
+      session_id,
+      quiche::Capsule(quiche::WebTransportMaxDataCapsule{/*max_data=*/65536}));
+
+  // Inject WT_MAX_DATA(32000) — a decrease, which triggers OnInternalError
+  // with kWtFlowControlError, which calls CloseSession().
+  InjectCapsuleOnConnectStream(
+      session_id,
+      quiche::Capsule(quiche::WebTransportMaxDataCapsule{/*max_data=*/32000}));
+
+  // After CloseSession(), the CONNECT stream should have StopReading()
+  // called to prevent processing further capsules/data.
+  QuicSpdyStream* connect_stream = static_cast<QuicSpdyStream*>(
+      session_->GetOrCreateStream(session_id));
+  ASSERT_NE(connect_stream, nullptr);
+  EXPECT_TRUE(connect_stream->reading_stopped())
+      << "After CloseSession() via OnInternalError(), "
+         "StopReading() should have been called on the CONNECT stream";
 }
 
 TEST_P(ErrorCodesDraft15SessionTest, Section6_OversizedCloseMessageRejected) {

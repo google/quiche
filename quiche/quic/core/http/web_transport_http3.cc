@@ -91,6 +91,11 @@ void WebTransportHttp3::AssociateStream(QuicStreamId stream_id) {
                                     session_->perspective())) {
     return;
   }
+  // Section 5.3: Check incoming stream limits.
+  OnIncomingStreamAssociated(stream_id);
+  if (close_sent_) {
+    return;  // Session was closed due to stream limit violation.
+  }
   if (QuicUtils::IsBidirectionalStreamId(stream_id, version)) {
     incoming_bidirectional_streams_.push_back(stream_id);
     visitor_->OnIncomingBidirectionalStreamAvailable();
@@ -299,10 +304,16 @@ bool WebTransportHttp3::CanOpenNextOutgoingBidirectionalStream() {
   if (IsTerminated()) {
     return false;
   }
+  if (!CanOpenNextOutgoingStream(webtransport::StreamType::kBidirectional)) {
+    return false;
+  }
   return session_->CanOpenOutgoingBidirectionalWebTransportStream(id_);
 }
 bool WebTransportHttp3::CanOpenNextOutgoingUnidirectionalStream() {
   if (IsTerminated()) {
+    return false;
+  }
+  if (!CanOpenNextOutgoingStream(webtransport::StreamType::kUnidirectional)) {
     return false;
   }
   return session_->CanOpenOutgoingUnidirectionalWebTransportStream(id_);
@@ -312,11 +323,17 @@ WebTransportStream* WebTransportHttp3::OpenOutgoingBidirectionalStream() {
   if (IsTerminated()) {
     return nullptr;
   }
+  // Section 5.3: Check WT-level stream limit.
+  if (!CanOpenNextOutgoingStream(webtransport::StreamType::kBidirectional)) {
+    MaybeSendStreamsBlocked(webtransport::StreamType::kBidirectional);
+    return nullptr;
+  }
   QuicSpdyStream* stream =
       session_->CreateOutgoingBidirectionalWebTransportStream(this);
   if (stream == nullptr) {
     return nullptr;
   }
+  ++outgoing_bidi_stream_count_;
   return stream->web_transport_stream();
 }
 
@@ -325,12 +342,269 @@ WebTransportStream* WebTransportHttp3::OpenOutgoingUnidirectionalStream() {
   if (IsTerminated()) {
     return nullptr;
   }
+  // Section 5.3: Check WT-level stream limit.
+  if (!CanOpenNextOutgoingStream(webtransport::StreamType::kUnidirectional)) {
+    MaybeSendStreamsBlocked(webtransport::StreamType::kUnidirectional);
+    return nullptr;
+  }
   WebTransportHttp3UnidirectionalStream* stream =
       session_->CreateOutgoingUnidirectionalWebTransportStream(this);
   if (stream == nullptr) {
     return nullptr;
   }
+  ++outgoing_uni_stream_count_;
   return stream->interface();
+}
+
+bool WebTransportHttp3::CanOpenNextOutgoingStream(
+    webtransport::StreamType stream_type) const {
+  if (!wt_stream_limits_enabled_) {
+    return true;
+  }
+  if (stream_type == webtransport::StreamType::kBidirectional) {
+    return outgoing_bidi_stream_count_ < max_outgoing_bidi_streams_;
+  }
+  return outgoing_uni_stream_count_ < max_outgoing_uni_streams_;
+}
+
+void WebTransportHttp3::SetInitialStreamLimits(uint64_t max_outgoing_bidi,
+                                                uint64_t max_outgoing_uni,
+                                                uint64_t max_incoming_bidi,
+                                                uint64_t max_incoming_uni) {
+  max_outgoing_bidi_streams_ = max_outgoing_bidi;
+  max_outgoing_uni_streams_ = max_outgoing_uni;
+  max_incoming_bidi_streams_ = max_incoming_bidi;
+  max_incoming_uni_streams_ = max_incoming_uni;
+  initial_max_incoming_bidi_streams_ = max_incoming_bidi;
+  initial_max_incoming_uni_streams_ = max_incoming_uni;
+  wt_stream_limits_enabled_ = true;
+}
+
+void WebTransportHttp3::SetInitialDataLimit(uint64_t max_data_send,
+                                            uint64_t max_data_receive) {
+  max_data_send_ = max_data_send;
+  max_data_receive_ = max_data_receive;
+  initial_max_data_receive_ = max_data_receive;
+  wt_data_limits_enabled_ = true;
+}
+
+void WebTransportHttp3::OnMaxDataCapsuleReceived(uint64_t max_data) {
+  if (!wt_data_limits_enabled_) {
+    return;
+  }
+  // Section 5.6.4: WT_MAX_DATA must not decrease.
+  if (max_data < max_data_send_) {
+    OnInternalError(
+        kWtFlowControlError,
+        "WT_MAX_DATA decreased");
+    return;
+  }
+  if (max_data == max_data_send_) {
+    return;
+  }
+  max_data_send_ = max_data;
+  data_blocked_sent_ = false;
+  for (QuicStreamId id : streams_) {
+    session_->MarkConnectionLevelWriteBlocked(id);
+  }
+}
+
+bool WebTransportHttp3::CanSendData(size_t bytes) const {
+  if (!wt_data_limits_enabled_) {
+    return true;
+  }
+  if (total_data_sent_ > max_data_send_) {
+    return false;
+  }
+  return bytes <= max_data_send_ - total_data_sent_;
+}
+
+void WebTransportHttp3::OnDataSent(size_t bytes) {
+  total_data_sent_ += bytes;
+}
+
+void WebTransportHttp3::OnIncomingDataReceived(size_t bytes) {
+  if (!wt_data_limits_enabled_) {
+    return;
+  }
+  total_data_received_ += bytes;
+  if (total_data_received_ > max_data_receive_) {
+    OnInternalError(
+        kWtFlowControlError,
+        "Incoming data exceeded WT_MAX_DATA limit");
+  }
+}
+
+void WebTransportHttp3::OnIncomingDataConsumed(size_t bytes) {
+  if (!wt_data_limits_enabled_ || close_sent_) return;
+  total_data_consumed_ += bytes;
+  if (total_data_consumed_ > max_data_receive_) return;
+  // Section 5.6.4: Send WT_MAX_DATA when available window drops below half.
+  uint64_t available = max_data_receive_ - total_data_consumed_;
+  if (available < initial_max_data_receive_ / 2) {
+    constexpr uint64_t kMaxVarint62 = (1ULL << 62) - 1;
+    uint64_t new_max = max_data_receive_ + initial_max_data_receive_;
+    if (new_max > kMaxVarint62) {
+      new_max = kMaxVarint62;
+    }
+    if (new_max == max_data_receive_) return;
+    max_data_receive_ = new_max;
+    QuicConnection::ScopedPacketFlusher flusher(
+        connect_stream_->spdy_session()->connection());
+    connect_stream_->WriteCapsule(
+        quiche::Capsule(quiche::WebTransportMaxDataCapsule{max_data_receive_}));
+  }
+}
+
+void WebTransportHttp3::OnStreamClosed(QuicStreamId stream_id) {
+  streams_.erase(stream_id);
+  if (!wt_stream_limits_enabled_ || close_sent_) return;
+  ParsedQuicVersion version = session_->version();
+  if (QuicUtils::IsOutgoingStreamId(version, stream_id,
+                                    session_->perspective())) {
+    return;
+  }
+  if (QuicUtils::IsBidirectionalStreamId(stream_id, version)) {
+    MaybeReplenishStreamLimit(webtransport::StreamType::kBidirectional);
+  } else {
+    MaybeReplenishStreamLimit(webtransport::StreamType::kUnidirectional);
+  }
+}
+
+void WebTransportHttp3::MaybeReplenishStreamLimit(
+    webtransport::StreamType type) {
+  uint64_t& max_incoming =
+      (type == webtransport::StreamType::kBidirectional)
+          ? max_incoming_bidi_streams_
+          : max_incoming_uni_streams_;
+  const uint64_t& count =
+      (type == webtransport::StreamType::kBidirectional)
+          ? incoming_bidi_stream_count_
+          : incoming_uni_stream_count_;
+  const uint64_t initial =
+      (type == webtransport::StreamType::kBidirectional)
+          ? initial_max_incoming_bidi_streams_
+          : initial_max_incoming_uni_streams_;
+  uint64_t available = max_incoming - count;
+  // Section 5.6.2: Send WT_MAX_STREAMS when available window drops below half.
+  if (available < initial / 2) {
+    constexpr uint64_t kMaxStreamsUpperBound = 1ULL << 60;
+    uint64_t new_max = max_incoming + initial;
+    if (new_max > kMaxStreamsUpperBound) {
+      new_max = kMaxStreamsUpperBound;
+    }
+    if (new_max == max_incoming) return;
+    max_incoming = new_max;
+    QuicConnection::ScopedPacketFlusher flusher(
+        connect_stream_->spdy_session()->connection());
+    connect_stream_->WriteCapsule(quiche::Capsule(
+        quiche::WebTransportMaxStreamsCapsule{type, max_incoming}));
+  }
+}
+
+void WebTransportHttp3::MaybeSendStreamsBlocked(
+    webtransport::StreamType type) {
+  if (!wt_stream_limits_enabled_ || close_sent_) return;
+  bool& sent = (type == webtransport::StreamType::kBidirectional)
+                   ? bidi_streams_blocked_sent_
+                   : uni_streams_blocked_sent_;
+  if (sent) return;
+  sent = true;
+  uint64_t limit = (type == webtransport::StreamType::kBidirectional)
+                       ? max_outgoing_bidi_streams_
+                       : max_outgoing_uni_streams_;
+  QuicConnection::ScopedPacketFlusher flusher(
+      connect_stream_->spdy_session()->connection());
+  connect_stream_->WriteCapsule(quiche::Capsule(
+      quiche::WebTransportStreamsBlockedCapsule{type, limit}));
+}
+
+void WebTransportHttp3::MaybeSendDataBlocked() {
+  if (!wt_data_limits_enabled_ || close_sent_ || data_blocked_sent_) return;
+  data_blocked_sent_ = true;
+  QuicConnection::ScopedPacketFlusher flusher(
+      connect_stream_->spdy_session()->connection());
+  connect_stream_->WriteCapsule(quiche::Capsule(
+      quiche::WebTransportDataBlockedCapsule{max_data_send_}));
+}
+
+void WebTransportHttp3::OnIncomingStreamAssociated(QuicStreamId stream_id) {
+  if (!wt_stream_limits_enabled_) {
+    return;
+  }
+  ParsedQuicVersion version = session_->version();
+  if (QuicUtils::IsOutgoingStreamId(version, stream_id,
+                                    session_->perspective())) {
+    return;
+  }
+  if (QuicUtils::IsBidirectionalStreamId(stream_id, version)) {
+    ++incoming_bidi_stream_count_;
+    if (incoming_bidi_stream_count_ > max_incoming_bidi_streams_) {
+      OnInternalError(
+          kWtFlowControlError,
+          "Incoming bidirectional stream count exceeds limit");
+    }
+  } else {
+    ++incoming_uni_stream_count_;
+    if (incoming_uni_stream_count_ > max_incoming_uni_streams_) {
+      OnInternalError(
+          kWtFlowControlError,
+          "Incoming unidirectional stream count exceeds limit");
+    }
+  }
+}
+
+void WebTransportHttp3::OnMaxStreamsCapsuleReceived(
+    webtransport::StreamType stream_type, uint64_t max_stream_count) {
+  if (!wt_stream_limits_enabled_) {
+    return;
+  }
+  // Section 5.6.2: Maximum Streams cannot exceed 2^60.
+  constexpr uint64_t kMaxStreamsUpperBound = 1ULL << 60;
+  if (max_stream_count > kMaxStreamsUpperBound) {
+    QUIC_DLOG(ERROR) << ENDPOINT << "Received WT_MAX_STREAMS with value "
+                     << max_stream_count << " exceeding 2^60 limit.";
+    session_->connection()->CloseConnection(
+        QUIC_HTTP_FRAME_ERROR,
+        static_cast<QuicIetfTransportErrorCodes>(kH3DatagramError),
+        "WT_MAX_STREAMS value exceeds 2^60",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return;
+  }
+  if (stream_type == webtransport::StreamType::kBidirectional) {
+    // Section 5.6.2: WT_MAX_STREAMS must not decrease.
+    if (max_stream_count < max_outgoing_bidi_streams_) {
+      QUIC_DLOG(ERROR) << ENDPOINT
+                       << "Received WT_MAX_STREAMS_BIDI with decreased "
+                          "value, closing session.";
+      OnInternalError(
+          kWtFlowControlError,
+          "WT_MAX_STREAMS decreased");
+      return;
+    }
+    if (max_stream_count == max_outgoing_bidi_streams_) {
+      return;
+    }
+    max_outgoing_bidi_streams_ = max_stream_count;
+    bidi_streams_blocked_sent_ = false;
+    visitor_->OnCanCreateNewOutgoingBidirectionalStream();
+  } else {
+    if (max_stream_count < max_outgoing_uni_streams_) {
+      QUIC_DLOG(ERROR) << ENDPOINT
+                       << "Received WT_MAX_STREAMS_UNIDI with decreased "
+                          "value, closing session.";
+      OnInternalError(
+          kWtFlowControlError,
+          "WT_MAX_STREAMS decreased");
+      return;
+    }
+    if (max_stream_count == max_outgoing_uni_streams_) {
+      return;
+    }
+    max_outgoing_uni_streams_ = max_stream_count;
+    uni_streams_blocked_sent_ = false;
+    visitor_->OnCanCreateNewOutgoingUnidirectionalStream();
+  }
 }
 
 webtransport::Stream* WebTransportHttp3::GetStreamById(
@@ -529,6 +803,9 @@ void WebTransportHttp3UnidirectionalStream::OnDataAvailable() {
     }
   }
 
+  // The adapter's OnDataAvailable() counts readable bytes against
+  // WT_MAX_DATA (Section 5.4), covering both initially-buffered and
+  // subsequently-arriving payload data.
   adapter_.OnDataAvailable();
 }
 
@@ -549,6 +826,7 @@ void WebTransportHttp3UnidirectionalStream::OnClose() {
                        << ", but the session could not be found.";
     return;
   }
+  adapter_.OnClosingWithUnreadData();
   session->OnStreamClosed(id());
 }
 
