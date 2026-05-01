@@ -439,25 +439,6 @@ TEST_F(Bbr3DefaultTopologyTest, SimpleTransferB2RC) {
   EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
 }
 
-TEST_F(Bbr3DefaultTopologyTest, SimpleTransferB201) {
-  SetConnectionOption(kB201);
-  DefaultTopologyParams params;
-  CreateNetwork(params);
-
-  // Transfer 12MB.
-  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
-  EXPECT_TRUE(Bbr3ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
-
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
-                   sender_->ExportDebugState().bandwidth_hi, 0.01f);
-
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.05);
-  // The margin here is high, because the aggregation greatly increases
-  // smoothed rtt.
-  EXPECT_GE(params.RTT() * 4, rtt_stats()->smoothed_rtt());
-  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
-}
-
 TEST_F(Bbr3DefaultTopologyTest, SimpleTransferB206) {
   SetConnectionOption(kB206);
   DefaultTopologyParams params;
@@ -595,28 +576,6 @@ TEST_F(Bbr3DefaultTopologyTest, SimpleTransfer2RTTAggregationBytes) {
 
   EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
                    sender_->ExportDebugState().bandwidth_hi, 0.01f);
-
-  EXPECT_LE(sender_loss_rate_in_packets(), 0.01);
-  // The margin here is high, because both link level aggregation and ack
-  // decimation can greatly increase smoothed rtt.
-  EXPECT_GE(params.RTT() * 5, rtt_stats()->smoothed_rtt());
-  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
-}
-
-TEST_F(Bbr3DefaultTopologyTest, SimpleTransfer2RTTAggregationBytesB201) {
-  SetConnectionOption(kB201);
-  DefaultTopologyParams params;
-  CreateNetwork(params);
-  // 2 RTTs of aggregation, with a max of 10kb.
-  EnableAggregation(10 * 1024, 2 * params.RTT());
-
-  // Transfer 12MB.
-  DoSimpleTransfer(12 * 1024 * 1024, QuicTime::Delta::FromSeconds(35));
-  EXPECT_TRUE(Bbr3ModeIsOneOf({Bbr2Mode::PROBE_BW, Bbr2Mode::PROBE_RTT}));
-
-  // TODO(wub): Tighten the error bound once BSAO is default enabled.
-  EXPECT_APPROX_EQ(params.BottleneckBandwidth(),
-                   sender_->ExportDebugState().bandwidth_hi, 0.5f);
 
   EXPECT_LE(sender_loss_rate_in_packets(), 0.01);
   // The margin here is high, because both link level aggregation and ack
