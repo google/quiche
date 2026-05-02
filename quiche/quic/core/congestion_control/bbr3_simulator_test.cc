@@ -1350,14 +1350,13 @@ TEST_F(Bbr3DefaultTopologyTest, Drain) {
   // Get the queue at the bottleneck, which is the outgoing queue at the port to
   // which the receiver is connected.
   const simulator::Queue* queue = switch_->port_queue(2);
-  bool simulator_result;
 
   // We have no intention of ever finishing this transfer.
   sender_endpoint_.AddBytesToTransfer(100 * 1024 * 1024);
 
   // Run the startup, and verify that it fills up the queue.
   ASSERT_EQ(Bbr2Mode::STARTUP, sender_->ExportDebugState().mode);
-  simulator_result = simulator_.RunUntilOrTimeout(
+  bool simulator_result = simulator_.RunUntilOrTimeout(
       [this]() {
         return sender_->ExportDebugState().mode != Bbr2Mode::STARTUP;
       },
@@ -1403,6 +1402,62 @@ TEST_F(Bbr3DefaultTopologyTest, Drain) {
 
   // Observe the bufferbloat go away.
   EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->smoothed_rtt(), 0.1f);
+}
+
+// Verify the flow exits DRAIN after 3 rounds no matter what.
+TEST_F(Bbr3DefaultTopologyTest, DrainExitDueTo3RoundLimit) {
+  DefaultTopologyParams params;
+  CreateNetwork(params);
+
+  const QuicTime::Delta timeout = QuicTime::Delta::FromSeconds(10);
+  // Get the queue at the bottleneck, which is the outgoing queue at the port to
+  // which the receiver is connected.
+  const simulator::Queue* queue = switch_->port_queue(2);
+
+  // We have no intention of ever finishing this transfer.
+  sender_endpoint_.AddBytesToTransfer(100 * 1024 * 1024);
+
+  // Run the startup, and verify that it fills up the queue.
+  ASSERT_EQ(Bbr2Mode::STARTUP, sender_->ExportDebugState().mode);
+  bool simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() {
+        return sender_->ExportDebugState().mode != Bbr2Mode::STARTUP;
+      },
+      timeout);
+  ASSERT_TRUE(simulator_result);
+  ASSERT_EQ(Bbr2Mode::DRAIN, sender_->ExportDebugState().mode);
+  EXPECT_APPROX_EQ(sender_->BandwidthEstimate() * 0.5f, sender_->PacingRate(0),
+                   0.01f);
+
+  // BBR uses CWND gain of 2 during STARTUP, hence it will fill the buffer with
+  // approximately 1 BDP.  Here, we use 0.95 to give some margin for error.
+  EXPECT_GE(queue->bytes_queued(), 0.95 * params.BDP());
+
+  // Observe increased RTT due to bufferbloat.
+  const QuicTime::Delta queueing_delay =
+      params.test_link.bandwidth.TransferTime(queue->bytes_queued());
+  EXPECT_APPROX_EQ(params.RTT() + queueing_delay, rtt_stats()->latest_rtt(),
+                   0.1f);
+
+  // Transition to the drain phase and verify that it makes the queue
+  // have at most a BDP worth of packets.
+  const QuicRoundTripCount round_count_at_drain_entry =
+      sender_->ExportDebugState().round_trip_count;
+  // Half the bottleneck bandwidth so we never drain the queue.
+  params.test_link.bandwidth = params.BottleneckBandwidth() * 0.5f;
+  TestLink()->set_bandwidth(params.test_link.bandwidth);
+
+  simulator_result = simulator_.RunUntilOrTimeout(
+      [this]() { return sender_->ExportDebugState().mode != Bbr2Mode::DRAIN; },
+      timeout);
+  ASSERT_TRUE(simulator_result);
+  ASSERT_EQ(Bbr2Mode::PROBE_BW, sender_->ExportDebugState().mode);
+  // Verify we are exiting DRAIN with bytes_in_flight > DrainTarget(), which
+  // means we exited due to drain_rounds > 3.
+  EXPECT_GT(sender_unacked_map()->bytes_in_flight(),
+            sender_->ExportDebugState().drain.drain_target);
+  EXPECT_EQ(sender_->ExportDebugState().round_trip_count,
+            round_count_at_drain_entry + 3);
 }
 
 // Ensure that a connection that is app-limited and is at sufficiently low

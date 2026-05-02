@@ -154,6 +154,7 @@ struct QUICHE_EXPORT Bbr2Params {
   float probe_bw_default_pacing_gain = 1.0;
 
   float probe_bw_cwnd_gain = kDerivedDefaultCwndGain;
+  float probe_up_cwnd_gain = 2.25;  // For BBR3.
 
   /*
    * PROBE_UP parameters.

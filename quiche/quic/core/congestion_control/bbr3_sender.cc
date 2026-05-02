@@ -59,6 +59,8 @@ Bbr3Sender::Bbr3Sender(QuicTime now, const RttStats* rtt_stats,
   }
   // The BBR IETF draft uses 0.5 as the drain pacing gain.
   params_.drain_pacing_gain = 0.5f;
+  // The BBR IETF draft uses 0.9 as the PROBE_DOWN pacing gain.
+  params_.probe_bw_probe_down_pacing_gain = 0.9f;
   // STARTUP has a shorter MaxAckHeightTracker window of 1 round.
   params_.startup_include_extra_acked = true;
   model_.SetMaxAckHeightTrackerWindowLength(1);
@@ -520,6 +522,7 @@ void Bbr3Sender::LeaveStartup(QuicTime now) {
   model_.clear_bandwidth_lo();
   // Increase the max_ack_height_tracker window when exiting STARTUP from 1.
   model_.SetMaxAckHeightTrackerWindowLength(max_ack_height_window_length_);
+  drain_rounds_ = 0;
 }
 
 void Bbr3Sender::OnExitQuiescence(QuicTime now) {
@@ -689,12 +692,17 @@ Bbr2Mode Bbr3Sender::OnCongestionEventDrain(
   QUICHE_DCHECK_EQ(model_.cwnd_gain(), params_.drain_cwnd_gain);
   model_.set_cwnd_gain(params_.drain_cwnd_gain);
 
+  if (congestion_event.end_of_round_trip) {
+    ++drain_rounds_;
+  }
+
   QuicByteCount drain_target = DrainTarget();
-  if (congestion_event.bytes_in_flight <= drain_target) {
+  if (congestion_event.bytes_in_flight <= drain_target || drain_rounds_ > 3) {
     QUIC_DVLOG(3) << this << " Exiting DRAIN. bytes_in_flight:"
                   << congestion_event.bytes_in_flight
                   << ", bdp:" << model_.BDP()
-                  << ", drain_target:" << drain_target << "  @ "
+                  << ", drain_target:" << drain_target
+                  << ", drain_rounds:" << drain_rounds_ << "  @ "
                   << congestion_event.event_time;
     return Bbr2Mode::PROBE_BW;
   }
@@ -744,12 +752,17 @@ Bbr2Mode Bbr3Sender::OnCongestionEventProbeBw(
 
   // Do not need to set the gains if switching to PROBE_RTT, they will be set
   // when Bbr2ProbeRttMode::Enter is called.
-  if (!switch_to_probe_rtt) {
-    model_.set_pacing_gain(PacingGainForPhase(probe_bw_.phase));
+  if (switch_to_probe_rtt) {
+    return Bbr2Mode::PROBE_RTT;
+  }
+  model_.set_pacing_gain(PacingGainForPhase(probe_bw_.phase));
+  if (probe_bw_.phase == ProbePhase::PROBE_UP) {
+    model_.set_cwnd_gain(params_.probe_up_cwnd_gain);
+  } else {
     model_.set_cwnd_gain(params_.probe_bw_cwnd_gain);
   }
 
-  return switch_to_probe_rtt ? Bbr2Mode::PROBE_RTT : Bbr2Mode::PROBE_BW;
+  return Bbr2Mode::PROBE_BW;
 }
 
 void Bbr3Sender::UpdateProbeDown(QuicByteCount prior_in_flight,

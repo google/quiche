@@ -214,6 +214,9 @@ class QUICHE_EXPORT Bbr3Sender final : public SendAlgorithmInterface {
   // Startup state.
   QuicBandwidth startup_max_bw_at_round_beginning_ = QuicBandwidth::Zero();
 
+  // Drain state.
+  uint64_t drain_rounds_ = 0;
+
   // Probe BW state.
   struct ProbeBWState {
     QuicTime cycle_start_time = QuicTime::Zero();
