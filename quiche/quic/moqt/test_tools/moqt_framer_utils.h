@@ -6,40 +6,30 @@
 #define QUICHE_QUIC_MOQT_TEST_TOOLS_MOQT_FRAMER_UTILS_H_
 
 #include <cstdint>
-#include <optional>
 #include <string>
 #include <variant>
 #include <vector>
 
-#include "absl/status/status.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/span.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/web_transport/web_transport.h"
 
 namespace moqt::test {
 
-// TODO: remove MoqtObject from TestMessageBase::MessageStructuredData and merge
-// those two types.
-using MoqtGenericFrame =
-    std::variant<MoqtClientSetup, MoqtServerSetup, MoqtRequestOk,
-                 MoqtRequestError, MoqtSubscribe, MoqtSubscribeOk,
-                 MoqtUnsubscribe, MoqtPublishDone, MoqtRequestUpdate,
-                 MoqtPublishNamespace, MoqtPublishNamespaceDone, MoqtNamespace,
-                 MoqtNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
-                 MoqtGoAway, MoqtSubscribeNamespace, MoqtMaxRequestId,
-                 MoqtFetch, MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked,
-                 MoqtPublish, MoqtPublishOk, MoqtObjectAck>;
+using AnyMoqtControlMessage = std::variant<
+    MoqtClientSetup, MoqtServerSetup, MoqtRequestOk, MoqtRequestError,
+    MoqtSubscribe, MoqtSubscribeOk, MoqtUnsubscribe, MoqtPublishDone,
+    MoqtRequestUpdate, MoqtPublishNamespace, MoqtPublishNamespaceDone,
+    MoqtPublishNamespaceCancel, MoqtTrackStatus, MoqtGoAway,
+    MoqtSubscribeNamespace, MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel,
+    MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish, MoqtPublishOk, MoqtNamespace,
+    MoqtNamespaceDone, MoqtObjectAck>;
 
-std::string SerializeGenericMessage(const MoqtGenericFrame& frame,
+std::string SerializeGenericMessage(const AnyMoqtControlMessage& frame,
                                     bool use_webtrans = false);
-
-// Parses a concatenation of one or more MoQT control messages.
-std::vector<MoqtGenericFrame> ParseGenericMessage(absl::string_view body);
 
 MATCHER_P(SerializedControlMessage, message,
           "Matches against a specific expected MoQT message") {
@@ -75,21 +65,6 @@ MATCHER_P(ControlMessageOfType, expected_type,
   }
   return true;
 }
-
-// gmock action for extracting an SUBSCRIBE message written onto a stream.
-class StoreSubscribe {
- public:
-  explicit StoreSubscribe(std::optional<MoqtSubscribe>* subscribe)
-      : subscribe_(subscribe) {}
-
-  // quiche::WriteStream::Writev() implementation.
-  absl::Status operator()(
-      absl::Span<const absl::string_view> data,
-      const webtransport::StreamWriteOptions& options) const;
-
- private:
-  std::optional<MoqtSubscribe>* subscribe_;
-};
 
 }  // namespace moqt::test
 

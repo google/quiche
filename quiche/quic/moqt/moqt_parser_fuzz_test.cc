@@ -5,8 +5,11 @@
 #include <array>
 #include <string>
 
+#include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_parser.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/test_tools/moqt_parser_test_visitor.h"
 #include "quiche/common/platform/api/quiche_fuzztest.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -20,7 +23,9 @@ void MoqtControlParserNeverCrashes(bool is_data_stream, bool uses_web_transport,
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtParserTestVisitor visitor(/*enable_logging=*/false);
 
-  MoqtControlParser control_parser(uses_web_transport, &stream, visitor);
+  MoqtControlStreamParser control_stream_parser(&stream);
+  MoqtControlMessageParser control_message_parser(kDefaultMoqtVersion,
+                                                  uses_web_transport);
   MoqtDataParser data_parser(&stream, &visitor);
 
   if (is_data_stream) {
@@ -28,7 +33,15 @@ void MoqtControlParserNeverCrashes(bool is_data_stream, bool uses_web_transport,
     data_parser.ReadAllData();
   } else {
     stream.Receive(stream_data, /*fin=*/false);
-    control_parser.ReadAndDispatchMessages();
+    while (true) {
+      absl::StatusOr<MoqtRawControlMessage> message =
+          control_stream_parser.ReadNextMessage();
+      if (!message.ok()) {
+        break;
+      }
+      (void)control_message_parser.ParseMessage(
+          *message, [](auto) { return absl::OkStatus(); });
+    }
   }
 }
 

@@ -23,6 +23,7 @@
 #include "absl/functional/bind_front.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -910,17 +911,24 @@ bool MoqtSession::ValidateRequestId(uint64_t request_id) {
 }
 
 void MoqtSession::UnknownBidiStream::OnCanRead() {
-  if (!parser_.ReadUntilMessageTypeKnown()) {
-    // Got an early FIN.
-    stream_->ResetWithUserCode(kResetCodeCancelled);
+  absl::StatusOr<MoqtMessageType> message_type =
+      parser_->ReadFirstMessageType();
+  if (absl::IsUnavailable(message_type.status())) {
     return;
   }
-  if (!parser_.message_type().has_value()) {
+  if (absl::IsInvalidArgument(message_type.status())) {
+    // Received a FIN before any type has been available, which is malformed.
+    session_->Error(MoqtError::kProtocolViolation,
+                    message_type.status().message());
     return;
   }
-  MoqtMessageType message_type =
-      static_cast<MoqtMessageType>(*parser_.message_type());
-  switch (message_type) {
+  if (!message_type.ok()) {
+    // The result is neither of "OK", "no type available", or "parse error".
+    // This is unexpected; treat it as an internal error, and reset the stream.
+    stream_->ResetWithUserCode(kResetCodeInternalError);
+    return;
+  }
+  switch (*message_type) {
     case MoqtMessageType::kClientSetup: {
       if (session_->control_stream_.GetIfAvailable() != nullptr) {
         session_->Error(MoqtError::kProtocolViolation,

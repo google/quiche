@@ -331,7 +331,7 @@ TEST_F(MoqtSessionTest, PeerOpensBidiStream) {
         EXPECT_CALL(mock_stream_, visitor).WillOnce(Return(visitor.get()));
       });
   EXPECT_CALL(mock_stream_, PeekNextReadableRegion())
-      .WillOnce(Return(
+      .WillRepeatedly(Return(
           webtransport::Stream::PeekResult(absl::string_view(), false, false)));
   server_session.OnIncomingBidirectionalStreamAvailable();
 }

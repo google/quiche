@@ -131,7 +131,7 @@ class QUICHE_NO_EXPORT TestMessageBase {
 
   // Compares |values| to the derived class's structured data to make sure
   // they are equal.
-  virtual bool EqualFieldValues(MessageStructuredData& values) const = 0;
+  virtual bool EqualFieldValues(const MessageStructuredData& values) const = 0;
 
   // Expand all varints in the message. This is pure virtual because each
   // message has a different layout of varints.
@@ -230,7 +230,7 @@ class QUICHE_NO_EXPORT TestMessageBase {
 // Base class for the two subtypes of Object Message.
 class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
  public:
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::move(std::get<MoqtObject>(values));
     if (cast.track_alias != object_.track_alias) {
       QUIC_LOG(INFO) << "OBJECT Track ID mismatch";
@@ -620,7 +620,7 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
     }
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtClientSetup>(values);
     if (cast.parameters != client_setup_.parameters) {
       QUIC_LOG(INFO) << "CLIENT_SETUP parameter mismatch";
@@ -669,7 +669,7 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtServerSetup>(values);
     if (cast.parameters != server_setup_.parameters) {
       QUIC_LOG(INFO) << "SERVER_SETUP parameter mismatch";
@@ -704,7 +704,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSubscribe>(values);
     if (cast.request_id != subscribe_.request_id) {
       QUIC_LOG(INFO) << "SUBSCRIBE subscribe ID mismatch";
@@ -758,7 +758,7 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
     subscribe_ok_.parameters.largest_object = Location(12, 20);
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSubscribeOk>(values);
     if (cast.request_id != subscribe_ok_.request_id) {
       QUIC_LOG(INFO) << "SUBSCRIBE OK subscribe ID mismatch";
@@ -823,7 +823,7 @@ class QUICHE_NO_EXPORT RequestErrorMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtRequestError>(values);
     if (cast.request_id != request_error_.request_id) {
       QUIC_LOG(INFO) << "REQUEST_ERROR request_id mismatch";
@@ -874,7 +874,7 @@ class QUICHE_NO_EXPORT UnsubscribeMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtUnsubscribe>(values);
     if (cast.request_id != unsubscribe_.request_id) {
       QUIC_LOG(INFO) << "UNSUBSCRIBE request ID mismatch";
@@ -905,7 +905,7 @@ class QUICHE_NO_EXPORT PublishDoneMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtPublishDone>(values);
     if (cast.request_id != publish_done_.request_id) {
       QUIC_LOG(INFO) << "PUBLISH_DONE request ID mismatch";
@@ -959,7 +959,7 @@ class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
     request_update_.parameters.subscription_filter.emplace(Location(3, 1), 5);
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtRequestUpdate>(values);
     if (cast.request_id != request_update_.request_id) {
       QUIC_LOG(INFO) << "REQUEST_UPDATE request ID mismatch";
@@ -1007,7 +1007,7 @@ class QUICHE_NO_EXPORT PublishNamespaceMessage : public TestMessageBase {
         AuthToken(AuthTokenType::kOutOfBand, "bar"));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtPublishNamespace>(values);
     if (cast.request_id != publish_namespace_.request_id) {
       QUIC_LOG(INFO) << "PUBLISH_NAMESPACE request ID mismatch";
@@ -1051,7 +1051,7 @@ class QUICHE_NO_EXPORT NamespaceMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtNamespace>(values);
     if (cast.track_namespace_suffix != namespace_.track_namespace_suffix) {
       QUIC_LOG(INFO) << "NAMESPACE suffix mismatch";
@@ -1083,7 +1083,7 @@ class QUICHE_NO_EXPORT NamespaceDoneMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtNamespaceDone>(values);
     if (cast.track_namespace_suffix != namespace_done_.track_namespace_suffix) {
       QUIC_LOG(INFO) << "NAMESPACE_DONE suffix mismatch";
@@ -1116,7 +1116,7 @@ class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtRequestOk>(values);
     if (cast.request_id != request_ok_.request_id) {
       QUIC_LOG(INFO) << "REQUEST_OK request ID mismatch";
@@ -1154,7 +1154,7 @@ class QUICHE_NO_EXPORT PublishNamespaceDoneMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtPublishNamespaceDone>(values);
     if (cast.request_id != publish_namespace_done_.request_id) {
       QUIC_LOG(INFO) << "PUBLISH_NAMESPACE_DONE request ID mismatch";
@@ -1188,7 +1188,7 @@ class QUICHE_NO_EXPORT PublishNamespaceCancelMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtPublishNamespaceCancel>(values);
     if (cast.request_id != publish_namespace_cancel_.request_id) {
       QUIC_LOG(INFO) << "PUBLISH_NAMESPACE CANCEL request ID mismatch";
@@ -1231,7 +1231,7 @@ class QUICHE_NO_EXPORT TrackStatusMessage : public SubscribeMessage {
     SetByte(0, static_cast<uint8_t>(MoqtMessageType::kTrackStatus));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto value = std::get<MoqtTrackStatus>(values);
     auto* subscribe = reinterpret_cast<MoqtSubscribe*>(&value);
     MessageStructuredData structured_data =
@@ -1250,7 +1250,7 @@ class QUICHE_NO_EXPORT GoAwayMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtGoAway>(values);
     if (cast.new_session_uri != goaway_.new_session_uri) {
       QUIC_LOG(INFO) << "GOAWAY full track name mismatch";
@@ -1284,7 +1284,7 @@ class QUICHE_NO_EXPORT SubscribeNamespaceMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSubscribeNamespace>(values);
     if (cast.request_id != subscribe_namespace_.request_id) {
       QUIC_LOG(INFO) << "SUBSCRIBE_NAMESPACE request_id mismatch";
@@ -1336,7 +1336,7 @@ class QUICHE_NO_EXPORT MaxRequestIdMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtMaxRequestId>(values);
     if (cast.max_request_id != max_request_id_.max_request_id) {
       QUIC_LOG(INFO) << "MAX_REQUEST_ID mismatch";
@@ -1373,7 +1373,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
     fetch_.parameters.group_order = MoqtDeliveryOrder::kAscending;
     fetch_.parameters.subscriber_priority = 2;
   }
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetch>(values);
     if (cast.request_id != fetch_.request_id) {
       QUIC_LOG(INFO) << "FETCH request_id mismatch";
@@ -1452,7 +1452,7 @@ class QUICHE_NO_EXPORT RelativeJoiningFetchMessage : public TestMessageBase {
     fetch_.parameters.group_order = MoqtDeliveryOrder::kAscending;
     fetch_.parameters.subscriber_priority = 2;
   }
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetch>(values);
     if (cast.request_id != fetch_.request_id) {
       QUIC_LOG(INFO) << "FETCH request_id mismatch";
@@ -1510,7 +1510,7 @@ class QUICHE_NO_EXPORT AbsoluteJoiningFetchMessage : public TestMessageBase {
     fetch_.parameters.group_order = MoqtDeliveryOrder::kAscending;
     fetch_.parameters.subscriber_priority = 2;
   }
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetch>(values);
     if (cast.request_id != fetch_.request_id) {
       QUIC_LOG(INFO) << "FETCH request_id mismatch";
@@ -1562,7 +1562,7 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
   FetchOkMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetchOk>(values);
     if (cast.request_id != fetch_ok_.request_id) {
       QUIC_LOG(INFO) << "FETCH_OK request_id mismatch";
@@ -1621,7 +1621,7 @@ class QUICHE_NO_EXPORT FetchCancelMessage : public TestMessageBase {
   FetchCancelMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetchCancel>(values);
     if (cast.request_id != fetch_cancel_.request_id) {
       QUIC_LOG(INFO) << "FETCH_CANCEL subscribe_id mismatch";
@@ -1652,7 +1652,7 @@ class QUICHE_NO_EXPORT RequestsBlockedMessage : public TestMessageBase {
   RequestsBlockedMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtRequestsBlocked>(values);
     if (cast.max_request_id != requests_blocked_.max_request_id) {
       QUIC_LOG(INFO) << "SUBSCRIBES_BLOCKED max_subscribe_id mismatch";
@@ -1687,7 +1687,7 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
     publish_.parameters.largest_object = Location(10, 1);
     publish_.parameters.set_forward(true);
   }
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtPublish>(values);
     if (cast.request_id != publish_.request_id) {
       QUIC_LOG(INFO) << "PUBLISH request_id mismatch";
@@ -1757,7 +1757,7 @@ class QUICHE_NO_EXPORT PublishOkMessage : public TestMessageBase {
     publish_ok_.parameters.subscription_filter =
         SubscriptionFilter(Location(5, 4), 6);
   }
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtPublishOk>(values);
     if (cast.request_id != publish_ok_.request_id) {
       QUIC_LOG(INFO) << "PUBLISH_OK request_id mismatch";
@@ -1799,7 +1799,7 @@ class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
-  bool EqualFieldValues(MessageStructuredData& values) const override {
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtObjectAck>(values);
     if (cast.subscribe_id != object_ack_.subscribe_id) {
       QUIC_LOG(INFO) << "OBJECT_ACK subscribe ID mismatch";

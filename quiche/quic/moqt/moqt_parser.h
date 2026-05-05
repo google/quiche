@@ -13,16 +13,24 @@
 #include <optional>
 #include <string>
 
+#include "absl/base/nullability.h"
+#include "absl/cleanup/cleanup.h"
+#include "absl/functional/overload.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_status_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -31,6 +39,7 @@ namespace test {
 class MoqtDataParserPeer;
 }
 
+// TODO(vasilvv): remove once all uses are switched to a new parser.
 class QUICHE_EXPORT MoqtControlParserVisitor {
  public:
   virtual ~MoqtControlParserVisitor() = default;
@@ -70,6 +79,13 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
 };
 
+// MoqtRawControlMessage represents an MOQT control message that has been
+// unframed from the control stream, but not parsed yet.
+struct MoqtRawControlMessage {
+  MoqtMessageType type;
+  std::string payload;
+};
+
 class MoqtDataParserVisitor {
  public:
   virtual ~MoqtDataParserVisitor() = default;
@@ -88,18 +104,201 @@ class MoqtDataParserVisitor {
   virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
 };
 
-class QUICHE_EXPORT MoqtMessageTypeParser {
+// MoqtControlStreamParser unframes MoQT control messages from the control
+// stream without parsing the payload.
+class QUICHE_EXPORT MoqtControlStreamParser {
  public:
-  MoqtMessageTypeParser(webtransport::Stream* stream) : stream_(*stream) {}
-  ~MoqtMessageTypeParser() = default;
+  explicit MoqtControlStreamParser(webtransport::Stream* absl_nonnull stream)
+      : stream_(*stream) {}
 
-  // Returns false if there was a FIN.
-  bool ReadUntilMessageTypeKnown();
-  std::optional<uint64_t> message_type() const { return message_type_; }
+  // MoqtControlStreamParser is not movable, since reading from the same stream
+  // through two different parsers would corrupt the state.
+  MoqtControlStreamParser(const MoqtControlStreamParser&) = delete;
+  MoqtControlStreamParser(MoqtControlStreamParser&& other) = delete;
+  MoqtControlStreamParser& operator=(const MoqtControlStreamParser&) = delete;
+  MoqtControlStreamParser& operator=(MoqtControlStreamParser&&) = delete;
+
+  // TODO(vasilvv): remove once nothing calls this.
+  void set_message_type(uint64_t message_type) {
+    current_message_type_ = message_type;
+  }
+
+  // Reads the next available message on the stream.  Returns kUnavailable
+  // status if no complete message can be read; if FIN is read, `fin_read` will
+  // be set to true.
+  absl::StatusOr<MoqtRawControlMessage> ReadNextMessage();
+  // Reads the type of the first message on the stream.
+  absl::StatusOr<MoqtMessageType> ReadFirstMessageType();
+
+  bool fin_read() const { return fin_read_; }
+  webtransport::Stream* stream() const { return &stream_; }
+
+  // Initially, MoqtControlStreamParser does not allow a control stream to have
+  // a FIN. Once the type of the stream is established, that restriction can be
+  // lifted.
+  bool allow_fin() const { return allow_fin_; }
+  void set_allow_fin(bool allow_fin) { allow_fin_ = allow_fin; }
 
  private:
+  absl::StatusOr<MoqtRawControlMessage> ReadNextMessageInner();
+  // Reads the message type from the stream.
+  absl::Status ReadMessageType();
+
   webtransport::Stream& stream_;
-  std::optional<uint64_t> message_type_;
+  std::optional<uint64_t> first_message_type_;
+  std::optional<uint64_t> current_message_type_;
+  std::optional<absl::Span<char>> current_message_remaining_;
+  std::string current_message_;
+  bool allow_fin_ = false;
+  bool error_encountered_ = false;
+  bool fin_read_ = false;
+};
+
+// MoqtControlMessageParser parses MOQT control messages.  The parsing is
+// stateless; the object itself only carries the context (protocol version and
+// parameters) required to parse messages.
+class MoqtControlMessageParser {
+ public:
+  // `moqt_version` is not currently used, as we only support one version.
+  MoqtControlMessageParser(absl::string_view /*moqt_version*/,
+                           bool uses_web_transport)
+      : uses_web_transport_(uses_web_transport) {}
+
+  // Parsers for individual messages.
+  absl::StatusOr<MoqtClientSetup> ProcessClientSetup(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtServerSetup> ProcessServerSetup(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtRequestOk> ProcessRequestOk(absl::string_view data) const;
+  absl::StatusOr<MoqtRequestError> ProcessRequestError(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtSubscribe> ProcessSubscribe(absl::string_view data) const;
+  absl::StatusOr<MoqtSubscribeOk> ProcessSubscribeOk(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtUnsubscribe> ProcessUnsubscribe(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtPublishDone> ProcessPublishDone(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtRequestUpdate> ProcessRequestUpdate(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtPublishNamespace> ProcessPublishNamespace(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtPublishNamespaceDone> ProcessPublishNamespaceDone(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtNamespace> ProcessNamespace(absl::string_view data) const;
+  absl::StatusOr<MoqtNamespaceDone> ProcessNamespaceDone(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtPublishNamespaceCancel> ProcessPublishNamespaceCancel(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtTrackStatus> ProcessTrackStatus(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtGoAway> ProcessGoAway(absl::string_view data) const;
+  absl::StatusOr<MoqtSubscribeNamespace> ProcessSubscribeNamespace(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtMaxRequestId> ProcessMaxRequestId(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtFetch> ProcessFetch(absl::string_view data) const;
+  absl::StatusOr<MoqtFetchCancel> ProcessFetchCancel(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtFetchOk> ProcessFetchOk(absl::string_view data) const;
+  absl::StatusOr<MoqtRequestsBlocked> ProcessRequestsBlocked(
+      absl::string_view data) const;
+  absl::StatusOr<MoqtPublish> ProcessPublish(absl::string_view data) const;
+  absl::StatusOr<MoqtPublishOk> ProcessPublishOk(absl::string_view data) const;
+  absl::StatusOr<MoqtObjectAck> ProcessObjectAck(absl::string_view data) const;
+
+  // Parse a raw message and call a callback on it if successful.
+  // Example usage:
+  //
+  //     parser_.ParseMessage(message, [] (const auto& message) {
+  //         QUICHE_LOG(INFO) << "Received message: " <<  message;
+  //         return absl::OkStatus();
+  //     });
+  template <typename F>
+  absl::Status ParseMessage(const MoqtRawControlMessage& message,
+                            const F& callback) const {
+    const auto parse = [&](auto parse_method) -> absl::Status {
+      auto parsed_message = (this->*parse_method)(message.payload);
+      QUICHE_RETURN_IF_ERROR(parsed_message.status());
+      return callback(*std::move(parsed_message));
+    };
+    switch (message.type) {
+      case MoqtMessageType::kClientSetup:
+        return parse(&MoqtControlMessageParser::ProcessClientSetup);
+      case MoqtMessageType::kServerSetup:
+        return parse(&MoqtControlMessageParser::ProcessServerSetup);
+      case MoqtMessageType::kRequestOk:
+        return parse(&MoqtControlMessageParser::ProcessRequestOk);
+      case MoqtMessageType::kRequestError:
+        return parse(&MoqtControlMessageParser::ProcessRequestError);
+      case MoqtMessageType::kSubscribe:
+        return parse(&MoqtControlMessageParser::ProcessSubscribe);
+      case MoqtMessageType::kSubscribeOk:
+        return parse(&MoqtControlMessageParser::ProcessSubscribeOk);
+      case MoqtMessageType::kUnsubscribe:
+        return parse(&MoqtControlMessageParser::ProcessUnsubscribe);
+      case MoqtMessageType::kPublishDone:
+        return parse(&MoqtControlMessageParser::ProcessPublishDone);
+      case MoqtMessageType::kRequestUpdate:
+        return parse(&MoqtControlMessageParser::ProcessRequestUpdate);
+      case MoqtMessageType::kPublishNamespace:
+        return parse(&MoqtControlMessageParser::ProcessPublishNamespace);
+      case MoqtMessageType::kPublishNamespaceDone:
+        return parse(&MoqtControlMessageParser::ProcessPublishNamespaceDone);
+      case MoqtMessageType::kNamespace:
+        return parse(&MoqtControlMessageParser::ProcessNamespace);
+      case MoqtMessageType::kNamespaceDone:
+        return parse(&MoqtControlMessageParser::ProcessNamespaceDone);
+      case MoqtMessageType::kPublishNamespaceCancel:
+        return parse(&MoqtControlMessageParser::ProcessPublishNamespaceCancel);
+      case MoqtMessageType::kTrackStatus:
+        return parse(&MoqtControlMessageParser::ProcessTrackStatus);
+      case MoqtMessageType::kGoAway:
+        return parse(&MoqtControlMessageParser::ProcessGoAway);
+      case MoqtMessageType::kSubscribeNamespace:
+        return parse(&MoqtControlMessageParser::ProcessSubscribeNamespace);
+      case MoqtMessageType::kMaxRequestId:
+        return parse(&MoqtControlMessageParser::ProcessMaxRequestId);
+      case MoqtMessageType::kFetch:
+        return parse(&MoqtControlMessageParser::ProcessFetch);
+      case MoqtMessageType::kFetchCancel:
+        return parse(&MoqtControlMessageParser::ProcessFetchCancel);
+      case MoqtMessageType::kFetchOk:
+        return parse(&MoqtControlMessageParser::ProcessFetchOk);
+      case MoqtMessageType::kRequestsBlocked:
+        return parse(&MoqtControlMessageParser::ProcessRequestsBlocked);
+      case MoqtMessageType::kPublish:
+        return parse(&MoqtControlMessageParser::ProcessPublish);
+      case MoqtMessageType::kPublishOk:
+        return parse(&MoqtControlMessageParser::ProcessPublishOk);
+      case MoqtMessageType::kObjectAck:
+        return parse(&MoqtControlMessageParser::ProcessObjectAck);
+      default:
+        return absl::InvalidArgumentError(
+            absl::StrCat("Unknown control message type 0x",
+                         absl::Hex(static_cast<uint64_t>(message.type))));
+    }
+  }
+
+ private:
+  // Reads a TrackNamespace from the reader. Returns false if the namespace is
+  // too large. Sets a ParseError if the namespace is malformed.
+  absl::Status ReadTrackNamespace(quic::QuicDataReader& reader,
+                                  TrackNamespace& track_namespace) const;
+  // Reads a FullTrackName from the reader. Returns false if the name is too
+  // large. Sets a ParseError if the name is malformed.
+  absl::Status ReadFullTrackName(quic::QuicDataReader& reader,
+                                 FullTrackName& full_track_name) const;
+  absl::Status FillAndValidateSetupParameters(
+      const KeyValuePairList& in, SetupParameters& out,
+      MoqtMessageType message_type) const;
+  // |reader| points to the beginning of a KeyValuePairList. Returns false if
+  // there is any sort of error. (The function calls ParseError(), so the
+  // caller has no need to do so.)
+  absl::Status FillAndValidateMessageParameters(quic::QuicDataReader& reader,
+                                                MessageParameters& out) const;
+
+  bool uses_web_transport_;
 };
 
 class QUICHE_EXPORT MoqtControlParser {
@@ -107,87 +306,147 @@ class QUICHE_EXPORT MoqtControlParser {
   MoqtControlParser(bool uses_web_transport, webtransport::Stream* stream,
                     MoqtControlParserVisitor& visitor)
       : visitor_(visitor),
-        stream_(*stream),
-        uses_web_transport_(uses_web_transport) {}
+        stream_parser_(stream),
+        message_parser_(kDefaultMoqtVersion, uses_web_transport) {}
   ~MoqtControlParser() = default;
+  void set_message_type(uint64_t message_type) {
+    stream_parser_.set_message_type(message_type);
+  }
 
-  void set_message_type(uint64_t message_type) { message_type_ = message_type; }
-  void ReadAndDispatchMessages();
+  void ReadAndDispatchMessages() {
+    if (processing_) {
+      return;
+    }
+    processing_ = true;
+    auto cleanup = absl::MakeCleanup([this] { processing_ = false; });
+    while (true) {
+      absl::StatusOr<MoqtRawControlMessage> raw_message =
+          stream_parser_.ReadNextMessage();
+      if (absl::IsUnavailable(raw_message.status())) {
+        return;
+      }
+      if (!raw_message.ok()) {
+        visitor_.OnParsingError(GetMoqtErrorForStatus(raw_message.status())
+                                    .value_or(MoqtError::kProtocolViolation),
+                                raw_message.status().message());
+        return;
+      }
+      absl::Status status = message_parser_.ParseMessage(
+          *raw_message,
+          absl::Overload{[&](const MoqtClientSetup& message) {
+                           visitor_.OnClientSetupMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtServerSetup& message) {
+                           visitor_.OnServerSetupMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtRequestOk& message) {
+                           visitor_.OnRequestOkMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtRequestError& message) {
+                           visitor_.OnRequestErrorMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtSubscribe& message) {
+                           visitor_.OnSubscribeMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtSubscribeOk& message) {
+                           visitor_.OnSubscribeOkMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtUnsubscribe& message) {
+                           visitor_.OnUnsubscribeMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtPublishDone& message) {
+                           visitor_.OnPublishDoneMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtRequestUpdate& message) {
+                           visitor_.OnRequestUpdateMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtPublishNamespace& message) {
+                           visitor_.OnPublishNamespaceMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtPublishNamespaceDone& message) {
+                           visitor_.OnPublishNamespaceDoneMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtNamespace& message) {
+                           visitor_.OnNamespaceMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtNamespaceDone& message) {
+                           visitor_.OnNamespaceDoneMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtPublishNamespaceCancel& message) {
+                           visitor_.OnPublishNamespaceCancelMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtTrackStatus& message) {
+                           visitor_.OnTrackStatusMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtGoAway& message) {
+                           visitor_.OnGoAwayMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtSubscribeNamespace& message) {
+                           visitor_.OnSubscribeNamespaceMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtMaxRequestId& message) {
+                           visitor_.OnMaxRequestIdMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtFetch& message) {
+                           visitor_.OnFetchMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtFetchCancel& message) {
+                           visitor_.OnFetchCancelMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtFetchOk& message) {
+                           visitor_.OnFetchOkMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtRequestsBlocked& message) {
+                           visitor_.OnRequestsBlockedMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtPublish& message) {
+                           visitor_.OnPublishMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtPublishOk& message) {
+                           visitor_.OnPublishOkMessage(message);
+                           return absl::OkStatus();
+                         },
+                         [&](const MoqtObjectAck& message) {
+                           visitor_.OnObjectAckMessage(message);
+                           return absl::OkStatus();
+                         }});
+      if (!status.ok()) {
+        visitor_.OnParsingError(GetMoqtErrorForStatus(status).value_or(
+                                    MoqtError::kProtocolViolation),
+                                status.message());
+        return;
+      }
+    }
+  }
 
  private:
-  // The central switch statement to dispatch a message to the correct
-  // Process* function. Invokles an error callback if parsing fails.
-  void ProcessMessage(absl::string_view data, MoqtMessageType message_type);
-
-  // The Process* functions parse the serialized data into the appropriate
-  // structs, and call the relevant visitor function for further action. Returns
-  // the number of bytes consumed if the message is complete; returns 0
-  // otherwise.
-  absl::Status ProcessClientSetup(absl::string_view data);
-  absl::Status ProcessServerSetup(absl::string_view data);
-  absl::Status ProcessRequestOk(absl::string_view data);
-  absl::Status ProcessRequestError(absl::string_view data);
-  // Subscribe formats are used for TrackStatus as well, so take the message
-  // type as an argument, defaulting to the subscribe version.
-  absl::Status ProcessSubscribe(
-      absl::string_view data,
-      MoqtMessageType message_type = MoqtMessageType::kSubscribe);
-  absl::Status ProcessSubscribeOk(absl::string_view data);
-  absl::Status ProcessUnsubscribe(absl::string_view data);
-  absl::Status ProcessPublishDone(absl::string_view data);
-  absl::Status ProcessRequestUpdate(absl::string_view data);
-  absl::Status ProcessPublishNamespace(absl::string_view data);
-  absl::Status ProcessPublishNamespaceDone(absl::string_view data);
-  absl::Status ProcessNamespace(absl::string_view data);
-  absl::Status ProcessNamespaceDone(absl::string_view data);
-  absl::Status ProcessPublishNamespaceCancel(absl::string_view data);
-  absl::Status ProcessTrackStatus(absl::string_view data);
-  absl::Status ProcessGoAway(absl::string_view data);
-  absl::Status ProcessSubscribeNamespace(absl::string_view data);
-  absl::Status ProcessMaxRequestId(absl::string_view data);
-  absl::Status ProcessFetch(absl::string_view data);
-  absl::Status ProcessFetchCancel(absl::string_view data);
-  absl::Status ProcessFetchOk(absl::string_view data);
-  absl::Status ProcessRequestsBlocked(absl::string_view data);
-  absl::Status ProcessPublish(absl::string_view data);
-  absl::Status ProcessPublishOk(absl::string_view data);
-  absl::Status ProcessObjectAck(absl::string_view data);
-
-  // If |error| is not provided, assumes kProtocolViolation.
-  void ParseError(absl::string_view reason);
-  void ParseError(const absl::Status& status);
-  void ParseError(MoqtError error, absl::string_view reason);
-
-  // Reads a TrackNamespace from the reader. Returns false if the namespace is
-  // too large. Sets a ParseError if the namespace is malformed.
-  absl::Status ReadTrackNamespace(quic::QuicDataReader& reader,
-                                  TrackNamespace& track_namespace);
-  // Reads a FullTrackName from the reader. Returns false if the name is too
-  // large. Sets a ParseError if the name is malformed.
-  absl::Status ReadFullTrackName(quic::QuicDataReader& reader,
-                                 FullTrackName& full_track_name);
-  absl::Status FillAndValidateSetupParameters(const KeyValuePairList& in,
-                                              SetupParameters& out,
-                                              MoqtMessageType message_type);
-  // |reader| points to the beginning of a KeyValuePairList. Returns false if
-  // there is any sort of error. (The function calls ParseError(), so the
-  // caller has no need to do so.)
-  absl::Status FillAndValidateMessageParameters(quic::QuicDataReader& reader,
-                                                MessageParameters& out);
-
   MoqtControlParserVisitor& visitor_;
-  webtransport::Stream& stream_;
-  bool uses_web_transport_;
-  bool no_more_data_ = false;  // Fatal error or fin. No more parsing.
-  bool parsing_error_ = false;
-
-  std::optional<uint64_t> message_type_;
-  std::optional<uint16_t> message_size_;
-
-  uint64_t max_auth_token_cache_size_ = 0;
-  uint64_t auth_token_cache_size_ = 0;
-  bool processing_ = false;  // True if currently in ProcessData(), to prevent
-                             // re-entrancy.
+  MoqtControlStreamParser stream_parser_;
+  MoqtControlMessageParser message_parser_;
+  bool processing_ = false;
 };
 
 // Parses an MoQT datagram. Returns the payload bytes, or std::nullopt on error.

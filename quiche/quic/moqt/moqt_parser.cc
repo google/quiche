@@ -35,6 +35,7 @@
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_data_reader.h"
+#include "quiche/common/quiche_endian.h"
 #include "quiche/common/quiche_status_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -481,189 +482,134 @@ absl::Status MessageParameters::FromKeyValuePairList(
   return status;
 }
 
-bool MoqtMessageTypeParser::ReadUntilMessageTypeKnown() {
-  if (message_type_.has_value()) {
-    return true;
+absl::StatusOr<MoqtRawControlMessage>
+MoqtControlStreamParser::ReadNextMessage() {
+  if (error_encountered_ || fin_read_) {
+    return absl::FailedPreconditionError(
+        "Trying to read from a control stream after an error or an EOF "
+        "occurred.");
   }
-  bool fin_read = false;
-  message_type_ = ReadVarInt62FromStream(stream_, fin_read);
-  if (fin_read) {
-    return false;
+  absl::StatusOr<MoqtRawControlMessage> result = ReadNextMessageInner();
+  if (!result.ok() && !absl::IsUnavailable(result.status())) {
+    error_encountered_ = true;
+  } else {
+    if (fin_read_ && !allow_fin_) {
+      result = absl::InvalidArgumentError(
+          "Unexpected FIN on a control stream (no FINs are allowed on this "
+          "stream)");
+      error_encountered_ = true;
+    }
   }
-  return true;
+  return result;
 }
 
-void MoqtControlParser::ReadAndDispatchMessages() {
-  if (no_more_data_) {
-    ParseError("Data after end of stream");
-    return;
+absl::StatusOr<MoqtMessageType>
+MoqtControlStreamParser::ReadFirstMessageType() {
+  if (first_message_type_.has_value()) {
+    return static_cast<MoqtMessageType>(*first_message_type_);
   }
-  if (processing_) {
-    return;
+  if (error_encountered_ || fin_read_) {
+    return absl::FailedPreconditionError(
+        "Trying to read from a control stream after an error or an EOF "
+        "occurred.");
   }
-  processing_ = true;
-  auto on_return = absl::MakeCleanup([&] { processing_ = false; });
-  while (!no_more_data_) {
-    bool fin_read = false;
-    // Read the message type.
-    if (!message_type_.has_value()) {
-      message_type_ = ReadVarInt62FromStream(stream_, fin_read);
-      if (fin_read) {
-        ParseError("FIN on control stream");
-        return;
-      }
-      if (!message_type_.has_value()) {
-        return;
-      }
-    }
-    QUICHE_DCHECK(message_type_.has_value());
-
-    // Read the message length.
-    if (!message_size_.has_value()) {
-      if (stream_.ReadableBytes() < 2) {
-        return;
-      }
-      std::array<char, 2> size_bytes;
-      webtransport::Stream::ReadResult result =
-          stream_.Read(absl::MakeSpan(size_bytes));
-      if (result.bytes_read != 2) {
-        ParseError(MoqtError::kInternalError,
-                   "Stream returned incorrect ReadableBytes");
-        return;
-      }
-      if (result.fin) {
-        ParseError("FIN on control stream");
-        return;
-      }
-      message_size_ = static_cast<uint16_t>(size_bytes[0]) << 8 |
-                      static_cast<uint16_t>(size_bytes[1]);
-      if (*message_size_ > kMaxMessageHeaderSize) {
-        ParseError(MoqtError::kInternalError,
-                   absl::StrCat("Cannot parse control messages more than ",
-                                kMaxMessageHeaderSize, " bytes"));
-        return;
-      }
-    }
-    QUICHE_DCHECK(message_size_.has_value());
-
-    // Read the message if it's fully received.
-    //
-    // CAUTION: if the flow control windows are too low, and
-    // kMaxMessageHeaderSize is too high, this will cause a deadlock.
-    if (stream_.ReadableBytes() < *message_size_) {
-      return;
-    }
-    absl::FixedArray<char> message(*message_size_);
-    webtransport::Stream::ReadResult result =
-        stream_.Read(absl::MakeSpan(message));
-    if (result.bytes_read != *message_size_) {
-      ParseError("Stream returned incorrect ReadableBytes");
-      return;
-    }
-    if (result.fin) {
-      ParseError("FIN on control stream");
-      return;
-    }
-    ProcessMessage(absl::string_view(message.data(), message.size()),
-                   static_cast<MoqtMessageType>(*message_type_));
-    message_type_.reset();
-    message_size_.reset();
+  absl::Status read_status = ReadMessageType();
+  if (absl::IsUnavailable(read_status) && fin_read_) {
+    return absl::InvalidArgumentError("FIN received before any type");
   }
+  QUICHE_RETURN_IF_ERROR(read_status);
+  return static_cast<MoqtMessageType>(*first_message_type_);
 }
 
-void MoqtControlParser::ProcessMessage(absl::string_view data,
-                                       MoqtMessageType message_type) {
-  absl::Status status;
-  switch (message_type) {
-    case MoqtMessageType::kClientSetup:
-      status = ProcessClientSetup(data);
-      break;
-    case MoqtMessageType::kServerSetup:
-      status = ProcessServerSetup(data);
-      break;
-    case MoqtMessageType::kRequestOk:
-      status = ProcessRequestOk(data);
-      break;
-    case MoqtMessageType::kRequestError:
-      status = ProcessRequestError(data);
-      break;
-    case MoqtMessageType::kSubscribe:
-      status = ProcessSubscribe(data);
-      break;
-    case MoqtMessageType::kSubscribeOk:
-      status = ProcessSubscribeOk(data);
-      break;
-    case MoqtMessageType::kUnsubscribe:
-      status = ProcessUnsubscribe(data);
-      break;
-    case MoqtMessageType::kPublishDone:
-      status = ProcessPublishDone(data);
-      break;
-    case MoqtMessageType::kRequestUpdate:
-      status = ProcessRequestUpdate(data);
-      break;
-    case MoqtMessageType::kPublishNamespace:
-      status = ProcessPublishNamespace(data);
-      break;
-    case MoqtMessageType::kPublishNamespaceDone:
-      status = ProcessPublishNamespaceDone(data);
-      break;
-    case MoqtMessageType::kNamespace:
-      status = ProcessNamespace(data);
-      break;
-    case MoqtMessageType::kNamespaceDone:
-      status = ProcessNamespaceDone(data);
-      break;
-    case MoqtMessageType::kPublishNamespaceCancel:
-      status = ProcessPublishNamespaceCancel(data);
-      break;
-    case MoqtMessageType::kTrackStatus:
-      status = ProcessTrackStatus(data);
-      break;
-    case MoqtMessageType::kGoAway:
-      status = ProcessGoAway(data);
-      break;
-    case MoqtMessageType::kSubscribeNamespace:
-      status = ProcessSubscribeNamespace(data);
-      break;
-    case MoqtMessageType::kMaxRequestId:
-      status = ProcessMaxRequestId(data);
-      break;
-    case MoqtMessageType::kFetch:
-      status = ProcessFetch(data);
-      break;
-    case MoqtMessageType::kFetchCancel:
-      status = ProcessFetchCancel(data);
-      break;
-    case MoqtMessageType::kFetchOk:
-      status = ProcessFetchOk(data);
-      break;
-    case MoqtMessageType::kRequestsBlocked:
-      status = ProcessRequestsBlocked(data);
-      break;
-    case MoqtMessageType::kPublish:
-      status = ProcessPublish(data);
-      break;
-    case MoqtMessageType::kPublishOk:
-      status = ProcessPublishOk(data);
-      break;
-    case moqt::MoqtMessageType::kObjectAck:
-      status = ProcessObjectAck(data);
-      break;
-    default:
-      ParseError(absl::InvalidArgumentError(
-          absl::StrCat("Unknown control message type 0x",
-                       absl::Hex(static_cast<uint64_t>(message_type)))));
-      return;
+absl::Status MoqtControlStreamParser::ReadMessageType() {
+  if (current_message_type_.has_value()) {
+    QUICHE_BUG(MoqtControlStreamParser_ReadMessageType_bad_state)
+        << "ReadMessageType() called in an invalid state";
+    return absl::InternalError("ReadMessageType() called in an invalid state");
   }
-  if (!status.ok()) {
-    ParseError(
-        quiche::AppendToStatus(status, " while parsing a message of type 0x",
-                               absl::Hex(static_cast<uint64_t>(message_type))));
+  current_message_type_ = ReadVarInt62FromStream(stream_, fin_read_);
+  if (!current_message_type_.has_value()) {
+    webtransport::Stream::PeekResult peek_result =
+        stream_.PeekNextReadableRegion();
+    if (peek_result.all_data_received && !peek_result.peeked_data.empty()) {
+      return absl::InvalidArgumentError(
+          "Unexpected FIN on a control stream (FIN received in the middle of "
+          "type)");
+    }
+    return absl::UnavailableError("No complete message available");
   }
+  if (fin_read_) {
+    return absl::InvalidArgumentError(
+        "Unexpected FIN on a control stream (FIN received immediately after "
+        "type)");
+  }
+  if (!first_message_type_.has_value()) {
+    first_message_type_ = *current_message_type_;
+  }
+  return absl::OkStatus();
 }
 
-absl::Status MoqtControlParser::ProcessClientSetup(absl::string_view data) {
+absl::StatusOr<MoqtRawControlMessage>
+MoqtControlStreamParser::ReadNextMessageInner() {
+  if (!current_message_type_.has_value()) {
+    QUICHE_RETURN_IF_ERROR(ReadMessageType());
+  }
+
+  if (!current_message_remaining_.has_value()) {
+    uint16_t message_size = 0;
+    std::array<char, sizeof(message_size)> buffer;
+    if (stream_.ReadableBytes() < buffer.size()) {
+      if (stream_.PeekNextReadableRegion().all_data_received) {
+        return absl::InvalidArgumentError(
+            "Unexpected FIN on a control stream (FIN received in the middle of "
+            "the message size)");
+      }
+      return absl::UnavailableError("No complete message available");
+    }
+    webtransport::Stream::ReadResult read_result =
+        stream_.Read(absl::MakeSpan(buffer));
+    fin_read_ |= read_result.fin;
+    QUICHE_DCHECK_EQ(read_result.bytes_read, buffer.size());
+
+    memcpy(&message_size, buffer.data(), buffer.size());
+    message_size = quiche::QuicheEndian::NetToHost16(message_size);
+    if (message_size > kMaxMessageHeaderSize) {
+      return absl::InvalidArgumentError(
+          absl::StrCat("A control message exceeds the maximum allowed size of ",
+                       kMaxMessageHeaderSize, " bytes"));
+    }
+    current_message_.resize(message_size);
+    current_message_remaining_ = absl::MakeSpan(current_message_);
+  }
+
+  QUICHE_DCHECK(current_message_remaining_.has_value());
+  if (!current_message_remaining_->empty()) {
+    webtransport::Stream::ReadResult read_result =
+        stream_.Read(*current_message_remaining_);
+    current_message_remaining_->remove_prefix(read_result.bytes_read);
+    fin_read_ |= read_result.fin;
+  }
+  if (!current_message_remaining_->empty()) {
+    if (fin_read_) {
+      return absl::InvalidArgumentError(absl::StrCat(
+          "FIN encountered when there are ", current_message_remaining_->size(),
+          " bytes left in the current message"));
+    }
+    return absl::UnavailableError("No complete message available");
+  }
+  MoqtRawControlMessage message{
+      .type = static_cast<MoqtMessageType>(*current_message_type_),
+      .payload = std::move(current_message_)};
+  current_message_type_.reset();
+  current_message_remaining_.reset();
+  // Technically, std::move() leaves `current_message_` in a
+  // "valid but undefined state"; clear it out explicitly.
+  current_message_.clear();
+  return message;
+}
+
+absl::StatusOr<MoqtClientSetup> MoqtControlMessageParser::ProcessClientSetup(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtClientSetup setup;
   KeyValuePairList parameters;
@@ -671,23 +617,24 @@ absl::Status MoqtControlParser::ProcessClientSetup(absl::string_view data) {
   QUICHE_RETURN_IF_ERROR(FillAndValidateSetupParameters(
       parameters, setup.parameters, MoqtMessageType::kClientSetup));
   // TODO(martinduke): Validate construction of the PATH (Sec 8.3.2.1)
-  visitor_.OnClientSetupMessage(setup);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return setup;
 }
 
-absl::Status MoqtControlParser::ProcessServerSetup(absl::string_view data) {
+absl::StatusOr<MoqtServerSetup> MoqtControlMessageParser::ProcessServerSetup(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtServerSetup setup;
   KeyValuePairList parameters;
   QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(reader, parameters));
   QUICHE_RETURN_IF_ERROR(FillAndValidateSetupParameters(
       parameters, setup.parameters, MoqtMessageType::kServerSetup));
-  visitor_.OnServerSetupMessage(setup);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return setup;
 }
 
-absl::Status MoqtControlParser::ProcessSubscribe(absl::string_view data,
-                                                 MoqtMessageType message_type) {
+absl::StatusOr<MoqtSubscribe> MoqtControlMessageParser::ProcessSubscribe(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtSubscribe subscribe;
   if (!reader.ReadVarInt62(&subscribe.request_id)) {
@@ -696,15 +643,12 @@ absl::Status MoqtControlParser::ProcessSubscribe(absl::string_view data,
   QUICHE_RETURN_IF_ERROR(ReadFullTrackName(reader, subscribe.full_track_name));
   QUICHE_RETURN_IF_ERROR(
       FillAndValidateMessageParameters(reader, subscribe.parameters));
-  if (message_type == MoqtMessageType::kTrackStatus) {
-    visitor_.OnTrackStatusMessage(subscribe);
-  } else {
-    visitor_.OnSubscribeMessage(subscribe);
-  }
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return subscribe;
 }
 
-absl::Status MoqtControlParser::ProcessSubscribeOk(absl::string_view data) {
+absl::StatusOr<MoqtSubscribeOk> MoqtControlMessageParser::ProcessSubscribeOk(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtSubscribeOk subscribe_ok;
   if (!reader.ReadVarInt62(&subscribe_ok.request_id)) {
@@ -721,11 +665,12 @@ absl::Status MoqtControlParser::ProcessSubscribeOk(absl::string_view data) {
   if (!subscribe_ok.extensions.Validate()) {
     return absl::InvalidArgumentError("Invalid SUBSCRIBE_OK track extensions");
   }
-  visitor_.OnSubscribeOkMessage(subscribe_ok);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return subscribe_ok;
 }
 
-absl::Status MoqtControlParser::ProcessRequestError(absl::string_view data) {
+absl::StatusOr<MoqtRequestError> MoqtControlMessageParser::ProcessRequestError(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtRequestError request_error;
   uint64_t error_code;
@@ -742,21 +687,23 @@ absl::Status MoqtControlParser::ProcessRequestError(absl::string_view data) {
           ? std::nullopt
           : std::make_optional(
                 quic::QuicTimeDelta::FromMilliseconds(raw_interval - 1));
-  visitor_.OnRequestErrorMessage(request_error);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return request_error;
 }
 
-absl::Status MoqtControlParser::ProcessUnsubscribe(absl::string_view data) {
+absl::StatusOr<MoqtUnsubscribe> MoqtControlMessageParser::ProcessUnsubscribe(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtUnsubscribe unsubscribe;
   if (!reader.ReadVarInt62(&unsubscribe.request_id)) {
     return absl::InvalidArgumentError("Message missing fields");
   }
-  visitor_.OnUnsubscribeMessage(unsubscribe);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return unsubscribe;
 }
 
-absl::Status MoqtControlParser::ProcessPublishDone(absl::string_view data) {
+absl::StatusOr<MoqtPublishDone> MoqtControlMessageParser::ProcessPublishDone(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtPublishDone publish_done;
   uint64_t value;
@@ -767,11 +714,12 @@ absl::Status MoqtControlParser::ProcessPublishDone(absl::string_view data) {
     return absl::InvalidArgumentError("Message missing fields");
   }
   publish_done.status_code = static_cast<PublishDoneCode>(value);
-  visitor_.OnPublishDoneMessage(publish_done);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return publish_done;
 }
 
-absl::Status MoqtControlParser::ProcessRequestUpdate(absl::string_view data) {
+absl::StatusOr<MoqtRequestUpdate>
+MoqtControlMessageParser::ProcessRequestUpdate(absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtRequestUpdate request_update;
   if (!reader.ReadVarInt62(&request_update.request_id) ||
@@ -780,12 +728,13 @@ absl::Status MoqtControlParser::ProcessRequestUpdate(absl::string_view data) {
   }
   QUICHE_RETURN_IF_ERROR(
       FillAndValidateMessageParameters(reader, request_update.parameters));
-  visitor_.OnRequestUpdateMessage(request_update);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return request_update;
 }
 
-absl::Status MoqtControlParser::ProcessPublishNamespace(
-    absl::string_view data) {
+absl::StatusOr<MoqtPublishNamespace>
+MoqtControlMessageParser::ProcessPublishNamespace(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtPublishNamespace publish_namespace;
   if (!reader.ReadVarInt62(&publish_namespace.request_id)) {
@@ -795,29 +744,32 @@ absl::Status MoqtControlParser::ProcessPublishNamespace(
       ReadTrackNamespace(reader, publish_namespace.track_namespace));
   QUICHE_RETURN_IF_ERROR(
       FillAndValidateMessageParameters(reader, publish_namespace.parameters));
-  visitor_.OnPublishNamespaceMessage(publish_namespace);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return publish_namespace;
 }
 
-absl::Status MoqtControlParser::ProcessNamespace(absl::string_view data) {
+absl::StatusOr<MoqtNamespace> MoqtControlMessageParser::ProcessNamespace(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtNamespace _namespace;
   QUICHE_RETURN_IF_ERROR(
       ReadTrackNamespace(reader, _namespace.track_namespace_suffix));
-  visitor_.OnNamespaceMessage(_namespace);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return _namespace;
 }
 
-absl::Status MoqtControlParser::ProcessNamespaceDone(absl::string_view data) {
+absl::StatusOr<MoqtNamespaceDone>
+MoqtControlMessageParser::ProcessNamespaceDone(absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtNamespaceDone namespace_done;
   QUICHE_RETURN_IF_ERROR(
       ReadTrackNamespace(reader, namespace_done.track_namespace_suffix));
-  visitor_.OnNamespaceDoneMessage(namespace_done);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return namespace_done;
 }
 
-absl::Status MoqtControlParser::ProcessRequestOk(absl::string_view data) {
+absl::StatusOr<MoqtRequestOk> MoqtControlMessageParser::ProcessRequestOk(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtRequestOk request_ok;
   if (!reader.ReadVarInt62(&request_ok.request_id)) {
@@ -825,23 +777,25 @@ absl::Status MoqtControlParser::ProcessRequestOk(absl::string_view data) {
   }
   QUICHE_RETURN_IF_ERROR(
       FillAndValidateMessageParameters(reader, request_ok.parameters));
-  visitor_.OnRequestOkMessage(request_ok);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return request_ok;
 }
 
-absl::Status MoqtControlParser::ProcessPublishNamespaceDone(
-    absl::string_view data) {
+absl::StatusOr<MoqtPublishNamespaceDone>
+MoqtControlMessageParser::ProcessPublishNamespaceDone(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtPublishNamespaceDone pn_done;
   if (!reader.ReadVarInt62(&pn_done.request_id)) {
     return absl::InvalidArgumentError("Request ID missing");
   }
-  visitor_.OnPublishNamespaceDoneMessage(pn_done);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return pn_done;
 }
 
-absl::Status MoqtControlParser::ProcessPublishNamespaceCancel(
-    absl::string_view data) {
+absl::StatusOr<MoqtPublishNamespaceCancel>
+MoqtControlMessageParser::ProcessPublishNamespaceCancel(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtPublishNamespaceCancel publish_namespace_cancel;
   uint64_t error_code;
@@ -852,26 +806,29 @@ absl::Status MoqtControlParser::ProcessPublishNamespaceCancel(
   }
   publish_namespace_cancel.error_code =
       static_cast<RequestErrorCode>(error_code);
-  visitor_.OnPublishNamespaceCancelMessage(publish_namespace_cancel);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return publish_namespace_cancel;
 }
 
-absl::Status MoqtControlParser::ProcessTrackStatus(absl::string_view data) {
-  return ProcessSubscribe(data, MoqtMessageType::kTrackStatus);
+absl::StatusOr<MoqtTrackStatus> MoqtControlMessageParser::ProcessTrackStatus(
+    absl::string_view data) const {
+  return ProcessSubscribe(data);
 }
 
-absl::Status MoqtControlParser::ProcessGoAway(absl::string_view data) {
+absl::StatusOr<MoqtGoAway> MoqtControlMessageParser::ProcessGoAway(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtGoAway goaway;
   if (!reader.ReadStringVarInt62(goaway.new_session_uri)) {
     return absl::InvalidArgumentError("Missing new session URI");
   }
-  visitor_.OnGoAwayMessage(goaway);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return goaway;
 }
 
-absl::Status MoqtControlParser::ProcessSubscribeNamespace(
-    absl::string_view data) {
+absl::StatusOr<MoqtSubscribeNamespace>
+MoqtControlMessageParser::ProcessSubscribeNamespace(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtSubscribeNamespace subscribe_namespace;
   uint64_t raw_option;
@@ -890,21 +847,23 @@ absl::Status MoqtControlParser::ProcessSubscribeNamespace(
       static_cast<SubscribeNamespaceOption>(raw_option);
   QUICHE_RETURN_IF_ERROR(
       FillAndValidateMessageParameters(reader, subscribe_namespace.parameters));
-  visitor_.OnSubscribeNamespaceMessage(subscribe_namespace);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return subscribe_namespace;
 }
 
-absl::Status MoqtControlParser::ProcessMaxRequestId(absl::string_view data) {
+absl::StatusOr<MoqtMaxRequestId> MoqtControlMessageParser::ProcessMaxRequestId(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtMaxRequestId max_request_id;
   if (!reader.ReadVarInt62(&max_request_id.max_request_id)) {
     return absl::InvalidArgumentError("Max request ID missing");
   }
-  visitor_.OnMaxRequestIdMessage(max_request_id);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return max_request_id;
 }
 
-absl::Status MoqtControlParser::ProcessFetch(absl::string_view data) {
+absl::StatusOr<MoqtFetch> MoqtControlMessageParser::ProcessFetch(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtFetch fetch;
   uint64_t type;
@@ -963,11 +922,12 @@ absl::Status MoqtControlParser::ProcessFetch(absl::string_view data) {
   }
   QUICHE_RETURN_IF_ERROR(
       FillAndValidateMessageParameters(reader, fetch.parameters));
-  visitor_.OnFetchMessage(fetch);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return fetch;
 }
 
-absl::Status MoqtControlParser::ProcessFetchOk(absl::string_view data) {
+absl::StatusOr<MoqtFetchOk> MoqtControlMessageParser::ProcessFetchOk(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtFetchOk fetch_ok;
   uint8_t end_of_track;
@@ -993,31 +953,34 @@ absl::Status MoqtControlParser::ProcessFetchOk(absl::string_view data) {
   if (!fetch_ok.extensions.Validate()) {
     return absl::InvalidArgumentError("Invalid FETCH_OK track extensions");
   }
-  visitor_.OnFetchOkMessage(fetch_ok);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return fetch_ok;
 }
 
-absl::Status MoqtControlParser::ProcessFetchCancel(absl::string_view data) {
+absl::StatusOr<MoqtFetchCancel> MoqtControlMessageParser::ProcessFetchCancel(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtFetchCancel fetch_cancel;
   if (!reader.ReadVarInt62(&fetch_cancel.request_id)) {
     return absl::InvalidArgumentError("Request ID missing");
   }
-  visitor_.OnFetchCancelMessage(fetch_cancel);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return fetch_cancel;
 }
 
-absl::Status MoqtControlParser::ProcessRequestsBlocked(absl::string_view data) {
+absl::StatusOr<MoqtRequestsBlocked>
+MoqtControlMessageParser::ProcessRequestsBlocked(absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtRequestsBlocked requests_blocked;
   if (!reader.ReadVarInt62(&requests_blocked.max_request_id)) {
     return absl::InvalidArgumentError("Max request ID missing");
   }
-  visitor_.OnRequestsBlockedMessage(requests_blocked);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return requests_blocked;
 }
 
-absl::Status MoqtControlParser::ProcessPublish(absl::string_view data) {
+absl::StatusOr<MoqtPublish> MoqtControlMessageParser::ProcessPublish(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtPublish publish;
   QUICHE_DCHECK(reader.PreviouslyReadPayload().empty());
@@ -1035,11 +998,12 @@ absl::Status MoqtControlParser::ProcessPublish(absl::string_view data) {
   if (!publish.extensions.Validate()) {
     return absl::InvalidArgumentError("Invalid PUBLISH track extensions");
   }
-  visitor_.OnPublishMessage(publish);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return publish;
 }
 
-absl::Status MoqtControlParser::ProcessPublishOk(absl::string_view data) {
+absl::StatusOr<MoqtPublishOk> MoqtControlMessageParser::ProcessPublishOk(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtPublishOk publish_ok;
   if (!reader.ReadVarInt62(&publish_ok.request_id)) {
@@ -1047,11 +1011,12 @@ absl::Status MoqtControlParser::ProcessPublishOk(absl::string_view data) {
   }
   QUICHE_RETURN_IF_ERROR(
       FillAndValidateMessageParameters(reader, publish_ok.parameters));
-  visitor_.OnPublishOkMessage(publish_ok);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return publish_ok;
 }
 
-absl::Status MoqtControlParser::ProcessObjectAck(absl::string_view data) {
+absl::StatusOr<MoqtObjectAck> MoqtControlMessageParser::ProcessObjectAck(
+    absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtObjectAck object_ack;
   uint64_t raw_delta;
@@ -1063,32 +1028,12 @@ absl::Status MoqtControlParser::ProcessObjectAck(absl::string_view data) {
   }
   object_ack.delta_from_deadline = quic::QuicTimeDelta::FromMicroseconds(
       SignedVarintUnserializedForm(raw_delta));
-  visitor_.OnObjectAckMessage(object_ack);
-  return CheckForTrailingData(reader);
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return object_ack;
 }
 
-void MoqtControlParser::ParseError(absl::string_view reason) {
-  ParseError(MoqtError::kProtocolViolation, reason);
-}
-
-void MoqtControlParser::ParseError(const absl::Status& status) {
-  ParseError(
-      GetMoqtErrorForStatus(status).value_or(MoqtError::kProtocolViolation),
-      status.message());
-}
-
-void MoqtControlParser::ParseError(MoqtError error_code,
-                                   absl::string_view reason) {
-  if (parsing_error_) {
-    return;  // Don't send multiple parse errors.
-  }
-  no_more_data_ = true;
-  parsing_error_ = true;
-  visitor_.OnParsingError(error_code, reason);
-}
-
-absl::Status MoqtControlParser::ReadTrackNamespace(
-    quic::QuicDataReader& reader, TrackNamespace& track_namespace) {
+absl::Status MoqtControlMessageParser::ReadTrackNamespace(
+    quic::QuicDataReader& reader, TrackNamespace& track_namespace) const {
   QUICHE_DCHECK(track_namespace.empty());
   uint64_t num_elements;
   if (!reader.ReadVarInt62(&num_elements)) {
@@ -1111,8 +1056,8 @@ absl::Status MoqtControlParser::ReadTrackNamespace(
   return absl::OkStatus();
 }
 
-absl::Status MoqtControlParser::ReadFullTrackName(
-    quic::QuicDataReader& reader, FullTrackName& full_track_name) {
+absl::Status MoqtControlMessageParser::ReadFullTrackName(
+    quic::QuicDataReader& reader, FullTrackName& full_track_name) const {
   QUICHE_DCHECK(!full_track_name.IsValid());
   TrackNamespace track_namespace;
   QUICHE_RETURN_IF_ERROR(ReadTrackNamespace(reader, track_namespace));
@@ -1127,9 +1072,9 @@ absl::Status MoqtControlParser::ReadFullTrackName(
   return absl::OkStatus();
 }
 
-absl::Status MoqtControlParser::FillAndValidateSetupParameters(
+absl::Status MoqtControlMessageParser::FillAndValidateSetupParameters(
     const KeyValuePairList& in, SetupParameters& out,
-    MoqtMessageType message_type) {
+    MoqtMessageType message_type) const {
   QUICHE_RETURN_IF_ERROR(out.FromKeyValuePairList(in));
   MoqtError error =
       SetupParametersAllowedByMessage(out, message_type, uses_web_transport_);
@@ -1139,8 +1084,8 @@ absl::Status MoqtControlParser::FillAndValidateSetupParameters(
   return absl::OkStatus();
 }
 
-absl::Status MoqtControlParser::FillAndValidateMessageParameters(
-    quic::QuicDataReader& reader, MessageParameters& out) {
+absl::Status MoqtControlMessageParser::FillAndValidateMessageParameters(
+    quic::QuicDataReader& reader, MessageParameters& out) const {
   KeyValuePairList pairs;
   QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(reader, pairs));
   // All parameter types are allowed in all messages.

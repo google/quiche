@@ -220,7 +220,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // responsible for calling stream->SetVisitor().
     UnknownBidiStream(MoqtSession* session,
                       webtransport::Stream* absl_nonnull stream)
-        : session_(session), stream_(stream), parser_(stream) {}
+        : session_(session),
+          stream_(stream),
+          parser_(std::make_unique<MoqtControlStreamParser>(stream)) {}
     ~UnknownBidiStream() {}
 
     // webtransport::StreamVisitor overrides.
@@ -233,7 +235,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
    private:
     MoqtSession* session_;
     webtransport::Stream* stream_;
-    MoqtMessageTypeParser parser_;
+    std::unique_ptr<MoqtControlStreamParser> parser_;
   };
 
   class QUICHE_EXPORT ControlStream : public MoqtBidiStreamBase {
