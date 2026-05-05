@@ -19,7 +19,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_block_until_settings_received_copt
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_clear_body_manager_along_with_sequencer, true, true, "If true, QuicSpdyStream::StopReading always clears BodyManager along with the SequenceBuffer.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_clear_packet_on_serialization_failure, false, false, "If true, clear QuicPacketCreator state when serialization failure.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_client_check_blockage_before_on_can_write, false, false, "If true, quic clients will only call OnCanWrite() upon write events if the writer is unblocked.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_close_connection_on_underflow, true, true, "If true, close QUIC connections if a RESET_STREAM frame is received with a too-small final byte offset value.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_close_on_idle_timeout, false, false, "If true, closes the connection if it has exceeded the idle timeout when deciding whether to open a stream.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_conservative_bursts, false, false, "If true, set burst token to 2 in cwnd bootstrapping experiment.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_conservative_cwnd_and_pacing_gains, false, false, "If true, uses conservative cwnd gain and pacing gain when cwnd gets bootstrapped.")

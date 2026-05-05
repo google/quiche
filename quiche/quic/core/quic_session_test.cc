@@ -3664,15 +3664,11 @@ TEST_P(QuicSessionTestServer, FlowControlFinalByteUnderflow) {
       /*control_frame_id=*/kInvalidControlFrameId, stream_id,
       QUIC_STREAM_CANCELLED,
       /*bytes_written=*/0);
-  if (GetQuicReloadableFlag(quic_close_connection_on_underflow)) {
-    EXPECT_CALL(
-        *connection_,
-        CloseConnection(QUIC_FLOW_CONTROL_FINAL_SIZE_CHANGED,
-                        "Invalid final byte offset",
-                        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
-  } else {
-    EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
-  }
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(QUIC_FLOW_CONTROL_FINAL_SIZE_CHANGED,
+                      "Invalid final byte offset",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET));
   session_.OnRstStream(malicious_rst);
 
   EXPECT_EQ(session_.flow_controller()->highest_received_byte_offset(),
@@ -3680,11 +3676,7 @@ TEST_P(QuicSessionTestServer, FlowControlFinalByteUnderflow) {
   const QuicByteCount bytes_consumed_after =
       session_.flow_controller()->bytes_consumed();
 
-  if (GetQuicReloadableFlag(quic_close_connection_on_underflow)) {
-    EXPECT_EQ(bytes_consumed_after, kDataSize);
-  } else {
-    EXPECT_NE(bytes_consumed_after, kDataSize);
-  }
+  EXPECT_EQ(bytes_consumed_after, kDataSize);
 }
 
 }  // namespace
