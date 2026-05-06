@@ -140,6 +140,26 @@ TEST_F(QuicheMemSliceTest, CopyEmpty) {
   EXPECT_EQ(slice.length(), 0u);
 }
 
+TEST_F(QuicheMemSliceTest, Release) {
+  constexpr absl::string_view kData = "test";
+  bool deleted = false;
+  QuicheMemSlice slice(kData.data(), kData.size(), [&](absl::string_view data) {
+    EXPECT_EQ(kData, data);
+    deleted = true;
+  });
+  EXPECT_FALSE(slice.empty());
+  QuicheMemSlice::ReleasedSlice released = std::move(slice).Release();
+  EXPECT_TRUE(slice.empty());  // NOLINT(bugprone-use-after-move)
+  EXPECT_EQ(released.data, kData);
+  EXPECT_FALSE(deleted);
+  std::move(released.callback)(kData);
+  EXPECT_TRUE(deleted);
+
+  released = std::move(slice).Release();  // NOLINT(bugprone-use-after-move)
+  EXPECT_TRUE(released.data.empty());
+  EXPECT_EQ(released.callback, nullptr);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quiche

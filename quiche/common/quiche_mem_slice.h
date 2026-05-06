@@ -19,6 +19,11 @@ namespace quiche {
 class QUICHE_EXPORT QuicheMemSlice {
  public:
   using ReleaseCallback = SingleUseCallback<void(absl::string_view)>;
+  // QuicheMemSlice released into the underlying components.
+  struct ReleasedSlice {
+    absl::string_view data;
+    ReleaseCallback callback;  // Can be nullptr.
+  };
 
   // Creates a QuicheMemSlice by allocating memory on heap and copying the
   // specified bytes.
@@ -53,6 +58,11 @@ class QUICHE_EXPORT QuicheMemSlice {
   // Release the underlying reference. Further access the memory will result in
   // undefined behavior.
   void Reset();
+
+  // Releases the underlying deleter callback, and clears the state of the
+  // object.  Returns both the callback and the view of the data owned by the
+  // slice.
+  ReleasedSlice Release() &&;
 
   // Returns a const char pointer to underlying data buffer.
   const char* data() const { return data_; }

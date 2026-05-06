@@ -64,6 +64,15 @@ void QuicheMemSlice::Reset() {
   done_callback_ = nullptr;
 }
 
+QuicheMemSlice::ReleasedSlice QuicheMemSlice::Release() && {
+  ReleasedSlice slice{.data = AsStringView(),
+                      .callback = std::move(done_callback_)};
+  data_ = nullptr;
+  size_ = 0;
+  done_callback_ = nullptr;
+  return slice;
+}
+
 QuicheMemSlice QuicheMemSlice::Copy(absl::string_view data) {
   if (data.empty()) {
     return QuicheMemSlice();
