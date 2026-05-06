@@ -22,6 +22,15 @@
 
 namespace quic {
 
+namespace {
+
+QuicPacketCount GetMaxTrackedPackets() {
+  // Add a bit wiggle room on top of the limit enforced by QuiConnection.
+  return GetQuicFlag(quic_max_tracked_packet_count) + 1000;
+}
+
+}  // namespace
+
 std::ostream& operator<<(std::ostream& os, const SendTimeState& s) {
   os << "{valid:" << s.is_valid << ", app_limited:" << s.is_app_limited
      << ", total_sent:" << s.total_bytes_sent
@@ -141,7 +150,7 @@ QuicByteCount MaxAckHeightTracker::Update(
 BandwidthSampler::BandwidthSampler(
     const QuicUnackedPacketMap* unacked_packet_map,
     QuicRoundTripCount max_height_tracker_window_length)
-    : max_tracked_packets_(GetQuicFlag(quic_max_tracked_packet_count)),
+    : max_tracked_packets_(GetMaxTrackedPackets()),
       unacked_packet_map_(unacked_packet_map),
       max_ack_height_tracker_(max_height_tracker_window_length) {
   const size_t preallocate_count =
