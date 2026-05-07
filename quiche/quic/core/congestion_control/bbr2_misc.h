@@ -112,6 +112,7 @@ struct QUICHE_EXPORT Bbr2Params {
 
   // If true, include extra acked during STARTUP and proactively reduce extra
   // acked when bandwidth increases.
+  // Always true in BBR3, so this value is ignored.
   bool startup_include_extra_acked = false;
 
 

@@ -119,7 +119,7 @@ class QUICHE_EXPORT Bbr3Sender final : public SendAlgorithmInterface {
  private:
   void UpdatePacingRate(QuicByteCount bytes_acked);
   void UpdateCongestionWindow(QuicByteCount bytes_acked);
-  QuicByteCount GetTargetCongestionWindow(float gain) const;
+  QuicByteCount ApplyQuantizationBudget(QuicByteCount inflight_cap) const;
   // Helper function for Bbr2Mode transitions.
   void LeaveStartup(QuicTime now);
   Bbr2Mode OnCongestionEventStartup(

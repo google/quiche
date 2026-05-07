@@ -62,7 +62,6 @@ Bbr3Sender::Bbr3Sender(QuicTime now, const RttStats* rtt_stats,
   // The BBR IETF draft uses 0.9 as the PROBE_DOWN pacing gain.
   params_.probe_bw_probe_down_pacing_gain = 0.9f;
   // STARTUP has a shorter MaxAckHeightTracker window of 1 round.
-  params_.startup_include_extra_acked = true;
   model_.SetMaxAckHeightTrackerWindowLength(1);
   // Use the derived startup pacing gain in the IETF draft.
   model_.set_pacing_gain(kDerivedStartupPacingGain);
@@ -94,7 +93,8 @@ void Bbr3Sender::ApplyConnectionOptions(
     params_.startup_full_bw_rounds = 2;
   }
   if (ContainsQuicTag(connection_options, kB2HR)) {
-    params_.inflight_hi_headroom = 0.15;
+    // The default is 0.15.
+    params_.inflight_hi_headroom = 0.10;
   }
   if (ContainsQuicTag(connection_options, kICW1)) {
     max_cwnd_when_network_parameters_adjusted_ = 100 * kDefaultTCPMSS;
@@ -148,14 +148,14 @@ void Bbr3Sender::ApplyConnectionOptions(
   if (ContainsQuicTag(connection_options, kB202)) {
     params_.max_probe_up_queue_rounds = 1;
   }
+  if (ContainsQuicTag(connection_options, kBB2U)) {
+    params_.max_probe_up_queue_rounds = 2;
+  }
   if (ContainsQuicTag(connection_options, kB203)) {
     params_.probe_up_ignore_inflight_hi = false;
   }
   if (ContainsQuicTag(connection_options, kB204)) {
     model_.SetReduceExtraAckedOnBandwidthIncrease(true);
-  }
-  if (ContainsQuicTag(connection_options, kB205)) {
-    params_.startup_include_extra_acked = true;
   }
   if (ContainsQuicTag(connection_options, kBBRA)) {
     model_.SetStartNewAggregationEpochAfterFullRound(true);
@@ -174,9 +174,6 @@ void Bbr3Sender::ApplyConnectionOptions(
     // Simplify inflight_hi is intended as an alternative to ignoring it,
     // so ensure we're not ignoring it.
     params_.probe_up_ignore_inflight_hi = false;
-  }
-  if (ContainsQuicTag(connection_options, kBB2U)) {
-    params_.max_probe_up_queue_rounds = 2;
   }
 }
 
@@ -425,24 +422,28 @@ void Bbr3Sender::UpdatePacingRate(QuicByteCount bytes_acked) {
 }
 
 void Bbr3Sender::UpdateCongestionWindow(QuicByteCount bytes_acked) {
-  QuicByteCount target_cwnd = GetTargetCongestionWindow(model_.cwnd_gain());
+  // From "Congestion Window" section of bbr3-draft.
+  QuicByteCount max_inflight =
+      model_.BDP(model_.BandwidthEstimate(), model_.cwnd_gain()) +
+      model_.MaxAckHeight();
+  max_inflight = ApplyQuantizationBudget(max_inflight);
 
   const QuicByteCount prior_cwnd = cwnd_;
-  if (model_.full_bandwidth_reached() || Params().startup_include_extra_acked) {
-    target_cwnd += model_.MaxAckHeight();
-    cwnd_ = std::min(prior_cwnd + bytes_acked, target_cwnd);
-  } else if (prior_cwnd < target_cwnd || prior_cwnd < 2 * initial_cwnd_) {
-    cwnd_ = prior_cwnd + bytes_acked;
+  // Never increase CWND by more than bytes_acked.
+  if (model_.full_bandwidth_reached()) {
+    cwnd_ = std::min(cwnd_ + bytes_acked, max_inflight);
+  } else if (cwnd_ < max_inflight ||
+             model_.total_bytes_acked() < initial_cwnd_) {
+    // For the first flight of packets in STARTUP, increase CWND by bytes_acked.
+    cwnd_ = cwnd_ + bytes_acked;
   }
 
   const QuicByteCount desired_cwnd = cwnd_;
-
   cwnd_ = GetCwndLimitsByMode().ApplyLimits(cwnd_);
   const QuicByteCount model_limited_cwnd = cwnd_;
-
   cwnd_ = params_.cwnd_limits.ApplyLimits(cwnd_);
 
-  QUIC_DVLOG(3) << this << " Updating CWND. target_cwnd:" << target_cwnd
+  QUIC_DVLOG(3) << this << " Updating CWND. max_inflight:" << max_inflight
                 << ", max_ack_height:" << model_.MaxAckHeight()
                 << ", full_bw:" << model_.full_bandwidth_reached()
                 << ", bytes_acked:" << bytes_acked
@@ -453,9 +454,14 @@ void Bbr3Sender::UpdateCongestionWindow(QuicByteCount bytes_acked) {
                 << " => (final_cwnd) " << cwnd_;
 }
 
-QuicByteCount Bbr3Sender::GetTargetCongestionWindow(float gain) const {
-  return std::max(model_.BDP(model_.BandwidthEstimate(), gain),
-                  params_.cwnd_limits.Min());
+QuicByteCount Bbr3Sender::ApplyQuantizationBudget(
+    QuicByteCount inflight_cap) const {
+  // TODO(ianswett): Ensure inflight_cap is at least the offload budget.
+  inflight_cap = std::max(inflight_cap, kDefaultMinimumCongestionWindow);
+  if (mode_ == Bbr2Mode::PROBE_BW && probe_bw_.phase == ProbePhase::PROBE_UP) {
+    inflight_cap += 2 * kDefaultTCPMSS;
+  }
+  return inflight_cap;
 }
 
 void Bbr3Sender::OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
