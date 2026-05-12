@@ -26,8 +26,54 @@
 #include "quiche/oblivious_http/buffers/oblivious_http_request.h"
 #include "quiche/oblivious_http/common/oblivious_http_chunk_handler.h"
 #include "quiche/oblivious_http/oblivious_http_client.h"
+#include <zlib.h>
 
 namespace quic {
+
+// A class that decompresses gzip encoded data using zlib. This also supports
+// incremental decompression, enabling the caller to feed a stream of compressed
+// chunks into the decompressor one by one.
+class QUICHE_NO_EXPORT GzipDecompressor {
+ public:
+  // Not copyable.
+  GzipDecompressor(const GzipDecompressor&) = delete;
+  GzipDecompressor& operator=(const GzipDecompressor&) = delete;
+
+  // Destructor is needed to free the internal state
+  // allocated by zlib during `inflateInit2`.
+  ~GzipDecompressor() { EndDecompression(); }
+
+  static absl::StatusOr<std::unique_ptr<GzipDecompressor>> Create();
+
+  // Can be called multiple times with continuous input chunks. `end_stream`
+  // should be set to true when the input is confirmed to have the final chunk.
+  absl::StatusOr<std::string> Decompress(absl::string_view input,
+                                         bool end_stream);
+
+  bool IsFinished() const { return finished_; }
+
+  // This will free the internal state allocated by zlib. The decompressor
+  // should not be used after this is called.
+  void EndDecompression();
+
+ private:
+  struct DecompressedData {
+    int status_code;
+    std::string data;
+  };
+
+  explicit GzipDecompressor(std::unique_ptr<z_stream> stream)
+      : stream_(std::move(stream)) {}
+
+  // Decompresses data from the zlib stream.
+  // `flush` determines the flushing behavior for zlib (e.g., Z_NO_FLUSH for
+  // chunks, Z_FINISH for single non-chunked). Returns the decompressed data and
+  // the zlib return code (e.g., Z_OK, Z_STREAM_END).
+  absl::StatusOr<DecompressedData> InflateLoop(int flush);
+
+  std::unique_ptr<z_stream> stream_;
+  bool finished_ = false;
+};
 
 // A client that sends OHTTP requests through a relay/gateway to target URLs.
 class QUICHE_EXPORT MasqueOhttpClient

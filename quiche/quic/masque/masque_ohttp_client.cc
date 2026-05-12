@@ -104,51 +104,6 @@ absl::StatusOr<std::vector<absl::string_view>> SplitIntoChunks(
   return chunks;
 }
 
-absl::StatusOr<std::string> GzipDecompress(absl::string_view input) {
-  z_stream zs;
-  memset(&zs, 0, sizeof(zs));
-
-  // Initialize zlib for gzip decompression.
-  // 16 + MAX_WBITS tells zlib to expect a gzip header and trailer, which is the
-  // expectation for valid HTTP responses with `Content-Encoding: gzip`.
-  if (inflateInit2(&zs, 16 + MAX_WBITS) != Z_OK) {
-    return absl::InternalError(
-        "Failed to initialize zlib for gzip decompression");
-  }
-
-  // Automatically clean up zlib resources when exiting the function.
-  absl::Cleanup cleanup = [&zs] { inflateEnd(&zs); };
-
-  zs.next_in = reinterpret_cast<uint8_t*>(const_cast<char*>(input.data()));
-  zs.avail_in = input.size();
-
-  int ret;
-  std::vector<uint8_t> outbuffer(kGzipDecompressBufferSize);
-  std::string decompressed;
-
-  // Decompress the input in chunks until we reach the end of the stream.
-  do {
-    zs.next_out = outbuffer.data();
-    zs.avail_out = outbuffer.size();
-
-    ret = inflate(&zs, Z_NO_FLUSH);
-
-    // Calculate how much data was placed in the buffer and append it.
-    size_t decompressed_size = outbuffer.size() - zs.avail_out;
-    decompressed.append(reinterpret_cast<char*>(outbuffer.data()),
-                        decompressed_size);
-  } while (ret == Z_OK);
-
-  // Z_STREAM_END indicates that the full compressed stream was processed
-  // successfully.
-  if (ret != Z_STREAM_END) {
-    return absl::InternalError(
-        absl::StrCat("Gzip decompression failed with error code: ", ret));
-  }
-
-  return decompressed;
-}
-
 class PingPongResponseVisitor : public MasqueOhttpClient::ResponseVisitor {
  public:
   explicit PingPongResponseVisitor(std::vector<std::string> chunks)
@@ -245,6 +200,92 @@ CreateVisitorIfPingPong(const MasqueOhttpClient::Config& config) {
 }
 
 }  // namespace
+
+absl::StatusOr<GzipDecompressor::DecompressedData>
+GzipDecompressor::InflateLoop(int flush) {
+  int ret = Z_OK;
+  std::string decompressed = "";
+  std::vector<unsigned char> outbuffer(kGzipDecompressBufferSize);
+
+  // Decompress the input in chunks until we reach the end of the stream or
+  // need more input.
+  do {
+    stream_->next_out = outbuffer.data();
+    stream_->avail_out = outbuffer.size();
+
+    ret = inflate(stream_.get(), flush);
+
+    if (ret != Z_OK && ret != Z_STREAM_END) {
+      return absl::InternalError(absl::StrCat(
+          "Gzip decompression failed with error code: ", ret,
+          stream_->msg ? absl::StrCat(" (", stream_->msg, ")") : ""));
+    }
+
+    // Calculate how much data was placed in the buffer.
+    size_t decompressed_size = outbuffer.size() - stream_->avail_out;
+    decompressed.append(reinterpret_cast<char*>(outbuffer.data()),
+                        decompressed_size);
+  } while (stream_->avail_out == 0 && ret != Z_STREAM_END);
+
+  return DecompressedData{ret, std::move(decompressed)};
+}
+
+absl::StatusOr<std::unique_ptr<GzipDecompressor>> GzipDecompressor::Create() {
+  auto stream = std::make_unique<z_stream>();
+  // z_stream fields must be explicitly initialized, as per the zlib
+  // documentation.
+  memset(stream.get(), 0, sizeof(z_stream));
+
+  // Initialize zlib for gzip decompression.
+  // 16 + MAX_WBITS tells zlib to expect a gzip header and trailer, which is
+  // the expectation for valid HTTP responses with `Content-Encoding: gzip`.
+  int inflate_result = inflateInit2(stream.get(), 16 + MAX_WBITS);
+  if (inflate_result != Z_OK) {
+    return absl::InternalError(
+        absl::StrCat("Failed to initialize zlib for gzip decompression, error "
+                     "code: ",
+                     inflate_result));
+  }
+
+  return std::unique_ptr<GzipDecompressor>(
+      new GzipDecompressor(std::move(stream)));
+}
+
+absl::StatusOr<std::string> GzipDecompressor::Decompress(
+    absl::string_view input, bool end_stream) {
+  if (stream_ == nullptr) {
+    return absl::FailedPreconditionError("Decompression has already ended");
+  }
+  stream_->next_in =
+      reinterpret_cast<unsigned char*>(const_cast<char*>(input.data()));
+  stream_->avail_in = input.size();
+
+  QUICHE_ASSIGN_OR_RETURN(DecompressedData decompressed_data,
+                          InflateLoop(end_stream ? Z_FINISH : Z_NO_FLUSH));
+
+  if (decompressed_data.status_code == Z_STREAM_END) {
+    finished_ = true;
+  }
+
+  if (end_stream && !finished_) {
+    return absl::InternalError(
+        "Gzip decompression failed to reach end of stream");
+  }
+  return decompressed_data.data;
+}
+
+void GzipDecompressor::EndDecompression() {
+  if (stream_ != nullptr) {
+    inflateEnd(stream_.get());
+    stream_.reset();
+  }
+}
+
+absl::StatusOr<std::string> GzipDecompress(absl::string_view input) {
+  QUICHE_ASSIGN_OR_RETURN(std::unique_ptr<GzipDecompressor> decompressor,
+                          GzipDecompressor::Create());
+  return decompressor->Decompress(input, /*end_stream=*/true);
+}
 
 std::string MasqueOhttpClient::Config::PerRequestConfig::method() const {
   if (method_.has_value()) {
