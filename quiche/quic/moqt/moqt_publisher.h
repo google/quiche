@@ -36,9 +36,10 @@ class MoqtObjectListener {
   // This could happen synchronously or asynchronously.
   virtual void OnSubscribeRejected(MoqtRequestErrorInfo info) = 0;
 
-  // Notifies that a new object is available on the track.  The object payload
-  // itself may be retrieved via GetCachedObject method of the associated track
-  // publisher. If |subgroup| is nullopt, the object is a datagram.
+  // Notifies that a new object is available on the track, or new payload of
+  // a partially delivered object.  The object payload itself may be retrieved
+  // via GetCachedObject method of the associated track publisher. If |subgroup|
+  // is nullopt, the object is a datagram.
   virtual void OnNewObjectAvailable(Location sequence,
                                     std::optional<uint64_t> subgroup,
                                     MoqtPriority publisher_priority) = 0;
@@ -85,8 +86,8 @@ class MoqtTrackPublisher {
   // This method returns nullopt if the object is not currently available.
   // If |subgroup| is nullopt, the object is a datagram.
   virtual std::optional<PublishedObject> GetCachedObject(
-      uint64_t group, std::optional<uint64_t> subgroup,
-      uint64_t min_object) const = 0;
+      uint64_t group, std::optional<uint64_t> subgroup, uint64_t min_object,
+      uint64_t offset = 0) const = 0;
 
   // Registers a listener with the track.  The listener will be notified of all
   // newly arriving objects. The pointer to the listener must be valid until

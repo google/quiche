@@ -7,6 +7,7 @@
 #include <poll.h>
 #include <unistd.h>
 
+#include <cstdint>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -221,9 +222,10 @@ void ChatClient::RemoteTrackVisitor::OnReply(
 }
 
 void ChatClient::RemoteTrackVisitor::OnObjectFragment(
-    const FullTrackName& full_track_name, const PublishedObjectMetadata&,
-    absl::string_view object, bool end_of_message) {
-  if (!end_of_message) {
+    const FullTrackName& full_track_name,
+    const PublishedObjectMetadata& metadata, absl::string_view object,
+    uint64_t offset) {
+  if (offset != 0 || object.length() != metadata.payload_length) {
     std::cerr << "Error: received partial message despite requesting "
                  "buffering\n";
   }

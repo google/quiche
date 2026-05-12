@@ -7,6 +7,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -75,7 +76,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   void OnCanAckObjects(MoqtObjectAckFunction /*ack_function*/) override {}
   void OnObjectFragment(const FullTrackName& full_track_name,
                         const PublishedObjectMetadata& metadata,
-                        absl::string_view object, bool end_of_message) override;
+                        absl::string_view object, uint64_t offset) override;
   void OnPublishDone(FullTrackName full_track_name) override;
   void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {
     DeleteTrack();
@@ -87,7 +88,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   const FullTrackName& GetTrackName() const override { return track_; }
   std::optional<PublishedObject> GetCachedObject(
       uint64_t group_id, std::optional<uint64_t> subgroup_id,
-      uint64_t min_object) const override;
+      uint64_t min_object, uint64_t offset = 0) const override;
   void AddObjectListener(MoqtObjectListener* listener) override;
   void RemoveObjectListener(MoqtObjectListener* listener) override;
   std::optional<Location> largest_location() const override;
@@ -122,13 +123,13 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   void DeleteTrack();
 
   // Ordered by object id.
-  using Subgroup = absl::btree_map<uint64_t, CachedObject>;
+  using Subgroup = std::map<uint64_t, CachedObject>;
 
   struct Group {
     uint64_t next_object = 0;
     bool complete = false;  // If true, kEndOfGroup has been received.
     absl::btree_map<uint64_t, Subgroup> subgroups;  // Ordered by subgroup id.
-    absl::btree_map<uint64_t, CachedObject> datagrams;
+    std::map<uint64_t, CachedObject> datagrams;
   };
 
   bool is_closing_ = false;

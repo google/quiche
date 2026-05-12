@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MOQT_TOOLS_CHAT_CLIENT_H
 #define QUICHE_QUIC_MOQT_TOOLS_CHAT_CLIENT_H
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <variant>
@@ -111,8 +112,7 @@ class ChatClient {
 
     void OnObjectFragment(const moqt::FullTrackName& full_track_name,
                           const PublishedObjectMetadata& metadata,
-                          absl::string_view object,
-                          bool end_of_message) override;
+                          absl::string_view object, uint64_t offset) override;
 
     void OnPublishDone(FullTrackName) override {}
 

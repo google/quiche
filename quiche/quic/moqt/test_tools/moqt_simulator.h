@@ -165,7 +165,7 @@ class ObjectReceiver : public SubscribeVisitor {
 
   void OnObjectFragment(const FullTrackName& full_track_name,
                         const PublishedObjectMetadata& metadata,
-                        absl::string_view object, bool end_of_message) override;
+                        absl::string_view object, uint64_t offset) override;
 
   void OnPublishDone(FullTrackName /*full_track_name*/) override {}
   void OnMalformedTrack(const FullTrackName& /*full_track_name*/) override {}

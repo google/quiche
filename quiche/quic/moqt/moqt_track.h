@@ -22,8 +22,9 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_types.h"
-#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_circular_deque.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -165,6 +166,8 @@ class SubscribeRemoteTrack : public RemoteTrack {
   bool dynamic_groups_ = kDefaultDynamicGroups;
   void FetchObjects();
   std::unique_ptr<MoqtFetchTask> fetch_task_;
+  // If nonzero, fetch_task_ is in mid-object.
+  uint64_t fetch_object_offset_ = 0;
 
   std::optional<const uint64_t> track_alias_;
   SubscribeVisitor* visitor_;
@@ -280,7 +283,8 @@ class UpstreamFetch : public RemoteTrack {
     // MoqtSession calls this for a hint if the object has been read.
     bool HasObject() const { return next_object_.has_value(); }
     bool NeedsMorePayload() const {
-      return next_object_.has_value() && next_object_->payload_length > 0;
+      return next_object_.has_value() &&
+             payload_length_ < next_object_->payload_length;
     }
     // MoqtSession calls NotifyNewObject() after NewObject() because it has to
     // exit the parser loop before the callback possibly causes another read.
@@ -294,6 +298,9 @@ class UpstreamFetch : public RemoteTrack {
         std::optional<webtransport::StreamErrorCode> error,
         absl::string_view reason_phrase);
 
+    uint64_t payload_offset() const { return payload_offset_; }
+    uint64_t payload_length() const { return payload_length_; }
+
    private:
     Location largest_location_;
     absl::Status status_ = absl::OkStatus();
@@ -303,9 +310,11 @@ class UpstreamFetch : public RemoteTrack {
     // payload bytes not yet received. The application receives a
     // PublishedObject that is constructed from next_object_ and payload_.
     std::optional<MoqtObject> next_object_;
-    // Store payload separately. Will be converted into QuicheMemSlice only when
-    // complete, since QuicheMemSlice is immutable.
-    quiche::QuicheBuffer payload_;
+    quiche::QuicheCircularDeque<quiche::QuicheMemSlice> payload_;
+    // The starting point of payload_. Data is deleted as it is delivered.
+    uint64_t payload_offset_ = 0;
+    // Total data delivered for this object.
+    uint64_t payload_length_ = 0;
 
     // The task should only call object_available_callback_ when the last result
     // was kPending. Otherwise, there can be recursive loops of

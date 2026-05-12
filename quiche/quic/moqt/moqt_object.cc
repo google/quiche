@@ -4,22 +4,58 @@
 
 #include "quiche/quic/moqt/moqt_object.h"
 
+#include <cstdint>
+
 #include "absl/strings/string_view.h"
-#include "quiche/common/quiche_mem_slice.h"
+#include "absl/synchronization/mutex.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/quiche_cord_utils.h"
 
 namespace moqt {
 
-moqt::PublishedObject CachedObjectToPublishedObject(
-    const CachedObject& object) {
-  PublishedObject result;
-  result.metadata = object.metadata;
-  if (object.payload != nullptr && !object.payload->empty()) {
-    result.payload = quiche::QuicheMemSlice(
-        object.payload->data(), object.payload->length(),
-        [retained_pointer = object.payload](absl::string_view) {});
+bool CachedObject::Append(uint64_t offset, absl::string_view payload) {
+  absl::MutexLock lock(mutex_);
+  uint64_t total_length = payload_received_locked();
+  if (offset > total_length) {
+    QUICHE_BUG(cached_object_gap) << "Gap in bytes in CachedObject::Append";
+    return false;
   }
-  result.fin_after_this = object.fin_after_this;
+  if (offset + payload.length() > metadata_.payload_length) {
+    // This object is larger than the declared size.
+    QUICHE_BUG(cached_object_too_large)
+        << "Object is larger than the declared size";
+    return false;
+  }
+  if (offset + payload.length() <= total_length) {
+    return false;  // No new data.
+  }
+  payload_.Append(payload.substr(total_length - offset));
+  return true;
+}
+
+PublishedObject CachedObject::ToPublishedObject(uint64_t offset) const {
+  PublishedObject result;
+  result.metadata = metadata();
+  absl::MutexLock lock(mutex_);
+  uint64_t total_length = payload_received_locked();
+  quiche::CordToMemSlicesTo(payload_.Subcord(offset, total_length - offset),
+                            result.payload);
+  result.fin_after_this = fin_after_this_;
   return result;
+}
+
+bool CachedObject::OverlapIsEqual(uint64_t offset,
+                                  absl::string_view payload) const {
+  absl::MutexLock lock(mutex_);
+  uint64_t total_length = payload_received_locked();
+  if (offset >= total_length) {
+    return true;
+  }
+  if (offset + payload.length() <= total_length) {
+    return payload_.Subcord(offset, payload.length()) == payload;
+  }
+  return payload_.Subcord(offset, total_length - offset) ==
+         payload.substr(0, total_length - offset);
 }
 
 }  // namespace moqt

@@ -65,7 +65,7 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
     if (object->metadata.status == MoqtObjectStatus::kNormal) {
       PublishObject(object->metadata.location.group,
                     object->metadata.location.object,
-                    object->payload.AsStringView());
+                    object->payload[0].AsStringView());
     } else {
       CloseStreamForGroup(object->metadata.location.group);
     }
@@ -110,7 +110,7 @@ absl::StatusOr<std::vector<std::string>> FetchToVector(
     switch (result) {
       case MoqtFetchTask::kSuccess:
         if (object.metadata.status == MoqtObjectStatus::kNormal) {
-          objects.emplace_back(object.payload.AsStringView());
+          objects.emplace_back(object.payload[0].AsStringView());
         } else {
           EXPECT_EQ(object.metadata.status, MoqtObjectStatus::kEndOfGroup);
         }

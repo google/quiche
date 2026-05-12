@@ -58,8 +58,8 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   // MoqtTrackPublisher implementation.
   const FullTrackName& GetTrackName() const override { return track_; }
   std::optional<PublishedObject> GetCachedObject(
-      uint64_t group, std::optional<uint64_t> subgroup,
-      uint64_t min_object) const override;
+      uint64_t group, std::optional<uint64_t> subgroup, uint64_t min_object,
+      uint64_t offset = 0) const override;
   void AddObjectListener(MoqtObjectListener* listener) override {
     listeners_.insert(listener);
     listener->OnSubscribeAccepted();
@@ -158,7 +158,9 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
     absl::Status status_ = absl::OkStatus();
   };
 
-  using Group = std::vector<CachedObject>;
+  // CachedObject is non-movable, so we have to use unique_ptr for pointer
+  // stability.
+  using Group = std::vector<std::unique_ptr<CachedObject>>;
 
   // Appends an object to the end of the current group.
   void AddRawObject(MoqtObjectStatus status, quiche::QuicheMemSlice payload);

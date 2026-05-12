@@ -30,13 +30,15 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_bitrate_adjuster.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
-#include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 #include "quiche/quic/test_tools/simulator/actor.h"
 #include "quiche/quic/test_tools/simulator/link.h"
@@ -206,13 +208,14 @@ void ObjectReceiver::OnReply(
 void ObjectReceiver::OnObjectFragment(const FullTrackName& full_track_name,
                                       const PublishedObjectMetadata& metadata,
                                       absl::string_view object,
-                                      bool end_of_message) {
+                                      uint64_t offset) {
   QUICHE_DCHECK(full_track_name == TrackName());
   if (metadata.status != MoqtObjectStatus::kNormal) {
-    QUICHE_DCHECK(end_of_message);
+    QUICHE_DCHECK(object.empty() && metadata.payload_length == 0 &&
+                  offset == 0);
     return;
   }
-  if (!end_of_message) {
+  if (metadata.payload_length != object.length() || offset != 0) {
     QUICHE_LOG(DFATAL) << "Partial receiving of objects wasn't enabled";
     return;
   }

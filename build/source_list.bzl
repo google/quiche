@@ -1656,6 +1656,7 @@ moqt_test_srcs = [
     "quic/moqt/moqt_messages_test.cc",
     "quic/moqt/moqt_names_test.cc",
     "quic/moqt/moqt_namespace_stream_test.cc",
+    "quic/moqt/moqt_object_test.cc",
     "quic/moqt/moqt_outgoing_queue_test.cc",
     "quic/moqt/moqt_outstanding_objects_test.cc",
     "quic/moqt/moqt_parser_fuzz_test.cc",

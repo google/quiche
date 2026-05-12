@@ -201,8 +201,8 @@ class MoqtIngestionHandler {
 
     void OnObjectFragment(const FullTrackName& full_track_name,
                           const PublishedObjectMetadata& metadata,
-                          absl::string_view object,
-                          bool /*end_of_message*/) override {
+                          absl::string_view object, uint64_t offset) override {
+      QUICHE_CHECK(offset == 0 && metadata.payload_length == object.length());
       std::string file_name =
           absl::StrCat(metadata.location.group, "-", metadata.location.object,
                        ".", full_track_name.track_namespace().tuple().back());

@@ -331,13 +331,13 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSendDataInResponse) {
   EXPECT_CALL(subscribe_visitor_, OnObjectFragment)
       .WillOnce([&](const FullTrackName& full_track_name,
                     const PublishedObjectMetadata& metadata,
-                    absl::string_view object, bool end_of_message) {
+                    absl::string_view object, uint64_t offset) {
         EXPECT_EQ(full_track_name, FullTrackName("test", "data"));
         EXPECT_EQ(metadata.location.group, 0u);
         EXPECT_EQ(metadata.location.object, 0u);
         EXPECT_EQ(metadata.status, MoqtObjectStatus::kNormal);
         EXPECT_EQ(object, "object data");
-        EXPECT_TRUE(end_of_message);
+        EXPECT_EQ(offset, 0u);
         received_object = true;
       });
   success = test_harness_.RunUntilWithDefaultTimeout(
@@ -391,20 +391,20 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
         OnObjectFragment(_,
                          MetadataLocationAndStatus(
                              Location{0, 3}, MoqtObjectStatus::kEndOfGroup),
-                         "", true))
+                         "", /*offset=*/0))
         .WillOnce([&] { ++received; });
     EXPECT_CALL(subscribe_visitor_,
                 OnObjectFragment(_,
                                  MetadataLocationAndStatus(
                                      Location{1, 0}, MoqtObjectStatus::kNormal),
-                                 "object 4", true))
+                                 "object 4", /*offset=*/0))
         .WillOnce([&] { ++received; });
     queue->AddObject(MemSliceFromString("object 4"), /*key=*/true);
     EXPECT_CALL(subscribe_visitor_,
                 OnObjectFragment(_,
                                  MetadataLocationAndStatus(
                                      Location{1, 1}, MoqtObjectStatus::kNormal),
-                                 "object 5", true))
+                                 "object 5", /*offset=*/0))
         .WillOnce([&] { ++received; });
     queue->AddObject(MemSliceFromString("object 5"), /*key=*/false);
 
@@ -416,7 +416,7 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
                 OnObjectFragment(_,
                                  MetadataLocationAndStatus(
                                      Location{1, 2}, MoqtObjectStatus::kNormal),
-                                 "object 6", true))
+                                 "object 6", /*offset=*/0))
         .WillOnce([&] { ++received; });
     queue->AddObject(MemSliceFromString("object 6"), /*key=*/false);
     EXPECT_CALL(
@@ -424,20 +424,20 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
         OnObjectFragment(_,
                          MetadataLocationAndStatus(
                              Location{1, 3}, MoqtObjectStatus::kEndOfGroup),
-                         "", true))
+                         "", /*offset=*/0))
         .WillOnce([&] { ++received; });
     EXPECT_CALL(subscribe_visitor_,
                 OnObjectFragment(_,
                                  MetadataLocationAndStatus(
                                      Location{2, 0}, MoqtObjectStatus::kNormal),
-                                 "object 7", true))
+                                 "object 7", /*offset=*/0))
         .WillOnce([&] { ++received; });
     queue->AddObject(MemSliceFromString("object 7"), /*key=*/true);
     EXPECT_CALL(subscribe_visitor_,
                 OnObjectFragment(_,
                                  MetadataLocationAndStatus(
                                      Location{2, 1}, MoqtObjectStatus::kNormal),
-                                 "object 8", true))
+                                 "object 8", /*offset=*/0))
         .WillOnce([&] { ++received; });
     queue->AddObject(MemSliceFromString("object 8"), /*key=*/false);
 
@@ -450,14 +450,14 @@ TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
         OnObjectFragment(_,
                          MetadataLocationAndStatus(
                              Location{2, 2}, MoqtObjectStatus::kEndOfGroup),
-                         "", true))
+                         "", /*offset=*/0))
         .WillOnce([&] { ++received; });
     EXPECT_CALL(
         subscribe_visitor_,
         OnObjectFragment(_,
                          MetadataLocationAndStatus(
                              Location{3, 0}, MoqtObjectStatus::kEndOfTrack),
-                         "", true))
+                         "", /*offset=*/0))
         .WillOnce([&] { ++received; });
     queue->Close();
     success = test_harness_.RunUntilWithDefaultTimeout(
@@ -499,7 +499,7 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
     EXPECT_EQ(result, MoqtFetchTask::GetNextObjectResult::kSuccess);
     EXPECT_EQ(object.metadata.location, expected);
     EXPECT_EQ(object.metadata.status, MoqtObjectStatus::kNormal);
-    EXPECT_EQ(object.payload.AsStringView(), "object");
+    EXPECT_EQ(object.payload[0].AsStringView(), "object");
     ++expected.group;
   } while (result == MoqtFetchTask::GetNextObjectResult::kSuccess);
   EXPECT_EQ(result, MoqtFetchTask::GetNextObjectResult::kEof);
@@ -779,7 +779,7 @@ TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
       .WillRepeatedly(
           [&](const FullTrackName&, const PublishedObjectMetadata& metadata,
               absl::string_view object,
-              bool end_of_message) { bytes_received += object.size(); });
+              uint64_t offset) { bytes_received += object.size(); });
   queue->AddObject(Location{0, 0}, 0, data, false);
   queue->AddObject(Location{0, 1}, 0, data, false);
   queue->AddObject(Location{0, 2}, 0, data, false);
@@ -830,7 +830,7 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
       .WillRepeatedly(
           [&](const FullTrackName&, const PublishedObjectMetadata& metadata,
               absl::string_view object,
-              bool end_of_message) { bytes_received += object.size(); });
+              uint64_t offset) { bytes_received += object.size(); });
   queue->AddObject(Location{0, 0}, 0, data, false);
   queue->AddObject(Location{1, 0}, 0, data, false);
   success = test_harness_.RunUntilWithDefaultTimeout([&]() {
@@ -904,7 +904,7 @@ TEST_F(MoqtIntegrationTest, RecordTrace) {
               OnObjectFragment(_,
                                MetadataLocationAndStatus(
                                    Location{0, 0}, MoqtObjectStatus::kNormal),
-                               kObjectPayload, true))
+                               kObjectPayload, /*offset=*/0))
       .WillOnce([&] { ++received; });
 
   success =

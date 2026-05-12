@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_MOQT_TOOLS_MOQT_MOCK_VISITOR_H_
 
 #include <cstdint>
+#include <map>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -77,7 +78,8 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   const FullTrackName& GetTrackName() const override { return track_name_; }
 
   MOCK_METHOD(std::optional<PublishedObject>, GetCachedObject,
-              (uint64_t, std::optional<uint64_t>, uint64_t), (const, override));
+              (uint64_t, std::optional<uint64_t>, uint64_t, uint64_t),
+              (const, override));
   MOCK_METHOD(void, AddObjectListener, (MoqtObjectListener * listener),
               (override));
   MOCK_METHOD(void, RemoveObjectListener, (MoqtObjectListener * listener),
@@ -105,14 +107,14 @@ class TestTrackPublisher : public MoqtTrackPublisher {
       : track_name_(std::move(name)) {}
   const FullTrackName& GetTrackName() const override { return track_name_; }
   std::optional<PublishedObject> GetCachedObject(
-      uint64_t group, std::optional<uint64_t> subgroup,
-      uint64_t object) const override {
+      uint64_t group, std::optional<uint64_t> subgroup, uint64_t object,
+      uint64_t /*offset*/) const override {
     Location location(group, object);
     auto it = objects_.find(location);
     if (it == objects_.end()) {
       return std::nullopt;
     }
-    return CachedObjectToPublishedObject(it->second);
+    return it->second.ToPublishedObject();
   }
   void AddObjectListener(MoqtObjectListener* listener) override {
     listeners_.insert(listener);
@@ -146,16 +148,20 @@ class TestTrackPublisher : public MoqtTrackPublisher {
   }
   void AddObject(Location location, uint64_t subgroup,
                  absl::string_view payload, bool fin) {
-    CachedObject object;
-    object.metadata.location = location;
-    object.metadata.subgroup = subgroup;
-    object.metadata.extensions = "";
-    object.metadata.status = MoqtObjectStatus::kNormal;
-    object.metadata.publisher_priority = 128;
-    object.payload = std::make_shared<quiche::QuicheMemSlice>(
-        quiche::QuicheMemSlice::Copy(payload));
-    object.fin_after_this = fin;
-    objects_[location] = std::move(object);
+    PublishedObjectMetadata metadata;
+    metadata.location = location;
+    metadata.subgroup = subgroup;
+    metadata.extensions = "";
+    metadata.status = MoqtObjectStatus::kNormal;
+    metadata.publisher_priority = 128;
+    metadata.payload_length = payload.length();
+    auto it = objects_.find(location);
+    if (it != objects_.end()) {
+      it->second.Append(it->second.payload_received(), payload);
+    } else {
+      objects_.try_emplace(location, metadata,
+                           quiche::QuicheMemSlice::Copy(payload), fin);
+    }
     if (!largest_location_.has_value() || *largest_location_ < location) {
       largest_location_ = location;
     }
@@ -172,7 +178,7 @@ class TestTrackPublisher : public MoqtTrackPublisher {
  private:
   FullTrackName track_name_;
   absl::flat_hash_set<MoqtObjectListener*> listeners_;
-  absl::flat_hash_map<Location, CachedObject> objects_;
+  std::map<Location, CachedObject> objects_;
   std::optional<Location> largest_location_;
   TrackExtensions extensions_;
 };
@@ -189,7 +195,7 @@ class MockSubscribeRemoteTrackVisitor : public SubscribeVisitor {
   MOCK_METHOD(void, OnObjectFragment,
               (const FullTrackName& full_track_name,
                const PublishedObjectMetadata& metadata,
-               absl::string_view object, bool end_of_message),
+               absl::string_view object, uint64_t offset),
               (override));
   MOCK_METHOD(void, OnPublishDone, (FullTrackName full_track_name), (override));
   MOCK_METHOD(void, OnMalformedTrack, (const FullTrackName& full_track_name),

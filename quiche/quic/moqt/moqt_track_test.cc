@@ -20,12 +20,15 @@
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/common/quiche_mem_slice.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 
 namespace test {
 
 namespace {
+
+using ::testing::_;
 
 class AlarmDelegate : public quic::QuicAlarm::DelegateWithoutContext {
  public:
@@ -78,6 +81,107 @@ TEST_F(SubscribeRemoteTrackTest, AllowError) {
 TEST_F(SubscribeRemoteTrackTest, Windows) {
   EXPECT_TRUE(track_.InWindow(Location(2, 0)));
   EXPECT_FALSE(track_.InWindow(Location(1, 25)));
+}
+
+TEST_F(SubscribeRemoteTrackTest, JoiningFetchMultiObject) {
+  auto fetch_task = std::make_unique<MockFetchTask>();
+  MockFetchTask* task_ptr = fetch_task.get();
+  track_.OnJoiningFetchReady(std::move(fetch_task));
+
+  PublishedObject o1, o2;
+  o1.metadata.location = Location(2, 0);
+  o1.metadata.payload_length = 3;
+  o1.payload.push_back(quiche::QuicheMemSlice::Copy("abc"));
+
+  o2.metadata.location = Location(2, 1);
+  o2.metadata.payload_length = 3;
+  o2.payload.push_back(quiche::QuicheMemSlice::Copy("def"));
+
+  EXPECT_CALL(visitor_,
+              OnObjectFragment(track_.full_track_name(), _, "abc", 0));
+  EXPECT_CALL(visitor_,
+              OnObjectFragment(track_.full_track_name(), _, "def", 0));
+  EXPECT_CALL(*task_ptr, GetNextObject)
+      .WillOnce([&](PublishedObject& output) {
+        output = std::move(o1);
+        return MoqtFetchTask::GetNextObjectResult::kSuccess;
+      })
+      .WillOnce([&](PublishedObject& output) {
+        output = std::move(o2);
+        return MoqtFetchTask::GetNextObjectResult::kSuccess;
+      })
+      .WillOnce(testing::Return(MoqtFetchTask::GetNextObjectResult::kPending));
+  task_ptr->CallObjectsAvailableCallback();
+  EXPECT_NE(SubscribeRemoteTrackPeer::GetFetchTask(&track_), nullptr);
+  EXPECT_CALL(*task_ptr, GetNextObject)
+      .WillOnce(testing::Return(MoqtFetchTask::GetNextObjectResult::kEof));
+  task_ptr->CallObjectsAvailableCallback();
+  EXPECT_EQ(SubscribeRemoteTrackPeer::GetFetchTask(&track_), nullptr);
+}
+
+TEST_F(SubscribeRemoteTrackTest, JoiningFetchFragmented) {
+  auto fetch_task = std::make_unique<MockFetchTask>();
+  MockFetchTask* task_ptr = fetch_task.get();
+  track_.OnJoiningFetchReady(std::move(fetch_task));
+
+  PublishedObject part1, part2;
+  part1.metadata.location = Location(2, 0);
+  part1.metadata.payload_length = 6;
+  part1.payload.push_back(quiche::QuicheMemSlice::Copy("abc"));
+
+  part2.metadata.location = Location(2, 0);
+  part2.metadata.payload_length = 6;
+  part2.payload.push_back(quiche::QuicheMemSlice::Copy("def"));
+
+  EXPECT_CALL(visitor_,
+              OnObjectFragment(track_.full_track_name(), _, "abc", 0));
+  EXPECT_CALL(visitor_,
+              OnObjectFragment(track_.full_track_name(), _, "def", 3));
+  EXPECT_CALL(*task_ptr, GetNextObject)
+      .WillOnce([&](PublishedObject& output) {
+        output = std::move(part1);
+        return MoqtFetchTask::GetNextObjectResult::kSuccess;
+      })
+      .WillOnce([&](PublishedObject& output) {
+        output = std::move(part2);
+        return MoqtFetchTask::GetNextObjectResult::kSuccess;
+      })
+      .WillOnce(testing::Return(MoqtFetchTask::GetNextObjectResult::kPending));
+  task_ptr->CallObjectsAvailableCallback();
+}
+
+TEST_F(SubscribeRemoteTrackTest, JoiningFetchEmptyPayload) {
+  auto fetch_task = std::make_unique<MockFetchTask>();
+  MockFetchTask* task_ptr = fetch_task.get();
+  track_.OnJoiningFetchReady(std::move(fetch_task));
+
+  PublishedObject o1;
+  o1.metadata.location = Location(2, 0);
+  o1.metadata.payload_length = 0;
+  o1.metadata.status = MoqtObjectStatus::kEndOfGroup;
+
+  // Since object.payload is empty, is called once.
+  EXPECT_CALL(visitor_,
+              OnObjectFragment(track_.full_track_name(), o1.metadata, "", 0));
+  EXPECT_CALL(*task_ptr, GetNextObject)
+      .WillOnce([&](PublishedObject& output) {
+        output = std::move(o1);
+        return MoqtFetchTask::GetNextObjectResult::kSuccess;
+      })
+      .WillOnce(testing::Return(MoqtFetchTask::GetNextObjectResult::kPending));
+  task_ptr->CallObjectsAvailableCallback();
+}
+
+TEST_F(SubscribeRemoteTrackTest, JoiningFetchError) {
+  auto fetch_task = std::make_unique<MockFetchTask>();
+  MockFetchTask* task_ptr = fetch_task.get();
+  track_.OnJoiningFetchReady(std::move(fetch_task));
+
+  EXPECT_NE(SubscribeRemoteTrackPeer::GetFetchTask(&track_), nullptr);
+  EXPECT_CALL(*task_ptr, GetNextObject)
+      .WillOnce(testing::Return(MoqtFetchTask::GetNextObjectResult::kError));
+  task_ptr->CallObjectsAvailableCallback();
+  EXPECT_EQ(SubscribeRemoteTrackPeer::GetFetchTask(&track_), nullptr);
 }
 
 class UpstreamFetchTest : public quic::test::QuicTest {
@@ -163,7 +267,8 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
               MoqtFetchTask::GetNextObjectResult::kSuccess);
     EXPECT_EQ(object.metadata.location, Location(3, 0));
     EXPECT_EQ(object.metadata.subgroup, 0);
-    EXPECT_EQ(object.payload.AsStringView(), "foobar");
+    EXPECT_EQ(object.payload[0].AsStringView(), "foo");
+    EXPECT_EQ(object.payload[1].AsStringView(), "bar");
   });
   int got_read_callback = 0;
   fetch_.OnStreamOpened([&]() { ++got_read_callback; });
@@ -185,6 +290,71 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
   EXPECT_FALSE(fetch_.task()->NeedsMorePayload());
   EXPECT_EQ(got_read_callback, 2);  // Call from GetNextObjectResult().
   EXPECT_TRUE(got_object);
+}
+
+TEST_F(UpstreamFetchTest, ObjectRetrievalEmptyPayload) {
+  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
+  MoqtObject moqt_obj = {1, 3, 0, 128, "", MoqtObjectStatus::kEndOfGroup, 0, 0};
+  fetch_.task()->NewObject(moqt_obj);
+  fetch_.task()->NotifyNewObject();
+  fetch_.OnStreamOpened([]() {});
+
+  PublishedObject output;
+  EXPECT_EQ(fetch_task_->GetNextObject(output),
+            MoqtFetchTask::GetNextObjectResult::kSuccess);
+  EXPECT_TRUE(output.payload.empty());
+  EXPECT_EQ(output.metadata.status, MoqtObjectStatus::kEndOfGroup);
+}
+
+TEST_F(UpstreamFetchTest, GetNextObjectAfterEof) {
+  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
+  fetch_.task()->OnStreamAndFetchClosed(std::nullopt, "");
+
+  PublishedObject object;
+  EXPECT_EQ(fetch_task_->GetNextObject(object),
+            MoqtFetchTask::GetNextObjectResult::kEof);
+  // Subsequent calls should still return EOF.
+  EXPECT_EQ(fetch_task_->GetNextObject(object),
+            MoqtFetchTask::GetNextObjectResult::kEof);
+}
+
+TEST_F(UpstreamFetchTest, GetNextObjectEofAtLargestLocation) {
+  Location largest(3, 50);
+  fetch_.OnFetchResult(largest, absl::OkStatus(), nullptr);
+  fetch_.OnStreamOpened([]() {});
+
+  MoqtObject obj1 = {1, 3, 49, 128, "", MoqtObjectStatus::kNormal, 0, 1};
+  fetch_.task()->NewObject(obj1);
+  fetch_.task()->AppendPayloadToObject("a");
+  fetch_.task()->NotifyNewObject();
+
+  PublishedObject out;
+  EXPECT_EQ(fetch_task_->GetNextObject(out),
+            MoqtFetchTask::GetNextObjectResult::kSuccess);
+  // Not at largest location yet.
+  EXPECT_EQ(fetch_task_->GetNextObject(out),
+            MoqtFetchTask::GetNextObjectResult::kPending);
+
+  MoqtObject obj2 = {1, 3, 50, 128, "", MoqtObjectStatus::kNormal, 0, 1};
+  fetch_.task()->NewObject(obj2);
+  fetch_.task()->AppendPayloadToObject("b");
+  fetch_.task()->NotifyNewObject();
+
+  EXPECT_EQ(fetch_task_->GetNextObject(out),
+            MoqtFetchTask::GetNextObjectResult::kSuccess);
+  // Reached largest location. EOF should be set.
+  EXPECT_EQ(fetch_task_->GetNextObject(out),
+            MoqtFetchTask::GetNextObjectResult::kEof);
+}
+
+TEST_F(UpstreamFetchTest, CloseWithError) {
+  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
+  fetch_.task()->OnStreamAndFetchClosed(
+      static_cast<webtransport::StreamErrorCode>(0x123), "reason");
+  PublishedObject out;
+  EXPECT_EQ(fetch_task_->GetNextObject(out),
+            MoqtFetchTask::GetNextObjectResult::kError);
+  EXPECT_FALSE(fetch_task_->GetStatus().ok());
 }
 
 TEST_F(UpstreamFetchTest, LocationIsValidOkFirstObjectIdDeclining) {

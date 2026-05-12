@@ -52,9 +52,11 @@ MoqtRelay::MoqtRelay(std::unique_ptr<quic::ProofSource> proof_source,
       // TODO(martinduke): Extend MoqtServer so that partial objects can be
       // received.
       server_(std::make_unique<MoqtServer>(
-          std::move(proof_source), [this](absl::string_view path) {
+          std::move(proof_source),
+          [this](absl::string_view path) {
             return IncomingSessionHandler(path);
-          })) {
+          },
+          MoqtSessionParameters(/*deliver_partial_objects=*/true))) {
   quiche::QuicheIpAddress bind_ip_address;
   QUICHE_CHECK(bind_ip_address.FromString(bind_address));
   // CreateUDPSocketAndListen() creates the event loop that we will pass to
@@ -87,8 +89,9 @@ std::unique_ptr<moqt::MoqtClient> MoqtRelay::CreateClient(
   } else {
     verifier = quic::CreateDefaultProofVerifier(server_id.host());
   }
-  return std::make_unique<moqt::MoqtClient>(peer_address, server_id,
-                                            std::move(verifier), event_loop);
+  MoqtSessionParameters parameters(/*deliver_partial_objects=*/true);
+  return std::make_unique<moqt::MoqtClient>(
+      peer_address, server_id, std::move(verifier), event_loop, parameters);
 }
 
 MoqtSessionCallbacks MoqtRelay::CreateClientCallbacks() {

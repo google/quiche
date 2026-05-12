@@ -24,9 +24,7 @@
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
-#include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -101,7 +99,6 @@ void SubscribeRemoteTrack::OnJoiningFetchReady(
     std::unique_ptr<MoqtFetchTask> fetch_task) {
   fetch_task_ = std::move(fetch_task);
   fetch_task_->SetObjectAvailableCallback([this]() { FetchObjects(); });
-  FetchObjects();
 }
 
 void SubscribeRemoteTrack::FetchObjects() {
@@ -116,8 +113,27 @@ void SubscribeRemoteTrack::FetchObjects() {
     PublishedObject object;
     switch (fetch_task_->GetNextObject(object)) {
       case MoqtFetchTask::GetNextObjectResult::kSuccess:
-        visitor_->OnObjectFragment(full_track_name(), object.metadata,
-                                   object.payload.AsStringView(), true);
+        if (object.metadata.payload_length == 0) {
+          QUICHE_DCHECK_EQ(fetch_object_offset_, 0);
+          visitor_->OnObjectFragment(full_track_name(), object.metadata, "", 0);
+          break;
+        }
+        for (size_t i = 0; i < object.payload.size(); ++i) {
+          if (fetch_object_offset_ > 0 && object.payload[i].empty()) {
+            QUICHE_BUG(SubscribeRemoteTrack_empty_payload)
+                << "Empty payload for partial object "
+                << object.metadata.location;
+            continue;
+          }
+          visitor_->OnObjectFragment(full_track_name(), object.metadata,
+                                     object.payload[i].AsStringView(),
+                                     fetch_object_offset_);
+          fetch_object_offset_ += object.payload[i].length();
+          if (fetch_object_offset_ == object.metadata.payload_length) {
+            fetch_object_offset_ = 0;
+            break;
+          }
+        }
         break;
       case MoqtFetchTask::GetNextObjectResult::kError:
       case MoqtFetchTask::GetNextObjectResult::kEof:
@@ -230,29 +246,41 @@ UpstreamFetch::UpstreamFetchTask::GetNextObject(PublishedObject& output) {
     need_object_available_callback_ = true;
     return kPending;
   }
-  if (!payload_.empty()) {
-    quiche::QuicheMemSlice message_slice(std::move(payload_));
-    output.payload = std::move(message_slice);
+  if (next_object_->payload_length > 0 && payload_.empty()) {
+    return kPending;
+  }
+  while (!payload_.empty()) {
+    payload_offset_ += payload_.front().length();
+    output.payload.push_back(std::move(payload_.front()));
+    payload_.pop_front();
   }
   output.metadata.location =
       Location(next_object_->group_id, next_object_->object_id);
   output.metadata.subgroup = next_object_->subgroup_id;
   output.metadata.status = next_object_->object_status;
   output.metadata.publisher_priority = next_object_->publisher_priority;
+  output.metadata.payload_length = next_object_->payload_length;
   output.fin_after_this = false;
   if (output.metadata.location ==
       largest_location_) {  // This is the last object.
     eof_ = true;
   }
-  next_object_.reset();
+  if (payload_offset_ == next_object_->payload_length) {
+    next_object_.reset();
+    payload_offset_ = 0;
+    payload_length_ = 0;
+  }
   can_read_callback_();
   return kSuccess;
 }
 
 void UpstreamFetch::UpstreamFetchTask::NewObject(const MoqtObject& message) {
   next_object_ = message;
-  payload_ = quiche::QuicheBuffer(quiche::SimpleBufferAllocator::Get(),
-                                  message.payload_length);
+  while (!payload_.empty()) {
+    payload_.pop_front();
+  };
+  payload_offset_ = 0;
+  payload_length_ = 0;
 }
 
 void UpstreamFetch::UpstreamFetchTask::AppendPayloadToObject(
@@ -263,15 +291,11 @@ void UpstreamFetch::UpstreamFetchTask::AppendPayloadToObject(
   QUICHE_BUG_IF(quic_bug_AlreadyGotPayload, next_object_->payload_length == 0)
       << "AppendPayloadToObject called after payload was already full";
   // Copy |payload| to the right spot in the buffer.
-  memcpy(payload_.data() + payload_.size() - next_object_->payload_length,
-         payload.data(), payload.length());
-  next_object_->payload_length -= payload.length();
+  payload_length_ += payload.length();
+  payload_.push_back(quiche::QuicheMemSlice::Copy(payload));
 }
 
 void UpstreamFetch::UpstreamFetchTask::NotifyNewObject() {
-  QUICHE_BUG_IF(quic_bug_NotifyNewObjectCalledEarly,
-                !next_object_.has_value() || next_object_->payload_length > 0)
-      << "NotifyNewObject called without a full object in store";
   if (need_object_available_callback_ && object_available_callback_) {
     need_object_available_callback_ = false;
     object_available_callback_();

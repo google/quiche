@@ -94,7 +94,7 @@ void MoqtTraceRecorder::RecordNewObjectAvaliable(
   std::optional<PublishedObject> object_copy =
       publisher.GetCachedObject(location.group, subgroup, location.object);
   if (object_copy.has_value() && object_copy->metadata.location == location) {
-    object->set_payload_size(object_copy->payload.length());
+    object->set_payload_size(object_copy->metadata.payload_length);
   } else {
     QUICHE_DLOG(WARNING) << "Track " << track_alias << " has marked "
                          << location

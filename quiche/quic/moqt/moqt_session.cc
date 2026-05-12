@@ -30,6 +30,7 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
@@ -223,9 +224,10 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
     metadata.subgroup = std::nullopt;
     metadata.status = message.object_status;
     metadata.publisher_priority = message.publisher_priority;
+    metadata.payload_length = payload->size();
     metadata.arrival_time = callbacks_.clock->Now();
     visitor->OnObjectFragment(track->full_track_name(), metadata, *payload,
-                              true);
+                              /*offset=*/0);
   }
 }
 
@@ -665,6 +667,23 @@ void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
           QUIC_BUG(quic_bug_got_doesnotexist_in_fetch)
               << "Got Non-normal object in FETCH";
           continue;
+        }
+        if (last_object_.has_value() &&
+            object.metadata.location == last_object_->location) {
+          // This is the continuation of the previous object.
+          webtransport::StreamWriteOptions options;
+          absl::Status write_status =
+              stream_->Writev(absl::MakeSpan(object.payload), options);
+          if (!write_status.ok()) {
+            QUICHE_BUG(MoqtSession_WriteObjectToStream_write_failed)
+                << "Writing into MoQT stream failed despite CanWrite() being "
+                   "true before; status: "
+                << write_status;
+            fetch->session_->Error(MoqtError::kInternalError,
+                                   "Data stream write error");
+            return;
+          }
+          break;
         }
         if (fetch->session_->WriteObjectToStream(
                 stream_, fetch->request_id(), object.metadata,
@@ -1666,6 +1685,9 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       payload = absl::string_view(partial_object_);
     }
   }
+  if (payload.empty() && bytes_received_this_object_ > 0 && !end_of_message) {
+    return;  // Nothing arrived.
+  }
   if (!parser_.stream_type().has_value()) {
     QUICHE_BUG(quic_bug_object_with_no_stream_type)
         << "Object delivered without a stream type";
@@ -1728,9 +1750,11 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       metadata.extensions = message.extension_headers;
       metadata.status = message.object_status;
       metadata.publisher_priority = message.publisher_priority;
+      metadata.payload_length = message.payload_length;
       metadata.arrival_time = session_->callbacks_.clock->Now();
       subscribe->visitor()->OnObjectFragment(track->full_track_name(), metadata,
-                                             payload, end_of_message);
+                                             payload,
+                                             bytes_received_this_object_);
     }
   } else {  // FETCH
     track->OnObjectOrOk();
@@ -1757,6 +1781,11 @@ void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
     if (task->NeedsMorePayload() && !payload.empty()) {
       task->AppendPayloadToObject(payload);
     }
+  }
+  if (end_of_message) {
+    bytes_received_this_object_ = 0;
+  } else {
+    bytes_received_this_object_ += payload.size();
   }
   partial_object_.clear();
 }
@@ -1808,12 +1837,13 @@ void MoqtSession::IncomingDataStream::MaybeReadOneObject() {
     return;
   }
   if (task->HasObject() && !task->NeedsMorePayload()) {
-    return;
+    return;  // The message is complete. Do not read more.
   }
+  uint64_t start_length = task->payload_length();
   parser_.ReadAtMostOneObject();
   // If it read an object, it called OnObjectMessage and may have altered the
   // task's object state.
-  if (task->HasObject() && !task->NeedsMorePayload()) {
+  if (task->payload_length() > start_length) {
     task->NotifyNewObject();
   }
 }
@@ -2364,10 +2394,15 @@ void MoqtSession::OutgoingDataStream::SendObjects(
     PublishedSubscription& subscription) {
   while (stream_->CanWrite()) {
     std::optional<PublishedObject> object =
-        subscription.publisher().GetCachedObject(index_.group, index_.subgroup,
-                                                 next_object_);
+        subscription.publisher().GetCachedObject(
+            index_.group, index_.subgroup, next_object_, already_delivered_);
     if (!object.has_value()) {
       break;
+    }
+    if (object->metadata.payload_length > 0 && object->payload.empty()) {
+      QUICHE_BUG(OutgoingDataStream_empty_payload)
+          << "Received non-empty object with no payload";
+      return;
     }
 
     QUICHE_DCHECK_EQ(object->metadata.location.group, index_.group);
@@ -2390,19 +2425,50 @@ void MoqtSession::OutgoingDataStream::SendObjects(
       stream_->ResetWithUserCode(kResetCodeDeliveryTimeout);
       return;
     }
-    if (!session_->WriteObjectToStream(stream_, subscription.track_alias(),
-                                       object->metadata,
-                                       std::move(object->payload), stream_type_,
-                                       last_object_, object->fin_after_this)) {
-      // WriteObjectToStream() closes the connection on error, meaning that
-      // there is no need to process the stream any further.
+    uint64_t start_offset = already_delivered_;
+    already_delivered_ +=
+        quic::MemSliceSpanTotalSize(absl::MakeSpan(object->payload));
+    bool fin_after_this = object->fin_after_this &&
+                          already_delivered_ == object->metadata.payload_length;
+    if (start_offset > 0) {  // Just send payload.
+      if (already_delivered_ == start_offset) {
+        // Partial delivery of an object but the payload is empty. This would
+        // result in an infinite loop.
+        QUICHE_BUG(OutgoingDataStream_empty_payload)
+            << "Empty payload for partial object " << object->metadata.location;
+        return;
+      }
+      webtransport::StreamWriteOptions options;
+      options.set_send_fin(fin_after_this);
+      absl::Status write_status =
+          stream_->Writev(absl::MakeSpan(object->payload), options);
+      if (!write_status.ok()) {
+        QUICHE_BUG(MoqtSession_WriteObjectToStream_write_failed)
+            << "Writing into MoQT stream failed despite CanWrite() being true "
+               "before; status: "
+            << write_status;
+        session_->Error(MoqtError::kInternalError, "Data stream write error");
+        return;
+      }
+    } else {
+      if (!session_->WriteObjectToStream(
+              stream_, subscription.track_alias(), object->metadata,
+              std::move(object->payload), stream_type_, last_object_,
+              fin_after_this)) {
+        // WriteObjectToStream() closes the connection on error, meaning that
+        // there is no need to process the stream any further.
+        return;
+      }
+      last_object_ = object->metadata;
+      subscription.OnObjectSent(object->metadata.location);
+      next_object_ = last_object_->location.object;
+    }
+    if (already_delivered_ == last_object_->payload_length) {
+      ++next_object_;
+      already_delivered_ = 0;
+    } else {
       return;
     }
-    last_object_ = object->metadata;
-
-    next_object_ = last_object_->location.object + 1;
-    subscription.OnObjectSent(object->metadata.location);
-
     if (object->fin_after_this && !delivery_timeout.IsInfinite() &&
         !session_->alternate_delivery_timeout_) {
       CreateAndSetAlarm(object->metadata.arrival_time + delivery_timeout);
@@ -2433,9 +2499,9 @@ void MoqtSession::OutgoingDataStream::Fin(Location last_object) {
 
 bool MoqtSession::WriteObjectToStream(
     webtransport::Stream* stream, uint64_t id,
-    const PublishedObjectMetadata& metadata, quiche::QuicheMemSlice payload,
-    MoqtDataStreamType type, std::optional<PublishedObjectMetadata> last_object,
-    bool fin) {
+    const PublishedObjectMetadata& metadata,
+    std::vector<quiche::QuicheMemSlice> payload, MoqtDataStreamType type,
+    std::optional<PublishedObjectMetadata> last_object, bool fin) {
   QUICHE_DCHECK(stream->CanWrite());
   MoqtObject header;
   header.track_alias = id;
@@ -2445,14 +2511,18 @@ bool MoqtSession::WriteObjectToStream(
   header.publisher_priority = metadata.publisher_priority;
   header.extension_headers = metadata.extensions;
   header.object_status = metadata.status;
-  header.payload_length = payload.length();
+  header.payload_length = metadata.payload_length;
 
   quiche::QuicheBuffer serialized_header =
       framer_.SerializeObjectHeader(header, type, last_object);
   // TODO(vasilvv): add a version of WebTransport write API that accepts
   // memslices so that we can avoid a copy here.
-  std::array write_vector = {
-      quiche::QuicheMemSlice(std::move(serialized_header)), std::move(payload)};
+  std::vector<quiche::QuicheMemSlice> write_vector;
+  write_vector.reserve(payload.size() + 1);
+  write_vector.push_back(quiche::QuicheMemSlice(std::move(serialized_header)));
+  for (auto& slice : payload) {
+    write_vector.push_back(std::move(slice));
+  }
   webtransport::StreamWriteOptions options;
   options.set_send_fin(fin);
   absl::Status write_status =
@@ -2553,9 +2623,9 @@ void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
   header.extension_headers = object->metadata.extensions;
   header.object_status = object->metadata.status;
   header.subgroup_id = std::nullopt;
-  header.payload_length = object->payload.length();
+  header.payload_length = object->metadata.payload_length;
   quiche::QuicheBuffer datagram = session_->framer_.SerializeObjectDatagram(
-      header, object->payload.AsStringView(),
+      header, object->payload[0].AsStringView(),
       default_publisher_priority_.value_or(kDefaultPublisherPriority));
   session_->session_->SendOrQueueDatagram(datagram.AsStringView());
   OnObjectSent(object->metadata.location);

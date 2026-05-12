@@ -5,7 +5,6 @@
 #include "quiche/quic/moqt/moqt_relay_track_publisher.h"
 
 #include <cstdint>
-#include <memory>
 #include <optional>
 #include <utility>
 #include <variant>
@@ -15,7 +14,6 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
@@ -64,13 +62,13 @@ void MoqtRelayTrackPublisher::OnReply(
 void MoqtRelayTrackPublisher::OnObjectFragment(
     const FullTrackName& full_track_name,
     const PublishedObjectMetadata& metadata, absl::string_view object,
-    bool end_of_message) {
+    uint64_t offset) {
   if (is_closing_) {
     return;
   }
-  if (!end_of_message) {
-    QUICHE_BUG(moqt_relay_track_publisher_got_fragment)
-        << "Received a fragment of an object.";
+  if (object.empty() && offset > 0) {
+    QUICHE_BUG(moqt_relay_track_publisher_empty_payload)
+        << "Empty payload for partial object " << metadata.location;
     return;
   }
   bool last_object_in_stream = false;
@@ -127,13 +125,17 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
   }
   CachedObject* duplicate_object = nullptr;
   if (!metadata.subgroup.has_value()) {  // It's a datagram.
-    std::shared_ptr<quiche::QuicheMemSlice> slice;
+    if (offset != 0 || object.length() != metadata.payload_length) {
+      QUICHE_BUG(moqt_relay_track_publisher_incomplete_datagram)
+          << "Received a partial datagram.";
+      return;
+    }
+    quiche::QuicheMemSlice slice;
     if (!object.empty()) {
-      slice = std::make_shared<quiche::QuicheMemSlice>(
-          quiche::QuicheMemSlice::Copy(object));
+      slice = quiche::QuicheMemSlice::Copy(object);
     }
     auto [it, inserted] = group.datagrams.try_emplace(
-        metadata.location.object, CachedObject{metadata, slice, false});
+        metadata.location.object, metadata, std::move(slice), false);
     if (!inserted) {
       duplicate_object = &it->second;
     }
@@ -142,13 +144,13 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
     auto& subgroup = subgroup_it.first->second;
     if (!subgroup.empty()) {  // Check if the new object is valid
       CachedObject& last_object = subgroup.rbegin()->second;
-      if (last_object.metadata.publisher_priority !=
+      if (last_object.metadata().publisher_priority !=
           metadata.publisher_priority) {
         QUICHE_DLOG(INFO) << "Publisher priority changing in a subgroup";
         OnMalformedTrack(full_track_name);
         return;
       }
-      if (last_object.fin_after_this) {
+      if (last_object.fin_after_this()) {
         QUICHE_DLOG(INFO) << "Skipping object because it is after the end of "
                           << "the subgroup";
         OnMalformedTrack(full_track_name);
@@ -157,9 +159,9 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
       // If last_object has stream-ending status, it should have been caught by
       // the fin_after_this check above.
       QUICHE_DCHECK(
-          last_object.metadata.status != MoqtObjectStatus::kEndOfGroup &&
-          last_object.metadata.status != MoqtObjectStatus::kEndOfTrack);
-      if (last_object.metadata.location.object > metadata.location.object) {
+          last_object.metadata().status != MoqtObjectStatus::kEndOfGroup &&
+          last_object.metadata().status != MoqtObjectStatus::kEndOfTrack);
+      if (last_object.metadata().location.object > metadata.location.object) {
         QUICHE_DLOG(INFO) << "Skipping object because it decreases the "
                           << "object ID in the subgroup.";
         return;
@@ -170,29 +172,41 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
       // Anticipate stream FIN.
       last_object_in_stream = true;
     }
-    std::shared_ptr<quiche::QuicheMemSlice> slice;
+    quiche::QuicheMemSlice slice;
     if (!object.empty()) {
-      slice = std::make_shared<quiche::QuicheMemSlice>(
-          quiche::QuicheMemSlice::Copy(object));
+      slice = quiche::QuicheMemSlice::Copy(object);
     }
-    auto [it, inserted] = subgroup.try_emplace(
-        metadata.location.object,
-        CachedObject{metadata, slice, last_object_in_stream});
+    auto [it, inserted] =
+        subgroup.try_emplace(metadata.location.object, metadata,
+                             std::move(slice), last_object_in_stream);
     if (!inserted) {
       duplicate_object = &it->second;
     }
   }
   if (duplicate_object != nullptr) {
-    if (metadata.IsMalformed(duplicate_object->metadata)) {
+    if (metadata.IsMalformed(duplicate_object->metadata())) {
       // Something besides the arrival time and extension headers changed.
       OnMalformedTrack(full_track_name);
       return;
     }
-    // TODO(b/467718801): Fix this when the class supports partial object
-    // delivery. When objects are complete, we can simply compare payloads.
-    if (duplicate_object->payload->AsStringView() != object) {
+    if (!duplicate_object->OverlapIsEqual(offset, object)) {
       OnMalformedTrack(full_track_name);
+      return;
     }
+    // This could complete an incomplete object.
+    if (duplicate_object->metadata().payload_length >
+        duplicate_object->payload_received()) {
+      if (!duplicate_object->Append(offset, object)) {
+        return;
+      }
+      // Data added to the object. Notify listeners.
+      for (MoqtObjectListener* listener : listeners_) {
+        listener->OnNewObjectAvailable(metadata.location, metadata.subgroup,
+                                       metadata.publisher_priority);
+      }
+      return;
+    }
+
     // No need to update state.
     return;
   }
@@ -267,9 +281,10 @@ void MoqtRelayTrackPublisher::OnStreamFin(const FullTrackName&,
     return;
   }
   CachedObject& last_object = subgroup_it->second.rbegin()->second;
-  last_object.fin_after_this = true;
+  last_object.set_fin_after_this(true);
   for (MoqtObjectListener* listener : listeners_) {
-    listener->OnNewFinAvailable(last_object.metadata.location, stream.subgroup);
+    listener->OnNewFinAvailable(last_object.metadata().location,
+                                stream.subgroup);
   }
 }
 
@@ -286,7 +301,7 @@ void MoqtRelayTrackPublisher::OnStreamReset(const FullTrackName&,
 
 std::optional<PublishedObject> MoqtRelayTrackPublisher::GetCachedObject(
     uint64_t group_id, std::optional<uint64_t> subgroup_id,
-    uint64_t min_object_id) const {
+    uint64_t min_object_id, uint64_t offset) const {
   auto group_it = queue_.find(group_id);
   if (group_it == queue_.end()) {
     // Group does not exist.
@@ -299,7 +314,7 @@ std::optional<PublishedObject> MoqtRelayTrackPublisher::GetCachedObject(
       // No object after the last one received.
       return std::nullopt;
     }
-    return CachedObjectToPublishedObject(object_it->second);
+    return object_it->second.ToPublishedObject();
   }
   auto subgroup_it = group.subgroups.find(*subgroup_id);
   if (subgroup_it == group.subgroups.end()) {
@@ -316,7 +331,7 @@ std::optional<PublishedObject> MoqtRelayTrackPublisher::GetCachedObject(
     // No object after the last one received.
     return std::nullopt;
   }
-  return CachedObjectToPublishedObject(object_it->second);
+  return object_it->second.ToPublishedObject(offset);
 }
 
 void MoqtRelayTrackPublisher::AddObjectListener(MoqtObjectListener* listener) {

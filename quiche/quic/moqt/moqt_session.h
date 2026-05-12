@@ -359,6 +359,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     quiche::QuicheWeakPtr<RemoteTrack> track_;
     MoqtDataParser parser_;
     std::string partial_object_;
+    uint64_t bytes_received_this_object_ = 0;
   };
   // Represents a record for a single subscription to a local track that is
   // being sent to the peer.
@@ -580,6 +581,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // exact ID of the next object in the stream because the next object could
     // be in a different subgroup or simply be skipped.
     uint64_t next_object_;
+    // Number of payload bytes from next_object_ that has already been written
+    // to the stream.
+    uint64_t already_delivered_ = 0;
     // Used in subgroup streams to compute the object ID diff. If nullopt, the
     // stream header has not been written yet.
     std::optional<PublishedObjectMetadata> last_object_;
@@ -753,7 +757,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // the write was successful.
   bool WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
                            const PublishedObjectMetadata& metadata,
-                           quiche::QuicheMemSlice payload,
+                           std::vector<quiche::QuicheMemSlice> payload,
                            MoqtDataStreamType type,
                            std::optional<PublishedObjectMetadata> last_object,
                            bool fin);
