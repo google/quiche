@@ -73,7 +73,6 @@ class QUICHE_EXPORT MoqtControlParserVisitor {
   virtual void OnFetchOkMessage(const MoqtFetchOk& message) = 0;
   virtual void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) = 0;
   virtual void OnPublishMessage(const MoqtPublish& message) = 0;
-  virtual void OnPublishOkMessage(const MoqtPublishOk& message) = 0;
   virtual void OnObjectAckMessage(const MoqtObjectAck& message) = 0;
 
   virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
@@ -204,7 +203,6 @@ class MoqtControlMessageParser {
   absl::StatusOr<MoqtRequestsBlocked> ProcessRequestsBlocked(
       absl::string_view data) const;
   absl::StatusOr<MoqtPublish> ProcessPublish(absl::string_view data) const;
-  absl::StatusOr<MoqtPublishOk> ProcessPublishOk(absl::string_view data) const;
   absl::StatusOr<MoqtObjectAck> ProcessObjectAck(absl::string_view data) const;
 
   // Parse a raw message and call a callback on it if successful.
@@ -269,8 +267,6 @@ class MoqtControlMessageParser {
         return parse(&MoqtControlMessageParser::ProcessRequestsBlocked);
       case MoqtMessageType::kPublish:
         return parse(&MoqtControlMessageParser::ProcessPublish);
-      case MoqtMessageType::kPublishOk:
-        return parse(&MoqtControlMessageParser::ProcessPublishOk);
       case MoqtMessageType::kObjectAck:
         return parse(&MoqtControlMessageParser::ProcessObjectAck);
       default:
@@ -423,10 +419,6 @@ class QUICHE_EXPORT MoqtControlParser {
                          },
                          [&](const MoqtPublish& message) {
                            visitor_.OnPublishMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtPublishOk& message) {
-                           visitor_.OnPublishOkMessage(message);
                            return absl::OkStatus();
                          },
                          [&](const MoqtObjectAck& message) {

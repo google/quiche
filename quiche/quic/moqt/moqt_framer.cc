@@ -716,13 +716,6 @@ quiche::QuicheBuffer MoqtFramer::SerializePublish(const MoqtPublish& message) {
       WireKeyValuePairList(message.extensions, false));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializePublishOk(
-    const MoqtPublishOk& message) {
-  return SerializeControlMessage(
-      MoqtMessageType::kPublishOk, WireVarInt62(message.request_id),
-      WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
-}
-
 quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(
     const MoqtObjectAck& message) {
   return SerializeControlMessage(

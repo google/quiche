@@ -1002,19 +1002,6 @@ absl::StatusOr<MoqtPublish> MoqtControlMessageParser::ProcessPublish(
   return publish;
 }
 
-absl::StatusOr<MoqtPublishOk> MoqtControlMessageParser::ProcessPublishOk(
-    absl::string_view data) const {
-  quic::QuicDataReader reader(data);
-  MoqtPublishOk publish_ok;
-  if (!reader.ReadVarInt62(&publish_ok.request_id)) {
-    return absl::InvalidArgumentError("Message missing fields");
-  }
-  QUICHE_RETURN_IF_ERROR(
-      FillAndValidateMessageParameters(reader, publish_ok.parameters));
-  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
-  return publish_ok;
-}
-
 absl::StatusOr<MoqtObjectAck> MoqtControlMessageParser::ProcessObjectAck(
     absl::string_view data) const {
   quic::QuicDataReader reader(data);

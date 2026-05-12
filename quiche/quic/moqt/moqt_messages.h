@@ -214,7 +214,6 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kFetchOk = 0x18,
   kRequestsBlocked = 0x1a,
   kPublish = 0x1d,
-  kPublishOk = 0x1e,
   kClientSetup = 0x20,
   kServerSetup = 0x21,
 
@@ -524,11 +523,6 @@ struct QUICHE_EXPORT MoqtPublish {
   uint64_t track_alias;
   MessageParameters parameters;
   TrackExtensions extensions;
-};
-
-struct QUICHE_EXPORT MoqtPublishOk {
-  uint64_t request_id;
-  MessageParameters parameters;
 };
 
 // All of the four values in this message are encoded as varints.

@@ -113,7 +113,7 @@ class QUICHE_NO_EXPORT TestMessageBase {
       MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
       MoqtGoAway, MoqtSubscribeNamespace, MoqtMaxRequestId, MoqtFetch,
       MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish,
-      MoqtPublishOk, MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
+      MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -1745,54 +1745,6 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT PublishOkMessage : public TestMessageBase {
- public:
-  PublishOkMessage() : TestMessageBase() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-    publish_ok_.parameters.delivery_timeout =
-        quic::QuicTimeDelta::FromMilliseconds(10000);
-    publish_ok_.parameters.set_forward(true);
-    publish_ok_.parameters.subscriber_priority = 2;
-    publish_ok_.parameters.group_order = MoqtDeliveryOrder::kAscending;
-    publish_ok_.parameters.subscription_filter =
-        SubscriptionFilter(Location(5, 4), 6);
-  }
-  bool EqualFieldValues(const MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtPublishOk>(values);
-    if (cast.request_id != publish_ok_.request_id) {
-      QUIC_LOG(INFO) << "PUBLISH_OK request_id mismatch";
-      return false;
-    }
-    if (cast.parameters != publish_ok_.parameters) {
-      QUIC_LOG(INFO) << "PUBLISH_OK parameters mismatch";
-      return false;
-    }
-    return true;
-  }
-
-  void ExpandVarints() override { ExpandVarintsImpl("vvv--vvvvvv----vv"); }
-
-  MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(publish_ok_);
-  }
-
- private:
-  uint8_t raw_packet_[20] = {
-      0x1e, 0x00, 0x11,
-      0x01,                                // request_id = 1
-      0x05,                                // 5 parameters
-      0x02, 0x67, 0x10,                    // delivery_timeout = 10000 ms
-      0x0e, 0x01,                          // forward = true
-      0x10, 0x02,                          // subscriber_priority = 2
-      0x01, 0x04, 0x04, 0x05, 0x04, 0x06,  // subscription filter: (5, 4) to 6
-      0x01, 0x01,                          // group_order = kAscending
-  };
-  MoqtPublishOk publish_ok_ = {
-      /*request_id=*/1,
-      MessageParameters(),  // set in constructor.
-  };
-};
-
 class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
  public:
   ObjectAckMessage() : TestMessageBase() {
@@ -1887,8 +1839,6 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<RequestsBlockedMessage>();
     case MoqtMessageType::kPublish:
       return std::make_unique<PublishMessage>();
-    case MoqtMessageType::kPublishOk:
-      return std::make_unique<PublishOkMessage>();
     case MoqtMessageType::kObjectAck:
       return std::make_unique<ObjectAckMessage>();
     case MoqtMessageType::kClientSetup:

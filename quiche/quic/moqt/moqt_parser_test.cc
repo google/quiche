@@ -68,7 +68,6 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kFetchOk,
     MoqtMessageType::kRequestsBlocked,
     MoqtMessageType::kPublish,
-    MoqtMessageType::kPublishOk,
     MoqtMessageType::kObjectAck,
 };
 

@@ -57,7 +57,6 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kFetchOk,
       MoqtMessageType::kRequestsBlocked,
       MoqtMessageType::kPublish,
-      MoqtMessageType::kPublishOk,
       MoqtMessageType::kObjectAck,
       MoqtMessageType::kClientSetup,
       MoqtMessageType::kServerSetup,
@@ -206,10 +205,6 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kPublish: {
         auto data = std::get<MoqtPublish>(structured_data);
         return framer_.SerializePublish(data);
-      }
-      case moqt::MoqtMessageType::kPublishOk: {
-        auto data = std::get<MoqtPublishOk>(structured_data);
-        return framer_.SerializePublishOk(data);
       }
       case moqt::MoqtMessageType::kObjectAck: {
         auto data = std::get<MoqtObjectAck>(structured_data);

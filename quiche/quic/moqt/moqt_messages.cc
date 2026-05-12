@@ -50,11 +50,10 @@ const std::array<MoqtMessageType, 9> kAllowsAuthorization = {
     MoqtMessageType::kPublishNamespace,
     MoqtMessageType::kTrackStatus,
     MoqtMessageType::kFetch};
-const std::array<MoqtMessageType, 7> kAllowsDeliveryTimeout = {
+const std::array<MoqtMessageType, 6> kAllowsDeliveryTimeout = {
     MoqtMessageType::kTrackStatus,  MoqtMessageType::kRequestOk,
-    MoqtMessageType::kPublish,      MoqtMessageType::kPublishOk,
-    MoqtMessageType::kSubscribe,    MoqtMessageType::kSubscribeOk,
-    MoqtMessageType::kRequestUpdate};
+    MoqtMessageType::kPublish,      MoqtMessageType::kSubscribe,
+    MoqtMessageType::kSubscribeOk,  MoqtMessageType::kRequestUpdate};
 bool MessageParametersAllowedByMessage(
     const MessageParameters& parameters, MoqtMessageType message_type) {
   if (!parameters.authorization_tokens.empty() &&
@@ -109,8 +108,6 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "MAX_REQUEST_ID";
     case MoqtMessageType::kPublish:
       return "PUBLISH";
-    case MoqtMessageType::kPublishOk:
-      return "PUBLISH_OK";
     case MoqtMessageType::kFetch:
       return "FETCH";
     case MoqtMessageType::kFetchCancel:

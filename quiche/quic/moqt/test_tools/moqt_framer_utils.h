@@ -19,14 +19,15 @@
 
 namespace moqt::test {
 
-using AnyMoqtControlMessage = std::variant<
-    MoqtClientSetup, MoqtServerSetup, MoqtRequestOk, MoqtRequestError,
-    MoqtSubscribe, MoqtSubscribeOk, MoqtUnsubscribe, MoqtPublishDone,
-    MoqtRequestUpdate, MoqtPublishNamespace, MoqtPublishNamespaceDone,
-    MoqtPublishNamespaceCancel, MoqtTrackStatus, MoqtGoAway,
-    MoqtSubscribeNamespace, MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel,
-    MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish, MoqtPublishOk, MoqtNamespace,
-    MoqtNamespaceDone, MoqtObjectAck>;
+using AnyMoqtControlMessage =
+    std::variant<MoqtClientSetup, MoqtServerSetup, MoqtRequestOk,
+                 MoqtRequestError, MoqtSubscribe, MoqtSubscribeOk,
+                 MoqtUnsubscribe, MoqtPublishDone, MoqtRequestUpdate,
+                 MoqtPublishNamespace, MoqtPublishNamespaceDone,
+                 MoqtPublishNamespaceCancel, MoqtTrackStatus, MoqtGoAway,
+                 MoqtSubscribeNamespace, MoqtMaxRequestId, MoqtFetch,
+                 MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish,
+                 MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
 
 std::string SerializeGenericMessage(const AnyMoqtControlMessage& frame,
                                     bool use_webtrans = false);

@@ -139,9 +139,6 @@ class MoqtBidiStreamBase : public MoqtControlParserVisitor,
   virtual void OnPublishMessage(const MoqtPublish& message) override {
     OnParsingError(wrong_message_error_, wrong_message_reason_);
   }
-  virtual void OnPublishOkMessage(const MoqtPublishOk& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
   virtual void OnObjectAckMessage(const MoqtObjectAck& message) override {
     OnParsingError(wrong_message_error_, wrong_message_reason_);
   }

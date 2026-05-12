@@ -190,13 +190,6 @@ TEST_F(MoqtBidiStreamTest, AllMessagesRejected) {
   EXPECT_CALL(error_callback_,
               Call(MoqtError::kProtocolViolation,
                    "Message not allowed for this stream type"));
-  stream_->OnPublishOkMessage(MoqtPublishOk{});
-  stream_ = std::make_unique<MoqtBidiStreamBase>(
-      &framer_, deleted_callback_.AsStdFunction(),
-      error_callback_.AsStdFunction());
-  EXPECT_CALL(error_callback_,
-              Call(MoqtError::kProtocolViolation,
-                   "Message not allowed for this stream type"));
   stream_->OnObjectAckMessage(MoqtObjectAck{});
   stream_ = std::make_unique<MoqtBidiStreamBase>(
       &framer_, deleted_callback_.AsStdFunction(),
