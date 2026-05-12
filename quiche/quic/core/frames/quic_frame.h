@@ -149,8 +149,11 @@ QUICHE_EXPORT void DeleteFrame(QuicFrame* frame);
 QUICHE_EXPORT void RemoveFramesForStream(QuicFrames* frames,
                                          QuicStreamId stream_id);
 
-// Returns true if |frames| contains at least one message frame.
+// Returns true if |frames| contains at least one data frame.
 QUICHE_EXPORT bool HasDatagramFrame(const QuicFrames& frames);
+
+// Returns true if |frames| contains only data frames.
+QUICHE_EXPORT bool HasOnlyDatagramFrame(const QuicFrames& frames);
 
 // Returns true if |type| is a retransmittable control frame.
 QUICHE_EXPORT bool IsControlFrame(QuicFrameType type);

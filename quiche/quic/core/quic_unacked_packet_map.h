@@ -10,11 +10,13 @@
 
 #include "absl/container/inlined_vector.h"
 #include "absl/strings/str_cat.h"
+#include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_transmission_info.h"
 #include "quiche/quic/core/session_notifier_interface.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/quiche_circular_deque.h"
 
 namespace quic {
@@ -344,6 +346,9 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
 
   // Latched value of the quic_simple_inflight_time flag.
   bool simple_inflight_time_;
+
+  bool maybe_copy_datagram_frames_ =
+      GetQuicReloadableFlag(quic_maybe_copy_datagram_frames);
 };
 
 }  // namespace quic

@@ -8,8 +8,10 @@
 #include "quiche/quic/core/frames/quic_ack_frame.h"
 #include "quiche/quic/core/frames/quic_blocked_frame.h"
 #include "quiche/quic/core/frames/quic_connection_close_frame.h"
+#include "quiche/quic/core/frames/quic_datagram_frame.h"
 #include "quiche/quic/core/frames/quic_frame.h"
 #include "quiche/quic/core/frames/quic_goaway_frame.h"
+#include "quiche/quic/core/frames/quic_handshake_done_frame.h"
 #include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
 #include "quiche/quic/core/frames/quic_mtu_discovery_frame.h"
 #include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
@@ -913,6 +915,21 @@ TEST_F(QuicFramesTest, HasDatagramFrame) {
   frames.push_back(
       QuicFrame(new QuicDatagramFrame(1, MemSliceFromString("datagram"))));
   EXPECT_TRUE(HasDatagramFrame(frames));
+
+  DeleteFrames(&frames);
+}
+
+TEST_F(QuicFramesTest, HasOnlyDatagramFrame) {
+  QuicFrames frames;
+
+  EXPECT_FALSE(HasOnlyDatagramFrame(frames));
+
+  frames.push_back(QuicFrame(
+      new QuicDatagramFrame(1, quiche::QuicheMemSlice::Copy("datagram"))));
+  EXPECT_TRUE(HasOnlyDatagramFrame(frames));
+
+  frames.push_back(QuicFrame(QuicHandshakeDoneFrame()));
+  EXPECT_FALSE(HasOnlyDatagramFrame(frames));
 
   DeleteFrames(&frames);
 }

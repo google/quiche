@@ -507,7 +507,17 @@ bool QuicUnackedPacketMap::NotifyFramesAcked(QuicPacketNumber packet_number,
   quiche::SimpleBufferAllocator allocator;
   std::optional<QuicFrames> frames_copy;
   const bool use_copied_frames =
-      !HasDatagramFrame(info->retransmittable_frames);
+      maybe_copy_datagram_frames_
+          ? !HasOnlyDatagramFrame(info->retransmittable_frames)
+          : !HasDatagramFrame(info->retransmittable_frames);
+
+  if (maybe_copy_datagram_frames_) {
+    if (use_copied_frames) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_maybe_copy_datagram_frames, 1, 4);
+    } else {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_maybe_copy_datagram_frames, 2, 4);
+    }
+  }
 
   if (use_copied_frames) {
     frames = &frames_copy.emplace(
@@ -552,7 +562,16 @@ void QuicUnackedPacketMap::MaybeAggregateAckedStreamFrame(
   quiche::SimpleBufferAllocator allocator;
   std::optional<QuicFrames> frames_copy;
   const bool use_copied_frames =
-      !HasDatagramFrame(info->retransmittable_frames);
+      maybe_copy_datagram_frames_
+          ? !HasOnlyDatagramFrame(info->retransmittable_frames)
+          : !HasDatagramFrame(info->retransmittable_frames);
+  if (maybe_copy_datagram_frames_) {
+    if (use_copied_frames) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_maybe_copy_datagram_frames, 3, 4);
+    } else {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_maybe_copy_datagram_frames, 4, 4);
+    }
+  }
 
   if (use_copied_frames) {
     frames = &frames_copy.emplace(
