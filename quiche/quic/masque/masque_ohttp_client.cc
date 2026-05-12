@@ -675,7 +675,8 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
   }
   int num_ohttp_chunks = per_request_config.num_ohttp_chunks();
   if (num_ohttp_chunks > 0) {
-    pending_request.chunk_handler = std::make_unique<ChunkHandler>();
+    pending_request.chunk_handler =
+        std::make_unique<ChunkHandler>(config_.handle_gzip_response());
     QUICHE_ASSIGN_OR_RETURN(
         ChunkedObliviousHttpClient chunked_client,
         ChunkedObliviousHttpClient::Create(
@@ -777,7 +778,7 @@ absl::StatusOr<Message> MasqueOhttpClient::TryExtractEncapsulatedResponse(
     encapsulated_response.body = binary_response->body();
     return encapsulated_response;
   }
-  ChunkHandler chunk_handler;
+  ChunkHandler chunk_handler(config_.handle_gzip_response());
   chunk_handler.SetResponseChunkCallback(
       [this, request_id](absl::string_view chunk) {
         if (response_visitor_) {
@@ -1061,8 +1062,6 @@ absl::Status MasqueOhttpClient::SendBodyChunk(RequestId request_id,
   return connection_pool_.SendBodyChunk(request_id, encrypted_chunk, is_final);
 }
 
-MasqueOhttpClient::ChunkHandler::ChunkHandler() : decoder_(this) {}
-
 absl::Status MasqueOhttpClient::ChunkHandler::DecryptChunk(
     absl::string_view encrypted_chunk, bool end_stream) {
   if (!chunked_client_.has_value()) {
@@ -1146,6 +1145,13 @@ absl::Status MasqueOhttpClient::ChunkHandler::OnFinalResponseHeader(
 absl::Status MasqueOhttpClient::ChunkHandler::OnFinalResponseHeadersDone() {
   QUICHE_LOG(INFO) << "Received incremental OHTTP response headers: "
                    << response_.headers.DebugString();
+  if (handle_gzip_response_) {
+    auto it = response_.headers.find("content-encoding");
+    if (it != response_.headers.end() &&
+        absl::EqualsIgnoreCase(it->second, "gzip")) {
+      is_gzipped_ = true;
+    }
+  }
   return absl::OkStatus();
 }
 absl::Status MasqueOhttpClient::ChunkHandler::OnBodyChunk(
@@ -1153,16 +1159,43 @@ absl::Status MasqueOhttpClient::ChunkHandler::OnBodyChunk(
   body_chunk_count_++;
   QUICHE_LOG(INFO) << "Received body chunk #" << body_chunk_count_
                    << " of size " << body_chunk.size();
-  std::cout << body_chunk;
-  response_.body += body_chunk;
+
+  if (body_chunk.empty()) {
+    return absl::OkStatus();
+  }
+
+  std::string decompressed = "";
+  absl::string_view processed_chunk = body_chunk;
+  if (is_gzipped_) {
+    if (!decompressor_) {
+      QUICHE_ASSIGN_OR_RETURN(decompressor_, GzipDecompressor::Create());
+    }
+    QUICHE_ASSIGN_OR_RETURN(
+        decompressed,
+        decompressor_->Decompress(body_chunk, /*end_stream=*/false));
+    processed_chunk = decompressed;
+    QUICHE_LOG(INFO) << "Decompressed chunk to size " << processed_chunk.size();
+    if (processed_chunk.empty()) {
+      return absl::OkStatus();
+    }
+  }
+
+  std::cout << processed_chunk;
+  response_.body += processed_chunk;
 
   if (response_chunk_callback_) {
-    response_chunk_callback_(body_chunk);
+    response_chunk_callback_(processed_chunk);
   }
 
   return absl::OkStatus();
 }
 absl::Status MasqueOhttpClient::ChunkHandler::OnBodyChunksDone() {
+  if (decompressor_ != nullptr) {
+    if (!decompressor_->IsFinished()) {
+      return absl::InternalError("Gzip stream truncated");
+    }
+    decompressor_->EndDecompression();
+  }
   return absl::OkStatus();
 }
 absl::Status MasqueOhttpClient::ChunkHandler::OnTrailer(

@@ -283,7 +283,8 @@ class QUICHE_EXPORT MasqueOhttpClient
    public:
     using ResponseChunkCallback = std::function<void(absl::string_view)>;
 
-    explicit ChunkHandler();
+    explicit ChunkHandler(bool handle_gzip_response)
+        : decoder_(this), handle_gzip_response_(handle_gzip_response) {}
     void SetResponseChunkCallback(ResponseChunkCallback callback) {
       response_chunk_callback_ = std::move(callback);
     }
@@ -339,6 +340,9 @@ class QUICHE_EXPORT MasqueOhttpClient
     std::optional<bool> is_chunked_response_;
     size_t decrypted_chunk_count_ = 0;
     size_t body_chunk_count_ = 0;
+    bool handle_gzip_response_ = false;
+    bool is_gzipped_ = false;
+    std::unique_ptr<GzipDecompressor> decompressor_;
   };
 
   struct PendingRequest {
