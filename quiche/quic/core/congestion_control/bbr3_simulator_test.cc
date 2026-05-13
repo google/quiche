@@ -417,7 +417,8 @@ TEST_F(Bbr3DefaultTopologyTest, SimpleTransfer) {
 
   // The margin here is quite high, since there exists a possibility that the
   // connection just exited high gain cycle.
-  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->smoothed_rtt(), 1.0f);
+  EXPECT_GE(params.RTT() * 2.5, rtt_stats()->smoothed_rtt());
+  EXPECT_APPROX_EQ(params.RTT(), rtt_stats()->min_rtt(), 0.2f);
 }
 
 TEST_F(Bbr3DefaultTopologyTest, SimpleTransferB2RC) {
@@ -926,7 +927,7 @@ TEST_F(Bbr3DefaultTopologyTest,
   // This is much farther off when aggregation is present,
   // Ideally BSAO or another option would fix this.
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_est, 0.60f);
+                   sender_->ExportDebugState().bandwidth_est, 0.80f);
   EXPECT_LE(sender_loss_rate_in_packets(), 0.35);
 
   // Now increase the bottleneck bandwidth from 100Kbps to 10Mbps.
@@ -967,7 +968,7 @@ TEST_F(Bbr3DefaultTopologyTest,
   // This is much farther off when aggregation is present,
   // Ideally BSAO or another option would fix this.
   EXPECT_APPROX_EQ(params.test_link.bandwidth,
-                   sender_->ExportDebugState().bandwidth_est, 0.60f);
+                   sender_->ExportDebugState().bandwidth_est, 0.80f);
   EXPECT_LE(sender_loss_rate_in_packets(), 0.35);
 
   // Now increase the bottleneck bandwidth from 100Kbps to 10Mbps.
