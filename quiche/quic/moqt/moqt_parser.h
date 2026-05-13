@@ -15,7 +15,6 @@
 
 #include "absl/base/nullability.h"
 #include "absl/cleanup/cleanup.h"
-#include "absl/functional/overload.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -27,7 +26,6 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_status_utils.h"
@@ -38,45 +36,6 @@ namespace moqt {
 namespace test {
 class MoqtDataParserPeer;
 }
-
-// TODO(vasilvv): remove once all uses are switched to a new parser.
-class QUICHE_EXPORT MoqtControlParserVisitor {
- public:
-  virtual ~MoqtControlParserVisitor() = default;
-
-  // All of these are called only when the entire message has arrived. The
-  // parser retains ownership of the memory.
-  virtual void OnClientSetupMessage(const MoqtClientSetup& message) = 0;
-  virtual void OnServerSetupMessage(const MoqtServerSetup& message) = 0;
-  virtual void OnRequestOkMessage(const MoqtRequestOk& message) = 0;
-  virtual void OnRequestErrorMessage(const MoqtRequestError& message) = 0;
-  virtual void OnSubscribeMessage(const MoqtSubscribe& message) = 0;
-  virtual void OnSubscribeOkMessage(const MoqtSubscribeOk& message) = 0;
-  virtual void OnUnsubscribeMessage(const MoqtUnsubscribe& message) = 0;
-  virtual void OnPublishDoneMessage(const MoqtPublishDone& message) = 0;
-  virtual void OnRequestUpdateMessage(const MoqtRequestUpdate& message) = 0;
-  virtual void OnPublishNamespaceMessage(
-      const MoqtPublishNamespace& message) = 0;
-  virtual void OnPublishNamespaceDoneMessage(
-      const MoqtPublishNamespaceDone& message) = 0;
-  virtual void OnNamespaceMessage(const MoqtNamespace& message) = 0;
-  virtual void OnNamespaceDoneMessage(const MoqtNamespaceDone& message) = 0;
-  virtual void OnPublishNamespaceCancelMessage(
-      const MoqtPublishNamespaceCancel& message) = 0;
-  virtual void OnTrackStatusMessage(const MoqtTrackStatus& message) = 0;
-  virtual void OnGoAwayMessage(const MoqtGoAway& message) = 0;
-  virtual void OnSubscribeNamespaceMessage(
-      const MoqtSubscribeNamespace& message) = 0;
-  virtual void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) = 0;
-  virtual void OnFetchMessage(const MoqtFetch& message) = 0;
-  virtual void OnFetchCancelMessage(const MoqtFetchCancel& message) = 0;
-  virtual void OnFetchOkMessage(const MoqtFetchOk& message) = 0;
-  virtual void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) = 0;
-  virtual void OnPublishMessage(const MoqtPublish& message) = 0;
-  virtual void OnObjectAckMessage(const MoqtObjectAck& message) = 0;
-
-  virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
-};
 
 // MoqtRawControlMessage represents an MOQT control message that has been
 // unframed from the control stream, but not parsed yet.
@@ -116,11 +75,6 @@ class QUICHE_EXPORT MoqtControlStreamParser {
   MoqtControlStreamParser(MoqtControlStreamParser&& other) = delete;
   MoqtControlStreamParser& operator=(const MoqtControlStreamParser&) = delete;
   MoqtControlStreamParser& operator=(MoqtControlStreamParser&&) = delete;
-
-  // TODO(vasilvv): remove once nothing calls this.
-  void set_message_type(uint64_t message_type) {
-    current_message_type_ = message_type;
-  }
 
   // Reads the next available message on the stream.  Returns kUnavailable
   // status if no complete message can be read; if FIN is read, `fin_read` will
@@ -295,150 +249,6 @@ class MoqtControlMessageParser {
                                                 MessageParameters& out) const;
 
   bool uses_web_transport_;
-};
-
-class QUICHE_EXPORT MoqtControlParser {
- public:
-  MoqtControlParser(bool uses_web_transport, webtransport::Stream* stream,
-                    MoqtControlParserVisitor& visitor)
-      : visitor_(visitor),
-        stream_parser_(stream),
-        message_parser_(kDefaultMoqtVersion, uses_web_transport) {}
-  ~MoqtControlParser() = default;
-  void set_message_type(uint64_t message_type) {
-    stream_parser_.set_message_type(message_type);
-  }
-
-  void ReadAndDispatchMessages() {
-    if (processing_) {
-      return;
-    }
-    processing_ = true;
-    auto cleanup = absl::MakeCleanup([this] { processing_ = false; });
-    while (true) {
-      absl::StatusOr<MoqtRawControlMessage> raw_message =
-          stream_parser_.ReadNextMessage();
-      if (absl::IsUnavailable(raw_message.status())) {
-        return;
-      }
-      if (!raw_message.ok()) {
-        visitor_.OnParsingError(GetMoqtErrorForStatus(raw_message.status())
-                                    .value_or(MoqtError::kProtocolViolation),
-                                raw_message.status().message());
-        return;
-      }
-      absl::Status status = message_parser_.ParseMessage(
-          *raw_message,
-          absl::Overload{[&](const MoqtClientSetup& message) {
-                           visitor_.OnClientSetupMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtServerSetup& message) {
-                           visitor_.OnServerSetupMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtRequestOk& message) {
-                           visitor_.OnRequestOkMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtRequestError& message) {
-                           visitor_.OnRequestErrorMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtSubscribe& message) {
-                           visitor_.OnSubscribeMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtSubscribeOk& message) {
-                           visitor_.OnSubscribeOkMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtUnsubscribe& message) {
-                           visitor_.OnUnsubscribeMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtPublishDone& message) {
-                           visitor_.OnPublishDoneMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtRequestUpdate& message) {
-                           visitor_.OnRequestUpdateMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtPublishNamespace& message) {
-                           visitor_.OnPublishNamespaceMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtPublishNamespaceDone& message) {
-                           visitor_.OnPublishNamespaceDoneMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtNamespace& message) {
-                           visitor_.OnNamespaceMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtNamespaceDone& message) {
-                           visitor_.OnNamespaceDoneMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtPublishNamespaceCancel& message) {
-                           visitor_.OnPublishNamespaceCancelMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtTrackStatus& message) {
-                           visitor_.OnTrackStatusMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtGoAway& message) {
-                           visitor_.OnGoAwayMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtSubscribeNamespace& message) {
-                           visitor_.OnSubscribeNamespaceMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtMaxRequestId& message) {
-                           visitor_.OnMaxRequestIdMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtFetch& message) {
-                           visitor_.OnFetchMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtFetchCancel& message) {
-                           visitor_.OnFetchCancelMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtFetchOk& message) {
-                           visitor_.OnFetchOkMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtRequestsBlocked& message) {
-                           visitor_.OnRequestsBlockedMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtPublish& message) {
-                           visitor_.OnPublishMessage(message);
-                           return absl::OkStatus();
-                         },
-                         [&](const MoqtObjectAck& message) {
-                           visitor_.OnObjectAckMessage(message);
-                           return absl::OkStatus();
-                         }});
-      if (!status.ok()) {
-        visitor_.OnParsingError(GetMoqtErrorForStatus(status).value_or(
-                                    MoqtError::kProtocolViolation),
-                                status.message());
-        return;
-      }
-    }
-  }
-
- private:
-  MoqtControlParserVisitor& visitor_;
-  MoqtControlStreamParser stream_parser_;
-  MoqtControlMessageParser message_parser_;
-  bool processing_ = false;
 };
 
 // Parses an MoQT datagram. Returns the payload bytes, or std::nullopt on error.

@@ -14,12 +14,14 @@
 #include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/session_namespace_tree.h"
 #include "quiche/common/quiche_circular_deque.h"
@@ -33,22 +35,25 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
  public:
   // Assumes the caller will send or queue the SUBSCRIBE_NAMESPACE.
   MoqtNamespaceSubscriberStream(
-      MoqtFramer* framer, uint64_t request_id,
-      BidiStreamDeletedCallback stream_deleted_callback,
+      MoqtFramer* framer, const MoqtControlMessageParser& message_parser,
+      uint64_t request_id, BidiStreamDeletedCallback stream_deleted_callback,
       SessionErrorCallback session_error_callback,
       MoqtResponseCallback response_callback)
-      : MoqtBidiStreamBase(framer, std::move(stream_deleted_callback),
+      : MoqtBidiStreamBase(framer, message_parser,
+                           std::move(stream_deleted_callback),
                            std::move(session_error_callback)),
         request_id_(request_id),
         response_callback_(std::move(response_callback)) {}
   ~MoqtNamespaceSubscriberStream() override;
 
   // MoqtBidiStreamBase overrides.
-  void set_stream(webtransport::Stream* absl_nonnull stream) override;
-  void OnRequestOkMessage(const MoqtRequestOk& message) override;
-  void OnRequestErrorMessage(const MoqtRequestError& message) override;
-  void OnNamespaceMessage(const MoqtNamespace& message) override;
-  void OnNamespaceDoneMessage(const MoqtNamespaceDone& message) override;
+  void OnStreamBound() override;
+  absl::Status OnRawControlMessage(
+      const MoqtRawControlMessage& message) override;
+  absl::Status OnControlMessage(const MoqtRequestOk& message);
+  absl::Status OnControlMessage(const MoqtRequestError& message);
+  absl::Status OnControlMessage(const MoqtNamespace& message);
+  absl::Status OnControlMessage(const MoqtNamespaceDone& message);
 
   // Send the prefix now so it is only stored in one place (the task).
   std::unique_ptr<MoqtNamespaceTask> CreateTask(const TrackNamespace& prefix);
@@ -122,19 +127,23 @@ class MoqtNamespacePublisherStream : public MoqtBidiStreamBase {
  public:
   // Constructor for the publisher side.
   MoqtNamespacePublisherStream(
-      MoqtFramer* framer, webtransport::Stream* stream,
+      MoqtFramer* framer, const MoqtControlMessageParser& message_parser,
       SessionErrorCallback session_error_callback,
       SessionNamespaceTree* absl_nonnull tree,
       MoqtIncomingSubscribeNamespaceCallback& application);
   ~MoqtNamespacePublisherStream() override;
 
-  // MoqtBidiStreamBase overrides.
-  void OnSubscribeNamespaceMessage(
-      const MoqtSubscribeNamespace& message) override;
-  void OnRequestUpdateMessage(const MoqtRequestUpdate&) override;
+  void OnStreamBound() override {
+    // TODO(martinduke): Set the priority for this stream.
+  }
+  absl::Status OnRawControlMessage(
+      const MoqtRawControlMessage& message) override;
+  absl::Status OnControlMessage(const MoqtSubscribeNamespace& message);
+  absl::Status OnControlMessage(const MoqtRequestUpdate& message);
 
  private:
   void ProcessNamespaces();
+  MoqtResponseCallback ResponseCallback(uint64_t request_id);
 
   uint64_t request_id_;
   quiche::QuicheWeakPtr<SessionNamespaceTree> tree_;

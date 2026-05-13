@@ -1617,6 +1617,7 @@ moqt_hdrs = [
     "quic/moqt/tools/moqt_server.h",
 ]
 moqt_srcs = [
+    "quic/moqt/moqt_bidi_stream.cc",
     "quic/moqt/moqt_bitrate_adjuster.cc",
     "quic/moqt/moqt_error.cc",
     "quic/moqt/moqt_framer.cc",

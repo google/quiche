@@ -8,23 +8,34 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 
 #include "absl/base/casts.h"
+#include "absl/base/nullability.h"
+#include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_data_reader.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -38,19 +49,45 @@ class MoqtDataParserPeer {
   }
 };
 
+// Helper class to interact with MOQT bidi streams in tests.
+class MoqtBidiStreamTestWrapper {
+ public:
+  explicit MoqtBidiStreamTestWrapper(
+      std::unique_ptr<MoqtBidiStreamBase> absl_nonnull stream)
+      : stream_(std::move(stream)) {}
+
+  MoqtBidiStreamBase& stream() { return *stream_; }
+
+  // Simulates receiving the specified control message on the bidi stream.
+  void ReceiveMessage(const AnyMoqtControlMessage& message) {
+    std::string serialized = SerializeGenericMessage(message);
+    quiche::QuicheDataReader reader(serialized);
+    uint64_t raw_type;
+    ASSERT_TRUE(reader.ReadVarInt62(&raw_type));
+    ASSERT_TRUE(reader.Seek(2));
+    absl::Status status = stream_->OnRawControlMessage(MoqtRawControlMessage{
+        .type = static_cast<MoqtMessageType>(raw_type),
+        .payload = std::string(reader.ReadRemainingPayload())});
+    stream_->CheckStatus(status);
+  }
+
+ private:
+  std::unique_ptr<MoqtBidiStreamBase> absl_nonnull stream_;
+};
+
 class MoqtSessionPeer {
  public:
   static constexpr webtransport::StreamId kControlStreamId = 4;
 
-  static std::unique_ptr<MoqtControlParserVisitor> CreateControlStream(
+  static std::unique_ptr<MoqtBidiStreamTestWrapper> CreateControlStream(
       MoqtSession* session, webtransport::test::MockStream* stream) {
     auto new_stream = std::make_unique<MoqtSession::ControlStream>(session);
     session->control_stream_ = new_stream->GetWeakPtr();
-    new_stream->set_stream(stream);
+    new_stream->BindStream(stream);
     ON_CALL(*stream, visitor())
         .WillByDefault(::testing::Return(new_stream.get()));
     ON_CALL(*stream, CanWrite).WillByDefault(::testing::Return(true));
-    return new_stream;
+    return std::make_unique<MoqtBidiStreamTestWrapper>(std::move(new_stream));
   }
 
   static std::unique_ptr<MoqtDataParserVisitor> CreateIncomingDataStream(
@@ -77,10 +114,11 @@ class MoqtSessionPeer {
   // can inject packets into that stream.
   // This function is useful for any test that wants to inject packets on a
   // stream created by the MoqtSession.
-  static MoqtControlParserVisitor*
+  static std::unique_ptr<MoqtBidiStreamTestWrapper>
   FetchParserVisitorFromWebtransportStreamVisitor(
-      MoqtSession* session, webtransport::StreamVisitor* visitor) {
-    return static_cast<MoqtSession::ControlStream*>(visitor);
+      std::unique_ptr<webtransport::StreamVisitor> visitor) {
+    return std::make_unique<MoqtBidiStreamTestWrapper>(absl::WrapUnique(
+        absl::down_cast<MoqtSession::ControlStream*>(visitor.release())));
   }
 
   static void CreateRemoteTrack(MoqtSession* session,

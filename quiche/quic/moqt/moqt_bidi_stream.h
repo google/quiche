@@ -5,38 +5,35 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_BIDI_STREAM_H
 #define QUICHE_QUIC_MOQT_MOQT_BIDI_STREAM_H
 
-#include <array>
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <queue>
+#include <type_traits>
 #include <utility>
 
+#include "absl/base/casts.h"
 #include "absl/base/nullability.h"
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/span.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
-#include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/common/quiche_mem_slice.h"
-#include "quiche/web_transport/stream_helpers.h"
+#include "quiche/common/quiche_circular_deque.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 
-enum class MoqtBidiStreamType : uint8_t {
-  kUnknown,
-  kControl,
-  kSubscribeNamespace,  // TODO(martinduke): Support this case.
-};
+namespace test {
+class MoqtBidiStreamTestWrapper;
+}
 
 using SessionErrorCallback =
     quiche::SingleUseCallback<void(MoqtError, absl::string_view)>;
@@ -44,243 +41,150 @@ using SessionErrorCallback =
 // deletes the record.
 using BidiStreamDeletedCallback = quiche::SingleUseCallback<void()>;
 
-// A generic parser visitor that assumes all messages are invalid. Serves a base
-// class for visitors that accept a subset of messages and maintains state based
-// on those messages.
-class MoqtBidiStreamBase : public MoqtControlParserVisitor,
-                           public webtransport::StreamVisitor {
+// MoqtBidiStreamBase is the base class for bidirectional streams in MoQT.  It
+// contains basic methods for handling and dispatching messages.  An instance of
+// MoqtBidiStreamBase can be created before the underlying stream is available,
+// as it might not yet exist due to flow control limits.
+class MoqtBidiStreamBase : public webtransport::StreamVisitor {
  public:
+  // Maximum amount of messages buffered on top of the QUIC send buffer.
+  static constexpr size_t kMaxPendingMessages = 100;
+
   MoqtBidiStreamBase(MoqtFramer* absl_nonnull framer,
+                     const MoqtControlMessageParser& message_parser,
                      BidiStreamDeletedCallback stream_deleted_callback,
                      SessionErrorCallback session_error_callback)
       : framer_(framer),
+        message_parser_(message_parser),
         stream_deleted_callback_(std::move(stream_deleted_callback)),
         session_error_callback_(std::move(session_error_callback)) {}
   ~MoqtBidiStreamBase() override { std::move(stream_deleted_callback_)(); }
-  virtual void set_stream(webtransport::Stream* absl_nonnull stream) {
-    set_stream(stream, std::nullopt);
-  }
 
-  // MoqtControlParserVisitor implementation. All control messages are protocol
-  // violations by default.
-  virtual void OnClientSetupMessage(const MoqtClientSetup& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
+  // Binds a WebTransport stream associated with `parser` to this object.
+  void BindStream(
+      std::unique_ptr<MoqtControlStreamParser> absl_nonnull parser) {
+    QUICHE_DCHECK(stream_parser_ == nullptr);
+    stream_parser_ = std::move(parser);
+    OnStreamBound();
   }
-  virtual void OnServerSetupMessage(const MoqtServerSetup& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnRequestOkMessage(const MoqtRequestOk& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnRequestErrorMessage(const MoqtRequestError& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnSubscribeMessage(const MoqtSubscribe& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnPublishDoneMessage(const MoqtPublishDone& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnRequestUpdateMessage(
-      const MoqtRequestUpdate& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnPublishNamespaceMessage(
-      const MoqtPublishNamespace& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnPublishNamespaceDoneMessage(
-      const MoqtPublishNamespaceDone& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnNamespaceMessage(const MoqtNamespace& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnNamespaceDoneMessage(
-      const MoqtNamespaceDone& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnPublishNamespaceCancelMessage(
-      const MoqtPublishNamespaceCancel& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnTrackStatusMessage(const MoqtTrackStatus& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnGoAwayMessage(const MoqtGoAway& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnSubscribeNamespaceMessage(
-      const MoqtSubscribeNamespace& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnFetchMessage(const MoqtFetch& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnFetchCancelMessage(const MoqtFetchCancel& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnFetchOkMessage(const MoqtFetchOk& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnRequestsBlockedMessage(
-      const MoqtRequestsBlocked& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnPublishMessage(const MoqtPublish& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnObjectAckMessage(const MoqtObjectAck& message) override {
-    OnParsingError(wrong_message_error_, wrong_message_reason_);
-  }
-  virtual void OnParsingError(MoqtError code,
-                              absl::string_view reason) override {
-    std::move(session_error_callback_)(code, reason);
+  // Binds a WebTransport stream `stream` to this object.
+  void BindStream(webtransport::Stream* absl_nonnull stream) {
+    QUICHE_DCHECK(stream_parser_ == nullptr);
+    stream_parser_ = std::make_unique<MoqtControlStreamParser>(stream);
+    OnStreamBound();
   }
 
   // webtransport::StreamVisitor implementation.
   void OnResetStreamReceived(webtransport::StreamErrorCode error) override {}
   void OnStopSendingReceived(webtransport::StreamErrorCode error) override {}
   void OnWriteSideInDataRecvdState() override {}
-  void OnCanRead() override {
-    if (parser_ == nullptr) {
-      QUICHE_BUG(quiche_bug_moqt_parser_is_null) << "Parser is null";
-      return;
-    }
-    parser_->ReadAndDispatchMessages();
-  }
-  void OnCanWrite() override {
-    if (pending_messages_.empty() && fin_queued_) {
-      if (!stream_->SendFin()) {
-        std::move(session_error_callback_)(MoqtError::kInternalError,
-                                           "Failed to send FIN");
-      }
-      return;
-    }
-    while (!pending_messages_.empty() && stream_->CanWrite()) {
-      SendMessage(std::move(pending_messages_.front()),
-                  fin_queued_ && pending_messages_.size() == 1);
-      pending_messages_.pop();
-    }
-  }
+  void OnCanRead() override;
+  void OnCanWrite() override;
 
   bool QueueIsFull() const {
     return pending_messages_.size() == kMaxPendingMessages;
   }
 
-  void SendOrBufferMessage(quiche::QuicheBuffer message, bool fin = false) {
-    if (fin_queued_) {
-      return;
-    }
-    if (stream_ == nullptr || !stream_->CanWrite()) {
-      AddToQueue(std::move(message));
-      return;
-    }
-    SendMessage(std::move(message), fin);
+  absl::Status SendOrBufferMessage(quiche::QuicheBuffer message,
+                                   bool fin = false);
+  void SendOrBufferMessageOrFatal(quiche::QuicheBuffer message,
+                                  bool fin = false) {
+    CheckStatus(SendOrBufferMessage(std::move(message), fin));
   }
-  void SendRequestOk(uint64_t request_id, const MessageParameters& parameters,
-                     bool fin = false) {
-    SendOrBufferMessage(
-        framer_->SerializeRequestOk(MoqtRequestOk{request_id, parameters}),
-        fin);
-  }
-  void SendRequestError(uint64_t request_id, RequestErrorCode error_code,
-                        std::optional<quic::QuicTimeDelta> retry_interval,
-                        absl::string_view reason_phrase, bool fin = false) {
-    MoqtRequestError request_error;
-    request_error.request_id = request_id;
-    request_error.error_code = error_code;
-    request_error.retry_interval = retry_interval;
-    request_error.reason_phrase = reason_phrase;
-    SendOrBufferMessage(framer_->SerializeRequestError(request_error), fin);
-  }
-  void SendRequestError(uint64_t request_id, MoqtRequestErrorInfo info,
-                        bool fin = false) {
-    SendRequestError(request_id, info.error_code, info.retry_interval,
-                     info.reason_phrase, fin);
-  }
+
+  absl::Status SendRequestOk(uint64_t request_id,
+                             const MessageParameters& parameters,
+                             bool fin = false);
+  absl::Status SendRequestError(
+      uint64_t request_id, RequestErrorCode error_code,
+      std::optional<quic::QuicTimeDelta> retry_interval,
+      absl::string_view reason_phrase, bool fin = false);
+  absl::Status SendRequestError(uint64_t request_id, MoqtRequestErrorInfo info,
+                                bool fin = false);
+
   void Fin() {
     fin_queued_ = true;
-    if (pending_messages_.empty()) {
-      if (stream_ != nullptr && !webtransport::SendFinOnStream(*stream_).ok()) {
-        std::move(session_error_callback_)(MoqtError::kInternalError,
-                                           "Failed to send FIN");
-      }
-      return;
-    }
+    OnCanWrite();
   }
   void Reset(webtransport::StreamErrorCode error) {
-    if (stream_ != nullptr) {
-      stream_->ResetWithUserCode(error);
+    webtransport::Stream* stream = stream_parser_->stream();
+    if (stream != nullptr) {
+      stream->ResetWithUserCode(error);
+    }
+  }
+
+  // If `status` is not OK, terminates the connection with a fatal error.
+  void CheckStatus(absl::Status status) {
+    if (!status.ok()) {
+      OnFatalError(status);
     }
   }
 
  protected:
-  // The caller is responsible for calling stream->SetVisitor(). Derived
-  // classes will wrap this with a call to stream->SetPriority().
-  void set_stream(webtransport::Stream* absl_nonnull stream,
-                  std::optional<MoqtMessageType> first_message_type) {
-    stream_ = stream;
-    parser_ = std::make_unique<MoqtControlParser>(framer_->using_webtrans(),
-                                                  stream_, *this);
-    if (first_message_type.has_value()) {
-      parser_->set_message_type(static_cast<uint64_t>(*first_message_type));
-    }
+  // Called when a WebTransport stream has been associated with the object.
+  // Should be used to set the priority for the stream.
+  virtual void OnStreamBound() = 0;
+
+  // Called when a control message has been received.  The subclass should use
+  // DispatchControlMessage to process it.
+  virtual absl::Status OnRawControlMessage(
+      const MoqtRawControlMessage& message) = 0;
+
+  // Terminates the MoQT session due to a fatal error encountered.
+  void OnFatalError(absl::Status status);
+
+  MoqtControlStreamParser* stream_parser() { return stream_parser_.get(); }
+  MoqtFramer* framer() const { return framer_; }
+  webtransport::Stream* stream() const {
+    return stream_parser_ != nullptr ? stream_parser_->stream() : nullptr;
   }
-  const size_t kMaxPendingMessages = 100;
-  void AddToQueue(quiche::QuicheBuffer message) {
-    if (pending_messages_.size() == kMaxPendingMessages) {
-      std::move(session_error_callback_)(
-          MoqtError::kInternalError,
-          "Not enough flow credit on the control stream");
-      return;
-    }
-    pending_messages_.push(std::move(message));
+
+  // Parses the supplied control message. If the message is well-formed, and the
+  // class defines an `OnControlMessage` method that accepts it, it is passed to
+  // that method. Otherwise, an appropriate error message is returned;
+  // `stream_type` is used to format that message.
+  template <typename Subclass>
+  absl::Status DispatchControlMessage(const MoqtRawControlMessage& message,
+                                      absl::string_view stream_type) {
+    static_assert(!std::is_same_v<Subclass, MoqtBidiStreamBase>);
+    return message_parser_.ParseMessage(message, [&](const auto&
+                                                         parsed_message) {
+      if constexpr (CanDispatch<Subclass, decltype(parsed_message)>::value) {
+        return absl::down_cast<Subclass*>(this)->OnControlMessage(
+            parsed_message);
+      } else {
+        return absl::InvalidArgumentError(
+            absl::StrCat("Received an unexpected message of type ",
+                         MoqtMessageTypeToString(message.type), " on a ",
+                         stream_type, " stream"));
+      }
+    });
   }
-  MoqtFramer* absl_nonnull framer_;
-  MoqtControlParser* parser() { return parser_.get(); }
-  void OnBidiStreamDeleted() {
-    if (stream_deleted_callback_ != nullptr) {
-      std::move(stream_deleted_callback_)();
-    }
-  }
-  webtransport::Stream* stream() { return stream_; }
 
  private:
-  void SendMessage(quiche::QuicheBuffer message, bool fin) {
-    webtransport::StreamWriteOptions options;
-    options.set_send_fin(fin);
-    // TODO: while we buffer unconditionally, we should still at some point tear
-    // down the connection if we've buffered too many control messages;
-    // otherwise, there is potential for memory exhaustion attacks.
-    options.set_buffer_unconditionally(true);
-    std::array write_vector = {quiche::QuicheMemSlice(std::move(message))};
-    absl::Status success =
-        stream_->Writev(absl::MakeSpan(write_vector), options);
-    if (!success.ok()) {
-      std::move(session_error_callback_)(MoqtError::kInternalError,
-                                         "Failed to write a control message");
-    }
-  }
+  friend class test::MoqtBidiStreamTestWrapper;
 
-  webtransport::Stream* stream_;
-  std::unique_ptr<MoqtControlParser> parser_;
-  std::queue<quiche::QuicheBuffer> pending_messages_;
+  absl::Status AddToQueue(quiche::QuicheBuffer message);
+  absl::Status SendMessage(quiche::QuicheBuffer message, bool fin);
+
+  // CanDispatch<S, M> indicates whether `S` has a method with signature
+  //     absl::Status OnControlMessage(const M&);
+  template <typename Subclass, typename Message, typename = void>
+  struct CanDispatch : std::false_type {};
+  template <typename Subclass, typename Message>
+  struct CanDispatch<Subclass, Message,
+                     std::enable_if_t<std::is_same_v<
+                         decltype(std::declval<Subclass>().OnControlMessage(
+                             std::declval<Message>())),
+                         absl::Status>>> : std::true_type {};
+
+  MoqtFramer* absl_nonnull framer_;
+  std::unique_ptr<MoqtControlStreamParser> absl_nullable stream_parser_;
+  MoqtControlMessageParser message_parser_;
+  quiche::QuicheCircularDeque<quiche::QuicheBuffer> pending_messages_;
   bool fin_queued_ = false;
   BidiStreamDeletedCallback stream_deleted_callback_;
   SessionErrorCallback session_error_callback_;
-  const MoqtError wrong_message_error_ = MoqtError::kProtocolViolation;
-  const absl::string_view wrong_message_reason_ =
-      "Message not allowed for this stream type";
 };
 
 }  // namespace moqt

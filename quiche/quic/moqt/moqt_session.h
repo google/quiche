@@ -18,6 +18,7 @@
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
@@ -242,7 +243,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
    public:
     explicit ControlStream(MoqtSession* session)
         : MoqtBidiStreamBase(
-              &session->framer_,
+              &session->framer_, session->ControlMessageParser(),
               // Do nothing on deletion. It threw an error on RESET_STREAM or
               // FIN, and we're here because the session is being destroyed.
               []() {},
@@ -255,39 +256,42 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
               }),
           session_(session),
           weak_ptr_factory_(this) {}
-    void set_stream(webtransport::Stream* absl_nonnull stream) override;
+
+    void OnStreamBound() override;
+    absl::Status OnRawControlMessage(
+        const MoqtRawControlMessage& message) override;
 
     // MoqtControlParserVisitor implementation.
-    void OnClientSetupMessage(const MoqtClientSetup& message) override;
-    void OnServerSetupMessage(const MoqtServerSetup& message) override;
-    void OnRequestOkMessage(const MoqtRequestOk& message) override;
-    void OnRequestErrorMessage(const MoqtRequestError& message) override;
-    void OnSubscribeMessage(const MoqtSubscribe& message) override;
-    void OnSubscribeOkMessage(const MoqtSubscribeOk& message) override;
-    void OnUnsubscribeMessage(const MoqtUnsubscribe& message) override;
-    void OnPublishDoneMessage(const MoqtPublishDone& /*message*/) override;
-    void OnRequestUpdateMessage(const MoqtRequestUpdate& message) override;
-    void OnPublishNamespaceMessage(
-        const MoqtPublishNamespace& message) override;
-    void OnPublishNamespaceDoneMessage(
-        const MoqtPublishNamespaceDone& /*message*/) override;
-    void OnPublishNamespaceCancelMessage(
-        const MoqtPublishNamespaceCancel& message) override;
-    void OnTrackStatusMessage(const MoqtTrackStatus& message) override;
-    void OnGoAwayMessage(const MoqtGoAway& /*message*/) override;
-    void OnMaxRequestIdMessage(const MoqtMaxRequestId& message) override;
-    void OnFetchMessage(const MoqtFetch& message) override;
-    void OnFetchCancelMessage(const MoqtFetchCancel& /*message*/) override {}
-    void OnFetchOkMessage(const MoqtFetchOk& message) override;
-    void OnRequestsBlockedMessage(const MoqtRequestsBlocked& message) override;
-    void OnPublishMessage(const MoqtPublish& message) override;
-    void OnObjectAckMessage(const MoqtObjectAck& message) override {
+    absl::Status OnControlMessage(const MoqtClientSetup& message);
+    absl::Status OnControlMessage(const MoqtServerSetup& message);
+    absl::Status OnControlMessage(const MoqtRequestOk& message);
+    absl::Status OnControlMessage(const MoqtRequestError& message);
+    absl::Status OnControlMessage(const MoqtSubscribe& message);
+    absl::Status OnControlMessage(const MoqtSubscribeOk& message);
+    absl::Status OnControlMessage(const MoqtUnsubscribe& message);
+    absl::Status OnControlMessage(const MoqtPublishDone& /*message*/);
+    absl::Status OnControlMessage(const MoqtRequestUpdate& message);
+    absl::Status OnControlMessage(const MoqtPublishNamespace& message);
+    absl::Status OnControlMessage(const MoqtPublishNamespaceDone& /*message*/);
+    absl::Status OnControlMessage(const MoqtPublishNamespaceCancel& message);
+    absl::Status OnControlMessage(const MoqtTrackStatus& message);
+    absl::Status OnControlMessage(const MoqtGoAway& /*message*/);
+    absl::Status OnControlMessage(const MoqtMaxRequestId& message);
+    absl::Status OnControlMessage(const MoqtFetch& message);
+    absl::Status OnControlMessage(const MoqtFetchCancel& /*message*/) {
+      return absl::OkStatus();
+    }
+    absl::Status OnControlMessage(const MoqtFetchOk& message);
+    absl::Status OnControlMessage(const MoqtRequestsBlocked& message);
+    absl::Status OnControlMessage(const MoqtPublish& message);
+    absl::Status OnControlMessage(const MoqtObjectAck& message) {
       auto subscription_it =
           session_->published_subscriptions_.find(message.subscribe_id);
       if (subscription_it == session_->published_subscriptions_.end()) {
-        return;
+        return absl::OkStatus();
       }
       subscription_it->second->ProcessObjectAck(message);
+      return absl::OkStatus();
     }
 
     // webtransport::StreamVisitor overrides
@@ -792,6 +796,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // When the session is closing, clean up state without waiting for the
   // underlying WebTransport session to be destroyed.
   void CleanUpState();
+
+  MoqtControlMessageParser ControlMessageParser() const {
+    return MoqtControlMessageParser(parameters_.version,
+                                    parameters_.using_webtrans);
+  }
 
   bool is_closing_ = false;
   webtransport::Session* session_;

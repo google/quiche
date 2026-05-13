@@ -9,7 +9,6 @@
 #include <cstring>
 #include <memory>
 #include <optional>
-#include <queue>
 #include <string>
 #include <utility>
 #include <variant>
@@ -185,7 +184,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
   // supports.
   MoqtObjectListener* ReceiveSubscribeSynchronousOk(
       MockTrackPublisher* publisher, MoqtSubscribe& subscribe,
-      MoqtControlParserVisitor* control_parser, uint64_t track_alias = 0,
+      MoqtBidiStreamTestWrapper* control_parser, uint64_t track_alias = 0,
       TrackExtensions extensions = TrackExtensions()) {
     MoqtObjectListener* listener_ptr = nullptr;
     EXPECT_CALL(*publisher, AddObjectListener)
@@ -203,7 +202,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
         extensions,
     };
     EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _));
-    control_parser->OnSubscribeMessage(subscribe);
+    control_parser->ReceiveMessage(subscribe);
     return listener_ptr;
   }
 
@@ -304,13 +303,13 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
   session_.OnSessionReady();
 
   // Receive SERVER_SETUP
-  MoqtControlParserVisitor* stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::FetchParserVisitorFromWebtransportStreamVisitor(
-          &session_, visitor.get());
+          std::move(visitor));
   // Handle the server setup
   MoqtServerSetup setup;  // No fields are set.
   EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
-  stream_input->OnServerSetupMessage(setup);
+  stream_input->ReceiveMessage(setup);
 }
 
 TEST_F(MoqtSessionTest, OnSessionReadyNoControlStream) {
@@ -420,12 +419,12 @@ TEST_F(MoqtSessionTest, Error) {
 
 TEST_F(MoqtSessionTest, AddLocalTrack) {
   MoqtSubscribe request = DefaultSubscribe();
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   // Request for track returns REQUEST_ERROR.
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
-  stream_input->OnSubscribeMessage(request);
+  stream_input->ReceiveMessage(request);
 
   // Add the track. Now Subscribe should succeed.
   MockTrackPublisher* track = CreateTrackPublisher();
@@ -442,18 +441,18 @@ TEST_F(MoqtSessionTest, IncomingPublishRejected) {
       .parameters = MessageParameters(),
   };
   publish.parameters.largest_object = Location(4, 5);
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   // Request for track returns REQUEST_ERROR.
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
-  stream_input->OnPublishMessage(publish);
+  stream_input->ReceiveMessage(publish);
 }
 
 TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndCancel) {
   testing::MockFunction<void(std::optional<MoqtRequestErrorInfo> error_message)>
       publish_namespace_response_callback;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(
       mock_stream_,
@@ -469,14 +468,14 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndCancel) {
       .WillOnce([&](std::optional<MoqtRequestErrorInfo> error) {
         EXPECT_FALSE(error.has_value());
       });
-  stream_input->OnRequestOkMessage(ok);
+  stream_input->ReceiveMessage(ok);
 
   MoqtPublishNamespaceCancel cancel = {
       /*request_id=*/0,
       RequestErrorCode::kInternalError,
       /*error_reason=*/"Test error",
   };
-  stream_input->OnPublishNamespaceCancelMessage(cancel);
+  stream_input->ReceiveMessage(cancel);
   EXPECT_EQ(cancel_error_info.error_code, RequestErrorCode::kInternalError);
   EXPECT_EQ(cancel_error_info.reason_phrase, "Test error");
   // State is gone.
@@ -486,7 +485,7 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndCancel) {
 TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndPublishNamespaceDone) {
   testing::MockFunction<void(std::optional<MoqtRequestErrorInfo> error_message)>
       publish_namespace_resolved_callback;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(
       mock_stream_,
@@ -500,7 +499,7 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndPublishNamespaceDone) {
       .WillOnce([&](std::optional<MoqtRequestErrorInfo> error) {
         EXPECT_FALSE(error.has_value());
       });
-  stream_input->OnRequestOkMessage(ok);
+  stream_input->ReceiveMessage(ok);
 
   EXPECT_CALL(
       mock_stream_,
@@ -513,7 +512,7 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndPublishNamespaceDone) {
 TEST_F(MoqtSessionTest, PublishNamespaceWithError) {
   testing::MockFunction<void(std::optional<MoqtRequestErrorInfo> error_message)>
       publish_namespace_resolved_callback;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(
       mock_stream_,
@@ -530,13 +529,13 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithError) {
         EXPECT_EQ(error->error_code, RequestErrorCode::kInternalError);
         EXPECT_EQ(error->reason_phrase, "Test error");
       });
-  stream_input->OnRequestErrorMessage(error);
+  stream_input->ReceiveMessage(error);
   // State is gone.
   EXPECT_FALSE(session_.PublishNamespaceDone(TrackNamespace{"foo"}));
 }
 
 TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsOk) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtSubscribe request = DefaultSubscribe();
   MockTrackPublisher* track = CreateTrackPublisher();
@@ -544,7 +543,7 @@ TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsOk) {
   EXPECT_CALL(*track, AddObjectListener)
       .WillOnce(
           [&](MoqtObjectListener* listener_ptr) { listener = listener_ptr; });
-  stream_input->OnSubscribeMessage(request);
+  stream_input->ReceiveMessage(request);
 
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribeOk), _));
@@ -554,7 +553,7 @@ TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsOk) {
 }
 
 TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsError) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtSubscribe request = DefaultSubscribe();
   MockTrackPublisher* track = CreateTrackPublisher();
@@ -562,7 +561,7 @@ TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsError) {
   EXPECT_CALL(*track, AddObjectListener)
       .WillOnce(
           [&](MoqtObjectListener* listener_ptr) { listener = listener_ptr; });
-  stream_input->OnSubscribeMessage(request);
+  stream_input->ReceiveMessage(request);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
   listener->OnSubscribeRejected(MoqtRequestErrorInfo(
@@ -572,7 +571,7 @@ TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsError) {
 }
 
 TEST_F(MoqtSessionTest, SynchronousSubscribeReturnsError) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtSubscribe request = DefaultSubscribe();
   MockTrackPublisher* track = CreateTrackPublisher();
@@ -585,13 +584,13 @@ TEST_F(MoqtSessionTest, SynchronousSubscribeReturnsError) {
         listener->OnSubscribeRejected(MoqtRequestErrorInfo(
             RequestErrorCode::kInternalError, std::nullopt, "Test error"));
       });
-  stream_input->OnSubscribeMessage(request);
+  stream_input->ReceiveMessage(request);
   EXPECT_EQ(MoqtSessionPeer::GetSubscription(&session_, kDefaultPeerRequestId),
             nullptr);
 }
 
 TEST_F(MoqtSessionTest, SubscribeForPast) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
   SetLargestId(track, Location(10, 20));
@@ -600,7 +599,7 @@ TEST_F(MoqtSessionTest, SubscribeForPast) {
 }
 
 TEST_F(MoqtSessionTest, SubscribeDoNotForward) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
   MoqtSubscribe request = DefaultSubscribe();
@@ -616,7 +615,7 @@ TEST_F(MoqtSessionTest, SubscribeDoNotForward) {
 }
 
 TEST_F(MoqtSessionTest, SubscribeAbsoluteStartNoDataYet) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
   MoqtSubscribe request = DefaultSubscribe();
@@ -630,7 +629,7 @@ TEST_F(MoqtSessionTest, SubscribeAbsoluteStartNoDataYet) {
 }
 
 TEST_F(MoqtSessionTest, SubscribeNextGroup) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
   MoqtSubscribe request = DefaultSubscribe();
@@ -651,7 +650,7 @@ TEST_F(MoqtSessionTest, SubscribeNextGroup) {
 }
 
 TEST_F(MoqtSessionTest, TwoSubscribesForTrack) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
   MoqtSubscribe request = DefaultSubscribe();
@@ -661,11 +660,11 @@ TEST_F(MoqtSessionTest, TwoSubscribesForTrack) {
   request.parameters.subscription_filter.emplace(Location(12, 0));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
-  stream_input->OnSubscribeMessage(request);
+  stream_input->ReceiveMessage(request);
 }
 
 TEST_F(MoqtSessionTest, UnsubscribeAllowsSecondSubscribe) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
   MoqtSubscribe request = DefaultSubscribe();
@@ -675,7 +674,7 @@ TEST_F(MoqtSessionTest, UnsubscribeAllowsSecondSubscribe) {
   MoqtUnsubscribe unsubscribe = {
       kDefaultPeerRequestId,
   };
-  stream_input->OnUnsubscribeMessage(unsubscribe);
+  stream_input->ReceiveMessage(unsubscribe);
   EXPECT_EQ(MoqtSessionPeer::GetSubscription(&session_, 1), nullptr);
 
   // Subscribe again, succeeds.
@@ -690,12 +689,12 @@ TEST_F(MoqtSessionTest, RequestIdTooHigh) {
   MoqtSubscribe request = DefaultSubscribe();
   request.request_id = kDefaultInitialMaxRequestId + 1;
 
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kTooManyRequests),
                            "Received request with too large ID"));
-  stream_input->OnSubscribeMessage(request);
+  stream_input->ReceiveMessage(request);
 }
 
 TEST_F(MoqtSessionTest, RequestIdWrongLsb) {
@@ -704,24 +703,24 @@ TEST_F(MoqtSessionTest, RequestIdWrongLsb) {
 
 TEST_F(MoqtSessionTest, SubscribeIdNotIncreasing) {
   MoqtSubscribe request = DefaultSubscribe();
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
   EXPECT_CALL(*track, AddObjectListener);
-  stream_input->OnSubscribeMessage(request);
+  stream_input->ReceiveMessage(request);
 
   // Second request is a protocol violation.
   request.full_track_name = FullTrackName({"dead", "beef"});
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
                            "Duplicate request ID"));
-  stream_input->OnSubscribeMessage(request);
+  stream_input->ReceiveMessage(request);
 }
 
 TEST_F(MoqtSessionTest, TooManySubscribes) {
   MoqtSessionPeer::set_next_request_id(&session_,
                                        kDefaultInitialMaxRequestId - 1);
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_session_, GetStreamById(_))
       .WillRepeatedly(Return(&mock_stream_));
@@ -743,7 +742,7 @@ TEST_F(MoqtSessionTest, TooManySubscribes) {
 }
 
 TEST_F(MoqtSessionTest, SubscribeDuplicateTrackName) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_session_, GetStreamById(_))
       .WillRepeatedly(Return(&mock_stream_));
@@ -757,7 +756,7 @@ TEST_F(MoqtSessionTest, SubscribeDuplicateTrackName) {
 }
 
 TEST_F(MoqtSessionTest, SubscribeWithOk) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
@@ -778,11 +777,11 @@ TEST_F(MoqtSessionTest, SubscribeWithOk) {
             EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
             EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(response));
           });
-  stream_input->OnSubscribeOkMessage(ok);
+  stream_input->ReceiveMessage(ok);
 }
 
 TEST_F(MoqtSessionTest, SubscribeNextGroupWithOk) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtSubscribe subscribe = DefaultLocalSubscribe();
   subscribe.parameters.subscription_filter.emplace(
@@ -804,11 +803,11 @@ TEST_F(MoqtSessionTest, SubscribeNextGroupWithOk) {
             EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
             EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(response));
           });
-  stream_input->OnSubscribeOkMessage(ok);
+  stream_input->ReceiveMessage(ok);
 }
 
 TEST_F(MoqtSessionTest, OutgoingSubscribeUpdate) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_session_, GetStreamById)
       .WillRepeatedly(Return(&mock_stream_));
@@ -825,7 +824,7 @@ TEST_F(MoqtSessionTest, OutgoingSubscribeUpdate) {
       TrackExtensions(),
   };
   EXPECT_CALL(remote_track_visitor_, OnReply);
-  stream_input->OnSubscribeOkMessage(ok);
+  stream_input->ReceiveMessage(ok);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestUpdate), _));
   MessageParameters update_parameters;
@@ -836,7 +835,7 @@ TEST_F(MoqtSessionTest, OutgoingSubscribeUpdate) {
   EXPECT_TRUE(session_.SubscribeUpdate(
       FullTrackName("foo", "bar"), update_parameters,
       [&](std::optional<MoqtRequestErrorInfo> info) { response = info; }));
-  stream_input->OnRequestOkMessage(MoqtRequestOk{
+  stream_input->ReceiveMessage(MoqtRequestOk{
       /*request_id=*/2,
       MessageParameters(),
   });
@@ -857,7 +856,7 @@ TEST_F(MoqtSessionTest, OutgoingRequestUpdateInvalid) {
 
 TEST_F(MoqtSessionTest, MaxRequestIdChangesResponse) {
   MoqtSessionPeer::set_next_request_id(&session_, kDefaultInitialMaxRequestId);
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_session_, GetStreamById(_))
       .WillRepeatedly(Return(&mock_stream_));
@@ -871,7 +870,7 @@ TEST_F(MoqtSessionTest, MaxRequestIdChangesResponse) {
   MoqtMaxRequestId max_request_id = {
       /*max_request_id=*/kDefaultInitialMaxRequestId + 1,
   };
-  stream_input->OnMaxRequestIdMessage(max_request_id);
+  stream_input->ReceiveMessage(max_request_id);
 
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
@@ -883,17 +882,17 @@ TEST_F(MoqtSessionTest, LowerMaxRequestIdIsAnError) {
   MoqtMaxRequestId max_request_id = {
       /*max_request_id=*/kDefaultInitialMaxRequestId - 1,
   };
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
                            "MAX_REQUEST_ID has lower value than previous"))
       .Times(1);
-  stream_input->OnMaxRequestIdMessage(max_request_id);
+  stream_input->ReceiveMessage(max_request_id);
 }
 
 TEST_F(MoqtSessionTest, GrantMoreRequests) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kMaxRequestId), _));
@@ -906,7 +905,7 @@ TEST_F(MoqtSessionTest, GrantMoreRequests) {
 }
 
 TEST_F(MoqtSessionTest, SubscribeWithError) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
@@ -931,11 +930,11 @@ TEST_F(MoqtSessionTest, SubscribeWithError) {
                 std::get<MoqtRequestErrorInfo>(response).reason_phrase ==
                     "deadbeef");
           });
-  stream_input->OnRequestErrorMessage(error);
+  stream_input->ReceiveMessage(error);
 }
 
 TEST_F(MoqtSessionTest, Unsubscribe) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(),
                                      /*track_alias=*/2, &remote_track_visitor_);
@@ -949,7 +948,7 @@ TEST_F(MoqtSessionTest, Unsubscribe) {
 
 TEST_F(MoqtSessionTest, ReplyToPublishNamespaceWithOkThenPublishNamespaceDone) {
   TrackNamespace track_namespace{"foo"};
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MessageParameters parameters;
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
@@ -970,7 +969,7 @@ TEST_F(MoqtSessionTest, ReplyToPublishNamespaceWithOkThenPublishNamespaceDone) {
               Writev(SerializedControlMessage(MoqtRequestOk{
                          kDefaultPeerRequestId, MessageParameters()}),
                      _));
-  stream_input->OnPublishNamespaceMessage(publish_namespace);
+  stream_input->ReceiveMessage(publish_namespace);
   MoqtPublishNamespaceDone publish_namespace_done = {
       /*request_id=*/0,
   };
@@ -979,14 +978,14 @@ TEST_F(MoqtSessionTest, ReplyToPublishNamespaceWithOkThenPublishNamespaceDone) {
       .WillOnce(
           [](const TrackNamespace&, const std::optional<MessageParameters>&,
              MoqtResponseCallback callback) { EXPECT_EQ(callback, nullptr); });
-  stream_input->OnPublishNamespaceDoneMessage(publish_namespace_done);
+  stream_input->ReceiveMessage(publish_namespace_done);
 }
 
 TEST_F(MoqtSessionTest,
        ReplyToPublishNamespaceWithOkThenPublishNamespaceCancel) {
   TrackNamespace track_namespace{"foo"};
 
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MessageParameters parameters;
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
@@ -1007,7 +1006,7 @@ TEST_F(MoqtSessionTest,
               Writev(SerializedControlMessage(MoqtRequestOk{
                          kDefaultPeerRequestId, MessageParameters()}),
                      _));
-  stream_input->OnPublishNamespaceMessage(publish_namespace);
+  stream_input->ReceiveMessage(publish_namespace);
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(MoqtPublishNamespaceCancel{
                          kDefaultPeerRequestId,
@@ -1020,7 +1019,7 @@ TEST_F(MoqtSessionTest,
 TEST_F(MoqtSessionTest, ReplyToPublishNamespaceWithError) {
   TrackNamespace track_namespace{"foo"};
 
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MessageParameters parameters;
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
@@ -1045,7 +1044,7 @@ TEST_F(MoqtSessionTest, ReplyToPublishNamespaceWithError) {
                          kDefaultPeerRequestId, error.error_code,
                          error.retry_interval, error.reason_phrase}),
                      _));
-  stream_input->OnPublishNamespaceMessage(publish_namespace);
+  stream_input->ReceiveMessage(publish_namespace);
 }
 
 TEST_F(MoqtSessionTest, SubscribeNamespaceLifeCycle) {
@@ -1073,7 +1072,7 @@ TEST_F(MoqtSessionTest, SubscribeNamespaceLifeCycle) {
         EXPECT_FALSE(error.has_value());
       });
   MoqtRequestOk ok = {kDefaultLocalRequestId, MessageParameters()};
-  stream_input->OnRequestOkMessage(ok);
+  QUICHE_ASSERT_OK(stream_input->OnControlMessage(ok));
   EXPECT_TRUE(got_callback);
   EXPECT_CALL(mock_stream_, ResetWithUserCode);
 }
@@ -1107,7 +1106,7 @@ TEST_F(MoqtSessionTest, SubscribeNamespaceError) {
   MoqtRequestError error = {kDefaultLocalRequestId,
                             RequestErrorCode::kInvalidRange, std::nullopt,
                             "deadbeef"};
-  stream_input->OnRequestErrorMessage(error);
+  QUICHE_ASSERT_OK(stream_input->OnControlMessage(error));
   EXPECT_TRUE(got_callback);
 }
 
@@ -1269,10 +1268,10 @@ TEST_F(MoqtSessionTest, ObjectBeforeSubscribeOk) {
       TrackExtensions(),
   };
   webtransport::test::MockStream mock_control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_control_stream);
   EXPECT_CALL(remote_track_visitor_, OnReply).Times(1);
-  control_stream->OnSubscribeOkMessage(ok);
+  control_stream->ReceiveMessage(ok);
 }
 
 TEST_F(MoqtSessionTest, SubscribeOkWithBadTrackAlias) {
@@ -1294,12 +1293,12 @@ TEST_F(MoqtSessionTest, SubscribeOkWithBadTrackAlias) {
       TrackExtensions(),
   };
   webtransport::test::MockStream mock_control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_control_stream);
   EXPECT_CALL(
       mock_session_,
       CloseSession(static_cast<uint64_t>(MoqtError::kDuplicateTrackAlias), ""));
-  control_stream->OnSubscribeOkMessage(subscribe_ok);
+  control_stream->ReceiveMessage(subscribe_ok);
 }
 
 TEST_F(MoqtSessionTest, CreateOutgoingDataStreamAndSend) {
@@ -1545,7 +1544,7 @@ TEST_F(MoqtSessionTest, GroupAbandonedNoDeliveryTimeout) {
   };
   EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeCancelled));
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(control_stream,
               Writev(SerializedControlMessage(expected_publish_done), _));
@@ -1613,7 +1612,7 @@ TEST_F(MoqtSessionTest, GroupAbandonedDeliveryTimeout) {
   };
   EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeCancelled));
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(control_stream,
               Writev(SerializedControlMessage(expected_publish_done), _));
@@ -2038,12 +2037,12 @@ TEST_F(MoqtSessionTest, ReceiveUnsubscribe) {
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtSessionPeer::AddSubscription(&session_, track, 0, 1, 3, 4);
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtUnsubscribe unsubscribe = {
       /*request_id=*/0,
   };
-  stream_input->OnUnsubscribeMessage(unsubscribe);
+  stream_input->ReceiveMessage(unsubscribe);
   EXPECT_EQ(MoqtSessionPeer::GetSubscription(&session_, 0), nullptr);
 }
 
@@ -2119,7 +2118,7 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
 TEST_F(MoqtSessionTest, UsePeerDefaultPriority) {
   FullTrackName ftn("foo", "bar");
   const MoqtPriority kPeerDefaultPriority = 0x20;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
@@ -2131,7 +2130,7 @@ TEST_F(MoqtSessionTest, UsePeerDefaultPriority) {
       TrackExtensions(std::nullopt, std::nullopt, kPeerDefaultPriority,
                       std::nullopt, std::nullopt, std::nullopt);
   EXPECT_CALL(remote_track_visitor_, OnReply);
-  stream_input->OnSubscribeOkMessage(ok);
+  stream_input->ReceiveMessage(ok);
   // Omit priority from a datagram.
   char datagram[] = {0x0c, 0x02, 0x05, 0x64, 0x65, 0x61,
                      0x64, 0x62, 0x65, 0x65, 0x66};
@@ -2166,7 +2165,7 @@ TEST_F(MoqtSessionTest, UsePeerDefaultPriority) {
 TEST_F(MoqtSessionTest, OmitPublisherPriority) {
   MoqtSubscribe request = DefaultSubscribe();
   const MoqtPriority kLocalDefaultPriority = 0x20;
-  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   // Create the publisher and the SUBSCRIBE with kLocalDefaultPriority.
   MockTrackPublisher* track = CreateTrackPublisher();
@@ -2580,7 +2579,7 @@ void ExpectSendObject(MockFetchTask* fetch_task,
 
 // All callbacks are called asynchronously.
 TEST_F(MoqtSessionTest, ProcessFetchGetEverythingFromUpstream) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtFetch fetch = DefaultFetch();
   MockTrackPublisher* track = CreateTrackPublisher();
@@ -2590,7 +2589,7 @@ TEST_F(MoqtSessionTest, ProcessFetchGetEverythingFromUpstream) {
   MockFetchTask* fetch_task = fetch_task_ptr.get();
   EXPECT_CALL(*track, StandaloneFetch)
       .WillOnce(Return(std::move(fetch_task_ptr)));
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
 
   // Compose and send the FETCH_OK.
   MoqtFetchOk expected_ok;
@@ -2612,7 +2611,7 @@ TEST_F(MoqtSessionTest, ProcessFetchGetEverythingFromUpstream) {
 // All callbacks are called synchronously. All relevant data is cached (or this
 // is the original publisher).
 TEST_F(MoqtSessionTest, ProcessFetchWholeRangeIsPresent) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtFetch fetch = DefaultFetch();
   MockTrackPublisher* track = CreateTrackPublisher();
@@ -2635,12 +2634,12 @@ TEST_F(MoqtSessionTest, ProcessFetchWholeRangeIsPresent) {
                    MoqtFetchTask::GetNextObjectResult::kPending);
   // Everything spins upon message receipt. FetchTask is generating the
   // necessary callbacks.
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
 }
 
 TEST_F(MoqtSessionTest, SendFragmentedFetchObject) {
   using ::testing::ByMove;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtFetch fetch = DefaultFetch();
   fetch.request_id = 3;  // Use an odd ID for peer request in client session.
@@ -2654,7 +2653,7 @@ TEST_F(MoqtSessionTest, SendFragmentedFetchObject) {
       .WillOnce(Return(ByMove(std::move(fetch_task_ptr))));
 
   // Receive FETCH, send FETCH_OK.
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
   // FETCH_OK responding to the request.
   MoqtFetchOk expected_ok;
   expected_ok.request_id = fetch.request_id;
@@ -2717,7 +2716,7 @@ TEST_F(MoqtSessionTest, SendFragmentedFetchObject) {
 // The publisher has the first object locally, but has to go upstream to get
 // the rest.
 TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeOk) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtFetch fetch = DefaultFetch();
   MockTrackPublisher* track = CreateTrackPublisher();
@@ -2734,7 +2733,7 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeOk) {
   ExpectSendObject(fetch_task, data_stream, MoqtObjectStatus::kNormal,
                    Location(0, 0), "foo",
                    MoqtFetchTask::GetNextObjectResult::kPending);
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
 
   MoqtFetchOk expected_ok;
   expected_ok.request_id = fetch.request_id;
@@ -2745,7 +2744,7 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeOk) {
 }
 
 TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeError) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtFetch fetch = DefaultFetch();
   MockTrackPublisher* track = CreateTrackPublisher();
@@ -2761,7 +2760,7 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeError) {
   ExpectSendObject(fetch_task, data_stream, MoqtObjectStatus::kNormal,
                    Location(0, 0), "foo",
                    MoqtFetchTask::GetNextObjectResult::kPending);
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
 
   MoqtRequestError expected_error{
       fetch.request_id, RequestErrorCode::kDoesNotExist, std::nullopt, "foo"};
@@ -2772,22 +2771,22 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeError) {
 
 TEST_F(MoqtSessionTest, InvalidFetch) {
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   MockTrackPublisher* track = CreateTrackPublisher();
   MoqtFetch fetch = DefaultFetch();
   EXPECT_CALL(*track, StandaloneFetch)
       .WillOnce(Return(std::make_unique<MockFetchTask>()));
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
   EXPECT_CALL(mock_session_,
               CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
                            "Duplicate request ID"))
       .Times(1);
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
 }
 
 TEST_F(MoqtSessionTest, FetchFails) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtFetch fetch = DefaultFetch();
   MockTrackPublisher* track = CreateTrackPublisher();
@@ -2800,11 +2799,11 @@ TEST_F(MoqtSessionTest, FetchFails) {
       .WillRepeatedly(Return(absl::Status(absl::StatusCode::kInternal, "foo")));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
 }
 
 TEST_F(MoqtSessionTest, FullFetchDeliveryWithFlowControl) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtFetch fetch = DefaultFetch();
   MockTrackPublisher* track = CreateTrackPublisher();
@@ -2815,7 +2814,7 @@ TEST_F(MoqtSessionTest, FullFetchDeliveryWithFlowControl) {
   EXPECT_CALL(*track, StandaloneFetch)
       .WillOnce(Return(std::move(fetch_task_ptr)));
 
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
       .WillOnce(Return(false));
   fetch_task->CallObjectsAvailableCallback();
@@ -2838,7 +2837,7 @@ TEST_F(MoqtSessionTest, IncomingRelativeJoiningFetch) {
   // Give it the latest object filter.
   subscribe.parameters.subscription_filter.emplace(
       MoqtFilterType::kLargestObject);
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
   SetLargestId(track, Location(4, 10));
@@ -2857,7 +2856,7 @@ TEST_F(MoqtSessionTest, IncomingRelativeJoiningFetch) {
   fetch.fetch = JoiningFetchRelative(1, 2);
   EXPECT_CALL(*track, StandaloneFetch(Location(2, 0), Location(4, 10), _))
       .WillOnce(Return(std::make_unique<MockFetchTask>()));
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
 }
 
 TEST_F(MoqtSessionTest, IncomingAbsoluteJoiningFetch) {
@@ -2865,7 +2864,7 @@ TEST_F(MoqtSessionTest, IncomingAbsoluteJoiningFetch) {
   // Give it the latest object filter.
   subscribe.parameters.subscription_filter.emplace(
       MoqtFilterType::kLargestObject);
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
   SetLargestId(track, Location(4, 10));
@@ -2884,11 +2883,11 @@ TEST_F(MoqtSessionTest, IncomingAbsoluteJoiningFetch) {
   fetch.fetch = JoiningFetchAbsolute(1, 2);
   EXPECT_CALL(*track, StandaloneFetch(Location(2, 0), Location(4, 10), _))
       .WillOnce(Return(std::make_unique<MockFetchTask>()));
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
 }
 
 TEST_F(MoqtSessionTest, IncomingJoiningFetchBadRequestId) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtFetch fetch = DefaultFetch();
   fetch.fetch = JoiningFetchRelative(1, 2);
@@ -2900,13 +2899,13 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetchBadRequestId) {
   };
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(expected_error), _));
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
 }
 
 TEST_F(MoqtSessionTest, IncomingJoiningFetchForwardZero) {
   MoqtSubscribe subscribe = DefaultSubscribe();
   subscribe.parameters.set_forward(false);
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
   SetLargestId(track, Location(2, 10));
@@ -2919,11 +2918,11 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetchForwardZero) {
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
                            "Joining Fetch for non-forwarding subscribe"))
       .Times(1);
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
 }
 
 TEST_F(MoqtSessionTest, SendJoiningFetch) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_session_, GetStreamById(_))
       .WillRepeatedly(Return(&mock_stream_));
@@ -2945,7 +2944,7 @@ TEST_F(MoqtSessionTest, SendJoiningFetch) {
 }
 
 TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_session_, GetStreamById(_))
       .WillRepeatedly(Return(&mock_stream_));
@@ -2960,9 +2959,9 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
   EXPECT_CALL(remote_track_visitor_, OnReply).Times(1);
   MessageParameters parameters;
   parameters.largest_object = Location(2, 0);
-  stream_input->OnSubscribeOkMessage(
+  stream_input->ReceiveMessage(
       MoqtSubscribeOk(0, 2, parameters, TrackExtensions()));
-  stream_input->OnFetchOkMessage(MoqtFetchOk(
+  stream_input->ReceiveMessage(MoqtFetchOk(
       2, false, Location(2, 0), MessageParameters(), TrackExtensions()));
   // Packet arrives on FETCH stream.
   MoqtObject object = {
@@ -3116,7 +3115,7 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithPrefixOverlap) {
 }
 
 TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   std::unique_ptr<MoqtFetchTask> fetch_task;
   session_.Fetch(
@@ -3130,7 +3129,7 @@ TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {
       /*end_of_track=*/false, Location(3, 25),
       MessageParameters(),    TrackExtensions(),
   };
-  stream_input->OnFetchOkMessage(ok);
+  stream_input->ReceiveMessage(ok);
   ASSERT_NE(fetch_task, nullptr);
   EXPECT_TRUE(fetch_task->GetStatus().ok());
   PublishedObject object;
@@ -3143,7 +3142,7 @@ TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {
 }
 
 TEST_F(MoqtSessionTest, FetchThenError) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   std::unique_ptr<MoqtFetchTask> fetch_task;
   session_.Fetch(
@@ -3158,7 +3157,7 @@ TEST_F(MoqtSessionTest, FetchThenError) {
       /*retry_interval=*/std::nullopt,
       "No username provided",
   };
-  stream_input->OnRequestErrorMessage(error);
+  stream_input->ReceiveMessage(error);
   ASSERT_NE(fetch_task, nullptr);
   EXPECT_TRUE(absl::IsPermissionDenied(fetch_task->GetStatus()));
   EXPECT_EQ(fetch_task->GetStatus().message(), "No username provided");
@@ -3166,7 +3165,7 @@ TEST_F(MoqtSessionTest, FetchThenError) {
 
 // The application takes objects as they arrive.
 TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   std::unique_ptr<MoqtFetchTask> fetch_task;
   uint64_t expected_object_id = 0;
@@ -3235,7 +3234,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
       MessageParameters(),
       TrackExtensions(),
   };
-  stream_input->OnFetchOkMessage(ok);
+  stream_input->ReceiveMessage(ok);
   ASSERT_NE(fetch_task, nullptr);
   EXPECT_EQ(expected_object_id, 2);
 
@@ -3250,7 +3249,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
 }
 
 TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   std::unique_ptr<MoqtFetchTask> fetch_task;
   uint64_t expected_object_id = 0;
@@ -3306,7 +3305,7 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
       /*end_of_track=*/false, Location(3, 25),
       MessageParameters(),    TrackExtensions(),
   };
-  stream_input->OnFetchOkMessage(ok);
+  stream_input->ReceiveMessage(ok);
   ASSERT_NE(fetch_task, nullptr);
   EXPECT_TRUE(objects_available);
 
@@ -3391,7 +3390,7 @@ TEST_F(MoqtSessionTest, PartialObjectFetch) {
 TEST_F(MoqtSessionTest, DeliveryTimeoutParameter) {
   MoqtSubscribe request = DefaultSubscribe();
   request.parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(1);
-  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MockTrackPublisher* track = CreateTrackPublisher();
   ReceiveSubscribeSynchronousOk(track, request, control_stream.get());
@@ -3649,10 +3648,10 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAlternateDesign) {
 }
 
 TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(session_callbacks_.goaway_received_callback, Call("foo"));
-  stream_input->OnGoAwayMessage(MoqtGoAway("foo"));
+  stream_input->ReceiveMessage(MoqtGoAway("foo"));
   // New requests not allowed.
   EXPECT_CALL(mock_stream_, Writev).Times(0);
   MessageParameters parameters = SubscribeForTest();
@@ -3684,11 +3683,11 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
         reported_error = true;
         EXPECT_EQ(error_message, "Received multiple GOAWAY messages");
       });
-  stream_input->OnGoAwayMessage(MoqtGoAway("foo"));
+  stream_input->ReceiveMessage(MoqtGoAway("foo"));
 }
 
 TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   CreateTrackPublisher();
   EXPECT_CALL(mock_stream_,
@@ -3696,31 +3695,34 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   session_.GoAway("");
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
-  stream_input->OnSubscribeMessage(DefaultSubscribe());
+  stream_input->ReceiveMessage(DefaultSubscribe());
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
-  stream_input->OnPublishNamespaceMessage(
+  stream_input->ReceiveMessage(
       MoqtPublishNamespace(3, TrackNamespace({"foo"}), MessageParameters()));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
   MoqtFetch fetch = DefaultFetch();
   fetch.request_id = 5;
-  stream_input->OnFetchMessage(fetch);
+  stream_input->ReceiveMessage(fetch);
 
   MoqtFramer framer(true);
   SessionNamespaceTree tree;
   MoqtIncomingSubscribeNamespaceCallback callback =
       DefaultIncomingSubscribeNamespaceCallback;
-  MoqtNamespacePublisherStream namespace_stream(&framer, &mock_stream_, nullptr,
-                                                &tree, callback);
+  MoqtNamespacePublisherStream namespace_stream(
+      &framer, MoqtControlMessageParser(kDefaultMoqtVersion, true), nullptr,
+      &tree, callback);
+  namespace_stream.BindStream(&mock_stream_);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
-  namespace_stream.OnSubscribeNamespaceMessage(MoqtSubscribeNamespace(7));
+  QUICHE_ASSERT_OK(
+      namespace_stream.OnControlMessage(MoqtSubscribeNamespace(7)));
   MoqtTrackStatus track_status = DefaultSubscribe();
   track_status.request_id = 7;
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
-  stream_input->OnTrackStatusMessage(track_status);
+  stream_input->ReceiveMessage(track_status);
   // Block all outgoing SUBSCRIBE, PUBLISH_NAMESPACE, GOAWAY,etc.
   EXPECT_CALL(mock_stream_, Writev).Times(0);
   MessageParameters parameters = SubscribeForTest();
@@ -3755,7 +3757,7 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
 
 TEST_F(MoqtSessionTest, ClientCannotSendNewSessionUri) {
   // session_ is a client session.
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   // Client GOAWAY not sent.
   EXPECT_CALL(mock_stream_, Writev).Times(0);
@@ -3768,7 +3770,7 @@ TEST_F(MoqtSessionTest, ServerCannotReceiveNewSessionUri) {
                       MoqtSessionParameters(quic::Perspective::IS_SERVER),
                       std::make_unique<quic::test::TestAlarmFactory>(),
                       session_callbacks_.AsSessionCallbacks());
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session, &mock_stream_);
   EXPECT_CALL(
       mock_session,
@@ -3782,13 +3784,13 @@ TEST_F(MoqtSessionTest, ServerCannotReceiveNewSessionUri) {
         EXPECT_EQ(error_message,
                   "Received GOAWAY with new_session_uri on the server");
       });
-  stream_input->OnGoAwayMessage(MoqtGoAway("foo"));
+  stream_input->ReceiveMessage(MoqtGoAway("foo"));
   EXPECT_TRUE(reported_error);
 }
 
 TEST_F(MoqtSessionTest, ReceivePublishDoneWithOpenStreams) {
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(mock_session_, GetStreamById(_))
       .WillRepeatedly(Return(&control_stream));
@@ -3805,7 +3807,7 @@ TEST_F(MoqtSessionTest, ReceivePublishDoneWithOpenStreams) {
       parameters,
       TrackExtensions(),
   };
-  stream_input->OnSubscribeOkMessage(ok);
+  stream_input->ReceiveMessage(ok);
   constexpr uint64_t kNumStreams = 3;
   webtransport::test::MockStream data[kNumStreams];
   std::unique_ptr<webtransport::StreamVisitor> data_streams[kNumStreams];
@@ -3832,7 +3834,7 @@ TEST_F(MoqtSessionTest, ReceivePublishDoneWithOpenStreams) {
   SubscribeRemoteTrack* track = MoqtSessionPeer::remote_track(&session_, 0);
   ASSERT_NE(track, nullptr);
   EXPECT_FALSE(track->all_streams_closed());
-  stream_input->OnPublishDoneMessage(
+  stream_input->ReceiveMessage(
       MoqtPublishDone(0, PublishDoneCode::kTrackEnded, kNumStreams, "foo"));
   track = MoqtSessionPeer::remote_track(&session_, 0);
   ASSERT_NE(track, nullptr);
@@ -3846,7 +3848,7 @@ TEST_F(MoqtSessionTest, ReceivePublishDoneWithOpenStreams) {
 
 TEST_F(MoqtSessionTest, ReceivePublishDoneWithClosedStreams) {
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(mock_session_, GetStreamById(_))
       .WillRepeatedly(Return(&control_stream));
@@ -3863,7 +3865,7 @@ TEST_F(MoqtSessionTest, ReceivePublishDoneWithClosedStreams) {
       parameters,
       TrackExtensions(),
   };
-  stream_input->OnSubscribeOkMessage(ok);
+  stream_input->ReceiveMessage(ok);
   constexpr uint64_t kNumStreams = 3;
   webtransport::test::MockStream data[kNumStreams];
   std::unique_ptr<webtransport::StreamVisitor> data_streams[kNumStreams];
@@ -3894,14 +3896,14 @@ TEST_F(MoqtSessionTest, ReceivePublishDoneWithClosedStreams) {
   ASSERT_NE(track, nullptr);
   EXPECT_FALSE(track->all_streams_closed());
   EXPECT_CALL(remote_track_visitor_, OnPublishDone(_));
-  stream_input->OnPublishDoneMessage(
+  stream_input->ReceiveMessage(
       MoqtPublishDone(0, PublishDoneCode::kTrackEnded, kNumStreams, "foo"));
   EXPECT_EQ(MoqtSessionPeer::remote_track(&session_, 0), nullptr);
 }
 
 TEST_F(MoqtSessionTest, PublishDoneTimeout) {
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(mock_session_, GetStreamById(_))
       .WillRepeatedly(Return(&control_stream));
@@ -3918,7 +3920,7 @@ TEST_F(MoqtSessionTest, PublishDoneTimeout) {
       parameters,
       TrackExtensions(),
   };
-  stream_input->OnSubscribeOkMessage(ok);
+  stream_input->ReceiveMessage(ok);
   constexpr uint64_t kNumStreams = 3;
   webtransport::test::MockStream data[kNumStreams];
   std::unique_ptr<webtransport::StreamVisitor> data_streams[kNumStreams];
@@ -3949,7 +3951,7 @@ TEST_F(MoqtSessionTest, PublishDoneTimeout) {
   ASSERT_NE(track, nullptr);
   EXPECT_FALSE(track->all_streams_closed());
   // stream_count includes a stream that was never sent.
-  stream_input->OnPublishDoneMessage(
+  stream_input->ReceiveMessage(
       MoqtPublishDone(0, PublishDoneCode::kTrackEnded, kNumStreams + 1, "foo"));
   EXPECT_FALSE(track->all_streams_closed());
   auto* publish_done_alarm =
@@ -3965,7 +3967,7 @@ TEST_F(MoqtSessionTest, SubgroupStreamObjectAfterGroupEnd) {
   MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(),
                                      /*track_alias=*/2, &remote_track_visitor_);
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
       MoqtSessionPeer::CreateIncomingDataStream(
@@ -3997,7 +3999,7 @@ TEST_F(MoqtSessionTest, SubgroupStreamObjectAfterTrackEnd) {
   MoqtSessionPeer::CreateRemoteTrack(&session_, DefaultSubscribe(),
                                      /*track_alias=*/2, &remote_track_visitor_);
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   std::unique_ptr<MoqtDataParserVisitor> object_stream =
       MoqtSessionPeer::CreateIncomingDataStream(
@@ -4046,7 +4048,7 @@ TEST_F(MoqtSessionTest, FetchStreamMalformedTrack) {
       "bar", true);
   EXPECT_FALSE(IsInvalidArgument(task->GetStatus()));
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(control_stream,
               Writev(ControlMessageOfType(MoqtMessageType::kFetchCancel), _));
@@ -4061,7 +4063,7 @@ TEST_F(MoqtSessionTest, FetchStreamMalformedTrack) {
 
 TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousOk) {
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   auto* track = CreateTrackPublisher();
 
@@ -4083,12 +4085,12 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousOk) {
         EXPECT_CALL(*track, RemoveObjectListener);
         listener->OnSubscribeAccepted();
       });
-  stream_input->OnTrackStatusMessage(track_status);
+  stream_input->ReceiveMessage(track_status);
 }
 
 TEST_F(MoqtSessionTest, IncomingTrackStatusThenAsynchronousOk) {
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   auto* track = CreateTrackPublisher();
 
@@ -4096,7 +4098,7 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenAsynchronousOk) {
   MoqtObjectListener* listener = nullptr;
   EXPECT_CALL(*track, AddObjectListener)
       .WillOnce(testing::SaveArg<0>(&listener));
-  stream_input->OnTrackStatusMessage(track_status);
+  stream_input->ReceiveMessage(track_status);
   ASSERT_NE(listener, nullptr);
   EXPECT_CALL(*track, expiration)
       .WillRepeatedly(Return(quic::QuicTimeDelta::FromMilliseconds(10000)));
@@ -4112,7 +4114,7 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenAsynchronousOk) {
 
 TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousError) {
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   auto* track = CreateTrackPublisher();
 
@@ -4128,13 +4130,13 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousError) {
             RequestErrorCode::kInternalError, std::nullopt, "Test error"));
         executed_AddObjectListener = true;
       });
-  stream_input->OnTrackStatusMessage(track_status);
+  stream_input->ReceiveMessage(track_status);
   EXPECT_TRUE(executed_AddObjectListener);
 }
 
 TEST_F(MoqtSessionTest, IncomingTrackStatusThenAsynchronousError) {
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   auto* track = CreateTrackPublisher();
 
@@ -4142,7 +4144,7 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenAsynchronousError) {
   MoqtObjectListener* listener;
   EXPECT_CALL(*track, AddObjectListener)
       .WillOnce(testing::SaveArg<0>(&listener));
-  stream_input->OnTrackStatusMessage(track_status);
+  stream_input->ReceiveMessage(track_status);
   ASSERT_NE(listener, nullptr);
   EXPECT_CALL(control_stream,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
@@ -4152,7 +4154,7 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenAsynchronousError) {
 }
 
 TEST_F(MoqtSessionTest, FinReportedToVisitor) {
-  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream_);
   EXPECT_CALL(mock_session_, GetStreamById)
       .WillRepeatedly(Return(&control_stream_));
@@ -4171,7 +4173,7 @@ TEST_F(MoqtSessionTest, FinReportedToVisitor) {
             EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
             EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(response));
           });
-  control_stream->OnSubscribeOkMessage(ok);
+  control_stream->ReceiveMessage(ok);
   MoqtObject object = {
       /*track_alias=*/2,
       /*group_id=*/0,
@@ -4196,7 +4198,7 @@ TEST_F(MoqtSessionTest, FinReportedToVisitor) {
 }
 
 TEST_F(MoqtSessionTest, ResetReportedToVisitor) {
-  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream_);
   EXPECT_CALL(mock_session_, GetStreamById)
       .WillRepeatedly(Return(&control_stream_));
@@ -4215,7 +4217,7 @@ TEST_F(MoqtSessionTest, ResetReportedToVisitor) {
             EXPECT_EQ(ftn, FullTrackName("foo", "bar"));
             EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(response));
           });
-  control_stream->OnSubscribeOkMessage(ok);
+  control_stream->ReceiveMessage(ok);
   MoqtObject object = {
       /*track_alias=*/2,
       /*group_id=*/0,
@@ -4242,7 +4244,7 @@ TEST_F(MoqtSessionTest, ResetReportedToVisitor) {
 
 TEST_F(MoqtSessionTest, IncomingPublishNamespaceCleanup) {
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   // Register two incoming PUBLISH_NAMESPACE.
   MoqtPublishNamespace publish_namespace{
@@ -4256,7 +4258,7 @@ TEST_F(MoqtSessionTest, IncomingPublishNamespaceCleanup) {
       });
   EXPECT_CALL(control_stream,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
-  stream_input->OnPublishNamespaceMessage(publish_namespace);
+  stream_input->ReceiveMessage(publish_namespace);
 
   publish_namespace = MoqtPublishNamespace(
       /*request_id=*/3, TrackNamespace{"bar"}, MessageParameters());
@@ -4269,7 +4271,7 @@ TEST_F(MoqtSessionTest, IncomingPublishNamespaceCleanup) {
       });
   EXPECT_CALL(control_stream,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
-  stream_input->OnPublishNamespaceMessage(publish_namespace);
+  stream_input->ReceiveMessage(publish_namespace);
 
   // Revoke "bar"
   MoqtPublishNamespaceDone done{/*request_id=*/3};
@@ -4279,7 +4281,7 @@ TEST_F(MoqtSessionTest, IncomingPublishNamespaceCleanup) {
       .WillOnce(
           [](const TrackNamespace&, const std::optional<MessageParameters>&,
              MoqtResponseCallback callback) { EXPECT_EQ(callback, nullptr); });
-  stream_input->OnPublishNamespaceDoneMessage(done);
+  stream_input->ReceiveMessage(done);
 
   // Destroying the session should revoke "foo".
   EXPECT_CALL(
@@ -4310,7 +4312,7 @@ TEST_F(MoqtSessionTest, NoSubprotocol) {
 
 TEST_F(MoqtSessionTest, SubscribeThenRequestOk) {
   webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtControlParserVisitor> stream_input =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   MessageParameters parameters = SubscribeForTest();
   parameters.subscription_filter.emplace(MoqtFilterType::kLargestObject);
@@ -4318,33 +4320,34 @@ TEST_F(MoqtSessionTest, SubscribeThenRequestOk) {
                      parameters);
   EXPECT_CALL(mock_session_, CloseSession);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call);
-  stream_input->OnRequestOkMessage(MoqtRequestOk{0, MessageParameters()});
+  stream_input->ReceiveMessage(MoqtRequestOk{0, MessageParameters()});
 }
 
 TEST_F(MoqtSessionTest, ClientSetupNotAllowedOnControlStream) {
   // While technically on the Control stream, when it arrives, it's an
   // UnknownBidiStream
-  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_session_, CloseSession);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call);
-  control_stream->OnClientSetupMessage(MoqtClientSetup());
+  control_stream->ReceiveMessage(
+      MoqtClientSetup(SetupParameters("/", "example.com", 0)));
 }
 
 TEST_F(MoqtSessionTest, NamespaceNotAllowedOnControlStream) {
-  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_session_, CloseSession);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call);
-  control_stream->OnNamespaceMessage(MoqtNamespace());
+  control_stream->ReceiveMessage(MoqtNamespace());
 }
 
 TEST_F(MoqtSessionTest, NamespaceDoneNotAllowedOnControlStream) {
-  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   EXPECT_CALL(mock_session_, CloseSession);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call);
-  control_stream->OnNamespaceDoneMessage(MoqtNamespaceDone());
+  control_stream->ReceiveMessage(MoqtNamespaceDone());
 }
 
 TEST_F(MoqtSessionTest, IncomingRequestUpdateTruncatesSubscription) {
@@ -4374,7 +4377,7 @@ TEST_F(MoqtSessionTest, IncomingRequestUpdateTruncatesSubscription) {
 
   listener->OnNewObjectAvailable(Location(8, 0), std::nullopt, 0x80);
 
-  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   // Update the filter to exclude the live edge. The next object is out of
   // window.
@@ -4382,7 +4385,7 @@ TEST_F(MoqtSessionTest, IncomingRequestUpdateTruncatesSubscription) {
   parameters.subscription_filter.emplace(Location(4, 0), 7);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
-  control_stream->OnRequestUpdateMessage(MoqtRequestUpdate{3, 1, parameters});
+  control_stream->ReceiveMessage(MoqtRequestUpdate{3, 1, parameters});
   EXPECT_CALL(*mock_publisher, GetCachedObject).Times(0);
   EXPECT_CALL(mock_session_, SendOrQueueDatagram).Times(0);
   listener->OnNewObjectAvailable(Location(8, 1), 0, 0x80);
@@ -4391,7 +4394,7 @@ TEST_F(MoqtSessionTest, IncomingRequestUpdateTruncatesSubscription) {
 TEST_F(MoqtSessionTest, StopSendingBlocksSubgroup) {
   MoqtSubscribe subscribe = DefaultSubscribe();
   MockTrackPublisher* track = CreateTrackPublisher();
-  std::unique_ptr<MoqtControlParserVisitor> control_stream =
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* listener =
       ReceiveSubscribeSynchronousOk(track, subscribe, control_stream.get(), 0);

@@ -1620,6 +1620,7 @@
     "quiche/quic/moqt/tools/moqt_server.h"
   ],
   "moqt_srcs": [
+    "quiche/quic/moqt/moqt_bidi_stream.cc",
     "quiche/quic/moqt/moqt_bitrate_adjuster.cc",
     "quiche/quic/moqt/moqt_error.cc",
     "quiche/quic/moqt/moqt_framer.cc",

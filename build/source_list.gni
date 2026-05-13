@@ -1621,6 +1621,7 @@ moqt_hdrs = [
     "src/quiche/quic/moqt/tools/moqt_server.h",
 ]
 moqt_srcs = [
+    "src/quiche/quic/moqt/moqt_bidi_stream.cc",
     "src/quiche/quic/moqt/moqt_bitrate_adjuster.cc",
     "src/quiche/quic/moqt/moqt_error.cc",
     "src/quiche/quic/moqt/moqt_framer.cc",
