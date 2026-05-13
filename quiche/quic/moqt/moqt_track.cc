@@ -247,6 +247,7 @@ UpstreamFetch::UpstreamFetchTask::GetNextObject(PublishedObject& output) {
     return kPending;
   }
   if (next_object_->payload_length > 0 && payload_.empty()) {
+    need_object_available_callback_ = true;
     return kPending;
   }
   while (!payload_.empty()) {
