@@ -27,8 +27,8 @@ struct PublishedObjectMetadata {
   Location location;
   std::optional<uint64_t> subgroup;  // nullopt for datagrams.
   std::string extensions;
-  MoqtObjectStatus status;
-  MoqtPriority publisher_priority;
+  MoqtObjectStatus status = MoqtObjectStatus::kNormal;
+  MoqtPriority publisher_priority = kDefaultPublisherPriority;
   // The length of the entire payload, which might include data that is not
   // present in an encompassing PublishedObject or CachedObject.
   uint64_t payload_length;

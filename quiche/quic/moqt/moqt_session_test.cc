@@ -2658,6 +2658,7 @@ TEST_F(MoqtSessionTest, SendFragmentedFetchObject) {
   // FETCH_OK responding to the request.
   MoqtFetchOk expected_ok;
   expected_ok.request_id = fetch.request_id;
+  expected_ok.end_of_track = false;
   expected_ok.end_location = Location(1, 0);
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _));
   fetch_task->CallFetchResponseCallback(expected_ok);

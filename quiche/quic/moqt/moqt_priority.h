@@ -16,6 +16,8 @@ namespace moqt {
 // with the track by either the publisher or the subscriber.
 using MoqtPriority = uint8_t;
 static constexpr uint64_t kMaxPriority = 0xff;
+static constexpr MoqtPriority kDefaultPublisherPriority = 128;
+static constexpr MoqtPriority kDefaultSubscriberPriority = 128;
 
 // Indicates the desired order of delivering groups associated with a given
 // track.

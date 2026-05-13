@@ -16,13 +16,11 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/common/quiche_data_writer.h"
 
 namespace moqt {
 
@@ -205,7 +203,6 @@ constexpr quic::QuicTimeDelta kDefaultDeliveryTimeout =
     quic::QuicTimeDelta::Infinite();
 constexpr quic::QuicTimeDelta kDefaultExpires = quic::QuicTimeDelta::Infinite();
 constexpr bool kDefaultForward = true;
-constexpr uint8_t kDefaultSubscriberPriority = 128;
 // TODO(martinduke): Refactor this to be more like TrackExtensions.
 struct MessageParameters {
   MessageParameters() = default;
@@ -264,7 +261,6 @@ enum class ExtensionHeader : uint64_t {
 inline constexpr quic::QuicTimeDelta kDefaultMaxCacheDuration =
     quic::QuicTimeDelta::Infinite();
 inline constexpr bool kDefaultImmutableExtensions = false;
-inline constexpr MoqtPriority kDefaultPublisherPriority = 128;
 inline constexpr MoqtDeliveryOrder kDefaultGroupOrder =
     MoqtDeliveryOrder::kAscending;
 inline constexpr bool kDefaultDynamicGroups = false;
