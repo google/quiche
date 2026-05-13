@@ -107,6 +107,11 @@ void QboneClientSession::OnProofValid(
 void QboneClientSession::OnProofVerifyDetailsAvailable(
     const ProofVerifyDetails& verify_details) {}
 
+bool QboneClientSession::OnCertificateRequested(
+    const std::vector<std::string>& cert_authorities) {
+  return false;
+}
+
 bool QboneClientSession::HasActiveRequests() const {
   return GetNumActiveStreams() + num_draining_streams() > 0;
 }

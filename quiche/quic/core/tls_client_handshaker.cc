@@ -706,6 +706,32 @@ void TlsClientHandshaker::InsertSession(bssl::UniquePtr<SSL_SESSION> session) {
                          received_application_state_.get());
 }
 
+int TlsClientHandshaker::OnClientCertRequested(SSL* ssl) {
+  QUICHE_DCHECK(GetQuicRestartFlag(quic_client_cert_support));
+  if (SSL_get0_chain(ssl) != nullptr) {
+    QUIC_DVLOG(1) << "Client certificate already set, continuing handshake.";
+    return 1;
+  }
+  const STACK_OF(CRYPTO_BUFFER)* ca_names = SSL_get0_server_requested_CAs(ssl);
+  std::vector<std::string> cert_authorities;
+  if (ca_names != nullptr) {
+    for (size_t i = 0; i < sk_CRYPTO_BUFFER_num(ca_names); ++i) {
+      CRYPTO_BUFFER* buffer = sk_CRYPTO_BUFFER_value(ca_names, i);
+      cert_authorities.push_back(
+          std::string(reinterpret_cast<const char*>(CRYPTO_BUFFER_data(buffer)),
+                      CRYPTO_BUFFER_len(buffer)));
+    }
+  }
+
+  // OnCertificateRequested returns true if the implementation intends to
+  // provide the client certificate asynchronously, in which case we suspend the
+  // handshake.
+  if (proof_handler_->OnCertificateRequested(cert_authorities)) {
+    return -1;
+  }
+  return 1;
+}
+
 void TlsClientHandshaker::WriteMessage(EncryptionLevel level,
                                        absl::string_view data) {
   if (level == ENCRYPTION_HANDSHAKE && state_ < HANDSHAKE_PROCESSED) {

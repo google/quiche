@@ -1153,6 +1153,8 @@ class TestQuicSpdyClientSession : public QuicSpdyClientSessionBase {
   MOCK_METHOD(std::vector<std::string>, GetAlpnsToOffer, (), (const, override));
   MOCK_METHOD(void, OnAlpnSelected, (absl::string_view), (override));
   MOCK_METHOD(void, OnConfigNegotiated, (), (override));
+  MOCK_METHOD(bool, OnCertificateRequested,
+              (const std::vector<std::string>& cert_authorities), (override));
 
   QuicCryptoClientStream* GetMutableCryptoStream() override;
   const QuicCryptoClientStream* GetCryptoStream() const override;

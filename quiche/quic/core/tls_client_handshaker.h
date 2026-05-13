@@ -126,6 +126,8 @@ class QUICHE_EXPORT TlsClientHandshaker
 
   void InsertSession(bssl::UniquePtr<SSL_SESSION> session) override;
 
+  int OnClientCertRequested(SSL* ssl) override;
+
   bool PrepareZeroRttConfig(QuicResumptionState* cached_state);
 
   QuicSession* session() { return session_; }

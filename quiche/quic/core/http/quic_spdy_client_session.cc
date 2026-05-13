@@ -76,6 +76,11 @@ void QuicSpdyClientSession::OnProofValid(
 void QuicSpdyClientSession::OnProofVerifyDetailsAvailable(
     const ProofVerifyDetails& /*verify_details*/) {}
 
+bool QuicSpdyClientSession::OnCertificateRequested(
+    const std::vector<std::string>& /*cert_authorities*/) {
+  return false;
+}
+
 bool QuicSpdyClientSession::ShouldCreateOutgoingBidirectionalStream() {
   if (!crypto_stream_->encryption_established()) {
     QUIC_DLOG(INFO) << "Encryption not active so no outgoing stream created.";

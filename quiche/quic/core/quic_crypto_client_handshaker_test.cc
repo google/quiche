@@ -24,6 +24,10 @@ class TestProofHandler : public QuicCryptoClientStream::ProofHandler {
       const QuicCryptoClientConfig::CachedState& /*cached*/) override {}
   void OnProofVerifyDetailsAvailable(
       const ProofVerifyDetails& /*verify_details*/) override {}
+  bool OnCertificateRequested(
+      const std::vector<std::string>& /*cert_authorities*/) override {
+    return false;
+  }
 };
 
 class InsecureProofVerifier : public ProofVerifier {

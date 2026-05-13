@@ -9,6 +9,7 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <vector>
 
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
@@ -266,6 +267,12 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
     // will only be called for secure QUIC connections.
     virtual void OnProofVerifyDetailsAvailable(
         const ProofVerifyDetails& verify_details) = 0;
+
+    // Called when the server requests a client certificate. |cert_authorities|
+    // contains the DER-encoded requested CAs. Returns true if the handshake
+    // should be suspended to provide the certificate asynchronously.
+    virtual bool OnCertificateRequested(
+        const std::vector<std::string>& cert_authorities) = 0;
   };
 
   QuicCryptoClientStream(const QuicServerId& server_id, QuicSession* session,

@@ -365,6 +365,11 @@ class TestQuicSpdyClientSessionWithMigration
   void OnProofVerifyDetailsAvailable(
       const ProofVerifyDetails& /*verify_details*/) override {}
 
+  bool OnCertificateRequested(
+      const std::vector<std::string>& /*cert_authorities*/) override {
+    return false;
+  }
+
   TestStream* CreateOutgoingBidirectionalStream() override {
     QuicStreamId id = GetNextOutgoingBidirectionalStreamId();
     if (id ==

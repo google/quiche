@@ -72,6 +72,8 @@ class QUIC_EXPORT_PRIVATE QboneClientSession
   void OnProofValid(const QuicCryptoClientConfig::CachedState& cached) override;
   void OnProofVerifyDetailsAvailable(
       const ProofVerifyDetails& verify_details) override;
+  bool OnCertificateRequested(
+      const std::vector<std::string>& cert_authorities) override;
 
   QuicServerId server_id() { return server_id_; }
   QuicCryptoClientConfig* crypto_client_config() {

@@ -153,6 +153,14 @@ void TlsHandshaker::AdvanceHandshake() {
     return;
   }
   int ssl_error = SSL_get_error(ssl(), rv);
+
+  if (GetQuicRestartFlag(quic_client_cert_support) &&
+      ssl_error == SSL_ERROR_WANT_X509_LOOKUP) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_client_cert_support, 2, 2);
+    // Handshake is suspended until the client certificate is set.
+    return;
+  }
+
   if (ssl_error == expected_ssl_error_) {
     return;
   }

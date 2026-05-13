@@ -87,6 +87,8 @@ class QUICHE_EXPORT QuicSpdyClientSession
   void OnProofValid(const QuicCryptoClientConfig::CachedState& cached) override;
   void OnProofVerifyDetailsAvailable(
       const ProofVerifyDetails& verify_details) override;
+  bool OnCertificateRequested(
+      const std::vector<std::string>& cert_authorities) override;
 
   // QuicSpdyClientSessionWithMigration methods:
   void OnConnectionToBeClosedDueToMigrationError(

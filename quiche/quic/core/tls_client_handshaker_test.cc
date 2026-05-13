@@ -31,6 +31,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
@@ -38,6 +39,7 @@
 #include "quiche/quic/test_tools/quic_session_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simple_session_cache.h"
+#include "quiche/quic/test_tools/test_certificates.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
 
 using testing::_;
@@ -326,8 +328,10 @@ TEST_P(TlsClientHandshakerTest, ConnectionClosedOnTlsError) {
   // Send a zero-length ServerHello from server to client.
   char bogus_handshake_message[] = {
       // Handshake struct (RFC 8446 appendix B.3)
-      2,        // HandshakeType server_hello
-      0, 0, 0,  // uint24 length
+      2,  // HandshakeType server_hello
+      0,
+      0,
+      0,  // uint24 length
   };
   stream()->crypto_message_parser()->ProcessInput(
       absl::string_view(bogus_handshake_message,
@@ -1192,6 +1196,52 @@ TEST_P(TlsClientHandshakerTest, SetCompliancePolicyCnsa202407) {
     EXPECT_EQ(stream()->crypto_negotiated_params().cipher_suite,
               TLS1_3_CK_AES_256_GCM_SHA384 & 0xffff);
   }
+}
+
+TEST_P(TlsClientHandshakerTest, HandshakeSuspendedOnClientCertRequest) {
+  SetQuicRestartFlag(quic_client_cert_support, true);
+  crypto_config_ = std::make_unique<QuicCryptoClientConfig>(
+      std::make_unique<FakeProofVerifier>(), nullptr);
+  CreateConnection();
+  crypto_config_->set_proof_source(nullptr);
+  InitializeFakeServer();
+  server_session_->set_client_cert_mode(ClientCertMode::kRequest);
+  server_session_->Initialize();
+
+  std::vector<std::string> requested_cert_authorities;
+  EXPECT_CALL(*session_, OnCertificateRequested)
+      .WillOnce(testing::DoAll(testing::SaveArg<0>(&requested_cert_authorities),
+                               testing::Return(true)));
+  stream()->CryptoConnect();
+
+  // Advance the handshake until the CertificateRequest message is processed.
+  crypto_test_utils::AdvanceHandshake(connection_, stream(), 0,
+                                      server_connection_, server_stream(), 0);
+
+  // Verify that the handshake is suspended (not complete, but not failed).
+  EXPECT_FALSE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(connection_->connected());
+}
+
+TEST_P(TlsClientHandshakerTest, HandshakeCompletesWithPreconfiguredCert) {
+  auto proof_source = std::make_unique<DefaultClientProofSource>();
+  auto chain = quiche::QuicheReferenceCountedPointer<ProofSource::Chain>(
+      new ProofSource::Chain({std::string(quic::test::kTestCertificate)}));
+  std::unique_ptr<CertificatePrivateKey> key =
+      CertificatePrivateKey::LoadFromDer(
+          quic::test::kTestCertificatePrivateKey);
+
+  proof_source->AddCertAndKey({"*"}, std::move(chain), std::move(*key));
+  crypto_config_->set_proof_source(std::move(proof_source));
+
+  InitializeFakeServer();
+  server_session_->set_client_cert_mode(ClientCertMode::kRequire);
+
+  // Handshake should complete normally because the cert is proactive.
+  CompleteCryptoHandshake();
+
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(stream()->encryption_established());
 }
 
 }  // namespace

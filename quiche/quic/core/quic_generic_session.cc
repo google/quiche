@@ -31,6 +31,10 @@ class NoOpProofHandler : public QuicCryptoClientStream::ProofHandler {
  public:
   void OnProofValid(const QuicCryptoClientConfig::CachedState&) override {}
   void OnProofVerifyDetailsAvailable(const ProofVerifyDetails&) override {}
+  bool OnCertificateRequested(
+      const std::vector<std::string>& cert_authorities) override {
+    return false;
+  }
 };
 
 class NoOpServerCryptoHelper : public QuicCryptoServerStreamBase::Helper {

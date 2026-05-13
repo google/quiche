@@ -23,6 +23,10 @@ class QUICHE_EXPORT TlsClientConnection : public TlsConnection {
     // Called when a NewSessionTicket is received from the server.
     virtual void InsertSession(bssl::UniquePtr<SSL_SESSION> session) = 0;
 
+    // Called when the server requests a client certificate.
+    // Returns 1 on success, 0 on failure, or -1 to suspend the handshake.
+    virtual int OnClientCertRequested(SSL* ssl) = 0;
+
     // Provides the delegate for callbacks that are shared between client and
     // server.
     virtual TlsConnection::Delegate* ConnectionDelegate() = 0;
@@ -45,6 +49,10 @@ class QUICHE_EXPORT TlsClientConnection : public TlsConnection {
   // Registered as the callback for SSL_CTX_sess_set_new_cb, which calls
   // Delegate::InsertSession.
   static int NewSessionCallback(SSL* ssl, SSL_SESSION* session);
+
+  // Registered as the callback for SSL_CTX_set_cert_cb, which calls
+  // Delegate::OnClientCertRequested.
+  static int ClientCertRequestCallback(SSL* ssl, void* arg);
 
   Delegate* delegate_;
 };
