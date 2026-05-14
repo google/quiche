@@ -174,8 +174,10 @@ class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
 
   // Return the SSL struct object created by BoringSSL if the stream is using
   // TLS1.3. Otherwise, return nullptr.
-  // This method is used in Envoy.
+  // Note this method may return a nullptr after the TLS handshake is completed.
   virtual SSL* GetSsl() const = 0;
+
+  virtual absl::string_view sni() const;
 
   // Called to cancel retransmission of unencrypted crypto stream data.
   void NeuterUnencryptedStreamData();

@@ -12,6 +12,8 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "openssl/base.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/frames/quic_crypto_frame.h"
 #include "quiche/quic/core/quic_connection.h"
@@ -611,6 +613,21 @@ void QuicCryptoStream::ResetCryptoSubstreams() {
   substreams_.clear();
   std::vector<CryptoSubstream>().swap(substreams_);
   QUICHE_CODE_COUNT(quic_crypto_stream_reset_crypto_substreams);
+}
+
+absl::string_view QuicCryptoStream::sni() const {
+  if (!VersionIsIetfQuic(session()->transport_version())) {
+    return {};
+  }
+  const SSL* ssl = GetSsl();
+  if (ssl == nullptr) {
+    return {};
+  }
+  const char* sni = SSL_get_servername(ssl, TLSEXT_NAMETYPE_host_name);
+  if (sni != nullptr) {
+    return sni;
+  }
+  return {};
 }
 
 #undef ENDPOINT  // undef for jumbo builds
