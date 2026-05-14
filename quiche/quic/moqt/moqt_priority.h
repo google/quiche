@@ -12,6 +12,11 @@
 
 namespace moqt {
 
+// WebTransport lets applications split a session into multiple send groups
+// that have equal weight for scheduling. We don't have a use for that, so the
+// send group is always the same.
+constexpr webtransport::SendGroupId kMoqtSendGroupId = 0;
+
 // Priority that can be assigned to a track or individual streams associated
 // with the track by either the publisher or the subscriber.
 using MoqtPriority = uint8_t;

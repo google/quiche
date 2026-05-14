@@ -50,6 +50,7 @@
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/test_tools/in_memory_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
@@ -1302,7 +1303,7 @@ TEST_F(MoqtSessionTest, SubscribeOkWithBadTrackAlias) {
   control_stream->ReceiveMessage(subscribe_ok);
 }
 
-TEST_F(MoqtSessionTest, CreateOutgoingDataStreamAndSend) {
+TEST_F(MoqtSessionTest, CreateOutgoingSubgroupStreamAndSend) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
@@ -1917,6 +1918,11 @@ TEST_F(MoqtSessionTest, UnidirectionalStreamCannotBeOpened) {
   EXPECT_CALL(mock_stream_, visitor()).WillOnce([&] {
     return stream_visitor.get();
   });
+  webtransport::StreamPriority expected_priority{
+      kMoqtSendGroupId,
+      SendOrderForStream(kDefaultSubscriberPriority, kDefaultPublisherPriority,
+                         5, 0, MoqtDeliveryOrder::kAscending)};
+  EXPECT_CALL(mock_stream_, SetPriority(expected_priority));
   EXPECT_CALL(mock_stream_, GetStreamId())
       .WillRepeatedly(Return(kOutgoingUniStreamId));
   EXPECT_CALL(mock_session_, GetStreamById(kOutgoingUniStreamId))
@@ -2173,7 +2179,8 @@ TEST_F(MoqtSessionTest, OmitPublisherPriority) {
   std::make_shared<MockTrackPublisher>(request.full_track_name);
   TrackExtensions extensions(std::nullopt, std::nullopt, kLocalDefaultPriority,
                              std::nullopt, std::nullopt, std::nullopt);
-  EXPECT_CALL(*track, extensions).WillOnce(testing::ReturnRef(extensions));
+  EXPECT_CALL(*track, extensions)
+      .WillRepeatedly(testing::ReturnRef(extensions));
   MoqtObjectListener* listener = ReceiveSubscribeSynchronousOk(
       track, request, control_stream.get(), /*track_alias=*/0, extensions);
 

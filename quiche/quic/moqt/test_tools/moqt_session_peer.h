@@ -31,11 +31,11 @@
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_data_reader.h"
-#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -258,7 +258,7 @@ class MoqtSessionPeer {
   }
 
   static quic::QuicAlarm* GetAlarm(webtransport::StreamVisitor* visitor) {
-    return absl::down_cast<MoqtSession::OutgoingDataStream*>(visitor)
+    return absl::down_cast<OutgoingSubgroupStream*>(visitor)
         ->delivery_timeout_alarm_.get();
   }
 

@@ -41,6 +41,7 @@
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/quic/moqt/session_namespace_tree.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -367,7 +368,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   };
   // Represents a record for a single subscription to a local track that is
   // being sent to the peer.
-  class PublishedSubscription : public MoqtObjectListener {
+  class PublishedSubscription : public MoqtObjectListener,
+                                public SubscriptionPublisherInterface {
    public:
     PublishedSubscription(MoqtSession* session,
                           std::shared_ptr<MoqtTrackPublisher> track_publisher,
@@ -383,6 +385,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     uint64_t request_id() const { return request_id_; }
     MoqtTrackPublisher& publisher() { return *track_publisher_; }
+    std::shared_ptr<MoqtTrackPublisher> publisher_shared_ptr() {
+      return track_publisher_;
+    }
     uint64_t track_alias() const { return track_alias_; }
     MessageParameters& parameters() { return parameters_; }
     std::optional<Location> largest_sent() const { return largest_sent_; }
@@ -397,21 +402,47 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                               MoqtPriority publisher_priority) override;
     void OnTrackPublisherGone() override;
     void OnNewFinAvailable(Location location, uint64_t subgroup) override;
+    // also a part of SubscriptionPublisherInterface.
     void OnSubgroupAbandoned(uint64_t group, uint64_t subgroup,
                              webtransport::StreamErrorCode error_code) override;
     void OnGroupAbandoned(uint64_t group_id) override;
     void ProcessObjectAck(const MoqtObjectAck& message);
 
-    // Updates the window and other properties of the subscription in question.
-    void Update(const MessageParameters& parameters);
-    // Checks if a given Location or Group should be forwarded to the
-    // subscriber.
-    bool InWindow(Location location) {
+    // SubscriptionPublisherInterface implementation.
+    bool InWindow(Location location) override {
       return parameters_.forward() &&
              (!parameters_.subscription_filter.has_value() ||
               (parameters_.subscription_filter->WindowKnown() &&
                parameters_.subscription_filter->InWindow(location)));
+    };
+    bool alternate_delivery_timeout() override {
+      return session_->alternate_delivery_timeout_;
     }
+    const quic::QuicClock* clock() override {
+      return session_->callbacks_.clock;
+    }
+    quic::QuicTimeDelta delivery_timeout() override {
+      return std::min(
+          parameters_.delivery_timeout.value_or(kDefaultDeliveryTimeout),
+          publisher_delivery_timeout_.value_or(kDefaultDeliveryTimeout));
+    }
+    quic::QuicAlarmFactory* alarm_factory() override {
+      return session_->alarm_factory_.get();
+    }
+    void OnObjectSent(Location sequence) override;
+    void OnStreamTimeout(DataStreamIndex index) override {
+      reset_subgroups_.insert(index);
+      if (session_->alternate_delivery_timeout_) {
+        first_active_group_ = std::max(first_active_group_, index.group + 1);
+      }
+    }
+    // OnSubgroupAbandoned() is declared above with MoqtObjectListener.
+    void OnDataStreamDestroyed(DataStreamIndex) override;
+
+    // Updates the window and other properties of the subscription in question.
+    void Update(const MessageParameters& parameters);
+    // Checks if a given Location or Group should be forwarded to the
+    // subscriber.
     bool InWindow(uint64_t group) {
       return parameters_.forward() &&
              (!parameters_.subscription_filter.has_value() ||
@@ -421,9 +452,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     void OnDataStreamCreated(webtransport::StreamId id,
                              DataStreamIndex start_sequence);
-    void OnDataStreamDestroyed(webtransport::StreamId id,
-                               DataStreamIndex end_sequence);
-    void OnObjectSent(Location sequence);
 
     std::vector<webtransport::StreamId> GetAllStreams() const;
 
@@ -432,30 +460,18 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                                          std::optional<uint64_t> subgroup,
                                          MoqtPriority publisher_priority) const;
 
-    void AddQueuedOutgoingDataStream(const NewStreamParameters& parameters);
+    void AddQueuedOutgoingSubgroupStream(const NewStreamParameters& parameters);
     // Pops the pending outgoing data stream, with the highest send order.
     // The session keeps track of which subscribes have pending streams. This
     // function will trigger a QUICHE_DCHECK if called when there are no pending
     // streams.
-    NewStreamParameters NextQueuedOutgoingDataStream();
+    NewStreamParameters NextQueuedOutgoingSubgroupStream();
 
-    quic::QuicTimeDelta delivery_timeout() const {
-      return std::min(
-          parameters_.delivery_timeout.value_or(kDefaultDeliveryTimeout),
-          publisher_delivery_timeout_.value_or(kDefaultDeliveryTimeout));
-    }
     void set_subscriber_delivery_timeout(quic::QuicTimeDelta timeout) {
       parameters_.delivery_timeout = timeout;
     }
     void set_publisher_delivery_timeout(quic::QuicTimeDelta timeout) {
       publisher_delivery_timeout_ = timeout;
-    }
-
-    void OnStreamTimeout(DataStreamIndex index) {
-      reset_subgroups_.insert(index);
-      if (session_->alternate_delivery_timeout_) {
-        first_active_group_ = std::max(first_active_group_, index.group + 1);
-      }
     }
 
     uint64_t first_active_group() const { return first_active_group_; }
@@ -473,6 +489,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     }
 
     bool established() const { return established_; }
+
+    quiche::QuicheWeakPtr<SubscriptionPublisherInterface> GetWeakPtr() {
+      return weak_ptr_factory_.Create();
+    }
 
    private:
     friend class test::MoqtSessionPeer;
@@ -521,82 +541,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // FinalizeSendOrder() whenever delivering it to the MoqtSession.
     absl::btree_multimap<webtransport::SendOrder, NewStreamParameters>
         queued_outgoing_data_streams_;
-  };
-  class QUICHE_EXPORT OutgoingDataStream : public webtransport::StreamVisitor {
-   public:
-    OutgoingDataStream(MoqtSession* session, webtransport::Stream* stream,
-                       PublishedSubscription& subscription,
-                       const NewStreamParameters& parameters);
-    ~OutgoingDataStream();
-
-    // webtransport::StreamVisitor implementation.
-    void OnCanRead() override {}
-    void OnCanWrite() override;
-    void OnResetStreamReceived(webtransport::StreamErrorCode) override {}
-    void OnStopSendingReceived(
-        webtransport::StreamErrorCode error_code) override;
-    void OnWriteSideInDataRecvdState() override {}
-
-    class DeliveryTimeoutDelegate
-        : public quic::QuicAlarm::DelegateWithoutContext {
-     public:
-      explicit DeliveryTimeoutDelegate(OutgoingDataStream* stream)
-          : stream_(stream) {}
-      void OnAlarm() override;
-
-     private:
-      OutgoingDataStream* stream_;
-    };
-
-    webtransport::Stream* stream() const { return stream_; }
-
-    // Sends objects on the stream, starting with `next_object_`, until the
-    // stream becomes write-blocked or closed.
-    void SendObjects(PublishedSubscription& subscription);
-
-    // Sends a pure FIN on the stream, if the last object sent matches
-    // |last_object|. Otherwise, does nothing.
-    void Fin(Location last_object);
-
-    // Recomputes the send order and updates it for the associated stream.
-    void UpdateSendOrder(PublishedSubscription& subscription);
-
-    // Creates and sets an alarm for the given deadline. Does nothing if the
-    // alarm is already created.
-    void CreateAndSetAlarm(quic::QuicTime deadline);
-
-    DataStreamIndex index() const { return index_; }
-
-   private:
-    friend class test::MoqtSessionPeer;
-    friend class DeliveryTimeoutDelegate;
-
-    // Checks whether the associated subscription is still valid; if not, resets
-    // the stream and returns nullptr.
-    PublishedSubscription* GetSubscriptionIfValid();
-
-    MoqtSession* session_;
-    webtransport::Stream* stream_;
-    uint64_t subscription_id_;
-    DataStreamIndex index_;
-    const MoqtPriority publisher_priority_;
-    MoqtDataStreamType stream_type_;
-    // Minimum object ID that should go out next. The session doesn't know the
-    // exact ID of the next object in the stream because the next object could
-    // be in a different subgroup or simply be skipped.
-    uint64_t next_object_;
-    // Number of payload bytes from next_object_ that has already been written
-    // to the stream.
-    uint64_t already_delivered_ = 0;
-    // Used in subgroup streams to compute the object ID diff. If nullopt, the
-    // stream header has not been written yet.
-    std::optional<PublishedObjectMetadata> last_object_;
-    // If this data stream is for SUBSCRIBE, reset it if an object has been
-    // excessively delayed per Section 7.1.1.2.
-    std::unique_ptr<quic::QuicAlarm> delivery_timeout_alarm_;
-    // A weak pointer to an object owned by the session.  Used to make sure the
-    // session does not get called after being destroyed.
-    std::weak_ptr<void> session_liveness_;
+    // Must be last.
+    quiche::QuicheWeakPtrFactory<SubscriptionPublisherInterface>
+        weak_ptr_factory_;
   };
 
   class QUICHE_EXPORT PublishedFetch {
@@ -668,15 +615,22 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       MessageParameters parameters;
       parameters.expires = publisher_->expiration();
       parameters.largest_object = publisher_->largest_location();
-      session_->GetControlStream()->SendRequestOk(request_id_, parameters);
+      MoqtBidiStreamBase* control_stream = session_->GetControlStream();
+      if (control_stream != nullptr) {
+        control_stream->CheckStatus(
+            control_stream->SendRequestOk(request_id_, parameters));
+      }
       session_->incoming_track_status_.erase(request_id_);
       // No class access below this line!
     }
 
     void OnSubscribeRejected(MoqtRequestErrorInfo info) override {
-      session_->GetControlStream()->SendRequestError(
-          request_id_, info.error_code, info.retry_interval,
-          info.reason_phrase);
+      MoqtBidiStreamBase* control_stream = session_->GetControlStream();
+      if (control_stream != nullptr) {
+        control_stream->CheckStatus(control_stream->SendRequestError(
+            request_id_, info.error_code, info.retry_interval,
+            info.reason_phrase));
+      }
       session_->incoming_track_status_.erase(request_id_);
       // No class access below this line!
     }
@@ -756,6 +710,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // a session error if is not.
   bool ValidateRequestId(uint64_t request_id);
 
+  // TODO(martinduke): Delete once Fetch uses OutgoingSubgroupStream.
   // Actually sends an object on |stream| with track alias or fetch ID |id|
   // and metadata in |object|. Not for use with datagrams. Returns |true| if
   // the write was successful.

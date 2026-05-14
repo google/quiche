@@ -30,7 +30,6 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
@@ -48,6 +47,7 @@
 #include "quiche/quic/moqt/moqt_stream_map.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -67,11 +67,6 @@ namespace moqt {
 namespace {
 
 using ::quic::Perspective;
-
-// WebTransport lets applications split a session into multiple send groups
-// that have equal weight for scheduling. We don't have a use for that, so the
-// send group is always the same.
-constexpr webtransport::SendGroupId kMoqtSendGroupId = 0;
 
 class DefaultPublisher : public MoqtPublisher {
  public:
@@ -779,7 +774,7 @@ webtransport::Stream* MoqtSession::OpenOrQueueDataStream(
   }
   PublishedSubscription& subscription = *it->second;
   if (!session_->CanOpenNextOutgoingUnidirectionalStream()) {
-    subscription.AddQueuedOutgoingDataStream(parameters);
+    subscription.AddQueuedOutgoingSubgroupStream(parameters);
     // The subscription will notify the session about how to update the
     // session's queue.
     // TODO: limit the number of streams in the queue.
@@ -798,8 +793,17 @@ webtransport::Stream* MoqtSession::OpenDataStream(
         << "OpenDataStream called when creation of new streams is blocked.";
     return nullptr;
   }
-  new_stream->SetVisitor(std::make_unique<OutgoingDataStream>(
-      this, new_stream, subscription, parameters));
+  webtransport::StreamPriority priority{
+      kMoqtSendGroupId,
+      subscription.GetSendOrder(
+          Location(parameters.index.group, parameters.first_object),
+          parameters.index.subgroup,
+          parameters.publisher_priority.value_or(
+              subscription.default_publisher_priority()))};
+  new_stream->SetVisitor(std::make_unique<OutgoingSubgroupStream>(
+      framer_, new_stream, parameters.index, parameters.first_object,
+      subscription.GetWeakPtr(), subscription.publisher_shared_ptr(), priority,
+      subscription.track_alias(), &trace_recorder_));
   subscription.OnDataStreamCreated(new_stream->GetStreamId(), parameters.index);
   return new_stream;
 }
@@ -871,7 +875,7 @@ void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
     // Pop the item from the subscription's queue, which might update
     // subscribes_with_queued_outgoing_data_streams_.
     NewStreamParameters next_queued_stream =
-        subscription->second->NextQueuedOutgoingDataStream();
+        subscription->second->NextQueuedOutgoingSubgroupStream();
     // Check if Group is too old.
     if (next_queued_stream.index.group <
         subscription->second->first_active_group()) {
@@ -1933,7 +1937,8 @@ MoqtSession::PublishedSubscription::PublishedSubscription(
       can_have_joining_fetch_(subscribe.parameters.forward()),
       track_alias_(track_alias),
       parameters_(subscribe.parameters),
-      monitoring_interface_(monitoring_interface) {
+      monitoring_interface_(monitoring_interface),
+      weak_ptr_factory_(this) {
   if (monitoring_interface_ != nullptr) {
     monitoring_interface_->OnObjectAckSupportKnown(
         subscribe.parameters.oack_window_size);
@@ -2084,8 +2089,8 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
         if (raw_stream == nullptr) {
           continue;
         }
-        OutgoingDataStream* stream =
-            absl::down_cast<OutgoingDataStream*>(raw_stream->visitor());
+        OutgoingSubgroupStream* stream =
+            absl::down_cast<OutgoingSubgroupStream*>(raw_stream->visitor());
         stream->CreateAndSetAlarm(session_->callbacks_.clock->ApproximateNow() +
                                   delivery_timeout());
       }
@@ -2111,10 +2116,9 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
   if (raw_stream == nullptr) {
     return;
   }
-
-  OutgoingDataStream* stream =
-      absl::down_cast<OutgoingDataStream*>(raw_stream->visitor());
-  stream->SendObjects(*this);
+  OutgoingSubgroupStream* stream =
+      absl::down_cast<OutgoingSubgroupStream*>(raw_stream->visitor());
+  stream->SendObjects();
 }
 
 void MoqtSession::PublishedSubscription::OnTrackPublisherGone() {
@@ -2144,8 +2148,8 @@ void MoqtSession::PublishedSubscription::OnNewFinAvailable(Location location,
   if (raw_stream == nullptr) {
     return;
   }
-  OutgoingDataStream* stream =
-      absl::down_cast<OutgoingDataStream*>(raw_stream->visitor());
+  OutgoingSubgroupStream* stream =
+      absl::down_cast<OutgoingSubgroupStream*>(raw_stream->visitor());
   stream->Fin(location);
 }
 
@@ -2201,8 +2205,8 @@ void MoqtSession::PublishedSubscription::OnGroupAbandoned(uint64_t group_id) {
       continue;
     }
     raw_stream->ResetWithUserCode(kResetCodeDeliveryTimeout);
-    // Sending the Reset will call the destructor for OutgoingDataStream, which
-    // will erase it from the SendStreamMap.
+    // Sending the Reset will call the destructor for OutgoingSubgroupStream,
+    // which will erase it from the SendStreamMap.
   }
   first_active_group_ = std::max(first_active_group_, group_id + 1);
   absl::erase_if(reset_subgroups_, [&](const DataStreamIndex& index) {
@@ -2238,7 +2242,7 @@ webtransport::SendOrder MoqtSession::PublishedSubscription::GetSendOrder(
 }
 
 // Returns the highest send order in the subscription.
-void MoqtSession::PublishedSubscription::AddQueuedOutgoingDataStream(
+void MoqtSession::PublishedSubscription::AddQueuedOutgoingSubgroupStream(
     const NewStreamParameters& parameters) {
   std::optional<webtransport::SendOrder> start_send_order =
       queued_outgoing_data_streams_.empty()
@@ -2261,11 +2265,11 @@ void MoqtSession::PublishedSubscription::AddQueuedOutgoingDataStream(
 }
 
 MoqtSession::NewStreamParameters
-MoqtSession::PublishedSubscription::NextQueuedOutgoingDataStream() {
+MoqtSession::PublishedSubscription::NextQueuedOutgoingSubgroupStream() {
   QUICHE_DCHECK(!queued_outgoing_data_streams_.empty());
   if (queued_outgoing_data_streams_.empty()) {
-    QUICHE_BUG(NextQueuedOutgoingDataStream_no_stream)
-        << "NextQueuedOutgoingDataStream called when there are no streams "
+    QUICHE_BUG(NextQueuedOutgoingSubgroupStream_no_stream)
+        << "NextQueuedOutgoingSubgroupStream called when there are no streams "
            "pending.";
     return NewStreamParameters(0, 0, 0, 0);
   }
@@ -2294,7 +2298,7 @@ void MoqtSession::PublishedSubscription::OnDataStreamCreated(
   stream_map().AddStream(start_sequence, id);
 }
 void MoqtSession::PublishedSubscription::OnDataStreamDestroyed(
-    webtransport::StreamId id, DataStreamIndex end_sequence) {
+    DataStreamIndex end_sequence) {
   stream_map().RemoveStream(end_sequence);
 }
 
@@ -2305,200 +2309,6 @@ void MoqtSession::PublishedSubscription::OnObjectSent(Location sequence) {
     largest_sent_ = sequence;
   }
   // TODO: send PUBLISH_DONE if the subscription is done.
-}
-
-MoqtSession::OutgoingDataStream::OutgoingDataStream(
-    MoqtSession* session, webtransport::Stream* stream,
-    PublishedSubscription& subscription, const NewStreamParameters& parameters)
-    : session_(session),
-      stream_(stream),
-      subscription_id_(subscription.request_id()),
-      index_(parameters.index),
-      publisher_priority_(parameters.publisher_priority.value_or(
-          subscription.default_publisher_priority())),
-      // Always include extension header length, because it's difficult to know
-      // a priori if they're going to appear on a stream.
-      stream_type_(MoqtDataStreamType::Subgroup(
-          index_.subgroup, parameters.first_object, false,
-          !parameters.publisher_priority.has_value())),
-      next_object_(parameters.first_object),
-      session_liveness_(session->liveness_token_) {
-  UpdateSendOrder(subscription);
-  session->trace_recorder_.RecordSubgroupStreamCreated(
-      stream->GetStreamId(), subscription.track_alias(), parameters.index);
-}
-
-MoqtSession::OutgoingDataStream::~OutgoingDataStream() {
-  // Though it might seem intuitive that the session object has to outlive the
-  // connection object (and this is indeed how something like QuicSession and
-  // QuicStream works), this is not the true for WebTransport visitors: the
-  // session getting destroyed will inevitably lead to all related streams being
-  // destroyed, but the actual order of destruction is not guaranteed.  Thus, we
-  // need to check if the session still exists while accessing it in a stream
-  // destructor.
-  if (session_liveness_.expired()) {
-    return;
-  }
-  if (delivery_timeout_alarm_ != nullptr) {
-    delivery_timeout_alarm_->PermanentCancel();
-  }
-  auto it = session_->published_subscriptions_.find(subscription_id_);
-  if (it != session_->published_subscriptions_.end()) {
-    it->second->OnDataStreamDestroyed(stream_->GetStreamId(), index_);
-  }
-}
-
-void MoqtSession::OutgoingDataStream::OnCanWrite() {
-  PublishedSubscription* subscription = GetSubscriptionIfValid();
-  if (subscription == nullptr) {
-    return;
-  }
-  SendObjects(*subscription);
-}
-
-void MoqtSession::OutgoingDataStream::OnStopSendingReceived(
-    webtransport::StreamErrorCode error_code) {
-  PublishedSubscription* subscription = GetSubscriptionIfValid();
-  if (subscription == nullptr) {
-    return;
-  }
-  subscription->OnSubgroupAbandoned(index_.group, index_.subgroup, error_code);
-}
-
-void MoqtSession::OutgoingDataStream::DeliveryTimeoutDelegate::OnAlarm() {
-  auto it = stream_->session_->published_subscriptions_.find(
-      stream_->subscription_id_);
-  if (it != stream_->session_->published_subscriptions_.end()) {
-    it->second->OnStreamTimeout(stream_->index());
-  }
-  stream_->stream_->ResetWithUserCode(kResetCodeDeliveryTimeout);
-}
-
-MoqtSession::PublishedSubscription*
-MoqtSession::OutgoingDataStream::GetSubscriptionIfValid() {
-  auto it = session_->published_subscriptions_.find(subscription_id_);
-  if (it == session_->published_subscriptions_.end()) {
-    stream_->ResetWithUserCode(kResetCodeCancelled);
-    return nullptr;
-  }
-
-  PublishedSubscription* subscription = it->second.get();
-  if (!subscription->publisher().largest_location().has_value()) {
-    QUICHE_BUG(GetSubscriptionIfValid_InvalidTrackStatusOk)
-        << "The track publisher returned a status indicating that no objects "
-           "are available, but a stream for those objects exists.";
-    session_->Error(MoqtError::kInternalError,
-                    "Invalid track state provided by application");
-    return nullptr;
-  }
-  return subscription;
-}
-
-void MoqtSession::OutgoingDataStream::SendObjects(
-    PublishedSubscription& subscription) {
-  while (stream_->CanWrite()) {
-    std::optional<PublishedObject> object =
-        subscription.publisher().GetCachedObject(
-            index_.group, index_.subgroup, next_object_, already_delivered_);
-    if (!object.has_value()) {
-      break;
-    }
-    if (object->metadata.payload_length > 0 && object->payload.empty()) {
-      QUICHE_BUG(OutgoingDataStream_empty_payload)
-          << "Received non-empty object with no payload";
-      return;
-    }
-
-    QUICHE_DCHECK_EQ(object->metadata.location.group, index_.group);
-    QUICHE_DCHECK(object->metadata.subgroup == index_.subgroup);
-    if (!subscription.InWindow(object->metadata.location)) {
-      // It is possible that the next object became irrelevant due to a
-      // REQUEST_UPDATE.  Close the stream if so.
-      bool success = stream_->SendFin();
-      QUICHE_BUG_IF(OutgoingDataStream_fin_due_to_update, !success)
-          << "Writing FIN failed despite CanWrite() being true.";
-      return;
-    }
-
-    quic::QuicTimeDelta delivery_timeout = subscription.delivery_timeout();
-    if (!session_->alternate_delivery_timeout_ &&
-        session_->callbacks_.clock->ApproximateNow() -
-                object->metadata.arrival_time >
-            delivery_timeout) {
-      subscription.OnStreamTimeout(index_);
-      stream_->ResetWithUserCode(kResetCodeDeliveryTimeout);
-      return;
-    }
-    uint64_t start_offset = already_delivered_;
-    already_delivered_ +=
-        quic::MemSliceSpanTotalSize(absl::MakeSpan(object->payload));
-    bool fin_after_this = object->fin_after_this &&
-                          already_delivered_ == object->metadata.payload_length;
-    if (start_offset > 0) {  // Just send payload.
-      if (already_delivered_ == start_offset) {
-        // Partial delivery of an object but the payload is empty. This would
-        // result in an infinite loop.
-        QUICHE_BUG(OutgoingDataStream_empty_payload)
-            << "Empty payload for partial object " << object->metadata.location;
-        return;
-      }
-      webtransport::StreamWriteOptions options;
-      options.set_send_fin(fin_after_this);
-      absl::Status write_status =
-          stream_->Writev(absl::MakeSpan(object->payload), options);
-      if (!write_status.ok()) {
-        QUICHE_BUG(MoqtSession_WriteObjectToStream_write_failed)
-            << "Writing into MoQT stream failed despite CanWrite() being true "
-               "before; status: "
-            << write_status;
-        session_->Error(MoqtError::kInternalError, "Data stream write error");
-        return;
-      }
-    } else {
-      if (!session_->WriteObjectToStream(
-              stream_, subscription.track_alias(), object->metadata,
-              std::move(object->payload), stream_type_, last_object_,
-              fin_after_this)) {
-        // WriteObjectToStream() closes the connection on error, meaning that
-        // there is no need to process the stream any further.
-        return;
-      }
-      last_object_ = object->metadata;
-      subscription.OnObjectSent(object->metadata.location);
-      next_object_ = last_object_->location.object;
-    }
-    if (already_delivered_ == last_object_->payload_length) {
-      ++next_object_;
-      already_delivered_ = 0;
-    } else {
-      return;
-    }
-    if (object->fin_after_this && !delivery_timeout.IsInfinite() &&
-        !session_->alternate_delivery_timeout_) {
-      CreateAndSetAlarm(object->metadata.arrival_time + delivery_timeout);
-    }
-  }
-}
-
-void MoqtSession::OutgoingDataStream::Fin(Location last_object) {
-  QUICHE_DCHECK_EQ(last_object.group, index_.group);
-  if (next_object_ <= last_object.object) {
-    // There is still data to send, do nothing.
-    return;
-  }
-  // All data has already been sent; send a pure FIN.
-  bool success = stream_->SendFin();
-  QUICHE_BUG_IF(OutgoingDataStream_fin_failed, !success)
-      << "Writing pure FIN failed.";
-  auto it = session_->published_subscriptions_.find(subscription_id_);
-  if (it == session_->published_subscriptions_.end()) {
-    return;
-  }
-  quic::QuicTimeDelta delivery_timeout = it->second->delivery_timeout();
-  if (!delivery_timeout.IsInfinite()) {
-    CreateAndSetAlarm(session_->callbacks_.clock->ApproximateNow() +
-                      delivery_timeout);
-  }
 }
 
 bool MoqtSession::WriteObjectToStream(
@@ -2633,24 +2443,6 @@ void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
       default_publisher_priority_.value_or(kDefaultPublisherPriority));
   session_->session_->SendOrQueueDatagram(datagram.AsStringView());
   OnObjectSent(object->metadata.location);
-}
-
-void MoqtSession::OutgoingDataStream::UpdateSendOrder(
-    PublishedSubscription& subscription) {
-  stream_->SetPriority(webtransport::StreamPriority{
-      /*send_group_id=*/kMoqtSendGroupId,
-      subscription.GetSendOrder(Location(index_.group, next_object_),
-                                index_.subgroup, publisher_priority_)});
-}
-
-void MoqtSession::OutgoingDataStream::CreateAndSetAlarm(
-    quic::QuicTime deadline) {
-  if (delivery_timeout_alarm_ != nullptr) {
-    return;
-  }
-  delivery_timeout_alarm_ = absl::WrapUnique(
-      session_->alarm_factory_->CreateAlarm(new DeliveryTimeoutDelegate(this)));
-  delivery_timeout_alarm_->Set(deadline);
 }
 
 MoqtSession::PublishedFetch::FetchStreamVisitor::FetchStreamVisitor(
