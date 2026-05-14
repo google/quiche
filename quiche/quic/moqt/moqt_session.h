@@ -391,7 +391,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     uint64_t track_alias() const { return track_alias_; }
     MessageParameters& parameters() { return parameters_; }
     std::optional<Location> largest_sent() const { return largest_sent_; }
-    void set_subscriber_priority(MoqtPriority priority);
 
     // MoqtObjectListener implementation.
     void OnSubscribeAccepted() override;

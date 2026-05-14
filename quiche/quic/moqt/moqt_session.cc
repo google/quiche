@@ -1978,26 +1978,33 @@ void MoqtSession::PublishedSubscription::Update(
     const MessageParameters& parameters) {
   // TODO(martinduke): If there are auth tokens, this probably has to go to the
   // application.
+  MoqtPriority old_priority =
+      parameters_.subscriber_priority.value_or(kDefaultSubscriberPriority);
   parameters_.Update(parameters);
   can_have_joining_fetch_ = parameters_.forward();
+  if (parameters.subscriber_priority.has_value()) {  // priority changed.
+    // Reprioritize all active streams.
+    for (const auto stream_id : stream_map().GetAllStreams()) {
+      webtransport::Stream* stream =
+          session_->session_->GetStreamById(stream_id);
+      if (stream == nullptr) {
+        continue;
+      }
+      OutgoingSubgroupStream* outgoing_stream =
+          absl::down_cast<OutgoingSubgroupStream*>(stream->visitor());
+      outgoing_stream->UpdatePriority(
+          parameters_.subscriber_priority.value_or(kDefaultSubscriberPriority));
+    }
+    if (queued_outgoing_data_streams_.empty()) {
+      return;
+    }
+    webtransport::SendOrder old_send_order =
+        UpdateSendOrderForSubscriberPriority(
+            queued_outgoing_data_streams_.rbegin()->first, old_priority);
+    session_->UpdateQueuedSendOrder(request_id_, old_send_order,
+                                    FinalizeSendOrder(old_send_order));
+  }
 }
-
-void MoqtSession::PublishedSubscription::set_subscriber_priority(
-    MoqtPriority priority) {
-  if (priority ==
-      parameters_.subscriber_priority.value_or(kDefaultSubscriberPriority)) {
-    return;
-  }
-  if (queued_outgoing_data_streams_.empty()) {
-    parameters_.subscriber_priority = priority;
-    return;
-  }
-  webtransport::SendOrder old_send_order =
-      FinalizeSendOrder(queued_outgoing_data_streams_.rbegin()->first);
-  parameters_.subscriber_priority = priority;
-  session_->UpdateQueuedSendOrder(request_id_, old_send_order,
-                                  FinalizeSendOrder(old_send_order));
-};
 
 void MoqtSession::PublishedSubscription::OnSubscribeAccepted() {
   ControlStream* stream = session_->GetControlStream();
@@ -2116,9 +2123,7 @@ void MoqtSession::PublishedSubscription::OnNewObjectAvailable(
   if (raw_stream == nullptr) {
     return;
   }
-  OutgoingSubgroupStream* stream =
-      absl::down_cast<OutgoingSubgroupStream*>(raw_stream->visitor());
-  stream->SendObjects();
+  raw_stream->visitor()->OnCanWrite();
 }
 
 void MoqtSession::PublishedSubscription::OnTrackPublisherGone() {

@@ -180,8 +180,9 @@ class MoqtSessionPeer {
   static void UpdateSubscriberPriority(MoqtSession* session,
                                        uint64_t subscribe_id,
                                        MoqtPriority priority) {
-    session->published_subscriptions_[subscribe_id]->set_subscriber_priority(
-        priority);
+    MessageParameters parameters;
+    parameters.subscriber_priority = priority;
+    session->published_subscriptions_[subscribe_id]->Update(parameters);
   }
 
   static SubscribeRemoteTrack* remote_track(MoqtSession* session,

@@ -80,11 +80,6 @@ class QUICHE_EXPORT OutgoingSubgroupStream
     OutgoingSubgroupStream* stream_;
   };
 
-  // Sends objects on the stream, starting with `next_object_`, until the
-  // stream becomes write-blocked or closed. Can reset the stream, destroying
-  // the class, on a write error.
-  void SendObjects();
-
   // Sends a pure FIN on the stream, if the last object sent matches
   // |last_object|. Otherwise, does nothing.
   void Fin(Location last_object);
@@ -105,6 +100,11 @@ class QUICHE_EXPORT OutgoingSubgroupStream
  private:
   friend class DeliveryTimeoutDelegate;
   friend class test::MoqtSessionPeer;
+
+  // Sends objects on the stream, starting with `next_object_`, until the
+  // stream becomes write-blocked or closed. Can reset the stream, destroying
+  // the class, on a write error.
+  void SendObjects();
 
   // Writes an object to the stream. Returns false if the write failed. The
   // caller should reset the stream if that happens.
