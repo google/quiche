@@ -1169,12 +1169,6 @@ class QUICHE_EXPORT QuicSession
   void PerformActionOnNonStaticStreams(
       quiche::UnretainedCallback<bool(QuicStream*)> action);
 
-  // This is a temporary workaround to fix compile breakage in the Chromium
-  // roll. Do not call this method or add more references to it.
-  // TODO: b/508413463 - Remove this method once a version of Open Screen that
-  // doesn't override this method has rolled into Chromium.
-  virtual QuicStream* CreateIncomingStream(PendingStream*) { return nullptr; }
-
   // A counter for streams which have sent and received FIN but waiting for
   // application to consume data.
   size_t num_draining_streams_;

@@ -305,8 +305,8 @@ class TestSession : public QuicSession {
     return stream;
   }
 
-  TestStream* CreateIncomingStream(PendingStream* pending) override {
-    TestStream* stream = new TestStream(*pending, this);
+  TestStream* CreateIncomingStream(PendingStream& pending) {
+    TestStream* stream = new TestStream(pending, this);
     ActivateStream(absl::WrapUnique(stream));
     ++num_incoming_streams_created_;
     return stream;
@@ -317,14 +317,14 @@ class TestSession : public QuicSession {
   // receiving stream frames.
   QuicStream* ProcessBidirectionalPendingStream(
       PendingStream& pending) override {
-    return CreateIncomingStream(&pending);
+    return CreateIncomingStream(pending);
   }
   QuicStream* ProcessReadUnidirectionalPendingStream(
       PendingStream& pending) override {
     struct iovec iov;
     if (pending.sequencer()->GetReadableRegion(&iov)) {
       // Create TestStream once the first byte is received.
-      return CreateIncomingStream(&pending);
+      return CreateIncomingStream(pending);
     }
     return nullptr;
   }
