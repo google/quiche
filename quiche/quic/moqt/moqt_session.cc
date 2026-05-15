@@ -650,66 +650,6 @@ void MoqtSession::GoAway(absl::string_view new_session_uri) {
                              kDefaultGoAwayTimeout);
 }
 
-void MoqtSession::PublishedFetch::FetchStreamVisitor::OnCanWrite() {
-  std::shared_ptr<PublishedFetch> fetch = fetch_.lock();
-  if (fetch == nullptr) {
-    return;
-  }
-  PublishedObject object;
-  while (stream_->CanWrite()) {
-    MoqtFetchTask::GetNextObjectResult result =
-        fetch->fetch_task()->GetNextObject(object);
-    switch (result) {
-      case MoqtFetchTask::GetNextObjectResult::kSuccess:
-        // Skip ObjectDoesNotExist in FETCH.
-        if (object.metadata.status != MoqtObjectStatus::kNormal) {
-          QUIC_BUG(quic_bug_got_doesnotexist_in_fetch)
-              << "Got Non-normal object in FETCH";
-          continue;
-        }
-        if (last_object_.has_value() &&
-            object.metadata.location == last_object_->location) {
-          // This is the continuation of the previous object.
-          webtransport::StreamWriteOptions options;
-          absl::Status write_status =
-              stream_->Writev(absl::MakeSpan(object.payload), options);
-          if (!write_status.ok()) {
-            QUICHE_BUG(MoqtSession_WriteObjectToStream_write_failed)
-                << "Writing into MoQT stream failed despite CanWrite() being "
-                   "true before; status: "
-                << write_status;
-            fetch->session_->Error(MoqtError::kInternalError,
-                                   "Data stream write error");
-            return;
-          }
-          break;
-        }
-        if (fetch->session_->WriteObjectToStream(
-                stream_, fetch->request_id(), object.metadata,
-                std::move(object.payload), MoqtDataStreamType::Fetch(),
-                // last Object ID doesn't matter for FETCH, just use zero.
-                last_object_, /*fin=*/false)) {
-          last_object_ = object.metadata;
-        }
-        break;
-      case MoqtFetchTask::GetNextObjectResult::kPending:
-        return;
-      case MoqtFetchTask::GetNextObjectResult::kEof:
-        // TODO(martinduke): Either prefetch the next object, or alter the API
-        // so that we're not sending FIN in a separate frame.
-        if (!webtransport::SendFinOnStream(*stream_).ok()) {
-          QUIC_DVLOG(1) << "Sending FIN onStream " << stream_->GetStreamId()
-                        << " failed";
-        }
-        return;
-      case MoqtFetchTask::GetNextObjectResult::kError:
-        stream_->ResetWithUserCode(static_cast<webtransport::StreamErrorCode>(
-            fetch->fetch_task()->GetStatus().code()));
-        return;
-    }
-  }
-}
-
 void MoqtSession::GoAwayTimeoutDelegate::OnAlarm() {
   session_->Error(MoqtError::kGoawayTimeout,
                   "Peer did not close session after GOAWAY");
@@ -808,7 +748,7 @@ webtransport::Stream* MoqtSession::OpenDataStream(
   return new_stream;
 }
 
-bool MoqtSession::OpenDataStream(std::shared_ptr<PublishedFetch> fetch,
+bool MoqtSession::OpenDataStream(PublishedFetch* fetch,
                                  webtransport::SendOrder send_order) {
   webtransport::Stream* new_stream =
       session_->OpenOutgoingUnidirectionalStream();
@@ -818,14 +758,24 @@ bool MoqtSession::OpenDataStream(std::shared_ptr<PublishedFetch> fetch,
     return false;
   }
   fetch->SetStreamId(new_stream->GetStreamId());
-  new_stream->SetPriority(webtransport::StreamPriority{
-      /*send_group_id=*/kMoqtSendGroupId, send_order});
   // The line below will lead to updating ObjectsAvailableCallback in the
   // FetchTask to call OnCanWrite() on the stream. If there is an object
   // available, the callback will be invoked synchronously (i.e. before
   // SetVisitor() returns).
-  new_stream->SetVisitor(
-      std::make_unique<PublishedFetch::FetchStreamVisitor>(fetch, new_stream));
+  new_stream->SetVisitor(std::make_unique<OutgoingFetchStream>(
+      framer_, new_stream, fetch->request_id(),
+      webtransport::StreamPriority{/*send_group_id=*/kMoqtSendGroupId,
+                                   send_order},
+      fetch->release_fetch_task(),
+      // use weakptr to avoid use-after-free for this.
+      [weakptr = GetWeakPtr(), request_id = fetch->request_id()]() {
+        if (weakptr.IsValid()) {
+          auto session =
+              absl::down_cast<MoqtSession*>(weakptr.GetIfAvailable());
+          session->incoming_fetches_.erase(request_id);
+        }
+      },
+      &trace_recorder_));
   return true;
 }
 
@@ -864,7 +814,7 @@ void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
       auto fetch = incoming_fetches_.find(next->subscription_id);
       // Create the stream if the fetch still exists.
       if (fetch != incoming_fetches_.end() &&
-          !OpenDataStream(fetch->second, next->send_order)) {
+          !OpenDataStream(fetch->second.get(), next->send_order)) {
         return;  // A QUIC_BUG has fired because this shouldn't happen.
       }
       // FETCH needs only one stream, and can be deleted from the queue. Or,
@@ -1567,8 +1517,8 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
     return SendRequestError(message.request_id, RequestErrorCode::kInvalidRange,
                             std::nullopt, fetch->GetStatus().message());
   }
-  auto published_fetch = std::make_unique<PublishedFetch>(
-      message.request_id, session_, std::move(fetch));
+  auto published_fetch =
+      std::make_unique<PublishedFetch>(message.request_id, std::move(fetch));
   auto result = session_->incoming_fetches_.emplace(message.request_id,
                                                     std::move(published_fetch));
   if (!result.second) {  // Emplace failed.
@@ -1578,7 +1528,7 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
                             RequestErrorCode::kInternalError, std::nullopt,
                             "Could not initialize FETCH state");
   }
-  MoqtFetchTask* fetch_task = result.first->second->fetch_task();
+  MoqtFetchTask* fetch_task = result.first->second->fetch_task_ptr();
   fetch_task->SetFetchResponseCallback(
       [this, request_id = message.request_id](
           std::variant<MoqtFetchOk, MoqtRequestError> message) {
@@ -1610,7 +1560,7 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
           return;
         }
         if (!session_->session()->CanOpenNextOutgoingUnidirectionalStream() ||
-            !session_->OpenDataStream(it->second, send_order)) {
+            !session_->OpenDataStream(it->second.get(), send_order)) {
           if (!session_->subscribes_with_queued_outgoing_data_streams_.contains(
                   SubscriptionWithQueuedStream(request_id, send_order))) {
             // Put the FETCH in the queue for a new stream unless it has already
@@ -2316,50 +2266,6 @@ void MoqtSession::PublishedSubscription::OnObjectSent(Location sequence) {
   // TODO: send PUBLISH_DONE if the subscription is done.
 }
 
-bool MoqtSession::WriteObjectToStream(
-    webtransport::Stream* stream, uint64_t id,
-    const PublishedObjectMetadata& metadata,
-    std::vector<quiche::QuicheMemSlice> payload, MoqtDataStreamType type,
-    std::optional<PublishedObjectMetadata> last_object, bool fin) {
-  QUICHE_DCHECK(stream->CanWrite());
-  MoqtObject header;
-  header.track_alias = id;
-  header.group_id = metadata.location.group;
-  header.subgroup_id = metadata.subgroup;
-  header.object_id = metadata.location.object;
-  header.publisher_priority = metadata.publisher_priority;
-  header.extension_headers = metadata.extensions;
-  header.object_status = metadata.status;
-  header.payload_length = metadata.payload_length;
-
-  quiche::QuicheBuffer serialized_header =
-      framer_.SerializeObjectHeader(header, type, last_object);
-  // TODO(vasilvv): add a version of WebTransport write API that accepts
-  // memslices so that we can avoid a copy here.
-  std::vector<quiche::QuicheMemSlice> write_vector;
-  write_vector.reserve(payload.size() + 1);
-  write_vector.push_back(quiche::QuicheMemSlice(std::move(serialized_header)));
-  for (auto& slice : payload) {
-    write_vector.push_back(std::move(slice));
-  }
-  webtransport::StreamWriteOptions options;
-  options.set_send_fin(fin);
-  absl::Status write_status =
-      stream->Writev(absl::MakeSpan(write_vector), options);
-  if (!write_status.ok()) {
-    QUICHE_BUG(MoqtSession_WriteObjectToStream_write_failed)
-        << "Writing into MoQT stream failed despite CanWrite() being true "
-           "before; status: "
-        << write_status;
-    Error(MoqtError::kInternalError, "Data stream write error");
-    return false;
-  }
-
-  QUIC_DVLOG(1) << "Stream " << stream->GetStreamId() << " successfully wrote "
-                << metadata.location << ", fin = " << fin;
-  return true;
-}
-
 void MoqtSession::OnMalformedTrack(RemoteTrack* track) {
   if (!track->is_fetch()) {
     absl::down_cast<SubscribeRemoteTrack*>(track)->visitor()->OnMalformedTrack(
@@ -2448,15 +2354,6 @@ void MoqtSession::PublishedSubscription::SendDatagram(Location sequence) {
       default_publisher_priority_.value_or(kDefaultPublisherPriority));
   session_->session_->SendOrQueueDatagram(datagram.AsStringView());
   OnObjectSent(object->metadata.location);
-}
-
-MoqtSession::PublishedFetch::FetchStreamVisitor::FetchStreamVisitor(
-    std::shared_ptr<PublishedFetch> fetch, webtransport::Stream* stream)
-    : fetch_(fetch), stream_(stream) {
-  fetch->fetch_task()->SetObjectAvailableCallback(
-      [this]() { this->OnCanWrite(); });
-  fetch->session()->trace_recorder_.RecordFetchStreamCreated(
-      stream->GetStreamId());
 }
 
 void MoqtSession::PublishedSubscription::ProcessObjectAck(

@@ -8,11 +8,13 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <utility>
 
 #include "absl/base/nullability.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
@@ -21,6 +23,7 @@
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -29,6 +32,55 @@ namespace moqt {
 namespace test {
 class MoqtSessionPeer;
 }
+
+// A base class for locally initiated unidirectional streams, which can serve
+// either a Subgroup or a FETCH response. It contains most of the machinery for
+// managing the WebTransport stream.
+class OutgoingUniStream : public webtransport::StreamVisitor {
+ public:
+  OutgoingUniStream(MoqtFramer framer,
+                    webtransport::Stream* absl_nonnull stream,
+                    webtransport::StreamPriority priority,
+                    uint64_t track_identifier)
+      : stream_(*stream),
+        priority_(priority),
+        track_identifier_(track_identifier),
+        framer_(framer) {
+    stream_.SetPriority(priority_);
+  }
+  virtual ~OutgoingUniStream() = default;
+
+  // webtransport::StreamVisitor implementation.
+  void OnCanRead() override {}  // Write-only.
+  // OnCanWrite() deferred to children.
+  virtual void OnResetStreamReceived(webtransport::StreamErrorCode) override {}
+  // OnStopSendingReceived() deferred to children.
+  void OnWriteSideInDataRecvdState() override {}
+
+  // Recomputes the send order and updates it for the associated stream.
+  void UpdatePriority(MoqtPriority subscriber_priority);
+
+ protected:
+  webtransport::Stream& stream() { return stream_; }
+  std::optional<PublishedObjectMetadata>& last_object() { return last_object_; }
+  void set_last_object(PublishedObjectMetadata metadata) {
+    last_object_ = std::move(metadata);
+  }
+
+  // Writes an object to the stream. Returns false if the write failed. The
+  // caller should reset the stream if that happens.
+  bool WriteObjectToStream(PublishedObject& object, MoqtDataStreamType type);
+
+ private:
+  webtransport::Stream& stream_;  // Always valid because it owns this object.
+  webtransport::StreamPriority priority_;
+  uint64_t track_identifier_;  // track alias or fetch request ID.
+
+  MoqtFramer framer_;
+  // Used to compute the object ID diff and pass metadata for partial objects.
+  // If nullopt, the stream header has not been written yet.
+  std::optional<PublishedObjectMetadata> last_object_;
+};
 
 // This interface provides information about the subscription.
 class SubscriptionPublisherInterface {
@@ -48,8 +100,7 @@ class SubscriptionPublisherInterface {
 };
 
 // This is for subscriptions only. FETCH uses its own construct.
-class QUICHE_EXPORT OutgoingSubgroupStream
-    : public webtransport::StreamVisitor {
+class QUICHE_EXPORT OutgoingSubgroupStream : public OutgoingUniStream {
  public:
   // |visitor| is owned by the subscription, so the WeakPtr also serves as a
   // liveness token.
@@ -62,12 +113,9 @@ class QUICHE_EXPORT OutgoingSubgroupStream
       MoqtTraceRecorder* absl_nonnull trace_recorder);
   ~OutgoingSubgroupStream();
 
-  // webtransport::StreamVisitor implementation.
-  void OnCanRead() override {}
+  // webtransport::StreamVisitor overrides.
   void OnCanWrite() override;
-  void OnResetStreamReceived(webtransport::StreamErrorCode) override {}
   void OnStopSendingReceived(webtransport::StreamErrorCode error_code) override;
-  void OnWriteSideInDataRecvdState() override {}
 
   class DeliveryTimeoutDelegate
       : public quic::QuicAlarm::DelegateWithoutContext {
@@ -86,13 +134,6 @@ class QUICHE_EXPORT OutgoingSubgroupStream
   // Reset can be called directly on the stream, with no need to involve the
   // visitor.
 
-  // Recomputes the send order and updates it for the associated stream.
-  void UpdatePriority(MoqtPriority subscriber_priority) {
-    priority_.send_order = UpdateSendOrderForSubscriberPriority(
-        priority_.send_order, subscriber_priority);
-    stream_.SetPriority(priority_);
-  }
-
   // Creates and sets an alarm for the given deadline. Does nothing if the
   // alarm is already created.
   void CreateAndSetAlarm(quic::QuicTime deadline);
@@ -106,14 +147,9 @@ class QUICHE_EXPORT OutgoingSubgroupStream
   // the class, on a write error.
   void SendObjects();
 
-  // Writes an object to the stream. Returns false if the write failed. The
-  // caller should reset the stream if that happens.
-  bool WriteObjectToStream(PublishedObject& object);
-
-  webtransport::Stream& stream_;  // Always valid because it owns this object.
   DataStreamIndex index_;
   quiche::QuicheWeakPtr<SubscriptionPublisherInterface> visitor_;
-  MoqtFramer framer_;
+
   MoqtDataStreamType type_;
   uint64_t track_alias_;
   std::shared_ptr<MoqtTrackPublisher> publisher_;
@@ -124,14 +160,32 @@ class QUICHE_EXPORT OutgoingSubgroupStream
   // Number of payload bytes from next_object_ that has already been written
   // to the stream.
   uint64_t already_delivered_ = 0;
-  // Used in subgroup streams to compute the object ID diff and pass metadata
-  // for partial objects. If nullopt, the stream header has not been written
-  // yet.
-  std::optional<PublishedObjectMetadata> last_object_;
-  webtransport::StreamPriority priority_;
+
   // If this data stream is for SUBSCRIBE, reset it if an object has been
   // excessively delayed per Section 7.1.1.2.
   std::unique_ptr<quic::QuicAlarm> delivery_timeout_alarm_;
+};
+
+using FetchStreamCloseCallback = quiche::SingleUseCallback<void()>;
+
+class QUICHE_EXPORT OutgoingFetchStream : public OutgoingUniStream {
+ public:
+  OutgoingFetchStream(MoqtFramer framer,
+                      webtransport::Stream* absl_nonnull stream,
+                      uint64_t request_id,
+                      webtransport::StreamPriority priority,
+                      std::unique_ptr<MoqtFetchTask> incoming_objects,
+                      FetchStreamCloseCallback close_callback,
+                      MoqtTraceRecorder* absl_nonnull trace_recorder);
+  ~OutgoingFetchStream();
+
+  // webtransport::StreamVisitor implementation.
+  void OnCanWrite() override;
+  void OnStopSendingReceived(webtransport::StreamErrorCode error_code) override;
+
+ private:
+  std::unique_ptr<MoqtFetchTask> incoming_objects_;
+  FetchStreamCloseCallback close_callback_;
 };
 
 }  // namespace moqt

@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "absl/base/nullability.h"
+#include "absl/cleanup/cleanup.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
@@ -547,49 +548,24 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   class QUICHE_EXPORT PublishedFetch {
    public:
-    PublishedFetch(uint64_t request_id, MoqtSession* session,
-                   std::unique_ptr<MoqtFetchTask> fetch)
-        : session_(session),
-          fetch_(std::move(fetch)),
-          request_id_(request_id) {}
+    PublishedFetch(uint64_t request_id, std::unique_ptr<MoqtFetchTask> fetch)
+        : request_id_(request_id), fetch_(std::move(fetch)) {}
 
-    class FetchStreamVisitor : public webtransport::StreamVisitor {
-     public:
-      FetchStreamVisitor(std::shared_ptr<PublishedFetch> fetch,
-                         webtransport::Stream* stream);
-      ~FetchStreamVisitor() {
-        std::shared_ptr<PublishedFetch> fetch = fetch_.lock();
-        if (fetch != nullptr) {
-          fetch->session()->incoming_fetches_.erase(fetch->request_id_);
-        }
-      }
-      // webtransport::StreamVisitor implementation.
-      void OnCanRead() override {}  // Write-only stream.
-      void OnCanWrite() override;
-      void OnResetStreamReceived(
-          webtransport::StreamErrorCode /*error*/) override {
-      }  // Write-only stream
-      void OnStopSendingReceived(
-          webtransport::StreamErrorCode /*error*/) override {}
-      void OnWriteSideInDataRecvdState() override {}
-
-     private:
-      std::weak_ptr<PublishedFetch> fetch_;
-      std::optional<PublishedObjectMetadata> last_object_;
-      webtransport::Stream* stream_;
-    };
-
-    MoqtFetchTask* fetch_task() { return fetch_.get(); }
-    MoqtSession* session() { return session_; }
+    MoqtFetchTask* fetch_task_ptr() { return fetch_.get(); }
+    // Can only be called once.
+    std::unique_ptr<MoqtFetchTask> release_fetch_task() {
+      auto on_return = absl::MakeCleanup([this] { fetch_ = nullptr; });
+      return std::move(fetch_);
+    }
     uint64_t request_id() const { return request_id_; }
     void SetStreamId(webtransport::StreamId id) { stream_id_ = id; }
 
    private:
-    MoqtSession* session_;
-    std::unique_ptr<MoqtFetchTask> fetch_;
     uint64_t request_id_;
     // Store the stream ID in case a FETCH_CANCEL requires a reset.
     std::optional<webtransport::StreamId> stream_id_;
+    // Temporary storage until the stream is created.
+    std::unique_ptr<MoqtFetchTask> fetch_;
   };
 
   class QUICHE_EXPORT DownstreamTrackStatus : public MoqtObjectListener {
@@ -698,7 +674,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   webtransport::Stream* OpenDataStream(PublishedSubscription& subscription,
                                        const NewStreamParameters& parameters);
   // Returns false if creation failed.
-  [[nodiscard]] bool OpenDataStream(std::shared_ptr<PublishedFetch> fetch,
+  [[nodiscard]] bool OpenDataStream(PublishedFetch* fetch,
                                     webtransport::SendOrder send_order);
 
   SubscribeRemoteTrack* RemoteTrackByAlias(uint64_t track_alias);
@@ -708,17 +684,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // Checks that a subscribe ID from a SUBSCRIBE or FETCH is valid, and throws
   // a session error if is not.
   bool ValidateRequestId(uint64_t request_id);
-
-  // TODO(martinduke): Delete once Fetch uses OutgoingSubgroupStream.
-  // Actually sends an object on |stream| with track alias or fetch ID |id|
-  // and metadata in |object|. Not for use with datagrams. Returns |true| if
-  // the write was successful.
-  bool WriteObjectToStream(webtransport::Stream* stream, uint64_t id,
-                           const PublishedObjectMetadata& metadata,
-                           std::vector<quiche::QuicheMemSlice> payload,
-                           MoqtDataStreamType type,
-                           std::optional<PublishedObjectMetadata> last_object,
-                           bool fin);
 
   void CancelFetch(uint64_t request_id);
 
@@ -813,10 +778,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::flat_hash_set<uint64_t> used_track_aliases_;
   uint64_t next_local_track_alias_ = 0;
 
-  // Incoming FETCHes, indexed by fetch ID. There will be other pointers to
-  // PublishedFetch, so storing a shared_ptr in the map provides pointer
-  // stability for the value.
-  absl::flat_hash_map<uint64_t, std::shared_ptr<PublishedFetch>>
+  // Incoming FETCHes, indexed by fetch ID.
+  absl::flat_hash_map<uint64_t, std::unique_ptr<PublishedFetch>>
       incoming_fetches_;
 
   absl::flat_hash_map<uint64_t, std::unique_ptr<DownstreamTrackStatus>>

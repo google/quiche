@@ -17,9 +17,11 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_types.h"
@@ -31,6 +33,49 @@
 
 namespace moqt {
 
+void OutgoingUniStream::UpdatePriority(MoqtPriority subscriber_priority) {
+  priority_.send_order = UpdateSendOrderForSubscriberPriority(
+      priority_.send_order, subscriber_priority);
+  stream_.SetPriority(priority_);
+}
+
+bool OutgoingUniStream::WriteObjectToStream(PublishedObject& object,
+                                            MoqtDataStreamType type) {
+  MoqtObject header;
+  header.track_alias = track_identifier_;
+  header.group_id = object.metadata.location.group;
+  header.subgroup_id = object.metadata.subgroup;
+  header.object_id = object.metadata.location.object;
+  header.publisher_priority = object.metadata.publisher_priority;
+  header.extension_headers = object.metadata.extensions;
+  header.object_status = object.metadata.status;
+  header.payload_length = object.metadata.payload_length;
+
+  quiche::QuicheBuffer serialized_header =
+      framer_.SerializeObjectHeader(header, type, last_object_);
+  std::vector<quiche::QuicheMemSlice> write_vector;
+  write_vector.reserve(object.payload.size() + 1);
+  write_vector.push_back(quiche::QuicheMemSlice(std::move(serialized_header)));
+  for (auto& slice : object.payload) {
+    write_vector.push_back(std::move(slice));
+  }
+  webtransport::StreamWriteOptions options;
+  options.set_send_fin(!type.IsFetch() && object.fin_after_this);
+  absl::Status write_status =
+      stream_.Writev(absl::MakeSpan(write_vector), options);
+  if (!write_status.ok()) {
+    QUICHE_BUG(MoqtSession_WriteObjectToStream_write_failed)
+        << "Writing into MoQT stream failed despite CanWrite being true "
+           "before; status: "
+        << write_status;
+    return false;
+  }
+  QUIC_DVLOG(1) << "Stream " << stream_.GetStreamId() << " successfully wrote "
+                << object.metadata.location
+                << ", fin = " << object.fin_after_this;
+  return true;
+}
+
 OutgoingSubgroupStream::OutgoingSubgroupStream(
     MoqtFramer framer, webtransport::Stream* absl_nonnull stream,
     DataStreamIndex index, uint64_t first_object,
@@ -38,15 +83,13 @@ OutgoingSubgroupStream::OutgoingSubgroupStream(
     std::shared_ptr<MoqtTrackPublisher> absl_nonnull track_publisher,
     webtransport::StreamPriority priority, uint64_t track_alias,
     MoqtTraceRecorder* absl_nonnull trace_recorder)
-    : stream_(*stream),
+    : OutgoingUniStream(framer, stream, priority, track_alias),
       index_(index),
       visitor_(std::move(visitor)),
-      framer_(framer),
+
       track_alias_(track_alias),
       publisher_(track_publisher),
-      next_object_(first_object),
-      priority_(priority) {
-  stream_.SetPriority(priority_);
+      next_object_(first_object) {
   trace_recorder->RecordSubgroupStreamCreated(stream->GetStreamId(),
                                               track_alias_, index);
 }
@@ -83,7 +126,7 @@ void OutgoingSubgroupStream::DeliveryTimeoutDelegate::OnAlarm() {
   if (visitor != nullptr) {
     visitor->OnStreamTimeout(stream_->index_);
   }
-  stream_->stream_.ResetWithUserCode(kResetCodeDeliveryTimeout);
+  stream_->stream().ResetWithUserCode(kResetCodeDeliveryTimeout);
 }
 
 void OutgoingSubgroupStream::SendObjects() {
@@ -91,7 +134,7 @@ void OutgoingSubgroupStream::SendObjects() {
   if (visitor == nullptr) {
     return;
   }
-  while (stream_.CanWrite()) {
+  while (stream().CanWrite()) {
     std::optional<PublishedObject> object = publisher_->GetCachedObject(
         index_.group, index_.subgroup, next_object_, already_delivered_);
     if (!object.has_value()) {
@@ -107,7 +150,7 @@ void OutgoingSubgroupStream::SendObjects() {
     if (!visitor->InWindow(object->metadata.location)) {
       // It is possible that the next object became irrelevant due to a
       // REQUEST_UPDATE.  Close the stream if so.
-      absl::Status status = webtransport::SendFinOnStream(stream_);
+      absl::Status status = webtransport::SendFinOnStream(stream());
       QUICHE_BUG_IF(OutgoingSubgroupStream_fin_due_to_update, !status.ok())
           << "Writing FIN failed despite CanWrite() being true.";
       return;
@@ -118,9 +161,17 @@ void OutgoingSubgroupStream::SendObjects() {
         visitor->clock()->ApproximateNow() - object->metadata.arrival_time >
             delivery_timeout) {
       visitor->OnStreamTimeout(index_);
-      stream_.ResetWithUserCode(kResetCodeDeliveryTimeout);
+      stream().ResetWithUserCode(kResetCodeDeliveryTimeout);
       // No class access below this line.
       return;
+    }
+    // Always include extension header length, because it's difficult to know
+    // a priori if they're going to appear on a stream.
+    if (!last_object().has_value()) {
+      type_ = MoqtDataStreamType::Subgroup(
+          index_.subgroup, next_object_, false,
+          object->metadata.publisher_priority ==
+              publisher_->extensions().default_publisher_priority());
     }
     uint64_t start_offset = already_delivered_;
     already_delivered_ +=
@@ -138,26 +189,27 @@ void OutgoingSubgroupStream::SendObjects() {
       webtransport::StreamWriteOptions options;
       options.set_send_fin(object->fin_after_this);
       absl::Status write_status =
-          stream_.Writev(absl::MakeSpan(object->payload), options);
+          stream().Writev(absl::MakeSpan(object->payload), options);
       if (!write_status.ok()) {
         QUICHE_BUG(MoqtSession_WriteObjectToStream_write_failed)
             << "Writing into MoQT stream failed despite CanWrite() being true "
                "before; status: "
             << write_status;
-        stream_.ResetWithUserCode(kResetCodeInternalError);
+        stream().ResetWithUserCode(kResetCodeInternalError);
         return;
       }
     } else {
-      if (!WriteObjectToStream(*object)) {
-        stream_.ResetWithUserCode(kResetCodeInternalError);
+      if (!WriteObjectToStream(*object, type_)) {
+        stream().ResetWithUserCode(kResetCodeInternalError);
         // No class access below this line.
         return;
       }
-      last_object_ = object->metadata;
-      next_object_ = last_object_->location.object;
+      set_last_object(object->metadata);
+      next_object_ = object->metadata.location.object;
       visitor->OnObjectSent(object->metadata.location);
     }
-    if (already_delivered_ != last_object_->payload_length) {
+    QUICHE_DCHECK(last_object().has_value());
+    if (already_delivered_ != last_object()->payload_length) {
       return;
     }
     ++next_object_;
@@ -176,7 +228,7 @@ void OutgoingSubgroupStream::Fin(Location last_object) {
     return;
   }
   // All data has already been sent; send a pure FIN.
-  absl::Status status = webtransport::SendFinOnStream(stream_);
+  absl::Status status = webtransport::SendFinOnStream(stream());
   QUICHE_BUG_IF(OutgoingSubgroupStream_fin_failed, !status.ok())
       << "Writing pure FIN failed.";
   SubscriptionPublisherInterface* visitor = visitor_.GetIfAvailable();
@@ -202,48 +254,81 @@ void OutgoingSubgroupStream::CreateAndSetAlarm(quic::QuicTime deadline) {
   delivery_timeout_alarm_->Set(deadline);
 }
 
-bool OutgoingSubgroupStream::WriteObjectToStream(PublishedObject& object) {
-  MoqtObject header;
-  header.track_alias = track_alias_;
-  header.group_id = object.metadata.location.group;
-  header.subgroup_id = object.metadata.subgroup;
-  header.object_id = object.metadata.location.object;
-  header.publisher_priority = object.metadata.publisher_priority;
-  header.extension_headers = object.metadata.extensions;
-  header.object_status = object.metadata.status;
-  header.payload_length = object.metadata.payload_length;
+OutgoingFetchStream::OutgoingFetchStream(
+    MoqtFramer framer, webtransport::Stream* absl_nonnull stream,
+    uint64_t request_id, webtransport::StreamPriority priority,
+    std::unique_ptr<MoqtFetchTask> incoming_objects,
+    FetchStreamCloseCallback close_callback,
+    MoqtTraceRecorder* absl_nonnull trace_recorder)
+    : OutgoingUniStream(framer, stream, priority, request_id),
+      incoming_objects_(std::move(incoming_objects)),
+      close_callback_(std::move(close_callback)) {
+  incoming_objects_->SetObjectAvailableCallback(
+      [this]() { this->OnCanWrite(); });
+  trace_recorder->RecordFetchStreamCreated(stream->GetStreamId());
+}
 
-  // Always include extension header length, because it's difficult to know
-  // a priori if they're going to appear on a stream.
-  if (!last_object_.has_value()) {
-    type_ = MoqtDataStreamType::Subgroup(
-        index_.subgroup, next_object_, false,
-        object.metadata.publisher_priority ==
-            publisher_->extensions().default_publisher_priority());
+OutgoingFetchStream::~OutgoingFetchStream() {
+  if (close_callback_ != nullptr) {
+    std::move(close_callback_)();
   }
-  quiche::QuicheBuffer serialized_header =
-      framer_.SerializeObjectHeader(header, type_, last_object_);
-  std::vector<quiche::QuicheMemSlice> write_vector;
-  write_vector.reserve(object.payload.size() + 1);
-  write_vector.push_back(quiche::QuicheMemSlice(std::move(serialized_header)));
-  for (auto& slice : object.payload) {
-    write_vector.push_back(std::move(slice));
+  close_callback_ = nullptr;
+}
+
+void OutgoingFetchStream::OnCanWrite() {
+  PublishedObject object;
+  while (stream().CanWrite()) {
+    MoqtFetchTask::GetNextObjectResult result =
+        incoming_objects_->GetNextObject(object);
+    switch (result) {
+      case MoqtFetchTask::GetNextObjectResult::kSuccess:
+        // Skip ObjectDoesNotExist in FETCH.
+        if (object.metadata.status != MoqtObjectStatus::kNormal) {
+          QUICHE_BUG(quiche_bug_got_doesnotexist_in_fetch)
+              << "Got Non-normal object in FETCH";
+          continue;
+        }
+        if (last_object().has_value() &&
+            object.metadata.location == last_object()->location) {
+          // This is the continuation of the previous object.
+          webtransport::StreamWriteOptions options;
+          absl::Status write_status =
+              stream().Writev(absl::MakeSpan(object.payload), options);
+          if (!write_status.ok()) {
+            QUICHE_BUG(MoqtSession_WriteObjectToStream_write_failed)
+                << "Writing into MoQT stream failed despite CanWrite() being "
+                   "true before; status: "
+                << write_status;
+            stream().ResetWithUserCode(kResetCodeInternalError);
+            return;
+          }
+          break;
+        }
+        if (WriteObjectToStream(object, MoqtDataStreamType::Fetch())) {
+          set_last_object(object.metadata);
+        }
+        break;
+      case MoqtFetchTask::GetNextObjectResult::kPending:
+        return;
+      case MoqtFetchTask::GetNextObjectResult::kEof:
+        // TODO(martinduke): Either prefetch the next object, or alter the API
+        // so that we're not sending FIN in a separate frame.
+        if (!webtransport::SendFinOnStream(stream()).ok()) {
+          QUICHE_DVLOG(1) << "Sending FIN onStream " << stream().GetStreamId()
+                          << " failed";
+        }
+        return;
+      case MoqtFetchTask::GetNextObjectResult::kError:
+        stream().ResetWithUserCode(static_cast<webtransport::StreamErrorCode>(
+            incoming_objects_->GetStatus().code()));
+        return;
+    }
   }
-  webtransport::StreamWriteOptions options;
-  options.set_send_fin(object.fin_after_this);
-  absl::Status write_status =
-      stream_.Writev(absl::MakeSpan(write_vector), options);
-  if (!write_status.ok()) {
-    QUICHE_BUG(MoqtSession_WriteObjectToStream_write_failed)
-        << "Writing into MoQT stream failed despite CanWrite being true "
-           "before; status: "
-        << write_status;
-    return false;
-  }
-  QUICHE_DVLOG(1) << "Stream " << stream_.GetStreamId()
-                  << " successfully wrote " << object.metadata.location
-                  << ", fin = " << object.fin_after_this;
-  return true;
+}
+
+void OutgoingFetchStream::OnStopSendingReceived(
+    webtransport::StreamErrorCode error_code) {
+  stream().ResetWithUserCode(error_code);
 }
 
 }  // namespace moqt

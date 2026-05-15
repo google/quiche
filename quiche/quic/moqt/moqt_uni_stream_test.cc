@@ -16,6 +16,7 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
@@ -302,6 +303,132 @@ TEST_F(OutgoingSubgroupStreamTest, SendFragmentedObject) {
   EXPECT_CALL(visitor_, OnObjectSent).Times(0);
   ExpectAlarm();
   stream_->OnCanWrite();
+}
+
+class OutgoingFetchStreamTest : public quic::test::QuicTest {
+ public:
+  OutgoingFetchStreamTest()
+      : task_(std::make_unique<StrictMock<MockFetchTask>>()),
+        task_ptr_(task_.get()),
+        trace_recorder_(nullptr) {
+    EXPECT_CALL(mock_stream_, GetStreamId()).WillRepeatedly(Return(14));
+    EXPECT_CALL(mock_stream_, SetPriority);
+    stream_ = std::make_unique<OutgoingFetchStream>(
+        framer_, &mock_stream_, 10, webtransport::StreamPriority(),
+        std::move(task_), [this]() { close_callback_called_ = true; },
+        &trace_recorder_);
+  }
+  ~OutgoingFetchStreamTest() override {
+    stream_.reset();
+    EXPECT_TRUE(close_callback_called_);
+  }
+
+ protected:
+  MoqtFramer framer_{true};
+  StrictMock<webtransport::test::MockStream> mock_stream_;
+  std::unique_ptr<StrictMock<MockFetchTask>> task_;
+  MockFetchTask* task_ptr_;
+  MoqtTraceRecorder trace_recorder_;
+  bool close_callback_called_ = false;
+  std::unique_ptr<OutgoingFetchStream> stream_;
+};
+
+TEST_F(OutgoingFetchStreamTest, OnCanWritePending) {
+  EXPECT_CALL(mock_stream_, CanWrite()).WillOnce(Return(true));
+  EXPECT_CALL(*task_ptr_, GetNextObject)
+      .WillOnce(Return(MoqtFetchTask::kPending));
+  stream_->OnCanWrite();
+}
+
+TEST_F(OutgoingFetchStreamTest, OnCanWriteSuccess) {
+  PublishedObject obj = DefaultObject();
+  EXPECT_CALL(mock_stream_, CanWrite())
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  EXPECT_CALL(*task_ptr_, GetNextObject).WillOnce([&](PublishedObject& out) {
+    out = std::move(obj);
+    return MoqtFetchTask::kSuccess;
+  });
+  EXPECT_CALL(mock_stream_, Writev).WillOnce(Return(absl::OkStatus()));
+  stream_->OnCanWrite();
+}
+
+TEST_F(OutgoingFetchStreamTest, OnCanWriteNonNormalStatus) {
+  PublishedObject obj = DefaultObject();
+  obj.metadata.status = MoqtObjectStatus::kObjectDoesNotExist;
+  EXPECT_CALL(mock_stream_, CanWrite())
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  EXPECT_CALL(*task_ptr_, GetNextObject).WillOnce([&](PublishedObject& out) {
+    out = std::move(obj);
+    return MoqtFetchTask::kSuccess;
+  });
+  EXPECT_QUICHE_BUG(stream_->OnCanWrite(), "Got Non-normal object in FETCH");
+}
+
+TEST_F(OutgoingFetchStreamTest, OnCanWriteEof) {
+  EXPECT_CALL(mock_stream_, CanWrite()).WillOnce(Return(true));
+  EXPECT_CALL(*task_ptr_, GetNextObject).WillOnce(Return(MoqtFetchTask::kEof));
+  EXPECT_CALL(mock_stream_, Writev)
+      .WillOnce([](absl::Span<quiche::QuicheMemSlice> data,
+                   const webtransport::StreamWriteOptions& options) {
+        EXPECT_TRUE(data.empty());
+        EXPECT_TRUE(options.send_fin());
+        return absl::OkStatus();
+      });
+  stream_->OnCanWrite();
+}
+
+TEST_F(OutgoingFetchStreamTest, OnCanWriteEofFail) {
+  EXPECT_CALL(mock_stream_, CanWrite()).WillOnce(Return(true));
+  EXPECT_CALL(*task_ptr_, GetNextObject).WillOnce(Return(MoqtFetchTask::kEof));
+  EXPECT_CALL(mock_stream_, Writev)
+      .WillOnce(Return(absl::InternalError("error")));
+  stream_->OnCanWrite();
+}
+
+TEST_F(OutgoingFetchStreamTest, OnCanWriteWriteError) {
+  PublishedObject obj = DefaultObject();
+  EXPECT_CALL(mock_stream_, CanWrite())
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  EXPECT_CALL(*task_ptr_, GetNextObject).WillOnce([&](PublishedObject& out) {
+    out = std::move(obj);
+    return MoqtFetchTask::kSuccess;
+  });
+  EXPECT_CALL(mock_stream_, Writev)
+      .WillOnce(Return(absl::InternalError("error")));
+  EXPECT_QUICHE_BUG(stream_->OnCanWrite(),
+                    "Writing into MoQT stream failed despite CanWrite being "
+                    "true before; status: INTERNAL: error");
+}
+
+TEST_F(OutgoingFetchStreamTest, OnCanWriteError) {
+  EXPECT_CALL(mock_stream_, CanWrite()).WillOnce(Return(true));
+  EXPECT_CALL(*task_ptr_, GetNextObject)
+      .WillOnce(Return(MoqtFetchTask::kError));
+  EXPECT_CALL(*task_ptr_, GetStatus())
+      .WillOnce(Return(absl::InternalError("error")));
+  EXPECT_CALL(
+      mock_stream_,
+      ResetWithUserCode(static_cast<uint64_t>(absl::StatusCode::kInternal)));
+  stream_->OnCanWrite();
+}
+
+TEST_F(OutgoingFetchStreamTest, OnStopSendingReceived) {
+  EXPECT_CALL(mock_stream_, ResetWithUserCode(17));
+  stream_->OnStopSendingReceived(17);
+}
+
+TEST_F(OutgoingFetchStreamTest, UpdatePriority) {
+  EXPECT_CALL(mock_stream_, SetPriority(webtransport::StreamPriority{
+                                0, 0x3fc0000000000000ULL}));
+  stream_->UpdatePriority(0);
+}
+
+TEST_F(OutgoingFetchStreamTest, ObjectAvailableCallback) {
+  EXPECT_CALL(mock_stream_, CanWrite()).WillOnce(Return(false));
+  task_ptr_->CallObjectsAvailableCallback();
 }
 
 }  // namespace

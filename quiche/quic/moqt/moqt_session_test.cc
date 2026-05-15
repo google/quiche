@@ -61,7 +61,6 @@ namespace test {
 
 namespace {
 
-using ::quic::test::MemSliceFromString;
 using ::testing::_;
 using ::testing::Optional;
 using ::testing::Return;
