@@ -272,11 +272,6 @@ class QUICHE_EXPORT QuicDispatcher
 
   QuicPacketWriter* writer() { return writer_.get(); }
 
-  // Returns true if a session should be created for a connection with an
-  // unknown version.
-  virtual bool ShouldCreateSessionForUnknownVersion(
-      const ReceivedPacketInfo& packet_info);
-
   void SetLastError(QuicErrorCode error);
 
   // Called by MaybeDispatchPacket when current packet cannot be dispatched.

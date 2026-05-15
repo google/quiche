@@ -529,9 +529,6 @@ bool QuicDispatcher::MaybeDispatchPacket(
   // processing using our preferred version.
   if (packet_info.version_flag) {
     if (!IsSupportedVersion(packet_info.version)) {
-      if (ShouldCreateSessionForUnknownVersion(packet_info)) {
-        return false;
-      }
       // Since the version is not supported, send a version negotiation
       // packet and stop processing the current packet.
       MaybeSendVersionNegotiationPacket(packet_info);
@@ -1134,11 +1131,6 @@ void QuicDispatcher::StatelesslyTerminateConnection(
       QuicTimeWaitListManager::SEND_TERMINATION_PACKETS,
       TimeWaitConnectionInfo(/*ietf_quic=*/format != GOOGLE_QUIC_Q043_PACKET,
                              &termination_packets, {server_connection_id}));
-}
-
-bool QuicDispatcher::ShouldCreateSessionForUnknownVersion(
-    const ReceivedPacketInfo& /*packet_info*/) {
-  return false;
 }
 
 void QuicDispatcher::OnExpiredPackets(
