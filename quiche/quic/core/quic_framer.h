@@ -791,7 +791,7 @@ class QUICHE_EXPORT QuicFramer {
   // AckTimestampRange is a data structure derived from a QuicAckFrame. It is
   // used to serialize timestamps in a IETF_ACK_RECEIVE_TIMESTAMPS frame.
   struct QUICHE_EXPORT AckTimestampRange {
-    QuicPacketCount gap;
+    QuicPacketCount delta_from_largest_acked;
     // |range_begin| and |range_end| are index(es) in
     // QuicAckFrame.received_packet_times, representing a continuous range of
     // packet numbers in descending order. |range_begin| >= |range_end|.

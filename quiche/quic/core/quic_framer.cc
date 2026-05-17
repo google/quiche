@@ -20,6 +20,7 @@
 #include "absl/base/attributes.h"
 #include "absl/base/macros.h"
 #include "absl/base/optimization.h"
+#include "absl/container/inlined_vector.h"
 #include "absl/status/status.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
@@ -35,6 +36,7 @@
 #include "quiche/quic/core/crypto/quic_decrypter.h"
 #include "quiche/quic/core/crypto/quic_encrypter.h"
 #include "quiche/quic/core/crypto/quic_random.h"
+#include "quiche/quic/core/frames/quic_ack_frame.h"
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 #include "quiche/quic/core/frames/quic_datagram_frame.h"
 #include "quiche/quic/core/frames/quic_immediate_ack_frame.h"
@@ -44,6 +46,7 @@
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_socket_address_coder.h"
 #include "quiche/quic/core/quic_stream_frame_data_producer.h"
@@ -3860,8 +3863,8 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
   return true;
 }
 
-bool QuicFramer::ProcessIetfTimestampsInAckFrame(QuicPacketNumber largest_acked,
-                                                 QuicDataReader* reader) {
+bool QuicFramer::ProcessIetfTimestampsInAckFrame(
+    const QuicPacketNumber largest_acked, QuicDataReader* reader) {
   uint64_t timestamp_range_count;
   if (!reader->ReadVarInt62(&timestamp_range_count)) {
     set_detailed_error("Unable to read receive timestamp range count.");
@@ -3871,28 +3874,27 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(QuicPacketNumber largest_acked,
     return true;
   }
 
-  QuicPacketNumber packet_number = largest_acked;
-
   // Iterate through all timestamp ranges, each of which represents a block of
   // contiguous packets for which receive timestamps are being reported. Each
   // range is of the form:
   //
   // Timestamp Range {
-  //    Gap (i),
+  //    Delta Largest Acknowledged (i),
   //    Timestamp Delta Count (i),
   //    Timestamp Delta (i) ...,
   //  }
   for (uint64_t i = 0; i < timestamp_range_count; i++) {
-    uint64_t gap;
-    if (!reader->ReadVarInt62(&gap)) {
-      set_detailed_error("Unable to read receive timestamp gap.");
+    uint64_t delta;
+    if (!reader->ReadVarInt62(&delta)) {
+      set_detailed_error(
+          "Unable to read receive timestamp packet number delta.");
       return false;
     }
-    if (packet_number.ToUint64() < gap) {
-      set_detailed_error("Receive timestamp gap too high.");
+    if (largest_acked.ToUint64() < delta) {
+      set_detailed_error("Receive delta largest acked too high.");
       return false;
     }
-    packet_number = packet_number - gap;
+    QuicPacketNumber packet_number = largest_acked - delta;
     uint64_t timestamp_count;
     if (!reader->ReadVarInt62(&timestamp_count)) {
       set_detailed_error("Unable to read receive timestamp count.");
@@ -3925,7 +3927,6 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(QuicPacketNumber largest_acked,
       visitor_->OnAckTimestamp(packet_number, creation_time_ + last_timestamp_);
       packet_number--;
     }
-    packet_number--;
   }
   return true;
 }
@@ -5579,7 +5580,8 @@ QuicFramer::GetAckTimestampRanges(const QuicAckFrame& frame,
         return {};
       }
       timestamp_ranges.push_back(AckTimestampRange());
-      timestamp_ranges.back().gap = LargestAcked(frame) - packet_number;
+      timestamp_ranges.back().delta_from_largest_acked =
+          LargestAcked(frame) - packet_number;
       timestamp_ranges.back().range_begin = i;
       timestamp_ranges.back().range_end = i;
       continue;
@@ -5608,7 +5610,8 @@ QuicFramer::GetAckTimestampRanges(const QuicAckFrame& frame,
       timestamp_ranges.back().range_end = i;
     } else {
       timestamp_ranges.push_back(AckTimestampRange());
-      timestamp_ranges.back().gap = prev_packet_number - 2 - packet_number;
+      timestamp_ranges.back().delta_from_largest_acked =
+          LargestAcked(frame) - packet_number;
       timestamp_ranges.back().range_begin = i;
       timestamp_ranges.back().range_end = i;
     }
@@ -5638,9 +5641,10 @@ int64_t QuicFramer::FrameAckTimestampRanges(
   // packet.
   std::optional<QuicTime> effective_prev_time;
   for (const AckTimestampRange& range : timestamp_ranges) {
-    QUIC_DVLOG(3) << "Range: gap:" << range.gap << ", beg:" << range.range_begin
+    QUIC_DVLOG(3) << "Range: delta:" << range.delta_from_largest_acked
+                  << ", beg:" << range.range_begin
                   << ", end:" << range.range_end;
-    if (!maybe_write_var_int62(range.gap)) {
+    if (!maybe_write_var_int62(range.delta_from_largest_acked)) {
       return -1;
     }
 
