@@ -551,6 +551,11 @@ TEST_P(TlsServerHandshakerTest, ConnectedAfterTlsHandshake) {
   CompleteCryptoHandshake();
   EXPECT_TRUE(server_stream()->version().IsIetfQuic());
   ExpectHandshakeSuccessful();
+
+  EXPECT_EQ(server_stream()->sni(), kServerHostname);
+  EXPECT_EQ(server_stream()->alpn(),
+            AlpnForVersion(server_stream()->version()));
+  EXPECT_NE(server_stream()->ciphersuite(), nullptr);
 }
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertSuccess) {

@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/crypto_framer.h"
@@ -178,6 +179,12 @@ class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
   virtual SSL* GetSsl() const = 0;
 
   virtual absl::string_view sni() const;
+
+  // These methods should only be called with IETF QUIC.
+  // Returns the cipher suite in use.
+  virtual const SSL_CIPHER* absl_nullable ciphersuite() const;
+  // Returns the ALPN in use.
+  virtual absl::string_view alpn() const;
 
   // Called to cancel retransmission of unencrypted crypto stream data.
   void NeuterUnencryptedStreamData();

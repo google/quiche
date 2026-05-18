@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
@@ -29,6 +30,7 @@
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_flag_utils.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 
 namespace quic {
@@ -628,6 +630,30 @@ absl::string_view QuicCryptoStream::sni() const {
     return sni;
   }
   return {};
+}
+
+const SSL_CIPHER* absl_nullable QuicCryptoStream::ciphersuite() const {
+  QUICHE_DCHECK(VersionIsIetfQuic(session()->transport_version()));
+  SSL* ssl = GetSsl();
+  if (ssl == nullptr) {
+    return nullptr;
+  }
+  return SSL_get_current_cipher(ssl);
+}
+
+absl::string_view QuicCryptoStream::alpn() const {
+  QUICHE_DCHECK(VersionIsIetfQuic(session()->transport_version()));
+  SSL* ssl = GetSsl();
+  if (ssl == nullptr) {
+    return {};
+  }
+  const unsigned char* data = nullptr;
+  unsigned int data_len = 0;
+  SSL_get0_alpn_selected(ssl, &data, &data_len);
+  if (data == nullptr) {
+    return {};
+  }
+  return absl::string_view(reinterpret_cast<const char*>(data), data_len);
 }
 
 #undef ENDPOINT  // undef for jumbo builds

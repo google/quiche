@@ -318,6 +318,9 @@ TEST_P(TlsClientHandshakerTest, ConnectedAfterHandshake) {
   EXPECT_FALSE(stream()->MatchedTrustAnchorIdForTesting());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
+  EXPECT_EQ(stream()->sni(), kServerHostname);
+  EXPECT_EQ(stream()->alpn(), AlpnForVersion(stream()->version()));
+  EXPECT_NE(stream()->ciphersuite(), nullptr);
 }
 
 TEST_P(TlsClientHandshakerTest, ConnectionClosedOnTlsError) {
