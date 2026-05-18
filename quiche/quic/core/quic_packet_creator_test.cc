@@ -4369,7 +4369,6 @@ TEST_F(QuicPacketCreatorMultiplePacketsTest, AddDatagramFrame) {
 }
 
 TEST_F(QuicPacketCreatorMultiplePacketsTest, AddDatagramFrameSpaceChanges) {
-  SetQuicReloadableFlag(quic_update_max_datagram, true);
   if (framer_.version().IsIetfQuic()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);
   }
