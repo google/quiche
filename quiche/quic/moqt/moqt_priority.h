@@ -35,6 +35,14 @@ static constexpr uint64_t kMinMoqtDeliveryOrder =
 static constexpr uint64_t kMaxMoqtDeliveryOrder =
     static_cast<uint64_t>(MoqtDeliveryOrder::kDescending);
 
+// The session weighs pending streams solely on the subscriber_priority and the
+// highest of all pending publisher_priorities.
+struct MoqtTrackPriority {
+  MoqtPriority subscriber_priority;
+  MoqtPriority publisher_priority;
+  auto operator<=>(const MoqtTrackPriority& other) const = default;
+};
+
 // Computes WebTransport send order for an MoQT data stream with the specified
 // parameters.
 QUICHE_EXPORT webtransport::SendOrder SendOrderForStream(

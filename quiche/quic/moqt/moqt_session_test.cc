@@ -1302,6 +1302,10 @@ TEST_F(MoqtSessionTest, SubscribeOkWithBadTrackAlias) {
   control_stream->ReceiveMessage(subscribe_ok);
 }
 
+// TODO(martinduke): Most of these test cases no longer need to be in
+// MoqtSessionTest. Find any useful functionality and put it in
+// SubscriptionPublisherTest or OutgoingSubgroupStreamTest.
+
 TEST_F(MoqtSessionTest, CreateOutgoingSubgroupStreamAndSend) {
   FullTrackName ftn("foo", "bar");
   auto track =
@@ -1353,8 +1357,9 @@ TEST_F(MoqtSessionTest, CreateOutgoingSubgroupStreamAndSend) {
   subscription->OnNewObjectAvailable(Location(5, 0), 0, 127);
   EXPECT_TRUE(correct_message);
   EXPECT_FALSE(fin);
-  EXPECT_EQ(MoqtSessionPeer::LargestSentForSubscription(&session_, 0),
-            Location(5, 0));
+  std::optional<Location> largest_sent =
+      MoqtSessionPeer::LargestSentForSubscription(&session_, 0);
+  EXPECT_TRUE(largest_sent.has_value() && *largest_sent == Location(5, 0));
 }
 
 TEST_F(MoqtSessionTest, FinDataStreamFromCache) {
@@ -1486,6 +1491,9 @@ TEST_F(MoqtSessionTest, SendFragmentedObject) {
 
 TEST_F(MoqtSessionTest, GroupAbandonedNoDeliveryTimeout) {
   FullTrackName ftn("foo", "bar");
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtObjectListener* subscription =
@@ -1544,9 +1552,6 @@ TEST_F(MoqtSessionTest, GroupAbandonedNoDeliveryTimeout) {
       /*error_reason=*/"",
   };
   EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeCancelled));
-  webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
-      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(control_stream,
               Writev(SerializedControlMessage(expected_publish_done), _));
   subscription->OnGroupAbandoned(5);
@@ -1554,6 +1559,10 @@ TEST_F(MoqtSessionTest, GroupAbandonedNoDeliveryTimeout) {
 
 TEST_F(MoqtSessionTest, GroupAbandonedDeliveryTimeout) {
   FullTrackName ftn("foo", "bar");
+  webtransport::test::MockStream control_stream;
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
+  ;
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtObjectListener* subscription =
@@ -1612,9 +1621,6 @@ TEST_F(MoqtSessionTest, GroupAbandonedDeliveryTimeout) {
       /*error_reason=*/"",
   };
   EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeCancelled));
-  webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
-      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
   EXPECT_CALL(control_stream,
               Writev(SerializedControlMessage(expected_publish_done), _));
   subscription->OnGroupAbandoned(5);
@@ -1904,7 +1910,7 @@ TEST_F(MoqtSessionTest, UnidirectionalStreamCannotBeOpened) {
 
   // Unblock the session, and cause the queued stream to be sent.
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
-      .WillOnce(Return(true));
+      .WillRepeatedly(Return(true));
   bool fin = false;
   EXPECT_CALL(mock_stream_, CanWrite()).WillRepeatedly([&] { return !fin; });
   EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
@@ -2436,6 +2442,7 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   // Allow one stream to be opened. It will be group 0, subscription 0.
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
       .WillOnce(Return(true))
+      .WillOnce(Return(true))
       .WillOnce(Return(false));
   webtransport::test::MockStream mock_stream0;
   EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
@@ -2472,6 +2479,7 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   // group 0, subscription 1.
   MoqtSessionPeer::UpdateSubscriberPriority(&session_, 1, 0);
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(true))
       .WillOnce(Return(true))
       .WillRepeatedly(Return(false));
   webtransport::test::MockStream mock_stream1;
@@ -2515,7 +2523,8 @@ void ExpectStreamOpen(
     webtransport::test::MockStream& data_stream,
     std::unique_ptr<webtransport::StreamVisitor>& stream_visitor) {
   EXPECT_CALL(session, CanOpenNextOutgoingUnidirectionalStream)
-      .WillOnce(Return(true));
+      .WillOnce(Return(true))
+      .WillRepeatedly(Return(false));
   EXPECT_CALL(session, OpenOutgoingUnidirectionalStream())
       .WillOnce(Return(&data_stream));
   EXPECT_CALL(data_stream, SetVisitor)

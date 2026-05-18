@@ -227,7 +227,12 @@ TEST_F(OutgoingSubgroupStreamTest, OnCanWriteSetsAlarm) {
 
   EXPECT_CALL(*track_publisher_, extensions())
       .WillRepeatedly(ReturnRef(track_extensions_));
-  EXPECT_CALL(mock_stream_, Writev).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(mock_stream_, Writev)
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
+                    const webtransport::StreamWriteOptions& options) {
+        EXPECT_TRUE(options.send_fin());
+        return absl::OkStatus();
+      });
   EXPECT_CALL(visitor_, OnObjectSent(Location(0, 0)));
   ExpectAlarm();
   stream_->OnCanWrite();

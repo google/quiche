@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MOQT_TEST_TOOLS_MOQT_SESSION_PEER_H_
 #define QUICHE_QUIC_MOQT_TEST_TOOLS_MOQT_SESSION_PEER_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -13,6 +14,7 @@
 
 #include "absl/base/casts.h"
 #include "absl/base/nullability.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
@@ -29,6 +31,7 @@
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/moqt_subscription.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/moqt_uni_stream.h"
@@ -46,6 +49,25 @@ class MoqtDataParserPeer {
   static void SetType(MoqtDataParser* parser, MoqtDataStreamType type) {
     parser->type_ = type;
     parser->next_input_ = MoqtDataParser::NextInput::kTrackAlias;
+  }
+};
+
+// TODO(martinduke): When subscription-specific tests are removed from,
+// MoqtSessionTest, much of this file can be deleted (including
+// SubscriptionPublisherPeer).
+
+class SubscriptionPublisherPeer {
+ public:
+  static size_t num_open_streams(SubscriptionPublisher* publisher) {
+    return publisher->stream_map_.GetAllStreams().size();
+  }
+  static std::optional<Location> largest_sent(
+      const SubscriptionPublisher* publisher) {
+    return publisher->largest_sent_;
+  }
+  static const absl::flat_hash_set<DataStreamIndex>& reset_subgroups(
+      const SubscriptionPublisher* publisher) {
+    return publisher->reset_subgroups_;
   }
 };
 
@@ -150,17 +172,21 @@ class MoqtSessionPeer {
     subscribe.parameters.subscriber_priority = 0x80;
     subscribe.parameters.group_order = MoqtDeliveryOrder::kAscending;
     session->published_subscriptions_.emplace(
-        subscribe_id, std::make_unique<MoqtSession::PublishedSubscription>(
-                          session, std::move(publisher), subscribe, track_alias,
-                          /*monitoring_interface=*/nullptr));
+        subscribe_id,
+        std::make_unique<SubscriptionPublisher>(
+            session->framer_, std::move(publisher), session->GetControlStream(),
+            subscribe_id, track_alias, subscribe.parameters, session,
+            /*monitoring_interface=*/nullptr, session->callbacks_.clock,
+            session->trace_recorder_));
     return session->published_subscriptions_[subscribe_id].get();
   }
 
   static bool InSubscriptionWindow(MoqtObjectListener* subscription,
                                    Location sequence) {
     std::optional<SubscriptionFilter> filter =
-        absl::down_cast<MoqtSession::PublishedSubscription*>(subscription)
-            ->parameters_.subscription_filter;
+        absl::down_cast<SubscriptionPublisher*>(subscription)
+            ->parameters()
+            .subscription_filter;
     return (!filter.has_value() || filter->InWindow(sequence));
   }
 
@@ -211,9 +237,10 @@ class MoqtSessionPeer {
     session->ValidateRequestId(id);
   }
 
-  static Location LargestSentForSubscription(MoqtSession* session,
-                                             uint64_t subscribe_id) {
-    return *session->published_subscriptions_[subscribe_id]->largest_sent();
+  static std::optional<Location> LargestSentForSubscription(
+      MoqtSession* session, uint64_t subscribe_id) {
+    return SubscriptionPublisherPeer::largest_sent(
+        session->published_subscriptions_[subscribe_id].get());
   }
 
   // Adds an upstream fetch and a stream ready to receive data.
@@ -274,19 +301,20 @@ class MoqtSessionPeer {
 
   static quic::QuicTimeDelta GetDeliveryTimeout(
       MoqtObjectListener* subscription) {
-    return absl::down_cast<MoqtSession::PublishedSubscription*>(subscription)
+    return absl::down_cast<SubscriptionPublisher*>(subscription)
         ->delivery_timeout();
   }
   static void SetDeliveryTimeout(MoqtObjectListener* subscription,
                                  quic::QuicTimeDelta timeout) {
-    absl::down_cast<MoqtSession::PublishedSubscription*>(subscription)
-        ->parameters_.delivery_timeout = timeout;
+    absl::down_cast<SubscriptionPublisher*>(subscription)
+        ->parameters()
+        .delivery_timeout = timeout;
   }
 
   static bool SubgroupHasBeenReset(MoqtObjectListener* subscription,
                                    DataStreamIndex index) {
-    return absl::down_cast<MoqtSession::PublishedSubscription*>(subscription)
-        ->reset_subgroups()
+    return SubscriptionPublisherPeer::reset_subgroups(
+               absl::down_cast<SubscriptionPublisher*>(subscription))
         .contains(index);
   }
 

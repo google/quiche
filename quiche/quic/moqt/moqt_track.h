@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef QUICHE_QUIC_MOQT_MOQT_SUBSCRIPTION_H_
-#define QUICHE_QUIC_MOQT_MOQT_SUBSCRIPTION_H_
+#ifndef QUICHE_QUIC_MOQT_MOQT_TRACK_H_
+#define QUICHE_QUIC_MOQT_MOQT_TRACK_H_
 
 #include <cstdint>
 #include <memory>
@@ -371,4 +371,4 @@ class UpstreamFetch : public RemoteTrack {
 
 }  // namespace moqt
 
-#endif  // QUICHE_QUIC_MOQT_MOQT_SUBSCRIPTION_H_
+#endif  // QUICHE_QUIC_MOQT_MOQT_TRACK_H_
