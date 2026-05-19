@@ -1310,6 +1310,8 @@ TEST_F(MoqtSessionTest, CreateOutgoingSubgroupStreamAndSend) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1366,6 +1368,8 @@ TEST_F(MoqtSessionTest, FinDataStreamFromCache) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1420,6 +1424,8 @@ TEST_F(MoqtSessionTest, SendFragmentedObject) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1562,7 +1568,6 @@ TEST_F(MoqtSessionTest, GroupAbandonedDeliveryTimeout) {
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
-  ;
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
   MoqtObjectListener* subscription =
@@ -1630,6 +1635,8 @@ TEST_F(MoqtSessionTest, GroupAbandoned) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
   MoqtSessionPeer::SetDeliveryTimeout(subscription,
@@ -1688,6 +1695,8 @@ TEST_F(MoqtSessionTest, LateFinDataStream) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1751,6 +1760,8 @@ TEST_F(MoqtSessionTest, SeparateFinForFutureObject) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1841,6 +1852,8 @@ TEST_F(MoqtSessionTest, PublisherAbandonsSubgroup) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1899,6 +1912,8 @@ TEST_F(MoqtSessionTest, UnidirectionalStreamCannotBeOpened) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -1949,6 +1964,8 @@ TEST_F(MoqtSessionTest, QueuedStreamIsCleared) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -2001,6 +2018,8 @@ TEST_F(MoqtSessionTest, OutgoingStreamDisappears) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 2, 5, 0);
 
@@ -2048,9 +2067,9 @@ TEST_F(MoqtSessionTest, ReceiveUnsubscribe) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(4, 2));
-  MoqtSessionPeer::AddSubscription(&session_, track, 0, 1, 3, 4);
   std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  MoqtSessionPeer::AddSubscription(&session_, track, 0, 1, 3, 4);
   MoqtUnsubscribe unsubscribe = {
       /*request_id=*/0,
   };
@@ -2062,6 +2081,8 @@ TEST_F(MoqtSessionTest, SendDatagram) {
   FullTrackName ftn("foo", "bar");
   std::shared_ptr<MockTrackPublisher> track_publisher =
       SetupPublisher(ftn, MoqtForwardingPreference::kDatagram, Location{4, 0});
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* listener =
       MoqtSessionPeer::AddSubscription(&session_, track_publisher, 0, 2, 5, 0);
 
@@ -2295,6 +2316,8 @@ TEST_F(MoqtSessionTest, QueuedStreamsOpenedInOrder) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(0, 0));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 14, 0, 0);
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
@@ -2395,6 +2418,8 @@ TEST_F(MoqtSessionTest, StreamQueuedForSubscriptionThatDoesntExist) {
   FullTrackName ftn("foo", "bar");
   auto track =
       SetupPublisher(ftn, MoqtForwardingPreference::kSubgroup, Location(0, 0));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track, 0, 14, 0, 0);
   EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
@@ -2417,6 +2442,8 @@ TEST_F(MoqtSessionTest, QueuedStreamPriorityChanged) {
   FullTrackName ftn2("dead", "beef");
   auto track2 =
       SetupPublisher(ftn2, MoqtForwardingPreference::kSubgroup, Location(0, 0));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription0 =
       MoqtSessionPeer::AddSubscription(&session_, track1, 0, 14, 0, 0);
   MoqtObjectListener* subscription1 =
@@ -3422,6 +3449,8 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutParameter) {
 TEST_F(MoqtSessionTest, DeliveryTimeoutExpiredOnArrival) {
   auto track_publisher =
       std::make_shared<MockTrackPublisher>(FullTrackName("foo", "bar"));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track_publisher, 1, 2, 0, 0);
   ASSERT_NE(subscription, nullptr);
@@ -3486,6 +3515,8 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutExpiredOnArrival) {
 TEST_F(MoqtSessionTest, DeliveryTimeoutAfterIntegratedFin) {
   auto track_publisher =
       std::make_shared<MockTrackPublisher>(FullTrackName("foo", "bar"));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track_publisher, 1, 2, 0, 0);
   ASSERT_NE(subscription, nullptr);
@@ -3534,6 +3565,8 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAfterIntegratedFin) {
 TEST_F(MoqtSessionTest, DeliveryTimeoutAfterSeparateFin) {
   auto track_publisher =
       std::make_shared<MockTrackPublisher>(FullTrackName("foo", "bar"));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track_publisher, 1, 2, 0, 0);
   ASSERT_NE(subscription, nullptr);
@@ -3587,6 +3620,8 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutAlternateDesign) {
   session_.UseAlternateDeliveryTimeout();
   auto track_publisher =
       std::make_shared<MockTrackPublisher>(FullTrackName("foo", "bar"));
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* subscription =
       MoqtSessionPeer::AddSubscription(&session_, track_publisher, 1, 2, 0, 0);
   ASSERT_NE(subscription, nullptr);
@@ -4373,6 +4408,8 @@ TEST_F(MoqtSessionTest, IncomingRequestUpdateTruncatesSubscription) {
       SetupPublisher(ftn, MoqtForwardingPreference::kDatagram, Location(8, 0));
   MockTrackPublisher* mock_publisher =
       absl::down_cast<MockTrackPublisher*>(publisher.get());
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   MoqtObjectListener* listener =
       MoqtSessionPeer::AddSubscription(&session_, publisher, /*request_id=*/1,
                                        /*track_alias=*/2, /*start_group=*/4,
@@ -4394,8 +4431,6 @@ TEST_F(MoqtSessionTest, IncomingRequestUpdateTruncatesSubscription) {
 
   listener->OnNewObjectAvailable(Location(8, 0), std::nullopt, 0x80);
 
-  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
-      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
   // Update the filter to exclude the live edge. The next object is out of
   // window.
   MessageParameters parameters;
