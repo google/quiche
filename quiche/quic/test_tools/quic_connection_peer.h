@@ -262,6 +262,9 @@ class QuicConnectionPeer {
   static void SetSpinBitEnabled(QuicConnection* connection, bool enabled);
 
   static bool GetSpinBitEnabled(QuicConnection* connection);
+
+  static QuicConnection::ReceivedPacketInfo& GetLastReceivedPacketInfo(
+      QuicConnection* connection);
 };
 
 }  // namespace test

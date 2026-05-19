@@ -640,5 +640,11 @@ bool QuicConnectionPeer::GetSpinBitEnabled(QuicConnection* connection) {
   return connection->spin_bit_enabled_;
 }
 
+// static
+QuicConnection::ReceivedPacketInfo&
+QuicConnectionPeer::GetLastReceivedPacketInfo(QuicConnection* connection) {
+  return connection->last_received_packet_info_;
+}
+
 }  // namespace test
 }  // namespace quic

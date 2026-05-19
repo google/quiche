@@ -2392,9 +2392,27 @@ void QuicConnection::OnPacketComplete() {
 bool QuicConnection::IsValidStatelessResetToken(
     const StatelessResetToken& token) const {
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);
-  return default_path_.stateless_reset_token.has_value() &&
-         QuicUtils::AreStatelessResetTokensEqual(
-             token, *default_path_.stateless_reset_token);
+  if (GetQuicReloadableFlag(quic_check_alternate_reset_token)) {
+    if (IsDefaultPath(last_received_packet_info_.destination_address,
+                      last_received_packet_info_.source_address)) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_check_alternate_reset_token, 1, 2);
+      return default_path_.stateless_reset_token.has_value() &&
+             QuicUtils::AreStatelessResetTokensEqual(
+                 token, *default_path_.stateless_reset_token);
+    }
+    if (IsAlternativePath(last_received_packet_info_.destination_address,
+                          GetEffectivePeerAddressFromCurrentPacket())) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_check_alternate_reset_token, 2, 2);
+      return alternative_path_.stateless_reset_token.has_value() &&
+             QuicUtils::AreStatelessResetTokensEqual(
+                 token, *alternative_path_.stateless_reset_token);
+    }
+    return false;
+  } else {
+    return default_path_.stateless_reset_token.has_value() &&
+           QuicUtils::AreStatelessResetTokensEqual(
+               token, *default_path_.stateless_reset_token);
+  }
 }
 
 void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
