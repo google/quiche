@@ -272,7 +272,9 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
     // contains the DER-encoded requested CAs. Returns true if the handshake
     // should be suspended to provide the certificate asynchronously.
     virtual bool OnCertificateRequested(
-        const std::vector<std::string>& cert_authorities) = 0;
+        const std::vector<std::string>& /*cert_authorities*/) {
+      return false;
+    }
   };
 
   QuicCryptoClientStream(const QuicServerId& server_id, QuicSession* session,
