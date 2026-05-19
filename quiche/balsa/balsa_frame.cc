@@ -729,10 +729,10 @@ bool BalsaFrame::CheckHeaderLinesForInvalidChars(const Lines& lines,
     if (header_properties::IsInvalidHeaderChar(*c)) {
       return true;
     }
-    if (*c == '\r' &&
-        http_validation_policy().disallow_lone_cr_in_request_headers &&
-        c + 1 < stream_end && *(c + 1) != '\n') {
-      return true;
+    if (*c == '\r' && c + 1 < stream_end && *(c + 1) != '\n') {
+      if (http_validation_policy().disallow_lone_cr_in_request_headers) {
+        return true;
+      }
     }
   }
 
