@@ -163,7 +163,8 @@ bool ParseHTTPFirstLine(char* begin, char* end, bool is_request,
                         BalsaHeaders* headers,
                         BalsaFrameEnums::ErrorCode* error_code,
                         FirstLineValidationOption whitespace_option,
-                        FirstLineValidationOption multiple_spaces_option) {
+                        FirstLineValidationOption multiple_spaces_option,
+                        bool& has_multiple_spaces) {
   while (begin < end && (end[-1] == '\n' || end[-1] == '\r')) {
     --end;
   }
@@ -250,8 +251,9 @@ bool ParseHTTPFirstLine(char* begin, char* end, bool is_request,
     }
   }
 
+  has_multiple_spaces = absl::StrContains(headers->first_line(), "  ");
   if (multiple_spaces_option != FirstLineValidationOption::NONE &&
-      absl::StrContains(headers->first_line(), "  ")) {
+      has_multiple_spaces) {
     if (multiple_spaces_option == FirstLineValidationOption::REJECT) {
       *error_code = is_request
                         ? BalsaFrameEnums::MULTIPLE_SPACES_IN_REQUEST_LINE
@@ -373,11 +375,14 @@ bool IsValidTargetUri(absl::string_view method, absl::string_view target_uri) {
 // Another precondition for this function is that [begin, end) includes
 // at most one newline, which must be at the end of the line.
 void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
+  bool has_multiple_spaces = false;
   BalsaFrameEnums::ErrorCode previous_error = last_error_;
-  if (!ParseHTTPFirstLine(
-          begin, end, is_request_, headers_, &last_error_,
-          http_validation_policy().sanitize_cr_tab_in_first_line,
-          http_validation_policy().sanitize_firstline_spaces)) {
+  const bool parse_success = ParseHTTPFirstLine(
+      begin, end, is_request_, headers_, &last_error_,
+      http_validation_policy().sanitize_cr_tab_in_first_line,
+      http_validation_policy().sanitize_firstline_spaces, has_multiple_spaces);
+
+  if (!parse_success) {
     parse_state_ = BalsaFrameEnums::ERROR;
     HandleError(last_error_);
     return;
@@ -1426,15 +1431,16 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
             // If we've found the end of the chunk, then we're done.
             ++current;
 
-            if (http_validation_policy()
-                    .require_chunked_body_end_with_crlf_crlf &&
-                framing_found != kValidTerm1) {
-              //  https://datatracker.ietf.org/doc/html/rfc9112#name-chunked-transfer-coding
-              // The ABNF for chunked coding states that both `last-chunk` _and_
-              // `chunked_body` must end with CR_LF, i.e. kValidTerm2 is not
-              // allowed.
-              HandleError(BalsaFrameEnums::INVALID_CHUNK_FRAMING);
-              return current - input;
+            if (framing_found != kValidTerm1) {
+              if (http_validation_policy()
+                      .require_chunked_body_end_with_crlf_crlf) {
+                //  https://datatracker.ietf.org/doc/html/rfc9112#name-chunked-transfer-coding
+                // The ABNF for chunked coding states that both `last-chunk`
+                // _and_ `chunked_body` must end with CR_LF, i.e. kValidTerm2 is
+                // not allowed.
+                HandleError(BalsaFrameEnums::INVALID_CHUNK_FRAMING);
+                return current - input;
+              }
             }
 
             parse_state_ = BalsaFrameEnums::MESSAGE_FULLY_READ;
