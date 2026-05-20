@@ -537,7 +537,7 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
   void SendH2Request() {
     h2_connection_ =
         std::make_unique<MasqueH2Connection>(ssl_.get(),
-                                             /*is_server=*/false, this);
+                                             /*is_server=*/false, this, "TC");
     h2_connection_->OnTransportReadable();
     quiche::HttpHeaderBlock headers;
     headers[":method"] = "GET";

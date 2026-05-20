@@ -83,10 +83,12 @@ uint32_t MasqueH2Connection::GetNextConnectionId() {
 }
 
 MasqueH2Connection::MasqueH2Connection(SSL* ssl, bool is_server,
-                                       Visitor* visitor)
+                                       Visitor* visitor,
+                                       absl::string_view info_string)
     : ssl_(ssl),
       is_server_(is_server),
-      info_(absl::StrCat(is_server ? "S" : "C", GetNextConnectionId())),
+      info_(absl::StrCat(info_string, "-", is_server ? "S" : "C",
+                         GetNextConnectionId())),
       visitor_(visitor) {}
 
 void MasqueH2Connection::OnTransportReadable() {

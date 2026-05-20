@@ -36,6 +36,8 @@
 #include "quiche/common/quiche_socket_address.h"
 #include "quiche/common/quiche_status_utils.h"
 
+#define ENDPOINT info_ << ": "
+
 namespace quic {
 
 namespace {
@@ -144,12 +146,13 @@ void MasqueConnectionPool::DnsConfig::ApplyOverrides(
 MasqueConnectionPool::MasqueConnectionPool(
     QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
     bool disable_certificate_verification, const DnsConfig& dns_config,
-    Visitor* visitor)
+    Visitor* visitor, absl::string_view info_string)
     : event_loop_(event_loop),
       tls_ssl_ctx_(ssl_ctx),
       disable_certificate_verification_(disable_certificate_verification),
       dns_config_(dns_config),
-      visitor_(visitor) {}
+      visitor_(visitor),
+      info_(info_string) {}
 
 void MasqueConnectionPool::OnConnectionReady(MasqueH2Connection* connection) {
   SendPendingRequests(connection);
@@ -168,7 +171,7 @@ void MasqueConnectionPool::OnRequest(MasqueH2Connection* /*connection*/,
                                      int32_t /*stream_id*/,
                                      const quiche::HttpHeaderBlock& /*headers*/,
                                      const std::string& /*body*/) {
-  QUICHE_LOG(FATAL) << "Client cannot receive requests";
+  QUICHE_LOG(FATAL) << ENDPOINT << "Client cannot receive requests";
 }
 
 void MasqueConnectionPool::OnResponse(MasqueH2Connection* connection,
@@ -199,7 +202,8 @@ void MasqueConnectionPool::OnResponse(MasqueH2Connection* connection,
     ++it;
   }
   if (!found) {
-    QUICHE_LOG(ERROR) << "Received unexpected response for unknown request: "
+    QUICHE_LOG(ERROR) << ENDPOINT
+                      << "Received unexpected response for unknown request: "
                       << headers.DebugString();
   }
 }
@@ -254,7 +258,7 @@ MasqueConnectionPool::SendRequest(const Message& request, bool mtls,
       GetOrCreateConnectionState(std::string(authority->second), mtls));
   auto pending_request = std::make_unique<PendingRequest>();
   if (connection->connection() != nullptr) {
-    QUICHE_LOG(INFO) << "Reusing existing connection "
+    QUICHE_LOG(INFO) << ENDPOINT << "Reusing existing connection "
                      << connection->connection()->info() << " to "
                      << authority->second;
     pending_request->connection = connection->connection();
@@ -266,7 +270,8 @@ MasqueConnectionPool::SendRequest(const Message& request, bool mtls,
     }
     connection->connection()->AttemptToSend();
   } else {
-    QUICHE_LOG(INFO) << "No existing connection to " << authority->second;
+    QUICHE_LOG(INFO) << ENDPOINT << "No existing connection to "
+                     << authority->second;
   }
   RequestId request_id = ++next_request_id_;
   pending_request->request.headers = request.headers.Clone();
@@ -330,14 +335,15 @@ void MasqueConnectionPool::AttachConnectionToPendingRequests(
     PendingRequest& pending_request = *it->second;
     auto authority_header = pending_request.request.headers.find(":authority");
     if (authority_header == pending_request.request.headers.end()) {
-      QUICHE_LOG(ERROR) << "Request missing :authority header";
+      QUICHE_LOG(ERROR) << ENDPOINT << "Request missing :authority header";
       continue;
     }
     if (authority_header->second != authority) {
       continue;
     }
-    QUICHE_LOG(INFO) << "Attaching connection " << connection->info()
-                     << " to pending request for " << authority;
+    QUICHE_LOG(INFO) << ENDPOINT << "Attaching connection "
+                     << connection->info() << " to pending request for "
+                     << authority;
     pending_request.connection = connection;
   }
 }
@@ -352,13 +358,14 @@ void MasqueConnectionPool::SendPendingRequests(MasqueH2Connection* connection) {
     }
     bool is_request_complete = pending_request.pending_data.empty() &&
                                pending_request.end_stream_pending;
-    QUICHE_LOG(INFO) << "Sending pending request ID " << request_id;
+    QUICHE_LOG(INFO) << ENDPOINT << "Sending pending request ID " << request_id;
     int32_t stream_id = connection->SendRequest(
         pending_request.request.headers, pending_request.request.body,
         is_request_complete, pending_request.stream_response);
     if (stream_id < 0) {
-      QUICHE_LOG(ERROR) << "Failed to send request ID " << request_id
-                        << " on connection " << connection->info();
+      QUICHE_LOG(ERROR) << ENDPOINT << "Failed to send request ID "
+                        << request_id << " on connection "
+                        << connection->info();
       visitor_->OnPoolResponse(this, request_id,
                                absl::InternalError("Failed to send request"),
                                /*end_stream=*/true);
@@ -397,15 +404,15 @@ void MasqueConnectionPool::FailPendingRequests(MasqueH2Connection* connection,
 
 MasqueConnectionPool::ConnectionState::ConnectionState(
     MasqueConnectionPool* connection_pool)
-    : connection_pool_(connection_pool) {}
+    : connection_pool_(connection_pool), info_(connection_pool->info()) {}
 
 MasqueConnectionPool::ConnectionState::~ConnectionState() {
   if (socket_ != kInvalidSocketFd) {
     if (!connection_pool_->event_loop()->UnregisterSocket(socket_)) {
-      QUICHE_LOG(ERROR) << "Failed to unregister socket";
+      QUICHE_LOG(ERROR) << ENDPOINT << "Failed to unregister socket";
     }
     if (!socket_api::Close(socket_).ok()) {
-      QUICHE_LOG(ERROR) << "Error while closing socket";
+      QUICHE_LOG(ERROR) << ENDPOINT << "Error while closing socket";
     }
     socket_ = kInvalidSocketFd;
   }
@@ -444,15 +451,16 @@ absl::Status MasqueConnectionPool::ConnectionState::SetupSocket(
           socket_, kSocketEventReadable | kSocketEventWritable, this)) {
     return absl::InternalError("Failed to register socket with the event loop");
   }
-  QUICHE_LOG(INFO) << "Socket fd " << socket_ << " connect in progress to "
-                   << socket_address;
+  QUICHE_LOG(INFO) << ENDPOINT << "Socket fd " << socket_
+                   << " connect in progress to " << socket_address;
 
   if (disable_certificate_verification) {
     proof_verifier_ = std::make_unique<FakeProofVerifier>();
   } else {
     proof_verifier_ = CreateDefaultProofVerifier(host_);
     if (!proof_verifier_) {
-      QUICHE_LOG(FATAL) << "The default proof verifier is not supported. Pass "
+      QUICHE_LOG(FATAL) << ENDPOINT
+                        << "The default proof verifier is not supported. Pass "
                            "in --disable_certificate_verification.";
     }
   }
@@ -466,7 +474,7 @@ void MasqueConnectionPool::ConnectionState::OnSocketEvent(
         (!connection_ || !connection_->aborted())) {
       if (!event_loop->RearmSocket(
               fd, kSocketEventReadable | kSocketEventWritable)) {
-        QUICHE_LOG(FATAL) << "Failed to re-arm socket " << fd;
+        QUICHE_LOG(FATAL) << ENDPOINT << "Failed to re-arm socket " << fd;
       }
     }
   });
@@ -483,12 +491,12 @@ void MasqueConnectionPool::ConnectionState::OnSocketEvent(
       SSL_set_connect_state(ssl_.get());
 
       if (SSL_set_app_data(ssl_.get(), this) != 1) {
-        QUICHE_LOG(FATAL) << "SSL_set_app_data failed";
+        QUICHE_LOG(FATAL) << ENDPOINT << "SSL_set_app_data failed";
       }
       SSL_set_custom_verify(ssl_.get(), SSL_VERIFY_PEER, &VerifyCallback);
 
       if (SSL_set_tlsext_host_name(ssl_.get(), host_.c_str()) != 1) {
-        QUICHE_LOG(FATAL) << "SSL_set_tlsext_host_name failed";
+        QUICHE_LOG(FATAL) << ENDPOINT << "SSL_set_tlsext_host_name failed";
       }
 
       static constexpr uint8_t kAlpnProtocols[] = {
@@ -498,13 +506,14 @@ void MasqueConnectionPool::ConnectionState::OnSocketEvent(
       };
       if (SSL_set_alpn_protos(ssl_.get(), kAlpnProtocols,
                               sizeof(kAlpnProtocols)) != 0) {
-        QUICHE_LOG(FATAL) << "SSL_set_alpn_protos failed";
+        QUICHE_LOG(FATAL) << ENDPOINT << "SSL_set_alpn_protos failed";
       }
       BIO* bio = BIO_new_socket(socket_, BIO_CLOSE);
       SSL_set_bio(ssl_.get(), bio, bio);
       // `SSL_set_bio` causes `ssl_` to take ownership of `bio`.
       connection_ = std::make_unique<MasqueH2Connection>(
-          ssl_.get(), /*is_server=*/false, connection_pool_);
+          ssl_.get(), /*is_server=*/false, connection_pool_,
+          connection_pool_->info());
       connection_pool_->AttachConnectionToPendingRequests(authority_,
                                                           connection_.get());
       connection_->OnTransportReadable();
@@ -526,7 +535,7 @@ MasqueConnectionPool::ConnectionState::VerifyCertificate(SSL* ssl,
                                                          uint8_t* out_alert) {
   const STACK_OF(CRYPTO_BUFFER)* cert_chain = SSL_get0_peer_certificates(ssl);
   if (cert_chain == nullptr) {
-    QUICHE_LOG(ERROR) << "No certificate chain";
+    QUICHE_LOG(ERROR) << ENDPOINT << "No certificate chain";
     *out_alert = SSL_AD_INTERNAL_ERROR;
     return ssl_verify_invalid;
   }
@@ -554,12 +563,12 @@ MasqueConnectionPool::ConnectionState::VerifyCertificate(SSL* ssl,
       /*callback=*/nullptr);
   if (verify_status != QUIC_SUCCESS) {
     // TODO(dschinazi) properly handle QUIC_PENDING.
-    QUICHE_LOG(ERROR) << "Failed to verify certificate"
+    QUICHE_LOG(ERROR) << ENDPOINT << "Failed to verify certificate"
                       << (verify_status == QUIC_PENDING ? " (pending)" : "")
                       << ": " << error_details;
     return ssl_verify_invalid;
   }
-  QUICHE_LOG(INFO) << "Successfully verified certificate";
+  QUICHE_LOG(INFO) << ENDPOINT << "Successfully verified certificate";
   return ssl_verify_ok;
 }
 
@@ -633,3 +642,5 @@ MasqueConnectionPool::CreateSslCtxFromData(
 }
 
 }  // namespace quic
+
+#undef ENDPOINT

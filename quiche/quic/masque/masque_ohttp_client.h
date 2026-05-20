@@ -246,7 +246,7 @@ class QUICHE_EXPORT MasqueOhttpClient
 
   // Starts by fetching the HPKE keys and then runs the client until all
   // requests are complete or aborted.
-  static absl::Status Run(Config config);
+  static absl::Status Run(Config config, absl::string_view info_string);
 
   // Sends a body chunk for a chunked OHTTP request.
   absl::Status SendBodyChunk(RequestId request_id, absl::string_view chunk,
@@ -258,6 +258,8 @@ class QUICHE_EXPORT MasqueOhttpClient
                       bool end_stream) override;
   void OnPoolData(quic::MasqueConnectionPool* /*pool*/, RequestId request_id,
                   absl::string_view data, bool end_stream) override;
+
+  const std::string& info() const { return info_; }
 
  private:
   // Fetch key from the key URL.
@@ -283,8 +285,11 @@ class QUICHE_EXPORT MasqueOhttpClient
    public:
     using ResponseChunkCallback = std::function<void(absl::string_view)>;
 
-    explicit ChunkHandler(bool handle_gzip_response)
-        : decoder_(this), handle_gzip_response_(handle_gzip_response) {}
+    explicit ChunkHandler(bool handle_gzip_response,
+                          absl::string_view info_string)
+        : decoder_(this),
+          handle_gzip_response_(handle_gzip_response),
+          info_(info_string) {}
     void SetResponseChunkCallback(ResponseChunkCallback callback) {
       response_chunk_callback_ = std::move(callback);
     }
@@ -343,6 +348,7 @@ class QUICHE_EXPORT MasqueOhttpClient
     bool handle_gzip_response_ = false;
     bool is_gzipped_ = false;
     std::unique_ptr<GzipDecompressor> decompressor_;
+    const std::string info_;
   };
 
   struct PendingRequest {
@@ -360,7 +366,8 @@ class QUICHE_EXPORT MasqueOhttpClient
         encoder;
   };
 
-  explicit MasqueOhttpClient(Config config, quic::QuicEventLoop* event_loop);
+  explicit MasqueOhttpClient(Config config, quic::QuicEventLoop* event_loop,
+                             absl::string_view info_string);
 
   // Starts fetching for the key and sends the OHTTP request.
   absl::Status Start();
@@ -379,6 +386,7 @@ class QUICHE_EXPORT MasqueOhttpClient
       std::optional<uint16_t> expected_status_code);
 
   Config config_;
+  const std::string info_;
   quic::MasqueConnectionPool connection_pool_;
   std::optional<RequestId> key_fetch_request_id_;
   absl::Status status_ = absl::OkStatus();

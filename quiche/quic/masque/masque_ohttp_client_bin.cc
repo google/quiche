@@ -254,7 +254,7 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
     }
     config.AddPerRequestConfig(per_request_config);
   }
-  return MasqueOhttpClient::Run(std::move(config));
+  return MasqueOhttpClient::Run(std::move(config), "OC");
 }
 
 }  // namespace

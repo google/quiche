@@ -120,6 +120,8 @@ namespace quic {
 
 namespace {
 
+constexpr absl::string_view kInfo = "TS";
+
 absl::string_view RemoveParameters(absl::string_view value) {
   std::vector<absl::string_view> split =
       absl::StrSplit(value, absl::MaxSplits(';', 1));
@@ -339,7 +341,7 @@ class MasqueH2SocketConnection : public QuicSocketEventListener {
                                     MasqueH2Connection::Visitor* visitor)
       : socket_(connected_socket),
         event_loop_(event_loop),
-        connection_(CreateSsl(ctx), is_server, visitor) {
+        connection_(CreateSsl(ctx), is_server, visitor, kInfo) {
     if (!event_loop_->RegisterSocket(socket_, kSocketEventReadable, this)) {
       QUICHE_LOG(FATAL)
           << "Failed to register connection socket with the event loop";
@@ -409,7 +411,8 @@ class MasqueTcpServer : public QuicSocketEventListener,
                            const MasqueConnectionPool::DnsConfig& dns_config)
       : event_loop_(GetDefaultEventLoop()->Create(QuicDefaultClock::Get())),
         connection_pool_(event_loop_.get(), client_ssl_ctx,
-                         disable_certificate_verification, dns_config, this) {}
+                         disable_certificate_verification, dns_config, this,
+                         kInfo) {}
 
   MasqueTcpServer(const MasqueTcpServer&) = delete;
   MasqueTcpServer(MasqueTcpServer&&) = delete;

@@ -100,7 +100,8 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
   // `event_loop`, `ssl_ctx`, and `visitor` must outlive this object.
   explicit MasqueConnectionPool(QuicEventLoop* event_loop, SSL_CTX* ssl_ctx,
                                 bool disable_certificate_verification,
-                                const DnsConfig& dns_config, Visitor* visitor);
+                                const DnsConfig& dns_config, Visitor* visitor,
+                                absl::string_view info_string);
 
   QuicEventLoop* event_loop() { return event_loop_; }
   SSL_CTX* GetSslCtx(bool mtls) { return mtls ? mtls_ssl_ctx_ : tls_ssl_ctx_; }
@@ -129,6 +130,8 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
       const std::string& client_cert_pem_data,
       const std::string& client_cert_key_data);
 
+  const std::string& info() const { return info_; }
+
  private:
   class ConnectionState : public QuicSocketEventListener {
    public:
@@ -155,6 +158,7 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
     bssl::UniquePtr<SSL> ssl_;
     std::unique_ptr<MasqueH2Connection> connection_;
     bool mtls_ = false;
+    const std::string info_;
   };
   struct PendingRequest {
     Message request;
@@ -187,6 +191,7 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
   absl::flat_hash_map<RequestId, std::unique_ptr<PendingRequest>>
       pending_requests_;
   RequestId next_request_id_ = 0;
+  const std::string info_;
 };
 
 }  // namespace quic

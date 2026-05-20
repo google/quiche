@@ -55,7 +55,8 @@ class QUICHE_NO_EXPORT MasqueH2Connection
   };
 
   // `ssl` and `visitor` must outlive this object.
-  explicit MasqueH2Connection(SSL* ssl, bool is_server, Visitor* visitor);
+  explicit MasqueH2Connection(SSL* ssl, bool is_server, Visitor* visitor,
+                              absl::string_view info_string);
 
   MasqueH2Connection(const MasqueH2Connection&) = delete;
   MasqueH2Connection(MasqueH2Connection&&) = delete;
