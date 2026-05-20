@@ -823,35 +823,7 @@ TEST_F(QuicReceivedPacketManagerTest, NewCeTriggersImmediateAck) {
   CheckAckTimeout(clock_.ApproximateNow());
 }
 
-TEST_F(QuicReceivedPacketManagerTest, LegacyLogicIgnoresReorderingThreshold) {
-  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, false);
-
-  // Setup a reordering threshold of 10.
-  QuicAckFrequencyFrame frame;
-  frame.sequence_number = 1;
-  frame.requested_max_ack_delay = kDelayedAckTime;
-  frame.ack_eliciting_threshold = 1000;
-  frame.reordering_threshold = 10;
-  received_manager_.OnAckFrequencyFrame(frame);
-
-  // Establish a baseline: We have ACKed up to 100.
-  RecordPacketReceipt(100, clock_.ApproximateNow());
-  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
-  received_manager_.ResetAckStates();  // last_sent_largest_acked_ = 100
-
-  // Receive Packet 95.
-  // Legacy Logic: Is 95 < 100? YES -> Immediate ACK.
-  // (New Logic would say: Gap is 5, Threshold is 10 -> Delay ACK).
-  RecordPacketReceipt(95, clock_.ApproximateNow());
-  MaybeUpdateAckTimeout(kInstigateAck, 95);
-
-  // Verify Immediate ACK (The inefficient legacy behavior).
-  CheckAckTimeout(clock_.ApproximateNow());
-}
-
 TEST_F(QuicReceivedPacketManagerTest, ReorderingThresholdTriggersImmediateAck) {
-  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
-
   QuicAckFrequencyFrame frame;
   frame.sequence_number = 1;
   frame.requested_max_ack_delay = kDelayedAckTime;
@@ -874,7 +846,6 @@ TEST_F(QuicReceivedPacketManagerTest, ReorderingThresholdTriggersImmediateAck) {
 
 TEST_F(QuicReceivedPacketManagerTest,
        ReorderingThresholdDelaysAckForRecentPackets) {
-  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
   QuicAckFrequencyFrame frame;
   frame.sequence_number = 1;
   frame.requested_max_ack_delay = kDelayedAckTime;
@@ -897,8 +868,6 @@ TEST_F(QuicReceivedPacketManagerTest,
 }
 
 TEST_F(QuicReceivedPacketManagerTest, ReorderingThresholdUnderflowGuard) {
-  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
-
   QuicAckFrequencyFrame frame;
   frame.sequence_number = 1;
   frame.requested_max_ack_delay = kDelayedAckTime;
@@ -922,8 +891,6 @@ TEST_F(QuicReceivedPacketManagerTest, ReorderingThresholdUnderflowGuard) {
 }
 
 TEST_F(QuicReceivedPacketManagerTest, ReorderingThresholdOneTriggersAck) {
-  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
-
   QuicAckFrequencyFrame frame;
   frame.sequence_number = 1;
   frame.requested_max_ack_delay = kDelayedAckTime;
@@ -944,8 +911,6 @@ TEST_F(QuicReceivedPacketManagerTest, ReorderingThresholdOneTriggersAck) {
 
 TEST_F(QuicReceivedPacketManagerTest,
        ReorderingThresholdBoundaryPlusOneDelaysAck) {
-  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
-
   QuicAckFrequencyFrame frame;
   frame.sequence_number = 1;
   frame.requested_max_ack_delay = kDelayedAckTime;
@@ -966,8 +931,6 @@ TEST_F(QuicReceivedPacketManagerTest,
 
 TEST_F(QuicReceivedPacketManagerTest,
        ReorderingThresholdUnderflowGuardsPacketZero) {
-  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
-
   QuicAckFrequencyFrame frame;
   frame.sequence_number = 1;
   frame.requested_max_ack_delay = kDelayedAckTime;
@@ -991,8 +954,6 @@ TEST_F(QuicReceivedPacketManagerTest,
 
 TEST_F(QuicReceivedPacketManagerTest,
        ReorderingThresholdExactZeroBoundaryTriggersAck) {
-  SetQuicReloadableFlag(quic_fix_gap_filling_ack_logic, true);
-
   QuicAckFrequencyFrame frame;
   frame.sequence_number = 1;
   frame.requested_max_ack_delay = kDelayedAckTime;

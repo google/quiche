@@ -291,30 +291,18 @@ void QuicReceivedPacketManager::MaybeUpdateAckTimeout(
     return;
   }
 
-  if (GetQuicReloadableFlag(quic_fix_gap_filling_ack_logic)) {
-    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_gap_filling_ack_logic);
-    if (reordering_threshold_ > 0 && was_last_packet_missing_ &&
-        last_sent_largest_acked_.IsInitialized() &&
-        last_sent_largest_acked_ >= QuicPacketNumber(reordering_threshold_) &&
-        (last_received_packet_number <=
-         last_sent_largest_acked_ - reordering_threshold_)) {
-      if (reordering_threshold_ > 1) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 7, 7);
-      }
-      // Ack immediately if the received packet number is less than or equal to
-      // largest acked - reordering threshold.
-      ack_timeout_ = now;
-      return;
+  if (reordering_threshold_ > 0 && was_last_packet_missing_ &&
+      last_sent_largest_acked_.IsInitialized() &&
+      last_sent_largest_acked_ >= QuicPacketNumber(reordering_threshold_) &&
+      (last_received_packet_number <=
+       last_sent_largest_acked_ - reordering_threshold_)) {
+    if (reordering_threshold_ > 1) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_receive_ack_frequency, 7, 7);
     }
-  } else {
-    if (reordering_threshold_ > 0 && was_last_packet_missing_ &&
-        last_sent_largest_acked_.IsInitialized() &&
-        last_received_packet_number < last_sent_largest_acked_) {
-      // Ack immediately if an ACK frame was sent with a larger
-      // largest acked than the newly received packet number.
-      ack_timeout_ = now;
-      return;
-    }
+    // Ack immediately if the received packet number is less than or equal to
+    // largest acked - reordering threshold.
+    ack_timeout_ = now;
+    return;
   }
 
   if (changed_to_ce_marked_) {
