@@ -785,12 +785,6 @@ quiche_tool_support_srcs = [
     "quic/tools/simple_ticket_crypter.cc",
     "quic/tools/web_transport_only_backend.cc",
 ]
-quiche_fuzz_support_hdrs = [
-    "balsa/balsa_fuzz_util.h",
-]
-quiche_fuzz_support_srcs = [
-    "balsa/balsa_fuzz_util.cc",
-]
 quiche_test_support_hdrs = [
     "common/platform/api/quiche_expect_bug.h",
     "common/platform/api/quiche_fuzztest.h",
