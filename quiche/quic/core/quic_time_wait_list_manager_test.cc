@@ -63,17 +63,17 @@ class FramerVisitorCapturingPublicReset : public NoOpFramerVisitor {
     return token == QuicUtils::GenerateStatelessResetToken(connection_id_);
   }
 
-  void OnAuthenticatedIetfStatelessResetPacket(
-      const QuicIetfStatelessResetPacket& packet) override {
-    stateless_reset_packet_ = packet;
+  void OnAuthenticatedIetfStatelessResetPacket() override {
+    stateless_reset_token_ =
+        QuicUtils::GenerateStatelessResetToken(connection_id_);
   }
 
-  QuicIetfStatelessResetPacket stateless_reset_packet() {
-    return stateless_reset_packet_;
+  StatelessResetToken stateless_reset_token() const {
+    return stateless_reset_token_;
   }
 
  private:
-  QuicIetfStatelessResetPacket stateless_reset_packet_;
+  StatelessResetToken stateless_reset_token_;
   QuicConnectionId connection_id_;
 };
 
@@ -205,14 +205,10 @@ bool ValidPublicResetPacketPredicate(
                                 std::get<1>(packet_buffer));
   framer.ProcessPacket(encrypted);
 
-  QuicIetfStatelessResetPacket stateless_reset =
-      visitor.stateless_reset_packet();
-
   StatelessResetToken expected_stateless_reset_token =
       QuicUtils::GenerateStatelessResetToken(expected_connection_id);
 
-  return stateless_reset.stateless_reset_token ==
-         expected_stateless_reset_token;
+  return visitor.stateless_reset_token() == expected_stateless_reset_token;
 }
 
 Matcher<const std::tuple<const char*, int>> PublicResetPacketEq(

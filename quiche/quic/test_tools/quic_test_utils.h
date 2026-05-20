@@ -375,8 +375,7 @@ class MockFramerVisitor : public QuicFramerVisitorInterface {
   MOCK_METHOD(void, OnPacketComplete, (), (override));
   MOCK_METHOD(bool, IsValidStatelessResetToken, (const StatelessResetToken&),
               (const, override));
-  MOCK_METHOD(void, OnAuthenticatedIetfStatelessResetPacket,
-              (const QuicIetfStatelessResetPacket&), (override));
+  MOCK_METHOD(void, OnAuthenticatedIetfStatelessResetPacket, (), (override));
   MOCK_METHOD(void, OnKeyUpdate, (KeyUpdateReason), (override));
   MOCK_METHOD(void, OnDecryptedFirstPacketInKeyPhase, (), (override));
   MOCK_METHOD(void, OnSconePacket, (uint8_t), (override));
@@ -445,8 +444,7 @@ class NoOpFramerVisitor : public QuicFramerVisitorInterface {
   void OnPacketComplete() override {}
   bool IsValidStatelessResetToken(
       const StatelessResetToken& token) const override;
-  void OnAuthenticatedIetfStatelessResetPacket(
-      const QuicIetfStatelessResetPacket& /*packet*/) override {}
+  void OnAuthenticatedIetfStatelessResetPacket() override {}
   void OnKeyUpdate(KeyUpdateReason /*reason*/) override {}
   void OnDecryptedFirstPacketInKeyPhase() override {}
   void OnSconePacket(uint8_t /*signal*/) override {}

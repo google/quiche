@@ -242,8 +242,7 @@ class QUICHE_EXPORT QuicFramerVisitorInterface {
 
   // Called when an IETF stateless reset packet has been parsed and validated
   // with the stateless reset token.
-  virtual void OnAuthenticatedIetfStatelessResetPacket(
-      const QuicIetfStatelessResetPacket& packet) = 0;
+  virtual void OnAuthenticatedIetfStatelessResetPacket() = 0;
 
   // Called when an IETF MaxStreams frame has been parsed.
   virtual bool OnMaxStreamsFrame(const QuicMaxStreamsFrame& frame) = 0;

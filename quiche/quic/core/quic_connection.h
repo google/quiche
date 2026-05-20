@@ -800,8 +800,7 @@ class QUICHE_EXPORT QuicConnection
   void OnPacketComplete() override;
   bool IsValidStatelessResetToken(
       const StatelessResetToken& token) const override;
-  void OnAuthenticatedIetfStatelessResetPacket(
-      const QuicIetfStatelessResetPacket& packet) override;
+  void OnAuthenticatedIetfStatelessResetPacket() override;
   void OnKeyUpdate(KeyUpdateReason reason) override;
   void OnDecryptedFirstPacketInKeyPhase() override;
   void OnSconePacket(uint8_t signal) override;

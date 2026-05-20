@@ -207,17 +207,6 @@ struct QUICHE_EXPORT QuicVersionNegotiationPacket {
   ParsedQuicVersionVector versions;
 };
 
-struct QUICHE_EXPORT QuicIetfStatelessResetPacket {
-  QuicIetfStatelessResetPacket();
-  QuicIetfStatelessResetPacket(const QuicPacketHeader& header,
-                               StatelessResetToken token);
-  QuicIetfStatelessResetPacket(const QuicIetfStatelessResetPacket& other);
-  ~QuicIetfStatelessResetPacket();
-
-  QuicPacketHeader header;
-  StatelessResetToken stateless_reset_token;
-};
-
 class QUICHE_EXPORT QuicData {
  public:
   // Creates a QuicData from a buffer and length. Does not own the buffer.

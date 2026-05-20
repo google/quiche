@@ -2415,8 +2415,7 @@ bool QuicConnection::IsValidStatelessResetToken(
   }
 }
 
-void QuicConnection::OnAuthenticatedIetfStatelessResetPacket(
-    const QuicIetfStatelessResetPacket& /*packet*/) {
+void QuicConnection::OnAuthenticatedIetfStatelessResetPacket() {
   // TODO(fayang): Add OnAuthenticatedIetfStatelessResetPacket to
   // debug_visitor_.
   QUICHE_DCHECK_EQ(perspective_, Perspective::IS_CLIENT);

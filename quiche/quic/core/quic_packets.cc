@@ -204,18 +204,6 @@ QuicVersionNegotiationPacket::QuicVersionNegotiationPacket(
 
 QuicVersionNegotiationPacket::~QuicVersionNegotiationPacket() {}
 
-QuicIetfStatelessResetPacket::QuicIetfStatelessResetPacket()
-    : stateless_reset_token({}) {}
-
-QuicIetfStatelessResetPacket::QuicIetfStatelessResetPacket(
-    const QuicPacketHeader& header, StatelessResetToken token)
-    : header(header), stateless_reset_token(token) {}
-
-QuicIetfStatelessResetPacket::QuicIetfStatelessResetPacket(
-    const QuicIetfStatelessResetPacket& other) = default;
-
-QuicIetfStatelessResetPacket::~QuicIetfStatelessResetPacket() {}
-
 std::ostream& operator<<(std::ostream& os, const QuicPacketHeader& header) {
   os << "{ destination_connection_id: " << header.destination_connection_id
      << " ("

@@ -1818,10 +1818,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
     if (hp_removal_failed ||
         !IsValidFullPacketNumber(full_packet_number, version())) {
       if (IsIetfStatelessResetPacket(*header)) {
-        // This is a stateless reset packet.
-        QuicIetfStatelessResetPacket reset_packet(
-            *header, header->possible_stateless_reset_token);
-        visitor_->OnAuthenticatedIetfStatelessResetPacket(reset_packet);
+        visitor_->OnAuthenticatedIetfStatelessResetPacket();
         return true;
       }
       if (hp_removal_failed) {
@@ -1886,10 +1883,7 @@ bool QuicFramer::ProcessIetfDataPacket(QuicDataReader* encrypted_reader,
                       decrypted_buffer, buffer_length, &decrypted_length,
                       &decrypted_level)) {
     if (IsIetfStatelessResetPacket(*header)) {
-      // This is a stateless reset packet.
-      QuicIetfStatelessResetPacket reset_packet(
-          *header, header->possible_stateless_reset_token);
-      visitor_->OnAuthenticatedIetfStatelessResetPacket(reset_packet);
+      visitor_->OnAuthenticatedIetfStatelessResetPacket();
       return true;
     }
     const EncryptionLevel decryption_level = GetEncryptionLevel(*header);

@@ -230,8 +230,7 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     std::cerr << "IsValidStatelessResetToken\n";
     return false;
   }
-  void OnAuthenticatedIetfStatelessResetPacket(
-      const QuicIetfStatelessResetPacket& /*packet*/) override {
+  void OnAuthenticatedIetfStatelessResetPacket() override {
     std::cerr << "OnAuthenticatedIetfStatelessResetPacket\n";
   }
   void OnKeyUpdate(KeyUpdateReason reason) override {

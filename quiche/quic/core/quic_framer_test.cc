@@ -611,10 +611,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
     return token == kTestStatelessResetToken;
   }
 
-  void OnAuthenticatedIetfStatelessResetPacket(
-      const QuicIetfStatelessResetPacket& packet) override {
-    stateless_reset_packet_ =
-        std::make_unique<QuicIetfStatelessResetPacket>(packet);
+  void OnAuthenticatedIetfStatelessResetPacket() override {
     EXPECT_EQ(0u, framer_->current_received_frame_type());
   }
 
@@ -657,7 +654,6 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   bool accept_public_header_;
 
   std::unique_ptr<QuicPacketHeader> header_;
-  std::unique_ptr<QuicIetfStatelessResetPacket> stateless_reset_packet_;
   std::unique_ptr<QuicVersionNegotiationPacket> version_negotiation_packet_;
   std::unique_ptr<QuicConnectionId> retry_original_connection_id_;
   std::unique_ptr<QuicConnectionId> retry_new_connection_id_;
@@ -5287,9 +5283,6 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacket) {
   QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
   ASSERT_THAT(framer_.error(), IsQuicNoError());
-  ASSERT_TRUE(visitor_.stateless_reset_packet_.get());
-  EXPECT_EQ(kTestStatelessResetToken,
-            visitor_.stateless_reset_packet_->stateless_reset_token);
 }
 
 TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
@@ -5325,7 +5318,6 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
   QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
   EXPECT_THAT(framer_.error(), IsError(QUIC_DECRYPTION_FAILURE));
-  ASSERT_FALSE(visitor_.stateless_reset_packet_);
 }
 
 TEST_P(QuicFramerTest, VersionNegotiationPacketClient) {
