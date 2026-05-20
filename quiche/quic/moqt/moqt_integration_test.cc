@@ -763,6 +763,10 @@ TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
               std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) {
             received_ok = std::holds_alternative<SubscribeOkData>(response);
           });
+  bool stream_reset = false;
+  EXPECT_CALL(subscribe_visitor_, OnStreamReset).WillOnce([&]() {
+    stream_reset = true;
+  });
   MessageParameters parameters(MoqtFilterType::kLargestObject);
   // Set delivery timeout to ~ 1 RTT: any loss is fatal.
   parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
@@ -780,15 +784,13 @@ TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
           [&](const FullTrackName&, const PublishedObjectMetadata& metadata,
               absl::string_view object,
               uint64_t offset) { bytes_received += object.size(); });
-  queue->AddObject(Location{0, 0}, 0, data, false);
-  queue->AddObject(Location{0, 1}, 0, data, false);
-  queue->AddObject(Location{0, 2}, 0, data, false);
-  queue->AddObject(Location{0, 3}, 0, data, true);
-  success = test_harness_.RunUntilWithDefaultTimeout([&]() {
-    return MoqtSessionPeer::SubgroupHasBeenReset(
-        MoqtSessionPeer::GetSubscription(server_->session(), 0),
-        DataStreamIndex{0, 0});
-  });
+  quic::QuicTime now = test_harness_.simulator().GetClock()->Now();
+  queue->AddObject(Location{0, 0}, 0, data, false, now);
+  queue->AddObject(Location{0, 1}, 0, data, false, now);
+  queue->AddObject(Location{0, 2}, 0, data, false, now);
+  queue->AddObject(Location{0, 3}, 0, data, true, now);
+  success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return stream_reset; });
   EXPECT_TRUE(success);
   // Stream was reset before all the bytes arrived.
   EXPECT_LT(bytes_received, 4000);
@@ -812,6 +814,10 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
               std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) {
             received_ok = std::holds_alternative<SubscribeOkData>(response);
           });
+  bool stream_reset = false;
+  EXPECT_CALL(subscribe_visitor_, OnStreamReset).WillOnce([&]() {
+    stream_reset = true;
+  });
   MessageParameters parameters(MoqtFilterType::kLargestObject);
   // Set delivery timeout to ~ 1 RTT: any loss is fatal.
   parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
@@ -831,13 +837,11 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
           [&](const FullTrackName&, const PublishedObjectMetadata& metadata,
               absl::string_view object,
               uint64_t offset) { bytes_received += object.size(); });
-  queue->AddObject(Location{0, 0}, 0, data, false);
-  queue->AddObject(Location{1, 0}, 0, data, false);
-  success = test_harness_.RunUntilWithDefaultTimeout([&]() {
-    return MoqtSessionPeer::SubgroupHasBeenReset(
-        MoqtSessionPeer::GetSubscription(server_->session(), 0),
-        DataStreamIndex{0, 0});
-  });
+  quic::QuicTime now = test_harness_.simulator().GetClock()->Now();
+  queue->AddObject(Location{0, 0}, 0, data, false, now);
+  queue->AddObject(Location{1, 0}, 0, data, false, now);
+  success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return stream_reset; });
   EXPECT_TRUE(success);
   EXPECT_EQ(bytes_received, 2000);
 }

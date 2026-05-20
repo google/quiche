@@ -147,7 +147,8 @@ class TestTrackPublisher : public MoqtTrackPublisher {
         absl::UnimplementedError("Fetch not implemented"));
   }
   void AddObject(Location location, uint64_t subgroup,
-                 absl::string_view payload, bool fin) {
+                 absl::string_view payload, bool fin,
+                 quic::QuicTime arrival_time = quic::QuicTime::Zero()) {
     PublishedObjectMetadata metadata;
     metadata.location = location;
     metadata.subgroup = subgroup;
@@ -155,6 +156,7 @@ class TestTrackPublisher : public MoqtTrackPublisher {
     metadata.status = MoqtObjectStatus::kNormal;
     metadata.publisher_priority = 128;
     metadata.payload_length = payload.length();
+    metadata.arrival_time = arrival_time;
     auto it = objects_.find(location);
     if (it != objects_.end()) {
       it->second.Append(it->second.payload_received(), payload);

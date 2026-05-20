@@ -52,25 +52,6 @@ class MoqtDataParserPeer {
   }
 };
 
-// TODO(martinduke): When subscription-specific tests are removed from,
-// MoqtSessionTest, much of this file can be deleted (including
-// SubscriptionPublisherPeer).
-
-class SubscriptionPublisherPeer {
- public:
-  static size_t num_open_streams(SubscriptionPublisher* publisher) {
-    return publisher->stream_map_.GetAllStreams().size();
-  }
-  static std::optional<Location> largest_sent(
-      const SubscriptionPublisher* publisher) {
-    return publisher->largest_sent_;
-  }
-  static const absl::flat_hash_set<DataStreamIndex>& reset_subgroups(
-      const SubscriptionPublisher* publisher) {
-    return publisher->reset_subgroups_;
-  }
-};
-
 // Helper class to interact with MOQT bidi streams in tests.
 class MoqtBidiStreamTestWrapper {
  public:
@@ -95,6 +76,13 @@ class MoqtBidiStreamTestWrapper {
 
  private:
   std::unique_ptr<MoqtBidiStreamBase> absl_nonnull stream_;
+};
+
+class OutgoingSubgroupStreamPeer {
+ public:
+  static quic::QuicAlarm* GetAlarm(OutgoingSubgroupStream* stream) {
+    return stream->delivery_timeout_alarm_.get();
+  }
 };
 
 class MoqtSessionPeer {
@@ -129,6 +117,11 @@ class MoqtSessionPeer {
     return new_stream;
   }
 
+  static bool RequestIdIsSubscriptionPublisher(MoqtSession* session,
+                                               uint64_t request_id) {
+    return session->published_subscriptions_.contains(request_id);
+  }
+
   // In the test OnSessionReady, the session creates a stream and then passes
   // its unique_ptr to the mock webtransport stream. This function casts
   // that unique_ptr into a MoqtSession::Stream*, which is a private class of
@@ -158,59 +151,6 @@ class MoqtSessionPeer {
                                          std::move(track));
   }
 
-  static MoqtObjectListener* AddSubscription(
-      MoqtSession* session, std::shared_ptr<MoqtTrackPublisher> publisher,
-      uint64_t subscribe_id, uint64_t track_alias, uint64_t start_group,
-      uint64_t start_object) {
-    MessageParameters parameters;
-    parameters.subscription_filter.emplace(Location(start_group, start_object));
-    MoqtSubscribe subscribe(subscribe_id, publisher->GetTrackName(),
-                            parameters);
-    subscribe.parameters.set_forward(true);
-    subscribe.parameters.subscription_filter.emplace(
-        Location(start_group, start_object));
-    subscribe.parameters.subscriber_priority = 0x80;
-    subscribe.parameters.group_order = MoqtDeliveryOrder::kAscending;
-    session->published_subscriptions_.emplace(
-        subscribe_id,
-        std::make_unique<SubscriptionPublisher>(
-            session->framer_, std::move(publisher), session->GetControlStream(),
-            subscribe_id, track_alias, subscribe.parameters, session,
-            /*monitoring_interface=*/nullptr, session->callbacks_.clock,
-            session->trace_recorder_));
-    return session->published_subscriptions_[subscribe_id].get();
-  }
-
-  static bool InSubscriptionWindow(MoqtObjectListener* subscription,
-                                   Location sequence) {
-    std::optional<SubscriptionFilter> filter =
-        absl::down_cast<SubscriptionPublisher*>(subscription)
-            ->parameters()
-            .subscription_filter;
-    return (!filter.has_value() || filter->InWindow(sequence));
-  }
-
-  static MoqtObjectListener* GetSubscription(MoqtSession* session,
-                                             uint64_t subscribe_id) {
-    auto it = session->published_subscriptions_.find(subscribe_id);
-    if (it == session->published_subscriptions_.end()) {
-      return nullptr;
-    }
-    return it->second.get();
-  }
-
-  static void DeleteSubscription(MoqtSession* session, uint64_t subscribe_id) {
-    session->published_subscriptions_.erase(subscribe_id);
-  }
-
-  static void UpdateSubscriberPriority(MoqtSession* session,
-                                       uint64_t subscribe_id,
-                                       MoqtPriority priority) {
-    MessageParameters parameters;
-    parameters.subscriber_priority = priority;
-    session->published_subscriptions_[subscribe_id]->Update(parameters);
-  }
-
   static SubscribeRemoteTrack* remote_track(MoqtSession* session,
                                             uint64_t track_alias) {
     return session->RemoteTrackByAlias(track_alias);
@@ -235,12 +175,6 @@ class MoqtSessionPeer {
 
   static void ValidateRequestId(MoqtSession* session, uint64_t id) {
     session->ValidateRequestId(id);
-  }
-
-  static std::optional<Location> LargestSentForSubscription(
-      MoqtSession* session, uint64_t subscribe_id) {
-    return SubscriptionPublisherPeer::largest_sent(
-        session->published_subscriptions_[subscribe_id].get());
   }
 
   // Adds an upstream fetch and a stream ready to receive data.
@@ -285,11 +219,6 @@ class MoqtSessionPeer {
     return session->callbacks_.clock->ApproximateNow();
   }
 
-  static quic::QuicAlarm* GetAlarm(webtransport::StreamVisitor* visitor) {
-    return absl::down_cast<OutgoingSubgroupStream*>(visitor)
-        ->delivery_timeout_alarm_.get();
-  }
-
   static quic::QuicAlarm* GetPublishDoneAlarm(
       SubscribeRemoteTrack* subscription) {
     return subscription->publish_done_alarm_.get();
@@ -299,23 +228,13 @@ class MoqtSessionPeer {
     return session->goaway_timeout_alarm_.get();
   }
 
-  static quic::QuicTimeDelta GetDeliveryTimeout(
-      MoqtObjectListener* subscription) {
-    return absl::down_cast<SubscriptionPublisher*>(subscription)
-        ->delivery_timeout();
-  }
-  static void SetDeliveryTimeout(MoqtObjectListener* subscription,
-                                 quic::QuicTimeDelta timeout) {
-    absl::down_cast<SubscriptionPublisher*>(subscription)
-        ->parameters()
-        .delivery_timeout = timeout;
-  }
-
-  static bool SubgroupHasBeenReset(MoqtObjectListener* subscription,
-                                   DataStreamIndex index) {
-    return SubscriptionPublisherPeer::reset_subgroups(
-               absl::down_cast<SubscriptionPublisher*>(subscription))
-        .contains(index);
+  static quic::QuicTimeDelta GetDeliveryTimeout(MoqtSession* session,
+                                                uint64_t request_id) {
+    auto it = session->published_subscriptions_.find(request_id);
+    if (it == session->published_subscriptions_.end()) {
+      return quic::QuicTimeDelta::Zero();
+    }
+    return it->second->delivery_timeout();
   }
 
   static absl::string_view GetImplementationString(MoqtSession* session) {
@@ -328,6 +247,13 @@ class MoqtSessionPeer {
 
   static const MoqtSessionParameters& GetParameters(MoqtSession* session) {
     return session->parameters_;
+  }
+
+  static std::optional<uint64_t> NextQueuedRequestIdToServer(
+      MoqtSession* session) {
+    return session->subscriptions_with_queued_streams_.empty()
+               ? std::optional<uint64_t>()
+               : session->subscriptions_with_queued_streams_.begin()->second;
   }
 };
 

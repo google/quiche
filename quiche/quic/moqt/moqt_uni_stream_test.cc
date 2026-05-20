@@ -24,6 +24,7 @@
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
+#include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
@@ -93,8 +94,10 @@ class OutgoingSubgroupStreamTest : public quic::test::QuicTest {
     EXPECT_CALL(visitor_, OnDataStreamDestroyed(index_));
   }
 
-  void CreateStream(uint64_t next_object = 0) {
+  void CreateStream(uint64_t next_object = 0) { CreateStream(0, next_object); }
+  void CreateStream(uint64_t subgroup, uint64_t next_object) {
     EXPECT_CALL(mock_stream_, SetPriority);
+    index_ = DataStreamIndex(0, subgroup);
     stream_ = std::make_unique<OutgoingSubgroupStream>(
         framer_, &mock_stream_, index_, next_object, visitor_.GetWeakPtr(),
         track_publisher_, webtransport::StreamPriority(), 0, &trace_recorder_);
@@ -236,6 +239,9 @@ TEST_F(OutgoingSubgroupStreamTest, OnCanWriteSetsAlarm) {
   EXPECT_CALL(visitor_, OnObjectSent(Location(0, 0)));
   ExpectAlarm();
   stream_->OnCanWrite();
+  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeDeliveryTimeout));
+  EXPECT_CALL(visitor_, OnStreamTimeout(index_));
+  alarm_factory_.FireAlarm(OutgoingSubgroupStreamPeer::GetAlarm(stream_.get()));
 }
 
 TEST_F(OutgoingSubgroupStreamTest, Fin) {
@@ -249,8 +255,19 @@ TEST_F(OutgoingSubgroupStreamTest, Fin) {
   EXPECT_CALL(visitor_, clock()).WillOnce(Return(&mock_clock_));
   ExpectAlarm();
   stream_->Fin(Location(0, 0));
-  // last_object.object >= next_object: does nothing
-  stream_->Fin(Location(0, 1));
+  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeDeliveryTimeout));
+  EXPECT_CALL(visitor_, OnStreamTimeout(index_));
+  alarm_factory_.FireAlarm(OutgoingSubgroupStreamPeer::GetAlarm(stream_.get()));
+}
+
+TEST_F(OutgoingSubgroupStreamTest, FinForFutureObject) {
+  // Delivery is blocked.
+  EXPECT_CALL(mock_stream_, CanWrite).WillOnce(Return(false));
+  stream_->OnCanWrite();
+  // FIN does nothing because last object hasn't been sent. Rely on the cache
+  // to set object.fin_after_this.
+  EXPECT_CALL(mock_stream_, Writev).Times(0);
+  stream_->Fin(Location(0, 0));
 }
 
 TEST_F(OutgoingSubgroupStreamTest, UpdatePriority) {

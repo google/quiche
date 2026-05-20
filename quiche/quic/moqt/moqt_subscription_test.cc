@@ -11,7 +11,9 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/casts.h"
 #include "absl/base/nullability.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
@@ -31,6 +33,7 @@
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
@@ -42,6 +45,21 @@
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt::test {
+
+class SubscriptionPublisherPeer {
+ public:
+  static size_t num_open_streams(SubscriptionPublisher* publisher) {
+    return publisher->stream_map_.GetAllStreams().size();
+  }
+  static std::optional<Location> largest_sent(
+      const SubscriptionPublisher* publisher) {
+    return publisher->largest_sent_;
+  }
+  static const absl::flat_hash_set<DataStreamIndex>& reset_subgroups(
+      const SubscriptionPublisher* publisher) {
+    return publisher->reset_subgroups_;
+  }
+};
 
 namespace {
 
@@ -111,7 +129,7 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
     parameters_.group_order = MoqtDeliveryOrder::kAscending;
     EXPECT_CALL(monitoring_interface_, OnObjectAckSupportKnown)
         .Times(AtLeast(0));
-    ON_CALL(visitor_, session).WillByDefault(Return(&webtrans_));
+    EXPECT_CALL(visitor_, session).WillRepeatedly(Return(&webtrans_));
     publisher_ = std::make_unique<SubscriptionPublisher>(
         framer_, track_publisher_, &bidi_stream_, kRequestId, kTrackAlias,
         parameters_, &visitor_, &monitoring_interface_, &mock_clock_,
@@ -119,6 +137,7 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
     ON_CALL(visitor_, alternate_delivery_timeout).WillByDefault(Return(false));
     ON_CALL(webtrans_, GetStreamById(kStreamId))
         .WillByDefault(Return(&mock_uni_stream_));
+    ON_CALL(visitor_, alarm_factory).WillByDefault(Return(&alarm_factory_));
   }
 
   ~SubscriptionPublisherTest() override {
@@ -164,7 +183,7 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
           uni_stream_ = std::move(visitor);
         });
     EXPECT_CALL(mock_uni_stream_, SetPriority);
-    EXPECT_CALL(mock_uni_stream_, visitor()).WillRepeatedly([&]() {
+    ON_CALL(mock_uni_stream_, visitor()).WillByDefault([&]() {
       return uni_stream_.get();
     });
     EXPECT_CALL(mock_uni_stream_, CanWrite()).WillRepeatedly(Return(true));
@@ -192,7 +211,7 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
     EXPECT_CALL(webtrans_, CanOpenNextOutgoingUnidirectionalStream())
         .WillOnce(Return(false));
     EXPECT_CALL(visitor_,
-                UpdateTrackPriority(1, std::optional<MoqtTrackPriority>(),
+                UpdateTrackPriority(1, _,
                                     MoqtTrackPriority{subscriber_priority(),
                                                       publisher_priority}));
     publisher_->OnNewObjectAvailable(location, subgroup, publisher_priority);
@@ -206,7 +225,7 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
   MoqtControlMessageParser message_parser_{kDefaultMoqtVersion, true};
   webtransport::test::MockSession webtrans_;
   StrictMock<webtransport::test::MockStream> mock_bidi_stream_;
-  StrictMock<webtransport::test::MockStream> mock_uni_stream_;
+  webtransport::test::MockStream mock_uni_stream_;
   std::shared_ptr<MockTrackPublisher> track_publisher_;
   TestMoqtBidiStream bidi_stream_;
   std::unique_ptr<webtransport::StreamVisitor> uni_stream_;
@@ -218,7 +237,7 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
   const TrackExtensions extensions_;
   quic::MockClock mock_clock_;
   MoqtSessionCallbacks callbacks_;
-  quic::test::MockAlarmFactory alarm_factory_;
+  quic::test::TestAlarmFactory alarm_factory_;
   int open_streams_ = 0;
 };
 
@@ -395,7 +414,7 @@ TEST_F(SubscriptionPublisherTest, OnNewFinAvailableWithStream) {
   publisher_->OnNewFinAvailable(Location(1, 0), 0);
 }
 
-TEST_F(SubscriptionPublisherTest, OnSubgroupAbandoned) {
+TEST_F(SubscriptionPublisherTest, OnSubgroupAbandonedNoEffect) {
   // Not in window
   MessageParameters params;
   params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
@@ -426,14 +445,16 @@ TEST_F(SubscriptionPublisherTest, OnGroupAbandoned) {
 }
 
 TEST_F(SubscriptionPublisherTest, OnGroupAbandonedWithStreams) {
-  // Create a stream
+  // The delivery timeout is not infinite, so it will not send a PUBLISH_DONE
+  // with kTooFarBehind.
   CreateStream(Location(1, 0), 0, 128);
   EXPECT_CALL(mock_uni_stream_, ResetWithUserCode);
+  EXPECT_CALL(mock_bidi_stream_, Writev).Times(0);  // No PUBLISH_DONE.
   publisher_->OnGroupAbandoned(1);
 }
 
 TEST_F(SubscriptionPublisherTest, OnGroupAbandonedTooFarBehind) {
-  // Create a pending stream
+  // Set the delivery timeout to infinite so that TooFarBehind is possible.
   parameters_.delivery_timeout = quic::QuicTimeDelta::Infinite();
   publisher_->Update(parameters_);
   CreateStream(Location(5, 0), 0, 128);
@@ -455,7 +476,8 @@ TEST_F(SubscriptionPublisherTest, OnCanCreateNewUniStreamPendingCleanup) {
   // Abandon the group.
   publisher_->OnGroupAbandoned(1);
   // OnCanCreateNewUniStream should clean it up; no attempt to create a stream.
-  EXPECT_CALL(webtrans_, CanOpenNextOutgoingUnidirectionalStream()).Times(0);
+  EXPECT_CALL(webtrans_, CanOpenNextOutgoingUnidirectionalStream)
+      .WillOnce(Return(true));
   EXPECT_CALL(webtrans_, OpenOutgoingUnidirectionalStream).Times(0);
   publisher_->OnCanCreateNewUniStream();
 }
@@ -501,7 +523,7 @@ TEST_F(SubscriptionPublisherTest, OnCanCreateNewUniStreamSuccess) {
   EXPECT_CALL(mock_uni_stream_, GetStreamId())
       .WillRepeatedly(Return(kStreamId));
   EXPECT_CALL(webtrans_, CanOpenNextOutgoingUnidirectionalStream())
-      .WillOnce(Return(true));
+      .WillRepeatedly(Return(true));
   EXPECT_CALL(webtrans_, OpenOutgoingUnidirectionalStream)
       .WillOnce(Return(&mock_uni_stream_));
   EXPECT_CALL(mock_uni_stream_, SetVisitor)
@@ -523,6 +545,94 @@ TEST_F(SubscriptionPublisherTest, OnCanCreateNewUniStreamSuccess) {
   publisher_->OnCanCreateNewUniStream();
 }
 
+TEST_F(SubscriptionPublisherTest, PendingStreamsInOrder) {
+  CreatePendingStream(Location(1, 0), 0, 128);
+  CreatePendingStream(Location(0, 0), 0, 128);
+  CreatePendingStream(Location(2, 0), 0, 127);
+  // Should be opened in the order (2, 0), (0, 0), (1, 0),
+  // Open stream and send (2, 0).
+  EXPECT_CALL(webtrans_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(true))
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  EXPECT_CALL(webtrans_, OpenOutgoingUnidirectionalStream)
+      .WillOnce(Return(&mock_uni_stream_));
+  EXPECT_CALL(mock_uni_stream_, GetStreamId).WillRepeatedly(Return(kStreamId));
+  std::unique_ptr<webtransport::StreamVisitor> stream_visitor2;
+  EXPECT_CALL(mock_uni_stream_, SetVisitor)
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor2 = std::move(visitor);
+      });
+  EXPECT_CALL(mock_uni_stream_, visitor()).WillRepeatedly([&]() {
+    return stream_visitor2.get();
+  });
+  EXPECT_CALL(mock_uni_stream_, SetPriority);
+  EXPECT_CALL(*track_publisher_,
+              GetCachedObject(2, std::optional<uint64_t>(0), 0, 0))
+      .WillOnce(Return(DefaultPublishedObject(Location(2, 0), 0, 127)));
+  EXPECT_CALL(*track_publisher_,
+              GetCachedObject(2, std::optional<uint64_t>(0), 1, 0))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(mock_uni_stream_, CanWrite).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_uni_stream_, Writev).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(visitor_, UpdateTrackPriority);
+  publisher_->OnCanCreateNewUniStream();
+  // Open (0, 0)
+  EXPECT_CALL(webtrans_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillOnce(Return(true))
+      .WillOnce(Return(true))
+      .WillOnce(Return(false));
+  EXPECT_CALL(webtrans_, OpenOutgoingUnidirectionalStream)
+      .WillOnce(Return(&mock_uni_stream_));
+  EXPECT_CALL(mock_uni_stream_, GetStreamId)
+      .WillRepeatedly(Return(kStreamId + 4));
+  std::unique_ptr<webtransport::StreamVisitor> stream_visitor0;
+  EXPECT_CALL(mock_uni_stream_, SetVisitor)
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor0 = std::move(visitor);
+      });
+  EXPECT_CALL(mock_uni_stream_, visitor()).WillRepeatedly([&]() {
+    return stream_visitor0.get();
+  });
+  EXPECT_CALL(mock_uni_stream_, SetPriority);
+  EXPECT_CALL(*track_publisher_,
+              GetCachedObject(0, std::optional<uint64_t>(0), 0, 0))
+      .WillOnce(Return(DefaultPublishedObject(Location(0, 0), 0, 128)));
+  EXPECT_CALL(*track_publisher_,
+              GetCachedObject(0, std::optional<uint64_t>(0), 1, 0))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(mock_uni_stream_, CanWrite).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_uni_stream_, Writev).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(visitor_, UpdateTrackPriority);
+  publisher_->OnCanCreateNewUniStream();
+  // Open (1, 0)
+  EXPECT_CALL(webtrans_, CanOpenNextOutgoingUnidirectionalStream())
+      .WillRepeatedly(Return(true));  // Unlimited credit but only one stream.
+  EXPECT_CALL(webtrans_, OpenOutgoingUnidirectionalStream)
+      .WillOnce(Return(&mock_uni_stream_));
+  EXPECT_CALL(mock_uni_stream_, GetStreamId)
+      .WillRepeatedly(Return(kStreamId + 8));
+  std::unique_ptr<webtransport::StreamVisitor> stream_visitor1;
+  EXPECT_CALL(mock_uni_stream_, SetVisitor)
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        stream_visitor1 = std::move(visitor);
+      });
+  EXPECT_CALL(mock_uni_stream_, visitor()).WillRepeatedly([&]() {
+    return stream_visitor1.get();
+  });
+  EXPECT_CALL(mock_uni_stream_, SetPriority);
+  EXPECT_CALL(*track_publisher_,
+              GetCachedObject(1, std::optional<uint64_t>(0), 0, 0))
+      .WillOnce(Return(DefaultPublishedObject(Location(1, 0), 0, 128)));
+  EXPECT_CALL(*track_publisher_,
+              GetCachedObject(1, std::optional<uint64_t>(0), 1, 0))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(mock_uni_stream_, CanWrite).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_uni_stream_, Writev).WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(visitor_, UpdateTrackPriority).Times(0);
+  publisher_->OnCanCreateNewUniStream();
+}
+
 TEST_F(SubscriptionPublisherTest, OnDataStreamDestroyed) {
   CreateStream(Location(1, 0), 0, 128);
   DataStreamIndex index(1, 0);
@@ -539,6 +649,51 @@ TEST_F(SubscriptionPublisherTest, OnObjectSentTwice) {
       SubscriptionPublisherPeer::largest_sent(publisher_.get()).has_value() &&
       *SubscriptionPublisherPeer::largest_sent(publisher_.get()) ==
           Location(1, 0));
+}
+
+TEST_F(SubscriptionPublisherTest, AlternateDeliveryTimeout) {
+  EXPECT_CALL(visitor_, alternate_delivery_timeout)
+      .WillRepeatedly(Return(true));
+  CreateStream(Location(0, 0), 0, 128);
+  // Save the visitor before it's overwritten.
+  std::unique_ptr<webtransport::StreamVisitor> uni_stream =
+      std::move(uni_stream_);
+  CreateStream(Location(0, 1), 1, 200);
+  std::unique_ptr<webtransport::StreamVisitor> uni_stream1 =
+      std::move(uni_stream_);
+  // Timers aren't running.
+  EXPECT_EQ(OutgoingSubgroupStreamPeer::GetAlarm(
+                absl::down_cast<OutgoingSubgroupStream*>(uni_stream.get())),
+            nullptr);
+  EXPECT_EQ(OutgoingSubgroupStreamPeer::GetAlarm(
+                absl::down_cast<OutgoingSubgroupStream*>(uni_stream1.get())),
+            nullptr);
+  // Second group starts the timer.
+  EXPECT_CALL(mock_uni_stream_, visitor)
+      .WillOnce(Return(uni_stream.get()))
+      .WillOnce(Return(uni_stream1.get()))
+      .WillRepeatedly([&]() { return uni_stream_.get(); });
+  CreateStream(Location(1, 0), 0, 128);
+  // Group 0 streams now have a timer running.
+  EXPECT_NE(OutgoingSubgroupStreamPeer::GetAlarm(
+                absl::down_cast<OutgoingSubgroupStream*>(uni_stream.get())),
+            nullptr);
+  EXPECT_NE(OutgoingSubgroupStreamPeer::GetAlarm(
+                absl::down_cast<OutgoingSubgroupStream*>(uni_stream1.get())),
+            nullptr);
+  // No timer on group 1.
+  EXPECT_EQ(OutgoingSubgroupStreamPeer::GetAlarm(
+                absl::down_cast<OutgoingSubgroupStream*>(uni_stream_.get())),
+            nullptr);
+}
+
+TEST_F(SubscriptionPublisherTest, IncomingUpdateTruncatesSubscription) {
+  // Track gets to Group 5.
+  CreateStream(Location(5, 0), 0, 128);
+  parameters_.subscription_filter = SubscriptionFilter(Location(0, 0), 4);
+  publisher_->Update(parameters_);
+  EXPECT_CALL(*track_publisher_, GetCachedObject).Times(0);
+  publisher_->OnNewObjectAvailable(Location(5, 1), 0, 128);
 }
 
 }  // namespace

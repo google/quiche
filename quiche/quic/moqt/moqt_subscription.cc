@@ -75,6 +75,8 @@ SubscriptionPublisher::~SubscriptionPublisher() {
 void SubscriptionPublisher::Update(const MessageParameters& parameters) {
   // TODO(martinduke): If there are auth tokens, this probably has to go to the
   // application.
+  // TODO(martinduke): If the subscribe window has shrunk, close any streams
+  // that are now outside the window. Also send PUBLISH_DONE if now done.
   MoqtPriority old_priority =
       parameters_.subscriber_priority.value_or(kDefaultSubscriberPriority);
   parameters_.Update(parameters);
@@ -402,27 +404,30 @@ void SubscriptionPublisher::OnDataStreamDestroyed(
 }
 
 void SubscriptionPublisher::OnCanCreateNewUniStream() {
-  auto it = pending_streams_.rbegin();
-  while (it != pending_streams_.rend() &&
-         (it->second.index.group < first_active_group_ ||
-          reset_subgroups_.contains(it->second.index))) {
+  while (visitor_->session() != nullptr &&
+         visitor_->session()->CanOpenNextOutgoingUnidirectionalStream()) {
+    auto it = pending_streams_.rbegin();
+    while (it != pending_streams_.rend() &&
+           (it->second.index.group < first_active_group_ ||
+            reset_subgroups_.contains(it->second.index))) {
+      pending_streams_.erase(--(it.base()));
+      it = pending_streams_.rbegin();
+    }
+    if (it == pending_streams_.rend()) {
+      return;
+    }
+    if (OpenDataStream(it->second) == nullptr) {
+      return;
+    }
     pending_streams_.erase(--(it.base()));
-    it = pending_streams_.rbegin();
-  }
-  if (it == pending_streams_.rend()) {
-    return;
-  }
-  if (OpenDataStream(it->second) == nullptr) {
-    return;
-  }
-  pending_streams_.erase(--(it.base()));
-  if (!pending_streams_.empty()) {
-    visitor_->UpdateTrackPriority(
-        request_id_, std::nullopt,
-        MoqtTrackPriority{
-            subscriber_priority(),
-            pending_streams_.rbegin()->second.publisher_priority.value_or(
-                default_publisher_priority())});
+    if (!pending_streams_.empty()) {
+      visitor_->UpdateTrackPriority(
+          request_id_, std::nullopt,
+          MoqtTrackPriority{
+              subscriber_priority(),
+              pending_streams_.rbegin()->second.publisher_priority.value_or(
+                  default_publisher_priority())});
+    }
   }
 }
 

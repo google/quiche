@@ -30,7 +30,7 @@
 namespace moqt {
 
 namespace test {
-class MoqtSessionPeer;
+class OutgoingSubgroupStreamPeer;
 }
 
 // A base class for locally initiated unidirectional streams, which can serve
@@ -140,7 +140,7 @@ class QUICHE_EXPORT OutgoingSubgroupStream : public OutgoingUniStream {
 
  private:
   friend class DeliveryTimeoutDelegate;
-  friend class test::MoqtSessionPeer;
+  friend class test::OutgoingSubgroupStreamPeer;
 
   // Sends objects on the stream, starting with `next_object_`, until the
   // stream becomes write-blocked or closed. Can reset the stream, destroying

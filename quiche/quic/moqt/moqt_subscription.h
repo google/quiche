@@ -35,7 +35,7 @@ namespace moqt {
 
 namespace test {
 class SubscriptionPublisherPeer;
-}
+}  // namespace test
 
 // This is the part of the send order useful for ranking streams within the
 // subscription. It sets the subscriber_priority to kDefaultSubscriberPriority
