@@ -111,29 +111,50 @@ class PingPongResponseVisitor : public MasqueOhttpClient::ResponseVisitor {
 
   void OnRequestStarted(quic::MasqueConnectionPool::RequestId request_id,
                         MasqueOhttpClient* client) override {
+    QUICHE_LOG(INFO) << "Ping-pong request " << request_id << " started with "
+                     << chunks_.size() << " chunks";
     request_id_ = request_id;
     client_ = client;
     bool is_final = (chunks_.size() <= 1);
     status_ = client_->SendBodyChunk(request_id_, chunks_[0], is_final);
+    if (!status_.ok()) {
+      QUICHE_LOG(ERROR) << "Ping-pong request " << request_id
+                        << " failed to send first chunk: " << status_.message();
+      done_ = true;
+      return;
+    }
     current_chunk_idx_ = 1;
     if (is_final) {
+      QUICHE_LOG(INFO) << "Ping-pong request " << request_id
+                       << " only had one chunk, marking as done";
       done_ = true;
     }
   }
 
   void OnResponseChunk(quic::MasqueConnectionPool::RequestId request_id,
-                       absl::string_view) override {
+                       absl::string_view chunk) override {
+    QUICHE_DVLOG(1) << "Ping-pong request " << request_id
+                    << " got response chunk #" << current_chunk_idx_
+                    << " of length " << chunk.size();
     if (request_id != request_id_ || current_chunk_idx_ >= chunks_.size()) {
       return;
     }
     bool is_final = (current_chunk_idx_ == chunks_.size() - 1);
     status_ = client_->SendBodyChunk(request_id_, chunks_[current_chunk_idx_],
                                      is_final);
+    if (!status_.ok()) {
+      QUICHE_LOG(ERROR) << "Ping-pong request " << request_id
+                        << " failed to send chunk #" << current_chunk_idx_
+                        << ": " << status_.message();
+      done_ = true;
+      return;
+    }
     current_chunk_idx_++;
   }
 
   void OnResponseDone(quic::MasqueConnectionPool::RequestId request_id,
                       const MasqueOhttpClient::Message&) override {
+    QUICHE_LOG(INFO) << "Ping-pong request done: " << request_id;
     if (request_id == request_id_) {
       done_ = true;
     }
@@ -141,6 +162,8 @@ class PingPongResponseVisitor : public MasqueOhttpClient::ResponseVisitor {
 
   void OnError(quic::MasqueConnectionPool::RequestId request_id,
                absl::Status status) override {
+    QUICHE_LOG(ERROR) << "Ping-pong request " << request_id
+                      << " got error: " << status.message();
     if (request_id == request_id_) {
       status_ = status;
       done_ = true;
@@ -402,6 +425,7 @@ absl::Status MasqueOhttpClient::Run(Config config) {
   QUICHE_RETURN_IF_ERROR(ohttp_client.Start());
   while (!ohttp_client.IsDone()) {
     if (ping_pong_visitor && ping_pong_visitor->done()) {
+      QUICHE_RETURN_IF_ERROR(ping_pong_visitor->status());
       break;
     }
     ohttp_client.connection_pool_.event_loop()->RunEventLoopOnce(
