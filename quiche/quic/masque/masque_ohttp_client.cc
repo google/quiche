@@ -395,6 +395,11 @@ absl::Status MasqueOhttpClient::Config::ConfigureOhttpMtlsFromData(
   return absl::OkStatus();
 }
 
+bool MasqueOhttpClient::Config::skip_ohttp() const {
+  static constexpr absl::string_view kSkip = "skip";
+  return key_fetch_url_ == kSkip && relay_url_ == kSkip;
+}
+
 MasqueOhttpClient::MasqueOhttpClient(Config config,
                                      quic::QuicEventLoop* event_loop,
                                      absl::string_view info_string)
@@ -444,7 +449,7 @@ absl::Status MasqueOhttpClient::Run(Config config,
 }
 
 absl::Status MasqueOhttpClient::Start() {
-  absl::Status status = StartKeyFetch(config_.key_fetch_url());
+  absl::Status status = StartKeyFetch();
   if (!status.ok()) {
     Abort(status);
     return status;
@@ -455,7 +460,7 @@ bool MasqueOhttpClient::IsDone() {
   if (!status_.ok()) {
     return true;
   }
-  if (!ohttp_client_.has_value()) {
+  if (!config_.skip_ohttp() && !ohttp_client_.has_value()) {
     // Key fetch request is still pending.
     return false;
   }
@@ -487,19 +492,23 @@ absl::StatusOr<QuicUrl> ParseUrl(const std::string& url_string) {
   return url;
 }
 
-absl::Status MasqueOhttpClient::StartKeyFetch(const std::string& url_string) {
+absl::Status MasqueOhttpClient::StartKeyFetch() {
+  if (config_.skip_ohttp()) {
+    return HandleKeyData("");
+  }
   std::string decoded_key_data;
-  if (absl::HexStringToBytes(url_string, &decoded_key_data) &&
+  if (absl::HexStringToBytes(config_.key_fetch_url(), &decoded_key_data) &&
       !decoded_key_data.empty()) {
     return HandleKeyData(decoded_key_data);
   }
-  QuicUrl url(url_string, "https");
-  if (url.host().empty() && !absl::StrContains(url_string, "://")) {
-    url = QuicUrl(absl::StrCat("https://", url_string));
+  QuicUrl url(config_.key_fetch_url(), "https");
+  if (url.host().empty() &&
+      !absl::StrContains(config_.key_fetch_url(), "://")) {
+    url = QuicUrl(absl::StrCat("https://", config_.key_fetch_url()));
   }
   if (url.host().empty()) {
-    return absl::InvalidArgumentError(
-        absl::StrCat("Failed to parse OHTTP key URL \"", url_string, "\""));
+    return absl::InvalidArgumentError(absl::StrCat(
+        "Failed to parse OHTTP key URL \"", config_.key_fetch_url(), "\""));
   }
   Message request;
   request.headers[":method"] = "GET";
@@ -588,6 +597,12 @@ absl::Status MasqueOhttpClient::HandleKeyResponse(
 }
 
 absl::Status MasqueOhttpClient::HandleKeyData(const std::string& key_data) {
+  if (config_.skip_ohttp()) {
+    for (const auto& per_request_config : config_.per_request_configs()) {
+      QUICHE_RETURN_IF_ERROR(SendDirectRequest(per_request_config));
+    }
+    return absl::OkStatus();
+  }
   absl::StatusOr<ObliviousHttpKeyConfigs> key_configs =
       ObliviousHttpKeyConfigs::ParseConcatenatedKeys(key_data);
   if (!key_configs.ok()) {
@@ -757,7 +772,7 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
   absl::StatusOr<RequestId> request_id = connection_pool_.SendRequest(
       request, /*mtls=*/true, end_stream, stream_response);
   if (!request_id.ok()) {
-    return absl::InternalError(absl::StrCat("Failed to send request: ",
+    return absl::InternalError(absl::StrCat("Failed to send OHTTP request: ",
                                             request_id.status().message()));
   }
 
@@ -777,6 +792,47 @@ absl::Status MasqueOhttpClient::SendOhttpRequest(
   if (response_visitor_) {
     response_visitor_->OnRequestStarted(*request_id, this);
   }
+
+  return absl::OkStatus();
+}
+
+absl::Status MasqueOhttpClient::SendDirectRequest(
+    const Config::PerRequestConfig& per_request_config) {
+  QuicUrl url(per_request_config.url(), "https");
+  if (url.host().empty() &&
+      !absl::StrContains(per_request_config.url(), "://")) {
+    url = QuicUrl(absl::StrCat("https://", per_request_config.url()));
+  }
+  if (url.host().empty()) {
+    return absl::InvalidArgumentError(
+        absl::StrCat("Failed to parse URL ", per_request_config.url()));
+  }
+  Message request;
+  std::string post_data = per_request_config.post_data();
+  request.headers[":method"] = per_request_config.method();
+  request.headers[":scheme"] = url.scheme();
+  request.headers[":authority"] = url.HostPort();
+  request.headers[":path"] = url.PathParamsQuery();
+  if (config_.handle_gzip_response()) {
+    request.headers["accept-encoding"] = "gzip";
+  }
+  for (const std::pair<std::string, std::string>& header :
+       per_request_config.headers()) {
+    request.headers[header.first] = header.second;
+  }
+  request.body = per_request_config.post_data();
+  absl::StatusOr<RequestId> request_id = connection_pool_.SendRequest(
+      request, /*mtls=*/true, /*end_stream=*/true, /*stream_response=*/false);
+  if (!request_id.ok()) {
+    return absl::InternalError(absl::StrCat("Failed to send direct request: ",
+                                            request_id.status().message()));
+  }
+
+  QUICHE_LOG(INFO) << ENDPOINT << "Sent direct request for "
+                   << per_request_config.url();
+
+  pending_ohttp_requests_.insert(
+      {*request_id, PendingRequest(per_request_config)});
 
   return absl::OkStatus();
 }
@@ -835,8 +891,7 @@ absl::StatusOr<Message> MasqueOhttpClient::TryExtractEncapsulatedResponse(
 }
 
 absl::Status MasqueOhttpClient::ProcessOhttpResponse(
-    RequestId request_id, const absl::StatusOr<Message>& response,
-    bool end_stream) {
+    RequestId request_id, absl::StatusOr<Message>& response, bool end_stream) {
   auto it = pending_ohttp_requests_.find(request_id);
   if (it == pending_ohttp_requests_.end()) {
     return absl::InternalError(absl::StrCat(
@@ -855,6 +910,10 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
       return absl::OkStatus();
     }
     return response.status();
+  }
+  if (config_.skip_ohttp()) {
+    return ProcessEncapsulatedResponse(request_id, *response,
+                                       it->second.per_request_config);
   }
   int16_t gateway_status_code = MasqueConnectionPool::GetStatusCode(*response);
   if (it->second.per_request_config.expected_gateway_status_code()
@@ -932,32 +991,37 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
                    << request_id << ". Body length is "
                    << encapsulated_response->body.size() << ". Headers:"
                    << encapsulated_response->headers.DebugString();
+
+  return ProcessEncapsulatedResponse(request_id, *encapsulated_response,
+                                     it->second.per_request_config);
+}
+
+absl::Status MasqueOhttpClient::ProcessEncapsulatedResponse(
+    RequestId request_id, Message& response,
+    const Config::PerRequestConfig& per_request_config) {
   if (config_.handle_gzip_response()) {
-    auto content_encoding_it =
-        encapsulated_response->headers.find("content-encoding");
-    if (content_encoding_it != encapsulated_response->headers.end() &&
+    auto content_encoding_it = response.headers.find("content-encoding");
+    if (content_encoding_it != response.headers.end() &&
         absl::EqualsIgnoreCase(content_encoding_it->second, "gzip")) {
-      size_t compressed_size = encapsulated_response->body.size();
+      size_t compressed_size = response.body.size();
       QUICHE_ASSIGN_OR_RETURN(std::string decompressed_body,
-                              GzipDecompress(encapsulated_response->body));
+                              GzipDecompress(response.body));
       QUICHE_LOG(INFO) << ENDPOINT
                        << "Successfully decompressed gzip response from size "
                        << compressed_size << " to size "
                        << decompressed_body.size();
-      encapsulated_response->body = std::move(decompressed_body);
+      response.body = std::move(decompressed_body);
     }
   }
-  std::cout << encapsulated_response->body;
+  std::cout << response.body;
   int16_t encapsulated_status_code =
-      MasqueConnectionPool::GetStatusCode(*encapsulated_response);
-  if (it->second.per_request_config.expected_encapsulated_status_code()
-          .has_value()) {
+      MasqueConnectionPool::GetStatusCode(response);
+  if (per_request_config.expected_encapsulated_status_code().has_value()) {
     if (encapsulated_status_code !=
-        *it->second.per_request_config.expected_encapsulated_status_code()) {
+        *per_request_config.expected_encapsulated_status_code()) {
       return absl::InvalidArgumentError(absl::StrCat(
           "Unexpected encapsulated status code: ", encapsulated_status_code,
-          " != ",
-          *it->second.per_request_config.expected_encapsulated_status_code()));
+          " != ", *per_request_config.expected_encapsulated_status_code()));
     }
   } else if (encapsulated_status_code < 200 ||
              encapsulated_status_code >= 300) {
@@ -965,14 +1029,15 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
         "Bad encapsulated status code: ", encapsulated_status_code));
   }
   if (const auto& callback =
-          it->second.per_request_config.encapsulated_response_body_callback();
+          per_request_config.encapsulated_response_body_callback();
       callback) {
-    QUICHE_RETURN_IF_ERROR(callback(encapsulated_response->body));
+    QUICHE_RETURN_IF_ERROR(callback(response.body));
   }
 
   if (response_visitor_) {
-    response_visitor_->OnResponseDone(request_id, *encapsulated_response);
+    response_visitor_->OnResponseDone(request_id, response);
   }
+
   return absl::OkStatus();
 }
 

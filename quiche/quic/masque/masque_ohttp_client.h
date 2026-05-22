@@ -215,6 +215,7 @@ class QUICHE_EXPORT MasqueOhttpClient
       return key_fetch_headers_;
     }
     bool handle_gzip_response() const { return handle_gzip_response_; }
+    bool skip_ohttp() const;
 
    private:
     std::string key_fetch_url_;
@@ -263,7 +264,7 @@ class QUICHE_EXPORT MasqueOhttpClient
 
  private:
   // Fetch key from the key URL.
-  absl::Status StartKeyFetch(const std::string& url_string);
+  absl::Status StartKeyFetch();
 
   // Handles the key response.
   absl::Status HandleKeyResponse(const absl::StatusOr<Message>& response);
@@ -273,6 +274,10 @@ class QUICHE_EXPORT MasqueOhttpClient
 
   // Sends the OHTTP request for the given URL.
   absl::Status SendOhttpRequest(
+      const Config::PerRequestConfig& per_request_config);
+
+  // Sends a direct HTTP request (without OHTTP) for the given URL.
+  absl::Status SendDirectRequest(
       const Config::PerRequestConfig& per_request_config);
 
   // Signals the client to abort.
@@ -379,8 +384,11 @@ class QUICHE_EXPORT MasqueOhttpClient
       RequestId request_id, quiche::ObliviousHttpRequest::Context& context,
       const Message& response);
   absl::Status ProcessOhttpResponse(RequestId request_id,
-                                    const absl::StatusOr<Message>& response,
+                                    absl::StatusOr<Message>& response,
                                     bool end_stream);
+  absl::Status ProcessEncapsulatedResponse(
+      RequestId request_id, Message& response,
+      const Config::PerRequestConfig& per_request_config);
   absl::Status CheckStatusAndContentType(
       const Message& response, const std::string& content_type,
       std::optional<uint16_t> expected_status_code);
