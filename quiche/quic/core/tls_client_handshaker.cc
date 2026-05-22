@@ -188,10 +188,12 @@ bool TlsClientHandshaker::CryptoConnect() {
     }
   }
 
+#if BORINGSSL_API_VERSION >= 41
   if (tls_connection_.ssl_config().server_padding_to_request.has_value()) {
     SSL_set_server_padding_request(
         ssl(), tls_connection_.ssl_config().server_padding_to_request.value());
   }
+#endif
 
   // The compliance policy must be the last thing configured before the
   // handshake in order to have defined behavior.
@@ -638,7 +640,9 @@ void TlsClientHandshaker::FinishHandshake() {
     }
   }
 
+#if BORINGSSL_API_VERSION >= 41
   server_sent_padding_ = SSL_server_sent_requested_padding(ssl());
+#endif
 
   state_ = HANDSHAKE_COMPLETE;
   handshaker_delegate()->OnTlsHandshakeComplete();
