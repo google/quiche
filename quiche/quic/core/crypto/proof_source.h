@@ -43,10 +43,32 @@ struct QUICHE_EXPORT CryptoBuffers {
   CryptoBuffers() = default;
   CryptoBuffers(const CryptoBuffers&) = delete;
   CryptoBuffers(CryptoBuffers&&) = default;
+  CryptoBuffers& operator=(const CryptoBuffers&) = delete;
+  CryptoBuffers& operator=(CryptoBuffers&&) = default;
   ~CryptoBuffers();
 
   std::vector<CRYPTO_BUFFER*> value;
 };
+
+// The ex_data for SSL_CREDENTIAL.
+struct QUICHE_EXPORT CredentialExData {
+  explicit CredentialExData(CryptoBuffers cert_chain)
+      : cert_chain_buffers(std::move(cert_chain)) {}
+  CryptoBuffers cert_chain_buffers;
+};
+
+// Sets ex_data for a SSL_CREDENTIAL.
+QUICHE_EXPORT void SetCredentialExData(
+    SSL_CREDENTIAL& credential, std::unique_ptr<CredentialExData> exdata);
+
+// Gets ex_data for a SSL_CREDENTIAL. Returns nullptr if not set.
+//
+// Note that the SSL_CREDENTIAL used by a handshake is deleted after the
+// handshake, so there is only a short window to get the ex_data from
+// SSL_get0_selected_credential(). See test `GetCredentialExData` in
+// `TlsServerHandshakerTest` for an example.
+QUICHE_EXPORT const CredentialExData* GetCredentialExData(
+    const SSL_CREDENTIAL& credential);
 
 // ProofSource is an interface by which a QUIC server can obtain certificate
 // chains and signatures that prove its identity.

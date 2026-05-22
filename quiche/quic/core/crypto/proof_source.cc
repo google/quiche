@@ -11,19 +11,79 @@
 #include <vector>
 
 #include "openssl/base.h"
+#include "openssl/ex_data.h"
 #include "openssl/pool.h"
 #include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/certificate_view.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
+
+namespace {
+
+void CredentialExDataFree(void*, void* ptr, CRYPTO_EX_DATA*, int,
+                          long,  // NOLINT
+                          void*) {
+  delete static_cast<CredentialExData*>(ptr);
+}
+
+int GetCredentialExDataIndex() {
+  static const int index = [] {
+    int ret = SSL_CREDENTIAL_get_ex_new_index(0, nullptr, nullptr, nullptr,
+                                              CredentialExDataFree);
+    if (ret < 0) {
+      QUIC_BUG(quic_credential_ex_data_index_failure)
+          << "Failed to get SSL credential ex data index. "
+             "(Get|Set)CredentialExData will not work.";
+    }
+    return ret;
+  }();
+  return index;
+}
+
+}  // namespace
 
 CryptoBuffers::~CryptoBuffers() {
   for (size_t i = 0; i < value.size(); i++) {
     CRYPTO_BUFFER_free(value[i]);
   }
+}
+
+void SetCredentialExData(SSL_CREDENTIAL& credential,
+                         std::unique_ptr<CredentialExData> exdata) {
+  if (!GetQuicRestartFlag(quic_set_credential_ex_data)) {
+    return;
+  }
+  QUIC_RESTART_FLAG_COUNT_N(quic_set_credential_ex_data, 2, 3);
+
+  int index = GetCredentialExDataIndex();
+  if (index < 0 || exdata == nullptr) {
+    return;
+  }
+  if (SSL_CREDENTIAL_set_ex_data(&credential, index, exdata.get())) {
+    exdata.release();  // Ownership transferred.
+  } else {
+    QUICHE_LOG_FIRST_N(ERROR, 1) << "SetCredentialExData failed.";
+  }
+}
+
+const CredentialExData* GetCredentialExData(const SSL_CREDENTIAL& credential) {
+  if (!GetQuicRestartFlag(quic_set_credential_ex_data)) {
+    return nullptr;
+  }
+  QUIC_RESTART_FLAG_COUNT_N(quic_set_credential_ex_data, 3, 3);
+
+  int index = GetCredentialExDataIndex();
+  if (index < 0) {
+    return nullptr;
+  }
+  return static_cast<const CredentialExData*>(
+      SSL_CREDENTIAL_get_ex_data(&credential, index));
 }
 
 ProofSource::Chain::Chain(const std::vector<std::string>& certs,

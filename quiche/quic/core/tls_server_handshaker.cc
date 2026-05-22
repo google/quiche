@@ -1129,7 +1129,7 @@ void TlsServerHandshaker::OnSelectCertificateDone(
              local_config->chains) {
           if (!chain->certs.empty()) {
             QUIC_CODE_COUNT(quic_tls_server_chain_with_certs_nonempty);
-            tls_connection_.AddCertChain(chain->ToCryptoBuffers().value,
+            tls_connection_.AddCertChain(chain->ToCryptoBuffers(),
                                          chain->trust_anchor_id);
           } else {
             QUIC_CODE_COUNT(quic_tls_server_chain_with_certs_empty);

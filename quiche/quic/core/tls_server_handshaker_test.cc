@@ -153,6 +153,10 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
   MOCK_METHOD(void, OnSelectCertificateDone,
               (bool, bool, SSLConfig, absl::string_view, bool), (override));
 
+  MOCK_METHOD(void, InfoCallback, (int, int), (override));
+
+  void EnableInfoCallback() { tls_connection().EnableInfoCallback(); }
+
   // Makes the next call to `MaybeCreateProofSourceHandle()` return a
   // `FakeProofSourceHandle` instead of a real `ProofSourceHandle`.
   void SetupProofSourceHandle(
@@ -1711,6 +1715,45 @@ TEST_P(TlsServerHandshakerTest, CompliancePolicyWithAsynchronousSelectCert) {
   // https://commondatastorage.googleapis.com/chromium-boringssl-docs/ssl.h.html#Compliance-policy-configurations
   EXPECT_EQ(SSL_CIPHER_get_id(SSL_get_current_cipher(server_ssl())),
             TLS1_3_CK_AES_256_GCM_SHA384);
+}
+
+TEST_P(TlsServerHandshakerTest, GetCredentialExData) {
+  InitializeServerWithFakeProofSourceHandle();
+
+  server_handshaker_->EnableInfoCallback();
+
+  bool credential_ex_data_verified = false;
+  EXPECT_CALL(*server_handshaker_, InfoCallback(_, _))
+      .WillRepeatedly([&](int type, int /*value*/) {
+        if (type & SSL_CB_HANDSHAKE_DONE) {
+          SSL* ssl = server_ssl();
+
+          // Get the selected credential used for this connection.
+          const SSL_CREDENTIAL* cred = SSL_get0_selected_credential(ssl);
+          ASSERT_NE(cred, nullptr);
+
+          // Verify that the extension data is present and non-null.
+          const CredentialExData* ex_data = GetCredentialExData(*cred);
+
+          if (GetQuicRestartFlag(quic_set_credential_ex_data)) {
+            ASSERT_NE(ex_data, nullptr);
+          } else {
+            ASSERT_EQ(ex_data, nullptr);
+          }
+          credential_ex_data_verified = true;
+        }
+      });
+
+  server_handshaker_->SetupProofSourceHandle(
+      /*select_cert_action=*/FakeProofSourceHandle::Action::DELEGATE_SYNC,
+      /*compute_signature_action=*/FakeProofSourceHandle::Action::
+          DELEGATE_SYNC);
+
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  ASSERT_TRUE(credential_ex_data_verified);
 }
 
 }  // namespace

@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -17,6 +18,7 @@
 #include "quiche/quic/core/crypto/tls_connection.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_flag_utils.h"
+#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
@@ -73,12 +75,20 @@ absl::Status TlsServerConnection::ConfigureSSL(
                                   TlsServerConnection::kPrivateKeyMethod);
 }
 
-void TlsServerConnection::AddCertChain(
-    const std::vector<CRYPTO_BUFFER*>& cert_chain,
-    absl::string_view trust_anchor_id) {
+void TlsServerConnection::AddCertChain(CryptoBuffers cert_chain,
+                                       absl::string_view trust_anchor_id) {
   bssl::UniquePtr<SSL_CREDENTIAL> credential(SSL_CREDENTIAL_new_x509());
-  SSL_CREDENTIAL_set1_cert_chain(credential.get(), cert_chain.data(),
-                                 cert_chain.size());
+  std::unique_ptr<CredentialExData> exdata;
+  if (GetQuicRestartFlag(quic_set_credential_ex_data)) {
+    QUIC_RESTART_FLAG_COUNT_N(quic_set_credential_ex_data, 1, 3);
+    exdata = std::make_unique<CredentialExData>(std::move(cert_chain));
+    SSL_CREDENTIAL_set1_cert_chain(credential.get(),
+                                   exdata->cert_chain_buffers.value.data(),
+                                   exdata->cert_chain_buffers.value.size());
+  } else {
+    SSL_CREDENTIAL_set1_cert_chain(credential.get(), cert_chain.value.data(),
+                                   cert_chain.value.size());
+  }
   if (ssl_config().signing_algorithm_prefs.has_value()) {
     SSL_CREDENTIAL_set1_signing_algorithm_prefs(
         credential.get(), ssl_config().signing_algorithm_prefs->data(),
@@ -95,6 +105,9 @@ void TlsServerConnection::AddCertChain(
     SSL_CREDENTIAL_set_must_match_issuer(credential.get(), 1);
   } else {
     QUIC_CODE_COUNT(quic_tls_server_connection_trust_anchor_id_empty);
+  }
+  if (exdata != nullptr) {
+    SetCredentialExData(*credential, std::move(exdata));
   }
   SSL_add1_credential(ssl(), credential.get());
 }
