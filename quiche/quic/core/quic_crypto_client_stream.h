@@ -245,6 +245,10 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
     // (https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html#name-overview).
     virtual bool MatchedTrustAnchorIdForTesting() const = 0;
 
+    // Returns true if the server indicated during the handshake that it
+    // sent the requested amount of padding.
+    virtual bool ServerPaddingSentForTesting() const = 0;
+
     // Returns the SSL compliance policy configured for the connection, if any.
     virtual std::optional<ssl_compliance_policy_t>
     SslCompliancePolicyForTesting() const = 0;
@@ -329,6 +333,7 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
   std::string chlo_hash() const;
 
   bool MatchedTrustAnchorIdForTesting() const;
+  bool ServerPaddingSentForTesting() const;
   std::optional<ssl_compliance_policy_t> SslCompliancePolicyForTesting() const;
 
  protected:

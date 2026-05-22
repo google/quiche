@@ -54,6 +54,7 @@ class QUICHE_EXPORT TlsClientHandshaker
   bool ExportKeyingMaterial(absl::string_view label, absl::string_view context,
                             size_t result_len, std::string* result) override;
   bool MatchedTrustAnchorIdForTesting() const override;
+  bool ServerPaddingSentForTesting() const override;
   std::optional<ssl_compliance_policy_t> SslCompliancePolicyForTesting()
       const override;
 
@@ -181,6 +182,10 @@ class QUICHE_EXPORT TlsClientHandshaker
   // certificate which matched a Trust Anchor ID sent by the client. This value
   // is needed only for testing.
   bool matched_trust_anchor_id_ = false;
+
+  // True if the server indicated during the handshake that it sent the
+  // requested amount of padding. This value is needed only for testing.
+  bool server_sent_padding_ = false;
 
   // If not nullopt, the SSL compliance policy to use. See documentation for
   // ssl_compliance_policy_t values in BoringSSL:

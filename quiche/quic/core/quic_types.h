@@ -891,6 +891,11 @@ struct QUICHE_EXPORT QuicSSLConfig {
   // signal support for the extension without advertising particular trust
   // anchors. If nullopt, the Trust Anchor IDs extension will not be sent.
   std::optional<std::string> trust_anchor_ids;
+
+  // If not nullopt, the number of bytes of padding to add to the TLS handshake.
+  // Only used by the client.
+  // This is experimental, and will be removed once the experiment is complete.
+  std::optional<uint16_t> server_padding_to_request = std::nullopt;
 };
 
 QUICHE_EXPORT bool operator==(const QuicSSLConfig& lhs,

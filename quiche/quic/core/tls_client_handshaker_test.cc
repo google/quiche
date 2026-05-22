@@ -323,6 +323,22 @@ TEST_P(TlsClientHandshakerTest, ConnectedAfterHandshake) {
   EXPECT_NE(stream()->ciphersuite(), nullptr);
 }
 
+// Test that the connection succeeds when the client sends a server padding
+// request and the server does not respond with the requested padding.
+//
+// TODO(b/515119618): Add a test that checks the padding response once the
+// server can respond to the padding request with padding in the response.
+TEST_P(TlsClientHandshakerTest, HandshakeWithServerPaddingRequest) {
+  ssl_config_.emplace();
+  ssl_config_->server_padding_to_request = 128;
+  CreateConnection();
+  CompleteCryptoHandshake();
+
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->ServerPaddingSentForTesting());
+}
+
 TEST_P(TlsClientHandshakerTest, ConnectionClosedOnTlsError) {
   // Have client send ClientHello.
   stream()->CryptoConnect();

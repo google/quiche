@@ -144,6 +144,10 @@ bool QuicCryptoClientStream::MatchedTrustAnchorIdForTesting() const {
   return handshaker_->MatchedTrustAnchorIdForTesting();
 }
 
+bool QuicCryptoClientStream::ServerPaddingSentForTesting() const {
+  return handshaker_->ServerPaddingSentForTesting();
+}
+
 std::optional<ssl_compliance_policy_t>
 QuicCryptoClientStream::SslCompliancePolicyForTesting() const {
   return handshaker_->SslCompliancePolicyForTesting();

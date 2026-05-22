@@ -78,6 +78,7 @@ class QUICHE_EXPORT QuicCryptoClientHandshaker
     return false;
   }
   bool MatchedTrustAnchorIdForTesting() const override { return false; }
+  bool ServerPaddingSentForTesting() const override { return false; }
   std::optional<ssl_compliance_policy_t> SslCompliancePolicyForTesting()
       const override {
     return std::nullopt;

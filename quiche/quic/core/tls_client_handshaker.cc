@@ -188,6 +188,11 @@ bool TlsClientHandshaker::CryptoConnect() {
     }
   }
 
+  if (tls_connection_.ssl_config().server_padding_to_request.has_value()) {
+    SSL_set_server_padding_request(
+        ssl(), tls_connection_.ssl_config().server_padding_to_request.value());
+  }
+
   // The compliance policy must be the last thing configured before the
   // handshake in order to have defined behavior.
   if (ssl_compliance_policy_.has_value()) {
@@ -425,6 +430,10 @@ bool TlsClientHandshaker::MatchedTrustAnchorIdForTesting() const {
   return matched_trust_anchor_id_;
 }
 
+bool TlsClientHandshaker::ServerPaddingSentForTesting() const {
+  return server_sent_padding_;
+}
+
 std::optional<ssl_compliance_policy_t>
 TlsClientHandshaker::SslCompliancePolicyForTesting() const {
   return ssl_compliance_policy_;
@@ -628,6 +637,8 @@ void TlsClientHandshaker::FinishHandshake() {
       return;
     }
   }
+
+  server_sent_padding_ = SSL_server_sent_requested_padding(ssl());
 
   state_ = HANDSHAKE_COMPLETE;
   handshaker_delegate()->OnTlsHandshakeComplete();
