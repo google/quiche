@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <algorithm>
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -87,8 +88,13 @@ absl::Status RunPrivateTokens(int argc, char* argv[]) {
           "  \"token-keys\": [\n    {\n      \"token-type\": 2,\n",
           "      \"token-key\": \"", encoded_public_key, "\",\n    }\n  ]\n}");
 
-      QUICHE_LOG(INFO) << "The issuer config could look like:\n"
-                       << issuer_config;
+      if (!private_key_file.empty()) {
+        QUICHE_LOG(INFO) << "The issuer config could look like:\n"
+                         << issuer_config;
+      } else {
+        QUICHE_LOG(INFO) << "The issuer config could look like:";
+        std::cout << issuer_config << std::endl;
+      }
     }
   }
 
@@ -117,6 +123,8 @@ absl::Status RunPrivateTokens(int argc, char* argv[]) {
     QUICHE_RETURN_IF_ERROR(
         TokenValidatesFromAtLeastOneKey(encoded_public_keys, generated_token));
     QUICHE_LOG(INFO) << "Validated locally-generated token";
+
+    std::cout << auth_header << std::endl;
   }
   return absl::OkStatus();
 }
