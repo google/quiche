@@ -1014,6 +1014,10 @@ absl::Status MasqueOhttpClient::ProcessEncapsulatedResponse(
     }
   }
   std::cout << response.body;
+  if (!response.body.empty() &&
+      response.body[response.body.size() - 1] != '\n') {
+    std::cout << std::endl;
+  }
   int16_t encapsulated_status_code =
       MasqueConnectionPool::GetStatusCode(response);
   if (per_request_config.expected_encapsulated_status_code().has_value()) {
@@ -1101,10 +1105,24 @@ void MasqueOhttpClient::OnPoolData(MasqueConnectionPool* /*pool*/,
     }
     return;
   }
-  if (end_stream && response_visitor_) {
-    response_visitor_->OnResponseDone(
-        request_id,
-        std::move(*pending_request.chunk_handler).ExtractResponse());
+  if (end_stream) {
+    Message response =
+        std::move(*pending_request.chunk_handler).ExtractResponse();
+    if (const auto& callback = pending_request.per_request_config
+                                   .encapsulated_response_body_callback();
+        callback) {
+      status = callback(response.body);
+      if (!status.ok()) {
+        Abort(status);
+        if (response_visitor_) {
+          response_visitor_->OnError(request_id, status);
+        }
+        return;
+      }
+    }
+    if (response_visitor_) {
+      response_visitor_->OnResponseDone(request_id, response);
+    }
   }
 }
 
@@ -1289,7 +1307,11 @@ absl::Status MasqueOhttpClient::ChunkHandler::OnBodyChunk(
     }
   }
 
-  std::cout << processed_chunk;
+  std::cout << processed_chunk << std::flush;
+  last_chunk_ended_without_newline_ =
+      !processed_chunk.empty() &&
+      processed_chunk[processed_chunk.size() - 1] != '\n';
+
   response_.body += processed_chunk;
 
   if (response_chunk_callback_) {
@@ -1304,6 +1326,9 @@ absl::Status MasqueOhttpClient::ChunkHandler::OnBodyChunksDone() {
       return absl::InternalError("Gzip stream truncated");
     }
     decompressor_->EndDecompression();
+  }
+  if (last_chunk_ended_without_newline_) {
+    std::cout << std::endl;
   }
   return absl::OkStatus();
 }

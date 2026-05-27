@@ -352,6 +352,7 @@ class QUICHE_EXPORT MasqueOhttpClient
     size_t body_chunk_count_ = 0;
     bool handle_gzip_response_ = false;
     bool is_gzipped_ = false;
+    bool last_chunk_ended_without_newline_ = false;
     std::unique_ptr<GzipDecompressor> decompressor_;
     const std::string info_;
   };
