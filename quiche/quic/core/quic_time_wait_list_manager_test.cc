@@ -73,7 +73,7 @@ class FramerVisitorCapturingPublicReset : public NoOpFramerVisitor {
   }
 
  private:
-  StatelessResetToken stateless_reset_token_;
+  StatelessResetToken stateless_reset_token_ = {};
   QuicConnectionId connection_id_;
 };
 
