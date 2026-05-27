@@ -178,13 +178,23 @@ class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
   // Note this method may return a nullptr after the TLS handshake is completed.
   virtual SSL* GetSsl() const = 0;
 
-  virtual absl::string_view sni() const;
+  virtual absl::string_view Sni() const;
 
   // These methods should only be called with IETF QUIC.
   // Returns the cipher suite in use.
-  virtual const SSL_CIPHER* absl_nullable ciphersuite() const;
+  virtual const SSL_CIPHER* absl_nullable Ciphersuite() const;
   // Returns the ALPN in use.
-  virtual absl::string_view alpn() const;
+  virtual absl::string_view Alpn() const;
+  // Returns the TLS group ID in use.
+  virtual uint16_t TlsGroupId() const;
+  // Returns the ciphersuite ID in use.
+  uint16_t CiphersuiteId() const;
+  // Returns the ciphersuite string in use.
+  absl::string_view CiphersuiteString() const;
+  // Returns the TLS group string in use.
+  absl::string_view TlsGroupString() const;
+  // Returns the TLS version in use.
+  absl::string_view TlsVersion() const;
 
   // Called to cancel retransmission of unencrypted crypto stream data.
   void NeuterUnencryptedStreamData();

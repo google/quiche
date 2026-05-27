@@ -97,6 +97,12 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   EncryptionLevel GetEncryptionLevelToSendCryptoDataOfSpace(
       PacketNumberSpace space) const override;
 
+  // Overrides to support cached info after ResetSsl is called in QUIC session.
+  absl::string_view Sni() const override;
+  const SSL_CIPHER* Ciphersuite() const override;
+  absl::string_view Alpn() const override;
+  uint16_t TlsGroupId() const override;
+
   // From QuicCryptoServerStreamBase and TlsHandshaker
   ssl_early_data_reason_t EarlyDataReason() const override;
   bool encryption_established() const override;
@@ -412,10 +418,13 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   struct CachedSSLInfo {
     bool is_resumption = false;
     bool is_zero_rtt = false;
+    uint16_t tls_group_id = 0;
     ssl_early_data_reason_t early_data_reason = ssl_early_data_unknown;
     // Note SSL_get_current_cipher returns a static allocated pointer and as a
     // result it is safe to cache a raw pointer here.
     const SSL_CIPHER* cipher = nullptr;
+    std::string alpn;
+    std::string sni;
   };
   std::optional<CachedSSLInfo> cached_ssl_info_;
 

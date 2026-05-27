@@ -72,6 +72,11 @@ namespace {
 
 const char kServerHostname[] = "test.example.com";
 const uint16_t kServerPort = 443;
+constexpr uint16_t kCipherId = 0x1301;
+constexpr absl::string_view kCipherString = "TLS_AES_128_GCM_SHA256";
+constexpr uint16_t kTlsGroupId = 29;
+constexpr absl::string_view kTlsGroupString = "X25519";
+constexpr absl::string_view kTlsVersion = "TLS_VERSION_1_3";
 
 struct TestParams {
   ParsedQuicVersion version;
@@ -556,10 +561,10 @@ TEST_P(TlsServerHandshakerTest, ConnectedAfterTlsHandshake) {
   EXPECT_TRUE(server_stream()->version().IsIetfQuic());
   ExpectHandshakeSuccessful();
 
-  EXPECT_EQ(server_stream()->sni(), kServerHostname);
-  EXPECT_EQ(server_stream()->alpn(),
+  EXPECT_EQ(server_stream()->Sni(), kServerHostname);
+  EXPECT_EQ(server_stream()->Alpn(),
             AlpnForVersion(server_stream()->version()));
-  EXPECT_NE(server_stream()->ciphersuite(), nullptr);
+  EXPECT_NE(server_stream()->Ciphersuite(), nullptr);
 }
 
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertSuccess) {
@@ -1754,6 +1759,40 @@ TEST_P(TlsServerHandshakerTest, GetCredentialExData) {
   ExpectHandshakeSuccessful();
 
   ASSERT_TRUE(credential_ex_data_verified);
+}
+
+TEST_P(TlsServerHandshakerTest, CachedSslInfoAfterResetSsl) {
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+
+  EXPECT_EQ(server_stream()->Sni(), kServerHostname);
+  EXPECT_EQ(server_stream()->Alpn(),
+            AlpnForVersion(server_stream()->version()));
+  const SSL_CIPHER* cipher = server_stream()->Ciphersuite();
+  EXPECT_NE(cipher, nullptr);
+
+  EXPECT_EQ(server_stream()->Ciphersuite(), cipher);
+  EXPECT_EQ(server_stream()->CiphersuiteId(), kCipherId);
+  EXPECT_EQ(server_stream()->CiphersuiteString(), kCipherString);
+  EXPECT_EQ(server_stream()->TlsGroupId(), kTlsGroupId);
+  EXPECT_EQ(server_stream()->TlsGroupString(), kTlsGroupString);
+  EXPECT_EQ(server_stream()->TlsVersion(), kTlsVersion);
+
+  // Call ResetSsl. This should cache the SSL info.
+  TlsServerHandshaker* handshaker =
+      static_cast<TlsServerHandshaker*>(server_stream());
+  handshaker->ResetSsl();
+
+  // Verify that the info is still available from the cache.
+  EXPECT_EQ(server_stream()->Sni(), kServerHostname);
+  EXPECT_EQ(server_stream()->Alpn(),
+            AlpnForVersion(server_stream()->version()));
+  EXPECT_EQ(server_stream()->Ciphersuite(), cipher);
+  EXPECT_EQ(server_stream()->CiphersuiteId(), kCipherId);
+  EXPECT_EQ(server_stream()->CiphersuiteString(), kCipherString);
+  EXPECT_EQ(server_stream()->TlsGroupId(), kTlsGroupId);
+  EXPECT_EQ(server_stream()->TlsGroupString(), kTlsGroupString);
+  EXPECT_EQ(server_stream()->TlsVersion(), kTlsVersion);
 }
 
 }  // namespace

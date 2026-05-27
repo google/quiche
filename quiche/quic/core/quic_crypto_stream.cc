@@ -617,7 +617,7 @@ void QuicCryptoStream::ResetCryptoSubstreams() {
   QUICHE_CODE_COUNT(quic_crypto_stream_reset_crypto_substreams);
 }
 
-absl::string_view QuicCryptoStream::sni() const {
+absl::string_view QuicCryptoStream::Sni() const {
   if (!VersionIsIetfQuic(session()->transport_version())) {
     return {};
   }
@@ -632,7 +632,7 @@ absl::string_view QuicCryptoStream::sni() const {
   return {};
 }
 
-const SSL_CIPHER* absl_nullable QuicCryptoStream::ciphersuite() const {
+const SSL_CIPHER* absl_nullable QuicCryptoStream::Ciphersuite() const {
   QUICHE_DCHECK(VersionIsIetfQuic(session()->transport_version()));
   SSL* ssl = GetSsl();
   if (ssl == nullptr) {
@@ -641,7 +641,24 @@ const SSL_CIPHER* absl_nullable QuicCryptoStream::ciphersuite() const {
   return SSL_get_current_cipher(ssl);
 }
 
-absl::string_view QuicCryptoStream::alpn() const {
+uint16_t QuicCryptoStream::CiphersuiteId() const {
+  const SSL_CIPHER* cipher = Ciphersuite();
+  if (cipher == nullptr) {
+    return 0xffff;
+  }
+  return static_cast<uint16_t>(SSL_CIPHER_get_id(cipher));
+}
+
+absl::string_view QuicCryptoStream::CiphersuiteString() const {
+  const SSL_CIPHER* cipher = Ciphersuite();
+  if (cipher == nullptr) {
+    return {};
+  }
+
+  return SSL_CIPHER_get_name(cipher);
+}
+
+absl::string_view QuicCryptoStream::Alpn() const {
   QUICHE_DCHECK(VersionIsIetfQuic(session()->transport_version()));
   SSL* ssl = GetSsl();
   if (ssl == nullptr) {
@@ -654,6 +671,28 @@ absl::string_view QuicCryptoStream::alpn() const {
     return {};
   }
   return absl::string_view(reinterpret_cast<const char*>(data), data_len);
+}
+
+uint16_t QuicCryptoStream::TlsGroupId() const {
+  QUICHE_DCHECK(VersionIsIetfQuic(session()->transport_version()));
+  SSL* ssl = GetSsl();
+  if (ssl == nullptr) {
+    return 0;
+  }
+  return SSL_get_group_id(ssl);
+}
+
+absl::string_view QuicCryptoStream::TlsGroupString() const {
+  const char* group = SSL_get_group_name(TlsGroupId());
+  if (group == nullptr) {
+    return {};
+  }
+  return group;
+}
+
+// IETF QUIC only uses TLS 1.3.
+absl::string_view QuicCryptoStream::TlsVersion() const {
+  return "TLS_VERSION_1_3";
 }
 
 #undef ENDPOINT  // undef for jumbo builds

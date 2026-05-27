@@ -318,9 +318,12 @@ TEST_P(TlsClientHandshakerTest, ConnectedAfterHandshake) {
   EXPECT_FALSE(stream()->MatchedTrustAnchorIdForTesting());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->IsResumption());
-  EXPECT_EQ(stream()->sni(), kServerHostname);
-  EXPECT_EQ(stream()->alpn(), AlpnForVersion(stream()->version()));
-  EXPECT_NE(stream()->ciphersuite(), nullptr);
+  EXPECT_EQ(stream()->Sni(), kServerHostname);
+  EXPECT_EQ(stream()->Alpn(), AlpnForVersion(stream()->version()));
+  EXPECT_NE(stream()->Ciphersuite(), nullptr);
+  EXPECT_NE(stream()->TlsGroupId(), 0);
+  EXPECT_FALSE(stream()->TlsGroupString().empty());
+  EXPECT_EQ(stream()->TlsVersion(), "TLS_VERSION_1_3");
 }
 
 // Test that the connection succeeds when the client sends a server padding
