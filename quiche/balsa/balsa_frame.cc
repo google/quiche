@@ -430,8 +430,12 @@ void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
     return;
   }
 
+  bool has_non_digit =
+      part2.find_first_not_of("0123456789") != absl::string_view::npos;
+  bool has_leading_zero = part2.length() > 1 && part2[0] == '0';
   if (headers_->parsed_response_code_ < 100 ||
-      headers_->parsed_response_code_ > 599) {
+      headers_->parsed_response_code_ > 599 || has_non_digit ||
+      has_leading_zero) {
     if (http_validation_policy().disallow_invalid_response_codes) {
       parse_state_ = BalsaFrameEnums::ERROR;
       last_error_ = BalsaFrameEnums::INVALID_STATUS_CODE;

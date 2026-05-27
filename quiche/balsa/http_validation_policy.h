@@ -125,7 +125,9 @@ struct QUICHE_EXPORT HttpValidationPolicy {
   bool require_semicolon_delimited_chunk_extension = false;
 
   // Status codes outside the range [100, 599] are invalid, per RFC 9110,
-  // Section 15 https://www.rfc-editor.org/rfc/rfc9110#section-15
+  // Section 15 https://www.rfc-editor.org/rfc/rfc9110#section-15. Additionally,
+  // status codes must begin with a digit within the range [1 - 5] and not
+  // contain any non-digit characters.
   bool disallow_invalid_response_codes = false;
 };
 

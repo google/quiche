@@ -952,6 +952,9 @@ TEST(HTTPBalsaFrame, LargeAndSmallStatusCodesWithPolicy) {
       {"600", BalsaFrameEnums::INVALID_STATUS_CODE},
       {"1000", BalsaFrameEnums::INVALID_STATUS_CODE},
       {"65740", BalsaFrameEnums::INVALID_STATUS_CODE},
+      {"0200", BalsaFrameEnums::INVALID_STATUS_CODE},
+      {"+200", BalsaFrameEnums::INVALID_STATUS_CODE},
+      {"200A", BalsaFrameEnums::FAILED_CONVERTING_STATUS_CODE_TO_INT},
       {"99999999999999999999999",
        BalsaFrameEnums::FAILED_CONVERTING_STATUS_CODE_TO_INT}};
   HttpValidationPolicy policy;
