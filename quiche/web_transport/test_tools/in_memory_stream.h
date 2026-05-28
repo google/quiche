@@ -76,6 +76,7 @@ class QUICHE_NO_EXPORT InMemoryStream : public Stream {
   }
 
   bool fin_sent() const { return fin_sent_; }
+  bool was_reset() const { return abruptly_terminated_; }
 
  protected:
   virtual void OnWrite(absl::string_view data) {}

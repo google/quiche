@@ -14,6 +14,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
@@ -38,14 +39,14 @@ constexpr quic::QuicTimeDelta kMaxPublishDoneTimeout =
 
 }  // namespace
 
-bool RemoteTrack::CheckDataStreamType(MoqtDataStreamType type) {
-  if (is_fetch() && !type.IsFetch()) {
-    return false;
+SubscribeRemoteTrack::~SubscribeRemoteTrack() {
+  if (publish_done_alarm_ != nullptr) {
+    publish_done_alarm_->PermanentCancel();
   }
-  if (!is_fetch() && !type.IsSubgroup()) {
-    return false;
+  if (register_track_alias_callback_ && track_alias_.has_value()) {
+    register_track_alias_callback_(*track_alias_, nullptr);
   }
-  return true;
+  visitor_->OnPublishDone(full_track_name());
 }
 
 void SubscribeRemoteTrack::OnStreamOpened() {
@@ -68,6 +69,10 @@ void SubscribeRemoteTrack::OnStreamClosed(
       visitor_->OnStreamReset(full_track_name(), *index);
     }
   }
+  if (all_streams_closed()) {
+    Destroy();
+    return;
+  }
   if (publish_done_alarm_ == nullptr) {
     return;
   }
@@ -76,10 +81,15 @@ void SubscribeRemoteTrack::OnStreamClosed(
 
 void SubscribeRemoteTrack::OnPublishDone(
     uint64_t stream_count, const quic::QuicClock* clock,
-    std::unique_ptr<quic::QuicAlarm> publish_done_alarm) {
+    quic::QuicAlarmFactory* alarm_factory) {
   total_streams_ = stream_count;
   clock_ = clock;
-  publish_done_alarm_ = std::move(publish_done_alarm);
+  if (all_streams_closed()) {
+    Destroy();
+    return;
+  }
+  publish_done_alarm_ = std::unique_ptr<quic::QuicAlarm>(
+      alarm_factory->CreateAlarm(new PublishDoneDelegate(this)));
   MaybeSetPublishDoneAlarm();
 }
 
@@ -229,6 +239,8 @@ bool UpstreamFetch::LocationIsValid(Location location, MoqtObjectStatus status,
 }
 
 UpstreamFetch::UpstreamFetchTask::~UpstreamFetchTask() {
+  // Set status_ so that callbacks into UpstreamFetchTask exit early.
+  status_ = absl::CancelledError("UpstreamFetchTask destroyed");
   if (task_destroyed_callback_) {
     std::move(task_destroyed_callback_)();
   }
@@ -262,6 +274,7 @@ UpstreamFetch::UpstreamFetchTask::GetNextObject(PublishedObject& output) {
   output.metadata.publisher_priority = next_object_->publisher_priority;
   output.metadata.payload_length = next_object_->payload_length;
   output.fin_after_this = false;
+  // TODO(martinduke): Make sure the whole object has been delivered.
   if (output.metadata.location ==
       largest_location_) {  // This is the last object.
     eof_ = true;

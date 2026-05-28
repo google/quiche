@@ -173,7 +173,8 @@ void MoqtSession::OnIncomingBidirectionalStreamAvailable() {
 void MoqtSession::OnIncomingUnidirectionalStreamAvailable() {
   while (webtransport::Stream* stream =
              session_->AcceptIncomingUnidirectionalStream()) {
-    stream->SetVisitor(std::make_unique<IncomingDataStream>(this, stream));
+    stream->SetVisitor(
+        std::make_unique<IncomingDataStream>(stream, this, callbacks_.clock));
     stream->visitor()->OnCanRead();
   }
 }
@@ -484,7 +485,28 @@ bool MoqtSession::Subscribe(const FullTrackName& name,
   SendControlMessage(framer_.SerializeSubscribe(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE message for "
                   << message.full_track_name;
-  auto track = std::make_unique<SubscribeRemoteTrack>(message, visitor);
+  auto track = std::make_unique<SubscribeRemoteTrack>(
+      message, visitor,
+      [this, request_id = message.request_id, ftn = name]() {
+        // Deletion callback
+        subscribe_by_name_.erase(ftn);
+        upstream_by_id_.erase(request_id);
+      },
+      [this](uint64_t alias, SubscribeRemoteTrack* track) {
+        // Track alias registry callback.
+        if (is_closing_) {
+          return true;
+        }
+        if (track == nullptr) {
+          subscribe_by_alias_.erase(alias);
+          return true;
+        }
+        auto [it, success] = subscribe_by_alias_.try_emplace(alias, track);
+        if (!success) {
+          Error(MoqtError::kDuplicateTrackAlias, "");
+        }
+        return success;
+      });
   subscribe_by_name_.emplace(message.full_track_name, track.get());
   upstream_by_id_.emplace(message.request_id, std::move(track));
   return true;
@@ -535,7 +557,7 @@ void MoqtSession::Unsubscribe(const FullTrackName& name) {
   MoqtUnsubscribe message;
   message.request_id = track->request_id();
   SendControlMessage(framer_.SerializeUnsubscribe(message));
-  DestroySubscription(track);
+  track->Destroy();
 }
 
 bool MoqtSession::Fetch(const FullTrackName& name,
@@ -565,7 +587,10 @@ bool MoqtSession::Fetch(const FullTrackName& name,
   SendControlMessage(framer_.SerializeFetch(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent FETCH message for " << name;
   auto fetch = std::make_unique<UpstreamFetch>(
-      message, std::get<StandaloneFetch>(message.fetch), std::move(callback));
+      message, std::get<StandaloneFetch>(message.fetch), std::move(callback),
+      [this, id = message.request_id]() {  // Deletion callback
+        upstream_by_id_.erase(id);
+      });
   upstream_by_id_.emplace(message.request_id, std::move(fetch));
   return true;
 }
@@ -618,8 +643,11 @@ bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
   fetch.parameters = parameters;
   SendControlMessage(framer_.SerializeFetch(fetch));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent Joining FETCH message for " << name;
-  auto upstream_fetch =
-      std::make_unique<UpstreamFetch>(fetch, name, std::move(callback));
+  auto upstream_fetch = std::make_unique<UpstreamFetch>(
+      fetch, name, std::move(callback),
+      /*Deletion callback=*/[this, id = fetch.request_id]() {
+        upstream_by_id_.erase(id);
+      });
   upstream_by_id_.emplace(fetch.request_id, std::move(upstream_fetch));
   return true;
 }
@@ -659,28 +687,6 @@ void MoqtSession::PublishIsDone(uint64_t request_id) {
   }
   subscribed_track_names_.erase(it->second->publisher().GetTrackName());
   published_subscriptions_.erase(it);
-}
-
-void MoqtSession::MaybeDestroySubscription(SubscribeRemoteTrack* subscribe) {
-  if (subscribe != nullptr && subscribe->all_streams_closed()) {
-    DestroySubscription(subscribe);
-  }
-}
-
-void MoqtSession::DestroySubscription(SubscribeRemoteTrack* subscribe) {
-  if (subscribe->ErrorIsAllowed()) {
-    subscribe->visitor()->OnReply(
-        subscribe->full_track_name(),
-        MoqtRequestErrorInfo{RequestErrorCode::kNotSupported, std::nullopt,
-                             "Subscription closed"});
-  } else {
-    subscribe->visitor()->OnPublishDone(subscribe->full_track_name());
-  }
-  subscribe_by_name_.erase(subscribe->full_track_name());
-  if (subscribe->track_alias().has_value()) {
-    subscribe_by_alias_.erase(*subscribe->track_alias());
-  }
-  upstream_by_id_.erase(subscribe->request_id());
 }
 
 void MoqtSession::UpdateTrackPriority(
@@ -997,13 +1003,10 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
   SubscribeRemoteTrack* subscribe =
       absl::down_cast<SubscribeRemoteTrack*>(track);
   subscribe->OnObjectOrOk();
-  auto [it, success] =
-      session_->subscribe_by_alias_.try_emplace(message.track_alias, subscribe);
-  if (!success) {
-    session_->Error(MoqtError::kDuplicateTrackAlias, "");
+  if (!subscribe->set_track_alias(message.track_alias)) {
+    // A duplicate track alias could destroy the session.
     return absl::OkStatus();
   }
-  subscribe->set_track_alias(message.track_alias);
   std::optional<SubscriptionFilter> filter =
       subscribe->parameters().subscription_filter;
   if (filter.has_value()) {
@@ -1094,17 +1097,13 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
     } else {
       SubscribeRemoteTrack* subscribe =
           absl::down_cast<SubscribeRemoteTrack*>(track);
-      // Delete the by-name entry at this point prevents Subscribe() from
-      // throwing an error due to a duplicate track name. The other entries for
-      // this subscribe will be deleted after calling Subscribe().
-      session_->subscribe_by_name_.erase(subscribe->full_track_name());
       if (subscribe->visitor() != nullptr) {
         subscribe->visitor()->OnReply(subscribe->full_track_name(), error_info);
       }
     }
     if (!session_->is_closing_) {
       // The visitor might have closed the session.
-      session_->upstream_by_id_.erase(message.request_id);
+      track->Destroy();
     }
     return absl::OkStatus();
   }
@@ -1157,11 +1156,8 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
   auto* subscribe = absl::down_cast<SubscribeRemoteTrack*>(it->second.get());
   QUIC_DLOG(INFO) << ENDPOINT << "Received a PUBLISH_DONE for "
                   << it->second->full_track_name();
-  subscribe->OnPublishDone(
-      message.stream_count, session_->callbacks_.clock,
-      absl::WrapUnique(session_->alarm_factory_->CreateAlarm(
-          new PublishDoneDelegate(session_, subscribe))));
-  session_->MaybeDestroySubscription(subscribe);
+  subscribe->OnPublishDone(message.stream_count, session_->callbacks_.clock,
+                           session_->alarm_factory_.get());
   return absl::OkStatus();
 }
 
@@ -1539,268 +1535,6 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
                           error_reason);
 }
 
-void MoqtSession::IncomingDataStream::OnObjectMessage(const MoqtObject& message,
-                                                      absl::string_view payload,
-                                                      bool end_of_message) {
-  QUICHE_DVLOG(1) << ENDPOINT << "Received OBJECT message on stream "
-                  << stream_->GetStreamId() << " for track alias "
-                  << message.track_alias << " with sequence "
-                  << message.group_id << ":" << message.object_id
-                  << " priority " << message.publisher_priority << " length "
-                  << payload.size() << " length " << message.payload_length
-                  << (end_of_message ? "F" : "");
-  if (!session_->parameters_.deliver_partial_objects) {
-    if (!end_of_message) {  // Buffer partial object.
-      if (partial_object_.empty()) {
-        // Avoid redundant allocations by reserving the appropriate amount of
-        // memory if known.
-        partial_object_.reserve(message.payload_length);
-      }
-      absl::StrAppend(&partial_object_, payload);
-      return;
-    }
-    if (!partial_object_.empty()) {  // Completes the object
-      absl::StrAppend(&partial_object_, payload);
-      payload = absl::string_view(partial_object_);
-    }
-  }
-  if (payload.empty() && bytes_received_this_object_ > 0 && !end_of_message) {
-    return;  // Nothing arrived.
-  }
-  if (!parser_.stream_type().has_value()) {
-    QUICHE_BUG(quic_bug_object_with_no_stream_type)
-        << "Object delivered without a stream type";
-    return;
-  }
-  // Get a pointer to the upstream state.
-  RemoteTrack* track = track_.GetIfAvailable();
-  if (track == nullptr) {
-    track = (parser_.stream_type()->IsFetch())
-                // message.track_alias is actually a fetch ID for fetches.
-                ? session_->RemoteTrackById(message.track_alias)
-                : session_->RemoteTrackByAlias(message.track_alias);
-    if (track == nullptr) {
-      stream_->SendStopSending(kResetCodeCancelled);
-      // Received object for nonexistent track.
-      return;
-    }
-    track_ = track->weak_ptr();
-  }
-  if (!track->CheckDataStreamType(*parser_.stream_type())) {
-    session_->Error(MoqtError::kProtocolViolation,
-                    "Received object for a track with a different stream type");
-    return;
-  }
-  Location location(message.group_id, message.object_id);
-  if (!track->InWindow(Location(message.group_id, message.object_id))) {
-    // This is not an error. It can be the result of a recent REQUEST_UPDATE.
-    return;
-  }
-  if (!track->is_fetch()) {
-    if (!index_.has_value()) {
-      if (!message.subgroup_id.has_value()) {
-        QUICHE_BUG(quiche_bug_moqt_subgroup_id_missing)
-            << "Missing subgroup ID on SUBSCRIBE stream";
-        return;
-      }
-      index_ = DataStreamIndex(message.group_id, *message.subgroup_id);
-    }
-    if (no_more_objects_) {
-      // Already got a stream-ending object. While the lower layer won't
-      // deliver data after the FIN, there could have been an EndOfGroup or
-      // EndOfTrack signal.
-      session_->OnMalformedTrack(track);
-      return;
-    }
-    if (end_of_message) {
-      next_object_id_ = message.object_id + 1;
-      if (message.object_status == MoqtObjectStatus::kEndOfTrack ||
-          message.object_status == MoqtObjectStatus::kEndOfGroup) {
-        no_more_objects_ = true;
-      }
-    }
-    SubscribeRemoteTrack* subscribe =
-        absl::down_cast<SubscribeRemoteTrack*>(track);
-    subscribe->OnObjectOrOk();
-    if (subscribe->visitor() != nullptr) {
-      PublishedObjectMetadata metadata;
-      metadata.location = Location(message.group_id, message.object_id);
-      metadata.subgroup = message.subgroup_id;
-      metadata.extensions = message.extension_headers;
-      metadata.status = message.object_status;
-      metadata.publisher_priority = message.publisher_priority;
-      metadata.payload_length = message.payload_length;
-      metadata.arrival_time = session_->callbacks_.clock->Now();
-      subscribe->visitor()->OnObjectFragment(track->full_track_name(), metadata,
-                                             payload,
-                                             bytes_received_this_object_);
-    }
-  } else {  // FETCH
-    track->OnObjectOrOk();
-    UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(track);
-    if (!fetch->LocationIsValid(Location(message.group_id, message.object_id),
-                                message.object_status, end_of_message)) {
-      // TODO(martinduke): in https://github.com/moq-wg/moq-transport/pull/1409
-      // I make the case that this should be a protocol violation. Update if
-      // that proposal is accepted (at which point
-      // QuicSession::OnMalformedTrack can be removed, since all the
-      // remaining conditions are at the application layer).
-      session_->OnMalformedTrack(track);
-      return;
-    }
-    UpstreamFetch::UpstreamFetchTask* task = fetch->task();
-    if (task == nullptr) {
-      // The application killed the FETCH.
-      stream_->SendStopSending(kResetCodeCancelled);
-      return;
-    }
-    if (!task->HasObject()) {
-      task->NewObject(message);
-    }
-    if (task->NeedsMorePayload() && !payload.empty()) {
-      task->AppendPayloadToObject(payload);
-    }
-  }
-  if (end_of_message) {
-    bytes_received_this_object_ = 0;
-  } else {
-    bytes_received_this_object_ += payload.size();
-  }
-  partial_object_.clear();
-}
-
-MoqtSession::IncomingDataStream::~IncomingDataStream() {
-  QUICHE_DVLOG(1) << ENDPOINT << "Destroying incoming data stream "
-                  << stream_->GetStreamId();
-  if (!parser_.track_alias().has_value()) {
-    QUIC_DVLOG(1) << ENDPOINT
-                  << "Destroying incoming data stream before "
-                     "learning track alias";
-    return;
-  }
-  if (!track_.IsValid()) {
-    return;
-  }
-  if (parser_.stream_type().has_value() && parser_.stream_type()->IsFetch()) {
-    session_->upstream_by_id_.erase(*parser_.track_alias());
-    return;
-  }
-  if (session_->is_closing_) {
-    return;
-  }
-  // It's a subscribe.
-  SubscribeRemoteTrack* subscribe =
-      absl::down_cast<SubscribeRemoteTrack*>(track_.GetIfAvailable());
-  if (subscribe == nullptr) {
-    return;
-  }
-  subscribe->OnStreamClosed(fin_received_, index_);
-  session_->MaybeDestroySubscription(subscribe);
-}
-
-void MoqtSession::IncomingDataStream::MaybeReadOneObject() {
-  if (!parser_.track_alias().has_value() ||
-      !parser_.stream_type().has_value() || !parser_.stream_type()->IsFetch()) {
-    QUICHE_BUG(quic_bug_read_one_object_parser_unexpected_state)
-        << "Requesting object, parser in unexpected state";
-  }
-  RemoteTrack* track = session_->RemoteTrackById(*parser_.track_alias());
-  if (track == nullptr || !track->is_fetch()) {
-    QUICHE_BUG(quic_bug_read_one_object_track_unexpected_state)
-        << "Requesting object, track in unexpected state";
-    return;
-  }
-  UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(track);
-  UpstreamFetch::UpstreamFetchTask* task = fetch->task();
-  if (task == nullptr) {
-    return;
-  }
-  if (task->HasObject() && !task->NeedsMorePayload()) {
-    return;  // The message is complete. Do not read more.
-  }
-  uint64_t start_length = task->payload_length();
-  parser_.ReadAtMostOneObject();
-  // If it read an object, it called OnObjectMessage and may have altered the
-  // task's object state.
-  if (task->payload_length() > start_length) {
-    task->NotifyNewObject();
-  }
-}
-
-void MoqtSession::IncomingDataStream::OnCanRead() {
-  if (!parser_.stream_type().has_value()) {
-    parser_.ReadStreamType();
-    if (!parser_.stream_type().has_value()) {
-      return;
-    }
-  }
-  if (parser_.stream_type()->IsPadding()) {
-    (void)stream_->SkipBytes(stream_->ReadableBytes());
-    return;
-  }
-  bool knew_track_alias = parser_.track_alias().has_value();
-  if (!knew_track_alias) {
-    parser_.ReadTrackAlias();
-    if (!parser_.track_alias().has_value()) {
-      return;
-    }
-  }
-  QUICHE_CHECK(parser_.stream_type().has_value());
-  QUICHE_CHECK(parser_.track_alias().has_value());
-  if (parser_.stream_type()->IsSubgroup()) {
-    if (!knew_track_alias) {
-      // This is a new stream for a subscribe. Notify the subscription.
-      auto it = session_->subscribe_by_alias_.find(*parser_.track_alias());
-      if (it == session_->subscribe_by_alias_.end()) {
-        QUIC_DLOG(INFO) << ENDPOINT
-                        << "Received object for a track with no SUBSCRIBE";
-        // This is a not a session error because there might be an UNSUBSCRIBE
-        // or SUBSCRIBE_OK (containing the track alias) in flight.
-        stream_->SendStopSending(kResetCodeCancelled);
-        return;
-      }
-      it->second->OnStreamOpened();
-      parser_.set_default_publisher_priority(
-          it->second->default_publisher_priority());
-    }
-    parser_.ReadAllData();
-    return;
-  }
-  auto it = session_->upstream_by_id_.find(*parser_.track_alias());
-  if (it == session_->upstream_by_id_.end()) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Received object for a track with no FETCH";
-    // This is a not a session error because there might be an UNSUBSCRIBE in
-    // flight.
-    stream_->SendStopSending(kResetCodeCancelled);
-    return;
-  }
-  if (it->second == nullptr) {
-    QUICHE_BUG(quiche_bug_moqt_fetch_pointer_is_null)
-        << "Fetch pointer is null";
-    return;
-  }
-  UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(it->second.get());
-  if (!knew_track_alias) {
-    // If the task already exists (FETCH_OK has arrived), the callback will
-    // immediately execute to read the first object. Otherwise, it will only
-    // execute when the task is created or a cached object is read.
-    fetch->OnStreamOpened([this]() { MaybeReadOneObject(); });
-    return;
-  }
-  MaybeReadOneObject();
-}
-
-void MoqtSession::IncomingDataStream::OnControlMessageReceived() {
-  session_->Error(MoqtError::kProtocolViolation,
-                  "Received a control message on a data stream");
-}
-
-void MoqtSession::IncomingDataStream::OnParsingError(MoqtError error_code,
-                                                     absl::string_view reason) {
-  session_->Error(error_code, absl::StrCat("Parse error: ", reason));
-}
-
-
 void MoqtSession::OnMalformedTrack(RemoteTrack* track) {
   if (!track->is_fetch()) {
     absl::down_cast<SubscribeRemoteTrack*>(track)->visitor()->OnMalformedTrack(
@@ -1838,13 +1572,7 @@ void MoqtSession::CleanUpState() {
         RequestErrorCode::kUninterested, std::nullopt, "Session closed"});
   }
   while (!upstream_by_id_.empty()) {
-    auto upstream = upstream_by_id_.begin();
-    if (upstream->second->is_fetch()) {
-      upstream_by_id_.erase(upstream);
-      continue;
-    }
-    DestroySubscription(
-        absl::down_cast<SubscribeRemoteTrack*>(upstream->second.get()));
+    upstream_by_id_.begin()->second->Destroy();
   }
 }
 
@@ -1852,9 +1580,13 @@ void MoqtSession::CancelFetch(uint64_t request_id) {
   if (is_closing_) {
     return;
   }
+  auto it = upstream_by_id_.find(request_id);
+  if (it == upstream_by_id_.end()) {
+    return;
+  }
+  it->second->Destroy();
   // This is only called from the callback where UpstreamFetchTask has been
   // destroyed, so there is no need to notify the application.
-  upstream_by_id_.erase(request_id);
   ControlStream* stream = GetControlStream();
   if (stream == nullptr) {
     return;

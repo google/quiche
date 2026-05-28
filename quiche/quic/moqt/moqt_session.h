@@ -59,6 +59,7 @@ inline constexpr quic::QuicTimeDelta kDefaultGoAwayTimeout =
 
 class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                                   public SessionToPublisherInterface,
+                                  public SessionToUniStreamInterface,
                                   public webtransport::SessionVisitor {
  public:
   MoqtSession(webtransport::Session* session, MoqtSessionParameters parameters,
@@ -146,6 +147,30 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   webtransport::Session* session() override {
     return is_closing_ ? nullptr : session_;
   }
+
+  // SessionToUniStreamInterface implementation.
+  bool deliver_partial_objects() const {
+    return parameters_.deliver_partial_objects;
+  }
+  // Called when the incoming track is malformed per Section 2.5 of
+  // draft-ietf-moqt-moq-transport-12. Unsubscribe and notify the application so
+  // the error can be propagated downstream, if necessary.
+  void OnMalformedTrack(RemoteTrack* track);
+  quiche::QuicheWeakPtr<RemoteTrack> GetSubscribe(uint64_t track_alias) {
+    auto it = subscribe_by_alias_.find(track_alias);
+    if (it == subscribe_by_alias_.end()) {
+      return quiche::QuicheWeakPtr<RemoteTrack>();
+    }
+    return it->second->weak_ptr();
+  }
+  quiche::QuicheWeakPtr<RemoteTrack> GetFetch(uint64_t request_id) {
+    auto it = upstream_by_id_.find(request_id);
+    if (it == upstream_by_id_.end()) {
+      return quiche::QuicheWeakPtr<RemoteTrack>();
+    }
+    return it->second->weak_ptr();
+  }
+  // Error() defined in MoqtSessionInterface.
 
   // Send a GOAWAY message to the peer. |new_session_uri| must be empty if
   // called by the client.
@@ -289,53 +314,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     // Must be last.
     quiche::QuicheWeakPtrFactory<ControlStream> weak_ptr_factory_;
   };
-  class QUICHE_EXPORT IncomingDataStream : public webtransport::StreamVisitor,
-                                           public MoqtDataParserVisitor {
-   public:
-    IncomingDataStream(MoqtSession* session, webtransport::Stream* stream)
-        : session_(session), stream_(stream), parser_(stream, this) {}
-    ~IncomingDataStream();
-
-    // webtransport::StreamVisitor implementation.
-    void OnCanRead() override;
-    void OnCanWrite() override {}
-    void OnResetStreamReceived(webtransport::StreamErrorCode) override {}
-    void OnStopSendingReceived(
-        webtransport::StreamErrorCode /*error*/) override {}
-    void OnWriteSideInDataRecvdState() override {}
-
-    // MoqtParserVisitor implementation.
-    // TODO: Handle a stream FIN.
-    void OnObjectMessage(const MoqtObject& message, absl::string_view payload,
-                         bool end_of_message) override;
-    void OnFin() override { fin_received_ = true; }
-    void OnParsingError(MoqtError error_code,
-                        absl::string_view reason) override;
-
-    quic::Perspective perspective() const {
-      return session_->parameters_.perspective;
-    }
-
-    webtransport::Stream* stream() const { return stream_; }
-
-    void MaybeReadOneObject();
-
-   private:
-    friend class test::MoqtSessionPeer;
-    void OnControlMessageReceived();
-
-    uint64_t next_object_id_ = 0;
-    bool no_more_objects_ = false;  // EndOfGroup or EndOfTrack was received.
-    std::optional<DataStreamIndex> index_;  // Only set for subscribe.
-    bool fin_received_ = false;
-    MoqtSession* session_;
-    webtransport::Stream* stream_;
-    // Once the subscribe ID is identified, set it here.
-    quiche::QuicheWeakPtr<RemoteTrack> track_;
-    MoqtDataParser parser_;
-    std::string partial_object_;
-    uint64_t bytes_received_this_object_ = 0;
-  };
 
   class QUICHE_EXPORT PublishedFetch {
    public:
@@ -431,21 +409,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtSession* session_;
   };
 
-  class PublishDoneDelegate : public quic::QuicAlarm::DelegateWithoutContext {
-   public:
-    PublishDoneDelegate(MoqtSession* session, SubscribeRemoteTrack* subscribe)
-        : session_(session), subscribe_(subscribe) {}
-
-    void OnAlarm() override { session_->DestroySubscription(subscribe_); }
-
-   private:
-    MoqtSession* session_;
-    SubscribeRemoteTrack* subscribe_;
-  };
-
-  void MaybeDestroySubscription(SubscribeRemoteTrack* subscribe);
-  void DestroySubscription(SubscribeRemoteTrack* subscribe);
-
   // Returns the pointer to the control stream, or nullptr if none is present.
   ControlStream* GetControlStream() { return control_stream_.GetIfAvailable(); }
   // Sends a message on the control stream; QUICHE_DCHECKs if no control stream
@@ -486,11 +449,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     return parameters_.support_object_acks && peer_supports_object_ack_;
   }
 
-  // Called when the incoming track is malformed per Section 2.5 of
-  // draft-ietf-moqt-moq-transport-12. Unsubscribe and notify the application so
-  // the error can be propagated downstream, if necessary.
-  void OnMalformedTrack(RemoteTrack* track);
-
   // When the session is closing, clean up state without waiting for the
   // underlying WebTransport session to be destroyed.
   void CleanUpState();
@@ -519,7 +477,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   MoqtTraceRecorder trace_recorder_;
 
   // Upstream SUBSCRIBE state.
-  // Upstream SUBSCRIBEs and FETCHes, indexed by subscribe_id.
+  // Upstream SUBSCRIBEs and FETCHes, indexed by subscribe_id. Do not erase
+  // directly, call RemoteTrack::Destroy(), except in deletion callbacks passed
+  // to RemoteTrack.
   absl::flat_hash_map<uint64_t, std::unique_ptr<RemoteTrack>> upstream_by_id_;
   // All SUBSCRIBEs, indexed by track_alias.
   absl::flat_hash_map<uint64_t, SubscribeRemoteTrack*> subscribe_by_alias_;

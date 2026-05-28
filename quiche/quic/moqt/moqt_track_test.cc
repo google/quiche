@@ -4,6 +4,7 @@
 
 #include "quiche/quic/moqt/moqt_track.h"
 
+#include <cstdint>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -48,12 +49,23 @@ class SubscribeRemoteTrackPeer {
 
 class SubscribeRemoteTrackTest : public quic::test::QuicTest {
  public:
-  SubscribeRemoteTrackTest() : track_(subscribe_, &visitor_) {}
+  SubscribeRemoteTrackTest()
+      : track_(
+            subscribe_, &visitor_, [this]() { deleted_ = true; },
+            [this](uint64_t, SubscribeRemoteTrack* track) {
+              alias_registered_ = (track != nullptr);
+              if (alias_registered_) {
+                EXPECT_EQ(track, &track_);
+              }
+              return true;
+            }) {}
 
   MockSubscribeRemoteTrackVisitor visitor_;
   MoqtSubscribe subscribe_ = {/*request_id=*/1, FullTrackName("foo", "bar"),
                               MessageParameters(Location(2, 0))};
   SubscribeRemoteTrack track_;
+  bool alias_registered_ = false;
+  bool deleted_ = false;
 };
 
 TEST_F(SubscribeRemoteTrackTest, Queries) {
@@ -62,14 +74,8 @@ TEST_F(SubscribeRemoteTrackTest, Queries) {
   EXPECT_FALSE(track_.track_alias().has_value());
   EXPECT_EQ(track_.visitor(), &visitor_);
   EXPECT_FALSE(track_.is_fetch());
-  track_.set_track_alias(1);
+  EXPECT_TRUE(track_.set_track_alias(1));
   EXPECT_EQ(track_.track_alias(), 1);
-}
-
-TEST_F(SubscribeRemoteTrackTest, UpdateDataStreamType) {
-  EXPECT_TRUE(track_.CheckDataStreamType(
-      MoqtDataStreamType::Subgroup(1, 1, true, false)));
-  EXPECT_FALSE(track_.CheckDataStreamType(MoqtDataStreamType::Fetch()));
 }
 
 TEST_F(SubscribeRemoteTrackTest, AllowError) {
@@ -187,10 +193,12 @@ TEST_F(SubscribeRemoteTrackTest, JoiningFetchError) {
 class UpstreamFetchTest : public quic::test::QuicTest {
  protected:
   UpstreamFetchTest()
-      : fetch_(fetch_message_, std::get<StandaloneFetch>(fetch_message_.fetch),
-               [&](std::unique_ptr<MoqtFetchTask> task) {
-                 fetch_task_ = std::move(task);
-               }) {}
+      : fetch_(
+            fetch_message_, std::get<StandaloneFetch>(fetch_message_.fetch),
+            [&](std::unique_ptr<MoqtFetchTask> task) {
+              fetch_task_ = std::move(task);
+            },
+            [&]() { deleted_ = true; }) {}
 
   MoqtFetch fetch_message_ = {
       /*request_id=*/1,
@@ -201,14 +209,12 @@ class UpstreamFetchTest : public quic::test::QuicTest {
   // The pointer held by the application.
   UpstreamFetch fetch_;
   std::unique_ptr<MoqtFetchTask> fetch_task_;
+  bool deleted_ = false;
 };
 
 TEST_F(UpstreamFetchTest, Queries) {
   EXPECT_EQ(fetch_.request_id(), 1);
   EXPECT_EQ(fetch_.full_track_name(), FullTrackName("foo", "bar"));
-  EXPECT_FALSE(fetch_.CheckDataStreamType(
-      MoqtDataStreamType::Subgroup(1, 2, true, false)));
-  EXPECT_TRUE(fetch_.CheckDataStreamType(MoqtDataStreamType::Fetch()));
   EXPECT_TRUE(fetch_.is_fetch());
   EXPECT_FALSE(fetch_.InWindow(Location{1, 0}));
   EXPECT_TRUE(fetch_.InWindow(Location{1, 1}));
@@ -389,11 +395,12 @@ TEST_F(UpstreamFetchTest, LocationIsValidOkGroupDescendingIncorrectly) {
 
 TEST_F(UpstreamFetchTest, LocationIsValidOkGroupAscendingIncorrectly) {
   fetch_message_.parameters.group_order = MoqtDeliveryOrder::kDescending;
-  UpstreamFetch fetch(fetch_message_,
-                      std::get<StandaloneFetch>(fetch_message_.fetch),
-                      [&](std::unique_ptr<MoqtFetchTask> task) {
-                        fetch_task_ = std::move(task);
-                      });
+  UpstreamFetch fetch(
+      fetch_message_, std::get<StandaloneFetch>(fetch_message_.fetch),
+      [&](std::unique_ptr<MoqtFetchTask> task) {
+        fetch_task_ = std::move(task);
+      },
+      []() {});
   fetch.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
   EXPECT_TRUE(
       fetch.LocationIsValid(Location(2, 1), MoqtObjectStatus::kNormal, true));
@@ -447,11 +454,12 @@ TEST_F(UpstreamFetchTest, RelativeJoiningFetch) {
       JoiningFetchRelative(1, 2),
       MessageParameters(),
   };
-  UpstreamFetch relative_fetch(relative_fetch_message,
-                               FullTrackName("foo", "bar"),
-                               [&](std::unique_ptr<MoqtFetchTask> task) {
-                                 fetch_task_ = std::move(task);
-                               });
+  UpstreamFetch relative_fetch(
+      relative_fetch_message, FullTrackName("foo", "bar"),
+      [&](std::unique_ptr<MoqtFetchTask> task) {
+        fetch_task_ = std::move(task);
+      },
+      []() {});
   relative_fetch.OnFetchResult(Location(10, 50), absl::OkStatus(), nullptr);
   EXPECT_FALSE(relative_fetch.InWindow(Location(7, 35)));
   EXPECT_TRUE(relative_fetch.InWindow(Location(8, 0)));
@@ -463,11 +471,12 @@ TEST_F(UpstreamFetchTest, RelativeJoiningFetchUnderflow) {
       JoiningFetchRelative(1, 10),
       MessageParameters(),
   };
-  UpstreamFetch relative_fetch(relative_fetch_message,
-                               FullTrackName("foo", "bar"),
-                               [&](std::unique_ptr<MoqtFetchTask> task) {
-                                 fetch_task_ = std::move(task);
-                               });
+  UpstreamFetch relative_fetch(
+      relative_fetch_message, FullTrackName("foo", "bar"),
+      [&](std::unique_ptr<MoqtFetchTask> task) {
+        fetch_task_ = std::move(task);
+      },
+      []() {});
   relative_fetch.OnFetchResult(Location(1, 50), absl::OkStatus(), nullptr);
   EXPECT_TRUE(relative_fetch.InWindow(Location(0, 0)));
   EXPECT_TRUE(relative_fetch.InWindow(Location(1, 50)));

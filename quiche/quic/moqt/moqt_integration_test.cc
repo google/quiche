@@ -31,10 +31,8 @@
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
-#include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/quic/test_tools/simulator/test_harness.h"
@@ -676,12 +674,7 @@ TEST_F(MoqtIntegrationTest, CleanPublishDone) {
   // a new attempt.
   EXPECT_TRUE(client_->session()->Subscribe(full_track_name,
                                             &subscribe_visitor_, parameters));
-  EXPECT_CALL(subscribe_visitor_, OnReply)
-      .WillOnce(
-          [](const FullTrackName&,
-             std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) {
-            EXPECT_TRUE(std::holds_alternative<MoqtRequestErrorInfo>(response));
-          });  // Teardown
+  EXPECT_CALL(subscribe_visitor_, OnPublishDone);  // Test teardown
 }
 
 TEST_F(MoqtIntegrationTest, ObjectAcks) {

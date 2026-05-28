@@ -19,9 +19,11 @@
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
+#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
@@ -31,6 +33,7 @@
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
+#include "quiche/web_transport/test_tools/in_memory_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -451,6 +454,201 @@ TEST_F(OutgoingFetchStreamTest, UpdatePriority) {
 TEST_F(OutgoingFetchStreamTest, ObjectAvailableCallback) {
   EXPECT_CALL(mock_stream_, CanWrite()).WillOnce(Return(false));
   task_ptr_->CallObjectsAvailableCallback();
+}
+
+MoqtObject kDefaultObject = {
+    2,     // track_alias
+    0,     // group_id
+    0,     // object_id
+    0x80,  // publisher_priority
+    "",    // extension_headers
+    MoqtObjectStatus::kNormal,
+    0,  // subgroup_id
+    0,  // payload_length
+};
+
+class MockSessionToUniStreamInterface : public SessionToUniStreamInterface {
+ public:
+  MockSessionToUniStreamInterface() = default;
+  ~MockSessionToUniStreamInterface() override = default;
+
+  MOCK_METHOD(bool, deliver_partial_objects, (), (const, override));
+  MOCK_METHOD(void, OnMalformedTrack, (RemoteTrack*), (override));
+  MOCK_METHOD(quiche::QuicheWeakPtr<RemoteTrack>, GetSubscribe, (uint64_t),
+              (override));
+  MOCK_METHOD(quiche::QuicheWeakPtr<RemoteTrack>, GetFetch, (uint64_t),
+              (override));
+  MOCK_METHOD(void, Error, (MoqtError, absl::string_view), (override));
+};
+
+class IncomingDataStreamTest : public quic::test::QuicTest {
+ public:
+  IncomingDataStreamTest()
+      : mock_stream_(14),
+        ftn_("foo", "bar"),
+        subscribe_message_(1, ftn_, MessageParameters()) {
+    EXPECT_CALL(session_, deliver_partial_objects())
+        .WillRepeatedly(Return(false));
+    track_ = std::make_unique<SubscribeRemoteTrack>(
+        subscribe_message_, &visitor_, []() {},
+        [this](uint64_t alias, SubscribeRemoteTrack* track) -> bool {
+          alias_ = alias;
+          alias_track_ = track;
+          return true;
+        });
+    EXPECT_TRUE(track_->set_track_alias(2));
+    CreateStream();
+  }
+
+  void CreateStream() {
+    stream_ = std::make_unique<IncomingDataStream>(&mock_stream_, &session_,
+                                                   &mock_clock_);
+  }
+  void ProcessStreamType(MoqtDataStreamType type) {
+    uint8_t type_byte = static_cast<uint8_t>(type.value());
+    mock_stream_.Receive(
+        absl::string_view(reinterpret_cast<const char*>(&type_byte), 1), false);
+    stream_->OnCanRead();
+  }
+  void ProcessAlias(uint8_t alias) {
+    mock_stream_.Receive(
+        absl::string_view(reinterpret_cast<const char*>(&alias), 1), false);
+    EXPECT_CALL(session_, GetSubscribe(alias))
+        .WillOnce(Return(track_->weak_ptr()));
+    stream_->OnCanRead();
+    EXPECT_EQ(alias_, alias);
+    EXPECT_EQ(alias_track_, track_.get());
+  }
+
+  webtransport::test::InMemoryStream mock_stream_;
+  testing::NiceMock<MockSessionToUniStreamInterface> session_;
+  quic::MockClock mock_clock_;
+  FullTrackName ftn_;
+  MoqtSubscribe subscribe_message_;
+  testing::NiceMock<MockSubscribeRemoteTrackVisitor> visitor_;
+  std::unique_ptr<SubscribeRemoteTrack> track_;
+  std::unique_ptr<IncomingDataStream> stream_;
+  uint64_t alias_ = 0;
+  SubscribeRemoteTrack* alias_track_ = nullptr;
+};
+
+TEST_F(IncomingDataStreamTest, DestructorBeforeTrackAlias) {
+  // The stream doesn't know the track, so there's no visitor to notify.
+  EXPECT_CALL(visitor_, OnStreamReset).Times(0);
+  stream_.reset();
+}
+
+TEST_F(IncomingDataStreamTest, DestructorAfterObject) {
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessAlias(2);
+  EXPECT_CALL(visitor_, OnObjectFragment);
+  stream_->OnObjectMessage(kDefaultObject, "", true);
+  EXPECT_CALL(visitor_, OnStreamReset);
+  stream_.reset();
+}
+
+TEST_F(IncomingDataStreamTest, DestructorAfterFin) {
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessAlias(2);
+  EXPECT_CALL(visitor_, OnObjectFragment);
+  stream_->OnObjectMessage(kDefaultObject, "", true);
+  stream_->OnFin();
+  EXPECT_CALL(visitor_, OnStreamFin);
+  stream_.reset();
+}
+
+TEST_F(IncomingDataStreamTest, OnParsingError) {
+  EXPECT_CALL(session_,
+              Error(MoqtError::kProtocolViolation, "Parse error: reason"))
+      .Times(1);
+  stream_->OnParsingError(MoqtError::kProtocolViolation, "reason");
+}
+
+TEST_F(IncomingDataStreamTest, OnObjectMessageNoTrackAliasError) {
+  EXPECT_QUICHE_BUG(stream_->OnObjectMessage(kDefaultObject, "payload", true),
+                    "Object delivered without preliminaries");
+}
+
+TEST_F(IncomingDataStreamTest, OnObjectMessageBufferPartialObject) {
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessAlias(2);
+  MoqtObject object = kDefaultObject;
+  object.payload_length = 10;
+  EXPECT_CALL(visitor_, OnObjectFragment).Times(0);
+  stream_->OnObjectMessage(object, "foo", false);
+  EXPECT_CALL(visitor_, OnObjectFragment);
+  stream_->OnObjectMessage(object, "bar", true);
+}
+
+TEST_F(IncomingDataStreamTest, OnObjectMessageInvalidTrack) {
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  uint8_t alias = 2;
+  mock_stream_.Receive(
+      absl::string_view(reinterpret_cast<const char*>(&alias), 1), false);
+  EXPECT_CALL(session_, GetSubscribe(2))
+      .WillOnce(Return(quiche::QuicheWeakPtr<RemoteTrack>()));
+  stream_->OnCanRead();
+  EXPECT_TRUE(mock_stream_.was_reset());
+}
+
+TEST_F(IncomingDataStreamTest, OnObjectMessageNotInWindow) {
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessAlias(2);
+  track_->parameters().set_forward(false);
+  EXPECT_CALL(visitor_, OnObjectFragment).Times(0);
+  stream_->OnObjectMessage(kDefaultObject, "", true);
+}
+
+TEST_F(IncomingDataStreamTest, OnObjectMessageMissingSubgroupId) {
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessAlias(2);
+  MoqtObject object = kDefaultObject;
+  object.subgroup_id = std::nullopt;
+  EXPECT_QUICHE_BUG(stream_->OnObjectMessage(object, "", true),
+                    "Missing subgroup ID on SUBSCRIBE stream");
+}
+
+TEST_F(IncomingDataStreamTest, OnObjectMessageMalformedTrack) {
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessAlias(2);
+  MoqtObject object = kDefaultObject;
+  object.object_status = MoqtObjectStatus::kEndOfTrack;
+  EXPECT_CALL(visitor_, OnObjectFragment);
+  stream_->OnObjectMessage(object, "", true);
+
+  EXPECT_CALL(session_, OnMalformedTrack(track_.get()));
+  MoqtObject object2 = object;
+  object2.object_id = 1;
+  object2.object_status = MoqtObjectStatus::kNormal;
+  stream_->OnObjectMessage(object2, "", true);
+}
+
+TEST_F(IncomingDataStreamTest, MaybeReadOneObjectUnexpectedState) {
+  EXPECT_QUICHE_BUG(stream_->MaybeReadOneObject(),
+                    "Requesting object, parser in unexpected state");
+}
+
+TEST_F(IncomingDataStreamTest, OnCanReadFetchNewTrackAliasInvalidFetch) {
+  char fetch_bytes[] = {0x05, 0x03};
+  mock_stream_.Receive(absl::string_view(fetch_bytes, 2), false);
+  EXPECT_CALL(session_, GetFetch(3))
+      .WillOnce(Return(quiche::QuicheWeakPtr<RemoteTrack>()));
+  stream_->OnCanRead();
+  EXPECT_TRUE(mock_stream_.was_reset());
+}
+
+TEST_F(IncomingDataStreamTest, OnCanReadFetchNewTrackAliasSuccess) {
+  MoqtFetch fetch;
+  fetch.request_id = 3;
+  StandaloneFetch standalone(ftn_, Location(0, 0), Location(0, 9));
+  auto upstream_fetch = std::make_unique<UpstreamFetch>(
+      fetch, standalone, [](std::unique_ptr<MoqtFetchTask>) {}, []() {});
+  upstream_fetch->OnFetchResult(Location(0, 0), absl::OkStatus(), []() {});
+  EXPECT_CALL(session_, GetFetch(3))
+      .WillOnce(Return(upstream_fetch->weak_ptr()));
+  char fetch_bytes[] = {0x05, 0x03};
+  mock_stream_.Receive(absl::string_view(fetch_bytes, 2), false);
+  stream_->OnCanRead();
 }
 
 }  // namespace

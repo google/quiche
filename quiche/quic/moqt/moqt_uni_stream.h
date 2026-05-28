@@ -8,19 +8,25 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 
 #include "absl/base/nullability.h"
+#include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
+#include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
+#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -31,6 +37,7 @@ namespace moqt {
 
 namespace test {
 class OutgoingSubgroupStreamPeer;
+class MoqtSessionPeer;
 }
 
 // A base class for locally initiated unidirectional streams, which can serve
@@ -186,6 +193,70 @@ class QUICHE_EXPORT OutgoingFetchStream : public OutgoingUniStream {
  private:
   std::unique_ptr<MoqtFetchTask> incoming_objects_;
   FetchStreamCloseCallback close_callback_;
+};
+
+class SessionToUniStreamInterface {
+ public:
+  virtual ~SessionToUniStreamInterface() = default;
+  virtual bool deliver_partial_objects() const = 0;
+  virtual void OnMalformedTrack(RemoteTrack* name) = 0;
+  virtual quiche::QuicheWeakPtr<RemoteTrack> GetSubscribe(
+      uint64_t track_alias) = 0;
+  virtual quiche::QuicheWeakPtr<RemoteTrack> GetFetch(uint64_t request_id) = 0;
+  virtual void Error(MoqtError error_code, absl::string_view reason) = 0;
+};
+
+class QUICHE_EXPORT IncomingDataStream : public webtransport::StreamVisitor,
+                                         public MoqtDataParserVisitor {
+ public:
+  IncomingDataStream(webtransport::Stream* absl_nonnull stream,
+                     SessionToUniStreamInterface* absl_nonnull session,
+                     const quic::QuicClock* absl_nonnull clock)
+      : stream_(stream),
+        parser_(stream, this),
+        session_(session),
+        clock_(clock) {}
+  ~IncomingDataStream();
+
+  // webtransport::StreamVisitor implementation.
+  void OnCanRead() override;
+  void OnCanWrite() override {}
+  void OnResetStreamReceived(webtransport::StreamErrorCode) override {}
+  void OnStopSendingReceived(webtransport::StreamErrorCode /*error*/) override {
+  }
+  void OnWriteSideInDataRecvdState() override {}
+
+  // MoqtParserVisitor implementation.
+  // TODO: Handle a stream FIN.
+  void OnObjectMessage(const MoqtObject& message, absl::string_view payload,
+                       bool end_of_message) override;
+  void OnFin() override { fin_received_ = true; }
+  void OnParsingError(MoqtError error_code, absl::string_view reason) override;
+
+  webtransport::Stream* stream() const { return stream_; }
+
+  void MaybeReadOneObject();
+
+ private:
+  friend class test::MoqtSessionPeer;
+  bool IsFetch() const {
+    return parser_.stream_type().has_value() &&
+           parser_.stream_type()->IsFetch();
+  }
+
+  uint64_t next_object_id_ = 0;
+  bool no_more_objects_ = false;  // EndOfGroup or EndOfTrack was received.
+  std::optional<DataStreamIndex> index_;  // Only set for subscribe.
+  bool fin_received_ = false;
+  webtransport::Stream* stream_;
+  SubscribeVisitor* visitor_ = nullptr;
+  // Once the subscribe ID is identified, set it here.
+  quiche::QuicheWeakPtr<RemoteTrack> track_;
+  MoqtDataParser parser_;
+  std::string partial_object_;
+  uint64_t bytes_received_this_object_ = 0;
+  SessionToUniStreamInterface* session_;
+  const quic::QuicClock* absl_nonnull clock_;
 };
 
 }  // namespace moqt

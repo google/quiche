@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_MOQT_TEST_TOOLS_MOQT_SESSION_PEER_H_
 #define QUICHE_QUIC_MOQT_TEST_TOOLS_MOQT_SESSION_PEER_H_
 
-#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -27,8 +26,6 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_parser.h"
-#include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_subscription.h"
@@ -49,6 +46,10 @@ class MoqtDataParserPeer {
   static void SetType(MoqtDataParser* parser, MoqtDataStreamType type) {
     parser->type_ = type;
     parser->next_input_ = MoqtDataParser::NextInput::kTrackAlias;
+  }
+  static void SetTrackAlias(MoqtDataParser* parser, uint64_t track_alias) {
+    parser->metadata_.track_alias = track_alias;
+    parser->next_input_ = MoqtDataParser::NextInput::kGroupId;
   }
 };
 
@@ -102,18 +103,24 @@ class MoqtSessionPeer {
 
   static std::unique_ptr<MoqtDataParserVisitor> CreateIncomingDataStream(
       MoqtSession* session, webtransport::Stream* stream,
-      MoqtDataStreamType type) {
-    auto new_stream =
-        std::make_unique<MoqtSession::IncomingDataStream>(session, stream);
+      MoqtDataStreamType type,
+      std::optional<uint64_t> track_alias = std::nullopt,
+      SubscribeVisitor* visitor = nullptr) {
+    auto new_stream = std::make_unique<IncomingDataStream>(
+        stream, session, session->callbacks_.clock);
     MoqtDataParserPeer::SetType(&new_stream->parser_, type);
+    if (track_alias.has_value()) {
+      MoqtDataParserPeer::SetTrackAlias(&new_stream->parser_, *track_alias);
+      new_stream->visitor_ = visitor;
+    }
     return new_stream;
   }
 
   static std::unique_ptr<webtransport::StreamVisitor>
   CreateIncomingStreamVisitor(MoqtSession* session,
                               webtransport::Stream* stream) {
-    auto new_stream =
-        std::make_unique<MoqtSession::IncomingDataStream>(session, stream);
+    auto new_stream = std::make_unique<IncomingDataStream>(
+        stream, session, session->callbacks_.clock);
     return new_stream;
   }
 
@@ -140,10 +147,23 @@ class MoqtSessionPeer {
                                 const MoqtSubscribe& subscribe,
                                 const std::optional<uint64_t> track_alias,
                                 SubscribeVisitor* visitor) {
-    auto track = std::make_unique<SubscribeRemoteTrack>(subscribe, visitor);
+    auto track = std::make_unique<SubscribeRemoteTrack>(
+        subscribe, visitor,
+        [session = session, ftn = subscribe.full_track_name,
+         id = subscribe.request_id]() {
+          session->subscribe_by_name_.erase(ftn);
+          session->upstream_by_id_.erase(id);
+        },
+        [session = session](uint64_t alias, SubscribeRemoteTrack* track) {
+          if (track == nullptr) {
+            session->subscribe_by_alias_.erase(alias);
+            return true;
+          }
+          session->subscribe_by_alias_[alias] = track;
+          return true;
+        });
     if (track_alias.has_value()) {
-      track->set_track_alias(*track_alias);
-      session->subscribe_by_alias_.try_emplace(*track_alias, track.get());
+      ASSERT_TRUE(track->set_track_alias(*track_alias));
     }
     session->subscribe_by_name_.try_emplace(subscribe.full_track_name,
                                             track.get());
@@ -192,7 +212,8 @@ class MoqtSessionPeer {
                fetch_message, std::get<StandaloneFetch>(fetch_message.fetch),
                [&](std::unique_ptr<MoqtFetchTask> fetch_task) {
                  task = std::move(fetch_task);
-               }));
+               },
+               [session = session]() { session->upstream_by_id_.erase(0); }));
     QUICHE_DCHECK(success);
     UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(it->second.get());
     // Initialize the fetch task
