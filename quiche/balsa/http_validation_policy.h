@@ -154,7 +154,8 @@ static constexpr HttpValidationPolicy kMostStrictHttpValidationPolicy = {
     .disallow_stray_data_after_chunk = true,
     .disallow_invalid_request_methods = true,
     .require_semicolon_delimited_chunk_extension = true,
-    .disallow_invalid_response_codes = true};
+    .disallow_invalid_response_codes = true,
+};
 
 }  // namespace quiche
 
