@@ -143,34 +143,6 @@ class MoqtSessionPeer {
         absl::down_cast<MoqtSession::ControlStream*>(visitor.release())));
   }
 
-  static void CreateRemoteTrack(MoqtSession* session,
-                                const MoqtSubscribe& subscribe,
-                                const std::optional<uint64_t> track_alias,
-                                SubscribeVisitor* visitor) {
-    auto track = std::make_unique<SubscribeRemoteTrack>(
-        subscribe, visitor,
-        [session = session, ftn = subscribe.full_track_name,
-         id = subscribe.request_id]() {
-          session->subscribe_by_name_.erase(ftn);
-          session->upstream_by_id_.erase(id);
-        },
-        [session = session](uint64_t alias, SubscribeRemoteTrack* track) {
-          if (track == nullptr) {
-            session->subscribe_by_alias_.erase(alias);
-            return true;
-          }
-          session->subscribe_by_alias_[alias] = track;
-          return true;
-        });
-    if (track_alias.has_value()) {
-      ASSERT_TRUE(track->set_track_alias(*track_alias));
-    }
-    session->subscribe_by_name_.try_emplace(subscribe.full_track_name,
-                                            track.get());
-    session->upstream_by_id_.try_emplace(subscribe.request_id,
-                                         std::move(track));
-  }
-
   static SubscribeRemoteTrack* remote_track(MoqtSession* session,
                                             uint64_t track_alias) {
     return session->RemoteTrackByAlias(track_alias);

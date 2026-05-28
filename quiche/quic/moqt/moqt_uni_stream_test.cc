@@ -569,15 +569,82 @@ TEST_F(IncomingDataStreamTest, OnObjectMessageNoTrackAliasError) {
                     "Object delivered without preliminaries");
 }
 
+TEST_F(IncomingDataStreamTest, OnObjectMessage) {
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessAlias(2);
+  MoqtObject object = kDefaultObject;
+  object.payload_length = 8;
+  EXPECT_CALL(visitor_, OnObjectFragment)
+      .WillOnce([&](const FullTrackName& track_name,
+                    const PublishedObjectMetadata& metadata,
+                    const absl::string_view received_payload, uint64_t offset) {
+        EXPECT_EQ(track_name, ftn_);
+        EXPECT_EQ(metadata.location, Location(0, 0));
+        EXPECT_EQ(metadata.subgroup, 0);
+        EXPECT_EQ(metadata.extensions, "");
+        EXPECT_EQ(metadata.status, MoqtObjectStatus::kNormal);
+        EXPECT_EQ(metadata.publisher_priority, 0x80);
+        EXPECT_EQ(metadata.payload_length, 8);
+        EXPECT_EQ(received_payload, "deadbeef");
+        EXPECT_EQ(offset, 0);
+      });
+  stream_->OnObjectMessage(object, "deadbeef", true);
+}
+
 TEST_F(IncomingDataStreamTest, OnObjectMessageBufferPartialObject) {
   ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
   ProcessAlias(2);
   MoqtObject object = kDefaultObject;
-  object.payload_length = 10;
+  object.payload_length = 6;
   EXPECT_CALL(visitor_, OnObjectFragment).Times(0);
   stream_->OnObjectMessage(object, "foo", false);
-  EXPECT_CALL(visitor_, OnObjectFragment);
+  EXPECT_CALL(visitor_, OnObjectFragment)
+      .WillOnce([&](const FullTrackName& track_name,
+                    const PublishedObjectMetadata& metadata,
+                    const absl::string_view received_payload, uint64_t offset) {
+        EXPECT_EQ(metadata.payload_length, 6);
+        EXPECT_EQ(received_payload, "foobar");
+        EXPECT_EQ(offset, 0);
+      });
   stream_->OnObjectMessage(object, "bar", true);
+}
+
+TEST_F(IncomingDataStreamTest, OnObjectMessageDontBufferPartialObject) {
+  EXPECT_CALL(session_, deliver_partial_objects()).WillRepeatedly(Return(true));
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessAlias(2);
+  MoqtObject object = kDefaultObject;
+  object.payload_length = 6;
+  EXPECT_CALL(visitor_, OnObjectFragment).Times(0);
+  EXPECT_CALL(visitor_, OnObjectFragment)
+      .WillOnce([&](const FullTrackName& track_name,
+                    const PublishedObjectMetadata& metadata,
+                    const absl::string_view received_payload, uint64_t offset) {
+        EXPECT_EQ(metadata.payload_length, 6);
+        EXPECT_EQ(received_payload, "foo");
+        EXPECT_EQ(offset, 0);
+      });
+  stream_->OnObjectMessage(object, "foo", false);
+  EXPECT_CALL(visitor_, OnObjectFragment)
+      .WillOnce([&](const FullTrackName& track_name,
+                    const PublishedObjectMetadata& metadata,
+                    const absl::string_view received_payload, uint64_t offset) {
+        EXPECT_EQ(metadata.payload_length, 6);
+        EXPECT_EQ(received_payload, "bar");
+        EXPECT_EQ(offset, 3);
+      });
+  stream_->OnObjectMessage(object, "bar", true);
+  // New object, make sure offset has been reset.
+  ++object.object_id;
+  EXPECT_CALL(visitor_, OnObjectFragment)
+      .WillOnce([&](const FullTrackName& track_name,
+                    const PublishedObjectMetadata& metadata,
+                    const absl::string_view received_payload, uint64_t offset) {
+        EXPECT_EQ(metadata.payload_length, 6);
+        EXPECT_EQ(received_payload, "foobaz");
+        EXPECT_EQ(offset, 0);
+      });
+  stream_->OnObjectMessage(object, "foobaz", true);
 }
 
 TEST_F(IncomingDataStreamTest, OnObjectMessageInvalidTrack) {
@@ -608,11 +675,26 @@ TEST_F(IncomingDataStreamTest, OnObjectMessageMissingSubgroupId) {
                     "Missing subgroup ID on SUBSCRIBE stream");
 }
 
-TEST_F(IncomingDataStreamTest, OnObjectMessageMalformedTrack) {
+TEST_F(IncomingDataStreamTest, ObjectAfterTrackEnd) {
   ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
   ProcessAlias(2);
   MoqtObject object = kDefaultObject;
   object.object_status = MoqtObjectStatus::kEndOfTrack;
+  EXPECT_CALL(visitor_, OnObjectFragment);
+  stream_->OnObjectMessage(object, "", true);
+
+  EXPECT_CALL(session_, OnMalformedTrack(track_.get()));
+  MoqtObject object2 = object;
+  object2.object_id = 1;
+  object2.object_status = MoqtObjectStatus::kNormal;
+  stream_->OnObjectMessage(object2, "", true);
+}
+
+TEST_F(IncomingDataStreamTest, ObjectAfterGroupEnd) {
+  ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
+  ProcessAlias(2);
+  MoqtObject object = kDefaultObject;
+  object.object_status = MoqtObjectStatus::kEndOfGroup;
   EXPECT_CALL(visitor_, OnObjectFragment);
   stream_->OnObjectMessage(object, "", true);
 
