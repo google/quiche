@@ -14,6 +14,7 @@
 #include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/match.h"
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_split.h"
@@ -24,13 +25,17 @@
 #include "openssl/ssl.h"
 #include "openssl/stack.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
+#include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/io/socket.h"
+#include "quiche/quic/core/quic_default_clock.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/masque/masque_h2_connection.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
+#include "quiche/quic/tools/quic_url.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_socket_address.h"
@@ -58,7 +63,103 @@ class DefaultDnsResolver : public MasqueConnectionPool::DnsResolver {
   }
 };
 
+class SimpleFetcher : public MasqueConnectionPool::Visitor {
+ public:
+  using Message = MasqueConnectionPool::Message;
+  using RequestId = MasqueConnectionPool::RequestId;
+  using DnsConfig = MasqueConnectionPool::DnsConfig;
+  ~SimpleFetcher() override = default;
+
+  static absl::StatusOr<Message> Fetch(const Message& request,
+                                       absl::string_view info_string,
+                                       const DnsConfig& dns_config,
+                                       bool disable_certificate_verification) {
+    SimpleFetcher fetcher;
+    std::unique_ptr<QuicEventLoop> event_loop =
+        GetDefaultEventLoop()->Create(QuicDefaultClock::Get());
+    QUICHE_ASSIGN_OR_RETURN(bssl::UniquePtr<SSL_CTX> ssl_ctx,
+                            MasqueConnectionPool::CreateSslCtx("", ""));
+    MasqueConnectionPool pool(event_loop.get(), ssl_ctx.get(),
+                              disable_certificate_verification, dns_config,
+                              &fetcher, info_string);
+    QUICHE_RETURN_IF_ERROR(pool.SendRequest(request).status());
+    while (!fetcher.done_ && fetcher.status_.ok()) {
+      event_loop->RunEventLoopOnce(quic::QuicTime::Delta::FromMilliseconds(50));
+    }
+    QUICHE_RETURN_IF_ERROR(fetcher.status_);
+    uint16_t status_code =
+        MasqueConnectionPool::GetStatusCode(fetcher.response_);
+    if (status_code < 200 || status_code >= 300) {
+      return absl::InternalError(
+          absl::StrCat("Non-2xx status code: ", status_code));
+    }
+    return std::move(fetcher).response_;
+  }
+
+  static absl::StatusOr<Message> Get(absl::string_view url_string,
+                                     absl::string_view info_string,
+                                     const DnsConfig& dns_config,
+                                     bool disable_certificate_verification) {
+    Message request;
+    QuicUrl url(url_string, "https");
+    if (url.host().empty() && !absl::StrContains(url_string, "://")) {
+      url = QuicUrl(absl::StrCat("https://", url_string));
+    }
+    request.headers[":method"] = "GET";
+    request.headers[":scheme"] = url.scheme();
+    request.headers[":authority"] = url.HostPort();
+    request.headers[":path"] = url.PathParamsQuery();
+    return Fetch(std::move(request), info_string, dns_config,
+                 disable_certificate_verification);
+  }
+
+  // From MasqueConnectionPool::Visitor.
+  void OnPoolResponse(MasqueConnectionPool* /*pool*/, RequestId /*request_id*/,
+                      absl::StatusOr<Message>&& response,
+                      bool end_stream) override {
+    if (!end_stream) {
+      // This should never happen because we don't stream responses.
+      status_ = absl::InternalError("Unexpected non-end_stream OnPoolResponse");
+      return;
+    }
+    if (!response.ok()) {
+      status_ = response.status();
+      return;
+    }
+    response_ = std::move(*response);
+    done_ = true;
+  }
+  void OnPoolData(MasqueConnectionPool* /*pool*/, RequestId /*request_id*/,
+                  absl::string_view /*data*/, bool /*end_stream*/) override {
+    // This should never happen because we don't stream responses.
+    status_ = absl::InternalError("Unexpected OnPoolData");
+  }
+
+ private:
+  SimpleFetcher() = default;
+
+  absl::Status status_ = absl::OkStatus();
+  Message response_;
+  bool done_ = false;
+};
+
 }  // namespace
+
+absl::StatusOr<MasqueConnectionPool::Message> MasqueSimpleFetch(
+    const MasqueConnectionPool::Message& request, absl::string_view info_string,
+    const MasqueConnectionPool::DnsConfig& dns_config,
+    bool disable_certificate_verification) {
+  return SimpleFetcher::Fetch(request, info_string, dns_config,
+                              disable_certificate_verification);
+}
+
+absl::StatusOr<MasqueConnectionPool::Message> MasqueSimpleGet(
+    absl::string_view url_string, absl::string_view info_string,
+    const MasqueConnectionPool::DnsConfig& dns_config,
+    bool disable_certificate_verification) {
+  return SimpleFetcher::Get(url_string, info_string, dns_config,
+                            disable_certificate_verification);
+}
 
 // static
 int16_t MasqueConnectionPool::GetStatusCode(const Message& message) {

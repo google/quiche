@@ -194,6 +194,24 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
   const std::string info_;
 };
 
+// Synchronously performs an HTTP fetch using a single-use MasqueConnectionPool.
+// Returns the HTTP response message or an error. `info_string` is used to
+// identify the request in logs.
+absl::StatusOr<MasqueConnectionPool::Message> MasqueSimpleFetch(
+    const MasqueConnectionPool::Message& request, absl::string_view info_string,
+    const MasqueConnectionPool::DnsConfig& dns_config =
+        MasqueConnectionPool::DnsConfig(),
+    bool disable_certificate_verification = false);
+
+// Synchronously performs an HTTP GET using a single-use MasqueConnectionPool.
+// Returns the HTTP response message or an error. `info_string` is used to
+// identify the request in logs.
+absl::StatusOr<MasqueConnectionPool::Message> MasqueSimpleGet(
+    absl::string_view url_string, absl::string_view info_string,
+    const MasqueConnectionPool::DnsConfig& dns_config =
+        MasqueConnectionPool::DnsConfig(),
+    bool disable_certificate_verification = false);
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_MASQUE_MASQUE_CONNECTION_POOL_H_
