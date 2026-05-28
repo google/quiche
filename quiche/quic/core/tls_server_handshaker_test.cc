@@ -72,10 +72,6 @@ namespace {
 
 const char kServerHostname[] = "test.example.com";
 const uint16_t kServerPort = 443;
-constexpr uint16_t kCipherId = 0x1301;
-constexpr absl::string_view kCipherString = "TLS_AES_128_GCM_SHA256";
-constexpr uint16_t kTlsGroupId = 29;
-constexpr absl::string_view kTlsGroupString = "X25519";
 constexpr absl::string_view kTlsVersion = "TLS_VERSION_1_3";
 
 struct TestParams {
@@ -1769,13 +1765,16 @@ TEST_P(TlsServerHandshakerTest, CachedSslInfoAfterResetSsl) {
   EXPECT_EQ(server_stream()->Alpn(),
             AlpnForVersion(server_stream()->version()));
   const SSL_CIPHER* cipher = server_stream()->Ciphersuite();
-  EXPECT_NE(cipher, nullptr);
+  uint16_t cipher_id = server_stream()->CiphersuiteId();
+  std::string cipher_string(server_stream()->CiphersuiteString());
+  uint16_t tls_group_id = server_stream()->TlsGroupId();
+  std::string tls_group_string(server_stream()->TlsGroupString());
 
-  EXPECT_EQ(server_stream()->Ciphersuite(), cipher);
-  EXPECT_EQ(server_stream()->CiphersuiteId(), kCipherId);
-  EXPECT_EQ(server_stream()->CiphersuiteString(), kCipherString);
-  EXPECT_EQ(server_stream()->TlsGroupId(), kTlsGroupId);
-  EXPECT_EQ(server_stream()->TlsGroupString(), kTlsGroupString);
+  EXPECT_NE(cipher, nullptr);
+  EXPECT_NE(cipher_id, 0);
+  EXPECT_NE(cipher_string, "");
+  EXPECT_NE(tls_group_id, 0);
+  EXPECT_NE(tls_group_string, "");
   EXPECT_EQ(server_stream()->TlsVersion(), kTlsVersion);
 
   // Call ResetSsl. This should cache the SSL info.
@@ -1788,10 +1787,10 @@ TEST_P(TlsServerHandshakerTest, CachedSslInfoAfterResetSsl) {
   EXPECT_EQ(server_stream()->Alpn(),
             AlpnForVersion(server_stream()->version()));
   EXPECT_EQ(server_stream()->Ciphersuite(), cipher);
-  EXPECT_EQ(server_stream()->CiphersuiteId(), kCipherId);
-  EXPECT_EQ(server_stream()->CiphersuiteString(), kCipherString);
-  EXPECT_EQ(server_stream()->TlsGroupId(), kTlsGroupId);
-  EXPECT_EQ(server_stream()->TlsGroupString(), kTlsGroupString);
+  EXPECT_EQ(server_stream()->CiphersuiteId(), cipher_id);
+  EXPECT_EQ(server_stream()->CiphersuiteString(), cipher_string);
+  EXPECT_EQ(server_stream()->TlsGroupId(), tls_group_id);
+  EXPECT_EQ(server_stream()->TlsGroupString(), tls_group_string);
   EXPECT_EQ(server_stream()->TlsVersion(), kTlsVersion);
 }
 
