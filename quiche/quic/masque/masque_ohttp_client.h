@@ -393,6 +393,8 @@ class QUICHE_EXPORT MasqueOhttpClient
   absl::Status CheckStatusAndContentType(
       const Message& response, const std::string& content_type,
       std::optional<uint16_t> expected_status_code);
+  absl::Status CheckEncapsulatedStatus(
+      const Message& response, std::optional<uint16_t> expected_status_code);
 
   Config config_;
   const std::string info_;
