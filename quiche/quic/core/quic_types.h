@@ -870,9 +870,8 @@ using QuicSignatureAlgorithmVector = absl::InlinedVector<uint16_t, 8>;
 struct QUICHE_EXPORT QuicSSLConfig {
   // Whether TLS early data should be enabled. If not set, default to enabled.
   std::optional<bool> early_data_enabled;
-  // Whether TLS session tickets are supported. If not set, default to
-  // supported.
-  std::optional<bool> disable_ticket_support;
+  // Whether TLS session tickets are disabled. Defaults to false (supported).
+  bool disable_ticket_support = false;
   // If set, used to configure the SSL object with
   // SSL_set_signing_algorithm_prefs.
   std::optional<QuicSignatureAlgorithmVector> signing_algorithm_prefs;

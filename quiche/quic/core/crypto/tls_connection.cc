@@ -113,10 +113,8 @@ TlsConnection::TlsConnection(SSL_CTX* ssl_ctx,
         ssl(), ssl_config_.signing_algorithm_prefs->data(),
         ssl_config_.signing_algorithm_prefs->size());
   }
-  if (ssl_config_.disable_ticket_support.has_value()) {
-    if (*ssl_config_.disable_ticket_support) {
-      SSL_set_options(ssl(), SSL_OP_NO_TICKET);
-    }
+  if (ssl_config_.disable_ticket_support) {
+    SSL_set_options(ssl(), SSL_OP_NO_TICKET);
   }
 }
 
