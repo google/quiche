@@ -47,7 +47,8 @@ QpackProgressiveDecoder::QpackProgressiveDecoder(
       blocked_(false),
       decoding_(true),
       error_detected_(false),
-      cancelled_(false) {}
+      cancelled_(false) {
+}
 
 QpackProgressiveDecoder::~QpackProgressiveDecoder() {
   if (blocked_ && !cancelled_) {
