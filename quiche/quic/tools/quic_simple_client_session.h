@@ -64,6 +64,8 @@ class QuicSimpleClientSession : public QuicSpdyClientSession {
   }
 
  private:
+  void MaybeNotifyInterimHeaders(const quiche::HttpHeaderBlock& headers);
+
   quiche::MultiUseCallback<void(const quiche::HttpHeaderBlock&)>
       on_interim_headers_;
   QuicClientBase::NetworkHelper* network_helper_;

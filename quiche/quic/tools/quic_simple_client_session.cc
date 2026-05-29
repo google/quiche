@@ -63,9 +63,16 @@ QuicSimpleClientSession::CreateClientStream() {
       drop_response_body_);
   stream->set_on_interim_headers(
       [this](const quiche::HttpHeaderBlock& headers) {
-        on_interim_headers_(headers);
+        MaybeNotifyInterimHeaders(headers);
       });
   return stream;
+}
+
+void QuicSimpleClientSession::MaybeNotifyInterimHeaders(
+    const quiche::HttpHeaderBlock& headers) {
+  if (on_interim_headers_) {
+    on_interim_headers_(headers);
+  }
 }
 
 WebTransportHttp3VersionSet

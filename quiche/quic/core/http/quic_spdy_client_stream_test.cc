@@ -7,6 +7,7 @@
 #include <memory>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/strings/str_cat.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
@@ -20,6 +21,7 @@
 #include "quiche/quic/test_tools/crypto_test_utils.h"
 #include "quiche/quic/test_tools/quic_spdy_session_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/quic/tools/quic_simple_client_session.h"
 #include "quiche/common/simple_buffer_allocator.h"
 
 using quiche::HttpHeaderBlock;
@@ -50,6 +52,23 @@ class MockQuicSpdyClientSession : public QuicSpdyClientSession {
               (const QuicFrame& frame, TransmissionType type), (override));
 
   using QuicSession::ActivateStream;
+
+ private:
+  QuicCryptoClientConfig crypto_config_;
+};
+
+class TestQuicSimpleClientSession : public QuicSimpleClientSession {
+ public:
+  TestQuicSimpleClientSession(
+      const ParsedQuicVersionVector& supported_versions,
+      QuicConnection* connection)
+      : QuicSimpleClientSession(DefaultQuicConfig(), supported_versions,
+                                connection, /*network_helper=*/nullptr,
+                                QuicServerId("example.com", 443),
+                                &crypto_config_,
+                                /*drop_response_body=*/false,
+                                /*enable_web_transport=*/false),
+        crypto_config_(crypto_test_utils::ProofVerifierForTesting()) {}
 
  private:
   QuicCryptoClientConfig crypto_config_;
@@ -309,6 +328,68 @@ TEST_P(QuicSpdyClientStreamTest, TestReceiving101) {
                               headers);
   EXPECT_THAT(stream_->stream_error(),
               IsStreamError(QUIC_BAD_APPLICATION_PAYLOAD));
+}
+
+TEST_P(QuicSpdyClientStreamTest,
+       InterimResponseWithoutCallbackDoesNotCrashSimpleClient) {
+  TestQuicSimpleClientSession simple_session(connection_->supported_versions(),
+                                             connection_);
+  simple_session.Initialize();
+  auto* simple_stream = static_cast<QuicSpdyClientStream*>(
+      simple_session.CreateOutgoingBidirectionalStream());
+  ASSERT_NE(simple_stream, nullptr);
+
+  headers_[":status"] = "129";
+  auto headers = AsHeaderList(headers_);
+  simple_stream->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                                    headers);
+
+  EXPECT_EQ(129, simple_stream->response_code());
+  ASSERT_EQ(simple_stream->preliminary_headers().size(), 1);
+  EXPECT_EQ("129",
+            simple_stream->preliminary_headers()
+                .front()
+                .find(":status")
+                ->second);
+  EXPECT_THAT(simple_stream->stream_error(), IsQuicStreamNoError());
+}
+
+TEST_P(QuicSpdyClientStreamTest,
+       InterimResponseCallbackUsesLatestSessionHandler) {
+  TestQuicSimpleClientSession simple_session(connection_->supported_versions(),
+                                             connection_);
+  simple_session.Initialize();
+  auto* simple_stream = static_cast<QuicSpdyClientStream*>(
+      simple_session.CreateOutgoingBidirectionalStream());
+  ASSERT_NE(simple_stream, nullptr);
+
+  std::vector<std::string> statuses;
+  simple_session.set_on_interim_headers(
+      [&statuses](const HttpHeaderBlock& headers) {
+        statuses.push_back(std::string(headers.find(":status")->second));
+      });
+
+  headers_[":status"] = "103";
+  auto headers = AsHeaderList(headers_);
+  simple_stream->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                                    headers);
+
+  simple_session.set_on_interim_headers(
+      quiche::MultiUseCallback<void(const HttpHeaderBlock&)>());
+  headers_[":status"] = "199";
+  headers = AsHeaderList(headers_);
+  simple_stream->OnStreamHeaderList(false, headers.uncompressed_header_bytes(),
+                                    headers);
+
+  EXPECT_THAT(statuses, ElementsAre("103"));
+  ASSERT_EQ(simple_stream->preliminary_headers().size(), 2);
+  EXPECT_EQ("103",
+            simple_stream->preliminary_headers()
+                .front()
+                .find(":status")
+                ->second);
+  EXPECT_EQ("199",
+            simple_stream->preliminary_headers().back().find(":status")->second);
 }
 
 TEST_P(QuicSpdyClientStreamTest, TestFramingOnePacket) {
