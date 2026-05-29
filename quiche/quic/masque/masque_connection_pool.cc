@@ -358,7 +358,8 @@ MasqueConnectionPool::SendRequest(const Message& request, bool mtls,
       ConnectionState * connection,
       GetOrCreateConnectionState(std::string(authority->second), mtls));
   auto pending_request = std::make_unique<PendingRequest>();
-  if (connection->connection() != nullptr) {
+  if (connection->connection() != nullptr &&
+      !connection->connection()->aborted()) {
     QUICHE_LOG(INFO) << ENDPOINT << "Reusing existing connection "
                      << connection->connection()->info() << " to "
                      << authority->second;

@@ -65,7 +65,7 @@ class QUICHE_NO_EXPORT MasqueH2Connection
 
   ~MasqueH2Connection();
 
-  bool aborted() const { return !error_.ok(); }
+  bool aborted() const { return !error_.ok() || has_closed_gracefully_; }
   // Call when there is more data to be read from SSL.
   void OnTransportReadable();
   // Call when there is more data to be written to SSL.
@@ -155,6 +155,7 @@ class QUICHE_NO_EXPORT MasqueH2Connection
   SSL* ssl_;
   std::unique_ptr<http2::adapter::OgHttp2Adapter> h2_adapter_;
   const bool is_server_;
+  bool has_closed_gracefully_ = false;
   const std::string info_;
   bool tls_connected_ = false;
   absl::Status error_ = absl::OkStatus();
