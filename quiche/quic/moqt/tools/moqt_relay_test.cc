@@ -81,7 +81,7 @@ class MoqtRelayTest : public quiche::test::QuicheTest {
     RunUntilConnected(downstream_, relay_);
   }
 
-  inline bool ClientFullyConnected(TestMoqtRelay& client) {
+  bool ClientFullyConnected(TestMoqtRelay& client) {
     return client.publisher()->GetDefaultUpstreamSession().IsValid() &&
            client.publisher()->GetDefaultUpstreamSession().GetIfAvailable() ==
                client.client_session();
