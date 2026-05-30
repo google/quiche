@@ -158,7 +158,7 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
     bssl::UniquePtr<SSL> ssl_;
     std::unique_ptr<MasqueH2Connection> connection_;
     bool mtls_ = false;
-    const std::string info_;
+    std::string info_;
   };
   struct PendingRequest {
     Message request;
