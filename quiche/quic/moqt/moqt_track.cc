@@ -226,46 +226,6 @@ void UpstreamFetch::OnStreamOpened(CanReadCallback can_read_callback) {
   }
 }
 
-bool UpstreamFetch::LocationIsValid(Location location, MoqtObjectStatus status,
-                                    bool end_of_message) {
-  if (end_of_track_.has_value()) {
-    // Cannot exceed or change end_of_track_.
-    if (location > end_of_track_) {
-      return false;
-    }
-    if (status == MoqtObjectStatus::kEndOfTrack && location != *end_of_track_) {
-      return false;
-    }
-  }
-  if (end_of_message && status == MoqtObjectStatus::kEndOfTrack) {
-    if (highest_location_.has_value() && location < *highest_location_) {
-      return false;
-    }
-    end_of_track_ = location;
-  }
-  bool last_group_is_finished = last_group_is_finished_;
-  last_group_is_finished_ =
-      status == MoqtObjectStatus::kEndOfGroup && end_of_message;
-  std::optional<Location> last_location = last_location_;
-  if (end_of_message) {
-    last_location_ = location;
-    if (!highest_location_.has_value()) {
-      highest_location_ = location;
-    } else {
-      highest_location_ = std::max(*highest_location_, location);
-    }
-  }
-  if (!last_location.has_value()) {
-    return true;
-  }
-  if (last_location->group == location.group) {
-    return (!last_group_is_finished && location.object > last_location->object);
-  }
-  // Group ID has changed.
-  return ((location.group > last_location->group) ==
-          (group_order_ == MoqtDeliveryOrder::kAscending));
-}
-
 UpstreamFetch::UpstreamFetchTask::~UpstreamFetchTask() {
   // Set status_ so that callbacks into UpstreamFetchTask exit early.
   status_ = absl::CancelledError("UpstreamFetchTask destroyed");

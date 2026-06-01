@@ -358,11 +358,6 @@ class UpstreamFetch : public RemoteTrack {
 
   bool is_fetch() const override { return true; }
 
-  // Validate that the track is not malformed due to a location violating group
-  // order or Object ID order.
-  bool LocationIsValid(Location location, MoqtObjectStatus status,
-                       bool end_of_message);
-
  private:
   MoqtDeliveryOrder group_order_;
   Location start_ = Location(0, 0);

@@ -2251,50 +2251,6 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
   EXPECT_EQ(expected_object_id, 4);
 }
 
-TEST_F(MoqtSessionTest, PartialObjectFetch) {
-  MoqtSessionParameters parameters(quic::Perspective::IS_CLIENT);
-  parameters.deliver_partial_objects = true;
-  MoqtSession session(&mock_session_, parameters,
-                      std::make_unique<quic::test::TestAlarmFactory>(),
-                      session_callbacks_.AsSessionCallbacks());
-  webtransport::test::InMemoryStream stream(kIncomingUniStreamId);
-  std::unique_ptr<MoqtFetchTask> fetch_task =
-      MoqtSessionPeer::CreateUpstreamFetch(&session, &stream);
-  UpstreamFetch::UpstreamFetchTask* task =
-      absl::down_cast<UpstreamFetch::UpstreamFetchTask*>(fetch_task.get());
-  ASSERT_NE(task, nullptr);
-  EXPECT_FALSE(task->HasObject());
-  bool object_ready = false;
-  task->SetObjectAvailableCallback([&]() { object_ready = true; });
-  MoqtObject object = {
-      /*request_id=*/0,
-      /*group_id, object_id=*/0,
-      0,
-      /*publisher_priority=*/128,
-      /*extension_headers=*/"",
-      /*status=*/MoqtObjectStatus::kNormal,
-      /*subgroup=*/0,
-      /*payload_length=*/6,
-  };
-  MoqtFramer framer_(true);
-  std::optional<PublishedObjectMetadata> metadata;
-  quiche::QuicheBuffer header = framer_.SerializeObjectHeader(
-      object, MoqtDataStreamType::Fetch(), metadata);
-  stream.Receive(header.AsStringView(), false);
-  EXPECT_FALSE(task->HasObject());
-  EXPECT_FALSE(object_ready);
-  stream.Receive("foo", false);
-  EXPECT_TRUE(task->HasObject());
-  EXPECT_TRUE(task->NeedsMorePayload());
-  EXPECT_TRUE(object_ready);
-  object_ready = false;
-  stream.Receive("bar", false);
-  EXPECT_FALSE(object_ready);  // No second call to the callback.
-  EXPECT_TRUE(task->HasObject());
-  EXPECT_FALSE(task->NeedsMorePayload());
-  task->SetObjectAvailableCallback(nullptr);
-}
-
 TEST_F(MoqtSessionTest, DeliveryTimeoutParameter) {
   MoqtSubscribe request = DefaultSubscribe();
   request.parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(1);
@@ -2447,41 +2403,6 @@ TEST_F(MoqtSessionTest, ServerCannotReceiveNewSessionUri) {
       });
   stream_input->ReceiveMessage(MoqtGoAway("foo"));
   EXPECT_TRUE(reported_error);
-}
-
-TEST_F(MoqtSessionTest, FetchStreamMalformedTrack) {
-  webtransport::test::InMemoryStream stream(kIncomingUniStreamId);
-  std::unique_ptr<MoqtFetchTask> task =
-      MoqtSessionPeer::CreateUpstreamFetch(&session_, &stream);
-  std::unique_ptr<MoqtDataParserVisitor> object_stream =
-      MoqtSessionPeer::CreateIncomingDataStream(&session_, &mock_stream_,
-                                                MoqtDataStreamType::Fetch(), 0);
-  object_stream->OnObjectMessage(
-      MoqtObject(/*request_id=*/0, /*group_id=*/0, /*object_id=*/1,
-                 /*publisher_priority=*/0x80, /*extension_headers=*/"",
-                 MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
-                 /*payload_length=*/3),
-      "foo", true);
-  EXPECT_FALSE(IsInvalidArgument(task->GetStatus()));
-  object_stream->OnObjectMessage(
-      MoqtObject(/*request_id=*/0, /*group_id=*/0, /*object_id=*/2,
-                 /*publisher_priority=*/0x80, /*extension_headers=*/"",
-                 MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
-                 /*payload_length=*/3),
-      "bar", true);
-  EXPECT_FALSE(IsInvalidArgument(task->GetStatus()));
-  webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
-      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
-  EXPECT_CALL(control_stream,
-              Writev(ControlMessageOfType(MoqtMessageType::kFetchCancel), _));
-  object_stream->OnObjectMessage(
-      MoqtObject(/*request_id=*/0, /*group_id=*/0, /*object_id=*/2,
-                 /*publisher_priority=*/0x80, /*extension_headers=*/"",
-                 MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
-                 /*payload_length=*/3),
-      "bar", true);
-  EXPECT_TRUE(IsInvalidArgument(task->GetStatus()));
 }
 
 TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousOk) {

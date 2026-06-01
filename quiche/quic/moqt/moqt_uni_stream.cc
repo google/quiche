@@ -454,16 +454,6 @@ void IncomingDataStream::OnObjectMessage(const MoqtObject& message,
   } else {  // FETCH
     track->OnObjectOrOk();
     UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(track);
-    if (!fetch->LocationIsValid(Location(message.group_id, message.object_id),
-                                message.object_status, end_of_message)) {
-      // TODO(martinduke): in https://github.com/moq-wg/moq-transport/pull/1409
-      // I make the case that this should be a protocol violation. Update if
-      // that proposal is accepted (at which point
-      // QuicSession::OnMalformedTrack can be removed, since all the
-      // remaining conditions are at the application layer).
-      session_->OnMalformedTrack(track);
-      return;
-    }
     UpstreamFetch::UpstreamFetchTask* task = fetch->task();
     if (task == nullptr) {
       // The application killed the FETCH.

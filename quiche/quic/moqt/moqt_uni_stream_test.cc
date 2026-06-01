@@ -647,6 +647,61 @@ TEST_F(IncomingDataStreamTest, OnObjectMessageDontBufferPartialObject) {
   stream_->OnObjectMessage(object, "foobaz", true);
 }
 
+TEST_F(IncomingDataStreamTest, PartialObjectFetch) {
+  EXPECT_CALL(session_, deliver_partial_objects()).WillRepeatedly(Return(true));
+  MoqtFetch fetch;
+  fetch.request_id = 3;
+  StandaloneFetch standalone(ftn_, Location(0, 0), Location(0, 9));
+  std::unique_ptr<MoqtFetchTask> fetch_task;
+  auto upstream_fetch = std::make_unique<UpstreamFetch>(
+      fetch, standalone,
+      [&](std::unique_ptr<MoqtFetchTask> t) { fetch_task = std::move(t); },
+      []() {});
+  upstream_fetch->OnFetchResult(Location(0, 9), absl::OkStatus(), []() {});
+  UpstreamFetch::UpstreamFetchTask* task = upstream_fetch->task();
+  int objects_available_callbacks = 0;
+  task->SetObjectAvailableCallback([&]() { ++objects_available_callbacks; });
+
+  uint8_t stream_header[] = {0x05, 0x03};
+  mock_stream_.Receive(
+      absl::string_view(reinterpret_cast<const char*>(stream_header), 2),
+      false);
+  EXPECT_CALL(session_, GetFetch(3))
+      .WillOnce(Return(upstream_fetch->weak_ptr()));
+  stream_->OnCanRead();
+
+  MoqtObject sent_object = MoqtObject(
+      /*request_id=*/0, /*group_id=*/0,
+      /*object_id=*/0, /*publisher_priority=*/0x80, /*extension_headers=*/"",
+      MoqtObjectStatus::kNormal, /*subgroup_id=*/0, /*payload_length=*/12);
+  stream_->OnObjectMessage(sent_object, "foo", false);
+  task->NotifyNewObject();
+  EXPECT_EQ(objects_available_callbacks, 1);
+  PublishedObject received_object;
+  EXPECT_EQ(task->GetNextObject(received_object),
+            MoqtFetchTask::GetNextObjectResult::kSuccess);
+  EXPECT_EQ(task->GetNextObject(received_object),
+            MoqtFetchTask::GetNextObjectResult::kPending);
+  EXPECT_EQ(sent_object.object_id, received_object.metadata.location.object);
+  EXPECT_EQ("foo", received_object.payload[0].AsStringView());
+  // Second and third fragments.
+  stream_->OnObjectMessage(sent_object, "bar", false);
+  task->NotifyNewObject();
+  EXPECT_EQ(objects_available_callbacks, 2);
+  stream_->OnObjectMessage(sent_object, "baz", false);
+  task->NotifyNewObject();
+  EXPECT_EQ(objects_available_callbacks, 2);
+  received_object.payload.clear();
+  EXPECT_EQ(task->GetNextObject(received_object),
+            MoqtFetchTask::GetNextObjectResult::kSuccess);
+  EXPECT_EQ(task->GetNextObject(received_object),
+            MoqtFetchTask::GetNextObjectResult::kPending);
+  EXPECT_EQ(sent_object.object_id, received_object.metadata.location.object);
+  ASSERT_EQ(received_object.payload.size(), 2);
+  EXPECT_EQ("bar", received_object.payload[0].AsStringView());
+  EXPECT_EQ("baz", received_object.payload[1].AsStringView());
+}
+
 TEST_F(IncomingDataStreamTest, OnObjectMessageInvalidTrack) {
   ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
   uint8_t alias = 2;
