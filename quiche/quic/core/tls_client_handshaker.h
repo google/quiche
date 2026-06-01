@@ -106,7 +106,7 @@ class QUICHE_EXPORT TlsClientHandshaker
   void ProcessPostHandshakeMessage() override;
   bool ShouldCloseConnectionOnUnexpectedError(int ssl_error) override;
   QuicAsyncStatus VerifyCertChain(
-      const std::vector<std::string>& certs, std::string* error_details,
+      const std::vector<absl::string_view>& certs, std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override;
   void OnProofVerifyDetailsAvailable(

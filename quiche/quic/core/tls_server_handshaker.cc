@@ -683,7 +683,7 @@ void TlsServerHandshaker::FinishHandshake() {
 // proof verifier is not set, the method will assume the certificate chain is
 // valid and return QUIC_SUCCESS.
 QuicAsyncStatus TlsServerHandshaker::VerifyCertChain(
-    const std::vector<std::string>& certs, std::string* error_details,
+    const std::vector<absl::string_view>& certs, std::string* error_details,
     std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
     std::unique_ptr<ProofVerifierCallback> callback) {
   if (proof_verifier_ == nullptr) {

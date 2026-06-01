@@ -80,10 +80,10 @@ class TestProofVerifier : public ProofVerifier {
 
   QuicAsyncStatus VerifyCertChain(
       const std::string& hostname, const uint16_t port,
-      const std::vector<std::string>& certs, const std::string& ocsp_response,
-      const std::string& cert_sct, const ProofVerifyContext* context,
-      std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,
-      uint8_t* out_alert,
+      const std::vector<absl::string_view>& certs,
+      const std::string& ocsp_response, const std::string& cert_sct,
+      const ProofVerifyContext* context, std::string* error_details,
+      std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     if (!active_) {
       return verifier_->VerifyCertChain(
@@ -125,7 +125,7 @@ class TestProofVerifier : public ProofVerifier {
   class VerifyChainPendingOp {
    public:
     VerifyChainPendingOp(const std::string& hostname, const uint16_t port,
-                         const std::vector<std::string>& certs,
+                         const std::vector<absl::string_view>& certs,
                          const std::string& ocsp_response,
                          const std::string& cert_sct,
                          const ProofVerifyContext* context,
@@ -162,7 +162,7 @@ class TestProofVerifier : public ProofVerifier {
    private:
     std::string hostname_;
     const uint16_t port_;
-    std::vector<std::string> certs_;
+    std::vector<absl::string_view> certs_;
     std::string ocsp_response_;
     std::string cert_sct_;
     const ProofVerifyContext* context_;

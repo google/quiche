@@ -567,6 +567,7 @@
     "quiche/quic/core/crypto/p256_key_exchange.cc",
     "quiche/quic/core/crypto/proof_source.cc",
     "quiche/quic/core/crypto/proof_source_x509.cc",
+    "quiche/quic/core/crypto/proof_verifier.cc",
     "quiche/quic/core/crypto/quic_client_session_cache.cc",
     "quiche/quic/core/crypto/quic_compressed_certs_cache.cc",
     "quiche/quic/core/crypto/quic_crypter.cc",

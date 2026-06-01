@@ -101,10 +101,23 @@ class QUICHE_EXPORT ProofVerifier {
   // In this case, the ProofVerifier will take ownership of |callback|.
   virtual QuicAsyncStatus VerifyCertChain(
       const std::string& hostname, uint16_t port,
+      const std::vector<absl::string_view>& certs,
+      const std::string& ocsp_response, const std::string& cert_sct,
+      const ProofVerifyContext* context, std::string* error_details,
+      std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
+      std::unique_ptr<ProofVerifierCallback> callback);
+
+  // Deprecated: Same as VerifyCertChain above, but |certs| contains
+  // std::strings instead of absl::string_views.
+  //
+  // TODO(b/517611362): Remove this once all ProofVerifier implementations
+  // have migrated to the new VerifyCertChain.
+  virtual QuicAsyncStatus VerifyCertChain(
+      const std::string& hostname, uint16_t port,
       const std::vector<std::string>& certs, const std::string& ocsp_response,
       const std::string& cert_sct, const ProofVerifyContext* context,
       std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,
-      uint8_t* out_alert, std::unique_ptr<ProofVerifierCallback> callback) = 0;
+      uint8_t* out_alert, std::unique_ptr<ProofVerifierCallback> callback);
 
   // Returns a ProofVerifyContext instance which can be use for subsequent
   // verifications. Applications may chose create a different context and

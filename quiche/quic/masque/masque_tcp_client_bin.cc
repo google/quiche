@@ -169,11 +169,11 @@ class MasqueTlsTcpClientHandler : public ConnectingClientSocket::AsyncVisitor,
       *out_alert = SSL_AD_INTERNAL_ERROR;
       return ssl_verify_invalid;
     }
-    std::vector<std::string> certs;
+    std::vector<absl::string_view> certs;
     for (CRYPTO_BUFFER* cert : cert_chain) {
-      certs.push_back(
-          std::string(reinterpret_cast<const char*>(CRYPTO_BUFFER_data(cert)),
-                      CRYPTO_BUFFER_len(cert)));
+      certs.push_back(absl::string_view(
+          reinterpret_cast<const char*>(CRYPTO_BUFFER_data(cert)),
+          CRYPTO_BUFFER_len(cert)));
     }
     const uint8_t* ocsp_response_raw;
     size_t ocsp_response_len;

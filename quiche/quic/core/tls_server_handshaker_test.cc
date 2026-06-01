@@ -112,7 +112,7 @@ class MockProofVerifier : public ProofVerifier {
 
   MOCK_METHOD(QuicAsyncStatus, VerifyCertChain,
               (const std::string& hostname, uint16_t port,
-               const std::vector<std::string>& certs,
+               const std::vector<absl::string_view>& certs,
                const std::string& ocsp_response, const std::string& cert_sct,
                const ProofVerifyContext* context, std::string* error_details,
                std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
@@ -189,7 +189,7 @@ class TestTlsServerHandshaker : public TlsServerHandshaker {
 
  protected:
   QuicAsyncStatus VerifyCertChain(
-      const std::vector<std::string>& certs, std::string* error_details,
+      const std::vector<absl::string_view>& certs, std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     received_client_cert_ = true;

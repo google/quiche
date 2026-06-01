@@ -112,7 +112,7 @@ class QUICHE_EXPORT TlsHandshaker : public TlsConnection::Delegate,
   // certificate_unknown. Implementations of VerifyCertChain may retain the
   // |out_alert| pointer while performing an async operation.
   virtual QuicAsyncStatus VerifyCertChain(
-      const std::vector<std::string>& certs, std::string* error_details,
+      const std::vector<absl::string_view>& certs, std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) = 0;
   // Called when certificate verification is completed.
