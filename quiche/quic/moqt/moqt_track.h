@@ -43,9 +43,11 @@ class SubscribeRemoteTrackPeer;
 class RemoteTrack {
  public:
   RemoteTrack(const FullTrackName& full_track_name, uint64_t id,
+              const MessageParameters& parameters,
               BidiStreamDeletedCallback callback)
       : full_track_name_(full_track_name),
         request_id_(id),
+        parameters_(parameters),
         delete_callback_(std::move(callback)),
         weak_ptr_factory_(this) {}
   virtual ~RemoteTrack() { Destroy(); }
@@ -66,19 +68,21 @@ class RemoteTrack {
 
   virtual bool is_fetch() const = 0;
 
-  void Destroy() {
-    if (delete_callback_ == nullptr) {
-      return;
-    }
-    BidiStreamDeletedCallback delete_callback = std::move(delete_callback_);
-    delete_callback_ = nullptr;
-    std::move(delete_callback)();
+  void Destroy();
+
+  // A REQUEST_UPDATE changes any field that is present in |parameters|.
+  void Update(const MessageParameters& parameters) {
+    parameters_.Update(parameters);
   }
+
+ protected:
+  const MessageParameters& const_parameters() const { return parameters_; }
+  MessageParameters& parameters() { return parameters_; }
 
  private:
   const FullTrackName full_track_name_;
   const uint64_t request_id_;
-  MoqtPriority subscriber_priority_;
+  MessageParameters parameters_;
   // If false, an object or OK message has been received, so any ERROR message
   // is a protocol violation.
   bool error_is_allowed_ = true;
@@ -102,13 +106,13 @@ class SubscribeRemoteTrack : public RemoteTrack {
                        BidiStreamDeletedCallback callback,
                        RegisterTrackAliasCallback register_track_alias_callback)
       : RemoteTrack(subscribe.full_track_name, subscribe.request_id,
-                    std::move(callback)),
-        parameters_(subscribe.parameters),
+                    subscribe.parameters, std::move(callback)),
         visitor_(visitor),
         register_track_alias_callback_(
             std::move(register_track_alias_callback)) {}
   ~SubscribeRemoteTrack() override;
 
+  void OnObjectOrOk(const SubscribeOkData& data);
   void OnObjectOrOk() override {
     RemoteTrack::OnObjectOrOk();
   }
@@ -135,31 +139,18 @@ class SubscribeRemoteTrack : public RemoteTrack {
 
   bool is_fetch() const override { return false; }
 
-  MessageParameters& parameters() { return parameters_; }
-
   bool InWindow(Location location) const override {
-    return parameters_.forward() &&
-           (!parameters_.subscription_filter.has_value() ||
-            parameters_.subscription_filter->InWindow(location));
+    return const_parameters().forward() &&
+           (!const_parameters().subscription_filter.has_value() ||
+            const_parameters().subscription_filter->InWindow(location));
   }
 
   MoqtPriority default_publisher_priority() const {
     return default_publisher_priority_;
   }
-  void set_default_publisher_priority(MoqtPriority priority) {
-    default_publisher_priority_ = priority;
-  }
-
-  void set_dynamic_groups(bool dynamic_groups) {
-    dynamic_groups_ = dynamic_groups;
-  }
 
   quic::QuicTimeDelta publisher_delivery_timeout() const {
     return publisher_delivery_timeout_;
-  }
-  void set_publisher_delivery_timeout(
-      quic::QuicTimeDelta publisher_delivery_timeout) {
-    publisher_delivery_timeout_ = publisher_delivery_timeout;
   }
 
   SubscribeVisitor* visitor() const { return visitor_; }
@@ -184,7 +175,6 @@ class SubscribeRemoteTrack : public RemoteTrack {
     return total_streams_.has_value() && *total_streams_ == streams_closed_;
   }
 
-  MessageParameters parameters_;
   quic::QuicTimeDelta publisher_delivery_timeout_ = kDefaultDeliveryTimeout;
   MoqtPriority default_publisher_priority_ = kDefaultPublisherPriority;
   bool dynamic_groups_ = kDefaultDynamicGroups;
@@ -224,7 +214,7 @@ class UpstreamFetch : public RemoteTrack {
                 FetchResponseCallback callback,
                 BidiStreamDeletedCallback delete_callback)
       : RemoteTrack(standalone.full_track_name, fetch.request_id,
-                    std::move(delete_callback)),
+                    fetch.parameters, std::move(delete_callback)),
         group_order_(fetch.parameters.group_order.value_or(
             MoqtDeliveryOrder::kAscending)),
         start_(standalone.start_location),
@@ -236,7 +226,7 @@ class UpstreamFetch : public RemoteTrack {
   UpstreamFetch(const MoqtFetch& fetch, FullTrackName full_track_name,
                 FetchResponseCallback callback,
                 BidiStreamDeletedCallback delete_callback)
-      : RemoteTrack(full_track_name, fetch.request_id,
+      : RemoteTrack(full_track_name, fetch.request_id, fetch.parameters,
                     std::move(delete_callback)),
         group_order_(fetch.parameters.group_order.value_or(
             MoqtDeliveryOrder::kAscending)),
@@ -250,7 +240,7 @@ class UpstreamFetch : public RemoteTrack {
                 JoiningFetchAbsolute absolute_joining,
                 FetchResponseCallback callback,
                 BidiStreamDeletedCallback delete_callback)
-      : RemoteTrack(full_track_name, fetch.request_id,
+      : RemoteTrack(full_track_name, fetch.request_id, fetch.parameters,
                     std::move(delete_callback)),
         group_order_(fetch.parameters.group_order.value_or(
             MoqtDeliveryOrder::kAscending)),

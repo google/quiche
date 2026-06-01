@@ -1002,32 +1002,13 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
   }
   SubscribeRemoteTrack* subscribe =
       absl::down_cast<SubscribeRemoteTrack*>(track);
-  subscribe->OnObjectOrOk();
+
   if (!subscribe->set_track_alias(message.track_alias)) {
     // A duplicate track alias could destroy the session.
     return absl::OkStatus();
   }
-  std::optional<SubscriptionFilter> filter =
-      subscribe->parameters().subscription_filter;
-  if (filter.has_value()) {
-    filter->OnLargestObject(message.parameters.largest_object);
-  }
-  subscribe->set_publisher_delivery_timeout(
-      message.extensions.delivery_timeout());
-  // TODO(martinduke): Is there anything to do with EXPIRES?
-  subscribe->set_default_publisher_priority(
-      message.extensions.default_publisher_priority());
-  if (!subscribe->parameters().group_order.has_value()) {
-    // Use publisher default because the subscriber didn't care.
-    subscribe->parameters().group_order =
-        message.extensions.default_publisher_group_order();
-  }
-  subscribe->set_dynamic_groups(message.extensions.dynamic_groups());
-  if (subscribe->visitor() != nullptr) {
-    subscribe->visitor()->OnReply(
-        track->full_track_name(),
-        SubscribeOkData{message.parameters, message.extensions});
-  }
+  subscribe->OnObjectOrOk(
+      SubscribeOkData(message.parameters, message.extensions));
   return absl::OkStatus();
 }
 
@@ -1048,7 +1029,7 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
       session_->pending_subscribe_updates_.erase(ru_it);
       return absl::OkStatus();
     }
-    sub_it->second->parameters().Update(ru_it->second.parameters);
+    sub_it->second->Update(ru_it->second.parameters);
     std::move(ru_it->second.response_callback)(std::nullopt);
     session_->pending_subscribe_updates_.erase(ru_it);
     return absl::OkStatus();

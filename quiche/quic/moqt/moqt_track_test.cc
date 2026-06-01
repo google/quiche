@@ -20,6 +20,8 @@
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/quic/test_tools/mock_clock.h"
+#include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -45,6 +47,9 @@ class SubscribeRemoteTrackPeer {
   static MoqtFetchTask* GetFetchTask(SubscribeRemoteTrack* track) {
     return track->fetch_task_.get();
   }
+  static quic::QuicAlarm* GetPublishDoneAlarm(SubscribeRemoteTrack* track) {
+    return track->publish_done_alarm_.get();
+  }
 };
 
 class SubscribeRemoteTrackTest : public quic::test::QuicTest {
@@ -66,6 +71,8 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
   SubscribeRemoteTrack track_;
   bool alias_registered_ = false;
   bool deleted_ = false;
+  quic::MockClock clock_;
+  quic::test::MockAlarmFactory alarm_factory_;
 };
 
 TEST_F(SubscribeRemoteTrackTest, Queries) {
@@ -87,6 +94,40 @@ TEST_F(SubscribeRemoteTrackTest, AllowError) {
 TEST_F(SubscribeRemoteTrackTest, Windows) {
   EXPECT_TRUE(track_.InWindow(Location(2, 0)));
   EXPECT_FALSE(track_.InWindow(Location(1, 25)));
+}
+
+TEST_F(SubscribeRemoteTrackTest, OnPublishDoneReadyToClose) {
+  track_.OnStreamOpened();
+  track_.OnStreamClosed(true, std::nullopt);
+  EXPECT_CALL(visitor_, OnPublishDone);
+  track_.OnPublishDone(1, &clock_, &alarm_factory_);
+  EXPECT_TRUE(deleted_);
+}
+
+TEST_F(SubscribeRemoteTrackTest, OnPublishDoneAllStreamsCloseLater) {
+  track_.OnStreamOpened();
+  EXPECT_CALL(visitor_, OnPublishDone).Times(0);
+  track_.OnPublishDone(2, &clock_, &alarm_factory_);
+  track_.OnStreamClosed(true, std::nullopt);
+  track_.OnStreamOpened();
+  EXPECT_CALL(visitor_, OnPublishDone);
+  track_.OnStreamClosed(true, std::nullopt);
+  EXPECT_TRUE(deleted_);
+}
+
+TEST_F(SubscribeRemoteTrackTest, OnPublishDoneTimesOut) {
+  track_.OnStreamOpened();
+  EXPECT_CALL(visitor_, OnPublishDone).Times(0);
+  track_.OnPublishDone(2, &clock_, &alarm_factory_);
+  EXPECT_FALSE(deleted_);
+  track_.OnStreamClosed(true, std::nullopt);  // No streams are open; timer set.
+  quic::QuicAlarm* alarm =
+      SubscribeRemoteTrackPeer::GetPublishDoneAlarm(&track_);
+  EXPECT_NE(alarm, nullptr);
+  EXPECT_TRUE(alarm->IsSet());
+  EXPECT_CALL(visitor_, OnPublishDone);
+  alarm_factory_.FireAlarm(alarm);
+  EXPECT_TRUE(deleted_);
 }
 
 TEST_F(SubscribeRemoteTrackTest, JoiningFetchMultiObject) {

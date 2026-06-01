@@ -17,12 +17,14 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_mem_slice.h"
@@ -39,6 +41,15 @@ constexpr quic::QuicTimeDelta kMaxPublishDoneTimeout =
 
 }  // namespace
 
+void RemoteTrack::Destroy() {
+  if (delete_callback_ == nullptr) {
+    return;
+  }
+  BidiStreamDeletedCallback delete_callback = std::move(delete_callback_);
+  delete_callback_ = nullptr;
+  std::move(delete_callback)();
+}
+
 SubscribeRemoteTrack::~SubscribeRemoteTrack() {
   if (publish_done_alarm_ != nullptr) {
     publish_done_alarm_->PermanentCancel();
@@ -47,6 +58,23 @@ SubscribeRemoteTrack::~SubscribeRemoteTrack() {
     register_track_alias_callback_(*track_alias_, nullptr);
   }
   visitor_->OnPublishDone(full_track_name());
+}
+
+void SubscribeRemoteTrack::OnObjectOrOk(const SubscribeOkData& data) {
+  if (parameters().subscription_filter.has_value()) {
+    parameters().subscription_filter->OnLargestObject(
+        data.parameters.largest_object);
+  }
+  publisher_delivery_timeout_ = data.extensions.delivery_timeout();
+  // TODO(martinduke): Is there anything to do with EXPIRES?
+  default_publisher_priority_ = data.extensions.default_publisher_priority();
+  if (!parameters().group_order.has_value()) {
+    // Use publisher default because the subscriber didn't care.
+    parameters().group_order = data.extensions.default_publisher_group_order();
+  }
+  dynamic_groups_ = data.extensions.dynamic_groups();
+  visitor_->OnReply(full_track_name(), data);
+  OnObjectOrOk();
 }
 
 void SubscribeRemoteTrack::OnStreamOpened() {
@@ -96,9 +124,9 @@ void SubscribeRemoteTrack::OnPublishDone(
 void SubscribeRemoteTrack::MaybeSetPublishDoneAlarm() {
   if (currently_open_streams_ == 0 && total_streams_.has_value() &&
       clock_ != nullptr) {
-    quic::QuicTimeDelta timeout =
-        std::min(parameters_.delivery_timeout.value_or(kDefaultDeliveryTimeout),
-                 publisher_delivery_timeout_);
+    quic::QuicTimeDelta timeout = std::min(
+        parameters().delivery_timeout.value_or(kDefaultDeliveryTimeout),
+        publisher_delivery_timeout_);
     timeout = std::min(timeout, kMaxPublishDoneTimeout);
     timeout = std::max(timeout, kMinPublishDoneTimeout);
     publish_done_alarm_->Set(clock_->ApproximateNow() + timeout);

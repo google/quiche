@@ -661,7 +661,9 @@ TEST_F(IncomingDataStreamTest, OnObjectMessageInvalidTrack) {
 TEST_F(IncomingDataStreamTest, OnObjectMessageNotInWindow) {
   ProcessStreamType(MoqtDataStreamType::Subgroup(0, 0, false, 0x80));
   ProcessAlias(2);
-  track_->parameters().set_forward(false);
+  MessageParameters parameters;
+  parameters.set_forward(false);
+  track_->Update(parameters);
   EXPECT_CALL(visitor_, OnObjectFragment).Times(0);
   stream_->OnObjectMessage(kDefaultObject, "", true);
 }

@@ -143,11 +143,6 @@ class MoqtSessionPeer {
         absl::down_cast<MoqtSession::ControlStream*>(visitor.release())));
   }
 
-  static SubscribeRemoteTrack* remote_track(MoqtSession* session,
-                                            uint64_t track_alias) {
-    return session->RemoteTrackByAlias(track_alias);
-  }
-
   static void set_next_request_id(MoqtSession* session, uint64_t id) {
     session->next_request_id_ = id;
   }
