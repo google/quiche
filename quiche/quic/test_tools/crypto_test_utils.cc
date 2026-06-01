@@ -951,14 +951,16 @@ class TestProofVerifier : public ProofVerifier {
     }
 
     uint8_t out_alert;
-    return VerifyCertChain(hostname, port, certs, /*ocsp_response=*/"",
-                           cert_sct, context, error_details, details,
-                           &out_alert, std::move(callback));
+    return VerifyCertChain(
+        hostname, port,
+        std::vector<absl::string_view>(certs.begin(), certs.end()),
+        /*ocsp_response=*/"", cert_sct, context, error_details, details,
+        &out_alert, std::move(callback));
   }
 
   QuicAsyncStatus VerifyCertChain(
       const std::string& hostname, const uint16_t /*port*/,
-      const std::vector<std::string>& certs,
+      const std::vector<absl::string_view>& certs,
       const std::string& /*ocsp_response*/, const std::string& /*cert_sct*/,
       const ProofVerifyContext* /*context*/, std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details, uint8_t* /*out_alert*/,

@@ -56,7 +56,8 @@ class RecordingProofVerifier : public ProofVerifier {
       const ProofVerifyContext* context, std::string* error_details,
       std::unique_ptr<ProofVerifyDetails>* details,
       std::unique_ptr<ProofVerifierCallback> callback) override {
-    QuicAsyncStatus status = ProcessCerts(certs, cert_sct);
+    QuicAsyncStatus status = ProcessCerts(
+        std::vector<absl::string_view>(certs.begin(), certs.end()), cert_sct);
     if (verifier_ == nullptr) {
       return status;
     }
@@ -68,10 +69,10 @@ class RecordingProofVerifier : public ProofVerifier {
 
   QuicAsyncStatus VerifyCertChain(
       const std::string& hostname, const uint16_t port,
-      const std::vector<std::string>& certs, const std::string& ocsp_response,
-      const std::string& cert_sct, const ProofVerifyContext* context,
-      std::string* error_details, std::unique_ptr<ProofVerifyDetails>* details,
-      uint8_t* out_alert,
+      const std::vector<absl::string_view>& certs,
+      const std::string& ocsp_response, const std::string& cert_sct,
+      const ProofVerifyContext* context, std::string* error_details,
+      std::unique_ptr<ProofVerifyDetails>* details, uint8_t* out_alert,
       std::unique_ptr<ProofVerifierCallback> callback) override {
     // Record the cert.
     QuicAsyncStatus status = ProcessCerts(certs, cert_sct);
@@ -92,7 +93,7 @@ class RecordingProofVerifier : public ProofVerifier {
   const std::string& cert_sct() const { return cert_sct_; }
 
  private:
-  QuicAsyncStatus ProcessCerts(const std::vector<std::string>& certs,
+  QuicAsyncStatus ProcessCerts(const std::vector<absl::string_view>& certs,
                                const std::string& cert_sct) {
     common_name_.clear();
     if (certs.empty()) {

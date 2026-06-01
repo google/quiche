@@ -51,8 +51,7 @@ class WebTransportFingerprintProofVerifierTest : public QuicTest {
     std::unique_ptr<ProofVerifyDetails> details;
     uint8_t tls_alert;
     result.status = verifier_->VerifyCertChain(
-        /*hostname=*/"", /*port=*/0,
-        std::vector<std::string>{std::string(certificate)},
+        /*hostname=*/"", /*port=*/0, {certificate},
         /*ocsp_response=*/"",
         /*cert_sct=*/"",
         /*context=*/nullptr, &result.error, &details, &tls_alert,
