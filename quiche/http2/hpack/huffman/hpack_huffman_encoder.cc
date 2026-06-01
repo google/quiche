@@ -4,19 +4,27 @@
 
 #include "quiche/http2/hpack/huffman/hpack_huffman_encoder.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <limits>
 #include <string>
 
+#include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/huffman/huffman_spec_tables.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace http2 {
 
 size_t HuffmanSize(absl::string_view plain) {
-  size_t bits = 0;
+  uint64_t bits = 0;
   for (const uint8_t c : plain) {
     bits += HuffmanSpecTables::kCodeLengths[c];
   }
-  return (bits + 7) / 8;
+  uint64_t result = (bits + 7) / 8;
+  if (result > std::numeric_limits<uint32_t>::max()) {
+    return plain.size();
+  }
+  return result;
 }
 
 void HuffmanEncode(absl::string_view input, size_t encoded_size,
