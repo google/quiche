@@ -78,3 +78,17 @@ Usage: `masque_server`
     subscribers can connect to.
 
 Usage: `moqt_relay`
+
+## Logging
+
+Most log messages in QUICHE use the QUICHE_DLOG macro. In standalone quiche,
+these all either go to stderr, or are suppressed, based on the
+--stderrthreshold flag.
+
+To send INFO level log messages to a file, you would therefore invoke
+
+`<binary> <args> > <logfile> 2>&1`
+
+Use the `--helpfull` flag for more.
+
+
