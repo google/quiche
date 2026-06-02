@@ -249,6 +249,12 @@ TlsServerHandshaker::TlsServerHandshaker(
     SSL_set1_group_ids(ssl(), crypto_config->preferred_groups().data(),
                        crypto_config->preferred_groups().size());
   }
+
+#if BORINGSSL_API_VERSION >= 41
+  if (tls_connection_.ssl_config().server_padding_enabled) {
+    SSL_set_server_padding_enabled(ssl(), 1);
+  }
+#endif
 }
 
 TlsServerHandshaker::~TlsServerHandshaker() { CancelOutstandingCallbacks(); }

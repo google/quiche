@@ -234,14 +234,16 @@ class TlsClientHandshakerTest : public QuicTestWithParam<ParsedQuicVersion> {
   }
 
   // Initializes a fake server, and all its associated state, for testing.
-  void InitializeFakeServer(const std::string& trust_anchor_id = "") {
+  void InitializeFakeServer(const std::string& trust_anchor_id = "",
+                            bool server_padding_enabled = false) {
     TestQuicSpdyServerSession* server_session = nullptr;
     server_crypto_config_ =
         crypto_test_utils::CryptoServerConfigForTesting(trust_anchor_id);
     CreateServerSessionForTest(
         server_id_, QuicTime::Delta::FromSeconds(100000), supported_versions_,
         &server_helper_, &alarm_factory_, server_crypto_config_.get(),
-        &server_compressed_certs_cache_, &server_connection_, &server_session);
+        &server_compressed_certs_cache_, &server_connection_, &server_session,
+        server_padding_enabled);
     server_session_.reset(server_session);
     std::string alpn = AlpnForVersion(connection_->version());
     EXPECT_CALL(*server_session_, SelectAlpn(_))
@@ -326,21 +328,44 @@ TEST_P(TlsClientHandshakerTest, ConnectedAfterHandshake) {
   EXPECT_EQ(stream()->TlsVersion(), "TLS_VERSION_1_3");
 }
 
+#if BORINGSSL_API_VERSION >= 41
 // Test that the connection succeeds when the client sends a server padding
 // request and the server does not respond with the requested padding.
-//
-// TODO(b/515119618): Add a test that checks the padding response once the
-// server can respond to the padding request with padding in the response.
-TEST_P(TlsClientHandshakerTest, HandshakeWithServerPaddingRequest) {
+TEST_P(TlsClientHandshakerTest,
+       HandshakeWithServerPaddingRequestNoServerPaddingResponse) {
   ssl_config_.emplace();
   ssl_config_->server_padding_to_request = 128;
+  InitializeFakeServer("", /*server_padding_enabled=*/false);
   CreateConnection();
-  CompleteCryptoHandshake();
+
+  EXPECT_CALL(*connection_, SendCryptoData(_, _, _))
+      .Times(testing::AnyNumber());
+  stream()->CryptoConnect();
+  crypto_test_utils::CommunicateHandshakeMessages(
+      connection_, stream(), server_connection_, server_stream());
 
   EXPECT_TRUE(stream()->encryption_established());
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_FALSE(stream()->ServerPaddingSentForTesting());
 }
+
+TEST_P(TlsClientHandshakerTest, HandshakeWithServerPaddingRequest) {
+  ssl_config_.emplace();
+  ssl_config_->server_padding_to_request = 128;
+  InitializeFakeServer("", /*server_padding_enabled=*/true);
+  CreateConnection();
+
+  EXPECT_CALL(*connection_, SendCryptoData(_, _, _))
+      .Times(testing::AnyNumber());
+  stream()->CryptoConnect();
+  crypto_test_utils::CommunicateHandshakeMessages(
+      connection_, stream(), server_connection_, server_stream());
+
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(stream()->ServerPaddingSentForTesting());
+}
+#endif
 
 TEST_P(TlsClientHandshakerTest, ConnectionClosedOnTlsError) {
   // Have client send ClientHello.

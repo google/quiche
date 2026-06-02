@@ -563,6 +563,28 @@ TEST_P(TlsServerHandshakerTest, ConnectedAfterTlsHandshake) {
   EXPECT_NE(server_stream()->Ciphersuite(), nullptr);
 }
 
+#if BORINGSSL_API_VERSION >= 41
+TEST_P(TlsServerHandshakerTest, HandshakeWithServerPaddingNotEnabledByServer) {
+  SetQuicRestartFlag(tls_server_padding_support, false);
+  client_crypto_config_->ssl_config().server_padding_to_request = 128;
+  InitializeServer();
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_FALSE(client_stream()->ServerPaddingSentForTesting());
+}
+
+TEST_P(TlsServerHandshakerTest, HandshakeWithServerPaddingEnabledByServer) {
+  SetQuicRestartFlag(tls_server_padding_support, true);
+  client_crypto_config_->ssl_config().server_padding_to_request = 128;
+  InitializeServer();
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_TRUE(client_stream()->ServerPaddingSentForTesting());
+}
+#endif
+
 TEST_P(TlsServerHandshakerTest, HandshakeWithAsyncSelectCertSuccess) {
   InitializeServerWithFakeProofSourceHandle();
   server_handshaker_->SetupProofSourceHandle(

@@ -238,6 +238,16 @@ TEST_P(QuicServerSessionBaseTest, GetSSLConfig) {
   EXPECT_EQ(session_->QuicSpdySession::GetSSLConfig(), QuicSSLConfig());
 }
 
+#if BORINGSSL_API_VERSION >= 41
+TEST_P(QuicServerSessionBaseTest, GetSSLConfigServerPadding) {
+  SetQuicRestartFlag(tls_server_padding_support, false);
+  EXPECT_FALSE(session_->GetSSLConfig().server_padding_enabled);
+
+  SetQuicRestartFlag(tls_server_padding_support, true);
+  EXPECT_TRUE(session_->GetSSLConfig().server_padding_enabled);
+}
+#endif
+
 TEST_P(QuicServerSessionBaseTest, CloseStreamDueToReset) {
   // Send some data open a stream, then reset it.
   QuicStreamFrame data1(GetNthClientInitiatedBidirectionalId(0), false, 0,

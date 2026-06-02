@@ -72,6 +72,7 @@ QUICHE_FLAG(bool, quiche_restart_flag_quic_shed_tls_handshake_config, true, true
 QUICHE_FLAG(bool, quiche_restart_flag_quic_support_release_time_for_gso, false, false, "If true, QuicGsoBatchWriter will support release time if it is available and the process has the permission to do so.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_false, false, false, "A testonly restart flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_restart_flag_quic_testonly_default_true, true, true, "A testonly restart flag that will always default to true.")
+QUICHE_FLAG(bool, quiche_restart_flag_tls_server_padding_support, false, false, "If enabled, GFE supports the server padding TLS extension for TLS connections in both HTTP and QUIC")
 
 #endif
 // clang-format on

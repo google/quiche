@@ -1217,7 +1217,8 @@ void CreateServerSessionForTest(
     QuicCryptoServerConfig* server_crypto_config,
     QuicCompressedCertsCache* compressed_certs_cache,
     PacketSavingConnection** server_connection,
-    TestQuicSpdyServerSession** server_session) {
+    TestQuicSpdyServerSession** server_session,
+    std::optional<bool> server_padding_enabled) {
   QUICHE_CHECK(server_crypto_config);
   QUICHE_CHECK(server_connection);
   QUICHE_CHECK(server_session);
@@ -1231,6 +1232,7 @@ void CreateServerSessionForTest(
   *server_session = new TestQuicSpdyServerSession(
       *server_connection, DefaultQuicConfig(), supported_versions,
       server_crypto_config, compressed_certs_cache);
+  (*server_session)->set_server_padding_enabled(server_padding_enabled);
   (*server_session)->Initialize();
 
   // We advance the clock initially because the default time is zero and the

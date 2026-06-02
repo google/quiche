@@ -295,6 +295,9 @@ QuicSSLConfig QuicServerSessionBase::GetSSLConfig() const {
   ssl_config.disable_ticket_support =
       GetQuicFlag(quic_disable_server_tls_resumption);
 
+  ssl_config.server_padding_enabled =
+      GetQuicRestartFlag(tls_server_padding_support);
+
   if (!crypto_config_ || !crypto_config_->proof_source()) {
     return ssl_config;
   }

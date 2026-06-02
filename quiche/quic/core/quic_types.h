@@ -895,6 +895,12 @@ struct QUICHE_EXPORT QuicSSLConfig {
   // Only used by the client.
   // This is experimental, and will be removed once the experiment is complete.
   std::optional<uint16_t> server_padding_to_request = std::nullopt;
+
+  // Only used by the server. If true, the server will add padding to the
+  // server's TLS handshake when the client requests it via
+  // server_padding_to_request.
+  // This is experimental, and will be removed once the experiment is complete.
+  bool server_padding_enabled = false;
 };
 
 QUICHE_EXPORT bool operator==(const QuicSSLConfig& lhs,
