@@ -36,7 +36,7 @@ class Counter : public Actor {
   }
   ~Counter() override {}
 
-  inline int get_value() const { return value_; }
+  int get_value() const { return value_; }
 
   void Act() override {
     ++value_;
@@ -77,8 +77,8 @@ class CounterPort : public UnconstrainedPortInterface {
   CounterPort() { Reset(); }
   ~CounterPort() override {}
 
-  inline QuicByteCount bytes() const { return bytes_; }
-  inline QuicPacketCount packets() const { return packets_; }
+  QuicByteCount bytes() const { return bytes_; }
+  QuicPacketCount packets() const { return packets_; }
 
   void AcceptPacket(std::unique_ptr<Packet> packet) override {
     bytes_ += packet->size;
@@ -148,10 +148,8 @@ class LinkSaturator : public Endpoint {
 
   CounterPort* counter() { return &rx_port_; }
 
-  inline QuicByteCount bytes_transmitted() const { return bytes_transmitted_; }
-  inline QuicPacketCount packets_transmitted() const {
-    return packets_transmitted_;
-  }
+  QuicByteCount bytes_transmitted() const { return bytes_transmitted_; }
+  QuicPacketCount packets_transmitted() const { return packets_transmitted_; }
 
   void Pause() { Unschedule(); }
   void Resume() { Schedule(clock_->Now()); }
@@ -458,8 +456,8 @@ class AlarmToggler : public Actor {
     Schedule(clock_->Now() + interval_);
   }
 
-  inline int times_set() { return times_set_; }
-  inline int times_cancelled() { return times_cancelled_; }
+  int times_set() { return times_set_; }
+  int times_cancelled() { return times_cancelled_; }
 
  private:
   QuicAlarm* alarm_;
