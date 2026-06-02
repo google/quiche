@@ -4,7 +4,7 @@
 
 // This file contains parsing and serialization logic for two closely related
 // variable-length integer formats:
-//  - MOQT varint (draft-ietf-moq-transport-17, Section 1.4.1)
+//  - MOQT varint (draft-ietf-moq-transport-18, Section 1.4.1)
 //  - EBML varint (RFC 8794, Section 4).
 //
 // Both have the property that the first byte is sufficient to determine the

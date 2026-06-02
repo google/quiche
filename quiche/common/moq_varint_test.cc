@@ -49,18 +49,19 @@ TEST(MoqVarintTest, VarintParsing) {
   EXPECT_EQ(CompleteRead<ReadEbmlVarint>("200002"), 2);
   EXPECT_EQ(CompleteRead<ReadEbmlVarint>("10000002"), 2);
 
-  // Examples from draft-ietf-moq-transport-17(bis), Section 1.4.1.
+  // Examples from draft-ietf-moq-transport-18, Section 1.4.1.
   EXPECT_EQ(CompleteRead<ReadMoqVarint>("25"), 37);
   EXPECT_EQ(CompleteRead<ReadMoqVarint>("8025"), 37);
   EXPECT_EQ(CompleteRead<ReadMoqVarint>("bbbd"), 15293);
   EXPECT_EQ(CompleteRead<ReadMoqVarint>("ed7f3e7d"), 226442877);
   EXPECT_EQ(CompleteRead<ReadMoqVarint>("faa1a0e403d8"), 2893212287960);
+  EXPECT_EQ(CompleteRead<ReadMoqVarint>("fc8998abc66bc0"), 151288809941952);
   EXPECT_EQ(CompleteRead<ReadMoqVarint>("fefa318fa8e3ca11"), 70423237261249041);
   EXPECT_EQ(CompleteRead<ReadMoqVarint>("ffffffffffffffffff"),
             18446744073709551615u);
 
-  // The forbidden MOQ varint length.
-  EXPECT_EQ(CompleteRead<ReadMoqVarint>("fcffffffffffff"), std::nullopt);
+  // The (previously) forbidden MOQ varint length.
+  EXPECT_EQ(CompleteRead<ReadMoqVarint>("fcffffffffffff"), 0xffffffffffff);
   EXPECT_EQ(CompleteRead<ReadEbmlVarint>("02ffffffffffff"), 0xffffffffffff);
 }
 
@@ -98,7 +99,7 @@ TEST(MoqVarintTest, VarintSerialization) {
   EXPECT_EQ(Write<WriteEbmlVarint>(127), "407f");
   EXPECT_EQ(Write<WriteEbmlVarint>(UINT64_C(1) << 56), std::nullopt);
   EXPECT_EQ(Write<WriteEbmlVarint>(0xffffffffffff), "02ffffffffffff");
-  EXPECT_EQ(Write<WriteMoqVarint>(0xffffffffffff), "fe00ffffffffffff");
+  EXPECT_EQ(Write<WriteMoqVarint>(0xffffffffffff), "fcffffffffffff");
 
   // Examples from draft-ietf-moq-transport-17(bis), Section 1.4.1.
   EXPECT_EQ(Write<WriteMoqVarint>(37), "25");

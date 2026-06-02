@@ -21,12 +21,10 @@
 namespace quiche {
 namespace {
 
-constexpr size_t kTheForbiddenMoqVarintLength = 7;
 constexpr uint64_t kMaxEbmlVarintValue = (UINT64_C(1) << 56) - 2;
 
 // The two varint dialects are similar, the notable differences are:
 //   - MOQ varints use a sequence of 1s for encoding length, EBML uses 0s.
-//   - MOQ does not allow varints of length 7.
 //   - EBML does not allow varints of length 9, meaning only 2^56 values are
 //         encodable.
 enum class VarintDialect { kMoq, kEbml };
@@ -47,10 +45,6 @@ std::optional<uint64_t> ReadVarint(QuicheDataReader& reader) {
   }
   const size_t length = GetVarintSizeForFirstByte<dialect>(reader.PeekByte());
   if (reader.BytesRemaining() < length) {
-    return std::nullopt;
-  }
-  if (dialect == VarintDialect::kMoq &&
-      length == kTheForbiddenMoqVarintLength) {
     return std::nullopt;
   }
   if (dialect == VarintDialect::kEbml && length > 8) {
@@ -82,10 +76,6 @@ size_t GetVarintLengthForValue(uint64_t value) {
   }
   // This is equivalent to `ceil(bit_width(value) / 7)`.
   size_t length = (6 + absl::bit_width(value)) / 7;
-  if (dialect == VarintDialect::kMoq &&
-      length == kTheForbiddenMoqVarintLength) {
-    ++length;
-  }
   return std::clamp<size_t>(length, 1, 9);
 }
 
