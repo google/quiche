@@ -19,10 +19,10 @@
 #include "absl/container/flat_hash_set.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/functional/bind_front.h"
+#include "absl/functional/overload.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
-#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
@@ -1030,7 +1030,7 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
       return absl::OkStatus();
     }
     sub_it->second->Update(ru_it->second.parameters);
-    std::move(ru_it->second.response_callback)(std::nullopt);
+    std::move(ru_it->second.response_callback)(MessageParameters());
     session_->pending_subscribe_updates_.erase(ru_it);
     return absl::OkStatus();
   }
@@ -1041,7 +1041,7 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
       return absl::InvalidArgumentError(
           "Multiple responses for PUBLISH_NAMESPACE");
     }
-    std::move(pn_it->second.response_callback)(std::nullopt);
+    std::move(pn_it->second.response_callback)(MessageParameters());
     return absl::OkStatus();
   }
   // Response to SUBSCRIBE_NAMESPACE is handled in the NamespaceStream.
@@ -1149,6 +1149,8 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
   if (it != session_->published_subscriptions_.end()) {
     // It's updating SUBSCRIBE.
     it->second->Update(message.parameters);
+    // TODO(martinduke): There should be an MoqtResponseCallback sent to the
+    // application, rather than automatic OK.
     return SendRequestOk(message.request_id, MessageParameters());
   }
   auto pn_it =
@@ -1159,22 +1161,29 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
         session_->GetWeakPtr();
     TrackNamespace track_namespace = pn_it->second.track_namespace;
     session_->callbacks().incoming_publish_namespace_callback(
-        pn_it->second.track_namespace, message.parameters,
-        [&](std::optional<MoqtRequestErrorInfo> error) {
+        track_namespace, message.parameters,
+        [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
           MoqtSession* session =
               absl::down_cast<MoqtSession*>(session_weakptr.GetIfAvailable());
           if (session == nullptr) {
             return;
           }
-          if (error.has_value()) {
-            CheckStatus(SendRequestError(message.request_id, *error));
-            session->incoming_publish_namespaces_by_id_.erase(
-                message.request_id);
-            session->incoming_publish_namespaces_by_namespace_.erase(
-                track_namespace);
-          } else {
-            CheckStatus(SendRequestOk(message.request_id, MessageParameters()));
-          }
+          std::visit(
+              absl::Overload{
+                  [this, request_id = message.request_id](
+                      const MessageParameters& parameters) {
+                    // In draft-18, there are no useful parameters in
+                    // PUBLISH_NAMESPACE_OK, but Issue #1639 would change that.
+                    CheckStatus(SendRequestOk(request_id, parameters));
+                  },
+                  [this, id = message.request_id, track_ns = track_namespace](
+                      const MoqtRequestErrorInfo& error_info) {
+                    CheckStatus(SendRequestError(id, error_info));
+                    session_->incoming_publish_namespaces_by_id_.erase(id);
+                    session_->incoming_publish_namespaces_by_namespace_.erase(
+                        track_ns);
+                  }},
+              response);
         });
     return absl::OkStatus();
   }
@@ -1210,20 +1219,29 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
       message.track_namespace;
   session_->callbacks_.incoming_publish_namespace_callback(
       message.track_namespace, message.parameters,
-      [&](std::optional<MoqtRequestErrorInfo> error) {
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
         MoqtSession* session =
             absl::down_cast<MoqtSession*>(session_weakptr.GetIfAvailable());
         if (session == nullptr) {
           return;
         }
-        if (error.has_value()) {
-          CheckStatus(SendRequestError(message.request_id, *error));
-          session->incoming_publish_namespaces_by_id_.erase(message.request_id);
-          session->incoming_publish_namespaces_by_namespace_.erase(
-              message.track_namespace);
-        } else {
-          CheckStatus(SendRequestOk(message.request_id, MessageParameters()));
-        }
+        std::visit(
+            absl::Overload{
+                [this, request_id = message.request_id](
+                    const MessageParameters& parameters) {
+                  // In draft-18, there are no useful parameters in
+                  // PUBLISH_NAMESPACE_OK, but Issue #1639 would change that.
+                  CheckStatus(SendRequestOk(request_id, parameters));
+                },
+                [this, id = message.request_id,
+                 track_ns = message.track_namespace](
+                    const MoqtRequestErrorInfo& error_info) {
+                  CheckStatus(SendRequestError(id, error_info));
+                  session_->incoming_publish_namespaces_by_id_.erase(id);
+                  session_->incoming_publish_namespaces_by_namespace_.erase(
+                      track_ns);
+                }},
+            response);
       });
   return absl::OkStatus();
 }

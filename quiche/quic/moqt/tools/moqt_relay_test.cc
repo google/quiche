@@ -6,10 +6,10 @@
 
 #include <cstdint>
 #include <memory>
-#include <optional>
 #include <set>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "absl/base/casts.h"
 #include "absl/strings/string_view.h"
@@ -18,13 +18,12 @@
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_relay_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
@@ -135,7 +134,8 @@ TEST_F(MoqtRelayTest, PublishNamespace) {
   // relay_ publishes a namespace, so upstream_ will route to relay_.
   relay_.client_session()->PublishNamespace(
       TrackNamespace({"foo"}), MessageParameters(),
-      [](std::optional<MoqtRequestErrorInfo>) {}, [](MoqtRequestErrorInfo) {});
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {},
+      [](MoqtRequestErrorInfo) {});
   upstream_.RunOneEvent();
   // There is now an upstream session for "Foo".
   std::shared_ptr<MoqtTrackPublisher> track =
@@ -191,7 +191,8 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   // Downstream publishes a namespace. It's stored in relay_ but upstream_
   // hasn't been notified.
   downstream_.client_session()->PublishNamespace(
-      foobar, MessageParameters(), [](std::optional<MoqtRequestErrorInfo>) {},
+      foobar, MessageParameters(),
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {},
       [](MoqtRequestErrorInfo) {});
   relay_.RunOneEvent();
   upstream_.RunOneEvent();
@@ -202,7 +203,7 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   std::unique_ptr<MoqtNamespaceTask> task =
       upstream_session->SubscribeNamespace(
           foo, SubscribeNamespaceOption::kNamespace, MessageParameters(),
-          [](std::optional<MoqtRequestErrorInfo>) {});
+          [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {});
   EXPECT_NE(task, nullptr);
   task->SetObjectsAvailableCallback([&]() {
     while (task->GetNextSuffix(suffix, type) == kSuccess) {
@@ -222,7 +223,8 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
 
   // Downstream publishes another namespace. Everyone is notified.
   downstream_.client_session()->PublishNamespace(
-      foobaz, MessageParameters(), [](std::optional<MoqtRequestErrorInfo>) {},
+      foobaz, MessageParameters(),
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {},
       [](MoqtRequestErrorInfo) {});
   relay_.RunOneEvent();
   upstream_.RunOneEvent();

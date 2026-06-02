@@ -24,10 +24,13 @@
 namespace moqt {
 
 // The callback we'll use for all request types going forward. Can only be used
-// once; if the argument is nullopt, an OK response was received. Otherwise, an
-// ERROR response was received.
-using MoqtResponseCallback =
-    quiche::SingleUseCallback<void(std::optional<MoqtRequestErrorInfo>)>;
+// once. If the argument is MessageParameters, the request was successful.
+// Otherwise, the request failed with the given error info.
+// This is not used for responses to SUBSCRIBE (SubscribeVisitor), FETCH
+// (FetchResponseCallback), and TRACK_STATUS (not implemented, but includes
+// Track Properties).
+using MoqtResponseCallback = quiche::SingleUseCallback<void(
+    std::variant<MessageParameters, MoqtRequestErrorInfo>)>;
 
 // TODO(martinduke): There are will be multiple instances of flow-controlled
 // "pull" data retrieval tasks. It might be worthwhile to extract some common

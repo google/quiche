@@ -5,8 +5,8 @@
 #include "quiche/quic/moqt/moqt_relay_publisher.h"
 
 #include <memory>
-#include <optional>
 #include <utility>
+#include <variant>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_error.h"
@@ -77,13 +77,11 @@ TEST_F(MoqtRelayPublisherTest, GetTrackFromDefaultUpstream) {
 
 TEST_F(MoqtRelayPublisherTest, PublishNamespaceLifecycle) {
   EXPECT_EQ(publisher_.GetTrack(FullTrackName("foo", "bar")), nullptr);
-  std::optional<MoqtRequestErrorInfo> response;
   publisher_.OnPublishNamespace(
       TrackNamespace({"foo"}), MessageParameters(), &session_,
-      [&](std::optional<MoqtRequestErrorInfo> error_response) {
-        response = error_response;
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
+        EXPECT_TRUE(std::holds_alternative<MessageParameters>(response));
       });
-  EXPECT_EQ(response, std::nullopt);
   std::shared_ptr<MoqtTrackPublisher> track =
       publisher_.GetTrack(FullTrackName("foo", "bar"));
   EXPECT_NE(track, nullptr);

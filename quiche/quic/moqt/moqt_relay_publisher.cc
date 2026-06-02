@@ -77,7 +77,7 @@ void MoqtRelayPublisher::OnPublishNamespace(
   // TODO(martinduke): Notify subscribers listening for this namespace.
   // Send PUBLISH_NAMESPACE_OK.
   if (callback != nullptr) {
-    std::move(callback)(std::nullopt);
+    std::move(callback)(MessageParameters());
   }
 }
 

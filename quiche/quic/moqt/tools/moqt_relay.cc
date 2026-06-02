@@ -18,11 +18,11 @@
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
@@ -145,7 +145,7 @@ void MoqtRelay::SetNamespaceCallbacks(MoqtSessionInterface* session) {
         task = publisher_.AddNamespaceSubscriber(prefix, session);
         break;
     }
-    std::move(response_callback)(std::nullopt);
+    std::move(response_callback)(MessageParameters());
     return task;
   };
 }

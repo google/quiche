@@ -149,7 +149,7 @@ class MoqtIngestionHandler {
         track_namespace, NamespaceHandler(directory_path));
     if (!added) {
       // Received before; should be handled by already existing subscriptions.
-      std::move(callback)(std::nullopt);
+      std::move(callback)(MessageParameters());
       return;
     }
 
@@ -178,7 +178,7 @@ class MoqtIngestionHandler {
       session_->RelativeJoiningFetch(*full_track_name, &it->second, 0,
                                      MessageParameters());
     }
-    std::move(callback)(std::nullopt);
+    std::move(callback)(MessageParameters());
   }
 
  private:

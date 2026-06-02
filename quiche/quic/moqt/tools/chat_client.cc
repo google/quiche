@@ -18,6 +18,7 @@
 #include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/functional/bind_front.h"
+#include "absl/functional/overload.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
@@ -29,13 +30,13 @@
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
@@ -58,7 +59,7 @@ void ChatClient::OnIncomingPublishNamespace(
   if (track_namespace == GetUserNamespace(my_track_name_)) {
     // Ignore PUBLISH_NAMESPACE for my own track.
     if (parameters.has_value() && callback != nullptr) {  // callback exists.
-      std::move(callback)(std::nullopt);
+      std::move(callback)(MessageParameters());
     }
     return;
   }
@@ -76,16 +77,16 @@ void ChatClient::OnIncomingPublishNamespace(
   if (!track_name.has_value()) {
     std::cout << "PUBLISH_NAMESPACE rejected, invalid namespace\n";
     if (callback != nullptr) {
-      std::move(callback)(std::make_optional<MoqtRequestErrorInfo>(
-          RequestErrorCode::kDoesNotExist, std::nullopt,
-          "Not a subscribed namespace"));
+      std::move(callback)(MoqtRequestErrorInfo(RequestErrorCode::kDoesNotExist,
+                                               std::nullopt,
+                                               "Not a subscribed namespace"));
     }
     return;
   }
   if (other_users_.contains(*track_name)) {
     std::cout << "Duplicate PUBLISH_NAMESPACE, send OK and ignore\n";
     if (callback != nullptr) {
-      std::move(callback)(std::nullopt);
+      std::move(callback)(MessageParameters());
     }
     return;
   }
@@ -93,7 +94,7 @@ void ChatClient::OnIncomingPublishNamespace(
     std::cout << "PUBLISH_NAMESPACE for a previous instance of my track, "
                  "do not subscribe\n";
     if (callback != nullptr) {
-      std::move(callback)(std::nullopt);
+      std::move(callback)(MessageParameters());
     }
     return;
   }
@@ -109,7 +110,7 @@ void ChatClient::OnIncomingPublishNamespace(
     ++subscribes_to_make_;
   }
   if (callback != nullptr) {
-    std::move(callback)(std::nullopt);  // Send PUBLISH_NAMESPACE_OK.
+    std::move(callback)(MessageParameters());  // Send PUBLISH_NAMESPACE_OK.
   }
 }
 
@@ -211,14 +212,15 @@ void ChatClient::RemoteTrackVisitor::OnReply(
   }
   --client_->subscribes_to_make_;
   std::cout << "Subscription to user " << GetUsername(*it) << " ";
-  if (std::holds_alternative<SubscribeOkData>(response)) {
-    std::cout << "ACCEPTED\n";
-  } else {
-    auto request_error = std::get<MoqtRequestErrorInfo>(response);
-    std::cout << "REJECTED, reason = "
-              << std::get<MoqtRequestErrorInfo>(response).reason_phrase << "\n";
-    client_->other_users_.erase(it);
-  }
+  std::visit(
+      absl::Overload{[](const SubscribeOkData&) { std::cout << "ACCEPTED\n"; },
+                     [this, it](const MoqtRequestErrorInfo& error_info) {
+                       std::cout
+                           << "REJECTED, reason = " << error_info.reason_phrase
+                           << "\n";
+                       client_->other_users_.erase(it);
+                     }},
+      response);
 }
 
 void ChatClient::RemoteTrackVisitor::OnObjectFragment(
@@ -264,33 +266,37 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
   publisher_.Add(queue_);
   session_->set_publisher(&publisher_);
   MoqtResponseCallback publish_namespace_callback =
-      [this](std::optional<MoqtRequestErrorInfo> reason) {
-        if (reason.has_value()) {
-          std::cout << "PUBLISH_NAMESPACE rejected, " << reason->reason_phrase
-                    << "\n";
-          session_->Error(MoqtError::kInternalError,
-                          "Local PUBLISH_NAMESPACE rejected");
-          return;
-        }
-        std::cout << "PUBLISH_NAMESPACE accepted\n";
-        return;
+      [this](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
+        std::visit(absl::Overload{
+                       [](const MessageParameters&) {
+                         std::cout << "PUBLISH_NAMESPACE accepted\n";
+                       },
+                       [this](const MoqtRequestErrorInfo& error_info) {
+                         std::cout << "PUBLISH_NAMESPACE rejected, "
+                                   << error_info.reason_phrase << "\n";
+                         session_->Error(MoqtError::kInternalError,
+                                         "Local PUBLISH_NAMESPACE rejected");
+                       }},
+                   response);
       };
   std::cout << "Announcing " << GetUserNamespace(my_track_name_).ToString()
             << "\n";
   session_->PublishNamespace(
       GetUserNamespace(my_track_name_), MessageParameters(),
-      [this](std::optional<MoqtRequestErrorInfo> reason) {
-        if (reason.has_value()) {
-          std::cout << "PUBLISH_NAMESPACE rejected, " << reason->reason_phrase
-                    << "\n";
-          session_->Error(MoqtError::kInternalError,
-                          "Local PUBLISH_NAMESPACE rejected");
-          return;
-        }
-        std::cout << "PUBLISH_NAMESPACE for "
-                  << GetUserNamespace(my_track_name_).ToString()
-                  << " accepted\n";
-        return;
+      [this](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
+        std::visit(absl::Overload{
+                       [name = my_track_name_](const MessageParameters&) {
+                         std::cout << "PUBLISH_NAMESPACE for "
+                                   << GetUserNamespace(name).ToString()
+                                   << " accepted\n";
+                       },
+                       [this](const MoqtRequestErrorInfo& error_info) {
+                         std::cout << "PUBLISH_NAMESPACE rejected, "
+                                   << error_info.reason_phrase << "\n";
+                         session_->Error(MoqtError::kInternalError,
+                                         "Local PUBLISH_NAMESPACE rejected");
+                       }},
+                   response);
       },
       [](MoqtRequestErrorInfo) {});
 
@@ -299,18 +305,21 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
   bool subscribe_response_received = false;
   TrackNamespace prefix = GetChatNamespace(my_track_name_);
   MoqtResponseCallback response_callback =
-      [&, this, prefix](std::optional<MoqtRequestErrorInfo> error) {
+      [&, this,
+       prefix](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
         subscribe_response_received = true;
-        if (error.has_value()) {
-          std::cout << "SUBSCRIBE_NAMESPACE rejected, " << error->reason_phrase
-                    << "\n";
-          session_->Error(MoqtError::kInternalError,
-                          "Local SUBSCRIBE_NAMESPACE rejected");
-          return;
-        }
-        std::cout << "SUBSCRIBE_NAMESPACE for " << prefix.ToString()
-                  << " accepted\n";
-        return;
+        std::visit(absl::Overload{
+                       [prefix](const MessageParameters&) {
+                         std::cout << "SUBSCRIBE_NAMESPACE for "
+                                   << prefix.ToString() << " accepted\n";
+                       },
+                       [this](const MoqtRequestErrorInfo& error_info) {
+                         std::cout << "SUBSCRIBE_NAMESPACE rejected, "
+                                   << error_info.reason_phrase << "\n";
+                         session_->Error(MoqtError::kInternalError,
+                                         "Local SUBSCRIBE_NAMESPACE rejected");
+                       }},
+                   response);
       };
   MessageParameters parameters;
   parameters.authorization_tokens.emplace_back(

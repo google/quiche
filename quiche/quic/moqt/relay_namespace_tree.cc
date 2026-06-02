@@ -49,7 +49,7 @@ void RelayNamespaceTree::RelayNamespaceListener::SetObjectsAvailableCallback(
 void RelayNamespaceTree::RelayNamespaceListener::Update(
     const MessageParameters&, MoqtResponseCallback response_callback) {
   // Don't do anything!
-  std::move(response_callback)(std::nullopt);
+  std::move(response_callback)(MessageParameters());
 }
 
 GetNextResult RelayNamespaceTree::RelayNamespaceListener::GetNextSuffix(
