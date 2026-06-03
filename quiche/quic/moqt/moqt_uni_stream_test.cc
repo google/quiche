@@ -652,6 +652,7 @@ TEST_F(IncomingDataStreamTest, PartialObjectFetch) {
   MoqtFetch fetch;
   fetch.request_id = 3;
   StandaloneFetch standalone(ftn_, Location(0, 0), Location(0, 9));
+  int objects_available_callbacks = 0;
   std::unique_ptr<MoqtFetchTask> fetch_task;
   auto upstream_fetch = std::make_unique<UpstreamFetch>(
       fetch, standalone,
@@ -659,7 +660,6 @@ TEST_F(IncomingDataStreamTest, PartialObjectFetch) {
       []() {});
   upstream_fetch->OnFetchResult(Location(0, 9), absl::OkStatus(), []() {});
   UpstreamFetch::UpstreamFetchTask* task = upstream_fetch->task();
-  int objects_available_callbacks = 0;
   task->SetObjectAvailableCallback([&]() { ++objects_available_callbacks; });
 
   uint8_t stream_header[] = {0x05, 0x03};
