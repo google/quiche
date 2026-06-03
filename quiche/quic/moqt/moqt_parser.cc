@@ -255,10 +255,7 @@ absl::Status ParseSubscriptionFilter(absl::string_view field,
           !reader.ReadMoqVarInt(&value)) {
         return KeyValueFormatError("Invalid AbsoluteRange filter");
       }
-      if (value < group) {  // end before start
-        return absl::InvalidArgumentError(
-            "AbsoluteRange filter specified with a start after the end");
-      }
+      QUICHE_RETURN_IF_ERROR(SafeIncrementByWithStatus(value, group));
       out.emplace(Location(group, object), value);
       break;
     default:  // invalid filter type

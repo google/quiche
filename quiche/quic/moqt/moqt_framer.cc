@@ -263,10 +263,11 @@ quiche::QuicheBuffer SerializeSubscriptionFilter(
           WireMoqVarInt(filter.type()),
           WireKeyVarIntPair(filter.start().group, filter.start().object));
     case MoqtFilterType::kAbsoluteRange:
+      QUICHE_DCHECK_LE(filter.start().group, filter.end_group());
       return Serialize(
           WireMoqVarInt(filter.type()),
           WireKeyVarIntPair(filter.start().group, filter.start().object),
-          WireMoqVarInt(filter.end_group()));
+          WireMoqVarInt(filter.end_group() - filter.start().group));
   }
 }
 

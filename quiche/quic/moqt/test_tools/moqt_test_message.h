@@ -987,7 +987,7 @@ class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
       0x02, 0xa7, 0x10,                    // delivery_timeout = 10000
       0x0e, 0x01,                          // forward = true
       0x10, 0x80, 0xaa,                    // subscriber_priority = 0xaa
-      0x01, 0x04, 0x04, 0x03, 0x01, 0x05,  // Absolute Range: (3, 1) to 5.
+      0x01, 0x04, 0x04, 0x03, 0x01, 0x02,  // Absolute Range: (3, 1) to 5
   };
 
   MoqtRequestUpdate request_update_ = {
