@@ -53,7 +53,7 @@ MATCHER_P(ControlMessageOfType, expected_type,
   std::string merged_message = absl::StrJoin(data_written, "");
   quiche::QuicheDataReader reader(merged_message);
   uint64_t type_raw;
-  if (!reader.ReadVarInt62(&type_raw)) {
+  if (!reader.ReadMoqVarInt(&type_raw)) {
     *result_listener << "Failed to extract type from the message";
     return false;
   }

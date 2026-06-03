@@ -27,7 +27,9 @@
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_test.h"
+#include "quiche/common/moq_varint.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
 
 namespace moqt::test {
@@ -140,12 +142,12 @@ class QUICHE_NO_EXPORT TestMessageBase {
   // This will cause a parsing error. Do not call this on Object Messages.
   void DecreasePayloadLengthByOne() {
     size_t length_offset =
-        0x1 << ((static_cast<uint8_t>(wire_image_[0]) & 0xc0) >> 6);
+        quiche::GetMoqVarintLengthForFirstByte(wire_image_[0]);
     wire_image_[length_offset + 1]--;
   }
   void IncreasePayloadLengthByOne() {
     size_t length_offset =
-        0x1 << ((static_cast<uint8_t>(wire_image_[0]) & 0xc0) >> 6);
+        quiche::GetMoqVarintLengthForFirstByte(wire_image_[0]);
     wire_image_[length_offset + 1]++;
     set_wire_image_size(wire_image_size_ + 1);
   }
@@ -177,18 +179,18 @@ class QUICHE_NO_EXPORT TestMessageBase {
     quic::QuicDataWriter writer(sizeof(new_wire_image), new_wire_image);
     size_t length_field = 0;
     if (is_control_message) {
-      uint8_t type_length = static_cast<uint8_t>(reader.PeekVarInt62Length());
+      std::optional<size_t> type_length_raw = reader.PeekMoqVarIntLength();
+      uint8_t type_length =
+          *type_length_raw;  // NOLINT(bugprone-unchecked-optional-access)
       uint64_t type;
-      reader.ReadVarInt62(&type);
+      reader.ReadMoqVarInt(&type);
       if (type_length == 1) {
         // Expand the message type.
         type_length = next_varint_len;
-        writer.WriteVarInt62WithForcedLength(
-            type, static_cast<quiche::QuicheVariableLengthIntegerLength>(
-                      type_length));
+        (void)quiche::WriteMoqVarintWithCustomLength(writer, type, type_length);
         next_varint_len = 4;
       } else {
-        writer.WriteVarInt62(type);
+        writer.WriteMoqVarInt(type);
       }
       length_field = writer.length();
       uint16_t size;
@@ -204,10 +206,9 @@ class QUICHE_NO_EXPORT TestMessageBase {
         continue;
       }
       uint64_t value;
-      reader.ReadVarInt62(&value);
-      writer.WriteVarInt62WithForcedLength(
-          value, static_cast<quiche::QuicheVariableLengthIntegerLength>(
-                     next_varint_len));
+      reader.ReadMoqVarInt(&value);
+      (void)quiche::WriteMoqVarintWithCustomLength(writer, value,
+                                                   next_varint_len);
       next_varint_len *= 2;
       if (next_varint_len == 16) {
         next_varint_len = 2;
@@ -304,7 +305,7 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     object_.subgroup_id = std::nullopt;
     quic::QuicDataWriter writer(sizeof(raw_packet_),
                                 reinterpret_cast<char*>(raw_packet_));
-    EXPECT_TRUE(writer.WriteVarInt62(datagram_type.value()));
+    EXPECT_TRUE(writer.WriteMoqVarInt(datagram_type.value()));
     EXPECT_TRUE(writer.WriteStringPiece(kRawAliasGroup));
     if (datagram_type.has_object_id()) {
       EXPECT_TRUE(writer.WriteStringPiece(kRawObject));
@@ -317,7 +318,7 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     }
     if (datagram_type.has_status()) {
       EXPECT_TRUE(
-          writer.WriteVarInt62(static_cast<uint64_t>(object_.object_status)));
+          writer.WriteMoqVarInt(static_cast<uint64_t>(object_.object_status)));
     } else {
       EXPECT_TRUE(writer.WriteStringPiece(kRawPayload));
     }
@@ -373,7 +374,7 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
     // Build raw_packet_ from the type.
     quic::QuicDataWriter writer(sizeof(raw_packet_), raw_packet_);
     EXPECT_TRUE(
-        writer.WriteVarInt62(type.value()) &&
+        writer.WriteMoqVarInt(type.value()) &&
         writer.WriteBytes(kRawBeginning.data(), kRawBeginning.length()));
     if (type.IsSubgroupPresent()) {
       EXPECT_TRUE(
@@ -456,7 +457,7 @@ class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
     }
     object_.object_id = 9;
     quic::QuicDataWriter writer(sizeof(raw_packet_), raw_packet_);
-    EXPECT_TRUE(writer.WriteVarInt62(2));  // Object ID delta - 1
+    EXPECT_TRUE(writer.WriteMoqVarInt(2));  // Object ID delta - 1
     if (type.AreExtensionHeadersPresent()) {
       EXPECT_TRUE(
           writer.WriteBytes(kRawExtensions.data(), kRawExtensions.length()));
@@ -522,9 +523,6 @@ class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
   StreamMiddlerFetchMessage(MoqtFetchSerialization serialization)
       : ObjectMessage(), serialization_(serialization) {
     size_t length = 0;
-    if (serialization.is_datagram()) {  // Two byte varint.
-      raw_packet_[length++] = 0x40;
-    }
     raw_packet_[length++] = static_cast<uint8_t>(serialization.value());
     if (serialization.has_group_id()) {
       raw_packet_[length++] = 0x06;  // group ID
@@ -741,7 +739,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
       0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
       0x06,                                      // 6 parameters
-      0x02, 0x67, 0x10,                          // delivery_timeout = 10000 ms
+      0x02, 0xa7, 0x10,                          // delivery_timeout = 10000 ms
       0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
       0x0d, 0x01,                                // forward = true
       0x10, 0x20,                                // subscriber_priority = 0x20
@@ -811,8 +809,8 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       0x08, 0x03,                          // expires = 3
       0x01, 0x02, 0x0c, 0x14,              // largest_location = (12, 20)
       // Extensions
-      0x02, 0x67, 0x10,  // delivery_timeout = 10000
-      0x02, 0x67, 0x10,  // max_cache_duration = 10000
+      0x02, 0xa7, 0x10,  // delivery_timeout = 10000
+      0x02, 0xa7, 0x10,  // max_cache_duration = 10000
       0x1e, 0x02         // default_publisher_group_order = 2
   };
 };
@@ -863,7 +861,7 @@ class QUICHE_NO_EXPORT RequestErrorMessage : public TestMessageBase {
       0x05, 0x00, 0x08,
       0x02,                    // request_id = 2
       0x11,                    // error_code = 17
-      0x67, 0x11,              // retry_interval = 10000 ms
+      0xa7, 0x11,              // retry_interval = 10000 ms
       0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
   };
 };
@@ -986,9 +984,9 @@ class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
   uint8_t raw_packet_[20] = {
       0x02, 0x00, 0x11, 0x02, 0x00,        // request IDs 2 and 0
       0x04,                                // Four parameters
-      0x02, 0x67, 0x10,                    // delivery_timeout = 10000
+      0x02, 0xa7, 0x10,                    // delivery_timeout = 10000
       0x0e, 0x01,                          // forward = true
-      0x10, 0x40, 0xaa,                    // subscriber_priority = 0xaa
+      0x10, 0x80, 0xaa,                    // subscriber_priority = 0xaa
       0x01, 0x04, 0x04, 0x03, 0x01, 0x05,  // Absolute Range: (3, 1) to 5.
   };
 
@@ -1600,7 +1598,7 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
       0x00,              // end_of_track = false
       0x05, 0x04,        // end_location = 5, 3
       0x00,              // no parameters
-      0x04, 0x67, 0x10,  // MaxCacheDuration = 10000
+      0x04, 0xa7, 0x10,  // MaxCacheDuration = 10000
       0x1e, 0x02,        // group_order = kDescending
   };
 
@@ -1780,7 +1778,7 @@ class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[8] = {
-      0x71, 0x84, 0x00, 0x04,  // type
+      0xb1, 0x84, 0x00, 0x04,  // type
       0x01, 0x10, 0x20,        // subscribe ID, group, object
       0x20,                    // 0x10 time delta
   };

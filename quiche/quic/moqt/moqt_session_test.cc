@@ -126,7 +126,7 @@ MoqtFetch DefaultFetch() {
 std::optional<MoqtMessageType> PeekControlMessageType(absl::string_view data) {
   quiche::QuicheDataReader reader(data);
   uint64_t varint;
-  if (!reader.ReadVarInt62(&varint)) {
+  if (!reader.ReadMoqVarInt(&varint)) {
     return std::nullopt;
   }
   return static_cast<MoqtMessageType>(varint);
@@ -1480,7 +1480,7 @@ void ExpectSendObject(MockFetchTask* fetch_task,
                      const webtransport::StreamWriteOptions& options) {
           quic::QuicDataReader reader(data[0].AsStringView());
           uint64_t type;
-          EXPECT_TRUE(reader.ReadVarInt62(&type));
+          EXPECT_TRUE(reader.ReadMoqVarInt(&type));
           EXPECT_EQ(type, MoqtDataStreamType::Fetch().value());
           EXPECT_FALSE(options.send_fin());  // fin_after_this is ignored.
           return absl::OkStatus();
@@ -1498,7 +1498,7 @@ void ExpectSendObject(MockFetchTask* fetch_task,
                    const webtransport::StreamWriteOptions& options) {
         quic::QuicDataReader reader(data[0].AsStringView());
         uint64_t type;
-        EXPECT_TRUE(reader.ReadVarInt62(&type));
+        EXPECT_TRUE(reader.ReadMoqVarInt(&type));
         EXPECT_EQ(type, MoqtDataStreamType::Fetch().value());
         EXPECT_FALSE(options.send_fin());  // fin_after_this is ignored.
         return absl::OkStatus();

@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <string>
@@ -1087,12 +1088,12 @@ TEST_F(MoqtMessageSpecificTest, InvalidObjectStatus) {
 TEST_F(MoqtMessageSpecificTest, Setup2KB) {
   char big_message[2 * kMaxMessageHeaderSize];
   quic::QuicDataWriter writer(sizeof(big_message), big_message);
-  writer.WriteVarInt62(static_cast<uint64_t>(MoqtMessageType::kServerSetup));
+  writer.WriteMoqVarInt(static_cast<uint64_t>(MoqtMessageType::kServerSetup));
   writer.WriteUInt16(8 + kMaxMessageHeaderSize);
-  writer.WriteVarInt62(0x1);                    // version
-  writer.WriteVarInt62(0x1);                    // num_params
-  writer.WriteVarInt62(0xbeef);                 // unknown param
-  writer.WriteVarInt62(kMaxMessageHeaderSize);  // very long parameter
+  writer.WriteMoqVarInt(0x1);                    // version
+  writer.WriteMoqVarInt(0x1);                    // num_params
+  writer.WriteMoqVarInt(0xbeef);                 // unknown param
+  writer.WriteMoqVarInt(kMaxMessageHeaderSize);  // very long parameter
   writer.WriteRepeatedByte(0x04, kMaxMessageHeaderSize);
   // Send incomplete message
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
@@ -1106,9 +1107,9 @@ TEST_F(MoqtMessageSpecificTest, Setup2KB) {
 TEST_F(MoqtMessageSpecificTest, UnknownMessageType) {
   char message[7];
   quic::QuicDataWriter writer(sizeof(message), message);
-  writer.WriteVarInt62(0xbeef);  // unknown message type
-  writer.WriteUInt16(0x1);       // length
-  writer.WriteVarInt62(0x1);     // payload
+  writer.WriteMoqVarInt(0xbeef);  // unknown message type
+  writer.WriteUInt16(0x1);        // length
+  writer.WriteMoqVarInt(0x1);     // payload
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
       ParseAllMessages(absl::string_view(message, writer.length()));
   EXPECT_THAT(parsed.status(),
@@ -1279,9 +1280,9 @@ TEST_F(MoqtMessageSpecificTest, RequestUpdateEndGroupTooLow) {
 
 TEST_F(MoqtMessageSpecificTest, ObjectAckNegativeDelta) {
   char object_ack[] = {
-      0x71, 0x84, 0x00, 0x05,  // type
+      0xb1, 0x84, 0x00, 0x05,  // type
       0x01, 0x10, 0x20,        // subscribe ID, group, object
-      0x40, 0x81,              // -0x40 time delta
+      0x80, 0x81,              // -0x40 time delta
   };
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
       ParseAllMessages(absl::string_view(object_ack, sizeof(object_ack)),
@@ -1455,7 +1456,7 @@ TEST_F(MoqtMessageSpecificTest, PaddingStream) {
   MoqtDataParser parser(&stream, &visitor);
   std::string buffer(32, '\0');
   quic::QuicDataWriter writer(buffer.size(), buffer.data());
-  ASSERT_TRUE(writer.WriteVarInt62(MoqtDataStreamType::Padding().value()));
+  ASSERT_TRUE(writer.WriteMoqVarInt(MoqtDataStreamType::Padding().value()));
   for (int i = 0; i < 100; ++i) {
     stream.Receive(buffer, false);
     parser.ReadAllData();
@@ -1545,6 +1546,23 @@ TEST_F(MoqtMessageSpecificTest, InvalidSubscribeNamespaceOption) {
   EXPECT_FALSE(parsed.ok());
   EXPECT_EQ(ExtractMoqtErrorForStatus(parsed.status()),
             MoqtError::kProtocolViolation);
+}
+
+TEST_F(MoqtMessageSpecificTest, ParseKeyValuePairListIntegerOverflow) {
+  char setup[] = {
+      0x20, 0x00, 0x0c,  // kClientSetup, length = 12
+      0x02,              // num_params
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,  // type_diff = max
+      0x00,  // string length = 0
+      0x01,  // type_diff = 1 (overflows)
+  };
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed = ParseAllMessages(
+      absl::string_view(setup, sizeof(setup)), kDefaultMoqtVersion, kRawQuic);
+  EXPECT_FALSE(parsed.ok());
+  EXPECT_EQ(ExtractMoqtErrorForStatus(parsed.status()),
+            MoqtError::kProtocolViolation);
+  EXPECT_THAT(parsed.status().message(),
+              HasSubstr("Integer overflow encountered"));
 }
 
 class MoqtDataParserStateMachineTest : public quic::test::QuicTest {
@@ -1647,12 +1665,12 @@ TEST_F(MoqtDataParserStateMachineTest, StreamHeaderFetchRefersToPrior) {
 }
 
 TEST_F(MoqtDataParserStateMachineTest, DatagramThenPriorSubgroupId) {
-  char data[] = {0x05, 0x01, 0x40, 0x5c, 0x05, 0x01,  // datagram (5, 1)
-                 0x80, 0x03, 0x61, 0x61, 0x61,        // priority, payload
+  char data[] = {0x05, 0x01, 0x5c, 0x05, 0x01,  // datagram (5, 1)
+                 0x80, 0x03, 0x61, 0x61, 0x61,  // priority, payload
                  0xff};  // serialization flag to be overwritten
   // Iterate through the 2 serializations that refer to the prior subgroup.
   for (char value : {0x01, 0x02}) {
-    data[11] = value;
+    data[10] = value;
     MoqtParserTestVisitor visitor;
     webtransport::test::InMemoryStream stream(/*stream_id=*/0);
     MoqtDataParser parser(&stream, &visitor);
@@ -1666,7 +1684,7 @@ TEST_F(MoqtDataParserStateMachineTest, DatagramThenPriorSubgroupId) {
 }
 
 TEST_F(MoqtDataParserStateMachineTest, InvalidNonexistentRange) {
-  char data[] = {0x05, 0x01, 0x40, 0x80};
+  char data[] = {0x05, 0x01, 0x80, 0x80};
   stream_.Receive(absl::string_view(data, sizeof(data)));
   parser_.ReadStreamType();
   parser_.ReadAtMostOneObject();
@@ -1674,7 +1692,7 @@ TEST_F(MoqtDataParserStateMachineTest, InvalidNonexistentRange) {
 }
 
 TEST_F(MoqtDataParserStateMachineTest, InvalidNonexistentRangeUnknownRange) {
-  char data[] = {0x05, 0x01, 0x41, 0x8c};
+  char data[] = {0x05, 0x01, 0x81, 0x8c};
   stream_.Receive(absl::string_view(data, sizeof(data)));
   parser_.ReadStreamType();
   parser_.ReadAtMostOneObject();
@@ -1684,8 +1702,8 @@ TEST_F(MoqtDataParserStateMachineTest, InvalidNonexistentRangeUnknownRange) {
 TEST_F(MoqtDataParserStateMachineTest, IgnoresEndRangeIndicators) {
   // Header, Range Indicator, Middler
   stream_.Receive(StreamHeaderFetchMessage().PacketSample());
-  char data[] = {0x40, 0x8c, 0x05, 0x07,   // non-existent range
-                 0x41, 0x0c, 0x05, 0x09};  // unknown range
+  char data[] = {0x80, 0x8c, 0x05, 0x07,   // non-existent range
+                 0x81, 0x0c, 0x05, 0x09};  // unknown range
   stream_.Receive(absl::string_view(data, sizeof(data)));
   std::optional<MoqtFetchSerialization> serialization =
       MoqtFetchSerialization::FromValue(0x40);  // Datagram + explicit object ID
@@ -1696,6 +1714,23 @@ TEST_F(MoqtDataParserStateMachineTest, IgnoresEndRangeIndicators) {
   EXPECT_EQ(visitor_.messages_received(), 2);
   // TODO(martinduke): Once Issue #1506 is resolved, check that the values
   // are reported correctly.
+}
+
+TEST_F(MoqtDataParserStateMachineTest, IntegerOverflowObjectId) {
+  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(
+      0, 1, /*no_extension_headers=*/true, /*default_priority=*/false);
+  stream_.Receive(StreamHeaderSubgroupMessage(type).PacketSample());
+  char buffer[32];
+  quic::QuicDataWriter writer(sizeof(buffer), buffer);
+  ASSERT_TRUE(writer.WriteMoqVarInt(std::numeric_limits<uint64_t>::max() - 5));
+  ASSERT_TRUE(
+      writer.WriteBytes("\x03"
+                        "bar",
+                        4));
+  stream_.Receive(absl::string_view(buffer, writer.length()));
+  parser_.ReadAllData();
+  EXPECT_EQ(visitor_.parsing_error(),
+            "Integer overflow when parsing object ID");
 }
 
 }  // namespace moqt::test

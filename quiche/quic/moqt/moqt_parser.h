@@ -335,7 +335,7 @@ class QUICHE_EXPORT MoqtDataParser {
 
   // Reads a single varint from the underlying stream. Triggers a parse error if
   // a FIN has been encountered.
-  std::optional<uint64_t> ReadVarInt62NoFin();
+  std::optional<uint64_t> ReadMoqVarIntNoFin();
   // Reads a single uint8 from the underlying stream. Triggers a parse error if
   // a FIN has been encountered.
   std::optional<uint8_t> ReadUint8NoFin();

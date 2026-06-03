@@ -7,9 +7,11 @@
 #include <algorithm>
 #include <memory>
 #include <optional>
+#include <string>
 #include <utility>
 
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_time.h"
@@ -73,9 +75,15 @@ void MoqtProbeManager::ProbeStreamVisitor::OnCanWrite() {
   }
 
   if (!header_sent_) {
-    absl::Status status = webtransport::WriteIntoStream(
-        *stream_, *quiche::SerializeIntoString(quiche::WireVarInt62(
-                      MoqtDataStreamType::Padding().value())));
+    absl::StatusOr<std::string> serialized_header = quiche::SerializeIntoString(
+        quiche::WireMoqVarInt(MoqtDataStreamType::Padding().value()));
+    if (!serialized_header.ok()) {
+      QUICHE_BUG(ProbeStreamVisitor_HeaderFailure)
+          << "Failed to serialize the padding stream header";
+      return;
+    }
+    absl::Status status =
+        webtransport::WriteIntoStream(*stream_, *serialized_header);
     QUICHE_DCHECK(status.ok()) << status;  // Should succeed if CanWrite().
     header_sent_ = true;
   }

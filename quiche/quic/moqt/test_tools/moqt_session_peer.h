@@ -67,7 +67,7 @@ class MoqtBidiStreamTestWrapper {
     std::string serialized = SerializeGenericMessage(message);
     quiche::QuicheDataReader reader(serialized);
     uint64_t raw_type;
-    ASSERT_TRUE(reader.ReadVarInt62(&raw_type));
+    ASSERT_TRUE(reader.ReadMoqVarInt(&raw_type));
     ASSERT_TRUE(reader.Seek(2));
     absl::Status status = stream_->OnRawControlMessage(MoqtRawControlMessage{
         .type = static_cast<MoqtMessageType>(raw_type),
