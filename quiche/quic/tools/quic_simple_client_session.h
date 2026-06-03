@@ -5,12 +5,23 @@
 #ifndef QUICHE_QUIC_TOOLS_QUIC_SIMPLE_CLIENT_SESSION_H_
 #define QUICHE_QUIC_TOOLS_QUIC_SIMPLE_CLIENT_SESSION_H_
 
-#include <functional>
+#include <memory>
 #include <utility>
 
+#include "absl/base/nullability.h"
+#include "quiche/quic/core/crypto/quic_crypto_client_config.h"
+#include "quiche/quic/core/http/quic_connection_migration_manager.h"
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
+#include "quiche/quic/core/http/quic_spdy_client_stream.h"
+#include "quiche/quic/core/http/quic_spdy_session.h"
+#include "quiche/quic/core/quic_config.h"
+#include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_force_blockable_packet_writer.h"
+#include "quiche/quic/core/quic_path_validator.h"
+#include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/tools/quic_client_base.h"
-#include "quiche/quic/tools/quic_simple_client_stream.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/quiche_callbacks.h"
 

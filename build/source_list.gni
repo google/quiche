@@ -1399,6 +1399,7 @@ quiche_tests_srcs = [
     "src/quiche/quic/tools/connect_tunnel_test.cc",
     "src/quiche/quic/tools/connect_udp_tunnel_test.cc",
     "src/quiche/quic/tools/quic_memory_cache_backend_test.cc",
+    "src/quiche/quic/tools/quic_simple_client_session_test.cc",
     "src/quiche/quic/tools/quic_tcp_like_trace_converter_test.cc",
     "src/quiche/quic/tools/simple_ticket_crypter_test.cc",
     "src/quiche/web_transport/encapsulated/encapsulated_web_transport_test.cc",
