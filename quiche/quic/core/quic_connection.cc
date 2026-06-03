@@ -5286,7 +5286,13 @@ bool QuicConnection::IsTerminationPacket(const SerializedPacket& packet,
 void QuicConnection::SetMtuDiscoveryTarget(QuicByteCount target) {
   QUIC_DVLOG(2) << ENDPOINT << "SetMtuDiscoveryTarget: " << target;
   mtu_discoverer_.Disable();
-  mtu_discoverer_.Enable(max_packet_length(), GetLimitedMaxPacketSize(target));
+  if (fix_mtu_discovery_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_fix_mtu_discovery);
+    mtu_discoverer_.Enable(long_term_mtu_, GetLimitedMaxPacketSize(target));
+  } else {
+    mtu_discoverer_.Enable(max_packet_length(),
+                           GetLimitedMaxPacketSize(target));
+  }
 }
 
 QuicByteCount QuicConnection::GetLimitedMaxPacketSize(

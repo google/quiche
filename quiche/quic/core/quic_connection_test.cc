@@ -5338,6 +5338,87 @@ TEST_P(QuicConnectionTest, MtuDiscoveryEnabled) {
               IsError(QUIC_PACKET_WRITE_ERROR));
 }
 
+// Repro test for https://github.com/google/quiche/issues/107.
+TEST_P(QuicConnectionTest, MtuDiscoveryEnabledWithSoftMaxPacketLength) {
+  set_perspective(Perspective::IS_CLIENT);
+  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
+  if (version().IsIetfQuic()) {
+    QuicConnectionPeer::SetAddressValidated(&connection_);
+  }
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  peer_creator_.set_encryption_level(ENCRYPTION_FORWARD_SECURE);
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+  EXPECT_TRUE(connection_.connected());
+
+  SetQuicReloadableFlag(quic_enable_mtu_discovery_at_server, false);
+
+  const QuicPacketCount packets_between_probes_base = 5;
+  set_packets_between_probes_base(packets_between_probes_base);
+
+  QuicConfig config;
+  QuicTagVector connection_options;
+  connection_options.push_back(kMTUH);
+  config.SetClientConnectionOptions(connection_options);
+
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, PacingRate(_))
+      .WillRepeatedly(Return(QuicBandwidth::Infinite()));
+
+  const QuicByteCount kOriginalMaxPacketSize = connection_.max_packet_length();
+
+  // Simulate packet coalescing active by setting soft max packet length to
+  // 1015, which is lower than kOriginalMaxPacketSize.
+  ASSERT_LT(1015, kOriginalMaxPacketSize);
+  creator_->SetSoftMaxPacketLength(1015);
+
+  // This enables MTU discovery.
+  connection_.SetFromConfig(config);
+
+  QuicPacketCreatorPeer::RemoveSoftMaxPacketLength(creator_);
+
+  // Send enough packets so that the next one triggers path MTU discovery.
+  for (QuicPacketCount i = 0; i < packets_between_probes_base - 1; i++) {
+    SendStreamDataToPeer(3, ".", i, NO_FIN, nullptr);
+    ASSERT_FALSE(connection_.GetMtuDiscoveryAlarm()->IsSet());
+  }
+
+  // Trigger the probe.
+  SendStreamDataToPeer(3, "!", packets_between_probes_base - 1, NO_FIN,
+                       nullptr);
+  ASSERT_TRUE(connection_.GetMtuDiscoveryAlarm()->IsSet());
+  QuicByteCount probe_size;
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _))
+      .WillOnce(SaveArg<3>(&probe_size));
+  connection_.GetMtuDiscoveryAlarm()->Fire();
+
+  if (GetQuicReloadableFlag(quic_fix_mtu_discovery)) {
+    // Probe size should be larger than the original max packet length.
+    EXPECT_GT(probe_size, kOriginalMaxPacketSize);
+  } else {
+    EXPECT_LT(probe_size, kOriginalMaxPacketSize);
+  }
+
+  const QuicPacketNumber probe_packet_number =
+      FirstSendingPacketNumber() + packets_between_probes_base;
+  ASSERT_EQ(probe_packet_number, creator_->packet_number());
+
+  // Acknowledge the probe packet, to trigger OnPathMtuIncreased().
+  QuicAckFrame probe_ack = InitAckFrame(probe_packet_number);
+  EXPECT_CALL(*send_algorithm_, OnCongestionEvent(true, _, _, _, _, _, _))
+      .Times(AnyNumber());
+  ProcessAckPacket(&probe_ack);
+
+  if (GetQuicReloadableFlag(quic_fix_mtu_discovery)) {
+    // The max packet length should be increased.
+    EXPECT_GT(connection_.max_packet_length(), kOriginalMaxPacketSize);
+  } else {
+    EXPECT_EQ(connection_.max_packet_length(), kOriginalMaxPacketSize);
+  }
+}
+
 // After a successful MTU probe, one and only one write error should be ignored
 // if it happened in QuicConnection::FlushPacket.
 TEST_P(QuicConnectionTest,
