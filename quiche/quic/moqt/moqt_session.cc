@@ -85,7 +85,7 @@ MoqtSession::MoqtSession(webtransport::Session* session,
     : session_(session),
       parameters_(parameters),
       callbacks_(std::move(callbacks)),
-      framer_(parameters.using_webtrans),
+      framer_(parameters.using_webtrans, parameters.perspective),
       publisher_(DefaultPublisher::GetInstance()),
       local_max_request_id_(parameters.max_request_id),
       alarm_factory_(std::move(alarm_factory)),
@@ -142,9 +142,9 @@ void MoqtSession::OnSessionReady() {
   control_stream->BindStream(stream);
   trace_recorder_.RecordControlStreamCreated(stream->GetStreamId());
   stream->SetVisitor(std::move(control_stream));
-  MoqtClientSetup setup;
+  MoqtSetup setup;
   parameters_.ToSetupParameters(setup.parameters);
-  SendControlMessage(framer_.SerializeClientSetup(setup));
+  SendControlMessage(framer_.SerializeSetup(setup));
   QUIC_DLOG(INFO) << ENDPOINT << "Send CLIENT_SETUP";
 }
 
@@ -836,7 +836,7 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
     return;
   }
   switch (*message_type) {
-    case MoqtMessageType::kClientSetup: {
+    case MoqtMessageType::kSetup: {
       if (session_->control_stream_.GetIfAvailable() != nullptr) {
         session_->Error(MoqtError::kProtocolViolation,
                         "Multiple control streams");
@@ -889,40 +889,33 @@ absl::Status MoqtSession::ControlStream::OnRawControlMessage(
 }
 
 absl::Status MoqtSession::ControlStream::OnControlMessage(
-    const MoqtClientSetup& message) {
-  if (session_->perspective() == Perspective::IS_CLIENT) {
-    return absl::InvalidArgumentError("Received CLIENT_SETUP from server");
+    const MoqtSetup& message) {
+  if (session_->parameters_.perspective == Perspective::IS_SERVER) {
+    session_->peer_supports_object_ack_ =
+        message.parameters.support_object_acks.value_or(
+            kDefaultSupportObjectAcks);
+    session_->peer_max_request_id_ =
+        message.parameters.max_request_id.value_or(kDefaultMaxRequestId);
+    QUICHE_DLOG(INFO) << "Received CLIENT_SETUP";
+    MoqtSetup response;
+    session_->parameters_.ToSetupParameters(response.parameters);
+    QUICHE_RETURN_IF_ERROR(
+        SendOrBufferMessage(session_->framer_.SerializeSetup(response)));
+    QUICHE_DLOG(INFO) << "Sent SERVER_SETUP";
+    // TODO: handle path.
+    std::move(session_->callbacks_.session_established_callback)();
+    return absl::OkStatus();
+  } else {
+    session_->peer_supports_object_ack_ =
+        message.parameters.support_object_acks.value_or(
+            kDefaultSupportObjectAcks);
+    QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
+    // TODO: handle path.
+    session_->peer_max_request_id_ =
+        message.parameters.max_request_id.value_or(kDefaultMaxRequestId);
+    std::move(session_->callbacks_.session_established_callback)();
+    return absl::OkStatus();
   }
-  session_->peer_supports_object_ack_ =
-      message.parameters.support_object_acks.value_or(
-          kDefaultSupportObjectAcks);
-  session_->peer_max_request_id_ =
-      message.parameters.max_request_id.value_or(kDefaultMaxRequestId);
-  QUICHE_DLOG(INFO) << "Received CLIENT_SETUP";
-  MoqtServerSetup response;
-  session_->parameters_.ToSetupParameters(response.parameters);
-  QUICHE_RETURN_IF_ERROR(
-      SendOrBufferMessage(session_->framer_.SerializeServerSetup(response)));
-  QUICHE_DLOG(INFO) << "Sent SERVER_SETUP";
-  // TODO: handle path.
-  std::move(session_->callbacks_.session_established_callback)();
-  return absl::OkStatus();
-}
-
-absl::Status MoqtSession::ControlStream::OnControlMessage(
-    const MoqtServerSetup& message) {
-  if (perspective() == Perspective::IS_SERVER) {
-    return absl::InvalidArgumentError("Received SERVER_SETUP from client");
-  }
-  session_->peer_supports_object_ack_ =
-      message.parameters.support_object_acks.value_or(
-          kDefaultSupportObjectAcks);
-  QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
-  // TODO: handle path.
-  session_->peer_max_request_id_ =
-      message.parameters.max_request_id.value_or(kDefaultMaxRequestId);
-  std::move(session_->callbacks_.session_established_callback)();
-  return absl::OkStatus();
 }
 
 absl::Status MoqtSession::ControlStream::OnControlMessage(

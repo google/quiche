@@ -221,8 +221,9 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
   static constexpr uint64_t kTrackAlias = 10;
   static constexpr uint64_t kRequestId = 1;
 
-  MoqtFramer framer_{true};
-  MoqtControlMessageParser message_parser_{kDefaultMoqtVersion, true};
+  MoqtFramer framer_{true, quic::Perspective::IS_CLIENT};
+  MoqtControlMessageParser message_parser_{kDefaultMoqtVersion, true,
+                                           quic::Perspective::IS_CLIENT};
   webtransport::test::MockSession webtrans_;
   StrictMock<webtransport::test::MockStream> mock_bidi_stream_;
   webtransport::test::MockStream mock_uni_stream_;

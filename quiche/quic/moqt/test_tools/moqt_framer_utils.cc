@@ -16,11 +16,8 @@ namespace moqt::test {
 namespace {
 
 struct FramingVisitor {
-  quiche::QuicheBuffer operator()(const MoqtClientSetup& message) {
-    return framer.SerializeClientSetup(message);
-  }
-  quiche::QuicheBuffer operator()(const MoqtServerSetup& message) {
-    return framer.SerializeServerSetup(message);
+  quiche::QuicheBuffer operator()(const MoqtSetup& message) {
+    return framer.SerializeSetup(message);
   }
   quiche::QuicheBuffer operator()(const MoqtRequestOk& message) {
     return framer.SerializeRequestOk(message);
@@ -97,7 +94,14 @@ struct FramingVisitor {
 
 std::string SerializeGenericMessage(const AnyMoqtControlMessage& frame,
                                     bool use_webtrans) {
-  MoqtFramer framer(use_webtrans);
+  quic::Perspective perspective = quic::Perspective::IS_CLIENT;
+  if (std::holds_alternative<MoqtSetup>(frame)) {
+    const MoqtSetup& setup = std::get<MoqtSetup>(frame);
+    if (!use_webtrans && !setup.parameters.path.has_value()) {
+      perspective = quic::Perspective::IS_SERVER;
+    }
+  }
+  MoqtFramer framer(use_webtrans, perspective);
   return std::string(std::visit(FramingVisitor{framer}, frame).AsStringView());
 }
 

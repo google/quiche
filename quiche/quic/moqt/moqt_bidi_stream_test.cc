@@ -10,6 +10,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
@@ -52,11 +53,12 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
 class MoqtBidiStreamTest : public quiche::test::QuicheTest {
  public:
   MoqtBidiStreamTest()
-      : framer_(true),
+      : framer_(true, quic::Perspective::IS_CLIENT),
         stream_(std::make_unique<TestMoqtBidiStream>(
             &framer_,
             MoqtControlMessageParser(kDefaultMoqtVersion,
-                                     /*webtransport=*/true),
+                                     /*webtransport=*/true,
+                                     quic::Perspective::IS_CLIENT),
             deleted_callback_.AsStdFunction(),
             error_callback_.AsStdFunction())) {}
 
@@ -136,7 +138,7 @@ TEST_F(MoqtBidiStreamTest, PendingQueueFull) {
 TEST_F(MoqtBidiStreamTest, DispatchControlMessage) {
   webtransport::test::InMemoryStream stream(0);
   stream_->BindStream(&stream);
-  MoqtFramer framer(/*using_webtrans=*/true);
+  MoqtFramer framer(/*using_webtrans=*/true, quic::Perspective::IS_SERVER);
   stream.Receive(framer.SerializeRequestOk(MoqtRequestOk()).AsStringView());
   stream_->OnCanRead();
   EXPECT_EQ(stream_->ok_received(), 1u);

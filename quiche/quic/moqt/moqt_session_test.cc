@@ -200,7 +200,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
                      webtransport::test::MockStream* stream,
                      std::unique_ptr<webtransport::StreamVisitor>& visitor,
                      MockSubscribeRemoteTrackVisitor* track_visitor) {
-    MoqtFramer framer(true);
+    MoqtFramer framer(true, quic::Perspective::IS_SERVER);
     std::optional<PublishedObjectMetadata> previous_object;
     if (visitor != nullptr) {
       previous_object = PublishedObjectMetadata();
@@ -285,7 +285,7 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
   EXPECT_CALL(mock_stream_, GetStreamId())
       .WillRepeatedly(Return(webtransport::StreamId(4)));
   EXPECT_CALL(mock_stream_,
-              Writev(ControlMessageOfType(MoqtMessageType::kClientSetup), _));
+              Writev(ControlMessageOfType(MoqtMessageType::kSetup), _));
   session_.OnSessionReady();
 
   // Receive SERVER_SETUP
@@ -293,7 +293,7 @@ TEST_F(MoqtSessionTest, OnSessionReady) {
       MoqtSessionPeer::FetchParserVisitorFromWebtransportStreamVisitor(
           std::move(visitor));
   // Handle the server setup
-  MoqtServerSetup setup;  // No fields are set.
+  MoqtSetup setup;  // No fields are set.
   EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
   stream_input->ReceiveMessage(setup);
 }
@@ -335,10 +335,11 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
                              session_callbacks_.AsSessionCallbacks());
   // Load a CLIENT_SETUP message into an in-memory stream.
   webtransport::test::InMemoryStreamWithWriteBuffer in_memory_stream(0);
-  MoqtFramer framer(session_parameters.using_webtrans);
-  MoqtClientSetup setup;
+  MoqtFramer framer(session_parameters.using_webtrans,
+                    quic::Perspective::IS_CLIENT);
+  MoqtSetup setup;
   session_parameters.ToSetupParameters(setup.parameters);
-  quiche::QuicheBuffer buffer = framer.SerializeClientSetup(setup);
+  quiche::QuicheBuffer buffer = framer.SerializeSetup(setup);
   in_memory_stream.Receive(absl::string_view(buffer.data(), buffer.size()),
                            /*fin=*/false);
 
@@ -348,7 +349,7 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
   EXPECT_CALL(session_callbacks_.session_established_callback, Call());
   server_session.OnIncomingBidirectionalStreamAvailable();
   EXPECT_EQ(PeekControlMessageType(in_memory_stream.write_buffer()),
-            MoqtMessageType::kServerSetup);
+            MoqtMessageType::kSetup);
   EXPECT_NE(MoqtSessionPeer::GetControlStream(&server_session), nullptr);
 }
 
@@ -1895,7 +1896,7 @@ TEST_F(MoqtSessionTest, SendJoiningFetchNoFlowControl) {
       /*subgroup=*/0,
       /*payload_length=*/3,
   };
-  MoqtFramer framer(true);
+  MoqtFramer framer(true, quic::Perspective::IS_SERVER);
   std::optional<PublishedObjectMetadata> metadata;
   quiche::QuicheBuffer header = framer.SerializeObjectHeader(
       object, MoqtDataStreamType::Fetch(), metadata);
@@ -1917,7 +1918,7 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespace) {
                                                "foo");
   auto bidi_stream =
       std::make_unique<webtransport::test::InMemoryStreamWithWriteBuffer>(4);
-  MoqtFramer framer(true);
+  MoqtFramer framer(true, quic::Perspective::IS_SERVER);
   MoqtSubscribeNamespace subscribe_namespace = {
       /*request_id=*/1, prefix, SubscribeNamespaceOption::kBoth, parameters};
   bidi_stream->Receive(
@@ -1970,7 +1971,7 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithSynchronousError) {
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
                                                "foo");
   webtransport::test::InMemoryStreamWithWriteBuffer bidi_stream(4);
-  MoqtFramer framer(true);
+  MoqtFramer framer(true, quic::Perspective::IS_SERVER);
   MoqtSubscribeNamespace subscribe_namespace = {
       /*request_id=*/1, prefix, SubscribeNamespaceOption::kBoth, parameters};
   bidi_stream.Receive(
@@ -2001,7 +2002,7 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithPrefixOverlap) {
                                                "foo");
   webtransport::test::InMemoryStreamWithWriteBuffer bidi_stream1(4),
       bidi_stream2(8);
-  MoqtFramer framer(true);
+  MoqtFramer framer(true, quic::Perspective::IS_SERVER);
   MoqtSubscribeNamespace subscribe_namespace = {
       /*request_id=*/1, foo, SubscribeNamespaceOption::kBoth, parameters};
   bidi_stream1.Receive(
@@ -2125,11 +2126,11 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsGreedyApp) {
       /*subgroup=*/0,
       /*payload_length=*/3,
   };
-  MoqtFramer framer_(true);
+  MoqtFramer framer(true, quic::Perspective::IS_SERVER);
   std::optional<PublishedObjectMetadata> metadata;
   for (int i = 0; i < 4; ++i) {
     object.object_id = i;
-    headers.push(framer_.SerializeObjectHeader(
+    headers.push(framer.SerializeObjectHeader(
         object, MoqtDataStreamType::Fetch(), metadata));
     metadata = PublishedObjectMetadata();
     metadata->location.object = i;  // only object ID matters.
@@ -2198,11 +2199,11 @@ TEST_F(MoqtSessionTest, IncomingFetchObjectsSlowApp) {
       /*subgroup=*/0,
       /*payload_length=*/3,
   };
-  MoqtFramer framer_(true);
+  MoqtFramer framer(true, quic::Perspective::IS_SERVER);
   std::optional<PublishedObjectMetadata> metadata;
   for (int i = 0; i < 4; ++i) {
     object.object_id = i;
-    headers.push(framer_.SerializeObjectHeader(
+    headers.push(framer.SerializeObjectHeader(
         object, MoqtDataStreamType::Fetch(), metadata));
     metadata = PublishedObjectMetadata();
     metadata->location.object = i;  // only object ID matters.
@@ -2338,13 +2339,15 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   fetch.request_id = 5;
   stream_input->ReceiveMessage(fetch);
 
-  MoqtFramer framer(true);
+  MoqtFramer framer(true, quic::Perspective::IS_CLIENT);
   SessionNamespaceTree tree;
   MoqtIncomingSubscribeNamespaceCallback callback =
       DefaultIncomingSubscribeNamespaceCallback;
   MoqtNamespacePublisherStream namespace_stream(
-      &framer, MoqtControlMessageParser(kDefaultMoqtVersion, true), nullptr,
-      &tree, callback);
+      &framer,
+      MoqtControlMessageParser(kDefaultMoqtVersion, true,
+                               quic::Perspective::IS_CLIENT),
+      nullptr, &tree, callback);
   namespace_stream.BindStream(&mock_stream_);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
@@ -2691,7 +2694,7 @@ TEST_F(MoqtSessionTest, ClientSetupNotAllowedOnControlStream) {
   EXPECT_CALL(mock_session_, CloseSession);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call);
   control_stream->ReceiveMessage(
-      MoqtClientSetup(SetupParameters("/", "example.com", 0)));
+      MoqtSetup(SetupParameters("/", "example.com", 0)));
 }
 
 TEST_F(MoqtSessionTest, NamespaceNotAllowedOnControlStream) {

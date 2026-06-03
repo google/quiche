@@ -15,6 +15,7 @@
 #include <variant>
 
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
@@ -214,8 +215,7 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kFetchOk = 0x18,
   kRequestsBlocked = 0x1a,
   kPublish = 0x1d,
-  kClientSetup = 0x20,
-  kServerSetup = 0x21,
+  kSetup = 0x2f00,
 
   // QUICHE-specific extensions.
 
@@ -231,12 +231,7 @@ struct SubgroupPriority {
   auto operator<=>(const SubgroupPriority&) const = default;
 };
 
-// TODO(martinduke): Collapse both Setup messages into SetupParameters.
-struct QUICHE_EXPORT MoqtClientSetup {
-  SetupParameters parameters;
-};
-
-struct QUICHE_EXPORT MoqtServerSetup {
+struct QUICHE_EXPORT MoqtSetup {
   SetupParameters parameters;
 };
 
@@ -538,7 +533,7 @@ struct QUICHE_EXPORT MoqtObjectAck {
 
 // Returns false if the parameters cannot be in |message type|.
 MoqtError SetupParametersAllowedByMessage(const SetupParameters& parameters,
-                                          MoqtMessageType message_type,
+                                          quic::Perspective sender_perspective,
                                           bool webtrans);
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);

@@ -21,6 +21,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -59,8 +60,6 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kNamespace,
     MoqtMessageType::kNamespaceDone,
     MoqtMessageType::kPublishNamespaceCancel,
-    MoqtMessageType::kClientSetup,
-    MoqtMessageType::kServerSetup,
     MoqtMessageType::kGoAway,
     MoqtMessageType::kSubscribeNamespace,
     MoqtMessageType::kMaxRequestId,
@@ -70,6 +69,7 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kRequestsBlocked,
     MoqtMessageType::kPublish,
     MoqtMessageType::kObjectAck,
+    MoqtMessageType::kSetup,
 };
 
 using GeneralizedMessageType =
@@ -77,27 +77,39 @@ using GeneralizedMessageType =
 }  // namespace
 
 struct MoqtParserTestParams {
-  MoqtParserTestParams(MoqtMessageType message_type, bool uses_web_transport)
-      : message_type(message_type), uses_web_transport(uses_web_transport) {}
+  MoqtParserTestParams(
+      MoqtMessageType message_type, bool uses_web_transport,
+      quic::Perspective perspective = quic::Perspective::IS_SERVER)
+      : message_type(message_type),
+        uses_web_transport(uses_web_transport),
+        perspective(perspective) {}
   explicit MoqtParserTestParams(MoqtDataStreamType message_type)
-      : message_type(message_type), uses_web_transport(true) {}
+      : message_type(message_type),
+        uses_web_transport(true),
+        perspective(quic::Perspective::IS_SERVER) {}
+
   GeneralizedMessageType message_type;
   bool uses_web_transport;
+  quic::Perspective perspective;
 };
 
 std::vector<MoqtParserTestParams> GetMoqtParserTestParams() {
   std::vector<MoqtParserTestParams> params;
 
   for (MoqtMessageType message_type : kMessageTypes) {
-    if (message_type == MoqtMessageType::kClientSetup) {
+    if (message_type == MoqtMessageType::kSetup) {
       for (const bool uses_web_transport : {false, true}) {
-        params.push_back(
-            MoqtParserTestParams(message_type, uses_web_transport));
+        for (const quic::Perspective perspective :
+             {quic::Perspective::IS_CLIENT, quic::Perspective::IS_SERVER}) {
+          params.push_back(MoqtParserTestParams(
+              message_type, uses_web_transport, perspective));
+        }
       }
     } else {
       // All other types are processed the same for either perspective or
       // transport.
-      params.push_back(MoqtParserTestParams(message_type, true));
+      params.push_back(MoqtParserTestParams(message_type, true,
+                                            quic::Perspective::IS_SERVER));
     }
   }
   for (MoqtDataStreamType type : AllMoqtDataStreamTypes()) {
@@ -116,7 +128,8 @@ std::string ParamNameFormatter(
     const testing::TestParamInfo<MoqtParserTestParams>& info) {
   return std::visit([](auto x) { return TypeFormatter(x); },
                     info.param.message_type) +
-         "_" + (info.param.uses_web_transport ? "WebTransport" : "QUIC");
+         "_" + (info.param.uses_web_transport ? "WebTransport" : "QUIC") + "_" +
+         quic::PerspectiveToString(info.param.perspective);
 }
 
 std::optional<MoqtError> ExtractMoqtErrorForStatus(const absl::Status& status) {
@@ -132,9 +145,10 @@ class MoqtParserTest
   MoqtParserTest()
       : message_type_(GetParam().message_type),
         webtrans_(GetParam().uses_web_transport),
+        perspective_(GetParam().perspective),
         control_stream_(/*stream_id=*/0),
         control_parser_(&control_stream_),
-        message_parser_(kDefaultMoqtVersion, webtrans_),
+        message_parser_(kDefaultMoqtVersion, webtrans_, perspective_),
         data_stream_(/*stream_id=*/0),
         data_parser_(&data_stream_, &data_visitor_) {
     // The default object has priority 0x07, so setting this will let the
@@ -151,7 +165,7 @@ class MoqtParserTest
       return CreateTestDataStream(std::get<MoqtDataStreamType>(message_type_));
     }
     return CreateTestMessage(std::get<MoqtMessageType>(message_type_),
-                             webtrans_);
+                             webtrans_, FlipPerspective(perspective_));
   }
 
   void ProcessData(absl::string_view data, bool fin) {
@@ -212,6 +226,7 @@ class MoqtParserTest
 
   GeneralizedMessageType message_type_;
   bool webtrans_;
+  quic::Perspective perspective_;
   webtransport::test::InMemoryStream control_stream_;
   MoqtControlStreamParser control_parser_;
   MoqtControlMessageParser message_parser_;
@@ -412,12 +427,14 @@ class MoqtMessageSpecificTest : public quic::test::QuicTest {
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> ParseAllMessages(
       absl::string_view data,
       absl::string_view moqt_version = kDefaultMoqtVersion,
-      bool uses_web_transport = true) {
+      bool uses_web_transport = true,
+      quic::Perspective perspective = quic::Perspective::IS_SERVER) {
     webtransport::test::InMemoryStream stream(/*stream_id=*/0);
     stream.Receive(data, /*fin=*/true);
     MoqtControlStreamParser stream_parser(&stream);
     stream_parser.set_allow_fin(true);
-    MoqtControlMessageParser message_parser(moqt_version, uses_web_transport);
+    MoqtControlMessageParser message_parser(moqt_version, uses_web_transport,
+                                            perspective);
     std::vector<AnyMoqtControlMessage> result;
     while (!stream_parser.fin_read()) {
       absl::StatusOr<MoqtRawControlMessage> raw_message =
@@ -591,7 +608,7 @@ TEST_F(MoqtMessageSpecificTest, StreamHeaderSubgroupFollowOnExpandedVarInts) {
 
 TEST_F(MoqtMessageSpecificTest, ClientSetupMaxRequestIdAppearsTwice) {
   char setup[] = {
-      0x20, 0x00, 0x0a,
+      0xaf, 0x00, 0x00, 0x0a,
       0x03,                          // 3 params
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
       0x01, 0x32,                    // max_request_id = 50
@@ -605,25 +622,27 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupMaxRequestIdAppearsTwice) {
 
 TEST_F(MoqtMessageSpecificTest, ServerSetupAuthorizationTokenTagRegister) {
   char setup[] = {
-      0x21, 0x00, 0x0b,
+      0xaf, 0x00, 0x00, 0x0b,
       0x02,                                            // 2 params
       0x02, 0x32,                                      // max_request_id = 50
       0x01, 0x06, 0x01, 0x10, 0x00, 0x62, 0x61, 0x72,  // REGISTER 0x01
   };
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
-      ParseAllMessages(absl::string_view(setup, sizeof(setup)));
+      ParseAllMessages(absl::string_view(setup, sizeof(setup)),
+                       kDefaultMoqtVersion, true, quic::Perspective::IS_CLIENT);
   // No error even though the registration exceeds the max cache size of 0.
   QUICHE_EXPECT_OK(parsed.status());
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
   char setup[] = {
-      0x21, 0x00, 0x06,
+      0xaf, 0x00, 0x00, 0x06,
       0x01,                          // 1 param
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
   };
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
-      ParseAllMessages(absl::string_view(setup, sizeof(setup)));
+      ParseAllMessages(absl::string_view(setup, sizeof(setup)),
+                       kDefaultMoqtVersion, true, quic::Perspective::IS_CLIENT);
   ASSERT_THAT(parsed.status(),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("Setup parameter parsing error")));
@@ -633,19 +652,20 @@ TEST_F(MoqtMessageSpecificTest, SetupPathFromServer) {
 
 TEST_F(MoqtMessageSpecificTest, SetupAuthorityFromServer) {
   char setup[] = {
-      0x21, 0x00, 0x06,
+      0xaf, 0x00, 0x00, 0x06,
       0x01,                          // 1 param
       0x05, 0x03, 0x66, 0x6f, 0x6f,  // authority = "foo"
   };
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
-      ParseAllMessages(absl::string_view(setup, sizeof(setup)));
+      ParseAllMessages(absl::string_view(setup, sizeof(setup)),
+                       kDefaultMoqtVersion, true, quic::Perspective::IS_CLIENT);
   EXPECT_EQ(ExtractMoqtErrorForStatus(parsed.status()),
             MoqtError::kInvalidAuthority);
 }
 
 TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
   char setup[] = {
-      0x20, 0x00, 0x0b,
+      0xaf, 0x00, 0x00, 0x0b,
       0x02,                          // 2 params
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
       0x00, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
@@ -658,7 +678,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathAppearsTwice) {
 
 TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
   char setup[] = {
-      0x20, 0x00, 0x06,
+      0xaf, 0x00, 0x00, 0x06,
       0x01,                          // 1 param
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
   };
@@ -670,7 +690,7 @@ TEST_F(MoqtMessageSpecificTest, SetupPathOverWebtrans) {
 
 TEST_F(MoqtMessageSpecificTest, SetupAuthorityOverWebtrans) {
   char setup[] = {
-      0x20, 0x00, 0x06,
+      0xaf, 0x00, 0x00, 0x06,
       0x01,                          // 1 param
       0x05, 0x03, 0x66, 0x6f, 0x6f,  // authority = "foo"
   };
@@ -682,9 +702,7 @@ TEST_F(MoqtMessageSpecificTest, SetupAuthorityOverWebtrans) {
 
 TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
   char setup[] = {
-      0x20,
-      0x00,
-      0x01,
+      0xaf, 0x00, 0x00, 0x01,
       0x00,  // no param
   };
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed = ParseAllMessages(
@@ -695,19 +713,20 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
 
 TEST_F(MoqtMessageSpecificTest, ServerSetupMaxRequestIdAppearsTwice) {
   char setup[] = {
-      0x21, 0x00, 0x05, 0x02,  // 2 params
-      0x02, 0x32,              // max_request_id = 50
-      0x00, 0x32,              // max_request_id = 50
+      0xaf, 0x00, 0x00, 0x05, 0x02,  // 2 params
+      0x02, 0x32,                    // max_request_id = 50
+      0x00, 0x32,                    // max_request_id = 50
   };
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed = ParseAllMessages(
-      absl::string_view(setup, sizeof(setup)), kDefaultMoqtVersion, kRawQuic);
+      absl::string_view(setup, sizeof(setup)), kDefaultMoqtVersion, kRawQuic,
+      quic::Perspective::IS_CLIENT);
   EXPECT_EQ(ExtractMoqtErrorForStatus(parsed.status()),
             MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, ClientSetupMalformedPath) {
   char setup[] = {
-      0x20, 0x00, 0x06,
+      0xaf, 0x00, 0x00, 0x06,
       0x01,                          // 1 param
       0x01, 0x03, 0x66, 0x5c, 0x6f,  // path = "f\o"
   };
@@ -719,7 +738,7 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupMalformedPath) {
 
 TEST_F(MoqtMessageSpecificTest, ClientSetupMalformedAuthority) {
   char setup[] = {
-      0x20, 0x00, 0x0b,
+      0xaf, 0x00, 0x00, 0x0b,
       0x02,                          // 2 params
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
       0x04, 0x03, 0x66, 0x5c, 0x6f,  // authority = "f\o"
@@ -732,16 +751,17 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupMalformedAuthority) {
 
 TEST_F(MoqtMessageSpecificTest, ServerSetupUnknownParameterIsOk) {
   char setup[] = {
-      0x21, 0x00, 0x0b,
+      0xaf, 0x00, 0x00, 0x0b,
       0x02,                          // 2 params
       0x1f, 0x03, 0x62, 0x61, 0x72,  // 0x1f = "bar"
       0x00, 0x03, 0x62, 0x61, 0x72,  // 0x1f = "bar"
   };
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed = ParseAllMessages(
-      absl::string_view(setup, sizeof(setup)), kDefaultMoqtVersion, kRawQuic);
+      absl::string_view(setup, sizeof(setup)), kDefaultMoqtVersion, kRawQuic,
+      quic::Perspective::IS_CLIENT);
   ASSERT_TRUE(parsed.ok());
   ASSERT_EQ(parsed->size(), 1);
-  MoqtServerSetup message = std::get<MoqtServerSetup>((*parsed)[0]);
+  MoqtSetup message = std::get<MoqtSetup>((*parsed)[0]);
   EXPECT_EQ(message.parameters, SetupParameters());
 }
 
@@ -1088,7 +1108,7 @@ TEST_F(MoqtMessageSpecificTest, InvalidObjectStatus) {
 TEST_F(MoqtMessageSpecificTest, Setup2KB) {
   char big_message[2 * kMaxMessageHeaderSize];
   quic::QuicDataWriter writer(sizeof(big_message), big_message);
-  writer.WriteMoqVarInt(static_cast<uint64_t>(MoqtMessageType::kServerSetup));
+  writer.WriteMoqVarInt(static_cast<uint64_t>(MoqtMessageType::kSetup));
   writer.WriteUInt16(8 + kMaxMessageHeaderSize);
   writer.WriteMoqVarInt(0x1);                    // version
   writer.WriteMoqVarInt(0x1);                    // num_params
@@ -1097,7 +1117,8 @@ TEST_F(MoqtMessageSpecificTest, Setup2KB) {
   writer.WriteRepeatedByte(0x04, kMaxMessageHeaderSize);
   // Send incomplete message
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
-      ParseAllMessages(absl::string_view(big_message, writer.length()));
+      ParseAllMessages(absl::string_view(big_message, writer.length()),
+                       kDefaultMoqtVersion, true, quic::Perspective::IS_CLIENT);
   EXPECT_THAT(
       parsed.status(),
       StatusIs(absl::StatusCode::kInvalidArgument,
@@ -1553,8 +1574,8 @@ TEST_F(MoqtMessageSpecificTest, InvalidSubscribeNamespaceOption) {
 
 TEST_F(MoqtMessageSpecificTest, ParseKeyValuePairListIntegerOverflow) {
   char setup[] = {
-      0x20, 0x00, 0x0c,  // kClientSetup, length = 12
-      0x02,              // num_params
+      0xaf, 0x00, 0x00, 0x0c,  // kSetup, length = 12
+      0x02,                    // num_params
       0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,  // type_diff = max
       0x00,  // string length = 0
       0x01,  // type_diff = 1 (overflows)

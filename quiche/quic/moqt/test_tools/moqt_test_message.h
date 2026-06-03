@@ -19,6 +19,7 @@
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -108,14 +109,15 @@ class QUICHE_NO_EXPORT TestMessageBase {
  public:
   virtual ~TestMessageBase() = default;
 
-  using MessageStructuredData = std::variant<
-      MoqtClientSetup, MoqtServerSetup, MoqtObject, MoqtRequestOk,
-      MoqtRequestError, MoqtSubscribe, MoqtSubscribeOk, MoqtUnsubscribe,
-      MoqtPublishDone, MoqtRequestUpdate, MoqtPublishNamespace,
-      MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
-      MoqtGoAway, MoqtSubscribeNamespace, MoqtMaxRequestId, MoqtFetch,
-      MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish,
-      MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
+  using MessageStructuredData =
+      std::variant<MoqtSetup, MoqtObject, MoqtRequestOk, MoqtRequestError,
+                   MoqtSubscribe, MoqtSubscribeOk, MoqtUnsubscribe,
+                   MoqtPublishDone, MoqtRequestUpdate, MoqtPublishNamespace,
+                   MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel,
+                   MoqtTrackStatus, MoqtGoAway, MoqtSubscribeNamespace,
+                   MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
+                   MoqtRequestsBlocked, MoqtPublish, MoqtNamespace,
+                   MoqtNamespaceDone, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -603,15 +605,15 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       // Should not send PATH or AUTHORITY.
       client_setup_.parameters.path = std::nullopt;
       client_setup_.parameters.authority = std::nullopt;
-      raw_packet_[2] -= 17;   // adjust payload length
-      raw_packet_[3] = 0x02;  // only two parameters
+      raw_packet_[3] -= 17;   // adjust payload length
+      raw_packet_[4] = 0x02;  // only two parameters
       // Move MaxRequestId up in the packet.
-      memmove(raw_packet_ + 4, raw_packet_ + 10, 2);
+      memmove(raw_packet_ + 5, raw_packet_ + 11, 2);
       // Move MoqtImplementation up in the packet.
-      memmove(raw_packet_ + 6, raw_packet_ + 23,
+      memmove(raw_packet_ + 7, raw_packet_ + 24,
               kTestImplementationString.length() + 2);
-      raw_packet_[4] = 0x02;  // Diff from 0.
-      raw_packet_[6] = 0x05;  // Diff from 2.
+      raw_packet_[5] = 0x02;  // Diff from 0.
+      raw_packet_[7] = 0x05;  // Diff from 2.
       SetWireImage(raw_packet_, sizeof(raw_packet_) - 17);
     } else {
       SetWireImage(raw_packet_, sizeof(raw_packet_));
@@ -619,7 +621,7 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   }
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtClientSetup>(values);
+    auto cast = std::get<MoqtSetup>(values);
     if (cast.parameters != client_setup_.parameters) {
       QUIC_LOG(INFO) << "CLIENT_SETUP parameter mismatch";
       return false;
@@ -644,8 +646,8 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   // string parameters in order. Unfortunately, this means that
   // kMoqtImplementation goes last even though it is always present, while
   // kPath and KAuthority aren't.
-  uint8_t raw_packet_[53] = {
-      0x20, 0x00, 0x32,                    // type, length
+  uint8_t raw_packet_[54] = {
+      0xaf, 0x00, 0x00, 0x32,              // type, length
       0x04,                                // 4 parameters
       0x01, 0x04, 0x70, 0x61, 0x74, 0x68,  // path = "path"
       0x01, 0x32,                          // max_request_id = 50
@@ -655,7 +657,7 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       0x02, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65, 0x73, 0x74, 0x20, 0x49,
       0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
       0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
-  MoqtClientSetup client_setup_ = {
+  MoqtSetup client_setup_ = {
       SetupParameters("path", "authority", 50),
   };
 };
@@ -668,7 +670,7 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
   }
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtServerSetup>(values);
+    auto cast = std::get<MoqtSetup>(values);
     if (cast.parameters != server_setup_.parameters) {
       QUIC_LOG(INFO) << "SERVER_SETUP parameter mismatch";
       return false;
@@ -683,15 +685,15 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[36] = {0x21, 0x00, 0x21,  // type, length
-                             0x02,              // two parameters
-                             0x02, 0x32,        // max_subscribe_id = 50
+  uint8_t raw_packet_[37] = {0xaf, 0x00, 0x00, 0x21,  // type, length
+                             0x02,                    // two parameters
+                             0x02, 0x32,              // max_subscribe_id = 50
                              // moqt_implementation:
                              0x05, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65,
                              0x73, 0x74, 0x20, 0x49, 0x6d, 0x70, 0x6c, 0x65,
                              0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
                              0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
-  MoqtServerSetup server_setup_ = {
+  MoqtSetup server_setup_ = {
       SetupParameters(50),
   };
 };
@@ -1793,7 +1795,8 @@ class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
 
 // Factory function for test messages.
 static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
-    MoqtMessageType message_type, bool is_webtrans) {
+    MoqtMessageType message_type, bool is_webtrans = true,
+    quic::Perspective perspective = quic::Perspective::IS_CLIENT) {
   switch (message_type) {
     case MoqtMessageType::kRequestOk:
       return std::make_unique<RequestOkMessage>();
@@ -1839,10 +1842,12 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<PublishMessage>();
     case MoqtMessageType::kObjectAck:
       return std::make_unique<ObjectAckMessage>();
-    case MoqtMessageType::kClientSetup:
-      return std::make_unique<ClientSetupMessage>(is_webtrans);
-    case MoqtMessageType::kServerSetup:
-      return std::make_unique<ServerSetupMessage>();
+    case MoqtMessageType::kSetup:
+      if (perspective == quic::Perspective::IS_CLIENT) {
+        return std::make_unique<ClientSetupMessage>(is_webtrans);
+      } else {
+        return std::make_unique<ServerSetupMessage>();
+      }
     default:
       return nullptr;
   }

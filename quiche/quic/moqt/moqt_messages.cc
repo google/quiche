@@ -8,6 +8,7 @@
 #include <string>
 
 #include "absl/strings/str_cat.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_types.h"
@@ -24,10 +25,10 @@ MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
 }
 
 MoqtError SetupParametersAllowedByMessage(const SetupParameters& parameters,
-                                          MoqtMessageType message_type,
+                                          quic::Perspective sender_perspective,
                                           bool webtrans) {
   bool should_have_path_and_authority =
-      !webtrans && message_type == MoqtMessageType::kClientSetup;
+      !webtrans && sender_perspective == quic::Perspective::IS_CLIENT;
   if (should_have_path_and_authority != parameters.path.has_value()) {
     return MoqtError::kInvalidPath;
   }
@@ -70,10 +71,8 @@ bool MessageParametersAllowedByMessage(
 
 std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
   switch (message_type) {
-    case MoqtMessageType::kClientSetup:
-      return "CLIENT_SETUP";
-    case MoqtMessageType::kServerSetup:
-      return "SERVER_SETUP";
+    case MoqtMessageType::kSetup:
+      return "SETUP";
     case MoqtMessageType::kSubscribe:
       return "SUBSCRIBE";
     case MoqtMessageType::kSubscribeOk:

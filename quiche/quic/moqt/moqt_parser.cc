@@ -26,6 +26,7 @@
 #include "quiche/http2/adapter/header_validator.h"
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -613,27 +614,15 @@ MoqtControlStreamParser::ReadNextMessageInner() {
   return message;
 }
 
-absl::StatusOr<MoqtClientSetup> MoqtControlMessageParser::ProcessClientSetup(
+absl::StatusOr<MoqtSetup> MoqtControlMessageParser::ProcessSetup(
     absl::string_view data) const {
   quic::QuicDataReader reader(data);
-  MoqtClientSetup setup;
+  MoqtSetup setup;
   KeyValuePairList parameters;
   QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(reader, parameters));
-  QUICHE_RETURN_IF_ERROR(FillAndValidateSetupParameters(
-      parameters, setup.parameters, MoqtMessageType::kClientSetup));
+  QUICHE_RETURN_IF_ERROR(
+      FillAndValidateSetupParameters(parameters, setup.parameters));
   // TODO(martinduke): Validate construction of the PATH (Sec 8.3.2.1)
-  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
-  return setup;
-}
-
-absl::StatusOr<MoqtServerSetup> MoqtControlMessageParser::ProcessServerSetup(
-    absl::string_view data) const {
-  quic::QuicDataReader reader(data);
-  MoqtServerSetup setup;
-  KeyValuePairList parameters;
-  QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(reader, parameters));
-  QUICHE_RETURN_IF_ERROR(FillAndValidateSetupParameters(
-      parameters, setup.parameters, MoqtMessageType::kServerSetup));
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return setup;
 }
@@ -1066,11 +1055,10 @@ absl::Status MoqtControlMessageParser::ReadFullTrackName(
 }
 
 absl::Status MoqtControlMessageParser::FillAndValidateSetupParameters(
-    const KeyValuePairList& in, SetupParameters& out,
-    MoqtMessageType message_type) const {
+    const KeyValuePairList& in, SetupParameters& out) const {
   QUICHE_RETURN_IF_ERROR(out.FromKeyValuePairList(in));
-  MoqtError error =
-      SetupParametersAllowedByMessage(out, message_type, uses_web_transport_);
+  MoqtError error = SetupParametersAllowedByMessage(
+      out, FlipPerspective(perspective_), uses_web_transport_);
   if (error != MoqtError::kNoError) {
     return MoqtErrorStatusWithCode("Setup parameter parsing error", error);
   }

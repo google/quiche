@@ -495,25 +495,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
       WireOptional<WireBytes>(raw_payload));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeClientSetup(
-    const MoqtClientSetup& message) {
+quiche::QuicheBuffer MoqtFramer::SerializeSetup(const MoqtSetup& message) {
   KeyValuePairList parameters;
-  if (!FillAndValidateSetupParameters(MoqtMessageType::kClientSetup,
-                                      message.parameters, parameters)) {
+  if (!FillAndValidateSetupParameters(message.parameters, parameters)) {
     return quiche::QuicheBuffer();
   }
-  return SerializeControlMessage(MoqtMessageType::kClientSetup,
-                                 WireKeyValuePairList(parameters));
-}
-
-quiche::QuicheBuffer MoqtFramer::SerializeServerSetup(
-    const MoqtServerSetup& message) {
-  KeyValuePairList parameters;
-  if (!FillAndValidateSetupParameters(MoqtMessageType::kServerSetup,
-                                      message.parameters, parameters)) {
-    return quiche::QuicheBuffer();
-  }
-  return SerializeControlMessage(MoqtMessageType::kServerSetup,
+  return SerializeControlMessage(MoqtMessageType::kSetup,
                                  WireKeyValuePairList(parameters));
 }
 
@@ -727,13 +714,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(
 }
 
 bool MoqtFramer::FillAndValidateSetupParameters(
-    MoqtMessageType message_type, const SetupParameters& parameters,
-    KeyValuePairList& out) {
-  if (SetupParametersAllowedByMessage(parameters, message_type,
+    const SetupParameters& parameters, KeyValuePairList& out) {
+  if (SetupParametersAllowedByMessage(parameters, perspective_,
                                       using_webtrans_) != MoqtError::kNoError) {
     QUICHE_BUG(QUICHE_BUG_invalid_setup_parameters)
         << "Invalid setup parameters for "
-        << MoqtMessageTypeToString(message_type);
+        << MoqtMessageTypeToString(MoqtMessageType::kSetup);
     return false;
   }
   out = parameters.ToKeyValuePairList();

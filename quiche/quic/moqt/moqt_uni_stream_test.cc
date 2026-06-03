@@ -120,7 +120,7 @@ class OutgoingSubgroupStreamTest : public quic::test::QuicTest {
     EXPECT_CALL(visitor_, alarm_factory()).WillOnce(Return(&alarm_factory_));
   }
 
-  MoqtFramer framer_{true};
+  MoqtFramer framer_{true, quic::Perspective::IS_CLIENT};
   StrictMock<webtransport::test::MockStream> mock_stream_;
   DataStreamIndex index_;
   std::shared_ptr<StrictMock<MockTrackPublisher>> track_publisher_;
@@ -349,7 +349,7 @@ class OutgoingFetchStreamTest : public quic::test::QuicTest {
   }
 
  protected:
-  MoqtFramer framer_{true};
+  MoqtFramer framer_{true, quic::Perspective::IS_CLIENT};
   StrictMock<webtransport::test::MockStream> mock_stream_;
   std::unique_ptr<StrictMock<MockFetchTask>> task_;
   MockFetchTask* task_ptr_;

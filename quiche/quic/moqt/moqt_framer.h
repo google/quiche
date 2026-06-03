@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
@@ -27,7 +28,8 @@ namespace moqt {
 // different streams.
 class QUICHE_EXPORT MoqtFramer {
  public:
-  MoqtFramer(bool using_webtrans) : using_webtrans_(using_webtrans) {}
+  MoqtFramer(bool using_webtrans, quic::Perspective perspective)
+      : using_webtrans_(using_webtrans), perspective_(perspective) {}
 
   // Serialize functions. Takes structured data and serializes it into a
   // QuicheBuffer for delivery to the stream.
@@ -42,8 +44,7 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeObjectDatagram(const MoqtObject& message,
                                                absl::string_view payload,
                                                MoqtPriority default_priority);
-  quiche::QuicheBuffer SerializeClientSetup(const MoqtClientSetup& message);
-  quiche::QuicheBuffer SerializeServerSetup(const MoqtServerSetup& message);
+  quiche::QuicheBuffer SerializeSetup(const MoqtSetup& message);
   quiche::QuicheBuffer SerializeRequestOk(const MoqtRequestOk& message);
   quiche::QuicheBuffer SerializeRequestError(const MoqtRequestError& message);
   // Returns an empty buffer if there is an illegal combination of locations.
@@ -81,12 +82,12 @@ class QUICHE_EXPORT MoqtFramer {
 
  private:
   // Returns true if the parameters are valid for the message type.
-  bool FillAndValidateSetupParameters(MoqtMessageType message_type,
-                                      const SetupParameters& parameters,
+  bool FillAndValidateSetupParameters(const SetupParameters& parameters,
                                       KeyValuePairList& out);
   // Returns true if the metadata is internally consistent.
   static bool ValidateObjectMetadata(const MoqtObject& object);
   const bool using_webtrans_;
+  const quic::Perspective perspective_;
 };
 
 }  // namespace moqt

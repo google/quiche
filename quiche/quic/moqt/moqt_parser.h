@@ -21,6 +21,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_data_reader.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -114,14 +115,12 @@ class MoqtControlMessageParser {
  public:
   // `moqt_version` is not currently used, as we only support one version.
   MoqtControlMessageParser(absl::string_view /*moqt_version*/,
-                           bool uses_web_transport)
-      : uses_web_transport_(uses_web_transport) {}
+                           bool uses_web_transport,
+                           quic::Perspective perspective)
+      : uses_web_transport_(uses_web_transport), perspective_(perspective) {}
 
   // Parsers for individual messages.
-  absl::StatusOr<MoqtClientSetup> ProcessClientSetup(
-      absl::string_view data) const;
-  absl::StatusOr<MoqtServerSetup> ProcessServerSetup(
-      absl::string_view data) const;
+  absl::StatusOr<MoqtSetup> ProcessSetup(absl::string_view data) const;
   absl::StatusOr<MoqtRequestOk> ProcessRequestOk(absl::string_view data) const;
   absl::StatusOr<MoqtRequestError> ProcessRequestError(
       absl::string_view data) const;
@@ -175,10 +174,8 @@ class MoqtControlMessageParser {
       return callback(*std::move(parsed_message));
     };
     switch (message.type) {
-      case MoqtMessageType::kClientSetup:
-        return parse(&MoqtControlMessageParser::ProcessClientSetup);
-      case MoqtMessageType::kServerSetup:
-        return parse(&MoqtControlMessageParser::ProcessServerSetup);
+      case MoqtMessageType::kSetup:
+        return parse(&MoqtControlMessageParser::ProcessSetup);
       case MoqtMessageType::kRequestOk:
         return parse(&MoqtControlMessageParser::ProcessRequestOk);
       case MoqtMessageType::kRequestError:
@@ -239,9 +236,8 @@ class MoqtControlMessageParser {
   // large. Sets a ParseError if the name is malformed.
   absl::Status ReadFullTrackName(quic::QuicDataReader& reader,
                                  FullTrackName& full_track_name) const;
-  absl::Status FillAndValidateSetupParameters(
-      const KeyValuePairList& in, SetupParameters& out,
-      MoqtMessageType message_type) const;
+  absl::Status FillAndValidateSetupParameters(const KeyValuePairList& in,
+                                              SetupParameters& out) const;
   // |reader| points to the beginning of a KeyValuePairList. Returns false if
   // there is any sort of error. (The function calls ParseError(), so the
   // caller has no need to do so.)
@@ -249,6 +245,7 @@ class MoqtControlMessageParser {
                                                 MessageParameters& out) const;
 
   bool uses_web_transport_;
+  const quic::Perspective perspective_;
 };
 
 // Parses an MoQT datagram. Returns the payload bytes, or std::nullopt on error.

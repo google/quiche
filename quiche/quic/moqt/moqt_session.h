@@ -258,8 +258,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
         const MoqtRawControlMessage& message) override;
 
     // MoqtControlParserVisitor implementation.
-    absl::Status OnControlMessage(const MoqtClientSetup& message);
-    absl::Status OnControlMessage(const MoqtServerSetup& message);
+    absl::Status OnControlMessage(const MoqtSetup& message);
     absl::Status OnControlMessage(const MoqtRequestOk& message);
     absl::Status OnControlMessage(const MoqtRequestError& message);
     absl::Status OnControlMessage(const MoqtSubscribe& message);
@@ -455,7 +454,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   MoqtControlMessageParser ControlMessageParser() const {
     return MoqtControlMessageParser(parameters_.version,
-                                    parameters_.using_webtrans);
+                                    parameters_.using_webtrans,
+                                    parameters_.perspective);
   }
 
   bool is_closing_ = false;

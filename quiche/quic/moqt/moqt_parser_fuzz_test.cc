@@ -19,13 +19,14 @@ namespace moqt::test {
 namespace {
 
 void MoqtControlParserNeverCrashes(bool is_data_stream, bool uses_web_transport,
+                                   quic::Perspective perspective,
                                    absl::string_view stream_data, bool fin) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtParserTestVisitor visitor(/*enable_logging=*/false);
 
   MoqtControlStreamParser control_stream_parser(&stream);
-  MoqtControlMessageParser control_message_parser(kDefaultMoqtVersion,
-                                                  uses_web_transport);
+  MoqtControlMessageParser control_message_parser(
+      kDefaultMoqtVersion, uses_web_transport, perspective);
   MoqtDataParser data_parser(&stream, &visitor);
 
   if (is_data_stream) {
@@ -47,6 +48,8 @@ void MoqtControlParserNeverCrashes(bool is_data_stream, bool uses_web_transport,
 
 FUZZ_TEST(MoqtParserTest, MoqtControlParserNeverCrashes)
     .WithDomains(fuzztest::Arbitrary<bool>(), fuzztest::Arbitrary<bool>(),
+                 fuzztest::ElementOf({quic::Perspective::IS_CLIENT,
+                                      quic::Perspective::IS_SERVER}),
                  fuzztest::Arbitrary<std::string>(),
                  fuzztest::Arbitrary<bool>());
 
@@ -62,6 +65,7 @@ TEST(MoqtParserTest,
   MoqtControlParserNeverCrashes(
       /*is_data_stream=*/false,
       /*uses_web_transport=*/false,
+      /*perspective=*/quic::Perspective::IS_SERVER,
       /*stream_data=*/std::string(kStreamData.begin(), kStreamData.end()),
       /*fin=*/true);
 }

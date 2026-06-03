@@ -13,6 +13,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
@@ -28,10 +29,14 @@
 namespace moqt::test {
 
 struct MoqtFramerTestParams {
-  MoqtFramerTestParams(MoqtMessageType message_type, bool uses_web_transport)
-      : message_type(message_type), uses_web_transport(uses_web_transport) {}
+  MoqtFramerTestParams(MoqtMessageType message_type, bool uses_web_transport,
+                       quic::Perspective perspective)
+      : message_type(message_type),
+        uses_web_transport(uses_web_transport),
+        perspective(perspective) {}
   MoqtMessageType message_type;
   bool uses_web_transport;
+  quic::Perspective perspective;
 };
 
 std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
@@ -58,19 +63,22 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kRequestsBlocked,
       MoqtMessageType::kPublish,
       MoqtMessageType::kObjectAck,
-      MoqtMessageType::kClientSetup,
-      MoqtMessageType::kServerSetup,
+      MoqtMessageType::kSetup,
   };
   for (const MoqtMessageType message_type : message_types) {
-    if (message_type == MoqtMessageType::kClientSetup) {
+    if (message_type == MoqtMessageType::kSetup) {
       for (const bool uses_web_transport : {false, true}) {
-        params.push_back(
-            MoqtFramerTestParams(message_type, uses_web_transport));
+        for (const quic::Perspective perspective :
+             {quic::Perspective::IS_CLIENT, quic::Perspective::IS_SERVER}) {
+          params.push_back(MoqtFramerTestParams(
+              message_type, uses_web_transport, perspective));
+        }
       }
     } else {
       // All other types are processed the same for either perspective or
       // transport.
-      params.push_back(MoqtFramerTestParams(message_type, true));
+      params.push_back(MoqtFramerTestParams(message_type, true,
+                                            quic::Perspective::IS_CLIENT));
     }
   }
   return params;
@@ -79,7 +87,8 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
 std::string ParamNameFormatter(
     const testing::TestParamInfo<MoqtFramerTestParams>& info) {
   return MoqtMessageTypeToString(info.param.message_type) + "_" +
-         (info.param.uses_web_transport ? "WebTransport" : "QUIC");
+         (info.param.uses_web_transport ? "WebTransport" : "QUIC") + "_" +
+         quic::PerspectiveToString(info.param.perspective);
 }
 
 // If |change_in_object_id| is 0, it's the first object in the stream.
@@ -117,10 +126,11 @@ class MoqtFramerTest
   MoqtFramerTest()
       : message_type_(GetParam().message_type),
         webtrans_(GetParam().uses_web_transport),
-        framer_(GetParam().uses_web_transport) {}
+        perspective_(GetParam().perspective),
+        framer_(GetParam().uses_web_transport, GetParam().perspective) {}
 
   std::unique_ptr<TestMessageBase> MakeMessage(MoqtMessageType message_type) {
-    return CreateTestMessage(message_type, webtrans_);
+    return CreateTestMessage(message_type, webtrans_, perspective_);
   }
 
   quiche::QuicheBuffer SerializeMessage(
@@ -210,13 +220,9 @@ class MoqtFramerTest
         auto data = std::get<MoqtObjectAck>(structured_data);
         return framer_.SerializeObjectAck(data);
       }
-      case MoqtMessageType::kClientSetup: {
-        auto data = std::get<MoqtClientSetup>(structured_data);
-        return framer_.SerializeClientSetup(data);
-      }
-      case MoqtMessageType::kServerSetup: {
-        auto data = std::get<MoqtServerSetup>(structured_data);
-        return framer_.SerializeServerSetup(data);
+      case MoqtMessageType::kSetup: {
+        auto data = std::get<MoqtSetup>(structured_data);
+        return framer_.SerializeSetup(data);
       }
       default:
         // kObjectDatagram is a totally different code path.
@@ -226,6 +232,7 @@ class MoqtFramerTest
 
   MoqtMessageType message_type_;
   bool webtrans_;
+  quic::Perspective perspective_;
   MoqtFramer framer_;
 };
 
@@ -245,7 +252,9 @@ TEST_P(MoqtFramerTest, OneMessage) {
 
 class MoqtFramerSimpleTest : public quic::test::QuicTest {
  public:
-  MoqtFramerSimpleTest() : framer_(/*web_transport=*/true) {}
+  MoqtFramerSimpleTest()
+      : framer_(/*web_transport=*/true,
+                /*perspective=*/quic::Perspective::IS_SERVER) {}
 
   MoqtFramer framer_;
   // Obtain a pointer to an arbitrary offset in a serialized buffer.

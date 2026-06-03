@@ -44,13 +44,14 @@ constexpr uint64_t kRequestId = 3;
 const TrackNamespace kPrefix({"foo"});
 
 MoqtControlMessageParser ControlMessageParser() {
-  return MoqtControlMessageParser(kDefaultMoqtVersion, true);
+  return MoqtControlMessageParser(kDefaultMoqtVersion, true,
+                                  quic::Perspective::IS_CLIENT);
 }
 
 class MoqtNamespaceSubscriberStreamTest : public quiche::test::QuicheTest {
  public:
   MoqtNamespaceSubscriberStreamTest()
-      : framer_(true),
+      : framer_(true, quic::Perspective::IS_CLIENT),
         stream_(&framer_, ControlMessageParser(), kRequestId,
                 deleted_callback_.AsStdFunction(),
                 error_callback_.AsStdFunction(),
@@ -295,7 +296,7 @@ TEST_F(MoqtNamespaceSubscriberStreamTest, UpdateAndRequestError) {
 class MoqtNamespacePublisherStreamTest : public quiche::test::QuicheTest {
  public:
   MoqtNamespacePublisherStreamTest()
-      : framer_(false),
+      : framer_(false, quic::Perspective::IS_CLIENT),
         tree_(),
         application_callback_(mock_application_.AsStdFunction()),
         stream_(&framer_, ControlMessageParser(),

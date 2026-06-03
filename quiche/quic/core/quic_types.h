@@ -217,6 +217,11 @@ enum IsHandshake : uint8_t { NOT_HANDSHAKE, IS_HANDSHAKE };
 
 enum class Perspective : uint8_t { IS_SERVER, IS_CLIENT };
 
+constexpr Perspective FlipPerspective(Perspective perspective) {
+  return perspective == Perspective::IS_CLIENT ? Perspective::IS_SERVER
+                                               : Perspective::IS_CLIENT;
+}
+
 QUICHE_EXPORT std::string PerspectiveToString(Perspective perspective);
 QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                        const Perspective& perspective);
