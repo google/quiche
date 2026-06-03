@@ -1311,8 +1311,12 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
           }
         }
 
-        if (extensions_length > 0 &&
-            (!found_semicolon || found_non_bws_before_semicolon)) {
+        bool extension_has_content_but_malformed_delimiters =
+            extensions_length > 0 &&
+            (!found_semicolon || found_non_bws_before_semicolon);
+        bool extension_is_empty = extensions_length == 1 && found_semicolon;
+        if (extension_has_content_but_malformed_delimiters ||
+            extension_is_empty) {
           if (http_validation_policy_
                   .require_semicolon_delimited_chunk_extension) {
             HandleError(BalsaFrameEnums::INVALID_CHUNK_EXTENSION);

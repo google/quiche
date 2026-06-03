@@ -5342,6 +5342,16 @@ TEST_F(HTTPBalsaFrameTest, MoreChunkExtensions) {
        {";", ""},
        strict_chunks_policy,
        BalsaFrameEnums::BALSA_NO_ERROR},
+
+      // Bare semicolon is invalid under strict chunk and ext validation
+      {"A;\r\n"
+       "0123456789\r\n"
+       "0\r\n"
+       "\r\n",
+       {10},
+       {},
+       strict_chunk_and_ext_validation,
+       BalsaFrameEnums::INVALID_CHUNK_EXTENSION},
   };
 
   for (const TestCase& test : cases) {
