@@ -578,6 +578,13 @@ QuicErrorCode QuicTestClient::connection_error() const {
   return client()->connection_error();
 }
 
+std::string QuicTestClient::error_details() const {
+  if (client()->session() == nullptr) {
+    return "";
+  }
+  return client()->session()->error_details();
+}
+
 const std::string& QuicTestClient::cert_common_name() const {
   return reinterpret_cast<RecordingProofVerifier*>(client_->proof_verifier())
       ->common_name();

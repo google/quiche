@@ -395,6 +395,7 @@ class QuicTestClient : public QuicSpdyStream::Visitor {
 
   QuicRstStreamErrorCode stream_error() { return stream_error_; }
   QuicErrorCode connection_error() const;
+  std::string error_details() const;
 
   MockableQuicClient* client() { return client_.get(); }
   const MockableQuicClient* client() const { return client_.get(); }
