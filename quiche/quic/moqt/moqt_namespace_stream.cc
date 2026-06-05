@@ -37,8 +37,8 @@ MoqtNamespaceSubscriberStream::~MoqtNamespaceSubscriberStream() {
 }
 absl::Status MoqtNamespaceSubscriberStream::OnRawControlMessage(
     const MoqtRawControlMessage& message) {
-  return DispatchControlMessage<MoqtNamespaceSubscriberStream>(
-      message, "namespace subscriber");
+  return ControlMessageDispatcher::DispatchControlMessage(
+      *this, message_parser(), message, "namespace subscriber");
 }
 
 void MoqtNamespaceSubscriberStream::OnStreamBound() {
@@ -269,8 +269,8 @@ MoqtNamespacePublisherStream::~MoqtNamespacePublisherStream() {
 
 absl::Status MoqtNamespacePublisherStream::OnRawControlMessage(
     const MoqtRawControlMessage& message) {
-  return DispatchControlMessage<MoqtNamespacePublisherStream>(
-      message, "namespace publisher");
+  return ControlMessageDispatcher::DispatchControlMessage(
+      *this, message_parser(), message, "namespace publisher");
 }
 
 absl::Status MoqtNamespacePublisherStream::OnControlMessage(

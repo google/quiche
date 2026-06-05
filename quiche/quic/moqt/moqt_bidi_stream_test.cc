@@ -32,7 +32,8 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
   void OnStreamBound() override {}
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override {
-    return DispatchControlMessage<TestMoqtBidiStream>(message, "test");
+    return ControlMessageDispatcher::DispatchControlMessage(
+        *this, message_parser(), message, "test");
   }
   int ok_received() const { return ok_received_; }
 

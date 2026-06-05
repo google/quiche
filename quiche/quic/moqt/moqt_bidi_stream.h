@@ -11,7 +11,6 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/base/casts.h"
 #include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
@@ -129,24 +128,41 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   void OnFatalError(absl::Status status);
 
   MoqtControlStreamParser* stream_parser() { return stream_parser_.get(); }
+  const MoqtControlMessageParser& message_parser() const {
+    return message_parser_;
+  }
   MoqtFramer* framer() const { return framer_; }
   webtransport::Stream* stream() const {
     return stream_parser_ != nullptr ? stream_parser_->stream() : nullptr;
   }
 
+ private:
+  friend class test::MoqtBidiStreamTestWrapper;
+
+  MoqtFramer* absl_nonnull framer_;
+  std::unique_ptr<MoqtControlStreamParser> absl_nullable stream_parser_;
+  MoqtControlMessageParser message_parser_;
+  MoqtControlMessageQueue outgoing_message_queue_;
+  BidiStreamDeletedCallback stream_deleted_callback_;
+  SessionErrorCallback session_error_callback_;
+};
+
+// DispatchControlMessage is wrapped into a class so that the caller class can
+// provide it access to private OnControlMessage methods.
+class ControlMessageDispatcher {
+ public:
   // Parses the supplied control message. If the message is well-formed, and the
   // class defines an `OnControlMessage` method that accepts it, it is passed to
   // that method. Otherwise, an appropriate error message is returned;
   // `stream_type` is used to format that message.
-  template <typename Subclass>
-  absl::Status DispatchControlMessage(const MoqtRawControlMessage& message,
-                                      absl::string_view stream_type) {
-    static_assert(!std::is_same_v<Subclass, MoqtBidiStreamBase>);
-    return message_parser_.ParseMessage(message, [&](const auto&
-                                                         parsed_message) {
-      if constexpr (CanDispatch<Subclass, decltype(parsed_message)>::value) {
-        return absl::down_cast<Subclass*>(this)->OnControlMessage(
-            parsed_message);
+  template <typename StreamClass>
+  static absl::Status DispatchControlMessage(
+      StreamClass& stream, const MoqtControlMessageParser& parser,
+      const MoqtRawControlMessage& message, absl::string_view stream_type) {
+    static_assert(!std::is_same_v<StreamClass, MoqtBidiStreamBase>);
+    return parser.ParseMessage(message, [&](const auto& parsed_message) {
+      if constexpr (CanDispatch<StreamClass, decltype(parsed_message)>::value) {
+        return stream.OnControlMessage(parsed_message);
       } else {
         return absl::InvalidArgumentError(
             absl::StrCat("Received an unexpected message of type ",
@@ -157,8 +173,6 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   }
 
  private:
-  friend class test::MoqtBidiStreamTestWrapper;
-
   // CanDispatch<S, M> indicates whether `S` has a method with signature
   //     absl::Status OnControlMessage(const M&);
   template <typename Subclass, typename Message, typename = void>
@@ -169,13 +183,6 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
                          decltype(std::declval<Subclass>().OnControlMessage(
                              std::declval<Message>())),
                          absl::Status>>> : std::true_type {};
-
-  MoqtFramer* absl_nonnull framer_;
-  std::unique_ptr<MoqtControlStreamParser> absl_nullable stream_parser_;
-  MoqtControlMessageParser message_parser_;
-  MoqtControlMessageQueue outgoing_message_queue_;
-  BidiStreamDeletedCallback stream_deleted_callback_;
-  SessionErrorCallback session_error_callback_;
 };
 
 }  // namespace moqt

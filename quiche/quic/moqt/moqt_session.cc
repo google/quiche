@@ -885,7 +885,8 @@ void MoqtSession::ControlStream::OnStreamBound() {
 
 absl::Status MoqtSession::ControlStream::OnRawControlMessage(
     const MoqtRawControlMessage& message) {
-  return DispatchControlMessage<ControlStream>(message, "control");
+  return ControlMessageDispatcher::DispatchControlMessage(
+      *this, message_parser(), message, "control");
 }
 
 absl::Status MoqtSession::ControlStream::OnControlMessage(
