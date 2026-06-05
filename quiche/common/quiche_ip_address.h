@@ -28,11 +28,9 @@ namespace quiche {
 class QUICHE_EXPORT QuicheIpAddress {
  public:
   // Sizes of IP addresses of different types, in bytes.
-  enum : size_t {
-    kIPv4AddressSize = 32 / 8,
-    kIPv6AddressSize = 128 / 8,
-    kMaxAddressSize = kIPv6AddressSize,
-  };
+  static constexpr size_t kIPv4AddressSize = 32 / 8;
+  static constexpr size_t kIPv6AddressSize = 128 / 8;
+  static constexpr size_t kMaxAddressSize = kIPv6AddressSize;
 
   // TODO(fayang): Remove Loopback*() and use TestLoopback*() in tests.
   static QuicheIpAddress Loopback4();

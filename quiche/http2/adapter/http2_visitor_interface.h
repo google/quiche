@@ -53,10 +53,8 @@ class QUICHE_EXPORT Http2VisitorInterface {
   Http2VisitorInterface& operator=(const Http2VisitorInterface&) = delete;
   virtual ~Http2VisitorInterface() = default;
 
-  enum : int64_t {
-    kSendBlocked = 0,
-    kSendError = -1,
-  };
+  static constexpr int64_t kSendBlocked = 0;
+  static constexpr int64_t kSendError = -1;
   // Called when there are serialized frames to send. Should return how many
   // bytes were actually sent. May return kSendBlocked or kSendError.
   virtual int64_t OnReadyToSend(absl::string_view serialized) = 0;

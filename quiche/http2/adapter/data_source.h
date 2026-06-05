@@ -14,7 +14,8 @@ namespace adapter {
 // TODO(birenroy): move the remaining constants.
 class QUICHE_EXPORT DataFrameSource {
  public:
-  enum : int64_t { kBlocked = 0, kError = -1 };
+  static constexpr int64_t kBlocked = 0;
+  static constexpr int64_t kError = -1;
 };
 
 // Represents a source of metadata frames for transmission to the peer.

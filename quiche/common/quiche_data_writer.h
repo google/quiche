@@ -19,21 +19,17 @@ namespace quiche {
 
 // Maximum value that can be properly encoded using RFC 9000 62-bit Variable
 // Length Integer encoding.
-enum : uint64_t {
-  kVarInt62MaxValue = UINT64_C(0x3fffffffffffffff),
-};
+inline constexpr uint64_t kVarInt62MaxValue = UINT64_C(0x3fffffffffffffff);
 
 // RFC 9000 62-bit Variable Length Integer encoding masks
 // If a uint64_t anded with a mask is not 0 then the value is encoded
 // using that length (or is too big, in the case of kVarInt62ErrorMask).
 // Values must be checked in order (error, 8-, 4-, and then 2- bytes)
 // and if none are non-0, the value is encoded in 1 byte.
-enum : uint64_t {
-  kVarInt62ErrorMask = UINT64_C(0xc000000000000000),
-  kVarInt62Mask8Bytes = UINT64_C(0x3fffffffc0000000),
-  kVarInt62Mask4Bytes = UINT64_C(0x000000003fffc000),
-  kVarInt62Mask2Bytes = UINT64_C(0x0000000000003fc0),
-};
+inline constexpr uint64_t kVarInt62ErrorMask = UINT64_C(0xc000000000000000);
+inline constexpr uint64_t kVarInt62Mask8Bytes = UINT64_C(0x3fffffffc0000000);
+inline constexpr uint64_t kVarInt62Mask4Bytes = UINT64_C(0x000000003fffc000);
+inline constexpr uint64_t kVarInt62Mask2Bytes = UINT64_C(0x0000000000003fc0);
 
 // This class provides facilities for packing binary data.
 //
