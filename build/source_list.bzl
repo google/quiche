@@ -1581,6 +1581,7 @@ load_balancer_srcs = [
 moqt_hdrs = [
     "quic/moqt/moqt_bidi_stream.h",
     "quic/moqt/moqt_bitrate_adjuster.h",
+    "quic/moqt/moqt_control_message_queue.h",
     "quic/moqt/moqt_error.h",
     "quic/moqt/moqt_fetch_task.h",
     "quic/moqt/moqt_framer.h",
@@ -1619,6 +1620,7 @@ moqt_hdrs = [
 moqt_srcs = [
     "quic/moqt/moqt_bidi_stream.cc",
     "quic/moqt/moqt_bitrate_adjuster.cc",
+    "quic/moqt/moqt_control_message_queue.cc",
     "quic/moqt/moqt_error.cc",
     "quic/moqt/moqt_framer.cc",
     "quic/moqt/moqt_key_value_pair.cc",
@@ -1653,6 +1655,7 @@ moqt_test_hdrs = [
 moqt_test_srcs = [
     "quic/moqt/moqt_bidi_stream_test.cc",
     "quic/moqt/moqt_bitrate_adjuster_test.cc",
+    "quic/moqt/moqt_control_message_queue_test.cc",
     "quic/moqt/moqt_framer_test.cc",
     "quic/moqt/moqt_integration_test.cc",
     "quic/moqt/moqt_key_value_pair_test.cc",

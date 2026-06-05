@@ -5,7 +5,6 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_BIDI_STREAM_H
 #define QUICHE_QUIC_MOQT_MOQT_BIDI_STREAM_H
 
-#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -18,6 +17,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_control_message_queue.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
@@ -26,7 +26,6 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/common/quiche_circular_deque.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -47,9 +46,6 @@ using BidiStreamDeletedCallback = quiche::SingleUseCallback<void()>;
 // as it might not yet exist due to flow control limits.
 class MoqtBidiStreamBase : public webtransport::StreamVisitor {
  public:
-  // Maximum amount of messages buffered on top of the QUIC send buffer.
-  static constexpr size_t kMaxPendingMessages = 100;
-
   MoqtBidiStreamBase(MoqtFramer* absl_nonnull framer,
                      const MoqtControlMessageParser& message_parser,
                      BidiStreamDeletedCallback stream_deleted_callback,
@@ -65,12 +61,14 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
       std::unique_ptr<MoqtControlStreamParser> absl_nonnull parser) {
     QUICHE_DCHECK(stream_parser_ == nullptr);
     stream_parser_ = std::move(parser);
+    outgoing_message_queue_.SetStream(stream_parser_->stream());
     OnStreamBound();
   }
   // Binds a WebTransport stream `stream` to this object.
   void BindStream(webtransport::Stream* absl_nonnull stream) {
     QUICHE_DCHECK(stream_parser_ == nullptr);
     stream_parser_ = std::make_unique<MoqtControlStreamParser>(stream);
+    outgoing_message_queue_.SetStream(stream);
     OnStreamBound();
   }
 
@@ -81,12 +79,12 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   void OnCanRead() override;
   void OnCanWrite() override;
 
-  bool QueueIsFull() const {
-    return pending_messages_.size() == kMaxPendingMessages;
-  }
+  bool QueueIsFull() const { return outgoing_message_queue_.QueueIsFull(); }
 
   absl::Status SendOrBufferMessage(quiche::QuicheBuffer message,
-                                   bool fin = false);
+                                   bool fin = false) {
+    return outgoing_message_queue_.SendOrBufferMessage(std::move(message), fin);
+  }
   void SendOrBufferMessageOrFatal(quiche::QuicheBuffer message,
                                   bool fin = false) {
     CheckStatus(SendOrBufferMessage(std::move(message), fin));
@@ -102,10 +100,7 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   absl::Status SendRequestError(uint64_t request_id, MoqtRequestErrorInfo info,
                                 bool fin = false);
 
-  void Fin() {
-    fin_queued_ = true;
-    OnCanWrite();
-  }
+  void Fin() { CheckStatus(outgoing_message_queue_.Fin()); }
   void Reset(webtransport::StreamErrorCode error) {
     webtransport::Stream* stream = stream_parser_->stream();
     if (stream != nullptr) {
@@ -164,9 +159,6 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
  private:
   friend class test::MoqtBidiStreamTestWrapper;
 
-  absl::Status AddToQueue(quiche::QuicheBuffer message);
-  absl::Status SendMessage(quiche::QuicheBuffer message, bool fin);
-
   // CanDispatch<S, M> indicates whether `S` has a method with signature
   //     absl::Status OnControlMessage(const M&);
   template <typename Subclass, typename Message, typename = void>
@@ -181,8 +173,7 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   MoqtFramer* absl_nonnull framer_;
   std::unique_ptr<MoqtControlStreamParser> absl_nullable stream_parser_;
   MoqtControlMessageParser message_parser_;
-  quiche::QuicheCircularDeque<quiche::QuicheBuffer> pending_messages_;
-  bool fin_queued_ = false;
+  MoqtControlMessageQueue outgoing_message_queue_;
   BidiStreamDeletedCallback stream_deleted_callback_;
   SessionErrorCallback session_error_callback_;
 };
