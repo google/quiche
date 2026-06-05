@@ -40,16 +40,14 @@ class QUICHE_EXPORT P256KeyExchange : public SynchronousKeyExchange {
   QuicTag type() const override { return kP256; }
 
  private:
-  enum {
-    // A P-256 field element consists of 32 bytes.
-    kP256FieldBytes = 32,
-    // A P-256 point in uncompressed form consists of 0x04 (to denote
-    // that the point is uncompressed) followed by two, 32-byte field
-    // elements.
-    kUncompressedP256PointBytes = 1 + 2 * kP256FieldBytes,
-    // The first byte in an uncompressed P-256 point.
-    kUncompressedECPointForm = 0x04,
-  };
+  // A P-256 field element consists of 32 bytes.
+  static constexpr size_t kP256FieldBytes = 32;
+  // A P-256 point in uncompressed form consists of 0x04 (to denote
+  // that the point is uncompressed) followed by two, 32-byte field
+  // elements.
+  static constexpr size_t kUncompressedP256PointBytes = 1 + 2 * kP256FieldBytes;
+  // The first byte in an uncompressed P-256 point.
+  static constexpr size_t kUncompressedECPointForm = 0x04;
 
   // P256KeyExchange wraps |private_key|, and expects |public_key| consists of
   // |kUncompressedP256PointBytes| bytes.

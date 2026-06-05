@@ -21,11 +21,9 @@ namespace quic {
 // List of QUIC versions that support MASQUE. Currently restricted to IETF QUIC.
 QUIC_NO_EXPORT ParsedQuicVersionVector MasqueSupportedVersions();
 
-enum : QuicByteCount {
-  kMasqueIpPacketBufferSize = 1501,
-  // Enough for a VLAN tag, but not Stacked VLANs.
-  kMasqueEthernetFrameBufferSize = 1523,
-};
+inline constexpr QuicByteCount kMasqueIpPacketBufferSize = 1501;
+// Enough for a VLAN tag, but not Stacked VLANs.
+inline constexpr QuicByteCount kMasqueEthernetFrameBufferSize = 1523;
 
 // Mode that MASQUE is operating in.
 enum class MasqueMode : uint8_t {

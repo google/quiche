@@ -15,19 +15,17 @@
 namespace quic {
 
 // Unidirectional stream types.
-enum : uint64_t {
-  // https://quicwg.org/base-drafts/draft-ietf-quic-http.html#unidirectional-streams
-  kControlStream = 0x00,
-  kServerPushStream = 0x01,
-  // https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#enc-dec-stream-def
-  kQpackEncoderStream = 0x02,
-  kQpackDecoderStream = 0x03,
-  // https://ietf-wg-webtrans.github.io/draft-ietf-webtrans-http3/draft-ietf-webtrans-http3.html#name-unidirectional-streams
-  kWebTransportUnidirectionalStream = 0x54,
-};
+// https://quicwg.org/base-drafts/draft-ietf-quic-http.html#unidirectional-streams
+inline constexpr uint64_t kControlStream = 0x00;
+inline constexpr uint64_t kServerPushStream = 0x01;
+// https://quicwg.org/base-drafts/draft-ietf-quic-qpack.html#enc-dec-stream-def
+inline constexpr uint64_t kQpackEncoderStream = 0x02;
+inline constexpr uint64_t kQpackDecoderStream = 0x03;
+// https://ietf-wg-webtrans.github.io/draft-ietf-webtrans-http3/draft-ietf-webtrans-http3.html#name-unidirectional-streams
+inline constexpr uint64_t kWebTransportUnidirectionalStream = 0x54;
 
 // This includes control stream, QPACK encoder stream, and QPACK decoder stream.
-enum : QuicStreamCount { kHttp3StaticUnidirectionalStreamCount = 3 };
+inline constexpr QuicStreamCount kHttp3StaticUnidirectionalStreamCount = 3;
 
 // HTTP/3 and QPACK settings identifiers.
 // https://quicwg.org/base-drafts/draft-ietf-quic-http.html#settings-parameters
@@ -56,19 +54,17 @@ QUICHE_EXPORT std::string H3SettingsToString(
 
 // Default maximum dynamic table capacity, communicated via
 // SETTINGS_QPACK_MAX_TABLE_CAPACITY.
-enum : QuicByteCount {
-  kDefaultQpackMaxDynamicTableCapacity = 64 * 1024  // 64 KB
-};
+inline constexpr QuicByteCount kDefaultQpackMaxDynamicTableCapacity =
+    64 * 1024;  // 64 KB
 
 // Default limit on the size of uncompressed headers,
 // communicated via SETTINGS_MAX_HEADER_LIST_SIZE.
-enum : QuicByteCount {
-  kDefaultMaxUncompressedHeaderSize = 16 * 1024  // 16 KB
-};
+inline constexpr QuicByteCount kDefaultMaxUncompressedHeaderSize =
+    16 * 1024;  // 16 KB
 
 // Default limit on number of blocked streams, communicated via
 // SETTINGS_QPACK_BLOCKED_STREAMS.
-enum : uint64_t { kDefaultMaximumBlockedStreams = 100 };
+inline constexpr uint64_t kDefaultMaximumBlockedStreams = 100;
 
 ABSL_CONST_INIT QUICHE_EXPORT extern const absl::string_view
     kUserAgentHeaderName;

@@ -50,7 +50,7 @@ using QuicStreamOffset = uint64_t;
 using DiversificationNonce = std::array<char, 32>;
 using PacketTimeVector = std::vector<std::pair<QuicPacketNumber, QuicTime>>;
 
-enum : size_t { kStatelessResetTokenLength = 16 };
+inline constexpr size_t kStatelessResetTokenLength = 16;
 using StatelessResetToken = std::array<char, kStatelessResetTokenLength>;
 
 // WebTransport session IDs are stream IDs.
@@ -60,7 +60,7 @@ using WebTransportStreamError = ::webtransport::StreamErrorCode;
 // WebTransport session error codes are 32-bit.
 using WebTransportSessionError = ::webtransport::SessionErrorCode;
 
-enum : size_t { kQuicPathFrameBufferSize = 8 };
+inline constexpr size_t kQuicPathFrameBufferSize = 8;
 using QuicPathFrameBuffer = std::array<uint8_t, kQuicPathFrameBufferSize>;
 
 // The connection id sequence number specifies the order that connection

@@ -20,11 +20,10 @@
 
 namespace quic {
 
-enum : size_t {
-  kIPv6HeaderSize = 40,
-  kICMPv6HeaderSize = sizeof(icmp6_hdr),
-  kTotalICMPv6HeaderSize = kIPv6HeaderSize + kICMPv6HeaderSize,
-};
+inline constexpr size_t kIPv6HeaderSize = 40;
+inline constexpr size_t kICMPv6HeaderSize = sizeof(icmp6_hdr);
+inline constexpr size_t kTotalICMPv6HeaderSize =
+    kIPv6HeaderSize + kICMPv6HeaderSize;
 
 // QBONE packet processor accepts packets destined in either direction
 // (client-to-network or network-to-client).  It inspects them and makes

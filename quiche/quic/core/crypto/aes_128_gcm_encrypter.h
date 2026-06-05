@@ -17,9 +17,7 @@ namespace quic {
 // that is XOR'd with the packet number to compute the nonce.
 class QUICHE_EXPORT Aes128GcmEncrypter : public AesBaseEncrypter {
  public:
-  enum {
-    kAuthTagSize = 16,
-  };
+  static constexpr size_t kAuthTagSize = 16;
 
   Aes128GcmEncrypter();
   Aes128GcmEncrypter(const Aes128GcmEncrypter&) = delete;
