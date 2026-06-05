@@ -60,6 +60,7 @@
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_constants.h"
+#include "quiche/quic/core/quic_crypto_client_stream.h"
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_dispatcher.h"
 #include "quiche/quic/core/quic_dispatcher_stats.h"
@@ -9016,6 +9017,79 @@ TEST_P(EndToEndTest, ChangeFlowLabelOnRTO) {
         return server_connection->GetStats().num_flow_label_changes > 0;
       },
       QuicTime::Delta::FromSeconds(5)));
+
+  client_->Disconnect();
+}
+
+TEST_P(EndToEndTest, ServerPaddingRequestedServerDisabled) {
+  if (!version_.IsIetfQuic()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+
+  SetQuicRestartFlag(tls_server_padding_support, false);
+  connect_to_server_on_initialize_ = false;
+  ASSERT_TRUE(Initialize());
+
+  client_.reset(CreateQuicClient(client_writer_, /*connect=*/false));
+  client_->client()->Initialize();
+
+  client_->client()->crypto_config()->ssl_config().server_padding_to_request =
+      128;
+
+  client_->Connect();
+  ASSERT_TRUE(client_->client()->connected());
+  SendSynchronousFooRequestAndCheckResponse();
+
+  const QuicCryptoClientStream* client_crypto_stream =
+      static_cast<const QuicCryptoClientStream*>(
+          GetClientSession()->GetCryptoStream());
+  EXPECT_FALSE(client_crypto_stream->ServerPaddingSentForTesting());
+
+  client_->Disconnect();
+}
+
+TEST_P(EndToEndTest, ServerPaddingRequestedServerEnabled) {
+  if (!version_.IsIetfQuic()) {
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+
+  SetQuicRestartFlag(tls_server_padding_support, true);
+  connect_to_server_on_initialize_ = false;
+  ASSERT_TRUE(Initialize());
+
+  client_.reset(CreateQuicClient(client_writer_, /*connect=*/false));
+  client_->client()->Initialize();
+
+  client_->client()->crypto_config()->ssl_config().server_padding_to_request =
+      128;
+
+  client_->Connect();
+  ASSERT_TRUE(client_->client()->connected());
+  SendSynchronousFooRequestAndCheckResponse();
+
+  const QuicCryptoClientStream* client_crypto_stream =
+      static_cast<const QuicCryptoClientStream*>(
+          GetClientSession()->GetCryptoStream());
+  EXPECT_TRUE(client_crypto_stream->ServerPaddingSentForTesting());
+
+  client_->Disconnect();
+}
+
+TEST_P(EndToEndTest, ServerPaddingNotRequestedServerEnabled) {
+  SetQuicRestartFlag(tls_server_padding_support, true);
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) {
+    return;
+  }
+
+  SendSynchronousFooRequestAndCheckResponse();
+
+  const QuicCryptoClientStream* client_crypto_stream =
+      static_cast<const QuicCryptoClientStream*>(
+          GetClientSession()->GetCryptoStream());
+  EXPECT_FALSE(client_crypto_stream->ServerPaddingSentForTesting());
 
   client_->Disconnect();
 }
