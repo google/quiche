@@ -569,7 +569,6 @@ quiche_core_srcs = [
     "src/quiche/quic/core/crypto/p256_key_exchange.cc",
     "src/quiche/quic/core/crypto/proof_source.cc",
     "src/quiche/quic/core/crypto/proof_source_x509.cc",
-    "src/quiche/quic/core/crypto/proof_verifier.cc",
     "src/quiche/quic/core/crypto/quic_client_session_cache.cc",
     "src/quiche/quic/core/crypto/quic_compressed_certs_cache.cc",
     "src/quiche/quic/core/crypto/quic_crypter.cc",
