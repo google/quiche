@@ -83,7 +83,7 @@ class MoqtRelayTrackPublisherTest : public quiche::test::QuicheTest {
     publisher_.OnObjectFragment(
         kTrackName,
         PublishedObjectMetadata{location, subgroup, "", status, 128,
-                                payload.length()},
+                                location.object == 0, payload.length()},
         payload, /*offset=*/0);
     std::optional<PublishedObject> object =
         publisher_.GetCachedObject(location.group, subgroup, location.object);
@@ -173,7 +173,7 @@ TEST_F(MoqtRelayTrackPublisherTest, GroupAbandoned) {
     publisher_.OnObjectFragment(
         kTrackName,
         PublishedObjectMetadata{Location(group, 0), 0, "",
-                                MoqtObjectStatus::kEndOfGroup, 128, 0},
+                                MoqtObjectStatus::kEndOfGroup, 128, true, 0},
         "", /*offset=*/0);
   }
 }
@@ -189,7 +189,7 @@ TEST_F(MoqtRelayTrackPublisherTest, BeyondEndOfTrack) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "", MoqtObjectStatus::kNormal, 128,
-                              6},
+                              location.object == 0, 6},
       "object", /*offset=*/0);
   EXPECT_TRUE(track_deleted_);
 }
@@ -205,7 +205,8 @@ TEST_F(MoqtRelayTrackPublisherTest, EndOfTrackTooEarly) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{first_location, 0, "",
-                              MoqtObjectStatus::kEndOfTrack, 128, 0},
+                              MoqtObjectStatus::kEndOfTrack, 128,
+                              first_location.object == 0, 0},
       "", /*offset=*/0);
   EXPECT_TRUE(track_deleted_);
 }
@@ -221,7 +222,7 @@ TEST_F(MoqtRelayTrackPublisherTest, BeyondEndOfGroup) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 1, "", MoqtObjectStatus::kEndOfGroup,
-                              128, 6},
+                              128, location.object == 0, 6},
       "object", /*offset=*/0);
   EXPECT_TRUE(track_deleted_);
 }
@@ -237,7 +238,8 @@ TEST_F(MoqtRelayTrackPublisherTest, EndOfGroupTooEarly) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{first_location, 1, "",
-                              MoqtObjectStatus::kEndOfGroup, 128, 0},
+                              MoqtObjectStatus::kEndOfGroup, 128,
+                              first_location.object == 0, 0},
       "", /*offset=*/0);
   EXPECT_TRUE(track_deleted_);
 }
@@ -253,7 +255,7 @@ TEST_F(MoqtRelayTrackPublisherTest, PriorityChange) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "", MoqtObjectStatus::kNormal, 200,
-                              6},
+                              location.object == 0, 6},
       "object", /*offset=*/0);
   EXPECT_TRUE(track_deleted_);
 }
@@ -271,7 +273,7 @@ TEST_F(MoqtRelayTrackPublisherTest, ObjectAfterFin) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "", MoqtObjectStatus::kNormal, 128,
-                              6},
+                              location.object == 0, 6},
       "object", /*offset=*/0);
   EXPECT_TRUE(track_deleted_);
 }
@@ -287,7 +289,7 @@ TEST_F(MoqtRelayTrackPublisherTest, ObjectOutOfOrder) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{first_location, 0, "", MoqtObjectStatus::kNormal,
-                              128, 6},
+                              128, first_location.object == 0, 6},
       "object", /*offset=*/0);
   // Object is simply ignored; track is not malformed.
   EXPECT_FALSE(track_deleted_);
@@ -369,7 +371,7 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObject) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
-                              128, 6},
+                              128, location.object == 0, 6},
       "object", /*offset=*/0);
   // Exact duplicate is ignored. It doesn't matter that the arrival time
   // changed.
@@ -379,7 +381,8 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObject) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
-                              128, 6, quic::QuicTime::Infinite()},
+                              128, location.object == 0, 6,
+                              quic::QuicTime::Infinite()},
       "object", /*offset=*/0);
 }
 
@@ -392,7 +395,7 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObjectChangedMetadata) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
-                              128, 6},
+                              128, location.object == 0, 6},
       "object", /*offset=*/0);
   // Priority change; malformed track.
   EXPECT_CALL(listener_, OnNewObjectAvailable).Times(0);
@@ -400,7 +403,7 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObjectChangedMetadata) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal, 64,
-                              6},
+                              location.object == 0, 6},
       "object", /*offset=*/0);
   EXPECT_TRUE(track_deleted_);
 }
@@ -414,7 +417,7 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObjectChangedPayload) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
-                              128, 7},
+                              128, location.object == 0, 7},
       "payload", /*offset=*/0);
   // Payload change; malformed track.
   EXPECT_CALL(listener_, OnNewObjectAvailable).Times(0);
@@ -422,7 +425,7 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObjectChangedPayload) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, 0, "foo", MoqtObjectStatus::kNormal,
-                              128, 6},
+                              128, location.object == 0, 6},
       "foobar", /*offset=*/0);
   EXPECT_TRUE(track_deleted_);
 }
@@ -469,7 +472,7 @@ TEST_F(MoqtRelayTrackPublisherTest, DatagramPreference) {
   publisher_.OnObjectFragment(
       kTrackName,
       PublishedObjectMetadata{location, std::nullopt, "",
-                              MoqtObjectStatus::kNormal, 128, 6},
+                              MoqtObjectStatus::kNormal, 128, std::nullopt, 6},
       "object", /*offset=*/0);
   std::optional<PublishedObject> object =
       publisher_.GetCachedObject(location.group, std::nullopt, 0);
@@ -481,8 +484,10 @@ TEST_F(MoqtRelayTrackPublisherTest, ObjectArrivalInFragments) {
   Location location = kLargestLocation.Next();
   uint64_t subgroup = 0;
   // Total size is 15 bytes.
-  PublishedObjectMetadata metadata = {
-      location, subgroup, "", MoqtObjectStatus::kNormal, 128, 15};
+  PublishedObjectMetadata metadata = {location, subgroup,
+                                      "",       MoqtObjectStatus::kNormal,
+                                      128,      location.object == 0,
+                                      15};
 
   // Fragment 1 arrives.
   EXPECT_CALL(listener_,
@@ -524,7 +529,8 @@ TEST_F(MoqtRelayTrackPublisherTest, IncompleteDatagram) {
   SubscribeAndOk();
   Location location = kLargestLocation.Next();
   PublishedObjectMetadata metadata = {
-      location, std::nullopt, "", MoqtObjectStatus::kNormal, 128, 10};
+      location, std::nullopt, "", MoqtObjectStatus::kNormal,
+      128,      std::nullopt, 10};
   // Fragment length mismatch.
   EXPECT_QUICHE_BUG(
       publisher_.OnObjectFragment(kTrackName, metadata, "short", 0),
@@ -540,8 +546,10 @@ TEST_F(MoqtRelayTrackPublisherTest, AlreadyReceivedFragment) {
   Location location = kLargestLocation.Next();
   uint64_t subgroup = 0;
   // Total size is 15 bytes.
-  PublishedObjectMetadata metadata = {
-      location, subgroup, "", MoqtObjectStatus::kNormal, 128, 15};
+  PublishedObjectMetadata metadata = {location, subgroup,
+                                      "",       MoqtObjectStatus::kNormal,
+                                      128,      location.object == 0,
+                                      15};
 
   // Fragment 1 arrives (first 10 bytes).
   EXPECT_CALL(listener_,

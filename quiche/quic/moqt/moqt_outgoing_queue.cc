@@ -79,6 +79,7 @@ void MoqtOutgoingQueue::AddRawObject(MoqtObjectStatus status,
                                    "",
                                    status,
                                    default_publisher_priority(),
+                                   queue_.back().empty(),
                                    payload.length(),
                                    clock_->ApproximateNow()};
   queue_.back().push_back(

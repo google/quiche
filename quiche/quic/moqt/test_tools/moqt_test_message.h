@@ -71,15 +71,18 @@ inline std::vector<MoqtFetchSerialization> AllMoqtFetchSerializations() {
 
 inline std::vector<MoqtDataStreamType> AllMoqtDataStreamTypes() {
   std::vector<MoqtDataStreamType> types;
+  types.reserve(256);
   types.push_back(MoqtDataStreamType::Fetch());
   uint64_t first_object_id = 1;
   for (uint64_t subgroup_id : {0, 1, 2}) {
     for (bool no_extension_headers : {true, false}) {
       for (bool default_priority : {true, false}) {
-        for (bool end_of_group : {false, true}) {
-          types.push_back(MoqtDataStreamType::Subgroup(
-              subgroup_id, first_object_id, no_extension_headers,
-              default_priority, end_of_group));
+        for (bool has_first_object : {true, false}) {
+          for (bool end_of_group : {false, true}) {
+            types.push_back(MoqtDataStreamType::Subgroup(
+                subgroup_id, first_object_id, no_extension_headers,
+                default_priority, has_first_object, end_of_group));
+          }
         }
       }
     }
@@ -275,15 +278,16 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
   }
 
  protected:
-  MoqtObject object_ = {
-      /*track_alias=*/4,
-      /*group_id*/ 5,
-      /*object_id=*/6,
-      /*publisher_priority=*/7,
-      std::string(kDefaultExtensionBlob),
-      /*object_status=*/MoqtObjectStatus::kNormal,
-      /*subgroup_id=*/8,
-      /*payload_length=*/3,
+  MoqtObject object_{
+      .track_alias = 4,
+      .group_id = 5,
+      .object_id = 6,
+      .publisher_priority = 7,
+      .extension_headers = std::string(kDefaultExtensionBlob),
+      .object_status = MoqtObjectStatus::kNormal,
+      .subgroup_id = 8,
+      .first_object_in_subgroup = false,
+      .payload_length = 3,
   };
 };
 
@@ -891,7 +895,10 @@ class QUICHE_NO_EXPORT UnsubscribeMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[4] = {
-      0x0a, 0x00, 0x01, 0x03,  // request_id = 3
+      0x0a,
+      0x00,
+      0x01,
+      0x03,  // request_id = 3
   };
 
   MoqtUnsubscribe unsubscribe_ = {
@@ -1638,7 +1645,9 @@ class QUICHE_NO_EXPORT FetchCancelMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[4] = {
-      0x17, 0x00, 0x01,
+      0x17,
+      0x00,
+      0x01,
       0x01,  // request_id = 1
   };
 
@@ -1669,7 +1678,9 @@ class QUICHE_NO_EXPORT RequestsBlockedMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[4] = {
-      0x1a, 0x00, 0x01,
+      0x1a,
+      0x00,
+      0x01,
       0x0b,  // max_request_id = 11
   };
 

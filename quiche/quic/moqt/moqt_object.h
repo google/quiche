@@ -29,6 +29,11 @@ struct PublishedObjectMetadata {
   std::string extensions;
   MoqtObjectStatus status = MoqtObjectStatus::kNormal;
   MoqtPriority publisher_priority = kDefaultPublisherPriority;
+  // `first_object_in_subgroup` is only available in objects communicated via
+  // a subscription.  It is not available for the fetched objects; however, the
+  // subscriber can guarantee that all subgroups have a start object by setting
+  // the FETCH range appropriately.
+  std::optional<bool> first_object_in_subgroup;
   // The length of the entire payload, which might include data that is not
   // present in an encompassing PublishedObject or CachedObject.
   uint64_t payload_length;

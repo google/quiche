@@ -265,7 +265,8 @@ class MoqtFramerSimpleTest : public quic::test::QuicTest {
 };
 
 TEST_F(MoqtFramerSimpleTest, GroupMiddler) {
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(1, 1, true, false);
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(1, 1, true, false, true);
   auto header = std::make_unique<StreamHeaderSubgroupMessage>(type);
   auto buffer1 = SerializeObject(
       framer_, std::get<MoqtObject>(header->structured_data()), "foo", type, 0);
@@ -324,13 +325,15 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
       std::string(kDefaultExtensionBlob.data(), kDefaultExtensionBlob.size()),
       /*object_status=*/MoqtObjectStatus::kObjectDoesNotExist,
       /*subgroup_id=*/8,
+      /*first_object_in_subgroup=*/true,
       /*payload_length=*/3,
   };
   quiche::QuicheBuffer buffer;
   std::optional<PublishedObjectMetadata> previous;
   EXPECT_QUIC_BUG(
       buffer = framer_.SerializeObjectHeader(
-          object, MoqtDataStreamType::Subgroup(8, 0, false, false), previous),
+          object, MoqtDataStreamType::Subgroup(8, 0, false, false, true),
+          previous),
       "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
 }
@@ -345,6 +348,7 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
       std::string(kDefaultExtensionBlob),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/std::nullopt,
+      /*first_object_in_subgroup=*/std::nullopt,
       /*payload_length=*/3,
   };
   quiche::QuicheBuffer buffer;

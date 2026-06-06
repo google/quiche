@@ -62,6 +62,7 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
                                      AnyOf(MoqtObjectStatus::kNormal,
                                            MoqtObjectStatus::kEndOfGroup,
                                            MoqtObjectStatus::kEndOfTrack)))));
+    EXPECT_EQ(object->metadata.first_object_in_subgroup, sequence.object == 0);
     if (object->metadata.status == MoqtObjectStatus::kNormal) {
       PublishObject(object->metadata.location.group,
                     object->metadata.location.object,

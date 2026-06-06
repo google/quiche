@@ -155,6 +155,7 @@ class TestTrackPublisher : public MoqtTrackPublisher {
     metadata.extensions = "";
     metadata.status = MoqtObjectStatus::kNormal;
     metadata.publisher_priority = 128;
+    metadata.first_object_in_subgroup = location.object == 0;
     metadata.payload_length = payload.length();
     metadata.arrival_time = arrival_time;
     auto it = objects_.find(location);

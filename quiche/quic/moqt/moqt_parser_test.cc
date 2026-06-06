@@ -463,7 +463,8 @@ TEST_F(MoqtMessageSpecificTest, ThreePartObject) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtParserTestVisitor data_visitor;
   MoqtDataParser parser(&stream, &data_visitor);
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(1, 1, true, false);
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(1, 1, true, false, true);
   auto message = std::make_unique<StreamHeaderSubgroupMessage>(type);
   EXPECT_TRUE(message->SetPayloadLength(14));
   message->set_wire_image_size(message->total_message_size() - 11);
@@ -499,7 +500,8 @@ TEST_F(MoqtMessageSpecificTest, ThreePartObjectFirstIncomplete) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtParserTestVisitor data_visitor;
   MoqtDataParser parser(&stream, &data_visitor);
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(2, 1, false, false);
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(2, 1, false, false, true);
   auto message = std::make_unique<StreamHeaderSubgroupMessage>(type);
   EXPECT_TRUE(message->SetPayloadLength(payload_length));
 
@@ -533,7 +535,8 @@ TEST_F(MoqtMessageSpecificTest, ObjectSplitInExtension) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtParserTestVisitor data_visitor;
   MoqtDataParser parser(&stream, &data_visitor);
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(2, 1, false, false);
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(2, 1, false, false, true);
   auto message = std::make_unique<StreamHeaderSubgroupMessage>(type);
 
   // first part
@@ -557,7 +560,8 @@ TEST_F(MoqtMessageSpecificTest, StreamHeaderSubgroupFollowOn) {
   MoqtParserTestVisitor data_visitor;
   MoqtDataParser parser(&stream, &data_visitor);
   // first part
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(0, 1, false, false);
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(0, 1, false, false, true);
   auto message1 = std::make_unique<StreamHeaderSubgroupMessage>(type);
   stream.Receive(message1->PacketSample(), false);
   parser.ReadAllData();
@@ -583,7 +587,8 @@ TEST_F(MoqtMessageSpecificTest, StreamHeaderSubgroupFollowOnExpandedVarInts) {
   MoqtParserTestVisitor data_visitor;
   MoqtDataParser parser(&stream, &data_visitor);
   // first part
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(0, 1, false, false);
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(0, 1, false, false, true);
   auto message1 = std::make_unique<StreamHeaderSubgroupMessage>(type);
   message1->ExpandVarints();
   stream.Receive(message1->PacketSample(), false);
@@ -954,7 +959,8 @@ TEST_F(MoqtMessageSpecificTest, FinMidDataPayload) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtParserTestVisitor data_visitor;
   MoqtDataParser parser(&stream, &data_visitor);
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(0, 1, true, false);
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(0, 1, true, false, true);
   auto message = std::make_unique<StreamHeaderSubgroupMessage>(type);
   stream.Receive(
       message->PacketSample().substr(0, message->total_message_size() - 1),
@@ -972,7 +978,8 @@ TEST_F(MoqtMessageSpecificTest, FinMidExtension) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtParserTestVisitor data_visitor;
   MoqtDataParser parser(&stream, &data_visitor);
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(0, 1, false, false);
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(0, 1, false, false, true);
   auto message = std::make_unique<StreamHeaderSubgroupMessage>(type);
   // Read up to the extension body and then FIN.
   stream.Receive(message->PacketSample().substr(0, 7), true);
@@ -989,7 +996,8 @@ TEST_F(MoqtMessageSpecificTest, PartialPayloadThenFin) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtParserTestVisitor data_visitor;
   MoqtDataParser parser(&stream, &data_visitor);
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(1, 1, false, false);
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(1, 1, false, false, true);
   auto message = std::make_unique<StreamHeaderSubgroupMessage>(type);
   stream.Receive(
       message->PacketSample().substr(0, message->total_message_size() - 1),
@@ -1600,7 +1608,8 @@ class MoqtDataParserStateMachineTest : public quic::test::QuicTest {
 };
 
 TEST_F(MoqtDataParserStateMachineTest, ReadAll) {
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(0, 1, false, false);
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(0, 1, false, false, true);
   stream_.Receive(StreamHeaderSubgroupMessage(type).PacketSample());
   stream_.Receive(StreamMiddlerSubgroupMessage(type).PacketSample());
   parser_.ReadAllData();
@@ -1614,7 +1623,8 @@ TEST_F(MoqtDataParserStateMachineTest, ReadAll) {
 }
 
 TEST_F(MoqtDataParserStateMachineTest, ReadObjects) {
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(0, 1, true, false);
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(0, 1, true, false, true);
   stream_.Receive(StreamHeaderSubgroupMessage(type).PacketSample());
   stream_.Receive(StreamMiddlerSubgroupMessage(type).PacketSample(),
                   /*fin=*/true);
@@ -1629,7 +1639,8 @@ TEST_F(MoqtDataParserStateMachineTest, ReadObjects) {
 }
 
 TEST_F(MoqtDataParserStateMachineTest, ReadTypeThenObjects) {
-  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(1, 1, false, false);
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(1, 1, false, false, true);
   stream_.Receive(StreamHeaderSubgroupMessage(type).PacketSample());
   stream_.Receive(StreamMiddlerSubgroupMessage(type).PacketSample(),
                   /*fin=*/true);
@@ -1742,7 +1753,8 @@ TEST_F(MoqtDataParserStateMachineTest, IgnoresEndRangeIndicators) {
 
 TEST_F(MoqtDataParserStateMachineTest, IntegerOverflowObjectId) {
   MoqtDataStreamType type = MoqtDataStreamType::Subgroup(
-      0, 1, /*no_extension_headers=*/true, /*default_priority=*/false);
+      0, 1, /*no_extension_headers=*/true, /*default_priority=*/false,
+      /*has_first_object=*/true);
   stream_.Receive(StreamHeaderSubgroupMessage(type).PacketSample());
   char buffer[32];
   quic::QuicDataWriter writer(sizeof(buffer), buffer);
@@ -1755,6 +1767,55 @@ TEST_F(MoqtDataParserStateMachineTest, IntegerOverflowObjectId) {
   parser_.ReadAllData();
   EXPECT_EQ(visitor_.parsing_error(),
             "Integer overflow when parsing object ID");
+}
+
+TEST_F(MoqtDataParserStateMachineTest, SubgroupHasFirstObjectTrue) {
+  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(
+      0, 1, /*no_extension_headers=*/true, /*default_priority=*/false,
+      /*has_first_object=*/true);
+  stream_.Receive(StreamHeaderSubgroupMessage(type).PacketSample());
+  stream_.Receive(StreamMiddlerSubgroupMessage(type).PacketSample(),
+                  /*fin=*/true);
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received(), 1);
+  ASSERT_TRUE(visitor_.last_message().has_value());
+  EXPECT_EQ(visitor_.last_message()->first_object_in_subgroup, true);
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received(), 2);
+  ASSERT_TRUE(visitor_.last_message().has_value());
+  EXPECT_EQ(visitor_.last_message()->first_object_in_subgroup, false);
+  EXPECT_EQ(visitor_.parsing_error(), std::nullopt);
+  EXPECT_TRUE(visitor_.fin_received());
+}
+
+TEST_F(MoqtDataParserStateMachineTest, SubgroupHasFirstObjectFalse) {
+  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(
+      0, 1, /*no_extension_headers=*/true, /*default_priority=*/false,
+      /*has_first_object=*/false);
+  stream_.Receive(StreamHeaderSubgroupMessage(type).PacketSample());
+  stream_.Receive(StreamMiddlerSubgroupMessage(type).PacketSample(),
+                  /*fin=*/true);
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received(), 1);
+  ASSERT_TRUE(visitor_.last_message().has_value());
+  EXPECT_EQ(visitor_.last_message()->first_object_in_subgroup, false);
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received(), 2);
+  ASSERT_TRUE(visitor_.last_message().has_value());
+  EXPECT_EQ(visitor_.last_message()->first_object_in_subgroup, false);
+  EXPECT_EQ(visitor_.parsing_error(), std::nullopt);
+  EXPECT_TRUE(visitor_.fin_received());
+}
+
+TEST_F(MoqtDataParserStateMachineTest, FetchFirstObjectMissing) {
+  StreamHeaderFetchMessage header;
+  stream_.Receive(header.PacketSample());
+  parser_.ReadStreamType();
+  ASSERT_EQ(visitor_.messages_received(), 0);
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received(), 1);
+  ASSERT_TRUE(visitor_.last_message().has_value());
+  EXPECT_FALSE(visitor_.last_message()->first_object_in_subgroup.has_value());
 }
 
 }  // namespace moqt::test

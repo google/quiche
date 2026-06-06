@@ -306,7 +306,8 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
   PublishedObject object;
   EXPECT_EQ(fetch_task_->GetNextObject(object),
             MoqtFetchTask::GetNextObjectResult::kPending);
-  MoqtObject new_object = {1, 3, 0, 128, "", MoqtObjectStatus::kNormal, 0, 6};
+  MoqtObject new_object = {1, 3,    0, 128, "", MoqtObjectStatus::kNormal,
+                           0, true, 6};
   bool got_object = false;
   fetch_task_->SetObjectAvailableCallback([&]() {
     got_object = true;
@@ -341,7 +342,8 @@ TEST_F(UpstreamFetchTest, ObjectRetrieval) {
 
 TEST_F(UpstreamFetchTest, ObjectRetrievalEmptyPayload) {
   fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
-  MoqtObject moqt_obj = {1, 3, 0, 128, "", MoqtObjectStatus::kEndOfGroup, 0, 0};
+  MoqtObject moqt_obj = {1, 3,    0, 128, "", MoqtObjectStatus::kEndOfGroup,
+                         0, true, 0};
   fetch_.task()->NewObject(moqt_obj);
   fetch_.task()->NotifyNewObject();
   fetch_.OnStreamOpened([]() {});
@@ -370,7 +372,7 @@ TEST_F(UpstreamFetchTest, GetNextObjectEofAtLargestLocation) {
   fetch_.OnFetchResult(largest, absl::OkStatus(), nullptr);
   fetch_.OnStreamOpened([]() {});
 
-  MoqtObject obj1 = {1, 3, 49, 128, "", MoqtObjectStatus::kNormal, 0, 1};
+  MoqtObject obj1 = {1, 3, 49, 128, "", MoqtObjectStatus::kNormal, 0, false, 1};
   fetch_.task()->NewObject(obj1);
   fetch_.task()->AppendPayloadToObject("a");
   fetch_.task()->NotifyNewObject();
@@ -382,7 +384,7 @@ TEST_F(UpstreamFetchTest, GetNextObjectEofAtLargestLocation) {
   EXPECT_EQ(fetch_task_->GetNextObject(out),
             MoqtFetchTask::GetNextObjectResult::kPending);
 
-  MoqtObject obj2 = {1, 3, 50, 128, "", MoqtObjectStatus::kNormal, 0, 1};
+  MoqtObject obj2 = {1, 3, 50, 128, "", MoqtObjectStatus::kNormal, 0, false, 1};
   fetch_.task()->NewObject(obj2);
   fetch_.task()->AppendPayloadToObject("b");
   fetch_.task()->NotifyNewObject();

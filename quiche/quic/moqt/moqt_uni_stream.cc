@@ -29,6 +29,7 @@
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
@@ -149,6 +150,10 @@ void OutgoingSubgroupStream::SendObjects() {
           << "Received non-empty object with no payload";
       return;
     }
+    QUICHE_BUG_IF(OutgoingSubgroupStream_SendObjects_no_first_object,
+                  !object->metadata.first_object_in_subgroup.has_value())
+        << "first_object_in_subgroup has to be set on all objects set via "
+           "subscription";
     QUICHE_DCHECK_EQ(object->metadata.location.group, index_.group);
     QUICHE_DCHECK(object->metadata.subgroup == index_.subgroup);
     if (!visitor->InWindow(object->metadata.location)) {
@@ -175,7 +180,8 @@ void OutgoingSubgroupStream::SendObjects() {
       type_ = MoqtDataStreamType::Subgroup(
           index_.subgroup, next_object_, false,
           object->metadata.publisher_priority ==
-              publisher_->extensions().default_publisher_priority());
+              publisher_->extensions().default_publisher_priority(),
+          object->metadata.first_object_in_subgroup.value_or(true));
     }
     uint64_t start_offset = already_delivered_;
     already_delivered_ +=
@@ -446,6 +452,7 @@ void IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       metadata.extensions = message.extension_headers;
       metadata.status = message.object_status;
       metadata.publisher_priority = message.publisher_priority;
+      metadata.first_object_in_subgroup = message.first_object_in_subgroup;
       metadata.payload_length = message.payload_length;
       metadata.arrival_time = clock_->Now();
       visitor_->OnObjectFragment(track->full_track_name(), metadata, payload,

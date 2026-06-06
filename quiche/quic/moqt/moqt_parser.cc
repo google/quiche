@@ -1285,6 +1285,10 @@ MoqtDataParser::NextInput MoqtDataParser::AdvanceParserState() {
       if (num_objects_read_ == 0 && type_.SubgroupIsFirstObjectId()) {
         metadata_.subgroup_id = metadata_.object_id;
       }
+      if (type_.IsSubgroup()) {
+        metadata_.first_object_in_subgroup =
+            type_.HasFirstObject() && num_objects_read_ == 0;
+      }
       if (type_.AreExtensionHeadersPresent()) {
         return kExtensionSize;
       }

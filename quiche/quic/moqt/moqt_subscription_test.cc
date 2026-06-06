@@ -109,6 +109,9 @@ std::optional<PublishedObject> DefaultPublishedObject(
   object.metadata.status = MoqtObjectStatus::kNormal;
   object.metadata.publisher_priority = publisher_priority;
   object.metadata.extensions = "extensions";
+  object.metadata.first_object_in_subgroup =
+      subgroup.has_value() ? std::optional<bool>(location.object == 0)
+                           : std::nullopt;
   object.metadata.payload_length = 8;
   object.payload.push_back(quiche::QuicheMemSlice::Copy("deadbeef"));
   return object;
@@ -344,7 +347,7 @@ TEST_F(SubscriptionPublisherTest, UpdatePriorityWithPendingStreams) {
 TEST_F(SubscriptionPublisherTest, UpdatePriorityWithActiveStreams) {
   CreateStream(
       Location(1, 0), 0, 127,
-      {0x11, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x0a});
+      {0x51, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x0a});
   MessageParameters new_params;
   new_params.subscriber_priority = 20;
   EXPECT_CALL(mock_uni_stream_, SetPriority);
