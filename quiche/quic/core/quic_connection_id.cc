@@ -28,14 +28,14 @@ namespace {
 // that they always land in the same hash bucket.
 class QuicConnectionIdHasher {
  public:
-  inline QuicConnectionIdHasher()
+  QuicConnectionIdHasher()
       : QuicConnectionIdHasher(QuicRandom::GetInstance()) {}
 
-  explicit inline QuicConnectionIdHasher(QuicRandom* random) {
+  explicit QuicConnectionIdHasher(QuicRandom* random) {
     random->RandBytes(&sip_hash_key_, sizeof(sip_hash_key_));
   }
 
-  inline size_t Hash(const char* input, size_t input_len) const {
+  size_t Hash(const char* input, size_t input_len) const {
     return static_cast<size_t>(SIPHASH_24(
         sip_hash_key_, reinterpret_cast<const uint8_t*>(input), input_len));
   }

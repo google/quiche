@@ -747,12 +747,12 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
   // not needed for short header packets, but if sent, this function will exit
   // cleanly. It needs to be called twice for coalesced packets (see references
   // to length_of_first_coalesced_packet below for examples of how to do this).
-  inline void ReviseFirstByteByVersion(unsigned char packet_ietf[]) {
+  void ReviseFirstByteByVersion(unsigned char packet_ietf[]) {
     if (version_.UsesV2PacketTypes() && (packet_ietf[0] >= 0x80)) {
       packet_ietf[0] = (packet_ietf[0] + 0x10) | 0xc0;
     }
   }
-  inline void ReviseFirstByteByVersion(PacketFragments& packet_ietf) {
+  void ReviseFirstByteByVersion(PacketFragments& packet_ietf) {
     ReviseFirstByteByVersion(&packet_ietf[0].fragment[0]);
   }
 
