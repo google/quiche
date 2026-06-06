@@ -199,7 +199,7 @@ void BalsaHeaders::ParseTokenList(absl::string_view header_value,
     // found. marked.
     const char* nws = start;
 
-    // search for next whitspace or separator char.
+    // search for next whitespace or separator char.
     while (*start != ',' && static_cast<unsigned char>(*start) > ' ') {
       ++start;
       if (start == end) {
@@ -231,6 +231,7 @@ void BalsaHeaders::Clear() {
   whitespace_4_idx_ = 0;
   header_lines_.clear();
   header_lines_.shrink_to_fit();
+  header_lines_removed_ = 0;
 }
 
 void BalsaHeaders::CopyFrom(const BalsaHeaders& other) {
@@ -253,6 +254,7 @@ void BalsaHeaders::CopyFrom(const BalsaHeaders& other) {
   non_whitespace_3_idx_ = other.non_whitespace_3_idx_;
   whitespace_4_idx_ = other.whitespace_4_idx_;
   header_lines_ = other.header_lines_;
+  header_lines_removed_ = other.header_lines_removed_;
 }
 
 void BalsaHeaders::AddAndMakeDescription(absl::string_view key,
@@ -341,6 +343,7 @@ void BalsaHeaders::RemoveAllOfHeaderStartingAt(absl::string_view key,
   MaybeClearSpecialHeaderValues(key);
   while (start != header_lines_.end()) {
     start->skip = true;
+    ++header_lines_removed_;
     ++start;
     start = GetHeaderLinesIterator(key, start);
   }
@@ -386,6 +389,7 @@ void BalsaHeaders::AppendToHeader(absl::string_view key,
 
   // Invalidate the old header line and add the new one.
   i->skip = true;
+  ++header_lines_removed_;
   header_lines_.push_back(hld);
 }
 
@@ -407,6 +411,7 @@ void BalsaHeaders::AppendToHeaderWithCommaAndSpace(absl::string_view key,
 
   // Invalidate the old header line and add the new one.
   i->skip = true;
+  ++header_lines_removed_;
   header_lines_.push_back(hld);
 }
 
@@ -644,6 +649,7 @@ void BalsaHeaders::RemoveAllOfHeaderInList(const HeaderTokenList& keys) {
     std::string lowercase_key = absl::AsciiStrToLower(key);
     if (lowercase_keys.count(lowercase_key) != 0) {
       line.skip = true;
+      ++header_lines_removed_;
     }
   }
 }
@@ -672,6 +678,7 @@ void BalsaHeaders::RemoveAllHeadersWithPrefix(absl::string_view prefix) {
           GetPtr(line.buffer_base_idx) + line.first_char_idx, key_len);
       MaybeClearSpecialHeaderValues(current_key);
       line.skip = true;
+      ++header_lines_removed_;
     }
   }
 }
@@ -691,6 +698,7 @@ void BalsaHeaders::RemoveHeadersIf(
     const absl::string_view value = GetValueFromHeaderLineDescription(line);
     if (predicate(key, value)) {
       line.skip = true;
+      ++header_lines_removed_;
     }
   }
 }
@@ -792,6 +800,7 @@ size_t BalsaHeaders::RemoveValue(absl::string_view key,
     if (values.size() == needle.size()) {
       if (values == needle) {
         line->skip = true;
+        ++header_lines_removed_;
         removals++;
       }
       continue;
@@ -854,6 +863,7 @@ size_t BalsaHeaders::RemoveValue(absl::string_view key,
     if (insertion <= value_begin) {
       // All values removed.
       line->skip = true;
+      ++header_lines_removed_;
     } else {
       line->last_char_idx = insertion - buf;
     }
@@ -1184,8 +1194,10 @@ void BalsaHeaders::RemoveLastTokenFromHeaderValue(absl::string_view key) {
         << "Attempting to remove a token from an empty header value "
         << "for header \"" << key << "\"";
     header_line->skip = true;  // remove the whole line
+    ++header_lines_removed_;
   } else if (tokens.size() == 1) {
     header_line->skip = true;  // remove the whole line
+    ++header_lines_removed_;
   } else {
     // Shrink the line size and leave the extra data in the buffer.
     absl::string_view new_last_token = tokens[tokens.size() - 2];

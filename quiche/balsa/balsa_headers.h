@@ -464,7 +464,8 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
         non_whitespace_3_idx_(0),
         whitespace_4_idx_(0),
         content_length_status_(BalsaHeadersEnums::NO_CONTENT_LENGTH),
-        transfer_encoding_is_chunked_(false) {}
+        transfer_encoding_is_chunked_(false),
+        header_lines_removed_(0) {}
 
   explicit BalsaHeaders(size_t bufsize)
       : balsa_buffer_(bufsize),
@@ -1014,6 +1015,13 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
 
   bool IsEmpty() const override;
 
+  size_t size() const {
+    if (header_lines_removed_ > header_lines_.size()) {
+      return 0;
+    }
+    return header_lines_.size() - header_lines_removed_;
+  }
+
   // From HeaderApi and ConstHeaderApi.
   absl::string_view Authority() const override;
   void ReplaceOrAppendAuthority(absl::string_view value) override;
@@ -1185,6 +1193,13 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
   // If true, QUICHE_BUG if a header that starts with an invalid prefix is
   // explicitly set.
   bool enforce_header_policy_ = true;
+
+  // Track number of header lines removed for correctness of the size() method.
+  // We cannot just return header_lines_.size() because that would include the
+  // removed lines (which are marked as "skip"). We also cannot easily just
+  // track the total number of lines as they are added/removed, because those
+  // are originally added by the framer.
+  size_t header_lines_removed_;
 };
 
 // Base class for iterating the headers in a BalsaHeaders object, returning a

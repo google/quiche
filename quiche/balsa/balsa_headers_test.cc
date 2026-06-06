@@ -421,6 +421,23 @@ TEST(BalsaHeaders, CanAssignEndToIterator) {
   }
 }
 
+TEST(BalsaHeaders, Size) {
+  BalsaHeaders header;
+  EXPECT_EQ(header.size(), 0);
+
+  header.AppendHeader("key_1", "value_1");
+  EXPECT_EQ(header.size(), 1);
+
+  header.AppendHeader("key_2", "value_2");
+  EXPECT_EQ(header.size(), 2);
+
+  header.RemoveAllOfHeader("key_1");
+  EXPECT_EQ(header.size(), 1);
+
+  header.Clear();
+  EXPECT_EQ(header.size(), 0);
+}
+
 TEST(BalsaHeaders, ReplaceOrAppendHeaderTestAppending) {
   BalsaHeaders header;
   std::string key_1 = "key_1";
