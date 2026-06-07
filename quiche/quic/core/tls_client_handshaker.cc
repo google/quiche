@@ -215,7 +215,7 @@ bool TlsClientHandshaker::PrepareZeroRttConfig(
           /*is_resumption = */ true, &error_details) != QUIC_NO_ERROR) {
     QUIC_BUG(quic_bug_10576_2)
         << "Unable to parse cached transport parameters.";
-    CloseConnection(QUIC_HANDSHAKE_FAILED,
+    CloseConnection(QUIC_HANDSHAKE_FAILED, TRANSPORT_PARAMETER_ERROR,
                     "Client failed to parse cached Transport Parameters.");
     return false;
   }
@@ -593,7 +593,8 @@ void TlsClientHandshaker::FinishHandshake() {
   std::string error_details;
   if (!ProcessTransportParameters(&error_details)) {
     QUICHE_DCHECK(!error_details.empty());
-    CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
+    CloseConnection(QUIC_HANDSHAKE_FAILED, TRANSPORT_PARAMETER_ERROR,
+                    error_details);
     return;
   }
 

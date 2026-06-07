@@ -1127,6 +1127,81 @@ TEST_P(TransportParametersTest, ServerCannotSendDebuggingSni) {
       "debugging_sni");
 }
 
+TEST_P(TransportParametersTest, InvalidMaxStreamsBidiOrUni) {
+  {
+    TransportParameters params;
+    std::string error_details;
+    params.perspective = Perspective::IS_CLIENT;
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
+
+    params.initial_max_streams_bidi.set_value(1ULL << 60);
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
+
+    params.initial_max_streams_bidi.set_value((1ULL << 60) + 1);
+    EXPECT_FALSE(params.AreValid(&error_details));
+    EXPECT_EQ(error_details,
+              "Invalid transport parameters [Client initial_max_streams_bidi "
+              "1152921504606846977 (Invalid)]");
+  }
+  {
+    TransportParameters params;
+    std::string error_details;
+    params.perspective = Perspective::IS_CLIENT;
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
+
+    params.initial_max_streams_uni.set_value(1ULL << 60);
+    EXPECT_TRUE(params.AreValid(&error_details));
+    EXPECT_TRUE(error_details.empty());
+
+    params.initial_max_streams_uni.set_value((1ULL << 60) + 1);
+    EXPECT_FALSE(params.AreValid(&error_details));
+    EXPECT_EQ(error_details,
+              "Invalid transport parameters [Client initial_max_streams_uni "
+              "1152921504606846977 (Invalid)]");
+  }
+}
+
+TEST_P(TransportParametersTest, ParseClientParamsFailsWithInvalidInitialMaxStreamsBidi) {
+  // initial_max_streams_bidi parameter ID is 0x08.
+  // 1ULL << 60 + 1 is 1152921504606846977 (0x1000000000000001).
+  // In varint62, it is represented as 8 bytes: 0xD0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01.
+  const uint8_t kClientParams[] = {
+      0x08,  // parameter id
+      0x08,  // length
+      0xd0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,  // value (2^60 + 1)
+  };
+  TransportParameters out_params;
+  std::string error_details;
+  EXPECT_FALSE(ParseTransportParameters(GetParam(), Perspective::IS_CLIENT,
+                                        kClientParams, sizeof(kClientParams),
+                                        &out_params, &error_details));
+  EXPECT_EQ(error_details,
+            "Invalid transport parameters [Client initial_max_streams_bidi "
+            "1152921504606846977 (Invalid)]");
+}
+
+TEST_P(TransportParametersTest, ParseClientParamsFailsWithInvalidInitialMaxStreamsUni) {
+  // initial_max_streams_uni parameter ID is 0x09.
+  // 1ULL << 60 + 1 is 1152921504606846977 (0x1000000000000001).
+  // In varint62, it is represented as 8 bytes: 0xD0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01.
+  const uint8_t kClientParams[] = {
+      0x09,  // parameter id
+      0x08,  // length
+      0xd0, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,  // value (2^60 + 1)
+  };
+  TransportParameters out_params;
+  std::string error_details;
+  EXPECT_FALSE(ParseTransportParameters(GetParam(), Perspective::IS_CLIENT,
+                                        kClientParams, sizeof(kClientParams),
+                                        &out_params, &error_details));
+  EXPECT_EQ(error_details,
+            "Invalid transport parameters [Client initial_max_streams_uni "
+            "1152921504606846977 (Invalid)]");
+}
+
 class TransportParametersTicketSerializationTest : public QuicTest {
  protected:
   void SetUp() override {

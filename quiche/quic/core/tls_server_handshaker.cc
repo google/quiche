@@ -997,7 +997,8 @@ ssl_select_cert_result_t TlsServerHandshaker::EarlySelectCertCallback(
     // No need to set_extra_error_details() - error_details already contains
     // enough information to indicate this is an error from
     // ProcessTransportParameters.
-    CloseConnection(QUIC_HANDSHAKE_FAILED, error_details);
+    CloseConnection(QUIC_HANDSHAKE_FAILED, TRANSPORT_PARAMETER_ERROR,
+                    error_details);
     return ssl_select_cert_error;
   }
   OverrideQuicConfigDefaults(session()->config());

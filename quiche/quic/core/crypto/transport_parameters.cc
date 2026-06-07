@@ -119,6 +119,8 @@ constexpr uint64_t kMaxMaxAckDelayTransportParam = 16383;
 constexpr uint64_t kDefaultMaxAckDelayTransportParam = 25;
 constexpr uint64_t kMinActiveConnectionIdLimitTransportParam = 2;
 constexpr uint64_t kDefaultActiveConnectionIdLimitTransportParam = 2;
+constexpr uint64_t kMaxInitialMaxStreamsLimit = 1ULL << 60;
+
 
 std::string TransportParameterIdToString(
     TransportParameters::TransportParameterId param_id) {
@@ -512,8 +514,10 @@ TransportParameters::TransportParameters()
       initial_max_stream_data_bidi_local(kInitialMaxStreamDataBidiLocal),
       initial_max_stream_data_bidi_remote(kInitialMaxStreamDataBidiRemote),
       initial_max_stream_data_uni(kInitialMaxStreamDataUni),
-      initial_max_streams_bidi(kInitialMaxStreamsBidi),
-      initial_max_streams_uni(kInitialMaxStreamsUni),
+      initial_max_streams_bidi(kInitialMaxStreamsBidi, 0, 0,
+                               kMaxInitialMaxStreamsLimit),
+      initial_max_streams_uni(kInitialMaxStreamsUni, 0, 0,
+                              kMaxInitialMaxStreamsLimit),
       ack_delay_exponent(kAckDelayExponent,
                          kDefaultAckDelayExponentTransportParam, 0,
                          kMaxAckDelayExponentTransportParam),
