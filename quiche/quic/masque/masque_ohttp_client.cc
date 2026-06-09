@@ -914,11 +914,16 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
     }
   });
   if (!response.ok()) {
-    if (it->second.per_request_config.expected_gateway_error().has_value() &&
-        absl::StrContains(
-            response.status().message(),
-            *it->second.per_request_config.expected_gateway_error())) {
-      return absl::OkStatus();
+    if (it->second.per_request_config.expected_gateway_error().has_value()) {
+      std::string expected_errors =
+          *it->second.per_request_config.expected_gateway_error();
+      std::vector<absl::string_view> expected_error_parts =
+          absl::StrSplit(expected_errors, '|');
+      for (const absl::string_view expected_error : expected_error_parts) {
+        if (absl::StrContains(response.status().message(), expected_error)) {
+          return absl::OkStatus();
+        }
+      }
     }
     return response.status();
   }
