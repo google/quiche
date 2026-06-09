@@ -1761,7 +1761,8 @@
     "quiche/quic/qbone/qbone_packet_writer.h",
     "quiche/quic/qbone/qbone_server_session.h",
     "quiche/quic/qbone/qbone_session_base.h",
-    "quiche/quic/qbone/qbone_stream.h"
+    "quiche/quic/qbone/qbone_stream.h",
+    "quiche/quic/qbone/test_tools/basic_quic_server.h"
   ],
   "qbone_srcs": [
     "quiche/quic/qbone/bonnet/icmp_reachable.cc",
@@ -1798,7 +1799,8 @@
     "quiche/quic/qbone/qbone_session_base.cc",
     "quiche/quic/qbone/qbone_session_test.cc",
     "quiche/quic/qbone/qbone_stream.cc",
-    "quiche/quic/qbone/qbone_stream_test.cc"
+    "quiche/quic/qbone/qbone_stream_test.cc",
+    "quiche/quic/qbone/test_tools/basic_quic_server.cc"
   ],
   "blind_sign_auth_hdrs": [
     "quiche/blind_sign_auth/blind_sign_auth.h",
