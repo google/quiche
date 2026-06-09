@@ -16,7 +16,7 @@ syntax = "proto3";
 
 package privacy.ppn;
 
-import "quiche/blind_sign_auth/proto/any.proto";
+import "google/protobuf/any.proto";
 
 option java_multiple_files = true;
 option java_outer_classname = "AttestationProto";
@@ -117,5 +117,5 @@ message IosAttestationData {
 }
 
 message AttestationData {
-  quiche.protobuf.Any attestation_data = 1;
+  google.protobuf.Any attestation_data = 1;
 }

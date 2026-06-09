@@ -53,7 +53,7 @@ constexpr size_t kExpectedExtensionTypesSize = 5;
 constexpr std::array<const uint16_t, kExpectedExtensionTypesSize>
     kExpectedExtensionTypes = {0x0001, 0x0002, 0xF001, 0xF002, 0xF003};
 
-using quiche::protobuf::Any;
+using google::protobuf::Any;
 using privacy::ppn::AndroidAttestationData;
 using privacy::ppn::AttestAndSignRequest;
 using privacy::ppn::AttestAndSignResponse;
