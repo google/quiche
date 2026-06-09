@@ -9072,7 +9072,10 @@ TEST_P(EndToEndTest, ServerPaddingRequestedServerEnabled) {
   const QuicCryptoClientStream* client_crypto_stream =
       static_cast<const QuicCryptoClientStream*>(
           GetClientSession()->GetCryptoStream());
+
+#if BORINGSSL_API_VERSION >= 41
   EXPECT_TRUE(client_crypto_stream->ServerPaddingSentForTesting());
+#endif
 
   client_->Disconnect();
 }
