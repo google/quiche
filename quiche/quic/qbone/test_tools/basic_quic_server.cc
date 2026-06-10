@@ -277,7 +277,6 @@ class BasicQuicServer::ServerThread : public QuicheThread {
     QUICHE_CHECK(!running_notification_.HasBeenNotified() ||
                  shutdown_notification_.HasBeenNotified());
     QUICHE_CHECK(!dispatcher_);
-    QUICHE_CHECK(!event_loop_);
   }
 
   void Run() override {
