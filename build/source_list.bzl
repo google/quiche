@@ -1759,6 +1759,7 @@ qbone_hdrs = [
     "quic/qbone/qbone_session_base.h",
     "quic/qbone/qbone_stream.h",
     "quic/qbone/test_tools/basic_quic_server.h",
+    "quic/qbone/test_tools/qbone_basic_quic_server_handler.h",
 ]
 qbone_srcs = [
     "quic/qbone/bonnet/icmp_reachable.cc",
@@ -1797,6 +1798,7 @@ qbone_srcs = [
     "quic/qbone/qbone_stream.cc",
     "quic/qbone/qbone_stream_test.cc",
     "quic/qbone/test_tools/basic_quic_server.cc",
+    "quic/qbone/test_tools/qbone_basic_quic_server_handler.cc",
 ]
 blind_sign_auth_hdrs = [
     "blind_sign_auth/blind_sign_auth.h",
