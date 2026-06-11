@@ -7,6 +7,7 @@
 #include "quiche/http2/adapter/mock_http2_visitor.h"
 #include "quiche/http2/adapter/test_frame_sequence.h"
 #include "quiche/http2/adapter/test_utils.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
