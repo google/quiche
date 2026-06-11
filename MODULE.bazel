@@ -53,7 +53,7 @@ http_archive(
 
 http_archive(
     name = "com_google_anonymous_tokens",
-    sha256 = "60fc9e1d7c9250c0b87d2d5aa1e78bbe34f6f839c8ae954a02adff2338967957",  # Last updated 2026-03-27
-    strip_prefix = "anonymous-tokens-e31089547b3d14a8a441bb58df086b171ebc915e",
-    urls = ["https://github.com/google/anonymous-tokens/archive/e31089547b3d14a8a441bb58df086b171ebc915e.tar.gz"],
+    sha256 = "ffe594eec0b8cf0bfc01330886507d4a2b7d879768485ba1a1e72a213099dfda",  # Last updated 2026-06-11
+    strip_prefix = "anonymous-tokens-f5499d91ee1b8ab56b6d110e8e9a0d94c0a6eca7",
+    urls = ["https://github.com/google/anonymous-tokens/archive/f5499d91ee1b8ab56b6d110e8e9a0d94c0a6eca7.tar.gz"],
 )
