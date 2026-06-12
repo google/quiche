@@ -30,6 +30,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, handle_gzip_response, false,
                                 "inner request and decompresses "
                                 "gzip-encoded inner responses.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, send_requests_in_parallel, false,
+                                "If true, sends all OHTTP requests in "
+                                "parallel, otherwise send them sequentially.");
+
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, use_mtls_for_key_fetch, false,
     "If true, use mTLS when fetching the OHTTP/HPKE keys.");
@@ -133,6 +137,8 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
       quiche::GetQuicheCommandLineFlag(FLAGS_disable_certificate_verification);
   const bool handle_gzip_response =
       quiche::GetQuicheCommandLineFlag(FLAGS_handle_gzip_response);
+  const bool send_requests_in_parallel =
+      quiche::GetQuicheCommandLineFlag(FLAGS_send_requests_in_parallel);
   const bool use_mtls_for_key_fetch =
       quiche::GetQuicheCommandLineFlag(FLAGS_use_mtls_for_key_fetch);
   const std::string client_cert_file =
@@ -214,6 +220,7 @@ absl::Status RunMasqueOhttpClient(int argc, char* argv[]) {
   MasqueOhttpClient::Config config(/*key_fetch_url=*/urls[0],
                                    /*relay_url=*/urls[1]);
   config.SetHandleGzipResponse(handle_gzip_response);
+  config.SetSendRequestsInParallel(send_requests_in_parallel);
   if (use_mtls_for_key_fetch) {
     QUICHE_RETURN_IF_ERROR(config.ConfigureKeyFetchClientCert(
         client_cert_file, client_cert_key_file));

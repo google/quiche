@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_MASQUE_MASQUE_OHTTP_CLIENT_H_
 
 #include <functional>
+#include <list>
 #include <memory>
 #include <optional>
 #include <string>
@@ -191,6 +192,9 @@ class QUICHE_EXPORT MasqueOhttpClient
     void SetHandleGzipResponse(bool handle_gzip_response) {
       handle_gzip_response_ = handle_gzip_response;
     }
+    void SetSendRequestsInParallel(bool send_requests_in_parallel) {
+      send_requests_in_parallel_ = send_requests_in_parallel;
+    }
     absl::Status AddKeyFetchHeaders(
         const std::vector<std::string>& key_fetch_headers);
     void AddPerRequestConfig(const PerRequestConfig& per_request_config) {
@@ -215,6 +219,9 @@ class QUICHE_EXPORT MasqueOhttpClient
       return key_fetch_headers_;
     }
     bool handle_gzip_response() const { return handle_gzip_response_; }
+    bool send_requests_in_parallel() const {
+      return send_requests_in_parallel_;
+    }
     bool skip_ohttp() const;
 
    private:
@@ -227,6 +234,7 @@ class QUICHE_EXPORT MasqueOhttpClient
     std::vector<std::pair<std::string, std::string>> key_fetch_headers_;
     std::vector<PerRequestConfig> per_request_configs_;
     bool handle_gzip_response_ = false;
+    bool send_requests_in_parallel_ = false;
   };
 
   struct RunDetails {
@@ -295,6 +303,8 @@ class QUICHE_EXPORT MasqueOhttpClient
 
   static absl::StatusOr<RunDetails> RunInner(Config config,
                                              absl::string_view info_string);
+
+  void MaybeStartNextRequest();
 
   class QUICHE_NO_EXPORT ChunkHandler
       : public quiche::ObliviousHttpChunkHandler,
@@ -418,6 +428,7 @@ class QUICHE_EXPORT MasqueOhttpClient
   absl::flat_hash_map<RequestId, PendingRequest> pending_ohttp_requests_;
   ResponseVisitor* response_visitor_ = nullptr;
   RunDetails run_details_;
+  std::list<size_t> unstarted_requests_;
 };
 }  // namespace quic
 

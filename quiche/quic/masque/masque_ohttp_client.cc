@@ -476,7 +476,7 @@ bool MasqueOhttpClient::IsDone() {
     // Key fetch request is still pending.
     return false;
   }
-  return pending_ohttp_requests_.empty();
+  return unstarted_requests_.empty() && pending_ohttp_requests_.empty();
 }
 
 void MasqueOhttpClient::Abort(absl::Status status) {
@@ -664,10 +664,29 @@ absl::Status MasqueOhttpClient::HandleKeyData(const std::string& key_data) {
   }
   ohttp_client_.emplace(std::move(*ohttp_client));
 
-  for (const auto& per_request_config : config_.per_request_configs()) {
-    QUICHE_RETURN_IF_ERROR(SendOhttpRequest(per_request_config));
+  bool first_request = true;
+  for (size_t i = 0; i < config_.per_request_configs().size(); ++i) {
+    if (first_request || config_.send_requests_in_parallel()) {
+      QUICHE_RETURN_IF_ERROR(
+          SendOhttpRequest(config_.per_request_configs()[i]));
+      first_request = false;
+    } else {
+      unstarted_requests_.push_back(i);
+    }
   }
   return absl::OkStatus();
+}
+
+void MasqueOhttpClient::MaybeStartNextRequest() {
+  if (unstarted_requests_.empty()) {
+    return;
+  }
+  absl::Status status = SendOhttpRequest(
+      config_.per_request_configs()[unstarted_requests_.front()]);
+  unstarted_requests_.pop_front();
+  if (!status.ok()) {
+    Abort(status);
+  }
 }
 
 absl::Status MasqueOhttpClient::SendOhttpRequest(
@@ -925,6 +944,7 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
   auto cleanup = absl::MakeCleanup([this, it, end_stream]() {
     if (end_stream) {
       pending_ohttp_requests_.erase(it);
+      MaybeStartNextRequest();
     }
   });
   if (!response.ok()) {
@@ -1103,6 +1123,7 @@ void MasqueOhttpClient::OnPoolData(MasqueConnectionPool* /*pool*/,
   auto cleanup = absl::MakeCleanup([this, it, end_stream]() {
     if (end_stream) {
       pending_ohttp_requests_.erase(it);
+      MaybeStartNextRequest();
     }
   });
 
