@@ -86,10 +86,14 @@ TEST(InMemoryStreamTest, Peek) {
 
 TEST(InMemoryStreamTest, InMemoryStreamWithMockWrite) {
   InMemoryStreamWithMockWrite stream(0);
+  EXPECT_CALL(stream, GetWriteStatus(false))
+      .WillOnce(testing::Return(absl::OkStatus()));
   EXPECT_TRUE(stream.CanWrite());
 
   std::array write_vector = {quiche::QuicheMemSlice::Copy("test")};
   EXPECT_CALL(stream, OnWrite("test"));
+  EXPECT_CALL(stream, GetWriteStatus(true))
+      .WillOnce(testing::Return(absl::OkStatus()));
   StreamWriteOptions options;
   QUICHE_EXPECT_OK(stream.Writev(absl::MakeSpan(write_vector), options));
   EXPECT_FALSE(stream.fin_sent());
@@ -102,6 +106,8 @@ TEST(InMemoryStreamTest, InMemoryStreamWithMockWrite) {
     EXPECT_CALL(stream, OnWrite("test2"));
     EXPECT_CALL(stream, OnFin());
   }
+  EXPECT_CALL(stream, GetWriteStatus(true))
+      .WillOnce(testing::Return(absl::OkStatus()));
   QUICHE_EXPECT_OK(stream.Writev(absl::MakeSpan(write_vector), options));
   EXPECT_TRUE(stream.fin_sent());
   EXPECT_FALSE(stream.CanWrite());

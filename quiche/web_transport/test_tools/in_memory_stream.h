@@ -40,7 +40,7 @@ class QUICHE_NO_EXPORT InMemoryStream : public Stream {
   absl::Status Writev(absl::Span<quiche::QuicheMemSlice> data,
                       const StreamWriteOptions& options) override;
   bool CanWrite() const override {
-    return GetWriteStatusWithExtraChecks().ok();
+    return GetWriteStatusWithExtraChecks(/*is_write=*/false).ok();
   }
 
   // webtransport::Stream implementation.
@@ -81,11 +81,11 @@ class QUICHE_NO_EXPORT InMemoryStream : public Stream {
  protected:
   virtual void OnWrite(absl::string_view data) {}
   virtual void OnFin() {}
-  virtual absl::Status GetWriteStatus() const;
+  virtual absl::Status GetWriteStatus(bool is_write) const;
 
  private:
   void Terminate();
-  absl::Status GetWriteStatusWithExtraChecks() const;
+  absl::Status GetWriteStatusWithExtraChecks(bool is_write) const;
 
   StreamId id_;
   std::unique_ptr<StreamVisitor> visitor_;
@@ -105,7 +105,7 @@ class QUICHE_NO_EXPORT InMemoryStreamWithMockWrite : public InMemoryStream {
 
   MOCK_METHOD(void, OnWrite, (absl::string_view data), (override));
   MOCK_METHOD(void, OnFin, (), (override));
-  MOCK_METHOD(absl::Status, GetWriteStatus, (), (const, override));
+  MOCK_METHOD(absl::Status, GetWriteStatus, (bool is_write), (const, override));
 };
 
 // An InMemoryStream where all writes are stored into a buffer.
@@ -114,7 +114,9 @@ class QUICHE_NO_EXPORT InMemoryStreamWithWriteBuffer : public InMemoryStream {
   using InMemoryStream::InMemoryStream;
 
   void OnWrite(absl::string_view data) { write_buffer_.append(data); }
-  absl::Status GetWriteStatus() const { return absl::OkStatus(); }
+  absl::Status GetWriteStatus(bool is_write) const override {
+    return absl::OkStatus();
+  }
 
   std::string& write_buffer() { return write_buffer_; }
 

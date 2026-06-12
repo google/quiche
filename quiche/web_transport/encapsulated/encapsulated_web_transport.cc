@@ -18,9 +18,11 @@
 #include <utility>
 #include <vector>
 
+#include "absl/container/inlined_vector.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
@@ -32,9 +34,9 @@
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_circular_deque.h"
+#include "quiche/common/quiche_cord_utils.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_status_utils.h"
-#include "quiche/common/vectorized_io_utils.h"
 #include "quiche/web_transport/stream_helpers.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -325,8 +327,9 @@ void EncapsulatedSession::OnCanWrite() {
       OnFatalError("Next scheduled stream is not in the map");
       return;
     }
-    QUICHE_DCHECK(it->second.HasPendingWrite());
-    it->second.FlushPendingWrite();
+    auto& [id, stream] = *it;
+    QUICHE_DCHECK(stream.HasDataToWrite());
+    stream.FlushWriteBuffer(/*notify_visitor=*/true);
   }
 }
 
@@ -607,13 +610,6 @@ bool EncapsulatedSession::InnerStream::SkipBytes(size_t bytes) {
 absl::Status EncapsulatedSession::InnerStream::Writev(
     const absl::Span<quiche::QuicheMemSlice> data,
     const StreamWriteOptions& options) {
-  // TODO: support zero copy.
-  std::vector<absl::string_view> views;
-  views.reserve(data.size());
-  for (const quiche::QuicheMemSlice& slice : data) {
-    views.push_back(slice.AsStringView());
-  }
-
   if (write_side_closed_) {
     return absl::FailedPreconditionError(
         "Trying to write into an already-closed stream");
@@ -626,6 +622,10 @@ absl::Status EncapsulatedSession::InnerStream::Writev(
         "Trying to write into a stream when CanWrite() = false");
   }
 
+  const bool has_preexisting_buffered_data = !write_buffer_.empty();
+  write_buffer_.Append(quiche::MemSliceSpanToCord(data));
+  fin_buffered_ = options.send_fin();
+
   const absl::StatusOr<bool> should_yield =
       session_->scheduler_.ShouldYield(id_);
   if (!should_yield.ok()) {
@@ -634,12 +634,8 @@ absl::Status EncapsulatedSession::InnerStream::Writev(
     return absl::InternalError("Stream not registered with the scheduler");
   }
   const bool write_blocked = !session_->underlying_->CanWrite() ||
-                             *should_yield || !pending_write_.empty();
+                             *should_yield || has_preexisting_buffered_data;
   if (write_blocked) {
-    fin_buffered_ = options.send_fin();
-    for (absl::string_view chunk : views) {
-      absl::StrAppend(&pending_write_, chunk);
-    }
     absl::Status status = session_->scheduler_.Schedule(id_);
     if (!status.ok()) {
       QUICHE_BUG(WT_H2_Writev_CantSchedule) << status;
@@ -649,72 +645,50 @@ absl::Status EncapsulatedSession::InnerStream::Writev(
     return absl::OkStatus();
   }
 
-  size_t bytes_written = WriteInner(views, options.send_fin());
-  // TODO: handle partial writes when flow control requires those.
-  QUICHE_DCHECK(bytes_written == 0 ||
-                bytes_written == quiche::TotalStringViewSpanSize(views));
-  if (bytes_written == 0) {
-    for (absl::string_view chunk : views) {
-      absl::StrAppend(&pending_write_, chunk);
-    }
-  }
-
-  if (options.send_fin()) {
-    CloseWriteSide(std::nullopt);
-  }
+  FlushWriteBuffer(/*notify_visitor=*/false);
   return absl::OkStatus();
 }
 
 bool EncapsulatedSession::InnerStream::CanWrite() const {
   return session_->state_ != EncapsulatedSession::kSessionClosed &&
          !write_side_closed_ &&
-         (pending_write_.size() <= session_->max_stream_data_buffered_);
+         (write_buffer_.size() <= session_->max_stream_data_buffered_);
 }
 
-void EncapsulatedSession::InnerStream::FlushPendingWrite() {
+void EncapsulatedSession::InnerStream::FlushWriteBuffer(bool notify_visitor) {
   QUICHE_DCHECK(!write_side_closed_);
   QUICHE_DCHECK(session_->underlying_->CanWrite());
-  QUICHE_DCHECK(!pending_write_.empty());
-  absl::string_view to_write = pending_write_;
-  size_t bytes_written =
-      WriteInner(absl::MakeSpan(&to_write, 1), fin_buffered_);
-  if (bytes_written < to_write.size()) {
-    pending_write_ = pending_write_.substr(bytes_written);
+  const size_t bytes_to_write = write_buffer_.size();
+  // TODO(vasilvv): adjust this value so that it does not exceed the flow
+  // control limit.
+  const bool fin = fin_buffered_ && (bytes_to_write == write_buffer_.size());
+
+  if (bytes_to_write == 0 && !fin) {
+    // Nothing to write.
     return;
   }
-  pending_write_.clear();
-  if (fin_buffered_) {
-    CloseWriteSide(std::nullopt);
-  }
-  if (!write_side_closed_ && visitor_ != nullptr) {
-    visitor_->OnCanWrite();
-  }
-}
 
-size_t EncapsulatedSession::InnerStream::WriteInner(
-    absl::Span<const absl::string_view> data, bool fin) {
-  size_t total_size = quiche::TotalStringViewSpanSize(data);
-  if (total_size == 0 && !fin) {
-    session_->OnFatalError("Attempted to make an empty write with fin=false");
-    return 0;
-  }
   quiche::QuicheBuffer header =
-      quiche::SerializeWebTransportStreamCapsuleHeader(id_, fin, total_size,
+      quiche::SerializeWebTransportStreamCapsuleHeader(id_, fin, bytes_to_write,
                                                        session_->allocator_);
-  std::vector<quiche::QuicheMemSlice> views_to_write;
-  views_to_write.reserve(data.size() + 1);
-  views_to_write.push_back(quiche::QuicheMemSlice(std::move(header)));
-  for (absl::string_view view : data) {
-    // TODO: support zero copy.
-    views_to_write.push_back(quiche::QuicheMemSlice::Copy(view));
-  }
+  absl::InlinedVector<quiche::QuicheMemSlice, 8> slices;
+  slices.push_back(quiche::QuicheMemSlice(std::move(header)));
+  quiche::CordToMemSlicesTo(write_buffer_.Subcord(0, bytes_to_write), slices);
   absl::Status write_status = session_->underlying_->Writev(
-      absl::MakeSpan(views_to_write), kDefaultStreamWriteOptions);
+      absl::MakeSpan(slices), kDefaultStreamWriteOptions);
   if (!write_status.ok()) {
     session_->OnWriteError(write_status);
-    return 0;
+    return;
   }
-  return total_size;
+  write_buffer_.RemovePrefix(bytes_to_write);
+
+  if (fin) {
+    CloseWriteSide(std::nullopt);
+  }
+  if (notify_visitor && !write_side_closed_ && visitor_ != nullptr &&
+      CanWrite()) {
+    visitor_->OnCanWrite();
+  }
 }
 
 void EncapsulatedSession::InnerStream::ResetWithUserCode(
@@ -761,7 +735,7 @@ void EncapsulatedSession::InnerStream::CloseWriteSide(
     return;
   }
   write_side_closed_ = true;
-  pending_write_.clear();
+  write_buffer_.Clear();
   absl::Status status = session_->scheduler_.Unregister(id_);
   if (!status.ok()) {
     session_->OnFatalError("Failed to unregister closed stream");

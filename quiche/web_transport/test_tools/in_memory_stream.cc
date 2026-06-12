@@ -60,7 +60,7 @@ bool InMemoryStream::SkipBytes(size_t bytes) {
 absl::Status InMemoryStream::Writev(
     absl::Span<quiche::QuicheMemSlice> data,
     const webtransport::StreamWriteOptions& options) {
-  absl::Status status = GetWriteStatusWithExtraChecks();
+  absl::Status status = GetWriteStatusWithExtraChecks(/*is_write=*/true);
   if (!status.ok()) {
     return status;
   }
@@ -93,17 +93,18 @@ void InMemoryStream::Terminate() {
   fin_received_ = false;
 }
 
-absl::Status InMemoryStream::GetWriteStatus() const {
+absl::Status InMemoryStream::GetWriteStatus(bool /*is_write*/) const {
   return absl::UnimplementedError(
       "Writing not implemented; use InMemoryStreamWithMockWrite");
 }
 
-absl::Status InMemoryStream::GetWriteStatusWithExtraChecks() const {
+absl::Status InMemoryStream::GetWriteStatusWithExtraChecks(
+    bool is_write) const {
   if (fin_sent_) {
     return absl::FailedPreconditionError(
         "Can't write on a stream with FIN sent.");
   }
-  return GetWriteStatus();
+  return GetWriteStatus(is_write);
 }
 
 InMemoryStreamWithMockWrite::InMemoryStreamWithMockWrite(StreamId id)

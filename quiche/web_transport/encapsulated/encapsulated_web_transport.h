@@ -16,6 +16,7 @@
 #include "absl/base/attributes.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/status/status.h"
+#include "absl/strings/cord.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
@@ -173,8 +174,10 @@ class QUICHE_EXPORT EncapsulatedSession
       return read_side_closed_ && write_side_closed_;
     }
 
-    bool HasPendingWrite() const { return !pending_write_.empty(); }
-    void FlushPendingWrite();
+    bool HasDataToWrite() const {
+      return !write_buffer_.empty() || fin_buffered_;
+    }
+    void FlushWriteBuffer(bool notify_visitor);
 
     void ProcessCapsule(const quiche::Capsule& capsule);
 
@@ -195,15 +198,17 @@ class QUICHE_EXPORT EncapsulatedSession
       size_t size() const { return data.size(); }
     };
 
-    // Tries to send `data`; may send less if limited by flow control.
-    [[nodiscard]] size_t WriteInner(absl::Span<const absl::string_view> data,
-                                    bool fin);
-
     EncapsulatedSession* session_;
     StreamId id_;
     std::unique_ptr<StreamVisitor> visitor_;
     quiche::QuicheCircularDeque<IncomingRead> incoming_reads_;
-    std::string pending_write_;
+
+    // The write buffer for an encapsulated HTTP/2 stream is an absl::Cord
+    // wrapping multiple memslices around.  Due to the flow control limitations,
+    // we cannot always pass memslices to the lower layer as-is, thus we need to
+    // split them by refcounting; absl::Cord does that automatically for us.
+    absl::Cord write_buffer_;
+
     bool read_side_closed_;
     bool write_side_closed_;
     bool reset_frame_sent_ = false;

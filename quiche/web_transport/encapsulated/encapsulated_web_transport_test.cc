@@ -337,6 +337,27 @@ TEST_F(EncapsulatedWebTransportTest, WriteErrorControlCapsule) {
   session->NotifySessionDraining();
 }
 
+TEST_F(EncapsulatedWebTransportTest, WriteErrorStream) {
+  std::unique_ptr<EncapsulatedSession> session =
+      CreateTransport(Perspective::kClient);
+  DefaultHandshakeForClient(*session);
+  Stream* stream = session->OpenOutgoingUnidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+
+  // Let the CanWrite() check succeed, but the actual write fail.
+  EXPECT_CALL(underlying_, GetWriteStatus(/*is_write=*/false))
+      .WillRepeatedly(Return(absl::OkStatus()));
+  EXPECT_CALL(underlying_, GetWriteStatus(/*is_write=*/true))
+      .WillOnce(Return(absl::InternalError("Test write error")));
+  EXPECT_CALL(fatal_error_callback_, Call)
+      .WillOnce([](absl::string_view error) {
+        EXPECT_THAT(error, HasSubstr("Test write error"));
+      });
+  absl::Status status = WriteIntoStream(*stream, "test");
+  QUICHE_EXPECT_OK(status);
+  EXPECT_EQ(session->state(), EncapsulatedSession::kSessionClosed);
+}
+
 TEST_F(EncapsulatedWebTransportTest, SimpleRead) {
   std::unique_ptr<EncapsulatedSession> session =
       CreateTransport(Perspective::kClient);
@@ -573,6 +594,9 @@ TEST_F(EncapsulatedWebTransportTest, SimpleWrite) {
     EXPECT_EQ(capsule.web_transport_stream_data().data, "test");
     return true;
   });
+  auto visitor = std::make_unique<MockStreamVisitor>();
+  EXPECT_CALL(*visitor, OnCanWrite).Times(0);
+  stream->SetVisitor(std::move(visitor));
   absl::Status status = WriteIntoStream(*stream, "test");
   EXPECT_THAT(status, StatusIs(absl::StatusCode::kOk));
 }
@@ -674,6 +698,9 @@ TEST_F(EncapsulatedWebTransportTest, BufferedWriteThenFlush) {
     EXPECT_EQ(capsule.web_transport_stream_data().data, "abcdef");
     return true;
   });
+  auto visitor = std::make_unique<MockStreamVisitor>();
+  EXPECT_CALL(*visitor, OnCanWrite);
+  stream->SetVisitor(std::move(visitor));
   session_->OnCanWrite();
 }
 
