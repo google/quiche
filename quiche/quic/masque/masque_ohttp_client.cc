@@ -411,8 +411,8 @@ MasqueOhttpClient::MasqueOhttpClient(Config config,
 }
 
 // static
-absl::Status MasqueOhttpClient::Run(Config config,
-                                    absl::string_view info_string) {
+absl::StatusOr<MasqueOhttpClient::RunDetails> MasqueOhttpClient::RunInner(
+    Config config, absl::string_view info_string) {
   if (config.per_request_configs().empty()) {
     return absl::InvalidArgumentError("No OHTTP URLs to request");
   }
@@ -435,28 +435,41 @@ absl::Status MasqueOhttpClient::Run(Config config,
     ohttp_client.set_response_visitor(ping_pong_visitor.get());
   }
 
-  QUICHE_RETURN_IF_ERROR(ohttp_client.Start());
+  ohttp_client.Start();
   while (!ohttp_client.IsDone()) {
     if (ping_pong_visitor && ping_pong_visitor->done()) {
-      QUICHE_RETURN_IF_ERROR(ping_pong_visitor->status());
+      if (!ping_pong_visitor->status().ok()) {
+        ohttp_client.Abort(ping_pong_visitor->status());
+      }
       break;
     }
     ohttp_client.connection_pool_.event_loop()->RunEventLoopOnce(
         quic::QuicTime::Delta::FromMilliseconds(50));
   }
-  return ohttp_client.status_;
+  return std::move(ohttp_client.run_details_);
 }
 
-absl::Status MasqueOhttpClient::Start() {
+// static
+MasqueOhttpClient::RunDetails MasqueOhttpClient::Run(
+    Config config, absl::string_view info_string) {
+  absl::StatusOr<MasqueOhttpClient::RunDetails> run_result =
+      RunInner(std::move(config), info_string);
+  if (!run_result.ok()) {
+    RunDetails run_details;
+    run_details.status = run_result.status();
+    return run_details;
+  }
+  return *std::move(run_result);
+}
+
+void MasqueOhttpClient::Start() {
   absl::Status status = StartKeyFetch();
   if (!status.ok()) {
     Abort(status);
-    return status;
   }
-  return absl::OkStatus();
 }
 bool MasqueOhttpClient::IsDone() {
-  if (!status_.ok()) {
+  if (!run_details_.status.ok()) {
     return true;
   }
   if (!config_.skip_ohttp() && !ohttp_client_.has_value()) {
@@ -468,15 +481,15 @@ bool MasqueOhttpClient::IsDone() {
 
 void MasqueOhttpClient::Abort(absl::Status status) {
   QUICHE_CHECK(!status.ok());
-  if (!status_.ok()) {
+  if (!run_details_.status.ok()) {
     QUICHE_LOG(ERROR)
         << ENDPOINT << "MasqueOhttpClient already aborted, ignoring new error: "
         << status.message();
     return;
   }
-  status_ = status;
+  run_details_.status = status;
   QUICHE_LOG(ERROR) << ENDPOINT
-                    << "Aborting MasqueOhttpClient: " << status_.message();
+                    << "Aborting MasqueOhttpClient: " << status.message();
 }
 
 absl::StatusOr<QuicUrl> ParseUrl(const std::string& url_string) {
@@ -592,7 +605,7 @@ absl::Status MasqueOhttpClient::CheckEncapsulatedStatus(
 }
 
 absl::Status MasqueOhttpClient::HandleKeyResponse(
-    const absl::StatusOr<Message>& response) {
+    absl::StatusOr<Message>&& response) {
   key_fetch_request_id_ = std::nullopt;
 
   if (!response.ok()) {
@@ -604,7 +617,8 @@ absl::Status MasqueOhttpClient::HandleKeyResponse(
   QUICHE_RETURN_IF_ERROR(CheckStatusAndContentType(
       *response, "application/ohttp-keys", std::nullopt));
 
-  return HandleKeyData(response->body);
+  run_details_.key_fetch_response = std::move(*response);
+  return HandleKeyData(run_details_.key_fetch_response.body);
 }
 
 absl::Status MasqueOhttpClient::HandleKeyData(const std::string& key_data) {
@@ -902,7 +916,7 @@ absl::StatusOr<Message> MasqueOhttpClient::TryExtractEncapsulatedResponse(
 }
 
 absl::Status MasqueOhttpClient::ProcessOhttpResponse(
-    RequestId request_id, absl::StatusOr<Message>& response, bool end_stream) {
+    RequestId request_id, absl::StatusOr<Message>&& response, bool end_stream) {
   auto it = pending_ohttp_requests_.find(request_id);
   if (it == pending_ohttp_requests_.end()) {
     return absl::InternalError(absl::StrCat(
@@ -927,23 +941,26 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
     }
     return response.status();
   }
+  run_details_.ohttp_responses.push_back(RunDetails::OhttpResponse{});
   if (config_.skip_ohttp()) {
     return ProcessEncapsulatedResponse(request_id, *response,
                                        it->second.per_request_config);
   }
+  run_details_.ohttp_responses.back().gateway_response = std::move(*response);
+  Message& resp = run_details_.ohttp_responses.back().gateway_response;
   std::string content_type =
       it->second.per_request_config.num_ohttp_chunks() > 0
           ? "message/ohttp-chunked-res"
           : "message/ohttp-res";
   std::optional<uint16_t> expected_gateway_status_code =
       it->second.per_request_config.expected_gateway_status_code();
-  absl::Status status = CheckStatusAndContentType(*response, content_type,
+  absl::Status status = CheckStatusAndContentType(resp, content_type,
                                                   expected_gateway_status_code);
   if (!status.ok()) {
-    if (!response->body.empty()) {
+    if (!resp.body.empty()) {
       QUICHE_LOG(ERROR) << ENDPOINT << "Bad " << content_type
                         << " with body:" << std::endl
-                        << response->body;
+                        << resp.body;
     } else {
       QUICHE_LOG(ERROR) << ENDPOINT << "Bad " << content_type
                         << " with empty body";
@@ -970,7 +987,7 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
 
   std::optional<Message> encapsulated_response;
   QUICHE_VLOG(2) << "Received encrypted response body: "
-                 << absl::BytesToHexString(response->body);
+                 << absl::BytesToHexString(resp.body);
   if (it->second.per_request_config.num_ohttp_chunks() > 0) {
     absl::Status decrypt_status = it->second.chunk_handler->DecryptChunk(
         /*encrypted_chunk=*/"", /*end_stream=*/true);
@@ -985,9 +1002,9 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
       return absl::InternalError(
           "Received OHTTP response without OHTTP context");
     }
-    QUICHE_ASSIGN_OR_RETURN(encapsulated_response,
-                            TryExtractEncapsulatedResponse(
-                                request_id, *it->second.context, *response));
+    QUICHE_ASSIGN_OR_RETURN(
+        encapsulated_response,
+        TryExtractEncapsulatedResponse(request_id, *it->second.context, resp));
   }
   QUICHE_LOG(INFO) << ENDPOINT
                    << "Successfully decapsulated response for request ID "
@@ -1002,35 +1019,37 @@ absl::Status MasqueOhttpClient::ProcessOhttpResponse(
 absl::Status MasqueOhttpClient::ProcessEncapsulatedResponse(
     RequestId request_id, Message& response,
     const Config::PerRequestConfig& per_request_config) {
+  run_details_.ohttp_responses.back().encapsulated_response =
+      std::move(response);
+  Message& resp = run_details_.ohttp_responses.back().encapsulated_response;
   if (config_.handle_gzip_response()) {
-    auto content_encoding_it = response.headers.find("content-encoding");
-    if (content_encoding_it != response.headers.end() &&
+    auto content_encoding_it = resp.headers.find("content-encoding");
+    if (content_encoding_it != resp.headers.end() &&
         absl::EqualsIgnoreCase(content_encoding_it->second, "gzip")) {
-      size_t compressed_size = response.body.size();
+      size_t compressed_size = resp.body.size();
       QUICHE_ASSIGN_OR_RETURN(std::string decompressed_body,
-                              GzipDecompress(response.body));
+                              GzipDecompress(resp.body));
       QUICHE_LOG(INFO) << ENDPOINT
                        << "Successfully decompressed gzip response from size "
                        << compressed_size << " to size "
                        << decompressed_body.size();
-      response.body = std::move(decompressed_body);
+      resp.body = std::move(decompressed_body);
     }
   }
-  std::cout << response.body;
-  if (!response.body.empty() &&
-      response.body[response.body.size() - 1] != '\n') {
+  std::cout << resp.body;
+  if (!resp.body.empty() && resp.body[resp.body.size() - 1] != '\n') {
     std::cout << std::endl;
   }
   QUICHE_RETURN_IF_ERROR(CheckEncapsulatedStatus(
-      response, per_request_config.expected_encapsulated_status_code()));
+      resp, per_request_config.expected_encapsulated_status_code()));
   if (const auto& callback =
           per_request_config.encapsulated_response_body_callback();
       callback) {
-    QUICHE_RETURN_IF_ERROR(callback(response.body));
+    QUICHE_RETURN_IF_ERROR(callback(resp.body));
   }
 
   if (response_visitor_) {
-    response_visitor_->OnResponseDone(request_id, response);
+    response_visitor_->OnResponseDone(request_id, resp);
   }
 
   return absl::OkStatus();
@@ -1042,13 +1061,13 @@ void MasqueOhttpClient::OnPoolResponse(MasqueConnectionPool* /*pool*/,
                                        bool end_stream) {
   if (key_fetch_request_id_.has_value() &&
       *key_fetch_request_id_ == request_id) {
-    absl::Status status = HandleKeyResponse(response);
+    absl::Status status = HandleKeyResponse(std::move(response));
     if (!status.ok()) {
       Abort(status);
     }
   } else {
     absl::Status status =
-        ProcessOhttpResponse(request_id, response, end_stream);
+        ProcessOhttpResponse(request_id, std::move(response), end_stream);
     if (!status.ok()) {
       Abort(status);
       if (response_visitor_) {
