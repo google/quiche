@@ -3333,6 +3333,35 @@ TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsClient) {
   EXPECT_EQ(stream_->web_transport()->GetNegotiatedSubprotocol(), "moqt-01");
 }
 
+TEST_P(QuicSpdyStreamTest, DoNotProcessNonWebTransportExtendedConnectAsClient) {
+  if (!IsIetfQuic()) {
+    return;
+  }
+
+  InitializeWithPerspective(kShouldProcessData, Perspective::IS_CLIENT);
+  session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
+  session_->EnableWebTransport();
+  session_->OnSetting(SETTINGS_ENABLE_CONNECT_PROTOCOL, 1);
+  QuicSpdySessionPeer::EnableWebTransport(session_.get());
+  QuicSpdySessionPeer::SetHttpDatagramSupport(session_.get(),
+                                              HttpDatagramSupport::kRfc);
+
+  EXPECT_CALL(*stream_, WriteHeadersMock(false));
+  EXPECT_CALL(*session_, WritevData(stream_->id(), _, _, _, _, _))
+      .Times(AnyNumber());
+
+  // An extended CONNECT whose :protocol is not "webtransport" (e.g. a WebSocket
+  // upgrade) must not be turned into a WebTransport session, even when
+  // WebTransport is negotiated on the connection. Otherwise the stream would
+  // emit WebTransport capsules and treat incoming DATA as capsules rather than
+  // HTTP body.
+  quiche::HttpHeaderBlock request_headers;
+  request_headers[":method"] = "CONNECT";
+  request_headers[":protocol"] = "websocket";
+  stream_->WriteHeaders(std::move(request_headers), /*fin=*/false, nullptr);
+  EXPECT_EQ(stream_->web_transport(), nullptr);
+}
+
 TEST_P(QuicSpdyStreamTest, WebTransportIgnoreSubprotocolsThatWereNotOffered) {
   if (!IsIetfQuic()) {
     return;

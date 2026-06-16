@@ -1462,7 +1462,7 @@ void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(
   if (method_it == headers.end() || protocol_it == headers.end()) {
     return;
   }
-  if (method_it->second != "CONNECT" && protocol_it->second != "webtransport") {
+  if (method_it->second != "CONNECT" || protocol_it->second != "webtransport") {
     return;
   }
 
