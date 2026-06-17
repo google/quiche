@@ -487,6 +487,8 @@ class MockQuicConnectionVisitor : public QuicConnectionVisitorInterface {
   MOCK_METHOD(void, OnCongestionWindowChange, (QuicTime now), (override));
   MOCK_METHOD(void, OnConnectionMigration, (AddressChangeType type),
               (override));
+  MOCK_METHOD(void, OnRttSampleAvailable, (const QuicRttSample& rtt_sample),
+              (override));
   MOCK_METHOD(void, OnPathDegrading, (), (override));
   MOCK_METHOD(void, OnForwardProgressMadeAfterPathDegrading, (), (override));
   MOCK_METHOD(void, OnForwardProgressMadeAfterFlowLabelChange, (), (override));
@@ -1328,6 +1330,8 @@ class MockNetworkChangeVisitor
   MOCK_METHOD(void, OnPathMtuIncreased, (QuicPacketLength), (override));
   MOCK_METHOD(void, OnInFlightEcnPacketAcked, (), (override));
   MOCK_METHOD(void, OnInvalidEcnFeedback, (), (override));
+  MOCK_METHOD(void, OnRttSampleAvailable, (const QuicRttSample& rtt_sample),
+              (override));
 };
 
 class MockQuicConnectionDebugVisitor : public QuicConnectionDebugVisitor {

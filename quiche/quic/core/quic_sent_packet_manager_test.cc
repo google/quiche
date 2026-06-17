@@ -146,6 +146,8 @@ class QuicSentPacketManagerTest : public QuicTest {
     EXPECT_CALL(*send_algorithm_, OnPacketNeutered(_)).Times(AnyNumber());
     EXPECT_CALL(*network_change_visitor_, OnPathMtuIncreased(1000))
         .Times(AnyNumber());
+    EXPECT_CALL(*network_change_visitor_, OnRttSampleAvailable)
+        .Times(AnyNumber());
     EXPECT_CALL(notifier_, IsFrameOutstanding(_)).WillRepeatedly(Return(true));
     EXPECT_CALL(notifier_, HasUnackedCryptoData())
         .WillRepeatedly(Return(false));
@@ -773,6 +775,22 @@ TEST_F(QuicSentPacketManagerTest, Rtt) {
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
                                    ENCRYPTION_INITIAL, kEmptyCounts));
   EXPECT_EQ(expected_rtt, manager_.GetRttStats()->latest_rtt());
+}
+
+TEST_F(QuicSentPacketManagerTest, OnRttSampleAvailable) {
+  const QuicTime::Delta expected_rtt = QuicTime::Delta::FromMilliseconds(20);
+  SendDataPacket(1);
+  clock_.AdvanceTime(expected_rtt);
+  const QuicTime::Delta ack_delay = QuicTime::Delta::FromMilliseconds(5);
+
+  ExpectAck(1);
+  EXPECT_CALL(*network_change_visitor_,
+              OnRttSampleAvailable(QuicRttSample{expected_rtt}));
+  manager_.OnAckFrameStart(QuicPacketNumber(1), ack_delay, clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL, kEmptyCounts));
 }
 
 TEST_F(QuicSentPacketManagerTest, RttWithInvalidDelta) {

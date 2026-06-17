@@ -307,6 +307,7 @@ class QUICHE_EXPORT QuicSession
   void OnCanWrite() override;
   void OnCongestionWindowChange(QuicTime /*now*/) override {}
   void OnConnectionMigration(AddressChangeType /*type*/) override {}
+  void OnRttSampleAvailable(const QuicRttSample& /*rtt_sample*/) override {}
   // Adds a connection level WINDOW_UPDATE frame.
   void OnAckNeedsRetransmittableFrame() override;
   void SendAckFrequency(const QuicAckFrequencyFrame& frame) override;

@@ -1065,7 +1065,12 @@ bool QuicSentPacketManager::MaybeUpdateRTT(QuicPacketNumber largest_acked,
 
   QuicTime::Delta send_delta = ack_receive_time - transmission_info.sent_time;
   const bool min_rtt_available = !rtt_stats_.min_rtt().IsZero();
-  rtt_stats_.UpdateRtt(send_delta, ack_delay_time, ack_receive_time);
+  const bool rtt_updated =
+      rtt_stats_.UpdateRtt(send_delta, ack_delay_time, ack_receive_time);
+  if (rtt_updated && network_change_visitor_ != nullptr) {
+    network_change_visitor_->OnRttSampleAvailable(
+        QuicRttSample{.latest_rtt = rtt_stats_.latest_rtt()});
+  }
 
   if (!min_rtt_available && !rtt_stats_.min_rtt().IsZero()) {
     loss_algorithm_->OnMinRttAvailable();

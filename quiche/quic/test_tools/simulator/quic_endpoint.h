@@ -61,6 +61,7 @@ class QuicEndpoint : public QuicEndpointBase,
       const ParsedQuicVersion& /*version*/) override {}
   void OnCongestionWindowChange(QuicTime /*now*/) override {}
   void OnConnectionMigration(AddressChangeType /*type*/) override {}
+  void OnRttSampleAvailable(const QuicRttSample& /*rtt_sample*/) override {}
   void OnPathDegrading() override {}
   void OnForwardProgressMadeAfterPathDegrading() override {}
   void OnForwardProgressMadeAfterFlowLabelChange() override {}

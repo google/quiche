@@ -1016,6 +1016,16 @@ enum class QuicPriorityType : uint8_t {
 QUICHE_EXPORT std::string QuicPriorityTypeToString(QuicPriorityType type);
 QUICHE_EXPORT std::ostream& operator<<(std::ostream& os, QuicPriorityType type);
 
+// Individual QUIC RTT sample as it is reported to by the application.
+struct QUICHE_EXPORT QuicRttSample {
+  // The time delta between the time that the packet was received, and the time
+  // that the packet was acknowledged, adjusted for the ACK delay (see RFC 9000,
+  // Section 13.2.5).
+  QuicTimeDelta latest_rtt;
+
+  bool operator==(const QuicRttSample& other) const = default;
+};
+
 }  // namespace quic
 
 #endif  // QUICHE_QUIC_CORE_QUIC_TYPES_H_

@@ -4212,6 +4212,10 @@ void QuicConnection::OnInvalidEcnFeedback() {
   packet_writer_params_.ecn_codepoint = ECN_NOT_ECT;
 }
 
+void QuicConnection::OnRttSampleAvailable(const QuicRttSample& rtt_sample) {
+  visitor_->OnRttSampleAvailable(rtt_sample);
+}
+
 std::unique_ptr<QuicSelfIssuedConnectionIdManager>
 QuicConnection::MakeSelfIssuedConnectionIdManager() {
   QUICHE_DCHECK((perspective_ == Perspective::IS_CLIENT &&

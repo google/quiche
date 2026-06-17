@@ -186,6 +186,9 @@ class QUICHE_EXPORT QuicConnectionVisitorInterface {
   // Called when the connection receives a packet from a migrated client.
   virtual void OnConnectionMigration(AddressChangeType type) = 0;
 
+  // Called when a new RTT sample is available.
+  virtual void OnRttSampleAvailable(const QuicRttSample& rtt_sample) = 0;
+
   // Called when the peer seems unreachable over the current path.
   virtual void OnPathDegrading() = 0;
 
@@ -835,6 +838,7 @@ class QUICHE_EXPORT QuicConnection
   void OnPathMtuIncreased(QuicPacketLength packet_size) override;
   void OnInFlightEcnPacketAcked() override;
   void OnInvalidEcnFeedback() override;
+  void OnRttSampleAvailable(const QuicRttSample& rtt_sample) override;
 
   // QuicNetworkBlackholeDetector::Delegate
   void OnPathDegradingDetected() override;
