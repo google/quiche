@@ -3896,6 +3896,8 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
     return true;
   }
 
+  uint64_t total_timestamp_count = 0;
+
   // Iterate through all timestamp ranges, each of which represents a block of
   // contiguous packets for which receive timestamps are being reported. Each
   // range is of the form:
@@ -3924,6 +3926,11 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
     }
     if (packet_number.ToUint64() < timestamp_count) {
       set_detailed_error("Receive timestamp count too high.");
+      return false;
+    }
+    total_timestamp_count += timestamp_count;
+    if (total_timestamp_count > max_receive_timestamps_per_ack_) {
+      set_detailed_error("Too many receive timestamps in ACK frame.");
       return false;
     }
     for (uint64_t j = 0; j < timestamp_count; j++) {

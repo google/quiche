@@ -7238,6 +7238,48 @@ TEST_P(QuicFramerTest, AckReceiveTimestampsPacketOutOfOrder) {
                   "Packet number and/or receive time not in order.");
 }
 
+TEST_P(QuicFramerTest, ProcessIetfAckReceiveTimestampsExceedsMaxTimestamps) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+  framer_.SetKeyUpdateSupportForConnection(true);
+  framer_.set_process_timestamps(true);
+  framer_.set_max_receive_timestamps_per_ack(8);
+  framer_.set_receive_timestamps_exponent(3);
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicAckFrame ack_frame = InitAckFrame(kSmallLargestObserved);
+  ack_frame.received_packet_times = PacketTimeVector{
+      {kSmallLargestObserved - 5, CreationTimePlus((0x29ff << 3))},
+      {kSmallLargestObserved - 4, CreationTimePlus((0x29ff << 3))},
+      {kSmallLargestObserved - 3, CreationTimePlus((0x29ff << 3))},
+      {kSmallLargestObserved - 2, CreationTimePlus((0x29ff << 3))},
+  };
+  ack_frame.ack_delay_time = QuicTime::Delta::Zero();
+  QuicFrames frames = {QuicFrame(&ack_frame)};
+
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      EncryptPacketWithTagAndPhase(*data, 0, false));
+  ASSERT_TRUE(encrypted);
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  framer_.set_max_receive_timestamps_per_ack(2);
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_ACK_DATA));
+  EXPECT_EQ("Too many receive timestamps in ACK frame.",
+            framer_.detailed_error());
+}
+
 // If there's insufficient room for IETF ack receive timestamps, don't write any
 // timestamp ranges.
 TEST_P(QuicFramerTest, IetfAckReceiveTimestampsTruncate) {
