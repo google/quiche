@@ -109,9 +109,9 @@ struct QUICHE_EXPORT QuicAckFrame {
   // sent.
   QuicTime::Delta ack_delay_time = QuicTime::Delta::Infinite();
 
-  // Vector of <packet_number, time> for when packets arrived.
-  // For IETF versions, packet numbers and timestamps in this vector are both in
-  // ascending orders. Packets received out of order are not saved here.
+  // Vector of <packet_number, time> for when packets arrived. Outgoing
+  // timestamps are stored in the ascending time order; the incoming timestamps
+  // are stored in the descending order.
   PacketTimeVector received_packet_times;
 
   // Set of packets.

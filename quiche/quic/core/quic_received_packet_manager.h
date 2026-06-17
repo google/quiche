@@ -116,9 +116,8 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
     max_ack_ranges_ = max_ack_ranges;
   }
 
-  void set_save_timestamps(bool save_timestamps, bool in_order_packets_only) {
+  void set_save_timestamps(bool save_timestamps) {
     save_timestamps_ = save_timestamps;
-    save_timestamps_for_in_order_packets_ = in_order_packets_only;
   }
 
   size_t min_received_before_ack_decimation() const {
@@ -182,10 +181,6 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
 
   // If true, save timestamps in the ack_frame_.
   bool save_timestamps_;
-
-  // If true and |save_timestamps_|, only save timestamps for packets that are
-  // received in order.
-  bool save_timestamps_for_in_order_packets_;
 
   // Least packet number received from peer.
   QuicPacketNumber least_received_packet_number_;

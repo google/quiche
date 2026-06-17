@@ -6646,6 +6646,108 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameMultipleRanges) {
       ABSL_ARRAYSIZE(packet_ietf));
 }
 
+TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFramePacketOutOfOrder) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicAckFrame ack_frame = InitAckFrame(kSmallLargestObserved);
+  ack_frame.received_packet_times = PacketTimeVector{
+      {kSmallLargestObserved - 4, CreationTimePlus(0x29ffdedd)},
+      {kSmallLargestObserved - 1, CreationTimePlus(0x29ffdedd + 0x10)},
+      {kSmallLargestObserved - 3, CreationTimePlus(0x29ffeedd + 0x10)},
+      {kSmallLargestObserved - 2, CreationTimePlus(0x29ffeedd + 0x11)},
+  };
+  ack_frame.ack_delay_time = QuicTime::Delta::Zero();
+  QuicFrames frames = {QuicFrame(&ack_frame)};
+
+  unsigned char packet_ietf[] = {
+      // type (short header, 4 byte packet number)
+      0x43,
+      // connection_id
+      0xFE,
+      0xDC,
+      0xBA,
+      0x98,
+      0x76,
+      0x54,
+      0x32,
+      0x10,
+      // packet number
+      0x12,
+      0x34,
+      0x56,
+      0x78,
+
+      // frame type (IETF_ACK_RECEIVE_TIMESTAMPS frame)
+      0x83,
+      0x17,
+      0x83,
+      0x07,
+      // largest acked
+      kVarInt62TwoBytes + 0x12,
+      0x34,  // = 4660
+      // Zero delta time.
+      kVarInt62OneByte + 0x00,
+      // Number of additional ack blocks.
+      kVarInt62OneByte + 0x00,
+      // First ack block length.
+      kVarInt62TwoBytes + 0x12,
+      0x33,
+
+      // Receive Timestamps.
+
+      // Timestamp Range Count
+      kVarInt62OneByte + 0x03,
+
+      // Timestamp range 1 (two packets).
+      // Delta Largest Acknowledged
+      kVarInt62OneByte + 0x02,
+      // Timestamp Range Count
+      kVarInt62OneByte + 0x02,
+      // Timestamp Delta
+      kVarInt62FourBytes + 0x29,
+      0xff,
+      0xee,
+      0xee,
+      // Timestamp Delta
+      kVarInt62OneByte + 0x01,
+
+      // Timestamp range 2 (one packet).
+      // Delta Largest Acknowledged
+      kVarInt62OneByte + 0x01,
+      // Timestamp Range Count
+      kVarInt62OneByte + 0x01,
+      // Timestamp Delta
+      kVarInt62TwoBytes + 0x10,
+      0x00,
+
+      // Timestamp range 3 (one packet).
+      // Delta Largest Acknowledged
+      kVarInt62OneByte + 0x04,
+      // Timestamp Range Count
+      kVarInt62OneByte + 0x01,
+      // Timestamp Delta
+      kVarInt62OneByte + 0x10,
+  };
+  // clang-format on
+
+  framer_.set_process_timestamps(true);
+  framer_.set_max_receive_timestamps_per_ack(8);
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  quiche::test::CompareCharArraysWithHexError(
+      "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
+      ABSL_ARRAYSIZE(packet_ietf));
+}
+
 TEST_P(QuicFramerTest, BuildAckReceiveTimestampsAndEcnFrame) {
   if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
@@ -7201,7 +7303,53 @@ TEST_P(QuicFramerTest, AckReceiveTimestamps) {
               }));
 }
 
-TEST_P(QuicFramerTest, AckReceiveTimestampsPacketOutOfOrder) {
+TEST_P(QuicFramerTest, BuildAndProcessAckReceiveTimestampsPacketOutOfOrder) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+  framer_.SetKeyUpdateSupportForConnection(true);
+  framer_.set_process_timestamps(true);
+  framer_.set_max_receive_timestamps_per_ack(8);
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  QuicAckFrame ack_frame = InitAckFrame(kSmallLargestObserved);
+  ack_frame.received_packet_times = PacketTimeVector{
+      {kSmallLargestObserved - 4, CreationTimePlus(0x29ffdedd)},
+      {kSmallLargestObserved - 1, CreationTimePlus(0x29ffdeed)},
+      {kSmallLargestObserved - 3, CreationTimePlus(0x29ffeeed)},
+      {kSmallLargestObserved - 2, CreationTimePlus(0x29ffeeee)},
+  };
+  ack_frame.ack_delay_time = QuicTime::Delta::Zero();
+  QuicFrames frames = {QuicFrame(&ack_frame)};
+
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      EncryptPacketWithTagAndPhase(*data, 0, false));
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+
+  const QuicAckFrame& frame = *visitor_.ack_frames_[0];
+  EXPECT_THAT(frame.received_packet_times,
+              ContainerEq(PacketTimeVector{
+                  {kSmallLargestObserved - 2, CreationTimePlus(0x29ffeeee)},
+                  {kSmallLargestObserved - 3, CreationTimePlus(0x29ffeeed)},
+                  {kSmallLargestObserved - 1, CreationTimePlus(0x29ffdeed)},
+                  {kSmallLargestObserved - 4, CreationTimePlus(0x29ffdedd)},
+              }));
+}
+
+TEST_P(QuicFramerTest, AckReceiveTimestampsTimeOutOfOrder) {
   if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
   }
@@ -7219,23 +7367,17 @@ TEST_P(QuicFramerTest, AckReceiveTimestampsPacketOutOfOrder) {
   header.version_flag = false;
   header.packet_number = kPacketNumber;
 
-  // Use kSmallLargestObserved to make this test finished in a short time.
   QuicAckFrame ack_frame = InitAckFrame(kSmallLargestObserved);
 
-  // The packet numbers below are out of order, this is impossible because we
-  // don't record out of order packets in received_packet_times. The test is
-  // intended to ensure this error is raised when it happens.
   ack_frame.received_packet_times = PacketTimeVector{
-      {kSmallLargestObserved - 5, CreationTimePlus((0x29ff << 3))},
-      {kSmallLargestObserved - 2, CreationTimePlus((0x29ff << 3))},
-      {kSmallLargestObserved - 4, CreationTimePlus((0x29ff << 3))},
       {kSmallLargestObserved - 3, CreationTimePlus((0x29ff << 3))},
+      {kSmallLargestObserved - 2, CreationTimePlus((0x29ff << 3) - 1)},
   };
   ack_frame.ack_delay_time = QuicTime::Delta::Zero();
   QuicFrames frames = {QuicFrame(&ack_frame)};
 
   EXPECT_QUIC_BUG(BuildDataPacket(header, frames),
-                  "Packet number and/or receive time not in order.");
+                  "Receive time not in order.");
 }
 
 TEST_P(QuicFramerTest, ProcessIetfAckReceiveTimestampsExceedsMaxTimestamps) {

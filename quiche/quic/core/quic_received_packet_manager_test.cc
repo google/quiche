@@ -47,7 +47,7 @@ class QuicReceivedPacketManagerTest : public QuicTest {
   QuicReceivedPacketManagerTest() : received_manager_(&stats_) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     rtt_stats_.UpdateRtt(kMinRttMs, QuicTime::Delta::Zero(), QuicTime::Zero());
-    received_manager_.set_save_timestamps(true, false);
+    received_manager_.set_save_timestamps(true);
   }
 
   void RecordPacketReceipt(uint64_t packet_number) {
@@ -210,8 +210,8 @@ TEST_F(QuicReceivedPacketManagerTest, IgnoreOutOfOrderTimestamps) {
   EXPECT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
 }
 
-TEST_F(QuicReceivedPacketManagerTest, IgnoreOutOfOrderPackets) {
-  received_manager_.set_save_timestamps(true, true);
+TEST_F(QuicReceivedPacketManagerTest, SaveOutOfOrderPackets) {
+  received_manager_.set_save_timestamps(true);
   EXPECT_FALSE(received_manager_.ack_frame_updated());
   RecordPacketReceipt(1, QuicTime::Zero());
   EXPECT_TRUE(received_manager_.ack_frame_updated());
@@ -222,7 +222,7 @@ TEST_F(QuicReceivedPacketManagerTest, IgnoreOutOfOrderPackets) {
 
   RecordPacketReceipt(3,
                       QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(3));
-  EXPECT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(3u, received_manager_.ack_frame().received_packet_times.size());
 }
 
 TEST_F(QuicReceivedPacketManagerTest, HasMissingPackets) {

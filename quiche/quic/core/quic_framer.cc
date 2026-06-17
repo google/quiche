@@ -5626,10 +5626,9 @@ QuicFramer::GetAckTimestampRanges(const QuicAckFrame& frame,
 
     QUIC_DVLOG(3) << "prev_packet_number:" << prev_packet_number
                   << ", packet_number:" << packet_number;
-    if (prev_receive_timestamp < receive_timestamp ||
-        prev_packet_number <= packet_number) {
-      detailed_error = "Packet number and/or receive time not in order.";
-      QUIC_BUG(quic_framer_ack_ts_packet_out_of_order)
+    if (prev_receive_timestamp < receive_timestamp) {
+      detailed_error = "Receive time not in order.";
+      QUIC_BUG(quic_framer_ack_ts_time_out_of_order)
           << detailed_error << " packet_number:" << packet_number
           << ", receive_timestamp:" << receive_timestamp
           << ", prev_packet_number:" << prev_packet_number
