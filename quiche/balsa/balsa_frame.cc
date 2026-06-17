@@ -94,6 +94,8 @@ void BalsaFrame::Reset() {
     trailers_->Clear();
   }
   is_valid_target_uri_ = true;
+  in_quote_ = false;
+  is_escaped_ = false;
 }
 
 namespace {
@@ -1267,6 +1269,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
 
         --current;
         parse_state_ = BalsaFrameEnums::READING_CHUNK_EXTENSION;
+        in_quote_ = false;
+        is_escaped_ = false;
         last_char_was_slash_r_ = false;
         visitor_->OnChunkLength(chunk_length_remaining_);
         continue;
@@ -1286,6 +1290,19 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
             return current - input;
           }
           const char c = *current;
+
+          if (is_escaped_) {
+            // Previous char was a backslash and it's parsing quoted section.
+            is_escaped_ = false;
+          } else {
+            // Not escaped, so check for backslash and quotes.
+            if (c == '\\' && in_quote_) {
+              is_escaped_ = true;
+            } else if (c == '"') {
+              in_quote_ = !in_quote_;
+            }
+          }
+
           if (c == ';') {
             found_semicolon = true;
           }

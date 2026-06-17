@@ -30,7 +30,7 @@ class BalsaFrameTestPeer;
 // BalsaFrame is a lightweight HTTP framer.
 class QUICHE_EXPORT BalsaFrame : public FramerInterface {
  public:
-  typedef std::vector<std::pair<size_t, size_t> > Lines;
+  typedef std::vector<std::pair<size_t, size_t>> Lines;
 
   typedef BalsaHeaders::HeaderLineDescription HeaderLineDescription;
   typedef BalsaHeaders::HeaderLines HeaderLines;
@@ -65,7 +65,9 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
         request_was_head_(false),
         is_valid_target_uri_(true),
         use_interim_headers_callback_(false),
-        parse_truncated_headers_even_when_headers_too_long_(false) {}
+        parse_truncated_headers_even_when_headers_too_long_(false),
+        in_quote_(false),
+        is_escaped_(false) {}
 
   ~BalsaFrame() override {}
 
@@ -316,6 +318,10 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
 
   // This is not reset in Reset().
   bool parse_truncated_headers_even_when_headers_too_long_ : 1;
+
+  // Specific to parsing of chunk extensions.
+  bool in_quote_ : 1;
+  bool is_escaped_ : 1;
 };
 
 }  // namespace quiche
