@@ -397,6 +397,34 @@ void set_detailed_error_static(std::string* out, const char* detailed_error) {
   }
 }
 
+bool AckHasEcn(uint64_t type) {
+  switch (type) {
+    case IETF_ACK_ECN:
+    case IETF_ACK_RECEIVE_TIMESTAMPS_ECN:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool AckHasTimestamps(uint64_t type) {
+  switch (type) {
+    case IETF_ACK_RECEIVE_TIMESTAMPS:
+    case IETF_ACK_RECEIVE_TIMESTAMPS_ECN:
+      return true;
+    default:
+      return false;
+  }
+}
+
+uint64_t SelectAckFrameType(bool has_ecn, bool has_timestamps) {
+  if (has_timestamps) {
+    return has_ecn ? IETF_ACK_RECEIVE_TIMESTAMPS_ECN
+                   : IETF_ACK_RECEIVE_TIMESTAMPS;
+  }
+  return has_ecn ? IETF_ACK_ECN : IETF_ACK;
+}
+
 }  // namespace
 
 QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
@@ -482,8 +510,10 @@ size_t QuicFramer::GetMinAckFrameSize(
     // Acknowledged, ACK Delay, 0 ACK Block Count, First ACK Block and either 0
     // Timestamp Range Count or ECN counts.
     // Type byte + largest acked.
-    size_t min_size =
-        kQuicFrameTypeSize +
+    size_t min_size = QuicDataWriter::GetVarInt62Len(SelectAckFrameType(
+        /*has_ecn=*/ack_frame.ecn_counters.has_value(),
+        /*has_timestamps=*/use_ietf_ack_with_receive_timestamp));
+    min_size +=
         QuicDataWriter::GetVarInt62Len(LargestAcked(ack_frame).ToUint64());
     // Ack delay.
     min_size += QuicDataWriter::GetVarInt62Len(
@@ -498,9 +528,8 @@ size_t QuicFramer::GetMinAckFrameSize(
     if (use_ietf_ack_with_receive_timestamp) {
       // 0 Timestamp Range Count.
       min_size += QuicDataWriter::GetVarInt62Len(0);
-    } else {
-      min_size += AckEcnCountSize(ack_frame);
     }
+    min_size += AckEcnCountSize(ack_frame);
     return min_size;
   }
   return kQuicFrameTypeSize +
@@ -2825,17 +2854,13 @@ bool QuicFramer::IsIetfFrameTypeExpectedForEncryptionLevel(
     case ENCRYPTION_INITIAL:
     case ENCRYPTION_HANDSHAKE:
       return frame_type == IETF_CRYPTO || frame_type == IETF_ACK ||
-             frame_type == IETF_ACK_ECN ||
-             frame_type == IETF_ACK_RECEIVE_TIMESTAMPS ||
-             frame_type == IETF_PING || frame_type == IETF_PADDING ||
-             frame_type == IETF_CONNECTION_CLOSE;
+             frame_type == IETF_ACK_ECN || frame_type == IETF_PING ||
+             frame_type == IETF_PADDING || frame_type == IETF_CONNECTION_CLOSE;
     case ENCRYPTION_ZERO_RTT:
-      return !(frame_type == IETF_ACK || frame_type == IETF_ACK_ECN ||
-               frame_type == IETF_ACK_RECEIVE_TIMESTAMPS ||
-               frame_type == IETF_HANDSHAKE_DONE ||
-               frame_type == IETF_NEW_TOKEN ||
-               frame_type == IETF_PATH_RESPONSE ||
-               frame_type == IETF_RETIRE_CONNECTION_ID);
+      return !(
+          IsIetfAckFrame(frame_type) || frame_type == IETF_HANDSHAKE_DONE ||
+          frame_type == IETF_NEW_TOKEN || frame_type == IETF_PATH_RESPONSE ||
+          frame_type == IETF_RETIRE_CONNECTION_ID);
     case ENCRYPTION_FORWARD_SECURE:
       return true;
     default:
@@ -3105,6 +3130,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           break;
         }
         case IETF_ACK_RECEIVE_TIMESTAMPS:
+        case IETF_ACK_RECEIVE_TIMESTAMPS_ECN:
           if (!process_timestamps_) {
             set_detailed_error("Unsupported frame type.");
             QUIC_DLOG(WARNING)
@@ -3826,12 +3852,7 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
   }
 
   QUICHE_DCHECK(!ack_frame->ecn_counters.has_value());
-  if (frame_type == IETF_ACK_RECEIVE_TIMESTAMPS) {
-    QUICHE_DCHECK(process_timestamps_);
-    if (!ProcessIetfTimestampsInAckFrame(ack_frame->largest_acked, reader)) {
-      return false;
-    }
-  } else if (frame_type == IETF_ACK_ECN) {
+  if (AckHasEcn(frame_type)) {
     ack_frame->ecn_counters = QuicEcnCounts();
     if (!reader->ReadVarInt62(&ack_frame->ecn_counters->ect0)) {
       set_detailed_error("Unable to read ack ect_0_count.");
@@ -3843,6 +3864,13 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
     }
     if (!reader->ReadVarInt62(&ack_frame->ecn_counters->ce)) {
       set_detailed_error("Unable to read ack ecn_ce_count.");
+      return false;
+    }
+  }
+
+  if (AckHasTimestamps(frame_type)) {
+    QUICHE_DCHECK(process_timestamps_);
+    if (!ProcessIetfTimestampsInAckFrame(ack_frame->largest_acked, reader)) {
       return false;
     }
   }
@@ -4754,7 +4782,10 @@ bool QuicFramer::DecryptPayload(size_t udp_packet_length,
 
 size_t QuicFramer::GetIetfAckFrameSize(const QuicAckFrame& frame) {
   // Type byte, largest_acked, and delay_time are straight-forward.
-  size_t ack_frame_size = kQuicFrameTypeSize;
+  const bool send_timestamps = UseIetfAckWithReceiveTimestamp(frame);
+  const bool send_ecn = frame.ecn_counters.has_value();
+  size_t ack_frame_size = QuicDataWriter::GetVarInt62Len(
+      SelectAckFrameType(send_ecn, send_timestamps));
   QuicPacketNumber largest_acked = LargestAcked(frame);
   ack_frame_size += QuicDataWriter::GetVarInt62Len(largest_acked.ToUint64());
   uint64_t ack_delay_time_us;
@@ -4789,9 +4820,8 @@ size_t QuicFramer::GetIetfAckFrameSize(const QuicAckFrame& frame) {
 
   if (UseIetfAckWithReceiveTimestamp(frame)) {
     ack_frame_size += GetIetfAckFrameTimestampSize(frame);
-  } else {
-    ack_frame_size += AckEcnCountSize(frame);
   }
+  ack_frame_size += AckEcnCountSize(frame);
 
   return ack_frame_size;
 }
@@ -5714,13 +5744,11 @@ bool QuicFramer::AppendIetfTimestampsToAckFrame(const QuicAckFrame& frame,
 
 bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
                                                QuicDataWriter* writer) {
-  uint8_t type = IETF_ACK;
+  const bool send_timestamps = UseIetfAckWithReceiveTimestamp(frame);
+  const bool send_ecn = frame.ecn_counters.has_value();
+  const uint64_t type = SelectAckFrameType(send_ecn, send_timestamps);
   uint64_t ecn_size = 0;
-  if (UseIetfAckWithReceiveTimestamp(frame)) {
-    type = IETF_ACK_RECEIVE_TIMESTAMPS;
-  } else if (frame.ecn_counters.has_value()) {
-    // Change frame type to ACK_ECN if any ECN count is available.
-    type = IETF_ACK_ECN;
+  if (send_ecn) {
     ecn_size = AckEcnCountSize(frame);
   }
 
@@ -5770,23 +5798,16 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
   ++iter;
   // Append remaining ACK blocks.
   uint64_t appended_ack_blocks = 0;
+  const QuicByteCount min_tail_size =
+      ecn_size +
+      (AckHasTimestamps(type) ? QuicDataWriter::GetVarInt62Len(0) : 0);
   for (; iter != frame.packets.rend(); ++iter) {
     const uint64_t gap = previous_smallest - iter->max() - 1;
     const uint64_t ack_range = iter->Length() - 1;
+    const size_t block_size = QuicDataWriter::GetVarInt62Len(gap) +
+                              QuicDataWriter::GetVarInt62Len(ack_range);
 
-    if (type == IETF_ACK_RECEIVE_TIMESTAMPS &&
-        writer->remaining() <
-            static_cast<size_t>(QuicDataWriter::GetVarInt62Len(gap) +
-                                QuicDataWriter::GetVarInt62Len(ack_range) +
-                                QuicDataWriter::GetVarInt62Len(0))) {
-      // If we write this ACK range we won't have space for a timestamp range
-      // count of 0.
-      break;
-    } else if (writer->remaining() < ecn_size ||
-               writer->remaining() - ecn_size <
-                   static_cast<size_t>(
-                       QuicDataWriter::GetVarInt62Len(gap) +
-                       QuicDataWriter::GetVarInt62Len(ack_range))) {
+    if (writer->remaining() < block_size + min_tail_size) {
       // ACK range does not fit, truncate it.
       break;
     }
@@ -5814,7 +5835,7 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
                     << ack_block_count << " to " << appended_ack_blocks;
   }
 
-  if (type == IETF_ACK_ECN) {
+  if (AckHasEcn(type)) {
     // Encode the ECN counts.
     if (!writer->WriteVarInt62(frame.ecn_counters->ect0)) {
       set_detailed_error("No room for ect_0_count in ack frame");
@@ -5830,7 +5851,7 @@ bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,
     }
   }
 
-  if (type == IETF_ACK_RECEIVE_TIMESTAMPS) {
+  if (AckHasTimestamps(type)) {
     if (!AppendIetfTimestampsToAckFrame(frame, writer)) {
       return false;
     }
