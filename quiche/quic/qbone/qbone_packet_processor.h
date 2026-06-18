@@ -160,6 +160,7 @@ class QbonePacketProcessor {
   // packet may be decreased in the process.
   ProcessingResult ProcessIPv6HeaderAndFilter(std::string* packet,
                                               Direction direction,
+                                              in6_addr* src,
                                               uint8_t* transport_protocol,
                                               char** transport_data,
                                               icmp6_hdr* icmp_header);
@@ -187,7 +188,7 @@ class QbonePacketProcessor {
   // Performs basic sanity and permission checks on the packet, and decreases
   // the TTL.
   ProcessingResult ProcessIPv6Header(std::string* packet, Direction direction,
-                                     uint8_t* transport_protocol,
+                                     in6_addr* src, uint8_t* transport_protocol,
                                      char** transport_data,
                                      icmp6_hdr* icmp_header);
 

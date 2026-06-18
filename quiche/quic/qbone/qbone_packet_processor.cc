@@ -28,7 +28,6 @@ constexpr size_t kIPv6AddressSize = 16;
 constexpr size_t kIPv6MinPacketSize = 1280;
 constexpr size_t kIcmpTtl = 64;
 constexpr size_t kICMPv6DestinationUnreachableDueToSourcePolicy = 5;
-constexpr size_t kIPv6DestinationOffset = 8;
 
 }  // namespace
 
@@ -82,13 +81,11 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
   uint8_t transport_protocol;
   char* transport_data;
   icmp6_hdr icmp_header;
+  in6_addr src;
   memset(&icmp_header, 0, sizeof(icmp_header));
-  ProcessingResult result = ProcessIPv6HeaderAndFilter(
-      packet, direction, &transport_protocol, &transport_data, &icmp_header);
-
-  in6_addr dst;
-  // TODO(b/70339814): ensure this is actually a unicast address.
-  memcpy(&dst, &packet->data()[kIPv6DestinationOffset], kIPv6AddressSize);
+  ProcessingResult result =
+      ProcessIPv6HeaderAndFilter(packet, direction, &src, &transport_protocol,
+                                 &transport_data, &icmp_header);
 
   switch (result) {
     case ProcessingResult::OK:
@@ -112,14 +109,14 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
         // need to take off both the IPv6 header and the ICMP6 header.
         auto icmp_body = absl::string_view(*packet).substr(sizeof(ip6_hdr) +
                                                            sizeof(icmp6_hdr));
-        SendIcmpResponse(dst, &icmp_header, icmp_body, direction);
+        SendIcmpResponse(/*dst=*/src, &icmp_header, icmp_body, direction);
       } else {
-        SendIcmpResponse(dst, &icmp_header, *packet, direction);
+        SendIcmpResponse(/*dst=*/src, &icmp_header, *packet, direction);
       }
       stats_->OnPacketDroppedWithIcmp(direction, traffic_class);
       break;
     case ProcessingResult::ICMP_AND_TCP_RESET:
-      SendIcmpResponse(dst, &icmp_header, *packet, direction);
+      SendIcmpResponse(/*dst=*/src, &icmp_header, *packet, direction);
       stats_->OnPacketDroppedWithIcmp(direction, traffic_class);
       SendTcpReset(*packet, direction);
       stats_->OnPacketDroppedWithTcpReset(direction, traffic_class);
@@ -134,11 +131,12 @@ void QbonePacketProcessor::ProcessPacket(std::string* packet,
 QbonePacketProcessor::ProcessingResult
 QbonePacketProcessor::ProcessIPv6HeaderAndFilter(std::string* packet,
                                                  Direction direction,
+                                                 in6_addr* src,
                                                  uint8_t* transport_protocol,
                                                  char** transport_data,
                                                  icmp6_hdr* icmp_header) {
   ProcessingResult result = ProcessIPv6Header(
-      packet, direction, transport_protocol, transport_data, icmp_header);
+      packet, direction, src, transport_protocol, transport_data, icmp_header);
 
   if (result == ProcessingResult::OK) {
     char* packet_data = &*packet->begin();
@@ -180,8 +178,9 @@ QbonePacketProcessor::ProcessIPv6HeaderAndFilter(std::string* packet,
 }
 
 QbonePacketProcessor::ProcessingResult QbonePacketProcessor::ProcessIPv6Header(
-    std::string* packet, Direction direction, uint8_t* transport_protocol,
-    char** transport_data, icmp6_hdr* icmp_header) {
+    std::string* packet, Direction direction, in6_addr* src,
+    uint8_t* transport_protocol, char** transport_data,
+    icmp6_hdr* icmp_header) {
   // Check if the packet is big enough to have IPv6 header.
   if (packet->size() < kIPv6HeaderSize) {
     QUIC_DVLOG(1) << "Dropped malformed packet: IPv6 header too short";
@@ -209,6 +208,7 @@ QbonePacketProcessor::ProcessingResult QbonePacketProcessor::ProcessIPv6Header(
   QuicIpAddress address_to_check;
   uint8_t address_reject_code;
   bool ip_parse_result;
+  *src = header->ip6_src;
   switch (direction) {
     case Direction::FROM_OFF_NETWORK:
       // Expect the source IP to match the client.
