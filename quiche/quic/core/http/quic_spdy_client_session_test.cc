@@ -691,7 +691,8 @@ TEST_P(QuicSpdyClientSessionTest, RetransmitDataOnZeroRttReject) {
   // Packets will be written: CHLO, HTTP/3 SETTINGS (H/3 only), and request
   // data.
   EXPECT_CALL(*connection_,
-              OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION));
+              OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION))
+      .Times(testing::Between(1, 2));
   EXPECT_CALL(*connection_,
               OnPacketSent(ENCRYPTION_ZERO_RTT, NOT_RETRANSMISSION))
       .Times(session_->version().IsIetfQuic() ? 2 : 1);

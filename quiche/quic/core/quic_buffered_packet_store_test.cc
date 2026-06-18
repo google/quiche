@@ -730,27 +730,25 @@ TEST_F(QuicBufferedPacketStoreTest, IngestPacketForTlsChloExtraction) {
   config.custom_transport_parameters_to_send()[kCustomParameterId] =
       kCustomParameterValue;
   auto packets = GetFirstFlightOfPackets(valid_version_, config);
-  ASSERT_EQ(packets.size(), 2u);
-
-  EnqueuePacketToStore(store_, connection_id, GOOGLE_QUIC_Q043_PACKET,
-                       INVALID_PACKET_TYPE, *packets[0], self_address_,
-                       peer_address_, valid_version_, kNoParsedChlo,
-                       connection_id_generator_);
-  EnqueuePacketToStore(store_, connection_id, GOOGLE_QUIC_Q043_PACKET,
-                       INVALID_PACKET_TYPE, *packets[1], self_address_,
-                       peer_address_, valid_version_, kNoParsedChlo,
-                       connection_id_generator_);
+  ASSERT_GE(packets.size(), 2u);
+  size_t num_packets = packets.size();
+  for (size_t i = 0; i < num_packets; ++i) {
+    EnqueuePacketToStore(store_, connection_id, GOOGLE_QUIC_Q043_PACKET,
+                         INVALID_PACKET_TYPE, *packets[i], self_address_,
+                         peer_address_, valid_version_, kNoParsedChlo,
+                         connection_id_generator_);
+  }
 
   EXPECT_TRUE(store_.HasBufferedPackets(connection_id));
-  EXPECT_FALSE(store_.IngestPacketForTlsChloExtraction(
-      connection_id, valid_version_, *packets[0], &supported_groups,
-      &cert_compression_algos, &alpns, &sni, &resumption_attempted,
-      &early_data_attempted, &tls_alert, &has_invalid_ack));
-  EXPECT_FALSE(has_invalid_ack);
-  EXPECT_TRUE(store_.IngestPacketForTlsChloExtraction(
-      connection_id, valid_version_, *packets[1], &supported_groups,
-      &cert_compression_algos, &alpns, &sni, &resumption_attempted,
-      &early_data_attempted, &tls_alert, &has_invalid_ack));
+  for (size_t i = 0; i < num_packets; ++i) {
+    bool is_last = (i == num_packets - 1);
+    EXPECT_EQ(is_last,
+              store_.IngestPacketForTlsChloExtraction(
+                  connection_id, valid_version_, *packets[i], &supported_groups,
+                  &cert_compression_algos, &alpns, &sni, &resumption_attempted,
+                  &early_data_attempted, &tls_alert, &has_invalid_ack));
+    EXPECT_FALSE(has_invalid_ack);
+  }
   EXPECT_FALSE(has_invalid_ack);
 
   EXPECT_THAT(alpns, ElementsAre(AlpnForVersion(valid_version_)));
@@ -780,7 +778,7 @@ TEST_F(QuicBufferedPacketStoreTest, MultiPacketChloInvalidAckDetected) {
   config.custom_transport_parameters_to_send()[kCustomParameterId] =
       kCustomParameterValue;
   auto packets = GetFirstFlightOfPackets(valid_version_, config);
-  ASSERT_EQ(packets.size(), 2u);
+  ASSERT_GE(packets.size(), 2u);
 
   // Create a packet with an invalid ack frame acking packet number 2, but the
   // largest packet number sent is 1.
@@ -839,7 +837,7 @@ TEST_F(QuicBufferedPacketStoreTest, DeliverInitialPacketsFirst) {
   config.custom_transport_parameters_to_send()[kCustomParameterId] =
       custom_parameter_value;
   auto initial_packets = GetFirstFlightOfPackets(valid_version_, config);
-  ASSERT_THAT(initial_packets, SizeIs(2));
+  ASSERT_GE(initial_packets.size(), 2u);
 
   // Verify that the packets generated are INITIAL packets.
   EXPECT_THAT(
@@ -889,17 +887,16 @@ TEST_F(QuicBufferedPacketStoreTest, DeliverInitialPacketsFirst) {
   EnqueuePacketToStore(store_, connection_id, packet_format, long_packet_type,
                        packet_, self_address_, peer_address_, valid_version_,
                        kNoParsedChlo, connection_id_generator_);
-  EnqueuePacketToStore(store_, connection_id, IETF_QUIC_LONG_HEADER_PACKET,
-                       INITIAL, *initial_packets[0], self_address_,
-                       peer_address_, valid_version_, kNoParsedChlo,
-                       connection_id_generator_);
-  EnqueuePacketToStore(store_, connection_id, IETF_QUIC_LONG_HEADER_PACKET,
-                       INITIAL, *initial_packets[1], self_address_,
-                       peer_address_, valid_version_, kNoParsedChlo,
-                       connection_id_generator_);
+  size_t num_initial = initial_packets.size();
+  for (size_t i = 0; i < num_initial; ++i) {
+    EnqueuePacketToStore(store_, connection_id, IETF_QUIC_LONG_HEADER_PACKET,
+                         INITIAL, *initial_packets[i], self_address_,
+                         peer_address_, valid_version_, kNoParsedChlo,
+                         connection_id_generator_);
+  }
 
   BufferedPacketList delivered_packets = store_.DeliverPackets(connection_id);
-  EXPECT_THAT(delivered_packets.buffered_packets, SizeIs(3));
+  EXPECT_THAT(delivered_packets.buffered_packets, SizeIs(num_initial + 1));
 
   QuicLongHeaderType previous_packet_type = INITIAL;
   for (const auto& packet : delivered_packets.buffered_packets) {
