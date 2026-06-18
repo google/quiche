@@ -17,8 +17,8 @@
 // being automatically translated from the JSON source to C++ unit tests. Please
 // do not modify, as the contents will be overwritten when this is re-generated.
 
-// Generated on 2026-06-16 from structured-field-tests.git @
-// faed1f92942abd4fb5d61b1f9f0dc359f499f1d7.
+// Generated on 2026-06-18 from structured-field-tests.git @
+// 1e280c3ed9ffe0ca5fdb1d97219dddc389007677.
 
 namespace quiche {
 namespace structured_headers {
@@ -56,6 +56,7 @@ const struct ParameterizedItemTestCase {
       expected;           // nullopt if parse error is expected.
   const char* canonical;  // nullptr if parse error is expected, or if canonical
                           // format is identical to raw.
+  const char* known_bug = nullptr;
 } parameterized_item_test_cases[] = {
     // binary.json
     {"basic binary",
@@ -68,13 +69,17 @@ const struct ParameterizedItemTestCase {
      2,
      {{Item("", Item::kByteSequenceType), {}}},
      nullptr},
-    {"bad paddding",
+    {"padding at beginning", ":=aGVsbG8=:", 11, std::nullopt, nullptr},
+    {"padding in middle", ":a=GVsbG8=:", 11, std::nullopt, nullptr},
+    {"bad padding",
      ":aGVsbG8:",
      9,
      {{Item("hello", Item::kByteSequenceType), {}}},
      ":aGVsbG8=:"},
+    {"bad padding dot", ":aGVsbG8.:", 10, std::nullopt, nullptr, "b/393153699"},
     {"bad end delimiter", ":aGVsbG8=", 9, std::nullopt, nullptr},
     {"extra whitespace", ":aGVsb G8=:", 11, std::nullopt, nullptr},
+    {"all whitespace", ":    :", 6, std::nullopt, nullptr, "b/393408763"},
     {"extra chars", ":aGVsbG!8=:", 11, std::nullopt, nullptr},
     {"suffix chars", ":aGVsbG8=!:", 11, std::nullopt, nullptr},
     {"non-zero pad bits",
@@ -88,6 +93,7 @@ const struct ParameterizedItemTestCase {
      {{Item("\377\340!", Item::kByteSequenceType), {}}},
      nullptr},
     {"base64url binary", ":_-Ah:", 6, std::nullopt, nullptr},
+    {"binary prefix only", ":", 1, std::nullopt, nullptr},
     // boolean.json
     {"basic true boolean", "?1", 2, {{Item(true), {}}}, nullptr},
     {"basic false boolean", "?0", 2, {{Item(false), {}}}, nullptr},
@@ -100,6 +106,7 @@ const struct ParameterizedItemTestCase {
     {"f boolean", "?f", 2, std::nullopt, nullptr},
     {"spelled-out True boolean", "?True", 5, std::nullopt, nullptr},
     {"spelled-out False boolean", "?False", 6, std::nullopt, nullptr},
+    {"boolean prefix only", "?", 1, std::nullopt, nullptr},
     // examples.json
     {"Foo-Example",
      "2; foourl=\"https://foo.example.com/\"",
@@ -284,6 +291,557 @@ const struct ParameterizedItemTestCase {
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             Item::kTokenType),
+       {}}},
+     nullptr},
+    {"large byte sequence",
+     ":YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWF"
+     "hYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFh"
+     "YWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhY"
+     "WFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYWFhYW"
+     "FhYWFhYWFhYWFhYWFhYQ==:",
+     21850,
+     {{Item(
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+           "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+           Item::kByteSequenceType),
        {}}},
      nullptr},
     // number-generated.json
@@ -1153,6 +1711,8 @@ const struct ParameterizedItemTestCase {
      6,
      {{Item(-1.123), {}}},
      nullptr},
+    {"decimal with zero fractional digits", "1.", 2, std::nullopt, nullptr,
+     "b/517189418"},
     {"decimal with four fractional digits", "1.1234", 6, std::nullopt, nullptr},
     {"negative decimal with four fractional digits", "-1.1234", 7, std::nullopt,
      nullptr},
@@ -1160,6 +1720,21 @@ const struct ParameterizedItemTestCase {
      std::nullopt, nullptr},
     {"negative decimal with thirteen integer digits", "-1234567890123.0", 16,
      std::nullopt, nullptr},
+    {"decimal with 1 significant digit and 1 insignificant digit",
+     "1.20",
+     4,
+     {{Item(1.2), {}}},
+     "1.2"},
+    {"decimal with 1 significant digit and 2 insignificant digits",
+     "1.200",
+     5,
+     {{Item(1.2), {}}},
+     "1.2"},
+    {"decimal with 2 significant digits and 1 insignificant digit",
+     "1.230",
+     5,
+     {{Item(1.23), {}}},
+     "1.23"},
     // string-generated.json
     {"0x00 in string", "\" \000 \"", 5, std::nullopt, nullptr},
     {"0x01 in string", "\" \001 \"", 5, std::nullopt, nullptr},
@@ -1435,8 +2010,8 @@ const struct ParameterizedItemTestCase {
      nullptr},
     {"whitespace string", "\"   \"", 5, {{Item("   "), {}}}, nullptr},
     {"non-ascii string", "\"f\374\374\"", 5, std::nullopt, nullptr},
-    {"tab in string", "\"\\t\"", 4, std::nullopt, nullptr},
-    {"newline in string", "\" \\n \"", 6, std::nullopt, nullptr},
+    {"tab in string", "\"\t\"", 3, std::nullopt, nullptr},
+    {"newline in string", "\" \n \"", 5, std::nullopt, nullptr},
     {"single quoted string", "'foo'", 5, std::nullopt, nullptr},
     {"unbalanced string", "\"foo", 4, std::nullopt, nullptr},
     {"string quoting",
@@ -1447,6 +2022,11 @@ const struct ParameterizedItemTestCase {
     {"bad string quoting", "\"foo \\,\"", 8, std::nullopt, nullptr},
     {"ending string quote", "\"foo \\\"", 7, std::nullopt, nullptr},
     {"abruptly ending string quote", "\"foo \\", 6, std::nullopt, nullptr},
+    {"two lines string",
+     "\"foo, bar\"",
+     10,
+     {{Item("foo, bar"), {}}},
+     "\"foo, bar\""},
     // token-generated.json
     {"0x00 in token", "a\000a", 3, std::nullopt, nullptr},
     {"0x01 in token", "a\001a", 3, std::nullopt, nullptr},
@@ -1580,350 +2160,350 @@ const struct ParameterizedItemTestCase {
     {"0x7d in token", "a}a", 3, std::nullopt, nullptr},
     {"0x7e in token", "a~a", 3, {{Item("a~a", Item::kTokenType), {}}}, nullptr},
     {"0x7f in token", "a\177a", 3, std::nullopt, nullptr},
-    {"0x00 starting an token", "\000a", 2, std::nullopt, nullptr},
-    {"0x01 starting an token", "\001a", 2, std::nullopt, nullptr},
-    {"0x02 starting an token", "\002a", 2, std::nullopt, nullptr},
-    {"0x03 starting an token", "\003a", 2, std::nullopt, nullptr},
-    {"0x04 starting an token", "\004a", 2, std::nullopt, nullptr},
-    {"0x05 starting an token", "\005a", 2, std::nullopt, nullptr},
-    {"0x06 starting an token", "\006a", 2, std::nullopt, nullptr},
-    {"0x07 starting an token", "\007a", 2, std::nullopt, nullptr},
-    {"0x08 starting an token", "\010a", 2, std::nullopt, nullptr},
-    {"0x09 starting an token", "\ta", 2, std::nullopt, nullptr},
-    {"0x0a starting an token", "\na", 2, std::nullopt, nullptr},
-    {"0x0b starting an token", "\013a", 2, std::nullopt, nullptr},
-    {"0x0c starting an token", "\014a", 2, std::nullopt, nullptr},
-    {"0x0d starting an token", "\ra", 2, std::nullopt, nullptr},
-    {"0x0e starting an token", "\016a", 2, std::nullopt, nullptr},
-    {"0x0f starting an token", "\017a", 2, std::nullopt, nullptr},
-    {"0x10 starting an token", "\020a", 2, std::nullopt, nullptr},
-    {"0x11 starting an token", "\021a", 2, std::nullopt, nullptr},
-    {"0x12 starting an token", "\022a", 2, std::nullopt, nullptr},
-    {"0x13 starting an token", "\023a", 2, std::nullopt, nullptr},
-    {"0x14 starting an token", "\024a", 2, std::nullopt, nullptr},
-    {"0x15 starting an token", "\025a", 2, std::nullopt, nullptr},
-    {"0x16 starting an token", "\026a", 2, std::nullopt, nullptr},
-    {"0x17 starting an token", "\027a", 2, std::nullopt, nullptr},
-    {"0x18 starting an token", "\030a", 2, std::nullopt, nullptr},
-    {"0x19 starting an token", "\031a", 2, std::nullopt, nullptr},
-    {"0x1a starting an token", "\032a", 2, std::nullopt, nullptr},
-    {"0x1b starting an token", "\033a", 2, std::nullopt, nullptr},
-    {"0x1c starting an token", "\034a", 2, std::nullopt, nullptr},
-    {"0x1d starting an token", "\035a", 2, std::nullopt, nullptr},
-    {"0x1e starting an token", "\036a", 2, std::nullopt, nullptr},
-    {"0x1f starting an token", "\037a", 2, std::nullopt, nullptr},
-    {"0x20 starting an token",
+    {"0x00 starting a token", "\000a", 2, std::nullopt, nullptr},
+    {"0x01 starting a token", "\001a", 2, std::nullopt, nullptr},
+    {"0x02 starting a token", "\002a", 2, std::nullopt, nullptr},
+    {"0x03 starting a token", "\003a", 2, std::nullopt, nullptr},
+    {"0x04 starting a token", "\004a", 2, std::nullopt, nullptr},
+    {"0x05 starting a token", "\005a", 2, std::nullopt, nullptr},
+    {"0x06 starting a token", "\006a", 2, std::nullopt, nullptr},
+    {"0x07 starting a token", "\007a", 2, std::nullopt, nullptr},
+    {"0x08 starting a token", "\010a", 2, std::nullopt, nullptr},
+    {"0x09 starting a token", "\ta", 2, std::nullopt, nullptr},
+    {"0x0a starting a token", "\na", 2, std::nullopt, nullptr},
+    {"0x0b starting a token", "\013a", 2, std::nullopt, nullptr},
+    {"0x0c starting a token", "\014a", 2, std::nullopt, nullptr},
+    {"0x0d starting a token", "\ra", 2, std::nullopt, nullptr},
+    {"0x0e starting a token", "\016a", 2, std::nullopt, nullptr},
+    {"0x0f starting a token", "\017a", 2, std::nullopt, nullptr},
+    {"0x10 starting a token", "\020a", 2, std::nullopt, nullptr},
+    {"0x11 starting a token", "\021a", 2, std::nullopt, nullptr},
+    {"0x12 starting a token", "\022a", 2, std::nullopt, nullptr},
+    {"0x13 starting a token", "\023a", 2, std::nullopt, nullptr},
+    {"0x14 starting a token", "\024a", 2, std::nullopt, nullptr},
+    {"0x15 starting a token", "\025a", 2, std::nullopt, nullptr},
+    {"0x16 starting a token", "\026a", 2, std::nullopt, nullptr},
+    {"0x17 starting a token", "\027a", 2, std::nullopt, nullptr},
+    {"0x18 starting a token", "\030a", 2, std::nullopt, nullptr},
+    {"0x19 starting a token", "\031a", 2, std::nullopt, nullptr},
+    {"0x1a starting a token", "\032a", 2, std::nullopt, nullptr},
+    {"0x1b starting a token", "\033a", 2, std::nullopt, nullptr},
+    {"0x1c starting a token", "\034a", 2, std::nullopt, nullptr},
+    {"0x1d starting a token", "\035a", 2, std::nullopt, nullptr},
+    {"0x1e starting a token", "\036a", 2, std::nullopt, nullptr},
+    {"0x1f starting a token", "\037a", 2, std::nullopt, nullptr},
+    {"0x20 starting a token",
      " a",
      2,
      {{Item("a", Item::kTokenType), {}}},
      "a"},
-    {"0x21 starting an token", "!a", 2, std::nullopt, nullptr},
-    {"0x22 starting an token", "\"a", 2, std::nullopt, nullptr},
-    {"0x23 starting an token", "#a", 2, std::nullopt, nullptr},
-    {"0x24 starting an token", "$a", 2, std::nullopt, nullptr},
-    {"0x25 starting an token", "%a", 2, std::nullopt, nullptr},
-    {"0x26 starting an token", "&a", 2, std::nullopt, nullptr},
-    {"0x27 starting an token", "'a", 2, std::nullopt, nullptr},
-    {"0x28 starting an token", "(a", 2, std::nullopt, nullptr},
-    {"0x29 starting an token", ")a", 2, std::nullopt, nullptr},
-    {"0x2a starting an token",
+    {"0x21 starting a token", "!a", 2, std::nullopt, nullptr},
+    {"0x22 starting a token", "\"a", 2, std::nullopt, nullptr},
+    {"0x23 starting a token", "#a", 2, std::nullopt, nullptr},
+    {"0x24 starting a token", "$a", 2, std::nullopt, nullptr},
+    {"0x25 starting a token", "%a", 2, std::nullopt, nullptr},
+    {"0x26 starting a token", "&a", 2, std::nullopt, nullptr},
+    {"0x27 starting a token", "'a", 2, std::nullopt, nullptr},
+    {"0x28 starting a token", "(a", 2, std::nullopt, nullptr},
+    {"0x29 starting a token", ")a", 2, std::nullopt, nullptr},
+    {"0x2a starting a token",
      "*a",
      2,
      {{Item("*a", Item::kTokenType), {}}},
      nullptr},
-    {"0x2b starting an token", "+a", 2, std::nullopt, nullptr},
-    {"0x2c starting an token", ",a", 2, std::nullopt, nullptr},
-    {"0x2d starting an token", "-a", 2, std::nullopt, nullptr},
-    {"0x2e starting an token", ".a", 2, std::nullopt, nullptr},
-    {"0x2f starting an token", "/a", 2, std::nullopt, nullptr},
-    {"0x30 starting an token", "0a", 2, std::nullopt, nullptr},
-    {"0x31 starting an token", "1a", 2, std::nullopt, nullptr},
-    {"0x32 starting an token", "2a", 2, std::nullopt, nullptr},
-    {"0x33 starting an token", "3a", 2, std::nullopt, nullptr},
-    {"0x34 starting an token", "4a", 2, std::nullopt, nullptr},
-    {"0x35 starting an token", "5a", 2, std::nullopt, nullptr},
-    {"0x36 starting an token", "6a", 2, std::nullopt, nullptr},
-    {"0x37 starting an token", "7a", 2, std::nullopt, nullptr},
-    {"0x38 starting an token", "8a", 2, std::nullopt, nullptr},
-    {"0x39 starting an token", "9a", 2, std::nullopt, nullptr},
-    {"0x3a starting an token", ":a", 2, std::nullopt, nullptr},
-    {"0x3b starting an token", ";a", 2, std::nullopt, nullptr},
-    {"0x3c starting an token", "<a", 2, std::nullopt, nullptr},
-    {"0x3d starting an token", "=a", 2, std::nullopt, nullptr},
-    {"0x3e starting an token", ">a", 2, std::nullopt, nullptr},
-    {"0x3f starting an token", "?a", 2, std::nullopt, nullptr},
-    {"0x40 starting an token", "@a", 2, std::nullopt, nullptr},
-    {"0x41 starting an token",
+    {"0x2b starting a token", "+a", 2, std::nullopt, nullptr},
+    {"0x2c starting a token", ",a", 2, std::nullopt, nullptr},
+    {"0x2d starting a token", "-a", 2, std::nullopt, nullptr},
+    {"0x2e starting a token", ".a", 2, std::nullopt, nullptr},
+    {"0x2f starting a token", "/a", 2, std::nullopt, nullptr},
+    {"0x30 starting a token", "0a", 2, std::nullopt, nullptr},
+    {"0x31 starting a token", "1a", 2, std::nullopt, nullptr},
+    {"0x32 starting a token", "2a", 2, std::nullopt, nullptr},
+    {"0x33 starting a token", "3a", 2, std::nullopt, nullptr},
+    {"0x34 starting a token", "4a", 2, std::nullopt, nullptr},
+    {"0x35 starting a token", "5a", 2, std::nullopt, nullptr},
+    {"0x36 starting a token", "6a", 2, std::nullopt, nullptr},
+    {"0x37 starting a token", "7a", 2, std::nullopt, nullptr},
+    {"0x38 starting a token", "8a", 2, std::nullopt, nullptr},
+    {"0x39 starting a token", "9a", 2, std::nullopt, nullptr},
+    {"0x3a starting a token", ":a", 2, std::nullopt, nullptr},
+    {"0x3b starting a token", ";a", 2, std::nullopt, nullptr},
+    {"0x3c starting a token", "<a", 2, std::nullopt, nullptr},
+    {"0x3d starting a token", "=a", 2, std::nullopt, nullptr},
+    {"0x3e starting a token", ">a", 2, std::nullopt, nullptr},
+    {"0x3f starting a token", "?a", 2, std::nullopt, nullptr},
+    {"0x40 starting a token", "@a", 2, std::nullopt, nullptr},
+    {"0x41 starting a token",
      "Aa",
      2,
      {{Item("Aa", Item::kTokenType), {}}},
      nullptr},
-    {"0x42 starting an token",
+    {"0x42 starting a token",
      "Ba",
      2,
      {{Item("Ba", Item::kTokenType), {}}},
      nullptr},
-    {"0x43 starting an token",
+    {"0x43 starting a token",
      "Ca",
      2,
      {{Item("Ca", Item::kTokenType), {}}},
      nullptr},
-    {"0x44 starting an token",
+    {"0x44 starting a token",
      "Da",
      2,
      {{Item("Da", Item::kTokenType), {}}},
      nullptr},
-    {"0x45 starting an token",
+    {"0x45 starting a token",
      "Ea",
      2,
      {{Item("Ea", Item::kTokenType), {}}},
      nullptr},
-    {"0x46 starting an token",
+    {"0x46 starting a token",
      "Fa",
      2,
      {{Item("Fa", Item::kTokenType), {}}},
      nullptr},
-    {"0x47 starting an token",
+    {"0x47 starting a token",
      "Ga",
      2,
      {{Item("Ga", Item::kTokenType), {}}},
      nullptr},
-    {"0x48 starting an token",
+    {"0x48 starting a token",
      "Ha",
      2,
      {{Item("Ha", Item::kTokenType), {}}},
      nullptr},
-    {"0x49 starting an token",
+    {"0x49 starting a token",
      "Ia",
      2,
      {{Item("Ia", Item::kTokenType), {}}},
      nullptr},
-    {"0x4a starting an token",
+    {"0x4a starting a token",
      "Ja",
      2,
      {{Item("Ja", Item::kTokenType), {}}},
      nullptr},
-    {"0x4b starting an token",
+    {"0x4b starting a token",
      "Ka",
      2,
      {{Item("Ka", Item::kTokenType), {}}},
      nullptr},
-    {"0x4c starting an token",
+    {"0x4c starting a token",
      "La",
      2,
      {{Item("La", Item::kTokenType), {}}},
      nullptr},
-    {"0x4d starting an token",
+    {"0x4d starting a token",
      "Ma",
      2,
      {{Item("Ma", Item::kTokenType), {}}},
      nullptr},
-    {"0x4e starting an token",
+    {"0x4e starting a token",
      "Na",
      2,
      {{Item("Na", Item::kTokenType), {}}},
      nullptr},
-    {"0x4f starting an token",
+    {"0x4f starting a token",
      "Oa",
      2,
      {{Item("Oa", Item::kTokenType), {}}},
      nullptr},
-    {"0x50 starting an token",
+    {"0x50 starting a token",
      "Pa",
      2,
      {{Item("Pa", Item::kTokenType), {}}},
      nullptr},
-    {"0x51 starting an token",
+    {"0x51 starting a token",
      "Qa",
      2,
      {{Item("Qa", Item::kTokenType), {}}},
      nullptr},
-    {"0x52 starting an token",
+    {"0x52 starting a token",
      "Ra",
      2,
      {{Item("Ra", Item::kTokenType), {}}},
      nullptr},
-    {"0x53 starting an token",
+    {"0x53 starting a token",
      "Sa",
      2,
      {{Item("Sa", Item::kTokenType), {}}},
      nullptr},
-    {"0x54 starting an token",
+    {"0x54 starting a token",
      "Ta",
      2,
      {{Item("Ta", Item::kTokenType), {}}},
      nullptr},
-    {"0x55 starting an token",
+    {"0x55 starting a token",
      "Ua",
      2,
      {{Item("Ua", Item::kTokenType), {}}},
      nullptr},
-    {"0x56 starting an token",
+    {"0x56 starting a token",
      "Va",
      2,
      {{Item("Va", Item::kTokenType), {}}},
      nullptr},
-    {"0x57 starting an token",
+    {"0x57 starting a token",
      "Wa",
      2,
      {{Item("Wa", Item::kTokenType), {}}},
      nullptr},
-    {"0x58 starting an token",
+    {"0x58 starting a token",
      "Xa",
      2,
      {{Item("Xa", Item::kTokenType), {}}},
      nullptr},
-    {"0x59 starting an token",
+    {"0x59 starting a token",
      "Ya",
      2,
      {{Item("Ya", Item::kTokenType), {}}},
      nullptr},
-    {"0x5a starting an token",
+    {"0x5a starting a token",
      "Za",
      2,
      {{Item("Za", Item::kTokenType), {}}},
      nullptr},
-    {"0x5b starting an token", "[a", 2, std::nullopt, nullptr},
-    {"0x5c starting an token", "\\a", 2, std::nullopt, nullptr},
-    {"0x5d starting an token", "]a", 2, std::nullopt, nullptr},
-    {"0x5e starting an token", "^a", 2, std::nullopt, nullptr},
-    {"0x5f starting an token", "_a", 2, std::nullopt, nullptr},
-    {"0x60 starting an token", "`a", 2, std::nullopt, nullptr},
-    {"0x61 starting an token",
+    {"0x5b starting a token", "[a", 2, std::nullopt, nullptr},
+    {"0x5c starting a token", "\\a", 2, std::nullopt, nullptr},
+    {"0x5d starting a token", "]a", 2, std::nullopt, nullptr},
+    {"0x5e starting a token", "^a", 2, std::nullopt, nullptr},
+    {"0x5f starting a token", "_a", 2, std::nullopt, nullptr},
+    {"0x60 starting a token", "`a", 2, std::nullopt, nullptr},
+    {"0x61 starting a token",
      "aa",
      2,
      {{Item("aa", Item::kTokenType), {}}},
      nullptr},
-    {"0x62 starting an token",
+    {"0x62 starting a token",
      "ba",
      2,
      {{Item("ba", Item::kTokenType), {}}},
      nullptr},
-    {"0x63 starting an token",
+    {"0x63 starting a token",
      "ca",
      2,
      {{Item("ca", Item::kTokenType), {}}},
      nullptr},
-    {"0x64 starting an token",
+    {"0x64 starting a token",
      "da",
      2,
      {{Item("da", Item::kTokenType), {}}},
      nullptr},
-    {"0x65 starting an token",
+    {"0x65 starting a token",
      "ea",
      2,
      {{Item("ea", Item::kTokenType), {}}},
      nullptr},
-    {"0x66 starting an token",
+    {"0x66 starting a token",
      "fa",
      2,
      {{Item("fa", Item::kTokenType), {}}},
      nullptr},
-    {"0x67 starting an token",
+    {"0x67 starting a token",
      "ga",
      2,
      {{Item("ga", Item::kTokenType), {}}},
      nullptr},
-    {"0x68 starting an token",
+    {"0x68 starting a token",
      "ha",
      2,
      {{Item("ha", Item::kTokenType), {}}},
      nullptr},
-    {"0x69 starting an token",
+    {"0x69 starting a token",
      "ia",
      2,
      {{Item("ia", Item::kTokenType), {}}},
      nullptr},
-    {"0x6a starting an token",
+    {"0x6a starting a token",
      "ja",
      2,
      {{Item("ja", Item::kTokenType), {}}},
      nullptr},
-    {"0x6b starting an token",
+    {"0x6b starting a token",
      "ka",
      2,
      {{Item("ka", Item::kTokenType), {}}},
      nullptr},
-    {"0x6c starting an token",
+    {"0x6c starting a token",
      "la",
      2,
      {{Item("la", Item::kTokenType), {}}},
      nullptr},
-    {"0x6d starting an token",
+    {"0x6d starting a token",
      "ma",
      2,
      {{Item("ma", Item::kTokenType), {}}},
      nullptr},
-    {"0x6e starting an token",
+    {"0x6e starting a token",
      "na",
      2,
      {{Item("na", Item::kTokenType), {}}},
      nullptr},
-    {"0x6f starting an token",
+    {"0x6f starting a token",
      "oa",
      2,
      {{Item("oa", Item::kTokenType), {}}},
      nullptr},
-    {"0x70 starting an token",
+    {"0x70 starting a token",
      "pa",
      2,
      {{Item("pa", Item::kTokenType), {}}},
      nullptr},
-    {"0x71 starting an token",
+    {"0x71 starting a token",
      "qa",
      2,
      {{Item("qa", Item::kTokenType), {}}},
      nullptr},
-    {"0x72 starting an token",
+    {"0x72 starting a token",
      "ra",
      2,
      {{Item("ra", Item::kTokenType), {}}},
      nullptr},
-    {"0x73 starting an token",
+    {"0x73 starting a token",
      "sa",
      2,
      {{Item("sa", Item::kTokenType), {}}},
      nullptr},
-    {"0x74 starting an token",
+    {"0x74 starting a token",
      "ta",
      2,
      {{Item("ta", Item::kTokenType), {}}},
      nullptr},
-    {"0x75 starting an token",
+    {"0x75 starting a token",
      "ua",
      2,
      {{Item("ua", Item::kTokenType), {}}},
      nullptr},
-    {"0x76 starting an token",
+    {"0x76 starting a token",
      "va",
      2,
      {{Item("va", Item::kTokenType), {}}},
      nullptr},
-    {"0x77 starting an token",
+    {"0x77 starting a token",
      "wa",
      2,
      {{Item("wa", Item::kTokenType), {}}},
      nullptr},
-    {"0x78 starting an token",
+    {"0x78 starting a token",
      "xa",
      2,
      {{Item("xa", Item::kTokenType), {}}},
      nullptr},
-    {"0x79 starting an token",
+    {"0x79 starting a token",
      "ya",
      2,
      {{Item("ya", Item::kTokenType), {}}},
      nullptr},
-    {"0x7a starting an token",
+    {"0x7a starting a token",
      "za",
      2,
      {{Item("za", Item::kTokenType), {}}},
      nullptr},
-    {"0x7b starting an token", "{a", 2, std::nullopt, nullptr},
-    {"0x7c starting an token", "|a", 2, std::nullopt, nullptr},
-    {"0x7d starting an token", "}a", 2, std::nullopt, nullptr},
-    {"0x7e starting an token", "~a", 2, std::nullopt, nullptr},
-    {"0x7f starting an token", "\177a", 2, std::nullopt, nullptr},
+    {"0x7b starting a token", "{a", 2, std::nullopt, nullptr},
+    {"0x7c starting a token", "|a", 2, std::nullopt, nullptr},
+    {"0x7d starting a token", "}a", 2, std::nullopt, nullptr},
+    {"0x7e starting a token", "~a", 2, std::nullopt, nullptr},
+    {"0x7f starting a token", "\177a", 2, std::nullopt, nullptr},
     // token.json
     {"basic token - item",
      "a_b-c.d3:f%00/*",
@@ -1949,6 +2529,7 @@ const struct ListTestCase {
   const std::optional<List> expected;  // nullopt if parse error is expected.
   const char* canonical;  // nullptr if parse error is expected, or if canonical
                           // format is identical to raw.
+  const char* known_bug = nullptr;
 } list_test_cases[] = {
     // examples.json
     {"Example-StrListHeader",
@@ -5095,6 +5676,109 @@ const struct ListTestCase {
             "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
             1)}}}},
      nullptr},
+    {"large inner list",
+     "(0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 "
+     "27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 "
+     "51 52 53 54 55 56 57 58 59 60 61 62 63 64 65 66 67 68 69 70 71 72 73 74 "
+     "75 76 77 78 79 80 81 82 83 84 85 86 87 88 89 90 91 92 93 94 95 96 97 98 "
+     "99 100 101 102 103 104 105 106 107 108 109 110 111 112 113 114 115 116 "
+     "117 118 119 120 121 122 123 124 125 126 127 128 129 130 131 132 133 134 "
+     "135 136 137 138 139 140 141 142 143 144 145 146 147 148 149 150 151 152 "
+     "153 154 155 156 157 158 159 160 161 162 163 164 165 166 167 168 169 170 "
+     "171 172 173 174 175 176 177 178 179 180 181 182 183 184 185 186 187 188 "
+     "189 190 191 192 193 194 195 196 197 198 199 200 201 202 203 204 205 206 "
+     "207 208 209 210 211 212 213 214 215 216 217 218 219 220 221 222 223 224 "
+     "225 226 227 228 229 230 231 232 233 234 235 236 237 238 239 240 241 242 "
+     "243 244 245 246 247 248 249 250 251 252 253 254 255)",
+     915,
+     {{{{{Integer(0), {}},   {Integer(1), {}},   {Integer(2), {}},
+         {Integer(3), {}},   {Integer(4), {}},   {Integer(5), {}},
+         {Integer(6), {}},   {Integer(7), {}},   {Integer(8), {}},
+         {Integer(9), {}},   {Integer(10), {}},  {Integer(11), {}},
+         {Integer(12), {}},  {Integer(13), {}},  {Integer(14), {}},
+         {Integer(15), {}},  {Integer(16), {}},  {Integer(17), {}},
+         {Integer(18), {}},  {Integer(19), {}},  {Integer(20), {}},
+         {Integer(21), {}},  {Integer(22), {}},  {Integer(23), {}},
+         {Integer(24), {}},  {Integer(25), {}},  {Integer(26), {}},
+         {Integer(27), {}},  {Integer(28), {}},  {Integer(29), {}},
+         {Integer(30), {}},  {Integer(31), {}},  {Integer(32), {}},
+         {Integer(33), {}},  {Integer(34), {}},  {Integer(35), {}},
+         {Integer(36), {}},  {Integer(37), {}},  {Integer(38), {}},
+         {Integer(39), {}},  {Integer(40), {}},  {Integer(41), {}},
+         {Integer(42), {}},  {Integer(43), {}},  {Integer(44), {}},
+         {Integer(45), {}},  {Integer(46), {}},  {Integer(47), {}},
+         {Integer(48), {}},  {Integer(49), {}},  {Integer(50), {}},
+         {Integer(51), {}},  {Integer(52), {}},  {Integer(53), {}},
+         {Integer(54), {}},  {Integer(55), {}},  {Integer(56), {}},
+         {Integer(57), {}},  {Integer(58), {}},  {Integer(59), {}},
+         {Integer(60), {}},  {Integer(61), {}},  {Integer(62), {}},
+         {Integer(63), {}},  {Integer(64), {}},  {Integer(65), {}},
+         {Integer(66), {}},  {Integer(67), {}},  {Integer(68), {}},
+         {Integer(69), {}},  {Integer(70), {}},  {Integer(71), {}},
+         {Integer(72), {}},  {Integer(73), {}},  {Integer(74), {}},
+         {Integer(75), {}},  {Integer(76), {}},  {Integer(77), {}},
+         {Integer(78), {}},  {Integer(79), {}},  {Integer(80), {}},
+         {Integer(81), {}},  {Integer(82), {}},  {Integer(83), {}},
+         {Integer(84), {}},  {Integer(85), {}},  {Integer(86), {}},
+         {Integer(87), {}},  {Integer(88), {}},  {Integer(89), {}},
+         {Integer(90), {}},  {Integer(91), {}},  {Integer(92), {}},
+         {Integer(93), {}},  {Integer(94), {}},  {Integer(95), {}},
+         {Integer(96), {}},  {Integer(97), {}},  {Integer(98), {}},
+         {Integer(99), {}},  {Integer(100), {}}, {Integer(101), {}},
+         {Integer(102), {}}, {Integer(103), {}}, {Integer(104), {}},
+         {Integer(105), {}}, {Integer(106), {}}, {Integer(107), {}},
+         {Integer(108), {}}, {Integer(109), {}}, {Integer(110), {}},
+         {Integer(111), {}}, {Integer(112), {}}, {Integer(113), {}},
+         {Integer(114), {}}, {Integer(115), {}}, {Integer(116), {}},
+         {Integer(117), {}}, {Integer(118), {}}, {Integer(119), {}},
+         {Integer(120), {}}, {Integer(121), {}}, {Integer(122), {}},
+         {Integer(123), {}}, {Integer(124), {}}, {Integer(125), {}},
+         {Integer(126), {}}, {Integer(127), {}}, {Integer(128), {}},
+         {Integer(129), {}}, {Integer(130), {}}, {Integer(131), {}},
+         {Integer(132), {}}, {Integer(133), {}}, {Integer(134), {}},
+         {Integer(135), {}}, {Integer(136), {}}, {Integer(137), {}},
+         {Integer(138), {}}, {Integer(139), {}}, {Integer(140), {}},
+         {Integer(141), {}}, {Integer(142), {}}, {Integer(143), {}},
+         {Integer(144), {}}, {Integer(145), {}}, {Integer(146), {}},
+         {Integer(147), {}}, {Integer(148), {}}, {Integer(149), {}},
+         {Integer(150), {}}, {Integer(151), {}}, {Integer(152), {}},
+         {Integer(153), {}}, {Integer(154), {}}, {Integer(155), {}},
+         {Integer(156), {}}, {Integer(157), {}}, {Integer(158), {}},
+         {Integer(159), {}}, {Integer(160), {}}, {Integer(161), {}},
+         {Integer(162), {}}, {Integer(163), {}}, {Integer(164), {}},
+         {Integer(165), {}}, {Integer(166), {}}, {Integer(167), {}},
+         {Integer(168), {}}, {Integer(169), {}}, {Integer(170), {}},
+         {Integer(171), {}}, {Integer(172), {}}, {Integer(173), {}},
+         {Integer(174), {}}, {Integer(175), {}}, {Integer(176), {}},
+         {Integer(177), {}}, {Integer(178), {}}, {Integer(179), {}},
+         {Integer(180), {}}, {Integer(181), {}}, {Integer(182), {}},
+         {Integer(183), {}}, {Integer(184), {}}, {Integer(185), {}},
+         {Integer(186), {}}, {Integer(187), {}}, {Integer(188), {}},
+         {Integer(189), {}}, {Integer(190), {}}, {Integer(191), {}},
+         {Integer(192), {}}, {Integer(193), {}}, {Integer(194), {}},
+         {Integer(195), {}}, {Integer(196), {}}, {Integer(197), {}},
+         {Integer(198), {}}, {Integer(199), {}}, {Integer(200), {}},
+         {Integer(201), {}}, {Integer(202), {}}, {Integer(203), {}},
+         {Integer(204), {}}, {Integer(205), {}}, {Integer(206), {}},
+         {Integer(207), {}}, {Integer(208), {}}, {Integer(209), {}},
+         {Integer(210), {}}, {Integer(211), {}}, {Integer(212), {}},
+         {Integer(213), {}}, {Integer(214), {}}, {Integer(215), {}},
+         {Integer(216), {}}, {Integer(217), {}}, {Integer(218), {}},
+         {Integer(219), {}}, {Integer(220), {}}, {Integer(221), {}},
+         {Integer(222), {}}, {Integer(223), {}}, {Integer(224), {}},
+         {Integer(225), {}}, {Integer(226), {}}, {Integer(227), {}},
+         {Integer(228), {}}, {Integer(229), {}}, {Integer(230), {}},
+         {Integer(231), {}}, {Integer(232), {}}, {Integer(233), {}},
+         {Integer(234), {}}, {Integer(235), {}}, {Integer(236), {}},
+         {Integer(237), {}}, {Integer(238), {}}, {Integer(239), {}},
+         {Integer(240), {}}, {Integer(241), {}}, {Integer(242), {}},
+         {Integer(243), {}}, {Integer(244), {}}, {Integer(245), {}},
+         {Integer(246), {}}, {Integer(247), {}}, {Integer(248), {}},
+         {Integer(249), {}}, {Integer(250), {}}, {Integer(251), {}},
+         {Integer(252), {}}, {Integer(253), {}}, {Integer(254), {}},
+         {Integer(255), {}}},
+        {}}}},
+     nullptr},
     // list.json
     {"basic list",
      "1, 42",
@@ -5169,6 +5853,21 @@ const struct ListTestCase {
     {"no spaces in inner-list", "(abc\"def\"?0123*dXZ3*xyz)", 24, std::nullopt,
      nullptr},
     {"no closing parenthesis", "(", 1, std::nullopt, nullptr},
+    {"nested inner lists", "((1))", 5, std::nullopt, nullptr},
+    {"dictionary in inner list", "(a=1)", 5, std::nullopt, nullptr},
+    // number.json
+    {"long integer followed by comma",
+     "123456789012345, 1",
+     18,
+     {{{Integer(123456789012345), {}}, {Integer(1), {}}}},
+     nullptr},
+    {"too long integer followed by comma", "1234567890123456, 1", 19,
+     std::nullopt, nullptr},
+    {"decimal, followed by comma",
+     "123456789012.123, 1.1",
+     21,
+     {{{Item(123456789012.123), {}}, {Item(1.1), {}}}},
+     nullptr},
     // param-list.json
     {"basic parameterised list",
      "abc_123;a=1;b=2; cdef_456, ghi;q=9;r=\"+w\"",
@@ -5229,6 +5928,24 @@ const struct ListTestCase {
      std::nullopt, nullptr},
     {"empty item parameterised list", "text/html,,text/plain;q=0.5,", 28,
      std::nullopt, nullptr},
+    {"duplicate parameter with different positions",
+     "a;b=1;c=2;b=3",
+     13,
+     {{{Item("a", Item::kTokenType), {Param("b", 3), Param("c", 2)}}}},
+     "a;b=3;c=2"},
+    {"parameter ordering",
+     "a;m;z;t",
+     7,
+     {{{Item("a", Item::kTokenType),
+        {BooleanParam("m", true), BooleanParam("z", true),
+         BooleanParam("t", true)}}}},
+     nullptr},
+    {"trailing semicolon in parameters", "a;b=1;", 6, std::nullopt, nullptr},
+    {"trailing semicolon and space in parameters", "a;b=1; ", 7, std::nullopt,
+     nullptr},
+    {"empty parameter key", "a;=1", 4, std::nullopt, nullptr},
+    {"parameter prefix only", "a;", 2, std::nullopt, nullptr},
+    {"parameter prefix and space only", "a; ", 3, std::nullopt, nullptr},
     // param-listlist.json
     {"parameterised inner list",
      "(abc_123);a=1;b=2, cdef_456",
@@ -5276,6 +5993,7 @@ const struct DictionaryTestCase {
       expected;           // nullopt if parse error is expected.
   const char* canonical;  // nullptr if parse error is expected, or if canonical
                           // format is identical to raw.
+  const char* known_bug = nullptr;
 } dictionary_test_cases[] = {
     // dictionary.json
     {"basic dictionary",
@@ -5380,6 +6098,13 @@ const struct DictionaryTestCase {
      11,
      {Dictionary{{{"a", {Integer(3), {}}}, {"b", {Integer(2), {}}}}}},
      "a=3, b=2"},
+    {"dictionary key ordering",
+     "m, z, t",
+     7,
+     {Dictionary{{{"m", {Item(true), {}}},
+                  {"z", {Item(true), {}}},
+                  {"t", {Item(true), {}}}}}},
+     nullptr},
     {"numeric key dictionary", "a=1,1b=2,a=1", 12, std::nullopt, nullptr},
     {"uppercase key dictionary", "a=1,B=2,a=1", 11, std::nullopt, nullptr},
     {"bad key dictionary", "a=1,b!=2,a=1", 12, std::nullopt, nullptr},
@@ -6062,246 +6787,246 @@ const struct DictionaryTestCase {
     {"0x7d in dictionary key", "a}a=1", 5, std::nullopt, nullptr},
     {"0x7e in dictionary key", "a~a=1", 5, std::nullopt, nullptr},
     {"0x7f in dictionary key", "a\177a=1", 5, std::nullopt, nullptr},
-    {"0x00 starting an dictionary key", "\000a=1", 4, std::nullopt, nullptr},
-    {"0x01 starting an dictionary key", "\001a=1", 4, std::nullopt, nullptr},
-    {"0x02 starting an dictionary key", "\002a=1", 4, std::nullopt, nullptr},
-    {"0x03 starting an dictionary key", "\003a=1", 4, std::nullopt, nullptr},
-    {"0x04 starting an dictionary key", "\004a=1", 4, std::nullopt, nullptr},
-    {"0x05 starting an dictionary key", "\005a=1", 4, std::nullopt, nullptr},
-    {"0x06 starting an dictionary key", "\006a=1", 4, std::nullopt, nullptr},
-    {"0x07 starting an dictionary key", "\007a=1", 4, std::nullopt, nullptr},
-    {"0x08 starting an dictionary key", "\010a=1", 4, std::nullopt, nullptr},
-    {"0x09 starting an dictionary key", "\ta=1", 4, std::nullopt, nullptr},
-    {"0x0a starting an dictionary key", "\na=1", 4, std::nullopt, nullptr},
-    {"0x0b starting an dictionary key", "\013a=1", 4, std::nullopt, nullptr},
-    {"0x0c starting an dictionary key", "\014a=1", 4, std::nullopt, nullptr},
-    {"0x0d starting an dictionary key", "\ra=1", 4, std::nullopt, nullptr},
-    {"0x0e starting an dictionary key", "\016a=1", 4, std::nullopt, nullptr},
-    {"0x0f starting an dictionary key", "\017a=1", 4, std::nullopt, nullptr},
-    {"0x10 starting an dictionary key", "\020a=1", 4, std::nullopt, nullptr},
-    {"0x11 starting an dictionary key", "\021a=1", 4, std::nullopt, nullptr},
-    {"0x12 starting an dictionary key", "\022a=1", 4, std::nullopt, nullptr},
-    {"0x13 starting an dictionary key", "\023a=1", 4, std::nullopt, nullptr},
-    {"0x14 starting an dictionary key", "\024a=1", 4, std::nullopt, nullptr},
-    {"0x15 starting an dictionary key", "\025a=1", 4, std::nullopt, nullptr},
-    {"0x16 starting an dictionary key", "\026a=1", 4, std::nullopt, nullptr},
-    {"0x17 starting an dictionary key", "\027a=1", 4, std::nullopt, nullptr},
-    {"0x18 starting an dictionary key", "\030a=1", 4, std::nullopt, nullptr},
-    {"0x19 starting an dictionary key", "\031a=1", 4, std::nullopt, nullptr},
-    {"0x1a starting an dictionary key", "\032a=1", 4, std::nullopt, nullptr},
-    {"0x1b starting an dictionary key", "\033a=1", 4, std::nullopt, nullptr},
-    {"0x1c starting an dictionary key", "\034a=1", 4, std::nullopt, nullptr},
-    {"0x1d starting an dictionary key", "\035a=1", 4, std::nullopt, nullptr},
-    {"0x1e starting an dictionary key", "\036a=1", 4, std::nullopt, nullptr},
-    {"0x1f starting an dictionary key", "\037a=1", 4, std::nullopt, nullptr},
-    {"0x20 starting an dictionary key",
+    {"0x00 starting a dictionary key", "\000a=1", 4, std::nullopt, nullptr},
+    {"0x01 starting a dictionary key", "\001a=1", 4, std::nullopt, nullptr},
+    {"0x02 starting a dictionary key", "\002a=1", 4, std::nullopt, nullptr},
+    {"0x03 starting a dictionary key", "\003a=1", 4, std::nullopt, nullptr},
+    {"0x04 starting a dictionary key", "\004a=1", 4, std::nullopt, nullptr},
+    {"0x05 starting a dictionary key", "\005a=1", 4, std::nullopt, nullptr},
+    {"0x06 starting a dictionary key", "\006a=1", 4, std::nullopt, nullptr},
+    {"0x07 starting a dictionary key", "\007a=1", 4, std::nullopt, nullptr},
+    {"0x08 starting a dictionary key", "\010a=1", 4, std::nullopt, nullptr},
+    {"0x09 starting a dictionary key", "\ta=1", 4, std::nullopt, nullptr},
+    {"0x0a starting a dictionary key", "\na=1", 4, std::nullopt, nullptr},
+    {"0x0b starting a dictionary key", "\013a=1", 4, std::nullopt, nullptr},
+    {"0x0c starting a dictionary key", "\014a=1", 4, std::nullopt, nullptr},
+    {"0x0d starting a dictionary key", "\ra=1", 4, std::nullopt, nullptr},
+    {"0x0e starting a dictionary key", "\016a=1", 4, std::nullopt, nullptr},
+    {"0x0f starting a dictionary key", "\017a=1", 4, std::nullopt, nullptr},
+    {"0x10 starting a dictionary key", "\020a=1", 4, std::nullopt, nullptr},
+    {"0x11 starting a dictionary key", "\021a=1", 4, std::nullopt, nullptr},
+    {"0x12 starting a dictionary key", "\022a=1", 4, std::nullopt, nullptr},
+    {"0x13 starting a dictionary key", "\023a=1", 4, std::nullopt, nullptr},
+    {"0x14 starting a dictionary key", "\024a=1", 4, std::nullopt, nullptr},
+    {"0x15 starting a dictionary key", "\025a=1", 4, std::nullopt, nullptr},
+    {"0x16 starting a dictionary key", "\026a=1", 4, std::nullopt, nullptr},
+    {"0x17 starting a dictionary key", "\027a=1", 4, std::nullopt, nullptr},
+    {"0x18 starting a dictionary key", "\030a=1", 4, std::nullopt, nullptr},
+    {"0x19 starting a dictionary key", "\031a=1", 4, std::nullopt, nullptr},
+    {"0x1a starting a dictionary key", "\032a=1", 4, std::nullopt, nullptr},
+    {"0x1b starting a dictionary key", "\033a=1", 4, std::nullopt, nullptr},
+    {"0x1c starting a dictionary key", "\034a=1", 4, std::nullopt, nullptr},
+    {"0x1d starting a dictionary key", "\035a=1", 4, std::nullopt, nullptr},
+    {"0x1e starting a dictionary key", "\036a=1", 4, std::nullopt, nullptr},
+    {"0x1f starting a dictionary key", "\037a=1", 4, std::nullopt, nullptr},
+    {"0x20 starting a dictionary key",
      " a=1",
      4,
      {Dictionary{{{"a", {Integer(1), {}}}}}},
      "a=1"},
-    {"0x21 starting an dictionary key", "!a=1", 4, std::nullopt, nullptr},
-    {"0x22 starting an dictionary key", "\"a=1", 4, std::nullopt, nullptr},
-    {"0x23 starting an dictionary key", "#a=1", 4, std::nullopt, nullptr},
-    {"0x24 starting an dictionary key", "$a=1", 4, std::nullopt, nullptr},
-    {"0x25 starting an dictionary key", "%a=1", 4, std::nullopt, nullptr},
-    {"0x26 starting an dictionary key", "&a=1", 4, std::nullopt, nullptr},
-    {"0x27 starting an dictionary key", "'a=1", 4, std::nullopt, nullptr},
-    {"0x28 starting an dictionary key", "(a=1", 4, std::nullopt, nullptr},
-    {"0x29 starting an dictionary key", ")a=1", 4, std::nullopt, nullptr},
-    {"0x2a starting an dictionary key",
+    {"0x21 starting a dictionary key", "!a=1", 4, std::nullopt, nullptr},
+    {"0x22 starting a dictionary key", "\"a=1", 4, std::nullopt, nullptr},
+    {"0x23 starting a dictionary key", "#a=1", 4, std::nullopt, nullptr},
+    {"0x24 starting a dictionary key", "$a=1", 4, std::nullopt, nullptr},
+    {"0x25 starting a dictionary key", "%a=1", 4, std::nullopt, nullptr},
+    {"0x26 starting a dictionary key", "&a=1", 4, std::nullopt, nullptr},
+    {"0x27 starting a dictionary key", "'a=1", 4, std::nullopt, nullptr},
+    {"0x28 starting a dictionary key", "(a=1", 4, std::nullopt, nullptr},
+    {"0x29 starting a dictionary key", ")a=1", 4, std::nullopt, nullptr},
+    {"0x2a starting a dictionary key",
      "*a=1",
      4,
      {Dictionary{{{"*a", {Integer(1), {}}}}}},
      nullptr},
-    {"0x2b starting an dictionary key", "+a=1", 4, std::nullopt, nullptr},
-    {"0x2c starting an dictionary key", ",a=1", 4, std::nullopt, nullptr},
-    {"0x2d starting an dictionary key", "-a=1", 4, std::nullopt, nullptr},
-    {"0x2e starting an dictionary key", ".a=1", 4, std::nullopt, nullptr},
-    {"0x2f starting an dictionary key", "/a=1", 4, std::nullopt, nullptr},
-    {"0x30 starting an dictionary key", "0a=1", 4, std::nullopt, nullptr},
-    {"0x31 starting an dictionary key", "1a=1", 4, std::nullopt, nullptr},
-    {"0x32 starting an dictionary key", "2a=1", 4, std::nullopt, nullptr},
-    {"0x33 starting an dictionary key", "3a=1", 4, std::nullopt, nullptr},
-    {"0x34 starting an dictionary key", "4a=1", 4, std::nullopt, nullptr},
-    {"0x35 starting an dictionary key", "5a=1", 4, std::nullopt, nullptr},
-    {"0x36 starting an dictionary key", "6a=1", 4, std::nullopt, nullptr},
-    {"0x37 starting an dictionary key", "7a=1", 4, std::nullopt, nullptr},
-    {"0x38 starting an dictionary key", "8a=1", 4, std::nullopt, nullptr},
-    {"0x39 starting an dictionary key", "9a=1", 4, std::nullopt, nullptr},
-    {"0x3a starting an dictionary key", ":a=1", 4, std::nullopt, nullptr},
-    {"0x3b starting an dictionary key", ";a=1", 4, std::nullopt, nullptr},
-    {"0x3c starting an dictionary key", "<a=1", 4, std::nullopt, nullptr},
-    {"0x3d starting an dictionary key", "=a=1", 4, std::nullopt, nullptr},
-    {"0x3e starting an dictionary key", ">a=1", 4, std::nullopt, nullptr},
-    {"0x3f starting an dictionary key", "?a=1", 4, std::nullopt, nullptr},
-    {"0x40 starting an dictionary key", "@a=1", 4, std::nullopt, nullptr},
-    {"0x41 starting an dictionary key", "Aa=1", 4, std::nullopt, nullptr},
-    {"0x42 starting an dictionary key", "Ba=1", 4, std::nullopt, nullptr},
-    {"0x43 starting an dictionary key", "Ca=1", 4, std::nullopt, nullptr},
-    {"0x44 starting an dictionary key", "Da=1", 4, std::nullopt, nullptr},
-    {"0x45 starting an dictionary key", "Ea=1", 4, std::nullopt, nullptr},
-    {"0x46 starting an dictionary key", "Fa=1", 4, std::nullopt, nullptr},
-    {"0x47 starting an dictionary key", "Ga=1", 4, std::nullopt, nullptr},
-    {"0x48 starting an dictionary key", "Ha=1", 4, std::nullopt, nullptr},
-    {"0x49 starting an dictionary key", "Ia=1", 4, std::nullopt, nullptr},
-    {"0x4a starting an dictionary key", "Ja=1", 4, std::nullopt, nullptr},
-    {"0x4b starting an dictionary key", "Ka=1", 4, std::nullopt, nullptr},
-    {"0x4c starting an dictionary key", "La=1", 4, std::nullopt, nullptr},
-    {"0x4d starting an dictionary key", "Ma=1", 4, std::nullopt, nullptr},
-    {"0x4e starting an dictionary key", "Na=1", 4, std::nullopt, nullptr},
-    {"0x4f starting an dictionary key", "Oa=1", 4, std::nullopt, nullptr},
-    {"0x50 starting an dictionary key", "Pa=1", 4, std::nullopt, nullptr},
-    {"0x51 starting an dictionary key", "Qa=1", 4, std::nullopt, nullptr},
-    {"0x52 starting an dictionary key", "Ra=1", 4, std::nullopt, nullptr},
-    {"0x53 starting an dictionary key", "Sa=1", 4, std::nullopt, nullptr},
-    {"0x54 starting an dictionary key", "Ta=1", 4, std::nullopt, nullptr},
-    {"0x55 starting an dictionary key", "Ua=1", 4, std::nullopt, nullptr},
-    {"0x56 starting an dictionary key", "Va=1", 4, std::nullopt, nullptr},
-    {"0x57 starting an dictionary key", "Wa=1", 4, std::nullopt, nullptr},
-    {"0x58 starting an dictionary key", "Xa=1", 4, std::nullopt, nullptr},
-    {"0x59 starting an dictionary key", "Ya=1", 4, std::nullopt, nullptr},
-    {"0x5a starting an dictionary key", "Za=1", 4, std::nullopt, nullptr},
-    {"0x5b starting an dictionary key", "[a=1", 4, std::nullopt, nullptr},
-    {"0x5c starting an dictionary key", "\\a=1", 4, std::nullopt, nullptr},
-    {"0x5d starting an dictionary key", "]a=1", 4, std::nullopt, nullptr},
-    {"0x5e starting an dictionary key", "^a=1", 4, std::nullopt, nullptr},
-    {"0x5f starting an dictionary key", "_a=1", 4, std::nullopt, nullptr},
-    {"0x60 starting an dictionary key", "`a=1", 4, std::nullopt, nullptr},
-    {"0x61 starting an dictionary key",
+    {"0x2b starting a dictionary key", "+a=1", 4, std::nullopt, nullptr},
+    {"0x2c starting a dictionary key", ",a=1", 4, std::nullopt, nullptr},
+    {"0x2d starting a dictionary key", "-a=1", 4, std::nullopt, nullptr},
+    {"0x2e starting a dictionary key", ".a=1", 4, std::nullopt, nullptr},
+    {"0x2f starting a dictionary key", "/a=1", 4, std::nullopt, nullptr},
+    {"0x30 starting a dictionary key", "0a=1", 4, std::nullopt, nullptr},
+    {"0x31 starting a dictionary key", "1a=1", 4, std::nullopt, nullptr},
+    {"0x32 starting a dictionary key", "2a=1", 4, std::nullopt, nullptr},
+    {"0x33 starting a dictionary key", "3a=1", 4, std::nullopt, nullptr},
+    {"0x34 starting a dictionary key", "4a=1", 4, std::nullopt, nullptr},
+    {"0x35 starting a dictionary key", "5a=1", 4, std::nullopt, nullptr},
+    {"0x36 starting a dictionary key", "6a=1", 4, std::nullopt, nullptr},
+    {"0x37 starting a dictionary key", "7a=1", 4, std::nullopt, nullptr},
+    {"0x38 starting a dictionary key", "8a=1", 4, std::nullopt, nullptr},
+    {"0x39 starting a dictionary key", "9a=1", 4, std::nullopt, nullptr},
+    {"0x3a starting a dictionary key", ":a=1", 4, std::nullopt, nullptr},
+    {"0x3b starting a dictionary key", ";a=1", 4, std::nullopt, nullptr},
+    {"0x3c starting a dictionary key", "<a=1", 4, std::nullopt, nullptr},
+    {"0x3d starting a dictionary key", "=a=1", 4, std::nullopt, nullptr},
+    {"0x3e starting a dictionary key", ">a=1", 4, std::nullopt, nullptr},
+    {"0x3f starting a dictionary key", "?a=1", 4, std::nullopt, nullptr},
+    {"0x40 starting a dictionary key", "@a=1", 4, std::nullopt, nullptr},
+    {"0x41 starting a dictionary key", "Aa=1", 4, std::nullopt, nullptr},
+    {"0x42 starting a dictionary key", "Ba=1", 4, std::nullopt, nullptr},
+    {"0x43 starting a dictionary key", "Ca=1", 4, std::nullopt, nullptr},
+    {"0x44 starting a dictionary key", "Da=1", 4, std::nullopt, nullptr},
+    {"0x45 starting a dictionary key", "Ea=1", 4, std::nullopt, nullptr},
+    {"0x46 starting a dictionary key", "Fa=1", 4, std::nullopt, nullptr},
+    {"0x47 starting a dictionary key", "Ga=1", 4, std::nullopt, nullptr},
+    {"0x48 starting a dictionary key", "Ha=1", 4, std::nullopt, nullptr},
+    {"0x49 starting a dictionary key", "Ia=1", 4, std::nullopt, nullptr},
+    {"0x4a starting a dictionary key", "Ja=1", 4, std::nullopt, nullptr},
+    {"0x4b starting a dictionary key", "Ka=1", 4, std::nullopt, nullptr},
+    {"0x4c starting a dictionary key", "La=1", 4, std::nullopt, nullptr},
+    {"0x4d starting a dictionary key", "Ma=1", 4, std::nullopt, nullptr},
+    {"0x4e starting a dictionary key", "Na=1", 4, std::nullopt, nullptr},
+    {"0x4f starting a dictionary key", "Oa=1", 4, std::nullopt, nullptr},
+    {"0x50 starting a dictionary key", "Pa=1", 4, std::nullopt, nullptr},
+    {"0x51 starting a dictionary key", "Qa=1", 4, std::nullopt, nullptr},
+    {"0x52 starting a dictionary key", "Ra=1", 4, std::nullopt, nullptr},
+    {"0x53 starting a dictionary key", "Sa=1", 4, std::nullopt, nullptr},
+    {"0x54 starting a dictionary key", "Ta=1", 4, std::nullopt, nullptr},
+    {"0x55 starting a dictionary key", "Ua=1", 4, std::nullopt, nullptr},
+    {"0x56 starting a dictionary key", "Va=1", 4, std::nullopt, nullptr},
+    {"0x57 starting a dictionary key", "Wa=1", 4, std::nullopt, nullptr},
+    {"0x58 starting a dictionary key", "Xa=1", 4, std::nullopt, nullptr},
+    {"0x59 starting a dictionary key", "Ya=1", 4, std::nullopt, nullptr},
+    {"0x5a starting a dictionary key", "Za=1", 4, std::nullopt, nullptr},
+    {"0x5b starting a dictionary key", "[a=1", 4, std::nullopt, nullptr},
+    {"0x5c starting a dictionary key", "\\a=1", 4, std::nullopt, nullptr},
+    {"0x5d starting a dictionary key", "]a=1", 4, std::nullopt, nullptr},
+    {"0x5e starting a dictionary key", "^a=1", 4, std::nullopt, nullptr},
+    {"0x5f starting a dictionary key", "_a=1", 4, std::nullopt, nullptr},
+    {"0x60 starting a dictionary key", "`a=1", 4, std::nullopt, nullptr},
+    {"0x61 starting a dictionary key",
      "aa=1",
      4,
      {Dictionary{{{"aa", {Integer(1), {}}}}}},
      nullptr},
-    {"0x62 starting an dictionary key",
+    {"0x62 starting a dictionary key",
      "ba=1",
      4,
      {Dictionary{{{"ba", {Integer(1), {}}}}}},
      nullptr},
-    {"0x63 starting an dictionary key",
+    {"0x63 starting a dictionary key",
      "ca=1",
      4,
      {Dictionary{{{"ca", {Integer(1), {}}}}}},
      nullptr},
-    {"0x64 starting an dictionary key",
+    {"0x64 starting a dictionary key",
      "da=1",
      4,
      {Dictionary{{{"da", {Integer(1), {}}}}}},
      nullptr},
-    {"0x65 starting an dictionary key",
+    {"0x65 starting a dictionary key",
      "ea=1",
      4,
      {Dictionary{{{"ea", {Integer(1), {}}}}}},
      nullptr},
-    {"0x66 starting an dictionary key",
+    {"0x66 starting a dictionary key",
      "fa=1",
      4,
      {Dictionary{{{"fa", {Integer(1), {}}}}}},
      nullptr},
-    {"0x67 starting an dictionary key",
+    {"0x67 starting a dictionary key",
      "ga=1",
      4,
      {Dictionary{{{"ga", {Integer(1), {}}}}}},
      nullptr},
-    {"0x68 starting an dictionary key",
+    {"0x68 starting a dictionary key",
      "ha=1",
      4,
      {Dictionary{{{"ha", {Integer(1), {}}}}}},
      nullptr},
-    {"0x69 starting an dictionary key",
+    {"0x69 starting a dictionary key",
      "ia=1",
      4,
      {Dictionary{{{"ia", {Integer(1), {}}}}}},
      nullptr},
-    {"0x6a starting an dictionary key",
+    {"0x6a starting a dictionary key",
      "ja=1",
      4,
      {Dictionary{{{"ja", {Integer(1), {}}}}}},
      nullptr},
-    {"0x6b starting an dictionary key",
+    {"0x6b starting a dictionary key",
      "ka=1",
      4,
      {Dictionary{{{"ka", {Integer(1), {}}}}}},
      nullptr},
-    {"0x6c starting an dictionary key",
+    {"0x6c starting a dictionary key",
      "la=1",
      4,
      {Dictionary{{{"la", {Integer(1), {}}}}}},
      nullptr},
-    {"0x6d starting an dictionary key",
+    {"0x6d starting a dictionary key",
      "ma=1",
      4,
      {Dictionary{{{"ma", {Integer(1), {}}}}}},
      nullptr},
-    {"0x6e starting an dictionary key",
+    {"0x6e starting a dictionary key",
      "na=1",
      4,
      {Dictionary{{{"na", {Integer(1), {}}}}}},
      nullptr},
-    {"0x6f starting an dictionary key",
+    {"0x6f starting a dictionary key",
      "oa=1",
      4,
      {Dictionary{{{"oa", {Integer(1), {}}}}}},
      nullptr},
-    {"0x70 starting an dictionary key",
+    {"0x70 starting a dictionary key",
      "pa=1",
      4,
      {Dictionary{{{"pa", {Integer(1), {}}}}}},
      nullptr},
-    {"0x71 starting an dictionary key",
+    {"0x71 starting a dictionary key",
      "qa=1",
      4,
      {Dictionary{{{"qa", {Integer(1), {}}}}}},
      nullptr},
-    {"0x72 starting an dictionary key",
+    {"0x72 starting a dictionary key",
      "ra=1",
      4,
      {Dictionary{{{"ra", {Integer(1), {}}}}}},
      nullptr},
-    {"0x73 starting an dictionary key",
+    {"0x73 starting a dictionary key",
      "sa=1",
      4,
      {Dictionary{{{"sa", {Integer(1), {}}}}}},
      nullptr},
-    {"0x74 starting an dictionary key",
+    {"0x74 starting a dictionary key",
      "ta=1",
      4,
      {Dictionary{{{"ta", {Integer(1), {}}}}}},
      nullptr},
-    {"0x75 starting an dictionary key",
+    {"0x75 starting a dictionary key",
      "ua=1",
      4,
      {Dictionary{{{"ua", {Integer(1), {}}}}}},
      nullptr},
-    {"0x76 starting an dictionary key",
+    {"0x76 starting a dictionary key",
      "va=1",
      4,
      {Dictionary{{{"va", {Integer(1), {}}}}}},
      nullptr},
-    {"0x77 starting an dictionary key",
+    {"0x77 starting a dictionary key",
      "wa=1",
      4,
      {Dictionary{{{"wa", {Integer(1), {}}}}}},
      nullptr},
-    {"0x78 starting an dictionary key",
+    {"0x78 starting a dictionary key",
      "xa=1",
      4,
      {Dictionary{{{"xa", {Integer(1), {}}}}}},
      nullptr},
-    {"0x79 starting an dictionary key",
+    {"0x79 starting a dictionary key",
      "ya=1",
      4,
      {Dictionary{{{"ya", {Integer(1), {}}}}}},
      nullptr},
-    {"0x7a starting an dictionary key",
+    {"0x7a starting a dictionary key",
      "za=1",
      4,
      {Dictionary{{{"za", {Integer(1), {}}}}}},
      nullptr},
-    {"0x7b starting an dictionary key", "{a=1", 4, std::nullopt, nullptr},
-    {"0x7c starting an dictionary key", "|a=1", 4, std::nullopt, nullptr},
-    {"0x7d starting an dictionary key", "}a=1", 4, std::nullopt, nullptr},
-    {"0x7e starting an dictionary key", "~a=1", 4, std::nullopt, nullptr},
-    {"0x7f starting an dictionary key", "\177a=1", 4, std::nullopt, nullptr},
+    {"0x7b starting a dictionary key", "{a=1", 4, std::nullopt, nullptr},
+    {"0x7c starting a dictionary key", "|a=1", 4, std::nullopt, nullptr},
+    {"0x7d starting a dictionary key", "}a=1", 4, std::nullopt, nullptr},
+    {"0x7e starting a dictionary key", "~a=1", 4, std::nullopt, nullptr},
+    {"0x7f starting a dictionary key", "\177a=1", 4, std::nullopt, nullptr},
     // large-generated.json
     {"large dictionary",
      "a0=1, a1=1, a2=1, a3=1, a4=1, a5=1, a6=1, a7=1, a8=1, a9=1, a10=1, "
@@ -7017,7 +7742,15 @@ TEST(StructuredHeaderGeneratedTest, ParseItem) {
       SCOPED_TRACE(c.name);
       std::string raw{c.raw, c.raw_len};
       std::optional<ParameterizedItem> result = ParseItem(raw);
-      EXPECT_EQ(result, c.expected);
+      if (c.known_bug) {
+        if (result == c.expected) {
+          ADD_FAILURE() << "Test " << c.name
+                        << " passed but was expected to fail (" << c.known_bug
+                        << "); please remove from KNOWN_BUGS";
+        }
+      } else {
+        EXPECT_EQ(result, c.expected);
+      }
     }
   }
 }
@@ -7028,7 +7761,15 @@ TEST(StructuredHeaderGeneratedTest, ParseList) {
       SCOPED_TRACE(c.name);
       std::string raw{c.raw, c.raw_len};
       std::optional<List> result = ParseList(raw);
-      EXPECT_EQ(result, c.expected);
+      if (c.known_bug) {
+        if (result == c.expected) {
+          ADD_FAILURE() << "Test " << c.name
+                        << " passed but was expected to fail (" << c.known_bug
+                        << "); please remove from KNOWN_BUGS";
+        }
+      } else {
+        EXPECT_EQ(result, c.expected);
+      }
     }
   }
 }
@@ -7039,7 +7780,15 @@ TEST(StructuredHeaderGeneratedTest, ParseDictionary) {
       SCOPED_TRACE(c.name);
       std::string raw{c.raw, c.raw_len};
       std::optional<Dictionary> result = ParseDictionary(raw);
-      EXPECT_EQ(result, c.expected);
+      if (c.known_bug) {
+        if (result == c.expected) {
+          ADD_FAILURE() << "Test " << c.name
+                        << " passed but was expected to fail (" << c.known_bug
+                        << "); please remove from KNOWN_BUGS";
+        }
+      } else {
+        EXPECT_EQ(result, c.expected);
+      }
     }
   }
 }
@@ -7050,9 +7799,15 @@ TEST(StructuredHeaderGeneratedTest, SerializeItem) {
     if (c.expected) {
       std::optional<std::string> result = SerializeItem(*c.expected);
       if (c.raw || c.canonical) {
-        EXPECT_TRUE(result.has_value());
-        EXPECT_EQ(result.value(),
-                  std::string(c.canonical ? c.canonical : c.raw));
+        if (c.known_bug) {
+          if (result == std::string(c.canonical ? c.canonical : c.raw)) {
+            ADD_FAILURE() << "Test " << c.name
+                          << " passed serialization but was expected to fail ("
+                          << c.known_bug << "); please remove from KNOWN_BUGS";
+          }
+        } else {
+          EXPECT_EQ(result, std::string(c.canonical ? c.canonical : c.raw));
+        }
       } else {
         EXPECT_FALSE(result.has_value());
       }
@@ -7066,9 +7821,15 @@ TEST(StructuredHeaderGeneratedTest, SerializeList) {
     if (c.expected) {
       std::optional<std::string> result = SerializeList(*c.expected);
       if (c.raw || c.canonical) {
-        EXPECT_TRUE(result.has_value());
-        EXPECT_EQ(result.value(),
-                  std::string(c.canonical ? c.canonical : c.raw));
+        if (c.known_bug) {
+          if (result == std::string(c.canonical ? c.canonical : c.raw)) {
+            ADD_FAILURE() << "Test " << c.name
+                          << " passed serialization but was expected to fail ("
+                          << c.known_bug << "); please remove from KNOWN_BUGS";
+          }
+        } else {
+          EXPECT_EQ(result, std::string(c.canonical ? c.canonical : c.raw));
+        }
       } else {
         EXPECT_FALSE(result.has_value());
       }
@@ -7082,9 +7843,15 @@ TEST(StructuredHeaderGeneratedTest, SerializeDictionary) {
     if (c.expected) {
       std::optional<std::string> result = SerializeDictionary(*c.expected);
       if (c.raw || c.canonical) {
-        EXPECT_TRUE(result.has_value());
-        EXPECT_EQ(result.value(),
-                  std::string(c.canonical ? c.canonical : c.raw));
+        if (c.known_bug) {
+          if (result == std::string(c.canonical ? c.canonical : c.raw)) {
+            ADD_FAILURE() << "Test " << c.name
+                          << " passed serialization but was expected to fail ("
+                          << c.known_bug << "); please remove from KNOWN_BUGS";
+          }
+        } else {
+          EXPECT_EQ(result, std::string(c.canonical ? c.canonical : c.raw));
+        }
       } else {
         EXPECT_FALSE(result.has_value());
       }
