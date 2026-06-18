@@ -11,6 +11,7 @@
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 #include <sys/types.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 #include <cstddef>
@@ -30,6 +31,7 @@ class KernelInterface {
   virtual int ioctl(int fd, int request, void* argp) = 0;
   virtual int open(const char* pathname, int flags) = 0;
   virtual ssize_t read(int fd, void* buf, size_t count) = 0;
+  virtual ssize_t readv(int fd, const struct iovec* iov, int iovcnt) = 0;
   virtual ssize_t recvfrom(int sockfd, void* buf, size_t len, int flags,
                            struct sockaddr* src_addr, socklen_t* addrlen) = 0;
   virtual int recvmmsg(int sockfd, struct mmsghdr* msgvec, unsigned int vlen,
@@ -94,6 +96,10 @@ class ParametrizedKernel final : public KernelInterface {
   ssize_t read(int fd, void* buf, size_t count) override {
     static Runner syscall("read");
     return syscall.Run(&::read, fd, buf, count);
+  }
+  ssize_t readv(int fd, const struct iovec* iov, int iovcnt) override {
+    static Runner syscall("readv");
+    return syscall.Run(&::readv, fd, iov, iovcnt);
   }
   ssize_t recvfrom(int sockfd, void* buf, size_t len, int flags,
                    struct sockaddr* src_addr, socklen_t* addrlen) override {

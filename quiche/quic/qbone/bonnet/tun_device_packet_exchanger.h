@@ -65,7 +65,7 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
 
   std::unique_ptr<QuicData> ApplyL2Headers(const QuicData& l3_packet);
 
-  std::unique_ptr<QuicData> ConsumeL2Headers(const QuicData& l2_packet);
+  bool ValidateL2Headers(const ethhdr& eth_header, const QuicData& packet);
 
   int read_fd_ = -1;
   int write_fd_ = -1;
