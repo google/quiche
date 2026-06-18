@@ -73,13 +73,18 @@ class SimpleFetcher : public MasqueConnectionPool::Visitor {
   static absl::StatusOr<Message> Fetch(const Message& request,
                                        absl::string_view info_string,
                                        const DnsConfig& dns_config,
-                                       bool disable_certificate_verification) {
+                                       bool disable_certificate_verification,
+                                       SSL_CTX* ssl_ctx) {
     SimpleFetcher fetcher;
     std::unique_ptr<QuicEventLoop> event_loop =
         GetDefaultEventLoop()->Create(QuicDefaultClock::Get());
-    QUICHE_ASSIGN_OR_RETURN(bssl::UniquePtr<SSL_CTX> ssl_ctx,
-                            MasqueConnectionPool::CreateSslCtx("", ""));
-    MasqueConnectionPool pool(event_loop.get(), ssl_ctx.get(),
+    bssl::UniquePtr<SSL_CTX> local_ssl_ctx;
+    if (ssl_ctx == nullptr) {
+      QUICHE_ASSIGN_OR_RETURN(local_ssl_ctx,
+                              MasqueConnectionPool::CreateSslCtx("", ""));
+      ssl_ctx = local_ssl_ctx.get();
+    }
+    MasqueConnectionPool pool(event_loop.get(), ssl_ctx,
                               disable_certificate_verification, dns_config,
                               &fetcher, info_string);
     QUICHE_RETURN_IF_ERROR(pool.SendRequest(request).status());
@@ -99,7 +104,8 @@ class SimpleFetcher : public MasqueConnectionPool::Visitor {
   static absl::StatusOr<Message> Get(absl::string_view url_string,
                                      absl::string_view info_string,
                                      const DnsConfig& dns_config,
-                                     bool disable_certificate_verification) {
+                                     bool disable_certificate_verification,
+                                     SSL_CTX* ssl_ctx) {
     Message request;
     QuicUrl url(url_string, "https");
     if (url.host().empty() && !absl::StrContains(url_string, "://")) {
@@ -110,7 +116,7 @@ class SimpleFetcher : public MasqueConnectionPool::Visitor {
     request.headers[":authority"] = url.HostPort();
     request.headers[":path"] = url.PathParamsQuery();
     return Fetch(std::move(request), info_string, dns_config,
-                 disable_certificate_verification);
+                 disable_certificate_verification, ssl_ctx);
   }
 
   // From MasqueConnectionPool::Visitor.
@@ -148,17 +154,17 @@ class SimpleFetcher : public MasqueConnectionPool::Visitor {
 absl::StatusOr<MasqueConnectionPool::Message> MasqueSimpleFetch(
     const MasqueConnectionPool::Message& request, absl::string_view info_string,
     const MasqueConnectionPool::DnsConfig& dns_config,
-    bool disable_certificate_verification) {
+    bool disable_certificate_verification, SSL_CTX* ssl_ctx) {
   return SimpleFetcher::Fetch(request, info_string, dns_config,
-                              disable_certificate_verification);
+                              disable_certificate_verification, ssl_ctx);
 }
 
 absl::StatusOr<MasqueConnectionPool::Message> MasqueSimpleGet(
     absl::string_view url_string, absl::string_view info_string,
     const MasqueConnectionPool::DnsConfig& dns_config,
-    bool disable_certificate_verification) {
+    bool disable_certificate_verification, SSL_CTX* ssl_ctx) {
   return SimpleFetcher::Get(url_string, info_string, dns_config,
-                            disable_certificate_verification);
+                            disable_certificate_verification, ssl_ctx);
 }
 
 // static
