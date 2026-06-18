@@ -346,6 +346,13 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       std::vector<uint16_t> client_supported_groups = {
           SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519};
       client->SetPreferredGroups(client_supported_groups);
+    } else {
+      // Pre-PQC BoringSSL default.
+      // TODO(b/504987865): make most tests use MLKEM by default, and make this
+      // case the exception instead.
+      std::vector<uint16_t> client_supported_groups = {
+          SSL_GROUP_X25519, SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1};
+      client->SetPreferredGroups(client_supported_groups);
     }
     client->UseWriter(writer);
     if (!pre_shared_key_client_.empty()) {
