@@ -1,6 +1,7 @@
 #include "quiche/http2/adapter/oghttp2_session.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <memory>
@@ -8,18 +9,32 @@
 #include <string>
 #include <tuple>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/strings/escaping.h"
+#include "absl/strings/match.h"
+#include "absl/strings/str_join.h"
+#include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/http2/adapter/chunked_buffer.h"
+#include "quiche/http2/adapter/data_source.h"
 #include "quiche/http2/adapter/header_validator.h"
+#include "quiche/http2/adapter/header_validator_base.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/http2_util.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"
 #include "quiche/http2/adapter/noop_header_validator.h"
 #include "quiche/http2/adapter/oghttp2_util.h"
+#include "quiche/http2/adapter/window_manager.h"
+#include "quiche/http2/core/http2_frame_decoder_adapter.h"
+#include "quiche/http2/core/spdy_alt_svc_wire_format.h"
+#include "quiche/http2/core/spdy_framer.h"
+#include "quiche/http2/core/spdy_headers_handler_interface.h"
 #include "quiche/http2/core/spdy_protocol.h"
+#include "quiche/http2/hpack/hpack_encoder.h"
+#include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"

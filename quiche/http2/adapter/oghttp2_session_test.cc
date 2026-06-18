@@ -1,12 +1,21 @@
 #include "quiche/http2/adapter/oghttp2_session.h"
 
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
 
+#include "absl/container/flat_hash_map.h"
+#include "absl/strings/string_view.h"
+#include "quiche/http2/adapter/data_source.h"
+#include "quiche/http2/adapter/http2_protocol.h"
+#include "quiche/http2/adapter/http2_visitor_interface.h"
 #include "quiche/http2/adapter/mock_http2_visitor.h"
 #include "quiche/http2/adapter/test_frame_sequence.h"
 #include "quiche/http2/adapter/test_utils.h"
+#include "quiche/http2/core/spdy_protocol.h"
 #include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
@@ -464,28 +473,27 @@ TEST(OgHttp2SessionTest,
   EXPECT_EQ(result, frames.size());
 
   EXPECT_TRUE(session.want_write());
-  // We expect the server to send initial SETTINGS.
+  // Expect the server to send initial SETTINGS.
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
 
-  // We expect the server to send SETTINGS ACK.
+  // Expect the server to send SETTINGS ACK.
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
 
-  // We expect a RST_STREAM to be sent for stream 1.
+  // Expect a RST_STREAM to be sent for stream 1.
   EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(RST_STREAM, 1, _, 0x0, 2));  // 2 is INTERNAL_ERROR
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
-  // We expect PING ACKs to be sent.
+  // Expect PING ACKs to be sent.
   EXPECT_CALL(visitor, OnBeforeFrameSent(PING, 0, 8, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(PING, 0, 8, 0x1, 0));
   EXPECT_CALL(visitor, OnBeforeFrameSent(PING, 0, 8, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(PING, 0, 8, 0x1, 0));
 
-  int send_result = session.Send();
-  EXPECT_EQ(0, send_result);
+  EXPECT_EQ(0, session.Send());
 }
 
 TEST(OgHttp2SessionTest, ServerEnforcesDefaultHeaderListSizeLimit_StreamReset) {
@@ -545,26 +553,25 @@ TEST(OgHttp2SessionTest, ServerEnforcesDefaultHeaderListSizeLimit_StreamReset) {
   EXPECT_EQ(result, frames.size());
 
   EXPECT_TRUE(session.want_write());
-  // We expect the server to send initial SETTINGS.
+  // Expect the server to send initial SETTINGS.
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
 
-  // We expect the server to send SETTINGS ACK.
+  // Expect the server to send SETTINGS ACK.
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
 
-  // We expect a RST_STREAM to be sent for stream 3.
+  // Expect a RST_STREAM to be sent for stream 3.
   EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 3, _, 0x0));
   EXPECT_CALL(visitor,
               OnFrameSent(RST_STREAM, 3, _, 0x0, 2));  // 2 is INTERNAL_ERROR
   EXPECT_CALL(visitor, OnCloseStream(3, Http2ErrorCode::HTTP2_NO_ERROR));
 
-  // We expect a PING ACK to be sent.
+  // Expect a PING ACK to be sent.
   EXPECT_CALL(visitor, OnBeforeFrameSent(PING, 0, 8, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(PING, 0, 8, 0x1, 0));
 
-  int send_result = session.Send();
-  EXPECT_EQ(0, send_result);
+  EXPECT_EQ(0, session.Send());
 }
 
 TEST(OgHttp2SessionTest, ClientSubmitRequestWithLargePayload) {
@@ -919,8 +926,7 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_CALL(visitor, OnFrameSent(PING, 0, _, 0x1, 0));
 
   // Some bytes should have been serialized.
-  int send_result = session.Send();
-  EXPECT_EQ(0, send_result);
+  EXPECT_EQ(0, session.Send());
   // Initial SETTINGS, SETTINGS ack, and PING acks (for PING IDs 42 and 47).
   EXPECT_THAT(visitor.data(),
               EqualsFrames(
@@ -1049,8 +1055,7 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
 
-  int send_result = session.Send();
-  EXPECT_EQ(0, send_result);
+  EXPECT_EQ(0, session.Send());
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
   visitor.Clear();
@@ -1076,8 +1081,7 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
   EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
 
-  send_result = session.Send();
-  EXPECT_EQ(0, send_result);
+  EXPECT_EQ(0, session.Send());
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
   EXPECT_FALSE(session.want_write());
@@ -1138,8 +1142,7 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
 
-  int send_result = session.Send();
-  EXPECT_EQ(0, send_result);
+  EXPECT_EQ(0, session.Send());
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
   visitor.Clear();
@@ -1160,8 +1163,7 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
   EXPECT_CALL(visitor, OnFrameSent(DATA, 1, _, 0x0, 0));
 
-  send_result = session.Send();
-  EXPECT_EQ(0, send_result);
+  EXPECT_EQ(0, session.Send());
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA}));
   visitor.Clear();
@@ -1178,8 +1180,7 @@ TEST(OgHttp2SessionTest, ServerSendsTrailers) {
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
-  send_result = session.Send();
-  EXPECT_EQ(0, send_result);
+  EXPECT_EQ(0, session.Send());
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::HEADERS}));
 }
 
@@ -1229,8 +1230,7 @@ TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x1));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x1, 0));
 
-  int send_result = session.Send();
-  EXPECT_EQ(0, send_result);
+  EXPECT_EQ(0, session.Send());
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS}));
   visitor.Clear();
@@ -1262,8 +1262,7 @@ TEST(OgHttp2SessionTest, ServerQueuesTrailersWithResponse) {
   EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x5, 0));
   EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
 
-  send_result = session.Send();
-  EXPECT_EQ(0, send_result);
+  EXPECT_EQ(0, session.Send());
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA,
                             SpdyFrameType::HEADERS}));
@@ -1322,8 +1321,7 @@ TEST(OgHttp2SessionTest, ServerSeesErrorOnEndStream) {
                   static_cast<int>(
                       Http2VisitorInterface::ConnectionError::kParseError)));
 
-  int send_result = session.Send();
-  EXPECT_EQ(0, send_result);
+  EXPECT_EQ(0, session.Send());
   EXPECT_THAT(visitor.data(),
               EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::GOAWAY}));
   visitor.Clear();
@@ -1368,8 +1366,7 @@ TEST(OgHttp2SessionTest, ServerClosesStreamDuringOnEndStream) {
                                          ToHeaders({{":status", "200"}}),
                                          /*end_stream=*/true);
         EXPECT_EQ(res, 0);
-        int send_result = session.Send();
-        EXPECT_EQ(0, send_result);
+        EXPECT_EQ(0, session.Send());
         return true;
       }));
 
