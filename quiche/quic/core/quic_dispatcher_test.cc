@@ -396,10 +396,17 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
 
   void ValidatePacket(QuicConnectionId conn_id,
                       const QuicEncryptedPacket& packet) {
-    EXPECT_EQ(data_connection_map_[conn_id].front().length(),
-              packet.AsStringPiece().length());
-    EXPECT_EQ(data_connection_map_[conn_id].front(), packet.AsStringPiece());
-    data_connection_map_[conn_id].pop_front();
+    // TODO(wub): Fix the packet order once BoringSSL has ML-KEM enabled by
+    // default.
+    auto& packets = data_connection_map_[conn_id];
+    for (auto it = packets.begin(); it != packets.end(); ++it) {
+      if (it->length() == packet.AsStringPiece().length() &&
+          *it == packet.AsStringPiece()) {
+        packets.erase(it);
+        return;
+      }
+    }
+    ADD_FAILURE() << "Packet not found in data_connection_map_ for " << conn_id;
   }
 
   std::unique_ptr<QuicSession> CreateSession(
@@ -505,6 +512,34 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
     }
   }
 
+  size_t SizeOfFirstFlight(const QuicConnectionId& server_connection_id) {
+    return SizeOfFirstFlight(version_, server_connection_id);
+  }
+
+  size_t SizeOfFirstFlight(const ParsedQuicVersion& version,
+                           const QuicConnectionId& server_connection_id) {
+    return SizeOfFirstFlight(version, server_connection_id,
+                             EmptyQuicConnectionId());
+  }
+
+  size_t SizeOfFirstFlight(const ParsedQuicVersion& version,
+                           const QuicConnectionId& server_connection_id,
+                           const QuicConnectionId& client_connection_id) {
+    return SizeOfFirstFlight(version, server_connection_id,
+                             client_connection_id, TestClientCryptoConfig());
+  }
+
+  size_t SizeOfFirstFlight(
+      const ParsedQuicVersion& version,
+      const QuicConnectionId& server_connection_id,
+      const QuicConnectionId& client_connection_id,
+      std::unique_ptr<QuicCryptoClientConfig> client_crypto_config) {
+    return GetFirstFlightOfPackets(version, DefaultQuicConfig(),
+                                   server_connection_id, client_connection_id,
+                                   std::move(client_crypto_config))
+        .size();
+  }
+
   std::unique_ptr<QuicCryptoClientConfig> TestClientCryptoConfig() {
     auto client_crypto_config = std::make_unique<QuicCryptoClientConfig>(
         crypto_test_utils::ProofVerifierForTesting());
@@ -555,7 +590,8 @@ class QuicDispatcherTestBase : public QuicTestWithParam<ParsedQuicVersion> {
             QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
     EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
                 ProcessUdpPacket(_, _, _))
-        .WillOnce(WithArg<2>(
+        .Times(SizeOfFirstFlight(version, connection_id))
+        .WillRepeatedly(WithArg<2>(
             [this, connection_id](const QuicEncryptedPacket& packet) {
               ValidatePacket(connection_id, packet);
             }));
@@ -649,7 +685,8 @@ TEST_P(QuicDispatcherTestAllVersions, TlsClientHelloCreatesSession) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+      .Times(SizeOfFirstFlight(version_, TestConnectionId(1)))
+      .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
         ValidatePacket(TestConnectionId(1), packet);
       }));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
@@ -708,7 +745,8 @@ TEST_P(QuicDispatcherTestAllVersions, VariableServerConnectionIdLength) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+      .Times(SizeOfFirstFlight(version_, old_id))
+      .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
         ValidatePacket(TestConnectionId(1), packet);
       }));
   ProcessFirstFlight(client_address, old_id);
@@ -753,19 +791,21 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
       GetFirstFlightOfPackets(version_, client_config, original_connection_id,
                               EmptyQuicConnectionId(),
                               TestClientCryptoConfig());
-  ASSERT_EQ(packets.size(), 2u);
+  ASSERT_GE(packets.size(), 2u);
   if (add_reordering) {
     std::swap(packets[0], packets[1]);
   }
 
-  // Processing the first packet should not create a new session.
-  ProcessReceivedPacket(std::move(packets[0]), client_address, version_,
-                        original_connection_id);
+  // Processing all but the last packet should not create a new session.
+  for (size_t i = 0; i < packets.size() - 1; ++i) {
+    ProcessReceivedPacket(std::move(packets[i]), client_address, version_,
+                          original_connection_id);
+  }
 
   EXPECT_EQ(dispatcher_->NumSessions(), 0u)
       << "No session should be created before the rest of the CHLO arrives.";
 
-  // Processing the second packet should create the new session.
+  // Processing the last packet should create the new session.
   EXPECT_CALL(
       *dispatcher_,
       CreateQuicSession(new_connection_id, _, client_address,
@@ -776,9 +816,9 @@ void QuicDispatcherTestBase::TestTlsMultiPacketClientHello(
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .Times(2);
+      .Times(packets.size());
 
-  ProcessReceivedPacket(std::move(packets[1]), client_address, version_,
+  ProcessReceivedPacket(std::move(packets.back()), client_address, version_,
                         original_connection_id);
   EXPECT_EQ(dispatcher_->NumSessions(), 1u);
 }
@@ -817,7 +857,8 @@ TEST_P(QuicDispatcherTestAllVersions, ProcessPackets) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+      .Times(SizeOfFirstFlight(version_, TestConnectionId(1)))
+      .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
         ValidatePacket(TestConnectionId(1), packet);
       }));
   ProcessFirstFlight(client_address, TestConnectionId(1));
@@ -832,7 +873,8 @@ TEST_P(QuicDispatcherTestAllVersions, ProcessPackets) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session2_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session2_->connection()),
               ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+      .Times(SizeOfFirstFlight(version_, TestConnectionId(2)))
+      .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
         ValidatePacket(TestConnectionId(2), packet);
       }));
   ProcessFirstFlight(client_address, TestConnectionId(2));
@@ -857,10 +899,10 @@ TEST_P(QuicDispatcherTestAllVersions, DispatcherDoesNotRejectPacketNumberZero) {
           dispatcher_.get(), config_, TestConnectionId(1), client_address,
           &mock_helper_, &mock_alarm_factory_, &crypto_config_,
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
-  // Verify both packets 1 and 2 are processed by connection 1.
+  // Verify all packets are processed by connection 1.
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .Times(2)
+      .Times(SizeOfFirstFlight(version_, TestConnectionId(1)) + 1)
       .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
         ValidatePacket(TestConnectionId(1), packet);
       }));
@@ -879,7 +921,8 @@ TEST_P(QuicDispatcherTestOneVersion, StatelessVersionNegotiation) {
   EXPECT_CALL(
       *time_wait_list_manager_,
       SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _))
-      .Times(1);
+      .Times(SizeOfFirstFlight(QuicVersionReservedForNegotiation(),
+                               TestConnectionId(1)));
   expect_generator_is_called_ = false;
   ProcessFirstFlight(QuicVersionReservedForNegotiation(), client_address,
                      TestConnectionId(1));
@@ -937,7 +980,8 @@ TEST_P(QuicDispatcherTestOneVersion,
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
               SendVersionNegotiationPacket(connection_id, _, _, _, _, _, _))
-      .Times(1);
+      .Times(SizeOfFirstFlight(QuicVersionReservedForNegotiation(),
+                               connection_id));
   expect_generator_is_called_ = false;
   ProcessFirstFlight(QuicVersionReservedForNegotiation(), client_address,
                      connection_id);
@@ -952,7 +996,8 @@ TEST_P(QuicDispatcherTestOneVersion,
   EXPECT_CALL(*time_wait_list_manager_,
               SendVersionNegotiationPacket(TestConnectionId(1),
                                            TestConnectionId(2), _, _, _, _, _))
-      .Times(1);
+      .Times(SizeOfFirstFlight(QuicVersionReservedForNegotiation(),
+                               TestConnectionId(1)));
   expect_generator_is_called_ = false;
   ProcessFirstFlight(QuicVersionReservedForNegotiation(), client_address,
                      TestConnectionId(1), TestConnectionId(2));
@@ -1042,7 +1087,8 @@ TEST_P(QuicDispatcherTestAllVersions, Shutdown) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+      .Times(SizeOfFirstFlight(version_, TestConnectionId(1)))
+      .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
         ValidatePacket(TestConnectionId(1), packet);
       }));
 
@@ -1068,7 +1114,8 @@ TEST_P(QuicDispatcherTestAllVersions, TimeWaitListManager) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+      .Times(SizeOfFirstFlight(version_, connection_id))
+      .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
         ValidatePacket(TestConnectionId(1), packet);
       }));
 
@@ -1252,7 +1299,8 @@ TEST_P(QuicDispatcherTestAllVersions, LongConnectionIdLengthReplaced) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>(
+      .Times(SizeOfFirstFlight(bad_connection_id))
+      .WillRepeatedly(WithArg<2>(
           [this, bad_connection_id](const QuicEncryptedPacket& packet) {
             ValidatePacket(bad_connection_id, packet);
           }));
@@ -1278,7 +1326,8 @@ TEST_P(QuicDispatcherTestAllVersions, MixGoodAndBadConnectionIdLengthPackets) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+      .Times(SizeOfFirstFlight(TestConnectionId(1)))
+      .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
         ValidatePacket(TestConnectionId(1), packet);
       }));
   ProcessFirstFlight(client_address, TestConnectionId(1));
@@ -1293,7 +1342,8 @@ TEST_P(QuicDispatcherTestAllVersions, MixGoodAndBadConnectionIdLengthPackets) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session2_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session2_->connection()),
               ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>(
+      .Times(SizeOfFirstFlight(bad_connection_id))
+      .WillRepeatedly(WithArg<2>(
           [this, bad_connection_id](const QuicEncryptedPacket& packet) {
             ValidatePacket(bad_connection_id, packet);
           }));
@@ -1370,7 +1420,7 @@ TEST_P(QuicDispatcherTestAllVersions,
 
   // dispatcher_ should drop this packet.
   EXPECT_CALL(connection_id_generator_, ConnectionIdLength(0x00))
-      .WillOnce(Return(10));
+      .WillRepeatedly(Return(10));
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_, AddConnectionIdToTimeWait(_, _))
@@ -1416,7 +1466,10 @@ void QuicDispatcherTestBase::
                   server_connection_id, client_connection_id,
                   /*ietf_quic=*/true,
                   /*use_length_prefix=*/true, _, _, client_address))
-      .Times(1);
+      .Times(
+          GetFirstFlightOfPackets(ParsedQuicVersion::ReservedForNegotiation(),
+                                  server_connection_id, client_connection_id)
+              .size());
   expect_generator_is_called_ = false;
   EXPECT_CALL(connection_id_generator_, ConnectionIdLength(_)).Times(0);
   ProcessFirstFlight(ParsedQuicVersion::ReservedForNegotiation(),
@@ -1855,7 +1908,8 @@ TEST_P(QuicDispatcherTestAllVersions, StopAcceptingNewConnections) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+      .Times(SizeOfFirstFlight(TestConnectionId(1)))
+      .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
         ValidatePacket(TestConnectionId(1), packet);
       }));
   ProcessFirstFlight(client_address, TestConnectionId(1));
@@ -1906,7 +1960,8 @@ TEST_P(QuicDispatcherTestAllVersions, StartAcceptingNewConnections) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+      .Times(SizeOfFirstFlight(TestConnectionId(1)))
+      .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
         ValidatePacket(TestConnectionId(1), packet);
       }));
   ProcessFirstFlight(client_address, TestConnectionId(1));
@@ -1931,7 +1986,8 @@ TEST_P(QuicDispatcherTestNoVersions, VersionNegotiationFromReservedVersion) {
   EXPECT_CALL(
       *time_wait_list_manager_,
       SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _))
-      .Times(1);
+      .Times(SizeOfFirstFlight(QuicVersionReservedForNegotiation(),
+                               TestConnectionId(1)));
   expect_generator_is_called_ = false;
   ProcessFirstFlight(QuicVersionReservedForNegotiation(), client_address,
                      TestConnectionId(1));
@@ -1945,7 +2001,7 @@ TEST_P(QuicDispatcherTestNoVersions, VersionNegotiationFromRealVersion) {
   EXPECT_CALL(
       *time_wait_list_manager_,
       SendVersionNegotiationPacket(TestConnectionId(1), _, _, _, _, _, _))
-      .Times(1);
+      .Times(SizeOfFirstFlight(TestConnectionId(1)));
   expect_generator_is_called_ = false;
   ProcessFirstFlight(version_, client_address, TestConnectionId(1));
 }
@@ -2015,7 +2071,8 @@ class QuicDispatcherWriteBlockedListTest : public QuicDispatcherTestBase {
             QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
     EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
                 ProcessUdpPacket(_, _, _))
-        .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+        .Times(SizeOfFirstFlight(TestConnectionId(1)))
+        .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
           ValidatePacket(TestConnectionId(1), packet);
         }));
     ProcessFirstFlight(client_address, TestConnectionId(1));
@@ -2028,7 +2085,8 @@ class QuicDispatcherWriteBlockedListTest : public QuicDispatcherTestBase {
             QuicDispatcherPeer::GetCache(dispatcher_.get()), &session2_))));
     EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session2_->connection()),
                 ProcessUdpPacket(_, _, _))
-        .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+        .Times(SizeOfFirstFlight(TestConnectionId(2)))
+        .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
           ValidatePacket(TestConnectionId(2), packet);
         }));
     ProcessFirstFlight(client_address, TestConnectionId(2));
@@ -2295,7 +2353,8 @@ class QuicDispatcherSupportMultipleConnectionIdPerConnectionTest
             QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
     EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
                 ProcessUdpPacket(_, _, _))
-        .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+        .Times(SizeOfFirstFlight(TestConnectionId(1)))
+        .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
           ValidatePacket(TestConnectionId(1), packet);
         }));
     ProcessFirstFlight(client_address, TestConnectionId(1));
@@ -2311,7 +2370,8 @@ class QuicDispatcherSupportMultipleConnectionIdPerConnectionTest
             QuicDispatcherPeer::GetCache(dispatcher_.get()), &session2_))));
     EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session2_->connection()),
                 ProcessUdpPacket(_, _, _))
-        .WillOnce(WithArg<2>([this](const QuicEncryptedPacket& packet) {
+        .Times(SizeOfFirstFlight(TestConnectionId(2)))
+        .WillRepeatedly(WithArg<2>([this](const QuicEncryptedPacket& packet) {
           ValidatePacket(TestConnectionId(2), packet);
         }));
     ProcessFirstFlight(client_address, TestConnectionId(2));
@@ -2639,7 +2699,7 @@ TEST_P(BufferedPacketStoreTest, ProcessNonChloPacketBeforeChlo) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .Times(2)  // non-CHLO + CHLO.
+      .Times(1 + SizeOfFirstFlight(version_, conn_id))  // non-CHLO + CHLO.
       .WillRepeatedly(
           WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
             if (!version_.IsIetfQuic()) {
@@ -2691,7 +2751,8 @@ TEST_P(BufferedPacketStoreTest, ProcessMultiPacketChloWithValidAckFrame) {
 
   std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
       CreateMultiPacketChlo(conn_id);
-  ASSERT_EQ(packets.size(), 2u);
+  ASSERT_GE(packets.size(), 2u);
+  size_t num_packets = packets.size();
 
   // This packet contains a valid ack frame acking packet number 1 which has
   // been sent by the dispatcher in response to the first part of packets[0].
@@ -2718,7 +2779,15 @@ TEST_P(BufferedPacketStoreTest, ProcessMultiPacketChloWithValidAckFrame) {
   EXPECT_EQ(dispatcher_->NumSessions(), 0u)
       << "No session should be created before the rest of the CHLO arrives.";
 
-  // Processing the second packet should create the new session.
+  // Processing all but the last packet should not create a new session.
+  for (size_t i = 1; i < num_packets - 1; ++i) {
+    ProcessReceivedPacket(std::move(packets[i]), client_addr_, version_,
+                          conn_id);
+    EXPECT_EQ(dispatcher_->NumSessions(), 0u)
+        << "No session should be created before the rest of the CHLO arrives.";
+  }
+
+  // Processing the last packet should create the new session.
   EXPECT_CALL(*dispatcher_,
               CreateQuicSession(conn_id, _, client_addr_, Eq(ExpectedAlpn()), _,
                                 MatchParsedClientHello(), _))
@@ -2728,9 +2797,10 @@ TEST_P(BufferedPacketStoreTest, ProcessMultiPacketChloWithValidAckFrame) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .Times(3);
+      .Times(num_packets + 1);
 
-  ProcessReceivedPacket(std::move(packets[1]), client_addr_, version_, conn_id);
+  ProcessReceivedPacket(std::move(packets[num_packets - 1]), client_addr_,
+                        version_, conn_id);
   EXPECT_EQ(dispatcher_->NumSessions(), 1u);
 }
 
@@ -2744,7 +2814,7 @@ TEST_P(BufferedPacketStoreTest,
 
   std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
       CreateMultiPacketChlo(conn_id);
-  ASSERT_EQ(packets.size(), 2u);
+  ASSERT_GE(packets.size(), 2u);
 
   // This packet contains an invalid ack frame acking packet number 0 and 1 but
   // packet number 0 is not a valid packet number.
@@ -2790,7 +2860,7 @@ TEST_P(BufferedPacketStoreTest,
 
   std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
       CreateMultiPacketChlo(conn_id);
-  ASSERT_EQ(packets.size(), 2u);
+  ASSERT_GE(packets.size(), 2u);
 
   // This packet contains an invalid ack frame acking packet number 1 and 2 but
   // packet number 2 has not been sent by the dispatcher yet.
@@ -2898,7 +2968,10 @@ TEST_P(BufferedPacketStoreTest,
             QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
     // First |kNumConnections| - 1 connections should have buffered
     // a packet in store. The rest should have been dropped.
-    size_t num_packet_to_process = i <= kMaxConnectionsWithoutCHLO ? 2u : 1u;
+    size_t num_chlo_packets = SizeOfFirstFlight(conn_id);
+    size_t num_packet_to_process = i <= kMaxConnectionsWithoutCHLO
+                                       ? (1u + num_chlo_packets)
+                                       : num_chlo_packets;
     EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
                 ProcessUdpPacket(_, client_address, _))
         .Times(num_packet_to_process)
@@ -2922,7 +2995,8 @@ TEST_P(BufferedPacketStoreTest, DeliverEmptyPackets) {
           &mock_alarm_factory_, &crypto_config_,
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
-              ProcessUdpPacket(_, client_addr_, _));
+              ProcessUdpPacket(_, client_addr_, _))
+      .Times(SizeOfFirstFlight(conn_id));
   ProcessFirstFlight(conn_id);
 }
 
@@ -2932,6 +3006,10 @@ TEST_P(BufferedPacketStoreTest, ReceiveRetransmittedCHLO) {
   InSequence s;
   QuicConnectionId conn_id = TestConnectionId(1);
   ProcessUndecryptableEarlyPacket(conn_id);
+
+  std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
+      GetFirstFlightOfPackets(version_, conn_id);
+  ASSERT_GE(packets.size(), 1u);
 
   // When CHLO arrives, a new session should be created, and all packets
   // buffered should be delivered to the session.
@@ -2947,7 +3025,7 @@ TEST_P(BufferedPacketStoreTest, ReceiveRetransmittedCHLO) {
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .Times(3)  // Triggered by 1 data packet and 2 CHLOs.
+      .Times(1 + 2 * packets.size())  // Triggered by 1 data packet and 2 CHLOs.
       .WillRepeatedly(
           WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
             if (!version_.IsIetfQuic()) {
@@ -2955,13 +3033,14 @@ TEST_P(BufferedPacketStoreTest, ReceiveRetransmittedCHLO) {
             }
           }));
 
-  std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
-      GetFirstFlightOfPackets(version_, conn_id);
-  ASSERT_EQ(packets.size(), 1u);
   // Receive the CHLO once.
-  ProcessReceivedPacket(packets[0]->Clone(), client_addr_, version_, conn_id);
+  for (const auto& packet : packets) {
+    ProcessReceivedPacket(packet->Clone(), client_addr_, version_, conn_id);
+  }
   // Receive the CHLO a second time to simulate retransmission.
-  ProcessReceivedPacket(std::move(packets[0]), client_addr_, version_, conn_id);
+  for (auto& packet : packets) {
+    ProcessReceivedPacket(std::move(packet), client_addr_, version_, conn_id);
+  }
 }
 
 // Tests that expiration of a connection add connection id to time wait list.
@@ -2986,7 +3065,8 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOAfterExpiration) {
   // New arrived CHLO will be dropped because this connection is in time wait
   // list.
   ASSERT_TRUE(time_wait_list_manager_->IsConnectionIdInTimeWait(conn_id));
-  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, conn_id, _, _));
+  EXPECT_CALL(*time_wait_list_manager_, ProcessPacket(_, _, conn_id, _, _))
+      .Times(SizeOfFirstFlight(conn_id));
   expect_generator_is_called_ = false;
   ProcessFirstFlight(conn_id);
 }
@@ -3025,7 +3105,8 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
       EXPECT_CALL(
           *reinterpret_cast<MockQuicConnection*>(session1_->connection()),
           ProcessUdpPacket(_, _, _))
-          .WillOnce(
+          .Times(SizeOfFirstFlight(TestConnectionId(conn_id)))
+          .WillRepeatedly(
               WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
                 if (!version_.IsIetfQuic()) {
                   ValidatePacket(TestConnectionId(conn_id), packet);
@@ -3062,7 +3143,8 @@ TEST_P(BufferedPacketStoreTest, ProcessCHLOsUptoLimitAndBufferTheRest) {
             QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
     EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
                 ProcessUdpPacket(_, _, _))
-        .WillOnce(
+        .Times(SizeOfFirstFlight(TestConnectionId(conn_id)))
+        .WillRepeatedly(
             WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
               if (!version_.IsIetfQuic()) {
                 ValidatePacket(TestConnectionId(conn_id), packet);
@@ -3105,7 +3187,8 @@ TEST_P(BufferedPacketStoreTest,
             QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
     EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
                 ProcessUdpPacket(_, _, _))
-        .WillOnce(
+        .Times(SizeOfFirstFlight(TestConnectionId(conn_id)))
+        .WillRepeatedly(
             WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
               if (!version_.IsIetfQuic()) {
                 ValidatePacket(TestConnectionId(conn_id), packet);
@@ -3149,11 +3232,13 @@ TEST_P(BufferedPacketStoreTest,
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .WillOnce(WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
-        if (!version_.IsIetfQuic()) {
-          ValidatePacket(TestConnectionId(conn_id), packet);
-        }
-      }));
+      .Times(SizeOfFirstFlight(TestConnectionId(conn_id)))
+      .WillRepeatedly(
+          WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
+            if (!version_.IsIetfQuic()) {
+              ValidatePacket(TestConnectionId(conn_id), packet);
+            }
+          }));
   while (store->HasChlosBuffered()) {
     dispatcher_->ProcessBufferedChlos(kMaxNumSessionsToCreate);
   }
@@ -3176,7 +3261,8 @@ TEST_P(BufferedPacketStoreTest, BufferDuplicatedCHLO) {
       EXPECT_CALL(
           *reinterpret_cast<MockQuicConnection*>(session1_->connection()),
           ProcessUdpPacket(_, _, _))
-          .WillOnce(
+          .Times(SizeOfFirstFlight(TestConnectionId(conn_id)))
+          .WillRepeatedly(
               WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
                 if (!version_.IsIetfQuic()) {
                   ValidatePacket(TestConnectionId(conn_id), packet);
@@ -3191,7 +3277,8 @@ TEST_P(BufferedPacketStoreTest, BufferDuplicatedCHLO) {
   expect_generator_is_called_ = false;
   ProcessFirstFlight(last_connection);
 
-  size_t packets_buffered = 2;
+  size_t num_chlo_packets = SizeOfFirstFlight(last_connection);
+  size_t packets_buffered = 2 * num_chlo_packets;
 
   // Reset counter and process buffered CHLO.
   EXPECT_CALL(*dispatcher_, CreateQuicSession(last_connection, _, client_addr_,
@@ -3304,7 +3391,8 @@ TEST_P(BufferedPacketStoreTest, ReceiveCHLOForBufferedConnection) {
       EXPECT_CALL(
           *reinterpret_cast<MockQuicConnection*>(session1_->connection()),
           ProcessUdpPacket(_, _, _))
-          .WillOnce(
+          .Times(SizeOfFirstFlight(TestConnectionId(conn_id)))
+          .WillRepeatedly(
               WithArg<2>([this, conn_id](const QuicEncryptedPacket& packet) {
                 if (!version_.IsIetfQuic()) {
                   ValidatePacket(TestConnectionId(conn_id), packet);
@@ -3414,11 +3502,16 @@ TEST_P(BufferedPacketStoreTest, BufferedChloWithEcn) {
           dispatcher_.get(), config_, conn_id, client_addr_, &mock_helper_,
           &mock_alarm_factory_, &crypto_config_,
           QuicDispatcherPeer::GetCache(dispatcher_.get()), &session1_))));
+  QuicConnectionId client_connection_id = TestConnectionId(2);
+  std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
+      GetFirstFlightOfPackets(version_, DefaultQuicConfig(), conn_id,
+                              client_connection_id, TestClientCryptoConfig(),
+                              ECN_CE);
   bool got_ect1 = false;
   bool got_ce = false;
   EXPECT_CALL(*reinterpret_cast<MockQuicConnection*>(session1_->connection()),
               ProcessUdpPacket(_, _, _))
-      .Times(2)  // non-CHLO + CHLO.
+      .Times(1 + packets.size())  // non-CHLO + CHLO.
       .WillRepeatedly(WithArg<2>([&](const QuicReceivedPacket& packet) {
         switch (packet.ecn_codepoint()) {
           case ECN_ECT1:
@@ -3431,11 +3524,6 @@ TEST_P(BufferedPacketStoreTest, BufferedChloWithEcn) {
             break;
         }
       }));
-  QuicConnectionId client_connection_id = TestConnectionId(2);
-  std::vector<std::unique_ptr<QuicReceivedPacket>> packets =
-      GetFirstFlightOfPackets(version_, DefaultQuicConfig(), conn_id,
-                              client_connection_id, TestClientCryptoConfig(),
-                              ECN_CE);
   for (auto&& packet : packets) {
     ProcessReceivedPacket(std::move(packet), client_addr_, version_, conn_id);
   }
