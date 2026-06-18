@@ -66,6 +66,7 @@ class QUICHE_NO_EXPORT MasqueH2Connection
   ~MasqueH2Connection();
 
   bool aborted() const { return !error_.ok() || has_closed_gracefully_; }
+  bool draining() const { return draining_; }
   // Call when there is more data to be read from SSL.
   void OnTransportReadable();
   // Call when there is more data to be written to SSL.
@@ -163,6 +164,8 @@ class QUICHE_NO_EXPORT MasqueH2Connection
       h2_streams_;
   Visitor* visitor_;
   std::string tls_write_buffer_;
+  Http2StreamId highest_stream_id_ = 0;
+  bool draining_ = false;
 };
 
 // Formats an SSL error that was provided by BoringSSL.

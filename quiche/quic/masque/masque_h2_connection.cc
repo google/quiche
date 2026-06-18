@@ -384,6 +384,9 @@ int32_t MasqueH2Connection::SendRequest(const quiche::HttpHeaderBlock& headers,
                      body.size(), ", headers: ", headers.DebugString())));
     return -1;
   }
+  if (stream_id > highest_stream_id_) {
+    highest_stream_id_ = stream_id;
+  }
   QUICHE_LOG(INFO) << ENDPOINT << "Sending request on stream ID " << stream_id
                    << " with body of length " << body.size()
                    << ", headers: " << headers.DebugString();
@@ -556,6 +559,9 @@ bool MasqueH2Connection::OnGoAway(Http2StreamId last_accepted_stream_id,
                    << last_accepted_stream_id
                    << " error_code: " << Http2ErrorCodeToString(error_code)
                    << " opaque_data length: " << opaque_data.size();
+  if (last_accepted_stream_id <= highest_stream_id_) {
+    draining_ = true;
+  }
   for (auto it = h2_streams_.begin(); it != h2_streams_.end();) {
     if (it->first > last_accepted_stream_id) {
       if (!it->second->callback_fired) {

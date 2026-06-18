@@ -32,6 +32,7 @@ class QUIC_NO_EXPORT MasqueConnectionPool : public MasqueH2Connection::Visitor {
   struct Message {
     quiche::HttpHeaderBlock headers;
     std::string body;
+    bool draining = false;  // Sent on responses received after low GOAWAY.
   };
 
   // Returns the HTTP status code from the message, or 0 if not available.

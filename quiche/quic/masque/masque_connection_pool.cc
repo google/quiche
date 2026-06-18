@@ -295,6 +295,7 @@ void MasqueConnectionPool::OnResponse(MasqueH2Connection* connection,
       Message response;
       response.headers = headers.Clone();
       response.body = body;
+      response.draining = connection->draining();
       if (end_stream) {
         pending_request.response_done = true;
       }
