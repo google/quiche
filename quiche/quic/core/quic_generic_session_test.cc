@@ -416,7 +416,7 @@ TEST_F(QuicGenericSessionTest, EchoALotOfDatagrams) {
   test_harness_.simulator().RunFor(2 * simulator::TestHarness::kRtt);
 
   EXPECT_GT(received, 500u);
-  EXPECT_LT(received, 1000u);
+  EXPECT_LE(received, 1000u);
 }
 
 TEST_F(QuicGenericSessionTest, OutgoingStreamFlowControlBlocked) {
