@@ -678,16 +678,10 @@ TEST_F(BlindSignAuthTest, AttestationFlowSucceeds) {
       [](absl::string_view attestation_nonce,
          AttestAndSignCallback attest_and_sign_callback) {
         EXPECT_EQ(attestation_nonce, "test_attestation_nonce");
-        privacy::ppn::AndroidAttestationData android_attestation_data;
-        android_attestation_data.add_hardware_backed_certs(
-            "fake_hardware_backed_cert");
-        google::protobuf::Any attestation_data_any;
-        attestation_data_any.set_type_url(
-            "type.googleapis.com/privacy.ppn.AndroidAttestationData");
-        attestation_data_any.set_value(
-            android_attestation_data.SerializeAsString());
+        std::vector<std::string> hardware_backed_certs = {
+            "fake_hardware_backed_cert"};
         std::move(attest_and_sign_callback)(
-            /*attestation_data=*/attestation_data_any,
+            /*attestation_data=*/hardware_backed_certs,
             /*token_challenge=*/std::nullopt);
       };
 
@@ -794,80 +788,6 @@ TEST_F(BlindSignAuthTest, GetAttestationTokensFailedBadAttestationData) {
       [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
         EXPECT_FALSE(tokens.ok());
         EXPECT_THAT(tokens.status().code(), absl::StatusCode::kInternal);
-        done.Notify();
-      };
-  blind_sign_auth_->GetAttestationTokens(
-      /*num_tokens=*/1, ProxyLayer::kProxyA, std::move(callback),
-      std::move(signed_token_callback));
-  done.WaitForNotification();
-}
-
-TEST_F(BlindSignAuthTest, GetAttestationTokensMalformedTypeUrl) {
-  BlindSignMessageResponse fake_initial_data_attestation_response(
-      absl::StatusCode::kOk,
-      fake_get_initial_data_response_attestation_.SerializeAsString());
-
-  EXPECT_CALL(mock_message_interface(),
-              DoRequest(Eq(BlindSignMessageRequestType::kGetInitialData), _,
-                        Eq(expected_get_initial_data_request_attestation_
-                               .SerializeAsString()),
-                        _))
-      .Times(1)
-      .WillOnce([=](auto&&, auto&&, auto&&, auto get_initial_data_cb) {
-        std::move(get_initial_data_cb)(fake_initial_data_attestation_response);
-      });
-
-  // Since BlindSignAuth passes the Any payload blindly to the backend,
-  // we just test that it is correctly serialized and sent.
-  EXPECT_CALL(
-      mock_message_interface(),
-      DoRequest(Eq(BlindSignMessageRequestType::kAttestAndSign), _, _, _))
-      .Times(1)
-      .WillOnce([this](Unused, Unused, const std::string& body,
-                       BlindSignMessageCallback attest_callback) {
-        privacy::ppn::AttestAndSignRequest request;
-        ASSERT_TRUE(request.ParseFromString(body));
-        EXPECT_EQ(request.attestation().attestation_data().type_url(),
-                  "type.googleapis.com/unknown.TypeUrl");
-        EXPECT_EQ(request.attestation().attestation_data().value(),
-                  "malformed_data");
-
-        // Construct fake response
-        privacy::ppn::AttestAndSignResponse response;
-        for (const auto& request_token : request.blinded_tokens()) {
-          std::string decoded_blinded_token;
-          ASSERT_TRUE(
-              absl::Base64Unescape(request_token, &decoded_blinded_token));
-          absl::StatusOr<std::string> signature =
-              anonymous_tokens::TestSignWithPublicMetadata(
-                  decoded_blinded_token,
-                  fake_get_initial_data_response_attestation_
-                      .privacy_pass_data()
-                      .public_metadata_extensions(),
-                  *rsa_private_key_, false);
-          QUICHE_EXPECT_OK(signature);
-          response.add_blinded_token_signatures(absl::Base64Escape(*signature));
-        }
-        BlindSignMessageResponse mock_resp(absl::StatusCode::kOk,
-                                           response.SerializeAsString());
-        std::move(attest_callback)(mock_resp);
-      });
-
-  absl::Notification done;
-  AttestationDataCallback callback =
-      [](absl::string_view /*attestation_nonce*/,
-         AttestAndSignCallback attest_and_sign_callback) {
-        google::protobuf::Any attestation_data_any;
-        attestation_data_any.set_type_url(
-            "type.googleapis.com/unknown.TypeUrl");
-        attestation_data_any.set_value("malformed_data");
-        std::move(attest_and_sign_callback)(
-            /*attestation_data=*/attestation_data_any,
-            /*token_challenge=*/std::nullopt);
-      };
-  SignedTokenCallback signed_token_callback =
-      [&done](absl::StatusOr<absl::Span<BlindSignToken>> tokens) {
-        EXPECT_TRUE(tokens.ok());
         done.Notify();
       };
   blind_sign_auth_->GetAttestationTokens(
