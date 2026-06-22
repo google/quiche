@@ -21,6 +21,7 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
+#include "quiche/common/platform/api/quiche_client_stats.h"
 #include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
@@ -403,9 +404,11 @@ class StructuredHeaderParser {
       }
       // Counter to track instances of b/517189418 in which trailing decimal
       // points are erroneously accepted.
-      if (i == decimal_position + 1) {
-        QUICHE_CODE_COUNT(decimal_with_zero_fractional_digits);
-      }
+      QUICHE_CLIENT_HISTOGRAM_BOOL(
+          "StructuredHeaders.DecimalWithZeroFractionalDigits",
+          i == decimal_position + 1,
+          "Whether a decimal point is erroneously accepted without any "
+          "digits following it.");
     }
     std::string output_number_string(input_.substr(0, i));
     input_.remove_prefix(i);
