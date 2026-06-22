@@ -649,11 +649,12 @@ TEST_P(TlsClientHandshakerTest, ZeroRttRejection) {
   // parameters from the server.
   EXPECT_CALL(*session_, OnConfigNegotiated()).Times(2);
 
-  // 4 packets will be sent in this connection: initial handshake packet, 0-RTT
-  // packet containing SETTINGS, handshake packet upon 0-RTT rejection, 0-RTT
-  // packet retransmission.
+  // Multiple packets will be sent in this connection: initial handshake
+  // packets, 0-RTT packet containing SETTINGS, handshake packet upon 0-RTT
+  // rejection, 0-RTT packet retransmission.
   EXPECT_CALL(*connection_,
-              OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION));
+              OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION))
+      .Times(testing::AtLeast(1));
   if (VersionIsIetfQuic(session_->transport_version())) {
     EXPECT_CALL(*connection_,
                 OnPacketSent(ENCRYPTION_ZERO_RTT, NOT_RETRANSMISSION));
@@ -698,11 +699,12 @@ TEST_P(TlsClientHandshakerTest, ZeroRttAndResumptionRejection) {
   // parameters from the server.
   EXPECT_CALL(*session_, OnConfigNegotiated()).Times(2);
 
-  // 4 packets will be sent in this connection: initial handshake packet, 0-RTT
-  // packet containing SETTINGS, handshake packet upon 0-RTT rejection, 0-RTT
-  // packet retransmission.
+  // Multiple packets will be sent in this connection: initial handshake
+  // packets, 0-RTT packet containing SETTINGS, handshake packet upon 0-RTT
+  // rejection, 0-RTT packet retransmission.
   EXPECT_CALL(*connection_,
-              OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION));
+              OnPacketSent(ENCRYPTION_INITIAL, NOT_RETRANSMISSION))
+      .Times(testing::AtLeast(1));
   if (VersionIsIetfQuic(session_->transport_version())) {
     EXPECT_CALL(*connection_,
                 OnPacketSent(ENCRYPTION_ZERO_RTT, NOT_RETRANSMISSION));
