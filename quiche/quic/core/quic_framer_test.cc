@@ -3924,7 +3924,7 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampWithExponent) {
   std::unique_ptr<QuicEncryptedPacket> encrypted(
       AssemblePacketFromFragments(packet_ietf));
 
-  framer_.set_receive_timestamps_exponent(3);
+  framer_.set_local_receive_timestamps_exponent(3);
   framer_.set_process_timestamps(true);
   EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
   EXPECT_THAT(framer_.error(), IsQuicNoError());
@@ -6638,7 +6638,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameMultipleRanges) {
   // clang-format on
 
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
   quiche::test::CompareCharArraysWithHexError(
@@ -6740,7 +6740,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFramePacketOutOfOrder) {
   // clang-format on
 
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
   quiche::test::CompareCharArraysWithHexError(
@@ -6834,7 +6834,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsAndEcnFrame) {
   // clang-format on
 
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
   quiche::test::CompareCharArraysWithHexError(
@@ -6936,7 +6936,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameExceedsMaxTimestamps) {
   // clang-format on
 
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(4);
+  framer_.set_peer_max_receive_timestamps_per_ack(4);
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
   quiche::test::CompareCharArraysWithHexError(
@@ -7044,8 +7044,8 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameWithExponentEncoding) {
   // clang-format on
 
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8);
-  framer_.set_receive_timestamps_exponent(3);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_receive_timestamps_exponent(3);
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
   quiche::test::CompareCharArraysWithHexError(
@@ -7061,7 +7061,8 @@ TEST_P(QuicFramerTest, BuildAndProcessAckReceiveTimestampsWithMultipleRanges) {
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8);
+  framer_.set_local_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
 
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
@@ -7114,7 +7115,8 @@ TEST_P(QuicFramerTest,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(2);
+  framer_.set_local_max_receive_timestamps_per_ack(2);
+  framer_.set_peer_max_receive_timestamps_per_ack(2);
 
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
@@ -7162,8 +7164,10 @@ TEST_P(QuicFramerTest,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8);
-  framer_.set_receive_timestamps_exponent(3);
+  framer_.set_local_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
+  framer_.set_local_receive_timestamps_exponent(3);
+  framer_.set_peer_receive_timestamps_exponent(3);
 
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
@@ -7210,8 +7214,10 @@ TEST_P(QuicFramerTest,
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8);
-  framer_.set_receive_timestamps_exponent(3);
+  framer_.set_local_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
+  framer_.set_local_receive_timestamps_exponent(3);
+  framer_.set_peer_receive_timestamps_exponent(3);
 
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
@@ -7263,8 +7269,10 @@ TEST_P(QuicFramerTest, AckReceiveTimestamps) {
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8);
-  framer_.set_receive_timestamps_exponent(3);
+  framer_.set_local_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
+  framer_.set_local_receive_timestamps_exponent(3);
+  framer_.set_peer_receive_timestamps_exponent(3);
 
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
@@ -7303,6 +7311,60 @@ TEST_P(QuicFramerTest, AckReceiveTimestamps) {
               }));
 }
 
+TEST_P(QuicFramerTest, AckReceiveTimestampsDifferentExponents) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
+                           std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
+  framer_.SetKeyUpdateSupportForConnection(true);
+  framer_.set_process_timestamps(true);
+  framer_.set_local_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
+
+  // Set the local exponent to 2; it will be used to parse incoming ACKs.
+  framer_.set_local_receive_timestamps_exponent(2);
+  // Set the peer exponent to 5; it will be used to serialize outgoing ACKs.
+  framer_.set_peer_receive_timestamps_exponent(5);
+
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
+  QuicPacketHeader header;
+  header.destination_connection_id = FramerTestConnectionId();
+  header.reset_flag = false;
+  header.version_flag = false;
+  header.packet_number = kPacketNumber;
+
+  // Outgoing ACKs are encoded relative to the exponent of 5.
+  QuicAckFrame ack_frame = InitAckFrame(kSmallLargestObserved);
+  ack_frame.received_packet_times = PacketTimeVector{
+      {kSmallLargestObserved - 5, CreationTimePlus((0x29ff << 5))},
+      {kSmallLargestObserved - 4, CreationTimePlus((0x29ff << 5))},
+      {kSmallLargestObserved - 3, CreationTimePlus((0x29ff << 5))},
+      {kSmallLargestObserved - 2, CreationTimePlus((0x29ff << 5))},
+  };
+  ack_frame.ack_delay_time = QuicTime::Delta::Zero();
+  QuicFrames frames = {QuicFrame(&ack_frame)};
+
+  std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
+  ASSERT_TRUE(data != nullptr);
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      EncryptPacketWithTagAndPhase(*data, 0, false));
+  ASSERT_TRUE(encrypted);
+  QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
+  EXPECT_TRUE(framer_.ProcessPacket(*encrypted));
+  EXPECT_THAT(framer_.error(), IsQuicNoError());
+
+  // When the same packet is processed as incoming, the exponent becomes 2.
+  const QuicAckFrame& frame = *visitor_.ack_frames_[0];
+  EXPECT_THAT(frame.received_packet_times,
+              ContainerEq(PacketTimeVector{
+                  {kSmallLargestObserved - 2, CreationTimePlus(0x29ff << 2)},
+                  {kSmallLargestObserved - 3, CreationTimePlus(0x29ff << 2)},
+                  {kSmallLargestObserved - 4, CreationTimePlus(0x29ff << 2)},
+                  {kSmallLargestObserved - 5, CreationTimePlus(0x29ff << 2)},
+              }));
+}
+
 TEST_P(QuicFramerTest, BuildAndProcessAckReceiveTimestampsPacketOutOfOrder) {
   if (!VersionIsIetfQuic(framer_.transport_version())) {
     return;
@@ -7311,7 +7373,8 @@ TEST_P(QuicFramerTest, BuildAndProcessAckReceiveTimestampsPacketOutOfOrder) {
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8);
+  framer_.set_local_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
 
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
@@ -7357,8 +7420,8 @@ TEST_P(QuicFramerTest, AckReceiveTimestampsTimeOutOfOrder) {
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8);
-  framer_.set_receive_timestamps_exponent(3);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_receive_timestamps_exponent(3);
 
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
@@ -7388,8 +7451,10 @@ TEST_P(QuicFramerTest, ProcessIetfAckReceiveTimestampsExceedsMaxTimestamps) {
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8);
-  framer_.set_receive_timestamps_exponent(3);
+  framer_.set_local_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
+  framer_.set_local_receive_timestamps_exponent(3);
+  framer_.set_peer_receive_timestamps_exponent(3);
 
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
@@ -7415,7 +7480,7 @@ TEST_P(QuicFramerTest, ProcessIetfAckReceiveTimestampsExceedsMaxTimestamps) {
   ASSERT_TRUE(encrypted);
 
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
-  framer_.set_max_receive_timestamps_per_ack(2);
+  framer_.set_local_max_receive_timestamps_per_ack(2);
   EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
   EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_ACK_DATA));
   EXPECT_EQ("Too many receive timestamps in ACK frame.",
@@ -7432,8 +7497,10 @@ TEST_P(QuicFramerTest, IetfAckReceiveTimestampsTruncate) {
                            std::make_unique<StrictTaggingDecrypter>(/*key=*/0));
   framer_.SetKeyUpdateSupportForConnection(true);
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8192);
-  framer_.set_receive_timestamps_exponent(3);
+  framer_.set_local_max_receive_timestamps_per_ack(8192);
+  framer_.set_peer_max_receive_timestamps_per_ack(8192);
+  framer_.set_local_receive_timestamps_exponent(3);
+  framer_.set_peer_receive_timestamps_exponent(3);
 
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   QuicPacketHeader header;
@@ -7473,8 +7540,10 @@ TEST_P(QuicFramerTest, IetfAckReceiveTimestampsAckRangeTruncation) {
   }
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   framer_.set_process_timestamps(true);
-  framer_.set_max_receive_timestamps_per_ack(8);
-  framer_.set_receive_timestamps_exponent(3);
+  framer_.set_local_max_receive_timestamps_per_ack(8);
+  framer_.set_peer_max_receive_timestamps_per_ack(8);
+  framer_.set_local_receive_timestamps_exponent(3);
+  framer_.set_peer_receive_timestamps_exponent(3);
 
   QuicPacketHeader header;
   header.destination_connection_id = FramerTestConnectionId();

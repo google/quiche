@@ -440,8 +440,12 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       perspective_(perspective),
       validate_flags_(true),
       process_timestamps_(false),
-      max_receive_timestamps_per_ack_(std::numeric_limits<uint32_t>::max()),
-      receive_timestamps_exponent_(0),
+      peer_max_receive_timestamps_per_ack_(
+          std::numeric_limits<uint32_t>::max()),
+      local_max_receive_timestamps_per_ack_(
+          std::numeric_limits<uint32_t>::max()),
+      peer_receive_timestamps_exponent_(0),
+      local_receive_timestamps_exponent_(0),
       process_reset_stream_at_(false),
       creation_time_(creation_time),
       last_timestamp_(QuicTime::Delta::Zero()),
@@ -3929,7 +3933,7 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
       return false;
     }
     total_timestamp_count += timestamp_count;
-    if (total_timestamp_count > max_receive_timestamps_per_ack_) {
+    if (total_timestamp_count > local_max_receive_timestamps_per_ack_) {
       set_detailed_error("Too many receive timestamps in ACK frame.");
       return false;
     }
@@ -3942,7 +3946,7 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
       // The first timestamp delta is relative to framer creation time; whereas
       // subsequent deltas are relative to the previous delta in decreasing
       // packet order.
-      timestamp_delta = timestamp_delta << receive_timestamps_exponent_;
+      timestamp_delta = timestamp_delta << local_receive_timestamps_exponent_;
       if (i == 0 && j == 0) {
         last_timestamp_ = QuicTime::Delta::FromMicroseconds(timestamp_delta);
       } else {
@@ -5590,7 +5594,7 @@ QuicFramer::GetAckTimestampRanges(const QuicAckFrame& frame,
 
   absl::InlinedVector<AckTimestampRange, 2> timestamp_ranges;
 
-  for (size_t r = 0; r < std::min<size_t>(max_receive_timestamps_per_ack_,
+  for (size_t r = 0; r < std::min<size_t>(peer_max_receive_timestamps_per_ack_,
                                           frame.received_packet_times.size());
        ++r) {
     const size_t i = frame.received_packet_times.size() - 1 - r;
@@ -5689,28 +5693,31 @@ int64_t QuicFramer::FrameAckTimestampRanges(
         time_delta =
             (*effective_prev_time - receive_timestamp).ToMicroseconds();
         QUIC_DVLOG(3) << "time_delta:" << time_delta
-                      << ", exponent:" << receive_timestamps_exponent_
+                      << ", exponent:" << peer_receive_timestamps_exponent_
                       << ", effective_prev_time:" << *effective_prev_time
                       << ", recv_time:" << receive_timestamp;
-        time_delta = time_delta >> receive_timestamps_exponent_;
-        effective_prev_time = *effective_prev_time -
-                              QuicTime::Delta::FromMicroseconds(
-                                  time_delta << receive_timestamps_exponent_);
+        time_delta = time_delta >> peer_receive_timestamps_exponent_;
+        effective_prev_time =
+            *effective_prev_time -
+            QuicTime::Delta::FromMicroseconds(
+                time_delta << peer_receive_timestamps_exponent_);
       } else {
         // The first delta is from framer creation to the current receive
         // timestamp (forward in time), whereas in the common case subsequent
         // deltas move backwards in time.
         time_delta = (receive_timestamp - creation_time_).ToMicroseconds();
         QUIC_DVLOG(3) << "First time_delta:" << time_delta
-                      << ", exponent:" << receive_timestamps_exponent_
+                      << ", exponent:" << peer_receive_timestamps_exponent_
                       << ", recv_time:" << receive_timestamp
                       << ", creation_time:" << creation_time_;
         // Round up the first exponent-encoded time delta so that the next
         // receive timestamp is guaranteed to be decreasing.
-        time_delta = ((time_delta - 1) >> receive_timestamps_exponent_) + 1;
+        time_delta =
+            ((time_delta - 1) >> peer_receive_timestamps_exponent_) + 1;
         effective_prev_time =
-            creation_time_ + QuicTime::Delta::FromMicroseconds(
-                                 time_delta << receive_timestamps_exponent_);
+            creation_time_ +
+            QuicTime::Delta::FromMicroseconds(
+                time_delta << peer_receive_timestamps_exponent_);
       }
 
       if (!maybe_write_var_int62(time_delta)) {

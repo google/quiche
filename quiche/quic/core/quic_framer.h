@@ -322,23 +322,30 @@ class QUICHE_EXPORT QuicFramer {
 
   QuicErrorCode error() const { return error_; }
 
+  // TODO(b/132632465): Remove the const in timestamp-related setters once
+  // timestamps are negotiated via transport params.
+
   // Allows enabling or disabling of timestamp processing and serialization.
-  // TODO(ianswett): Remove the const once timestamps are negotiated via
-  // transport params.
   void set_process_timestamps(bool process_timestamps) const {
     process_timestamps_ = process_timestamps;
   }
 
+  // Sets the max number of receive timestamps to parse per ACK frame.
+  void set_local_max_receive_timestamps_per_ack(uint32_t max_timestamps) const {
+    local_max_receive_timestamps_per_ack_ = max_timestamps;
+  }
   // Sets the max number of receive timestamps to send per ACK frame.
-  // TODO(wub): Remove the const once timestamps are negotiated via
-  // transport params.
-  void set_max_receive_timestamps_per_ack(uint32_t max_timestamps) const {
-    max_receive_timestamps_per_ack_ = max_timestamps;
+  void set_peer_max_receive_timestamps_per_ack(uint32_t max_timestamps) const {
+    peer_max_receive_timestamps_per_ack_ = max_timestamps;
   }
 
-  // Sets the exponent to use when writing/reading ACK receive timestamps.
-  void set_receive_timestamps_exponent(uint32_t exponent) const {
-    receive_timestamps_exponent_ = exponent;
+  // Sets the exponent to use when reading ACK receive timestamps.
+  void set_local_receive_timestamps_exponent(uint32_t exponent) const {
+    local_receive_timestamps_exponent_ = exponent;
+  }
+  // Sets the exponent to use when writing ACK receive timestamps.
+  void set_peer_receive_timestamps_exponent(uint32_t exponent) const {
+    peer_receive_timestamps_exponent_ = exponent;
   }
 
   bool process_reset_stream_at() const { return process_reset_stream_at_; }
@@ -1127,7 +1134,7 @@ class QUICHE_EXPORT QuicFramer {
   bool UseIetfAckWithReceiveTimestamp(const QuicAckFrame& frame) const {
     return VersionIsIetfQuic(version_.transport_version) &&
            process_timestamps_ &&
-           std::min<uint64_t>(max_receive_timestamps_per_ack_,
+           std::min<uint64_t>(peer_max_receive_timestamps_per_ack_,
                               frame.received_packet_times.size()) > 0;
   }
 
@@ -1172,9 +1179,13 @@ class QUICHE_EXPORT QuicFramer {
   // set_receive_timestamp_exponent_ aren't const.
   mutable bool process_timestamps_;
   // The max number of receive timestamps to send per ACK frame.
-  mutable uint32_t max_receive_timestamps_per_ack_;
-  // The exponent to use when writing/reading ACK receive timestamps.
-  mutable uint32_t receive_timestamps_exponent_;
+  mutable uint32_t peer_max_receive_timestamps_per_ack_;
+  // The max number of receive timestamps to allow in an incoming ACK frame.
+  mutable uint32_t local_max_receive_timestamps_per_ack_;
+  // The exponent to use when writing ACK receive timestamps.
+  mutable uint32_t peer_receive_timestamps_exponent_;
+  // The exponent to use when reading ACK receive timestamps.
+  mutable uint32_t local_receive_timestamps_exponent_;
   // If true, process RESET_STREAM_AT frames.
   bool process_reset_stream_at_;
   // The creation time of the connection, used to calculate timestamps.
