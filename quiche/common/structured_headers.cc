@@ -396,9 +396,15 @@ class StructuredHeaderParser {
         LogParseError("ReadNumber", "too many digits after decimal");
         return std::nullopt;
       }
+      // TODO(b/517189418): This is never reached due to an off-by-one error.
       if (i == decimal_position) {
         LogParseError("ReadNumber", "no digits after decimal");
         return std::nullopt;
+      }
+      // Counter to track instances of b/517189418 in which trailing decimal
+      // points are erroneously accepted.
+      if (i == decimal_position + 1) {
+        QUICHE_CODE_COUNT(decimal_with_zero_fractional_digits);
       }
     }
     std::string output_number_string(input_.substr(0, i));
