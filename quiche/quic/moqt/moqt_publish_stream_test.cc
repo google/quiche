@@ -515,13 +515,14 @@ TEST_F(MoqtPublishSubscriberStreamTest, ReceivePublishDuplicateName) {
   stream_visitor_->BindStream(&stream);
 
   MoqtPublish publish;
-  publish.request_id = kRequestId;
+  publish.request_id = kRequestId + 2;
   publish.full_track_name = kTrackName;
   publish.track_alias = kTrackAlias;
 
   // Simulate an existing established track.
   MoqtSubscribe sub;
   sub.full_track_name = kTrackName;
+  sub.request_id = kRequestId;
   StrictMock<MockSubscribeRemoteTrackVisitor> existing_visitor;
   SubscribeRemoteTrack existing_track(sub, &existing_visitor, []() {}, {});
   existing_track.OnObjectOrOk();
@@ -548,7 +549,7 @@ TEST_F(MoqtPublishSubscriberStreamTest, ReceivePublishDuplicateName) {
   absl::StatusOr<MoqtRequestError> request_error =
       cmp.ProcessRequestError(message->payload);
   ASSERT_TRUE(request_error.ok());
-  EXPECT_EQ(request_error->request_id, kRequestId);
+  EXPECT_EQ(request_error->request_id, publish.request_id);
   EXPECT_EQ(request_error->error_code,
             RequestErrorCode::kDuplicateSubscription);
   EXPECT_TRUE(stream.fin_sent());
