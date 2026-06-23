@@ -3853,12 +3853,10 @@ TEST_P(QuicSpdyStreamTest, DiscardBodyOnStopReading) {
   stream_->StopReading();
   EXPECT_TRUE(stream_->sequencer()->IsClosed());
   stream_->set_should_process_data(true);
-  if (GetQuicReloadableFlag(quic_clear_body_manager_along_with_sequencer)) {
-    std::string old_data = stream_->data();
-    stream_->sequencer()->SetUnblocked();
-    // No new data should have been consumed.
-    EXPECT_EQ(old_data, stream_->data());
-  }
+  std::string old_data = stream_->data();
+  stream_->sequencer()->SetUnblocked();
+  // No new data should have been consumed.
+  EXPECT_EQ(old_data, stream_->data());
 }
 
 // Regression test for b/488057588.
@@ -3866,7 +3864,6 @@ TEST_P(QuicSpdyStreamTest, ReadSideNotClosedAfterStopReading) {
   if (!IsIetfQuic()) {
     return;
   }
-  SetQuicReloadableFlag(quic_clear_body_manager_along_with_sequencer, true);
 
   Initialize(kShouldProcessData);
 

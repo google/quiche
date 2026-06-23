@@ -17,7 +17,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr_always_exit_startup_on_loss, f
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr_exit_startup_on_loss_network_param, false, true, "Enables adjustment of BBRv1's exit-startup-on-loss behavior on established connections via NetworkParams::enable_bbr_exit_startup_on_loss.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_block_until_settings_received_copt, true, true, "If enabled and a BSUS connection is received, blocks server connections until SETTINGS frame is received.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_check_alternate_reset_token, false, false, "When true, checks the stateless reset token on a path probe using the alternate path's token")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_clear_body_manager_along_with_sequencer, true, true, "If true, QuicSpdyStream::StopReading always clears BodyManager along with the SequenceBuffer.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_clear_packet_on_serialization_failure, false, false, "If true, clear QuicPacketCreator state when serialization failure.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_client_check_blockage_before_on_can_write, false, false, "If true, quic clients will only call OnCanWrite() upon write events if the writer is unblocked.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_close_on_idle_timeout, false, false, "If true, closes the connection if it has exceeded the idle timeout when deciding whether to open a stream.")
