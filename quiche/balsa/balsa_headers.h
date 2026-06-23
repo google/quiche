@@ -1015,7 +1015,7 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
 
   bool IsEmpty() const override;
 
-  size_t size() const {
+  size_t size() const override {
     if (header_lines_removed_ > header_lines_.size()) {
       return 0;
     }

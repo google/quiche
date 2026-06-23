@@ -44,6 +44,9 @@ class QUICHE_EXPORT ConstHeaderApi {
   // Determine whether the headers are empty.
   virtual bool IsEmpty() const = 0;
 
+  // Returns the number of headers.
+  virtual size_t size() const = 0;
+
   // Returns the header entry for the first instance with key |key|
   // If header isn't present, returns absl::string_view().
   virtual absl::string_view GetHeader(absl::string_view key) const = 0;
