@@ -90,10 +90,20 @@ void MoqtBidiStreamBase::OnFatalError(absl::Status status) {
   }
   std::optional<MoqtError> error_code = GetMoqtErrorForStatus(status);
   if (!error_code.has_value()) {
-    error_code = absl::IsInvalidArgument(status) ? MoqtError::kProtocolViolation
-                                                 : MoqtError::kInternalError;
+    switch (status.code()) {
+      case absl::StatusCode::kInvalidArgument:
+        error_code = MoqtError::kProtocolViolation;
+        break;
+      case absl::StatusCode::kAlreadyExists:
+        error_code = MoqtError::kDuplicateTrackAlias;
+        break;
+      default:
+        error_code = MoqtError::kInternalError;
+        break;
+    }
   }
   std::move(session_error_callback_)(*error_code, status.message());
+  session_error_callback_ = nullptr;
 }
 
 }  // namespace moqt

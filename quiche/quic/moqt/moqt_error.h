@@ -67,6 +67,7 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kNotSupported = 0x3,
   kMalformedAuthToken = 0x4,
   kExpiredAuthToken = 0x5,
+  kGoingAway = 0x6,
   kDoesNotExist = 0x10,
   kInvalidRange = 0x11,
   kMalformedTrack = 0x12,

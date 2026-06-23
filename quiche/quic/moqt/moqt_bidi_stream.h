@@ -114,6 +114,11 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
     }
   }
 
+  // TODO(martinduke): Remove once SUBSCRIBE moves to a bidi stream. This is
+  // only needed to check whether or not to FIN the bidi stream.
+  bool is_control_stream() const { return control_stream_; }
+  void set_control_stream() { control_stream_ = true; }
+
  protected:
   // Called when a WebTransport stream has been associated with the object.
   // Should be used to set the priority for the stream.
@@ -139,6 +144,8 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
  private:
   friend class test::MoqtBidiStreamTestWrapper;
 
+  // TODO(martinduke): Remove once SUBSCRIBE moves to a bidi stream.
+  bool control_stream_ = false;
   MoqtFramer* absl_nonnull framer_;
   std::unique_ptr<MoqtControlStreamParser> absl_nullable stream_parser_;
   MoqtControlMessageParser message_parser_;

@@ -11,6 +11,7 @@
 #include <memory>
 #include <optional>
 #include <utility>
+#include <variant>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
@@ -24,6 +25,7 @@
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -95,21 +97,64 @@ class RemoteTrack {
 // A track on the peer to which the session has subscribed.
 class SubscribeRemoteTrack : public RemoteTrack {
  public:
-  // If the second argument is null, delete the registration. Returns false if
-  // it fails due to a duplicate track alias, destroying the session.
+  struct SubscribeCallbacks {
+    quiche::SingleUseCallback<SubscribeRemoteTrack*(const FullTrackName&)>
+        query_name;
+    quiche::SingleUseCallback<void(const FullTrackName&, SubscribeRemoteTrack*)>
+        register_name;
+    quiche::SingleUseCallback<bool(uint64_t, SubscribeRemoteTrack*)>
+        register_alias;
+    quiche::SingleUseCallback<void(const FullTrackName&,
+                                   std::optional<uint64_t>)>
+        unregister;
+  };
+  // Tells the session about changes to a track's subscription status.
+  // If SubscribeRemoteTrack* is null, the subscription is gone and the callback
+  // will always return true.
+  // If non-null, try to add the track. If the name is new, return true. If
+  // ready present but for a pending SUBSCRIBE, return the visitor for that
+  // SUBSCRIBE. Otherwise, return false.
+  using RegisterNameCallback =
+      quiche::MultiUseCallback<std::variant<bool, SubscribeVisitor*>(
+          const FullTrackName&, SubscribeRemoteTrack*)>;
+  // When SubscribeRemoteTrack* is non-null, this callback informs the session
+  // of the track alias after the receipt of SUBSCRIBE_OK or PUBLISH.
+  //
+  // If the second argument is null, it means the subscription to the track
+  // alias has ended, and always returns absl::OkStatus().
+  //
+  // Returns true if the operation was successful, It can only fail on
+  // registration because there is already a track with that alias.
   using RegisterTrackAliasCallback =
       quiche::MultiUseCallback<bool(uint64_t, SubscribeRemoteTrack*)>;
-  // We're using BidiStreamDeletedCallback here because this will move to a
-  // bidi stream.
   SubscribeRemoteTrack(const MoqtSubscribe& subscribe,
                        SubscribeVisitor* visitor,
                        BidiStreamDeletedCallback callback,
-                       RegisterTrackAliasCallback register_track_alias_callback)
+                       SubscribeCallbacks callbacks)
       : RemoteTrack(subscribe.full_track_name, subscribe.request_id,
                     subscribe.parameters, std::move(callback)),
         visitor_(visitor),
-        register_track_alias_callback_(
-            std::move(register_track_alias_callback)) {}
+        callbacks_(std::move(callbacks)) {
+    if (callbacks_.register_name) {
+      std::move(callbacks_.register_name)(full_track_name(), this);
+    }
+  }
+
+  SubscribeRemoteTrack(const MoqtPublish& publish, SubscribeVisitor* visitor,
+                       BidiStreamDeletedCallback callback,
+                       SubscribeCallbacks callbacks)
+      : RemoteTrack(publish.full_track_name, publish.request_id,
+                    publish.parameters, std::move(callback)),
+        visitor_(visitor),
+        callbacks_(std::move(callbacks)) {
+    OnObjectOrOk();
+    visitor_->OnReply(publish.full_track_name,
+                      SubscribeOkData(publish.parameters, publish.extensions));
+    if (callbacks_.register_name) {
+      std::move(callbacks_.register_name)(full_track_name(), this);
+      callbacks_.register_name = nullptr;
+    }
+  }
   ~SubscribeRemoteTrack() override;
 
   void OnObjectOrOk(const SubscribeOkData& data);
@@ -121,8 +166,8 @@ class SubscribeRemoteTrack : public RemoteTrack {
   // destroyed.
   [[nodiscard]] bool set_track_alias(uint64_t track_alias) {
     track_alias_.emplace(track_alias);
-    if (register_track_alias_callback_) {
-      return register_track_alias_callback_(track_alias, this);
+    if (callbacks_.register_alias) {
+      return std::move(callbacks_.register_alias)(track_alias, this);
     }
     return true;
   }
@@ -154,6 +199,11 @@ class SubscribeRemoteTrack : public RemoteTrack {
   }
 
   SubscribeVisitor* visitor() const { return visitor_; }
+  SubscribeVisitor* ReleaseVisitor() {
+    SubscribeVisitor* temp = visitor_;
+    visitor_ = nullptr;
+    return temp;
+  }
 
  private:
   friend class test::MoqtSessionPeer;
@@ -188,7 +238,7 @@ class SubscribeRemoteTrack : public RemoteTrack {
   int currently_open_streams_ = 0;
   // Every stream that has received FIN or RESET_STREAM.
   uint64_t streams_closed_ = 0;
-  RegisterTrackAliasCallback register_track_alias_callback_;
+  SubscribeCallbacks callbacks_;
   // Value assigned on PUBLISH_DONE. Can destroy subscription state if
   // streams_closed_ == total_streams_.
   std::optional<uint64_t> total_streams_;

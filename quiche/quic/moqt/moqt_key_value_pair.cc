@@ -91,9 +91,7 @@ void MessageParameters::Update(const MessageParameters& other) {
   if (other.subscription_filter.has_value()) {
     subscription_filter = other.subscription_filter;
   }
-  if (other.group_order.has_value()) {
-    group_order = other.group_order;
-  }
+  // Group order cannot be updated.
   if (other.new_group_request.has_value()) {
     new_group_request = other.new_group_request;
   }

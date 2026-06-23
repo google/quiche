@@ -10,17 +10,16 @@
 #include <optional>
 #include <string>
 #include <utility>
-#include <variant>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
-#include "quiche/quic/moqt/moqt_object.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -78,44 +77,6 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   void ToSetupParameters(SetupParameters& out) const;
 };
 
-using MoqtObjectAckFunction =
-    quiche::MultiUseCallback<void(uint64_t group_id, uint64_t object_id,
-                                  quic::QuicTimeDelta delta_from_deadline)>;
-
-struct SubscribeOkData {
-  MessageParameters parameters;
-  TrackExtensions extensions;
-};
-
-class SubscribeVisitor {
- public:
-  virtual ~SubscribeVisitor() = default;
-  // Called when the session receives a response to the SUBSCRIBE.
-  virtual void OnReply(
-      const FullTrackName& full_track_name,
-      std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) = 0;
-  // Called when the subscription process is far enough that it is possible to
-  // send OBJECT_ACK messages; provides a callback to do so. The callback is
-  // valid for as long as the session is valid.
-  virtual void OnCanAckObjects(MoqtObjectAckFunction ack_function) = 0;
-  // Called when an object fragment (or an entire object) is received.
-  virtual void OnObjectFragment(const FullTrackName& full_track_name,
-                                const PublishedObjectMetadata& metadata,
-                                absl::string_view object, uint64_t offset) = 0;
-  // Called when the subscription state goes away, regardless of whether or not
-  // there was a PUBLISH_DONE message.
-  virtual void OnPublishDone(FullTrackName full_track_name) = 0;
-  // Called when the track is malformed per Section 2.5 of
-  // draft-ietf-moqt-moq-transport-12. If the application is a relay, it MUST
-  // terminate downstream delivery of the track.
-  virtual void OnMalformedTrack(const FullTrackName& full_track_name) = 0;
-
-  // End user applications might not care about stream state, but relays will.
-  virtual void OnStreamFin(const FullTrackName& full_track_name,
-                           DataStreamIndex stream) = 0;
-  virtual void OnStreamReset(const FullTrackName& full_track_name,
-                             DataStreamIndex stream) = 0;
-};
 
 // MoqtSession calls this when a FETCH_OK or REQUEST_ERROR is received. The
 // destination of the callback owns |fetch_task| and MoqtSession will react
@@ -147,6 +108,14 @@ class MoqtSessionInterface {
   // Sends an UNSUBSCRIBE message and removes all of the state related to the
   // subscription.  Returns false if the subscription is not found.
   virtual void Unsubscribe(const FullTrackName& name) = 0;
+
+  // Returns false if the PUBLISH cannot be sent due stream flow control
+  // limitations (which spawns PUBLISH_BLOCKED in namespace streams). Any other
+  // failure will be covered by |response_callback|.
+  virtual bool Publish(
+      std::shared_ptr<MoqtTrackPublisher> absl_nonnull publisher,
+      const MessageParameters& parameters, const TrackExtensions& extensions,
+      MoqtResponseCallback response_callback) = 0;
 
   // Sends a FETCH for a pre-specified object range.  Once a FETCH_OK or a
   // FETCH_ERROR is received, `callback` is called with a MoqtFetchTask that can

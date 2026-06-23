@@ -953,6 +953,90 @@ TEST_F(MoqtIntegrationTest, RecordTrace) {
   EXPECT_EQ(objects_enqueued, 1);
 }
 
+TEST_F(MoqtIntegrationTest, ClientPublishServerSubscribe) {
+  EstablishSession();
+  FullTrackName full_track_name("foo", "bar");
+
+  // Server registers incoming publish callback.
+  bool server_received_publish = false;
+  MoqtResponseCallback server_response_callback;
+  server_->session()->callbacks().incoming_publish_callback =
+      [&](const FullTrackName& name, const MessageParameters& parameters,
+          const TrackExtensions& extensions, MoqtResponseCallback callback) {
+        EXPECT_EQ(name, full_track_name);
+        server_response_callback = std::move(callback);
+        server_received_publish = true;
+        return &subscribe_visitor_;
+      };
+
+  // Client publishes.
+  auto queue = std::make_shared<TestTrackPublisher>(full_track_name);
+  bool client_publish_completed = false;
+  bool client_publish_success = false;
+  MoqtResponseCallback client_publish_callback =
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
+        client_publish_completed = true;
+        client_publish_success =
+            std::holds_alternative<MessageParameters>(response);
+      };
+
+  MessageParameters publish_parameters;
+  TrackExtensions publish_extensions;
+  bool publish_submitted =
+      client_->session()->Publish(queue, publish_parameters, publish_extensions,
+                                  std::move(client_publish_callback));
+  ASSERT_TRUE(publish_submitted);
+
+  // Run until server receives PUBLISH.
+  bool success = test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return server_received_publish; });
+  ASSERT_TRUE(success);
+
+  // Server responds with REQUEST_OK.
+  std::move(server_response_callback)(MessageParameters());
+
+  // Run until client receives REQUEST_OK.
+  success = test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return client_publish_completed; });
+  ASSERT_TRUE(success);
+  EXPECT_TRUE(client_publish_success);
+
+  // Deliver objects.
+  queue->AddObject(Location(0, 0), 0, "object0", false);
+  queue->AddObject(Location(0, 1), 0, "object1", true);
+
+  int received_objects = 0;
+  EXPECT_CALL(subscribe_visitor_, OnObjectFragment)
+      .Times(2)
+      .WillRepeatedly([&](const FullTrackName& name,
+                          const PublishedObjectMetadata& metadata,
+                          absl::string_view object, uint64_t offset) {
+        EXPECT_EQ(name, full_track_name);
+        if (received_objects == 0) {
+          EXPECT_EQ(metadata.location, Location(0, 0));
+          EXPECT_EQ(object, "object0");
+        } else if (received_objects == 1) {
+          EXPECT_EQ(metadata.location, Location(0, 1));
+          EXPECT_EQ(object, "object1");
+        }
+        ++received_objects;
+      });
+
+  success = test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return received_objects == 2; });
+  EXPECT_TRUE(success);
+
+  // Destroy the publisher to induce PUBLISH_DONE.
+  queue->RemoveAllSubscriptions();
+  bool publish_done = false;
+  EXPECT_CALL(subscribe_visitor_, OnPublishDone).WillOnce([&]() {
+    publish_done = true;
+  });
+  success =
+      test_harness_.RunUntilWithDefaultTimeout([&]() { return publish_done; });
+  EXPECT_TRUE(success);
+}
+
 }  // namespace
 
 }  // namespace moqt::test

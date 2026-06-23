@@ -38,6 +38,7 @@
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_publish_stream.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
@@ -487,26 +488,8 @@ bool MoqtSession::Subscribe(const FullTrackName& name,
                   << message.full_track_name;
   auto track = std::make_unique<SubscribeRemoteTrack>(
       message, visitor,
-      [this, request_id = message.request_id, ftn = name]() {
-        // Deletion callback
-        subscribe_by_name_.erase(ftn);
-        upstream_by_id_.erase(request_id);
-      },
-      [this](uint64_t alias, SubscribeRemoteTrack* track) {
-        // Track alias registry callback.
-        if (is_closing_) {
-          return true;
-        }
-        if (track == nullptr) {
-          subscribe_by_alias_.erase(alias);
-          return true;
-        }
-        auto [it, success] = subscribe_by_alias_.try_emplace(alias, track);
-        if (!success) {
-          Error(MoqtError::kDuplicateTrackAlias, "");
-        }
-        return success;
-      });
+      [this, id = message.request_id]() { upstream_by_id_.erase(id); },
+      GetSubscribeCallbacks());
   subscribe_by_name_.emplace(message.full_track_name, track.get());
   upstream_by_id_.emplace(message.request_id, std::move(track));
   return true;
@@ -534,6 +517,7 @@ bool MoqtSession::SubscribeUpdate(const FullTrackName& name,
   if (it == subscribe_by_name_.end()) {
     return false;
   }
+  // TODO(martinduke): Support Update on PUBLISH streams.
   pending_subscribe_updates_[next_request_id_] = {name, parameters,
                                                   std::move(response_callback)};
   MoqtRequestUpdate update{next_request_id_, it->second->request_id(),
@@ -558,6 +542,59 @@ void MoqtSession::Unsubscribe(const FullTrackName& name) {
   message.request_id = track->request_id();
   SendControlMessage(framer_.SerializeUnsubscribe(message));
   track->Destroy();
+}
+
+bool MoqtSession::Publish(
+    std::shared_ptr<MoqtTrackPublisher> absl_nonnull publisher,
+    const MessageParameters& parameters, const TrackExtensions& extensions,
+    MoqtResponseCallback response_callback) {
+  if (received_goaway_ || sent_goaway_) {
+    QUICHE_DLOG(INFO) << ENDPOINT << "Tried to send PUBLISH after GOAWAY";
+    return false;
+  }
+  const FullTrackName& name = publisher->GetTrackName();
+  QUICHE_DCHECK(name.IsValid());
+  if (!session_->CanOpenNextOutgoingBidirectionalStream()) {
+    return false;  // Do not retry opening a PUBLISH stream.
+  }
+  if (!subscribed_track_names_.insert(name).second) {
+    QUICHE_DLOG(INFO) << ENDPOINT << "Tried to send PUBLISH for track " << name
+                      << " which is already published";
+    return false;
+  }
+  auto stream_visitor = std::make_unique<MoqtPublishPublisherStream>(
+      &framer_, ControlMessageParser(),
+      [weak_session = GetWeakPtr(), track_name = name]() {
+        // Stream deleted callback.
+        MoqtSession* session =
+            absl::down_cast<MoqtSession*>(weak_session.GetIfAvailable());
+        if (session == nullptr) {
+          return;
+        }
+        session->subscribed_track_names_.erase(track_name);
+      },
+      [weak_session = GetWeakPtr()](MoqtError code, absl::string_view reason) {
+        MoqtSessionInterface* session = weak_session.GetIfAvailable();
+        if (session == nullptr) {
+          return;
+        }
+        session->Error(code, reason);
+      },
+      std::move(response_callback));
+  auto publish_state = std::make_unique<SubscriptionPublisher>(
+      framer_, publisher, stream_visitor.get(), next_request_id_,
+      next_local_track_alias_, parameters, this, nullptr, callbacks_.clock,
+      trace_recorder_, true);
+  SubscriptionPublisher* publisher_ptr = publish_state.get();
+  stream_visitor->SetPublisher(std::move(publish_state));
+  webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
+  MoqtPublishPublisherStream* stream_visitor_ptr = stream_visitor.get();
+  stream->SetVisitor(std::move(stream_visitor));
+  stream_visitor_ptr->BindStream(stream);
+  next_request_id_ += 2;
+  ++next_local_track_alias_;
+  publisher->AddObjectListener(publisher_ptr);
+  return true;
 }
 
 bool MoqtSession::Fetch(const FullTrackName& name,
@@ -683,6 +720,7 @@ void MoqtSession::PublishIsDone(uint64_t request_id) {
   }
   auto it = published_subscriptions_.find(request_id);
   if (it == published_subscriptions_.end()) {
+    // If a PUBLISH, we will end up here.
     return;
   }
   subscribed_track_names_.erase(it->second->publisher().GetTrackName());
@@ -760,6 +798,35 @@ SubscribeRemoteTrack* MoqtSession::RemoteTrackByName(
     return nullptr;
   }
   return it->second;
+}
+
+SubscribeRemoteTrack::SubscribeCallbacks MoqtSession::GetSubscribeCallbacks() {
+  return {
+      [this](const FullTrackName& name) {  // query_name_
+        return RemoteTrackByName(name);
+      },
+      [this](const FullTrackName& name, SubscribeRemoteTrack* track) {
+        // register_name_
+        subscribe_by_name_[name] = track;
+      },
+      [this](const uint64_t alias, SubscribeRemoteTrack* track) {
+        // register_alias_
+        return subscribe_by_alias_.try_emplace(alias, track).second;
+      },
+      [weaksession = GetWeakPtr()](const FullTrackName& name,
+                                   std::optional<uint64_t> alias) {
+        // unregister_
+        MoqtSession* session =
+            absl::down_cast<MoqtSession*>(weaksession.GetIfAvailable());
+        if (session == nullptr) {
+          return;
+        }
+        session->subscribe_by_name_.erase(name);
+        if (alias.has_value()) {
+          session->subscribe_by_alias_.erase(*alias);
+        }
+      },
+  };
 }
 
 void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
@@ -870,6 +937,23 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
       temp_stream->OnCanRead();
       break;
     }
+    case MoqtMessageType::kPublish: {
+      auto publish_stream = std::make_unique<MoqtPublishSubscriberStream>(
+          &session_->framer_, session_->ControlMessageParser(),
+          session_->callbacks_.clock, session_->alarm_factory(),
+          [session = session_](MoqtError code, absl::string_view reason) {
+            session->Error(code, reason);
+          },
+          &session_->callbacks_.incoming_publish_callback,
+          session_->GetSubscribeCallbacks());
+      publish_stream->BindStream(std::move(parser_));
+      MoqtPublishSubscriberStream* temp_stream = publish_stream.get();
+      stream_->SetVisitor(std::move(publish_stream));
+      // The UnknownBidiStream object is deleted; no class access after this
+      // point.
+      temp_stream->OnCanRead();
+      break;
+    }
     default:
       session_->Error(MoqtError::kProtocolViolation,
                       "Unexpected message type received to start bidi stream");
@@ -959,7 +1043,7 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
   auto subscription = std::make_unique<SubscriptionPublisher>(
       session_->framer_, track_publisher, this, message.request_id,
       session_->next_local_track_alias_++, message.parameters, session_,
-      monitoring, session_->callbacks_.clock, session_->trace_recorder_);
+      monitoring, session_->callbacks_.clock, session_->trace_recorder_, false);
   SubscriptionPublisher* subscription_ptr = subscription.get();
   auto [it, success] = session_->published_subscriptions_.emplace(
       message.request_id, std::move(subscription));
@@ -996,9 +1080,8 @@ absl::Status MoqtSession::ControlStream::OnControlMessage(
   }
   SubscribeRemoteTrack* subscribe =
       absl::down_cast<SubscribeRemoteTrack*>(track);
-
   if (!subscribe->set_track_alias(message.track_alias)) {
-    // A duplicate track alias could destroy the session.
+    OnFatalError(absl::AlreadyExistsError(""));
     return absl::OkStatus();
   }
   subscribe->OnObjectOrOk(

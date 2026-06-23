@@ -91,7 +91,9 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
                      SessionErrorCallback session_error_callback)
       : MoqtBidiStreamBase(framer, message_parser,
                            std::move(stream_deleted_callback),
-                           std::move(session_error_callback)) {}
+                           std::move(session_error_callback)) {
+    set_control_stream();  // TODO(martinduke): Delete
+  }
   ~TestMoqtBidiStream() override = default;
   void OnStreamBound() override {};
   absl::Status OnRawControlMessage(
@@ -136,7 +138,7 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
     publisher_ = std::make_unique<SubscriptionPublisher>(
         framer_, track_publisher_, &bidi_stream_, kRequestId, kTrackAlias,
         parameters_, &visitor_, &monitoring_interface_, &mock_clock_,
-        trace_recorder_);
+        trace_recorder_, /*is_publish=*/false);
     ON_CALL(visitor_, alternate_delivery_timeout).WillByDefault(Return(false));
     ON_CALL(webtrans_, GetStreamById(kStreamId))
         .WillByDefault(Return(&mock_uni_stream_));

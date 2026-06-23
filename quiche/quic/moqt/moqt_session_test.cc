@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <queue>
@@ -23,6 +24,7 @@
 #include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
@@ -1156,8 +1158,6 @@ TEST_F(MoqtSessionTest, SubscribeNamespacePublishOnly) {
 }
 
 TEST_F(MoqtSessionTest, SubscribeOkWithBadTrackAlias) {
-  // Create open subscription. We cannot use CreateRemoteTrack because that
-  // skips the code that sets the track alias callbacks.
   webtransport::test::MockStream mock_control_stream;
   std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_control_stream);
@@ -2779,6 +2779,203 @@ TEST_F(MoqtSessionTest, StopSendingBlocksSubgroup) {
   EXPECT_CALL(*track, GetCachedObject).Times(0);
   EXPECT_CALL(mock_stream_, Writev).Times(0);
   listener->OnNewObjectAvailable(Location(0, 1), 1, 0x80);
+}
+
+TEST_F(MoqtSessionTest, PublishSuccess) {
+  CreateTrackPublisher();
+  std::shared_ptr<MoqtTrackPublisher> track_publisher =
+      publisher_.GetTrack(kDefaultTrackName());
+  webtransport::test::MockStream mock_publish_stream;
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingBidirectionalStream())
+      .WillOnce(Return(true));
+  EXPECT_CALL(mock_session_, OpenOutgoingBidirectionalStream())
+      .WillOnce(Return(&mock_publish_stream));
+
+  std::unique_ptr<webtransport::StreamVisitor> publish_stream_visitor;
+  EXPECT_CALL(mock_publish_stream, SetVisitor)
+      .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+        publish_stream_visitor = std::move(visitor);
+      });
+  EXPECT_CALL(mock_publish_stream, CanWrite).WillRepeatedly(Return(true));
+
+  // Verify PUBLISH message is sent on the publish stream.
+  EXPECT_CALL(mock_publish_stream,
+              Writev(ControlMessageOfType(MoqtMessageType::kPublish), _))
+      .WillOnce(Return(absl::OkStatus()));
+
+  std::optional<std::variant<MessageParameters, MoqtRequestErrorInfo>> response;
+  ASSERT_TRUE(session_.Publish(
+      track_publisher, MessageParameters(), TrackExtensions(),
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> resp) {
+        response = resp;
+      }));
+  ASSERT_NE(publish_stream_visitor, nullptr);
+
+  std::unique_ptr<MoqtBidiStreamBase> bidi_stream(
+      absl::down_cast<MoqtBidiStreamBase*>(publish_stream_visitor.release()));
+  MoqtBidiStreamTestWrapper wrapper(std::move(bidi_stream));
+
+  MoqtRequestOk request_ok;
+  request_ok.request_id = 0;
+  request_ok.parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(2);
+
+  wrapper.ReceiveMessage(request_ok);
+
+  ASSERT_TRUE(response.has_value());
+  EXPECT_TRUE(std::holds_alternative<MessageParameters>(*response));
+  EXPECT_EQ(std::get<MessageParameters>(*response).delivery_timeout,
+            quic::QuicTimeDelta::FromSeconds(2));
+}
+
+TEST_F(MoqtSessionTest, PublishCannotOpenStream) {
+  CreateTrackPublisher();
+  std::shared_ptr<MoqtTrackPublisher> track_publisher =
+      publisher_.GetTrack(kDefaultTrackName());
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingBidirectionalStream())
+      .WillOnce(Return(false));
+  EXPECT_FALSE(session_.Publish(
+      track_publisher, MessageParameters(), TrackExtensions(),
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {}));
+}
+
+TEST_F(MoqtSessionTest, PublishAfterGoaway) {
+  std::unique_ptr<MoqtBidiStreamTestWrapper> stream_input =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  MoqtGoAway goaway;
+  goaway.new_session_uri = "";
+  stream_input->ReceiveMessage(goaway);
+  CreateTrackPublisher();
+  std::shared_ptr<MoqtTrackPublisher> track_publisher =
+      publisher_.GetTrack(kDefaultTrackName());
+  EXPECT_FALSE(session_.Publish(
+      track_publisher, MessageParameters(), TrackExtensions(),
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}));
+}
+
+TEST_F(MoqtSessionTest, IncomingPublishAbortsPendingSubscribe) {
+  // 1. Start a pending SUBSCRIBE.
+  std::unique_ptr<MoqtBidiStreamTestWrapper> control_stream =
+      MoqtSessionPeer::CreateControlStream(&session_, &mock_stream_);
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
+  MessageParameters parameters(SubscribeForTest());
+  session_.Subscribe(kDefaultTrackName(), &remote_track_visitor_, parameters);
+
+  // Configure incoming publish callback to accept. Return nullptr because this
+  // should never be called.
+  bool incoming_publish_callback_called = false;
+  session_.callbacks().incoming_publish_callback =
+      [&](const FullTrackName&, const MessageParameters&,
+          const TrackExtensions&, MoqtResponseCallback callback) {
+        incoming_publish_callback_called = true;
+        return nullptr;
+      };
+
+  // Prepare PUBLISH message.
+  MoqtPublish publish;
+  publish.request_id = 0;  // Matches pending SUBSCRIBE request ID
+  publish.full_track_name = kDefaultTrackName();
+  publish.track_alias = 10;
+  publish.parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(5);
+
+  MoqtFramer peer_framer(true, quic::Perspective::IS_SERVER);
+  quiche::QuicheBuffer serialized_buffer =
+      peer_framer.SerializePublish(publish);
+  std::string serialized(serialized_buffer.data(), serialized_buffer.size());
+
+  // Setup mock_publish_stream.
+  webtransport::test::MockStream mock_publish_stream;
+  EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream())
+      .WillOnce(Return(&mock_publish_stream))
+      .WillOnce(Return(nullptr));
+
+  // Setup mock_publish_stream to return serialized data.
+  size_t data_read = 0;
+  auto peek_lambda = [&data_read,
+                      &serialized]() -> webtransport::Stream::PeekResult {
+    webtransport::Stream::PeekResult result;
+    result.peeked_data = absl::string_view(serialized.data() + data_read,
+                                           serialized.size() - data_read);
+    result.fin_next = (data_read == serialized.size());
+    result.all_data_received = false;
+    return result;
+  };
+  std::function<webtransport::Stream::PeekResult()> peek_action = peek_lambda;
+
+  auto readable_bytes_lambda = [&data_read, &serialized]() -> size_t {
+    if (data_read >= serialized.size()) {
+      return 0;
+    }
+    return serialized.size() - data_read;
+  };
+  std::function<size_t()> readable_bytes_action = readable_bytes_lambda;
+
+  auto read_lambda =
+      [&data_read, &serialized](
+          absl::Span<char> bytes_to_read) -> webtransport::Stream::ReadResult {
+    size_t read_size =
+        std::min(bytes_to_read.size(), serialized.size() - data_read);
+    memcpy(bytes_to_read.data(), serialized.data() + data_read, read_size);
+    data_read += read_size;
+    webtransport::Stream::ReadResult result;
+    result.bytes_read = read_size;
+    result.fin = (data_read == serialized.size());
+    return result;
+  };
+  std::function<webtransport::Stream::ReadResult(absl::Span<char>)>
+      read_action = read_lambda;
+
+  auto skip_lambda = [&data_read, &serialized](size_t bytes) -> bool {
+    data_read += bytes;
+    return data_read == serialized.size();
+  };
+  std::function<bool(size_t)> skip_action = skip_lambda;
+
+  EXPECT_CALL(mock_publish_stream, PeekNextReadableRegion())
+      .WillRepeatedly(peek_action);
+  EXPECT_CALL(mock_publish_stream, ReadableBytes())
+      .WillRepeatedly(readable_bytes_action);
+  EXPECT_CALL(mock_publish_stream, Read(testing::An<absl::Span<char>>()))
+      .WillRepeatedly(read_action);
+  EXPECT_CALL(mock_publish_stream, SkipBytes).WillRepeatedly(skip_action);
+
+  // Capture SetVisitor calls and mock visitor().
+  std::unique_ptr<webtransport::StreamVisitor> unknown_bidi_stream_visitor;
+  std::unique_ptr<webtransport::StreamVisitor> upgraded_visitor;
+
+  {
+    testing::InSequence seq;
+    EXPECT_CALL(mock_publish_stream, SetVisitor)
+        .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+          unknown_bidi_stream_visitor = std::move(visitor);
+        })
+        .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> visitor) {
+          upgraded_visitor = std::move(visitor);
+        });
+  }
+
+  EXPECT_CALL(mock_publish_stream, visitor())
+      .WillRepeatedly([&]() -> webtransport::StreamVisitor* {
+        return upgraded_visitor ? upgraded_visitor.get()
+                                : unknown_bidi_stream_visitor.get();
+      });
+
+  // The RemoteTrackVisitor is being reused, not destroyed.
+  EXPECT_CALL(remote_track_visitor_,
+              OnReply(kDefaultTrackName(),
+                      testing::VariantWith<SubscribeOkData>(
+                          testing::Field(&SubscribeOkData::parameters,
+                                         testing::Eq(publish.parameters)))));
+  EXPECT_CALL(remote_track_visitor_, OnPublishDone(kDefaultTrackName()))
+      .Times(0);
+  EXPECT_FALSE(incoming_publish_callback_called);
+
+  // Trigger the read by making incoming stream available.
+  session_.OnIncomingBidirectionalStreamAvailable();
+
+  // Verify it was aborted immediately (not at teardown).
+  EXPECT_TRUE(
+      testing::Mock::VerifyAndClearExpectations(&remote_track_visitor_));
 }
 
 }  // namespace test

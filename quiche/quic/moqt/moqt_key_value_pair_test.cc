@@ -254,7 +254,7 @@ TEST_F(MessageParametersTest, Update) {
             AuthToken(AuthTokenType::kOutOfBand, "token"));
   EXPECT_TRUE(p1.forward());
   EXPECT_EQ(p1.subscriber_priority, 100);
-  EXPECT_EQ(p1.group_order, MoqtDeliveryOrder::kDescending);
+  EXPECT_EQ(p1.group_order, std::nullopt);
   EXPECT_EQ(p1.new_group_request, 1);
 }
 

@@ -41,11 +41,12 @@ SubscriptionPublisher::SubscriptionPublisher(
     SessionToPublisherInterface* absl_nonnull visitor,
     MoqtPublishingMonitorInterface* monitoring_interface,
     const quic::QuicClock* absl_nonnull clock,
-    MoqtTraceRecorder& trace_recorder)
+    MoqtTraceRecorder& trace_recorder, bool is_publish)
     : track_publisher_(track_publisher),
       bidi_stream_(bidi_stream),
       visitor_(visitor),
       request_id_(request_id),
+      established_(is_publish),
       track_alias_(track_alias),
       framer_(framer),
       trace_recorder_(trace_recorder),
@@ -62,7 +63,9 @@ SubscriptionPublisher::SubscriptionPublisher(
 }
 
 SubscriptionPublisher::~SubscriptionPublisher() {
-  track_publisher_->RemoveObjectListener(this);
+  if (track_publisher_ != nullptr) {
+    track_publisher_->RemoveObjectListener(this);
+  }
   // Reset all streams.
   for (const webtransport::StreamId stream_id : stream_map_.GetAllStreams()) {
     webtransport::Stream* stream = GetStreamById(stream_id);
@@ -108,7 +111,9 @@ void SubscriptionPublisher::Update(const MessageParameters& parameters) {
 }
 
 void SubscriptionPublisher::OnSubscribeAccepted() {
-  QUICHE_DCHECK(!established_);
+  if (established_) {
+    return;  // It's a PUBLISH.
+  }
   established_ = true;
   parameters_.largest_object = track_publisher_->largest_location();
   if (parameters_.subscription_filter.has_value()) {
@@ -137,9 +142,11 @@ void SubscriptionPublisher::OnSubscribeAccepted() {
 }
 
 void SubscriptionPublisher::OnSubscribeRejected(MoqtRequestErrorInfo info) {
-  bidi_stream_->CheckStatus(bidi_stream_->SendRequestError(request_id_, info));
-  visitor_->PublishIsDone(request_id_);
-  // No class access below this line!
+  bidi_stream_->CheckStatus(bidi_stream_->SendRequestError(request_id_, info,
+                                                           /*fin=*/true));
+  if (bidi_stream_->is_control_stream()) {
+    visitor_->PublishIsDone(request_id_);
+  }
 }
 
 void SubscriptionPublisher::OnNewObjectAvailable(
@@ -238,7 +245,7 @@ void SubscriptionPublisher::OnNewObjectAvailable(
 }
 
 void SubscriptionPublisher::OnTrackPublisherGone() {
-  PublishIsDone(request_id_, PublishDoneCode::kGoingAway, "Publisher is gone");
+  PublishIsDone(PublishDoneCode::kGoingAway, "Publisher is gone");
 }
 
 // TODO(martinduke): Revise to check if the last object has been delivered.
@@ -296,7 +303,7 @@ void SubscriptionPublisher::OnGroupAbandoned(uint64_t group_id) {
       stream_map_.GetStreamsForGroup(group_id);
   if (delivery_timeout().IsInfinite() && largest_sent_.has_value() &&
       largest_sent_->group <= group_id) {
-    PublishIsDone(request_id_, PublishDoneCode::kTooFarBehind, "");
+    PublishIsDone(PublishDoneCode::kTooFarBehind, "");
     // No class access below this line!
     return;
   }
@@ -379,23 +386,29 @@ webtransport::Stream* absl_nullable SubscriptionPublisher::OpenDataStream(
   return new_stream;
 }
 
-void SubscriptionPublisher::PublishIsDone(uint64_t request_id,
-                                          PublishDoneCode code,
+void SubscriptionPublisher::PublishIsDone(PublishDoneCode code,
                                           absl::string_view error_reason) {
   MoqtPublishDone publish_done;
-  publish_done.request_id = request_id;
+  publish_done.request_id = request_id_;
   publish_done.status_code = code;
   publish_done.stream_count = streams_opened_;
   publish_done.error_reason = error_reason;
-  // TODO(martinduke): It is technically correct, but not good, to simply
-  // reset all the streams in order to send PUBLISH_DONE. It's better to wait
-  // until streams FIN naturally, where possible.
+  // TODO(martinduke): It is technically correct, but not good, to reset all the
+  // streams in order to send PUBLISH_DONE. It's better to wait until streams
+  // FIN naturally, where possible.
   QUICHE_DLOG(INFO) << "Sending PUBLISH_DONE message for "
                     << track_publisher_->GetTrackName();
+  // TODO(martinduke): For SUBSCRIBE, no FIN because it's the control stream.
   bidi_stream_->SendOrBufferMessageOrFatal(
-      framer_.SerializePublishDone(publish_done));
-  visitor_->PublishIsDone(request_id_);
-  // No class access below this line!
+      framer_.SerializePublishDone(publish_done),
+      /*fin=*/!bidi_stream_->is_control_stream());
+  if (bidi_stream_->is_control_stream()) {
+    visitor_->PublishIsDone(request_id_);
+  } else {
+    // Only detach immediately for PUBLISH flow.
+    track_publisher_->RemoveObjectListener(this);
+    track_publisher_ = nullptr;
+  }
 }
 
 void SubscriptionPublisher::OnDataStreamDestroyed(

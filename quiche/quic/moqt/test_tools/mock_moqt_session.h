@@ -13,12 +13,12 @@
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
-#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
@@ -38,6 +38,12 @@ class MockMoqtSession : public MoqtSessionInterface {
                MoqtResponseCallback),
               (override));
   MOCK_METHOD(void, Unsubscribe, (const FullTrackName& name), (override));
+  MOCK_METHOD(bool, Publish,
+              (std::shared_ptr<MoqtTrackPublisher> publisher,
+               const MessageParameters& parameters,
+               const TrackExtensions& extensions,
+               MoqtResponseCallback response_callback),
+              (override));
   MOCK_METHOD(bool, Fetch,
               (const FullTrackName& name, FetchResponseCallback callback,
                Location start, uint64_t end_group,

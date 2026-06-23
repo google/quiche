@@ -16,13 +16,13 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
-#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/quiche_mem_slice.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -57,13 +57,18 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
   SubscribeRemoteTrackTest()
       : track_(
             subscribe_, &visitor_, [this]() { deleted_ = true; },
-            [this](uint64_t, SubscribeRemoteTrack* track) {
-              alias_registered_ = (track != nullptr);
-              if (alias_registered_) {
-                EXPECT_EQ(track, &track_);
-              }
-              return true;
-            }) {}
+            SubscribeRemoteTrack::SubscribeCallbacks{
+                /*query_name_=*/nullptr,
+                /*register_name_=*/nullptr,
+                /*register_alias_=*/
+                [this](uint64_t, SubscribeRemoteTrack* track) {
+                  alias_registered_ = (track != nullptr);
+                  if (alias_registered_) {
+                    EXPECT_EQ(track, &track_);
+                  }
+                  return true;
+                },
+                /*unregister_=*/nullptr}) {}
 
   MockSubscribeRemoteTrackVisitor visitor_;
   MoqtSubscribe subscribe_ = {/*request_id=*/1, FullTrackName("foo", "bar"),

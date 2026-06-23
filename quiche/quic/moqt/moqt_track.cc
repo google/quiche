@@ -23,8 +23,7 @@
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
-#include "quiche/quic/moqt/moqt_priority.h"
-#include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_mem_slice.h"
@@ -54,10 +53,12 @@ SubscribeRemoteTrack::~SubscribeRemoteTrack() {
   if (publish_done_alarm_ != nullptr) {
     publish_done_alarm_->PermanentCancel();
   }
-  if (register_track_alias_callback_ && track_alias_.has_value()) {
-    register_track_alias_callback_(*track_alias_, nullptr);
+  if (callbacks_.unregister) {
+    std::move(callbacks_.unregister)(full_track_name(), track_alias_);
   }
-  visitor_->OnPublishDone(full_track_name());
+  if (visitor_ != nullptr) {
+    visitor_->OnPublishDone(full_track_name());
+  }
 }
 
 void SubscribeRemoteTrack::OnObjectOrOk(const SubscribeOkData& data) {

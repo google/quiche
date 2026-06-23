@@ -38,10 +38,9 @@ MoqtSessionParameters CreateParameters(quic::Perspective perspective,
 }
 
 MoqtSessionCallbacks CreateCallbacks(quic::simulator::Simulator* simulator) {
-  return MoqtSessionCallbacks(
-      +[] {}, +[](absl::string_view) {}, +[](absl::string_view) {}, +[] {},
-      DefaultIncomingPublishNamespaceCallback,
-      DefaultIncomingSubscribeNamespaceCallback, simulator->GetClock());
+  MoqtSessionCallbacks callbacks;
+  callbacks.clock = simulator->GetClock();
+  return callbacks;
 }
 }  // namespace
 

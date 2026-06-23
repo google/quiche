@@ -92,6 +92,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                        const MessageParameters& parameters,
                        MoqtResponseCallback response_callback) override;
   void Unsubscribe(const FullTrackName& name) override;
+  bool Publish(std::shared_ptr<MoqtTrackPublisher> absl_nonnull publisher,
+               const MessageParameters& parameters,
+               const TrackExtensions& extensions,
+               MoqtResponseCallback response_callback) override;
   bool Fetch(const FullTrackName& name, FetchResponseCallback callback,
              Location start, uint64_t end_group,
              std::optional<uint64_t> end_object,
@@ -251,7 +255,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                 }
               }),
           session_(session),
-          weak_ptr_factory_(this) {}
+          weak_ptr_factory_(this) {
+      this->set_control_stream();
+    }
+    // TODO(martinduke): Remove constructor body once SUBSCRIBE moves to a bidi
+    // stream.
 
     void OnStreamBound() override;
     absl::Status OnRawControlMessage(
@@ -421,6 +429,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   SubscribeRemoteTrack* RemoteTrackByAlias(uint64_t track_alias);
   RemoteTrack* RemoteTrackById(uint64_t request_id);
   SubscribeRemoteTrack* RemoteTrackByName(const FullTrackName& name);
+
+  SubscribeRemoteTrack::SubscribeCallbacks GetSubscribeCallbacks();
 
   // Checks that a subscribe ID from a SUBSCRIBE or FETCH is valid, and throws
   // a session error if is not.
