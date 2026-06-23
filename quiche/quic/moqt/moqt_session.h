@@ -210,6 +210,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   MoqtTraceRecorder& trace_recorder() { return trace_recorder_; }
 
  private:
+  friend class ControlMessageDispatcher;
   friend class test::MoqtSessionPeer;
 
   struct Empty {};
@@ -266,36 +267,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
         const MoqtRawControlMessage& message) override;
 
     // MoqtControlParserVisitor implementation.
-    absl::Status OnControlMessage(const MoqtSetup& message);
-    absl::Status OnControlMessage(const MoqtRequestOk& message);
-    absl::Status OnControlMessage(const MoqtRequestError& message);
-    absl::Status OnControlMessage(const MoqtSubscribe& message);
-    absl::Status OnControlMessage(const MoqtSubscribeOk& message);
-    absl::Status OnControlMessage(const MoqtUnsubscribe& message);
-    absl::Status OnControlMessage(const MoqtPublishDone& /*message*/);
-    absl::Status OnControlMessage(const MoqtRequestUpdate& message);
-    absl::Status OnControlMessage(const MoqtPublishNamespace& message);
-    absl::Status OnControlMessage(const MoqtPublishNamespaceDone& /*message*/);
-    absl::Status OnControlMessage(const MoqtPublishNamespaceCancel& message);
-    absl::Status OnControlMessage(const MoqtTrackStatus& message);
-    absl::Status OnControlMessage(const MoqtGoAway& /*message*/);
-    absl::Status OnControlMessage(const MoqtMaxRequestId& message);
-    absl::Status OnControlMessage(const MoqtFetch& message);
-    absl::Status OnControlMessage(const MoqtFetchCancel& /*message*/) {
-      return absl::OkStatus();
-    }
-    absl::Status OnControlMessage(const MoqtFetchOk& message);
-    absl::Status OnControlMessage(const MoqtRequestsBlocked& message);
-    absl::Status OnControlMessage(const MoqtPublish& message);
-    absl::Status OnControlMessage(const MoqtObjectAck& message) {
-      auto subscription_it =
-          session_->published_subscriptions_.find(message.subscribe_id);
-      if (subscription_it == session_->published_subscriptions_.end()) {
-        return absl::OkStatus();
-      }
-      subscription_it->second->ProcessObjectAck(message);
-      return absl::OkStatus();
-    }
 
     // webtransport::StreamVisitor overrides
     void OnResetStreamReceived(webtransport::StreamErrorCode error) override {
@@ -466,6 +437,51 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     return MoqtControlMessageParser(parameters_.version,
                                     parameters_.using_webtrans,
                                     parameters_.perspective);
+  }
+
+  // Handlers for the control messages on the main control stream.
+  absl::Status OnControlMessage(const MoqtSetup& message);
+  absl::Status OnControlMessage(const MoqtRequestOk& message);
+  absl::Status OnControlMessage(const MoqtRequestError& message);
+  absl::Status OnControlMessage(const MoqtSubscribe& message);
+  absl::Status OnControlMessage(const MoqtSubscribeOk& message);
+  absl::Status OnControlMessage(const MoqtUnsubscribe& message);
+  absl::Status OnControlMessage(const MoqtPublishDone& /*message*/);
+  absl::Status OnControlMessage(const MoqtRequestUpdate& message);
+  absl::Status OnControlMessage(const MoqtPublishNamespace& message);
+  absl::Status OnControlMessage(const MoqtPublishNamespaceDone& /*message*/);
+  absl::Status OnControlMessage(const MoqtPublishNamespaceCancel& message);
+  absl::Status OnControlMessage(const MoqtTrackStatus& message);
+  absl::Status OnControlMessage(const MoqtGoAway& /*message*/);
+  absl::Status OnControlMessage(const MoqtMaxRequestId& message);
+  absl::Status OnControlMessage(const MoqtFetch& message);
+  absl::Status OnControlMessage(const MoqtFetchCancel& /*message*/) {
+    return absl::OkStatus();
+  }
+  absl::Status OnControlMessage(const MoqtFetchOk& message);
+  absl::Status OnControlMessage(const MoqtRequestsBlocked& message);
+  absl::Status OnControlMessage(const MoqtPublish& message);
+  absl::Status OnControlMessage(const MoqtObjectAck& message) {
+    auto subscription_it = published_subscriptions_.find(message.subscribe_id);
+    if (subscription_it == published_subscriptions_.end()) {
+      return absl::OkStatus();
+    }
+    subscription_it->second->ProcessObjectAck(message);
+    return absl::OkStatus();
+  }
+
+  // TODO(vasilvv): remove this once all requests are moved into individual
+  // streams.
+  void SendRequestErrorOnControlStream(
+      uint64_t request_id, RequestErrorCode error_code,
+      std::optional<quic::QuicTimeDelta> retry_interval,
+      absl::string_view reason_phrase) {
+    MoqtRequestError request_error;
+    request_error.request_id = request_id;
+    request_error.error_code = error_code;
+    request_error.retry_interval = retry_interval;
+    request_error.reason_phrase = reason_phrase;
+    SendControlMessage(framer_.SerializeRequestError(request_error));
   }
 
   bool is_closing_ = false;

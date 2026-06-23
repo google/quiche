@@ -1176,7 +1176,8 @@ TEST_F(MoqtSessionTest, SubscribeOkWithBadTrackAlias) {
   subscribe_ok.request_id += 2;
   EXPECT_CALL(
       mock_session_,
-      CloseSession(static_cast<uint64_t>(MoqtError::kDuplicateTrackAlias), ""));
+      CloseSession(static_cast<uint64_t>(MoqtError::kDuplicateTrackAlias),
+                   "Duplicate track alias"));
   control_stream->ReceiveMessage(subscribe_ok);
 }
 
