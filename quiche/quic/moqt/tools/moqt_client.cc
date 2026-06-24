@@ -9,12 +9,8 @@
 #include <utility>
 
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
-#include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/crypto/proof_verifier.h"
-#include "quiche/quic/core/http/quic_spdy_client_stream.h"
-#include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/quic_types.h"
@@ -24,12 +20,9 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/quic/tools/quic_default_client.h"
-#include "quiche/quic/tools/quic_event_loop_tools.h"
 #include "quiche/quic/tools/quic_name_lookup.h"
-#include "quiche/common/http/http_header_block.h"
-#include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/web_transport/web_transport_headers.h"
+#include "quiche/quic/tools/web_transport_only_client.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 
@@ -38,11 +31,11 @@ MoqtClient::MoqtClient(quic::QuicSocketAddress peer_address,
                        std::unique_ptr<quic::ProofVerifier> proof_verifier,
                        quic::QuicEventLoop* event_loop,
                        MoqtSessionParameters parameters)
-    : spdy_client_(peer_address, server_id, GetMoqtSupportedQuicVersions(),
-                   event_loop, std::move(proof_verifier)),
+    : client_(peer_address, server_id, GetMoqtSupportedQuicVersions(),
+              GenerateQuicConfig(), event_loop, nullptr,
+              std::move(proof_verifier), nullptr),
       parameters_(parameters) {
-  TuneQuicConfig(*spdy_client_.config());
-  spdy_client_.set_enable_web_transport(true);
+  TuneQuicConfig(*client_.config());
   parameters_.perspective = quic::Perspective::IS_CLIENT;
 }
 
@@ -55,58 +48,8 @@ void MoqtClient::Connect(std::string path, MoqtSessionCallbacks callbacks) {
 
 absl::Status MoqtClient::ConnectInner(std::string path,
                                       MoqtSessionCallbacks& callbacks) {
-  if (!spdy_client_.Initialize()) {
-    return absl::InternalError("Initialization failed");
-  }
-  if (!spdy_client_.Connect()) {
-    return absl::UnavailableError("Failed to establish a QUIC connection");
-  }
-  bool settings_received = quic::ProcessEventsUntil(
-      spdy_client_.default_network_helper()->event_loop(),
-      [&] { return spdy_client_.client_session()->settings_received(); });
-  if (!settings_received) {
-    return absl::UnavailableError(
-        "Timed out while waiting for server SETTINGS");
-  }
-  if (!spdy_client_.client_session()->SupportsWebTransport()) {
-    QUICHE_DLOG(INFO) << "session: SupportsWebTransport = "
-                      << spdy_client_.client_session()->SupportsWebTransport()
-                      << ", SupportsH3Datagram = "
-                      << spdy_client_.client_session()->SupportsH3Datagram()
-                      << ", OneRttKeysAvailable = "
-                      << spdy_client_.client_session()->OneRttKeysAvailable();
-    return absl::FailedPreconditionError(
-        "Server does not support WebTransport");
-  }
-  auto* stream = static_cast<quic::QuicSpdyClientStream*>(
-      spdy_client_.client_session()->CreateOutgoingBidirectionalStream());
-  if (!stream) {
-    return absl::InternalError("Could not open a CONNECT stream");
-  }
-  spdy_client_.set_store_response(true);
+  const std::string version = std::string(kDefaultMoqtVersion);
 
-  quiche::HttpHeaderBlock headers;
-  headers[":scheme"] = "https";
-  headers[":authority"] = spdy_client_.server_id().host();
-  headers[":path"] = path;
-  headers[":method"] = "CONNECT";
-  headers[":protocol"] = "webtransport";
-  std::string version = std::string(kDefaultMoqtVersion);
-  absl::StatusOr<std::string> serialized_version =
-      webtransport::SerializeSubprotocolRequestHeader(
-          absl::MakeSpan(&version, 1));
-  if (!serialized_version.ok()) {
-    return serialized_version.status();
-  }
-  headers["wt-available-protocols"] = *serialized_version;
-  stream->SendRequest(std::move(headers), "", false);
-
-  quic::WebTransportHttp3* web_transport = stream->web_transport();
-  if (web_transport == nullptr) {
-    return absl::InternalError("Failed to initialize WebTransport session");
-  }
-
-  // Ensure that we never have a dangling pointer to the session.
   MoqtSessionDeletedCallback deleted_callback =
       std::move(callbacks.session_deleted_callback);
   callbacks.session_deleted_callback =
@@ -115,13 +58,19 @@ absl::Status MoqtClient::ConnectInner(std::string path,
         std::move(old)();
       };
 
-  auto session = std::make_unique<MoqtSession>(
-      web_transport, parameters_,
-      spdy_client_.default_network_helper()->event_loop()->CreateAlarmFactory(),
-      std::move(callbacks));
-  session_ = session.get();
-  web_transport->SetVisitor(std::move(session));
-  return absl::OkStatus();
+  return client_.ConnectSync(
+      path,
+      [&](webtransport::Session* session) {
+        auto moqt_session =
+            std::make_unique<MoqtSession>(session, parameters_,
+                                          client_.default_network_helper()
+                                              ->event_loop()
+                                              ->CreateAlarmFactory(),
+                                          std::move(callbacks));
+        session_ = moqt_session.get();
+        return moqt_session;
+      },
+      absl::MakeSpan(&version, 1));
 }
 
 }  // namespace moqt

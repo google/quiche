@@ -761,6 +761,7 @@ quiche_tool_support_hdrs = [
     "src/quiche/quic/tools/quic_url.h",
     "src/quiche/quic/tools/simple_ticket_crypter.h",
     "src/quiche/quic/tools/web_transport_only_backend.h",
+    "src/quiche/quic/tools/web_transport_only_client.h",
     "src/quiche/quic/tools/web_transport_test_visitors.h",
 ]
 quiche_tool_support_srcs = [
@@ -785,6 +786,7 @@ quiche_tool_support_srcs = [
     "src/quiche/quic/tools/quic_url.cc",
     "src/quiche/quic/tools/simple_ticket_crypter.cc",
     "src/quiche/quic/tools/web_transport_only_backend.cc",
+    "src/quiche/quic/tools/web_transport_only_client.cc",
 ]
 quiche_test_support_hdrs = [
     "src/quiche/common/platform/api/quiche_expect_bug.h",
@@ -1401,6 +1403,7 @@ quiche_tests_srcs = [
     "src/quiche/quic/tools/quic_simple_client_session_test.cc",
     "src/quiche/quic/tools/quic_tcp_like_trace_converter_test.cc",
     "src/quiche/quic/tools/simple_ticket_crypter_test.cc",
+    "src/quiche/quic/tools/web_transport_only_client_test.cc",
     "src/quiche/web_transport/encapsulated/encapsulated_web_transport_test.cc",
     "src/quiche/web_transport/test_tools/in_memory_stream_test.cc",
     "src/quiche/web_transport/web_transport_headers_test.cc",

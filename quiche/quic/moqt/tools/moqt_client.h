@@ -17,12 +17,12 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
-#include "quiche/quic/tools/quic_default_client.h"
+#include "quiche/quic/tools/web_transport_only_client.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
 namespace moqt {
 
-// A synchronous MoQT client based on QuicDefaultClient.
+// A synchronous MoQT client based on WebTransportOnlyClient.
 class QUICHE_EXPORT MoqtClient {
  public:
   MoqtClient(quic::QuicSocketAddress peer_address,
@@ -36,12 +36,12 @@ class QUICHE_EXPORT MoqtClient {
   void Connect(std::string path, MoqtSessionCallbacks callbacks);
 
   MoqtSession* session() { return session_; }
-  quic::QuicSession* quic_session() { return spdy_client_.session(); }
+  quic::QuicSession* quic_session() { return client_.session(); }
 
  private:
   absl::Status ConnectInner(std::string path, MoqtSessionCallbacks& callbacks);
 
-  quic::QuicDefaultClient spdy_client_;
+  quic::WebTransportOnlyClient client_;
   MoqtSessionParameters parameters_;
   MoqtSession* session_ = nullptr;
 };
