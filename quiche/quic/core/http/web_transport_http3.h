@@ -101,6 +101,14 @@ class QUICHE_EXPORT WebTransportHttp3
   webtransport::SessionStats GetSessionStats() override {
     return WebTransportStatsForQuicSession(*session_);
   }
+  webtransport::Perspective GetPerspective() const override {
+    return session_->perspective() == quic::Perspective::IS_CLIENT
+               ? webtransport::Perspective::kClient
+               : webtransport::Perspective::kServer;
+  }
+  webtransport::UnderlyingProtocol GetUnderlyingProtocol() const override {
+    return webtransport::UnderlyingProtocol::kHttp3;
+  }
 
   void NotifySessionDraining() override;
   void SetOnDraining(quiche::SingleUseCallback<void()> callback) override {

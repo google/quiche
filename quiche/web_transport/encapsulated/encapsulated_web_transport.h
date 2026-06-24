@@ -101,6 +101,8 @@ class QUICHE_EXPORT EncapsulatedSession
   void NotifySessionDraining() override;
   void SetOnDraining(quiche::SingleUseCallback<void()> callback) override;
   std::optional<std::string> GetNegotiatedSubprotocol() const override;
+  Perspective GetPerspective() const override;
+  UnderlyingProtocol GetUnderlyingProtocol() const override;
 
   // StreamVisitor implementation.
   void OnCanWrite() override;

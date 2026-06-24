@@ -96,6 +96,8 @@ class QUICHE_NO_EXPORT MockSession : public Session {
               (override));
   MOCK_METHOD(std::optional<std::string>, GetNegotiatedSubprotocol, (),
               (const, override));
+  MOCK_METHOD(Perspective, GetPerspective, (), (const, override));
+  MOCK_METHOD(UnderlyingProtocol, GetUnderlyingProtocol, (), (const, override));
 };
 
 }  // namespace test

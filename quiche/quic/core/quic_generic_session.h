@@ -102,6 +102,14 @@ class QUICHE_EXPORT QuicGenericSessionBase : public QuicSession,
   webtransport::SessionStats GetSessionStats() override {
     return WebTransportStatsForQuicSession(*this);
   }
+  webtransport::Perspective GetPerspective() const override {
+    return perspective() == quic::Perspective::IS_CLIENT
+               ? webtransport::Perspective::kClient
+               : webtransport::Perspective::kServer;
+  }
+  webtransport::UnderlyingProtocol GetUnderlyingProtocol() const override {
+    return webtransport::UnderlyingProtocol::kRawQuic;
+  }
   void NotifySessionDraining() override {}
   void SetOnDraining(quiche::SingleUseCallback<void()>) override {}
   std::optional<std::string> GetNegotiatedSubprotocol() const override {

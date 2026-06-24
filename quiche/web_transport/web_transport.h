@@ -26,7 +26,28 @@
 
 namespace webtransport {
 
-enum class Perspective { kClient, kServer };
+enum class Perspective : uint8_t { kClient, kServer };
+
+enum class UnderlyingProtocol : uint8_t {
+  // WebTransport over HTTP/3
+  kHttp3,
+  // WebTransport over HTTP/2.  Implementations may not be running over actual
+  // HTTP/2 connection, as the transport can run over any TCP-like connection.
+  kHttp2,
+  // Raw QUIC exposed via WebTransport API.
+  kRawQuic,
+  // A protocol other than those explicitly specified above.
+  kOther,
+
+  // NOTE: this entry should not be used and you should not rely on its value,
+  // which may change.
+  //
+  // The purpose of this enumerated value is to force people who handle status
+  // codes with `switch()` statements to *not* simply enumerate all possible
+  // values, but instead provide a "default:" case. Providing such a default
+  // case ensures that code will compile when new codes are added.
+  kDoNotUseReservedForFutureExpansionUseDefaultInSwitchInstead_ = 0xff
+};
 
 // A numeric ID uniquely identifying a WebTransport stream. Note that by design,
 // those IDs are not available in the Web API, and the IDs do not necessarily
@@ -381,6 +402,9 @@ class QUICHE_EXPORT Session {
   // Returns the negotiated subprotocol, or std::nullopt, if none was
   // negotiated.
   virtual std::optional<std::string> GetNegotiatedSubprotocol() const = 0;
+
+  virtual Perspective GetPerspective() const = 0;
+  virtual UnderlyingProtocol GetUnderlyingProtocol() const = 0;
 };
 
 }  // namespace webtransport

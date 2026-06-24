@@ -773,4 +773,10 @@ std::optional<std::string> EncapsulatedSession::GetNegotiatedSubprotocol()
   return std::nullopt;
 }
 
+Perspective EncapsulatedSession::GetPerspective() const { return perspective_; }
+
+UnderlyingProtocol EncapsulatedSession::GetUnderlyingProtocol() const {
+  return UnderlyingProtocol::kHttp2;
+}
+
 }  // namespace webtransport
