@@ -945,12 +945,7 @@ class QUICHE_EXPORT QuicFramer {
       QuicPacketNumberLength packet_number_length,
       QuicPacketNumber base_packet_number, uint64_t packet_number);
 
-  // Returns the QuicTime::Delta corresponding to the time from when the framer
-  // was created.
-  const QuicTime::Delta CalculateTimestampFromWire(uint32_t time_delta_us);
-
   // Computes the wire size in bytes of time stamps in |ack|.
-  size_t GetAckFrameTimeStampSize(const QuicAckFrame& ack);
   size_t GetIetfAckFrameTimestampSize(const QuicAckFrame& ack);
 
   // Computes the wire size in bytes of the |ack| frame.
@@ -999,8 +994,6 @@ class QUICHE_EXPORT QuicFramer {
 
   bool AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
                                  QuicDataWriter* writer);
-  bool AppendTimestampsToAckFrame(const QuicAckFrame& frame,
-                                  QuicDataWriter* writer);
 
   // Append IETF format ACK frame.
   //

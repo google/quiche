@@ -136,13 +136,6 @@ const uint8_t kLargestAckedOffset = 2;
 // Acks may have only one ack block.
 const uint8_t kQuicHasMultipleAckBlocksOffset = 5;
 
-// Timestamps are 4 bytes followed by 2 bytes.
-const uint8_t kQuicNumTimestampsLength = 1;
-const uint8_t kQuicFirstTimestampLength = 4;
-const uint8_t kQuicTimestampLength = 2;
-// Gaps between packet numbers are 1 byte.
-const uint8_t kQuicTimestampPacketNumberGapLength = 1;
-
 // Maximum length of encoded error strings.
 const int kMaxErrorStringLength = 256;
 
@@ -2185,29 +2178,6 @@ bool QuicFramer::AppendIetfPacketHeader(const QuicPacketHeader& header,
   return true;
 }
 
-const QuicTime::Delta QuicFramer::CalculateTimestampFromWire(
-    uint32_t time_delta_us) {
-  // The new time_delta might have wrapped to the next epoch, or it
-  // might have reverse wrapped to the previous epoch, or it might
-  // remain in the same epoch. Select the time closest to the previous
-  // time.
-  //
-  // epoch_delta is the delta between epochs. A delta is 4 bytes of
-  // microseconds.
-  const uint64_t epoch_delta = UINT64_C(1) << 32;
-  uint64_t epoch = last_timestamp_.ToMicroseconds() & ~(epoch_delta - 1);
-  // Wrapping is safe here because a wrapped value will not be ClosestTo below.
-  uint64_t prev_epoch = epoch - epoch_delta;
-  uint64_t next_epoch = epoch + epoch_delta;
-
-  uint64_t time = ClosestTo(
-      last_timestamp_.ToMicroseconds(), epoch + time_delta_us,
-      ClosestTo(last_timestamp_.ToMicroseconds(), prev_epoch + time_delta_us,
-                next_epoch + time_delta_us));
-
-  return QuicTime::Delta::FromMicroseconds(time);
-}
-
 uint64_t QuicFramer::CalculatePacketNumberFromWire(
     QuicPacketNumberLength packet_number_length,
     QuicPacketNumber base_packet_number, uint64_t packet_number) {
@@ -3677,12 +3647,8 @@ bool QuicFramer::ProcessTimestampsInAckFrame(uint8_t num_received_packets,
     return false;
   }
 
-  QuicPacketNumber seq_num = largest_acked - delta_from_largest_observed;
-  if (process_timestamps_) {
-    last_timestamp_ = CalculateTimestampFromWire(time_delta_us);
-
-    visitor_->OnAckTimestamp(seq_num, creation_time_ + last_timestamp_);
-  }
+  // The actual value of timestamps in Q046 is not processed, as no code using
+  // Q046 reads them.
 
   for (uint8_t i = 1; i < num_received_packets; ++i) {
     if (!reader->ReadUInt8(&delta_from_largest_observed)) {
@@ -3697,7 +3663,6 @@ bool QuicFramer::ProcessTimestampsInAckFrame(uint8_t num_received_packets,
               .c_str());
       return false;
     }
-    seq_num = largest_acked - delta_from_largest_observed;
 
     // Time delta from the previous timestamp.
     uint64_t incremental_time_delta_us;
@@ -3707,11 +3672,8 @@ bool QuicFramer::ProcessTimestampsInAckFrame(uint8_t num_received_packets,
       return false;
     }
 
-    if (process_timestamps_) {
-      last_timestamp_ = last_timestamp_ + QuicTime::Delta::FromMicroseconds(
-                                              incremental_time_delta_us);
-      visitor_->OnAckTimestamp(seq_num, creation_time_ + last_timestamp_);
-    }
+    // The actual value of timestamps in Q046 is not processed, as no code
+    // using Q046 reads them.
   }
   return true;
 }
@@ -4874,22 +4836,7 @@ size_t QuicFramer::GetAckFrameSize(
                 (ack_block_length + PACKET_1BYTE_PACKET_NUMBER);
   }
 
-  // Include timestamps.
-  if (process_timestamps_) {
-    ack_size += GetAckFrameTimeStampSize(ack);
-  }
-
   return ack_size;
-}
-
-size_t QuicFramer::GetAckFrameTimeStampSize(const QuicAckFrame& ack) {
-  if (ack.received_packet_times.empty()) {
-    return 0;
-  }
-
-  return kQuicNumTimestampsLength + kQuicFirstTimestampLength +
-         (kQuicTimestampLength + kQuicTimestampPacketNumberGapLength) *
-             (ack.received_packet_times.size() - 1);
 }
 
 size_t QuicFramer::ComputeFrameLength(
@@ -5502,85 +5449,12 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
     }
     QUICHE_DCHECK_EQ(num_ack_blocks, num_ack_blocks_written);
   }
-  // Timestamps.
-  // If we don't process timestamps or if we don't have enough available space
-  // to append all the timestamps, don't append any of them.
-  if (process_timestamps_ && writer->capacity() - writer->length() >=
-                                 GetAckFrameTimeStampSize(frame)) {
-    if (!AppendTimestampsToAckFrame(frame, writer)) {
-      return false;
-    }
-  } else {
-    uint8_t num_received_packets = 0;
-    if (!writer->WriteBytes(&num_received_packets, 1)) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-bool QuicFramer::AppendTimestampsToAckFrame(const QuicAckFrame& frame,
-                                            QuicDataWriter* writer) {
-  QUICHE_DCHECK_GE(std::numeric_limits<uint8_t>::max(),
-                   frame.received_packet_times.size());
-  // num_received_packets is only 1 byte.
-  if (frame.received_packet_times.size() >
-      std::numeric_limits<uint8_t>::max()) {
-    return false;
-  }
-
-  uint8_t num_received_packets = frame.received_packet_times.size();
+  // List the number of timestamps as zero.
+  uint8_t num_received_packets = 0;
   if (!writer->WriteBytes(&num_received_packets, 1)) {
     return false;
   }
-  if (num_received_packets == 0) {
-    return true;
-  }
 
-  auto it = frame.received_packet_times.begin();
-  QuicPacketNumber packet_number = it->first;
-  uint64_t delta_from_largest_observed = LargestAcked(frame) - packet_number;
-
-  QUICHE_DCHECK_GE(std::numeric_limits<uint8_t>::max(),
-                   delta_from_largest_observed);
-  if (delta_from_largest_observed > std::numeric_limits<uint8_t>::max()) {
-    return false;
-  }
-
-  if (!writer->WriteUInt8(delta_from_largest_observed)) {
-    return false;
-  }
-
-  // Use the lowest 4 bytes of the time delta from the creation_time_.
-  const uint64_t time_epoch_delta_us = UINT64_C(1) << 32;
-  uint32_t time_delta_us =
-      static_cast<uint32_t>((it->second - creation_time_).ToMicroseconds() &
-                            (time_epoch_delta_us - 1));
-  if (!writer->WriteUInt32(time_delta_us)) {
-    return false;
-  }
-
-  QuicTime prev_time = it->second;
-
-  for (++it; it != frame.received_packet_times.end(); ++it) {
-    packet_number = it->first;
-    delta_from_largest_observed = LargestAcked(frame) - packet_number;
-
-    if (delta_from_largest_observed > std::numeric_limits<uint8_t>::max()) {
-      return false;
-    }
-
-    if (!writer->WriteUInt8(delta_from_largest_observed)) {
-      return false;
-    }
-
-    uint64_t frame_time_delta_us = (it->second - prev_time).ToMicroseconds();
-    prev_time = it->second;
-    if (!writer->WriteUFloat16(frame_time_delta_us)) {
-      return false;
-    }
-  }
   return true;
 }
 

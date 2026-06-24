@@ -3698,7 +3698,12 @@ TEST_P(QuicFramerTest, AckFrameTwoTimeStampsMultipleAckBlocks) {
   EXPECT_EQ(kSmallLargestObserved, LargestAcked(frame));
   ASSERT_EQ(4254u, frame.packets.NumPacketsSlow());
   EXPECT_EQ(4u, frame.packets.NumIntervals());
-  EXPECT_EQ(2u, frame.received_packet_times.size());
+  if (version_.IsIetfQuic()) {
+    EXPECT_EQ(2u, frame.received_packet_times.size());
+  } else {
+    // Q046 code can parse ACK timestamps, but it never processes them.
+    EXPECT_EQ(0u, frame.received_packet_times.size());
+  }
 }
 
 TEST_P(QuicFramerTest, AckFrameMultipleReceiveTimestampRanges) {
