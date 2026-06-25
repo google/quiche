@@ -11,6 +11,7 @@
 #include <optional>
 #include <string>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/connection_id_generator.h"
 #include "quiche/quic/core/crypto/quic_decrypter.h"
@@ -804,7 +805,11 @@ class QUICHE_EXPORT QuicFramer {
   int64_t FrameAckTimestampRanges(
       const QuicAckFrame& frame,
       const absl::InlinedVector<AckTimestampRange, 2>& timestamp_ranges,
-      QuicDataWriter* writer) const;
+      QuicDataWriter* absl_nullable writer) const;
+  int64_t FrameAckTimestampRange(const QuicAckFrame& frame,
+                                 const AckTimestampRange& range,
+                                 std::optional<QuicTime>& effective_prev_time,
+                                 QuicDataWriter* absl_nullable writer) const;
 
   struct QUICHE_EXPORT AckFrameInfo {
     AckFrameInfo();
