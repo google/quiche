@@ -325,11 +325,6 @@ class QUICHE_EXPORT QuicFramer {
   // TODO(b/132632465): Remove the const in timestamp-related setters once
   // timestamps are negotiated via transport params.
 
-  // Allows enabling or disabling of timestamp processing and serialization.
-  void set_process_timestamps(bool process_timestamps) const {
-    process_timestamps_ = process_timestamps;
-  }
-
   // Sets the max number of receive timestamps to parse per ACK frame.
   void set_local_max_receive_timestamps_per_ack(uint32_t max_timestamps) const {
     local_max_receive_timestamps_per_ack_ = max_timestamps;
@@ -1126,7 +1121,6 @@ class QUICHE_EXPORT QuicFramer {
   // IETF_ACK_RECEIVE_TIMESTAMPS frame type.
   bool UseIetfAckWithReceiveTimestamp(const QuicAckFrame& frame) const {
     return VersionIsIetfQuic(version_.transport_version) &&
-           process_timestamps_ &&
            std::min<uint64_t>(peer_max_receive_timestamps_per_ack_,
                               frame.received_packet_times.size()) > 0;
   }
@@ -1167,10 +1161,6 @@ class QUICHE_EXPORT QuicFramer {
   bool validate_flags_;
   // The diversification nonce from the last received packet.
   DiversificationNonce last_nonce_;
-  // If true, send and process timestamps in the ACK frame.
-  // TODO(ianswett): Remove the mutables once set_process_timestamps and
-  // set_receive_timestamp_exponent_ aren't const.
-  mutable bool process_timestamps_;
   // The max number of receive timestamps to send per ACK frame.
   mutable uint32_t peer_max_receive_timestamps_per_ack_;
   // The max number of receive timestamps to allow in an incoming ACK frame.
@@ -1183,7 +1173,7 @@ class QUICHE_EXPORT QuicFramer {
   bool process_reset_stream_at_;
   // The creation time of the connection, used to calculate timestamps.
   QuicTime creation_time_;
-  // The last timestamp received if process_timestamps_ is true.
+  // The last timestamp received if local_max_receive_timestamps_per_ack_ > 0.
   QuicTime::Delta last_timestamp_;
 
   // Whether IETF QUIC Key Update is supported on this connection.

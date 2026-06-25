@@ -432,11 +432,8 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       alternative_decrypter_latch_(false),
       perspective_(perspective),
       validate_flags_(true),
-      process_timestamps_(false),
-      peer_max_receive_timestamps_per_ack_(
-          std::numeric_limits<uint32_t>::max()),
-      local_max_receive_timestamps_per_ack_(
-          std::numeric_limits<uint32_t>::max()),
+      peer_max_receive_timestamps_per_ack_(0),
+      local_max_receive_timestamps_per_ack_(0),
       peer_receive_timestamps_exponent_(0),
       local_receive_timestamps_exponent_(0),
       process_reset_stream_at_(false),
@@ -3105,7 +3102,7 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
         }
         case IETF_ACK_RECEIVE_TIMESTAMPS:
         case IETF_ACK_RECEIVE_TIMESTAMPS_ECN:
-          if (!process_timestamps_) {
+          if (local_max_receive_timestamps_per_ack_ == 0) {
             set_detailed_error("Unsupported frame type.");
             QUIC_DLOG(WARNING)
                 << ENDPOINT << "IETF_ACK_RECEIVE_TIMESTAMPS not supported";
@@ -3835,7 +3832,7 @@ bool QuicFramer::ProcessIetfAckFrame(QuicDataReader* reader,
   }
 
   if (AckHasTimestamps(frame_type)) {
-    QUICHE_DCHECK(process_timestamps_);
+    QUICHE_DCHECK_GT(local_max_receive_timestamps_per_ack_, 0u);
     if (!ProcessIetfTimestampsInAckFrame(ack_frame->largest_acked, reader)) {
       return false;
     }
