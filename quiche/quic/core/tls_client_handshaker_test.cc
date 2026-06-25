@@ -494,6 +494,7 @@ TEST_P(TlsClientHandshakerTest, HandshakeWithEmptyTrustAnchorIdList) {
 }
 
 TEST_P(TlsClientHandshakerTest, Resumption) {
+  QuicWallTime start_time = client_helper_.GetClock()->WallNow();
   // Disable 0-RTT on the server so that we're only testing 1-RTT resumption:
   SSL_CTX_set_early_data_enabled(server_crypto_config_->ssl_ctx(), false);
   // Finish establishing the first connection:
@@ -514,6 +515,10 @@ TEST_P(TlsClientHandshakerTest, Resumption) {
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->ResumptionAttempted());
   EXPECT_TRUE(stream()->IsResumption());
+  std::optional<QuicWallTime> ticket_time =
+      stream()->GetSessionTicketCreationTime();
+  ASSERT_TRUE(ticket_time.has_value());
+  EXPECT_GE(ticket_time->ToUNIXSeconds(), start_time.ToUNIXSeconds());
 }
 
 TEST_P(TlsClientHandshakerTest, ResumptionRejection) {
@@ -545,6 +550,7 @@ TEST_P(TlsClientHandshakerTest, ResumptionRejection) {
 }
 
 TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
+  QuicWallTime start_time = client_helper_.GetClock()->WallNow();
   // Finish establishing the first connection:
   CompleteCryptoHandshake();
 
@@ -580,6 +586,10 @@ TEST_P(TlsClientHandshakerTest, ZeroRttResumption) {
   EXPECT_TRUE(stream()->IsResumption());
   EXPECT_TRUE(stream()->EarlyDataAccepted());
   EXPECT_EQ(stream()->EarlyDataReason(), ssl_early_data_accepted);
+  std::optional<QuicWallTime> ticket_time =
+      stream()->GetSessionTicketCreationTime();
+  ASSERT_TRUE(ticket_time.has_value());
+  EXPECT_GE(ticket_time->ToUNIXSeconds(), start_time.ToUNIXSeconds());
 }
 
 // Regression test for b/186438140.

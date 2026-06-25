@@ -20,6 +20,7 @@
 #include "quiche/quic/core/quic_crypto_stream.h"
 #include "quiche/quic/core/quic_server_id.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/platform/api/quic_export.h"
@@ -35,11 +36,14 @@ class TlsClientHandshaker;
 class QUICHE_EXPORT QuicCryptoClientStreamBase : public QuicCryptoStream {
  public:
   explicit QuicCryptoClientStreamBase(QuicSession* session);
+  QuicCryptoClientStreamBase(const QuicCryptoClientStreamBase&) = delete;
+  QuicCryptoClientStreamBase& operator=(const QuicCryptoClientStreamBase&) =
+      delete;
 
   ~QuicCryptoClientStreamBase() override {}
 
-  // Performs a crypto handshake with the server. Returns true if the connection
-  // is still connected.
+  // Performs a crypto handshake with the server. Returns true if the
+  // connection is still connected.
   virtual bool CryptoConnect() = 0;
 
   // DEPRECATED: Use IsResumption, EarlyDataAccepted, and/or
@@ -53,9 +57,9 @@ class QUICHE_EXPORT QuicCryptoClientStreamBase : public QuicCryptoStream {
   // Whether TLS resumption was attempted by this client. IETF QUIC only.
   virtual bool ResumptionAttempted() const = 0;
 
-  // Returns true if the handshake performed was a resumption instead of a full
-  // handshake. Resumption only makes sense for TLS handshakes - there is no
-  // concept of resumption for QUIC crypto even though it supports a 0-RTT
+  // Returns true if the handshake performed was a resumption instead of a
+  // full handshake. Resumption only makes sense for TLS handshakes - there is
+  // no concept of resumption for QUIC crypto even though it supports a 0-RTT
   // handshake. This function only returns valid results once the handshake is
   // complete.
   virtual bool IsResumption() const = 0;
@@ -102,10 +106,17 @@ class QUICHE_EXPORT QuicCryptoClientStreamBase : public QuicCryptoStream {
       CachedNetworkParameters /*cached_network_params*/) override {
     QUICHE_DCHECK(false);
   }
+
+  // Returns the creation time of the session ticket used for resumption, if
+  // resumption was attempted.
+  virtual std::optional<QuicWallTime> GetSessionTicketCreationTime() const = 0;
 };
 
 class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
  public:
+  // Returns the creation time of the session ticket used for resumption, if
+  // resumption was attempted.
+  std::optional<QuicWallTime> GetSessionTicketCreationTime() const override;
   // kMaxClientHellos is the maximum number of times that we'll send a client
   // hello. The value 4 accounts for:
   //   * One failure due to an incorrect or missing source-address token.
@@ -160,6 +171,11 @@ class QUICHE_EXPORT QuicCryptoClientStream : public QuicCryptoClientStreamBase {
     // Returns the ssl_early_data_reason_t describing why 0-RTT was accepted or
     // rejected.
     virtual ssl_early_data_reason_t EarlyDataReason() const = 0;
+
+    // Returns the creation time of the session ticket used for resumption, if
+    // resumption was attempted.
+    virtual std::optional<QuicWallTime> GetSessionTicketCreationTime()
+        const = 0;
 
     // Returns true if the client received an inchoate REJ during the handshake,
     // extending the handshake by one round trip. This only applies for QUIC

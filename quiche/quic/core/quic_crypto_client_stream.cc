@@ -85,6 +85,11 @@ ssl_early_data_reason_t QuicCryptoClientStream::EarlyDataReason() const {
   return handshaker_->EarlyDataReason();
 }
 
+std::optional<QuicWallTime>
+QuicCryptoClientStream::GetSessionTicketCreationTime() const {
+  return handshaker_->GetSessionTicketCreationTime();
+}
+
 bool QuicCryptoClientStream::ReceivedInchoateReject() const {
   return handshaker_->ReceivedInchoateReject();
 }

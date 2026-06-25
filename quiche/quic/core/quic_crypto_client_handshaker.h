@@ -43,6 +43,9 @@ class QUICHE_EXPORT QuicCryptoClientHandshaker
   bool IsResumption() const override;
   bool EarlyDataAccepted() const override;
   ssl_early_data_reason_t EarlyDataReason() const override;
+  std::optional<QuicWallTime> GetSessionTicketCreationTime() const override {
+    return std::nullopt;
+  }
   bool ReceivedInchoateReject() const override;
   int num_scup_messages_received() const override;
   std::string chlo_hash() const override;

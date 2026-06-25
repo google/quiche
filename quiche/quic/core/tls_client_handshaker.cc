@@ -408,6 +408,19 @@ ssl_early_data_reason_t TlsClientHandshaker::EarlyDataReason() const {
   return TlsHandshaker::EarlyDataReason();
 }
 
+std::optional<QuicWallTime> TlsClientHandshaker::GetSessionTicketCreationTime()
+    const {
+  if (cached_state_ && cached_state_->tls_session) {
+    // SSL_SESSION_get_time returns the time the session was originally
+    // established (i.e. when the ticket was issued in the previous connection).
+    // It remains fixed to that creation time and is not updated when the
+    // session is reused/resumed.
+    return QuicWallTime::FromUNIXSeconds(
+        SSL_SESSION_get_time(cached_state_->tls_session.get()));
+  }
+  return std::nullopt;
+}
+
 bool TlsClientHandshaker::ReceivedInchoateReject() const {
   QUIC_BUG_IF(quic_bug_12736_3, !one_rtt_keys_available());
   // REJ messages are a QUIC crypto feature, so TLS always returns false.

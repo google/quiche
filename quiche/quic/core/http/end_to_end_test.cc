@@ -7731,6 +7731,41 @@ TEST_P(EndToEndTest, TlsResumptionDisabledOnTheFly) {
   ADD_FAILURE() << "Client should not have 10 resumption tickets.";
 }
 
+TEST_P(EndToEndTest, TlsSessionTicketCreationTime) {
+  QuicWallTime start_time = QuicDefaultClock::Get()->WallNow();
+  SetQuicFlag(quic_disable_server_tls_resumption, false);
+  ASSERT_TRUE(Initialize());
+
+  if (!version_.IsIetfQuic()) {
+    // This test is TLS specific.
+    return;
+  }
+
+  // Send the first request and then disconnect. The client receives a
+  // resumption ticket.
+  SendSynchronousFooRequestAndCheckResponse();
+  QuicSpdyClientSession* client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_FALSE(client_session->EarlyDataAccepted());
+  EXPECT_FALSE(client_session->GetCryptoStream()
+                   ->GetSessionTicketCreationTime()
+                   .has_value());
+  client_->Disconnect();
+
+  // Send the second request in 0RTT / Resumption.
+  client_->Connect();
+  SendSynchronousFooRequestAndCheckResponse();
+
+  client_session = GetClientSession();
+  ASSERT_TRUE(client_session);
+  EXPECT_TRUE(client_session->EarlyDataAccepted());
+  std::optional<QuicWallTime> ticket_time =
+      client_session->GetCryptoStream()->GetSessionTicketCreationTime();
+  ASSERT_TRUE(ticket_time.has_value());
+  EXPECT_GE(ticket_time->ToUNIXSeconds(), start_time.ToUNIXSeconds());
+  client_->Disconnect();
+}
+
 TEST_P(EndToEndTest, BlockServerUntilSettingsReceived) {
   SetQuicReloadableFlag(quic_block_until_settings_received_copt, true);
   // Force loss to test data stream being blocked when SETTINGS are missing.
