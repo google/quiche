@@ -433,6 +433,7 @@ TEST(ChunkedObliviousHttpGateway, SingleChunkResponse) {
   ASSERT_TRUE(absl::HexStringToBytes(kEncapsulatedChunkedRequest,
                                      &encapsulated_request_bytes));
   QUICHE_EXPECT_OK(instance->DecryptRequest(encapsulated_request_bytes, true));
+  EXPECT_TRUE(instance->CanEncrypt());
 
   // 63 byte response to test final chunk indicator length.
   std::string plaintext_response =
@@ -467,6 +468,7 @@ TEST(ChunkedObliviousHttpGateway, MultipleChunkResponse) {
   EXPECT_TRUE(
       absl::HexStringToBytes(plaintext_response, &plaintext_response_bytes));
   std::vector<std::string> encrypted_response_chunks;
+  EXPECT_TRUE(instance->CanEncrypt());
   absl::StatusOr<std::string> encrypted_response_chunk =
       instance->EncryptResponse(plaintext_response_bytes, false);
   QUICHE_EXPECT_OK(encrypted_response_chunk);
@@ -507,6 +509,7 @@ TEST(ChunkedObliviousHttpGateway, EncryptingAfterFinalChunkFails) {
   ASSERT_TRUE(absl::HexStringToBytes(kEncapsulatedChunkedRequest,
                                      &encapsulated_request_bytes));
   QUICHE_EXPECT_OK(instance->DecryptRequest(encapsulated_request_bytes, true));
+  EXPECT_TRUE(instance->CanEncrypt());
 
   std::string plaintext_response = "0140c8";
   absl::StatusOr<std::string> encrypted_response =
@@ -520,6 +523,7 @@ TEST(ChunkedObliviousHttpGateway, EncryptingAfterFinalChunkFails) {
 TEST(ChunkedObliviousHttpGateway, EncryptingBeforeDecryptingFails) {
   TestChunkHandler chunk_handler;
   auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+  EXPECT_FALSE(instance->CanEncrypt());
 
   std::string plaintext_response = "0140c8";
   EXPECT_EQ(
@@ -530,6 +534,7 @@ TEST(ChunkedObliviousHttpGateway, EncryptingBeforeDecryptingFails) {
 TEST(ChunkedObliviousHttpGateway, EncryptionErrorMarksGatewayInvalid) {
   TestChunkHandler chunk_handler;
   auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+  EXPECT_FALSE(instance->CanEncrypt());
 
   std::string plaintext_response = "0140c8";
   EXPECT_EQ(

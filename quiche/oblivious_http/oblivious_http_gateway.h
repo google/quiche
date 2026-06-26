@@ -124,6 +124,12 @@ class QUICHE_EXPORT ChunkedObliviousHttpGateway {
   absl::StatusOr<std::string> EncryptResponse(
       absl::string_view plaintext_payload, bool is_final_chunk);
 
+  // Returns true if the gateway has successfully decrypted the request and has
+  // the context necessary to encrypt responses.
+  bool CanEncrypt() const {
+    return oblivious_http_request_context_.has_value();
+  }
+
  private:
   enum class RequestMessageSection {
     kHeader,
