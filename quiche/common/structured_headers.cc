@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "absl/algorithm/container.h"
+#include "absl/base/attributes.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
@@ -184,7 +185,7 @@ class StructuredHeaderParser {
     QUICHE_CHECK_EQ(version_, kFinal);
     Dictionary members;
     while (!input_.empty()) {
-      std::optional<std::string> key(ReadKey());
+      std::optional<absl::string_view> key(ReadKey());
       if (!key) return std::nullopt;
       std::optional<ParameterizedMember> member;
       if (ConsumeChar('=')) {
@@ -233,7 +234,7 @@ class StructuredHeaderParser {
     while (ConsumeChar(';')) {
       SkipWhitespaces();
 
-      std::optional<std::string> name = ReadKey();
+      std::optional<absl::string_view> name = ReadKey();
       if (!name) return std::nullopt;
 
       Item value;
@@ -270,12 +271,12 @@ class StructuredHeaderParser {
   // Parses Parameters ([RFC8941] 4.2.3.2)
   std::optional<Parameters> ReadParameters() {
     Parameters parameters;
-    absl::flat_hash_set<std::string> keys;
+    absl::flat_hash_set<absl::string_view> keys;
 
     while (ConsumeChar(';')) {
       SkipWhitespaces();
 
-      std::optional<std::string> name = ReadKey();
+      std::optional<absl::string_view> name = ReadKey();
       if (!name) return std::nullopt;
       bool is_duplicate_key = !keys.insert(*name).second;
 
@@ -293,7 +294,7 @@ class StructuredHeaderParser {
           }
         }
       } else {
-        parameters.emplace_back(std::move(*name), std::move(value));
+        parameters.emplace_back(*name, std::move(value));
       }
     }
     return parameters;
@@ -323,7 +324,7 @@ class StructuredHeaderParser {
   }
 
   // Parses a Key ([SH09] 4.2.2, [RFC8941] 4.2.3.3).
-  std::optional<std::string> ReadKey() {
+  std::optional<absl::string_view> ReadKey() ABSL_ATTRIBUTE_LIFETIME_BOUND {
     if (version_ == kDraft09) {
       if (input_.empty() || !absl::ascii_islower(input_.front())) {
         LogParseError("ReadKey", "lcalpha");
@@ -340,7 +341,7 @@ class StructuredHeaderParser {
         (version_ == kDraft09 ? kKeyChars09 : kKeyChars);
     size_t len = input_.find_first_not_of(allowed_chars);
     if (len == absl::string_view::npos) len = input_.size();
-    std::string key(input_.substr(0, len));
+    absl::string_view key = input_.substr(0, len);
     input_.remove_prefix(len);
     return key;
   }
@@ -410,7 +411,7 @@ class StructuredHeaderParser {
           "Whether a decimal point is erroneously accepted without any "
           "digits following it.");
     }
-    std::string output_number_string(input_.substr(0, i));
+    absl::string_view output_number_string = input_.substr(0, i);
     input_.remove_prefix(i);
 
     if (is_decimal) {
@@ -450,7 +451,7 @@ class StructuredHeaderParser {
         QUICHE_DVLOG(1) << "ReadString: missing closing '\"'";
         return std::nullopt;
       }
-      s.append(std::string(input_.substr(0, i)));
+      s.append(input_.substr(0, i));
       input_.remove_prefix(i);
       if (ConsumeChar('\\')) {
         if (input_.empty()) {
@@ -547,7 +548,7 @@ class StructuredHeaderParser {
     return false;
   }
 
-  void LogParseError(const char* func, const char* expected) {
+  void LogParseError(const char* func, const char* expected) const {
     QUICHE_DVLOG(1) << func << ": " << expected << " expected, got "
                     << (input_.empty()
                             ? "EOS"
@@ -568,7 +569,7 @@ class StructuredHeaderSerializer {
   StructuredHeaderSerializer& operator=(const StructuredHeaderSerializer&) =
       delete;
 
-  std::string Output() { return output_.str(); }
+  std::string Output() && { return std::move(output_).str(); }
 
   // Serializes a List ([RFC8941] 4.1.1).
   bool WriteList(const List& value) {
@@ -938,25 +939,25 @@ std::optional<Dictionary> ParseDictionary(absl::string_view str) {
 
 std::optional<std::string> SerializeItem(const Item& value) {
   StructuredHeaderSerializer s;
-  if (s.WriteItem(ParameterizedItem(value, {}))) return s.Output();
+  if (s.WriteItem(ParameterizedItem(value, {}))) return std::move(s).Output();
   return std::nullopt;
 }
 
 std::optional<std::string> SerializeItem(const ParameterizedItem& value) {
   StructuredHeaderSerializer s;
-  if (s.WriteItem(value)) return s.Output();
+  if (s.WriteItem(value)) return std::move(s).Output();
   return std::nullopt;
 }
 
 std::optional<std::string> SerializeList(const List& value) {
   StructuredHeaderSerializer s;
-  if (s.WriteList(value)) return s.Output();
+  if (s.WriteList(value)) return std::move(s).Output();
   return std::nullopt;
 }
 
 std::optional<std::string> SerializeDictionary(const Dictionary& value) {
   StructuredHeaderSerializer s;
-  if (s.WriteDictionary(value)) return s.Output();
+  if (s.WriteDictionary(value)) return std::move(s).Output();
   return std::nullopt;
 }
 
