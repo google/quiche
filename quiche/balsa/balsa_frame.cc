@@ -855,13 +855,15 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
   }
 
   if (!is_trailer) {
-    if (http_validation_policy().validate_transfer_encoding &&
-        http_validation_policy()
-            .disallow_transfer_encoding_with_content_length &&
-        content_length_idx != 0 && transfer_encoding_idx != 0) {
-      HandleError(BalsaFrameEnums::BOTH_TRANSFER_ENCODING_AND_CONTENT_LENGTH);
-      return;
+    if (content_length_idx != 0 && transfer_encoding_idx != 0) {
+      if (http_validation_policy().validate_transfer_encoding &&
+          http_validation_policy()
+              .disallow_transfer_encoding_with_content_length) {
+        HandleError(BalsaFrameEnums::BOTH_TRANSFER_ENCODING_AND_CONTENT_LENGTH);
+        return;
+      }
     }
+
     if (headers->transfer_encoding_is_chunked_) {
       headers->content_length_ = 0;
       headers->content_length_status_ = BalsaHeadersEnums::NO_CONTENT_LENGTH;
