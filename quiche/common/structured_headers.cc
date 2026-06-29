@@ -52,6 +52,31 @@ constexpr char kBase64Chars[] = DIGIT UCALPHA LCALPHA "+/=";
 #undef LCALPHA
 #undef UCALPHA
 
+// Decodes a base64-encoded string, synthesizing padding if necessary.
+// https://www.rfc-editor.org/rfc/rfc8941.html#section-4.2.7
+std::optional<std::string> LenientBase64Decode(absl::string_view s) {
+  std::string base64(s);
+  base64.resize((base64.size() + 3) / 4 * 4, '=');
+  std::string binary;
+  if (!absl::Base64Unescape(base64, &binary)) {
+    return std::nullopt;
+  }
+  return binary;
+}
+
+// Decodes a base64-encoded string, but only if it strictly follows the RFC 8941
+// alphabet (no whitespace, no characters outside ALPHA, DIGIT, +, /, =).
+std::optional<std::string> StrictBase64Decode(absl::string_view s) {
+  if (s.find_first_not_of(kBase64Chars) != absl::string_view::npos) {
+    return std::nullopt;
+  }
+  std::string binary;
+  if (!absl::Base64Unescape(s, &binary)) {
+    return std::nullopt;
+  }
+  return binary;
+}
+
 // https://www.rfc-editor.org/rfc/rfc8941.html#section-3.3.1
 constexpr int64_t kMaxInteger = 999'999'999'999'999L;
 constexpr int64_t kMinInteger = -999'999'999'999'999L;
@@ -482,32 +507,26 @@ class StructuredHeaderParser {
       return std::nullopt;
     }
 
-    absl::string_view unpadded = input_.substr(0, len);
-    // This check is partially redundant with the call to
-    // `absl::Base64Unescape()` below, but unfortunately that function
-    // allows `.` as a padding byte and does not reject ASCII whitespace, so it
-    // cannot be used in isolation.
-    if (unpadded.find_first_not_of(kBase64Chars) != absl::string_view::npos) {
-      QUICHE_CODE_COUNT(structured_header_invalid_base64_char);
-      // TODO(b/393153699, b/393408763): Early-return here to reject the invalid
-      // input instead of silently proceeding.
+    absl::string_view encoded = input_.substr(0, len);
+    std::optional<std::string> binary = StrictBase64Decode(encoded);
+    bool is_strict = binary.has_value();
+    if (!is_strict) {
+      binary = LenientBase64Decode(encoded);
     }
-
-    // TODO: This string copy shouldn't be necessary, as
-    // `absl::Base64Unescape()` already handles the absence of padding.
-    std::string base64(unpadded);
-    // Append the necessary padding characters.
-    base64.resize((base64.size() + 3) / 4 * 4, '=');
-
-    std::string binary;
-    if (!absl::Base64Unescape(base64, &binary)) {
+    if (binary) {
+      QUICHE_CLIENT_HISTOGRAM_BOOL(
+          "StructuredHeaders.Base64DecodingIsStrictCompliant", is_strict,
+          "Recorded true when RFC 8941 base64 decoding succeeds, false "
+          "when it fails but lenient legacy decoding succeeds.");
+    }
+    if (!binary) {
       QUICHE_DVLOG(1) << "ReadByteSequence: failed to decode base64: "
-                      << base64;
+                      << encoded;
       return std::nullopt;
     }
     input_.remove_prefix(len);
     ConsumeChar(delimiter);
-    return Item(std::move(binary), Item::kByteSequenceType);
+    return Item(std::move(*binary), Item::kByteSequenceType);
   }
 
   // Parses a Boolean ([RFC8941] 4.2.8).
