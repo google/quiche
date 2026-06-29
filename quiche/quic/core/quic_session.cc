@@ -1963,9 +1963,7 @@ void QuicSession::OnTlsHandshakeComplete() {
     // Server sends HANDSHAKE_DONE to signal confirmation of the handshake
     // to the client.
     control_frame_manager_.WriteOrBufferHandshakeDone();
-    if (connection()->version().IsIetfQuic()) {
-      MaybeSendAddressToken();
-    }
+    MaybeSendAddressToken();
   }
 }
 

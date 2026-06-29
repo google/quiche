@@ -1641,26 +1641,18 @@ bool QuicFramer::ProcessRetryPacket(QuicDataReader* reader,
     return true;
   }
 
+  QUICHE_DCHECK(!version_.IsIetfQuic());
   QuicConnectionId original_destination_connection_id;
-  if (version_.IsIetfQuic()) {
-    // Parse Original Destination Connection ID.
-    if (!reader->ReadLengthPrefixedConnectionId(
-            &original_destination_connection_id)) {
-      set_detailed_error("Unable to read Original Destination ConnectionId.");
-      return false;
-    }
-  } else {
-    // Parse Original Destination Connection ID Length.
-    uint8_t odcil = header.type_byte & 0xf;
-    if (odcil != 0) {
-      odcil += kConnectionIdLengthAdjustment;
-    }
+  // Parse Original Destination Connection ID Length.
+  uint8_t odcil = header.type_byte & 0xf;
+  if (odcil != 0) {
+    odcil += kConnectionIdLengthAdjustment;
+  }
 
-    // Parse Original Destination Connection ID.
-    if (!reader->ReadConnectionId(&original_destination_connection_id, odcil)) {
-      set_detailed_error("Unable to read Original Destination ConnectionId.");
-      return false;
-    }
+  // Parse Original Destination Connection ID.
+  if (!reader->ReadConnectionId(&original_destination_connection_id, odcil)) {
+    set_detailed_error("Unable to read Original Destination ConnectionId.");
+    return false;
   }
 
   if (!QuicUtils::IsConnectionIdValidForVersion(

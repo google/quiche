@@ -519,10 +519,8 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     if (config.HasClientRequestedIndependentOption(kROWR, perspective_)) {
       retransmittable_on_wire_behavior_ = SEND_RANDOM_BYTES;
     }
-  }
 
-  // Set retransmittable-on-wire timeout to different PTO based values.
-  if (perspective_ == Perspective::IS_CLIENT && version().IsIetfQuic()) {
+    // Set retransmittable-on-wire timeout to different PTO based values.
     if (config.HasClientRequestedIndependentOption(kROW1, perspective_)) {
       ping_manager_.set_num_ptos_for_retransmittable_on_wire_timeout(1);
     }
