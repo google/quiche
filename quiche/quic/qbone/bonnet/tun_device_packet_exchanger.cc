@@ -43,13 +43,17 @@ bool TunDevicePacketExchanger::WritePacket(const char* packet, size_t size,
     return false;
   }
 
-  auto buffer = std::make_unique<QuicData>(packet, size);
-  if (is_tap_) {
-    buffer = ApplyL2Headers(*buffer);
+  if (is_tap_ && !eth_hdr_initialized_) {
+    InitializeEthHdr();
   }
+  struct iovec iov[2];
+  iov[0].iov_base = is_tap_ ? &eth_hdr_ : nullptr;
+  iov[0].iov_len = is_tap_ ? ETH_HLEN : 0;
+  iov[1].iov_base = const_cast<char*>(packet);
+  iov[1].iov_len = size;
 
   absl::Time start = absl::Now();
-  int result = kernel_->write(write_fd_, buffer->data(), buffer->length());
+  int result = kernel_->writev(write_fd_, iov, 2);
   absl::Duration latency = std::max(absl::Now() - start, absl::ZeroDuration());
 
   if (result == -1) {
@@ -137,35 +141,22 @@ TunDevicePacketExchanger::stats_interface() const {
   return stats_;
 }
 
-std::unique_ptr<QuicData> TunDevicePacketExchanger::ApplyL2Headers(
-    const QuicData& l3_packet) {
-  if (is_tap_ && !mac_initialized_) {
+void TunDevicePacketExchanger::InitializeEthHdr() {
+  if (!eth_hdr_initialized_) {
     NetlinkInterface::LinkInfo link_info{};
     if (netlink_->GetLinkInfo(ifname_, &link_info)) {
-      memcpy(tap_mac_, link_info.hardware_address, ETH_ALEN);
-      mac_initialized_ = true;
+      // Set src & dst to my own address
+      memcpy(&eth_hdr_.h_dest, link_info.hardware_address, ETH_ALEN);
+      memcpy(&eth_hdr_.h_source, link_info.hardware_address, ETH_ALEN);
+      // Assume ipv6 for now
+      // TODO(b/195113643): Support additional protocols.
+      eth_hdr_.h_proto = absl::ghtons(ETH_P_IPV6);
+      eth_hdr_initialized_ = true;
     } else {
       QUIC_LOG_EVERY_N_SEC(ERROR, 30)
           << "Unable to get link info for: " << ifname_;
     }
   }
-
-  const auto l2_packet_size = l3_packet.length() + ETH_HLEN;
-  auto l2_buffer = std::make_unique<char[]>(l2_packet_size);
-
-  // Populate the Ethernet header
-  auto* hdr = reinterpret_cast<ethhdr*>(l2_buffer.get());
-  // Set src & dst to my own address
-  memcpy(hdr->h_dest, tap_mac_, ETH_ALEN);
-  memcpy(hdr->h_source, tap_mac_, ETH_ALEN);
-  // Assume ipv6 for now
-  // TODO(b/195113643): Support additional protocols.
-  hdr->h_proto = absl::ghtons(ETH_P_IPV6);
-
-  // Copy the l3 packet into buffer, just after the ethernet header.
-  memcpy(l2_buffer.get() + ETH_HLEN, l3_packet.data(), l3_packet.length());
-
-  return std::make_unique<QuicData>(l2_buffer.release(), l2_packet_size, true);
 }
 
 bool TunDevicePacketExchanger::ValidateL2Headers(const ethhdr& eth_header,
@@ -224,7 +215,8 @@ bool TunDevicePacketExchanger::ValidateL2Headers(const ethhdr& eth_header,
     int pos = sizeof(in6_addr);
     payload[pos++] = ND_OPT_TARGET_LINKADDR;    // Type
     payload[pos++] = 1;                         // Length in units of 8 octets
-    memcpy(&payload[pos], tap_mac_, ETH_ALEN);  // This interfaces' MAC address
+    memcpy(&payload[pos], eth_hdr_.h_source,
+           ETH_ALEN);  // This interfaces' MAC address
 
     // Populate the ICMPv6 header
     icmp6_hdr response_hdr{};

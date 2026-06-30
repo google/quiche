@@ -45,6 +45,8 @@ class MockKernel : public KernelInterface {
   MOCK_METHOD(int, setsockopt, (int, int, int, const void*, socklen_t),
               (override));
   MOCK_METHOD(ssize_t, write, (int fd, const void*, size_t count), (override));
+  MOCK_METHOD(ssize_t, writev, (int fd, const struct iovec* iov, int iovcnt),
+              (override));
   MOCK_METHOD(int, getsockname,
               (int sockfd, struct sockaddr* addr, socklen_t* addrlen),
               (override));

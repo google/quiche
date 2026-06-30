@@ -44,6 +44,7 @@ class KernelInterface {
   virtual int setsockopt(int fd, int level, int optname, const void* optval,
                          socklen_t optlen) = 0;
   virtual ssize_t write(int fd, const void* buf, size_t count) = 0;
+  virtual ssize_t writev(int fd, const struct iovec* iov, int iovcnt) = 0;
   virtual int getsockname(int sockfd, struct sockaddr* addr,
                           socklen_t* addrlen) = 0;
   virtual unsigned int if_nametoindex(const char* ifname) = 0;
@@ -135,6 +136,10 @@ class ParametrizedKernel final : public KernelInterface {
   ssize_t write(int fd, const void* buf, size_t count) override {
     static Runner syscall("write");
     return syscall.Run(&::write, fd, buf, count);
+  }
+  ssize_t writev(int fd, const struct iovec* iov, int iovcnt) override {
+    static Runner syscall("writev");
+    return syscall.Run(&::writev, fd, iov, iovcnt);
   }
   int getsockname(int sockfd, struct sockaddr* addr,
                   socklen_t* addrlen) override {

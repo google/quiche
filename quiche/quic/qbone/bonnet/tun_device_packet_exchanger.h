@@ -63,7 +63,7 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
   bool WritePacket(const char* packet, size_t size,
                    std::string* error) override;
 
-  std::unique_ptr<QuicData> ApplyL2Headers(const QuicData& l3_packet);
+  void InitializeEthHdr();
 
   bool ValidateL2Headers(const ethhdr& eth_header, const QuicData& packet);
 
@@ -75,8 +75,8 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
   const std::string ifname_;
 
   const bool is_tap_;
-  uint8_t tap_mac_[ETH_ALEN]{};
-  bool mac_initialized_ = false;
+  ethhdr eth_hdr_;
+  bool eth_hdr_initialized_ = false;
 
   StatsInterface* stats_;
 };
