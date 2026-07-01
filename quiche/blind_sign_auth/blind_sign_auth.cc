@@ -45,8 +45,6 @@ std::string OmitDefault(T value) {
   return value == 0 ? "" : absl::StrCat(value);
 }
 
-constexpr absl::string_view kAttestationProtoTypeUrl =
-    "type.googleapis.com/privacy.ppn.AndroidAttestationData";
 constexpr absl::string_view kIssuerHostname =
     "https://ipprotection-ppissuer.googleapis.com";
 constexpr size_t kExpectedExtensionTypesSize = 5;
@@ -374,7 +372,7 @@ void BlindSignAuth::GetAttestationTokensCallback(
 void BlindSignAuth::AttestAndSign(
     int num_tokens, privacy::ppn::GetInitialDataResponse initial_data_response,
     SignedTokenCallback callback,
-    absl::StatusOr<absl::Span<const std::string>> attestation_data,
+    absl::StatusOr<google::protobuf::Any> attestation_data,
     std::optional<const absl::string_view> token_challenge) {
   absl::StatusOr<PrivacyPassContext> pp_context =
       CreatePrivacyPassContext(initial_data_response);
@@ -412,29 +410,13 @@ void BlindSignAuth::AttestAndSign(
     return;
   }
 
-  // Create AndroidAttestationData.
-  AndroidAttestationData android_attestation_data;
   if (!attestation_data.ok()) {
     std::move(callback)(attestation_data.status());
     return;
   }
-  if (attestation_data->empty()) {
-    std::move(callback)(
-        absl::InvalidArgumentError("Attestation data is empty"));
-    return;
-  }
-  for (absl::string_view cert : *attestation_data) {
-    android_attestation_data.add_hardware_backed_certs(cert);
-  }
-
-  Any attestation_data_proto_any;
-  attestation_data_proto_any.set_type_url(kAttestationProtoTypeUrl);
-  attestation_data_proto_any.set_value(
-      android_attestation_data.SerializeAsString());
 
   AttestationData attestation_data_proto;
-  *attestation_data_proto.mutable_attestation_data() =
-      attestation_data_proto_any;
+  *attestation_data_proto.mutable_attestation_data() = *attestation_data;
 
   // Create AttestAndSignRequest.
   AttestAndSignRequest sign_request;

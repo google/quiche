@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "google/protobuf/any.pb.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
@@ -54,9 +55,8 @@ using SignedTokenCallback =
 
 // This callback is used by the caller to return generated
 // attestation data and a token challenge to the BlindSignAuth library.
-using AttestAndSignCallback =
-    SingleUseCallback<void(absl::StatusOr<absl::Span<const std::string>>,
-                           std::optional<absl::string_view>)>;
+using AttestAndSignCallback = SingleUseCallback<void(
+    absl::StatusOr<google::protobuf::Any>, std::optional<absl::string_view>)>;
 
 // AttestationDataCallback returns a serialized
 // privacy::ppn::PrepareAttestationData proto, which contains an attestation
