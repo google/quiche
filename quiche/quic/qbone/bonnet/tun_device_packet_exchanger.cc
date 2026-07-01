@@ -185,6 +185,10 @@ bool TunDevicePacketExchanger::ValidateL2Headers(const ethhdr& eth_header,
   }
 
   if (is_neighbor_solicit) {
+    // We need the local interface MAC address to respond.
+    if (!eth_hdr_initialized_) {
+      InitializeEthHdr();
+    }
     // If we've received a neighbor solicitation, craft an advertisement to
     // respond with and write it back to the local interface.
     auto* icmp6_payload = packet.data() + kIcmp6PrefixLen;
