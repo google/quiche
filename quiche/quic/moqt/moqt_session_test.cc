@@ -2979,6 +2979,114 @@ TEST_F(MoqtSessionTest, IncomingPublishAbortsPendingSubscribe) {
       testing::Mock::VerifyAndClearExpectations(&remote_track_visitor_));
 }
 
+TEST_F(MoqtSessionTest, IncrementRequestId) {
+  // Set up writable control stream.
+  webtransport::test::InMemoryStreamWithWriteBuffer control_stream(0);
+  EXPECT_CALL(mock_session_, GetNegotiatedSubprotocol)
+      .WillOnce(Return(std::string(kDefaultMoqtVersion)));
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingBidirectionalStream)
+      .WillOnce(Return(true));
+  EXPECT_CALL(mock_session_, OpenOutgoingBidirectionalStream)
+      .WillOnce(Return(&control_stream));
+  session_.OnSessionReady();
+  control_stream.write_buffer().clear();
+
+  // Helper lambda to parse request ID from written_data.
+  auto get_request_id =
+      [&](webtransport::test::InMemoryStreamWithWriteBuffer& stream) {
+        quiche::QuicheDataReader reader(stream.write_buffer());
+        uint64_t type;
+        uint16_t length;
+        uint64_t request_id;
+        bool type_read = reader.ReadVarInt62(&type);
+        bool length_read = reader.ReadUInt16(&length);
+        bool req_id_read = reader.ReadVarInt62(&request_id);
+        EXPECT_TRUE(type_read) << "Failed to read type, written_data.size()="
+                               << stream.write_buffer().length();
+        EXPECT_TRUE(length_read);
+        EXPECT_TRUE(req_id_read);
+        return request_id;
+      };
+
+  uint64_t next_request_id = 0;
+  // 1. SubscribeNamespace
+  webtransport::test::InMemoryStreamWithWriteBuffer sub_ns_stream(4);
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingBidirectionalStream())
+      .WillOnce(Return(true));
+  EXPECT_CALL(mock_session_, OpenOutgoingBidirectionalStream())
+      .WillOnce(Return(&sub_ns_stream));
+  TrackNamespace namespace1({"namespace1"});
+  std::unique_ptr<MoqtNamespaceTask> task1 = session_.SubscribeNamespace(
+      namespace1, SubscribeNamespaceOption::kNamespace, MessageParameters(),
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {});
+  ASSERT_NE(task1, nullptr);
+  EXPECT_EQ(get_request_id(sub_ns_stream), next_request_id);
+  next_request_id += 2;
+
+  // 2. PublishNamespace
+  TrackNamespace namespace2({"namespace2"});
+  bool p1 = session_.PublishNamespace(
+      namespace2, MessageParameters(),
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {},
+      [](MoqtRequestErrorInfo) {});
+  EXPECT_TRUE(p1);
+  EXPECT_EQ(next_request_id, get_request_id(control_stream));
+  next_request_id += 2;
+  control_stream.write_buffer().clear();
+
+  // 3. PublishNamespaceUpdate
+  MessageParameters params_update;
+  bool p_update = session_.PublishNamespaceUpdate(
+      namespace2, params_update,
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {});
+  EXPECT_TRUE(p_update);
+  EXPECT_EQ(get_request_id(control_stream), next_request_id);
+  next_request_id += 2;
+  control_stream.write_buffer().clear();
+
+  // 4. Subscribe
+  FullTrackName track_name1("namespace2", "track1");
+  bool s1 = session_.Subscribe(track_name1, &remote_track_visitor_,
+                               MessageParameters());
+  EXPECT_TRUE(s1);
+  EXPECT_EQ(get_request_id(control_stream), next_request_id);
+  next_request_id += 2;
+  control_stream.write_buffer().clear();
+
+  // 5. SubscribeUpdate
+  bool s_update = session_.SubscribeUpdate(
+      track_name1, MessageParameters(),
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {});
+  EXPECT_TRUE(s_update);
+  EXPECT_EQ(get_request_id(control_stream), next_request_id);
+  next_request_id += 2;
+  control_stream.write_buffer().clear();
+
+  // 6. Fetch
+  FullTrackName fetch_track("namespace2", "fetch_track");
+  bool f1 = session_.Fetch(
+      fetch_track, [](std::unique_ptr<MoqtFetchTask>) {}, Location(0, 0), 1,
+      std::nullopt, MessageParameters());
+  EXPECT_TRUE(f1);
+  EXPECT_EQ(get_request_id(control_stream), next_request_id);
+  next_request_id += 2;
+  control_stream.write_buffer().clear();
+
+  // 7. SubscribeNamespace (duplicating the first call)
+  webtransport::test::InMemoryStreamWithWriteBuffer sub_ns_stream_2(8);
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingBidirectionalStream)
+      .WillOnce(Return(true));
+  EXPECT_CALL(mock_session_, OpenOutgoingBidirectionalStream)
+      .WillOnce(Return(&sub_ns_stream_2));
+  TrackNamespace namespace_dup({"namespace_dup"});
+  std::unique_ptr<MoqtNamespaceTask> task_dup = session_.SubscribeNamespace(
+      namespace_dup, SubscribeNamespaceOption::kNamespace, MessageParameters(),
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {});
+  ASSERT_NE(task_dup, nullptr);
+  EXPECT_EQ(next_request_id, get_request_id(sub_ns_stream_2));
+  sub_ns_stream_2.write_buffer().clear();
+}
+
 }  // namespace test
 
 }  // namespace moqt

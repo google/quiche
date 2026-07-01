@@ -320,6 +320,7 @@ std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
   }
   MoqtSubscribeNamespace message;
   message.request_id = next_request_id_;
+  next_request_id_ += 2;
   message.track_namespace_prefix = prefix;
   message.subscribe_options = SubscribeNamespaceOption::kNamespace;
   message.parameters = parameters;

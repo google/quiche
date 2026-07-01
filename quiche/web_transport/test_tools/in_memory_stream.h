@@ -118,6 +118,10 @@ class QUICHE_NO_EXPORT InMemoryStreamWithWriteBuffer : public InMemoryStream {
     return absl::OkStatus();
   }
 
+  void ResetWithUserCode(StreamErrorCode) override {}
+  void ResetDueToInternalError() override {}
+  void MaybeResetDueToStreamObjectGone() override {}
+
   std::string& write_buffer() { return write_buffer_; }
 
  private:
