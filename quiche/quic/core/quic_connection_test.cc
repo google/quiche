@@ -18335,6 +18335,42 @@ TEST_P(QuicConnectionTest, ResetStreamAt) {
   connection_.OnResetStreamAtFrame(QuicResetStreamAtFrame(0, 0, 0, 20, 10));
 }
 
+// Regression test for https://github.com/google/quiche/issues/138.
+// RFC 9000, Section 17.2.2 requires a client to reject (or discard) a server
+// Initial packet that carries a non-zero-length Token field, since only
+// clients are permitted to send Initial tokens.
+TEST_P(QuicConnectionTest, ClientRejectsServerInitialWithNonZeroTokenLength) {
+  if (!VersionIsIetfQuic(connection_.transport_version())) {
+    return;
+  }
+  ASSERT_EQ(Perspective::IS_CLIENT, connection_.perspective());
+
+  QuicPacketHeader header;
+  header.destination_connection_id = connection_id_;
+  header.version_flag = true;
+  header.long_packet_type = INITIAL;
+  header.retry_token_length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_1;
+  header.retry_token = absl::string_view("\x01", 1);
+  header.length_length = quiche::VARIABLE_LENGTH_INTEGER_LENGTH_2;
+  header.packet_number = QuicPacketNumber(1);
+
+  QuicFrames frames;
+  frames.push_back(QuicFrame(&crypto_frame_));
+  std::unique_ptr<QuicPacket> packet(ConstructPacket(header, frames));
+  char buffer[kMaxOutgoingPacketSize];
+  size_t encrypted_length =
+      peer_framer_.EncryptPayload(ENCRYPTION_INITIAL, QuicPacketNumber(1),
+                                  *packet, buffer, kMaxOutgoingPacketSize);
+
+  EXPECT_CALL(visitor_, OnConnectionClosed(_, _)).Times(1);
+  connection_.ProcessUdpPacket(
+      kSelfAddress, kPeerAddress,
+      QuicReceivedPacket(buffer, encrypted_length, clock_.ApproximateNow(),
+                         false));
+  EXPECT_FALSE(connection_.connected());
+  TestConnectionCloseQuicErrorCode(IETF_QUIC_PROTOCOL_VIOLATION);
+}
+
 TEST_P(QuicConnectionTest, OnParsedClientHelloInfoWithDebugVisitor) {
   const ParsedClientHello parsed_chlo{.sni = "sni",
                                       .uaid = "uiad",

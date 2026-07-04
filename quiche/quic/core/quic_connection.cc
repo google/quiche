@@ -1059,6 +1059,17 @@ bool QuicConnection::OnUnauthenticatedPublicHeader(
     framer_.set_drop_incoming_retry_packets(true);
   }
 
+  // RFC 9000, Section 17.2.2: a client MUST discard, or MAY close the
+  // connection on, a server Initial packet that carries a non-zero-length
+  // Token field, since only clients are permitted to send Initial tokens.
+  if (perspective_ == Perspective::IS_CLIENT && header.version_flag &&
+      header.long_packet_type == INITIAL && !header.retry_token.empty()) {
+    CloseConnection(IETF_QUIC_PROTOCOL_VIOLATION,
+                     "Server Initial packet has non-zero token length",
+                     ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return false;
+  }
+
   if (!ValidateServerConnectionId(header)) {
     ++stats_.packets_dropped;
     QuicConnectionId server_connection_id =
