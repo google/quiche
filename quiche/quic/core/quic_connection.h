@@ -1749,9 +1749,6 @@ class QUICHE_EXPORT QuicConnection
     // be overridden to the current default self address.
     QuicSocketAddress actual_destination_address;
     // 8B remaining in the fourth cacheline.
-    // TODO(martinduke): Remove once gfe2_reloadable_flag_quic_one_dcid is
-    // deprecated.
-    QuicConnectionId destination_connection_id;
   };
   static_assert(offsetof(ReceivedPacketInfo, received_bytes_counted) <= 192);
 
@@ -2214,11 +2211,7 @@ class QUICHE_EXPORT QuicConnection
   // Extract destination connection ID from ReceivedPacketInfo.
   inline QuicConnectionId GetDestinationConnectionId(
       const ReceivedPacketInfo& packet_info) const {
-    if (store_one_dcid_) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_one_dcid, 1, 3);
-      return packet_info.header.destination_connection_id;
-    }
-    return packet_info.destination_connection_id;
+    return packet_info.header.destination_connection_id;
   }
 
   // Send a scone packet immediately after successfully migrating to a new path
@@ -2593,9 +2586,6 @@ class QUICHE_EXPORT QuicConnection
   // If true then flow labels will be changed when a PTO fires, or when
   // a PTO'd packet from a peer is detected.
   bool enable_black_hole_avoidance_via_flow_label_ : 1 = false;
-  // If true, stores only one copy of the destination connection ID in
-  // ReceivedPacketInfo.
-  const bool store_one_dcid_ : 1;
 
   // If true, the connection will accept SCONE packets from the peer.
   bool parse_scone_packets_ : 1 = false;

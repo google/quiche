@@ -559,7 +559,7 @@ bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
       << " receipt_time passed: " << (info.receipt_time == QuicTime::Zero())
       << " received_bytes_counted passed: " << !info.received_bytes_counted
       << " destination_connection_id passed: "
-      << (info.destination_connection_id == QuicConnectionId())
+      << (info.header.destination_connection_id == QuicConnectionId())
       << " length passed: " << (info.length == 0)
       << " decrypted passed: " << !info.decrypted << " decrypted_level passed: "
       << (info.decrypted_level == ENCRYPTION_INITIAL)
@@ -567,12 +567,12 @@ bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
       << " ecn_codepoint passed: " << (info.ecn_codepoint == ECN_NOT_ECT)
       << " sizeof(ReceivedPacketInfo) passed: "
       << (sizeof(size_t) != 8 ||
-          sizeof(QuicConnection::ReceivedPacketInfo) == 272);
+          sizeof(QuicConnection::ReceivedPacketInfo) == 248);
   return info.destination_address == QuicSocketAddress() &&
          info.source_address == QuicSocketAddress() &&
          info.receipt_time == QuicTime::Zero() &&
          !info.received_bytes_counted && info.length == 0 &&
-         info.destination_connection_id == QuicConnectionId() &&
+         info.header.destination_connection_id == QuicConnectionId() &&
          !info.decrypted && info.decrypted_level == ENCRYPTION_INITIAL &&
          // There's no simple way to compare all the values of QuicPacketHeader.
          info.frames.empty() && info.ecn_codepoint == ECN_NOT_ECT &&
@@ -581,7 +581,7 @@ bool QuicConnectionPeer::TestLastReceivedPacketInfoDefaults() {
          // have changed. Please add the relevant conditions and update the
          // length below.
          (sizeof(size_t) != 8 ||
-          sizeof(QuicConnection::ReceivedPacketInfo) == 272);
+          sizeof(QuicConnection::ReceivedPacketInfo) == 248);
 }
 
 // static
