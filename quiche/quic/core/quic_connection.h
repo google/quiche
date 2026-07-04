@@ -1366,7 +1366,10 @@ class QUICHE_EXPORT QuicConnection
 
   QuicPathValidationContext* GetPathValidationContext() const;
 
+  // TODO(martinduke): Delete this deprecated method once non-QUICHE callers are
+  // updated to provide a reason.
   void CancelPathValidation();
+  void CancelPathValidation(PathValidationFailure failure);
 
   // Returns true if the migration succeeds, otherwise returns false (e.g., no
   // available CIDs, connection disconnected, etc).

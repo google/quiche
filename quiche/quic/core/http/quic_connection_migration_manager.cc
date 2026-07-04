@@ -306,7 +306,8 @@ void QuicConnectionMigrationManager::OnNetworkDisconnected(
   QuicPathValidationContext* context = connection_->GetPathValidationContext();
   if (context && context->network() == disconnected_network &&
       context->peer_address() == connection_->peer_address()) {
-    connection_->CancelPathValidation();
+    connection_->CancelPathValidation(
+        PathValidationFailure{PathValidationFailure::Reason::kNotConnected});
   }
 
   if (disconnected_network == default_network_) {
@@ -396,7 +397,8 @@ void QuicConnectionMigrationManager::StartMigrateNetworkImmediately(
   QuicPathValidationContext* context = connection_->GetPathValidationContext();
   if (context && context->network() == network &&
       context->peer_address() == connection_->peer_address()) {
-    connection_->CancelPathValidation();
+    connection_->CancelPathValidation(
+        PathValidationFailure{PathValidationFailure::Reason::kNewerValidation});
   }
   pending_migrate_network_immediately_ = true;
   Migrate(network, connection_->peer_address(),
@@ -1002,7 +1004,8 @@ void QuicConnectionMigrationManager::OnProbeFailed(
   }
   if (context->network() == network &&
       context->peer_address() == connection_->peer_address()) {
-    connection_->CancelPathValidation();
+    connection_->CancelPathValidation(
+        PathValidationFailure{PathValidationFailure::Reason::kUnknown});
   }
   if (network != kInvalidNetworkHandle) {
     // Probing failure can be ignored.

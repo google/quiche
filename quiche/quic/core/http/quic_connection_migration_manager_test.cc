@@ -10,6 +10,7 @@
 #include "quiche/quic/core/http/quic_spdy_client_session_with_migration.h"
 #include "quiche/quic/core/io/socket.h"
 #include "quiche/quic/core/quic_force_blockable_packet_writer.h"
+#include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/quic_config_peer.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
@@ -967,7 +968,8 @@ TEST_P(QuicConnectionMigrationManagerTest,
     EXPECT_TRUE(migrate_back_alarm->IsSet());
     // Fail the current path validation.
     auto* path_validator = QuicConnectionPeer::path_validator(connection_);
-    path_validator->CancelPathValidation();
+    path_validator->CancelPathValidation(
+        PathValidationFailure::Reason::kUnknown);
     // Following attempt should be scheduled with expotential delay.
     QuicTimeDelta next_delay = QuicTimeDelta::FromSeconds(UINT64_C(1) << i);
     EXPECT_EQ(migrate_back_alarm->deadline(),
@@ -1040,7 +1042,8 @@ TEST_P(
 
     // Fail the current path validation.
     auto* path_validator = QuicConnectionPeer::path_validator(connection_);
-    path_validator->CancelPathValidation();
+    path_validator->CancelPathValidation(
+        PathValidationFailure::Reason::kUnknown);
 
     EXPECT_TRUE(migrate_back_alarm->IsSet());
     QuicTimeDelta next_delay = QuicTimeDelta::FromSeconds(UINT64_C(1) << i);

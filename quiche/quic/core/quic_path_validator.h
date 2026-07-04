@@ -5,7 +5,10 @@
 #ifndef QUICHE_QUIC_CORE_QUIC_PATH_VALIDATOR_H_
 #define QUICHE_QUIC_CORE_QUIC_PATH_VALIDATOR_H_
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <optional>
 #include <ostream>
 
 #include "absl/container/inlined_vector.h"
@@ -19,8 +22,8 @@
 #include "quiche/quic/core/quic_packet_writer.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 
@@ -38,6 +41,18 @@ enum class PathValidationReason {
   kPortMigration,
   kConnectionMigration,
   kMaxValue,
+};
+
+struct QUICHE_EXPORT PathValidationFailure {
+  enum class Reason : uint8_t {
+    kUnknown = 0,
+    kStatelessReset = 1,   // The peer sent a stateless reset on the path.
+    kNewerValidation = 2,  // Starting validation on a new path.
+    kRetryTimeout = 3,     // The validation process hit the retry limit.
+    kNotConnected = 4,     // PATH_CHALLENGE can't be sent because the
+                           // connection is no longer active.
+  };
+  Reason reason;
 };
 
 // Opaque handle for device-wide connection to a particular network.
@@ -91,6 +106,12 @@ class QUICHE_EXPORT QuicPathValidationContext {
   const QuicSocketAddress& effective_peer_address() const {
     return effective_peer_address_;
   }
+  void set_failure_reason(PathValidationFailure::Reason failure_reason) {
+    failure_reason_ = failure_reason;
+  }
+  std::optional<PathValidationFailure::Reason> failure_reason() const {
+    return failure_reason_;
+  }
 
  private:
   QUICHE_EXPORT friend std::ostream& operator<<(
@@ -106,6 +127,8 @@ class QUICHE_EXPORT QuicPathValidationContext {
   // `kInvalidNetworkHandle`, if the platform doesn't expose handles for
   // networks, e.g. iOS and Linux. It shouldn't referred to in such case.
   QuicNetworkHandle network_handle_;
+  // nullopt if pending or successful.
+  std::optional<PathValidationFailure::Reason> failure_reason_;
 };
 
 // Used to validate a path by sending up to 3 PATH_CHALLENGE frames before
@@ -168,7 +191,7 @@ class QUICHE_EXPORT QuicPathValidator {
                       QuicSocketAddress self_address);
 
   // Cancel the retry timer and reset the path and result delegate.
-  void CancelPathValidation();
+  void CancelPathValidation(PathValidationFailure::Reason failure_reason);
 
   bool HasPendingPathValidation() const;
 

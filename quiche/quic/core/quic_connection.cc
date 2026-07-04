@@ -2426,7 +2426,8 @@ void QuicConnection::OnAuthenticatedIetfStatelessResetPacket() {
       QUIC_BUG_IF(quic_bug_12714_18, alternative_path_.validated)
           << "STATELESS_RESET received on alternate path after it's "
              "validated.";
-      path_validator_.CancelPathValidation();
+      path_validator_.CancelPathValidation(
+          PathValidationFailure::Reason::kStatelessReset);
       ++stats_.num_stateless_resets_on_alternate_path;
     } else {
       QUIC_BUG(quic_bug_10511_17)
@@ -4945,7 +4946,8 @@ void QuicConnection::TearDownLocalConnectionState(
   // Cancel the alarms so they don't trigger any action now that the
   // connection is closed.
   CancelAllAlarms();
-  CancelPathValidation();
+  CancelPathValidation(
+      PathValidationFailure{PathValidationFailure::Reason::kNotConnected});
 
   peer_issued_cid_manager_.reset();
   self_issued_cid_manager_.reset();
@@ -5639,7 +5641,8 @@ void QuicConnection::StartEffectivePeerMigration(AddressChangeType type) {
     QUIC_DVLOG(1) << "Cancel validation of previous peer address change to "
                   << previous_default_path.peer_address
                   << " upon peer migration to " << default_path_.peer_address;
-    path_validator_.CancelPathValidation();
+    path_validator_.CancelPathValidation(
+        PathValidationFailure::Reason::kNewerValidation);
     ++stats_.num_peer_migration_while_validating_default_path;
   }
 
@@ -6951,7 +6954,8 @@ void QuicConnection::ValidatePath(
           "an on-going server preferred address validation.");
     }
     // Cancel and fail any earlier validation.
-    path_validator_.CancelPathValidation();
+    path_validator_.CancelPathValidation(
+        PathValidationFailure::Reason::kNewerValidation);
   }
   if (perspective_ == Perspective::IS_CLIENT &&
       !IsDefaultPath(context->self_address(), context->peer_address())) {
@@ -7074,7 +7078,11 @@ QuicPathValidationContext* QuicConnection::GetPathValidationContext() const {
 }
 
 void QuicConnection::CancelPathValidation() {
-  path_validator_.CancelPathValidation();
+  path_validator_.CancelPathValidation(PathValidationFailure::Reason::kUnknown);
+}
+
+void QuicConnection::CancelPathValidation(PathValidationFailure failure) {
+  path_validator_.CancelPathValidation(failure.reason);
 }
 
 bool QuicConnection::UpdateConnectionIdsOnMigration(

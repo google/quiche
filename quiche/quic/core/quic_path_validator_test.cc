@@ -236,6 +236,8 @@ TEST_F(QuicPathValidatorTest, ValidationTimeOut) {
   EXPECT_CALL(*result_delegate_, OnPathValidationFailure(_))
       .WillOnce([=, this](std::unique_ptr<QuicPathValidationContext> context) {
         EXPECT_EQ(context_, context.get());
+        EXPECT_EQ(context->failure_reason(),
+                  PathValidationFailure::Reason::kRetryTimeout);
       });
   for (size_t i = 0; i <= QuicPathValidator::kMaxRetryTimes; ++i) {
     clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(3 * kInitialRttMs));
@@ -255,12 +257,18 @@ TEST_F(QuicPathValidatorTest, SendPathChallengeError) {
                     QuicPacketWriter*) {
         // Abandon this validation in the call stack shouldn't cause crash and
         // should cancel the alarm.
-        path_validator_.CancelPathValidation();
+        path_validator_.CancelPathValidation(
+            PathValidationFailure::Reason::kUnknown);
         return false;
       });
   EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_))
       .Times(0u);
-  EXPECT_CALL(*result_delegate_, OnPathValidationFailure(_));
+  EXPECT_CALL(*result_delegate_, OnPathValidationFailure(_))
+      .WillOnce([=, this](std::unique_ptr<QuicPathValidationContext> context) {
+        EXPECT_EQ(context_, context.get());
+        EXPECT_EQ(context->failure_reason(),
+                  PathValidationFailure::Reason::kUnknown);
+      });
   path_validator_.StartPathValidation(
       std::unique_ptr<QuicPathValidationContext>(context_),
       std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_),
@@ -269,6 +277,26 @@ TEST_F(QuicPathValidatorTest, SendPathChallengeError) {
   EXPECT_FALSE(QuicPathValidatorPeer::retry_timer(&path_validator_)->IsSet());
   EXPECT_EQ(PathValidationReason::kReasonUnknown,
             path_validator_.GetPathValidationReason());
+}
+
+TEST_F(QuicPathValidatorTest, SendPathChallengeReturnsFalse) {
+  EXPECT_CALL(send_delegate_,
+              SendPathChallenge(_, self_address_, peer_address_,
+                                effective_peer_address_, &writer_))
+      .WillOnce(Return(false));
+  EXPECT_CALL(send_delegate_, GetRetryTimeout(peer_address_, &writer_))
+      .Times(0u);
+  EXPECT_CALL(*result_delegate_, OnPathValidationFailure(_))
+      .WillOnce([=, this](std::unique_ptr<QuicPathValidationContext> context) {
+        EXPECT_EQ(context_, context.get());
+        EXPECT_EQ(context->failure_reason(),
+                  PathValidationFailure::Reason::kNotConnected);
+      });
+  path_validator_.StartPathValidation(
+      std::unique_ptr<QuicPathValidationContext>(context_),
+      std::unique_ptr<MockQuicPathValidationResultDelegate>(result_delegate_),
+      PathValidationReason::kMultiPort);
+  EXPECT_FALSE(path_validator_.HasPendingPathValidation());
 }
 
 }  // namespace test

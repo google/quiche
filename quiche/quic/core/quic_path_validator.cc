@@ -101,11 +101,13 @@ void QuicPathValidator::ResetPathValidation() {
   reason_ = PathValidationReason::kReasonUnknown;
 }
 
-void QuicPathValidator::CancelPathValidation() {
+void QuicPathValidator::CancelPathValidation(
+    PathValidationFailure::Reason failure_reason) {
   if (path_context_ == nullptr) {
     return;
   }
   QUIC_DVLOG(1) << "Cancel validation on path" << *path_context_;
+  path_context_->set_failure_reason(failure_reason);
   result_delegate_->OnPathValidationFailure(std::move(path_context_));
   ResetPathValidation();
 }
@@ -134,7 +136,7 @@ const QuicPathFrameBuffer& QuicPathValidator::GeneratePathChallengePayload() {
 void QuicPathValidator::OnRetryTimeout() {
   ++retry_count_;
   if (retry_count_ > kMaxRetryTimes) {
-    CancelPathValidation();
+    CancelPathValidation(PathValidationFailure::Reason::kRetryTimeout);
     return;
   }
   QUIC_DVLOG(1) << "Send another PATH_CHALLENGE on path " << *path_context_;
@@ -149,7 +151,7 @@ void QuicPathValidator::SendPathChallengeAndSetAlarm() {
 
   if (!should_continue) {
     // The delegate doesn't want to continue the path validation.
-    CancelPathValidation();
+    CancelPathValidation(PathValidationFailure::Reason::kNotConnected);
     return;
   }
   retry_timer_->Set(send_delegate_->GetRetryTimeout(

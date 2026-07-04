@@ -2593,15 +2593,17 @@ class TestQuicPathValidationContext : public QuicPathValidationContext {
 
 class TestValidationResultDelegate : public QuicPathValidator::ResultDelegate {
  public:
-  TestValidationResultDelegate(QuicConnection* connection,
-                               const QuicSocketAddress& expected_self_address,
-                               const QuicSocketAddress& expected_peer_address,
-                               bool* success)
+  TestValidationResultDelegate(
+      QuicConnection* connection,
+      const QuicSocketAddress& expected_self_address,
+      const QuicSocketAddress& expected_peer_address, bool* success,
+      std::optional<PathValidationFailure::Reason>* failure_reason = nullptr)
       : QuicPathValidator::ResultDelegate(),
         connection_(connection),
         expected_self_address_(expected_self_address),
         expected_peer_address_(expected_peer_address),
-        success_(success) {}
+        success_(success),
+        failure_reason_(failure_reason) {}
   void OnPathValidationSuccess(
       std::unique_ptr<QuicPathValidationContext> context,
       QuicTime /*start_time*/) override {
@@ -2614,6 +2616,9 @@ class TestValidationResultDelegate : public QuicPathValidator::ResultDelegate {
       std::unique_ptr<QuicPathValidationContext> context) override {
     EXPECT_EQ(expected_self_address_, context->self_address());
     EXPECT_EQ(expected_peer_address_, context->peer_address());
+    if (failure_reason_ != nullptr) {
+      *failure_reason_ = context->failure_reason();
+    }
     if (connection_->perspective() == Perspective::IS_CLIENT) {
       connection_->OnPathValidationFailureAtClient(/*is_multi_port=*/false,
                                                    *context);
@@ -2626,6 +2631,7 @@ class TestValidationResultDelegate : public QuicPathValidator::ResultDelegate {
   QuicSocketAddress expected_self_address_;
   QuicSocketAddress expected_peer_address_;
   bool* success_;
+  std::optional<PathValidationFailure::Reason>* failure_reason_;
 };
 
 // A test implementation which migrates to server preferred address
@@ -15365,17 +15371,20 @@ TEST_P(QuicConnectionTest, ServerConnectionIdRetiredUponPathValidationFailure) {
   const QuicSocketAddress kNewSelfAddress(QuicIpAddress::Loopback4(),
                                           /*port=*/34567);
   bool success;
+  std::optional<PathValidationFailure::Reason> failure_reason;
   connection_.ValidatePath(
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), writer_.get()),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success,
+          &failure_reason),
       PathValidationReason::kReasonUnknown);
 
   auto* path_validator = QuicConnectionPeer::path_validator(&connection_);
-  path_validator->CancelPathValidation();
+  path_validator->CancelPathValidation(PathValidationFailure::Reason::kUnknown);
   QuicConnectionPeer::RetirePeerIssuedConnectionIdsNoLongerOnPath(&connection_);
   EXPECT_FALSE(success);
+  EXPECT_TRUE(failure_reason == PathValidationFailure::Reason::kUnknown);
   const auto* alternative_path =
       QuicConnectionPeer::GetAlternativePath(&connection_);
   EXPECT_TRUE(alternative_path->client_connection_id.IsEmpty());
