@@ -35,9 +35,6 @@ class MoqtBidiStreamTestWrapper;
 
 using SessionErrorCallback =
     quiche::SingleUseCallback<void(MoqtError, absl::string_view)>;
-// The provider of this callback owns nothing in MoqtBidiStreamBase. This merely
-// deletes the record.
-using BidiStreamDeletedCallback = quiche::SingleUseCallback<void()>;
 
 // MoqtBidiStreamBase is the base class for bidirectional streams in MoQT.  It
 // contains basic methods for handling and dispatching messages.  An instance of
@@ -47,13 +44,11 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
  public:
   MoqtBidiStreamBase(MoqtFramer* absl_nonnull framer,
                      const MoqtControlMessageParser& message_parser,
-                     BidiStreamDeletedCallback stream_deleted_callback,
                      SessionErrorCallback session_error_callback)
       : framer_(framer),
         message_parser_(message_parser),
-        stream_deleted_callback_(std::move(stream_deleted_callback)),
         session_error_callback_(std::move(session_error_callback)) {}
-  ~MoqtBidiStreamBase() override { std::move(stream_deleted_callback_)(); }
+  ~MoqtBidiStreamBase() = default;
 
   // Binds a WebTransport stream associated with `parser` to this object.
   void BindStream(
@@ -72,8 +67,12 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   }
 
   // webtransport::StreamVisitor implementation.
-  void OnResetStreamReceived(webtransport::StreamErrorCode error) override {}
-  void OnStopSendingReceived(webtransport::StreamErrorCode error) override {}
+  void OnResetStreamReceived(webtransport::StreamErrorCode error) override {
+    Reset(error);
+  }
+  void OnStopSendingReceived(webtransport::StreamErrorCode error) override {
+    Reset(error);
+  }
   void OnWriteSideInDataRecvdState() override {}
   void OnCanRead() override;
   void OnCanWrite() override;
@@ -82,7 +81,12 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
 
   absl::Status SendOrBufferMessage(quiche::QuicheBuffer message,
                                    bool fin = false) {
-    return outgoing_message_queue_.SendOrBufferMessage(std::move(message), fin);
+    absl::Status status =
+        outgoing_message_queue_.SendOrBufferMessage(std::move(message), fin);
+    if (fin) {
+      Detach();
+    }
+    return status;
   }
   void SendOrBufferMessageOrFatal(quiche::QuicheBuffer message,
                                   bool fin = false) {
@@ -99,12 +103,16 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   absl::Status SendRequestError(uint64_t request_id, MoqtRequestErrorInfo info,
                                 bool fin = false);
 
-  void Fin() { CheckStatus(outgoing_message_queue_.Fin()); }
+  void Fin() {
+    CheckStatus(outgoing_message_queue_.Fin());
+    Detach();
+  }
   void Reset(webtransport::StreamErrorCode error) {
     webtransport::Stream* stream = stream_parser_->stream();
     if (stream != nullptr) {
       stream->ResetWithUserCode(error);
     }
+    Detach();
   }
 
   // If `status` is not OK, terminates the connection with a fatal error.
@@ -113,6 +121,10 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
       OnFatalError(status);
     }
   }
+
+  // Removes any state in MoqtSession related to the stream. Overrides of this
+  // method must be robust to multiple invocations.
+  virtual void Detach() = 0;
 
   // TODO(martinduke): Remove once SUBSCRIBE moves to a bidi stream. This is
   // only needed to check whether or not to FIN the bidi stream.
@@ -150,7 +162,6 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   std::unique_ptr<MoqtControlStreamParser> absl_nullable stream_parser_;
   MoqtControlMessageParser message_parser_;
   MoqtControlMessageQueue outgoing_message_queue_;
-  BidiStreamDeletedCallback stream_deleted_callback_;
   SessionErrorCallback session_error_callback_;
 };
 

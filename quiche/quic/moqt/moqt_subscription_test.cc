@@ -87,10 +87,8 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
  public:
   TestMoqtBidiStream(MoqtFramer* absl_nonnull framer,
                      const MoqtControlMessageParser& message_parser,
-                     BidiStreamDeletedCallback stream_deleted_callback,
                      SessionErrorCallback session_error_callback)
       : MoqtBidiStreamBase(framer, message_parser,
-                           std::move(stream_deleted_callback),
                            std::move(session_error_callback)) {
     set_control_stream();  // TODO(martinduke): Delete
   }
@@ -100,6 +98,8 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
       const MoqtRawControlMessage& message) override {
     return absl::OkStatus();
   }
+  void Detach() override { detached_ = true; }
+  bool detached_ = false;
 };
 
 std::optional<PublishedObject> DefaultPublishedObject(
@@ -124,9 +124,8 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
   SubscriptionPublisherTest()
       : track_publisher_(
             std::make_shared<MockTrackPublisher>(FullTrackName("foo", "bar"))),
-        bidi_stream_(
-            &framer_, message_parser_, [] {},
-            [](MoqtError, absl::string_view) {}),
+        bidi_stream_(&framer_, message_parser_,
+                     [](MoqtError, absl::string_view) {}),
         trace_recorder_(nullptr) {
     bidi_stream_.BindStream(&mock_bidi_stream_);
     parameters_.set_forward(true);

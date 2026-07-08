@@ -28,6 +28,7 @@
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -94,6 +95,11 @@ class QUICHE_EXPORT SessionToPublisherInterface {
 class SubscriptionPublisher : public MoqtObjectListener,
                               public SubscriptionPublisherInterface {
  public:
+  // The provider of this callback will delete whatever state it is tracking for
+  // the subscription. This will be used by both PUBLISH and SUBSCRIBE streams.
+  // For control stream SUBSCRIBE, visitor->PublishIsDone() does this instead.
+  using RemoveCallback =
+      quiche::SingleUseCallback<void(SubscriptionPublisher*)>;
   SubscriptionPublisher(MoqtFramer framer,
                         std::shared_ptr<MoqtTrackPublisher> track_publisher,
                         MoqtBidiStreamBase* absl_nonnull bidi_stream,

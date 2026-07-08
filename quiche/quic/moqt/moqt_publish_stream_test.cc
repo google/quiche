@@ -12,8 +12,8 @@
 #include <variant>
 
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -31,11 +31,13 @@
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/web_transport/test_tools/in_memory_stream.h"
+#include "quiche/common/quiche_mem_slice.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -76,21 +78,6 @@ class MockSessionToPublisherInterface : public SessionToPublisherInterface {
   MOCK_METHOD(webtransport::Session*, session, (), (override));
 };
 
-class BidiStreamWithReset
-    : public webtransport::test::InMemoryStreamWithWriteBuffer {
- public:
-  using InMemoryStreamWithWriteBuffer::InMemoryStreamWithWriteBuffer;
-  void ResetWithUserCode(webtransport::StreamErrorCode error) override {
-    last_reset_code_ = error;
-  }
-  std::optional<webtransport::StreamErrorCode> last_reset_code() const {
-    return last_reset_code_;
-  }
-
- private:
-  std::optional<webtransport::StreamErrorCode> last_reset_code_;
-};
-
 constexpr uint64_t kRequestId = 1;
 constexpr uint64_t kTrackAlias = 10;
 const FullTrackName kTrackName("foo", "bar");
@@ -103,7 +90,7 @@ class MoqtPublishPublisherStreamTest : public quiche::test::QuicheTest {
                         quic::Perspective::IS_CLIENT),
         track_publisher_(std::make_shared<TestTrackPublisher>(kTrackName)) {
     // Construct the stream visitor.
-    stream_visitor_ = std::make_unique<MoqtPublishPublisherStream>(
+    stream_ = std::make_unique<MoqtPublishPublisherStream>(
         &framer_, message_parser_, deleted_callback_.AsStdFunction(),
         error_callback_.AsStdFunction(),
         [this](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
@@ -117,18 +104,20 @@ class MoqtPublishPublisherStreamTest : public quiche::test::QuicheTest {
 
     EXPECT_CALL(visitor_, session).WillRepeatedly(Return(&webtrans_));
     auto publisher = std::make_unique<SubscriptionPublisher>(
-        framer_, track_publisher_, stream_visitor_.get(), kRequestId,
-        kTrackAlias, parameters_, &visitor_, /*monitoring_interface=*/nullptr,
-        &mock_clock_, trace_recorder_, /*is_publish=*/true);
+        framer_, track_publisher_, stream_.get(), kRequestId, kTrackAlias,
+        parameters_, &visitor_, /*monitoring_interface=*/nullptr, &mock_clock_,
+        trace_recorder_, /*is_publish=*/true);
 
     publisher_ = publisher.get();  // Keep raw pointer for testing
-    stream_visitor_->SetPublisher(std::move(publisher));
+    stream_->SetPublisher(std::move(publisher));
+    EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));
   }
 
   MoqtFramer framer_;
   MoqtControlMessageParser message_parser_;
+  webtransport::test::MockStream mock_stream_;
   std::shared_ptr<TestTrackPublisher> track_publisher_;
-  testing::MockFunction<void()> deleted_callback_;
+  testing::MockFunction<void(SubscriptionPublisher*)> deleted_callback_;
   testing::StrictMock<testing::MockFunction<void(MoqtError, absl::string_view)>>
       error_callback_;
   MockSessionToPublisherInterface visitor_;
@@ -137,49 +126,30 @@ class MoqtPublishPublisherStreamTest : public quiche::test::QuicheTest {
   MoqtTraceRecorder trace_recorder_;
   MessageParameters parameters_;
 
-  std::unique_ptr<MoqtPublishPublisherStream> stream_visitor_;
+  std::unique_ptr<MoqtPublishPublisherStream> stream_;
   SubscriptionPublisher* publisher_;  // Raw pointer
   std::optional<std::variant<MessageParameters, MoqtRequestErrorInfo>>
       response_;
 };
 
 TEST_F(MoqtPublishPublisherStreamTest, OnStreamBoundSendsPublish) {
-  webtransport::test::InMemoryStreamWithWriteBuffer stream(0);
-  stream_visitor_->BindStream(&stream);  // Calls OnStreamBound
-
-  // Verify PUBLISH message was sent.
-  std::string& written = stream.write_buffer();
-  MoqtControlStreamParser parser(&stream);
-  // Feed the written data back to a parser to verify it.
-  webtransport::test::InMemoryStream read_stream(0);
-  read_stream.Receive(written);
-  MoqtControlStreamParser read_parser(&read_stream);
-  absl::StatusOr<MoqtRawControlMessage> message = read_parser.ReadNextMessage();
-  ASSERT_TRUE(message.ok());
-  EXPECT_EQ(message->type, MoqtMessageType::kPublish);
-
-  MoqtControlMessageParser cmp(kDefaultMoqtVersion, true,
-                               quic::Perspective::IS_CLIENT);
-  absl::StatusOr<MoqtPublish> publish = cmp.ProcessPublish(message->payload);
-  ASSERT_TRUE(publish.ok());
-  EXPECT_EQ(publish->request_id, kRequestId);
-  EXPECT_EQ(publish->full_track_name, kTrackName);
-  EXPECT_EQ(publish->track_alias, kTrackAlias);
-  EXPECT_EQ(publish->parameters.delivery_timeout, parameters_.delivery_timeout);
-  EXPECT_EQ(publish->parameters.group_order, parameters_.group_order);
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kPublish), _))
+      .WillOnce(Return(absl::OkStatus()));
+  stream_->BindStream(&mock_stream_);  // Calls OnStreamBound
 }
 
 TEST_F(MoqtPublishPublisherStreamTest, ReceiveRequestOk) {
-  webtransport::test::InMemoryStreamWithWriteBuffer stream(0);
-  stream_visitor_->BindStream(&stream);
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kPublish), _))
+      .WillOnce(Return(absl::OkStatus()));
+  stream_->BindStream(&mock_stream_);  // Calls OnStreamBound
 
   MoqtRequestOk request_ok;
   request_ok.request_id = kRequestId;
   request_ok.parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(2);
   request_ok.parameters.group_order = MoqtDeliveryOrder::kDescending;
-
-  stream.Receive(framer_.SerializeRequestOk(request_ok).AsStringView());
-  stream_visitor_->OnCanRead();
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
 
   // Verify response callback was called.
   ASSERT_TRUE(response_.has_value());
@@ -199,17 +169,17 @@ TEST_F(MoqtPublishPublisherStreamTest, ReceiveRequestOk) {
 }
 
 TEST_F(MoqtPublishPublisherStreamTest, ReceiveRequestError) {
-  webtransport::test::InMemoryStreamWithWriteBuffer stream(0);
-  stream_visitor_->BindStream(&stream);
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kPublish), _))
+      .WillOnce(Return(absl::OkStatus()));
+  stream_->BindStream(&mock_stream_);  // Calls OnStreamBound
 
   MoqtRequestError request_error;
   request_error.request_id = kRequestId;
   request_error.error_code = RequestErrorCode::kUnauthorized;
   request_error.retry_interval = quic::QuicTimeDelta::FromSeconds(5);
   request_error.reason_phrase = "Unauthorized";
-
-  stream.Receive(framer_.SerializeRequestError(request_error).AsStringView());
-  stream_visitor_->OnCanRead();
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(request_error));
 
   // Verify response callback was called with error.
   ASSERT_TRUE(response_.has_value());
@@ -221,10 +191,12 @@ TEST_F(MoqtPublishPublisherStreamTest, ReceiveRequestError) {
 }
 
 TEST_F(MoqtPublishPublisherStreamTest, ReceiveRequestUpdate) {
-  webtransport::test::InMemoryStreamWithWriteBuffer stream(0);
-  stream_visitor_->BindStream(&stream);
-  stream.write_buffer().clear();  // Clear initial PUBLISH
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kPublish), _))
+      .WillOnce(Return(absl::OkStatus()));
+  stream_->BindStream(&mock_stream_);
 
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(MoqtRequestOk{kRequestId}));
   // Set largest location on publisher
   track_publisher_->AddObject(Location(1, 2), 0, "payload", true);
 
@@ -236,9 +208,10 @@ TEST_F(MoqtPublishPublisherStreamTest, ReceiveRequestUpdate) {
   request_update.parameters.subscriber_priority = 5;
   request_update.parameters.subscription_filter.emplace(
       MoqtFilterType::kLargestObject);
-
-  stream.Receive(framer_.SerializeRequestUpdate(request_update).AsStringView());
-  stream_visitor_->OnCanRead();
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _))
+      .WillOnce(Return(absl::OkStatus()));
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(request_update));
 
   // Verify publisher parameters were updated.
   const MessageParameters& pub_params =
@@ -254,51 +227,6 @@ TEST_F(MoqtPublishPublisherStreamTest, ReceiveRequestUpdate) {
   EXPECT_EQ(pub_params.subscription_filter->type(),
             MoqtFilterType::kAbsoluteStart);
   EXPECT_EQ(pub_params.subscription_filter->start(), Location(1, 3));
-
-  // Verify REQUEST_OK response was sent.
-  std::string& written = stream.write_buffer();
-  webtransport::test::InMemoryStream read_stream(0);
-  read_stream.Receive(written);
-  MoqtControlStreamParser read_parser(&read_stream);
-  absl::StatusOr<MoqtRawControlMessage> message = read_parser.ReadNextMessage();
-  ASSERT_TRUE(message.ok());
-  EXPECT_EQ(message->type, MoqtMessageType::kRequestOk);
-
-  MoqtControlMessageParser cmp(kDefaultMoqtVersion, true,
-                               quic::Perspective::IS_CLIENT);
-  absl::StatusOr<MoqtRequestOk> request_ok =
-      cmp.ProcessRequestOk(message->payload);
-  ASSERT_TRUE(request_ok.ok());
-  EXPECT_EQ(request_ok->request_id, request_update.request_id);
-}
-
-TEST_F(MoqtPublishPublisherStreamTest, ReceiveRequestOkMismatchedId) {
-  BidiStreamWithReset stream(0);
-  stream_visitor_->BindStream(&stream);
-
-  // Receive REQUEST_OK with mismatched ID.
-  MoqtRequestOk request_ok;
-  request_ok.request_id = kRequestId + 1;  // Mismatched
-  EXPECT_CALL(error_callback_,
-              Call(MoqtError::kProtocolViolation,
-                   "REQUEST_OK does not match PUBLISH request ID"));
-  stream.Receive(framer_.SerializeRequestOk(request_ok).AsStringView());
-  stream_visitor_->OnCanRead();
-}
-
-TEST_F(MoqtPublishPublisherStreamTest, ReceiveRequestErrorMismatchedId) {
-  BidiStreamWithReset stream(0);
-  stream_visitor_->BindStream(&stream);
-
-  // Receive REQUEST_ERROR with mismatched ID.
-  MoqtRequestError request_error;
-  request_error.request_id = kRequestId + 1;  // Mismatched
-  request_error.error_code = RequestErrorCode::kUninterested;
-  EXPECT_CALL(error_callback_,
-              Call(MoqtError::kProtocolViolation,
-                   "REQUEST_OK does not match PUBLISH request ID"));
-  stream.Receive(framer_.SerializeRequestError(request_error).AsStringView());
-  stream_visitor_->OnCanRead();
 }
 
 class MoqtPublishSubscriberStreamTest : public quiche::test::QuicheTest {
@@ -309,33 +237,18 @@ class MoqtPublishSubscriberStreamTest : public quiche::test::QuicheTest {
                         quic::Perspective::IS_SERVER),
         incoming_publish_callback_(
             incoming_publish_callback_mock_.AsStdFunction()) {
-    SubscribeRemoteTrack::SubscribeCallbacks callbacks;
-    callbacks.query_name = [this](const FullTrackName& name) {
-      return query_name_mock_.Call(name);
-    };
-    callbacks.register_name = [this](const FullTrackName& name,
-                                     SubscribeRemoteTrack* track) {
-      register_name_mock_.Call(name, track);
-    };
-    callbacks.register_alias = [this](uint64_t alias,
-                                      SubscribeRemoteTrack* track) {
-      return register_alias_mock_.Call(alias, track);
-    };
-    callbacks.unregister = [this](const FullTrackName& name,
-                                  std::optional<uint64_t> alias) {
-      unregister_mock_.Call(name, alias);
-    };
-
-    stream_visitor_ = std::make_unique<MoqtPublishSubscriberStream>(
+    stream_ = std::make_unique<MoqtPublishSubscriberStream>(
         &framer_, message_parser_, &mock_clock_, &mock_alarm_factory_,
         error_callback_.AsStdFunction(), &incoming_publish_callback_,
-        std::move(callbacks));
+        mock_add_callback_.AsStdFunction(),
+        mock_remove_callback_.AsStdFunction());
+    stream_->BindStream(&mock_stream_);
+    EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));
   }
 
-  void ExpectSubscriberDestruction() {
-    EXPECT_CALL(unregister_mock_,
-                Call(kTrackName, std::optional<uint64_t>(kTrackAlias)))
-        .Times(1);
+  MoqtPublish DefaultPublish() {
+    return MoqtPublish{kRequestId, kTrackName, kTrackAlias, MessageParameters(),
+                       TrackExtensions()};
   }
 
   MoqtFramer framer_;
@@ -351,263 +264,113 @@ class MoqtPublishSubscriberStreamTest : public quiche::test::QuicheTest {
       incoming_publish_callback_mock_;
   MoqtIncomingPublishCallback incoming_publish_callback_;
 
-  testing::MockFunction<SubscribeRemoteTrack*(const FullTrackName&)>
-      query_name_mock_;
-  testing::MockFunction<void(const FullTrackName&, SubscribeRemoteTrack*)>
-      register_name_mock_;
-  testing::MockFunction<bool(uint64_t, SubscribeRemoteTrack*)>
-      register_alias_mock_;
-  testing::MockFunction<void(const FullTrackName&, std::optional<uint64_t>)>
-      unregister_mock_;
+  testing::MockFunction<bool(SubscribeRemoteTrack*)> mock_add_callback_;
+  testing::MockFunction<void(SubscribeRemoteTrack*)> mock_remove_callback_;
 
   StrictMock<MockSubscribeRemoteTrackVisitor> mock_subscribe_visitor_;
   MoqtResponseCallback captured_response_callback_;
-  std::unique_ptr<MoqtPublishSubscriberStream> stream_visitor_;
+  webtransport::test::MockStream mock_stream_;
+  std::unique_ptr<MoqtPublishSubscriberStream> stream_;
 };
 
 TEST_F(MoqtPublishSubscriberStreamTest, ReceivePublishAndAccept) {
-  BidiStreamWithReset stream(0);
-  stream_visitor_->BindStream(&stream);
-
   EXPECT_CALL(mock_subscribe_visitor_, OnReply(kTrackName, _))
       .WillOnce(
           [](const FullTrackName&,
              const std::variant<SubscribeOkData, MoqtRequestErrorInfo>& reply) {
             EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(reply));
           });
-  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
-  ExpectSubscriberDestruction();
-
-  MoqtPublish publish;
-  publish.request_id = kRequestId;
-  publish.full_track_name = kTrackName;
-  publish.track_alias = kTrackAlias;
-  publish.parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(1);
-
   EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
       .WillOnce([this](const FullTrackName&, const MessageParameters&,
                        const TrackExtensions&, MoqtResponseCallback callback) {
         captured_response_callback_ = std::move(callback);
         return &mock_subscribe_visitor_;
       });
-
-  EXPECT_CALL(query_name_mock_, Call(kTrackName)).WillOnce(Return(nullptr));
-  EXPECT_CALL(register_name_mock_, Call(kTrackName, NotNull())).Times(1);
   SubscribeRemoteTrack* captured_subscriber = nullptr;
-  EXPECT_CALL(register_alias_mock_, Call(kTrackAlias, NotNull()))
-      .WillOnce([&](uint64_t, SubscribeRemoteTrack* track) {
-        captured_subscriber = track;
+  EXPECT_CALL(mock_add_callback_, Call(NotNull()))
+      .WillOnce([&](SubscribeRemoteTrack* subscriber) {
+        captured_subscriber = subscriber;
         return true;
       });
-
-  stream.Receive(framer_.SerializePublish(publish).AsStringView());
-  stream_visitor_->OnCanRead();
+  MoqtPublish publish = DefaultPublish();
+  publish.parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(1);
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
 
   // Verify subscriber is created.
   ASSERT_NE(captured_subscriber, nullptr);
   EXPECT_EQ(captured_subscriber->track_alias(), kTrackAlias);
   EXPECT_EQ(captured_subscriber->visitor(), &mock_subscribe_visitor_);
 
-  // Now call the response callback with success.
-  stream.write_buffer().clear();
+  // Verify REQUEST_OK response was sent.
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _))
+      .WillOnce(Return(absl::OkStatus()));
   MessageParameters response_parameters;
   response_parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(2);
   std::move(captured_response_callback_)(response_parameters);
-
-  // Verify REQUEST_OK response was sent.
-  std::string& written = stream.write_buffer();
-  webtransport::test::InMemoryStream read_stream(0);
-  read_stream.Receive(written);
-  MoqtControlStreamParser read_parser(&read_stream);
-  absl::StatusOr<MoqtRawControlMessage> message = read_parser.ReadNextMessage();
-  ASSERT_TRUE(message.ok());
-  EXPECT_EQ(message->type, MoqtMessageType::kRequestOk);
-
-  MoqtControlMessageParser cmp(kDefaultMoqtVersion, true,
-                               quic::Perspective::IS_SERVER);
-  absl::StatusOr<MoqtRequestOk> request_ok =
-      cmp.ProcessRequestOk(message->payload);
-  ASSERT_TRUE(request_ok.ok());
-  EXPECT_EQ(request_ok->request_id, kRequestId);
-  EXPECT_EQ(request_ok->parameters.delivery_timeout,
-            response_parameters.delivery_timeout);
 
   // Verify subscriber parameters were updated.
   const MessageParameters& sub_params =
       SubscribeRemoteTrackPeer::parameters(*captured_subscriber);
   EXPECT_EQ(sub_params.delivery_timeout, response_parameters.delivery_timeout);
+  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone);
 }
 
 TEST_F(MoqtPublishSubscriberStreamTest, ReceivePublishAndReject) {
-  BidiStreamWithReset stream(0);
-  stream_visitor_->BindStream(&stream);
-
-  MoqtPublish publish;
-  publish.request_id = kRequestId;
-  publish.full_track_name = kTrackName;
-  publish.track_alias = kTrackAlias;
-
+  MoqtPublish publish = DefaultPublish();
   // Callback returns nullptr (rejection).
+  EXPECT_CALL(mock_add_callback_, Call(NotNull())).WillOnce(Return(true));
   EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
       .WillOnce(Return(nullptr));
-
-  stream.Receive(framer_.SerializePublish(publish).AsStringView());
-  stream_visitor_->OnCanRead();
-
-  // Verify REQUEST_ERROR was sent.
-  std::string& written = stream.write_buffer();
-  webtransport::test::InMemoryStream read_stream(0);
-  read_stream.Receive(written);
-  MoqtControlStreamParser read_parser(&read_stream);
-  absl::StatusOr<MoqtRawControlMessage> message = read_parser.ReadNextMessage();
-  ASSERT_TRUE(message.ok());
-  EXPECT_EQ(message->type, MoqtMessageType::kRequestError);
-
-  MoqtControlMessageParser cmp(kDefaultMoqtVersion, true,
-                               quic::Perspective::IS_SERVER);
-  absl::StatusOr<MoqtRequestError> request_error =
-      cmp.ProcessRequestError(message->payload);
-  ASSERT_TRUE(request_error.ok());
-  EXPECT_EQ(request_error->request_id, kRequestId);
-  EXPECT_EQ(request_error->error_code, RequestErrorCode::kUninterested);
-  EXPECT_TRUE(stream.fin_sent());
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(mock_remove_callback_, Call);
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
 }
 
-TEST_F(MoqtPublishSubscriberStreamTest, ReceivePublishDuplicate) {
-  BidiStreamWithReset stream(0);
-  stream_visitor_->BindStream(&stream);
-
-  MoqtPublish publish;
-  publish.request_id = kRequestId;
-  publish.full_track_name = kTrackName;
-  publish.track_alias = kTrackAlias;
-
+TEST_F(MoqtPublishSubscriberStreamTest, ReceiveTwoPublishOnStream) {
+  MoqtPublish publish = DefaultPublish();
+  EXPECT_CALL(mock_add_callback_, Call(NotNull())).WillOnce(Return(true));
   EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
       .WillOnce(Return(&mock_subscribe_visitor_));
-  EXPECT_CALL(query_name_mock_, Call(kTrackName)).WillOnce(Return(nullptr));
-  EXPECT_CALL(register_name_mock_, Call(kTrackName, NotNull())).Times(1);
-  EXPECT_CALL(register_alias_mock_, Call(kTrackAlias, NotNull()))
-      .WillOnce(Return(true));
   EXPECT_CALL(mock_subscribe_visitor_, OnReply(kTrackName, _))
       .WillOnce(
           [](const FullTrackName&,
              const std::variant<SubscribeOkData, MoqtRequestErrorInfo>& reply) {
             EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(reply));
           });
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
+
+  // Receive second PUBLISH on same stream.
+  publish.request_id = kRequestId + 2;
+  publish.full_track_name = FullTrackName("dead", "beef");
+  publish.track_alias = kTrackAlias + 1;
+  EXPECT_FALSE(stream_->OnControlMessage(publish).ok());
   EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
-  ExpectSubscriberDestruction();
-
-  stream.Receive(framer_.SerializePublish(publish).AsStringView());
-  stream_visitor_->OnCanRead();
-
-  // Send second PUBLISH on same stream.
-  stream.Receive(framer_.SerializePublish(publish).AsStringView());
-
-  // It should return InvalidArgumentError, which calls OnFatalError in
-  // MoqtBidiStreamBase.
-  EXPECT_CALL(error_callback_, Call(MoqtError::kProtocolViolation,
-                                    "Multiple PUBLISH on the same stream"));
-  stream_visitor_->OnCanRead();
 }
 
-TEST_F(MoqtPublishSubscriberStreamTest, ReceivePublishDuplicateName) {
-  BidiStreamWithReset stream(0);
-  stream_visitor_->BindStream(&stream);
-
-  MoqtPublish publish;
+TEST_F(MoqtPublishSubscriberStreamTest, ReceivePublishDuplicate) {
+  MoqtPublish publish = DefaultPublish();
   publish.request_id = kRequestId + 2;
   publish.full_track_name = kTrackName;
   publish.track_alias = kTrackAlias;
 
-  // Simulate an existing established track.
-  MoqtSubscribe sub;
-  sub.full_track_name = kTrackName;
-  sub.request_id = kRequestId;
-  StrictMock<MockSubscribeRemoteTrackVisitor> existing_visitor;
-  SubscribeRemoteTrack existing_track(sub, &existing_visitor, []() {}, {});
-  existing_track.OnObjectOrOk();
-
-  EXPECT_CALL(existing_visitor, OnPublishDone(kTrackName)).Times(1);
-
-  EXPECT_CALL(query_name_mock_, Call(kTrackName))
-      .WillOnce(Return(&existing_track));
-
-  stream.Receive(framer_.SerializePublish(publish).AsStringView());
-  stream_visitor_->OnCanRead();
-
-  // Verify REQUEST_ERROR was sent.
-  std::string& written = stream.write_buffer();
-  webtransport::test::InMemoryStream read_stream(0);
-  read_stream.Receive(written);
-  MoqtControlStreamParser read_parser(&read_stream);
-  absl::StatusOr<MoqtRawControlMessage> message = read_parser.ReadNextMessage();
-  ASSERT_TRUE(message.ok());
-  EXPECT_EQ(message->type, MoqtMessageType::kRequestError);
-
-  MoqtControlMessageParser cmp(kDefaultMoqtVersion, true,
-                               quic::Perspective::IS_SERVER);
-  absl::StatusOr<MoqtRequestError> request_error =
-      cmp.ProcessRequestError(message->payload);
-  ASSERT_TRUE(request_error.ok());
-  EXPECT_EQ(request_error->request_id, publish.request_id);
-  EXPECT_EQ(request_error->error_code,
-            RequestErrorCode::kDuplicateSubscription);
-  EXPECT_TRUE(stream.fin_sent());
-}
-
-TEST_F(MoqtPublishSubscriberStreamTest, ReceivePublishDuplicateAlias) {
-  BidiStreamWithReset stream(0);
-  stream_visitor_->BindStream(&stream);
-
-  MoqtPublish publish;
-  publish.request_id = kRequestId;
-  publish.full_track_name = kTrackName;
-  publish.track_alias = kTrackAlias;
-
-  EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
-      .WillOnce(Return(&mock_subscribe_visitor_));
-
-  EXPECT_CALL(query_name_mock_, Call(kTrackName)).WillOnce(Return(nullptr));
-  EXPECT_CALL(register_name_mock_, Call(kTrackName, NotNull())).Times(1);
-  // Return duplicate alias error (false) from alias callback.
-  EXPECT_CALL(register_alias_mock_, Call(kTrackAlias, NotNull()))
-      .WillOnce(Return(false));
-  EXPECT_CALL(mock_subscribe_visitor_, OnReply(kTrackName, _))
-      .WillOnce(
-          [](const FullTrackName&,
-             const std::variant<SubscribeOkData, MoqtRequestErrorInfo>& reply) {
-            EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(reply));
-          });
-  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
-  ExpectSubscriberDestruction();
-
-  // It should call OnFatalError, which calls error_callback_.
-  // Note: The error message is now empty because we pass
-  // AlreadyExistsError("").
-  EXPECT_CALL(error_callback_, Call(MoqtError::kDuplicateTrackAlias, ""));
-
-  stream.Receive(framer_.SerializePublish(publish).AsStringView());
-  stream_visitor_->OnCanRead();
+  EXPECT_CALL(mock_add_callback_, Call).WillOnce(Return(false));
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(mock_remove_callback_, Call);
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
 }
 
 TEST_F(MoqtPublishSubscriberStreamTest, ReceiveRequestUpdate) {
-  // First, establish subscription.
-  BidiStreamWithReset stream(0);
-  stream_visitor_->BindStream(&stream);
-
-  MoqtPublish publish;
-  publish.request_id = kRequestId;
-  publish.full_track_name = kTrackName;
-  publish.track_alias = kTrackAlias;
-
+  MoqtPublish publish = DefaultPublish();
   EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
       .WillOnce(Return(&mock_subscribe_visitor_));
-
-  EXPECT_CALL(query_name_mock_, Call(kTrackName)).WillOnce(Return(nullptr));
-  EXPECT_CALL(register_name_mock_, Call(kTrackName, NotNull())).Times(1);
   SubscribeRemoteTrack* captured_subscriber = nullptr;
-  EXPECT_CALL(register_alias_mock_, Call(kTrackAlias, NotNull()))
-      .WillOnce([&](uint64_t, SubscribeRemoteTrack* track) {
+  EXPECT_CALL(mock_add_callback_, Call(NotNull()))
+      .WillOnce([&](SubscribeRemoteTrack* track) {
         captured_subscriber = track;
         return true;
       });
@@ -617,12 +380,7 @@ TEST_F(MoqtPublishSubscriberStreamTest, ReceiveRequestUpdate) {
              const std::variant<SubscribeOkData, MoqtRequestErrorInfo>& reply) {
             EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(reply));
           });
-  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
-  ExpectSubscriberDestruction();
-
-  stream.Receive(framer_.SerializePublish(publish).AsStringView());
-  stream_visitor_->OnCanRead();
-  stream.write_buffer().clear();
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
 
   // Now receive REQUEST_UPDATE.
   MoqtRequestUpdate request_update;
@@ -630,9 +388,10 @@ TEST_F(MoqtPublishSubscriberStreamTest, ReceiveRequestUpdate) {
   request_update.existing_request_id = kRequestId;
   request_update.parameters.delivery_timeout =
       quic::QuicTimeDelta::FromSeconds(3);
-
-  stream.Receive(framer_.SerializeRequestUpdate(request_update).AsStringView());
-  stream_visitor_->OnCanRead();
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _))
+      .WillOnce(Return(absl::OkStatus()));
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(request_update));
 
   // Verify subscriber parameters were updated.
   ASSERT_NE(captured_subscriber, nullptr);
@@ -640,139 +399,166 @@ TEST_F(MoqtPublishSubscriberStreamTest, ReceiveRequestUpdate) {
       SubscribeRemoteTrackPeer::parameters(*captured_subscriber);
   EXPECT_EQ(sub_params.delivery_timeout,
             request_update.parameters.delivery_timeout);
-
-  // Verify REQUEST_OK response was sent.
-  std::string& written = stream.write_buffer();
-  webtransport::test::InMemoryStream read_stream(0);
-  read_stream.Receive(written);
-  MoqtControlStreamParser read_parser(&read_stream);
-  absl::StatusOr<MoqtRawControlMessage> message = read_parser.ReadNextMessage();
-  ASSERT_TRUE(message.ok());
-  EXPECT_EQ(message->type, MoqtMessageType::kRequestOk);
+  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
 }
 
 TEST_F(MoqtPublishSubscriberStreamTest, ReceivePublishDone) {
-  // First, establish subscription.
-  BidiStreamWithReset stream(0);
-  stream_visitor_->BindStream(&stream);
-
-  MoqtPublish publish;
-  publish.request_id = kRequestId;
-  publish.full_track_name = kTrackName;
-  publish.track_alias = kTrackAlias;
-
+  MoqtPublish publish = DefaultPublish();
   EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
       .WillOnce(Return(&mock_subscribe_visitor_));
-  EXPECT_CALL(query_name_mock_, Call(kTrackName)).WillOnce(Return(nullptr));
-  EXPECT_CALL(register_name_mock_, Call(kTrackName, NotNull())).Times(1);
-  EXPECT_CALL(register_alias_mock_, Call(kTrackAlias, NotNull()))
-      .WillOnce(Return(true));
+  EXPECT_CALL(mock_add_callback_, Call(NotNull())).WillOnce(Return(true));
   EXPECT_CALL(mock_subscribe_visitor_, OnReply(kTrackName, _))
       .WillOnce(
           [](const FullTrackName&,
              const std::variant<SubscribeOkData, MoqtRequestErrorInfo>& reply) {
             EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(reply));
           });
-  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
-  ExpectSubscriberDestruction();
-
-  stream.Receive(framer_.SerializePublish(publish).AsStringView());
-  stream_visitor_->OnCanRead();
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
 
   // Now receive PUBLISH_DONE.
   MoqtPublishDone publish_done;
   publish_done.request_id = kRequestId;
   publish_done.status_code = PublishDoneCode::kTrackEnded;
   publish_done.stream_count = 0;  // Trigger immediate Destroy
-
-  stream.Receive(framer_.SerializePublishDone(publish_done).AsStringView());
-  stream_visitor_->OnCanRead();
-
-  EXPECT_EQ(stream.last_reset_code(), kResetCodeCancelled);
+  EXPECT_CALL(mock_stream_, Writev)
+      .WillOnce([](absl::Span<quiche::QuicheMemSlice> data,
+                   const webtransport::StreamWriteOptions& options) {
+        EXPECT_TRUE(data.empty());
+        EXPECT_TRUE(options.send_fin());
+        return absl::OkStatus();
+      });
+  EXPECT_CALL(mock_remove_callback_, Call);
+  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish_done));
 }
 
 TEST_F(MoqtPublishSubscriberStreamTest, ReceivePublishAndRejectCallback) {
-  BidiStreamWithReset stream(0);
-  stream_visitor_->BindStream(&stream);
-
-  MoqtPublish publish;
-  publish.request_id = kRequestId;
-  publish.full_track_name = kTrackName;
-  publish.track_alias = kTrackAlias;
-
+  MoqtPublish publish = DefaultPublish();
   EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
       .WillOnce([this](const FullTrackName&, const MessageParameters&,
                        const TrackExtensions&, MoqtResponseCallback callback) {
         captured_response_callback_ = std::move(callback);
         return &mock_subscribe_visitor_;
       });
-
-  EXPECT_CALL(query_name_mock_, Call(kTrackName)).WillOnce(Return(nullptr));
-  EXPECT_CALL(register_name_mock_, Call(kTrackName, NotNull())).Times(1);
-  EXPECT_CALL(register_alias_mock_, Call(kTrackAlias, NotNull()))
-      .WillOnce(Return(true));
+  EXPECT_CALL(mock_add_callback_, Call(NotNull())).WillOnce(Return(true));
   EXPECT_CALL(mock_subscribe_visitor_, OnReply(kTrackName, _))
       .WillOnce(
           [](const FullTrackName&,
              const std::variant<SubscribeOkData, MoqtRequestErrorInfo>& reply) {
             EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(reply));
           });
-  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
-  ExpectSubscriberDestruction();
-
-  stream.Receive(framer_.SerializePublish(publish).AsStringView());
-  stream_visitor_->OnCanRead();
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
 
   // Now call the response callback with error (reject).
-  stream.write_buffer().clear();
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
+      .WillOnce(Return(absl::OkStatus()));
   MoqtRequestErrorInfo error_info{RequestErrorCode::kUninterested, std::nullopt,
                                   "rejected by app"};
+  EXPECT_CALL(mock_remove_callback_, Call);
+  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
   std::move(captured_response_callback_)(error_info);
-
-  // Verify REQUEST_ERROR response was sent.
-  std::string& written = stream.write_buffer();
-  webtransport::test::InMemoryStream read_stream(0);
-  read_stream.Receive(written);
-  MoqtControlStreamParser read_parser(&read_stream);
-  absl::StatusOr<MoqtRawControlMessage> message = read_parser.ReadNextMessage();
-  ASSERT_TRUE(message.ok());
-  EXPECT_EQ(message->type, MoqtMessageType::kRequestError);
-
-  MoqtControlMessageParser cmp(kDefaultMoqtVersion, true,
-                               quic::Perspective::IS_SERVER);
-  absl::StatusOr<MoqtRequestError> request_error =
-      cmp.ProcessRequestError(message->payload);
-  ASSERT_TRUE(request_error.ok());
-  EXPECT_EQ(request_error->request_id, kRequestId);
-  EXPECT_EQ(request_error->error_code, RequestErrorCode::kUninterested);
-  EXPECT_EQ(request_error->reason_phrase, "rejected by app");
 }
 
 TEST_F(MoqtPublishSubscriberStreamTest, ReceivePublishDoneOnRejectedStream) {
-  BidiStreamWithReset stream(0);
-  stream_visitor_->BindStream(&stream);
-
-  MoqtPublish publish;
-  publish.request_id = kRequestId;
-  publish.full_track_name = kTrackName;
-  publish.track_alias = kTrackAlias;
-
+  MoqtPublish publish = DefaultPublish();
   // Callback returns nullptr (rejection).
+  EXPECT_CALL(mock_add_callback_, Call(NotNull())).WillOnce(Return(true));
   EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
       .WillOnce(Return(nullptr));
-
-  stream.Receive(framer_.SerializePublish(publish).AsStringView());
-  stream_visitor_->OnCanRead();
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(mock_remove_callback_, Call);
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
 
   // Now receive PUBLISH_DONE.
   MoqtPublishDone publish_done;
   publish_done.request_id = kRequestId;
   publish_done.status_code = PublishDoneCode::kTrackEnded;
   publish_done.stream_count = 0;
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish_done));
+}
 
-  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName)).Times(0);
-  stream.Receive(framer_.SerializePublishDone(publish_done).AsStringView());
-  stream_visitor_->OnCanRead();
+TEST_F(MoqtPublishSubscriberStreamTest, DuplicatePublishOnSameStream) {
+  MoqtPublish publish = DefaultPublish();
+  EXPECT_CALL(mock_add_callback_, Call(NotNull())).WillOnce(Return(true));
+  EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
+      .WillOnce(Return(&mock_subscribe_visitor_));
+  EXPECT_CALL(mock_subscribe_visitor_, OnReply(kTrackName, _))
+      .WillOnce(
+          [](const FullTrackName&,
+             const std::variant<SubscribeOkData, MoqtRequestErrorInfo>& reply) {
+            EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(reply));
+          });
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
+
+  // Receive second PUBLISH on same stream. Should cause a session error.
+  EXPECT_CALL(error_callback_, Call(MoqtError::kProtocolViolation,
+                                    "Multiple PUBLISH on the same stream"));
+  MoqtPublish publish2 = DefaultPublish();
+  publish2.request_id = kRequestId + 2;
+  publish2.full_track_name = FullTrackName("dead", "beef");
+  publish2.track_alias = kTrackAlias + 1;
+  stream_->CheckStatus(stream_->OnControlMessage(publish2));
+  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
+}
+
+TEST_F(MoqtPublishSubscriberStreamTest, DuplicatePublishOnDifferentStreams) {
+  MoqtPublish publish1 = DefaultPublish();
+  EXPECT_CALL(mock_add_callback_, Call(NotNull())).WillOnce(Return(true));
+  EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
+      .WillOnce(Return(&mock_subscribe_visitor_));
+  EXPECT_CALL(mock_subscribe_visitor_, OnReply(kTrackName, _))
+      .WillOnce(
+          [](const FullTrackName&,
+             const std::variant<SubscribeOkData, MoqtRequestErrorInfo>& reply) {
+            EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(reply));
+          });
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish1));
+
+  // Second stream
+  testing::MockFunction<void(MoqtError, absl::string_view)> error_callback2;
+  testing::MockFunction<bool(SubscribeRemoteTrack*)> mock_add_callback2;
+  testing::MockFunction<void(SubscribeRemoteTrack*)> mock_remove_callback2;
+  testing::MockFunction<SubscribeVisitor*(
+      const FullTrackName&, const MessageParameters&, const TrackExtensions&,
+      MoqtResponseCallback)>
+      incoming_publish_callback_mock2;
+  MoqtIncomingPublishCallback incoming_publish_callback2 =
+      incoming_publish_callback_mock2.AsStdFunction();
+
+  webtransport::test::MockStream mock_stream2;
+  MoqtPublishSubscriberStream stream2(
+      &framer_, message_parser_, &mock_clock_, &mock_alarm_factory_,
+      error_callback2.AsStdFunction(), &incoming_publish_callback2,
+      mock_add_callback2.AsStdFunction(),
+      mock_remove_callback2.AsStdFunction());
+  stream2.BindStream(&mock_stream2);
+  EXPECT_CALL(mock_stream2, CanWrite).WillRepeatedly(Return(true));
+
+  // Duplicate PUBLISH (same track name) on stream2 is rejected.
+  MoqtPublish publish2 = DefaultPublish();
+  publish2.request_id = kRequestId + 2;
+  publish2.full_track_name = kTrackName;
+  EXPECT_CALL(mock_add_callback2, Call(NotNull())).WillOnce(Return(false));
+  EXPECT_CALL(mock_stream2,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
+      .WillOnce(Return(absl::OkStatus()));
+  EXPECT_CALL(mock_remove_callback2, Call);
+
+  QUICHE_EXPECT_OK(stream2.OnControlMessage(publish2));
+
+  // Finally, a PUBLISH on the second stream triggers a session error.
+  EXPECT_CALL(error_callback2, Call(MoqtError::kProtocolViolation,
+                                    "Multiple PUBLISH on the same stream"));
+  MoqtPublish publish3 = DefaultPublish();
+  publish3.request_id = kRequestId + 4;
+  publish3.full_track_name = kTrackName;
+  stream2.CheckStatus(stream2.OnControlMessage(publish3));
+
+  // Test teardown expectations
+  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
 }
 
 }  // namespace

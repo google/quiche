@@ -2355,7 +2355,7 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
       &framer,
       MoqtControlMessageParser(kDefaultMoqtVersion, true,
                                quic::Perspective::IS_CLIENT),
-      nullptr, &tree, callback);
+      [](const TrackNamespace&) { return true; }, nullptr, nullptr, callback);
   namespace_stream.BindStream(&mock_stream_);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
@@ -2967,6 +2967,9 @@ TEST_F(MoqtSessionTest, IncomingPublishAbortsPendingSubscribe) {
                       testing::VariantWith<SubscribeOkData>(
                           testing::Field(&SubscribeOkData::parameters,
                                          testing::Eq(publish.parameters)))));
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kUnsubscribe), _))
+      .WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(remote_track_visitor_, OnPublishDone(kDefaultTrackName()))
       .Times(0);
   EXPECT_FALSE(incoming_publish_callback_called);

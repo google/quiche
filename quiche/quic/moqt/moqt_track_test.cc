@@ -4,7 +4,6 @@
 
 #include "quiche/quic/moqt/moqt_track.h"
 
-#include <cstdint>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -22,7 +21,6 @@
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/quiche_mem_slice.h"
-#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -56,19 +54,12 @@ class SubscribeRemoteTrackTest : public quic::test::QuicTest {
  public:
   SubscribeRemoteTrackTest()
       : track_(
-            subscribe_, &visitor_, [this]() { deleted_ = true; },
-            SubscribeRemoteTrack::SubscribeCallbacks{
-                /*query_name_=*/nullptr,
-                /*register_name_=*/nullptr,
-                /*register_alias_=*/
-                [this](uint64_t, SubscribeRemoteTrack* track) {
-                  alias_registered_ = (track != nullptr);
-                  if (alias_registered_) {
-                    EXPECT_EQ(track, &track_);
-                  }
-                  return true;
-                },
-                /*unregister_=*/nullptr}) {}
+            subscribe_, &visitor_,
+            [&](SubscribeRemoteTrack*) {
+              alias_registered_ = true;
+              return true;
+            },
+            [this](SubscribeRemoteTrack*) { deleted_ = true; }) {}
 
   MockSubscribeRemoteTrackVisitor visitor_;
   MoqtSubscribe subscribe_ = {/*request_id=*/1, FullTrackName("foo", "bar"),
@@ -88,6 +79,7 @@ TEST_F(SubscribeRemoteTrackTest, Queries) {
   EXPECT_FALSE(track_.is_fetch());
   EXPECT_TRUE(track_.set_track_alias(1));
   EXPECT_EQ(track_.track_alias(), 1);
+  EXPECT_TRUE(alias_registered_);
 }
 
 TEST_F(SubscribeRemoteTrackTest, AllowError) {

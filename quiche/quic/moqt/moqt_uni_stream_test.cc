@@ -492,17 +492,13 @@ class IncomingDataStreamTest : public quic::test::QuicTest {
     EXPECT_CALL(session_, deliver_partial_objects())
         .WillRepeatedly(Return(false));
     track_ = std::make_unique<SubscribeRemoteTrack>(
-        subscribe_message_, &visitor_, []() {},
-        SubscribeRemoteTrack::SubscribeCallbacks{
-            /*query_name_=*/nullptr,
-            /*register_name_=*/nullptr,
-            /*register_alias_=*/
-            [this](uint64_t alias, SubscribeRemoteTrack* track) {
-              alias_ = alias;
-              alias_track_ = track;
-              return true;
-            },
-            /*unregister_=*/nullptr});
+        subscribe_message_, &visitor_,
+        [this](SubscribeRemoteTrack* track) {
+          alias_track_ = track;
+          alias_ = track->track_alias().value();
+          return true;
+        },
+        nullptr);
     EXPECT_TRUE(track_->set_track_alias(2));
     CreateStream();
   }

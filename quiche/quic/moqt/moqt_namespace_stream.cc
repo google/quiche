@@ -23,7 +23,6 @@
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
-#include "quiche/quic/moqt/session_namespace_tree.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/web_transport/stream_helpers.h"
 
@@ -34,6 +33,7 @@ MoqtNamespaceSubscriberStream::~MoqtNamespaceSubscriberStream() {
   if (task != nullptr) {
     task->DeclareEof();
   }
+  Detach();
 }
 absl::Status MoqtNamespaceSubscriberStream::OnRawControlMessage(
     const MoqtRawControlMessage& message) {
@@ -247,25 +247,15 @@ MoqtNamespaceSubscriberStream::NamespaceTask::GetResponseCallback(
 
 MoqtNamespacePublisherStream::MoqtNamespacePublisherStream(
     MoqtFramer* framer, const MoqtControlMessageParser& message_parser,
+    AddPrefixCallback add_callback, RemovePrefixCallback remove_callback,
     SessionErrorCallback session_error_callback,
-    SessionNamespaceTree* absl_nonnull tree,
     MoqtIncomingSubscribeNamespaceCallback& application)
     // No stream_deleted_callback because there's no state yet.
-    : MoqtBidiStreamBase(
-          framer, message_parser, []() {}, std::move(session_error_callback)),
-      tree_(tree->GetWeakPtr()),
+    : MoqtBidiStreamBase(framer, message_parser,
+                         std::move(session_error_callback)),
+      add_callback_(std::move(add_callback)),
+      remove_callback_(std::move(remove_callback)),
       application_(application) {}
-
-MoqtNamespacePublisherStream::~MoqtNamespacePublisherStream() {
-  if (task_ == nullptr) {
-    return;
-  }
-  SessionNamespaceTree* tree = tree_.GetIfAvailable();
-  if (tree != nullptr) {
-    // Could be null if the stream died early.
-    tree->UnsubscribeNamespace(task_->prefix());
-  }
-}
 
 absl::Status MoqtNamespacePublisherStream::OnRawControlMessage(
     const MoqtRawControlMessage& message) {
@@ -276,15 +266,15 @@ absl::Status MoqtNamespacePublisherStream::OnRawControlMessage(
 absl::Status MoqtNamespacePublisherStream::OnControlMessage(
     const MoqtSubscribeNamespace& message) {
   request_id_ = message.request_id;
-  SessionNamespaceTree* tree = tree_.GetIfAvailable();
-  if (tree == nullptr) {
-    return SendRequestError(request_id_, RequestErrorCode::kInternalError,
-                            std::nullopt, "Session is gone", /*fin=*/true);
+  if (add_callback_ == nullptr) {
+    return absl::InvalidArgumentError("Two SUBSCRIBE_NAMESPACE on one stream");
   }
-  if (!tree->SubscribeNamespace(message.track_namespace_prefix)) {
+  if (!std::move(add_callback_)(message.track_namespace_prefix)) {
+    add_callback_ = nullptr;
     return SendRequestError(request_id_, RequestErrorCode::kPrefixOverlap,
                             std::nullopt, "", /*fin=*/true);
   }
+  add_callback_ = nullptr;
   QUICHE_DCHECK(task_ == nullptr);
   task_ =
       application_(message.track_namespace_prefix, message.subscribe_options,
@@ -303,6 +293,13 @@ absl::Status MoqtNamespacePublisherStream::OnControlMessage(
   }
   task_->Update(message.parameters, ResponseCallback(message.request_id));
   return absl::OkStatus();
+}
+
+void MoqtNamespacePublisherStream::Detach() {
+  if (remove_callback_ != nullptr) {
+    std::move(remove_callback_)(prefix_);
+    remove_callback_ = nullptr;
+  }
 }
 
 void MoqtNamespacePublisherStream::ProcessNamespaces() {

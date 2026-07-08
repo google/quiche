@@ -17,7 +17,6 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
@@ -40,24 +39,18 @@ constexpr quic::QuicTimeDelta kMaxPublishDoneTimeout =
 
 }  // namespace
 
-void RemoteTrack::Destroy() {
-  if (delete_callback_ == nullptr) {
-    return;
-  }
-  BidiStreamDeletedCallback delete_callback = std::move(delete_callback_);
-  delete_callback_ = nullptr;
-  std::move(delete_callback)();
-}
-
 SubscribeRemoteTrack::~SubscribeRemoteTrack() {
   if (publish_done_alarm_ != nullptr) {
     publish_done_alarm_->PermanentCancel();
   }
-  if (callbacks_.unregister) {
-    std::move(callbacks_.unregister)(full_track_name(), track_alias_);
+  if (remove_callback_ != nullptr) {
+    RemoveCallback callback = std::move(remove_callback_);
+    remove_callback_ = nullptr;
+    std::move(callback)(this);
   }
   if (visitor_ != nullptr) {
     visitor_->OnPublishDone(full_track_name());
+    visitor_ = nullptr;
   }
 }
 
@@ -190,6 +183,10 @@ UpstreamFetch::~UpstreamFetch() {
     // Notify the task (which the application owns) that nothing more is coming.
     // If this has already been called, UpstreamFetchTask will ignore it.
     task->OnStreamAndFetchClosed(kResetCodeCancelled, "");
+  }
+  if (remove_callback_ != nullptr) {
+    std::move(remove_callback_)();
+    remove_callback_ = nullptr;
   }
 }
 

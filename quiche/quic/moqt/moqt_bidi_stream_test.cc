@@ -5,6 +5,7 @@
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 
 #include <memory>
+#include <optional>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
@@ -14,7 +15,9 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/test_tools/in_memory_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 
@@ -35,10 +38,10 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
     return ControlMessageDispatcher::DispatchControlMessage(
         *this, message_parser(), message, "test");
   }
-  int ok_received() const { return ok_received_; }
+  void Detach() override { detached_ = true; }
 
- private:
   int ok_received_ = 0;
+  bool detached_ = false;
 };
 
 class MoqtBidiStreamTest : public quiche::test::QuicheTest {
@@ -50,11 +53,9 @@ class MoqtBidiStreamTest : public quiche::test::QuicheTest {
             MoqtControlMessageParser(kDefaultMoqtVersion,
                                      /*webtransport=*/true,
                                      quic::Perspective::IS_CLIENT),
-            deleted_callback_.AsStdFunction(),
             error_callback_.AsStdFunction())) {}
 
   MoqtFramer framer_;
-  testing::MockFunction<void()> deleted_callback_;
   testing::StrictMock<testing::MockFunction<void(MoqtError, absl::string_view)>>
       error_callback_;
   std::unique_ptr<TestMoqtBidiStream> stream_;
@@ -65,11 +66,50 @@ TEST_F(MoqtBidiStreamTest, Reset) {
   stream_->BindStream(&mock_stream_);
   EXPECT_CALL(mock_stream_, ResetWithUserCode(1234));
   stream_->Reset(1234);
+  EXPECT_TRUE(stream_->detached_);
 }
 
-TEST_F(MoqtBidiStreamTest, DeletedCallback) {
-  EXPECT_CALL(deleted_callback_, Call());
-  stream_.reset();
+TEST_F(MoqtBidiStreamTest, IncomingReset) {
+  stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, ResetWithUserCode(1234));
+  stream_->OnResetStreamReceived(1234);
+  EXPECT_TRUE(stream_->detached_);
+}
+
+TEST_F(MoqtBidiStreamTest, FinDetaches) {
+  stream_->BindStream(&mock_stream_);
+  stream_->Fin();
+  EXPECT_TRUE(stream_->detached_);
+}
+
+TEST_F(MoqtBidiStreamTest, IncomingStopSending) {
+  stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, ResetWithUserCode(1234));
+  stream_->OnStopSendingReceived(1234);
+  EXPECT_TRUE(stream_->detached_);
+}
+
+TEST_F(MoqtBidiStreamTest, SendRequestError) {
+  stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(
+      mock_stream_,
+      Writev(ControlMessageOfType(MoqtMessageType::kRequestError), testing::_));
+  QUICHE_EXPECT_OK(stream_->SendRequestError(
+      1,
+      MoqtRequestErrorInfo{RequestErrorCode::kUnauthorized,
+                           /*retry_interval=*/std::nullopt, ""},
+      false));
+  EXPECT_FALSE(stream_->detached_);
+  EXPECT_CALL(
+      mock_stream_,
+      Writev(ControlMessageOfType(MoqtMessageType::kRequestError), testing::_));
+  QUICHE_EXPECT_OK(stream_->SendRequestError(
+      1,
+      MoqtRequestErrorInfo{RequestErrorCode::kUnauthorized,
+                           /*retry_interval=*/std::nullopt, ""},
+      true));
+  EXPECT_TRUE(stream_->detached_);
 }
 
 TEST_F(MoqtBidiStreamTest, DispatchControlMessage) {
@@ -78,7 +118,7 @@ TEST_F(MoqtBidiStreamTest, DispatchControlMessage) {
   MoqtFramer framer(/*using_webtrans=*/true, quic::Perspective::IS_SERVER);
   stream.Receive(framer.SerializeRequestOk(MoqtRequestOk()).AsStringView());
   stream_->OnCanRead();
-  EXPECT_EQ(stream_->ok_received(), 1u);
+  EXPECT_EQ(stream_->ok_received_, 1u);
 
   stream.Receive(framer.SerializeGoAway(MoqtGoAway()).AsStringView());
   EXPECT_CALL(error_callback_, Call)

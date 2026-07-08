@@ -45,10 +45,16 @@ absl::Status MoqtControlMessageQueue::SendOrBufferMessage(
     fin_queued_ = fin;
     return AddToQueue(std::move(message));
   }
+  if (fin) {
+    fin_queued_ = true;
+  }
   return SendMessage(*stream_, std::move(message), fin);
 }
 
 absl::Status MoqtControlMessageQueue::Fin() {
+  if (fin_queued_) {
+    return absl::OkStatus();
+  }
   fin_queued_ = true;
   if (stream_ != nullptr) {
     return OnCanWrite();
@@ -65,6 +71,7 @@ absl::Status MoqtControlMessageQueue::AddToQueue(quiche::QuicheBuffer message) {
   return absl::OkStatus();
 }
 
+// static
 absl::Status MoqtControlMessageQueue::SendMessage(webtransport::Stream& stream,
                                                   quiche::QuicheBuffer message,
                                                   bool fin) {

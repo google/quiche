@@ -11,6 +11,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/casts.h"
 #include "absl/base/nullability.h"
 #include "absl/cleanup/cleanup.h"
 #include "absl/container/btree_map.h"
@@ -245,9 +246,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     explicit ControlStream(MoqtSession* session)
         : MoqtBidiStreamBase(
               &session->framer_, session->ControlMessageParser(),
-              // Do nothing on deletion. It threw an error on RESET_STREAM or
-              // FIN, and we're here because the session is being destroyed.
-              []() {},
               [session](MoqtError code, absl::string_view reason) {
                 session->control_stream_ =
                     quiche::QuicheWeakPtr<ControlStream>();
@@ -283,6 +281,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     }
     quiche::QuicheWeakPtr<ControlStream> GetWeakPtr() {
       return weak_ptr_factory_.Create();
+    }
+    void Detach() override {
+      session_->Error(MoqtError::kProtocolViolation, "Control stream closed");
     }
 
    private:
@@ -400,8 +401,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   SubscribeRemoteTrack* RemoteTrackByAlias(uint64_t track_alias);
   RemoteTrack* RemoteTrackById(uint64_t request_id);
   SubscribeRemoteTrack* RemoteTrackByName(const FullTrackName& name);
-
-  SubscribeRemoteTrack::SubscribeCallbacks GetSubscribeCallbacks();
 
   // Checks that a subscribe ID from a SUBSCRIBE or FETCH is valid, and throws
   // a session error if is not.
@@ -594,6 +593,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   std::shared_ptr<Empty> liveness_token_;
 };
+
+static MoqtSession* absl_nullable MoqtSessionFromWeakPtr(
+    const quiche::QuicheWeakPtr<MoqtSessionInterface>& weak_ptr) {
+  return absl::down_cast<MoqtSession*>(weak_ptr.GetIfAvailable());
+}
 
 }  // namespace moqt
 

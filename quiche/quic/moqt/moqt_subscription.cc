@@ -142,8 +142,8 @@ void SubscriptionPublisher::OnSubscribeAccepted() {
 }
 
 void SubscriptionPublisher::OnSubscribeRejected(MoqtRequestErrorInfo info) {
-  bidi_stream_->CheckStatus(bidi_stream_->SendRequestError(request_id_, info,
-                                                           /*fin=*/true));
+  bidi_stream_->CheckStatus(bidi_stream_->SendRequestError(
+      request_id_, info, /*fin=*/!bidi_stream_->is_control_stream()));
   if (bidi_stream_->is_control_stream()) {
     visitor_->PublishIsDone(request_id_);
   }

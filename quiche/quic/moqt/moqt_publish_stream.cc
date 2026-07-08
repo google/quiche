@@ -30,15 +30,15 @@ namespace moqt {
 MoqtPublishPublisherStream::MoqtPublishPublisherStream(
     MoqtFramer* absl_nonnull framer,
     const MoqtControlMessageParser& message_parser,
-    BidiStreamDeletedCallback stream_deleted_callback,
+    SubscriptionPublisher::RemoveCallback stream_deleted_callback,
     SessionErrorCallback session_error_callback,
     MoqtResponseCallback response_callback)
     : MoqtBidiStreamBase(framer, message_parser,
-                         std::move(stream_deleted_callback),
                          std::move(session_error_callback)),
-      response_callback_(std::move(response_callback)) {}
+      response_callback_(std::move(response_callback)),
+      stream_deleted_callback_(std::move(stream_deleted_callback)) {}
 
-MoqtPublishPublisherStream::~MoqtPublishPublisherStream() {}
+MoqtPublishPublisherStream::~MoqtPublishPublisherStream() { Detach(); }
 
 void MoqtPublishPublisherStream::OnStreamBound() {
   stream_parser()->set_allow_fin(true);
@@ -110,20 +110,16 @@ MoqtPublishSubscriberStream::MoqtPublishSubscriberStream(
     quic::QuicAlarmFactory* absl_nonnull alarm_factory,
     SessionErrorCallback session_error_callback,
     const MoqtIncomingPublishCallback* absl_nonnull incoming_publish_callback,
-    SubscribeRemoteTrack::SubscribeCallbacks callbacks)
-    : MoqtBidiStreamBase(
-          framer, message_parser,
-          /*stream_deleted_callback=*/+[]() {},
-          std::move(session_error_callback)),
+    SubscribeRemoteTrack::AddCallback add_callback,
+    SubscribeRemoteTrack::RemoveCallback remove_callback)
+    : MoqtBidiStreamBase(framer, message_parser,
+                         std::move(session_error_callback)),
       clock_(clock),
       alarm_factory_(alarm_factory),
       incoming_publish_callback_(incoming_publish_callback),
-      callbacks_(std::move(callbacks)),
+      add_callback_(std::move(add_callback)),
+      remove_callback_(std::move(remove_callback)),
       weak_ptr_factory_(this) {}
-
-MoqtPublishSubscriberStream::~MoqtPublishSubscriberStream() {
-  in_destructor_ = true;
-}
 
 absl::Status MoqtPublishSubscriberStream::OnRawControlMessage(
     const MoqtRawControlMessage& message) {
@@ -133,29 +129,22 @@ absl::Status MoqtPublishSubscriberStream::OnRawControlMessage(
 
 absl::Status MoqtPublishSubscriberStream::OnControlMessage(
     const MoqtPublish& message) {
-  if (incoming_publish_callback_ == nullptr) {
+  if (add_callback_ == nullptr) {
     // Two PUBLISH messages for the same stream.
     return absl::InvalidArgumentError("Multiple PUBLISH on the same stream");
   }
-  SubscribeVisitor* visitor = nullptr;
-  SubscribeRemoteTrack* existing_track =
-      std::move(callbacks_.query_name)(message.full_track_name);
-  callbacks_.query_name = nullptr;
-  if (existing_track != nullptr) {
-    // Track already exists.
-    if (!existing_track->ErrorIsAllowed()) {
-      // It's not a pending SUBSCRIBE; refuse this PUBLISH.
-      return SendRequestError(message.request_id,
-                              RequestErrorCode::kDuplicateSubscription,
-                              /*retry_interval=*/std::nullopt, "",
-                              /*fin=*/true);
-    }
-    // It's a pending SUBSCRIBE. Transition it and accept the PUBLISH.
-    visitor = existing_track->ReleaseVisitor();
-    existing_track->Destroy();
-  } else {
-    // No existing SUBSCRIBE, get a new visitor from the application callback.
-    visitor = (*incoming_publish_callback_)(
+  subscriber_ = std::make_unique<SubscribeRemoteTrack>(message, nullptr, this);
+  if (!std::move(add_callback_)(subscriber_.get())) {
+    add_callback_ = nullptr;
+    return SendRequestError(message.request_id,
+                            RequestErrorCode::kDuplicateSubscription,
+                            /*retry_interval=*/std::nullopt, "",
+                            /*fin=*/true);
+  }
+  add_callback_ = nullptr;
+  if (subscriber_->visitor() == nullptr) {
+    // There was no existing SUBSCRIBE, so invoke the callback.
+    subscriber_->set_visitor((*incoming_publish_callback_)(
         message.full_track_name, message.parameters, message.extensions,
         [weakptr = weak_ptr_factory_.Create(), request_id = message.request_id](
             const std::variant<MessageParameters, MoqtRequestErrorInfo>
@@ -168,36 +157,27 @@ absl::Status MoqtPublishSubscriberStream::OnControlMessage(
               absl::Overload{[&](const MessageParameters& parameters) {
                                stream->subscriber_->Update(parameters);
                                stream->CheckStatus(stream->SendRequestOk(
-                                   request_id, parameters));
+                                   request_id, parameters, /*fin=*/false));
                              },
                              [&](const MoqtRequestErrorInfo& error_info) {
                                stream->CheckStatus(stream->SendRequestError(
-                                   request_id, error_info));
+                                   request_id, error_info, /*fin=*/true));
                              }},
               response);
-        });
+        }));
   }
   incoming_publish_callback_ = nullptr;
-  if (visitor == nullptr) {
+  if (subscriber_->visitor() == nullptr) {
+    // The application doesn't care.
     CheckStatus(SendRequestError(message.request_id,
                                  RequestErrorCode::kUninterested,
                                  /*retry_interval=*/std::nullopt, "",
                                  /*fin=*/true));
     return absl::OkStatus();
   }
-  subscriber_ = std::make_unique<SubscribeRemoteTrack>(
-      message, visitor,
-      [this]() {
-        if (!in_destructor_) {
-          subscriber_.reset();
-          stream()->ResetWithUserCode(kResetCodeCancelled);
-        }
-      },
-      std::move(callbacks_));
-  bool success = subscriber_->set_track_alias(message.track_alias);
-  if (!success) {
-    OnFatalError(absl::AlreadyExistsError(""));
-  }
+  // Notify the visitor.
+  subscriber_->OnObjectOrOk(
+      SubscribeOkData{message.parameters, message.extensions});
   return absl::OkStatus();
 }
 
