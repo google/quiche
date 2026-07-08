@@ -210,6 +210,47 @@ TEST(ObliviousHttpKeyConfigs, SingleKeyConfig) {
               IsOkAndHolds(expected_public_key));
 }
 
+TEST(ObliviousHttpKeyConfigs, SomeUnsupportedSymmetricAlgorithms) {
+  std::string key;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("4b"                                // key_id
+                             "0020"                              // kem_id
+                             "606162636465666768696a6b6c6d6e6f"  // public_key
+                             "707172737475767778797a7b7c7d7e7f"  // public_key
+                             "0008"       // len(symmetric_algorithms)
+                             "0001BEEF"   // HKDF_SHA256, Unsupported
+                             "00010002",  // HKDF_SHA256, AES_256_GCM
+                             &key));
+  auto configs = ObliviousHttpKeyConfigs::ParseConcatenatedKeys(key);
+  QUICHE_ASSERT_OK(configs);
+  EXPECT_THAT(*configs, Property(&ObliviousHttpKeyConfigs::NumKeys, 1));
+  EXPECT_THAT(
+      configs->PreferredConfig(),
+      AllOf(HasKeyId(0x4b), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
+            HasKdfId(EVP_HPKE_HKDF_SHA256), HasAeadId(EVP_HPKE_AES_256_GCM)));
+  std::string expected_public_key;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f",
+      &expected_public_key));
+  EXPECT_THAT(configs->GetPublicKeyForId(configs->PreferredConfig().GetKeyId()),
+              IsOkAndHolds(expected_public_key));
+}
+
+TEST(ObliviousHttpKeyConfigs, NoSupportedSymmetricAlgorithms) {
+  std::string key;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      // First key config.
+      "4b"                                // key_id
+      "0020"                              // kem_id
+      "606162636465666768696a6b6c6d6e6f"  // public_key
+      "707172737475767778797a7b7c7d7e7f"  // public_key
+      "0008"                              // len(symmetric_algorithms)
+      "0001DEAD"                          // HKDF_SHA256, Unsupported
+      "0001BEEF",                         // HKDF_SHA256, Unsupported
+      &key));
+  EXPECT_FALSE(ObliviousHttpKeyConfigs::ParseConcatenatedKeys(key).ok());
+}
+
 TEST(ObliviousHttpKeyConfigs, TwoSimilarKeyConfigs) {
   std::string key;
   ASSERT_TRUE(absl::HexStringToBytes(

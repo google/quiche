@@ -388,6 +388,7 @@ absl::Status ObliviousHttpKeyConfigs::ReadSingleKeyConfig(
     return absl::InvalidArgumentError("Failed to read symmetric algorithms");
   }
   QuicheDataReader sub_reader(alg_bytes);
+  bool found_supported_symmetric_algs = false;
   while (!sub_reader.IsDoneReading()) {
     uint16_t kdf_id;
     if (!sub_reader.ReadUInt16(&kdf_id)) {
@@ -398,12 +399,20 @@ absl::Status ObliviousHttpKeyConfigs::ReadSingleKeyConfig(
       return absl::InvalidArgumentError("Failed to read aead_id");
     }
 
-    // TODO(kmg): Add support to ignore key types in the server response that
-    // aren't supported by the client.
+    if (!CheckKdfId(kdf_id).ok() || !CheckAeadId(aead_id).ok()) {
+      // Skip unsupported symmetric algorithms pairs.
+      continue;
+    }
+
     QUICHE_ASSIGN_OR_RETURN(
         ObliviousHttpHeaderKeyConfig cfg,
         ObliviousHttpHeaderKeyConfig::Create(key_id, kem_id, kdf_id, aead_id));
     configs[key_id].emplace_back(std::move(cfg));
+    found_supported_symmetric_algs = true;
+  }
+  if (!found_supported_symmetric_algs) {
+    return absl::InvalidArgumentError(absl::StrCat(
+        "No supported symmetric algorithms found for key_id ", key_id));
   }
   // Intentionally allow extra data at the end of the key config. This will
   // allow us to use it for extensions. See
