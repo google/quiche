@@ -166,16 +166,17 @@ bool ParseHTTPFirstLine(char* begin, char* end, bool is_request,
                         BalsaFrameEnums::ErrorCode* error_code,
                         FirstLineValidationOption whitespace_option,
                         FirstLineValidationOption multiple_spaces_option,
-                        bool& has_multiple_spaces) {
+                        bool& has_multiple_spaces, bool& has_cr_tab) {
   while (begin < end && (end[-1] == '\n' || end[-1] == '\r')) {
     --end;
   }
 
-  if (whitespace_option != FirstLineValidationOption::NONE) {
-    constexpr absl::string_view kBadWhitespace = "\r\t";
-    char* pos = std::find_first_of(begin, end, kBadWhitespace.begin(),
-                                   kBadWhitespace.end());
-    if (pos != end) {
+  constexpr absl::string_view kBadWhitespace = "\r\t";
+  char* pos = std::find_first_of(begin, end, kBadWhitespace.begin(),
+                                 kBadWhitespace.end());
+  if (pos != end) {
+    has_cr_tab = true;
+    if (whitespace_option != FirstLineValidationOption::NONE) {
       if (whitespace_option == FirstLineValidationOption::REJECT) {
         QUICHE_CODE_COUNT(sanitize_cr_tab_in_first_line_rejected);
         *error_code = static_cast<BalsaFrameEnums::ErrorCode>(
@@ -382,11 +383,13 @@ bool IsValidTargetUri(absl::string_view method, absl::string_view target_uri) {
 // at most one newline, which must be at the end of the line.
 void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
   bool has_multiple_spaces = false;
+  bool has_cr_tab = false;
   BalsaFrameEnums::ErrorCode previous_error = last_error_;
-  const bool parse_success = ParseHTTPFirstLine(
-      begin, end, is_request_, headers_, &last_error_,
-      http_validation_policy().sanitize_cr_tab_in_first_line,
-      http_validation_policy().sanitize_firstline_spaces, has_multiple_spaces);
+  const bool parse_success =
+      ParseHTTPFirstLine(begin, end, is_request_, headers_, &last_error_,
+                         http_validation_policy().sanitize_cr_tab_in_first_line,
+                         http_validation_policy().sanitize_firstline_spaces,
+                         has_multiple_spaces, has_cr_tab);
 
   if (!parse_success) {
     parse_state_ = BalsaFrameEnums::ERROR;
@@ -619,13 +622,14 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
         return false;
       }
 
-      if (http_validation_policy().disallow_obs_text_in_field_names &&
-          IsObsTextChar(c)) {
-        QUICHE_CODE_COUNT(disallow_obs_text_in_field_names_enforced);
-        HandleError(is_trailer
-                        ? BalsaFrameEnums::INVALID_TRAILER_NAME_CHARACTER
-                        : BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
-        return false;
+      if (IsObsTextChar(c)) {
+        if (http_validation_policy().disallow_obs_text_in_field_names) {
+          QUICHE_CODE_COUNT(disallow_obs_text_in_field_names_enforced);
+          HandleError(is_trailer
+                          ? BalsaFrameEnums::INVALID_TRAILER_NAME_CHARACTER
+                          : BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
+          return false;
+        }
       }
     }
 

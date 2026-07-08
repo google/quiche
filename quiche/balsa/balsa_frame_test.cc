@@ -821,58 +821,64 @@ TEST(HTTPBalsaFrame, RequestLineSanitizedProperly) {
     const absl::string_view parsed;    // Expected output.
     FirstLineValidationOption option;  // Whether to sanitize/reject.
     BalsaFrameEnums::ErrorCode expected_error;
+    bool expected_tab_or_cr_defect;
   };
   const std::vector<TestCase> cases = {
       // No invalid whitespace.
       {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1", FirstLineValidationOption::NONE,
-       BalsaFrameEnums::BALSA_NO_ERROR},
+       BalsaFrameEnums::BALSA_NO_ERROR, false},
       {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1",
-       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR,
+       false},
       {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1",
-       FirstLineValidationOption::REJECT, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::REJECT, BalsaFrameEnums::BALSA_NO_ERROR,
+       false},
 
       // Illegal CR in the request-line.
       {"GET /\rHTTP/1.1\r\n", "GET /\rHTTP/1.1",
-       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR, true},
       {"GET /\rHTTP/1.1\r\n", "GET / HTTP/1.1",
-       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR,
+       true},
       {"GET /\rHTTP/1.1\r\n", "", FirstLineValidationOption::REJECT,
-       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE},
+       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE, true},
 
       // Invalid tab in the request-line.
       {"GET \t/ HTTP/1.1\r\n", "GET \t/ HTTP/1.1",
-       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR, true},
       {"GET \t/ HTTP/1.1\r\n", "GET  / HTTP/1.1",
-       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR,
+       true},
       {"GET \t/ HTTP/1.1\r\n", "", FirstLineValidationOption::REJECT,
-       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE},
+       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE, true},
 
       // Both CR and tab in the request-line.
       {"GET \t/\rHTTP/1.1 \r\n", "GET \t/\rHTTP/1.1",
-       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR, true},
       {"GET \t/\rHTTP/1.1 \r\n", "GET  / HTTP/1.1",
-       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR},
+       FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR,
+       true},
       {"GET \t/\rHTTP/1.1 \r\n", "", FirstLineValidationOption::REJECT,
-       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE},
+       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE, true},
   };
   const absl::string_view kHeaderLineAndEnding = "Foo: bar\r\n\r\n";
-  for (auto& [firstline, parsed, ws_option, expected_error] : cases) {
+  for (const auto& tc : cases) {
     SCOPED_TRACE(
-        absl::StrCat("Input: ", absl::CEscape(firstline),
-                     " Expected output: ", absl::CEscape(parsed),
-                     " whitespace option: ", static_cast<int>(ws_option)));
-    const std::string input = absl::StrCat(firstline, kHeaderLineAndEnding);
+        absl::StrCat("Input: ", absl::CEscape(tc.input),
+                     " Expected output: ", absl::CEscape(tc.parsed),
+                     " whitespace option: ", static_cast<int>(tc.option)));
+    const std::string input = absl::StrCat(tc.input, kHeaderLineAndEnding);
 
     BalsaHeaders headers;
     BalsaFrame framer;
     HttpValidationPolicy policy;
-    policy.sanitize_cr_tab_in_first_line = ws_option;
+    policy.sanitize_cr_tab_in_first_line = tc.option;
     framer.set_http_validation_policy(policy);
     framer.set_is_request(true);
     framer.set_balsa_headers(&headers);
     framer.ProcessInput(input.data(), input.size());
-    EXPECT_EQ(headers.first_line(), parsed);
-    EXPECT_EQ(framer.ErrorCode(), expected_error);
+    EXPECT_EQ(headers.first_line(), tc.parsed);
+    EXPECT_EQ(framer.ErrorCode(), tc.expected_error);
   }
 }
 
