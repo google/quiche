@@ -550,6 +550,7 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
       HandleWarning(is_trailer ? BalsaFrameEnums::OBS_FOLD_IN_TRAILERS
                                : BalsaFrameEnums::OBS_FOLD_IN_HEADERS);
       if (http_validation_policy().sanitize_obs_fold_in_header_values) {
+        QUICHE_CODE_COUNT(sanitize_obs_fold_in_header_values_enforced);
         *has_continuation_lines = true;
         header_has_continuation_line = true;
       }
