@@ -228,7 +228,14 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
 
   static absl::Status ReadSingleKeyConfig(QuicheDataReader& reader,
                                           ConfigMap& configs,
-                                          PublicKeyMap& keys);
+                                          PublicKeyMap& keys,
+                                          bool skip_unknown_kems = false);
+
+  // Reads key configs from a byte string formatted according to
+  // https://www.rfc-editor.org/rfc/rfc9458.html#section-3.1-2. Note that this
+  // can leave `configs` and `keys` in an invalid state when returning an error.
+  static absl::Status ReadKeyConfigsWithLengthPrefix(
+      absl::string_view key_configs, ConfigMap& configs, PublicKeyMap& keys);
 
   // A mapping from key_id to ObliviousHttpHeaderKeyConfig objects for that key.
   const ConfigMap configs_;

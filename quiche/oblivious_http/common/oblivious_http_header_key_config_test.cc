@@ -277,12 +277,63 @@ TEST(ObliviousHttpKeyConfigs, TwoSimilarKeyConfigs) {
             HasKdfId(EVP_HPKE_HKDF_SHA256), HasAeadId(EVP_HPKE_AES_128_GCM)));
 }
 
+TEST(ObliviousHttpKeyConfigs, TwoSimilarKeyConfigsWithLengthPrefix) {
+  std::string key;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      // First key config.
+      "0029"                              // length of this key config
+      "4b"                                // key_id
+      "0020"                              // kem_id
+      "606162636465666768696a6b6c6d6e6f"  // public_key
+      "707172737475767778797a7b7c7d7e7f"  // public_key
+      "0004"                              // len(symmetric_algorithms)
+      "00010002"                          // HKDF_SHA256, AES_256_GCM
+      // Second key config.
+      "0029"                              // length of this key config
+      "4f"                                // key_id
+      "0020"                              // kem_id
+      "606162636465666768696a6b6c6d6e6f"  // public_key
+      "707172737475767778797a7b7c7d7e7f"  // public_key
+      "0004"                              // len(symmetric_algorithms)
+      "00010001",                         // HKDF_SHA256, AES_128_GCM
+      &key));
+  EXPECT_THAT(ObliviousHttpKeyConfigs::ParseConcatenatedKeys(key),
+              IsOkAndHolds(Property(&ObliviousHttpKeyConfigs::NumKeys, 2)));
+  EXPECT_THAT(
+      ObliviousHttpKeyConfigs::ParseConcatenatedKeys(key)->PreferredConfig(),
+      AllOf(HasKeyId(0x4f), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
+            HasKdfId(EVP_HPKE_HKDF_SHA256), HasAeadId(EVP_HPKE_AES_128_GCM)));
+}
+
 TEST(ObliviousHttpKeyConfigs, RFCExample) {
   std::string key;
   ASSERT_TRUE(absl::HexStringToBytes(
       "01002031e1f05a740102115220e9af918f738674aec95f54db6e04eb705aae8e79815500"
       "080001000100010003",
       &key));
+  auto configs = ObliviousHttpKeyConfigs::ParseConcatenatedKeys(key);
+  QUICHE_ASSERT_OK(configs);
+  EXPECT_THAT(*configs, Property(&ObliviousHttpKeyConfigs::NumKeys, 1));
+  EXPECT_THAT(
+      configs->PreferredConfig(),
+      AllOf(HasKeyId(0x01), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
+            HasKdfId(EVP_HPKE_HKDF_SHA256), HasAeadId(EVP_HPKE_AES_128_GCM)));
+  std::string expected_public_key;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "31e1f05a740102115220e9af918f738674aec95f54db6e04eb705aae8e798155",
+      &expected_public_key));
+  EXPECT_THAT(configs->GetPublicKeyForId(configs->PreferredConfig().GetKeyId()),
+              IsOkAndHolds(expected_public_key));
+  EXPECT_THAT(configs->DebugString(), HasSubstr("AES-128-GCM"));
+  EXPECT_THAT(configs->DebugString(), HasSubstr("31e1f05a7401"));
+}
+
+TEST(ObliviousHttpKeyConfigs, RFCExampleWithLengthPrefix) {
+  std::string key;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("002d01002031e1f05a740102115220e9af918f738674aec95"
+                             "f54db6e04eb705aae8e79815500080001000100010003",
+                             &key));
   auto configs = ObliviousHttpKeyConfigs::ParseConcatenatedKeys(key);
   QUICHE_ASSERT_OK(configs);
   EXPECT_THAT(*configs, Property(&ObliviousHttpKeyConfigs::NumKeys, 1));

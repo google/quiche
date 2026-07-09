@@ -291,10 +291,18 @@ absl::StatusOr<ObliviousHttpKeyConfigs>
 ObliviousHttpKeyConfigs::ParseConcatenatedKeys(absl::string_view key_config) {
   ConfigMap configs;
   PublicKeyMap keys;
-  auto reader = QuicheDataReader(key_config);
+  // First, try to parse the keys using the length-prefixed format from RFC
+  // 9458.
+  if (ReadKeyConfigsWithLengthPrefix(key_config, configs, keys).ok()) {
+    return ObliviousHttpKeyConfigs(std::move(configs), std::move(keys));
+  }
+  // Otherwise, try parsing using the non-length-prefixed format from
+  // draft-ietf-ohai-ohttp-08, a precursor to RFC 9458.
+  configs.clear();
+  keys.clear();
+  QuicheDataReader reader(key_config);
   while (!reader.IsDoneReading()) {
-    absl::Status status = ReadSingleKeyConfig(reader, configs, keys);
-    if (!status.ok()) return status;
+    QUICHE_RETURN_IF_ERROR(ReadSingleKeyConfig(reader, configs, keys));
   }
   return ObliviousHttpKeyConfigs(std::move(configs), std::move(keys));
 }
@@ -364,7 +372,8 @@ absl::StatusOr<absl::string_view> ObliviousHttpKeyConfigs::GetPublicKeyForId(
 }
 
 absl::Status ObliviousHttpKeyConfigs::ReadSingleKeyConfig(
-    QuicheDataReader& reader, ConfigMap& configs, PublicKeyMap& keys) {
+    QuicheDataReader& reader, ConfigMap& configs, PublicKeyMap& keys,
+    bool skip_unknown_kems) {
   uint8_t key_id;
   if (!reader.ReadUInt8(&key_id)) {
     return absl::InvalidArgumentError("Failed to read key_id");
@@ -373,8 +382,14 @@ absl::Status ObliviousHttpKeyConfigs::ReadSingleKeyConfig(
   if (!reader.ReadUInt16(&kem_id)) {
     return absl::InvalidArgumentError("Failed to read kem_id");
   }
-  QUICHE_ASSIGN_OR_RETURN(uint16_t key_length, KeyLength(kem_id));
-  std::string key_str(key_length, '\0');
+  absl::StatusOr<uint16_t> key_length = KeyLength(kem_id);
+  if (!key_length.ok()) {
+    if (skip_unknown_kems) {
+      return absl::OkStatus();
+    }
+    return key_length.status();
+  }
+  std::string key_str(*key_length, '\0');
   if (!reader.ReadBytes(key_str.data(), key_str.size())) {
     return absl::InvalidArgumentError("Failed to read public key");
   }
@@ -417,6 +432,26 @@ absl::Status ObliviousHttpKeyConfigs::ReadSingleKeyConfig(
   // Intentionally allow extra data at the end of the key config. This will
   // allow us to use it for extensions. See
   // draft-schinazi-httpbis-ohttp-ext-key-config.
+  return absl::OkStatus();
+}
+
+// static
+absl::Status ObliviousHttpKeyConfigs::ReadKeyConfigsWithLengthPrefix(
+    absl::string_view key_configs, ConfigMap& configs, PublicKeyMap& keys) {
+  QuicheDataReader reader(key_configs);
+  while (!reader.IsDoneReading()) {
+    absl::string_view single_key_config;
+    if (!reader.ReadStringPiece16(&single_key_config)) {
+      return absl::InvalidArgumentError(
+          "Failed to read length-prefixed key config");
+    }
+    QuicheDataReader single_reader(single_key_config);
+    QUICHE_RETURN_IF_ERROR(ReadSingleKeyConfig(single_reader, configs, keys,
+                                               /*skip_unknown_kems=*/true));
+  }
+  if (configs.empty() || keys.empty()) {
+    return absl::InvalidArgumentError("No supported key configs found");
+  }
   return absl::OkStatus();
 }
 
