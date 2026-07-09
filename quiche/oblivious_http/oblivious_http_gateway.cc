@@ -229,6 +229,7 @@ absl::Status ChunkedObliviousHttpGateway::DecryptRequest(absl::string_view data,
   absl::Status status = DecryptRequestCheckpoint(end_stream);
   if (end_stream) {
     request_current_section_ = RequestMessageSection::kEnd;
+    request_buffer_.clear();
     if (absl::IsOutOfRange(status)) {
       // OutOfRange only used internally for buffering, so return
       // InvalidArgument if this is the end of the stream.

@@ -172,6 +172,62 @@ TEST(ChunkedObliviousHttpGateway, ProvisionKeyAndDecapsulateBufferedRequest) {
   EXPECT_EQ(chunk_handler.GetChunkCount(), 3);
 }
 
+TEST(ChunkedObliviousHttpGateway, TestGetBufferedDataSize) {
+  TestChunkHandler chunk_handler;
+  auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);
+
+  EXPECT_EQ(instance->GetBufferedDataSize(), 0);
+
+  std::string encapsulated_request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(kEncapsulatedChunkedRequest,
+                                     &encapsulated_request_bytes));
+
+  // 1. Send header (39 bytes).
+  QUICHE_EXPECT_OK(instance->DecryptRequest(
+      absl::string_view(encapsulated_request_bytes).substr(0, 39),
+      /*end_stream=*/false));
+  EXPECT_EQ(instance->GetBufferedDataSize(), 0);
+
+  // 2. Send partial Chunk 1 (15 bytes of 29 bytes chunk).
+  QUICHE_EXPECT_OK(instance->DecryptRequest(
+      absl::string_view(encapsulated_request_bytes).substr(39, 15),
+      /*end_stream=*/false));
+  EXPECT_EQ(instance->GetBufferedDataSize(), 15);
+
+  // 3. Send remaining 14 bytes of Chunk 1.
+  QUICHE_EXPECT_OK(instance->DecryptRequest(
+      absl::string_view(encapsulated_request_bytes).substr(39 + 15, 14),
+      /*end_stream=*/false));
+  EXPECT_EQ(instance->GetBufferedDataSize(), 0);
+
+  // 4. Send partial Chunk 2 (10 bytes of 30 bytes chunk).
+  QUICHE_EXPECT_OK(instance->DecryptRequest(
+      absl::string_view(encapsulated_request_bytes).substr(68, 10),
+      /*end_stream=*/false));
+  EXPECT_EQ(instance->GetBufferedDataSize(), 10);
+
+  // 5. Send remaining 20 bytes of Chunk 2.
+  QUICHE_EXPECT_OK(instance->DecryptRequest(
+      absl::string_view(encapsulated_request_bytes).substr(68 + 10, 20),
+      /*end_stream=*/false));
+  EXPECT_EQ(instance->GetBufferedDataSize(), 0);
+
+  // 6. Send final chunk indicator + partial final chunk data (1 byte indicator
+  // + 5 bytes data).
+  QUICHE_EXPECT_OK(instance->DecryptRequest(
+      absl::string_view(encapsulated_request_bytes).substr(98, 6),
+      /*end_stream=*/false));
+  // Only the 5 bytes of final chunk data should be buffered, indicator is
+  // consumed.
+  EXPECT_EQ(instance->GetBufferedDataSize(), 5);
+
+  // 7. Send remaining final chunk data (11 bytes) with end_stream=true.
+  QUICHE_EXPECT_OK(instance->DecryptRequest(
+      absl::string_view(encapsulated_request_bytes).substr(98 + 6, 11),
+      /*end_stream=*/true));
+  EXPECT_EQ(instance->GetBufferedDataSize(), 0);
+}
+
 TEST(ChunkedObliviousHttpGateway, DecryptingAfterDoneReturnsInvalidArgument) {
   TestChunkHandler chunk_handler;
   auto instance = CreateChunkedObliviousHttpGateway(chunk_handler);

@@ -119,6 +119,9 @@ class QUICHE_EXPORT ChunkedObliviousHttpGateway {
   // portion of the final chunk.
   absl::Status DecryptRequest(absl::string_view data, bool end_stream);
 
+  // Returns the number of bytes that are buffered in the gateway.
+  size_t GetBufferedDataSize() const { return request_buffer_.size(); }
+
   // Encrypts the data as a single chunk. If `is_final_chunk` is true, the
   // response will be encoded with the final chunk indicator.
   absl::StatusOr<std::string> EncryptResponse(

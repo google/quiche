@@ -794,6 +794,165 @@ TEST(IndeterminateLengthDecoder, TruncatedBodyAndTrailersSplitEndStream) {
   QUICHE_EXPECT_OK(ExpectTruncatedTrailerSection(message_data));
 }
 
+TEST(IndeterminateLengthDecoder, GetBufferedDataSize) {
+  RequestMessageSectionTestHandler handler;
+  BinaryHttpRequest::IndeterminateLengthDecoder decoder(&handler);
+
+  // Construct the full message.
+  std::string request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(
+          k2ByteFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestBodyChunks, k4ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestTrailers, kContentTerminator,
+          kPadding),
+      &request_bytes));
+
+  // 1. Initially empty.
+  EXPECT_EQ(decoder.GetBufferedDataSize(), 0);
+
+  // 2. Send partial framing + control data (4 bytes).
+  QUICHE_EXPECT_OK(decoder.Decode(absl::string_view(request_bytes).substr(0, 4),
+                                  /*end_stream=*/false));
+  EXPECT_EQ(decoder.GetBufferedDataSize(), 4);
+
+  // 3. Send rest of control data (27 bytes).
+  // Total sent: 31 bytes (Framing + Control Data).
+  // Control data is finished, transition to kHeader. Buffer should be 0.
+  QUICHE_EXPECT_OK(
+      decoder.Decode(absl::string_view(request_bytes).substr(4, 27),
+                     /*end_stream=*/false));
+  EXPECT_EQ(decoder.GetBufferedDataSize(), 0);
+
+  // 4. Send partial headers.
+  // First field is 64 bytes. Send first field + 10 bytes of second field = 74
+  // bytes. Total sent in this step: 74 bytes. Buffer should contain the 10
+  // bytes of partial second field.
+  QUICHE_EXPECT_OK(
+      decoder.Decode(absl::string_view(request_bytes).substr(31, 74),
+                     /*end_stream=*/false));
+  EXPECT_EQ(decoder.GetBufferedDataSize(), 10);
+
+  // 5. Send rest of headers (13 bytes) + partial headers terminator (4 bytes).
+  // Total sent in this step: 17 bytes.
+  // Buffer should contain the 4 bytes of partial terminator.
+  QUICHE_EXPECT_OK(
+      decoder.Decode(absl::string_view(request_bytes).substr(31 + 74, 17),
+                     /*end_stream=*/false));
+  EXPECT_EQ(decoder.GetBufferedDataSize(), 4);
+
+  // 6. Send rest of headers terminator (4 bytes).
+  // Total sent in this step: 4 bytes.
+  // Headers section finished, transition to kBody. Buffer should be 0.
+  QUICHE_EXPECT_OK(
+      decoder.Decode(absl::string_view(request_bytes).substr(31 + 74 + 17, 4),
+                     /*end_stream=*/false));
+  EXPECT_EQ(decoder.GetBufferedDataSize(), 0);
+
+  // 7. Send partial body chunks.
+  // Body chunks total 21 bytes (3 chunks of 7 bytes each).
+  // Send Chunk 1 (7 bytes) + Chunk 2 (7 bytes) + partial Chunk 3 (3 bytes) = 17
+  // bytes. Buffer should contain the 3 bytes of partial Chunk 3.
+  QUICHE_EXPECT_OK(
+      decoder.Decode(absl::string_view(request_bytes).substr(126, 17),
+                     /*end_stream=*/false));
+  EXPECT_EQ(decoder.GetBufferedDataSize(), 3);
+
+  // 8. Send rest of Chunk 3 (4 bytes) + body terminator (4 bytes).
+  // Total sent in this step: 8 bytes.
+  // Body section finished, transition to kTrailer. Buffer should be 0.
+  QUICHE_EXPECT_OK(
+      decoder.Decode(absl::string_view(request_bytes).substr(126 + 17, 8),
+                     /*end_stream=*/false));
+  EXPECT_EQ(decoder.GetBufferedDataSize(), 0);
+
+  // 9. Send partial trailers.
+  // Trailers total 32 bytes (2 trailers of 16 bytes each).
+  // Send Trailer 1 (16 bytes) + partial Trailer 2 (5 bytes) = 21 bytes.
+  // Buffer should contain the 5 bytes of partial Trailer 2.
+  QUICHE_EXPECT_OK(
+      decoder.Decode(absl::string_view(request_bytes).substr(151, 21),
+                     /*end_stream=*/false));
+  EXPECT_EQ(decoder.GetBufferedDataSize(), 5);
+
+  // 10. Send rest of Trailer 2 (11 bytes) + terminator (1 byte) + padding (3
+  // bytes) with end_stream=true. Total sent in this step: 15 bytes. Message
+  // finished, buffer should be 0.
+  QUICHE_EXPECT_OK(
+      decoder.Decode(absl::string_view(request_bytes).substr(151 + 21, 15),
+                     /*end_stream=*/true));
+  EXPECT_EQ(decoder.GetBufferedDataSize(), 0);
+}
+
+TEST(IndeterminateLengthDecoder, GetBufferedDataSizeOnTruncation) {
+  // Construct the full message.
+  std::string request_bytes;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      absl::StrCat(
+          k2ByteFramingIndicator, kIndeterminateLengthEncodedRequestControlData,
+          kIndeterminateLengthEncodedRequestHeaders, k8ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestBodyChunks, k4ByteContentTerminator,
+          kIndeterminateLengthEncodedRequestTrailers, kContentTerminator,
+          kPadding),
+      &request_bytes));
+
+  // 1. Valid Truncation: End after headers.
+  {
+    RequestMessageSectionTestHandler handler;
+    BinaryHttpRequest::IndeterminateLengthDecoder decoder(&handler);
+    // Send up to headers terminator (126 bytes).
+    QUICHE_EXPECT_OK(
+        decoder.Decode(absl::string_view(request_bytes).substr(0, 126),
+                       /*end_stream=*/true));
+    EXPECT_EQ(decoder.GetBufferedDataSize(), 0);
+  }
+
+  // 2. Valid Truncation: End after body chunks.
+  {
+    RequestMessageSectionTestHandler handler;
+    BinaryHttpRequest::IndeterminateLengthDecoder decoder(&handler);
+    // Send up to body terminator (151 bytes).
+    QUICHE_EXPECT_OK(
+        decoder.Decode(absl::string_view(request_bytes).substr(0, 151),
+                       /*end_stream=*/true));
+    EXPECT_EQ(decoder.GetBufferedDataSize(), 0);
+  }
+
+  // 3. Invalid Truncation: End in middle of control data.
+  {
+    RequestMessageSectionTestHandler handler;
+    BinaryHttpRequest::IndeterminateLengthDecoder decoder(&handler);
+    // Send partial control data (4 bytes).
+    EXPECT_THAT(decoder.Decode(absl::string_view(request_bytes).substr(0, 4),
+                               /*end_stream=*/true),
+                test::StatusIs(absl::StatusCode::kInvalidArgument));
+    EXPECT_EQ(decoder.GetBufferedDataSize(), 0);
+  }
+
+  // 4. Invalid Truncation: End in middle of headers.
+  {
+    RequestMessageSectionTestHandler handler;
+    BinaryHttpRequest::IndeterminateLengthDecoder decoder(&handler);
+    // Send up to partial headers (31 + 74 = 105 bytes).
+    EXPECT_THAT(decoder.Decode(absl::string_view(request_bytes).substr(0, 105),
+                               /*end_stream=*/true),
+                test::StatusIs(absl::StatusCode::kInvalidArgument));
+    EXPECT_EQ(decoder.GetBufferedDataSize(), 0);
+  }
+
+  // 5. Invalid Truncation: End in middle of body chunk.
+  {
+    RequestMessageSectionTestHandler handler;
+    BinaryHttpRequest::IndeterminateLengthDecoder decoder(&handler);
+    // Send up to partial body chunk (126 + 17 = 143 bytes).
+    EXPECT_THAT(decoder.Decode(absl::string_view(request_bytes).substr(0, 143),
+                               /*end_stream=*/true),
+                test::StatusIs(absl::StatusCode::kInvalidArgument));
+    EXPECT_EQ(decoder.GetBufferedDataSize(), 0);
+  }
+}
+
 struct RequestIndeterminateLengthEncoderTestData {
   BinaryHttpRequest::ControlData control_data{"POST", "https", "google.com",
                                               "/hello"};

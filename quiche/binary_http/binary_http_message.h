@@ -256,6 +256,9 @@ class QUICHE_EXPORT BinaryHttpRequest::IndeterminateLengthDecoder {
   // truncated messages.
   absl::Status Decode(absl::string_view data, bool end_stream);
 
+  // Returns the number of bytes that are buffered in the decoder.
+  size_t GetBufferedDataSize() const { return buffer_.size(); }
+
  private:
   // Carries out the decode logic from the checkpoint. Returns
   // OutOfRangeError if there is not enough data to decode the current
