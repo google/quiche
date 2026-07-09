@@ -40,8 +40,16 @@ constexpr size_t kSizeOfSymmetricAlgorithmHpkeAeadId = 2;
 
 absl::StatusOr<const EVP_HPKE_KEM*> CheckKemId(uint16_t kem_id) {
   switch (kem_id) {
+    case EVP_HPKE_DHKEM_P256_HKDF_SHA256:
+      return EVP_hpke_p256_hkdf_sha256();
     case EVP_HPKE_DHKEM_X25519_HKDF_SHA256:
       return EVP_hpke_x25519_hkdf_sha256();
+    case EVP_HPKE_XWING:
+      return EVP_hpke_xwing();
+    case EVP_HPKE_MLKEM768:
+      return EVP_hpke_mlkem768();
+    case EVP_HPKE_MLKEM1024:
+      return EVP_hpke_mlkem1024();
     default:
       return absl::UnimplementedError(
           absl::StrCat("KEM ID", absl::Hex(kem_id), " not supported"));
@@ -52,6 +60,8 @@ absl::StatusOr<const EVP_HPKE_KDF*> CheckKdfId(uint16_t kdf_id) {
   switch (kdf_id) {
     case EVP_HPKE_HKDF_SHA256:
       return EVP_hpke_hkdf_sha256();
+    case EVP_HPKE_HKDF_SHA384:
+      return EVP_hpke_hkdf_sha384();
     default:
       return absl::UnimplementedError(
           absl::StrCat("KDF ID ", absl::Hex(kdf_id), " not supported"));
@@ -466,10 +476,16 @@ absl::Status ObliviousHttpKeyConfigs::ReadKeyConfigsWithLengthPrefix(
 
 std::string ObliviousHttpKemIdToString(uint16_t kem_id) {
   switch (kem_id) {
-    case EVP_HPKE_DHKEM_X25519_HKDF_SHA256:
-      return "X25519-SHA256";
     case EVP_HPKE_DHKEM_P256_HKDF_SHA256:
       return "P256-SHA256";
+    case EVP_HPKE_DHKEM_X25519_HKDF_SHA256:
+      return "X25519-SHA256";
+    case EVP_HPKE_XWING:
+      return "XWING";
+    case EVP_HPKE_MLKEM768:
+      return "MLKEM768";
+    case EVP_HPKE_MLKEM1024:
+      return "MLKEM1024";
     default:
       return absl::StrCat("UnknownKEM(", kem_id, ")");
   }
@@ -479,6 +495,8 @@ std::string ObliviousHttpKdfIdToString(uint16_t kdf_id) {
   switch (kdf_id) {
     case EVP_HPKE_HKDF_SHA256:
       return "SHA256";
+    case EVP_HPKE_HKDF_SHA384:
+      return "SHA384";
     default:
       return absl::StrCat("UnknownKDF(", kdf_id, ")");
   }
