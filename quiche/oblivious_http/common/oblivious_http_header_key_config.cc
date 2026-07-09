@@ -341,8 +341,8 @@ absl::StatusOr<ObliviousHttpKeyConfigs> ObliviousHttpKeyConfigs::Create(
   return ObliviousHttpKeyConfigs(std::move(configs), std::move(keys));
 }
 
-absl::StatusOr<std::string> ObliviousHttpKeyConfigs::GenerateConcatenatedKeys()
-    const {
+absl::StatusOr<std::string> ObliviousHttpKeyConfigs::GenerateConcatenatedKeys(
+    bool with_length_prefix) const {
   std::string concatenated_keys;
   for (const auto& [key_id, ohttp_configs] : configs_) {
     QUICHE_ASSIGN_OR_RETURN(absl::string_view public_key,
@@ -350,6 +350,13 @@ absl::StatusOr<std::string> ObliviousHttpKeyConfigs::GenerateConcatenatedKeys()
     QUICHE_ASSIGN_OR_RETURN(
         std::string serialized,
         SerializeOhttpKeyWithPublicKey(key_id, public_key, ohttp_configs));
+    if (with_length_prefix) {
+      char length_prefix[sizeof(uint16_t)];
+      QuicheDataWriter writer(sizeof(uint16_t), length_prefix);
+      QUICHE_CHECK(writer.WriteUInt16(serialized.size()));
+      absl::StrAppend(&concatenated_keys,
+                      absl::string_view(length_prefix, sizeof(uint16_t)));
+    }
     absl::StrAppend(&concatenated_keys, std::move(serialized));
   }
   return concatenated_keys;

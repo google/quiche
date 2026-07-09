@@ -197,7 +197,8 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
 
   // Generates byte string corresponding to "application/ohttp-keys" media type.
   // https://www.rfc-editor.org/rfc/rfc9458.html#section-3
-  absl::StatusOr<std::string> GenerateConcatenatedKeys() const;
+  absl::StatusOr<std::string> GenerateConcatenatedKeys(
+      bool with_length_prefix = false) const;
 
   int NumKeys() const { return public_keys_.size(); }
 
