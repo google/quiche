@@ -278,8 +278,10 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   uint64_t stream_bytes_read() const { return stream_bytes_read_; }
   uint64_t stream_bytes_written() const;
 
+#ifndef NDEBUG
   size_t busy_counter() const { return busy_counter_; }
   void set_busy_counter(size_t busy_counter) { busy_counter_ = busy_counter; }
+#endif
 
   // Adjust the flow control window according to new offset in |frame|.
   virtual void OnWindowUpdateFrame(const QuicWindowUpdateFrame& frame);
@@ -601,9 +603,11 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // The connection level flow controller. Not owned.
   QuicFlowController* connection_flow_controller_;
 
+#ifndef NDEBUG
   // A counter incremented when OnCanWrite() is called and no progress is made.
   // For debugging only.
   size_t busy_counter_;
+#endif
 
   // Send buffer of this stream. Send buffer is cleaned up when data gets acked
   // or discarded.

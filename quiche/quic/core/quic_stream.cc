@@ -390,7 +390,9 @@ QuicStream::QuicStream(QuicStreamId id, QuicSession* session,
       connection_error_(QUIC_NO_ERROR),
       flow_controller_(std::move(flow_controller)),
       connection_flow_controller_(connection_flow_controller),
+#ifndef NDEBUG
       busy_counter_(0),
+#endif
       send_buffer_(
           session->connection()->helper()->GetStreamSendBufferAllocator()),
       buffered_data_threshold_(GetQuicFlag(quic_buffered_data_threshold)),
@@ -1485,9 +1487,11 @@ void QuicStream::WriteBufferedData(EncryptionLevel level) {
   } else {
     session_->MarkConnectionLevelWriteBlocked(id());
   }
+#ifndef NDEBUG
   if (consumed_data.bytes_consumed > 0 || consumed_data.fin_consumed) {
     busy_counter_ = 0;
   }
+#endif
   if (rst_stream_at_sent_ && stream_bytes_written() >= reliable_size_) {
     // If data up to reliable_size_ has been sent, the write side can finally
     // close.

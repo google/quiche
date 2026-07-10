@@ -761,6 +761,7 @@ void QuicSession::OnBlockedFrame(const QuicBlockedFrame& frame) {
                   << frame.stream_id << ", offset: " << frame.offset;
 }
 
+#ifndef NDEBUG
 bool QuicSession::CheckStreamNotBusyLooping(QuicStream* stream,
                                             uint64_t previous_bytes_written,
                                             bool previous_fin_sent) {
@@ -791,6 +792,7 @@ bool QuicSession::CheckStreamNotBusyLooping(QuicStream* stream,
   }
   return true;
 }
+#endif
 
 bool QuicSession::CheckStreamWriteBlocked(QuicStream* stream) const {
   if (!stream->write_side_closed() && stream->HasBufferedData() &&
@@ -906,15 +908,19 @@ void QuicSession::OnCanWrite() {
     if (stream != nullptr && !stream->IsFlowControlBlocked()) {
       // If the stream can't write all bytes it'll re-add itself to the blocked
       // list.
+#ifndef NDEBUG
       uint64_t previous_bytes_written = stream->stream_bytes_written();
       bool previous_fin_sent = stream->fin_sent();
       QUIC_DVLOG(1) << ENDPOINT << "stream " << stream->id()
                     << " bytes_written " << previous_bytes_written << " fin "
                     << previous_fin_sent;
+#endif
       stream->OnCanWrite();
       QUICHE_DCHECK(CheckStreamWriteBlocked(stream));
+#ifndef NDEBUG
       QUICHE_DCHECK(CheckStreamNotBusyLooping(stream, previous_bytes_written,
                                               previous_fin_sent));
+#endif
     }
     currently_writing_stream_id_ = 0;
   }

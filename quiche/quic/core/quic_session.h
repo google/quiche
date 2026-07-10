@@ -1100,11 +1100,13 @@ class QUICHE_EXPORT QuicSession
   // control window in a negotiated config. Closes the connection if invalid.
   void OnNewSessionFlowControlWindow(QuicStreamOffset new_window);
 
+#ifndef NDEBUG
   // Debug helper for |OnCanWrite()|, check that OnStreamWrite() makes
   // forward progress.  Returns false if busy loop detected.
   bool CheckStreamNotBusyLooping(QuicStream* stream,
                                  uint64_t previous_bytes_written,
                                  bool previous_fin_sent);
+#endif
 
   // Called in OnConfigNegotiated for Finch trials to measure performance of
   // starting with larger flow control receive windows.
