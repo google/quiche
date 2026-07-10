@@ -5,6 +5,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -297,8 +298,15 @@ absl::Status StoreKeyConfigIfValid(
 
 }  // namespace
 
+// static
+std::string ObliviousHttpKeyConfigs::GetAcceptHeaderValueForConcatenatedKeys() {
+  return "application/ohttp-keys";
+}
+
 absl::StatusOr<ObliviousHttpKeyConfigs>
-ObliviousHttpKeyConfigs::ParseConcatenatedKeys(absl::string_view key_config) {
+ObliviousHttpKeyConfigs::ParseConcatenatedKeys(
+    absl::string_view key_config,
+    std::optional<absl::string_view> /*media_type*/) {
   ConfigMap configs;
   PublicKeyMap keys;
   // First, try to parse the keys using the length-prefixed format from RFC

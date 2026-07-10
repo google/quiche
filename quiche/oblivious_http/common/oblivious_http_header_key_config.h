@@ -4,6 +4,7 @@
 #include <stdint.h>
 
 #include <functional>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -167,11 +168,16 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
     std::string DebugString() const;
   };
 
+  // Returns the value to use for the "Accept" header when requesting
+  // concatenated keys. Currently returns "application/ohttp-keys".
+  static std::string GetAcceptHeaderValueForConcatenatedKeys();
+
   // Parses the "application/ohttp-keys" media type, which is a byte string
   // formatted according to the RFC:
   // https://www.rfc-editor.org/rfc/rfc9458.html#section-3
   static absl::StatusOr<ObliviousHttpKeyConfigs> ParseConcatenatedKeys(
-      absl::string_view key_configs);
+      absl::string_view key_configs,
+      std::optional<absl::string_view> media_type = std::nullopt);
 
   // Builds `ObliviousHttpKeyConfigs` with multiple key configurations, each
   // made up of Single Key Configuration([{key_id, kem_id, public key},
