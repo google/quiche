@@ -20,7 +20,6 @@
 #include "absl/strings/string_view.h"
 #include "openssl/base.h"
 #include "openssl/hpke.h"
-#include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
@@ -38,6 +37,8 @@ constexpr size_t kSizeOfHpkeKemId = 2;
 // https://www.rfc-editor.org/rfc/rfc9458.html#section-3.1-2
 constexpr size_t kSizeOfSymmetricAlgorithmHpkeKdfId = 2;
 constexpr size_t kSizeOfSymmetricAlgorithmHpkeAeadId = 2;
+
+}  // namespace
 
 absl::StatusOr<const EVP_HPKE_KEM*> CheckKemId(uint16_t kem_id) {
   switch (kem_id) {
@@ -82,8 +83,6 @@ absl::StatusOr<const EVP_HPKE_AEAD*> CheckAeadId(uint16_t aead_id) {
           absl::StrCat("AEAD ID ", absl::Hex(aead_id), " not supported"));
   }
 }
-
-}  // namespace
 
 ObliviousHttpHeaderKeyConfig::ObliviousHttpHeaderKeyConfig(uint8_t key_id,
                                                            uint16_t kem_id,

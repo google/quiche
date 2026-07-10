@@ -16,6 +16,7 @@
 namespace quiche {
 namespace {
 using ::quiche::test::IsOkAndHolds;
+using ::quiche::test::StatusIs;
 using ::testing::AllOf;
 using ::testing::HasSubstr;
 using ::testing::Property;
@@ -75,6 +76,15 @@ void ExpectSerializedRecipientContextInfo(absl::string_view ohttp_req_label) {
   QUICHE_ASSERT_OK(instance);
   EXPECT_EQ(instance->SerializeRecipientContextInfo(ohttp_req_label), expected);
   EXPECT_THAT(instance->DebugString(), HasSubstr("AES-256-GCM"));
+}
+
+TEST(ObliviousHttpHeaderKeyConfig, TestIds) {
+  QUICHE_EXPECT_OK(CheckKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256));
+  EXPECT_THAT(CheckKemId(0xFFFF), StatusIs(absl::StatusCode::kUnimplemented));
+  QUICHE_EXPECT_OK(CheckKdfId(EVP_HPKE_HKDF_SHA256));
+  EXPECT_THAT(CheckKdfId(0xFFFF), StatusIs(absl::StatusCode::kUnimplemented));
+  QUICHE_EXPECT_OK(CheckAeadId(EVP_HPKE_AES_256_GCM));
+  EXPECT_THAT(CheckAeadId(0xFFFF), StatusIs(absl::StatusCode::kUnimplemented));
 }
 
 TEST(ObliviousHttpHeaderKeyConfig,

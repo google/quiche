@@ -21,6 +21,12 @@
 
 namespace quiche {
 
+// Provide access to the underlying EVP_HPKE_KEM, EVP_HPKE_KDF, and
+// EVP_HPKE_AEAD if they are supported.
+absl::StatusOr<const EVP_HPKE_KEM*> CheckKemId(uint16_t kem_id);
+absl::StatusOr<const EVP_HPKE_KDF*> CheckKdfId(uint16_t kdf_id);
+absl::StatusOr<const EVP_HPKE_AEAD*> CheckAeadId(uint16_t aead_id);
+
 class QUICHE_EXPORT ObliviousHttpHeaderKeyConfig {
  public:
   // https://www.rfc-editor.org/rfc/rfc9458.html#section-4.3-4.2.1
