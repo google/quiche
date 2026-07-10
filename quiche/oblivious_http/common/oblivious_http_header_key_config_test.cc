@@ -793,6 +793,174 @@ TEST(ObliviousHttpHeaderKeyConfigs,
   }
 }
 
+TEST(ObliviousHttpKeyConfigs,
+     ReverseRoundTripMultipleSymmetricAlgorithmsWithoutLengthPrefix) {
+  std::string key;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("4b"                                // key_id
+                             "0020"                              // kem_id
+                             "606162636465666768696a6b6c6d6e6f"  // public_key
+                             "707172737475767778797a7b7c7d7e7f"  // public_key
+                             "0008"       // len(symmetric_algorithms)
+                             "00010001"   // HKDF_SHA256, AES_128_GCM
+                             "00010002",  // HKDF_SHA256, AES_256_GCM
+                             &key));
+  auto configs = ObliviousHttpKeyConfigs::ParseConcatenatedKeys(key);
+  QUICHE_ASSERT_OK(configs);
+  EXPECT_THAT(*configs, Property(&ObliviousHttpKeyConfigs::NumKeys, 1));
+  EXPECT_THAT(
+      configs->PreferredConfig(),
+      AllOf(HasKeyId(0x4b), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
+            HasKdfId(EVP_HPKE_HKDF_SHA256), HasAeadId(EVP_HPKE_AES_128_GCM)));
+  std::string expected_public_key;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f",
+      &expected_public_key));
+  EXPECT_THAT(configs->GetPublicKeyForId(configs->PreferredConfig().GetKeyId()),
+              IsOkAndHolds(expected_public_key));
+  EXPECT_THAT(configs->GenerateConcatenatedKeys(/*with_length_prefix=*/false),
+              IsOkAndHolds(key));
+}
+
+TEST(ObliviousHttpKeyConfigs,
+     ReverseRoundTripMultipleSymmetricAlgorithmsWithLengthPrefix) {
+  std::string key;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("002d"                              // length
+                             "4b"                                // key_id
+                             "0020"                              // kem_id
+                             "606162636465666768696a6b6c6d6e6f"  // public_key
+                             "707172737475767778797a7b7c7d7e7f"  // public_key
+                             "0008"       // len(symmetric_algorithms)
+                             "00010001"   // HKDF_SHA256, AES_128_GCM
+                             "00010002",  // HKDF_SHA256, AES_256_GCM
+                             &key));
+  auto configs = ObliviousHttpKeyConfigs::ParseConcatenatedKeys(key);
+  QUICHE_ASSERT_OK(configs);
+  EXPECT_THAT(*configs, Property(&ObliviousHttpKeyConfigs::NumKeys, 1));
+  EXPECT_THAT(
+      configs->PreferredConfig(),
+      AllOf(HasKeyId(0x4b), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
+            HasKdfId(EVP_HPKE_HKDF_SHA256), HasAeadId(EVP_HPKE_AES_128_GCM)));
+  std::string expected_public_key;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f",
+      &expected_public_key));
+  EXPECT_THAT(configs->GetPublicKeyForId(configs->PreferredConfig().GetKeyId()),
+              IsOkAndHolds(expected_public_key));
+  EXPECT_THAT(configs->GenerateConcatenatedKeys(/*with_length_prefix=*/true),
+              IsOkAndHolds(key));
+}
+
+TEST(ObliviousHttpKeyConfigs, ParseOhttpPayloadHeaderAgainstConfigs) {
+  auto config1 = ObliviousHttpHeaderKeyConfig::Create(
+      5, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+      EVP_HPKE_AES_128_GCM);
+  QUICHE_ASSERT_OK(config1);
+  auto config2 = ObliviousHttpHeaderKeyConfig::Create(
+      5, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+      EVP_HPKE_AES_256_GCM);
+  QUICHE_ASSERT_OK(config2);
+
+  std::string payload_bytes_1 =
+      BuildHeader(5, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+                  EVP_HPKE_AES_128_GCM) +
+      "some payload data";
+  EXPECT_THAT(
+      ObliviousHttpKeyConfigs::ParseOhttpPayloadHeaderAgainstConfigs(
+          payload_bytes_1, {*config1, *config2}),
+      IsOkAndHolds(AllOf(
+          HasKeyId(5), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
+          HasKdfId(EVP_HPKE_HKDF_SHA256), HasAeadId(EVP_HPKE_AES_128_GCM))));
+
+  std::string payload_bytes_2 =
+      BuildHeader(5, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+                  EVP_HPKE_AES_256_GCM) +
+      "some payload data";
+  EXPECT_THAT(
+      ObliviousHttpKeyConfigs::ParseOhttpPayloadHeaderAgainstConfigs(
+          payload_bytes_2, {*config1, *config2}),
+      IsOkAndHolds(AllOf(
+          HasKeyId(5), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
+          HasKdfId(EVP_HPKE_HKDF_SHA256), HasAeadId(EVP_HPKE_AES_256_GCM))));
+
+  std::string mismatch_payload =
+      BuildHeader(5, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+                  EVP_HPKE_CHACHA20_POLY1305) +
+      "some payload data";
+  EXPECT_THAT(ObliviousHttpKeyConfigs::ParseOhttpPayloadHeaderAgainstConfigs(
+                  mismatch_payload, {*config1, *config2}),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Payload did not match any key configs")));
+
+  EXPECT_THAT(ObliviousHttpKeyConfigs::ParseOhttpPayloadHeaderAgainstConfigs(
+                  payload_bytes_1, {}),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Payload did not match any key configs")));
+}
+
+TEST(ObliviousHttpKeyConfigs, GetConfigForPayload) {
+  std::string key;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      // First key config (key_id = 0x4b).
+      "4b"                                // key_id
+      "0020"                              // kem_id: X25519-HKDF-SHA256
+      "606162636465666768696a6b6c6d6e6f"  // public_key
+      "707172737475767778797a7b7c7d7e7f"  // public_key
+      "0008"                              // len(symmetric_algorithms)
+      "00010001"                          // HKDF_SHA256, AES_128_GCM
+      "00010002"                          // HKDF_SHA256, AES_256_GCM
+      // Second key config (key_id = 0x4f).
+      "4f"                                // key_id
+      "0020"                              // kem_id: X25519-HKDF-SHA256
+      "606162636465666768696a6b6c6d6e6f"  // public_key
+      "707172737475767778797a7b7c7d7e7f"  // public_key
+      "0004"                              // len(symmetric_algorithms)
+      "00010003",                         // HKDF_SHA256, CHACHA20_POLY1305
+      &key));
+  auto configs = ObliviousHttpKeyConfigs::ParseConcatenatedKeys(key);
+  QUICHE_ASSERT_OK(configs);
+
+  std::string payload_1 =
+      BuildHeader(0x4b, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+                  EVP_HPKE_AES_256_GCM) +
+      "payload";
+  EXPECT_THAT(
+      configs->GetConfigForPayload(payload_1),
+      IsOkAndHolds(AllOf(
+          HasKeyId(0x4b), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
+          HasKdfId(EVP_HPKE_HKDF_SHA256), HasAeadId(EVP_HPKE_AES_256_GCM))));
+
+  std::string payload_2 =
+      BuildHeader(0x4f, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+                  EVP_HPKE_CHACHA20_POLY1305) +
+      "payload";
+  EXPECT_THAT(configs->GetConfigForPayload(payload_2),
+              IsOkAndHolds(AllOf(HasKeyId(0x4f),
+                                 HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
+                                 HasKdfId(EVP_HPKE_HKDF_SHA256),
+                                 HasAeadId(EVP_HPKE_CHACHA20_POLY1305))));
+
+  std::string unknown_key_id_payload =
+      BuildHeader(0x99, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+                  EVP_HPKE_AES_128_GCM) +
+      "payload";
+  EXPECT_THAT(configs->GetConfigForPayload(unknown_key_id_payload),
+              StatusIs(absl::StatusCode::kNotFound,
+                       HasSubstr("No config found for key_id ")));
+
+  std::string mismatch_alg_payload =
+      BuildHeader(0x4b, EVP_HPKE_DHKEM_X25519_HKDF_SHA256, EVP_HPKE_HKDF_SHA256,
+                  EVP_HPKE_CHACHA20_POLY1305) +
+      "payload";
+  EXPECT_THAT(configs->GetConfigForPayload(mismatch_alg_payload),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Payload did not match any key configs")));
+
+  EXPECT_THAT(configs->GetConfigForPayload(""),
+              StatusIs(absl::StatusCode::kInvalidArgument));
+}
+
 TEST(ObliviousHttpHeaderKeyConfigs, TestCreateWithInvalidConfigs) {
   EXPECT_FALSE(ObliviousHttpKeyConfigs::Create({}).ok());
   EXPECT_FALSE(ObliviousHttpKeyConfigs::Create(

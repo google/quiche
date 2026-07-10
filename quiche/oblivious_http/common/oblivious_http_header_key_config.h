@@ -224,6 +224,20 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
 
   absl::StatusOr<absl::string_view> GetPublicKeyForId(uint8_t key_id) const;
 
+  // Parses the OHTTP header from the given `payload_bytes` and returns an
+  // ObliviousHttpHeaderKeyConfig that matches from the given vector of
+  // `configs`. Returns an error if no match is found.
+  static absl::StatusOr<ObliviousHttpHeaderKeyConfig>
+  ParseOhttpPayloadHeaderAgainstConfigs(
+      absl::string_view payload_bytes,
+      const std::vector<ObliviousHttpHeaderKeyConfig>& configs);
+
+  // Parses the OHTTP header from the given `payload_bytes` and returns a
+  // ObliviousHttpHeaderKeyConfig that matches. Returns an error if no match is
+  // found.
+  absl::StatusOr<ObliviousHttpHeaderKeyConfig> GetConfigForPayload(
+      absl::string_view payload_bytes) const;
+
   // Human-readable string suitable for logging.
   std::string DebugString() const;
 

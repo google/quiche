@@ -566,4 +566,32 @@ std::string ObliviousHttpKeyConfigs::DebugString() const {
   return s;
 }
 
+// static
+absl::StatusOr<ObliviousHttpHeaderKeyConfig>
+ObliviousHttpKeyConfigs::ParseOhttpPayloadHeaderAgainstConfigs(
+    absl::string_view payload_bytes,
+    const std::vector<ObliviousHttpHeaderKeyConfig>& configs) {
+  for (const ObliviousHttpHeaderKeyConfig& config : configs) {
+    if (config.ParseOhttpPayloadHeader(payload_bytes).ok()) {
+      return config;
+    }
+  }
+  return absl::InvalidArgumentError("Payload did not match any key configs");
+}
+
+absl::StatusOr<ObliviousHttpHeaderKeyConfig>
+ObliviousHttpKeyConfigs::GetConfigForPayload(
+    absl::string_view payload_bytes) const {
+  QUICHE_ASSIGN_OR_RETURN(
+      uint8_t key_id,
+      ObliviousHttpHeaderKeyConfig::ParseKeyIdFromObliviousHttpRequestPayload(
+          payload_bytes));
+  auto it = configs_.find(key_id);
+  if (it == configs_.end()) {
+    return absl::NotFoundError(
+        absl::StrCat("No config found for key_id ", key_id));
+  }
+  return ParseOhttpPayloadHeaderAgainstConfigs(payload_bytes, it->second);
+}
+
 }  // namespace quiche
