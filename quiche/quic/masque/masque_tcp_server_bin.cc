@@ -53,6 +53,7 @@
 #include "quiche/common/quiche_socket_address.h"
 #include "quiche/common/quiche_status_utils.h"
 #include "quiche/common/quiche_text_utils.h"
+#include "quiche/oblivious_http/buffers/oblivious_http_request.h"
 #include "quiche/oblivious_http/common/oblivious_http_header_key_config.h"
 #include "quiche/oblivious_http/oblivious_http_gateway.h"
 
@@ -168,28 +169,27 @@ class MasqueOhttpGateway {
       QUICHE_LOG(ERROR) << "Not ready to handle OHTTP request";
       return absl::InternalError("Not ready to handle OHTTP request");
     }
-    absl::StatusOr<ObliviousHttpRequest> decrypted_request =
-        ohttp_gateway_->DecryptObliviousHttpRequest(encapsulated_request);
-    QUICHE_RETURN_IF_ERROR(decrypted_request.status());
-    absl::StatusOr<BinaryHttpRequest> binary_request =
-        BinaryHttpRequest::Create(decrypted_request->GetPlaintextData());
-    QUICHE_RETURN_IF_ERROR(binary_request.status());
+    QUICHE_ASSIGN_OR_RETURN(
+        ObliviousHttpRequest decrypted_request,
+        ohttp_gateway_->DecryptObliviousHttpRequest(encapsulated_request));
+    QUICHE_ASSIGN_OR_RETURN(
+        BinaryHttpRequest binary_request,
+        BinaryHttpRequest::Create(decrypted_request.GetPlaintextData()));
     const BinaryHttpRequest::ControlData& control_data =
-        binary_request->control_data();
+        binary_request.control_data();
 
     MasqueConnectionPool::Message request;
     request.headers[":method"] = control_data.method;
     request.headers[":scheme"] = control_data.scheme;
     request.headers[":authority"] = control_data.authority;
     request.headers[":path"] = control_data.path;
-    request.body = binary_request->body();
-    absl::StatusOr<MasqueConnectionPool::RequestId> request_id =
-        pool->SendRequest(request);
-    QUICHE_RETURN_IF_ERROR(request_id.status());
+    request.body = binary_request.body();
+    QUICHE_ASSIGN_OR_RETURN(MasqueConnectionPool::RequestId request_id,
+                            pool->SendRequest(request));
     QUICHE_LOG(INFO) << "Sent decapsulated request";
     visitor_->SavePendingGatewayRequest(
-        connection, stream_id, *request_id,
-        std::move(*decrypted_request).ReleaseContext());
+        connection, stream_id, request_id,
+        std::move(decrypted_request).ReleaseContext());
     return absl::OkStatus();
   }
 
@@ -215,17 +215,15 @@ class MasqueOhttpGateway {
       }
     }
     binary_response.swap_body(response.body);
-    absl::StatusOr<std::string> encoded_response = binary_response.Serialize();
-    QUICHE_RETURN_IF_ERROR(encoded_response.status());
-
-    absl::StatusOr<ObliviousHttpResponse> ohttp_response =
-        ohttp_gateway_->CreateObliviousHttpResponse(*encoded_response,
-                                                    ohttp_context);
-    QUICHE_RETURN_IF_ERROR(ohttp_response.status());
+    QUICHE_ASSIGN_OR_RETURN(std::string encoded_response,
+                            binary_response.Serialize());
+    QUICHE_ASSIGN_OR_RETURN(ObliviousHttpResponse ohttp_response,
+                            ohttp_gateway_->CreateObliviousHttpResponse(
+                                std::move(encoded_response), ohttp_context));
     MasqueConnectionPool::Message outer_response;
     outer_response.headers[":status"] = "200";
     outer_response.headers["content-type"] = "message/ohttp-res";
-    outer_response.body = ohttp_response->EncapsulateAndSerialize();
+    outer_response.body = ohttp_response.EncapsulateAndSerialize();
     return outer_response;
   }
 
@@ -236,76 +234,75 @@ class MasqueOhttpGateway {
   MasqueOhttpGateway() = default;
 
   absl::Status Setup(const std::string& ohttp_key) {
-    hpke_key_.reset(EVP_HPKE_KEY_new());
+    const EVP_HPKE_KEM* kem = EVP_hpke_x25519_hkdf_sha256();
+    bssl::UniquePtr<EVP_HPKE_KEY> hpke_key;
+    hpke_key.reset(EVP_HPKE_KEY_new());
+    std::string hpke_private_key;
+    std::string hpke_public_key;
     if (!ohttp_key.empty()) {
-      if (!absl::HexStringToBytes(ohttp_key, &hpke_private_key_)) {
+      if (!absl::HexStringToBytes(ohttp_key, &hpke_private_key)) {
         return absl::InvalidArgumentError(
             "OHTTP key is not a valid hex string");
       }
       if (EVP_HPKE_KEY_init(
-              hpke_key_.get(), kem_,
-              reinterpret_cast<const uint8_t*>(hpke_private_key_.data()),
-              hpke_private_key_.size()) != 1) {
+              hpke_key.get(), kem,
+              reinterpret_cast<const uint8_t*>(hpke_private_key.data()),
+              hpke_private_key.size()) != 1) {
         return absl::InternalError("Failed to ingest HPKE key");
       }
     } else {
-      if (EVP_HPKE_KEY_generate(hpke_key_.get(), kem_) != 1) {
+      if (EVP_HPKE_KEY_generate(hpke_key.get(), kem) != 1) {
         return absl::InternalError("Failed to generate new HPKE key");
       }
-      size_t private_key_len = EVP_HPKE_KEM_private_key_len(kem_);
-      hpke_private_key_ = std::string(private_key_len, '0');
+      size_t private_key_len = EVP_HPKE_KEM_private_key_len(kem);
+      hpke_private_key = std::string(private_key_len, '0');
       if (EVP_HPKE_KEY_private_key(
-              hpke_key_.get(),
-              reinterpret_cast<uint8_t*>(hpke_private_key_.data()),
+              hpke_key.get(),
+              reinterpret_cast<uint8_t*>(hpke_private_key.data()),
               &private_key_len, private_key_len) != 1 ||
-          private_key_len != hpke_private_key_.size()) {
+          private_key_len != hpke_private_key.size()) {
         return absl::InternalError("Failed to extract new HPKE private key");
       }
       QUICHE_LOG(INFO) << "Generated new HPKE private key: "
-                       << absl::BytesToHexString(hpke_private_key_);
+                       << absl::BytesToHexString(hpke_private_key);
     }
-    size_t public_key_len = EVP_HPKE_KEM_public_key_len(kem_);
-    hpke_public_key_ = std::string(public_key_len, '0');
+    size_t public_key_len = EVP_HPKE_KEM_public_key_len(kem);
+    hpke_public_key = std::string(public_key_len, '0');
     if (EVP_HPKE_KEY_public_key(
-            hpke_key_.get(),
-            reinterpret_cast<uint8_t*>(hpke_public_key_.data()),
+            hpke_key.get(), reinterpret_cast<uint8_t*>(hpke_public_key.data()),
             &public_key_len, public_key_len) != 1 ||
-        public_key_len != hpke_public_key_.size()) {
+        public_key_len != hpke_public_key.size()) {
       return absl::InternalError("Failed to extract new HPKE public key");
     }
-    static constexpr uint8_t kOhttpKeyId = 0x01;
-    static constexpr uint16_t kOhttpKemId = EVP_HPKE_DHKEM_X25519_HKDF_SHA256;
-    static constexpr uint16_t kOhttpKdfId = EVP_HPKE_HKDF_SHA256;
-    static constexpr uint16_t kOhttpAeadId = EVP_HPKE_AES_128_GCM;
-    absl::StatusOr<ObliviousHttpHeaderKeyConfig> ohttp_header_key_config =
-        ObliviousHttpHeaderKeyConfig::Create(kOhttpKeyId, kOhttpKemId,
-                                             kOhttpKdfId, kOhttpAeadId);
-    QUICHE_RETURN_IF_ERROR(ohttp_header_key_config.status());
-    QUICHE_LOG(INFO) << "Using OHTTP header key config: "
-                     << ohttp_header_key_config->DebugString();
-    absl::StatusOr<ObliviousHttpKeyConfigs> ohttp_key_configs =
-        ObliviousHttpKeyConfigs::Create(*ohttp_header_key_config,
-                                        hpke_public_key_);
-    QUICHE_RETURN_IF_ERROR(ohttp_key_configs.status());
+
+    ObliviousHttpKeyConfigs::OhttpKeyConfig config = {
+        /*key_id=*/0x01,
+        EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+        hpke_public_key,
+        {{EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM}}};
+    QUICHE_ASSIGN_OR_RETURN(ObliviousHttpKeyConfigs ohttp_key_configs,
+                            ObliviousHttpKeyConfigs::Create({config}));
+    ohttp_key_configs_.emplace(std::move(ohttp_key_configs));
     QUICHE_LOG(INFO) << "Using OHTTP key configs: " << std::endl
-                     << ohttp_key_configs->DebugString();
-    absl::StatusOr<std::string> concatenated_keys =
-        ohttp_key_configs->GenerateConcatenatedKeys();
-    QUICHE_RETURN_IF_ERROR(concatenated_keys.status());
-    concatenated_keys_ = *concatenated_keys;
-    absl::StatusOr<ObliviousHttpGateway> ohttp_gateway =
-        ObliviousHttpGateway::Create(hpke_private_key_,
-                                     *ohttp_header_key_config);
-    QUICHE_RETURN_IF_ERROR(ohttp_gateway.status());
-    ohttp_gateway_.emplace(std::move(*ohttp_gateway));
+                     << ohttp_key_configs_->DebugString();
+    QUICHE_ASSIGN_OR_RETURN(concatenated_keys_,
+                            ohttp_key_configs_->GenerateConcatenatedKeys());
+
+    QUICHE_ASSIGN_OR_RETURN(
+        ObliviousHttpHeaderKeyConfig ohttp_header_key_config,
+        ObliviousHttpHeaderKeyConfig::Create(
+            config.key_id, config.kem_id,
+            config.symmetric_algorithms.begin()->kdf_id,
+            config.symmetric_algorithms.begin()->aead_id));
+    QUICHE_ASSIGN_OR_RETURN(ObliviousHttpGateway ohttp_gateway,
+                            ObliviousHttpGateway::Create(
+                                hpke_private_key, ohttp_header_key_config));
+    ohttp_gateway_.emplace(std::move(ohttp_gateway));
     return absl::OkStatus();
   }
 
   Visitor* visitor_ = nullptr;
-  std::string hpke_private_key_;
-  std::string hpke_public_key_;
-  const EVP_HPKE_KEM* kem_ = EVP_hpke_x25519_hkdf_sha256();
-  bssl::UniquePtr<EVP_HPKE_KEY> hpke_key_;
+  std::optional<ObliviousHttpKeyConfigs> ohttp_key_configs_;
   std::string concatenated_keys_;
   std::optional<ObliviousHttpGateway> ohttp_gateway_;
 };
@@ -567,14 +564,13 @@ class MasqueTcpServer : public QuicSocketEventListener,
     request.headers[":path"] = relay_gateway_url.PathParamsQuery();
     request.headers["content-type"] = "message/ohttp-req";
     request.body = encapsulated_request;
-    absl::StatusOr<RequestId> request_id =
-        connection_pool_.SendRequest(request);
-    QUICHE_RETURN_IF_ERROR(request_id.status());
+    QUICHE_ASSIGN_OR_RETURN(RequestId request_id,
+                            connection_pool_.SendRequest(request));
     QUICHE_LOG(INFO) << "Sent relayed request";
     PendingRequest pending_request;
     pending_request.connection = connection;
     pending_request.stream_id = stream_id;
-    pending_requests_.insert({*request_id, std::move(pending_request)});
+    pending_requests_.insert({request_id, std::move(pending_request)});
     return absl::OkStatus();
   }
 
@@ -587,14 +583,13 @@ class MasqueTcpServer : public QuicSocketEventListener,
     request.headers[":authority"] = key_proxy_url.HostPort();
     request.headers[":path"] = key_proxy_url.PathParamsQuery();
     request.headers["accept"] = "application/ohttp-keys";
-    absl::StatusOr<RequestId> request_id =
-        connection_pool_.SendRequest(request);
-    QUICHE_RETURN_IF_ERROR(request_id.status());
+    QUICHE_ASSIGN_OR_RETURN(RequestId request_id,
+                            connection_pool_.SendRequest(request));
     QUICHE_LOG(INFO) << "Sent relayed request";
     PendingRequest pending_request;
     pending_request.connection = connection;
     pending_request.stream_id = stream_id;
-    pending_requests_.insert({*request_id, std::move(pending_request)});
+    pending_requests_.insert({request_id, std::move(pending_request)});
     return absl::OkStatus();
   }
 
