@@ -78,10 +78,7 @@ class QUICHE_EXPORT Item {
   Item(const char* value, Item::ItemType type = kStringType);
   Item(std::string value, Item::ItemType type = kStringType);
 
-  QUICHE_EXPORT friend bool operator==(const Item& lhs, const Item& rhs);
-  inline friend bool operator!=(const Item& lhs, const Item& rhs) {
-    return !(lhs == rhs);
-  }
+  QUICHE_EXPORT friend bool operator==(const Item&, const Item&);
 
   bool is_null() const { return Type() == kNullType; }
   bool is_integer() const { return Type() == kIntegerType; }
@@ -162,13 +159,10 @@ struct QUICHE_EXPORT ParameterisedIdentifier {
   ParameterisedIdentifier& operator=(const ParameterisedIdentifier&);
   ParameterisedIdentifier(Item, Parameters);
   ~ParameterisedIdentifier();
-};
 
-inline bool operator==(const ParameterisedIdentifier& lhs,
-                       const ParameterisedIdentifier& rhs) {
-  return std::tie(lhs.identifier, lhs.params) ==
-         std::tie(rhs.identifier, rhs.params);
-}
+  friend bool operator==(const ParameterisedIdentifier&,
+                         const ParameterisedIdentifier&) = default;
+};
 
 using Parameters = std::vector<std::pair<std::string, Item>>;
 
@@ -181,17 +175,10 @@ struct QUICHE_EXPORT ParameterizedItem {
   ParameterizedItem& operator=(const ParameterizedItem&);
   ParameterizedItem(Item, Parameters);
   ~ParameterizedItem();
+
+  friend bool operator==(const ParameterizedItem&,
+                         const ParameterizedItem&) = default;
 };
-
-inline bool operator==(const ParameterizedItem& lhs,
-                       const ParameterizedItem& rhs) {
-  return std::tie(lhs.item, lhs.params) == std::tie(rhs.item, rhs.params);
-}
-
-inline bool operator!=(const ParameterizedItem& lhs,
-                       const ParameterizedItem& rhs) {
-  return !(lhs == rhs);
-}
 
 // Holds a ParameterizedMember, which may be either an single Item, or an Inner
 // List of ParameterizedItems, along with any number of parameters. Parameter
@@ -213,13 +200,10 @@ struct QUICHE_EXPORT ParameterizedMember {
   // Shorthand constructor for a member which is a single Item.
   ParameterizedMember(Item, Parameters);
   ~ParameterizedMember();
-};
 
-inline bool operator==(const ParameterizedMember& lhs,
-                       const ParameterizedMember& rhs) {
-  return std::tie(lhs.member, lhs.member_is_inner_list, lhs.params) ==
-         std::tie(rhs.member, rhs.member_is_inner_list, rhs.params);
-}
+  friend bool operator==(const ParameterizedMember&,
+                         const ParameterizedMember&) = default;
+};
 
 using DictionaryMember = std::pair<std::string, ParameterizedMember>;
 
@@ -263,22 +247,14 @@ class QUICHE_EXPORT Dictionary {
   bool empty() const;
   std::size_t size() const;
   bool contains(absl::string_view key) const;
-  friend bool operator==(const Dictionary& lhs, const Dictionary& rhs);
-  friend bool operator!=(const Dictionary& lhs, const Dictionary& rhs);
+
+  friend bool operator==(const Dictionary&, const Dictionary&) = default;
 
  private:
   // Uses a vector to hold pairs of key and dictionary member. This makes
   // look up by index and serialization much easier.
   std::vector<DictionaryMember> members_;
 };
-
-inline bool operator==(const Dictionary& lhs, const Dictionary& rhs) {
-  return lhs.members_ == rhs.members_;
-}
-
-inline bool operator!=(const Dictionary& lhs, const Dictionary& rhs) {
-  return !(lhs == rhs);
-}
 
 // Structured Headers Draft 09 Parameterised List.
 using ParameterisedList = std::vector<ParameterisedIdentifier>;

@@ -820,9 +820,7 @@ Item::Item(int64_t value) : value_(value) {}
 Item::Item(double value) : value_(value) {}
 Item::Item(bool value) : value_(value) {}
 
-bool operator==(const Item& lhs, const Item& rhs) {
-  return lhs.value_ == rhs.value_;
-}
+bool operator==(const Item&, const Item&) = default;
 
 ParameterizedItem::ParameterizedItem() = default;
 ParameterizedItem::ParameterizedItem(const ParameterizedItem&) = default;
