@@ -22,6 +22,7 @@
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -153,12 +154,11 @@ class MasqueOhttpGateway {
         ObliviousHttpRequest::Context&& ohttp_context) = 0;
   };
 
-  static std::unique_ptr<MasqueOhttpGateway> Create(
-      const std::string& ohttp_key) {
+  static absl::StatusOr<std::unique_ptr<MasqueOhttpGateway>> Create() {
     auto ohttp_gateway = absl::WrapUnique(new MasqueOhttpGateway());
-    if (!ohttp_gateway->Setup(ohttp_key).ok()) {
-      return nullptr;
-    }
+    QUICHE_RETURN_IF_ERROR(ohttp_gateway->AddKeyConfig(
+        /*key_id=*/0x01, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+        quiche::GetQuicheCommandLineFlag(FLAGS_ohttp_key)));
     return ohttp_gateway;
   }
 
@@ -233,14 +233,17 @@ class MasqueOhttpGateway {
  private:
   MasqueOhttpGateway() = default;
 
-  absl::Status Setup(const std::string& ohttp_key) {
-    const EVP_HPKE_KEM* kem = EVP_hpke_x25519_hkdf_sha256();
+  absl::Status AddKeyConfig(
+      uint8_t key_id, uint16_t kem_id,
+      absl::string_view force_hpke_private_key_hex = absl::string_view()) {
+    QUICHE_ASSIGN_OR_RETURN(const EVP_HPKE_KEM* kem,
+                            quiche::CheckKemId(kem_id));
     bssl::UniquePtr<EVP_HPKE_KEY> hpke_key;
     hpke_key.reset(EVP_HPKE_KEY_new());
     std::string hpke_private_key;
-    std::string hpke_public_key;
-    if (!ohttp_key.empty()) {
-      if (!absl::HexStringToBytes(ohttp_key, &hpke_private_key)) {
+    if (!force_hpke_private_key_hex.empty()) {
+      if (!absl::HexStringToBytes(force_hpke_private_key_hex,
+                                  &hpke_private_key)) {
         return absl::InvalidArgumentError(
             "OHTTP key is not a valid hex string");
       }
@@ -255,7 +258,7 @@ class MasqueOhttpGateway {
         return absl::InternalError("Failed to generate new HPKE key");
       }
       size_t private_key_len = EVP_HPKE_KEM_private_key_len(kem);
-      hpke_private_key = std::string(private_key_len, '0');
+      hpke_private_key = std::string(private_key_len, '\0');
       if (EVP_HPKE_KEY_private_key(
               hpke_key.get(),
               reinterpret_cast<uint8_t*>(hpke_private_key.data()),
@@ -266,22 +269,23 @@ class MasqueOhttpGateway {
       QUICHE_LOG(INFO) << "Generated new HPKE private key: "
                        << absl::BytesToHexString(hpke_private_key);
     }
+    hpke_private_keys_.emplace(key_id, std::move(hpke_private_key));
     size_t public_key_len = EVP_HPKE_KEM_public_key_len(kem);
-    hpke_public_key = std::string(public_key_len, '0');
+    std::string hpke_public_key(public_key_len, '\0');
     if (EVP_HPKE_KEY_public_key(
             hpke_key.get(), reinterpret_cast<uint8_t*>(hpke_public_key.data()),
             &public_key_len, public_key_len) != 1 ||
         public_key_len != hpke_public_key.size()) {
-      return absl::InternalError("Failed to extract new HPKE public key");
+      return absl::InternalError("Failed to extract HPKE public key");
     }
-
     ObliviousHttpKeyConfigs::OhttpKeyConfig config = {
-        /*key_id=*/0x01,
-        EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+        /*key_id=*/key_id,
+        kem_id,
         hpke_public_key,
         {{EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM}}};
+    config_set_.insert(config);
     QUICHE_ASSIGN_OR_RETURN(ObliviousHttpKeyConfigs ohttp_key_configs,
-                            ObliviousHttpKeyConfigs::Create({config}));
+                            ObliviousHttpKeyConfigs::Create(config_set_));
     ohttp_key_configs_.emplace(std::move(ohttp_key_configs));
     QUICHE_LOG(INFO) << "Using OHTTP key configs: " << std::endl
                      << ohttp_key_configs_->DebugString();
@@ -294,14 +298,17 @@ class MasqueOhttpGateway {
             config.key_id, config.kem_id,
             config.symmetric_algorithms.begin()->kdf_id,
             config.symmetric_algorithms.begin()->aead_id));
-    QUICHE_ASSIGN_OR_RETURN(ObliviousHttpGateway ohttp_gateway,
-                            ObliviousHttpGateway::Create(
-                                hpke_private_key, ohttp_header_key_config));
+    QUICHE_ASSIGN_OR_RETURN(
+        ObliviousHttpGateway ohttp_gateway,
+        ObliviousHttpGateway::Create(hpke_private_keys_[key_id],
+                                     ohttp_header_key_config));
     ohttp_gateway_.emplace(std::move(ohttp_gateway));
     return absl::OkStatus();
   }
 
   Visitor* visitor_ = nullptr;
+  absl::flat_hash_set<ObliviousHttpKeyConfigs::OhttpKeyConfig> config_set_;
+  absl::flat_hash_map<uint8_t, std::string> hpke_private_keys_;
   std::optional<ObliviousHttpKeyConfigs> ohttp_key_configs_;
   std::string concatenated_keys_;
   std::optional<ObliviousHttpGateway> ohttp_gateway_;
@@ -908,12 +915,13 @@ int RunMasqueTcpServer(int argc, char* argv[]) {
   std::string gateway_path =
       quiche::GetQuicheCommandLineFlag(FLAGS_gateway_path);
   if (!gateway_path.empty()) {
-    masque_ohttp_gateway = MasqueOhttpGateway::Create(
-        quiche::GetQuicheCommandLineFlag(FLAGS_ohttp_key));
-    if (!masque_ohttp_gateway) {
-      QUICHE_LOG(ERROR) << "Failed to create OHTTP gateway";
+    auto masque_ohttp_gateway_or = MasqueOhttpGateway::Create();
+    if (!masque_ohttp_gateway_or.ok()) {
+      QUICHE_LOG(ERROR) << "Failed to create OHTTP gateway: "
+                        << masque_ohttp_gateway_or.status().message();
       return 1;
     }
+    masque_ohttp_gateway = std::move(*masque_ohttp_gateway_or);
   }
 
   const bool disable_certificate_verification =
