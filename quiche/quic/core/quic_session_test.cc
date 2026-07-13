@@ -59,6 +59,16 @@ using ::testing::WithArg;
 
 namespace quic {
 namespace test {
+
+// Peer for QuicControlFrameManager so the iterator-invalidation regression
+// test below can fill control_frames_ to exactly kMaxNumControlFrames.
+class QuicControlFrameManagerPeer {
+ public:
+  static size_t QueueSize(QuicControlFrameManager* manager) {
+    return manager->control_frames_.size();
+  }
+};
+
 namespace {
 
 class TestCryptoStream : public QuicCryptoStream, public QuicCryptoHandshaker {
@@ -439,6 +449,7 @@ class TestSession : public QuicSession {
   using QuicSession::CanOpenNextOutgoingBidirectionalStream;
   using QuicSession::CanOpenNextOutgoingUnidirectionalStream;
   using QuicSession::closed_streams;
+  using QuicSession::control_frame_manager;
   using QuicSession::GetNextOutgoingBidirectionalStreamId;
   using QuicSession::GetNextOutgoingUnidirectionalStreamId;
 
@@ -3677,6 +3688,115 @@ TEST_P(QuicSessionTestServer, FlowControlFinalByteUnderflow) {
       session_.flow_controller()->bytes_consumed();
 
   EXPECT_EQ(bytes_consumed_after, kDataSize);
+}
+
+// Regression test: QuicSession::OnFinalByteOffsetReceived holds an iterator
+// into locally_closed_streams_highest_offset_ across
+// flow_controller_.AddBytesConsumed(). If that call synchronously closes the
+// connection (kMaxNumControlFrames overflow when buffering the resulting
+// connection-level WINDOW_UPDATE), every still-active stream is inserted into
+// locally_closed_streams_highest_offset_ during teardown, rehashing the
+// flat_hash_map and freeing the backing array referenced by the held iterator.
+// erase(it) then operates on a stale iterator (heap-use-after-free in
+// release; abseil generation-check / ASAN crash in debug & sanitizer builds).
+TEST_P(QuicSessionTestClient,
+       OnFinalByteOffsetReceivedStaleIteratorOnReentrantClose) {
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+  CompleteHandshake();
+
+  // From now on, simulate "server withholds ACKs": every control frame
+  // buffered in QuicControlFrameManager stays there. Returning false makes
+  // WriteBufferedFrames stop trying; frames are only popped on ACK.
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillRepeatedly(Return(false));
+  EXPECT_CALL(*connection_, OnStreamReset(_, _)).Times(AnyNumber());
+
+  // STEP 1: client opens several request streams and aborts each before any
+  // FIN/RST is received. Each is destroyed and recorded in
+  // locally_closed_streams_highest_offset_ with offset 0. (In the real attack
+  // ~500 such streams exist; we use a handful so the map's backing array is
+  // heap-allocated rather than SOO-inline.) The first of these is the entry
+  // whose iterator OnFinalByteOffsetReceived will hold.
+  constexpr int kAbortedStreams = 8;
+  QuicStreamId victim_id = 0;
+  for (int i = 0; i < kAbortedStreams; ++i) {
+    TestStream* s = session_.CreateOutgoingBidirectionalStream();
+    EXPECT_CALL(*s, OnSoonToBeDestroyed()).Times(AnyNumber());
+    ASSERT_NE(s, nullptr);
+    if (i == 0) {
+      victim_id = s->id();
+    }
+    s->Reset(QUIC_STREAM_CANCELLED);
+  }
+  ASSERT_EQ(
+      static_cast<size_t>(kAbortedStreams),
+      QuicSessionPeer::GetLocallyClosedStreamsHighestOffset(&session_).size());
+  ASSERT_TRUE(
+      QuicSessionPeer::GetLocallyClosedStreamsHighestOffset(&session_).contains(
+          victim_id));
+
+  // STEP 2: client opens many additional request streams which the server
+  // leaves open (no FIN). When the connection is reentrantly closed below,
+  // each of these is inserted into locally_closed_streams_highest_offset_,
+  // forcing a swisstable rehash that invalidates the held iterator.
+  constexpr int kActiveStreams = 80;
+  for (int i = 0; i < kActiveStreams; ++i) {
+    TestStream* s = session_.CreateOutgoingBidirectionalStream();
+    ASSERT_NE(s, nullptr);
+    EXPECT_CALL(*s, OnSoonToBeDestroyed()).Times(AnyNumber());
+  }
+
+  // STEP 3: top up the control-frame queue to exactly kMaxNumControlFrames
+  // (1000). Any further buffered control frame will trip
+  // OnControlFrameManagerError -> CloseConnection.
+  constexpr size_t kMaxNumControlFrames = 1000;
+  size_t queued =
+      QuicControlFrameManagerPeer::QueueSize(&session_.control_frame_manager());
+  ASSERT_LT(queued, kMaxNumControlFrames);
+  for (size_t i = queued; i < kMaxNumControlFrames; ++i) {
+    session_.SendWindowUpdate(victim_id, /*byte_offset=*/i + 1);
+  }
+  ASSERT_EQ(kMaxNumControlFrames, QuicControlFrameManagerPeer::QueueSize(
+                                      &session_.control_frame_manager()));
+
+  // STEP 4: arrange the connection-level flow controller so that the
+  // RESET_STREAM final_size below pushes bytes_consumed past
+  // receive_window_size_/2, causing AddBytesConsumed to enqueue a
+  // connection-level WINDOW_UPDATE (the 1001st control frame).
+  constexpr QuicByteCount kRecvWindow = 100000;
+  constexpr QuicStreamOffset kFinalSize = 60000;  // > kRecvWindow/2
+  QuicFlowControllerPeer::SetReceiveWindowOffset(session_.flow_controller(),
+                                                 kRecvWindow);
+  QuicFlowControllerPeer::SetMaxReceiveWindow(session_.flow_controller(),
+                                              kRecvWindow);
+
+  // STEP 5: when the WINDOW_UPDATE overflows the control-frame queue,
+  // OnControlFrameManagerError calls CloseConnection. Route it to the real
+  // implementation so the synchronous OnConnectionClosed -> OnStreamClosed ->
+  // InsertLocallyClosedStreamsHighestOffset chain runs.
+  EXPECT_CALL(*connection_,
+              CloseConnection(QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES, _, _))
+      .WillOnce(
+          Invoke(connection_, &MockQuicConnection::ReallyCloseConnection));
+  EXPECT_CALL(*connection_, SendConnectionClosePacket(_, _, _))
+      .Times(AnyNumber());
+
+  // STEP 6: server sends RESET_STREAM for the locally-closed victim stream.
+  // OnRstStream -> HandleRstOnValidNonexistentStream ->
+  // OnFinalByteOffsetReceived captures `it`, calls AddBytesConsumed which
+  // (via the chain above) inserts kActiveStreams entries into the same map,
+  // then erase(it) runs on a stale iterator.
+  QuicRstStreamFrame rst(kInvalidControlFrameId, victim_id,
+                         QUIC_STREAM_CANCELLED, kFinalSize);
+  session_.OnRstStream(rst);
+
+  // If we reach here, the iterator was not invalidated (e.g. after a fix that
+  // re-finds the entry post-reentrancy).
+  EXPECT_FALSE(connection_->connected());
+  EXPECT_EQ(
+      static_cast<size_t>(kAbortedStreams - 1 + kActiveStreams),
+      QuicSessionPeer::GetLocallyClosedStreamsHighestOffset(&session_).size());
 }
 
 }  // namespace

@@ -1354,8 +1354,8 @@ void QuicSession::OnFinalByteOffsetReceived(
     }
   }
 
-  flow_controller_.AddBytesConsumed(offset_diff);
   locally_closed_streams_highest_offset_.erase(it);
+  flow_controller_.AddBytesConsumed(offset_diff);
   if (!VersionIsIetfQuic(transport_version())) {
     stream_id_manager_.OnStreamClosed(
         /*is_incoming=*/IsIncomingStream(stream_id));
