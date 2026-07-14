@@ -214,12 +214,10 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
 
   int NumKeys() const { return public_keys_.size(); }
 
-  // Returns a preferred config to use.  The preferred key is the key with
-  // the highest key_id.  If more than one configuration exists for the
-  // preferred key any configuration may be returned.
-  //
-  // These methods are useful in the (common) case where only one key
-  // configuration is supported by the server.
+  // Returns a preferred config to use. When the keys were parsed using
+  // `ParseConcatenatedKeys()`, the preferred key is the first suppported key.
+  // Otherwise, if more than one configuration exists for the preferred key,
+  // any configuration may be returned.
   ObliviousHttpHeaderKeyConfig PreferredConfig() const;
 
   absl::StatusOr<absl::string_view> GetPublicKeyForId(uint8_t key_id) const;
@@ -250,8 +248,11 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
       absl::btree_map<uint8_t, std::vector<ObliviousHttpHeaderKeyConfig>,
                       std::greater<uint8_t>>;
 
-  ObliviousHttpKeyConfigs(ConfigMap cm, PublicKeyMap km)
-      : configs_(std::move(cm)), public_keys_(std::move(km)) {}
+  ObliviousHttpKeyConfigs(ConfigMap cm, PublicKeyMap km,
+                          std::optional<uint8_t> first_key_id = std::nullopt)
+      : configs_(std::move(cm)),
+        public_keys_(std::move(km)),
+        first_key_id_(first_key_id) {}
 
   static absl::Status ReadSingleKeyConfig(QuicheDataReader& reader,
                                           ConfigMap& configs,
@@ -262,13 +263,18 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
   // https://www.rfc-editor.org/rfc/rfc9458.html#section-3.1-2. Note that this
   // can leave `configs` and `keys` in an invalid state when returning an error.
   static absl::Status ReadKeyConfigsWithLengthPrefix(
-      absl::string_view key_configs, ConfigMap& configs, PublicKeyMap& keys);
+      absl::string_view key_configs, ConfigMap& configs, PublicKeyMap& keys,
+      std::optional<uint8_t>& first_key_id);
 
   // A mapping from key_id to ObliviousHttpHeaderKeyConfig objects for that key.
   const ConfigMap configs_;
 
   // A mapping from key_id to the public key for that key_id.
   const PublicKeyMap public_keys_;
+
+  // The first supported key_id found when parsing. Only set when parsing a
+  // concatenated key string.
+  const std::optional<uint8_t> first_key_id_;
 };
 
 // Human-readable strings suitable for logging.

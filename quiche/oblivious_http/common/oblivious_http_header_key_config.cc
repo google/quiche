@@ -308,20 +308,28 @@ ObliviousHttpKeyConfigs::ParseConcatenatedKeys(
     std::optional<absl::string_view> /*media_type*/) {
   ConfigMap configs;
   PublicKeyMap keys;
+  std::optional<uint8_t> first_key_id;
   // First, try to parse the keys using the length-prefixed format from RFC
   // 9458.
-  if (ReadKeyConfigsWithLengthPrefix(key_config, configs, keys).ok()) {
-    return ObliviousHttpKeyConfigs(std::move(configs), std::move(keys));
+  if (ReadKeyConfigsWithLengthPrefix(key_config, configs, keys, first_key_id)
+          .ok()) {
+    return ObliviousHttpKeyConfigs(std::move(configs), std::move(keys),
+                                   first_key_id);
   }
   // Otherwise, try parsing using the non-length-prefixed format from
   // draft-ietf-ohai-ohttp-08, a precursor to RFC 9458.
   configs.clear();
   keys.clear();
+  first_key_id.reset();
   QuicheDataReader reader(key_config);
   while (!reader.IsDoneReading()) {
     QUICHE_RETURN_IF_ERROR(ReadSingleKeyConfig(reader, configs, keys));
+    if (!first_key_id && !configs.empty()) {
+      first_key_id = configs.begin()->first;
+    }
   }
-  return ObliviousHttpKeyConfigs(std::move(configs), std::move(keys));
+  return ObliviousHttpKeyConfigs(std::move(configs), std::move(keys),
+                                 first_key_id);
 }
 
 absl::StatusOr<ObliviousHttpKeyConfigs> ObliviousHttpKeyConfigs::Create(
@@ -382,6 +390,12 @@ absl::StatusOr<std::string> ObliviousHttpKeyConfigs::GenerateConcatenatedKeys(
 ObliviousHttpHeaderKeyConfig ObliviousHttpKeyConfigs::PreferredConfig() const {
   // configs_ is forced to have at least one object during construction.
   QUICHE_CHECK(!configs_.empty());
+  if (first_key_id_) {
+    auto it = configs_.find(*first_key_id_);
+    if (it != configs_.end()) {
+      return it->second.front();
+    }
+  }
   return configs_.begin()->second.front();
 }
 
@@ -461,7 +475,8 @@ absl::Status ObliviousHttpKeyConfigs::ReadSingleKeyConfig(
 
 // static
 absl::Status ObliviousHttpKeyConfigs::ReadKeyConfigsWithLengthPrefix(
-    absl::string_view key_configs, ConfigMap& configs, PublicKeyMap& keys) {
+    absl::string_view key_configs, ConfigMap& configs, PublicKeyMap& keys,
+    std::optional<uint8_t>& first_key_id) {
   QuicheDataReader reader(key_configs);
   while (!reader.IsDoneReading()) {
     absl::string_view single_key_config;
@@ -472,6 +487,9 @@ absl::Status ObliviousHttpKeyConfigs::ReadKeyConfigsWithLengthPrefix(
     QuicheDataReader single_reader(single_key_config);
     QUICHE_RETURN_IF_ERROR(ReadSingleKeyConfig(single_reader, configs, keys,
                                                /*skip_unknown_kems=*/true));
+    if (!first_key_id && !configs.empty()) {
+      first_key_id = configs.begin()->first;
+    }
   }
   if (configs.empty() || keys.empty()) {
     return absl::InvalidArgumentError("No supported key configs found");
