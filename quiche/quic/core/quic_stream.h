@@ -19,9 +19,11 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/frames/quic_connection_close_frame.h"
@@ -110,8 +112,8 @@ class QUICHE_EXPORT PendingStream
 
   QuicTime creation_time() const { return creation_time_; }
 
-  std::optional<QuicResetStreamAtFrame> buffered_reset_stream_at() const {
-    return buffered_reset_stream_at_;
+  const QuicResetStreamAtFrame* absl_nullable buffered_reset_stream_at() const {
+    return buffered_reset_stream_at_.get();
   }
 
  private:
@@ -150,7 +152,7 @@ class QUICHE_EXPORT PendingStream
   const QuicTime creation_time_;
 
   // When RESET_STREAM_AT arrives,buffer it for when reliable_size is consumed.
-  std::optional<QuicResetStreamAtFrame> buffered_reset_stream_at_;
+  std::unique_ptr<QuicResetStreamAtFrame> buffered_reset_stream_at_;
 };
 
 class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
@@ -626,8 +628,9 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   // before being moved to this QuicStream.
   const QuicTime::Delta pending_duration_;
 
-  // When RESET_STREAM_AT arrives,buffer it for when reliable_size is consumed.
-  std::optional<QuicResetStreamAtFrame> buffered_reset_stream_at_;
+  // When RESET_STREAM_AT arrives, buffer it for when reliable_size is consumed.
+  absl_nullable std::unique_ptr<QuicResetStreamAtFrame>
+      buffered_reset_stream_at_;
 
   // If the stream is reset, outgoing data up to reliable_size_will be
   // delivered (and acknowledged) before the write side of the stream is closed.
