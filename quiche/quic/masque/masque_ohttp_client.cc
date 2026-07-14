@@ -647,6 +647,10 @@ absl::Status MasqueOhttpClient::HandleKeyData(const std::string& key_data) {
   }
   QUICHE_LOG(INFO) << ENDPOINT << "Using relay URL: " << relay_url_.ToString();
   ObliviousHttpHeaderKeyConfig key_config = key_configs->PreferredConfig();
+  if (key_configs->NumKeys() > 1) {
+    QUICHE_LOG(INFO) << ENDPOINT << "Using key ID: "
+                     << static_cast<int>(key_config.GetKeyId());
+  }
   absl::StatusOr<absl::string_view> public_key =
       key_configs->GetPublicKeyForId(key_config.GetKeyId());
   if (!public_key.ok()) {

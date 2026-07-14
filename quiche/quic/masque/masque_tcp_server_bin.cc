@@ -75,6 +75,16 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "Hex-encoded bytes of the OHTTP HPKE private key.");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, pq, false, "Enable OHTTP Post Quantum support via X-Wing.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, pq_key, "",
+    "Hex-encoded bytes of the X-Wing OHTTP HPKE private key.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(bool, no_classic, false,
+                                "Disable X25519 for OHTTP.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
     std::string, gateway_path, "",
     "Enables and configures an OHTTP gateway. Sets the path at which the "
     "gateway will respond to both key requests and encapsulated requests. "
@@ -157,9 +167,16 @@ class MasqueOhttpGateway {
 
   static absl::StatusOr<std::unique_ptr<MasqueOhttpGateway>> Create() {
     auto ohttp_gateway = absl::WrapUnique(new MasqueOhttpGateway());
-    QUICHE_RETURN_IF_ERROR(ohttp_gateway->AddKeyConfig(
-        /*key_id=*/0x01, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
-        quiche::GetQuicheCommandLineFlag(FLAGS_ohttp_key)));
+    if (!quiche::GetQuicheCommandLineFlag(FLAGS_no_classic)) {
+      QUICHE_RETURN_IF_ERROR(ohttp_gateway->AddKeyConfig(
+          /*key_id=*/0x01, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+          quiche::GetQuicheCommandLineFlag(FLAGS_ohttp_key)));
+    }
+    if (quiche::GetQuicheCommandLineFlag(FLAGS_pq)) {
+      QUICHE_RETURN_IF_ERROR(ohttp_gateway->AddKeyConfig(
+          /*key_id=*/0x02, EVP_HPKE_XWING,
+          quiche::GetQuicheCommandLineFlag(FLAGS_pq_key)));
+    }
     return ohttp_gateway;
   }
 
