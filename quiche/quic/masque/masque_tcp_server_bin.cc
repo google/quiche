@@ -151,7 +151,8 @@ class MasqueOhttpGateway {
     virtual void SavePendingGatewayRequest(
         MasqueH2Connection* connection, int32_t stream_id,
         MasqueConnectionPool::RequestId request_id,
-        ObliviousHttpRequest::Context&& ohttp_context) = 0;
+        ObliviousHttpRequest::Context&& ohttp_context,
+        ObliviousHttpGateway&& ohttp_gateway) = 0;
   };
 
   static absl::StatusOr<std::unique_ptr<MasqueOhttpGateway>> Create() {
@@ -162,16 +163,32 @@ class MasqueOhttpGateway {
     return ohttp_gateway;
   }
 
+  absl::StatusOr<std::string> GetPrivateKey(uint8_t key_id) {
+    auto it = hpke_private_keys_.find(key_id);
+    if (it == hpke_private_keys_.end()) {
+      return absl::NotFoundError("OHTTP key not found");
+    }
+    return it->second;
+  }
+
   absl::Status HandleRequest(MasqueConnectionPool* pool,
                              MasqueH2Connection* connection, int32_t stream_id,
                              const std::string& encapsulated_request) {
-    if (!ohttp_gateway_.has_value()) {
-      QUICHE_LOG(ERROR) << "Not ready to handle OHTTP request";
+    if (!ohttp_key_configs_) {
       return absl::InternalError("Not ready to handle OHTTP request");
     }
     QUICHE_ASSIGN_OR_RETURN(
+        ObliviousHttpHeaderKeyConfig ohttp_header_key_config,
+        ohttp_key_configs_->GetConfigForPayload(encapsulated_request));
+    QUICHE_ASSIGN_OR_RETURN(std::string private_key,
+                            GetPrivateKey(ohttp_header_key_config.GetKeyId()));
+    QUICHE_ASSIGN_OR_RETURN(
+        ObliviousHttpGateway ohttp_gateway,
+        ObliviousHttpGateway::Create(std::move(private_key),
+                                     ohttp_header_key_config));
+    QUICHE_ASSIGN_OR_RETURN(
         ObliviousHttpRequest decrypted_request,
-        ohttp_gateway_->DecryptObliviousHttpRequest(encapsulated_request));
+        ohttp_gateway.DecryptObliviousHttpRequest(encapsulated_request));
     QUICHE_ASSIGN_OR_RETURN(
         BinaryHttpRequest binary_request,
         BinaryHttpRequest::Create(decrypted_request.GetPlaintextData()));
@@ -189,16 +206,15 @@ class MasqueOhttpGateway {
     QUICHE_LOG(INFO) << "Sent decapsulated request";
     visitor_->SavePendingGatewayRequest(
         connection, stream_id, request_id,
-        std::move(decrypted_request).ReleaseContext());
+        std::move(decrypted_request).ReleaseContext(),
+        std::move(ohttp_gateway));
     return absl::OkStatus();
   }
 
   absl::StatusOr<MasqueConnectionPool::Message> HandleResponse(
       MasqueConnectionPool::Message&& response,
-      ObliviousHttpRequest::Context&& ohttp_context) {
-    if (!ohttp_gateway_.has_value()) {
-      return absl::InternalError("Not ready to handle OHTTP response");
-    }
+      ObliviousHttpRequest::Context&& ohttp_context,
+      ObliviousHttpGateway&& ohttp_gateway) {
     auto status_pair = response.headers.find(":status");
     if (status_pair == response.headers.end()) {
       return absl::InternalError("Response is missing status code");
@@ -218,7 +234,7 @@ class MasqueOhttpGateway {
     QUICHE_ASSIGN_OR_RETURN(std::string encoded_response,
                             binary_response.Serialize());
     QUICHE_ASSIGN_OR_RETURN(ObliviousHttpResponse ohttp_response,
-                            ohttp_gateway_->CreateObliviousHttpResponse(
+                            ohttp_gateway.CreateObliviousHttpResponse(
                                 std::move(encoded_response), ohttp_context));
     MasqueConnectionPool::Message outer_response;
     outer_response.headers[":status"] = "200";
@@ -291,18 +307,6 @@ class MasqueOhttpGateway {
                      << ohttp_key_configs_->DebugString();
     QUICHE_ASSIGN_OR_RETURN(concatenated_keys_,
                             ohttp_key_configs_->GenerateConcatenatedKeys());
-
-    QUICHE_ASSIGN_OR_RETURN(
-        ObliviousHttpHeaderKeyConfig ohttp_header_key_config,
-        ObliviousHttpHeaderKeyConfig::Create(
-            config.key_id, config.kem_id,
-            config.symmetric_algorithms.begin()->kdf_id,
-            config.symmetric_algorithms.begin()->aead_id));
-    QUICHE_ASSIGN_OR_RETURN(
-        ObliviousHttpGateway ohttp_gateway,
-        ObliviousHttpGateway::Create(hpke_private_keys_[key_id],
-                                     ohttp_header_key_config));
-    ohttp_gateway_.emplace(std::move(ohttp_gateway));
     return absl::OkStatus();
   }
 
@@ -311,7 +315,6 @@ class MasqueOhttpGateway {
   absl::flat_hash_map<uint8_t, std::string> hpke_private_keys_;
   std::optional<ObliviousHttpKeyConfigs> ohttp_key_configs_;
   std::string concatenated_keys_;
-  std::optional<ObliviousHttpGateway> ohttp_gateway_;
 };
 
 static int SelectAlpnCallback(SSL* /*ssl*/, const uint8_t** out,
@@ -722,11 +725,11 @@ class MasqueTcpServer : public QuicSocketEventListener,
     quiche::HttpHeaderBlock response_headers;
     std::string response_body;
     if (response.ok()) {
-      if (pending_request.ohttp_context.has_value()) {
+      if (pending_request.ohttp_context && pending_request.ohttp_gateway) {
         absl::StatusOr<MasqueConnectionPool::Message> gateway_response =
             masque_ohttp_gateway_->HandleResponse(
-                std::move(*response),
-                std::move(*pending_request.ohttp_context));
+                std::move(*response), std::move(*pending_request.ohttp_context),
+                std::move(*pending_request.ohttp_gateway));
         if (!gateway_response.ok()) {
           response_headers[":status"] = "500";
           response_body = absl::StrCat("Failed to handle gateway response: ",
@@ -831,11 +834,13 @@ class MasqueTcpServer : public QuicSocketEventListener,
   void SavePendingGatewayRequest(
       MasqueH2Connection* connection, int32_t stream_id,
       MasqueConnectionPool::RequestId request_id,
-      ObliviousHttpRequest::Context&& ohttp_context) override {
+      ObliviousHttpRequest::Context&& ohttp_context,
+      ObliviousHttpGateway&& ohttp_gateway) override {
     PendingRequest pending_request;
     pending_request.connection = connection;
     pending_request.stream_id = stream_id;
     pending_request.ohttp_context = std::move(ohttp_context);
+    pending_request.ohttp_gateway = std::move(ohttp_gateway);
     pending_requests_.insert({request_id, std::move(pending_request)});
   }
 
@@ -844,6 +849,7 @@ class MasqueTcpServer : public QuicSocketEventListener,
     MasqueH2Connection* connection = nullptr;  // Not owned.
     int32_t stream_id = -1;
     std::optional<ObliviousHttpRequest::Context> ohttp_context;
+    std::optional<ObliviousHttpGateway> ohttp_gateway;
   };
 
   void AcceptConnection() {
