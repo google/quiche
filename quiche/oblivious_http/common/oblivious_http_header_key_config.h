@@ -11,7 +11,6 @@
 
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_map.h"
-#include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
@@ -155,7 +154,7 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
     uint8_t key_id;
     uint16_t kem_id;
     std::string public_key;  // Raw byte string.
-    absl::flat_hash_set<SymmetricAlgorithmsConfig> symmetric_algorithms;
+    std::vector<SymmetricAlgorithmsConfig> symmetric_algorithms;
 
     bool operator==(const OhttpKeyConfig& other) const {
       return key_id == other.key_id && kem_id == other.kem_id &&
@@ -197,7 +196,7 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
   // keys], use `GenerateConcatenatedKeys()`. This output can inturn be parsed
   // by `ObliviousHttpKeyConfigs::ParseConcatenatedKeys` on client side.
   static absl::StatusOr<ObliviousHttpKeyConfigs> Create(
-      absl::flat_hash_set<OhttpKeyConfig> ohttp_key_configs);
+      std::vector<OhttpKeyConfig> ohttp_key_configs);
 
   // Builds `ObliviousHttpKeyConfigs` with given public_key and Single key
   // configuration specified in `ObliviousHttpHeaderKeyConfig` object. After
@@ -249,14 +248,14 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
                       std::greater<uint8_t>>;
 
   ObliviousHttpKeyConfigs(ConfigMap cm, PublicKeyMap km,
-                          std::optional<uint8_t> first_key_id = std::nullopt)
+                          std::vector<uint8_t> key_ids)
       : configs_(std::move(cm)),
         public_keys_(std::move(km)),
-        first_key_id_(first_key_id) {}
+        key_ids_(key_ids) {}
 
   static absl::Status ReadSingleKeyConfig(QuicheDataReader& reader,
                                           ConfigMap& configs,
-                                          PublicKeyMap& keys,
+                                          PublicKeyMap& keys, uint8_t& key_id,
                                           bool skip_unknown_kems = false);
 
   // Reads key configs from a byte string formatted according to
@@ -264,7 +263,7 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
   // can leave `configs` and `keys` in an invalid state when returning an error.
   static absl::Status ReadKeyConfigsWithLengthPrefix(
       absl::string_view key_configs, ConfigMap& configs, PublicKeyMap& keys,
-      std::optional<uint8_t>& first_key_id);
+      std::vector<uint8_t>& key_ids);
 
   // A mapping from key_id to ObliviousHttpHeaderKeyConfig objects for that key.
   const ConfigMap configs_;
@@ -272,9 +271,8 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
   // A mapping from key_id to the public key for that key_id.
   const PublicKeyMap public_keys_;
 
-  // The first supported key_id found when parsing. Only set when parsing a
-  // concatenated key string.
-  const std::optional<uint8_t> first_key_id_;
+  // The ordered list of key_ids in these configs.
+  const std::vector<uint8_t> key_ids_;
 };
 
 // Human-readable strings suitable for logging.

@@ -22,7 +22,6 @@
 
 #include "absl/cleanup/cleanup.h"
 #include "absl/container/flat_hash_map.h"
-#include "absl/container/flat_hash_set.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -167,15 +166,15 @@ class MasqueOhttpGateway {
 
   static absl::StatusOr<std::unique_ptr<MasqueOhttpGateway>> Create() {
     auto ohttp_gateway = absl::WrapUnique(new MasqueOhttpGateway());
-    if (!quiche::GetQuicheCommandLineFlag(FLAGS_no_classic)) {
-      QUICHE_RETURN_IF_ERROR(ohttp_gateway->AddKeyConfig(
-          /*key_id=*/0x01, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
-          quiche::GetQuicheCommandLineFlag(FLAGS_ohttp_key)));
-    }
     if (quiche::GetQuicheCommandLineFlag(FLAGS_pq)) {
       QUICHE_RETURN_IF_ERROR(ohttp_gateway->AddKeyConfig(
           /*key_id=*/0x02, EVP_HPKE_XWING,
           quiche::GetQuicheCommandLineFlag(FLAGS_pq_key)));
+    }
+    if (!quiche::GetQuicheCommandLineFlag(FLAGS_no_classic)) {
+      QUICHE_RETURN_IF_ERROR(ohttp_gateway->AddKeyConfig(
+          /*key_id=*/0x01, EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
+          quiche::GetQuicheCommandLineFlag(FLAGS_ohttp_key)));
     }
     return ohttp_gateway;
   }
@@ -316,9 +315,9 @@ class MasqueOhttpGateway {
         kem_id,
         hpke_public_key,
         {{EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_128_GCM}}};
-    config_set_.insert(config);
+    configs_.push_back(config);
     QUICHE_ASSIGN_OR_RETURN(ObliviousHttpKeyConfigs ohttp_key_configs,
-                            ObliviousHttpKeyConfigs::Create(config_set_));
+                            ObliviousHttpKeyConfigs::Create(configs_));
     ohttp_key_configs_.emplace(std::move(ohttp_key_configs));
     QUICHE_LOG(INFO) << "Using OHTTP key configs: " << std::endl
                      << ohttp_key_configs_->DebugString();
@@ -328,7 +327,7 @@ class MasqueOhttpGateway {
   }
 
   Visitor* visitor_ = nullptr;
-  absl::flat_hash_set<ObliviousHttpKeyConfigs::OhttpKeyConfig> config_set_;
+  std::vector<ObliviousHttpKeyConfigs::OhttpKeyConfig> configs_;
   absl::flat_hash_map<uint8_t, std::string> hpke_private_keys_;
   std::optional<ObliviousHttpKeyConfigs> ohttp_key_configs_;
   std::string concatenated_keys_;

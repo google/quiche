@@ -685,17 +685,17 @@ TEST(ObliviousHttpHeaderKeyConfigs, TestCreateWithSingleKeyConfig) {
 }
 
 TEST(ObliviousHttpHeaderKeyConfigs, TestCreateWithWithMultipleKeys) {
-  std::string expected_preferred_public_key(32, 'b');
+  std::string expected_preferred_public_key(32, 'a');
   ObliviousHttpKeyConfigs::OhttpKeyConfig config1 = {
       100,
       EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
-      std::string(32, 'a'),
+      expected_preferred_public_key,
       {{EVP_HPKE_HKDF_SHA256, EVP_HPKE_AES_256_GCM}}};
   EXPECT_THAT(config1.DebugString(), HasSubstr("AES-256-GCM"));
   ObliviousHttpKeyConfigs::OhttpKeyConfig config2 = {
       200,
       EVP_HPKE_DHKEM_X25519_HKDF_SHA256,
-      expected_preferred_public_key,
+      std::string(32, 'b'),
       {{EVP_HPKE_HKDF_SHA256, EVP_HPKE_CHACHA20_POLY1305}}};
   EXPECT_THAT(config2.DebugString(), HasSubstr("CHACHA20-POLY1305"));
   auto configs = ObliviousHttpKeyConfigs::Create({config1, config2});
@@ -703,17 +703,17 @@ TEST(ObliviousHttpHeaderKeyConfigs, TestCreateWithWithMultipleKeys) {
   EXPECT_THAT(configs->DebugString(), HasSubstr("CHACHA20-POLY1305"));
   auto serialized_key = configs->GenerateConcatenatedKeys();
   ASSERT_THAT(serialized_key,
-              IsOkAndHolds(absl::StrCat(GetSerializedKeyConfig(config2),
-                                        GetSerializedKeyConfig(config1))));
+              IsOkAndHolds(absl::StrCat(GetSerializedKeyConfig(config1),
+                                        GetSerializedKeyConfig(config2))));
   auto ohttp_configs =
       ObliviousHttpKeyConfigs::ParseConcatenatedKeys(*serialized_key);
   QUICHE_ASSERT_OK(ohttp_configs);
   EXPECT_THAT(ohttp_configs->DebugString(), HasSubstr("CHACHA20-POLY1305"));
   ASSERT_EQ(ohttp_configs->NumKeys(), 2);
-  EXPECT_THAT(configs->PreferredConfig(),
-              AllOf(HasKeyId(200), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
-                    HasKdfId(EVP_HPKE_HKDF_SHA256),
-                    HasAeadId(EVP_HPKE_CHACHA20_POLY1305)));
+  EXPECT_THAT(
+      configs->PreferredConfig(),
+      AllOf(HasKeyId(100), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
+            HasKdfId(EVP_HPKE_HKDF_SHA256), HasAeadId(EVP_HPKE_AES_256_GCM)));
   EXPECT_THAT(ohttp_configs->GetPublicKeyForId(
                   ohttp_configs->PreferredConfig().GetKeyId()),
               IsOkAndHolds(expected_preferred_public_key));
@@ -801,7 +801,7 @@ TEST(ObliviousHttpHeaderKeyConfigs,
   QUICHE_ASSERT_OK(parsed_configs);
   EXPECT_EQ(parsed_configs->NumKeys(), 2);
   EXPECT_THAT(parsed_configs->PreferredConfig(),
-              AllOf(HasKeyId(200), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
+              AllOf(HasKeyId(100), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
                     HasKdfId(EVP_HPKE_HKDF_SHA256)));
   EXPECT_THAT(parsed_configs->GetPublicKeyForId(100),
               IsOkAndHolds(std::string(32, 'a')));
@@ -835,7 +835,7 @@ TEST(ObliviousHttpHeaderKeyConfigs,
   QUICHE_ASSERT_OK(parsed_configs);
   EXPECT_EQ(parsed_configs->NumKeys(), 2);
   EXPECT_THAT(parsed_configs->PreferredConfig(),
-              AllOf(HasKeyId(200), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
+              AllOf(HasKeyId(100), HasKemId(EVP_HPKE_DHKEM_X25519_HKDF_SHA256),
                     HasKdfId(EVP_HPKE_HKDF_SHA256)));
   EXPECT_THAT(parsed_configs->GetPublicKeyForId(100),
               IsOkAndHolds(std::string(32, 'a')));
