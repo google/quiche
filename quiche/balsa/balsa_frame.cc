@@ -878,6 +878,12 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
   }
 
   if (!is_trailer) {
+    if (!is_request_) {
+      const int response_code = headers->parsed_response_code_;
+      const bool response_code_forbids_body =
+          !BalsaHeaders::ResponseCanHaveBody(response_code);
+    }
+
     if (content_length_idx != 0 && transfer_encoding_idx != 0) {
       if (http_validation_policy().validate_transfer_encoding &&
           http_validation_policy()
