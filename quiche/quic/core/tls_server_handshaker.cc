@@ -636,8 +636,10 @@ void TlsServerHandshaker::SetWriteSecret(
     }
     crypto_negotiated_params_->key_exchange_group = SSL_get_curve_id(ssl());
     crypto_negotiated_params_->encrypted_client_hello = SSL_ech_accepted(ssl());
+#if BORINGSSL_API_VERSION >= 41
     crypto_negotiated_params_->signature_algorithm_used =
         SSL_get_signature_algorithm_used(ssl());
+#endif
   }
   TlsHandshaker::SetWriteSecret(level, cipher, write_secret);
 }
