@@ -1027,8 +1027,7 @@ bool QuicSpdyStream::OnDataFrameStart(QuicByteCount header_length,
   }
 
   sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
-
-  return true;
+  return !reading_stopped();
 }
 
 bool QuicSpdyStream::OnDataFramePayload(absl::string_view payload) {
@@ -1151,7 +1150,7 @@ bool QuicSpdyStream::OnHeadersFrameStart(QuicByteCount header_length,
           id(), spdy_session_->qpack_decoder(), this,
           spdy_session_->max_inbound_header_list_size());
 
-  return true;
+  return !reading_stopped();
 }
 
 bool QuicSpdyStream::OnHeadersFramePayload(absl::string_view payload) {
@@ -1172,7 +1171,7 @@ bool QuicSpdyStream::OnHeadersFramePayload(absl::string_view payload) {
   }
 
   sequencer()->MarkConsumed(body_manager_.OnNonBody(payload.size()));
-  return true;
+  return !reading_stopped();
 }
 
 bool QuicSpdyStream::OnHeadersFrameEnd() {
@@ -1274,7 +1273,7 @@ bool QuicSpdyStream::OnMetadataFrameStart(QuicByteCount header_length,
   QUIC_DVLOG(1) << ENDPOINT << "Consuming " << header_length
                 << " byte long frame header of METADATA.";
   sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
-  return true;
+  return !reading_stopped();
 }
 
 bool QuicSpdyStream::OnMetadataFramePayload(absl::string_view payload) {
@@ -1296,7 +1295,7 @@ bool QuicSpdyStream::OnMetadataFramePayload(absl::string_view payload) {
   QUIC_DVLOG(1) << ENDPOINT << "Consuming " << payload.size()
                 << " bytes of payload of METADATA.";
   sequencer()->MarkConsumed(body_manager_.OnNonBody(payload.size()));
-  return true;
+  return !reading_stopped();
 }
 
 bool QuicSpdyStream::OnMetadataFrameEnd() {
@@ -1335,7 +1334,7 @@ bool QuicSpdyStream::OnUnknownFrameStart(uint64_t frame_type,
                 << " byte long frame header of frame of unknown type "
                 << frame_type << ".";
   sequencer()->MarkConsumed(body_manager_.OnNonBody(header_length));
-  return true;
+  return !reading_stopped();
 }
 
 bool QuicSpdyStream::OnUnknownFramePayload(absl::string_view payload) {
@@ -1345,7 +1344,7 @@ bool QuicSpdyStream::OnUnknownFramePayload(absl::string_view payload) {
   QUIC_DVLOG(1) << ENDPOINT << "Consuming " << payload.size()
                 << " bytes of payload of frame of unknown type.";
   sequencer()->MarkConsumed(body_manager_.OnNonBody(payload.size()));
-  return true;
+  return !reading_stopped();
 }
 
 bool QuicSpdyStream::OnUnknownFrameEnd() { return true; }

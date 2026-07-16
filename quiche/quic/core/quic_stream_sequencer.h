@@ -102,7 +102,9 @@ class QUICHE_EXPORT QuicStreamSequencer final {
   size_t Readv(const struct iovec* iov, size_t iov_len);
 
   // Consumes |num_bytes| data.  Used in conjunction with |GetReadableRegions|
-  // to do zero-copy reads.
+  // to do zero-copy reads. This can result in a close of the read side (due to
+  // a pending RESET_STREAM_AT), so callers should check !reading_stopped() or
+  // GetReadableRegion() before continuing to read.
   void MarkConsumed(size_t num_bytes);
 
   // Appends all of the readable data to |buffer| and marks all of the appended

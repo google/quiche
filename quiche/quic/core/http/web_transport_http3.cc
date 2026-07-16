@@ -383,7 +383,7 @@ bool WebTransportHttp3UnidirectionalStream::ReadSessionId() {
   session_id_ = session_id;
   adapter_.SetSessionId(session_id);
   session_->AssociateIncomingWebTransportStreamWithSession(session_id, id());
-  return true;
+  return !reading_stopped();
 }
 
 void WebTransportHttp3UnidirectionalStream::OnDataAvailable() {

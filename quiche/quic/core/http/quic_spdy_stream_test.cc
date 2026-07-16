@@ -18,22 +18,21 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
+#include "quiche/quic/core/frames/quic_reset_stream_at_frame.h"
 #include "quiche/quic/core/frames/quic_stream_frame.h"
 #include "quiche/quic/core/http/http_constants.h"
 #include "quiche/quic/core/http/http_encoder.h"
 #include "quiche/quic/core/http/http_frames.h"
 #include "quiche/quic/core/http/quic_header_list.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
-#include "quiche/quic/core/http/spdy_utils.h"
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/qpack/value_splitting_header_list.h"
 #include "quiche/quic/core/quic_connection.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_stream_priority.h"
-#include "quiche/quic/core/quic_stream_sequencer_buffer.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
-#include "quiche/quic/core/quic_write_blocked_list.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
@@ -3893,6 +3892,52 @@ TEST_P(QuicSpdyStreamTest, ReadSideNotClosedAfterStopReading) {
   EXPECT_FALSE(stream_->sequencer()->HasBytesToRead());
   EXPECT_TRUE(stream_->reading_stopped());
   EXPECT_TRUE(stream_->read_side_closed());
+}
+
+// Regression test: RESET_STREAM_AT with reliable_offset equal to the H3
+// HEADERS frame-header length causes MaybeCloseStreamWithBufferedReset() to
+// synchronously free the sequencer buffer from inside HttpDecoder::ProcessInput
+// while the QuicDataReader still points into it. The decoder then continues to
+// read the (now freed) payload region as QPACK bytes -> heap-use-after-free.
+TEST_P(QuicSpdyStreamTest, ResetStreamAtDuringHeadersFrameDecode) {
+  if (!IsIetfQuic()) {
+    return;
+  }
+  Initialize(kShouldProcessData);
+
+  // The QPACK decoder stream may want to write a Stream Cancellation
+  // instruction when the stream is reset; and the recreated accumulator's
+  // decoder may error out on the (freed / poisoned) bytes and try to
+  // reset the stream / close the connection. Absorb any such side-effects.
+  EXPECT_CALL(*session_, WritevData).Times(AnyNumber());
+  EXPECT_CALL(*session_, MaybeSendStopSendingFrame).Times(AnyNumber());
+  EXPECT_CALL(*session_, MaybeSendRstStreamFrame).Times(AnyNumber());
+  EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(AnyNumber());
+  EXPECT_CALL(*connection_, SendControlFrame).Times(AnyNumber());
+
+  // 1. Server sends RESET_STREAM_AT{reliable_size=2, final_size=34}. It is
+  //    buffered because NumBytesConsumed()==0 < 2.
+  QuicResetStreamAtFrame rst(kInvalidControlFrameId, stream_->id(),
+                             /*error=*/0, /*final_offset=*/34,
+                             /*reliable_offset=*/2);
+  stream_->OnResetStreamAtFrame(rst);
+  ASSERT_FALSE(stream_->rst_received());
+  ASSERT_FALSE(stream_->read_side_closed());
+
+  // 2. Server sends STREAM data: an H3 HEADERS frame.
+  //    type=0x01, length=0x20 (2-byte header) + 32-byte QPACK payload.
+  //    Payload begins with a valid QPACK prefix (0x00 0x00) so the decoder
+  //    actually dereferences the buffer.
+  std::string payload = std::string("\x00\x00", 2) + std::string(30, 'Q');
+  ASSERT_EQ(32u, payload.size());
+  std::string frame = HeadersFrame(payload);
+  ASSERT_EQ(34u, frame.size());
+  ASSERT_EQ('\x01', frame[0]);  // HEADERS type varint (1 byte)
+  ASSERT_EQ('\x20', frame[1]);  // length varint (1 byte)
+  // The second byte causes the RESET_STREAM to execute. If the decoder keeps
+  // reading, it will cause a crash.
+  stream_->OnStreamFrame(
+      QuicStreamFrame(stream_->id(), /*fin=*/false, /*offset=*/0, frame));
 }
 
 }  // namespace
