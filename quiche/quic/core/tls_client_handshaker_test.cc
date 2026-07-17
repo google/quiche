@@ -325,7 +325,6 @@ TEST_P(TlsClientHandshakerTest, ConnectedAfterHandshake) {
   EXPECT_NE(stream()->Ciphersuite(), nullptr);
   EXPECT_NE(stream()->TlsGroupId(), 0);
   EXPECT_FALSE(stream()->TlsGroupString().empty());
-  EXPECT_EQ(stream()->TlsVersion(), "TLS_VERSION_1_3");
 }
 
 #if BORINGSSL_API_VERSION >= 41

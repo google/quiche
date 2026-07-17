@@ -193,8 +193,6 @@ class QUICHE_EXPORT QuicCryptoStream : public QuicStream {
   absl::string_view CiphersuiteString() const;
   // Returns the TLS group string in use.
   absl::string_view TlsGroupString() const;
-  // Returns the TLS version in use.
-  absl::string_view TlsVersion() const;
 
   // Called to cancel retransmission of unencrypted crypto stream data.
   void NeuterUnencryptedStreamData();

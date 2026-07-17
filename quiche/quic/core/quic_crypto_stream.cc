@@ -690,10 +690,5 @@ absl::string_view QuicCryptoStream::TlsGroupString() const {
   return group;
 }
 
-// IETF QUIC only uses TLS 1.3.
-absl::string_view QuicCryptoStream::TlsVersion() const {
-  return "TLS_VERSION_1_3";
-}
-
 #undef ENDPOINT  // undef for jumbo builds
 }  // namespace quic

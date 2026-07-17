@@ -72,7 +72,6 @@ namespace {
 
 const char kServerHostname[] = "test.example.com";
 const uint16_t kServerPort = 443;
-constexpr absl::string_view kTlsVersion = "TLS_VERSION_1_3";
 
 struct TestParams {
   ParsedQuicVersion version;
@@ -1797,7 +1796,6 @@ TEST_P(TlsServerHandshakerTest, CachedSslInfoAfterResetSsl) {
   EXPECT_NE(cipher_string, "");
   EXPECT_NE(tls_group_id, 0);
   EXPECT_NE(tls_group_string, "");
-  EXPECT_EQ(server_stream()->TlsVersion(), kTlsVersion);
 
   // Call ResetSsl. This should cache the SSL info.
   TlsServerHandshaker* handshaker =
@@ -1813,7 +1811,6 @@ TEST_P(TlsServerHandshakerTest, CachedSslInfoAfterResetSsl) {
   EXPECT_EQ(server_stream()->CiphersuiteString(), cipher_string);
   EXPECT_EQ(server_stream()->TlsGroupId(), tls_group_id);
   EXPECT_EQ(server_stream()->TlsGroupString(), tls_group_string);
-  EXPECT_EQ(server_stream()->TlsVersion(), kTlsVersion);
 }
 
 }  // namespace
