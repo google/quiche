@@ -187,7 +187,7 @@ class TestTrackPublisher : public MoqtTrackPublisher {
 };
 
 // TODO(martinduke): Rename to MockSubscribeVisitor.
-class MockSubscribeRemoteTrackVisitor : public SubscribeVisitor {
+class MockLiveSubscriberVisitor : public SubscribeVisitor {
  public:
   MOCK_METHOD(void, OnReply,
               (const FullTrackName& full_track_name,

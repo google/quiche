@@ -22,8 +22,8 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
@@ -59,10 +59,9 @@ PublishedObject DefaultObject() {
   return object;
 }
 
-class MockSubscriptionPublisherInterface
-    : public SubscriptionPublisherInterface {
+class MockLivePublisherInterface : public LivePublisherInterface {
  public:
-  MockSubscriptionPublisherInterface() : weak_ptr_factory_(this) {}
+  MockLivePublisherInterface() : weak_ptr_factory_(this) {}
 
   MOCK_METHOD(bool, InWindow, (Location), (override));
   MOCK_METHOD(bool, alternate_delivery_timeout, (), (override));
@@ -75,13 +74,12 @@ class MockSubscriptionPublisherInterface
               (uint64_t, uint64_t, webtransport::StreamErrorCode), (override));
   MOCK_METHOD(void, OnDataStreamDestroyed, (DataStreamIndex), (override));
 
-  quiche::QuicheWeakPtr<SubscriptionPublisherInterface> GetWeakPtr() {
+  quiche::QuicheWeakPtr<LivePublisherInterface> GetWeakPtr() {
     return weak_ptr_factory_.Create();
   }
 
  private:
-  quiche::QuicheWeakPtrFactory<SubscriptionPublisherInterface>
-      weak_ptr_factory_;
+  quiche::QuicheWeakPtrFactory<LivePublisherInterface> weak_ptr_factory_;
 };
 
 class OutgoingSubgroupStreamTest : public quic::test::QuicTest {
@@ -125,7 +123,7 @@ class OutgoingSubgroupStreamTest : public quic::test::QuicTest {
   StrictMock<webtransport::test::MockStream> mock_stream_;
   DataStreamIndex index_;
   std::shared_ptr<StrictMock<MockTrackPublisher>> track_publisher_;
-  StrictMock<MockSubscriptionPublisherInterface> visitor_;
+  StrictMock<MockLivePublisherInterface> visitor_;
   MoqtTraceRecorder trace_recorder_;
   TrackExtensions track_extensions_;
   quic::MockClock mock_clock_;
@@ -475,10 +473,10 @@ class MockSessionToUniStreamInterface : public SessionToUniStreamInterface {
   ~MockSessionToUniStreamInterface() override = default;
 
   MOCK_METHOD(bool, deliver_partial_objects, (), (const, override));
-  MOCK_METHOD(void, OnMalformedTrack, (RemoteTrack*), (override));
-  MOCK_METHOD(quiche::QuicheWeakPtr<RemoteTrack>, GetSubscribe, (uint64_t),
+  MOCK_METHOD(void, OnMalformedTrack, (ObjectSubscriber*), (override));
+  MOCK_METHOD(quiche::QuicheWeakPtr<ObjectSubscriber>, GetSubscribe, (uint64_t),
               (override));
-  MOCK_METHOD(quiche::QuicheWeakPtr<RemoteTrack>, GetFetch, (uint64_t),
+  MOCK_METHOD(quiche::QuicheWeakPtr<ObjectSubscriber>, GetFetch, (uint64_t),
               (override));
   MOCK_METHOD(void, Error, (MoqtError, absl::string_view), (override));
 };
@@ -491,8 +489,8 @@ class IncomingDataStreamTest : public quic::test::QuicTest {
         subscribe_message_(1, ftn_, MessageParameters()) {
     EXPECT_CALL(session_, deliver_partial_objects())
         .WillRepeatedly(Return(false));
-    track_ = std::make_unique<SubscribeRemoteTrack>(subscribe_message_,
-                                                    &visitor_, nullptr);
+    track_ = std::make_unique<LiveSubscriber>(subscribe_message_, &visitor_,
+                                              nullptr);
     track_->set_track_alias(2);
     CreateStream();
   }
@@ -520,8 +518,8 @@ class IncomingDataStreamTest : public quic::test::QuicTest {
   quic::MockClock mock_clock_;
   FullTrackName ftn_;
   MoqtSubscribe subscribe_message_;
-  testing::NiceMock<MockSubscribeRemoteTrackVisitor> visitor_;
-  std::unique_ptr<SubscribeRemoteTrack> track_;
+  testing::NiceMock<MockLiveSubscriberVisitor> visitor_;
+  std::unique_ptr<LiveSubscriber> track_;
   std::unique_ptr<IncomingDataStream> stream_;
 };
 
@@ -702,7 +700,7 @@ TEST_F(IncomingDataStreamTest, OnObjectMessageInvalidTrack) {
   mock_stream_.Receive(
       absl::string_view(reinterpret_cast<const char*>(&alias), 1), false);
   EXPECT_CALL(session_, GetSubscribe(2))
-      .WillOnce(Return(quiche::QuicheWeakPtr<RemoteTrack>()));
+      .WillOnce(Return(quiche::QuicheWeakPtr<ObjectSubscriber>()));
   stream_->OnCanRead();
   EXPECT_TRUE(mock_stream_.was_reset());
 }
@@ -765,7 +763,7 @@ TEST_F(IncomingDataStreamTest, OnCanReadFetchNewTrackAliasInvalidFetch) {
   char fetch_bytes[] = {0x05, 0x03};
   mock_stream_.Receive(absl::string_view(fetch_bytes, 2), false);
   EXPECT_CALL(session_, GetFetch(3))
-      .WillOnce(Return(quiche::QuicheWeakPtr<RemoteTrack>()));
+      .WillOnce(Return(quiche::QuicheWeakPtr<ObjectSubscriber>()));
   stream_->OnCanRead();
   EXPECT_TRUE(mock_stream_.was_reset());
 }

@@ -24,10 +24,10 @@
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_buffer_allocator.h"
@@ -84,7 +84,7 @@ bool OutgoingUniStream::WriteObjectToStream(PublishedObject& object,
 OutgoingSubgroupStream::OutgoingSubgroupStream(
     MoqtFramer framer, webtransport::Stream* absl_nonnull stream,
     DataStreamIndex index, uint64_t first_object,
-    quiche::QuicheWeakPtr<SubscriptionPublisherInterface> visitor,
+    quiche::QuicheWeakPtr<LivePublisherInterface> visitor,
     std::shared_ptr<MoqtTrackPublisher> absl_nonnull track_publisher,
     webtransport::StreamPriority priority, uint64_t track_alias,
     MoqtTraceRecorder* absl_nonnull trace_recorder)
@@ -110,7 +110,7 @@ OutgoingSubgroupStream::~OutgoingSubgroupStream() {
   if (delivery_timeout_alarm_ != nullptr) {
     delivery_timeout_alarm_->PermanentCancel();
   }
-  SubscriptionPublisherInterface* visitor = visitor_.GetIfAvailable();
+  LivePublisherInterface* visitor = visitor_.GetIfAvailable();
   if (visitor != nullptr) {
     visitor->OnDataStreamDestroyed(index_);
   }
@@ -120,14 +120,14 @@ void OutgoingSubgroupStream::OnCanWrite() { SendObjects(); }
 
 void OutgoingSubgroupStream::OnStopSendingReceived(
     webtransport::StreamErrorCode error_code) {
-  SubscriptionPublisherInterface* visitor = visitor_.GetIfAvailable();
+  LivePublisherInterface* visitor = visitor_.GetIfAvailable();
   if (visitor != nullptr) {
     visitor->OnSubgroupAbandoned(index_.group, index_.subgroup, error_code);
   }
 }
 
 void OutgoingSubgroupStream::DeliveryTimeoutDelegate::OnAlarm() {
-  SubscriptionPublisherInterface* visitor = stream_->visitor_.GetIfAvailable();
+  LivePublisherInterface* visitor = stream_->visitor_.GetIfAvailable();
   if (visitor != nullptr) {
     visitor->OnStreamTimeout(stream_->index_);
   }
@@ -135,7 +135,7 @@ void OutgoingSubgroupStream::DeliveryTimeoutDelegate::OnAlarm() {
 }
 
 void OutgoingSubgroupStream::SendObjects() {
-  SubscriptionPublisherInterface* visitor = visitor_.GetIfAvailable();
+  LivePublisherInterface* visitor = visitor_.GetIfAvailable();
   if (visitor == nullptr) {
     return;
   }
@@ -241,7 +241,7 @@ void OutgoingSubgroupStream::Fin(Location last_object) {
   absl::Status status = webtransport::SendFinOnStream(stream());
   QUICHE_BUG_IF(OutgoingSubgroupStream_fin_failed, !status.ok())
       << "Writing pure FIN failed.";
-  SubscriptionPublisherInterface* visitor = visitor_.GetIfAvailable();
+  LivePublisherInterface* visitor = visitor_.GetIfAvailable();
   if (visitor == nullptr) {
     return;
   }
@@ -255,7 +255,7 @@ void OutgoingSubgroupStream::CreateAndSetAlarm(quic::QuicTime deadline) {
   if (delivery_timeout_alarm_ != nullptr) {
     return;
   }
-  SubscriptionPublisherInterface* visitor = visitor_.GetIfAvailable();
+  LivePublisherInterface* visitor = visitor_.GetIfAvailable();
   if (visitor == nullptr) {
     return;
   }
@@ -360,8 +360,7 @@ IncomingDataStream::~IncomingDataStream() {
     return;
   }
   // It's a subscribe.
-  auto subscribe =
-      absl::down_cast<SubscribeRemoteTrack*>(track_.GetIfAvailable());
+  auto subscribe = absl::down_cast<LiveSubscriber*>(track_.GetIfAvailable());
   if (subscribe == nullptr) {
     return;
   }
@@ -412,7 +411,7 @@ void IncomingDataStream::OnObjectMessage(const MoqtObject& message,
     return;
   }
   Location location(message.group_id, message.object_id);
-  RemoteTrack* track = track_.GetIfAvailable();
+  ObjectSubscriber* track = track_.GetIfAvailable();
   if (track == nullptr ||
       !track->InWindow(Location(message.group_id, message.object_id))) {
     // This is not an error. It can be the result of a recent REQUEST_UPDATE or
@@ -442,8 +441,7 @@ void IncomingDataStream::OnObjectMessage(const MoqtObject& message,
         no_more_objects_ = true;
       }
     }
-    SubscribeRemoteTrack* subscribe =
-        absl::down_cast<SubscribeRemoteTrack*>(track);
+    LiveSubscriber* subscribe = absl::down_cast<LiveSubscriber*>(track);
     subscribe->OnObjectOrOk();
     if (visitor_ != nullptr) {
       PublishedObjectMetadata metadata;
@@ -533,8 +531,8 @@ void IncomingDataStream::OnCanRead() {
     if (!knew_track_alias) {
       track_ = session_->GetSubscribe(*parser_.track_alias());
       // This is a new stream for a subscribe. Notify the subscription.
-      SubscribeRemoteTrack* subscribe =
-          absl::down_cast<SubscribeRemoteTrack*>(track_.GetIfAvailable());
+      LiveSubscriber* subscribe =
+          absl::down_cast<LiveSubscriber*>(track_.GetIfAvailable());
       if (subscribe == nullptr) {
         stream_->SendStopSending(kResetCodeCancelled);
         return;

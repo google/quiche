@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/moqt/moqt_subscription.h"
+#include "quiche/quic/moqt/moqt_live_publisher.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -35,7 +35,7 @@
 
 namespace moqt {
 
-SubscriptionPublisher::SubscriptionPublisher(
+LivePublisher::LivePublisher(
     MoqtFramer framer, std::shared_ptr<MoqtTrackPublisher> track_publisher,
     MoqtBidiStreamBase* absl_nonnull bidi_stream, uint64_t request_id,
     uint64_t track_alias, const MessageParameters& parameters,
@@ -63,13 +63,13 @@ SubscriptionPublisher::SubscriptionPublisher(
   // TODO(martinduke): Handle NEW_GROUP_REQUEST
 }
 
-SubscriptionPublisher::~SubscriptionPublisher() {
+LivePublisher::~LivePublisher() {
   if (track_publisher_ != nullptr) {
     track_publisher_->RemoveObjectListener(this);
   }
 }
 
-void SubscriptionPublisher::Update(const MessageParameters& parameters) {
+void LivePublisher::Update(const MessageParameters& parameters) {
   // TODO(martinduke): If there are auth tokens, this probably has to go to the
   // application.
   // TODO(martinduke): If the subscribe window has shrunk, close any streams
@@ -107,7 +107,7 @@ void SubscriptionPublisher::Update(const MessageParameters& parameters) {
   }
 }
 
-void SubscriptionPublisher::ResetAllStreams() {
+void LivePublisher::ResetAllStreams() {
   if (ignore_reset_all_streams_) {
     return;
   }
@@ -119,7 +119,7 @@ void SubscriptionPublisher::ResetAllStreams() {
   }
 }
 
-void SubscriptionPublisher::OnSubscribeAccepted() {
+void LivePublisher::OnSubscribeAccepted() {
   if (established_) {
     return;  // It's a PUBLISH.
   }
@@ -150,15 +150,15 @@ void SubscriptionPublisher::OnSubscribeAccepted() {
   // them.
 }
 
-void SubscriptionPublisher::OnSubscribeRejected(MoqtRequestErrorInfo info) {
+void LivePublisher::OnSubscribeRejected(MoqtRequestErrorInfo info) {
   bidi_stream_->CheckStatus(bidi_stream_->SendRequestError(request_id_, info,
                                                            /*fin=*/true));
   // Sending FIN will delete the class.
 }
 
-void SubscriptionPublisher::OnNewObjectAvailable(
-    Location location, std::optional<uint64_t> subgroup,
-    MoqtPriority publisher_priority) {
+void LivePublisher::OnNewObjectAvailable(Location location,
+                                         std::optional<uint64_t> subgroup,
+                                         MoqtPriority publisher_priority) {
   if (!InWindow(location)) {
     return;
   }
@@ -255,13 +255,12 @@ void SubscriptionPublisher::OnNewObjectAvailable(
   }
 }
 
-void SubscriptionPublisher::OnTrackPublisherGone() {
+void LivePublisher::OnTrackPublisherGone() {
   PublishIsDone(PublishDoneCode::kGoingAway, "Publisher is gone");
 }
 
 // TODO(martinduke): Revise to check if the last object has been delivered.
-void SubscriptionPublisher::OnNewFinAvailable(Location location,
-                                              uint64_t subgroup) {
+void LivePublisher::OnNewFinAvailable(Location location, uint64_t subgroup) {
   if (!InWindow(location.group)) {
     return;
   }
@@ -281,7 +280,7 @@ void SubscriptionPublisher::OnNewFinAvailable(Location location,
   // Sending FIN will delete the class.
 }
 
-void SubscriptionPublisher::OnSubgroupAbandoned(
+void LivePublisher::OnSubgroupAbandoned(
     uint64_t group, uint64_t subgroup,
     webtransport::StreamErrorCode error_code) {
   if (!InWindow(group)) {
@@ -306,7 +305,7 @@ void SubscriptionPublisher::OnSubgroupAbandoned(
   raw_stream->ResetWithUserCode(error_code);
 }
 
-void SubscriptionPublisher::OnGroupAbandoned(uint64_t group_id) {
+void LivePublisher::OnGroupAbandoned(uint64_t group_id) {
   if (!InWindow(group_id)) {
     // The group is not in the window, ignore.
     return;
@@ -334,7 +333,7 @@ void SubscriptionPublisher::OnGroupAbandoned(uint64_t group_id) {
   });
 }
 
-void SubscriptionPublisher::SendDatagram(Location sequence) {
+void LivePublisher::SendDatagram(Location sequence) {
   std::optional<PublishedObject> object = track_publisher_->GetCachedObject(
       sequence.group, std::nullopt, sequence.object);
   if (!object.has_value()) {
@@ -351,7 +350,7 @@ void SubscriptionPublisher::SendDatagram(Location sequence) {
   header.object_status = object->metadata.status;
   header.subgroup_id = std::nullopt;
   header.payload_length = object->metadata.payload_length;
-  QUICHE_BUG_IF(SubscriptionPublisher_SendDatagram_partial_payload,
+  QUICHE_BUG_IF(LivePublisher_SendDatagram_partial_payload,
                 object->payload.size() > 1)
       << "Datagram is split into multiple slices";
   quiche::QuicheBuffer datagram = framer_.SerializeObjectDatagram(
@@ -364,7 +363,7 @@ void SubscriptionPublisher::SendDatagram(Location sequence) {
   OnObjectSent(object->metadata.location);
 }
 
-void SubscriptionPublisher::ProcessObjectAck(const MoqtObjectAck& message) {
+void LivePublisher::ProcessObjectAck(const MoqtObjectAck& message) {
   SessionToPublisherInterface* session_info = visitor();
   if (session_info == nullptr) {
     return;
@@ -379,7 +378,7 @@ void SubscriptionPublisher::ProcessObjectAck(const MoqtObjectAck& message) {
   }
 }
 
-webtransport::Stream* absl_nullable SubscriptionPublisher::OpenDataStream(
+webtransport::Stream* absl_nullable LivePublisher::OpenDataStream(
     const NewDataStreamParameters& parameters) {
   SessionToPublisherInterface* session_info = visitor();
   if (session_info == nullptr) {
@@ -404,8 +403,8 @@ webtransport::Stream* absl_nullable SubscriptionPublisher::OpenDataStream(
   return new_stream;
 }
 
-void SubscriptionPublisher::PublishIsDone(PublishDoneCode code,
-                                          absl::string_view error_reason) {
+void LivePublisher::PublishIsDone(PublishDoneCode code,
+                                  absl::string_view error_reason) {
   MoqtPublishDone publish_done;
   publish_done.request_id = request_id_;
   publish_done.status_code = code;
@@ -421,12 +420,11 @@ void SubscriptionPublisher::PublishIsDone(PublishDoneCode code,
   // sending FIN will delete the class.
 }
 
-void SubscriptionPublisher::OnDataStreamDestroyed(
-    DataStreamIndex end_sequence) {
+void LivePublisher::OnDataStreamDestroyed(DataStreamIndex end_sequence) {
   stream_map_.RemoveStream(end_sequence);
 }
 
-void SubscriptionPublisher::OnCanCreateNewUniStream() {
+void LivePublisher::OnCanCreateNewUniStream() {
   SessionToPublisherInterface* session_info = visitor();
   if (session_info == nullptr) {
     return;
@@ -458,7 +456,7 @@ void SubscriptionPublisher::OnCanCreateNewUniStream() {
   }
 }
 
-void SubscriptionPublisher::OnObjectSent(Location sequence) {
+void LivePublisher::OnObjectSent(Location sequence) {
   if (largest_sent_.has_value()) {
     largest_sent_ = std::max(*largest_sent_, sequence);
   } else {

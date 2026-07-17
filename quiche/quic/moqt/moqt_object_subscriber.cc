@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file
 
-#include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 
 #include <algorithm>
 #include <cstdint>
@@ -39,7 +39,7 @@ constexpr quic::QuicTimeDelta kMaxPublishDoneTimeout =
 
 }  // namespace
 
-SubscribeRemoteTrack::~SubscribeRemoteTrack() {
+LiveSubscriber::~LiveSubscriber() {
   if (publish_done_alarm_ != nullptr) {
     publish_done_alarm_->PermanentCancel();
   }
@@ -49,7 +49,7 @@ SubscribeRemoteTrack::~SubscribeRemoteTrack() {
   }
 }
 
-void SubscribeRemoteTrack::OnObjectOrOk(const SubscribeOkData& data) {
+void LiveSubscriber::OnObjectOrOk(const SubscribeOkData& data) {
   if (parameters().subscription_filter.has_value()) {
     parameters().subscription_filter->OnLargestObject(
         data.parameters.largest_object);
@@ -62,15 +62,15 @@ void SubscribeRemoteTrack::OnObjectOrOk(const SubscribeOkData& data) {
   OnObjectOrOk();
 }
 
-void SubscribeRemoteTrack::OnStreamOpened() {
+void LiveSubscriber::OnStreamOpened() {
   ++currently_open_streams_;
   if (publish_done_alarm_ != nullptr && publish_done_alarm_->IsSet()) {
     publish_done_alarm_->Cancel();
   }
 }
 
-void SubscribeRemoteTrack::OnStreamClosed(
-    bool fin_received, std::optional<DataStreamIndex> index) {
+void LiveSubscriber::OnStreamClosed(bool fin_received,
+                                    std::optional<DataStreamIndex> index) {
   ++streams_closed_;
   --currently_open_streams_;
   QUICHE_DCHECK_GE(currently_open_streams_, -1);
@@ -93,9 +93,9 @@ void SubscribeRemoteTrack::OnStreamClosed(
   MaybeSetPublishDoneAlarm();
 }
 
-void SubscribeRemoteTrack::OnPublishDone(
-    uint64_t stream_count, const quic::QuicClock* clock,
-    quic::QuicAlarmFactory* alarm_factory) {
+void LiveSubscriber::OnPublishDone(uint64_t stream_count,
+                                   const quic::QuicClock* clock,
+                                   quic::QuicAlarmFactory* alarm_factory) {
   total_streams_ = stream_count;
   clock_ = clock;
   if (all_streams_closed()) {
@@ -108,7 +108,7 @@ void SubscribeRemoteTrack::OnPublishDone(
   MaybeSetPublishDoneAlarm();
 }
 
-void SubscribeRemoteTrack::MaybeSetPublishDoneAlarm() {
+void LiveSubscriber::MaybeSetPublishDoneAlarm() {
   if (currently_open_streams_ == 0 && total_streams_.has_value() &&
       clock_ != nullptr) {
     quic::QuicTimeDelta timeout = std::min(
@@ -120,13 +120,13 @@ void SubscribeRemoteTrack::MaybeSetPublishDoneAlarm() {
   }
 }
 
-void SubscribeRemoteTrack::OnJoiningFetchReady(
+void LiveSubscriber::OnJoiningFetchReady(
     std::unique_ptr<MoqtFetchTask> fetch_task) {
   fetch_task_ = std::move(fetch_task);
   fetch_task_->SetObjectAvailableCallback([this]() { FetchObjects(); });
 }
 
-void SubscribeRemoteTrack::FetchObjects() {
+void LiveSubscriber::FetchObjects() {
   if (fetch_task_ == nullptr) {
     return;
   }
@@ -145,7 +145,7 @@ void SubscribeRemoteTrack::FetchObjects() {
         }
         for (size_t i = 0; i < object.payload.size(); ++i) {
           if (fetch_object_offset_ > 0 && object.payload[i].empty()) {
-            QUICHE_BUG(SubscribeRemoteTrack_empty_payload)
+            QUICHE_BUG(LiveSubscriber_empty_payload)
                 << "Empty payload for partial object "
                 << object.metadata.location;
             continue;
@@ -170,9 +170,8 @@ void SubscribeRemoteTrack::FetchObjects() {
   }
 }
 
-void SubscribeRemoteTrack::SendObjectAck(
-    uint64_t group_id, uint64_t object_id,
-    quic::QuicTimeDelta delta_from_deadline) {
+void LiveSubscriber::SendObjectAck(uint64_t group_id, uint64_t object_id,
+                                   quic::QuicTimeDelta delta_from_deadline) {
   request_stream()->SendOrBufferMessageOrFatal(
       request_stream()->framer()->SerializeObjectAck(
           {group_id, object_id, delta_from_deadline}));

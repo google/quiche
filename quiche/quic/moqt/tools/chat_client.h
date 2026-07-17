@@ -100,9 +100,9 @@ class ChatClient {
 
   quic::QuicEventLoop* event_loop() { return event_loop_; }
 
-  class QUICHE_EXPORT RemoteTrackVisitor : public moqt::SubscribeVisitor {
+  class QUICHE_EXPORT ObjectSubscriberVisitor : public moqt::SubscribeVisitor {
    public:
-    RemoteTrackVisitor(ChatClient* client) : client_(client) {}
+    ObjectSubscriberVisitor(ChatClient* client) : client_(client) {}
 
     void OnReply(
         const moqt::FullTrackName& full_track_name,
@@ -149,7 +149,7 @@ class ChatClient {
 
   // Related to subscriptions/publish_namespaces
   // TODO: One for each subscribe
-  RemoteTrackVisitor remote_track_visitor_;
+  ObjectSubscriberVisitor remote_track_visitor_;
 
   // General state variables
   // The event loop to use for this client.

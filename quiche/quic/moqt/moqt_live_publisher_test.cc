@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/moqt/moqt_subscription.h"
+#include "quiche/quic/moqt/moqt_live_publisher.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -45,17 +45,16 @@
 
 namespace moqt::test {
 
-class SubscriptionPublisherPeer {
+class LivePublisherPeer {
  public:
-  static size_t num_open_streams(SubscriptionPublisher* publisher) {
+  static size_t num_open_streams(LivePublisher* publisher) {
     return publisher->stream_map_.GetAllStreams().size();
   }
-  static std::optional<Location> largest_sent(
-      const SubscriptionPublisher* publisher) {
+  static std::optional<Location> largest_sent(const LivePublisher* publisher) {
     return publisher->largest_sent_;
   }
   static const absl::flat_hash_set<DataStreamIndex>& reset_subgroups(
-      const SubscriptionPublisher* publisher) {
+      const LivePublisher* publisher) {
     return publisher->reset_subgroups_;
   }
 };
@@ -104,9 +103,9 @@ std::optional<PublishedObject> DefaultPublishedObject(
   return object;
 }
 
-class SubscriptionPublisherTest : public quic::test::QuicTest {
+class LivePublisherTest : public quic::test::QuicTest {
  public:
-  SubscriptionPublisherTest()
+  LivePublisherTest()
       : track_publisher_(
             std::make_shared<MockTrackPublisher>(FullTrackName("foo", "bar"))),
         bidi_stream_(&framer_, message_parser_,
@@ -121,7 +120,7 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
     EXPECT_CALL(visitor_, session).WillRepeatedly(Return(&webtrans_));
     ON_CALL(visitor_, ReleaseMonitoringInterface)
         .WillByDefault(Return(&monitoring_interface_));
-    publisher_ = std::make_unique<SubscriptionPublisher>(
+    publisher_ = std::make_unique<LivePublisher>(
         framer_, track_publisher_, &bidi_stream_, kRequestId, kTrackAlias,
         parameters_, visitor_.weak_ptr_factory_.Create(),
         /*is_publish=*/false);
@@ -133,7 +132,7 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
     ON_CALL(visitor_, trace_recorder).WillByDefault(ReturnRef(trace_recorder_));
   }
 
-  ~SubscriptionPublisherTest() override {
+  ~LivePublisherTest() override {
     if (track_publisher_ == nullptr) {
       return;
     }
@@ -227,7 +226,7 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
   MockSessionToPublisherInterface visitor_;
   StrictMock<MockPublishingMonitorInterface> monitoring_interface_;
   MoqtTraceRecorder trace_recorder_;
-  std::unique_ptr<SubscriptionPublisher> publisher_;
+  std::unique_ptr<LivePublisher> publisher_;
   const TrackExtensions extensions_;
   quic::MockClock mock_clock_;
   MoqtSessionCallbacks callbacks_;
@@ -235,7 +234,7 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
   int open_streams_ = 0;
 };
 
-TEST_F(SubscriptionPublisherTest, OnSubscribeAcceptedNoFilter) {
+TEST_F(LivePublisherTest, OnSubscribeAcceptedNoFilter) {
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(*track_publisher_, largest_location())
       .WillOnce(Return(Location(1, 2)));
@@ -252,7 +251,7 @@ TEST_F(SubscriptionPublisherTest, OnSubscribeAcceptedNoFilter) {
   EXPECT_FALSE(publisher_->parameters().subscription_filter.has_value());
 }
 
-TEST_F(SubscriptionPublisherTest, OnSubscribeAcceptedWithFilter) {
+TEST_F(LivePublisherTest, OnSubscribeAcceptedWithFilter) {
   publisher_->parameters().subscription_filter =
       SubscriptionFilter(MoqtFilterType::kLargestObject);
   const TrackExtensions extensions(std::nullopt, std::nullopt,
@@ -292,7 +291,7 @@ TEST_F(SubscriptionPublisherTest, OnSubscribeAcceptedWithFilter) {
   publisher_->OnNewObjectAvailable(Location(1, 3), std::nullopt, 64);
 }
 
-TEST_F(SubscriptionPublisherTest, OnSubscribeRejected) {
+TEST_F(LivePublisherTest, OnSubscribeRejected) {
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_bidi_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
@@ -301,7 +300,7 @@ TEST_F(SubscriptionPublisherTest, OnSubscribeRejected) {
       RequestErrorCode::kDoesNotExist, std::nullopt, "reason"));
 }
 
-TEST_F(SubscriptionPublisherTest, Update) {
+TEST_F(LivePublisherTest, Update) {
   MessageParameters new_params;
   new_params.delivery_timeout = quic::QuicTimeDelta::FromSeconds(5);
   publisher_->Update(new_params);
@@ -313,14 +312,14 @@ TEST_F(SubscriptionPublisherTest, Update) {
   EXPECT_FALSE(publisher_->can_have_joining_fetch());
 }
 
-TEST_F(SubscriptionPublisherTest, UpdatePriorityNoStreams) {
+TEST_F(LivePublisherTest, UpdatePriorityNoStreams) {
   MessageParameters new_params;
   new_params.subscriber_priority = 20;
   publisher_->Update(new_params);
   EXPECT_EQ(publisher_->parameters().subscriber_priority, 20);
 }
 
-TEST_F(SubscriptionPublisherTest, UpdatePriorityWithPendingStreams) {
+TEST_F(LivePublisherTest, UpdatePriorityWithPendingStreams) {
   CreatePendingStream(Location(1, 0), 0, 64);
   MessageParameters new_params;
   new_params.subscriber_priority = 20;
@@ -333,7 +332,7 @@ TEST_F(SubscriptionPublisherTest, UpdatePriorityWithPendingStreams) {
   publisher_->Update(new_params);
 }
 
-TEST_F(SubscriptionPublisherTest, UpdatePriorityWithActiveStreams) {
+TEST_F(LivePublisherTest, UpdatePriorityWithActiveStreams) {
   CreateStream(
       Location(1, 0), 0, 127,
       {0x51, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x0a});
@@ -343,7 +342,7 @@ TEST_F(SubscriptionPublisherTest, UpdatePriorityWithActiveStreams) {
   publisher_->Update(new_params);
 }
 
-TEST_F(SubscriptionPublisherTest, OnNewObjectAvailableNotInWindow) {
+TEST_F(LivePublisherTest, OnNewObjectAvailableNotInWindow) {
   MessageParameters params;
   params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
   publisher_->Update(params);
@@ -351,7 +350,7 @@ TEST_F(SubscriptionPublisherTest, OnNewObjectAvailableNotInWindow) {
   publisher_->OnNewObjectAvailable(Location(5, 0), 0, 128);
 }
 
-TEST_F(SubscriptionPublisherTest, OnNewObjectAvailableDatagram) {
+TEST_F(LivePublisherTest, OnNewObjectAvailableDatagram) {
   EXPECT_CALL(*track_publisher_,
               GetCachedObject(1, std::optional<uint64_t>(), 0, 0))
       .WillOnce(
@@ -366,11 +365,11 @@ TEST_F(SubscriptionPublisherTest, OnNewObjectAvailableDatagram) {
   publisher_->OnNewObjectAvailable(Location(1, 0), std::nullopt, 128);
 }
 
-TEST_F(SubscriptionPublisherTest, OnNewObjectAvailableStreamCreationBlocked) {
+TEST_F(LivePublisherTest, OnNewObjectAvailableStreamCreationBlocked) {
   CreatePendingStream(Location(1, 0), 0, 128);
 }
 
-TEST_F(SubscriptionPublisherTest, OnNewFinAvailableNoops) {
+TEST_F(LivePublisherTest, OnNewFinAvailableNoops) {
   // Not in window
   MessageParameters params;
   params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
@@ -393,7 +392,7 @@ TEST_F(SubscriptionPublisherTest, OnNewFinAvailableNoops) {
   publisher_->OnNewFinAvailable(Location(10, 1), 0);
 }
 
-TEST_F(SubscriptionPublisherTest, OnNewFinAvailableWithStream) {
+TEST_F(LivePublisherTest, OnNewFinAvailableWithStream) {
   CreateStream(Location(1, 0), 0, 128);
   EXPECT_CALL(mock_uni_stream_, Writev)
       .WillOnce([](absl::Span<quiche::QuicheMemSlice> data,
@@ -407,7 +406,7 @@ TEST_F(SubscriptionPublisherTest, OnNewFinAvailableWithStream) {
   publisher_->OnNewFinAvailable(Location(1, 0), 0);
 }
 
-TEST_F(SubscriptionPublisherTest, OnSubgroupAbandonedNoEffect) {
+TEST_F(LivePublisherTest, OnSubgroupAbandonedNoEffect) {
   // Not in window
   MessageParameters params;
   params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
@@ -421,7 +420,7 @@ TEST_F(SubscriptionPublisherTest, OnSubgroupAbandonedNoEffect) {
   publisher_->OnSubgroupAbandoned(1, 0, 17);
 }
 
-TEST_F(SubscriptionPublisherTest, OnGroupAbandoned) {
+TEST_F(LivePublisherTest, OnGroupAbandoned) {
   // Not in window
   MessageParameters params;
   params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
@@ -437,7 +436,7 @@ TEST_F(SubscriptionPublisherTest, OnGroupAbandoned) {
   publisher_->OnNewObjectAvailable(Location(1, 0), 0, 128);
 }
 
-TEST_F(SubscriptionPublisherTest, OnGroupAbandonedWithStreams) {
+TEST_F(LivePublisherTest, OnGroupAbandonedWithStreams) {
   // The delivery timeout is not infinite, so it will not send a PUBLISH_DONE
   // with kTooFarBehind.
   CreateStream(Location(1, 0), 0, 128);
@@ -446,7 +445,7 @@ TEST_F(SubscriptionPublisherTest, OnGroupAbandonedWithStreams) {
   publisher_->OnGroupAbandoned(1);
 }
 
-TEST_F(SubscriptionPublisherTest, OnGroupAbandonedTooFarBehind) {
+TEST_F(LivePublisherTest, OnGroupAbandonedTooFarBehind) {
   // Set the delivery timeout to infinite so that TooFarBehind is possible.
   parameters_.delivery_timeout = quic::QuicTimeDelta::Infinite();
   publisher_->Update(parameters_);
@@ -470,7 +469,7 @@ TEST_F(SubscriptionPublisherTest, OnGroupAbandonedTooFarBehind) {
   track_publisher_ = nullptr;
 }
 
-TEST_F(SubscriptionPublisherTest, OnCanCreateNewUniStreamPendingCleanup) {
+TEST_F(LivePublisherTest, OnCanCreateNewUniStreamPendingCleanup) {
   CreatePendingStream(Location(1, 0), 0, 128);
   // Abandon the group.
   publisher_->OnGroupAbandoned(1);
@@ -481,7 +480,7 @@ TEST_F(SubscriptionPublisherTest, OnCanCreateNewUniStreamPendingCleanup) {
   publisher_->OnCanCreateNewUniStream();
 }
 
-TEST_F(SubscriptionPublisherTest, AlternateDeliveryTimeoutSetAlarm) {
+TEST_F(LivePublisherTest, AlternateDeliveryTimeoutSetAlarm) {
   ON_CALL(visitor_, alternate_delivery_timeout).WillByDefault(Return(true));
   // Create a stream for group 1.
   CreateStream(Location(1, 0), 0, 128);
@@ -491,7 +490,7 @@ TEST_F(SubscriptionPublisherTest, AlternateDeliveryTimeoutSetAlarm) {
   CreatePendingStream(Location(2, 0), 0, 128);
 }
 
-TEST_F(SubscriptionPublisherTest, OnTrackPublisherGone) {
+TEST_F(LivePublisherTest, OnTrackPublisherGone) {
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_bidi_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kPublishDone), _))
@@ -501,7 +500,7 @@ TEST_F(SubscriptionPublisherTest, OnTrackPublisherGone) {
   track_publisher_ = nullptr;
 }
 
-TEST_F(SubscriptionPublisherTest, ProcessObjectAck) {
+TEST_F(LivePublisherTest, ProcessObjectAck) {
   MoqtObjectAck ack;
   ack.group_id = 1;
   ack.object_id = 2;
@@ -511,13 +510,13 @@ TEST_F(SubscriptionPublisherTest, ProcessObjectAck) {
   publisher_->ProcessObjectAck(ack);
 }
 
-TEST_F(SubscriptionPublisherTest, OnSubgroupAbandonedWithStream) {
+TEST_F(LivePublisherTest, OnSubgroupAbandonedWithStream) {
   CreateStream(Location(1, 0), 0, 128);
   EXPECT_CALL(mock_uni_stream_, ResetWithUserCode(17));
   publisher_->OnSubgroupAbandoned(1, 0, 17);
 }
 
-TEST_F(SubscriptionPublisherTest, OnCanCreateNewUniStreamSuccess) {
+TEST_F(LivePublisherTest, OnCanCreateNewUniStreamSuccess) {
   CreatePendingStream(Location(1, 0), 0, 128);
   // Call OnCanCreateNewUniStream and succeed.
   EXPECT_CALL(mock_uni_stream_, GetStreamId())
@@ -545,7 +544,7 @@ TEST_F(SubscriptionPublisherTest, OnCanCreateNewUniStreamSuccess) {
   publisher_->OnCanCreateNewUniStream();
 }
 
-TEST_F(SubscriptionPublisherTest, PendingStreamsInOrder) {
+TEST_F(LivePublisherTest, PendingStreamsInOrder) {
   CreatePendingStream(Location(1, 0), 0, 128);
   CreatePendingStream(Location(0, 0), 0, 128);
   CreatePendingStream(Location(2, 0), 0, 127);
@@ -633,7 +632,7 @@ TEST_F(SubscriptionPublisherTest, PendingStreamsInOrder) {
   publisher_->OnCanCreateNewUniStream();
 }
 
-TEST_F(SubscriptionPublisherTest, OnDataStreamDestroyed) {
+TEST_F(LivePublisherTest, OnDataStreamDestroyed) {
   CreateStream(Location(1, 0), 0, 128);
   DataStreamIndex index(1, 0);
   publisher_->OnDataStreamDestroyed(index);
@@ -643,15 +642,14 @@ TEST_F(SubscriptionPublisherTest, OnDataStreamDestroyed) {
   publisher_->Update(parameters_);
 }
 
-TEST_F(SubscriptionPublisherTest, OnObjectSentTwice) {
+TEST_F(LivePublisherTest, OnObjectSentTwice) {
   publisher_->OnObjectSent(Location(1, 0));
-  EXPECT_TRUE(
-      SubscriptionPublisherPeer::largest_sent(publisher_.get()).has_value() &&
-      *SubscriptionPublisherPeer::largest_sent(publisher_.get()) ==
-          Location(1, 0));
+  EXPECT_TRUE(LivePublisherPeer::largest_sent(publisher_.get()).has_value() &&
+              *LivePublisherPeer::largest_sent(publisher_.get()) ==
+                  Location(1, 0));
 }
 
-TEST_F(SubscriptionPublisherTest, AlternateDeliveryTimeout) {
+TEST_F(LivePublisherTest, AlternateDeliveryTimeout) {
   EXPECT_CALL(visitor_, alternate_delivery_timeout)
       .WillRepeatedly(Return(true));
   CreateStream(Location(0, 0), 0, 128);
@@ -687,7 +685,7 @@ TEST_F(SubscriptionPublisherTest, AlternateDeliveryTimeout) {
             nullptr);
 }
 
-TEST_F(SubscriptionPublisherTest, IncomingUpdateTruncatesSubscription) {
+TEST_F(LivePublisherTest, IncomingUpdateTruncatesSubscription) {
   // Track gets to Group 5.
   CreateStream(Location(5, 0), 0, 128);
   parameters_.subscription_filter = SubscriptionFilter(Location(0, 0), 4);
@@ -696,7 +694,7 @@ TEST_F(SubscriptionPublisherTest, IncomingUpdateTruncatesSubscription) {
   publisher_->OnNewObjectAvailable(Location(5, 1), 0, 128);
 }
 
-TEST_F(SubscriptionPublisherTest, OnNewFinAvailable) {
+TEST_F(LivePublisherTest, OnNewFinAvailable) {
   CreateStream(
       Location(1, 0), 0, 127,
       {0x51, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x0a});
@@ -709,7 +707,7 @@ TEST_F(SubscriptionPublisherTest, OnNewFinAvailable) {
   publisher_->OnNewFinAvailable(Location(1, 0), 0);
 }
 
-TEST_F(SubscriptionPublisherTest, OnSubgroupAbandoned) {
+TEST_F(LivePublisherTest, OnSubgroupAbandoned) {
   CreateStream(
       Location(1, 0), 0, 127,
       {0x51, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x0a});
@@ -717,7 +715,7 @@ TEST_F(SubscriptionPublisherTest, OnSubgroupAbandoned) {
   publisher_->OnSubgroupAbandoned(1, 0, 1234);
 }
 
-TEST_F(SubscriptionPublisherTest, OnSubgroupAbandonedOutsideWindow) {
+TEST_F(LivePublisherTest, OnSubgroupAbandonedOutsideWindow) {
   parameters_.subscription_filter = SubscriptionFilter(Location(20, 0));
   publisher_->Update(parameters_);
   EXPECT_CALL(mock_uni_stream_, ResetWithUserCode).Times(0);

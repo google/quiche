@@ -17,29 +17,29 @@
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
+#include "quiche/quic/moqt/moqt_live_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
-#include "quiche/quic/moqt/moqt_subscription.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
 
-class MoqtPublishPublisherStream : public MoqtBidiStreamBase {
+class MoqtPublishRequestStream : public MoqtBidiStreamBase {
  public:
   // Order of operations:
   // 1. Call this constructor
   // 2. Call SetPublisher()
   // 3. Call Webtransport::Stream::SetVisitor()
   // 4. Call this::BindStream()
-  MoqtPublishPublisherStream(
+  MoqtPublishRequestStream(
       MoqtFramer* absl_nonnull framer,
       const MoqtControlMessageParser& message_parser,
-      SubscriptionPublisher::RemoveCallback stream_deleted_callback,
+      LivePublisher::RemoveCallback stream_deleted_callback,
       SessionErrorCallback session_error_callback,
       MoqtResponseCallback response_callback);
-  ~MoqtPublishPublisherStream();
+  ~MoqtPublishRequestStream();
 
   // MoqtBidiStreamBase overrides.
   void OnStreamBound() override;
@@ -53,7 +53,7 @@ class MoqtPublishPublisherStream : public MoqtBidiStreamBase {
     return absl::OkStatus();
   }
 
-  void SetPublisher(std::unique_ptr<SubscriptionPublisher> publisher) {
+  void SetPublisher(std::unique_ptr<LivePublisher> publisher) {
     publisher_ = std::move(publisher);
   }
 
@@ -61,7 +61,7 @@ class MoqtPublishPublisherStream : public MoqtBidiStreamBase {
     if (stream_deleted_callback_ == nullptr) {
       return;
     }
-    SubscriptionPublisher::RemoveCallback callback =
+    LivePublisher::RemoveCallback callback =
         std::move(stream_deleted_callback_);
     stream_deleted_callback_ = nullptr;
     std::move(callback)(publisher_.get());
@@ -71,23 +71,23 @@ class MoqtPublishPublisherStream : public MoqtBidiStreamBase {
 
  private:
   MoqtResponseCallback response_callback_;
-  std::unique_ptr<SubscriptionPublisher> publisher_;
+  std::unique_ptr<LivePublisher> publisher_;
   absl::flat_hash_map<uint64_t, MoqtResponseCallback> pending_updates_;
-  SubscriptionPublisher::RemoveCallback stream_deleted_callback_;
+  LivePublisher::RemoveCallback stream_deleted_callback_;
 };
 
-class MoqtPublishSubscriberStream : public MoqtBidiStreamBase {
+class MoqtPublishResponseStream : public MoqtBidiStreamBase {
  public:
-  MoqtPublishSubscriberStream(
+  MoqtPublishResponseStream(
       MoqtFramer* absl_nonnull framer,
       const MoqtControlMessageParser& message_parser,
       const quic::QuicClock* absl_nonnull clock,
       quic::QuicAlarmFactory* absl_nonnull alarm_factory,
       SessionErrorCallback session_error_callback,
       const MoqtIncomingPublishCallback* absl_nonnull incoming_publish_callback,
-      SubscribeRemoteTrack::AddCallback add_callback,
-      SubscribeRemoteTrack::RemoveCallback remove_callback);
-  ~MoqtPublishSubscriberStream() { Detach(); }
+      LiveSubscriber::AddCallback add_callback,
+      LiveSubscriber::RemoveCallback remove_callback);
+  ~MoqtPublishResponseStream() { Detach(); }
 
   // MoqtBidiStreamBase overrides.
   void OnStreamBound() override {
@@ -102,12 +102,11 @@ class MoqtPublishSubscriberStream : public MoqtBidiStreamBase {
   absl::Status OnControlMessage(const MoqtRequestError& message);
   absl::Status OnControlMessage(const MoqtPublishDone& message);
 
-  SubscribeRemoteTrack* track() { return subscriber_.get(); }
+  LiveSubscriber* track() { return subscriber_.get(); }
 
   void Detach() override {
     if (remove_callback_ != nullptr) {
-      SubscribeRemoteTrack::RemoveCallback callback =
-          std::move(remove_callback_);
+      LiveSubscriber::RemoveCallback callback = std::move(remove_callback_);
       remove_callback_ = nullptr;
       std::move(callback)(subscriber_.get());
     }
@@ -118,14 +117,14 @@ class MoqtPublishSubscriberStream : public MoqtBidiStreamBase {
   uint64_t request_id_;
   SubscribeVisitor* absl_nullable subscribe_visitor_ = nullptr;
   bool in_destructor_ = false;
-  std::unique_ptr<SubscribeRemoteTrack> subscriber_;
+  std::unique_ptr<LiveSubscriber> subscriber_;
   absl::flat_hash_map<uint64_t, MoqtResponseCallback> pending_updates_;
   const quic::QuicClock* clock_;
   quic::QuicAlarmFactory* alarm_factory_;
   const MoqtIncomingPublishCallback* incoming_publish_callback_;
-  SubscribeRemoteTrack::AddCallback add_callback_;
-  SubscribeRemoteTrack::RemoveCallback remove_callback_;
-  quiche::QuicheWeakPtrFactory<MoqtPublishSubscriberStream> weak_ptr_factory_;
+  LiveSubscriber::AddCallback add_callback_;
+  LiveSubscriber::RemoveCallback remove_callback_;
+  quiche::QuicheWeakPtrFactory<MoqtPublishResponseStream> weak_ptr_factory_;
 };
 
 }  // namespace moqt

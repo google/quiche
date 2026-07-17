@@ -28,24 +28,24 @@
 
 namespace moqt {
 
-MoqtNamespaceSubscriberStream::~MoqtNamespaceSubscriberStream() {
+MoqtSubscribeNamespaceRequestStream::~MoqtSubscribeNamespaceRequestStream() {
   NamespaceTask* task = task_.GetIfAvailable();
   if (task != nullptr) {
     task->DeclareEof();
   }
   Detach();
 }
-absl::Status MoqtNamespaceSubscriberStream::OnRawControlMessage(
+absl::Status MoqtSubscribeNamespaceRequestStream::OnRawControlMessage(
     const MoqtRawControlMessage& message) {
   return ControlMessageDispatcher::DispatchControlMessage(
       *this, message_parser(), message, "namespace subscriber");
 }
 
-void MoqtNamespaceSubscriberStream::OnStreamBound() {
+void MoqtSubscribeNamespaceRequestStream::OnStreamBound() {
   // TODO(martinduke): Set the priority for this stream.
 }
 
-absl::Status MoqtNamespaceSubscriberStream::OnControlMessage(
+absl::Status MoqtSubscribeNamespaceRequestStream::OnControlMessage(
     const MoqtRequestOk& message) {
   if (message.request_id == request_id_) {
     // Response to the initial SUBSCRIBE_NAMESPACE.
@@ -70,7 +70,7 @@ absl::Status MoqtNamespaceSubscriberStream::OnControlMessage(
   return absl::OkStatus();
 }
 
-absl::Status MoqtNamespaceSubscriberStream::OnControlMessage(
+absl::Status MoqtSubscribeNamespaceRequestStream::OnControlMessage(
     const MoqtRequestError& message) {
   if (message.request_id == request_id_) {
     if (response_callback_ == nullptr) {
@@ -96,7 +96,7 @@ absl::Status MoqtNamespaceSubscriberStream::OnControlMessage(
   return absl::OkStatus();
 }
 
-absl::Status MoqtNamespaceSubscriberStream::OnControlMessage(
+absl::Status MoqtSubscribeNamespaceRequestStream::OnControlMessage(
     const MoqtNamespace& message) {
   if (response_callback_ != nullptr) {
     return absl::InvalidArgumentError(
@@ -130,7 +130,7 @@ absl::Status MoqtNamespaceSubscriberStream::OnControlMessage(
   return absl::OkStatus();
 }
 
-absl::Status MoqtNamespaceSubscriberStream::OnControlMessage(
+absl::Status MoqtSubscribeNamespaceRequestStream::OnControlMessage(
     const MoqtNamespaceDone& message) {
   if (response_callback_ != nullptr) {
     return absl::InvalidArgumentError(
@@ -151,8 +151,8 @@ absl::Status MoqtNamespaceSubscriberStream::OnControlMessage(
   return absl::OkStatus();
 }
 
-std::unique_ptr<MoqtNamespaceTask> MoqtNamespaceSubscriberStream::CreateTask(
-    const TrackNamespace& prefix) {
+std::unique_ptr<MoqtNamespaceTask>
+MoqtSubscribeNamespaceRequestStream::CreateTask(const TrackNamespace& prefix) {
   auto task = std::make_unique<NamespaceTask>(this, prefix);
   QUICHE_DCHECK(task != nullptr);
   task_ = task->GetWeakPtr();
@@ -160,21 +160,22 @@ std::unique_ptr<MoqtNamespaceTask> MoqtNamespaceSubscriberStream::CreateTask(
   return std::move(task);
 }
 
-MoqtNamespaceSubscriberStream::NamespaceTask::~NamespaceTask() {
+MoqtSubscribeNamespaceRequestStream::NamespaceTask::~NamespaceTask() {
   if (state_ != nullptr) {
     state_->Reset(kResetCodeCancelled);
   }
 }
 
-void MoqtNamespaceSubscriberStream::NamespaceTask::SetObjectsAvailableCallback(
-    ObjectsAvailableCallback absl_nullable callback) {
+void MoqtSubscribeNamespaceRequestStream::NamespaceTask::
+    SetObjectsAvailableCallback(ObjectsAvailableCallback
+                                absl_nullable callback) {
   callback_ = std::move(callback);
   if (!pending_suffixes_.empty() && callback_ != nullptr) {
     callback_();
   }
 }
 
-void MoqtNamespaceSubscriberStream::NamespaceTask::Update(
+void MoqtSubscribeNamespaceRequestStream::NamespaceTask::Update(
     const MessageParameters& parameters,
     MoqtResponseCallback response_callback) {
   if (state_ == nullptr) {
@@ -190,7 +191,7 @@ void MoqtNamespaceSubscriberStream::NamespaceTask::Update(
   next_request_id_ += 2;
 }
 
-GetNextResult MoqtNamespaceSubscriberStream::NamespaceTask::GetNextSuffix(
+GetNextResult MoqtSubscribeNamespaceRequestStream::NamespaceTask::GetNextSuffix(
     TrackNamespace& suffix, TransactionType& type) {
   if (pending_suffixes_.empty()) {
     if (error_.has_value()) {
@@ -207,7 +208,7 @@ GetNextResult MoqtNamespaceSubscriberStream::NamespaceTask::GetNextSuffix(
   return kSuccess;
 }
 
-void MoqtNamespaceSubscriberStream::NamespaceTask::AddPendingSuffix(
+void MoqtSubscribeNamespaceRequestStream::NamespaceTask::AddPendingSuffix(
     TrackNamespace suffix, TransactionType type) {
   if (pending_suffixes_.size() == kMaxPendingSuffixes) {
     error_ = kResetCodeTooFarBehind;
@@ -222,7 +223,7 @@ void MoqtNamespaceSubscriberStream::NamespaceTask::AddPendingSuffix(
   }
 }
 
-void MoqtNamespaceSubscriberStream::NamespaceTask::DeclareEof() {
+void MoqtSubscribeNamespaceRequestStream::NamespaceTask::DeclareEof() {
   if (eof_) {
     return;
   }
@@ -234,7 +235,7 @@ void MoqtNamespaceSubscriberStream::NamespaceTask::DeclareEof() {
 }
 
 MoqtResponseCallback
-MoqtNamespaceSubscriberStream::NamespaceTask::GetResponseCallback(
+MoqtSubscribeNamespaceRequestStream::NamespaceTask::GetResponseCallback(
     uint64_t request_id) {
   auto it = pending_updates_.find(request_id);
   if (it == pending_updates_.end()) {
@@ -245,7 +246,7 @@ MoqtNamespaceSubscriberStream::NamespaceTask::GetResponseCallback(
   return callback;
 }
 
-MoqtNamespacePublisherStream::MoqtNamespacePublisherStream(
+MoqtSubscribeNamespaceResponseStream::MoqtSubscribeNamespaceResponseStream(
     MoqtFramer* framer, const MoqtControlMessageParser& message_parser,
     AddPrefixCallback add_callback, RemovePrefixCallback remove_callback,
     SessionErrorCallback session_error_callback,
@@ -257,13 +258,13 @@ MoqtNamespacePublisherStream::MoqtNamespacePublisherStream(
       remove_callback_(std::move(remove_callback)),
       application_(application) {}
 
-absl::Status MoqtNamespacePublisherStream::OnRawControlMessage(
+absl::Status MoqtSubscribeNamespaceResponseStream::OnRawControlMessage(
     const MoqtRawControlMessage& message) {
   return ControlMessageDispatcher::DispatchControlMessage(
       *this, message_parser(), message, "namespace publisher");
 }
 
-absl::Status MoqtNamespacePublisherStream::OnControlMessage(
+absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
     const MoqtSubscribeNamespace& message) {
   request_id_ = message.request_id;
   if (add_callback_ == nullptr) {
@@ -285,7 +286,7 @@ absl::Status MoqtNamespacePublisherStream::OnControlMessage(
   return absl::OkStatus();
 }
 
-absl::Status MoqtNamespacePublisherStream::OnControlMessage(
+absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
   if (task_ == nullptr) {
     // This stream is dying.
@@ -295,14 +296,14 @@ absl::Status MoqtNamespacePublisherStream::OnControlMessage(
   return absl::OkStatus();
 }
 
-void MoqtNamespacePublisherStream::Detach() {
+void MoqtSubscribeNamespaceResponseStream::Detach() {
   if (remove_callback_ != nullptr) {
     std::move(remove_callback_)(prefix_);
     remove_callback_ = nullptr;
   }
 }
 
-void MoqtNamespacePublisherStream::ProcessNamespaces() {
+void MoqtSubscribeNamespaceResponseStream::ProcessNamespaces() {
   if (task_ == nullptr) {
     return;
   }
@@ -364,7 +365,7 @@ void MoqtNamespacePublisherStream::ProcessNamespaces() {
   }
 }
 
-MoqtResponseCallback MoqtNamespacePublisherStream::ResponseCallback(
+MoqtResponseCallback MoqtSubscribeNamespaceResponseStream::ResponseCallback(
     uint64_t request_id) {
   return [this, request_id](
              std::variant<MessageParameters, MoqtRequestErrorInfo> response) {

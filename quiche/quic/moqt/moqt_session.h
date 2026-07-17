@@ -28,16 +28,16 @@
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_live_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_subscription.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/quic/moqt/session_namespace_tree.h"
@@ -169,19 +169,19 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // Called when the incoming track is malformed per Section 2.5 of
   // draft-ietf-moqt-moq-transport-12. Unsubscribe and notify the application so
   // the error can be propagated downstream, if necessary.
-  void OnMalformedTrack(RemoteTrack* track);
-  quiche::QuicheWeakPtr<RemoteTrack> GetSubscribe(
+  void OnMalformedTrack(ObjectSubscriber* track);
+  quiche::QuicheWeakPtr<ObjectSubscriber> GetSubscribe(
       uint64_t track_alias) override {
-    RemoteTrack* track = SubscribeByAlias(track_alias);
+    ObjectSubscriber* track = SubscribeByAlias(track_alias);
     if (track == nullptr) {
-      return quiche::QuicheWeakPtr<RemoteTrack>();
+      return quiche::QuicheWeakPtr<ObjectSubscriber>();
     }
     return track->weak_ptr();
   }
-  quiche::QuicheWeakPtr<RemoteTrack> GetFetch(uint64_t request_id) {
+  quiche::QuicheWeakPtr<ObjectSubscriber> GetFetch(uint64_t request_id) {
     auto it = fetch_by_id_.find(request_id);
     if (it == fetch_by_id_.end()) {
-      return quiche::QuicheWeakPtr<RemoteTrack>();
+      return quiche::QuicheWeakPtr<ObjectSubscriber>();
     }
     return it->second->weak_ptr();
   }
@@ -399,8 +399,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // Returns false if creation failed.
   [[nodiscard]] bool OpenDataStream(PublishedFetch* fetch,
                                     webtransport::SendOrder send_order);
-  SubscribeRemoteTrack* SubscribeByAlias(uint64_t track_alias);
-  SubscribeRemoteTrack* SubscribeByName(const FullTrackName& track_name);
+  LiveSubscriber* SubscribeByAlias(uint64_t track_alias);
+  LiveSubscriber* SubscribeByName(const FullTrackName& track_name);
   UpstreamFetch* FetchById(uint64_t request_id);
 
   // Checks that a subscribe ID from a SUBSCRIBE or FETCH is valid, and throws
@@ -416,7 +416,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     if (!SupportsObjectAck()) {
       return;
     }
-    SubscribeRemoteTrack* track = SubscribeByName(track_name);
+    LiveSubscriber* track = SubscribeByName(track_name);
     if (track != nullptr) {
       track->SendObjectAck(group_id, object_id, delta_from_deadline);
     }
@@ -498,9 +498,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // Upstream FETCHes, indexed by request_id. Do not erase.
   absl::flat_hash_map<uint64_t, std::unique_ptr<UpstreamFetch>> fetch_by_id_;
   // All outgoing SUBSCRIBE and incoming PUBLISH, indexed by track_alias.
-  absl::flat_hash_map<uint64_t, SubscribeRemoteTrack*> subscribe_by_alias_;
+  absl::flat_hash_map<uint64_t, LiveSubscriber*> subscribe_by_alias_;
   // All outgoing SUBSCRIBE and incoming PUBLISH, indexed by track name.
-  absl::flat_hash_map<FullTrackName, SubscribeRemoteTrack*> subscribe_by_name_;
+  absl::flat_hash_map<FullTrackName, LiveSubscriber*> subscribe_by_name_;
 
   // The next subscribe ID that the local endpoint can send.
   uint64_t next_request_id_ = 0;
@@ -510,14 +510,12 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   // All open incoming subscriptions, indexed by track name, used to check for
   // duplicates.
-  absl::flat_hash_map<FullTrackName, SubscriptionPublisher*>
-      subscribed_track_names_;
+  absl::flat_hash_map<FullTrackName, LivePublisher*> subscribed_track_names_;
   // Application object representing the publisher for all of the tracks that
   // can be subscribed to via this connection.  Must outlive this object.
   MoqtPublisher* publisher_;
   // Subscriptions for local tracks by the remote peer, indexed by request ID.
-  absl::flat_hash_map<uint64_t, SubscriptionPublisher*>
-      published_subscriptions_;
+  absl::flat_hash_map<uint64_t, LivePublisher*> published_subscriptions_;
   // Keeps track of all request IDs that have queued outgoing data streams.
   // The first element is the highest priority (lowest integer).
   absl::btree_multimap<MoqtTrackPriority, uint64_t>

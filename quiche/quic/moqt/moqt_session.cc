@@ -33,10 +33,12 @@
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_live_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_namespace_stream.h"
 #include "quiche/quic/moqt/moqt_object.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publish_stream.h"
@@ -44,8 +46,6 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_subscribe_stream.h"
-#include "quiche/quic/moqt/moqt_subscription.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -216,7 +216,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
                     << message.object_id << " priority "
                     << message.publisher_priority << " length "
                     << payload->size();
-  SubscribeRemoteTrack* track = SubscribeByAlias(message.track_alias);
+  LiveSubscriber* track = SubscribeByAlias(message.track_alias);
   if (track == nullptr) {
     return;
   }
@@ -313,8 +313,8 @@ std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
         "SUBSCRIBE_NAMESPACE already outstanding for namespace"});
     return nullptr;
   }
-  std::unique_ptr<MoqtNamespaceSubscriberStream> state =
-      std::make_unique<MoqtNamespaceSubscriberStream>(
+  std::unique_ptr<MoqtSubscribeNamespaceRequestStream> state =
+      std::make_unique<MoqtSubscribeNamespaceRequestStream>(
           &framer_, ControlMessageParser(), next_request_id_,
           [weakptr = GetWeakPtr()](const TrackNamespace& prefix) {
             MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
@@ -330,7 +330,7 @@ std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
             }
           },
           std::move(response_callback));
-  MoqtNamespaceSubscriberStream* state_ptr = state.get();
+  MoqtSubscribeNamespaceRequestStream* state_ptr = state.get();
   if (session_->CanOpenNextOutgoingBidirectionalStream()) {
     webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
     state->BindStream(stream);
@@ -503,7 +503,7 @@ bool MoqtSession::Subscribe(const FullTrackName& name,
         session->Error(code, reason);
       },
       name, visitor, parameters,
-      [weakptr = GetWeakPtr()](SubscribeRemoteTrack* track) {
+      [weakptr = GetWeakPtr()](LiveSubscriber* track) {
         MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
         if (session == nullptr || !track->track_alias().has_value()) {
           return false;
@@ -512,7 +512,7 @@ bool MoqtSession::Subscribe(const FullTrackName& name,
             *track->track_alias(), track);
         return success;
       },
-      [weakptr = GetWeakPtr()](SubscribeRemoteTrack* track) {
+      [weakptr = GetWeakPtr()](LiveSubscriber* track) {
         MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
         if (session == nullptr) {
           return;
@@ -594,9 +594,9 @@ bool MoqtSession::Publish(
         MoqtRequestErrorInfo{RequestErrorCode::kDuplicateSubscription,
                              std::nullopt, "PUBLISH is coming"});
   }
-  auto stream_visitor = std::make_unique<MoqtPublishPublisherStream>(
+  auto stream_visitor = std::make_unique<MoqtPublishRequestStream>(
       &framer_, ControlMessageParser(),
-      [weak_session = GetWeakPtr()](SubscriptionPublisher* publisher) {
+      [weak_session = GetWeakPtr()](LivePublisher* publisher) {
         MoqtSession* session = MoqtSessionFromWeakPtr(weak_session);
         if (session == nullptr) {
           return;
@@ -613,14 +613,14 @@ bool MoqtSession::Publish(
         session->Error(code, reason);
       },
       std::move(response_callback));
-  auto publish_state = std::make_unique<SubscriptionPublisher>(
+  auto publish_state = std::make_unique<LivePublisher>(
       framer_, publisher, stream_visitor.get(), next_request_id_,
       next_local_track_alias_, parameters,
       weak_ptr_factory_for_publishers_.Create(), true);
-  SubscriptionPublisher* publisher_ptr = publish_state.get();
+  LivePublisher* publisher_ptr = publish_state.get();
   stream_visitor->SetPublisher(std::move(publish_state));
   webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
-  MoqtPublishPublisherStream* stream_visitor_ptr = stream_visitor.get();
+  MoqtPublishRequestStream* stream_visitor_ptr = stream_visitor.get();
   stream->SetVisitor(std::move(stream_visitor));
   stream_visitor_ptr->BindStream(stream);
   next_request_id_ += 2;
@@ -673,7 +673,7 @@ bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
       name, visitor,
       [this, track_name = name](std::unique_ptr<MoqtFetchTask> fetch_task) {
         // Move the fetch_task to the subscribe to plumb into its visitor.
-        SubscribeRemoteTrack* subscribe = SubscribeByName(track_name);
+        LiveSubscriber* subscribe = SubscribeByName(track_name);
         if (subscribe == nullptr || subscribe->is_fetch()) {
           fetch_task.release();
           return;
@@ -810,7 +810,7 @@ bool MoqtSession::OpenDataStream(PublishedFetch* fetch,
   return true;
 }
 
-SubscribeRemoteTrack* MoqtSession::SubscribeByAlias(uint64_t track_alias) {
+LiveSubscriber* MoqtSession::SubscribeByAlias(uint64_t track_alias) {
   auto it = subscribe_by_alias_.find(track_alias);
   if (it == subscribe_by_alias_.end()) {
     return nullptr;
@@ -818,8 +818,7 @@ SubscribeRemoteTrack* MoqtSession::SubscribeByAlias(uint64_t track_alias) {
   return it->second;
 }
 
-SubscribeRemoteTrack* MoqtSession::SubscribeByName(
-    const FullTrackName& track_name) {
+LiveSubscriber* MoqtSession::SubscribeByName(const FullTrackName& track_name) {
   auto it = subscribe_by_name_.find(track_name);
   if (it == subscribe_by_name_.end()) {
     return nullptr;
@@ -929,33 +928,35 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
       break;
     }
     case MoqtMessageType::kSubscribeNamespace: {
-      auto namespace_stream = std::make_unique<MoqtNamespacePublisherStream>(
-          &session_->framer_, session_->ControlMessageParser(),
-          [weakptr = session_->GetWeakPtr()](const TrackNamespace& prefix) {
-            MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
-            if (session != nullptr) {
-              return session->incoming_subscribe_namespace_.SubscribeNamespace(
-                  prefix);
-            }
-            return true;
-          },
-          [weakptr = session_->GetWeakPtr()](const TrackNamespace& prefix) {
-            MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
-            if (session != nullptr) {
-              session->incoming_subscribe_namespace_.UnsubscribeNamespace(
-                  prefix);
-            }
-          },
-          [weakptr = session_->GetWeakPtr()](MoqtError code,
-                                             absl::string_view reason) {
-            MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
-            if (session != nullptr) {
-              session->Error(code, reason);
-            }
-          },
-          session_->callbacks_.incoming_subscribe_namespace_callback);
+      auto namespace_stream =
+          std::make_unique<MoqtSubscribeNamespaceResponseStream>(
+              &session_->framer_, session_->ControlMessageParser(),
+              [weakptr = session_->GetWeakPtr()](const TrackNamespace& prefix) {
+                MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+                if (session != nullptr) {
+                  return session->incoming_subscribe_namespace_
+                      .SubscribeNamespace(prefix);
+                }
+                return true;
+              },
+              [weakptr = session_->GetWeakPtr()](const TrackNamespace& prefix) {
+                MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+                if (session != nullptr) {
+                  session->incoming_subscribe_namespace_.UnsubscribeNamespace(
+                      prefix);
+                }
+              },
+              [weakptr = session_->GetWeakPtr()](MoqtError code,
+                                                 absl::string_view reason) {
+                MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+                if (session != nullptr) {
+                  session->Error(code, reason);
+                }
+              },
+              session_->callbacks_.incoming_subscribe_namespace_callback);
       namespace_stream->BindStream(std::move(parser_));
-      MoqtNamespacePublisherStream* temp_stream = namespace_stream.get();
+      MoqtSubscribeNamespaceResponseStream* temp_stream =
+          namespace_stream.get();
       stream_->SetVisitor(std::move(namespace_stream));
       // The UnknownBidiStream object is deleted; no class access after this
       // point.
@@ -963,7 +964,7 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
       break;
     }
     case MoqtMessageType::kPublish: {
-      auto publish_stream = std::make_unique<MoqtPublishSubscriberStream>(
+      auto publish_stream = std::make_unique<MoqtPublishResponseStream>(
           &session_->framer_, session_->ControlMessageParser(),
           session_->callbacks_.clock, session_->alarm_factory(),
           [weakptr = session_->GetWeakPtr()](MoqtError code,
@@ -974,7 +975,7 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
             }
           },
           &session_->callbacks_.incoming_publish_callback,
-          [weakptr = session_->GetWeakPtr()](SubscribeRemoteTrack* track) {
+          [weakptr = session_->GetWeakPtr()](LiveSubscriber* track) {
             MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
             if (session == nullptr) {
               return false;
@@ -1007,7 +1008,7 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
             QUICHE_DCHECK(name_inserted);
             return true;
           },
-          [weakptr = session_->GetWeakPtr()](SubscribeRemoteTrack* track) {
+          [weakptr = session_->GetWeakPtr()](LiveSubscriber* track) {
             MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
             if (session != nullptr) {
               session->subscribe_by_name_.erase(track->full_track_name());
@@ -1017,7 +1018,7 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
             }
           });
       publish_stream->BindStream(std::move(parser_));
-      MoqtPublishSubscriberStream* temp_stream = publish_stream.get();
+      MoqtPublishResponseStream* temp_stream = publish_stream.get();
       stream_->SetVisitor(std::move(publish_stream));
       // The UnknownBidiStream object is deleted; no class access after this
       // point.
@@ -1028,8 +1029,7 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
       auto subscribe_stream = std::make_unique<MoqtSubscribeResponseStream>(
           &session_->framer_, session_->ControlMessageParser(),
           session_->next_local_track_alias_++,
-          [weakptr =
-               session_->GetWeakPtr()](SubscriptionPublisher* subscription) {
+          [weakptr = session_->GetWeakPtr()](LivePublisher* subscription) {
             MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
             if (session == nullptr) {
               return true;
@@ -1043,8 +1043,7 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
                 subscription->publisher().GetTrackName(), subscription);
             return success2;
           },
-          [weakptr =
-               session_->GetWeakPtr()](SubscriptionPublisher* subscription) {
+          [weakptr = session_->GetWeakPtr()](LivePublisher* subscription) {
             MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
             if (session == nullptr) {
               return;
@@ -1553,9 +1552,9 @@ absl::Status MoqtSession::OnControlMessage(const MoqtRequestsBlocked& message) {
   return absl::OkStatus();
 }
 
-void MoqtSession::OnMalformedTrack(RemoteTrack* track) {
+void MoqtSession::OnMalformedTrack(ObjectSubscriber* track) {
   if (!track->is_fetch()) {
-    auto* subscribe = absl::down_cast<SubscribeRemoteTrack*>(track);
+    auto* subscribe = absl::down_cast<LiveSubscriber*>(track);
     if (subscribe->visitor() != nullptr) {
       subscribe->visitor()->OnMalformedTrack(track->full_track_name());
     }

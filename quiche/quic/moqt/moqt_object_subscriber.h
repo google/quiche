@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// TODO(martinduke): Rename this file to moqt_subscriber.h
+// TODO(martinduke): Rename this file to moqt_object_subscriber.h
 
 #ifndef QUICHE_QUIC_MOQT_MOQT_TRACK_H_
 #define QUICHE_QUIC_MOQT_MOQT_TRACK_H_
@@ -39,21 +39,21 @@ namespace moqt {
 
 namespace test {
 class MoqtSessionPeer;
-class SubscribeRemoteTrackPeer;
+class LiveSubscriberPeer;
 }  // namespace test
 
 // State common to both SUBSCRIBE and FETCH upstream.
-class RemoteTrack {
+class ObjectSubscriber {
  public:
-  RemoteTrack(const FullTrackName& full_track_name, uint64_t id,
-              const MessageParameters& parameters,
-              MoqtBidiStreamBase* request_stream)
+  ObjectSubscriber(const FullTrackName& full_track_name, uint64_t id,
+                   const MessageParameters& parameters,
+                   MoqtBidiStreamBase* request_stream)
       : full_track_name_(full_track_name),
         request_id_(id),
         request_stream_(request_stream),
         parameters_(parameters),
         weak_ptr_factory_(this) {}
-  virtual ~RemoteTrack() {}
+  virtual ~ObjectSubscriber() {}
 
   const FullTrackName& full_track_name() const { return full_track_name_; }
   // If REQUEST_ERROR arrives after OK or an object, it is a protocol violation.
@@ -65,7 +65,7 @@ class RemoteTrack {
   // Is the object one that was requested?
   virtual bool InWindow(Location sequence) const = 0;
 
-  quiche::QuicheWeakPtr<RemoteTrack> weak_ptr() {
+  quiche::QuicheWeakPtr<ObjectSubscriber> weak_ptr() {
     return weak_ptr_factory_.Create();
   }
 
@@ -93,34 +93,31 @@ class RemoteTrack {
   bool error_is_allowed_ = true;
 
   // Must be last.
-  quiche::QuicheWeakPtrFactory<RemoteTrack> weak_ptr_factory_;
+  quiche::QuicheWeakPtrFactory<ObjectSubscriber> weak_ptr_factory_;
 };
 
 // A track on the peer to which the session has subscribed.
-class SubscribeRemoteTrack : public RemoteTrack {
+class LiveSubscriber : public ObjectSubscriber {
  public:
   // Returns the existing subscription, if present.
-  using AddCallback = quiche::SingleUseCallback<bool(SubscribeRemoteTrack*)>;
-  using RemoveCallback = quiche::SingleUseCallback<void(SubscribeRemoteTrack*)>;
-  SubscribeRemoteTrack(const MoqtSubscribe& subscribe,
-                       SubscribeVisitor* visitor,
-                       MoqtBidiStreamBase* request_stream)
-      : RemoteTrack(subscribe.full_track_name, subscribe.request_id,
-                    subscribe.parameters, request_stream),
+  using AddCallback = quiche::SingleUseCallback<bool(LiveSubscriber*)>;
+  using RemoveCallback = quiche::SingleUseCallback<void(LiveSubscriber*)>;
+  LiveSubscriber(const MoqtSubscribe& subscribe, SubscribeVisitor* visitor,
+                 MoqtBidiStreamBase* request_stream)
+      : ObjectSubscriber(subscribe.full_track_name, subscribe.request_id,
+                         subscribe.parameters, request_stream),
         visitor_(visitor) {}
-  SubscribeRemoteTrack(const MoqtPublish& publish, SubscribeVisitor* visitor,
-                       MoqtBidiStreamBase* request_stream)
-      : RemoteTrack(publish.full_track_name, publish.request_id,
-                    publish.parameters, request_stream),
+  LiveSubscriber(const MoqtPublish& publish, SubscribeVisitor* visitor,
+                 MoqtBidiStreamBase* request_stream)
+      : ObjectSubscriber(publish.full_track_name, publish.request_id,
+                         publish.parameters, request_stream),
         visitor_(visitor) {
     track_alias_.emplace(publish.track_alias);
   }
-  ~SubscribeRemoteTrack() override;
+  ~LiveSubscriber() override;
 
   void OnObjectOrOk(const SubscribeOkData& data);
-  void OnObjectOrOk() override {
-    RemoteTrack::OnObjectOrOk();
-  }
+  void OnObjectOrOk() override { ObjectSubscriber::OnObjectOrOk(); }
   std::optional<uint64_t> track_alias() const { return track_alias_; }
   // Returns false if the callback returns false, meaning the session has been
   // destroyed.
@@ -133,7 +130,7 @@ class SubscribeRemoteTrack : public RemoteTrack {
                      quic::QuicAlarmFactory* alarm_factory);
 
   // The application can request a Joining FETCH but also for FETCH objects to
-  // be delivered via SubscribeRemoteTrack::Visitor::OnObjectFragment(). When
+  // be delivered via LiveSubscriber::Visitor::OnObjectFragment(). When
   // this occurs, the session passes the FetchTask here to handle incoming
   // FETCH objects to pipe directly into the visitor.
   void OnJoiningFetchReady(std::unique_ptr<MoqtFetchTask> fetch_task);
@@ -167,15 +164,15 @@ class SubscribeRemoteTrack : public RemoteTrack {
 
  private:
   friend class test::MoqtSessionPeer;
-  friend class test::SubscribeRemoteTrackPeer;
+  friend class test::LiveSubscriberPeer;
 
   class PublishDoneDelegate : public quic::QuicAlarm::DelegateWithoutContext {
    public:
-    PublishDoneDelegate(quiche::QuicheWeakPtr<RemoteTrack> subscribe)
+    PublishDoneDelegate(quiche::QuicheWeakPtr<ObjectSubscriber> subscribe)
         : subscribe_(subscribe) {}
 
     void OnAlarm() override {
-      RemoteTrack* subscribe = subscribe_.GetIfAvailable();
+      ObjectSubscriber* subscribe = subscribe_.GetIfAvailable();
       if (subscribe == nullptr) {
         return;
       }
@@ -183,7 +180,7 @@ class SubscribeRemoteTrack : public RemoteTrack {
     }
 
    private:
-    quiche::QuicheWeakPtr<RemoteTrack> subscribe_;
+    quiche::QuicheWeakPtr<ObjectSubscriber> subscribe_;
   };
 
   void MaybeSetPublishDoneAlarm();
@@ -223,14 +220,14 @@ using TaskDestroyedCallback = quiche::SingleUseCallback<void()>;
 // Class for upstream FETCH. It will notify the application using |callback|
 // when a FETCH_OK or REQUEST_ERROR is received.
 using RemoveFetchCallback = quiche::SingleUseCallback<void()>;
-class UpstreamFetch : public RemoteTrack {
+class UpstreamFetch : public ObjectSubscriber {
  public:
   // Standalone Fetch constructor
   UpstreamFetch(const MoqtFetch& fetch, const StandaloneFetch standalone,
                 FetchResponseCallback callback,
                 RemoveFetchCallback delete_callback)
-      : RemoteTrack(standalone.full_track_name, fetch.request_id,
-                    fetch.parameters, /*request_stream=*/nullptr),
+      : ObjectSubscriber(standalone.full_track_name, fetch.request_id,
+                         fetch.parameters, /*request_stream=*/nullptr),
         group_order_(fetch.parameters.group_order.value_or(
             MoqtDeliveryOrder::kAscending)),
         start_(standalone.start_location),
@@ -243,8 +240,8 @@ class UpstreamFetch : public RemoteTrack {
   UpstreamFetch(const MoqtFetch& fetch, FullTrackName full_track_name,
                 FetchResponseCallback callback,
                 RemoveFetchCallback delete_callback)
-      : RemoteTrack(full_track_name, fetch.request_id, fetch.parameters,
-                    /*request_stream=*/nullptr),
+      : ObjectSubscriber(full_track_name, fetch.request_id, fetch.parameters,
+                         /*request_stream=*/nullptr),
         group_order_(fetch.parameters.group_order.value_or(
             MoqtDeliveryOrder::kAscending)),
         relative_groups_(
@@ -258,8 +255,8 @@ class UpstreamFetch : public RemoteTrack {
                 JoiningFetchAbsolute absolute_joining,
                 FetchResponseCallback callback,
                 RemoveFetchCallback delete_callback)
-      : RemoteTrack(full_track_name, fetch.request_id, fetch.parameters,
-                    /*request_stream=*/nullptr),
+      : ObjectSubscriber(full_track_name, fetch.request_id, fetch.parameters,
+                         /*request_stream=*/nullptr),
         group_order_(fetch.parameters.group_order.value_or(
             MoqtDeliveryOrder::kAscending)),
         start_(Location(absolute_joining.joining_start, 0)),

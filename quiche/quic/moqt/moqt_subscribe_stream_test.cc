@@ -18,14 +18,14 @@
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_live_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_subscription.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
@@ -68,11 +68,11 @@ class MoqtSubscribeRequestStreamTest : public quiche::test::QuicheTest {
   MessageParameters parameters_;
   testing::StrictMock<testing::MockFunction<void(MoqtError, absl::string_view)>>
       error_callback_;
-  testing::MockFunction<bool(SubscribeRemoteTrack*)> mock_add_callback_;
-  testing::MockFunction<void(SubscribeRemoteTrack*)> mock_remove_callback_;
+  testing::MockFunction<bool(LiveSubscriber*)> mock_add_callback_;
+  testing::MockFunction<void(LiveSubscriber*)> mock_remove_callback_;
   quic::MockClock mock_clock_;
   quic::test::MockAlarmFactory mock_alarm_factory_;
-  StrictMock<MockSubscribeRemoteTrackVisitor> mock_subscribe_visitor_;
+  StrictMock<MockLiveSubscriberVisitor> mock_subscribe_visitor_;
   webtransport::test::MockStream mock_stream_;
   std::unique_ptr<MoqtSubscribeRequestStream> stream_;
 };
@@ -229,8 +229,8 @@ class MoqtSubscribeResponseStreamTest : public quiche::test::QuicheTest {
   FullTrackName kTrackName{"foo", "bar"};
   std::shared_ptr<TestTrackPublisher> track_publisher_;
   testing::MockFunction<void(MoqtError, absl::string_view)> error_callback_;
-  testing::MockFunction<bool(SubscriptionPublisher*)> mock_add_callback_;
-  testing::MockFunction<void(SubscriptionPublisher*)> mock_remove_callback_;
+  testing::MockFunction<bool(LivePublisher*)> mock_add_callback_;
+  testing::MockFunction<void(LivePublisher*)> mock_remove_callback_;
   MockSessionToPublisherInterface visitor_;
   webtransport::test::MockSession webtrans_;
   webtransport::test::MockStream mock_stream_;

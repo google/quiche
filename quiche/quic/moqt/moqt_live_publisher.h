@@ -36,7 +36,7 @@
 namespace moqt {
 
 namespace test {
-class SubscriptionPublisherPeer;
+class LivePublisherPeer;
 }  // namespace test
 
 // This is the part of the send order useful for ranking streams within the
@@ -71,7 +71,7 @@ class MoqtPublishingMonitorInterface {
                                    quic::QuicTimeDelta delta_from_deadline) = 0;
 };
 
-// Allows SubscriptionPublisher to get data from the session.
+// Allows LivePublisher to get data from the session.
 class QUICHE_EXPORT SessionToPublisherInterface {
  public:
   virtual ~SessionToPublisherInterface() = default;
@@ -94,28 +94,27 @@ class QUICHE_EXPORT SessionToPublisherInterface {
 
 // State for delivery of objects via a subscription, whether initiated by a
 // SUBSCRIBE or PUBLISH.
-class SubscriptionPublisher : public MoqtObjectListener,
-                              public SubscriptionPublisherInterface {
+class LivePublisher : public MoqtObjectListener, public LivePublisherInterface {
  public:
   // The provider of this callback will add/delete whatever state it is tracking
   // for the subscription. This will be used by both PUBLISH and SUBSCRIBE
   // streams. AddCallback returns |false| if the add fails because the key
   // already exists.
-  using AddCallback = quiche::SingleUseCallback<bool(SubscriptionPublisher*)>;
-  using RemoveCallback =
-      quiche::SingleUseCallback<void(SubscriptionPublisher*)>;
-  SubscriptionPublisher(
-      MoqtFramer framer, std::shared_ptr<MoqtTrackPublisher> track_publisher,
-      MoqtBidiStreamBase* absl_nonnull bidi_stream, uint64_t request_id,
-      uint64_t track_alias, const MessageParameters& parameters,
-      quiche::QuicheWeakPtr<SessionToPublisherInterface> visitor,
-      bool is_publish);
-  ~SubscriptionPublisher();
+  using AddCallback = quiche::SingleUseCallback<bool(LivePublisher*)>;
+  using RemoveCallback = quiche::SingleUseCallback<void(LivePublisher*)>;
+  LivePublisher(MoqtFramer framer,
+                std::shared_ptr<MoqtTrackPublisher> track_publisher,
+                MoqtBidiStreamBase* absl_nonnull bidi_stream,
+                uint64_t request_id, uint64_t track_alias,
+                const MessageParameters& parameters,
+                quiche::QuicheWeakPtr<SessionToPublisherInterface> visitor,
+                bool is_publish);
+  ~LivePublisher();
 
-  SubscriptionPublisher(const SubscriptionPublisher&) = delete;
-  SubscriptionPublisher(SubscriptionPublisher&&) = delete;
-  SubscriptionPublisher& operator=(const SubscriptionPublisher&) = delete;
-  SubscriptionPublisher& operator=(SubscriptionPublisher&&) = delete;
+  LivePublisher(const LivePublisher&) = delete;
+  LivePublisher(LivePublisher&&) = delete;
+  LivePublisher& operator=(const LivePublisher&) = delete;
+  LivePublisher& operator=(LivePublisher&&) = delete;
 
   uint64_t request_id() const { return request_id_; }
   MoqtTrackPublisher& publisher() { return *track_publisher_; }
@@ -130,13 +129,13 @@ class SubscriptionPublisher : public MoqtObjectListener,
                             MoqtPriority publisher_priority) override;
   void OnTrackPublisherGone() override;
   void OnNewFinAvailable(Location location, uint64_t subgroup) override;
-  // also a part of SubscriptionPublisherInterface.
+  // also a part of LivePublisherInterface.
   void OnSubgroupAbandoned(uint64_t group, uint64_t subgroup,
                            webtransport::StreamErrorCode error_code) override;
   void OnGroupAbandoned(uint64_t group_id) override;
   void ProcessObjectAck(const MoqtObjectAck& message);
 
-  // SubscriptionPublisherInterface implementation.
+  // LivePublisherInterface implementation.
   bool InWindow(Location location) override {
     return parameters_.forward() &&
            (!parameters_.subscription_filter.has_value() ||
@@ -186,7 +185,7 @@ class SubscriptionPublisher : public MoqtObjectListener,
 
   bool established() const { return established_; }
 
-  quiche::QuicheWeakPtr<SubscriptionPublisherInterface> GetWeakPtr() {
+  quiche::QuicheWeakPtr<LivePublisherInterface> GetWeakPtr() {
     return weak_ptr_factory_.Create();
   }
 
@@ -198,7 +197,7 @@ class SubscriptionPublisher : public MoqtObjectListener,
   void IgnoreResetAllStreams() { ignore_reset_all_streams_ = true; }
 
  private:
-  friend class test::SubscriptionPublisherPeer;
+  friend class test::LivePublisherPeer;
 
   MoqtPriority default_publisher_priority() const {
     return default_publisher_priority_.value_or(kDefaultPublisherPriority);
@@ -291,8 +290,7 @@ class SubscriptionPublisher : public MoqtObjectListener,
   // stream.
   absl::btree_multimap<StreamRank, NewDataStreamParameters> pending_streams_;
   // Must be last.
-  quiche::QuicheWeakPtrFactory<SubscriptionPublisherInterface>
-      weak_ptr_factory_;
+  quiche::QuicheWeakPtrFactory<LivePublisherInterface> weak_ptr_factory_;
 };
 
 }  // namespace moqt

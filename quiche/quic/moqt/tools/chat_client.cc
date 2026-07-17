@@ -201,7 +201,7 @@ void ChatClient::OnTerminalLineInput(absl::string_view input_message) {
   queue_->AddObject(std::move(message_slice), /*key=*/true);
 }
 
-void ChatClient::RemoteTrackVisitor::OnReply(
+void ChatClient::ObjectSubscriberVisitor::OnReply(
     const FullTrackName& full_track_name,
     std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) {
   auto it = client_->other_users_.find(full_track_name);
@@ -223,7 +223,7 @@ void ChatClient::RemoteTrackVisitor::OnReply(
       response);
 }
 
-void ChatClient::RemoteTrackVisitor::OnObjectFragment(
+void ChatClient::ObjectSubscriberVisitor::OnObjectFragment(
     const FullTrackName& full_track_name,
     const PublishedObjectMetadata& metadata, absl::string_view object,
     uint64_t offset) {

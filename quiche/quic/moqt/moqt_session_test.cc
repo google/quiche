@@ -31,11 +31,11 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
@@ -262,7 +262,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
                      webtransport::test::MockSession& session,
                      webtransport::test::MockStream* stream,
                      std::unique_ptr<webtransport::StreamVisitor>& visitor,
-                     MockSubscribeRemoteTrackVisitor* track_visitor) {
+                     MockLiveSubscriberVisitor* track_visitor) {
     MoqtFramer framer(true, quic::Perspective::IS_SERVER);
     std::optional<PublishedObjectMetadata> previous_object;
     if (visitor != nullptr) {
@@ -319,7 +319,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
     }
   }
 
-  MockSubscribeRemoteTrackVisitor remote_track_visitor_;
+  MockLiveSubscriberVisitor remote_track_visitor_;
   MoqtKnownTrackPublisher publisher_;
   webtransport::test::MockSession mock_session_;
   MockSessionCallbacks session_callbacks_;
@@ -613,8 +613,8 @@ TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsOk) {
   EXPECT_CALL(mock_bidi_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribeOk), _));
   listener->OnSubscribeAccepted();
-  EXPECT_TRUE(MoqtSessionPeer::RequestIdIsSubscriptionPublisher(
-      &session_, kDefaultPeerRequestId));
+  EXPECT_TRUE(MoqtSessionPeer::RequestIdIsLivePublisher(&session_,
+                                                        kDefaultPeerRequestId));
 }
 
 TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsError) {
@@ -746,7 +746,7 @@ TEST_F(MoqtSessionTest, UnsubscribeAllowsSecondSubscribe) {
   // Peer unsubscribes.
   bidi_wrapper_->stream().Reset(kResetCodeCancelled);
   bidi_wrapper_ = nullptr;
-  EXPECT_FALSE(MoqtSessionPeer::RequestIdIsSubscriptionPublisher(&session_, 1));
+  EXPECT_FALSE(MoqtSessionPeer::RequestIdIsLivePublisher(&session_, 1));
 
   // Subscribe again, succeeds.
   request.request_id = 3;
@@ -1815,8 +1815,8 @@ TEST_F(MoqtSessionTest, IncomingRelativeJoiningFetch) {
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtBidiStreamTestWrapper> control_wrapper =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
-  ASSERT_TRUE(MoqtSessionPeer::RequestIdIsSubscriptionPublisher(
-      &session_, subscribe.request_id));
+  ASSERT_TRUE(MoqtSessionPeer::RequestIdIsLivePublisher(&session_,
+                                                        subscribe.request_id));
   MoqtFetch fetch = DefaultFetch();
   fetch.request_id = 3;
   fetch.fetch = JoiningFetchRelative(1, 2);
@@ -1836,8 +1836,8 @@ TEST_F(MoqtSessionTest, IncomingAbsoluteJoiningFetch) {
   SetLargestId(track, Location(4, 10));
   ReceiveSubscribeSynchronousOk(track, subscribe, bidi_wrapper_.get());
 
-  ASSERT_TRUE(MoqtSessionPeer::RequestIdIsSubscriptionPublisher(
-      &session_, subscribe.request_id));
+  ASSERT_TRUE(MoqtSessionPeer::RequestIdIsLivePublisher(&session_,
+                                                        subscribe.request_id));
   webtransport::test::MockStream control_stream;
   std::unique_ptr<MoqtBidiStreamTestWrapper> control_wrapper =
       MoqtSessionPeer::CreateControlStream(&session_, &control_stream);

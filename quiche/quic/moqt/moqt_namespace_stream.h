@@ -36,21 +36,20 @@ using RemovePrefixCallback =
     quiche::SingleUseCallback<void(const TrackNamespace&)>;
 
 // This class will be owned by the webtransport stream.
-class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
+class MoqtSubscribeNamespaceRequestStream : public MoqtBidiStreamBase {
  public:
   // Assumes the caller will send or queue the SUBSCRIBE_NAMESPACE.
-  MoqtNamespaceSubscriberStream(MoqtFramer* framer,
-                                const MoqtControlMessageParser& message_parser,
-                                uint64_t request_id,
-                                RemovePrefixCallback remove_callback,
-                                SessionErrorCallback session_error_callback,
-                                MoqtResponseCallback response_callback)
+  MoqtSubscribeNamespaceRequestStream(
+      MoqtFramer* framer, const MoqtControlMessageParser& message_parser,
+      uint64_t request_id, RemovePrefixCallback remove_callback,
+      SessionErrorCallback session_error_callback,
+      MoqtResponseCallback response_callback)
       : MoqtBidiStreamBase(framer, message_parser,
                            std::move(session_error_callback)),
         request_id_(request_id),
         remove_callback_(std::move(remove_callback)),
         response_callback_(std::move(response_callback)) {}
-  ~MoqtNamespaceSubscriberStream();
+  ~MoqtSubscribeNamespaceRequestStream();
 
   // MoqtBidiStreamBase overrides.
   void OnStreamBound() override;
@@ -85,7 +84,7 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
   // information. Owned by the application.
   class NamespaceTask : public MoqtNamespaceTask {
    public:
-    NamespaceTask(MoqtNamespaceSubscriberStream* absl_nonnull state,
+    NamespaceTask(MoqtSubscribeNamespaceRequestStream* absl_nonnull state,
                   const TrackNamespace& prefix)
         : MoqtNamespaceTask(),
           prefix_(prefix),
@@ -128,7 +127,7 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
     static constexpr size_t kMaxPendingSuffixes = 100;
     const TrackNamespace prefix_;
     // Must be nonnull initially, will be nullptr if the stream is closed.
-    MoqtNamespaceSubscriberStream* state_;
+    MoqtSubscribeNamespaceRequestStream* state_;
     quiche::QuicheCircularDeque<PendingSuffix> pending_suffixes_;
     ObjectsAvailableCallback absl_nullable callback_ = nullptr;
     std::optional<webtransport::StreamErrorCode> error_;
@@ -146,15 +145,15 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
   quiche::QuicheWeakPtr<NamespaceTask> task_;
 };
 
-class MoqtNamespacePublisherStream : public MoqtBidiStreamBase {
+class MoqtSubscribeNamespaceResponseStream : public MoqtBidiStreamBase {
  public:
   // Constructor for the publisher side.
-  MoqtNamespacePublisherStream(
+  MoqtSubscribeNamespaceResponseStream(
       MoqtFramer* framer, const MoqtControlMessageParser& message_parser,
       AddPrefixCallback add_callback, RemovePrefixCallback remove_callback,
       SessionErrorCallback session_error_callback,
       MoqtIncomingSubscribeNamespaceCallback& application);
-  ~MoqtNamespacePublisherStream() { Detach(); }
+  ~MoqtSubscribeNamespaceResponseStream() { Detach(); }
 
   void OnStreamBound() override {
     // TODO(martinduke): Set the priority for this stream.

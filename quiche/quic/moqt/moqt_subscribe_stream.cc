@@ -18,13 +18,13 @@
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_live_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
-#include "quiche/quic/moqt/moqt_subscription.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
@@ -34,13 +34,13 @@ MoqtSubscribeRequestStream::MoqtSubscribeRequestStream(
     const MoqtControlMessageParser& message_parser, uint64_t request_id,
     SessionErrorCallback session_error_callback, const FullTrackName& name,
     SubscribeVisitor* absl_nonnull visitor, const MessageParameters& parameters,
-    SubscribeRemoteTrack::AddCallback add_callback,
-    SubscribeRemoteTrack::RemoveCallback remove_callback,
+    LiveSubscriber::AddCallback add_callback,
+    LiveSubscriber::RemoveCallback remove_callback,
     const quic::QuicClock* absl_nonnull clock,
     quic::QuicAlarmFactory* absl_nonnull alarm_factory)
     : MoqtBidiStreamBase(framer, message_parser,
                          std::move(session_error_callback)),
-      track_(std::make_unique<SubscribeRemoteTrack>(
+      track_(std::make_unique<LiveSubscriber>(
           MoqtSubscribe{request_id, name, parameters}, visitor, this)),
       add_callback_(std::move(add_callback)),
       remove_callback_(std::move(remove_callback)),
@@ -132,7 +132,7 @@ absl::Status MoqtSubscribeRequestStream::OnControlMessage(
 
 void MoqtSubscribeRequestStream::Detach() {
   if (remove_callback_ != nullptr) {
-    SubscribeRemoteTrack::RemoveCallback remove_callback =
+    LiveSubscriber::RemoveCallback remove_callback =
         std::move(remove_callback_);
     remove_callback_ = nullptr;
     std::move(remove_callback)(track_.get());
@@ -143,8 +143,8 @@ void MoqtSubscribeRequestStream::Detach() {
 MoqtSubscribeResponseStream::MoqtSubscribeResponseStream(
     MoqtFramer* absl_nonnull framer,
     const MoqtControlMessageParser& message_parser, uint64_t track_alias,
-    SubscriptionPublisher::AddCallback add_callback,
-    SubscriptionPublisher::RemoveCallback remove_callback,
+    LivePublisher::AddCallback add_callback,
+    LivePublisher::RemoveCallback remove_callback,
     SessionErrorCallback session_error_callback,
     quiche::QuicheWeakPtr<SessionToPublisherInterface> session)
     : MoqtBidiStreamBase(framer, message_parser,
@@ -178,7 +178,7 @@ absl::Status MoqtSubscribeResponseStream::OnControlMessage(
     return SendRequestError(message.request_id, RequestErrorCode::kDoesNotExist,
                             std::nullopt, "not found", /*fin=*/true);
   }
-  subscription_ = std::make_unique<SubscriptionPublisher>(
+  subscription_ = std::make_unique<LivePublisher>(
       *framer(), track_publisher, this, message.request_id, track_alias_,
       message.parameters, session_, false);
   if (add_callback_ != nullptr) {
@@ -210,8 +210,7 @@ absl::Status MoqtSubscribeResponseStream::OnControlMessage(
 
 void MoqtSubscribeResponseStream::Detach() {
   if (remove_callback_ != nullptr && subscription_ != nullptr) {
-    SubscriptionPublisher::RemoveCallback remove_callback =
-        std::move(remove_callback_);
+    LivePublisher::RemoveCallback remove_callback = std::move(remove_callback_);
     remove_callback_ = nullptr;
     std::move(remove_callback)(subscription_.get());
   }

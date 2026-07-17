@@ -96,7 +96,7 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
 
   // Client subscribes to the latest object in |track_name|.
   void SubscribeLatestObject(FullTrackName track_name,
-                             MockSubscribeRemoteTrackVisitor* visitor) {
+                             MockLiveSubscriberVisitor* visitor) {
     bool received_ok = false;
     EXPECT_CALL(*visitor, OnReply)
         .WillOnce(
@@ -117,7 +117,7 @@ class MoqtIntegrationTest : public quiche::test::QuicheTest {
 
   MockSessionCallbacks client_callbacks_;
   MockSessionCallbacks server_callbacks_;
-  MockSubscribeRemoteTrackVisitor subscribe_visitor_;
+  MockLiveSubscriberVisitor subscribe_visitor_;
   testing::MockFunction<void(TrackNamespace track_namespace,
                              std::optional<MoqtRequestErrorInfo> error_message)>
       outgoing_publish_namespace_callback_;

@@ -21,12 +21,12 @@
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_object.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -90,9 +90,9 @@ class OutgoingUniStream : public webtransport::StreamVisitor {
 };
 
 // This interface provides information about the subscription.
-class SubscriptionPublisherInterface {
+class LivePublisherInterface {
  public:
-  virtual ~SubscriptionPublisherInterface() = default;
+  virtual ~LivePublisherInterface() = default;
   virtual bool InWindow(Location) = 0;
   virtual bool alternate_delivery_timeout() = 0;
   virtual const quic::QuicClock* clock() = 0;
@@ -114,7 +114,7 @@ class QUICHE_EXPORT OutgoingSubgroupStream : public OutgoingUniStream {
   OutgoingSubgroupStream(
       MoqtFramer framer, webtransport::Stream* absl_nonnull stream,
       DataStreamIndex index, uint64_t first_object,
-      quiche::QuicheWeakPtr<SubscriptionPublisherInterface> visitor,
+      quiche::QuicheWeakPtr<LivePublisherInterface> visitor,
       std::shared_ptr<MoqtTrackPublisher> absl_nonnull track_publisher,
       webtransport::StreamPriority priority, uint64_t track_alias,
       MoqtTraceRecorder* absl_nonnull trace_recorder);
@@ -155,7 +155,7 @@ class QUICHE_EXPORT OutgoingSubgroupStream : public OutgoingUniStream {
   void SendObjects();
 
   DataStreamIndex index_;
-  quiche::QuicheWeakPtr<SubscriptionPublisherInterface> visitor_;
+  quiche::QuicheWeakPtr<LivePublisherInterface> visitor_;
 
   MoqtDataStreamType type_;
   uint64_t track_alias_;
@@ -199,10 +199,11 @@ class SessionToUniStreamInterface {
  public:
   virtual ~SessionToUniStreamInterface() = default;
   virtual bool deliver_partial_objects() const = 0;
-  virtual void OnMalformedTrack(RemoteTrack* name) = 0;
-  virtual quiche::QuicheWeakPtr<RemoteTrack> GetSubscribe(
+  virtual void OnMalformedTrack(ObjectSubscriber* name) = 0;
+  virtual quiche::QuicheWeakPtr<ObjectSubscriber> GetSubscribe(
       uint64_t track_alias) = 0;
-  virtual quiche::QuicheWeakPtr<RemoteTrack> GetFetch(uint64_t request_id) = 0;
+  virtual quiche::QuicheWeakPtr<ObjectSubscriber> GetFetch(
+      uint64_t request_id) = 0;
   virtual void Error(MoqtError error_code, absl::string_view reason) = 0;
 };
 
@@ -251,7 +252,7 @@ class QUICHE_EXPORT IncomingDataStream : public webtransport::StreamVisitor,
   webtransport::Stream* stream_;
   SubscribeVisitor* visitor_ = nullptr;
   // Once the subscribe ID is identified, set it here.
-  quiche::QuicheWeakPtr<RemoteTrack> track_;
+  quiche::QuicheWeakPtr<ObjectSubscriber> track_;
   MoqtDataParser parser_;
   std::string partial_object_;
   uint64_t bytes_received_this_object_ = 0;

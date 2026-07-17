@@ -23,13 +23,13 @@
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_live_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_subscription.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
@@ -109,8 +109,8 @@ class MoqtSessionPeer {
     return new_stream;
   }
 
-  static bool RequestIdIsSubscriptionPublisher(MoqtSession* session,
-                                               uint64_t request_id) {
+  static bool RequestIdIsLivePublisher(MoqtSession* session,
+                                       uint64_t request_id) {
     return session->published_subscriptions_.contains(request_id);
   }
 
@@ -157,8 +157,7 @@ class MoqtSessionPeer {
     return session->callbacks_.clock->ApproximateNow();
   }
 
-  static quic::QuicAlarm* GetPublishDoneAlarm(
-      SubscribeRemoteTrack* subscription) {
+  static quic::QuicAlarm* GetPublishDoneAlarm(LiveSubscriber* subscription) {
     return subscription->publish_done_alarm_.get();
   }
 

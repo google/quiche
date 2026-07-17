@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "quiche/quic/moqt/moqt_track.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 
 #include <memory>
 #include <optional>
@@ -43,33 +43,33 @@ class AlarmDelegate : public quic::QuicAlarm::DelegateWithoutContext {
 
 }  // namespace
 
-class SubscribeRemoteTrackPeer {
+class LiveSubscriberPeer {
  public:
-  static MoqtFetchTask* GetFetchTask(SubscribeRemoteTrack* track) {
+  static MoqtFetchTask* GetFetchTask(LiveSubscriber* track) {
     return track->fetch_task_.get();
   }
-  static quic::QuicAlarm* GetPublishDoneAlarm(SubscribeRemoteTrack* track) {
+  static quic::QuicAlarm* GetPublishDoneAlarm(LiveSubscriber* track) {
     return track->publish_done_alarm_.get();
   }
 };
 
-class SubscribeRemoteTrackTest : public quic::test::QuicTest {
+class LiveSubscriberTest : public quic::test::QuicTest {
  public:
-  SubscribeRemoteTrackTest() : track_(subscribe_, &visitor_, &stream_) {
+  LiveSubscriberTest() : track_(subscribe_, &visitor_, &stream_) {
     stream_.BindStream(&wt_stream_);
   }
 
-  MockSubscribeRemoteTrackVisitor visitor_;
+  MockLiveSubscriberVisitor visitor_;
   MoqtSubscribe subscribe_ = {/*request_id=*/1, FullTrackName("foo", "bar"),
                               MessageParameters(Location(2, 0))};
   MockBidiStream stream_;
   webtransport::test::MockStream wt_stream_;
-  SubscribeRemoteTrack track_;
+  LiveSubscriber track_;
   quic::MockClock clock_;
   quic::test::MockAlarmFactory alarm_factory_;
 };
 
-TEST_F(SubscribeRemoteTrackTest, Queries) {
+TEST_F(LiveSubscriberTest, Queries) {
   EXPECT_EQ(track_.full_track_name(), FullTrackName("foo", "bar"));
   EXPECT_EQ(track_.request_id(), 1);
   EXPECT_FALSE(track_.track_alias().has_value());
@@ -79,18 +79,18 @@ TEST_F(SubscribeRemoteTrackTest, Queries) {
   EXPECT_EQ(track_.track_alias(), 1);
 }
 
-TEST_F(SubscribeRemoteTrackTest, AllowError) {
+TEST_F(LiveSubscriberTest, AllowError) {
   EXPECT_TRUE(track_.ErrorIsAllowed());
   track_.OnObjectOrOk();
   EXPECT_FALSE(track_.ErrorIsAllowed());
 }
 
-TEST_F(SubscribeRemoteTrackTest, Windows) {
+TEST_F(LiveSubscriberTest, Windows) {
   EXPECT_TRUE(track_.InWindow(Location(2, 0)));
   EXPECT_FALSE(track_.InWindow(Location(1, 25)));
 }
 
-TEST_F(SubscribeRemoteTrackTest, OnPublishDoneReadyToClose) {
+TEST_F(LiveSubscriberTest, OnPublishDoneReadyToClose) {
   track_.OnStreamOpened();
   track_.OnStreamClosed(true, std::nullopt);
   EXPECT_CALL(visitor_, OnPublishDone);
@@ -98,7 +98,7 @@ TEST_F(SubscribeRemoteTrackTest, OnPublishDoneReadyToClose) {
   track_.OnPublishDone(1, &clock_, &alarm_factory_);
 }
 
-TEST_F(SubscribeRemoteTrackTest, OnPublishDoneAllStreamsCloseLater) {
+TEST_F(LiveSubscriberTest, OnPublishDoneAllStreamsCloseLater) {
   track_.OnStreamOpened();
   EXPECT_CALL(visitor_, OnPublishDone).Times(0);
   EXPECT_CALL(wt_stream_, Writev).Times(0);
@@ -110,14 +110,13 @@ TEST_F(SubscribeRemoteTrackTest, OnPublishDoneAllStreamsCloseLater) {
   track_.OnStreamClosed(true, std::nullopt);
 }
 
-TEST_F(SubscribeRemoteTrackTest, OnPublishDoneTimesOut) {
+TEST_F(LiveSubscriberTest, OnPublishDoneTimesOut) {
   track_.OnStreamOpened();
   EXPECT_CALL(visitor_, OnPublishDone).Times(0);
   EXPECT_CALL(wt_stream_, Writev).Times(0);
   track_.OnPublishDone(2, &clock_, &alarm_factory_);
   track_.OnStreamClosed(true, std::nullopt);  // No streams are open; timer set.
-  quic::QuicAlarm* alarm =
-      SubscribeRemoteTrackPeer::GetPublishDoneAlarm(&track_);
+  quic::QuicAlarm* alarm = LiveSubscriberPeer::GetPublishDoneAlarm(&track_);
   EXPECT_NE(alarm, nullptr);
   EXPECT_TRUE(alarm->IsSet());
   EXPECT_CALL(visitor_, OnPublishDone);
@@ -125,7 +124,7 @@ TEST_F(SubscribeRemoteTrackTest, OnPublishDoneTimesOut) {
   alarm_factory_.FireAlarm(alarm);
 }
 
-TEST_F(SubscribeRemoteTrackTest, JoiningFetchMultiObject) {
+TEST_F(LiveSubscriberTest, JoiningFetchMultiObject) {
   auto fetch_task = std::make_unique<MockFetchTask>();
   MockFetchTask* task_ptr = fetch_task.get();
   track_.OnJoiningFetchReady(std::move(fetch_task));
@@ -154,14 +153,14 @@ TEST_F(SubscribeRemoteTrackTest, JoiningFetchMultiObject) {
       })
       .WillOnce(testing::Return(MoqtFetchTask::GetNextObjectResult::kPending));
   task_ptr->CallObjectsAvailableCallback();
-  EXPECT_NE(SubscribeRemoteTrackPeer::GetFetchTask(&track_), nullptr);
+  EXPECT_NE(LiveSubscriberPeer::GetFetchTask(&track_), nullptr);
   EXPECT_CALL(*task_ptr, GetNextObject)
       .WillOnce(testing::Return(MoqtFetchTask::GetNextObjectResult::kEof));
   task_ptr->CallObjectsAvailableCallback();
-  EXPECT_EQ(SubscribeRemoteTrackPeer::GetFetchTask(&track_), nullptr);
+  EXPECT_EQ(LiveSubscriberPeer::GetFetchTask(&track_), nullptr);
 }
 
-TEST_F(SubscribeRemoteTrackTest, JoiningFetchFragmented) {
+TEST_F(LiveSubscriberTest, JoiningFetchFragmented) {
   auto fetch_task = std::make_unique<MockFetchTask>();
   MockFetchTask* task_ptr = fetch_task.get();
   track_.OnJoiningFetchReady(std::move(fetch_task));
@@ -192,7 +191,7 @@ TEST_F(SubscribeRemoteTrackTest, JoiningFetchFragmented) {
   task_ptr->CallObjectsAvailableCallback();
 }
 
-TEST_F(SubscribeRemoteTrackTest, JoiningFetchEmptyPayload) {
+TEST_F(LiveSubscriberTest, JoiningFetchEmptyPayload) {
   auto fetch_task = std::make_unique<MockFetchTask>();
   MockFetchTask* task_ptr = fetch_task.get();
   track_.OnJoiningFetchReady(std::move(fetch_task));
@@ -214,16 +213,16 @@ TEST_F(SubscribeRemoteTrackTest, JoiningFetchEmptyPayload) {
   task_ptr->CallObjectsAvailableCallback();
 }
 
-TEST_F(SubscribeRemoteTrackTest, JoiningFetchError) {
+TEST_F(LiveSubscriberTest, JoiningFetchError) {
   auto fetch_task = std::make_unique<MockFetchTask>();
   MockFetchTask* task_ptr = fetch_task.get();
   track_.OnJoiningFetchReady(std::move(fetch_task));
 
-  EXPECT_NE(SubscribeRemoteTrackPeer::GetFetchTask(&track_), nullptr);
+  EXPECT_NE(LiveSubscriberPeer::GetFetchTask(&track_), nullptr);
   EXPECT_CALL(*task_ptr, GetNextObject)
       .WillOnce(testing::Return(MoqtFetchTask::GetNextObjectResult::kError));
   task_ptr->CallObjectsAvailableCallback();
-  EXPECT_EQ(SubscribeRemoteTrackPeer::GetFetchTask(&track_), nullptr);
+  EXPECT_EQ(LiveSubscriberPeer::GetFetchTask(&track_), nullptr);
 }
 
 class UpstreamFetchTest : public quic::test::QuicTest {

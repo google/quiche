@@ -15,12 +15,12 @@
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_live_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
-#include "quiche/quic/moqt/moqt_subscription.h"
-#include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
@@ -33,8 +33,8 @@ class MoqtSubscribeRequestStream : public MoqtBidiStreamBase {
       SessionErrorCallback session_error_callback, const FullTrackName& name,
       SubscribeVisitor* absl_nonnull visitor,
       const MessageParameters& parameters,
-      SubscribeRemoteTrack::AddCallback add_callback,
-      SubscribeRemoteTrack::RemoveCallback remove_callback,
+      LiveSubscriber::AddCallback add_callback,
+      LiveSubscriber::RemoveCallback remove_callback,
       const quic::QuicClock* absl_nonnull clock,
       quic::QuicAlarmFactory* absl_nonnull alarm_factory);
   ~MoqtSubscribeRequestStream() { Detach(); }
@@ -48,13 +48,13 @@ class MoqtSubscribeRequestStream : public MoqtBidiStreamBase {
   absl::Status OnControlMessage(const MoqtSubscribeOk& message);
   absl::Status OnControlMessage(const MoqtPublishDone& message);
 
-  SubscribeRemoteTrack* track() const { return track_.get(); }
+  LiveSubscriber* track() const { return track_.get(); }
   void Detach() override;
 
  private:
-  std::unique_ptr<SubscribeRemoteTrack> track_;
-  SubscribeRemoteTrack::AddCallback add_callback_;
-  SubscribeRemoteTrack::RemoveCallback remove_callback_;
+  std::unique_ptr<LiveSubscriber> track_;
+  LiveSubscriber::AddCallback add_callback_;
+  LiveSubscriber::RemoveCallback remove_callback_;
   const quic::QuicClock* clock_;
   quic::QuicAlarmFactory* alarm_factory_;
 };
@@ -64,8 +64,8 @@ class MoqtSubscribeResponseStream : public MoqtBidiStreamBase {
   MoqtSubscribeResponseStream(
       MoqtFramer* absl_nonnull framer,
       const MoqtControlMessageParser& message_parser, uint64_t track_alias,
-      SubscriptionPublisher::AddCallback add_callback,
-      SubscriptionPublisher::RemoveCallback remove_callback,
+      LivePublisher::AddCallback add_callback,
+      LivePublisher::RemoveCallback remove_callback,
       SessionErrorCallback session_error_callback,
       quiche::QuicheWeakPtr<SessionToPublisherInterface> session);
   ~MoqtSubscribeResponseStream() {
@@ -103,9 +103,9 @@ class MoqtSubscribeResponseStream : public MoqtBidiStreamBase {
   }
 
   uint64_t track_alias_;
-  std::unique_ptr<SubscriptionPublisher> subscription_;
-  SubscriptionPublisher::AddCallback add_callback_;
-  SubscriptionPublisher::RemoveCallback remove_callback_;
+  std::unique_ptr<LivePublisher> subscription_;
+  LivePublisher::AddCallback add_callback_;
+  LivePublisher::RemoveCallback remove_callback_;
   quiche::QuicheWeakPtr<SessionToPublisherInterface> session_;
 };
 
