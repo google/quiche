@@ -772,9 +772,6 @@ class QUICHE_EXPORT QuicSentPacketManager {
   // used to prevent the execution of ECN-specific code unless flag-protected
   // code has explicitly enabled it.
   bool ecn_queried_ = false;
-
-  const bool neuter_packets_on_migration_ =
-      GetQuicReloadableFlag(quic_neuter_packets_on_migration);
 };
 
 }  // namespace quic

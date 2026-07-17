@@ -1474,13 +1474,7 @@ TEST_F(QuicSentPacketManagerTest,
                         HAS_RETRANSMITTABLE_DATA, true, ECN_NOT_ECT);
   EXPECT_EQ(BytesInFlight(), kDefaultLength);
 
-  if (GetQuicReloadableFlag(quic_neuter_packets_on_migration)) {
-    EXPECT_CALL(*send_algorithm_, OnPacketNeutered(QuicPacketNumber(1)))
-        .Times(1);
-  } else {
-    EXPECT_CALL(*send_algorithm_, OnPacketNeutered(QuicPacketNumber(1)))
-        .Times(0);
-  }
+  EXPECT_CALL(*send_algorithm_, OnPacketNeutered(QuicPacketNumber(1))).Times(1);
 
   std::unique_ptr<SendAlgorithmInterface> old_send_algorithm =
       manager_.OnConnectionMigration(/*reset_send_algorithm=*/true);
@@ -1491,9 +1485,6 @@ TEST_F(QuicSentPacketManagerTest,
 // Regression test for b/323150773.
 TEST_F(QuicSentPacketManagerTest,
        NoInflightBytesAfterConnectionMigrationWithResetBBR2Sender) {
-  if (!GetQuicReloadableFlag(quic_neuter_packets_on_migration)) {
-    return;
-  }
   manager_.SetSendAlgorithm(CongestionControlType::kBBRv2);
 
   SerializedPacket packet(QuicPacketNumber(1), PACKET_4BYTE_PACKET_NUMBER,

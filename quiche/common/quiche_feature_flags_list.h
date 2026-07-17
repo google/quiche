@@ -46,7 +46,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_fix_timeouts, true, true, "If true
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_include_datagrams_in_willing_to_write, false, false, "If true, checks for queued datagrams when determining if a connection is willing to write.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_maybe_copy_datagram_frames, false, true, "If true, maybe copy datagram frames in QuicUnackedPacketMap.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_move_clock_now, false, false, "If true, move the call to clock.Now() in QuicPacketReader::ReadAndDispatchPackets to after socket_api_.ReadMultiplePackets().")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_neuter_packets_on_migration, true, true, "If ture, QuicSentPacketManager::OnConnectionMigration will call old_send_algorithm->OnPacketNeutered on all inflight packets.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_no_write_control_frame_upon_connection_close, false, true, "If trrue, early return before write control frame in OnCanWrite() if the connection is already closed.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_no_write_control_frame_upon_connection_close2, false, true, "If true, QuicSession will block outgoing control frames when the connection is closed.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_not_instantiate_unused_qpack_send_stream, true, true, "When qpack_maximum_dynamic_table_capacity is zero, don't bother to instantiate the unused QpackSendStream.")
