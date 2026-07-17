@@ -13,11 +13,13 @@
 
 #include "absl/base/nullability.h"
 #include "absl/status/status.h"
+#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_control_message_queue.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -25,6 +27,7 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_circular_deque.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -102,7 +105,11 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
       absl::string_view reason_phrase, bool fin = false);
   absl::Status SendRequestError(uint64_t request_id, MoqtRequestErrorInfo info,
                                 bool fin = false);
-
+  // Can be overridden for message-specific constraints.
+  virtual absl::Status SendRequestUpdate(uint64_t request_id,
+                                         uint64_t existing_request_id,
+                                         const MessageParameters& parameters,
+                                         MoqtResponseCallback callback);
   void Fin() {
     CheckStatus(outgoing_message_queue_.Fin());
     Detach();
@@ -122,14 +129,13 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
     }
   }
 
-  // Removes any state in MoqtSession related to the stream. Overrides of this
-  // method must be robust to multiple invocations.
-  virtual void Detach() = 0;
+  MoqtFramer* framer() const { return framer_; }
 
-  // TODO(martinduke): Remove once SUBSCRIBE moves to a bidi stream. This is
-  // only needed to check whether or not to FIN the bidi stream.
-  bool is_control_stream() const { return control_stream_; }
-  void set_control_stream() { control_stream_ = true; }
+  // Removes any state in MoqtSession related to the stream. Overrides of this
+  // method must be robust to multiple invocations. Only called on sending a FIN
+  // or RESET. If otherwise destroyed, it's due to a larger cleanup where the
+  // state no longer matters.
+  virtual void Detach() = 0;
 
  protected:
   // Called when a WebTransport stream has been associated with the object.
@@ -141,6 +147,18 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   virtual absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) = 0;
 
+  virtual absl::Status OnControlMessage(const MoqtRequestOk& message);
+  virtual absl::Status OnControlMessage(const MoqtRequestError& message);
+
+  absl::StatusOr<MessageParameters> PopParameters() {
+    if (pending_updates_.empty()) {
+      return absl::NotFoundError("Too many REQUEST_OK received");
+    }
+    MessageParameters parameters = pending_updates_.front();
+    pending_updates_.pop_front();
+    return parameters;
+  }
+
   // Terminates the MoQT session due to a fatal error encountered.
   void OnFatalError(absl::Status status);
 
@@ -148,7 +166,6 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   const MoqtControlMessageParser& message_parser() const {
     return message_parser_;
   }
-  MoqtFramer* framer() const { return framer_; }
   webtransport::Stream* stream() const {
     return stream_parser_ != nullptr ? stream_parser_->stream() : nullptr;
   }
@@ -156,12 +173,12 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
  private:
   friend class test::MoqtBidiStreamTestWrapper;
 
-  // TODO(martinduke): Remove once SUBSCRIBE moves to a bidi stream.
-  bool control_stream_ = false;
   MoqtFramer* absl_nonnull framer_;
   std::unique_ptr<MoqtControlStreamParser> absl_nullable stream_parser_;
   MoqtControlMessageParser message_parser_;
   MoqtControlMessageQueue outgoing_message_queue_;
+  quiche::QuicheCircularDeque<MoqtResponseCallback> pending_responses_;
+  quiche::QuicheCircularDeque<MessageParameters> pending_updates_;
   SessionErrorCallback session_error_callback_;
 };
 

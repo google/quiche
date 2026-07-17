@@ -6,15 +6,20 @@
 
 #include <memory>
 #include <optional>
+#include <utility>
+#include <variant>
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
@@ -27,11 +32,6 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
  public:
   using MoqtBidiStreamBase::MoqtBidiStreamBase;
 
-  absl::Status OnControlMessage(const MoqtRequestOk& message) {
-    ++ok_received_;
-    return absl::OkStatus();
-  }
-
   void OnStreamBound() override {}
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override {
@@ -39,9 +39,14 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
         *this, message_parser(), message, "test");
   }
   void Detach() override { detached_ = true; }
-
-  int ok_received_ = 0;
   bool detached_ = false;
+
+  absl::Status OnControlMessage(const MoqtRequestOk& message) {
+    return MoqtBidiStreamBase::OnControlMessage(message);
+  }
+  absl::Status OnControlMessage(const MoqtRequestError& message) {
+    return MoqtBidiStreamBase::OnControlMessage(message);
+  }
 };
 
 class MoqtBidiStreamTest : public quiche::test::QuicheTest {
@@ -118,7 +123,6 @@ TEST_F(MoqtBidiStreamTest, DispatchControlMessage) {
   MoqtFramer framer(/*using_webtrans=*/true, quic::Perspective::IS_SERVER);
   stream.Receive(framer.SerializeRequestOk(MoqtRequestOk()).AsStringView());
   stream_->OnCanRead();
-  EXPECT_EQ(stream_->ok_received_, 1u);
 
   stream.Receive(framer.SerializeGoAway(MoqtGoAway()).AsStringView());
   EXPECT_CALL(error_callback_, Call)
@@ -129,6 +133,100 @@ TEST_F(MoqtBidiStreamTest, DispatchControlMessage) {
             "Received an unexpected message of type GOAWAY on a test stream");
       });
   stream_->OnCanRead();
+}
+
+TEST_F(MoqtBidiStreamTest, SendRequestOk) {
+  stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(
+      mock_stream_,
+      Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), testing::_));
+  MessageParameters parameters;
+  parameters.subscriber_priority = 20;
+  QUICHE_EXPECT_OK(stream_->SendRequestOk(1, parameters, /*fin=*/false));
+  EXPECT_FALSE(stream_->detached_);
+}
+
+TEST_F(MoqtBidiStreamTest, SendRequestOkFin) {
+  stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(
+      mock_stream_,
+      Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), testing::_));
+  MessageParameters parameters;
+  QUICHE_EXPECT_OK(stream_->SendRequestOk(1, parameters, /*fin=*/true));
+  EXPECT_TRUE(stream_->detached_);
+}
+
+TEST_F(MoqtBidiStreamTest, SendRequestErrorOverload) {
+  stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(
+      mock_stream_,
+      Writev(ControlMessageOfType(MoqtMessageType::kRequestError), testing::_));
+  QUICHE_EXPECT_OK(stream_->SendRequestError(1, RequestErrorCode::kUnauthorized,
+                                             std::nullopt, "reason",
+                                             /*fin=*/true));
+  EXPECT_TRUE(stream_->detached_);
+}
+
+TEST_F(MoqtBidiStreamTest, SendRequestUpdateAndReceiveOk) {
+  stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestUpdate),
+                     testing::_));
+  MessageParameters parameters;
+  parameters.subscriber_priority = 20;
+  bool callback_called = false;
+  MoqtResponseCallback callback =
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> res) {
+        callback_called = true;
+        ASSERT_TRUE(std::holds_alternative<MessageParameters>(res));
+        EXPECT_EQ(std::get<MessageParameters>(res).subscriber_priority, 30);
+      };
+  QUICHE_EXPECT_OK(
+      stream_->SendRequestUpdate(1, 0, parameters, std::move(callback)));
+  // Simulate receiving RequestOk
+  MoqtRequestOk request_ok;
+  request_ok.request_id = 1;
+  request_ok.parameters.subscriber_priority = 30;
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
+  EXPECT_TRUE(callback_called);
+  EXPECT_FALSE(stream_->detached_);
+}
+
+TEST_F(MoqtBidiStreamTest, SendRequestUpdateAndReceiveError) {
+  stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(testing::Return(true));
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestUpdate),
+                     testing::_));
+  MessageParameters parameters;
+  bool callback_called = false;
+  MoqtResponseCallback callback =
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> res) {
+        callback_called = true;
+        ASSERT_TRUE(std::holds_alternative<MoqtRequestErrorInfo>(res));
+        EXPECT_EQ(std::get<MoqtRequestErrorInfo>(res).error_code,
+                  RequestErrorCode::kUnauthorized);
+      };
+  QUICHE_EXPECT_OK(
+      stream_->SendRequestUpdate(1, 0, parameters, std::move(callback)));
+  // Simulate receiving RequestError
+  MoqtRequestError request_error;
+  request_error.request_id = 1;
+  request_error.error_code = RequestErrorCode::kUnauthorized;
+  request_error.reason_phrase = "unauthorized";
+  ExpectFin(mock_stream_);
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(request_error));
+  EXPECT_TRUE(callback_called);
+  EXPECT_TRUE(stream_->detached_);
+}
+
+TEST_F(MoqtBidiStreamTest, QueueIsFull) {
+  stream_->BindStream(&mock_stream_);
+  EXPECT_FALSE(stream_->QueueIsFull());
 }
 
 }  // namespace moqt::test

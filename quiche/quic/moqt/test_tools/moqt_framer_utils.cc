@@ -31,9 +31,6 @@ struct FramingVisitor {
   quiche::QuicheBuffer operator()(const MoqtSubscribeOk& message) {
     return framer.SerializeSubscribeOk(message);
   }
-  quiche::QuicheBuffer operator()(const MoqtUnsubscribe& message) {
-    return framer.SerializeUnsubscribe(message);
-  }
   quiche::QuicheBuffer operator()(const MoqtPublishDone& message) {
     return framer.SerializePublishDone(message);
   }

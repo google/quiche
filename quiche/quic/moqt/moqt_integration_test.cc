@@ -849,6 +849,10 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
       test_harness_.RunUntilWithDefaultTimeout([&]() { return stream_reset; });
   EXPECT_TRUE(success);
   EXPECT_EQ(bytes_received, 2000);
+  // On teardown, streams are destroyed in arbitrary order. If the uni stream
+  // is destroyed before the bidi stream, there will be a second stream reset
+  // notification to the visitor. If not, there won't be.
+  EXPECT_CALL(subscribe_visitor_, OnStreamReset).Times(testing::AnyNumber());
 }
 
 TEST_F(MoqtIntegrationTest, BandwidthProbe) {

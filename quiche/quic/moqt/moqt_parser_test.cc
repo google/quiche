@@ -52,7 +52,6 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kSubscribe,
     MoqtMessageType::kSubscribeOk,
     MoqtMessageType::kRequestUpdate,
-    MoqtMessageType::kUnsubscribe,
     MoqtMessageType::kPublishDone,
     MoqtMessageType::kTrackStatus,
     MoqtMessageType::kPublishNamespace,
@@ -1312,8 +1311,8 @@ TEST_F(MoqtMessageSpecificTest, RequestUpdateEndGroupTooLow) {
 
 TEST_F(MoqtMessageSpecificTest, ObjectAckNegativeDelta) {
   char object_ack[] = {
-      0xb1, 0x84, 0x00, 0x05,  // type
-      0x01, 0x10, 0x20,        // subscribe ID, group, object
+      0xb1, 0x84, 0x00, 0x04,  // type
+      0x10, 0x20,              // group, object
       0x80, 0x81,              // -0x40 time delta
   };
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
@@ -1322,7 +1321,6 @@ TEST_F(MoqtMessageSpecificTest, ObjectAckNegativeDelta) {
   ASSERT_TRUE(parsed.ok());
   ASSERT_EQ(parsed->size(), 1);
   MoqtObjectAck message = std::get<MoqtObjectAck>((*parsed)[0]);
-  EXPECT_EQ(message.subscribe_id, 0x01);
   EXPECT_EQ(message.group_id, 0x10);
   EXPECT_EQ(message.object_id, 0x20);
   EXPECT_EQ(message.delta_from_deadline,

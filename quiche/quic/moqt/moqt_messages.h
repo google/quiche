@@ -386,10 +386,6 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
   TrackExtensions extensions;
 };
 
-struct QUICHE_EXPORT MoqtUnsubscribe {
-  uint64_t request_id;
-};
-
 struct QUICHE_EXPORT MoqtPublishDone {
   uint64_t request_id;
   PublishDoneCode status_code;
@@ -526,11 +522,10 @@ struct QUICHE_EXPORT MoqtPublish {
   TrackExtensions extensions;
 };
 
-// All of the four values in this message are encoded as varints.
+// All of the three values in this message are encoded as varints.
 // `delta_from_deadline` is encoded as an absolute value, with the lowest bit
 // indicating the sign (0 if positive).
 struct QUICHE_EXPORT MoqtObjectAck {
-  uint64_t subscribe_id;
   uint64_t group_id;
   uint64_t object_id;
   // Positive if the object has been received before the deadline.

@@ -10,17 +10,20 @@
 
 #include "absl/status/status.h"
 #include "quiche/quic/core/quic_alarm.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/quiche_mem_slice.h"
+#include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -52,21 +55,16 @@ class SubscribeRemoteTrackPeer {
 
 class SubscribeRemoteTrackTest : public quic::test::QuicTest {
  public:
-  SubscribeRemoteTrackTest()
-      : track_(
-            subscribe_, &visitor_,
-            [&](SubscribeRemoteTrack*) {
-              alias_registered_ = true;
-              return true;
-            },
-            [this](SubscribeRemoteTrack*) { deleted_ = true; }) {}
+  SubscribeRemoteTrackTest() : track_(subscribe_, &visitor_, &stream_) {
+    stream_.BindStream(&wt_stream_);
+  }
 
   MockSubscribeRemoteTrackVisitor visitor_;
   MoqtSubscribe subscribe_ = {/*request_id=*/1, FullTrackName("foo", "bar"),
                               MessageParameters(Location(2, 0))};
+  MockBidiStream stream_;
+  webtransport::test::MockStream wt_stream_;
   SubscribeRemoteTrack track_;
-  bool alias_registered_ = false;
-  bool deleted_ = false;
   quic::MockClock clock_;
   quic::test::MockAlarmFactory alarm_factory_;
 };
@@ -77,9 +75,8 @@ TEST_F(SubscribeRemoteTrackTest, Queries) {
   EXPECT_FALSE(track_.track_alias().has_value());
   EXPECT_EQ(track_.visitor(), &visitor_);
   EXPECT_FALSE(track_.is_fetch());
-  EXPECT_TRUE(track_.set_track_alias(1));
+  track_.set_track_alias(1);
   EXPECT_EQ(track_.track_alias(), 1);
-  EXPECT_TRUE(alias_registered_);
 }
 
 TEST_F(SubscribeRemoteTrackTest, AllowError) {
@@ -97,34 +94,35 @@ TEST_F(SubscribeRemoteTrackTest, OnPublishDoneReadyToClose) {
   track_.OnStreamOpened();
   track_.OnStreamClosed(true, std::nullopt);
   EXPECT_CALL(visitor_, OnPublishDone);
+  ExpectFin(wt_stream_);
   track_.OnPublishDone(1, &clock_, &alarm_factory_);
-  EXPECT_TRUE(deleted_);
 }
 
 TEST_F(SubscribeRemoteTrackTest, OnPublishDoneAllStreamsCloseLater) {
   track_.OnStreamOpened();
   EXPECT_CALL(visitor_, OnPublishDone).Times(0);
+  EXPECT_CALL(wt_stream_, Writev).Times(0);
   track_.OnPublishDone(2, &clock_, &alarm_factory_);
   track_.OnStreamClosed(true, std::nullopt);
   track_.OnStreamOpened();
+  ExpectFin(wt_stream_);
   EXPECT_CALL(visitor_, OnPublishDone);
   track_.OnStreamClosed(true, std::nullopt);
-  EXPECT_TRUE(deleted_);
 }
 
 TEST_F(SubscribeRemoteTrackTest, OnPublishDoneTimesOut) {
   track_.OnStreamOpened();
   EXPECT_CALL(visitor_, OnPublishDone).Times(0);
+  EXPECT_CALL(wt_stream_, Writev).Times(0);
   track_.OnPublishDone(2, &clock_, &alarm_factory_);
-  EXPECT_FALSE(deleted_);
   track_.OnStreamClosed(true, std::nullopt);  // No streams are open; timer set.
   quic::QuicAlarm* alarm =
       SubscribeRemoteTrackPeer::GetPublishDoneAlarm(&track_);
   EXPECT_NE(alarm, nullptr);
   EXPECT_TRUE(alarm->IsSet());
   EXPECT_CALL(visitor_, OnPublishDone);
+  EXPECT_CALL(wt_stream_, ResetWithUserCode(kResetCodeCancelled));
   alarm_factory_.FireAlarm(alarm);
-  EXPECT_TRUE(deleted_);
 }
 
 TEST_F(SubscribeRemoteTrackTest, JoiningFetchMultiObject) {

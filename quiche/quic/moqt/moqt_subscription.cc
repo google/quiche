@@ -30,6 +30,7 @@
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -38,10 +39,7 @@ SubscriptionPublisher::SubscriptionPublisher(
     MoqtFramer framer, std::shared_ptr<MoqtTrackPublisher> track_publisher,
     MoqtBidiStreamBase* absl_nonnull bidi_stream, uint64_t request_id,
     uint64_t track_alias, const MessageParameters& parameters,
-    SessionToPublisherInterface* absl_nonnull visitor,
-    MoqtPublishingMonitorInterface* monitoring_interface,
-    const quic::QuicClock* absl_nonnull clock,
-    MoqtTraceRecorder& trace_recorder, bool is_publish)
+    quiche::QuicheWeakPtr<SessionToPublisherInterface> visitor, bool is_publish)
     : track_publisher_(track_publisher),
       bidi_stream_(bidi_stream),
       visitor_(visitor),
@@ -49,11 +47,14 @@ SubscriptionPublisher::SubscriptionPublisher(
       established_(is_publish),
       track_alias_(track_alias),
       framer_(framer),
-      trace_recorder_(trace_recorder),
       parameters_(parameters),
-      monitoring_interface_(monitoring_interface),
-      clock_(clock),
       weak_ptr_factory_(this) {
+  SessionToPublisherInterface* session_info = visitor_.GetIfAvailable();
+  if (session_info == nullptr) {
+    return;
+  }
+  monitoring_interface_ = session_info->ReleaseMonitoringInterface(
+      track_publisher_->GetTrackName());
   if (monitoring_interface_ != nullptr) {
     monitoring_interface_->OnObjectAckSupportKnown(parameters.oack_window_size);
   }
@@ -65,13 +66,6 @@ SubscriptionPublisher::SubscriptionPublisher(
 SubscriptionPublisher::~SubscriptionPublisher() {
   if (track_publisher_ != nullptr) {
     track_publisher_->RemoveObjectListener(this);
-  }
-  // Reset all streams.
-  for (const webtransport::StreamId stream_id : stream_map_.GetAllStreams()) {
-    webtransport::Stream* stream = GetStreamById(stream_id);
-    if (stream != nullptr) {
-      stream->ResetWithUserCode(kResetCodeCancelled);
-    }
   }
 }
 
@@ -103,10 +97,25 @@ void SubscriptionPublisher::Update(const MessageParameters& parameters) {
         pending_streams_.rbegin()->second.publisher_priority.value_or(
             track_publisher_->extensions().default_publisher_priority());
     MoqtTrackPriority old_track_priority = {old_priority, publisher_priority};
-    visitor_->UpdateTrackPriority(
+    if (visitor() == nullptr) {
+      return;
+    }
+    visitor()->UpdateTrackPriority(
         request_id_, old_track_priority,
         MoqtTrackPriority{new_priority, publisher_priority});
     // Don't bother to update all the pending stream send orders.
+  }
+}
+
+void SubscriptionPublisher::ResetAllStreams() {
+  if (ignore_reset_all_streams_) {
+    return;
+  }
+  for (const webtransport::StreamId stream_id : stream_map_.GetAllStreams()) {
+    webtransport::Stream* stream = GetStreamById(stream_id);
+    if (stream != nullptr) {
+      stream->ResetWithUserCode(kResetCodeCancelled);
+    }
   }
 }
 
@@ -142,11 +151,9 @@ void SubscriptionPublisher::OnSubscribeAccepted() {
 }
 
 void SubscriptionPublisher::OnSubscribeRejected(MoqtRequestErrorInfo info) {
-  bidi_stream_->CheckStatus(bidi_stream_->SendRequestError(
-      request_id_, info, /*fin=*/!bidi_stream_->is_control_stream()));
-  if (bidi_stream_->is_control_stream()) {
-    visitor_->PublishIsDone(request_id_);
-  }
+  bidi_stream_->CheckStatus(bidi_stream_->SendRequestError(request_id_, info,
+                                                           /*fin=*/true));
+  // Sending FIN will delete the class.
 }
 
 void SubscriptionPublisher::OnNewObjectAvailable(
@@ -174,7 +181,11 @@ void SubscriptionPublisher::OnNewObjectAvailable(
 
   // TODO(vasilvv): This currently sends UINT64_MAX for datagram subgroups.
   // Maybe do something more satisfactory?
-  trace_recorder_.RecordNewObjectAvaliable(
+  SessionToPublisherInterface* session_info = visitor();
+  if (session_info == nullptr) {
+    return;  // Session is gone.
+  }
+  session_info->trace_recorder().RecordNewObjectAvaliable(
       track_alias_, *track_publisher_, location, subgroup.value_or(UINT64_MAX),
       publisher_priority);
 
@@ -187,7 +198,7 @@ void SubscriptionPublisher::OnNewObjectAvailable(
     }
     stream_id = stream_map_.GetStreamFor(index);
   }
-  if (visitor_->alternate_delivery_timeout() &&
+  if (session_info->alternate_delivery_timeout() &&
       !delivery_timeout().IsInfinite() && largest_sent_.has_value() &&
       location.group >= largest_sent_->group) {
     // Start the delivery timeout timer on all previous groups.
@@ -201,7 +212,7 @@ void SubscriptionPublisher::OnNewObjectAvailable(
         }
         OutgoingSubgroupStream* stream =
             absl::down_cast<OutgoingSubgroupStream*>(raw_stream->visitor());
-        stream->CreateAndSetAlarm(clock_->ApproximateNow() +
+        stream->CreateAndSetAlarm(session_info->clock()->ApproximateNow() +
                                   delivery_timeout());
       }
     }
@@ -229,7 +240,7 @@ void SubscriptionPublisher::OnNewObjectAvailable(
   if (raw_stream == nullptr) {
     StreamRank rank = StreamRankFor(parameters);
     if (pending_streams_.empty() || rank > pending_streams_.rbegin()->first) {
-      visitor_->UpdateTrackPriority(
+      session_info->UpdateTrackPriority(
           request_id_,
           /*old_priority=*/pending_streams_.empty()
               ? std::optional<MoqtTrackPriority>()
@@ -267,6 +278,7 @@ void SubscriptionPublisher::OnNewFinAvailable(Location location,
   OutgoingSubgroupStream* stream =
       absl::down_cast<OutgoingSubgroupStream*>(raw_stream->visitor());
   stream->Fin(location);
+  // Sending FIN will delete the class.
 }
 
 void SubscriptionPublisher::OnSubgroupAbandoned(
@@ -345,34 +357,39 @@ void SubscriptionPublisher::SendDatagram(Location sequence) {
   quiche::QuicheBuffer datagram = framer_.SerializeObjectDatagram(
       header, object->payload[0].AsStringView(),
       default_publisher_priority_.value_or(kDefaultPublisherPriority));
-  if (visitor_->session() == nullptr) {
+  if (visitor() == nullptr) {
     return;
   }
-  visitor_->session()->SendOrQueueDatagram(datagram.AsStringView());
+  visitor()->session()->SendOrQueueDatagram(datagram.AsStringView());
   OnObjectSent(object->metadata.location);
 }
 
 void SubscriptionPublisher::ProcessObjectAck(const MoqtObjectAck& message) {
-  trace_recorder_.RecordObjectAck(track_alias_,
-                                  Location(message.group_id, message.object_id),
-                                  message.delta_from_deadline);
-
-  if (monitoring_interface_ == nullptr) {
+  SessionToPublisherInterface* session_info = visitor();
+  if (session_info == nullptr) {
     return;
   }
-  monitoring_interface_->OnObjectAckReceived(
-      Location(message.group_id, message.object_id),
+  session_info->trace_recorder().RecordObjectAck(
+      track_alias_, Location(message.group_id, message.object_id),
       message.delta_from_deadline);
+  if (monitoring_interface_ != nullptr) {
+    monitoring_interface_->OnObjectAckReceived(
+        Location(message.group_id, message.object_id),
+        message.delta_from_deadline);
+  }
 }
 
 webtransport::Stream* absl_nullable SubscriptionPublisher::OpenDataStream(
     const NewDataStreamParameters& parameters) {
-  if (visitor_->session() == nullptr ||
-      !visitor_->session()->CanOpenNextOutgoingUnidirectionalStream()) {
+  SessionToPublisherInterface* session_info = visitor();
+  if (session_info == nullptr) {
+    return nullptr;
+  }
+  if (!session_info->session()->CanOpenNextOutgoingUnidirectionalStream()) {
     return nullptr;
   }
   webtransport::Stream* new_stream =
-      visitor_->session()->OpenOutgoingUnidirectionalStream();
+      session_info->session()->OpenOutgoingUnidirectionalStream();
   if (new_stream == nullptr) {
     return nullptr;
   }
@@ -380,7 +397,8 @@ webtransport::Stream* absl_nullable SubscriptionPublisher::OpenDataStream(
   new_stream->SetVisitor(std::make_unique<OutgoingSubgroupStream>(
       framer_, new_stream, parameters.index, parameters.first_object,
       weak_ptr_factory_.Create(), track_publisher_,
-      StreamPriorityFor(parameters), track_alias_, &trace_recorder_));
+      StreamPriorityFor(parameters), track_alias_,
+      &session_info->trace_recorder()));
   ++streams_opened_;
   new_stream->visitor()->OnCanWrite();
   return new_stream;
@@ -398,17 +416,9 @@ void SubscriptionPublisher::PublishIsDone(PublishDoneCode code,
   // FIN naturally, where possible.
   QUICHE_DLOG(INFO) << "Sending PUBLISH_DONE message for "
                     << track_publisher_->GetTrackName();
-  // TODO(martinduke): For SUBSCRIBE, no FIN because it's the control stream.
   bidi_stream_->SendOrBufferMessageOrFatal(
-      framer_.SerializePublishDone(publish_done),
-      /*fin=*/!bidi_stream_->is_control_stream());
-  if (bidi_stream_->is_control_stream()) {
-    visitor_->PublishIsDone(request_id_);
-  } else {
-    // Only detach immediately for PUBLISH flow.
-    track_publisher_->RemoveObjectListener(this);
-    track_publisher_ = nullptr;
-  }
+      framer_.SerializePublishDone(publish_done), /*fin=*/true);
+  // sending FIN will delete the class.
 }
 
 void SubscriptionPublisher::OnDataStreamDestroyed(
@@ -417,8 +427,12 @@ void SubscriptionPublisher::OnDataStreamDestroyed(
 }
 
 void SubscriptionPublisher::OnCanCreateNewUniStream() {
-  while (visitor_->session() != nullptr &&
-         visitor_->session()->CanOpenNextOutgoingUnidirectionalStream()) {
+  SessionToPublisherInterface* session_info = visitor();
+  if (session_info == nullptr) {
+    return;
+  }
+  while (visitor_.IsValid() &&
+         session_info->session()->CanOpenNextOutgoingUnidirectionalStream()) {
     auto it = pending_streams_.rbegin();
     while (it != pending_streams_.rend() &&
            (it->second.index.group < first_active_group_ ||
@@ -434,7 +448,7 @@ void SubscriptionPublisher::OnCanCreateNewUniStream() {
     }
     pending_streams_.erase(--(it.base()));
     if (!pending_streams_.empty()) {
-      visitor_->UpdateTrackPriority(
+      session_info->UpdateTrackPriority(
           request_id_, std::nullopt,
           MoqtTrackPriority{
               subscriber_priority(),

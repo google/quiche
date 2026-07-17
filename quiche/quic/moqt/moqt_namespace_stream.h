@@ -50,7 +50,7 @@ class MoqtNamespaceSubscriberStream : public MoqtBidiStreamBase {
         request_id_(request_id),
         remove_callback_(std::move(remove_callback)),
         response_callback_(std::move(response_callback)) {}
-  ~MoqtNamespaceSubscriberStream() override;
+  ~MoqtNamespaceSubscriberStream();
 
   // MoqtBidiStreamBase overrides.
   void OnStreamBound() override;
@@ -154,7 +154,7 @@ class MoqtNamespacePublisherStream : public MoqtBidiStreamBase {
       AddPrefixCallback add_callback, RemovePrefixCallback remove_callback,
       SessionErrorCallback session_error_callback,
       MoqtIncomingSubscribeNamespaceCallback& application);
-  ~MoqtNamespacePublisherStream() override { Detach(); }
+  ~MoqtNamespacePublisherStream() { Detach(); }
 
   void OnStreamBound() override {
     // TODO(martinduke): Set the priority for this stream.

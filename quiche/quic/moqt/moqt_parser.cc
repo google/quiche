@@ -685,17 +685,6 @@ absl::StatusOr<MoqtRequestError> MoqtControlMessageParser::ProcessRequestError(
   return request_error;
 }
 
-absl::StatusOr<MoqtUnsubscribe> MoqtControlMessageParser::ProcessUnsubscribe(
-    absl::string_view data) const {
-  quic::QuicDataReader reader(data);
-  MoqtUnsubscribe unsubscribe;
-  if (!reader.ReadMoqVarInt(&unsubscribe.request_id)) {
-    return absl::InvalidArgumentError("Message missing fields");
-  }
-  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
-  return unsubscribe;
-}
-
 absl::StatusOr<MoqtPublishDone> MoqtControlMessageParser::ProcessPublishDone(
     absl::string_view data) const {
   quic::QuicDataReader reader(data);
@@ -1002,8 +991,7 @@ absl::StatusOr<MoqtObjectAck> MoqtControlMessageParser::ProcessObjectAck(
   quic::QuicDataReader reader(data);
   MoqtObjectAck object_ack;
   uint64_t raw_delta;
-  if (!reader.ReadMoqVarInt(&object_ack.subscribe_id) ||
-      !reader.ReadMoqVarInt(&object_ack.group_id) ||
+  if (!reader.ReadMoqVarInt(&object_ack.group_id) ||
       !reader.ReadMoqVarInt(&object_ack.object_id) ||
       !reader.ReadMoqVarInt(&raw_delta)) {
     return absl::InvalidArgumentError("Message missing fields");

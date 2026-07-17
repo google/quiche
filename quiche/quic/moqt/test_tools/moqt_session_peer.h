@@ -193,6 +193,10 @@ class MoqtSessionPeer {
                ? std::optional<uint64_t>()
                : session->subscriptions_with_queued_streams_.begin()->second;
   }
+
+  static uint64_t GetLastTrackAlias(MoqtSession* session) {
+    return session->next_local_track_alias_ - 1;
+  }
 };
 
 }  // namespace moqt::test

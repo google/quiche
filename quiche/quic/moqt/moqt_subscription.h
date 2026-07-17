@@ -21,6 +21,7 @@
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_stream_map.h"
@@ -76,17 +77,18 @@ class QUICHE_EXPORT SessionToPublisherInterface {
   virtual ~SessionToPublisherInterface() = default;
   virtual bool alternate_delivery_timeout() const = 0;
   // If |old_priority| is nullopt, the subscription does not have any pending
-  // streams. If it has a value, |old_priority| is the old value to be replaced
-  // by |new_priority|.
+  // streams. If it has a value, |old_priority| is the old value to be
+  // replaced by |new_priority|.
   virtual void UpdateTrackPriority(
       uint64_t request_id, std::optional<MoqtTrackPriority> old_priority,
       MoqtTrackPriority new_priority) = 0;
   virtual quic::QuicAlarmFactory* alarm_factory() = 0;
-  // Destroy any state associated with the subscription. It is OK destroy
-  // SubscriptionPublisher in this method.
-  // TODO(martinduke): Delete once SUBSCRIBE is on the bidi stream.
-  virtual void PublishIsDone(uint64_t request_id) = 0;
-  // Returns nullptr if MoqtSession is closing.
+  virtual std::shared_ptr<MoqtTrackPublisher> GetTrackPublisher(
+      const FullTrackName& name) = 0;
+  virtual MoqtPublishingMonitorInterface* ReleaseMonitoringInterface(
+      const FullTrackName& name) = 0;
+  virtual const quic::QuicClock* clock() = 0;
+  virtual MoqtTraceRecorder& trace_recorder() = 0;
   virtual webtransport::Session* session() = 0;
 };
 
@@ -95,20 +97,19 @@ class QUICHE_EXPORT SessionToPublisherInterface {
 class SubscriptionPublisher : public MoqtObjectListener,
                               public SubscriptionPublisherInterface {
  public:
-  // The provider of this callback will delete whatever state it is tracking for
-  // the subscription. This will be used by both PUBLISH and SUBSCRIBE streams.
-  // For control stream SUBSCRIBE, visitor->PublishIsDone() does this instead.
+  // The provider of this callback will add/delete whatever state it is tracking
+  // for the subscription. This will be used by both PUBLISH and SUBSCRIBE
+  // streams. AddCallback returns |false| if the add fails because the key
+  // already exists.
+  using AddCallback = quiche::SingleUseCallback<bool(SubscriptionPublisher*)>;
   using RemoveCallback =
       quiche::SingleUseCallback<void(SubscriptionPublisher*)>;
-  SubscriptionPublisher(MoqtFramer framer,
-                        std::shared_ptr<MoqtTrackPublisher> track_publisher,
-                        MoqtBidiStreamBase* absl_nonnull bidi_stream,
-                        uint64_t request_id, uint64_t track_alias,
-                        const MessageParameters& parameters,
-                        SessionToPublisherInterface* absl_nonnull visitor,
-                        MoqtPublishingMonitorInterface* monitoring_interface,
-                        const quic::QuicClock* absl_nonnull clock,
-                        MoqtTraceRecorder& trace_recorder, bool is_publish);
+  SubscriptionPublisher(
+      MoqtFramer framer, std::shared_ptr<MoqtTrackPublisher> track_publisher,
+      MoqtBidiStreamBase* absl_nonnull bidi_stream, uint64_t request_id,
+      uint64_t track_alias, const MessageParameters& parameters,
+      quiche::QuicheWeakPtr<SessionToPublisherInterface> visitor,
+      bool is_publish);
   ~SubscriptionPublisher();
 
   SubscriptionPublisher(const SubscriptionPublisher&) = delete;
@@ -143,28 +144,39 @@ class SubscriptionPublisher : public MoqtObjectListener,
              parameters_.subscription_filter->InWindow(location)));
   };
   bool alternate_delivery_timeout() override {
-    return visitor_->alternate_delivery_timeout();
+    if (visitor() == nullptr) {
+      return false;
+    }
+    return visitor()->alternate_delivery_timeout();
   }
-  const quic::QuicClock* clock() override { return clock_; }
+  const quic::QuicClock* clock() override {
+    if (visitor() == nullptr) {
+      return nullptr;
+    }
+    return visitor()->clock();
+  }
   quic::QuicTimeDelta delivery_timeout() override {
     return std::min(
         parameters_.delivery_timeout.value_or(kDefaultDeliveryTimeout),
         publisher_delivery_timeout_.value_or(kDefaultDeliveryTimeout));
   }
   quic::QuicAlarmFactory* alarm_factory() override {
-    return visitor_->alarm_factory();
+    if (visitor() == nullptr) {
+      return nullptr;
+    }
+    return visitor()->alarm_factory();
   }
   void OnObjectSent(Location sequence) override;
   void OnStreamTimeout(DataStreamIndex index) override {
     reset_subgroups_.insert(index);
-    if (visitor_->alternate_delivery_timeout()) {
+    if (visitor()->alternate_delivery_timeout()) {
       first_active_group_ = std::max(first_active_group_, index.group + 1);
     }
   }
   // OnSubgroupAbandoned() is declared above with MoqtObjectListener.
   void OnDataStreamDestroyed(DataStreamIndex) override;
 
-  // Called by MoqtSession when this subscription can open a new stream.
+  // MoqtObjectPublisher implementation.
   void OnCanCreateNewUniStream();
 
   // Called when the parameters_ needs an update.
@@ -173,6 +185,17 @@ class SubscriptionPublisher : public MoqtObjectListener,
   bool can_have_joining_fetch() const { return parameters_.forward(); }
 
   bool established() const { return established_; }
+
+  quiche::QuicheWeakPtr<SubscriptionPublisherInterface> GetWeakPtr() {
+    return weak_ptr_factory_.Create();
+  }
+
+  // Resets all unidirectional streams.
+  void ResetAllStreams();
+  // Called when the bidi stream is being destroyed. If the result of a session
+  // teardown, it is not safe to access the streams via GetStreamById, and the
+  // uni streams will be destroyed anyway.
+  void IgnoreResetAllStreams() { ignore_reset_all_streams_ = true; }
 
  private:
   friend class test::SubscriptionPublisherPeer;
@@ -224,20 +247,25 @@ class SubscriptionPublisher : public MoqtObjectListener,
   }
 
   webtransport::Stream* GetStreamById(webtransport::StreamId stream_id) {
-    return visitor_->session() == nullptr
-               ? nullptr
-               : visitor_->session()->GetStreamById(stream_id);
+    if (visitor() != nullptr) {
+      return visitor()->session()->GetStreamById(stream_id);
+    }
+    return nullptr;
+  }
+
+  // If nullptr, MoqtSession is gone.
+  SessionToPublisherInterface* absl_nullable visitor() const {
+    return visitor_.GetIfAvailable();
   }
 
   std::shared_ptr<MoqtTrackPublisher> track_publisher_;
   MoqtBidiStreamBase* absl_nonnull bidi_stream_;
-  SessionToPublisherInterface* absl_nonnull visitor_;
+  quiche::QuicheWeakPtr<SessionToPublisherInterface> visitor_;
   uint64_t request_id_;
   // Subscription is in the ESTABLISHED state.
   bool established_;
   const uint64_t track_alias_;
   MoqtFramer framer_;
-  MoqtTraceRecorder& trace_recorder_;
   // These are (mostly) the parameters from the SUBSCRIBE message. However,
   // group_order and largest_object may be updated by SUBSCRIBE_OK because
   // have no effect in a future REQUEST_UPDATE message.
@@ -257,11 +285,11 @@ class SubscriptionPublisher : public MoqtObjectListener,
   // Largest sequence number ever sent via this subscription.
   std::optional<Location> largest_sent_;
   SendStreamMap stream_map_;
+  bool ignore_reset_all_streams_ = false;
   // Store the StreamRank of queued outgoing data streams. High StreamRank is
   // highest priority, so use rbegin() to get the highest priority pending
   // stream.
   absl::btree_multimap<StreamRank, NewDataStreamParameters> pending_streams_;
-  const quic::QuicClock* absl_nonnull clock_;
   // Must be last.
   quiche::QuicheWeakPtrFactory<SubscriptionPublisherInterface>
       weak_ptr_factory_;

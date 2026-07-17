@@ -127,8 +127,6 @@ class MoqtControlMessageParser {
   absl::StatusOr<MoqtSubscribe> ProcessSubscribe(absl::string_view data) const;
   absl::StatusOr<MoqtSubscribeOk> ProcessSubscribeOk(
       absl::string_view data) const;
-  absl::StatusOr<MoqtUnsubscribe> ProcessUnsubscribe(
-      absl::string_view data) const;
   absl::StatusOr<MoqtPublishDone> ProcessPublishDone(
       absl::string_view data) const;
   absl::StatusOr<MoqtRequestUpdate> ProcessRequestUpdate(
@@ -184,8 +182,6 @@ class MoqtControlMessageParser {
         return parse(&MoqtControlMessageParser::ProcessSubscribe);
       case MoqtMessageType::kSubscribeOk:
         return parse(&MoqtControlMessageParser::ProcessSubscribeOk);
-      case MoqtMessageType::kUnsubscribe:
-        return parse(&MoqtControlMessageParser::ProcessUnsubscribe);
       case MoqtMessageType::kPublishDone:
         return parse(&MoqtControlMessageParser::ProcessPublishDone);
       case MoqtMessageType::kRequestUpdate:

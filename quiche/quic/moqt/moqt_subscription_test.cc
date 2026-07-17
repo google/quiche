@@ -18,8 +18,8 @@
 #include "absl/strings/match.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_framer.h"
@@ -33,8 +33,7 @@
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_types.h"
-#include "quiche/quic/moqt/moqt_uni_stream.h"
-#include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
+#include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -71,27 +70,13 @@ using ::testing::StrictMock;
 using ::webtransport::DatagramStatus;
 using ::webtransport::DatagramStatusCode;
 
-class MockSessionToPublisherInterface : public SessionToPublisherInterface {
- public:
-  ~MockSessionToPublisherInterface() override = default;
-  MOCK_METHOD(bool, alternate_delivery_timeout, (), (const, override));
-  MOCK_METHOD(void, UpdateTrackPriority,
-              (uint64_t, std::optional<MoqtTrackPriority>, MoqtTrackPriority),
-              (override));
-  MOCK_METHOD(quic::QuicAlarmFactory*, alarm_factory, (), (override));
-  MOCK_METHOD(void, PublishIsDone, (uint64_t), (override));
-  MOCK_METHOD(webtransport::Session*, session, (), (override));
-};
-
 class TestMoqtBidiStream : public MoqtBidiStreamBase {
  public:
   TestMoqtBidiStream(MoqtFramer* absl_nonnull framer,
                      const MoqtControlMessageParser& message_parser,
                      SessionErrorCallback session_error_callback)
       : MoqtBidiStreamBase(framer, message_parser,
-                           std::move(session_error_callback)) {
-    set_control_stream();  // TODO(martinduke): Delete
-  }
+                           std::move(session_error_callback)) {}
   ~TestMoqtBidiStream() override = default;
   void OnStreamBound() override {};
   absl::Status OnRawControlMessage(
@@ -134,21 +119,25 @@ class SubscriptionPublisherTest : public quic::test::QuicTest {
     EXPECT_CALL(monitoring_interface_, OnObjectAckSupportKnown)
         .Times(AtLeast(0));
     EXPECT_CALL(visitor_, session).WillRepeatedly(Return(&webtrans_));
+    ON_CALL(visitor_, ReleaseMonitoringInterface)
+        .WillByDefault(Return(&monitoring_interface_));
     publisher_ = std::make_unique<SubscriptionPublisher>(
         framer_, track_publisher_, &bidi_stream_, kRequestId, kTrackAlias,
-        parameters_, &visitor_, &monitoring_interface_, &mock_clock_,
-        trace_recorder_, /*is_publish=*/false);
+        parameters_, visitor_.weak_ptr_factory_.Create(),
+        /*is_publish=*/false);
     ON_CALL(visitor_, alternate_delivery_timeout).WillByDefault(Return(false));
     ON_CALL(webtrans_, GetStreamById(kStreamId))
         .WillByDefault(Return(&mock_uni_stream_));
     ON_CALL(visitor_, alarm_factory).WillByDefault(Return(&alarm_factory_));
+    ON_CALL(visitor_, clock).WillByDefault(Return(&mock_clock_));
+    ON_CALL(visitor_, trace_recorder).WillByDefault(ReturnRef(trace_recorder_));
   }
 
   ~SubscriptionPublisherTest() override {
+    if (track_publisher_ == nullptr) {
+      return;
+    }
     EXPECT_CALL(*track_publisher_, RemoveObjectListener(publisher_.get()));
-    size_t num_open_streams =
-        SubscriptionPublisherPeer::num_open_streams(publisher_.get());
-    EXPECT_CALL(mock_uni_stream_, ResetWithUserCode).Times(num_open_streams);
   }
 
   MoqtPriority subscriber_priority() const {
@@ -308,7 +297,6 @@ TEST_F(SubscriptionPublisherTest, OnSubscribeRejected) {
   EXPECT_CALL(mock_bidi_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
       .WillOnce(Return(absl::OkStatus()));
-  EXPECT_CALL(visitor_, PublishIsDone(1));
   publisher_->OnSubscribeRejected(MoqtRequestErrorInfo(
       RequestErrorCode::kDoesNotExist, std::nullopt, "reason"));
 }
@@ -471,9 +459,15 @@ TEST_F(SubscriptionPublisherTest, OnGroupAbandonedTooFarBehind) {
   };
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_bidi_stream_,
-              Writev(SerializedControlMessage(expected_publish_done), _));
-  EXPECT_CALL(visitor_, PublishIsDone(kRequestId));
+              Writev(SerializedControlMessage(expected_publish_done), _))
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
+                    const webtransport::StreamWriteOptions& options) {
+        EXPECT_TRUE(options.send_fin());
+        return absl::OkStatus();
+      });
+  EXPECT_CALL(*track_publisher_, RemoveObjectListener);
   publisher_->OnGroupAbandoned(5);
+  track_publisher_ = nullptr;
 }
 
 TEST_F(SubscriptionPublisherTest, OnCanCreateNewUniStreamPendingCleanup) {
@@ -502,8 +496,9 @@ TEST_F(SubscriptionPublisherTest, OnTrackPublisherGone) {
   EXPECT_CALL(mock_bidi_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kPublishDone), _))
       .WillOnce(Return(absl::OkStatus()));
-  EXPECT_CALL(visitor_, PublishIsDone(1));
+  EXPECT_CALL(*track_publisher_, RemoveObjectListener);
   publisher_->OnTrackPublisherGone();
+  track_publisher_ = nullptr;
 }
 
 TEST_F(SubscriptionPublisherTest, ProcessObjectAck) {
@@ -699,6 +694,34 @@ TEST_F(SubscriptionPublisherTest, IncomingUpdateTruncatesSubscription) {
   publisher_->Update(parameters_);
   EXPECT_CALL(*track_publisher_, GetCachedObject).Times(0);
   publisher_->OnNewObjectAvailable(Location(5, 1), 0, 128);
+}
+
+TEST_F(SubscriptionPublisherTest, OnNewFinAvailable) {
+  CreateStream(
+      Location(1, 0), 0, 127,
+      {0x51, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x0a});
+  EXPECT_CALL(mock_uni_stream_, Writev(testing::IsEmpty(), _))
+      .WillOnce([](absl::Span<quiche::QuicheMemSlice> data,
+                   const webtransport::StreamWriteOptions& options) {
+        EXPECT_TRUE(options.send_fin());
+        return absl::OkStatus();
+      });
+  publisher_->OnNewFinAvailable(Location(1, 0), 0);
+}
+
+TEST_F(SubscriptionPublisherTest, OnSubgroupAbandoned) {
+  CreateStream(
+      Location(1, 0), 0, 127,
+      {0x51, static_cast<uint8_t>(kTrackAlias), 0x01, 0x7f, 0x00, 0x0a});
+  EXPECT_CALL(mock_uni_stream_, ResetWithUserCode(1234));
+  publisher_->OnSubgroupAbandoned(1, 0, 1234);
+}
+
+TEST_F(SubscriptionPublisherTest, OnSubgroupAbandonedOutsideWindow) {
+  parameters_.subscription_filter = SubscriptionFilter(Location(20, 0));
+  publisher_->Update(parameters_);
+  EXPECT_CALL(mock_uni_stream_, ResetWithUserCode).Times(0);
+  publisher_->OnSubgroupAbandoned(1, 0, 1234);
 }
 
 }  // namespace

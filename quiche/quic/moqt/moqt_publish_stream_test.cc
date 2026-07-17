@@ -14,7 +14,6 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
@@ -31,6 +30,7 @@
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_track.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/test_tools/mock_clock.h"
@@ -66,18 +66,6 @@ using ::testing::NotNull;
 using ::testing::Return;
 using ::testing::StrictMock;
 
-class MockSessionToPublisherInterface : public SessionToPublisherInterface {
- public:
-  ~MockSessionToPublisherInterface() override = default;
-  MOCK_METHOD(bool, alternate_delivery_timeout, (), (const, override));
-  MOCK_METHOD(void, UpdateTrackPriority,
-              (uint64_t, std::optional<MoqtTrackPriority>, MoqtTrackPriority),
-              (override));
-  MOCK_METHOD(quic::QuicAlarmFactory*, alarm_factory, (), (override));
-  MOCK_METHOD(void, PublishIsDone, (uint64_t), (override));
-  MOCK_METHOD(webtransport::Session*, session, (), (override));
-};
-
 constexpr uint64_t kRequestId = 1;
 constexpr uint64_t kTrackAlias = 10;
 const FullTrackName kTrackName("foo", "bar");
@@ -105,8 +93,7 @@ class MoqtPublishPublisherStreamTest : public quiche::test::QuicheTest {
     EXPECT_CALL(visitor_, session).WillRepeatedly(Return(&webtrans_));
     auto publisher = std::make_unique<SubscriptionPublisher>(
         framer_, track_publisher_, stream_.get(), kRequestId, kTrackAlias,
-        parameters_, &visitor_, /*monitoring_interface=*/nullptr, &mock_clock_,
-        trace_recorder_, /*is_publish=*/true);
+        parameters_, visitor_.weak_ptr_factory_.Create(), /*is_publish=*/true);
 
     publisher_ = publisher.get();  // Keep raw pointer for testing
     stream_->SetPublisher(std::move(publisher));
@@ -227,6 +214,30 @@ TEST_F(MoqtPublishPublisherStreamTest, ReceiveRequestUpdate) {
   EXPECT_EQ(pub_params.subscription_filter->type(),
             MoqtFilterType::kAbsoluteStart);
   EXPECT_EQ(pub_params.subscription_filter->start(), Location(1, 3));
+}
+
+TEST_F(MoqtPublishPublisherStreamTest, ReceiveObjectAck) {
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kPublish), _))
+      .WillOnce(Return(absl::OkStatus()));
+  stream_->BindStream(&mock_stream_);
+
+  MoqtObjectAck ack;
+  ack.group_id = 1;
+  ack.object_id = 2;
+  ack.delta_from_deadline = quic::QuicTimeDelta::FromMilliseconds(100);
+
+  EXPECT_CALL(visitor_, trace_recorder())
+      .WillOnce(testing::ReturnRef(trace_recorder_));
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(ack));
+}
+
+TEST_F(MoqtPublishPublisherStreamTest, Detach) {
+  EXPECT_CALL(deleted_callback_, Call(publisher_));
+  stream_->Detach();
+  // Verifying second detach is a no-op
+  EXPECT_CALL(deleted_callback_, Call).Times(0);
+  stream_->Detach();
 }
 
 class MoqtPublishSubscriberStreamTest : public quiche::test::QuicheTest {
@@ -559,6 +570,35 @@ TEST_F(MoqtPublishSubscriberStreamTest, DuplicatePublishOnDifferentStreams) {
 
   // Test teardown expectations
   EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
+}
+
+TEST_F(MoqtPublishSubscriberStreamTest, ReceiveRequestOkAndErrorTodo) {
+  MoqtRequestOk request_ok;
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
+
+  MoqtRequestError request_error;
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(request_error));
+}
+
+TEST_F(MoqtPublishSubscriberStreamTest, TrackAndDetach) {
+  MoqtPublish publish = DefaultPublish();
+  EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
+      .WillOnce(Return(&mock_subscribe_visitor_));
+  EXPECT_CALL(mock_add_callback_, Call(NotNull())).WillOnce(Return(true));
+  EXPECT_CALL(mock_subscribe_visitor_, OnReply(kTrackName, _))
+      .WillOnce(
+          [](const FullTrackName&,
+             const std::variant<SubscribeOkData, MoqtRequestErrorInfo>& reply) {
+            EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(reply));
+          });
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
+  EXPECT_NE(stream_->track(), nullptr);
+  EXPECT_EQ(stream_->track()->track_alias(), kTrackAlias);
+
+  EXPECT_CALL(mock_remove_callback_, Call(stream_->track()));
+  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
+  stream_->Detach();
+  EXPECT_EQ(stream_->track(), nullptr);
 }
 
 }  // namespace

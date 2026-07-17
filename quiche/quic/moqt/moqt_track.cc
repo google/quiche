@@ -43,14 +43,9 @@ SubscribeRemoteTrack::~SubscribeRemoteTrack() {
   if (publish_done_alarm_ != nullptr) {
     publish_done_alarm_->PermanentCancel();
   }
-  if (remove_callback_ != nullptr) {
-    RemoveCallback callback = std::move(remove_callback_);
-    remove_callback_ = nullptr;
-    std::move(callback)(this);
-  }
   if (visitor_ != nullptr) {
+    // The application expects OnPublishDone even if the Session has gone away.
     visitor_->OnPublishDone(full_track_name());
-    visitor_ = nullptr;
   }
 }
 
@@ -62,10 +57,6 @@ void SubscribeRemoteTrack::OnObjectOrOk(const SubscribeOkData& data) {
   publisher_delivery_timeout_ = data.extensions.delivery_timeout();
   // TODO(martinduke): Is there anything to do with EXPIRES?
   default_publisher_priority_ = data.extensions.default_publisher_priority();
-  if (!parameters().group_order.has_value()) {
-    // Use publisher default because the subscriber didn't care.
-    parameters().group_order = data.extensions.default_publisher_group_order();
-  }
   dynamic_groups_ = data.extensions.dynamic_groups();
   visitor_->OnReply(full_track_name(), data);
   OnObjectOrOk();
@@ -83,7 +74,7 @@ void SubscribeRemoteTrack::OnStreamClosed(
   ++streams_closed_;
   --currently_open_streams_;
   QUICHE_DCHECK_GE(currently_open_streams_, -1);
-  if (index.has_value()) {
+  if (index.has_value() && visitor_ != nullptr) {
     // If index is nullopt, there was not an object received on the stream.
     if (fin_received) {
       visitor_->OnStreamFin(full_track_name(), *index);
@@ -92,7 +83,8 @@ void SubscribeRemoteTrack::OnStreamClosed(
     }
   }
   if (all_streams_closed()) {
-    Destroy();
+    request_stream()->Fin();
+    // Fin will destroy the class.
     return;
   }
   if (publish_done_alarm_ == nullptr) {
@@ -107,11 +99,12 @@ void SubscribeRemoteTrack::OnPublishDone(
   total_streams_ = stream_count;
   clock_ = clock;
   if (all_streams_closed()) {
-    Destroy();
+    request_stream()->Fin();
+    // Fin will destroy the class.
     return;
   }
   publish_done_alarm_ = std::unique_ptr<quic::QuicAlarm>(
-      alarm_factory->CreateAlarm(new PublishDoneDelegate(this)));
+      alarm_factory->CreateAlarm(new PublishDoneDelegate(weak_ptr())));
   MaybeSetPublishDoneAlarm();
 }
 
@@ -177,6 +170,14 @@ void SubscribeRemoteTrack::FetchObjects() {
   }
 }
 
+void SubscribeRemoteTrack::SendObjectAck(
+    uint64_t group_id, uint64_t object_id,
+    quic::QuicTimeDelta delta_from_deadline) {
+  request_stream()->SendOrBufferMessageOrFatal(
+      request_stream()->framer()->SerializeObjectAck(
+          {group_id, object_id, delta_from_deadline}));
+}
+
 UpstreamFetch::~UpstreamFetch() {
   UpstreamFetchTask* task = task_.GetIfAvailable();
   if (task != nullptr) {
@@ -184,10 +185,7 @@ UpstreamFetch::~UpstreamFetch() {
     // If this has already been called, UpstreamFetchTask will ignore it.
     task->OnStreamAndFetchClosed(kResetCodeCancelled, "");
   }
-  if (remove_callback_ != nullptr) {
-    std::move(remove_callback_)();
-    remove_callback_ = nullptr;
-  }
+  task = nullptr;
 }
 
 void UpstreamFetch::OnFetchResult(Location largest_location,

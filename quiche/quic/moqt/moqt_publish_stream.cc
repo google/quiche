@@ -38,7 +38,12 @@ MoqtPublishPublisherStream::MoqtPublishPublisherStream(
       response_callback_(std::move(response_callback)),
       stream_deleted_callback_(std::move(stream_deleted_callback)) {}
 
-MoqtPublishPublisherStream::~MoqtPublishPublisherStream() { Detach(); }
+MoqtPublishPublisherStream::~MoqtPublishPublisherStream() {
+  if (publisher_ != nullptr) {
+    publisher_->IgnoreResetAllStreams();
+  }
+  Detach();
+}
 
 void MoqtPublishPublisherStream::OnStreamBound() {
   stream_parser()->set_allow_fin(true);
@@ -165,6 +170,11 @@ absl::Status MoqtPublishSubscriberStream::OnControlMessage(
                              }},
               response);
         }));
+  } else {
+    // Since the application already called SUBSCRIBE, there will be no
+    // invocation of the request callback. Send REQUEST_OK immediately.
+    CheckStatus(
+        SendRequestOk(message.request_id, subscriber_->const_parameters()));
   }
   incoming_publish_callback_ = nullptr;
   if (subscriber_->visitor() == nullptr) {
@@ -183,6 +193,10 @@ absl::Status MoqtPublishSubscriberStream::OnControlMessage(
 
 absl::Status MoqtPublishSubscriberStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
+  if (subscriber_ == nullptr) {
+    // Stream is already closing.
+    return absl::OkStatus();
+  }
   subscriber_->Update(message.parameters);
   CheckStatus(SendRequestOk(message.request_id, MessageParameters()));
   return absl::OkStatus();

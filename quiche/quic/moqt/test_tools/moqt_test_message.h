@@ -112,15 +112,13 @@ class QUICHE_NO_EXPORT TestMessageBase {
  public:
   virtual ~TestMessageBase() = default;
 
-  using MessageStructuredData =
-      std::variant<MoqtSetup, MoqtObject, MoqtRequestOk, MoqtRequestError,
-                   MoqtSubscribe, MoqtSubscribeOk, MoqtUnsubscribe,
-                   MoqtPublishDone, MoqtRequestUpdate, MoqtPublishNamespace,
-                   MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel,
-                   MoqtTrackStatus, MoqtGoAway, MoqtSubscribeNamespace,
-                   MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
-                   MoqtRequestsBlocked, MoqtPublish, MoqtNamespace,
-                   MoqtNamespaceDone, MoqtObjectAck>;
+  using MessageStructuredData = std::variant<
+      MoqtSetup, MoqtObject, MoqtRequestOk, MoqtRequestError, MoqtSubscribe,
+      MoqtSubscribeOk, MoqtPublishDone, MoqtRequestUpdate, MoqtPublishNamespace,
+      MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
+      MoqtGoAway, MoqtSubscribeNamespace, MoqtMaxRequestId, MoqtFetch,
+      MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish,
+      MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -872,39 +870,6 @@ class QUICHE_NO_EXPORT RequestErrorMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT UnsubscribeMessage : public TestMessageBase {
- public:
-  UnsubscribeMessage() : TestMessageBase() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-  }
-
-  bool EqualFieldValues(const MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtUnsubscribe>(values);
-    if (cast.request_id != unsubscribe_.request_id) {
-      QUIC_LOG(INFO) << "UNSUBSCRIBE request ID mismatch";
-      return false;
-    }
-    return true;
-  }
-
-  void ExpandVarints() override { ExpandVarintsImpl("v"); }
-
-  MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(unsubscribe_);
-  }
-
- private:
-  uint8_t raw_packet_[4] = {
-      0x0a,
-      0x00,
-      0x01,
-      0x03,  // request_id = 3
-  };
-
-  MoqtUnsubscribe unsubscribe_ = {
-      /*request_id=*/3,
-  };
-};
 
 class QUICHE_NO_EXPORT PublishDoneMessage : public TestMessageBase {
  public:
@@ -1764,10 +1729,6 @@ class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtObjectAck>(values);
-    if (cast.subscribe_id != object_ack_.subscribe_id) {
-      QUIC_LOG(INFO) << "OBJECT_ACK subscribe ID mismatch";
-      return false;
-    }
     if (cast.group_id != object_ack_.group_id) {
       QUIC_LOG(INFO) << "OBJECT_ACK group ID mismatch";
       return false;
@@ -1783,21 +1744,20 @@ class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(object_ack_);
   }
 
  private:
-  uint8_t raw_packet_[8] = {
-      0xb1, 0x84, 0x00, 0x04,  // type
-      0x01, 0x10, 0x20,        // subscribe ID, group, object
+  uint8_t raw_packet_[7] = {
+      0xb1, 0x84, 0x00, 0x03,  // type
+      0x10, 0x20,              // group, object
       0x20,                    // 0x10 time delta
   };
 
   MoqtObjectAck object_ack_ = {
-      /*subscribe_id=*/0x01,
       /*group_id=*/0x10,
       /*object_id=*/0x20,
       /*delta_from_deadline=*/quic::QuicTimeDelta::FromMicroseconds(0x10),
@@ -1817,8 +1777,6 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<SubscribeMessage>();
     case MoqtMessageType::kSubscribeOk:
       return std::make_unique<SubscribeOkMessage>();
-    case MoqtMessageType::kUnsubscribe:
-      return std::make_unique<UnsubscribeMessage>();
     case MoqtMessageType::kPublishDone:
       return std::make_unique<PublishDoneMessage>();
     case MoqtMessageType::kRequestUpdate:

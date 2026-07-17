@@ -12,12 +12,14 @@
 #include <optional>
 #include <utility>
 
+#include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -69,8 +71,6 @@ class RemoteTrack {
 
   virtual bool is_fetch() const = 0;
 
-  virtual void Destroy() = 0;
-
   // A REQUEST_UPDATE changes any field that is present in |parameters|.
   void Update(const MessageParameters& parameters) {
     parameters_.Update(parameters);
@@ -78,8 +78,9 @@ class RemoteTrack {
 
   MoqtBidiStreamBase* request_stream() { return request_stream_; }
 
- protected:
   const MessageParameters& const_parameters() const { return parameters_; }
+
+ protected:
   MessageParameters& parameters() { return parameters_; }
 
  private:
@@ -102,15 +103,11 @@ class SubscribeRemoteTrack : public RemoteTrack {
   using AddCallback = quiche::SingleUseCallback<bool(SubscribeRemoteTrack*)>;
   using RemoveCallback = quiche::SingleUseCallback<void(SubscribeRemoteTrack*)>;
   SubscribeRemoteTrack(const MoqtSubscribe& subscribe,
-                       SubscribeVisitor* visitor, AddCallback add_callback,
-                       RemoveCallback remove_callback)
+                       SubscribeVisitor* visitor,
+                       MoqtBidiStreamBase* request_stream)
       : RemoteTrack(subscribe.full_track_name, subscribe.request_id,
-                    subscribe.parameters, /*request_stream=*/nullptr),
-        visitor_(visitor),
-        add_callback_(std::move(add_callback)),
-        remove_callback_(std::move(remove_callback)) {}
-  // For incoming PUBLISH, all |callbacks| will be nullptr because it's handled
-  // by the stream.
+                    subscribe.parameters, request_stream),
+        visitor_(visitor) {}
   SubscribeRemoteTrack(const MoqtPublish& publish, SubscribeVisitor* visitor,
                        MoqtBidiStreamBase* request_stream)
       : RemoteTrack(publish.full_track_name, publish.request_id,
@@ -127,12 +124,8 @@ class SubscribeRemoteTrack : public RemoteTrack {
   std::optional<uint64_t> track_alias() const { return track_alias_; }
   // Returns false if the callback returns false, meaning the session has been
   // destroyed.
-  bool set_track_alias(uint64_t track_alias) {
+  void set_track_alias(uint64_t track_alias) {
     track_alias_.emplace(track_alias);
-    if (add_callback_ != nullptr) {
-      return std::move(add_callback_)(this);
-    }
-    return true;
   }
   void OnStreamOpened();
   void OnStreamClosed(bool fin_received, std::optional<DataStreamIndex> index);
@@ -169,19 +162,8 @@ class SubscribeRemoteTrack : public RemoteTrack {
   }
   void set_visitor(SubscribeVisitor* visitor) { visitor_ = visitor; }
 
-  void Destroy() {
-    if (request_stream() != nullptr) {
-      request_stream()->Fin();
-    }
-    if (remove_callback_) {
-      // Null the callback before calling, because the session owns this and
-      // the callback will call the destructor. When SUBSCRIBE moves to a stream
-      // this won't be a problem.
-      RemoveCallback callback = std::move(remove_callback_);
-      remove_callback_ = nullptr;
-      std::move(callback)(this);
-    }
-  }
+  void SendObjectAck(uint64_t group_id, uint64_t object_id,
+                     quic::QuicTimeDelta delta_from_deadline);
 
  private:
   friend class test::MoqtSessionPeer;
@@ -189,13 +171,19 @@ class SubscribeRemoteTrack : public RemoteTrack {
 
   class PublishDoneDelegate : public quic::QuicAlarm::DelegateWithoutContext {
    public:
-    PublishDoneDelegate(SubscribeRemoteTrack* subscribe)
+    PublishDoneDelegate(quiche::QuicheWeakPtr<RemoteTrack> subscribe)
         : subscribe_(subscribe) {}
 
-    void OnAlarm() override { subscribe_->Destroy(); }
+    void OnAlarm() override {
+      RemoteTrack* subscribe = subscribe_.GetIfAvailable();
+      if (subscribe == nullptr) {
+        return;
+      }
+      subscribe->request_stream()->Reset(kResetCodeCancelled);
+    }
 
    private:
-    SubscribeRemoteTrack* subscribe_;
+    quiche::QuicheWeakPtr<RemoteTrack> subscribe_;
   };
 
   void MaybeSetPublishDoneAlarm();
@@ -216,9 +204,6 @@ class SubscribeRemoteTrack : public RemoteTrack {
   int currently_open_streams_ = 0;
   // Every stream that has received FIN or RESET_STREAM.
   uint64_t streams_closed_ = 0;
-  // For PUBLISH (and later SUBSCRIBE), will be handled in the request stream.
-  AddCallback add_callback_ = nullptr;
-  RemoveCallback remove_callback_ = nullptr;
   // Value assigned on PUBLISH_DONE. Can destroy subscription state if
   // streams_closed_ == total_streams_.
   std::optional<uint64_t> total_streams_;
@@ -292,7 +277,7 @@ class UpstreamFetch : public RemoteTrack {
   // Called when the data stream is destroyed.
   void OnStreamClosed() { Destroy(); }
 
-  void Destroy() override {
+  void Destroy() {
     if (remove_callback_) {
       RemoveFetchCallback callback = std::move(remove_callback_);
       remove_callback_ = nullptr;
@@ -421,7 +406,6 @@ class UpstreamFetch : public RemoteTrack {
 
   // Initial values from Fetch() call.
   FetchResponseCallback ok_callback_;  // Will be destroyed on FETCH_OK.
-
   RemoveFetchCallback remove_callback_;
 };
 

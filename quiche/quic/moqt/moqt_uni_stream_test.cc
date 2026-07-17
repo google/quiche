@@ -491,15 +491,9 @@ class IncomingDataStreamTest : public quic::test::QuicTest {
         subscribe_message_(1, ftn_, MessageParameters()) {
     EXPECT_CALL(session_, deliver_partial_objects())
         .WillRepeatedly(Return(false));
-    track_ = std::make_unique<SubscribeRemoteTrack>(
-        subscribe_message_, &visitor_,
-        [this](SubscribeRemoteTrack* track) {
-          alias_track_ = track;
-          alias_ = track->track_alias().value();
-          return true;
-        },
-        nullptr);
-    EXPECT_TRUE(track_->set_track_alias(2));
+    track_ = std::make_unique<SubscribeRemoteTrack>(subscribe_message_,
+                                                    &visitor_, nullptr);
+    track_->set_track_alias(2);
     CreateStream();
   }
 
@@ -519,8 +513,6 @@ class IncomingDataStreamTest : public quic::test::QuicTest {
     EXPECT_CALL(session_, GetSubscribe(alias))
         .WillOnce(Return(track_->weak_ptr()));
     stream_->OnCanRead();
-    EXPECT_EQ(alias_, alias);
-    EXPECT_EQ(alias_track_, track_.get());
   }
 
   webtransport::test::InMemoryStream mock_stream_;
@@ -531,8 +523,6 @@ class IncomingDataStreamTest : public quic::test::QuicTest {
   testing::NiceMock<MockSubscribeRemoteTrackVisitor> visitor_;
   std::unique_ptr<SubscribeRemoteTrack> track_;
   std::unique_ptr<IncomingDataStream> stream_;
-  uint64_t alias_ = 0;
-  SubscribeRemoteTrack* alias_track_ = nullptr;
 };
 
 TEST_F(IncomingDataStreamTest, DestructorBeforeTrackAlias) {

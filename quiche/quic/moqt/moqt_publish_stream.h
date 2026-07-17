@@ -48,6 +48,10 @@ class MoqtPublishPublisherStream : public MoqtBidiStreamBase {
   absl::Status OnControlMessage(const MoqtRequestOk& message);
   absl::Status OnControlMessage(const MoqtRequestError& message);
   absl::Status OnControlMessage(const MoqtRequestUpdate& message);
+  absl::Status OnControlMessage(const MoqtObjectAck& message) {
+    publisher_->ProcessObjectAck(message);
+    return absl::OkStatus();
+  }
 
   void SetPublisher(std::unique_ptr<SubscriptionPublisher> publisher) {
     publisher_ = std::move(publisher);
@@ -61,6 +65,8 @@ class MoqtPublishPublisherStream : public MoqtBidiStreamBase {
         std::move(stream_deleted_callback_);
     stream_deleted_callback_ = nullptr;
     std::move(callback)(publisher_.get());
+    publisher_->ResetAllStreams();
+    publisher_ = nullptr;
   }
 
  private:
@@ -96,6 +102,8 @@ class MoqtPublishSubscriberStream : public MoqtBidiStreamBase {
   absl::Status OnControlMessage(const MoqtRequestError& message);
   absl::Status OnControlMessage(const MoqtPublishDone& message);
 
+  SubscribeRemoteTrack* track() { return subscriber_.get(); }
+
   void Detach() override {
     if (remove_callback_ != nullptr) {
       SubscribeRemoteTrack::RemoveCallback callback =
@@ -103,6 +111,7 @@ class MoqtPublishSubscriberStream : public MoqtBidiStreamBase {
       remove_callback_ = nullptr;
       std::move(callback)(subscriber_.get());
     }
+    subscriber_ = nullptr;
   }
 
  private:
