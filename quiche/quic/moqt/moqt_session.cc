@@ -273,8 +273,7 @@ void MoqtSession::Error(MoqtError code, absl::string_view error) {
 }
 
 std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
-    TrackNamespace& prefix, SubscribeNamespaceOption option,
-    const MessageParameters& parameters,
+    TrackNamespace& prefix, const MessageParameters& parameters,
     MoqtResponseCallback response_callback) {
   if (received_goaway_ || sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT
@@ -295,18 +294,6 @@ std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
                     << peer_max_request_id_;
     return nullptr;
   }
-  // Sanitize the option.
-  switch (option) {
-    case SubscribeNamespaceOption::kNamespace:
-      break;
-    case SubscribeNamespaceOption::kPublish:
-      // TODO(martinduke): Support PUBLISH.
-      return nullptr;
-    case SubscribeNamespaceOption::kBoth:
-      option = SubscribeNamespaceOption::kNamespace;
-      break;
-  }
-  QUICHE_DCHECK(option == SubscribeNamespaceOption::kNamespace);
   if (!outgoing_subscribe_namespace_.SubscribeNamespace(prefix)) {
     std::move(response_callback)(MoqtRequestErrorInfo{
         RequestErrorCode::kInternalError, std::nullopt,
@@ -339,16 +326,24 @@ std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
     pending_bidi_streams_.push_back(std::move(state));
   }
   MoqtSubscribeNamespace message;
-  message.request_id = next_request_id_;
-  next_request_id_ += 2;
+  message.request_id = NextRequestId();
   message.track_namespace_prefix = prefix;
-  message.subscribe_options = SubscribeNamespaceOption::kNamespace;
   message.parameters = parameters;
   state_ptr->SendOrBufferMessageOrFatal(
       framer_.SerializeSubscribeNamespace(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_NAMESPACE message for "
                   << message.track_namespace_prefix;
   return state_ptr->CreateTask(prefix);
+}
+
+bool MoqtSession::SubscribeTracks(TrackNamespace& prefix,
+                                  const MessageParameters& parameters,
+                                  MoqtResponseCallback response_callback) {
+  return false;
+}
+
+void MoqtSession::UnsubscribeTracks(TrackNamespace& prefix) {
+  // Do nothing.
 }
 
 bool MoqtSession::PublishNamespace(
@@ -961,6 +956,21 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
       // The UnknownBidiStream object is deleted; no class access after this
       // point.
       temp_stream->OnCanRead();
+      break;
+    }
+    case MoqtMessageType::kSubscribeTracks: {
+      // TODO(martinduke): Implement this.
+      MoqtControlMessageQueue queue(stream_);
+      if (!queue
+               .SendOrBufferMessage(
+                   session_->framer_.SerializeRequestError(MoqtRequestError{
+                       /*request_id=*/0, RequestErrorCode::kNotSupported,
+                       std::nullopt, "SUBSCRIBE_TRACKS is not supported"}),
+                   /*fin=*/true)
+               .ok()) {
+        session_->Error(MoqtError::kInternalError, "Internal write error");
+        return;
+      }
       break;
     }
     case MoqtMessageType::kPublish: {

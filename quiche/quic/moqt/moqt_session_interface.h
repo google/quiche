@@ -177,9 +177,12 @@ class MoqtSessionInterface {
   // Returns nullptr if the message cannot be sent.
   // To unsubscribe, simply destroy the returned MoqtNamespaceTask.
   virtual std::unique_ptr<MoqtNamespaceTask> SubscribeNamespace(
-      TrackNamespace& prefix, SubscribeNamespaceOption option,
-      const MessageParameters& parameters,
+      TrackNamespace& prefix, const MessageParameters& parameters,
       MoqtResponseCallback response_callback) = 0;
+  virtual bool SubscribeTracks(TrackNamespace& prefix,
+                               const MessageParameters& parameters,
+                               MoqtResponseCallback response_callback) = 0;
+  virtual void UnsubscribeTracks(TrackNamespace& prefix) = 0;
 
   // TODO(martinduke): Add an API for absolute joining fetch.
 

@@ -16,6 +16,7 @@
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
@@ -127,27 +128,36 @@ void MoqtRelay::SetNamespaceCallbacks(MoqtSessionInterface* session) {
         }
       };
   session->callbacks().incoming_subscribe_namespace_callback =
-      [this, session](const TrackNamespace& prefix,
-                      SubscribeNamespaceOption option,
-                      const MessageParameters& parameters,
-                      MoqtResponseCallback response_callback)
+      [this](const TrackNamespace& prefix, const MessageParameters& parameters,
+             MoqtResponseCallback response_callback)
       -> std::unique_ptr<MoqtNamespaceTask> {
     if (is_closing_) {
       return nullptr;
     }
-    std::unique_ptr<MoqtNamespaceTask> task;
-    switch (option) {
-      case SubscribeNamespaceOption::kNamespace:
-        task = publisher_.AddNamespaceSubscriber(prefix, nullptr);
-        break;
-      case SubscribeNamespaceOption::kBoth:
-      case SubscribeNamespaceOption::kPublish:
-        task = publisher_.AddNamespaceSubscriber(prefix, session);
-        break;
+    std::unique_ptr<MoqtNamespaceTask> task =
+        publisher_.AddNamespaceSubscriber(prefix);
+    if (task == nullptr) {
+      std::move(response_callback)(MoqtRequestErrorInfo{
+          RequestErrorCode::kInternalError, std::nullopt, ""});
+      return nullptr;
     }
     std::move(response_callback)(MessageParameters());
     return task;
   };
+  session->callbacks().incoming_subscribe_tracks_callback =
+      [this, session](const TrackNamespace& prefix,
+                      const MessageParameters& parameters,
+                      MoqtResponseCallback response_callback) {
+        if (is_closing_) {
+          return;
+        }
+        if (!publisher_.AddTrackSubscriber(prefix, session)) {
+          std::move(response_callback)(MoqtRequestErrorInfo{
+              RequestErrorCode::kInternalError, std::nullopt, ""});
+        } else {
+          std::move(response_callback)(MessageParameters());
+        }
+      };
 }
 
 absl::StatusOr<MoqtConfigureSessionCallback> MoqtRelay::IncomingSessionHandler(

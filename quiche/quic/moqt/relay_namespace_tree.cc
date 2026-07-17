@@ -27,7 +27,7 @@
 namespace moqt {
 
 RelayNamespaceTree::RelayNamespaceListener::~RelayNamespaceListener() {
-  tree_.RemoveSubscriber(prefix_, this);
+  tree_.RemoveNamespaceSubscriber(prefix_, this);
 }
 
 void RelayNamespaceTree::RelayNamespaceListener::SetObjectsAvailableCallback(
@@ -85,15 +85,6 @@ void RelayNamespaceTree::RelayNamespaceListener::AddPendingSuffix(
   callback_();
 }
 
-void RelayNamespaceTree::RelayNamespaceListener::Publish(TrackNamespace,
-                                                         absl::string_view) {
-  if (session_ == nullptr) {
-    return;  // Not interested in tracks.
-  }
-  // TODO(martinduke): Build a full track name from prefix_, suffix, and name,
-  // then call session_->Publish().
-}
-
 void RelayNamespaceTree::RelayNamespaceListener::DeclareEof() {
   if (eof_ || error_.has_value()) {
     return;
@@ -126,17 +117,16 @@ void RelayNamespaceTree::RemovePublisher(
   }
 }
 
-std::unique_ptr<MoqtNamespaceTask> RelayNamespaceTree::AddSubscriber(
-    const TrackNamespace& prefix,
-    MoqtSessionInterface* absl_nullable track_listener) {
+std::unique_ptr<MoqtNamespaceTask> RelayNamespaceTree::AddNamespaceSubscriber(
+    const TrackNamespace& prefix) {
   Node* node = FindOrCreateNode(prefix);
-  auto task =
-      std::make_unique<RelayNamespaceListener>(*this, prefix, track_listener);
+  auto task = std::make_unique<RelayNamespaceListener>(*this, prefix);
   node->listeners[task.get()] = task->GetWeakPtr();
   return std::move(task);
 }
 
-void RelayNamespaceTree::RemoveSubscriber(
+// private
+void RelayNamespaceTree::RemoveNamespaceSubscriber(
     TrackNamespace prefix, MoqtNamespaceTask* absl_nonnull listener) {
   Node* node = FindNode(prefix);
   if (node == nullptr) {
@@ -203,9 +193,6 @@ void RelayNamespaceTree::NotifyOfAllChildren(
     RelayNamespaceListener* absl_nonnull listener) {
   if (!node->publishers.empty()) {
     listener->AddPendingSuffix(suffix, TransactionType::kAdd);
-  }
-  for (const std::string& track : node->published_tracks) {
-    listener->Publish(suffix, track);
   }
   for (auto child = node->children.begin(); child != node->children.end();
        ++child) {

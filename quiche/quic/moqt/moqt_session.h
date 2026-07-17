@@ -132,9 +132,12 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // MoqtNamespaceTask::SetObjectsAvailableCallback() to actually retrieve
   // namespaces.
   std::unique_ptr<MoqtNamespaceTask> SubscribeNamespace(
-      TrackNamespace& prefix, SubscribeNamespaceOption option,
-      const MessageParameters& parameters,
+      TrackNamespace& prefix, const MessageParameters& parameters,
       MoqtResponseCallback response_callback) override;
+  bool SubscribeTracks(TrackNamespace& prefix,
+                       const MessageParameters& parameters,
+                       MoqtResponseCallback response_callback) override;
+  void UnsubscribeTracks(TrackNamespace& prefix) override;
   quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() override {
     return weak_ptr_factory_.Create();
   }

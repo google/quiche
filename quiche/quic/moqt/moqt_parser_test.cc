@@ -61,6 +61,7 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kPublishNamespaceCancel,
     MoqtMessageType::kGoAway,
     MoqtMessageType::kSubscribeNamespace,
+    MoqtMessageType::kSubscribeTracks,
     MoqtMessageType::kMaxRequestId,
     MoqtMessageType::kFetch,
     MoqtMessageType::kFetchCancel,

@@ -79,13 +79,6 @@ struct DataStreamIndex {
   }
 };
 
-enum class QUICHE_EXPORT SubscribeNamespaceOption : uint64_t {
-  kPublish = 0x00,
-  kNamespace = 0x01,
-  kBoth = 0x02,
-};
-static constexpr uint64_t kMaxSubscribeOption = 0x02;
-
 }  // namespace moqt
 
 #endif  // QUICHE_QUIC_MOQT_MOQT_TYPES_H_

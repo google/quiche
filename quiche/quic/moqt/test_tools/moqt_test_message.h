@@ -116,8 +116,8 @@ class QUICHE_NO_EXPORT TestMessageBase {
       MoqtSetup, MoqtObject, MoqtRequestOk, MoqtRequestError, MoqtSubscribe,
       MoqtSubscribeOk, MoqtPublishDone, MoqtRequestUpdate, MoqtPublishNamespace,
       MoqtPublishNamespaceDone, MoqtPublishNamespaceCancel, MoqtTrackStatus,
-      MoqtGoAway, MoqtSubscribeNamespace, MoqtMaxRequestId, MoqtFetch,
-      MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish,
+      MoqtGoAway, MoqtSubscribeNamespace, MoqtSubscribeTracks, MoqtMaxRequestId,
+      MoqtFetch, MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked, MoqtPublish,
       MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
 
   // The total actual size of the message.
@@ -1267,10 +1267,6 @@ class QUICHE_NO_EXPORT SubscribeNamespaceMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE_NAMESPACE track namespace mismatch";
       return false;
     }
-    if (cast.subscribe_options != subscribe_namespace_.subscribe_options) {
-      QUIC_LOG(INFO) << "SUBSCRIBE_NAMESPACE subscribe options mismatch";
-      return false;
-    }
     if (cast.parameters != subscribe_namespace_.parameters) {
       QUIC_LOG(INFO) << "SUBSCRIBE_NAMESPACE parameters mismatch";
       return false;
@@ -1278,17 +1274,16 @@ class QUICHE_NO_EXPORT SubscribeNamespaceMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv---vvv-----"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv---vvv-----vv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_namespace_);
   }
 
  private:
-  uint8_t raw_packet_[20] = {
-      0x11, 0x00, 0x11, 0x01,                    // request_id = 1
+  uint8_t raw_packet_[19] = {
+      0x50, 0x00, 0x10, 0x01,                    // request_id = 1
       0x01, 0x03, 0x66, 0x6f, 0x6f,              // namespace = "foo"
-      0x02,                                      // subscribe_options = kBoth
       0x02,                                      // 2 parameters
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
       0x0d, 0x01,                                // forward = true
@@ -1297,7 +1292,55 @@ class QUICHE_NO_EXPORT SubscribeNamespaceMessage : public TestMessageBase {
   MoqtSubscribeNamespace subscribe_namespace_ = {
       /*request_id=*/1,
       TrackNamespace({"foo"}),
-      SubscribeNamespaceOption::kBoth,
+      MessageParameters(),  // set in constructor.
+  };
+};
+
+class QUICHE_NO_EXPORT SubscribeTracksMessage : public TestMessageBase {
+ public:
+  SubscribeTracksMessage() : TestMessageBase() {
+    subscribe_tracks_.parameters.authorization_tokens.push_back(
+        AuthToken(AuthTokenType::kOutOfBand, "bar"));
+    subscribe_tracks_.parameters.set_forward(true);
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
+    auto cast = std::get<MoqtSubscribeTracks>(values);
+    if (cast.request_id != subscribe_tracks_.request_id) {
+      QUIC_LOG(INFO) << "SUBSCRIBE_TRACKS request_id mismatch";
+      return false;
+    }
+    if (cast.track_namespace_prefix !=
+        subscribe_tracks_.track_namespace_prefix) {
+      QUIC_LOG(INFO) << "SUBSCRIBE_TRACKS track namespace mismatch";
+      return false;
+    }
+    if (cast.parameters != subscribe_tracks_.parameters) {
+      QUIC_LOG(INFO) << "SUBSCRIBE_TRACKS parameters mismatch";
+      return false;
+    }
+    return true;
+  }
+
+  void ExpandVarints() override { ExpandVarintsImpl("vvv---vvv-----vv"); }
+
+  MessageStructuredData structured_data() const override {
+    return TestMessageBase::MessageStructuredData(subscribe_tracks_);
+  }
+
+ private:
+  uint8_t raw_packet_[19] = {
+      0x51, 0x00, 0x10, 0x01,                    // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,              // namespace = "foo"
+      0x02,                                      // 2 parameters
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+      0x0d, 0x01,                                // forward = true
+  };
+
+  MoqtSubscribeTracks subscribe_tracks_ = {
+      /*request_id=*/1,
+      TrackNamespace({"foo"}),
       MessageParameters(),  // set in constructor.
   };
 };
@@ -1797,6 +1840,8 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<GoAwayMessage>();
     case MoqtMessageType::kSubscribeNamespace:
       return std::make_unique<SubscribeNamespaceMessage>();
+    case MoqtMessageType::kSubscribeTracks:
+      return std::make_unique<SubscribeTracksMessage>();
     case MoqtMessageType::kMaxRequestId:
       return std::make_unique<MaxRequestIdMessage>();
     case MoqtMessageType::kFetch:

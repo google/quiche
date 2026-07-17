@@ -103,6 +103,8 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "GOAWAY";
     case MoqtMessageType::kSubscribeNamespace:
       return "SUBSCRIBE_NAMESPACE";
+    case MoqtMessageType::kSubscribeTracks:
+      return "SUBSCRIBE_TRACKS";
     case MoqtMessageType::kMaxRequestId:
       return "MAX_REQUEST_ID";
     case MoqtMessageType::kPublish:

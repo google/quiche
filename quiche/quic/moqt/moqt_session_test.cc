@@ -168,7 +168,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
   // |wt_stream| is the underlying mock WebTransport stream; if nullptr, use
   // mock_bidi_stream_.
   static constexpr absl::string_view kSubscribeByte = "\x03";
-  static constexpr absl::string_view kSubscribeNamespaceByte = "\x11";
+  static constexpr absl::string_view kSubscribeNamespaceByte = "\x50";
   static constexpr absl::string_view kPublishByte = "\x1d";
   std::unique_ptr<MoqtBidiStreamBase> ResponseStream(
       absl::string_view first_byte,
@@ -1132,7 +1132,7 @@ TEST_F(MoqtSessionTest, SubscribeNamespaceLifeCycle) {
       mock_bidi_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespace), _));
   std::unique_ptr<MoqtNamespaceTask> task = session_.SubscribeNamespace(
-      prefix, SubscribeNamespaceOption::kNamespace, MessageParameters(),
+      prefix, MessageParameters(),
       [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
         got_callback = true;
         EXPECT_TRUE(std::holds_alternative<MessageParameters>(response));
@@ -1151,7 +1151,7 @@ TEST_F(MoqtSessionTest, SubscribeNamespaceError) {
       mock_bidi_stream_,
       Writev(ControlMessageOfType(MoqtMessageType::kSubscribeNamespace), _));
   std::unique_ptr<MoqtNamespaceTask> task = session_.SubscribeNamespace(
-      prefix, SubscribeNamespaceOption::kNamespace, MessageParameters(),
+      prefix, MessageParameters(),
       [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
         got_callback = true;
         EXPECT_TRUE(std::holds_alternative<MoqtRequestErrorInfo>(response));
@@ -1165,26 +1165,6 @@ TEST_F(MoqtSessionTest, SubscribeNamespaceError) {
                             "deadbeef"};
   bidi_wrapper_->ReceiveMessage(error);
   EXPECT_TRUE(got_callback);
-}
-
-TEST_F(MoqtSessionTest, SubscribeNamespacePublishOnly) {
-  TrackNamespace prefix({"foo"});
-  // kPublish is not allowed.
-  EXPECT_EQ(session_.SubscribeNamespace(
-                prefix, SubscribeNamespaceOption::kPublish, MessageParameters(),
-                [&](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}),
-            nullptr);
-  // kBoth is treated as kNamespace.
-  PrepareRequestStream(bidi_wrapper_);
-  EXPECT_CALL(mock_bidi_stream_,
-              Writev(SerializedControlMessage(MoqtSubscribeNamespace{
-                         0, prefix, SubscribeNamespaceOption::kNamespace,
-                         MessageParameters()}),
-                     _));
-  EXPECT_NE(session_.SubscribeNamespace(
-                prefix, SubscribeNamespaceOption::kBoth, MessageParameters(),
-                [&](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}),
-            nullptr);
 }
 
 TEST_F(MoqtSessionTest, SubscribeOkWithBadTrackAlias) {
@@ -1962,15 +1942,14 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespace) {
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
                                                "foo");
 
-  MoqtSubscribeNamespace subscribe_namespace = {
-      /*request_id=*/1, prefix, SubscribeNamespaceOption::kBoth, parameters};
+  MoqtSubscribeNamespace subscribe_namespace = {/*request_id=*/1, prefix,
+                                                parameters};
   quiche::QuicheWeakPtr<MockNamespaceTask> task;
   MoqtRequestOk expected_ok(/*request_id=*/1);
   expected_ok.parameters.expires = quic::QuicTimeDelta::FromSeconds(60);
   EXPECT_CALL(session_callbacks_.incoming_subscribe_namespace_callback,
-              Call(prefix, SubscribeNamespaceOption::kBoth, parameters, _))
-      .WillOnce([&](const TrackNamespace& prefix, SubscribeNamespaceOption,
-                    const MessageParameters&,
+              Call(prefix, parameters, _))
+      .WillOnce([&](const TrackNamespace& prefix, const MessageParameters&,
                     MoqtResponseCallback response_callback) {
         std::move(response_callback)(expected_ok.parameters);
         auto task_ptr = std::make_unique<MockNamespaceTask>(prefix);
@@ -2013,12 +1992,11 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithSynchronousError) {
                                                "foo");
   bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
       ResponseStream(kSubscribeNamespaceByte));
-  MoqtSubscribeNamespace subscribe_namespace = {
-      /*request_id=*/1, prefix, SubscribeNamespaceOption::kBoth, parameters};
+  MoqtSubscribeNamespace subscribe_namespace = {/*request_id=*/1, prefix,
+                                                parameters};
   EXPECT_CALL(session_callbacks_.incoming_subscribe_namespace_callback,
-              Call(prefix, SubscribeNamespaceOption::kBoth, parameters, _))
-      .WillOnce([&](const TrackNamespace&, SubscribeNamespaceOption,
-                    const MessageParameters&,
+              Call(prefix, parameters, _))
+      .WillOnce([&](const TrackNamespace&, const MessageParameters&,
                     MoqtResponseCallback response_callback) {
         std::move(response_callback)(MoqtRequestErrorInfo{
             RequestErrorCode::kUnauthorized, std::nullopt, "foo"});
@@ -2041,12 +2019,11 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithPrefixOverlap) {
                                                "foo");
   bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
       ResponseStream(kSubscribeNamespaceByte));
-  MoqtSubscribeNamespace subscribe_namespace = {
-      /*request_id=*/1, foo, SubscribeNamespaceOption::kBoth, parameters};
+  MoqtSubscribeNamespace subscribe_namespace = {/*request_id=*/1, foo,
+                                                parameters};
   EXPECT_CALL(session_callbacks_.incoming_subscribe_namespace_callback,
-              Call(foo, SubscribeNamespaceOption::kBoth, parameters, _))
-      .WillOnce([&](const TrackNamespace& prefix, SubscribeNamespaceOption,
-                    const MessageParameters&,
+              Call(foo, parameters, _))
+      .WillOnce([&](const TrackNamespace& prefix, const MessageParameters&,
                     MoqtResponseCallback response_callback) {
         std::move(response_callback)(MessageParameters());
         auto task_ptr = std::make_unique<MockNamespaceTask>(prefix);
@@ -2328,11 +2305,10 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
   EXPECT_FALSE(session_.Subscribe(FullTrackName("foo", "bar"),
                                   &remote_track_visitor_, parameters));
   TrackNamespace prefix({"foo"});
-  EXPECT_EQ(
-      session_.SubscribeNamespace(
-          prefix, SubscribeNamespaceOption::kNamespace, MessageParameters(),
-          +[](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}),
-      nullptr);
+  EXPECT_EQ(session_.SubscribeNamespace(
+                prefix, MessageParameters(),
+                +[](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}),
+            nullptr);
   session_.PublishNamespace(
       TrackNamespace{"foo"}, MessageParameters(),
       +[](std::variant<MessageParameters, MoqtRequestErrorInfo>) {},
@@ -2403,11 +2379,10 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
   EXPECT_FALSE(session_.Subscribe(FullTrackName({"foo"}, "bar"),
                                   &remote_track_visitor_, parameters));
   TrackNamespace prefix({"foo"});
-  EXPECT_EQ(
-      session_.SubscribeNamespace(
-          prefix, SubscribeNamespaceOption::kNamespace, MessageParameters(),
-          +[](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}),
-      nullptr);
+  EXPECT_EQ(session_.SubscribeNamespace(
+                prefix, MessageParameters(),
+                +[](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}),
+            nullptr);
   session_.PublishNamespace(
       TrackNamespace{"foo"}, MessageParameters(),
       +[](std::variant<MessageParameters, MoqtRequestErrorInfo>) {},
@@ -2909,9 +2884,9 @@ TEST_F(MoqtSessionTest, IncrementRequestId) {
         uint64_t type;
         uint16_t length;
         uint64_t request_id;
-        bool type_read = reader.ReadVarInt62(&type);
+        bool type_read = reader.ReadMoqVarInt(&type);
         bool length_read = reader.ReadUInt16(&length);
-        bool req_id_read = reader.ReadVarInt62(&request_id);
+        bool req_id_read = reader.ReadMoqVarInt(&request_id);
         EXPECT_TRUE(type_read) << "Failed to read type, written_data.size()="
                                << stream.write_buffer().length();
         EXPECT_TRUE(length_read);
@@ -2928,7 +2903,7 @@ TEST_F(MoqtSessionTest, IncrementRequestId) {
       .WillOnce(Return(&sub_ns_stream));
   TrackNamespace namespace1({"namespace1"});
   std::unique_ptr<MoqtNamespaceTask> task1 = session_.SubscribeNamespace(
-      namespace1, SubscribeNamespaceOption::kNamespace, MessageParameters(),
+      namespace1, MessageParameters(),
       [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {});
   ASSERT_NE(task1, nullptr);
   EXPECT_EQ(get_request_id(sub_ns_stream), next_request_id);
@@ -2996,7 +2971,7 @@ TEST_F(MoqtSessionTest, IncrementRequestId) {
       .WillOnce(Return(&sub_ns_stream_2));
   TrackNamespace namespace_dup({"namespace_dup"});
   std::unique_ptr<MoqtNamespaceTask> task_dup = session_.SubscribeNamespace(
-      namespace_dup, SubscribeNamespaceOption::kNamespace, MessageParameters(),
+      namespace_dup, MessageParameters(),
       [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {});
   ASSERT_NE(task_dup, nullptr);
   EXPECT_EQ(next_request_id, get_request_id(sub_ns_stream_2));

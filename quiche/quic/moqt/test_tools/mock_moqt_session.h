@@ -119,9 +119,12 @@ class MockMoqtSession : public MoqtSessionInterface {
                RequestErrorCode error_code, absl::string_view error_reason),
               (override));
   MOCK_METHOD(std::unique_ptr<MoqtNamespaceTask>, SubscribeNamespace,
-              (TrackNamespace&, SubscribeNamespaceOption,
-               const MessageParameters&, MoqtResponseCallback),
+              (TrackNamespace&, const MessageParameters&, MoqtResponseCallback),
               (override));
+  MOCK_METHOD(bool, SubscribeTracks,
+              (TrackNamespace&, const MessageParameters&, MoqtResponseCallback),
+              (override));
+  MOCK_METHOD(void, UnsubscribeTracks, (TrackNamespace&), (override));
 
   quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() override {
     return weak_factory_.Create();

@@ -277,9 +277,8 @@ absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
   }
   add_callback_ = nullptr;
   QUICHE_DCHECK(task_ == nullptr);
-  task_ =
-      application_(message.track_namespace_prefix, message.subscribe_options,
-                   message.parameters, ResponseCallback(request_id_));
+  task_ = application_(message.track_namespace_prefix, message.parameters,
+                       ResponseCallback(request_id_));
   if (task_ != nullptr) {
     task_->SetObjectsAvailableCallback([this]() { ProcessNamespaces(); });
   }

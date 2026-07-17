@@ -213,13 +213,14 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kTrackStatus = 0x0d,
   kNamespaceDone = 0x0e,
   kGoAway = 0x10,
-  kSubscribeNamespace = 0x11,
   kMaxRequestId = 0x15,
   kFetch = 0x16,
   kFetchCancel = 0x17,
   kFetchOk = 0x18,
   kRequestsBlocked = 0x1a,
   kPublish = 0x1d,
+  kSubscribeNamespace = 0x50,
+  kSubscribeTracks = 0x51,
   kSetup = 0x2f00,
 
   // QUICHE-specific extensions.
@@ -432,7 +433,12 @@ struct QUICHE_EXPORT MoqtGoAway {
 struct QUICHE_EXPORT MoqtSubscribeNamespace {
   uint64_t request_id;
   TrackNamespace track_namespace_prefix;
-  SubscribeNamespaceOption subscribe_options;
+  MessageParameters parameters;
+};
+
+struct QUICHE_EXPORT MoqtSubscribeTracks {
+  uint64_t request_id;
+  TrackNamespace track_namespace_prefix;
   MessageParameters parameters;
 };
 

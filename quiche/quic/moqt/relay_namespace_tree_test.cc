@@ -59,8 +59,7 @@ TEST_F(RelayNamespaceTreeTest, AddGetRemovePublisher) {
 TEST_F(RelayNamespaceTreeTest, AddGetRemoveListener) {
   // Add a listener to a namespace that has no publishers.
   EXPECT_EQ(tree_.NumNamespaces(), 0u);
-  std::unique_ptr<MoqtNamespaceTask> task =
-      tree_.AddSubscriber(ab_, session_.get());
+  std::unique_ptr<MoqtNamespaceTask> task = tree_.AddNamespaceSubscriber(ab_);
   task->SetObjectsAvailableCallback(std::move(callback_));
   EXPECT_EQ(tree_.NumNamespaces(), 3u);
   tree_.AddPublisher(a_, session_.get());
@@ -90,8 +89,7 @@ TEST_F(RelayNamespaceTreeTest, AddGetRemoveListener) {
 }
 
 TEST_F(RelayNamespaceTreeTest, SessionDestroyed) {
-  std::unique_ptr<MoqtNamespaceTask> task =
-      tree_.AddSubscriber(ab_, session_.get());
+  std::unique_ptr<MoqtNamespaceTask> task = tree_.AddNamespaceSubscriber(ab_);
   task->SetObjectsAvailableCallback(std::move(callback_));
   tree_.AddPublisher(ab_, session_.get());
   EXPECT_EQ(objects_available_, 1);
@@ -107,8 +105,7 @@ TEST_F(RelayNamespaceTreeTest, AddListenerToExistingPublisher) {
   tree_.AddPublisher(a_, session_.get());
   tree_.AddPublisher(ab_, session_.get());
   tree_.AddPublisher(abc_, session_.get());
-  std::unique_ptr<MoqtNamespaceTask> task =
-      tree_.AddSubscriber(ab_, session_.get());
+  std::unique_ptr<MoqtNamespaceTask> task = tree_.AddNamespaceSubscriber(ab_);
   task->SetObjectsAvailableCallback(std::move(callback_));
   EXPECT_EQ(objects_available_, 2);
   CheckNextSuffix(task.get(), ab_);
@@ -116,8 +113,7 @@ TEST_F(RelayNamespaceTreeTest, AddListenerToExistingPublisher) {
 }
 
 TEST_F(RelayNamespaceTreeTest, MaxSizeNamespace) {
-  std::unique_ptr<MoqtNamespaceTask> task =
-      tree_.AddSubscriber(a_, session_.get());
+  std::unique_ptr<MoqtNamespaceTask> task = tree_.AddNamespaceSubscriber(a_);
   task->SetObjectsAvailableCallback(std::move(callback_));
   TrackNamespace big_namespace{"a", "b", "c", "d", "e", "f", "g", "h",
                                "i", "j", "k", "l", "m", "n", "o", "p",

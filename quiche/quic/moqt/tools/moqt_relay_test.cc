@@ -23,7 +23,6 @@
 #include "quiche/quic/moqt/moqt_relay_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
@@ -161,7 +160,7 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   TrackNamespace suffix;
   TransactionType type;
   std::unique_ptr<MoqtNamespaceTask> relay_probe =
-      relay_.publisher()->AddNamespaceSubscriber(foo, nullptr);
+      relay_.publisher()->AddNamespaceSubscriber(foo);
   relay_probe->SetObjectsAvailableCallback([&]() {
     while (relay_probe->GetNextSuffix(suffix, type) == kSuccess) {
       if (type == TransactionType::kAdd) {
@@ -174,7 +173,7 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
     }
   });
   std::unique_ptr<MoqtNamespaceTask> upstream_probe =
-      upstream_.publisher()->AddNamespaceSubscriber(foo, nullptr);
+      upstream_.publisher()->AddNamespaceSubscriber(foo);
   upstream_probe->SetObjectsAvailableCallback([&]() {
     while (upstream_probe->GetNextSuffix(suffix, type) == kSuccess) {
       if (type == TransactionType::kAdd) {
@@ -202,7 +201,7 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   // Upstream subscribes. Now it's notified and forwards it to the probe.
   std::unique_ptr<MoqtNamespaceTask> task =
       upstream_session->SubscribeNamespace(
-          foo, SubscribeNamespaceOption::kNamespace, MessageParameters(),
+          foo, MessageParameters(),
           [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {});
   EXPECT_NE(task, nullptr);
   task->SetObjectsAvailableCallback([&]() {

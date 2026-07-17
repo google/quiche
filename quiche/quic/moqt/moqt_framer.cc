@@ -612,7 +612,14 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespace(
   return SerializeControlMessage(
       MoqtMessageType::kSubscribeNamespace, WireMoqVarInt(message.request_id),
       WireTrackNamespace(message.track_namespace_prefix),
-      WireMoqVarInt(message.subscribe_options),
+      WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializeSubscribeTracks(
+    const MoqtSubscribeTracks& message) {
+  return SerializeControlMessage(
+      MoqtMessageType::kSubscribeTracks, WireMoqVarInt(message.request_id),
+      WireTrackNamespace(message.track_namespace_prefix),
       WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
 }
 

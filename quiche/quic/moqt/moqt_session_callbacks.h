@@ -104,9 +104,11 @@ using MoqtIncomingPublishNamespaceCallback = quiche::MultiUseCallback<void(
 // tracks and namespaces, as appropriate, that are already present.
 using MoqtIncomingSubscribeNamespaceCallback =
     quiche::MultiUseCallback<std::unique_ptr<MoqtNamespaceTask>(
-        const TrackNamespace& prefix, SubscribeNamespaceOption option,
-        const MessageParameters& parameters,
+        const TrackNamespace& prefix, const MessageParameters& parameters,
         MoqtResponseCallback response_callback)>;
+using MoqtIncomingSubscribeTracksCallback = quiche::MultiUseCallback<void(
+    const TrackNamespace& prefix, const MessageParameters& parameters,
+    MoqtResponseCallback response_callback)>;
 
 inline void DefaultIncomingPublishNamespaceCallback(
     const TrackNamespace&, const std::optional<MessageParameters>&,
@@ -121,12 +123,21 @@ inline void DefaultIncomingPublishNamespaceCallback(
 
 inline std::unique_ptr<MoqtNamespaceTask>
 DefaultIncomingSubscribeNamespaceCallback(
-    const TrackNamespace&, SubscribeNamespaceOption, const MessageParameters&,
+    const TrackNamespace&, const MessageParameters&,
     MoqtResponseCallback response_callback) {
   std::move(response_callback)(
       MoqtRequestErrorInfo{RequestErrorCode::kNotSupported, std::nullopt,
                            "This endpoint cannot publish."});
   return nullptr;
+}
+
+// If |response_callback| is nullptr, it's removing a subscription.
+inline void DefaultIncomingSubscribeTracksCallback(
+    const TrackNamespace&, const MessageParameters&,
+    MoqtResponseCallback response_callback) {
+  std::move(response_callback)(
+      MoqtRequestErrorInfo{RequestErrorCode::kNotSupported, std::nullopt,
+                           "This endpoint cannot publish."});
 }
 
 inline SubscribeVisitor* DefaultIncomingPublishCallback(
@@ -148,6 +159,8 @@ struct MoqtSessionCallbacks {
       DefaultIncomingPublishNamespaceCallback;
   MoqtIncomingSubscribeNamespaceCallback incoming_subscribe_namespace_callback =
       DefaultIncomingSubscribeNamespaceCallback;
+  MoqtIncomingSubscribeTracksCallback incoming_subscribe_tracks_callback =
+      DefaultIncomingSubscribeTracksCallback;
   MoqtIncomingPublishCallback incoming_publish_callback =
       DefaultIncomingPublishCallback;
   const quic::QuicClock* clock = quic::QuicDefaultClock::Get();

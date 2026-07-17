@@ -324,9 +324,8 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
   MessageParameters parameters;
   parameters.authorization_tokens.emplace_back(
       AuthTokenType::kOutOfBand, std::string(GetUsername(my_track_name_)));
-  namespace_task_ =
-      session_->SubscribeNamespace(prefix, SubscribeNamespaceOption::kNamespace,
-                                   parameters, std::move(response_callback));
+  namespace_task_ = session_->SubscribeNamespace(prefix, parameters,
+                                                 std::move(response_callback));
   if (namespace_task_ != nullptr) {
     namespace_task_->SetObjectsAvailableCallback(
         [this]() {

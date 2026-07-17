@@ -318,8 +318,7 @@ class MoqtSubscribeNamespaceResponseStreamTest
   testing::MockFunction<bool(const TrackNamespace&)> add_callback_;
   testing::MockFunction<void(const TrackNamespace&)> remove_callback_;
   testing::MockFunction<std::unique_ptr<MoqtNamespaceTask>(
-      const TrackNamespace&, SubscribeNamespaceOption, const MessageParameters&,
-      MoqtResponseCallback)>
+      const TrackNamespace&, const MessageParameters&, MoqtResponseCallback)>
       mock_application_;
   MoqtIncomingSubscribeNamespaceCallback application_callback_;
   MoqtSubscribeNamespaceResponseStream stream_;
@@ -329,7 +328,6 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, Subscribe) {
   MoqtSubscribeNamespace message = {
       kRequestId,
       TrackNamespace({"foo"}),
-      SubscribeNamespaceOption::kNamespace,
       MessageParameters(),
   };
   ObjectsAvailableCallback callback;
@@ -338,8 +336,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, Subscribe) {
   ok.parameters.expires = quic::QuicTimeDelta::FromSeconds(60);
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(true));
   EXPECT_CALL(mock_application_, Call)
-      .WillOnce([&](const TrackNamespace&, SubscribeNamespaceOption,
-                    const MessageParameters&,
+      .WillOnce([&](const TrackNamespace&, const MessageParameters&,
                     MoqtResponseCallback response_callback) {
         std::move(response_callback)(ok.parameters);
         auto task =
@@ -400,7 +397,6 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, SubscribeUnsubscribe) {
   MoqtSubscribeNamespace message = {
       kRequestId,
       TrackNamespace({"foo"}),
-      SubscribeNamespaceOption::kNamespace,
       MessageParameters(),
   };
   ObjectsAvailableCallback callback;
@@ -409,8 +405,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, SubscribeUnsubscribe) {
   ok.parameters.expires = quic::QuicTimeDelta::FromSeconds(60);
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(true));
   EXPECT_CALL(mock_application_, Call)
-      .WillOnce([&](const TrackNamespace&, SubscribeNamespaceOption,
-                    const MessageParameters&,
+      .WillOnce([&](const TrackNamespace&, const MessageParameters&,
                     MoqtResponseCallback response_callback) {
         std::move(response_callback)(ok.parameters);
         auto task =
@@ -431,13 +426,11 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, RequestError) {
   MoqtSubscribeNamespace message = {
       kRequestId,
       TrackNamespace({"foo"}),
-      SubscribeNamespaceOption::kNamespace,
       MessageParameters(),
   };
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(true));
   EXPECT_CALL(mock_application_, Call)
-      .WillOnce([&](const TrackNamespace&, SubscribeNamespaceOption,
-                    const MessageParameters&,
+      .WillOnce([&](const TrackNamespace&, const MessageParameters&,
                     MoqtResponseCallback response_callback) {
         std::move(response_callback)(MoqtRequestErrorInfo{
             RequestErrorCode::kInternalError,
@@ -453,14 +446,12 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, RequestUpdateOk) {
   MoqtSubscribeNamespace message = {
       kRequestId,
       TrackNamespace({"foo"}),
-      SubscribeNamespaceOption::kNamespace,
       MessageParameters(),
   };
   MockNamespaceTask* task_ptr = nullptr;
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(true));
   EXPECT_CALL(mock_application_, Call)
-      .WillOnce([&](const TrackNamespace&, SubscribeNamespaceOption,
-                    const MessageParameters&,
+      .WillOnce([&](const TrackNamespace&, const MessageParameters&,
                     MoqtResponseCallback response_callback) {
         std::move(response_callback)(MessageParameters());
         auto task =
@@ -495,14 +486,12 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, RequestUpdateError) {
   MoqtSubscribeNamespace message = {
       kRequestId,
       TrackNamespace({"foo"}),
-      SubscribeNamespaceOption::kNamespace,
       MessageParameters(),
   };
   MockNamespaceTask* task_ptr = nullptr;
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(true));
   EXPECT_CALL(mock_application_, Call)
-      .WillOnce([&](const TrackNamespace&, SubscribeNamespaceOption,
-                    const MessageParameters&,
+      .WillOnce([&](const TrackNamespace&, const MessageParameters&,
                     MoqtResponseCallback response_callback) {
         std::move(response_callback)(MessageParameters());
         auto task =
@@ -538,7 +527,6 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, SubscribePrefixOverlap) {
   MoqtSubscribeNamespace message = {
       kRequestId,
       TrackNamespace({"foo", "bar", "baz"}),
-      SubscribeNamespaceOption::kNamespace,
       MessageParameters(),
   };
   // The namespace tree already has a subscriber for a prefix of "foo".
@@ -553,15 +541,13 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest,
   MoqtSubscribeNamespace message = {
       kRequestId,
       TrackNamespace({"foo"}),
-      SubscribeNamespaceOption::kNamespace,
       MessageParameters(),
   };
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(true));
   MoqtRequestOk ok(kRequestId);
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(ok), _));
   EXPECT_CALL(mock_application_, Call)
-      .WillOnce([&](const TrackNamespace&, SubscribeNamespaceOption,
-                    const MessageParameters&,
+      .WillOnce([&](const TrackNamespace&, const MessageParameters&,
                     MoqtResponseCallback response_callback) {
         std::move(response_callback)(MessageParameters());
         return std::make_unique<MockNamespaceTask>(
@@ -574,7 +560,6 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest,
   MoqtSubscribeNamespace message2 = {
       kRequestId + 2,
       TrackNamespace({"bar"}),
-      SubscribeNamespaceOption::kNamespace,
       MessageParameters(),
   };
   ReceiveControlMessage(message2);
@@ -585,15 +570,13 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest,
   MoqtSubscribeNamespace message1 = {
       kRequestId,
       TrackNamespace({"foo"}),
-      SubscribeNamespaceOption::kNamespace,
       MessageParameters(),
   };
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(true));
   MoqtRequestOk ok1(kRequestId);
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(ok1), _));
   EXPECT_CALL(mock_application_, Call)
-      .WillOnce([&](const TrackNamespace&, SubscribeNamespaceOption,
-                    const MessageParameters&,
+      .WillOnce([&](const TrackNamespace&, const MessageParameters&,
                     MoqtResponseCallback response_callback) {
         std::move(response_callback)(MessageParameters());
         return std::make_unique<MockNamespaceTask>(
@@ -613,7 +596,6 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest,
   MoqtSubscribeNamespace message2 = {
       kRequestId + 2,
       TrackNamespace({"foo"}),
-      SubscribeNamespaceOption::kNamespace,
       MessageParameters(),
   };
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(false));
@@ -626,7 +608,6 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest,
   MoqtSubscribeNamespace message3 = {
       kRequestId + 4,
       TrackNamespace({"foo"}),
-      SubscribeNamespaceOption::kNamespace,
       MessageParameters(),
   };
   stream2.CheckStatus(stream2.OnControlMessage(message3));
