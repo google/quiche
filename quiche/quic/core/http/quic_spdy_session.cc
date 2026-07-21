@@ -1764,11 +1764,15 @@ void QuicSpdySession::LogHeaderCompressionRatioHistogram(
   // be the same across calls for any given call site.
   if (using_qpack) {
     if (is_sent) {
+      QUIC_VLOG(1) << "QPACK headers sent compressed: " << compressed
+                   << " uncompressed:" << uncompressed;
       QUIC_HISTOGRAM_COUNTS("QuicSession.HeaderCompressionRatioQpackSent",
                             ratio, 1, 200, 200,
                             "Header compression ratio as percentage for sent "
                             "headers using QPACK.");
     } else {
+      QUIC_VLOG(1) << "QPACK headers received compressed: " << compressed
+                   << " uncompressed:" << uncompressed;
       QUIC_HISTOGRAM_COUNTS("QuicSession.HeaderCompressionRatioQpackReceived",
                             ratio, 1, 200, 200,
                             "Header compression ratio as percentage for "
