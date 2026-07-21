@@ -135,8 +135,8 @@ class MockMoqtSession : public MoqtSessionInterface {
 inline void ExpectFin(webtransport::test::MockStream& stream,
                       bool has_data = false) {
   EXPECT_CALL(stream, Writev)
-      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const webtransport::StreamWriteOptions& options) {
+      .WillOnce([has_data](absl::Span<quiche::QuicheMemSlice> data,
+                           const webtransport::StreamWriteOptions& options) {
         EXPECT_EQ(data.empty(), !has_data);
         EXPECT_TRUE(options.send_fin());
         return absl::OkStatus();
