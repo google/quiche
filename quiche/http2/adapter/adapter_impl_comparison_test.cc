@@ -93,12 +93,11 @@ class ComparisonTest : public ::quiche::test::QuicheTest {
       bool frame_valid = true;
 
       testing::NiceMock<MockHttp2Visitor> visitor;
-      ON_CALL(visitor, OnInvalidFrame)
-          .WillByDefault(InvokeWithoutArgs([&frame_valid]() {
-            // Records that the frame was not valid.
-            frame_valid = false;
-            return true;
-          }));
+      ON_CALL(visitor, OnInvalidFrame).WillByDefault([&frame_valid]() {
+        // Records that the frame was not valid.
+        frame_valid = false;
+        return true;
+      });
 
       for (Impl impl : implementations()) {
         frame_valid = true;

@@ -1478,9 +1478,9 @@ TEST(NgHttp2AdapterTest, ClientRstStreamWhileHandlingHeaders) {
   EXPECT_CALL(visitor,
               OnHeaderForStream(1, "date", "Tue, 6 Apr 2021 12:54:01 GMT"))
       .WillOnce(testing::DoAll(
-          testing::InvokeWithoutArgs([&adapter]() {
+          [&adapter]() {
             adapter->SubmitRst(1, Http2ErrorCode::REFUSED_STREAM);
-          }),
+          },
           testing::Return(OnHeaderResult::HEADER_RST_STREAM)));
 
   const int64_t stream_result = adapter->ProcessBytes(stream_frames);
@@ -3954,10 +3954,10 @@ TEST(NgHttp2AdapterTest, ServerHandlesFrames) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(1))
-      .WillOnce(testing::InvokeWithoutArgs([&adapter, kSentinel1]() {
+      .WillOnce([&adapter, kSentinel1]() {
         adapter->SetStreamUserData(1, const_cast<char*>(kSentinel1));
         return true;
-      }));
+      });
   EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(1, 2000));
   EXPECT_CALL(visitor, OnFrameHeader(1, 25, DATA, 0));
@@ -4917,11 +4917,11 @@ TEST(NgHttp2AdapterTest, ServerErrorWhileHandlingHeadersDropsFrames) {
   EXPECT_CALL(visitor, OnFrameHeader(3, _, kMetadataFrameType, 0));
   EXPECT_CALL(visitor, OnBeginMetadataForStream(3, _));
   EXPECT_CALL(visitor, OnMetadataForStream(3, "This is the re"))
-      .WillOnce(testing::DoAll(testing::InvokeWithoutArgs([&adapter]() {
-                                 adapter->SubmitRst(
-                                     3, Http2ErrorCode::REFUSED_STREAM);
-                               }),
-                               testing::Return(true)));
+      .WillOnce(testing::DoAll(
+          [&adapter]() {
+            adapter->SubmitRst(3, Http2ErrorCode::REFUSED_STREAM);
+          },
+          testing::Return(true)));
   // The rest of the metadata is still delivered to the visitor.
   EXPECT_CALL(visitor, OnFrameHeader(3, _, kMetadataFrameType, 4));
   EXPECT_CALL(visitor, OnBeginMetadataForStream(3, _));
@@ -5401,10 +5401,10 @@ TEST(NgHttp2AdapterTest, ServerSubmitResponse) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(1))
-      .WillOnce(testing::InvokeWithoutArgs([&adapter, kSentinel1]() {
+      .WillOnce([&adapter, kSentinel1]() {
         adapter->SetStreamUserData(1, const_cast<char*>(kSentinel1));
         return true;
-      }));
+      });
   EXPECT_CALL(visitor, OnEndStream(1));
 
   const int64_t result = adapter->ProcessBytes(frames);

@@ -865,10 +865,10 @@ TEST(OgHttp2SessionTest, ServerHandlesFrames) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(1))
-      .WillOnce(testing::InvokeWithoutArgs([&session, kSentinel1]() {
+      .WillOnce([&session, kSentinel1]() {
         session.SetStreamUserData(1, const_cast<char*>(kSentinel1));
         return true;
-      }));
+      });
   EXPECT_CALL(visitor, OnFrameHeader(1, 4, WINDOW_UPDATE, 0));
   EXPECT_CALL(visitor, OnWindowUpdate(1, 2000));
   EXPECT_CALL(visitor, OnFrameHeader(1, 25, DATA, 0));
@@ -1034,10 +1034,10 @@ TEST(OgHttp2SessionTest, ServerSubmitResponse) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(1))
-      .WillOnce(testing::InvokeWithoutArgs([&session, kSentinel1]() {
+      .WillOnce([&session, kSentinel1]() {
         session.SetStreamUserData(1, const_cast<char*>(kSentinel1));
         return true;
-      }));
+      });
   EXPECT_CALL(visitor, OnEndStream(1));
 
   const int64_t result = session.ProcessBytes(frames);
@@ -1360,15 +1360,14 @@ TEST(OgHttp2SessionTest, ServerClosesStreamDuringOnEndStream) {
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
   EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/"));
   EXPECT_CALL(visitor, OnEndHeadersForStream(1));
-  EXPECT_CALL(visitor, OnEndStream(1))
-      .WillOnce(testing::InvokeWithoutArgs([&session]() {
-        int res = session.SubmitResponse(/*stream_id=*/1,
-                                         ToHeaders({{":status", "200"}}),
-                                         /*end_stream=*/true);
-        EXPECT_EQ(res, 0);
-        EXPECT_EQ(0, session.Send());
-        return true;
-      }));
+  EXPECT_CALL(visitor, OnEndStream(1)).WillOnce([&session]() {
+    int res =
+        session.SubmitResponse(/*stream_id=*/1, ToHeaders({{":status", "200"}}),
+                               /*end_stream=*/true);
+    EXPECT_EQ(res, 0);
+    EXPECT_EQ(0, session.Send());
+    return true;
+  });
 
   EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, _));
   EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, _, 0));
@@ -1416,10 +1415,10 @@ TEST(OgHttp2SessionTest, ResetStreamRaceWithIncomingData) {
   EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0x0));
   EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
   EXPECT_CALL(visitor, OnDataForStream(1, "Request body"))
-      .WillOnce(testing::InvokeWithoutArgs([&session]() {
+      .WillOnce([&session]() {
         session.Consume(1, 12);
         return true;
-      }));
+      });
 
   session.ProcessBytes(frames);
 
@@ -1502,10 +1501,10 @@ TEST(OgHttp2SessionTest, ResetAndCloseStreamRaceWithIncomingData) {
   EXPECT_CALL(visitor, OnFrameHeader(1, _, DATA, 0x0));
   EXPECT_CALL(visitor, OnBeginDataForStream(1, _));
   EXPECT_CALL(visitor, OnDataForStream(1, "Request body"))
-      .WillOnce(testing::InvokeWithoutArgs([&session]() {
+      .WillOnce([&session]() {
         session.Consume(1, 12);
         return true;
-      }));
+      });
 
   session.ProcessBytes(frames);
 
