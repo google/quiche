@@ -22,9 +22,10 @@ namespace quiche {
 
 // Provide access to the underlying EVP_HPKE_KEM, EVP_HPKE_KDF, and
 // EVP_HPKE_AEAD if they are supported.
-absl::StatusOr<const EVP_HPKE_KEM*> CheckKemId(uint16_t kem_id);
-absl::StatusOr<const EVP_HPKE_KDF*> CheckKdfId(uint16_t kdf_id);
-absl::StatusOr<const EVP_HPKE_AEAD*> CheckAeadId(uint16_t aead_id);
+QUICHE_EXPORT absl::StatusOr<const EVP_HPKE_KEM*> CheckKemId(uint16_t kem_id);
+QUICHE_EXPORT absl::StatusOr<const EVP_HPKE_KDF*> CheckKdfId(uint16_t kdf_id);
+QUICHE_EXPORT absl::StatusOr<const EVP_HPKE_AEAD*> CheckAeadId(
+    uint16_t aead_id);
 
 class QUICHE_EXPORT ObliviousHttpHeaderKeyConfig {
  public:
@@ -276,9 +277,9 @@ class QUICHE_EXPORT ObliviousHttpKeyConfigs {
 };
 
 // Human-readable strings suitable for logging.
-std::string ObliviousHttpKemIdToString(uint16_t kem_id);
-std::string ObliviousHttpKdfIdToString(uint16_t kdf_id);
-std::string ObliviousHttpAeadIdToString(uint16_t aead_id);
+QUICHE_EXPORT std::string ObliviousHttpKemIdToString(uint16_t kem_id);
+QUICHE_EXPORT std::string ObliviousHttpKdfIdToString(uint16_t kdf_id);
+QUICHE_EXPORT std::string ObliviousHttpAeadIdToString(uint16_t aead_id);
 
 }  // namespace quiche
 
