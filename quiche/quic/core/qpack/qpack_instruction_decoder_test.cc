@@ -83,7 +83,7 @@ class QpackInstructionDecoderTest : public QuicTestWithParam<FragmentMode> {
     // Destroy QpackInstructionDecoder on error to test that it does not crash.
     // See https://crbug.com/1025209.
     ON_CALL(delegate_, OnInstructionDecodingError(_, _))
-        .WillByDefault(InvokeWithoutArgs([this]() { decoder_.reset(); }));
+        .WillByDefault([this]() { decoder_.reset(); });
   }
 
   // Decode one full instruction with fragment sizes dictated by
@@ -203,18 +203,18 @@ TEST_P(QpackInstructionDecoderTest, DelegateSignalsError) {
   // First instruction is valid.
   Expectation first_call =
       EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()))
-          .WillOnce(InvokeWithoutArgs([this]() -> bool {
+          .WillOnce([this]() -> bool {
             EXPECT_EQ(1u, decoder_->varint());
             return true;
-          }));
+          });
 
   // Second instruction is invalid.  Decoding must halt.
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()))
       .After(first_call)
-      .WillOnce(InvokeWithoutArgs([this]() -> bool {
+      .WillOnce([this]() -> bool {
         EXPECT_EQ(2u, decoder_->varint());
         return false;
-      }));
+      });
 
   std::string encoded_data;
   ASSERT_TRUE(absl::HexStringToBytes("01000200030004000500", &encoded_data));
@@ -225,11 +225,11 @@ TEST_P(QpackInstructionDecoderTest, DelegateSignalsError) {
 // Delegate::OnInstructionDecoded() call as long as it returns false.
 TEST_P(QpackInstructionDecoderTest, DelegateSignalsErrorAndDestroysDecoder) {
   EXPECT_CALL(delegate_, OnInstructionDecoded(TestInstruction1()))
-      .WillOnce(InvokeWithoutArgs([this]() -> bool {
+      .WillOnce([this]() -> bool {
         EXPECT_EQ(1u, decoder_->varint());
         decoder_.reset();
         return false;
-      }));
+      });
   std::string encoded_data;
   ASSERT_TRUE(absl::HexStringToBytes("0100", &encoded_data));
   DecodeInstruction(encoded_data);
