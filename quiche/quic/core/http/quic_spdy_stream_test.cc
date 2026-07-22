@@ -1970,17 +1970,16 @@ TEST_P(QuicSpdyStreamTest, NotifyOnPacketAckedBeforeStreamDestroy) {
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
 
   // FIN is acked.
-  EXPECT_CALL(*mock_ack_listener, OnPacketAcked(0, _))
-      .WillOnce(InvokeWithoutArgs([&]() {
-        if (GetQuicReloadableFlag(quic_notify_ack_listener_earlier)) {
-          // Stream is not added to closed stream list yet.
-          EXPECT_NE(session_->GetActiveStream(stream_->id()), nullptr);
-          EXPECT_FALSE(stream_->on_soon_to_be_destroyed_called());
-        } else {
-          EXPECT_EQ(session_->GetActiveStream(stream_->id()), nullptr);
-          EXPECT_TRUE(stream_->on_soon_to_be_destroyed_called());
-        }
-      }));
+  EXPECT_CALL(*mock_ack_listener, OnPacketAcked(0, _)).WillOnce([&]() {
+    if (GetQuicReloadableFlag(quic_notify_ack_listener_earlier)) {
+      // Stream is not added to closed stream list yet.
+      EXPECT_NE(session_->GetActiveStream(stream_->id()), nullptr);
+      EXPECT_FALSE(stream_->on_soon_to_be_destroyed_called());
+    } else {
+      EXPECT_EQ(session_->GetActiveStream(stream_->id()), nullptr);
+      EXPECT_TRUE(stream_->on_soon_to_be_destroyed_called());
+    }
+  });
   EXPECT_TRUE(stream_->OnStreamFrameAcked(18, 0, true, QuicTime::Delta::Zero(),
                                           QuicTime::Zero(), &newly_acked_length,
                                           /*is_retransmission=*/false));
@@ -3060,7 +3059,7 @@ TEST_P(QuicSpdyStreamTest, DataBeforeHeaders) {
       CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
                       "Unexpected DATA frame received.",
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
-      .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
+      .WillOnce([this]() { stream_->StopReading(); });
 
   std::string data = DataFrame(kDataFramePayload);
   stream_->OnStreamFrame(QuicStreamFrame(stream_->id(), false, 0, data));
@@ -3109,7 +3108,7 @@ TEST_P(QuicSpdyStreamTest, TrailersAfterTrailers) {
       CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
                       "HEADERS frame received after trailing HEADERS.",
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
-      .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
+      .WillOnce([this]() { stream_->StopReading(); });
 
   // Receive another HEADERS frame, with no header fields.
   std::string trailers2 = HeadersFrame(HttpHeaderBlock());
@@ -3159,7 +3158,7 @@ TEST_P(QuicSpdyStreamTest, DataAfterTrailers) {
       CloseConnection(QUIC_HTTP_INVALID_FRAME_SEQUENCE_ON_SPDY_STREAM,
                       "Unexpected DATA frame received.",
                       ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
-      .WillOnce(InvokeWithoutArgs([this]() { stream_->StopReading(); }));
+      .WillOnce([this]() { stream_->StopReading(); });
 
   // Receive more data.
   std::string data2 = DataFrame("This payload should not be processed.");
