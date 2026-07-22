@@ -2,6 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#include <cstddef>
 #include <functional>
 #include <memory>
 #include <queue>
@@ -10,6 +11,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/proto/crypto_server_config_proto.h"
@@ -18,6 +20,7 @@
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_test_loopback.h"
+#include "quiche/quic/qbone/mock_qbone_packet_exchanger.h"
 #include "quiche/quic/qbone/platform/icmp_packet.h"
 #include "quiche/quic/qbone/qbone_client_session.h"
 #include "quiche/quic/qbone/qbone_constants.h"
@@ -28,7 +31,6 @@
 #include "quiche/quic/test_tools/mock_clock.h"
 #include "quiche/quic/test_tools/mock_connection_id_generator.h"
 #include "quiche/quic/test_tools/quic_connection_peer.h"
-#include "quiche/quic/test_tools/quic_session_peer.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/quiche_callbacks.h"
 
@@ -42,6 +44,7 @@ using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::NiceMock;
 using ::testing::Not;
+using ::testing::StrictMock;
 
 std::string TestPacketIn(const std::string& body) {
   return PrependIPv6HeaderForTest(body, 5);
@@ -296,7 +299,6 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     helper_.AdvanceTime(QuicTime::Delta::FromMilliseconds(1000));
     event_loop_ = GetDefaultEventLoop()->Create(QuicDefaultClock::Get());
     alarm_factory_ = event_loop_->CreateAlarmFactory();
-    client_writer_ = std::make_unique<DataSavingQbonePacketWriter>();
     server_writer_ = std::make_unique<DataSavingQbonePacketWriter>();
     client_handler_ =
         std::make_unique<DataSavingQboneControlHandler<QboneClientRequest>>();
@@ -311,6 +313,13 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     }
 
     {
+      EXPECT_CALL(client_packet_exchanger_, WritePacket(_, _, _))
+          .WillRepeatedly(
+              [this](const char* packet, size_t size, std::string* error) {
+                client_packets_to_network_.push_back(std::string(packet, size));
+                return true;
+              });
+
       client_connection_ = new QuicConnection(
           TestConnectionId(), client_address, server_address, &helper_,
           alarm_factory_.get(), new NiceMock<MockPacketWriter>(), true,
@@ -326,7 +335,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
       client_peer_ = std::make_unique<QboneClientSession>(
           client_connection_, client_crypto_config_.get(),
           /*owner=*/nullptr, config, supported_versions_,
-          QuicServerId("test.example.com", 1234), client_writer_.get(),
+          QuicServerId("test.example.com", 1234), &client_packet_exchanger_,
           client_handler_.get());
     }
 
@@ -437,7 +446,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     // anything yet.
     EXPECT_THAT(server_writer_->data(),
                 ElementsAre(TestPacketOut("hello"), TestPacketOut("world")));
-    EXPECT_TRUE(client_writer_->data().empty());
+    EXPECT_TRUE(client_packets_to_network_.empty());
     EXPECT_EQ(0u, server_peer_->GetNumActiveStreams());
     EXPECT_EQ(0u, client_peer_->GetNumActiveStreams());
 
@@ -449,7 +458,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     EXPECT_THAT(server_writer_->data(),
                 ElementsAre(TestPacketOut("hello"), TestPacketOut("world")));
     EXPECT_THAT(
-        client_writer_->data(),
+        client_packets_to_network_,
         ElementsAre(TestPacketOut("Hello Again"), TestPacketOut("Again")));
     EXPECT_EQ(0u, server_peer_->GetNumActiveStreams());
     EXPECT_EQ(0u, client_peer_->GetNumActiveStreams());
@@ -468,7 +477,8 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
           server_peer_->connection()->GetGuaranteedLargestDatagramPayload(),
           TestPacketOut(long_data));
     } else {
-      EXPECT_THAT(client_writer_->data(), Contains(TestPacketOut(long_data)));
+      EXPECT_THAT(client_packets_to_network_,
+                  Contains(TestPacketOut(long_data)));
     }
     EXPECT_THAT(server_writer_->data(),
                 Not(Contains(TestPacketOut(long_data))));
@@ -480,7 +490,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     runner_.Run();
     if (use_datagrams) {
       ExpectICMPTooBigResponse(
-          client_writer_->data(),
+          client_packets_to_network_,
           client_peer_->connection()->GetGuaranteedLargestDatagramPayload(),
           TestPacketIn(long_data));
     } else {
@@ -533,7 +543,8 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   std::unique_ptr<QuicCryptoClientConfig> client_crypto_config_;
   std::unique_ptr<QuicCryptoServerConfig> server_crypto_config_;
-  std::unique_ptr<DataSavingQbonePacketWriter> client_writer_;
+  StrictMock<MockQbonePacketExchanger> client_packet_exchanger_;
+  std::vector<std::string> client_packets_to_network_;
   std::unique_ptr<DataSavingQbonePacketWriter> server_writer_;
   std::unique_ptr<DataSavingQboneControlHandler<QboneClientRequest>>
       client_handler_;

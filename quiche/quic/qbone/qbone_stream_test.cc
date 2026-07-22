@@ -36,7 +36,7 @@ class MockQuicSession : public QboneSessionBase {
  public:
   MockQuicSession(QuicConnection* connection, const QuicConfig& config)
       : QboneSessionBase(connection, nullptr /*visitor*/, config,
-                         CurrentSupportedVersions(), nullptr /*writer*/) {}
+                         CurrentSupportedVersions()) {}
 
   ~MockQuicSession() override {}
 
@@ -84,6 +84,8 @@ class MockQuicSession : public QboneSessionBase {
   std::unique_ptr<QuicCryptoStream> CreateCryptoStream() override {
     return std::make_unique<test::MockQuicCryptoStream>(this);
   }
+
+  MOCK_METHOD(void, SendErrorPacketToNetwork, (absl::string_view), (override));
 
   MOCK_METHOD(void, ProcessPacketFromPeer, (absl::string_view), (override));
   MOCK_METHOD(void, ProcessPacketFromNetwork, (absl::string_view), (override));

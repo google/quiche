@@ -1750,6 +1750,7 @@ qbone_hdrs = [
     "src/quiche/quic/qbone/bonnet/tun_device_interface.h",
     "src/quiche/quic/qbone/bonnet/tun_device_packet_exchanger.h",
     "src/quiche/quic/qbone/mock_qbone_client.h",
+    "src/quiche/quic/qbone/mock_qbone_packet_exchanger.h",
     "src/quiche/quic/qbone/mock_qbone_server_session.h",
     "src/quiche/quic/qbone/platform/icmp_packet.h",
     "src/quiche/quic/qbone/platform/ip_range.h",

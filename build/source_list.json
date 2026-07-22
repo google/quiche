@@ -1749,6 +1749,7 @@
     "quiche/quic/qbone/bonnet/tun_device_interface.h",
     "quiche/quic/qbone/bonnet/tun_device_packet_exchanger.h",
     "quiche/quic/qbone/mock_qbone_client.h",
+    "quiche/quic/qbone/mock_qbone_packet_exchanger.h",
     "quiche/quic/qbone/mock_qbone_server_session.h",
     "quiche/quic/qbone/platform/icmp_packet.h",
     "quiche/quic/qbone/platform/ip_range.h",

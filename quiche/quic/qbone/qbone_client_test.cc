@@ -6,6 +6,7 @@
 
 #include "quiche/quic/qbone/qbone_client.h"
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
@@ -25,6 +26,7 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_test_loopback.h"
+#include "quiche/quic/qbone/mock_qbone_packet_exchanger.h"
 #include "quiche/quic/qbone/qbone_packet_processor_test_tools.h"
 #include "quiche/quic/qbone/qbone_server_session.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
@@ -39,6 +41,7 @@ namespace quic {
 namespace test {
 namespace {
 
+using ::testing::_;
 using ::testing::ElementsAre;
 
 ParsedQuicVersionVector GetTestParams() {
@@ -161,7 +164,14 @@ class QboneTestClient : public QboneClient {
                   std::unique_ptr<ProofVerifier> proof_verifier)
       : QboneClient(server_address, server_id, supported_versions,
                     /*session_owner=*/nullptr, QuicConfig(), event_loop,
-                    std::move(proof_verifier), &qbone_writer_, nullptr) {}
+                    std::move(proof_verifier), &packet_exchanger_, nullptr) {
+    ON_CALL(packet_exchanger_, WritePacket(_, _, _))
+        .WillByDefault(
+            [this](const char* packet, size_t size, std::string* error) {
+              data_.push_back(std::string(packet, size));
+              return true;
+            });
+  }
 
   ~QboneTestClient() override {}
 
@@ -190,10 +200,11 @@ class QboneTestClient : public QboneClient {
     return true;
   }
 
-  std::vector<std::string> data() { return qbone_writer_.data(); }
+  const std::vector<std::string>& data() { return data_; }
 
  private:
-  DataSavingQbonePacketWriter qbone_writer_;
+  MockQbonePacketExchanger packet_exchanger_;
+  std::vector<std::string> data_;
 };
 
 class QboneClientTest : public QuicTestWithParam<ParsedQuicVersion> {};

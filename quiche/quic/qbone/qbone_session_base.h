@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_QBONE_QBONE_SESSION_BASE_H_
 #define QUICHE_QUIC_QBONE_QBONE_SESSION_BASE_H_
 
+#include <memory>
+
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_crypto_server_stream_base.h"
 #include "quiche/quic/core/quic_crypto_stream.h"
@@ -20,8 +22,7 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
  public:
   QboneSessionBase(QuicConnection* connection, Visitor* owner,
                    const QuicConfig& config,
-                   const ParsedQuicVersionVector& supported_versions,
-                   QbonePacketWriter* writer);
+                   const ParsedQuicVersionVector& supported_versions);
   QboneSessionBase(const QboneSessionBase&) = delete;
   QboneSessionBase& operator=(const QboneSessionBase&) = delete;
   ~QboneSessionBase() override;
@@ -54,13 +55,13 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   // session used an ephemeral stream instead.
   uint64_t GetNumFallbackToStream() const;
 
-  void set_writer(QbonePacketWriter* writer);
   void set_send_packets_as_datagrams(bool send_packets_as_datagrams) {
     send_packets_as_datagrams_ = send_packets_as_datagrams;
   }
 
  protected:
   virtual std::unique_ptr<QuicCryptoStream> CreateCryptoStream() = 0;
+  virtual void SendErrorPacketToNetwork(absl::string_view packet) = 0;
 
   // QuicSession interface implementation.
   QuicCryptoStream* GetMutableCryptoStream() override;
@@ -78,14 +79,10 @@ class QUIC_EXPORT_PRIVATE QboneSessionBase : public QuicSession {
   // returns an unowned pointer to the stream for convenience.
   QuicStream* ActivateDataStream(std::unique_ptr<QuicStream> stream);
 
-  // Accepts a given packet from the network and writes it out
-  // to the QUIC stream. This will create an ephemeral stream per
-  // packet. This function will return true if a stream was created
-  // and the packet sent. It will return false if the stream could not
-  // be created.
+  // Accepts a given packet from the network and writes it out to the QUIC
+  // stream. This will send as a QUIC Datagram or create an ephemeral stream per
+  // packet.
   void SendPacketToPeer(absl::string_view packet);
-
-  QbonePacketWriter* writer_;
 
   // If true, send QUIC DATAGRAM (aka DATAGRAM) frames instead of ephemeral
   // streams. Note that receiving DATAGRAM frames is always supported.

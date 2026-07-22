@@ -35,11 +35,9 @@ namespace quic {
 
 QboneSessionBase::QboneSessionBase(
     QuicConnection* connection, Visitor* owner, const QuicConfig& config,
-    const ParsedQuicVersionVector& supported_versions,
-    QbonePacketWriter* writer)
+    const ParsedQuicVersionVector& supported_versions)
     : QuicSession(connection, owner, config, supported_versions,
                   /*num_expected_unidirectional_static_streams = */ 0) {
-  set_writer(writer);
   const uint32_t max_streams =
       (std::numeric_limits<uint32_t>::max() / kMaxAvailableStreamsMultiplier) -
       1;
@@ -152,8 +150,7 @@ void QboneSessionBase::SendPacketToPeer(absl::string_view packet) {
 
         CreateIcmpPacket(header->ip6_dst, header->ip6_src, icmp_header, packet,
                          [this](absl::string_view icmp_packet) {
-                           writer_->WritePacketToNetwork(icmp_packet.data(),
-                                                         icmp_packet.size());
+                           SendErrorPacketToNetwork(icmp_packet);
                          });
         break;
       }
@@ -203,11 +200,6 @@ uint64_t QboneSessionBase::GetNumDatagramPackets() const {
 
 uint64_t QboneSessionBase::GetNumFallbackToStream() const {
   return num_fallback_to_stream_;
-}
-
-void QboneSessionBase::set_writer(QbonePacketWriter* writer) {
-  writer_ = writer;
-  quic::AdjustTestValue("quic_QbonePacketWriter", &writer_);
 }
 
 }  // namespace quic

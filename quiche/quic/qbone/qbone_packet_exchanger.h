@@ -5,17 +5,20 @@
 #ifndef QUICHE_QUIC_QBONE_QBONE_PACKET_EXCHANGER_H_
 #define QUICHE_QUIC_QBONE_QBONE_PACKET_EXCHANGER_H_
 
+#include <cstddef>
+#include <memory>
+#include <string>
+
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/qbone/qbone_client_interface.h"
-#include "quiche/quic/qbone/qbone_packet_writer.h"
 
 namespace quic {
 
 // Handles reading and writing on the local network and exchange packets between
 // the local network with a QBONE connection.
-class QbonePacketExchanger : public QbonePacketWriter {
+class QbonePacketExchanger {
  public:
   // The owner might want to receive notifications when read or write fails.
   class Visitor {
@@ -36,17 +39,16 @@ class QbonePacketExchanger : public QbonePacketWriter {
   QbonePacketExchanger(QbonePacketExchanger&&) = delete;
   QbonePacketExchanger& operator=(QbonePacketExchanger&&) = delete;
 
-  ~QbonePacketExchanger() = default;
+  virtual ~QbonePacketExchanger() = default;
 
   // Returns true if there may be more packets to read.
   // Implementations handles the actual raw read and delivers the packet to
   // qbone_client.
   bool ReadAndDeliverPacket(QboneClientInterface* qbone_client);
 
-  // From QbonePacketWriter.
   // Writes a packet to the local network. If the write would be blocked, the
   // packet is dropped.
-  void WritePacketToNetwork(const char* packet, size_t size) override;
+  void WritePacketToNetwork(const char* packet, size_t size);
 
  private:
   // The actual implementation that reads a packet from the local network.

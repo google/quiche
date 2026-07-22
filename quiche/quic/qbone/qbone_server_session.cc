@@ -8,12 +8,16 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
+#include "quiche/quic/platform/api/quic_testvalue.h"
 #include "quiche/quic/qbone/qbone_constants.h"
+#include "quiche/quic/qbone/qbone_packet_writer.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -34,21 +38,33 @@ QboneServerSession::QboneServerSession(
     const quic::ParsedQuicVersionVector& supported_versions,
     QuicConnection* connection, Visitor* owner, const QuicConfig& config,
     const QuicCryptoServerConfig* quic_crypto_server_config,
-    QuicCompressedCertsCache* compressed_certs_cache, QbonePacketWriter* writer,
-    QuicIpAddress self_ip, QuicIpAddress client_ip,
-    size_t client_ip_subnet_length, QboneServerControlStream::Handler* handler)
-    : QboneSessionBase(connection, owner, config, supported_versions, writer),
+    QuicCompressedCertsCache* compressed_certs_cache,
+    QbonePacketWriter* absl_nullable writer, QuicIpAddress self_ip,
+    QuicIpAddress client_ip, size_t client_ip_subnet_length,
+    QboneServerControlStream::Handler* handler)
+    : QboneSessionBase(connection, owner, config, supported_versions),
       processor_(self_ip, client_ip, client_ip_subnet_length, this, this),
       quic_crypto_server_config_(quic_crypto_server_config),
       compressed_certs_cache_(compressed_certs_cache),
-      handler_(handler) {}
+      handler_(handler) {
+  set_writer(writer);
+}
 
 QboneServerSession::~QboneServerSession() {}
+
+void QboneServerSession::set_writer(QbonePacketWriter* absl_nullable writer) {
+  writer_ = writer;
+  quic::AdjustTestValue("quic_QbonePacketWriter", &writer_);
+}
 
 std::unique_ptr<QuicCryptoStream> QboneServerSession::CreateCryptoStream() {
   return CreateCryptoServerStream(quic_crypto_server_config_,
                                   compressed_certs_cache_, this,
                                   &stream_helper_);
+}
+
+void QboneServerSession::SendErrorPacketToNetwork(absl::string_view packet) {
+  SendPacketToNetwork(packet);
 }
 
 void QboneServerSession::CreateControlStream() {

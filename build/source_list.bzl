@@ -1745,6 +1745,7 @@ qbone_hdrs = [
     "quic/qbone/bonnet/tun_device_interface.h",
     "quic/qbone/bonnet/tun_device_packet_exchanger.h",
     "quic/qbone/mock_qbone_client.h",
+    "quic/qbone/mock_qbone_packet_exchanger.h",
     "quic/qbone/mock_qbone_server_session.h",
     "quic/qbone/platform/icmp_packet.h",
     "quic/qbone/platform/ip_range.h",

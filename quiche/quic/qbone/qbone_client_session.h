@@ -5,11 +5,14 @@
 #ifndef QUICHE_QUIC_QBONE_QBONE_CLIENT_SESSION_H_
 #define QUICHE_QUIC_QBONE_QBONE_CLIENT_SESSION_H_
 
+#include "absl/base/attributes.h"
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_crypto_client_stream.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/qbone/qbone_control.pb.h"
 #include "quiche/quic/qbone/qbone_control_stream.h"
+#include "quiche/quic/qbone/qbone_packet_exchanger.h"
 #include "quiche/quic/qbone/qbone_packet_writer.h"
 #include "quiche/quic/qbone/qbone_session_base.h"
 
@@ -19,12 +22,15 @@ class QUIC_EXPORT_PRIVATE QboneClientSession
     : public QboneSessionBase,
       public QuicCryptoClientStream::ProofHandler {
  public:
-  QboneClientSession(QuicConnection* connection,
-                     QuicCryptoClientConfig* quic_crypto_client_config,
-                     QuicSession::Visitor* owner, const QuicConfig& config,
-                     const ParsedQuicVersionVector& supported_versions,
-                     const QuicServerId& server_id, QbonePacketWriter* writer,
-                     QboneClientControlStream::Handler* handler);
+  QboneClientSession(
+      QuicConnection* connection,
+      QuicCryptoClientConfig* quic_crypto_client_config,
+      QuicSession::Visitor* owner, const QuicConfig& config,
+      const ParsedQuicVersionVector& supported_versions,
+      const QuicServerId& server_id,
+      QbonePacketExchanger* absl_nonnull local_network_packet_exchanger
+          ABSL_ATTRIBUTE_LIFETIME_BOUND,
+      QboneClientControlStream::Handler* handler);
   QboneClientSession(const QboneClientSession&) = delete;
   QboneClientSession& operator=(const QboneClientSession&) = delete;
   ~QboneClientSession() override;
@@ -64,6 +70,7 @@ class QUIC_EXPORT_PRIVATE QboneClientSession
  protected:
   // QboneSessionBase interface implementation.
   std::unique_ptr<QuicCryptoStream> CreateCryptoStream() override;
+  void SendErrorPacketToNetwork(absl::string_view packet) override;
 
   // Instantiate QboneClientControlStream.
   void CreateControlStream();
@@ -81,6 +88,7 @@ class QUIC_EXPORT_PRIVATE QboneClientSession
   }
 
  private:
+  QbonePacketExchanger& local_network_packet_exchanger_;
   QuicServerId server_id_;
   // Config for QUIC crypto client stream, used by the client.
   QuicCryptoClientConfig* quic_crypto_client_config_;

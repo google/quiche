@@ -6,7 +6,10 @@
 #define QUICHE_QUIC_QBONE_QBONE_SERVER_SESSION_H_
 
 #include <cstdint>
+#include <memory>
 
+#include "absl/base/attributes.h"
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_crypto_server_stream_base.h"
 #include "quiche/quic/core/quic_crypto_stream.h"
@@ -36,14 +39,18 @@ class QUIC_EXPORT_PRIVATE QboneServerSession
       public QbonePacketProcessor::OutputInterface,
       public QbonePacketProcessor::StatsInterface {
  public:
-  QboneServerSession(const quic::ParsedQuicVersionVector& supported_versions,
-                     QuicConnection* connection, Visitor* owner,
-                     const QuicConfig& config,
-                     const QuicCryptoServerConfig* quic_crypto_server_config,
-                     QuicCompressedCertsCache* compressed_certs_cache,
-                     QbonePacketWriter* writer, QuicIpAddress self_ip,
-                     QuicIpAddress client_ip, size_t client_ip_subnet_length,
-                     QboneServerControlStream::Handler* handler);
+  // `writer` may be nullptr, but a non-null writer must be given (through
+  // set_writer() or a test value override) before sending any packets to the
+  // network.
+  QboneServerSession(
+      const quic::ParsedQuicVersionVector& supported_versions,
+      QuicConnection* connection, Visitor* owner, const QuicConfig& config,
+      const QuicCryptoServerConfig* quic_crypto_server_config,
+      QuicCompressedCertsCache* compressed_certs_cache,
+      QbonePacketWriter* absl_nullable writer ABSL_ATTRIBUTE_LIFETIME_BOUND,
+      QuicIpAddress self_ip, QuicIpAddress client_ip,
+      size_t client_ip_subnet_length,
+      QboneServerControlStream::Handler* handler);
   QboneServerSession(const QboneServerSession&) = delete;
   QboneServerSession& operator=(const QboneServerSession&) = delete;
   ~QboneServerSession() override;
@@ -72,9 +79,13 @@ class QUIC_EXPORT_PRIVATE QboneServerSession
   void RecordThroughput(size_t bytes, QbonePacketProcessor::Direction direction,
                         uint8_t traffic_class) override {}
 
+  // `writer` must outlive the session.
+  void set_writer(QbonePacketWriter* absl_nullable writer);
+
  protected:
   // QboneSessionBase interface implementation.
   std::unique_ptr<QuicCryptoStream> CreateCryptoStream() override;
+  void SendErrorPacketToNetwork(absl::string_view packet) override;
 
   // Instantiates QboneServerControlStream.
   virtual void CreateControlStream();
@@ -90,6 +101,8 @@ class QUIC_EXPORT_PRIVATE QboneServerSession
   const QuicCryptoServerConfig* quic_crypto_server_config_;
 
  private:
+  QbonePacketWriter* absl_nullable writer_;
+
   // Used by QUIC crypto server stream to track most recently compressed certs.
   QuicCompressedCertsCache* compressed_certs_cache_;
   // This helper is needed when create QuicCryptoServerStream.
