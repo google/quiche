@@ -1059,6 +1059,7 @@ void QuicConfig::SetDefaults() {
   SetReliableStreamReset(false);
   scone_packet_interval_ = QuicTimeDelta::Zero();
   parse_scone_packets_ = false;
+  enable_spin_bit_ = false;
 }
 
 void QuicConfig::ToHandshakeMessage(
@@ -1536,5 +1537,9 @@ void QuicConfig::SetReliableStreamReset(bool reliable_stream_reset) {
 bool QuicConfig::SupportsReliableStreamReset() const {
   return reliable_stream_reset_;
 }
+
+void QuicConfig::set_enable_spin_bit(bool enable) { enable_spin_bit_ = enable; }
+
+bool QuicConfig::enable_spin_bit() const { return enable_spin_bit_; }
 
 }  // namespace quic

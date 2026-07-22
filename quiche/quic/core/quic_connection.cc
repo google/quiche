@@ -447,6 +447,10 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
                        config.max_idle_time_before_crypto_handshake());
   }
 
+  if (config.enable_spin_bit()) {
+    spin_bit_enabled_ = ShouldEnableSpinBit();
+  }
+
   if (version().IsIetfQuic() &&
       config.HasReceivedPreferredAddressConnectionIdAndToken()) {
     QuicNewConnectionIdFrame frame;

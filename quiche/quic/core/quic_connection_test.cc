@@ -18890,6 +18890,7 @@ TEST_P(QuicConnectionTest, DisabledSpinBit) {
 
   SetQuicReloadableFlag(quic_enable_spin_bit, false);
 
+  EXPECT_CALL(random_generator_, RandBytes(_, _)).Times(0);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
@@ -18905,12 +18906,67 @@ TEST_P(QuicConnectionTest, DisabledSpinBit) {
 
 TEST_P(QuicConnectionTest, EnabledSpinBit) {
   SetQuicReloadableFlag(quic_enable_spin_bit, true);
-  ON_CALL(random_generator_, RandBytes(_, 1))
-      .WillByDefault([](void* data, size_t len) {
+
+  EXPECT_CALL(random_generator_, RandBytes(_, _)).Times(0);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+
+  QuicConfig config;
+  connection_.SetFromConfig(config);
+  EXPECT_FALSE(QuicConnectionPeer::GetSpinBitEnabled(&connection_));
+}
+
+TEST_P(QuicConnectionTest, ConfigCannotEnableSpinBitIfFlagIsFalse) {
+  SetQuicReloadableFlag(quic_enable_spin_bit, false);
+
+  EXPECT_CALL(random_generator_, RandBytes(_, _)).Times(0);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+
+  QuicConfig config;
+  config.set_enable_spin_bit(true);
+  connection_.SetFromConfig(config);
+  EXPECT_FALSE(QuicConnectionPeer::GetSpinBitEnabled(&connection_));
+}
+
+TEST_P(QuicConnectionTest, ConfigEnablesSpinBitIfFlagIsTrueAndCoinFlipSuccess) {
+  SetQuicReloadableFlag(quic_enable_spin_bit, true);
+  EXPECT_CALL(random_generator_, RandBytes(_, 1))
+      .WillOnce([](void* data, size_t len) {
         ASSERT_EQ(1u, len);
         *static_cast<uint8_t*>(data) = 0x00;
       });
 
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+
+  QuicConfig config;
+  config.set_enable_spin_bit(true);
+  connection_.SetFromConfig(config);
+  EXPECT_TRUE(QuicConnectionPeer::GetSpinBitEnabled(&connection_));
+}
+
+TEST_P(QuicConnectionTest, ConfigDisablesSpinBit) {
+  SetQuicReloadableFlag(quic_enable_spin_bit, true);
+
+  EXPECT_CALL(random_generator_, RandBytes(_, _)).Times(0);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+
+  QuicConfig config;
+  config.set_enable_spin_bit(false);
+  connection_.SetFromConfig(config);
+  EXPECT_FALSE(QuicConnectionPeer::GetSpinBitEnabled(&connection_));
+}
+
+TEST_P(QuicConnectionTest, ConfigWithoutSpinBitDisablesSpinBit) {
+  SetQuicReloadableFlag(quic_enable_spin_bit, true);
+
+  EXPECT_CALL(random_generator_, RandBytes(_, _)).Times(0);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));

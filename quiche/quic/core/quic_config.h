@@ -475,6 +475,10 @@ class QUICHE_EXPORT QuicConfig {
   void SetReliableStreamReset(bool reliable_stream_reset);
   bool SupportsReliableStreamReset() const;
 
+  // Whether the spin bit is enabled.
+  void set_enable_spin_bit(bool enable);
+  bool enable_spin_bit() const;
+
   // Original destination connection ID.
   void SetOriginalConnectionIdToSend(
       const QuicConnectionId& original_destination_connection_id);
@@ -777,6 +781,9 @@ class QUICHE_EXPORT QuicConfig {
 
   // Support for RESET_STREAM_AT frame.
   bool reliable_stream_reset_;
+
+  // Whether the spin bit is enabled.
+  bool enable_spin_bit_;
 };
 
 }  // namespace quic
