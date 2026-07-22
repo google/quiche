@@ -1363,9 +1363,9 @@ TEST_P(SpdyFramerTest, BasicWithError) {
   EXPECT_CALL(visitor, OnHeaderFrameStart(3));
   EXPECT_CALL(visitor, OnHeaderFrameEnd(3));
   EXPECT_CALL(visitor, OnCommonHeader(3, 8, 0x0, 0x0));
-  EXPECT_CALL(visitor, OnDataFrameHeader(3, 8, false))
-      .WillOnce(testing::InvokeWithoutArgs(
-          [this]() { deframer_->StopProcessing(); }));
+  EXPECT_CALL(visitor, OnDataFrameHeader(3, 8, false)).WillOnce([this]() {
+    deframer_->StopProcessing();
+  });
   // Remaining frames are not processed due to the error.
   EXPECT_CALL(
       visitor,
