@@ -222,7 +222,7 @@ class SizeLimitingHeaderList : public spdy::SpdyHeadersHandlerInterface {
                         size_t compressed_header_bytes) override {
     header_list_.OnHeaderBlockEnd(uncompressed_header_bytes,
                                   compressed_header_bytes);
-    if (current_header_list_size_ > max_header_list_size_) {
+    if (current_header_list_size_ >= max_header_list_size_) {
       Clear();
     }
   }

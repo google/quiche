@@ -1871,6 +1871,44 @@ TEST_P(QuicSpdySessionTestClient, AvailableStreamsClient) {
       &*session_, GetNthClientInitiatedBidirectionalId(0)));
 }
 
+TEST_P(QuicSpdySessionTestClient, GquicTooLargeHeaders) {
+  Initialize();
+  if (VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+  CompleteHandshake();
+
+  TestStream* stream = session_->CreateOutgoingBidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+
+  HttpHeaderBlock headers;
+  headers[":path"] = "/";
+  headers[":authority"] = "www.google.com";
+  headers[":method"] = "GET";
+  // Append a header that is large enough that the header block exactly
+  // matches the size limit.
+  const absl::string_view big_key = "big";
+  const size_t value_size = kDefaultMaxUncompressedHeaderSize -
+                            headers.TotalBytesUsed() -
+                            4 * kQpackEntrySizeOverhead - big_key.length();
+  headers[big_key] = std::string(value_size, 'a');
+  headers["trailing"] = "bar";
+
+  spdy::SpdyFramer spdy_framer(
+      spdy::SpdyFramer::CompressionOption::DISABLE_COMPRESSION);
+  spdy::SpdyHeadersIR headers_frame(stream->id(), headers.Clone());
+  spdy::SpdySerializedFrame frame(spdy_framer.SerializeFrame(headers_frame));
+
+  EXPECT_CALL(*connection_, SendControlFrame(_));
+  EXPECT_CALL(*connection_,
+              OnStreamReset(stream->id(), QUIC_HEADERS_TOO_LARGE));
+
+  session_->OnStreamFrame(
+      QuicStreamFrame(QuicUtils::GetHeadersStreamId(transport_version()),
+                      /*fin=*/false, /*offset=*/0,
+                      absl::string_view(frame.data(), frame.size())));
+}
+
 // Regression test for b/130740258 and https://crbug.com/971779.
 // If headers that are too large or empty are received (these cases are handled
 // the same way, as QuicHeaderList clears itself when headers exceed the limit),
