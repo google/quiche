@@ -38,8 +38,8 @@ class QUICHE_EXPORT QuicConnectionAlarmsDelegate {
   virtual void OnNetworkBlackholeDetectorAlarm() = 0;
   virtual void OnPingAlarm() = 0;
 
-  virtual QuicConnectionContext* context() = 0;
-  virtual const QuicClock* clock() const = 0;
+  virtual QuicConnectionContext* _Nonnull context() = 0;
+  virtual const QuicClock* _Nonnull clock() const = 0;
 };
 
 namespace test {
@@ -126,7 +126,7 @@ class QUICHE_EXPORT QuicAlarmMultiplexer {
   void DeferUnderlyingAlarmScheduling();
   void ResumeUnderlyingAlarmScheduling();
 
-  QuicConnectionAlarmsDelegate* delegate() { return connection_; }
+  QuicConnectionAlarmsDelegate* _Nonnull delegate() { return connection_; }
 
   // Outputs a formatted list of active alarms.
   std::string DebugString();
@@ -165,7 +165,7 @@ class QUICHE_EXPORT QuicAlarmMultiplexer {
   QuicArenaScopedPtr<QuicAlarm> later_alarm_;
 
   // Underlying connection and individual connection components. Not owned.
-  QuicConnectionAlarmsDelegate* connection_;
+  QuicConnectionAlarmsDelegate* _Nonnull connection_;
 
   // Latched value of --quic_multiplexer_alarm_granularity_us.
   QuicTimeDelta underlying_alarm_granularity_;
@@ -181,7 +181,7 @@ class QUICHE_EXPORT QuicAlarmMultiplexer {
 // a QuicAlarm-compatible API.
 class QUICHE_EXPORT QuicAlarmProxy {
  public:
-  QuicAlarmProxy(QuicAlarmMultiplexer* multiplexer, QuicAlarmSlot slot)
+  QuicAlarmProxy(QuicAlarmMultiplexer* _Nonnull multiplexer, QuicAlarmSlot slot)
       : multiplexer_(multiplexer), slot_(slot) {}
 
   bool IsSet() const { return multiplexer_->IsSet(slot_); }
@@ -201,7 +201,7 @@ class QUICHE_EXPORT QuicAlarmProxy {
  private:
   friend class ::quic::test::QuicConnectionAlarmsPeer;
 
-  QuicAlarmMultiplexer* multiplexer_;
+  QuicAlarmMultiplexer* _Nonnull multiplexer_;
   QuicAlarmSlot slot_;
 };
 
