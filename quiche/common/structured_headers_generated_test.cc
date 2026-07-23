@@ -17,7 +17,7 @@
 // being automatically translated from the JSON source to C++ unit tests. Please
 // do not modify, as the contents will be overwritten when this is re-generated.
 
-// Generated on 2026-06-26 from structured-field-tests.git @
+// Generated on 2026-07-14 from structured-field-tests.git @
 // 1e280c3ed9ffe0ca5fdb1d97219dddc389007677.
 
 namespace quiche {
@@ -76,10 +76,10 @@ const struct ParameterizedItemTestCase {
      9,
      {{Item("hello", Item::kByteSequenceType), {}}},
      ":aGVsbG8=:"},
-    {"bad padding dot", ":aGVsbG8.:", 10, std::nullopt, nullptr, "b/393153699"},
+    {"bad padding dot", ":aGVsbG8.:", 10, std::nullopt, nullptr},
     {"bad end delimiter", ":aGVsbG8=", 9, std::nullopt, nullptr},
     {"extra whitespace", ":aGVsb G8=:", 11, std::nullopt, nullptr},
-    {"all whitespace", ":    :", 6, std::nullopt, nullptr, "b/393408763"},
+    {"all whitespace", ":    :", 6, std::nullopt, nullptr},
     {"extra chars", ":aGVsbG!8=:", 11, std::nullopt, nullptr},
     {"suffix chars", ":aGVsbG8=!:", 11, std::nullopt, nullptr},
     {"non-zero pad bits",
@@ -1711,8 +1711,7 @@ const struct ParameterizedItemTestCase {
      6,
      {{Item(-1.123), {}}},
      nullptr},
-    {"decimal with zero fractional digits", "1.", 2, std::nullopt, nullptr,
-     "b/517189418"},
+    {"decimal with zero fractional digits", "1.", 2, std::nullopt, nullptr},
     {"decimal with four fractional digits", "1.1234", 6, std::nullopt, nullptr},
     {"negative decimal with four fractional digits", "-1.1234", 7, std::nullopt,
      nullptr},
@@ -9138,7 +9137,7 @@ TEST(StructuredHeaderGeneratedTest, ParseItem) {
     if (c.raw) {
       SCOPED_TRACE(c.name);
       std::string raw{c.raw, c.raw_len};
-      std::optional<ParameterizedItem> result = ParseItem(raw);
+      std::optional<ParameterizedItem> result = ParseItem(raw, /*strict=*/true);
       if (c.known_bug) {
         if (result == c.expected) {
           ADD_FAILURE() << "Test " << c.name
@@ -9157,7 +9156,7 @@ TEST(StructuredHeaderGeneratedTest, ParseList) {
     if (c.raw) {
       SCOPED_TRACE(c.name);
       std::string raw{c.raw, c.raw_len};
-      std::optional<List> result = ParseList(raw);
+      std::optional<List> result = ParseList(raw, /*strict=*/true);
       if (c.known_bug) {
         if (result == c.expected) {
           ADD_FAILURE() << "Test " << c.name
@@ -9176,7 +9175,7 @@ TEST(StructuredHeaderGeneratedTest, ParseDictionary) {
     if (c.raw) {
       SCOPED_TRACE(c.name);
       std::string raw{c.raw, c.raw_len};
-      std::optional<Dictionary> result = ParseDictionary(raw);
+      std::optional<Dictionary> result = ParseDictionary(raw, /*strict=*/true);
       if (c.known_bug) {
         if (result == c.expected) {
           ADD_FAILURE() << "Test " << c.name

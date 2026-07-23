@@ -264,14 +264,22 @@ using ListOfLists = std::vector<std::vector<Item>>;
 using List = std::vector<ParameterizedMember>;
 
 // Returns the result of parsing the header value as an Item, if it can be
-// parsed as one, or nullopt if it cannot. Note that this uses the Draft 15
+// parsed as one, or nullopt if it cannot. Note that this uses the RFC 8941
 // parsing rules, and so applies tighter range limits to integers.
-QUICHE_EXPORT std::optional<ParameterizedItem> ParseItem(absl::string_view str);
+//
+// When `strict` is true, trailing decimal points are prohibited and byte
+// sequences must strictly conform to the specification.
+QUICHE_EXPORT std::optional<ParameterizedItem> ParseItem(absl::string_view str,
+                                                         bool strict = false);
 
 // Returns the result of parsing the header value as an Item with no parameters,
-// or nullopt if it cannot. Note that this uses the Draft 15 parsing rules, and
+// or nullopt if it cannot. Note that this uses the RFC 8941 parsing rules, and
 // so applies tighter range limits to integers.
-QUICHE_EXPORT std::optional<Item> ParseBareItem(absl::string_view str);
+//
+// When `strict` is true, trailing decimal points are prohibited and byte
+// sequences must strictly conform to the specification.
+QUICHE_EXPORT std::optional<Item> ParseBareItem(absl::string_view str,
+                                                bool strict = false);
 
 // Returns the result of parsing the header value as a Parameterised List, if it
 // can be parsed as one, or nullopt if it cannot. Note that parameter keys will
@@ -291,16 +299,22 @@ QUICHE_EXPORT std::optional<ListOfLists> ParseListOfLists(
     absl::string_view str);
 
 // Returns the result of parsing the header value as a general List, if it can
-// be parsed as one, or nullopt if it cannot.
-// Structured-Headers Draft 15 only.
-QUICHE_EXPORT std::optional<List> ParseList(absl::string_view str);
+// be parsed as one, or nullopt if it cannot. RFC 8941 only.
+//
+// When `strict` is true, trailing decimal points are prohibited and byte
+// sequences must strictly conform to the specification.
+QUICHE_EXPORT std::optional<List> ParseList(absl::string_view str,
+                                            bool strict = false);
 
 // Returns the result of parsing the header value as a general Dictionary, if it
-// can be parsed as one, or nullopt if it cannot. Structured-Headers Draft 15
-// only.
-QUICHE_EXPORT std::optional<Dictionary> ParseDictionary(absl::string_view str);
+// can be parsed as one, or nullopt if it cannot. RFC 8941 only.
+//
+// When `strict` is true, trailing decimal points are prohibited and byte
+// sequences must strictly conform to the specification.
+QUICHE_EXPORT std::optional<Dictionary> ParseDictionary(absl::string_view str,
+                                                        bool strict = false);
 
-// Serialization is implemented for Structured-Headers Draft 15 only.
+// Serialization is implemented for RFC 8941 only.
 QUICHE_EXPORT std::optional<std::string> SerializeItem(const Item& value);
 QUICHE_EXPORT std::optional<std::string> SerializeItem(
     const ParameterizedItem& value);

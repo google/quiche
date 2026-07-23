@@ -23,7 +23,6 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_client_stats.h"
-#include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quiche {
@@ -107,8 +106,9 @@ class StructuredHeaderParser {
     kDraft09,
     kFinal,
   };
-  explicit StructuredHeaderParser(absl::string_view str, DraftVersion version)
-      : input_(str), version_(version) {
+  explicit StructuredHeaderParser(absl::string_view str, DraftVersion version,
+                                  bool strict)
+      : input_(str), version_(version), strict_(strict) {
     // [SH09] 4.2 Step 1.
     // Discard any leading OWS from input_string.
     // [RFC8941] 4.2 Step 2.
@@ -423,18 +423,19 @@ class StructuredHeaderParser {
         LogParseError("ReadNumber", "too many digits after decimal");
         return std::nullopt;
       }
-      // TODO(b/517189418): This is never reached due to an off-by-one error.
-      if (i == decimal_position) {
+      const bool has_trailing_decimal = i == decimal_position + 1;
+      if (!strict_) {
+        // Counter to track instances of b/517189418 in which trailing decimal
+        // points are erroneously accepted.
+        QUICHE_CLIENT_HISTOGRAM_BOOL(
+            "StructuredHeaders.DecimalWithZeroFractionalDigits",
+            has_trailing_decimal,
+            "Whether a decimal point is erroneously accepted without any "
+            "digits following it.");
+      } else if (has_trailing_decimal) {
         LogParseError("ReadNumber", "no digits after decimal");
         return std::nullopt;
       }
-      // Counter to track instances of b/517189418 in which trailing decimal
-      // points are erroneously accepted.
-      QUICHE_CLIENT_HISTOGRAM_BOOL(
-          "StructuredHeaders.DecimalWithZeroFractionalDigits",
-          i == decimal_position + 1,
-          "Whether a decimal point is erroneously accepted without any "
-          "digits following it.");
     }
     absl::string_view output_number_string = input_.substr(0, i);
     input_.remove_prefix(i);
@@ -509,17 +510,20 @@ class StructuredHeaderParser {
 
     absl::string_view encoded = input_.substr(0, len);
     std::optional<std::string> binary = StrictBase64Decode(encoded);
-    bool is_strict = binary.has_value();
-    if (!is_strict) {
-      binary = LenientBase64Decode(encoded);
+    const bool strict_decode_succeeded = binary.has_value();
+    if (!strict_) {
+      if (!strict_decode_succeeded) {
+        binary = LenientBase64Decode(encoded);
+      }
+      if (binary.has_value()) {
+        QUICHE_CLIENT_HISTOGRAM_BOOL(
+            "StructuredHeaders.Base64DecodingIsStrictCompliant",
+            strict_decode_succeeded,
+            "Recorded true when RFC 8941 base64 decoding succeeds, false "
+            "when it fails but lenient legacy decoding succeeds.");
+      }
     }
-    if (binary) {
-      QUICHE_CLIENT_HISTOGRAM_BOOL(
-          "StructuredHeaders.Base64DecodingIsStrictCompliant", is_strict,
-          "Recorded true when RFC 8941 base64 decoding succeeds, false "
-          "when it fails but lenient legacy decoding succeeds.");
-    }
-    if (!binary) {
+    if (!binary.has_value()) {
       QUICHE_DVLOG(1) << "ReadByteSequence: failed to decode base64: "
                       << encoded;
       return std::nullopt;
@@ -575,7 +579,8 @@ class StructuredHeaderParser {
   }
 
   absl::string_view input_;
-  DraftVersion version_;
+  const DraftVersion version_;
+  const bool strict_;
 };
 
 // Serializer for (a subset of) Structured Field Values for HTTP defined in
@@ -912,43 +917,45 @@ bool Dictionary::contains(absl::string_view key) const {
 }
 void Dictionary::clear() { members_.clear(); }
 
-std::optional<ParameterizedItem> ParseItem(absl::string_view str) {
-  StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal);
+std::optional<ParameterizedItem> ParseItem(absl::string_view str, bool strict) {
+  StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal, strict);
   std::optional<ParameterizedItem> item = parser.ReadItem();
   if (item && parser.FinishParsing()) return item;
   return std::nullopt;
 }
 
-std::optional<Item> ParseBareItem(absl::string_view str) {
-  StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal);
+std::optional<Item> ParseBareItem(absl::string_view str, bool strict) {
+  StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal, strict);
   std::optional<Item> item = parser.ReadBareItem();
   if (item && parser.FinishParsing()) return item;
   return std::nullopt;
 }
 
 std::optional<ParameterisedList> ParseParameterisedList(absl::string_view str) {
-  StructuredHeaderParser parser(str, StructuredHeaderParser::kDraft09);
+  StructuredHeaderParser parser(str, StructuredHeaderParser::kDraft09,
+                                /*strict=*/false);
   std::optional<ParameterisedList> param_list = parser.ReadParameterisedList();
   if (param_list && parser.FinishParsing()) return param_list;
   return std::nullopt;
 }
 
 std::optional<ListOfLists> ParseListOfLists(absl::string_view str) {
-  StructuredHeaderParser parser(str, StructuredHeaderParser::kDraft09);
+  StructuredHeaderParser parser(str, StructuredHeaderParser::kDraft09,
+                                /*strict=*/false);
   std::optional<ListOfLists> list_of_lists = parser.ReadListOfLists();
   if (list_of_lists && parser.FinishParsing()) return list_of_lists;
   return std::nullopt;
 }
 
-std::optional<List> ParseList(absl::string_view str) {
-  StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal);
+std::optional<List> ParseList(absl::string_view str, bool strict) {
+  StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal, strict);
   std::optional<List> list = parser.ReadList();
   if (list && parser.FinishParsing()) return list;
   return std::nullopt;
 }
 
-std::optional<Dictionary> ParseDictionary(absl::string_view str) {
-  StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal);
+std::optional<Dictionary> ParseDictionary(absl::string_view str, bool strict) {
+  StructuredHeaderParser parser(str, StructuredHeaderParser::kFinal, strict);
   std::optional<Dictionary> dictionary = parser.ReadDictionary();
   if (dictionary && parser.FinishParsing()) return dictionary;
   return std::nullopt;
