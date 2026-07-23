@@ -6,23 +6,18 @@
 #define QUICHE_QUIC_QBONE_MOCK_QBONE_PACKET_EXCHANGER_H_
 
 #include <cstddef>
-#include <memory>
-#include <string>
 
-#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/qbone/qbone_packet_exchanger.h"
+#include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
+#include "quiche/quic/qbone/qbone_client_interface.h"
 
 namespace quic::test {
 
-class MockQbonePacketExchanger : public QbonePacketExchanger {
+class MockQboneClientPacketExchanger : public QboneClientPacketExchanger {
  public:
-  MockQbonePacketExchanger() : QbonePacketExchanger(/*visitor=*/nullptr) {}
-
-  MOCK_METHOD(std::unique_ptr<QuicData>, ReadPacket, (std::string * error),
+  MOCK_METHOD(bool, ReadAndDeliverPacket, (QboneClientInterface* qbone_client),
               (override));
-  MOCK_METHOD(bool, WritePacket,
-              (const char* packet, size_t size, std::string* error),
+  MOCK_METHOD(void, WritePacketToNetwork, (const char* packet, size_t size),
               (override));
 };
 

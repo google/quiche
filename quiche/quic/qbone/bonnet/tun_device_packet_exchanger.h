@@ -8,16 +8,22 @@
 #include <linux/if_ether.h>
 
 #include <cstddef>
+#include <cstdint>
+#include <string>
 
+#include "absl/base/attributes.h"
+#include "absl/base/nullability.h"
+#include "absl/strings/string_view.h"
 #include "absl/time/time.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
 #include "quiche/quic/qbone/platform/netlink_interface.h"
-#include "quiche/quic/qbone/qbone_packet_exchanger.h"
+#include "quiche/quic/qbone/qbone_client_interface.h"
 
 namespace quic {
 
-class TunDevicePacketExchanger : public QbonePacketExchanger {
+class TunDevicePacketExchanger : public QboneClientPacketExchanger {
  public:
   class StatsInterface {
    public:
@@ -45,33 +51,46 @@ class TunDevicePacketExchanger : public QbonePacketExchanger {
   // |visitor| is not owned but should out live objects of this class.
   // |stats| is notified about packet read/write statistics. It is not owned,
   // but should outlive objects of this class.
-  TunDevicePacketExchanger(size_t mtu, KernelInterface* kernel,
-                           NetlinkInterface* netlink,
-                           QbonePacketExchanger::Visitor* visitor, bool is_tap,
-                           StatsInterface* stats, absl::string_view ifname);
+  TunDevicePacketExchanger(
+      size_t mtu, KernelInterface* kernel, NetlinkInterface* netlink,
+      QboneClientPacketExchanger::Visitor* absl_nullable visitor
+          ABSL_ATTRIBUTE_LIFETIME_BOUND,
+      bool is_tap, StatsInterface* stats, absl::string_view ifname);
 
   void set_read_file_descriptor(int fd);
   void set_write_file_descriptor(int fd);
 
   ABSL_MUST_USE_RESULT const StatsInterface* stats_interface() const;
 
- private:
-  // From QbonePacketExchanger.
-  std::unique_ptr<QuicData> ReadPacket(std::string* error) override;
+  // QboneClientPacketExchanger:
+  bool ReadAndDeliverPacket(QboneClientInterface* qbone_client) override;
+  void WritePacketToNetwork(const char* packet, size_t size) override;
 
-  // From QbonePacketExchanger.
-  bool WritePacket(const char* packet, size_t size,
-                   std::string* error) override;
+ private:
+  enum class L2ValidationResult {
+    // Headers are invalid. Packet should be dropped.
+    kInvalid,
+
+    // Headers are valid, and the packet should be forwarded to the tunnel.
+    kValidNormal,
+
+    // Headers are valid, and the packet is a recognized link-local packet. The
+    // packet should not be forwarded to the tunnel. An appropriate response has
+    // already been sent back to the network.
+    kValidLinkLocal
+  };
 
   void InitializeEthHdr();
 
-  bool ValidateL2Headers(const ethhdr& eth_header, const QuicData& packet);
+  L2ValidationResult ValidateL2Headers(const ethhdr& eth_header,
+                                       const QuicData& packet);
 
   int read_fd_ = -1;
   int write_fd_ = -1;
   size_t mtu_;
   KernelInterface* kernel_;
   NetlinkInterface* netlink_;
+  QboneClientPacketExchanger::Visitor* const absl_nullable visitor_;
   const std::string ifname_;
 
   const bool is_tap_;

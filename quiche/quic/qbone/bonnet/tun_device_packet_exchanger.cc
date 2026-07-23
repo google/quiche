@@ -9,78 +9,49 @@
 #include <sys/uio.h>
 
 #include <algorithm>
+#include <cerrno>
+#include <cstddef>
 #include <memory>
 #include <string>
-#include <utility>
 
+#include "absl/base/nullability.h"
+#include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/string_view.h"
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
+#include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/qbone/platform/icmp_packet.h"
+#include "quiche/quic/qbone/platform/kernel_interface.h"
 #include "quiche/quic/qbone/platform/netlink_interface.h"
+#include "quiche/quic/qbone/qbone_client_interface.h"
 #include "quiche/quic/qbone/qbone_constants.h"
 
 namespace quic {
 
 TunDevicePacketExchanger::TunDevicePacketExchanger(
     size_t mtu, KernelInterface* kernel, NetlinkInterface* netlink,
-    QbonePacketExchanger::Visitor* visitor, bool is_tap, StatsInterface* stats,
+    Visitor* absl_nullable visitor, bool is_tap, StatsInterface* stats,
     absl::string_view ifname)
-    : QbonePacketExchanger(visitor),
-      mtu_(mtu),
+    : mtu_(mtu),
       kernel_(kernel),
       netlink_(netlink),
+      visitor_(visitor),
       ifname_(ifname),
       is_tap_(is_tap),
       stats_(stats) {}
 
-bool TunDevicePacketExchanger::WritePacket(const char* packet, size_t size,
-                                           std::string* error) {
-  if (write_fd_ < 0) {
-    *error =
-        absl::StrCat("Invalid file descriptor of the TUN device: ", write_fd_);
-    stats_->OnWriteError(*error);
-    return false;
-  }
-
-  if (is_tap_ && !eth_hdr_initialized_) {
-    InitializeEthHdr();
-  }
-  struct iovec iov[2];
-  iov[0].iov_base = is_tap_ ? &eth_hdr_ : nullptr;
-  iov[0].iov_len = is_tap_ ? ETH_HLEN : 0;
-  iov[1].iov_base = const_cast<char*>(packet);
-  iov[1].iov_len = size;
-
-  absl::Time start = absl::Now();
-  int result = kernel_->writev(write_fd_, iov, 2);
-  absl::Duration latency = std::max(absl::Now() - start, absl::ZeroDuration());
-
-  if (result == -1) {
-    if (errno == EWOULDBLOCK || errno == EAGAIN) {
-      // The tunnel is blocked. Note that this does not mean the receive
-      // buffer of a TCP connection is filled. This simply means the TUN
-      // device itself is blocked on handing packets to the rest of the
-      // kernel.
-      *error =
-          absl::ErrnoToStatus(errno, "Write to the TUN device was blocked.")
-              .message();
-      stats_->OnWriteError(*error);
-    }
-    return false;
-  }
-  stats_->OnPacketWritten(result, latency);
-
-  return true;
-}
-
-std::unique_ptr<QuicData> TunDevicePacketExchanger::ReadPacket(
-    std::string* error) {
+bool TunDevicePacketExchanger::ReadAndDeliverPacket(
+    QboneClientInterface* qbone_client) {
   if (read_fd_ < 0) {
-    *error =
+    std::string error =
         absl::StrCat("Invalid file descriptor of the TUN device: ", read_fd_);
-    stats_->OnReadError(*error);
-    return nullptr;
+    if (visitor_) {
+      visitor_->OnReadError(error);
+    }
+    stats_->OnReadError(error);
+    return false;
   }
 
   // Reading on a TUN device returns a packet at a time. If the packet is longer
@@ -103,30 +74,120 @@ std::unique_ptr<QuicData> TunDevicePacketExchanger::ReadPacket(
   // Note that 0 means end of file, but we're talking about a TUN device - there
   // is no end of file. Therefore 0 also indicates error.
   if (result <= 0) {
+    std::string error;
     if (errno == EAGAIN || errno == EWOULDBLOCK) {
-      *error =
+      error =
           absl::ErrnoToStatus(errno, "Read from the TUN device was blocked.")
               .message();
-      stats_->OnReadError(*error);
+      stats_->OnReadError(error);
     }
-    return nullptr;
+    // TODO(b/535980431): This passes an empty-string error for error codes
+    // other than EAGAIN/EWOULDBLOCK, matching the behavior of a previous
+    // implementation. Consider changing this to at least have a generic error
+    // for any other cases.
+    if (visitor_) {
+      visitor_->OnReadError(error);
+    }
+    return false;
   }
 
   if (is_tap_ && result < ETH_HLEN) {
-    *error = "Read packet too short for ethernet header.";
-    stats_->OnReadError(*error);
-    return nullptr;
+    std::string error = "Read packet too short for ethernet header.";
+    if (visitor_) {
+      visitor_->OnReadError(error);
+    }
+    stats_->OnReadError(error);
+    return false;
   }
 
   size_t l3_packet_size = is_tap_ ? result - ETH_HLEN : result;
   auto buffer =
       std::make_unique<QuicData>(read_buffer.release(), l3_packet_size, true);
-  if (is_tap_ && !ValidateL2Headers(eth_header, *buffer)) {
-    return nullptr;
+  if (is_tap_) {
+    switch (ValidateL2Headers(eth_header, *buffer)) {
+      case L2ValidationResult::kInvalid: {
+        std::string error = "Invalid L2 headers.";
+        if (visitor_) {
+          visitor_->OnReadError(error);
+        }
+        stats_->OnReadError(error);
+        return false;
+      }
+      case L2ValidationResult::kValidLinkLocal:
+        // TODO(b/535980431): This returns false to match the behavior of a
+        // previous implementation because no packet is forwarded to the tunnel,
+        // but consider changing this to true. A link-local packet does not mean
+        // there are no more packets to read from the TUN device.
+        return false;
+      case L2ValidationResult::kValidNormal:
+        // Packet is valid and should be forwarded to the tunnel. Fall through
+        // to normal processing.
+        break;
+    }
   }
 
   stats_->OnPacketRead(buffer->length(), latency);
-  return buffer;
+  qbone_client->ProcessPacketFromNetwork(buffer->AsStringPiece());
+  return true;
+}
+
+void TunDevicePacketExchanger::WritePacketToNetwork(const char* packet,
+                                                    size_t size) {
+  if (visitor_) {
+    absl::Status status = visitor_->OnWrite(absl::string_view(packet, size));
+    if (!status.ok()) {
+      QUIC_LOG_EVERY_N_SEC(ERROR, 60) << status;
+    }
+  }
+
+  if (write_fd_ < 0) {
+    std::string error =
+        absl::StrCat("Invalid file descriptor of the TUN device: ", write_fd_);
+    QUIC_LOG_EVERY_N_SEC(ERROR, 60) << "Packet write failed: " << error;
+    if (visitor_) {
+      visitor_->OnWriteError(error);
+    }
+    stats_->OnWriteError(error);
+    return;
+  }
+
+  if (is_tap_ && !eth_hdr_initialized_) {
+    InitializeEthHdr();
+  }
+  struct iovec iov[2];
+  iov[0].iov_base = is_tap_ ? &eth_hdr_ : nullptr;
+  iov[0].iov_len = is_tap_ ? ETH_HLEN : 0;
+  iov[1].iov_base = const_cast<char*>(packet);
+  iov[1].iov_len = size;
+
+  absl::Time start = absl::Now();
+  int result = kernel_->writev(write_fd_, iov, 2);
+  absl::Duration latency = std::max(absl::Now() - start, absl::ZeroDuration());
+
+  if (result == -1) {
+    std::string error;
+    if (errno == EWOULDBLOCK || errno == EAGAIN) {
+      // The tunnel is blocked. Note that this does not mean the receive
+      // buffer of a TCP connection is filled. This simply means the TUN
+      // device itself is blocked on handing packets to the rest of the
+      // kernel.
+      error = absl::ErrnoToStatus(errno, "Write to the TUN device was blocked.")
+                  .message();
+      stats_->OnWriteError(error);
+    }
+
+    // TODO(b/535980431): This logs/returns an empty-string error for error
+    // codes other than EAGAIN/EWOULDBLOCK, matching the behavior of a previous
+    // implementation. Consider changing this to at least have a generic error
+    // for any other cases.
+    QUIC_LOG_EVERY_N_SEC(ERROR, 60) << "Packet write failed: " << error;
+    if (visitor_) {
+      visitor_->OnWriteError(error);
+    }
+    return;
+  }
+
+  stats_->OnPacketWritten(result, latency);
 }
 
 void TunDevicePacketExchanger::set_read_file_descriptor(int fd) {
@@ -159,16 +220,17 @@ void TunDevicePacketExchanger::InitializeEthHdr() {
   }
 }
 
-bool TunDevicePacketExchanger::ValidateL2Headers(const ethhdr& eth_header,
-                                                 const QuicData& packet) {
+TunDevicePacketExchanger::L2ValidationResult
+TunDevicePacketExchanger::ValidateL2Headers(const ethhdr& eth_header,
+                                            const QuicData& packet) {
   if (eth_header.h_proto != absl::ghtons(ETH_P_IPV6)) {
-    return false;
+    return L2ValidationResult::kInvalid;
   }
   constexpr auto kIp6PrefixLen = sizeof(ip6_hdr);
   constexpr auto kIcmp6PrefixLen = kIp6PrefixLen + sizeof(icmp6_hdr);
   if (packet.length() < kIp6PrefixLen) {
     // Packet is too short to be ipv6. Drop it.
-    return false;
+    return L2ValidationResult::kInvalid;
   }
   auto* ip_hdr = reinterpret_cast<const ip6_hdr*>(packet.data());
   const bool is_icmp = ip_hdr->ip6_ctlun.ip6_un1.ip6_un1_nxt == IPPROTO_ICMPV6;
@@ -177,7 +239,7 @@ bool TunDevicePacketExchanger::ValidateL2Headers(const ethhdr& eth_header,
   if (is_icmp) {
     if (packet.length() < kIcmp6PrefixLen) {
       // Packet is too short to be icmp6. Drop it.
-      return false;
+      return L2ValidationResult::kInvalid;
     }
     is_neighbor_solicit =
         reinterpret_cast<const icmp6_hdr*>(packet.data() + kIp6PrefixLen)
@@ -197,7 +259,7 @@ bool TunDevicePacketExchanger::ValidateL2Headers(const ethhdr& eth_header,
         *reinterpret_cast<const in6_addr*>(icmp6_payload));
     if (target_address != *QboneConstants::GatewayAddress()) {
       // Only respond to solicitations for our gateway address
-      return false;
+      return L2ValidationResult::kValidLinkLocal;
     }
 
     // Neighbor Advertisement crafted per:
@@ -217,8 +279,8 @@ bool TunDevicePacketExchanger::ValidateL2Headers(const ethhdr& eth_header,
     // |     Type      |    Length     |    Link-Layer Address ...
     // +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
     int pos = sizeof(in6_addr);
-    payload[pos++] = ND_OPT_TARGET_LINKADDR;    // Type
-    payload[pos++] = 1;                         // Length in units of 8 octets
+    payload[pos++] = ND_OPT_TARGET_LINKADDR;  // Type
+    payload[pos++] = 1;                       // Length in units of 8 octets
     memcpy(&payload[pos], eth_hdr_.h_source,
            ETH_ALEN);  // This interfaces' MAC address
 
@@ -233,15 +295,12 @@ bool TunDevicePacketExchanger::ValidateL2Headers(const ethhdr& eth_header,
     CreateIcmpPacket(ip_hdr->ip6_src, ip_hdr->ip6_src, response_hdr,
                      absl::string_view(payload.get(), payload_size),
                      [this](absl::string_view packet) {
-                       std::string error;
-                       WritePacket(packet.data(), packet.size(), &error);
+                       WritePacketToNetwork(packet.data(), packet.size());
                      });
-    // Do not forward the neighbor solicitation through the tunnel since it's
-    // link-local.
-    return false;
+    return L2ValidationResult::kValidLinkLocal;
   }
 
-  return true;
+  return L2ValidationResult::kValidNormal;
 }
 
 }  // namespace quic

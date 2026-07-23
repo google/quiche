@@ -5,13 +5,17 @@
 #include "quiche/quic/qbone/qbone_client_session.h"
 
 #include <memory>
+#include <string>
 #include <utility>
+#include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/qbone_constants.h"
-#include "quiche/quic/qbone/qbone_packet_exchanger.h"
-#include "quiche/common/platform/api/quiche_command_line_flags.h"
+#include "quiche/quic/qbone/qbone_session_base.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic {
 
@@ -21,7 +25,7 @@ QboneClientSession::QboneClientSession(
     QuicSession::Visitor* owner, const QuicConfig& config,
     const ParsedQuicVersionVector& supported_versions,
     const QuicServerId& server_id,
-    QbonePacketExchanger* absl_nonnull local_network_packet_exchanger,
+    QboneClientPacketExchanger* absl_nonnull local_network_packet_exchanger,
     QboneClientControlStream::Handler* handler)
     : QboneSessionBase(connection, owner, config, supported_versions),
       local_network_packet_exchanger_(*local_network_packet_exchanger),

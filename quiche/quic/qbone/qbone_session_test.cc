@@ -20,7 +20,7 @@
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_test_loopback.h"
-#include "quiche/quic/qbone/mock_qbone_packet_exchanger.h"
+#include "quiche/quic/qbone/bonnet/mock_qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/platform/icmp_packet.h"
 #include "quiche/quic/qbone/qbone_client_session.h"
 #include "quiche/quic/qbone/qbone_constants.h"
@@ -313,12 +313,10 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     }
 
     {
-      EXPECT_CALL(client_packet_exchanger_, WritePacket(_, _, _))
-          .WillRepeatedly(
-              [this](const char* packet, size_t size, std::string* error) {
-                client_packets_to_network_.push_back(std::string(packet, size));
-                return true;
-              });
+      EXPECT_CALL(client_packet_exchanger_, WritePacketToNetwork(_, _))
+          .WillRepeatedly([this](const char* packet, size_t size) {
+            client_packets_to_network_.push_back(std::string(packet, size));
+          });
 
       client_connection_ = new QuicConnection(
           TestConnectionId(), client_address, server_address, &helper_,
@@ -543,7 +541,7 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
 
   std::unique_ptr<QuicCryptoClientConfig> client_crypto_config_;
   std::unique_ptr<QuicCryptoServerConfig> server_crypto_config_;
-  StrictMock<MockQbonePacketExchanger> client_packet_exchanger_;
+  StrictMock<MockQboneClientPacketExchanger> client_packet_exchanger_;
   std::vector<std::string> client_packets_to_network_;
   std::unique_ptr<DataSavingQbonePacketWriter> server_writer_;
   std::unique_ptr<DataSavingQboneControlHandler<QboneClientRequest>>

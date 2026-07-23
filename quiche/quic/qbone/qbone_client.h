@@ -12,9 +12,9 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_bandwidth.h"
+#include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/qbone_client_interface.h"
 #include "quiche/quic/qbone/qbone_client_session.h"
-#include "quiche/quic/qbone/qbone_packet_exchanger.h"
 #include "quiche/quic/tools/quic_client_base.h"
 
 namespace quic {
@@ -30,8 +30,8 @@ class QboneClient : public QuicClientBase, public QboneClientInterface {
               QuicSession::Visitor* session_owner, const QuicConfig& config,
               QuicEventLoop* event_loop,
               std::unique_ptr<ProofVerifier> proof_verifier,
-              QbonePacketExchanger* absl_nonnull local_network_packet_exchanger
-                  ABSL_ATTRIBUTE_LIFETIME_BOUND,
+              QboneClientPacketExchanger* absl_nonnull
+                  local_network_packet_exchanger ABSL_ATTRIBUTE_LIFETIME_BOUND,
               QboneClientControlStream::Handler* qbone_handler);
   ~QboneClient() override;
   QboneClientSession* qbone_session();
@@ -61,7 +61,7 @@ class QboneClient : public QuicClientBase, public QboneClientInterface {
       const ParsedQuicVersionVector& supported_versions,
       QuicConnection* connection) override;
 
-  QbonePacketExchanger& local_network_packet_exchanger() {
+  QboneClientPacketExchanger& local_network_packet_exchanger() {
     return local_network_packet_exchanger_;
   }
 
@@ -74,7 +74,7 @@ class QboneClient : public QuicClientBase, public QboneClientInterface {
   bool HasActiveRequests() override;
 
  private:
-  QbonePacketExchanger& local_network_packet_exchanger_;
+  QboneClientPacketExchanger& local_network_packet_exchanger_;
   QboneClientControlStream::Handler* qbone_handler_;
 
   QuicSession::Visitor* session_owner_;

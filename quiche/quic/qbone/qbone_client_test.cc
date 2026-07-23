@@ -26,7 +26,7 @@
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/platform/api/quic_test_loopback.h"
-#include "quiche/quic/qbone/mock_qbone_packet_exchanger.h"
+#include "quiche/quic/qbone/bonnet/mock_qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/qbone_packet_processor_test_tools.h"
 #include "quiche/quic/qbone/qbone_server_session.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
@@ -165,12 +165,10 @@ class QboneTestClient : public QboneClient {
       : QboneClient(server_address, server_id, supported_versions,
                     /*session_owner=*/nullptr, QuicConfig(), event_loop,
                     std::move(proof_verifier), &packet_exchanger_, nullptr) {
-    ON_CALL(packet_exchanger_, WritePacket(_, _, _))
-        .WillByDefault(
-            [this](const char* packet, size_t size, std::string* error) {
-              data_.push_back(std::string(packet, size));
-              return true;
-            });
+    ON_CALL(packet_exchanger_, WritePacketToNetwork(_, _))
+        .WillByDefault([this](const char* packet, size_t size) {
+          data_.push_back(std::string(packet, size));
+        });
   }
 
   ~QboneTestClient() override {}
@@ -203,7 +201,7 @@ class QboneTestClient : public QboneClient {
   const std::vector<std::string>& data() { return data_; }
 
  private:
-  MockQbonePacketExchanger packet_exchanger_;
+  MockQboneClientPacketExchanger packet_exchanger_;
   std::vector<std::string> data_;
 };
 
