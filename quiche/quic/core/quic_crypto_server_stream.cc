@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -415,7 +416,7 @@ bool QuicCryptoServerStream::GetBase64SHA256ClientChannelID(
   SHA256(reinterpret_cast<const uint8_t*>(channel_id.data()), channel_id.size(),
          digest);
 
-  quiche::QuicheTextUtils::Base64Encode(digest, ABSL_ARRAYSIZE(digest), output);
+  quiche::QuicheTextUtils::Base64Encode(digest, std::size(digest), output);
   return true;
 }
 

@@ -26,6 +26,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <ostream>
 #include <string>
@@ -163,7 +164,7 @@ QUICHE_EXPORT constexpr bool TransportVersionIsValid(
       QUIC_VERSION_RESERVED_FOR_NEGOTIATION,
       QUIC_VERSION_UNSUPPORTED,
   };
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(valid_transport_versions); ++i) {
+  for (size_t i = 0; i < std::size(valid_transport_versions); ++i) {
     if (transport_version == valid_transport_versions[i]) {
       return true;
     }

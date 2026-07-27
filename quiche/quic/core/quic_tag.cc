@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -47,10 +48,9 @@ std::string QuicTagToString(QuicTag tag) {
   bool ascii = true;
   const QuicTag orig_tag = tag;
 
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(chars); i++) {
+  for (size_t i = 0; i < std::size(chars); i++) {
     chars[i] = static_cast<char>(tag);
-    if ((chars[i] == 0 || chars[i] == '\xff') &&
-        i == ABSL_ARRAYSIZE(chars) - 1) {
+    if ((chars[i] == 0 || chars[i] == '\xff') && i == std::size(chars) - 1) {
       chars[i] = ' ';
     }
     if (!absl::ascii_isprint(static_cast<unsigned char>(chars[i]))) {

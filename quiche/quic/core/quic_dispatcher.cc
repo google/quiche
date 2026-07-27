@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <list>
 #include <memory>
@@ -400,7 +401,7 @@ constexpr bool IsSourceUdpPortBlocked(uint16_t port) {
       11211,  // memcache, vulnerable to reflection attacks.
               // This list MUST be sorted in increasing order.
   };
-  constexpr size_t num_blocked_ports = ABSL_ARRAYSIZE(blocked_ports);
+  constexpr size_t num_blocked_ports = std::size(blocked_ports);
   constexpr uint16_t highest_blocked_port =
       blocked_ports[num_blocked_ports - 1];
   if (ABSL_PREDICT_TRUE(port > highest_blocked_port)) {

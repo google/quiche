@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <limits>
 #include <string>
 
@@ -473,7 +474,7 @@ QuicConnectionId QuicUtils::CreateZeroConnectionId(
   if (!VersionIsIetfQuic(version)) {
     char connection_id_bytes[8] = {0, 0, 0, 0, 0, 0, 0, 0};
     return QuicConnectionId(static_cast<char*>(connection_id_bytes),
-                            ABSL_ARRAYSIZE(connection_id_bytes));
+                            std::size(connection_id_bytes));
   }
   return EmptyQuicConnectionId();
 }

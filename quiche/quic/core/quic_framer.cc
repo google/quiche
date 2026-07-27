@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -1569,7 +1570,7 @@ bool QuicFramer::ProcessPacketInternal(const QuicEncryptedPacket& packet) {
     // operating on aligned memory.
     ABSL_CACHELINE_ALIGNED char buffer[kMaxIncomingPacketSize];
     rv = ProcessIetfDataPacket(&reader, &header, packet, buffer,
-                               ABSL_ARRAYSIZE(buffer));
+                               std::size(buffer));
   } else {
     std::unique_ptr<char[]> large_buffer(new char[packet.length()]);
     rv = ProcessIetfDataPacket(&reader, &header, packet, large_buffer.get(),
@@ -4421,7 +4422,7 @@ bool QuicFramer::RemoveHeaderProtection(
       static_cast<QuicPacketNumberLength>((header->type_byte & 0x03) + 1);
 
   char pn_buffer[IETF_MAX_PACKET_NUMBER_LENGTH] = {};
-  QuicDataWriter pn_writer(ABSL_ARRAYSIZE(pn_buffer), pn_buffer);
+  QuicDataWriter pn_writer(std::size(pn_buffer), pn_buffer);
 
   // Read the (protected) packet number from the reader and unmask the packet
   // number.
