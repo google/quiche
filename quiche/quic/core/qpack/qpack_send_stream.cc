@@ -4,6 +4,8 @@
 
 #include "quiche/quic/core/qpack/qpack_send_stream.h"
 
+#include <iterator>
+
 #include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_session.h"
@@ -40,7 +42,7 @@ uint64_t QpackSendStream::NumBytesBuffered() const {
 void QpackSendStream::MaybeSendStreamType() {
   if (!stream_type_sent_) {
     char type[sizeof(http3_stream_type_)];
-    QuicDataWriter writer(ABSL_ARRAYSIZE(type), type);
+    QuicDataWriter writer(std::size(type), type);
     writer.WriteVarInt62(http3_stream_type_);
     WriteOrBufferData(absl::string_view(writer.data(), writer.length()), false,
                       nullptr);

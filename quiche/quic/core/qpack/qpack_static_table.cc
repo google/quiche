@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/qpack/qpack_static_table.h"
 
+#include <iterator>
 #include <vector>
 
 #include "absl/base/macros.h"
@@ -14,7 +15,7 @@ namespace quic {
 // The "constructor" for a QpackStaticEntry that computes the lengths at
 // compile time.
 #define STATIC_ENTRY(name, value) \
-  { name, ABSL_ARRAYSIZE(name) - 1, value, ABSL_ARRAYSIZE(value) - 1 }
+  {name, std::size(name) - 1, value, std::size(value) - 1}
 
 const std::vector<QpackStaticEntry>& QpackStaticTableVector() {
   static const auto* kQpackStaticTable = new std::vector<QpackStaticEntry>{
