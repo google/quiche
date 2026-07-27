@@ -124,7 +124,6 @@ class QUICHE_EXPORT QuicSession
     // Returns the underlying `QuicConfig`. Must not be called after the config
     // is deleted.
     QuicConfig* RawConfig() {
-      QUIC_BUG_IF(no_config, config_deleted_);
       QUIC_BUG_IF(no_config, delete_config_ && config_ == nullptr);
       return config_.get();
     }
@@ -244,9 +243,7 @@ class QUICHE_EXPORT QuicSession
 
    private:
     std::unique_ptr<QuicConfig> config_;
-    // TODO(b/461482627): Delete this when retiring the flag.
-    bool config_deleted_ = false;
-    bool delete_config_ = GetQuicReloadableFlag(quic_delete_config);
+    bool delete_config_ = true;
 
     bool has_received_initial_stream_flow_control_window_bytes_ = false;
     bool has_received_initial_max_stream_data_bytes_unidirectional_ = false;

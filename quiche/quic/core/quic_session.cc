@@ -104,7 +104,6 @@ std::unique_ptr<QuicWriteBlockedListInterface> CreateWriteBlockedList(
 
 void QuicSession::SavedConfig::DeleteConfig(ParsedQuicVersion version) {
   if (!delete_config_) {
-    config_deleted_ = true;
     return;
   }
 
@@ -151,7 +150,6 @@ void QuicSession::SavedConfig::DeleteConfig(ParsedQuicVersion version) {
   received_max_bidirectional_streams_ =
       config_->ReceivedMaxBidirectionalStreams();
   idle_network_timeout_ = config_->IdleNetworkTimeout();
-  QUICHE_RELOADABLE_FLAG_COUNT(quic_delete_config);
   config_.reset();
 }
 
