@@ -790,27 +790,6 @@ class QUICHE_EXPORT QuicFramer {
   using NackRangeMap = std::map<QuicPacketNumber, uint8_t>;
   using AssociatedDataStorage = absl::InlinedVector<char, 20>;
 
-  // AckTimestampRange is a data structure derived from a QuicAckFrame. It is
-  // used to serialize timestamps in a IETF_ACK_RECEIVE_TIMESTAMPS frame.
-  struct QUICHE_EXPORT AckTimestampRange {
-    QuicPacketCount delta_from_largest_acked;
-    // |range_begin| and |range_end| are index(es) in
-    // QuicAckFrame.received_packet_times, representing a continuous range of
-    // packet numbers in descending order. |range_begin| >= |range_end|.
-    int64_t range_begin;  // Inclusive
-    int64_t range_end;    // Inclusive
-  };
-  absl::InlinedVector<AckTimestampRange, 2> GetAckTimestampRanges(
-      const QuicAckFrame& frame, std::string& detailed_error) const;
-  int64_t FrameAckTimestampRanges(
-      const QuicAckFrame& frame,
-      const absl::InlinedVector<AckTimestampRange, 2>& timestamp_ranges,
-      QuicDataWriter* absl_nullable writer) const;
-  int64_t FrameAckTimestampRange(const QuicAckFrame& frame,
-                                 const AckTimestampRange& range,
-                                 std::optional<QuicTime>& effective_prev_time,
-                                 QuicDataWriter* absl_nullable writer) const;
-
   struct QUICHE_EXPORT AckFrameInfo {
     AckFrameInfo();
     AckFrameInfo(const AckFrameInfo& other);

@@ -7431,8 +7431,9 @@ TEST_P(QuicFramerTest, AckReceiveTimestampsTimeOutOfOrder) {
   ack_frame.ack_delay_time = QuicTime::Delta::Zero();
   QuicFrames frames = {QuicFrame(&ack_frame)};
 
-  EXPECT_QUIC_BUG(BuildDataPacket(header, frames),
-                  "Receive time not in order.");
+  EXPECT_QUIC_BUG(
+      BuildDataPacket(header, frames),
+      "Receive timestamps have to be in monotonically ascending order.");
 }
 
 TEST_P(QuicFramerTest, ProcessIetfAckReceiveTimestampsExceedsMaxTimestamps) {
