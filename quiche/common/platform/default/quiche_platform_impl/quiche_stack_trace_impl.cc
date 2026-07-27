@@ -4,6 +4,7 @@
 
 #include "quiche_platform_impl/quiche_stack_trace_impl.h"
 
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -52,7 +53,7 @@ std::string QuicheStackTraceImpl() {
 bool QuicheShouldRunStackTraceTestImpl() {
   void* unused[4];  // An arbitrary small number of stack frames to trace.
   int stack_traces_found =
-      absl::GetStackTrace(unused, ABSL_ARRAYSIZE(unused), /*skip_count=*/0);
+      absl::GetStackTrace(unused, std::size(unused), /*skip_count=*/0);
   // absl::GetStackTrace() always returns 0 if the current platform is
   // unsupported.
   return stack_traces_found > 0;
