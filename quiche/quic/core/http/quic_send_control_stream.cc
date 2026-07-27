@@ -5,6 +5,7 @@
 #include "quiche/quic/core/http/quic_send_control_stream.h"
 
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <string>
 
@@ -52,7 +53,7 @@ void QuicSendControlStream::MaybeSendSettingsFrame() {
   QuicConnection::ScopedPacketFlusher flusher(session()->connection());
   // Send the stream type on so the peer knows about this stream.
   char data[sizeof(kControlStream)];
-  QuicDataWriter writer(ABSL_ARRAYSIZE(data), data);
+  QuicDataWriter writer(std::size(data), data);
   writer.WriteVarInt62(kControlStream);
   WriteOrBufferData(absl::string_view(writer.data(), writer.length()), false,
                     nullptr);
