@@ -4,6 +4,7 @@
 
 #include "quiche/http2/hpack/hpack_constants.h"
 
+#include <iterator>
 #include <vector>
 
 #include "absl/base/macros.h"
@@ -287,7 +288,7 @@ const std::vector<HpackHuffmanSymbol>& HpackHuffmanCodeVector() {
 // The "constructor" for a HpackStaticEntry that computes the lengths at
 // compile time.
 #define STATIC_ENTRY(name, value) \
-  { name, ABSL_ARRAYSIZE(name) - 1, value, ABSL_ARRAYSIZE(value) - 1 }
+  {name, std::size(name) - 1, value, std::size(value) - 1}
 
 const std::vector<HpackStaticEntry>& HpackStaticTableVector() {
   static const auto* kHpackStaticTable = new std::vector<HpackStaticEntry>{
