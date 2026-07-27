@@ -227,9 +227,7 @@ bool TlsHandshaker::ShouldCloseConnectionOnUnexpectedError(int /*ssl_error*/) {
 }
 
 size_t TlsHandshaker::BufferSizeLimitForLevel(EncryptionLevel level) const {
-  if (GetQuicRestartFlag(quic_shed_tls_handshake_config) &&
-      level != ENCRYPTION_FORWARD_SECURE && !SSL_in_init(ssl())) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_shed_tls_handshake_config, 1, 2);
+  if (level != ENCRYPTION_FORWARD_SECURE && !SSL_in_init(ssl())) {
     // TODO(crbug.com/459517298): Remove this branch when BoringSSL is fixed.
     return 0;
   }
