@@ -5,9 +5,9 @@
 #include "quiche/common/quiche_crypto_logging.h"
 
 #include <cstdint>
+#include <iterator>
 #include <string>
 
-#include "absl/base/macros.h"
 #include "absl/status/status.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
@@ -22,7 +22,7 @@ void DLogOpenSslErrors() {
 #else
   while (uint32_t error = ERR_get_error()) {
     char buf[120];
-    ERR_error_string_n(error, buf, ABSL_ARRAYSIZE(buf));
+    ERR_error_string_n(error, buf, std::size(buf));
     QUICHE_DLOG(ERROR) << "OpenSSL error: " << buf;
   }
 #endif
@@ -38,7 +38,7 @@ absl::Status SslErrorAsStatus(absl::string_view msg, absl::StatusCode code) {
   absl::StrAppend(&message, msg, "OpenSSL error: ");
   while (uint32_t error = ERR_get_error()) {
     char buf[120];
-    ERR_error_string_n(error, buf, ABSL_ARRAYSIZE(buf));
+    ERR_error_string_n(error, buf, std::size(buf));
     absl::StrAppend(&message, buf);
   }
   return absl::Status(code, message);
