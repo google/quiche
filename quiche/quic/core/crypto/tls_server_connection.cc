@@ -79,16 +79,10 @@ void TlsServerConnection::AddCertChain(CryptoBuffers cert_chain,
                                        absl::string_view trust_anchor_id) {
   bssl::UniquePtr<SSL_CREDENTIAL> credential(SSL_CREDENTIAL_new_x509());
   std::unique_ptr<CredentialExData> exdata;
-  if (GetQuicRestartFlag(quic_set_credential_ex_data)) {
-    QUIC_RESTART_FLAG_COUNT_N(quic_set_credential_ex_data, 1, 3);
-    exdata = std::make_unique<CredentialExData>(std::move(cert_chain));
-    SSL_CREDENTIAL_set1_cert_chain(credential.get(),
-                                   exdata->cert_chain_buffers.value.data(),
-                                   exdata->cert_chain_buffers.value.size());
-  } else {
-    SSL_CREDENTIAL_set1_cert_chain(credential.get(), cert_chain.value.data(),
-                                   cert_chain.value.size());
-  }
+  exdata = std::make_unique<CredentialExData>(std::move(cert_chain));
+  SSL_CREDENTIAL_set1_cert_chain(credential.get(),
+                                 exdata->cert_chain_buffers.value.data(),
+                                 exdata->cert_chain_buffers.value.size());
   if (ssl_config().signing_algorithm_prefs.has_value()) {
     SSL_CREDENTIAL_set1_signing_algorithm_prefs(
         credential.get(), ssl_config().signing_algorithm_prefs->data(),

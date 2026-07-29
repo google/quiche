@@ -56,11 +56,6 @@ CryptoBuffers::~CryptoBuffers() {
 
 void SetCredentialExData(SSL_CREDENTIAL& credential,
                          std::unique_ptr<CredentialExData> exdata) {
-  if (!GetQuicRestartFlag(quic_set_credential_ex_data)) {
-    return;
-  }
-  QUIC_RESTART_FLAG_COUNT_N(quic_set_credential_ex_data, 2, 3);
-
   int index = GetCredentialExDataIndex();
   if (index < 0 || exdata == nullptr) {
     return;
@@ -73,11 +68,6 @@ void SetCredentialExData(SSL_CREDENTIAL& credential,
 }
 
 const CredentialExData* GetCredentialExData(const SSL_CREDENTIAL& credential) {
-  if (!GetQuicRestartFlag(quic_set_credential_ex_data)) {
-    return nullptr;
-  }
-  QUIC_RESTART_FLAG_COUNT_N(quic_set_credential_ex_data, 3, 3);
-
   int index = GetCredentialExDataIndex();
   if (index < 0) {
     return nullptr;

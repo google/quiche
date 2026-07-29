@@ -1757,11 +1757,7 @@ TEST_P(TlsServerHandshakerTest, GetCredentialExData) {
           // Verify that the extension data is present and non-null.
           const CredentialExData* ex_data = GetCredentialExData(*cred);
 
-          if (GetQuicRestartFlag(quic_set_credential_ex_data)) {
-            ASSERT_NE(ex_data, nullptr);
-          } else {
-            ASSERT_EQ(ex_data, nullptr);
-          }
+          ASSERT_NE(ex_data, nullptr);
           credential_ex_data_verified = true;
         }
       });
