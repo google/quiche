@@ -33,9 +33,9 @@ class QuicAckTimestampListTest : public quiche::test::QuicheTest {
                             absl::string_view hex) {
     std::string expected;
     ASSERT_TRUE(absl::HexStringToBytes(hex, &expected));
-    EXPECT_EQ(list.EncodedSize(), expected.size());
+    EXPECT_EQ(list.MaxEncodedSize(), expected.size());
 
-    std::string buffer(list.EncodedSize(), '\0');
+    std::string buffer(list.MaxEncodedSize(), '\0');
     QuicDataWriter writer(buffer.size(), buffer.data());
     EXPECT_TRUE(list.Write(writer));
     EXPECT_EQ(writer.remaining(), 0u);
@@ -297,13 +297,82 @@ TEST_F(QuicAckTimestampListTest, BufferTooSmall) {
 
   QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0, basis_);
   EXPECT_EQ(list.error(), "");
-  const QuicByteCount expected_size = list.EncodedSize();
-  EXPECT_GT(expected_size, 0u);
 
-  for (QuicByteCount buf_len = 0; buf_len < expected_size; ++buf_len) {
+  // Any buffer of the size at least one byte should let serialization succeed.
+  for (QuicByteCount buf_len = 1; buf_len < 4; ++buf_len) {
     std::string buffer(buf_len, '\0');
     QuicDataWriter writer(buffer.size(), buffer.data());
-    EXPECT_FALSE(list.Write(writer)) << "buf_len: " << buf_len;
+    EXPECT_TRUE(list.Write(writer)) << "buf_len: " << buf_len;
+  }
+}
+
+TEST_F(QuicAckTimestampListTest, BufferTruncationSingleRange) {
+  ack_.largest_acked = QuicPacketNumber(100);
+  ack_.received_packet_times = {
+      {QuicPacketNumber(98), TimePlus(5)},
+      {QuicPacketNumber(99), TimePlus(10)},
+      {QuicPacketNumber(100), TimePlus(20)},
+  };
+
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0, basis_);
+  EXPECT_EQ(list.error(), "");
+  EXPECT_EQ(list.MaxEncodedSize(), 6u);
+
+  // Buffer size 5 allows encoding packets 100 and 99, but truncates packet 98.
+  std::string buffer(5, '\0');
+  QuicDataWriter writer(buffer.size(), buffer.data());
+  EXPECT_TRUE(list.Write(writer));
+  EXPECT_EQ(writer.remaining(), 0u);
+  EXPECT_EQ(absl::BytesToHexString(buffer), "010002140a");
+}
+
+TEST_F(QuicAckTimestampListTest, BufferTruncationMultipleRanges) {
+  ack_.largest_acked = QuicPacketNumber(100);
+  ack_.received_packet_times = {
+      // Range 2: Packet 90
+      {QuicPacketNumber(90), TimePlus(5)},
+      // Range 1: Packets 99 and 100
+      {QuicPacketNumber(99), TimePlus(10)},
+      {QuicPacketNumber(100), TimePlus(20)},
+  };
+
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0, basis_);
+  EXPECT_EQ(list.error(), "");
+  EXPECT_EQ(list.MaxEncodedSize(), 8u);
+
+  // Buffer sizes 5, 6, and 7 allow encoding Range 1 (packets 100 and 99, taking
+  // 5 bytes total including range count), but are not large enough to encode
+  // Range 2 (packet 90, which requires 3 additional bytes).
+  for (QuicByteCount buf_len : {5u, 6u, 7u}) {
+    std::string buffer(buf_len, '\0');
+    QuicDataWriter writer(buffer.size(), buffer.data());
+    EXPECT_TRUE(list.Write(writer)) << "buf_len: " << buf_len;
+    EXPECT_EQ(writer.length(), 5u) << "buf_len: " << buf_len;
+    EXPECT_EQ(absl::BytesToHexString(absl::string_view(buffer.data(), 5)),
+              "010002140a")
+        << "buf_len: " << buf_len;
+  }
+
+  // Buffer size 4 allows encoding only packet 100 of Range 1 (taking 4 bytes
+  // total including range count), but truncates packet 99 of Range 1.
+  {
+    std::string buffer(4, '\0');
+    QuicDataWriter writer(buffer.size(), buffer.data());
+    EXPECT_TRUE(list.Write(writer));
+    EXPECT_EQ(writer.length(), 4u);
+    EXPECT_EQ(absl::BytesToHexString(buffer), "01000114");
+  }
+
+  // Buffer sizes 1, 2, and 3 are not large enough to encode any range (as even
+  // a single-timestamp range requires 4 bytes total including range count), so
+  // only the range count of 0 (taking 1 byte) is written.
+  for (QuicByteCount buf_len : {1u, 2u, 3u}) {
+    std::string buffer(buf_len, '\0');
+    QuicDataWriter writer(buffer.size(), buffer.data());
+    EXPECT_TRUE(list.Write(writer)) << "buf_len: " << buf_len;
+    EXPECT_EQ(writer.length(), 1u) << "buf_len: " << buf_len;
+    EXPECT_EQ(absl::BytesToHexString(absl::string_view(buffer.data(), 1)), "00")
+        << "buf_len: " << buf_len;
   }
 }
 

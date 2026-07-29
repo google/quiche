@@ -4801,7 +4801,7 @@ size_t QuicFramer::GetIetfAckFrameTimestampSize(const QuicAckFrame& ack) {
     return 0;
   }
 
-  return timestamp_list.EncodedSize();
+  return timestamp_list.MaxEncodedSize();
 }
 
 size_t QuicFramer::GetAckFrameSize(
@@ -5461,17 +5461,16 @@ bool QuicFramer::AppendIetfTimestampsToAckFrame(const QuicAckFrame& frame,
     return false;
   }
 
-  const QuicByteCount size = timestamp_list.EncodedSize();
-  if (size > writer->capacity() - writer->length()) {
-    QUIC_DVLOG(1) << "Insufficient room to write IETF ack receive timestamps. "
-                     "size_remain:"
-                  << (writer->capacity() - writer->length())
-                  << ", size_needed:" << size;
-    // Write a Timestamp Range Count of 0.
-    return writer->WriteVarInt62(0);
+  if (!timestamp_list.Write(*writer)) {
+    // This implies that even truncating the list to one `0x00` indicating no
+    // ranges has failed.
+    QUIC_BUG(quic_framer_ack_ts_failed_serialization)
+        << "Failed to serialize ACK timestamp list";
+    set_detailed_error("Failed to serialize ACK timestamp list");
+    return false;
   }
 
-  return timestamp_list.Write(*writer);
+  return true;
 }
 
 bool QuicFramer::AppendIetfAckFrameAndTypeByte(const QuicAckFrame& frame,

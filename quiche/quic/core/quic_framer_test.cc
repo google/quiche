@@ -7520,7 +7520,11 @@ TEST_P(QuicFramerTest, IetfAckReceiveTimestampsTruncate) {
   EXPECT_THAT(framer_.error(), IsQuicNoError());
 
   const QuicAckFrame& frame = *visitor_.ack_frames_[0];
-  EXPECT_TRUE(frame.received_packet_times.empty());
+  EXPECT_FALSE(frame.received_packet_times.empty());
+  EXPECT_LT(frame.received_packet_times.size(),
+            ack_frame.received_packet_times.size());
+  EXPECT_EQ(frame.received_packet_times.front().first,
+            ack_frame.received_packet_times.back().first);
 }
 
 // If there are too many ack ranges, they will be truncated to make room for a
@@ -15904,16 +15908,17 @@ TEST_P(QuicFramerTest, CheckAckPacketSizes) {
   ack_frame.ecn_counters = QuicEcnCounts(1, 2, 3);
   EXPECT_THAT(GetAckFrameSizes(ack_frame), ElementsAre(12, 15));
 
-  // The timestamp truncation is all-or-nothing, meaning that every new
-  // timestamp will result in the upper bound on the ACK size going up.
+  // ACK timestamps can be incrementally truncated to fit the available space,
+  // so each additional timestamp adds a new intermediate size to the list of
+  // possible ACK frame sizes.
   ack_frame.received_packet_times.push_back(
       {QuicPacketNumber(12), CreationTimePlus(12)});
   ack_frame.ecn_counters = std::nullopt;
-  EXPECT_THAT(GetAckFrameSizes(ack_frame), ElementsAre(9, 13));
+  EXPECT_THAT(GetAckFrameSizes(ack_frame), ElementsAre(9, 12, 13));
   ack_frame.received_packet_times.insert(
       ack_frame.received_packet_times.begin(),
       {QuicPacketNumber(6), CreationTimePlus(6)});
-  EXPECT_THAT(GetAckFrameSizes(ack_frame), ElementsAre(9, 16));
+  EXPECT_THAT(GetAckFrameSizes(ack_frame), ElementsAre(9, 12, 13, 16));
 }
 
 TEST_P(QuicFramerTest, CheckAckPacketSizesWithTwoRanges) {

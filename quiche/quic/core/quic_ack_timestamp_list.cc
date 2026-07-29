@@ -122,9 +122,9 @@ QuicAckTimestampList::QuicAckTimestampList(const QuicAckFrame& ack,
   }
 }
 
-QuicByteCount QuicAckTimestampList::EncodedSize() const {
+QuicByteCount QuicAckTimestampList::MaxEncodedSize() const {
   if (!error_.empty()) {
-    QUIC_LOG(DFATAL) << "EncodedSize() called when error() is non-empty";
+    QUIC_LOG(DFATAL) << "MaxEncodedSize() called when error() is non-empty";
     return 0;
   }
 
@@ -142,27 +142,91 @@ QuicByteCount QuicAckTimestampList::EncodedSize() const {
 }
 
 [[nodiscard]] bool QuicAckTimestampList::Write(QuicDataWriter& writer) const {
+  FixedIntEncoding encoding;
+  // Serialize the ACK timestamp list as a uint64_t array, truncating it as
+  // necessary.
+  if (!Encode(writer.remaining(), encoding)) {
+    return false;
+  }
+  // Convert `unit64_t`s into varint62.
+  for (const uint64_t num : encoding) {
+    if (!writer.WriteVarInt62(num)) {
+      return false;
+    }
+  }
+  return true;
+}
+
+[[nodiscard]] bool QuicAckTimestampList::Encode(
+    const QuicByteCount max_size, FixedIntEncoding& encoded) const {
   if (!error_.empty()) {
-    QUIC_LOG(DFATAL) << "Write() called when error() is non-empty";
+    QUIC_LOG(DFATAL) << "Encode() called when error() is non-empty";
+    return false;
+  }
+  if (max_size == 0) {
+    // `QuicFramer` enforces this by adding one byte to the minimum ACK size if
+    // timestamps are enabled.
+    QUIC_LOG(DFATAL) << "Encode() requires at least one byte to be available";
     return false;
   }
 
-  if (!writer.WriteVarInt62(ranges_.size())) {
-    return false;
+  // Pre-allocate memory assuming we will be able to write the entire range.
+  encoded.reserve(1 + ranges_.size() * 2 + timestamps_.size());
+
+  // `pending_size` represents the pessimistic estimate of how many bytes does
+  // the ACK timestamp block consume so far.  "Pessimistic" here means that all
+  // counts are assumed to be their largest possible value (which can
+  // potentially end up smaller due to truncation).
+  //
+  // Every write below (except the first one) is structured as follows:
+  //   - Add pessimistic estimate of bytes required to `pending_size`.
+  //   - Terminate if `pending_size` exceeds `max_size`.
+  //   - Append the actual data to `encoded`.
+  //   - Update the appropriate counter.
+  QuicByteCount pending_size = 0;
+
+  pending_size += VarintSize(ranges_.size());
+  encoded.push_back(0);
+  if (pending_size > max_size) {
+    // Since we have at least one byte available per the check above, write a
+    // zero range count.
+    return true;
   }
+  size_t range_count_offset = encoded.size() - 1;
+
   for (const TimestampRange& range : ranges_) {
-    if (!writer.WriteVarInt62(range.delta_from_largest_acked) ||
-        !writer.WriteVarInt62(range.timestamp_count)) {
-      return false;
-    }
     const absl::Span<const uint64_t> timestamps_in_range(
         timestamps_.begin() + range.first_timestamp, range.timestamp_count);
-    for (const uint64_t timestamp : timestamps_in_range) {
-      if (!writer.WriteVarInt62(timestamp)) {
-        return false;
+    if (timestamps_in_range.empty()) {
+      QUIC_LOG(DFATAL) << "Empty range encountered";
+      return false;
+    }
+
+    // Atomically write the range header and the first timestamp, since an empty
+    // range is generally unhelpful.
+    pending_size += VarintSize(range.delta_from_largest_acked) +
+                    VarintSize(range.timestamp_count) +
+                    VarintSize(timestamps_in_range[0]);
+    if (pending_size > max_size) {
+      return true;
+    }
+    encoded.push_back(range.delta_from_largest_acked);
+    encoded.push_back(1);
+    size_t timestamp_count_offset = encoded.size() - 1;
+    encoded.push_back(timestamps_in_range[0]);
+    ++encoded[range_count_offset];
+
+    // Write the rest of the range.
+    for (const uint64_t timestamp : timestamps_in_range.subspan(1)) {
+      pending_size += VarintSize(timestamp);
+      if (pending_size > max_size) {
+        return true;
       }
+      encoded.push_back(timestamp);
+      ++encoded[timestamp_count_offset];
     }
   }
+
   return true;
 }
 

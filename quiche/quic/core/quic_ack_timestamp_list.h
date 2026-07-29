@@ -35,8 +35,9 @@ class QUICHE_EXPORT QuicAckTimestampList {
   QuicAckTimestampList& operator=(const QuicAckTimestampList&) = delete;
   QuicAckTimestampList& operator=(QuicAckTimestampList&&) = delete;
 
-  // Returns the total encoded size of the ACK timestamp list in bytes.
-  QuicByteCount EncodedSize() const;
+  // Returns the encoded size of the ACK timestamp list in bytes, assuming no
+  // truncation occurs.
+  QuicByteCount MaxEncodedSize() const;
   // Serializes the timestamp list into the `writer`.  Returns false if the
   // writer runs out of space while serializing.
   [[nodiscard]] bool Write(QuicDataWriter& writer) const;
@@ -51,6 +52,15 @@ class QUICHE_EXPORT QuicAckTimestampList {
     uint32_t first_timestamp;
     uint32_t timestamp_count;
   };
+
+  // `FixedIntEncoding` represents a final encoding of the ACK block, except
+  // instead of varint62, uint64_t is used.
+  using FixedIntEncoding = absl::InlinedVector<uint64_t, 32>;
+
+  // Serializes the timestamp list into memory as an array of 64-bit integers
+  // rather than 62-bit varints.
+  [[nodiscard]] bool Encode(QuicByteCount max_size,
+                            FixedIntEncoding& encoded) const;
 
   // Timestamp ranges, in the order they would be encoded on the wire.
   absl::InlinedVector<TimestampRange, 2> ranges_;
