@@ -6,11 +6,11 @@
 #define QUICHE_QUIC_QBONE_QBONE_PACKET_EXCHANGER_H_
 
 #include <cstddef>
-#include <memory>
-#include <string>
+#include <vector>
 
-#include "absl/status/status.h"
-#include "absl/strings/string_view.h"
+#include "absl/status/statusor.h"
+#include "absl/time/time.h"
+#include "absl/types/span.h"
 #include "quiche/quic/qbone/qbone_client_interface.h"
 
 namespace quic {
@@ -19,17 +19,22 @@ namespace quic {
 // the local network with a QBONE connection.
 class QboneClientPacketExchanger {
  public:
-  // The owner might want to receive notifications when read or write fails.
-  // TODO(b/535980431): Simplify and make more generally useful, so that this
-  // can serve as the primary mechanism for passing out async results.
+  struct ReadResult {
+    absl::Span<const std::byte> packet;
+    absl::Duration latency;
+  };
+
+  struct WriteResult {
+    absl::Span<const std::byte> packet;
+    absl::Duration latency;
+  };
+
   class Visitor {
    public:
-    virtual ~Visitor() {}
-    virtual void OnReadError(const std::string& error) {}
-    virtual void OnWriteError(const std::string& error) {}
-    virtual absl::Status OnWrite(absl::string_view packet) {
-      return absl::OkStatus();
-    }
+    virtual ~Visitor() = default;
+
+    virtual void OnRead(absl::StatusOr<std::vector<ReadResult>> results) = 0;
+    virtual void OnWrite(absl::StatusOr<std::vector<WriteResult>> results) = 0;
   };
 
   virtual ~QboneClientPacketExchanger() = default;

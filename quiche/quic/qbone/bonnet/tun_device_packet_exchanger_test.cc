@@ -11,6 +11,7 @@
 
 #include <cerrno>
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <string>
 
@@ -18,11 +19,14 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/bonnet/mock_packet_exchanger_stats_interface.h"
+#include "quiche/quic/qbone/bonnet/mock_qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/mock_qbone_client.h"
 #include "quiche/quic/qbone/platform/mock_kernel.h"
 #include "quiche/quic/qbone/platform/mock_netlink.h"
+#include "quiche/quic/qbone/platform/netlink_interface.h"
 #include "quiche/quic/qbone/qbone_constants.h"
+#include "quiche/common/quiche_endian.h"
 
 namespace quic::test {
 namespace {
@@ -31,16 +35,17 @@ const size_t kMtu = 1000;
 const int kReadFd = 15;
 const int kWriteFd = 16;
 
+using ::absl_testing::IsOkAndHolds;
+using ::absl_testing::StatusIs;
+using ::quiche::QuicheEndian;
 using ::testing::_;
+using ::testing::ElementsAre;
+using ::testing::ElementsAreArray;
+using ::testing::Field;
+using ::testing::Ne;
+using ::testing::SizeIs;
 using ::testing::StrEq;
 using ::testing::StrictMock;
-
-class MockVisitor : public QboneClientPacketExchanger::Visitor {
- public:
-  MOCK_METHOD(void, OnReadError, (const std::string&), (override));
-  MOCK_METHOD(void, OnWriteError, (const std::string&), (override));
-  MOCK_METHOD(absl::Status, OnWrite, (absl::string_view), (override));
-};
 
 class TunDevicePacketExchangerTest : public QuicTest {
  protected:
@@ -54,7 +59,7 @@ class TunDevicePacketExchangerTest : public QuicTest {
   ~TunDevicePacketExchangerTest() override = default;
 
   MockKernel mock_kernel_;
-  StrictMock<MockVisitor> mock_visitor_;
+  StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor_;
   StrictMock<MockQboneClient> mock_client_;
   StrictMock<MockPacketExchangerStatsInterface> mock_stats_;
   TunDevicePacketExchanger exchanger_;
@@ -73,8 +78,8 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketError) {
         return -1;
       });
 
-  EXPECT_CALL(mock_visitor_, OnWriteError(_));
-  EXPECT_CALL(mock_visitor_, OnWrite(StrEq(packet))).Times(1);
+  EXPECT_CALL(mock_visitor_, OnWrite(StatusIs(Ne(absl::StatusCode::kOk))));
+  EXPECT_CALL(mock_stats_, OnWriteError(_));
   exchanger_.WritePacketToNetwork(packet.data(), packet.size());
 }
 
@@ -91,9 +96,8 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketBlocked) {
         return -1;
       });
 
-  EXPECT_CALL(mock_stats_, OnWriteError(_)).Times(1);
-  EXPECT_CALL(mock_visitor_, OnWrite(StrEq(packet))).Times(1);
-  EXPECT_CALL(mock_visitor_, OnWriteError(_)).Times(1);
+  EXPECT_CALL(mock_stats_, OnWriteError(_));
+  EXPECT_CALL(mock_visitor_, OnWrite(StatusIs(Ne(absl::StatusCode::kOk))));
   exchanger_.WritePacketToNetwork(packet.data(), packet.size());
 }
 
@@ -110,15 +114,21 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketSuccessfulWrite) {
             return packet.size();
           });
 
-  EXPECT_CALL(mock_stats_, OnPacketWritten(packet.size(), _)).Times(1);
-  EXPECT_CALL(mock_visitor_, OnWrite(StrEq(packet))).Times(1);
+  EXPECT_CALL(mock_stats_, OnPacketWritten(packet.size(), _));
+  EXPECT_CALL(
+      mock_visitor_,
+      OnWrite(IsOkAndHolds(ElementsAre(Field(
+          &QboneClientPacketExchanger::WriteResult::packet,
+          ElementsAreArray(reinterpret_cast<const std::byte*>(packet.data()),
+                           packet.size()))))))
+      .Times(1);
   exchanger_.WritePacketToNetwork(packet.data(), packet.size());
 }
 
 TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
   StrictMock<MockKernel> mock_kernel;
   StrictMock<MockNetlink> mock_netlink;
-  StrictMock<MockVisitor> mock_visitor;
+  StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor;
   StrictMock<MockPacketExchangerStatsInterface> mock_stats;
   TunDevicePacketExchanger tap_exchanger(kMtu, &mock_kernel, &mock_netlink,
                                          &mock_visitor, /*is_tap=*/true,
@@ -152,7 +162,7 @@ TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
 
         uint16_t proto;
         memcpy(&proto, first_buffer + 2 * ETH_ALEN, 2);
-        EXPECT_EQ(proto, absl::ghtons(ETH_P_IPV6));
+        EXPECT_EQ(proto, QuicheEndian::HostToNet16(ETH_P_IPV6));
 
         EXPECT_EQ(absl::string_view(static_cast<const char*>(iov[1].iov_base),
                                     iov[1].iov_len),
@@ -160,9 +170,13 @@ TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
         return ETH_HLEN + packet.length();
       });
 
-  EXPECT_CALL(mock_stats, OnPacketWritten(ETH_HLEN + packet.size(), _))
-      .Times(1);
-  EXPECT_CALL(mock_visitor, OnWrite(StrEq(packet))).Times(1);
+  EXPECT_CALL(mock_stats, OnPacketWritten(ETH_HLEN + packet.size(), _));
+  EXPECT_CALL(
+      mock_visitor,
+      OnWrite(IsOkAndHolds(ElementsAre(Field(
+          &QboneClientPacketExchanger::WriteResult::packet,
+          ElementsAreArray(reinterpret_cast<const std::byte*>(packet.data()),
+                           packet.size()))))));
 
   tap_exchanger.WritePacketToNetwork(packet.data(), packet.size());
 }
@@ -173,7 +187,8 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketError) {
         errno = ECOMM;
         return -1;
       });
-  EXPECT_CALL(mock_visitor_, OnReadError(_));
+  EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
+  EXPECT_CALL(mock_stats_, OnReadError(_));
   EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
 }
 
@@ -183,8 +198,8 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketBlocked) {
         errno = EAGAIN;
         return -1;
       });
-  EXPECT_CALL(mock_stats_, OnReadError(_)).Times(1);
-  EXPECT_CALL(mock_visitor_, OnReadError(_)).Times(1);
+  EXPECT_CALL(mock_stats_, OnReadError(_));
+  EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
   EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
 }
 
@@ -198,7 +213,13 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketSuccessfulRead) {
         return packet.size();
       });
   EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(packet)));
-  EXPECT_CALL(mock_stats_, OnPacketRead(_, _)).Times(1);
+  EXPECT_CALL(mock_stats_, OnPacketRead(_, _));
+  EXPECT_CALL(
+      mock_visitor_,
+      OnRead(IsOkAndHolds(ElementsAre(Field(
+          &QboneClientPacketExchanger::ReadResult::packet,
+          ElementsAreArray(reinterpret_cast<const std::byte*>(packet.data()),
+                           packet.size()))))));
   EXPECT_TRUE(exchanger_.ReadAndDeliverPacket(&mock_client_));
 }
 
@@ -242,6 +263,8 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketErrorWithNullVisitor) {
         return -1;
       });
 
+  EXPECT_CALL(mock_stats_, OnWriteError(_));
+
   exchanger.WritePacketToNetwork(packet.data(), packet.size());
 }
 
@@ -275,6 +298,7 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketErrorWithNullVisitor) {
         errno = ECOMM;
         return -1;
       });
+  EXPECT_CALL(mock_stats_, OnReadError(_));
   EXPECT_FALSE(exchanger.ReadAndDeliverPacket(&mock_client_));
 }
 
@@ -291,7 +315,7 @@ class TunDevicePacketExchangerTapTest : public QuicTest {
 
   MockKernel mock_kernel_;
   StrictMock<MockNetlink> mock_netlink_;
-  StrictMock<MockVisitor> mock_visitor_;
+  StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor_;
   StrictMock<MockQboneClient> mock_client_;
   StrictMock<MockPacketExchangerStatsInterface> mock_stats_;
   TunDevicePacketExchanger exchanger_;
@@ -308,7 +332,7 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapSuccess) {
       l3_payload;
 
   ethhdr eth_hdr{};
-  eth_hdr.h_proto = absl::ghtons(ETH_P_IPV6);
+  eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
 
   EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
       .WillOnce(
@@ -321,13 +345,19 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapSuccess) {
           });
 
   EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(l3_packet)));
-  EXPECT_CALL(mock_stats_, OnPacketRead(l3_packet.size(), _)).Times(1);
+  EXPECT_CALL(mock_stats_, OnPacketRead(l3_packet.size(), _));
+  EXPECT_CALL(
+      mock_visitor_,
+      OnRead(IsOkAndHolds(ElementsAre(Field(
+          &QboneClientPacketExchanger::ReadResult::packet,
+          ElementsAreArray(reinterpret_cast<const std::byte*>(l3_packet.data()),
+                           l3_packet.size()))))));
   EXPECT_TRUE(exchanger_.ReadAndDeliverPacket(&mock_client_));
 }
 
 TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapInvalidL2) {
   ethhdr eth_hdr{};
-  eth_hdr.h_proto = absl::ghtons(ETH_P_ARP);  // Non-IPv6
+  eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_ARP);  // Non-IPv6
 
   EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
       .WillOnce([eth_hdr](int fd, const struct iovec* iov, int iovcnt) {
@@ -335,7 +365,7 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapInvalidL2) {
         return ETH_HLEN + 10;  // Read some bytes
       });
 
-  EXPECT_CALL(mock_visitor_, OnReadError(_));
+  EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
   EXPECT_CALL(mock_stats_, OnReadError(_));
   EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
 }
@@ -359,7 +389,7 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
                   sizeof(target_address));
 
   ethhdr eth_hdr{};
-  eth_hdr.h_proto = absl::ghtons(ETH_P_IPV6);
+  eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
 
   EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
       .WillOnce(
@@ -382,8 +412,8 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
         return iov[0].iov_len + iov[1].iov_len;
       });
-  EXPECT_CALL(mock_stats_, OnPacketWritten(_, _)).Times(1);
-  EXPECT_CALL(mock_visitor_, OnWrite(_));
+  EXPECT_CALL(mock_stats_, OnPacketWritten(_, _));
+  EXPECT_CALL(mock_visitor_, OnWrite(IsOkAndHolds(SizeIs(1))));
 
   // ReadAndDeliverPacket should return false because packet was handled
   // internally (Neighbor Discovery).

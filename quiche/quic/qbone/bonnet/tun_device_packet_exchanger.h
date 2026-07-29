@@ -10,11 +10,13 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "absl/time/time.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
@@ -83,18 +85,19 @@ class TunDevicePacketExchanger : public QboneClientPacketExchanger {
   void InitializeEthHdr();
 
   L2ValidationResult ValidateL2Headers(const ethhdr& eth_header,
-                                       const QuicData& packet);
+                                       absl::Span<const std::byte> packet);
 
   int read_fd_ = -1;
   int write_fd_ = -1;
-  size_t mtu_;
   KernelInterface* kernel_;
   NetlinkInterface* netlink_;
   QboneClientPacketExchanger::Visitor* const absl_nullable visitor_;
   const std::string ifname_;
 
+  std::vector<std::byte> read_buffer_;
+
   const bool is_tap_;
-  ethhdr eth_hdr_;
+  ethhdr eth_hdr_ = {};
   bool eth_hdr_initialized_ = false;
 
   StatsInterface* stats_;
