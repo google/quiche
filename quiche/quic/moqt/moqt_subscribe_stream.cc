@@ -89,19 +89,23 @@ absl::Status MoqtSubscribeRequestStream::OnControlMessage(
         absl::InvalidArgumentError("REQUEST_OK received before SUBSCRIBE_OK"));
     return absl::OkStatus();
   }
-  auto status_or_params = PopParameters();
-  if (status_or_params.ok()) {
-    MessageParameters parameters = status_or_params.value();
-    // EXPIRES or LARGEST_OBJECT could be present in REQUEST_OK.
-    if (message.parameters.largest_object.has_value()) {
-      parameters.largest_object = message.parameters.largest_object;
-    }
-    if (message.parameters.expires.has_value()) {
-      parameters.expires = message.parameters.expires;
-    }
-    track_->Update(parameters);
+  absl::StatusOr<MessageParameters> old_parameters =
+      request_update_queue().NextParameters();
+  if (!old_parameters.ok()) {
+    return old_parameters.status();
   }
-  return MoqtBidiStreamBase::OnControlMessage(message);
+
+  // EXPIRES or LARGEST_OBJECT could be present in REQUEST_OK.
+  MessageParameters updated_parameters = *old_parameters;
+  if (message.parameters.largest_object.has_value()) {
+    updated_parameters.largest_object = message.parameters.largest_object;
+  }
+  if (message.parameters.expires.has_value()) {
+    updated_parameters.expires = message.parameters.expires;
+  }
+  track_->Update(updated_parameters);
+
+  return request_update_queue().OnControlMessage(message);
 }
 
 absl::Status MoqtSubscribeRequestStream::OnControlMessage(
@@ -109,15 +113,20 @@ absl::Status MoqtSubscribeRequestStream::OnControlMessage(
   MoqtRequestErrorInfo error_info{message.error_code, message.retry_interval,
                                   message.reason_phrase};
   if (track_->ErrorIsAllowed()) {
+    // The REQUEST_ERROR is a response to the SUBSCRIBE message.
     if (track_->visitor() != nullptr) {
       track_->visitor()->OnReply(track_->full_track_name(), error_info);
     }
     Fin();
     return absl::OkStatus();
   }
-  // In response to REQUEST_UPDATE, utilize the ResponseCallback and do not
-  // update parameters.
-  return MoqtBidiStreamBase::OnControlMessage(message);
+
+  // The REQUEST_ERROR is a response to the REQUEST_UPDATE message.
+  absl::Status status = request_update_queue().OnControlMessage(message);
+  if (status.ok()) {
+    Fin();
+  }
+  return status;
 }
 
 absl::Status MoqtSubscribeRequestStream::OnControlMessage(

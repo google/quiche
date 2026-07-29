@@ -91,33 +91,9 @@ absl::Status MoqtBidiStreamBase::SendRequestUpdate(
   request_update.request_id = request_id;
   request_update.existing_request_id = existing_request_id;
   request_update.parameters = parameters;
-  pending_responses_.push_back(std::move(callback));
-  pending_updates_.push_back(parameters);
+  request_update_queue_.Enqueue(parameters, std::move(callback));
   return SendOrBufferMessage(framer_->SerializeRequestUpdate(request_update),
                              /*fin=*/false);
-}
-
-absl::Status MoqtBidiStreamBase::OnControlMessage(
-    const MoqtRequestOk& message) {
-  if (pending_responses_.empty()) {
-    return absl::OkStatus();
-  }
-  std::move(pending_responses_.front())(message.parameters);
-  pending_responses_.pop_front();
-  return absl::OkStatus();
-}
-
-absl::Status MoqtBidiStreamBase::OnControlMessage(
-    const MoqtRequestError& message) {
-  if (pending_responses_.empty()) {
-    return absl::OkStatus();
-  }
-  std::move(pending_responses_.front())(MoqtRequestErrorInfo{
-      message.error_code, message.retry_interval, message.reason_phrase});
-  pending_responses_.clear();
-  pending_updates_.clear();
-  Fin();
-  return absl::OkStatus();
 }
 
 void MoqtBidiStreamBase::OnFatalError(absl::Status status) {

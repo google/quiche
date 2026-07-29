@@ -43,8 +43,8 @@ class MoqtSubscribeRequestStream : public MoqtBidiStreamBase {
   void OnStreamBound() override;
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override;
-  absl::Status OnControlMessage(const MoqtRequestOk& message) override;
-  absl::Status OnControlMessage(const MoqtRequestError& message) override;
+  absl::Status OnControlMessage(const MoqtRequestOk& message);
+  absl::Status OnControlMessage(const MoqtRequestError& message);
   absl::Status OnControlMessage(const MoqtSubscribeOk& message);
   absl::Status OnControlMessage(const MoqtPublishDone& message);
 
@@ -79,14 +79,6 @@ class MoqtSubscribeResponseStream : public MoqtBidiStreamBase {
   void OnStreamBound() override { stream_parser()->set_allow_fin(true); }
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override;
-  absl::Status OnControlMessage(const MoqtRequestOk& message) override {
-    return absl::InvalidArgumentError(
-        "REQUEST_OK not allowed from Subscriber on SUBSCRIBE stream");
-  }
-  absl::Status OnControlMessage(const MoqtRequestError& message) override {
-    return absl::InvalidArgumentError(
-        "REQUEST_ERROR not allowed from Subscriber on SUBSCRIBE stream");
-  }
 
   absl::Status OnControlMessage(const MoqtSubscribe& message);
   absl::Status OnControlMessage(const MoqtRequestUpdate& message);

@@ -41,11 +41,20 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
   void Detach() override { detached_ = true; }
   bool detached_ = false;
 
+  absl::Status OnControlMessage(const MoqtObjectAck&) {
+    // No-op used in the DispatchControlMessage test.
+    return absl::OkStatus();
+  }
+
   absl::Status OnControlMessage(const MoqtRequestOk& message) {
-    return MoqtBidiStreamBase::OnControlMessage(message);
+    return request_update_queue().OnControlMessage(message);
   }
   absl::Status OnControlMessage(const MoqtRequestError& message) {
-    return MoqtBidiStreamBase::OnControlMessage(message);
+    absl::Status status = request_update_queue().OnControlMessage(message);
+    if (status.ok()) {
+      Fin();
+    }
+    return status;
   }
 };
 
@@ -121,7 +130,7 @@ TEST_F(MoqtBidiStreamTest, DispatchControlMessage) {
   webtransport::test::InMemoryStream stream(0);
   stream_->BindStream(&stream);
   MoqtFramer framer(/*using_webtrans=*/true, quic::Perspective::IS_SERVER);
-  stream.Receive(framer.SerializeRequestOk(MoqtRequestOk()).AsStringView());
+  stream.Receive(framer.SerializeObjectAck(MoqtObjectAck()).AsStringView());
   stream_->OnCanRead();
 
   stream.Receive(framer.SerializeGoAway(MoqtGoAway()).AsStringView());

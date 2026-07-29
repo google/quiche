@@ -24,10 +24,10 @@
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
+#include "quiche/quic/moqt/moqt_request_update_queue.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_callbacks.h"
-#include "quiche/common/quiche_circular_deque.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -147,16 +147,8 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   virtual absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) = 0;
 
-  virtual absl::Status OnControlMessage(const MoqtRequestOk& message);
-  virtual absl::Status OnControlMessage(const MoqtRequestError& message);
-
-  absl::StatusOr<MessageParameters> PopParameters() {
-    if (pending_updates_.empty()) {
-      return absl::NotFoundError("Too many REQUEST_OK received");
-    }
-    MessageParameters parameters = pending_updates_.front();
-    pending_updates_.pop_front();
-    return parameters;
+  MoqtRequestUpdateQueue& request_update_queue() {
+    return request_update_queue_;
   }
 
   // Terminates the MoQT session due to a fatal error encountered.
@@ -177,8 +169,7 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   std::unique_ptr<MoqtControlStreamParser> absl_nullable stream_parser_;
   MoqtControlMessageParser message_parser_;
   MoqtControlMessageQueue outgoing_message_queue_;
-  quiche::QuicheCircularDeque<MoqtResponseCallback> pending_responses_;
-  quiche::QuicheCircularDeque<MessageParameters> pending_updates_;
+  MoqtRequestUpdateQueue request_update_queue_;
   SessionErrorCallback session_error_callback_;
 };
 

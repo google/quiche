@@ -165,10 +165,6 @@ class MockBidiStream : public MoqtBidiStreamBase {
   MOCK_METHOD(void, OnStreamBound, (), (override));
   MOCK_METHOD(absl::Status, OnRawControlMessage,
               (const MoqtRawControlMessage& message), (override));
-  MOCK_METHOD(absl::Status, OnControlMessage, (const MoqtRequestOk& message),
-              (override));
-  MOCK_METHOD(absl::Status, OnControlMessage, (const MoqtRequestError& message),
-              (override));
 };
 
 }  // namespace test

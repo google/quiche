@@ -570,14 +570,6 @@ TEST_F(MoqtPublishResponseStreamTest, DuplicatePublishOnDifferentStreams) {
   EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
 }
 
-TEST_F(MoqtPublishResponseStreamTest, ReceiveRequestOkAndErrorTodo) {
-  MoqtRequestOk request_ok;
-  QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
-
-  MoqtRequestError request_error;
-  QUICHE_EXPECT_OK(stream_->OnControlMessage(request_error));
-}
-
 TEST_F(MoqtPublishResponseStreamTest, TrackAndDetach) {
   MoqtPublish publish = DefaultPublish();
   EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))

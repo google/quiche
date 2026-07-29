@@ -302,13 +302,6 @@ TEST_F(MoqtSubscribeResponseStreamTest, ReceiveRequestUpdate) {
   EXPECT_CALL(mock_remove_callback_, Call(_));
 }
 
-TEST_F(MoqtSubscribeResponseStreamTest, ReceiveInvalidControlMessages) {
-  MoqtRequestOk request_ok;
-  EXPECT_FALSE(stream_->OnControlMessage(request_ok).ok());
-  MoqtRequestError request_error;
-  EXPECT_FALSE(stream_->OnControlMessage(request_error).ok());
-}
-
 TEST_F(MoqtSubscribeResponseStreamTest, ReceiveObjectAck) {
   EXPECT_CALL(visitor_, session).WillRepeatedly(Return(&webtrans_));
   EXPECT_CALL(visitor_, GetTrackPublisher(kTrackName))

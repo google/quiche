@@ -65,30 +65,22 @@ absl::Status MoqtPublishRequestStream::OnRawControlMessage(
       *this, message_parser(), message, "publish publisher");
 }
 
-// TODO(martinduke): When we allow the publisher to send REQUEST_UPDATE,
-// REQUEST_OK and REQUEST_ERROR processing need to check the request ID.
 absl::Status MoqtPublishRequestStream::OnControlMessage(
     const MoqtRequestOk& message) {
   if (message.request_id != publisher_->request_id()) {
-    OnFatalError(absl::InvalidArgumentError(
-        "REQUEST_OK does not match PUBLISH request ID"));
-    return absl::OkStatus();
+    return absl::InvalidArgumentError(
+        "REQUEST_OK does not match PUBLISH request ID");
   }
   std::move(response_callback_)(message.parameters);
   publisher_->Update(message.parameters);
-  // TODO(martinduke): Update() will not update group order because that is not
-  // allowed in REQUEST_UPDATE. PUBLISH_OK therefore needs to explicitly
-  // change the group order, but this would require reordering all streams by
-  // priority, and might create edge cases.
   return absl::OkStatus();
 }
 
 absl::Status MoqtPublishRequestStream::OnControlMessage(
     const MoqtRequestError& message) {
   if (message.request_id != publisher_->request_id()) {
-    OnFatalError(absl::InvalidArgumentError(
-        "REQUEST_OK does not match PUBLISH request ID"));
-    return absl::OkStatus();
+    return absl::InvalidArgumentError(
+        "REQUEST_OK does not match PUBLISH request ID");
   }
   std::move(response_callback_)(MoqtRequestErrorInfo{
       message.error_code, message.retry_interval, message.reason_phrase});
@@ -204,14 +196,18 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
 
 absl::Status MoqtPublishResponseStream::OnControlMessage(
     const MoqtRequestOk& message) {
-  // TODO(martinduke): Implement REQUEST_UPDATE.
-  return absl::OkStatus();
+  // TODO(martinduke): Process REQUEST_OK parameters.
+  return request_update_queue().OnControlMessage(message);
 }
 
 absl::Status MoqtPublishResponseStream::OnControlMessage(
     const MoqtRequestError& message) {
-  // TODO(martinduke): Implement REQUEST_UPDATE.
-  return absl::OkStatus();
+  // TODO(martinduke): Process REQUEST_OK parameters.
+  absl::Status status = request_update_queue().OnControlMessage(message);
+  if (status.ok()) {
+    Fin();
+  }
+  return status;
 }
 
 absl::Status MoqtPublishResponseStream::OnControlMessage(
