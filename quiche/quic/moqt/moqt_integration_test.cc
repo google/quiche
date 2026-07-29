@@ -28,6 +28,7 @@
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_probe_manager.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_relay_publisher.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
@@ -35,6 +36,8 @@
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/moqt/test_tools/moqt_simulator_harness.h"
 #include "quiche/quic/test_tools/quic_test_utils.h"
+#include "quiche/quic/test_tools/simulator/link.h"
+#include "quiche/quic/test_tools/simulator/simulator.h"
 #include "quiche/quic/test_tools/simulator/test_harness.h"
 #include "quic_trace/quic_trace.pb.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -1039,6 +1042,186 @@ TEST_F(MoqtIntegrationTest, ClientPublishServerSubscribe) {
   success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return publish_done; });
   EXPECT_TRUE(success);
+}
+
+// Repro for b/537862681
+TEST_F(MoqtIntegrationTest, RelayTwoClientsQueueClose) {
+  quic::simulator::Simulator simulator;
+  // Client 1 (Publisher Client)
+  MoqtClientEndpoint client1(&simulator, "Client1", "Relay1",
+                             kDefaultMoqtVersion);
+  // Relay's server endpoint facing Client 1
+  MoqtServerEndpoint relay_endpoint1(&simulator, "Relay1", "Client1",
+                                     kDefaultMoqtVersion);
+  // Client 2 (Subscriber Client)
+  MoqtClientEndpoint client2(&simulator, "Client2", "Relay2",
+                             kDefaultMoqtVersion);
+  // Relay's server endpoint facing Client 2
+  MoqtServerEndpoint relay_endpoint2(&simulator, "Relay2", "Client2",
+                                     kDefaultMoqtVersion);
+
+  // Wire up endpoints directly using SymmetricLink (no switch needed)
+  quic::simulator::SymmetricLink link1(
+      &client1, &relay_endpoint1,
+      quic::simulator::TestHarness::kClientBandwidth,
+      quic::simulator::TestHarness::kClientPropagationDelay);
+  quic::simulator::SymmetricLink link2(
+      &client2, &relay_endpoint2,
+      quic::simulator::TestHarness::kClientBandwidth,
+      quic::simulator::TestHarness::kClientPropagationDelay);
+
+  // Setup callbacks
+  MockSessionCallbacks client1_callbacks;
+  MockSessionCallbacks client2_callbacks;
+  MockSessionCallbacks relay1_callbacks;
+  MockSessionCallbacks relay2_callbacks;
+
+  client1.session()->callbacks() = client1_callbacks.AsSessionCallbacks();
+  client1.session()->callbacks().clock = simulator.GetClock();
+  client2.session()->callbacks() = client2_callbacks.AsSessionCallbacks();
+  client2.session()->callbacks().clock = simulator.GetClock();
+  relay_endpoint1.session()->callbacks() =
+      relay1_callbacks.AsSessionCallbacks();
+  relay_endpoint1.session()->callbacks().clock = simulator.GetClock();
+  relay_endpoint2.session()->callbacks() =
+      relay2_callbacks.AsSessionCallbacks();
+  relay_endpoint2.session()->callbacks().clock = simulator.GetClock();
+
+  // Configure MoqtRelayPublisher at the relay
+  MoqtRelayPublisher relay_publisher;
+  relay_endpoint1.session()->set_publisher(&relay_publisher);
+  relay_endpoint2.session()->set_publisher(&relay_publisher);
+
+  // Set up publish namespace callbacks to advertise namespace to the relay
+  // publisher
+  EXPECT_CALL(relay1_callbacks.incoming_publish_namespace_callback, Call)
+      .WillRepeatedly([&relay_publisher, &relay_endpoint1](
+                          const TrackNamespace& track_namespace,
+                          const std::optional<MessageParameters>& parameters,
+                          MoqtResponseCallback callback) {
+        if (parameters.has_value()) {
+          relay_publisher.OnPublishNamespace(track_namespace, *parameters,
+                                             relay_endpoint1.session(),
+                                             std::move(callback));
+        } else {
+          relay_publisher.OnPublishNamespaceDone(track_namespace,
+                                                 relay_endpoint1.session());
+        }
+      });
+
+  // Perform handshakes for both client/relay connections
+  client1.quic_session()->CryptoConnect();
+  client2.quic_session()->CryptoConnect();
+  bool client1_established = false;
+  bool client2_established = false;
+  bool relay1_established = false;
+  bool relay2_established = false;
+  EXPECT_CALL(client1_callbacks.session_established_callback, Call())
+      .WillOnce(Assign(&client1_established, true));
+  EXPECT_CALL(client2_callbacks.session_established_callback, Call())
+      .WillOnce(Assign(&client2_established, true));
+  EXPECT_CALL(relay1_callbacks.session_established_callback, Call())
+      .WillOnce(Assign(&relay1_established, true));
+  EXPECT_CALL(relay2_callbacks.session_established_callback, Call())
+      .WillOnce(Assign(&relay2_established, true));
+  bool success = simulator.RunUntilOrTimeout(
+      [&]() {
+        return client1_established && client2_established &&
+               relay1_established && relay2_established;
+      },
+      quic::simulator::TestHarness::kDefaultTimeout);
+  ASSERT_TRUE(success);
+
+  // Client 1 (Publisher) registers its local track publisher
+  MoqtKnownTrackPublisher client1_publisher;
+  client1.session()->set_publisher(&client1_publisher);
+  FullTrackName track_name("test", "track");
+  auto queue =
+      std::make_shared<MoqtOutgoingQueue>(track_name, simulator.GetClock());
+  client1_publisher.Add(queue);
+  // Client 1 publishes namespace "test" to the relay
+  bool publish_namespace_ok = false;
+  testing::MockFunction<void(
+      std::variant<MessageParameters, MoqtRequestErrorInfo>)>
+      publish_response_callback;
+  EXPECT_CALL(publish_response_callback, Call)
+      .WillOnce(
+          [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
+            publish_namespace_ok =
+                std::holds_alternative<MessageParameters>(response);
+          });
+  client1.session()->PublishNamespace(
+      TrackNamespace{"test"}, MessageParameters(),
+      publish_response_callback.AsStdFunction(), [](MoqtRequestErrorInfo) {});
+  success = simulator.RunUntilOrTimeout(
+      [&]() { return publish_namespace_ok; },
+      quic::simulator::TestHarness::kDefaultTimeout);
+  ASSERT_TRUE(success);
+
+  // Client 2 subscribes to the track from the relay
+  MockLiveSubscriberVisitor subscriber_visitor;
+  bool subscribe_acknowledged = false;
+  EXPECT_CALL(subscriber_visitor, OnReply)
+      .WillOnce(
+          [&](const FullTrackName&,
+              std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) {
+            subscribe_acknowledged =
+                std::holds_alternative<SubscribeOkData>(response);
+          });
+
+  client2.session()->Subscribe(track_name, &subscriber_visitor,
+                               MessageParameters());
+  success = simulator.RunUntilOrTimeout(
+      [&]() { return subscribe_acknowledged; },
+      quic::simulator::TestHarness::kDefaultTimeout);
+  ASSERT_TRUE(success);
+
+  // Publisher (Client 1) pushes an initial object
+  queue->AddObject(quiche::QuicheMemSlice::Copy("object content"), true);
+  bool received_object = false;
+  EXPECT_CALL(subscriber_visitor, OnObjectFragment)
+      .WillOnce([&](const FullTrackName& full_track_name,
+                    const PublishedObjectMetadata& metadata,
+                    absl::string_view object, uint64_t offset) {
+        EXPECT_EQ(full_track_name, track_name);
+        EXPECT_EQ(metadata.location.group, 0u);
+        EXPECT_EQ(metadata.location.object, 0u);
+        EXPECT_EQ(metadata.status, MoqtObjectStatus::kNormal);
+        EXPECT_EQ(object, "object content");
+        received_object = true;
+      });
+  success = simulator.RunUntilOrTimeout(
+      [&]() { return received_object; },
+      quic::simulator::TestHarness::kDefaultTimeout);
+  ASSERT_TRUE(success);
+
+  // Now, Client 1 closes the queue
+  queue->Close();
+  bool received_eog = false;
+  bool received_eof = false;
+  EXPECT_CALL(subscriber_visitor, OnObjectFragment)
+      .WillOnce([&](const FullTrackName& full_track_name,
+                    const PublishedObjectMetadata& metadata,
+                    absl::string_view object, uint64_t offset) {
+        EXPECT_EQ(full_track_name, track_name);
+        EXPECT_EQ(metadata.location.group, 0u);
+        EXPECT_EQ(metadata.location.object, 1u);
+        EXPECT_EQ(metadata.status, MoqtObjectStatus::kEndOfGroup);
+        received_eog = true;
+      })
+      .WillOnce([&](const FullTrackName& full_track_name,
+                    const PublishedObjectMetadata& metadata,
+                    absl::string_view object, uint64_t offset) {
+        EXPECT_EQ(full_track_name, track_name);
+        EXPECT_EQ(metadata.location.group, 1u);
+        EXPECT_EQ(metadata.location.object, 0u);
+        EXPECT_EQ(metadata.status, MoqtObjectStatus::kEndOfTrack);
+        received_eof = true;
+      });
+  success = simulator.RunUntilOrTimeout(
+      [&]() { return /*received_eog &&*/ received_eof; },
+      quic::simulator::TestHarness::kDefaultTimeout);
+  ASSERT_TRUE(success);
 }
 
 }  // namespace

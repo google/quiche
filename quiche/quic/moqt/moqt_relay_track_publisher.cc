@@ -230,9 +230,6 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnNewObjectAvailable(metadata.location, metadata.subgroup,
                                    metadata.publisher_priority);
-    if (last_object_in_stream) {
-      listener->OnNewFinAvailable(metadata.location, *(metadata.subgroup));
-    }
   }
 }
 
@@ -281,6 +278,9 @@ void MoqtRelayTrackPublisher::OnStreamFin(const FullTrackName&,
     return;
   }
   CachedObject& last_object = subgroup_it->second.rbegin()->second;
+  if (last_object.fin_after_this()) {
+    return;
+  }
   last_object.set_fin_after_this(true);
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnNewFinAvailable(last_object.metadata().location,

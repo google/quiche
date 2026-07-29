@@ -76,10 +76,6 @@ class MoqtRelayTrackPublisherTest : public quiche::test::QuicheTest {
                      bool fin_after_this = false) {
     EXPECT_CALL(listener_,
                 OnNewObjectAvailable(location, Optional(subgroup), 128));
-    if (fin_after_this || status == MoqtObjectStatus::kEndOfTrack ||
-        status == MoqtObjectStatus::kEndOfGroup) {
-      EXPECT_CALL(listener_, OnNewFinAvailable(location, subgroup));
-    }
     publisher_.OnObjectFragment(
         kTrackName,
         PublishedObjectMetadata{location, subgroup, "", status, 128,
