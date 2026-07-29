@@ -83,7 +83,8 @@ class MoqtTrackPublisher {
   // whenever they are sent.  Once an object is not available via the cache, it
   // can no longer be sent; this ensures that objects are not buffered forever.
   //
-  // This method returns nullopt if the object is not currently available.
+  // This method returns nullopt if the object is not available, or a fragment
+  // at |offset| > 0 is not available.
   // If |subgroup| is nullopt, the object is a datagram.
   virtual std::optional<PublishedObject> GetCachedObject(
       uint64_t group, std::optional<uint64_t> subgroup, uint64_t min_object,

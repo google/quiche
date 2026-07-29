@@ -331,6 +331,10 @@ std::optional<PublishedObject> MoqtRelayTrackPublisher::GetCachedObject(
     // No object after the last one received.
     return std::nullopt;
   }
+  if (offset > 0 && object_it->second.payload_received() <= offset) {
+    // No new data.
+    return std::nullopt;
+  }
   return object_it->second.ToPublishedObject(offset);
 }
 
