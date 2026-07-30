@@ -5,6 +5,7 @@
 #include "quiche/quic/core/http/quic_spdy_stream_body_manager.h"
 
 #include <algorithm>
+#include <iterator>
 #include <numeric>
 #include <string>
 #include <vector>
@@ -79,7 +80,7 @@ TEST_F(QuicSpdyStreamBodyManagerTest, OnBodyConsumed) {
   };
 
   for (size_t test_case_index = 0;
-       test_case_index < ABSL_ARRAYSIZE(kOnBodyConsumedTestData);
+       test_case_index < std::size(kOnBodyConsumedTestData);
        ++test_case_index) {
     const std::vector<QuicByteCount>& frame_header_lengths =
         kOnBodyConsumedTestData[test_case_index].frame_header_lengths;
@@ -132,7 +133,7 @@ TEST_F(QuicSpdyStreamBodyManagerTest, PeekBody) {
   };
 
   for (size_t test_case_index = 0;
-       test_case_index < ABSL_ARRAYSIZE(kPeekBodyTestData); ++test_case_index) {
+       test_case_index < std::size(kPeekBodyTestData); ++test_case_index) {
     const std::vector<QuicByteCount>& frame_header_lengths =
         kPeekBodyTestData[test_case_index].frame_header_lengths;
     const std::vector<const char*>& frame_payloads =
@@ -225,7 +226,7 @@ TEST_F(QuicSpdyStreamBodyManagerTest, ReadBody) {
   };
 
   for (size_t test_case_index = 0;
-       test_case_index < ABSL_ARRAYSIZE(kReadBodyTestData); ++test_case_index) {
+       test_case_index < std::size(kReadBodyTestData); ++test_case_index) {
     const std::vector<QuicByteCount>& frame_header_lengths =
         kReadBodyTestData[test_case_index].frame_header_lengths;
     const std::vector<const char*>& frame_payloads =

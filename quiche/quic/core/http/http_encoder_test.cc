@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/http/http_encoder.h"
 
+#include <iterator>
 #include <string>
 
 #include "absl/base/macros.h"
@@ -21,9 +22,9 @@ TEST(HttpEncoderTest, SerializeDataFrameHeader) {
       /* payload_length = */ 5, quiche::SimpleBufferAllocator::Get());
   char output[] = {0x00,   // type (DATA)
                    0x05};  // length
-  EXPECT_EQ(ABSL_ARRAYSIZE(output), buffer.size());
+  EXPECT_EQ(std::size(output), buffer.size());
   quiche::test::CompareCharArraysWithHexError(
-      "DATA", buffer.data(), buffer.size(), output, ABSL_ARRAYSIZE(output));
+      "DATA", buffer.data(), buffer.size(), output, std::size(output));
 }
 
 TEST(HttpEncoderTest, SerializeHeadersFrameHeader) {
@@ -31,9 +32,8 @@ TEST(HttpEncoderTest, SerializeHeadersFrameHeader) {
       HttpEncoder::SerializeHeadersFrameHeader(/* payload_length = */ 7);
   char output[] = {0x01,   // type (HEADERS)
                    0x07};  // length
-  quiche::test::CompareCharArraysWithHexError("HEADERS", header.data(),
-                                              header.length(), output,
-                                              ABSL_ARRAYSIZE(output));
+  quiche::test::CompareCharArraysWithHexError(
+      "HEADERS", header.data(), header.length(), output, std::size(output));
 }
 
 TEST(HttpEncoderTest, SerializeSettingsFrame) {
@@ -51,7 +51,7 @@ TEST(HttpEncoderTest, SerializeSettingsFrame) {
                    0x04};       // content
   std::string frame = HttpEncoder::SerializeSettingsFrame(settings);
   quiche::test::CompareCharArraysWithHexError(
-      "SETTINGS", frame.data(), frame.length(), output, ABSL_ARRAYSIZE(output));
+      "SETTINGS", frame.data(), frame.length(), output, std::size(output));
 }
 
 TEST(HttpEncoderTest, SerializeGoAwayFrame) {
@@ -62,7 +62,7 @@ TEST(HttpEncoderTest, SerializeGoAwayFrame) {
                    0x01};  // ID
   std::string frame = HttpEncoder::SerializeGoAwayFrame(goaway);
   quiche::test::CompareCharArraysWithHexError(
-      "GOAWAY", frame.data(), frame.length(), output, ABSL_ARRAYSIZE(output));
+      "GOAWAY", frame.data(), frame.length(), output, std::size(output));
 }
 
 TEST(HttpEncoderTest, SerializePriorityUpdateFrame) {
@@ -76,7 +76,7 @@ TEST(HttpEncoderTest, SerializePriorityUpdateFrame) {
       HttpEncoder::SerializePriorityUpdateFrame(priority_update1);
   quiche::test::CompareCharArraysWithHexError(
       "PRIORITY_UPDATE", frame1.data(), frame1.length(),
-      reinterpret_cast<char*>(output1), ABSL_ARRAYSIZE(output1));
+      reinterpret_cast<char*>(output1), std::size(output1));
 
   PriorityUpdateFrame priority_update2;
   priority_update2.prioritized_element_id = 0x05;
@@ -91,7 +91,7 @@ TEST(HttpEncoderTest, SerializePriorityUpdateFrame) {
       HttpEncoder::SerializePriorityUpdateFrame(priority_update2);
   quiche::test::CompareCharArraysWithHexError(
       "PRIORITY_UPDATE", frame2.data(), frame2.length(),
-      reinterpret_cast<char*>(output2), ABSL_ARRAYSIZE(output2));
+      reinterpret_cast<char*>(output2), std::size(output2));
 }
 
 TEST(HttpEncoderTest, SerializeEmptyOriginFrame) {
@@ -102,7 +102,7 @@ TEST(HttpEncoderTest, SerializeEmptyOriginFrame) {
   std::string output = HttpEncoder::SerializeOriginFrame(frame);
   quiche::test::CompareCharArraysWithHexError(
       "ORIGIN", output.data(), output.length(),
-      reinterpret_cast<char*>(expected), ABSL_ARRAYSIZE(expected));
+      reinterpret_cast<char*>(expected), std::size(expected));
 }
 
 TEST(HttpEncoderTest, SerializeOriginFrame) {
@@ -118,7 +118,7 @@ TEST(HttpEncoderTest, SerializeOriginFrame) {
   std::string output = HttpEncoder::SerializeOriginFrame(frame);
   quiche::test::CompareCharArraysWithHexError(
       "ORIGIN", output.data(), output.length(),
-      reinterpret_cast<char*>(expected), ABSL_ARRAYSIZE(expected));
+      reinterpret_cast<char*>(expected), std::size(expected));
 }
 
 TEST(HttpEncoderTest, SerializeAcceptChFrame) {
@@ -129,7 +129,7 @@ TEST(HttpEncoderTest, SerializeAcceptChFrame) {
   std::string frame1 = HttpEncoder::SerializeAcceptChFrame(accept_ch);
   quiche::test::CompareCharArraysWithHexError(
       "ACCEPT_CH", frame1.data(), frame1.length(),
-      reinterpret_cast<char*>(output1), ABSL_ARRAYSIZE(output1));
+      reinterpret_cast<char*>(output1), std::size(output1));
 
   accept_ch.entries.push_back({"foo", "bar"});
   uint8_t output2[] = {0x40, 0x89,               // type (ACCEPT_CH)
@@ -140,7 +140,7 @@ TEST(HttpEncoderTest, SerializeAcceptChFrame) {
   std::string frame2 = HttpEncoder::SerializeAcceptChFrame(accept_ch);
   quiche::test::CompareCharArraysWithHexError(
       "ACCEPT_CH", frame2.data(), frame2.length(),
-      reinterpret_cast<char*>(output2), ABSL_ARRAYSIZE(output2));
+      reinterpret_cast<char*>(output2), std::size(output2));
 }
 
 TEST(HttpEncoderTest, SerializeWebTransportStreamFrameHeader) {
@@ -161,7 +161,7 @@ TEST(HttpEncoderTest, SerializeMetadataFrameHeader) {
   char output[] = {0x40, 0x4d,  // type (METADATA, 0x4d, varint encoded)
                    0x07};       // length
   quiche::test::CompareCharArraysWithHexError(
-      "METADATA", frame.data(), frame.length(), output, ABSL_ARRAYSIZE(output));
+      "METADATA", frame.data(), frame.length(), output, std::size(output));
 }
 
 }  // namespace test

@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/http/http_decoder.h"
 
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -676,7 +677,7 @@ TEST_F(HttpDecoderTest, MalformedSettingsFrame) {
 
   writer.WriteStringPiece("Malformed payload");
   EXPECT_CALL(visitor_, OnError(&decoder_));
-  EXPECT_EQ(5u, decoder_.ProcessInput(input, ABSL_ARRAYSIZE(input)));
+  EXPECT_EQ(5u, decoder_.ProcessInput(input, std::size(input)));
   EXPECT_THAT(decoder_.error(), IsError(QUIC_HTTP_FRAME_TOO_LARGE));
   EXPECT_EQ("Frame is too large.", decoder_.error_detail());
 }

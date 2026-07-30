@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <array>
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -257,7 +258,7 @@ class TestStream : public QuicSpdyStream {
       char buffer[2048];
       struct iovec vec;
       vec.iov_base = buffer;
-      vec.iov_len = ABSL_ARRAYSIZE(buffer);
+      vec.iov_len = std::size(buffer);
       size_t bytes_read = Readv(&vec, 1);
       data_ += std::string(buffer, bytes_read);
     }
@@ -871,10 +872,10 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersAndBodyReadv) {
   stream_->ConsumeHeaderList();
 
   char buffer[2048];
-  ASSERT_LT(data.length(), ABSL_ARRAYSIZE(buffer));
+  ASSERT_LT(data.length(), std::size(buffer));
   struct iovec vec;
   vec.iov_base = buffer;
-  vec.iov_len = ABSL_ARRAYSIZE(buffer);
+  vec.iov_len = std::size(buffer);
 
   size_t bytes_read = stream_->Readv(&vec, 1);
   QuicStreamPeer::CloseReadSide(stream_);
@@ -896,9 +897,9 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersAndLargeBodySmallReadv) {
   char buffer2[2048];
   struct iovec vec[2];
   vec[0].iov_base = buffer;
-  vec[0].iov_len = ABSL_ARRAYSIZE(buffer);
+  vec[0].iov_len = std::size(buffer);
   vec[1].iov_base = buffer2;
-  vec[1].iov_len = ABSL_ARRAYSIZE(buffer2);
+  vec[1].iov_len = std::size(buffer2);
   size_t bytes_read = stream_->Readv(vec, 2);
   EXPECT_EQ(2048u * 2, bytes_read);
   EXPECT_EQ(body.substr(0, 2048), std::string(buffer, 2048));
@@ -963,7 +964,7 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersAndBodyIncrementalReadv) {
   char buffer[1];
   struct iovec vec;
   vec.iov_base = buffer;
-  vec.iov_len = ABSL_ARRAYSIZE(buffer);
+  vec.iov_len = std::size(buffer);
 
   for (size_t i = 0; i < body.length(); ++i) {
     size_t bytes_read = stream_->Readv(&vec, 1);
@@ -988,9 +989,9 @@ TEST_P(QuicSpdyStreamTest, ProcessHeadersUsingReadvWithMultipleIovecs) {
   char buffer2[1];
   struct iovec vec[2];
   vec[0].iov_base = buffer1;
-  vec[0].iov_len = ABSL_ARRAYSIZE(buffer1);
+  vec[0].iov_len = std::size(buffer1);
   vec[1].iov_base = buffer2;
-  vec[1].iov_len = ABSL_ARRAYSIZE(buffer2);
+  vec[1].iov_len = std::size(buffer2);
 
   for (size_t i = 0; i < body.length(); i += 2) {
     size_t bytes_read = stream_->Readv(vec, 2);
@@ -2225,7 +2226,7 @@ TEST_P(QuicSpdyStreamTest, ProcessBodyAfterTrailers) {
   char buffer[2048];
   struct iovec vec;
   vec.iov_base = buffer;
-  vec.iov_len = ABSL_ARRAYSIZE(buffer);
+  vec.iov_len = std::size(buffer);
   size_t bytes_read = stream_->Readv(&vec, 1);
   EXPECT_EQ(kDataFramePayload, absl::string_view(buffer, bytes_read));
 
@@ -3790,7 +3791,7 @@ TEST_P(QuicSpdyStreamTest, ReadAfterReset) {
   char buffer[100];
   struct iovec vec;
   vec.iov_base = buffer;
-  vec.iov_len = ABSL_ARRAYSIZE(buffer);
+  vec.iov_len = std::size(buffer);
 
   size_t bytes_read = stream_->Readv(&vec, 1);
   EXPECT_EQ(0u, bytes_read);

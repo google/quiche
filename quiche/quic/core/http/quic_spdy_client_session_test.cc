@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/http/quic_spdy_client_session.h"
 
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -252,7 +253,7 @@ TEST_P(QuicSpdyClientSessionTest, NoEncryptionAfterInitialEncryption) {
   // Verify that no data may be send on existing streams.
   char data[] = "hello world";
   QuicConsumedData consumed =
-      session_->WritevData(stream->id(), ABSL_ARRAYSIZE(data), 0, NO_FIN,
+      session_->WritevData(stream->id(), std::size(data), 0, NO_FIN,
                            NOT_RETRANSMISSION, ENCRYPTION_INITIAL);
   EXPECT_EQ(0u, consumed.bytes_consumed);
   EXPECT_FALSE(consumed.fin_consumed);

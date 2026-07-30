@@ -5,6 +5,7 @@
 #include "quiche/quic/core/http/quic_spdy_session.h"
 
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -2495,7 +2496,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamType) {
   CompleteHandshake();
   char input[] = {0x04,            // type
                   'a', 'b', 'c'};  // data
-  absl::string_view payload(input, ABSL_ARRAYSIZE(input));
+  absl::string_view payload(input, std::size(input));
 
   // This is a server test with a client-initiated unidirectional stream.
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
@@ -2543,7 +2544,7 @@ TEST_P(QuicSpdySessionTestServer, SimplePendingStreamTypeOutOfOrderDelivery) {
   CompleteHandshake();
   char input[] = {0x04,            // type
                   'a', 'b', 'c'};  // data
-  absl::string_view payload(input, ABSL_ARRAYSIZE(input));
+  absl::string_view payload(input, std::size(input));
 
   // This is a server test with a client-initiated unidirectional stream.
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
@@ -2585,7 +2586,7 @@ TEST_P(QuicSpdySessionTestServer,
   CompleteHandshake();
   char input[] = {0x41, 0x00,      // type (256)
                   'a', 'b', 'c'};  // data
-  absl::string_view payload(input, ABSL_ARRAYSIZE(input));
+  absl::string_view payload(input, std::size(input));
 
   // This is a server test with a client-initiated unidirectional stream.
   QuicStreamId stream_id = QuicUtils::GetFirstUnidirectionalStreamId(
@@ -3276,7 +3277,7 @@ TEST_P(QuicSpdySessionTestServer, PeerClosesCriticalReceiveStream) {
       {kQpackEncoderStream, "RESET_STREAM received for QPACK receive stream"},
       {kQpackDecoderStream, "RESET_STREAM received for QPACK receive stream"},
   };
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(kTestData); ++i) {
+  for (size_t i = 0; i < std::size(kTestData); ++i) {
     QuicStreamId stream_id =
         GetNthClientInitiatedUnidirectionalStreamId(transport_version(), i + 1);
     const QuicByteCount data_length = 1;
