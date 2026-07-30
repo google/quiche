@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/chlo_extractor.h"
 
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -95,7 +96,7 @@ class ChloExtractorTest : public QuicTestWithParam<ParsedQuicVersion> {
     EXPECT_TRUE(packet != nullptr);
     size_t encrypted_length =
         framer.EncryptPayload(ENCRYPTION_INITIAL, header.packet_number, *packet,
-                              buffer_, ABSL_ARRAYSIZE(buffer_));
+                              buffer_, std::size(buffer_));
     ASSERT_NE(0u, encrypted_length);
     packet_ = std::make_unique<QuicEncryptedPacket>(buffer_, encrypted_length);
     EXPECT_TRUE(packet_ != nullptr);

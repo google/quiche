@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_socket_address_coder.h"
 
+#include <iterator>
 #include <string>
 
 #include "absl/base/macros.h"
@@ -113,7 +114,7 @@ TEST_F(QuicSocketAddressCoderTest, EncodeAndDecode) {
       {"::1", 65534},
   };
 
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(test_case); i++) {
+  for (size_t i = 0; i < std::size(test_case); i++) {
     QuicIpAddress ip;
     ASSERT_TRUE(ip.FromString(test_case[i].ip_literal));
     QuicSocketAddressCoder encoder(QuicSocketAddress(ip, test_case[i].port));

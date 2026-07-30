@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -381,7 +382,7 @@ TEST_P(TlsClientHandshakerTest, ConnectionClosedOnTlsError) {
   };
   stream()->crypto_message_parser()->ProcessInput(
       absl::string_view(bogus_handshake_message,
-                        ABSL_ARRAYSIZE(bogus_handshake_message)),
+                        std::size(bogus_handshake_message)),
       ENCRYPTION_INITIAL);
 
   EXPECT_FALSE(stream()->one_rtt_keys_available());

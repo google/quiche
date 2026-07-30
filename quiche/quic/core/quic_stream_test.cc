@@ -6,6 +6,7 @@
 
 #include <cmath>
 #include <cstddef>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -86,7 +87,7 @@ class TestStream : public QuicStream {
 
   void ConsumeData(size_t num_bytes) {
     char buffer[1024];
-    ASSERT_GT(ABSL_ARRAYSIZE(buffer), num_bytes);
+    ASSERT_GT(std::size(buffer), num_bytes);
     struct iovec iov;
     iov.iov_base = buffer;
     iov.iov_len = num_bytes;

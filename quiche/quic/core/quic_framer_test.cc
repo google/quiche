@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -1151,7 +1152,7 @@ TEST_P(QuicFramerTest, LargePacket) {
 
   memset(packet + header_size, 0, kMaxIncomingPacketSize - header_size);
 
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
 
   ASSERT_TRUE(visitor_.header_.get());
@@ -1274,11 +1275,11 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet49);
     p = packet49;
-    p_length = ABSL_ARRAYSIZE(packet49);
+    p_length = std::size(packet49);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
@@ -1309,7 +1310,7 @@ TEST_P(QuicFramerTest, LongPacketHeaderWithBothConnectionIds) {
 
 TEST_P(QuicFramerTest, AllZeroPacketParsingFails) {
   unsigned char packet[1200] = {};
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   PacketHeaderFormat format = GOOGLE_QUIC_Q043_PACKET;
   QuicLongHeaderType long_packet_type = INVALID_PACKET_TYPE;
   bool version_flag = false;
@@ -1368,11 +1369,11 @@ TEST_P(QuicFramerTest, ParsePublicHeader) {
   };
   // clang-format on
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet49);
     p = packet49;
-    p_length = ABSL_ARRAYSIZE(packet49);
+    p_length = std::size(packet49);
   }
 
   uint8_t first_byte = 0x33;
@@ -1436,7 +1437,7 @@ TEST_P(QuicFramerTest, ParsePublicHeaderProxBadSourceConnectionIdLength) {
   };
   // clang-format on
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
 
   uint8_t first_byte = 0x33;
   PacketHeaderFormat format = GOOGLE_QUIC_Q043_PACKET;
@@ -1689,7 +1690,7 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToClient) {
     0x00,
   };
   // clang-format on
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   EXPECT_EQ("", framer_.detailed_error());
@@ -1720,7 +1721,7 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromShortHeaderToServer) {
     0x00,
   };
   // clang-format on
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   EXPECT_EQ("", framer_.detailed_error());
@@ -2116,10 +2117,10 @@ TEST_P(QuicFramerTest, PacketWithDiversificationNonce) {
   }
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     p = packet49;
-    p_size = ABSL_ARRAYSIZE(packet49);
+    p_size = std::size(packet49);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
@@ -2204,16 +2205,16 @@ TEST_P(QuicFramerTest, LargePublicFlagWithMismatchedVersions) {
   switch (framer_.transport_version()) {
     case QUIC_VERSION_46:
       p = old_packet;
-      p_size = ABSL_ARRAYSIZE(old_packet);
+      p_size = std::size(old_packet);
       break;
     case QUIC_VERSION_IETF_DRAFT_29:
     case QUIC_VERSION_IETF_RFC_V1:
       p = packetv2;
-      p_size = ABSL_ARRAYSIZE(packetv2);
+      p_size = std::size(packetv2);
       break;
     case QUIC_VERSION_IETF_RFC_V2:
       p = packetv1;
-      p_size = ABSL_ARRAYSIZE(packetv1);
+      p_size = std::size(packetv1);
       break;
     default:
       p = packetv2;  // To silence warnings.
@@ -2307,10 +2308,10 @@ TEST_P(QuicFramerTest, PaddingFrame) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
@@ -2530,10 +2531,10 @@ TEST_P(QuicFramerTest, MissingDiversificationNonce) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     p = packet49;
-    p_length = ABSL_ARRAYSIZE(packet49);
+    p_length = std::size(packet49);
   }
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
@@ -2913,7 +2914,7 @@ TEST_P(QuicFramerTest, RejectPacket) {
   };
   // clang-format on
 
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
@@ -2940,7 +2941,7 @@ TEST_P(QuicFramerTest, RejectPublicHeader) {
   };
   // clang-format on
 
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
@@ -4141,7 +4142,7 @@ TEST_P(QuicFramerTest, AckFrameTimeStampDeltaTooHigh) {
     // ACK Timestamp is not a feature of IETF QUIC.
     return;
   }
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
   EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
                                "delta_from_largest_observed too high"));
@@ -4183,7 +4184,7 @@ TEST_P(QuicFramerTest, AckFrameTimeStampSecondDeltaTooHigh) {
     // ACK Timestamp is not a feature of IETF QUIC.
     return;
   }
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
   EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
                                "delta_from_largest_observed too high"));
@@ -4254,7 +4255,7 @@ TEST_P(QuicFramerTest, InvalidNewStopWaitingFrame) {
   };
   // clang-format on
 
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
   EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_STOP_WAITING_DATA));
   EXPECT_EQ("Invalid unacked delta.", framer_.detailed_error());
@@ -5098,9 +5099,8 @@ TEST_P(QuicFramerTest, PingFrame) {
   QuicEncryptedPacket encrypted(
       AsChars(VersionIsIetfQuic(framer_.transport_version()) ? packet_ietf
                                                              : packet),
-      VersionIsIetfQuic(framer_.transport_version())
-          ? ABSL_ARRAYSIZE(packet_ietf)
-          : ABSL_ARRAYSIZE(packet),
+      VersionIsIetfQuic(framer_.transport_version()) ? std::size(packet_ietf)
+                                                     : std::size(packet),
       false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 
@@ -5135,7 +5135,7 @@ TEST_P(QuicFramerTest, HandshakeDoneFrame) {
     return;
   }
 
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
@@ -5175,7 +5175,7 @@ TEST_P(QuicFramerTest, ParseAckFrequencyFrame) {
     return;
   }
 
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
@@ -5212,7 +5212,7 @@ TEST_P(QuicFramerTest, ParseImmediateAckFrame) {
     return;
   }
 
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
@@ -5253,7 +5253,7 @@ TEST_P(QuicFramerTest, ParseResetStreamAtFrame) {
   }
   framer_.set_process_reset_stream_at(true);
 
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
@@ -5299,7 +5299,7 @@ TEST_P(QuicFramerTest, ParseInvalidResetStreamAtFrame) {
   }
   framer_.set_process_reset_stream_at(true);
 
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
   EXPECT_EQ(framer_.error(), QUIC_INVALID_FRAME_DATA);
   EXPECT_EQ(visitor_.reset_stream_at_frames_.size(), 0);
@@ -5417,7 +5417,7 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacket) {
         ENCRYPTION_ZERO_RTT, std::unique_ptr<QuicDecrypter>(decrypter_), false);
   }
   // This packet cannot be decrypted because diversification nonce is missing.
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
   ASSERT_THAT(framer_.error(), IsQuicNoError());
 }
@@ -5452,7 +5452,7 @@ TEST_P(QuicFramerTest, IetfStatelessResetPacketInvalidStatelessResetToken) {
         ENCRYPTION_ZERO_RTT, std::unique_ptr<QuicDecrypter>(decrypter_), false);
   }
   // This packet cannot be decrypted because diversification nonce is missing.
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
   EXPECT_THAT(framer_.error(), IsError(QUIC_DECRYPTION_FAILURE));
 }
@@ -5552,10 +5552,10 @@ TEST_P(QuicFramerTest, VersionNegotiationPacketServer) {
   };
   // clang-format on
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     p = packet2;
-    p_length = ABSL_ARRAYSIZE(packet2);
+    p_length = std::size(packet2);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
@@ -5629,14 +5629,14 @@ TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_with_tag);
     p = packet_with_tag;
-    p_length = ABSL_ARRAYSIZE(packet_with_tag);
+    p_length = std::size(packet_with_tag);
   } else if (framer_.version().IsIetfQuic()) {
     p = packet49;
-    p_length = ABSL_ARRAYSIZE(packet49);
+    p_length = std::size(packet49);
   }
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
@@ -5658,7 +5658,7 @@ TEST_P(QuicFramerTest, ParseIetfRetryPacket) {
         "retry integrity tag", visitor_.retry_token_integrity_tag_->data(),
         visitor_.retry_token_integrity_tag_->length(),
         reinterpret_cast<const char*>(expected_integrity_tag),
-        ABSL_ARRAYSIZE(expected_integrity_tag));
+        std::size(expected_integrity_tag));
     ASSERT_TRUE(visitor_.retry_without_tag_.get());
     quiche::test::CompareCharArraysWithHexError(
         "retry without tag", visitor_.retry_without_tag_->data(),
@@ -5750,9 +5750,9 @@ TEST_P(QuicFramerTest, BuildPaddingFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  quiche::test::CompareCharArraysWithHexError(
-      "constructed packet", data->data(), data->length(), AsChars(p),
-      ABSL_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError("constructed packet",
+                                              data->data(), data->length(),
+                                              AsChars(p), std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildStreamFramePacketWithNewPaddingFrame) {
@@ -5828,10 +5828,10 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithNewPaddingFrame) {
   ASSERT_TRUE(data != nullptr);
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
 
@@ -5893,9 +5893,9 @@ TEST_P(QuicFramerTest, Build4ByteSequenceNumberPaddingFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  quiche::test::CompareCharArraysWithHexError(
-      "constructed packet", data->data(), data->length(), AsChars(p),
-      ABSL_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError("constructed packet",
+                                              data->data(), data->length(),
+                                              AsChars(p), std::size(packet));
 }
 
 TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
@@ -5952,9 +5952,9 @@ TEST_P(QuicFramerTest, Build2ByteSequenceNumberPaddingFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  quiche::test::CompareCharArraysWithHexError(
-      "constructed packet", data->data(), data->length(), AsChars(p),
-      ABSL_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError("constructed packet",
+                                              data->data(), data->length(),
+                                              AsChars(p), std::size(packet));
 }
 
 TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
@@ -6011,9 +6011,9 @@ TEST_P(QuicFramerTest, Build1ByteSequenceNumberPaddingFramePacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  quiche::test::CompareCharArraysWithHexError(
-      "constructed packet", data->data(), data->length(), AsChars(p),
-      ABSL_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError("constructed packet",
+                                              data->data(), data->length(),
+                                              AsChars(p), std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildStreamFramePacket) {
@@ -6080,10 +6080,10 @@ TEST_P(QuicFramerTest, BuildStreamFramePacket) {
   ASSERT_TRUE(data != nullptr);
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(p), p_size);
@@ -6185,14 +6185,14 @@ TEST_P(QuicFramerTest, BuildStreamFramePacketWithVersionFlag) {
   ASSERT_TRUE(data != nullptr);
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     ReviseFirstByteByVersion(packet_ietf);
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   } else if (framer_.version().IsIetfQuic()) {
     p = packet49;
-    p_size = ABSL_ARRAYSIZE(packet49);
+    p_size = std::size(packet49);
   }
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(p), p_size);
@@ -6265,10 +6265,10 @@ TEST_P(QuicFramerTest, BuildCryptoFramePacket) {
   // clang-format on
 
   unsigned char* packet = packet48;
-  size_t packet_size = ABSL_ARRAYSIZE(packet48);
+  size_t packet_size = std::size(packet48);
   if (framer_.version().IsIetfQuic()) {
     packet = packet_ietf;
-    packet_size = ABSL_ARRAYSIZE(packet_ietf);
+    packet_size = std::size(packet_ietf);
   }
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -6382,7 +6382,7 @@ TEST_P(QuicFramerTest, BuildOldVersionNegotiationPacket) {
           SupportedVersions(GetParam())));
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
@@ -6418,10 +6418,10 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacket) {
   };
   // clang-format on
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     p = packet49;
-    p_size = ABSL_ARRAYSIZE(packet49);
+    p_size = std::size(packet49);
   }
 
   QuicConnectionId connection_id = FramerTestConnectionId();
@@ -6466,7 +6466,7 @@ TEST_P(QuicFramerTest, BuildVersionNegotiationPacketWithClientConnectionId) {
           SupportedVersions(GetParam())));
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlock) {
@@ -6526,10 +6526,10 @@ TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlock) {
   };
   // clang-format on
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -6647,7 +6647,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameMultipleRanges) {
   ASSERT_TRUE(data != nullptr);
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFramePacketOutOfOrder) {
@@ -6748,7 +6748,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFramePacketOutOfOrder) {
   ASSERT_TRUE(data != nullptr);
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BuildAckReceiveTimestampsAndEcnFrame) {
@@ -6841,7 +6841,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsAndEcnFrame) {
   ASSERT_TRUE(data != nullptr);
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameExceedsMaxTimestamps) {
@@ -6942,7 +6942,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameExceedsMaxTimestamps) {
   ASSERT_TRUE(data != nullptr);
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameWithExponentEncoding) {
@@ -7050,7 +7050,7 @@ TEST_P(QuicFramerTest, BuildAckReceiveTimestampsFrameWithExponentEncoding) {
   ASSERT_TRUE(data != nullptr);
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BuildAndProcessAckReceiveTimestampsWithMultipleRanges) {
@@ -7723,10 +7723,10 @@ TEST_P(QuicFramerTest, BuildAckFramePacketOneAckBlockMaxLength) {
   };
   // clang-format on
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -7829,10 +7829,10 @@ TEST_P(QuicFramerTest, BuildAckFramePacketMultipleAckBlocks) {
   };
   // clang-format on
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -8042,10 +8042,10 @@ TEST_P(QuicFramerTest, BuildAckFramePacketMaxAckBlocks) {
   };
   // clang-format on
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -8117,10 +8117,10 @@ TEST_P(QuicFramerTest, BuildRstFramePacketQuic) {
   ASSERT_TRUE(data != nullptr);
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
 
@@ -8188,10 +8188,10 @@ TEST_P(QuicFramerTest, BuildCloseFramePacket) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -8269,10 +8269,10 @@ TEST_P(QuicFramerTest, BuildCloseFramePacketExtendedInfo) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -8398,10 +8398,10 @@ TEST_P(QuicFramerTest, BuildTruncatedCloseFramePacket) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
@@ -8459,7 +8459,7 @@ TEST_P(QuicFramerTest, BuildApplicationCloseFramePacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
@@ -8540,7 +8540,7 @@ TEST_P(QuicFramerTest, BuildTruncatedApplicationCloseFramePacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BuildGoAwayPacket) {
@@ -8592,7 +8592,7 @@ TEST_P(QuicFramerTest, BuildGoAwayPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildTruncatedGoAwayPacket) {
@@ -8672,7 +8672,7 @@ TEST_P(QuicFramerTest, BuildTruncatedGoAwayPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildWindowUpdatePacket) {
@@ -8729,10 +8729,10 @@ TEST_P(QuicFramerTest, BuildWindowUpdatePacket) {
   ASSERT_TRUE(data != nullptr);
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   quiche::test::CompareCharArraysWithHexError(
@@ -8781,7 +8781,7 @@ TEST_P(QuicFramerTest, BuildMaxStreamDataPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BuildMaxDataPacket) {
@@ -8825,7 +8825,7 @@ TEST_P(QuicFramerTest, BuildMaxDataPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BuildBlockedPacket) {
@@ -8884,10 +8884,10 @@ TEST_P(QuicFramerTest, BuildBlockedPacket) {
   ASSERT_TRUE(data != nullptr);
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   quiche::test::CompareCharArraysWithHexError(
@@ -8938,9 +8938,9 @@ TEST_P(QuicFramerTest, BuildPingPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  quiche::test::CompareCharArraysWithHexError(
-      "constructed packet", data->data(), data->length(), AsChars(p),
-      ABSL_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError("constructed packet",
+                                              data->data(), data->length(),
+                                              AsChars(p), std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildHandshakeDonePacket) {
@@ -8974,7 +8974,7 @@ TEST_P(QuicFramerTest, BuildHandshakeDonePacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildAckFrequencyPacket) {
@@ -9022,7 +9022,7 @@ TEST_P(QuicFramerTest, BuildAckFrequencyPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildImmediateAckPacket) {
@@ -9057,7 +9057,7 @@ TEST_P(QuicFramerTest, BuildImmediateAckPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildResetStreamAtPacket) {
@@ -9106,7 +9106,7 @@ TEST_P(QuicFramerTest, BuildResetStreamAtPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildDatagramPacket) {
@@ -9171,9 +9171,9 @@ TEST_P(QuicFramerTest, BuildDatagramPacket) {
   std::unique_ptr<QuicPacket> data(BuildDataPacket(header, frames));
   ASSERT_TRUE(data != nullptr);
 
-  quiche::test::CompareCharArraysWithHexError(
-      "constructed packet", data->data(), data->length(), AsChars(p),
-      ABSL_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError("constructed packet",
+                                              data->data(), data->length(),
+                                              AsChars(p), std::size(packet));
 }
 
 // Test that the MTU discovery packet is serialized correctly as a PING packet.
@@ -9221,9 +9221,9 @@ TEST_P(QuicFramerTest, BuildMtuDiscoveryPacket) {
     p = packet_ietf;
   }
 
-  quiche::test::CompareCharArraysWithHexError(
-      "constructed packet", data->data(), data->length(), AsChars(p),
-      ABSL_ARRAYSIZE(packet));
+  quiche::test::CompareCharArraysWithHexError("constructed packet",
+                                              data->data(), data->length(),
+                                              AsChars(p), std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildPublicResetPacket) {
@@ -9256,7 +9256,7 @@ TEST_P(QuicFramerTest, BuildPublicResetPacket) {
   ASSERT_TRUE(data != nullptr);
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildPublicResetPacketWithClientAddress) {
@@ -9301,7 +9301,7 @@ TEST_P(QuicFramerTest, BuildPublicResetPacketWithClientAddress) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST_P(QuicFramerTest, BuildPublicResetPacketWithEndpointId) {
@@ -9371,11 +9371,11 @@ TEST_P(QuicFramerTest, BuildPublicResetPacketWithEndpointId) {
   if ('d' == data->data()[data->length() - 1]) {
     quiche::test::CompareCharArraysWithHexError(
         "constructed packet", data->data(), data->length(),
-        AsChars(packet_variant1), ABSL_ARRAYSIZE(packet_variant1));
+        AsChars(packet_variant1), std::size(packet_variant1));
   } else {
     quiche::test::CompareCharArraysWithHexError(
         "constructed packet", data->data(), data->length(),
-        AsChars(packet_variant2), ABSL_ARRAYSIZE(packet_variant2));
+        AsChars(packet_variant2), std::size(packet_variant2));
   }
 }
 
@@ -9408,7 +9408,7 @@ TEST_P(QuicFramerTest, BuildIetfStatelessResetPacket) {
       "constructed packet",
       data->data() + data->length() - kStatelessResetTokenLength,
       kStatelessResetTokenLength,
-      AsChars(packet) + ABSL_ARRAYSIZE(packet) - kStatelessResetTokenLength,
+      AsChars(packet) + std::size(packet) - kStatelessResetTokenLength,
       kStatelessResetTokenLength);
 
   // Packets with length <= minimal stateless reset does not trigger stateless
@@ -9464,7 +9464,7 @@ TEST_P(QuicFramerTest, BuildIetfStatelessResetPacketCallerProvidedRandomBytes) {
   // Verify the entire packet.
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST_P(QuicFramerTest, EncryptPacket) {
@@ -9503,10 +9503,10 @@ TEST_P(QuicFramerTest, EncryptPacket) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     p = packet50;
-    p_size = ABSL_ARRAYSIZE(packet50);
+    p_size = std::size(packet50);
   }
 
   std::unique_ptr<QuicPacket> raw(new QuicPacket(
@@ -9590,11 +9590,11 @@ TEST_P(QuicFramerTest, EncryptPacketWithVersionFlag) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   // TODO(ianswett): see todo in previous test.
   if (framer_.version().IsIetfQuic()) {
     p = packet50;
-    p_size = ABSL_ARRAYSIZE(packet50);
+    p_size = std::size(packet50);
   }
 
   std::unique_ptr<QuicPacket> raw(new QuicPacket(
@@ -9880,10 +9880,10 @@ TEST_P(QuicFramerTest, StopPacketProcessing) {
   EXPECT_CALL(visitor, OnDecryptedPacket(_, _));
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
@@ -10064,7 +10064,7 @@ TEST_P(QuicFramerTest, BuildIetfBlockedPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, IetfStreamBlockedFrame) {
@@ -10152,7 +10152,7 @@ TEST_P(QuicFramerTest, BuildIetfStreamBlockedPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BiDiMaxStreamsFrame) {
@@ -10352,8 +10352,8 @@ TEST_P(QuicFramerTest, BiDiMaxStreamsFrameTooBig) {
   };
   // clang-format on
 
-  QuicEncryptedPacket encrypted(AsChars(packet_ietf),
-                                ABSL_ARRAYSIZE(packet_ietf), false);
+  QuicEncryptedPacket encrypted(AsChars(packet_ietf), std::size(packet_ietf),
+                                false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   ASSERT_TRUE(visitor_.header_.get());
@@ -10389,8 +10389,8 @@ TEST_P(QuicFramerTest, ClientBiDiMaxStreamsFrameTooBig) {
   };
   // clang-format on
 
-  QuicEncryptedPacket encrypted(AsChars(packet_ietf),
-                                ABSL_ARRAYSIZE(packet_ietf), false);
+  QuicEncryptedPacket encrypted(AsChars(packet_ietf), std::size(packet_ietf),
+                                false);
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 
@@ -10429,8 +10429,8 @@ TEST_P(QuicFramerTest, ServerUniDiMaxStreamsFrameTooBig) {
   };
   // clang-format on
 
-  QuicEncryptedPacket encrypted(AsChars(packet_ietf),
-                                ABSL_ARRAYSIZE(packet_ietf), false);
+  QuicEncryptedPacket encrypted(AsChars(packet_ietf), std::size(packet_ietf),
+                                false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
@@ -10467,8 +10467,8 @@ TEST_P(QuicFramerTest, ClientUniDiMaxStreamsFrameTooBig) {
   };
   // clang-format on
 
-  QuicEncryptedPacket encrypted(AsChars(packet_ietf),
-                                ABSL_ARRAYSIZE(packet_ietf), false);
+  QuicEncryptedPacket encrypted(AsChars(packet_ietf), std::size(packet_ietf),
+                                false);
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 
@@ -10505,8 +10505,8 @@ TEST_P(QuicFramerTest, MaxStreamsFrameZeroCount) {
   };
   // clang-format on
 
-  QuicEncryptedPacket encrypted(AsChars(packet_ietf),
-                                ABSL_ARRAYSIZE(packet_ietf), false);
+  QuicEncryptedPacket encrypted(AsChars(packet_ietf), std::size(packet_ietf),
+                                false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
 }
 
@@ -10710,8 +10710,8 @@ TEST_P(QuicFramerTest, StreamsBlockedFrameTooBig) {
   };
   // clang-format on
 
-  QuicEncryptedPacket encrypted(AsChars(packet_ietf),
-                                ABSL_ARRAYSIZE(packet_ietf), false);
+  QuicEncryptedPacket encrypted(AsChars(packet_ietf), std::size(packet_ietf),
+                                false);
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_CLIENT);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
 
@@ -10805,7 +10805,7 @@ TEST_P(QuicFramerTest, BuildBiDiStreamsBlockedPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BuildUniStreamsBlockedPacket) {
@@ -10847,7 +10847,7 @@ TEST_P(QuicFramerTest, BuildUniStreamsBlockedPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BuildBiDiMaxStreamsPacket) {
@@ -10889,7 +10889,7 @@ TEST_P(QuicFramerTest, BuildBiDiMaxStreamsPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, BuildUniDiMaxStreamsPacket) {
@@ -10934,7 +10934,7 @@ TEST_P(QuicFramerTest, BuildUniDiMaxStreamsPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, NewConnectionIdFrame) {
@@ -11245,7 +11245,7 @@ TEST_P(QuicFramerTest, BuildNewConnectionIdFramePacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, NewTokenFrame) {
@@ -11340,7 +11340,7 @@ TEST_P(QuicFramerTest, BuildNewTokenFramePacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST_P(QuicFramerTest, IetfStopSendingFrame) {
@@ -11433,7 +11433,7 @@ TEST_P(QuicFramerTest, BuildIetfStopSendingPacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, IetfPathChallengeFrame) {
@@ -11516,7 +11516,7 @@ TEST_P(QuicFramerTest, BuildIetfPathChallengePacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, IetfPathResponseFrame) {
@@ -11599,7 +11599,7 @@ TEST_P(QuicFramerTest, BuildIetfPathResponsePacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, GetRetransmittableControlFrameSize) {
@@ -12405,7 +12405,7 @@ TEST_P(QuicFramerTest, BuildRetireConnectionIdFramePacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet_ietf),
-      ABSL_ARRAYSIZE(packet_ietf));
+      std::size(packet_ietf));
 }
 
 TEST_P(QuicFramerTest, AckFrameWithInvalidLargestObserved) {
@@ -12453,10 +12453,10 @@ TEST_P(QuicFramerTest, AckFrameWithInvalidLargestObserved) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
@@ -12509,10 +12509,10 @@ TEST_P(QuicFramerTest, FirstAckBlockJustUnderFlow) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
@@ -12584,10 +12584,10 @@ TEST_P(QuicFramerTest, ThirdAckBlockJustUnderflow) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
   if (VersionIsIetfQuic(framer_.transport_version())) {
     p = packet_ietf;
-    p_size = ABSL_ARRAYSIZE(packet_ietf);
+    p_size = std::size(packet_ietf);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_size, false);
@@ -12732,12 +12732,12 @@ TEST_P(QuicFramerTest, CoalescedPacket) {
   EXPECT_EQ(packet_ietf[first_packet_ietf_size], 0xD3);
 
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_ietf);
     ReviseFirstByteByVersion(&packet_ietf[first_packet_ietf_size]);
     p = packet_ietf;
-    p_length = ABSL_ARRAYSIZE(packet_ietf);
+    p_length = std::size(packet_ietf);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
@@ -12853,11 +12853,11 @@ TEST_P(QuicFramerTest, CoalescedPacketWithUdpPadding) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_ietf);
     p = packet_ietf;
-    p_length = ABSL_ARRAYSIZE(packet_ietf);
+    p_length = std::size(packet_ietf);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
@@ -13074,20 +13074,20 @@ TEST_P(QuicFramerTest, CoalescedPacketWithDifferentVersion) {
   switch (framer_.version().transport_version) {
     case QUIC_VERSION_46:
       p = packet;
-      p_length = ABSL_ARRAYSIZE(packet);
+      p_length = std::size(packet);
       break;
     case QUIC_VERSION_IETF_DRAFT_29:
     case QUIC_VERSION_IETF_RFC_V1:
       p = packet_v1;
-      p_length = ABSL_ARRAYSIZE(packet_v1);
+      p_length = std::size(packet_v1);
       break;
     case QUIC_VERSION_IETF_RFC_V2:
       p = packet_v2;
-      p_length = ABSL_ARRAYSIZE(packet_v2);
+      p_length = std::size(packet_v2);
       break;
     default:
       p = packet_v2;  // To silence warnings.
-      p_length = ABSL_ARRAYSIZE(packet_v2);
+      p_length = std::size(packet_v2);
       QUICHE_NOTREACHED();
       break;
   }
@@ -13249,12 +13249,12 @@ TEST_P(QuicFramerTest, CoalescedPacketWithUnknownVersion) {
   EXPECT_EQ(packet_ietf[first_packet_ietf_size], 0xD3);
 
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_ietf);
     ReviseFirstByteByVersion(&packet_ietf[first_packet_ietf_size]);
     p = packet_ietf;
-    p_length = ABSL_ARRAYSIZE(packet_ietf);
+    p_length = std::size(packet_ietf);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
@@ -13344,11 +13344,11 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithoutDecrypter) {
   };
   // clang-format on
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet49);
     p = packet49;
-    p_length = ABSL_ARRAYSIZE(packet49);
+    p_length = std::size(packet49);
   }
   // First attempt decryption without the handshake crypter.
   EXPECT_FALSE(
@@ -13430,11 +13430,11 @@ TEST_P(QuicFramerTest, UndecryptablePacketWithDecrypter) {
   };
   // clang-format on
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet49);
     p = packet49;
-    p_length = ABSL_ARRAYSIZE(packet49);
+    p_length = std::size(packet49);
   }
 
   EXPECT_FALSE(
@@ -13595,12 +13595,12 @@ TEST_P(QuicFramerTest, UndecryptableCoalescedPacket) {
   EXPECT_EQ(packet_ietf[length_of_first_coalesced_packet], 0xD3);
 
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_ietf);
     ReviseFirstByteByVersion(&packet_ietf[length_of_first_coalesced_packet]);
     p = packet_ietf;
-    p_length = ABSL_ARRAYSIZE(packet_ietf);
+    p_length = std::size(packet_ietf);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
@@ -13768,12 +13768,12 @@ TEST_P(QuicFramerTest, MismatchedCoalescedPacket) {
   EXPECT_EQ(packet_ietf[length_of_first_coalesced_packet], 0xD3);
 
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_ietf);
     ReviseFirstByteByVersion(&packet_ietf[length_of_first_coalesced_packet]);
     p = packet_ietf;
-    p_length = ABSL_ARRAYSIZE(packet_ietf);
+    p_length = std::size(packet_ietf);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
@@ -13879,12 +13879,12 @@ TEST_P(QuicFramerTest, InvalidCoalescedPacket) {
   EXPECT_EQ(packet_ietf[length_of_first_coalesced_packet], 0xD3);
 
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet_ietf);
     ReviseFirstByteByVersion(&packet_ietf[length_of_first_coalesced_packet]);
     p = packet_ietf;
-    p_length = ABSL_ARRAYSIZE(packet_ietf);
+    p_length = std::size(packet_ietf);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
@@ -13943,7 +13943,7 @@ TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
   unsigned char packet[kMaxOutgoingPacketSize] = {};
   size_t encrypted_length =
       framer_.EncryptPayload(ENCRYPTION_INITIAL, header.packet_number, *data,
-                             AsChars(packet), ABSL_ARRAYSIZE(packet));
+                             AsChars(packet), std::size(packet));
   ASSERT_NE(0u, encrypted_length);
 
   QuicFramerPeer::SetPerspective(&framer_, Perspective::IS_SERVER);
@@ -13955,7 +13955,7 @@ TEST_P(QuicFramerTest, CoalescedPacketWithZeroesRoundTrip) {
                            std::move(server_crypters.decrypter));
 
   // Make sure the first long header initial packet parses correctly.
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
 
   // Make sure we discard the subsequent zeroes.
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
@@ -14010,10 +14010,10 @@ TEST_P(QuicFramerTest, ClientReceivesWrongVersion) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version() == ParsedQuicVersion::RFCv1()) {
     p = packetv2;
-    p_length = ABSL_ARRAYSIZE(packetv2);
+    p_length = std::size(packetv2);
   }
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
@@ -14049,7 +14049,7 @@ TEST_P(QuicFramerTest, ClientReceivesUnknownVersion) {
   };
   // clang-format on
 
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
 
   EXPECT_THAT(framer_.error(), IsError(QUIC_PACKET_WRONG_VERSION));
@@ -14167,14 +14167,13 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
                          std::make_unique<TestDecrypter>());
   }
   if (!VersionIsIetfQuic(framer_.transport_version())) {
-    EXPECT_TRUE(framer_.ProcessPacket(
-        QuicEncryptedPacket(AsChars(long_header_packet),
-                            ABSL_ARRAYSIZE(long_header_packet), false)));
+    EXPECT_TRUE(framer_.ProcessPacket(QuicEncryptedPacket(
+        AsChars(long_header_packet), std::size(long_header_packet), false)));
   } else {
     ReviseFirstByteByVersion(long_header_packet_ietf);
     EXPECT_TRUE(framer_.ProcessPacket(
         QuicEncryptedPacket(AsChars(long_header_packet_ietf),
-                            ABSL_ARRAYSIZE(long_header_packet_ietf), false)));
+                            std::size(long_header_packet_ietf), false)));
   }
 
   EXPECT_THAT(framer_.error(), IsQuicNoError());
@@ -14201,7 +14200,7 @@ TEST_P(QuicFramerTest, MultiplePacketNumberSpaces) {
   // clang-format on
 
   QuicEncryptedPacket short_header_encrypted(
-      AsChars(short_header_packet), ABSL_ARRAYSIZE(short_header_packet), false);
+      AsChars(short_header_packet), std::size(short_header_packet), false);
   if (framer_.version().IsIetfQuic()) {
     framer_.InstallDecrypter(ENCRYPTION_FORWARD_SECURE,
                              std::make_unique<TestDecrypter>());
@@ -14630,7 +14629,7 @@ TEST_P(QuicFramerTest,
   ReviseFirstByteByVersion(packet);
   ReviseFirstByteByVersion(&packet[first_packet_size]);
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
 
   QuicEncryptedPacket encrypted(AsChars(p), p_length, false);
   PacketHeaderFormat format;
@@ -14789,11 +14788,11 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToClient) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet49);
     p = packet49;
-    p_length = ABSL_ARRAYSIZE(packet49);
+    p_length = std::size(packet49);
   }
   const bool parse_success =
       framer_.ProcessPacket(QuicEncryptedPacket(AsChars(p), p_length, false));
@@ -14851,11 +14850,11 @@ TEST_P(QuicFramerTest, ClientConnectionIdFromLongHeaderToServer) {
   };
   // clang-format on
   unsigned char* p = packet;
-  size_t p_length = ABSL_ARRAYSIZE(packet);
+  size_t p_length = std::size(packet);
   if (framer_.version().IsIetfQuic()) {
     ReviseFirstByteByVersion(packet49);
     p = packet49;
-    p_length = ABSL_ARRAYSIZE(packet49);
+    p_length = std::size(packet49);
   }
   const bool parse_success =
       framer_.ProcessPacket(QuicEncryptedPacket(AsChars(p), p_length, false));
@@ -15065,8 +15064,8 @@ TEST_P(QuicFramerTest, OverlyLargeAckDelay) {
   };
   // clang-format on
 
-  framer_.ProcessPacket(QuicEncryptedPacket(
-      AsChars(packet_ietf), ABSL_ARRAYSIZE(packet_ietf), false));
+  framer_.ProcessPacket(
+      QuicEncryptedPacket(AsChars(packet_ietf), std::size(packet_ietf), false));
   ASSERT_EQ(1u, visitor_.ack_frames_.size());
   // Verify ack_delay_time is set correctly.
   EXPECT_EQ(QuicTime::Delta::Infinite(),
@@ -15690,7 +15689,7 @@ TEST_P(QuicFramerTest, ErrorWhenUnexpectedFrameTypeEncountered) {
   // clang-format on
 
   ReviseFirstByteByVersion(packet);
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
 
   EXPECT_FALSE(framer_.ProcessPacket(encrypted));
 
@@ -15719,7 +15718,7 @@ TEST_P(QuicFramerTest, ShortHeaderWithNonDefaultConnectionIdLength) {
   MockConnectionIdGenerator generator;
   ON_CALL(generator, ConnectionIdLength(0x28)).WillByDefault(Return(9));
   unsigned char* p = packet;
-  size_t p_size = ABSL_ARRAYSIZE(packet);
+  size_t p_size = std::size(packet);
 
   const size_t header_size = GetPacketHeaderSize(
       framer_.transport_version(), kPacket8ByteConnectionId + 1,
@@ -15836,7 +15835,7 @@ TEST_P(QuicFramerTest, SpinBit) {
   };
   // clang-format on
 
-  QuicEncryptedPacket encrypted(AsChars(packet), ABSL_ARRAYSIZE(packet), false);
+  QuicEncryptedPacket encrypted(AsChars(packet), std::size(packet), false);
   EXPECT_TRUE(framer_.ProcessPacket(encrypted));
   EXPECT_THAT(framer_.error(), IsQuicNoError());
   ASSERT_TRUE(visitor_.header_.get());

@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -10689,13 +10690,13 @@ void QuicConnectionTest::TestClientRetryHandling(
   size_t retry_packet_length;
   if (version() == ParsedQuicVersion::RFCv2()) {
     retry_packet = retry_packet_rfcv2;
-    retry_packet_length = ABSL_ARRAYSIZE(retry_packet_rfcv2);
+    retry_packet_length = std::size(retry_packet_rfcv2);
   } else if (version() == ParsedQuicVersion::RFCv1()) {
     retry_packet = retry_packet_rfcv1;
-    retry_packet_length = ABSL_ARRAYSIZE(retry_packet_rfcv1);
+    retry_packet_length = std::size(retry_packet_rfcv1);
   } else if (version() == ParsedQuicVersion::Draft29()) {
     retry_packet = retry_packet29;
-    retry_packet_length = ABSL_ARRAYSIZE(retry_packet29);
+    retry_packet_length = std::size(retry_packet29);
   } else {
     // TODO(dschinazi) generate retry packets for all versions once we have
     // server-side support for generating these programmatically.
@@ -10710,13 +10711,13 @@ void QuicConnectionTest::TestClientRetryHandling(
 
   QuicConnectionId original_connection_id(
       reinterpret_cast<char*>(original_connection_id_bytes),
-      ABSL_ARRAYSIZE(original_connection_id_bytes));
+      std::size(original_connection_id_bytes));
   QuicConnectionId new_connection_id(
       reinterpret_cast<char*>(new_connection_id_bytes),
-      ABSL_ARRAYSIZE(new_connection_id_bytes));
+      std::size(new_connection_id_bytes));
 
   std::string retry_token(reinterpret_cast<char*>(retry_token_bytes),
-                          ABSL_ARRAYSIZE(retry_token_bytes));
+                          std::size(retry_token_bytes));
 
   if (invalid_retry_tag) {
     // Flip the last bit of the retry packet to prevent the integrity tag

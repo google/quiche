@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -268,7 +269,7 @@ TEST_P(QuicDataWriterTest, WriteConnectionId) {
   char big_endian[] = {
       0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
   };
-  EXPECT_EQ(connection_id.length(), ABSL_ARRAYSIZE(big_endian));
+  EXPECT_EQ(connection_id.length(), std::size(big_endian));
   ASSERT_LE(connection_id.length(), 255);
   char buffer[255];
   QuicDataWriter writer(connection_id.length(), buffer, GetParam().endianness);
@@ -280,7 +281,7 @@ TEST_P(QuicDataWriterTest, WriteConnectionId) {
   QuicConnectionId read_connection_id;
   QuicDataReader reader(buffer, connection_id.length(), GetParam().endianness);
   EXPECT_TRUE(
-      reader.ReadConnectionId(&read_connection_id, ABSL_ARRAYSIZE(big_endian)));
+      reader.ReadConnectionId(&read_connection_id, std::size(big_endian)));
   EXPECT_EQ(connection_id, read_connection_id);
 }
 
@@ -290,35 +291,33 @@ TEST_P(QuicDataWriterTest, LengthPrefixedConnectionId) {
   char length_prefixed_connection_id[] = {
       0x08, 0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77,
   };
-  EXPECT_EQ(ABSL_ARRAYSIZE(length_prefixed_connection_id),
+  EXPECT_EQ(std::size(length_prefixed_connection_id),
             kConnectionIdLengthSize + connection_id.length());
   char buffer[kConnectionIdLengthSize + 255] = {};
-  QuicDataWriter writer(ABSL_ARRAYSIZE(buffer), buffer);
+  QuicDataWriter writer(std::size(buffer), buffer);
   EXPECT_TRUE(writer.WriteLengthPrefixedConnectionId(connection_id));
   quiche::test::CompareCharArraysWithHexError(
       "WriteLengthPrefixedConnectionId", buffer, writer.length(),
-      length_prefixed_connection_id,
-      ABSL_ARRAYSIZE(length_prefixed_connection_id));
+      length_prefixed_connection_id, std::size(length_prefixed_connection_id));
 
   // Verify that writing length then connection ID produces the same output.
-  memset(buffer, 0, ABSL_ARRAYSIZE(buffer));
-  QuicDataWriter writer2(ABSL_ARRAYSIZE(buffer), buffer);
+  memset(buffer, 0, std::size(buffer));
+  QuicDataWriter writer2(std::size(buffer), buffer);
   EXPECT_TRUE(writer2.WriteUInt8(connection_id.length()));
   EXPECT_TRUE(writer2.WriteConnectionId(connection_id));
   quiche::test::CompareCharArraysWithHexError(
       "Write length then ConnectionId", buffer, writer2.length(),
-      length_prefixed_connection_id,
-      ABSL_ARRAYSIZE(length_prefixed_connection_id));
+      length_prefixed_connection_id, std::size(length_prefixed_connection_id));
 
   QuicConnectionId read_connection_id;
-  QuicDataReader reader(buffer, ABSL_ARRAYSIZE(buffer));
+  QuicDataReader reader(buffer, std::size(buffer));
   EXPECT_TRUE(reader.ReadLengthPrefixedConnectionId(&read_connection_id));
   EXPECT_EQ(connection_id, read_connection_id);
 
   // Verify that reading length then connection ID produces the same output.
   uint8_t read_connection_id_length2 = 33;
   QuicConnectionId read_connection_id2;
-  QuicDataReader reader2(buffer, ABSL_ARRAYSIZE(buffer));
+  QuicDataReader reader2(buffer, std::size(buffer));
   ASSERT_TRUE(reader2.ReadUInt8(&read_connection_id_length2));
   EXPECT_EQ(connection_id.length(), read_connection_id_length2);
   EXPECT_TRUE(reader2.ReadConnectionId(&read_connection_id2,
@@ -329,7 +328,7 @@ TEST_P(QuicDataWriterTest, LengthPrefixedConnectionId) {
 TEST_P(QuicDataWriterTest, EmptyConnectionIds) {
   QuicConnectionId empty_connection_id = EmptyQuicConnectionId();
   char buffer[2];
-  QuicDataWriter writer(ABSL_ARRAYSIZE(buffer), buffer, GetParam().endianness);
+  QuicDataWriter writer(std::size(buffer), buffer, GetParam().endianness);
   EXPECT_TRUE(writer.WriteConnectionId(empty_connection_id));
   EXPECT_TRUE(writer.WriteUInt8(1));
   EXPECT_TRUE(writer.WriteConnectionId(empty_connection_id));
@@ -342,7 +341,7 @@ TEST_P(QuicDataWriterTest, EmptyConnectionIds) {
 
   QuicConnectionId read_connection_id = TestConnectionId();
   uint8_t read_byte;
-  QuicDataReader reader(buffer, ABSL_ARRAYSIZE(buffer), GetParam().endianness);
+  QuicDataReader reader(buffer, std::size(buffer), GetParam().endianness);
   EXPECT_TRUE(reader.ReadConnectionId(&read_connection_id, 0));
   EXPECT_EQ(read_connection_id, empty_connection_id);
   EXPECT_TRUE(reader.ReadUInt8(&read_byte));
@@ -660,10 +659,10 @@ TEST_P(QuicDataWriterTest, WriteIntegers) {
 
 TEST_P(QuicDataWriterTest, WriteBytes) {
   char bytes[] = {0, 1, 2, 3, 4, 5, 6, 7, 8};
-  char buf[ABSL_ARRAYSIZE(bytes)];
-  QuicDataWriter writer(ABSL_ARRAYSIZE(buf), buf, GetParam().endianness);
-  EXPECT_TRUE(writer.WriteBytes(bytes, ABSL_ARRAYSIZE(bytes)));
-  for (unsigned int i = 0; i < ABSL_ARRAYSIZE(bytes); ++i) {
+  char buf[std::size(bytes)];
+  QuicDataWriter writer(std::size(buf), buf, GetParam().endianness);
+  EXPECT_TRUE(writer.WriteBytes(bytes, std::size(bytes)));
+  for (unsigned int i = 0; i < std::size(bytes); ++i) {
     EXPECT_EQ(bytes[i], buf[i]);
   }
 }
@@ -786,13 +785,13 @@ TEST_P(QuicDataWriterTest, ValidStreamCount) {
 
 TEST_P(QuicDataWriterTest, Seek) {
   char buffer[3] = {};
-  QuicDataWriter writer(ABSL_ARRAYSIZE(buffer), buffer, GetParam().endianness);
+  QuicDataWriter writer(std::size(buffer), buffer, GetParam().endianness);
   EXPECT_TRUE(writer.WriteUInt8(42));
   EXPECT_TRUE(writer.Seek(1));
   EXPECT_TRUE(writer.WriteUInt8(3));
 
   char expected[] = {42, 0, 3};
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(expected); ++i) {
+  for (size_t i = 0; i < std::size(expected); ++i) {
     EXPECT_EQ(buffer[i], expected[i]);
   }
 }
@@ -802,23 +801,20 @@ TEST_P(QuicDataWriterTest, SeekTooFarFails) {
 
   // Check that one can seek to the end of the writer, but not past.
   {
-    QuicDataWriter writer(ABSL_ARRAYSIZE(buffer), buffer,
-                          GetParam().endianness);
+    QuicDataWriter writer(std::size(buffer), buffer, GetParam().endianness);
     EXPECT_TRUE(writer.Seek(20));
     EXPECT_FALSE(writer.Seek(1));
   }
 
   // Seeking several bytes past the end fails.
   {
-    QuicDataWriter writer(ABSL_ARRAYSIZE(buffer), buffer,
-                          GetParam().endianness);
+    QuicDataWriter writer(std::size(buffer), buffer, GetParam().endianness);
     EXPECT_FALSE(writer.Seek(100));
   }
 
   // Seeking so far that arithmetic overflow could occur also fails.
   {
-    QuicDataWriter writer(ABSL_ARRAYSIZE(buffer), buffer,
-                          GetParam().endianness);
+    QuicDataWriter writer(std::size(buffer), buffer, GetParam().endianness);
     EXPECT_TRUE(writer.Seek(10));
     EXPECT_FALSE(writer.Seek(std::numeric_limits<size_t>::max()));
   }

@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
@@ -1044,7 +1045,7 @@ TEST_P(TlsServerHandshakerTest, ConnectionClosedOnTlsError) {
   QuicConnection::ScopedPacketFlusher flusher(server_connection_);
   server_stream()->crypto_message_parser()->ProcessInput(
       absl::string_view(bogus_handshake_message,
-                        ABSL_ARRAYSIZE(bogus_handshake_message)),
+                        std::size(bogus_handshake_message)),
       ENCRYPTION_INITIAL);
 
   EXPECT_FALSE(server_stream()->one_rtt_keys_available());
@@ -1646,7 +1647,7 @@ TEST_P(TlsServerHandshakerTest, AlpsUseNewCodepoint) {
       {true},
       {false},
   };
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(tests); i++) {
+  for (size_t i = 0; i < std::size(tests); i++) {
     SCOPED_TRACE(absl::StrCat("Test #", i));
     const auto& test = tests[i];
     client_crypto_config_->set_alps_use_new_codepoint(

@@ -5,6 +5,7 @@
 #include "quiche/quic/core/quic_versions.h"
 
 #include <cstddef>
+#include <iterator>
 #include <sstream>
 #include <string>
 
@@ -256,7 +257,7 @@ TEST(QuicVersionsTest, QuicVersionToString) {
 
   QuicTransportVersion single_version[] = {QUIC_VERSION_46};
   QuicTransportVersionVector versions_vector;
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(single_version); ++i) {
+  for (size_t i = 0; i < std::size(single_version); ++i) {
     versions_vector.push_back(single_version[i]);
   }
   EXPECT_EQ("QUIC_VERSION_46",
@@ -265,7 +266,7 @@ TEST(QuicVersionsTest, QuicVersionToString) {
   QuicTransportVersion multiple_versions[] = {QUIC_VERSION_UNSUPPORTED,
                                               QUIC_VERSION_46};
   versions_vector.clear();
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(multiple_versions); ++i) {
+  for (size_t i = 0; i < std::size(multiple_versions); ++i) {
     versions_vector.push_back(multiple_versions[i]);
   }
   EXPECT_EQ("QUIC_VERSION_UNSUPPORTED,QUIC_VERSION_46",

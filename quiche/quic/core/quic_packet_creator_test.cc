@@ -6,6 +6,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <string>
@@ -778,9 +779,8 @@ TEST_P(QuicPacketCreatorTest, BuildPathChallengePacket) {
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
 
   size_t length = creator_.BuildPaddedPathChallengePacket(
-      header, buffer.get(), ABSL_ARRAYSIZE(packet), payload,
-      ENCRYPTION_INITIAL);
-  EXPECT_EQ(length, ABSL_ARRAYSIZE(packet));
+      header, buffer.get(), std::size(packet), payload, ENCRYPTION_INITIAL);
+  EXPECT_EQ(length, std::size(packet));
 
   // Payload has the random bytes that were generated. Copy them into packet,
   // above, before checking that the generated packet is correct.
@@ -791,7 +791,7 @@ TEST_P(QuicPacketCreatorTest, BuildPathChallengePacket) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data.data(), data.length(),
-      reinterpret_cast<char*>(packet), ABSL_ARRAYSIZE(packet));
+      reinterpret_cast<char*>(packet), std::size(packet));
 }
 
 TEST_P(QuicPacketCreatorTest, BuildConnectivityProbingPacket) {
@@ -834,10 +834,10 @@ TEST_P(QuicPacketCreatorTest, BuildConnectivityProbingPacket) {
   // clang-format on
 
   unsigned char* p = packet;
-  size_t packet_size = ABSL_ARRAYSIZE(packet);
+  size_t packet_size = std::size(packet);
   if (creator_.version().IsIetfQuic()) {
     p = packet99;
-    packet_size = ABSL_ARRAYSIZE(packet99);
+    packet_size = std::size(packet99);
   }
 
   std::unique_ptr<char[]> buffer(new char[kMaxOutgoingPacketSize]);
@@ -892,15 +892,15 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket1ResponseUnpadded) {
   quiche::QuicheCircularDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   size_t length = creator_.BuildPathResponsePacket(
-      header, buffer.get(), ABSL_ARRAYSIZE(packet), payloads,
+      header, buffer.get(), std::size(packet), payloads,
       /*is_padded=*/false, ENCRYPTION_INITIAL);
-  EXPECT_EQ(length, ABSL_ARRAYSIZE(packet));
+  EXPECT_EQ(length, std::size(packet));
   QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
                   header);
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data.data(), data.length(),
-      reinterpret_cast<char*>(packet), ABSL_ARRAYSIZE(packet));
+      reinterpret_cast<char*>(packet), std::size(packet));
 }
 
 TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket1ResponsePadded) {
@@ -939,15 +939,15 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket1ResponsePadded) {
   quiche::QuicheCircularDeque<QuicPathFrameBuffer> payloads;
   payloads.push_back(payload0);
   size_t length = creator_.BuildPathResponsePacket(
-      header, buffer.get(), ABSL_ARRAYSIZE(packet), payloads,
+      header, buffer.get(), std::size(packet), payloads,
       /*is_padded=*/true, ENCRYPTION_INITIAL);
-  EXPECT_EQ(length, ABSL_ARRAYSIZE(packet));
+  EXPECT_EQ(length, std::size(packet));
   QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
                   header);
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data.data(), data.length(),
-      reinterpret_cast<char*>(packet), ABSL_ARRAYSIZE(packet));
+      reinterpret_cast<char*>(packet), std::size(packet));
 }
 
 TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket3ResponsesUnpadded) {
@@ -991,15 +991,15 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket3ResponsesUnpadded) {
   payloads.push_back(payload1);
   payloads.push_back(payload2);
   size_t length = creator_.BuildPathResponsePacket(
-      header, buffer.get(), ABSL_ARRAYSIZE(packet), payloads,
+      header, buffer.get(), std::size(packet), payloads,
       /*is_padded=*/false, ENCRYPTION_INITIAL);
-  EXPECT_EQ(length, ABSL_ARRAYSIZE(packet));
+  EXPECT_EQ(length, std::size(packet));
   QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
                   header);
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data.data(), data.length(),
-      reinterpret_cast<char*>(packet), ABSL_ARRAYSIZE(packet));
+      reinterpret_cast<char*>(packet), std::size(packet));
 }
 
 TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket3ResponsesPadded) {
@@ -1045,15 +1045,15 @@ TEST_P(QuicPacketCreatorTest, BuildPathResponsePacket3ResponsesPadded) {
   payloads.push_back(payload1);
   payloads.push_back(payload2);
   size_t length = creator_.BuildPathResponsePacket(
-      header, buffer.get(), ABSL_ARRAYSIZE(packet), payloads,
+      header, buffer.get(), std::size(packet), payloads,
       /*is_padded=*/true, ENCRYPTION_INITIAL);
-  EXPECT_EQ(length, ABSL_ARRAYSIZE(packet));
+  EXPECT_EQ(length, std::size(packet));
   QuicPacket data(creator_.transport_version(), buffer.release(), length, true,
                   header);
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data.data(), data.length(),
-      reinterpret_cast<char*>(packet), ABSL_ARRAYSIZE(packet));
+      reinterpret_cast<char*>(packet), std::size(packet));
 }
 
 TEST_P(QuicPacketCreatorTest, SerializeConnectivityProbingPacket) {

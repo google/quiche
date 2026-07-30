@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_utils.h"
 
+#include <iterator>
 #include <string>
 #include <vector>
 
@@ -172,10 +173,10 @@ TEST_F(QuicUtilsTest, RandomConnectionId) {
   QuicConnectionId connection_id = QuicUtils::CreateRandomConnectionId(&random);
   EXPECT_EQ(connection_id.length(), sizeof(uint64_t));
   char connection_id_bytes[sizeof(uint64_t)];
-  random.RandBytes(connection_id_bytes, ABSL_ARRAYSIZE(connection_id_bytes));
+  random.RandBytes(connection_id_bytes, std::size(connection_id_bytes));
   EXPECT_EQ(connection_id,
             QuicConnectionId(static_cast<char*>(connection_id_bytes),
-                             ABSL_ARRAYSIZE(connection_id_bytes)));
+                             std::size(connection_id_bytes)));
   EXPECT_NE(connection_id, EmptyQuicConnectionId());
   EXPECT_NE(connection_id, TestConnectionId());
   EXPECT_NE(connection_id, TestConnectionId(1));
@@ -191,10 +192,10 @@ TEST_F(QuicUtilsTest, RandomConnectionIdVariableLength) {
       QuicUtils::CreateRandomConnectionId(connection_id_length, &random);
   EXPECT_EQ(connection_id.length(), connection_id_length);
   char connection_id_bytes[connection_id_length];
-  random.RandBytes(connection_id_bytes, ABSL_ARRAYSIZE(connection_id_bytes));
+  random.RandBytes(connection_id_bytes, std::size(connection_id_bytes));
   EXPECT_EQ(connection_id,
             QuicConnectionId(static_cast<char*>(connection_id_bytes),
-                             ABSL_ARRAYSIZE(connection_id_bytes)));
+                             std::size(connection_id_bytes)));
   EXPECT_NE(connection_id, EmptyQuicConnectionId());
   EXPECT_NE(connection_id, TestConnectionId());
   EXPECT_NE(connection_id, TestConnectionId(1));

@@ -4,6 +4,7 @@
 
 #include "quiche/quic/core/quic_crypto_client_stream.h"
 
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -270,7 +271,7 @@ TEST_F(QuicCryptoClientStreamTest, ServerConfigUpdate) {
   const std::string& cached_scfg = state->server_config();
   quiche::test::CompareCharArraysWithHexError(
       "scfg", cached_scfg.data(), cached_scfg.length(),
-      reinterpret_cast<char*>(scfg), ABSL_ARRAYSIZE(scfg));
+      reinterpret_cast<char*>(scfg), std::size(scfg));
 
   QuicStreamSequencer* sequencer = QuicStreamPeer::sequencer(stream());
   EXPECT_FALSE(QuicStreamSequencerPeer::IsUnderlyingBufferAllocated(sequencer));

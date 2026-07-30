@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <list>
 #include <map>
 #include <memory>
@@ -1519,7 +1520,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 0xFF, 0x00, 0x00, 28, /*destination connection ID length*/ 0x08};
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
-                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
+                                     std::size(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
               SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
@@ -1535,7 +1536,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 0xFF, 0x00, 0x00, 27, /*destination connection ID length*/ 0x08};
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
-                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
+                                     std::size(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
               SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
@@ -1551,7 +1552,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 0xFF, 0x00, 0x00, 25, /*destination connection ID length*/ 0x08};
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
-                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
+                                     std::size(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
               SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
@@ -1567,7 +1568,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'T', '0', '5', '0', /*destination connection ID length*/ 0x08};
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
-                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
+                                     std::size(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
               SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
@@ -1583,7 +1584,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'Q', '0', '4', '9', /*destination connection ID length*/ 0x08};
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
-                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
+                                     std::size(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(*time_wait_list_manager_,
               SendVersionNegotiationPacket(_, _, /*ietf_quic=*/true,
@@ -1599,7 +1600,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'Q', '0', '4', '8', /*connection ID length byte*/ 0x50};
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
-                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
+                                     std::size(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
@@ -1616,7 +1617,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'Q', '0', '4', '7', /*connection ID length byte*/ 0x50};
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
-                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
+                                     std::size(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,
@@ -1633,7 +1634,7 @@ TEST_P(QuicDispatcherTestOneVersion,
   uint8_t packet[kMinPacketSizeForVersionNegotiation] = {
       0xC0, 'Q', '0', '4', '5', /*connection ID length byte*/ 0x50};
   QuicReceivedPacket received_packet(reinterpret_cast<char*>(packet),
-                                     ABSL_ARRAYSIZE(packet), QuicTime::Zero());
+                                     std::size(packet), QuicTime::Zero());
   EXPECT_CALL(*dispatcher_, CreateQuicSession(_, _, _, _, _, _, _)).Times(0);
   EXPECT_CALL(
       *time_wait_list_manager_,

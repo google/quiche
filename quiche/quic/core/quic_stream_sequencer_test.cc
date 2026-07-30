@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -57,7 +58,7 @@ class QuicStreamSequencerTest : public QuicTest {
  public:
   void ConsumeData(size_t num_bytes) {
     char buffer[1024];
-    ASSERT_GT(ABSL_ARRAYSIZE(buffer), num_bytes);
+    ASSERT_GT(std::size(buffer), num_bytes);
     struct iovec iov;
     iov.iov_base = buffer;
     iov.iov_len = num_bytes;
@@ -99,8 +100,7 @@ class QuicStreamSequencerTest : public QuicTest {
   bool VerifyReadableRegions(const QuicStreamSequencer& sequencer,
                              const std::vector<std::string>& expected) {
     iovec iovecs[5];
-    size_t num_iovecs =
-        sequencer.GetReadableRegions(iovecs, ABSL_ARRAYSIZE(iovecs));
+    size_t num_iovecs = sequencer.GetReadableRegions(iovecs, std::size(iovecs));
     return VerifyReadableRegion(sequencer, expected) &&
            VerifyIovecs(sequencer, iovecs, num_iovecs, expected);
   }
@@ -390,7 +390,7 @@ class QuicSequencerRandomTest : public QuicStreamSequencerTest {
   using FrameList = std::vector<Frame>;
 
   void CreateFrames() {
-    int payload_size = ABSL_ARRAYSIZE(kPayload) - 1;
+    int payload_size = std::size(kPayload) - 1;
     int remaining_payload = payload_size;
     while (remaining_payload != 0) {
       int size = std::min(OneToN(6), remaining_payload);
@@ -413,10 +413,10 @@ class QuicSequencerRandomTest : public QuicStreamSequencerTest {
 
   void ReadAvailableData() {
     // Read all available data
-    char output[ABSL_ARRAYSIZE(kPayload) + 1];
+    char output[std::size(kPayload) + 1];
     iovec iov;
     iov.iov_base = output;
-    iov.iov_len = ABSL_ARRAYSIZE(output);
+    iov.iov_len = std::size(output);
     int bytes_read = sequencer_->Readv(&iov, 1);
     EXPECT_NE(0, bytes_read);
     output_.append(output, bytes_read);
@@ -451,9 +451,9 @@ TEST_F(QuicSequencerRandomTest, RandomFramesNoDroppingNoBackup) {
     list_.erase(list_.begin() + index);
   }
 
-  ASSERT_EQ(ABSL_ARRAYSIZE(kPayload) - 1, output_.size());
+  ASSERT_EQ(std::size(kPayload) - 1, output_.size());
   EXPECT_EQ(kPayload, output_);
-  EXPECT_EQ(ABSL_ARRAYSIZE(kPayload) - 1, total_bytes_consumed);
+  EXPECT_EQ(std::size(kPayload) - 1, total_bytes_consumed);
 }
 
 TEST_F(QuicSequencerRandomTest, RandomFramesNoDroppingBackup) {
@@ -472,7 +472,7 @@ TEST_F(QuicSequencerRandomTest, RandomFramesNoDroppingBackup) {
         total_bytes_consumed += bytes;
       });
 
-  while (output_.size() != ABSL_ARRAYSIZE(kPayload) - 1) {
+  while (output_.size() != std::size(kPayload) - 1) {
     if (!list_.empty() && OneToN(2) == 1) {  // Send data
       int index = OneToN(list_.size()) - 1;
       OnFrame(list_[index].first, list_[index].second.data());
@@ -488,7 +488,7 @@ TEST_F(QuicSequencerRandomTest, RandomFramesNoDroppingBackup) {
         ASSERT_EQ(0, iovs_peeked);
         ASSERT_FALSE(sequencer_->GetReadableRegion(peek_iov));
       }
-      int total_bytes_to_peek = ABSL_ARRAYSIZE(buffer);
+      int total_bytes_to_peek = std::size(buffer);
       for (int i = 0; i < iovs_peeked; ++i) {
         int bytes_to_peek =
             std::min<int>(peek_iov[i].iov_len, total_bytes_to_peek);
@@ -505,7 +505,7 @@ TEST_F(QuicSequencerRandomTest, RandomFramesNoDroppingBackup) {
   }
   EXPECT_EQ(std::string(kPayload), output_);
   EXPECT_EQ(std::string(kPayload), peeked_);
-  EXPECT_EQ(ABSL_ARRAYSIZE(kPayload) - 1, total_bytes_consumed);
+  EXPECT_EQ(std::size(kPayload) - 1, total_bytes_consumed);
 }
 
 // Same as above, just using a different method for reading.
