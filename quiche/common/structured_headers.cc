@@ -802,7 +802,7 @@ bool IsValidToken(absl::string_view str) {
   return true;
 }
 
-Item::Item() {}
+Item::Item() = default;
 Item::Item(std::string value, Item::ItemType type) {
   switch (type) {
     case kStringType:
@@ -824,6 +824,44 @@ Item::Item(const char* value, Item::ItemType type)
 Item::Item(int64_t value) : value_(value) {}
 Item::Item(double value) : value_(value) {}
 Item::Item(bool value) : value_(value) {}
+
+const int64_t* Item::GetIfInteger() const {
+  return std::get_if<kIntegerType>(&value_);
+}
+
+int64_t* Item::GetIfInteger() { return std::get_if<kIntegerType>(&value_); }
+
+const double* Item::GetIfDecimal() const {
+  return std::get_if<kDecimalType>(&value_);
+}
+
+double* Item::GetIfDecimal() { return std::get_if<kDecimalType>(&value_); }
+
+const std::string* Item::GetIfString() const {
+  return std::get_if<kStringType>(&value_);
+}
+
+std::string* Item::GetIfString() { return std::get_if<kStringType>(&value_); }
+
+const std::string* Item::GetIfToken() const {
+  return std::get_if<kTokenType>(&value_);
+}
+
+std::string* Item::GetIfToken() { return std::get_if<kTokenType>(&value_); }
+
+const std::string* Item::GetIfByteSequence() const {
+  return std::get_if<kByteSequenceType>(&value_);
+}
+
+std::string* Item::GetIfByteSequence() {
+  return std::get_if<kByteSequenceType>(&value_);
+}
+
+const bool* Item::GetIfBoolean() const {
+  return std::get_if<kBooleanType>(&value_);
+}
+
+bool* Item::GetIfBoolean() { return std::get_if<kBooleanType>(&value_); }
 
 bool operator==(const Item&, const Item&) = default;
 

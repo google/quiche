@@ -15,6 +15,7 @@
 #include <variant>
 #include <vector>
 
+#include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -89,21 +90,43 @@ class QUICHE_EXPORT Item {
   bool is_boolean() const { return Type() == kBooleanType; }
 
   int64_t GetInteger() const {
-    const auto* value = std::get_if<int64_t>(&value_);
+    const auto* value = GetIfInteger();
     QUICHE_CHECK(value);
     return *value;
   }
   double GetDecimal() const {
-    const auto* value = std::get_if<double>(&value_);
+    const auto* value = GetIfDecimal();
     QUICHE_CHECK(value);
     return *value;
   }
   bool GetBoolean() const {
-    const auto* value = std::get_if<bool>(&value_);
+    const auto* value = GetIfBoolean();
     QUICHE_CHECK(value);
     return *value;
   }
-  // TODO(iclelland): Split up accessors for String, Token and Byte Sequence.
+
+  const int64_t* GetIfInteger() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  int64_t* GetIfInteger() ABSL_ATTRIBUTE_LIFETIME_BOUND;
+
+  const double* GetIfDecimal() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  double* GetIfDecimal() ABSL_ATTRIBUTE_LIFETIME_BOUND;
+
+  const std::string* GetIfToken() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  std::string* GetIfToken() ABSL_ATTRIBUTE_LIFETIME_BOUND;
+
+  // Note: This only returns a non-nullptr if `Type() == kString`, unlike the
+  // deprecated `GetString()` and `TakeString()` methods.
+  const std::string* GetIfString() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  std::string* GetIfString() ABSL_ATTRIBUTE_LIFETIME_BOUND;
+
+  const std::string* GetIfByteSequence() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  std::string* GetIfByteSequence() ABSL_ATTRIBUTE_LIFETIME_BOUND;
+
+  const bool* GetIfBoolean() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  bool* GetIfBoolean() ABSL_ATTRIBUTE_LIFETIME_BOUND;
+
+  // Deprecated: Prefer `GetIfString()`, `GetIfToken()`, or
+  // `GetIfByteSequence()`.
   const std::string& GetString() const {
     struct Visitor {
       const std::string* operator()(const std::monostate&) { return nullptr; }
@@ -117,7 +140,8 @@ class QUICHE_EXPORT Item {
     return *value;
   }
 
-  // Transfers ownership of the underlying String, Token, or Byte Sequence.
+  // Deprecated: Prefer `GetIfString()`, `GetIfToken()`, or
+  // `GetIfByteSequence()`.
   std::string TakeString() && {
     struct Visitor {
       std::string* operator()(std::monostate&) { return nullptr; }
