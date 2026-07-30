@@ -4,6 +4,7 @@
 
 #include "quiche/quic/qbone/qbone_packet_processor.h"
 
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -282,30 +283,26 @@ static const char kReferenceEchoReplyData[] = {
 // clang-format on
 
 static const absl::string_view kReferenceClientPacket(
-    kReferenceClientPacketData, ABSL_ARRAYSIZE(kReferenceClientPacketData));
+    kReferenceClientPacketData, std::size(kReferenceClientPacketData));
 
 static const absl::string_view kReferenceClientPacketAF4(
-    kReferenceClientPacketDataAF4,
-    ABSL_ARRAYSIZE(kReferenceClientPacketDataAF4));
+    kReferenceClientPacketDataAF4, std::size(kReferenceClientPacketDataAF4));
 static const absl::string_view kReferenceClientPacketAF3(
-    kReferenceClientPacketDataAF3,
-    ABSL_ARRAYSIZE(kReferenceClientPacketDataAF3));
+    kReferenceClientPacketDataAF3, std::size(kReferenceClientPacketDataAF3));
 static const absl::string_view kReferenceClientPacketAF2(
-    kReferenceClientPacketDataAF2,
-    ABSL_ARRAYSIZE(kReferenceClientPacketDataAF2));
+    kReferenceClientPacketDataAF2, std::size(kReferenceClientPacketDataAF2));
 static const absl::string_view kReferenceClientPacketAF1(
-    kReferenceClientPacketDataAF1,
-    ABSL_ARRAYSIZE(kReferenceClientPacketDataAF1));
+    kReferenceClientPacketDataAF1, std::size(kReferenceClientPacketDataAF1));
 
 static const absl::string_view kReferenceNetworkPacket(
-    kReferenceNetworkPacketData, ABSL_ARRAYSIZE(kReferenceNetworkPacketData));
+    kReferenceNetworkPacketData, std::size(kReferenceNetworkPacketData));
 
 static const absl::string_view kReferenceClientSubnetPacket(
     kReferenceClientSubnetPacketData,
-    ABSL_ARRAYSIZE(kReferenceClientSubnetPacketData));
+    std::size(kReferenceClientSubnetPacketData));
 
 static const absl::string_view kReferenceEchoRequest(
-    kReferenceEchoRequestData, ABSL_ARRAYSIZE(kReferenceEchoRequestData));
+    kReferenceEchoRequestData, std::size(kReferenceEchoRequestData));
 
 MATCHER_P(IsIcmpMessage, icmp_type,
           "Checks whether the argument is an ICMP message of supplied type") {
