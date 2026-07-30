@@ -8,11 +8,11 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "quiche/quic/core/crypto/null_decrypter.h"
 #include "quiche/quic/core/crypto/null_encrypter.h"
 #include "quiche/quic/core/quic_connection_id.h"
@@ -46,7 +46,7 @@ ParsedQuicVersion ConsumeParsedQuicVersion(FuzzedDataProvider* provider) {
 
   return ParsedQuicVersion(
       transport_versions[provider->ConsumeIntegralInRange<uint8_t>(
-          0, ABSL_ARRAYSIZE(transport_versions) - 1)]);
+          0, std::size(transport_versions) - 1)]);
 }
 
 // QuicSelfContainedPacketHeader is a QuicPacketHeader with built-in stroage for
