@@ -396,8 +396,8 @@ TEST(ChunkedObliviousHttpClient, EncryptRequestNonFinalChunkCanNotBeEmpty) {
   absl::StatusOr<ChunkedObliviousHttpClient> chunk_client =
       CreateChunkedObliviousHttpClient(chunk_handler);
   QUICHE_ASSERT_OK(chunk_client);
-  // TODO(b/425346950): Remove all the redundant checks once ClangTidy gets
-  // configured for QUICHE_ASSERT_OK
+  // Note that we will remove all the redundant checks once ClangTidy gets
+  // configured for QUICHE_ASSERT_OK.
   if (!chunk_client.ok()) {
     return;
   }
