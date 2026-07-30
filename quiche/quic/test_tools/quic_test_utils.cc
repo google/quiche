@@ -8,6 +8,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <limits>
 #include <memory>
 #include <optional>
@@ -15,7 +16,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "openssl/chacha.h"
 #include "openssl/sha.h"
@@ -205,7 +205,7 @@ std::string Sha1Hash(absl::string_view data) {
   char buffer[SHA_DIGEST_LENGTH];
   SHA1(reinterpret_cast<const uint8_t*>(data.data()), data.size(),
        reinterpret_cast<uint8_t*>(buffer));
-  return std::string(buffer, ABSL_ARRAYSIZE(buffer));
+  return std::string(buffer, std::size(buffer));
 }
 
 bool ClearControlFrame(const QuicFrame& frame) {

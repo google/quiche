@@ -5,11 +5,11 @@
 #include "quiche/quic/test_tools/test_ticket_crypter.h"
 
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <utility>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 
 namespace quic {
@@ -30,10 +30,10 @@ constexpr char kTicketPrefix[] = "TEST TICKET";
 }  // namespace
 
 TestTicketCrypter::TestTicketCrypter()
-    : ticket_prefix_(ABSL_ARRAYSIZE(kTicketPrefix) + 16) {
-  memcpy(ticket_prefix_.data(), kTicketPrefix, ABSL_ARRAYSIZE(kTicketPrefix));
+    : ticket_prefix_(std::size(kTicketPrefix) + 16) {
+  memcpy(ticket_prefix_.data(), kTicketPrefix, std::size(kTicketPrefix));
   QuicRandom::GetInstance()->RandBytes(
-      ticket_prefix_.data() + ABSL_ARRAYSIZE(kTicketPrefix), 16);
+      ticket_prefix_.data() + std::size(kTicketPrefix), 16);
 }
 
 size_t TestTicketCrypter::MaxOverhead() { return ticket_prefix_.size(); }
