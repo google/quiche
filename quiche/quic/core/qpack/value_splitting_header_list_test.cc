@@ -4,9 +4,9 @@
 
 #include "quiche/quic/core/qpack/value_splitting_header_list.h"
 
+#include <iterator>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_test.h"
 
@@ -104,7 +104,7 @@ TEST(ValueSplittingHeaderListTest, SplitNonCookie) {
       {"qux", {"\0foobar\0", 8}, {"", "foobar", ""}},
   };
 
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(kTestData); ++i) {
+  for (size_t i = 0; i < std::size(kTestData); ++i) {
     quiche::HttpHeaderBlock block;
     block[kTestData[i].name] = kTestData[i].value;
 
@@ -155,7 +155,7 @@ TEST(ValueSplittingHeaderListTest, SplitCookie) {
       {"cookie", "; foobar; ", {"", "foobar", ""}},
   };
 
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(kTestData); ++i) {
+  for (size_t i = 0; i < std::size(kTestData); ++i) {
     quiche::HttpHeaderBlock block;
     block[kTestData[i].name] = kTestData[i].value;
 
