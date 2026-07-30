@@ -1047,6 +1047,16 @@ TEST_F(MoqtIntegrationTest, ClientPublishServerSubscribe) {
 // Repro for b/537862681
 TEST_F(MoqtIntegrationTest, RelayTwoClientsQueueClose) {
   quic::simulator::Simulator simulator;
+  MockSessionCallbacks client1_callbacks;
+  MockSessionCallbacks client2_callbacks;
+  MockSessionCallbacks relay1_callbacks;
+  MockSessionCallbacks relay2_callbacks;
+  MoqtRelayPublisher relay_publisher;
+  MoqtKnownTrackPublisher client1_publisher;
+  MockLiveSubscriberVisitor subscriber_visitor;
+  std::optional<quic::simulator::SymmetricLink> link1;
+  std::optional<quic::simulator::SymmetricLink> link2;
+
   // Client 1 (Publisher Client)
   MoqtClientEndpoint client1(&simulator, "Client1", "Relay1",
                              kDefaultMoqtVersion);
@@ -1061,20 +1071,12 @@ TEST_F(MoqtIntegrationTest, RelayTwoClientsQueueClose) {
                                      kDefaultMoqtVersion);
 
   // Wire up endpoints directly using SymmetricLink (no switch needed)
-  quic::simulator::SymmetricLink link1(
-      &client1, &relay_endpoint1,
-      quic::simulator::TestHarness::kClientBandwidth,
-      quic::simulator::TestHarness::kClientPropagationDelay);
-  quic::simulator::SymmetricLink link2(
-      &client2, &relay_endpoint2,
-      quic::simulator::TestHarness::kClientBandwidth,
-      quic::simulator::TestHarness::kClientPropagationDelay);
-
-  // Setup callbacks
-  MockSessionCallbacks client1_callbacks;
-  MockSessionCallbacks client2_callbacks;
-  MockSessionCallbacks relay1_callbacks;
-  MockSessionCallbacks relay2_callbacks;
+  link1.emplace(&client1, &relay_endpoint1,
+                quic::simulator::TestHarness::kClientBandwidth,
+                quic::simulator::TestHarness::kClientPropagationDelay);
+  link2.emplace(&client2, &relay_endpoint2,
+                quic::simulator::TestHarness::kClientBandwidth,
+                quic::simulator::TestHarness::kClientPropagationDelay);
 
   client1.session()->callbacks() = client1_callbacks.AsSessionCallbacks();
   client1.session()->callbacks().clock = simulator.GetClock();
@@ -1088,7 +1090,6 @@ TEST_F(MoqtIntegrationTest, RelayTwoClientsQueueClose) {
   relay_endpoint2.session()->callbacks().clock = simulator.GetClock();
 
   // Configure MoqtRelayPublisher at the relay
-  MoqtRelayPublisher relay_publisher;
   relay_endpoint1.session()->set_publisher(&relay_publisher);
   relay_endpoint2.session()->set_publisher(&relay_publisher);
 
@@ -1133,7 +1134,6 @@ TEST_F(MoqtIntegrationTest, RelayTwoClientsQueueClose) {
   ASSERT_TRUE(success);
 
   // Client 1 (Publisher) registers its local track publisher
-  MoqtKnownTrackPublisher client1_publisher;
   client1.session()->set_publisher(&client1_publisher);
   FullTrackName track_name("test", "track");
   auto queue =
@@ -1159,7 +1159,6 @@ TEST_F(MoqtIntegrationTest, RelayTwoClientsQueueClose) {
   ASSERT_TRUE(success);
 
   // Client 2 subscribes to the track from the relay
-  MockLiveSubscriberVisitor subscriber_visitor;
   bool subscribe_acknowledged = false;
   EXPECT_CALL(subscriber_visitor, OnReply)
       .WillOnce(
