@@ -4,6 +4,7 @@
 
 #include "quiche/quic/tools/quic_server.h"
 
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
@@ -156,7 +157,7 @@ TEST_P(QuicServerEpollInTest, ProcessBufferedCHLOsOnEpollin) {
   ASSERT_NE(fd, kQuicInvalidSocketFd);
 
   char buf[1024];
-  memset(buf, 0, ABSL_ARRAYSIZE(buf));
+  memset(buf, 0, std::size(buf));
   QuicUdpPacketInfo packet_info;
   packet_info.SetPeerAddress(server_address_);
   WriteResult result =
@@ -218,7 +219,7 @@ TEST_F(QuicServerDispatchPacketTest, DispatchPacket) {
   };
   // clang-format on
   QuicReceivedPacket encrypted_valid_packet(
-      reinterpret_cast<char*>(valid_packet), ABSL_ARRAYSIZE(valid_packet),
+      reinterpret_cast<char*>(valid_packet), std::size(valid_packet),
       QuicTime::Zero(), false);
 
   EXPECT_CALL(dispatcher_, ProcessPacket(_, _, _)).Times(1);

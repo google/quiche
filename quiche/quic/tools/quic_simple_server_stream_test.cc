@@ -4,6 +4,7 @@
 
 #include "quiche/quic/tools/quic_simple_server_stream.h"
 
+#include <iterator>
 #include <list>
 #include <memory>
 #include <optional>
@@ -738,7 +739,7 @@ TEST_P(QuicSimpleServerStreamTest, InvalidHeadersWithFin) {
       0x54,   0x54, 0x50, 0x2f,  // TTP/
       0x31,   0x2e, 0x31,        // 1.1
   };
-  absl::string_view data(arr, ABSL_ARRAYSIZE(arr));
+  absl::string_view data(arr, std::size(arr));
   QuicStreamFrame frame(stream_->id(), true, 0, data);
   // Verify that we don't crash when we get a invalid headers in stream frame.
   if (GetQuicReloadableFlag(quic_fin_before_completed_http_headers) &&
