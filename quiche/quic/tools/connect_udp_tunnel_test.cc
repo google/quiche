@@ -158,9 +158,9 @@ class ConnectUdpTunnelTest : public quiche::test::QuicheTest {
 TEST_F(ConnectUdpTunnelTest, OpenTunnel) {
   EXPECT_CALL(*socket_, ConnectBlocking()).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(*socket_, ReceiveAsync(Gt(0)));
-  EXPECT_CALL(*socket_, Disconnect()).WillOnce(InvokeWithoutArgs([this]() {
+  EXPECT_CALL(*socket_, Disconnect()).WillOnce([this]() {
     tunnel_.ReceiveComplete(absl::CancelledError());
-  }));
+  });
 
   EXPECT_CALL(
       request_handler_,
@@ -190,9 +190,9 @@ TEST_F(ConnectUdpTunnelTest, OpenTunnel) {
 TEST_F(ConnectUdpTunnelTest, OpenTunnelToIpv4LiteralTarget) {
   EXPECT_CALL(*socket_, ConnectBlocking()).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(*socket_, ReceiveAsync(Gt(0)));
-  EXPECT_CALL(*socket_, Disconnect()).WillOnce(InvokeWithoutArgs([this]() {
+  EXPECT_CALL(*socket_, Disconnect()).WillOnce([this]() {
     tunnel_.ReceiveComplete(absl::CancelledError());
-  }));
+  });
 
   EXPECT_CALL(
       request_handler_,
@@ -223,9 +223,9 @@ TEST_F(ConnectUdpTunnelTest, OpenTunnelToIpv4LiteralTarget) {
 TEST_F(ConnectUdpTunnelTest, OpenTunnelToIpv6LiteralTarget) {
   EXPECT_CALL(*socket_, ConnectBlocking()).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(*socket_, ReceiveAsync(Gt(0)));
-  EXPECT_CALL(*socket_, Disconnect()).WillOnce(InvokeWithoutArgs([this]() {
+  EXPECT_CALL(*socket_, Disconnect()).WillOnce([this]() {
     tunnel_.ReceiveComplete(absl::CancelledError());
-  }));
+  });
 
   EXPECT_CALL(
       request_handler_,
@@ -305,9 +305,9 @@ TEST_F(ConnectUdpTunnelTest, ReceiveFromTarget) {
 
   EXPECT_CALL(*socket_, ConnectBlocking()).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(*socket_, ReceiveAsync(Ge(kData.size()))).Times(2);
-  EXPECT_CALL(*socket_, Disconnect()).WillOnce(InvokeWithoutArgs([this]() {
+  EXPECT_CALL(*socket_, Disconnect()).WillOnce([this]() {
     tunnel_.ReceiveComplete(absl::CancelledError());
-  }));
+  });
 
   EXPECT_CALL(request_handler_, OnResponseBackendComplete(_));
 
@@ -340,9 +340,9 @@ TEST_F(ConnectUdpTunnelTest, SendToTarget) {
   EXPECT_CALL(*socket_, ReceiveAsync(Gt(0)));
   EXPECT_CALL(*socket_, SendBlocking(Matcher<std::string>(Eq(kData))))
       .WillOnce(Return(absl::OkStatus()));
-  EXPECT_CALL(*socket_, Disconnect()).WillOnce(InvokeWithoutArgs([this]() {
+  EXPECT_CALL(*socket_, Disconnect()).WillOnce([this]() {
     tunnel_.ReceiveComplete(absl::CancelledError());
-  }));
+  });
 
   EXPECT_CALL(request_handler_, OnResponseBackendComplete(_));
 
