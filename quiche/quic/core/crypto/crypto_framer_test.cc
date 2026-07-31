@@ -4,11 +4,11 @@
 
 #include "quiche/quic/core/crypto/crypto_framer.h"
 
+#include <iterator>
 #include <map>
 #include <memory>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
@@ -81,7 +81,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessage) {
   ASSERT_TRUE(data != nullptr);
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST(CryptoFramerTest, ConstructHandshakeMessageWithTwoKeys) {
@@ -115,7 +115,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageWithTwoKeys) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST(CryptoFramerTest, ConstructHandshakeMessageZeroLength) {
@@ -140,7 +140,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageZeroLength) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST(CryptoFramerTest, ConstructHandshakeMessageTooManyEntries) {
@@ -189,7 +189,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageMinimumSize) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST(CryptoFramerTest, ConstructHandshakeMessageMinimumSizePadLast) {
@@ -224,7 +224,7 @@ TEST(CryptoFramerTest, ConstructHandshakeMessageMinimumSizePadLast) {
 
   quiche::test::CompareCharArraysWithHexError(
       "constructed packet", data->data(), data->length(), AsChars(packet),
-      ABSL_ARRAYSIZE(packet));
+      std::size(packet));
 }
 
 TEST(CryptoFramerTest, ProcessInput) {
@@ -251,8 +251,8 @@ TEST(CryptoFramerTest, ProcessInput) {
                            // value 2
                            'g', 'h', 'i', 'j', 'k'};
 
-  EXPECT_TRUE(framer.ProcessInput(
-      absl::string_view(AsChars(input), ABSL_ARRAYSIZE(input))));
+  EXPECT_TRUE(
+      framer.ProcessInput(absl::string_view(AsChars(input), std::size(input))));
   EXPECT_EQ(0u, framer.InputBytesRemaining());
   EXPECT_EQ(0, visitor.error_count_);
   ASSERT_EQ(1u, visitor.messages_.size());
@@ -293,8 +293,8 @@ TEST(CryptoFramerTest, ProcessInputWithThreeKeys) {
                            // value 3
                            'l', 'm', 'n', 'o', 'p', 'q', 'r'};
 
-  EXPECT_TRUE(framer.ProcessInput(
-      absl::string_view(AsChars(input), ABSL_ARRAYSIZE(input))));
+  EXPECT_TRUE(
+      framer.ProcessInput(absl::string_view(AsChars(input), std::size(input))));
   EXPECT_EQ(0u, framer.InputBytesRemaining());
   EXPECT_EQ(0, visitor.error_count_);
   ASSERT_EQ(1u, visitor.messages_.size());
@@ -330,7 +330,7 @@ TEST(CryptoFramerTest, ProcessInputIncrementally) {
                            // value 2
                            'g', 'h', 'i', 'j', 'k'};
 
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(input); i++) {
+  for (size_t i = 0; i < std::size(input); i++) {
     EXPECT_TRUE(framer.ProcessInput(absl::string_view(AsChars(input) + i, 1)));
   }
   EXPECT_EQ(0u, framer.InputBytesRemaining());
@@ -362,8 +362,8 @@ TEST(CryptoFramerTest, ProcessInputTagsOutOfOrder) {
                            // end offset 2
                            0x02, 0x00, 0x00, 0x00};
 
-  EXPECT_FALSE(framer.ProcessInput(
-      absl::string_view(AsChars(input), ABSL_ARRAYSIZE(input))));
+  EXPECT_FALSE(
+      framer.ProcessInput(absl::string_view(AsChars(input), std::size(input))));
   EXPECT_THAT(framer.error(), IsError(QUIC_CRYPTO_TAGS_OUT_OF_ORDER));
   EXPECT_EQ(1, visitor.error_count_);
 }
@@ -388,8 +388,8 @@ TEST(CryptoFramerTest, ProcessEndOffsetsOutOfOrder) {
                            // end offset 2
                            0x00, 0x00, 0x00, 0x00};
 
-  EXPECT_FALSE(framer.ProcessInput(
-      absl::string_view(AsChars(input), ABSL_ARRAYSIZE(input))));
+  EXPECT_FALSE(
+      framer.ProcessInput(absl::string_view(AsChars(input), std::size(input))));
   EXPECT_THAT(framer.error(), IsError(QUIC_CRYPTO_TAGS_OUT_OF_ORDER));
   EXPECT_EQ(1, visitor.error_count_);
 }
@@ -406,8 +406,8 @@ TEST(CryptoFramerTest, ProcessInputTooManyEntries) {
                            // padding
                            0x00, 0x00};
 
-  EXPECT_FALSE(framer.ProcessInput(
-      absl::string_view(AsChars(input), ABSL_ARRAYSIZE(input))));
+  EXPECT_FALSE(
+      framer.ProcessInput(absl::string_view(AsChars(input), std::size(input))));
   EXPECT_THAT(framer.error(), IsError(QUIC_CRYPTO_TOO_MANY_ENTRIES));
   EXPECT_EQ(1, visitor.error_count_);
 }
@@ -432,8 +432,8 @@ TEST(CryptoFramerTest, ProcessInputZeroLength) {
                            // end offset 2
                            0x05, 0x00, 0x00, 0x00};
 
-  EXPECT_TRUE(framer.ProcessInput(
-      absl::string_view(AsChars(input), ABSL_ARRAYSIZE(input))));
+  EXPECT_TRUE(
+      framer.ProcessInput(absl::string_view(AsChars(input), std::size(input))));
   EXPECT_EQ(0, visitor.error_count_);
 }
 

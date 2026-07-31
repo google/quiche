@@ -4,9 +4,9 @@
 
 #include "quiche/quic/core/crypto/quic_hkdf.h"
 
+#include <iterator>
 #include <string>
 
-#include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
 #include "quiche/quic/platform/api/quic_test.h"
 
@@ -67,7 +67,7 @@ static const HKDFInput kHKDFInputs[] = {
 class QuicHKDFTest : public QuicTest {};
 
 TEST_F(QuicHKDFTest, HKDF) {
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(kHKDFInputs); i++) {
+  for (size_t i = 0; i < std::size(kHKDFInputs); i++) {
     const HKDFInput& test(kHKDFInputs[i]);
     SCOPED_TRACE(i);
 

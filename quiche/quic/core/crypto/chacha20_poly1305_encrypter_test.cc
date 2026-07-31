@@ -4,10 +4,10 @@
 
 #include "quiche/quic/core/crypto/chacha20_poly1305_encrypter.h"
 
+#include <iterator>
 #include <memory>
 #include <string>
 
-#include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/chacha20_poly1305_decrypter.h"
@@ -105,13 +105,12 @@ TEST_F(ChaCha20Poly1305EncrypterTest, EncryptThenDecrypt) {
   char encrypted[1024];
   size_t len;
   ASSERT_TRUE(encrypter.EncryptPacket(packet_number, associated_data, plaintext,
-                                      encrypted, &len,
-                                      ABSL_ARRAYSIZE(encrypted)));
+                                      encrypted, &len, std::size(encrypted)));
   absl::string_view ciphertext(encrypted, len);
   char decrypted[1024];
   ASSERT_TRUE(decrypter.DecryptPacket(packet_number, associated_data,
                                       ciphertext, decrypted, &len,
-                                      ABSL_ARRAYSIZE(decrypted)));
+                                      std::size(decrypted)));
 }
 
 TEST_F(ChaCha20Poly1305EncrypterTest, Encrypt) {

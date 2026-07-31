@@ -8,12 +8,12 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/memory/memory.h"
 #include "absl/strings/match.h"
@@ -437,9 +437,9 @@ void QuicCryptoClientConfig::FillInchoateClientHello(
   }
 
   char proof_nonce[32];
-  rand->RandBytes(proof_nonce, ABSL_ARRAYSIZE(proof_nonce));
-  out->SetStringPiece(
-      kNONP, absl::string_view(proof_nonce, ABSL_ARRAYSIZE(proof_nonce)));
+  rand->RandBytes(proof_nonce, std::size(proof_nonce));
+  out->SetStringPiece(kNONP,
+                      absl::string_view(proof_nonce, std::size(proof_nonce)));
 
   out->SetVector(kPDMD, QuicTagVector{kX509});
 

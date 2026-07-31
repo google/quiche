@@ -7,11 +7,11 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
 
-#include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
@@ -71,7 +71,7 @@ bool HkdfExpandLabel(const EVP_MD* prf, absl::Span<const uint8_t> secret,
   char quic_hkdf_label[sizeof(uint16_t) + sizeof(uint8_t) +
                        kLabelPrefix.length() + kMaxLabelLength +
                        sizeof(uint8_t)];
-  QuicDataWriter writer(ABSL_ARRAYSIZE(quic_hkdf_label), quic_hkdf_label);
+  QuicDataWriter writer(std::size(quic_hkdf_label), quic_hkdf_label);
   if (!quiche::SerializeIntoWriter(
            writer, quiche::WireUint16(static_cast<uint16_t>(out.length())),
            quiche::WireUint8(
@@ -215,21 +215,21 @@ const uint8_t* InitialSaltForVersion(const ParsedQuicVersion& version,
   static_assert(SupportedVersions().size() == 4u,
                 "Supported versions out of sync with initial encryption salts");
   if (version == ParsedQuicVersion::RFCv2()) {
-    *out_len = ABSL_ARRAYSIZE(kRFCv2InitialSalt);
+    *out_len = std::size(kRFCv2InitialSalt);
     return kRFCv2InitialSalt;
   } else if (version == ParsedQuicVersion::RFCv1()) {
-    *out_len = ABSL_ARRAYSIZE(kRFCv1InitialSalt);
+    *out_len = std::size(kRFCv1InitialSalt);
     return kRFCv1InitialSalt;
   } else if (version == ParsedQuicVersion::Draft29()) {
-    *out_len = ABSL_ARRAYSIZE(kDraft29InitialSalt);
+    *out_len = std::size(kDraft29InitialSalt);
     return kDraft29InitialSalt;
   } else if (version == ParsedQuicVersion::ReservedForNegotiation()) {
-    *out_len = ABSL_ARRAYSIZE(kReservedForNegotiationSalt);
+    *out_len = std::size(kReservedForNegotiationSalt);
     return kReservedForNegotiationSalt;
   }
   QUIC_BUG(quic_bug_10699_1)
       << "No initial obfuscation salt for version " << version;
-  *out_len = ABSL_ARRAYSIZE(kReservedForNegotiationSalt);
+  *out_len = std::size(kReservedForNegotiationSalt);
   return kReservedForNegotiationSalt;
 }
 
@@ -277,35 +277,35 @@ bool RetryIntegrityKeysForVersion(const ParsedQuicVersion& version,
   } else if (version == ParsedQuicVersion::RFCv2()) {
     *key = absl::string_view(
         reinterpret_cast<const char*>(kRFCv2RetryIntegrityKey),
-        ABSL_ARRAYSIZE(kRFCv2RetryIntegrityKey));
+        std::size(kRFCv2RetryIntegrityKey));
     *nonce = absl::string_view(
         reinterpret_cast<const char*>(kRFCv2RetryIntegrityNonce),
-        ABSL_ARRAYSIZE(kRFCv2RetryIntegrityNonce));
+        std::size(kRFCv2RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::RFCv1()) {
     *key = absl::string_view(
         reinterpret_cast<const char*>(kRFCv1RetryIntegrityKey),
-        ABSL_ARRAYSIZE(kRFCv1RetryIntegrityKey));
+        std::size(kRFCv1RetryIntegrityKey));
     *nonce = absl::string_view(
         reinterpret_cast<const char*>(kRFCv1RetryIntegrityNonce),
-        ABSL_ARRAYSIZE(kRFCv1RetryIntegrityNonce));
+        std::size(kRFCv1RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::Draft29()) {
     *key = absl::string_view(
         reinterpret_cast<const char*>(kDraft29RetryIntegrityKey),
-        ABSL_ARRAYSIZE(kDraft29RetryIntegrityKey));
+        std::size(kDraft29RetryIntegrityKey));
     *nonce = absl::string_view(
         reinterpret_cast<const char*>(kDraft29RetryIntegrityNonce),
-        ABSL_ARRAYSIZE(kDraft29RetryIntegrityNonce));
+        std::size(kDraft29RetryIntegrityNonce));
     return true;
   } else if (version == ParsedQuicVersion::ReservedForNegotiation()) {
     *key = absl::string_view(
         reinterpret_cast<const char*>(kReservedForNegotiationRetryIntegrityKey),
-        ABSL_ARRAYSIZE(kReservedForNegotiationRetryIntegrityKey));
+        std::size(kReservedForNegotiationRetryIntegrityKey));
     *nonce = absl::string_view(
         reinterpret_cast<const char*>(
             kReservedForNegotiationRetryIntegrityNonce),
-        ABSL_ARRAYSIZE(kReservedForNegotiationRetryIntegrityNonce));
+        std::size(kReservedForNegotiationRetryIntegrityNonce));
     return true;
   }
   QUIC_BUG(quic_bug_10699_3)
@@ -395,14 +395,13 @@ bool CryptoUtils::ValidateRetryIntegrityTag(
     ParsedQuicVersion version, QuicConnectionId original_connection_id,
     absl::string_view retry_without_tag, absl::string_view integrity_tag) {
   unsigned char computed_integrity_tag[kRetryIntegrityTagLength];
-  if (integrity_tag.length() != ABSL_ARRAYSIZE(computed_integrity_tag)) {
+  if (integrity_tag.length() != std::size(computed_integrity_tag)) {
     QUIC_BUG(quic_bug_10699_4)
         << "Invalid retry integrity tag length " << integrity_tag.length();
     return false;
   }
   char retry_pseudo_packet[kMaxIncomingPacketSize + 256];
-  QuicDataWriter writer(ABSL_ARRAYSIZE(retry_pseudo_packet),
-                        retry_pseudo_packet);
+  QuicDataWriter writer(std::size(retry_pseudo_packet), retry_pseudo_packet);
   if (!writer.WriteLengthPrefixedConnectionId(original_connection_id)) {
     QUIC_BUG(quic_bug_10699_5)
         << "Failed to write original connection ID in retry pseudo packet";
@@ -429,7 +428,7 @@ bool CryptoUtils::ValidateRetryIntegrityTag(
     return false;
   }
   if (CRYPTO_memcmp(computed_integrity_tag, integrity_tag.data(),
-                    ABSL_ARRAYSIZE(computed_integrity_tag)) != 0) {
+                    std::size(computed_integrity_tag)) != 0) {
     QUIC_DLOG(ERROR) << "Failed to validate retry integrity tag";
     return false;
   }

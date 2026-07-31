@@ -6,13 +6,13 @@
 
 #include <cstdint>
 #include <cstring>
+#include <iterator>
 #include <memory>
 #include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
@@ -598,7 +598,7 @@ TEST_P(TransportParametersTest, ParseClientParams) {
   // clang-format on
   const uint8_t* client_params =
       reinterpret_cast<const uint8_t*>(kClientParams);
-  size_t client_params_length = ABSL_ARRAYSIZE(kClientParams);
+  size_t client_params_length = std::size(kClientParams);
   TransportParameters new_params;
   std::string error_details;
   ASSERT_TRUE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
@@ -679,7 +679,7 @@ TEST_P(TransportParametersTest,
   // clang-format on
   const uint8_t* client_params =
       reinterpret_cast<const uint8_t*>(kClientParamsWithFullToken);
-  size_t client_params_length = ABSL_ARRAYSIZE(kClientParamsWithFullToken);
+  size_t client_params_length = std::size(kClientParamsWithFullToken);
   TransportParameters out_params;
   std::string error_details;
   EXPECT_FALSE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
@@ -711,7 +711,7 @@ TEST_P(TransportParametersTest,
   // clang-format on
   const uint8_t* client_params =
       reinterpret_cast<const uint8_t*>(kClientParamsWithEmptyToken);
-  size_t client_params_length = ABSL_ARRAYSIZE(kClientParamsWithEmptyToken);
+  size_t client_params_length = std::size(kClientParamsWithEmptyToken);
   TransportParameters out_params;
   std::string error_details;
   EXPECT_FALSE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
@@ -740,7 +740,7 @@ TEST_P(TransportParametersTest, ParseClientParametersRepeated) {
   // clang-format on
   const uint8_t* client_params =
       reinterpret_cast<const uint8_t*>(kClientParamsRepeated);
-  size_t client_params_length = ABSL_ARRAYSIZE(kClientParamsRepeated);
+  size_t client_params_length = std::size(kClientParamsRepeated);
   TransportParameters out_params;
   std::string error_details;
   EXPECT_FALSE(ParseTransportParameters(version_, Perspective::IS_CLIENT,
@@ -858,7 +858,7 @@ TEST_P(TransportParametersTest, ParseServerParams) {
   // clang-format on
   const uint8_t* server_params =
       reinterpret_cast<const uint8_t*>(kServerParams);
-  size_t server_params_length = ABSL_ARRAYSIZE(kServerParams);
+  size_t server_params_length = std::size(kServerParams);
   TransportParameters new_params;
   std::string error_details;
   ASSERT_TRUE(ParseTransportParameters(version_, Perspective::IS_SERVER,
@@ -940,7 +940,7 @@ TEST_P(TransportParametersTest, ParseServerParametersRepeated) {
   // clang-format on
   const uint8_t* server_params =
       reinterpret_cast<const uint8_t*>(kServerParamsRepeated);
-  size_t server_params_length = ABSL_ARRAYSIZE(kServerParamsRepeated);
+  size_t server_params_length = std::size(kServerParamsRepeated);
   TransportParameters out_params;
   std::string error_details;
   EXPECT_FALSE(ParseTransportParameters(version_, Perspective::IS_SERVER,
@@ -970,7 +970,7 @@ TEST_P(TransportParametersTest,
   const uint8_t* server_params =
       reinterpret_cast<const uint8_t*>(kServerParamsEmptyOriginalConnectionId);
   size_t server_params_length =
-      ABSL_ARRAYSIZE(kServerParamsEmptyOriginalConnectionId);
+      std::size(kServerParamsEmptyOriginalConnectionId);
   TransportParameters out_params;
   std::string error_details;
   ASSERT_TRUE(ParseTransportParameters(version_, Perspective::IS_SERVER,

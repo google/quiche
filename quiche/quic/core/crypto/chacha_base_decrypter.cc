@@ -5,9 +5,9 @@
 #include "quiche/quic/core/crypto/chacha_base_decrypter.h"
 
 #include <cstdint>
+#include <iterator>
 #include <string>
 
-#include "absl/base/macros.h"
 #include "absl/strings/string_view.h"
 #include "openssl/chacha.h"
 #include "quiche/quic/core/quic_data_reader.h"
@@ -36,9 +36,9 @@ std::string ChaChaBaseDecrypter::GenerateHeaderProtectionMask(
   QuicDataReader(sample.data(), 4, quiche::HOST_BYTE_ORDER)
       .ReadUInt32(&counter);
   const uint8_t zeroes[] = {0, 0, 0, 0, 0};
-  std::string out(ABSL_ARRAYSIZE(zeroes), 0);
+  std::string out(std::size(zeroes), 0);
   CRYPTO_chacha_20(reinterpret_cast<uint8_t*>(const_cast<char*>(out.data())),
-                   zeroes, ABSL_ARRAYSIZE(zeroes), pne_key_, nonce, counter);
+                   zeroes, std::size(zeroes), pne_key_, nonce, counter);
   return out;
 }
 

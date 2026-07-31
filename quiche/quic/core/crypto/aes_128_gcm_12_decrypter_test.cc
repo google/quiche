@@ -4,10 +4,10 @@
 
 #include "quiche/quic/core/crypto/aes_128_gcm_12_decrypter.h"
 
+#include <iterator>
 #include <memory>
 #include <string>
 
-#include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -225,7 +225,7 @@ QuicData* DecryptWithNonce(Aes128Gcm12Decrypter* decrypter,
 class Aes128Gcm12DecrypterTest : public QuicTest {};
 
 TEST_F(Aes128Gcm12DecrypterTest, Decrypt) {
-  for (size_t i = 0; i < ABSL_ARRAYSIZE(test_group_array); i++) {
+  for (size_t i = 0; i < std::size(test_group_array); i++) {
     SCOPED_TRACE(i);
     const TestVector* test_vectors = test_group_array[i];
     const TestGroupInfo& test_info = test_group_info[i];
