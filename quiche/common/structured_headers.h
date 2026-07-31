@@ -140,21 +140,6 @@ class QUICHE_EXPORT Item {
     return *value;
   }
 
-  // Deprecated: Prefer `GetIfString()`, `GetIfToken()`, or
-  // `GetIfByteSequence()`.
-  std::string TakeString() && {
-    struct Visitor {
-      std::string* operator()(std::monostate&) { return nullptr; }
-      std::string* operator()(int64_t&) { return nullptr; }
-      std::string* operator()(double&) { return nullptr; }
-      std::string* operator()(std::string& value) { return &value; }
-      std::string* operator()(bool&) { return nullptr; }
-    };
-    std::string* value = std::visit(Visitor(), value_);
-    QUICHE_CHECK(value);
-    return std::move(*value);
-  }
-
   ItemType Type() const { return static_cast<ItemType>(value_.index()); }
 
  private:

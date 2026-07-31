@@ -34,23 +34,38 @@ using ::quiche::structured_headers::List;
 using ::quiche::structured_headers::ParameterizedItem;
 using ::quiche::structured_headers::ParameterizedMember;
 
-absl::Status CheckItemType(const ParameterizedItem& item,
-                           Item::ItemType expected_type) {
-  if (item.item.Type() != expected_type) {
+template <Item::ItemType kExpectedType>
+auto* GetItemAsPtr(auto&& item) {
+  if constexpr (kExpectedType == Item::kIntegerType) {
+    return item.item.GetIfInteger();
+  } else if constexpr (kExpectedType == Item::kStringType) {
+    return item.item.GetIfString();
+  } else {
+    static_assert(false);
+  }
+}
+
+template <Item::ItemType kExpectedType>
+auto GetItem(auto&& item) -> absl::StatusOr<
+    std::remove_pointer_t<decltype(GetItemAsPtr<kExpectedType>(item))>> {
+  auto* ptr = GetItemAsPtr<kExpectedType>(item);
+  if (!ptr) {
     return absl::InvalidArgumentError(absl::StrCat(
-        "Expected all members to be of type ", ItemTypeToString(expected_type),
+        "Expected all members to be of type ", ItemTypeToString(kExpectedType),
         ", found ", ItemTypeToString(item.item.Type()), " instead"));
   }
-  return absl::OkStatus();
+  return std::move(*ptr);
 }
-absl::Status CheckMemberType(const ParameterizedMember& member,
-                             Item::ItemType expected_type) {
+
+template <Item::ItemType kExpectedType>
+auto GetMember(auto&& member)
+    -> decltype(GetItem<kExpectedType>(member.member[0])) {
   if (member.member_is_inner_list || member.member.size() != 1) {
     return absl::InvalidArgumentError(absl::StrCat(
-        "Expected all members to be of type", ItemTypeToString(expected_type),
+        "Expected all members to be of type", ItemTypeToString(kExpectedType),
         ", found a nested list instead"));
   }
-  return CheckItemType(member.member[0], expected_type);
+  return GetItem<kExpectedType>(member.member[0]);
 }
 
 ABSL_CONST_INIT std::array kInitHeaderFields{
@@ -71,8 +86,9 @@ absl::StatusOr<std::vector<std::string>> ParseSubprotocolRequestHeader(
   std::vector<std::string> result;
   result.reserve(parsed->size());
   for (ParameterizedMember& member : *parsed) {
-    QUICHE_RETURN_IF_ERROR(CheckMemberType(member, Item::kStringType));
-    result.push_back(std::move(member.member[0].item).TakeString());
+    QUICHE_ASSIGN_OR_RETURN(std::string v,
+                            GetMember<Item::kStringType>(member));
+    result.push_back(std::move(v));
   }
   return result;
 }
@@ -100,8 +116,7 @@ absl::StatusOr<std::string> ParseSubprotocolResponseHeader(
   if (!parsed.has_value()) {
     return absl::InvalidArgumentError("Failed to parse sf-item");
   }
-  QUICHE_RETURN_IF_ERROR(CheckItemType(*parsed, Item::kStringType));
-  return std::move(parsed->item).TakeString();
+  return GetItem<Item::kStringType>(*parsed);
 }
 
 absl::StatusOr<std::string> SerializeSubprotocolResponseHeader(
@@ -155,8 +170,8 @@ absl::StatusOr<WebTransportInitHeader> ParseInitHeader(
       if (field_name_a != field_name_b) {
         continue;
       }
-      QUICHE_RETURN_IF_ERROR(CheckMemberType(field_value, Item::kIntegerType));
-      int64_t value = field_value.member[0].item.GetInteger();
+      QUICHE_ASSIGN_OR_RETURN(int64_t value,
+                              GetMember<Item::kIntegerType>(field_value));
       if (value < 0) {
         return absl::InvalidArgumentError(
             absl::StrCat("Received negative value for ", field_name_a));
