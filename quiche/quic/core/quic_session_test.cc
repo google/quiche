@@ -3348,13 +3348,11 @@ TEST_P(QuicSessionTestServer, BlockedFrameCausesWriteError) {
   // Try to send more data than the flow control limit allows.
   const uint64_t kOverflow = 15;
   std::string body(kWindow + kOverflow, 'a');
-  EXPECT_CALL(*connection_, SendControlFrame(_))
-      .WillOnce(testing::InvokeWithoutArgs([this]() {
-        connection_->ReallyCloseConnection(
-            QUIC_PACKET_WRITE_ERROR, "write error",
-            ConnectionCloseBehavior::SILENT_CLOSE);
-        return false;
-      }));
+  EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce([this]() {
+    connection_->ReallyCloseConnection(QUIC_PACKET_WRITE_ERROR, "write error",
+                                       ConnectionCloseBehavior::SILENT_CLOSE);
+    return false;
+  });
   stream->WriteOrBufferData(body, false, nullptr);
 }
 
@@ -3382,12 +3380,12 @@ TEST_P(QuicSessionTestServer, BufferedCryptoFrameCausesWriteError) {
   // Flush both frames.
   EXPECT_CALL(*connection_,
               SendCryptoData(ENCRYPTION_FORWARD_SECURE, 350, 1000))
-      .WillOnce(testing::InvokeWithoutArgs([this]() {
+      .WillOnce([this]() {
         connection_->ReallyCloseConnection(
             QUIC_PACKET_WRITE_ERROR, "write error",
             ConnectionCloseBehavior::SILENT_CLOSE);
         return 350;
-      }));
+      });
   if (!GetQuicReloadableFlag(
           quic_no_write_control_frame_upon_connection_close)) {
     EXPECT_CALL(*connection_, SendControlFrame(_)).WillOnce(Return(false));

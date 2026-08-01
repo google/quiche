@@ -886,10 +886,8 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
   // The first retransmits 2 packets.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(6); }))
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(7); }));
+      .WillOnce([this]() { return RetransmitCryptoPacket(6); })
+      .WillOnce([this]() { return RetransmitCryptoPacket(7); });
   manager_.OnRetransmissionTimeout();
   // Expect all 4 handshake packets to be in flight and 3 data packets.
   EXPECT_EQ(7 * kDefaultLength, manager_.GetBytesInFlight());
@@ -898,10 +896,8 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeout) {
   // The second retransmits 2 packets.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(8); }))
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(9); }));
+      .WillOnce([this]() { return RetransmitCryptoPacket(8); })
+      .WillOnce([this]() { return RetransmitCryptoPacket(9); });
   manager_.OnRetransmissionTimeout();
   EXPECT_EQ(9 * kDefaultLength, manager_.GetBytesInFlight());
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
@@ -931,15 +927,15 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeSpuriousRetransmission) {
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Retransmit the crypto packet as 2.
-  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(2); }));
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _)).WillOnce([this]() {
+    return RetransmitCryptoPacket(2);
+  });
   manager_.OnRetransmissionTimeout();
 
   // Retransmit the crypto packet as 3.
-  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(3); }));
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _)).WillOnce([this]() {
+    return RetransmitCryptoPacket(3);
+  });
   manager_.OnRetransmissionTimeout();
 
   // Now ack the second crypto packet, and ensure the first gets removed, but
@@ -972,10 +968,8 @@ TEST_F(QuicSentPacketManagerTest, CryptoHandshakeTimeoutUnsentDataPacket) {
   // Retransmit 2 crypto packets, but not the serialized packet.
   EXPECT_CALL(notifier_, RetransmitFrames(_, _))
       .Times(2)
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(4); }))
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(5); }));
+      .WillOnce([this]() { return RetransmitCryptoPacket(4); })
+      .WillOnce([this]() { return RetransmitCryptoPacket(5); });
   manager_.OnRetransmissionTimeout();
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 }
@@ -988,16 +982,16 @@ TEST_F(QuicSentPacketManagerTest,
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Retransmit the crypto packet as 2.
-  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(2); }));
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _)).WillOnce([this]() {
+    return RetransmitCryptoPacket(2);
+  });
   manager_.OnRetransmissionTimeout();
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
   // Retransmit the crypto packet as 3.
-  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(3); }));
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _)).WillOnce([this]() {
+    return RetransmitCryptoPacket(3);
+  });
   manager_.OnRetransmissionTimeout();
   EXPECT_TRUE(manager_.HasUnackedCryptoPackets());
 
@@ -1049,9 +1043,9 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionTimeCryptoHandshake) {
 
   // Retransmit the packet by invoking the retransmission timeout.
   clock_.AdvanceTime(1.5 * srtt);
-  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(2); }));
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _)).WillOnce([this]() {
+    return RetransmitCryptoPacket(2);
+  });
   // When session decides what to write, crypto_packet_send_time gets updated.
   crypto_packet_send_time = clock_.Now();
   manager_.OnRetransmissionTimeout();
@@ -1062,9 +1056,9 @@ TEST_F(QuicSentPacketManagerTest, GetTransmissionTimeCryptoHandshake) {
 
   // Retransmit the packet for the 2nd time.
   clock_.AdvanceTime(2 * 1.5 * srtt);
-  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(3); }));
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _)).WillOnce([this]() {
+    return RetransmitCryptoPacket(3);
+  });
   // When session decides what to write, crypto_packet_send_time gets updated.
   crypto_packet_send_time = clock_.Now();
   manager_.OnRetransmissionTimeout();
@@ -1107,9 +1101,9 @@ TEST_F(QuicSentPacketManagerTest,
 
   // Retransmit the packet by invoking the retransmission timeout.
   clock_.AdvanceTime(2 * srtt);
-  EXPECT_CALL(notifier_, RetransmitFrames(_, _))
-      .WillOnce(
-          InvokeWithoutArgs([this]() { return RetransmitCryptoPacket(2); }));
+  EXPECT_CALL(notifier_, RetransmitFrames(_, _)).WillOnce([this]() {
+    return RetransmitCryptoPacket(2);
+  });
   crypto_packet_send_time = clock_.Now();
   manager_.OnRetransmissionTimeout();
 

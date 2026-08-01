@@ -502,11 +502,11 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
       session_,
       WritevData(QuicUtils::GetCryptoStreamId(connection_->transport_version()),
                  650, 1350, _, _, _))
-      .WillOnce(InvokeWithoutArgs([this]() {
+      .WillOnce([this]() {
         return session_.ConsumeData(
             QuicUtils::GetCryptoStreamId(connection_->transport_version()), 150,
             1350, NO_FIN, HANDSHAKE_RETRANSMISSION, std::nullopt);
-      }));
+      });
 
   EXPECT_FALSE(stream_->RetransmitStreamData(1350, 1350, false,
                                              HANDSHAKE_RETRANSMISSION));

@@ -11034,14 +11034,13 @@ TEST_P(QuicConnectionTest, MaxStreamsFrameCausesConnectionClose) {
     return;
   }
   // Received frame causes connection close.
-  EXPECT_CALL(visitor_, OnMaxStreamsFrame(_))
-      .WillOnce(InvokeWithoutArgs([this]() {
-        EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
-        connection_.CloseConnection(
-            QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES, "error",
-            ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-        return true;
-      }));
+  EXPECT_CALL(visitor_, OnMaxStreamsFrame(_)).WillOnce([this]() {
+    EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+    connection_.CloseConnection(
+        QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES, "error",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return true;
+  });
   QuicFrames frames;
   frames.push_back(QuicFrame(QuicMaxStreamsFrame()));
   frames.push_back(QuicFrame(QuicPaddingFrame(-1)));
@@ -11053,14 +11052,13 @@ TEST_P(QuicConnectionTest, StreamsBlockedFrameCausesConnectionClose) {
     return;
   }
   // Received frame causes connection close.
-  EXPECT_CALL(visitor_, OnStreamsBlockedFrame(_))
-      .WillOnce(InvokeWithoutArgs([this]() {
-        EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
-        connection_.CloseConnection(
-            QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES, "error",
-            ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
-        return true;
-      }));
+  EXPECT_CALL(visitor_, OnStreamsBlockedFrame(_)).WillOnce([this]() {
+    EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
+    connection_.CloseConnection(
+        QUIC_TOO_MANY_BUFFERED_CONTROL_FRAMES, "error",
+        ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+    return true;
+  });
   QuicFrames frames;
   frames.push_back(
       QuicFrame(QuicStreamsBlockedFrame(kInvalidControlFrameId, 10, false)));
