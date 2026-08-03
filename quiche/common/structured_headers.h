@@ -175,7 +175,7 @@ QUICHE_EXPORT bool IsValidToken(absl::string_view str);
 // Token, and there may be any number of parameters. Parameter ordering is not
 // significant.
 struct QUICHE_EXPORT ParameterisedIdentifier {
-  using Parameters = std::map<std::string, Item>;
+  using Parameters = std::map<std::string, Item, std::less<>>;
 
   Item identifier;
   Parameters params;
