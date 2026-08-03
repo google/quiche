@@ -39,7 +39,7 @@ std::string SerializePriorityFieldValue(HttpStreamPriority priority) {
     return "";
   }
 
-  return *priority_field_value;
+  return *std::move(priority_field_value);
 }
 
 std::optional<HttpStreamPriority> ParsePriorityFieldValue(
@@ -67,17 +67,19 @@ std::optional<HttpStreamPriority> ParsePriorityFieldValue(
       continue;
     }
 
-    const quiche::structured_headers::Item item = member[0].item;
-    if (name == HttpStreamPriority::kUrgencyKey && item.is_integer()) {
-      int parsed_urgency = item.GetInteger();
+    const quiche::structured_headers::Item& item = member[0].item;
+    if (name == HttpStreamPriority::kUrgencyKey) {
+      const int64_t* parsed_urgency = item.GetIfInteger();
       // Ignore out-of-range values.
-      if (parsed_urgency >= HttpStreamPriority::kMinimumUrgency &&
-          parsed_urgency <= HttpStreamPriority::kMaximumUrgency) {
-        urgency = parsed_urgency;
+      if (parsed_urgency &&
+          *parsed_urgency >= HttpStreamPriority::kMinimumUrgency &&
+          *parsed_urgency <= HttpStreamPriority::kMaximumUrgency) {
+        urgency = *parsed_urgency;
       }
-    } else if (name == HttpStreamPriority::kIncrementalKey &&
-               item.is_boolean()) {
-      incremental = item.GetBoolean();
+    } else if (name == HttpStreamPriority::kIncrementalKey) {
+      if (const bool* parsed_incremental = item.GetIfBoolean()) {
+        incremental = *parsed_incremental;
+      }
     }
   }
 
