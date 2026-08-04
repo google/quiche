@@ -16,7 +16,6 @@
 #include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
 #include "absl/container/flat_hash_set.h"
-#include "absl/functional/overload.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
@@ -584,8 +583,6 @@ class StructuredHeaderParser {
   const bool strict_;
 };
 
-}  // namespace
-
 // Serializer for (a subset of) Structured Field Values for HTTP defined in
 // [RFC8941]. Note that this serializer does not attempt to support [SH09].
 class StructuredHeaderSerializer {
@@ -599,7 +596,7 @@ class StructuredHeaderSerializer {
   std::string Output() && { return std::move(output_).str(); }
 
   // Serializes a List ([RFC8941] 4.1.1).
-  [[nodiscard]] bool WriteList(const List& value) {
+  bool WriteList(const List& value) {
     bool first = true;
     for (const auto& member : value) {
       if (!first) output_ << ", ";
@@ -610,108 +607,105 @@ class StructuredHeaderSerializer {
   }
 
   // Serializes an Item ([RFC8941] 4.1.3).
-  [[nodiscard]] bool WriteItem(const ParameterizedItem& value) {
+  bool WriteItem(const ParameterizedItem& value) {
     if (!WriteBareItem(value.item)) return false;
     return WriteParameters(value.params);
   }
 
   // Serializes an Item ([RFC8941] 4.1.3).
-  [[nodiscard]] bool WriteBareItem(const Item& value) {
-    return std::visit(
-        absl::Overload{
-            [&](const std::string& string) {
-              // Serializes a String ([RFC8941] 4.1.6).
-              output_ << "\"";
-              for (const char c : string) {
-                if (!absl::ascii_isprint(c)) return false;
-                if (c == '\\' || c == '\"') output_ << "\\";
-                output_ << c;
-              }
-              output_ << "\"";
-              return true;
-            },
-            [&](const Item::Token& token) {
-              // Serializes a Token ([RFC8941] 4.1.7).
-              if (!IsValidToken(token.value)) {
-                return false;
-              }
-              output_ << token.value;
-              return true;
-            },
-            [&](const Item::ByteSequence& byte_sequence) {
-              // Serializes a Byte Sequence ([RFC8941] 4.1.8).
-              output_ << ":";
-              output_ << absl::Base64Escape(byte_sequence.value);
-              output_ << ":";
-              return true;
-            },
-            [&](int64_t value) {
-              // Serializes an Integer ([RFC8941] 4.1.4).
-              if (value > kMaxInteger || value < kMinInteger) return false;
-              output_ << value;
-              return true;
-            },
-            [&](double decimal_value) {
-              // Serializes a Decimal ([RFC8941] 4.1.5).
-              if (!std::isfinite(decimal_value) ||
-                  fabs(decimal_value) >= kTooLargeDecimal)
-                return false;
+  bool WriteBareItem(const Item& value) {
+    if (value.is_string()) {
+      // Serializes a String ([RFC8941] 4.1.6).
+      output_ << "\"";
+      for (const char& c : value.GetString()) {
+        if (!absl::ascii_isprint(c)) return false;
+        if (c == '\\' || c == '\"') output_ << "\\";
+        output_ << c;
+      }
+      output_ << "\"";
+      return true;
+    }
+    if (value.is_token()) {
+      // Serializes a Token ([RFC8941] 4.1.7).
+      if (!IsValidToken(value.GetString())) {
+        return false;
+      }
+      output_ << value.GetString();
+      return true;
+    }
+    if (value.is_byte_sequence()) {
+      // Serializes a Byte Sequence ([RFC8941] 4.1.8).
+      output_ << ":";
+      output_ << absl::Base64Escape(value.GetString());
+      output_ << ":";
+      return true;
+    }
+    if (value.is_integer()) {
+      // Serializes an Integer ([RFC8941] 4.1.4).
+      if (value.GetInteger() > kMaxInteger || value.GetInteger() < kMinInteger)
+        return false;
+      output_ << value.GetInteger();
+      return true;
+    }
+    if (value.is_decimal()) {
+      // Serializes a Decimal ([RFC8941] 4.1.5).
+      double decimal_value = value.GetDecimal();
+      if (!std::isfinite(decimal_value) ||
+          fabs(decimal_value) >= kTooLargeDecimal)
+        return false;
 
-              // Handle sign separately to simplify the rest of the formatting.
-              if (decimal_value < 0) output_ << "-";
-              // Unconditionally take absolute value to ensure that -0 is
-              // serialized as "0.0", with no negative sign, as required by
-              // spec. (4.1.5, step 2).
-              decimal_value = fabs(decimal_value);
-              double remainder = fmod(decimal_value, 0.002);
-              if (remainder == 0.0005) {
-                // Value ended in exactly 0.0005, 0.0025, 0.0045, etc. Round
-                // down.
-                decimal_value -= 0.0005;
-              } else if (remainder == 0.0015) {
-                // Value ended in exactly 0.0015, 0.0035, 0,0055, etc. Round up.
-                decimal_value += 0.0005;
-              } else {
-                // Standard rounding will work in all other cases.
-                decimal_value = round(decimal_value * 1000.0) / 1000.0;
-              }
+      // Handle sign separately to simplify the rest of the formatting.
+      if (decimal_value < 0) output_ << "-";
+      // Unconditionally take absolute value to ensure that -0 is serialized as
+      // "0.0", with no negative sign, as required by spec. (4.1.5, step 2).
+      decimal_value = fabs(decimal_value);
+      double remainder = fmod(decimal_value, 0.002);
+      if (remainder == 0.0005) {
+        // Value ended in exactly 0.0005, 0.0025, 0.0045, etc. Round down.
+        decimal_value -= 0.0005;
+      } else if (remainder == 0.0015) {
+        // Value ended in exactly 0.0015, 0.0035, 0,0055, etc. Round up.
+        decimal_value += 0.0005;
+      } else {
+        // Standard rounding will work in all other cases.
+        decimal_value = round(decimal_value * 1000.0) / 1000.0;
+      }
 
-              // Use standard library functions to write the decimal, and then
-              // truncate if necessary to conform to spec.
+      // Use standard library functions to write the decimal, and then truncate
+      // if necessary to conform to spec.
 
-              // Maximum is 12 integer digits, one decimal point, three
-              // fractional digits, and a null terminator.
-              char buffer[17];
-              absl::SNPrintF(buffer, std::size(buffer), "%#.3f", decimal_value);
+      // Maximum is 12 integer digits, one decimal point, three fractional
+      // digits, and a null terminator.
+      char buffer[17];
+      absl::SNPrintF(buffer, std::size(buffer), "%#.3f", decimal_value);
 
-              // Strip any trailing 0s after the decimal point, but leave at
-              // least one digit after it in all cases. (So 1.230 becomes 1.23,
-              // but 1.000 becomes 1.0.)
-              absl::string_view formatted_number(buffer);
-              auto truncate_index = formatted_number.find_last_not_of('0');
-              if (formatted_number[truncate_index] == '.') truncate_index++;
-              output_ << formatted_number.substr(0, truncate_index + 1);
-              return true;
-            },
-            [&](bool value) {
-              // Serializes a Boolean ([RFC8941] 4.1.9).
-              output_ << (value ? "?1" : "?0");
-              return true;
-            },
-            [](std::monostate) { return false; },
-        },
-        value.value_);
+      // Strip any trailing 0s after the decimal point, but leave at least one
+      // digit after it in all cases. (So 1.230 becomes 1.23, but 1.000 becomes
+      // 1.0.)
+      absl::string_view formatted_number(buffer);
+      auto truncate_index = formatted_number.find_last_not_of('0');
+      if (formatted_number[truncate_index] == '.') truncate_index++;
+      output_ << formatted_number.substr(0, truncate_index + 1);
+      return true;
+    }
+    if (value.is_boolean()) {
+      // Serializes a Boolean ([RFC8941] 4.1.9).
+      output_ << (value.GetBoolean() ? "?1" : "?0");
+      return true;
+    }
+    return false;
   }
 
   // Serializes a Dictionary ([RFC8941] 4.1.2).
-  [[nodiscard]] bool WriteDictionary(const Dictionary& value) {
+  bool WriteDictionary(const Dictionary& value) {
     bool first = true;
     for (const auto& [dict_key, dict_value] : value) {
       if (!first) output_ << ", ";
       if (!WriteKey(dict_key)) return false;
       first = false;
       if (!dict_value.member_is_inner_list && !dict_value.member.empty() &&
-          IsBooleanTrue(dict_value.member.front().item)) {
+          dict_value.member.front().item.is_boolean() &&
+          dict_value.member.front().item.GetBoolean()) {
         if (!WriteParameters(dict_value.params)) return false;
       } else {
         output_ << "=";
@@ -722,13 +716,7 @@ class StructuredHeaderSerializer {
   }
 
  private:
-  static bool IsBooleanTrue(const Item& item) {
-    const bool* value = item.GetIfBoolean();
-    return value && *value;
-  }
-
-  [[nodiscard]] bool WriteParameterizedMember(
-      const ParameterizedMember& value) {
+  bool WriteParameterizedMember(const ParameterizedMember& value) {
     // Serializes a parameterized member ([RFC8941] 4.1.1).
     if (value.member_is_inner_list) {
       if (!WriteInnerList(value.member)) return false;
@@ -739,8 +727,7 @@ class StructuredHeaderSerializer {
     return WriteParameters(value.params);
   }
 
-  [[nodiscard]] bool WriteInnerList(
-      const std::vector<ParameterizedItem>& value) {
+  bool WriteInnerList(const std::vector<ParameterizedItem>& value) {
     // Serializes an inner list ([RFC8941] 4.1.1.1).
     output_ << "(";
     bool first = true;
@@ -753,19 +740,23 @@ class StructuredHeaderSerializer {
     return true;
   }
 
-  [[nodiscard]] bool WriteParameters(const Parameters& value) {
+  bool WriteParameters(const Parameters& value) {
     // Serializes a parameter list ([RFC8941] 4.1.1.2).
-    for (const auto& [param_name, param_value] : value) {
+    for (const auto& param_name_and_value : value) {
+      const std::string& param_name = param_name_and_value.first;
+      const Item& param_value = param_name_and_value.second;
       output_ << ";";
       if (!WriteKey(param_name)) return false;
-      if (param_value.is_null() || IsBooleanTrue(param_value)) continue;
-      output_ << "=";
-      if (!WriteBareItem(param_value)) return false;
+      if (!param_value.is_null()) {
+        if (param_value.is_boolean() && param_value.GetBoolean()) continue;
+        output_ << "=";
+        if (!WriteBareItem(param_value)) return false;
+      }
     }
     return true;
   }
 
-  [[nodiscard]] bool WriteKey(const std::string& value) {
+  bool WriteKey(const std::string& value) {
     // Serializes a Key ([RFC8941] 4.1.1.3).
     if (value.empty()) return false;
     if (value.find_first_not_of(kKeyChars) != std::string::npos) return false;
@@ -776,6 +767,8 @@ class StructuredHeaderSerializer {
 
   std::ostringstream output_;
 };
+
+}  // namespace
 
 absl::string_view ItemTypeToString(Item::ItemType type) {
   switch (type) {
@@ -851,23 +844,17 @@ const std::string* Item::GetIfString() const {
 std::string* Item::GetIfString() { return std::get_if<kStringType>(&value_); }
 
 const std::string* Item::GetIfToken() const {
-  const auto* token = std::get_if<kTokenType>(&value_);
-  return token ? &token->value : nullptr;
+  return std::get_if<kTokenType>(&value_);
 }
 
-std::string* Item::GetIfToken() {
-  auto* token = std::get_if<kTokenType>(&value_);
-  return token ? &token->value : nullptr;
-}
+std::string* Item::GetIfToken() { return std::get_if<kTokenType>(&value_); }
 
 const std::string* Item::GetIfByteSequence() const {
-  const auto* byte_sequence = std::get_if<kByteSequenceType>(&value_);
-  return byte_sequence ? &byte_sequence->value : nullptr;
+  return std::get_if<kByteSequenceType>(&value_);
 }
 
 std::string* Item::GetIfByteSequence() {
-  auto* byte_sequence = std::get_if<kByteSequenceType>(&value_);
-  return byte_sequence ? &byte_sequence->value : nullptr;
+  return std::get_if<kByteSequenceType>(&value_);
 }
 
 const bool* Item::GetIfBoolean() const {
