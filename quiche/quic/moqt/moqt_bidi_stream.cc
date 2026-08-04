@@ -23,7 +23,7 @@
 namespace moqt {
 
 void MoqtBidiStreamBase::OnCanRead() {
-  if (stream_parser_ == nullptr) {
+  if (!stream_parser_.has_value()) {
     QUICHE_BUG(MoqtBidiStreamBase_OnCanRead_no_stream)
         << "OnCanRead() called when no stream is bound";
     return;
@@ -47,7 +47,7 @@ void MoqtBidiStreamBase::OnCanRead() {
 }
 
 void MoqtBidiStreamBase::OnCanWrite() {
-  if (stream_parser_ == nullptr) {
+  if (!stream_parser_.has_value()) {
     QUICHE_BUG(MoqtBidiStreamBase_OnCanWrite_no_stream)
         << "OnCanWrite() called when no stream is bound";
     return;

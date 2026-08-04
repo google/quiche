@@ -54,17 +54,16 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   ~MoqtBidiStreamBase() = default;
 
   // Binds a WebTransport stream associated with `parser` to this object.
-  void BindStream(
-      std::unique_ptr<MoqtControlStreamParser> absl_nonnull parser) {
-    QUICHE_DCHECK(stream_parser_ == nullptr);
-    stream_parser_ = std::move(parser);
+  void BindStream(MoqtStreamTypeParser parser) {
+    QUICHE_DCHECK(!stream_parser_.has_value());
+    stream_parser_.emplace(std::move(parser));
     outgoing_message_queue_.SetStream(stream_parser_->stream());
     OnStreamBound();
   }
   // Binds a WebTransport stream `stream` to this object.
   void BindStream(webtransport::Stream* absl_nonnull stream) {
-    QUICHE_DCHECK(stream_parser_ == nullptr);
-    stream_parser_ = std::make_unique<MoqtControlStreamParser>(stream);
+    QUICHE_DCHECK(!stream_parser_.has_value());
+    stream_parser_.emplace(stream);
     outgoing_message_queue_.SetStream(stream);
     OnStreamBound();
   }
@@ -115,9 +114,8 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
     Detach();
   }
   void Reset(webtransport::StreamErrorCode error) {
-    webtransport::Stream* stream = stream_parser_->stream();
-    if (stream != nullptr) {
-      stream->ResetWithUserCode(error);
+    if (stream() != nullptr) {
+      stream()->ResetWithUserCode(error);
     }
     Detach();
   }
@@ -154,19 +152,21 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   // Terminates the MoQT session due to a fatal error encountered.
   void OnFatalError(absl::Status status);
 
-  MoqtControlStreamParser* stream_parser() { return stream_parser_.get(); }
+  MoqtControlStreamParser* stream_parser() {
+    return stream_parser_.has_value() ? &*stream_parser_ : nullptr;
+  }
   const MoqtControlMessageParser& message_parser() const {
     return message_parser_;
   }
   webtransport::Stream* stream() const {
-    return stream_parser_ != nullptr ? stream_parser_->stream() : nullptr;
+    return stream_parser_.has_value() ? stream_parser_->stream() : nullptr;
   }
 
  private:
   friend class test::MoqtBidiStreamTestWrapper;
 
   MoqtFramer* absl_nonnull framer_;
-  std::unique_ptr<MoqtControlStreamParser> absl_nullable stream_parser_;
+  std::optional<MoqtControlStreamParser> stream_parser_;
   MoqtControlMessageParser message_parser_;
   MoqtControlMessageQueue outgoing_message_queue_;
   MoqtRequestUpdateQueue request_update_queue_;

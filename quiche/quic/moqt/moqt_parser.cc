@@ -488,6 +488,54 @@ absl::Status MessageParameters::FromKeyValuePairList(
   return status;
 }
 
+MoqtStreamTypeParser::MoqtStreamTypeParser(
+    MoqtStreamTypeParser&& other) noexcept
+    : stream_(other.stream_), type_(other.type_), status_(other.status_) {
+  other.status_ = absl::InternalError("Accessing a moved-from parser");
+}
+
+MoqtStreamTypeParser& MoqtStreamTypeParser::operator=(
+    MoqtStreamTypeParser&& other) noexcept {
+  if (this != &other) {
+    stream_ = other.stream_;
+    type_ = other.type_;
+    status_ = other.status_;
+    other.status_ = absl::InternalError("Accessing a moved-from parser");
+  }
+  return *this;
+}
+
+absl::StatusOr<uint64_t> MoqtStreamTypeParser::ReadStreamType() {
+  if (!status_.ok()) {
+    return status_;
+  }
+  if (type_.has_value()) {
+    // The type has already been read; the rest of the stream should be only
+    // read by the next parser.
+    return *type_;
+  }
+  bool fin_read = false;
+  std::optional<uint64_t> type = ReadMoqVarIntFromStream(*stream_, fin_read);
+  if (fin_read && type != MoqtDataStreamType::kPadding) {
+    // Besides padding streams, all other streams require some data after the
+    // type byte.
+    status_ = absl::InvalidArgumentError(
+        "FIN received before or immediately after the stream type");
+    return status_;
+  }
+  if (!type.has_value()) {
+    return absl::UnavailableError("No complete message available");
+  }
+  type_ = *type;
+  return *type_;
+}
+
+MoqtControlStreamParser::MoqtControlStreamParser(
+    MoqtStreamTypeParser type_parser)
+    : stream_(*type_parser.stream()),
+      current_message_type_(type_parser.stream_type()),
+      fin_read_(false) {}
+
 absl::StatusOr<MoqtRawControlMessage>
 MoqtControlStreamParser::ReadNextMessage() {
   if (error_encountered_ || fin_read_) {
@@ -507,24 +555,6 @@ MoqtControlStreamParser::ReadNextMessage() {
     }
   }
   return result;
-}
-
-absl::StatusOr<MoqtMessageType>
-MoqtControlStreamParser::ReadFirstMessageType() {
-  if (first_message_type_.has_value()) {
-    return static_cast<MoqtMessageType>(*first_message_type_);
-  }
-  if (error_encountered_ || fin_read_) {
-    return absl::FailedPreconditionError(
-        "Trying to read from a control stream after an error or an EOF "
-        "occurred.");
-  }
-  absl::Status read_status = ReadMessageType();
-  if (absl::IsUnavailable(read_status) && fin_read_) {
-    return absl::InvalidArgumentError("FIN received before any type");
-  }
-  QUICHE_RETURN_IF_ERROR(read_status);
-  return static_cast<MoqtMessageType>(*first_message_type_);
 }
 
 absl::Status MoqtControlStreamParser::ReadMessageType() {
@@ -548,9 +578,6 @@ absl::Status MoqtControlStreamParser::ReadMessageType() {
     return absl::InvalidArgumentError(
         "Unexpected FIN on a control stream (FIN received immediately after "
         "type)");
-  }
-  if (!first_message_type_.has_value()) {
-    first_message_type_ = *current_message_type_;
   }
   return absl::OkStatus();
 }
@@ -1068,6 +1095,16 @@ absl::Status MoqtControlMessageParser::FillAndValidateMessageParameters(
   return absl::OkStatus();
 }
 
+MoqtDataParser::MoqtDataParser(MoqtStreamTypeParser type_parser,
+                               MoqtDataParserVisitor* visitor)
+    : stream_(*type_parser.stream()), visitor_(*visitor) {
+  if (type_parser.stream_type().has_value()) {
+    ProcessStreamType(*type_parser.stream_type());
+  } else {
+    next_input_ = kStreamType;
+  }
+}
+
 void MoqtDataParser::ParseError(absl::string_view reason) {
   if (parsing_error_) {
     return;  // Don't send multiple parse errors.
@@ -1312,25 +1349,13 @@ void MoqtDataParser::ParseNextItemFromStream() {
   }
   switch (next_input_) {
     case kStreamType: {
+      // TODO(vasilvv): Handle padding streams (which are allowed to FIN
+      // immediately after type, unlike all other types of streams).
       std::optional<uint64_t> value_read = ReadMoqVarIntNoFin();
       if (!value_read.has_value()) {
         return;
       }
-      std::optional<MoqtDataStreamType> type =
-          MoqtDataStreamType::FromValue(*value_read);
-      if (!type.has_value()) {
-        ParseError("Invalid stream type supplied");
-        return;
-      }
-      type_ = *type;
-      if (type_.IsPadding()) {
-        next_input_ = kPadding;
-        return;
-      }
-      if (type_.EndOfGroupInStream()) {
-        contains_end_of_group_ = true;
-      }
-      next_input_ = AdvanceParserState();
+      ProcessStreamType(*value_read);
       return;
     }
 
@@ -1602,6 +1627,24 @@ bool MoqtDataParser::CheckForFinWithoutData() {
   }
   visitor_.OnFin();
   return stream_.SkipBytes(0);
+}
+
+void MoqtDataParser::ProcessStreamType(uint64_t raw_type) {
+  std::optional<MoqtDataStreamType> type =
+      MoqtDataStreamType::FromValue(raw_type);
+  if (!type.has_value()) {
+    ParseError("Invalid stream type supplied");
+    return;
+  }
+  type_ = *type;
+  if (type_.IsPadding()) {
+    next_input_ = kPadding;
+    return;
+  }
+  if (type_.EndOfGroupInStream()) {
+    contains_end_of_group_ = true;
+  }
+  next_input_ = AdvanceParserState();
 }
 
 }  // namespace moqt

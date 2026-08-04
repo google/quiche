@@ -909,8 +909,6 @@ TEST_F(MoqtMessageSpecificTest, CannotAccessAfterError1) {
               StatusIs(absl::StatusCode::kInvalidArgument));
   EXPECT_THAT(parser.ReadNextMessage().status(),
               StatusIs(absl::StatusCode::kFailedPrecondition));
-  EXPECT_THAT(parser.ReadFirstMessageType().status(),
-              StatusIs(absl::StatusCode::kFailedPrecondition));
 }
 
 TEST_F(MoqtMessageSpecificTest, CannotAccessAfterError2) {
@@ -921,8 +919,6 @@ TEST_F(MoqtMessageSpecificTest, CannotAccessAfterError2) {
               StatusIs(absl::StatusCode::kInvalidArgument));
   EXPECT_THAT(parser.ReadNextMessage().status(),
               StatusIs(absl::StatusCode::kFailedPrecondition));
-  EXPECT_THAT(parser.ReadFirstMessageType(),
-              IsOkAndHolds(MoqtMessageType::kSubscribe));
 }
 
 TEST_F(MoqtMessageSpecificTest, FinMidType) {
@@ -1068,30 +1064,6 @@ TEST_F(MoqtMessageSpecificTest, ControlStreamFinWhenDisallowed) {
   EXPECT_THAT(parser.ReadNextMessage().status(),
               StatusIs(absl::StatusCode::kInvalidArgument,
                        HasSubstr("FIN on a control stream")));
-}
-
-TEST_F(MoqtMessageSpecificTest, ControlStreamReadType) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlStreamParser parser(&stream);
-  stream.Receive("\x03", false);
-  absl::StatusOr<MoqtMessageType> type = parser.ReadFirstMessageType();
-  EXPECT_THAT(type, IsOkAndHolds(MoqtMessageType::kSubscribe));
-}
-
-TEST_F(MoqtMessageSpecificTest, ControlStreamFinBeforeType) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlStreamParser parser(&stream);
-  stream.Receive("", true);
-  absl::StatusOr<MoqtMessageType> type = parser.ReadFirstMessageType();
-  EXPECT_EQ(type.status().code(), absl::StatusCode::kInvalidArgument);
-}
-
-TEST_F(MoqtMessageSpecificTest, ControlStreamFinInTheMiddleOfType) {
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtControlStreamParser parser(&stream);
-  stream.Receive("\xff", true);
-  absl::StatusOr<MoqtMessageType> type = parser.ReadFirstMessageType();
-  EXPECT_EQ(type.status().code(), absl::StatusCode::kInvalidArgument);
 }
 
 TEST_F(MoqtMessageSpecificTest, InvalidObjectStatus) {
@@ -1815,6 +1787,107 @@ TEST_F(MoqtDataParserStateMachineTest, FetchFirstObjectMissing) {
   ASSERT_EQ(visitor_.messages_received(), 1);
   ASSERT_TRUE(visitor_.last_message().has_value());
   EXPECT_FALSE(visitor_.last_message()->first_object_in_subgroup.has_value());
+}
+
+TEST_F(MoqtMessageSpecificTest, StreamTypeParserToControlStream) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtStreamTypeParser type_parser(&stream);
+  stream.Receive("\x03", false);
+  absl::StatusOr<uint64_t> type = type_parser.ReadStreamType();
+  EXPECT_THAT(type,
+              IsOkAndHolds(static_cast<uint64_t>(MoqtMessageType::kSubscribe)));
+  EXPECT_NE(type_parser.stream(), nullptr);
+
+  MoqtControlStreamParser control_parser(std::move(type_parser));
+  EXPECT_THAT(
+      type_parser.ReadStreamType(),  // NOLINT(bugprone-use-after-move)
+      StatusIs(absl::StatusCode::kInternal, HasSubstr("moved-from parser")));
+  EXPECT_EQ(control_parser.stream(), &stream);
+}
+
+TEST_F(MoqtMessageSpecificTest, StreamTypeParserToDataStream) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtStreamTypeParser type_parser(&stream);
+  stream.Receive("\x10", false);
+  absl::StatusOr<uint64_t> type = type_parser.ReadStreamType();
+  EXPECT_THAT(type, IsOkAndHolds(0x10));
+  EXPECT_THAT(type_parser.ReadStreamType(),
+              IsOkAndHolds(0x10));  // Second read should read the cached value.
+  EXPECT_NE(type_parser.stream(), nullptr);
+
+  MoqtParserTestVisitor data_visitor;
+  MoqtDataParser data_parser(std::move(type_parser), &data_visitor);
+  EXPECT_THAT(
+      type_parser.ReadStreamType(),  // NOLINT(bugprone-use-after-move)
+      StatusIs(absl::StatusCode::kInternal, HasSubstr("moved-from parser")));
+  EXPECT_EQ(data_parser.stream_type(), MoqtDataStreamType::FromValue(0x10));
+}
+
+TEST_F(MoqtMessageSpecificTest, EmptyStreamTypeParserToDataStream) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtStreamTypeParser type_parser(&stream);
+  MoqtParserTestVisitor data_visitor;
+  MoqtDataParser data_parser(std::move(type_parser), &data_visitor);
+  stream.Receive("\x10", false);
+  data_parser.ReadStreamType();
+  EXPECT_EQ(data_parser.stream_type(), MoqtDataStreamType::FromValue(0x10));
+}
+
+TEST_F(MoqtMessageSpecificTest, StreamTypeParserFinBeforeType) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtStreamTypeParser type_parser(&stream);
+  stream.Receive("", true);
+  absl::StatusOr<uint64_t> type = type_parser.ReadStreamType();
+  EXPECT_THAT(
+      type,
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr(
+              "FIN received before or immediately after the stream type")));
+}
+
+TEST_F(MoqtMessageSpecificTest, StreamTypeParserFinInTheMiddleOfType) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtStreamTypeParser type_parser(&stream);
+  stream.Receive("\xff", true);
+  absl::StatusOr<uint64_t> type = type_parser.ReadStreamType();
+  EXPECT_THAT(
+      type,
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr(
+              "FIN received before or immediately after the stream type")));
+}
+
+TEST_F(MoqtMessageSpecificTest, StreamTypeParserFinAfterType) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtStreamTypeParser type_parser(&stream);
+  stream.Receive("\x03", true);
+  absl::StatusOr<uint64_t> type = type_parser.ReadStreamType();
+  EXPECT_THAT(
+      type,
+      StatusIs(
+          absl::StatusCode::kInvalidArgument,
+          HasSubstr(
+              "FIN received before or immediately after the stream type")));
+}
+
+TEST_F(MoqtMessageSpecificTest, StreamTypeParserFinForPadding) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtStreamTypeParser type_parser(&stream);
+  stream.Receive("\xa6\xd3", true);
+  absl::StatusOr<uint64_t> type = type_parser.ReadStreamType();
+  EXPECT_THAT(
+      type, IsOkAndHolds(static_cast<uint64_t>(MoqtDataStreamType::kPadding)));
+}
+
+TEST_F(MoqtMessageSpecificTest, StreamTypeParserMovedFrom) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtStreamTypeParser type_parser(&stream);
+  MoqtControlStreamParser control_parser(std::move(type_parser));
+  EXPECT_THAT(
+      type_parser.ReadStreamType(),  // NOLINT(bugprone-use-after-move)
+      StatusIs(absl::StatusCode::kInternal, HasSubstr("moved-from parser")));
 }
 
 }  // namespace moqt::test

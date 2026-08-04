@@ -12,9 +12,9 @@
 #include <cstdint>
 #include <optional>
 #include <string>
+#include <utility>
 
 #include "absl/base/nullability.h"
-#include "absl/cleanup/cleanup.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
@@ -63,12 +63,43 @@ class MoqtDataParserVisitor {
   virtual void OnParsingError(MoqtError code, absl::string_view reason) = 0;
 };
 
+// MoqtStreamTypeParser reads the initial varint from a WebTransport stream to
+// determine its type before constructing either a control or a data stream
+// parser. Note that both of those parsers can be safely constructed from the
+// stream type parser even if the parser has not read the type yet.
+class QUICHE_EXPORT MoqtStreamTypeParser {
+ public:
+  explicit MoqtStreamTypeParser(webtransport::Stream* absl_nonnull stream)
+      : stream_(stream) {}
+  ~MoqtStreamTypeParser() = default;
+
+  // Move-only semantics to avoid a stream being accessed by two different
+  // parsers at the same time.
+  MoqtStreamTypeParser(const MoqtStreamTypeParser&) = delete;
+  MoqtStreamTypeParser& operator=(const MoqtStreamTypeParser&) = delete;
+  MoqtStreamTypeParser(MoqtStreamTypeParser&& other) noexcept;
+  MoqtStreamTypeParser& operator=(MoqtStreamTypeParser&& other) noexcept;
+
+  // Reads the first varint from the stream. Returns kUnavailable if the type
+  // has not been received yet.
+  absl::StatusOr<uint64_t> ReadStreamType();
+
+  std::optional<uint64_t> stream_type() const { return type_; }
+  webtransport::Stream* absl_nonnull stream() const { return stream_; }
+
+ private:
+  webtransport::Stream* absl_nonnull stream_;
+  std::optional<uint64_t> type_;
+  absl::Status status_ = absl::OkStatus();
+};
+
 // MoqtControlStreamParser unframes MoQT control messages from the control
 // stream without parsing the payload.
 class QUICHE_EXPORT MoqtControlStreamParser {
  public:
   explicit MoqtControlStreamParser(webtransport::Stream* absl_nonnull stream)
       : stream_(*stream) {}
+  explicit MoqtControlStreamParser(MoqtStreamTypeParser type_parser);
 
   // MoqtControlStreamParser is not movable, since reading from the same stream
   // through two different parsers would corrupt the state.
@@ -81,8 +112,6 @@ class QUICHE_EXPORT MoqtControlStreamParser {
   // status if no complete message can be read; if FIN is read, `fin_read` will
   // be set to true.
   absl::StatusOr<MoqtRawControlMessage> ReadNextMessage();
-  // Reads the type of the first message on the stream.
-  absl::StatusOr<MoqtMessageType> ReadFirstMessageType();
 
   bool fin_read() const { return fin_read_; }
   webtransport::Stream* stream() const { return &stream_; }
@@ -99,7 +128,6 @@ class QUICHE_EXPORT MoqtControlStreamParser {
   absl::Status ReadMessageType();
 
   webtransport::Stream& stream_;
-  std::optional<uint64_t> first_message_type_;
   std::optional<uint64_t> current_message_type_;
   std::optional<absl::Span<char>> current_message_remaining_;
   std::string current_message_;
@@ -266,6 +294,8 @@ class QUICHE_EXPORT MoqtDataParser {
   explicit MoqtDataParser(webtransport::Stream* stream,
                           MoqtDataParserVisitor* visitor)
       : stream_(*stream), visitor_(*visitor) {}
+  MoqtDataParser(MoqtStreamTypeParser type_parser,
+                 MoqtDataParserVisitor* visitor);
 
   // Reads all of the available objects on the stream.
   void ReadAllData();
@@ -344,6 +374,7 @@ class QUICHE_EXPORT MoqtDataParser {
   // Checks if we have encountered a FIN without data.  If so, processes it and
   // returns true.
   bool CheckForFinWithoutData();
+  void ProcessStreamType(uint64_t raw_type);
 
   void ParseError(absl::string_view reason);
 

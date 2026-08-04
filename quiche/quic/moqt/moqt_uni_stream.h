@@ -210,13 +210,17 @@ class SessionToUniStreamInterface {
 class QUICHE_EXPORT IncomingDataStream : public webtransport::StreamVisitor,
                                          public MoqtDataParserVisitor {
  public:
+  IncomingDataStream(MoqtStreamTypeParser type_parser,
+                     SessionToUniStreamInterface* absl_nonnull session,
+                     const quic::QuicClock* absl_nonnull clock)
+      : stream_(type_parser.stream()),
+        parser_(std::move(type_parser), this),
+        session_(session),
+        clock_(clock) {}
   IncomingDataStream(webtransport::Stream* absl_nonnull stream,
                      SessionToUniStreamInterface* absl_nonnull session,
                      const quic::QuicClock* absl_nonnull clock)
-      : stream_(stream),
-        parser_(stream, this),
-        session_(session),
-        clock_(clock) {}
+      : IncomingDataStream(MoqtStreamTypeParser(stream), session, clock) {}
   ~IncomingDataStream();
 
   // webtransport::StreamVisitor implementation.
