@@ -33,6 +33,7 @@ class QboneTunnelInterface : public quic::QboneClientControlStream::Handler {
     END_REQUESTED,
     ENDED,
     FAILED,
+    REDIRECT,
   };
 
   // Wait and handle any events which occur.
@@ -75,6 +76,8 @@ class QboneTunnelInterface : public quic::QboneClientControlStream::Handler {
         return "ENDED";
       case FAILED:
         return "FAILED";
+      case REDIRECT:
+        return "REDIRECT";
       default:
         return "UNKNOWN";
     }
