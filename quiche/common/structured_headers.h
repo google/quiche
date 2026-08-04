@@ -221,6 +221,9 @@ class QUICHE_EXPORT Dictionary {
  public:
   using iterator = std::vector<DictionaryMember>::iterator;
   using const_iterator = std::vector<DictionaryMember>::const_iterator;
+  using key_type = std::string;
+  using mapped_type = ParameterizedMember;
+  using value_type = std::pair<const std::string, ParameterizedMember>;
 
   Dictionary();
   Dictionary(const Dictionary&);
