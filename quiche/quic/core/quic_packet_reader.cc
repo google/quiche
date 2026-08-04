@@ -38,7 +38,7 @@ QuicPacketReader::~QuicPacketReader() = default;
 
 bool QuicPacketReader::ReadAndDispatchPackets(
     int fd, int port, const QuicClock& clock, ProcessPacketInterface* processor,
-    QuicPacketCount* /*packets_dropped*/) {
+    QuicPacketCount* packets_dropped) {
   // Reset all read_results for reuse.
   for (size_t i = 0; i < read_results_.size(); ++i) {
     read_results_[i].Reset(
@@ -69,6 +69,11 @@ bool QuicPacketReader::ReadAndDispatchPackets(
   }
   for (size_t i = 0; i < packets_read; ++i) {
     auto& result = read_results_[i];
+    if (packets_dropped != nullptr &&
+        result.packet_info.HasValue(QuicUdpPacketInfoBit::DROPPED_PACKETS)) {
+      *packets_dropped = result.packet_info.dropped_packets();
+    }
+
     if (!result.ok) {
       QUIC_CODE_COUNT(quic_packet_reader_read_failure);
       continue;
