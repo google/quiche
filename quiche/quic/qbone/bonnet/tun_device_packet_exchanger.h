@@ -8,16 +8,13 @@
 #include <linux/if_ether.h>
 
 #include <cstddef>
-#include <cstdint>
 #include <string>
 #include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
-#include "absl/time/time.h"
 #include "absl/types/span.h"
-#include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
 #include "quiche/quic/qbone/platform/netlink_interface.h"
@@ -27,42 +24,17 @@ namespace quic {
 
 class TunDevicePacketExchanger : public QboneClientPacketExchanger {
  public:
-  class StatsInterface {
-   public:
-    StatsInterface() = default;
-
-    StatsInterface(const StatsInterface&) = delete;
-    StatsInterface& operator=(const StatsInterface&) = delete;
-
-    StatsInterface(StatsInterface&&) = delete;
-    StatsInterface& operator=(StatsInterface&&) = delete;
-
-    virtual ~StatsInterface() = default;
-
-    virtual void OnPacketRead(size_t length, absl::Duration latency) = 0;
-    virtual void OnPacketWritten(size_t length, absl::Duration latency) = 0;
-    virtual void OnReadError(absl::string_view error) = 0;
-    virtual void OnWriteError(absl::string_view error) = 0;
-
-    ABSL_MUST_USE_RESULT virtual int64_t PacketsRead() const = 0;
-    ABSL_MUST_USE_RESULT virtual int64_t PacketsWritten() const = 0;
-  };
-
   // |mtu| is the mtu of the TUN device.
   // |kernel| is not owned but should out live objects of this class.
   // |visitor| is not owned but should out live objects of this class.
-  // |stats| is notified about packet read/write statistics. It is not owned,
-  // but should outlive objects of this class.
-  TunDevicePacketExchanger(
-      size_t mtu, KernelInterface* kernel, NetlinkInterface* netlink,
-      QboneClientPacketExchanger::Visitor* absl_nullable visitor
-          ABSL_ATTRIBUTE_LIFETIME_BOUND,
-      bool is_tap, StatsInterface* stats, absl::string_view ifname);
+  TunDevicePacketExchanger(size_t mtu, KernelInterface* kernel,
+                           NetlinkInterface* netlink,
+                           QboneClientPacketExchanger::Visitor* absl_nonnull
+                               visitor ABSL_ATTRIBUTE_LIFETIME_BOUND,
+                           bool is_tap, absl::string_view ifname);
 
   void set_read_file_descriptor(int fd);
   void set_write_file_descriptor(int fd);
-
-  ABSL_MUST_USE_RESULT const StatsInterface* stats_interface() const;
 
   // QboneClientPacketExchanger:
   bool ReadAndDeliverPacket(QboneClientInterface* qbone_client) override;
@@ -91,7 +63,7 @@ class TunDevicePacketExchanger : public QboneClientPacketExchanger {
   int write_fd_ = -1;
   KernelInterface* kernel_;
   NetlinkInterface* netlink_;
-  QboneClientPacketExchanger::Visitor* const absl_nullable visitor_;
+  QboneClientPacketExchanger::Visitor& visitor_;
   const std::string ifname_;
 
   std::vector<std::byte> read_buffer_;
@@ -99,8 +71,6 @@ class TunDevicePacketExchanger : public QboneClientPacketExchanger {
   const bool is_tap_;
   ethhdr eth_hdr_ = {};
   bool eth_hdr_initialized_ = false;
-
-  StatsInterface* stats_;
 };
 
 }  // namespace quic

@@ -18,7 +18,6 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_test.h"
-#include "quiche/quic/qbone/bonnet/mock_packet_exchanger_stats_interface.h"
 #include "quiche/quic/qbone/bonnet/mock_qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/mock_qbone_client.h"
@@ -51,7 +50,7 @@ class TunDevicePacketExchangerTest : public QuicTest {
  protected:
   TunDevicePacketExchangerTest()
       : exchanger_(kMtu, &mock_kernel_, nullptr, &mock_visitor_, false,
-                   &mock_stats_, absl::string_view()) {
+                   absl::string_view()) {
     exchanger_.set_read_file_descriptor(kReadFd);
     exchanger_.set_write_file_descriptor(kWriteFd);
   }
@@ -61,7 +60,6 @@ class TunDevicePacketExchangerTest : public QuicTest {
   MockKernel mock_kernel_;
   StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor_;
   StrictMock<MockQboneClient> mock_client_;
-  StrictMock<MockPacketExchangerStatsInterface> mock_stats_;
   TunDevicePacketExchanger exchanger_;
 };
 
@@ -79,7 +77,6 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketError) {
       });
 
   EXPECT_CALL(mock_visitor_, OnWrite(StatusIs(Ne(absl::StatusCode::kOk))));
-  EXPECT_CALL(mock_stats_, OnWriteError(_));
   exchanger_.WritePacketToNetwork(packet.data(), packet.size());
 }
 
@@ -96,7 +93,6 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketBlocked) {
         return -1;
       });
 
-  EXPECT_CALL(mock_stats_, OnWriteError(_));
   EXPECT_CALL(mock_visitor_, OnWrite(StatusIs(Ne(absl::StatusCode::kOk))));
   exchanger_.WritePacketToNetwork(packet.data(), packet.size());
 }
@@ -114,7 +110,6 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketSuccessfulWrite) {
             return packet.size();
           });
 
-  EXPECT_CALL(mock_stats_, OnPacketWritten(packet.size(), _));
   EXPECT_CALL(
       mock_visitor_,
       OnWrite(IsOkAndHolds(ElementsAre(Field(
@@ -129,10 +124,9 @@ TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
   StrictMock<MockKernel> mock_kernel;
   StrictMock<MockNetlink> mock_netlink;
   StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor;
-  StrictMock<MockPacketExchangerStatsInterface> mock_stats;
   TunDevicePacketExchanger tap_exchanger(kMtu, &mock_kernel, &mock_netlink,
                                          &mock_visitor, /*is_tap=*/true,
-                                         &mock_stats, "tap0");
+                                         "tap0");
   tap_exchanger.set_write_file_descriptor(kWriteFd);
 
   std::string packet = "fake packet";
@@ -170,7 +164,6 @@ TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
         return ETH_HLEN + packet.length();
       });
 
-  EXPECT_CALL(mock_stats, OnPacketWritten(ETH_HLEN + packet.size(), _));
   EXPECT_CALL(
       mock_visitor,
       OnWrite(IsOkAndHolds(ElementsAre(Field(
@@ -188,7 +181,6 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketError) {
         return -1;
       });
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
-  EXPECT_CALL(mock_stats_, OnReadError(_));
   EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
 }
 
@@ -198,7 +190,6 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketBlocked) {
         errno = EAGAIN;
         return -1;
       });
-  EXPECT_CALL(mock_stats_, OnReadError(_));
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
   EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
 }
@@ -213,7 +204,6 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketSuccessfulRead) {
         return packet.size();
       });
   EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(packet)));
-  EXPECT_CALL(mock_stats_, OnPacketRead(_, _));
   EXPECT_CALL(
       mock_visitor_,
       OnRead(IsOkAndHolds(ElementsAre(Field(
@@ -223,90 +213,11 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketSuccessfulRead) {
   EXPECT_TRUE(exchanger_.ReadAndDeliverPacket(&mock_client_));
 }
 
-TEST_F(TunDevicePacketExchangerTest, WriteWithNullVisitor) {
-  TunDevicePacketExchanger exchanger(kMtu, &mock_kernel_, nullptr,
-                                     /*visitor=*/nullptr, false, &mock_stats_,
-                                     absl::string_view());
-  exchanger.set_write_file_descriptor(kWriteFd);
-
-  std::string packet = "fake packet";
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
-      .WillOnce(
-          [&packet](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
-            EXPECT_EQ(iov[0].iov_base, nullptr);
-            EXPECT_EQ(iov[0].iov_len, 0);
-            EXPECT_THAT(reinterpret_cast<const char*>(iov[1].iov_base),
-                        StrEq(packet));
-            EXPECT_EQ(iov[1].iov_len, packet.size());
-            return packet.size();
-          });
-
-  EXPECT_CALL(mock_stats_, OnPacketWritten(packet.size(), _)).Times(1);
-  exchanger.WritePacketToNetwork(packet.data(), packet.size());
-}
-
-TEST_F(TunDevicePacketExchangerTest, WritePacketErrorWithNullVisitor) {
-  TunDevicePacketExchanger exchanger(kMtu, &mock_kernel_, nullptr,
-                                     /*visitor=*/nullptr, false, &mock_stats_,
-                                     absl::string_view());
-  exchanger.set_write_file_descriptor(kWriteFd);
-
-  std::string packet = "fake packet";
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
-      .WillOnce([](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
-        EXPECT_EQ(iov[0].iov_base, nullptr);
-        EXPECT_EQ(iov[0].iov_len, 0);
-        EXPECT_THAT(reinterpret_cast<const char*>(iov[1].iov_base),
-                    testing::StrEq("fake packet"));
-        EXPECT_EQ(iov[1].iov_len, 11);
-        errno = ECOMM;
-        return -1;
-      });
-
-  EXPECT_CALL(mock_stats_, OnWriteError(_));
-
-  exchanger.WritePacketToNetwork(packet.data(), packet.size());
-}
-
-TEST_F(TunDevicePacketExchangerTest, ReadPacketWithNullVisitor) {
-  TunDevicePacketExchanger exchanger(kMtu, &mock_kernel_, nullptr,
-                                     /*visitor=*/nullptr, false, &mock_stats_,
-                                     absl::string_view());
-  exchanger.set_read_file_descriptor(kReadFd);
-
-  std::string packet = "fake_packet";
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
-      .WillOnce([packet](int fd, const struct iovec* iov, int iovcnt) {
-        EXPECT_EQ(iov[0].iov_len, 0);
-        EXPECT_EQ(iov[1].iov_len, kMtu);
-        memcpy(iov[1].iov_base, packet.data(), packet.size());
-        return packet.size();
-      });
-  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(packet)));
-  EXPECT_CALL(mock_stats_, OnPacketRead(_, _)).Times(1);
-  EXPECT_TRUE(exchanger.ReadAndDeliverPacket(&mock_client_));
-}
-
-TEST_F(TunDevicePacketExchangerTest, ReadPacketErrorWithNullVisitor) {
-  TunDevicePacketExchanger exchanger(kMtu, &mock_kernel_, nullptr,
-                                     /*visitor=*/nullptr, false, &mock_stats_,
-                                     absl::string_view());
-  exchanger.set_read_file_descriptor(kReadFd);
-
-  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
-      .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
-        errno = ECOMM;
-        return -1;
-      });
-  EXPECT_CALL(mock_stats_, OnReadError(_));
-  EXPECT_FALSE(exchanger.ReadAndDeliverPacket(&mock_client_));
-}
-
 class TunDevicePacketExchangerTapTest : public QuicTest {
  protected:
   TunDevicePacketExchangerTapTest()
       : exchanger_(kMtu, &mock_kernel_, &mock_netlink_, &mock_visitor_, true,
-                   &mock_stats_, "tap0") {
+                   "tap0") {
     exchanger_.set_read_file_descriptor(kReadFd);
     exchanger_.set_write_file_descriptor(kWriteFd);
   }
@@ -317,7 +228,6 @@ class TunDevicePacketExchangerTapTest : public QuicTest {
   StrictMock<MockNetlink> mock_netlink_;
   StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor_;
   StrictMock<MockQboneClient> mock_client_;
-  StrictMock<MockPacketExchangerStatsInterface> mock_stats_;
   TunDevicePacketExchanger exchanger_;
 };
 
@@ -345,7 +255,6 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapSuccess) {
           });
 
   EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(l3_packet)));
-  EXPECT_CALL(mock_stats_, OnPacketRead(l3_packet.size(), _));
   EXPECT_CALL(
       mock_visitor_,
       OnRead(IsOkAndHolds(ElementsAre(Field(
@@ -366,7 +275,6 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapInvalidL2) {
       });
 
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
-  EXPECT_CALL(mock_stats_, OnReadError(_));
   EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
 }
 
@@ -412,7 +320,6 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
         return iov[0].iov_len + iov[1].iov_len;
       });
-  EXPECT_CALL(mock_stats_, OnPacketWritten(_, _));
   EXPECT_CALL(mock_visitor_, OnWrite(IsOkAndHolds(SizeIs(1))));
 
   // ReadAndDeliverPacket should return false because packet was handled

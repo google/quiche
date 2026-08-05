@@ -1750,7 +1750,6 @@
     "quiche/quic/qbone/bonnet/icmp_reachable.h",
     "quiche/quic/qbone/bonnet/icmp_reachable_interface.h",
     "quiche/quic/qbone/bonnet/mock_icmp_reachable.h",
-    "quiche/quic/qbone/bonnet/mock_packet_exchanger_stats_interface.h",
     "quiche/quic/qbone/bonnet/mock_qbone_client_packet_exchanger.h",
     "quiche/quic/qbone/bonnet/mock_qbone_tunnel.h",
     "quiche/quic/qbone/bonnet/mock_tun_device.h",
