@@ -1210,9 +1210,40 @@ void MasqueServerSession::ConnectIpServerState::OnHttp3Datagram(
   }
 }
 
+void MasqueServerSession::ConnectIpServerState::OnUnknownCapsule(
+    QuicStreamId /*stream_id*/, const quiche::UnknownCapsule& capsule) {
+  if (capsule.type == kDnsAssignCapsuleType) {
+    DnsAssignCapsule dns_assign_capsule;
+    if (ParseDnsAssignCapsulePayload(capsule.payload, &dns_assign_capsule)) {
+      OnDnsAssignCapsule(dns_assign_capsule);
+    } else {
+      QUIC_LOG(ERROR) << "Failed to parse DNS_ASSIGN capsule";
+    }
+  } else if (capsule.type == kPref64CapsuleType) {
+    Pref64Capsule pref64_capsule;
+    if (ParsePref64CapsulePayload(capsule.payload, &pref64_capsule)) {
+      OnPref64Capsule(pref64_capsule);
+    } else {
+      QUIC_LOG(ERROR) << "Failed to parse PREF64 capsule";
+    }
+  }
+}
+
 bool MasqueServerSession::ConnectIpServerState::OnAddressAssignCapsule(
     const AddressAssignCapsule& capsule) {
   QUIC_DLOG(INFO) << "Ignoring received capsule " << capsule.ToString();
+  return true;
+}
+
+bool MasqueServerSession::ConnectIpServerState::OnDnsAssignCapsule(
+    const DnsAssignCapsule& capsule) {
+  QUIC_LOG(INFO) << "Ignoring received capsule " << capsule.ToString();
+  return true;
+}
+
+bool MasqueServerSession::ConnectIpServerState::OnPref64Capsule(
+    const Pref64Capsule& capsule) {
+  QUIC_LOG(INFO) << "Ignoring received capsule " << capsule.ToString();
   return true;
 }
 
@@ -1245,6 +1276,29 @@ void MasqueServerSession::ConnectIpServerState::OnHeadersWritten() {
   route_advertisement.route_advertisement_capsule().ip_address_ranges.push_back(
       default_route);
   stream()->WriteCapsule(route_advertisement);
+
+  if (masque_session_->masque_server_backend()->dns_assign_capsule()) {
+    WriteDnsAssignCapsule(
+        stream(),
+        *masque_session_->masque_server_backend()->dns_assign_capsule());
+  }
+  if (masque_session_->masque_server_backend()->pref64_capsule()) {
+    WritePref64Capsule(
+        stream(), *masque_session_->masque_server_backend()->pref64_capsule());
+  }
+}
+
+void MasqueServerSession::SendDnsAssignCapsule(
+    const DnsAssignCapsule& capsule) {
+  for (auto& state : connect_ip_server_states_) {
+    WriteDnsAssignCapsule(state.stream(), capsule);
+  }
+}
+
+void MasqueServerSession::SendPref64Capsule(const Pref64Capsule& capsule) {
+  for (auto& state : connect_ip_server_states_) {
+    WritePref64Capsule(state.stream(), capsule);
+  }
 }
 
 // Connect Ethernet

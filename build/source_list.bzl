@@ -1017,6 +1017,11 @@ balsa_srcs = [
     "balsa/simple_buffer.cc",
     "balsa/standard_header_map.cc",
 ]
+masque_test_hdrs = [
+]
+masque_test_srcs = [
+    "quic/masque/masque_utils_test.cc",
+]
 masque_private_tokens_hdrs = [
     "quic/masque/private_tokens.h",
 ]

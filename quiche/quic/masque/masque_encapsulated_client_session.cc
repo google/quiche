@@ -268,4 +268,16 @@ bool MasqueEncapsulatedClientSession::OnRouteAdvertisementCapsule(
   return true;
 }
 
+bool MasqueEncapsulatedClientSession::OnDnsAssignCapsule(
+    const DnsAssignCapsule& capsule) {
+  QUIC_LOG(INFO) << "Received capsule " << capsule.ToString();
+  return true;
+}
+
+bool MasqueEncapsulatedClientSession::OnPref64Capsule(
+    const Pref64Capsule& capsule) {
+  QUIC_LOG(INFO) << "Received capsule " << capsule.ToString();
+  return true;
+}
+
 }  // namespace quic

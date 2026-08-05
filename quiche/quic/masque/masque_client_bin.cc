@@ -159,6 +159,14 @@ class MasqueTunSession : public MasqueClientSession::EncapsulatedIpSession,
     // Consider installing routes.
     return true;
   }
+  bool OnDnsAssignCapsule(const DnsAssignCapsule& capsule) override {
+    QUIC_LOG(INFO) << "Received capsule " << capsule.ToString();
+    return true;
+  }
+  bool OnPref64Capsule(const Pref64Capsule& capsule) override {
+    QUIC_LOG(INFO) << "Received capsule " << capsule.ToString();
+    return true;
+  }
 
   // QuicSocketEventListener
   void OnSocketEvent(QuicEventLoop* /*event_loop*/, QuicUdpSocketFd fd,

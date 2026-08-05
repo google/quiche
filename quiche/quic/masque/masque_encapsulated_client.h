@@ -53,6 +53,12 @@ class QUIC_NO_EXPORT MasqueEncapsulatedClient : public MasqueClient {
   // Client session for this client.
   MasqueEncapsulatedClientSession* masque_encapsulated_client_session();
 
+  // Send DNS_ASSIGN capsule over CONNECT-IP stream.
+  void SendDnsAssignCapsule(const DnsAssignCapsule& capsule);
+
+  // Send PREF64 capsule over CONNECT-IP stream.
+  void SendPref64Capsule(const Pref64Capsule& capsule);
+
  private:
   // Constructor for when this client is both encapsulated and underlying.
   MasqueEncapsulatedClient(QuicSocketAddress server_address,

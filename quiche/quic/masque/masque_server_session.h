@@ -83,6 +83,15 @@ class QUIC_NO_EXPORT MasqueServerSession
                      QuicSocketEventMask events) override;
 
   QuicEventLoop* event_loop() const { return event_loop_; }
+  MasqueServerBackend* masque_server_backend() const {
+    return masque_server_backend_;
+  }
+
+  // Send DNS_ASSIGN capsule to all active CONNECT-IP client streams.
+  void SendDnsAssignCapsule(const DnsAssignCapsule& capsule);
+
+  // Send PREF64 capsule to all active CONNECT-IP client streams.
+  void SendPref64Capsule(const Pref64Capsule& capsule);
 
  private:
   bool HandleConnectUdpSocketEvent(QuicUdpSocketFd fd,
@@ -181,8 +190,8 @@ class QUIC_NO_EXPORT MasqueServerSession
     // From QuicSpdyStream::Http3DatagramVisitor.
     void OnHttp3Datagram(QuicStreamId stream_id,
                          absl::string_view payload) override;
-    void OnUnknownCapsule(QuicStreamId /*stream_id*/,
-                          const quiche::UnknownCapsule& /*capsule*/) override {}
+    void OnUnknownCapsule(QuicStreamId stream_id,
+                          const quiche::UnknownCapsule& capsule) override;
 
     // From QuicSpdyStream::ConnectIpVisitor.
     bool OnAddressAssignCapsule(
@@ -191,6 +200,8 @@ class QUIC_NO_EXPORT MasqueServerSession
         const quiche::AddressRequestCapsule& capsule) override;
     bool OnRouteAdvertisementCapsule(
         const quiche::RouteAdvertisementCapsule& capsule) override;
+    virtual bool OnDnsAssignCapsule(const DnsAssignCapsule& capsule);
+    virtual bool OnPref64Capsule(const Pref64Capsule& capsule);
     void OnHeadersWritten() override;
 
    private:

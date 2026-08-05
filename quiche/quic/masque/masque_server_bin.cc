@@ -9,9 +9,13 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
+#include "absl/strings/str_split.h"
+#include "absl/strings/string_view.h"
 #include "quiche/quic/masque/masque_server.h"
 #include "quiche/quic/masque/masque_server_backend.h"
 #include "quiche/quic/masque/masque_utils.h"
@@ -51,6 +55,38 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "If set to true, enable concealed auth on all requests (such as GET) "
     "instead of just MASQUE.");
 
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, dns_server_v4, "",
+    "IPv4 address of the DNS server to send in the DNS_ASSIGN capsule "
+    "formatted to CONNECT-IP clients. E.g., \"8.8.8.8\".");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, dns_server_v6, "",
+    "IPv6 address of the DNS server to send in the DNS_ASSIGN capsule "
+    "formatted to CONNECT-IP clients. E.g., \"2001:4860:4860::8888\".");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    int32_t, dns_priority, 1,
+    "Service priority of the DNS server (must be non-zero per specification).");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, dns_auth_domain, "",
+    "Authentication domain name of the DNS server to send in the DNS_ASSIGN "
+    "capsule (empty if unencrypted DNS on port 53). E.g., \"dns.google\".");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, dns_service_parameters, "",
+    "Service parameters applying to the DNS nameserver. E.g., \"alpn=h2,h3\".");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, dns_internal_domains, "",
+    "Internal domains authoritative for this DNS server (comma separated). "
+    "An empty string or \"/root\" indicates the DNS root.");
+
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, dns_search_domains, "",
+    "Search domains authoritative for this DNS server (comma separated).");
+
 int main(int argc, char* argv[]) {
   const char* usage = "Usage: masque_server [options]";
   std::vector<std::string> non_option_args =
@@ -76,6 +112,90 @@ int main(int argc, char* argv[]) {
       quiche::GetQuicheCommandLineFlag(FLAGS_concealed_auth));
   backend->SetConcealedAuthOnAllRequests(
       quiche::GetQuicheCommandLineFlag(FLAGS_concealed_auth_on_all_requests));
+
+  std::string dns_v4_str =
+      quiche::GetQuicheCommandLineFlag(FLAGS_dns_server_v4);
+  std::string dns_v6_str =
+      quiche::GetQuicheCommandLineFlag(FLAGS_dns_server_v6);
+  if (!dns_v4_str.empty() || !dns_v6_str.empty()) {
+    quic::DnsAssignCapsule dns_capsule;
+    quic::DnsConfiguration config;
+    quic::DnsNameserver ns;
+    int32_t priority = quiche::GetQuicheCommandLineFlag(FLAGS_dns_priority);
+    if (priority <= 0 || priority > 65535) {
+      QUIC_LOG(ERROR) << "Invalid dns_priority: " << priority << "; using 1.";
+      ns.service_priority = 1;
+    } else {
+      ns.service_priority = static_cast<uint16_t>(priority);
+    }
+    if (!dns_v4_str.empty()) {
+      for (absl::string_view ip_piece : absl::StrSplit(dns_v4_str, ',')) {
+        quic::QuicIpAddress ip;
+        if (ip.FromString(std::string(ip_piece)) && ip.IsIPv4()) {
+          ns.ipv4_addresses.push_back(ip);
+        } else {
+          QUIC_LOG(ERROR) << "Invalid IPv4 address in --dns_server_v4: "
+                          << ip_piece;
+        }
+      }
+    }
+    if (!dns_v6_str.empty()) {
+      for (absl::string_view ip_piece : absl::StrSplit(dns_v6_str, ',')) {
+        quic::QuicIpAddress ip;
+        if (ip.FromString(std::string(ip_piece)) && ip.IsIPv6()) {
+          ns.ipv6_addresses.push_back(ip);
+        } else {
+          QUIC_LOG(ERROR) << "Invalid IPv6 address in --dns_server_v6: "
+                          << ip_piece;
+        }
+      }
+    }
+    ns.authentication_domain_name.domain_name =
+        quiche::GetQuicheCommandLineFlag(FLAGS_dns_auth_domain);
+    std::string service_params_str =
+        quiche::GetQuicheCommandLineFlag(FLAGS_dns_service_parameters);
+    if (!service_params_str.empty()) {
+      std::optional<std::string> encoded_params =
+          quic::EncodeSvcParams(service_params_str);
+      if (!encoded_params) {
+        QUIC_LOG(ERROR)
+            << "Invalid SVCB presentation format in --dns_service_parameters: "
+            << service_params_str;
+      } else {
+        ns.service_parameters = *std::move(encoded_params);
+      }
+    }
+    config.nameservers.push_back(std::move(ns));
+
+    std::string internal_doms =
+        quiche::GetQuicheCommandLineFlag(FLAGS_dns_internal_domains);
+    if (!internal_doms.empty()) {
+      for (absl::string_view dom : absl::StrSplit(internal_doms, ',')) {
+        if (dom == "/root") {
+          config.internal_domains.push_back(quic::DnsDomain{""});
+        } else {
+          config.internal_domains.push_back(quic::DnsDomain{std::string(dom)});
+        }
+      }
+    } else {
+      config.internal_domains.push_back(quic::DnsDomain{""});
+    }
+
+    std::string search_doms =
+        quiche::GetQuicheCommandLineFlag(FLAGS_dns_search_domains);
+    if (!search_doms.empty()) {
+      for (absl::string_view dom : absl::StrSplit(search_doms, ',')) {
+        if (!dom.empty()) {
+          config.search_domains.push_back(quic::DnsDomain{std::string(dom)});
+        }
+      }
+    }
+
+    dns_capsule.dns_configurations.push_back(std::move(config));
+    backend->SetDnsAssignCapsule(dns_capsule);
+    QUIC_LOG(INFO) << "Configured " << dns_capsule.ToString()
+                   << " to send to CONNECT-IP clients.";
+  }
 
   auto server =
       std::make_unique<quic::MasqueServer>(masque_mode, backend.get());

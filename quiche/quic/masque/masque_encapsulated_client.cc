@@ -337,6 +337,17 @@ MasqueEncapsulatedClient::masque_encapsulated_client_session() {
       QuicDefaultClient::session());
 }
 
+void MasqueEncapsulatedClient::SendDnsAssignCapsule(
+    const DnsAssignCapsule& capsule) {
+  masque_client_->masque_client_session()->SendDnsAssignCapsule(
+      capsule, masque_encapsulated_client_session());
+}
+
+void MasqueEncapsulatedClient::SendPref64Capsule(const Pref64Capsule& capsule) {
+  masque_client_->masque_client_session()->SendPref64Capsule(
+      capsule, masque_encapsulated_client_session());
+}
+
 QuicByteCount MaxPacketSizeForEncapsulatedConnections(
     MasqueClient* underlying_masque_client) {
   QuicByteCount max_packet_size =

@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <list>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -94,6 +95,23 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
     return concealed_auth_on_all_requests_;
   }
 
+  // Configured DNS_ASSIGN capsule to send to CONNECT-IP clients upon
+  // connection.
+  void SetDnsAssignCapsule(const DnsAssignCapsule& capsule) {
+    dns_assign_capsule_ = capsule;
+  }
+  const std::optional<DnsAssignCapsule>& dns_assign_capsule() const {
+    return dns_assign_capsule_;
+  }
+
+  // Configured PREF64 capsule to send to CONNECT-IP clients upon connection.
+  void SetPref64Capsule(const Pref64Capsule& capsule) {
+    pref64_capsule_ = capsule;
+  }
+  const std::optional<Pref64Capsule>& pref64_capsule() const {
+    return pref64_capsule_;
+  }
+
  private:
   // Handle MASQUE request.
   bool MaybeHandleMasqueRequest(
@@ -115,6 +133,8 @@ class QUIC_NO_EXPORT MasqueServerBackend : public QuicMemoryCacheBackend {
   };
   std::list<ConcealedAuthCredential> concealed_auth_credentials_;
   bool concealed_auth_on_all_requests_ = false;
+  std::optional<DnsAssignCapsule> dns_assign_capsule_;
+  std::optional<Pref64Capsule> pref64_capsule_;
 };
 
 }  // namespace quic

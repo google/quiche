@@ -79,6 +79,8 @@ class QUIC_NO_EXPORT MasqueEncapsulatedClientSession
       const quiche::AddressRequestCapsule& capsule) override;
   bool OnRouteAdvertisementCapsule(
       const quiche::RouteAdvertisementCapsule& capsule) override;
+  bool OnDnsAssignCapsule(const DnsAssignCapsule& capsule) override;
+  bool OnPref64Capsule(const Pref64Capsule& capsule) override;
 
   // From QuicSession.
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,

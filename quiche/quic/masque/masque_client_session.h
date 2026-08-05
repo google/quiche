@@ -92,6 +92,12 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
         const quiche::AddressRequestCapsule& capsule) = 0;
     virtual bool OnRouteAdvertisementCapsule(
         const quiche::RouteAdvertisementCapsule& capsule) = 0;
+    virtual bool OnDnsAssignCapsule(const DnsAssignCapsule& /*capsule*/) {
+      return true;
+    }
+    virtual bool OnPref64Capsule(const Pref64Capsule& /*capsule*/) {
+      return true;
+    }
   };
 
   // CONNECT-ETHERNET.
@@ -157,6 +163,14 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
   // Send encapsulated IP packet. |packet| contains the IP header and payload.
   void SendIpPacket(absl::string_view packet,
                     EncapsulatedIpSession* encapsulated_ip_session);
+
+  // Send DNS_ASSIGN capsule over CONNECT-IP stream.
+  void SendDnsAssignCapsule(const DnsAssignCapsule& capsule,
+                            EncapsulatedIpSession* encapsulated_ip_session);
+
+  // Send PREF64 capsule over CONNECT-IP stream.
+  void SendPref64Capsule(const Pref64Capsule& capsule,
+                         EncapsulatedIpSession* encapsulated_ip_session);
 
   // Send encapsulated Ethernet frame. |frame| contains the Ethernet
   // header and payload.
@@ -302,8 +316,8 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
     // From QuicSpdyStream::Http3DatagramVisitor.
     void OnHttp3Datagram(QuicStreamId stream_id,
                          absl::string_view payload) override;
-    void OnUnknownCapsule(QuicStreamId /*stream_id*/,
-                          const quiche::UnknownCapsule& /*capsule*/) override {}
+    void OnUnknownCapsule(QuicStreamId stream_id,
+                          const quiche::UnknownCapsule& capsule) override;
 
     // From QuicSpdyStream::ConnectIpVisitor.
     bool OnAddressAssignCapsule(

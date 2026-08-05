@@ -1016,6 +1016,12 @@
     "quiche/balsa/simple_buffer.cc",
     "quiche/balsa/standard_header_map.cc"
   ],
+  "masque_test_hdrs": [
+
+  ],
+  "masque_test_srcs": [
+    "quiche/quic/masque/masque_utils_test.cc"
+  ],
   "masque_private_tokens_hdrs": [
     "quiche/quic/masque/private_tokens.h"
   ],

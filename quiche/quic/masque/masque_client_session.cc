@@ -363,6 +363,30 @@ void MasqueClientSession::SendIpPacket(
                 << DatagramStatusToString(message_status);
 }
 
+void MasqueClientSession::SendDnsAssignCapsule(
+    const DnsAssignCapsule& capsule,
+    MasqueClientSession::EncapsulatedIpSession* encapsulated_ip_session) {
+  const ConnectIpClientState* connect_ip =
+      GetOrCreateConnectIpClientState(encapsulated_ip_session);
+  if (connect_ip == nullptr) {
+    QUIC_LOG(ERROR) << "Failed to get CONNECT-IP request for DNS_ASSIGN";
+    return;
+  }
+  WriteDnsAssignCapsule(connect_ip->stream(), capsule);
+}
+
+void MasqueClientSession::SendPref64Capsule(
+    const Pref64Capsule& capsule,
+    MasqueClientSession::EncapsulatedIpSession* encapsulated_ip_session) {
+  const ConnectIpClientState* connect_ip =
+      GetOrCreateConnectIpClientState(encapsulated_ip_session);
+  if (connect_ip == nullptr) {
+    QUIC_LOG(ERROR) << "Failed to get CONNECT-IP request for PREF64";
+    return;
+  }
+  WritePref64Capsule(connect_ip->stream(), capsule);
+}
+
 void MasqueClientSession::SendEthernetFrame(
     absl::string_view frame, MasqueClientSession::EncapsulatedEthernetSession*
                                  encapsulated_ethernet_session) {
@@ -928,6 +952,25 @@ void MasqueClientSession::ConnectIpClientState::OnHttp3Datagram(
   encapsulated_ip_session_->ProcessIpPacket(http_payload);
   QUIC_DVLOG(1) << "Sent " << http_payload.size()
                 << " IP bytes to connection for stream ID " << stream_id;
+}
+
+void MasqueClientSession::ConnectIpClientState::OnUnknownCapsule(
+    QuicStreamId /*stream_id*/, const quiche::UnknownCapsule& capsule) {
+  if (capsule.type == kDnsAssignCapsuleType) {
+    DnsAssignCapsule dns_assign_capsule;
+    if (ParseDnsAssignCapsulePayload(capsule.payload, &dns_assign_capsule)) {
+      encapsulated_ip_session_->OnDnsAssignCapsule(dns_assign_capsule);
+    } else {
+      QUIC_LOG(ERROR) << "Failed to parse DNS_ASSIGN capsule";
+    }
+  } else if (capsule.type == kPref64CapsuleType) {
+    Pref64Capsule pref64_capsule;
+    if (ParsePref64CapsulePayload(capsule.payload, &pref64_capsule)) {
+      encapsulated_ip_session_->OnPref64Capsule(pref64_capsule);
+    } else {
+      QUIC_LOG(ERROR) << "Failed to parse PREF64 capsule";
+    }
+  }
 }
 
 bool MasqueClientSession::ConnectIpClientState::OnAddressAssignCapsule(
