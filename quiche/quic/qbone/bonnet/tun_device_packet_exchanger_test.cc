@@ -50,10 +50,7 @@ class TunDevicePacketExchangerTest : public QuicTest {
  protected:
   TunDevicePacketExchangerTest()
       : exchanger_(kMtu, &mock_kernel_, nullptr, &mock_visitor_, false,
-                   absl::string_view()) {
-    exchanger_.set_read_file_descriptor(kReadFd);
-    exchanger_.set_write_file_descriptor(kWriteFd);
-  }
+                   absl::string_view()) {}
 
   ~TunDevicePacketExchangerTest() override = default;
 
@@ -64,6 +61,8 @@ class TunDevicePacketExchangerTest : public QuicTest {
 };
 
 TEST_F(TunDevicePacketExchangerTest, WritePacketError) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
   std::string packet = "fake packet";
   EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
@@ -78,26 +77,16 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketError) {
 
   EXPECT_CALL(mock_visitor_, OnWrite(StatusIs(Ne(absl::StatusCode::kOk))));
   exchanger_.WritePacketToNetwork(packet.data(), packet.size());
+
+  exchanger_.Stop();
 }
 
-TEST_F(TunDevicePacketExchangerTest, WritePacketBlocked) {
-  std::string packet = "fake packet";
-  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
-      .WillOnce([](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
-        EXPECT_EQ(iov[0].iov_base, nullptr);
-        EXPECT_EQ(iov[0].iov_len, 0);
-        EXPECT_THAT(reinterpret_cast<const char*>(iov[1].iov_base),
-                    testing::StrEq("fake packet"));
-        EXPECT_EQ(iov[1].iov_len, 11);
-        errno = EAGAIN;
-        return -1;
-      });
+TEST_F(TunDevicePacketExchangerTest, RestartExchanger) {
+  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Stop();
 
-  EXPECT_CALL(mock_visitor_, OnWrite(StatusIs(Ne(absl::StatusCode::kOk))));
-  exchanger_.WritePacketToNetwork(packet.data(), packet.size());
-}
+  exchanger_.Start(kReadFd, kWriteFd);
 
-TEST_F(TunDevicePacketExchangerTest, WritePacketSuccessfulWrite) {
   std::string packet = "fake packet";
   EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
       .WillOnce(
@@ -118,6 +107,56 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketSuccessfulWrite) {
                            packet.size()))))))
       .Times(1);
   exchanger_.WritePacketToNetwork(packet.data(), packet.size());
+
+  exchanger_.Stop();
+}
+
+TEST_F(TunDevicePacketExchangerTest, WritePacketBlocked) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
+  std::string packet = "fake packet";
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+      .WillOnce([](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
+        EXPECT_EQ(iov[0].iov_base, nullptr);
+        EXPECT_EQ(iov[0].iov_len, 0);
+        EXPECT_THAT(reinterpret_cast<const char*>(iov[1].iov_base),
+                    testing::StrEq("fake packet"));
+        EXPECT_EQ(iov[1].iov_len, 11);
+        errno = EAGAIN;
+        return -1;
+      });
+
+  EXPECT_CALL(mock_visitor_, OnWrite(StatusIs(Ne(absl::StatusCode::kOk))));
+  exchanger_.WritePacketToNetwork(packet.data(), packet.size());
+
+  exchanger_.Stop();
+}
+
+TEST_F(TunDevicePacketExchangerTest, WritePacketSuccessfulWrite) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
+  std::string packet = "fake packet";
+  EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
+      .WillOnce(
+          [&packet](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
+            EXPECT_EQ(iov[0].iov_base, nullptr);
+            EXPECT_EQ(iov[0].iov_len, 0);
+            EXPECT_THAT(reinterpret_cast<const char*>(iov[1].iov_base),
+                        StrEq(packet));
+            EXPECT_EQ(iov[1].iov_len, packet.size());
+            return packet.size();
+          });
+
+  EXPECT_CALL(
+      mock_visitor_,
+      OnWrite(IsOkAndHolds(ElementsAre(Field(
+          &QboneClientPacketExchanger::WriteResult::packet,
+          ElementsAreArray(reinterpret_cast<const std::byte*>(packet.data()),
+                           packet.size()))))))
+      .Times(1);
+  exchanger_.WritePacketToNetwork(packet.data(), packet.size());
+
+  exchanger_.Stop();
 }
 
 TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
@@ -127,7 +166,7 @@ TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
   TunDevicePacketExchanger tap_exchanger(kMtu, &mock_kernel, &mock_netlink,
                                          &mock_visitor, /*is_tap=*/true,
                                          "tap0");
-  tap_exchanger.set_write_file_descriptor(kWriteFd);
+  tap_exchanger.Start(kReadFd, kWriteFd);
 
   std::string packet = "fake packet";
 
@@ -172,9 +211,13 @@ TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
                            packet.size()))))));
 
   tap_exchanger.WritePacketToNetwork(packet.data(), packet.size());
+
+  tap_exchanger.Stop();
 }
 
 TEST_F(TunDevicePacketExchangerTest, ReadPacketError) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
   EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
         errno = ECOMM;
@@ -182,9 +225,13 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketError) {
       });
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
   EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
+
+  exchanger_.Stop();
 }
 
 TEST_F(TunDevicePacketExchangerTest, ReadPacketBlocked) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
   EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
         errno = EAGAIN;
@@ -192,9 +239,13 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketBlocked) {
       });
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
   EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
+
+  exchanger_.Stop();
 }
 
 TEST_F(TunDevicePacketExchangerTest, ReadPacketSuccessfulRead) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
   std::string packet = "fake_packet";
   EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
       .WillOnce([packet](int fd, const struct iovec* iov, int iovcnt) {
@@ -211,16 +262,15 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketSuccessfulRead) {
           ElementsAreArray(reinterpret_cast<const std::byte*>(packet.data()),
                            packet.size()))))));
   EXPECT_TRUE(exchanger_.ReadAndDeliverPacket(&mock_client_));
+
+  exchanger_.Stop();
 }
 
 class TunDevicePacketExchangerTapTest : public QuicTest {
  protected:
   TunDevicePacketExchangerTapTest()
       : exchanger_(kMtu, &mock_kernel_, &mock_netlink_, &mock_visitor_, true,
-                   "tap0") {
-    exchanger_.set_read_file_descriptor(kReadFd);
-    exchanger_.set_write_file_descriptor(kWriteFd);
-  }
+                   "tap0") {}
 
   ~TunDevicePacketExchangerTapTest() override = default;
 
@@ -232,6 +282,8 @@ class TunDevicePacketExchangerTapTest : public QuicTest {
 };
 
 TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapSuccess) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
   ip6_hdr ip_hdr{};
   ip_hdr.ip6_vfc = 0x60;  // Version 6
   ip_hdr.ip6_nxt = 59;    // No next header
@@ -262,9 +314,13 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapSuccess) {
           ElementsAreArray(reinterpret_cast<const std::byte*>(l3_packet.data()),
                            l3_packet.size()))))));
   EXPECT_TRUE(exchanger_.ReadAndDeliverPacket(&mock_client_));
+
+  exchanger_.Stop();
 }
 
 TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapInvalidL2) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
   ethhdr eth_hdr{};
   eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_ARP);  // Non-IPv6
 
@@ -276,9 +332,13 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapInvalidL2) {
 
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
   EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
+
+  exchanger_.Stop();
 }
 
 TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
   ip6_hdr ip_hdr{};
   ip_hdr.ip6_vfc = 0x60;  // Version 6
   ip_hdr.ip6_nxt = IPPROTO_ICMPV6;
@@ -325,6 +385,8 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
   // ReadAndDeliverPacket should return false because packet was handled
   // internally (Neighbor Discovery).
   EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
+
+  exchanger_.Stop();
 }
 
 }  // namespace

@@ -33,10 +33,11 @@ class TunDevicePacketExchanger : public QboneClientPacketExchanger {
                                visitor ABSL_ATTRIBUTE_LIFETIME_BOUND,
                            bool is_tap, absl::string_view ifname);
 
-  void set_read_file_descriptor(int fd);
-  void set_write_file_descriptor(int fd);
+  ~TunDevicePacketExchanger() override;
 
   // QboneClientPacketExchanger:
+  void Start(int read_fd, int write_fd) override;
+  void Stop() override;
   bool ReadAndDeliverPacket(QboneClientInterface* qbone_client) override;
   void WritePacketToNetwork(const char* packet, size_t size) override;
 

@@ -26,6 +26,7 @@
 #include "absl/time/clock.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/qbone/platform/icmp_packet.h"
@@ -51,13 +52,37 @@ TunDevicePacketExchanger::TunDevicePacketExchanger(
       read_buffer_(mtu),
       is_tap_(is_tap) {}
 
+TunDevicePacketExchanger::~TunDevicePacketExchanger() {
+  QUIC_BUG_IF(bonnet_tun_device_packet_exchanger_not_stopped,
+              read_fd_ >= 0 || write_fd_ >= 0);
+}
+
+void TunDevicePacketExchanger::Start(int read_fd, int write_fd) {
+  // Allow idempotent Start() calls with the same file descriptors, but
+  // otherwise it's a bug to try starting an already started exchanger.
+  QUIC_BUG_IF(qbone_tun_device_packet_exchanger_already_started,
+              (read_fd_ >= 0 || write_fd_ >= 0) &&
+                  (read_fd_ != read_fd || write_fd_ != write_fd));
+
+  QUIC_BUG_IF(qbone_tun_device_packet_exchanger_invalid_read_fd, read_fd < 0);
+  QUIC_BUG_IF(qbone_tun_device_packet_exchanger_invalid_write_fd, write_fd < 0);
+
+  read_fd_ = read_fd;
+  write_fd_ = write_fd;
+}
+
+void TunDevicePacketExchanger::Stop() {
+  // This implementation does not employ any worker threads, so there cannot be
+  // any pending operations to wait for completion.
+  read_fd_ = -1;
+  write_fd_ = -1;
+}
+
 bool TunDevicePacketExchanger::ReadAndDeliverPacket(
     QboneClientInterface* qbone_client) {
   if (read_fd_ < 0) {
-    absl::Status error = absl::InternalError(
-        absl::StrCat("Invalid file descriptor of the TUN device: ", read_fd_));
-    QUIC_LOG_EVERY_N_SEC(ERROR, 60) << "Packet read failed: " << error;
-    visitor_.OnRead(std::move(error));
+    QUIC_BUG(qbone_tun_device_packet_exchanger_read_with_invalid_fd)
+        << "Invalid file descriptor of the TUN device: " << read_fd_;
     return false;
   }
 
@@ -129,10 +154,8 @@ bool TunDevicePacketExchanger::ReadAndDeliverPacket(
 void TunDevicePacketExchanger::WritePacketToNetwork(const char* packet,
                                                     size_t size) {
   if (write_fd_ < 0) {
-    absl::Status error = absl::InternalError(
-        absl::StrCat("Invalid file descriptor of the TUN device: ", write_fd_));
-    QUIC_LOG_EVERY_N_SEC(ERROR, 60) << "Packet write failed: " << error;
-    visitor_.OnWrite(std::move(error));
+    QUIC_BUG(qbone_tun_device_packet_exchanger_write_with_invalid_fd)
+        << "Invalid file descriptor of the TUN device: " << write_fd_;
     return;
   }
 
@@ -163,13 +186,6 @@ void TunDevicePacketExchanger::WritePacketToNetwork(const char* packet,
       .packet =
           absl::MakeSpan(reinterpret_cast<const std::byte*>(packet), size),
       .latency = latency}});
-}
-
-void TunDevicePacketExchanger::set_read_file_descriptor(int fd) {
-  read_fd_ = fd;
-}
-void TunDevicePacketExchanger::set_write_file_descriptor(int fd) {
-  write_fd_ = fd;
 }
 
 void TunDevicePacketExchanger::InitializeEthHdr() {

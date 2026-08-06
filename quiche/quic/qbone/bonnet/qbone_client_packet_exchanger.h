@@ -39,12 +39,22 @@ class QboneClientPacketExchanger {
 
   virtual ~QboneClientPacketExchanger() = default;
 
+  // Initializes the exchanger to allow read and write using the given file
+  // descriptors.
+  virtual void Start(int read_fd, int write_fd) = 0;
+
+  // Uninitializes the exchanger and blocks until all pending read/write
+  // operations (on- or off-thread) are complete. No Visitor callbacks will be
+  // made after this completes.
+  virtual void Stop() = 0;
+
   // Reads a packet from the local network and delivers the packet to
-  // qbone_client. Returns true if there may be more packets to read.
+  // qbone_client. Returns true if there may be more packets to read. Must not
+  // be called before Start() or after Stop().
   virtual bool ReadAndDeliverPacket(QboneClientInterface* qbone_client) = 0;
 
   // Writes a packet to the local network. If the write would be blocked, the
-  // packet is dropped.
+  // packet is dropped. Must not be called before Start() or after Stop().
   virtual void WritePacketToNetwork(const char* packet, size_t size) = 0;
 };
 
