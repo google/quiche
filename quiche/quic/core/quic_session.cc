@@ -2369,6 +2369,8 @@ bool QuicSession::MaybeSetStreamPriority(QuicStreamId stream_id,
   auto active_stream = stream_map_.find(stream_id);
   if (active_stream != stream_map_.end()) {
     active_stream->second->SetPriority(priority);
+    active_stream->second->set_priority_source(
+        quic::PrioritySource::SET_BY_PRIORITY_UPDATE);
     return true;
   }
 

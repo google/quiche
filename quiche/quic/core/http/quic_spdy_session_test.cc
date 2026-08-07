@@ -2368,11 +2368,14 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
                 HttpStreamPriority{HttpStreamPriority::kDefaultUrgency,
                                    HttpStreamPriority::kDefaultIncremental}),
             stream1->priority());
+  EXPECT_EQ(quic::PrioritySource::NOT_SET, stream1->priority_source());
   EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameReceived(priority_update1));
   session_->OnStreamFrame(data3);
   EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{
                 2u, HttpStreamPriority::kDefaultIncremental}),
             stream1->priority());
+  EXPECT_EQ(quic::PrioritySource::SET_BY_PRIORITY_UPDATE,
+            stream1->priority_source());
 
   // PRIORITY_UPDATE frame for second request stream.
   const QuicStreamId stream_id2 = GetNthClientInitiatedBidirectionalId(1);
@@ -2391,6 +2394,8 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
   TestStream* stream2 = session_->CreateIncomingStream(stream_id2);
   EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{5u, true}),
             stream2->priority());
+  EXPECT_EQ(quic::PrioritySource::SET_BY_PRIORITY_UPDATE,
+            stream2->priority_source());
 }
 
 TEST_P(QuicSpdySessionTestServer, OnInvalidPriorityUpdateFrame) {

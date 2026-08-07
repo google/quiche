@@ -28,6 +28,7 @@
 #include "quiche/quic/core/http/web_transport_http3.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -735,6 +736,9 @@ void QuicSpdySession::OnPriorityFrame(
 
 bool QuicSpdySession::OnPriorityUpdateForRequestStream(
     QuicStreamId stream_id, HttpStreamPriority priority) {
+  // TODO: Close the connection if the client receives a PRIORITY_UPDATE or
+  // the stream is not a request stream, per
+  // https://datatracker.ietf.org/doc/html/rfc9218#section-7.2
   if (perspective() == Perspective::IS_CLIENT ||
       !QuicUtils::IsBidirectionalStreamId(stream_id, version()) ||
       !QuicUtils::IsClientInitiatedStreamId(transport_version(), stream_id)) {
@@ -964,6 +968,7 @@ void QuicSpdySession::OnStreamCreated(QuicSpdyStream* stream) {
   }
 
   stream->SetPriority(QuicStreamPriority(it->second));
+  stream->set_priority_source(quic::PrioritySource::SET_BY_PRIORITY_UPDATE);
   buffered_stream_priorities_.erase(it);
 }
 

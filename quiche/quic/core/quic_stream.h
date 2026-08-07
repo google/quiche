@@ -233,6 +233,11 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
 
   const QuicStreamPriority& priority() const;
 
+  PrioritySource priority_source() const { return priority_source_; }
+  void set_priority_source(PrioritySource priority_source) {
+    priority_source_ = priority_source;
+  }
+
   // Send PRIORITY_UPDATE frame if application protocol supports it.
   virtual void MaybeSendPriorityUpdateFrame() {}
 
@@ -585,6 +590,8 @@ class QUICHE_EXPORT QuicStream : public QuicStreamSequencer::StreamInterface {
   StreamDelegateInterface* stream_delegate_;
   // The priority of the stream, once parsed.
   QuicStreamPriority priority_;
+  // Source of the stream priority value.
+  PrioritySource priority_source_ = PrioritySource::NOT_SET;
   // Bytes read refers to payload bytes only: they do not include framing,
   // encryption overhead etc.
   uint64_t stream_bytes_read_;

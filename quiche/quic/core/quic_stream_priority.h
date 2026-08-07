@@ -19,6 +19,14 @@
 
 namespace quic {
 
+// Source of the stream priority value.
+enum class PrioritySource : uint8_t {
+  NOT_SET,
+  SET_BY_PRIORITY_UPDATE,
+  SET_BY_REQUEST_HEADER,
+  SET_BY_RESPONSE_HEADER,
+};
+
 // Represents HTTP priorities as defined by RFC 9218.
 struct QUICHE_EXPORT HttpStreamPriority {
   static constexpr int kMinimumUrgency = 0;
