@@ -29,7 +29,6 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_datagram_queue.h"
 #include "quiche/quic/core/quic_error_codes.h"
-#include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/web_transport_interface.h"
@@ -51,7 +50,7 @@
 namespace quic::test {
 namespace {
 
-enum ServerType { kDiscardServer, kEchoServer };
+enum ServerType { kDiscardServer, kEchoServer, kMockServer };
 
 constexpr char kZeroes[8192] = {0};
 
@@ -136,27 +135,35 @@ class ServerEndpoint : public simulator::QuicEndpointWithConnection {
                        KeyExchangeSource::Default()),
         compressed_certs_cache_(
             QuicCompressedCertsCache::kQuicCompressedCertsCacheSize),
-        session_(connection_.get(), false, nullptr, config, "example_alpn",
-                 type == kEchoServer
-                     ? static_cast<webtransport::SessionVisitor*>(
-                           new EchoWebTransportSessionVisitor(
-                               &session_,
-                               /*open_server_initiated_echo_stream=*/false))
-                     : static_cast<webtransport::SessionVisitor*>(
-                           new DiscardWebTransportSessionVisitor(&session_)),
-                 /*owns_visitor=*/true,
-                 /*datagram_observer=*/nullptr, &crypto_config_,
-                 &compressed_certs_cache_) {
+        session_(
+            connection_.get(), false, nullptr, config, "example_alpn",
+            type == kEchoServer
+                ? static_cast<webtransport::SessionVisitor*>(
+                      new EchoWebTransportSessionVisitor(
+                          &session_,
+                          /*open_server_initiated_echo_stream=*/false))
+                : (type == kDiscardServer
+                       ? static_cast<webtransport::SessionVisitor*>(
+                             new DiscardWebTransportSessionVisitor(&session_))
+                       : &visitor_),
+            /*owns_visitor=*/type != kMockServer,
+            /*datagram_observer=*/nullptr, &crypto_config_,
+            &compressed_certs_cache_) {
     session_.Initialize();
     session_.connection()->sent_packet_manager().SetSendAlgorithm(
         CongestionControlType::kBBRv2);
+    if (type == kMockServer) {
+      EXPECT_CALL(visitor_, OnSessionReady()).Times(AtMost(1));
+    }
   }
 
   QuicGenericServerSession* session() { return &session_; }
+  MockWebTransportSessionVisitor* visitor() { return &visitor_; }
 
  private:
   QuicCryptoServerConfig crypto_config_;
   QuicCompressedCertsCache compressed_certs_cache_;
+  MockWebTransportSessionVisitor visitor_;
   QuicGenericServerSession session_;
 };
 
@@ -230,6 +237,74 @@ TEST_F(QuicGenericSessionTest, SendOutgoingStreams) {
   }
   ASSERT_TRUE(test_harness_.RunUntilWithDefaultTimeout(
       [&]() { return streams_data_recvd == 10; }));
+}
+
+TEST_F(QuicGenericSessionTest, ResetStreamReceived) {
+  CreateDefaultEndpoints(kMockServer);
+  WireUpEndpoints();
+  RunHandshake();
+
+  webtransport::Stream* client_stream =
+      client_->session()->OpenOutgoingBidirectionalStream();
+  ASSERT_TRUE(client_stream != nullptr);
+  EXPECT_TRUE(client_stream->Write("test"));
+
+  bool server_stream_available = false;
+  EXPECT_CALL(*server_->visitor(), OnIncomingBidirectionalStreamAvailable())
+      .WillOnce(Assign(&server_stream_available, true));
+  ASSERT_TRUE(test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return server_stream_available; }));
+
+  webtransport::Stream* server_stream =
+      server_->session()->AcceptIncomingBidirectionalStream();
+  ASSERT_TRUE(server_stream != nullptr);
+
+  auto server_stream_visitor =
+      std::make_unique<webtransport::test::MockStreamVisitor>();
+  bool server_reset_received = false;
+  EXPECT_CALL(*server_stream_visitor, OnResetStreamReceived(_))
+      .WillOnce([&](webtransport::StreamErrorCode /*error*/) {
+        server_reset_received = true;
+      });
+  server_stream->SetVisitor(std::move(server_stream_visitor));
+
+  client_stream->ResetWithUserCode(0);
+  ASSERT_TRUE(test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return server_reset_received; }));
+}
+
+TEST_F(QuicGenericSessionTest, StopSendingReceived) {
+  CreateDefaultEndpoints(kMockServer);
+  WireUpEndpoints();
+  RunHandshake();
+
+  webtransport::Stream* client_stream =
+      client_->session()->OpenOutgoingBidirectionalStream();
+  ASSERT_TRUE(client_stream != nullptr);
+  EXPECT_TRUE(client_stream->Write("test"));
+
+  auto client_stream_visitor =
+      std::make_unique<webtransport::test::MockStreamVisitor>();
+  bool client_stop_sending_received = false;
+  EXPECT_CALL(*client_stream_visitor, OnStopSendingReceived(_))
+      .WillOnce([&](webtransport::StreamErrorCode /*error*/) {
+        client_stop_sending_received = true;
+      });
+  client_stream->SetVisitor(std::move(client_stream_visitor));
+
+  bool server_stream_available = false;
+  EXPECT_CALL(*server_->visitor(), OnIncomingBidirectionalStreamAvailable())
+      .WillOnce(Assign(&server_stream_available, true));
+  ASSERT_TRUE(test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return server_stream_available; }));
+
+  webtransport::Stream* server_stream =
+      server_->session()->AcceptIncomingBidirectionalStream();
+  ASSERT_TRUE(server_stream != nullptr);
+
+  server_stream->SendStopSending(0);
+  ASSERT_TRUE(test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return client_stop_sending_received; }));
 }
 
 TEST_F(QuicGenericSessionTest, EchoBidirectionalStreams) {

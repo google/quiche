@@ -11,10 +11,11 @@
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/frames/quic_rst_stream_frame.h"
 #include "quiche/quic/core/http/web_transport_stream_adapter.h"
 #include "quiche/quic/core/quic_crypto_client_stream.h"
+#include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_session.h"
-#include "quiche/quic/core/quic_stream_priority.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
@@ -77,6 +78,18 @@ class QUICHE_EXPORT QuicGenericStream : public QuicStream {
     if (adapter_.visitor() != nullptr) {
       adapter_.visitor()->OnWriteSideInDataRecvdState();
     }
+  }
+  void OnStreamReset(const QuicRstStreamFrame& frame) override {
+    if (adapter_.visitor() != nullptr) {
+      adapter_.visitor()->OnResetStreamReceived(frame.error_code);
+    }
+    QuicStream::OnStreamReset(frame);
+  }
+  bool OnStopSending(QuicResetStreamError error) override {
+    if (adapter_.visitor() != nullptr) {
+      adapter_.visitor()->OnStopSendingReceived(error.internal_code());
+    }
+    return QuicStream::OnStopSending(error);
   }
 
  private:
