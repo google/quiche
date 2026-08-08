@@ -331,6 +331,11 @@ class QUICHE_EXPORT QuicSpdySession
 
   bool allow_extended_connect() const { return allow_extended_connect_; }
 
+  bool process_priority_header() const { return process_priority_header_; }
+  void set_process_priority_header(bool process_priority_header) {
+    process_priority_header_ = process_priority_header;
+  }
+
   // Returns true if the session has active request streams.
   bool HasActiveRequestStreams() const;
 
@@ -745,6 +750,9 @@ class QUICHE_EXPORT QuicSpdySession
   // server cannot initiate WebTransport sessions.
   absl::flat_hash_map<WebTransportHttp3Version, QuicStreamCount>
       max_webtransport_sessions_;
+
+  // Whether to process priority headers from the client.
+  bool process_priority_header_ = false;
 };
 
 }  // namespace quic

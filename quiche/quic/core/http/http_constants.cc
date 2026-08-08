@@ -30,6 +30,7 @@ std::string H3SettingsToString(Http3AndQpackSettingsIdentifiers identifier) {
 }
 
 ABSL_CONST_INIT const absl::string_view kUserAgentHeaderName = "user-agent";
+ABSL_CONST_INIT const absl::string_view kPriorityHeaderName = "priority";
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds
 

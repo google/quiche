@@ -68,6 +68,8 @@ inline constexpr uint64_t kDefaultMaximumBlockedStreams = 100;
 
 ABSL_CONST_INIT QUICHE_EXPORT extern const absl::string_view
     kUserAgentHeaderName;
+ABSL_CONST_INIT QUICHE_EXPORT extern const absl::string_view
+    kPriorityHeaderName;
 
 }  // namespace quic
 

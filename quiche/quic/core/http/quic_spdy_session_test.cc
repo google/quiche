@@ -2398,6 +2398,282 @@ TEST_P(QuicSpdySessionTestServer, OnPriorityUpdateFrame) {
             stream2->priority_source());
 }
 
+TEST_P(QuicSpdySessionTestServer, OnPriorityHeader) {
+  Initialize();
+  session_->set_process_priority_header(true);
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+
+  CompleteHandshake();
+
+  const QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
+  TestStream* stream = session_->CreateIncomingStream(stream_id);
+
+  // Send request headers with Priority header.
+  quiche::HttpHeaderBlock headers;
+  headers[":path"] = "/foo";
+  headers[":authority"] = "www.google.com";
+  headers[":method"] = "GET";
+  headers[":scheme"] = "https";
+  headers["priority"] = "u=2, i";
+
+  QuicHeaderList header_list = AsHeaderList(headers);
+  stream->OnStreamHeaderList(
+      /* fin = */ false, header_list.uncompressed_header_bytes(), header_list);
+
+  EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{2u, true}),
+            stream->priority());
+  EXPECT_EQ(PrioritySource::SET_BY_REQUEST_HEADER, stream->priority_source());
+}
+
+TEST_P(QuicSpdySessionTestServer, OnPriorityHeaderAndPriorityUpdateFrame) {
+  Initialize();
+  session_->set_process_priority_header(true);
+
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_->set_debug_visitor(&debug_visitor);
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
+  CompleteHandshake();
+
+  // Create control stream and send SETTINGS.
+  QuicStreamId receive_control_stream_id =
+      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+  char type[] = {kControlStream};
+  absl::string_view stream_type(type, 1);
+  QuicStreamOffset offset = 0;
+  QuicStreamFrame data1(receive_control_stream_id, false, offset, stream_type);
+  offset += stream_type.length();
+  EXPECT_CALL(debug_visitor,
+              OnPeerControlStreamCreated(receive_control_stream_id));
+  session_->OnStreamFrame(data1);
+  std::string serialized_settings = HttpEncoder::SerializeSettingsFrame({});
+  QuicStreamFrame data2(receive_control_stream_id, false, offset,
+                        serialized_settings);
+  offset += serialized_settings.length();
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(_));
+  session_->OnStreamFrame(data2);
+
+  const QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
+
+  // 1. PRIORITY_UPDATE frame arrives FIRST (before stream creation).
+  PriorityUpdateFrame priority_update{stream_id, "u=5, i"};
+  std::string serialized_priority_update =
+      HttpEncoder::SerializePriorityUpdateFrame(priority_update);
+  QuicStreamFrame stream_frame3(receive_control_stream_id,
+                                /* fin = */ false, offset,
+                                serialized_priority_update);
+  EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameReceived(priority_update));
+  session_->OnStreamFrame(stream_frame3);
+
+  // 2. Stream is created. Priority from frame (u=5, i) is applied.
+  TestStream* stream = session_->CreateIncomingStream(stream_id);
+  EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{5u, true}),
+            stream->priority());
+  EXPECT_EQ(PrioritySource::SET_BY_PRIORITY_UPDATE, stream->priority_source());
+
+  // 3. HEADERS frame with Priority header (u=2) arrives SECOND.
+  quiche::HttpHeaderBlock headers;
+  headers[":path"] = "/foo";
+  headers[":authority"] = "www.google.com";
+  headers[":method"] = "GET";
+  headers[":scheme"] = "https";
+  headers["priority"] = "u=2";  // Different priority!
+
+  QuicHeaderList header_list = AsHeaderList(headers);
+  // It should IGNORE the Priority header because priority was set by frame!
+  stream->OnStreamHeaderList(
+      /* fin = */ false, header_list.uncompressed_header_bytes(), header_list);
+
+  // Priority should STILL be u=5, i!
+  EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{5u, true}),
+            stream->priority());
+  EXPECT_EQ(PrioritySource::SET_BY_PRIORITY_UPDATE, stream->priority_source());
+}
+
+TEST_P(QuicSpdySessionTestServer,
+       OnPriorityUpdateFrameArrivesAfterStreamCreationButBeforeHeaders) {
+  Initialize();
+  session_->set_process_priority_header(true);
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_->set_debug_visitor(&debug_visitor);
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
+  CompleteHandshake();
+
+  // Create control stream and send SETTINGS.
+  QuicStreamId receive_control_stream_id =
+      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+  char type[] = {kControlStream};
+  absl::string_view stream_type(type, 1);
+  QuicStreamOffset offset = 0;
+  QuicStreamFrame data1(receive_control_stream_id, false, offset, stream_type);
+  offset += stream_type.length();
+  EXPECT_CALL(debug_visitor,
+              OnPeerControlStreamCreated(receive_control_stream_id));
+  session_->OnStreamFrame(data1);
+  std::string serialized_settings = HttpEncoder::SerializeSettingsFrame({});
+  QuicStreamFrame data2(receive_control_stream_id, false, offset,
+                        serialized_settings);
+  offset += serialized_settings.length();
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(_));
+  session_->OnStreamFrame(data2);
+
+  const QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
+
+  // 1. Stream is created FIRST. It gets default priority.
+  TestStream* stream = session_->CreateIncomingStream(stream_id);
+  EXPECT_EQ(QuicStreamPriority(
+                HttpStreamPriority{HttpStreamPriority::kDefaultUrgency,
+                                   HttpStreamPriority::kDefaultIncremental}),
+            stream->priority());
+  EXPECT_EQ(PrioritySource::NOT_SET, stream->priority_source());
+
+  // 2. PRIORITY_UPDATE frame arrives SECOND. It updates priority to u=1.
+  PriorityUpdateFrame priority_update{stream_id, "u=1"};
+  std::string serialized_priority_update =
+      HttpEncoder::SerializePriorityUpdateFrame(priority_update);
+  QuicStreamFrame stream_frame3(receive_control_stream_id,
+                                /* fin = */ false, offset,
+                                serialized_priority_update);
+  EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameReceived(priority_update));
+  session_->OnStreamFrame(stream_frame3);
+  EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{
+                1u, HttpStreamPriority::kDefaultIncremental}),
+            stream->priority());
+  EXPECT_EQ(PrioritySource::SET_BY_PRIORITY_UPDATE, stream->priority_source());
+
+  // 3. HEADERS frame with Priority header (u=2) arrives THIRD.
+  quiche::HttpHeaderBlock headers;
+  headers[":path"] = "/foo";
+  headers[":authority"] = "www.google.com";
+  headers[":method"] = "GET";
+  headers[":scheme"] = "https";
+  headers["priority"] = "u=2";  // Different priority!
+
+  QuicHeaderList header_list = AsHeaderList(headers);
+  // It should IGNORE the Priority header because priority was set by frame!
+  stream->OnStreamHeaderList(
+      /* fin = */ false, header_list.uncompressed_header_bytes(), header_list);
+
+  // Priority should STILL be u=1!
+  EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{
+                1u, HttpStreamPriority::kDefaultIncremental}),
+            stream->priority());
+  EXPECT_EQ(PrioritySource::SET_BY_PRIORITY_UPDATE, stream->priority_source());
+}
+
+TEST_P(QuicSpdySessionTestServer,
+       OnPriorityHeaderArrivesThenPriorityUpdateFrame) {
+  Initialize();
+  session_->set_process_priority_header(true);
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_->set_debug_visitor(&debug_visitor);
+  EXPECT_CALL(debug_visitor, OnSettingsFrameSent(_));
+  CompleteHandshake();
+
+  // Create control stream and send SETTINGS.
+  QuicStreamId receive_control_stream_id =
+      GetNthClientInitiatedUnidirectionalStreamId(transport_version(), 3);
+  char type[] = {kControlStream};
+  absl::string_view stream_type(type, 1);
+  QuicStreamOffset offset = 0;
+  QuicStreamFrame data1(receive_control_stream_id, false, offset, stream_type);
+  offset += stream_type.length();
+  EXPECT_CALL(debug_visitor,
+              OnPeerControlStreamCreated(receive_control_stream_id));
+  session_->OnStreamFrame(data1);
+  std::string serialized_settings = HttpEncoder::SerializeSettingsFrame({});
+  QuicStreamFrame data2(receive_control_stream_id, false, offset,
+                        serialized_settings);
+  offset += serialized_settings.length();
+  EXPECT_CALL(debug_visitor, OnSettingsFrameReceived(_));
+  session_->OnStreamFrame(data2);
+
+  const QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
+
+  // 1. Stream is created.
+  TestStream* stream = session_->CreateIncomingStream(stream_id);
+  EXPECT_EQ(PrioritySource::NOT_SET, stream->priority_source());
+
+  // 2. HEADERS frame with Priority header (u=2) arrives FIRST.
+  quiche::HttpHeaderBlock headers;
+  headers[":path"] = "/foo";
+  headers[":authority"] = "www.google.com";
+  headers[":method"] = "GET";
+  headers[":scheme"] = "https";
+  headers["priority"] = "u=2";
+
+  QuicHeaderList header_list = AsHeaderList(headers);
+  stream->OnStreamHeaderList(
+      /* fin = */ false, header_list.uncompressed_header_bytes(), header_list);
+
+  // Priority should be u=2!
+  EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{
+                2u, HttpStreamPriority::kDefaultIncremental}),
+            stream->priority());
+  EXPECT_EQ(PrioritySource::SET_BY_REQUEST_HEADER, stream->priority_source());
+
+  // 3. PRIORITY_UPDATE frame arrives SECOND. It updates priority to u=5, i.
+  PriorityUpdateFrame priority_update{stream_id, "u=5, i"};
+  std::string serialized_priority_update =
+      HttpEncoder::SerializePriorityUpdateFrame(priority_update);
+  QuicStreamFrame stream_frame3(receive_control_stream_id,
+                                /* fin = */ false, offset,
+                                serialized_priority_update);
+  EXPECT_CALL(debug_visitor, OnPriorityUpdateFrameReceived(priority_update));
+  session_->OnStreamFrame(stream_frame3);
+
+  // Priority should be OVERRIDDEN to u=5, i!
+  EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{5u, true}),
+            stream->priority());
+  EXPECT_EQ(PrioritySource::SET_BY_PRIORITY_UPDATE, stream->priority_source());
+}
+
+TEST_P(QuicSpdySessionTestServer, OnPriorityHeaderDisabled) {
+  Initialize();
+  session_->set_process_priority_header(false);
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+
+  CompleteHandshake();
+
+  const QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
+  TestStream* stream = session_->CreateIncomingStream(stream_id);
+
+  // Send request headers with Priority header.
+  quiche::HttpHeaderBlock headers;
+  headers[":path"] = "/foo";
+  headers[":authority"] = "www.google.com";
+  headers[":method"] = "GET";
+  headers[":scheme"] = "https";
+  headers["priority"] = "u=2, i";
+
+  QuicHeaderList header_list = AsHeaderList(headers);
+  stream->OnStreamHeaderList(
+      /* fin = */ false, header_list.uncompressed_header_bytes(), header_list);
+
+  // Priority should remain the DEFAULT (u=3, no incremental) because flag is
+  // false!
+  EXPECT_EQ(QuicStreamPriority(
+                HttpStreamPriority{HttpStreamPriority::kDefaultUrgency,
+                                   HttpStreamPriority::kDefaultIncremental}),
+            stream->priority());
+  EXPECT_EQ(PrioritySource::NOT_SET, stream->priority_source());
+}
+
 TEST_P(QuicSpdySessionTestServer, OnInvalidPriorityUpdateFrame) {
   Initialize();
   if (!VersionIsIetfQuic(transport_version())) {

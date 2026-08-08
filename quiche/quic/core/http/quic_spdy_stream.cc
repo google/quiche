@@ -678,6 +678,7 @@ void QuicSpdyStream::OnInitialHeadersComplete(
 
   if (!header_too_large) {
     MaybeProcessReceivedWebTransportHeaders();
+    MaybeProcessPriorityHeader();
   }
 
   if (VersionIsIetfQuic(transport_version())) {
@@ -1441,6 +1442,40 @@ void QuicSpdyStream::MaybeProcessReceivedWebTransportHeaders() {
 
   web_transport_ =
       std::make_unique<WebTransportHttp3>(spdy_session_, this, id());
+}
+
+void QuicSpdyStream::MaybeProcessPriorityHeader() {
+  if (!spdy_session_->process_priority_header()) {
+    return;
+  }
+  if (!VersionIsIetfQuic(transport_version())) {
+    return;
+  }
+  if (session()->perspective() != Perspective::IS_SERVER) {
+    return;
+  }
+  if (priority_source() == PrioritySource::SET_BY_PRIORITY_UPDATE) {
+    return;
+  }
+  std::string priority_value;
+  for (const auto& [header_name, header_value] : header_list_) {
+    if (quiche::QuicheTextUtils::ToLower(header_name) == kPriorityHeaderName) {
+      priority_value = header_value;
+      break;
+    }
+  }
+  if (priority_value.empty()) {
+    return;
+  }
+  std::optional<HttpStreamPriority> priority =
+      ParsePriorityFieldValue(priority_value);
+  if (priority.has_value()) {
+    SetPriority(QuicStreamPriority(*priority));
+    set_priority_source(PrioritySource::SET_BY_REQUEST_HEADER);
+  } else {
+    QUIC_DVLOG(1) << "Stream " << id()
+                  << " ignoring malformed Priority header: " << priority_value;
+  }
 }
 
 void QuicSpdyStream::MaybeProcessSentWebTransportHeaders(

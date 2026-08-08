@@ -474,6 +474,7 @@ class QUICHE_EXPORT QuicSpdyStream
 
   void MaybeProcessSentWebTransportHeaders(quiche::HttpHeaderBlock& headers);
   void MaybeProcessReceivedWebTransportHeaders();
+  void MaybeProcessPriorityHeader();
 
   // Writes HTTP/3 DATA frame header. If |force_write| is true, use
   // WriteOrBufferData if send buffer cannot accomodate the header + data.
