@@ -104,6 +104,24 @@ class QUICHE_EXPORT Item {
     QUICHE_CHECK(value);
     return *value;
   }
+  // TODO(apaseltiner): Rename this to `GetString()` after all callers have been
+  // migrated off the current version of `GetString()` that works with strings,
+  // tokens, and byte sequences.
+  const std::string& GetStringStrict() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    const auto* value = GetIfString();
+    QUICHE_CHECK(value);
+    return *value;
+  }
+  const std::string& GetToken() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    const auto* value = GetIfToken();
+    QUICHE_CHECK(value);
+    return *value;
+  }
+  const std::string& GetByteSequence() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
+    const auto* value = GetIfByteSequence();
+    QUICHE_CHECK(value);
+    return *value;
+  }
 
   const int64_t* GetIfInteger() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
   int64_t* GetIfInteger() ABSL_ATTRIBUTE_LIFETIME_BOUND;
@@ -125,8 +143,8 @@ class QUICHE_EXPORT Item {
   const bool* GetIfBoolean() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
   bool* GetIfBoolean() ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
-  // Deprecated: Prefer `GetIfString()`, `GetIfToken()`, or
-  // `GetIfByteSequence()`.
+  // Deprecated: Prefer `GetStringStrict()`, `GetToken()`, or
+  // `GetByteSequence()`.
   const std::string& GetString() const {
     struct Visitor {
       const std::string* operator()(const std::monostate&) { return nullptr; }
