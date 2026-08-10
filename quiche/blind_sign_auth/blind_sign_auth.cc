@@ -40,11 +40,6 @@
 namespace quiche {
 namespace {
 
-template <typename T>
-std::string OmitDefault(T value) {
-  return value == 0 ? "" : absl::StrCat(value);
-}
-
 constexpr absl::string_view kIssuerHostname =
     "https://ipprotection-ppissuer.googleapis.com";
 constexpr size_t kExpectedExtensionTypesSize = 5;
