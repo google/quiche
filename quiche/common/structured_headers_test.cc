@@ -795,5 +795,23 @@ TEST(StructuredHeaderTest, UnserializableDictionary) {
   }
 }
 
+TEST(StructuredHeaderTest, GetIfToken) {
+  const Item kValue("abc", Item::kTokenType);
+  EXPECT_FALSE(kValue.GetIfByteSequence());
+  EXPECT_FALSE(kValue.GetIfString());
+  const std::string* ptr = kValue.GetIfToken();
+  ASSERT_TRUE(ptr);
+  EXPECT_EQ(*ptr, "abc");
+}
+
+TEST(StructuredHeaderTest, GetIfByteSequence) {
+  const Item kValue("def", Item::kByteSequenceType);
+  EXPECT_FALSE(kValue.GetIfString());
+  EXPECT_FALSE(kValue.GetIfToken());
+  const std::string* ptr = kValue.GetIfByteSequence();
+  ASSERT_TRUE(ptr);
+  EXPECT_EQ(*ptr, "def");
+}
+
 }  // namespace structured_headers
 }  // namespace quiche

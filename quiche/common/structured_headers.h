@@ -133,6 +133,10 @@ class QUICHE_EXPORT Item {
       const std::string* operator()(const int64_t&) { return nullptr; }
       const std::string* operator()(const double&) { return nullptr; }
       const std::string* operator()(const std::string& value) { return &value; }
+      const std::string* operator()(const Token& value) { return &value.value; }
+      const std::string* operator()(const ByteSequence& value) {
+        return &value.value;
+      }
       const std::string* operator()(const bool&) { return nullptr; }
     };
     const std::string* value = std::visit(Visitor(), value_);
@@ -143,8 +147,23 @@ class QUICHE_EXPORT Item {
   ItemType Type() const { return static_cast<ItemType>(value_.index()); }
 
  private:
-  std::variant<std::monostate, int64_t, double, std::string, std::string,
-               std::string, bool>
+  friend class StructuredHeaderSerializer;
+
+  // Wrapper types to permit simplified use of `std::visit`.
+  struct Token {
+    std::string value;
+
+    friend bool operator==(const Token&, const Token&) = default;
+  };
+
+  struct ByteSequence {
+    std::string value;
+
+    friend bool operator==(const ByteSequence&, const ByteSequence&) = default;
+  };
+
+  std::variant<std::monostate, int64_t, double, std::string, Token,
+               ByteSequence, bool>
       value_;
 };
 
