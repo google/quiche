@@ -492,7 +492,8 @@ bool operator==(const QuicSSLConfig& lhs, const QuicSSLConfig& rhs) {
          lhs.signing_algorithm_prefs == rhs.signing_algorithm_prefs &&
          lhs.client_cert_mode == rhs.client_cert_mode &&
          lhs.ech_config_list == rhs.ech_config_list &&
-         lhs.ech_grease_enabled == rhs.ech_grease_enabled;
+         lhs.ech_grease_enabled == rhs.ech_grease_enabled &&
+         lhs.reject_unusable_ech_config == rhs.reject_unusable_ech_config;
 }
 
 #undef RETURN_STRING_LITERAL  // undef for jumbo builds

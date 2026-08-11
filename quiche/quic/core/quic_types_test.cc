@@ -20,5 +20,16 @@ TEST(PacketHeaderFormatTest, Stringify) {
             "Unknown (255)");
 }
 
+TEST(QuicSSLConfigTest, Equality) {
+  QuicSSLConfig config1;
+  QuicSSLConfig config2;
+  EXPECT_EQ(config1, config2);
+
+  config1.reject_unusable_ech_config = true;
+  EXPECT_NE(config1, config2);
+  config2.reject_unusable_ech_config = true;
+  EXPECT_EQ(config1, config2);
+}
+
 }  // namespace
 }  // namespace quic

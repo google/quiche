@@ -942,6 +942,56 @@ TEST_P(TlsClientHandshakerTest, ECHInvalidConfig) {
   stream()->CryptoConnect();
 }
 
+TEST_P(TlsClientHandshakerTest, ECHRejectUnusableConfigFlagEnabled) {
+  // When reject_unusable_ech_config is enabled, and no usable ECHConfig is
+  // available, the client should fail before sending a ClientHello.
+  SetQuicReloadableFlag(quic_reject_unusable_ech_config, true);
+  ssl_config_.emplace();
+  ssl_config_->reject_unusable_ech_config = true;
+  CreateConnection();
+  EXPECT_CALL(*connection_, CloseConnection(QUIC_HANDSHAKE_FAILED, _, _));
+  stream()->CryptoConnect();
+}
+
+TEST_P(TlsClientHandshakerTest, ECHRejectUnusableConfigFlagDisabled) {
+  // When the flag is disabled, reject_unusable_ech_config is ignored and the
+  // handshake succeeds without ECH.
+  SetQuicReloadableFlag(quic_reject_unusable_ech_config, false);
+  ssl_config_.emplace();
+  ssl_config_->reject_unusable_ech_config = true;
+  CreateConnection();
+
+  CompleteCryptoHandshake();
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_FALSE(stream()->crypto_negotiated_params().encrypted_client_hello);
+}
+
+TEST_P(TlsClientHandshakerTest, ECHWithRejectUnusableConfig) {
+  SetQuicReloadableFlag(quic_reject_unusable_ech_config, true);
+  ssl_config_.emplace();
+  bssl::UniquePtr<SSL_ECH_KEYS> ech_keys =
+      MakeTestEchKeys("public-name.example", /*max_name_len=*/64,
+                      &ssl_config_->ech_config_list);
+  ASSERT_TRUE(ech_keys);
+  ssl_config_->reject_unusable_ech_config = true;
+
+  // Configure the server to use the test ECH keys.
+  ASSERT_TRUE(
+      SSL_CTX_set1_ech_keys(server_crypto_config_->ssl_ctx(), ech_keys.get()));
+
+  // Recreate the client to pick up the new `ssl_config_`.
+  CreateConnection();
+
+  // The handshake should complete and negotiate ECH.
+  CompleteCryptoHandshake();
+  EXPECT_TRUE(stream()->version().IsIetfQuic());
+  EXPECT_TRUE(stream()->encryption_established());
+  EXPECT_TRUE(stream()->one_rtt_keys_available());
+  EXPECT_TRUE(stream()->crypto_negotiated_params().encrypted_client_hello);
+}
+
 TEST_P(TlsClientHandshakerTest, ECHWrongKeys) {
   ssl_config_.emplace();
   bssl::UniquePtr<SSL_ECH_KEYS> ech_keys1 =

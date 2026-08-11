@@ -162,6 +162,11 @@ bool TlsClientHandshaker::CryptoConnect() {
 
   SSL_set_enable_ech_grease(ssl(),
                             tls_connection_.ssl_config().ech_grease_enabled);
+  if (GetQuicReloadableFlag(quic_reject_unusable_ech_config)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_reject_unusable_ech_config);
+    SSL_set_reject_unusable_ech_config(
+        ssl(), tls_connection_.ssl_config().reject_unusable_ech_config);
+  }
   if (!tls_connection_.ssl_config().ech_config_list.empty() &&
       !SSL_set1_ech_config_list(
           ssl(),
