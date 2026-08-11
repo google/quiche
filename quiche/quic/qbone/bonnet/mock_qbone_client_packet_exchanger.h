@@ -31,7 +31,8 @@ class MockQboneClientPacketExchanger : public QboneClientPacketExchanger {
 
   MOCK_METHOD(void, Start, (int read_fd, int write_fd), (override));
   MOCK_METHOD(void, Stop, (), (override));
-  MOCK_METHOD(bool, ReadAndDeliverPacket, (QboneClientInterface * qbone_client),
+  MOCK_METHOD(int, OnReadFromNetworkReady,
+              (int max_packets_to_read, QboneClientInterface* qbone_client),
               (override));
   MOCK_METHOD(void, WritePacketToNetwork, (const char* packet, size_t size),
               (override));

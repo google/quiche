@@ -34,6 +34,7 @@
 #include "quiche/quic/qbone/platform/netlink_interface.h"
 #include "quiche/quic/qbone/qbone_client_interface.h"
 #include "quiche/quic/qbone/qbone_constants.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
 
 namespace quic {
@@ -78,77 +79,29 @@ void TunDevicePacketExchanger::Stop() {
   write_fd_ = -1;
 }
 
-bool TunDevicePacketExchanger::ReadAndDeliverPacket(
-    QboneClientInterface* qbone_client) {
+int TunDevicePacketExchanger::OnReadFromNetworkReady(
+    int max_packets_to_read, QboneClientInterface* qbone_client) {
   if (read_fd_ < 0) {
     QUIC_BUG(qbone_tun_device_packet_exchanger_read_with_invalid_fd)
         << "Invalid file descriptor of the TUN device: " << read_fd_;
-    return false;
+    return 0;
   }
 
-  ethhdr eth_header;
-  struct iovec iov[2];
+  int packets_read = 0;
+  for (int i = 0; i < max_packets_to_read; ++i) {
+    // Should be at least one packet available to read if this is called, so
+    // fully process any blocked errors on the first read. After that, blocked
+    // errors are just the signal that there are no more packets to read.
+    bool exchange_blocked_error = packets_read == 0;
 
-  iov[0].iov_base = is_tap_ ? &eth_header : nullptr;
-  iov[0].iov_len = is_tap_ ? ETH_HLEN : 0;
-  iov[1].iov_base = read_buffer_.data();
-  iov[1].iov_len = read_buffer_.size();
-
-  absl::Status status = absl::OkStatus();
-  absl::Time start = absl::Now();
-  int result = kernel_->readv(read_fd_, iov, ABSL_ARRAYSIZE(iov));
-  if (result < 0) {
-    status = absl::ErrnoToStatus(errno, "Read from the TUN device failed.");
-  } else if (result == 0) {
-    // Note that 0 means end of file, but we're talking about a TUN device -
-    // there is no end of file. Therefore 0 also indicates error.
-    status = absl::InternalError(
-        "Read from the TUN device returned unexpected 0 (EOF).");
-  }
-  absl::Duration latency = std::max(absl::Now() - start, absl::ZeroDuration());
-
-  if (!status.ok()) {
-    QUIC_LOG_EVERY_N_SEC(ERROR, 60) << "Packet read failed: " << status;
-    visitor_.OnRead(std::move(status));
-    return false;
-  }
-
-  int l3_packet_size = is_tap_ ? result - ETH_HLEN : result;
-  if (l3_packet_size <= 0 || l3_packet_size > read_buffer_.size()) {
-    absl::Status error =
-        absl::InternalError(absl::StrCat("Invalid packet size."));
-    QUIC_LOG_EVERY_N_SEC(ERROR, 60) << "Packet read failed: " << error;
-    visitor_.OnRead(std::move(error));
-    return false;
-  }
-  absl::Span<const std::byte> l3_packet =
-      absl::MakeSpan(read_buffer_.data(), l3_packet_size);
-
-  if (is_tap_) {
-    switch (ValidateL2Headers(eth_header, l3_packet)) {
-      case L2ValidationResult::kInvalid: {
-        absl::Status error = absl::InvalidArgumentError("Invalid L2 headers.");
-        visitor_.OnRead(std::move(error));
-        return false;
-      }
-      case L2ValidationResult::kValidLinkLocal:
-        // TODO(b/535980431): This returns false to match the behavior of a
-        // previous implementation because no packet is forwarded to the tunnel,
-        // but consider changing this to true. A link-local packet does not mean
-        // there are no more packets to read from the TUN device.
-        return false;
-      case L2ValidationResult::kValidNormal:
-        // Packet is valid and should be forwarded to the tunnel. Fall through
-        // to normal processing.
-        break;
+    if (ReadAndExchangeSinglePacket(qbone_client, exchange_blocked_error)) {
+      packets_read++;
+    } else {
+      break;
     }
   }
 
-  visitor_.OnRead(std::vector<ReadResult>{
-      ReadResult{.packet = l3_packet, .latency = latency}});
-  qbone_client->ProcessPacketFromNetwork(absl::string_view(
-      reinterpret_cast<const char*>(l3_packet.data()), l3_packet.size()));
-  return true;
+  return packets_read;
 }
 
 void TunDevicePacketExchanger::WritePacketToNetwork(const char* packet,
@@ -186,6 +139,82 @@ void TunDevicePacketExchanger::WritePacketToNetwork(const char* packet,
       .packet =
           absl::MakeSpan(reinterpret_cast<const std::byte*>(packet), size),
       .latency = latency}});
+}
+
+bool TunDevicePacketExchanger::ReadAndExchangeSinglePacket(
+    QboneClientInterface* qbone_client, bool exchange_blocked_error) {
+  QUICHE_DCHECK_GE(read_fd_, 0);
+
+  // TODO(ericorth): Consider allocating these buffers once and reusing rather
+  // than repeating for each packet.
+  ethhdr eth_header;
+  struct iovec iov[2];
+
+  iov[0].iov_base = is_tap_ ? &eth_header : nullptr;
+  iov[0].iov_len = is_tap_ ? ETH_HLEN : 0;
+  iov[1].iov_base = read_buffer_.data();
+  iov[1].iov_len = read_buffer_.size();
+
+  absl::Status status = absl::OkStatus();
+  absl::Time start = absl::Now();
+  int result = kernel_->readv(read_fd_, iov, ABSL_ARRAYSIZE(iov));
+  int saved_errno = errno;
+  absl::Duration latency = std::max(absl::Now() - start, absl::ZeroDuration());
+
+  if (result < 0) {
+    if ((saved_errno == EAGAIN || saved_errno == EWOULDBLOCK) &&
+        !exchange_blocked_error) {
+      // No more packets available to read.
+      return false;
+    } else {
+      status =
+          absl::ErrnoToStatus(saved_errno, "Read from the TUN device failed.");
+    }
+  } else if (result == 0) {
+    // Note that 0 means end of file, but we're talking about a TUN device -
+    // there is no end of file. Therefore 0 also indicates error.
+    status = absl::InternalError(
+        "Read from the TUN device returned unexpected 0 (EOF).");
+  }
+
+  if (!status.ok()) {
+    QUIC_LOG_EVERY_N_SEC(ERROR, 60) << "Packet read failed: " << status;
+    visitor_.OnRead(std::move(status));
+    return false;  // Assume no more packets after any socket read error.
+  }
+
+  int l3_packet_size = is_tap_ ? result - ETH_HLEN : result;
+  if (l3_packet_size <= 0 || l3_packet_size > read_buffer_.size()) {
+    absl::Status error =
+        absl::InternalError(absl::StrCat("Invalid packet size."));
+    QUIC_LOG_EVERY_N_SEC(ERROR, 60) << "Packet read failed: " << error;
+    visitor_.OnRead(std::move(error));
+    return true;  // Invalid packet does not mean there are no more packets.
+  }
+  absl::Span<const std::byte> l3_packet =
+      absl::MakeSpan(read_buffer_.data(), l3_packet_size);
+
+  if (is_tap_) {
+    switch (ValidateL2Headers(eth_header, l3_packet)) {
+      case L2ValidationResult::kInvalid: {
+        absl::Status error = absl::InvalidArgumentError("Invalid L2 headers.");
+        visitor_.OnRead(std::move(error));
+        return true;  // Invalid packet does not mean there are no more packets.
+      }
+      case L2ValidationResult::kValidLinkLocal:
+        return true;
+      case L2ValidationResult::kValidNormal:
+        // Packet is valid and should be forwarded to the tunnel. Fall through
+        // to normal processing.
+        break;
+    }
+  }
+
+  visitor_.OnRead(std::vector<ReadResult>{
+      ReadResult{.packet = l3_packet, .latency = latency}});
+  qbone_client->ProcessPacketFromNetwork(absl::string_view(
+      reinterpret_cast<const char*>(l3_packet.data()), l3_packet.size()));
+  return true;
 }
 
 void TunDevicePacketExchanger::InitializeEthHdr() {

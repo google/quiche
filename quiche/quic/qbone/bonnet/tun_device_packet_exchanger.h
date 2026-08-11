@@ -38,7 +38,8 @@ class TunDevicePacketExchanger : public QboneClientPacketExchanger {
   // QboneClientPacketExchanger:
   void Start(int read_fd, int write_fd) override;
   void Stop() override;
-  bool ReadAndDeliverPacket(QboneClientInterface* qbone_client) override;
+  int OnReadFromNetworkReady(int max_packets_to_read,
+                             QboneClientInterface* qbone_client) override;
   void WritePacketToNetwork(const char* packet, size_t size) override;
 
  private:
@@ -55,8 +56,11 @@ class TunDevicePacketExchanger : public QboneClientPacketExchanger {
     kValidLinkLocal
   };
 
-  void InitializeEthHdr();
+  // Returns true if more packets may be available to read.
+  bool ReadAndExchangeSinglePacket(QboneClientInterface* qbone_client,
+                                   bool exchange_blocked_error);
 
+  void InitializeEthHdr();
   L2ValidationResult ValidateL2Headers(const ethhdr& eth_header,
                                        absl::Span<const std::byte> packet);
 

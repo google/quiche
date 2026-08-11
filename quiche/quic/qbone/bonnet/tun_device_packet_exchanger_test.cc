@@ -224,7 +224,9 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketError) {
         return -1;
       });
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
-  EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1,
+                                              &mock_client_),
+            0);
 
   exchanger_.Stop();
 }
@@ -238,7 +240,9 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketBlocked) {
         return -1;
       });
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
-  EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1,
+                                              &mock_client_),
+            0);
 
   exchanger_.Stop();
 }
@@ -261,7 +265,133 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketSuccessfulRead) {
           &QboneClientPacketExchanger::ReadResult::packet,
           ElementsAreArray(reinterpret_cast<const std::byte*>(packet.data()),
                            packet.size()))))));
-  EXPECT_TRUE(exchanger_.ReadAndDeliverPacket(&mock_client_));
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1,
+                                              &mock_client_),
+            1);
+
+  exchanger_.Stop();
+}
+
+TEST_F(TunDevicePacketExchangerTest, MultipleReadsMoreAvailableThanMax) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
+  std::string packet1 = "fake_packet_1";
+  std::string packet2 = "fake_packet_2";
+
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+      .WillOnce([packet1](int fd, const struct iovec* iov, int iovcnt) {
+        memcpy(iov[1].iov_base, packet1.data(), packet1.size());
+        return packet1.size();
+      })
+      .WillOnce([packet2](int fd, const struct iovec* iov, int iovcnt) {
+        memcpy(iov[1].iov_base, packet2.data(), packet2.size());
+        return packet2.size();
+      });
+
+  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(packet1)));
+  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(packet2)));
+
+  EXPECT_CALL(
+      mock_visitor_,
+      OnRead(IsOkAndHolds(ElementsAre(Field(
+          &QboneClientPacketExchanger::ReadResult::packet,
+          ElementsAreArray(reinterpret_cast<const std::byte*>(packet1.data()),
+                           packet1.size()))))));
+  EXPECT_CALL(
+      mock_visitor_,
+      OnRead(IsOkAndHolds(ElementsAre(Field(
+          &QboneClientPacketExchanger::ReadResult::packet,
+          ElementsAreArray(reinterpret_cast<const std::byte*>(packet2.data()),
+                           packet2.size()))))));
+
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2,
+                                              &mock_client_),
+            2);
+
+  exchanger_.Stop();
+}
+
+TEST_F(TunDevicePacketExchangerTest, MultipleReadsBlockedBeforeMax) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
+  std::string packet1 = "fake_packet_1";
+
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+      .WillOnce([packet1](int fd, const struct iovec* iov, int iovcnt) {
+        memcpy(iov[1].iov_base, packet1.data(), packet1.size());
+        return packet1.size();
+      })
+      .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
+        errno = EAGAIN;
+        return -1;
+      });
+
+  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(packet1)));
+
+  // Expect no error callbacks from the blocked read. In this scenario, the
+  // blocked socket is just a signal that there are no more packets to be read,
+  // rather than an actual error.
+
+  EXPECT_CALL(
+      mock_visitor_,
+      OnRead(IsOkAndHolds(ElementsAre(Field(
+          &QboneClientPacketExchanger::ReadResult::packet,
+          ElementsAreArray(reinterpret_cast<const std::byte*>(packet1.data()),
+                           packet1.size()))))));
+
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/5,
+                                              &mock_client_),
+            1);
+
+  exchanger_.Stop();
+}
+
+TEST_F(TunDevicePacketExchangerTest, MultiReadInvalidSizeHuge) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
+  std::string valid_packet = "valid_packet";
+
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+      .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
+        return kMtu + 1;  // Invalid size
+      })
+      .WillOnce([valid_packet](int fd, const struct iovec* iov, int iovcnt) {
+        memcpy(iov[1].iov_base, valid_packet.data(), valid_packet.size());
+        return valid_packet.size();
+      });
+
+  EXPECT_CALL(mock_visitor_, OnRead(StatusIs(absl::StatusCode::kInternal)));
+
+  // Expect subsequent packet to still be read and processed after the invalid
+  // packet.
+  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(valid_packet)));
+  EXPECT_CALL(mock_visitor_,
+              OnRead(IsOkAndHolds(ElementsAre(Field(
+                  &QboneClientPacketExchanger::ReadResult::packet,
+                  ElementsAreArray(
+                      reinterpret_cast<const std::byte*>(valid_packet.data()),
+                      valid_packet.size()))))));
+
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2,
+                                              &mock_client_),
+            2);
+
+  exchanger_.Stop();
+}
+
+TEST_F(TunDevicePacketExchangerTest,
+       ReadPacketBlockedOnFirstWithMaxMoreThanOne) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+      .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
+        errno = EAGAIN;
+        return -1;
+      });
+  EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2,
+                                              &mock_client_),
+            0);
 
   exchanger_.Stop();
 }
@@ -313,7 +443,9 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapSuccess) {
           &QboneClientPacketExchanger::ReadResult::packet,
           ElementsAreArray(reinterpret_cast<const std::byte*>(l3_packet.data()),
                            l3_packet.size()))))));
-  EXPECT_TRUE(exchanger_.ReadAndDeliverPacket(&mock_client_));
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1,
+                                              &mock_client_),
+            1);
 
   exchanger_.Stop();
 }
@@ -331,7 +463,9 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapInvalidL2) {
       });
 
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
-  EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1,
+                                              &mock_client_),
+            1);
 
   exchanger_.Stop();
 }
@@ -382,9 +516,106 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
       });
   EXPECT_CALL(mock_visitor_, OnWrite(IsOkAndHolds(SizeIs(1))));
 
-  // ReadAndDeliverPacket should return false because packet was handled
-  // internally (Neighbor Discovery).
-  EXPECT_FALSE(exchanger_.ReadAndDeliverPacket(&mock_client_));
+  // OnReadFromNetworkReady should return 1 because packet was handled
+  // internally (Neighbor Discovery) but still read from network.
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1,
+                                              &mock_client_),
+            1);
+
+  exchanger_.Stop();
+}
+
+TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidSizeShort) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
+  ip6_hdr ip_hdr{};
+  ip_hdr.ip6_vfc = 0x60;  // Version 6
+  ip_hdr.ip6_nxt = 59;    // No next header
+
+  std::string l3_payload = "hello";
+  std::string valid_l3_packet =
+      std::string(reinterpret_cast<char*>(&ip_hdr), sizeof(ip_hdr)) +
+      l3_payload;
+
+  ethhdr valid_eth_hdr{};
+  valid_eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
+
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+      .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
+        return ETH_HLEN - 1;  // Invalid size (too short to contain L3 packet)
+      })
+      .WillOnce([valid_eth_hdr, valid_l3_packet](
+                    int fd, const struct iovec* iov, int iovcnt) {
+        memcpy(iov[0].iov_base, &valid_eth_hdr, ETH_HLEN);
+        memcpy(iov[1].iov_base, valid_l3_packet.data(), valid_l3_packet.size());
+        return ETH_HLEN + valid_l3_packet.size();
+      });
+
+  EXPECT_CALL(mock_visitor_, OnRead(StatusIs(absl::StatusCode::kInternal)));
+
+  // Expect subsequent packet to still be read and processed after the invalid
+  // packet.
+  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(valid_l3_packet)));
+  EXPECT_CALL(mock_visitor_,
+              OnRead(IsOkAndHolds(ElementsAre(
+                  Field(&QboneClientPacketExchanger::ReadResult::packet,
+                        ElementsAreArray(reinterpret_cast<const std::byte*>(
+                                             valid_l3_packet.data()),
+                                         valid_l3_packet.size()))))));
+
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2,
+                                              &mock_client_),
+            2);
+
+  exchanger_.Stop();
+}
+
+TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidL2) {
+  exchanger_.Start(kReadFd, kWriteFd);
+
+  ethhdr invalid_eth_hdr{};
+  invalid_eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_ARP);  // Non-IPv6
+
+  ip6_hdr ip_hdr{};
+  ip_hdr.ip6_vfc = 0x60;  // Version 6
+  ip_hdr.ip6_nxt = 59;    // No next header
+
+  std::string l3_payload = "hello";
+  std::string valid_l3_packet =
+      std::string(reinterpret_cast<char*>(&ip_hdr), sizeof(ip_hdr)) +
+      l3_payload;
+
+  ethhdr valid_eth_hdr{};
+  valid_eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
+
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+      .WillOnce([invalid_eth_hdr](int fd, const struct iovec* iov, int iovcnt) {
+        memcpy(iov[0].iov_base, &invalid_eth_hdr, ETH_HLEN);
+        return ETH_HLEN + 10;
+      })
+      .WillOnce([valid_eth_hdr, valid_l3_packet](
+                    int fd, const struct iovec* iov, int iovcnt) {
+        memcpy(iov[0].iov_base, &valid_eth_hdr, ETH_HLEN);
+        memcpy(iov[1].iov_base, valid_l3_packet.data(), valid_l3_packet.size());
+        return ETH_HLEN + valid_l3_packet.size();
+      });
+
+  EXPECT_CALL(mock_visitor_,
+              OnRead(StatusIs(absl::StatusCode::kInvalidArgument)));
+
+  // Expect subsequent packet to still be read and processed after the invalid
+  // packet.
+  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(valid_l3_packet)));
+  EXPECT_CALL(mock_visitor_,
+              OnRead(IsOkAndHolds(ElementsAre(
+                  Field(&QboneClientPacketExchanger::ReadResult::packet,
+                        ElementsAreArray(reinterpret_cast<const std::byte*>(
+                                             valid_l3_packet.data()),
+                                         valid_l3_packet.size()))))));
+
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2,
+                                              &mock_client_),
+            2);
 
   exchanger_.Stop();
 }

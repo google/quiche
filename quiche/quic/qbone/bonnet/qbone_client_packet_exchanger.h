@@ -48,10 +48,13 @@ class QboneClientPacketExchanger {
   // made after this completes.
   virtual void Stop() = 0;
 
-  // Reads a packet from the local network and delivers the packet to
-  // qbone_client. Returns true if there may be more packets to read. Must not
-  // be called before Start() or after Stop().
-  virtual bool ReadAndDeliverPacket(QboneClientInterface* qbone_client) = 0;
+  // Notifies the exchanger that at least one packet is ready to be read from
+  // the network, and reads up to `max_packets_to_read`. Returns the number of
+  // packets synchronously read from the socket (not number of valid packets
+  // processed to client and visitor, and not useful if implementation handles
+  // reads asynchronously). Must not be called before Start() or after Stop().
+  virtual int OnReadFromNetworkReady(int max_packets_to_read,
+                                     QboneClientInterface* qbone_client) = 0;
 
   // Writes a packet to the local network. If the write would be blocked, the
   // packet is dropped. Must not be called before Start() or after Stop().
