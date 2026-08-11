@@ -122,6 +122,7 @@ class QUICHE_EXPORT HpackHuffmanDecoder {
 
  private:
   HuffmanBitBuffer bit_buffer_;
+  const bool enable_optimizations_;
 };
 
 inline std::ostream& operator<<(std::ostream& out,

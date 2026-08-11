@@ -16,6 +16,7 @@
 #include "quiche/http2/decoder/decode_status.h"
 #include "quiche/http2/test_tools/random_decoder_test_base.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
@@ -240,6 +241,24 @@ TEST_F(HpackHuffmanDecoderTest, SpecResponseExamples) {
     EXPECT_TRUE(decoder.Decode(huffman_encoded, &buffer)) << decoder;
     EXPECT_TRUE(decoder.InputProperlyTerminated()) << decoder;
     EXPECT_EQ(buffer, plain_string);
+  }
+}
+
+TEST(HpackHuffmanDecoderStandaloneTest, ReloadableFlag8BitTable) {
+  std::string huffman_encoded;
+  ASSERT_TRUE(
+      absl::HexStringToBytes("f1e3c2e5f23a6ba0ab90f4ff", &huffman_encoded));
+  std::string plain_string = "www.example.com";
+
+  for (bool flag_value : {false, true}) {
+    SetQuicheReloadableFlag(hpack_huffman_decoder_optimizations, flag_value);
+    HpackHuffmanDecoder decoder;
+    std::string buffer;
+    EXPECT_TRUE(decoder.Decode(huffman_encoded, &buffer))
+        << "Failed when flag is " << flag_value;
+    EXPECT_TRUE(decoder.InputProperlyTerminated())
+        << "Failed when flag is " << flag_value;
+    EXPECT_EQ(buffer, plain_string) << "Failed when flag is " << flag_value;
   }
 }
 

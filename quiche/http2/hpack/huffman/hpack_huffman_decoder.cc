@@ -10,6 +10,8 @@
 #include <sstream>
 #include <string>
 
+#include "quiche/common/platform/api/quiche_flag_utils.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
 // Terminology:
@@ -215,11 +217,101 @@ constexpr unsigned char kCanonicalToSymbol[] = {
 };
 // clang-format on
 
-constexpr size_t kShortCodeTableSize = 124;
 struct ShortCodeInfo {
   uint8_t symbol;
   uint8_t length;
-} kShortCodeTable[kShortCodeTableSize] = {
+};
+
+constexpr size_t kShortCodeTableSize = 254;
+constexpr ShortCodeInfo kShortCodeTable[kShortCodeTableSize] = {
+    {0x30, 5}, {0x30, 5}, {0x30, 5}, {0x30, 5},
+    {0x30, 5}, {0x30, 5}, {0x30, 5}, {0x30, 5},  // 0b00000xxx ('0')
+    {0x31, 5}, {0x31, 5}, {0x31, 5}, {0x31, 5},
+    {0x31, 5}, {0x31, 5}, {0x31, 5}, {0x31, 5},  // 0b00001xxx ('1')
+    {0x32, 5}, {0x32, 5}, {0x32, 5}, {0x32, 5},
+    {0x32, 5}, {0x32, 5}, {0x32, 5}, {0x32, 5},  // 0b00010xxx ('2')
+    {0x61, 5}, {0x61, 5}, {0x61, 5}, {0x61, 5},
+    {0x61, 5}, {0x61, 5}, {0x61, 5}, {0x61, 5},  // 0b00011xxx ('a')
+    {0x63, 5}, {0x63, 5}, {0x63, 5}, {0x63, 5},
+    {0x63, 5}, {0x63, 5}, {0x63, 5}, {0x63, 5},  // 0b00100xxx ('c')
+    {0x65, 5}, {0x65, 5}, {0x65, 5}, {0x65, 5},
+    {0x65, 5}, {0x65, 5}, {0x65, 5}, {0x65, 5},  // 0b00101xxx ('e')
+    {0x69, 5}, {0x69, 5}, {0x69, 5}, {0x69, 5},
+    {0x69, 5}, {0x69, 5}, {0x69, 5}, {0x69, 5},  // 0b00110xxx ('i')
+    {0x6f, 5}, {0x6f, 5}, {0x6f, 5}, {0x6f, 5},
+    {0x6f, 5}, {0x6f, 5}, {0x6f, 5}, {0x6f, 5},  // 0b00111xxx ('o')
+    {0x73, 5}, {0x73, 5}, {0x73, 5}, {0x73, 5},
+    {0x73, 5}, {0x73, 5}, {0x73, 5}, {0x73, 5},  // 0b01000xxx ('s')
+    {0x74, 5}, {0x74, 5}, {0x74, 5}, {0x74, 5},
+    {0x74, 5}, {0x74, 5}, {0x74, 5}, {0x74, 5},  // 0b01001xxx ('t')
+    {0x20, 6}, {0x20, 6}, {0x20, 6}, {0x20, 6},  // 0b010100xx (' ')
+    {0x25, 6}, {0x25, 6}, {0x25, 6}, {0x25, 6},  // 0b010101xx ('%')
+    {0x2d, 6}, {0x2d, 6}, {0x2d, 6}, {0x2d, 6},  // 0b010110xx ('-')
+    {0x2e, 6}, {0x2e, 6}, {0x2e, 6}, {0x2e, 6},  // 0b010111xx ('.')
+    {0x2f, 6}, {0x2f, 6}, {0x2f, 6}, {0x2f, 6},  // 0b011000xx ('/')
+    {0x33, 6}, {0x33, 6}, {0x33, 6}, {0x33, 6},  // 0b011001xx ('3')
+    {0x34, 6}, {0x34, 6}, {0x34, 6}, {0x34, 6},  // 0b011010xx ('4')
+    {0x35, 6}, {0x35, 6}, {0x35, 6}, {0x35, 6},  // 0b011011xx ('5')
+    {0x36, 6}, {0x36, 6}, {0x36, 6}, {0x36, 6},  // 0b011100xx ('6')
+    {0x37, 6}, {0x37, 6}, {0x37, 6}, {0x37, 6},  // 0b011101xx ('7')
+    {0x38, 6}, {0x38, 6}, {0x38, 6}, {0x38, 6},  // 0b011110xx ('8')
+    {0x39, 6}, {0x39, 6}, {0x39, 6}, {0x39, 6},  // 0b011111xx ('9')
+    {0x3d, 6}, {0x3d, 6}, {0x3d, 6}, {0x3d, 6},  // 0b100000xx ('=')
+    {0x41, 6}, {0x41, 6}, {0x41, 6}, {0x41, 6},  // 0b100001xx ('A')
+    {0x5f, 6}, {0x5f, 6}, {0x5f, 6}, {0x5f, 6},  // 0b100010xx ('_')
+    {0x62, 6}, {0x62, 6}, {0x62, 6}, {0x62, 6},  // 0b100011xx ('b')
+    {0x64, 6}, {0x64, 6}, {0x64, 6}, {0x64, 6},  // 0b100100xx ('d')
+    {0x66, 6}, {0x66, 6}, {0x66, 6}, {0x66, 6},  // 0b100101xx ('f')
+    {0x67, 6}, {0x67, 6}, {0x67, 6}, {0x67, 6},  // 0b100110xx ('g')
+    {0x68, 6}, {0x68, 6}, {0x68, 6}, {0x68, 6},  // 0b100111xx ('h')
+    {0x6c, 6}, {0x6c, 6}, {0x6c, 6}, {0x6c, 6},  // 0b101000xx ('l')
+    {0x6d, 6}, {0x6d, 6}, {0x6d, 6}, {0x6d, 6},  // 0b101001xx ('m')
+    {0x6e, 6}, {0x6e, 6}, {0x6e, 6}, {0x6e, 6},  // 0b101010xx ('n')
+    {0x70, 6}, {0x70, 6}, {0x70, 6}, {0x70, 6},  // 0b101011xx ('p')
+    {0x72, 6}, {0x72, 6}, {0x72, 6}, {0x72, 6},  // 0b101100xx ('r')
+    {0x75, 6}, {0x75, 6}, {0x75, 6}, {0x75, 6},  // 0b101101xx ('u')
+    {0x3a, 7}, {0x3a, 7},                        // 0b1011100x (':')
+    {0x42, 7}, {0x42, 7},                        // 0b1011101x ('B')
+    {0x43, 7}, {0x43, 7},                        // 0b1011110x ('C')
+    {0x44, 7}, {0x44, 7},                        // 0b1011111x ('D')
+    {0x45, 7}, {0x45, 7},                        // 0b1100000x ('E')
+    {0x46, 7}, {0x46, 7},                        // 0b1100001x ('F')
+    {0x47, 7}, {0x47, 7},                        // 0b1100010x ('G')
+    {0x48, 7}, {0x48, 7},                        // 0b1100011x ('H')
+    {0x49, 7}, {0x49, 7},                        // 0b1100100x ('I')
+    {0x4a, 7}, {0x4a, 7},                        // 0b1100101x ('J')
+    {0x4b, 7}, {0x4b, 7},                        // 0b1100110x ('K')
+    {0x4c, 7}, {0x4c, 7},                        // 0b1100111x ('L')
+    {0x4d, 7}, {0x4d, 7},                        // 0b1101000x ('M')
+    {0x4e, 7}, {0x4e, 7},                        // 0b1101001x ('N')
+    {0x4f, 7}, {0x4f, 7},                        // 0b1101010x ('O')
+    {0x50, 7}, {0x50, 7},                        // 0b1101011x ('P')
+    {0x51, 7}, {0x51, 7},                        // 0b1101100x ('Q')
+    {0x52, 7}, {0x52, 7},                        // 0b1101101x ('R')
+    {0x53, 7}, {0x53, 7},                        // 0b1101110x ('S')
+    {0x54, 7}, {0x54, 7},                        // 0b1101111x ('T')
+    {0x55, 7}, {0x55, 7},                        // 0b1110000x ('U')
+    {0x56, 7}, {0x56, 7},                        // 0b1110001x ('V')
+    {0x57, 7}, {0x57, 7},                        // 0b1110010x ('W')
+    {0x59, 7}, {0x59, 7},                        // 0b1110011x ('Y')
+    {0x6a, 7}, {0x6a, 7},                        // 0b1110100x ('j')
+    {0x6b, 7}, {0x6b, 7},                        // 0b1110101x ('k')
+    {0x71, 7}, {0x71, 7},                        // 0b1110110x ('q')
+    {0x76, 7}, {0x76, 7},                        // 0b1110111x ('v')
+    {0x77, 7}, {0x77, 7},                        // 0b1111000x ('w')
+    {0x78, 7}, {0x78, 7},                        // 0b1111001x ('x')
+    {0x79, 7}, {0x79, 7},                        // 0b1111010x ('y')
+    {0x7a, 7}, {0x7a, 7},                        // 0b1111011x ('z')
+    {0x26, 8},                                   // 0b11111000 ('&')
+    {0x2a, 8},                                   // 0b11111001 ('*')
+    {0x2c, 8},                                   // 0b11111010 (',')
+    {0x3b, 8},                                   // 0b11111011 (';')
+    {0x58, 8},                                   // 0b11111100 ('X')
+    {0x5a, 8},                                   // 0b11111101 ('Z')
+};
+
+constexpr size_t kShortCodeTableOldSize = 124;
+constexpr ShortCodeInfo kShortCodeTableOld[kShortCodeTableOldSize] = {
     {0x30, 5},  // Match: 0b0000000, Symbol: 0
     {0x30, 5},  // Match: 0b0000001, Symbol: 0
     {0x30, 5},  // Match: 0b0000010, Symbol: 0
@@ -409,7 +501,13 @@ std::string HuffmanBitBuffer::DebugString() const {
   return ss.str();
 }
 
-HpackHuffmanDecoder::HpackHuffmanDecoder() = default;
+HpackHuffmanDecoder::HpackHuffmanDecoder()
+    : enable_optimizations_(
+          GetQuicheReloadableFlag(hpack_huffman_decoder_optimizations)) {
+  if (enable_optimizations_) {
+    QUICHE_RELOADABLE_FLAG_COUNT(hpack_huffman_decoder_optimizations);
+  }
+}
 
 HpackHuffmanDecoder::~HpackHuffmanDecoder() = default;
 
@@ -421,14 +519,27 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
 
   while (true) {
     QUICHE_DVLOG(3) << "Enter Decode Loop, bit_buffer_: " << bit_buffer_;
-    if (bit_buffer_.count() >= 7) {
+    if (enable_optimizations_ && bit_buffer_.count() >= 8) {
+      // Get high 8 bits of the bit buffer, see if that contains a complete
+      // code of 5, 6, 7, or 8 bits.
+      uint8_t short_code =
+          bit_buffer_.value() >> (kHuffmanAccumulatorBitCount - 8);
+      if (short_code < kShortCodeTableSize) {
+        ShortCodeInfo info = kShortCodeTable[short_code];
+        bit_buffer_.ConsumeBits(info.length);
+        output->push_back(static_cast<char>(info.symbol));
+        continue;
+      }
+      // The code is more than 8 bits long. Use PrefixToInfo, etc. to decode
+      // longer codes.
+    } else if (!enable_optimizations_ && bit_buffer_.count() >= 7) {
       // Get high 7 bits of the bit buffer, see if that contains a complete
       // code of 5, 6 or 7 bits.
       uint8_t short_code =
           bit_buffer_.value() >> (kHuffmanAccumulatorBitCount - 7);
       QUICHE_DCHECK_LT(short_code, 128);
-      if (short_code < kShortCodeTableSize) {
-        ShortCodeInfo info = kShortCodeTable[short_code];
+      if (short_code < kShortCodeTableOldSize) {
+        ShortCodeInfo info = kShortCodeTableOld[short_code];
         bit_buffer_.ConsumeBits(info.length);
         output->push_back(static_cast<char>(info.symbol));
         continue;
