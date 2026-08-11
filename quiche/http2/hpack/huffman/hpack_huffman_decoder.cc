@@ -5,14 +5,15 @@
 #include "quiche/http2/hpack/huffman/hpack_huffman_decoder.h"
 
 #include <bitset>
+#include <cstring>
 #include <limits>
 #include <ostream>
 #include <sstream>
-#include <string>
 
 #include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_endian.h"
 
 // Terminology:
 //
@@ -447,11 +448,24 @@ void HuffmanBitBuffer::Reset() {
   count_ = 0;
 }
 
-size_t HuffmanBitBuffer::AppendBytes(absl::string_view input) {
+size_t HuffmanBitBuffer::AppendBytes(absl::string_view input,
+                                     bool enable_optimizations) {
   HuffmanAccumulatorBitCount free_cnt = free_count();
   size_t bytes_available = input.size();
   if (free_cnt < 8 || bytes_available == 0) {
     return 0;
+  }
+
+  // If sufficient data is available, the accumulator can be filled in a single
+  // read rather than a loop.
+  if (enable_optimizations && bytes_available >= 8) {
+    uint64_t loaded;
+    std::memcpy(&loaded, input.data(), sizeof(loaded));
+    loaded = quiche::QuicheEndian::NetToHost64(loaded);
+    const size_t bytes_to_add = std::min<size_t>(free_cnt / 8, 8);
+    accumulator_ |= (loaded >> count_);
+    count_ += (bytes_to_add * 8);
+    return bytes_to_add;
   }
 
   // Top up |accumulator_| until there isn't room for a whole byte.
@@ -515,7 +529,7 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
   QUICHE_DVLOG(1) << "HpackHuffmanDecoder::Decode";
 
   // Fill bit_buffer_ from input.
-  input.remove_prefix(bit_buffer_.AppendBytes(input));
+  input.remove_prefix(bit_buffer_.AppendBytes(input, enable_optimizations_));
 
   while (true) {
     QUICHE_DVLOG(3) << "Enter Decode Loop, bit_buffer_: " << bit_buffer_;
@@ -549,7 +563,7 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
     } else {
       // We may have (mostly) drained bit_buffer_. If we can top it up, try
       // using the table decoder above.
-      size_t byte_count = bit_buffer_.AppendBytes(input);
+      size_t byte_count = bit_buffer_.AppendBytes(input, enable_optimizations_);
       if (byte_count > 0) {
         input.remove_prefix(byte_count);
         continue;
@@ -581,7 +595,7 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
     }
     // bit_buffer_ doesn't have enough bits in it to decode the next symbol.
     // Append to it as many bytes as are available AND fit.
-    size_t byte_count = bit_buffer_.AppendBytes(input);
+    size_t byte_count = bit_buffer_.AppendBytes(input, enable_optimizations_);
     if (byte_count == 0) {
       QUICHE_DCHECK_EQ(input.size(), 0u);
       return true;

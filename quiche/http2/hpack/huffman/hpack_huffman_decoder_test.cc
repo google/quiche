@@ -40,7 +40,8 @@ TEST(HuffmanBitBufferTest, AppendBytesAligned) {
   absl::string_view sp(s);
 
   HuffmanBitBuffer bb;
-  sp.remove_prefix(bb.AppendBytes(sp));
+  sp.remove_prefix(bb.AppendBytes(
+      sp, GetQuicheReloadableFlag(hpack_huffman_decoder_optimizations)));
   EXPECT_TRUE(sp.empty());
   EXPECT_FALSE(bb.IsEmpty()) << bb;
   EXPECT_FALSE(bb.InputProperlyTerminated());
@@ -52,7 +53,8 @@ TEST(HuffmanBitBufferTest, AppendBytesAligned) {
   s.push_back('\x44');
   sp = s;
 
-  sp.remove_prefix(bb.AppendBytes(sp));
+  sp.remove_prefix(bb.AppendBytes(
+      sp, GetQuicheReloadableFlag(hpack_huffman_decoder_optimizations)));
   EXPECT_TRUE(sp.empty());
   EXPECT_EQ(bb.count(), 32u) << bb;
   EXPECT_EQ(bb.free_count(), 32u) << bb;
@@ -66,14 +68,16 @@ TEST(HuffmanBitBufferTest, AppendBytesAligned) {
   s.push_back('\x99');
   sp = s;
 
-  sp.remove_prefix(bb.AppendBytes(sp));
+  sp.remove_prefix(bb.AppendBytes(
+      sp, GetQuicheReloadableFlag(hpack_huffman_decoder_optimizations)));
   EXPECT_EQ(sp.size(), 1u);
   EXPECT_EQ('\x99', sp[0]);
   EXPECT_EQ(bb.count(), 64u) << bb;
   EXPECT_EQ(bb.free_count(), 0u) << bb;
   EXPECT_EQ(bb.value(), HuffmanAccumulator(0x1122334455667788LL)) << bb;
 
-  sp.remove_prefix(bb.AppendBytes(sp));
+  sp.remove_prefix(bb.AppendBytes(
+      sp, GetQuicheReloadableFlag(hpack_huffman_decoder_optimizations)));
   EXPECT_EQ(sp.size(), 1u);
   EXPECT_EQ('\x99', sp[0]);
   EXPECT_EQ(bb.count(), 64u) << bb;
@@ -89,7 +93,8 @@ TEST(HuffmanBitBufferTest, ConsumeBits) {
   absl::string_view sp(s);
 
   HuffmanBitBuffer bb;
-  sp.remove_prefix(bb.AppendBytes(sp));
+  sp.remove_prefix(bb.AppendBytes(
+      sp, GetQuicheReloadableFlag(hpack_huffman_decoder_optimizations)));
   EXPECT_TRUE(sp.empty());
 
   bb.ConsumeBits(1);
@@ -121,7 +126,8 @@ TEST(HuffmanBitBufferTest, AppendBytesUnaligned) {
   absl::string_view sp(s);
 
   HuffmanBitBuffer bb;
-  sp.remove_prefix(bb.AppendBytes(sp));
+  sp.remove_prefix(bb.AppendBytes(
+      sp, GetQuicheReloadableFlag(hpack_huffman_decoder_optimizations)));
   EXPECT_EQ(sp.size(), 5u);
   EXPECT_FALSE(bb.InputProperlyTerminated());
 
@@ -133,7 +139,8 @@ TEST(HuffmanBitBufferTest, AppendBytesUnaligned) {
   expected <<= 15;
   EXPECT_EQ(bb.value(), expected);
 
-  sp.remove_prefix(bb.AppendBytes(sp));
+  sp.remove_prefix(bb.AppendBytes(
+      sp, GetQuicheReloadableFlag(hpack_huffman_decoder_optimizations)));
   EXPECT_EQ(sp.size(), 4u);
   EXPECT_EQ(bb.count(), 57u) << bb;
   EXPECT_EQ(bb.free_count(), 7u) << bb;

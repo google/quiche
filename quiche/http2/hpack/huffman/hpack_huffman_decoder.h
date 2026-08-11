@@ -47,7 +47,7 @@ class QUICHE_EXPORT HuffmanBitBuffer {
 
   // Add as many whole bytes to the accumulator (accumulator_) as possible,
   // returning the number of bytes added.
-  size_t AppendBytes(absl::string_view input);
+  size_t AppendBytes(absl::string_view input, bool enable_optimizations);
 
   // Get the bits of the accumulator.
   HuffmanAccumulator value() const { return accumulator_; }
