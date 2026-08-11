@@ -1131,6 +1131,8 @@ void MasqueOhttpClient::OnPoolData(MasqueConnectionPool* /*pool*/,
     }
   });
 
+  run_details_.ohttp_responses.back().gateway_response.body += data;
+
   absl::Status status =
       pending_request.chunk_handler->DecryptChunk(data, end_stream);
   if (!status.ok()) {
@@ -1141,8 +1143,10 @@ void MasqueOhttpClient::OnPoolData(MasqueConnectionPool* /*pool*/,
     return;
   }
   if (end_stream) {
-    Message response =
+    run_details_.ohttp_responses.back().encapsulated_response =
         std::move(*pending_request.chunk_handler).ExtractResponse();
+    const Message& response =
+        run_details_.ohttp_responses.back().encapsulated_response;
     status = CheckEncapsulatedStatus(
         response,
         pending_request.per_request_config.expected_encapsulated_status_code());
