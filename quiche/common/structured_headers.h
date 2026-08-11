@@ -79,6 +79,14 @@ class QUICHE_EXPORT Item {
   Item(const char* value, Item::ItemType type = kStringType);
   Item(std::string value, Item::ItemType type = kStringType);
 
+  Item(const Item&);
+  Item& operator=(const Item&);
+
+  Item(Item&&);
+  Item& operator=(Item&&);
+
+  ~Item();
+
   QUICHE_EXPORT friend bool operator==(const Item&, const Item&);
 
   bool is_null() const { return Type() == kNullType; }
@@ -145,7 +153,7 @@ class QUICHE_EXPORT Item {
 
   // Deprecated: Prefer `GetStringStrict()`, `GetToken()`, or
   // `GetByteSequence()`.
-  const std::string& GetString() const {
+  const std::string& GetString() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     struct Visitor {
       const std::string* operator()(const std::monostate&) { return nullptr; }
       const std::string* operator()(const int64_t&) { return nullptr; }
@@ -203,6 +211,8 @@ struct QUICHE_EXPORT ParameterisedIdentifier {
   ParameterisedIdentifier();
   ParameterisedIdentifier(const ParameterisedIdentifier&);
   ParameterisedIdentifier& operator=(const ParameterisedIdentifier&);
+  ParameterisedIdentifier(ParameterisedIdentifier&&);
+  ParameterisedIdentifier& operator=(ParameterisedIdentifier&&);
   ParameterisedIdentifier(Item, Parameters);
   ~ParameterisedIdentifier();
 
@@ -219,6 +229,8 @@ struct QUICHE_EXPORT ParameterizedItem {
   ParameterizedItem();
   ParameterizedItem(const ParameterizedItem&);
   ParameterizedItem& operator=(const ParameterizedItem&);
+  ParameterizedItem(ParameterizedItem&&);
+  ParameterizedItem& operator=(ParameterizedItem&&);
   ParameterizedItem(Item, Parameters);
   ~ParameterizedItem();
 
@@ -239,6 +251,8 @@ struct QUICHE_EXPORT ParameterizedMember {
   ParameterizedMember();
   ParameterizedMember(const ParameterizedMember&);
   ParameterizedMember& operator=(const ParameterizedMember&);
+  ParameterizedMember(ParameterizedMember&&);
+  ParameterizedMember& operator=(ParameterizedMember&&);
   ParameterizedMember(std::vector<ParameterizedItem>, bool member_is_inner_list,
                       Parameters);
   // Shorthand constructor for a member which is an inner list.
@@ -267,8 +281,9 @@ class QUICHE_EXPORT Dictionary {
   Dictionary(Dictionary&&);
   explicit Dictionary(std::vector<DictionaryMember> members);
   ~Dictionary();
-  Dictionary& operator=(const Dictionary&) = default;
-  Dictionary& operator=(Dictionary&&) = default;
+  Dictionary& operator=(const Dictionary&);
+  Dictionary& operator=(Dictionary&&);
+
   iterator begin();
   const_iterator begin() const;
   iterator end();

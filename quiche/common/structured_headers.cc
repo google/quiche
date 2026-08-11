@@ -832,6 +832,14 @@ Item::Item(int64_t value) : value_(value) {}
 Item::Item(double value) : value_(value) {}
 Item::Item(bool value) : value_(value) {}
 
+Item::Item(const Item&) = default;
+Item& Item::operator=(const Item&) = default;
+
+Item::Item(Item&&) = default;
+Item& Item::operator=(Item&&) = default;
+
+Item::~Item() = default;
+
 const int64_t* Item::GetIfInteger() const {
   return std::get_if<kIntegerType>(&value_);
 }
@@ -886,6 +894,8 @@ ParameterizedItem::ParameterizedItem() = default;
 ParameterizedItem::ParameterizedItem(const ParameterizedItem&) = default;
 ParameterizedItem& ParameterizedItem::operator=(const ParameterizedItem&) =
     default;
+ParameterizedItem::ParameterizedItem(ParameterizedItem&&) = default;
+ParameterizedItem& ParameterizedItem::operator=(ParameterizedItem&&) = default;
 ParameterizedItem::ParameterizedItem(Item id, Parameters ps)
     : item(std::move(id)), params(std::move(ps)) {}
 ParameterizedItem::~ParameterizedItem() = default;
@@ -894,6 +904,9 @@ ParameterizedMember::ParameterizedMember() = default;
 ParameterizedMember::ParameterizedMember(const ParameterizedMember&) = default;
 ParameterizedMember& ParameterizedMember::operator=(
     const ParameterizedMember&) = default;
+ParameterizedMember::ParameterizedMember(ParameterizedMember&&) = default;
+ParameterizedMember& ParameterizedMember::operator=(ParameterizedMember&&) =
+    default;
 ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> id,
                                          bool member_is_inner_list,
                                          Parameters ps)
@@ -916,13 +929,19 @@ ParameterisedIdentifier::ParameterisedIdentifier(
     const ParameterisedIdentifier&) = default;
 ParameterisedIdentifier& ParameterisedIdentifier::operator=(
     const ParameterisedIdentifier&) = default;
+ParameterisedIdentifier::ParameterisedIdentifier(ParameterisedIdentifier&&) =
+    default;
+ParameterisedIdentifier& ParameterisedIdentifier::operator=(
+    ParameterisedIdentifier&&) = default;
 ParameterisedIdentifier::ParameterisedIdentifier(Item id, Parameters ps)
     : identifier(std::move(id)), params(std::move(ps)) {}
 ParameterisedIdentifier::~ParameterisedIdentifier() = default;
 
 Dictionary::Dictionary() = default;
 Dictionary::Dictionary(const Dictionary&) = default;
+Dictionary& Dictionary::operator=(const Dictionary&) = default;
 Dictionary::Dictionary(Dictionary&&) = default;
+Dictionary& Dictionary::operator=(Dictionary&&) = default;
 Dictionary::Dictionary(std::vector<DictionaryMember> members)
     : members_(std::move(members)) {}
 Dictionary::~Dictionary() = default;
