@@ -170,6 +170,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
   static constexpr absl::string_view kSubscribeByte = "\x03";
   static constexpr absl::string_view kSubscribeNamespaceByte = "\x50";
   static constexpr absl::string_view kPublishByte = "\x1d";
+  static constexpr absl::string_view kTrackStatusByte = "\x0d";
   std::unique_ptr<MoqtBidiStreamBase> ResponseStream(
       absl::string_view first_byte,
       webtransport::test::MockStream* wt_stream = nullptr) {
@@ -2437,8 +2438,8 @@ TEST_F(MoqtSessionTest, ServerCannotReceiveNewSessionUri) {
 }
 
 TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousOk) {
-  bidi_wrapper_ =
-      MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);
+  bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
+      ResponseStream(kTrackStatusByte));
   auto* track = CreateTrackPublisher();
 
   MoqtTrackStatus track_status = DefaultSubscribe();
@@ -2463,8 +2464,8 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousOk) {
 }
 
 TEST_F(MoqtSessionTest, IncomingTrackStatusThenAsynchronousOk) {
-  bidi_wrapper_ =
-      MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);
+  bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
+      ResponseStream(kTrackStatusByte));
   auto* track = CreateTrackPublisher();
 
   MoqtTrackStatus track_status = DefaultSubscribe();
@@ -2487,8 +2488,8 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenAsynchronousOk) {
 }
 
 TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousError) {
-  bidi_wrapper_ =
-      MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);
+  bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
+      ResponseStream(kTrackStatusByte));
   auto* track = CreateTrackPublisher();
 
   MoqtTrackStatus track_status = DefaultSubscribe();
@@ -2508,8 +2509,8 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousError) {
 }
 
 TEST_F(MoqtSessionTest, IncomingTrackStatusThenAsynchronousError) {
-  bidi_wrapper_ =
-      MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);
+  bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
+      ResponseStream(kTrackStatusByte));
   auto* track = CreateTrackPublisher();
 
   MoqtTrackStatus track_status = DefaultSubscribe();

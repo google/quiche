@@ -186,9 +186,12 @@ class MoqtSessionInterface {
 
   // TODO(martinduke): Add an API for absolute joining fetch.
 
-  // TODO: Add SubscribeNamespace, UnsubscribeNamespace method.
-  // TODO: Add PublishNamespaceCancel method.
-  // TODO: Add TrackStatusRequest method.
+  // Sends TRACK_STATUS request to the peer. Returns `false` if the request
+  // immediately fails (usually due to flow control), and `true` otherwise;
+  // `response_callback` will be eventually invoked in either case.
+  virtual bool TrackStatus(const FullTrackName& name,
+                           const MessageParameters& parameters,
+                           MoqtResponseCallback response_callback) = 0;
   // TODO: Add RequestUpdate, PublishDone method.
   virtual quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() = 0;
 };

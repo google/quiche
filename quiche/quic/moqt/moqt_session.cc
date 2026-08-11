@@ -46,6 +46,7 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_subscribe_stream.h"
+#include "quiche/quic/moqt/moqt_track_status_stream.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -344,6 +345,41 @@ bool MoqtSession::SubscribeTracks(TrackNamespace& prefix,
 
 void MoqtSession::UnsubscribeTracks(TrackNamespace& prefix) {
   // Do nothing.
+}
+
+bool MoqtSession::TrackStatus(const FullTrackName& name,
+                              const MessageParameters& parameters,
+                              MoqtResponseCallback response_callback) {
+  QUICHE_DCHECK(name.IsValid());
+  if (received_goaway_ || sent_goaway_) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send TRACK_STATUS after GOAWAY";
+    std::move(response_callback)(MoqtRequestErrorInfo{
+        RequestErrorCode::kGoingAway, std::nullopt, "GOAWAY received"});
+    return false;
+  }
+
+  webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
+  if (stream == nullptr) {
+    std::move(response_callback)(
+        MoqtRequestErrorInfo{RequestErrorCode::kInternalError, std::nullopt,
+                             "Flow control blocked"});
+    return false;
+  }
+
+  uint64_t request_id = NextRequestId();
+  auto stream_visitor = std::make_unique<MoqtTrackStatusRequestStream>(
+      &framer_, ControlMessageParser(), request_id, name, parameters,
+      [session_weak = GetWeakPtr()](MoqtError code, absl::string_view reason) {
+        MoqtSession* session = MoqtSessionFromWeakPtr(session_weak);
+        if (session != nullptr) {
+          session->Error(code, reason);
+        }
+      },
+      std::move(response_callback));
+  MoqtTrackStatusRequestStream* stream_visitor_ptr = stream_visitor.get();
+  stream->SetVisitor(std::move(stream_visitor));
+  stream_visitor_ptr->BindStream(stream);
+  return true;
 }
 
 bool MoqtSession::PublishNamespace(
@@ -876,7 +912,6 @@ bool MoqtSession::ValidateRequestId(uint64_t request_id) {
   // TODO(martinduke): Write new checks for duplicate request IDs. It's
   // probably best to track the largest observed plus a set of holes.
   if (incoming_fetches_.contains(request_id) ||
-      incoming_track_status_.contains(request_id) ||
       incoming_publish_namespaces_by_id_.contains(request_id)) {
     QUICHE_DLOG(INFO) << ENDPOINT << "Duplicate request ID";
     Error(MoqtError::kInvalidRequestId, "Duplicate request ID");
@@ -1074,6 +1109,24 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
       stream_->SetVisitor(std::move(subscribe_stream));
       // The UnknownBidiStream object is deleted; no class access after this
       // point.
+      temp_stream->OnCanRead();
+      break;
+    }
+    case MoqtMessageType::kTrackStatus: {
+      auto track_status_stream =
+          std::make_unique<MoqtTrackStatusResponseStream>(
+              &session_->framer_, session_->ControlMessageParser(),
+              [weakptr = session_->GetWeakPtr()](MoqtError code,
+                                                 absl::string_view reason) {
+                MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+                if (session != nullptr) {
+                  session->Error(code, reason);
+                }
+              },
+              session_->weak_ptr_factory_for_publishers_.Create());
+      track_status_stream->BindStream(std::move(parser_));
+      MoqtTrackStatusResponseStream* temp_stream = track_status_stream.get();
+      stream_->SetVisitor(std::move(track_status_stream));
       temp_stream->OnCanRead();
       break;
     }
@@ -1313,34 +1366,6 @@ absl::Status MoqtSession::OnControlMessage(
       message.error_code, std::nullopt, std::string(message.error_reason)});
   publish_namespace_by_namespace_.erase(it->second.track_namespace);
   publish_namespace_by_id_.erase(it);
-  return absl::OkStatus();
-}
-
-absl::Status MoqtSession::OnControlMessage(const MoqtTrackStatus& message) {
-  if (!ValidateRequestId(message.request_id)) {
-    return absl::OkStatus();
-  }
-  if (sent_goaway_) {
-    QUIC_DLOG(INFO) << ENDPOINT
-                    << "Received a TRACK_STATUS_REQUEST after GOAWAY";
-    SendRequestErrorOnControlStream(
-        message.request_id, RequestErrorCode::kUnauthorized, std::nullopt,
-        "TRACK_STATUS_REQUEST after GOAWAY");
-    return absl::OkStatus();
-  }
-  // TODO(martinduke): Handle authentication.
-  std::shared_ptr<MoqtTrackPublisher> track =
-      publisher_->GetTrack(message.full_track_name);
-  if (track == nullptr) {
-    SendRequestErrorOnControlStream(message.request_id,
-                                    RequestErrorCode::kDoesNotExist,
-                                    std::nullopt, "Track does not exist");
-    return absl::OkStatus();
-  }
-  auto [it, inserted] = incoming_track_status_.emplace(
-      message.request_id, std::make_unique<DownstreamTrackStatus>(
-                              message.request_id, this, track.get()));
-  track->AddObjectListener(it->second.get());
   return absl::OkStatus();
 }
 

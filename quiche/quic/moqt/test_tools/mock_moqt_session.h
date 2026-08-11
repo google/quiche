@@ -125,6 +125,10 @@ class MockMoqtSession : public MoqtSessionInterface {
               (TrackNamespace&, const MessageParameters&, MoqtResponseCallback),
               (override));
   MOCK_METHOD(void, UnsubscribeTracks, (TrackNamespace&), (override));
+  MOCK_METHOD(bool, TrackStatus,
+              (const FullTrackName&, const MessageParameters&,
+               MoqtResponseCallback),
+              (override));
 
   quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() override {
     return weak_factory_.Create();

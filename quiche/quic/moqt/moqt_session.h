@@ -38,6 +38,7 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
+#include "quiche/quic/moqt/moqt_track_status_stream.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/quic/moqt/session_namespace_tree.h"
@@ -138,6 +139,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                        const MessageParameters& parameters,
                        MoqtResponseCallback response_callback) override;
   void UnsubscribeTracks(TrackNamespace& prefix) override;
+  bool TrackStatus(const FullTrackName& name,
+                   const MessageParameters& parameters,
+                   MoqtResponseCallback response_callback) override;
   quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() override {
     return weak_ptr_factory_.Create();
   }
@@ -319,69 +323,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     std::unique_ptr<MoqtFetchTask> fetch_;
   };
 
-  class QUICHE_EXPORT DownstreamTrackStatus : public MoqtObjectListener {
-   public:
-    DownstreamTrackStatus(uint64_t request_id,
-                          MoqtSession* absl_nonnull session,
-                          MoqtTrackPublisher* absl_nonnull publisher)
-        : request_id_(request_id), session_(session), publisher_(publisher) {}
-    ~DownstreamTrackStatus() {
-      if (publisher_ != nullptr) {
-        publisher_->RemoveObjectListener(this);
-      }
-    }
-    DownstreamTrackStatus(const DownstreamTrackStatus&) = delete;
-    DownstreamTrackStatus(DownstreamTrackStatus&&) = delete;
-
-    void OnSubscribeAccepted() override {
-      if (publisher_ == nullptr) {
-        QUICHE_NOTREACHED();
-        return;
-      }
-      MessageParameters parameters;
-      parameters.expires = publisher_->expiration();
-      parameters.largest_object = publisher_->largest_location();
-      ControlStream* control_stream = session_->GetControlStream();
-      if (control_stream != nullptr) {
-        control_stream->CheckStatus(
-            control_stream->SendRequestOk(request_id_, parameters));
-      }
-      session_->incoming_track_status_.erase(request_id_);
-      // No class access below this line!
-    }
-
-    void OnSubscribeRejected(MoqtRequestErrorInfo info) override {
-      ControlStream* control_stream = session_->GetControlStream();
-      if (control_stream != nullptr) {
-        control_stream->CheckStatus(control_stream->SendRequestError(
-            request_id_, info.error_code, info.retry_interval,
-            info.reason_phrase));
-      }
-      session_->incoming_track_status_.erase(request_id_);
-      // No class access below this line!
-    }
-
-    void OnNewObjectAvailable(Location, std::optional<uint64_t> /*subgroup*/,
-                              MoqtPriority) override {}
-    void OnNewFinAvailable(Location /*location*/,
-                           uint64_t /*subgroup*/) override {}
-    void OnSubgroupAbandoned(
-        uint64_t /*group*/, uint64_t /*subgroup*/,
-        webtransport::StreamErrorCode /*error_code*/) override {}
-    void OnGroupAbandoned(uint64_t /*group_id*/) override {}
-    void OnTrackPublisherGone() override {
-      publisher_ = nullptr;
-      OnSubscribeRejected(MoqtRequestErrorInfo(RequestErrorCode::kDoesNotExist,
-                                               std::nullopt,
-                                               "Track publisher gone"));
-    }
-
-   private:
-    uint64_t request_id_;
-    MoqtSession* session_;
-    MoqtTrackPublisher* publisher_;
-  };
-
   class GoAwayTimeoutDelegate : public quic::QuicAlarm::DelegateWithoutContext {
    public:
     explicit GoAwayTimeoutDelegate(MoqtSession* session) : session_(session) {}
@@ -448,7 +389,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::Status OnControlMessage(const MoqtPublishNamespace& message);
   absl::Status OnControlMessage(const MoqtPublishNamespaceDone& /*message*/);
   absl::Status OnControlMessage(const MoqtPublishNamespaceCancel& message);
-  absl::Status OnControlMessage(const MoqtTrackStatus& message);
   absl::Status OnControlMessage(const MoqtGoAway& /*message*/);
   absl::Status OnControlMessage(const MoqtMaxRequestId& message);
   absl::Status OnControlMessage(const MoqtFetch& message);
@@ -529,9 +469,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::flat_hash_map<uint64_t, std::unique_ptr<PublishedFetch>>
       incoming_fetches_;
 
-  absl::flat_hash_map<uint64_t, std::unique_ptr<DownstreamTrackStatus>>
-      incoming_track_status_;
-
   // Monitoring interfaces for expected incoming subscriptions.
   absl::flat_hash_map<FullTrackName, MoqtPublishingMonitorInterface*>
       monitoring_interfaces_for_published_tracks_;
@@ -578,7 +515,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   std::shared_ptr<Empty> liveness_token_;
 };
 
-static MoqtSession* absl_nullable MoqtSessionFromWeakPtr(
+inline MoqtSession* absl_nullable MoqtSessionFromWeakPtr(
     const quiche::QuicheWeakPtr<MoqtSessionInterface>& weak_ptr) {
   return absl::down_cast<MoqtSession*>(weak_ptr.GetIfAvailable());
 }

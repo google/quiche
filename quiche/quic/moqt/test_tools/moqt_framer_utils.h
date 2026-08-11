@@ -13,6 +13,7 @@
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_mem_slice.h"
@@ -64,6 +65,15 @@ MATCHER_P(ControlMessageOfType, expected_type,
     return false;
   }
   return true;
+}
+
+// Parses `message` into a MoqtRawControlMessage.  Assumes `message` is exactly
+// one message; reports a test failure if not.
+MoqtRawControlMessage UnframeRawControlMessage(absl::string_view message);
+
+inline MoqtRawControlMessage GenericMessageToRawControlMessage(
+    const AnyMoqtControlMessage& message) {
+  return UnframeRawControlMessage(SerializeGenericMessage(message));
 }
 
 }  // namespace moqt::test

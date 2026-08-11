@@ -1223,6 +1223,56 @@ TEST_F(MoqtIntegrationTest, RelayTwoClientsQueueClose) {
   ASSERT_TRUE(success);
 }
 
+TEST_F(MoqtIntegrationTest, TrackStatusSuccess) {
+  EstablishSession();
+  FullTrackName track_name("test", "data");
+  auto queue = std::make_shared<MoqtOutgoingQueue>(track_name);
+  queue->AddObject(quiche::QuicheMemSlice::Copy("object 1"), /*key=*/true);
+  queue->AddObject(quiche::QuicheMemSlice::Copy("object 2"), /*key=*/true);
+  MoqtKnownTrackPublisher known_track_publisher;
+  known_track_publisher.Add(queue);
+  server_->session()->set_publisher(&known_track_publisher);
+
+  bool received_response = false;
+  MessageParameters received_parameters;
+  client_->session()->TrackStatus(
+      track_name, MessageParameters(),
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
+        received_response = true;
+        ASSERT_TRUE(std::holds_alternative<MessageParameters>(response));
+        received_parameters = std::get<MessageParameters>(response);
+      });
+
+  bool success = test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return received_response; });
+  EXPECT_TRUE(success);
+  EXPECT_TRUE(received_parameters.largest_object.has_value());
+  EXPECT_EQ(received_parameters.largest_object->group, 1u);
+  EXPECT_EQ(received_parameters.largest_object->object, 0u);
+}
+
+TEST_F(MoqtIntegrationTest, TrackStatusDoesNotExist) {
+  EstablishSession();
+  FullTrackName track_name("test", "nonexistent");
+  MoqtKnownTrackPublisher known_track_publisher;
+  server_->session()->set_publisher(&known_track_publisher);
+
+  bool received_response = false;
+  MoqtRequestErrorInfo received_error;
+  client_->session()->TrackStatus(
+      track_name, MessageParameters(),
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
+        received_response = true;
+        ASSERT_TRUE(std::holds_alternative<MoqtRequestErrorInfo>(response));
+        received_error = std::get<MoqtRequestErrorInfo>(response);
+      });
+
+  bool success = test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return received_response; });
+  EXPECT_TRUE(success);
+  EXPECT_EQ(received_error.error_code, RequestErrorCode::kDoesNotExist);
+}
+
 }  // namespace
 
 }  // namespace moqt::test
