@@ -121,6 +121,8 @@ class QUICHE_EXPORT HpackHuffmanDecoder {
   std::string DebugString() const;
 
  private:
+  bool DecodeOld(absl::string_view input, std::string* output);
+
   HuffmanBitBuffer bit_buffer_;
   const bool enable_optimizations_;
 };

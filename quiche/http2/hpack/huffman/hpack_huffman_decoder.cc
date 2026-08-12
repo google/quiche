@@ -4,6 +4,7 @@
 
 #include "quiche/http2/hpack/huffman/hpack_huffman_decoder.h"
 
+#include <array>
 #include <bitset>
 #include <cstring>
 #include <limits>
@@ -439,6 +440,41 @@ constexpr ShortCodeInfo kShortCodeTableOld[kShortCodeTableOldSize] = {
     {0x7a, 7},  // Match: 0b1111011, Symbol: z
 };
 
+// Helper class to batch character append operations into a std::string buffer
+// on the stack. Automatically flushes any unwritten bytes to the target output
+// string on destruction.
+class ScopedBufferedStringAppender {
+ public:
+  explicit ScopedBufferedStringAppender(std::string& output)
+      : output_(output) {}
+
+  ~ScopedBufferedStringAppender() { Flush(); }
+
+  // Disallow copy and move to prevent accidental buffer aliasing.
+  ScopedBufferedStringAppender(const ScopedBufferedStringAppender&) = delete;
+  ScopedBufferedStringAppender& operator=(const ScopedBufferedStringAppender&) =
+      delete;
+
+  void Append(char c) {
+    buffer_[buffer_length_++] = c;
+    if (buffer_length_ == buffer_.size()) {
+      Flush();
+    }
+  }
+
+  void Flush() {
+    if (buffer_length_ > 0) {
+      output_.append(buffer_.data(), buffer_length_);
+      buffer_length_ = 0;
+    }
+  }
+
+ private:
+  std::array<char, 128> buffer_;
+  size_t buffer_length_ = 0;
+  std::string& output_;
+};
+
 }  // namespace
 
 HuffmanBitBuffer::HuffmanBitBuffer() { Reset(); }
@@ -528,12 +564,19 @@ HpackHuffmanDecoder::~HpackHuffmanDecoder() = default;
 bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
   QUICHE_DVLOG(1) << "HpackHuffmanDecoder::Decode";
 
+  if (!enable_optimizations_) {
+    return DecodeOld(input, output);
+  }
+
   // Fill bit_buffer_ from input.
-  input.remove_prefix(bit_buffer_.AppendBytes(input, enable_optimizations_));
+  input.remove_prefix(bit_buffer_.AppendBytes(input, true));
+
+  // Stack-allocated object used to batch string append operations.
+  ScopedBufferedStringAppender appender(*output);
 
   while (true) {
     QUICHE_DVLOG(3) << "Enter Decode Loop, bit_buffer_: " << bit_buffer_;
-    if (enable_optimizations_ && bit_buffer_.count() >= 8) {
+    if (bit_buffer_.count() >= 8) {
       // Get high 8 bits of the bit buffer, see if that contains a complete
       // code of 5, 6, 7, or 8 bits.
       uint8_t short_code =
@@ -541,12 +584,63 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
       if (short_code < kShortCodeTableSize) {
         ShortCodeInfo info = kShortCodeTable[short_code];
         bit_buffer_.ConsumeBits(info.length);
-        output->push_back(static_cast<char>(info.symbol));
+        appender.Append(static_cast<char>(info.symbol));
         continue;
       }
       // The code is more than 8 bits long. Use PrefixToInfo, etc. to decode
       // longer codes.
-    } else if (!enable_optimizations_ && bit_buffer_.count() >= 7) {
+    } else {
+      // We may have (mostly) drained bit_buffer_. If we can top it up, try
+      // using the table decoder above.
+      size_t byte_count = bit_buffer_.AppendBytes(input, true);
+      if (byte_count > 0) {
+        input.remove_prefix(byte_count);
+        continue;
+      }
+    }
+
+    HuffmanCode code_prefix = bit_buffer_.value() >> kExtraAccumulatorBitCount;
+    QUICHE_DVLOG(3) << "code_prefix: " << HuffmanCodeBitSet(code_prefix);
+
+    PrefixInfo prefix_info = PrefixToInfo(code_prefix);
+    QUICHE_DVLOG(3) << "prefix_info: " << prefix_info;
+    QUICHE_DCHECK_LE(kMinCodeBitCount, prefix_info.code_length);
+    QUICHE_DCHECK_LE(prefix_info.code_length, kMaxCodeBitCount);
+
+    if (prefix_info.code_length <= bit_buffer_.count()) {
+      // We have enough bits for one code.
+      uint32_t canonical = prefix_info.DecodeToCanonical(code_prefix);
+      if (canonical < 256) {
+        // Valid code.
+        char c = kCanonicalToSymbol[canonical];
+        appender.Append(c);
+        bit_buffer_.ConsumeBits(prefix_info.code_length);
+        continue;
+      }
+      // Encoder is not supposed to explicity encode the EOS symbol.
+      QUICHE_DLOG(ERROR) << "EOS explicitly encoded!\n " << bit_buffer_ << "\n "
+                         << prefix_info;
+      return false;
+    }
+    // bit_buffer_ doesn't have enough bits in it to decode the next symbol.
+    // Append to it as many bytes as are available AND fit.
+    size_t byte_count = bit_buffer_.AppendBytes(input, true);
+    if (byte_count == 0) {
+      QUICHE_DCHECK_EQ(input.size(), 0u);
+      return true;
+    }
+    input.remove_prefix(byte_count);
+  }
+}
+
+bool HpackHuffmanDecoder::DecodeOld(absl::string_view input,
+                                    std::string* output) {
+  // Fill bit_buffer_ from input.
+  input.remove_prefix(bit_buffer_.AppendBytes(input, false));
+
+  while (true) {
+    QUICHE_DVLOG(3) << "Enter Decode Loop, bit_buffer_: " << bit_buffer_;
+    if (bit_buffer_.count() >= 7) {
       // Get high 7 bits of the bit buffer, see if that contains a complete
       // code of 5, 6 or 7 bits.
       uint8_t short_code =
@@ -563,7 +657,7 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
     } else {
       // We may have (mostly) drained bit_buffer_. If we can top it up, try
       // using the table decoder above.
-      size_t byte_count = bit_buffer_.AppendBytes(input, enable_optimizations_);
+      size_t byte_count = bit_buffer_.AppendBytes(input, false);
       if (byte_count > 0) {
         input.remove_prefix(byte_count);
         continue;
@@ -595,7 +689,7 @@ bool HpackHuffmanDecoder::Decode(absl::string_view input, std::string* output) {
     }
     // bit_buffer_ doesn't have enough bits in it to decode the next symbol.
     // Append to it as many bytes as are available AND fit.
-    size_t byte_count = bit_buffer_.AppendBytes(input, enable_optimizations_);
+    size_t byte_count = bit_buffer_.AppendBytes(input, false);
     if (byte_count == 0) {
       QUICHE_DCHECK_EQ(input.size(), 0u);
       return true;
