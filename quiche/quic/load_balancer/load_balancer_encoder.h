@@ -109,10 +109,6 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
   // on.
   virtual void DeleteConfig();
 
-  // Returns the number of additional connection IDs that can be generated with
-  // the current config, or 0 if there is no current config.
-  absl::uint128 num_nonces_left() const { return num_nonces_left_; }
-
   // Functions below are declared virtual to enable mocking.
   // Returns true if there is an active configuration.
   virtual bool IsEncoding() const { return config_.has_value(); }
@@ -157,7 +153,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
   LoadBalancerEncoderVisitorInterface* const visitor_;
 
   std::optional<LoadBalancerConfig> config_;
-  absl::uint128 seed_, num_nonces_left_ = 0;
+  absl::uint128 seed_, next_nonce_, nonce_mask_;
   std::optional<LoadBalancerServerId> server_id_;
   uint8_t connection_id_lengths_[kNumLoadBalancerConfigs + 1];
 };

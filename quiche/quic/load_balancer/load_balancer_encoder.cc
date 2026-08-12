@@ -26,11 +26,6 @@ namespace quic {
 
 namespace {
 
-// Returns the number of nonces given a certain |nonce_len|.
-absl::uint128 NumberOfNonces(uint8_t nonce_len) {
-  return (static_cast<absl::uint128>(1) << (nonce_len * 8));
-}
-
 // Writes the |size| least significant bytes from |in| to |out| in host byte
 // order. Returns false if |out| does not have enough space.
 bool WriteUint128(const absl::uint128 in, uint8_t size, QuicDataWriter &out) {
@@ -90,10 +85,16 @@ bool LoadBalancerEncoder::UpdateConfig(const LoadBalancerConfig &config,
   }
   config_ = config;
   server_id_ = server_id;
+  if (config.nonce_len() >= 16) {
+    nonce_mask_ = absl::Uint128Max();
+  } else {
+    nonce_mask_ =
+        (static_cast<absl::uint128>(1) << (config.nonce_len() * 8)) - 1;
+  }
+  seed_ = absl::MakeUint128(random_.RandUint64(), random_.RandUint64()) &
+          nonce_mask_;
+  next_nonce_ = seed_;
 
-  seed_ = absl::MakeUint128(random_.RandUint64(), random_.RandUint64()) %
-          NumberOfNonces(config.nonce_len());
-  num_nonces_left_ = NumberOfNonces(config.nonce_len());
   connection_id_lengths_[config.config_id()] = config.total_len();
   return true;
 }
@@ -104,13 +105,15 @@ void LoadBalancerEncoder::DeleteConfig() {
   }
   config_.reset();
   server_id_.reset();
-  num_nonces_left_ = 0;
 }
 
 QuicConnectionId LoadBalancerEncoder::GenerateConnectionId() {
-  absl::Cleanup cleanup = [&] {
-    if (num_nonces_left_ == 0) {
-      DeleteConfig();
+  absl::Cleanup cleanup = [this] {
+    if (config_.has_value()) {
+      next_nonce_ = (next_nonce_ + 1) & nonce_mask_;
+      if (next_nonce_ == seed_) {
+        DeleteConfig();
+      }
     }
   };
   uint8_t config_id = config_.has_value() ? config_->config_id()
@@ -137,10 +140,8 @@ QuicConnectionId LoadBalancerEncoder::GenerateConnectionId() {
   QuicDataWriter writer(length, reinterpret_cast<char *>(result),
                         quiche::HOST_BYTE_ORDER);
   writer.WriteUInt8(first_byte);
-  absl::uint128 next_nonce =
-      (seed_ + num_nonces_left_--) % NumberOfNonces(config_->nonce_len());
   writer.WriteBytes(server_id_->data().data(), server_id_->length());
-  if (!WriteUint128(next_nonce, config_->nonce_len(), writer)) {
+  if (!WriteUint128(next_nonce_, config_->nonce_len(), writer)) {
     return QuicConnectionId();
   }
   if (!config_->IsEncrypted()) {

@@ -28,9 +28,12 @@ namespace test {
 
 class LoadBalancerEncoderPeer {
  public:
-  static void SetNumNoncesLeft(LoadBalancerEncoder &encoder,
-                               uint64_t nonces_remaining) {
-    encoder.num_nonces_left_ = absl::uint128(nonces_remaining);
+  static void SetOffsetFromSeed(LoadBalancerEncoder& encoder, uint64_t offset) {
+    encoder.next_nonce_ =
+        absl::uint128(encoder.seed_ + offset) & encoder.nonce_mask_;
+  }
+  static absl::uint128 GetOffsetFromSeed(LoadBalancerEncoder& encoder) {
+    return (encoder.next_nonce_ - encoder.seed_) & encoder.nonce_mask_;
   }
 };
 
@@ -188,9 +191,8 @@ TEST_F(LoadBalancerEncoderTest, UnencryptedConnectionIdTestVectors) {
     random_.AddNextValues(kNonceHigh, kNonceLow);
     auto encoder = LoadBalancerEncoder::Create(random_, nullptr, true, 8);
     EXPECT_TRUE(encoder->UpdateConfig(test.config, test.server_id));
-    absl::uint128 nonces_left = encoder->num_nonces_left();
     EXPECT_EQ(encoder->GenerateConnectionId(), test.connection_id);
-    EXPECT_EQ(encoder->num_nonces_left(), nonces_left - 1);
+    EXPECT_EQ(LoadBalancerEncoderPeer::GetOffsetFromSeed(*encoder), 1);
   }
 }
 
@@ -274,11 +276,12 @@ TEST_F(LoadBalancerEncoderTest, RunOutOfNonces) {
   EXPECT_TRUE(
       encoder->UpdateConfig(*config, MakeServerId(kServerId, server_id_len)));
   EXPECT_EQ(visitor.num_adds(), 1u);
-  LoadBalancerEncoderPeer::SetNumNoncesLeft(*encoder, 2);
-  EXPECT_EQ(encoder->num_nonces_left(), 2);
+  LoadBalancerEncoderPeer::SetOffsetFromSeed(*encoder, UINT32_MAX - 1);
+  EXPECT_EQ(LoadBalancerEncoderPeer::GetOffsetFromSeed(*encoder),
+            UINT32_MAX - 1);
   EXPECT_EQ(encoder->GenerateConnectionId(),
-            QuicConnectionId({0x07, 0x29, 0xd8, 0xc2, 0x17, 0xce, 0x2d, 0x92}));
-  EXPECT_EQ(encoder->num_nonces_left(), 1);
+            QuicConnectionId({0x07, 0x60, 0xa7, 0x5a, 0xea, 0x67, 0x6a, 0xd6}));
+  EXPECT_EQ(LoadBalancerEncoderPeer::GetOffsetFromSeed(*encoder), UINT32_MAX);
   encoder->GenerateConnectionId();
   EXPECT_EQ(encoder->IsEncoding(), false);
   // No retire_calls except for the initial UpdateConfig.
@@ -289,7 +292,6 @@ TEST_F(LoadBalancerEncoderTest, UnroutableConnectionId) {
   random_.AddNextValues(0x83, kNonceHigh);
   auto encoder = LoadBalancerEncoder::Create(random_, nullptr, false);
   ASSERT_TRUE(encoder.has_value());
-  EXPECT_EQ(encoder->num_nonces_left(), 0);
   auto connection_id = encoder->GenerateConnectionId();
   // The first byte is the config_id (0xe0) xored with (0x83 & 0x1f).
   // The remaining bytes are random, and therefore match kNonceHigh.
@@ -319,12 +321,11 @@ TEST_F(LoadBalancerEncoderTest, AddConfig) {
   auto encoder = LoadBalancerEncoder::Create(random_, &visitor, true);
   EXPECT_TRUE(encoder->UpdateConfig(*config, MakeServerId(kServerId, 3)));
   EXPECT_EQ(visitor.num_adds(), 1u);
-  absl::uint128 left = encoder->num_nonces_left();
-  EXPECT_EQ(left, (0x1ull << 32));
+  EXPECT_EQ(LoadBalancerEncoderPeer::GetOffsetFromSeed(*encoder), 0);
   EXPECT_TRUE(encoder->IsEncoding());
   EXPECT_FALSE(encoder->IsEncrypted());
   encoder->GenerateConnectionId();
-  EXPECT_EQ(encoder->num_nonces_left(), left - 1);
+  EXPECT_EQ(LoadBalancerEncoderPeer::GetOffsetFromSeed(*encoder), 1);
   EXPECT_EQ(visitor.num_deletes(), 0u);
 }
 
@@ -354,7 +355,6 @@ TEST_F(LoadBalancerEncoderTest, DeleteConfig) {
   EXPECT_EQ(visitor.num_deletes(), 1u);
   EXPECT_FALSE(encoder->IsEncoding());
   EXPECT_FALSE(encoder->IsEncrypted());
-  EXPECT_EQ(encoder->num_nonces_left(), 0);
 }
 
 TEST_F(LoadBalancerEncoderTest, DeleteConfigNoVisitor) {
@@ -365,7 +365,6 @@ TEST_F(LoadBalancerEncoderTest, DeleteConfigNoVisitor) {
   encoder->DeleteConfig();
   EXPECT_FALSE(encoder->IsEncoding());
   EXPECT_FALSE(encoder->IsEncrypted());
-  EXPECT_EQ(encoder->num_nonces_left(), 0);
 }
 
 TEST_F(LoadBalancerEncoderTest, MaybeReplaceConnectionIdReturnsNoChange) {
@@ -452,6 +451,20 @@ TEST_F(LoadBalancerEncoderTest, ConnectionIdLengthsEncoded) {
   EXPECT_EQ(encoder->ConnectionIdLength(0xe8), kQuicDefaultConnectionIdLength);
   EXPECT_EQ(encoder->ConnectionIdLength(0x2a), config_1_len);
   EXPECT_EQ(encoder->ConnectionIdLength(0x09), config_0_len);
+}
+
+// Test that the encoder doesn't crash if the nonce is max length.
+TEST_F(LoadBalancerEncoderTest, NonceIs16Bytes) {
+  auto config = LoadBalancerConfig::CreateUnencrypted(0, 1, 16);
+  ASSERT_TRUE(config.has_value());
+  auto encoder = LoadBalancerEncoder::Create(random_, nullptr, true);
+  uint8_t server_id[] = {0x3e};
+  EXPECT_TRUE(encoder->UpdateConfig(*config, MakeServerId(server_id, 1)));
+  EXPECT_TRUE(encoder
+                  ->MaybeReplaceConnectionId(TestConnectionId(1),
+                                             ParsedQuicVersion::RFCv1())
+                  .has_value());
+  EXPECT_EQ(encoder->IsEncoding(), true);
 }
 
 }  // namespace
