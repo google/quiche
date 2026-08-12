@@ -942,6 +942,7 @@ TEST_P(TlsClientHandshakerTest, ECHInvalidConfig) {
   stream()->CryptoConnect();
 }
 
+#if BORINGSSL_API_VERSION >= 43
 TEST_P(TlsClientHandshakerTest, ECHRejectUnusableConfigFlagEnabled) {
   // When reject_unusable_ech_config is enabled, and no usable ECHConfig is
   // available, the client should fail before sending a ClientHello.
@@ -991,6 +992,7 @@ TEST_P(TlsClientHandshakerTest, ECHWithRejectUnusableConfig) {
   EXPECT_TRUE(stream()->one_rtt_keys_available());
   EXPECT_TRUE(stream()->crypto_negotiated_params().encrypted_client_hello);
 }
+#endif  // BORINGSSL_API_VERSION >= 43
 
 TEST_P(TlsClientHandshakerTest, ECHWrongKeys) {
   ssl_config_.emplace();
