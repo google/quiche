@@ -296,9 +296,6 @@ std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
     return nullptr;
   }
   if (!outgoing_subscribe_namespace_.SubscribeNamespace(prefix)) {
-    std::move(response_callback)(MoqtRequestErrorInfo{
-        RequestErrorCode::kInternalError, std::nullopt,
-        "SUBSCRIBE_NAMESPACE already outstanding for namespace"});
     return nullptr;
   }
   std::unique_ptr<MoqtSubscribeNamespaceRequestStream> state =
@@ -353,16 +350,11 @@ bool MoqtSession::TrackStatus(const FullTrackName& name,
   QUICHE_DCHECK(name.IsValid());
   if (received_goaway_ || sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send TRACK_STATUS after GOAWAY";
-    std::move(response_callback)(MoqtRequestErrorInfo{
-        RequestErrorCode::kGoingAway, std::nullopt, "GOAWAY received"});
     return false;
   }
 
   webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
   if (stream == nullptr) {
-    std::move(response_callback)(
-        MoqtRequestErrorInfo{RequestErrorCode::kInternalError, std::nullopt,
-                             "Flow control blocked"});
     return false;
   }
 

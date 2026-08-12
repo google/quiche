@@ -96,6 +96,12 @@ class MoqtSessionInterface {
   // Close the session with a fatal error.
   virtual void Error(MoqtError code, absl::string_view error) = 0;
 
+  // Many of these functions initiate a request and take MoqtResponseCallback to
+  // report the peer's response. These functions return false if there is an
+  // immediate problem that prevents sending the request, in which case the
+  // callback will not be invoked. For example, there might not be stream credit
+  // to open a request stream, or the request is a duplicate, or the session
+  // is in a GOAWAY state.
   // Return true if SUBSCRIBE was actually sent.
   virtual bool Subscribe(const FullTrackName& name,
                          SubscribeVisitor* absl_nonnull visitor,
@@ -188,7 +194,7 @@ class MoqtSessionInterface {
 
   // Sends TRACK_STATUS request to the peer. Returns `false` if the request
   // immediately fails (usually due to flow control), and `true` otherwise;
-  // `response_callback` will be eventually invoked in either case.
+  // `response_callback` will be eventually invoked if true.
   virtual bool TrackStatus(const FullTrackName& name,
                            const MessageParameters& parameters,
                            MoqtResponseCallback response_callback) = 0;
