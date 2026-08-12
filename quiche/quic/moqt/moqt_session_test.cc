@@ -59,6 +59,7 @@ namespace test {
 namespace {
 
 using ::testing::_;
+using ::testing::IsNull;
 using ::testing::Optional;
 using ::testing::Return;
 using ::testing::StrictMock;
@@ -1047,7 +1048,7 @@ TEST_F(MoqtSessionTest, ReplyToPublishNamespaceWithOkThenPublishNamespaceDone) {
                      _));
   bidi_wrapper_->ReceiveMessage(publish_namespace);
   EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
-              Call(track_namespace, nullptr, nullptr));
+              Call(track_namespace, IsNull(), IsNull()));
   bidi_wrapper_->stream().OnResetStreamReceived(kResetCodeCancelled);
 }
 
@@ -1077,7 +1078,7 @@ TEST_F(MoqtSessionTest,
                      _));
   bidi_wrapper_->ReceiveMessage(publish_namespace);
   EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
-              Call(track_namespace, nullptr, nullptr));
+              Call(track_namespace, IsNull(), IsNull()));
   EXPECT_TRUE(
       session_.PublishNamespaceCancel(track_namespace, kResetCodeCancelled));
   // State is gone.
@@ -2636,12 +2637,12 @@ TEST_F(MoqtSessionTest, IncomingPublishNamespaceCleanup) {
 
   // Revoke "bar"
   EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
-              Call(TrackNamespace{"bar"}, nullptr, nullptr));
+              Call(TrackNamespace{"bar"}, IsNull(), IsNull()));
   bidi_wrapper_2->stream().OnResetStreamReceived(kResetCodeCancelled);
 
   // Destroying the session should revoke "foo".
   EXPECT_CALL(session_callbacks_.incoming_publish_namespace_callback,
-              Call(TrackNamespace{"foo"}, nullptr, nullptr));
+              Call(TrackNamespace{"foo"}, IsNull(), IsNull()));
   // Test teardown will destroy session_, triggering removal of "foo".
 }
 

@@ -30,6 +30,7 @@
 namespace moqt::test {
 
 using ::testing::_;
+using ::testing::IsNull;
 using ::testing::Return;
 using ::testing::StrictMock;
 
@@ -275,7 +276,7 @@ TEST_F(MoqtPublishNamespaceResponseStreamTest,
   // Since it was published (published_ = true), Detach() should call
   // remove_callback_ and application_(*prefix_, nullptr, nullptr).
   EXPECT_CALL(remove_callback_, Call(TrackNamespace({"foo"})));
-  EXPECT_CALL(application_, Call(TrackNamespace({"foo"}), nullptr, nullptr));
+  EXPECT_CALL(application_, Call(TrackNamespace({"foo"}), IsNull(), IsNull()));
 
   response_stream = nullptr;  // Destroys response_stream, triggering Detach().
 }
