@@ -51,22 +51,22 @@ namespace moqt::moq_chat {
 
 void ChatClient::OnIncomingPublishNamespace(
     const moqt::TrackNamespace& track_namespace,
-    const std::optional<MessageParameters>& parameters,
+    const MessageParameters* absl_nullable parameters,
     moqt::MoqtResponseCallback absl_nullable callback) {
   if (!session_is_open_) {
     return;
   }
   if (track_namespace == GetUserNamespace(my_track_name_)) {
     // Ignore PUBLISH_NAMESPACE for my own track.
-    if (parameters.has_value() && callback != nullptr) {  // callback exists.
+    if (parameters != nullptr && callback != nullptr) {  // callback exists.
       std::move(callback)(MessageParameters());
     }
     return;
   }
   std::optional<FullTrackName> track_name = ConstructTrackNameFromNamespace(
       track_namespace, GetChatId(my_track_name_));
-  if (!parameters.has_value()) {
-    std::cout << "PUBLISH_NAMESPACE_DONE for " << track_namespace.ToString()
+  if (parameters == nullptr) {
+    std::cout << "PUBLISH_NAMESPACE done for " << track_namespace.ToString()
               << "\n";
     if (track_name.has_value()) {
       other_users_.erase(*track_name);
@@ -298,7 +298,7 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
                        }},
                    response);
       },
-      [](MoqtRequestErrorInfo) {});
+      []() {});
 
   // Send SUBSCRIBE_NAMESPACE. Pop 3 levels of namespace to get to
   // {moq-chat, chat-id}
@@ -349,11 +349,10 @@ bool ChatClient::PublishNamespaceAndSubscribeNamespace() {
                       << "Error: received invalid suffix from namespace task\n";
                   return;
                 }
+                MessageParameters parameters;
                 OnIncomingPublishNamespace(
                     *track_namespace,
-                    (type == TransactionType::kAdd)
-                        ? std::make_optional(MessageParameters())
-                        : std::nullopt,
+                    (type == TransactionType::kAdd) ? &parameters : nullptr,
                     /*callback=*/nullptr);
                 break;
             }

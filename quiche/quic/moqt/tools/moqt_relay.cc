@@ -10,6 +10,7 @@
 #include <string>
 #include <utility>
 
+#include "absl/base/nullability.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/crypto/proof_source.h"
@@ -23,7 +24,6 @@
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/quic/moqt/tools/moqt_server.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
@@ -115,12 +115,12 @@ MoqtSessionCallbacks MoqtRelay::CreateClientCallbacks() {
 void MoqtRelay::SetNamespaceCallbacks(MoqtSessionInterface* session) {
   session->callbacks().incoming_publish_namespace_callback =
       [this, session](const TrackNamespace& track_namespace,
-                      const std::optional<MessageParameters>& parameters,
+                      const MessageParameters* absl_nullable parameters,
                       MoqtResponseCallback callback) {
         if (is_closing_) {
           return;
         }
-        if (parameters.has_value()) {
+        if (parameters != nullptr) {
           return publisher_.OnPublishNamespace(track_namespace, *parameters,
                                                session, std::move(callback));
         } else {

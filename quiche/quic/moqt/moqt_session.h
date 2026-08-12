@@ -115,18 +115,18 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                             FetchResponseCallback callback,
                             uint64_t num_previous_groups,
                             MessageParameters parameters) override;
-  bool PublishNamespace(const TrackNamespace& track_namespace,
-                        const MessageParameters& parameters,
-                        MoqtResponseCallback response_callback,
-                        quiche::SingleUseCallback<void(MoqtRequestErrorInfo)>
-                            cancel_callback) override;
+  bool PublishNamespace(
+      const TrackNamespace& track_namespace,
+      const MessageParameters& parameters,
+      MoqtResponseCallback response_callback,
+      quiche::SingleUseCallback<void()> cancel_callback) override;
   bool PublishNamespaceUpdate(const TrackNamespace& track_namespace,
                               MessageParameters& parameters,
                               MoqtResponseCallback response_callback) override;
   bool PublishNamespaceDone(const TrackNamespace& track_namespace) override;
-  bool PublishNamespaceCancel(const TrackNamespace& track_namespace,
-                              RequestErrorCode error_code,
-                              absl::string_view error_reason) override;
+  bool PublishNamespaceCancel(
+      const TrackNamespace& track_namespace,
+      webtransport::StreamErrorCode error_code) override;
   // TODO(martinduke): Support PUBLISH. For now, PUBLISH-only requests will be
   // rejected with nullptr, and kBoth requests will change to kNamespace.
   // After receiving MoqtNamespaceTask, call
@@ -386,9 +386,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::Status OnControlMessage(const MoqtRequestOk& message);
   absl::Status OnControlMessage(const MoqtRequestError& message);
   absl::Status OnControlMessage(const MoqtRequestUpdate& message);
-  absl::Status OnControlMessage(const MoqtPublishNamespace& message);
-  absl::Status OnControlMessage(const MoqtPublishNamespaceDone& /*message*/);
-  absl::Status OnControlMessage(const MoqtPublishNamespaceCancel& message);
   absl::Status OnControlMessage(const MoqtGoAway& /*message*/);
   absl::Status OnControlMessage(const MoqtMaxRequestId& message);
   absl::Status OnControlMessage(const MoqtFetch& message);
@@ -474,19 +471,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
       monitoring_interfaces_for_published_tracks_;
 
   // PUBLISH_NAMESPACE state.
-  struct PublishNamespaceState {
-    TrackNamespace track_namespace;
-    MoqtResponseCallback response_callback;
-    quiche::SingleUseCallback<void(MoqtRequestErrorInfo)> cancel_callback;
-  };
-  absl::flat_hash_map<uint64_t, PublishNamespaceState> publish_namespace_by_id_;
-  absl::flat_hash_map<TrackNamespace, uint64_t> publish_namespace_by_namespace_;
-  absl::flat_hash_map<uint64_t, MoqtResponseCallback>
-      publish_namespace_updates_;
-  absl::flat_hash_map<TrackNamespace, uint64_t>
-      incoming_publish_namespaces_by_namespace_;
-  absl::flat_hash_map<uint64_t, TrackNamespace>
-      incoming_publish_namespaces_by_id_;
+  absl::flat_hash_map<TrackNamespace, MoqtBidiStreamBase*>
+      publish_namespace_requests_;
+  absl::flat_hash_map<TrackNamespace, MoqtBidiStreamBase*>
+      publish_namespace_responses_;
 
   // It's an error if the namespaces overlap, so keep track of them.
   SessionNamespaceTree incoming_subscribe_namespace_;

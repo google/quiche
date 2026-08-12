@@ -126,7 +126,7 @@ class MoqtIngestionHandler {
   // TODO(martinduke): Handle when |publish_namespace| is false
   // (PUBLISH_NAMESPACE_DONE).
   void OnPublishNamespaceReceived(TrackNamespace track_namespace,
-                                  std::optional<MessageParameters>,
+                                  const MessageParameters*,
                                   MoqtResponseCallback callback) {
     if (!IsValidTrackNamespace(track_namespace) &&
         !quiche::GetQuicheCommandLineFlag(

@@ -206,10 +206,8 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kPublishNamespace = 0x06,
   kRequestOk = 0x07,
   kNamespace = 0x08,
-  kPublishNamespaceDone = 0x09,
   kUnsubscribe = 0x0a,
   kPublishDone = 0x0b,
-  kPublishNamespaceCancel = 0x0c,
   kTrackStatus = 0x0d,
   kNamespaceDone = 0x0e,
   kGoAway = 0x10,
@@ -409,16 +407,6 @@ struct QUICHE_EXPORT MoqtPublishNamespace {
 struct QUICHE_EXPORT MoqtRequestOk {
   uint64_t request_id;
   MessageParameters parameters;
-};
-
-struct QUICHE_EXPORT MoqtPublishNamespaceDone {
-  uint64_t request_id;
-};
-
-struct QUICHE_EXPORT MoqtPublishNamespaceCancel {
-  uint64_t request_id;
-  RequestErrorCode error_code;
-  std::string error_reason;
 };
 
 struct QUICHE_EXPORT MoqtTrackStatus : public MoqtSubscribe {

@@ -23,8 +23,7 @@ namespace moqt::test {
 using AnyMoqtControlMessage =
     std::variant<MoqtSetup, MoqtRequestOk, MoqtRequestError, MoqtSubscribe,
                  MoqtSubscribeOk, MoqtPublishDone, MoqtRequestUpdate,
-                 MoqtPublishNamespace, MoqtPublishNamespaceDone,
-                 MoqtPublishNamespaceCancel, MoqtTrackStatus, MoqtGoAway,
+                 MoqtPublishNamespace, MoqtTrackStatus, MoqtGoAway,
                  MoqtSubscribeNamespace, MoqtSubscribeTracks, MoqtMaxRequestId,
                  MoqtFetch, MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked,
                  MoqtPublish, MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;

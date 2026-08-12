@@ -43,7 +43,7 @@ struct MockSessionCallbacks {
   testing::MockFunction<void(absl::string_view)> session_terminated_callback;
   testing::MockFunction<void()> session_deleted_callback;
   testing::MockFunction<void(const TrackNamespace&,
-                             const std::optional<MessageParameters>&,
+                             const MessageParameters* absl_nullable,
                              MoqtResponseCallback)>
       incoming_publish_namespace_callback;
   testing::MockFunction<std::unique_ptr<MoqtNamespaceTask>(

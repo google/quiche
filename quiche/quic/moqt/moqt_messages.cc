@@ -85,8 +85,6 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "PUBLISH_DONE";
     case MoqtMessageType::kRequestUpdate:
       return "REQUEST_UPDATE";
-    case MoqtMessageType::kPublishNamespaceCancel:
-      return "PUBLISH_NAMESPACE_CANCEL";
     case MoqtMessageType::kTrackStatus:
       return "TRACK_STATUS";
     case MoqtMessageType::kPublishNamespace:
@@ -97,8 +95,6 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "NAMESPACE_DONE";
     case MoqtMessageType::kRequestOk:
       return "REQUEST_OK";
-    case MoqtMessageType::kPublishNamespaceDone:
-      return "PUBLISH_NAMESPACE_DONE";
     case MoqtMessageType::kGoAway:
       return "GOAWAY";
     case MoqtMessageType::kSubscribeNamespace:

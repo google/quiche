@@ -25,6 +25,7 @@
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_weak_ptr.h"
+#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 
@@ -160,23 +161,22 @@ class MoqtSessionInterface {
   // Send a PUBLISH_NAMESPACE message for |track_namespace|, and call
   // |response_callback| when the response arrives. Will fail
   // immediately if there is already an unresolved PUBLISH_NAMESPACE for that
-  // namespace. Calls |cancel_callback| if the peer sends a
-  // PUBLISH_NAMESPACE_CANCEL. Returns true if the message was sent.
+  // namespace. Calls |cancel_callback| if the peer closes the stream. Returns
+  // true if the message was sent.
   virtual bool PublishNamespace(
       const TrackNamespace& track_namespace,
       const MessageParameters& parameters,
       MoqtResponseCallback response_callback,
-      quiche::SingleUseCallback<void(MoqtRequestErrorInfo)>
-          cancel_callback) = 0;
+      quiche::SingleUseCallback<void()> cancel_callback) = 0;
   virtual bool PublishNamespaceUpdate(
       const TrackNamespace& track_namespace, MessageParameters& parameters,
       MoqtResponseCallback response_callback) = 0;
   // Returns true if message was sent, false if there is no PUBLISH_NAMESPACE
   // that relates.
   virtual bool PublishNamespaceDone(const TrackNamespace& track_namespace) = 0;
-  virtual bool PublishNamespaceCancel(const TrackNamespace& track_namespace,
-                                      RequestErrorCode error_code,
-                                      absl::string_view error_reason) = 0;
+  virtual bool PublishNamespaceCancel(
+      const TrackNamespace& track_namespace,
+      webtransport::StreamErrorCode error_code) = 0;
 
   // Sends a SUBSCRIBE_NAMESPACE message for |prefix| and returns a
   // MoqtNamespaceTask that can be used to process the response.

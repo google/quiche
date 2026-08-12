@@ -141,7 +141,7 @@ class ChatClient {
   // a PUBLISH_NAMESPACE.
   void OnIncomingPublishNamespace(
       const moqt::TrackNamespace& track_namespace,
-      const std::optional<MessageParameters>& parameters,
+      const MessageParameters* absl_nullable parameters,
       moqt::MoqtResponseCallback absl_nullable callback);
 
   // Basic session information

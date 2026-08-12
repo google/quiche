@@ -133,8 +133,7 @@ TEST_F(MoqtRelayTest, PublishNamespace) {
   // relay_ publishes a namespace, so upstream_ will route to relay_.
   relay_.client_session()->PublishNamespace(
       TrackNamespace({"foo"}), MessageParameters(),
-      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {},
-      [](MoqtRequestErrorInfo) {});
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}, []() {});
   upstream_.RunOneEvent();
   // There is now an upstream session for "Foo".
   std::shared_ptr<MoqtTrackPublisher> track =
@@ -191,8 +190,7 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   // hasn't been notified.
   downstream_.client_session()->PublishNamespace(
       foobar, MessageParameters(),
-      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {},
-      [](MoqtRequestErrorInfo) {});
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}, []() {});
   relay_.RunOneEvent();
   upstream_.RunOneEvent();
   EXPECT_THAT(relay_published_namespaces, ElementsAre(foobar));
@@ -223,8 +221,7 @@ TEST_F(MoqtRelayTest, SubscribeNamespace) {
   // Downstream publishes another namespace. Everyone is notified.
   downstream_.client_session()->PublishNamespace(
       foobaz, MessageParameters(),
-      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {},
-      [](MoqtRequestErrorInfo) {});
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}, []() {});
   relay_.RunOneEvent();
   upstream_.RunOneEvent();
   EXPECT_THAT(relay_published_namespaces, ElementsAre(foobar, foobaz));

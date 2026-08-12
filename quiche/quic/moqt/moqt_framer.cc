@@ -568,12 +568,6 @@ quiche::QuicheBuffer MoqtFramer::SerializePublishNamespace(
       WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceDone(
-    const MoqtPublishNamespaceDone& message) {
-  return SerializeControlMessage(MoqtMessageType::kPublishNamespaceDone,
-                                 WireMoqVarInt(message.request_id));
-}
-
 quiche::QuicheBuffer MoqtFramer::SerializeNamespace(
     const MoqtNamespace& message) {
   return SerializeControlMessage(
@@ -586,14 +580,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeNamespaceDone(
   return SerializeControlMessage(
       MoqtMessageType::kNamespaceDone,
       WireTrackNamespace(message.track_namespace_suffix));
-}
-
-quiche::QuicheBuffer MoqtFramer::SerializePublishNamespaceCancel(
-    const MoqtPublishNamespaceCancel& message) {
-  return SerializeControlMessage(
-      MoqtMessageType::kPublishNamespaceCancel,
-      WireMoqVarInt(message.request_id), WireMoqVarInt(message.error_code),
-      WireStringWithMoqVarIntLength(message.error_reason));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(

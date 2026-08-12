@@ -161,12 +161,8 @@ class MoqtControlMessageParser {
       absl::string_view data) const;
   absl::StatusOr<MoqtPublishNamespace> ProcessPublishNamespace(
       absl::string_view data) const;
-  absl::StatusOr<MoqtPublishNamespaceDone> ProcessPublishNamespaceDone(
-      absl::string_view data) const;
   absl::StatusOr<MoqtNamespace> ProcessNamespace(absl::string_view data) const;
   absl::StatusOr<MoqtNamespaceDone> ProcessNamespaceDone(
-      absl::string_view data) const;
-  absl::StatusOr<MoqtPublishNamespaceCancel> ProcessPublishNamespaceCancel(
       absl::string_view data) const;
   absl::StatusOr<MoqtTrackStatus> ProcessTrackStatus(
       absl::string_view data) const;
@@ -218,14 +214,10 @@ class MoqtControlMessageParser {
         return parse(&MoqtControlMessageParser::ProcessRequestUpdate);
       case MoqtMessageType::kPublishNamespace:
         return parse(&MoqtControlMessageParser::ProcessPublishNamespace);
-      case MoqtMessageType::kPublishNamespaceDone:
-        return parse(&MoqtControlMessageParser::ProcessPublishNamespaceDone);
       case MoqtMessageType::kNamespace:
         return parse(&MoqtControlMessageParser::ProcessNamespace);
       case MoqtMessageType::kNamespaceDone:
         return parse(&MoqtControlMessageParser::ProcessNamespaceDone);
-      case MoqtMessageType::kPublishNamespaceCancel:
-        return parse(&MoqtControlMessageParser::ProcessPublishNamespaceCancel);
       case MoqtMessageType::kTrackStatus:
         return parse(&MoqtControlMessageParser::ProcessTrackStatus);
       case MoqtMessageType::kGoAway:

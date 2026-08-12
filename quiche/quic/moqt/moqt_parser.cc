@@ -791,35 +791,6 @@ absl::StatusOr<MoqtRequestOk> MoqtControlMessageParser::ProcessRequestOk(
   return request_ok;
 }
 
-absl::StatusOr<MoqtPublishNamespaceDone>
-MoqtControlMessageParser::ProcessPublishNamespaceDone(
-    absl::string_view data) const {
-  quic::QuicDataReader reader(data);
-  MoqtPublishNamespaceDone pn_done;
-  if (!reader.ReadMoqVarInt(&pn_done.request_id)) {
-    return absl::InvalidArgumentError("Request ID missing");
-  }
-  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
-  return pn_done;
-}
-
-absl::StatusOr<MoqtPublishNamespaceCancel>
-MoqtControlMessageParser::ProcessPublishNamespaceCancel(
-    absl::string_view data) const {
-  quic::QuicDataReader reader(data);
-  MoqtPublishNamespaceCancel publish_namespace_cancel;
-  uint64_t error_code;
-  if (!reader.ReadMoqVarInt(&publish_namespace_cancel.request_id) ||
-      !reader.ReadMoqVarInt(&error_code) ||
-      !reader.ReadStringMoqVarInt(publish_namespace_cancel.error_reason)) {
-    return absl::InvalidArgumentError("Message missing fields");
-  }
-  publish_namespace_cancel.error_code =
-      static_cast<RequestErrorCode>(error_code);
-  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
-  return publish_namespace_cancel;
-}
-
 absl::StatusOr<MoqtTrackStatus> MoqtControlMessageParser::ProcessTrackStatus(
     absl::string_view data) const {
   return ProcessSubscribe(data);

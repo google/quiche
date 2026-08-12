@@ -11,6 +11,7 @@
 #include <utility>
 #include <variant>
 
+#include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_default_clock.h"
@@ -88,14 +89,14 @@ using MoqtIncomingPublishCallback = quiche::MultiUseCallback<SubscribeVisitor*(
     MoqtResponseCallback)>;
 
 // Called whenever a PUBLISH_NAMESPACE or PUBLISH_NAMESPACE_DONE message is
-// received from the peer. PUBLISH_NAMESPACE sets a value for |parameters|,
-// PUBLISH_NAMESPACE_DONE does not. This callback is not invoked by NAMESPACE or
+// received from the peer. PUBLISH_NAMESPACE sets a pointer |parameters|,
+// closing it does not. This callback is not invoked by NAMESPACE or
 // NAMESPACE_DONE messages that arrive on a SUBSCRIBE_NAMESPACE stream.
 // If the PUBLISH_NAMESPACE is updated, it will be called again, so be prepared
 // for duplicates.
 using MoqtIncomingPublishNamespaceCallback = quiche::MultiUseCallback<void(
     const TrackNamespace& track_namespace,
-    const std::optional<MessageParameters>& parameters,
+    const MessageParameters* absl_nullable parameters,
     MoqtResponseCallback callback)>;
 
 // Called whenever SUBSCRIBE_NAMESPACE is received from the peer. Unsubscribe
@@ -111,7 +112,7 @@ using MoqtIncomingSubscribeTracksCallback = quiche::MultiUseCallback<void(
     MoqtResponseCallback response_callback)>;
 
 inline void DefaultIncomingPublishNamespaceCallback(
-    const TrackNamespace&, const std::optional<MessageParameters>&,
+    const TrackNamespace&, const MessageParameters* absl_nullable,
     MoqtResponseCallback callback) {
   if (callback == nullptr) {
     return;

@@ -100,13 +100,12 @@ class MockMoqtSession : public MoqtSessionInterface {
                FetchResponseCallback callback, uint64_t num_previous_groups,
                MessageParameters parameters),
               (override));
-  MOCK_METHOD(
-      bool, PublishNamespace,
-      (const TrackNamespace& track_namespace,
-       const MessageParameters& parameters,
-       MoqtResponseCallback response_callback,
-       quiche::SingleUseCallback<void(MoqtRequestErrorInfo)> cancel_callback),
-      (override));
+  MOCK_METHOD(bool, PublishNamespace,
+              (const TrackNamespace& track_namespace,
+               const MessageParameters& parameters,
+               MoqtResponseCallback response_callback,
+               quiche::SingleUseCallback<void()> cancel_callback),
+              (override));
   MOCK_METHOD(bool, PublishNamespaceUpdate,
               (const TrackNamespace& track_namespace,
                MessageParameters& parameters,
@@ -116,7 +115,7 @@ class MockMoqtSession : public MoqtSessionInterface {
               (const TrackNamespace& track_namespace), (override));
   MOCK_METHOD(bool, PublishNamespaceCancel,
               (const TrackNamespace& track_namespace,
-               RequestErrorCode error_code, absl::string_view error_reason),
+               webtransport::StreamErrorCode error_code),
               (override));
   MOCK_METHOD(std::unique_ptr<MoqtNamespaceTask>, SubscribeNamespace,
               (TrackNamespace&, const MessageParameters&, MoqtResponseCallback),

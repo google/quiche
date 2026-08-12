@@ -54,6 +54,7 @@ using ::testing::_;
 using ::testing::Assign;
 using ::testing::ElementsAre;
 using ::testing::IsNull;
+using ::testing::NotNull;
 using ::testing::Return;
 
 class MoqtIntegrationTest : public quiche::test::QuicheTest {
@@ -181,10 +182,10 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessThenPublishNamespaceDone) {
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
                                                "foo");
   EXPECT_CALL(server_callbacks_.incoming_publish_namespace_callback,
-              Call(TrackNamespace{"foo"}, std::make_optional(parameters), _))
-      .WillOnce([](const TrackNamespace&,
-                   const std::optional<MessageParameters>&,
-                   MoqtResponseCallback callback) {
+              Call(TrackNamespace{"foo"}, NotNull(), _))
+      .WillOnce([&](const TrackNamespace&, const MessageParameters* params,
+                    MoqtResponseCallback callback) {
+        EXPECT_TRUE(params != nullptr && *params == parameters);
         std::move(callback)(MessageParameters());
       });
   testing::MockFunction<void(
@@ -192,7 +193,7 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessThenPublishNamespaceDone) {
       response_callback;
   client_->session()->PublishNamespace(TrackNamespace{"foo"}, parameters,
                                        response_callback.AsStdFunction(),
-                                       [](MoqtRequestErrorInfo) {});
+                                       []() {});
   bool matches = false;
   EXPECT_CALL(response_callback, Call)
       .WillOnce(
@@ -204,11 +205,9 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessThenPublishNamespaceDone) {
       test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
   EXPECT_TRUE(success);
   matches = false;
-  EXPECT_CALL(
-      server_callbacks_.incoming_publish_namespace_callback,
-      Call(TrackNamespace{"foo"}, std::optional<MessageParameters>(), IsNull()))
-      .WillOnce([&](const TrackNamespace&,
-                    const std::optional<MessageParameters>&,
+  EXPECT_CALL(server_callbacks_.incoming_publish_namespace_callback,
+              Call(TrackNamespace{"foo"}, IsNull(), _))
+      .WillOnce([&](const TrackNamespace&, const MessageParameters*,
                     MoqtResponseCallback) { matches = true; });
   EXPECT_TRUE(client_->session()->PublishNamespaceDone(TrackNamespace{"foo"}));
   success = test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
@@ -221,16 +220,16 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessThenCancel) {
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
                                                "foo");
   EXPECT_CALL(server_callbacks_.incoming_publish_namespace_callback,
-              Call(TrackNamespace{"foo"}, std::make_optional(parameters), _))
-      .WillOnce([](const TrackNamespace&,
-                   const std::optional<MessageParameters>&,
-                   MoqtResponseCallback callback) {
+              Call(TrackNamespace{"foo"}, NotNull(), _))
+      .WillOnce([&](const TrackNamespace&, const MessageParameters* params,
+                    MoqtResponseCallback callback) {
+        EXPECT_TRUE(params != nullptr && *params == parameters);
         std::move(callback)(MessageParameters());
       });
   testing::MockFunction<void(
       std::variant<MessageParameters, MoqtRequestErrorInfo>)>
       response_callback;
-  testing::MockFunction<void(MoqtRequestErrorInfo)> cancel_callback;
+  testing::MockFunction<void()> cancel_callback;
   client_->session()->PublishNamespace(TrackNamespace{"foo"}, parameters,
                                        response_callback.AsStdFunction(),
                                        cancel_callback.AsStdFunction());
@@ -244,13 +243,12 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessThenCancel) {
       test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
   EXPECT_TRUE(success);
   matches = false;
-  EXPECT_CALL(cancel_callback,
-              Call(MoqtRequestErrorInfo{RequestErrorCode::kInternalError,
-                                        std::nullopt, "internal error"}))
-      .WillOnce([&](std::optional<MoqtRequestErrorInfo>) { matches = true; });
+  EXPECT_CALL(cancel_callback, Call).WillOnce([&]() { matches = true; });
+  // Resetting the stream will trigger the removal callback.
+  EXPECT_CALL(server_callbacks_.incoming_publish_namespace_callback,
+              Call(TrackNamespace{"foo"}, IsNull(), _));
   server_->session()->PublishNamespaceCancel(TrackNamespace{"foo"},
-                                             RequestErrorCode::kInternalError,
-                                             "internal error");
+                                             kResetCodeCancelled);
   success = test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
   EXPECT_TRUE(success);
 }
@@ -262,10 +260,11 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSubscribeInResponse) {
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
                                                "foo");
   EXPECT_CALL(server_callbacks_.incoming_publish_namespace_callback,
-              Call(TrackNamespace{"foo"}, std::make_optional(parameters), _))
+              Call(TrackNamespace{"foo"}, NotNull(), _))
       .WillOnce([&](const TrackNamespace& track_namespace,
-                    const std::optional<MessageParameters>&,
+                    const MessageParameters* params,
                     MoqtResponseCallback callback) {
+        EXPECT_TRUE(params != nullptr && *params == parameters);
         std::move(callback)(MessageParameters());
         absl::StatusOr<FullTrackName> track_name =
             FullTrackName::Create(track_namespace, "/catalog");
@@ -277,22 +276,21 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSubscribeInResponse) {
   testing::MockFunction<void(
       std::variant<MessageParameters, MoqtRequestErrorInfo>)>
       response_callback;
-  client_->session()->PublishNamespace(prefix, parameters,
-                                       response_callback.AsStdFunction(),
-                                       [](MoqtRequestErrorInfo) {});
+  client_->session()->PublishNamespace(
+      prefix, parameters, response_callback.AsStdFunction(), []() {});
   bool matches = false;
   EXPECT_CALL(response_callback, Call)
       .WillOnce(
-          [&](std::variant<MessageParameters, MoqtRequestErrorInfo> error) {
-            EXPECT_TRUE(std::holds_alternative<MessageParameters>(error));
+          [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
+            EXPECT_TRUE(std::holds_alternative<MessageParameters>(response));
           });
   EXPECT_CALL(subscribe_visitor_, OnReply).WillOnce([&]() { matches = true; });
   bool success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return matches; });
   EXPECT_TRUE(success);
-  // Session tears down PUBLISH_NAMESPACE.
+  // Teardown will invoke the close callbacks.
   EXPECT_CALL(server_callbacks_.incoming_publish_namespace_callback,
-              Call(prefix, std::optional<MessageParameters>(), IsNull()));
+              Call(TrackNamespace{"foo"}, IsNull(), _));
 }
 
 TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSendDataInResponse) {
@@ -304,9 +302,9 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSendDataInResponse) {
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
                                                "foo");
   EXPECT_CALL(server_callbacks_.incoming_publish_namespace_callback,
-              Call(TrackNamespace{"test"}, std::make_optional(parameters), _))
+              Call(TrackNamespace{"test"}, NotNull(), _))
       .WillOnce([&](const TrackNamespace& track_namespace,
-                    const std::optional<MessageParameters>&,
+                    const MessageParameters* params,
                     MoqtResponseCallback callback) {
         absl::StatusOr<FullTrackName> track_name =
             FullTrackName::Create(track_namespace, "data");
@@ -328,8 +326,7 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSendDataInResponse) {
   });
   client_->session()->PublishNamespace(
       TrackNamespace{"test"}, parameters,
-      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {},
-      [](MoqtRequestErrorInfo) {});
+      [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}, []() {});
   bool success = test_harness_.RunUntilWithDefaultTimeout(
       [&]() { return received_subscribe_ok; });
   EXPECT_TRUE(success);
@@ -352,10 +349,9 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceSuccessSendDataInResponse) {
   success = test_harness_.RunUntilWithDefaultTimeout(
       [&]() { return received_object; });
   EXPECT_TRUE(success);
-  // Session tears down PUBLISH_NAMESPACE.
+  // Teardown will invoke the close callbacks.
   EXPECT_CALL(server_callbacks_.incoming_publish_namespace_callback,
-              Call(TrackNamespace{"test"}, std::optional<MessageParameters>(),
-                   IsNull()));
+              Call(TrackNamespace{"test"}, IsNull(), _));
 }
 
 TEST_F(MoqtIntegrationTest, SendMultipleGroups) {
@@ -520,10 +516,9 @@ TEST_F(MoqtIntegrationTest, PublishNamespaceFailure) {
   testing::MockFunction<void(
       std::variant<MessageParameters, MoqtRequestErrorInfo>)>
       response_callback;
-  client_->session()->PublishNamespace(TrackNamespace{"foo"},
-                                       MessageParameters(),
-                                       response_callback.AsStdFunction(),
-                                       [](MoqtRequestErrorInfo error_info) {});
+  client_->session()->PublishNamespace(
+      TrackNamespace{"foo"}, MessageParameters(),
+      response_callback.AsStdFunction(), []() {});
   bool matches = false;
   EXPECT_CALL(response_callback, Call)
       .WillOnce(
@@ -1098,9 +1093,9 @@ TEST_F(MoqtIntegrationTest, RelayTwoClientsQueueClose) {
   EXPECT_CALL(relay1_callbacks.incoming_publish_namespace_callback, Call)
       .WillRepeatedly([&relay_publisher, &relay_endpoint1](
                           const TrackNamespace& track_namespace,
-                          const std::optional<MessageParameters>& parameters,
+                          const MessageParameters* parameters,
                           MoqtResponseCallback callback) {
-        if (parameters.has_value()) {
+        if (parameters != nullptr) {
           relay_publisher.OnPublishNamespace(track_namespace, *parameters,
                                              relay_endpoint1.session(),
                                              std::move(callback));
@@ -1152,7 +1147,7 @@ TEST_F(MoqtIntegrationTest, RelayTwoClientsQueueClose) {
           });
   client1.session()->PublishNamespace(
       TrackNamespace{"test"}, MessageParameters(),
-      publish_response_callback.AsStdFunction(), [](MoqtRequestErrorInfo) {});
+      publish_response_callback.AsStdFunction(), []() {});
   success = simulator.RunUntilOrTimeout(
       [&]() { return publish_namespace_ok; },
       quic::simulator::TestHarness::kDefaultTimeout);
