@@ -158,11 +158,18 @@ void QpackDecoder::OnErrorDetected(QuicErrorCode error_code,
                                                        error_message);
 }
 
+
 std::unique_ptr<QpackProgressiveDecoder> QpackDecoder::CreateProgressiveDecoder(
     QuicStreamId stream_id,
     QpackProgressiveDecoder::HeadersHandlerInterface* handler) {
-  return std::make_unique<QpackProgressiveDecoder>(stream_id, this, this,
-                                                   &header_table_, handler);
+  return CreateProgressiveDecoder(stream_id, 0, handler);
+}
+
+std::unique_ptr<QpackProgressiveDecoder> QpackDecoder::CreateProgressiveDecoder(
+    QuicStreamId stream_id, QuicByteCount max_buffered_data,
+    QpackProgressiveDecoder::HeadersHandlerInterface* handler) {
+  return std::make_unique<QpackProgressiveDecoder>(
+      stream_id, max_buffered_data, this, this, &header_table_, handler);
 }
 
 void QpackDecoder::FlushDecoderStream() { decoder_stream_sender_.Flush(); }

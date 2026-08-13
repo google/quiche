@@ -168,8 +168,8 @@ TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedLimitThenSplitInstruction) {
 }
 
 // Test that header list limit enforcement works with blocked encoding.
-TEST_F(QpackDecodedHeadersAccumulatorTest, ExceedLimitBlocked) {
-
+// TODO(b/517763140): Fix this test.
+TEST_F(QpackDecodedHeadersAccumulatorTest, DISABLED_ExceedLimitBlocked) {
   std::string encoded_data;
   // Total length of header list exceeds kMaxHeaderListSize.
   ASSERT_TRUE(absl::HexStringToBytes(

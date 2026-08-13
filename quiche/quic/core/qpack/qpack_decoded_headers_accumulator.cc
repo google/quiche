@@ -11,13 +11,16 @@
 #include "quiche/quic/core/qpack/qpack_header_table.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 
 namespace quic {
 
 QpackDecodedHeadersAccumulator::QpackDecodedHeadersAccumulator(
     QuicStreamId id, QpackDecoder* qpack_decoder, Visitor* visitor,
     size_t max_header_list_size)
-    : decoder_(qpack_decoder->CreateProgressiveDecoder(id, this)),
+    : decoder_(qpack_decoder->CreateProgressiveDecoder(id, max_header_list_size,
+                                                       this)),
       visitor_(visitor),
       max_header_list_size_(max_header_list_size),
       uncompressed_header_bytes_including_overhead_(0),

@@ -2497,6 +2497,48 @@ TEST_P(QuicSpdyStreamTest, BlockedHeaderDecoding) {
   stream_->MarkTrailersConsumed();
 }
 
+TEST_P(QuicSpdyStreamTest, BlockedHeaderBuffering) {
+  if (!IsIetfQuic()) {
+    return;
+  }
+
+  Initialize(kShouldProcessData);
+  session_->qpack_decoder()->OnSetDynamicTableCapacity(1024);
+  StrictMock<MockHttp3DebugVisitor> debug_visitor;
+  session_->set_debug_visitor(&debug_visitor);
+
+  // HEADERS frame referencing first dynamic table entry.
+  std::string encoded_headers;
+  ASSERT_TRUE(absl::HexStringToBytes("020080", &encoded_headers));
+  std::string dummy_header_data(kInitialStreamFlowControlWindowForTest, 'H');
+  encoded_headers += dummy_header_data;
+
+  std::string headers = HeadersFrame(encoded_headers);
+  EXPECT_CALL(debug_visitor,
+              OnHeadersFrameReceived(stream_->id(), encoded_headers.length()));
+  bool connected = true;
+  EXPECT_CALL(
+      *connection_,
+      CloseConnection(
+          QUIC_QPACK_DECOMPRESSION_FAILED,
+          MatchesRegex(
+              "Error decoding headers on stream 0: Too much buffered data."),
+          ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET))
+      .WillOnce([&] { connected = false; });
+
+  for (size_t offset = 0; connected && offset < headers.length();
+       offset += 1024) {
+    size_t len = std::min<size_t>(1024, headers.length() - offset);
+    stream_->OnStreamFrame(
+        QuicStreamFrame(stream_->id(), false, offset,
+                        absl::string_view(headers.data() + offset, len)));
+  }
+
+  // Decoding is blocked because dynamic table entry has not been received yet.
+  EXPECT_FALSE(stream_->headers_decompressed());
+  EXPECT_EQ(std::nullopt, stream_->header_decoding_delay());
+}
+
 TEST_P(QuicSpdyStreamTest, BlockedHeaderDecodingAndStopReading) {
   if (!IsIetfQuic()) {
     return;

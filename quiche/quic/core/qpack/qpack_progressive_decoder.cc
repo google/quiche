@@ -29,10 +29,11 @@ constexpr bool kValueFromStaticTable = true;
 }  // anonymous namespace
 
 QpackProgressiveDecoder::QpackProgressiveDecoder(
-    QuicStreamId stream_id, BlockedStreamLimitEnforcer* enforcer,
-    DecodingCompletedVisitor* visitor, QpackDecoderHeaderTable* header_table,
-    HeadersHandlerInterface* handler)
+    QuicStreamId stream_id, QuicByteCount max_buffered_data,
+    BlockedStreamLimitEnforcer* enforcer, DecodingCompletedVisitor* visitor,
+    QpackDecoderHeaderTable* header_table, HeadersHandlerInterface* handler)
     : stream_id_(stream_id),
+      max_buffered_data_(max_buffered_data),
       prefix_decoder_(std::make_unique<QpackInstructionDecoder>(
           QpackPrefixLanguage(), this)),
       instruction_decoder_(QpackRequestStreamLanguage(), this),
@@ -82,6 +83,12 @@ void QpackProgressiveDecoder::Decode(absl::string_view data) {
   }
 
   if (blocked_) {
+    if (max_buffered_data_ > 0 &&
+        buffer_.size() + data.size() > max_buffered_data_) {
+      QUIC_CODE_COUNT(quic_qpack_buffered_data_over_limit);
+      OnError(QUIC_QPACK_DECOMPRESSION_FAILED, "Too much buffered data.");
+      return;
+    }
     buffer_.append(data.data(), data.size());
   } else {
     QUICHE_DCHECK(buffer_.empty());

@@ -79,6 +79,9 @@ class QUICHE_EXPORT QpackDecoder
   // QpackProgressiveDecoder instance is destroyed or the decoder calls
   // |handler->OnHeaderBlockEnd()|.
   std::unique_ptr<QpackProgressiveDecoder> CreateProgressiveDecoder(
+      QuicStreamId stream_id, QuicByteCount max_buffered_data,
+      QpackProgressiveDecoder::HeadersHandlerInterface* handler);
+  std::unique_ptr<QpackProgressiveDecoder> CreateProgressiveDecoder(
       QuicStreamId stream_id,
       QpackProgressiveDecoder::HeadersHandlerInterface* handler);
 
