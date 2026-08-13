@@ -48,7 +48,6 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_maybe_copy_datagram_frames, false,
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_move_clock_now, false, false, "If true, move the call to clock.Now() in QuicPacketReader::ReadAndDispatchPackets to after socket_api_.ReadMultiplePackets().")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_no_write_control_frame_upon_connection_close, false, true, "If trrue, early return before write control frame in OnCanWrite() if the connection is already closed.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_no_write_control_frame_upon_connection_close2, false, true, "If true, QuicSession will block outgoing control frames when the connection is closed.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_quic_not_instantiate_unused_qpack_send_stream, true, true, "When qpack_maximum_dynamic_table_capacity is zero, don't bother to instantiate the unused QpackSendStream.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_notify_ack_listener_earlier, true, true, "If true, call QuicAckListenerInterface::OnPacketAcked() before moving the stream to closed stream list.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_notify_stream_soon_to_destroy, true, true, "If true, notify each QUIC stream before it gets destroyed and update ACK listener before that.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_on_packet_header_return_connected, false, true, "If true, QuicConnection::OnPacketHeader will return connected_ at the end of the function.")

@@ -1642,9 +1642,7 @@ void QuicSpdySession::MaybeInitializeHttp3UnidirectionalStreams() {
   // capacity is always zero and encoder's dynamic table capacity is MIN(0,
   // SETTINGS_QPACK_MAX_TABLE_CAPACITY from peer) = 0. Hence, we don't need to
   // instantiate qpack send streams for both decoder and encoder.
-  if (GetQuicheReloadableFlag(quic_not_instantiate_unused_qpack_send_stream) &&
-      qpack_maximum_dynamic_table_capacity_ == 0) {
-    QUICHE_RELOADABLE_FLAG_COUNT(quic_not_instantiate_unused_qpack_send_stream);
+  if (qpack_maximum_dynamic_table_capacity_ == 0) {
     return;
   }
 

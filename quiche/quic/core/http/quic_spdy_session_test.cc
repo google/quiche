@@ -2136,14 +2136,8 @@ TEST_P(QuicSpdySessionTestClient, DisableQpackDynamicTable) {
       QpackEncoderPeer::header_table(qpack_encoder);
   EXPECT_EQ(0, encoder_header_table->dynamic_table_capacity());
   EXPECT_EQ(capacity, encoder_header_table->maximum_dynamic_table_capacity());
-  if (GetQuicReloadableFlag(quic_not_instantiate_unused_qpack_send_stream)) {
-    EXPECT_EQ(nullptr, QuicSpdySessionPeer::GetQpackDecoderSendStream(
-                           &session_.value()));
-
-  } else {
-    EXPECT_NE(nullptr, QuicSpdySessionPeer::GetQpackDecoderSendStream(
-                           &session_.value()));
-  }
+  EXPECT_EQ(nullptr,
+            QuicSpdySessionPeer::GetQpackDecoderSendStream(&session_.value()));
 
   // Verify that the advertised capacity is 0.
   SettingsFrame outgoing_settings = session_->settings();
@@ -2979,13 +2973,8 @@ TEST_P(QuicSpdySessionTestServer, ServerDisableQpackDynamicTable) {
       QpackEncoderPeer::header_table(qpack_encoder);
   EXPECT_EQ(capacity, encoder_header_table->maximum_dynamic_table_capacity());
   EXPECT_EQ(0, encoder_header_table->dynamic_table_capacity());
-  if (GetQuicheReloadableFlag(quic_not_instantiate_unused_qpack_send_stream)) {
-    EXPECT_EQ(nullptr, QuicSpdySessionPeer::GetQpackDecoderSendStream(
-                           &session_.value()));
-  } else {
-    EXPECT_NE(nullptr, QuicSpdySessionPeer::GetQpackDecoderSendStream(
-                           &session_.value()));
-  }
+  EXPECT_EQ(nullptr,
+            QuicSpdySessionPeer::GetQpackDecoderSendStream(&session_.value()));
 
   // Verify that the advertised capacity is 0.
   SettingsFrame outgoing_settings = session_->settings();
