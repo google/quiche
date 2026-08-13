@@ -188,17 +188,13 @@ class QuicheLinkedHashMap {               // QUICHE_NO_EXPORT
   size_type size() const { return map_.size(); }
 
   template <typename... Args>
-  std::pair<iterator, bool> emplace(Args&&... args) {
-    ListType node_donor;
-    auto node_pos =
-        node_donor.emplace(node_donor.end(), std::forward<Args>(args)...);
-    const auto& k = node_pos->first;
-    auto ins = map_.insert({k, node_pos});
-    if (!ins.second) {
-      return {ins.first->second, false};
-    }
-    list_.splice(list_.end(), node_donor, node_pos);
-    return {ins.first->second, true};
+  std::pair<iterator, bool> try_emplace(const key_type& key, Args&&... args) {
+    return TryEmplaceInternal(key, std::forward<Args>(args)...);
+  }
+
+  template <typename... Args>
+  std::pair<iterator, bool> try_emplace(key_type&& key, Args&&... args) {
+    return TryEmplaceInternal(std::move(key), std::forward<Args>(args)...);
   }
 
   void swap(QuicheLinkedHashMap& other) {
@@ -222,6 +218,23 @@ class QuicheLinkedHashMap {               // QUICHE_NO_EXPORT
     auto list_iter = list_.insert(list_.end(), std::forward<U>(pair));
     map_iter->second = list_iter;
 
+    return {list_iter, true};
+  }
+
+  template <typename K, typename... Args>
+  std::pair<iterator, bool> TryEmplaceInternal(K&& key, Args&&... args) {
+    auto insert_result = map_.try_emplace(std::forward<K>(key));
+
+    if (!insert_result.second) {
+      return {insert_result.first->second, false};
+    }
+
+    auto list_iter =
+        list_.emplace(list_.end(), std::piecewise_construct,
+                      std::forward_as_tuple(std::forward<K>(key)),
+                      std::forward_as_tuple(std::forward<Args>(args)...));
+
+    insert_result.first->second = list_iter;
     return {list_iter, true};
   }
 

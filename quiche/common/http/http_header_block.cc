@@ -156,9 +156,7 @@ HttpHeaderBlock::ValueProxy& HttpHeaderBlock::ValueProxy::operator=(
   if (lookup_result_ == block_->map_.end()) {
     QUICHE_DVLOG(1) << "Inserting: (" << key_ << ", " << value << ")";
     lookup_result_ =
-        block_->map_
-            .emplace(std::make_pair(
-                key_, HeaderValue(storage, key_, storage->Write(value))))
+        block_->map_.try_emplace(key_, storage, key_, storage->Write(value))
             .first;
   } else {
     QUICHE_DVLOG(1) << "Updating key: " << key_ << " with value: " << value;
@@ -325,8 +323,7 @@ void HttpHeaderBlock::AppendValueOrAddHeader(const absl::string_view key,
 void HttpHeaderBlock::AppendHeader(const absl::string_view key,
                                    const absl::string_view value) {
   auto backed_key = WriteKey(key);
-  map_.emplace(std::make_pair(
-      backed_key, HeaderValue(&storage_, backed_key, storage_.Write(value))));
+  map_.try_emplace(backed_key, &storage_, backed_key, storage_.Write(value));
 }
 
 absl::string_view HttpHeaderBlock::WriteKey(const absl::string_view key) {

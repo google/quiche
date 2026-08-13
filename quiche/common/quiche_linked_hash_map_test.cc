@@ -30,15 +30,14 @@ TEST(LinkedHashMapTest, Move) {
               UnorderedElementsAre(Pair(2, Pointee(12)), Pair(3, Pointee(13))));
 }
 
-TEST(LinkedHashMapTest, CanEmplaceMoveOnly) {
+TEST(LinkedHashMapTest, CanTryEmplaceMoveOnly) {
   QuicheLinkedHashMap<int, std::unique_ptr<int>> m;
   struct Data {
     int k, v;
   };
   const Data data[] = {{1, 123}, {3, 345}, {2, 234}, {4, 456}};
   for (const auto& kv : data) {
-    m.emplace(std::piecewise_construct, std::make_tuple(kv.k),
-              std::make_tuple(new int{kv.v}));
+    m.try_emplace(kv.k, std::make_unique<int>(kv.v));
   }
   EXPECT_TRUE(m.contains(2));
   auto found = m.find(2);
@@ -55,15 +54,14 @@ struct NoCopy {
   int x;
 };
 
-TEST(LinkedHashMapTest, CanEmplaceNoMoveNoCopy) {
+TEST(LinkedHashMapTest, CanTryEmplaceNoMoveNoCopy) {
   QuicheLinkedHashMap<int, NoCopy> m;
   struct Data {
     int k, v;
   };
   const Data data[] = {{1, 123}, {3, 345}, {2, 234}, {4, 456}};
   for (const auto& kv : data) {
-    m.emplace(std::piecewise_construct, std::make_tuple(kv.k),
-              std::make_tuple(kv.v));
+    m.try_emplace(kv.k, kv.v);
   }
   EXPECT_TRUE(m.contains(2));
   auto found = m.find(2);
