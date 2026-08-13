@@ -204,6 +204,19 @@ class HpackEncoderTest
     expected_.AppendUint32(key_index);
     ExpectString(&expected_, value);
   }
+  void ExpectNeverIndexedLiteral(absl::string_view name,
+                                 absl::string_view value) {
+    expected_.AppendPrefix(kLiteralNeverIndexOpcode);
+    expected_.AppendUint32(0);
+    ExpectString(&expected_, name);
+    ExpectString(&expected_, value);
+  }
+  void ExpectNeverIndexedLiteralWithNameIndex(size_t key_index,
+                                              absl::string_view value) {
+    expected_.AppendPrefix(kLiteralNeverIndexOpcode);
+    expected_.AppendUint32(key_index);
+    ExpectString(&expected_, value);
+  }
   void ExpectString(HpackOutputStream* stream, absl::string_view str) {
     size_t encoded_size =
         peer_.huffman_enabled() ? http2::HuffmanSize(str) : str.size();
@@ -521,6 +534,133 @@ TEST_P(HpackEncoderTest, MultiValuedHeadersNotCrumbled) {
   ExpectIndexedLiteral("foo", "bar, baz");
   quiche::HttpHeaderBlock headers;
   headers["foo"] = "bar, baz";
+  CompareWithExpectedEncoding(headers);
+}
+
+TEST_P(HpackEncoderTest, NeverIndexedLiteral) {
+  encoder_.SetNeverIndexingPolicy(
+      [](absl::string_view name, absl::string_view /*value*/) {
+        return name == "x-request-id";
+      });
+
+  // "key3" is not covered by the policy and is indexed as usual.
+  ExpectIndexedLiteral("key3", "value3");
+  // The high-entropy value is compressible, so the string itself is still
+  // Huffman-coded; only indexing is affected.
+  ExpectNeverIndexedLiteral("x-request-id", "abcd-1234-efgh-5678");
+
+  quiche::HttpHeaderBlock headers;
+  headers["key3"] = "value3";
+  headers["x-request-id"] = "abcd-1234-efgh-5678";
+  CompareWithExpectedEncoding(headers);
+}
+
+TEST_P(HpackEncoderTest, NeverIndexedLiteralSupersedesTableMatch) {
+  // |key_2_| has a (name, value) match in the dynamic table, which would
+  // normally be emitted as an indexed representation. The never-indexing
+  // policy takes precedence, though the name may still be represented by a
+  // table index.
+  encoder_.SetNeverIndexingPolicy(
+      [this](absl::string_view name, absl::string_view /*value*/) {
+        return name == key_2_->name();
+      });
+
+  ExpectNeverIndexedLiteralWithNameIndex(
+      peer_.table()->GetByName(key_2_->name()), key_2_->value());
+
+  quiche::HttpHeaderBlock headers;
+  headers[key_2_->name()] = key_2_->value();
+  CompareWithExpectedEncoding(headers);
+}
+
+TEST_P(HpackEncoderTest, NeverIndexedLiteralSupersedesIndexingPolicy) {
+  // Even with an indexing policy that would insert everything into the
+  // dynamic table, never-indexed headers are not inserted.
+  encoder_.SetIndexingPolicy(
+      [](absl::string_view /*name*/, absl::string_view /*value*/) {
+        return true;
+      });
+  encoder_.SetNeverIndexingPolicy(
+      [](absl::string_view name, absl::string_view /*value*/) {
+        return name == "key3";
+      });
+
+  ExpectNeverIndexedLiteral("key3", "value3");
+
+  quiche::HttpHeaderBlock headers;
+  headers["key3"] = "value3";
+  CompareWithExpectedEncoding(headers);
+
+  // No entry was inserted into the dynamic table.
+  EXPECT_EQ(kInitialDynamicTableSize, encoder_.GetDynamicTableSize());
+  EXPECT_EQ(kHpackEntryNotFound,
+            peer_.table()->GetByNameAndValue("key3", "value3"));
+}
+
+TEST_P(HpackEncoderTest, NeverIndexedLiteralWithCompressionDisabled) {
+  // The never-indexed representation is still emitted when the dynamic table
+  // is disabled, since it also instructs intermediaries not to index.
+  encoder_.DisableCompression();
+  encoder_.SetNeverIndexingPolicy(
+      [](absl::string_view name, absl::string_view /*value*/) {
+        return name == "x-request-id";
+      });
+
+  ExpectNonIndexedLiteral("key3", "value3");
+  ExpectNeverIndexedLiteral("x-request-id", "abcd-1234-efgh-5678");
+
+  quiche::HttpHeaderBlock headers;
+  headers["key3"] = "value3";
+  headers["x-request-id"] = "abcd-1234-efgh-5678";
+  CompareWithExpectedEncoding(headers);
+}
+
+TEST_P(HpackEncoderTest, NeverIndexedCookieIsEvaluatedPerCrumb) {
+  encoder_.SetNeverIndexingPolicy(
+      [](absl::string_view name, absl::string_view /*value*/) {
+        return name == "cookie";
+      });
+
+  // Each crumb is emitted as a never-indexed literal, including those with
+  // (name, value) matches in the dynamic table.
+  const size_t cookie_name_index = peer_.table()->GetByName("cookie");
+  ExpectNeverIndexedLiteralWithNameIndex(cookie_name_index, "a=bb");
+  ExpectNeverIndexedLiteralWithNameIndex(cookie_name_index, "c=dd");
+  ExpectNeverIndexedLiteralWithNameIndex(cookie_name_index, "e=ff");
+
+  quiche::HttpHeaderBlock headers;
+  headers["cookie"] = "a=bb; c=dd; e=ff";
+  CompareWithExpectedEncoding(headers);
+}
+
+TEST_P(HpackEncoderTest, ValueBasedNeverIndexingPolicySeesCookieCrumbs) {
+  // A value-based policy is evaluated against individual cookie crumbs.
+  encoder_.SetNeverIndexingPolicy(
+      [](absl::string_view /*name*/, absl::string_view value) {
+        return value == "e=ff";
+      });
+
+  ExpectIndex(DynamicIndexToWireIndex(cookie_a_index_));
+  ExpectIndex(DynamicIndexToWireIndex(cookie_c_index_));
+  ExpectNeverIndexedLiteralWithNameIndex(peer_.table()->GetByName("cookie"),
+                                         "e=ff");
+
+  quiche::HttpHeaderBlock headers;
+  headers["cookie"] = "a=bb; c=dd; e=ff";
+  CompareWithExpectedEncoding(headers);
+}
+
+TEST_P(HpackEncoderTest, NullNeverIndexingPolicyRestoresDefault) {
+  encoder_.SetNeverIndexingPolicy(
+      [](absl::string_view name, absl::string_view /*value*/) {
+        return name == "key3";
+      });
+  encoder_.SetNeverIndexingPolicy(HpackEncoder::IndexingPolicy());
+
+  ExpectIndexedLiteral("key3", "value3");
+
+  quiche::HttpHeaderBlock headers;
+  headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 }
 

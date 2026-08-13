@@ -583,6 +583,10 @@ int OgHttp2Session::Consume(Http2StreamId stream_id, size_t num_bytes) {
   return 0;  // Remove?
 }
 
+void OgHttp2Session::SetNeverIndexingPolicy(NeverIndexingPolicy policy) {
+  framer_.GetHpackEncoder()->SetNeverIndexingPolicy(std::move(policy));
+}
+
 void OgHttp2Session::StartGracefulShutdown() {
   if (IsServerSession()) {
     if (!queued_goaway_) {
