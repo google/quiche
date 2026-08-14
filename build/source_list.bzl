@@ -1169,6 +1169,7 @@ quiche_tests_srcs = [
     "common/quiche_text_utils_test.cc",
     "common/quiche_weak_ptr_test.cc",
     "common/simple_buffer_allocator_test.cc",
+    "common/stable_block_list_fuzz_test.cc",
     "common/stable_block_list_test.cc",
     "common/structured_headers_generated_test.cc",
     "common/structured_headers_test.cc",
