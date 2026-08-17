@@ -1100,7 +1100,7 @@ TEST(HTTPBalsaFrame, RequestLinesParsedProperly) {
       std::pair<std::string, std::string>("", ""),  // both key and value empty
       std::pair<std::string, std::string>("normal_key", "normal_value"),
   };
-  const size_t headers_len = ABSL_ARRAYSIZE(headers);
+  const size_t headers_len = std::size(headers);
   HeaderLineTestHelper(firstline, true, headers, headers_len, ":", "\n");
   HeaderLineTestHelper(firstline, true, headers, headers_len, ": ", "\n");
   HeaderLineTestHelper(firstline, true, headers, headers_len, ": ", "\r\n");
@@ -1210,7 +1210,7 @@ TEST(HTTPBalsaFrame, ResponseLinesParsedProperly) {
       std::pair<std::string, std::string>("", ""),  // both key and value empty
       std::pair<std::string, std::string>("normal_key", "normal_value"),
   };
-  const size_t headers_len = ABSL_ARRAYSIZE(headers);
+  const size_t headers_len = std::size(headers);
   HeaderLineTestHelper(firstline, false, headers, headers_len, ":", "\n");
   HeaderLineTestHelper(firstline, false, headers, headers_len, ": ", "\n");
   HeaderLineTestHelper(firstline, false, headers, headers_len, ": ", "\r\n");
