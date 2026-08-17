@@ -208,7 +208,7 @@ TEST_F(HpackHuffmanDecoderTest, SpecRequestExamples) {
       "25a849e95bb8e8b4bf",
       "custom-value",
   };
-  for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
+  for (size_t i = 0; i != std::size(test_table); i += 2) {
     std::string huffman_encoded;
     ASSERT_TRUE(absl::HexStringToBytes(test_table[i], &huffman_encoded));
     const std::string& plain_string(test_table[i + 1]);
@@ -239,7 +239,7 @@ TEST_F(HpackHuffmanDecoderTest, SpecResponseExamples) {
       "03ed4ee5b1063d5007",
       "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1",
   };
-  for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
+  for (size_t i = 0; i != std::size(test_table); i += 2) {
     std::string huffman_encoded;
     ASSERT_TRUE(absl::HexStringToBytes(test_table[i], &huffman_encoded));
     const std::string& plain_string(test_table[i + 1]);
