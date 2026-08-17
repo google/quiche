@@ -123,7 +123,7 @@ void TunDevicePacketExchanger::WritePacketToNetwork(const char* packet,
 
   absl::Status status = absl::OkStatus();
   absl::Time start = absl::Now();
-  int result = kernel_->writev(write_fd_, iov, ABSL_ARRAYSIZE(iov));
+  int result = kernel_->writev(write_fd_, iov, std::size(iov));
   if (result < 0) {
     status = absl::ErrnoToStatus(errno, "Write to the TUN device failed.");
   }
@@ -157,7 +157,7 @@ bool TunDevicePacketExchanger::ReadAndExchangeSinglePacket(
 
   absl::Status status = absl::OkStatus();
   absl::Time start = absl::Now();
-  int result = kernel_->readv(read_fd_, iov, ABSL_ARRAYSIZE(iov));
+  int result = kernel_->readv(read_fd_, iov, std::size(iov));
   int saved_errno = errno;
   absl::Duration latency = std::max(absl::Now() - start, absl::ZeroDuration());
 
