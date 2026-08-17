@@ -7,6 +7,7 @@
 #include "quiche/common/quiche_linked_hash_map.h"
 
 #include <memory>
+#include <string>
 #include <tuple>
 #include <utility>
 
@@ -67,6 +68,16 @@ TEST(LinkedHashMapTest, CanTryEmplaceNoMoveNoCopy) {
   auto found = m.find(2);
   ASSERT_TRUE(found != m.end());
   EXPECT_EQ(234, found->second.x);
+}
+
+TEST(LinkedHashMapTest, TryEmplaceRvalueKey) {
+  QuicheLinkedHashMap<std::string, int> m;
+  std::string key = "hello";
+  auto result = m.try_emplace(std::move(key), 42);
+  EXPECT_TRUE(result.second);
+  EXPECT_EQ(result.first->first, "hello");
+  EXPECT_EQ(m.find("hello")->first, "hello");
+  EXPECT_EQ(m.begin()->first, "hello");
 }
 
 TEST(LinkedHashMapTest, ConstKeys) {

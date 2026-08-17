@@ -231,7 +231,7 @@ class QuicheLinkedHashMap {               // QUICHE_NO_EXPORT
 
     auto list_iter =
         list_.emplace(list_.end(), std::piecewise_construct,
-                      std::forward_as_tuple(std::forward<K>(key)),
+                      std::forward_as_tuple(insert_result.first->first),
                       std::forward_as_tuple(std::forward<Args>(args)...));
 
     insert_result.first->second = list_iter;
