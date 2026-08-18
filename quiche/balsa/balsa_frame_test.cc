@@ -2414,6 +2414,8 @@ TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesSanitized) {
   balsa_frame_.set_http_validation_policy(http_validation_policy);
   EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
   EXPECT_CALL(visitor_mock_, HeaderDone());
+  EXPECT_CALL(visitor_mock_, OnRequestFirstLineInput("GET / HTTP/1.1", "GET",
+                                                     "/", "HTTP/1.1"));
   const std::string message1 =
       "GET  / HTTP/1.1\r\n"
       "Host: 1.1.1.1\r\n"
@@ -2473,6 +2475,8 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesSanitized) {
   balsa_frame_.set_is_request(false);
   EXPECT_CALL(visitor_mock_, ProcessHeaders(_));
   EXPECT_CALL(visitor_mock_, HeaderDone());
+  EXPECT_CALL(visitor_mock_, OnResponseFirstLineInput("HTTP/1.1 200 OK",
+                                                      "HTTP/1.1", "200", "OK"));
   const std::string message1 =
       "HTTP/1.1 200  OK\r\n"
       "Content-Type: text/html\r\n"

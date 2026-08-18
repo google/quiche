@@ -1062,7 +1062,7 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
   friend class test::BalsaHeadersTestPeer;
 
   friend bool ParseHTTPFirstLine(
-      char* begin, char* end, bool is_request, BalsaHeaders* headers,
+      char*& begin, char* end, bool is_request, BalsaHeaders* headers,
       BalsaFrameEnums::ErrorCode* error_code,
       HttpValidationPolicy::FirstLineValidationOption whitespace_option,
       HttpValidationPolicy::FirstLineValidationOption multiple_spaces_option,
