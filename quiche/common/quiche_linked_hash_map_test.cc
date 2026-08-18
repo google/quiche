@@ -11,8 +11,10 @@
 #include <tuple>
 #include <utility>
 
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
+using testing::ElementsAre;
 using testing::Pair;
 using testing::Pointee;
 using testing::UnorderedElementsAre;
@@ -20,8 +22,19 @@ using testing::UnorderedElementsAre;
 namespace quiche {
 namespace test {
 
+class QuicheLinkedHashMapTest : public QuicheTestWithParam<bool> {
+ protected:
+  void SetUp() override {
+    SetQuicheReloadableFlag(quiche_linked_hash_map_use_stable_block_list,
+                            GetParam());
+  }
+};
+
+INSTANTIATE_TEST_SUITE_P(QuicheLinkedHashMapTests, QuicheLinkedHashMapTest,
+                         ::testing::Bool());
+
 // Tests that move constructor works.
-TEST(LinkedHashMapTest, Move) {
+TEST_P(QuicheLinkedHashMapTest, Move) {
   // Use unique_ptr as an example of a non-copyable type.
   QuicheLinkedHashMap<int, std::unique_ptr<int>> m;
   m[2] = std::make_unique<int>(12);
@@ -31,7 +44,19 @@ TEST(LinkedHashMapTest, Move) {
               UnorderedElementsAre(Pair(2, Pointee(12)), Pair(3, Pointee(13))));
 }
 
-TEST(LinkedHashMapTest, CanTryEmplaceMoveOnly) {
+TEST_P(QuicheLinkedHashMapTest, ConstructorWithBucketCount) {
+  QuicheLinkedHashMap<int, int> m(100);
+  EXPECT_EQ(0u, m.size());
+  EXPECT_TRUE(m.empty());
+
+  m[1] = 10;
+  m[2] = 20;
+  EXPECT_EQ(10, m[1]);
+  EXPECT_EQ(20, m[2]);
+  EXPECT_EQ(2u, m.size());
+}
+
+TEST_P(QuicheLinkedHashMapTest, CanTryEmplaceMoveOnly) {
   QuicheLinkedHashMap<int, std::unique_ptr<int>> m;
   struct Data {
     int k, v;
@@ -55,7 +80,7 @@ struct NoCopy {
   int x;
 };
 
-TEST(LinkedHashMapTest, CanTryEmplaceNoMoveNoCopy) {
+TEST_P(QuicheLinkedHashMapTest, CanTryEmplaceNoMoveNoCopy) {
   QuicheLinkedHashMap<int, NoCopy> m;
   struct Data {
     int k, v;
@@ -70,7 +95,7 @@ TEST(LinkedHashMapTest, CanTryEmplaceNoMoveNoCopy) {
   EXPECT_EQ(234, found->second.x);
 }
 
-TEST(LinkedHashMapTest, TryEmplaceRvalueKey) {
+TEST_P(QuicheLinkedHashMapTest, TryEmplaceRvalueKey) {
   QuicheLinkedHashMap<std::string, int> m;
   std::string key = "hello";
   auto result = m.try_emplace(std::move(key), 42);
@@ -80,7 +105,7 @@ TEST(LinkedHashMapTest, TryEmplaceRvalueKey) {
   EXPECT_EQ(m.begin()->first, "hello");
 }
 
-TEST(LinkedHashMapTest, ConstKeys) {
+TEST_P(QuicheLinkedHashMapTest, ConstKeys) {
   QuicheLinkedHashMap<int, int> m;
   m.insert(std::make_pair(1, 2));
   // Test that keys are const in iteration.
@@ -89,7 +114,7 @@ TEST(LinkedHashMapTest, ConstKeys) {
 }
 
 // Tests that iteration from begin() to end() works
-TEST(LinkedHashMapTest, Iteration) {
+TEST_P(QuicheLinkedHashMapTest, Iteration) {
   QuicheLinkedHashMap<int, int> m;
   EXPECT_TRUE(m.begin() == m.end());
 
@@ -118,7 +143,7 @@ TEST(LinkedHashMapTest, Iteration) {
 }
 
 // Tests that reverse iteration from rbegin() to rend() works
-TEST(LinkedHashMapTest, ReverseIteration) {
+TEST_P(QuicheLinkedHashMapTest, ReverseIteration) {
   QuicheLinkedHashMap<int, int> m;
   EXPECT_TRUE(m.rbegin() == m.rend());
 
@@ -147,7 +172,7 @@ TEST(LinkedHashMapTest, ReverseIteration) {
 }
 
 // Tests that clear() works
-TEST(LinkedHashMapTest, Clear) {
+TEST_P(QuicheLinkedHashMapTest, Clear) {
   QuicheLinkedHashMap<int, int> m;
   m.insert(std::make_pair(2, 12));
   m.insert(std::make_pair(1, 11));
@@ -165,7 +190,7 @@ TEST(LinkedHashMapTest, Clear) {
 }
 
 // Tests that size() works.
-TEST(LinkedHashMapTest, Size) {
+TEST_P(QuicheLinkedHashMapTest, Size) {
   QuicheLinkedHashMap<int, int> m;
   EXPECT_EQ(0u, m.size());
   m.insert(std::make_pair(2, 12));
@@ -179,7 +204,7 @@ TEST(LinkedHashMapTest, Size) {
 }
 
 // Tests empty()
-TEST(LinkedHashMapTest, Empty) {
+TEST_P(QuicheLinkedHashMapTest, Empty) {
   QuicheLinkedHashMap<int, int> m;
   ASSERT_TRUE(m.empty());
   m.insert(std::make_pair(2, 12));
@@ -188,7 +213,7 @@ TEST(LinkedHashMapTest, Empty) {
   ASSERT_TRUE(m.empty());
 }
 
-TEST(LinkedHashMapTest, Erase) {
+TEST_P(QuicheLinkedHashMapTest, Erase) {
   QuicheLinkedHashMap<int, int> m;
   ASSERT_EQ(0u, m.size());
   EXPECT_EQ(0u, m.erase(2));  // Nothing to erase yet
@@ -202,7 +227,7 @@ TEST(LinkedHashMapTest, Erase) {
   EXPECT_EQ(0u, m.size());
 }
 
-TEST(LinkedHashMapTest, Erase2) {
+TEST_P(QuicheLinkedHashMapTest, Erase2) {
   QuicheLinkedHashMap<int, int> m;
   ASSERT_EQ(0u, m.size());
   EXPECT_EQ(0u, m.erase(2));  // Nothing to erase yet
@@ -241,7 +266,7 @@ TEST(LinkedHashMapTest, Erase2) {
 }
 
 // Test that erase(iter,iter) and erase(iter) compile and work.
-TEST(LinkedHashMapTest, Erase3) {
+TEST_P(QuicheLinkedHashMapTest, Erase3) {
   QuicheLinkedHashMap<int, int> m;
 
   m.insert(std::make_pair(1, 11));
@@ -276,7 +301,7 @@ TEST(LinkedHashMapTest, Erase3) {
   ASSERT_TRUE(it == m.end());
 }
 
-TEST(LinkedHashMapTest, Insertion) {
+TEST_P(QuicheLinkedHashMapTest, Insertion) {
   QuicheLinkedHashMap<int, int> m;
   ASSERT_EQ(0u, m.size());
   std::pair<QuicheLinkedHashMap<int, int>::iterator, bool> result;
@@ -310,7 +335,7 @@ TEST(LinkedHashMapTest, Insertion) {
 static std::pair<int, int> Pair(int i, int j) { return {i, j}; }
 
 // Test front accessors.
-TEST(LinkedHashMapTest, Front) {
+TEST_P(QuicheLinkedHashMapTest, Front) {
   QuicheLinkedHashMap<int, int> m;
 
   m.insert(std::make_pair(2, 12));
@@ -329,7 +354,7 @@ TEST(LinkedHashMapTest, Front) {
   EXPECT_TRUE(m.empty());
 }
 
-TEST(LinkedHashMapTest, Find) {
+TEST_P(QuicheLinkedHashMapTest, Find) {
   QuicheLinkedHashMap<int, int> m;
 
   EXPECT_TRUE(m.end() == m.find(1))
@@ -358,7 +383,7 @@ TEST(LinkedHashMapTest, Find) {
       << "We shouldn't find anything in a map that we've cleared.";
 }
 
-TEST(LinkedHashMapTest, Contains) {
+TEST_P(QuicheLinkedHashMapTest, Contains) {
   QuicheLinkedHashMap<int, int> m;
 
   EXPECT_FALSE(m.contains(1)) << "An empty map shouldn't contain anything.";
@@ -376,7 +401,7 @@ TEST(LinkedHashMapTest, Contains) {
       << "A map that we've cleared shouldn't contain anything.";
 }
 
-TEST(LinkedHashMapTest, Swap) {
+TEST_P(QuicheLinkedHashMapTest, Swap) {
   QuicheLinkedHashMap<int, int> m1;
   QuicheLinkedHashMap<int, int> m2;
   m1.insert(std::make_pair(1, 1));
@@ -389,7 +414,7 @@ TEST(LinkedHashMapTest, Swap) {
   ASSERT_EQ(2u, m2.size());
 }
 
-TEST(LinkedHashMapTest, CustomHashAndEquality) {
+TEST_P(QuicheLinkedHashMapTest, CustomHashAndEquality) {
   struct CustomIntHash {
     size_t operator()(int x) const { return x; }
   };
@@ -397,6 +422,25 @@ TEST(LinkedHashMapTest, CustomHashAndEquality) {
   m.insert(std::make_pair(1, 1));
   EXPECT_TRUE(m.contains(1));
   EXPECT_EQ(1, m[1]);
+}
+
+TEST_P(QuicheLinkedHashMapTest, CustomBlockSize) {
+  // Use a small block size (2) to force multiple blocks.
+  QuicheLinkedHashMap<int, int, absl::Hash<int>, std::equal_to<int>, 2> m;
+  m.insert(std::make_pair(1, 10));
+  m.insert(std::make_pair(2, 20));
+  m.insert(std::make_pair(3, 30));
+  m.insert(std::make_pair(4, 40));
+
+  EXPECT_EQ(4u, m.size());
+  EXPECT_EQ(10, m[1]);
+  EXPECT_EQ(20, m[2]);
+  EXPECT_EQ(30, m[3]);
+  EXPECT_EQ(40, m[4]);
+
+  std::vector<std::pair<int, int>> elements(m.begin(), m.end());
+  EXPECT_THAT(elements,
+              ElementsAre(Pair(1, 10), Pair(2, 20), Pair(3, 30), Pair(4, 40)));
 }
 
 }  // namespace test

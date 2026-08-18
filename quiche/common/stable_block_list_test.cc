@@ -382,5 +382,56 @@ TEST(StableBlockListTest, ShrinkToFitReleasesMemory) {
   EXPECT_EQ(stats->deallocs, 3);
 }
 
+TEST(StableBlockListTest, FreeListCorruptionRegressionTest) {
+  // Uses a small block capacity (2) to easily force multi-block behavior.
+  StableBlockList<int, 2> list;
+
+  // 1. Initial state: block1 [10, 20] -> block2 [30, _]
+  list.push_back(10);
+  list.push_back(20);
+  list.push_back(30);
+
+  // 2. Erases elements in block1 to deallocate it.
+  // block1 becomes empty and is moved to the free list.
+  // If the compiler optimized away the write to block1->next during destroy,
+  // block1->next will still point to block2 (which is active).
+  auto it = list.begin();
+  list.erase(it);  // erases 10
+  it = list.begin();
+  list.erase(it);  // erases 20
+
+  // Now list is: block2 [30, _]
+  // free_blocks -> block1
+
+  // 3. Pushes 40. Goes to block2 (has space).
+  // List: block2 [30, 40]
+  list.push_back(40);
+
+  // 4. Pushes 50. block2 is full. Needs a new block.
+  // Reuses block1 from free_blocks.
+  // If corrupted, free_blocks is set to block1->next (which points to block2).
+  // List: block2 [30, 40] -> block1 [50, _]
+  list.push_back(50);
+
+  // 5. Pushes 60. Goes to block1 (has space).
+  // List: block2 [30, 40] -> block1 [50, 60]
+  list.push_back(60);
+
+  // 6. Pushes 70. block1 is full. Needs a new block.
+  // If free_blocks was corrupted to point to block2 (which is active),
+  // it will reuse block2 and overwrite it, corrupting the list structure.
+  list.push_back(70);
+
+  // Verifies size and elements.
+  // If corruption occurred, the list will be truncated or contain garbage.
+  EXPECT_EQ(list.size(), 5);
+
+  std::vector<int> elements;
+  for (int x : list) {
+    elements.push_back(x);
+  }
+  EXPECT_THAT(elements, ::testing::ElementsAre(30, 40, 50, 60, 70));
+}
+
 }  // namespace
 }  // namespace quiche

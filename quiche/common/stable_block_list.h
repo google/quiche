@@ -444,9 +444,6 @@ class StableBlockList {                            // QUICHE_NO_EXPORT
   }
 
   void DeallocateBlock(Block* block) {
-    BlockAllocator block_alloc(allocator_);
-    std::allocator_traits<BlockAllocator>::destroy(block_alloc, block);
-
     // Link to free blocks LIFO list using 'next' pointer
     block->next = control_block_->free_blocks;
     control_block_->free_blocks = block;
