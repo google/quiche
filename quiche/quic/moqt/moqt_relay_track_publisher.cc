@@ -17,6 +17,7 @@
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
@@ -35,6 +36,7 @@ void MoqtRelayTrackPublisher::OnReply(
   }
   if (std::holds_alternative<MoqtRequestErrorInfo>(response)) {
     auto request_error = std::get<MoqtRequestErrorInfo>(response);
+    object_ack_function_ = nullptr;
     // Delete upstream_ to avoid sending UNSUBSCRIBE.
     upstream_ = quiche::QuicheWeakPtr<MoqtSessionInterface>();
     // Sessions will delete listeners, causing the track to delete itself.
@@ -56,6 +58,18 @@ void MoqtRelayTrackPublisher::OnReply(
   // TODO(martinduke): Handle parameters.
   for (MoqtObjectListener* listener : listeners_) {
     listener->OnSubscribeAccepted();
+  }
+}
+
+void MoqtRelayTrackPublisher::OnCanAckObjects(
+    MoqtObjectAckFunction ack_function) {
+  object_ack_function_ = std::move(ack_function);
+}
+
+void MoqtRelayTrackPublisher::OnObjectAckReceived(
+    Location location, quic::QuicTimeDelta delta_from_deadline) {
+  if (object_ack_function_ != nullptr) {
+    object_ack_function_(location.group, location.object, delta_from_deadline);
   }
 }
 
@@ -355,6 +369,7 @@ void MoqtRelayTrackPublisher::AddObjectListener(MoqtObjectListener* listener) {
     }
     MessageParameters parameters;
     // Use default params, not what the subscriber used.
+    parameters.oack_window_size = oack_window_size_;
     // TODO(b/478300706): Always forward NEW_GROUP_REQUEST in this case.
     session->Subscribe(track_, this, parameters);
   }
@@ -418,6 +433,7 @@ void MoqtRelayTrackPublisher::DeleteTrack() {
   if (session != nullptr) {
     session->Unsubscribe(track_);
   }
+  object_ack_function_ = nullptr;
   std::move(delete_track_callback_)();
 }
 

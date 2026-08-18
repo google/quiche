@@ -85,8 +85,8 @@ class QUICHE_EXPORT SessionToPublisherInterface {
   virtual quic::QuicAlarmFactory* alarm_factory() = 0;
   virtual std::shared_ptr<MoqtTrackPublisher> GetTrackPublisher(
       const FullTrackName& name) = 0;
-  virtual MoqtPublishingMonitorInterface* ReleaseMonitoringInterface(
-      const FullTrackName& name) = 0;
+  virtual MoqtPublishingMonitorInterface* absl_nullable
+  ReleaseMonitoringInterface(const FullTrackName& name) = 0;
   virtual const quic::QuicClock* clock() = 0;
   virtual MoqtTraceRecorder& trace_recorder() = 0;
   virtual webtransport::Session* session() = 0;
@@ -280,7 +280,11 @@ class LivePublisher : public MoqtObjectListener, public LivePublisherInterface {
   // stream if more object arrive for it.
   absl::flat_hash_set<DataStreamIndex> reset_subgroups_;
 
-  MoqtPublishingMonitorInterface* monitoring_interface_;
+  // Monitoring interface that notifies the track publisher about received
+  // object ACKs; can be provided either through the session or through the
+  // track publisher.
+  // TODO(vasilvv): clean up this API.
+  MoqtPublishingMonitorInterface* absl_nullable monitoring_interface_ = nullptr;
   // Largest sequence number ever sent via this subscription.
   std::optional<Location> largest_sent_;
   SendStreamMap stream_map_;

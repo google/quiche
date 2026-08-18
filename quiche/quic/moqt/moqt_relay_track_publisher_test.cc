@@ -592,6 +592,60 @@ TEST_F(MoqtRelayTrackPublisherTest,
   EXPECT_FALSE(object.has_value());
 }
 
+TEST_F(MoqtRelayTrackPublisherTest, ForwardObjectAck) {
+  SubscribeAndOk();
+  EXPECT_NE(publisher_.GetMonitoringInterface(), nullptr);
+
+  bool ack_received = false;
+  MoqtObjectAckFunction ack_function = [&](uint64_t group, uint64_t object,
+                                           quic::QuicTimeDelta delta) {
+    EXPECT_EQ(group, 10);
+    EXPECT_EQ(object, 20);
+    EXPECT_EQ(delta, quic::QuicTimeDelta::FromMilliseconds(50));
+    ack_received = true;
+  };
+  publisher_.OnCanAckObjects(std::move(ack_function));
+
+  publisher_.GetMonitoringInterface()->OnObjectAckReceived(
+      Location(10, 20), quic::QuicTimeDelta::FromMilliseconds(50));
+  EXPECT_TRUE(ack_received);
+}
+
+TEST_F(MoqtRelayTrackPublisherTest, ObjectAckBeforeCanAck) {
+  SubscribeAndOk();
+  // OnObjectAckReceived called before OnCanAckObjects should not crash.
+  publisher_.GetMonitoringInterface()->OnObjectAckReceived(
+      Location(1, 2), quic::QuicTimeDelta::FromMilliseconds(10));
+}
+
+TEST_F(MoqtRelayTrackPublisherTest, ObjectAckAfterTrackDeleted) {
+  SubscribeAndOk();
+  bool ack_called = false;
+  publisher_.OnCanAckObjects(
+      [&](uint64_t, uint64_t, quic::QuicTimeDelta) { ack_called = true; });
+
+  publisher_.RemoveObjectListener(&listener_);
+  EXPECT_TRUE(track_deleted_);
+
+  // Subsequent ACK received should not call ack_function.
+  publisher_.GetMonitoringInterface()->OnObjectAckReceived(
+      Location(1, 2), quic::QuicTimeDelta::FromMilliseconds(10));
+  EXPECT_FALSE(ack_called);
+}
+
+TEST_F(MoqtRelayTrackPublisherTest, ForwardsOackWindowSize) {
+  publisher_.set_oack_window_size(quic::QuicTimeDelta::FromMilliseconds(50));
+  EXPECT_EQ(publisher_.oack_window_size(),
+            quic::QuicTimeDelta::FromMilliseconds(50));
+  EXPECT_CALL(
+      *session_,
+      Subscribe(kTrackName, &publisher_,
+                testing::Field(&MessageParameters::oack_window_size,
+                               quic::QuicTimeDelta::FromMilliseconds(50))))
+      .WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener_);
+}
+
 }  // namespace
 
 }  // namespace moqt::test

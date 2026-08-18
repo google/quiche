@@ -537,7 +537,13 @@ bool MoqtSession::Subscribe(const FullTrackName& name,
   subscribe_by_name_[name] = stream_visitor_ptr->track();
   if (SupportsObjectAck()) {
     visitor->OnCanAckObjects(
-        absl::bind_front(&MoqtSession::SendObjectAck, this, name));
+        [weak_this = GetWeakPtr(), name](uint64_t group, uint64_t object,
+                                         quic::QuicTimeDelta time_delta) {
+          if (MoqtSession* session = MoqtSessionFromWeakPtr(weak_this);
+              session != nullptr) {
+            session->SendObjectAck(name, group, object, time_delta);
+          }
+        });
   }
   return true;
 }
@@ -1251,7 +1257,6 @@ absl::Status MoqtSession::OnControlMessage(const MoqtRequestUpdate& message) {
                                   "No support for update of this type");
   return absl::OkStatus();
 }
-
 
 absl::Status MoqtSession::OnControlMessage(const MoqtGoAway& message) {
   if (!message.new_session_uri.empty() &&

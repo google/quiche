@@ -1218,6 +1218,140 @@ TEST_F(MoqtIntegrationTest, RelayTwoClientsQueueClose) {
   ASSERT_TRUE(success);
 }
 
+TEST_F(MoqtIntegrationTest, RelayForwardsObjectAcks) {
+  quic::simulator::Simulator simulator;
+  MockSessionCallbacks client1_callbacks;
+  MockSessionCallbacks client2_callbacks;
+  MockSessionCallbacks relay1_callbacks;
+  MockSessionCallbacks relay2_callbacks;
+  MoqtRelayPublisher relay_publisher;
+  MoqtKnownTrackPublisher client1_publisher;
+  MockLiveSubscriberVisitor subscriber_visitor;
+  std::optional<quic::simulator::SymmetricLink> link1;
+  std::optional<quic::simulator::SymmetricLink> link2;
+
+  // Client 1 (original publisher)
+  MoqtClientEndpoint client1(&simulator, "Client1", "Relay1",
+                             kDefaultMoqtVersion);
+  // Relay's server endpoint facing Client 1
+  MoqtServerEndpoint relay_endpoint1(&simulator, "Relay1", "Client1",
+                                     kDefaultMoqtVersion);
+  // Client 2 (end subscriber)
+  MoqtClientEndpoint client2(&simulator, "Client2", "Relay2",
+                             kDefaultMoqtVersion);
+  // Relay's server endpoint facing Client 2
+  MoqtServerEndpoint relay_endpoint2(&simulator, "Relay2", "Client2",
+                                     kDefaultMoqtVersion);
+
+  link1.emplace(&client1, &relay_endpoint1,
+                quic::simulator::TestHarness::kClientBandwidth,
+                quic::simulator::TestHarness::kClientPropagationDelay);
+  link2.emplace(&client2, &relay_endpoint2,
+                quic::simulator::TestHarness::kClientBandwidth,
+                quic::simulator::TestHarness::kClientPropagationDelay);
+
+  client1.session()->set_support_object_acks(true);
+  client2.session()->set_support_object_acks(true);
+  relay_endpoint1.session()->set_support_object_acks(true);
+  relay_endpoint2.session()->set_support_object_acks(true);
+
+  client1.session()->callbacks() = client1_callbacks.AsSessionCallbacks();
+  client1.session()->callbacks().clock = simulator.GetClock();
+  client2.session()->callbacks() = client2_callbacks.AsSessionCallbacks();
+  client2.session()->callbacks().clock = simulator.GetClock();
+  relay_endpoint1.session()->callbacks() =
+      relay1_callbacks.AsSessionCallbacks();
+  relay_endpoint1.session()->callbacks().clock = simulator.GetClock();
+  relay_endpoint2.session()->callbacks() =
+      relay2_callbacks.AsSessionCallbacks();
+  relay_endpoint2.session()->callbacks().clock = simulator.GetClock();
+
+  relay_endpoint1.session()->set_publisher(&relay_publisher);
+  relay_endpoint2.session()->set_publisher(&relay_publisher);
+  relay_publisher.set_oack_window_size(
+      quic::QuicTimeDelta::FromMilliseconds(50));
+  relay_publisher.SetDefaultUpstreamSession(relay_endpoint1.session());
+
+  client1.quic_session()->CryptoConnect();
+  client2.quic_session()->CryptoConnect();
+  bool client1_established = false;
+  bool client2_established = false;
+  bool relay1_established = false;
+  bool relay2_established = false;
+  EXPECT_CALL(client1_callbacks.session_established_callback, Call())
+      .WillOnce(Assign(&client1_established, true));
+  EXPECT_CALL(client2_callbacks.session_established_callback, Call())
+      .WillOnce(Assign(&client2_established, true));
+  EXPECT_CALL(relay1_callbacks.session_established_callback, Call())
+      .WillOnce(Assign(&relay1_established, true));
+  EXPECT_CALL(relay2_callbacks.session_established_callback, Call())
+      .WillOnce(Assign(&relay2_established, true));
+  bool success = simulator.RunUntilOrTimeout(
+      [&]() {
+        return client1_established && client2_established &&
+               relay1_established && relay2_established;
+      },
+      quic::simulator::TestHarness::kDefaultTimeout);
+  ASSERT_TRUE(success);
+
+  client1.session()->set_publisher(&client1_publisher);
+  FullTrackName track_name("test", "track");
+  auto queue =
+      std::make_shared<MoqtOutgoingQueue>(track_name, simulator.GetClock());
+  client1_publisher.Add(queue);
+
+  testing::StrictMock<MockPublishingMonitorInterface> monitoring;
+  client1.session()->SetMonitoringInterfaceForTrack(track_name, &monitoring);
+
+  MoqtObjectAckFunction client2_ack_function = nullptr;
+  EXPECT_CALL(subscriber_visitor, OnCanAckObjects(_))
+      .WillOnce([&](MoqtObjectAckFunction new_ack_function) {
+        client2_ack_function = std::move(new_ack_function);
+      });
+
+  bool subscribe_acknowledged = false;
+  EXPECT_CALL(subscriber_visitor, OnReply)
+      .WillOnce(
+          [&](const FullTrackName&,
+              std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) {
+            subscribe_acknowledged =
+                std::holds_alternative<SubscribeOkData>(response);
+          });
+
+  MessageParameters parameters(MoqtFilterType::kLargestObject);
+  parameters.oack_window_size = quic::QuicTimeDelta::FromMilliseconds(100);
+  EXPECT_CALL(monitoring,
+              OnObjectAckSupportKnown(std::optional<quic::QuicTimeDelta>(
+                  quic::QuicTimeDelta::FromMilliseconds(50))));
+  client2.session()->Subscribe(track_name, &subscriber_visitor, parameters);
+  success = simulator.RunUntilOrTimeout(
+      [&]() {
+        return subscribe_acknowledged && client2_ack_function != nullptr;
+      },
+      quic::simulator::TestHarness::kDefaultTimeout);
+  ASSERT_TRUE(success);
+
+  int acks_received = 0;
+  EXPECT_CALL(monitoring,
+              OnObjectAckReceived(Location(1, 2),
+                                  quic::QuicTimeDelta::FromMicroseconds(12345)))
+      .WillOnce([&] { ++acks_received; });
+
+  client2_ack_function(1, 2, quic::QuicTimeDelta::FromMicroseconds(12345));
+
+  EXPECT_CALL(monitoring,
+              OnObjectAckReceived(Location(3, 4),
+                                  quic::QuicTimeDelta::FromMicroseconds(67890)))
+      .WillOnce([&] { ++acks_received; });
+
+  client2_ack_function(3, 4, quic::QuicTimeDelta::FromMicroseconds(67890));
+
+  success = simulator.RunUntilOrTimeout(
+      [&]() { return acks_received == 2; },
+      quic::simulator::TestHarness::kDefaultTimeout);
+  EXPECT_TRUE(success);
+}
+
 TEST_F(MoqtIntegrationTest, TrackStatusSuccess) {
   EstablishSession();
   FullTrackName track_name("test", "data");

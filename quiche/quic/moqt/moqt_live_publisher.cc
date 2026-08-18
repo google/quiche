@@ -55,6 +55,9 @@ LivePublisher::LivePublisher(
   }
   monitoring_interface_ = session_info->ReleaseMonitoringInterface(
       track_publisher_->GetTrackName());
+  if (monitoring_interface_ == nullptr && track_publisher_ != nullptr) {
+    monitoring_interface_ = track_publisher_->GetMonitoringInterface();
+  }
   if (monitoring_interface_ != nullptr) {
     monitoring_interface_->OnObjectAckSupportKnown(parameters.oack_window_size);
   }

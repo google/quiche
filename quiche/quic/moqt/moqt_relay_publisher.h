@@ -6,10 +6,12 @@
 #define QUICHE_QUIC_MOQT_MOQT_RELAY_PUBLISHER_H_
 
 #include <memory>
+#include <optional>
 #include <utility>
 
 #include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
@@ -74,6 +76,14 @@ class MoqtRelayPublisher : public MoqtPublisher {
     }
   }
 
+  std::optional<quic::QuicTimeDelta> oack_window_size() const {
+    return oack_window_size_;
+  }
+  void set_oack_window_size(
+      std::optional<quic::QuicTimeDelta> oack_window_size) {
+    oack_window_size_ = oack_window_size;
+  }
+
  private:
   MoqtSessionInterface* GetUpstream(TrackNamespace& track_namespace);
 
@@ -90,6 +100,7 @@ class MoqtRelayPublisher : public MoqtPublisher {
   // TODO(martinduke): Add a map of Namespaces to namespace listeners.
 
   quiche::QuicheWeakPtr<MoqtSessionInterface> default_upstream_session_;
+  std::optional<quic::QuicTimeDelta> oack_window_size_;
 };
 
 }  // namespace moqt

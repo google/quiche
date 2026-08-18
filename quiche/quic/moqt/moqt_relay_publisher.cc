@@ -11,6 +11,7 @@
 #include "absl/base/nullability.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
@@ -38,7 +39,9 @@ absl_nullable std::shared_ptr<MoqtTrackPublisher> MoqtRelayPublisher::GetTrack(
   }
   auto track_publisher = std::make_shared<MoqtRelayTrackPublisher>(
       track_name, upstream->GetWeakPtr(),
-      [this, track_name] { tracks_.erase(track_name); });
+      [this, track_name] { tracks_.erase(track_name); },
+      quic::QuicTime::Infinite(), quic::QuicDefaultClock::Get(),
+      oack_window_size_);
   tracks_[track_name] = track_publisher;
   return track_publisher;
 }
