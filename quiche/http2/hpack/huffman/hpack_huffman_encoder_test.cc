@@ -9,19 +9,24 @@
 
 #include "absl/base/macros.h"
 #include "absl/strings/escaping.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace http2 {
 namespace {
 
 TEST(HuffmanEncoderTest, Empty) {
-  std::string empty("");
-  size_t encoded_size = HuffmanSize(empty);
-  EXPECT_EQ(0u, encoded_size);
+  for (bool flag_value : {false, true}) {
+    SetQuicheReloadableFlag(hpack_huffman_encoder_64bit_accumulator,
+                            flag_value);
+    std::string empty("");
+    size_t encoded_size = HuffmanSize(empty);
+    EXPECT_EQ(0u, encoded_size);
 
-  std::string buffer;
-  HuffmanEncode(empty, encoded_size, &buffer);
-  EXPECT_EQ("", buffer);
+    std::string buffer;
+    HuffmanEncode(empty, encoded_size, &buffer);
+    EXPECT_EQ("", buffer);
+  }
 }
 
 TEST(HuffmanEncoderTest, SpecRequestExamples) {
@@ -38,16 +43,20 @@ TEST(HuffmanEncoderTest, SpecRequestExamples) {
       "25a849e95bb8e8b4bf",
       "custom-value",
   };
-  for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
-    std::string huffman_encoded;
-    ASSERT_TRUE(absl::HexStringToBytes(test_table[i], &huffman_encoded));
-    const std::string& plain_string(test_table[i + 1]);
-    size_t encoded_size = HuffmanSize(plain_string);
-    EXPECT_EQ(huffman_encoded.size(), encoded_size);
-    std::string buffer;
-    buffer.reserve(huffman_encoded.size());
-    HuffmanEncode(plain_string, encoded_size, &buffer);
-    EXPECT_EQ(buffer, huffman_encoded) << "Error encoding " << plain_string;
+  for (bool flag_value : {false, true}) {
+    SetQuicheReloadableFlag(hpack_huffman_encoder_64bit_accumulator,
+                            flag_value);
+    for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
+      std::string huffman_encoded;
+      ASSERT_TRUE(absl::HexStringToBytes(test_table[i], &huffman_encoded));
+      const std::string& plain_string(test_table[i + 1]);
+      size_t encoded_size = HuffmanSize(plain_string);
+      EXPECT_EQ(huffman_encoded.size(), encoded_size);
+      std::string buffer;
+      buffer.reserve(huffman_encoded.size());
+      HuffmanEncode(plain_string, encoded_size, &buffer);
+      EXPECT_EQ(buffer, huffman_encoded) << "Error encoding " << plain_string;
+    }
   }
 }
 
@@ -69,15 +78,19 @@ TEST(HuffmanEncoderTest, SpecResponseExamples) {
       "03ed4ee5b1063d5007",
       "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU; max-age=3600; version=1",
   };
-  for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
-    std::string huffman_encoded;
-    ASSERT_TRUE(absl::HexStringToBytes(test_table[i], &huffman_encoded));
-    const std::string& plain_string(test_table[i + 1]);
-    size_t encoded_size = HuffmanSize(plain_string);
-    EXPECT_EQ(huffman_encoded.size(), encoded_size);
-    std::string buffer;
-    HuffmanEncode(plain_string, encoded_size, &buffer);
-    EXPECT_EQ(buffer, huffman_encoded) << "Error encoding " << plain_string;
+  for (bool flag_value : {false, true}) {
+    SetQuicheReloadableFlag(hpack_huffman_encoder_64bit_accumulator,
+                            flag_value);
+    for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); i += 2) {
+      std::string huffman_encoded;
+      ASSERT_TRUE(absl::HexStringToBytes(test_table[i], &huffman_encoded));
+      const std::string& plain_string(test_table[i + 1]);
+      size_t encoded_size = HuffmanSize(plain_string);
+      EXPECT_EQ(huffman_encoded.size(), encoded_size);
+      std::string buffer;
+      HuffmanEncode(plain_string, encoded_size, &buffer);
+      EXPECT_EQ(buffer, huffman_encoded) << "Error encoding " << plain_string;
+    }
   }
 }
 
@@ -96,28 +109,36 @@ TEST(HuffmanEncoderTest, EncodedSizeAgreesWithEncodeString) {
     test_table[ABSL_ARRAYSIZE(test_table) - 1][i] = static_cast<char>(i);
   }
 
-  for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); ++i) {
-    const std::string& plain_string = test_table[i];
-    size_t encoded_size = HuffmanSize(plain_string);
-    std::string huffman_encoded;
-    HuffmanEncode(plain_string, encoded_size, &huffman_encoded);
-    EXPECT_EQ(encoded_size, huffman_encoded.size());
+  for (bool flag_value : {false, true}) {
+    SetQuicheReloadableFlag(hpack_huffman_encoder_64bit_accumulator,
+                            flag_value);
+    for (size_t i = 0; i != ABSL_ARRAYSIZE(test_table); ++i) {
+      const std::string& plain_string = test_table[i];
+      size_t encoded_size = HuffmanSize(plain_string);
+      std::string huffman_encoded;
+      HuffmanEncode(plain_string, encoded_size, &huffman_encoded);
+      EXPECT_EQ(encoded_size, huffman_encoded.size());
+    }
   }
 }
 
 // Test that encoding appends to output without overwriting it.
 TEST(HuffmanEncoderTest, AppendToOutput) {
-  size_t encoded_size = HuffmanSize("foo");
-  std::string buffer;
-  HuffmanEncode("foo", encoded_size, &buffer);
-  std::string expected_encoding;
-  ASSERT_TRUE(absl::HexStringToBytes("94e7", &expected_encoding));
-  EXPECT_EQ(expected_encoding, buffer);
+  for (bool flag_value : {false, true}) {
+    SetQuicheReloadableFlag(hpack_huffman_encoder_64bit_accumulator,
+                            flag_value);
+    size_t encoded_size = HuffmanSize("foo");
+    std::string buffer;
+    HuffmanEncode("foo", encoded_size, &buffer);
+    std::string expected_encoding;
+    ASSERT_TRUE(absl::HexStringToBytes("94e7", &expected_encoding));
+    EXPECT_EQ(expected_encoding, buffer);
 
-  encoded_size = HuffmanSize("bar");
-  HuffmanEncode("bar", encoded_size, &buffer);
-  ASSERT_TRUE(absl::HexStringToBytes("94e78c767f", &expected_encoding));
-  EXPECT_EQ(expected_encoding, buffer);
+    encoded_size = HuffmanSize("bar");
+    HuffmanEncode("bar", encoded_size, &buffer);
+    ASSERT_TRUE(absl::HexStringToBytes("94e78c767f", &expected_encoding));
+    EXPECT_EQ(expected_encoding, buffer);
+  }
 }
 
 }  // namespace
