@@ -3072,6 +3072,13 @@ bool QuicFramer::ProcessIetfFrameData(QuicDataReader* reader,
           if (!ProcessNewTokenFrame(reader, &frame)) {
             return RaiseError(QUIC_INVALID_NEW_TOKEN);
           }
+          if (frame.token.empty()) {
+            // RFC 9000, Section 19.7: the token in a NEW_TOKEN frame MUST NOT
+            // be empty, and a client MUST treat receipt of an empty Token
+            // field as a connection error of type FRAME_ENCODING_ERROR.
+            set_detailed_error("New token frame has empty token.");
+            return RaiseError(QUIC_INVALID_FRAME_DATA);
+          }
           QUIC_DVLOG(2) << ENDPOINT << "Processing IETF new token frame "
                         << frame;
           if (!visitor_->OnNewTokenFrame(frame)) {

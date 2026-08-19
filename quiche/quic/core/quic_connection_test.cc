@@ -14417,7 +14417,7 @@ TEST_P(QuicConnectionTest, NewTokenFrameInstigateAcks) {
   }
   EXPECT_CALL(visitor_, OnSuccessfulVersionNegotiation(_));
 
-  QuicNewTokenFrame* new_token = new QuicNewTokenFrame();
+  QuicNewTokenFrame* new_token = new QuicNewTokenFrame(1, "new_token");
   EXPECT_CALL(visitor_, OnNewTokenReceived(_));
   ProcessFramePacket(QuicFrame(new_token));
 
@@ -14430,7 +14430,7 @@ TEST_P(QuicConnectionTest, ServerClosesConnectionOnNewTokenFrame) {
     return;
   }
   set_perspective(Perspective::IS_SERVER);
-  QuicNewTokenFrame* new_token = new QuicNewTokenFrame();
+  QuicNewTokenFrame* new_token = new QuicNewTokenFrame(1, "new_token");
   EXPECT_CALL(visitor_, OnNewTokenReceived(_)).Times(0);
   EXPECT_CALL(visitor_, OnConnectionClosed(_, _));
   EXPECT_CALL(visitor_, BeforeConnectionCloseSent());
@@ -16202,7 +16202,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   EXPECT_CALL(visitor_, OnStreamsBlockedFrame(_));
   EXPECT_CALL(visitor_, OnStopSendingFrame(_));
   EXPECT_CALL(visitor_, OnDatagramReceived(""));
-  EXPECT_CALL(visitor_, OnNewTokenReceived(""));
+  EXPECT_CALL(visitor_, OnNewTokenReceived("new_token"));
 
   SetClientConnectionId(TestConnectionId(12));
   connection_.CreateConnectionIdManager();
@@ -16222,7 +16222,7 @@ TEST_P(QuicConnectionTest, AckElicitingFrames) {
   QuicStopSendingFrame stop_sending_frame;
   QuicPathResponseFrame path_response_frame;
   QuicDatagramFrame message_frame;
-  QuicNewTokenFrame new_token_frame;
+  QuicNewTokenFrame new_token_frame(1, "new_token");
   QuicAckFrequencyFrame ack_frequency_frame;
   QuicResetStreamAtFrame reset_stream_at_frame;
   QuicBlockedFrame blocked_frame;
