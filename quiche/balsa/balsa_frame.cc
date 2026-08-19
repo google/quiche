@@ -899,6 +899,10 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
     }
 
     if (headers->transfer_encoding_is_chunked_) {
+      // Verify this code block is never reached as
+      // headers->transfer_encoding_is_chunked_ is supposed to be false before
+      // the call to ProcessTransferEncodingLine.
+      QUICHE_CODE_COUNT(chunked_transfer_encoding_detected);
       headers->content_length_ = 0;
       headers->content_length_status_ = BalsaHeadersEnums::NO_CONTENT_LENGTH;
       content_length_remaining_ = 0;
