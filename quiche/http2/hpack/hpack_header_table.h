@@ -89,8 +89,6 @@ class QUICHE_EXPORT HpackHeaderTable {
   // Adds an entry for the representation, evicting entries as needed. |name|
   // and |value| must not point to an entry in |dynamic_entries_| which is about
   // to be evicted, but they may point to an entry which is not.
-  // The added HpackEntry is returned, or NULL is returned if all entries were
-  // evicted and the empty table is of insufficent size for the representation.
   void TryAddEntry(absl::string_view name, absl::string_view value);
 
  private:
