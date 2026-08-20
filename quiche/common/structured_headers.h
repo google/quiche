@@ -112,9 +112,9 @@ class QUICHE_EXPORT Item {
     QUICHE_CHECK(value);
     return *value;
   }
-  // TODO(apaseltiner): Rename this to `GetString()` after all callers have been
-  // migrated off the current version of `GetString()` that works with strings,
-  // tokens, and byte sequences.
+  // TODO(apaseltiner): Rename this to `GetString()` now that all callers have
+  // been migrated off the old version of `GetString()` that worked with
+  // strings, tokens, and byte sequences.
   const std::string& GetStringStrict() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     const auto* value = GetIfString();
     QUICHE_CHECK(value);
@@ -140,8 +140,6 @@ class QUICHE_EXPORT Item {
   const std::string* GetIfToken() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
   std::string* GetIfToken() ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
-  // Note: This only returns a non-nullptr if `Type() == kString`, unlike the
-  // deprecated `GetString()` and `TakeString()` methods.
   const std::string* GetIfString() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
   std::string* GetIfString() ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
@@ -150,25 +148,6 @@ class QUICHE_EXPORT Item {
 
   const bool* GetIfBoolean() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
   bool* GetIfBoolean() ABSL_ATTRIBUTE_LIFETIME_BOUND;
-
-  // Deprecated: Prefer `GetStringStrict()`, `GetToken()`, or
-  // `GetByteSequence()`.
-  const std::string& GetString() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    struct Visitor {
-      const std::string* operator()(const std::monostate&) { return nullptr; }
-      const std::string* operator()(const int64_t&) { return nullptr; }
-      const std::string* operator()(const double&) { return nullptr; }
-      const std::string* operator()(const std::string& value) { return &value; }
-      const std::string* operator()(const Token& value) { return &value.value; }
-      const std::string* operator()(const ByteSequence& value) {
-        return &value.value;
-      }
-      const std::string* operator()(const bool&) { return nullptr; }
-    };
-    const std::string* value = std::visit(Visitor(), value_);
-    QUICHE_CHECK(value);
-    return *value;
-  }
 
   ItemType Type() const { return static_cast<ItemType>(value_.index()); }
 
