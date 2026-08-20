@@ -154,13 +154,13 @@ class HpackEncoderTest
   void SetUp() override {
     // Populate dynamic entries into the table fixture. For simplicity each
     // entry has name.size() + value.size() == 10.
-    key_1_ = peer_.table()->TryAddEntry("key1", "value1");
+    peer_.table()->TryAddEntry("key1", "value1");
     key_1_index_ = dynamic_table_insertions_++;
-    key_2_ = peer_.table()->TryAddEntry("key2", "value2");
+    peer_.table()->TryAddEntry("key2", "value2");
     key_2_index_ = dynamic_table_insertions_++;
-    cookie_a_ = peer_.table()->TryAddEntry("cookie", "a=bb");
+    peer_.table()->TryAddEntry("cookie", "a=bb");
     cookie_a_index_ = dynamic_table_insertions_++;
-    cookie_c_ = peer_.table()->TryAddEntry("cookie", "c=dd");
+    peer_.table()->TryAddEntry("cookie", "c=dd");
     cookie_c_index_ = dynamic_table_insertions_++;
 
     // No further insertions may occur without evictions.
@@ -270,10 +270,7 @@ class HpackEncoderTest
   const size_t kInitialDynamicTableSize = 4 * (10 + 32);
 
   const HpackEntry* static_;
-  const HpackEntry* key_1_;
-  const HpackEntry* key_2_;
-  const HpackEntry* cookie_a_;
-  const HpackEntry* cookie_c_;
+
   size_t key_1_index_;
   size_t key_2_index_;
   size_t cookie_a_index_;
@@ -422,10 +419,9 @@ TEST_P(HpackEncoderTest, SingleDynamicIndex) {
   ExpectIndex(DynamicIndexToWireIndex(key_2_index_));
 
   quiche::HttpHeaderBlock headers;
-  headers[key_2_->name()] = key_2_->value();
+  headers["key2"] = "value2";
   CompareWithExpectedEncoding(headers);
-  EXPECT_THAT(headers_observed_,
-              ElementsAre(Pair(key_2_->name(), key_2_->value())));
+  EXPECT_THAT(headers_observed_, ElementsAre(Pair("key2", "value2")));
 }
 
 TEST_P(HpackEncoderTest, SingleStaticIndex) {
@@ -451,12 +447,12 @@ TEST_P(HpackEncoderTest, SingleLiteralWithIndexName) {
   ExpectIndexedLiteral(DynamicIndexToWireIndex(key_2_index_), "value3");
 
   quiche::HttpHeaderBlock headers;
-  headers[key_2_->name()] = "value3";
+  headers["key2"] = "value3";
   CompareWithExpectedEncoding(headers);
 
   // A new entry was inserted and added to the reference set.
   HpackEntry* new_entry = peer_.table_peer().dynamic_entries()->front().get();
-  EXPECT_EQ(new_entry->name(), key_2_->name());
+  EXPECT_EQ(new_entry->name(), "key2");
   EXPECT_EQ(new_entry->value(), "value3");
 }
 
@@ -493,7 +489,7 @@ TEST_P(HpackEncoderTest, EmitThanEvict) {
   ExpectIndexedLiteral("key3", "value3");
 
   quiche::HttpHeaderBlock headers;
-  headers[key_1_->name()] = key_1_->value();
+  headers["key1"] = "value1";
   headers["key3"] = "value3";
   CompareWithExpectedEncoding(headers);
 }

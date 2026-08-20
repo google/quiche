@@ -136,8 +136,8 @@ void HpackHeaderTable::Evict(size_t count) {
   }
 }
 
-const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
-                                                absl::string_view value) {
+void HpackHeaderTable::TryAddEntry(absl::string_view name,
+                                   absl::string_view value) {
   // Since |dynamic_entries_| has iterator stability, |name| and |value| are
   // valid even after evicting other entries and push_front() making room for
   // the new one.
@@ -148,7 +148,7 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
     // Entire table has been emptied, but there's still insufficient room.
     QUICHE_DCHECK(dynamic_entries_.empty());
     QUICHE_DCHECK_EQ(0u, size_);
-    return nullptr;
+    return;
   }
 
   const size_t index = dynamic_table_insertions_;
@@ -184,11 +184,8 @@ const HpackEntry* HpackHeaderTable::TryAddEntry(absl::string_view name,
         dynamic_name_index_.insert(std::make_pair(new_entry->name(), index));
     QUICHE_CHECK(insert_result.second);
   }
-
   size_ += entry_size;
   ++dynamic_table_insertions_;
-
-  return dynamic_entries_.front().get();
 }
 
 }  // namespace spdy
