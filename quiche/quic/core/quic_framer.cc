@@ -2464,6 +2464,7 @@ bool QuicFramer::ProcessIetfPacketHeader(QuicDataReader* reader,
       if (version_label == kSconeVersionHigh) {
         *scone_value |= 0x01;
       }
+      header->is_scone_header = true;
     }
     header->destination_connection_id =
         QuicConnectionId(destination_connection_id);

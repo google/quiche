@@ -13,7 +13,6 @@
 #include <utility>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "absl/strings/string_view.h"
@@ -19045,6 +19044,49 @@ TEST_P(QuicConnectionTest, ServerReflectsSpinBit) {
     next_spin = !next_spin;
     offset += 3;
   }
+}
+
+TEST_P(QuicConnectionTest, SconeCanChangeServerConnectionId) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  // Set up connection to accept SCONE packets to avoid triggering QUIC_BUG.
+  QuicConfig config;
+  config.set_parse_scone_packets(true);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig);
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillRepeatedly(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillRepeatedly(Return(false));
+  connection_.SetFromConfig(config);
+
+  // Create a valid SCONE header that meets all the conditions.
+  QuicPacketHeader header;
+  header.destination_connection_id = EmptyQuicConnectionId();
+  header.source_connection_id = EmptyQuicConnectionId();
+  header.version = UnsupportedQuicVersion();
+  header.form = IETF_QUIC_LONG_HEADER_PACKET;
+  header.long_packet_type = HANDSHAKE;
+  header.version_flag = true;
+  header.is_scone_header = true;
+  EXPECT_TRUE(connection_.OnUnauthenticatedPublicHeader(header));
+
+  // Break the conditions one at a time.
+  header.is_scone_header = false;
+  EXPECT_FALSE(connection_.OnUnauthenticatedPublicHeader(header));
+  header.is_scone_header = true;
+
+  header.source_connection_id = TestConnectionId(0x1234);
+  EXPECT_TRUE(connection_.OnUnauthenticatedPublicHeader(header));
+  // Replace initial server connection ID. Non-empty connection ID is no longer
+  // valid.
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
+  peer_creator_.SetServerConnectionId(TestConnectionId(0x5678));
+  QuicFrame frame = MakeCryptoFrame();
+  ForceProcessFramePacket(frame);
+  DeleteFrame(&frame);
+  EXPECT_EQ(
+      QuicConnectionPeer::GetDefaultPath(&connection_)->server_connection_id,
+      TestConnectionId(0x5678));
+  EXPECT_FALSE(connection_.OnUnauthenticatedPublicHeader(header));
 }
 
 }  // namespace

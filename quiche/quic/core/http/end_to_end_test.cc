@@ -32,6 +32,7 @@
 #include "openssl/ssl.h"
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
+#include "quiche/quic/core/crypto/proof_source.h"
 #include "quiche/quic/core/crypto/quic_client_session_cache.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
@@ -84,6 +85,7 @@
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/core/scone.h"
+#include "quiche/quic/core/tls_server_handshaker.h"
 #include "quiche/quic/core/web_transport_interface.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_flags.h"
@@ -94,6 +96,7 @@
 #include "quiche/quic/platform/api/quic_test_loopback.h"
 #include "quiche/quic/test_tools/bad_packet_writer.h"
 #include "quiche/quic/test_tools/crypto_test_utils.h"
+#include "quiche/quic/test_tools/fake_proof_source_handle.h"
 #include "quiche/quic/test_tools/packet_dropping_test_writer.h"
 #include "quiche/quic/test_tools/packet_reordering_writer.h"
 #include "quiche/quic/test_tools/qpack/qpack_encoder_peer.h"
@@ -130,7 +133,6 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/common/quiche_endian.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
@@ -280,6 +282,59 @@ class ClientDelegate : public PacketDroppingTestWriter::Delegate {
 
  private:
   QuicDefaultClient* client_;
+};
+
+// In production, the proof source is often asynchronous, which can affect the
+// code path. These classes create this pattern by returning PENDING on
+// SelectCertificate() and scheduling completion on |server_thread|.
+class AsyncTlsServerHandshaker : public TlsServerHandshaker {
+ public:
+  // Note that |server_thread| is a pointer to a unique_ptr. server_thread_
+  // has typically not been created when this is called.
+  AsyncTlsServerHandshaker(QuicSession* session,
+                           const QuicCryptoServerConfig* crypto_config,
+                           std::unique_ptr<ServerThread>* server_thread)
+      : TlsServerHandshaker(session, crypto_config),
+        crypto_config_(crypto_config),
+        server_thread_(server_thread) {}
+
+  std::unique_ptr<ProofSourceHandle> MaybeCreateProofSourceHandle() override {
+    auto handle = std::make_unique<FakeProofSourceHandle>(
+        crypto_config_->proof_source(), this,
+        FakeProofSourceHandle::Action::DELEGATE_ASYNC,
+        FakeProofSourceHandle::Action::DELEGATE_SYNC, QuicDelayedSSLConfig(),
+        [this]() {
+          (*server_thread_)->Schedule([this]() {
+            fake_proof_source_handle_->CompletePendingOperation();
+          });
+        });
+    fake_proof_source_handle_ = handle.get();
+    return handle;
+  }
+
+ private:
+  const QuicCryptoServerConfig* crypto_config_;
+  std::unique_ptr<ServerThread>* server_thread_;
+  FakeProofSourceHandle* fake_proof_source_handle_ = nullptr;
+};
+
+class AsyncCryptoStreamFactory : public QuicTestServer::CryptoStreamFactory {
+ public:
+  // Note that |server_thread| is a pointer to a unique_ptr. server_thread_
+  // has typically not been created when this is called.
+  explicit AsyncCryptoStreamFactory(
+      std::unique_ptr<ServerThread>* server_thread)
+      : server_thread_(server_thread) {}
+
+  std::unique_ptr<QuicCryptoServerStreamBase> CreateCryptoStream(
+      const QuicCryptoServerConfig* crypto_config,
+      QuicServerSessionBase* session) override {
+    return std::make_unique<AsyncTlsServerHandshaker>(session, crypto_config,
+                                                      server_thread_);
+  }
+
+ private:
+  std::unique_ptr<ServerThread>* server_thread_;
 };
 
 class EndToEndTest : public QuicTestWithParam<TestParams> {
@@ -647,8 +702,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
       fd_ = kQuicInvalidSocketFd;
     }
     auto test_server = std::make_unique<QuicTestServer>(
-        crypto_test_utils::ProofSourceForTesting(), server_config_,
-        server_supported_versions_, &memory_cache_backend_,
+        crypto_test_utils::ProofSourceForTesting("", num_certs_in_chain_),
+        server_config_, server_supported_versions_, &memory_cache_backend_,
         expected_server_connection_id_length_);
     test_server->SetEventLoopFactory(GetParam().event_loop);
     const QuicSocketAddress server_listening_address =
@@ -676,6 +731,10 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
     if (stream_factory_ != nullptr) {
       absl::down_cast<QuicTestServer*>(server_thread_->server())
           ->SetSpdyStreamFactory(stream_factory_);
+    }
+    if (async_crypto_stream_factory_ != nullptr) {
+      absl::down_cast<QuicTestServer*>(server_thread_->server())
+          ->SetCryptoStreamFactory(async_crypto_stream_factory_);
     }
 
     server_thread_->Start();
@@ -1119,6 +1178,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   bool use_preferred_address_ = false;
   QuicSocketAddress server_preferred_address_;
   QuicPacketWriterParams packet_writer_params_;
+  AsyncCryptoStreamFactory* async_crypto_stream_factory_ = nullptr;
+  int num_certs_in_chain_ = 1;
 };
 
 // Run all end to end tests with all supported versions.
@@ -4763,6 +4824,8 @@ class DowngradePacketWriter : public PacketDroppingTestWriter {
 // SconePacketWriter will look for SCONE packets from the client and write
 // bandwidth values into them as a SCONE network element would. It only does
 // so for flows where it has observed the SCONE indicator.
+// TODO(martinduke): Refactor this class. It only works well when the SCONE
+// flow is client->server.
 static constexpr size_t kMaxSconeReports = 5;
 class SconePacketWriter : public PacketDroppingTestWriter {
  public:
@@ -4802,6 +4865,12 @@ class SconePacketWriter : public PacketDroppingTestWriter {
     }
     return kReportedValues[*last_report_index_].second;
   }
+
+  // For server->client SCONE flows, the writer won't see the SCONE indicator.
+  void ForceFlowtoScone(QuicSocketAddress address) {
+    observed_scone_endpoints_.insert(address.host());
+  }
+  bool SawSconeIndicator() const { return !observed_scone_endpoints_.empty(); }
 
  private:
   bool FlowIsScone(const QuicIpAddress& self_address,
@@ -4968,6 +5037,48 @@ TEST_P(EndToEndTest, SconeProtocolServerToClient) {
               scone_writer->last_bandwidth_report().value_or(previous_report));
     previous_report = client_session->received_bandwidth();
   }
+}
+
+// Repro for part of b/548012868. It will crash if the client does not accept
+// a new connection ID in a SCONE header bundled with INITIAL.
+TEST_P(EndToEndTest, SconeProtocolServerToClientAsynchronous) {
+  if (!version_.IsIetfQuic() || override_server_connection_id_length_ != 16) {
+    // Because the server in this test suite uses
+    // DeterministicConnectionIdGenerator, an 8-byte connection ID is unchanged,
+    // meaning it will not be rejected by the client.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  client_config_.set_parse_scone_packets(true);
+  server_config_.set_scone_packet_interval(QuicTime::Delta::FromSeconds(20));
+
+  // Build a cert chain with 8 certs, so that the HANDSHAKE messages fill
+  // several packets.
+  num_certs_in_chain_ = 8;
+  AsyncCryptoStreamFactory async_crypto_stream_factory(&server_thread_);
+  async_crypto_stream_factory_ = &async_crypto_stream_factory;
+
+  // server_writer_ is allocated with 'new' in SetUp(), but will be replaced
+  // here with a SconePacketWriter.
+  delete server_writer_;
+  server_writer_ = new SconePacketWriter();
+  absl::down_cast<SconePacketWriter*>(server_writer_)
+      ->ForceFlowtoScone(server_address_);
+  delete client_writer_;
+  client_writer_ = new SconePacketWriter();
+
+  ASSERT_TRUE(Initialize());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  QuicTestClientSession* client_session =
+      absl::down_cast<QuicTestClientSession*>(client_->client()->session());
+  ASSERT_NE(client_session, nullptr);
+
+  EXPECT_TRUE(
+      absl::down_cast<SconePacketWriter*>(client_writer_)->SawSconeIndicator());
+  // The very first packet in the handshake came with SCONE. If it was rejected
+  // by the client because it was a new connection ID, there will be no
+  // bandwidth report.
+  EXPECT_NE(client_session->received_bandwidth(), QuicBandwidth::Zero());
 }
 
 TEST_P(EndToEndTest, VersionNegotiationDowngradeAttackIsDetected) {

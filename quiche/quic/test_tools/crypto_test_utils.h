@@ -9,6 +9,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -176,7 +177,7 @@ std::string GetValueForTag(const CryptoHandshakeMessage& message, QuicTag tag);
 // with it as described at
 // https://tlswg.org/tls-trust-anchor-ids/draft-ietf-tls-trust-anchor-ids.html#section-4.1.
 std::unique_ptr<ProofSource> ProofSourceForTesting(
-    const std::string& trust_anchor_id = "");
+    const std::string& trust_anchor_id = "", int num_certs_in_chain = 1);
 
 // Returns a new |ProofVerifier| that uses the QUIC testing root CA.
 std::unique_ptr<ProofVerifier> ProofVerifierForTesting();

@@ -1005,6 +1005,19 @@ bool QuicConnection::ValidateServerConnectionId(
     return true;
   }
 
+  // header.is_scone_header cannot be true unless parse_scone_packets is true.
+  if (header.is_scone_header && perspective_ == Perspective::IS_CLIENT &&
+      version().IsIetfQuic() &&
+
+      (!server_connection_id_replaced_by_initial_ ||
+       // The SCONE sender can omit server connection ID if followed by short
+       // header packets.
+       server_connection_id.IsEmpty())) {
+    QUIC_BUG_IF(quic_bug_scone_parsed_unexpectedly, !parse_scone_packets_)
+        << "header.is_scone_header true without setting parse_scone_packets";
+    return true;
+  }
+
   if (PacketCanReplaceServerConnectionId(header, perspective_)) {
     QUIC_DLOG(INFO) << ENDPOINT << "Accepting packet with new connection ID "
                     << server_connection_id << " instead of "
