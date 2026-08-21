@@ -4838,10 +4838,9 @@ class SconePacketWriter : public PacketDroppingTestWriter {
     if (buf_len < kSconeIndicatorLength) {
       return WriteResult(WRITE_STATUS_ERROR, 0);
     }
-    if (!FlowIsScone(self_address, peer_address, buffer + buf_len)) {
-      // Nothing to do, forward.
-      return PacketDroppingTestWriter::WritePacket(
-          buffer, buf_len, self_address, peer_address, options, params);
+    if (!saw_scone_indicator_.has_value()) {
+      absl::string_view data(buffer, buf_len);
+      saw_scone_indicator_ = data.ends_with("\xc8\x13");
     }
     // Look for SCONE header.
     char new_buffer[kMaxOutgoingPacketSize];
@@ -4866,28 +4865,11 @@ class SconePacketWriter : public PacketDroppingTestWriter {
     return kReportedValues[*last_report_index_].second;
   }
 
-  // For server->client SCONE flows, the writer won't see the SCONE indicator.
-  void ForceFlowtoScone(QuicSocketAddress address) {
-    observed_scone_endpoints_.insert(address.host());
+  bool SawSconeIndicator() const {
+    return saw_scone_indicator_.has_value() && *saw_scone_indicator_;
   }
-  bool SawSconeIndicator() const { return !observed_scone_endpoints_.empty(); }
 
  private:
-  bool FlowIsScone(const QuicIpAddress& self_address,
-                   const QuicSocketAddress& peer_address, const char* buffer) {
-    if (observed_scone_endpoints_.contains(self_address) ||
-        observed_scone_endpoints_.contains(peer_address.host())) {
-      return true;
-    }
-    const uint8_t* ubuffer = reinterpret_cast<const uint8_t*>(buffer);
-    if (*(ubuffer - 2) == 0xc8 && *(ubuffer - 1) == 0x13) {
-      // Indicator is present, record the flow.
-      observed_scone_endpoints_.insert(peer_address.host());
-      return true;
-    }
-    return false;
-  }
-
   const std::pair<uint8_t, std::optional<QuicBandwidth>>
       kReportedValues[kMaxSconeReports] = {
           {0, GetSconeBandwidths()[0]},
@@ -4896,20 +4878,10 @@ class SconePacketWriter : public PacketDroppingTestWriter {
           {25, GetSconeBandwidths()[25]},
           {127, std::nullopt},
       };
-
   std::optional<int> last_report_index_;
-  // Record the destination IP of any Client Hello with a SCONE indicator, so
-  // that any packet to or from that IP can be checked for SCONE packets.
-  // It would be nice to have the whole 4-tuple, but unfortunately the call
-  // to WritePacket() for client hellos doesn't have a self_address, and when
-  // the server is sending it's more effort to get the port.
-  struct QuicIpHash {
-    size_t operator()(const QuicIpAddress& ip) const {
-      // Use the internal string representation for a stable hash
-      return absl::HashOf(ip.ToString());
-    }
-  };
-  absl::flat_hash_set<QuicIpAddress, QuicIpHash> observed_scone_endpoints_;
+
+  // If nullopt, no packet has been processed by the writer.
+  std::optional<bool> saw_scone_indicator_;
 };
 
 class SconeServerTrackingSession : public QuicSimpleServerSession {
@@ -4958,16 +4930,20 @@ TEST_P(EndToEndTest, SconeProtocolClientToServer) {
   }
   client_config_.set_scone_packet_interval(QuicTime::Delta::FromSeconds(1));
   server_config_.set_parse_scone_packets(true);
-
-  connect_to_server_on_initialize_ = false;
-  ResetClientWriterForVersionNegotiationTest();
-  ASSERT_TRUE(Initialize());
-  SconeSessionFactory scone_session_factory;
-  absl::down_cast<QuicTestServer*>(server_thread_->server())
-      ->SetSessionFactory(&scone_session_factory);
+  delete client_writer_;
   client_writer_ = new SconePacketWriter();
   SconePacketWriter* scone_writer =
       absl::down_cast<SconePacketWriter*>(client_writer_);
+
+  // Initialize without connecting so we can configure the server session.
+  connect_to_server_on_initialize_ = false;
+  ASSERT_TRUE(Initialize());
+  // Replace QuicSpdySession with a class that handles SCONE.
+  SconeSessionFactory scone_session_factory;
+  absl::down_cast<QuicTestServer*>(server_thread_->server())
+      ->SetSessionFactory(&scone_session_factory);
+  // Connect and wait for the handshake to complete. Then grab a pointer to the
+  // server session.
   CreateClientWithWriter();
   QuicConnection* client_connection = GetClientConnection();
   if (client_connection == nullptr) {
@@ -4978,10 +4954,8 @@ TEST_P(EndToEndTest, SconeProtocolClientToServer) {
       QuicConnectionPeer::GetHelper(client_connection),
       QuicConnectionPeer::GetAlarmFactory(client_connection),
       std::make_unique<ClientDelegate>(client_->client()));
-  ;
-  // Wait for the client to be connected and the handshake to complete. Then
-  // grab a pointer to the server session.
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+
   server_thread_->Pause();
   auto server_session =
       absl::down_cast<SconeServerTrackingSession*>(GetServerSession());
@@ -5004,6 +4978,7 @@ TEST_P(EndToEndTest, SconeProtocolClientToServer) {
               scone_writer->last_bandwidth_report());
     previous_report = server_session->received_bandwidth();
   }
+  ASSERT_TRUE(scone_writer->SawSconeIndicator());
 }
 
 TEST_P(EndToEndTest, SconeProtocolServerToClient) {
@@ -5014,9 +4989,11 @@ TEST_P(EndToEndTest, SconeProtocolServerToClient) {
   client_config_.set_parse_scone_packets(true);
   server_config_.set_scone_packet_interval(QuicTime::Delta::FromSeconds(1));
 
+  delete client_writer_;
+  client_writer_ = new SconePacketWriter();
   delete server_writer_;
   server_writer_ = new SconePacketWriter();
-  SconePacketWriter* scone_writer =
+  SconePacketWriter* network_element =
       absl::down_cast<SconePacketWriter*>(server_writer_);
   ASSERT_TRUE(Initialize());
   // Wait for the client to be connected and the handshake to complete. Then
@@ -5033,10 +5010,13 @@ TEST_P(EndToEndTest, SconeProtocolServerToClient) {
   for (size_t i = 0; i < kMaxSconeReports; ++i) {
     client_->SendSynchronousRequest("/bar");
     client_->WaitUntil(1005, []() { return false; });
-    EXPECT_EQ(client_session->received_bandwidth(),
-              scone_writer->last_bandwidth_report().value_or(previous_report));
+    EXPECT_EQ(
+        client_session->received_bandwidth(),
+        network_element->last_bandwidth_report().value_or(previous_report));
     previous_report = client_session->received_bandwidth();
   }
+  EXPECT_TRUE(
+      absl::down_cast<SconePacketWriter*>(client_writer_)->SawSconeIndicator());
 }
 
 // Repro for part of b/548012868. It will crash if the client does not accept
@@ -5062,8 +5042,6 @@ TEST_P(EndToEndTest, SconeProtocolServerToClientAsynchronous) {
   // here with a SconePacketWriter.
   delete server_writer_;
   server_writer_ = new SconePacketWriter();
-  absl::down_cast<SconePacketWriter*>(server_writer_)
-      ->ForceFlowtoScone(server_address_);
   delete client_writer_;
   client_writer_ = new SconePacketWriter();
 
