@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_join.h"
 #include "quiche/http2/adapter/http2_protocol.h"
 #include "quiche/http2/adapter/http2_visitor_interface.h"
@@ -1691,6 +1692,75 @@ TEST(OgHttp2AdapterTest, ClientHandlesTrailers) {
   result = adapter->Send();
   EXPECT_EQ(0, result);
   EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::SETTINGS}));
+}
+
+TEST(OgHttp2AdapterTest, ClientSubmitRequestWithNeverIndexingPolicy) {
+  // Huffman coding is disabled so the encoded header block contains
+  // predictable byte sequences that can be asserted on directly.
+  OgHttp2Adapter::Options options;
+  options.perspective = Perspective::kClient;
+  options.compression_option = OgHttp2Adapter::Options::DISABLE_HUFFMAN;
+
+  const std::vector<Header> headers =
+      ToHeaders({{":method", "GET"},
+                 {":scheme", "http"},
+                 {":authority", "example.com"},
+                 {":path", "/this/is/request/one"},
+                 {"x-request-id", "12345678-abcd"}});
+
+  // The literal name and value, as they appear after the representation's
+  // opcode and length prefixes.
+  const absl::string_view kNameAndValue(
+      "\x0c"
+      "x-request-id"
+      "\x0d"
+      "12345678-abcd");
+  // RFC 7541 Section 6.2.3: literal header field never indexed, with literal
+  // (non-indexed) name.
+  const std::string kNeverIndexed = absl::StrCat("\x10", kNameAndValue);
+  // RFC 7541 Section 6.2.1: literal header field with incremental indexing.
+  const std::string kIncrementallyIndexed = absl::StrCat("\x40", kNameAndValue);
+
+  TestVisitor visitor;
+  auto adapter = OgHttp2Adapter::Create(visitor, options);
+  adapter->SetNeverIndexingPolicy(
+      [](absl::string_view name, absl::string_view /*value*/) {
+        return name == "x-request-id";
+      });
+
+  const int32_t stream_id = adapter->SubmitRequest(headers, true, nullptr);
+  ASSERT_GT(stream_id, 0);
+  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, stream_id, _, 0x5));
+  EXPECT_CALL(visitor, OnFrameSent(HEADERS, stream_id, _, 0x5, 0));
+  EXPECT_EQ(0, adapter->Send());
+
+  EXPECT_THAT(visitor.data(), testing::HasSubstr(kNeverIndexed));
+  EXPECT_THAT(visitor.data(),
+              testing::Not(testing::HasSubstr(kIncrementallyIndexed)));
+
+  // For comparison, an adapter without the policy emits the same header with
+  // incremental indexing, inserting it into the HPACK dynamic table.
+  TestVisitor control_visitor;
+  auto control_adapter = OgHttp2Adapter::Create(control_visitor, options);
+  const int32_t control_stream_id =
+      control_adapter->SubmitRequest(headers, true, nullptr);
+  ASSERT_GT(control_stream_id, 0);
+  EXPECT_CALL(control_visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+  EXPECT_CALL(control_visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+  EXPECT_CALL(control_visitor,
+              OnBeforeFrameSent(HEADERS, control_stream_id, _, 0x5));
+  EXPECT_CALL(control_visitor, OnFrameSent(HEADERS, control_stream_id, _, 0x5, 0));
+  EXPECT_EQ(0, control_adapter->Send());
+
+  EXPECT_THAT(control_visitor.data(), testing::HasSubstr(kIncrementallyIndexed));
+  EXPECT_THAT(control_visitor.data(),
+              testing::Not(testing::HasSubstr(kNeverIndexed)));
+
+  // The never-indexed header was not inserted into the dynamic table.
+  EXPECT_LT(adapter->GetHpackEncoderDynamicTableSize(),
+            control_adapter->GetHpackEncoderDynamicTableSize());
 }
 
 TEST(OgHttp2AdapterTest, ClientSendsTrailers) {
