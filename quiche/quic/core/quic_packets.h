@@ -145,6 +145,8 @@ struct QUICHE_EXPORT QuicPacketHeader {
   bool has_possible_stateless_reset_token : 1;
   // Latency spin bit on the short packet header (RFC 9000 Section 17.4)
   bool spin_bit : 1;
+  // Packet is SCONE (version will be ParsedQuicVersion::Unsupported)
+  bool is_scone_header : 1 = false;
   // -- end bitfield-able bools in the first cacheline --
 
   // There are 8 bytes still available in the first cacheline.  Start with long

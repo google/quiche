@@ -558,7 +558,7 @@ class StableBlockList {                            // QUICHE_NO_EXPORT
     }
   }
 
-  [[no_unique_address]] Allocator allocator_;
+  ABSL_ATTRIBUTE_NO_UNIQUE_ADDRESS Allocator allocator_;
   absl_nullable std::unique_ptr<ControlBlock> control_block_;
 };
 

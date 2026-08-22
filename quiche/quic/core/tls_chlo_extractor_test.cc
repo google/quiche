@@ -398,7 +398,6 @@ TEST_P(TlsChloExtractorTest, MoveAssignmentBetweenPackets) {
   EXPECT_EQ(tls_chlo_extractor_->state(),
             TlsChloExtractor::State::kParsedFullMultiPacketChlo);
 }
-
 }  // namespace
 }  // namespace test
 }  // namespace quic

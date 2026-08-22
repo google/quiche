@@ -18,6 +18,7 @@
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 namespace test {
@@ -43,11 +44,14 @@ class FakeProofSourceHandle : public ProofSourceHandle {
 
   // |delegate| must do cert selection and signature synchronously.
   // |delayed_ssl_config| is the config passed to OnSelectCertificateDone.
+  // |pending_callback| is called when a pending operation is started, so that
+  // CompletePendingOperation() can be scheduled on a thread.
   FakeProofSourceHandle(
       ProofSource* absl_nonnull delegate,
       ProofSourceHandleCallback* absl_nonnull callback,
       Action select_cert_action, Action compute_signature_action,
-      QuicDelayedSSLConfig delayed_ssl_config = QuicDelayedSSLConfig());
+      QuicDelayedSSLConfig delayed_ssl_config = QuicDelayedSSLConfig(),
+      quiche::SingleUseCallback<void()> pending_callback = nullptr);
 
   ~FakeProofSourceHandle() override = default;
 
@@ -203,6 +207,9 @@ class FakeProofSourceHandle : public ProofSourceHandle {
   // Save all the select cert and compute signature args for tests to inspect.
   std::vector<SelectCertArgs> all_select_cert_args_;
   std::vector<ComputeSignatureArgs> all_compute_signature_args_;
+
+  // Called when SelectCertificate() returns PENDING.
+  quiche::SingleUseCallback<void()> pending_callback_;
 };
 
 }  // namespace test

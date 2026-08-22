@@ -20,10 +20,9 @@
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
-#include "quiche/quic/platform/api/quic_flags.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_logging.h"
-#include "quiche/common/platform/api/quiche_reference_counted.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 namespace test {
@@ -70,12 +69,14 @@ ComputeSignatureResult ComputeSignatureNow(
 FakeProofSourceHandle::FakeProofSourceHandle(
     ProofSource* absl_nonnull delegate,
     ProofSourceHandleCallback* absl_nonnull callback, Action select_cert_action,
-    Action compute_signature_action, QuicDelayedSSLConfig delayed_ssl_config)
+    Action compute_signature_action, QuicDelayedSSLConfig delayed_ssl_config,
+    quiche::SingleUseCallback<void()> pending_callback)
     : delegate_(delegate),
       callback_(callback),
       select_cert_action_(select_cert_action),
       compute_signature_action_(compute_signature_action),
-      delayed_ssl_config_(delayed_ssl_config) {
+      delayed_ssl_config_(delayed_ssl_config),
+      pending_callback_(std::move(pending_callback)) {
   QUICHE_CHECK(delegate);
   QUICHE_CHECK(callback);
 }
@@ -108,6 +109,10 @@ QuicAsyncStatus FakeProofSourceHandle::SelectCertificate(
       select_cert_action_ == Action::FAIL_ASYNC) {
     select_cert_op_.emplace(delegate_, callback_, select_cert_action_,
                             all_select_cert_args_.back(), delayed_ssl_config_);
+    if (pending_callback_ != nullptr) {
+      std::move(pending_callback_)();
+      pending_callback_ = nullptr;
+    }
     return QUIC_PENDING;
   } else if (select_cert_action_ == Action::FAIL_SYNC ||
              select_cert_action_ == Action::FAIL_SYNC_DO_NOT_CHECK_CLOSED) {

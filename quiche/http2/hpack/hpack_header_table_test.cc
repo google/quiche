@@ -112,8 +112,9 @@ class HpackHeaderTableTest : public quiche::test::QuicheTest {
       table_.EvictionSet(it->name(), it->value(), &begin, &end);
       EXPECT_EQ(0, distance(begin, end));
 
-      const HpackEntry* entry = table_.TryAddEntry(it->name(), it->value());
-      EXPECT_NE(entry, static_cast<HpackEntry*>(nullptr));
+      size_t old_size = peer_.dynamic_entries().size();
+      table_.TryAddEntry(it->name(), it->value());
+      EXPECT_EQ(old_size + 1, peer_.dynamic_entries().size());
     }
   }
 
@@ -147,7 +148,8 @@ TEST_F(HpackHeaderTableTest, BasicDynamicEntryInsertionAndEviction) {
   const HpackEntry* first_static_entry = peer_.GetFirstStaticEntry();
   const HpackEntry* last_static_entry = peer_.GetLastStaticEntry();
 
-  const HpackEntry* entry = table_.TryAddEntry("header-key", "Header Value");
+  table_.TryAddEntry("header-key", "Header Value");
+  const HpackEntry* entry = peer_.dynamic_entries().front().get();
   EXPECT_EQ("header-key", entry->name());
   EXPECT_EQ("Header Value", entry->value());
 
@@ -250,17 +252,18 @@ TEST_F(HpackHeaderTableTest, EntryIndexing) {
 
 TEST_F(HpackHeaderTableTest, SetSizes) {
   std::string key = "key", value = "value";
-  const HpackEntry* entry1 = table_.TryAddEntry(key, value);
-  const HpackEntry* entry2 = table_.TryAddEntry(key, value);
-  const HpackEntry* entry3 = table_.TryAddEntry(key, value);
+  size_t entry_size = HpackEntry::Size(key, value);
+  table_.TryAddEntry(key, value);
+  table_.TryAddEntry(key, value);
+  table_.TryAddEntry(key, value);
 
   // Set exactly large enough. No Evictions.
-  size_t max_size = entry1->Size() + entry2->Size() + entry3->Size();
+  size_t max_size = entry_size * 3;
   table_.SetMaxSize(max_size);
   EXPECT_EQ(3u, peer_.dynamic_entries().size());
 
   // Set just too small. One eviction.
-  max_size = entry1->Size() + entry2->Size() + entry3->Size() - 1;
+  max_size = entry_size * 3 - 1;
   table_.SetMaxSize(max_size);
   EXPECT_EQ(2u, peer_.dynamic_entries().size());
 
@@ -273,7 +276,7 @@ TEST_F(HpackHeaderTableTest, SetSizes) {
 
   // SETTINGS_HEADER_TABLE_SIZE upper-bounds |table_.max_size()|,
   // and will force evictions.
-  max_size = entry3->Size() - 1;
+  max_size = entry_size - 1;
   table_.SetSettingsHeaderTableSize(max_size);
   EXPECT_EQ(max_size, table_.max_size());
   EXPECT_EQ(max_size, table_.settings_size_bound());
@@ -282,30 +285,31 @@ TEST_F(HpackHeaderTableTest, SetSizes) {
 
 TEST_F(HpackHeaderTableTest, EvictionCountForEntry) {
   std::string key = "key", value = "value";
-  const HpackEntry* entry1 = table_.TryAddEntry(key, value);
-  const HpackEntry* entry2 = table_.TryAddEntry(key, value);
-  size_t entry3_size = HpackEntry::Size(key, value);
+  size_t entry_size = HpackEntry::Size(key, value);
+  table_.TryAddEntry(key, value);
+  table_.TryAddEntry(key, value);
 
   // Just enough capacity for third entry.
-  table_.SetMaxSize(entry1->Size() + entry2->Size() + entry3_size);
+  table_.SetMaxSize(entry_size * 3);
   EXPECT_EQ(0u, peer_.EvictionCountForEntry(key, value));
   EXPECT_EQ(1u, peer_.EvictionCountForEntry(key, value + "x"));
 
   // No extra capacity. Third entry would force evictions.
-  table_.SetMaxSize(entry1->Size() + entry2->Size());
+  table_.SetMaxSize(entry_size * 2);
   EXPECT_EQ(1u, peer_.EvictionCountForEntry(key, value));
   EXPECT_EQ(2u, peer_.EvictionCountForEntry(key, value + "x"));
 }
 
 TEST_F(HpackHeaderTableTest, EvictionCountToReclaim) {
   std::string key = "key", value = "value";
-  const HpackEntry* entry1 = table_.TryAddEntry(key, value);
-  const HpackEntry* entry2 = table_.TryAddEntry(key, value);
+  size_t entry_size = HpackEntry::Size(key, value);
+  table_.TryAddEntry(key, value);
+  table_.TryAddEntry(key, value);
 
   EXPECT_EQ(1u, peer_.EvictionCountToReclaim(1));
-  EXPECT_EQ(1u, peer_.EvictionCountToReclaim(entry1->Size()));
-  EXPECT_EQ(2u, peer_.EvictionCountToReclaim(entry1->Size() + 1));
-  EXPECT_EQ(2u, peer_.EvictionCountToReclaim(entry1->Size() + entry2->Size()));
+  EXPECT_EQ(1u, peer_.EvictionCountToReclaim(entry_size));
+  EXPECT_EQ(2u, peer_.EvictionCountToReclaim(entry_size + 1));
+  EXPECT_EQ(2u, peer_.EvictionCountToReclaim(entry_size * 2));
 }
 
 // Fill a header table with entries. Make sure the entries are in
@@ -385,9 +389,7 @@ TEST_F(HpackHeaderTableTest, TryAddTooLargeEntry) {
   EXPECT_EQ(peer_.dynamic_entries().size(),
             peer_.EvictionSet(long_entry.name(), long_entry.value()).size());
 
-  const HpackEntry* new_entry =
-      table_.TryAddEntry(long_entry.name(), long_entry.value());
-  EXPECT_EQ(new_entry, static_cast<HpackEntry*>(nullptr));
+  table_.TryAddEntry(long_entry.name(), long_entry.value());
   EXPECT_EQ(0u, peer_.dynamic_entries().size());
 }
 
