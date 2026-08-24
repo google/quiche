@@ -1874,10 +1874,6 @@ QuicByteCount QuicSpdyStream::GetMaxDatagramSize() const {
   QuicByteCount max_datagram_size =
       session()->GetGuaranteedLargestDatagramPayload();
   if (max_datagram_size < prefix_size) {
-    QUIC_BUG(max_datagram_size smaller than prefix_size)
-        << "GetGuaranteedLargestDatagramPayload() returned a datagram size "
-           "that "
-           "is not sufficient to fit stream ID into it.";
     return 0;
   }
   return max_datagram_size - prefix_size;
