@@ -1037,7 +1037,7 @@ std::optional<Dictionary> ParseDictionary(absl::string_view str, bool strict) {
 
 std::optional<std::string> SerializeItem(const Item& value) {
   StructuredHeaderSerializer s;
-  if (s.WriteItem(ParameterizedItem(value, {}))) return std::move(s).Output();
+  if (s.WriteBareItem(value)) return std::move(s).Output();
   return std::nullopt;
 }
 
