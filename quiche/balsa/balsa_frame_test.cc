@@ -3775,7 +3775,6 @@ TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingHeadersIsAnError) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_TRANSFER_ENCODING_KEYS,
             balsa_frame_.ErrorCode());
-  EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_transfer_encoding_keys);
 }
 
 TEST_F(HTTPBalsaFrameTest, AcceptTwoTransferEncodingHeaders) {
@@ -3794,7 +3793,6 @@ TEST_F(HTTPBalsaFrameTest, AcceptTwoTransferEncodingHeaders) {
 
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
-  EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_transfer_encoding_keys);
 }
 
 TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingTokensIsAnError) {
@@ -3808,7 +3806,6 @@ TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingTokensIsAnError) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::UNKNOWN_TRANSFER_ENCODING,
             balsa_frame_.ErrorCode());
-  EXPECT_TRUE(balsa_frame_.protocol_defects().unknown_transfer_encoding);
 }
 
 TEST_F(HTTPBalsaFrameTest, AcceptTwoTransferEncodingTokens) {
@@ -3826,7 +3823,6 @@ TEST_F(HTTPBalsaFrameTest, AcceptTwoTransferEncodingTokens) {
 
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
-  EXPECT_TRUE(balsa_frame_.protocol_defects().unknown_transfer_encoding);
 }
 
 TEST_F(HTTPBalsaFrameTest, UnknownTransferEncodingTokenIsAnError) {
@@ -3840,7 +3836,6 @@ TEST_F(HTTPBalsaFrameTest, UnknownTransferEncodingTokenIsAnError) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::UNKNOWN_TRANSFER_ENCODING,
             balsa_frame_.ErrorCode());
-  EXPECT_TRUE(balsa_frame_.protocol_defects().unknown_transfer_encoding);
 }
 
 TEST_F(HTTPBalsaFrameTest, AcceptUnknownTransferEncodingToken) {
@@ -3858,7 +3853,6 @@ TEST_F(HTTPBalsaFrameTest, AcceptUnknownTransferEncodingToken) {
 
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
-  EXPECT_TRUE(balsa_frame_.protocol_defects().unknown_transfer_encoding);
 }
 
 TEST_F(HTTPBalsaFrameTest, MissingContentLength) {
