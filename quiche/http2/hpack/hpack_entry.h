@@ -41,7 +41,7 @@ struct QUICHE_EXPORT HpackLookupEntry {
 // and the header table (3.3.2).
 class QUICHE_EXPORT HpackEntry {
  public:
-  HpackEntry(std::string name, std::string value);
+  HpackEntry(std::string name, std::string value, size_t added_index = 0);
 
   // Make HpackEntry non-copyable to make sure it is always moved.
   HpackEntry(const HpackEntry&) = delete;
@@ -64,6 +64,8 @@ class QUICHE_EXPORT HpackEntry {
   absl::string_view name() const { return name_; }
   absl::string_view value() const { return value_; }
 
+  size_t added_index() const { return added_index_; }
+
   // Returns the size of an entry as defined in 5.1.
   static size_t Size(absl::string_view name, absl::string_view value);
   size_t Size() const;
@@ -73,6 +75,7 @@ class QUICHE_EXPORT HpackEntry {
  private:
   std::string name_;
   std::string value_;
+  size_t added_index_;
 };
 
 }  // namespace spdy

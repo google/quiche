@@ -47,7 +47,7 @@ class HpackHeaderTablePeer {
     table_->EvictionSet(name, value, &begin, &end);
     std::vector<HpackEntry*> result;
     for (; begin != end; ++begin) {
-      result.push_back(begin->get());
+      result.push_back(&*begin);
     }
     return result;
   }
@@ -110,7 +110,7 @@ class HpackHeaderTableTest : public quiche::test::QuicheTest {
       HpackHeaderTable::DynamicEntryTable::iterator begin, end;
 
       table_.EvictionSet(it->name(), it->value(), &begin, &end);
-      EXPECT_EQ(0, distance(begin, end));
+      EXPECT_TRUE(begin == end);
 
       size_t old_size = peer_.dynamic_entries().size();
       table_.TryAddEntry(it->name(), it->value());
@@ -149,7 +149,7 @@ TEST_F(HpackHeaderTableTest, BasicDynamicEntryInsertionAndEviction) {
   const HpackEntry* last_static_entry = peer_.GetLastStaticEntry();
 
   table_.TryAddEntry("header-key", "Header Value");
-  const HpackEntry* entry = peer_.dynamic_entries().front().get();
+  const HpackEntry* entry = &peer_.dynamic_entries().front();
   EXPECT_EQ("header-key", entry->name());
   EXPECT_EQ("Header Value", entry->value());
 
@@ -359,8 +359,8 @@ TEST_F(HpackHeaderTableTest, TryAddEntryEviction) {
   HpackEntryVector entries = MakeEntriesOfTotalSize(table_.max_size());
   AddEntriesExpectNoEviction(entries);
 
-  // The first entry in the dynamic table.
-  const HpackEntry* survivor_entry = peer_.dynamic_entries().front().get();
+  // The newest entry in the dynamic table.
+  const HpackEntry* survivor_entry = &peer_.dynamic_entries().back();
 
   HpackEntry long_entry =
       MakeEntryOfSize(table_.max_size() - survivor_entry->Size());

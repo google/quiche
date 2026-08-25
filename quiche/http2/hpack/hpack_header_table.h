@@ -9,11 +9,13 @@
 #include <memory>
 #include <vector>
 
+#include "absl/container/chunked_queue.h"
 #include "absl/container/flat_hash_map.h"
+#include "absl/container/flat_hash_set.h"
+#include "absl/hash/hash.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/hpack/hpack_entry.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/common/quiche_circular_deque.h"
 
 // All section references below are to http://tools.ietf.org/html/rfc7541.
 
@@ -39,8 +41,7 @@ class QUICHE_EXPORT HpackHeaderTable {
 
   // HpackHeaderTable takes advantage of the deque property that references
   // remain valid, so long as insertions & deletions are at the head & tail.
-  using DynamicEntryTable =
-      quiche::QuicheCircularDeque<std::unique_ptr<HpackEntry>>;
+  using DynamicEntryTable = absl::chunked_queue<HpackEntry, 4, 64>;
 
   using NameValueToEntryMap = absl::flat_hash_map<HpackLookupEntry, size_t>;
   using NameToEntryMap = absl::flat_hash_map<absl::string_view, size_t>;
@@ -119,15 +120,58 @@ class QUICHE_EXPORT HpackHeaderTable {
   // |static_entries_|.
   const NameToEntryMap& static_name_index_;
 
-  // Tracks the index of the most recently inserted HpackEntry for a given
-  // header name and value.  Keys consist of string_views that point to strings
-  // stored in |dynamic_entries_|.
-  NameValueToEntryMap dynamic_index_;
+  struct NameValueHash {
+    using is_transparent = void;
+    size_t operator()(const HpackEntry* entry) const {
+      return absl::HashOf(entry->name(), entry->value());
+    }
+    size_t operator()(const HpackLookupEntry& entry) const {
+      return absl::HashOf(entry.name, entry.value);
+    }
+  };
+  struct NameValueEq {
+    using is_transparent = void;
+    bool operator()(const HpackEntry* lhs, const HpackEntry* rhs) const {
+      return lhs->name() == rhs->name() && lhs->value() == rhs->value();
+    }
+    bool operator()(const HpackEntry* lhs, const HpackLookupEntry& rhs) const {
+      return lhs->name() == rhs.name && lhs->value() == rhs.value;
+    }
+  };
 
-  // Tracks the index of the most recently inserted HpackEntry for a given
-  // header name.  Each key is a string_view that points to a name string stored
-  // in |dynamic_entries_|.
-  NameToEntryMap dynamic_name_index_;
+  struct NameHash {
+    using is_transparent = void;
+    size_t operator()(const HpackEntry* entry) const {
+      return absl::HashOf(entry->name());
+    }
+    size_t operator()(absl::string_view name) const {
+      return absl::HashOf(name);
+    }
+  };
+  struct NameEq {
+    using is_transparent = void;
+    bool operator()(const HpackEntry* lhs, const HpackEntry* rhs) const {
+      return lhs->name() == rhs->name();
+    }
+    bool operator()(const HpackEntry* lhs, absl::string_view rhs) const {
+      return lhs->name() == rhs;
+    }
+  };
+
+  using DynamicIndexSet =
+      absl::flat_hash_set<const HpackEntry*, NameValueHash, NameValueEq>;
+  using DynamicNameIndexSet =
+      absl::flat_hash_set<const HpackEntry*, NameHash, NameEq>;
+
+  // Tracks the most recently inserted HpackEntry for a given header name and
+  // value. Stored as a set of HpackEntry pointers to look up string data in
+  // |dynamic_entries_| without duplicating string keys.
+  DynamicIndexSet dynamic_index_;
+
+  // Tracks the most recently inserted HpackEntry for a given header name.
+  // Stored as a set of HpackEntry pointers to look up string data in
+  // |dynamic_entries_| without duplicating string keys.
+  DynamicNameIndexSet dynamic_name_index_;
 
   // Last acknowledged value for SETTINGS_HEADER_TABLE_SIZE.
   size_t settings_size_bound_;
