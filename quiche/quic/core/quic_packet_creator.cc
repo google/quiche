@@ -509,6 +509,7 @@ void QuicPacketCreator::ClearPacket() {
   needs_full_padding_ = false;
   packet_.bytes_not_retransmitted.reset();
   packet_.initial_header.reset();
+  packet_.has_scone_packet = false;
 }
 
 size_t QuicPacketCreator::ReserializeInitialPacketInCoalescedPacket(

@@ -160,5 +160,10 @@ bool QuicPacketCreatorPeer::RemoveSoftMaxPacketLength(
   return creator->RemoveSoftMaxPacketLength();
 }
 
+// static
+bool QuicPacketCreatorPeer::HasSconePacket(QuicPacketCreator* creator) {
+  return creator->packet_.has_scone_packet;
+}
+
 }  // namespace test
 }  // namespace quic

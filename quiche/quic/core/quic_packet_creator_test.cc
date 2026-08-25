@@ -1903,6 +1903,18 @@ TEST_P(QuicPacketCreatorTest, IetfAckGapErrorRegression) {
   SerializeAllFrames(frames_);
 }
 
+// Regression test for b/548012868.
+TEST_P(QuicPacketCreatorTest, FlushClearsScone) {
+  creator_.PrependSconePacket();
+  creator_.AddFrame(QuicFrame(QuicPingFrame()), NOT_RETRANSMISSION);
+  EXPECT_CALL(delegate_, OnSerializedPacket)
+      .WillOnce([](SerializedPacket packet) {
+        EXPECT_TRUE(packet.has_scone_packet);
+      });
+  creator_.FlushCurrentPacket();
+  EXPECT_FALSE(QuicPacketCreatorPeer::HasSconePacket(&creator_));
+}
+
 TEST_P(QuicPacketCreatorTest, AddDatagramFrame) {
   if (client_framer_.version().IsIetfQuic()) {
     creator_.SetMaxDatagramFrameSize(kMaxAcceptedDatagramFrameSize);

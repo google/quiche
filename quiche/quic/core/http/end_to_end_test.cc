@@ -5059,6 +5059,46 @@ TEST_P(EndToEndTest, SconeProtocolServerToClientAsynchronous) {
   EXPECT_NE(client_session->received_bandwidth(), QuicBandwidth::Zero());
 }
 
+// Repro for the other part of b/548012868. Without a fix to the
+// QuicPacketCreator logic, this test will crash when transmitting an INITIAL
+// that had SCONE.
+TEST_P(EndToEndTest, SconeProtocolServerToClientAsynchronousWithPacketLoss) {
+  if (!version_.IsIetfQuic() || override_server_connection_id_length_ != 16) {
+    // Because the server in this test suite uses
+    // DeterministicConnectionIdGenerator, an 8-byte connection ID is unchanged,
+    // meaning it will not be rejected by the client.
+    ASSERT_TRUE(Initialize());
+    return;
+  }
+  client_config_.set_parse_scone_packets(true);
+  server_config_.set_scone_packet_interval(QuicTime::Delta::FromSeconds(20));
+
+  // Build a cert chain with 8 certs, so that the HANDSHAKE messages fill
+  // several packets.
+  num_certs_in_chain_ = 8;
+  AsyncCryptoStreamFactory async_crypto_stream_factory(&server_thread_);
+  async_crypto_stream_factory_ = &async_crypto_stream_factory;
+
+  delete server_writer_;
+  server_writer_ = new SconePacketWriter();
+  delete client_writer_;
+  client_writer_ = new SconePacketWriter();
+  // Drop the first server packet.
+  absl::down_cast<SconePacketWriter*>(server_writer_)
+      ->set_fake_drop_first_n_packets(1);
+
+  ASSERT_TRUE(Initialize());
+  EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
+  QuicTestClientSession* client_session =
+      absl::down_cast<QuicTestClientSession*>(client_->client()->session());
+  ASSERT_NE(client_session, nullptr);
+
+  EXPECT_TRUE(
+      absl::down_cast<SconePacketWriter*>(client_writer_)->SawSconeIndicator());
+  // There should be no bandwidth report, because the SCONE packet was lost.
+  EXPECT_EQ(client_session->received_bandwidth(), QuicBandwidth::Zero());
+}
+
 TEST_P(EndToEndTest, VersionNegotiationDowngradeAttackIsDetected) {
   ResetClientWriterForVersionNegotiationTest();
   ParsedQuicVersion target_version = server_supported_versions_.back();

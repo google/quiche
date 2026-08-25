@@ -57,6 +57,7 @@ class QuicPacketCreatorPeer {
   static void SetRandom(QuicPacketCreator* creator, QuicRandom* random);
   static bool WillAttachSconeIndicator(const QuicPacketCreator& creator);
   static bool RemoveSoftMaxPacketLength(QuicPacketCreator* creator);
+  static bool HasSconePacket(QuicPacketCreator* creator);
 };
 
 }  // namespace test
