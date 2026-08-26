@@ -2813,8 +2813,8 @@ TEST(BalsaHeaders, TestSetResponseReasonPhrase) {
       "qwerty",
       "qwerty asdfghjkl",
   };
-  size_t arraysize_squared = (ABSL_ARRAYSIZE(response_reason_phrases) *
-                              ABSL_ARRAYSIZE(response_reason_phrases));
+  size_t arraysize_squared =
+      (std::size(response_reason_phrases) * std::size(response_reason_phrases));
   // We go through the 9 different permutations of (response_reason_phrases
   // choose 2) in the loop below. For each permutation, we mutate the firstline
   // twice-- once from the original, and once from the previous.
@@ -2827,7 +2827,7 @@ TEST(BalsaHeaders, TestSetResponseReasonPhrase) {
     ASSERT_THAT(headers.first_line(), StrEq("HTTP/1.0 200 reason phrase"));
 
     {
-      int first = iteration / ABSL_ARRAYSIZE(response_reason_phrases);
+      int first = iteration / std::size(response_reason_phrases);
       const char* response_reason_phrase_first = response_reason_phrases[first];
       std::string expected_new_firstline =
           absl::StrFormat("HTTP/1.0 200 %s", response_reason_phrase_first);
@@ -2849,7 +2849,7 @@ TEST(BalsaHeaders, TestSetResponseReasonPhrase) {
     // these states, and try each of our scenarios again. This inner loop does
     // that.
     {
-      int second = iteration % ABSL_ARRAYSIZE(response_reason_phrases);
+      int second = iteration % std::size(response_reason_phrases);
       const char* response_reason_phrase_second =
           response_reason_phrases[second];
       std::string expected_new_firstline =
@@ -2889,7 +2889,7 @@ TEST(BalsaHeaders, TestSetResponseVersion) {
       "ABCD/123456",
   };
   size_t arraysize_squared =
-      (ABSL_ARRAYSIZE(response_versions) * ABSL_ARRAYSIZE(response_versions));
+      (std::size(response_versions) * std::size(response_versions));
   // We go through the 9 different permutations of (response_versions choose 2)
   // in the loop below. For each permutation, we mutate the firstline twice--
   // once from the original, and once from the previous.
@@ -2905,7 +2905,7 @@ TEST(BalsaHeaders, TestSetResponseVersion) {
     // variations of setting.
 
     {
-      int first = iteration / ABSL_ARRAYSIZE(response_versions);
+      int first = iteration / std::size(response_versions);
       const char* response_version_first = response_versions[first];
       std::string expected_new_firstline =
           absl::StrFormat("%s 200 reason phrase", response_version_first);
@@ -2919,7 +2919,7 @@ TEST(BalsaHeaders, TestSetResponseVersion) {
       EXPECT_THAT(headers.response_reason_phrase(), StrEq("reason phrase"));
     }
     {
-      int second = iteration % ABSL_ARRAYSIZE(response_versions);
+      int second = iteration % std::size(response_versions);
       const char* response_version_second = response_versions[second];
       std::string expected_new_firstline =
           absl::StrFormat("%s 200 reason phrase", response_version_second);
@@ -2969,7 +2969,7 @@ TEST(BalsaHeaders, TestSetResponseCode) {
       "200200",
   };
   size_t arraysize_squared =
-      (ABSL_ARRAYSIZE(response_codes) * ABSL_ARRAYSIZE(response_codes));
+      (std::size(response_codes) * std::size(response_codes));
   // We go through the 9 different permutations of (response_codes choose 2)
   // in the loop below. For each permutation, we mutate the firstline twice--
   // once from the original, and once from the previous.
@@ -2985,7 +2985,7 @@ TEST(BalsaHeaders, TestSetResponseCode) {
     // variations of setting.
 
     {
-      int first = iteration / ABSL_ARRAYSIZE(response_codes);
+      int first = iteration / std::size(response_codes);
       const char* response_code_first = response_codes[first];
       std::string expected_new_firstline =
           absl::StrFormat("HTTP/1.0 %s reason phrase", response_code_first);
@@ -3000,7 +3000,7 @@ TEST(BalsaHeaders, TestSetResponseCode) {
       EXPECT_THAT(headers.response_reason_phrase(), StrEq("reason phrase"));
     }
     {
-      int second = iteration % ABSL_ARRAYSIZE(response_codes);
+      int second = iteration % std::size(response_codes);
       const char* response_code_second = response_codes[second];
       std::string expected_new_secondline =
           absl::StrFormat("HTTP/1.0 %s reason phrase", response_code_second);
