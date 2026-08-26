@@ -190,6 +190,9 @@ class QUICHE_EXPORT ProofSource {
   // This function may be called concurrently.
   //
   // Callers should expect that |callback| might be invoked synchronously.
+  //
+  // This is used only for "gQUIC" -- that is, version QUIC_VERSION_46, which
+  // does not use TLS, as opposed to "IETF QUIC".
   virtual void GetProof(const QuicSocketAddress& server_address,
                         const QuicSocketAddress& client_address,
                         const std::string& hostname,
