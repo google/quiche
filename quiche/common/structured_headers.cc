@@ -841,48 +841,46 @@ Item& Item::operator=(Item&&) = default;
 Item::~Item() = default;
 
 const int64_t* Item::GetIfInteger() const {
-  return std::get_if<kIntegerType>(&value_);
+  return std::get_if<int64_t>(&value_);
 }
 
-int64_t* Item::GetIfInteger() { return std::get_if<kIntegerType>(&value_); }
+int64_t* Item::GetIfInteger() { return std::get_if<int64_t>(&value_); }
 
 const double* Item::GetIfDecimal() const {
-  return std::get_if<kDecimalType>(&value_);
+  return std::get_if<double>(&value_);
 }
 
-double* Item::GetIfDecimal() { return std::get_if<kDecimalType>(&value_); }
+double* Item::GetIfDecimal() { return std::get_if<double>(&value_); }
 
 const std::string* Item::GetIfString() const {
-  return std::get_if<kStringType>(&value_);
+  return std::get_if<std::string>(&value_);
 }
 
-std::string* Item::GetIfString() { return std::get_if<kStringType>(&value_); }
+std::string* Item::GetIfString() { return std::get_if<std::string>(&value_); }
 
 const std::string* Item::GetIfToken() const {
-  const auto* token = std::get_if<kTokenType>(&value_);
+  const auto* token = std::get_if<Token>(&value_);
   return token ? &token->value : nullptr;
 }
 
 std::string* Item::GetIfToken() {
-  auto* token = std::get_if<kTokenType>(&value_);
+  auto* token = std::get_if<Token>(&value_);
   return token ? &token->value : nullptr;
 }
 
 const std::string* Item::GetIfByteSequence() const {
-  const auto* byte_sequence = std::get_if<kByteSequenceType>(&value_);
+  const auto* byte_sequence = std::get_if<ByteSequence>(&value_);
   return byte_sequence ? &byte_sequence->value : nullptr;
 }
 
 std::string* Item::GetIfByteSequence() {
-  auto* byte_sequence = std::get_if<kByteSequenceType>(&value_);
+  auto* byte_sequence = std::get_if<ByteSequence>(&value_);
   return byte_sequence ? &byte_sequence->value : nullptr;
 }
 
-const bool* Item::GetIfBoolean() const {
-  return std::get_if<kBooleanType>(&value_);
-}
+const bool* Item::GetIfBoolean() const { return std::get_if<bool>(&value_); }
 
-bool* Item::GetIfBoolean() { return std::get_if<kBooleanType>(&value_); }
+bool* Item::GetIfBoolean() { return std::get_if<bool>(&value_); }
 
 // Not defaulted to work around
 // https://github.com/llvm/llvm-project/issues/132249 in older Clang versions.
