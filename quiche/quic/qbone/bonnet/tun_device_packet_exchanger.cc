@@ -29,6 +29,7 @@
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
+#include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/platform/icmp_packet.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
 #include "quiche/quic/qbone/platform/netlink_interface.h"
@@ -57,18 +58,26 @@ TunDevicePacketExchanger::~TunDevicePacketExchanger() {
               read_fd_ >= 0 || write_fd_ >= 0);
 }
 
-void TunDevicePacketExchanger::Start(int read_fd, int write_fd) {
+void TunDevicePacketExchanger::Start(
+    int read_fd, int write_fd,
+    QboneClientPacketExchanger* absl_nullable exchanger) {
+  if (exchanger == nullptr) {
+    exchanger = this;
+  }
+
   // Allow idempotent Start() calls with the same file descriptors, but
   // otherwise it's a bug to try starting an already started exchanger.
   QUIC_BUG_IF(qbone_tun_device_packet_exchanger_already_started,
-              (read_fd_ >= 0 || write_fd_ >= 0) &&
-                  (read_fd_ != read_fd || write_fd_ != write_fd));
+              (read_fd_ >= 0 || write_fd_ >= 0 || exchanger_ != nullptr) &&
+                  (read_fd_ != read_fd || write_fd_ != write_fd ||
+                   exchanger_ != exchanger));
 
   QUIC_BUG_IF(qbone_tun_device_packet_exchanger_invalid_read_fd, read_fd < 0);
   QUIC_BUG_IF(qbone_tun_device_packet_exchanger_invalid_write_fd, write_fd < 0);
 
   read_fd_ = read_fd;
   write_fd_ = write_fd;
+  exchanger_ = exchanger;
 }
 
 void TunDevicePacketExchanger::Stop() {
@@ -76,12 +85,16 @@ void TunDevicePacketExchanger::Stop() {
   // any pending operations to wait for completion.
   read_fd_ = -1;
   write_fd_ = -1;
+  exchanger_ = nullptr;
 }
 
 int TunDevicePacketExchanger::OnReadFromNetworkReady(int max_packets_to_read) {
   if (read_fd_ < 0) {
     QUIC_BUG(qbone_tun_device_packet_exchanger_read_with_invalid_fd)
         << "Invalid file descriptor of the TUN device: " << read_fd_;
+    return 0;
+  } else if (!exchanger_) {
+    QUIC_BUG(qbone_tun_device_packet_exchanger_read_with_null_exchanger);
     return 0;
   }
 
@@ -309,9 +322,12 @@ TunDevicePacketExchanger::ValidateL2Headers(
     CreateIcmpPacket(ip_hdr->ip6_src, ip_hdr->ip6_src, response_hdr,
                      absl::string_view(payload.get(), payload_size),
                      [this](absl::string_view packet) {
-                       WritePacketToNetwork(absl::MakeSpan(
-                           reinterpret_cast<const std::byte*>(packet.data()),
-                           packet.size()));
+                       QUICHE_DCHECK(exchanger_);
+                       if (exchanger_) {
+                         exchanger_->WritePacketToNetwork(absl::MakeSpan(
+                             reinterpret_cast<const std::byte*>(packet.data()),
+                             packet.size()));
+                       }
                      });
     return L2ValidationResult::kValidLinkLocal;
   }

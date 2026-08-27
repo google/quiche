@@ -8,9 +8,11 @@
 #include <cstddef>
 #include <vector>
 
+#include "absl/base/nullability.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 
@@ -40,7 +42,11 @@ class QboneClientPacketExchanger {
 
   // Initializes the exchanger to allow read and write using the given file
   // descriptors.
-  virtual void Start(int read_fd, int write_fd) = 0;
+  //
+  // If `exchanger` is not null, it will be used instead of `this` to handle any
+  // underlying-triggered read/write operations.
+  virtual void Start(int read_fd, int write_fd,
+                     QboneClientPacketExchanger* absl_nullable exchanger) = 0;
 
   // Uninitializes the exchanger and blocks until all pending read/write
   // operations (on- or off-thread) are complete. No Visitor callbacks will be

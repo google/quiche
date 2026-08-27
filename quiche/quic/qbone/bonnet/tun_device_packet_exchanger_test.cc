@@ -21,7 +21,6 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/bonnet/mock_qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
-#include "quiche/quic/qbone/mock_qbone_client.h"
 #include "quiche/quic/qbone/platform/mock_kernel.h"
 #include "quiche/quic/qbone/platform/mock_netlink.h"
 #include "quiche/quic/qbone/platform/netlink_interface.h"
@@ -58,10 +57,11 @@ class TunDevicePacketExchangerTest : public QuicTest {
   MockKernel mock_kernel_;
   StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor_;
   TunDevicePacketExchanger exchanger_;
+  StrictMock<MockQboneClientPacketExchanger> delegate_exchanger_;
 };
 
 TEST_F(TunDevicePacketExchangerTest, WritePacketError) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet = "fake packet";
   EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
@@ -83,10 +83,10 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketError) {
 }
 
 TEST_F(TunDevicePacketExchangerTest, RestartExchanger) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
   exchanger_.Stop();
 
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet = "fake packet";
   EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
@@ -114,7 +114,7 @@ TEST_F(TunDevicePacketExchangerTest, RestartExchanger) {
 }
 
 TEST_F(TunDevicePacketExchangerTest, WritePacketBlocked) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet = "fake packet";
   EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
@@ -136,7 +136,7 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketBlocked) {
 }
 
 TEST_F(TunDevicePacketExchangerTest, WritePacketSuccessfulWrite) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet = "fake packet";
   EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
@@ -170,7 +170,7 @@ TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
   TunDevicePacketExchanger tap_exchanger(kMtu, &mock_kernel, &mock_netlink,
                                          &mock_visitor, /*is_tap=*/true,
                                          "tap0");
-  tap_exchanger.Start(kReadFd, kWriteFd);
+  tap_exchanger.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet = "fake packet";
 
@@ -221,7 +221,7 @@ TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
 }
 
 TEST_F(TunDevicePacketExchangerTest, ReadPacketError) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
@@ -235,7 +235,7 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketError) {
 }
 
 TEST_F(TunDevicePacketExchangerTest, ReadPacketBlocked) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
@@ -249,7 +249,7 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketBlocked) {
 }
 
 TEST_F(TunDevicePacketExchangerTest, ReadPacketSuccessfulRead) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet = "fake_packet";
   EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
@@ -271,7 +271,7 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketSuccessfulRead) {
 }
 
 TEST_F(TunDevicePacketExchangerTest, MultipleReadsMoreAvailableThanMax) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet1 = "fake_packet_1";
   std::string packet2 = "fake_packet_2";
@@ -305,7 +305,7 @@ TEST_F(TunDevicePacketExchangerTest, MultipleReadsMoreAvailableThanMax) {
 }
 
 TEST_F(TunDevicePacketExchangerTest, MultipleReadsBlockedBeforeMax) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string packet1 = "fake_packet_1";
 
@@ -336,7 +336,7 @@ TEST_F(TunDevicePacketExchangerTest, MultipleReadsBlockedBeforeMax) {
 }
 
 TEST_F(TunDevicePacketExchangerTest, MultiReadInvalidSizeHuge) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   std::string valid_packet = "valid_packet";
 
@@ -367,7 +367,7 @@ TEST_F(TunDevicePacketExchangerTest, MultiReadInvalidSizeHuge) {
 
 TEST_F(TunDevicePacketExchangerTest,
        ReadPacketBlockedOnFirstWithMaxMoreThanOne) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) {
@@ -392,10 +392,11 @@ class TunDevicePacketExchangerTapTest : public QuicTest {
   StrictMock<MockNetlink> mock_netlink_;
   StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor_;
   TunDevicePacketExchanger exchanger_;
+  StrictMock<MockQboneClientPacketExchanger> delegate_exchanger_;
 };
 
 TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapSuccess) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   ip6_hdr ip_hdr{};
   ip_hdr.ip6_vfc = 0x60;  // Version 6
@@ -431,7 +432,7 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapSuccess) {
 }
 
 TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapInvalidL2) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   ethhdr eth_hdr{};
   eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_ARP);  // Non-IPv6
@@ -449,7 +450,60 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapInvalidL2) {
 }
 
 TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
+
+  ip6_hdr ip_hdr{};
+  ip_hdr.ip6_vfc = 0x60;  // Version 6
+  ip_hdr.ip6_nxt = IPPROTO_ICMPV6;
+  inet_pton(AF_INET6, "fe80::2", &ip_hdr.ip6_src);
+  inet_pton(AF_INET6, "fe80::1", &ip_hdr.ip6_dst);
+
+  icmp6_hdr icmp_hdr{};
+  icmp_hdr.icmp6_type = ND_NEIGHBOR_SOLICIT;
+
+  in6_addr target_address = QboneConstants::GatewayAddress()->GetIPv6();
+
+  std::string l3_packet =
+      std::string(reinterpret_cast<char*>(&ip_hdr), sizeof(ip_hdr)) +
+      std::string(reinterpret_cast<char*>(&icmp_hdr), sizeof(icmp_hdr)) +
+      std::string(reinterpret_cast<char*>(&target_address),
+                  sizeof(target_address));
+
+  ethhdr eth_hdr{};
+  eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
+
+  EXPECT_CALL(mock_kernel_, readv(kReadFd, _, 2))
+      .WillOnce(
+          [eth_hdr, l3_packet](int fd, const struct iovec* iov, int iovcnt) {
+            memcpy(iov[0].iov_base, &eth_hdr, ETH_HLEN);
+            memcpy(iov[1].iov_base, l3_packet.data(), l3_packet.size());
+            return ETH_HLEN + l3_packet.size();
+          });
+
+  // Expect GetLinkInfo to populate ethhdr on writing neighbor solicit response.
+  EXPECT_CALL(mock_netlink_, GetLinkInfo("tap0", _))
+      .WillOnce(
+          [](const std::string& ifname, NetlinkInterface::LinkInfo* link_info) {
+            memset(link_info->hardware_address, 0x12, ETH_ALEN);
+            return true;
+          });
+
+  // Expect neighbor solicitation response to be sent via delegate exchanger.
+  EXPECT_CALL(delegate_exchanger_, WritePacketToNetwork(_));
+
+  // OnReadFromNetworkReady should return 1 because packet was handled
+  // internally (Neighbor Discovery) but still read from network.
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1), 1);
+
+  exchanger_.Stop();
+}
+
+// If not passed a delegate exchanger, TunDevicePacketExchanger should use
+// itself to send internal response packets to link-local neighbor solicitation
+// requests.
+TEST_F(TunDevicePacketExchangerTapTest,
+       ReadPacketTapNeighborSolicitationSameExchanger) {
+  exchanger_.Start(kReadFd, kWriteFd, /*exchanger=*/nullptr);
 
   ip6_hdr ip_hdr{};
   ip_hdr.ip6_vfc = 0x60;  // Version 6
@@ -502,7 +556,7 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
 }
 
 TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidSizeShort) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   ip6_hdr ip_hdr{};
   ip_hdr.ip6_vfc = 0x60;  // Version 6
@@ -544,7 +598,7 @@ TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidSizeShort) {
 }
 
 TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidL2) {
-  exchanger_.Start(kReadFd, kWriteFd);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
 
   ethhdr invalid_eth_hdr{};
   invalid_eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_ARP);  // Non-IPv6
