@@ -21,6 +21,7 @@
 #include "quiche/quic/core/quic_alarm_factory.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_live_publisher.h"
@@ -60,7 +61,28 @@ class MoqtBidiStreamTestWrapper {
       std::unique_ptr<MoqtBidiStreamBase> absl_nonnull stream)
       : stream_(std::move(stream)) {}
 
-  MoqtBidiStreamBase& stream() { return *stream_; }
+  MoqtBidiStreamTestWrapper(
+      std::unique_ptr<MoqtSession::OutgoingControlStream> absl_nonnull
+      outgoing_stream,
+      std::unique_ptr<MoqtSession::IncomingControlStream> absl_nonnull
+      incoming_stream)
+      : outgoing_control_stream_(std::move(outgoing_stream)),
+        incoming_control_stream_(std::move(incoming_stream)) {}
+
+  MoqtBidiStreamBase& stream() {
+    QUICHE_DCHECK(stream_ != nullptr);
+    return *stream_;
+  }
+
+  MoqtSession::OutgoingControlStream& outgoing_control_stream() {
+    QUICHE_DCHECK(outgoing_control_stream_ != nullptr);
+    return *outgoing_control_stream_;
+  }
+
+  MoqtSession::IncomingControlStream& incoming_control_stream() {
+    QUICHE_DCHECK(incoming_control_stream_ != nullptr);
+    return *incoming_control_stream_;
+  }
 
   // Simulates receiving the specified control message on the bidi stream.
   void ReceiveMessage(const AnyMoqtControlMessage& message) {
@@ -69,14 +91,31 @@ class MoqtBidiStreamTestWrapper {
     uint64_t raw_type;
     ASSERT_TRUE(reader.ReadMoqVarInt(&raw_type));
     ASSERT_TRUE(reader.Seek(2));
-    absl::Status status = stream_->OnRawControlMessage(MoqtRawControlMessage{
+    MoqtRawControlMessage raw_message{
         .type = static_cast<MoqtMessageType>(raw_type),
-        .payload = std::string(reader.ReadRemainingPayload())});
-    stream_->CheckStatus(status);
+        .payload = std::string(reader.ReadRemainingPayload())};
+    if (stream_ != nullptr) {
+      absl::Status status = stream_->OnRawControlMessage(raw_message);
+      stream_->CheckStatus(status);
+      return;
+    }
+    QUICHE_DCHECK(incoming_control_stream_ != nullptr);
+    MoqtSession* session =
+        MoqtSessionFromWeakPtr(incoming_control_stream_->session_);
+    QUICHE_DCHECK(session != nullptr);
+    absl::Status status = ControlMessageDispatcher::DispatchControlMessage(
+        *session, session->ControlMessageParser(), raw_message, "control");
+    if (!status.ok()) {
+      std::optional<MoqtError> error_code = GetMoqtErrorForStatus(status);
+      session->Error(error_code.value_or(MoqtError::kProtocolViolation),
+                     status.message());
+    }
   }
 
  private:
-  std::unique_ptr<MoqtBidiStreamBase> absl_nonnull stream_;
+  std::unique_ptr<MoqtBidiStreamBase> stream_;
+  std::unique_ptr<MoqtSession::OutgoingControlStream> outgoing_control_stream_;
+  std::unique_ptr<MoqtSession::IncomingControlStream> incoming_control_stream_;
 };
 
 class OutgoingSubgroupStreamPeer {
@@ -92,13 +131,17 @@ class MoqtSessionPeer {
 
   static std::unique_ptr<MoqtBidiStreamTestWrapper> CreateControlStream(
       MoqtSession* session, webtransport::test::MockStream* stream) {
-    auto new_stream = std::make_unique<MoqtSession::ControlStream>(session);
-    session->control_stream_ = new_stream->GetWeakPtr();
-    new_stream->BindStream(stream);
+    auto outgoing =
+        std::make_unique<MoqtSession::OutgoingControlStream>(session, stream);
+    session->outgoing_control_stream_ = outgoing->GetWeakPtr();
+    auto incoming = std::make_unique<MoqtSession::IncomingControlStream>(
+        session, MoqtStreamTypeParser(stream));
+    session->incoming_control_stream_ = incoming->GetWeakPtr();
     ON_CALL(*stream, visitor())
-        .WillByDefault(::testing::Return(new_stream.get()));
+        .WillByDefault(::testing::Return(outgoing.get()));
     ON_CALL(*stream, CanWrite).WillByDefault(::testing::Return(true));
-    return std::make_unique<MoqtBidiStreamTestWrapper>(std::move(new_stream));
+    return std::make_unique<MoqtBidiStreamTestWrapper>(std::move(outgoing),
+                                                       std::move(incoming));
   }
 
   static std::unique_ptr<webtransport::StreamVisitor>
@@ -114,26 +157,16 @@ class MoqtSessionPeer {
     return session->published_subscriptions_.contains(request_id);
   }
 
-  // In the test OnSessionReady, the session creates a stream and then passes
-  // its unique_ptr to the mock webtransport stream. This function casts
-  // that unique_ptr into a MoqtSession::Stream*, which is a private class of
-  // MoqtSession, and then casts again into MoqtParserVisitor so that the test
-  // can inject packets into that stream.
-  // This function is useful for any test that wants to inject packets on a
-  // stream created by the MoqtSession.
-  static std::unique_ptr<MoqtBidiStreamTestWrapper>
-  FetchParserVisitorFromWebtransportStreamVisitor(
-      std::unique_ptr<webtransport::StreamVisitor> visitor) {
-    return std::make_unique<MoqtBidiStreamTestWrapper>(absl::WrapUnique(
-        absl::down_cast<MoqtSession::ControlStream*>(visitor.release())));
-  }
-
   static void set_next_request_id(MoqtSession* session, uint64_t id) {
     session->next_request_id_ = id;
   }
 
   static void set_peer_max_request_id(MoqtSession* session, uint64_t id) {
     session->peer_max_request_id_ = id;
+  }
+
+  static void set_peer_setup_received(MoqtSession* session, bool value) {
+    session->peer_setup_received_ = value;
   }
 
   static MoqtSession::PublishedFetch* GetFetch(MoqtSession* session,
@@ -178,8 +211,17 @@ class MoqtSessionPeer {
     return session->parameters_.moqt_implementation;
   }
 
-  static MoqtSession::ControlStream* GetControlStream(MoqtSession* session) {
-    return session->control_stream_.GetIfAvailable();
+  static MoqtSession::OutgoingControlStream* GetOutgoingControlStream(
+      MoqtSession* session) {
+    return session->outgoing_control_stream_.GetIfAvailable();
+  }
+  static MoqtSession::IncomingControlStream* GetIncomingControlStream(
+      MoqtSession* session) {
+    return session->incoming_control_stream_.GetIfAvailable();
+  }
+  static MoqtSession::OutgoingControlStream* GetControlStream(
+      MoqtSession* session) {
+    return session->outgoing_control_stream_.GetIfAvailable();
   }
 
   static const MoqtSessionParameters& GetParameters(MoqtSession* session) {

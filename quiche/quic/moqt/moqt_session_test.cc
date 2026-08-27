@@ -143,6 +143,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
     session_.set_publisher(&publisher_);
     MoqtSessionPeer::set_peer_max_request_id(&session_,
                                              kDefaultInitialMaxRequestId);
+    MoqtSessionPeer::set_peer_setup_received(&session_, true);
     ON_CALL(mock_session_, GetStreamById)
         .WillByDefault(Return(&mock_bidi_stream_));
     EXPECT_EQ(MoqtSessionPeer::GetImplementationString(&session_),
@@ -286,7 +287,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
           .WillOnce(Return(stream))
           .WillOnce(Return(nullptr));
       EXPECT_CALL(*stream, SetVisitor(_))
-          .WillOnce(
+          .WillRepeatedly(
               [&](std::unique_ptr<webtransport::StreamVisitor> new_visitor) {
                 visitor = std::move(new_visitor);
               });
@@ -338,41 +339,46 @@ TEST_F(MoqtSessionTest, Queries) {
   EXPECT_EQ(session_.perspective(), quic::Perspective::IS_CLIENT);
 }
 
-// Verify the session sends CLIENT_SETUP on the control stream.
+// Verify the session sends SETUP on the control stream.
 TEST_F(MoqtSessionTest, OnSessionReady) {
+  MoqtSessionPeer::set_peer_setup_received(&session_, false);
   EXPECT_CALL(mock_session_, GetNegotiatedSubprotocol)
       .WillOnce(Return(std::optional<std::string>(kDefaultMoqtVersion)));
-  EXPECT_CALL(mock_session_, CanOpenNextOutgoingBidirectionalStream())
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream())
       .WillOnce(Return(true));
-  EXPECT_CALL(mock_session_, OpenOutgoingBidirectionalStream())
-      .WillOnce(Return(&mock_bidi_stream_));
-  EXPECT_CALL(mock_bidi_stream_, CanWrite).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream())
+      .WillOnce(Return(&mock_uni_stream_));
+  EXPECT_CALL(mock_uni_stream_, CanWrite).WillRepeatedly(Return(true));
   std::unique_ptr<webtransport::StreamVisitor> visitor;
-  // Save a reference to MoqtSession::Stream
-  EXPECT_CALL(mock_bidi_stream_, SetVisitor(_))
+  EXPECT_CALL(mock_uni_stream_, SetVisitor(_))
       .WillOnce([&](std::unique_ptr<webtransport::StreamVisitor> new_visitor) {
         visitor = std::move(new_visitor);
       });
-  EXPECT_CALL(mock_bidi_stream_, GetStreamId())
+  EXPECT_CALL(mock_uni_stream_, GetStreamId())
       .WillRepeatedly(Return(webtransport::StreamId(4)));
-  EXPECT_CALL(mock_bidi_stream_,
+  EXPECT_CALL(mock_uni_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSetup), _));
   session_.OnSessionReady();
 
-  // Receive SERVER_SETUP
-  bidi_wrapper_ =
-      MoqtSessionPeer::FetchParserVisitorFromWebtransportStreamVisitor(
-          std::move(visitor));
-  // Handle the server setup
-  MoqtSetup setup;  // No fields are set.
+  // Receive SERVER_SETUP on an incoming unidirectional stream
+  webtransport::test::InMemoryStreamWithWriteBuffer in_memory_stream(0);
+  MoqtFramer framer(true, quic::Perspective::IS_SERVER);
+  MoqtSetup setup;
+  quiche::QuicheBuffer buffer = framer.SerializeSetup(setup);
+  in_memory_stream.Receive(absl::string_view(buffer.data(), buffer.size()),
+                           /*fin=*/false);
+
+  EXPECT_CALL(mock_session_, AcceptIncomingUnidirectionalStream())
+      .WillOnce(Return(&in_memory_stream))
+      .WillOnce(Return(nullptr));
   EXPECT_CALL(session_callbacks_.session_established_callback, Call()).Times(1);
-  bidi_wrapper_->ReceiveMessage(setup);
+  session_.OnIncomingUnidirectionalStreamAvailable();
 }
 
 TEST_F(MoqtSessionTest, OnSessionReadyNoControlStream) {
   EXPECT_CALL(mock_session_, GetNegotiatedSubprotocol)
       .WillOnce(Return(std::optional<std::string>(kDefaultMoqtVersion)));
-  EXPECT_CALL(mock_session_, CanOpenNextOutgoingBidirectionalStream)
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream)
       .WillOnce(Return(false));
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call);
   session_.OnSessionReady();
@@ -383,6 +389,7 @@ TEST_F(MoqtSessionTest, PeerOpensBidiStream) {
       &mock_session_, MoqtSessionParameters(quic::Perspective::IS_SERVER),
       std::make_unique<quic::test::TestAlarmFactory>(),
       session_callbacks_.AsSessionCallbacks());
+  MoqtSessionPeer::set_peer_setup_received(&server_session, true);
   EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream())
       .WillOnce(Return(&mock_bidi_stream_))
       .WillOnce(Return(nullptr));
@@ -404,7 +411,7 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
   MoqtSession server_session(&mock_session_, session_parameters,
                              std::make_unique<quic::test::TestAlarmFactory>(),
                              session_callbacks_.AsSessionCallbacks());
-  // Load a CLIENT_SETUP message into an in-memory stream.
+  // Load a SETUP message into an in-memory stream.
   webtransport::test::InMemoryStreamWithWriteBuffer in_memory_stream(0);
   MoqtFramer framer(session_parameters.using_webtrans,
                     quic::Perspective::IS_CLIENT);
@@ -414,14 +421,82 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
   in_memory_stream.Receive(absl::string_view(buffer.data(), buffer.size()),
                            /*fin=*/false);
 
-  EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream())
+  EXPECT_CALL(mock_session_, AcceptIncomingUnidirectionalStream())
       .WillOnce(Return(&in_memory_stream))
       .WillOnce(Return(nullptr));
   EXPECT_CALL(session_callbacks_.session_established_callback, Call());
-  server_session.OnIncomingBidirectionalStreamAvailable();
-  EXPECT_EQ(PeekControlMessageType(in_memory_stream.write_buffer()),
-            MoqtMessageType::kSetup);
-  EXPECT_NE(MoqtSessionPeer::GetControlStream(&server_session), nullptr);
+  server_session.OnIncomingUnidirectionalStreamAvailable();
+  EXPECT_NE(MoqtSessionPeer::GetIncomingControlStream(&server_session),
+            nullptr);
+}
+
+TEST_F(MoqtSessionTest, DuplicateSetup) {
+  MoqtSessionParameters session_parameters(quic::Perspective::IS_SERVER);
+  MoqtSession server_session(&mock_session_, session_parameters,
+                             std::make_unique<quic::test::TestAlarmFactory>(),
+                             session_callbacks_.AsSessionCallbacks());
+  webtransport::test::InMemoryStreamWithWriteBuffer in_memory_stream(0);
+  MoqtFramer framer(session_parameters.using_webtrans,
+                    quic::Perspective::IS_CLIENT);
+  MoqtSetup setup;
+  session_parameters.ToSetupParameters(setup.parameters);
+  quiche::QuicheBuffer buffer = framer.SerializeSetup(setup);
+  in_memory_stream.Receive(absl::string_view(buffer.data(), buffer.size()),
+                           /*fin=*/false);
+
+  EXPECT_CALL(mock_session_, AcceptIncomingUnidirectionalStream())
+      .WillOnce(Return(&in_memory_stream))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(session_callbacks_.session_established_callback, Call());
+  server_session.OnIncomingUnidirectionalStreamAvailable();
+  EXPECT_NE(MoqtSessionPeer::GetIncomingControlStream(&server_session),
+            nullptr);
+
+  // Send a duplicate SETUP message on the control stream.
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                           "Duplicate SETUP message"));
+  EXPECT_CALL(session_callbacks_.session_terminated_callback,
+              Call(absl::string_view("Duplicate SETUP message")));
+  in_memory_stream.Receive(absl::string_view(buffer.data(), buffer.size()),
+                           /*fin=*/false);
+}
+
+TEST_F(MoqtSessionTest, TwoStreamsStartWithSetup) {
+  MoqtSessionParameters session_parameters(quic::Perspective::IS_SERVER);
+  MoqtSession server_session(&mock_session_, session_parameters,
+                             std::make_unique<quic::test::TestAlarmFactory>(),
+                             session_callbacks_.AsSessionCallbacks());
+  webtransport::test::InMemoryStreamWithWriteBuffer stream1(0);
+  webtransport::test::InMemoryStreamWithWriteBuffer stream2(1);
+
+  MoqtFramer framer(session_parameters.using_webtrans,
+                    quic::Perspective::IS_CLIENT);
+  MoqtSetup setup;
+  session_parameters.ToSetupParameters(setup.parameters);
+  quiche::QuicheBuffer buffer = framer.SerializeSetup(setup);
+
+  stream1.Receive(absl::string_view(buffer.data(), buffer.size()),
+                  /*fin=*/false);
+  EXPECT_CALL(mock_session_, AcceptIncomingUnidirectionalStream())
+      .WillOnce(Return(&stream1))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(session_callbacks_.session_established_callback, Call());
+  server_session.OnIncomingUnidirectionalStreamAvailable();
+  EXPECT_NE(MoqtSessionPeer::GetIncomingControlStream(&server_session),
+            nullptr);
+
+  stream2.Receive(absl::string_view(buffer.data(), buffer.size()),
+                  /*fin=*/false);
+  EXPECT_CALL(mock_session_, AcceptIncomingUnidirectionalStream())
+      .WillOnce(Return(&stream2))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                           "Multiple control streams"));
+  EXPECT_CALL(session_callbacks_.session_terminated_callback,
+              Call(absl::string_view("Multiple control streams")));
+  server_session.OnIncomingUnidirectionalStreamAvailable();
 }
 
 TEST_F(MoqtSessionTest, OnSessionClosed) {
@@ -2429,6 +2504,54 @@ TEST_F(MoqtSessionTest, ServerCannotReceiveNewSessionUri) {
   EXPECT_TRUE(reported_error);
 }
 
+TEST_F(MoqtSessionTest, IncomingTrackStatusBeforeSetup) {
+  MoqtSessionParameters session_parameters(quic::Perspective::IS_SERVER);
+  MoqtSession server_session(&mock_session_, session_parameters,
+                             std::make_unique<quic::test::TestAlarmFactory>(),
+                             session_callbacks_.AsSessionCallbacks());
+  server_session.set_publisher(&publisher_);
+  MockTrackPublisher* track = CreateTrackPublisher();
+
+  // Receive TRACK_STATUS on an incoming bidirectional stream.
+  webtransport::test::InMemoryStreamWithWriteBuffer bidi_stream(0);
+  MoqtFramer client_framer(session_parameters.using_webtrans,
+                           quic::Perspective::IS_CLIENT);
+  MoqtTrackStatus track_status = DefaultSubscribe();
+  quiche::QuicheBuffer serialized_track_status =
+      client_framer.SerializeTrackStatus(track_status);
+  bidi_stream.Receive(serialized_track_status.AsStringView(),
+                      /*fin=*/false);
+
+  // Before SETUP is received, the incoming bidirectional stream is not
+  // accepted.
+  EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream).Times(0);
+  EXPECT_CALL(*track, AddObjectListener).Times(0);
+  server_session.OnIncomingBidirectionalStreamAvailable();
+
+  // Receive CLIENT_SETUP on an incoming unidirectional stream.
+  webtransport::test::InMemoryStreamWithWriteBuffer control_stream(1);
+  MoqtSetup setup;
+  session_parameters.ToSetupParameters(setup.parameters);
+  quiche::QuicheBuffer setup_buffer = client_framer.SerializeSetup(setup);
+  control_stream.Receive(
+      absl::string_view(setup_buffer.data(), setup_buffer.size()),
+      /*fin=*/false);
+
+  MoqtObjectListener* listener = nullptr;
+  EXPECT_CALL(session_callbacks_.session_established_callback, Call);
+  EXPECT_CALL(mock_session_, AcceptIncomingUnidirectionalStream)
+      .WillOnce(Return(&control_stream))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(mock_session_, AcceptIncomingBidirectionalStream)
+      .WillOnce(Return(&bidi_stream))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(*track, AddObjectListener)
+      .WillOnce(testing::SaveArg<0>(&listener));
+
+  server_session.OnIncomingUnidirectionalStreamAvailable();
+  EXPECT_NE(listener, nullptr);
+}
+
 TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousOk) {
   bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
       ResponseStream(kTrackStatusByte));
@@ -2663,18 +2786,6 @@ TEST_F(MoqtSessionTest, NoSubprotocol) {
   session_.OnSessionReady();
 }
 
-
-TEST_F(MoqtSessionTest, ClientSetupNotAllowedOnControlStream) {
-  // While technically on the Control stream, when it arrives, it's an
-  // UnknownBidiStream
-  bidi_wrapper_ =
-      MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);
-  EXPECT_CALL(mock_session_, CloseSession);
-  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call);
-  bidi_wrapper_->ReceiveMessage(
-      MoqtSetup(SetupParameters("/", "example.com", 0)));
-}
-
 TEST_F(MoqtSessionTest, NamespaceNotAllowedOnControlStream) {
   bidi_wrapper_ =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);
@@ -2854,9 +2965,9 @@ TEST_F(MoqtSessionTest, IncrementRequestId) {
   webtransport::test::InMemoryStreamWithWriteBuffer control_stream(0);
   EXPECT_CALL(mock_session_, GetNegotiatedSubprotocol)
       .WillOnce(Return(std::string(kDefaultMoqtVersion)));
-  EXPECT_CALL(mock_session_, CanOpenNextOutgoingBidirectionalStream)
+  EXPECT_CALL(mock_session_, CanOpenNextOutgoingUnidirectionalStream)
       .WillOnce(Return(true));
-  EXPECT_CALL(mock_session_, OpenOutgoingBidirectionalStream)
+  EXPECT_CALL(mock_session_, OpenOutgoingUnidirectionalStream)
       .WillOnce(Return(&control_stream));
   session_.OnSessionReady();
   control_stream.write_buffer().clear();

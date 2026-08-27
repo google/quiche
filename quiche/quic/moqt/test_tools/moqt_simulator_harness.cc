@@ -31,7 +31,7 @@ namespace moqt::test {
 namespace {
 MoqtSessionParameters CreateParameters(quic::Perspective perspective,
                                        absl::string_view version) {
-  MoqtSessionParameters parameters(perspective, "", "");
+  MoqtSessionParameters parameters(perspective, "/foo", "example.com");
   parameters.version = version;
   parameters.deliver_partial_objects = false;
   return parameters;

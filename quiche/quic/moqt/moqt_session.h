@@ -24,6 +24,7 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
+#include "quiche/quic/moqt/moqt_control_message_queue.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
@@ -38,7 +39,6 @@
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
-#include "quiche/quic/moqt/moqt_track_status_stream.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/quic/moqt/session_namespace_tree.h"
@@ -54,7 +54,8 @@ namespace moqt {
 
 namespace test {
 class MoqtSessionPeer;
-}
+class MoqtBidiStreamTestWrapper;
+}  // namespace test
 
 inline constexpr quic::QuicTimeDelta kDefaultGoAwayTimeout =
     quic::QuicTime::Delta::FromSeconds(10);
@@ -202,7 +203,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   void set_publisher(MoqtPublisher* publisher) { publisher_ = publisher; }
   bool support_object_acks() const { return parameters_.support_object_acks; }
   void set_support_object_acks(bool value) {
-    QUICHE_DCHECK(!control_stream_.IsValid())
+    QUICHE_DCHECK(!outgoing_control_stream_.IsValid())
         << "support_object_acks needs to be set before handshake";
     parameters_.support_object_acks = value;
   }
@@ -228,6 +229,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
  private:
   friend class ControlMessageDispatcher;
   friend class test::MoqtSessionPeer;
+  friend class test::MoqtBidiStreamTestWrapper;
 
   struct Empty {};
 
@@ -254,51 +256,93 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtStreamTypeParser parser_;
   };
 
-  class QUICHE_EXPORT ControlStream : public MoqtBidiStreamBase {
+  // UnknownUniStream is the initial handler for all incoming unidirectional
+  // streams; it reads the type tag from the wire, and creates an appropriate
+  // handler based on that.
+  class QUICHE_EXPORT UnknownUniStream : public webtransport::StreamVisitor {
    public:
-    explicit ControlStream(MoqtSession* session)
-        : MoqtBidiStreamBase(
-              &session->framer_, session->ControlMessageParser(),
-              [session](MoqtError code, absl::string_view reason) {
-                session->control_stream_ =
-                    quiche::QuicheWeakPtr<ControlStream>();
-                if (!session->is_closing_) {
-                  session->Error(code, reason);
-                }
-              }),
-          session_(session),
-          weak_ptr_factory_(this) {}
+    UnknownUniStream(MoqtSession* absl_nonnull session,
+                     webtransport::Stream* absl_nonnull stream)
+        : session_(session->GetWeakPtr()), stream_(stream), parser_(stream) {}
 
-    void OnStreamBound() override;
-    absl::Status OnRawControlMessage(
-        const MoqtRawControlMessage& message) override;
+    // webtransport::StreamVisitor overrides.
+    void OnResetStreamReceived(webtransport::StreamErrorCode error) override {}
+    void OnStopSendingReceived(webtransport::StreamErrorCode error) override {}
+    void OnWriteSideInDataRecvdState() override {}
+    void OnCanRead() override;
+    void OnCanWrite() override {}
 
-    // webtransport::StreamVisitor overrides
-    void OnResetStreamReceived(webtransport::StreamErrorCode error) override {
-      session_->Error(MoqtError::kProtocolViolation,
-                      "Control stream reset received");
-    }
+   private:
+    quiche::QuicheWeakPtr<MoqtSessionInterface> session_;
+    webtransport::Stream* absl_nonnull stream_;
+    MoqtStreamTypeParser parser_;
+  };
+
+  class QUICHE_EXPORT IncomingControlStream
+      : public webtransport::StreamVisitor {
+   public:
+    IncomingControlStream(MoqtSession* absl_nonnull session,
+                          MoqtStreamTypeParser parser);
+
+    void OnCanRead() override;
+    void OnCanWrite() override {}
+    void OnResetStreamReceived(webtransport::StreamErrorCode error) override;
     void OnStopSendingReceived(webtransport::StreamErrorCode error) override {
-      session_->Error(MoqtError::kProtocolViolation,
-                      "Control stream stop sending received");
+      // Impossible for QUIC incoming unidirectional streams.
     }
+    void OnWriteSideInDataRecvdState() override {}
 
-    quic::Perspective perspective() const {
-      return session_->parameters_.perspective;
-    }
-    quiche::QuicheWeakPtr<ControlStream> GetWeakPtr() {
+    quiche::QuicheWeakPtr<IncomingControlStream> GetWeakPtr() {
       return weak_ptr_factory_.Create();
-    }
-    void Detach() override {
-      session_->Error(MoqtError::kProtocolViolation, "Control stream closed");
     }
 
    private:
     friend class test::MoqtSessionPeer;
+    friend class test::MoqtBidiStreamTestWrapper;
 
-    MoqtSession* session_;
+    quiche::QuicheWeakPtr<MoqtSessionInterface> session_;
+    MoqtControlStreamParser parser_;
     // Must be last.
-    quiche::QuicheWeakPtrFactory<ControlStream> weak_ptr_factory_;
+    quiche::QuicheWeakPtrFactory<IncomingControlStream> weak_ptr_factory_;
+  };
+
+  class QUICHE_EXPORT OutgoingControlStream
+      : public webtransport::StreamVisitor {
+   public:
+    OutgoingControlStream(MoqtSession* absl_nonnull session,
+                          webtransport::Stream* absl_nonnull stream);
+
+    void OnCanRead() override {}
+    void OnCanWrite() override;
+    void OnResetStreamReceived(webtransport::StreamErrorCode error) override {
+      // Impossible for QUIC incoming unidirectional streams.
+    }
+    void OnStopSendingReceived(webtransport::StreamErrorCode error) override;
+    void OnWriteSideInDataRecvdState() override {}
+
+    absl::Status SendOrBufferMessage(quiche::QuicheBuffer message,
+                                     bool fin = false) {
+      return outgoing_message_queue_.SendOrBufferMessage(std::move(message),
+                                                         fin);
+    }
+    void SendOrBufferMessageOrFatal(quiche::QuicheBuffer message,
+                                    bool fin = false) {
+      CheckStatus(SendOrBufferMessage(std::move(message), fin));
+    }
+    void CheckStatus(absl::Status status);
+
+    quiche::QuicheWeakPtr<OutgoingControlStream> GetWeakPtr() {
+      return weak_ptr_factory_.Create();
+    }
+
+   private:
+    friend class test::MoqtSessionPeer;
+    friend class test::MoqtBidiStreamTestWrapper;
+
+    quiche::QuicheWeakPtr<MoqtSessionInterface> session_;
+    MoqtControlMessageQueue outgoing_message_queue_;
+    // Must be last.
+    quiche::QuicheWeakPtrFactory<OutgoingControlStream> weak_ptr_factory_;
   };
 
   class QUICHE_EXPORT PublishedFetch {
@@ -332,8 +376,14 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     MoqtSession* session_;
   };
 
-  // Returns the pointer to the control stream, or nullptr if none is present.
-  ControlStream* GetControlStream() { return control_stream_.GetIfAvailable(); }
+  // Returns the pointer to the outgoing control stream, or nullptr if none is
+  // present.
+  OutgoingControlStream* GetOutgoingControlStream() {
+    return outgoing_control_stream_.GetIfAvailable();
+  }
+  IncomingControlStream* GetIncomingControlStream() {
+    return incoming_control_stream_.GetIfAvailable();
+  }
   // Sends a message on the control stream; QUICHE_DCHECKs if no control stream
   // is present.
   void SendControlMessage(quiche::QuicheBuffer message);
@@ -421,11 +471,14 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   MoqtSessionCallbacks callbacks_;
   MoqtFramer framer_;
 
-  quiche::QuicheWeakPtr<ControlStream> control_stream_ =
-      quiche::QuicheWeakPtr<ControlStream>();
+  quiche::QuicheWeakPtr<IncomingControlStream> incoming_control_stream_ =
+      quiche::QuicheWeakPtr<IncomingControlStream>();
+  quiche::QuicheWeakPtr<OutgoingControlStream> outgoing_control_stream_ =
+      quiche::QuicheWeakPtr<OutgoingControlStream>();
   quiche::QuicheCircularDeque<std::unique_ptr<MoqtBidiStreamBase>>
       pending_bidi_streams_;
   bool peer_supports_object_ack_ = false;
+  bool peer_setup_received_ = false;
   std::string error_;
 
   bool sent_goaway_ = false;

@@ -748,9 +748,10 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
 }
 
 TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
-  CreateDefaultEndpoints();
+  EstablishSession();
+  // The loss is added after the handshake, to ensure that the connection has
+  // enough congestion control window to work with for the further tests.
   WireUpEndpointsWithLoss(/*lose_every_n=*/4);
-  ConnectEndpoints();
   FullTrackName full_track_name("foo", "bar");
 
   MoqtKnownTrackPublisher publisher;
@@ -936,7 +937,7 @@ TEST_F(MoqtIntegrationTest, RecordTrace) {
       EXPECT_EQ(annotation.moqt_subgroup_stream().subgroup_id(), 0);
     }
   }
-  EXPECT_EQ(control_streams, 1);
+  EXPECT_EQ(control_streams, 2);
   EXPECT_EQ(subgroup_streams, 1);
 
   int objects_enqueued = 0;
