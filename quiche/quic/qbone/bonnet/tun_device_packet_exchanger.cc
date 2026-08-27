@@ -32,7 +32,6 @@
 #include "quiche/quic/qbone/platform/icmp_packet.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
 #include "quiche/quic/qbone/platform/netlink_interface.h"
-#include "quiche/quic/qbone/qbone_client_interface.h"
 #include "quiche/quic/qbone/qbone_constants.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
@@ -79,8 +78,7 @@ void TunDevicePacketExchanger::Stop() {
   write_fd_ = -1;
 }
 
-int TunDevicePacketExchanger::OnReadFromNetworkReady(
-    int max_packets_to_read, QboneClientInterface* qbone_client) {
+int TunDevicePacketExchanger::OnReadFromNetworkReady(int max_packets_to_read) {
   if (read_fd_ < 0) {
     QUIC_BUG(qbone_tun_device_packet_exchanger_read_with_invalid_fd)
         << "Invalid file descriptor of the TUN device: " << read_fd_;
@@ -94,7 +92,7 @@ int TunDevicePacketExchanger::OnReadFromNetworkReady(
     // errors are just the signal that there are no more packets to read.
     bool exchange_blocked_error = packets_read == 0;
 
-    if (ReadAndExchangeSinglePacket(qbone_client, exchange_blocked_error)) {
+    if (ReadAndExchangeSinglePacket(exchange_blocked_error)) {
       packets_read++;
     } else {
       break;
@@ -104,8 +102,8 @@ int TunDevicePacketExchanger::OnReadFromNetworkReady(
   return packets_read;
 }
 
-void TunDevicePacketExchanger::WritePacketToNetwork(const char* packet,
-                                                    size_t size) {
+void TunDevicePacketExchanger::WritePacketToNetwork(
+    absl::Span<const std::byte> packet) {
   if (write_fd_ < 0) {
     QUIC_BUG(qbone_tun_device_packet_exchanger_write_with_invalid_fd)
         << "Invalid file descriptor of the TUN device: " << write_fd_;
@@ -118,8 +116,8 @@ void TunDevicePacketExchanger::WritePacketToNetwork(const char* packet,
   struct iovec iov[2];
   iov[0].iov_base = is_tap_ ? &eth_hdr_ : nullptr;
   iov[0].iov_len = is_tap_ ? ETH_HLEN : 0;
-  iov[1].iov_base = const_cast<char*>(packet);
-  iov[1].iov_len = size;
+  iov[1].iov_base = const_cast<std::byte*>(packet.data());
+  iov[1].iov_len = packet.size();
 
   absl::Status status = absl::OkStatus();
   absl::Time start = absl::Now();
@@ -135,14 +133,12 @@ void TunDevicePacketExchanger::WritePacketToNetwork(const char* packet,
     return;
   }
 
-  visitor_.OnWrite(std::vector<WriteResult>{WriteResult{
-      .packet =
-          absl::MakeSpan(reinterpret_cast<const std::byte*>(packet), size),
-      .latency = latency}});
+  visitor_.OnWrite(std::vector<WriteResult>{
+      WriteResult{.packet = std::move(packet), .latency = latency}});
 }
 
 bool TunDevicePacketExchanger::ReadAndExchangeSinglePacket(
-    QboneClientInterface* qbone_client, bool exchange_blocked_error) {
+    bool exchange_blocked_error) {
   QUICHE_DCHECK_GE(read_fd_, 0);
 
   // TODO(ericorth): Consider allocating these buffers once and reusing rather
@@ -212,8 +208,6 @@ bool TunDevicePacketExchanger::ReadAndExchangeSinglePacket(
 
   visitor_.OnRead(std::vector<ReadResult>{
       ReadResult{.packet = l3_packet, .latency = latency}});
-  qbone_client->ProcessPacketFromNetwork(absl::string_view(
-      reinterpret_cast<const char*>(l3_packet.data()), l3_packet.size()));
   return true;
 }
 
@@ -315,7 +309,9 @@ TunDevicePacketExchanger::ValidateL2Headers(
     CreateIcmpPacket(ip_hdr->ip6_src, ip_hdr->ip6_src, response_hdr,
                      absl::string_view(payload.get(), payload_size),
                      [this](absl::string_view packet) {
-                       WritePacketToNetwork(packet.data(), packet.size());
+                       WritePacketToNetwork(absl::MakeSpan(
+                           reinterpret_cast<const std::byte*>(packet.data()),
+                           packet.size()));
                      });
     return L2ValidationResult::kValidLinkLocal;
   }

@@ -4,6 +4,7 @@
 
 #include "quiche/quic/qbone/qbone_client_session.h"
 
+#include <cstddef>
 #include <memory>
 #include <string>
 #include <utility>
@@ -11,6 +12,7 @@
 
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/qbone_constants.h"
@@ -42,8 +44,8 @@ std::unique_ptr<QuicCryptoStream> QboneClientSession::CreateCryptoStream() {
 }
 
 void QboneClientSession::SendErrorPacketToNetwork(absl::string_view packet) {
-  local_network_packet_exchanger_.WritePacketToNetwork(packet.data(),
-                                                       packet.size());
+  local_network_packet_exchanger_.WritePacketToNetwork(absl::MakeSpan(
+      reinterpret_cast<const std::byte*>(packet.data()), packet.size()));
 }
 
 void QboneClientSession::CreateControlStream() {
@@ -110,8 +112,8 @@ void QboneClientSession::ProcessPacketFromNetwork(absl::string_view packet) {
 }
 
 void QboneClientSession::ProcessPacketFromPeer(absl::string_view packet) {
-  local_network_packet_exchanger_.WritePacketToNetwork(packet.data(),
-                                                       packet.size());
+  local_network_packet_exchanger_.WritePacketToNetwork(absl::MakeSpan(
+      reinterpret_cast<const std::byte*>(packet.data()), packet.size()));
 }
 
 void QboneClientSession::OnProofValid(

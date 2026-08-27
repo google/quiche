@@ -11,7 +11,6 @@
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
-#include "quiche/quic/qbone/qbone_client_interface.h"
 
 namespace quic {
 
@@ -53,12 +52,11 @@ class QboneClientPacketExchanger {
   // packets synchronously read from the socket (not number of valid packets
   // processed to client and visitor, and not useful if implementation handles
   // reads asynchronously). Must not be called before Start() or after Stop().
-  virtual int OnReadFromNetworkReady(int max_packets_to_read,
-                                     QboneClientInterface* qbone_client) = 0;
+  virtual int OnReadFromNetworkReady(int max_packets_to_read) = 0;
 
   // Writes a packet to the local network. If the write would be blocked, the
   // packet is dropped. Must not be called before Start() or after Stop().
-  virtual void WritePacketToNetwork(const char* packet, size_t size) = 0;
+  virtual void WritePacketToNetwork(absl::Span<const std::byte> packet) = 0;
 };
 
 }  // namespace quic

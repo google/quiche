@@ -14,6 +14,7 @@
 
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
@@ -165,9 +166,10 @@ class QboneTestClient : public QboneClient {
       : QboneClient(server_address, server_id, supported_versions,
                     /*session_owner=*/nullptr, QuicConfig(), event_loop,
                     std::move(proof_verifier), &packet_exchanger_, nullptr) {
-    ON_CALL(packet_exchanger_, WritePacketToNetwork(_, _))
-        .WillByDefault([this](const char* packet, size_t size) {
-          data_.push_back(std::string(packet, size));
+    ON_CALL(packet_exchanger_, WritePacketToNetwork(_))
+        .WillByDefault([this](absl::Span<const std::byte> packet) {
+          data_.emplace_back(reinterpret_cast<const char*>(packet.data()),
+                             packet.size());
         });
   }
 

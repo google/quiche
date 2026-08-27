@@ -11,6 +11,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
@@ -313,9 +314,10 @@ class QboneSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
     }
 
     {
-      EXPECT_CALL(client_packet_exchanger_, WritePacketToNetwork(_, _))
-          .WillRepeatedly([this](const char* packet, size_t size) {
-            client_packets_to_network_.push_back(std::string(packet, size));
+      EXPECT_CALL(client_packet_exchanger_, WritePacketToNetwork(_))
+          .WillRepeatedly([this](absl::Span<const std::byte> packet) {
+            client_packets_to_network_.emplace_back(
+                reinterpret_cast<const char*>(packet.data()), packet.size());
           });
 
       client_connection_ = new QuicConnection(

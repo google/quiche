@@ -18,7 +18,6 @@
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
 #include "quiche/quic/qbone/platform/netlink_interface.h"
-#include "quiche/quic/qbone/qbone_client_interface.h"
 
 namespace quic {
 
@@ -38,9 +37,8 @@ class TunDevicePacketExchanger : public QboneClientPacketExchanger {
   // QboneClientPacketExchanger:
   void Start(int read_fd, int write_fd) override;
   void Stop() override;
-  int OnReadFromNetworkReady(int max_packets_to_read,
-                             QboneClientInterface* qbone_client) override;
-  void WritePacketToNetwork(const char* packet, size_t size) override;
+  int OnReadFromNetworkReady(int max_packets_to_read) override;
+  void WritePacketToNetwork(absl::Span<const std::byte> packet) override;
 
  private:
   enum class L2ValidationResult {
@@ -57,8 +55,7 @@ class TunDevicePacketExchanger : public QboneClientPacketExchanger {
   };
 
   // Returns true if more packets may be available to read.
-  bool ReadAndExchangeSinglePacket(QboneClientInterface* qbone_client,
-                                   bool exchange_blocked_error);
+  bool ReadAndExchangeSinglePacket(bool exchange_blocked_error);
 
   void InitializeEthHdr();
   L2ValidationResult ValidateL2Headers(const ethhdr& eth_header,

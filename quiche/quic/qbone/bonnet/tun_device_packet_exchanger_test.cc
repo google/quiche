@@ -17,6 +17,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/bonnet/mock_qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
@@ -56,7 +57,6 @@ class TunDevicePacketExchangerTest : public QuicTest {
 
   MockKernel mock_kernel_;
   StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor_;
-  StrictMock<MockQboneClient> mock_client_;
   TunDevicePacketExchanger exchanger_;
 };
 
@@ -76,7 +76,8 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketError) {
       });
 
   EXPECT_CALL(mock_visitor_, OnWrite(StatusIs(Ne(absl::StatusCode::kOk))));
-  exchanger_.WritePacketToNetwork(packet.data(), packet.size());
+  exchanger_.WritePacketToNetwork(absl::MakeConstSpan(
+      reinterpret_cast<std::byte*>(packet.data()), packet.size()));
 
   exchanger_.Stop();
 }
@@ -106,7 +107,8 @@ TEST_F(TunDevicePacketExchangerTest, RestartExchanger) {
           ElementsAreArray(reinterpret_cast<const std::byte*>(packet.data()),
                            packet.size()))))))
       .Times(1);
-  exchanger_.WritePacketToNetwork(packet.data(), packet.size());
+  exchanger_.WritePacketToNetwork(absl::MakeConstSpan(
+      reinterpret_cast<std::byte*>(packet.data()), packet.size()));
 
   exchanger_.Stop();
 }
@@ -127,7 +129,8 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketBlocked) {
       });
 
   EXPECT_CALL(mock_visitor_, OnWrite(StatusIs(Ne(absl::StatusCode::kOk))));
-  exchanger_.WritePacketToNetwork(packet.data(), packet.size());
+  exchanger_.WritePacketToNetwork(absl::MakeConstSpan(
+      reinterpret_cast<std::byte*>(packet.data()), packet.size()));
 
   exchanger_.Stop();
 }
@@ -154,7 +157,8 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketSuccessfulWrite) {
           ElementsAreArray(reinterpret_cast<const std::byte*>(packet.data()),
                            packet.size()))))))
       .Times(1);
-  exchanger_.WritePacketToNetwork(packet.data(), packet.size());
+  exchanger_.WritePacketToNetwork(absl::MakeConstSpan(
+      reinterpret_cast<std::byte*>(packet.data()), packet.size()));
 
   exchanger_.Stop();
 }
@@ -210,7 +214,8 @@ TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
           ElementsAreArray(reinterpret_cast<const std::byte*>(packet.data()),
                            packet.size()))))));
 
-  tap_exchanger.WritePacketToNetwork(packet.data(), packet.size());
+  tap_exchanger.WritePacketToNetwork(absl::MakeConstSpan(
+      reinterpret_cast<std::byte*>(packet.data()), packet.size()));
 
   tap_exchanger.Stop();
 }
@@ -224,9 +229,7 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketError) {
         return -1;
       });
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
-  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1,
-                                              &mock_client_),
-            0);
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1), 0);
 
   exchanger_.Stop();
 }
@@ -240,9 +243,7 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketBlocked) {
         return -1;
       });
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
-  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1,
-                                              &mock_client_),
-            0);
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1), 0);
 
   exchanger_.Stop();
 }
@@ -258,16 +259,13 @@ TEST_F(TunDevicePacketExchangerTest, ReadPacketSuccessfulRead) {
         memcpy(iov[1].iov_base, packet.data(), packet.size());
         return packet.size();
       });
-  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(packet)));
   EXPECT_CALL(
       mock_visitor_,
       OnRead(IsOkAndHolds(ElementsAre(Field(
           &QboneClientPacketExchanger::ReadResult::packet,
           ElementsAreArray(reinterpret_cast<const std::byte*>(packet.data()),
                            packet.size()))))));
-  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1,
-                                              &mock_client_),
-            1);
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1), 1);
 
   exchanger_.Stop();
 }
@@ -288,9 +286,6 @@ TEST_F(TunDevicePacketExchangerTest, MultipleReadsMoreAvailableThanMax) {
         return packet2.size();
       });
 
-  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(packet1)));
-  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(packet2)));
-
   EXPECT_CALL(
       mock_visitor_,
       OnRead(IsOkAndHolds(ElementsAre(Field(
@@ -304,9 +299,7 @@ TEST_F(TunDevicePacketExchangerTest, MultipleReadsMoreAvailableThanMax) {
           ElementsAreArray(reinterpret_cast<const std::byte*>(packet2.data()),
                            packet2.size()))))));
 
-  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2,
-                                              &mock_client_),
-            2);
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2), 2);
 
   exchanger_.Stop();
 }
@@ -326,8 +319,6 @@ TEST_F(TunDevicePacketExchangerTest, MultipleReadsBlockedBeforeMax) {
         return -1;
       });
 
-  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(packet1)));
-
   // Expect no error callbacks from the blocked read. In this scenario, the
   // blocked socket is just a signal that there are no more packets to be read,
   // rather than an actual error.
@@ -339,9 +330,7 @@ TEST_F(TunDevicePacketExchangerTest, MultipleReadsBlockedBeforeMax) {
           ElementsAreArray(reinterpret_cast<const std::byte*>(packet1.data()),
                            packet1.size()))))));
 
-  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/5,
-                                              &mock_client_),
-            1);
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/5), 1);
 
   exchanger_.Stop();
 }
@@ -364,7 +353,6 @@ TEST_F(TunDevicePacketExchangerTest, MultiReadInvalidSizeHuge) {
 
   // Expect subsequent packet to still be read and processed after the invalid
   // packet.
-  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(valid_packet)));
   EXPECT_CALL(mock_visitor_,
               OnRead(IsOkAndHolds(ElementsAre(Field(
                   &QboneClientPacketExchanger::ReadResult::packet,
@@ -372,9 +360,7 @@ TEST_F(TunDevicePacketExchangerTest, MultiReadInvalidSizeHuge) {
                       reinterpret_cast<const std::byte*>(valid_packet.data()),
                       valid_packet.size()))))));
 
-  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2,
-                                              &mock_client_),
-            2);
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2), 2);
 
   exchanger_.Stop();
 }
@@ -389,9 +375,7 @@ TEST_F(TunDevicePacketExchangerTest,
         return -1;
       });
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
-  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2,
-                                              &mock_client_),
-            0);
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2), 0);
 
   exchanger_.Stop();
 }
@@ -407,7 +391,6 @@ class TunDevicePacketExchangerTapTest : public QuicTest {
   MockKernel mock_kernel_;
   StrictMock<MockNetlink> mock_netlink_;
   StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor_;
-  StrictMock<MockQboneClient> mock_client_;
   TunDevicePacketExchanger exchanger_;
 };
 
@@ -436,16 +419,13 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapSuccess) {
             return ETH_HLEN + l3_packet.size();
           });
 
-  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(l3_packet)));
   EXPECT_CALL(
       mock_visitor_,
       OnRead(IsOkAndHolds(ElementsAre(Field(
           &QboneClientPacketExchanger::ReadResult::packet,
           ElementsAreArray(reinterpret_cast<const std::byte*>(l3_packet.data()),
                            l3_packet.size()))))));
-  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1,
-                                              &mock_client_),
-            1);
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1), 1);
 
   exchanger_.Stop();
 }
@@ -463,9 +443,7 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapInvalidL2) {
       });
 
   EXPECT_CALL(mock_visitor_, OnRead(StatusIs(Ne(absl::StatusCode::kOk))));
-  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1,
-                                              &mock_client_),
-            1);
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1), 1);
 
   exchanger_.Stop();
 }
@@ -518,9 +496,7 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
 
   // OnReadFromNetworkReady should return 1 because packet was handled
   // internally (Neighbor Discovery) but still read from network.
-  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1,
-                                              &mock_client_),
-            1);
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/1), 1);
 
   exchanger_.Stop();
 }
@@ -555,7 +531,6 @@ TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidSizeShort) {
 
   // Expect subsequent packet to still be read and processed after the invalid
   // packet.
-  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(valid_l3_packet)));
   EXPECT_CALL(mock_visitor_,
               OnRead(IsOkAndHolds(ElementsAre(
                   Field(&QboneClientPacketExchanger::ReadResult::packet,
@@ -563,9 +538,7 @@ TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidSizeShort) {
                                              valid_l3_packet.data()),
                                          valid_l3_packet.size()))))));
 
-  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2,
-                                              &mock_client_),
-            2);
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2), 2);
 
   exchanger_.Stop();
 }
@@ -605,7 +578,6 @@ TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidL2) {
 
   // Expect subsequent packet to still be read and processed after the invalid
   // packet.
-  EXPECT_CALL(mock_client_, ProcessPacketFromNetwork(StrEq(valid_l3_packet)));
   EXPECT_CALL(mock_visitor_,
               OnRead(IsOkAndHolds(ElementsAre(
                   Field(&QboneClientPacketExchanger::ReadResult::packet,
@@ -613,9 +585,7 @@ TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidL2) {
                                              valid_l3_packet.data()),
                                          valid_l3_packet.size()))))));
 
-  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2,
-                                              &mock_client_),
-            2);
+  EXPECT_EQ(exchanger_.OnReadFromNetworkReady(/*max_packets_to_read=*/2), 2);
 
   exchanger_.Stop();
 }

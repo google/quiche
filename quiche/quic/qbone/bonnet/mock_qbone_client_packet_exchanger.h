@@ -9,9 +9,9 @@
 #include <vector>
 
 #include "absl/status/statusor.h"
+#include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
-#include "quiche/quic/qbone/qbone_client_interface.h"
 
 namespace quic::test {
 
@@ -31,10 +31,9 @@ class MockQboneClientPacketExchanger : public QboneClientPacketExchanger {
 
   MOCK_METHOD(void, Start, (int read_fd, int write_fd), (override));
   MOCK_METHOD(void, Stop, (), (override));
-  MOCK_METHOD(int, OnReadFromNetworkReady,
-              (int max_packets_to_read, QboneClientInterface* qbone_client),
+  MOCK_METHOD(int, OnReadFromNetworkReady, (int max_packets_to_read),
               (override));
-  MOCK_METHOD(void, WritePacketToNetwork, (const char* packet, size_t size),
+  MOCK_METHOD(void, WritePacketToNetwork, (absl::Span<const std::byte> packet),
               (override));
 };
 
