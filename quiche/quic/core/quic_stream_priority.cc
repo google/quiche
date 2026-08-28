@@ -54,20 +54,15 @@ std::optional<HttpStreamPriority> ParsePriorityFieldValue(
   bool incremental = HttpStreamPriority::kDefaultIncremental;
 
   for (const auto& [name, value] : *parsed_dictionary) {
-    if (value.member_is_inner_list) {
+    const std::optional<
+        std::pair<const quiche::structured_headers::Item&,
+                  const quiche::structured_headers::Parameters&>>
+        item_and_params = value.GetWithParamsIfItem();
+    if (!item_and_params.has_value()) {
       continue;
     }
 
-    const std::vector<quiche::structured_headers::ParameterizedItem>& member =
-        value.member;
-    if (member.size() != 1) {
-      // If `member_is_inner_list` is false above,
-      // then `member` should have exactly one element.
-      QUICHE_BUG(priority_field_value_parsing_internal_error);
-      continue;
-    }
-
-    const quiche::structured_headers::Item& item = member[0].item;
+    const quiche::structured_headers::Item& item = item_and_params->first;
     if (name == HttpStreamPriority::kUrgencyKey) {
       const int64_t* parsed_urgency = item.GetIfInteger();
       // Ignore out-of-range values.
