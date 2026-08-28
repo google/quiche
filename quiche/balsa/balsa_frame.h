@@ -21,6 +21,8 @@
 #include "quiche/common/platform/api/quiche_flag_utils.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
+#include "quiche/balsa/http_protocol_defects.h"
+
 namespace quiche {
 
 namespace test {
@@ -194,6 +196,10 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
 
   bool is_valid_target_uri() const { return is_valid_target_uri_; }
 
+  const HttpProtocolDefects& protocol_defects() const {
+    return protocol_defects_;
+  }
+
  protected:
   inline BalsaHeadersEnums::ContentLengthStatus ProcessContentLengthLine(
       size_t line_idx, size_t* length);
@@ -322,6 +328,7 @@ class QUICHE_EXPORT BalsaFrame : public FramerInterface {
   // Specific to parsing of chunk extensions.
   bool in_quote_ : 1;
   bool is_escaped_ : 1;
+  HttpProtocolDefects protocol_defects_;
 };
 
 }  // namespace quiche

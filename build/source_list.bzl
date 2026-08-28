@@ -1004,6 +1004,7 @@ balsa_hdrs = [
     "balsa/framer_interface.h",
     "balsa/header_api.h",
     "balsa/header_properties.h",
+    "balsa/http_protocol_defects.h",
     "balsa/http_validation_policy.h",
     "balsa/noop_balsa_visitor.h",
     "balsa/simple_buffer.h",

@@ -1004,6 +1004,7 @@ balsa_hdrs = [
     "src/quiche/balsa/framer_interface.h",
     "src/quiche/balsa/header_api.h",
     "src/quiche/balsa/header_properties.h",
+    "src/quiche/balsa/http_protocol_defects.h",
     "src/quiche/balsa/http_validation_policy.h",
     "src/quiche/balsa/noop_balsa_visitor.h",
     "src/quiche/balsa/simple_buffer.h",

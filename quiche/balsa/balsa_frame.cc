@@ -394,6 +394,15 @@ void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
                          http_validation_policy().sanitize_firstline_spaces,
                          has_multiple_spaces, has_cr_tab);
 
+  if (has_multiple_spaces) {
+    QUICHE_CODE_COUNT(multiple_spaces_in_firstline_detected);
+    protocol_defects_.multiple_spaces_in_firstline = true;
+  }
+  if (has_cr_tab) {
+    QUICHE_CODE_COUNT(tab_or_cr_found_in_firstline_detected);
+    protocol_defects_.tab_or_cr_found_in_firstline = true;
+  }
+
   if (!parse_success) {
     parse_state_ = BalsaFrameEnums::ERROR;
     HandleError(last_error_);
@@ -418,6 +427,10 @@ void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
 
   if (is_request_) {
     const bool is_method_valid = header_properties::IsValidToken(part1);
+    if (!is_method_valid) {
+      QUICHE_CODE_COUNT(invalid_method_in_request_first_line_detected);
+      protocol_defects_.invalid_method_in_request_first_line = true;
+    }
     if (http_validation_policy().disallow_invalid_request_methods &&
         !is_method_valid) {
       QUICHE_CODE_COUNT(disallow_invalid_request_methods_enforced);
@@ -449,6 +462,8 @@ void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
   if (headers_->parsed_response_code_ < 100 ||
       headers_->parsed_response_code_ > 599 || has_non_digit ||
       has_leading_zero) {
+    QUICHE_CODE_COUNT(invalid_response_code_detected);
+    protocol_defects_.invalid_response_code = true;
     if (http_validation_policy().disallow_invalid_response_codes) {
       QUICHE_CODE_COUNT(disallow_invalid_response_codes_enforced);
       parse_state_ = BalsaFrameEnums::ERROR;
@@ -552,6 +567,13 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
       // continuation) and continuation is allowed.
       HandleWarning(is_trailer ? BalsaFrameEnums::OBS_FOLD_IN_TRAILERS
                                : BalsaFrameEnums::OBS_FOLD_IN_HEADERS);
+      if (is_trailer) {
+        QUICHE_CODE_COUNT(obs_fold_in_trailer_values_detected);
+        protocol_defects_.obs_fold_in_trailer_values = true;
+      } else {
+        QUICHE_CODE_COUNT(obs_fold_in_header_values_detected);
+        protocol_defects_.obs_fold_in_header_values = true;
+      }
       if (http_validation_policy().sanitize_obs_fold_in_header_values) {
         QUICHE_CODE_COUNT(sanitize_obs_fold_in_header_values_enforced);
         *has_continuation_lines = true;
@@ -585,6 +607,8 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
     headers->header_lines_.back().has_continuation_line =
         header_has_continuation_line;
     if (current >= line_end) {
+      QUICHE_CODE_COUNT(header_missing_colon_detected);
+      protocol_defects_.header_missing_colon = true;
       if (http_validation_policy().require_header_colon) {
         QUICHE_CODE_COUNT(require_header_colon_enforced);
         HandleError(is_trailer ? BalsaFrameEnums::TRAILER_MISSING_COLON
@@ -610,6 +634,10 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
         break;
       }
 
+      if (header_properties::IsInvalidHeaderKeyChar(c)) {
+        QUICHE_CODE_COUNT(header_name_contains_double_quote_detected);
+        protocol_defects_.header_name_contains_double_quote = true;
+      }
       // Generally invalid characters were found earlier.
       if (http_validation_policy().disallow_double_quote_in_header_name) {
         if (header_properties::IsInvalidHeaderKeyChar(c)) {
@@ -627,6 +655,8 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
       }
 
       if (IsObsTextChar(c)) {
+        QUICHE_CODE_COUNT(obs_text_found_in_header_name_detected);
+        protocol_defects_.obs_text_found_in_header_name = true;
         if (http_validation_policy().disallow_obs_text_in_field_names) {
           QUICHE_CODE_COUNT(disallow_obs_text_in_field_names_enforced);
           HandleError(is_trailer
@@ -645,6 +675,8 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
       // construct which is technically not allowed by the spec.
 
       // In strict mode, we do treat this invalid value-less key as an error.
+      QUICHE_CODE_COUNT(header_missing_colon_detected);
+      protocol_defects_.header_missing_colon = true;
       if (http_validation_policy().require_header_colon) {
         QUICHE_CODE_COUNT(require_header_colon_enforced);
         HandleError(is_trailer ? BalsaFrameEnums::TRAILER_MISSING_COLON
@@ -737,6 +769,7 @@ void BalsaFrame::ProcessTransferEncodingLine(HeaderLines::size_type line_idx) {
     headers_->transfer_encoding_is_chunked_ = false;
     return;
   }
+  protocol_defects_.unknown_transfer_encoding = true;
   if (http_validation_policy().validate_transfer_encoding) {
     HandleError(BalsaFrameEnums::UNKNOWN_TRANSFER_ENCODING);
   }
@@ -757,6 +790,8 @@ bool BalsaFrame::CheckHeaderLinesForInvalidChars(const Lines& lines,
       return true;
     }
     if (*c == '\r' && c + 1 < stream_end && *(c + 1) != '\n') {
+      QUICHE_CODE_COUNT(lone_cr_in_request_headers_detected);
+      protocol_defects_.lone_cr_in_request_headers = true;
       if (http_validation_policy().disallow_lone_cr_in_request_headers) {
         QUICHE_CODE_COUNT(disallow_lone_cr_in_request_headers_enforced);
         return true;
@@ -860,6 +895,8 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
       // Optionally, reject this per the RFC or simply keep one value.
       if (headers->content_length_status_ ==
           BalsaHeadersEnums::VALID_CONTENT_LENGTH) {
+        QUICHE_CODE_COUNT(multiple_content_length_keys_detected);
+        protocol_defects_.multiple_content_length_keys = true;
         if (http_validation_policy().disallow_multiple_content_length) {
           QUICHE_CODE_COUNT(disallow_multiple_content_length_enforced);
           HandleError(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS);
@@ -870,6 +907,7 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
     }
     if (absl::EqualsIgnoreCase(key, kTransferEncoding)) {
       if (transfer_encoding_idx != 0) {
+        protocol_defects_.multiple_transfer_encoding_keys = true;
         if (http_validation_policy().validate_transfer_encoding) {
           QUICHE_CODE_COUNT(multiple_transfer_encoding_keys_rejected);
           HandleError(BalsaFrameEnums::MULTIPLE_TRANSFER_ENCODING_KEYS);
@@ -888,6 +926,8 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
     }
 
     if (content_length_idx != 0 && transfer_encoding_idx != 0) {
+      QUICHE_CODE_COUNT(transfer_encoding_and_content_length_detected);
+      protocol_defects_.transfer_encoding_and_content_length = true;
       if (http_validation_policy().validate_transfer_encoding &&
           http_validation_policy()
               .disallow_transfer_encoding_with_content_length) {
@@ -1381,6 +1421,17 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
             HandleError(BalsaFrameEnums::INVALID_CHUNK_EXTENSION);
             return current - input;
           }
+          if (!found_semicolon || extension_is_empty) {
+            QUICHE_CODE_COUNT(missing_semicolon_in_chunk_extension_detected);
+          }
+          protocol_defects_.missing_semicolon_in_chunk_extension =
+              !found_semicolon || extension_is_empty;
+          if (found_semicolon && found_non_bws_before_semicolon) {
+            QUICHE_CODE_COUNT(
+                token_before_semicolon_in_chunk_extension_detected);
+          }
+          protocol_defects_.token_before_semicolon_in_chunk_extension =
+              found_semicolon && found_non_bws_before_semicolon;
         }
 
         chunk_length_character_extracted_ = false;
@@ -1440,6 +1491,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
           // Right after the chunk should be a \r then a \n.
           if (c == '\r') {
             if (saw_slash_r_after_chunk_) {
+              QUICHE_CODE_COUNT(stray_data_after_chunk_detected);
+              protocol_defects_.stray_data_after_chunk = true;
               if (http_validation_policy().disallow_stray_data_after_chunk) {
                 QUICHE_CODE_COUNT(disallow_stray_data_after_chunk_enforced);
                 HandleError(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK);
@@ -1453,6 +1506,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
             // Can't use last_char_was_slash_r_ because a \r might've been part
             // of the chunk data.
             if (!saw_slash_r_after_chunk_) {
+              QUICHE_CODE_COUNT(stray_data_after_chunk_detected);
+              protocol_defects_.stray_data_after_chunk = true;
               if (http_validation_policy().disallow_stray_data_after_chunk) {
                 QUICHE_CODE_COUNT(disallow_stray_data_after_chunk_enforced);
                 HandleError(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK);
@@ -1463,6 +1518,8 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
             }
             break;
           } else {
+            QUICHE_CODE_COUNT(stray_data_after_chunk_detected);
+            protocol_defects_.stray_data_after_chunk = true;
             if (http_validation_policy().disallow_stray_data_after_chunk) {
               QUICHE_CODE_COUNT(disallow_stray_data_after_chunk_enforced);
               HandleError(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK);
@@ -1502,6 +1559,9 @@ size_t BalsaFrame::ProcessInput(const char* input, size_t size) {
             ++current;
 
             if (framing_found != kValidTerm1) {
+              QUICHE_CODE_COUNT(
+                  chunked_body_does_not_end_with_crlf_crlf_detected);
+              protocol_defects_.chunked_body_does_not_end_with_crlf_crlf = true;
               if (http_validation_policy()
                       .require_chunked_body_end_with_crlf_crlf) {
                 QUICHE_CODE_COUNT(

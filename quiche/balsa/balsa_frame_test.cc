@@ -747,18 +747,26 @@ TEST(HTTPBalsaFrame, InvalidMethodTestWithoutPolicy) {
 
     if (c >= 127) {
       EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
+      EXPECT_EQ(framer.protocol_defects().invalid_method_in_request_first_line,
+                true);
       EXPECT_FALSE(header_properties::IsValidToken(headers.request_method()));
       EXPECT_EQ(headers.request_method(), absl::StrCat("G", char_str, "ET"));
     } else if (absl::ascii_isspace(c)) {
+      EXPECT_EQ(framer.protocol_defects().invalid_method_in_request_first_line,
+                false);
       EXPECT_TRUE(header_properties::IsValidToken(headers.request_method()));
       EXPECT_EQ(headers.request_method(), "G");
     } else if (absl::ascii_iscntrl(c)) {
       EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
+      EXPECT_EQ(framer.protocol_defects().invalid_method_in_request_first_line,
+                false);
       EXPECT_TRUE(header_properties::IsValidToken(headers.request_method()));
       EXPECT_EQ(headers.request_method(), "G");
     } else if (absl::ascii_isgraph(c)) {
       EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
       bool char_is_tchar = header_properties::IsValidToken(char_str);
+      EXPECT_EQ(framer.protocol_defects().invalid_method_in_request_first_line,
+                !char_is_tchar);
       EXPECT_EQ(header_properties::IsValidToken(headers.request_method()),
                 char_is_tchar);
       EXPECT_EQ(headers.request_method(), absl::StrCat("G", char_str, "ET"));
@@ -879,6 +887,8 @@ TEST(HTTPBalsaFrame, RequestLineSanitizedProperly) {
     framer.ProcessInput(input.data(), input.size());
     EXPECT_EQ(headers.first_line(), tc.parsed);
     EXPECT_EQ(framer.ErrorCode(), tc.expected_error);
+    EXPECT_EQ(framer.protocol_defects().tab_or_cr_found_in_firstline,
+              tc.expected_tab_or_cr_defect);
   }
 }
 
@@ -942,6 +952,55 @@ TEST(HTTPBalsaFrame, ResponseFirstLineParsedCorrectly) {
   FirstLineParsedCorrectlyHelper(response_tokens, 4242, false, "\t    ");
   FirstLineParsedCorrectlyHelper(response_tokens, 4242, false, "   \t");
   FirstLineParsedCorrectlyHelper(response_tokens, 4242, false, "   \t \t  ");
+}
+
+TEST(HTTPBalsaFrame, LargeAndSmallStatusCodes) {
+  struct TestCase {
+    const absl::string_view status_code;
+    const BalsaFrameEnums::ErrorCode expected_error;
+    const bool expected_invalid_response_code;
+  };
+  std::vector<TestCase> cases = {
+      {"0", BalsaFrameEnums::BALSA_NO_ERROR, true},
+      {"99", BalsaFrameEnums::BALSA_NO_ERROR, true},
+      {"100", BalsaFrameEnums::BALSA_NO_ERROR, false},
+      {"200", BalsaFrameEnums::BALSA_NO_ERROR, false},
+      {"599", BalsaFrameEnums::BALSA_NO_ERROR, false},
+      {"600", BalsaFrameEnums::BALSA_NO_ERROR, true},
+      {"1000", BalsaFrameEnums::BALSA_NO_ERROR, true},
+      {"65740", BalsaFrameEnums::BALSA_NO_ERROR, true},
+      {"0200", BalsaFrameEnums::BALSA_NO_ERROR, true},
+      {"+200", BalsaFrameEnums::BALSA_NO_ERROR, true},
+      {"200A", BalsaFrameEnums::FAILED_CONVERTING_STATUS_CODE_TO_INT, false},
+      {"99999999999999999999999",
+       BalsaFrameEnums::FAILED_CONVERTING_STATUS_CODE_TO_INT, false}};
+  for (const TestCase& tcase : cases) {
+    BalsaHeaders headers;
+    BalsaFrame framer;
+    framer.set_is_request(false);
+    framer.set_balsa_headers(&headers);
+    std::string firstline = absl::StrFormat(
+        "HTTP/1.1 %s OK\r\n"
+        "Content-Length: 0\r\n"
+        "\r\n",
+        tcase.status_code);
+    SCOPED_TRACE(absl::StrCat("Input: ", absl::CEscape(firstline)));
+
+    if (tcase.expected_error == BalsaFrameEnums::BALSA_NO_ERROR) {
+      EXPECT_EQ(framer.ProcessInput(firstline.data(), firstline.size()),
+                firstline.size());
+      EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::BALSA_NO_ERROR);
+      EXPECT_TRUE(framer.MessageFullyRead());
+    } else {
+      EXPECT_LT(framer.ProcessInput(firstline.data(), firstline.size()),
+                firstline.size());
+      EXPECT_EQ(framer.ErrorCode(), tcase.expected_error);
+      EXPECT_FALSE(framer.MessageFullyRead());
+    }
+
+    EXPECT_EQ(framer.protocol_defects().invalid_response_code,
+              tcase.expected_invalid_response_code);
+  }
 }
 
 TEST(HTTPBalsaFrame, LargeAndSmallStatusCodesWithPolicy) {
@@ -1130,6 +1189,7 @@ TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaders) {
       CreateMessage("GET / \rHTTP/1.1\r\n", headers, 2, ":", "\r\n", "");
   framer.ProcessInput(message.data(), message.size());
   EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_CHARACTER);
+  EXPECT_TRUE(framer.protocol_defects().lone_cr_in_request_headers);
 }
 
 // Test that lone '\r' detection works correctly in the firstline
@@ -1168,6 +1228,7 @@ TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaderValueOnInputBoundary) {
   EXPECT_EQ(message2.size(),
             framer.ProcessInput(message2.data(), message2.size()));
   EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_CHARACTER);
+  EXPECT_TRUE(framer.protocol_defects().lone_cr_in_request_headers);
 }
 
 TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaderKey) {
@@ -1183,6 +1244,7 @@ TEST(HTTPBalsaFrame, CarriageReturnIllegalInHeaderKey) {
       CreateMessage("GET / HTTP/1.1\r\n", headers, 1, ":", "\r\n", "");
   framer.ProcessInput(message.data(), message.size());
   EXPECT_EQ(framer.ErrorCode(), BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
+  EXPECT_TRUE(framer.protocol_defects().lone_cr_in_request_headers);
 }
 
 TEST(HTTPBalsaFrame, ResponseLinesParsedProperly) {
@@ -1472,6 +1534,44 @@ TEST_F(HTTPBalsaFrameTest, ContentLengthNotRequired) {
   balsa_frame_.ProcessInput(message.data(), message.size());
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
+}
+
+TEST_F(HTTPBalsaFrameTest, BothTransferEncodingAndContentLengthAllowed) {
+  std::string message =
+      "GET / HTTP/1.1\r\n"
+      "Transfer-Encoding: chunked\r\n"
+      "Content-Length: 5\r\n"
+      "\r\n";
+
+  balsa_frame_.ProcessInput(message.data(), message.size());
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_TRUE(
+      balsa_frame_.protocol_defects().transfer_encoding_and_content_length);
+  // Content-Length is provided to callers when Transfer-Encoding is present.
+  EXPECT_EQ(headers_.content_length(), 5);
+}
+
+TEST_F(HTTPBalsaFrameTest, BothTransferEncodingAndContentLengthDisallowed) {
+  HttpValidationPolicy http_validation_policy;
+  http_validation_policy.disallow_transfer_encoding_with_content_length = true;
+  balsa_frame_.set_http_validation_policy(http_validation_policy);
+
+  std::string message =
+      "GET / HTTP/1.1\r\n"
+      "Transfer-Encoding: chunked\r\n"
+      "Content-Length: 5\r\n"
+      "\r\n";
+
+  EXPECT_CALL(
+      visitor_mock_,
+      HandleError(BalsaFrameEnums::BOTH_TRANSFER_ENCODING_AND_CONTENT_LENGTH));
+
+  balsa_frame_.ProcessInput(message.data(), message.size());
+  EXPECT_TRUE(balsa_frame_.Error());
+  EXPECT_EQ(balsa_frame_.ErrorCode(),
+            BalsaFrameEnums::BOTH_TRANSFER_ENCODING_AND_CONTENT_LENGTH);
+  EXPECT_TRUE(
+      balsa_frame_.protocol_defects().transfer_encoding_and_content_length);
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -2037,6 +2137,39 @@ TEST_F(HTTPBalsaFrameTest, ChunkExtensionWithThreeExtensionsAndDquote) {
   EXPECT_FALSE(balsa_frame_.Error());
 }
 
+TEST_F(HTTPBalsaFrameTest, EmptyChunkExtensionDetectedAsDefect) {
+  std::string headers =
+      "POST / HTTP/1.1\r\n"
+      "Transfer-Encoding: chunked\r\n"
+      "\r\n";
+
+  // Empty extension
+  const absl::string_view chunks(
+      "8;\r\n"
+      "deadbeef\r\n"
+      "0\r\n\r\n");
+
+  ASSERT_EQ(headers.size(),
+            balsa_frame_.ProcessInput(headers.data(), headers.size()));
+
+  balsa_frame_.set_balsa_visitor(&visitor_mock_);
+  {
+    InSequence s1;
+    EXPECT_CALL(visitor_mock_, OnChunkLength(8));
+    EXPECT_CALL(visitor_mock_, OnChunkExtensionInput(";"));
+    EXPECT_CALL(visitor_mock_, OnBodyChunkInput("deadbeef"));
+    EXPECT_CALL(visitor_mock_, OnChunkLength(0));
+    EXPECT_CALL(visitor_mock_, OnChunkExtensionInput(""));
+  }
+
+  EXPECT_EQ(chunks.size(),
+            balsa_frame_.ProcessInput(chunks.data(), chunks.size()));
+
+  EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_TRUE(
+      balsa_frame_.protocol_defects().missing_semicolon_in_chunk_extension);
+}
+
 TEST_F(HTTPBalsaFrameTest, InvalidChunkExtensionWithCarriageReturn) {
   balsa_frame_.set_http_validation_policy(
       HttpValidationPolicy{.disallow_lone_cr_in_chunk_extension = true});
@@ -2247,6 +2380,7 @@ TEST_F(HTTPBalsaFrameTest,
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK, balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().stray_data_after_chunk);
 
   EXPECT_EQ(message_body, body_input);
   EXPECT_EQ(message_body_data, body_data);
@@ -2269,6 +2403,7 @@ TEST_F(HTTPBalsaFrameTest, StrayDataAfterChunkRejected) {
             balsa_frame_.ProcessInput(body1.data(), body1.size()));
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::STRAY_DATA_AFTER_CHUNK, balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().stray_data_after_chunk);
 }
 
 // A LF character preceded by CR is allowed even if separated into multiple
@@ -2331,6 +2466,8 @@ TEST_F(HTTPBalsaFrameTest,
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
   // According to the RFC, this should be false!
   EXPECT_TRUE(balsa_frame_.MessageFullyRead());
+  EXPECT_TRUE(
+      balsa_frame_.protocol_defects().chunked_body_does_not_end_with_crlf_crlf);
 }
 
 TEST_F(
@@ -2368,6 +2505,8 @@ TEST_F(
 
   EXPECT_EQ(BalsaFrameEnums::INVALID_CHUNK_FRAMING, balsa_frame_.ErrorCode());
   EXPECT_FALSE(balsa_frame_.MessageFullyRead());
+  EXPECT_TRUE(
+      balsa_frame_.protocol_defects().chunked_body_does_not_end_with_crlf_crlf);
 }
 
 TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesAllowed) {
@@ -2387,6 +2526,7 @@ TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesAllowed) {
       << BalsaFrameEnums::ErrorCodeToString(balsa_frame_.ErrorCode());
 
   EXPECT_EQ("GET  / HTTP/1.1", headers_.first_line());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
 }
 
 TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesRejected) {
@@ -2405,6 +2545,7 @@ TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesRejected) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_SPACES_IN_REQUEST_LINE,
             balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
 }
 
 TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesSanitized) {
@@ -2426,6 +2567,7 @@ TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesSanitized) {
       << BalsaFrameEnums::ErrorCodeToString(balsa_frame_.ErrorCode());
 
   EXPECT_EQ("GET / HTTP/1.1", headers_.first_line());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
 }
 
 TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesAllowed) {
@@ -2446,6 +2588,7 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesAllowed) {
       << BalsaFrameEnums::ErrorCodeToString(balsa_frame_.ErrorCode());
 
   EXPECT_EQ("HTTP/1.1 200  OK", headers_.first_line());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
 }
 
 TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesRejected) {
@@ -2465,6 +2608,7 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesRejected) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_SPACES_IN_STATUS_LINE,
             balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
 }
 
 TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesSanitized) {
@@ -2487,6 +2631,7 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesSanitized) {
       << BalsaFrameEnums::ErrorCodeToString(balsa_frame_.ErrorCode());
 
   EXPECT_EQ("HTTP/1.1 200 OK", headers_.first_line());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -3694,6 +3839,7 @@ TEST_F(HTTPBalsaFrameTest, TwoContentLengthFirstValidSecondOverflow) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS,
             balsa_frame_.ErrorCode());
+  EXPECT_FALSE(balsa_frame_.protocol_defects().multiple_content_length_keys);
 }
 
 TEST_F(HTTPBalsaFrameTest, TwoDifferentContentLengthHeadersIsAnError) {
@@ -3707,6 +3853,7 @@ TEST_F(HTTPBalsaFrameTest, TwoDifferentContentLengthHeadersIsAnError) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS,
             balsa_frame_.ErrorCode());
+  EXPECT_FALSE(balsa_frame_.protocol_defects().multiple_content_length_keys);
 }
 
 TEST_F(HTTPBalsaFrameTest, TwoSameContentLengthHeadersIsNotAnError) {
@@ -3718,6 +3865,7 @@ TEST_F(HTTPBalsaFrameTest, TwoSameContentLengthHeadersIsNotAnError) {
       "1";
   balsa_frame_.ProcessInput(header.data(), header.size());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_content_length_keys);
   EXPECT_FALSE(balsa_frame_.Error());
   balsa_frame_.ProcessInput(header.data(), header.size());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
@@ -3741,6 +3889,7 @@ TEST_F(HTTPBalsaFrameTest, TwoSameContentLengthHeadersIsAnError) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_CONTENT_LENGTH_KEYS,
             balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_content_length_keys);
 }
 
 TEST_F(HTTPBalsaFrameTest, ChunkedTransferEncodingWithContentLength) {
@@ -3775,6 +3924,7 @@ TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingHeadersIsAnError) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::MULTIPLE_TRANSFER_ENCODING_KEYS,
             balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_transfer_encoding_keys);
 }
 
 TEST_F(HTTPBalsaFrameTest, AcceptTwoTransferEncodingHeaders) {
@@ -3793,6 +3943,7 @@ TEST_F(HTTPBalsaFrameTest, AcceptTwoTransferEncodingHeaders) {
 
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_transfer_encoding_keys);
 }
 
 TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingTokensIsAnError) {
@@ -3806,6 +3957,7 @@ TEST_F(HTTPBalsaFrameTest, TwoTransferEncodingTokensIsAnError) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::UNKNOWN_TRANSFER_ENCODING,
             balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().unknown_transfer_encoding);
 }
 
 TEST_F(HTTPBalsaFrameTest, AcceptTwoTransferEncodingTokens) {
@@ -3823,6 +3975,7 @@ TEST_F(HTTPBalsaFrameTest, AcceptTwoTransferEncodingTokens) {
 
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().unknown_transfer_encoding);
 }
 
 TEST_F(HTTPBalsaFrameTest, UnknownTransferEncodingTokenIsAnError) {
@@ -3836,6 +3989,7 @@ TEST_F(HTTPBalsaFrameTest, UnknownTransferEncodingTokenIsAnError) {
   EXPECT_TRUE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::UNKNOWN_TRANSFER_ENCODING,
             balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().unknown_transfer_encoding);
 }
 
 TEST_F(HTTPBalsaFrameTest, AcceptUnknownTransferEncodingToken) {
@@ -3853,6 +4007,7 @@ TEST_F(HTTPBalsaFrameTest, AcceptUnknownTransferEncodingToken) {
 
   EXPECT_FALSE(balsa_frame_.Error());
   EXPECT_EQ(BalsaFrameEnums::BALSA_NO_ERROR, balsa_frame_.ErrorCode());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().unknown_transfer_encoding);
 }
 
 TEST_F(HTTPBalsaFrameTest, MissingContentLength) {
@@ -4966,6 +5121,7 @@ TEST_F(HTTPBalsaFrameTest, ContinuationAllowed) {
   EXPECT_EQ(message.size(),
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().obs_fold_in_header_values);
 }
 
 // A.k.a., ObsFoldDisallowed.
@@ -5090,6 +5246,7 @@ TEST_F(HTTPBalsaFrameTest, ObsTextNotFoundIfNotPresent) {
   EXPECT_EQ(message.size(),
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_FALSE(balsa_frame_.protocol_defects().obs_text_found_in_header_name);
 }
 
 TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextButPolicyDisabled) {
@@ -5112,6 +5269,7 @@ TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextButPolicyDisabled) {
   EXPECT_EQ(message.size(),
             balsa_frame_.ProcessInput(message.data(), message.size()));
   EXPECT_FALSE(balsa_frame_.Error());
+  EXPECT_TRUE(balsa_frame_.protocol_defects().obs_text_found_in_header_name);
 }
 
 TEST_F(HTTPBalsaFrameTest, HeaderFieldNameWithObsTextAndPolicyEnabled) {

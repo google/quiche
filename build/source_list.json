@@ -1003,6 +1003,7 @@
     "quiche/balsa/framer_interface.h",
     "quiche/balsa/header_api.h",
     "quiche/balsa/header_properties.h",
+    "quiche/balsa/http_protocol_defects.h",
     "quiche/balsa/http_validation_policy.h",
     "quiche/balsa/noop_balsa_visitor.h",
     "quiche/balsa/simple_buffer.h",
