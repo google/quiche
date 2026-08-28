@@ -79,8 +79,8 @@ struct TestParams {
   bool disable_resumption;
 };
 
-ABSL_ATTRIBUTE_UNUSED  // Used by ::testing::PrintToStringParamName().
-    std::string PrintToString(const TestParams& p) {
+[[maybe_unused]]  // Used by ::testing::PrintToStringParamName().
+std::string PrintToString(const TestParams& p) {
   return absl::StrCat(ParsedQuicVersionToString(p.version), "AndResumption",
                       (p.disable_resumption ? "Disabled" : "Enabled"));
 }
