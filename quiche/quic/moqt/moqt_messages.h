@@ -206,7 +206,6 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kPublishNamespace = 0x06,
   kRequestOk = 0x07,
   kNamespace = 0x08,
-  kUnsubscribe = 0x0a,
   kPublishDone = 0x0b,
   kTrackStatus = 0x0d,
   kNamespaceDone = 0x0e,
