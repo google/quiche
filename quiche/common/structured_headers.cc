@@ -220,7 +220,7 @@ class StructuredHeaderParser {
       } else {
         std::optional<Parameters> parameters = ReadParameters();
         if (!parameters) return std::nullopt;
-        member = ParameterizedMember{Item(true), std::move(*parameters)};
+        member = ParameterizedMember(Item(true), std::move(*parameters));
       }
       members[*key] = std::move(*member);
       SkipOWS();
@@ -336,7 +336,7 @@ class StructuredHeaderParser {
       if (ConsumeChar(')')) {
         std::optional<Parameters> parameters = ReadParameters();
         if (!parameters) return std::nullopt;
-        return ParameterizedMember(std::move(inner_list), true,
+        return ParameterizedMember(std::move(inner_list),
                                    std::move(*parameters));
       }
       auto item = ReadItem();
@@ -921,6 +921,51 @@ ParameterizedMember::ParameterizedMember(Item id, Parameters ps)
       member_is_inner_list(false),
       params(std::move(ps)) {}
 ParameterizedMember::~ParameterizedMember() = default;
+
+std::optional<std::pair<const Item&, const Parameters&>>
+ParameterizedMember::GetWithParamsIfItem() const {
+  // Strictly, `member.size()` should be exactly 1 when `!member_is_inner_list`,
+  // but this isn't guaranteed due to to the public nature of the fields. Handle
+  // the empty case here to avoid crashing or UB.
+  if (member_is_inner_list || member.empty()) {
+    return std::nullopt;
+  }
+
+  return std::pair<const Item&, const Parameters&>(member.front().item, params);
+}
+
+std::optional<std::pair<Item&, Parameters&>>
+ParameterizedMember::GetWithParamsIfItem() {
+  // Strictly, `member.size()` should be exactly 1 when `!member_is_inner_list`,
+  // but this isn't guaranteed due to to the public nature of the fields. Handle
+  // the empty case here to avoid crashing or UB.
+  if (member_is_inner_list || member.empty()) {
+    return std::nullopt;
+  }
+
+  return std::pair<Item&, Parameters&>(member.front().item, params);
+}
+
+std::optional<
+    std::pair<const std::vector<ParameterizedItem>&, const Parameters&>>
+ParameterizedMember::GetWithParamsIfInnerList() const {
+  if (!member_is_inner_list) {
+    return std::nullopt;
+  }
+
+  return std::pair<const std::vector<ParameterizedItem>&, const Parameters&>(
+      member, params);
+}
+
+std::optional<std::pair<std::vector<ParameterizedItem>&, Parameters&>>
+ParameterizedMember::GetWithParamsIfInnerList() {
+  if (!member_is_inner_list) {
+    return std::nullopt;
+  }
+
+  return std::pair<std::vector<ParameterizedItem>&, Parameters&>(member,
+                                                                 params);
+}
 
 ParameterisedIdentifier::ParameterisedIdentifier() = default;
 ParameterisedIdentifier::ParameterisedIdentifier(

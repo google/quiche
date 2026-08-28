@@ -220,31 +220,76 @@ struct QUICHE_EXPORT ParameterizedItem {
                          const ParameterizedItem&) = default;
 };
 
-// Holds a ParameterizedMember, which may be either an single Item, or an Inner
+// Holds a ParameterizedMember, which may be either a single Item, or an Inner
 // List of ParameterizedItems, along with any number of parameters. Parameter
 // ordering is significant.
+//
+// TODO(b/517204961): Replace the `member`, `member_is_inner_list`, and `params`
+// fields with `std::variant<ParameterizedItem, InnerList>`.
 struct QUICHE_EXPORT ParameterizedMember {
-  std::vector<ParameterizedItem> member;
-  // If false, then |member| should only hold one Item.
-  bool member_is_inner_list = false;
+  // Constructor for a member that is an inner list.
+  ParameterizedMember(std::vector<ParameterizedItem>, Parameters);
 
-  Parameters params;
+  // Constructor for a member that is a single Item.
+  ParameterizedMember(Item, Parameters);
 
-  ParameterizedMember();
   ParameterizedMember(const ParameterizedMember&);
   ParameterizedMember& operator=(const ParameterizedMember&);
+
   ParameterizedMember(ParameterizedMember&&);
   ParameterizedMember& operator=(ParameterizedMember&&);
-  ParameterizedMember(std::vector<ParameterizedItem>, bool member_is_inner_list,
-                      Parameters);
-  // Shorthand constructor for a member which is an inner list.
-  ParameterizedMember(std::vector<ParameterizedItem>, Parameters);
-  // Shorthand constructor for a member which is a single Item.
-  ParameterizedMember(Item, Parameters);
+
   ~ParameterizedMember();
+
+  // Returns the item and its parameters if the member is an item,
+  // `std::nullopt` otherwise.
+  std::optional<std::pair<const Item&, const Parameters&>> GetWithParamsIfItem()
+      const ABSL_ATTRIBUTE_LIFETIME_BOUND;
+
+  // Returns the item and its parameters if the member is an item,
+  // `std::nullopt` otherwise.
+  std::optional<std::pair<Item&, Parameters&>> GetWithParamsIfItem()
+      ABSL_ATTRIBUTE_LIFETIME_BOUND;
+
+  // Returns the inner list's items and its parameters if the member is an
+  // inner list, `std::nullopt` otherwise.
+  std::optional<
+      std::pair<const std::vector<ParameterizedItem>&, const Parameters&>>
+  GetWithParamsIfInnerList() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
+
+  // Returns the inner list's items and its parameters if the member is an
+  // inner list, `std::nullopt` otherwise.
+  std::optional<std::pair<std::vector<ParameterizedItem>&, Parameters&>>
+  GetWithParamsIfInnerList() ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
   friend bool operator==(const ParameterizedMember&,
                          const ParameterizedMember&) = default;
+
+  // Deprecated: Explicitly initialize the value to either an inner list or
+  // an item using one of the above constructors, or wrap the value in
+  // `std::optional`. This constructor shouldn't really exist, as it's not clear
+  // what the default should actually be, but it is convenient for code that
+  // defers assignment. As is, it produces an invalid value with
+  // `member.empty() && !member_is_inner_list`.
+  ParameterizedMember();
+
+  // Deprecated: Use either of the two-argument constructors depending on
+  // whether the value is an inner list or an item.
+  ParameterizedMember(std::vector<ParameterizedItem>, bool member_is_inner_list,
+                      Parameters);
+
+  // Deprecated: Use `GetWithParamsIfItem()` / `GetWithParamsIfInnerList()`
+  // instead.
+  std::vector<ParameterizedItem> member;
+
+  // If false, then |member| should only hold one Item.
+  // Deprecated: Use `GetWithParamsIfItem()` / `GetWithParamsIfInnerList()`
+  // instead.
+  bool member_is_inner_list = false;
+
+  // Deprecated: Use `GetWithParamsIfItem()` / `GetWithParamsIfInnerList()`
+  // instead.
+  Parameters params;
 };
 
 using DictionaryMember = std::pair<std::string, ParameterizedMember>;

@@ -37,9 +37,9 @@ using ::quiche::structured_headers::ParameterizedMember;
 template <Item::ItemType kExpectedType>
 auto* GetItemAsPtr(auto&& item) {
   if constexpr (kExpectedType == Item::kIntegerType) {
-    return item.item.GetIfInteger();
+    return item.GetIfInteger();
   } else if constexpr (kExpectedType == Item::kStringType) {
-    return item.item.GetIfString();
+    return item.GetIfString();
   } else {
     static_assert(false);
   }
@@ -52,20 +52,22 @@ auto GetItem(auto&& item) -> absl::StatusOr<
   if (!ptr) {
     return absl::InvalidArgumentError(absl::StrCat(
         "Expected all members to be of type ", ItemTypeToString(kExpectedType),
-        ", found ", ItemTypeToString(item.item.Type()), " instead"));
+        ", found ", ItemTypeToString(item.Type()), " instead"));
   }
   return std::move(*ptr);
 }
 
 template <Item::ItemType kExpectedType>
-auto GetMember(auto&& member)
-    -> decltype(GetItem<kExpectedType>(member.member[0])) {
-  if (member.member_is_inner_list || member.member.size() != 1) {
-    return absl::InvalidArgumentError(absl::StrCat(
+auto GetMember(auto&& member) {
+  auto item = member.GetWithParamsIfItem();
+  using ReturnType = decltype(GetItem<kExpectedType>(item->first));
+
+  if (!item.has_value()) {
+    return ReturnType(absl::InvalidArgumentError(absl::StrCat(
         "Expected all members to be of type", ItemTypeToString(kExpectedType),
-        ", found a nested list instead"));
+        ", found a nested list instead")));
   }
-  return GetItem<kExpectedType>(member.member[0]);
+  return GetItem<kExpectedType>(item->first);
 }
 
 ABSL_CONST_INIT std::array kInitHeaderFields{
@@ -116,7 +118,7 @@ absl::StatusOr<std::string> ParseSubprotocolResponseHeader(
   if (!parsed.has_value()) {
     return absl::InvalidArgumentError("Failed to parse sf-item");
   }
-  return GetItem<Item::kStringType>(*parsed);
+  return GetItem<Item::kStringType>(parsed->item);
 }
 
 absl::StatusOr<std::string> SerializeSubprotocolResponseHeader(
@@ -189,8 +191,7 @@ absl::StatusOr<std::string> SerializeInitHeader(
   for (const auto& [field_name, field_accessor] : kInitHeaderFields) {
     Item item(static_cast<int64_t>(header.*field_accessor));
     members.push_back(std::make_pair(
-        field_name, ParameterizedMember({ParameterizedItem(item, {})}, false,
-                                        /*parameters=*/{})));
+        field_name, ParameterizedMember(item, /*parameters=*/{})));
   }
   std::optional<std::string> result =
       quiche::structured_headers::SerializeDictionary(

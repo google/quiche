@@ -813,5 +813,48 @@ TEST(StructuredHeaderTest, GetIfByteSequence) {
   EXPECT_EQ(*ptr, "def");
 }
 
+TEST(StructuredHeaderTest, ParameterizedMemberGetWithParams) {
+  {
+    // Ensure the getters do not crash on the inconsistent state produced by the
+    // default constructor.
+    ParameterizedMember member;
+
+    EXPECT_EQ(member.GetWithParamsIfItem(), std::nullopt);
+    EXPECT_EQ(std::as_const(member).GetWithParamsIfItem(), std::nullopt);
+
+    EXPECT_EQ(member.GetWithParamsIfInnerList(), std::nullopt);
+    EXPECT_EQ(std::as_const(member).GetWithParamsIfInnerList(), std::nullopt);
+  }
+
+  {
+    const Item item(int64_t{123});
+    const Parameters params{{BooleanParam("abc", true)}};
+
+    ParameterizedMember member(item, params);
+
+    EXPECT_EQ(member.GetWithParamsIfItem(), std::pair(item, params));
+    EXPECT_EQ(std::as_const(member).GetWithParamsIfItem(),
+              std::pair(item, params));
+
+    EXPECT_EQ(member.GetWithParamsIfInnerList(), std::nullopt);
+    EXPECT_EQ(std::as_const(member).GetWithParamsIfInnerList(), std::nullopt);
+  }
+
+  {
+    const std::vector<ParameterizedItem> items{ParameterizedItem(
+        Item(int64_t{123}), Parameters{{BooleanParam("abc", true)}})};
+    const Parameters params{{TokenParam("def", "xyz")}};
+
+    ParameterizedMember member(items, params);
+
+    EXPECT_EQ(member.GetWithParamsIfItem(), std::nullopt);
+    EXPECT_EQ(std::as_const(member).GetWithParamsIfItem(), std::nullopt);
+
+    EXPECT_EQ(member.GetWithParamsIfInnerList(), std::pair(items, params));
+    EXPECT_EQ(std::as_const(member).GetWithParamsIfInnerList(),
+              std::pair(items, params));
+  }
+}
+
 }  // namespace structured_headers
 }  // namespace quiche
