@@ -112,12 +112,6 @@ class QUICHE_EXPORT Item {
     QUICHE_CHECK(value);
     return *value;
   }
-  // TODO(apaseltiner): Remove this once all callers have been migrated to
-  // `GetString()`.
-  // Deprecated: Use `GetString()` instead.
-  const std::string& GetStringStrict() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
-    return GetString();
-  }
   const std::string& GetString() const ABSL_ATTRIBUTE_LIFETIME_BOUND {
     const auto* value = GetIfString();
     QUICHE_CHECK(value);
