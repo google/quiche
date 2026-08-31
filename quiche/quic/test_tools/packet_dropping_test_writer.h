@@ -138,7 +138,7 @@ class PacketDroppingTestWriter : public QuicPacketWriterWrapper {
   }
 
   // Useful for reproducing very flaky issues.
-  ABSL_ATTRIBUTE_UNUSED void set_seed(uint64_t seed) {
+  [[maybe_unused]] void set_seed(uint64_t seed) {
     simple_random_.set_seed(seed);
   }
 
