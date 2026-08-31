@@ -5,16 +5,16 @@
 #include "quiche/quic/qbone/bonnet/tun_device.h"
 
 #include <fcntl.h>
-#include <linux/filter.h>
 #include <linux/if_tun.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#include <cstring>
 #include <ios>
 #include <string>
+#include <vector>
 
-#include "absl/cleanup/cleanup.h"
 #include "absl/flags/flag.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -35,7 +35,6 @@ TunTapDevice::TunTapDevice(const std::string& interface_name, int mtu,
       persist_(persist),
       setup_tun_(setup_tun),
       is_tap_(is_tap),
-      file_descriptor_(kInvalidFd),
       kernel_(*kernel) {}
 
 TunTapDevice::~TunTapDevice() {
@@ -95,6 +94,51 @@ bool TunTapDevice::Down() {
   return NetdeviceIoctl(SIOCSIFFLAGS, reinterpret_cast<void*>(&if_request));
 }
 
+int TunTapDevice::GetReadFileDescriptor() const {
+  if (file_descriptors_.empty()) {
+    return kInvalidFd;
+  }
+  return file_descriptors_[0];
+}
+
+int TunTapDevice::GetWriteFileDescriptor() const {
+  if (file_descriptors_.empty()) {
+    return kInvalidFd;
+  }
+  return file_descriptors_[0];
+}
+
+int TunTapDevice::OpenQueue() {
+  struct ifreq if_request;
+  memset(&if_request, 0, sizeof(if_request));
+  interface_name_.copy(if_request.ifr_name, IFNAMSIZ);
+
+  if_request.ifr_flags = IFF_MULTI_QUEUE | IFF_NO_PI;
+  if (is_tap_) {
+    if_request.ifr_flags |= IFF_TAP;
+  } else {
+    if_request.ifr_flags |= IFF_TUN;
+  }
+
+  int new_fd = kInvalidFd;
+  if (!OpenFileDescriptor(kernel_,
+                          absl::GetFlag(FLAGS_qbone_client_tun_device_path),
+                          if_request, O_NONBLOCK | O_RDWR, persist_, &new_fd)) {
+    if (new_fd != kInvalidFd) {
+      kernel_.close(new_fd);
+    }
+    return kInvalidFd;
+  }
+
+  if (new_fd == kInvalidFd) {
+    QUIC_LOG(ERROR) << "OpenFileDescriptor succeeded with an invalid FD.";
+    return kInvalidFd;
+  }
+
+  file_descriptors_.push_back(new_fd);
+  return new_fd;
+}
+
 bool TunTapDevice::CheckFeatures(KernelInterface& kernel, int tun_device_fd) {
   unsigned int actual_features;
   if (kernel.ioctl(tun_device_fd, TUNGETFEATURES, &actual_features) != 0) {
@@ -141,47 +185,8 @@ bool TunTapDevice::OpenFileDescriptor(KernelInterface& kernel,
 }
 
 bool TunTapDevice::OpenDevice() {
-  if (file_descriptor_ != kInvalidFd) {
-    CloseDevice();
-  }
-
-  struct ifreq if_request;
-  memset(&if_request, 0, sizeof(if_request));
-  // copy does not zero-terminate the result string, but we've memset the entire
-  // struct.
-  interface_name_.copy(if_request.ifr_name, IFNAMSIZ);
-
-  // Always set IFF_MULTI_QUEUE since a persistent device does not allow this
-  // flag to be flipped when re-opening it. The only way to flip this flag is to
-  // destroy the device and create a new one, but that deletes any existing
-  // routing associated with the interface, which makes the meaning of the
-  // 'persist' bit ambiguous.
-  if_request.ifr_flags = IFF_MULTI_QUEUE | IFF_NO_PI;
-  if (is_tap_) {
-    if_request.ifr_flags |= IFF_TAP;
-  } else {
-    if_request.ifr_flags |= IFF_TUN;
-  }
-
-  // When the device is running with IFF_MULTI_QUEUE set, each call to open will
-  // create a queue which can be used to read/write packets from/to the device.
-  bool successfully_opened = false;
-  auto cleanup = absl::MakeCleanup([this, &successfully_opened]() {
-    if (!successfully_opened) {
-      CloseDevice();
-    }
-  });
-
-  // We set O_NONBLOCK for good measure, but, from observation, all write()
-  // syscalls to the device seem to be synchronous regardless.
-  if (!OpenFileDescriptor(
-          kernel_, absl::GetFlag(FLAGS_qbone_client_tun_device_path),
-          if_request, O_NONBLOCK | O_RDWR, persist_, &file_descriptor_)) {
-    return false;
-  }
-
-  successfully_opened = true;
-  return successfully_opened;
+  CloseDevice();
+  return OpenQueue() != kInvalidFd;
 }
 
 // TODO(pengg): might be better to use netlink socket, once we have a library to
@@ -223,10 +228,10 @@ bool TunTapDevice::NetdeviceIoctl(int request, void* argp) {
 }
 
 void TunTapDevice::CloseDevice() {
-  if (file_descriptor_ != kInvalidFd) {
-    kernel_.close(file_descriptor_);
-    file_descriptor_ = kInvalidFd;
+  for (int fd : file_descriptors_) {
+    kernel_.close(fd);
   }
+  file_descriptors_.clear();
 }
 
 }  // namespace quic

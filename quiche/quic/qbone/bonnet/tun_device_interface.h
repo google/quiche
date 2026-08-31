@@ -5,8 +5,6 @@
 #ifndef QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_INTERFACE_H_
 #define QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_INTERFACE_H_
 
-#include <vector>
-
 namespace quic {
 
 // An interface with methods for interacting with a TUN device.
@@ -32,6 +30,10 @@ class TunDeviceInterface {
   // These return -1 when the TUN device is in an invalid state.
   virtual int GetReadFileDescriptor() const = 0;
   virtual int GetWriteFileDescriptor() const = 0;
+
+  // Opens the next sequential queue file descriptor for this multiqueue device.
+  // Returns the open queue FD on success, or -1 on failure.
+  virtual int OpenQueue() = 0;
 };
 
 }  // namespace quic
