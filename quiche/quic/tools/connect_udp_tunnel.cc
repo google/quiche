@@ -393,7 +393,7 @@ void ConnectUdpTunnel::SendErrorResponse(absl::string_view status,
       {{"error", std::move(proxy_status_error_item)},
        {"details", std::move(proxy_status_details_item)}});
   std::optional<std::string> proxy_status_value =
-      structured_headers::SerializeList({proxy_status_member});
+      structured_headers::SerializeList({std::move(proxy_status_member)});
   QUICHE_CHECK(proxy_status_value.has_value());
   headers["Proxy-Status"] = *proxy_status_value;
 
