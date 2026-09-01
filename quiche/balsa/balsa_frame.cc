@@ -903,6 +903,7 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
           return;
         }
       }
+
       continue;
     }
     if (absl::EqualsIgnoreCase(key, kTransferEncoding)) {
