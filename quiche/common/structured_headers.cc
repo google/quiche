@@ -894,8 +894,9 @@ ParameterizedItem& ParameterizedItem::operator=(const ParameterizedItem&) =
     default;
 ParameterizedItem::ParameterizedItem(ParameterizedItem&&) = default;
 ParameterizedItem& ParameterizedItem::operator=(ParameterizedItem&&) = default;
-ParameterizedItem::ParameterizedItem(Item id, Parameters ps)
-    : item(std::move(id)), params(std::move(ps)) {}
+ParameterizedItem::ParameterizedItem(Item item, Parameters params)
+    : item(std::move(item)), params(std::move(params)) {}
+ParameterizedItem::ParameterizedItem(Item item) : item(std::move(item)) {}
 ParameterizedItem::~ParameterizedItem() = default;
 
 ParameterizedMember::ParameterizedMember() = default;
@@ -905,21 +906,25 @@ ParameterizedMember& ParameterizedMember::operator=(
 ParameterizedMember::ParameterizedMember(ParameterizedMember&&) = default;
 ParameterizedMember& ParameterizedMember::operator=(ParameterizedMember&&) =
     default;
-ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> id,
+ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> items,
                                          bool member_is_inner_list,
-                                         Parameters ps)
-    : member(std::move(id)),
+                                         Parameters params)
+    : member(std::move(items)),
       member_is_inner_list(member_is_inner_list),
-      params(std::move(ps)) {}
-ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> id,
-                                         Parameters ps)
-    : member(std::move(id)),
+      params(std::move(params)) {}
+ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> items,
+                                         Parameters params)
+    : member(std::move(items)),
       member_is_inner_list(true),
-      params(std::move(ps)) {}
-ParameterizedMember::ParameterizedMember(Item id, Parameters ps)
-    : member({{std::move(id), {}}}),
+      params(std::move(params)) {}
+ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> items)
+    : member(std::move(items)), member_is_inner_list(true) {}
+ParameterizedMember::ParameterizedMember(Item item, Parameters params)
+    : member({{std::move(item), {}}}),
       member_is_inner_list(false),
-      params(std::move(ps)) {}
+      params(std::move(params)) {}
+ParameterizedMember::ParameterizedMember(Item item)
+    : member({{std::move(item), {}}}), member_is_inner_list(false) {}
 ParameterizedMember::~ParameterizedMember() = default;
 
 std::optional<std::pair<const Item&, const Parameters&>>

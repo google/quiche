@@ -203,11 +203,18 @@ struct QUICHE_EXPORT ParameterizedItem {
   Parameters params;
 
   ParameterizedItem();
+
+  // Convenience constructor for empty parameters.
+  explicit ParameterizedItem(Item);
+
+  ParameterizedItem(Item, Parameters);
+
   ParameterizedItem(const ParameterizedItem&);
   ParameterizedItem& operator=(const ParameterizedItem&);
+
   ParameterizedItem(ParameterizedItem&&);
   ParameterizedItem& operator=(ParameterizedItem&&);
-  ParameterizedItem(Item, Parameters);
+
   ~ParameterizedItem();
 
   friend bool operator==(const ParameterizedItem&,
@@ -224,8 +231,16 @@ struct QUICHE_EXPORT ParameterizedMember {
   // Constructor for a member that is an inner list.
   ParameterizedMember(std::vector<ParameterizedItem>, Parameters);
 
+  // Convenience constructor for a member that is an inner list with empty
+  // parameters.
+  explicit ParameterizedMember(std::vector<ParameterizedItem>);
+
   // Constructor for a member that is a single Item.
   ParameterizedMember(Item, Parameters);
+
+  // Convenience constructor for a member that is a single Item with empty
+  // parameters.
+  explicit ParameterizedMember(Item);
 
   ParameterizedMember(const ParameterizedMember&);
   ParameterizedMember& operator=(const ParameterizedMember&);

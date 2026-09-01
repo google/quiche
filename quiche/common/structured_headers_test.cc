@@ -687,8 +687,8 @@ TEST(StructuredHeaderTest, SerializeDictionary) {
 TEST(StructuredHeaderTest, DictionaryConstructors) {
   const std::string key0 = "key0";
   const std::string key1 = "key1";
-  const ParameterizedMember member0{Item("Applepie"), {}};
-  const ParameterizedMember member1{Item("hello", Item::kByteSequenceType), {}};
+  const ParameterizedMember member0(Item("Applepie"));
+  const ParameterizedMember member1(Item("hello", Item::kByteSequenceType));
 
   Dictionary dict;
   EXPECT_TRUE(dict.empty());
@@ -711,7 +711,7 @@ TEST(StructuredHeaderTest, DictionaryConstructors) {
 
 TEST(StructuredHeaderTest, DictionaryClear) {
   const std::string key0 = "key0";
-  const ParameterizedMember member0{Item("Applepie"), {}};
+  const ParameterizedMember member0(Item("Applepie"));
 
   Dictionary dict({{key0, member0}});
   EXPECT_EQ(1U, dict.size());
@@ -728,9 +728,9 @@ TEST(StructuredHeaderTest, DictionaryAccessors) {
   const std::string key0 = "key0";
   const std::string key1 = "key1";
 
-  const ParameterizedMember nonempty_member0{Item("Applepie"), {}};
-  const ParameterizedMember nonempty_member1{
-      Item("hello", Item::kByteSequenceType), {}};
+  const ParameterizedMember nonempty_member0(Item("Applepie"));
+  const ParameterizedMember nonempty_member1(
+      Item("hello", Item::kByteSequenceType));
   const ParameterizedMember empty_member;
 
   Dictionary dict{{{key0, nonempty_member0}}};

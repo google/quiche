@@ -100,7 +100,7 @@ absl::StatusOr<std::string> SerializeSubprotocolRequestHeader(
   quiche::structured_headers::List list;
   list.reserve(subprotocols.size());
   for (const std::string& subprotocol : subprotocols) {
-    list.push_back(ParameterizedMember(Item(subprotocol), {}));
+    list.emplace_back(Item(subprotocol));
   }
 
   std::optional<std::string> serialized =
@@ -189,9 +189,8 @@ absl::StatusOr<std::string> SerializeInitHeader(
   std::vector<DictionaryMember> members;
   members.reserve(kInitHeaderFields.size());
   for (const auto& [field_name, field_accessor] : kInitHeaderFields) {
-    Item item(static_cast<int64_t>(header.*field_accessor));
-    members.push_back(std::make_pair(
-        field_name, ParameterizedMember(item, /*parameters=*/{})));
+    members.emplace_back(field_name,
+                         Item(static_cast<int64_t>(header.*field_accessor)));
   }
   std::optional<std::string> result =
       quiche::structured_headers::SerializeDictionary(
