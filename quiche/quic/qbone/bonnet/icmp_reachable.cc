@@ -5,14 +5,21 @@
 #include "quiche/quic/qbone/bonnet/icmp_reachable.h"
 
 #include <netinet/ip6.h>
+#include <sys/socket.h>
 
+#include <cerrno>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <string>
 
 #include "absl/strings/string_view.h"
-#include "quiche/quic/core/crypto/quic_random.h"
+#include "absl/synchronization/mutex.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_logging.h"
-#include "quiche/quic/qbone/platform/icmp_packet.h"
+#include "quiche/quic/qbone/platform/kernel_interface.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_text_utils.h"
 
@@ -33,7 +40,8 @@ const char kNoSource[] = "N/A";
 IcmpReachable::IcmpReachable(absl::string_view interface_name,
                              QuicIpAddress source, QuicIpAddress destination,
                              QuicTime::Delta timeout, KernelInterface* kernel,
-                             QuicEventLoop* event_loop, StatsInterface* stats)
+                             QuicEventLoop* event_loop, StatsInterface* stats,
+                             uint32_t socket_mark)
     : timeout_(timeout),
       event_loop_(event_loop),
       clock_(event_loop->GetClock()),
@@ -42,7 +50,8 @@ IcmpReachable::IcmpReachable(absl::string_view interface_name,
       alarm_(alarm_factory_->CreateAlarm(new AlarmCallback(this))),
       kernel_(kernel),
       stats_(stats),
-      sock_fd_(0) {
+      sock_fd_(0),
+      socket_mark_(socket_mark) {
   src_.sin6_family = AF_INET6;
   dst_.sin6_family = AF_INET6;
   // Ensure the destination has its scope set to the QBONE TUN/TAP device.
@@ -69,6 +78,14 @@ bool IcmpReachable::Init() {
   if (sock_fd_ < 0) {
     QUIC_PLOG(ERROR) << "Unable to open ICMP socket.";
     return false;
+  }
+
+  if (socket_mark_ > 0) {
+    if (kernel_->setsockopt(sock_fd_, SOL_SOCKET, SO_MARK, &socket_mark_,
+                            sizeof(socket_mark_)) < 0) {
+      QUIC_PLOG(ERROR) << "Unable to set SO_MARK on ICMP socket.";
+      return false;
+    }
   }
 
   if (kernel_->bind(sock_fd_, reinterpret_cast<struct sockaddr*>(&src_),

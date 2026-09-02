@@ -7,7 +7,9 @@
 
 #include <netinet/icmp6.h>
 
+#include <cstdint>
 #include <memory>
+#include <string>
 
 #include "absl/base/thread_annotations.h"
 #include "absl/strings/string_view.h"
@@ -73,10 +75,12 @@ class IcmpReachable : public IcmpReachableInterface {
   //                Server's thread.
   // |stats| is not owned, but should outlive this instance. It will be called
   //         back on Echo Replies, timeouts, and I/O errors.
+  // |socket_mark| is the SO_MARK value to apply to the ICMP socket (for
+  //               multiqueue queue steering). Defaults to 0 (no mark).
   IcmpReachable(absl::string_view interface_name, QuicIpAddress source,
                 QuicIpAddress destination, QuicTime::Delta timeout,
                 KernelInterface* kernel, QuicEventLoop* event_loop,
-                StatsInterface* stats);
+                StatsInterface* stats, uint32_t socket_mark = 0);
 
   ~IcmpReachable() override;
 
@@ -142,6 +146,8 @@ class IcmpReachable : public IcmpReachableInterface {
 
   QuicTime start_ = QuicTime::Zero();
   QuicTime end_ = QuicTime::Zero();
+
+  uint32_t socket_mark_ = 0;
 };
 
 }  // namespace quic

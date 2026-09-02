@@ -6,16 +6,23 @@
 
 #include <netinet/ip6.h>
 
+#include <cerrno>
+#include <cstddef>
+#include <cstdint>
+#include <cstring>
 #include <memory>
 #include <string>
 
 #include "absl/container/node_hash_map.h"
+#include "absl/strings/string_view.h"
 #include "quiche/quic/core/io/quic_default_event_loop.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_default_clock.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/platform/mock_kernel.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 
 namespace quic::test {
 namespace {
@@ -264,6 +271,34 @@ TEST_F(IcmpReachableTest, HandlesReadErrors) {
   event_loop_->RunEventLoopOnce(QuicTime::Delta::FromSeconds(1));
   EXPECT_EQ(stats_.reachable_count(), 0);
   EXPECT_EQ(stats_.ReadErrorCount(EIO), 1);
+}
+
+TEST_F(IcmpReachableTest, SetsSocketMarkWhenConfigured) {
+  uint32_t socket_mark = 1;
+  InSequence seq;
+  EXPECT_CALL(kernel_, if_nametoindex(_));
+  EXPECT_CALL(kernel_, socket(_, _, _)).WillOnce(Return(simulated_sock_fd_));
+  EXPECT_CALL(kernel_, setsockopt(simulated_sock_fd_, SOL_SOCKET, SO_MARK, _,
+                                  sizeof(socket_mark)))
+      .WillOnce([socket_mark](int fd, int level, int optname,
+                              const void* optval, socklen_t optlen) {
+        EXPECT_EQ(*reinterpret_cast<const uint32_t*>(optval), socket_mark);
+        return 0;
+      });
+  EXPECT_CALL(kernel_, bind(simulated_sock_fd_, _, _)).WillOnce(Return(0));
+  EXPECT_CALL(kernel_, getsockname(_, _, _))
+      .WillOnce(DoAll(
+          SetArgPointee<1>(*reinterpret_cast<struct sockaddr*>(&send_socket_)),
+          Return(0)));
+  EXPECT_CALL(kernel_, close(simulated_sock_fd_)).WillOnce([](int fd) {
+    return close(fd);
+  });
+
+  IcmpReachable reachable(kInterfaceName, source_, destination_,
+                          QuicTime::Delta::Zero(), &kernel_, event_loop_.get(),
+                          &stats_, socket_mark);
+
+  ASSERT_TRUE(reachable.Init());
 }
 
 }  // namespace
