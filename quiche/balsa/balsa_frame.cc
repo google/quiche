@@ -430,14 +430,13 @@ void BalsaFrame::ProcessFirstLine(char* begin, char* end) {
     if (!is_method_valid) {
       QUICHE_CODE_COUNT(invalid_method_in_request_first_line_detected);
       protocol_defects_.invalid_method_in_request_first_line = true;
-    }
-    if (http_validation_policy().disallow_invalid_request_methods &&
-        !is_method_valid) {
-      QUICHE_CODE_COUNT(disallow_invalid_request_methods_enforced);
-      parse_state_ = BalsaFrameEnums::ERROR;
-      last_error_ = BalsaFrameEnums::INVALID_REQUEST_METHOD;
-      HandleError(last_error_);
-      return;
+      if (http_validation_policy().disallow_invalid_request_methods) {
+        QUICHE_CODE_COUNT(disallow_invalid_request_methods_enforced);
+        parse_state_ = BalsaFrameEnums::ERROR;
+        last_error_ = BalsaFrameEnums::INVALID_REQUEST_METHOD;
+        HandleError(last_error_);
+        return;
+      }
     }
 
     is_valid_target_uri_ = IsValidTargetUri(part1, part2);
@@ -637,17 +636,15 @@ bool BalsaFrame::FindColonsAndParseIntoKeyValue(const Lines& lines,
       if (header_properties::IsInvalidHeaderKeyChar(c)) {
         QUICHE_CODE_COUNT(header_name_contains_double_quote_detected);
         protocol_defects_.header_name_contains_double_quote = true;
-      }
-      // Generally invalid characters were found earlier.
-      if (http_validation_policy().disallow_double_quote_in_header_name) {
-        if (header_properties::IsInvalidHeaderKeyChar(c)) {
+        if (http_validation_policy().disallow_double_quote_in_header_name) {
           QUICHE_CODE_COUNT(disallow_double_quote_in_header_name_enforced);
           HandleError(is_trailer
                           ? BalsaFrameEnums::INVALID_TRAILER_NAME_CHARACTER
                           : BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
           return false;
         }
-      } else if (header_properties::IsInvalidHeaderKeyCharAllowDoubleQuote(c)) {
+      }
+      if (header_properties::IsInvalidHeaderKeyCharAllowDoubleQuote(c)) {
         HandleError(is_trailer
                         ? BalsaFrameEnums::INVALID_TRAILER_NAME_CHARACTER
                         : BalsaFrameEnums::INVALID_HEADER_NAME_CHARACTER);
@@ -926,19 +923,6 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
           !BalsaHeaders::ResponseCanHaveBody(response_code);
     }
 
-    if (content_length_idx != 0 && transfer_encoding_idx != 0) {
-      QUICHE_CODE_COUNT(transfer_encoding_and_content_length_detected);
-      protocol_defects_.transfer_encoding_and_content_length = true;
-      if (http_validation_policy().validate_transfer_encoding &&
-          http_validation_policy()
-              .disallow_transfer_encoding_with_content_length) {
-        QUICHE_CODE_COUNT(
-            disallow_transfer_encoding_with_content_length_enforced);
-        HandleError(BalsaFrameEnums::BOTH_TRANSFER_ENCODING_AND_CONTENT_LENGTH);
-        return;
-      }
-    }
-
     if (headers->transfer_encoding_is_chunked_) {
       // Verify this code block is never reached as
       // headers->transfer_encoding_is_chunked_ is supposed to be false before
@@ -949,6 +933,19 @@ void BalsaFrame::ProcessHeaderLines(const Lines& lines, bool is_trailer,
       content_length_remaining_ = 0;
     }
     if (transfer_encoding_idx != 0) {
+      if (content_length_idx != 0) {
+        QUICHE_CODE_COUNT(transfer_encoding_and_content_length_detected);
+        protocol_defects_.transfer_encoding_and_content_length = true;
+        if (http_validation_policy().validate_transfer_encoding &&
+            http_validation_policy()
+                .disallow_transfer_encoding_with_content_length) {
+          QUICHE_CODE_COUNT(
+              disallow_transfer_encoding_with_content_length_enforced);
+          HandleError(
+              BalsaFrameEnums::BOTH_TRANSFER_ENCODING_AND_CONTENT_LENGTH);
+          return;
+        }
+      }
       ProcessTransferEncodingLine(transfer_encoding_idx - 1);
     }
   }
