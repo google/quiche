@@ -9,6 +9,7 @@
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_callbacks.h"
 
 namespace http2 {
 namespace adapter {
@@ -32,6 +33,15 @@ std::pair<absl::string_view, bool> GetStringView(const HeaderRep& rep);
 // Represents an HTTP/2 header field. A header field is a key-value pair with
 // lowercase keys (as specified in RFC 7540 Section 8.1.2).
 using Header = std::pair<HeaderRep, HeaderRep>;
+
+// Decides whether a header field should be encoded as an HPACK "Literal
+// Header Field Never Indexed" (RFC 7541 Section 6.2.3). Returning true
+// prevents the field from being inserted into the HPACK dynamic table and
+// instructs intermediaries not to index it either. Typically used for
+// high-entropy header values (e.g. request IDs, trace IDs) that would churn
+// the dynamic table without compression benefit, or for sensitive values.
+using NeverIndexingPolicy = quiche::MultiUseCallback<bool(
+    absl::string_view name, absl::string_view value)>;
 
 // Represents an HTTP/2 SETTINGS key-value parameter.
 struct QUICHE_EXPORT Http2Setting {

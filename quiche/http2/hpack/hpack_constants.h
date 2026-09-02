@@ -62,8 +62,7 @@ inline constexpr HpackPrefix kLiteralIncrementalIndexOpcode = {0b01, 2};
 inline constexpr HpackPrefix kLiteralNoIndexOpcode = {0b0000, 4};
 
 // RFC 7541, 6.2.3: Opcode for a literal header field which is never indexed.
-// Currently unused.
-// const HpackPrefix kLiteralNeverIndexOpcode = {0b0001, 4};
+inline constexpr HpackPrefix kLiteralNeverIndexOpcode = {0b0001, 4};
 
 // RFC 7541, 6.3: Opcode for maximum header table size update. Begins a
 // varint-encoded table size with a 5-bit prefix.
