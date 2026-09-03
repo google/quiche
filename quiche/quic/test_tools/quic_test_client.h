@@ -182,9 +182,7 @@ class MockableQuicClient : public QuicDefaultClient {
         enable_web_transport());
   }
 
-  QuicConnectionId GetClientConnectionId() override;
   std::unique_ptr<QuicMigrationHelper> CreateQuicMigrationHelper() override;
-  void UseClientConnectionIdLength(int client_connection_id_length);
 
   void UseWriter(QuicPacketWriterWrapper* writer);
   void set_peer_address(const QuicSocketAddress& address);
@@ -208,11 +206,6 @@ class MockableQuicClient : public QuicDefaultClient {
   }
 
  private:
-  // Client connection ID to use, if client_connection_id_overridden_.
-  // TODO(wub): Move client_connection_id_(length_) overrides to QuicClientBase.
-  QuicConnectionId override_client_connection_id_;
-  bool client_connection_id_overridden_;
-  int override_client_connection_id_length_ = -1;
   CachedNetworkParameters cached_network_paramaters_;
   // Owned by the base class.
   QuicTestMigrationHelper* migration_helper_ = nullptr;
@@ -375,9 +368,6 @@ class QuicTestClient : public QuicSpdyStream::Visitor {
   // Configures client_ to use a specific server connection ID length instead
   // of the default of kQuicDefaultConnectionIdLength.
   void UseConnectionIdLength(uint8_t server_connection_id_length);
-  // Configures client_ to use a specific client connection ID instead of an
-  // empty one.
-  void UseClientConnectionId(QuicConnectionId client_connection_id);
   // Configures client_ to use a specific client connection ID length instead
   // of the default of zero.
   void UseClientConnectionIdLength(uint8_t client_connection_id_length);
