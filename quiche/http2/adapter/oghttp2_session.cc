@@ -318,6 +318,26 @@ void OgHttp2Session::PassthroughHeadersHandler::OnHeaderBlockEnd(
     SetResult(OnHeaderResult::HEADER_HTTP_MESSAGING);
     return;
   }
+  // RFC 9113 Section 8.1:
+  // "Trailer fields are carried in a field block that also terminates the
+  // stream. That is, trailer fields comprise a sequence starting with a HEADERS
+  // frame, followed by zero or more CONTINUATION frames, where the HEADERS
+  // frame bears an END_STREAM flag. Trailers MUST NOT include pseudo-header
+  // fields (Section 8.3). An endpoint that receives pseudo-header fields in
+  // trailers MUST treat the request or response as malformed (Section 8.1.1).
+  //
+  // An endpoint that receives a HEADERS frame without the END_STREAM flag set
+  // after receiving the HEADERS frame that opens a request or after receiving a
+  // final (non-informational) status code MUST treat the corresponding request
+  // or response as malformed (Section 8.1.1)."
+  if ((type_ == HeaderType::REQUEST_TRAILER ||
+       type_ == HeaderType::RESPONSE_TRAILER) &&
+      !frame_contains_fin_) {
+    QUICHE_CODE_COUNT(http2_trailers_no_end_stream);
+    QUICHE_VLOG(1) << "Trailers must contain END_STREAM";
+    SetResult(OnHeaderResult::HEADER_HTTP_MESSAGING);
+    return;
+  }
   if (frame_contains_fin_ && IsResponse(type_) &&
       StatusIs1xx(status_header())) {
     QUICHE_VLOG(1) << "Unexpected end of stream without final headers";
