@@ -275,13 +275,6 @@ absl::Status SetupParameters::FromKeyValuePairList(
       [&](uint64_t key, std::variant<uint64_t, absl::string_view> value) {
         last_key = key;
         switch (static_cast<SetupParameter>(key)) {
-          case SetupParameter::kMaxRequestId:
-            if (max_request_id.has_value()) {
-              status = absl::InvalidArgumentError("Duplicate Setup Parameter");
-              return false;
-            }
-            max_request_id = std::get<uint64_t>(value);
-            break;
           case SetupParameter::kMaxAuthTokenCacheSize:
             if (max_auth_token_cache_size.has_value()) {
               status = absl::InvalidArgumentError("Duplicate Setup Parameter");
@@ -838,17 +831,6 @@ MoqtControlMessageParser::ProcessSubscribeTracks(absl::string_view data) const {
   return subscribe_tracks;
 }
 
-absl::StatusOr<MoqtMaxRequestId> MoqtControlMessageParser::ProcessMaxRequestId(
-    absl::string_view data) const {
-  quic::QuicDataReader reader(data);
-  MoqtMaxRequestId max_request_id;
-  if (!reader.ReadMoqVarInt(&max_request_id.max_request_id)) {
-    return absl::InvalidArgumentError("Max request ID missing");
-  }
-  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
-  return max_request_id;
-}
-
 absl::StatusOr<MoqtFetch> MoqtControlMessageParser::ProcessFetch(
     absl::string_view data) const {
   quic::QuicDataReader reader(data);
@@ -954,17 +936,6 @@ absl::StatusOr<MoqtFetchCancel> MoqtControlMessageParser::ProcessFetchCancel(
   }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return fetch_cancel;
-}
-
-absl::StatusOr<MoqtRequestsBlocked>
-MoqtControlMessageParser::ProcessRequestsBlocked(absl::string_view data) const {
-  quic::QuicDataReader reader(data);
-  MoqtRequestsBlocked requests_blocked;
-  if (!reader.ReadMoqVarInt(&requests_blocked.max_request_id)) {
-    return absl::InvalidArgumentError("Max request ID missing");
-  }
-  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
-  return requests_blocked;
 }
 
 absl::StatusOr<MoqtPublish> MoqtControlMessageParser::ProcessPublish(

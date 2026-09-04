@@ -117,9 +117,8 @@ class QUICHE_NO_EXPORT TestMessageBase {
                    MoqtSubscribe, MoqtSubscribeOk, MoqtPublishDone,
                    MoqtRequestUpdate, MoqtPublishNamespace, MoqtTrackStatus,
                    MoqtGoAway, MoqtSubscribeNamespace, MoqtSubscribeTracks,
-                   MoqtMaxRequestId, MoqtFetch, MoqtFetchCancel, MoqtFetchOk,
-                   MoqtRequestsBlocked, MoqtPublish, MoqtNamespace,
-                   MoqtNamespaceDone, MoqtObjectAck>;
+                   MoqtFetch, MoqtFetchCancel, MoqtFetchOk, MoqtPublish,
+                   MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -609,14 +608,11 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       client_setup_.parameters.path = std::nullopt;
       client_setup_.parameters.authority = std::nullopt;
       raw_packet_[3] -= 17;   // adjust payload length
-      raw_packet_[4] = 0x02;  // only two parameters
-      // Move MaxRequestId up in the packet.
-      memmove(raw_packet_ + 5, raw_packet_ + 11, 2);
+      raw_packet_[4] = 0x01;  // only one parameter
       // Move MoqtImplementation up in the packet.
-      memmove(raw_packet_ + 7, raw_packet_ + 24,
+      memmove(raw_packet_ + 5, raw_packet_ + 22,
               kTestImplementationString.length() + 2);
-      raw_packet_[5] = 0x02;  // Diff from 0.
-      raw_packet_[7] = 0x05;  // Diff from 2.
+      raw_packet_[5] = 0x07;  // Diff from 0.
       SetWireImage(raw_packet_, sizeof(raw_packet_) - 17);
     } else {
       SetWireImage(raw_packet_, sizeof(raw_packet_));
@@ -634,9 +630,9 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
 
   void ExpandVarints() override {
     if (client_setup_.parameters.path.has_value()) {
-      ExpandVarintsImpl("vvv----vvvv---------vv---------------------------");
+      ExpandVarintsImpl("vvv----vv---------vv---------------------------");
     } else {
-      ExpandVarintsImpl("vvvvv---------------------------");
+      ExpandVarintsImpl("vvv---------------------------");
     }
   }
 
@@ -649,19 +645,18 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   // string parameters in order. Unfortunately, this means that
   // kMoqtImplementation goes last even though it is always present, while
   // kPath and KAuthority aren't.
-  uint8_t raw_packet_[54] = {
-      0xaf, 0x00, 0x00, 0x32,              // type, length
-      0x04,                                // 4 parameters
+  uint8_t raw_packet_[52] = {
+      0xaf, 0x00, 0x00, 0x30,              // type, length
+      0x03,                                // 3 parameters
       0x01, 0x04, 0x70, 0x61, 0x74, 0x68,  // path = "path"
-      0x01, 0x32,                          // max_request_id = 50
-      0x03, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74,
+      0x04, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74,
       0x79,  // authority = "authority"
       // moqt_implementation:
       0x02, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65, 0x73, 0x74, 0x20, 0x49,
       0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
       0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
   MoqtSetup client_setup_ = {
-      SetupParameters("path", "authority", 50),
+      SetupParameters("path", "authority"),
   };
 };
 
@@ -688,16 +683,15 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[37] = {0xaf, 0x00, 0x00, 0x21,  // type, length
-                             0x02,                    // two parameters
-                             0x02, 0x32,              // max_subscribe_id = 50
+  uint8_t raw_packet_[35] = {0xaf, 0x00, 0x00, 0x1f,  // type, length
+                             0x01,                    // one parameter
                              // moqt_implementation:
-                             0x05, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65,
+                             0x07, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65,
                              0x73, 0x74, 0x20, 0x49, 0x6d, 0x70, 0x6c, 0x65,
                              0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
                              0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
   MoqtSetup server_setup_ = {
-      SetupParameters(50),
+      SetupParameters(),
   };
 };
 
@@ -1269,40 +1263,6 @@ class QUICHE_NO_EXPORT SubscribeTracksMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT MaxRequestIdMessage : public TestMessageBase {
- public:
-  MaxRequestIdMessage() : TestMessageBase() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-  }
-
-  bool EqualFieldValues(const MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtMaxRequestId>(values);
-    if (cast.max_request_id != max_request_id_.max_request_id) {
-      QUIC_LOG(INFO) << "MAX_REQUEST_ID mismatch";
-      return false;
-    }
-    return true;
-  }
-
-  void ExpandVarints() override { ExpandVarintsImpl("v"); }
-
-  MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(max_request_id_);
-  }
-
- private:
-  uint8_t raw_packet_[4] = {
-      0x15,
-      0x00,
-      0x01,
-      0x0b,
-  };
-
-  MoqtMaxRequestId max_request_id_ = {
-      /*max_request_id =*/11,
-  };
-};
-
 class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
  public:
   FetchMessage() : TestMessageBase() {
@@ -1588,39 +1548,6 @@ class QUICHE_NO_EXPORT FetchCancelMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT RequestsBlockedMessage : public TestMessageBase {
- public:
-  RequestsBlockedMessage() : TestMessageBase() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-  }
-  bool EqualFieldValues(const MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtRequestsBlocked>(values);
-    if (cast.max_request_id != requests_blocked_.max_request_id) {
-      QUIC_LOG(INFO) << "SUBSCRIBES_BLOCKED max_subscribe_id mismatch";
-      return false;
-    }
-    return true;
-  }
-
-  void ExpandVarints() override { ExpandVarintsImpl("v"); }
-
-  MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(requests_blocked_);
-  }
-
- private:
-  uint8_t raw_packet_[4] = {
-      0x1a,
-      0x00,
-      0x01,
-      0x0b,  // max_request_id = 11
-  };
-
-  MoqtRequestsBlocked requests_blocked_ = {
-      /*max_request_id=*/11,
-  };
-};
-
 class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
  public:
   PublishMessage() : TestMessageBase() {
@@ -1762,16 +1689,12 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<SubscribeNamespaceMessage>();
     case MoqtMessageType::kSubscribeTracks:
       return std::make_unique<SubscribeTracksMessage>();
-    case MoqtMessageType::kMaxRequestId:
-      return std::make_unique<MaxRequestIdMessage>();
     case MoqtMessageType::kFetch:
       return std::make_unique<FetchMessage>();
     case MoqtMessageType::kFetchCancel:
       return std::make_unique<FetchCancelMessage>();
     case MoqtMessageType::kFetchOk:
       return std::make_unique<FetchOkMessage>();
-    case MoqtMessageType::kRequestsBlocked:
-      return std::make_unique<RequestsBlockedMessage>();
     case MoqtMessageType::kPublish:
       return std::make_unique<PublishMessage>();
     case MoqtMessageType::kObjectAck:

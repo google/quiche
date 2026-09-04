@@ -60,11 +60,9 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kGoAway,
     MoqtMessageType::kSubscribeNamespace,
     MoqtMessageType::kSubscribeTracks,
-    MoqtMessageType::kMaxRequestId,
     MoqtMessageType::kFetch,
     MoqtMessageType::kFetchCancel,
     MoqtMessageType::kFetchOk,
-    MoqtMessageType::kRequestsBlocked,
     MoqtMessageType::kPublish,
     MoqtMessageType::kObjectAck,
     MoqtMessageType::kSetup,
@@ -609,13 +607,13 @@ TEST_F(MoqtMessageSpecificTest, StreamHeaderSubgroupFollowOnExpandedVarInts) {
   EXPECT_FALSE(data_visitor.parsing_error().has_value());
 }
 
-TEST_F(MoqtMessageSpecificTest, ClientSetupMaxRequestIdAppearsTwice) {
+TEST_F(MoqtMessageSpecificTest, ClientSetupMaxAuthTokenCacheSizeAppearsTwice) {
   char setup[] = {
       0xaf, 0x00, 0x00, 0x0a,
       0x03,                          // 3 params
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // path = "foo"
-      0x01, 0x32,                    // max_request_id = 50
-      0x00, 0x32,                    // max_request_id = 50
+      0x03, 0x32,                    // max_auth_token_cache_size = 50
+      0x00, 0x32,                    // max_auth_token_cache_size = 50
   };
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
       ParseAllMessages(absl::string_view(setup, sizeof(setup)));
@@ -625,10 +623,9 @@ TEST_F(MoqtMessageSpecificTest, ClientSetupMaxRequestIdAppearsTwice) {
 
 TEST_F(MoqtMessageSpecificTest, ServerSetupAuthorizationTokenTagRegister) {
   char setup[] = {
-      0xaf, 0x00, 0x00, 0x0b,
-      0x02,                                            // 2 params
-      0x02, 0x32,                                      // max_request_id = 50
-      0x01, 0x06, 0x01, 0x10, 0x00, 0x62, 0x61, 0x72,  // REGISTER 0x01
+      0xaf, 0x00, 0x00, 0x09,
+      0x01,                                            // 1 param
+      0x03, 0x06, 0x01, 0x10, 0x00, 0x62, 0x61, 0x72,  // REGISTER 0x01
   };
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
       ParseAllMessages(absl::string_view(setup, sizeof(setup)),
@@ -712,19 +709,6 @@ TEST_F(MoqtMessageSpecificTest, SetupPathMissing) {
       absl::string_view(setup, sizeof(setup)), kDefaultMoqtVersion, kRawQuic);
   EXPECT_EQ(ExtractMoqtErrorForStatus(parsed.status()),
             MoqtError::kInvalidPath);
-}
-
-TEST_F(MoqtMessageSpecificTest, ServerSetupMaxRequestIdAppearsTwice) {
-  char setup[] = {
-      0xaf, 0x00, 0x00, 0x05, 0x02,  // 2 params
-      0x02, 0x32,                    // max_request_id = 50
-      0x00, 0x32,                    // max_request_id = 50
-  };
-  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed = ParseAllMessages(
-      absl::string_view(setup, sizeof(setup)), kDefaultMoqtVersion, kRawQuic,
-      quic::Perspective::IS_CLIENT);
-  EXPECT_EQ(ExtractMoqtErrorForStatus(parsed.status()),
-            MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, ClientSetupMalformedPath) {

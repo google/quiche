@@ -171,14 +171,10 @@ class MoqtControlMessageParser {
       absl::string_view data) const;
   absl::StatusOr<MoqtSubscribeTracks> ProcessSubscribeTracks(
       absl::string_view data) const;
-  absl::StatusOr<MoqtMaxRequestId> ProcessMaxRequestId(
-      absl::string_view data) const;
   absl::StatusOr<MoqtFetch> ProcessFetch(absl::string_view data) const;
   absl::StatusOr<MoqtFetchCancel> ProcessFetchCancel(
       absl::string_view data) const;
   absl::StatusOr<MoqtFetchOk> ProcessFetchOk(absl::string_view data) const;
-  absl::StatusOr<MoqtRequestsBlocked> ProcessRequestsBlocked(
-      absl::string_view data) const;
   absl::StatusOr<MoqtPublish> ProcessPublish(absl::string_view data) const;
   absl::StatusOr<MoqtObjectAck> ProcessObjectAck(absl::string_view data) const;
 
@@ -226,16 +222,12 @@ class MoqtControlMessageParser {
         return parse(&MoqtControlMessageParser::ProcessSubscribeNamespace);
       case MoqtMessageType::kSubscribeTracks:
         return parse(&MoqtControlMessageParser::ProcessSubscribeTracks);
-      case MoqtMessageType::kMaxRequestId:
-        return parse(&MoqtControlMessageParser::ProcessMaxRequestId);
       case MoqtMessageType::kFetch:
         return parse(&MoqtControlMessageParser::ProcessFetch);
       case MoqtMessageType::kFetchCancel:
         return parse(&MoqtControlMessageParser::ProcessFetchCancel);
       case MoqtMessageType::kFetchOk:
         return parse(&MoqtControlMessageParser::ProcessFetchOk);
-      case MoqtMessageType::kRequestsBlocked:
-        return parse(&MoqtControlMessageParser::ProcessRequestsBlocked);
       case MoqtMessageType::kPublish:
         return parse(&MoqtControlMessageParser::ProcessPublish);
       case MoqtMessageType::kObjectAck:

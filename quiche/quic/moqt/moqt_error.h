@@ -26,7 +26,6 @@ enum QUICHE_EXPORT MoqtError : uint64_t {
   kInvalidRequestId = 0x4,
   kDuplicateTrackAlias = 0x5,
   kKeyValueFormattingError = 0x6,
-  kTooManyRequests = 0x7,
   kInvalidPath = 0x8,
   kMalformedPath = 0x9,
   kGoawayTimeout = 0x10,

@@ -66,12 +66,9 @@ class QUICHE_EXPORT MoqtFramer {
       const MoqtSubscribeNamespace& message);
   quiche::QuicheBuffer SerializeSubscribeTracks(
       const MoqtSubscribeTracks& message);
-  quiche::QuicheBuffer SerializeMaxRequestId(const MoqtMaxRequestId& message);
   quiche::QuicheBuffer SerializeFetch(const MoqtFetch& message);
   quiche::QuicheBuffer SerializeFetchCancel(const MoqtFetchCancel& message);
   quiche::QuicheBuffer SerializeFetchOk(const MoqtFetchOk& message);
-  quiche::QuicheBuffer SerializeRequestsBlocked(
-      const MoqtRequestsBlocked& message);
   quiche::QuicheBuffer SerializePublish(const MoqtPublish& message);
   quiche::QuicheBuffer SerializeObjectAck(const MoqtObjectAck& message);
 

@@ -210,11 +210,9 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kTrackStatus = 0x0d,
   kNamespaceDone = 0x0e,
   kGoAway = 0x10,
-  kMaxRequestId = 0x15,
   kFetch = 0x16,
   kFetchCancel = 0x17,
   kFetchOk = 0x18,
-  kRequestsBlocked = 0x1a,
   kPublish = 0x1d,
   kSubscribeNamespace = 0x50,
   kSubscribeTracks = 0x51,
@@ -437,10 +435,6 @@ struct QUICHE_EXPORT MoqtNamespaceDone {
   TrackNamespace track_namespace_suffix;
 };
 
-struct QUICHE_EXPORT MoqtMaxRequestId {
-  uint64_t max_request_id;
-};
-
 enum class QUICHE_EXPORT FetchType : uint64_t {
   kStandalone = 0x1,
   kRelativeJoining = 0x2,
@@ -501,10 +495,6 @@ struct QUICHE_EXPORT MoqtFetchOk {
 
 struct QUICHE_EXPORT MoqtFetchCancel {
   uint64_t request_id;
-};
-
-struct QUICHE_EXPORT MoqtRequestsBlocked {
-  uint64_t max_request_id;
 };
 
 struct QUICHE_EXPORT MoqtPublish {

@@ -222,8 +222,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     CleanUpState();
   }
 
-  void GrantMoreRequests(uint64_t num_requests);
-
   void UseAlternateDeliveryTimeout() { alternate_delivery_timeout_ = true; }
 
  private:
@@ -437,13 +435,11 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::Status OnControlMessage(const MoqtRequestError& message);
   absl::Status OnControlMessage(const MoqtRequestUpdate& message);
   absl::Status OnControlMessage(const MoqtGoAway& /*message*/);
-  absl::Status OnControlMessage(const MoqtMaxRequestId& message);
   absl::Status OnControlMessage(const MoqtFetch& message);
   absl::Status OnControlMessage(const MoqtFetchCancel& /*message*/) {
     return absl::OkStatus();
   }
   absl::Status OnControlMessage(const MoqtFetchOk& message);
-  absl::Status OnControlMessage(const MoqtRequestsBlocked& message);
 
   // TODO(vasilvv): remove this once all requests are moved into individual
   // streams.
@@ -495,9 +491,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   // The next subscribe ID that the local endpoint can send.
   uint64_t next_request_id_ = 0;
-  // The local endpoint can send subscribe IDs less than this value.
-  uint64_t peer_max_request_id_ = 0;
-  std::optional<uint64_t> last_requests_blocked_sent_;
 
   // All open incoming subscriptions, indexed by track name, used to check for
   // duplicates.
@@ -532,10 +525,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // It's an error if the namespaces overlap, so keep track of them.
   SessionNamespaceTree incoming_subscribe_namespace_;
   SessionNamespaceTree outgoing_subscribe_namespace_;
-
-  // The maximum request ID sent to the peer. Peer-generated IDs must be less
-  // than this value.
-  uint64_t local_max_request_id_ = 0;
 
   std::unique_ptr<quic::QuicAlarmFactory> alarm_factory_;
   // Kill the session if the peer doesn't promptly close out the session after

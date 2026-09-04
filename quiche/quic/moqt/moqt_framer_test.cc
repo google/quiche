@@ -54,11 +54,9 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kGoAway,
       MoqtMessageType::kSubscribeNamespace,
       MoqtMessageType::kSubscribeTracks,
-      MoqtMessageType::kMaxRequestId,
       MoqtMessageType::kFetch,
       MoqtMessageType::kFetchCancel,
       MoqtMessageType::kFetchOk,
-      MoqtMessageType::kRequestsBlocked,
       MoqtMessageType::kPublish,
       MoqtMessageType::kObjectAck,
       MoqtMessageType::kSetup,
@@ -182,10 +180,6 @@ class MoqtFramerTest
         auto data = std::get<MoqtSubscribeTracks>(structured_data);
         return framer_.SerializeSubscribeTracks(data);
       }
-      case moqt::MoqtMessageType::kMaxRequestId: {
-        auto data = std::get<MoqtMaxRequestId>(structured_data);
-        return framer_.SerializeMaxRequestId(data);
-      }
       case moqt::MoqtMessageType::kFetch: {
         auto data = std::get<MoqtFetch>(structured_data);
         return framer_.SerializeFetch(data);
@@ -197,10 +191,6 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kFetchOk: {
         auto data = std::get<MoqtFetchOk>(structured_data);
         return framer_.SerializeFetchOk(data);
-      }
-      case moqt::MoqtMessageType::kRequestsBlocked: {
-        auto data = std::get<MoqtRequestsBlocked>(structured_data);
-        return framer_.SerializeRequestsBlocked(data);
       }
       case moqt::MoqtMessageType::kPublish: {
         auto data = std::get<MoqtPublish>(structured_data);

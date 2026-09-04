@@ -24,9 +24,9 @@ using AnyMoqtControlMessage =
     std::variant<MoqtSetup, MoqtRequestOk, MoqtRequestError, MoqtSubscribe,
                  MoqtSubscribeOk, MoqtPublishDone, MoqtRequestUpdate,
                  MoqtPublishNamespace, MoqtTrackStatus, MoqtGoAway,
-                 MoqtSubscribeNamespace, MoqtSubscribeTracks, MoqtMaxRequestId,
-                 MoqtFetch, MoqtFetchCancel, MoqtFetchOk, MoqtRequestsBlocked,
-                 MoqtPublish, MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
+                 MoqtSubscribeNamespace, MoqtSubscribeTracks, MoqtFetch,
+                 MoqtFetchCancel, MoqtFetchOk, MoqtPublish, MoqtNamespace,
+                 MoqtNamespaceDone, MoqtObjectAck>;
 
 std::string SerializeGenericMessage(const AnyMoqtControlMessage& frame,
                                     bool use_webtrans = false);

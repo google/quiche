@@ -143,13 +143,11 @@ class QUICHE_EXPORT SubscriptionFilter {
 };
 
 // Setup parameters.
-inline constexpr uint64_t kDefaultMaxRequestId = 0;
 // TODO(martinduke): Implement an auth token cache.
 inline constexpr uint64_t kDefaultMaxAuthTokenCacheSize = 0;
 inline constexpr bool kDefaultSupportObjectAcks = false;
 enum class QUICHE_EXPORT SetupParameter : uint64_t {
   kPath = 0x1,
-  kMaxRequestId = 0x2,
   kAuthorizationToken = 0x3,
   kMaxAuthTokenCacheSize = 0x4,
   kAuthority = 0x5,
@@ -163,13 +161,10 @@ enum class QUICHE_EXPORT SetupParameter : uint64_t {
 struct QUICHE_EXPORT SetupParameters {
   SetupParameters() = default;
   // Constructors for tests.
-  SetupParameters(absl::string_view path, absl::string_view authority,
-                  uint64_t max_request_id)
-      : path(path), max_request_id(max_request_id), authority(authority) {}
-  SetupParameters(uint64_t max_request_id) : max_request_id(max_request_id) {}
+  SetupParameters(absl::string_view path, absl::string_view authority)
+      : path(path), authority(authority) {}
 
   std::optional<std::string> path;
-  std::optional<uint64_t> max_request_id;
   // TODO(martinduke): Turn authorization_token into structured data.
   std::vector<AuthToken> authorization_tokens;
   std::optional<uint64_t> max_auth_token_cache_size;

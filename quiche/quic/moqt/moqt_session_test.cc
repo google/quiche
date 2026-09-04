@@ -141,8 +141,6 @@ class MoqtSessionTest : public quic::test::QuicTest {
                  std::make_unique<quic::test::TestAlarmFactory>(),
                  session_callbacks_.AsSessionCallbacks()) {
     session_.set_publisher(&publisher_);
-    MoqtSessionPeer::set_peer_max_request_id(&session_,
-                                             kDefaultInitialMaxRequestId);
     MoqtSessionPeer::set_peer_setup_received(&session_, true);
     ON_CALL(mock_session_, GetStreamById)
         .WillByDefault(Return(&mock_bidi_stream_));
@@ -855,30 +853,6 @@ TEST_F(MoqtSessionTest, SubscribeIdNotIncreasing) {
   bidi_wrapper_2->ReceiveMessage(request);
 }
 
-TEST_F(MoqtSessionTest, TooManySubscribes) {
-  MoqtSessionPeer::set_next_request_id(&session_,
-                                       kDefaultInitialMaxRequestId - 1);
-  PrepareRequestStream(bidi_wrapper_);
-  EXPECT_CALL(mock_bidi_stream_,
-              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
-  MessageParameters parameters(SubscribeForTest());
-  parameters.subscription_filter.emplace(MoqtFilterType::kLargestObject);
-  EXPECT_TRUE(session_.Subscribe(FullTrackName("foo", "bar"),
-                                 &remote_track_visitor_, parameters));
-  webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtBidiStreamTestWrapper> control_wrapper =
-      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
-  EXPECT_CALL(
-      control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kRequestsBlocked), _))
-      .Times(1);
-  EXPECT_FALSE(session_.Subscribe(FullTrackName("foo2", "bar2"),
-                                  &remote_track_visitor_, parameters));
-  // Second time does not send requests_blocked.
-  EXPECT_FALSE(session_.Subscribe(FullTrackName("foo2", "bar2"),
-                                  &remote_track_visitor_, parameters));
-}
-
 TEST_F(MoqtSessionTest, SubscribeDuplicateTrackName) {
   PrepareRequestStream(bidi_wrapper_);
   EXPECT_CALL(mock_bidi_stream_,
@@ -996,59 +970,6 @@ TEST_F(MoqtSessionTest, OutgoingRequestUpdateInvalid) {
   EXPECT_FALSE(session_.SubscribeUpdate(
       FullTrackName("foo", "bar"), MessageParameters(),
       +[](std::variant<MessageParameters, MoqtRequestErrorInfo>) {}));
-}
-
-TEST_F(MoqtSessionTest, MaxRequestIdChangesResponse) {
-  MoqtSessionPeer::set_next_request_id(&session_, kDefaultInitialMaxRequestId);
-  webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtBidiStreamTestWrapper> control_wrapper =
-      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
-  EXPECT_CALL(
-      control_stream,
-      Writev(ControlMessageOfType(MoqtMessageType::kRequestsBlocked), _));
-  MessageParameters parameters(SubscribeForTest());
-  parameters.subscription_filter.emplace(MoqtFilterType::kLargestObject);
-  EXPECT_FALSE(session_.Subscribe(FullTrackName("foo", "bar"),
-                                  &remote_track_visitor_, parameters));
-  MoqtMaxRequestId max_request_id = {
-      /*max_request_id=*/kDefaultInitialMaxRequestId + 1,
-  };
-  control_wrapper->ReceiveMessage(max_request_id);
-
-  PrepareRequestStream(bidi_wrapper_);
-  EXPECT_CALL(mock_bidi_stream_,
-              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
-  EXPECT_TRUE(session_.Subscribe(FullTrackName("foo", "bar"),
-                                 &remote_track_visitor_, parameters));
-}
-
-TEST_F(MoqtSessionTest, LowerMaxRequestIdIsAnError) {
-  MoqtMaxRequestId max_request_id = {
-      /*max_request_id=*/kDefaultInitialMaxRequestId - 1,
-  };
-  bidi_wrapper_ =
-      MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);
-  EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "MAX_REQUEST_ID has lower value than previous"))
-      .Times(1);
-  bidi_wrapper_->ReceiveMessage(max_request_id);
-}
-
-TEST_F(MoqtSessionTest, GrantMoreRequests) {
-  webtransport::test::MockStream control_stream;
-  std::unique_ptr<MoqtBidiStreamTestWrapper> control_wrapper_ =
-      MoqtSessionPeer::CreateControlStream(&session_, &control_stream);
-  EXPECT_CALL(control_stream,
-              Writev(ControlMessageOfType(MoqtMessageType::kMaxRequestId), _));
-  session_.GrantMoreRequests(1);
-  // Peer subscribes to (0, 0)
-  bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
-      ResponseStream(kSubscribeByte));
-  MoqtSubscribe request = DefaultSubscribe();
-  request.request_id = kDefaultInitialMaxRequestId + 1;
-  MockTrackPublisher* track = CreateTrackPublisher();
-  ReceiveSubscribeSynchronousOk(track, request, bidi_wrapper_.get());
 }
 
 TEST_F(MoqtSessionTest, SubscribeWithError) {

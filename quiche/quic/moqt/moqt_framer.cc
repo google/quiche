@@ -279,10 +279,6 @@ quiche::QuicheBuffer SerializeLocation(const Location& location) {
 
 KeyValuePairList SetupParameters::ToKeyValuePairList() const {
   KeyValuePairList out;
-  if (max_request_id.has_value()) {
-    out.insert(static_cast<uint64_t>(SetupParameter::kMaxRequestId),
-               *max_request_id);
-  }
   if (max_auth_token_cache_size.has_value()) {
     out.insert(static_cast<uint64_t>(SetupParameter::kMaxAuthTokenCacheSize),
                *max_auth_token_cache_size);
@@ -609,12 +605,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeTracks(
       WireKeyValuePairList(message.parameters.ToKeyValuePairList()));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeMaxRequestId(
-    const MoqtMaxRequestId& message) {
-  return SerializeControlMessage(MoqtMessageType::kMaxRequestId,
-                                 WireMoqVarInt(message.max_request_id));
-}
-
 quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
   if (std::holds_alternative<StandaloneFetch>(message.fetch)) {
     const StandaloneFetch& standalone_fetch =
@@ -674,12 +664,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetchCancel(
     const MoqtFetchCancel& message) {
   return SerializeControlMessage(MoqtMessageType::kFetchCancel,
                                  WireMoqVarInt(message.request_id));
-}
-
-quiche::QuicheBuffer MoqtFramer::SerializeRequestsBlocked(
-    const MoqtRequestsBlocked& message) {
-  return SerializeControlMessage(MoqtMessageType::kRequestsBlocked,
-                                 WireMoqVarInt(message.max_request_id));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializePublish(const MoqtPublish& message) {

@@ -149,7 +149,7 @@ TEST_F(MoqtEndToEndTest, CustomParametersHandshake) {
   quic::QuicSocketAddress custom_server_address(host, custom_server.port());
 
   MoqtSessionParameters client_parameters;
-  client_parameters.max_request_id = 200;
+  client_parameters.max_auth_token_cache_size = 200;
   MoqtClient client(custom_server_address,
                     quic::QuicServerId("test.example.com", 443),
                     quic::test::crypto_test_utils::ProofVerifierForTesting(),
@@ -166,7 +166,8 @@ TEST_F(MoqtEndToEndTest, CustomParametersHandshake) {
   });
   EXPECT_TRUE(success);
   ASSERT_NE(client.session(), nullptr);
-  EXPECT_EQ(MoqtSessionPeer::GetParameters(client.session()).max_request_id,
+  EXPECT_EQ(MoqtSessionPeer::GetParameters(client.session())
+                .max_auth_token_cache_size,
             200);
   ASSERT_NE(server_session, nullptr);
   EXPECT_TRUE(

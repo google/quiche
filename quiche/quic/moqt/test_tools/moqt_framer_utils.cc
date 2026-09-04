@@ -64,9 +64,6 @@ struct FramingVisitor {
   quiche::QuicheBuffer operator()(const MoqtSubscribeTracks& message) {
     return framer.SerializeSubscribeTracks(message);
   }
-  quiche::QuicheBuffer operator()(const MoqtMaxRequestId& message) {
-    return framer.SerializeMaxRequestId(message);
-  }
   quiche::QuicheBuffer operator()(const MoqtFetch& message) {
     return framer.SerializeFetch(message);
   }
@@ -75,9 +72,6 @@ struct FramingVisitor {
   }
   quiche::QuicheBuffer operator()(const MoqtFetchOk& message) {
     return framer.SerializeFetchOk(message);
-  }
-  quiche::QuicheBuffer operator()(const MoqtRequestsBlocked& message) {
-    return framer.SerializeRequestsBlocked(message);
   }
   quiche::QuicheBuffer operator()(const MoqtPublish& message) {
     return framer.SerializePublish(message);

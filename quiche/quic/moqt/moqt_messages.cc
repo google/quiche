@@ -99,8 +99,6 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "SUBSCRIBE_NAMESPACE";
     case MoqtMessageType::kSubscribeTracks:
       return "SUBSCRIBE_TRACKS";
-    case MoqtMessageType::kMaxRequestId:
-      return "MAX_REQUEST_ID";
     case MoqtMessageType::kPublish:
       return "PUBLISH";
     case MoqtMessageType::kFetch:
@@ -109,8 +107,6 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "FETCH_CANCEL";
     case MoqtMessageType::kFetchOk:
       return "FETCH_OK";
-    case MoqtMessageType::kRequestsBlocked:
-      return "REQUESTS_BLOCKED";
     case MoqtMessageType::kObjectAck:
       return "OBJECT_ACK";
   }

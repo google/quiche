@@ -92,7 +92,6 @@ MoqtSession::MoqtSession(webtransport::Session* session,
       callbacks_(std::move(callbacks)),
       framer_(parameters.using_webtrans, parameters.perspective),
       publisher_(DefaultPublisher::GetInstance()),
-      local_max_request_id_(parameters.max_request_id),
       alarm_factory_(std::move(alarm_factory)),
       weak_ptr_factory_(this),
       weak_ptr_factory_for_publishers_(this),
@@ -280,20 +279,6 @@ std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
                     << "Tried to send SUBSCRIBE_NAMESPACE after GOAWAY";
     return nullptr;
   }
-  if (next_request_id_ >= peer_max_request_id_) {
-    if (!last_requests_blocked_sent_.has_value() ||
-        peer_max_request_id_ > *last_requests_blocked_sent_) {
-      MoqtRequestsBlocked requests_blocked;
-      requests_blocked.max_request_id = peer_max_request_id_;
-      SendControlMessage(framer_.SerializeRequestsBlocked(requests_blocked));
-      last_requests_blocked_sent_ = peer_max_request_id_;
-    }
-    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE_NAMESPACE with ID "
-                    << next_request_id_
-                    << " which is greater than the maximum ID "
-                    << peer_max_request_id_;
-    return nullptr;
-  }
   if (!outgoing_subscribe_namespace_.SubscribeNamespace(prefix)) {
     return nullptr;
   }
@@ -471,20 +456,6 @@ bool MoqtSession::Subscribe(const FullTrackName& name,
                             SubscribeVisitor* absl_nonnull visitor,
                             const MessageParameters& parameters) {
   QUICHE_DCHECK(name.IsValid());
-  if (next_request_id_ >= peer_max_request_id_) {
-    if (!last_requests_blocked_sent_.has_value() ||
-        peer_max_request_id_ > *last_requests_blocked_sent_) {
-      MoqtRequestsBlocked requests_blocked;
-      requests_blocked.max_request_id = peer_max_request_id_;
-      SendControlMessage(framer_.SerializeRequestsBlocked(requests_blocked));
-      last_requests_blocked_sent_ = peer_max_request_id_;
-    }
-    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE with ID "
-                    << next_request_id_
-                    << " which is greater than the maximum ID "
-                    << peer_max_request_id_;
-    return false;
-  }
   if (subscribe_by_name_.contains(name)) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send SUBSCRIBE for track " << name
                     << " which is already subscribed";
@@ -644,13 +615,6 @@ bool MoqtSession::Fetch(const FullTrackName& name,
                         uint64_t end_group, std::optional<uint64_t> end_object,
                         MessageParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
-  if (next_request_id_ >= peer_max_request_id_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH with ID "
-                    << next_request_id_
-                    << " which is greater than the maximum ID "
-                    << peer_max_request_id_;
-    return false;
-  }
   if (received_goaway_ || sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH after GOAWAY";
     return false;
@@ -699,13 +663,6 @@ bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
                                        uint64_t num_previous_groups,
                                        MessageParameters parameters) {
   QUICHE_DCHECK(name.IsValid());
-  if ((next_request_id_ + 2) >= peer_max_request_id_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send JOINING_FETCH with ID "
-                    << (next_request_id_ + 2)
-                    << " which is greater than the maximum ID "
-                    << peer_max_request_id_;
-    return false;
-  }
   MessageParameters subscribe_parameters = parameters;
   subscribe_parameters.subscription_filter.emplace(
       MoqtFilterType::kLargestObject);
@@ -869,19 +826,7 @@ void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
   }
 }
 
-void MoqtSession::GrantMoreRequests(uint64_t num_requests) {
-  local_max_request_id_ += (num_requests * 2);
-  MoqtMaxRequestId message;
-  message.max_request_id = local_max_request_id_;
-  SendControlMessage(framer_.SerializeMaxRequestId(message));
-}
-
 bool MoqtSession::ValidateRequestId(uint64_t request_id) {
-  if (request_id >= local_max_request_id_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Received request with too large ID";
-    Error(MoqtError::kTooManyRequests, "Received request with too large ID");
-    return false;
-  }
   if ((request_id % 2 == 0) !=
       (parameters_.perspective == Perspective::IS_SERVER)) {
     QUICHE_DLOG(INFO) << ENDPOINT << "Request ID evenness incorrect";
@@ -1283,8 +1228,6 @@ absl::Status MoqtSession::OnControlMessage(const MoqtSetup& message) {
   peer_setup_received_ = true;
   peer_supports_object_ack_ = message.parameters.support_object_acks.value_or(
       kDefaultSupportObjectAcks);
-  peer_max_request_id_ =
-      message.parameters.max_request_id.value_or(kDefaultMaxRequestId);
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   // TODO: handle path.
   if (callbacks_.session_established_callback != nullptr) {
@@ -1366,18 +1309,6 @@ absl::Status MoqtSession::OnControlMessage(const MoqtGoAway& message) {
   if (callbacks_.goaway_received_callback != nullptr) {
     std::move(callbacks_.goaway_received_callback)(message.new_session_uri);
   }
-  return absl::OkStatus();
-}
-
-absl::Status MoqtSession::OnControlMessage(const MoqtMaxRequestId& message) {
-  if (message.max_request_id < peer_max_request_id_) {
-    QUIC_DLOG(INFO) << ENDPOINT
-                    << "Peer sent MAX_REQUEST_ID message with "
-                       "lower value than previous";
-    return absl::InvalidArgumentError(
-        "MAX_REQUEST_ID has lower value than previous");
-  }
-  peer_max_request_id_ = message.max_request_id;
   return absl::OkStatus();
 }
 
@@ -1565,11 +1496,6 @@ absl::Status MoqtSession::OnControlMessage(const MoqtFetchOk& message) {
   return absl::OkStatus();
 }
 
-absl::Status MoqtSession::OnControlMessage(const MoqtRequestsBlocked& message) {
-  // TODO(martinduke): Derive logic for granting more subscribes.
-  return absl::OkStatus();
-}
-
 void MoqtSession::OnMalformedTrack(ObjectSubscriber* track) {
   if (!track->is_fetch()) {
     auto* subscribe = absl::down_cast<LiveSubscriber*>(track);
@@ -1653,9 +1579,6 @@ void MoqtSessionParameters::ToSetupParameters(SetupParameters& out) const {
   if (perspective == quic::Perspective::IS_CLIENT && !using_webtrans) {
     out.path = path;
     out.authority = authority;
-  }
-  if (max_request_id != kDefaultMaxRequestId) {
-    out.max_request_id = max_request_id;
   }
   if (max_auth_token_cache_size != kDefaultMaxAuthTokenCacheSize) {
     out.max_auth_token_cache_size = max_auth_token_cache_size;
