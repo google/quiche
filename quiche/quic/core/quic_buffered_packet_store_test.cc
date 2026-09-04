@@ -45,12 +45,12 @@
 #include "quiche/common/quiche_endian.h"
 
 namespace quic {
-static const size_t kDefaultMaxConnectionsInStore = 100;
-static const size_t kMaxConnectionsWithoutCHLO =
-    kDefaultMaxConnectionsInStore / 2;
-
 namespace test {
 namespace {
+
+const size_t kDefaultMaxConnectionsInStore =
+    GetQuicFlag(quic_buffered_connections_limit);
+const size_t kMaxConnectionsWithoutCHLO = kDefaultMaxConnectionsInStore / 2;
 
 const std::optional<ParsedClientHello> kNoParsedChlo;
 const std::optional<ParsedClientHello> kDefaultParsedChlo =

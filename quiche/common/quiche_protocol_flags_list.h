@@ -286,4 +286,8 @@ QUICHE_PROTOCOL_FLAG(
     "If QuicConnection::GetUnackedMapInitialCapacity() already specifies a "
     "number, the larger of two applies.")
 
+QUICHE_PROTOCOL_FLAG(
+    uint32_t, quic_buffered_connections_limit, 100,
+    "Limit on the number of connections in the buffered packet store.")
+
 #endif

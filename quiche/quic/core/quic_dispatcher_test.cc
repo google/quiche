@@ -83,9 +83,6 @@ using testing::ReturnRef;
 using testing::WithArg;
 using testing::WithoutArgs;
 
-static const size_t kDefaultMaxConnectionsInStore = 100;
-static const size_t kMaxConnectionsWithoutCHLO =
-    kDefaultMaxConnectionsInStore / 2;
 static const int16_t kMaxNumSessionsToCreate = 16;
 
 namespace quic {
@@ -94,6 +91,10 @@ namespace {
 
 const QuicConnectionId kReturnConnectionId{
     {0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}};
+
+const size_t kDefaultMaxConnectionsInStore =
+    GetQuicFlag(quic_buffered_connections_limit);
+const size_t kMaxConnectionsWithoutCHLO = kDefaultMaxConnectionsInStore / 2;
 
 class TestQuicSpdyServerSession : public QuicServerSessionBase {
  public:

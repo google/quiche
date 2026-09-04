@@ -47,12 +47,6 @@ using BufferedPacket = QuicBufferedPacketStore::BufferedPacket;
 using BufferedPacketList = QuicBufferedPacketStore::BufferedPacketList;
 using EnqueuePacketResult = QuicBufferedPacketStore::EnqueuePacketResult;
 
-// Max number of connections this store can keep track.
-static const size_t kDefaultMaxConnectionsInStore = 100;
-// Up to half of the capacity can be used for storing non-CHLO packets.
-static const size_t kMaxConnectionsWithoutCHLO =
-    kDefaultMaxConnectionsInStore / 2;
-
 namespace {
 
 // This alarm removes expired entries in map each time this alarm fires.
@@ -535,7 +529,7 @@ void QuicBufferedPacketStore::MaybeSetExpirationAlarm() {
 
 bool QuicBufferedPacketStore::ShouldNotBufferPacket(bool is_chlo) const {
   const bool is_store_full =
-      num_buffered_sessions_ >= kDefaultMaxConnectionsInStore;
+      num_buffered_sessions_ >= GetQuicFlag(quic_buffered_connections_limit);
 
   if (is_chlo) {
     return is_store_full;
@@ -547,8 +541,8 @@ bool QuicBufferedPacketStore::ShouldNotBufferPacket(bool is_chlo) const {
       << ", num_connections_with_chlo: " << num_buffered_sessions_with_chlo_;
   size_t num_connections_without_chlo =
       num_buffered_sessions_ - num_buffered_sessions_with_chlo_;
-  bool reach_non_chlo_limit =
-      num_connections_without_chlo >= kMaxConnectionsWithoutCHLO;
+  bool reach_non_chlo_limit = num_connections_without_chlo >=
+                              GetQuicFlag(quic_buffered_connections_limit) / 2;
 
   return is_store_full || reach_non_chlo_limit;
 }
