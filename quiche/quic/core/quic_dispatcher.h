@@ -39,6 +39,7 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_process_packet_interface.h"
 #include "quiche/quic/core/quic_session.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_time_wait_list_manager.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_version_manager.h"
@@ -142,6 +143,16 @@ class QUICHE_EXPORT QuicDispatcher
 
   size_t NumSessions() const;
 
+  // Number of buffered sessions in the store.
+  size_t num_buffered_sessions() const {
+    return buffered_packets_.num_buffered_sessions();
+  }
+
+  // Number of buffered sessions without a full ClientHello in the store.
+  size_t num_buffered_sessions_without_chlo() const {
+    return buffered_packets_.num_buffered_sessions_without_chlo();
+  }
+
   // Deletes all sessions on the closed session list and clears the list.
   virtual void DeleteSessions();
 
@@ -238,6 +249,14 @@ class QUICHE_EXPORT QuicDispatcher
   // will be owned by the dispatcher as time_wait_list_manager_
   virtual QuicTimeWaitListManager* CreateQuicTimeWaitListManager();
 
+  // Called after a new session is created and before any packet is delivered to
+  // it. `first_packet_buffered_time` is the time when the first received packet
+  // of the connection was buffered, or QuicTime::Zero if no packets were
+  // buffered.
+  virtual void OnNewSessionCreated(const QuicSession& /*session*/,
+                                   QuicTime /*first_packet_buffered_time*/,
+                                   bool /*entire_chlo_buffered*/) const {}
+
   // Called when |packet_info| is the last received packet of the client hello.
   // |parsed_chlo| is the parsed version of the client hello. Creates a new
   // connection and delivers any buffered packets for that connection id.
@@ -259,6 +278,8 @@ class QUICHE_EXPORT QuicDispatcher
   }
 
   QuicConnectionHelperInterface* helper() { return helper_.get(); }
+
+  const QuicConnectionHelperInterface* helper() const { return helper_.get(); }
 
   QuicCryptoServerStreamBase::Helper* session_helper() {
     return session_helper_.get();

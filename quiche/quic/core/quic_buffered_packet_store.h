@@ -33,6 +33,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_versions.h"
 #include "quiche/quic/core/tls_chlo_extractor.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/platform/api/quiche_logging.h"
@@ -267,6 +268,21 @@ class QUICHE_EXPORT QuicBufferedPacketStore {
   // nullptr if not found.
   const BufferedPacketList* GetPacketList(
       const QuicConnectionId& connection_id) const;
+
+  // Returns the number of buffered sessions in the store.
+  size_t num_buffered_sessions() const { return num_buffered_sessions_; }
+
+  // Returns the number of buffered sessions without a full CHLO.
+  size_t num_buffered_sessions_without_chlo() const {
+    if (num_buffered_sessions_ < num_buffered_sessions_with_chlo_) {
+      QUIC_BUG(quic_store_invalid_session_counts)
+          << "num_buffered_sessions: " << num_buffered_sessions_
+          << ", num_buffered_sessions_with_chlo: "
+          << num_buffered_sessions_with_chlo_;
+      return 0;
+    }
+    return num_buffered_sessions_ - num_buffered_sessions_with_chlo_;
+  }
 
  private:
   friend class test::QuicBufferedPacketStorePeer;

@@ -1183,6 +1183,8 @@ void QuicDispatcher::ProcessBufferedChlos(size_t max_connections_to_create) {
         packet_list.connection_id_generator,
         packet_list.dispatcher_sent_packets);
     if (session_ptr != nullptr) {
+      OnNewSessionCreated(*session_ptr, packet_list.creation_time,
+                          /*entire_chlo_buffered=*/true);
       DeliverPacketsToSession(packets, session_ptr.get());
     }
   }
@@ -1261,6 +1263,8 @@ void QuicDispatcher::ProcessChlo(ParsedClientHello parsed_chlo,
     QUICHE_DCHECK_EQ(packet_list.connection_id_generator, nullptr);
     return;
   }
+  OnNewSessionCreated(*session_ptr, packet_list.creation_time,
+                      /*entire_chlo_buffered=*/false);
   // Process the current packet first, then deliver queued-up packets.
   // Note that multi-packet CHLOs, if received in packet number order, will
   // not be delivered in the same order. This needs to be fixed.
