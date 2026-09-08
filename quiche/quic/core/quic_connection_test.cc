@@ -515,10 +515,6 @@ class TestConnection : public QuicConnection {
 
   void set_notifier(SimpleSessionNotifier* notifier) { notifier_ = notifier; }
 
-  void ReturnEffectivePeerAddressForNextPacket(const QuicSocketAddress& addr) {
-    next_effective_peer_addr_ = std::make_unique<QuicSocketAddress>(addr);
-  }
-
   void SendOrQueuePacket(SerializedPacket packet) override {
     QuicConnection::SendOrQueuePacket(std::move(packet));
     self_address_on_default_path_while_sending_packet_ = self_address();
@@ -533,14 +529,6 @@ class TestConnection : public QuicConnection {
   using QuicConnection::active_effective_peer_migration_type;
   using QuicConnection::set_defer_send_in_response_to_packets;
 
- protected:
-  QuicSocketAddress GetEffectivePeerAddressFromCurrentPacket() const override {
-    if (next_effective_peer_addr_) {
-      return *std::move(next_effective_peer_addr_);
-    }
-    return QuicConnection::GetEffectivePeerAddressFromCurrentPacket();
-  }
-
  private:
   TestPacketWriter* writer() {
     return absl::down_cast<TestPacketWriter*>(QuicConnection::writer());
@@ -549,8 +537,6 @@ class TestConnection : public QuicConnection {
   SimpleDataProducer producer_;
 
   SimpleSessionNotifier* notifier_;
-
-  std::unique_ptr<QuicSocketAddress> next_effective_peer_addr_;
 
   QuicSocketAddress self_address_on_default_path_while_sending_packet_;
 
@@ -2094,128 +2080,6 @@ TEST_P(QuicConnectionTest, PeerIpAddressChangeAtServerWithMissingConnectionId) {
   connection_.SendStreamData3();
 
   EXPECT_EQ(2u, writer_->packets_write_attempts());
-}
-
-TEST_P(QuicConnectionTest, EffectivePeerAddressChangeAtServer) {
-  if (GetQuicFlag(quic_enforce_strict_amplification_factor)) {
-    return;
-  }
-  set_perspective(Perspective::IS_SERVER);
-  QuicPacketCreatorPeer::SetSendVersionInPacket(creator_, false);
-  EXPECT_EQ(Perspective::IS_SERVER, connection_.perspective());
-  if (version().IsIetfQuic()) {
-    QuicConnectionPeer::SetAddressValidated(&connection_);
-  }
-  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
-  // Discard INITIAL key.
-  connection_.RemoveEncrypter(ENCRYPTION_INITIAL);
-  connection_.NeuterUnencryptedPackets();
-  EXPECT_CALL(visitor_, GetHandshakeState())
-      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
-
-  // Clear direct_peer_address.
-  QuicConnectionPeer::SetDirectPeerAddress(&connection_, QuicSocketAddress());
-  // Clear effective_peer_address, it is different from direct_peer_address for
-  // this test.
-  QuicConnectionPeer::SetEffectivePeerAddress(&connection_,
-                                              QuicSocketAddress());
-  const QuicSocketAddress kEffectivePeerAddress =
-      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/43210);
-  connection_.ReturnEffectivePeerAddressForNextPacket(kEffectivePeerAddress);
-
-  if (VersionIsIetfQuic(connection_.transport_version())) {
-    EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(AnyNumber());
-  } else {
-    EXPECT_CALL(visitor_, OnStreamFrame(_)).Times(AnyNumber());
-  }
-  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress, kPeerAddress,
-                                  ENCRYPTION_FORWARD_SECURE);
-  EXPECT_EQ(kPeerAddress, connection_.peer_address());
-  EXPECT_EQ(kEffectivePeerAddress, connection_.effective_peer_address());
-
-  // Process another packet with the same direct peer address and different
-  // effective peer address on server side will start connection migration.
-  const QuicSocketAddress kNewEffectivePeerAddress =
-      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/54321);
-  connection_.ReturnEffectivePeerAddressForNextPacket(kNewEffectivePeerAddress);
-  EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
-  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress, kPeerAddress,
-                                  ENCRYPTION_FORWARD_SECURE);
-  EXPECT_EQ(kPeerAddress, connection_.peer_address());
-  EXPECT_EQ(kNewEffectivePeerAddress, connection_.effective_peer_address());
-  EXPECT_EQ(kPeerAddress, writer_->last_write_peer_address());
-  if (GetParam().version.IsIetfQuic()) {
-    EXPECT_EQ(NO_CHANGE, connection_.active_effective_peer_migration_type());
-    EXPECT_EQ(1u, connection_.GetStats().num_validated_peer_migration);
-    EXPECT_EQ(1u, connection_.num_linkable_client_migration());
-  }
-
-  // Process another packet with a different direct peer address and the same
-  // effective peer address on server side will not start connection migration.
-  const QuicSocketAddress kNewPeerAddress =
-      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/23456);
-  connection_.ReturnEffectivePeerAddressForNextPacket(kNewEffectivePeerAddress);
-  EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(0);
-
-  if (!GetParam().version.IsIetfQuic()) {
-    // ack_frame is used to complete the migration started by the last packet,
-    // we need to make sure a new migration does not start after the previous
-    // one is completed.
-    QuicAckFrame ack_frame = InitAckFrame(1);
-    EXPECT_CALL(*send_algorithm_, OnCongestionEvent(_, _, _, _, _, _, _));
-    ProcessFramePacketWithAddresses(QuicFrame(&ack_frame), kSelfAddress,
-                                    kNewPeerAddress, ENCRYPTION_FORWARD_SECURE);
-    EXPECT_EQ(kNewPeerAddress, connection_.peer_address());
-    EXPECT_EQ(kNewEffectivePeerAddress, connection_.effective_peer_address());
-    EXPECT_EQ(NO_CHANGE, connection_.active_effective_peer_migration_type());
-  }
-
-  // Process another packet with different direct peer address and different
-  // effective peer address on server side will start connection migration.
-  const QuicSocketAddress kNewerEffectivePeerAddress =
-      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/65432);
-  const QuicSocketAddress kFinalPeerAddress =
-      QuicSocketAddress(QuicIpAddress::Loopback6(), /*port=*/34567);
-  connection_.ReturnEffectivePeerAddressForNextPacket(
-      kNewerEffectivePeerAddress);
-  EXPECT_CALL(visitor_, OnConnectionMigration(PORT_CHANGE)).Times(1);
-  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
-                                  kFinalPeerAddress, ENCRYPTION_FORWARD_SECURE);
-  EXPECT_EQ(kFinalPeerAddress, connection_.peer_address());
-  EXPECT_EQ(kNewerEffectivePeerAddress, connection_.effective_peer_address());
-  if (GetParam().version.IsIetfQuic()) {
-    EXPECT_EQ(NO_CHANGE, connection_.active_effective_peer_migration_type());
-    EXPECT_EQ(send_algorithm_,
-              connection_.sent_packet_manager().GetSendAlgorithm());
-    EXPECT_EQ(2u, connection_.GetStats().num_validated_peer_migration);
-  }
-
-  // While the previous migration is ongoing, process another packet with the
-  // same direct peer address and different effective peer address on server
-  // side will start a new connection migration.
-  const QuicSocketAddress kNewestEffectivePeerAddress =
-      QuicSocketAddress(QuicIpAddress::Loopback4(), /*port=*/65430);
-  connection_.ReturnEffectivePeerAddressForNextPacket(
-      kNewestEffectivePeerAddress);
-  EXPECT_CALL(visitor_, OnConnectionMigration(IPV6_TO_IPV4_CHANGE)).Times(1);
-  if (!GetParam().version.IsIetfQuic()) {
-    EXPECT_CALL(*send_algorithm_, OnConnectionMigration()).Times(1);
-  }
-  ProcessFramePacketWithAddresses(MakeCryptoFrame(), kSelfAddress,
-                                  kFinalPeerAddress, ENCRYPTION_FORWARD_SECURE);
-  EXPECT_EQ(kFinalPeerAddress, connection_.peer_address());
-  EXPECT_EQ(kNewestEffectivePeerAddress, connection_.effective_peer_address());
-  EXPECT_EQ(IPV6_TO_IPV4_CHANGE,
-            connection_.active_effective_peer_migration_type());
-  if (GetParam().version.IsIetfQuic()) {
-    EXPECT_NE(send_algorithm_,
-              connection_.sent_packet_manager().GetSendAlgorithm());
-    EXPECT_EQ(kFinalPeerAddress, writer_->last_write_peer_address());
-    EXPECT_FALSE(writer_->path_challenge_frames().empty());
-    EXPECT_EQ(0u, connection_.GetStats()
-                      .num_peer_migration_while_validating_default_path);
-    EXPECT_TRUE(connection_.HasPendingPathValidation());
-  }
 }
 
 // Regression test for b/200020764.
