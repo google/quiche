@@ -710,9 +710,9 @@ class StructuredHeaderSerializer {
       if (!first) output_ << ", ";
       if (!WriteKey(dict_key)) return false;
       first = false;
-      if (!dict_value.member_is_inner_list && !dict_value.member.empty() &&
-          IsBooleanTrue(dict_value.member.front().item)) {
-        if (!WriteParameters(dict_value.params)) return false;
+      if (const auto* item = dict_value.GetIfItem();
+          item && IsBooleanTrue(item->item)) {
+        if (!WriteParameters(item->params)) return false;
       } else {
         output_ << "=";
         if (!WriteParameterizedMember(dict_value)) return false;
@@ -730,27 +730,29 @@ class StructuredHeaderSerializer {
   [[nodiscard]] bool WriteParameterizedMember(
       const ParameterizedMember& value) {
     // Serializes a parameterized member ([RFC8941] 4.1.1).
-    if (value.member_is_inner_list) {
-      if (!WriteInnerList(value.member)) return false;
-    } else {
-      QUICHE_CHECK_EQ(value.member.size(), 1UL);
-      if (!WriteItem(value.member[0])) return false;
-    }
-    return WriteParameters(value.params);
+    return std::visit(
+        absl::Overload{
+            [&](const ParameterizedItem& value) { return WriteItem(value); },
+            [&](const InnerList& value) { return WriteInnerList(value); },
+            [](std::monostate) {
+              QUICHE_CHECK(false);
+              return false;
+            },
+        },
+        value.value_);
   }
 
-  [[nodiscard]] bool WriteInnerList(
-      const std::vector<ParameterizedItem>& value) {
+  [[nodiscard]] bool WriteInnerList(const InnerList& value) {
     // Serializes an inner list ([RFC8941] 4.1.1.1).
     output_ << "(";
     bool first = true;
-    for (const ParameterizedItem& member : value) {
+    for (const ParameterizedItem& member : value.items) {
       if (!first) output_ << " ";
       if (!WriteItem(member)) return false;
       first = false;
     }
     output_ << ")";
-    return true;
+    return WriteParameters(value.params);
   }
 
   [[nodiscard]] bool WriteParameters(const Parameters& value) {
@@ -899,6 +901,24 @@ ParameterizedItem::ParameterizedItem(Item item, Parameters params)
 ParameterizedItem::ParameterizedItem(Item item) : item(std::move(item)) {}
 ParameterizedItem::~ParameterizedItem() = default;
 
+InnerList::InnerList() = default;
+
+InnerList::InnerList(std::vector<ParameterizedItem> items)
+    : items(std::move(items)) {}
+
+InnerList::InnerList(std::vector<ParameterizedItem> items, Parameters params)
+    : items(std::move(items)), params(std::move(params)) {}
+
+InnerList::InnerList(const InnerList&) = default;
+
+InnerList& InnerList::operator=(const InnerList&) = default;
+
+InnerList::InnerList(InnerList&&) = default;
+
+InnerList& InnerList::operator=(InnerList&&) = default;
+
+InnerList::~InnerList() = default;
+
 ParameterizedMember::ParameterizedMember() = default;
 ParameterizedMember::ParameterizedMember(const ParameterizedMember&) = default;
 ParameterizedMember& ParameterizedMember::operator=(
@@ -906,70 +926,94 @@ ParameterizedMember& ParameterizedMember::operator=(
 ParameterizedMember::ParameterizedMember(ParameterizedMember&&) = default;
 ParameterizedMember& ParameterizedMember::operator=(ParameterizedMember&&) =
     default;
-ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> items,
-                                         bool member_is_inner_list,
-                                         Parameters params)
-    : member(std::move(items)),
-      member_is_inner_list(member_is_inner_list),
-      params(std::move(params)) {}
+
 ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> items,
                                          Parameters params)
-    : member(std::move(items)),
-      member_is_inner_list(true),
-      params(std::move(params)) {}
+    : value_(std::in_place_type<InnerList>, std::move(items),
+             std::move(params)) {}
+
 ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> items)
-    : member(std::move(items)), member_is_inner_list(true) {}
+    : value_(std::in_place_type<InnerList>, std::move(items)) {}
+
 ParameterizedMember::ParameterizedMember(Item item, Parameters params)
-    : member({{std::move(item), {}}}),
-      member_is_inner_list(false),
-      params(std::move(params)) {}
+    : value_(std::in_place_type<ParameterizedItem>, std::move(item),
+             std::move(params)) {}
+
 ParameterizedMember::ParameterizedMember(Item item)
-    : member({{std::move(item), {}}}), member_is_inner_list(false) {}
+    : value_(std::in_place_type<ParameterizedItem>, std::move(item)) {}
+
+ParameterizedMember::ParameterizedMember(ParameterizedItem item)
+    : value_(std::move(item)) {}
+
+ParameterizedMember::ParameterizedMember(InnerList inner_list)
+    : value_(std::move(inner_list)) {}
+
 ParameterizedMember::~ParameterizedMember() = default;
+
+const ParameterizedItem* ParameterizedMember::GetIfItem() const {
+  return std::get_if<ParameterizedItem>(&value_);
+}
+
+ParameterizedItem* ParameterizedMember::GetIfItem() {
+  return std::get_if<ParameterizedItem>(&value_);
+}
+
+const InnerList* ParameterizedMember::GetIfInnerList() const {
+  return std::get_if<InnerList>(&value_);
+}
+
+InnerList* ParameterizedMember::GetIfInnerList() {
+  return std::get_if<InnerList>(&value_);
+}
 
 std::optional<std::pair<const Item&, const Parameters&>>
 ParameterizedMember::GetWithParamsIfItem() const {
-  // Strictly, `member.size()` should be exactly 1 when `!member_is_inner_list`,
-  // but this isn't guaranteed due to to the public nature of the fields. Handle
-  // the empty case here to avoid crashing or UB.
-  if (member_is_inner_list || member.empty()) {
+  const auto* item = GetIfItem();
+  if (!item) {
     return std::nullopt;
   }
 
-  return std::pair<const Item&, const Parameters&>(member.front().item, params);
+  return std::pair<const Item&, const Parameters&>(item->item, item->params);
 }
 
 std::optional<std::pair<Item&, Parameters&>>
 ParameterizedMember::GetWithParamsIfItem() {
-  // Strictly, `member.size()` should be exactly 1 when `!member_is_inner_list`,
-  // but this isn't guaranteed due to to the public nature of the fields. Handle
-  // the empty case here to avoid crashing or UB.
-  if (member_is_inner_list || member.empty()) {
+  auto* item = GetIfItem();
+  if (!item) {
     return std::nullopt;
   }
 
-  return std::pair<Item&, Parameters&>(member.front().item, params);
+  return std::pair<Item&, Parameters&>(item->item, item->params);
 }
 
 std::optional<
     std::pair<const std::vector<ParameterizedItem>&, const Parameters&>>
 ParameterizedMember::GetWithParamsIfInnerList() const {
-  if (!member_is_inner_list) {
+  const auto* inner_list = GetIfInnerList();
+  if (!inner_list) {
     return std::nullopt;
   }
 
   return std::pair<const std::vector<ParameterizedItem>&, const Parameters&>(
-      member, params);
+      inner_list->items, inner_list->params);
 }
 
 std::optional<std::pair<std::vector<ParameterizedItem>&, Parameters&>>
 ParameterizedMember::GetWithParamsIfInnerList() {
-  if (!member_is_inner_list) {
+  auto* inner_list = GetIfInnerList();
+  if (!inner_list) {
     return std::nullopt;
   }
 
-  return std::pair<std::vector<ParameterizedItem>&, Parameters&>(member,
-                                                                 params);
+  return std::pair<std::vector<ParameterizedItem>&, Parameters&>(
+      inner_list->items, inner_list->params);
+}
+
+// Not defaulted to work around
+// https://github.com/llvm/llvm-project/issues/132249 in older Clang versions.
+bool operator==(const ParameterizedMember& lhs,
+                const ParameterizedMember& rhs) {
+  return lhs.value_ == rhs.value_;
 }
 
 ParameterisedIdentifier::ParameterisedIdentifier() = default;

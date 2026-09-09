@@ -824,6 +824,12 @@ TEST(StructuredHeaderTest, ParameterizedMemberGetWithParams) {
 
     EXPECT_EQ(member.GetWithParamsIfInnerList(), std::nullopt);
     EXPECT_EQ(std::as_const(member).GetWithParamsIfInnerList(), std::nullopt);
+
+    EXPECT_FALSE(member.GetIfItem());
+    EXPECT_FALSE(std::as_const(member).GetIfItem());
+
+    EXPECT_FALSE(member.GetIfInnerList());
+    EXPECT_FALSE(std::as_const(member).GetIfInnerList());
   }
 
   {
@@ -838,6 +844,12 @@ TEST(StructuredHeaderTest, ParameterizedMemberGetWithParams) {
 
     EXPECT_EQ(member.GetWithParamsIfInnerList(), std::nullopt);
     EXPECT_EQ(std::as_const(member).GetWithParamsIfInnerList(), std::nullopt);
+
+    auto* item_ptr = member.GetIfItem();
+    ASSERT_TRUE(item_ptr);
+    EXPECT_EQ(*item_ptr, ParameterizedItem(item, params));
+
+    EXPECT_FALSE(member.GetIfInnerList());
   }
 
   {
@@ -853,6 +865,12 @@ TEST(StructuredHeaderTest, ParameterizedMemberGetWithParams) {
     EXPECT_EQ(member.GetWithParamsIfInnerList(), std::pair(items, params));
     EXPECT_EQ(std::as_const(member).GetWithParamsIfInnerList(),
               std::pair(items, params));
+
+    EXPECT_FALSE(member.GetIfItem());
+
+    auto* inner_list_ptr = member.GetIfInnerList();
+    ASSERT_TRUE(inner_list_ptr);
+    EXPECT_EQ(*inner_list_ptr, InnerList(items, params));
   }
 }
 

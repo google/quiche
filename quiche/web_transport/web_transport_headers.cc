@@ -59,15 +59,15 @@ auto GetItem(auto&& item) -> absl::StatusOr<
 
 template <Item::ItemType kExpectedType>
 auto GetMember(auto&& member) {
-  auto item = member.GetWithParamsIfItem();
-  using ReturnType = decltype(GetItem<kExpectedType>(item->first));
+  auto item = member.GetIfItem();
+  using ReturnType = decltype(GetItem<kExpectedType>(item->item));
 
-  if (!item.has_value()) {
+  if (!item) {
     return ReturnType(absl::InvalidArgumentError(absl::StrCat(
         "Expected all members to be of type", ItemTypeToString(kExpectedType),
         ", found a nested list instead")));
   }
-  return GetItem<kExpectedType>(item->first);
+  return GetItem<kExpectedType>(item->item);
 }
 
 ABSL_CONST_INIT std::array kInitHeaderFields{
