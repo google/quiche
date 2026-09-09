@@ -40,7 +40,7 @@ enum class PathValidationReason {
   kServerPreferredAddressMigration,
   kPortMigration,
   kConnectionMigration,
-  kMaxValue,
+  kNumReasons,
 };
 
 struct QUICHE_EXPORT PathValidationFailure {

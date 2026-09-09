@@ -1612,7 +1612,7 @@ class QUICHE_EXPORT QuicConnection
     kNotValidated,
     kPendingRefreshValidation,
     kWaitingForRefreshValidation,
-    kMaxValue,
+    kNumStatuses,
   };
 
   struct QUICHE_EXPORT PathState {

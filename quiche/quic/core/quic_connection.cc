@@ -4285,7 +4285,7 @@ void QuicConnection::MaybeCreateMultiPortPath() {
   if (path_validator_.HasPendingPathValidation()) {
     QUIC_CLIENT_HISTOGRAM_ENUM("QuicConnection.MultiPortPathCreationCancelled",
                                path_validator_.GetPathValidationReason(),
-                               PathValidationReason::kMaxValue,
+                               PathValidationReason::kNumReasons,
                                "Reason for cancelled multi port path creation");
     return;
   }
@@ -6509,7 +6509,7 @@ void QuicConnection::MaybeMigrateToMultiPortPath() {
     QUIC_CLIENT_HISTOGRAM_ENUM(
         "QuicConnection.MultiPortPathStatusWhenMigrating",
         MultiPortStatusOnMigration::kNotValidated,
-        MultiPortStatusOnMigration::kMaxValue,
+        MultiPortStatusOnMigration::kNumStatuses,
         "Status of the multi port path upon migration");
     return;
   }
@@ -6524,7 +6524,7 @@ void QuicConnection::MaybeMigrateToMultiPortPath() {
     QUIC_CLIENT_HISTOGRAM_ENUM(
         "QuicConnection.MultiPortPathStatusWhenMigrating",
         MultiPortStatusOnMigration::kWaitingForRefreshValidation,
-        MultiPortStatusOnMigration::kMaxValue,
+        MultiPortStatusOnMigration::kNumStatuses,
         "Status of the multi port path upon migration");
   } else {
     // The multi-port path is currently under probing.
@@ -6532,7 +6532,7 @@ void QuicConnection::MaybeMigrateToMultiPortPath() {
     QUIC_CLIENT_HISTOGRAM_ENUM(
         "QuicConnection.MultiPortPathStatusWhenMigrating",
         MultiPortStatusOnMigration::kPendingRefreshValidation,
-        MultiPortStatusOnMigration::kMaxValue,
+        MultiPortStatusOnMigration::kNumStatuses,
         "Status of the multi port path upon migration");
   }
   if (context == nullptr) {
