@@ -100,7 +100,7 @@ absl::StatusOr<std::string> SerializeSubprotocolRequestHeader(
   quiche::structured_headers::List list;
   list.reserve(subprotocols.size());
   for (const std::string& subprotocol : subprotocols) {
-    list.emplace_back(Item(subprotocol));
+    list.emplace_back(Item(Item::string, subprotocol));
   }
 
   std::optional<std::string> serialized =
@@ -123,7 +123,7 @@ absl::StatusOr<std::string> ParseSubprotocolResponseHeader(
 
 absl::StatusOr<std::string> SerializeSubprotocolResponseHeader(
     absl::string_view subprotocol) {
-  Item item(std::string(subprotocol), Item::kStringType);
+  Item item(Item::string, subprotocol);
   std::optional<std::string> serialized =
       quiche::structured_headers::SerializeItem(item);
   if (!serialized.has_value()) {

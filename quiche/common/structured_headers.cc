@@ -382,9 +382,9 @@ class StructuredHeaderParser {
     size_t len = input_.find_first_not_of(version_ == kDraft09 ? kTokenChars09
                                                                : kTokenChars);
     if (len == absl::string_view::npos) len = input_.size();
-    std::string token(input_.substr(0, len));
+    absl::string_view token = input_.substr(0, len);
     input_.remove_prefix(len);
-    return Item(std::move(token), Item::kTokenType);
+    return Item(Item::token, token);
   }
 
   // Parses a Number ([SH09] 4.2.8, [RFC8941] 4.2.4).
@@ -493,7 +493,7 @@ class StructuredHeaderParser {
         input_.remove_prefix(1);
       }
     }
-    return s;
+    return Item(Item::string, std::move(s));
   }
 
   // Parses a Byte Sequence ([SH09] 4.2.11, [RFC8941] 4.2.7).
@@ -531,7 +531,7 @@ class StructuredHeaderParser {
     }
     input_.remove_prefix(len);
     ConsumeChar(delimiter);
-    return Item(std::move(*binary), Item::kByteSequenceType);
+    return Item(Item::byte_sequence, *std::move(binary));
   }
 
   // Parses a Boolean ([RFC8941] 4.2.8).
@@ -815,13 +815,13 @@ Item::Item() = default;
 Item::Item(std::string value, Item::ItemType type) {
   switch (type) {
     case kStringType:
-      value_.emplace<kStringType>(std::move(value));
+      value_.emplace<std::string>(std::move(value));
       break;
     case kTokenType:
-      value_.emplace<kTokenType>(std::move(value));
+      value_.emplace<Token>(std::move(value));
       break;
     case kByteSequenceType:
-      value_.emplace<kByteSequenceType>(std::move(value));
+      value_.emplace<ByteSequence>(std::move(value));
       break;
     default:
       QUICHE_CHECK(false);
@@ -833,6 +833,21 @@ Item::Item(const char* value, Item::ItemType type)
 Item::Item(int64_t value) : value_(value) {}
 Item::Item(double value) : value_(value) {}
 Item::Item(bool value) : value_(value) {}
+
+Item::Item(string_t, const char* value) : value_(std::string(value)) {}
+Item::Item(string_t, absl::string_view value) : value_(std::string(value)) {}
+Item::Item(string_t, std::string value) : value_(std::move(value)) {}
+
+Item::Item(token_t, const char* value) : value_(Token(value)) {}
+Item::Item(token_t, absl::string_view value)
+    : value_(Token(std::string(value))) {}
+Item::Item(token_t, std::string value) : value_(Token(std::move(value))) {}
+
+Item::Item(byte_sequence_t, const char* value) : value_(ByteSequence(value)) {}
+Item::Item(byte_sequence_t, absl::string_view value)
+    : value_(ByteSequence(std::string(value))) {}
+Item::Item(byte_sequence_t, std::string value)
+    : value_(ByteSequence(std::move(value))) {}
 
 Item::Item(const Item&) = default;
 Item& Item::operator=(const Item&) = default;
@@ -861,23 +876,23 @@ const std::string* Item::GetIfString() const {
 std::string* Item::GetIfString() { return std::get_if<std::string>(&value_); }
 
 const std::string* Item::GetIfToken() const {
-  const auto* token = std::get_if<Token>(&value_);
-  return token ? &token->value : nullptr;
+  const auto* wrapper = std::get_if<Token>(&value_);
+  return wrapper ? &wrapper->value : nullptr;
 }
 
 std::string* Item::GetIfToken() {
-  auto* token = std::get_if<Token>(&value_);
-  return token ? &token->value : nullptr;
+  auto* wrapper = std::get_if<Token>(&value_);
+  return wrapper ? &wrapper->value : nullptr;
 }
 
 const std::string* Item::GetIfByteSequence() const {
-  const auto* byte_sequence = std::get_if<ByteSequence>(&value_);
-  return byte_sequence ? &byte_sequence->value : nullptr;
+  const auto* wrapper = std::get_if<ByteSequence>(&value_);
+  return wrapper ? &wrapper->value : nullptr;
 }
 
 std::string* Item::GetIfByteSequence() {
-  auto* byte_sequence = std::get_if<ByteSequence>(&value_);
-  return byte_sequence ? &byte_sequence->value : nullptr;
+  auto* wrapper = std::get_if<ByteSequence>(&value_);
+  return wrapper ? &wrapper->value : nullptr;
 }
 
 const bool* Item::GetIfBoolean() const { return std::get_if<bool>(&value_); }

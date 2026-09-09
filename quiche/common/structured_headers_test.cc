@@ -19,38 +19,39 @@ namespace {
 
 // Helpers to make test cases clearer
 
-Item Token(std::string value) { return Item(value, Item::kTokenType); }
+Item Token(absl::string_view value) { return Item(Item::token, value); }
 
 Item Integer(int64_t value) { return Item(value); }
 
 // Parameter with null value, only used in Structured Headers Draft 09
 std::pair<std::string, Item> NullParam(std::string key) {
-  return std::make_pair(key, Item());
+  return std::make_pair(std::move(key), Item());
 }
 
 std::pair<std::string, Item> BooleanParam(std::string key, bool value) {
-  return std::make_pair(key, Item(value));
+  return std::make_pair(std::move(key), Item(value));
 }
 
 std::pair<std::string, Item> DoubleParam(std::string key, double value) {
-  return std::make_pair(key, Item(value));
+  return std::make_pair(std::move(key), Item(value));
 }
 
 std::pair<std::string, Item> Param(std::string key, int64_t value) {
-  return std::make_pair(key, Item(value));
+  return std::make_pair(std::move(key), Item(value));
 }
 
-std::pair<std::string, Item> Param(std::string key, std::string value) {
-  return std::make_pair(key, Item(value));
+std::pair<std::string, Item> Param(std::string key, absl::string_view value) {
+  return std::make_pair(std::move(key), Item(Item::string, value));
 }
 
 std::pair<std::string, Item> ByteSequenceParam(std::string key,
-                                               std::string value) {
-  return std::make_pair(key, Item(value, Item::kByteSequenceType));
+                                               absl::string_view value) {
+  return std::make_pair(std::move(key), Item(Item::byte_sequence, value));
 }
 
-std::pair<std::string, Item> TokenParam(std::string key, std::string value) {
-  return std::make_pair(key, Token(value));
+std::pair<std::string, Item> TokenParam(std::string key,
+                                        absl::string_view value) {
+  return std::make_pair(std::move(key), Token(value));
 }
 
 // Test cases taken from https://github.com/httpwg/structured-header-tests can
@@ -79,22 +80,26 @@ const struct ItemTestCase {
     {"trailing decimal", "1.", Item(1.0), "1.0", /*strict=*/false},
     {"trailing decimal strict", "1.", std::nullopt, nullptr, /*strict=*/true},
     // String
-    {"basic string", "\"foo\"", Item("foo"), nullptr},
+    {"basic string", "\"foo\"", Item(Item::string, "foo"), nullptr},
     {"non-ascii string", "\"f\xC3\xBC\xC3\xBC\"", std::nullopt, nullptr},
     // Additional tests
-    {"valid quoting containing \\n", "\"\\\\n\"", Item("\\n"), nullptr},
-    {"valid quoting containing \\t", "\"\\\\t\"", Item("\\t"), nullptr},
-    {"valid quoting containing \\x", "\"\\\\x61\"", Item("\\x61"), nullptr},
+    {"valid quoting containing \\n", "\"\\\\n\"", Item(Item::string, "\\n"),
+     nullptr},
+    {"valid quoting containing \\t", "\"\\\\t\"", Item(Item::string, "\\t"),
+     nullptr},
+    {"valid quoting containing \\x", "\"\\\\x61\"", Item(Item::string, "\\x61"),
+     nullptr},
     {"c-style hex escape in string", "\"\\x61\"", std::nullopt, nullptr},
-    {"valid quoting containing \\u", "\"\\\\u0061\"", Item("\\u0061"), nullptr},
+    {"valid quoting containing \\u", "\"\\\\u0061\"",
+     Item(Item::string, "\\u0061"), nullptr},
     {"c-style unicode escape in string", "\"\\u0061\"", std::nullopt, nullptr},
     // TODO(b/393153699): This input should be rejected.
-    {"bad padding dot", ":YQ=.:", Item("a", Item::kByteSequenceType),
+    {"bad padding dot", ":YQ=.:", Item(Item::byte_sequence, "a"),
      ":YQ==:", /*strict=*/false},
     {"bad padding dot strict", ":YQ=.:", std::nullopt,
      ":YQ==:", /*strict=*/true},
     // TODO(b/393408763): This input should be rejected.
-    {"all whitespace", ":    :", Item("", Item::kByteSequenceType),
+    {"all whitespace", ":    :", Item(Item::byte_sequence, ""),
      "::", /*strict=*/false},
     {"all whitespace strict", ":    :", std::nullopt, "::", /*strict=*/true},
 };
@@ -109,18 +114,17 @@ const ItemTestCase sh09_item_test_cases[] = {
     {"too large negative integer", "-9223372036854775808", std::nullopt,
      nullptr},
     // Byte Sequence
-    {"basic binary", "*aGVsbG8=*", Item("hello", Item::kByteSequenceType),
-     nullptr},
-    {"empty binary", "**", Item("", Item::kByteSequenceType), nullptr},
-    {"bad paddding", "*aGVsbG8*", Item("hello", Item::kByteSequenceType),
+    {"basic binary", "*aGVsbG8=*", Item(Item::byte_sequence, "hello"), nullptr},
+    {"empty binary", "**", Item(Item::byte_sequence, ""), nullptr},
+    {"bad paddding", "*aGVsbG8*", Item(Item::byte_sequence, "hello"),
      "*aGVsbG8=*"},
     {"bad end delimiter", "*aGVsbG8=", std::nullopt, nullptr},
     {"extra whitespace", "*aGVsb G8=*", std::nullopt, nullptr},
     {"extra chars", "*aGVsbG!8=*", std::nullopt, nullptr},
     {"suffix chars", "*aGVsbG8=!*", std::nullopt, nullptr},
-    {"non-zero pad bits", "*iZ==*", Item("\x89", Item::kByteSequenceType),
+    {"non-zero pad bits", "*iZ==*", Item(Item::byte_sequence, "\x89"),
      "*iQ==*"},
-    {"non-ASCII binary", "*/+Ah*", Item("\xFF\xE0!", Item::kByteSequenceType),
+    {"non-ASCII binary", "*/+Ah*", Item(Item::byte_sequence, "\xFF\xE0!"),
      nullptr},
     {"base64url binary", "*_-Ah*", std::nullopt, nullptr},
     {"token with leading asterisk", "*foo", std::nullopt, nullptr},
@@ -256,8 +260,8 @@ const struct DictionaryTestCase {
 } dictionary_test_cases[] = {
     {"basic dictionary",
      "en=\"Applepie\", da=:aGVsbG8=:",
-     {Dictionary{{{"en", {Item("Applepie"), {}}},
-                  {"da", {Item("hello", Item::kByteSequenceType), {}}}}}},
+     {Dictionary{{{"en", {Item(Item::string, "Applepie"), {}}},
+                  {"da", {Item(Item::byte_sequence, "hello"), {}}}}}},
      nullptr},
     {"tab separated dictionary",
      "a=1\t,\tb=2",
@@ -273,8 +277,9 @@ const struct DictionaryTestCase {
     {"parameterised inner list member dict",
      "a=(\"1\";b=1;c=?0 \"2\");d=\"e\"",
      {Dictionary{{{"a",
-                   {{{Item("1"), {Param("b", 1), BooleanParam("c", false)}},
-                     {Item("2"), {}}},
+                   {{{Item(Item::string, "1"),
+                      {Param("b", 1), BooleanParam("c", false)}},
+                     {Item(Item::string, "2"), {}}},
                     {Param("d", "e")}}}}}},
      nullptr},
     {"explicit true value with parameter",
@@ -550,8 +555,8 @@ TEST(StructuredHeaderTest, UnserializableKeys) {
   };
   for (const auto& bad_key : bad_keys) {
     SCOPED_TRACE(bad_key.name);
-    std::optional<std::string> serialization =
-        SerializeItem(ParameterizedItem("a", {{bad_key.value, "a"}}));
+    std::optional<std::string> serialization = SerializeItem(ParameterizedItem(
+        Item(Item::string, "a"), {{bad_key.value, Item(Item::string, "a")}}));
     EXPECT_FALSE(serialization.has_value()) << *serialization;
   }
 }
@@ -572,7 +577,7 @@ TEST(StructuredHeaderTest, UnserializableStrings) {
   for (const auto& bad_string : bad_strings) {
     SCOPED_TRACE(bad_string.name);
     std::optional<std::string> serialization =
-        SerializeItem(Item(bad_string.value));
+        SerializeItem(Item(Item::string, bad_string.value));
     EXPECT_FALSE(serialization.has_value()) << *serialization;
   }
 }
@@ -687,8 +692,8 @@ TEST(StructuredHeaderTest, SerializeDictionary) {
 TEST(StructuredHeaderTest, DictionaryConstructors) {
   const std::string key0 = "key0";
   const std::string key1 = "key1";
-  const ParameterizedMember member0(Item("Applepie"));
-  const ParameterizedMember member1(Item("hello", Item::kByteSequenceType));
+  const ParameterizedMember member0(Item(Item::string, "Applepie"));
+  const ParameterizedMember member1(Item(Item::byte_sequence, "hello"));
 
   Dictionary dict;
   EXPECT_TRUE(dict.empty());
@@ -711,7 +716,7 @@ TEST(StructuredHeaderTest, DictionaryConstructors) {
 
 TEST(StructuredHeaderTest, DictionaryClear) {
   const std::string key0 = "key0";
-  const ParameterizedMember member0(Item("Applepie"));
+  const ParameterizedMember member0(Item(Item::string, "Applepie"));
 
   Dictionary dict({{key0, member0}});
   EXPECT_EQ(1U, dict.size());
@@ -728,9 +733,9 @@ TEST(StructuredHeaderTest, DictionaryAccessors) {
   const std::string key0 = "key0";
   const std::string key1 = "key1";
 
-  const ParameterizedMember nonempty_member0(Item("Applepie"));
+  const ParameterizedMember nonempty_member0(Item(Item::string, "Applepie"));
   const ParameterizedMember nonempty_member1(
-      Item("hello", Item::kByteSequenceType));
+      Item(Item::byte_sequence, "hello"));
   const ParameterizedMember empty_member;
 
   Dictionary dict{{{key0, nonempty_member0}}};
@@ -796,7 +801,7 @@ TEST(StructuredHeaderTest, UnserializableDictionary) {
 }
 
 TEST(StructuredHeaderTest, GetIfToken) {
-  const Item kValue("abc", Item::kTokenType);
+  const Item kValue(Item::token, "abc");
   EXPECT_FALSE(kValue.GetIfByteSequence());
   EXPECT_FALSE(kValue.GetIfString());
   const std::string* ptr = kValue.GetIfToken();
@@ -805,12 +810,45 @@ TEST(StructuredHeaderTest, GetIfToken) {
 }
 
 TEST(StructuredHeaderTest, GetIfByteSequence) {
-  const Item kValue("def", Item::kByteSequenceType);
+  const Item kValue(Item::byte_sequence, "def");
   EXPECT_FALSE(kValue.GetIfString());
   EXPECT_FALSE(kValue.GetIfToken());
   const std::string* ptr = kValue.GetIfByteSequence();
   ASSERT_TRUE(ptr);
   EXPECT_EQ(*ptr, "def");
+}
+
+TEST(StructuredHeaderTest, TagBasedConstructors) {
+  using ::testing::Eq;
+  using ::testing::Pointee;
+
+  constexpr absl::string_view kWithNull("a\0b", 3);
+
+  EXPECT_THAT(Item(Item::string, "hello").GetIfString(), Pointee(Eq("hello")));
+  EXPECT_THAT(Item(Item::string, absl::string_view("world")).GetIfString(),
+              Pointee(Eq("world")));
+  EXPECT_THAT(Item(Item::string, std::string("foo")).GetIfString(),
+              Pointee(Eq("foo")));
+  EXPECT_THAT(Item(Item::string, kWithNull).GetIfString(),
+              Pointee(Eq(kWithNull)));
+
+  EXPECT_THAT(Item(Item::token, "hello").GetIfToken(), Pointee(Eq("hello")));
+  EXPECT_THAT(Item(Item::token, absl::string_view("world")).GetIfToken(),
+              Pointee(Eq("world")));
+  EXPECT_THAT(Item(Item::token, std::string("foo")).GetIfToken(),
+              Pointee(Eq("foo")));
+  EXPECT_THAT(Item(Item::token, kWithNull).GetIfToken(),
+              Pointee(Eq(kWithNull)));
+
+  EXPECT_THAT(Item(Item::byte_sequence, "hello").GetIfByteSequence(),
+              Pointee(Eq("hello")));
+  EXPECT_THAT(
+      Item(Item::byte_sequence, absl::string_view("world")).GetIfByteSequence(),
+      Pointee(Eq("world")));
+  EXPECT_THAT(Item(Item::byte_sequence, std::string("foo")).GetIfByteSequence(),
+              Pointee(Eq("foo")));
+  EXPECT_THAT(Item(Item::byte_sequence, kWithNull).GetIfByteSequence(),
+              Pointee(Eq(kWithNull)));
 }
 
 TEST(StructuredHeaderTest, ParameterizedMemberGetWithParams) {

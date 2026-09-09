@@ -70,12 +70,47 @@ class QUICHE_EXPORT Item {
     kByteSequenceType,
     kBooleanType
   };
+
+  struct string_t {
+    constexpr explicit string_t() = default;
+  };
+  inline static constexpr string_t string;
+
+  struct token_t {
+    constexpr explicit token_t() = default;
+  };
+  inline static constexpr token_t token;
+
+  struct byte_sequence_t {
+    constexpr explicit byte_sequence_t() = default;
+  };
+  inline static constexpr byte_sequence_t byte_sequence;
+
   Item();
   explicit Item(int64_t value);
   explicit Item(double value);
   explicit Item(bool value);
 
+  // Prevent pointers from implicitly converting to bool.
+  template <typename T>
+  explicit Item(const T*) = delete;
+  explicit Item(std::nullptr_t) = delete;
+
+  Item(string_t, const char* value);
+  Item(string_t, absl::string_view value);
+  Item(string_t, std::string value);
+
+  Item(token_t, const char* value);
+  Item(token_t, absl::string_view value);
+  Item(token_t, std::string value);
+
+  Item(byte_sequence_t, const char* value);
+  Item(byte_sequence_t, absl::string_view value);
+  Item(byte_sequence_t, std::string value);
+
   // Constructors for string-like items: Strings, Tokens and Byte Sequences.
+  // Deprecated: Use one of the tag-based constructors with `Item::string`,
+  // `Item::token`, or `Item::byte_sequence` instead.
   Item(const char* value, Item::ItemType type = kStringType);
   Item(std::string value, Item::ItemType type = kStringType);
 
