@@ -292,10 +292,11 @@ class QUICHE_EXPORT QuicUdpSocketApi {
                           size_t packet_buffer_len,
                           const QuicUdpPacketInfo& packet_info);
 
- protected:
   bool SetupSocket(QuicUdpSocketFd fd, int address_family,
                    int receive_buffer_size, int send_buffer_size,
                    bool ipv6_only);
+
+ protected:
   bool EnableReceiveSelfIpAddressForV4(QuicUdpSocketFd fd);
   bool EnableReceiveSelfIpAddressForV6(QuicUdpSocketFd fd);
 };

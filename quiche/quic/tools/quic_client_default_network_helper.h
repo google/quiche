@@ -139,6 +139,10 @@ class QuicClientDefaultNetworkHelper : public QuicClientBase::NetworkHelper,
   bool RegisterSocket(SocketFd fd, QuicSocketEventMask event_mask,
                       QuicSocketAddress client_address);
 
+  void set_overflow_supported(bool overflow_supported) {
+    overflow_supported_ = overflow_supported;
+  }
+
  private:
   // Listens for events on the client socket.
   QuicEventLoop* event_loop_;
