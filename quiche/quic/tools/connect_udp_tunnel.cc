@@ -383,11 +383,14 @@ void ConnectUdpTunnel::SendErrorResponse(absl::string_view status,
   quiche::HttpHeaderBlock headers;
   headers[":status"] = status;
 
-  structured_headers::Item proxy_status_item(server_label_);
+  structured_headers::Item proxy_status_item(structured_headers::Item::string,
+                                             server_label_);
+  // TODO(apaseltiner): RFC 9209, Section 2.1.1 specifies that `error` should be
+  // a token, not a string.
   structured_headers::Item proxy_status_error_item(
-      std::string{proxy_status_error});
+      structured_headers::Item::string, proxy_status_error);
   structured_headers::Item proxy_status_details_item(
-      std::string{error_details});
+      structured_headers::Item::string, error_details);
   structured_headers::ParameterizedMember proxy_status_member(
       std::move(proxy_status_item),
       {{"error", std::move(proxy_status_error_item)},
