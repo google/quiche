@@ -381,6 +381,7 @@ DEFINE_STATIC_QUIC_TAG(CIDT);  // Check the idle timeout on the client before
 
 DEFINE_STATIC_QUIC_TAG(3AFF);  // 3 anti amplification factor.
 DEFINE_STATIC_QUIC_TAG(5AFF);  // 5 anti amplification factor.
+DEFINE_STATIC_QUIC_TAG(8AFF);  // 8 anti amplification factor.
 DEFINE_STATIC_QUIC_TAG(10AF);  // 10 anti amplification factor.
 
 // Enable path MTU discovery experiment.
