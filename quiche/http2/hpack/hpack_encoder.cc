@@ -82,6 +82,12 @@ bool DefaultPolicy(absl::string_view name, absl::string_view /* value */) {
   return true;
 }
 
+// The default never-indexing policy: no headers are never-indexed.
+bool DefaultNeverIndexingPolicy(absl::string_view /*name*/,
+                                absl::string_view /*value*/) {
+  return false;
+}
+
 }  // namespace
 
 HpackEncoder::HpackEncoder()
@@ -89,12 +95,21 @@ HpackEncoder::HpackEncoder()
       min_table_size_setting_received_(std::numeric_limits<size_t>::max()),
       listener_(NoOpListener),
       should_index_(DefaultPolicy),
+      never_index_(DefaultNeverIndexingPolicy),
       enable_dynamic_table_(true),
       enable_huffman_(true),
       should_emit_table_size_(false),
       crumble_cookies_(true) {}
 
 HpackEncoder::~HpackEncoder() = default;
+
+void HpackEncoder::SetNeverIndexingPolicy(IndexingPolicy policy) {
+  if (policy == nullptr) {
+    never_index_ = DefaultNeverIndexingPolicy;
+  } else {
+    never_index_ = std::move(policy);
+  }
+}
 
 std::string HpackEncoder::EncodeHeaderBlock(
     const quiche::HttpHeaderBlock& header_set) {
@@ -142,7 +157,9 @@ std::string HpackEncoder::EncodeRepresentations(RepresentationIterator* iter) {
   while (iter->HasNext()) {
     const auto header = iter->Next();
     listener_(header.first, header.second);
-    if (enable_dynamic_table_) {
+    if (never_index_(header.first, header.second)) {
+      EmitNeverIndexedLiteral(header);
+    } else if (enable_dynamic_table_) {
       size_t index =
           header_table_.GetByNameAndValue(header.first, header.second);
       if (index != kHpackEntryNotFound) {
@@ -189,7 +206,20 @@ void HpackEncoder::EmitIndexedLiteral(const Representation& representation) {
 void HpackEncoder::EmitNonIndexedLiteral(const Representation& representation) {
   QUICHE_DVLOG(2) << "Emitting nonindexed literal: (" << representation.first
                   << ", " << representation.second << ")";
-  output_stream_.AppendPrefix(kLiteralNoIndexOpcode);
+  EmitLiteralWithoutIndexing(representation, kLiteralNoIndexOpcode);
+}
+
+void HpackEncoder::EmitNeverIndexedLiteral(
+    const Representation& representation) {
+  QUICHE_DVLOG(2) << "Emitting never-indexed literal: ("
+                  << representation.first << ", " << representation.second
+                  << ")";
+  EmitLiteralWithoutIndexing(representation, kLiteralNeverIndexOpcode);
+}
+
+void HpackEncoder::EmitLiteralWithoutIndexing(
+    const Representation& representation, HpackPrefix opcode) {
+  output_stream_.AppendPrefix(opcode);
   size_t name_index = header_table_.GetByName(representation.first);
   if (enable_dynamic_table_ && name_index != kHpackEntryNotFound) {
     output_stream_.AppendUint32(name_index);
@@ -372,7 +402,9 @@ std::string HpackEncoder::Encoderator::Next(size_t max_encoded_bytes) {
          encoder_->output_stream_.size() <= max_encoded_bytes) {
     const Representation header = header_it_->Next();
     encoder_->listener_(header.first, header.second);
-    if (enable_dynamic_table) {
+    if (encoder_->never_index_(header.first, header.second)) {
+      encoder_->EmitNeverIndexedLiteral(header);
+    } else if (enable_dynamic_table) {
       size_t index = encoder_->header_table_.GetByNameAndValue(header.first,
                                                                header.second);
       if (index != kHpackEntryNotFound) {

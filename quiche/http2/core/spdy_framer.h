@@ -222,6 +222,13 @@ class QUICHE_EXPORT SpdyFramer {
     GetHpackEncoder()->SetIndexingPolicy(std::move(policy));
   }
 
+  // Headers for which |policy| returns true are encoded as literal header
+  // fields that are never indexed (RFC 7541 Section 6.2.3). See
+  // HpackEncoder::SetNeverIndexingPolicy().
+  void SetHpackNeverIndexingPolicy(HpackEncoder::IndexingPolicy policy) {
+    GetHpackEncoder()->SetNeverIndexingPolicy(std::move(policy));
+  }
+
   // Updates the maximum size of the header encoder compression table.
   void UpdateHeaderEncoderTableSize(uint32_t value);
 

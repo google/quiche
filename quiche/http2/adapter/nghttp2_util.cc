@@ -63,7 +63,9 @@ absl::string_view ToStringView(const uint8_t* pointer, size_t length) {
   return absl::string_view(reinterpret_cast<const char*>(pointer), length);
 }
 
-std::vector<nghttp2_nv> GetNghttp2Nvs(absl::Span<const Header> headers) {
+std::vector<nghttp2_nv> GetNghttp2Nvs(
+    absl::Span<const Header> headers,
+    const NeverIndexingPolicy* never_indexing_policy) {
   const int num_headers = headers.size();
   std::vector<nghttp2_nv> nghttp2_nvs;
   nghttp2_nvs.reserve(num_headers);
@@ -82,6 +84,10 @@ std::vector<nghttp2_nv> GetNghttp2Nvs(absl::Span<const Header> headers) {
     header.valuelen = value.size();
     if (no_copy_value) {
       flags |= NGHTTP2_NV_FLAG_NO_COPY_VALUE;
+    }
+    if (never_indexing_policy != nullptr && *never_indexing_policy != nullptr &&
+        (*never_indexing_policy)(name, value)) {
+      flags |= NGHTTP2_NV_FLAG_NO_INDEX;
     }
     header.flags = flags;
     nghttp2_nvs.push_back(std::move(header));

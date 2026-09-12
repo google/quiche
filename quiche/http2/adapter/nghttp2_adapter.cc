@@ -300,9 +300,13 @@ void NgHttp2Adapter::SubmitRst(Http2StreamId stream_id,
   }
 }
 
+void NgHttp2Adapter::SetNeverIndexingPolicy(NeverIndexingPolicy policy) {
+  never_indexing_policy_ = std::move(policy);
+}
+
 int32_t NgHttp2Adapter::SubmitRequest(absl::Span<const Header> headers,
                                       bool end_stream, void* stream_user_data) {
-  auto nvs = GetNghttp2Nvs(headers);
+  auto nvs = GetNghttp2Nvs(headers, &never_indexing_policy_);
   std::unique_ptr<nghttp2_data_provider> provider;
 
   if (!end_stream) {
@@ -323,7 +327,7 @@ int32_t NgHttp2Adapter::SubmitRequest(absl::Span<const Header> headers,
 int NgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
                                    absl::Span<const Header> headers,
                                    bool end_stream) {
-  auto nvs = GetNghttp2Nvs(headers);
+  auto nvs = GetNghttp2Nvs(headers, &never_indexing_policy_);
   std::unique_ptr<nghttp2_data_provider> provider;
   if (!end_stream) {
     provider = std::make_unique<nghttp2_data_provider>();
@@ -340,7 +344,7 @@ int NgHttp2Adapter::SubmitResponse(Http2StreamId stream_id,
 
 int NgHttp2Adapter::SubmitTrailer(Http2StreamId stream_id,
                                   absl::Span<const Header> trailers) {
-  auto nvs = GetNghttp2Nvs(trailers);
+  auto nvs = GetNghttp2Nvs(trailers, &never_indexing_policy_);
   int result = nghttp2_submit_trailer(session_->raw_ptr(), stream_id,
                                       nvs.data(), nvs.size());
   QUICHE_VLOG(1) << "Submitted trailers with " << nvs.size()

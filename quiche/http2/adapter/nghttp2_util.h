@@ -42,8 +42,13 @@ absl::string_view ToStringView(uint8_t* pointer, size_t length);
 absl::string_view ToStringView(const uint8_t* pointer, size_t length);
 
 // Returns the nghttp2 header structure from the given |headers|, which
-// must have the correct pseudoheaders preceding other headers.
-std::vector<nghttp2_nv> GetNghttp2Nvs(absl::Span<const Header> headers);
+// must have the correct pseudoheaders preceding other headers. If
+// |never_indexing_policy| is non-null and holds a callable, headers for which
+// it returns true are flagged NGHTTP2_NV_FLAG_NO_INDEX, causing nghttp2 to
+// encode them as HPACK "never indexed" literals (RFC 7541 Section 6.2.3).
+std::vector<nghttp2_nv> GetNghttp2Nvs(
+    absl::Span<const Header> headers,
+    const NeverIndexingPolicy* never_indexing_policy = nullptr);
 
 // Returns the nghttp2 header structure from the given response |headers|, with
 // the :status pseudoheader first based on the given |response_code|. The
