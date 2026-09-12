@@ -48,6 +48,8 @@ class QUICHE_EXPORT Bbr3Sender final : public SendAlgorithmInterface {
   void SetInitialCongestionWindowInPackets(
       QuicPacketCount congestion_window) override;
 
+  QuicPacketCount GetInitialCongestionWindowInPackets() const override;
+
   void SetApplicationDrivenPacingRate(
       QuicBandwidth application_bandwidth_target) override;
 

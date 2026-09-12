@@ -93,6 +93,11 @@ class QUICHE_EXPORT SendAlgorithmInterface {
   // if called after the initial congestion window is no longer relevant.
   virtual void SetInitialCongestionWindowInPackets(QuicPacketCount packets) = 0;
 
+  // Returns the initial congestion window in number of packets.
+  // Assumes a packet size of kDefaultTCPMSS (1460 bytes),
+  // not kDefaultMaxPacketSize (1250 bytes) for historical reasons.
+  virtual QuicPacketCount GetInitialCongestionWindowInPackets() const = 0;
+
   // [Experimental] Sets the application driven pacing rate. This is only used
   // by an experimental feature for bbr2_sender.
   virtual void SetApplicationDrivenPacingRate(

@@ -50,6 +50,7 @@ class QUICHE_EXPORT TcpCubicSenderBytes : public SendAlgorithmInterface {
   void SetNumEmulatedConnections(int num_connections);
   void SetInitialCongestionWindowInPackets(
       QuicPacketCount congestion_window) override;
+  QuicPacketCount GetInitialCongestionWindowInPackets() const override;
   void SetApplicationDrivenPacingRate(
       QuicBandwidth /*application_bandwidth_target*/) override {}
   void OnConnectionMigration() override;

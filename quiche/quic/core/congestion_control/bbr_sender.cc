@@ -162,6 +162,10 @@ void BbrSender::SetInitialCongestionWindowInPackets(
   }
 }
 
+QuicPacketCount BbrSender::GetInitialCongestionWindowInPackets() const {
+  return initial_congestion_window_ / kDefaultTCPMSS;
+}
+
 bool BbrSender::InSlowStart() const { return mode_ == STARTUP; }
 
 void BbrSender::OnPacketSent(QuicTime sent_time, QuicByteCount bytes_in_flight,
