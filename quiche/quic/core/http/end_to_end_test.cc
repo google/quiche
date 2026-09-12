@@ -1141,6 +1141,9 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   void TestMultiPacketChaosProtection(int num_packets, bool drop_first_packet,
                                       bool kyber = false);
 
+  void ConnectionMigrationNonZeroConnectionIDClientIPChange(
+                                          uint8_t client_connection_id_length);
+
   quiche::test::ScopedEnvironmentForThreads environment_;
   bool initialized_;
   // If true, the Initialize() function will create |client_| and starts to
@@ -3613,12 +3616,24 @@ TEST_P(EndToEndTest, IetfConnectionMigrationClientIPChangedMultipleTimes) {
 
 TEST_P(EndToEndTest,
        ConnectionMigrationWithNonZeroConnectionIDClientIPChangedMultipleTimes) {
+  ConnectionMigrationNonZeroConnectionIDClientIPChange(
+      kQuicDefaultConnectionIdLength);
+}
+
+TEST_P(EndToEndTest,
+        ConnectionMigrationWithMaxConnectionIDClientIPChangedMultipleTimes) {
+  ConnectionMigrationNonZeroConnectionIDClientIPChange(
+      kQuicMaxConnectionIdWithLengthPrefixLength);
+}
+
+void EndToEndTest::ConnectionMigrationNonZeroConnectionIDClientIPChange(
+                                          uint8_t client_connection_id_length) {
   if (!version_.IsIetfQuic() ||
       GetQuicFlag(quic_enforce_strict_amplification_factor)) {
     ASSERT_TRUE(Initialize());
     return;
   }
-  override_client_connection_id_length_ = kQuicDefaultConnectionIdLength;
+  override_client_connection_id_length_ = client_connection_id_length;
   ASSERT_TRUE(Initialize());
   SendSynchronousFooRequestAndCheckResponse();
 

@@ -13,8 +13,13 @@
 namespace quic {
 
 DeterministicConnectionIdGenerator::DeterministicConnectionIdGenerator(
-    uint8_t expected_connection_id_length)
-    : expected_connection_id_length_(expected_connection_id_length) {
+    uint8_t expected_connection_id_length) {
+  set_expected_connection_id_length(expected_connection_id_length);
+}
+
+void DeterministicConnectionIdGenerator::set_expected_connection_id_length(
+    uint8_t expected_connection_id_length) {
+  expected_connection_id_length_ = expected_connection_id_length;
   if (expected_connection_id_length_ >
       kQuicMaxConnectionIdWithLengthPrefixLength) {
     QUIC_BUG(quic_bug_465151159_01)
