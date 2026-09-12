@@ -11297,6 +11297,39 @@ TEST_P(QuicFramerTest, NewTokenFrame) {
   CheckFramingBoundaries(packet, QUIC_INVALID_NEW_TOKEN);
 }
 
+TEST_P(QuicFramerTest, NewTokenFrameEmptyToken) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    // This frame is only for IETF QUIC only.
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  PacketFragments packet = {
+      // type (short header, 4 byte packet number)
+      {"",
+       {0x43}},
+      // connection_id
+      {"",
+       {0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10}},
+      // packet number
+      {"",
+       {0x12, 0x34, 0x56, 0x78}},
+      // frame type (IETF_NEW_TOKEN frame)
+      {"",
+       {0x07}},
+      // Length (0 = empty token)
+      {"New token frame has empty token.",
+       {0x00}}
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet));
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_THAT(framer_.error(), IsError(QUIC_INVALID_FRAME_DATA));
+  EXPECT_EQ("New token frame has empty token.", framer_.detailed_error());
+}
+
 TEST_P(QuicFramerTest, BuildNewTokenFramePacket) {
   if (!VersionIsIetfQuic(framer_.transport_version())) {
     // This frame is only for IETF QUIC only.
