@@ -830,44 +830,48 @@ TEST(HTTPBalsaFrame, RequestLineSanitizedProperly) {
     FirstLineValidationOption option;  // Whether to sanitize/reject.
     BalsaFrameEnums::ErrorCode expected_error;
     bool expected_tab_or_cr_defect;
+    bool tab_or_cr_sanitized;
   };
   const std::vector<TestCase> cases = {
       // No invalid whitespace.
       {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1", FirstLineValidationOption::NONE,
-       BalsaFrameEnums::BALSA_NO_ERROR, false},
+       BalsaFrameEnums::BALSA_NO_ERROR, false, false},
       {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1",
        FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR,
-       false},
+       false, false},
       {"GET / HTTP/1.1\r\n", "GET / HTTP/1.1",
        FirstLineValidationOption::REJECT, BalsaFrameEnums::BALSA_NO_ERROR,
-       false},
+       false, false},
 
       // Illegal CR in the request-line.
       {"GET /\rHTTP/1.1\r\n", "GET /\rHTTP/1.1",
-       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR, true},
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR, true,
+       false},
       {"GET /\rHTTP/1.1\r\n", "GET / HTTP/1.1",
        FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR,
-       true},
+       true, true},
       {"GET /\rHTTP/1.1\r\n", "", FirstLineValidationOption::REJECT,
-       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE, true},
+       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE, true, false},
 
       // Invalid tab in the request-line.
       {"GET \t/ HTTP/1.1\r\n", "GET \t/ HTTP/1.1",
-       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR, true},
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR, true,
+       false},
       {"GET \t/ HTTP/1.1\r\n", "GET  / HTTP/1.1",
        FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR,
-       true},
+       true, true},
       {"GET \t/ HTTP/1.1\r\n", "", FirstLineValidationOption::REJECT,
-       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE, true},
+       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE, true, false},
 
       // Both CR and tab in the request-line.
       {"GET \t/\rHTTP/1.1 \r\n", "GET \t/\rHTTP/1.1",
-       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR, true},
+       FirstLineValidationOption::NONE, BalsaFrameEnums::BALSA_NO_ERROR, true,
+       false},
       {"GET \t/\rHTTP/1.1 \r\n", "GET  / HTTP/1.1",
        FirstLineValidationOption::SANITIZE, BalsaFrameEnums::BALSA_NO_ERROR,
-       true},
+       true, true},
       {"GET \t/\rHTTP/1.1 \r\n", "", FirstLineValidationOption::REJECT,
-       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE, true},
+       BalsaFrameEnums::INVALID_WS_IN_REQUEST_LINE, true, false},
   };
   const absl::string_view kHeaderLineAndEnding = "Foo: bar\r\n\r\n";
   for (const auto& tc : cases) {
@@ -889,6 +893,8 @@ TEST(HTTPBalsaFrame, RequestLineSanitizedProperly) {
     EXPECT_EQ(framer.ErrorCode(), tc.expected_error);
     EXPECT_EQ(framer.protocol_defects().tab_or_cr_found_in_firstline,
               tc.expected_tab_or_cr_defect);
+    EXPECT_EQ(framer.protocol_defects().tab_or_cr_found_in_firstline_sanitized,
+              tc.tab_or_cr_sanitized);
   }
 }
 
@@ -2568,6 +2574,8 @@ TEST_F(HTTPBalsaFrameTest, FirstlinesWithMultipleSpacesSanitized) {
 
   EXPECT_EQ("GET / HTTP/1.1", headers_.first_line());
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
+  EXPECT_TRUE(
+      balsa_frame_.protocol_defects().multiple_spaces_in_firstline_sanitized);
 }
 
 TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesAllowed) {
@@ -2632,6 +2640,8 @@ TEST_F(HTTPBalsaFrameTest, ResponseFirstlinesWithMultipleSpacesSanitized) {
 
   EXPECT_EQ("HTTP/1.1 200 OK", headers_.first_line());
   EXPECT_TRUE(balsa_frame_.protocol_defects().multiple_spaces_in_firstline);
+  EXPECT_TRUE(
+      balsa_frame_.protocol_defects().multiple_spaces_in_firstline_sanitized);
 }
 
 TEST_F(HTTPBalsaFrameTest,
@@ -5177,6 +5187,9 @@ TEST_F(HTTPBalsaFrameTest, ContinuationLinesSanitized) {
 
   EXPECT_EQ(message.size(),
             balsa_frame_.ProcessInput(message.data(), message.size()));
+  EXPECT_TRUE(balsa_frame_.protocol_defects().obs_fold_in_header_values);
+  EXPECT_TRUE(
+      balsa_frame_.protocol_defects().obs_fold_in_header_values_sanitized);
 }
 
 TEST_F(HTTPBalsaFrameTest, NullAtBeginningOrEndOfValue) {

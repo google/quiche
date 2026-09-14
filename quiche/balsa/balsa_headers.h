@@ -1066,7 +1066,8 @@ class QUICHE_EXPORT BalsaHeaders : public HeaderApi {
       BalsaFrameEnums::ErrorCode* error_code,
       HttpValidationPolicy::FirstLineValidationOption whitespace_option,
       HttpValidationPolicy::FirstLineValidationOption multiple_spaces_option,
-      bool& has_multiple_spaces, bool& has_cr_tab);
+      bool& has_multiple_spaces, bool& has_cr_tab,
+      bool& multiple_spaces_sanitized, bool& cr_tab_sanitized);
 
   // Reverse iterators have been removed for lack of use, refer to
   // cl/30618773 in case they are needed.

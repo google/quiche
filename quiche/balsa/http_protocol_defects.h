@@ -31,6 +31,10 @@ class QUICHE_EXPORT HttpProtocolDefects {
   bool transfer_encoding_and_content_length = false;
   bool unknown_transfer_encoding = false;
   bool multiple_transfer_encoding_keys = false;
+  bool obs_fold_in_header_values_sanitized = false;
+  bool obs_fold_in_trailer_values_sanitized = false;
+  bool multiple_spaces_in_firstline_sanitized = false;
+  bool tab_or_cr_found_in_firstline_sanitized = false;
 
   void Merge(const HttpProtocolDefects& other) {
     invalid_method_in_request_first_line |=
@@ -57,6 +61,14 @@ class QUICHE_EXPORT HttpProtocolDefects {
         other.transfer_encoding_and_content_length;
     unknown_transfer_encoding |= other.unknown_transfer_encoding;
     multiple_transfer_encoding_keys |= other.multiple_transfer_encoding_keys;
+    obs_fold_in_header_values_sanitized |=
+        other.obs_fold_in_header_values_sanitized;
+    obs_fold_in_trailer_values_sanitized |=
+        other.obs_fold_in_trailer_values_sanitized;
+    multiple_spaces_in_firstline_sanitized |=
+        other.multiple_spaces_in_firstline_sanitized;
+    tab_or_cr_found_in_firstline_sanitized |=
+        other.tab_or_cr_found_in_firstline_sanitized;
   }
 
   void ForEachDefect(
@@ -114,6 +126,18 @@ class QUICHE_EXPORT HttpProtocolDefects {
     }
     if (multiple_transfer_encoding_keys) {
       callback("multiple_transfer_encoding_keys");
+    }
+    if (obs_fold_in_header_values_sanitized) {
+      callback("obs_fold_in_header_values_sanitized");
+    }
+    if (obs_fold_in_trailer_values_sanitized) {
+      callback("obs_fold_in_trailer_values_sanitized");
+    }
+    if (multiple_spaces_in_firstline_sanitized) {
+      callback("multiple_spaces_in_firstline_sanitized");
+    }
+    if (tab_or_cr_found_in_firstline_sanitized) {
+      callback("tab_or_cr_found_in_firstline_sanitized");
     }
   }
 
@@ -175,6 +199,18 @@ class QUICHE_EXPORT HttpProtocolDefects {
     }
     if (obs_text_found_in_header_name) {
       log_defects.set_obs_text_found_in_header_name(true);
+    }
+    if (obs_fold_in_header_values_sanitized) {
+      log_defects.set_obs_fold_in_header_values_sanitized(true);
+    }
+    if (obs_fold_in_trailer_values_sanitized) {
+      log_defects.set_obs_fold_in_trailer_values_sanitized(true);
+    }
+    if (multiple_spaces_in_firstline_sanitized) {
+      log_defects.set_multiple_spaces_in_firstline_sanitized(true);
+    }
+    if (tab_or_cr_found_in_firstline_sanitized) {
+      log_defects.set_tab_or_cr_found_in_firstline_sanitized(true);
     }
   }
 };
