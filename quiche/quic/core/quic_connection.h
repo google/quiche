@@ -689,8 +689,8 @@ class QUICHE_EXPORT QuicConnection
   // the peer.
   // In a client, the packet may be "stray" and have a different connection ID
   // than that of this connection.
-  virtual void ProcessUdpPacket(const QuicSocketAddress& self_address,
-                                const QuicSocketAddress& peer_address,
+  virtual void ProcessUdpPacket(const QuicSocketAddress& packet_self_address,
+                                const QuicSocketAddress& packet_peer_address,
                                 const QuicReceivedPacket& packet);
 
   // QuicBlockedWriterInterface
@@ -2100,8 +2100,8 @@ class QUICHE_EXPORT QuicConnection
   // once PathState is used in packet creator. Return true if the given self
   // address and peer address is the same as the self address and peer address
   // of the default path.
-  bool IsDefaultPath(const QuicSocketAddress& self_address,
-                     const QuicSocketAddress& peer_address) const;
+  bool IsDefaultPath(const QuicSocketAddress& path_self_address,
+                     const QuicSocketAddress& path_peer_address) const;
 
   // Return true if the |self_address| and |peer_address| is the same as the
   // self address and peer address of the alternative path.
