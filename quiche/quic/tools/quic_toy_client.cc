@@ -75,6 +75,7 @@
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/quic/test_tools/quic_connection_peer.h"
 #include "quiche/quic/tools/fake_proof_verifier.h"
 #include "quiche/quic/tools/quic_spdy_client_base.h"
 #include "quiche/quic/tools/quic_url.h"
@@ -558,6 +559,16 @@ int QuicToyClient::SendRequestsAndPrintResponses(
   for (int i = 0; i < num_requests; ++i) {
     // Send the request.
     client->SendRequestAndWaitForResponse(header_block, body, /*fin=*/true);
+
+    if (client->connected() && client->session() != nullptr &&
+        client->session()->connection() != nullptr) {
+      const quic::QuicAlarmProxy ack_alarm =
+          test::QuicConnectionPeer::GetAckAlarm(
+              client->session()->connection());
+      while (ack_alarm.IsSet() && client->connected()) {
+        client->WaitForEvents();
+      }
+    }
 
     // Print request and response details.
     if (!quiche::GetQuicheCommandLineFlag(FLAGS_quiet)) {
