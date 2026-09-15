@@ -27,6 +27,17 @@ namespace spdy {
 
 namespace {
 
+// Pack parent stream ID and exclusive flag into the format used by HTTP/2
+// headers and priority frames.
+uint32_t PackStreamDependencyValues(bool exclusive,
+                                    SpdyStreamId parent_stream_id) {
+  // Make sure the highest-order bit in the parent stream id is zeroed out.
+  uint32_t parent = parent_stream_id & 0x7fffffff;
+  // Set the one-bit exclusivity flag.
+  uint32_t e_bit = exclusive ? 0x80000000 : 0;
+  return parent | e_bit;
+}
+
 // Used to indicate no flags in a HTTP2 flags field.
 const uint8_t kNoFlags = 0;
 
