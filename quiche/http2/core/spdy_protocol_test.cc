@@ -6,9 +6,12 @@
 
 #include <iostream>
 #include <string>
+#include <type_traits>
 #include <utility>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/core/spdy_frame_builder.h"
+#include "quiche/http2/core/spdy_framer.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
@@ -280,6 +283,409 @@ TEST(SpdySerializedFrameTest, Basic) {
   EXPECT_EQ(data, std::string(frame.data(), frame.size()));
   EXPECT_EQ(frame.begin(), frame.data());
   EXPECT_EQ(frame.end(), frame.data() + frame.size());
+}
+
+// =============================================================================
+// Modern HTTP/2 Frame Representations Tests
+// =============================================================================
+
+TEST(ModernFrameTest, StandardLayoutAndTriviallyCopyable) {
+  static_assert(std::is_standard_layout_v<PriorityFields>);
+  static_assert(std::is_trivially_copyable_v<PriorityFields>);
+
+  static_assert(std::is_standard_layout_v<SettingParameter>);
+  static_assert(std::is_trivially_copyable_v<SettingParameter>);
+
+  static_assert(std::is_standard_layout_v<AcceptChEntryView>);
+  static_assert(std::is_trivially_copyable_v<AcceptChEntryView>);
+
+  static_assert(std::is_standard_layout_v<DataFrame>);
+  static_assert(std::is_trivially_copyable_v<DataFrame>);
+
+  static_assert(std::is_standard_layout_v<HeadersFrame>);
+  static_assert(std::is_trivially_copyable_v<HeadersFrame>);
+
+  static_assert(std::is_standard_layout_v<PriorityFrame>);
+  static_assert(std::is_trivially_copyable_v<PriorityFrame>);
+
+  static_assert(std::is_standard_layout_v<RstStreamFrame>);
+  static_assert(std::is_trivially_copyable_v<RstStreamFrame>);
+
+  static_assert(std::is_standard_layout_v<SettingsFrame>);
+
+  static_assert(std::is_standard_layout_v<PushPromiseFrame>);
+  static_assert(std::is_trivially_copyable_v<PushPromiseFrame>);
+
+  static_assert(std::is_standard_layout_v<PingFrame>);
+  static_assert(std::is_trivially_copyable_v<PingFrame>);
+
+  static_assert(std::is_standard_layout_v<GoAwayFrame>);
+  static_assert(std::is_trivially_copyable_v<GoAwayFrame>);
+
+  static_assert(std::is_standard_layout_v<WindowUpdateFrame>);
+  static_assert(std::is_trivially_copyable_v<WindowUpdateFrame>);
+
+  static_assert(std::is_standard_layout_v<ContinuationFrame>);
+  static_assert(std::is_trivially_copyable_v<ContinuationFrame>);
+
+  static_assert(std::is_standard_layout_v<AltSvcFrame>);
+  static_assert(std::is_trivially_copyable_v<AltSvcFrame>);
+
+  static_assert(std::is_standard_layout_v<PriorityUpdateFrame>);
+  static_assert(std::is_trivially_copyable_v<PriorityUpdateFrame>);
+
+  static_assert(std::is_standard_layout_v<AcceptChFrame>);
+  static_assert(std::is_trivially_copyable_v<AcceptChFrame>);
+
+  static_assert(std::is_standard_layout_v<UnknownFrame>);
+  static_assert(std::is_trivially_copyable_v<UnknownFrame>);
+
+  static_assert(sizeof(SpdyFrame) <= 64,
+                "SpdyFrame must fit in a 64-byte cache line");
+}
+
+TEST(ModernFrameTest, Http2FrameConcept) {
+  static_assert(Http2FrameConcept<DataFrame>);
+  static_assert(Http2FrameConcept<HeadersFrame>);
+  static_assert(Http2FrameConcept<PriorityFrame>);
+  static_assert(Http2FrameConcept<RstStreamFrame>);
+  static_assert(Http2FrameConcept<SettingsFrame>);
+  static_assert(Http2FrameConcept<PushPromiseFrame>);
+  static_assert(Http2FrameConcept<PingFrame>);
+  static_assert(Http2FrameConcept<GoAwayFrame>);
+  static_assert(Http2FrameConcept<WindowUpdateFrame>);
+  static_assert(Http2FrameConcept<ContinuationFrame>);
+  static_assert(Http2FrameConcept<AltSvcFrame>);
+  static_assert(Http2FrameConcept<PriorityUpdateFrame>);
+  static_assert(Http2FrameConcept<AcceptChFrame>);
+  static_assert(Http2FrameConcept<UnknownFrame>);
+
+  // Non-frame types should not satisfy the concept.
+  static_assert(!Http2FrameConcept<int>);
+  static_assert(!Http2FrameConcept<std::string>);
+  static_assert(!Http2FrameConcept<PriorityFields>);
+  static_assert(!Http2FrameConcept<SpdyDataIR>);
+}
+
+TEST(ModernFrameTest, FrameTraits) {
+  EXPECT_EQ(SpdyFrameType::DATA, frame_type_v<DataFrame>);
+  EXPECT_EQ(SpdyFrameType::HEADERS, frame_type_v<HeadersFrame>);
+  EXPECT_EQ(SpdyFrameType::PRIORITY, frame_type_v<PriorityFrame>);
+  EXPECT_EQ(SpdyFrameType::RST_STREAM, frame_type_v<RstStreamFrame>);
+  EXPECT_EQ(SpdyFrameType::SETTINGS, frame_type_v<SettingsFrame>);
+  EXPECT_EQ(SpdyFrameType::PUSH_PROMISE, frame_type_v<PushPromiseFrame>);
+  EXPECT_EQ(SpdyFrameType::PING, frame_type_v<PingFrame>);
+  EXPECT_EQ(SpdyFrameType::GOAWAY, frame_type_v<GoAwayFrame>);
+  EXPECT_EQ(SpdyFrameType::WINDOW_UPDATE, frame_type_v<WindowUpdateFrame>);
+  EXPECT_EQ(SpdyFrameType::CONTINUATION, frame_type_v<ContinuationFrame>);
+  EXPECT_EQ(SpdyFrameType::ALTSVC, frame_type_v<AltSvcFrame>);
+  EXPECT_EQ(SpdyFrameType::PRIORITY_UPDATE, frame_type_v<PriorityUpdateFrame>);
+  EXPECT_EQ(SpdyFrameType::ACCEPT_CH, frame_type_v<AcceptChFrame>);
+
+  // Fixed size checks
+  EXPECT_TRUE(is_fixed_size_v<PriorityFrame>);
+  EXPECT_TRUE(is_fixed_size_v<RstStreamFrame>);
+  EXPECT_TRUE(is_fixed_size_v<PingFrame>);
+  EXPECT_TRUE(is_fixed_size_v<WindowUpdateFrame>);
+  EXPECT_FALSE(is_fixed_size_v<DataFrame>);
+  EXPECT_FALSE(is_fixed_size_v<HeadersFrame>);
+  EXPECT_FALSE(is_fixed_size_v<SettingsFrame>);
+
+  // Stream ID presence
+  EXPECT_TRUE(has_stream_id_v<DataFrame>);
+  EXPECT_TRUE(has_stream_id_v<HeadersFrame>);
+  EXPECT_TRUE(has_stream_id_v<PriorityFrame>);
+  EXPECT_TRUE(has_stream_id_v<RstStreamFrame>);
+  EXPECT_TRUE(has_stream_id_v<PushPromiseFrame>);
+  EXPECT_TRUE(has_stream_id_v<WindowUpdateFrame>);
+  EXPECT_FALSE(has_stream_id_v<SettingsFrame>);
+  EXPECT_FALSE(has_stream_id_v<PingFrame>);
+  EXPECT_FALSE(has_stream_id_v<GoAwayFrame>);
+
+  // Fin flag presence
+  EXPECT_TRUE(has_fin_v<DataFrame>);
+  EXPECT_TRUE(has_fin_v<HeadersFrame>);
+  EXPECT_FALSE(has_fin_v<RstStreamFrame>);
+  EXPECT_FALSE(has_fin_v<SettingsFrame>);
+
+  // Padding presence
+  EXPECT_TRUE(has_padding_v<DataFrame>);
+  EXPECT_TRUE(has_padding_v<HeadersFrame>);
+  EXPECT_TRUE(has_padding_v<PushPromiseFrame>);
+  EXPECT_FALSE(has_padding_v<PingFrame>);
+
+  // Flow control consumption
+  EXPECT_TRUE(consumes_flow_control_v<DataFrame>);
+  EXPECT_FALSE(consumes_flow_control_v<HeadersFrame>);
+  EXPECT_FALSE(consumes_flow_control_v<SettingsFrame>);
+}
+
+TEST(ModernFrameTest, FrameSizeCalculation) {
+  DataFrame data{.stream_id = 1, .data = "hello"};
+  EXPECT_EQ(14u, FrameSize(data));
+  data.flags = DATA_FLAG_PADDED;
+  data.padding_payload_len = 3;
+  EXPECT_EQ(18u, FrameSize(data));
+
+  HeadersFrame headers{.stream_id = 1, .hpack_block = "0123456789"};
+  EXPECT_EQ(19u, FrameSize(headers));
+  headers.has_priority = true;
+  EXPECT_EQ(24u, FrameSize(headers));
+
+  PriorityFrame priority{.stream_id = 1};
+  EXPECT_EQ(14u, FrameSize(priority));
+
+  RstStreamFrame rst{.stream_id = 1};
+  EXPECT_EQ(13u, FrameSize(rst));
+
+  SettingsFrame settings_ack{.is_ack = true, .values = {}};
+  EXPECT_EQ(9u, FrameSize(settings_ack));
+  SettingsFrame settings_data{
+      .is_ack = false,
+      .values = {{SETTINGS_HEADER_TABLE_SIZE, 4096},
+                 {SETTINGS_MAX_CONCURRENT_STREAMS, 100}}};
+  EXPECT_EQ(21u, FrameSize(settings_data));
+
+  PushPromiseFrame push{
+      .stream_id = 1, .promised_stream_id = 2, .hpack_block = "12345678"};
+  EXPECT_EQ(21u, FrameSize(push));
+
+  PingFrame ping{};
+  EXPECT_EQ(17u, FrameSize(ping));
+
+  GoAwayFrame goaway{.debug_data = "abcd"};
+  EXPECT_EQ(21u, FrameSize(goaway));
+
+  WindowUpdateFrame win{.stream_id = 1, .delta = 100};
+  EXPECT_EQ(13u, FrameSize(win));
+
+  ContinuationFrame cont{.stream_id = 1, .hpack_block = "abcdef"};
+  EXPECT_EQ(15u, FrameSize(cont));
+
+  AltSvcFrame altsvc{.stream_id = 1, .origin = "foo", .value = "h2=\":443\""};
+  EXPECT_EQ(9u + 2u + 3u + 9u, FrameSize(altsvc));
+
+  PriorityUpdateFrame prio_up{.prioritized_stream_id = 3,
+                              .priority_field_value = "u=3,i"};
+  EXPECT_EQ(9u + 4u + 5u, FrameSize(prio_up));
+
+  AcceptChFrame accept_ch{.num_entries = 1,
+                          .entries = {{{.origin = "foo", .value = "bar"}}}};
+  EXPECT_EQ(9u + 4u + 3u + 3u, FrameSize(accept_ch));
+
+  UnknownFrame unknown{.type = 0x99, .payload = "payload"};
+  EXPECT_EQ(16u, FrameSize(unknown));
+}
+
+TEST(ModernFrameTest, SerializeDataFrame) {
+  SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
+
+  DataFrame df{.stream_id = 3, .flags = DATA_FLAG_FIN, .data = "hello world"};
+  SpdyFrameBuilder builder(FrameSize(df));
+  EXPECT_TRUE(SerializeFrame(df, builder));
+  SpdySerializedFrame serialized = builder.take();
+
+  SpdyDataIR data_ir(3, "hello world");
+  data_ir.set_fin(true);
+  SpdySerializedFrame expected = framer.SerializeData(data_ir);
+
+  EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));
+}
+
+TEST(ModernFrameTest, SerializePriorityFrame) {
+  SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
+
+  PriorityFrame pf{
+      .stream_id = 5,
+      .priority = {.parent_stream_id = 1, .weight = 32, .exclusive = true}};
+  SpdyFrameBuilder builder(FrameSize(pf));
+  EXPECT_TRUE(SerializeFrame(pf, builder));
+  SpdySerializedFrame serialized = builder.take();
+
+  SpdyPriorityIR prio_ir(5, 1, 32, true);
+  SpdySerializedFrame expected = framer.SerializePriority(prio_ir);
+
+  EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));
+}
+
+TEST(ModernFrameTest, SerializeRstStreamFrame) {
+  SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
+
+  // 3. RST_STREAM frame
+  RstStreamFrame rf{.stream_id = 7, .error_code = ERROR_CODE_CANCEL};
+  SpdyFrameBuilder builder(FrameSize(rf));
+  EXPECT_TRUE(SerializeFrame(rf, builder));
+  SpdySerializedFrame serialized = builder.take();
+
+  SpdyRstStreamIR rst_ir(7, ERROR_CODE_CANCEL);
+  SpdySerializedFrame expected = framer.SerializeRstStream(rst_ir);
+
+  EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));
+}
+
+TEST(ModernFrameTest, SerializeSettingsFrame) {
+  SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
+
+  // SETTINGS ack.
+  {
+    SettingsFrame sf_ack{.is_ack = true, .values = {}};
+    SpdyFrameBuilder builder(FrameSize(sf_ack));
+    EXPECT_TRUE(SerializeFrame(sf_ack, builder));
+    SpdySerializedFrame serialized = builder.take();
+
+    SpdySettingsIR settings_ack_ir;
+    settings_ack_ir.set_is_ack(true);
+    SpdySerializedFrame expected = framer.SerializeSettings(settings_ack_ir);
+
+    EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));
+  }
+  // SETTINGS with values.
+  {
+    SettingsFrame sf_vals{.is_ack = false,
+                          .values = {{SETTINGS_HEADER_TABLE_SIZE, 4096},
+                                     {SETTINGS_MAX_CONCURRENT_STREAMS, 100}}};
+    SpdyFrameBuilder builder(FrameSize(sf_vals));
+    EXPECT_TRUE(SerializeFrame(sf_vals, builder));
+    SpdySerializedFrame serialized = builder.take();
+
+    SpdySettingsIR settings_ir;
+    settings_ir.AddSetting(SETTINGS_HEADER_TABLE_SIZE, 4096);
+    settings_ir.AddSetting(SETTINGS_MAX_CONCURRENT_STREAMS, 100);
+    SpdySerializedFrame expected = framer.SerializeSettings(settings_ir);
+
+    EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));
+  }
+}
+
+TEST(ModernFrameTest, SerializePingFrame) {
+  SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
+
+  PingFrame ping{.opaque_data = 0x0102030405060708ULL, .is_ack = true};
+  SpdyFrameBuilder builder(FrameSize(ping));
+  EXPECT_TRUE(SerializeFrame(ping, builder));
+  SpdySerializedFrame serialized = builder.take();
+
+  SpdyPingIR ping_ir(0x0102030405060708ULL);
+  ping_ir.set_is_ack(true);
+  SpdySerializedFrame expected = framer.SerializePing(ping_ir);
+
+  EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));
+}
+
+TEST(ModernFrameTest, SerializeGoAwayFrame) {
+  SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
+
+  GoAwayFrame goaway{.last_good_stream_id = 9,
+                     .error_code = ERROR_CODE_PROTOCOL_ERROR,
+                     .debug_data = "protocol error occurred"};
+  SpdyFrameBuilder builder(FrameSize(goaway));
+  EXPECT_TRUE(SerializeFrame(goaway, builder));
+  SpdySerializedFrame serialized = builder.take();
+
+  SpdyGoAwayIR goaway_ir(9, ERROR_CODE_PROTOCOL_ERROR,
+                         "protocol error occurred");
+  SpdySerializedFrame expected = framer.SerializeGoAway(goaway_ir);
+
+  EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));
+}
+
+TEST(ModernFrameTest, SerializeWindowUpdateFrame) {
+  SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
+
+  WindowUpdateFrame win{.stream_id = 11, .delta = 65535};
+  SpdyFrameBuilder builder(FrameSize(win));
+  EXPECT_TRUE(SerializeFrame(win, builder));
+  SpdySerializedFrame serialized = builder.take();
+
+  SpdyWindowUpdateIR win_ir(11, 65535);
+  SpdySerializedFrame expected = framer.SerializeWindowUpdate(win_ir);
+
+  EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));
+}
+
+TEST(ModernFrameTest, SerializeContinuationFrame) {
+  SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
+
+  ContinuationFrame cont{.stream_id = 13,
+                         .flags = HEADERS_FLAG_END_HEADERS,
+                         .hpack_block = "continuation_block"};
+  SpdyFrameBuilder builder(FrameSize(cont));
+  EXPECT_TRUE(SerializeFrame(cont, builder));
+  SpdySerializedFrame serialized = builder.take();
+
+  SpdyContinuationIR cont_ir(13);
+  cont_ir.set_end_headers(true);
+  cont_ir.take_encoding("continuation_block");
+  SpdySerializedFrame expected = framer.SerializeContinuation(cont_ir);
+
+  EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));
+}
+
+TEST(ModernFrameTest, SerializePriorityUpdateFrame) {
+  SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
+
+  PriorityUpdateFrame prio_up{.prioritized_stream_id = 5,
+                              .priority_field_value = "u=1,i"};
+  SpdyFrameBuilder builder(FrameSize(prio_up));
+  EXPECT_TRUE(SerializeFrame(prio_up, builder));
+  SpdySerializedFrame serialized = builder.take();
+
+  SpdyPriorityUpdateIR prio_up_ir(0, 5, "u=1,i");
+  SpdySerializedFrame expected = framer.SerializePriorityUpdate(prio_up_ir);
+
+  EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));
+}
+
+TEST(ModernFrameTest, SerializeAcceptChFrame) {
+  SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
+
+  AcceptChFrame accept_ch{
+      .num_entries = 1,
+      .entries = {{{.origin = "example.com", .value = "sec-ch-ua"}}}};
+  SpdyFrameBuilder builder(FrameSize(accept_ch));
+  EXPECT_TRUE(SerializeFrame(accept_ch, builder));
+  SpdySerializedFrame serialized = builder.take();
+
+  SpdyAcceptChIR accept_ch_ir({{"example.com", "sec-ch-ua"}});
+  SpdySerializedFrame expected = framer.SerializeAcceptCh(accept_ch_ir);
+
+  EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));
+}
+
+TEST(ModernFrameTest, SerializeUnknownFrame) {
+  SpdyFramer framer(SpdyFramer::ENABLE_COMPRESSION);
+
+  // 11. UNKNOWN frame
+  {
+    UnknownFrame unknown{.stream_id = 1,
+                         .type = 0xfe,
+                         .flags = 0x05,
+                         .payload = "custom_payload"};
+    SpdyFrameBuilder builder(FrameSize(unknown));
+    EXPECT_TRUE(SerializeFrame(unknown, builder));
+    SpdySerializedFrame serialized = builder.take();
+
+    SpdyUnknownIR unknown_ir(1, 0xfe, 0x05, "custom_payload");
+    SpdySerializedFrame expected = framer.SerializeUnknown(unknown_ir);
+
+    EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));
+  }
+}
+
+TEST(ModernFrameTest, SpdyFrameVariant) {
+  SpdyFrame frame = DataFrame{.stream_id = 42, .data = "payload"};
+  EXPECT_EQ(42u, GetFrameStreamId(frame));
+  EXPECT_EQ(SpdyFrameType::DATA, GetFrameType(frame));
+  EXPECT_EQ(16u, GetFrameSize(frame));
+
+  frame = PingFrame{.opaque_data = 123};
+  EXPECT_EQ(0u, GetFrameStreamId(frame));
+  EXPECT_EQ(SpdyFrameType::PING, GetFrameType(frame));
+  EXPECT_EQ(17u, GetFrameSize(frame));
+
+  SpdyFrameBuilder builder(GetFrameSize(frame));
+  EXPECT_TRUE(SerializeSpdyFrame(frame, builder));
+  EXPECT_EQ(17u, builder.length());
 }
 
 }  // namespace test
