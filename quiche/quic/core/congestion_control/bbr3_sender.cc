@@ -246,10 +246,6 @@ void Bbr3Sender::SetInitialCongestionWindowInPackets(
   }
 }
 
-QuicPacketCount Bbr3Sender::GetInitialCongestionWindowInPackets() const {
-  return initial_cwnd_ / kDefaultTCPMSS;
-}
-
 void Bbr3Sender::SetApplicationDrivenPacingRate(
     QuicBandwidth application_bandwidth_target) {
   QUIC_CODE_COUNT(quic_bbr2_set_app_driven_pacing_rate);

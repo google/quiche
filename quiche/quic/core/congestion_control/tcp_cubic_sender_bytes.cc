@@ -234,11 +234,6 @@ void TcpCubicSenderBytes::SetInitialCongestionWindowInPackets(
   congestion_window_ = congestion_window * kDefaultTCPMSS;
 }
 
-QuicPacketCount TcpCubicSenderBytes::GetInitialCongestionWindowInPackets()
-    const {
-  return initial_tcp_congestion_window_ / kDefaultTCPMSS;
-}
-
 void TcpCubicSenderBytes::SetMinCongestionWindowInPackets(
     QuicPacketCount congestion_window) {
   min_congestion_window_ = congestion_window * kDefaultTCPMSS;
