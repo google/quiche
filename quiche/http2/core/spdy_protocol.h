@@ -9,6 +9,8 @@
 #ifndef QUICHE_HTTP2_CORE_SPDY_PROTOCOL_H_
 #define QUICHE_HTTP2_CORE_SPDY_PROTOCOL_H_
 
+#include <array>
+#include <concepts>
 #include <cstddef>
 #include <cstdint>
 #include <cstring>
@@ -17,10 +19,12 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
 
+#include "absl/container/inlined_vector.h"
 #include "absl/strings/string_view.h"
 #include "quiche/http2/core/spdy_alt_svc_wire_format.h"
 #include "quiche/http2/core/spdy_bitmasks.h"
@@ -446,6 +450,367 @@ class QUICHE_EXPORT StreamPrecedence {
 };
 
 typedef StreamPrecedence<SpdyStreamId> SpdyStreamPrecedence;
+
+// =============================================================================
+// Value-Semantic POD Frame Structs
+// =============================================================================
+
+// Contains the fields specific to any priority-conveying frames.
+struct QUICHE_EXPORT PriorityFields {
+  SpdyStreamId parent_stream_id = 0;
+  uint16_t weight = kHttp2DefaultStreamWeight;
+  bool exclusive = false;
+  constexpr bool operator==(const PriorityFields&) const = default;
+};
+
+// A container for a single SETTINGS field.
+struct QUICHE_EXPORT SettingParameter {
+  SpdySettingsId id = 0;
+  uint32_t value = 0;
+  constexpr bool operator==(const SettingParameter&) const = default;
+};
+
+// A container for a single ACCEPT_CH entry.
+struct QUICHE_EXPORT AcceptChEntryView {
+  absl::string_view origin;
+  absl::string_view value;
+  constexpr bool operator==(const AcceptChEntryView&) const = default;
+};
+
+struct QUICHE_EXPORT DataFrame {
+  SpdyStreamId stream_id = 0;
+  uint8_t flags = 0;
+  uint8_t padding_payload_len = 0;
+  absl::string_view data;
+
+  constexpr bool HasFin() const { return (flags & DATA_FLAG_FIN) != 0; }
+  ABSL_DEPRECATED("Use HasFin() instead.") constexpr bool fin() const {
+    return HasFin();
+  }
+  constexpr bool IsPadded() const {
+    return (flags & DATA_FLAG_PADDED) != 0 || padding_payload_len > 0;
+  }
+  ABSL_DEPRECATED("Use IsPadded() instead.") constexpr bool padded() const {
+    return IsPadded();
+  }
+  constexpr bool operator==(const DataFrame&) const = default;
+};
+static_assert(sizeof(DataFrame) == (sizeof(void*) == 8 ? 24 : 16));
+
+struct QUICHE_EXPORT HeadersFrame {
+  SpdyStreamId stream_id = 0;
+  uint8_t flags = 0;
+  uint8_t padding_payload_len = 0;
+  bool has_priority = false;
+  PriorityFields priority{};
+  absl::string_view hpack_block;
+
+  constexpr bool HasFin() const { return (flags & CONTROL_FLAG_FIN) != 0; }
+  ABSL_DEPRECATED("Use HasFin() instead.") constexpr bool fin() const {
+    return HasFin();
+  }
+  constexpr bool HasEndHeaders() const {
+    return (flags & HEADERS_FLAG_END_HEADERS) != 0;
+  }
+  ABSL_DEPRECATED("Use HasEndHeaders() instead.")
+  constexpr bool end_headers() const { return HasEndHeaders(); }
+  constexpr bool IsPadded() const {
+    return (flags & HEADERS_FLAG_PADDED) != 0 || padding_payload_len > 0;
+  }
+  ABSL_DEPRECATED("Use IsPadded() instead.") constexpr bool padded() const {
+    return IsPadded();
+  }
+  constexpr bool operator==(const HeadersFrame&) const = default;
+};
+static_assert(sizeof(HeadersFrame) == (sizeof(void*) == 8 ? 32 : 24));
+
+struct QUICHE_EXPORT PriorityFrame {
+  SpdyStreamId stream_id = 0;
+  PriorityFields priority{};
+  constexpr bool operator==(const PriorityFrame&) const = default;
+};
+static_assert(sizeof(PriorityFrame) == 12);
+
+struct QUICHE_EXPORT RstStreamFrame {
+  SpdyStreamId stream_id = 0;
+  SpdyErrorCode error_code = ERROR_CODE_NO_ERROR;
+  constexpr bool operator==(const RstStreamFrame&) const = default;
+};
+static_assert(sizeof(RstStreamFrame) == 8);
+
+struct QUICHE_EXPORT SettingsFrame {
+  static constexpr size_t kMaxInlineSettings = 5;
+  bool is_ack = false;
+  absl::InlinedVector<SettingParameter, kMaxInlineSettings> values;
+  bool operator==(const SettingsFrame&) const = default;
+};
+static_assert(sizeof(SettingsFrame) == (sizeof(void*) == 8 ? 56 : 48));
+
+struct QUICHE_EXPORT PushPromiseFrame {
+  SpdyStreamId stream_id = 0;
+  SpdyStreamId promised_stream_id = 0;
+  uint8_t flags = 0;
+  uint8_t padding_payload_len = 0;
+  absl::string_view hpack_block;
+
+  constexpr bool HasEndHeaders() const {
+    return (flags & PUSH_PROMISE_FLAG_END_PUSH_PROMISE) != 0;
+  }
+  ABSL_DEPRECATED("Use HasEndHeaders() instead.")
+  constexpr bool end_headers() const { return HasEndHeaders(); }
+  constexpr bool IsPadded() const {
+    return (flags & PUSH_PROMISE_FLAG_PADDED) != 0 || padding_payload_len > 0;
+  }
+  ABSL_DEPRECATED("Use IsPadded() instead.") constexpr bool padded() const {
+    return IsPadded();
+  }
+  constexpr bool operator==(const PushPromiseFrame&) const = default;
+};
+static_assert(sizeof(PushPromiseFrame) == (sizeof(void*) == 8 ? 32 : 20));
+
+struct QUICHE_EXPORT PingFrame {
+  uint64_t opaque_data = 0;
+  bool is_ack = false;
+  constexpr bool operator==(const PingFrame&) const = default;
+};
+static_assert(sizeof(PingFrame) == (alignof(uint64_t) == 8 ? 16 : 12));
+
+struct QUICHE_EXPORT GoAwayFrame {
+  SpdyStreamId last_good_stream_id = 0;
+  SpdyErrorCode error_code = ERROR_CODE_NO_ERROR;
+  absl::string_view debug_data;
+  constexpr bool operator==(const GoAwayFrame&) const = default;
+};
+static_assert(sizeof(GoAwayFrame) == (sizeof(void*) == 8 ? 24 : 16));
+
+struct QUICHE_EXPORT WindowUpdateFrame {
+  SpdyStreamId stream_id = 0;
+  uint32_t delta = 0;
+  constexpr bool operator==(const WindowUpdateFrame&) const = default;
+};
+static_assert(sizeof(WindowUpdateFrame) == 8);
+
+struct QUICHE_EXPORT ContinuationFrame {
+  SpdyStreamId stream_id = 0;
+  uint8_t flags = 0;
+  absl::string_view hpack_block;
+
+  constexpr bool HasEndHeaders() const {
+    return (flags & HEADERS_FLAG_END_HEADERS) != 0;
+  }
+  ABSL_DEPRECATED("Use HasEndHeaders() instead.")
+  constexpr bool end_headers() const { return HasEndHeaders(); }
+  constexpr bool operator==(const ContinuationFrame&) const = default;
+};
+static_assert(sizeof(ContinuationFrame) == (sizeof(void*) == 8 ? 24 : 16));
+
+struct QUICHE_EXPORT AltSvcFrame {
+  SpdyStreamId stream_id = 0;
+  absl::string_view origin;
+  absl::string_view value;
+  constexpr bool operator==(const AltSvcFrame&) const = default;
+};
+static_assert(sizeof(AltSvcFrame) == (sizeof(void*) == 8 ? 40 : 20));
+
+struct QUICHE_EXPORT PriorityUpdateFrame {
+  SpdyStreamId prioritized_stream_id = 0;
+  absl::string_view priority_field_value;
+  constexpr bool operator==(const PriorityUpdateFrame&) const = default;
+};
+static_assert(sizeof(PriorityUpdateFrame) == (sizeof(void*) == 8 ? 24 : 12));
+
+struct QUICHE_EXPORT AcceptChFrame {
+  static constexpr size_t kMaxInlineEntries = 1;
+  uint8_t num_entries = 0;
+  std::array<AcceptChEntryView, kMaxInlineEntries> entries{};
+  constexpr bool operator==(const AcceptChFrame&) const = default;
+};
+static_assert(sizeof(AcceptChFrame) == (sizeof(void*) == 8 ? 40 : 20));
+
+struct QUICHE_EXPORT UnknownFrame {
+  SpdyStreamId stream_id = 0;
+  uint8_t type = 0;
+  uint8_t flags = 0;
+  absl::string_view payload;
+  constexpr bool operator==(const UnknownFrame&) const = default;
+};
+static_assert(sizeof(UnknownFrame) == (sizeof(void*) == 8 ? 24 : 16));
+
+// Compile-Time Type Traits
+template <typename T>
+struct FrameTraits;
+
+#define REGISTER_FRAME_TRAITS(Type, EnumVal, HasStreamId, HasFin, HasPadding, \
+                              IsFixed, FixedSize, ConsumesFC)                 \
+  template <>                                                                 \
+  struct FrameTraits<Type> {                                                  \
+    static constexpr SpdyFrameType frame_type = EnumVal;                      \
+    static constexpr bool has_stream_id = HasStreamId;                        \
+    static constexpr bool has_fin = HasFin;                                   \
+    static constexpr bool has_padding = HasPadding;                           \
+    static constexpr bool is_fixed_size = IsFixed;                            \
+    static constexpr size_t fixed_payload_size = FixedSize;                   \
+    static constexpr bool consumes_flow_control = ConsumesFC;                 \
+  };
+
+REGISTER_FRAME_TRAITS(DataFrame, SpdyFrameType::DATA, true, true, true, false,
+                      0, true)
+REGISTER_FRAME_TRAITS(HeadersFrame, SpdyFrameType::HEADERS, true, true, true,
+                      false, 0, false)
+REGISTER_FRAME_TRAITS(PriorityFrame, SpdyFrameType::PRIORITY, true, false,
+                      false, true, 5, false)
+REGISTER_FRAME_TRAITS(RstStreamFrame, SpdyFrameType::RST_STREAM, true, false,
+                      false, true, 4, false)
+REGISTER_FRAME_TRAITS(SettingsFrame, SpdyFrameType::SETTINGS, false, false,
+                      false, false, 0, false)
+REGISTER_FRAME_TRAITS(PushPromiseFrame, SpdyFrameType::PUSH_PROMISE, true,
+                      false, true, false, 0, false)
+REGISTER_FRAME_TRAITS(PingFrame, SpdyFrameType::PING, false, false, false, true,
+                      8, false)
+REGISTER_FRAME_TRAITS(GoAwayFrame, SpdyFrameType::GOAWAY, false, false, false,
+                      false, 0, false)
+REGISTER_FRAME_TRAITS(WindowUpdateFrame, SpdyFrameType::WINDOW_UPDATE, true,
+                      false, false, true, 4, false)
+REGISTER_FRAME_TRAITS(ContinuationFrame, SpdyFrameType::CONTINUATION, true,
+                      false, false, false, 0, false)
+REGISTER_FRAME_TRAITS(AltSvcFrame, SpdyFrameType::ALTSVC, true, false, false,
+                      false, 0, false)
+REGISTER_FRAME_TRAITS(PriorityUpdateFrame, SpdyFrameType::PRIORITY_UPDATE,
+                      false, false, false, false, 0, false)
+REGISTER_FRAME_TRAITS(AcceptChFrame, SpdyFrameType::ACCEPT_CH, false, false,
+                      false, false, 0, false)
+REGISTER_FRAME_TRAITS(UnknownFrame, SpdyFrameType::DATA, true, false, false,
+                      false, 0, false)
+
+#undef REGISTER_FRAME_TRAITS
+
+template <typename T>
+inline constexpr SpdyFrameType frame_type_v = FrameTraits<T>::frame_type;
+
+template <typename T>
+inline constexpr bool is_fixed_size_v = FrameTraits<T>::is_fixed_size;
+
+template <typename T>
+inline constexpr bool has_stream_id_v = FrameTraits<T>::has_stream_id;
+
+template <typename T>
+inline constexpr bool has_fin_v = FrameTraits<T>::has_fin;
+
+template <typename T>
+inline constexpr bool has_padding_v = FrameTraits<T>::has_padding;
+
+template <typename T>
+inline constexpr bool consumes_flow_control_v =
+    FrameTraits<T>::consumes_flow_control;
+
+template <typename T>
+concept Http2FrameConcept = requires {
+  { FrameTraits<T>::frame_type } -> std::convertible_to<SpdyFrameType>;
+  { FrameTraits<T>::is_fixed_size } -> std::convertible_to<bool>;
+  { FrameTraits<T>::has_stream_id } -> std::convertible_to<bool>;
+  { FrameTraits<T>::has_fin } -> std::convertible_to<bool>;
+  { FrameTraits<T>::has_padding } -> std::convertible_to<bool>;
+  { FrameTraits<T>::consumes_flow_control } -> std::convertible_to<bool>;
+};
+
+// Generic Size Calculation
+template <Http2FrameConcept T>
+constexpr size_t FrameSize(const T& frame) {
+  if constexpr (is_fixed_size_v<T>) {
+    return kFrameHeaderSize + FrameTraits<T>::fixed_payload_size;
+  } else if constexpr (std::is_same_v<T, DataFrame>) {
+    return kDataFrameMinimumSize + frame.data.size() +
+           (frame.padded() ? (1 + frame.padding_payload_len) : 0);
+  } else if constexpr (std::is_same_v<T, HeadersFrame>) {
+    size_t size = kHeadersFrameMinimumSize + frame.hpack_block.size();
+    if (frame.padded()) {
+      size += 1 + frame.padding_payload_len;
+    }
+    if (frame.has_priority) {
+      size += 5;
+    }
+    return size;
+  } else if constexpr (std::is_same_v<T, SettingsFrame>) {
+    if (frame.is_ack) {
+      return kSettingsFrameMinimumSize;
+    }
+    return kSettingsFrameMinimumSize +
+           (frame.values.size() * kSettingsOneSettingSize);
+  } else if constexpr (std::is_same_v<T, PushPromiseFrame>) {
+    size_t size = kPushPromiseFrameMinimumSize + frame.hpack_block.size();
+    if (frame.padded()) {
+      size += 1 + frame.padding_payload_len;
+    }
+    return size;
+  } else if constexpr (std::is_same_v<T, GoAwayFrame>) {
+    return kGoawayFrameMinimumSize + frame.debug_data.size();
+  } else if constexpr (std::is_same_v<T, ContinuationFrame>) {
+    return kContinuationFrameMinimumSize + frame.hpack_block.size();
+  } else if constexpr (std::is_same_v<T, AltSvcFrame>) {
+    return kGetAltSvcFrameMinimumSize + frame.origin.size() +
+           frame.value.size();
+  } else if constexpr (std::is_same_v<T, PriorityUpdateFrame>) {
+    return kPriorityUpdateFrameMinimumSize + frame.priority_field_value.size();
+  } else if constexpr (std::is_same_v<T, AcceptChFrame>) {
+    size_t total_size = kAcceptChFrameMinimumSize;
+    for (size_t i = 0; i < frame.num_entries && i < frame.entries.size(); ++i) {
+      total_size += frame.entries[i].origin.size() +
+                    frame.entries[i].value.size() +
+                    kAcceptChFramePerEntryOverhead;
+    }
+    return total_size;
+  } else if constexpr (std::is_same_v<T, UnknownFrame>) {
+    return kFrameHeaderSize + frame.payload.size();
+  } else {
+    return kFrameHeaderSize;
+  }
+}
+
+// Forward declares SpdyFrameBuilder for SerializeFrame.
+class SpdyFrameBuilder;
+
+template <Http2FrameConcept T>
+bool SerializeFrame(const T& frame, SpdyFrameBuilder& builder);
+
+// Unified variant.
+using SpdyFrame =
+    std::variant<DataFrame, HeadersFrame, PriorityFrame, RstStreamFrame,
+                 SettingsFrame, PushPromiseFrame, PingFrame, GoAwayFrame,
+                 WindowUpdateFrame, ContinuationFrame, AltSvcFrame,
+                 PriorityUpdateFrame, AcceptChFrame, UnknownFrame>;
+
+static_assert(sizeof(SpdyFrame) <= 64,
+              "SpdyFrame must fit within a 64-byte cache line");
+
+inline SpdyStreamId GetFrameStreamId(const SpdyFrame& frame) {
+  return std::visit(
+      [](const auto& f) -> SpdyStreamId {
+        using T = std::decay_t<decltype(f)>;
+        if constexpr (has_stream_id_v<T>) {
+          return f.stream_id;
+        }
+        return 0;
+      },
+      frame);
+}
+
+inline SpdyFrameType GetFrameType(const SpdyFrame& frame) {
+  return std::visit(
+      [](const auto& f) -> SpdyFrameType {
+        using T = std::decay_t<decltype(f)>;
+        if constexpr (std::is_same_v<T, UnknownFrame>) {
+          return static_cast<SpdyFrameType>(f.type);
+        }
+        return frame_type_v<T>;
+      },
+      frame);
+}
+
+inline size_t GetFrameSize(const SpdyFrame& frame) {
+  return std::visit([](const auto& f) { return FrameSize(f); }, frame);
+}
+
+bool SerializeSpdyFrame(const SpdyFrame& frame, SpdyFrameBuilder& builder);
 
 class SpdyFrameVisitor;
 
