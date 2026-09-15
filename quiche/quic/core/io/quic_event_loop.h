@@ -53,20 +53,20 @@ class QuicEventLoop {
   // notifies the |listener| about them.  |fd| must not be already registered;
   // if it is, the function returns false.  The |listener| must be alive for as
   // long as it is registered.
-  virtual ABSL_MUST_USE_RESULT bool RegisterSocket(
+  [[nodiscard]] virtual bool RegisterSocket(
       SocketFd fd, QuicSocketEventMask events,
       QuicSocketEventListener* listener) = 0;
   // Removes the listener associated with |fd|.  Returns false if the listener
   // is not found.
-  virtual ABSL_MUST_USE_RESULT bool UnregisterSocket(SocketFd fd) = 0;
+  [[nodiscard]] virtual bool UnregisterSocket(SocketFd fd) = 0;
   // Adds |events| to the list of the listened events for |fd|, given that |fd|
   // is already registered.  Must be only called if SupportsEdgeTriggered() is
   // false.
-  virtual ABSL_MUST_USE_RESULT bool RearmSocket(SocketFd fd,
-                                                QuicSocketEventMask events) = 0;
+  [[nodiscard]] virtual bool RearmSocket(SocketFd fd,
+                                         QuicSocketEventMask events) = 0;
   // Causes the |fd| to be notified of |events| on the next event loop iteration
   // even if none of the specified events has happened.
-  virtual ABSL_MUST_USE_RESULT bool ArtificiallyNotifyEvent(
+  [[nodiscard]] virtual bool ArtificiallyNotifyEvent(
       SocketFd fd, QuicSocketEventMask events) = 0;
 
   // Runs a single iteration of the event loop.  The iteration will run for at
