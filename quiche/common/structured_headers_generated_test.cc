@@ -17,8 +17,8 @@
 // being automatically translated from the JSON source to C++ unit tests. Please
 // do not modify, as the contents will be overwritten when this is re-generated.
 
-// Generated on 2026-09-09 from structured-field-tests.git @
-// 1e280c3ed9ffe0ca5fdb1d97219dddc389007677.
+// Generated on 2026-09-16 from structured-field-tests.git @
+// 00462dd7938b43bf596cb2af6a373d9c928a6cbe.
 
 namespace quiche {
 namespace structured_headers {
@@ -57,6 +57,7 @@ const struct ParameterizedItemTestCase {
       expected;           // nullopt if parse error is expected.
   const char* canonical;  // nullptr if parse error is expected, or if canonical
                           // format is identical to raw.
+  bool can_fail = false;
   const char* known_bug = nullptr;
 } parameterized_item_test_cases[] = {
     // binary.json
@@ -68,11 +69,24 @@ const struct ParameterizedItemTestCase {
     {"empty binary", "::", 2, {{Item(Item::byte_sequence, ""), {}}}, nullptr},
     {"padding at beginning", ":=aGVsbG8=:", 11, std::nullopt, nullptr},
     {"padding in middle", ":a=GVsbG8=:", 11, std::nullopt, nullptr},
-    {"bad padding",
+    {"unpadded",
      ":aGVsbG8:",
      9,
      {{Item(Item::byte_sequence, "hello"), {}}},
-     ":aGVsbG8=:"},
+     ":aGVsbG8=:",
+     true},
+    {"partially padded",
+     ":uuueGVsbG8=:",
+     13,
+     {{Item(Item::byte_sequence, "\272\353\236\031[\033\033"), {}}},
+     ":uuueGVsbGw==:",
+     true},
+    {"extra padding",
+     ":aGVsbG8==:",
+     11,
+     {{Item(Item::byte_sequence, "hello"), {}}},
+     ":aGVsbG8=:",
+     true},
     {"bad padding dot", ":aGVsbG8.:", 10, std::nullopt, nullptr},
     {"bad end delimiter", ":aGVsbG8=", 9, std::nullopt, nullptr},
     {"extra whitespace", ":aGVsb G8=:", 11, std::nullopt, nullptr},
@@ -83,7 +97,8 @@ const struct ParameterizedItemTestCase {
      ":iZ==:",
      6,
      {{Item(Item::byte_sequence, "\211"), {}}},
-     ":iQ==:"},
+     ":iQ==:",
+     true},
     {"non-ASCII binary",
      ":/+Ah:",
      6,
@@ -2413,7 +2428,8 @@ const struct ParameterizedItemTestCase {
      "\"foo, bar\"",
      10,
      {{Item(Item::string, "foo, bar"), {}}},
-     "\"foo, bar\""},
+     "\"foo, bar\"",
+     true},
     // token-generated.json
     {"0x00 in token", "a\000a", 3, std::nullopt, nullptr},
     {"0x01 in token", "a\001a", 3, std::nullopt, nullptr},
@@ -2912,6 +2928,7 @@ const struct ListTestCase {
   const std::optional<List> expected;  // nullopt if parse error is expected.
   const char* canonical;  // nullptr if parse error is expected, or if canonical
                           // format is identical to raw.
+  bool can_fail = false;
   const char* known_bug = nullptr;
 } list_test_cases[] = {
     // examples.json
@@ -5863,6 +5880,7 @@ const struct DictionaryTestCase {
       expected;           // nullopt if parse error is expected.
   const char* canonical;  // nullptr if parse error is expected, or if canonical
                           // format is identical to raw.
+  bool can_fail = false;
   const char* known_bug = nullptr;
 } dictionary_test_cases[] = {
     // dictionary.json
@@ -9074,6 +9092,8 @@ TEST(StructuredHeaderGeneratedTest, ParseItem) {
                         << " passed but was expected to fail (" << c.known_bug
                         << "); please remove from KNOWN_BUGS";
         }
+      } else if (c.can_fail && !result.has_value()) {
+        // Failing this test is acceptable per spec.
       } else {
         EXPECT_EQ(result, c.expected);
       }
@@ -9093,6 +9113,8 @@ TEST(StructuredHeaderGeneratedTest, ParseList) {
                         << " passed but was expected to fail (" << c.known_bug
                         << "); please remove from KNOWN_BUGS";
         }
+      } else if (c.can_fail && !result.has_value()) {
+        // Failing this test is acceptable per spec.
       } else {
         EXPECT_EQ(result, c.expected);
       }
@@ -9112,6 +9134,8 @@ TEST(StructuredHeaderGeneratedTest, ParseDictionary) {
                         << " passed but was expected to fail (" << c.known_bug
                         << "); please remove from KNOWN_BUGS";
         }
+      } else if (c.can_fail && !result.has_value()) {
+        // Failing this test is acceptable per spec.
       } else {
         EXPECT_EQ(result, c.expected);
       }
