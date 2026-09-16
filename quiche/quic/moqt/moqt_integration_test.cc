@@ -482,32 +482,44 @@ TEST_F(MoqtIntegrationTest, FetchItemsFromPast) {
   for (int i = 0; i < 100; ++i) {
     queue->AddObject(MemSliceFromString("object"), /*key=*/true);
   }
-  std::unique_ptr<MoqtFetchTask> fetch;
-  EXPECT_TRUE(client_->session()->Fetch(
+  bool fetch_ok = false;
+  std::unique_ptr<MoqtFetchTask> fetch = client_->session()->Fetch(
       full_track_name,
-      [&](std::unique_ptr<MoqtFetchTask> task) { fetch = std::move(task); },
-      Location{0, 0}, 99, std::nullopt, MessageParameters()));
-  // Run until we get FETCH_OK.
+      [&](std::variant<FetchOkData, MoqtRequestErrorInfo> response) {
+        fetch_ok = std::holds_alternative<FetchOkData>(response);
+      },
+      Location{0, 0}, 99, std::nullopt, MessageParameters());
+  ASSERT_NE(fetch, nullptr);
+  bool eof = false;
+  std::vector<PublishedObject> objects;
+  fetch->SetObjectAvailableCallback([&]() {
+    PublishedObject object;
+    while (true) {
+      MoqtFetchTask::GetNextObjectResult result = fetch->GetNextObject(object);
+      if (result == MoqtFetchTask::GetNextObjectResult::kSuccess) {
+        objects.push_back(std::move(object));
+      } else if (result == MoqtFetchTask::GetNextObjectResult::kEof) {
+        eof = true;
+        break;
+      } else {
+        break;
+      }
+    }
+  });
+  // Run until we get FETCH_OK and all objects until EOF.
   bool success = test_harness_.RunUntilWithDefaultTimeout(
-      [&]() { return fetch != nullptr; });
+      [&]() { return fetch_ok && eof; });
   EXPECT_TRUE(success);
 
   EXPECT_TRUE(fetch->GetStatus().ok());
-  MoqtFetchTask::GetNextObjectResult result;
-  PublishedObject object;
+  EXPECT_EQ(objects.size(), 3);
   Location expected{97, 0};
-  do {
-    result = fetch->GetNextObject(object);
-    if (result == MoqtFetchTask::GetNextObjectResult::kEof) {
-      break;
-    }
-    EXPECT_EQ(result, MoqtFetchTask::GetNextObjectResult::kSuccess);
+  for (const PublishedObject& object : objects) {
     EXPECT_EQ(object.metadata.location, expected);
     EXPECT_EQ(object.metadata.status, MoqtObjectStatus::kNormal);
     EXPECT_EQ(object.payload[0].AsStringView(), "object");
     ++expected.group;
-  } while (result == MoqtFetchTask::GetNextObjectResult::kSuccess);
-  EXPECT_EQ(result, MoqtFetchTask::GetNextObjectResult::kEof);
+  }
   EXPECT_EQ(expected, Location(100, 0));
 }
 

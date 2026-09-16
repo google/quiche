@@ -142,24 +142,17 @@ TEST_F(MoqtTrackStatusRequestStreamTest, ReceiveErrorResponse) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kTrackStatus), _));
   stream.BindStream(&mock_stream_);
-
+  MoqtRequestError error(RequestErrorCode::kDoesNotExist, std::nullopt,
+                         "Track does not exist");
   EXPECT_CALL(response_callback_, Call)
       .WillOnce([&](std::variant<MessageParameters, MoqtRequestErrorInfo> v) {
         ASSERT_TRUE(std::holds_alternative<MoqtRequestErrorInfo>(v));
-        auto info = std::get<MoqtRequestErrorInfo>(v);
-        EXPECT_EQ(info.error_code, RequestErrorCode::kDoesNotExist);
-        EXPECT_EQ(info.reason_phrase, "Track does not exist");
+        EXPECT_EQ(std::get<MoqtRequestErrorInfo>(v), error);
       });
   EXPECT_CALL(
       mock_stream_,
       Writev(IsEmpty(),
              Property(&webtransport::StreamWriteOptions::send_fin, true)));
-
-  MoqtRequestError error;
-  error.request_id = kRequestId;
-  error.error_code = RequestErrorCode::kDoesNotExist;
-  error.reason_phrase = "Track does not exist";
-
   QUICHE_EXPECT_OK(
       stream.OnRawControlMessage(GenericMessageToRawControlMessage(error)));
 }
@@ -191,21 +184,15 @@ TEST_F(MoqtTrackStatusRequestStreamTest, DuplicateRequestError) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kTrackStatus), _));
   stream.BindStream(&mock_stream_);
-
+  MoqtRequestError error(RequestErrorCode::kDoesNotExist, std::nullopt,
+                         "Track does not exist");
   EXPECT_CALL(response_callback_, Call);
   EXPECT_CALL(
       mock_stream_,
       Writev(IsEmpty(),
              Property(&webtransport::StreamWriteOptions::send_fin, true)));
-
-  MoqtRequestError error;
-  error.request_id = kRequestId;
-  error.error_code = RequestErrorCode::kDoesNotExist;
-  error.reason_phrase = "Track does not exist";
-
   QUICHE_EXPECT_OK(
       stream.OnRawControlMessage(GenericMessageToRawControlMessage(error)));
-
   EXPECT_THAT(
       stream.OnRawControlMessage(GenericMessageToRawControlMessage(error)),
       StatusIs(absl::StatusCode::kInvalidArgument, "Duplicate REQUEST_ERROR"));

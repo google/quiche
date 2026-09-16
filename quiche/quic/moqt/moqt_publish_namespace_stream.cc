@@ -24,6 +24,7 @@ void MoqtPublishNamespaceRequestStream::OnStreamBound() {
       framer()->SerializePublishNamespace(
           MoqtPublishNamespace{request_id_, prefix_, parameters_}),
       false);
+  stream_parser()->set_allow_fin(true);
   QUIC_DLOG(INFO) << "Sent PUBLISH_NAMESPACE message for " << prefix_;
 }
 
@@ -59,8 +60,7 @@ absl::Status MoqtPublishNamespaceRequestStream::OnControlMessage(
     auto callback = std::move(response_callback_);
     response_callback_ = nullptr;
     Fin();
-    std::move(callback)(MoqtRequestErrorInfo{
-        message.error_code, message.retry_interval, message.reason_phrase});
+    std::move(callback)(message);
     return absl::OkStatus();
   }
   // The REQUEST_ERROR is a response to the REQUEST_UPDATE message.
@@ -93,8 +93,7 @@ absl::Status MoqtPublishNamespaceResponseStream::OnControlMessage(
   request_id_ = message.request_id;
   if (!std::move(add_callback_)(message.track_namespace, this)) {
     add_callback_ = nullptr;
-    return SendRequestError(request_id_, RequestErrorCode::kInternalError,
-                            std::nullopt, "", /*fin=*/true);
+    return SendRequestError(RequestErrorCode::kInternalError, std::nullopt, "");
   }
   add_callback_ = nullptr;
   prefix_ = message.track_namespace;
@@ -112,9 +111,8 @@ absl::Status MoqtPublishNamespaceResponseStream::OnControlMessage(
                                  stream->SendRequestOk(id, parameters));
                            },
                            [&](const MoqtRequestErrorInfo& error) {
-                             stream->CheckStatus(stream->SendRequestError(
-                                 id, error.error_code, error.retry_interval,
-                                 error.reason_phrase));
+                             stream->CheckStatus(
+                                 stream->SendRequestError(error));
                            }},
             response);
       });
@@ -141,9 +139,8 @@ absl::Status MoqtPublishNamespaceResponseStream::OnControlMessage(
                                  stream->SendRequestOk(id, parameters));
                            },
                            [&](const MoqtRequestErrorInfo& error) {
-                             stream->CheckStatus(stream->SendRequestError(
-                                 id, error.error_code, error.retry_interval,
-                                 error.reason_phrase));
+                             stream->CheckStatus(
+                                 stream->SendRequestError(error));
                            }},
             response);
       });

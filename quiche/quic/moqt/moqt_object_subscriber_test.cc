@@ -24,7 +24,6 @@
 #include "quiche/quic/test_tools/quic_test_utils.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
-#include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
 
@@ -91,31 +90,32 @@ TEST_F(LiveSubscriberTest, Windows) {
 }
 
 TEST_F(LiveSubscriberTest, OnPublishDoneReadyToClose) {
-  track_.OnStreamOpened();
-  track_.OnStreamClosed(true, std::nullopt);
+  track_.OnStreamOpened(nullptr);
+  track_.OnStreamClosed(absl::OkStatus(), std::nullopt);
   EXPECT_CALL(visitor_, OnPublishDone);
   ExpectFin(wt_stream_);
   track_.OnPublishDone(1, &clock_, &alarm_factory_);
 }
 
 TEST_F(LiveSubscriberTest, OnPublishDoneAllStreamsCloseLater) {
-  track_.OnStreamOpened();
+  track_.OnStreamOpened(nullptr);
   EXPECT_CALL(visitor_, OnPublishDone).Times(0);
   EXPECT_CALL(wt_stream_, Writev).Times(0);
   track_.OnPublishDone(2, &clock_, &alarm_factory_);
-  track_.OnStreamClosed(true, std::nullopt);
-  track_.OnStreamOpened();
+  track_.OnStreamClosed(absl::OkStatus(), std::nullopt);
+  track_.OnStreamOpened(nullptr);
   ExpectFin(wt_stream_);
   EXPECT_CALL(visitor_, OnPublishDone);
-  track_.OnStreamClosed(true, std::nullopt);
+  track_.OnStreamClosed(absl::OkStatus(), std::nullopt);
 }
 
 TEST_F(LiveSubscriberTest, OnPublishDoneTimesOut) {
-  track_.OnStreamOpened();
+  track_.OnStreamOpened(nullptr);
   EXPECT_CALL(visitor_, OnPublishDone).Times(0);
   EXPECT_CALL(wt_stream_, Writev).Times(0);
   track_.OnPublishDone(2, &clock_, &alarm_factory_);
-  track_.OnStreamClosed(true, std::nullopt);  // No streams are open; timer set.
+  track_.OnStreamClosed(absl::OkStatus(), std::nullopt);
+  // No streams are open; timer set.
   quic::QuicAlarm* alarm = LiveSubscriberPeer::GetPublishDoneAlarm(&track_);
   EXPECT_NE(alarm, nullptr);
   EXPECT_TRUE(alarm->IsSet());
@@ -225,213 +225,147 @@ TEST_F(LiveSubscriberTest, JoiningFetchError) {
   EXPECT_EQ(LiveSubscriberPeer::GetFetchTask(&track_), nullptr);
 }
 
-class UpstreamFetchTest : public quic::test::QuicTest {
+class UpstreamFetchTaskTest : public quiche::test::QuicheTest {
  protected:
-  UpstreamFetchTest()
-      : fetch_(
-            fetch_message_, std::get<StandaloneFetch>(fetch_message_.fetch),
-            [&](std::unique_ptr<MoqtFetchTask> task) {
-              fetch_task_ = std::move(task);
-            },
-            [&]() { deleted_ = true; }) {}
+  UpstreamFetchTaskTest() {
+    EXPECT_CALL(task_destroyed_callback_, Call).Times(testing::AnyNumber());
+    EXPECT_CALL(can_read_callback_, Call).Times(testing::AnyNumber());
+    task_.set_task_destroyed_callback(task_destroyed_callback_.AsStdFunction());
+    task_.set_can_read_callback(can_read_callback_.AsStdFunction());
+  }
 
-  MoqtFetch fetch_message_ = {
-      /*request_id=*/1,
-      StandaloneFetch(FullTrackName("foo", "bar"), Location(1, 1),
-                      Location(3, 100)),
-      MessageParameters(),
-  };
-  // The pointer held by the application.
-  UpstreamFetch fetch_;
-  std::unique_ptr<MoqtFetchTask> fetch_task_;
-  bool deleted_ = false;
+  const Location kEndLocation = Location(3, 50);
+  testing::StrictMock<testing::MockFunction<void()>> task_destroyed_callback_;
+  testing::StrictMock<testing::MockFunction<void()>> can_read_callback_;
+  UpstreamFetchTask task_;
 };
 
-TEST_F(UpstreamFetchTest, Queries) {
-  EXPECT_EQ(fetch_.request_id(), 1);
-  EXPECT_EQ(fetch_.full_track_name(), FullTrackName("foo", "bar"));
-  EXPECT_TRUE(fetch_.is_fetch());
-  EXPECT_FALSE(fetch_.InWindow(Location{1, 0}));
-  EXPECT_TRUE(fetch_.InWindow(Location{1, 1}));
-  EXPECT_TRUE(fetch_.InWindow(Location{3, 100}));
-  EXPECT_FALSE(fetch_.InWindow(Location{3, 101}));
-}
-
-TEST_F(UpstreamFetchTest, AllowError) {
-  EXPECT_TRUE(fetch_.ErrorIsAllowed());
-  fetch_.OnObjectOrOk();
-  EXPECT_FALSE(fetch_.ErrorIsAllowed());
-}
-
-TEST_F(UpstreamFetchTest, FetchResponse) {
-  EXPECT_EQ(fetch_task_, nullptr);
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
-  EXPECT_NE(fetch_task_, nullptr);
-  EXPECT_NE(fetch_.task(), nullptr);
-  EXPECT_TRUE(fetch_task_->GetStatus().ok());
-}
-
-TEST_F(UpstreamFetchTest, FetchClosedByMoqt) {
-  bool terminated = false;
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(),
-                       [&]() { terminated = true; });
-  bool got_eof = false;
-  fetch_task_->SetObjectAvailableCallback([&]() {
-    PublishedObject object;
-    EXPECT_EQ(fetch_task_->GetNextObject(object),
-              MoqtFetchTask::GetNextObjectResult::kEof);
-    got_eof = true;
-  });
-  fetch_.task()->OnStreamAndFetchClosed(std::nullopt, "");
-  EXPECT_FALSE(terminated);
-  EXPECT_TRUE(got_eof);
-}
-
-TEST_F(UpstreamFetchTest, FetchClosedByApplication) {
-  bool terminated = false;
-  fetch_.OnFetchResult(Location(3, 50), absl::Status(),
-                       [&]() { terminated = true; });
-  fetch_task_.reset();
-  EXPECT_TRUE(terminated);
-}
-
-TEST_F(UpstreamFetchTest, ObjectRetrieval) {
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
-  PublishedObject object;
-  EXPECT_EQ(fetch_task_->GetNextObject(object),
-            MoqtFetchTask::GetNextObjectResult::kPending);
-  MoqtObject new_object = {1, 3,    0, 128, "", MoqtObjectStatus::kNormal,
-                           0, true, 6};
-  bool got_object = false;
-  fetch_task_->SetObjectAvailableCallback([&]() {
-    got_object = true;
-    EXPECT_EQ(fetch_task_->GetNextObject(object),
-              MoqtFetchTask::GetNextObjectResult::kSuccess);
-    EXPECT_EQ(object.metadata.location, Location(3, 0));
-    EXPECT_EQ(object.metadata.subgroup, 0);
-    EXPECT_EQ(object.payload[0].AsStringView(), "foo");
-    EXPECT_EQ(object.payload[1].AsStringView(), "bar");
-  });
-  int got_read_callback = 0;
-  fetch_.OnStreamOpened([&]() { ++got_read_callback; });
-  EXPECT_FALSE(fetch_.task()->HasObject());
-  EXPECT_FALSE(fetch_.task()->NeedsMorePayload());
-  fetch_.task()->NewObject(new_object);
-  EXPECT_TRUE(fetch_.task()->HasObject());
-  EXPECT_TRUE(fetch_.task()->NeedsMorePayload());
-  fetch_.task()->AppendPayloadToObject("foo");
-  EXPECT_TRUE(fetch_.task()->HasObject());
-  EXPECT_TRUE(fetch_.task()->NeedsMorePayload());
-  fetch_.task()->AppendPayloadToObject("bar");
-  EXPECT_TRUE(fetch_.task()->HasObject());
-  EXPECT_FALSE(fetch_.task()->NeedsMorePayload());
-  EXPECT_FALSE(got_object);
-  EXPECT_EQ(got_read_callback, 1);  // Call from OnStreamOpened().
-  fetch_.task()->NotifyNewObject();
-  EXPECT_FALSE(fetch_.task()->HasObject());
-  EXPECT_FALSE(fetch_.task()->NeedsMorePayload());
-  EXPECT_EQ(got_read_callback, 2);  // Call from GetNextObjectResult().
-  EXPECT_TRUE(got_object);
-}
-
-TEST_F(UpstreamFetchTest, ObjectRetrievalEmptyPayload) {
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
-  MoqtObject moqt_obj = {1, 3,    0, 128, "", MoqtObjectStatus::kEndOfGroup,
-                         0, true, 0};
-  fetch_.task()->NewObject(moqt_obj);
-  fetch_.task()->NotifyNewObject();
-  fetch_.OnStreamOpened([]() {});
+TEST_F(UpstreamFetchTaskTest, ObjectRetrievalMultiSlice) {
+  int can_read_calls = 0;
+  task_.set_can_read_callback([&]() { ++can_read_calls; });
+  EXPECT_EQ(can_read_calls, 1);
 
   PublishedObject output;
-  EXPECT_EQ(fetch_task_->GetNextObject(output),
+  EXPECT_EQ(task_.GetNextObject(output),
+            MoqtFetchTask::GetNextObjectResult::kPending);
+  MoqtObject new_object = {
+      /*track_alias=*/1,
+      /*group_id=*/3,
+      /*object_id=*/0,
+      /*publisher_priority=*/128,
+      /*extension_headers=*/"",
+      /*object_status=*/MoqtObjectStatus::kNormal,
+      /*subgroup_id=*/1,
+      /*first_object_in_subgroup=*/true,
+      /*payload_length=*/6,
+  };
+  EXPECT_FALSE(task_.HasObject());
+  EXPECT_FALSE(task_.NeedsMorePayload());
+
+  task_.NewObject(new_object);
+  EXPECT_TRUE(task_.HasObject());
+  EXPECT_TRUE(task_.NeedsMorePayload());
+  EXPECT_EQ(task_.payload_length(), 0);
+  EXPECT_EQ(task_.payload_offset(), 0);
+
+  task_.AppendPayloadToObject("foo");
+  EXPECT_TRUE(task_.HasObject());
+  EXPECT_TRUE(task_.NeedsMorePayload());
+  EXPECT_EQ(task_.payload_length(), 3);
+
+  task_.AppendPayloadToObject("bar");
+  EXPECT_TRUE(task_.HasObject());
+  EXPECT_FALSE(task_.NeedsMorePayload());
+  EXPECT_EQ(task_.payload_length(), 6);
+
+  bool object_available_called = false;
+  task_.SetObjectAvailableCallback([&]() { object_available_called = true; });
+  task_.NotifyNewObject();
+  EXPECT_TRUE(object_available_called);
+
+  EXPECT_EQ(task_.GetNextObject(output),
+            MoqtFetchTask::GetNextObjectResult::kSuccess);
+  EXPECT_EQ(output.metadata.location, Location(3, 0));
+  EXPECT_EQ(output.metadata.subgroup, 1);
+  EXPECT_EQ(output.metadata.status, MoqtObjectStatus::kNormal);
+  EXPECT_EQ(output.metadata.publisher_priority, 128);
+  EXPECT_EQ(output.metadata.payload_length, 6);
+  EXPECT_FALSE(output.fin_after_this);
+  ASSERT_EQ(output.payload.size(), 2);
+  EXPECT_EQ(output.payload[0].AsStringView(), "foo");
+  EXPECT_EQ(output.payload[1].AsStringView(), "bar");
+  EXPECT_EQ(can_read_calls, 2);
+
+  EXPECT_FALSE(task_.HasObject());
+  EXPECT_FALSE(task_.NeedsMorePayload());
+}
+
+TEST_F(UpstreamFetchTaskTest, ObjectRetrievalEmptyPayload) {
+  MoqtObject moqt_obj = {
+      /*track_alias=*/1,
+      /*group_id=*/3,
+      /*object_id=*/0,
+      /*publisher_priority=*/128,
+      /*extension_headers=*/"",
+      /*object_status=*/MoqtObjectStatus::kEndOfGroup,
+      /*subgroup_id=*/0,
+      /*first_object_in_subgroup=*/true,
+      /*payload_length=*/0,
+  };
+  task_.NewObject(moqt_obj);
+  task_.NotifyNewObject();
+
+  PublishedObject output;
+  EXPECT_EQ(task_.GetNextObject(output),
             MoqtFetchTask::GetNextObjectResult::kSuccess);
   EXPECT_TRUE(output.payload.empty());
   EXPECT_EQ(output.metadata.status, MoqtObjectStatus::kEndOfGroup);
+  EXPECT_EQ(output.metadata.location, Location(3, 0));
 }
 
-TEST_F(UpstreamFetchTest, GetNextObjectAfterEof) {
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
-  fetch_.task()->OnStreamAndFetchClosed(std::nullopt, "");
+TEST_F(UpstreamFetchTaskTest, PartialPayloadPending) {
+  MoqtObject moqt_obj = {
+      /*track_alias=*/1,
+      /*group_id=*/3,
+      /*object_id=*/0,
+      /*publisher_priority=*/128,
+      /*extension_headers=*/"",
+      /*object_status=*/MoqtObjectStatus::kNormal,
+      /*subgroup_id=*/0,
+      /*first_object_in_subgroup=*/true,
+      /*payload_length=*/10,
+  };
+  task_.NewObject(moqt_obj);
 
-  PublishedObject object;
-  EXPECT_EQ(fetch_task_->GetNextObject(object),
-            MoqtFetchTask::GetNextObjectResult::kEof);
-  // Subsequent calls should still return EOF.
-  EXPECT_EQ(fetch_task_->GetNextObject(object),
-            MoqtFetchTask::GetNextObjectResult::kEof);
-}
-
-TEST_F(UpstreamFetchTest, GetNextObjectEofAtLargestLocation) {
-  Location largest(3, 50);
-  fetch_.OnFetchResult(largest, absl::OkStatus(), nullptr);
-  fetch_.OnStreamOpened([]() {});
-
-  MoqtObject obj1 = {1, 3, 49, 128, "", MoqtObjectStatus::kNormal, 0, false, 1};
-  fetch_.task()->NewObject(obj1);
-  fetch_.task()->AppendPayloadToObject("a");
-  fetch_.task()->NotifyNewObject();
-
-  PublishedObject out;
-  EXPECT_EQ(fetch_task_->GetNextObject(out),
-            MoqtFetchTask::GetNextObjectResult::kSuccess);
-  // Not at largest location yet.
-  EXPECT_EQ(fetch_task_->GetNextObject(out),
+  PublishedObject output;
+  EXPECT_EQ(task_.GetNextObject(output),
             MoqtFetchTask::GetNextObjectResult::kPending);
-
-  MoqtObject obj2 = {1, 3, 50, 128, "", MoqtObjectStatus::kNormal, 0, false, 1};
-  fetch_.task()->NewObject(obj2);
-  fetch_.task()->AppendPayloadToObject("b");
-  fetch_.task()->NotifyNewObject();
-
-  EXPECT_EQ(fetch_task_->GetNextObject(out),
-            MoqtFetchTask::GetNextObjectResult::kSuccess);
-  // Reached largest location. EOF should be set.
-  EXPECT_EQ(fetch_task_->GetNextObject(out),
-            MoqtFetchTask::GetNextObjectResult::kEof);
 }
 
-TEST_F(UpstreamFetchTest, CloseWithError) {
-  fetch_.OnFetchResult(Location(3, 50), absl::OkStatus(), nullptr);
-  fetch_.task()->OnStreamAndFetchClosed(
-      static_cast<webtransport::StreamErrorCode>(0x123), "reason");
+TEST_F(UpstreamFetchTaskTest, OnStreamAndFetchClosedFin) {
+  task_.OnStreamAndFetchClosed(absl::OkStatus());
+
   PublishedObject out;
-  EXPECT_EQ(fetch_task_->GetNextObject(out),
+  EXPECT_EQ(task_.GetNextObject(out), MoqtFetchTask::GetNextObjectResult::kEof);
+  EXPECT_EQ(task_.GetNextObject(out), MoqtFetchTask::GetNextObjectResult::kEof);
+  EXPECT_TRUE(task_.GetStatus().ok());
+}
+
+TEST_F(UpstreamFetchTaskTest, OnStreamAndFetchClosedError) {
+  task_.OnStreamAndFetchClosed(absl::InternalError("custom reason"));
+
+  PublishedObject out;
+  EXPECT_EQ(task_.GetNextObject(out),
             MoqtFetchTask::GetNextObjectResult::kError);
-  EXPECT_FALSE(fetch_task_->GetStatus().ok());
+  EXPECT_FALSE(task_.GetStatus().ok());
 }
 
-TEST_F(UpstreamFetchTest, RelativeJoiningFetch) {
-  MoqtFetch relative_fetch_message = {
-      /*request_id=*/2,
-      JoiningFetchRelative(1, 2),
-      MessageParameters(),
-  };
-  UpstreamFetch relative_fetch(
-      relative_fetch_message, FullTrackName("foo", "bar"),
-      [&](std::unique_ptr<MoqtFetchTask> task) {
-        fetch_task_ = std::move(task);
-      },
-      []() {});
-  relative_fetch.OnFetchResult(Location(10, 50), absl::OkStatus(), nullptr);
-  EXPECT_FALSE(relative_fetch.InWindow(Location(7, 35)));
-  EXPECT_TRUE(relative_fetch.InWindow(Location(8, 0)));
-}
-
-TEST_F(UpstreamFetchTest, RelativeJoiningFetchUnderflow) {
-  MoqtFetch relative_fetch_message = {
-      /*request_id=*/2,
-      JoiningFetchRelative(1, 10),
-      MessageParameters(),
-  };
-  UpstreamFetch relative_fetch(
-      relative_fetch_message, FullTrackName("foo", "bar"),
-      [&](std::unique_ptr<MoqtFetchTask> task) {
-        fetch_task_ = std::move(task);
-      },
-      []() {});
-  relative_fetch.OnFetchResult(Location(1, 50), absl::OkStatus(), nullptr);
-  EXPECT_TRUE(relative_fetch.InWindow(Location(0, 0)));
-  EXPECT_TRUE(relative_fetch.InWindow(Location(1, 50)));
+TEST_F(UpstreamFetchTaskTest, DestroyedByApplication) {
+  testing::StrictMock<testing::MockFunction<void()>> callback;
+  EXPECT_CALL(callback, Call);
+  auto dynamic_task = std::make_unique<UpstreamFetchTask>();
+  dynamic_task->set_task_destroyed_callback(callback.AsStdFunction());
+  dynamic_task.reset();
 }
 
 }  // namespace test

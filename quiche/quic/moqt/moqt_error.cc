@@ -94,6 +94,27 @@ absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
   }
 }
 
+webtransport::StreamErrorCode StatusToMoqtStreamError(absl::Status status) {
+  switch (status.code()) {
+    case absl::StatusCode::kInternal:
+      return kResetCodeInternalError;
+    case absl::StatusCode::kCancelled:
+      return kResetCodeCancelled;
+    case absl::StatusCode::kDeadlineExceeded:
+      return kResetCodeDeliveryTimeout;
+    case absl::StatusCode::kAborted:
+      return kResetCodeSessionClosed;
+    case absl::StatusCode::kFailedPrecondition:
+      return kResetCodeUnknownObjectStatus;
+    case absl::StatusCode::kOutOfRange:
+      return kResetCodeTooFarBehind;
+    case absl::StatusCode::kInvalidArgument:
+      return kResetCodeMalformedTrack;
+    default:
+      return kResetCodeInternalError;
+  }
+}
+
 std::optional<MoqtError> GetMoqtErrorForStatus(const absl::Status& status) {
   std::optional<absl::Cord> raw_code_cord =
       status.GetPayload(kMoqtErrorStatusPayloadUrl);

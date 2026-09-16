@@ -117,9 +117,8 @@ absl::Status MoqtTrackStatusResponseStream::OnControlMessage(
   }
   publisher_ = session()->GetTrackPublisher(message.full_track_name);
   if (publisher_ == nullptr) {
-    return SendRequestError(message.request_id, RequestErrorCode::kDoesNotExist,
-                            std::nullopt, "Track does not exist",
-                            /*fin=*/true);
+    return SendRequestError(RequestErrorCode::kDoesNotExist, std::nullopt,
+                            "Track does not exist");
   }
   // If the upstream subscription is already established, the code below will
   // invoke `OnSubscribeAccepted` immediately.
@@ -146,9 +145,7 @@ void MoqtTrackStatusResponseStream::OnSubscribeRejected(
     return;
   }
   // Since `fin` is true, this will also reset `publisher_` if present.
-  CheckStatus(SendRequestError(*request_id_, info.error_code,
-                               info.retry_interval, info.reason_phrase,
-                               /*fin=*/true));
+  CheckStatus(SendRequestError(info));
 }
 
 void MoqtTrackStatusResponseStream::OnTrackPublisherGone() {

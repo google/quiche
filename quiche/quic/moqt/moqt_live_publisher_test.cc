@@ -203,7 +203,7 @@ class LivePublisherTest : public quic::test::QuicTest {
     EXPECT_CALL(webtrans_, CanOpenNextOutgoingUnidirectionalStream())
         .WillOnce(Return(false));
     EXPECT_CALL(visitor_,
-                UpdateTrackPriority(1, _,
+                UpdateTrackPriority(track_publisher_->GetTrackName(), _,
                                     MoqtTrackPriority{subscriber_priority(),
                                                       publisher_priority}));
     publisher_->OnNewObjectAvailable(location, subgroup, publisher_priority);
@@ -325,7 +325,7 @@ TEST_F(LivePublisherTest, UpdatePriorityWithPendingStreams) {
   new_params.subscriber_priority = 20;
   EXPECT_CALL(*track_publisher_, extensions())
       .WillRepeatedly(ReturnRef(extensions_));
-  EXPECT_CALL(visitor_, UpdateTrackPriority(1,
+  EXPECT_CALL(visitor_, UpdateTrackPriority(track_publisher_->GetTrackName(),
                                             std::optional<MoqtTrackPriority>(
                                                 {subscriber_priority(), 64}),
                                             MoqtTrackPriority{20, 64}));

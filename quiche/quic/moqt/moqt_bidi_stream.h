@@ -99,11 +99,10 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
                              const MessageParameters& parameters,
                              bool fin = false);
   absl::Status SendRequestError(
-      uint64_t request_id, RequestErrorCode error_code,
+      RequestErrorCode error_code,
       std::optional<quic::QuicTimeDelta> retry_interval,
-      absl::string_view reason_phrase, bool fin = false);
-  absl::Status SendRequestError(uint64_t request_id, MoqtRequestErrorInfo info,
-                                bool fin = false);
+      absl::string_view reason_phrase);
+  absl::Status SendRequestError(const MoqtRequestErrorInfo& info);
   // Can be overridden for message-specific constraints.
   virtual absl::Status SendRequestUpdate(uint64_t request_id,
                                          uint64_t existing_request_id,
@@ -117,6 +116,7 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
     if (stream() != nullptr) {
       stream()->ResetWithUserCode(error);
     }
+    stream_status_ = MoqtStreamErrorToStatus(error, "");
     Detach();
   }
 
@@ -127,6 +127,11 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
     }
   }
 
+  // Returns the status of the stream, set from any incoming RESET_STREAM/
+  // STOP_SENDING message, and used any time the stream needs to send those
+  // frames without any explicit guidance.
+  absl::Status stream_status() const { return stream_status_; }
+
   MoqtFramer* framer() const { return framer_; }
 
   // Removes any state in MoqtSession related to the stream. Overrides of this
@@ -134,6 +139,10 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   // or RESET. If otherwise destroyed, it's due to a larger cleanup where the
   // state no longer matters.
   virtual void Detach() = 0;
+
+  webtransport::StreamId stream_id() const {
+    return stream() != nullptr ? stream()->GetStreamId() : 0;
+  }
 
  protected:
   // Called when a WebTransport stream has been associated with the object.
@@ -161,6 +170,7 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   webtransport::Stream* stream() const {
     return stream_parser_.has_value() ? stream_parser_->stream() : nullptr;
   }
+  void set_status(absl::Status status) { stream_status_ = status; }
 
  private:
   friend class test::MoqtBidiStreamTestWrapper;
@@ -171,6 +181,7 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   MoqtControlMessageQueue outgoing_message_queue_;
   MoqtRequestUpdateQueue request_update_queue_;
   SessionErrorCallback session_error_callback_;
+  absl::Status stream_status_ = absl::OkStatus();
 };
 
 // DispatchControlMessage is wrapped into a class so that the caller class can

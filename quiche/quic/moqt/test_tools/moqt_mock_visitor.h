@@ -21,15 +21,16 @@
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_live_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
+#include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
-#include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
-#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
@@ -91,11 +92,12 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   MOCK_METHOD(std::optional<quic::QuicTimeDelta>, expiration, (),
               (const, override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, StandaloneFetch,
-              (Location, Location, MoqtDeliveryOrder), (override));
+              (Location, Location, MoqtDeliveryOrder, FetchResponseCallback),
+              (override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, RelativeFetch,
-              (uint64_t, MoqtDeliveryOrder), (override));
+              (uint64_t, MoqtDeliveryOrder, FetchResponseCallback), (override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, AbsoluteFetch,
-              (uint64_t, MoqtDeliveryOrder), (override));
+              (uint64_t, MoqtDeliveryOrder, FetchResponseCallback), (override));
 
  private:
   FullTrackName track_name_;
@@ -134,19 +136,31 @@ class TestTrackPublisher : public MoqtTrackPublisher {
   }
   // TODO(martinduke): Support Fetch
   std::unique_ptr<MoqtFetchTask> StandaloneFetch(
-      Location start, Location end, MoqtDeliveryOrder delivery_order) override {
-    return std::make_unique<MoqtFailedFetch>(
-        absl::UnimplementedError("Fetch not implemented"));
+      Location start, Location end, MoqtDeliveryOrder delivery_order,
+      FetchResponseCallback callback) override {
+    std::move(callback)(MoqtRequestErrorInfo{
+        .error_code = RequestErrorCode::kDoesNotExist,
+        .reason_phrase = "Fetch not implemented",
+    });
+    return nullptr;
   }
   std::unique_ptr<MoqtFetchTask> RelativeFetch(
-      uint64_t offset, MoqtDeliveryOrder delivery_order) override {
-    return std::make_unique<MoqtFailedFetch>(
-        absl::UnimplementedError("Fetch not implemented"));
+      uint64_t offset, MoqtDeliveryOrder delivery_order,
+      FetchResponseCallback callback) override {
+    std::move(callback)(MoqtRequestErrorInfo{
+        .error_code = RequestErrorCode::kDoesNotExist,
+        .reason_phrase = "Fetch not implemented",
+    });
+    return nullptr;
   }
   std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
-      uint64_t offset, MoqtDeliveryOrder delivery_order) override {
-    return std::make_unique<MoqtFailedFetch>(
-        absl::UnimplementedError("Fetch not implemented"));
+      uint64_t offset, MoqtDeliveryOrder delivery_order,
+      FetchResponseCallback callback) override {
+    std::move(callback)(MoqtRequestErrorInfo{
+        .error_code = RequestErrorCode::kDoesNotExist,
+        .reason_phrase = "Fetch not implemented",
+    });
+    return nullptr;
   }
   void AddObject(Location location, uint64_t subgroup,
                  absl::string_view payload, bool fin,
@@ -226,15 +240,8 @@ class MockPublishingMonitorInterface : public MoqtPublishingMonitorInterface {
 class MockFetchTask : public MoqtFetchTask {
  public:
   MockFetchTask() {};  // No synchronous callbacks.
-  MockFetchTask(std::optional<MoqtFetchOk> fetch_ok,
-                std::optional<MoqtRequestError> fetch_error,
-                bool synchronous_object_available)
-      : synchronous_fetch_ok_(fetch_ok),
-        synchronous_fetch_error_(fetch_error),
-        synchronous_object_available_(synchronous_object_available) {
-    QUICHE_DCHECK(!synchronous_fetch_ok_.has_value() ||
-                  !synchronous_fetch_error_.has_value());
-  }
+  explicit MockFetchTask(bool synchronous_object_available)
+      : synchronous_object_available_(synchronous_object_available) {}
 
   MOCK_METHOD(MoqtFetchTask::GetNextObjectResult, GetNextObject,
               (PublishedObject & output), (override));
@@ -246,35 +253,58 @@ class MockFetchTask : public MoqtFetchTask {
       // The first call is installed by the session to trigger stream creation.
       // An object might not exist yet.
       objects_available_callback_();
+      // This class could be destroyed by the line above.
+      return;
     }
     // The second call is a result of the stream replacing the callback, which
     // means there is an object available.
     synchronous_object_available_ = true;
   }
-  void SetFetchResponseCallback(FetchResponseCallback callback) override {
-    if (synchronous_fetch_ok_.has_value()) {
-      std::move(callback)(*synchronous_fetch_ok_);
-      return;
-    }
-    if (synchronous_fetch_error_.has_value()) {
-      std::move(callback)(*synchronous_fetch_error_);
-      return;
-    }
-    fetch_response_callback_ = std::move(callback);
-  }
 
   void CallObjectsAvailableCallback() { objects_available_callback_(); };
-  void CallFetchResponseCallback(
-      std::variant<MoqtFetchOk, MoqtRequestError> response) {
-    std::move(fetch_response_callback_)(response);
-  }
 
  private:
-  FetchResponseCallback fetch_response_callback_;
   ObjectsAvailableCallback objects_available_callback_;
-  std::optional<MoqtFetchOk> synchronous_fetch_ok_;
-  std::optional<MoqtRequestError> synchronous_fetch_error_;
   bool synchronous_object_available_ = false;
+};
+
+class MockUpstreamFetchTask : public UpstreamFetchTask {
+ public:
+  MockUpstreamFetchTask() {
+    ON_CALL(*this, HasObject).WillByDefault([this]() {
+      return UpstreamFetchTask::HasObject();
+    });
+    ON_CALL(*this, NeedsMorePayload).WillByDefault([this]() {
+      return UpstreamFetchTask::NeedsMorePayload();
+    });
+  }
+  ~MockUpstreamFetchTask() override = default;
+
+  MOCK_METHOD(void, set_can_read_callback, (CanReadCallback callback),
+              (override));
+  MOCK_METHOD(void, set_task_destroyed_callback,
+              (TaskDestroyedCallback callback), (override));
+  MOCK_METHOD(void, NewObject, (const MoqtObject& message), (override));
+  MOCK_METHOD(void, AppendPayloadToObject, (absl::string_view payload),
+              (override));
+  MOCK_METHOD(bool, HasObject, (), (const, override));
+  MOCK_METHOD(bool, NeedsMorePayload, (), (const, override));
+  MOCK_METHOD(void, NotifyNewObject, (), (override));
+  MOCK_METHOD(void, OnStreamAndFetchClosed, (absl::Status status), (override));
+};
+
+class MockSessionToUniStreamInterface : public SessionToUniStreamInterface {
+ public:
+  MockSessionToUniStreamInterface() = default;
+  ~MockSessionToUniStreamInterface() override = default;
+
+  MOCK_METHOD(bool, deliver_partial_objects, (), (const, override));
+  MOCK_METHOD(void, OnMalformedTrack, (ObjectSubscriber*), (override));
+  MOCK_METHOD(quiche::QuicheWeakPtr<ObjectSubscriber>, GetSubscribe, (uint64_t),
+              (override));
+  MOCK_METHOD(quiche::QuicheWeakPtr<ObjectSubscriber>, GetFetch, (uint64_t),
+              (override));
+  MOCK_METHOD(void, Error, (MoqtError, absl::string_view), (override));
 };
 
 class MockNamespaceTask : public MoqtNamespaceTask {

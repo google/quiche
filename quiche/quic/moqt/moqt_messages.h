@@ -22,6 +22,7 @@
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
 
@@ -211,7 +212,6 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kNamespaceDone = 0x0e,
   kGoAway = 0x10,
   kFetch = 0x16,
-  kFetchCancel = 0x17,
   kFetchOk = 0x18,
   kPublish = 0x1d,
   kSubscribeNamespace = 0x50,
@@ -362,12 +362,7 @@ class QUICHE_EXPORT MoqtFetchSerialization {
   uint64_t value_ = 0;
 };
 
-struct QUICHE_EXPORT MoqtRequestError {
-  uint64_t request_id;
-  RequestErrorCode error_code;
-  std::optional<quic::QuicTimeDelta> retry_interval;
-  std::string reason_phrase;
-};
+using MoqtRequestError = MoqtRequestErrorInfo;
 
 struct QUICHE_EXPORT MoqtSubscribe {
   uint64_t request_id;
@@ -485,17 +480,7 @@ struct QUICHE_EXPORT MoqtFetch {
   MessageParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtFetchOk {
-  uint64_t request_id;
-  bool end_of_track;
-  Location end_location;
-  MessageParameters parameters;
-  TrackExtensions extensions;
-};
-
-struct QUICHE_EXPORT MoqtFetchCancel {
-  uint64_t request_id;
-};
+using MoqtFetchOk = FetchOkData;
 
 struct QUICHE_EXPORT MoqtPublish {
   uint64_t request_id;

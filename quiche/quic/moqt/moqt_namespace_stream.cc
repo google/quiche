@@ -62,22 +62,14 @@ absl::Status MoqtSubscribeNamespaceRequestStream::OnControlMessage(
     // This is irrelevant.
     return absl::OkStatus();
   }
-  MoqtResponseCallback callback = task->GetResponseCallback(message.request_id);
-  if (callback == nullptr) {
-    return absl::InvalidArgumentError("Unexpected request ID in response");
-  }
-  std::move(callback)(message.parameters);
-  return absl::OkStatus();
+  // TODO(martinduke): update parameters.
+  return request_update_queue().OnControlMessage(message);
 }
 
 absl::Status MoqtSubscribeNamespaceRequestStream::OnControlMessage(
     const MoqtRequestError& message) {
-  if (message.request_id == request_id_) {
-    if (response_callback_ == nullptr) {
-      return absl::InvalidArgumentError("Two responses");
-    }
-    std::move(response_callback_)(MoqtRequestErrorInfo{
-        message.error_code, message.retry_interval, message.reason_phrase});
+  if (response_callback_ != nullptr) {
+    std::move(response_callback_)(message);
     response_callback_ = nullptr;
     return absl::OkStatus();
   }
@@ -87,13 +79,7 @@ absl::Status MoqtSubscribeNamespaceRequestStream::OnControlMessage(
     // This is irrelevant.
     return absl::OkStatus();
   }
-  MoqtResponseCallback callback = task->GetResponseCallback(message.request_id);
-  if (callback == nullptr) {
-    return absl::InvalidArgumentError("Unexpected request ID in response");
-  }
-  std::move(callback)(MoqtRequestErrorInfo{
-      message.error_code, message.retry_interval, message.reason_phrase});
-  return absl::OkStatus();
+  return request_update_queue().OnControlMessage(message);
 }
 
 absl::Status MoqtSubscribeNamespaceRequestStream::OnControlMessage(
@@ -185,7 +171,8 @@ void MoqtSubscribeNamespaceRequestStream::NamespaceTask::Update(
     return;
   }
   MoqtRequestUpdate message{next_request_id_, state_->request_id_, parameters};
-  pending_updates_[message.request_id] = std::move(response_callback);
+  state_->request_update_queue().Enqueue(parameters,
+                                         std::move(response_callback));
   state_->SendOrBufferMessageOrFatal(
       state_->framer()->SerializeRequestUpdate(message));
   next_request_id_ += 2;
@@ -234,18 +221,6 @@ void MoqtSubscribeNamespaceRequestStream::NamespaceTask::DeclareEof() {
   }
 }
 
-MoqtResponseCallback
-MoqtSubscribeNamespaceRequestStream::NamespaceTask::GetResponseCallback(
-    uint64_t request_id) {
-  auto it = pending_updates_.find(request_id);
-  if (it == pending_updates_.end()) {
-    return nullptr;
-  }
-  MoqtResponseCallback callback = std::move(it->second);
-  pending_updates_.erase(it);
-  return callback;
-}
-
 MoqtSubscribeNamespaceResponseStream::MoqtSubscribeNamespaceResponseStream(
     MoqtFramer* framer, const MoqtControlMessageParser& message_parser,
     AddPrefixCallback add_callback, RemovePrefixCallback remove_callback,
@@ -272,8 +247,7 @@ absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
   }
   if (!std::move(add_callback_)(message.track_namespace_prefix)) {
     add_callback_ = nullptr;
-    return SendRequestError(request_id_, RequestErrorCode::kPrefixOverlap,
-                            std::nullopt, "", /*fin=*/true);
+    return SendRequestError(RequestErrorCode::kPrefixOverlap, std::nullopt, "");
   }
   add_callback_ = nullptr;
   QUICHE_DCHECK(task_ == nullptr);
@@ -368,18 +342,17 @@ MoqtResponseCallback MoqtSubscribeNamespaceResponseStream::ResponseCallback(
     uint64_t request_id) {
   return [this, request_id](
              std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
-    std::visit(absl::Overload{
-                   [this, request_id](const MessageParameters& parameters) {
-                     // In draft-18, there are no useful parameters in
-                     // SUBSCRIBE_NAMESPACE_OK, but Issue #1639 would change
-                     // that.
-                     CheckStatus(SendRequestOk(request_id, parameters));
-                   },
-                   [this, request_id](const MoqtRequestErrorInfo& error_info) {
-                     CheckStatus(SendRequestError(request_id, error_info,
-                                                  /*fin=*/true));
-                   }},
-               response);
+    std::visit(
+        absl::Overload{[this, request_id](const MessageParameters& parameters) {
+                         // In draft-18, there are no useful parameters in
+                         // SUBSCRIBE_NAMESPACE_OK, but Issue #1639 would change
+                         // that.
+                         CheckStatus(SendRequestOk(request_id, parameters));
+                       },
+                       [this](const MoqtRequestErrorInfo& error_info) {
+                         CheckStatus(SendRequestError(error_info));
+                       }},
+        response);
   };
 }
 

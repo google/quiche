@@ -12,6 +12,7 @@
 #include <utility>
 
 #include "absl/base/nullability.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
@@ -25,12 +26,13 @@
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
-#include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_weak_ptr.h"
+#include "quiche/web_transport/stream_helpers.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -173,7 +175,7 @@ class QUICHE_EXPORT OutgoingSubgroupStream : public OutgoingUniStream {
   std::unique_ptr<quic::QuicAlarm> delivery_timeout_alarm_;
 };
 
-using FetchStreamCloseCallback = quiche::SingleUseCallback<void()>;
+using FetchStreamCloseCallback = quiche::SingleUseCallback<void(absl::Status)>;
 
 class QUICHE_EXPORT OutgoingFetchStream : public OutgoingUniStream {
  public:
@@ -190,7 +192,19 @@ class QUICHE_EXPORT OutgoingFetchStream : public OutgoingUniStream {
   void OnCanWrite() override;
   void OnStopSendingReceived(webtransport::StreamErrorCode error_code) override;
 
+  void Init();
+
+  void OnBidiStreamReset(webtransport::StreamErrorCode error_code) {
+    status_ = MoqtStreamErrorToStatus(error_code, "reset");
+    close_callback_ = nullptr;  // No need to inform the bidi stream.
+    stream().ResetWithUserCode(error_code);
+    Detach();
+  }
+
  private:
+  void Detach();
+
+  absl::Status status_ = absl::OkStatus();
   std::unique_ptr<MoqtFetchTask> incoming_objects_;
   FetchStreamCloseCallback close_callback_;
 };
@@ -226,21 +240,24 @@ class QUICHE_EXPORT IncomingDataStream : public webtransport::StreamVisitor,
   // webtransport::StreamVisitor implementation.
   void OnCanRead() override;
   void OnCanWrite() override {}
-  void OnResetStreamReceived(webtransport::StreamErrorCode) override {}
-  void OnStopSendingReceived(webtransport::StreamErrorCode /*error*/) override {
+  void OnResetStreamReceived(webtransport::StreamErrorCode error) override {
+    status_ = MoqtStreamErrorToStatus(error, "reset");
+    Detach();
   }
+  void OnStopSendingReceived(webtransport::StreamErrorCode) override {}
   void OnWriteSideInDataRecvdState() override {}
 
   // MoqtParserVisitor implementation.
-  // TODO: Handle a stream FIN.
   void OnObjectMessage(const MoqtObject& message, absl::string_view payload,
                        bool end_of_message) override;
-  void OnFin() override { fin_received_ = true; }
+  void OnFin() override { Detach(); }
   void OnParsingError(MoqtError error_code, absl::string_view reason) override;
 
   webtransport::Stream* stream() const { return stream_; }
 
   void MaybeReadOneObject();
+
+  virtual void set_fetch_task(UpstreamFetchTask* fetch_task);
 
  private:
   friend class test::MoqtSessionPeer;
@@ -248,11 +265,14 @@ class QUICHE_EXPORT IncomingDataStream : public webtransport::StreamVisitor,
     return parser_.stream_type().has_value() &&
            parser_.stream_type()->IsFetch();
   }
+  // Notifies ObjectSubscriber and UpstreamFetchTask that the stream is being
+  // destroyed.
+  void Detach();
 
   uint64_t next_object_id_ = 0;
   bool no_more_objects_ = false;  // EndOfGroup or EndOfTrack was received.
   std::optional<DataStreamIndex> index_;  // Only set for subscribe.
-  bool fin_received_ = false;
+  absl::Status status_ = absl::OkStatus();
   webtransport::Stream* stream_;
   SubscribeVisitor* visitor_ = nullptr;
   // Once the subscribe ID is identified, set it here.
@@ -260,6 +280,7 @@ class QUICHE_EXPORT IncomingDataStream : public webtransport::StreamVisitor,
   MoqtDataParser parser_;
   std::string partial_object_;
   uint64_t bytes_received_this_object_ = 0;
+  UpstreamFetchTask* fetch_task_ = nullptr;  // FETCH only.
   SessionToUniStreamInterface* session_;
   const quic::QuicClock* absl_nonnull clock_;
 };

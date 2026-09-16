@@ -78,12 +78,7 @@ absl::Status MoqtPublishRequestStream::OnControlMessage(
 
 absl::Status MoqtPublishRequestStream::OnControlMessage(
     const MoqtRequestError& message) {
-  if (message.request_id != publisher_->request_id()) {
-    return absl::InvalidArgumentError(
-        "REQUEST_OK does not match PUBLISH request ID");
-  }
-  std::move(response_callback_)(MoqtRequestErrorInfo{
-      message.error_code, message.retry_interval, message.reason_phrase});
+  std::move(response_callback_)(message);
   return absl::OkStatus();
 }
 
@@ -133,10 +128,8 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
   subscriber_ = std::make_unique<LiveSubscriber>(message, nullptr, this);
   if (!std::move(add_callback_)(subscriber_.get())) {
     add_callback_ = nullptr;
-    return SendRequestError(message.request_id,
-                            RequestErrorCode::kDuplicateSubscription,
-                            /*retry_interval=*/std::nullopt, "",
-                            /*fin=*/true);
+    return SendRequestError(RequestErrorCode::kDuplicateSubscription,
+                            /*retry_interval=*/std::nullopt, "");
   }
   add_callback_ = nullptr;
   if (subscriber_->visitor() == nullptr) {
@@ -157,8 +150,8 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
                                    request_id, parameters, /*fin=*/false));
                              },
                              [&](const MoqtRequestErrorInfo& error_info) {
-                               stream->CheckStatus(stream->SendRequestError(
-                                   request_id, error_info, /*fin=*/true));
+                               stream->CheckStatus(
+                                   stream->SendRequestError(error_info));
                              }},
               response);
         }));
@@ -171,10 +164,8 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
   incoming_publish_callback_ = nullptr;
   if (subscriber_->visitor() == nullptr) {
     // The application doesn't care.
-    CheckStatus(SendRequestError(message.request_id,
-                                 RequestErrorCode::kUninterested,
-                                 /*retry_interval=*/std::nullopt, "",
-                                 /*fin=*/true));
+    CheckStatus(SendRequestError(RequestErrorCode::kUninterested,
+                                 /*retry_interval=*/std::nullopt, ""));
     return absl::OkStatus();
   }
   // Notify the visitor.

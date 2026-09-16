@@ -67,13 +67,6 @@ struct QUICHE_EXPORT MoqtSessionParameters {
   void ToSetupParameters(SetupParameters& out) const;
 };
 
-
-// MoqtSession calls this when a FETCH_OK or REQUEST_ERROR is received. The
-// destination of the callback owns |fetch_task| and MoqtSession will react
-// safely if the owner destroys it.
-using FetchResponseCallback =
-    quiche::SingleUseCallback<void(std::unique_ptr<MoqtFetchTask> fetch_task)>;
-
 class MoqtSessionInterface {
  public:
   virtual ~MoqtSessionInterface() = default;
@@ -119,15 +112,14 @@ class MoqtSessionInterface {
       const MessageParameters& parameters, const TrackExtensions& extensions,
       MoqtResponseCallback response_callback) = 0;
 
-  // Sends a FETCH for a pre-specified object range.  Once a FETCH_OK or a
-  // FETCH_ERROR is received, `callback` is called with a MoqtFetchTask that can
-  // be used to process the FETCH further.  To cancel a FETCH, simply destroy
-  // the MoqtFetchTask.
-  virtual bool Fetch(const FullTrackName& name, FetchResponseCallback callback,
-                     Location start, uint64_t end_group,
-                     std::optional<uint64_t> end_object,
-                     MessageParameters parameters) = 0;
-
+  // Sends a FETCH for a pre-specified object range. Once a FETCH_OK or a
+  // FETCH_ERROR is received, `callback` is called with the result.  To cancel a
+  // FETCH, simply destroy the provided MoqtFetchTask. Returns nullptr if the
+  // FETCH cannot be sent.
+  virtual std::unique_ptr<MoqtFetchTask> Fetch(
+      const FullTrackName& name, FetchResponseCallback callback, Location start,
+      uint64_t end_group, std::optional<uint64_t> end_object,
+      const MessageParameters& parameters) = 0;
   // Sends both a SUBSCRIBE and a joining FETCH, beginning `num_previous_groups`
   // groups before the current group. The Fetch will not be flow controlled,
   // instead using |visitor| to deliver fetched objects when they arrive. Gaps
@@ -137,16 +129,15 @@ class MoqtSessionInterface {
   virtual bool RelativeJoiningFetch(const FullTrackName& name,
                                     SubscribeVisitor* visitor,
                                     uint64_t num_previous_groups,
-                                    MessageParameters parameters) = 0;
-
+                                    const MessageParameters& parameters) = 0;
   // Sends both a SUBSCRIBE and a joining FETCH, beginning `num_previous_groups`
   // groups before the current group.  `callback` acts the same way as the
   // callback for the regular Fetch() call.
-  virtual bool RelativeJoiningFetch(const FullTrackName& name,
-                                    SubscribeVisitor* visitor,
-                                    FetchResponseCallback callback,
-                                    uint64_t num_previous_groups,
-                                    MessageParameters parameters) = 0;
+  virtual std::unique_ptr<MoqtFetchTask> RelativeJoiningFetch(
+      const FullTrackName& name, SubscribeVisitor* visitor,
+      FetchResponseCallback callback, uint64_t num_previous_groups,
+      const MessageParameters& parameters) = 0;
+
   // Send a PUBLISH_NAMESPACE message for |track_namespace|, and call
   // |response_callback| when the response arrives. Will fail
   // immediately if there is already an unresolved PUBLISH_NAMESPACE for that

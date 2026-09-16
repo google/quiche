@@ -172,8 +172,6 @@ class MoqtControlMessageParser {
   absl::StatusOr<MoqtSubscribeTracks> ProcessSubscribeTracks(
       absl::string_view data) const;
   absl::StatusOr<MoqtFetch> ProcessFetch(absl::string_view data) const;
-  absl::StatusOr<MoqtFetchCancel> ProcessFetchCancel(
-      absl::string_view data) const;
   absl::StatusOr<MoqtFetchOk> ProcessFetchOk(absl::string_view data) const;
   absl::StatusOr<MoqtPublish> ProcessPublish(absl::string_view data) const;
   absl::StatusOr<MoqtObjectAck> ProcessObjectAck(absl::string_view data) const;
@@ -224,8 +222,6 @@ class MoqtControlMessageParser {
         return parse(&MoqtControlMessageParser::ProcessSubscribeTracks);
       case MoqtMessageType::kFetch:
         return parse(&MoqtControlMessageParser::ProcessFetch);
-      case MoqtMessageType::kFetchCancel:
-        return parse(&MoqtControlMessageParser::ProcessFetchCancel);
       case MoqtMessageType::kFetchOk:
         return parse(&MoqtControlMessageParser::ProcessFetchOk);
       case MoqtMessageType::kPublish:

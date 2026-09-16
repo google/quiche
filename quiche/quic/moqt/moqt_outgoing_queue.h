@@ -27,6 +27,7 @@
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_mem_slice.h"
@@ -75,13 +76,16 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   const TrackExtensions& extensions() const override { return extensions_; }
 
   std::unique_ptr<MoqtFetchTask> StandaloneFetch(
-      Location start, Location end, MoqtDeliveryOrder order) override;
+      Location start, Location end, MoqtDeliveryOrder order,
+      FetchResponseCallback callback) override;
   // Joining Fetch functions should never be called because subscriptions are
   // never pending in MoqtOutgoingQueue.
   std::unique_ptr<MoqtFetchTask> RelativeFetch(
-      uint64_t group_diff, MoqtDeliveryOrder order) override;
+      uint64_t group_diff, MoqtDeliveryOrder order,
+      FetchResponseCallback callback) override;
   std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
-      uint64_t group, MoqtDeliveryOrder order) override;
+      uint64_t group, MoqtDeliveryOrder order,
+      FetchResponseCallback callback) override;
 
   bool HasSubscribers() const { return !listeners_.empty(); }
 
@@ -123,31 +127,6 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
       // Not needed since all objects in a fetch against an in-memory queue are
       // guaranteed to resolve immediately.
       callback();
-    }
-    void SetFetchResponseCallback(FetchResponseCallback callback) override {
-      if (!status_.ok()) {
-        MoqtRequestError error(0, StatusToRequestErrorCode(status_),
-                               std::nullopt, std::string(status_.message()));
-        std::move(callback)(error);
-        return;
-      }
-      if (objects_.empty()) {
-        MoqtRequestError error(0, StatusToRequestErrorCode(status_),
-                               std::nullopt, "No objects in range");
-        std::move(callback)(error);
-        return;
-      }
-      MoqtFetchOk ok;
-      ok.end_location = *(objects_.crbegin());
-      if (objects_.size() > 1 && *(objects_.cbegin()) > ok.end_location) {
-        ok.extensions = TrackExtensions(
-            std::nullopt, std::nullopt, std::nullopt,
-            MoqtDeliveryOrder::kDescending, std::nullopt, std::nullopt);
-        ok.end_location = *(objects_.cbegin());
-      }
-      ok.end_of_track =
-          queue_->closed_ && ok.end_location == queue_->largest_location();
-      std::move(callback)(ok);
     }
 
    private:

@@ -65,6 +65,17 @@ class SubscribeVisitor {
                              DataStreamIndex stream) = 0;
 };
 
+struct FetchOkData {
+  bool end_of_track = false;
+  Location end_location;
+  MessageParameters parameters;
+  TrackExtensions extensions;
+  bool operator==(const FetchOkData& other) const = default;
+};
+
+using FetchResponseCallback = quiche::SingleUseCallback<void(
+    std::variant<FetchOkData, MoqtRequestErrorInfo>)>;
+
 // Called when the SETUP message from the peer is received.
 using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
 

@@ -20,13 +20,11 @@
 
 namespace moqt::test {
 
-using AnyMoqtControlMessage =
-    std::variant<MoqtSetup, MoqtRequestOk, MoqtRequestError, MoqtSubscribe,
-                 MoqtSubscribeOk, MoqtPublishDone, MoqtRequestUpdate,
-                 MoqtPublishNamespace, MoqtTrackStatus, MoqtGoAway,
-                 MoqtSubscribeNamespace, MoqtSubscribeTracks, MoqtFetch,
-                 MoqtFetchCancel, MoqtFetchOk, MoqtPublish, MoqtNamespace,
-                 MoqtNamespaceDone, MoqtObjectAck>;
+using AnyMoqtControlMessage = std::variant<
+    MoqtSetup, MoqtRequestOk, MoqtRequestError, MoqtSubscribe, MoqtSubscribeOk,
+    MoqtPublishDone, MoqtRequestUpdate, MoqtPublishNamespace, MoqtTrackStatus,
+    MoqtGoAway, MoqtSubscribeNamespace, MoqtSubscribeTracks, MoqtFetch,
+    MoqtFetchOk, MoqtPublish, MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
 
 std::string SerializeGenericMessage(const AnyMoqtControlMessage& frame,
                                     bool use_webtrans = false);

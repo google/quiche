@@ -18,7 +18,6 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/container/node_hash_map.h"
-#include "absl/functional/bind_front.h"
 #include "absl/memory/memory.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -29,6 +28,7 @@
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_stream.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
@@ -179,7 +179,7 @@ void MoqtSession::OnIncomingBidirectionalStreamAvailable() {
       options.set_send_fin(true);
       std::array write_vector = {
           quiche::QuicheMemSlice(framer_.SerializeRequestError(MoqtRequestError{
-              0, RequestErrorCode::kGoingAway, std::nullopt, ""}))};
+              RequestErrorCode::kGoingAway, std::nullopt, ""}))};
       if (!stream->Writev(absl::MakeSpan(write_vector), options).ok()) {
         stream->ResetWithUserCode(kResetCodeSessionClosed);
       };
@@ -610,80 +610,116 @@ bool MoqtSession::Publish(
   return true;
 }
 
-bool MoqtSession::Fetch(const FullTrackName& name,
-                        FetchResponseCallback callback, Location start,
-                        uint64_t end_group, std::optional<uint64_t> end_object,
-                        MessageParameters parameters) {
+std::unique_ptr<MoqtFetchTask> MoqtSession::Fetch(
+    const FullTrackName& name, FetchResponseCallback callback, Location start,
+    uint64_t end_group, std::optional<uint64_t> end_object,
+    const MessageParameters& parameters) {
   QUICHE_DCHECK(name.IsValid());
   if (received_goaway_ || sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH after GOAWAY";
+    return nullptr;
+  }
+  webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
+  if (stream == nullptr) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH but no more streams";
+    return nullptr;
+  }
+  uint64_t request_id = NextRequestId();
+  auto task = std::make_unique<UpstreamFetchTask>();
+  auto fetch = std::make_unique<MoqtFetchRequestStream>(
+      &framer_, ControlMessageParser(), request_id, name, start,
+      Location(end_group, end_object.value_or(kMaxObjectId)), parameters,
+      task.get(),
+      [weak_session = GetWeakPtr()](MoqtError code, absl::string_view reason) {
+        MoqtSession* session = MoqtSessionFromWeakPtr(weak_session);
+        if (session == nullptr) {
+          return;
+        }
+        session->Error(code, reason);
+      },
+      std::move(callback),
+      [weak_session = GetWeakPtr()](uint64_t request_id) {
+        MoqtSession* session = MoqtSessionFromWeakPtr(weak_session);
+        if (session == nullptr) {
+          return;
+        }
+        session->fetch_by_id_.erase(request_id);
+      });
+  MoqtFetchRequestStream* fetch_visitor = fetch.get();
+  fetch_by_id_.emplace(request_id, fetch_visitor);
+  stream->SetVisitor(std::move(fetch));
+  fetch_visitor->BindStream(stream);
+  return task;
+}
+
+bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
+                                       SubscribeVisitor* visitor,
+                                       uint64_t num_previous_groups,
+                                       const MessageParameters& parameters) {
+  QUICHE_DCHECK(name.IsValid());
+  std::unique_ptr<MoqtFetchTask> fetch_task = RelativeJoiningFetch(
+      name, visitor, [](std::variant<FetchOkData, MoqtRequestErrorInfo>) {},
+      num_previous_groups, parameters);
+  if (fetch_task == nullptr) {
     return false;
   }
-  MoqtFetch message;
-  Location end_location = end_object.has_value()
-                              ? Location(end_group, *end_object)
-                              : Location(end_group, kMaxObjectId);
-  message.fetch = StandaloneFetch(name, start, end_location);
-  message.request_id = next_request_id_;
-  next_request_id_ += 2;
-  message.parameters = parameters;
-  SendControlMessage(framer_.SerializeFetch(message));
-  QUIC_DLOG(INFO) << ENDPOINT << "Sent FETCH message for " << name;
-  auto fetch = std::make_unique<UpstreamFetch>(
-      message, std::get<StandaloneFetch>(message.fetch), std::move(callback),
-      [this, id = message.request_id]() {
-        fetch_by_id_.erase(id);  // Deletion callback
-      });
-  fetch_by_id_.emplace(message.request_id, std::move(fetch));
+  LiveSubscriber* subscribe = SubscribeByName(name);
+  if (subscribe == nullptr || subscribe->is_fetch()) {
+    // fetch_task will be released on exit.
+    return false;
+  }
+  subscribe->OnJoiningFetchReady(std::move(fetch_task));
   return true;
 }
 
-bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
-                                       SubscribeVisitor* visitor,
-                                       uint64_t num_previous_groups,
-                                       MessageParameters parameters) {
-  QUICHE_DCHECK(name.IsValid());
-  return RelativeJoiningFetch(
-      name, visitor,
-      [this, track_name = name](std::unique_ptr<MoqtFetchTask> fetch_task) {
-        // Move the fetch_task to the subscribe to plumb into its visitor.
-        LiveSubscriber* subscribe = SubscribeByName(track_name);
-        if (subscribe == nullptr || subscribe->is_fetch()) {
-          fetch_task.release();
-          return;
-        }
-        subscribe->OnJoiningFetchReady(std::move(fetch_task));
-      },
-      num_previous_groups, parameters);
-}
-
-bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
-                                       SubscribeVisitor* visitor,
-                                       FetchResponseCallback callback,
-                                       uint64_t num_previous_groups,
-                                       MessageParameters parameters) {
+std::unique_ptr<MoqtFetchTask> MoqtSession::RelativeJoiningFetch(
+    const FullTrackName& name, SubscribeVisitor* visitor,
+    FetchResponseCallback callback, uint64_t num_previous_groups,
+    const MessageParameters& parameters) {
   QUICHE_DCHECK(name.IsValid());
   MessageParameters subscribe_parameters = parameters;
   subscribe_parameters.subscription_filter.emplace(
       MoqtFilterType::kLargestObject);
+  uint64_t subscribe_request_id = next_request_id_;
   if (!Subscribe(name, visitor, subscribe_parameters)) {
-    return false;
+    return nullptr;
   }
-
-  MoqtFetch fetch;
-  fetch.request_id = next_request_id_;
-  next_request_id_ += 2;
-  fetch.fetch = JoiningFetchRelative{fetch.request_id - 2, num_previous_groups};
-  fetch.parameters = parameters;
-  SendControlMessage(framer_.SerializeFetch(fetch));
+  webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
+  if (stream == nullptr) {
+    // TODO(martinduke): This is a spot where the bool return value is not all
+    // that helpful, but the problem will go away when the whole transaction
+    // occurs on one stream.
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Tried to send JOINING FETCH but no more "
+                       "streams";
+    return nullptr;
+  }
   QUIC_DLOG(INFO) << ENDPOINT << "Sent Joining FETCH message for " << name;
-  auto upstream_fetch = std::make_unique<UpstreamFetch>(
-      fetch, name, std::move(callback),
-      /*Deletion callback=*/[this, id = fetch.request_id]() {
-        fetch_by_id_.erase(id);
+  uint64_t request_id = NextRequestId();
+  auto task = std::make_unique<UpstreamFetchTask>();
+  auto fetch = std::make_unique<MoqtFetchRequestStream>(
+      &framer_, ControlMessageParser(), request_id, name, subscribe_request_id,
+      num_previous_groups, /*relative=*/true, parameters, task.get(),
+      [weak_session = GetWeakPtr()](MoqtError code, absl::string_view reason) {
+        MoqtSession* session = MoqtSessionFromWeakPtr(weak_session);
+        if (session == nullptr) {
+          return;
+        }
+        session->Error(code, reason);
+      },
+      std::move(callback),
+      [weak_session = GetWeakPtr()](uint64_t request_id) {
+        MoqtSession* session = MoqtSessionFromWeakPtr(weak_session);
+        if (session == nullptr) {
+          return;
+        }
+        session->fetch_by_id_.erase(request_id);
       });
-  fetch_by_id_.emplace(fetch.request_id, std::move(upstream_fetch));
-  return true;
+  MoqtFetchRequestStream* fetch_visitor = fetch.get();
+  fetch_by_id_.emplace(request_id, fetch_visitor);
+  stream->SetVisitor(std::move(fetch));
+  fetch_visitor->BindStream(stream);
+  return task;
 }
 
 void MoqtSession::GoAway(absl::string_view new_session_uri) {
@@ -712,19 +748,38 @@ void MoqtSession::GoAwayTimeoutDelegate::OnAlarm() {
 }
 
 void MoqtSession::UpdateTrackPriority(
-    uint64_t request_id, std::optional<MoqtTrackPriority> old_priority,
+    const FullTrackName& name, std::optional<MoqtTrackPriority> old_priority,
     MoqtTrackPriority new_priority) {
   if (old_priority.has_value()) {
     auto [start, end] =
-        subscriptions_with_queued_streams_.equal_range(*old_priority);
+        requests_with_queued_streams_.equal_range(*old_priority);
     for (auto it = start; it != end; ++it) {
-      if (it->second == request_id) {
-        subscriptions_with_queued_streams_.erase(it);
+      if (std::holds_alternative<FullTrackName>(it->second) &&
+          std::get<FullTrackName>(it->second) == name) {
+        requests_with_queued_streams_.erase(it);
         break;
       }
     }
   }
-  subscriptions_with_queued_streams_.emplace(new_priority, request_id);
+  requests_with_queued_streams_.emplace(new_priority, name);
+}
+
+void MoqtSession::UpdateTrackPriority(
+    webtransport::StreamId stream_id,
+    std::optional<MoqtTrackPriority> old_priority,
+    MoqtTrackPriority new_priority) {
+  if (old_priority.has_value()) {
+    auto [start, end] =
+        requests_with_queued_streams_.equal_range(*old_priority);
+    for (auto it = start; it != end; ++it) {
+      if (std::holds_alternative<webtransport::StreamId>(it->second) &&
+          std::get<webtransport::StreamId>(it->second) == stream_id) {
+        requests_with_queued_streams_.erase(it);
+        break;
+      }
+    }
+  }
+  requests_with_queued_streams_.emplace(new_priority, stream_id);
 }
 
 std::shared_ptr<MoqtTrackPublisher> MoqtSession::GetTrackPublisher(
@@ -746,37 +801,6 @@ MoqtPublishingMonitorInterface* MoqtSession::ReleaseMonitoringInterface(
   return interface;
 }
 
-bool MoqtSession::OpenDataStream(PublishedFetch* fetch,
-                                 webtransport::SendOrder send_order) {
-  webtransport::Stream* new_stream =
-      session_->OpenOutgoingUnidirectionalStream();
-  if (new_stream == nullptr) {
-    QUICHE_BUG(MoqtSession_OpenDataStream_blocked)
-        << "OpenDataStream called when creation of new streams is blocked.";
-    return false;
-  }
-  fetch->SetStreamId(new_stream->GetStreamId());
-  // The line below will lead to updating ObjectsAvailableCallback in the
-  // FetchTask to call OnCanWrite() on the stream. If there is an object
-  // available, the callback will be invoked synchronously (i.e. before
-  // SetVisitor() returns).
-  new_stream->SetVisitor(std::make_unique<OutgoingFetchStream>(
-      framer_, new_stream, fetch->request_id(),
-      webtransport::StreamPriority{/*send_group_id=*/kMoqtSendGroupId,
-                                   send_order},
-      fetch->release_fetch_task(),
-      // use weakptr to avoid use-after-free for this.
-      [weakptr = GetWeakPtr(), request_id = fetch->request_id()]() {
-        if (weakptr.IsValid()) {
-          auto session =
-              absl::down_cast<MoqtSession*>(weakptr.GetIfAvailable());
-          session->incoming_fetches_.erase(request_id);
-        }
-      },
-      &trace_recorder_));
-  return true;
-}
-
 LiveSubscriber* MoqtSession::SubscribeByAlias(uint64_t track_alias) {
   auto it = subscribe_by_alias_.find(track_alias);
   if (it == subscribe_by_alias_.end()) {
@@ -793,36 +817,44 @@ LiveSubscriber* MoqtSession::SubscribeByName(const FullTrackName& track_name) {
   return it->second;
 }
 
-UpstreamFetch* MoqtSession::FetchById(uint64_t request_id) {
+MoqtFetchRequestStream* MoqtSession::FetchById(uint64_t request_id) {
   auto it = fetch_by_id_.find(request_id);
   if (it == fetch_by_id_.end()) {
     return nullptr;
   }
-  return it->second.get();
+  return it->second;
 }
 
 void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
-  while (!subscriptions_with_queued_streams_.empty() &&
+  while (!requests_with_queued_streams_.empty() &&
          session_->CanOpenNextOutgoingUnidirectionalStream()) {
-    auto next = subscriptions_with_queued_streams_.begin();
-    auto subscription = published_subscriptions_.find(next->second);
-    if (subscription == published_subscriptions_.end()) {
-      auto fetch = incoming_fetches_.find(next->second);
-      // Create the stream if the fetch still exists.
-      if (fetch != incoming_fetches_.end() &&
-          !OpenDataStream(fetch->second.get(),
-                          SendOrderForFetch(next->first.subscriber_priority))) {
-        return;  // A QUIC_BUG has fired because this shouldn't happen.
+    auto next = requests_with_queued_streams_.begin();
+    if (std::holds_alternative<FullTrackName>(next->second)) {
+      auto it =
+          subscribed_track_names_.find(std::get<FullTrackName>(next->second));
+      requests_with_queued_streams_.erase(next);
+      if (it != subscribed_track_names_.end()) {
+        it->second->OnCanCreateNewUniStream();
       }
-      // FETCH needs only one stream, and can be deleted from the queue. Or,
-      // there is no subscribe and no fetch; the entry in the queue is invalid.
-      subscriptions_with_queued_streams_.erase(next);
       continue;
     }
-    subscriptions_with_queued_streams_.erase(next);
-    // Pop the item from the subscription's queue, which might update
-    // subscriptions_with_queued_streams_ with a second pending stream.
-    subscription->second->OnCanCreateNewUniStream();
+    // FETCH.
+    webtransport::StreamId stream_id =
+        std::get<webtransport::StreamId>(next->second);
+    requests_with_queued_streams_.erase(next);
+    webtransport::Stream* stream = session_->GetStreamById(stream_id);
+    if (stream == nullptr) {
+      // The request is gone, so remove it from the queue and continue.
+      continue;
+    }
+    auto fetch = absl::down_cast<MoqtFetchResponseStream*>(stream->visitor());
+    if (fetch == nullptr) {
+      QUICHE_BUG(queued_uni_stream_invalid_request_type)
+          << "Unknown stream type for request " << stream_id;
+      continue;
+    }
+    fetch->OnDataStreamOpen(session_->OpenOutgoingUnidirectionalStream(),
+                            &trace_recorder_);
   }
 }
 
@@ -835,11 +867,6 @@ bool MoqtSession::ValidateRequestId(uint64_t request_id) {
   }
   // TODO(martinduke): Write new checks for duplicate request IDs. It's
   // probably best to track the largest observed plus a set of holes.
-  if (incoming_fetches_.contains(request_id)) {
-    QUICHE_DLOG(INFO) << ENDPOINT << "Duplicate request ID";
-    Error(MoqtError::kInvalidRequestId, "Duplicate request ID");
-    return false;
-  }
   return true;
 }
 
@@ -903,9 +930,8 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
       if (!queue
                .SendOrBufferMessage(
                    session_->framer_.SerializeRequestError(MoqtRequestError{
-                       /*request_id=*/0, RequestErrorCode::kNotSupported,
-                       std::nullopt, "SUBSCRIBE_TRACKS is not supported"}),
-                   /*fin=*/true)
+                       RequestErrorCode::kNotSupported, std::nullopt,
+                       "SUBSCRIBE_TRACKS is not supported"}))
                .ok()) {
         session_->Error(MoqtError::kInternalError, "Internal write error");
         return;
@@ -1083,6 +1109,67 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
       temp_stream->OnCanRead();
       break;
     }
+    case MoqtMessageType::kFetch: {
+      auto fetch_stream = std::make_unique<MoqtFetchResponseStream>(
+          &session_->framer_, session_->ControlMessageParser(),
+          session_->publisher_,
+          [weakptr = session_->GetWeakPtr()](MoqtError code,
+                                             absl::string_view reason) {
+            MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+            if (session != nullptr) {
+              session->Error(code, reason);
+            }
+          },
+          // OpenStreamCallback
+          [weakptr = session_->GetWeakPtr()](webtransport::StreamId stream_id,
+                                             MoqtTrackPriority priority) {
+            MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+            if (session == nullptr) {
+              return;
+            }
+            if (!session->session_->CanOpenNextOutgoingUnidirectionalStream()) {
+              session->UpdateTrackPriority(stream_id, std::nullopt, priority);
+              return;
+            }
+            webtransport::Stream* wt_stream =
+                session->session_->GetStreamById(stream_id);
+            if (wt_stream == nullptr) {
+              QUICHE_BUG(
+                  quiche_bug_OpenStreamCallback_called_by_nonexistent_stream)
+                  << "OpenStreamCallback called by non-existent stream "
+                  << stream_id;
+              return;
+            }
+            MoqtFetchResponseStream* response_stream =
+                absl::down_cast<MoqtFetchResponseStream*>(wt_stream->visitor());
+            if (response_stream == nullptr) {
+              QUICHE_BUG(quiche_bug_fetch_response_stream_not_found)
+                  << "Failed to get fetch response stream for id " << stream_id;
+              return;
+            }
+            response_stream->OnDataStreamOpen(
+                session->session_->OpenOutgoingUnidirectionalStream(),
+                &session->trace_recorder());
+          },
+          // GetSubscriptionCallback
+          [weakptr =
+               session_->GetWeakPtr()](uint64_t request_id) -> LivePublisher* {
+            MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+            if (session == nullptr) {
+              return nullptr;
+            }
+            auto it = session->published_subscriptions_.find(request_id);
+            if (it == session->published_subscriptions_.end()) {
+              return nullptr;
+            }
+            return it->second;
+          });
+      fetch_stream->BindStream(std::move(parser_));
+      MoqtFetchResponseStream* temp_stream = fetch_stream.get();
+      stream_->SetVisitor(std::move(fetch_stream));
+      temp_stream->OnCanRead();
+      break;
+    }
     default:
       session_->Error(MoqtError::kProtocolViolation,
                       "Unexpected message type received to start bidi stream");
@@ -1241,61 +1328,6 @@ absl::Status MoqtSession::OnControlMessage(const MoqtSetup& message) {
   return absl::OkStatus();
 }
 
-absl::Status MoqtSession::OnControlMessage(const MoqtRequestOk& message) {
-  if (fetch_by_id_.contains(message.request_id)) {
-    return absl::InvalidArgumentError("Received REQUEST_OK for FETCH");
-  }
-  // Response to PUBLISH/SUBSCRIBE_NAMESPACE is handled in the bidi stream..
-  // TRACK_STATUS response would go here, but we don't support upstream
-  // TRACK_STATUS.
-  // If it doesn't match any state, it might be because the local application
-  // cancelled the request. Do nothing.
-  // TODO(martinduke): Do something with parameters.
-  return absl::OkStatus();
-}
-
-absl::Status MoqtSession::OnControlMessage(const MoqtRequestError& message) {
-  MoqtRequestErrorInfo error_info{message.error_code, message.retry_interval,
-                                  message.reason_phrase};
-  // TODO(martinduke): Do something with retry_interval.
-  UpstreamFetch* fetch = FetchById(message.request_id);
-  if (fetch != nullptr) {
-    // It's in response to FETCH.
-    if (!fetch->ErrorIsAllowed()) {
-      return absl::InvalidArgumentError(
-          "Received REQUEST_ERROR after REQUEST_OK or objects");
-    }
-    QUIC_DLOG(INFO) << ENDPOINT << "Received the REQUEST_ERROR for "
-                    << "request_id = " << message.request_id << " ("
-                    << fetch->full_track_name() << ")"
-                    << ", error = " << static_cast<uint64_t>(message.error_code)
-                    << " (" << message.reason_phrase << ")";
-    absl::Status status =
-        RequestErrorCodeToStatus(message.error_code, message.reason_phrase);
-    fetch->OnFetchResult(Location(0, 0), status, nullptr);
-    if (!is_closing_) {
-      // The visitor might have closed the session.
-      fetch->Destroy();
-    }
-    return absl::OkStatus();
-  }
-  // Response to PUBLISH/SUBSCRIBE_NAMESPACE is handled in the bidi stream.
-  // TRACK_STATUS response would go here, but we don't support upstream
-  // TRACK_STATUS.
-  // If it doesn't match any state, it might be because the local application
-  // cancelled the request. Do nothing.
-  return absl::OkStatus();
-}
-
-absl::Status MoqtSession::OnControlMessage(const MoqtRequestUpdate& message) {
-  // TODO(martinduke): Check all the request types.
-  // Does not match any known request.
-  SendRequestErrorOnControlStream(message.request_id,
-                                  RequestErrorCode::kNotSupported, std::nullopt,
-                                  "No support for update of this type");
-  return absl::OkStatus();
-}
-
 absl::Status MoqtSession::OnControlMessage(const MoqtGoAway& message) {
   if (!message.new_session_uri.empty() &&
       perspective() == quic::Perspective::IS_SERVER) {
@@ -1312,206 +1344,18 @@ absl::Status MoqtSession::OnControlMessage(const MoqtGoAway& message) {
   return absl::OkStatus();
 }
 
-absl::Status MoqtSession::OnControlMessage(const MoqtFetch& message) {
-  if (!ValidateRequestId(message.request_id)) {
-    return absl::OkStatus();
-  }
-  if (sent_goaway_) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Received a FETCH after GOAWAY";
-    SendRequestErrorOnControlStream(message.request_id,
-                                    RequestErrorCode::kUnauthorized,
-                                    std::nullopt, "FETCH after GOAWAY");
-    return absl::OkStatus();
-  }
-  std::unique_ptr<MoqtFetchTask> fetch;
-  FullTrackName track_name;
-  if (std::holds_alternative<StandaloneFetch>(message.fetch)) {
-    const StandaloneFetch& standalone_fetch =
-        std::get<StandaloneFetch>(message.fetch);
-    track_name = standalone_fetch.full_track_name;
-    std::shared_ptr<MoqtTrackPublisher> track_publisher =
-        publisher_->GetTrack(track_name);
-    if (track_publisher == nullptr) {
-      QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
-                      << " rejected by the application: not found";
-      SendRequestErrorOnControlStream(message.request_id,
-                                      RequestErrorCode::kDoesNotExist,
-                                      std::nullopt, "not found");
-      return absl::OkStatus();
-    }
-    QUIC_DLOG(INFO) << ENDPOINT << "Received a StandaloneFETCH for "
-                    << track_name;
-    // The check for end_object < start_object is done in
-    // MoqtTrackPublisher::Fetch().
-    fetch = track_publisher->StandaloneFetch(
-        standalone_fetch.start_location, standalone_fetch.end_location,
-        message.parameters.group_order.value_or(MoqtDeliveryOrder::kAscending));
-  } else {
-    // Joining Fetch processing.
-    uint64_t joining_request_id =
-        std::holds_alternative<JoiningFetchRelative>(message.fetch)
-            ? std::get<struct JoiningFetchRelative>(message.fetch)
-                  .joining_request_id
-            : std::get<JoiningFetchAbsolute>(message.fetch).joining_request_id;
-    auto it = published_subscriptions_.find(joining_request_id);
-    if (it == published_subscriptions_.end()) {
-      QUIC_DLOG(INFO) << ENDPOINT << "Received a JOINING_FETCH for "
-                      << "request_id " << joining_request_id
-                      << " that does not exist";
-      SendRequestErrorOnControlStream(
-          message.request_id, RequestErrorCode::kInvalidJoiningRequestId,
-          std::nullopt, "Joining Fetch for non-existent request");
-      return absl::OkStatus();
-    }
-    if (!it->second->can_have_joining_fetch()) {
-      QUIC_DLOG(INFO) << ENDPOINT << "Received a JOINING_FETCH for "
-                      << "joining_request_id " << joining_request_id
-                      << " that is not forwarding";
-      return absl::InvalidArgumentError(
-          "Joining Fetch for non-forwarding subscribe");
-    }
-    track_name = it->second->publisher().GetTrackName();
-    if (it->second->established()) {
-      if (!it->second->parameters().largest_object.has_value()) {
-        // Nothing to Fetch.
-        SendRequestErrorOnControlStream(message.request_id,
-                                        RequestErrorCode::kDoesNotExist,
-                                        std::nullopt, "not found");
-        return absl::OkStatus();
-      }
-      const Location largest_location =
-          *it->second->parameters().largest_object;
-      uint64_t start_group;
-      if (std::holds_alternative<JoiningFetchRelative>(message.fetch)) {
-        const JoiningFetchRelative& relative_fetch =
-            std::get<JoiningFetchRelative>(message.fetch);
-        start_group =
-            (relative_fetch.joining_start > largest_location.group)
-                ? 0
-                : (largest_location.group - relative_fetch.joining_start);
-      } else {
-        const JoiningFetchAbsolute& absolute_fetch =
-            std::get<JoiningFetchAbsolute>(message.fetch);
-        start_group = absolute_fetch.joining_start;
-        if (start_group > largest_location.group) {
-          SendRequestErrorOnControlStream(message.request_id,
-                                          RequestErrorCode::kInvalidRange,
-                                          std::nullopt, "invalid range");
-          return absl::OkStatus();
-        }
-      }
-      fetch = it->second->publisher().StandaloneFetch(
-          Location{start_group, 0}, largest_location,
-          message.parameters.group_order.value_or(
-              MoqtDeliveryOrder::kAscending));
-    } else {
-      // Subscription is in PENDING state.
-      if (std::holds_alternative<JoiningFetchRelative>(message.fetch)) {
-        fetch = it->second->publisher().RelativeFetch(
-            std::get<JoiningFetchRelative>(message.fetch).joining_start,
-            message.parameters.group_order.value_or(
-                MoqtDeliveryOrder::kAscending));
-      } else {
-        fetch = it->second->publisher().AbsoluteFetch(
-            std::get<JoiningFetchAbsolute>(message.fetch).joining_start,
-            message.parameters.group_order.value_or(
-                MoqtDeliveryOrder::kAscending));
-      }
-    }
-  }
-  if (!fetch->GetStatus().ok()) {
-    QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
-                    << " could not initialize the task";
-    SendRequestErrorOnControlStream(message.request_id,
-                                    RequestErrorCode::kInvalidRange,
-                                    std::nullopt, fetch->GetStatus().message());
-    return absl::OkStatus();
-  }
-  auto published_fetch =
-      std::make_unique<PublishedFetch>(message.request_id, std::move(fetch));
-  auto result =
-      incoming_fetches_.emplace(message.request_id, std::move(published_fetch));
-  if (!result.second) {  // Emplace failed.
-    QUIC_DLOG(INFO) << ENDPOINT << "FETCH for " << track_name
-                    << " could not be added to the session";
-    SendRequestErrorOnControlStream(
-        message.request_id, RequestErrorCode::kInternalError, std::nullopt,
-        "Could not initialize FETCH state");
-    return absl::OkStatus();
-  }
-  MoqtFetchTask* fetch_task = result.first->second->fetch_task_ptr();
-  fetch_task->SetFetchResponseCallback(
-      [this, request_id = message.request_id](
-          std::variant<MoqtFetchOk, MoqtRequestError> message) {
-        if (!incoming_fetches_.contains(request_id)) {
-          return;  // FETCH was cancelled.
-        }
-        if (std::holds_alternative<MoqtFetchOk>(message)) {
-          MoqtFetchOk& fetch_ok = std::get<MoqtFetchOk>(message);
-          fetch_ok.request_id = request_id;
-          SendControlMessage(framer_.SerializeFetchOk(fetch_ok));
-          return;
-        }
-        SendRequestErrorOnControlStream(
-            request_id, std::get<MoqtRequestError>(message).error_code,
-            std::get<MoqtRequestError>(message).retry_interval,
-            std::get<MoqtRequestError>(message).reason_phrase);
-      });
-  // Set a temporary new-object callback that creates a data stream. When
-  // created, the stream visitor will replace this callback.
-  fetch_task->SetObjectAvailableCallback(
-      [this,
-       subscriber_priority = message.parameters.subscriber_priority.value_or(
-           kDefaultSubscriberPriority),
-       request_id = message.request_id]() {
-        auto it = incoming_fetches_.find(request_id);
-        if (it == incoming_fetches_.end()) {
-          return;
-        }
-        if (!session()->CanOpenNextOutgoingUnidirectionalStream() ||
-            !OpenDataStream(it->second.get(),
-                            SendOrderForFetch(subscriber_priority))) {
-          UpdateTrackPriority(request_id, std::nullopt,
-                              MoqtTrackPriority(subscriber_priority,
-                                                kDefaultPublisherPriority));
-        }
-      });
-  return absl::OkStatus();
-}
-
-absl::Status MoqtSession::OnControlMessage(const MoqtFetchOk& message) {
-  UpstreamFetch* track = FetchById(message.request_id);
-  if (track == nullptr) {
-    QUIC_DLOG(INFO) << ENDPOINT << "Received the FETCH_OK for "
-                    << "request_id = " << message.request_id
-                    << " but no track exists";
-    // Subscription state might have been destroyed for internal reasons.
-    return absl::OkStatus();
-  }
-  QUIC_DLOG(INFO) << ENDPOINT << "Received the FETCH_OK for request_id = "
-                  << message.request_id << " " << track->full_track_name();
-  UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(track);
-  fetch->OnFetchResult(message.end_location, absl::OkStatus(),
-                       [=, this]() { CancelFetch(message.request_id); });
-  return absl::OkStatus();
-}
 
 void MoqtSession::OnMalformedTrack(ObjectSubscriber* track) {
-  if (!track->is_fetch()) {
-    auto* subscribe = absl::down_cast<LiveSubscriber*>(track);
-    if (subscribe->visitor() != nullptr) {
-      subscribe->visitor()->OnMalformedTrack(track->full_track_name());
-    }
-    Unsubscribe(track->full_track_name());
+  if (track->is_fetch()) {
+    QUICHE_BUG(quiche_bug_malformed_fetch_track)
+        << "Malformed FETCH track should be handled in the data stream";
     return;
   }
-  UpstreamFetch::UpstreamFetchTask* task =
-      absl::down_cast<UpstreamFetch*>(track)->task();
-  if (task != nullptr) {
-    task->OnStreamAndFetchClosed(kResetCodeMalformedTrack,
-                                 "Malformed track received");
+  auto* subscribe = absl::down_cast<LiveSubscriber*>(track);
+  if (subscribe->visitor() != nullptr) {
+    subscribe->visitor()->OnMalformedTrack(track->full_track_name());
   }
-  CancelFetch(track->request_id());
+  subscribe->request_stream()->Reset(kResetCodeMalformedTrack);
 }
 
 void MoqtSession::CleanUpState() {
@@ -1537,10 +1381,6 @@ void MoqtSession::CleanUpState() {
     publish_namespace_requests_.erase(it);
     stream->Detach();
   }
-  // WebTransport session, the incoming FETCHes are owned by this class.
-  while (!fetch_by_id_.empty()) {
-    fetch_by_id_.begin()->second->Destroy();
-  }
   for (auto& [track_name, subscriber] : subscribe_by_name_) {
     // It's possible the application is going to destroy its visitor as early
     // as session_deleted_callback is called. So call OnPublishDone() now and
@@ -1550,29 +1390,6 @@ void MoqtSession::CleanUpState() {
       subscriber->ReleaseVisitor();
     }
   }
-}
-
-void MoqtSession::CancelFetch(uint64_t request_id) {
-  if (is_closing_) {
-    return;
-  }
-  auto it = fetch_by_id_.find(request_id);
-  if (it == fetch_by_id_.end()) {
-    return;
-  }
-  it->second->Destroy();
-  // This is only called from the callback where UpstreamFetchTask has been
-  // destroyed, so there is no need to notify the application.
-  OutgoingControlStream* stream = GetOutgoingControlStream();
-  if (stream == nullptr) {
-    return;
-  }
-  MoqtFetchCancel message;
-  message.request_id = request_id;
-  stream->SendOrBufferMessageOrFatal(framer_.SerializeFetchCancel(message));
-  // The FETCH_CANCEL will cause a RESET_STREAM to return, which would be the
-  // same as a STOP_SENDING. However, a FETCH_CANCEL works even if the stream
-  // hasn't opened yet.
 }
 
 void MoqtSessionParameters::ToSetupParameters(SetupParameters& out) const {

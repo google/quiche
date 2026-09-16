@@ -532,8 +532,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
 quiche::QuicheBuffer MoqtFramer::SerializeRequestError(
     const MoqtRequestError& message) {
   return SerializeControlMessage(
-      MoqtMessageType::kRequestError, WireMoqVarInt(message.request_id),
-      WireMoqVarInt(message.error_code),
+      MoqtMessageType::kRequestError, WireMoqVarInt(message.error_code),
       WireMoqVarInt(message.retry_interval.has_value()
                         ? message.retry_interval->ToMilliseconds() + 1
                         : 0),
@@ -650,8 +649,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetch(const MoqtFetch& message) {
 
 quiche::QuicheBuffer MoqtFramer::SerializeFetchOk(const MoqtFetchOk& message) {
   return SerializeControlMessage(
-      MoqtMessageType::kFetchOk, WireMoqVarInt(message.request_id),
-      WireBoolean(message.end_of_track),
+      MoqtMessageType::kFetchOk, WireBoolean(message.end_of_track),
       WireMoqVarInt(message.end_location.group),
       WireMoqVarInt(message.end_location.object == kMaxObjectId
                         ? 0
@@ -660,11 +658,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetchOk(const MoqtFetchOk& message) {
       WireKeyValuePairList(message.extensions, false));
 }
 
-quiche::QuicheBuffer MoqtFramer::SerializeFetchCancel(
-    const MoqtFetchCancel& message) {
-  return SerializeControlMessage(MoqtMessageType::kFetchCancel,
-                                 WireMoqVarInt(message.request_id));
-}
 
 quiche::QuicheBuffer MoqtFramer::SerializePublish(const MoqtPublish& message) {
   return SerializeControlMessage(

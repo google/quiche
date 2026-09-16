@@ -158,21 +158,15 @@ TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestError) {
               Writev(ControlMessageOfType(MoqtMessageType::kPublish), _))
       .WillOnce(Return(absl::OkStatus()));
   stream_->BindStream(&mock_stream_);  // Calls OnStreamBound
-
-  MoqtRequestError request_error;
-  request_error.request_id = kRequestId;
-  request_error.error_code = RequestErrorCode::kUnauthorized;
-  request_error.retry_interval = quic::QuicTimeDelta::FromSeconds(5);
-  request_error.reason_phrase = "Unauthorized";
+  MoqtRequestError request_error(RequestErrorCode::kUnauthorized,
+                                 quic::QuicTimeDelta::FromSeconds(5),
+                                 "Unauthorized");
   QUICHE_EXPECT_OK(stream_->OnControlMessage(request_error));
 
   // Verify response callback was called with error.
   ASSERT_TRUE(response_.has_value());
   ASSERT_TRUE(std::holds_alternative<MoqtRequestErrorInfo>(*response_));
-  MoqtRequestErrorInfo resp_error = std::get<MoqtRequestErrorInfo>(*response_);
-  EXPECT_EQ(resp_error.error_code, request_error.error_code);
-  EXPECT_EQ(resp_error.retry_interval, request_error.retry_interval);
-  EXPECT_EQ(resp_error.reason_phrase, request_error.reason_phrase);
+  EXPECT_EQ(std::get<MoqtRequestErrorInfo>(*response_), request_error);
 }
 
 TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestUpdate) {

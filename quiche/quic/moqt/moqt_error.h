@@ -103,6 +103,7 @@ absl::Status RequestErrorCodeToStatus(RequestErrorCode error_code,
 
 absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
                                      absl::string_view reason_phrase);
+webtransport::StreamErrorCode StatusToMoqtStreamError(absl::Status status);
 
 }  // namespace moqt
 

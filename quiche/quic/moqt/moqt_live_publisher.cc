@@ -104,7 +104,7 @@ void LivePublisher::Update(const MessageParameters& parameters) {
       return;
     }
     visitor()->UpdateTrackPriority(
-        request_id_, old_track_priority,
+        track_publisher_->GetTrackName(), old_track_priority,
         MoqtTrackPriority{new_priority, publisher_priority});
     // Don't bother to update all the pending stream send orders.
   }
@@ -154,8 +154,7 @@ void LivePublisher::OnSubscribeAccepted() {
 }
 
 void LivePublisher::OnSubscribeRejected(MoqtRequestErrorInfo info) {
-  bidi_stream_->CheckStatus(bidi_stream_->SendRequestError(request_id_, info,
-                                                           /*fin=*/true));
+  bidi_stream_->CheckStatus(bidi_stream_->SendRequestError(info));
   // Sending FIN will delete the class.
 }
 
@@ -244,7 +243,7 @@ void LivePublisher::OnNewObjectAvailable(Location location,
     StreamRank rank = StreamRankFor(parameters);
     if (pending_streams_.empty() || rank > pending_streams_.rbegin()->first) {
       session_info->UpdateTrackPriority(
-          request_id_,
+          track_publisher_->GetTrackName(),
           /*old_priority=*/pending_streams_.empty()
               ? std::optional<MoqtTrackPriority>()
               : std::make_optional(
@@ -450,7 +449,7 @@ void LivePublisher::OnCanCreateNewUniStream() {
     pending_streams_.erase(--(it.base()));
     if (!pending_streams_.empty()) {
       session_info->UpdateTrackPriority(
-          request_id_, std::nullopt,
+          track_publisher_->GetTrackName(), std::nullopt,
           MoqtTrackPriority{
               subscriber_priority(),
               pending_streams_.rbegin()->second.publisher_priority.value_or(

@@ -91,7 +91,6 @@ OutgoingSubgroupStream::OutgoingSubgroupStream(
     : OutgoingUniStream(framer, stream, priority, track_alias),
       index_(index),
       visitor_(std::move(visitor)),
-
       track_alias_(track_alias),
       publisher_(track_publisher),
       next_object_(first_object) {
@@ -273,21 +272,28 @@ OutgoingFetchStream::OutgoingFetchStream(
     : OutgoingUniStream(framer, stream, priority, request_id),
       incoming_objects_(std::move(incoming_objects)),
       close_callback_(std::move(close_callback)) {
-  incoming_objects_->SetObjectAvailableCallback(
-      [this]() { this->OnCanWrite(); });
   trace_recorder->RecordFetchStreamCreated(stream->GetStreamId());
 }
 
-OutgoingFetchStream::~OutgoingFetchStream() {
-  if (close_callback_ != nullptr) {
-    std::move(close_callback_)();
+void OutgoingFetchStream::Init() {
+  if (incoming_objects_ != nullptr) {
+    incoming_objects_->SetObjectAvailableCallback(
+        [this]() { this->OnCanWrite(); });
   }
-  close_callback_ = nullptr;
+}
+
+OutgoingFetchStream::~OutgoingFetchStream() {
+  // If Detach() has not been called, this was not FINed and there should be a
+  // non-OK status.
+  if (status_.ok()) {
+    status_ = absl::CancelledError("stream destroyed");
+  }
+  Detach();
 }
 
 void OutgoingFetchStream::OnCanWrite() {
   PublishedObject object;
-  while (stream().CanWrite()) {
+  while (stream().CanWrite() && incoming_objects_ != nullptr) {
     MoqtFetchTask::GetNextObjectResult result =
         incoming_objects_->GetNextObject(object);
     switch (result) {
@@ -323,22 +329,36 @@ void OutgoingFetchStream::OnCanWrite() {
       case MoqtFetchTask::GetNextObjectResult::kEof:
         // TODO(martinduke): Either prefetch the next object, or alter the API
         // so that we're not sending FIN in a separate frame.
-        if (!webtransport::SendFinOnStream(stream()).ok()) {
+        status_ = webtransport::SendFinOnStream(stream());
+        if (!status_.ok()) {
           QUICHE_DVLOG(1) << "Sending FIN onStream " << stream().GetStreamId()
                           << " failed";
         }
+        Detach();
         return;
-      case MoqtFetchTask::GetNextObjectResult::kError:
-        stream().ResetWithUserCode(static_cast<webtransport::StreamErrorCode>(
-            incoming_objects_->GetStatus().code()));
+      case MoqtFetchTask::GetNextObjectResult::kError: {
+        status_ = incoming_objects_->GetStatus();
+        stream().ResetWithUserCode(StatusToMoqtStreamError(status_));
+        Detach();
         return;
+      }
     }
   }
 }
 
 void OutgoingFetchStream::OnStopSendingReceived(
     webtransport::StreamErrorCode error_code) {
+  status_ = MoqtStreamErrorToStatus(error_code, "stop sending");
   stream().ResetWithUserCode(error_code);
+  Detach();
+}
+
+void OutgoingFetchStream::Detach() {
+  if (close_callback_ != nullptr) {
+    std::move(close_callback_)(status_);
+    close_callback_ = nullptr;
+  }
+  incoming_objects_.reset();
 }
 
 IncomingDataStream::~IncomingDataStream() {
@@ -349,22 +369,11 @@ IncomingDataStream::~IncomingDataStream() {
                      "learning track alias";
     return;
   }
-  if (!track_.IsValid()) {
-    return;
+  if (status_.ok()) {
+    // Notify counterparts that the stream was not cleanly closed.
+    status_ = absl::CancelledError("stream destroyed");
   }
-  if (IsFetch()) {
-    auto fetch = absl::down_cast<UpstreamFetch*>(track_.GetIfAvailable());
-    if (fetch != nullptr) {
-      fetch->OnStreamClosed();
-    }
-    return;
-  }
-  // It's a subscribe.
-  auto subscribe = absl::down_cast<LiveSubscriber*>(track_.GetIfAvailable());
-  if (subscribe == nullptr) {
-    return;
-  }
-  subscribe->OnStreamClosed(fin_received_, index_);
+  Detach();
 }
 
 void IncomingDataStream::OnObjectMessage(const MoqtObject& message,
@@ -457,19 +466,14 @@ void IncomingDataStream::OnObjectMessage(const MoqtObject& message,
                                  bytes_received_this_object_);
     }
   } else {  // FETCH
-    track->OnObjectOrOk();
-    UpstreamFetch* fetch = absl::down_cast<UpstreamFetch*>(track);
-    UpstreamFetch::UpstreamFetchTask* task = fetch->task();
-    if (task == nullptr) {
-      // The application killed the FETCH.
-      stream_->SendStopSending(kResetCodeCancelled);
+    if (fetch_task_ == nullptr) {
       return;
     }
-    if (!task->HasObject()) {
-      task->NewObject(message);
+    if (!fetch_task_->HasObject()) {
+      fetch_task_->NewObject(message);
     }
-    if (task->NeedsMorePayload() && !payload.empty()) {
-      task->AppendPayloadToObject(payload);
+    if (fetch_task_->NeedsMorePayload() && !payload.empty()) {
+      fetch_task_->AppendPayloadToObject(payload);
     }
   }
   if (end_of_message) {
@@ -486,24 +490,50 @@ void IncomingDataStream::MaybeReadOneObject() {
     QUICHE_BUG(quic_bug_read_one_object_parser_unexpected_state)
         << "Requesting object, parser in unexpected state";
   }
-  if (!track_.IsValid()) {
+  if (fetch_task_ == nullptr) {
     return;
   }
-  UpstreamFetch* fetch =
-      absl::down_cast<UpstreamFetch*>(track_.GetIfAvailable());
-  UpstreamFetch::UpstreamFetchTask* task = fetch->task();
-  if (task == nullptr) {
-    return;
-  }
-  if (task->HasObject() && !task->NeedsMorePayload()) {
+  if (fetch_task_->HasObject() && !fetch_task_->NeedsMorePayload()) {
     return;  // The message is complete. Do not read more.
   }
-  uint64_t start_length = task->payload_length();
+  uint64_t start_length = fetch_task_->payload_length();
   parser_.ReadAtMostOneObject();
   // If it read an object, it called OnObjectMessage and may have altered the
   // task's object state.
-  if (task->payload_length() > start_length) {
-    task->NotifyNewObject();
+  if (fetch_task_ != nullptr && fetch_task_->payload_length() > start_length) {
+    fetch_task_->NotifyNewObject();
+  }
+}
+
+void IncomingDataStream::set_fetch_task(UpstreamFetchTask* fetch_task) {
+  fetch_task_ = fetch_task;
+  // Replace the bidi stream's callback with a new one.
+  fetch_task_->set_task_destroyed_callback([this]() {
+    fetch_task_ = nullptr;
+    stream_->SendStopSending(kResetCodeCancelled);
+    ObjectSubscriber* track = track_.GetIfAvailable();
+    if (track != nullptr) {
+      // Inform the bidi stream, since its callback was overwritten.
+      track->OnStreamClosed(
+          MoqtStreamErrorToStatus(kResetCodeCancelled, "canceled"),
+          std::nullopt);
+    }
+  });
+  fetch_task_->set_can_read_callback([this]() { MaybeReadOneObject(); });
+}
+
+void IncomingDataStream::Detach() {
+  if (fetch_task_ != nullptr) {
+    UpstreamFetchTask* fetch_task = fetch_task_;
+    fetch_task_ = nullptr;
+    fetch_task->set_can_read_callback(nullptr);
+    fetch_task->set_task_destroyed_callback(nullptr);
+    fetch_task->OnStreamAndFetchClosed(status_);
+  }
+  ObjectSubscriber* track = track_.GetIfAvailable();
+  if (track != nullptr) {
+    track->OnStreamClosed(status_, index_);
+    track_ = quiche::QuicheWeakPtr<ObjectSubscriber>();
   }
 }
 
@@ -537,7 +567,7 @@ void IncomingDataStream::OnCanRead() {
         stream_->SendStopSending(kResetCodeCancelled);
         return;
       }
-      subscribe->OnStreamOpened();
+      subscribe->OnStreamOpened(this);
       parser_.set_default_publisher_priority(
           subscribe->default_publisher_priority());
       visitor_ = subscribe->visitor();
@@ -553,13 +583,19 @@ void IncomingDataStream::OnCanRead() {
     stream_->SendStopSending(kResetCodeCancelled);
     return;
   }
-  UpstreamFetch* fetch =
-      absl::down_cast<UpstreamFetch*>(track_.GetIfAvailable());
   if (!knew_track_alias) {
     // If the task already exists (FETCH_OK has arrived), the callback will
     // immediately execute to read the first object. Otherwise, it will only
-    // execute when the task is created or a cached object is read.
-    fetch->OnStreamOpened([this]() { MaybeReadOneObject(); });
+    // execute when the task is created or a cached object is read. Note that
+    // if the entire stream is delivered and closed synchronously during this
+    // call, fetch_task_ may already be null here.
+    auto track = track_.GetIfAvailable();
+    if (track == nullptr) {
+      QUICHE_BUG(quic_bug_fetch_stream_destroyed_before_track_alias_read)
+          << "Fetch stream destroyed before track alias was read";
+      return;
+    }
+    track->OnStreamOpened(this);
     return;
   }
   MaybeReadOneObject();

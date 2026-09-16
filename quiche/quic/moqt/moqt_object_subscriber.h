@@ -12,7 +12,6 @@
 #include <optional>
 #include <utility>
 
-#include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm.h"
@@ -27,7 +26,6 @@
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
-#include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_circular_deque.h"
@@ -56,11 +54,11 @@ class ObjectSubscriber {
   virtual ~ObjectSubscriber() {}
 
   const FullTrackName& full_track_name() const { return full_track_name_; }
-  // If REQUEST_ERROR arrives after OK or an object, it is a protocol violation.
-  virtual void OnObjectOrOk() { error_is_allowed_ = false; }
-  bool ErrorIsAllowed() const { return error_is_allowed_; }
-
   uint64_t request_id() const { return request_id_; }
+
+  virtual void OnStreamOpened(webtransport::StreamVisitor* stream) = 0;
+  virtual void OnStreamClosed(absl::Status status,
+                              std::optional<DataStreamIndex> index) = 0;
 
   // Is the object one that was requested?
   virtual bool InWindow(Location sequence) const = 0;
@@ -88,9 +86,6 @@ class ObjectSubscriber {
   const uint64_t request_id_;
   MoqtBidiStreamBase* request_stream_;
   MessageParameters parameters_;
-  // If false, an object or OK message has been received, so any ERROR message
-  // is a protocol violation.
-  bool error_is_allowed_ = true;
 
   // Must be last.
   quiche::QuicheWeakPtrFactory<ObjectSubscriber> weak_ptr_factory_;
@@ -117,15 +112,19 @@ class LiveSubscriber : public ObjectSubscriber {
   ~LiveSubscriber() override;
 
   void OnObjectOrOk(const SubscribeOkData& data);
-  void OnObjectOrOk() override { ObjectSubscriber::OnObjectOrOk(); }
+  void OnObjectOrOk() { error_is_allowed_ = false; }
+  // If REQUEST_ERROR arrives after OK or an object, it is a protocol violation.
+  bool ErrorIsAllowed() const { return error_is_allowed_; }
   std::optional<uint64_t> track_alias() const { return track_alias_; }
   // Returns false if the callback returns false, meaning the session has been
   // destroyed.
   void set_track_alias(uint64_t track_alias) {
     track_alias_.emplace(track_alias);
   }
-  void OnStreamOpened();
-  void OnStreamClosed(bool fin_received, std::optional<DataStreamIndex> index);
+  void OnStreamOpened(webtransport::StreamVisitor* /*unused*/) override;
+  // If |status.ok()|, it was a FIN.
+  void OnStreamClosed(absl::Status status,
+                      std::optional<DataStreamIndex> index) override;
   void OnPublishDone(uint64_t stream_count, const quic::QuicClock* clock,
                      quic::QuicAlarmFactory* alarm_factory);
 
@@ -187,6 +186,9 @@ class LiveSubscriber : public ObjectSubscriber {
   bool all_streams_closed() const {
     return total_streams_.has_value() && *total_streams_ == streams_closed_;
   }
+  // If false, an object or OK message has been received, so any ERROR message
+  // is a protocol violation.
+  bool error_is_allowed_ = true;
 
   quic::QuicTimeDelta publisher_delivery_timeout_ = kDefaultDeliveryTimeout;
   MoqtPriority default_publisher_priority_ = kDefaultPublisherPriority;
@@ -213,197 +215,86 @@ class LiveSubscriber : public ObjectSubscriber {
 // application reads it.
 using CanReadCallback = quiche::MultiUseCallback<void()>;
 
-// If the application destroys the FetchTask, this is a signal to MoqtSession to
-// cancel the FETCH and STOP_SENDING the stream.
+// If the application destroys the FetchTask, this is a signal to
+// the owner to cancel the FETCH and STOP_SENDING the stream.
 using TaskDestroyedCallback = quiche::SingleUseCallback<void()>;
 
-// Class for upstream FETCH. It will notify the application using |callback|
-// when a FETCH_OK or REQUEST_ERROR is received.
-using RemoveFetchCallback = quiche::SingleUseCallback<void()>;
-class UpstreamFetch : public ObjectSubscriber {
+// This class is passed to the application, which views it as a MoqtFetchTask.
+// A pointer to the child calls is held by the FETCH control at first, then the
+// data stream when initiated, to update its state. UpstreamFetchTask is
+// responsible for calling task_destroyed_callback_ so that pointers to it are
+// cleared, so there is no need for a QuicheWeakPtr.
+class QUICHE_EXPORT UpstreamFetchTask : public MoqtFetchTask {
  public:
-  // Standalone Fetch constructor
-  UpstreamFetch(const MoqtFetch& fetch, const StandaloneFetch standalone,
-                FetchResponseCallback callback,
-                RemoveFetchCallback delete_callback)
-      : ObjectSubscriber(standalone.full_track_name, fetch.request_id,
-                         fetch.parameters, /*request_stream=*/nullptr),
-        group_order_(fetch.parameters.group_order.value_or(
-            MoqtDeliveryOrder::kAscending)),
-        start_(standalone.start_location),
-        end_(standalone.end_location),
-        subscriber_priority_(fetch.parameters.subscriber_priority.value_or(
-            kDefaultSubscriberPriority)),
-        ok_callback_(std::move(callback)),
-        remove_callback_(std::move(delete_callback)) {}
-  // Relative Joining Fetch constructor
-  UpstreamFetch(const MoqtFetch& fetch, FullTrackName full_track_name,
-                FetchResponseCallback callback,
-                RemoveFetchCallback delete_callback)
-      : ObjectSubscriber(full_track_name, fetch.request_id, fetch.parameters,
-                         /*request_stream=*/nullptr),
-        group_order_(fetch.parameters.group_order.value_or(
-            MoqtDeliveryOrder::kAscending)),
-        relative_groups_(
-            std::get<JoiningFetchRelative>(fetch.fetch).joining_start),
-        subscriber_priority_(fetch.parameters.subscriber_priority.value_or(
-            kDefaultSubscriberPriority)),
-        ok_callback_(std::move(callback)),
-        remove_callback_(std::move(delete_callback)) {}
-  // Absolute Joining Fetch constructor
-  UpstreamFetch(const MoqtFetch& fetch, FullTrackName full_track_name,
-                JoiningFetchAbsolute absolute_joining,
-                FetchResponseCallback callback,
-                RemoveFetchCallback delete_callback)
-      : ObjectSubscriber(full_track_name, fetch.request_id, fetch.parameters,
-                         /*request_stream=*/nullptr),
-        group_order_(fetch.parameters.group_order.value_or(
-            MoqtDeliveryOrder::kAscending)),
-        start_(Location(absolute_joining.joining_start, 0)),
-        subscriber_priority_(fetch.parameters.subscriber_priority.value_or(
-            kDefaultSubscriberPriority)),
-        ok_callback_(std::move(callback)),
-        remove_callback_(std::move(delete_callback)) {}
-  UpstreamFetch(const UpstreamFetch&) = delete;
-  ~UpstreamFetch();
+  // If the FetchRequestStream is destroyed, it will call OnStreamAndFetchClosed
+  // which sets the TaskDestroyedCallback to nullptr. Thus, |callback| can
+  // assume that FetchRequestStream is valid.
+  UpstreamFetchTask() {}
+  ~UpstreamFetchTask() override;
 
-  bool InWindow(Location location) const override {
-    return (location >= start_ && location <= end_);
-  }
+  // Implementation of MoqtFetchTask.
+  GetNextObjectResult GetNextObject(PublishedObject& output) override;
+  void SetObjectAvailableCallback(ObjectsAvailableCallback callback) override {
+    object_available_callback_ = std::move(callback);
+  };
+  absl::Status GetStatus() override { return status_; };
 
-  // Called when the data stream is destroyed.
-  void OnStreamClosed() { Destroy(); }
-
-  void Destroy() {
-    if (remove_callback_) {
-      RemoveFetchCallback callback = std::move(remove_callback_);
-      remove_callback_ = nullptr;
-      std::move(callback)();
-    }
-  }
-
-  class UpstreamFetchTask : public MoqtFetchTask {
-   public:
-    // If the UpstreamFetch is destroyed, it will call OnStreamAndFetchClosed
-    // which sets the TaskDestroyedCallback to nullptr. Thus, |callback| can
-    // assume that UpstreamFetch is valid.
-    UpstreamFetchTask(Location largest_location, absl::Status status,
-                      TaskDestroyedCallback callback)
-        : largest_location_(largest_location),
-          status_(status),
-          task_destroyed_callback_(std::move(callback)),
-          weak_ptr_factory_(this) {}
-    ~UpstreamFetchTask() override;
-
-    // Implementation of MoqtFetchTask.
-    GetNextObjectResult GetNextObject(PublishedObject& output) override;
-    void SetObjectAvailableCallback(
-        ObjectsAvailableCallback callback) override {
-      object_available_callback_ = std::move(callback);
-    };
-    // TODO(martinduke): Implement the new API, but for now, only deliver the
-    // FetchTask on FETCH_OK.
-    void SetFetchResponseCallback(FetchResponseCallback callback) override {}
-    absl::Status GetStatus() override { return status_; };
-
-    quiche::QuicheWeakPtr<UpstreamFetchTask> weak_ptr() {
-      return weak_ptr_factory_.Create();
-    }
-
-    // MoqtSession should not use this function; use
-    // UpstreamFetch::OnStreamOpened() instead, in case the task does not exist
-    // yet.
-    void set_can_read_callback(CanReadCallback callback) {
-      can_read_callback_ = std::move(callback);
+  // Called by incoming data stream.
+  virtual void set_can_read_callback(CanReadCallback callback) {
+    can_read_callback_ = std::move(callback);
+    if (can_read_callback_) {
       can_read_callback_();  // Accept the first object.
     }
+  }
+  virtual void set_task_destroyed_callback(TaskDestroyedCallback callback) {
+    task_destroyed_callback_ = std::move(callback);
+  }
 
-    // Called when the data stream receives a new object.
-    void NewObject(const MoqtObject& message);
-    void AppendPayloadToObject(absl::string_view payload);
-    // MoqtSession calls this for a hint if the object has been read.
-    bool HasObject() const { return next_object_.has_value(); }
-    bool NeedsMorePayload() const {
-      return next_object_.has_value() &&
-             payload_length_ < next_object_->payload_length;
-    }
-    // MoqtSession calls NotifyNewObject() after NewObject() because it has to
-    // exit the parser loop before the callback possibly causes another read.
-    // Furthermore, NewObject() may be a partial object, and so
-    // NotifyNewObject() is called only when the object is complete.
-    void NotifyNewObject();
+  // Called when the data stream receives a new object.
+  virtual void NewObject(const MoqtObject& message);
+  virtual void AppendPayloadToObject(absl::string_view payload);
+  // The data stream calls this for a hint if the object has been read.
+  virtual bool HasObject() const { return next_object_.has_value(); }
+  virtual bool NeedsMorePayload() const {
+    return next_object_.has_value() &&
+           payload_length_ < next_object_->payload_length;
+  }
+  // The data stream calls NotifyNewObject() after NewObject() because it has to
+  // exit the parser loop before the callback possibly causes another read.
+  // Furthermore, NewObject() may be a partial object, and so
+  // NotifyNewObject() is called only when the object is complete.
+  virtual void NotifyNewObject();
 
-    // Deletes callbacks to session or stream, updates the status. If |error|
-    // has no value, will append an EOF to the object stream.
-    void OnStreamAndFetchClosed(
-        std::optional<webtransport::StreamErrorCode> error,
-        absl::string_view reason_phrase);
+  // Deletes callbacks to session or stream, updates the status. If |status| is
+  // OK, will append an EOF to the object stream.
+  virtual void OnStreamAndFetchClosed(absl::Status status);
 
-    uint64_t payload_offset() const { return payload_offset_; }
-    uint64_t payload_length() const { return payload_length_; }
-
-   private:
-    Location largest_location_;
-    absl::Status status_ = absl::OkStatus();
-    TaskDestroyedCallback task_destroyed_callback_;
-
-    // Object delivery state. The payload_length member is used to track the
-    // payload bytes not yet received. The application receives a
-    // PublishedObject that is constructed from next_object_ and payload_.
-    std::optional<MoqtObject> next_object_;
-    quiche::QuicheCircularDeque<quiche::QuicheMemSlice> payload_;
-    // The starting point of payload_. Data is deleted as it is delivered.
-    uint64_t payload_offset_ = 0;
-    // Total data delivered for this object.
-    uint64_t payload_length_ = 0;
-
-    // The task should only call object_available_callback_ when the last result
-    // was kPending. Otherwise, there can be recursive loops of
-    // GetNextObjectResult().
-    bool need_object_available_callback_ = true;
-    bool eof_ = false;  // The next object is EOF.
-    // The Fetch task signals the application when it has new objects.
-    ObjectsAvailableCallback object_available_callback_;
-    // The Fetch task signals the stream when it has dispensed of an object.
-    CanReadCallback can_read_callback_;
-
-    // Must be last.
-    quiche::QuicheWeakPtrFactory<UpstreamFetchTask> weak_ptr_factory_;
-  };
-
-  // Arrival of FETCH_OK/REQUEST_ERROR.
-  void OnFetchResult(Location largest_location, absl::Status status,
-                     TaskDestroyedCallback callback);
-
-  UpstreamFetchTask* task() { return task_.GetIfAvailable(); }
-
-  // Manage the relationship with the data stream.
-  void OnStreamOpened(CanReadCallback callback);
-
-  bool is_fetch() const override { return true; }
+  virtual uint64_t payload_offset() const { return payload_offset_; }
+  virtual uint64_t payload_length() const { return payload_length_; }
 
  private:
-  MoqtDeliveryOrder group_order_;
-  Location start_ = Location(0, 0);
-  Location end_ = Location(kMaxGroupId, kMaxObjectId);
-  std::optional<uint64_t> relative_groups_;
-  MoqtPriority subscriber_priority_;
-  // The last object received on the stream.
-  std::optional<Location> last_location_;
-  // The highest location received on the stream.
-  std::optional<Location> highest_location_;
-  bool last_group_is_finished_ = false;  // Received EndOfGroup.
-  std::optional<Location> end_of_track_;  // Received EndOfTrack
+  absl::Status status_ = absl::OkStatus();
+  TaskDestroyedCallback task_destroyed_callback_;
 
-  quiche::QuicheWeakPtr<UpstreamFetchTask> task_;
+  // Object delivery state. The payload_length member is used to track the
+  // payload bytes not yet received. The application receives a
+  // PublishedObject that is constructed from next_object_ and payload_.
+  std::optional<MoqtObject> next_object_;
+  quiche::QuicheCircularDeque<quiche::QuicheMemSlice> payload_;
+  // The starting point of payload_. Data is deleted as it is delivered.
+  uint64_t payload_offset_ = 0;
+  // Total data delivered for this object.
+  uint64_t payload_length_ = 0;
 
-  // Before FetchTask is created, an incoming stream will register the callback
-  // here instead.
+  // The task should only call object_available_callback_ when the last result
+  // was kPending. Otherwise, there can be recursive loops of
+  // GetNextObjectResult().
+  bool need_object_available_callback_ = true;
+  bool eof_ = false;  // The next object is EOF.
+  // The Fetch task signals the application when it has new objects.
+  ObjectsAvailableCallback object_available_callback_;
+  // The Fetch task signals the stream when it has dispensed of an object.
   CanReadCallback can_read_callback_;
-
-  // Initial values from Fetch() call.
-  FetchResponseCallback ok_callback_;  // Will be destroyed on FETCH_OK.
-  RemoveFetchCallback remove_callback_;
 };
 
 }  // namespace moqt

@@ -23,7 +23,6 @@
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_live_publisher.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -33,6 +32,7 @@
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
@@ -47,7 +47,8 @@ class MockSessionToPublisherInterface : public SessionToPublisherInterface {
   ~MockSessionToPublisherInterface() override = default;
   MOCK_METHOD(bool, alternate_delivery_timeout, (), (const, override));
   MOCK_METHOD(void, UpdateTrackPriority,
-              (uint64_t, std::optional<MoqtTrackPriority>, MoqtTrackPriority),
+              (const FullTrackName&, std::optional<MoqtTrackPriority>,
+               MoqtTrackPriority),
               (override));
   MOCK_METHOD(quic::QuicAlarmFactory*, alarm_factory, (), (override));
   MOCK_METHOD(std::shared_ptr<MoqtTrackPublisher>, GetTrackPublisher,
@@ -85,20 +86,21 @@ class MockMoqtSession : public MoqtSessionInterface {
                const TrackExtensions& extensions,
                MoqtResponseCallback response_callback),
               (override));
-  MOCK_METHOD(bool, Fetch,
+  MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, Fetch,
               (const FullTrackName& name, FetchResponseCallback callback,
                Location start, uint64_t end_group,
                std::optional<uint64_t> end_object,
-               MessageParameters parameters),
+               const MessageParameters& parameters),
               (override));
   MOCK_METHOD(bool, RelativeJoiningFetch,
               (const FullTrackName& name, SubscribeVisitor* visitor,
-               uint64_t num_previous_groups, MessageParameters parameters),
+               uint64_t num_previous_groups,
+               const MessageParameters& parameters),
               (override));
-  MOCK_METHOD(bool, RelativeJoiningFetch,
+  MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, RelativeJoiningFetch,
               (const FullTrackName& name, SubscribeVisitor* visitor,
                FetchResponseCallback callback, uint64_t num_previous_groups,
-               MessageParameters parameters),
+               const MessageParameters& parameters),
               (override));
   MOCK_METHOD(bool, PublishNamespace,
               (const TrackNamespace& track_namespace,

@@ -16,7 +16,6 @@
 #include "absl/base/nullability.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_set.h"
-#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_default_clock.h"
@@ -108,21 +107,29 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
       std::optional<quic::QuicTimeDelta> oack_window_size) {
     oack_window_size_ = oack_window_size;
   }
-  std::unique_ptr<MoqtFetchTask> StandaloneFetch(Location /*start*/,
-                                                 Location /*end*/,
-                                                 MoqtDeliveryOrder) override {
-    return std::make_unique<MoqtFailedFetch>(
-        absl::UnimplementedError("Fetch not implemented"));
+  std::unique_ptr<MoqtFetchTask> StandaloneFetch(
+      Location /*start*/, Location /*end*/, MoqtDeliveryOrder,
+      FetchResponseCallback callback) override {
+    std::move(callback)(
+        MoqtRequestErrorInfo(RequestErrorCode::kNotSupported, std::nullopt,
+                             "StandaloneFetch not implemented"));
+    return nullptr;
   }
-  std::unique_ptr<MoqtFetchTask> RelativeFetch(uint64_t /*group_diff*/,
-                                               MoqtDeliveryOrder) override {
-    return std::make_unique<MoqtFailedFetch>(
-        absl::UnimplementedError("Fetch not implemented"));
+  std::unique_ptr<MoqtFetchTask> RelativeFetch(
+      uint64_t /*group_diff*/, MoqtDeliveryOrder,
+      FetchResponseCallback callback) override {
+    std::move(callback)(MoqtRequestErrorInfo(RequestErrorCode::kNotSupported,
+                                             std::nullopt,
+                                             "RelativeFetch not implemented"));
+    return nullptr;
   }
-  std::unique_ptr<MoqtFetchTask> AbsoluteFetch(uint64_t /*group*/,
-                                               MoqtDeliveryOrder) override {
-    return std::make_unique<MoqtFailedFetch>(
-        absl::UnimplementedError("Fetch not implemented"));
+  std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
+      uint64_t /*group*/, MoqtDeliveryOrder,
+      FetchResponseCallback callback) override {
+    std::move(callback)(MoqtRequestErrorInfo(RequestErrorCode::kNotSupported,
+                                             std::nullopt,
+                                             "AbsoluteFetch not implemented"));
+    return nullptr;
   }
 
   // MoqtPublishingMonitorInterface implementation.

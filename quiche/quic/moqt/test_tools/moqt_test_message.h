@@ -117,8 +117,8 @@ class QUICHE_NO_EXPORT TestMessageBase {
                    MoqtSubscribe, MoqtSubscribeOk, MoqtPublishDone,
                    MoqtRequestUpdate, MoqtPublishNamespace, MoqtTrackStatus,
                    MoqtGoAway, MoqtSubscribeNamespace, MoqtSubscribeTracks,
-                   MoqtFetch, MoqtFetchCancel, MoqtFetchOk, MoqtPublish,
-                   MoqtNamespace, MoqtNamespaceDone, MoqtObjectAck>;
+                   MoqtFetch, MoqtFetchOk, MoqtPublish, MoqtNamespace,
+                   MoqtNamespaceDone, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -822,10 +822,6 @@ class QUICHE_NO_EXPORT RequestErrorMessage : public TestMessageBase {
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtRequestError>(values);
-    if (cast.request_id != request_error_.request_id) {
-      QUIC_LOG(INFO) << "REQUEST_ERROR request_id mismatch";
-      return false;
-    }
     if (cast.error_code != request_error_.error_code) {
       QUIC_LOG(INFO) << "REQUEST_ERROR error code mismatch";
       return false;
@@ -841,7 +837,7 @@ class QUICHE_NO_EXPORT RequestErrorMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv---"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vv---"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(request_error_);
@@ -849,16 +845,14 @@ class QUICHE_NO_EXPORT RequestErrorMessage : public TestMessageBase {
 
  protected:
   MoqtRequestError request_error_ = {
-      /*request_id=*/2,
       /*error_code=*/RequestErrorCode::kInvalidRange,
       /*retry_interval=*/quic::QuicTimeDelta::FromSeconds(10),
       /*reason_phrase=*/"bar",
   };
 
  private:
-  uint8_t raw_packet_[11] = {
-      0x05, 0x00, 0x08,
-      0x02,                    // request_id = 2
+  uint8_t raw_packet_[10] = {
+      0x05, 0x00, 0x07,
       0x11,                    // error_code = 17
       0xa7, 0x11,              // retry_interval = 10000 ms
       0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
@@ -1463,10 +1457,6 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
   }
   bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtFetchOk>(values);
-    if (cast.request_id != fetch_ok_.request_id) {
-      QUIC_LOG(INFO) << "FETCH_OK request_id mismatch";
-      return false;
-    }
     if (cast.end_of_track != fetch_ok_.end_of_track) {
       QUIC_LOG(INFO) << "FETCH_OK end_of_track mismatch";
       return false;
@@ -1486,16 +1476,15 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("v-vvvv--vv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("-vvvv--vv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(fetch_ok_);
   }
 
  private:
-  uint8_t raw_packet_[13] = {
-      0x18, 0x00, 0x0a,
-      0x01,              // request_id = 1
+  uint8_t raw_packet_[12] = {
+      0x18, 0x00, 0x09,
       0x00,              // end_of_track = false
       0x05, 0x04,        // end_location = 5, 3
       0x00,              // no parameters
@@ -1504,7 +1493,6 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
   };
 
   MoqtFetchOk fetch_ok_ = {
-      /*request_id =*/1,
       /*end_of_track=*/false,
       /*end_location=*/Location{5, 3},
       MessageParameters(),
@@ -1512,39 +1500,6 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
                       quic::QuicTimeDelta::FromMilliseconds(10000),
                       std::nullopt, MoqtDeliveryOrder::kDescending,
                       std::nullopt, std::nullopt),
-  };
-};
-
-class QUICHE_NO_EXPORT FetchCancelMessage : public TestMessageBase {
- public:
-  FetchCancelMessage() : TestMessageBase() {
-    SetWireImage(raw_packet_, sizeof(raw_packet_));
-  }
-  bool EqualFieldValues(const MessageStructuredData& values) const override {
-    auto cast = std::get<MoqtFetchCancel>(values);
-    if (cast.request_id != fetch_cancel_.request_id) {
-      QUIC_LOG(INFO) << "FETCH_CANCEL subscribe_id mismatch";
-      return false;
-    }
-    return true;
-  }
-
-  void ExpandVarints() override { ExpandVarintsImpl("v"); }
-
-  MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(fetch_cancel_);
-  }
-
- private:
-  uint8_t raw_packet_[4] = {
-      0x17,
-      0x00,
-      0x01,
-      0x01,  // request_id = 1
-  };
-
-  MoqtFetchCancel fetch_cancel_ = {
-      /*request_id =*/1,
   };
 };
 
@@ -1691,8 +1646,6 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<SubscribeTracksMessage>();
     case MoqtMessageType::kFetch:
       return std::make_unique<FetchMessage>();
-    case MoqtMessageType::kFetchCancel:
-      return std::make_unique<FetchCancelMessage>();
     case MoqtMessageType::kFetchOk:
       return std::make_unique<FetchOkMessage>();
     case MoqtMessageType::kPublish:

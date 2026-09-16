@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <variant>
 
 #include "absl/base/casts.h"
 #include "absl/base/nullability.h"
@@ -26,6 +27,7 @@
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_control_message_queue.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_stream.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
@@ -103,19 +105,18 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
                const MessageParameters& parameters,
                const TrackExtensions& extensions,
                MoqtResponseCallback response_callback) override;
-  bool Fetch(const FullTrackName& name, FetchResponseCallback callback,
-             Location start, uint64_t end_group,
-             std::optional<uint64_t> end_object,
-             MessageParameters parameters) override;
+  std::unique_ptr<MoqtFetchTask> Fetch(
+      const FullTrackName& name, FetchResponseCallback callback, Location start,
+      uint64_t end_group, std::optional<uint64_t> end_object,
+      const MessageParameters& parameters) override;
   bool RelativeJoiningFetch(const FullTrackName& name,
                             SubscribeVisitor* visitor,
                             uint64_t num_previous_groups,
-                            MessageParameters parameters) override;
-  bool RelativeJoiningFetch(const FullTrackName& name,
-                            SubscribeVisitor* visitor,
-                            FetchResponseCallback callback,
-                            uint64_t num_previous_groups,
-                            MessageParameters parameters) override;
+                            const MessageParameters& parameters) override;
+  std::unique_ptr<MoqtFetchTask> RelativeJoiningFetch(
+      const FullTrackName& name, SubscribeVisitor* visitor,
+      FetchResponseCallback callback, uint64_t num_previous_groups,
+      const MessageParameters& parameters) override;
   bool PublishNamespace(
       const TrackNamespace& track_namespace,
       const MessageParameters& parameters,
@@ -153,10 +154,14 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   }
   // If |old_priority| is nullopt, the subscription does not have any pending
   // streams. If it has a value, |old_priority| is the old value to be replaced
-  // by |new_priority|.
-  void UpdateTrackPriority(uint64_t request_id,
+  // by |new_priority|. Subgroup streams send |name| as the first argument.
+  // Fetch streams send the request stream ID.
+  void UpdateTrackPriority(const FullTrackName& name,
                            std::optional<MoqtTrackPriority> old_priority,
                            MoqtTrackPriority new_priority) override;
+  void UpdateTrackPriority(webtransport::StreamId stream_id,
+                           std::optional<MoqtTrackPriority> old_priority,
+                           MoqtTrackPriority new_priority);
   quic::QuicAlarmFactory* alarm_factory() override {
     return alarm_factory_.get();
   }
@@ -343,28 +348,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     quiche::QuicheWeakPtrFactory<OutgoingControlStream> weak_ptr_factory_;
   };
 
-  class QUICHE_EXPORT PublishedFetch {
-   public:
-    PublishedFetch(uint64_t request_id, std::unique_ptr<MoqtFetchTask> fetch)
-        : request_id_(request_id), fetch_(std::move(fetch)) {}
-
-    MoqtFetchTask* fetch_task_ptr() { return fetch_.get(); }
-    // Can only be called once.
-    std::unique_ptr<MoqtFetchTask> release_fetch_task() {
-      auto on_return = absl::MakeCleanup([this] { fetch_ = nullptr; });
-      return std::move(fetch_);
-    }
-    uint64_t request_id() const { return request_id_; }
-    void SetStreamId(webtransport::StreamId id) { stream_id_ = id; }
-
-   private:
-    uint64_t request_id_;
-    // Store the stream ID in case a FETCH_CANCEL requires a reset.
-    std::optional<webtransport::StreamId> stream_id_;
-    // Temporary storage until the stream is created.
-    std::unique_ptr<MoqtFetchTask> fetch_;
-  };
-
   class GoAwayTimeoutDelegate : public quic::QuicAlarm::DelegateWithoutContext {
    public:
     explicit GoAwayTimeoutDelegate(MoqtSession* session) : session_(session) {}
@@ -386,18 +369,13 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // is present.
   void SendControlMessage(quiche::QuicheBuffer message);
 
-  // Returns false if creation failed.
-  [[nodiscard]] bool OpenDataStream(PublishedFetch* fetch,
-                                    webtransport::SendOrder send_order);
   LiveSubscriber* SubscribeByAlias(uint64_t track_alias);
   LiveSubscriber* SubscribeByName(const FullTrackName& track_name);
-  UpstreamFetch* FetchById(uint64_t request_id);
+  MoqtFetchRequestStream* FetchById(uint64_t request_id);
 
   // Checks that a subscribe ID from a SUBSCRIBE or FETCH is valid, and throws
   // a session error if is not.
   bool ValidateRequestId(uint64_t request_id);
-
-  void CancelFetch(uint64_t request_id);
 
   // Sends an OBJECT_ACK message for a specific subscribe ID.
   void SendObjectAck(FullTrackName track_name, uint64_t group_id,
@@ -431,29 +409,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   // TODO(martinduke): All of these should be moved to bidi streams or
   // deleted.
-  absl::Status OnControlMessage(const MoqtRequestOk& message);
-  absl::Status OnControlMessage(const MoqtRequestError& message);
-  absl::Status OnControlMessage(const MoqtRequestUpdate& message);
   absl::Status OnControlMessage(const MoqtGoAway& /*message*/);
-  absl::Status OnControlMessage(const MoqtFetch& message);
-  absl::Status OnControlMessage(const MoqtFetchCancel& /*message*/) {
-    return absl::OkStatus();
-  }
-  absl::Status OnControlMessage(const MoqtFetchOk& message);
-
-  // TODO(vasilvv): remove this once all requests are moved into individual
-  // streams.
-  void SendRequestErrorOnControlStream(
-      uint64_t request_id, RequestErrorCode error_code,
-      std::optional<quic::QuicTimeDelta> retry_interval,
-      absl::string_view reason_phrase) {
-    MoqtRequestError request_error;
-    request_error.request_id = request_id;
-    request_error.error_code = error_code;
-    request_error.retry_interval = retry_interval;
-    request_error.reason_phrase = reason_phrase;
-    SendControlMessage(framer_.SerializeRequestError(request_error));
-  }
 
   uint64_t NextRequestId() {
     uint64_t id = next_request_id_;
@@ -482,8 +438,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   MoqtTraceRecorder trace_recorder_;
 
-  // Upstream FETCHes, indexed by request_id. Do not erase.
-  absl::flat_hash_map<uint64_t, std::unique_ptr<UpstreamFetch>> fetch_by_id_;
+  // Upstream FETCHes, indexed by request_id. The RemoveFetchCallback used to
+  // create MoqtFetchRequestStream MUST delete this entry, so the pointer is
+  // always valid.
+  absl::flat_hash_map<uint64_t, MoqtFetchRequestStream*> fetch_by_id_;
   // All outgoing SUBSCRIBE and incoming PUBLISH, indexed by track_alias.
   absl::flat_hash_map<uint64_t, LiveSubscriber*> subscribe_by_alias_;
   // All outgoing SUBSCRIBE and incoming PUBLISH, indexed by track name.
@@ -500,17 +458,16 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   MoqtPublisher* publisher_;
   // Subscriptions for local tracks by the remote peer, indexed by request ID.
   absl::flat_hash_map<uint64_t, LivePublisher*> published_subscriptions_;
-  // Keeps track of all request IDs that have queued outgoing data streams.
-  // The first element is the highest priority (lowest integer).
-  absl::btree_multimap<MoqtTrackPriority, uint64_t>
-      subscriptions_with_queued_streams_;
+  // Keeps track of all subscriptions and fetches that have queued outgoing data
+  // streams. For subscriptions (PUBLISH/SUBSCRIBE), stores a FullTrackName that
+  // can be used to retrieve LivePublisher. For FETCH, stores the response
+  // stream ID. The first element is the highest priority (lowest integer).
+  absl::btree_multimap<MoqtTrackPriority,
+                       std::variant<FullTrackName, webtransport::StreamId>>
+      requests_with_queued_streams_;
   // This is only used to check for track_alias collisions.
   absl::flat_hash_set<uint64_t> used_track_aliases_;
   uint64_t next_local_track_alias_ = 0;
-
-  // Incoming FETCHes, indexed by fetch ID.
-  absl::flat_hash_map<uint64_t, std::unique_ptr<PublishedFetch>>
-      incoming_fetches_;
 
   // Monitoring interfaces for expected incoming subscriptions.
   absl::flat_hash_map<FullTrackName, MoqtPublishingMonitorInterface*>

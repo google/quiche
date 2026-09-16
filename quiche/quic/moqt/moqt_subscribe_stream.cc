@@ -184,8 +184,8 @@ absl::Status MoqtSubscribeResponseStream::OnControlMessage(
   if (track_publisher == nullptr) {
     QUIC_DLOG(INFO) << "SUBSCRIBE for " << message.full_track_name
                     << " rejected by the application: does not exist";
-    return SendRequestError(message.request_id, RequestErrorCode::kDoesNotExist,
-                            std::nullopt, "not found", /*fin=*/true);
+    return SendRequestError(RequestErrorCode::kDoesNotExist, std::nullopt,
+                            "not found");
   }
   subscription_ = std::make_unique<LivePublisher>(
       *framer(), track_publisher, this, message.request_id, track_alias_,
@@ -194,10 +194,8 @@ absl::Status MoqtSubscribeResponseStream::OnControlMessage(
     bool result = std::move(add_callback_)(subscription_.get());
     add_callback_ = nullptr;
     if (!result) {
-      return SendRequestError(message.request_id,
-                              RequestErrorCode::kDuplicateSubscription,
-                              std::nullopt, "duplicate subscription",
-                              /*fin=*/true);
+      return SendRequestError(RequestErrorCode::kDuplicateSubscription,
+                              std::nullopt, "duplicate subscription");
     }
   }
   // Don't add the publisher until we know it's successful.
@@ -209,9 +207,8 @@ absl::Status MoqtSubscribeResponseStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
   if (subscription_ == nullptr) {
     QUICHE_BUG(INFO) << "Received REQUEST_UPDATE, no subscription state";
-    return SendRequestError(message.request_id,
-                            RequestErrorCode::kInternalError, std::nullopt,
-                            "no subscription", /*fin=*/true);
+    return SendRequestError(RequestErrorCode::kInternalError, std::nullopt,
+                            "no subscription");
   }
   subscription_->Update(message.parameters);
   return SendRequestOk(message.request_id, MessageParameters());

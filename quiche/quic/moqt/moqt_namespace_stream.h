@@ -12,7 +12,6 @@
 #include <utility>
 
 #include "absl/base/nullability.h"
-#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
@@ -113,7 +112,6 @@ class MoqtSubscribeNamespaceRequestStream : public MoqtBidiStreamBase {
     // The stream is closed, so no more NAMESPACE messages are forthcoming.
     // This is an implicit NAMESPACE_DONE for all published namespaces.
     void DeclareEof();
-    MoqtResponseCallback GetResponseCallback(uint64_t request_id);
     quiche::QuicheWeakPtr<NamespaceTask> GetWeakPtr() {
       return weak_ptr_factory_.Create();
     }
@@ -133,7 +131,6 @@ class MoqtSubscribeNamespaceRequestStream : public MoqtBidiStreamBase {
     std::optional<webtransport::StreamErrorCode> error_;
     bool eof_ = false;
     uint64_t next_request_id_;
-    absl::flat_hash_map<uint64_t, MoqtResponseCallback> pending_updates_;
     // Must be last.
     quiche::QuicheWeakPtrFactory<NamespaceTask> weak_ptr_factory_;
   };

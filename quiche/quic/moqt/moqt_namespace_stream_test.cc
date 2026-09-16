@@ -24,7 +24,6 @@
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/common/platform/api/quiche_test.h"
@@ -91,25 +90,11 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, RequestOk) {
   ReceiveControlMessage(MoqtRequestOk{kRequestId});
 }
 
-TEST_F(MoqtSubscribeNamespaceRequestStreamTest, RequestOkWrongId) {
-  EXPECT_CALL(error_callback_, Call(MoqtError::kProtocolViolation,
-                                    "Unexpected request ID in response"));
-  ReceiveControlMessage(MoqtRequestOk{kRequestId + 1});
-}
-
 TEST_F(MoqtSubscribeNamespaceRequestStreamTest, RequestError) {
   EXPECT_CALL(response_callback_, Call);
   ReceiveControlMessage(
-      MoqtRequestError{kRequestId, RequestErrorCode::kInternalError,
-                       quic::QuicTimeDelta::FromMilliseconds(100), "bar"});
-}
-
-TEST_F(MoqtSubscribeNamespaceRequestStreamTest, RequestErrorWrongId) {
-  EXPECT_CALL(error_callback_, Call(MoqtError::kProtocolViolation,
-                                    "Unexpected request ID in response"));
-  ReceiveControlMessage(
-      MoqtRequestError{kRequestId + 1, RequestErrorCode::kInternalError,
-                       quic::QuicTimeDelta::FromMilliseconds(100), "bar"});
+      MoqtRequestError(RequestErrorCode::kInternalError,
+                       quic::QuicTimeDelta::FromMilliseconds(100), "bar"));
 }
 
 TEST_F(MoqtSubscribeNamespaceRequestStreamTest, NamespaceBeforeResponse) {
@@ -290,8 +275,8 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, UpdateAndRequestError) {
   task_->Update(update_params, update_response_callback.AsStdFunction());
   EXPECT_CALL(update_response_callback, Call(_));
   ReceiveControlMessage(
-      MoqtRequestError{kRequestId + 2, RequestErrorCode::kInternalError,
-                       quic::QuicTimeDelta::FromMilliseconds(100), "bar"});
+      MoqtRequestError(RequestErrorCode::kInternalError,
+                       quic::QuicTimeDelta::FromMilliseconds(100), "bar"));
 }
 
 class MoqtSubscribeNamespaceResponseStreamTest

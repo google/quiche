@@ -80,7 +80,7 @@ class QUICHE_EXPORT SessionToPublisherInterface {
   // streams. If it has a value, |old_priority| is the old value to be
   // replaced by |new_priority|.
   virtual void UpdateTrackPriority(
-      uint64_t request_id, std::optional<MoqtTrackPriority> old_priority,
+      const FullTrackName& name, std::optional<MoqtTrackPriority> old_priority,
       MoqtTrackPriority new_priority) = 0;
   virtual quic::QuicAlarmFactory* alarm_factory() = 0;
   virtual std::shared_ptr<MoqtTrackPublisher> GetTrackPublisher(

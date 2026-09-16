@@ -67,9 +67,6 @@ struct FramingVisitor {
   quiche::QuicheBuffer operator()(const MoqtFetch& message) {
     return framer.SerializeFetch(message);
   }
-  quiche::QuicheBuffer operator()(const MoqtFetchCancel& message) {
-    return framer.SerializeFetchCancel(message);
-  }
   quiche::QuicheBuffer operator()(const MoqtFetchOk& message) {
     return framer.SerializeFetchOk(message);
   }

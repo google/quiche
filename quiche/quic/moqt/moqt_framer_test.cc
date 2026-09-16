@@ -55,7 +55,6 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kSubscribeNamespace,
       MoqtMessageType::kSubscribeTracks,
       MoqtMessageType::kFetch,
-      MoqtMessageType::kFetchCancel,
       MoqtMessageType::kFetchOk,
       MoqtMessageType::kPublish,
       MoqtMessageType::kObjectAck,
@@ -183,10 +182,6 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kFetch: {
         auto data = std::get<MoqtFetch>(structured_data);
         return framer_.SerializeFetch(data);
-      }
-      case moqt::MoqtMessageType::kFetchCancel: {
-        auto data = std::get<MoqtFetchCancel>(structured_data);
-        return framer_.SerializeFetchCancel(data);
       }
       case moqt::MoqtMessageType::kFetchOk: {
         auto data = std::get<MoqtFetchOk>(structured_data);
@@ -413,7 +408,6 @@ TEST_F(MoqtFramerSimpleTest, FetchEndBeforeStart) {
 
 TEST_F(MoqtFramerSimpleTest, FetchOkWholeGroup) {
   MoqtFetchOk fetch_ok = {
-      /*request_id=*/1,
       /*end_of_track=*/false,
       /*end_location=*/Location{4, kMaxObjectId},
       MessageParameters(),
@@ -421,7 +415,7 @@ TEST_F(MoqtFramerSimpleTest, FetchOkWholeGroup) {
   };
   quiche::QuicheBuffer buffer = framer_.SerializeFetchOk(fetch_ok);
   // Check that object ID is zero.
-  EXPECT_EQ(static_cast<uint8_t>(buffer.AsSpan()[7]), 0);
+  EXPECT_EQ(static_cast<uint8_t>(buffer.AsSpan()[5]), 0);
 }
 
 TEST_F(MoqtFramerSimpleTest, RelativeJoiningFetch) {

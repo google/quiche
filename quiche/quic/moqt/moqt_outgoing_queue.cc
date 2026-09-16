@@ -13,10 +13,13 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/status/status.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_mem_slice.h"
@@ -132,10 +135,13 @@ std::optional<Location> MoqtOutgoingQueue::largest_location() const {
 }
 
 std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::StandaloneFetch(
-    Location start, Location end, MoqtDeliveryOrder order) {
+    Location start, Location end, MoqtDeliveryOrder order,
+    FetchResponseCallback callback) {
   if (queue_.empty()) {
-    return std::make_unique<MoqtFailedFetch>(
-        absl::NotFoundError("No objects available on the track"));
+    std::move(callback)(
+        MoqtRequestErrorInfo(RequestErrorCode::kInvalidRange, std::nullopt,
+                             "No objects available on the track"));
+    return nullptr;
   }
 
   Location first_available_object = Location(first_group_in_queue(), 0);
@@ -143,39 +149,58 @@ std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::StandaloneFetch(
       Location(current_group_id_, queue_.back().size() - 1);
 
   if (end < first_available_object) {
-    return std::make_unique<MoqtFailedFetch>(
-        absl::NotFoundError("All of the requested objects have expired"));
+    std::move(callback)(
+        MoqtRequestErrorInfo(RequestErrorCode::kInvalidRange, std::nullopt,
+                             "All of the requested objects have expired"));
+    return nullptr;
   }
   if (start > last_available_object) {
-    return std::make_unique<MoqtFailedFetch>(
-        absl::NotFoundError("All of the requested objects are in the future"));
+    std::move(callback)(
+        MoqtRequestErrorInfo(RequestErrorCode::kInvalidRange, std::nullopt,
+                             "All of the requested objects are in the future"));
+    return nullptr;
   }
 
   Location adjusted_start = std::max(start, first_available_object);
   Location adjusted_end = std::min(end, last_available_object);
   std::vector<Location> objects =
       GetCachedObjectsInRange(adjusted_start, adjusted_end);
+  if (objects.empty()) {
+    std::move(callback)(
+        MoqtRequestErrorInfo(RequestErrorCode::kInvalidRange, std::nullopt,
+                             "No objects in the requested range"));
+    return nullptr;
+  }
   // Default to ascending order.
   if (order == MoqtDeliveryOrder::kDescending) {
     ObjectsInDescendingOrder(objects);
   }
+  FetchOkData ok(closed_ && adjusted_end == largest_location(), adjusted_end,
+                 MessageParameters(), extensions_);
+  std::move(callback)(ok);
   return std::make_unique<FetchTask>(this, std::move(objects));
 }
 
 std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::RelativeFetch(
-    uint64_t /*group_diff*/, MoqtDeliveryOrder /*order*/) {
+    uint64_t /*group_diff*/, MoqtDeliveryOrder,
+    FetchResponseCallback callback) {
   QUICHE_BUG(MoqtOutgoingQueue_RelativeFetch)
       << "Calling RelativeFetch() on an established subscription";
-  return std::make_unique<MoqtFailedFetch>(absl::InternalError(
+  std::move(callback)(MoqtRequestErrorInfo(
+      RequestErrorCode::kNotSupported, std::nullopt,
       "RelativeFetch called on an established subscription"));
+  return nullptr;
 }
 
 std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::AbsoluteFetch(
-    uint64_t /*group*/, MoqtDeliveryOrder /*order*/) {
+    uint64_t /*group*/, MoqtDeliveryOrder /*order*/,
+    FetchResponseCallback callback) {
   QUICHE_BUG(MoqtOutgoingQueue_AbsoluteFetch)
       << "Calling AbsoluteFetch() on an established subscription";
-  return std::make_unique<MoqtFailedFetch>(absl::InternalError(
-      "AbsoluteFetch called on an established subscription"));
+  std::move(callback)(MoqtRequestErrorInfo(
+      RequestErrorCode::kNotSupported, std::nullopt,
+      "RelativeFetch called on an established subscription"));
+  return nullptr;
 }
 
 MoqtFetchTask::GetNextObjectResult MoqtOutgoingQueue::FetchTask::GetNextObject(

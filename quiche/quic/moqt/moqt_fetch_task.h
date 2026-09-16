@@ -7,15 +7,12 @@
 
 #include <cstdint>
 #include <optional>
-#include <string>
-#include <utility>
 #include <variant>
 
 #include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -23,7 +20,7 @@
 
 namespace moqt {
 
-// The callback we'll use for all request types going forward. Can only be used
+// The callback we'll use for most request types going forward. Can only be used
 // once. If the argument is MessageParameters, the request was successful.
 // Otherwise, the request failed with the given error info.
 // This is not used for responses to SUBSCRIBE (SubscribeVisitor), FETCH
@@ -56,10 +53,6 @@ enum class TransactionType : uint8_t { kAdd, kDelete };
 // cancelled by deleting the object.
 class MoqtFetchTask {
  public:
-  // The request_id field will be ignored.
-  using FetchResponseCallback = quiche::SingleUseCallback<void(
-      std::variant<MoqtFetchOk, MoqtRequestError>)>;
-
   virtual ~MoqtFetchTask() = default;
 
   // TODO(martinduke): Replace with GetNextResult above.
@@ -89,11 +82,6 @@ class MoqtFetchTask {
   // immediately.
   virtual void SetObjectAvailableCallback(
       ObjectsAvailableCallback callback) = 0;
-  // One of these callbacks is called as soon as the data publisher has enough
-  // information for either FETCH_OK or FETCH_ERROR.
-  // If the appropriate response is already available, the callback will be
-  // called immediately.
-  virtual void SetFetchResponseCallback(FetchResponseCallback callback) = 0;
 
   // Returns the error if fetch has completely failed, and OK otherwise.
   virtual absl::Status GetStatus() = 0;
@@ -122,27 +110,6 @@ class MoqtNamespaceTask {
 
   // Returns the prefix for this task.
   virtual const TrackNamespace& prefix() = 0;
-};
-
-// A fetch that starts out in the failed state.
-class MoqtFailedFetch : public MoqtFetchTask {
- public:
-  explicit MoqtFailedFetch(absl::Status status) : status_(std::move(status)) {}
-
-  GetNextObjectResult GetNextObject(PublishedObject&) override {
-    return kError;
-  }
-  absl::Status GetStatus() override { return status_; }
-  void SetObjectAvailableCallback(
-      ObjectsAvailableCallback /*callback*/) override {}
-  void SetFetchResponseCallback(FetchResponseCallback callback) override {
-    MoqtRequestError error{/*request_id=*/0, StatusToRequestErrorCode(status_),
-                           std::nullopt, std::string(status_.message())};
-    std::move(callback)(error);
-  }
-
- private:
-  absl::Status status_;
 };
 
 }  // namespace moqt

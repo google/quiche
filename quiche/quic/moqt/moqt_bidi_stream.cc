@@ -65,23 +65,18 @@ absl::Status MoqtBidiStreamBase::SendRequestOk(
 }
 
 absl::Status MoqtBidiStreamBase::SendRequestError(
-    uint64_t request_id, RequestErrorCode error_code,
+    RequestErrorCode error_code,
     std::optional<quic::QuicTimeDelta> retry_interval,
-    absl::string_view reason_phrase, bool fin) {
-  MoqtRequestError request_error;
-  request_error.request_id = request_id;
-  request_error.error_code = error_code;
-  request_error.retry_interval = retry_interval;
-  request_error.reason_phrase = reason_phrase;
-  return SendOrBufferMessage(framer_->SerializeRequestError(request_error),
-                             fin);
+    absl::string_view reason_phrase) {
+  MoqtRequestErrorInfo error_info(error_code, retry_interval,
+                                  std::string(reason_phrase));
+  return SendRequestError(error_info);
 }
 
-absl::Status MoqtBidiStreamBase::SendRequestError(uint64_t request_id,
-                                                  MoqtRequestErrorInfo info,
-                                                  bool fin) {
-  return SendRequestError(request_id, info.error_code, info.retry_interval,
-                          info.reason_phrase, fin);
+absl::Status MoqtBidiStreamBase::SendRequestError(
+    const MoqtRequestErrorInfo& info) {
+  return SendOrBufferMessage(framer_->SerializeRequestError(info),
+                             /*fin=*/true);
 }
 
 absl::Status MoqtBidiStreamBase::SendRequestUpdate(

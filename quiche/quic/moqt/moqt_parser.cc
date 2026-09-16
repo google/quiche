@@ -689,8 +689,7 @@ absl::StatusOr<MoqtRequestError> MoqtControlMessageParser::ProcessRequestError(
   MoqtRequestError request_error;
   uint64_t error_code;
   uint64_t raw_interval;
-  if (!reader.ReadMoqVarInt(&request_error.request_id) ||
-      !reader.ReadMoqVarInt(&error_code) ||
+  if (!reader.ReadMoqVarInt(&error_code) ||
       !reader.ReadMoqVarInt(&raw_interval) ||
       !reader.ReadStringMoqVarInt(request_error.reason_phrase)) {
     return absl::InvalidArgumentError("Message missing fields");
@@ -901,8 +900,7 @@ absl::StatusOr<MoqtFetchOk> MoqtControlMessageParser::ProcessFetchOk(
   quic::QuicDataReader reader(data);
   MoqtFetchOk fetch_ok;
   uint8_t end_of_track;
-  if (!reader.ReadMoqVarInt(&fetch_ok.request_id) ||
-      !reader.ReadUInt8(&end_of_track) ||
+  if (!reader.ReadUInt8(&end_of_track) ||
       !reader.ReadMoqVarInt(&fetch_ok.end_location.group) ||
       !reader.ReadMoqVarInt(&fetch_ok.end_location.object)) {
     return absl::InvalidArgumentError("Message missing fields");
@@ -925,17 +923,6 @@ absl::StatusOr<MoqtFetchOk> MoqtControlMessageParser::ProcessFetchOk(
   }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return fetch_ok;
-}
-
-absl::StatusOr<MoqtFetchCancel> MoqtControlMessageParser::ProcessFetchCancel(
-    absl::string_view data) const {
-  quic::QuicDataReader reader(data);
-  MoqtFetchCancel fetch_cancel;
-  if (!reader.ReadMoqVarInt(&fetch_cancel.request_id)) {
-    return absl::InvalidArgumentError("Request ID missing");
-  }
-  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
-  return fetch_cancel;
 }
 
 absl::StatusOr<MoqtPublish> MoqtControlMessageParser::ProcessPublish(

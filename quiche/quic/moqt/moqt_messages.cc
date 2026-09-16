@@ -103,8 +103,6 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "PUBLISH";
     case MoqtMessageType::kFetch:
       return "FETCH";
-    case MoqtMessageType::kFetchCancel:
-      return "FETCH_CANCEL";
     case MoqtMessageType::kFetchOk:
       return "FETCH_OK";
     case MoqtMessageType::kObjectAck:

@@ -105,18 +105,15 @@ TEST_F(MoqtPublishNamespaceRequestStreamTest, OnControlMessageError) {
   std::unique_ptr<MoqtPublishNamespaceRequestStream> request_stream =
       CreateAndBindStream();
   bool callback_called = false;
+  MoqtRequestError message(RequestErrorCode::kUnauthorized, std::nullopt,
+                           "unauthorized");
   EXPECT_CALL(response_callback_, Call(_))
       .WillOnce([&](std::variant<MessageParameters, MoqtRequestErrorInfo> res) {
         callback_called = true;
         ASSERT_TRUE(std::holds_alternative<MoqtRequestErrorInfo>(res));
-        EXPECT_EQ(std::get<MoqtRequestErrorInfo>(res).error_code,
-                  RequestErrorCode::kUnauthorized);
+        EXPECT_EQ(std::get<MoqtRequestErrorInfo>(res), message);
       });
   ExpectFin(mock_stream_);
-
-  MoqtRequestError message;
-  message.request_id = 10;
-  message.error_code = RequestErrorCode::kUnauthorized;
   QUICHE_EXPECT_OK(request_stream->OnControlMessage(message));
   EXPECT_TRUE(callback_called);
 }
