@@ -30,6 +30,7 @@ using ::quiche::structured_headers::Dictionary;
 using ::quiche::structured_headers::DictionaryMember;
 using ::quiche::structured_headers::Item;
 using ::quiche::structured_headers::ItemTypeToString;
+using ::quiche::structured_headers::ItemView;
 using ::quiche::structured_headers::List;
 using ::quiche::structured_headers::ParameterizedItem;
 using ::quiche::structured_headers::ParameterizedMember;
@@ -123,9 +124,9 @@ absl::StatusOr<std::string> ParseSubprotocolResponseHeader(
 
 absl::StatusOr<std::string> SerializeSubprotocolResponseHeader(
     absl::string_view subprotocol) {
-  Item item(Item::string, subprotocol);
   std::optional<std::string> serialized =
-      quiche::structured_headers::SerializeItem(item);
+      quiche::structured_headers::SerializeItem(
+          ItemView(ItemView::string, subprotocol));
   if (!serialized.has_value()) {
     return absl::InvalidArgumentError("Invalid subprotocol name supplied");
   }

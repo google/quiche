@@ -184,7 +184,7 @@ class QUICHE_EXPORT Item {
   ItemType Type() const { return static_cast<ItemType>(value_.index()); }
 
  private:
-  friend class StructuredHeaderSerializer;
+  friend class ItemView;
 
   // Wrapper types to permit simplified use of `std::visit`.
   struct Token {
@@ -475,8 +475,75 @@ QUICHE_EXPORT std::optional<List> ParseList(absl::string_view str,
 QUICHE_EXPORT std::optional<Dictionary> ParseDictionary(absl::string_view str,
                                                         bool strict = false);
 
+class QUICHE_EXPORT ItemView final {
+ public:
+  using string_t = Item::string_t;
+  using token_t = Item::token_t;
+  using byte_sequence_t = Item::byte_sequence_t;
+
+  inline static constexpr string_t string;
+  inline static constexpr token_t token;
+  inline static constexpr byte_sequence_t byte_sequence;
+
+  ItemView();
+  ItemView(int64_t value);
+  ItemView(double value);
+  ItemView(bool value);
+
+  // Prevent pointers from implicitly converting to bool.
+  template <typename T>
+  explicit ItemView(const T*) = delete;
+  explicit ItemView(std::nullptr_t) = delete;
+
+  ItemView(string_t, absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND);
+
+  ItemView(token_t, absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND);
+
+  ItemView(byte_sequence_t,
+           absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND);
+
+  ItemView(const Item& value ABSL_ATTRIBUTE_LIFETIME_BOUND);
+
+  ItemView(const ItemView&) = default;
+  ItemView& operator=(const ItemView&) = default;
+
+  ItemView(ItemView&&) = default;
+  ItemView& operator=(ItemView&&) = default;
+
+  ~ItemView() = default;
+
+ private:
+  friend class StructuredHeaderSerializer;
+
+  // Wrapper types to permit simplified use of `std::visit`.
+  struct Token {
+    absl::string_view value;
+
+    explicit Token(absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND)
+        : value(value) {}
+
+    Token(const Item::Token& value ABSL_ATTRIBUTE_LIFETIME_BOUND)
+        : value(value.value) {}
+  };
+
+  struct ByteSequence {
+    absl::string_view value;
+
+    explicit ByteSequence(absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND)
+        : value(value) {}
+
+    ByteSequence(const Item::ByteSequence& value ABSL_ATTRIBUTE_LIFETIME_BOUND)
+        : value(value.value) {}
+  };
+
+  using Variant = std::variant<std::monostate, int64_t, double,
+                               absl::string_view, Token, ByteSequence, bool>;
+
+  Variant value_;
+};
+
 // Serialization is implemented for RFC 8941 only.
-QUICHE_EXPORT std::optional<std::string> SerializeItem(const Item& value);
+QUICHE_EXPORT std::optional<std::string> SerializeItem(ItemView value);
 QUICHE_EXPORT std::optional<std::string> SerializeItem(
     const ParameterizedItem& value);
 QUICHE_EXPORT std::optional<std::string> SerializeList(const List& value);

@@ -616,10 +616,10 @@ class StructuredHeaderSerializer {
   }
 
   // Serializes an Item ([RFC8941] 4.1.3).
-  [[nodiscard]] bool WriteBareItem(const Item& value) {
+  [[nodiscard]] bool WriteBareItem(ItemView value) {
     return std::visit(
         absl::Overload{
-            [&](const std::string& string) {
+            [&](absl::string_view string) {
               // Serializes a String ([RFC8941] 4.1.6).
               output_ << "\"";
               for (const char c : string) {
@@ -630,7 +630,7 @@ class StructuredHeaderSerializer {
               output_ << "\"";
               return true;
             },
-            [&](const Item::Token& token) {
+            [&](const ItemView::Token& token) {
               // Serializes a Token ([RFC8941] 4.1.7).
               if (!IsValidToken(token.value)) {
                 return false;
@@ -638,7 +638,7 @@ class StructuredHeaderSerializer {
               output_ << token.value;
               return true;
             },
-            [&](const Item::ByteSequence& byte_sequence) {
+            [&](const ItemView::ByteSequence& byte_sequence) {
               // Serializes a Byte Sequence ([RFC8941] 4.1.8).
               output_ << ":";
               output_ << absl::Base64Escape(byte_sequence.value);
@@ -1142,7 +1142,7 @@ std::optional<Dictionary> ParseDictionary(absl::string_view str, bool strict) {
   return std::nullopt;
 }
 
-std::optional<std::string> SerializeItem(const Item& value) {
+std::optional<std::string> SerializeItem(ItemView value) {
   StructuredHeaderSerializer s;
   if (s.WriteBareItem(value)) return std::move(s).Output();
   return std::nullopt;
@@ -1165,6 +1165,22 @@ std::optional<std::string> SerializeDictionary(const Dictionary& value) {
   if (s.WriteDictionary(value)) return std::move(s).Output();
   return std::nullopt;
 }
+
+ItemView::ItemView() = default;
+ItemView::ItemView(int64_t value) : value_(value) {}
+ItemView::ItemView(double value) : value_(value) {}
+ItemView::ItemView(bool value) : value_(value) {}
+
+ItemView::ItemView(string_t, absl::string_view value) : value_(value) {}
+
+ItemView::ItemView(token_t, absl::string_view value) : value_(Token(value)) {}
+
+ItemView::ItemView(byte_sequence_t, absl::string_view value)
+    : value_(ByteSequence(value)) {}
+
+ItemView::ItemView(const Item& value)
+    : value_(std::visit([](const auto& value) { return Variant(value); },
+                        value.value_)) {}
 
 }  // namespace structured_headers
 }  // namespace quiche
