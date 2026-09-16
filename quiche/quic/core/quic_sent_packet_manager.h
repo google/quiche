@@ -420,6 +420,8 @@ class QUICHE_EXPORT QuicSentPacketManager {
     return send_algorithm_.get();
   }
 
+  SendAlgorithmInterface* GetSendAlgorithm() { return send_algorithm_.get(); }
+
   void ReduceMemoryUsage() {
     unacked_packets_.ReduceMemoryUsage();
     send_algorithm_->ReduceMemoryUsage();
