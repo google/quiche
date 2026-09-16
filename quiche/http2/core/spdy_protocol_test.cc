@@ -261,7 +261,7 @@ TEST(SpdyDataIRTest, Construct) {
   // short to trigger the move optimization, and instead a copy occurs.
   std::string baz = "the quick brown fox";
   SpdyDataIR d5(/* stream_id = */ 5, std::move(baz));
-  EXPECT_EQ("", baz);
+  EXPECT_EQ("", baz);  // NOLINT(bugprone-use-after-move)
   EXPECT_EQ(absl::string_view(d5.data(), d5.data_len()), "the quick brown fox");
 
   // Confirms makes a copy of string literal.
@@ -646,7 +646,8 @@ TEST(ModernFrameTest, SerializeAcceptChFrame) {
   EXPECT_TRUE(SerializeFrame(accept_ch, builder));
   SpdySerializedFrame serialized = builder.take();
 
-  SpdyAcceptChIR accept_ch_ir({{"example.com", "sec-ch-ua"}});
+  SpdyAcceptChIR accept_ch_ir(
+      {AcceptChOriginValuePair{.origin = "example.com", .value = "sec-ch-ua"}});
   SpdySerializedFrame expected = framer.SerializeAcceptCh(accept_ch_ir);
 
   EXPECT_EQ(absl::string_view(expected), absl::string_view(serialized));

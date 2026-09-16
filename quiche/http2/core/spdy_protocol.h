@@ -1277,7 +1277,7 @@ struct QUICHE_EXPORT AcceptChOriginValuePair {
 
 class QUICHE_EXPORT SpdyAcceptChIR : public SpdyFrameIR {
  public:
-  SpdyAcceptChIR(std::vector<AcceptChOriginValuePair> entries)
+  explicit SpdyAcceptChIR(std::vector<AcceptChOriginValuePair> entries)
       : entries_(std::move(entries)) {}
   SpdyAcceptChIR(const SpdyAcceptChIR&) = delete;
   SpdyAcceptChIR& operator=(const SpdyAcceptChIR&) = delete;
