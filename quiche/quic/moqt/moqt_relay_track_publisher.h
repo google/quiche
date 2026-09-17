@@ -172,6 +172,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   quiche::QuicheWeakPtr<MoqtSessionInterface> upstream_;
   DeleteTrackCallback delete_track_callback_;
   TrackExtensions extensions_;
+  std::optional<uint64_t> pending_new_group_request_;
   // TODO(martinduke): This publisher should destroy itself when the expiration
   // time passes.
   std::optional<quic::QuicTime> expiration_;

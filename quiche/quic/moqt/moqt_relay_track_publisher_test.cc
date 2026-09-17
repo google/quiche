@@ -15,14 +15,13 @@
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
-#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
-#include "quiche/quic/moqt/moqt_session_interface.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
+#include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
-#include "quiche/web_transport/web_transport.h"
 
 namespace moqt::test {
 
@@ -31,26 +30,6 @@ namespace {
 using ::testing::Optional;
 
 const FullTrackName kTrackName = {"test", "track"};
-
-class MockMoqtObjectListener : public MoqtObjectListener {
- public:
-  MOCK_METHOD(void, OnSubscribeAccepted, (), (override));
-  MOCK_METHOD(void, OnSubscribeRejected, (MoqtRequestErrorInfo reason),
-              (override));
-  MOCK_METHOD(void, OnNewObjectAvailable,
-              (Location sequence, std::optional<uint64_t> subgroup,
-               MoqtPriority publisher_priority),
-              (override));
-  MOCK_METHOD(void, OnNewFinAvailable,
-              (Location final_object_in_subgroup, uint64_t subgroup_id),
-              (override));
-  MOCK_METHOD(void, OnSubgroupAbandoned,
-              (uint64_t group, uint64_t subgroup,
-               webtransport::StreamErrorCode error_code),
-              (override));
-  MOCK_METHOD(void, OnGroupAbandoned, (uint64_t group_id), (override));
-  MOCK_METHOD(void, OnTrackPublisherGone, (), (override));
-};
 
 class MoqtRelayTrackPublisherTest : public quiche::test::QuicheTest {
  public:
@@ -644,6 +623,320 @@ TEST_F(MoqtRelayTrackPublisherTest, ForwardsOackWindowSize) {
                                quic::QuicTimeDelta::FromMilliseconds(50))))
       .WillOnce(testing::Return(true));
   publisher_.AddObjectListener(&listener_, MessageParameters());
+}
+
+TEST_F(MoqtRelayTrackPublisherTest, NewGroupRequestFirstListener) {
+  MessageParameters parameters;
+  parameters.new_group_request = 4;
+  EXPECT_CALL(*session_,
+              Subscribe(kTrackName, &publisher_,
+                        testing::Field(&MessageParameters::new_group_request,
+                                       Optional(4))))
+      .WillOnce(testing::Return(true));
+  EXPECT_CALL(*session_, SubscribeUpdate).Times(0);
+  publisher_.AddObjectListener(&listener_, parameters);
+
+  // Receive OnReply with largest_object (3, 2) and dynamic_groups = true.
+  // Because pending_new_group_request_ (4) > next_location_.group (3),
+  // pending_new_group_request_ is NOT cleared.
+  EXPECT_CALL(listener_, OnSubscribeAccepted);
+  MessageParameters ok_parameters;
+  ok_parameters.largest_object = kLargestLocation;  // Location(3, 2)
+  ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
+  TrackExtensions extensions(
+      /*delivery_timeout=*/std::nullopt,
+      /*max_cache_duration=*/std::nullopt,
+      /*publisher_priority=*/std::nullopt,
+      /*group_order=*/std::nullopt,
+      /*dynamic_groups=*/true,
+      /*immutable_extensions=*/std::nullopt);
+  publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, extensions});
+
+  // Requests with new_group_request <= 4 (including 4 and 0) do not trigger
+  // SubscribeUpdate because pending_new_group_request_ is still 4.
+  MockMoqtObjectListener listener2;
+  EXPECT_CALL(listener2, OnSubscribeAccepted);
+  EXPECT_CALL(*session_, SubscribeUpdate).Times(0);
+  publisher_.AddObjectListener(&listener2, parameters);
+
+  MockMoqtObjectListener listener3;
+  MessageParameters params_zero;
+  params_zero.new_group_request = 0;
+  EXPECT_CALL(listener3, OnSubscribeAccepted);
+  EXPECT_CALL(*session_, SubscribeUpdate).Times(0);
+  publisher_.AddObjectListener(&listener3, params_zero);
+
+  // When an object in group 4 arrives, next_location_ advances to (4, 1) and
+  // pending_new_group_request_ is cleared.
+  EXPECT_CALL(listener2, OnNewObjectAvailable);
+  EXPECT_CALL(listener3, OnNewObjectAvailable);
+  ObjectArrives(Location(4, 0), /*subgroup=*/0, MoqtObjectStatus::kNormal, "a");
+
+  // A subsequent listener requesting group 4 is ignored because
+  // next_location_.group is now 4.
+  MockMoqtObjectListener listener4;
+  EXPECT_CALL(listener4, OnSubscribeAccepted);
+  EXPECT_CALL(*session_, SubscribeUpdate).Times(0);
+  publisher_.AddObjectListener(&listener4, parameters);
+
+  // A listener requesting 0 is translated to next_location_.group + 1 (5)
+  // because next_location_ > Location(0, 0), and sets
+  // pending_new_group_request_ to 5.
+  MockMoqtObjectListener listener5;
+  EXPECT_CALL(listener5, OnSubscribeAccepted);
+  EXPECT_CALL(
+      *session_,
+      SubscribeUpdate(
+          kTrackName,
+          testing::Field(&MessageParameters::new_group_request, Optional(5)),
+          testing::_))
+      .WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener5, params_zero);
+
+  // Because listener5 set pending_new_group_request_ to 5, a subsequent
+  // listener explicitly requesting group 5 does not trigger a duplicate
+  // SubscribeUpdate.
+  MockMoqtObjectListener listener6;
+  MessageParameters params5;
+  params5.new_group_request = 5;
+  EXPECT_CALL(listener6, OnSubscribeAccepted);
+  EXPECT_CALL(*session_, SubscribeUpdate).Times(0);
+  publisher_.AddObjectListener(&listener6, params5);
+
+  // A listener requesting a higher group ID (6 > 5) preserves the explicit
+  // group ID and triggers SubscribeUpdate(6).
+  MockMoqtObjectListener listener7;
+  MessageParameters params6;
+  params6.new_group_request = 6;
+  EXPECT_CALL(listener7, OnSubscribeAccepted);
+  EXPECT_CALL(
+      *session_,
+      SubscribeUpdate(
+          kTrackName,
+          testing::Field(&MessageParameters::new_group_request, Optional(6)),
+          testing::_))
+      .WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener7, params6);
+}
+
+TEST_F(MoqtRelayTrackPublisherTest, NewGroupRequestBeforeResponse) {
+  EXPECT_CALL(*session_,
+              Subscribe(kTrackName, &publisher_,
+                        testing::Field(&MessageParameters::new_group_request,
+                                       std::nullopt)))
+      .WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener_, MessageParameters());
+
+  // Before OnReply (!got_response_ is true and next_location_ == (0, 0)), a
+  // new_group_request = 0 triggers SubscribeUpdate(0) (not next_location_.group
+  // + 1) even though extensions_.dynamic_groups() is false.
+  MockMoqtObjectListener listener_zero;
+  MessageParameters params_zero;
+  params_zero.new_group_request = 0;
+  EXPECT_CALL(
+      *session_,
+      SubscribeUpdate(
+          kTrackName,
+          testing::Field(&MessageParameters::new_group_request, Optional(0)),
+          testing::_))
+      .WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener_zero, params_zero);
+
+  // A request with a larger group ID (2 > 0) triggers SubscribeUpdate(2).
+  MockMoqtObjectListener listener2;
+  MessageParameters params2;
+  params2.new_group_request = 2;
+  EXPECT_CALL(
+      *session_,
+      SubscribeUpdate(
+          kTrackName,
+          testing::Field(&MessageParameters::new_group_request, Optional(2)),
+          testing::_))
+      .WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener2, params2);
+
+  // A subsequent request with the same or smaller group ID does not trigger
+  // SubscribeUpdate because pending_new_group_request_ is 2.
+  MockMoqtObjectListener listener3;
+  MessageParameters params3;
+  params3.new_group_request = 2;
+  EXPECT_CALL(*session_, SubscribeUpdate).Times(0);
+  publisher_.AddObjectListener(&listener3, params3);
+
+  MockMoqtObjectListener listener4;
+  MessageParameters params4;
+  params4.new_group_request = 0;
+  publisher_.AddObjectListener(&listener4, params4);
+
+  // A request with a larger group ID (> pending_new_group_request_) triggers
+  // SubscribeUpdate.
+  MockMoqtObjectListener listener5;
+  MessageParameters params5;
+  params5.new_group_request = 5;
+  EXPECT_CALL(
+      *session_,
+      SubscribeUpdate(
+          kTrackName,
+          testing::Field(&MessageParameters::new_group_request, Optional(5)),
+          testing::_))
+      .WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener5, params5);
+
+  // When SUBSCRIBE_OK arrives with LARGEST_OBJECT >= pending_new_group_request_
+  // (5), pending_new_group_request_ is cleared, allowing another
+  // SUBSCRIBE_UPDATE with NEW_GROUP_REQUEST = 0 (translated to
+  // next_location_.group + 1 = 6) even though no object has arrived.
+  EXPECT_CALL(listener_, OnSubscribeAccepted);
+  EXPECT_CALL(listener_zero, OnSubscribeAccepted);
+  EXPECT_CALL(listener2, OnSubscribeAccepted);
+  EXPECT_CALL(listener3, OnSubscribeAccepted);
+  EXPECT_CALL(listener4, OnSubscribeAccepted);
+  EXPECT_CALL(listener5, OnSubscribeAccepted);
+  MessageParameters ok_parameters;
+  ok_parameters.largest_object = Location(5, 2);
+  ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
+  TrackExtensions extensions(
+      /*delivery_timeout=*/std::nullopt,
+      /*max_cache_duration=*/std::nullopt,
+      /*publisher_priority=*/std::nullopt,
+      /*group_order=*/std::nullopt,
+      /*dynamic_groups=*/true,
+      /*immutable_extensions=*/std::nullopt);
+  publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, extensions});
+
+  MockMoqtObjectListener listener6;
+  EXPECT_CALL(listener6, OnSubscribeAccepted);
+  EXPECT_CALL(
+      *session_,
+      SubscribeUpdate(
+          kTrackName,
+          testing::Field(&MessageParameters::new_group_request, Optional(6)),
+          testing::_))
+      .WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener6, params4);
+}
+
+TEST_F(MoqtRelayTrackPublisherTest,
+       NewGroupRequestAfterResponseWithoutDynamicGroups) {
+  SubscribeAndOk();
+
+  // After OnReply, extensions_.dynamic_groups() is false by default, so
+  // NEW_GROUP_REQUEST is ignored.
+  MockMoqtObjectListener listener2;
+  EXPECT_CALL(listener2, OnSubscribeAccepted);
+  EXPECT_CALL(*session_, SubscribeUpdate).Times(0);
+  MessageParameters params;
+  params.new_group_request = 0;
+  publisher_.AddObjectListener(&listener2, params);
+
+  MockMoqtObjectListener listener3;
+  EXPECT_CALL(listener3, OnSubscribeAccepted);
+  params.new_group_request = 10;
+  publisher_.AddObjectListener(&listener3, params);
+}
+
+TEST_F(MoqtRelayTrackPublisherTest,
+       NewGroupRequestAfterResponseWithDynamicGroups) {
+  EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener_, MessageParameters());
+  EXPECT_CALL(listener_, OnSubscribeAccepted);
+  MessageParameters ok_parameters;
+  ok_parameters.largest_object = kLargestLocation;  // Location(3, 2)
+  ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
+  TrackExtensions extensions(
+      /*delivery_timeout=*/std::nullopt,
+      /*max_cache_duration=*/std::nullopt,
+      /*publisher_priority=*/std::nullopt,
+      /*group_order=*/std::nullopt,
+      /*dynamic_groups=*/true,
+      /*immutable_extensions=*/std::nullopt);
+  publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, extensions});
+
+  // 1. No new_group_request parameter -> ignored.
+  MockMoqtObjectListener listener_no_param;
+  EXPECT_CALL(listener_no_param, OnSubscribeAccepted);
+  EXPECT_CALL(*session_, SubscribeUpdate).Times(0);
+  publisher_.AddObjectListener(&listener_no_param, MessageParameters());
+
+  // 2. new_group_request <= next_location_.group (which is 3) and != 0 ->
+  // ignored.
+  MockMoqtObjectListener listener_old_group;
+  EXPECT_CALL(listener_old_group, OnSubscribeAccepted);
+  MessageParameters params_old;
+  params_old.new_group_request = 3;
+  publisher_.AddObjectListener(&listener_old_group, params_old);
+
+  // 3. new_group_request == 0 -> translated to next_location_.group + 1 (4)
+  // and triggers SubscribeUpdate(4).
+  MockMoqtObjectListener listener_zero;
+  EXPECT_CALL(listener_zero, OnSubscribeAccepted);
+  EXPECT_CALL(
+      *session_,
+      SubscribeUpdate(
+          kTrackName,
+          testing::Field(&MessageParameters::new_group_request, Optional(4)),
+          testing::_))
+      .WillOnce(testing::Return(true));
+  MessageParameters params_zero;
+  params_zero.new_group_request = 0;
+  publisher_.AddObjectListener(&listener_zero, params_zero);
+
+  // 4. Duplicate new_group_request == 0 or 4 while pending is 4 -> ignored.
+  MockMoqtObjectListener listener_zero_dup;
+  EXPECT_CALL(listener_zero_dup, OnSubscribeAccepted);
+  EXPECT_CALL(*session_, SubscribeUpdate).Times(0);
+  publisher_.AddObjectListener(&listener_zero_dup, params_zero);
+
+  MockMoqtObjectListener listener_four_dup;
+  EXPECT_CALL(listener_four_dup, OnSubscribeAccepted);
+  MessageParameters params_four;
+  params_four.new_group_request = 4;
+  publisher_.AddObjectListener(&listener_four_dup, params_four);
+
+  // 5. new_group_request > next_location_.group (5 > 3) and > pending (5 > 4)
+  // -> triggers SubscribeUpdate(5).
+  MockMoqtObjectListener listener_five;
+  EXPECT_CALL(listener_five, OnSubscribeAccepted);
+  EXPECT_CALL(
+      *session_,
+      SubscribeUpdate(
+          kTrackName,
+          testing::Field(&MessageParameters::new_group_request, Optional(5)),
+          testing::_))
+      .WillOnce(testing::Return(true));
+  MessageParameters params_five;
+  params_five.new_group_request = 5;
+  publisher_.AddObjectListener(&listener_five, params_five);
+
+  // 6. Request with <= pending (e.g. 5 or 0) -> ignored.
+  MockMoqtObjectListener listener_five_dup;
+  EXPECT_CALL(listener_five_dup, OnSubscribeAccepted);
+  EXPECT_CALL(*session_, SubscribeUpdate).Times(0);
+  publisher_.AddObjectListener(&listener_five_dup, params_five);
+
+  // 7. When an object from group 4 arrives, pending_new_group_request_ is
+  // cleared and next_location_.group advances to 4.
+  EXPECT_CALL(listener_no_param, OnNewObjectAvailable);
+  EXPECT_CALL(listener_old_group, OnNewObjectAvailable);
+  EXPECT_CALL(listener_zero, OnNewObjectAvailable);
+  EXPECT_CALL(listener_zero_dup, OnNewObjectAvailable);
+  EXPECT_CALL(listener_four_dup, OnNewObjectAvailable);
+  EXPECT_CALL(listener_five, OnNewObjectAvailable);
+  EXPECT_CALL(listener_five_dup, OnNewObjectAvailable);
+  ObjectArrives(Location(4, 0), /*subgroup=*/0, MoqtObjectStatus::kNormal, "a");
+
+  // Now that pending_new_group_request_ is cleared, a new request with 0
+  // triggers SubscribeUpdate(5) (next_location_.group + 1).
+  MockMoqtObjectListener listener_after_new_group;
+  EXPECT_CALL(listener_after_new_group, OnSubscribeAccepted);
+  EXPECT_CALL(
+      *session_,
+      SubscribeUpdate(
+          kTrackName,
+          testing::Field(&MessageParameters::new_group_request, Optional(5)),
+          testing::_))
+      .WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener_after_new_group, params_zero);
 }
 
 }  // namespace
