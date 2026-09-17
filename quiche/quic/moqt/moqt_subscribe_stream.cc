@@ -199,7 +199,7 @@ absl::Status MoqtSubscribeResponseStream::OnControlMessage(
     }
   }
   // Don't add the publisher until we know it's successful.
-  track_publisher->AddObjectListener(subscription_.get());
+  track_publisher->AddObjectListener(subscription_.get(), message.parameters);
   return absl::OkStatus();
 }
 

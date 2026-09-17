@@ -606,7 +606,7 @@ bool MoqtSession::Publish(
   stream_visitor_ptr->BindStream(stream);
   next_request_id_ += 2;
   ++next_local_track_alias_;
-  publisher->AddObjectListener(publisher_ptr);
+  publisher->AddObjectListener(publisher_ptr, parameters);
   return true;
 }
 

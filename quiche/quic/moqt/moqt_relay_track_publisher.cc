@@ -352,7 +352,8 @@ std::optional<PublishedObject> MoqtRelayTrackPublisher::GetCachedObject(
   return object_it->second.ToPublishedObject(offset);
 }
 
-void MoqtRelayTrackPublisher::AddObjectListener(MoqtObjectListener* listener) {
+void MoqtRelayTrackPublisher::AddObjectListener(MoqtObjectListener* listener,
+                                                const MessageParameters&) {
   if (is_closing_) {
     return;
   }

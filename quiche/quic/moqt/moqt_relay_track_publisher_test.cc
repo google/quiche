@@ -62,7 +62,7 @@ class MoqtRelayTrackPublisherTest : public quiche::test::QuicheTest {
 
   void SubscribeAndOk() {
     EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
-    publisher_.AddObjectListener(&listener_);
+    publisher_.AddObjectListener(&listener_, MessageParameters());
     EXPECT_CALL(listener_, OnSubscribeAccepted);
     MessageParameters parameters;
     parameters.largest_object = kLargestLocation;
@@ -119,7 +119,7 @@ TEST_F(MoqtRelayTrackPublisherTest, Queries) {
 
 TEST_F(MoqtRelayTrackPublisherTest, FiniteExpiration) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
-  publisher_.AddObjectListener(&listener_);
+  publisher_.AddObjectListener(&listener_, MessageParameters());
   EXPECT_CALL(listener_, OnSubscribeAccepted);
   MessageParameters parameters;
   parameters.largest_object = kLargestLocation;
@@ -310,7 +310,7 @@ TEST_F(MoqtRelayTrackPublisherTest, CacheMisses) {
 
 TEST_F(MoqtRelayTrackPublisherTest, SubscribeRejected) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
-  publisher_.AddObjectListener(&listener_);
+  publisher_.AddObjectListener(&listener_, MessageParameters());
   EXPECT_CALL(listener_, OnSubscribeRejected).WillOnce([this] {
     publisher_.RemoveObjectListener(&listener_);
   });
@@ -322,7 +322,7 @@ TEST_F(MoqtRelayTrackPublisherTest, SubscribeRejected) {
 
 TEST_F(MoqtRelayTrackPublisherTest, LastListenerGone) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
-  publisher_.AddObjectListener(&listener_);
+  publisher_.AddObjectListener(&listener_, MessageParameters());
   EXPECT_CALL(*session_, Unsubscribe(kTrackName));
   publisher_.RemoveObjectListener(&listener_);
   EXPECT_TRUE(track_deleted_);
@@ -331,17 +331,17 @@ TEST_F(MoqtRelayTrackPublisherTest, LastListenerGone) {
 TEST_F(MoqtRelayTrackPublisherTest, SessionDies) {
   session_.reset();
   EXPECT_CALL(listener_, OnSubscribeRejected);
-  publisher_.AddObjectListener(&listener_);
+  publisher_.AddObjectListener(&listener_, MessageParameters());
   EXPECT_TRUE(track_deleted_);
 }
 
 TEST_F(MoqtRelayTrackPublisherTest, SecondListenerNoSubscribe) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
-  publisher_.AddObjectListener(&listener_);
+  publisher_.AddObjectListener(&listener_, MessageParameters());
   EXPECT_CALL(*session_, Subscribe).Times(0);
   EXPECT_CALL(listener_, OnSubscribeAccepted).Times(0);
   MockMoqtObjectListener listener2;
-  publisher_.AddObjectListener(&listener2);
+  publisher_.AddObjectListener(&listener2, MessageParameters());
   EXPECT_CALL(listener_, OnSubscribeAccepted);
   EXPECT_CALL(listener2, OnSubscribeAccepted);
   MessageParameters parameters;
@@ -352,7 +352,7 @@ TEST_F(MoqtRelayTrackPublisherTest, SecondListenerNoSubscribe) {
 
 TEST_F(MoqtRelayTrackPublisherTest, OnMalformedObject) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
-  publisher_.AddObjectListener(&listener_);
+  publisher_.AddObjectListener(&listener_, MessageParameters());
   EXPECT_CALL(listener_, OnTrackPublisherGone);
   publisher_.OnMalformedTrack(kTrackName);
   EXPECT_TRUE(track_deleted_);
@@ -360,7 +360,7 @@ TEST_F(MoqtRelayTrackPublisherTest, OnMalformedObject) {
 
 TEST_F(MoqtRelayTrackPublisherTest, DuplicateObject) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
-  publisher_.AddObjectListener(&listener_);
+  publisher_.AddObjectListener(&listener_, MessageParameters());
   Location location = kLargestLocation.Next();
   EXPECT_CALL(listener_, OnNewObjectAvailable(location, Optional(0),
                                               /*publisher_priority=*/128));
@@ -384,7 +384,7 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObject) {
 
 TEST_F(MoqtRelayTrackPublisherTest, DuplicateObjectChangedMetadata) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
-  publisher_.AddObjectListener(&listener_);
+  publisher_.AddObjectListener(&listener_, MessageParameters());
   Location location = kLargestLocation.Next();
   EXPECT_CALL(listener_, OnNewObjectAvailable(location, Optional(0),
                                               /*publisher_priority=*/128));
@@ -406,7 +406,7 @@ TEST_F(MoqtRelayTrackPublisherTest, DuplicateObjectChangedMetadata) {
 
 TEST_F(MoqtRelayTrackPublisherTest, DuplicateObjectChangedPayload) {
   EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
-  publisher_.AddObjectListener(&listener_);
+  publisher_.AddObjectListener(&listener_, MessageParameters());
   Location location = kLargestLocation.Next();
   EXPECT_CALL(listener_, OnNewObjectAvailable(location, Optional(0),
                                               /*publisher_priority=*/128));
@@ -456,7 +456,7 @@ TEST_F(MoqtRelayTrackPublisherTest, SecondSubscribeAfterOk) {
   EXPECT_CALL(*session_, Subscribe).Times(0);
   MockMoqtObjectListener listener2;
   EXPECT_CALL(listener2, OnSubscribeAccepted);
-  publisher_.AddObjectListener(&listener2);
+  publisher_.AddObjectListener(&listener2, MessageParameters());
 }
 
 TEST_F(MoqtRelayTrackPublisherTest, DatagramPreference) {
@@ -643,7 +643,7 @@ TEST_F(MoqtRelayTrackPublisherTest, ForwardsOackWindowSize) {
                 testing::Field(&MessageParameters::oack_window_size,
                                quic::QuicTimeDelta::FromMilliseconds(50))))
       .WillOnce(testing::Return(true));
-  publisher_.AddObjectListener(&listener_);
+  publisher_.AddObjectListener(&listener_, MessageParameters());
 }
 
 }  // namespace

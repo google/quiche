@@ -19,6 +19,7 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -28,6 +29,7 @@
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/web_transport.h"
@@ -37,6 +39,7 @@ namespace {
 
 using ::quiche::test::IsOkAndHolds;
 using ::quiche::test::StatusIs;
+using ::testing::_;
 using ::testing::AnyOf;
 using ::testing::ElementsAre;
 using ::testing::Field;
@@ -45,9 +48,13 @@ using ::testing::Return;
 class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
                               public MoqtObjectListener {
  public:
-  TestMoqtOutgoingQueue() : MoqtOutgoingQueue(FullTrackName{"test", "track"}) {
+  TestMoqtOutgoingQueue(
+      quiche::MultiUseCallback<void()> new_group_callback = nullptr)
+      : MoqtOutgoingQueue(FullTrackName{"test", "track"},
+                          quic::QuicDefaultClock::Get(),
+                          std::move(new_group_callback)) {
     EXPECT_CALL(*this, OnSubscribeAccepted).WillOnce(Return());
-    AddObjectListener(this);
+    AddObjectListener(this, MessageParameters());
   }
 
   void OnNewObjectAvailable(Location sequence, std::optional<uint64_t> subgroup,
@@ -467,11 +474,95 @@ TEST(MoqtOutgoingQueue, RemoveAllSubscriptionsDoesNotCrash) {
     EXPECT_CALL(listener, OnTrackPublisherGone).WillOnce([&] {
       queue.RemoveObjectListener(&listener);
     });
-    queue.AddObjectListener(&listener);
+    queue.AddObjectListener(&listener, MessageParameters());
   }
 
   queue.RemoveAllSubscriptions();
   EXPECT_FALSE(queue.HasSubscribers());
+}
+
+TEST(MoqtOutgoingQueue, NewGroupRequest) {
+  testing::MockFunction<void()> callback;
+  TestMoqtOutgoingQueue queue(callback.AsStdFunction());
+  {
+    testing::InSequence seq;
+    // new_group_request = 1 when queue is empty.
+    EXPECT_CALL(callback, Call());
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    // new_group_request = 0 when current_group_id_ is 0.
+    EXPECT_CALL(callback, Call());
+    EXPECT_CALL(queue, CloseStreamForGroup(0));
+    EXPECT_CALL(queue, PublishObject(1, 0, "b"));
+    // new_group_request = 1 when current_group_id_ is 1 (stale; no callback).
+    EXPECT_CALL(queue, PublishObject(1, 1, "c"));
+    // new_group_request = 2 when current_group_id_ is 1.
+    EXPECT_CALL(callback, Call());
+    EXPECT_CALL(queue, CloseStreamForGroup(1));
+    EXPECT_CALL(queue, PublishObject(2, 0, "d"));
+  }
+
+  MockMoqtObjectListener listener;
+  EXPECT_CALL(listener, OnSubscribeAccepted).Times(4);
+  EXPECT_CALL(listener,
+              OnNewObjectAvailable(Location(0, 0), testing::Optional(0), _));
+  EXPECT_CALL(listener,
+              OnNewObjectAvailable(Location(0, 1), testing::Optional(0), _));
+  EXPECT_CALL(listener,
+              OnNewObjectAvailable(Location(1, 0), testing::Optional(0), _));
+  EXPECT_CALL(listener,
+              OnNewObjectAvailable(Location(1, 1), testing::Optional(0), _));
+  EXPECT_CALL(listener,
+              OnNewObjectAvailable(Location(1, 2), testing::Optional(0), _));
+  EXPECT_CALL(listener,
+              OnNewObjectAvailable(Location(2, 0), testing::Optional(0), _));
+
+  MessageParameters parameters;
+  parameters.new_group_request = 1;
+  queue.AddObjectListener(&listener, parameters);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+
+  parameters.new_group_request = 0;
+  queue.AddObjectListener(&listener, parameters);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), true);
+
+  parameters.new_group_request = 1;
+  queue.AddObjectListener(&listener, parameters);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("c"), false);
+
+  parameters.new_group_request = 2;
+  queue.AddObjectListener(&listener, parameters);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("d"), true);
+}
+
+TEST(MoqtOutgoingQueue, NewGroupRequestIgnoredWithoutCallback) {
+  TestMoqtOutgoingQueue queue;
+  {
+    testing::InSequence seq;
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(queue, PublishObject(0, 1, "b"));
+  }
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+
+  MockMoqtObjectListener listener;
+  EXPECT_CALL(listener, OnSubscribeAccepted);
+  EXPECT_CALL(listener,
+              OnNewObjectAvailable(Location(0, 1), testing::Optional(0), _));
+  MessageParameters parameters;
+  parameters.new_group_request = 0;
+  queue.AddObjectListener(&listener, parameters);
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), false);
+}
+
+TEST(MoqtOutgoingQueue, DynamicGroupsExtension) {
+  TestMoqtOutgoingQueue queue_without_callback;
+  EXPECT_FALSE(queue_without_callback.extensions().dynamic_groups());
+  EXPECT_FALSE(queue_without_callback.extensions().contains(
+      static_cast<uint64_t>(ExtensionHeader::kDynamicGroups)));
+
+  TestMoqtOutgoingQueue queue_with_callback([]() {});
+  EXPECT_TRUE(queue_with_callback.extensions().dynamic_groups());
+  EXPECT_TRUE(queue_with_callback.extensions().contains(
+      static_cast<uint64_t>(ExtensionHeader::kDynamicGroups)));
 }
 
 }  // namespace

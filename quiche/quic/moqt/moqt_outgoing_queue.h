@@ -9,7 +9,6 @@
 #include <cstdint>
 #include <memory>
 #include <optional>
-#include <string>
 #include <utility>
 #include <vector>
 
@@ -19,16 +18,15 @@
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
-#include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/common/quiche_callbacks.h"
 #include "quiche/common/quiche_circular_deque.h"
 #include "quiche/common/quiche_mem_slice.h"
 
@@ -43,9 +41,20 @@ namespace moqt {
 // frames that they produce.
 class MoqtOutgoingQueue : public MoqtTrackPublisher {
  public:
-  MoqtOutgoingQueue(FullTrackName track, const quic::QuicClock* clock =
-                                             quic::QuicDefaultClock::Get())
-      : clock_(clock), track_(std::move(track)) {}
+  // If the caller does not provide a new_group_callback, then the track
+  // property DYNAMIC_GROUPS will be set to false. If a callback is provided,
+  // the caller commits to creating a new group.
+  MoqtOutgoingQueue(
+      FullTrackName track,
+      const quic::QuicClock* clock = quic::QuicDefaultClock::Get(),
+      quiche::MultiUseCallback<void()> new_group_callback = nullptr)
+      : clock_(clock),
+        track_(std::move(track)),
+        extensions_(std::nullopt, std::nullopt, std::nullopt, std::nullopt,
+                    new_group_callback != nullptr ? std::optional<bool>(true)
+                                                  : std::nullopt,
+                    std::nullopt),
+        new_group_callback_(std::move(new_group_callback)) {}
 
   MoqtOutgoingQueue(const MoqtOutgoingQueue&) = delete;
   MoqtOutgoingQueue(MoqtOutgoingQueue&&) = default;
@@ -61,9 +70,18 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   std::optional<PublishedObject> GetCachedObject(
       uint64_t group, std::optional<uint64_t> subgroup, uint64_t min_object,
       uint64_t offset = 0) const override;
-  void AddObjectListener(MoqtObjectListener* listener) override {
+  void AddObjectListener(MoqtObjectListener* listener,
+                         const MessageParameters& parameters) override {
     listeners_.insert(listener);
     listener->OnSubscribeAccepted();
+    if (extensions_.dynamic_groups() && !expect_new_group_ &&
+        parameters.new_group_request.has_value() &&
+        (*parameters.new_group_request == 0 || queue_.empty() ||
+         *parameters.new_group_request > current_group_id_) &&
+        new_group_callback_ != nullptr) {
+      expect_new_group_ = true;
+      new_group_callback_();
+    }
   }
   void RemoveObjectListener(MoqtObjectListener* listener) override {
     listeners_.erase(listener);
@@ -158,6 +176,8 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   absl::InlinedVector<Group, kMaxQueuedGroups> queue_;
   uint64_t current_group_id_ = -1;
   absl::flat_hash_set<MoqtObjectListener*> listeners_;
+  bool expect_new_group_ = false;
+  quiche::MultiUseCallback<void()> new_group_callback_;
 };
 
 }  // namespace moqt

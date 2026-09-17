@@ -46,6 +46,9 @@ void MoqtOutgoingQueue::AddObject(quiche::QuicheMemSlice payload, bool key) {
            "flag.";
     return;
   }
+  if (key) {
+    expect_new_group_ = false;
+  }
   if (closed_) {
     QUICHE_BUG(MoqtOutgoingQueue_AddObject_closed)
         << "Trying to send objects on a closed queue.";

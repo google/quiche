@@ -95,7 +95,8 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   std::optional<PublishedObject> GetCachedObject(
       uint64_t group_id, std::optional<uint64_t> subgroup_id,
       uint64_t min_object, uint64_t offset = 0) const override;
-  void AddObjectListener(MoqtObjectListener* listener) override;
+  void AddObjectListener(MoqtObjectListener* listener,
+                         const MessageParameters& parameters) override;
   void RemoveObjectListener(MoqtObjectListener* listener) override;
   std::optional<Location> largest_location() const override;
   const TrackExtensions& extensions() const override { return extensions_; }

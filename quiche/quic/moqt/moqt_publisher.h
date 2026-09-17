@@ -96,7 +96,8 @@ class MoqtTrackPublisher {
   // Registers a listener with the track.  The listener will be notified of all
   // newly arriving objects. The pointer to the listener must be valid until
   // removed.
-  virtual void AddObjectListener(MoqtObjectListener* listener) = 0;
+  virtual void AddObjectListener(MoqtObjectListener* listener,
+                                 const MessageParameters& parameters) = 0;
   virtual void RemoveObjectListener(MoqtObjectListener* listener) = 0;
 
   // Methods to return various track properties. Returns nullopt if the value is

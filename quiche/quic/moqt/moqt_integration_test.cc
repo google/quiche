@@ -559,7 +559,7 @@ TEST_F(MoqtIntegrationTest, SubscribeAbsoluteOk) {
   bool received_ok = false;
   ON_CALL(*track_publisher, expiration).WillByDefault(Return(std::nullopt));
   EXPECT_CALL(*track_publisher, AddObjectListener)
-      .WillOnce([&](MoqtObjectListener* listener) {
+      .WillOnce([&](MoqtObjectListener* listener, const MessageParameters&) {
         listener->OnSubscribeAccepted();
       });
   EXPECT_CALL(subscribe_visitor_, OnReply)
@@ -590,7 +590,7 @@ TEST_F(MoqtIntegrationTest, SubscribeCurrentObjectOk) {
   ON_CALL(*track_publisher, expiration)
       .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
   EXPECT_CALL(*track_publisher, AddObjectListener)
-      .WillOnce([&](MoqtObjectListener* listener) {
+      .WillOnce([&](MoqtObjectListener* listener, const MessageParameters&) {
         listener->OnSubscribeAccepted();
       });
   EXPECT_CALL(subscribe_visitor_, OnReply)
@@ -621,7 +621,7 @@ TEST_F(MoqtIntegrationTest, SubscribeNextGroupOk) {
   ON_CALL(*track_publisher, expiration)
       .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
   EXPECT_CALL(*track_publisher, AddObjectListener)
-      .WillOnce([&](MoqtObjectListener* listener) {
+      .WillOnce([&](MoqtObjectListener* listener, const MessageParameters&) {
         listener->OnSubscribeAccepted();
       });
   EXPECT_CALL(subscribe_visitor_, OnReply)

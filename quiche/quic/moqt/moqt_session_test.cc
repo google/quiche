@@ -237,7 +237,7 @@ class MoqtSessionTest : public quic::test::QuicTest {
       TrackExtensions extensions = TrackExtensions()) {
     MoqtObjectListener* listener_ptr = nullptr;
     EXPECT_CALL(*publisher, AddObjectListener)
-        .WillOnce([&](MoqtObjectListener* listener) {
+        .WillOnce([&](MoqtObjectListener* listener, const MessageParameters&) {
           listener_ptr = listener;
           listener->OnSubscribeAccepted();
         });
@@ -673,8 +673,8 @@ TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsOk) {
   MockTrackPublisher* track = CreateTrackPublisher();
   MoqtObjectListener* listener;
   EXPECT_CALL(*track, AddObjectListener)
-      .WillOnce(
-          [&](MoqtObjectListener* listener_ptr) { listener = listener_ptr; });
+      .WillOnce([&](MoqtObjectListener* listener_ptr,
+                    const MessageParameters&) { listener = listener_ptr; });
   bidi_wrapper_->ReceiveMessage(request);
 
   EXPECT_CALL(mock_bidi_stream_,
@@ -691,8 +691,8 @@ TEST_F(MoqtSessionTest, AsynchronousSubscribeReturnsError) {
   MockTrackPublisher* track = CreateTrackPublisher();
   MoqtObjectListener* listener;
   EXPECT_CALL(*track, AddObjectListener)
-      .WillOnce(
-          [&](MoqtObjectListener* listener_ptr) { listener = listener_ptr; });
+      .WillOnce([&](MoqtObjectListener* listener_ptr,
+                    const MessageParameters&) { listener = listener_ptr; });
   bidi_wrapper_->ReceiveMessage(request);
   EXPECT_CALL(mock_bidi_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
@@ -711,7 +711,7 @@ TEST_F(MoqtSessionTest, SynchronousSubscribeReturnsError) {
   MoqtSubscribe request = DefaultSubscribe();
   MockTrackPublisher* track = CreateTrackPublisher();
   EXPECT_CALL(*track, AddObjectListener)
-      .WillOnce([&](MoqtObjectListener* listener) {
+      .WillOnce([&](MoqtObjectListener* listener, const MessageParameters&) {
         EXPECT_CALL(*track, RemoveObjectListener);
         listener->OnSubscribeRejected(MoqtRequestErrorInfo(
             RequestErrorCode::kInternalError, std::nullopt, "Test error"));
@@ -2458,7 +2458,7 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousOk) {
 
   MoqtTrackStatus track_status = DefaultSubscribe();
   EXPECT_CALL(*track, AddObjectListener)
-      .WillOnce([&](MoqtObjectListener* listener) {
+      .WillOnce([&](MoqtObjectListener* listener, const MessageParameters&) {
         EXPECT_CALL(*track, expiration)
             .WillRepeatedly(
                 Return(quic::QuicTimeDelta::FromMilliseconds(10000)));
@@ -2509,7 +2509,7 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusThenSynchronousError) {
   MoqtTrackStatus track_status = DefaultSubscribe();
   bool executed_AddObjectListener = false;
   EXPECT_CALL(*track, AddObjectListener)
-      .WillOnce([&](MoqtObjectListener* listener) {
+      .WillOnce([&](MoqtObjectListener* listener, const MessageParameters&) {
         EXPECT_CALL(
             mock_bidi_stream_,
             Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));

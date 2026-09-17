@@ -86,7 +86,7 @@ TEST_F(MoqtRelayPublisherTest, PublishNamespaceLifecycle) {
       publisher_.GetTrack(FullTrackName("foo", "bar"));
   EXPECT_NE(track, nullptr);
   EXPECT_CALL(session_, Subscribe);
-  track->AddObjectListener(&object_listener_);
+  track->AddObjectListener(&object_listener_, MessageParameters());
   track->RemoveObjectListener(&object_listener_);
   publisher_.OnPublishNamespaceDone(TrackNamespace({"foo"}), &session_);
   EXPECT_EQ(publisher_.GetTrack(FullTrackName("foo", "bar")), nullptr);

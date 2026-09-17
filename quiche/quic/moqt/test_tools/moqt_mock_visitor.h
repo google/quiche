@@ -83,7 +83,9 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   MOCK_METHOD(std::optional<PublishedObject>, GetCachedObject,
               (uint64_t, std::optional<uint64_t>, uint64_t, uint64_t),
               (const, override));
-  MOCK_METHOD(void, AddObjectListener, (MoqtObjectListener * listener),
+  MOCK_METHOD(void, AddObjectListener,
+              (MoqtObjectListener * listener,
+               const MessageParameters& parameters),
               (override));
   MOCK_METHOD(void, RemoveObjectListener, (MoqtObjectListener * listener),
               (override));
@@ -120,7 +122,8 @@ class TestTrackPublisher : public MoqtTrackPublisher {
     }
     return it->second.ToPublishedObject();
   }
-  void AddObjectListener(MoqtObjectListener* listener) override {
+  void AddObjectListener(MoqtObjectListener* listener,
+                         const MessageParameters&) override {
     listeners_.insert(listener);
     listener->OnSubscribeAccepted();
   }

@@ -139,7 +139,7 @@ TEST_F(MoqtRelayTest, PublishNamespace) {
   std::shared_ptr<MoqtTrackPublisher> track =
       upstream_.publisher()->GetTrack(FullTrackName("foo", "bar"));
   EXPECT_NE(track, nullptr);
-  track->AddObjectListener(&object_listener);
+  track->AddObjectListener(&object_listener, MessageParameters());
   track->RemoveObjectListener(&object_listener);
   // Track should have been destroyed.
 

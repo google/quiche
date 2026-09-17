@@ -122,7 +122,7 @@ absl::Status MoqtTrackStatusResponseStream::OnControlMessage(
   }
   // If the upstream subscription is already established, the code below will
   // invoke `OnSubscribeAccepted` immediately.
-  publisher_->AddObjectListener(this);
+  publisher_->AddObjectListener(this, message.parameters);
   return absl::OkStatus();
 }
 
