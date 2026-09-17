@@ -100,7 +100,7 @@ std::optional<PublishedObject> MoqtOutgoingQueue::GetCachedObject(
     uint64_t group, std::optional<uint64_t> subgroup, uint64_t object,
     uint64_t offset) const {
   QUICHE_DCHECK(subgroup.has_value() && subgroup == 0u);
-  if (group < first_group_in_queue()) {
+  if (queue_.empty() || group < first_group_in_queue()) {
     return std::nullopt;
   }
   if (group > current_group_id_) {
