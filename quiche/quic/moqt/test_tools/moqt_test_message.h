@@ -757,10 +757,6 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSubscribeOk>(values);
-    if (cast.request_id != subscribe_ok_.request_id) {
-      QUIC_LOG(INFO) << "SUBSCRIBE OK subscribe ID mismatch";
-      return false;
-    }
     if (cast.track_alias != subscribe_ok_.track_alias) {
       QUIC_LOG(INFO) << "SUBSCRIBE OK track alias mismatch";
       return false;
@@ -776,21 +772,20 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvvvvv--v--v--vv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvv--v--v--vv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_ok_);
   }
 
   void SetInvalidDeliveryOrder() {
-    raw_packet_[19] = 0x10;
+    raw_packet_[18] = 0x10;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
  protected:
   // This is protected so that TrackStatusOk can edit the fields.
   MoqtSubscribeOk subscribe_ok_ = {
-      /*request_id=*/1,
       /*track_alias=*/2,
       MessageParameters(),  // Set in the constructor.
       TrackExtensions(
@@ -803,10 +798,10 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
   };
 
  private:
-  uint8_t raw_packet_[20] = {
-      0x04, 0x00, 0x11, 0x01, 0x02, 0x02,  // request_id, alias, 2 params
-      0x08, 0x03,                          // expires = 3
-      0x01, 0x02, 0x0c, 0x14,              // largest_location = (12, 20)
+  uint8_t raw_packet_[19] = {
+      0x04, 0x00, 0x10, 0x02, 0x02,  // alias, 2 params
+      0x08, 0x03,                    // expires = 3
+      0x01, 0x02, 0x0c, 0x14,        // largest_location = (12, 20)
       // Extensions
       0x02, 0xa7, 0x10,  // delivery_timeout = 10000
       0x02, 0xa7, 0x10,  // max_cache_duration = 10000
@@ -1079,33 +1074,43 @@ class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtRequestOk>(values);
-    if (cast.request_id != request_ok_.request_id) {
-      QUIC_LOG(INFO) << "REQUEST_OK request ID mismatch";
-      return false;
-    }
     if (cast.parameters != request_ok_.parameters) {
       QUIC_LOG(INFO) << "REQUEST_OK parameter mismatch";
+      return false;
+    }
+    if (cast.extensions != request_ok_.extensions) {
+      QUIC_LOG(INFO) << "REQUEST_OK extensions mismatch";
       return false;
     }
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv--"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv--v--v--vv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(request_ok_);
   }
 
  private:
-  uint8_t raw_packet_[9] = {
-      0x07, 0x00, 0x06, 0x01,  // request_id = 1
+  uint8_t raw_packet_[16] = {
+      0x07, 0x00, 0x0d,
       0x01,                    // 1 parameter
       0x09, 0x02, 0x05, 0x01,  // Largest Object = (5, 1)
+      // Extensions
+      0x02, 0xa7, 0x10,  // delivery_timeout = 10000
+      0x02, 0xa7, 0x10,  // max_cache_duration = 10000
+      0x1e, 0x02         // default_publisher_group_order = 2
   };
 
   MoqtRequestOk request_ok_ = {
-      /*request_id=*/1,
       MessageParameters(),  // Set in the constructor.
+      TrackExtensions(
+          /*delivery_timeout=*/quic::QuicTimeDelta::FromMilliseconds(10000),
+          /*max_cache_duration=*/quic::QuicTimeDelta::FromMilliseconds(10000),
+          /*publisher_priority=*/std::nullopt,
+          /*group_order=*/MoqtDeliveryOrder::kDescending,
+          /*dynamic_groups=*/std::nullopt,
+          /*immutable_extensions=*/std::nullopt),
   };
 };
 

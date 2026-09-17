@@ -6,14 +6,12 @@
 #define QUICHE_QUIC_MOQT_MOQT_BIDI_STREAM_H
 
 #include <cstdint>
-#include <memory>
 #include <optional>
 #include <type_traits>
 #include <utility>
 
 #include "absl/base/nullability.h"
 #include "absl/status/status.h"
-#include "absl/status/statusor.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
@@ -95,9 +93,9 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
     CheckStatus(SendOrBufferMessage(std::move(message), fin));
   }
 
-  absl::Status SendRequestOk(uint64_t request_id,
-                             const MessageParameters& parameters,
-                             bool fin = false);
+  // Do not use for TRACK_STATUS_OK because that should also contain
+  // TrackProperties.
+  absl::Status SendRequestOk(const MessageParameters& parameters);
   absl::Status SendRequestError(
       RequestErrorCode error_code,
       std::optional<quic::QuicTimeDelta> retry_interval,

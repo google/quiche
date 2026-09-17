@@ -47,13 +47,15 @@ void MoqtSubscribeNamespaceRequestStream::OnStreamBound() {
 
 absl::Status MoqtSubscribeNamespaceRequestStream::OnControlMessage(
     const MoqtRequestOk& message) {
-  if (message.request_id == request_id_) {
-    // Response to the initial SUBSCRIBE_NAMESPACE.
-    if (response_callback_ == nullptr) {
-      return absl::InvalidArgumentError("Two responses");
-    }
-    std::move(response_callback_)(message.parameters);
+  if (!message.extensions.empty()) {
+    OnFatalError(
+        absl::InvalidArgumentError("REQUEST_OK received with extensions"));
+    return absl::OkStatus();
+  }
+  if (response_callback_ != nullptr) {
+    MoqtResponseCallback callback = std::move(response_callback_);
     response_callback_ = nullptr;
+    std::move(callback)(message.parameters);
     return absl::OkStatus();
   }
   NamespaceTask* task = task_.GetIfAvailable();
@@ -252,7 +254,7 @@ absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
   add_callback_ = nullptr;
   QUICHE_DCHECK(task_ == nullptr);
   task_ = application_(message.track_namespace_prefix, message.parameters,
-                       ResponseCallback(request_id_));
+                       ResponseCallback());
   if (task_ != nullptr) {
     task_->SetObjectsAvailableCallback([this]() { ProcessNamespaces(); });
   }
@@ -265,7 +267,7 @@ absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
     // This stream is dying.
     return absl::OkStatus();
   }
-  task_->Update(message.parameters, ResponseCallback(message.request_id));
+  task_->Update(message.parameters, ResponseCallback());
   return absl::OkStatus();
 }
 
@@ -338,21 +340,19 @@ void MoqtSubscribeNamespaceResponseStream::ProcessNamespaces() {
   }
 }
 
-MoqtResponseCallback MoqtSubscribeNamespaceResponseStream::ResponseCallback(
-    uint64_t request_id) {
-  return [this, request_id](
+MoqtResponseCallback MoqtSubscribeNamespaceResponseStream::ResponseCallback() {
+  return [this](
              std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
-    std::visit(
-        absl::Overload{[this, request_id](const MessageParameters& parameters) {
-                         // In draft-18, there are no useful parameters in
-                         // SUBSCRIBE_NAMESPACE_OK, but Issue #1639 would change
-                         // that.
-                         CheckStatus(SendRequestOk(request_id, parameters));
-                       },
-                       [this](const MoqtRequestErrorInfo& error_info) {
-                         CheckStatus(SendRequestError(error_info));
-                       }},
-        response);
+    std::visit(absl::Overload{[this](const MessageParameters& parameters) {
+                                // In draft-18, there are no useful parameters
+                                // in SUBSCRIBE_NAMESPACE_OK, but Issue #1639
+                                // would change that.
+                                CheckStatus(SendRequestOk(parameters));
+                              },
+                              [this](const MoqtRequestErrorInfo& error_info) {
+                                CheckStatus(SendRequestError(error_info));
+                              }},
+               response);
   };
 }
 

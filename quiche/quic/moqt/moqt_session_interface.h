@@ -29,12 +29,12 @@
 
 namespace moqt {
 
-inline constexpr absl::string_view kDraft16 = "moqt-16";
-inline constexpr absl::string_view kDefaultMoqtVersion = kDraft16;
+inline constexpr absl::string_view kDraft18 = "moqt-18";
+inline constexpr absl::string_view kDefaultMoqtVersion = kDraft18;
 inline constexpr absl::string_view kUnrecognizedVersionForTests = "moqt-15";
 
 inline constexpr absl::string_view kImplementationName =
-    "Google QUICHE MOQT draft 16";
+    "Google QUICHE MOQT draft 18";
 struct QUICHE_EXPORT MoqtSessionParameters {
   // TODO: support multiple versions.
   MoqtSessionParameters() = default;
@@ -177,7 +177,7 @@ class MoqtSessionInterface {
   // `response_callback` will be eventually invoked if true.
   virtual bool TrackStatus(const FullTrackName& name,
                            const MessageParameters& parameters,
-                           MoqtResponseCallback response_callback) = 0;
+                           TrackStatusResponseCallback response_callback) = 0;
   // TODO: Add RequestUpdate, PublishDone method.
   virtual quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() = 0;
 };

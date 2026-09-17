@@ -133,7 +133,6 @@ void LivePublisher::OnSubscribeAccepted() {
         parameters_.largest_object);
   }
   MoqtSubscribeOk subscribe_ok;
-  subscribe_ok.request_id = request_id_;
   subscribe_ok.track_alias = track_alias_;
   subscribe_ok.parameters.expires = track_publisher_->expiration();
   subscribe_ok.parameters.largest_object = parameters_.largest_object;

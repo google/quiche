@@ -279,6 +279,7 @@ class TrackExtensions : public KeyValuePairList {
   MoqtPriority default_publisher_priority() const;
   MoqtDeliveryOrder default_publisher_group_order() const;
   bool dynamic_groups() const;
+  bool empty() const { return size() == 0; }
 
   // Returns false if the extension list contains illegal values or illegally
   // duplicated extensions.

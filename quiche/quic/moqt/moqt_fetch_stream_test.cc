@@ -301,7 +301,6 @@ TEST_F(MoqtFetchRequestStreamTest, SendRequestUpdateAndReceiveOk) {
 
   // Receive REQUEST_OK for the update.
   MoqtRequestOk request_ok;
-  request_ok.request_id = 2;
   request_ok.parameters.subscriber_priority = 50;
   QUICHE_EXPECT_OK(stream->OnControlMessage(request_ok));
   EXPECT_TRUE(update_callback_called);
@@ -317,7 +316,6 @@ TEST_F(MoqtFetchRequestStreamTest, ReceiveRequestOkWithoutPendingUpdate) {
   ok_message.end_of_track = true;
   QUICHE_EXPECT_OK(stream->OnControlMessage(ok_message));
   MoqtRequestOk request_ok;
-  request_ok.request_id = 2;
   EXPECT_EQ(stream->OnControlMessage(request_ok).code(),
             absl::StatusCode::kFailedPrecondition);
 }

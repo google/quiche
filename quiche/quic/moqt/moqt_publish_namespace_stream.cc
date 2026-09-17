@@ -36,6 +36,11 @@ absl::Status MoqtPublishNamespaceRequestStream::OnRawControlMessage(
 
 absl::Status MoqtPublishNamespaceRequestStream::OnControlMessage(
     const MoqtRequestOk& message) {
+  if (!message.extensions.empty()) {
+    OnFatalError(
+        absl::InvalidArgumentError("REQUEST_OK received with extensions"));
+    return absl::OkStatus();
+  }
   if (response_callback_ != nullptr) {
     // Response to the initial PUBLISH_NAMESPACE.
     auto callback = std::move(response_callback_);
@@ -99,22 +104,20 @@ absl::Status MoqtPublishNamespaceResponseStream::OnControlMessage(
   prefix_ = message.track_namespace;
   application_(
       *prefix_, &message.parameters,
-      [weakptr = weak_ptr_factory_.Create(), id = request_id_](
+      [weakptr = weak_ptr_factory_.Create()](
           std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
         MoqtPublishNamespaceResponseStream* stream = weakptr.GetIfAvailable();
         if (stream == nullptr) {
           return;
         }
-        std::visit(
-            absl::Overload{[&](const MessageParameters& parameters) {
-                             stream->CheckStatus(
-                                 stream->SendRequestOk(id, parameters));
-                           },
-                           [&](const MoqtRequestErrorInfo& error) {
-                             stream->CheckStatus(
-                                 stream->SendRequestError(error));
-                           }},
-            response);
+        std::visit(absl::Overload{
+                       [&](const MessageParameters& parameters) {
+                         stream->CheckStatus(stream->SendRequestOk(parameters));
+                       },
+                       [&](const MoqtRequestErrorInfo& error) {
+                         stream->CheckStatus(stream->SendRequestError(error));
+                       }},
+                   response);
       });
   return absl::OkStatus();
 }
@@ -127,22 +130,20 @@ absl::Status MoqtPublishNamespaceResponseStream::OnControlMessage(
   }
   application_(
       *prefix_, &message.parameters,
-      [weakptr = weak_ptr_factory_.Create(), id = message.request_id](
+      [weakptr = weak_ptr_factory_.Create()](
           std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
         MoqtPublishNamespaceResponseStream* stream = weakptr.GetIfAvailable();
         if (stream == nullptr) {
           return;
         }
-        std::visit(
-            absl::Overload{[&](const MessageParameters& parameters) {
-                             stream->CheckStatus(
-                                 stream->SendRequestOk(id, parameters));
-                           },
-                           [&](const MoqtRequestErrorInfo& error) {
-                             stream->CheckStatus(
-                                 stream->SendRequestError(error));
-                           }},
-            response);
+        std::visit(absl::Overload{
+                       [&](const MessageParameters& parameters) {
+                         stream->CheckStatus(stream->SendRequestOk(parameters));
+                       },
+                       [&](const MoqtRequestErrorInfo& error) {
+                         stream->CheckStatus(stream->SendRequestError(error));
+                       }},
+                   response);
       });
   return absl::OkStatus();
 }

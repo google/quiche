@@ -13,7 +13,6 @@
 #include "absl/status/status.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
 #include "quiche/quic/moqt/moqt_error.h"
-#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_live_publisher.h"
@@ -22,6 +21,7 @@
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/web_transport.h"
@@ -37,7 +37,7 @@ class MoqtTrackStatusRequestStream : public MoqtBidiStreamBase {
                                const FullTrackName& full_track_name,
                                const MessageParameters& parameters,
                                SessionErrorCallback session_error_callback,
-                               MoqtResponseCallback response_callback);
+                               TrackStatusResponseCallback response_callback);
   ~MoqtTrackStatusRequestStream() { Detach(); }
 
   // MoqtBidiStreamBase overrides.
@@ -53,7 +53,7 @@ class MoqtTrackStatusRequestStream : public MoqtBidiStreamBase {
   const uint64_t request_id_;
   const FullTrackName full_track_name_;
   const MessageParameters parameters_;
-  MoqtResponseCallback response_callback_;
+  TrackStatusResponseCallback response_callback_;
 };
 
 // MoqtTrackStatusResponseStream represents an incoming TRACK_STATUS request.
@@ -87,6 +87,9 @@ class MoqtTrackStatusResponseStream : public MoqtBidiStreamBase,
   void Detach() override;
 
  private:
+  // Unlike other REQUEST_OK, TRACK_STATUS_OK has extensions and a FIN.
+  absl::Status SendRequestOk(const MessageParameters& parameters,
+                             const TrackExtensions& extensions);
   SessionToPublisherInterface* absl_nullable session() const {
     return session_.GetIfAvailable();
   }

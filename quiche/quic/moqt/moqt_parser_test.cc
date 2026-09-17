@@ -1383,8 +1383,8 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkInvalidDeliveryOrder) {
 
 TEST_F(MoqtMessageSpecificTest, SubscribeOkExpirationIsZero) {
   char subscribe_ok[] = {
-      0x04, 0x00, 0x05, 0x02, 0x01,  // request_id = 2, track_alias = 1
-      0x01, 0x08, 0x00               // expires = 0
+      0x04, 0x00, 0x04, 0x01,  // track_alias = 1
+      0x01, 0x08, 0x00         // expires = 0
   };
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
       ParseAllMessages(absl::string_view(subscribe_ok, sizeof(subscribe_ok)),

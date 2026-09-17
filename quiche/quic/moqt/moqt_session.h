@@ -143,7 +143,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   void UnsubscribeTracks(TrackNamespace& prefix) override;
   bool TrackStatus(const FullTrackName& name,
                    const MessageParameters& parameters,
-                   MoqtResponseCallback response_callback) override;
+                   TrackStatusResponseCallback response_callback) override;
   quiche::QuicheWeakPtr<MoqtSessionInterface> GetWeakPtr() override {
     return weak_ptr_factory_.Create();
   }

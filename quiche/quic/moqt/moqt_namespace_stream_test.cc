@@ -87,7 +87,7 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, RequestOk) {
   EXPECT_CALL(
       response_callback_,
       Call(testing::VariantWith<MessageParameters>(Eq(MessageParameters()))));
-  ReceiveControlMessage(MoqtRequestOk{kRequestId});
+  ReceiveControlMessage(MoqtRequestOk());
 }
 
 TEST_F(MoqtSubscribeNamespaceRequestStreamTest, RequestError) {
@@ -115,7 +115,7 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, NamespaceAfterResponse) {
   EXPECT_CALL(
       response_callback_,
       Call(testing::VariantWith<MessageParameters>(Eq(MessageParameters()))));
-  ReceiveControlMessage(MoqtRequestOk{kRequestId});
+  ReceiveControlMessage(MoqtRequestOk());
   ReceiveControlMessage(MoqtNamespace{TrackNamespace({"bar"})});
   CheckNumberOfObjectsAvailable(1);
   TrackNamespace received_namespace;
@@ -130,7 +130,7 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, NamespaceDoneAfterResponse) {
   EXPECT_CALL(
       response_callback_,
       Call(testing::VariantWith<MessageParameters>(Eq(MessageParameters()))));
-  ReceiveControlMessage(MoqtRequestOk{kRequestId});
+  ReceiveControlMessage(MoqtRequestOk());
   ReceiveControlMessage(MoqtNamespace{TrackNamespace({"bar"})});
   CheckNumberOfObjectsAvailable(1);
   ReceiveControlMessage(MoqtNamespaceDone{TrackNamespace({"bar"})});
@@ -150,7 +150,7 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, DuplicateNamespace) {
   EXPECT_CALL(
       response_callback_,
       Call(testing::VariantWith<MessageParameters>(Eq(MessageParameters()))));
-  ReceiveControlMessage(MoqtRequestOk{kRequestId});
+  ReceiveControlMessage(MoqtRequestOk());
   ReceiveControlMessage(MoqtNamespace{TrackNamespace({"bar"})});
   CheckNumberOfObjectsAvailable(1);
   EXPECT_CALL(error_callback_,
@@ -163,7 +163,7 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, NamespaceDoneWithoutNamespace) {
   EXPECT_CALL(
       response_callback_,
       Call(testing::VariantWith<MessageParameters>(Eq(MessageParameters()))));
-  ReceiveControlMessage(MoqtRequestOk{kRequestId});
+  ReceiveControlMessage(MoqtRequestOk());
   EXPECT_CALL(error_callback_, Call(MoqtError::kProtocolViolation,
                                     "NAMESPACE_DONE with no active namespace"));
   ReceiveControlMessage(MoqtNamespaceDone{TrackNamespace({"bar"})});
@@ -173,7 +173,7 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, NamespaceDoneThenNamespace) {
   EXPECT_CALL(
       response_callback_,
       Call(testing::VariantWith<MessageParameters>(Eq(MessageParameters()))));
-  ReceiveControlMessage(MoqtRequestOk{kRequestId});
+  ReceiveControlMessage(MoqtRequestOk());
   EXPECT_CALL(error_callback_, Call).Times(0);
   ReceiveControlMessage(MoqtNamespace{TrackNamespace({"bar"})});
   CheckNumberOfObjectsAvailable(1);
@@ -187,7 +187,7 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, TaskGetNextSuffix) {
   EXPECT_CALL(
       response_callback_,
       Call(testing::VariantWith<MessageParameters>(Eq(MessageParameters()))));
-  ReceiveControlMessage(MoqtRequestOk{kRequestId});
+  ReceiveControlMessage(MoqtRequestOk());
   ReceiveControlMessage(MoqtNamespace{TrackNamespace({"bar"})});
   CheckNumberOfObjectsAvailable(1);
   ReceiveControlMessage(MoqtNamespace{TrackNamespace({"buzz"})});
@@ -225,7 +225,7 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, DeclareEof) {
   EXPECT_CALL(
       response_callback_,
       Call(testing::VariantWith<MessageParameters>(Eq(MessageParameters()))));
-  QUICHE_EXPECT_OK(stream->OnControlMessage(MoqtRequestOk{kRequestId}));
+  QUICHE_EXPECT_OK(stream->OnControlMessage(MoqtRequestOk()));
   QUICHE_EXPECT_OK(
       stream->OnControlMessage(MoqtNamespace{TrackNamespace({"bar"})}));
   CheckNumberOfObjectsAvailable(1);
@@ -243,7 +243,7 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, UpdateAndRequestOk) {
   EXPECT_CALL(
       response_callback_,
       Call(testing::VariantWith<MessageParameters>(Eq(MessageParameters()))));
-  ReceiveControlMessage(MoqtRequestOk{kRequestId});
+  ReceiveControlMessage(MoqtRequestOk());
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestUpdate), _));
   MessageParameters update_params;
@@ -256,7 +256,7 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, UpdateAndRequestOk) {
   ok_params.expires = quic::QuicTimeDelta::FromSeconds(60);
   EXPECT_CALL(update_response_callback,
               Call(testing::VariantWith<MessageParameters>(Eq(ok_params))));
-  ReceiveControlMessage(MoqtRequestOk{kRequestId + 2, ok_params});
+  ReceiveControlMessage(MoqtRequestOk(ok_params));
 }
 
 TEST_F(MoqtSubscribeNamespaceRequestStreamTest, UpdateAndRequestError) {
@@ -264,7 +264,7 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, UpdateAndRequestError) {
   ok_params.expires = quic::QuicTimeDelta::FromSeconds(60);
   EXPECT_CALL(response_callback_,
               Call(testing::VariantWith<MessageParameters>(Eq(ok_params))));
-  ReceiveControlMessage(MoqtRequestOk{kRequestId, ok_params});
+  ReceiveControlMessage(MoqtRequestOk(ok_params));
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestUpdate), _));
   MessageParameters update_params;
@@ -317,7 +317,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, Subscribe) {
   };
   ObjectsAvailableCallback callback;
   MockNamespaceTask* task_ptr = nullptr;
-  MoqtRequestOk ok(kRequestId);
+  MoqtRequestOk ok;
   ok.parameters.expires = quic::QuicTimeDelta::FromSeconds(60);
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(true));
   EXPECT_CALL(mock_application_, Call)
@@ -386,7 +386,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, SubscribeUnsubscribe) {
   };
   ObjectsAvailableCallback callback;
   MockNamespaceTask* task_ptr = nullptr;
-  MoqtRequestOk ok(kRequestId);
+  MoqtRequestOk ok;
   ok.parameters.expires = quic::QuicTimeDelta::FromSeconds(60);
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(true));
   EXPECT_CALL(mock_application_, Call)
@@ -456,7 +456,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, RequestUpdateOk) {
       MessageParameters(),
   };
   update_message.parameters.subscriber_priority = 10;
-  MoqtRequestOk ok_response(update_message.request_id);
+  MoqtRequestOk ok_response;
   ok_response.parameters.expires = quic::QuicTimeDelta::FromSeconds(60);
   EXPECT_CALL(*task_ptr, Update(_, _))
       .WillOnce([&](const MessageParameters& params, MoqtResponseCallback cb) {
@@ -529,7 +529,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest,
       MessageParameters(),
   };
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(true));
-  MoqtRequestOk ok(kRequestId);
+  MoqtRequestOk ok;
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(ok), _));
   EXPECT_CALL(mock_application_, Call)
       .WillOnce([&](const TrackNamespace&, const MessageParameters&,
@@ -558,7 +558,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest,
       MessageParameters(),
   };
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(true));
-  MoqtRequestOk ok1(kRequestId);
+  MoqtRequestOk ok1;
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(ok1), _));
   EXPECT_CALL(mock_application_, Call)
       .WillOnce([&](const TrackNamespace&, const MessageParameters&,

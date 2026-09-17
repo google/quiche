@@ -164,7 +164,7 @@ class MoqtSubscribeNamespaceResponseStream : public MoqtBidiStreamBase {
 
  private:
   void ProcessNamespaces();
-  MoqtResponseCallback ResponseCallback(uint64_t request_id);
+  MoqtResponseCallback ResponseCallback();
 
   uint64_t request_id_;
   TrackNamespace prefix_;

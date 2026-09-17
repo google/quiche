@@ -131,7 +131,6 @@ TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestOk) {
   stream_->BindStream(&mock_stream_);  // Calls OnStreamBound
 
   MoqtRequestOk request_ok;
-  request_ok.request_id = kRequestId;
   request_ok.parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(2);
   request_ok.parameters.group_order = MoqtDeliveryOrder::kDescending;
   QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
@@ -175,7 +174,7 @@ TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestUpdate) {
       .WillOnce(Return(absl::OkStatus()));
   stream_->BindStream(&mock_stream_);
 
-  QUICHE_EXPECT_OK(stream_->OnControlMessage(MoqtRequestOk{kRequestId}));
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(MoqtRequestOk()));
   // Set largest location on publisher
   track_publisher_->AddObject(Location(1, 2), 0, "payload", true);
 

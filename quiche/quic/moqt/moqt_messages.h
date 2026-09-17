@@ -371,7 +371,6 @@ struct QUICHE_EXPORT MoqtSubscribe {
 };
 
 struct QUICHE_EXPORT MoqtSubscribeOk {
-  uint64_t request_id;
   uint64_t track_alias;
   MessageParameters parameters;
   TrackExtensions extensions;
@@ -396,10 +395,7 @@ struct QUICHE_EXPORT MoqtPublishNamespace {
   MessageParameters parameters;
 };
 
-struct QUICHE_EXPORT MoqtRequestOk {
-  uint64_t request_id;
-  MessageParameters parameters;
-};
+using MoqtRequestOk = TrackStatusOkData;
 
 struct QUICHE_EXPORT MoqtTrackStatus : public MoqtSubscribe {
   MoqtTrackStatus() = default;

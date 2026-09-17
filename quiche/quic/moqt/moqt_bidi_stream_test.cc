@@ -140,19 +140,8 @@ TEST_F(MoqtBidiStreamTest, SendRequestOk) {
       Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), testing::_));
   MessageParameters parameters;
   parameters.subscriber_priority = 20;
-  QUICHE_EXPECT_OK(stream_->SendRequestOk(1, parameters, /*fin=*/false));
-  EXPECT_FALSE(stream_->detached_);
-}
-
-TEST_F(MoqtBidiStreamTest, SendRequestOkFin) {
-  stream_->BindStream(&mock_stream_);
-  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(testing::Return(true));
-  EXPECT_CALL(
-      mock_stream_,
-      Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), testing::_));
-  MessageParameters parameters;
-  QUICHE_EXPECT_OK(stream_->SendRequestOk(1, parameters, /*fin=*/true));
-  EXPECT_TRUE(stream_->detached_);
+  QUICHE_EXPECT_OK(stream_->SendRequestOk(parameters));
+  EXPECT_FALSE(stream_->detached_);  // No FIN.
 }
 
 TEST_F(MoqtBidiStreamTest, SendRequestErrorOverload) {
@@ -185,7 +174,6 @@ TEST_F(MoqtBidiStreamTest, SendRequestUpdateAndReceiveOk) {
       stream_->SendRequestUpdate(1, 0, parameters, std::move(callback)));
   // Simulate receiving RequestOk
   MoqtRequestOk request_ok;
-  request_ok.request_id = 1;
   request_ok.parameters.subscriber_priority = 30;
   QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
   EXPECT_TRUE(callback_called);

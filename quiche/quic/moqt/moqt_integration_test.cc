@@ -1379,10 +1379,10 @@ TEST_F(MoqtIntegrationTest, TrackStatusSuccess) {
   MessageParameters received_parameters;
   client_->session()->TrackStatus(
       track_name, MessageParameters(),
-      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
+      [&](std::variant<TrackStatusOkData, MoqtRequestErrorInfo> response) {
         received_response = true;
-        ASSERT_TRUE(std::holds_alternative<MessageParameters>(response));
-        received_parameters = std::get<MessageParameters>(response);
+        ASSERT_TRUE(std::holds_alternative<TrackStatusOkData>(response));
+        received_parameters = std::get<TrackStatusOkData>(response).parameters;
       });
 
   bool success = test_harness_.RunUntilWithDefaultTimeout(
@@ -1403,7 +1403,7 @@ TEST_F(MoqtIntegrationTest, TrackStatusDoesNotExist) {
   MoqtRequestErrorInfo received_error;
   client_->session()->TrackStatus(
       track_name, MessageParameters(),
-      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
+      [&](std::variant<TrackStatusOkData, MoqtRequestErrorInfo> response) {
         received_response = true;
         ASSERT_TRUE(std::holds_alternative<MoqtRequestErrorInfo>(response));
         received_error = std::get<MoqtRequestErrorInfo>(response);

@@ -62,9 +62,6 @@ absl::Status MoqtSubscribeRequestStream::OnRawControlMessage(
 
 absl::Status MoqtSubscribeRequestStream::OnControlMessage(
     const MoqtSubscribeOk& message) {
-  if (message.request_id != track_->request_id()) {
-    return absl::InvalidArgumentError("SUBSCRIBE_OK request ID mismatch");
-  }
   if (add_callback_ == nullptr) {
     return absl::InvalidArgumentError(
         "Multiple SUBSCRIBE_OK on the same stream");
@@ -87,6 +84,11 @@ absl::Status MoqtSubscribeRequestStream::OnControlMessage(
     // Not yet established.
     OnFatalError(
         absl::InvalidArgumentError("REQUEST_OK received before SUBSCRIBE_OK"));
+    return absl::OkStatus();
+  }
+  if (!message.extensions.empty()) {
+    OnFatalError(absl::InvalidArgumentError(
+        "REQUEST_UPDATE_OK received with extensions"));
     return absl::OkStatus();
   }
   absl::StatusOr<MessageParameters> old_parameters =
@@ -211,7 +213,7 @@ absl::Status MoqtSubscribeResponseStream::OnControlMessage(
                             "no subscription");
   }
   subscription_->Update(message.parameters);
-  return SendRequestOk(message.request_id, MessageParameters());
+  return SendRequestOk(MessageParameters());
 }
 
 void MoqtSubscribeResponseStream::Detach() {

@@ -665,9 +665,6 @@ absl::StatusOr<MoqtSubscribeOk> MoqtControlMessageParser::ProcessSubscribeOk(
     absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtSubscribeOk subscribe_ok;
-  if (!reader.ReadMoqVarInt(&subscribe_ok.request_id)) {
-    return absl::InvalidArgumentError("Failed to read the request ID");
-  }
   if (!reader.ReadMoqVarInt(&subscribe_ok.track_alias)) {
     return absl::InvalidArgumentError("Failed to read the track alias");
   }
@@ -774,11 +771,13 @@ absl::StatusOr<MoqtRequestOk> MoqtControlMessageParser::ProcessRequestOk(
     absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtRequestOk request_ok;
-  if (!reader.ReadMoqVarInt(&request_ok.request_id)) {
-    return absl::InvalidArgumentError("Request ID missing");
-  }
   QUICHE_RETURN_IF_ERROR(
       FillAndValidateMessageParameters(reader, request_ok.parameters));
+  QUICHE_RETURN_IF_ERROR(
+      ParseKeyValuePairListWithNoPrefix(reader, request_ok.extensions));
+  if (!request_ok.extensions.Validate()) {
+    return absl::InvalidArgumentError("Invalid REQUEST_OK track extensions");
+  }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return request_ok;
 }

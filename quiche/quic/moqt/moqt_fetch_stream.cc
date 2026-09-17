@@ -155,6 +155,11 @@ absl::Status MoqtFetchRequestStream::OnControlMessage(
 
 absl::Status MoqtFetchRequestStream::OnControlMessage(
     const MoqtRequestOk& message) {
+  if (!message.extensions.empty()) {
+    OnFatalError(absl::InvalidArgumentError(
+        "REQUEST_UPDATE_OK received with extensions"));
+    return absl::OkStatus();
+  }
   absl::StatusOr<MessageParameters> old_parameters =
       request_update_queue().NextParameters();
   if (!old_parameters.ok()) {
@@ -367,7 +372,7 @@ absl::Status MoqtFetchResponseStream::OnControlMessage(
       message.parameters.subscriber_priority.has_value()) {
     data_stream_->UpdatePriority(*message.parameters.subscriber_priority);
   }
-  return SendRequestOk(message.request_id, MessageParameters());
+  return SendRequestOk(MessageParameters());
 }
 
 void MoqtFetchResponseStream::OnDataStreamOpen(

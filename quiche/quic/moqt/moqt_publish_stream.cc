@@ -67,9 +67,10 @@ absl::Status MoqtPublishRequestStream::OnRawControlMessage(
 
 absl::Status MoqtPublishRequestStream::OnControlMessage(
     const MoqtRequestOk& message) {
-  if (message.request_id != publisher_->request_id()) {
-    return absl::InvalidArgumentError(
-        "REQUEST_OK does not match PUBLISH request ID");
+  if (!message.extensions.empty()) {
+    OnFatalError(
+        absl::InvalidArgumentError("REQUEST_OK received with extensions"));
+    return absl::OkStatus();
   }
   std::move(response_callback_)(message.parameters);
   publisher_->Update(message.parameters);
@@ -91,7 +92,7 @@ absl::Status MoqtPublishRequestStream::OnControlMessage(
         out_parameters.largest_object);
   }
   publisher_->Update(in_parameters);
-  CheckStatus(SendRequestOk(message.request_id, MessageParameters()));
+  CheckStatus(SendRequestOk(MessageParameters()));
   return absl::OkStatus();
 }
 
@@ -136,7 +137,7 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
     // There was no existing SUBSCRIBE, so invoke the callback.
     subscriber_->set_visitor((*incoming_publish_callback_)(
         message.full_track_name, message.parameters, message.extensions,
-        [weakptr = weak_ptr_factory_.Create(), request_id = message.request_id](
+        [weakptr = weak_ptr_factory_.Create()](
             const std::variant<MessageParameters, MoqtRequestErrorInfo>
                 response) {
           MoqtPublishResponseStream* stream = weakptr.GetIfAvailable();
@@ -144,22 +145,20 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
             return;
           }
           std::visit(
-              absl::Overload{[&](const MessageParameters& parameters) {
-                               stream->subscriber_->Update(parameters);
-                               stream->CheckStatus(stream->SendRequestOk(
-                                   request_id, parameters, /*fin=*/false));
-                             },
-                             [&](const MoqtRequestErrorInfo& error_info) {
-                               stream->CheckStatus(
-                                   stream->SendRequestError(error_info));
-                             }},
+              absl::Overload{
+                  [&](const MessageParameters& parameters) {
+                    stream->subscriber_->Update(parameters);
+                    stream->CheckStatus(stream->SendRequestOk(parameters));
+                  },
+                  [&](const MoqtRequestErrorInfo& error_info) {
+                    stream->CheckStatus(stream->SendRequestError(error_info));
+                  }},
               response);
         }));
   } else {
     // Since the application already called SUBSCRIBE, there will be no
     // invocation of the request callback. Send REQUEST_OK immediately.
-    CheckStatus(
-        SendRequestOk(message.request_id, subscriber_->const_parameters()));
+    CheckStatus(SendRequestOk(subscriber_->const_parameters()));
   }
   incoming_publish_callback_ = nullptr;
   if (subscriber_->visitor() == nullptr) {
@@ -181,12 +180,17 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
     return absl::OkStatus();
   }
   subscriber_->Update(message.parameters);
-  CheckStatus(SendRequestOk(message.request_id, MessageParameters()));
+  CheckStatus(SendRequestOk(MessageParameters()));
   return absl::OkStatus();
 }
 
 absl::Status MoqtPublishResponseStream::OnControlMessage(
     const MoqtRequestOk& message) {
+  if (!message.extensions.empty()) {
+    OnFatalError(
+        absl::InvalidArgumentError("REQUEST_OK received with extensions"));
+    return absl::OkStatus();
+  }
   // TODO(martinduke): Process REQUEST_OK parameters.
   return request_update_queue().OnControlMessage(message);
 }

@@ -92,9 +92,7 @@ TEST_F(MoqtSubscribeRequestStreamTest, ReceiveSubscribeOk) {
   EXPECT_CALL(mock_add_callback_, Call(stream_->track()))
       .WillOnce(Return(true));
   EXPECT_CALL(mock_subscribe_visitor_, OnReply(track_name_, _));
-  MoqtSubscribeOk subscribe_ok;
-  subscribe_ok.request_id = kRequestId;
-  subscribe_ok.track_alias = kTrackAlias;
+  MoqtSubscribeOk subscribe_ok(kTrackAlias);
   QUICHE_EXPECT_OK(stream_->OnControlMessage(subscribe_ok));
   EXPECT_EQ(stream_->track()->track_alias(), kTrackAlias);
   // Test cleanup.
@@ -109,9 +107,7 @@ TEST_F(MoqtSubscribeRequestStreamTest, ReceiveSubscribeOkAliasDuplicate) {
   EXPECT_CALL(mock_add_callback_, Call(stream_->track()))
       .WillOnce(Return(false));
   EXPECT_CALL(error_callback_, Call(MoqtError::kDuplicateTrackAlias, _));
-  MoqtSubscribeOk subscribe_ok;
-  subscribe_ok.request_id = kRequestId;
-  subscribe_ok.track_alias = kTrackAlias;
+  MoqtSubscribeOk subscribe_ok(kTrackAlias);
   QUICHE_EXPECT_OK(stream_->OnControlMessage(subscribe_ok));
   // Test cleanup.
   EXPECT_CALL(mock_remove_callback_, Call);
@@ -124,8 +120,27 @@ TEST_F(MoqtSubscribeRequestStreamTest, RequestOkBeforeSubscribeOk) {
   stream_->BindStream(&mock_stream_);
   EXPECT_CALL(error_callback_, Call(MoqtError::kProtocolViolation, _));
   MoqtRequestOk request_ok;
-  request_ok.request_id = kRequestId;
   request_ok.parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
+  // Test cleanup.
+  EXPECT_CALL(mock_remove_callback_, Call);
+}
+
+TEST_F(MoqtSubscribeRequestStreamTest, RequestOkWithExtensions) {
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _))
+      .WillOnce(Return(absl::OkStatus()));
+  stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_add_callback_, Call(stream_->track()))
+      .WillOnce(Return(true));
+  EXPECT_CALL(mock_subscribe_visitor_, OnReply(track_name_, _));
+  MoqtSubscribeOk subscribe_ok(kTrackAlias);
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(subscribe_ok));
+  EXPECT_CALL(error_callback_, Call(MoqtError::kProtocolViolation, _));
+  MoqtRequestOk request_ok(
+      MessageParameters(),
+      TrackExtensions(quic::QuicTimeDelta::FromSeconds(5), std::nullopt,
+                      std::nullopt, std::nullopt, std::nullopt, std::nullopt));
   QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
   // Test cleanup.
   EXPECT_CALL(mock_remove_callback_, Call);
@@ -140,9 +155,7 @@ TEST_F(MoqtSubscribeRequestStreamTest, ReceiveRequestOk) {
   EXPECT_CALL(mock_add_callback_, Call(stream_->track()))
       .WillOnce(Return(true));
   EXPECT_CALL(mock_subscribe_visitor_, OnReply(track_name_, _));
-  MoqtSubscribeOk subscribe_ok;
-  subscribe_ok.request_id = kRequestId;
-  subscribe_ok.track_alias = kTrackAlias;
+  MoqtSubscribeOk subscribe_ok(kTrackAlias);
   QUICHE_EXPECT_OK(stream_->OnControlMessage(subscribe_ok));
   // REQUEST_UPDATE.
   EXPECT_CALL(mock_stream_,
@@ -163,7 +176,6 @@ TEST_F(MoqtSubscribeRequestStreamTest, ReceiveRequestOk) {
   EXPECT_EQ(stream_->track()->const_parameters().subscriber_priority,
             std::nullopt);
   MoqtRequestOk request_ok;
-  request_ok.request_id = kRequestId;
   request_ok.parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
   QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
   EXPECT_EQ(stream_->track()->const_parameters().subscriber_priority, 20);

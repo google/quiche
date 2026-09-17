@@ -20,6 +20,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_parser.h"
+#include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
@@ -30,7 +31,7 @@ MoqtTrackStatusRequestStream::MoqtTrackStatusRequestStream(
     const MoqtControlMessageParser& message_parser, uint64_t request_id,
     const FullTrackName& full_track_name, const MessageParameters& parameters,
     SessionErrorCallback session_error_callback,
-    MoqtResponseCallback response_callback)
+    TrackStatusResponseCallback response_callback)
     : MoqtBidiStreamBase(framer, message_parser,
                          std::move(session_error_callback)),
       request_id_(request_id),
@@ -58,12 +59,10 @@ absl::Status MoqtTrackStatusRequestStream::OnControlMessage(
   if (response_callback_ == nullptr) {
     return absl::InvalidArgumentError("Duplicate REQUEST_OK");
   }
-  MoqtResponseCallback callback = std::move(response_callback_);
+  TrackStatusResponseCallback callback = std::move(response_callback_);
   response_callback_ = nullptr;
   Fin();
-  // `message.request_id` is ignored, since request IDs in REQUEST_OK are
-  // deprecated and not present in draft-18.
-  std::move(callback)(message.parameters);
+  std::move(callback)(message);
   return absl::OkStatus();
 }
 
@@ -72,7 +71,7 @@ absl::Status MoqtTrackStatusRequestStream::OnControlMessage(
   if (response_callback_ == nullptr) {
     return absl::InvalidArgumentError("Duplicate REQUEST_ERROR");
   }
-  MoqtResponseCallback callback = std::move(response_callback_);
+  TrackStatusResponseCallback callback = std::move(response_callback_);
   response_callback_ = nullptr;
   Fin();
   // `message.request_id` is ignored, since request IDs in REQUEST_ERROR are
@@ -84,7 +83,7 @@ absl::Status MoqtTrackStatusRequestStream::OnControlMessage(
 
 void MoqtTrackStatusRequestStream::Detach() {
   if (response_callback_ != nullptr) {
-    MoqtResponseCallback callback = std::move(response_callback_);
+    TrackStatusResponseCallback callback = std::move(response_callback_);
     response_callback_ = nullptr;
     std::move(callback)(MoqtRequestErrorInfo{RequestErrorCode::kInternalError,
                                              std::nullopt, "Stream closed"});
@@ -135,7 +134,7 @@ void MoqtTrackStatusResponseStream::OnSubscribeAccepted() {
   parameters.expires = publisher_->expiration();
   parameters.largest_object = publisher_->largest_location();
   // Since `fin` is true, this will also reset `publisher_`.
-  CheckStatus(SendRequestOk(*request_id_, parameters, /*fin=*/true));
+  CheckStatus(SendRequestOk(parameters, publisher_->extensions()));
 }
 
 void MoqtTrackStatusResponseStream::OnSubscribeRejected(
@@ -160,6 +159,13 @@ void MoqtTrackStatusResponseStream::Detach() {
     publisher_->RemoveObjectListener(this);
     publisher_ = nullptr;
   }
+}
+
+absl::Status MoqtTrackStatusResponseStream::SendRequestOk(
+    const MessageParameters& parameters, const TrackExtensions& extensions) {
+  return SendOrBufferMessage(
+      framer()->SerializeRequestOk(MoqtRequestOk(parameters, extensions)),
+      /*fin=*/true);
 }
 
 }  // namespace moqt

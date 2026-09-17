@@ -76,6 +76,15 @@ struct FetchOkData {
 using FetchResponseCallback = quiche::SingleUseCallback<void(
     std::variant<FetchOkData, MoqtRequestErrorInfo>)>;
 
+struct TrackStatusOkData {
+  MessageParameters parameters;
+  TrackExtensions extensions;
+  bool operator==(const TrackStatusOkData& other) const = default;
+};
+
+using TrackStatusResponseCallback = quiche::SingleUseCallback<void(
+    std::variant<TrackStatusOkData, MoqtRequestErrorInfo>)>;
+
 // Called when the SETUP message from the peer is received.
 using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
 

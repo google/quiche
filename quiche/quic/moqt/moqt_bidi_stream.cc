@@ -59,9 +59,9 @@ void MoqtBidiStreamBase::OnCanWrite() {
 }
 
 absl::Status MoqtBidiStreamBase::SendRequestOk(
-    uint64_t request_id, const MessageParameters& parameters, bool fin) {
+    const MessageParameters& parameters) {
   return SendOrBufferMessage(
-      framer_->SerializeRequestOk(MoqtRequestOk{request_id, parameters}), fin);
+      framer_->SerializeRequestOk(MoqtRequestOk(parameters)), false);
 }
 
 absl::Status MoqtBidiStreamBase::SendRequestError(

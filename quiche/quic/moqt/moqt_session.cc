@@ -330,7 +330,7 @@ void MoqtSession::UnsubscribeTracks(TrackNamespace& prefix) {
 
 bool MoqtSession::TrackStatus(const FullTrackName& name,
                               const MessageParameters& parameters,
-                              MoqtResponseCallback response_callback) {
+                              TrackStatusResponseCallback response_callback) {
   QUICHE_DCHECK(name.IsValid());
   if (received_goaway_ || sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send TRACK_STATUS after GOAWAY";
