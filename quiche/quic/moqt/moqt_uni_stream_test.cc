@@ -42,6 +42,7 @@ namespace moqt::test {
 
 namespace {
 
+using ::testing::IsNull;
 using ::testing::Optional;
 using ::testing::Return;
 using ::testing::ReturnRef;
@@ -704,8 +705,8 @@ TEST_F(IncomingDataStreamTest, PartialObjectFetch) {
   // Cleanup
   EXPECT_CALL(mock_fetch_task_,
               OnStreamAndFetchClosed(absl::CancelledError("stream destroyed")));
-  EXPECT_CALL(mock_fetch_task_, set_task_destroyed_callback(nullptr));
-  EXPECT_CALL(mock_fetch_task_, set_can_read_callback(nullptr));
+  EXPECT_CALL(mock_fetch_task_, set_task_destroyed_callback(IsNull()));
+  EXPECT_CALL(mock_fetch_task_, set_can_read_callback(IsNull()));
   EXPECT_CALL(mock_control_stream_,
               OnStreamClosed(absl::CancelledError("stream destroyed"),
                              std::optional<DataStreamIndex>()));

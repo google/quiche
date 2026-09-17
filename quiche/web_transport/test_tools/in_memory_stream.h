@@ -113,7 +113,7 @@ class QUICHE_NO_EXPORT InMemoryStreamWithWriteBuffer : public InMemoryStream {
  public:
   using InMemoryStream::InMemoryStream;
 
-  void OnWrite(absl::string_view data) { write_buffer_.append(data); }
+  void OnWrite(absl::string_view data) override { write_buffer_.append(data); }
   absl::Status GetWriteStatus(bool is_write) const override {
     return absl::OkStatus();
   }

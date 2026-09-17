@@ -176,13 +176,13 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   }
 
   // SessionToUniStreamInterface implementation.
-  bool deliver_partial_objects() const {
+  bool deliver_partial_objects() const override {
     return parameters_.deliver_partial_objects;
   }
   // Called when the incoming track is malformed per Section 2.5 of
   // draft-ietf-moqt-moq-transport-12. Unsubscribe and notify the application so
   // the error can be propagated downstream, if necessary.
-  void OnMalformedTrack(ObjectSubscriber* track);
+  void OnMalformedTrack(ObjectSubscriber* track) override;
   quiche::QuicheWeakPtr<ObjectSubscriber> GetSubscribe(
       uint64_t track_alias) override {
     ObjectSubscriber* track = SubscribeByAlias(track_alias);
@@ -191,7 +191,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     }
     return track->weak_ptr();
   }
-  quiche::QuicheWeakPtr<ObjectSubscriber> GetFetch(uint64_t request_id) {
+  quiche::QuicheWeakPtr<ObjectSubscriber> GetFetch(
+      uint64_t request_id) override {
     auto it = fetch_by_id_.find(request_id);
     if (it == fetch_by_id_.end()) {
       return quiche::QuicheWeakPtr<ObjectSubscriber>();
