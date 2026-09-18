@@ -26,7 +26,7 @@ namespace moqt {
 struct PublishedObjectMetadata {
   Location location;
   std::optional<uint64_t> subgroup;  // nullopt for datagrams.
-  std::string extensions;
+  std::string properties;
   MoqtObjectStatus status = MoqtObjectStatus::kNormal;
   MoqtPriority publisher_priority = kDefaultPublisherPriority;
   // `first_object_in_subgroup` is only available in objects communicated via

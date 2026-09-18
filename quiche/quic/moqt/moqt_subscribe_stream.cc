@@ -74,7 +74,7 @@ absl::Status MoqtSubscribeRequestStream::OnControlMessage(
   }
   add_callback_ = nullptr;
 
-  track_->OnObjectOrOk(SubscribeOkData(message.parameters, message.extensions));
+  track_->OnObjectOrOk(SubscribeOkData(message.parameters, message.properties));
   return absl::OkStatus();
 }
 
@@ -86,9 +86,9 @@ absl::Status MoqtSubscribeRequestStream::OnControlMessage(
         absl::InvalidArgumentError("REQUEST_OK received before SUBSCRIBE_OK"));
     return absl::OkStatus();
   }
-  if (!message.extensions.empty()) {
+  if (!message.properties.empty()) {
     OnFatalError(absl::InvalidArgumentError(
-        "REQUEST_UPDATE_OK received with extensions"));
+        "REQUEST_UPDATE_OK received with properties"));
     return absl::OkStatus();
   }
   absl::StatusOr<MessageParameters> old_parameters =

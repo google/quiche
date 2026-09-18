@@ -53,10 +53,10 @@ void MoqtPublishRequestStream::OnStreamBound() {
   SendOrBufferMessageOrFatal(framer()->SerializePublish(MoqtPublish{
       publisher_->request_id(), publisher_->publisher().GetTrackName(),
       publisher_->track_alias(), publisher_->parameters(),
-      publisher_->publisher().extensions()}));
+      publisher_->publisher().properties()}));
   // Use the default group order.
   publisher_->parameters().group_order =
-      publisher_->publisher().extensions().default_publisher_group_order();
+      publisher_->publisher().properties().default_publisher_group_order();
 }
 
 absl::Status MoqtPublishRequestStream::OnRawControlMessage(
@@ -67,9 +67,9 @@ absl::Status MoqtPublishRequestStream::OnRawControlMessage(
 
 absl::Status MoqtPublishRequestStream::OnControlMessage(
     const MoqtRequestOk& message) {
-  if (!message.extensions.empty()) {
+  if (!message.properties.empty()) {
     OnFatalError(
-        absl::InvalidArgumentError("REQUEST_OK received with extensions"));
+        absl::InvalidArgumentError("REQUEST_OK received with properties"));
     return absl::OkStatus();
   }
   std::move(response_callback_)(message.parameters);
@@ -136,7 +136,7 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
   if (subscriber_->visitor() == nullptr) {
     // There was no existing SUBSCRIBE, so invoke the callback.
     subscriber_->set_visitor((*incoming_publish_callback_)(
-        message.full_track_name, message.parameters, message.extensions,
+        message.full_track_name, message.parameters, message.properties,
         [weakptr = weak_ptr_factory_.Create()](
             const std::variant<MessageParameters, MoqtRequestErrorInfo>
                 response) {
@@ -169,7 +169,7 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
   }
   // Notify the visitor.
   subscriber_->OnObjectOrOk(
-      SubscribeOkData{message.parameters, message.extensions});
+      SubscribeOkData{message.parameters, message.properties});
   return absl::OkStatus();
 }
 
@@ -186,9 +186,9 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
 
 absl::Status MoqtPublishResponseStream::OnControlMessage(
     const MoqtRequestOk& message) {
-  if (!message.extensions.empty()) {
+  if (!message.properties.empty()) {
     OnFatalError(
-        absl::InvalidArgumentError("REQUEST_OK received with extensions"));
+        absl::InvalidArgumentError("REQUEST_OK received with properties"));
     return absl::OkStatus();
   }
   // TODO(martinduke): Process REQUEST_OK parameters.

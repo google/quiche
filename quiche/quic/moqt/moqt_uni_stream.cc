@@ -52,7 +52,7 @@ bool OutgoingUniStream::WriteObjectToStream(PublishedObject& object,
   header.subgroup_id = object.metadata.subgroup;
   header.object_id = object.metadata.location.object;
   header.publisher_priority = object.metadata.publisher_priority;
-  header.extension_headers = object.metadata.extensions;
+  header.properties = object.metadata.properties;
   header.object_status = object.metadata.status;
   header.payload_length = object.metadata.payload_length;
 
@@ -173,13 +173,13 @@ void OutgoingSubgroupStream::SendObjects() {
       // No class access below this line.
       return;
     }
-    // Always include extension header length, because it's difficult to know
+    // Always include property header length, because it's difficult to know
     // a priori if they're going to appear on a stream.
     if (!last_object().has_value()) {
       type_ = MoqtDataStreamType::Subgroup(
           index_.subgroup, next_object_, false,
           object->metadata.publisher_priority ==
-              publisher_->extensions().default_publisher_priority(),
+              publisher_->properties().default_publisher_priority(),
           object->metadata.first_object_in_subgroup.value_or(true));
     }
     uint64_t start_offset = already_delivered_;
@@ -456,7 +456,7 @@ void IncomingDataStream::OnObjectMessage(const MoqtObject& message,
       PublishedObjectMetadata metadata;
       metadata.location = Location(message.group_id, message.object_id);
       metadata.subgroup = message.subgroup_id;
-      metadata.extensions = message.extension_headers;
+      metadata.properties = message.properties;
       metadata.status = message.object_status;
       metadata.publisher_priority = message.publisher_priority;
       metadata.first_object_in_subgroup = message.first_object_in_subgroup;

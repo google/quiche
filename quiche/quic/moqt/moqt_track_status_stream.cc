@@ -134,7 +134,7 @@ void MoqtTrackStatusResponseStream::OnSubscribeAccepted() {
   parameters.expires = publisher_->expiration();
   parameters.largest_object = publisher_->largest_location();
   // Since `fin` is true, this will also reset `publisher_`.
-  CheckStatus(SendRequestOk(parameters, publisher_->extensions()));
+  CheckStatus(SendRequestOk(parameters, publisher_->properties()));
 }
 
 void MoqtTrackStatusResponseStream::OnSubscribeRejected(
@@ -162,9 +162,9 @@ void MoqtTrackStatusResponseStream::Detach() {
 }
 
 absl::Status MoqtTrackStatusResponseStream::SendRequestOk(
-    const MessageParameters& parameters, const TrackExtensions& extensions) {
+    const MessageParameters& parameters, const TrackProperties& properties) {
   return SendOrBufferMessage(
-      framer()->SerializeRequestOk(MoqtRequestOk(parameters, extensions)),
+      framer()->SerializeRequestOk(MoqtRequestOk(parameters, properties)),
       /*fin=*/true);
 }
 

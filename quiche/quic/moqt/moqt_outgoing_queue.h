@@ -50,7 +50,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
       quiche::MultiUseCallback<void()> new_group_callback = nullptr)
       : clock_(clock),
         track_(std::move(track)),
-        extensions_(std::nullopt, std::nullopt, std::nullopt, std::nullopt,
+        properties_(std::nullopt, std::nullopt, std::nullopt, std::nullopt,
                     new_group_callback != nullptr ? std::optional<bool>(true)
                                                   : std::nullopt,
                     std::nullopt),
@@ -74,7 +74,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
                          const MessageParameters& parameters) override {
     listeners_.insert(listener);
     listener->OnSubscribeAccepted();
-    if (extensions_.dynamic_groups() && !expect_new_group_ &&
+    if (properties_.dynamic_groups() && !expect_new_group_ &&
         parameters.new_group_request.has_value() &&
         (*parameters.new_group_request == 0 || queue_.empty() ||
          *parameters.new_group_request > current_group_id_) &&
@@ -91,7 +91,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
   std::optional<quic::QuicTimeDelta> expiration() const override {
     return quic::QuicTimeDelta::Zero();
   }
-  const TrackExtensions& extensions() const override { return extensions_; }
+  const TrackProperties& properties() const override { return properties_; }
 
   std::unique_ptr<MoqtFetchTask> StandaloneFetch(
       Location start, Location end, MoqtDeliveryOrder order,
@@ -124,7 +124,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
 
  protected:
   MoqtPriority default_publisher_priority() const {
-    return extensions_.default_publisher_priority();
+    return properties_.default_publisher_priority();
   }
 
  private:
@@ -171,7 +171,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
 
   const quic::QuicClock* clock_;
   FullTrackName track_;
-  TrackExtensions extensions_;
+  TrackProperties properties_;
   bool closed_ = false;
   absl::InlinedVector<Group, kMaxQueuedGroups> queue_;
   uint64_t current_group_id_ = -1;

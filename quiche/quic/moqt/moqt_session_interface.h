@@ -109,7 +109,7 @@ class MoqtSessionInterface {
   // failure will be covered by |response_callback|.
   virtual bool Publish(
       std::shared_ptr<MoqtTrackPublisher> absl_nonnull publisher,
-      const MessageParameters& parameters, const TrackExtensions& extensions,
+      const MessageParameters& parameters, const TrackProperties& properties,
       MoqtResponseCallback response_callback) = 0;
 
   // Sends a FETCH for a pre-specified object range. Once a FETCH_OK or a

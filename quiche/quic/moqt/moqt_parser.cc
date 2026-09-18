@@ -672,9 +672,9 @@ absl::StatusOr<MoqtSubscribeOk> MoqtControlMessageParser::ProcessSubscribeOk(
   QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(reader, pairs));
   QUICHE_RETURN_IF_ERROR(subscribe_ok.parameters.FromKeyValuePairList(pairs));
   QUICHE_RETURN_IF_ERROR(
-      ParseKeyValuePairListWithNoPrefix(reader, subscribe_ok.extensions));
-  if (!subscribe_ok.extensions.Validate()) {
-    return absl::InvalidArgumentError("Invalid SUBSCRIBE_OK track extensions");
+      ParseKeyValuePairListWithNoPrefix(reader, subscribe_ok.properties));
+  if (!subscribe_ok.properties.Validate()) {
+    return absl::InvalidArgumentError("Invalid SUBSCRIBE_OK track properties");
   }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return subscribe_ok;
@@ -774,9 +774,9 @@ absl::StatusOr<MoqtRequestOk> MoqtControlMessageParser::ProcessRequestOk(
   QUICHE_RETURN_IF_ERROR(
       FillAndValidateMessageParameters(reader, request_ok.parameters));
   QUICHE_RETURN_IF_ERROR(
-      ParseKeyValuePairListWithNoPrefix(reader, request_ok.extensions));
-  if (!request_ok.extensions.Validate()) {
-    return absl::InvalidArgumentError("Invalid REQUEST_OK track extensions");
+      ParseKeyValuePairListWithNoPrefix(reader, request_ok.properties));
+  if (!request_ok.properties.Validate()) {
+    return absl::InvalidArgumentError("Invalid REQUEST_OK track properties");
   }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return request_ok;
@@ -916,9 +916,9 @@ absl::StatusOr<MoqtFetchOk> MoqtControlMessageParser::ProcessFetchOk(
   QUICHE_RETURN_IF_ERROR(
       FillAndValidateMessageParameters(reader, fetch_ok.parameters));
   QUICHE_RETURN_IF_ERROR(
-      ParseKeyValuePairListWithNoPrefix(reader, fetch_ok.extensions));
-  if (!fetch_ok.extensions.Validate()) {
-    return absl::InvalidArgumentError("Invalid FETCH_OK track extensions");
+      ParseKeyValuePairListWithNoPrefix(reader, fetch_ok.properties));
+  if (!fetch_ok.properties.Validate()) {
+    return absl::InvalidArgumentError("Invalid FETCH_OK track properties");
   }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return fetch_ok;
@@ -939,9 +939,9 @@ absl::StatusOr<MoqtPublish> MoqtControlMessageParser::ProcessPublish(
   QUICHE_RETURN_IF_ERROR(
       FillAndValidateMessageParameters(reader, publish.parameters));
   QUICHE_RETURN_IF_ERROR(
-      ParseKeyValuePairListWithNoPrefix(reader, publish.extensions));
-  if (!publish.extensions.Validate()) {
-    return absl::InvalidArgumentError("Invalid PUBLISH track extensions");
+      ParseKeyValuePairListWithNoPrefix(reader, publish.properties));
+  if (!publish.properties.Validate()) {
+    return absl::InvalidArgumentError("Invalid PUBLISH track properties");
   }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return publish;
@@ -1047,7 +1047,7 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
                                                MoqtObject& object_metadata,
                                                bool& use_default_priority) {
   uint64_t type_raw, object_status_raw;
-  absl::string_view extensions;
+  absl::string_view properties;
   quic::QuicDataReader reader(data);
   object_metadata = MoqtObject();
   if (!reader.ReadMoqVarInt(&type_raw) ||
@@ -1084,15 +1084,15 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
       !reader.ReadUInt8(&object_metadata.publisher_priority)) {
     return std::nullopt;
   }
-  if (datagram_type->has_extension()) {
-    if (!reader.ReadStringPieceMoqVarInt(&extensions)) {
+  if (datagram_type->has_properties()) {
+    if (!reader.ReadStringPieceMoqVarInt(&properties)) {
       return std::nullopt;
     }
-    if (extensions.empty()) {
+    if (properties.empty()) {
       // This is a session error.
       return std::nullopt;
     }
-    object_metadata.extension_headers = std::string(extensions);
+    object_metadata.properties = std::string(properties);
   }
   if (datagram_type->has_status()) {
     object_metadata.payload_length = 0;
@@ -1196,12 +1196,12 @@ MoqtDataParser::NextInput MoqtDataParser::AdvanceParserState() {
         }
         [[fallthrough]];
       case kPublisherPriority:
-        if (fetch_serialization_.has_extensions()) {
-          return kExtensionSize;
+        if (fetch_serialization_.has_properties()) {
+          return kPropertiesSize;
         }
-        metadata_.extension_headers = "";
+        metadata_.properties = "";
         return kObjectPayloadLength;
-      case kExtensionBody:
+      case kPropertiesBody:
         return kObjectPayloadLength;
       case kData:
         return kSerializationFlags;
@@ -1210,7 +1210,7 @@ MoqtDataParser::NextInput MoqtDataParser::AdvanceParserState() {
       case kAwaitingNextByte:
       case kStatus:
       case kFailed:
-      case kExtensionSize:
+      case kPropertiesSize:
       case kPadding:
         QUICHE_NOTREACHED();
         return next_input_;
@@ -1248,11 +1248,11 @@ MoqtDataParser::NextInput MoqtDataParser::AdvanceParserState() {
         metadata_.first_object_in_subgroup =
             type_.HasFirstObject() && num_objects_read_ == 0;
       }
-      if (type_.AreExtensionHeadersPresent()) {
-        return kExtensionSize;
+      if (type_.ArePropertiesPresent()) {
+        return kPropertiesSize;
       }
       [[fallthrough]];
-    case kExtensionBody:
+    case kPropertiesBody:
       return kObjectPayloadLength;
     case kStatus:
     case kData:
@@ -1260,7 +1260,7 @@ MoqtDataParser::NextInput MoqtDataParser::AdvanceParserState() {
       return kObjectId;
     case kRequestId:
     case kSerializationFlags:
-    case kExtensionSize:
+    case kPropertiesSize:
     case kObjectPayloadLength:
     case kPadding:
     case kFailed:
@@ -1382,12 +1382,13 @@ void MoqtDataParser::ParseNextItemFromStream() {
       return;
     }
 
-    case kExtensionSize: {
+    case kPropertiesSize: {
       std::optional<uint64_t> value_read = ReadMoqVarIntNoFin();
       if (value_read.has_value()) {
-        metadata_.extension_headers.clear();
+        metadata_.properties.clear();
         payload_length_remaining_ = *value_read;
-        next_input_ = (value_read == 0) ? kObjectPayloadLength : kExtensionBody;
+        next_input_ =
+            (value_read == 0) ? kObjectPayloadLength : kPropertiesBody;
       }
       return;
     }
@@ -1436,7 +1437,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
       return;
     }
 
-    case kExtensionBody:
+    case kPropertiesBody:
     case kData: {
       while (payload_length_remaining_ > 0) {
         webtransport::Stream::PeekResult peek_result =
@@ -1483,7 +1484,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
             }
           }
         } else {
-          absl::StrAppend(&metadata_.extension_headers,
+          absl::StrAppend(&metadata_.properties,
                           peek_result.peeked_data.substr(0, chunk_size));
           if (stream_.SkipBytes(chunk_size)) {
             ParseError("FIN received at an unexpected point in the stream");

@@ -35,17 +35,17 @@
 
 namespace moqt::test {
 
-inline constexpr absl::string_view kDefaultExtensionBlob(
+inline constexpr absl::string_view kDefaultPropertyBlob(
     "\x00\x0c\x01\x03\x66\x6f\x6f", 7);
 
 inline std::vector<MoqtDatagramType> AllMoqtDatagramTypes() {
   std::vector<MoqtDatagramType> types;
   for (bool payload : {false, true}) {
-    for (bool extension : {false, true}) {
+    for (bool property : {false, true}) {
       for (bool end_of_group : {false, true}) {
         for (bool default_priority : {false, true}) {
           for (bool zero_object_id : {false, true}) {
-            types.push_back(MoqtDatagramType(payload, extension, end_of_group,
+            types.push_back(MoqtDatagramType(payload, property, end_of_group,
                                              default_priority, zero_object_id));
           }
         }
@@ -75,13 +75,13 @@ inline std::vector<MoqtDataStreamType> AllMoqtDataStreamTypes() {
   types.push_back(MoqtDataStreamType::Fetch());
   uint64_t first_object_id = 1;
   for (uint64_t subgroup_id : {0, 1, 2}) {
-    for (bool no_extension_headers : {true, false}) {
+    for (bool no_properties : {true, false}) {
       for (bool default_priority : {true, false}) {
         for (bool has_first_object : {true, false}) {
           for (bool end_of_group : {false, true}) {
             types.push_back(MoqtDataStreamType::Subgroup(
-                subgroup_id, first_object_id, no_extension_headers,
-                default_priority, has_first_object, end_of_group));
+                subgroup_id, first_object_id, no_properties, default_priority,
+                has_first_object, end_of_group));
           }
         }
       }
@@ -252,8 +252,8 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "OBJECT Publisher Priority mismatch";
       return false;
     }
-    if (cast.extension_headers != object_.extension_headers) {
-      QUIC_LOG(INFO) << "OBJECT Extension Header mismatch";
+    if (cast.properties != object_.properties) {
+      QUIC_LOG(INFO) << "OBJECT Property Header mismatch";
       return false;
     }
     if (cast.object_status != object_.object_status) {
@@ -281,7 +281,7 @@ class QUICHE_NO_EXPORT ObjectMessage : public TestMessageBase {
       .group_id = 5,
       .object_id = 6,
       .publisher_priority = 7,
-      .extension_headers = std::string(kDefaultExtensionBlob),
+      .properties = std::string(kDefaultPropertyBlob),
       .object_status = MoqtObjectStatus::kNormal,
       .subgroup_id = 8,
       .first_object_in_subgroup = false,
@@ -303,8 +303,8 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
                                   : MoqtObjectStatus::kNormal;
       object_.payload_length = 3;
     }
-    object_.extension_headers =
-        datagram_type.has_extension() ? std::string(kDefaultExtensionBlob) : "";
+    object_.properties =
+        datagram_type.has_properties() ? std::string(kDefaultPropertyBlob) : "";
     object_.object_id = datagram_type.has_object_id() ? 6 : 0;
     object_.subgroup_id = std::nullopt;
     quic::QuicDataWriter writer(sizeof(raw_packet_),
@@ -317,8 +317,8 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     if (!datagram_type.has_default_priority()) {
       EXPECT_TRUE(writer.WriteStringPiece(kRawPriority));
     }
-    if (datagram_type.has_extension()) {
-      EXPECT_TRUE(writer.WriteStringPiece(kRawExtensions));
+    if (datagram_type.has_properties()) {
+      EXPECT_TRUE(writer.WriteStringPiece(kRawProperties));
     }
     if (datagram_type.has_status()) {
       EXPECT_TRUE(
@@ -338,7 +338,7 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
     if (!datagram_type_.has_default_priority()) {
       varints += "-";  // priority
     }
-    if (datagram_type_.has_extension()) {
+    if (datagram_type_.has_properties()) {
       varints += "v-------";
     }
     if (datagram_type_.has_status()) {
@@ -355,8 +355,8 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
   static constexpr absl::string_view kRawAliasGroup = "\x04\x05";
   static constexpr absl::string_view kRawObject = "\x06";
   static constexpr absl::string_view kRawPriority = "\x07";
-  static constexpr absl::string_view kRawExtensions{
-      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultExtensionBlob
+  static constexpr absl::string_view kRawProperties{
+      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultPropertyBlob
   static constexpr absl::string_view kRawPayload = "foo";
 };
 
@@ -372,8 +372,8 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
     } else if (type.SubgroupIsFirstObjectId()) {
       object_.subgroup_id = object_.object_id;
     }
-    if (!type.AreExtensionHeadersPresent()) {
-      object_.extension_headers = "";
+    if (!type.ArePropertiesPresent()) {
+      object_.properties = "";
     }
     // Build raw_packet_ from the type.
     quic::QuicDataWriter writer(sizeof(raw_packet_), raw_packet_);
@@ -389,9 +389,9 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
                                     kRawPublisherPriority.length()));
     }
     EXPECT_TRUE(writer.WriteBytes(kRawObjectId.data(), kRawObjectId.length()));
-    if (type.AreExtensionHeadersPresent()) {
+    if (type.ArePropertiesPresent()) {
       EXPECT_TRUE(
-          writer.WriteBytes(kRawExtensions.data(), kRawExtensions.length()));
+          writer.WriteBytes(kRawProperties.data(), kRawProperties.length()));
     }
     payload_length_offset_ = writer.length();
     EXPECT_TRUE(writer.WriteBytes(kRawPayload.data(), kRawPayload.length()));
@@ -408,7 +408,7 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
       varints += "-";  // priority
     }
     varints += "v";  // object ID
-    if (type_.AreExtensionHeadersPresent()) {
+    if (type_.ArePropertiesPresent()) {
       varints += "v-------";
     }
     varints += "v---";  // payload with length
@@ -441,8 +441,8 @@ class QUICHE_NO_EXPORT StreamHeaderSubgroupMessage : public ObjectMessage {
   static constexpr absl::string_view kRawSubgroupId = "\x08";
   static constexpr absl::string_view kRawPublisherPriority = "\x07";
   static constexpr absl::string_view kRawObjectId = "\x06";
-  static constexpr absl::string_view kRawExtensions{
-      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultExtensionBlob
+  static constexpr absl::string_view kRawProperties{
+      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultPropertyBlob
   static constexpr absl::string_view kRawPayload = "\x03\x66\x6f\x6f";
   char raw_packet_[18];
   size_t payload_length_offset_;
@@ -462,9 +462,9 @@ class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
     object_.object_id = 9;
     quic::QuicDataWriter writer(sizeof(raw_packet_), raw_packet_);
     EXPECT_TRUE(writer.WriteMoqVarInt(2));  // Object ID delta - 1
-    if (type.AreExtensionHeadersPresent()) {
+    if (type.ArePropertiesPresent()) {
       EXPECT_TRUE(
-          writer.WriteBytes(kRawExtensions.data(), kRawExtensions.length()));
+          writer.WriteBytes(kRawProperties.data(), kRawProperties.length()));
     }
     EXPECT_TRUE(writer.WriteBytes(kRawPayload.data(), kRawPayload.length()));
     EXPECT_LE(writer.length(), kMaxMessageHeaderSize);
@@ -472,7 +472,7 @@ class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
   }
 
   void ExpandVarints() override {
-    if (type_.AreExtensionHeadersPresent()) {
+    if (type_.ArePropertiesPresent()) {
       ExpandVarintsImpl("vv-------v---", false);
     } else {
       ExpandVarintsImpl("vv---", false);
@@ -481,8 +481,8 @@ class QUICHE_NO_EXPORT StreamMiddlerSubgroupMessage : public ObjectMessage {
 
  private:
   MoqtDataStreamType type_;
-  static constexpr absl::string_view kRawExtensions{
-      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultExtensionBlob
+  static constexpr absl::string_view kRawProperties{
+      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultPropertyBlob
   static constexpr absl::string_view kRawPayload = "\x03\x62\x61\x72";
   char raw_packet_[13];
 };
@@ -515,8 +515,8 @@ class QUICHE_NO_EXPORT StreamHeaderFetchMessage : public ObjectMessage {
       0x04,              // request ID
       0x3f,              // object serialization flag
       0x05, 0x08, 0x06,  // sequence
-      0x07, 0x07,        // publisher priority, 7B extensions
-      0x00, 0x0c, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // extensions
+      0x07, 0x07,        // publisher priority, 7B properties
+      0x00, 0x0c, 0x01, 0x03, 0x66, 0x6f, 0x6f,  // properties
       0x03, 0x66, 0x6f, 0x6f,                    // payload = "foo"
   };
 };
@@ -557,12 +557,12 @@ class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
       raw_packet_[length++] = 0x09;
       object_.publisher_priority = MoqtPriority(0x09);
     }
-    if (serialization.has_extensions()) {
-      memcpy(&raw_packet_[length], kRawExtensions.data(),
-             kRawExtensions.length());
-      length += kRawExtensions.length();
+    if (serialization.has_properties()) {
+      memcpy(&raw_packet_[length], kRawProperties.data(),
+             kRawProperties.length());
+      length += kRawProperties.length();
     } else {
-      object_.extension_headers = "";
+      object_.properties = "";
     }
     memcpy(&raw_packet_[length], kRawPayload.data(), kRawPayload.length());
     length += kRawPayload.length();
@@ -584,7 +584,7 @@ class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
     if (serialization_.has_priority()) {
       varints += "-";
     }
-    if (serialization_.has_extensions()) {
+    if (serialization_.has_properties()) {
       varints += "v-------";
     }
     varints += "v---";
@@ -594,8 +594,8 @@ class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
  private:
   MoqtFetchSerialization serialization_;
   uint8_t raw_packet_[17];
-  static constexpr absl::string_view kRawExtensions{
-      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultExtensionBlob
+  static constexpr absl::string_view kRawProperties{
+      "\x07\x00\x0c\x01\x03\x66\x6f\x6f", 8};  // see kDefaultPropertyBlob
   static constexpr absl::string_view kRawPayload = "\x03\x62\x61\x72";
 };
 
@@ -765,8 +765,8 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "SUBSCRIBE OK parameter mismatch";
       return false;
     }
-    if (cast.extensions != subscribe_ok_.extensions) {
-      QUIC_LOG(INFO) << "SUBSCRIBE OK extensions mismatch";
+    if (cast.properties != subscribe_ok_.properties) {
+      QUIC_LOG(INFO) << "SUBSCRIBE OK properties mismatch";
       return false;
     }
     return true;
@@ -788,13 +788,13 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
   MoqtSubscribeOk subscribe_ok_ = {
       /*track_alias=*/2,
       MessageParameters(),  // Set in the constructor.
-      TrackExtensions(
+      TrackProperties(
           /*delivery_timeout=*/quic::QuicTimeDelta::FromMilliseconds(10000),
           /*max_cache_duration=*/quic::QuicTimeDelta::FromMilliseconds(10000),
           /*publisher_priority=*/std::nullopt,
           /*group_order=*/MoqtDeliveryOrder::kDescending,
           /*dynamic_groups=*/std::nullopt,
-          /*immutable_extensions=*/std::nullopt),
+          /*immutable_properties=*/std::nullopt),
   };
 
  private:
@@ -802,7 +802,7 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       0x04, 0x00, 0x10, 0x02, 0x02,  // alias, 2 params
       0x08, 0x03,                    // expires = 3
       0x01, 0x02, 0x0c, 0x14,        // largest_location = (12, 20)
-      // Extensions
+      // Properties
       0x02, 0xa7, 0x10,  // delivery_timeout = 10000
       0x02, 0xa7, 0x10,  // max_cache_duration = 10000
       0x1e, 0x02         // default_publisher_group_order = 2
@@ -1078,8 +1078,8 @@ class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "REQUEST_OK parameter mismatch";
       return false;
     }
-    if (cast.extensions != request_ok_.extensions) {
-      QUIC_LOG(INFO) << "REQUEST_OK extensions mismatch";
+    if (cast.properties != request_ok_.properties) {
+      QUIC_LOG(INFO) << "REQUEST_OK properties mismatch";
       return false;
     }
     return true;
@@ -1096,7 +1096,7 @@ class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
       0x07, 0x00, 0x0d,
       0x01,                    // 1 parameter
       0x09, 0x02, 0x05, 0x01,  // Largest Object = (5, 1)
-      // Extensions
+      // Properties
       0x02, 0xa7, 0x10,  // delivery_timeout = 10000
       0x02, 0xa7, 0x10,  // max_cache_duration = 10000
       0x1e, 0x02         // default_publisher_group_order = 2
@@ -1104,13 +1104,13 @@ class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
 
   MoqtRequestOk request_ok_ = {
       MessageParameters(),  // Set in the constructor.
-      TrackExtensions(
+      TrackProperties(
           /*delivery_timeout=*/quic::QuicTimeDelta::FromMilliseconds(10000),
           /*max_cache_duration=*/quic::QuicTimeDelta::FromMilliseconds(10000),
           /*publisher_priority=*/std::nullopt,
           /*group_order=*/MoqtDeliveryOrder::kDescending,
           /*dynamic_groups=*/std::nullopt,
-          /*immutable_extensions=*/std::nullopt),
+          /*immutable_properties=*/std::nullopt),
   };
 };
 
@@ -1474,8 +1474,8 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "FETCH_OK parameters mismatch";
       return false;
     }
-    if (cast.extensions != fetch_ok_.extensions) {
-      QUIC_LOG(INFO) << "FETCH_OK extensions mismatch";
+    if (cast.properties != fetch_ok_.properties) {
+      QUIC_LOG(INFO) << "FETCH_OK properties mismatch";
       return false;
     }
     return true;
@@ -1501,7 +1501,7 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
       /*end_of_track=*/false,
       /*end_location=*/Location{5, 3},
       MessageParameters(),
-      TrackExtensions(std::nullopt,
+      TrackProperties(std::nullopt,
                       quic::QuicTimeDelta::FromMilliseconds(10000),
                       std::nullopt, MoqtDeliveryOrder::kDescending,
                       std::nullopt, std::nullopt),
@@ -1535,8 +1535,8 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "PUBLISH parameters mismatch";
       return false;
     }
-    if (cast.extensions != publish_.extensions) {
-      QUIC_LOG(INFO) << "PUBLISH extensions mismatch";
+    if (cast.properties != publish_.properties) {
+      QUIC_LOG(INFO) << "PUBLISH properties mismatch";
       return false;
     }
     return true;
@@ -1569,7 +1569,7 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
       FullTrackName("foo", "bar"),
       /*track_alias=*/4,
       MessageParameters(),
-      TrackExtensions(std::nullopt, std::nullopt, std::nullopt,
+      TrackProperties(std::nullopt, std::nullopt, std::nullopt,
                       MoqtDeliveryOrder::kDescending, std::nullopt,
                       std::nullopt),
   };

@@ -105,7 +105,7 @@ class MoqtTrackPublisher {
   // Track alias is not present because MoqtSession always uses locally
   // generated values.
   virtual std::optional<Location> largest_location() const = 0;
-  virtual const TrackExtensions& extensions() const = 0;
+  virtual const TrackProperties& properties() const = 0;
   virtual std::optional<quic::QuicTimeDelta> expiration() const = 0;
 
   // Performs a fetch for the specified range of objects. Should also be used

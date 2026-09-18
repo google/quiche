@@ -127,7 +127,7 @@ class OutgoingSubgroupStreamTest : public quic::test::QuicTest {
   std::shared_ptr<StrictMock<MockTrackPublisher>> track_publisher_;
   StrictMock<MockLivePublisherInterface> visitor_;
   MoqtTraceRecorder trace_recorder_;
-  TrackExtensions track_extensions_;
+  TrackProperties track_properties_;
   quic::MockClock mock_clock_;
   quic::test::MockAlarmFactory alarm_factory_;
   std::unique_ptr<OutgoingSubgroupStream> stream_;
@@ -162,8 +162,8 @@ TEST_F(OutgoingSubgroupStreamTest, OnCanWriteCompleteFlow) {
       .WillOnce(Return(quic::QuicTimeDelta::FromSeconds(1)));
   EXPECT_CALL(visitor_, alternate_delivery_timeout()).WillOnce(Return(false));
   EXPECT_CALL(visitor_, clock()).WillOnce(Return(&mock_clock_));
-  EXPECT_CALL(*track_publisher_, extensions())
-      .WillRepeatedly(ReturnRef(track_extensions_));
+  EXPECT_CALL(*track_publisher_, properties())
+      .WillRepeatedly(ReturnRef(track_properties_));
   EXPECT_CALL(mock_stream_, Writev).WillOnce(Return(absl::OkStatus()));
   EXPECT_CALL(visitor_, OnObjectSent(Location(0, 0)));
   stream_->OnCanWrite();
@@ -206,8 +206,8 @@ TEST_F(OutgoingSubgroupStreamTest, OnCanWriteWriteError) {
       .WillOnce(Return(quic::QuicTimeDelta::FromSeconds(1)));
   EXPECT_CALL(visitor_, alternate_delivery_timeout()).WillOnce(Return(false));
   EXPECT_CALL(visitor_, clock).WillOnce(Return(&mock_clock_));
-  EXPECT_CALL(*track_publisher_, extensions())
-      .WillRepeatedly(ReturnRef(track_extensions_));
+  EXPECT_CALL(*track_publisher_, properties())
+      .WillRepeatedly(ReturnRef(track_properties_));
   EXPECT_CALL(mock_stream_, Writev)
       .WillOnce(Return(absl::InternalError("error")));
   EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeInternalError));
@@ -232,8 +232,8 @@ TEST_F(OutgoingSubgroupStreamTest, OnCanWriteSetsAlarm) {
       .WillRepeatedly(Return(false));
   EXPECT_CALL(visitor_, clock).WillOnce(Return(&mock_clock_));
 
-  EXPECT_CALL(*track_publisher_, extensions())
-      .WillRepeatedly(ReturnRef(track_extensions_));
+  EXPECT_CALL(*track_publisher_, properties())
+      .WillRepeatedly(ReturnRef(track_properties_));
   EXPECT_CALL(mock_stream_, Writev)
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const webtransport::StreamWriteOptions& options) {
@@ -296,8 +296,8 @@ TEST_F(OutgoingSubgroupStreamTest, SendFragmentedObject) {
   EXPECT_CALL(visitor_, alternate_delivery_timeout())
       .WillRepeatedly(Return(false));
   EXPECT_CALL(visitor_, clock()).WillRepeatedly(Return(&mock_clock_));
-  EXPECT_CALL(*track_publisher_, extensions())
-      .WillRepeatedly(ReturnRef(track_extensions_));
+  EXPECT_CALL(*track_publisher_, properties())
+      .WillRepeatedly(ReturnRef(track_properties_));
   EXPECT_CALL(mock_stream_, Writev)
       .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
                     const webtransport::StreamWriteOptions& options) {
@@ -462,7 +462,7 @@ MoqtObject kDefaultObject = {
     0,     // group_id
     0,     // object_id
     0x80,  // publisher_priority
-    "",    // extension_headers
+    "",    // properties
     MoqtObjectStatus::kNormal,
     0,     // subgroup_id
     true,  // first_object_in_subgroup
@@ -578,7 +578,7 @@ TEST_F(IncomingDataStreamTest, OnObjectMessage) {
         EXPECT_EQ(track_name, ftn_);
         EXPECT_EQ(metadata.location, Location(0, 0));
         EXPECT_EQ(metadata.subgroup, 0);
-        EXPECT_EQ(metadata.extensions, "");
+        EXPECT_EQ(metadata.properties, "");
         EXPECT_EQ(metadata.status, MoqtObjectStatus::kNormal);
         EXPECT_EQ(metadata.publisher_priority, 0x80);
         EXPECT_EQ(metadata.payload_length, 8);
@@ -672,7 +672,7 @@ TEST_F(IncomingDataStreamTest, PartialObjectFetch) {
 
   const MoqtObject sent_object = MoqtObject(
       /*request_id=*/0, /*group_id=*/0,
-      /*object_id=*/0, /*publisher_priority=*/0x80, /*extension_headers=*/"",
+      /*object_id=*/0, /*publisher_priority=*/0x80, /*properties=*/"",
       MoqtObjectStatus::kNormal, /*subgroup_id=*/0,
       /*first_object_in_subgroup=*/true, /*payload_length=*/12);
   EXPECT_CALL(mock_fetch_task_, HasObject).WillOnce(Return(false));
@@ -681,7 +681,7 @@ TEST_F(IncomingDataStreamTest, PartialObjectFetch) {
         EXPECT_EQ(message.group_id, sent_object.group_id);
         EXPECT_EQ(message.object_id, sent_object.object_id);
         EXPECT_EQ(message.publisher_priority, sent_object.publisher_priority);
-        EXPECT_EQ(message.extension_headers, sent_object.extension_headers);
+        EXPECT_EQ(message.properties, sent_object.properties);
         EXPECT_EQ(message.object_status, sent_object.object_status);
         EXPECT_EQ(message.subgroup_id, sent_object.subgroup_id);
         EXPECT_EQ(message.first_object_in_subgroup,

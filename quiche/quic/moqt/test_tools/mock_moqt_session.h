@@ -83,7 +83,7 @@ class MockMoqtSession : public MoqtSessionInterface {
   MOCK_METHOD(bool, Publish,
               (std::shared_ptr<MoqtTrackPublisher> publisher,
                const MessageParameters& parameters,
-               const TrackExtensions& extensions,
+               const TrackProperties& properties,
                MoqtResponseCallback response_callback),
               (override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, Fetch,

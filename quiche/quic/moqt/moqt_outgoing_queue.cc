@@ -179,7 +179,7 @@ std::unique_ptr<MoqtFetchTask> MoqtOutgoingQueue::StandaloneFetch(
     ObjectsInDescendingOrder(objects);
   }
   FetchOkData ok(closed_ && adjusted_end == largest_location(), adjusted_end,
-                 MessageParameters(), extensions_);
+                 MessageParameters(), properties_);
   std::move(callback)(ok);
   return std::make_unique<FetchTask>(this, std::move(objects));
 }

@@ -94,7 +94,7 @@ std::optional<PublishedObject> DefaultPublishedObject(
   object.metadata.subgroup = subgroup;
   object.metadata.status = MoqtObjectStatus::kNormal;
   object.metadata.publisher_priority = publisher_priority;
-  object.metadata.extensions = "extensions";
+  object.metadata.properties = "properties";
   object.metadata.first_object_in_subgroup =
       subgroup.has_value() ? std::optional<bool>(location.object == 0)
                            : std::nullopt;
@@ -227,7 +227,7 @@ class LivePublisherTest : public quic::test::QuicTest {
   StrictMock<MockPublishingMonitorInterface> monitoring_interface_;
   MoqtTraceRecorder trace_recorder_;
   std::unique_ptr<LivePublisher> publisher_;
-  const TrackExtensions extensions_;
+  const TrackProperties properties_;
   quic::MockClock mock_clock_;
   MoqtSessionCallbacks callbacks_;
   quic::test::TestAlarmFactory alarm_factory_;
@@ -240,8 +240,8 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedNoFilter) {
       .WillOnce(Return(Location(1, 2)));
   EXPECT_CALL(*track_publisher_, expiration)
       .WillOnce(Return(quic::QuicTimeDelta::FromSeconds(10)));
-  EXPECT_CALL(*track_publisher_, extensions)
-      .WillRepeatedly(ReturnRef(extensions_));
+  EXPECT_CALL(*track_publisher_, properties)
+      .WillRepeatedly(ReturnRef(properties_));
   EXPECT_CALL(mock_bidi_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribeOk), _))
       .WillOnce(Return(absl::OkStatus()));
@@ -254,7 +254,7 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedNoFilter) {
 TEST_F(LivePublisherTest, OnSubscribeAcceptedWithFilter) {
   publisher_->parameters().subscription_filter =
       SubscriptionFilter(MoqtFilterType::kLargestObject);
-  const TrackExtensions extensions(std::nullopt, std::nullopt,
+  const TrackProperties properties(std::nullopt, std::nullopt,
                                    /*default_publisher_priority=*/64,
                                    std::nullopt, std::nullopt, std::nullopt);
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
@@ -262,8 +262,8 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedWithFilter) {
       .WillOnce(Return(Location(1, 2)));
   EXPECT_CALL(*track_publisher_, expiration)
       .WillOnce(Return(quic::QuicTimeDelta::FromSeconds(10)));
-  EXPECT_CALL(*track_publisher_, extensions)
-      .WillRepeatedly(ReturnRef(extensions));
+  EXPECT_CALL(*track_publisher_, properties)
+      .WillRepeatedly(ReturnRef(properties));
   EXPECT_CALL(mock_bidi_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribeOk), _))
       .WillOnce(Return(absl::OkStatus()));
@@ -323,8 +323,8 @@ TEST_F(LivePublisherTest, UpdatePriorityWithPendingStreams) {
   CreatePendingStream(Location(1, 0), 0, 64);
   MessageParameters new_params;
   new_params.subscriber_priority = 20;
-  EXPECT_CALL(*track_publisher_, extensions())
-      .WillRepeatedly(ReturnRef(extensions_));
+  EXPECT_CALL(*track_publisher_, properties())
+      .WillRepeatedly(ReturnRef(properties_));
   EXPECT_CALL(visitor_, UpdateTrackPriority(track_publisher_->GetTrackName(),
                                             std::optional<MoqtTrackPriority>(
                                                 {subscriber_priority(), 64}),
@@ -360,8 +360,8 @@ TEST_F(LivePublisherTest, OnNewObjectAvailableDatagram) {
   EXPECT_CALL(monitoring_interface_, OnNewObjectEnqueued(Location(1, 0)));
   EXPECT_CALL(webtrans_, SendOrQueueDatagram)
       .WillOnce(Return(DatagramStatus(DatagramStatusCode::kSuccess, "")));
-  EXPECT_CALL(*track_publisher_, extensions())
-      .WillRepeatedly(ReturnRef(extensions_));
+  EXPECT_CALL(*track_publisher_, properties())
+      .WillRepeatedly(ReturnRef(properties_));
   publisher_->OnNewObjectAvailable(Location(1, 0), std::nullopt, 128);
 }
 

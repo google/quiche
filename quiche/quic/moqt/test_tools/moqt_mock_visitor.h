@@ -76,7 +76,7 @@ class MockTrackPublisher : public MoqtTrackPublisher {
  public:
   explicit MockTrackPublisher(FullTrackName name)
       : track_name_(std::move(name)) {
-    ON_CALL(*this, extensions()).WillByDefault(testing::ReturnRef(extensions_));
+    ON_CALL(*this, properties()).WillByDefault(testing::ReturnRef(properties_));
   }
   const FullTrackName& GetTrackName() const override { return track_name_; }
 
@@ -90,7 +90,7 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   MOCK_METHOD(void, RemoveObjectListener, (MoqtObjectListener * listener),
               (override));
   MOCK_METHOD(std::optional<Location>, largest_location, (), (const, override));
-  MOCK_METHOD(const TrackExtensions&, extensions, (), (const, override));
+  MOCK_METHOD(const TrackProperties&, properties, (), (const, override));
   MOCK_METHOD(std::optional<quic::QuicTimeDelta>, expiration, (),
               (const, override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, StandaloneFetch,
@@ -103,7 +103,7 @@ class MockTrackPublisher : public MoqtTrackPublisher {
 
  private:
   FullTrackName track_name_;
-  const TrackExtensions extensions_;
+  const TrackProperties properties_;
 };
 
 // A very simple MoqtTrackPublisher that allows tests to add arbitrary objects.
@@ -133,7 +133,7 @@ class TestTrackPublisher : public MoqtTrackPublisher {
   std::optional<Location> largest_location() const override {
     return largest_location_;
   }
-  const TrackExtensions& extensions() const override { return extensions_; }
+  const TrackProperties& properties() const override { return properties_; }
   std::optional<quic::QuicTimeDelta> expiration() const override {
     return quic::QuicTimeDelta::Infinite();
   }
@@ -171,7 +171,7 @@ class TestTrackPublisher : public MoqtTrackPublisher {
     PublishedObjectMetadata metadata;
     metadata.location = location;
     metadata.subgroup = subgroup;
-    metadata.extensions = "";
+    metadata.properties = "";
     metadata.status = MoqtObjectStatus::kNormal;
     metadata.publisher_priority = 128;
     metadata.first_object_in_subgroup = location.object == 0;
@@ -202,7 +202,7 @@ class TestTrackPublisher : public MoqtTrackPublisher {
   absl::flat_hash_set<MoqtObjectListener*> listeners_;
   std::map<Location, CachedObject> objects_;
   std::optional<Location> largest_location_;
-  TrackExtensions extensions_;
+  TrackProperties properties_;
 };
 
 // TODO(martinduke): Rename to MockSubscribeVisitor.

@@ -24,7 +24,7 @@
 
 namespace moqt {
 
-// Encodes a list of key-value pairs common to both parameters and extensions.
+// Encodes a list of key-value pairs common to both parameters and properties.
 // If the key is odd, it is a length-prefixed string (which may encode further
 // item-specific structure). If the key is even, it is a varint.
 // This class does not interpret the semantic meaning of the keys and values.
@@ -157,7 +157,7 @@ enum class QUICHE_EXPORT SetupParameter : uint64_t {
   // Indicates support for OACK messages.
   kSupportObjectAcks = 0xbbf1438,
 };
-// TODO(martinduke): Refactor this to be more like TrackExtensions.
+// TODO(martinduke): Refactor this to be more like TrackProperties.
 struct QUICHE_EXPORT SetupParameters {
   SetupParameters() = default;
   // Constructors for tests.
@@ -198,7 +198,7 @@ constexpr quic::QuicTimeDelta kDefaultDeliveryTimeout =
     quic::QuicTimeDelta::Infinite();
 constexpr quic::QuicTimeDelta kDefaultExpires = quic::QuicTimeDelta::Infinite();
 constexpr bool kDefaultForward = true;
-// TODO(martinduke): Refactor this to be more like TrackExtensions.
+// TODO(martinduke): Refactor this to be more like TrackProperties.
 struct MessageParameters {
   MessageParameters() = default;
   MessageParameters(const MessageParameters&) = default;
@@ -243,10 +243,10 @@ struct MessageParameters {
   std::optional<bool> forward_;
 };
 
-enum class ExtensionHeader : uint64_t {
+enum class PropertyType : uint64_t {
   kDeliveryTimeout = 0x02,
   kMaxCacheDuration = 0x04,
-  kImmutableExtensions = 0x0b,
+  kImmutableProperties = 0x0b,
   kDefaultPublisherPriority = 0x0e,
   kDefaultPublisherGroupOrder = 0x22,
   kDynamicGroups = 0x30,
@@ -255,49 +255,47 @@ enum class ExtensionHeader : uint64_t {
 };
 inline constexpr quic::QuicTimeDelta kDefaultMaxCacheDuration =
     quic::QuicTimeDelta::Infinite();
-inline constexpr bool kDefaultImmutableExtensions = false;
+inline constexpr bool kDefaultImmutableProperties = false;
 inline constexpr MoqtDeliveryOrder kDefaultGroupOrder =
     MoqtDeliveryOrder::kAscending;
 inline constexpr bool kDefaultDynamicGroups = false;
-class TrackExtensions : public KeyValuePairList {
+class TrackProperties : public KeyValuePairList {
  public:
-  TrackExtensions() = default;
-  TrackExtensions(const TrackExtensions&) = default;
-  // Constructor for Original publishers to create their extensions.
-  TrackExtensions(std::optional<quic::QuicTimeDelta> delivery_timeout,
+  TrackProperties() = default;
+  TrackProperties(const TrackProperties&) = default;
+  // Constructor for Original publishers to create their track properties.
+  TrackProperties(std::optional<quic::QuicTimeDelta> delivery_timeout,
                   std::optional<quic::QuicTimeDelta> max_cache_duration,
                   std::optional<MoqtPriority> publisher_priority,
                   std::optional<MoqtDeliveryOrder> group_order,
                   std::optional<bool> dynamic_groups,
-                  std::optional<absl::string_view> immutable_extensions);
+                  std::optional<absl::string_view> immutable_properties);
 
-  // If present and well-formed, returns the value of the extension. Returns the
+  // If present and well-formed, returns the value of the property. Returns the
   // default value if missing or ill-formed.
   quic::QuicTimeDelta delivery_timeout() const;
   quic::QuicTimeDelta max_cache_duration() const;
-  absl::string_view immutable_extensions() const;
+  absl::string_view immutable_properties() const;
   MoqtPriority default_publisher_priority() const;
   MoqtDeliveryOrder default_publisher_group_order() const;
   bool dynamic_groups() const;
   bool empty() const { return size() == 0; }
 
-  // Returns false if the extension list contains illegal values or illegally
-  // duplicated extensions.
+  // Returns false if the property list contains illegal values or illegally
+  // duplicated properties.
   bool Validate() const;
-  bool operator==(const TrackExtensions& other) const = default;
-  TrackExtensions& operator=(const TrackExtensions& other) = default;
+  bool operator==(const TrackProperties& other) const = default;
+  TrackProperties& operator=(const TrackProperties& other) = default;
 
  private:
-  // Returns the value of the extension if there is exactly one, otherwise
-  // returns std::nullopt. Must not be called on odd extension types.
-  std::optional<uint64_t> GetValueIfExactlyOne(ExtensionHeader header) const;
-  // Verifies that there is no more that one instance of an extension, and if
+  // Returns the value of the property if there is exactly one, otherwise
+  // returns std::nullopt. Must not be called on odd property types.
+  std::optional<uint64_t> GetValueIfExactlyOne(PropertyType header) const;
+  // Verifies that there is no more that one instance of an property, and if
   // present, that the value is acceptable.
-  bool ValidateInner(ExtensionHeader header, std::optional<uint64_t> min_value,
+  bool ValidateInner(PropertyType header, std::optional<uint64_t> min_value,
                      std::optional<uint64_t> max_value) const;
 };
-
-// TODO(martinduke): Extension Headers (MOQT draft-16 Sec 11)
 
 }  // namespace moqt
 

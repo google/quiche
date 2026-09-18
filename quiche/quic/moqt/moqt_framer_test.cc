@@ -101,7 +101,7 @@ quiche::QuicheBuffer SerializeObject(MoqtFramer& framer,
     previous_object->location =
         Location(message.group_id, message.object_id - change_in_object_id);
     previous_object->subgroup = message.subgroup_id;
-    previous_object->extensions = message.extension_headers;
+    previous_object->properties = message.properties;
     previous_object->status = message.object_status;
     previous_object->publisher_priority = message.publisher_priority;
   }
@@ -277,7 +277,7 @@ TEST_F(MoqtFramerSimpleTest, FetchMiddler) {
     auto middler = std::make_unique<StreamMiddlerFetchMessage>(flags);
     // Populate previous object metadata.
     previous.emplace(Location(object.group_id, object.object_id),
-                     object.subgroup_id, object.extension_headers,
+                     object.subgroup_id, object.properties,
                      object.object_status, object.publisher_priority);
     auto buffer2 = framer_.SerializeObjectHeader(
         std::get<MoqtObject>(middler->structured_data()),
@@ -297,7 +297,7 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
-      std::string(kDefaultExtensionBlob.data(), kDefaultExtensionBlob.size()),
+      std::string(kDefaultPropertyBlob.data(), kDefaultPropertyBlob.size()),
       /*object_status=*/MoqtObjectStatus::kObjectDoesNotExist,
       /*subgroup_id=*/8,
       /*first_object_in_subgroup=*/true,
@@ -320,7 +320,7 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
-      std::string(kDefaultExtensionBlob),
+      std::string(kDefaultPropertyBlob),
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/std::nullopt,
       /*first_object_in_subgroup=*/std::nullopt,
@@ -411,7 +411,7 @@ TEST_F(MoqtFramerSimpleTest, FetchOkWholeGroup) {
       /*end_of_track=*/false,
       /*end_location=*/Location{4, kMaxObjectId},
       MessageParameters(),
-      TrackExtensions(),
+      TrackProperties(),
   };
   quiche::QuicheBuffer buffer = framer_.SerializeFetchOk(fetch_ok);
   // Check that object ID is zero.

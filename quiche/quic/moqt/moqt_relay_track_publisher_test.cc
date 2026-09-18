@@ -47,7 +47,7 @@ class MoqtRelayTrackPublisherTest : public quiche::test::QuicheTest {
     parameters.largest_object = kLargestLocation;
     parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
     publisher_.OnReply(kTrackName,
-                       SubscribeOkData{parameters, TrackExtensions()});
+                       SubscribeOkData{parameters, TrackProperties()});
   }
 
   void ObjectArrives(Location location, uint64_t subgroup,
@@ -104,7 +104,7 @@ TEST_F(MoqtRelayTrackPublisherTest, FiniteExpiration) {
   parameters.largest_object = kLargestLocation;
   parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
   publisher_.OnReply(kTrackName,
-                     SubscribeOkData{parameters, TrackExtensions()});
+                     SubscribeOkData{parameters, TrackProperties()});
   EXPECT_LT(publisher_.expiration(), quic::QuicTimeDelta::FromSeconds(31));
 }
 
@@ -326,7 +326,7 @@ TEST_F(MoqtRelayTrackPublisherTest, SecondListenerNoSubscribe) {
   MessageParameters parameters;
   parameters.largest_object = kLargestLocation;
   publisher_.OnReply(kTrackName,
-                     SubscribeOkData{parameters, TrackExtensions()});
+                     SubscribeOkData{parameters, TrackProperties()});
 }
 
 TEST_F(MoqtRelayTrackPublisherTest, OnMalformedObject) {
@@ -643,14 +643,14 @@ TEST_F(MoqtRelayTrackPublisherTest, NewGroupRequestFirstListener) {
   MessageParameters ok_parameters;
   ok_parameters.largest_object = kLargestLocation;  // Location(3, 2)
   ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
-  TrackExtensions extensions(
+  TrackProperties properties(
       /*delivery_timeout=*/std::nullopt,
       /*max_cache_duration=*/std::nullopt,
       /*publisher_priority=*/std::nullopt,
       /*group_order=*/std::nullopt,
       /*dynamic_groups=*/true,
-      /*immutable_extensions=*/std::nullopt);
-  publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, extensions});
+      /*immutable_properties=*/std::nullopt);
+  publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, properties});
 
   // Requests with new_group_request <= 4 (including 4 and 0) do not trigger
   // SubscribeUpdate because pending_new_group_request_ is still 4.
@@ -729,7 +729,7 @@ TEST_F(MoqtRelayTrackPublisherTest, NewGroupRequestBeforeResponse) {
 
   // Before OnReply (!got_response_ is true and next_location_ == (0, 0)), a
   // new_group_request = 0 triggers SubscribeUpdate(0) (not next_location_.group
-  // + 1) even though extensions_.dynamic_groups() is false.
+  // + 1) even though properties_.dynamic_groups() is false.
   MockMoqtObjectListener listener_zero;
   MessageParameters params_zero;
   params_zero.new_group_request = 0;
@@ -795,14 +795,14 @@ TEST_F(MoqtRelayTrackPublisherTest, NewGroupRequestBeforeResponse) {
   MessageParameters ok_parameters;
   ok_parameters.largest_object = Location(5, 2);
   ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
-  TrackExtensions extensions(
+  TrackProperties properties(
       /*delivery_timeout=*/std::nullopt,
       /*max_cache_duration=*/std::nullopt,
       /*publisher_priority=*/std::nullopt,
       /*group_order=*/std::nullopt,
       /*dynamic_groups=*/true,
-      /*immutable_extensions=*/std::nullopt);
-  publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, extensions});
+      /*immutable_properties=*/std::nullopt);
+  publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, properties});
 
   MockMoqtObjectListener listener6;
   EXPECT_CALL(listener6, OnSubscribeAccepted);
@@ -820,7 +820,7 @@ TEST_F(MoqtRelayTrackPublisherTest,
        NewGroupRequestAfterResponseWithoutDynamicGroups) {
   SubscribeAndOk();
 
-  // After OnReply, extensions_.dynamic_groups() is false by default, so
+  // After OnReply, properties_.dynamic_groups() is false by default, so
   // NEW_GROUP_REQUEST is ignored.
   MockMoqtObjectListener listener2;
   EXPECT_CALL(listener2, OnSubscribeAccepted);
@@ -843,14 +843,14 @@ TEST_F(MoqtRelayTrackPublisherTest,
   MessageParameters ok_parameters;
   ok_parameters.largest_object = kLargestLocation;  // Location(3, 2)
   ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
-  TrackExtensions extensions(
+  TrackProperties properties(
       /*delivery_timeout=*/std::nullopt,
       /*max_cache_duration=*/std::nullopt,
       /*publisher_priority=*/std::nullopt,
       /*group_order=*/std::nullopt,
       /*dynamic_groups=*/true,
-      /*immutable_extensions=*/std::nullopt);
-  publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, extensions});
+      /*immutable_properties=*/std::nullopt);
+  publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, properties});
 
   // 1. No new_group_request parameter -> ignored.
   MockMoqtObjectListener listener_no_param;

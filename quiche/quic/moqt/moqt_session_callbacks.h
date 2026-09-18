@@ -32,7 +32,7 @@ using MoqtObjectAckFunction =
 
 struct SubscribeOkData {
   MessageParameters parameters;
-  TrackExtensions extensions;
+  TrackProperties properties;
 };
 
 class SubscribeVisitor {
@@ -69,7 +69,7 @@ struct FetchOkData {
   bool end_of_track = false;
   Location end_location;
   MessageParameters parameters;
-  TrackExtensions extensions;
+  TrackProperties properties;
   bool operator==(const FetchOkData& other) const = default;
 };
 
@@ -78,7 +78,7 @@ using FetchResponseCallback = quiche::SingleUseCallback<void(
 
 struct TrackStatusOkData {
   MessageParameters parameters;
-  TrackExtensions extensions;
+  TrackProperties properties;
   bool operator==(const TrackStatusOkData& other) const = default;
 };
 
@@ -105,7 +105,7 @@ using MoqtSessionDeletedCallback = quiche::SingleUseCallback<void()>;
 // track until either MoqtResponseCallback returns with an error or the
 // application calls Unsubscribe.
 using MoqtIncomingPublishCallback = quiche::MultiUseCallback<SubscribeVisitor*(
-    const FullTrackName&, const MessageParameters&, const TrackExtensions&,
+    const FullTrackName&, const MessageParameters&, const TrackProperties&,
     MoqtResponseCallback)>;
 
 // Called whenever a PUBLISH_NAMESPACE or PUBLISH_NAMESPACE_DONE message is
@@ -162,7 +162,7 @@ inline void DefaultIncomingSubscribeTracksCallback(
 }
 
 inline SubscribeVisitor* DefaultIncomingPublishCallback(
-    const FullTrackName&, const MessageParameters&, const TrackExtensions&,
+    const FullTrackName&, const MessageParameters&, const TrackProperties&,
     MoqtResponseCallback) {
   return nullptr;
 }

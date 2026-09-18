@@ -391,7 +391,7 @@ TEST_P(MoqtParserTest, PayloadLengthTooLong) {
   MoqtMessageType type = std::get<MoqtMessageType>(message_type_);
   if (type == MoqtMessageType::kSubscribeOk ||
       type == MoqtMessageType::kFetchOk || type == MoqtMessageType::kPublish) {
-    // These message types have extensions, which use the length field to
+    // These message types have properties, which use the length field to
     // determine the size. It is therefore not processed correctly.
     return;
   }
@@ -526,7 +526,7 @@ TEST_F(MoqtMessageSpecificTest, ThreePartObjectFirstIncomplete) {
   EXPECT_FALSE(data_visitor.parsing_error().has_value());
 }
 
-TEST_F(MoqtMessageSpecificTest, ObjectSplitInExtension) {
+TEST_F(MoqtMessageSpecificTest, ObjectSplitInProperty) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtParserTestVisitor data_visitor;
   MoqtDataParser parser(&stream, &data_visitor);
@@ -951,14 +951,14 @@ TEST_F(MoqtMessageSpecificTest, FinMidDataPayload) {
             HasSubstr("FIN received at an unexpected point in the stream")));
 }
 
-TEST_F(MoqtMessageSpecificTest, FinMidExtension) {
+TEST_F(MoqtMessageSpecificTest, FinMidProperty) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtParserTestVisitor data_visitor;
   MoqtDataParser parser(&stream, &data_visitor);
   MoqtDataStreamType type =
       MoqtDataStreamType::Subgroup(0, 1, false, false, true);
   auto message = std::make_unique<StreamHeaderSubgroupMessage>(type);
-  // Read up to the extension body and then FIN.
+  // Read up to the property body and then FIN.
   stream.Receive(message->PacketSample().substr(0, 7), true);
   parser.ReadAllData();
   EXPECT_EQ(data_visitor.messages_received(), 0);
@@ -1378,7 +1378,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeOkInvalidDeliveryOrder) {
   EXPECT_EQ(ExtractMoqtErrorForStatus(parsed.status()),
             MoqtError::kProtocolViolation);
   EXPECT_THAT(parsed.status().message(),
-              HasSubstr("Invalid SUBSCRIBE_OK track extensions"));
+              HasSubstr("Invalid SUBSCRIBE_OK track properties"));
 }
 
 TEST_F(MoqtMessageSpecificTest, SubscribeOkExpirationIsZero) {
@@ -1705,7 +1705,7 @@ TEST_F(MoqtDataParserStateMachineTest, IgnoresEndRangeIndicators) {
 
 TEST_F(MoqtDataParserStateMachineTest, IntegerOverflowObjectId) {
   MoqtDataStreamType type = MoqtDataStreamType::Subgroup(
-      0, 1, /*no_extension_headers=*/true, /*default_priority=*/false,
+      0, 1, /*no_properties=*/true, /*default_priority=*/false,
       /*has_first_object=*/true);
   stream_.Receive(StreamHeaderSubgroupMessage(type).PacketSample());
   char buffer[32];
@@ -1723,7 +1723,7 @@ TEST_F(MoqtDataParserStateMachineTest, IntegerOverflowObjectId) {
 
 TEST_F(MoqtDataParserStateMachineTest, SubgroupHasFirstObjectTrue) {
   MoqtDataStreamType type = MoqtDataStreamType::Subgroup(
-      0, 1, /*no_extension_headers=*/true, /*default_priority=*/false,
+      0, 1, /*no_properties=*/true, /*default_priority=*/false,
       /*has_first_object=*/true);
   stream_.Receive(StreamHeaderSubgroupMessage(type).PacketSample());
   stream_.Receive(StreamMiddlerSubgroupMessage(type).PacketSample(),
@@ -1742,7 +1742,7 @@ TEST_F(MoqtDataParserStateMachineTest, SubgroupHasFirstObjectTrue) {
 
 TEST_F(MoqtDataParserStateMachineTest, SubgroupHasFirstObjectFalse) {
   MoqtDataStreamType type = MoqtDataStreamType::Subgroup(
-      0, 1, /*no_extension_headers=*/true, /*default_priority=*/false,
+      0, 1, /*no_properties=*/true, /*default_priority=*/false,
       /*has_first_object=*/false);
   stream_.Receive(StreamHeaderSubgroupMessage(type).PacketSample());
   stream_.Receive(StreamMiddlerSubgroupMessage(type).PacketSample(),

@@ -99,7 +99,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
                          const MessageParameters& parameters) override;
   void RemoveObjectListener(MoqtObjectListener* listener) override;
   std::optional<Location> largest_location() const override;
-  const TrackExtensions& extensions() const override { return extensions_; }
+  const TrackProperties& properties() const override { return properties_; }
   std::optional<quic::QuicTimeDelta> expiration() const override;
   std::optional<quic::QuicTimeDelta> oack_window_size() const {
     return oack_window_size_;
@@ -171,7 +171,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   FullTrackName track_;
   quiche::QuicheWeakPtr<MoqtSessionInterface> upstream_;
   DeleteTrackCallback delete_track_callback_;
-  TrackExtensions extensions_;
+  TrackProperties properties_;
   std::optional<uint64_t> pending_new_group_request_;
   // TODO(martinduke): This publisher should destroy itself when the expiration
   // time passes.

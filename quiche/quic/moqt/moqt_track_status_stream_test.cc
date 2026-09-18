@@ -117,7 +117,7 @@ TEST_F(MoqtTrackStatusRequestStreamTest, ReceiveOkResponse) {
 
   MoqtRequestOk ok(
       MessageParameters(),
-      TrackExtensions(quic::QuicTimeDelta::FromSeconds(5),
+      TrackProperties(quic::QuicTimeDelta::FromSeconds(5),
                       quic::QuicTimeDelta::FromSeconds(10), std::nullopt,
                       std::nullopt, std::nullopt, std::nullopt));
   ok.parameters.expires = quic::QuicTimeDelta::FromSeconds(10);

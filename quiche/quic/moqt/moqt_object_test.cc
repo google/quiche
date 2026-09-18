@@ -77,7 +77,7 @@ TEST(PublishedObjectMetadataTest, IsMalformed) {
   other.publisher_priority = 5;
   EXPECT_TRUE(metadata.IsMalformed(other));
 
-  // arrival_time, payload_length, and extensions being different should NOT
+  // arrival_time, payload_length, and properties being different should NOT
   // make it malformed.
   other = metadata;
   other.arrival_time =
@@ -85,7 +85,7 @@ TEST(PublishedObjectMetadataTest, IsMalformed) {
   EXPECT_FALSE(metadata.IsMalformed(other));
   other.payload_length = 20;
   EXPECT_FALSE(metadata.IsMalformed(other));
-  other.extensions = "ext";
+  other.properties = "ext";
   EXPECT_FALSE(metadata.IsMalformed(other));
 }
 
@@ -96,7 +96,7 @@ TEST(PublishedObjectMetadataTest, Equality) {
   metadata.status = MoqtObjectStatus::kNormal;
   metadata.publisher_priority = 4;
   metadata.payload_length = 10;
-  metadata.extensions = "ext";
+  metadata.properties = "ext";
   metadata.arrival_time =
       quic::QuicTime::Zero() + quic::QuicTimeDelta::FromSeconds(1);
 
@@ -123,7 +123,7 @@ TEST(PublishedObjectMetadataTest, Equality) {
   EXPECT_NE(metadata, other);
   other = metadata;
 
-  other.extensions = "something else";
+  other.properties = "something else";
   EXPECT_NE(metadata, other);
   other = metadata;
 

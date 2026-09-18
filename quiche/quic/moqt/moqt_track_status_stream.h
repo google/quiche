@@ -87,9 +87,9 @@ class MoqtTrackStatusResponseStream : public MoqtBidiStreamBase,
   void Detach() override;
 
  private:
-  // Unlike other REQUEST_OK, TRACK_STATUS_OK has extensions and a FIN.
+  // Unlike other REQUEST_OK, TRACK_STATUS_OK has properties and a FIN.
   absl::Status SendRequestOk(const MessageParameters& parameters,
-                             const TrackExtensions& extensions);
+                             const TrackProperties& properties);
   SessionToPublisherInterface* absl_nullable session() const {
     return session_.GetIfAvailable();
   }

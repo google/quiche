@@ -53,10 +53,10 @@ void LiveSubscriber::OnObjectOrOk(const SubscribeOkData& data) {
     parameters().subscription_filter->OnLargestObject(
         data.parameters.largest_object);
   }
-  publisher_delivery_timeout_ = data.extensions.delivery_timeout();
+  publisher_delivery_timeout_ = data.properties.delivery_timeout();
   // TODO(martinduke): Is there anything to do with EXPIRES?
-  default_publisher_priority_ = data.extensions.default_publisher_priority();
-  dynamic_groups_ = data.extensions.dynamic_groups();
+  default_publisher_priority_ = data.properties.default_publisher_priority();
+  dynamic_groups_ = data.properties.dynamic_groups();
   visitor_->OnReply(full_track_name(), data);
   error_is_allowed_ = false;
 }

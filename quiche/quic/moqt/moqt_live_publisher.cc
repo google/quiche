@@ -98,7 +98,7 @@ void LivePublisher::Update(const MessageParameters& parameters) {
     // Tell the session that pending stream priority has changed.
     MoqtPriority publisher_priority =
         pending_streams_.rbegin()->second.publisher_priority.value_or(
-            track_publisher_->extensions().default_publisher_priority());
+            track_publisher_->properties().default_publisher_priority());
     MoqtTrackPriority old_track_priority = {old_priority, publisher_priority};
     if (visitor() == nullptr) {
       return;
@@ -136,15 +136,15 @@ void LivePublisher::OnSubscribeAccepted() {
   subscribe_ok.track_alias = track_alias_;
   subscribe_ok.parameters.expires = track_publisher_->expiration();
   subscribe_ok.parameters.largest_object = parameters_.largest_object;
-  subscribe_ok.extensions = track_publisher_->extensions();
+  subscribe_ok.properties = track_publisher_->properties();
   if (!parameters_.group_order.has_value()) {
     parameters_.group_order =
-        subscribe_ok.extensions.default_publisher_group_order();
+        subscribe_ok.properties.default_publisher_group_order();
   }
   // TODO(martinduke): Support sending DELIVERY_TIMEOUT parameter as the
   // publisher.
   default_publisher_priority_ =
-      subscribe_ok.extensions.default_publisher_priority();
+      subscribe_ok.properties.default_publisher_priority();
   bidi_stream_->SendOrBufferMessageOrFatal(
       framer_.SerializeSubscribeOk(subscribe_ok));
   // TODO(martinduke): If we buffer objects that arrived previously, the arrival
@@ -347,7 +347,7 @@ void LivePublisher::SendDatagram(Location sequence) {
   header.group_id = object->metadata.location.group;
   header.object_id = object->metadata.location.object;
   header.publisher_priority = object->metadata.publisher_priority;
-  header.extension_headers = object->metadata.extensions;
+  header.properties = object->metadata.properties;
   header.object_status = object->metadata.status;
   header.subgroup_id = std::nullopt;
   header.payload_length = object->metadata.payload_length;

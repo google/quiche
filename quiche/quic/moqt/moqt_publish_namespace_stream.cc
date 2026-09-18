@@ -36,9 +36,9 @@ absl::Status MoqtPublishNamespaceRequestStream::OnRawControlMessage(
 
 absl::Status MoqtPublishNamespaceRequestStream::OnControlMessage(
     const MoqtRequestOk& message) {
-  if (!message.extensions.empty()) {
+  if (!message.properties.empty()) {
     OnFatalError(
-        absl::InvalidArgumentError("REQUEST_OK received with extensions"));
+        absl::InvalidArgumentError("REQUEST_OK received with properties"));
     return absl::OkStatus();
   }
   if (response_callback_ != nullptr) {

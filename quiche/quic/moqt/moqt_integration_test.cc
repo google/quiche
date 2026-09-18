@@ -977,7 +977,7 @@ TEST_F(MoqtIntegrationTest, ClientPublishServerSubscribe) {
   MoqtResponseCallback server_response_callback;
   server_->session()->callbacks().incoming_publish_callback =
       [&](const FullTrackName& name, const MessageParameters& parameters,
-          const TrackExtensions& extensions, MoqtResponseCallback callback) {
+          const TrackProperties& properties, MoqtResponseCallback callback) {
         EXPECT_EQ(name, full_track_name);
         server_response_callback = std::move(callback);
         server_received_publish = true;
@@ -996,9 +996,9 @@ TEST_F(MoqtIntegrationTest, ClientPublishServerSubscribe) {
       };
 
   MessageParameters publish_parameters;
-  TrackExtensions publish_extensions;
+  TrackProperties publish_properties;
   bool publish_submitted =
-      client_->session()->Publish(queue, publish_parameters, publish_extensions,
+      client_->session()->Publish(queue, publish_parameters, publish_properties,
                                   std::move(client_publish_callback));
   ASSERT_TRUE(publish_submitted);
 

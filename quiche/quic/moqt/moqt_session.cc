@@ -231,7 +231,7 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   QUICHE_CHECK(!track->is_fetch());
   SubscribeVisitor* visitor = track->visitor();
   if (visitor != nullptr) {
-    // TODO(martinduke): Handle extension headers.
+    // TODO(martinduke): Handle properties.
     PublishedObjectMetadata metadata;
     metadata.location = Location(message.group_id, message.object_id);
     metadata.subgroup = std::nullopt;
@@ -553,7 +553,7 @@ void MoqtSession::Unsubscribe(const FullTrackName& name) {
 
 bool MoqtSession::Publish(
     std::shared_ptr<MoqtTrackPublisher> absl_nonnull publisher,
-    const MessageParameters& parameters, const TrackExtensions& extensions,
+    const MessageParameters& parameters, const TrackProperties& properties,
     MoqtResponseCallback response_callback) {
   if (received_goaway_ || sent_goaway_) {
     QUICHE_DLOG(INFO) << ENDPOINT << "Tried to send PUBLISH after GOAWAY";

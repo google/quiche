@@ -155,9 +155,9 @@ absl::Status MoqtFetchRequestStream::OnControlMessage(
 
 absl::Status MoqtFetchRequestStream::OnControlMessage(
     const MoqtRequestOk& message) {
-  if (!message.extensions.empty()) {
+  if (!message.properties.empty()) {
     OnFatalError(absl::InvalidArgumentError(
-        "REQUEST_UPDATE_OK received with extensions"));
+        "REQUEST_UPDATE_OK received with properties"));
     return absl::OkStatus();
   }
   absl::StatusOr<MessageParameters> old_parameters =
@@ -251,7 +251,7 @@ absl::Status MoqtFetchResponseStream::OnControlMessage(
         if (std::holds_alternative<FetchOkData>(result)) {
           const auto& ok_data = std::get<FetchOkData>(result);
           stream->default_publisher_priority_ =
-              ok_data.extensions.default_publisher_priority();
+              ok_data.properties.default_publisher_priority();
           stream->parameters_.Update(ok_data.parameters);
           stream->SendOrBufferMessageOrFatal(
               stream->framer()->SerializeFetchOk(ok_data));

@@ -122,7 +122,7 @@ std::string MoqtDataStreamTypeToString(MoqtDataStreamType type) {
 
 std::string MoqtDatagramTypeToString(MoqtDatagramType type) {
   return absl::StrCat("DATAGRAM", type.has_status() ? "_STATUS" : "",
-                      type.has_extension() ? "_EXTENSION" : "");
+                      type.has_properties() ? "_PROPERTIES" : "");
 }
 
 std::string MoqtFetchSerializationToString(MoqtFetchSerialization type) {

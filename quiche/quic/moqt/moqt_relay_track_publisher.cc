@@ -50,7 +50,7 @@ void MoqtRelayTrackPublisher::OnReply(
       ok_data.parameters.expires.value_or(kDefaultExpires);
   expiration_ = expires.IsInfinite() ? quic::QuicTime::Infinite()
                                      : clock_->Now() + expires;
-  extensions_ = ok_data.extensions;
+  properties_ = ok_data.properties;
   if (ok_data.parameters.largest_object.has_value() &&
       ok_data.parameters.largest_object->Next() > next_location_) {
     // We may have already received objects that exceed what's reported in
@@ -208,7 +208,7 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
   }
   if (duplicate_object != nullptr) {
     if (metadata.IsMalformed(duplicate_object->metadata())) {
-      // Something besides the arrival time and extension headers changed.
+      // Something besides the arrival time and properties changed.
       OnMalformedTrack(full_track_name);
       return;
     }
@@ -395,7 +395,7 @@ void MoqtRelayTrackPublisher::AddObjectListener(
     pending_new_group_request_ = upstream_parameters.new_group_request;
   } else {
     if (parameters.new_group_request.has_value() &&
-        (!got_response_ || extensions_.dynamic_groups()) &&
+        (!got_response_ || properties_.dynamic_groups()) &&
         (*parameters.new_group_request == 0 ||
          *parameters.new_group_request > next_location_.group) &&
         (!pending_new_group_request_.has_value() ||

@@ -250,7 +250,7 @@ class MoqtPublishResponseStreamTest : public quiche::test::QuicheTest {
 
   MoqtPublish DefaultPublish() {
     return MoqtPublish{kRequestId, kTrackName, kTrackAlias, MessageParameters(),
-                       TrackExtensions()};
+                       TrackProperties()};
   }
 
   MoqtFramer framer_;
@@ -261,7 +261,7 @@ class MoqtPublishResponseStreamTest : public quiche::test::QuicheTest {
       error_callback_;
 
   testing::MockFunction<SubscribeVisitor*(
-      const FullTrackName&, const MessageParameters&, const TrackExtensions&,
+      const FullTrackName&, const MessageParameters&, const TrackProperties&,
       MoqtResponseCallback)>
       incoming_publish_callback_mock_;
   MoqtIncomingPublishCallback incoming_publish_callback_;
@@ -284,7 +284,7 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishAndAccept) {
           });
   EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
       .WillOnce([this](const FullTrackName&, const MessageParameters&,
-                       const TrackExtensions&, MoqtResponseCallback callback) {
+                       const TrackProperties&, MoqtResponseCallback callback) {
         captured_response_callback_ = std::move(callback);
         return &mock_subscribe_visitor_;
       });
@@ -438,7 +438,7 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishAndRejectCallback) {
   MoqtPublish publish = DefaultPublish();
   EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
       .WillOnce([this](const FullTrackName&, const MessageParameters&,
-                       const TrackExtensions&, MoqtResponseCallback callback) {
+                       const TrackProperties&, MoqtResponseCallback callback) {
         captured_response_callback_ = std::move(callback);
         return &mock_subscribe_visitor_;
       });
@@ -524,7 +524,7 @@ TEST_F(MoqtPublishResponseStreamTest, DuplicatePublishOnDifferentStreams) {
   testing::MockFunction<bool(LiveSubscriber*)> mock_add_callback2;
   testing::MockFunction<void(LiveSubscriber*)> mock_remove_callback2;
   testing::MockFunction<SubscribeVisitor*(
-      const FullTrackName&, const MessageParameters&, const TrackExtensions&,
+      const FullTrackName&, const MessageParameters&, const TrackProperties&,
       MoqtResponseCallback)>
       incoming_publish_callback_mock2;
   MoqtIncomingPublishCallback incoming_publish_callback2 =

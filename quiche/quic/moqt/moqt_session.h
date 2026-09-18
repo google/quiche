@@ -103,7 +103,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   void Unsubscribe(const FullTrackName& name) override;
   bool Publish(std::shared_ptr<MoqtTrackPublisher> absl_nonnull publisher,
                const MessageParameters& parameters,
-               const TrackExtensions& extensions,
+               const TrackProperties& properties,
                MoqtResponseCallback response_callback) override;
   std::unique_ptr<MoqtFetchTask> Fetch(
       const FullTrackName& name, FetchResponseCallback callback, Location start,

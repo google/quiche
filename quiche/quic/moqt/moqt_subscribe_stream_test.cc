@@ -126,7 +126,7 @@ TEST_F(MoqtSubscribeRequestStreamTest, RequestOkBeforeSubscribeOk) {
   EXPECT_CALL(mock_remove_callback_, Call);
 }
 
-TEST_F(MoqtSubscribeRequestStreamTest, RequestOkWithExtensions) {
+TEST_F(MoqtSubscribeRequestStreamTest, RequestOkWithProperties) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _))
       .WillOnce(Return(absl::OkStatus()));
@@ -139,7 +139,7 @@ TEST_F(MoqtSubscribeRequestStreamTest, RequestOkWithExtensions) {
   EXPECT_CALL(error_callback_, Call(MoqtError::kProtocolViolation, _));
   MoqtRequestOk request_ok(
       MessageParameters(),
-      TrackExtensions(quic::QuicTimeDelta::FromSeconds(5), std::nullopt,
+      TrackProperties(quic::QuicTimeDelta::FromSeconds(5), std::nullopt,
                       std::nullopt, std::nullopt, std::nullopt, std::nullopt));
   QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
   // Test cleanup.

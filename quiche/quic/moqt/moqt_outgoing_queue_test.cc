@@ -555,14 +555,14 @@ TEST(MoqtOutgoingQueue, NewGroupRequestIgnoredWithoutCallback) {
 
 TEST(MoqtOutgoingQueue, DynamicGroupsExtension) {
   TestMoqtOutgoingQueue queue_without_callback;
-  EXPECT_FALSE(queue_without_callback.extensions().dynamic_groups());
-  EXPECT_FALSE(queue_without_callback.extensions().contains(
-      static_cast<uint64_t>(ExtensionHeader::kDynamicGroups)));
+  EXPECT_FALSE(queue_without_callback.properties().dynamic_groups());
+  EXPECT_FALSE(queue_without_callback.properties().contains(
+      static_cast<uint64_t>(PropertyType::kDynamicGroups)));
 
   TestMoqtOutgoingQueue queue_with_callback([]() {});
-  EXPECT_TRUE(queue_with_callback.extensions().dynamic_groups());
-  EXPECT_TRUE(queue_with_callback.extensions().contains(
-      static_cast<uint64_t>(ExtensionHeader::kDynamicGroups)));
+  EXPECT_TRUE(queue_with_callback.properties().dynamic_groups());
+  EXPECT_TRUE(queue_with_callback.properties().contains(
+      static_cast<uint64_t>(PropertyType::kDynamicGroups)));
 }
 
 }  // namespace
