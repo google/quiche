@@ -182,12 +182,13 @@ class SourceAddressTokenTest : public QuicTest {
   HandshakeFailureReason ValidateSourceAddressTokens(std::string config_id,
                                                      absl::string_view srct,
                                                      const QuicIpAddress& ip) {
-    return ValidateSourceAddressTokens(config_id, srct, ip, nullptr);
+    CachedNetworkParameters dummy;
+    return ValidateSourceAddressTokens(config_id, srct, ip, dummy);
   }
 
   HandshakeFailureReason ValidateSourceAddressTokens(
       std::string config_id, absl::string_view srct, const QuicIpAddress& ip,
-      CachedNetworkParameters* cached_network_params) {
+      CachedNetworkParameters& cached_network_params) {
     return peer_.ValidateSourceAddressTokens(
         config_id, srct, ip, clock_.WallNow(), cached_network_params);
   }
@@ -255,7 +256,7 @@ TEST_F(SourceAddressTokenTest, SourceAddressTokenWithNetworkParams) {
   EXPECT_THAT(cached_network_params_output,
               Not(SerializedProtoEquals(cached_network_params_input)));
   ValidateSourceAddressTokens(kPrimary, token4_with_cached_network_params, ip4_,
-                              &cached_network_params_output);
+                              cached_network_params_output);
   EXPECT_THAT(cached_network_params_output,
               SerializedProtoEquals(cached_network_params_input));
 }

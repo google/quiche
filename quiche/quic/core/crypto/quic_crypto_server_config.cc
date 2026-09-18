@@ -1226,7 +1226,7 @@ void QuicCryptoServerConfig::EvaluateClientHello(
       if (source_address_token_error == HANDSHAKE_OK) {
         source_address_token_error = ValidateSourceAddressTokens(
             info->source_address_tokens, info->client_ip, info->now,
-            &client_hello_state->cached_network_params);
+            client_hello_state->cached_network_params);
       }
       info->valid_source_address_token =
           (source_address_token_error == HANDSHAKE_OK);
@@ -1726,15 +1726,14 @@ HandshakeFailureReason QuicCryptoServerConfig::ParseSourceAddressToken(
 
 HandshakeFailureReason QuicCryptoServerConfig::ValidateSourceAddressTokens(
     const SourceAddressTokens& source_address_tokens, const QuicIpAddress& ip,
-    QuicWallTime now, CachedNetworkParameters* cached_network_params) const {
+    QuicWallTime now, CachedNetworkParameters& cached_network_params) const {
   HandshakeFailureReason reason =
       SOURCE_ADDRESS_TOKEN_DIFFERENT_IP_ADDRESS_FAILURE;
   for (const SourceAddressToken& token : source_address_tokens.tokens()) {
     reason = ValidateSingleSourceAddressToken(token, ip, now);
     if (reason == HANDSHAKE_OK) {
-      if (cached_network_params != nullptr &&
-          token.has_cached_network_parameters()) {
-        *cached_network_params = token.cached_network_parameters();
+      if (token.has_cached_network_parameters()) {
+        cached_network_params = token.cached_network_parameters();
       }
       break;
     }

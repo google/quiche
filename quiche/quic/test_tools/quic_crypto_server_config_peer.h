@@ -41,7 +41,7 @@ class QuicCryptoServerConfigPeer {
   // Attempts to validate the tokens in |srct|.
   HandshakeFailureReason ValidateSourceAddressTokens(
       std::string config_id, absl::string_view srct, const QuicIpAddress& ip,
-      QuicWallTime now, CachedNetworkParameters* cached_network_params);
+      QuicWallTime now, CachedNetworkParameters& cached_network_params);
 
   // Attempts to validate the single source address token in |token|.
   HandshakeFailureReason ValidateSingleSourceAddressToken(

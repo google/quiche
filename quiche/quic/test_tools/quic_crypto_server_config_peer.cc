@@ -55,7 +55,7 @@ std::string QuicCryptoServerConfigPeer::NewSourceAddressToken(
 
 HandshakeFailureReason QuicCryptoServerConfigPeer::ValidateSourceAddressTokens(
     std::string config_id, absl::string_view srct, const QuicIpAddress& ip,
-    QuicWallTime now, CachedNetworkParameters* cached_network_params) {
+    QuicWallTime now, CachedNetworkParameters& cached_network_params) {
   SourceAddressTokens tokens;
   HandshakeFailureReason reason = server_config_->ParseSourceAddressToken(
       *GetConfig(config_id)->source_address_token_boxer, srct, tokens);

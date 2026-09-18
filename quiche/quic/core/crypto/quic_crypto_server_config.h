@@ -429,7 +429,7 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
   // token contains a CachedNetworkParameters proto.
   HandshakeFailureReason ValidateSourceAddressTokens(
       const SourceAddressTokens& tokens, const QuicIpAddress& ip,
-      QuicWallTime now, CachedNetworkParameters* cached_network_params) const;
+      QuicWallTime now, CachedNetworkParameters& cached_network_params) const;
 
   // Callers retain the ownership of |rejection_observer| which must outlive the
   // config.

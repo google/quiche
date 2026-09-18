@@ -407,7 +407,7 @@ bool TlsServerHandshaker::ValidateAddressToken(absl::string_view token) const {
   auto cached_network_params = std::make_unique<CachedNetworkParameters>();
   reason = crypto_config_->ValidateSourceAddressTokens(
       tokens, session()->connection()->effective_peer_address().host(),
-      session()->connection()->clock()->WallNow(), cached_network_params.get());
+      session()->connection()->clock()->WallNow(), *cached_network_params);
   if (reason != HANDSHAKE_OK) {
     QUIC_DLOG(WARNING) << "Failed to validate source address token: "
                        << CryptoUtils::HandshakeFailureReasonToString(reason);
