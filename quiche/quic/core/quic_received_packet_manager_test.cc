@@ -144,9 +144,9 @@ TEST_F(QuicReceivedPacketManagerTest, GetUpdatedAckFrame) {
   ack = received_manager_.GetUpdatedAckFrame(two_ms);
   received_manager_.ResetAckStates();
   EXPECT_FALSE(received_manager_.ack_frame_updated());
-  // UpdateReceivedPacketInfo should discard any times which can't be
-  // expressed on the wire.
-  EXPECT_EQ(2u, ack.ack_frame->received_packet_times.size());
+  // IETF ACK_RECEIVE_TIMESTAMPS encodes deltas as 62-bit varints, so all 3
+  // timestamps are retained.
+  EXPECT_EQ(3u, ack.ack_frame->received_packet_times.size());
 }
 
 TEST_F(QuicReceivedPacketManagerTest, UpdateReceivedConnectionStats) {

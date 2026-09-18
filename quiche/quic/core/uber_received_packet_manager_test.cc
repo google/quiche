@@ -184,9 +184,9 @@ TEST_F(UberReceivedPacketManagerTest, GetUpdatedAckFrame) {
   ack = manager_->GetUpdatedAckFrame(APPLICATION_DATA, two_ms);
   manager_->ResetAckStates(ENCRYPTION_FORWARD_SECURE);
   EXPECT_FALSE(manager_->IsAckFrameUpdated());
-  // UpdateReceivedPacketInfo should discard any times which can't be
-  // expressed on the wire.
-  EXPECT_EQ(2u, ack.ack_frame->received_packet_times.size());
+  // IETF ACK_RECEIVE_TIMESTAMPS encodes deltas as 62-bit varints, so all 3
+  // timestamps are retained.
+  EXPECT_EQ(3u, ack.ack_frame->received_packet_times.size());
 }
 
 TEST_F(UberReceivedPacketManagerTest, UpdateReceivedConnectionStats) {
