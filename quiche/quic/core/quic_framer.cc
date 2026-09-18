@@ -3898,9 +3898,18 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
         set_detailed_error("Unable to read receive timestamp delta.");
         return false;
       }
+      // The IETF draft does not allow exponents above 20; this ensures that the
+      // bitshifts below are always valid.
+      QUICHE_DCHECK_LE(local_receive_timestamps_exponent_, 20u);
       // The first timestamp delta is relative to framer creation time; whereas
       // subsequent deltas are relative to the previous delta in decreasing
       // packet order.
+      if (timestamp_delta >
+          (static_cast<uint64_t>(std::numeric_limits<int64_t>::max()) >>
+           local_receive_timestamps_exponent_)) {
+        set_detailed_error("Receive timestamp delta too high.");
+        return false;
+      }
       timestamp_delta = timestamp_delta << local_receive_timestamps_exponent_;
       if (i == 0 && j == 0) {
         last_timestamp_ = QuicTime::Delta::FromMicroseconds(timestamp_delta);

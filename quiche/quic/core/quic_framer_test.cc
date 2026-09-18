@@ -4110,6 +4110,63 @@ TEST_P(QuicFramerTest, AckFrameReceiveTimestampDeltaTooHigh) {
                                "Receive timestamp count too high."));
 }
 
+TEST_P(QuicFramerTest, AckFrameReceiveTimestampDeltaShiftOverflow) {
+  if (!VersionIsIetfQuic(framer_.transport_version())) {
+    return;
+  }
+  SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
+  // clang-format off
+  PacketFragments packet_ietf = {
+      // type (short header, 4 byte packet number)
+      {"",
+       { 0x43 }},
+      // connection_id
+      {"",
+       { 0xFE, 0xDC, 0xBA, 0x98, 0x76, 0x54, 0x32, 0x10 }},
+      // packet number
+      {"",
+       { 0x12, 0x34, 0x56, 0x78 }},
+
+      // frame type (IETF_ACK_RECEIVE_TIMESTAMPS frame)
+      {"",
+       { 0x83, 0x17, 0x83, 0x07 }},
+       // largest acked
+       {"Unable to read largest acked.",
+        { kVarInt62TwoBytes + 0x12, 0x34 }},   // = 4660
+       // Zero delta time.
+       {"Unable to read ack delay time.",
+        { kVarInt62OneByte + 0x00 }},
+       // number of additional ack blocks
+       {"Unable to read ack block count.",
+        { kVarInt62OneByte + 0x00 }},
+       // first ack block length.
+       {"Unable to read first ack block length.",
+        { kVarInt62OneByte + 0x00 }},  // 1st block length = 1
+
+       // Receive Timestamps.
+       { "Unable to read receive timestamp range count.",
+         { kVarInt62OneByte + 0x01 }},
+       { "Unable to read receive timestamp delta largest acked.",
+         { kVarInt62OneByte + 0x00 }},
+       { "Unable to read receive timestamp count.",
+         { kVarInt62OneByte + 0x01 }},
+       // Max 62-bit varint (0x3fffffffffffffff), which overflows when shifted
+       // by exponent >= 2.
+       { "Unable to read receive timestamp delta.",
+         { 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff }},
+  };
+  // clang-format on
+
+  std::unique_ptr<QuicEncryptedPacket> encrypted(
+      AssemblePacketFromFragments(packet_ietf));
+
+  framer_.set_local_receive_timestamps_exponent(3);
+  framer_.set_local_max_receive_timestamps_per_ack(1000);
+  EXPECT_FALSE(framer_.ProcessPacket(*encrypted));
+  EXPECT_TRUE(absl::StartsWith(framer_.detailed_error(),
+                               "Receive timestamp delta too high."));
+}
+
 TEST_P(QuicFramerTest, AckFrameTimeStampDeltaTooHigh) {
   SetDecrypterLevel(ENCRYPTION_FORWARD_SECURE);
   // clang-format off
