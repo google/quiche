@@ -812,24 +812,6 @@ bool IsValidToken(absl::string_view str) {
 }
 
 Item::Item() = default;
-Item::Item(std::string value, Item::ItemType type) {
-  switch (type) {
-    case kStringType:
-      value_.emplace<std::string>(std::move(value));
-      break;
-    case kTokenType:
-      value_.emplace<Token>(std::move(value));
-      break;
-    case kByteSequenceType:
-      value_.emplace<ByteSequence>(std::move(value));
-      break;
-    default:
-      QUICHE_CHECK(false);
-      break;
-  }
-}
-Item::Item(const char* value, Item::ItemType type)
-    : Item(std::string(value), type) {}
 Item::Item(int64_t value) : value_(value) {}
 Item::Item(double value) : value_(value) {}
 Item::Item(bool value) : value_(value) {}

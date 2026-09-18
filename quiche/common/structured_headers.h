@@ -108,12 +108,6 @@ class QUICHE_EXPORT Item {
   Item(byte_sequence_t, absl::string_view value);
   Item(byte_sequence_t, std::string value);
 
-  // Constructors for string-like items: Strings, Tokens and Byte Sequences.
-  // Deprecated: Use one of the tag-based constructors with `Item::string`,
-  // `Item::token`, or `Item::byte_sequence` instead.
-  Item(const char* value, Item::ItemType type = kStringType);
-  Item(std::string value, Item::ItemType type = kStringType);
-
   Item(const Item&);
   Item& operator=(const Item&);
 
