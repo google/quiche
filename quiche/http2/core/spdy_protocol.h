@@ -720,10 +720,10 @@ constexpr size_t FrameSize(const T& frame) {
     return kFrameHeaderSize + FrameTraits<T>::fixed_payload_size;
   } else if constexpr (std::is_same_v<T, DataFrame>) {
     return kDataFrameMinimumSize + frame.data.size() +
-           (frame.padded() ? (1 + frame.padding_payload_len) : 0);
+           (frame.IsPadded() ? (1 + frame.padding_payload_len) : 0);
   } else if constexpr (std::is_same_v<T, HeadersFrame>) {
     size_t size = kHeadersFrameMinimumSize + frame.hpack_block.size();
-    if (frame.padded()) {
+    if (frame.IsPadded()) {
       size += 1 + frame.padding_payload_len;
     }
     if (frame.has_priority) {
@@ -738,7 +738,7 @@ constexpr size_t FrameSize(const T& frame) {
            (frame.values.size() * kSettingsOneSettingSize);
   } else if constexpr (std::is_same_v<T, PushPromiseFrame>) {
     size_t size = kPushPromiseFrameMinimumSize + frame.hpack_block.size();
-    if (frame.padded()) {
+    if (frame.IsPadded()) {
       size += 1 + frame.padding_payload_len;
     }
     return size;

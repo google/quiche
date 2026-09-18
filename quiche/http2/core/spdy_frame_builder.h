@@ -148,19 +148,19 @@ inline uint32_t PackStreamDependencyValues(bool exclusive,
 inline bool SerializeDataFrame(const DataFrame& frame,
                                SpdyFrameBuilder& builder) {
   uint8_t flags = frame.flags;
-  if (frame.fin()) {
+  if (frame.HasFin()) {
     flags |= DATA_FLAG_FIN;
   }
-  if (frame.padded()) {
+  if (frame.IsPadded()) {
     flags |= DATA_FLAG_PADDED;
   }
   size_t payload_len = frame.data.size() +
-                       (frame.padded() ? (1 + frame.padding_payload_len) : 0);
+                       (frame.IsPadded() ? (1 + frame.padding_payload_len) : 0);
   if (!builder.BeginNewFrame(SpdyFrameType::DATA, flags, frame.stream_id,
                              payload_len)) {
     return false;
   }
-  if (frame.padded()) {
+  if (frame.IsPadded()) {
     if (!builder.WriteUInt8(frame.padding_payload_len)) {
       return false;
     }
@@ -168,7 +168,7 @@ inline bool SerializeDataFrame(const DataFrame& frame,
   if (!builder.WriteBytes(frame.data.data(), frame.data.size())) {
     return false;
   }
-  if (frame.padded() && frame.padding_payload_len > 0) {
+  if (frame.IsPadded() && frame.padding_payload_len > 0) {
     std::string padding(frame.padding_payload_len, 0);
     if (!builder.WriteBytes(padding.data(), padding.length())) {
       return false;
@@ -180,26 +180,27 @@ inline bool SerializeDataFrame(const DataFrame& frame,
 inline bool SerializeHeadersFrame(const HeadersFrame& frame,
                                   SpdyFrameBuilder& builder) {
   uint8_t flags = frame.flags;
-  if (frame.fin()) {
+  if (frame.HasFin()) {
     flags |= CONTROL_FLAG_FIN;
   }
-  if (frame.end_headers()) {
+  if (frame.HasEndHeaders()) {
     flags |= HEADERS_FLAG_END_HEADERS;
   }
-  if (frame.padded()) {
+  if (frame.IsPadded()) {
     flags |= HEADERS_FLAG_PADDED;
   }
   if (frame.has_priority) {
     flags |= HEADERS_FLAG_PRIORITY;
   }
-  size_t payload_len = frame.hpack_block.size() +
-                       (frame.padded() ? (1 + frame.padding_payload_len) : 0) +
-                       (frame.has_priority ? 5 : 0);
+  size_t payload_len =
+      frame.hpack_block.size() +
+      (frame.IsPadded() ? (1 + frame.padding_payload_len) : 0) +
+      (frame.has_priority ? 5 : 0);
   if (!builder.BeginNewFrame(SpdyFrameType::HEADERS, flags, frame.stream_id,
                              payload_len)) {
     return false;
   }
-  if (frame.padded()) {
+  if (frame.IsPadded()) {
     if (!builder.WriteUInt8(frame.padding_payload_len)) {
       return false;
     }
@@ -217,7 +218,7 @@ inline bool SerializeHeadersFrame(const HeadersFrame& frame,
   if (!builder.WriteBytes(frame.hpack_block.data(), frame.hpack_block.size())) {
     return false;
   }
-  if (frame.padded() && frame.padding_payload_len > 0) {
+  if (frame.IsPadded() && frame.padding_payload_len > 0) {
     std::string padding(frame.padding_payload_len, 0);
     if (!builder.WriteBytes(padding.data(), padding.length())) {
       return false;
@@ -269,19 +270,19 @@ inline bool SerializeSettingsFrame(const SettingsFrame& frame,
 inline bool SerializePushPromiseFrame(const PushPromiseFrame& frame,
                                       SpdyFrameBuilder& builder) {
   uint8_t flags = frame.flags;
-  if (frame.end_headers()) {
+  if (frame.HasEndHeaders()) {
     flags |= PUSH_PROMISE_FLAG_END_PUSH_PROMISE;
   }
-  if (frame.padded()) {
+  if (frame.IsPadded()) {
     flags |= PUSH_PROMISE_FLAG_PADDED;
   }
   size_t payload_len = 4 + frame.hpack_block.size() +
-                       (frame.padded() ? (1 + frame.padding_payload_len) : 0);
+                       (frame.IsPadded() ? (1 + frame.padding_payload_len) : 0);
   if (!builder.BeginNewFrame(SpdyFrameType::PUSH_PROMISE, flags,
                              frame.stream_id, payload_len)) {
     return false;
   }
-  if (frame.padded()) {
+  if (frame.IsPadded()) {
     if (!builder.WriteUInt8(frame.padding_payload_len)) {
       return false;
     }
@@ -292,7 +293,7 @@ inline bool SerializePushPromiseFrame(const PushPromiseFrame& frame,
   if (!builder.WriteBytes(frame.hpack_block.data(), frame.hpack_block.size())) {
     return false;
   }
-  if (frame.padded() && frame.padding_payload_len > 0) {
+  if (frame.IsPadded() && frame.padding_payload_len > 0) {
     std::string padding(frame.padding_payload_len, 0);
     if (!builder.WriteBytes(padding.data(), padding.length())) {
       return false;
@@ -342,7 +343,7 @@ inline bool SerializeWindowUpdateFrame(const WindowUpdateFrame& frame,
 inline bool SerializeContinuationFrame(const ContinuationFrame& frame,
                                        SpdyFrameBuilder& builder) {
   uint8_t flags = frame.flags;
-  if (frame.end_headers()) {
+  if (frame.HasEndHeaders()) {
     flags |= HEADERS_FLAG_END_HEADERS;
   }
   if (!builder.BeginNewFrame(SpdyFrameType::CONTINUATION, flags,
