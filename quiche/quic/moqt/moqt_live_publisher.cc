@@ -73,8 +73,9 @@ LivePublisher::~LivePublisher() {
 }
 
 void LivePublisher::Update(const MessageParameters& parameters) {
-  // TODO(martinduke): If there are auth tokens, this probably has to go to the
-  // application.
+  if (!track_publisher_->UpdateObjectListener(this, parameters).ok()) {
+    return;
+  }
   // TODO(martinduke): If the subscribe window has shrunk, close any streams
   // that are now outside the window. Also send PUBLISH_DONE if now done.
   MoqtPriority old_priority =

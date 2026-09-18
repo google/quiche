@@ -565,5 +565,38 @@ TEST(MoqtOutgoingQueue, DynamicGroupsExtension) {
       static_cast<uint64_t>(PropertyType::kDynamicGroups)));
 }
 
+TEST(MoqtOutgoingQueue, UpdateObjectListenerNotFound) {
+  TestMoqtOutgoingQueue queue;
+  MockMoqtObjectListener listener;
+  EXPECT_TRUE(
+      IsNotFound(queue.UpdateObjectListener(&listener, MessageParameters())));
+}
+
+TEST(MoqtOutgoingQueue, UpdateObjectListenerNewGroupRequest) {
+  testing::MockFunction<void()> callback;
+  TestMoqtOutgoingQueue queue(callback.AsStdFunction());
+  {
+    testing::InSequence seq;
+    EXPECT_CALL(queue, PublishObject(0, 0, "a"));
+    EXPECT_CALL(callback, Call());
+    EXPECT_CALL(queue, CloseStreamForGroup(0));
+    EXPECT_CALL(queue, PublishObject(1, 0, "b"));
+  }
+  queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
+
+  MockMoqtObjectListener listener;
+  EXPECT_CALL(listener, OnSubscribeAccepted);
+  queue.AddObjectListener(&listener, MessageParameters());
+
+  MessageParameters parameters;
+  parameters.new_group_request = 0;
+  QUICHE_EXPECT_OK(queue.UpdateObjectListener(&listener, parameters));
+  EXPECT_CALL(listener,
+              OnNewObjectAvailable(Location(0, 1), testing::Optional(0), _));
+  EXPECT_CALL(listener,
+              OnNewObjectAvailable(Location(1, 0), testing::Optional(0), _));
+  queue.AddObject(quiche::QuicheMemSlice::Copy("b"), true);
+}
+
 }  // namespace
 }  // namespace moqt::test

@@ -10,9 +10,11 @@
 #include <variant>
 
 #include "absl/base/attributes.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
@@ -392,37 +394,13 @@ void MoqtRelayTrackPublisher::AddObjectListener(
       DeleteTrack();
       return;
     }
+    listeners_.insert(listener);
     pending_new_group_request_ = upstream_parameters.new_group_request;
   } else {
-    if (parameters.new_group_request.has_value() &&
-        (!got_response_ || properties_.dynamic_groups()) &&
-        (*parameters.new_group_request == 0 ||
-         *parameters.new_group_request > next_location_.group) &&
-        (!pending_new_group_request_.has_value() ||
-         *pending_new_group_request_ < *parameters.new_group_request)) {
-      MoqtSessionInterface* session = upstream_.GetIfAvailable();
-      if (session != nullptr) {
-        MessageParameters update_parameters;
-        if (*parameters.new_group_request == 0 &&
-            next_location_ > Location(0, 0)) {
-          // The relay has more information than the client, so update
-          // NEW_GROUP_REQUEST to be more specific and avoid duplicate
-          // SUBSCRIBE_UPDATEs.
-          update_parameters.new_group_request = next_location_.group + 1;
-        } else {
-          // The client might have other access to a higher group ID, so
-          // preserve requests that are greater than next_location_.
-          update_parameters.new_group_request = *parameters.new_group_request;
-        }
-        if (session->SubscribeUpdate(
-                track_, update_parameters,
-                [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {})) {
-          pending_new_group_request_ = update_parameters.new_group_request;
-        };
-      }
-    }
+    listeners_.insert(listener);
+    // SUBSCRIBE will be accepted regardless of outcome.
+    UpdateObjectListener(listener, parameters).IgnoreError();
   }
-  listeners_.insert(listener);
   if (got_response_) {
     listener->OnSubscribeAccepted();
   }
@@ -438,6 +416,46 @@ void MoqtRelayTrackPublisher::RemoveObjectListener(
     DeleteTrack();
   }
   // No class access below this line!
+}
+
+absl::Status MoqtRelayTrackPublisher::UpdateObjectListener(
+    MoqtObjectListener* listener, const MessageParameters& parameters) {
+  if (is_closing_) {
+    return absl::InternalError("The track publisher is closing.");
+  }
+  if (!listeners_.contains(listener)) {
+    return absl::NotFoundError("Listener not found.");
+  }
+  MoqtSessionInterface* session = upstream_.GetIfAvailable();
+  if (session == nullptr) {
+    return absl::InternalError("The upstream session was closed.");
+  }
+  if (parameters.new_group_request.has_value() &&
+      (!got_response_ || properties_.dynamic_groups()) &&
+      (*parameters.new_group_request == 0 ||
+       *parameters.new_group_request > next_location_.group) &&
+      (!pending_new_group_request_.has_value() ||
+       *pending_new_group_request_ < *parameters.new_group_request)) {
+    MessageParameters update_parameters;
+    if (*parameters.new_group_request == 0 && next_location_ > Location(0, 0)) {
+      // The relay has more information than the client, so update
+      // NEW_GROUP_REQUEST to be more specific and avoid duplicate
+      // SUBSCRIBE_UPDATEs.
+      update_parameters.new_group_request = next_location_.group + 1;
+    } else {
+      // The client might have other access to a higher group ID, so
+      // preserve requests that are greater than next_location_.
+      update_parameters.new_group_request = *parameters.new_group_request;
+    }
+    if (session->SubscribeUpdate(
+            track_, update_parameters,
+            [](std::variant<MessageParameters, MoqtRequestErrorInfo>) {})) {
+      pending_new_group_request_ = update_parameters.new_group_request;
+      return absl::OkStatus();
+    }
+    return absl::InternalError("Could not send SUBSCRIBE_UPDATE upstream.");
+  }
+  return absl::OkStatus();
 }
 
 void MoqtRelayTrackPublisher::ForAllObjects(

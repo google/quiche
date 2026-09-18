@@ -137,7 +137,8 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
     // There was no existing SUBSCRIBE, so invoke the callback.
     subscriber_->set_visitor((*incoming_publish_callback_)(
         message.full_track_name, message.parameters, message.properties,
-        [weakptr = weak_ptr_factory_.Create()](
+        [weakptr = weak_ptr_factory_.Create(),
+         dynamic_groups = message.properties.dynamic_groups()](
             const std::variant<MessageParameters, MoqtRequestErrorInfo>
                 response) {
           MoqtPublishResponseStream* stream = weakptr.GetIfAvailable();
@@ -146,12 +147,20 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
           }
           std::visit(
               absl::Overload{
-                  [&](const MessageParameters& parameters) {
-                    stream->subscriber_->Update(parameters);
-                    stream->CheckStatus(stream->SendRequestOk(parameters));
+                  [response_stream = stream,
+                   dg = dynamic_groups](const MessageParameters& parameters) {
+                    MessageParameters update_parameters = parameters;
+                    if (!dg) {
+                      update_parameters.new_group_request.reset();
+                    }
+                    response_stream->subscriber_->Update(update_parameters);
+                    response_stream->CheckStatus(
+                        response_stream->SendRequestOk(update_parameters));
                   },
-                  [&](const MoqtRequestErrorInfo& error_info) {
-                    stream->CheckStatus(stream->SendRequestError(error_info));
+                  [response_stream =
+                       stream](const MoqtRequestErrorInfo& error_info) {
+                    response_stream->CheckStatus(
+                        response_stream->SendRequestError(error_info));
                   }},
               response);
         }));

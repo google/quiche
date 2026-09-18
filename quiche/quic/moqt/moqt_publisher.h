@@ -10,6 +10,7 @@
 #include <optional>
 
 #include "absl/base/nullability.h"
+#include "absl/status/status.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
@@ -99,6 +100,8 @@ class MoqtTrackPublisher {
   virtual void AddObjectListener(MoqtObjectListener* listener,
                                  const MessageParameters& parameters) = 0;
   virtual void RemoveObjectListener(MoqtObjectListener* listener) = 0;
+  virtual absl::Status UpdateObjectListener(
+      MoqtObjectListener* listener, const MessageParameters& parameters) = 0;
 
   // Methods to return various track properties. Returns nullopt if the value is
   // not yet available.

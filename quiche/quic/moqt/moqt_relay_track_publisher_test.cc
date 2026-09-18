@@ -8,10 +8,14 @@
 #include <memory>
 #include <optional>
 #include <string>
+#include <utility>
+#include <variant>
 
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
+#include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
@@ -22,6 +26,7 @@
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 
 namespace moqt::test {
 
@@ -937,6 +942,84 @@ TEST_F(MoqtRelayTrackPublisherTest,
           testing::_))
       .WillOnce(testing::Return(true));
   publisher_.AddObjectListener(&listener_after_new_group, params_zero);
+}
+
+TEST_F(MoqtRelayTrackPublisherTest, UpdateObjectListenerNotFound) {
+  SubscribeAndOk();
+  MockMoqtObjectListener listener;
+  EXPECT_TRUE(IsNotFound(
+      publisher_.UpdateObjectListener(&listener, MessageParameters())));
+}
+
+TEST_F(MoqtRelayTrackPublisherTest, UpdateObjectListenerUpstreamClosed) {
+  SubscribeAndOk();
+  session_.reset();
+  EXPECT_TRUE(IsInternal(
+      publisher_.UpdateObjectListener(&listener_, MessageParameters())));
+}
+
+TEST_F(MoqtRelayTrackPublisherTest, UpdateObjectListenerClosing) {
+  SubscribeAndOk();
+  publisher_.Close();
+  EXPECT_TRUE(IsInternal(
+      publisher_.UpdateObjectListener(&listener_, MessageParameters())));
+}
+
+TEST_F(MoqtRelayTrackPublisherTest,
+       UpdateObjectListenerForwardsNewGroupRequest) {
+  EXPECT_CALL(*session_, Subscribe).WillOnce(testing::Return(true));
+  publisher_.AddObjectListener(&listener_, MessageParameters());
+  EXPECT_CALL(listener_, OnSubscribeAccepted);
+  MessageParameters ok_parameters;
+  ok_parameters.largest_object = kLargestLocation;  // Location(3, 2)
+  ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
+  TrackProperties properties(
+      /*delivery_timeout=*/std::nullopt,
+      /*max_cache_duration=*/std::nullopt,
+      /*publisher_priority=*/std::nullopt,
+      /*group_order=*/std::nullopt,
+      /*dynamic_groups=*/true,
+      /*immutable_properties=*/std::nullopt);
+  publisher_.OnReply(kTrackName, SubscribeOkData{ok_parameters, properties});
+
+  // 1. Update with new_group_request = 4 forwards to session->SubscribeUpdate
+  // and passes the callback through.
+  MessageParameters update_params;
+  update_params.new_group_request = 4;
+  EXPECT_CALL(
+      *session_,
+      SubscribeUpdate(
+          kTrackName,
+          testing::Field(&MessageParameters::new_group_request, Optional(4)),
+          testing::_))
+      .WillOnce(testing::Return(true));
+  QUICHE_EXPECT_OK(publisher_.UpdateObjectListener(&listener_, update_params));
+
+  // 2. Subsequent update with same new_group_request while pending does not
+  // call SubscribeUpdate and immediately invokes the callback with
+  // MessageParameters().
+  EXPECT_CALL(*session_, SubscribeUpdate).Times(0);
+  QUICHE_EXPECT_OK(publisher_.UpdateObjectListener(&listener_, update_params));
+
+  // 3. After group 4 arrives, new_group_request = 0 translates to
+  // next_location_.group + 1 (5), triggers SubscribeUpdate(5), and passes the
+  // callback through.
+  ObjectArrives(Location(4, 0), /*subgroup=*/0, MoqtObjectStatus::kNormal, "a");
+  MessageParameters params_zero;
+  params_zero.new_group_request = 0;
+  MoqtResponseCallback saved_callback3;
+  EXPECT_CALL(
+      *session_,
+      SubscribeUpdate(
+          kTrackName,
+          testing::Field(&MessageParameters::new_group_request, Optional(5)),
+          testing::_))
+      .WillOnce([&](const FullTrackName&, const MessageParameters&,
+                    MoqtResponseCallback cb) {
+        saved_callback3 = std::move(cb);
+        return true;
+      });
+  QUICHE_EXPECT_OK(publisher_.UpdateObjectListener(&listener_, params_zero));
 }
 
 }  // namespace

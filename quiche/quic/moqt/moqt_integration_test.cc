@@ -1415,6 +1415,109 @@ TEST_F(MoqtIntegrationTest, TrackStatusDoesNotExist) {
   EXPECT_EQ(received_error.error_code, RequestErrorCode::kDoesNotExist);
 }
 
+TEST_F(MoqtIntegrationTest, SubscribeWithNewGroupRequest) {
+  EstablishSession();
+  MoqtKnownTrackPublisher publisher;
+  server_->session()->set_publisher(&publisher);
+
+  FullTrackName track_name("test", "data");
+  std::shared_ptr<MoqtOutgoingQueue> queue;
+  queue = std::make_shared<MoqtOutgoingQueue>(
+      track_name, test_harness_.simulator().GetClock(), [&]() {
+        queue->AddObject(quiche::QuicheMemSlice::Copy("object 3"), true);
+      });
+  publisher.Add(queue);
+
+  // Publish some objects before having any subscribers.
+  queue->AddObject(quiche::QuicheMemSlice::Copy("object 1"), /*key=*/true);
+  queue->AddObject(quiche::QuicheMemSlice::Copy("object 2"), /*key=*/false);
+
+  MessageParameters parameters(MoqtFilterType::kNextGroupStart);
+  parameters.new_group_request = 0;
+  client_->session()->Subscribe(track_name, &subscribe_visitor_, parameters);
+
+  std::optional<Location> largest_id;
+  bool dynamic_groups = false;
+  EXPECT_CALL(subscribe_visitor_, OnReply)
+      .WillOnce(
+          [&](const FullTrackName&,
+              std::variant<SubscribeOkData, MoqtRequestErrorInfo> response) {
+            ASSERT_TRUE(std::holds_alternative<SubscribeOkData>(response));
+            const auto& ok_data = std::get<SubscribeOkData>(response);
+            largest_id = ok_data.parameters.largest_object;
+            dynamic_groups = ok_data.properties.dynamic_groups();
+          });
+  int received = 0;
+  // EndOfGroup object not sent.
+  EXPECT_CALL(subscribe_visitor_,
+              OnObjectFragment(track_name,
+                               MetadataLocationAndStatus(
+                                   Location{1, 0}, MoqtObjectStatus::kNormal),
+                               "object 3", /*offset=*/0))
+      .WillOnce([&] { ++received; });
+  bool success = test_harness_.RunUntilWithDefaultTimeout(
+      [&]() { return largest_id.has_value() && received == 1; });
+  EXPECT_TRUE(success);
+  EXPECT_EQ(largest_id, Location(0, 1));
+  EXPECT_TRUE(dynamic_groups);
+}
+
+TEST_F(MoqtIntegrationTest, PublishWithNewGroupRequest) {
+  EstablishSession();
+  FullTrackName track_name("test", "data");
+  std::shared_ptr<MoqtOutgoingQueue> queue;
+  queue = std::make_shared<MoqtOutgoingQueue>(
+      track_name, test_harness_.simulator().GetClock(), [&]() {
+        queue->AddObject(quiche::QuicheMemSlice::Copy("object 3"), true);
+      });
+
+  // Publish some objects before having any subscribers.
+  queue->AddObject(quiche::QuicheMemSlice::Copy("object 1"), true);
+  queue->AddObject(quiche::QuicheMemSlice::Copy("object 2"), false);
+
+  std::optional<Location> largest_id;
+  bool dynamic_groups = false;
+  client_->session()->callbacks().incoming_publish_callback =
+      [&](const FullTrackName& name, const MessageParameters& parameters,
+          const TrackProperties& properties, MoqtResponseCallback callback) {
+        EXPECT_EQ(name, track_name);
+        largest_id = parameters.largest_object;
+        dynamic_groups = properties.dynamic_groups();
+        MessageParameters ok_parameters;
+        ok_parameters.new_group_request = 0;
+        ok_parameters.subscription_filter =
+            SubscriptionFilter(MoqtFilterType::kNextGroupStart);
+        std::move(callback)(ok_parameters);
+        return &subscribe_visitor_;
+      };
+  EXPECT_CALL(subscribe_visitor_, OnReply).Times(1);
+
+  bool publish_ok_received = false;
+  ASSERT_TRUE(server_->session()->Publish(
+      queue, MessageParameters(), queue->properties(),
+      [&](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
+        ASSERT_TRUE(std::holds_alternative<MessageParameters>(response));
+        EXPECT_EQ(std::get<MessageParameters>(response).new_group_request, 0u);
+        publish_ok_received = true;
+      }));
+
+  int received = 0;
+  // EndOfGroup object not sent.
+  EXPECT_CALL(subscribe_visitor_,
+              OnObjectFragment(track_name,
+                               MetadataLocationAndStatus(
+                                   Location{1, 0}, MoqtObjectStatus::kNormal),
+                               "object 3", /*offset=*/0))
+      .WillOnce([&] { ++received; });
+
+  bool success = test_harness_.RunUntilWithDefaultTimeout([&]() {
+    return publish_ok_received && largest_id.has_value() && received == 1;
+  });
+  EXPECT_TRUE(success);
+  EXPECT_EQ(largest_id, Location(0, 1));
+  EXPECT_TRUE(dynamic_groups);
+}
+
 }  // namespace
 
 }  // namespace moqt::test

@@ -74,17 +74,19 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
                          const MessageParameters& parameters) override {
     listeners_.insert(listener);
     listener->OnSubscribeAccepted();
-    if (properties_.dynamic_groups() && !expect_new_group_ &&
-        parameters.new_group_request.has_value() &&
-        (*parameters.new_group_request == 0 || queue_.empty() ||
-         *parameters.new_group_request > current_group_id_) &&
-        new_group_callback_ != nullptr) {
-      expect_new_group_ = true;
-      new_group_callback_();
-    }
+    MaybeRequestNewGroup(parameters);
   }
   void RemoveObjectListener(MoqtObjectListener* listener) override {
     listeners_.erase(listener);
+  }
+  absl::Status UpdateObjectListener(
+      MoqtObjectListener* listener,
+      const MessageParameters& parameters) override {
+    if (!listeners_.contains(listener)) {
+      return absl::NotFoundError("Listener not found.");
+    }
+    MaybeRequestNewGroup(parameters);
+    return absl::OkStatus();
   }
 
   std::optional<Location> largest_location() const override;
@@ -130,6 +132,18 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
  private:
   // The number of recent groups to keep around for newly joined subscribers.
   static constexpr size_t kMaxQueuedGroups = 3;
+
+  void MaybeRequestNewGroup(const MessageParameters& parameters) {
+    if (!properties_.dynamic_groups() || expect_new_group_ ||
+        !parameters.new_group_request.has_value() ||
+        (*parameters.new_group_request > 0 && !queue_.empty() &&
+         *parameters.new_group_request <= current_group_id_) ||
+        new_group_callback_ == nullptr) {
+      return;
+    }
+    expect_new_group_ = true;
+    new_group_callback_();
+  }
 
   // Fetch task for a fetch from the cache.
   class FetchTask : public MoqtFetchTask {

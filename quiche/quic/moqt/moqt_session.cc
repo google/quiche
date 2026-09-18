@@ -525,9 +525,16 @@ bool MoqtSession::SubscribeUpdate(const FullTrackName& name,
   if (it == subscribe_by_name_.end()) {
     return false;
   }
+  MessageParameters update_parameters = parameters;
+  if (parameters.new_group_request.has_value() &&
+      !it->second->dynamic_groups() && !it->second->ErrorIsAllowed()) {
+    // Sending NEW_GROUP_REQUEST if the Track Properties have arrived and do not
+    // include DYNAMIC_GROUPS.
+    update_parameters.new_group_request.reset();
+  }
   // sending zero because related request ID is ignored for SUBSCRIBE.
   return it->second->request_stream()
-      ->SendRequestUpdate(NextRequestId(), 0, parameters,
+      ->SendRequestUpdate(NextRequestId(), 0, update_parameters,
                           std::move(response_callback))
       .ok();
 }

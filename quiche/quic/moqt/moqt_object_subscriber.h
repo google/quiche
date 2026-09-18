@@ -161,6 +161,8 @@ class LiveSubscriber : public ObjectSubscriber {
   void SendObjectAck(uint64_t group_id, uint64_t object_id,
                      quic::QuicTimeDelta delta_from_deadline);
 
+  bool dynamic_groups() const { return dynamic_groups_; }
+
  private:
   friend class test::MoqtSessionPeer;
   friend class test::LiveSubscriberPeer;

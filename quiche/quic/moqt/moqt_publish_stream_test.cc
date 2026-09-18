@@ -303,18 +303,65 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishAndAccept) {
   EXPECT_EQ(captured_subscriber->track_alias(), kTrackAlias);
   EXPECT_EQ(captured_subscriber->visitor(), &mock_subscribe_visitor_);
 
-  // Verify REQUEST_OK response was sent.
-  EXPECT_CALL(mock_stream_,
-              Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _))
+  // Verify REQUEST_OK response was sent with new_group_request filtered out
+  // because DYNAMIC_GROUPS is absent/false.
+  MoqtRequestOk expected_ok;
+  expected_ok.parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(2);
+  EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _))
       .WillOnce(Return(absl::OkStatus()));
-  MessageParameters response_parameters;
-  response_parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(2);
+  MessageParameters response_parameters = expected_ok.parameters;
+  response_parameters.new_group_request = 0;
   std::move(captured_response_callback_)(response_parameters);
 
-  // Verify subscriber parameters were updated.
+  // Verify subscriber parameters were updated and new_group_request was
+  // filtered out.
   const MessageParameters& sub_params =
       LiveSubscriberPeer::parameters(*captured_subscriber);
   EXPECT_EQ(sub_params.delivery_timeout, response_parameters.delivery_timeout);
+  EXPECT_EQ(sub_params.new_group_request, std::nullopt);
+  EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone);
+}
+
+TEST_F(MoqtPublishResponseStreamTest, ReceivePublishWithDynamicGroups) {
+  EXPECT_CALL(mock_subscribe_visitor_, OnReply(kTrackName, _))
+      .WillOnce(
+          [](const FullTrackName&,
+             const std::variant<SubscribeOkData, MoqtRequestErrorInfo>& reply) {
+            EXPECT_TRUE(std::holds_alternative<SubscribeOkData>(reply));
+          });
+  EXPECT_CALL(incoming_publish_callback_mock_, Call(kTrackName, _, _, _))
+      .WillOnce([this](const FullTrackName&, const MessageParameters&,
+                       const TrackProperties&, MoqtResponseCallback callback) {
+        captured_response_callback_ = std::move(callback);
+        return &mock_subscribe_visitor_;
+      });
+  LiveSubscriber* captured_subscriber = nullptr;
+  EXPECT_CALL(mock_add_callback_, Call(NotNull()))
+      .WillOnce([&](LiveSubscriber* subscriber) {
+        captured_subscriber = subscriber;
+        return true;
+      });
+  MoqtPublish publish = DefaultPublish();
+  publish.properties = TrackProperties(
+      /*delivery_timeout=*/std::nullopt,
+      /*max_cache_duration=*/std::nullopt,
+      /*publisher_priority=*/std::nullopt,
+      /*group_order=*/std::nullopt,
+      /*dynamic_groups=*/true,
+      /*immutable_extensions=*/std::nullopt);
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
+  ASSERT_NE(captured_subscriber, nullptr);
+
+  // Verify REQUEST_OK response preserves new_group_request when DYNAMIC_GROUPS
+  // is true.
+  MoqtRequestOk expected_ok;
+  expected_ok.parameters.new_group_request = 0;
+  EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _))
+      .WillOnce(Return(absl::OkStatus()));
+  std::move(captured_response_callback_)(expected_ok.parameters);
+  const MessageParameters& sub_params =
+      LiveSubscriberPeer::parameters(*captured_subscriber);
+  EXPECT_EQ(sub_params.new_group_request, 0);
   EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone);
 }
 

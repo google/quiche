@@ -16,6 +16,7 @@
 #include "absl/base/nullability.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_default_clock.h"
@@ -98,6 +99,10 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
   void AddObjectListener(MoqtObjectListener* listener,
                          const MessageParameters& parameters) override;
   void RemoveObjectListener(MoqtObjectListener* listener) override;
+  // Check if any parameters require an update to pass upstream.
+  absl::Status UpdateObjectListener(
+      MoqtObjectListener* listener,
+      const MessageParameters& parameters) override;
   std::optional<Location> largest_location() const override;
   const TrackProperties& properties() const override { return properties_; }
   std::optional<quic::QuicTimeDelta> expiration() const override;

@@ -89,6 +89,10 @@ class MockTrackPublisher : public MoqtTrackPublisher {
               (override));
   MOCK_METHOD(void, RemoveObjectListener, (MoqtObjectListener * listener),
               (override));
+  MOCK_METHOD(absl::Status, UpdateObjectListener,
+              (MoqtObjectListener * listener,
+               const MessageParameters& parameters),
+              (override));
   MOCK_METHOD(std::optional<Location>, largest_location, (), (const, override));
   MOCK_METHOD(const TrackProperties&, properties, (), (const, override));
   MOCK_METHOD(std::optional<quic::QuicTimeDelta>, expiration, (),
@@ -129,6 +133,10 @@ class TestTrackPublisher : public MoqtTrackPublisher {
   }
   void RemoveObjectListener(MoqtObjectListener* listener) override {
     listeners_.erase(listener);
+  }
+  absl::Status UpdateObjectListener(MoqtObjectListener*,
+                                    const MessageParameters&) override {
+    return absl::OkStatus();
   }
   std::optional<Location> largest_location() const override {
     return largest_location_;
