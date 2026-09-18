@@ -314,35 +314,6 @@ struct QUICHE_EXPORT ParameterizedMember {
   const InnerList* GetIfInnerList() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
   InnerList* GetIfInnerList() ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
-  // Returns the item and its parameters if the member is an item,
-  // `std::nullopt` otherwise.
-  //
-  // Deprecated: Use `GetIfItem()` instead.
-  std::optional<std::pair<const Item&, const Parameters&>> GetWithParamsIfItem()
-      const ABSL_ATTRIBUTE_LIFETIME_BOUND;
-
-  // Returns the item and its parameters if the member is an item,
-  // `std::nullopt` otherwise.
-  //
-  // Deprecated: Use `GetIfItem()` instead.
-  std::optional<std::pair<Item&, Parameters&>> GetWithParamsIfItem()
-      ABSL_ATTRIBUTE_LIFETIME_BOUND;
-
-  // Returns the inner list's items and its parameters if the member is an
-  // inner list, `std::nullopt` otherwise.
-  //
-  // Deprecated: Use `GetIfInnerList()` instead.
-  std::optional<
-      std::pair<const std::vector<ParameterizedItem>&, const Parameters&>>
-  GetWithParamsIfInnerList() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
-
-  // Returns the inner list's items and its parameters if the member is an
-  // inner list, `std::nullopt` otherwise.
-  //
-  // Deprecated: Use `GetIfInnerList()` instead.
-  std::optional<std::pair<std::vector<ParameterizedItem>&, Parameters&>>
-  GetWithParamsIfInnerList() ABSL_ATTRIBUTE_LIFETIME_BOUND;
-
   QUICHE_EXPORT friend bool operator==(const ParameterizedMember&,
                                        const ParameterizedMember&);
 

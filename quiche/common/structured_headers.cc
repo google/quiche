@@ -981,49 +981,6 @@ InnerList* ParameterizedMember::GetIfInnerList() {
   return std::get_if<InnerList>(&value_);
 }
 
-std::optional<std::pair<const Item&, const Parameters&>>
-ParameterizedMember::GetWithParamsIfItem() const {
-  const auto* item = GetIfItem();
-  if (!item) {
-    return std::nullopt;
-  }
-
-  return std::pair<const Item&, const Parameters&>(item->item, item->params);
-}
-
-std::optional<std::pair<Item&, Parameters&>>
-ParameterizedMember::GetWithParamsIfItem() {
-  auto* item = GetIfItem();
-  if (!item) {
-    return std::nullopt;
-  }
-
-  return std::pair<Item&, Parameters&>(item->item, item->params);
-}
-
-std::optional<
-    std::pair<const std::vector<ParameterizedItem>&, const Parameters&>>
-ParameterizedMember::GetWithParamsIfInnerList() const {
-  const auto* inner_list = GetIfInnerList();
-  if (!inner_list) {
-    return std::nullopt;
-  }
-
-  return std::pair<const std::vector<ParameterizedItem>&, const Parameters&>(
-      inner_list->items, inner_list->params);
-}
-
-std::optional<std::pair<std::vector<ParameterizedItem>&, Parameters&>>
-ParameterizedMember::GetWithParamsIfInnerList() {
-  auto* inner_list = GetIfInnerList();
-  if (!inner_list) {
-    return std::nullopt;
-  }
-
-  return std::pair<std::vector<ParameterizedItem>&, Parameters&>(
-      inner_list->items, inner_list->params);
-}
-
 // Not defaulted to work around
 // https://github.com/llvm/llvm-project/issues/132249 in older Clang versions.
 bool operator==(const ParameterizedMember& lhs,

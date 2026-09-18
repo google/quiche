@@ -857,12 +857,6 @@ TEST(StructuredHeaderTest, ParameterizedMemberGetWithParams) {
     // default constructor.
     ParameterizedMember member;
 
-    EXPECT_EQ(member.GetWithParamsIfItem(), std::nullopt);
-    EXPECT_EQ(std::as_const(member).GetWithParamsIfItem(), std::nullopt);
-
-    EXPECT_EQ(member.GetWithParamsIfInnerList(), std::nullopt);
-    EXPECT_EQ(std::as_const(member).GetWithParamsIfInnerList(), std::nullopt);
-
     EXPECT_FALSE(member.GetIfItem());
     EXPECT_FALSE(std::as_const(member).GetIfItem());
 
@@ -875,13 +869,6 @@ TEST(StructuredHeaderTest, ParameterizedMemberGetWithParams) {
     const Parameters params{{BooleanParam("abc", true)}};
 
     ParameterizedMember member(item, params);
-
-    EXPECT_EQ(member.GetWithParamsIfItem(), std::pair(item, params));
-    EXPECT_EQ(std::as_const(member).GetWithParamsIfItem(),
-              std::pair(item, params));
-
-    EXPECT_EQ(member.GetWithParamsIfInnerList(), std::nullopt);
-    EXPECT_EQ(std::as_const(member).GetWithParamsIfInnerList(), std::nullopt);
 
     auto* item_ptr = member.GetIfItem();
     ASSERT_TRUE(item_ptr);
@@ -896,13 +883,6 @@ TEST(StructuredHeaderTest, ParameterizedMemberGetWithParams) {
     const Parameters params{{TokenParam("def", "xyz")}};
 
     ParameterizedMember member(items, params);
-
-    EXPECT_EQ(member.GetWithParamsIfItem(), std::nullopt);
-    EXPECT_EQ(std::as_const(member).GetWithParamsIfItem(), std::nullopt);
-
-    EXPECT_EQ(member.GetWithParamsIfInnerList(), std::pair(items, params));
-    EXPECT_EQ(std::as_const(member).GetWithParamsIfInnerList(),
-              std::pair(items, params));
 
     EXPECT_FALSE(member.GetIfItem());
 
