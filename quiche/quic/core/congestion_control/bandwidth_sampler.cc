@@ -200,7 +200,8 @@ void BandwidthSampler::OnPacketSent(
     last_acked_packet_receive_time_ = QuicTime::Zero();
     if (overestimate_avoidance_) {
       recent_ack_points_.Clear();
-      recent_ack_points_.Update(sent_time, total_bytes_acked_);
+      recent_ack_points_.Update(sent_time, QuicTime::Zero(),
+                                total_bytes_acked_);
       a0_candidates_.clear();
       a0_candidates_.push_back(recent_ack_points_.MostRecentPoint());
     }
@@ -399,10 +400,8 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   last_acked_packet_ack_time_ = ack_time;
   last_acked_packet_receive_time_ = acked_packet.receive_timestamp;
   if (overestimate_avoidance_) {
-    // Note that this does not store `receive_timestamp`.  Ideally, the receive
-    // timestamps prove sufficiently useful in dealing with overestimation that
-    // we can eventually remove `overestimate_avoidance_` altogether.
-    recent_ack_points_.Update(ack_time, total_bytes_acked_);
+    recent_ack_points_.Update(ack_time, acked_packet.receive_timestamp,
+                              total_bytes_acked_);
   }
 
   if (is_app_limited_) {

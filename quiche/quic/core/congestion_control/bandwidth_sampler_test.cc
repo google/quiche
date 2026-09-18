@@ -921,11 +921,6 @@ TEST_F(MaxAckHeightTrackerTest, StartNewEpochAfterAFullRound) {
 }
 
 TEST_P(BandwidthSamplerTest, ReceiveTimestamps) {
-  if (GetParam().overestimate_avoidance) {
-    // Receive timestamps are not used when overestimate avoidance is on.
-    GTEST_SKIP();
-  }
-
   constexpr QuicTimeDelta kTimeBetweenPackets =
       QuicTimeDelta::FromMilliseconds(10);
   constexpr QuicBandwidth kExpectedBandwidth =

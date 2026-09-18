@@ -410,7 +410,8 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
   // RecentAckPoints maintains the most recent 2 ack points at distinct times.
   class QUICHE_EXPORT RecentAckPoints {
    public:
-    void Update(QuicTime ack_time, QuicByteCount total_bytes_acked) {
+    void Update(QuicTime ack_time, QuicTime receive_time,
+                QuicByteCount total_bytes_acked) {
       QUICHE_DCHECK_GE(total_bytes_acked, ack_points_[1].total_bytes_acked);
 
       if (ack_time < ack_points_[1].ack_time) {
@@ -423,6 +424,7 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
         ack_points_[1].ack_time = ack_time;
       }
 
+      ack_points_[1].receive_time = receive_time;
       ack_points_[1].total_bytes_acked = total_bytes_acked;
     }
 
