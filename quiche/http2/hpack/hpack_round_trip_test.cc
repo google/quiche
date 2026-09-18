@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 
+#include "absl/strings/string_view.h"
 #include "quiche/http2/core/recording_headers_handler.h"
 #include "quiche/http2/hpack/hpack_decoder_adapter.h"
 #include "quiche/http2/hpack/hpack_encoder.h"
@@ -110,6 +111,24 @@ TEST_P(HpackRoundTripTest, ResponseFixtures) {
         "foo=ASDJKHQKBZXOQWEOPIUAXQWEOIU;"
         " max-age=3600; version=1";
     headers["multivalue"] = std::string("foo\0bar", 7);
+    EXPECT_TRUE(RoundTrip(headers));
+  }
+}
+
+TEST_P(HpackRoundTripTest, NeverIndexedHeaders) {
+  encoder_.SetNeverIndexingPolicy(
+      [](absl::string_view name, absl::string_view /*value*/) {
+        return name == "x-request-id" || name == "cookie";
+      });
+  // Encode the same block twice; never-indexed headers do not populate the
+  // dynamic table, so repeated blocks must still decode correctly.
+  for (int i = 0; i < 2; ++i) {
+    quiche::HttpHeaderBlock headers;
+    headers[":method"] = "GET";
+    headers[":path"] = "/";
+    headers["cookie"] = "foo=bar; baz=bing";
+    headers["x-request-id"] = "e77bd1a9-2827-46b0-b8b9-372a4b0d47b1";
+    headers["accept"] = "text/html";
     EXPECT_TRUE(RoundTrip(headers));
   }
 }
