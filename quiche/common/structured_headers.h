@@ -74,17 +74,17 @@ class QUICHE_EXPORT Item {
   struct string_t {
     constexpr explicit string_t() = default;
   };
-  inline static constexpr string_t string;
+  static constexpr string_t string{};
 
   struct token_t {
     constexpr explicit token_t() = default;
   };
-  inline static constexpr token_t token;
+  static constexpr token_t token{};
 
   struct byte_sequence_t {
     constexpr explicit byte_sequence_t() = default;
   };
-  inline static constexpr byte_sequence_t byte_sequence;
+  static constexpr byte_sequence_t byte_sequence{};
 
   Item();
   explicit Item(int64_t value);
@@ -446,9 +446,9 @@ class QUICHE_EXPORT ItemView final {
   using token_t = Item::token_t;
   using byte_sequence_t = Item::byte_sequence_t;
 
-  inline static constexpr string_t string;
-  inline static constexpr token_t token;
-  inline static constexpr byte_sequence_t byte_sequence;
+  static constexpr string_t string{};
+  static constexpr token_t token{};
+  static constexpr byte_sequence_t byte_sequence{};
 
   ItemView();
   ItemView(int64_t value);
