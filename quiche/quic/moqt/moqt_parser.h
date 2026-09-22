@@ -244,8 +244,8 @@ class MoqtControlMessageParser {
   // large. Sets a ParseError if the name is malformed.
   absl::Status ReadFullTrackName(quic::QuicDataReader& reader,
                                  FullTrackName& full_track_name) const;
-  absl::Status FillAndValidateSetupParameters(const KeyValuePairList& in,
-                                              SetupParameters& out) const;
+  absl::Status FillAndValidateSetupOptions(const KeyValuePairList& in,
+                                           SetupOptions& out) const;
   // |reader| points to the beginning of a KeyValuePairList. Returns false if
   // there is any sort of error. (The function calls ParseError(), so the
   // caller has no need to do so.)

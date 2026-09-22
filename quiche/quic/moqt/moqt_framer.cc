@@ -277,28 +277,28 @@ quiche::QuicheBuffer SerializeLocation(const Location& location) {
 
 }  // namespace
 
-KeyValuePairList SetupParameters::ToKeyValuePairList() const {
+KeyValuePairList SetupOptions::ToKeyValuePairList() const {
   KeyValuePairList out;
   if (max_auth_token_cache_size.has_value()) {
-    out.insert(static_cast<uint64_t>(SetupParameter::kMaxAuthTokenCacheSize),
+    out.insert(static_cast<uint64_t>(SetupOption::kMaxAuthTokenCacheSize),
                *max_auth_token_cache_size);
   }
   if (path.has_value()) {
-    out.insert(static_cast<uint64_t>(SetupParameter::kPath), *path);
+    out.insert(static_cast<uint64_t>(SetupOption::kPath), *path);
   }
   for (const AuthToken& token : authorization_tokens) {
-    out.insert(static_cast<uint64_t>(SetupParameter::kAuthorizationToken),
+    out.insert(static_cast<uint64_t>(SetupOption::kAuthorizationToken),
                SerializeAuthToken(token).AsStringView());
   }
   if (authority.has_value()) {
-    out.insert(static_cast<uint64_t>(SetupParameter::kAuthority), *authority);
+    out.insert(static_cast<uint64_t>(SetupOption::kAuthority), *authority);
   }
   if (moqt_implementation.has_value()) {
-    out.insert(static_cast<uint64_t>(SetupParameter::kMoqtImplementation),
+    out.insert(static_cast<uint64_t>(SetupOption::kMoqtImplementation),
                *moqt_implementation);
   }
   if (support_object_acks.has_value()) {
-    out.insert(static_cast<uint64_t>(SetupParameter::kSupportObjectAcks),
+    out.insert(static_cast<uint64_t>(SetupOption::kSupportObjectAcks),
                *support_object_acks ? 1ULL : 0ULL);
   }
   return out;
@@ -491,12 +491,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSetup(const MoqtSetup& message) {
-  KeyValuePairList parameters;
-  if (!FillAndValidateSetupParameters(message.parameters, parameters)) {
+  KeyValuePairList options;
+  if (!FillAndValidateSetupOptions(message.options, options)) {
     return quiche::QuicheBuffer();
   }
   return SerializeControlMessage(MoqtMessageType::kSetup,
-                                 WireKeyValuePairList(parameters));
+                                 WireKeyValuePairList(options));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeRequestOk(
@@ -676,16 +676,16 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(
           message.delta_from_deadline.ToMicroseconds())));
 }
 
-bool MoqtFramer::FillAndValidateSetupParameters(
-    const SetupParameters& parameters, KeyValuePairList& out) {
-  if (SetupParametersAllowedByMessage(parameters, perspective_,
-                                      using_webtrans_) != MoqtError::kNoError) {
-    QUICHE_BUG(QUICHE_BUG_invalid_setup_parameters)
-        << "Invalid setup parameters for "
+bool MoqtFramer::FillAndValidateSetupOptions(const SetupOptions& options,
+                                             KeyValuePairList& out) {
+  if (SetupOptionsAllowedByMessage(options, perspective_, using_webtrans_) !=
+      MoqtError::kNoError) {
+    QUICHE_BUG(QUICHE_BUG_invalid_setup_options)
+        << "Invalid setup options for "
         << MoqtMessageTypeToString(MoqtMessageType::kSetup);
     return false;
   }
-  out = parameters.ToKeyValuePairList();
+  out = options.ToKeyValuePairList();
   return true;
 }
 

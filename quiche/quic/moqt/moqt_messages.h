@@ -235,7 +235,7 @@ struct SubgroupPriority {
 };
 
 struct QUICHE_EXPORT MoqtSetup {
-  SetupParameters parameters;
+  SetupOptions options;
 };
 
 // These codes do not appear on the wire.
@@ -499,9 +499,9 @@ struct QUICHE_EXPORT MoqtObjectAck {
 };
 
 // Returns false if the parameters cannot be in |message type|.
-MoqtError SetupParametersAllowedByMessage(const SetupParameters& parameters,
-                                          quic::Perspective sender_perspective,
-                                          bool webtrans);
+MoqtError SetupOptionsAllowedByMessage(const SetupOptions& options,
+                                       quic::Perspective sender_perspective,
+                                       bool webtrans);
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);
 std::string MoqtDataStreamTypeToString(MoqtDataStreamType type);

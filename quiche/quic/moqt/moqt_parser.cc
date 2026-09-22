@@ -178,8 +178,8 @@ absl::Status ParseKeyValuePairListWithNoPrefix(quic::QuicDataReader& reader,
   return absl::OkStatus();
 }
 
-bool ParseAuthTokenParameter(absl::string_view field,
-                             std::vector<AuthToken>& out) {
+bool ParseAuthTokenOption(absl::string_view field,
+                          std::vector<AuthToken>& out) {
   quic::QuicDataReader reader(field);
   AuthTokenAliasType alias_type;
   uint64_t alias;
@@ -267,24 +267,23 @@ absl::Status ParseSubscriptionFilter(absl::string_view field,
 
 }  // namespace
 
-absl::Status SetupParameters::FromKeyValuePairList(
-    const KeyValuePairList& list) {
+absl::Status SetupOptions::FromKeyValuePairList(const KeyValuePairList& list) {
   absl::Status status = absl::OkStatus();
   uint64_t last_key;
   bool result = list.ForEach(
       [&](uint64_t key, std::variant<uint64_t, absl::string_view> value) {
         last_key = key;
-        switch (static_cast<SetupParameter>(key)) {
-          case SetupParameter::kMaxAuthTokenCacheSize:
+        switch (static_cast<SetupOption>(key)) {
+          case SetupOption::kMaxAuthTokenCacheSize:
             if (max_auth_token_cache_size.has_value()) {
-              status = absl::InvalidArgumentError("Duplicate Setup Parameter");
+              status = absl::InvalidArgumentError("Duplicate Setup Option");
               return false;
             }
             max_auth_token_cache_size = std::get<uint64_t>(value);
             break;
-          case SetupParameter::kPath:
+          case SetupOption::kPath:
             if (path.has_value()) {
-              status = absl::InvalidArgumentError("Duplicate Setup Parameter");
+              status = absl::InvalidArgumentError("Duplicate Setup Option");
               return false;
             }
             if (!http2::adapter::HeaderValidator::IsValidPath(
@@ -296,14 +295,14 @@ absl::Status SetupParameters::FromKeyValuePairList(
             }
             path = std::get<absl::string_view>(value);
             break;
-          case SetupParameter::kAuthorizationToken:
-            if (!ParseAuthTokenParameter(std::get<absl::string_view>(value),
-                                         authorization_tokens)) {
-              status = KeyValueFormatError("Malformed auth token parameter");
+          case SetupOption::kAuthorizationToken:
+            if (!ParseAuthTokenOption(std::get<absl::string_view>(value),
+                                      authorization_tokens)) {
+              status = KeyValueFormatError("Malformed auth token option");
               return false;
             }
             break;
-          case SetupParameter::kAuthority:
+          case SetupOption::kAuthority:
             if (!http2::adapter::HeaderValidator::IsValidAuthority(
                     std::get<absl::string_view>(value))) {
               status = MoqtErrorStatusWithCode("Invalid authority field",
@@ -312,18 +311,18 @@ absl::Status SetupParameters::FromKeyValuePairList(
             }
             authority = std::get<absl::string_view>(value);
             break;
-          case SetupParameter::kMoqtImplementation:
+          case SetupOption::kMoqtImplementation:
             if (moqt_implementation.has_value()) {
-              status = absl::InvalidArgumentError("Duplicate Setup Parameter");
+              status = absl::InvalidArgumentError("Duplicate Setup Option");
               return false;
             }
             QUICHE_LOG(INFO) << "Peer MOQT implementation: "
                              << std::get<absl::string_view>(value);
             moqt_implementation = std::get<absl::string_view>(value);
             break;
-          case SetupParameter::kSupportObjectAcks:
+          case SetupOption::kSupportObjectAcks:
             if (support_object_acks.has_value()) {
-              status = absl::InvalidArgumentError("Duplicate Setup Parameter");
+              status = absl::InvalidArgumentError("Duplicate Setup Option");
               return false;
             }
             if (std::get<uint64_t>(value) > 1) {
@@ -340,7 +339,7 @@ absl::Status SetupParameters::FromKeyValuePairList(
       });
   if (!result && status.ok()) {
     return absl::InvalidArgumentError(
-        absl::StrCat("Failed to parse the value for the setup parameter key 0x",
+        absl::StrCat("Failed to parse the value for the Setup Option key 0x",
                      absl::Hex(static_cast<uint64_t>(last_key))));
   }
   return status;
@@ -369,8 +368,8 @@ absl::Status MessageParameters::FromKeyValuePairList(
                 .value_or(quic::QuicTimeDelta::Infinite());
         break;
       case MessageParameter::kAuthorizationToken:
-        if (!ParseAuthTokenParameter(std::get<absl::string_view>(value),
-                                     authorization_tokens)) {
+        if (!ParseAuthTokenOption(std::get<absl::string_view>(value),
+                                  authorization_tokens)) {
           status = KeyValueFormatError("Malformed auth token parameter");
           return false;
         }
@@ -638,10 +637,9 @@ absl::StatusOr<MoqtSetup> MoqtControlMessageParser::ProcessSetup(
     absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtSetup setup;
-  KeyValuePairList parameters;
-  QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(reader, parameters));
-  QUICHE_RETURN_IF_ERROR(
-      FillAndValidateSetupParameters(parameters, setup.parameters));
+  KeyValuePairList options;
+  QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(reader, options));
+  QUICHE_RETURN_IF_ERROR(FillAndValidateSetupOptions(options, setup.options));
   // TODO(martinduke): Validate construction of the PATH (Sec 8.3.2.1)
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return setup;
@@ -1003,13 +1001,13 @@ absl::Status MoqtControlMessageParser::ReadFullTrackName(
   return absl::OkStatus();
 }
 
-absl::Status MoqtControlMessageParser::FillAndValidateSetupParameters(
-    const KeyValuePairList& in, SetupParameters& out) const {
+absl::Status MoqtControlMessageParser::FillAndValidateSetupOptions(
+    const KeyValuePairList& in, SetupOptions& out) const {
   QUICHE_RETURN_IF_ERROR(out.FromKeyValuePairList(in));
-  MoqtError error = SetupParametersAllowedByMessage(
+  MoqtError error = SetupOptionsAllowedByMessage(
       out, FlipPerspective(perspective_), uses_web_transport_);
   if (error != MoqtError::kNoError) {
-    return MoqtErrorStatusWithCode("Setup parameter parsing error", error);
+    return MoqtErrorStatusWithCode("Setup option parsing error", error);
   }
   return absl::OkStatus();
 }

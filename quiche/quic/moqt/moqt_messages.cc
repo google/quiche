@@ -24,15 +24,15 @@ MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
   return static_cast<MoqtObjectStatus>(integer);
 }
 
-MoqtError SetupParametersAllowedByMessage(const SetupParameters& parameters,
-                                          quic::Perspective sender_perspective,
-                                          bool webtrans) {
+MoqtError SetupOptionsAllowedByMessage(const SetupOptions& options,
+                                       quic::Perspective sender_perspective,
+                                       bool webtrans) {
   bool should_have_path_and_authority =
       !webtrans && sender_perspective == quic::Perspective::IS_CLIENT;
-  if (should_have_path_and_authority != parameters.path.has_value()) {
+  if (should_have_path_and_authority != options.path.has_value()) {
     return MoqtError::kInvalidPath;
   }
-  if (should_have_path_and_authority != parameters.authority.has_value()) {
+  if (should_have_path_and_authority != options.authority.has_value()) {
     return MoqtError::kInvalidAuthority;
   }
   return MoqtError::kNoError;

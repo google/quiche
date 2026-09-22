@@ -75,8 +75,8 @@ class QUICHE_EXPORT MoqtFramer {
 
  private:
   // Returns true if the parameters are valid for the message type.
-  bool FillAndValidateSetupParameters(const SetupParameters& parameters,
-                                      KeyValuePairList& out);
+  bool FillAndValidateSetupOptions(const SetupOptions& options,
+                                   KeyValuePairList& out);
   // Returns true if the metadata is internally consistent.
   static bool ValidateObjectMetadata(const MoqtObject& object);
   const bool using_webtrans_;

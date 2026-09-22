@@ -64,7 +64,7 @@ struct QUICHE_EXPORT MoqtSessionParameters {
 
   // Takes the relevant fields from this object and populates |out| if not the
   // protocol default value.
-  void ToSetupParameters(SetupParameters& out) const;
+  void ToSetupOptions(SetupOptions& out) const;
 };
 
 class MoqtSessionInterface {

@@ -407,7 +407,7 @@ TEST_F(MoqtSessionTest, OnClientSetup) {
   MoqtFramer framer(session_parameters.using_webtrans,
                     quic::Perspective::IS_CLIENT);
   MoqtSetup setup;
-  session_parameters.ToSetupParameters(setup.parameters);
+  session_parameters.ToSetupOptions(setup.options);
   quiche::QuicheBuffer buffer = framer.SerializeSetup(setup);
   in_memory_stream.Receive(absl::string_view(buffer.data(), buffer.size()),
                            /*fin=*/false);
@@ -430,7 +430,7 @@ TEST_F(MoqtSessionTest, DuplicateSetup) {
   MoqtFramer framer(session_parameters.using_webtrans,
                     quic::Perspective::IS_CLIENT);
   MoqtSetup setup;
-  session_parameters.ToSetupParameters(setup.parameters);
+  session_parameters.ToSetupOptions(setup.options);
   quiche::QuicheBuffer buffer = framer.SerializeSetup(setup);
   in_memory_stream.Receive(absl::string_view(buffer.data(), buffer.size()),
                            /*fin=*/false);
@@ -464,7 +464,7 @@ TEST_F(MoqtSessionTest, TwoStreamsStartWithSetup) {
   MoqtFramer framer(session_parameters.using_webtrans,
                     quic::Perspective::IS_CLIENT);
   MoqtSetup setup;
-  session_parameters.ToSetupParameters(setup.parameters);
+  session_parameters.ToSetupOptions(setup.options);
   quiche::QuicheBuffer buffer = framer.SerializeSetup(setup);
 
   stream1.Receive(absl::string_view(buffer.data(), buffer.size()),
@@ -2390,7 +2390,7 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusBeforeSetup) {
   // Receive CLIENT_SETUP on an incoming unidirectional stream.
   webtransport::test::InMemoryStreamWithWriteBuffer control_stream(1);
   MoqtSetup setup;
-  session_parameters.ToSetupParameters(setup.parameters);
+  session_parameters.ToSetupOptions(setup.options);
   quiche::QuicheBuffer setup_buffer = client_framer.SerializeSetup(setup);
   control_stream.Receive(
       absl::string_view(setup_buffer.data(), setup_buffer.size()),

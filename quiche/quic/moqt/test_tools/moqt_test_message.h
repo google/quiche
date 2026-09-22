@@ -602,13 +602,13 @@ class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
 class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
  public:
   explicit ClientSetupMessage(bool webtrans) : TestMessageBase() {
-    client_setup_.parameters.moqt_implementation = kTestImplementationString;
+    client_setup_.options.moqt_implementation = kTestImplementationString;
     if (webtrans) {
       // Should not send PATH or AUTHORITY.
-      client_setup_.parameters.path = std::nullopt;
-      client_setup_.parameters.authority = std::nullopt;
+      client_setup_.options.path = std::nullopt;
+      client_setup_.options.authority = std::nullopt;
       raw_packet_[3] -= 17;   // adjust payload length
-      raw_packet_[4] = 0x01;  // only one parameter
+      raw_packet_[4] = 0x01;  // only one option
       // Move MoqtImplementation up in the packet.
       memmove(raw_packet_ + 5, raw_packet_ + 22,
               kTestImplementationString.length() + 2);
@@ -621,15 +621,15 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSetup>(values);
-    if (cast.parameters != client_setup_.parameters) {
-      QUIC_LOG(INFO) << "CLIENT_SETUP parameter mismatch";
+    if (cast.options != client_setup_.options) {
+      QUIC_LOG(INFO) << "CLIENT_SETUP option mismatch";
       return false;
     }
     return true;
   }
 
   void ExpandVarints() override {
-    if (client_setup_.parameters.path.has_value()) {
+    if (client_setup_.options.path.has_value()) {
       ExpandVarintsImpl("vvv----vv---------vv---------------------------");
     } else {
       ExpandVarintsImpl("vvv---------------------------");
@@ -641,13 +641,13 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   }
 
  private:
-  // The framer serializes all the integer parameters in order, then all the
-  // string parameters in order. Unfortunately, this means that
+  // The framer serializes all the integer options in order, then all the
+  // string options in order. Unfortunately, this means that
   // kMoqtImplementation goes last even though it is always present, while
   // kPath and KAuthority aren't.
   uint8_t raw_packet_[52] = {
       0xaf, 0x00, 0x00, 0x30,              // type, length
-      0x03,                                // 3 parameters
+      0x03,                                // 3 options
       0x01, 0x04, 0x70, 0x61, 0x74, 0x68,  // path = "path"
       0x04, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74,
       0x79,  // authority = "authority"
@@ -656,21 +656,21 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       0x6d, 0x70, 0x6c, 0x65, 0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
       0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
   MoqtSetup client_setup_ = {
-      SetupParameters("path", "authority"),
+      SetupOptions("path", "authority"),
   };
 };
 
 class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
  public:
   ServerSetupMessage() : TestMessageBase() {
-    server_setup_.parameters.moqt_implementation = kTestImplementationString;
+    server_setup_.options.moqt_implementation = kTestImplementationString;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtSetup>(values);
-    if (cast.parameters != server_setup_.parameters) {
-      QUIC_LOG(INFO) << "SERVER_SETUP parameter mismatch";
+    if (cast.options != server_setup_.options) {
+      QUIC_LOG(INFO) << "SERVER_SETUP option mismatch";
       return false;
     }
     return true;
@@ -684,14 +684,14 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[35] = {0xaf, 0x00, 0x00, 0x1f,  // type, length
-                             0x01,                    // one parameter
+                             0x01,                    // one option
                              // moqt_implementation:
                              0x07, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65,
                              0x73, 0x74, 0x20, 0x49, 0x6d, 0x70, 0x6c, 0x65,
                              0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
                              0x6e, 0x20, 0x54, 0x79, 0x70, 0x65};
   MoqtSetup server_setup_ = {
-      SetupParameters(),
+      SetupOptions(),
   };
 };
 

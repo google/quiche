@@ -144,7 +144,7 @@ void MoqtSession::OnSessionReady() {
   trace_recorder_.RecordControlStreamCreated(stream->GetStreamId());
   stream->SetVisitor(std::move(control_stream));
   MoqtSetup setup;
-  parameters_.ToSetupParameters(setup.parameters);
+  parameters_.ToSetupOptions(setup.options);
   SendControlMessage(framer_.SerializeSetup(setup));
   QUIC_DLOG(INFO) << ENDPOINT << "Send SETUP";
 }
@@ -1320,8 +1320,8 @@ absl::Status MoqtSession::OnControlMessage(const MoqtSetup& message) {
     return absl::InvalidArgumentError("Duplicate SETUP message");
   }
   peer_setup_received_ = true;
-  peer_supports_object_ack_ = message.parameters.support_object_acks.value_or(
-      kDefaultSupportObjectAcks);
+  peer_supports_object_ack_ =
+      message.options.support_object_acks.value_or(kDefaultSupportObjectAcks);
   QUIC_DLOG(INFO) << ENDPOINT << "Received the SETUP message";
   // TODO: handle path.
   if (callbacks_.session_established_callback != nullptr) {
@@ -1399,7 +1399,7 @@ void MoqtSession::CleanUpState() {
   }
 }
 
-void MoqtSessionParameters::ToSetupParameters(SetupParameters& out) const {
+void MoqtSessionParameters::ToSetupOptions(SetupOptions& out) const {
   if (perspective == quic::Perspective::IS_CLIENT && !using_webtrans) {
     out.path = path;
     out.authority = authority;

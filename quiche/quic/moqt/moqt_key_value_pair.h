@@ -155,11 +155,11 @@ class QUICHE_EXPORT SubscriptionFilter {
   uint64_t end_group_ = kMaxGroupId;
 };
 
-// Setup parameters.
+// Setup Options.
 // TODO(martinduke): Implement an auth token cache.
 inline constexpr uint64_t kDefaultMaxAuthTokenCacheSize = 0;
 inline constexpr bool kDefaultSupportObjectAcks = false;
-enum class QUICHE_EXPORT SetupParameter : uint64_t {
+enum class QUICHE_EXPORT SetupOption : uint64_t {
   kPath = 0x1,
   kAuthorizationToken = 0x3,
   kMaxAuthTokenCacheSize = 0x4,
@@ -171,10 +171,10 @@ enum class QUICHE_EXPORT SetupParameter : uint64_t {
   kSupportObjectAcks = 0xbbf1438,
 };
 // TODO(martinduke): Refactor this to be more like TrackProperties.
-struct QUICHE_EXPORT SetupParameters {
-  SetupParameters() = default;
+struct QUICHE_EXPORT SetupOptions {
+  SetupOptions() = default;
   // Constructors for tests.
-  SetupParameters(absl::string_view path, absl::string_view authority)
+  SetupOptions(absl::string_view path, absl::string_view authority)
       : path(path), authority(authority) {}
 
   std::optional<std::string> path;
@@ -185,7 +185,7 @@ struct QUICHE_EXPORT SetupParameters {
   std::optional<std::string> moqt_implementation;
 
   std::optional<bool> support_object_acks;
-  bool operator==(const SetupParameters& other) const = default;
+  bool operator==(const SetupOptions& other) const = default;
   // Defined in moqt_framer.cc.
   KeyValuePairList ToKeyValuePairList() const;
   // Defined in moqt_parser.cc.

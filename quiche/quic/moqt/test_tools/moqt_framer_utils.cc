@@ -88,7 +88,7 @@ std::string SerializeGenericMessage(const AnyMoqtControlMessage& frame,
   quic::Perspective perspective = quic::Perspective::IS_CLIENT;
   if (std::holds_alternative<MoqtSetup>(frame)) {
     const MoqtSetup& setup = std::get<MoqtSetup>(frame);
-    if (!use_webtrans && !setup.parameters.path.has_value()) {
+    if (!use_webtrans && !setup.options.path.has_value()) {
       perspective = quic::Perspective::IS_SERVER;
     }
   }
