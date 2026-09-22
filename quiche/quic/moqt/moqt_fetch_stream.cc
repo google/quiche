@@ -140,6 +140,16 @@ absl::Status MoqtFetchRequestStream::OnControlMessage(
   if (response_callback_ == nullptr) {
     return absl::InvalidArgumentError("Multiple FETCH_OK on the same stream");
   }
+  absl::Status mandatory_property_status =
+      message.properties.CheckForUnknownMandatoryProperty();
+  if (!mandatory_property_status.ok()) {
+    FetchResponseCallback response_callback = std::move(response_callback_);
+    response_callback_ = nullptr;
+    Reset(kResetCodeCancelled);
+    std::move(response_callback)(
+        StatusToMoqtRequestError(mandatory_property_status));
+    return absl::OkStatus();
+  }
   QUIC_DLOG(INFO) << "Received the FETCH_OK for " << full_track_name();
   if (relative_groups_.has_value() &&
       (*relative_groups_ < message.end_location.group)) {

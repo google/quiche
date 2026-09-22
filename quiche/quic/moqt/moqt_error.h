@@ -75,6 +75,7 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kNamespacePrefixUnknown = 0x21,
   kPrefixOverlap = 0x30,
   kInvalidJoiningRequestId = 0x32,
+  kUnsupportedExtension = 0x33,
 };
 
 enum class QUICHE_EXPORT PublishDoneCode : uint64_t {
@@ -100,6 +101,7 @@ RequestErrorCode StatusToRequestErrorCode(absl::Status status);
 absl::StatusCode RequestErrorCodeToStatusCode(RequestErrorCode error_code);
 absl::Status RequestErrorCodeToStatus(RequestErrorCode error_code,
                                       absl::string_view reason_phrase);
+MoqtRequestErrorInfo StatusToMoqtRequestError(absl::Status status);
 
 absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
                                      absl::string_view reason_phrase);

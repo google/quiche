@@ -38,6 +38,8 @@ RequestErrorCode StatusToRequestErrorCode(absl::Status status) {
       return RequestErrorCode::kInvalidJoiningRequestId;
     case absl::StatusCode::kUnauthenticated:
       return RequestErrorCode::kExpiredAuthToken;
+    case absl::StatusCode::kFailedPrecondition:
+      return RequestErrorCode::kUnsupportedExtension;
     default:
       return RequestErrorCode::kInternalError;
   }
@@ -62,6 +64,8 @@ absl::StatusCode RequestErrorCodeToStatusCode(RequestErrorCode error_code) {
       return absl::StatusCode::kInvalidArgument;
     case RequestErrorCode::kExpiredAuthToken:
       return absl::StatusCode::kUnauthenticated;
+    case RequestErrorCode::kUnsupportedExtension:
+      return absl::StatusCode::kFailedPrecondition;
     default:
       return absl::StatusCode::kUnknown;
   }
@@ -92,6 +96,12 @@ absl::Status MoqtStreamErrorToStatus(webtransport::StreamErrorCode error_code,
     default:
       return absl::UnknownError(reason_phrase);
   }
+}
+
+MoqtRequestErrorInfo StatusToMoqtRequestError(absl::Status status) {
+  return MoqtRequestErrorInfo(StatusToRequestErrorCode(status),
+                              /*retry_interval=*/std::nullopt,
+                              std::string(status.message()));
 }
 
 webtransport::StreamErrorCode StatusToMoqtStreamError(absl::Status status) {

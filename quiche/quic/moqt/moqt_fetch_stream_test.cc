@@ -248,6 +248,25 @@ TEST_F(MoqtFetchRequestStreamTest, OnControlMessageFetchOk) {
   EXPECT_FALSE(stream->InWindow(Location(3, 51)));
 }
 
+TEST_F(MoqtFetchRequestStreamTest,
+       OnControlMessageFetchOkWithUnknownMandatoryProperty) {
+  std::unique_ptr<MoqtFetchRequestStream> stream =
+      CreateAndBindStandaloneStream();
+  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeCancelled));
+  EXPECT_CALL(delete_callback_, Call(kRequestId));
+  EXPECT_CALL(task_, OnStreamAndFetchClosed);
+  EXPECT_CALL(response_callback_,
+              Call(testing::VariantWith<MoqtRequestErrorInfo>(
+                  MoqtRequestErrorInfo{RequestErrorCode::kUnsupportedExtension,
+                                       /*retry_interval=*/std::nullopt,
+                                       "Unknown mandatory property: 0x4000"})));
+  MoqtFetchOk ok_message;
+  ok_message.end_location = Location(3, 50);
+  ok_message.end_of_track = true;
+  ok_message.properties.insert(kMinMandatoryTrackProperty, 1ULL);
+  QUICHE_EXPECT_OK(stream->OnControlMessage(ok_message));
+}
+
 TEST_F(MoqtFetchRequestStreamTest, OnControlMessageDuplicateFetchOk) {
   std::unique_ptr<MoqtFetchRequestStream> stream =
       CreateAndBindStandaloneStream();

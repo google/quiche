@@ -362,4 +362,46 @@ TEST_F(TrackPropertiesTest, Validate) {
   EXPECT_FALSE(properties.Validate());
 }
 
+TEST_F(TrackPropertiesTest, CheckForUnknownMandatoryProperty) {
+  TrackProperties properties;
+  QUICHE_EXPECT_OK(properties.CheckForUnknownMandatoryProperty());
+
+  // Non-mandatory property types (< 0x4000).
+  properties.insert(static_cast<uint64_t>(PropertyType::kDeliveryTimeout),
+                    5ULL);
+  properties.insert(0x3FFE, 1ULL);
+  properties.insert(0x3FFF, "odd_optional");
+  QUICHE_EXPECT_OK(properties.CheckForUnknownMandatoryProperty());
+
+  // Non-mandatory property types (> 0x7FFF).
+  properties.insert(0x8000, 2ULL);
+  properties.insert(0x8001, "above_range");
+  properties.insert(0x10000, 3ULL);
+  QUICHE_EXPECT_OK(properties.CheckForUnknownMandatoryProperty());
+
+  // Min boundary: 0x4000.
+  TrackProperties min_mandatory;
+  min_mandatory.insert(kMinMandatoryTrackProperty, 0ULL);
+  EXPECT_TRUE(
+      IsFailedPrecondition(min_mandatory.CheckForUnknownMandatoryProperty()));
+  EXPECT_EQ(min_mandatory.CheckForUnknownMandatoryProperty().message(),
+            "Unknown mandatory property: 0x4000");
+
+  // Max boundary: 0x7FFF.
+  TrackProperties max_mandatory;
+  max_mandatory.insert(kMaxMandatoryTrackProperty, "mandatory_string");
+  EXPECT_TRUE(
+      IsFailedPrecondition(max_mandatory.CheckForUnknownMandatoryProperty()));
+  EXPECT_EQ(max_mandatory.CheckForUnknownMandatoryProperty().message(),
+            "Unknown mandatory property: 0x7fff");
+
+  // In between.
+  TrackProperties mid_mandatory;
+  mid_mandatory.insert(0x5000, 42ULL);
+  EXPECT_TRUE(
+      IsFailedPrecondition(mid_mandatory.CheckForUnknownMandatoryProperty()));
+  EXPECT_EQ(mid_mandatory.CheckForUnknownMandatoryProperty().message(),
+            "Unknown mandatory property: 0x5000");
+}
+
 }  // namespace moqt::test

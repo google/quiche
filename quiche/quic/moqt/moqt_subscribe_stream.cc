@@ -66,6 +66,28 @@ absl::Status MoqtSubscribeRequestStream::OnControlMessage(
     return absl::InvalidArgumentError(
         "Multiple SUBSCRIBE_OK on the same stream");
   }
+  absl::Status mandatory_property_status =
+      message.properties.CheckForUnknownMandatoryProperty();
+  if (!mandatory_property_status.ok()) {
+    add_callback_ = nullptr;
+    // Save everything before Reset() destroys track_.
+    bool error_allowed = track_->ErrorIsAllowed();
+    SubscribeVisitor* visitor = track_->visitor();
+    FullTrackName track_name = track_->full_track_name();
+    Reset(kResetCodeCancelled);
+    if (!error_allowed) {
+      QUICHE_BUG(moqt_bug_object_before_subscribe_ok)
+          << "An object was delivered before SUBSCRIBE_OK provided the track "
+             "alias";
+      return absl::OkStatus();
+    }
+    if (visitor != nullptr) {
+      // It's too late to deliver REQUEST_ERROR if an object already arrived
+      visitor->OnReply(track_name,
+                       StatusToMoqtRequestError(mandatory_property_status));
+    }
+    return absl::OkStatus();
+  }
   track_->set_track_alias(message.track_alias);
   if (!std::move(add_callback_)(track_.get())) {
     add_callback_ = nullptr;

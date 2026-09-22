@@ -126,6 +126,14 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
     // Two PUBLISH messages for the same stream.
     return absl::InvalidArgumentError("Multiple PUBLISH on the same stream");
   }
+  absl::Status mandatory_property_status =
+      message.properties.CheckForUnknownMandatoryProperty();
+  if (!mandatory_property_status.ok()) {
+    add_callback_ = nullptr;
+    remove_callback_ = nullptr;
+    return SendRequestError(
+        StatusToMoqtRequestError(mandatory_property_status));
+  }
   subscriber_ = std::make_unique<LiveSubscriber>(message, nullptr, this);
   if (!std::move(add_callback_)(subscriber_.get())) {
     add_callback_ = nullptr;

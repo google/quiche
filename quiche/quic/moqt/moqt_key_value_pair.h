@@ -14,6 +14,7 @@
 
 #include "absl/container/btree_map.h"
 #include "absl/status/status.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -49,6 +50,18 @@ class QUICHE_EXPORT KeyValuePairList {
   void clear() { map_.clear(); }
   bool operator==(const KeyValuePairList& other) const = default;
   KeyValuePairList& operator=(const KeyValuePairList& other) = default;
+
+ protected:
+  // Returns the first key in the range [min_key, max_key], or nullopt if
+  // there is no such key.
+  std::optional<uint64_t> first_key_in_range(uint64_t min_key,
+                                             uint64_t max_key) const {
+    auto it = map_.lower_bound(min_key);
+    if (it == map_.end() || it->first > max_key) {
+      return std::nullopt;
+    }
+    return it->first;
+  }
 
  private:
   absl::btree_multimap<uint64_t, std::variant<uint64_t, std::string>> map_;
@@ -259,6 +272,8 @@ inline constexpr bool kDefaultImmutableProperties = false;
 inline constexpr MoqtDeliveryOrder kDefaultGroupOrder =
     MoqtDeliveryOrder::kAscending;
 inline constexpr bool kDefaultDynamicGroups = false;
+inline constexpr uint64_t kMinMandatoryTrackProperty = 0x4000;
+inline constexpr uint64_t kMaxMandatoryTrackProperty = 0x7FFF;
 class TrackProperties : public KeyValuePairList {
  public:
   TrackProperties() = default;
@@ -284,6 +299,16 @@ class TrackProperties : public KeyValuePairList {
   // Returns false if the property list contains illegal values or illegally
   // duplicated properties.
   bool Validate() const;
+  // Returns OK if there are no unknown mandatory properties. Otherwise, returns
+  // an error.
+  absl::Status CheckForUnknownMandatoryProperty() const {
+    std::optional<uint64_t> key = first_key_in_range(
+        kMinMandatoryTrackProperty, kMaxMandatoryTrackProperty);
+    return !key.has_value()
+               ? absl::OkStatus()
+               : absl::FailedPreconditionError(absl::StrCat(
+                     "Unknown mandatory property: 0x", absl::Hex(*key)));
+  }
   bool operator==(const TrackProperties& other) const = default;
   TrackProperties& operator=(const TrackProperties& other) = default;
 

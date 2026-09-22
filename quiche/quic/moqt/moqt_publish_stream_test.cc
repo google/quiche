@@ -365,6 +365,20 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishWithDynamicGroups) {
   EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone);
 }
 
+TEST_F(MoqtPublishResponseStreamTest,
+       ReceivePublishWithUnknownMandatoryProperty) {
+  MoqtPublish publish = DefaultPublish();
+  publish.properties.insert(kMinMandatoryTrackProperty, 1ULL);
+  EXPECT_CALL(incoming_publish_callback_mock_, Call).Times(0);
+  EXPECT_CALL(mock_add_callback_, Call).Times(0);
+  MoqtRequestError expected_error{RequestErrorCode::kUnsupportedExtension,
+                                  /*retry_interval=*/std::nullopt,
+                                  "Unknown mandatory property: 0x4000"};
+  EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_error), _))
+      .WillOnce(Return(absl::OkStatus()));
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
+}
+
 TEST_F(MoqtPublishResponseStreamTest, ReceivePublishAndReject) {
   MoqtPublish publish = DefaultPublish();
   // Callback returns nullptr (rejection).

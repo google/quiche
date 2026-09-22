@@ -99,6 +99,27 @@ TEST_F(MoqtSubscribeRequestStreamTest, ReceiveSubscribeOk) {
   EXPECT_CALL(mock_remove_callback_, Call);
 }
 
+TEST_F(MoqtSubscribeRequestStreamTest,
+       ReceiveSubscribeOkWithUnknownMandatoryProperty) {
+  EXPECT_CALL(mock_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _))
+      .WillOnce(Return(absl::OkStatus()));
+  stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_add_callback_, Call).Times(0);
+  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeCancelled));
+  EXPECT_CALL(mock_remove_callback_, Call);
+  EXPECT_CALL(
+      mock_subscribe_visitor_,
+      OnReply(track_name_,
+              testing::VariantWith<MoqtRequestErrorInfo>(
+                  MoqtRequestErrorInfo{RequestErrorCode::kUnsupportedExtension,
+                                       /*retry_interval=*/std::nullopt,
+                                       "Unknown mandatory property: 0x4000"})));
+  MoqtSubscribeOk subscribe_ok(kTrackAlias);
+  subscribe_ok.properties.insert(kMinMandatoryTrackProperty, 1ULL);
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(subscribe_ok));
+}
+
 TEST_F(MoqtSubscribeRequestStreamTest, ReceiveSubscribeOkAliasDuplicate) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _))
