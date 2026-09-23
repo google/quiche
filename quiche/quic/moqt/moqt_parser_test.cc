@@ -1298,10 +1298,10 @@ TEST_F(MoqtMessageSpecificTest, DatagramSuccessful) {
     ObjectDatagramMessage message(datagram_type);
     MoqtObject object;
     bool use_default_priority;
-    std::optional<absl::string_view> payload =
+    absl::StatusOr<absl::string_view> payload =
         ParseDatagram(message.PacketSample(), object, use_default_priority);
+    QUICHE_ASSERT_OK(payload);
     EXPECT_EQ(use_default_priority, datagram_type.has_default_priority());
-    ASSERT_TRUE(payload.has_value());
     if (use_default_priority) {
       object.publisher_priority = message.publisher_priority();
     }
@@ -1309,9 +1309,9 @@ TEST_F(MoqtMessageSpecificTest, DatagramSuccessful) {
         TestMessageBase::MessageStructuredData(object);
     EXPECT_TRUE(message.EqualFieldValues(object_metadata));
     if (datagram_type.has_status()) {
-      EXPECT_EQ(payload, "");
+      EXPECT_TRUE(payload->empty());
     } else {
-      EXPECT_EQ(payload, "foo");
+      EXPECT_EQ(*payload, "foo");
     }
   }
 }
@@ -1322,10 +1322,10 @@ TEST_F(MoqtMessageSpecificTest, DatagramSuccessfulExpandVarints) {
     message.ExpandVarints();
     MoqtObject object;
     bool check_priority;
-    std::optional<absl::string_view> payload =
+    absl::StatusOr<absl::string_view> payload =
         ParseDatagram(message.PacketSample(), object, check_priority);
+    QUICHE_ASSERT_OK(payload);
     EXPECT_EQ(check_priority, datagram_type.has_default_priority());
-    ASSERT_TRUE(payload.has_value());
     if (check_priority) {
       object.publisher_priority = message.publisher_priority();
     }
@@ -1333,9 +1333,9 @@ TEST_F(MoqtMessageSpecificTest, DatagramSuccessfulExpandVarints) {
         TestMessageBase::MessageStructuredData(object);
     EXPECT_TRUE(message.EqualFieldValues(object_metadata));
     if (datagram_type.has_status()) {
-      EXPECT_EQ(payload, "");
+      EXPECT_TRUE(payload->empty());
     } else {
-      EXPECT_EQ(payload, "foo");
+      EXPECT_EQ(*payload, "foo");
     }
   }
 }
@@ -1344,9 +1344,10 @@ TEST_F(MoqtMessageSpecificTest, WrongMessageInDatagram) {
   char payload[] = {0x33, 0x10, 0x20};
   MoqtObject object;
   bool check_priority;
-  EXPECT_EQ(ParseDatagram(absl::string_view(payload, sizeof(payload)), object,
-                          check_priority),
-            std::nullopt);
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      ParseDatagram(absl::string_view(payload, sizeof(payload)), object,
+                    check_priority)
+          .status()));
 }
 
 TEST_F(MoqtMessageSpecificTest, TruncatedDatagram) {
@@ -1355,17 +1356,17 @@ TEST_F(MoqtMessageSpecificTest, TruncatedDatagram) {
   message.set_wire_image_size(4);
   MoqtObject object;
   bool check_priority;
-  EXPECT_EQ(ParseDatagram(message.PacketSample(), object, check_priority),
-            std::nullopt);
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      ParseDatagram(message.PacketSample(), object, check_priority).status()));
 }
 
 TEST_F(MoqtMessageSpecificTest, VeryTruncatedDatagram) {
   char message = 0x40;
   MoqtObject object;
   bool check_priority;
-  EXPECT_EQ(ParseDatagram(absl::string_view(&message, sizeof(message)), object,
-                          check_priority),
-            std::nullopt);
+  EXPECT_TRUE(absl::IsInvalidArgument(
+      ParseDatagram(absl::string_view(&message, 1), object, check_priority)
+          .status()));
 }
 
 TEST_F(MoqtMessageSpecificTest, SubscribeOkInvalidDeliveryOrder) {
@@ -1432,21 +1433,6 @@ TEST_F(MoqtMessageSpecificTest, FetchInvalidRange2) {
             MoqtError::kProtocolViolation);
   EXPECT_THAT(parsed.status().message(),
               HasSubstr("End object comes before start object in FETCH"));
-}
-
-TEST_F(MoqtMessageSpecificTest, PaddingStream) {
-  MoqtParserTestVisitor visitor;
-  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
-  MoqtDataParser parser(&stream, &visitor);
-  std::string buffer(32, '\0');
-  quic::QuicDataWriter writer(buffer.size(), buffer.data());
-  ASSERT_TRUE(writer.WriteMoqVarInt(MoqtDataStreamType::Padding().value()));
-  for (int i = 0; i < 100; ++i) {
-    stream.Receive(buffer, false);
-    parser.ReadAllData();
-    ASSERT_EQ(visitor.messages_received(), 0);
-    ASSERT_EQ(visitor.parsing_error(), std::nullopt);
-  }
 }
 
 // All messages with TrackNamespace use ReadTrackNamespace. Use
@@ -1874,10 +1860,12 @@ TEST_F(MoqtMessageSpecificTest, StreamTypeParserFinAfterType) {
 TEST_F(MoqtMessageSpecificTest, StreamTypeParserFinForPadding) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtStreamTypeParser type_parser(&stream);
-  stream.Receive("\xa6\xd3", true);
+  char buffer[16];
+  quic::QuicDataWriter writer(sizeof(buffer), buffer);
+  ASSERT_TRUE(writer.WriteMoqVarInt(kPaddingStreamType));
+  stream.Receive(writer.data(), true);
   absl::StatusOr<uint64_t> type = type_parser.ReadStreamType();
-  EXPECT_THAT(
-      type, IsOkAndHolds(static_cast<uint64_t>(MoqtDataStreamType::kPadding)));
+  EXPECT_THAT(type, IsOkAndHolds(kPaddingStreamType));
 }
 
 TEST_F(MoqtMessageSpecificTest, StreamTypeParserMovedFrom) {

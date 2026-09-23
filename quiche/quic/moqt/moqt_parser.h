@@ -256,14 +256,16 @@ class MoqtControlMessageParser {
   const quic::Perspective perspective_;
 };
 
-// Parses an MoQT datagram. Returns the payload bytes, or std::nullopt on error.
+// Parses an MoQT datagram. Returns the payload bytes, or a status. If
+// NotFoundError, it's a padding datagram and can be discarded. If it's
+// InvalidArgumentError, the datagram is malformed.
 // The caller provides the whole datagram in `data`.  The function puts the
 // object metadata in `object_metadata`.
 // If |use_default_priority| returns true, there was no reported
 // publisher_priority and the caller should use the default for the SUBSCRIBE.
-std::optional<absl::string_view> ParseDatagram(absl::string_view data,
-                                               MoqtObject& object_metadata,
-                                               bool& use_default_priority);
+absl::StatusOr<absl::string_view> ParseDatagram(absl::string_view data,
+                                                MoqtObject& object_metadata,
+                                                bool& use_default_priority);
 
 // Parser for MoQT unidirectional data stream.
 class QUICHE_EXPORT MoqtDataParser {

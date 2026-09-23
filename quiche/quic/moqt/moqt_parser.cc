@@ -508,7 +508,7 @@ absl::StatusOr<uint64_t> MoqtStreamTypeParser::ReadStreamType() {
   }
   bool fin_read = false;
   std::optional<uint64_t> type = ReadMoqVarIntFromStream(*stream_, fin_read);
-  if (fin_read && type != MoqtDataStreamType::kPadding) {
+  if (fin_read && type != kPaddingStreamType) {
     // Besides padding streams, all other streams require some data after the
     // type byte.
     status_ = absl::InvalidArgumentError(
@@ -1044,37 +1044,41 @@ void MoqtDataParser::ParseError(absl::string_view reason) {
   visitor_.OnParsingError(MoqtError::kProtocolViolation, reason);
 }
 
-std::optional<absl::string_view> ParseDatagram(absl::string_view data,
-                                               MoqtObject& object_metadata,
-                                               bool& use_default_priority) {
+absl::StatusOr<absl::string_view> ParseDatagram(absl::string_view data,
+                                                MoqtObject& object_metadata,
+                                                bool& use_default_priority) {
   uint64_t type_raw, object_status_raw;
   absl::string_view properties;
   quic::QuicDataReader reader(data);
   object_metadata = MoqtObject();
-  if (!reader.ReadMoqVarInt(&type_raw) ||
-      !reader.ReadMoqVarInt(&object_metadata.track_alias) ||
-      !reader.ReadMoqVarInt(&object_metadata.group_id)) {
-    return std::nullopt;
+  if (!reader.ReadMoqVarInt(&type_raw)) {
+    return absl::InvalidArgumentError("Failed to parse datagram");
   }
-
+  if (type_raw == kPaddingDatagramType) {
+    return absl::NotFoundError("Padding datagram");
+  }
   std::optional<MoqtDatagramType> datagram_type =
       MoqtDatagramType::FromValue(type_raw);
   if (!datagram_type.has_value()) {
-    return std::nullopt;
+    return absl::InvalidArgumentError("Failed to parse datagram");
+  }
+  if (!reader.ReadMoqVarInt(&object_metadata.track_alias) ||
+      !reader.ReadMoqVarInt(&object_metadata.group_id)) {
+    return absl::InvalidArgumentError("Failed to parse datagram");
   }
   if (datagram_type->end_of_group()) {
     object_metadata.object_status = MoqtObjectStatus::kEndOfGroup;
     if (datagram_type->has_status()) {
       QUICHE_BUG(Moqt_invalid_datagram_type)
           << "Invalid datagram type: " << type_raw;
-      return std::nullopt;
+      return absl::InvalidArgumentError("Failed to parse datagram");
     }
   } else {
     object_metadata.object_status = MoqtObjectStatus::kNormal;
   }
   if (datagram_type->has_object_id()) {
     if (!reader.ReadMoqVarInt(&object_metadata.object_id)) {
-      return std::nullopt;
+      return absl::InvalidArgumentError("Failed to parse datagram");
     }
   } else {
     object_metadata.object_id = 0;
@@ -1083,22 +1087,22 @@ std::optional<absl::string_view> ParseDatagram(absl::string_view data,
   use_default_priority = datagram_type->has_default_priority();
   if (!use_default_priority &&
       !reader.ReadUInt8(&object_metadata.publisher_priority)) {
-    return std::nullopt;
+    return absl::InvalidArgumentError("Failed to parse datagram");
   }
   if (datagram_type->has_properties()) {
     if (!reader.ReadStringPieceMoqVarInt(&properties)) {
-      return std::nullopt;
+      return absl::InvalidArgumentError("Failed to parse datagram");
     }
     if (properties.empty()) {
       // This is a session error.
-      return std::nullopt;
+      return absl::InvalidArgumentError("Failed to parse datagram");
     }
     object_metadata.properties = std::string(properties);
   }
   if (datagram_type->has_status()) {
     object_metadata.payload_length = 0;
     if (!reader.ReadMoqVarInt(&object_status_raw)) {
-      return std::nullopt;
+      return absl::InvalidArgumentError("Failed to parse datagram");
     }
     object_metadata.object_status = IntegerToObjectStatus(object_status_raw);
     return "";
@@ -1567,10 +1571,6 @@ void MoqtDataParser::ProcessStreamType(uint64_t raw_type) {
     return;
   }
   type_ = *type;
-  if (type_.IsPadding()) {
-    next_input_ = kPadding;
-    return;
-  }
   if (type_.EndOfGroupInStream()) {
     contains_end_of_group_ = true;
   }

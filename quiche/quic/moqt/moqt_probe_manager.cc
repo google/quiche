@@ -75,8 +75,8 @@ void MoqtProbeManager::ProbeStreamVisitor::OnCanWrite() {
   }
 
   if (!header_sent_) {
-    absl::StatusOr<std::string> serialized_header = quiche::SerializeIntoString(
-        quiche::WireMoqVarInt(MoqtDataStreamType::Padding().value()));
+    absl::StatusOr<std::string> serialized_header =
+        quiche::SerializeIntoString(quiche::WireMoqVarInt(kPaddingStreamType));
     if (!serialized_header.ok()) {
       QUICHE_BUG(ProbeStreamVisitor_HeaderFailure)
           << "Failed to serialize the padding stream header";

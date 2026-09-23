@@ -37,10 +37,12 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 // are not buffered by the parser).
 inline constexpr size_t kMaxMessageHeaderSize = 2048;
 
+inline constexpr uint64_t kPaddingStreamType = 0x132B3E28;
+inline constexpr uint64_t kPaddingDatagramType = 0x132B3E29;
+
 class QUICHE_EXPORT MoqtDataStreamType {
  public:
   static constexpr uint64_t kFetch = 0x05;
-  static constexpr uint64_t kPadding = 0x26d3;
   static constexpr uint64_t kSubgroup = 0x10;
   static constexpr uint64_t kProperties = 0x01;
   static constexpr uint64_t kEndOfGroup = 0x08;
@@ -54,7 +56,7 @@ class QUICHE_EXPORT MoqtDataStreamType {
   // Factory functions.
   static std::optional<MoqtDataStreamType> FromValue(uint64_t value) {
     MoqtDataStreamType stream_type(value);
-    if (stream_type.IsFetch() || stream_type.IsPadding()) {
+    if (stream_type.IsFetch()) {
       return stream_type;
     }
     if (!(value & kSubgroup)) {
@@ -71,7 +73,6 @@ class QUICHE_EXPORT MoqtDataStreamType {
     return stream_type;
   }
   static MoqtDataStreamType Fetch() { return MoqtDataStreamType(kFetch); }
-  static MoqtDataStreamType Padding() { return MoqtDataStreamType(kPadding); }
   static MoqtDataStreamType Subgroup(uint64_t subgroup_id,
                                      uint64_t first_object_id,
                                      bool no_properties, bool default_priority,
@@ -102,7 +103,6 @@ class QUICHE_EXPORT MoqtDataStreamType {
   }
   MoqtDataStreamType(const MoqtDataStreamType& other) = default;
   bool IsFetch() const { return value_ == kFetch; }
-  bool IsPadding() const { return value_ == kPadding; }
   bool IsSubgroup() const { return value_ & kSubgroup; }
   bool IsSubgroupPresent() const {
     return IsSubgroup() && (value_ & kSubgroupId);

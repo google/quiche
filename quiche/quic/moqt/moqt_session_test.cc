@@ -20,6 +20,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_data_reader.h"
+#include "quiche/quic/core/quic_data_writer.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
@@ -527,6 +528,40 @@ TEST_F(MoqtSessionTest, OnIncomingUnidirectionalStream) {
   EXPECT_CALL(mock_session_, AcceptIncomingUnidirectionalStream())
       .WillOnce(Return(nullptr));
   session_.OnIncomingUnidirectionalStreamAvailable();
+}
+
+TEST_F(MoqtSessionTest, IncomingPaddingStream) {
+  webtransport::test::InMemoryStream padding_stream(/*stream_id=*/10);
+  char buffer[64];
+  quic::QuicDataWriter writer(sizeof(buffer), buffer);
+  ASSERT_TRUE(writer.WriteMoqVarInt(kPaddingStreamType));
+  ASSERT_TRUE(writer.WriteStringPiece("padding_data"));
+  padding_stream.Receive(writer.data(), true);
+  EXPECT_CALL(mock_session_, AcceptIncomingUnidirectionalStream())
+      .WillOnce(Return(&padding_stream))
+      .WillOnce(Return(nullptr));
+  session_.OnIncomingUnidirectionalStreamAvailable();
+  EXPECT_EQ(padding_stream.ReadableBytes(), 0);
+
+  padding_stream.Receive("even_more_padding", true);
+  EXPECT_EQ(padding_stream.ReadableBytes(), 0);
+}
+
+TEST_F(MoqtSessionTest, PaddingDatagramDiscarded) {
+  EXPECT_CALL(mock_session_, CloseSession).Times(0);
+  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call).Times(0);
+  EXPECT_CALL(remote_track_visitor_, OnObjectFragment).Times(0);
+
+  char buffer[64];
+  quic::QuicDataWriter writer(sizeof(buffer), buffer);
+  ASSERT_TRUE(writer.WriteMoqVarInt(kPaddingDatagramType));
+  ASSERT_TRUE(writer.WriteStringPiece("padding_data"));
+  session_.OnDatagramReceived(writer.data());
+
+  char empty_buffer[16];
+  quic::QuicDataWriter empty_writer(sizeof(empty_buffer), empty_buffer);
+  ASSERT_TRUE(empty_writer.WriteMoqVarInt(kPaddingDatagramType));
+  session_.OnDatagramReceived(empty_writer.data());
 }
 
 TEST_F(MoqtSessionTest, Error) {

@@ -285,6 +285,24 @@ class QUICHE_EXPORT IncomingDataStream : public webtransport::StreamVisitor,
   const quic::QuicClock* absl_nonnull clock_;
 };
 
+class QUICHE_EXPORT IncomingPaddingStream : public webtransport::StreamVisitor {
+ public:
+  explicit IncomingPaddingStream(webtransport::Stream* absl_nonnull stream);
+  ~IncomingPaddingStream() override = default;
+
+  // webtransport::StreamVisitor implementation.
+  void OnCanRead() override;
+  void OnCanWrite() override {}
+  void OnResetStreamReceived(webtransport::StreamErrorCode) override {}
+  void OnStopSendingReceived(webtransport::StreamErrorCode) override {}
+  void OnWriteSideInDataRecvdState() override {}
+
+  webtransport::Stream* stream() const { return stream_; }
+
+ private:
+  webtransport::Stream* absl_nonnull stream_;
+};
+
 }  // namespace moqt
 
 #endif  // QUICHE_QUIC_MOQT_MOQT_UNI_STREAM_H_

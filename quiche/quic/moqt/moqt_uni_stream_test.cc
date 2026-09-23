@@ -795,6 +795,20 @@ TEST_F(IncomingDataStreamTest, OnCanReadFetchNewTrackAliasSuccess) {
   stream_->OnCanRead();
 }
 
+TEST(IncomingPaddingStreamTest, ConsumesAllData) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  IncomingPaddingStream padding_stream(&stream);
+  stream.Receive("hello world", false);
+  EXPECT_EQ(stream.ReadableBytes(), 11);
+  padding_stream.OnCanRead();
+  EXPECT_EQ(stream.ReadableBytes(), 0);
+
+  stream.Receive("more padding", true);
+  EXPECT_EQ(stream.ReadableBytes(), 12);
+  padding_stream.OnCanRead();
+  EXPECT_EQ(stream.ReadableBytes(), 0);
+}
+
 }  // namespace
 
 }  // namespace moqt::test

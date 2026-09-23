@@ -112,12 +112,8 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
 }
 
 std::string MoqtDataStreamTypeToString(MoqtDataStreamType type) {
-  if (type.IsPadding()) {
-    return "PADDING";
-  } else if (type.IsFetch()) {
-    return "STREAM_HEADER_FETCH";
-  }
-  return absl::StrCat("STREAM_HEADER_SUBGROUP_", type.value());
+  return type.IsFetch() ? "STREAM_HEADER_FETCH"
+                        : absl::StrCat("STREAM_HEADER_SUBGROUP_", type.value());
 }
 
 std::string MoqtDatagramTypeToString(MoqtDatagramType type) {

@@ -202,9 +202,12 @@ void MoqtSession::OnIncomingUnidirectionalStreamAvailable() {
 void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   MoqtObject message;
   bool use_default_priority;
-  std::optional<absl::string_view> payload =
+  absl::StatusOr<absl::string_view> payload =
       ParseDatagram(datagram, message, use_default_priority);
-  if (!payload.has_value()) {
+  if (!payload.ok()) {
+    if (absl::IsNotFound(payload.status())) {
+      return;  // It's PADDING.
+    }
     Error(MoqtError::kProtocolViolation, "Malformed datagram received");
     return;
   }
@@ -1250,6 +1253,14 @@ void MoqtSession::UnknownUniStream::OnCanRead() {
     session->incoming_control_stream_ = temp_stream->GetWeakPtr();
     // The line below destroys `this`.
     stream_->SetVisitor(std::move(control_stream));
+    temp_stream->OnCanRead();
+    return;
+  }
+  if (*type == kPaddingStreamType) {
+    auto padding_stream = std::make_unique<IncomingPaddingStream>(stream_);
+    IncomingPaddingStream* temp_stream = padding_stream.get();
+    // The line below destroys `this`.
+    stream_->SetVisitor(std::move(padding_stream));
     temp_stream->OnCanRead();
     return;
   }

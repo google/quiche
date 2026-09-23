@@ -539,14 +539,11 @@ void IncomingDataStream::Detach() {
 
 void IncomingDataStream::OnCanRead() {
   if (!parser_.stream_type().has_value()) {
+    // This only happens in test.
     parser_.ReadStreamType();
     if (!parser_.stream_type().has_value()) {
       return;
     }
-  }
-  if (parser_.stream_type()->IsPadding()) {
-    (void)stream_->SkipBytes(stream_->ReadableBytes());
-    return;
   }
   bool knew_track_alias = parser_.track_alias().has_value();
   if (!knew_track_alias) {
@@ -604,6 +601,14 @@ void IncomingDataStream::OnCanRead() {
 void IncomingDataStream::OnParsingError(MoqtError error_code,
                                         absl::string_view reason) {
   session_->Error(error_code, absl::StrCat("Parse error: ", reason));
+}
+
+IncomingPaddingStream::IncomingPaddingStream(
+    webtransport::Stream* absl_nonnull stream)
+    : stream_(stream) {}
+
+void IncomingPaddingStream::OnCanRead() {
+  (void)stream_->SkipBytes(stream_->ReadableBytes());
 }
 
 }  // namespace moqt

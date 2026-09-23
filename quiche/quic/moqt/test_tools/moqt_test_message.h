@@ -1670,9 +1670,6 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
 
 static inline std::unique_ptr<TestMessageBase> CreateTestDataStream(
     MoqtDataStreamType type) {
-  if (type.IsPadding()) {
-    return nullptr;
-  }
   if (type.IsFetch()) {
     return std::make_unique<StreamHeaderFetchMessage>();
   }

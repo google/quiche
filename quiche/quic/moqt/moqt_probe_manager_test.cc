@@ -40,8 +40,8 @@ namespace {
 using ::testing::_;
 using ::testing::Return;
 
-// Two-byte varint.
-constexpr size_t kProbeStreamHeaderSize = 2;
+// Five-byte varint.
+constexpr size_t kProbeStreamHeaderSize = 5;
 
 class MockStream : public webtransport::test::MockStream {
  public:
