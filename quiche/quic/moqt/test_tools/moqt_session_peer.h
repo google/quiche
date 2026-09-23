@@ -160,8 +160,9 @@ class MoqtSessionPeer {
     session->peer_setup_received_ = value;
   }
 
-  static void ValidateRequestId(MoqtSession* session, uint64_t id) {
-    session->ValidateRequestId(id);
+  static absl::Status ValidateNewIncomingRequestId(MoqtSession* session,
+                                                   uint64_t id) {
+    return session->ValidateNewIncomingRequestId(id);
   }
 
   static quic::QuicAlarmFactory* GetAlarmFactory(MoqtSession* session) {

@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_SESSION_H_
 #define QUICHE_QUIC_MOQT_MOQT_SESSION_H_
 
+#include <cstddef>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -14,14 +15,15 @@
 
 #include "absl/base/casts.h"
 #include "absl/base/nullability.h"
-#include "absl/cleanup/cleanup.h"
 #include "absl/container/btree_map.h"
+#include "absl/container/btree_set.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_alarm.h"
 #include "quiche/quic/core/quic_alarm_factory.h"
+#include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
@@ -374,9 +376,9 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   LiveSubscriber* SubscribeByName(const FullTrackName& track_name);
   MoqtFetchRequestStream* FetchById(uint64_t request_id);
 
-  // Checks that a subscribe ID from a SUBSCRIBE or FETCH is valid, and throws
-  // a session error if is not.
-  bool ValidateRequestId(uint64_t request_id);
+  // Checks that an incoming request ID is valid, and throws a session error if
+  // is not.
+  absl::Status ValidateNewIncomingRequestId(uint64_t request_id);
 
   // Sends an OBJECT_ACK message for a specific subscribe ID.
   void SendObjectAck(FullTrackName track_name, uint64_t group_id,
@@ -448,8 +450,12 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // All outgoing SUBSCRIBE and incoming PUBLISH, indexed by track name.
   absl::flat_hash_map<FullTrackName, LiveSubscriber*> subscribe_by_name_;
 
-  // The next subscribe ID that the local endpoint can send.
+  // REQUEST_ID state.
+  // The next request ID that the local endpoint can send. Use NextRequestId()
+  // to obtain a value and automatically increment the next value.
   uint64_t next_request_id_ = 0;
+  // The next expected incoming request ID, used to compose draft-18 GOAWAY.
+  uint64_t next_incoming_request_id_ = 1;
 
   // All open incoming subscriptions, indexed by track name, used to check for
   // duplicates.
@@ -466,8 +472,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   absl::btree_multimap<MoqtTrackPriority,
                        std::variant<FullTrackName, webtransport::StreamId>>
       requests_with_queued_streams_;
-  // This is only used to check for track_alias collisions.
-  absl::flat_hash_set<uint64_t> used_track_aliases_;
   uint64_t next_local_track_alias_ = 0;
 
   // Monitoring interfaces for expected incoming subscriptions.

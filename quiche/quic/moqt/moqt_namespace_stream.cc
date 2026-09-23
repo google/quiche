@@ -24,6 +24,7 @@
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_status_utils.h"
 #include "quiche/web_transport/stream_helpers.h"
 
 namespace moqt {
@@ -227,12 +228,14 @@ MoqtSubscribeNamespaceResponseStream::MoqtSubscribeNamespaceResponseStream(
     MoqtFramer* framer, const MoqtControlMessageParser& message_parser,
     AddPrefixCallback add_callback, RemovePrefixCallback remove_callback,
     SessionErrorCallback session_error_callback,
+    ValidateRequestIdCallback validate_request_id,
     MoqtIncomingSubscribeNamespaceCallback& application)
     // No stream_deleted_callback because there's no state yet.
     : MoqtBidiStreamBase(framer, message_parser,
                          std::move(session_error_callback)),
       add_callback_(std::move(add_callback)),
       remove_callback_(std::move(remove_callback)),
+      validate_request_id_(std::move(validate_request_id)),
       application_(application) {}
 
 absl::Status MoqtSubscribeNamespaceResponseStream::OnRawControlMessage(
@@ -243,10 +246,11 @@ absl::Status MoqtSubscribeNamespaceResponseStream::OnRawControlMessage(
 
 absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
     const MoqtSubscribeNamespace& message) {
-  request_id_ = message.request_id;
   if (add_callback_ == nullptr) {
     return absl::InvalidArgumentError("Two SUBSCRIBE_NAMESPACE on one stream");
   }
+  QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
+  request_id_ = message.request_id;
   if (message.track_namespace_prefix.DoesNotExist()) {
     add_callback_ = nullptr;
     remove_callback_ = nullptr;
@@ -270,6 +274,7 @@ absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
 
 absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
+  QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
   if (task_ == nullptr) {
     // This stream is dying.
     return absl::OkStatus();

@@ -244,10 +244,13 @@ class MoqtSubscribeResponseStreamTest : public quiche::test::QuicheTest {
         message_parser_(kDefaultMoqtVersion, /*uses_web_transport=*/true,
                         quic::Perspective::IS_SERVER),
         track_publisher_(std::make_shared<TestTrackPublisher>(kTrackName)) {
+    ON_CALL(mock_validate_request_id_, Call)
+        .WillByDefault(Return(absl::OkStatus()));
     stream_ = std::make_unique<MoqtSubscribeResponseStream>(
         &framer_, message_parser_, kTrackAlias,
         mock_add_callback_.AsStdFunction(),
         mock_remove_callback_.AsStdFunction(), error_callback_.AsStdFunction(),
+        mock_validate_request_id_.AsStdFunction(),
         visitor_.weak_ptr_factory_.Create());
     stream_->BindStream(&mock_stream_);
     EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(testing::Return(true));
@@ -260,6 +263,7 @@ class MoqtSubscribeResponseStreamTest : public quiche::test::QuicheTest {
   FullTrackName kTrackName{"foo", "bar"};
   std::shared_ptr<TestTrackPublisher> track_publisher_;
   testing::MockFunction<void(MoqtError, absl::string_view)> error_callback_;
+  testing::MockFunction<absl::Status(uint64_t)> mock_validate_request_id_;
   testing::MockFunction<bool(LivePublisher*)> mock_add_callback_;
   testing::MockFunction<void(LivePublisher*)> mock_remove_callback_;
   MockSessionToPublisherInterface visitor_;

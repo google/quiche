@@ -25,6 +25,7 @@
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
+#include "quiche/common/quiche_status_utils.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
@@ -179,12 +180,14 @@ MoqtSubscribeResponseStream::MoqtSubscribeResponseStream(
     LivePublisher::AddCallback add_callback,
     LivePublisher::RemoveCallback remove_callback,
     SessionErrorCallback session_error_callback,
+    ValidateRequestIdCallback validate_request_id,
     quiche::QuicheWeakPtr<SessionToPublisherInterface> session)
     : MoqtBidiStreamBase(framer, message_parser,
                          std::move(session_error_callback)),
       track_alias_(track_alias),
       add_callback_(std::move(add_callback)),
       remove_callback_(std::move(remove_callback)),
+      validate_request_id_(std::move(validate_request_id)),
       session_(std::move(session)) {}
 
 absl::Status MoqtSubscribeResponseStream::OnRawControlMessage(
@@ -199,6 +202,7 @@ absl::Status MoqtSubscribeResponseStream::OnControlMessage(
     return absl::InvalidArgumentError(
         "SUBSCRIBE received on stream that already has a subscription");
   }
+  QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
   QUIC_DLOG(INFO) << "Received a SUBSCRIBE for " << message.full_track_name;
   if (session() == nullptr) {
     return absl::OkStatus();
@@ -235,6 +239,7 @@ absl::Status MoqtSubscribeResponseStream::OnControlMessage(
 
 absl::Status MoqtSubscribeResponseStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
+  QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
   if (subscription_ == nullptr) {
     QUICHE_BUG(INFO) << "Received REQUEST_UPDATE, no subscription state";
     return SendRequestError(RequestErrorCode::kInternalError, std::nullopt,

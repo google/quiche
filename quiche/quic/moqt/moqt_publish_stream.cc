@@ -24,6 +24,7 @@
 #include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
+#include "quiche/common/quiche_status_utils.h"
 
 namespace moqt {
 
@@ -32,11 +33,13 @@ MoqtPublishRequestStream::MoqtPublishRequestStream(
     const MoqtControlMessageParser& message_parser,
     LivePublisher::RemoveCallback stream_deleted_callback,
     SessionErrorCallback session_error_callback,
+    ValidateRequestIdCallback validate_request_id,
     MoqtResponseCallback response_callback)
     : MoqtBidiStreamBase(framer, message_parser,
                          std::move(session_error_callback)),
       response_callback_(std::move(response_callback)),
-      stream_deleted_callback_(std::move(stream_deleted_callback)) {}
+      stream_deleted_callback_(std::move(stream_deleted_callback)),
+      validate_request_id_(std::move(validate_request_id)) {}
 
 MoqtPublishRequestStream::~MoqtPublishRequestStream() {
   if (publisher_ != nullptr) {
@@ -85,6 +88,7 @@ absl::Status MoqtPublishRequestStream::OnControlMessage(
 
 absl::Status MoqtPublishRequestStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
+  QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
   MessageParameters in_parameters = message.parameters, out_parameters;
   out_parameters.largest_object = publisher_->publisher().largest_location();
   if (in_parameters.subscription_filter.has_value()) {
@@ -102,6 +106,7 @@ MoqtPublishResponseStream::MoqtPublishResponseStream(
     const quic::QuicClock* absl_nonnull clock,
     quic::QuicAlarmFactory* absl_nonnull alarm_factory,
     SessionErrorCallback session_error_callback,
+    ValidateRequestIdCallback validate_request_id,
     const MoqtIncomingPublishCallback* absl_nonnull incoming_publish_callback,
     LiveSubscriber::AddCallback add_callback,
     LiveSubscriber::RemoveCallback remove_callback)
@@ -109,6 +114,7 @@ MoqtPublishResponseStream::MoqtPublishResponseStream(
                          std::move(session_error_callback)),
       clock_(clock),
       alarm_factory_(alarm_factory),
+      validate_request_id_(std::move(validate_request_id)),
       incoming_publish_callback_(incoming_publish_callback),
       add_callback_(std::move(add_callback)),
       remove_callback_(std::move(remove_callback)),
@@ -126,6 +132,7 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
     // Two PUBLISH messages for the same stream.
     return absl::InvalidArgumentError("Multiple PUBLISH on the same stream");
   }
+  QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
   if (message.full_track_name.DoesNotExist()) {
     add_callback_ = nullptr;
     remove_callback_ = nullptr;
@@ -199,6 +206,7 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
 
 absl::Status MoqtPublishResponseStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
+  QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
   if (subscriber_ == nullptr) {
     // Stream is already closing.
     return absl::OkStatus();

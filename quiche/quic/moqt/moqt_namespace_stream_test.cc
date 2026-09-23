@@ -287,7 +287,9 @@ class MoqtSubscribeNamespaceResponseStreamTest
         application_callback_(mock_application_.AsStdFunction()),
         stream_(&framer_, ControlMessageParser(), add_callback_.AsStdFunction(),
                 remove_callback_.AsStdFunction(),
-                error_callback_.AsStdFunction(), application_callback_) {
+                error_callback_.AsStdFunction(),
+                validate_request_id_.AsStdFunction(), application_callback_) {
+    ON_CALL(validate_request_id_, Call).WillByDefault(Return(absl::OkStatus()));
     stream_.BindStream(&mock_stream_);
     EXPECT_CALL(mock_stream_, CanWrite()).WillRepeatedly(Return(true));
   }
@@ -299,6 +301,7 @@ class MoqtSubscribeNamespaceResponseStreamTest
 
   MoqtFramer framer_;
   testing::MockFunction<void(MoqtError, absl::string_view)> error_callback_;
+  testing::MockFunction<absl::Status(uint64_t)> validate_request_id_;
   webtransport::test::MockStream mock_stream_;
   testing::MockFunction<bool(const TrackNamespace&)> add_callback_;
   testing::MockFunction<void(const TrackNamespace&)> remove_callback_;
@@ -585,7 +588,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest,
   MoqtSubscribeNamespaceResponseStream stream2(
       &framer_, ControlMessageParser(), add_callback_.AsStdFunction(),
       remove_callback_.AsStdFunction(), error_callback2.AsStdFunction(),
-      application_callback_);
+      validate_request_id_.AsStdFunction(), application_callback_);
   stream2.BindStream(&mock_stream2);
   EXPECT_CALL(mock_stream2, CanWrite()).WillRepeatedly(Return(true));
 

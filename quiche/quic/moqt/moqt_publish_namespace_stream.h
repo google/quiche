@@ -72,11 +72,13 @@ class MoqtPublishNamespaceResponseStream : public MoqtBidiStreamBase {
       AddPublishNamespaceCallback add_callback,
       RemovePublishNamespaceCallback remove_callback,
       SessionErrorCallback session_error_callback,
+      ValidateRequestIdCallback validate_request_id,
       MoqtIncomingPublishNamespaceCallback application)
       : MoqtBidiStreamBase(framer, message_parser,
                            std::move(session_error_callback)),
         add_callback_(std::move(add_callback)),
         remove_callback_(std::move(remove_callback)),
+        validate_request_id_(std::move(validate_request_id)),
         application_(std::move(application)),
         weak_ptr_factory_(this) {}
   ~MoqtPublishNamespaceResponseStream() { Detach(); }
@@ -96,6 +98,7 @@ class MoqtPublishNamespaceResponseStream : public MoqtBidiStreamBase {
   std::optional<TrackNamespace> prefix_;
   AddPublishNamespaceCallback add_callback_;
   RemovePublishNamespaceCallback remove_callback_;
+  ValidateRequestIdCallback validate_request_id_;
   MoqtIncomingPublishNamespaceCallback application_;
   quiche::QuicheWeakPtrFactory<MoqtPublishNamespaceResponseStream>
       weak_ptr_factory_;

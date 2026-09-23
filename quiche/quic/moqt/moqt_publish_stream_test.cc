@@ -75,10 +75,11 @@ class MoqtPublishRequestStreamTest : public quiche::test::QuicheTest {
         message_parser_(kDefaultMoqtVersion, /*uses_web_transport=*/true,
                         quic::Perspective::IS_CLIENT),
         track_publisher_(std::make_shared<TestTrackPublisher>(kTrackName)) {
+    ON_CALL(validate_request_id_, Call).WillByDefault(Return(absl::OkStatus()));
     // Construct the stream visitor.
     stream_ = std::make_unique<MoqtPublishRequestStream>(
         &framer_, message_parser_, deleted_callback_.AsStdFunction(),
-        error_callback_.AsStdFunction(),
+        error_callback_.AsStdFunction(), validate_request_id_.AsStdFunction(),
         [this](std::variant<MessageParameters, MoqtRequestErrorInfo> response) {
           response_ = response;
         });
@@ -105,6 +106,7 @@ class MoqtPublishRequestStreamTest : public quiche::test::QuicheTest {
   testing::MockFunction<void(LivePublisher*)> deleted_callback_;
   testing::StrictMock<testing::MockFunction<void(MoqtError, absl::string_view)>>
       error_callback_;
+  testing::MockFunction<absl::Status(uint64_t)> validate_request_id_;
   MockSessionToPublisherInterface visitor_;
   webtransport::test::MockSession webtrans_;
   quic::MockClock mock_clock_;
@@ -239,10 +241,11 @@ class MoqtPublishResponseStreamTest : public quiche::test::QuicheTest {
                         quic::Perspective::IS_SERVER),
         incoming_publish_callback_(
             incoming_publish_callback_mock_.AsStdFunction()) {
+    ON_CALL(validate_request_id_, Call).WillByDefault(Return(absl::OkStatus()));
     stream_ = std::make_unique<MoqtPublishResponseStream>(
         &framer_, message_parser_, &mock_clock_, &mock_alarm_factory_,
-        error_callback_.AsStdFunction(), &incoming_publish_callback_,
-        mock_add_callback_.AsStdFunction(),
+        error_callback_.AsStdFunction(), validate_request_id_.AsStdFunction(),
+        &incoming_publish_callback_, mock_add_callback_.AsStdFunction(),
         mock_remove_callback_.AsStdFunction());
     stream_->BindStream(&mock_stream_);
     EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));
@@ -259,6 +262,7 @@ class MoqtPublishResponseStreamTest : public quiche::test::QuicheTest {
   quic::test::MockAlarmFactory mock_alarm_factory_;
   testing::StrictMock<testing::MockFunction<void(MoqtError, absl::string_view)>>
       error_callback_;
+  testing::MockFunction<absl::Status(uint64_t)> validate_request_id_;
 
   testing::MockFunction<SubscribeVisitor*(
       const FullTrackName&, const MessageParameters&, const TrackProperties&,
@@ -607,8 +611,8 @@ TEST_F(MoqtPublishResponseStreamTest, DuplicatePublishOnDifferentStreams) {
   webtransport::test::MockStream mock_stream2;
   MoqtPublishResponseStream stream2(
       &framer_, message_parser_, &mock_clock_, &mock_alarm_factory_,
-      error_callback2.AsStdFunction(), &incoming_publish_callback2,
-      mock_add_callback2.AsStdFunction(),
+      error_callback2.AsStdFunction(), validate_request_id_.AsStdFunction(),
+      &incoming_publish_callback2, mock_add_callback2.AsStdFunction(),
       mock_remove_callback2.AsStdFunction());
   stream2.BindStream(&mock_stream2);
   EXPECT_CALL(mock_stream2, CanWrite).WillRepeatedly(Return(true));

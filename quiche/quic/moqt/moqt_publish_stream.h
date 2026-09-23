@@ -38,6 +38,7 @@ class MoqtPublishRequestStream : public MoqtBidiStreamBase {
       const MoqtControlMessageParser& message_parser,
       LivePublisher::RemoveCallback stream_deleted_callback,
       SessionErrorCallback session_error_callback,
+      ValidateRequestIdCallback validate_request_id,
       MoqtResponseCallback response_callback);
   ~MoqtPublishRequestStream();
 
@@ -74,6 +75,7 @@ class MoqtPublishRequestStream : public MoqtBidiStreamBase {
   std::unique_ptr<LivePublisher> publisher_;
   absl::flat_hash_map<uint64_t, MoqtResponseCallback> pending_updates_;
   LivePublisher::RemoveCallback stream_deleted_callback_;
+  ValidateRequestIdCallback validate_request_id_;
 };
 
 class MoqtPublishResponseStream : public MoqtBidiStreamBase {
@@ -84,6 +86,7 @@ class MoqtPublishResponseStream : public MoqtBidiStreamBase {
       const quic::QuicClock* absl_nonnull clock,
       quic::QuicAlarmFactory* absl_nonnull alarm_factory,
       SessionErrorCallback session_error_callback,
+      ValidateRequestIdCallback validate_request_id,
       const MoqtIncomingPublishCallback* absl_nonnull incoming_publish_callback,
       LiveSubscriber::AddCallback add_callback,
       LiveSubscriber::RemoveCallback remove_callback);
@@ -105,7 +108,7 @@ class MoqtPublishResponseStream : public MoqtBidiStreamBase {
   LiveSubscriber* track() { return subscriber_.get(); }
 
   void Detach() override {
-    if (remove_callback_ != nullptr) {
+    if (remove_callback_ != nullptr && subscriber_ != nullptr) {
       LiveSubscriber::RemoveCallback callback = std::move(remove_callback_);
       remove_callback_ = nullptr;
       std::move(callback)(subscriber_.get());
@@ -121,6 +124,7 @@ class MoqtPublishResponseStream : public MoqtBidiStreamBase {
   absl::flat_hash_map<uint64_t, MoqtResponseCallback> pending_updates_;
   const quic::QuicClock* clock_;
   quic::QuicAlarmFactory* alarm_factory_;
+  ValidateRequestIdCallback validate_request_id_;
   const MoqtIncomingPublishCallback* incoming_publish_callback_;
   LiveSubscriber::AddCallback add_callback_;
   LiveSubscriber::RemoveCallback remove_callback_;

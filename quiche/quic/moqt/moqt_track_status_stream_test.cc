@@ -199,11 +199,14 @@ class MoqtTrackStatusResponseStreamTest : public quiche::test::QuicheTest {
         message_parser_(kDefaultMoqtVersion, /*uses_web_transport=*/true,
                         quic::Perspective::IS_SERVER),
         track_name_("foo", "bar"),
-        mock_publisher_(track_name_) {}
+        mock_publisher_(track_name_) {
+    ON_CALL(validate_request_id_, Call).WillByDefault(Return(absl::OkStatus()));
+  }
 
   MoqtTrackStatusResponseStream CreateStream() {
     return MoqtTrackStatusResponseStream(
         &framer_, message_parser_, session_error_callback_.AsStdFunction(),
+        validate_request_id_.AsStdFunction(),
         session_.weak_ptr_factory_.Create());
   }
 
@@ -214,6 +217,7 @@ class MoqtTrackStatusResponseStreamTest : public quiche::test::QuicheTest {
   FullTrackName track_name_;
   StrictMock<testing::MockFunction<void(MoqtError, absl::string_view)>>
       session_error_callback_;
+  testing::MockFunction<absl::Status(uint64_t)> validate_request_id_;
   MockSessionToPublisherInterface session_;
   MockTrackPublisher mock_publisher_;
   StrictMock<webtransport::test::MockStream> mock_stream_;

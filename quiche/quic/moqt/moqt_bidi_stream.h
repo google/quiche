@@ -36,6 +36,10 @@ class MoqtBidiStreamTestWrapper;
 
 using SessionErrorCallback =
     quiche::SingleUseCallback<void(MoqtError, absl::string_view)>;
+// If it returns !ok, the session will immediately terminate and the caller
+// must return immediately.
+using ValidateRequestIdCallback =
+    quiche::MultiUseCallback<absl::Status(uint64_t)>;
 
 // MoqtBidiStreamBase is the base class for bidirectional streams in MoQT.  It
 // contains basic methods for handling and dispatching messages.  An instance of

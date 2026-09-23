@@ -152,6 +152,7 @@ class MoqtPublishNamespaceResponseStreamTest : public quiche::test::QuicheTest {
         add_callback_(),
         remove_callback_(),
         application_() {
+    ON_CALL(validate_request_id_, Call).WillByDefault(Return(absl::OkStatus()));
     EXPECT_CALL(remove_callback_, Call(_)).Times(testing::AnyNumber());
     EXPECT_CALL(application_, Call(_, nullptr, _)).Times(testing::AnyNumber());
   }
@@ -159,6 +160,7 @@ class MoqtPublishNamespaceResponseStreamTest : public quiche::test::QuicheTest {
   MoqtFramer framer_;
   StrictMock<testing::MockFunction<void(MoqtError, absl::string_view)>>
       session_error_callback_;
+  testing::MockFunction<absl::Status(uint64_t)> validate_request_id_;
   StrictMock<
       testing::MockFunction<bool(const TrackNamespace&, MoqtBidiStreamBase*)>>
       add_callback_;
@@ -177,7 +179,8 @@ TEST_F(MoqtPublishNamespaceResponseStreamTest,
       MoqtControlMessageParser(kDefaultMoqtVersion, /*webtransport=*/true,
                                quic::Perspective::IS_SERVER),
       add_callback_.AsStdFunction(), remove_callback_.AsStdFunction(),
-      session_error_callback_.AsStdFunction(), application_.AsStdFunction());
+      session_error_callback_.AsStdFunction(),
+      validate_request_id_.AsStdFunction(), application_.AsStdFunction());
   response_stream->BindStream(&mock_stream_);
 
   MoqtPublishNamespace message;
@@ -200,7 +203,8 @@ TEST_F(MoqtPublishNamespaceResponseStreamTest, PublishReservedNamespace) {
       MoqtControlMessageParser(kDefaultMoqtVersion, /*webtransport=*/true,
                                quic::Perspective::IS_SERVER),
       add_callback_.AsStdFunction(), remove_callback_.AsStdFunction(),
-      session_error_callback_.AsStdFunction(), application_.AsStdFunction());
+      session_error_callback_.AsStdFunction(),
+      validate_request_id_.AsStdFunction(), application_.AsStdFunction());
   response_stream->BindStream(&mock_stream_);
 
   MoqtPublishNamespace message(5, TrackNamespace({"."}));
@@ -221,7 +225,8 @@ TEST_F(MoqtPublishNamespaceResponseStreamTest,
       MoqtControlMessageParser(kDefaultMoqtVersion, /*webtransport=*/true,
                                quic::Perspective::IS_SERVER),
       add_callback_.AsStdFunction(), remove_callback_.AsStdFunction(),
-      session_error_callback_.AsStdFunction(), application_.AsStdFunction());
+      session_error_callback_.AsStdFunction(),
+      validate_request_id_.AsStdFunction(), application_.AsStdFunction());
   response_stream->BindStream(&mock_stream_);
 
   MoqtPublishNamespace message;
@@ -256,7 +261,8 @@ TEST_F(MoqtPublishNamespaceResponseStreamTest,
       MoqtControlMessageParser(kDefaultMoqtVersion, /*webtransport=*/true,
                                quic::Perspective::IS_SERVER),
       add_callback_.AsStdFunction(), remove_callback_.AsStdFunction(),
-      session_error_callback_.AsStdFunction(), application_.AsStdFunction());
+      session_error_callback_.AsStdFunction(),
+      validate_request_id_.AsStdFunction(), application_.AsStdFunction());
   response_stream->BindStream(&mock_stream_);
 
   MoqtPublishNamespace message;
@@ -297,7 +303,8 @@ TEST_F(MoqtPublishNamespaceResponseStreamTest,
       MoqtControlMessageParser(kDefaultMoqtVersion, /*webtransport=*/true,
                                quic::Perspective::IS_SERVER),
       add_callback_.AsStdFunction(), remove_callback_.AsStdFunction(),
-      session_error_callback_.AsStdFunction(), application_.AsStdFunction());
+      session_error_callback_.AsStdFunction(),
+      validate_request_id_.AsStdFunction(), application_.AsStdFunction());
   response_stream->BindStream(&mock_stream_);
 
   MoqtPublishNamespace message;
@@ -323,7 +330,8 @@ TEST_F(MoqtPublishNamespaceResponseStreamTest, OnRequestUpdateSuccess) {
       MoqtControlMessageParser(kDefaultMoqtVersion, /*webtransport=*/true,
                                quic::Perspective::IS_SERVER),
       add_callback_.AsStdFunction(), remove_callback_.AsStdFunction(),
-      session_error_callback_.AsStdFunction(), application_.AsStdFunction());
+      session_error_callback_.AsStdFunction(),
+      validate_request_id_.AsStdFunction(), application_.AsStdFunction());
   response_stream->BindStream(&mock_stream_);
 
   MoqtPublishNamespace message;
@@ -377,7 +385,8 @@ TEST_F(MoqtPublishNamespaceResponseStreamTest, OnRequestUpdateRejected) {
       MoqtControlMessageParser(kDefaultMoqtVersion, /*webtransport=*/true,
                                quic::Perspective::IS_SERVER),
       add_callback_.AsStdFunction(), remove_callback_.AsStdFunction(),
-      session_error_callback_.AsStdFunction(), application_.AsStdFunction());
+      session_error_callback_.AsStdFunction(),
+      validate_request_id_.AsStdFunction(), application_.AsStdFunction());
   response_stream->BindStream(&mock_stream_);
 
   MoqtPublishNamespace message;

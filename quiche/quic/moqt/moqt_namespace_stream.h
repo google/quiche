@@ -149,6 +149,7 @@ class MoqtSubscribeNamespaceResponseStream : public MoqtBidiStreamBase {
       MoqtFramer* framer, const MoqtControlMessageParser& message_parser,
       AddPrefixCallback add_callback, RemovePrefixCallback remove_callback,
       SessionErrorCallback session_error_callback,
+      ValidateRequestIdCallback validate_request_id,
       MoqtIncomingSubscribeNamespaceCallback& application);
   ~MoqtSubscribeNamespaceResponseStream() { Detach(); }
 
@@ -170,6 +171,7 @@ class MoqtSubscribeNamespaceResponseStream : public MoqtBidiStreamBase {
   TrackNamespace prefix_;
   AddPrefixCallback add_callback_;
   RemovePrefixCallback remove_callback_;
+  ValidateRequestIdCallback validate_request_id_;
   MoqtIncomingSubscribeNamespaceCallback& application_;
   std::unique_ptr<MoqtNamespaceTask> task_;
   absl::flat_hash_set<TrackNamespace> published_suffixes_;

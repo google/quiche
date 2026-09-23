@@ -32,6 +32,7 @@
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/quiche_status_utils.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -224,12 +225,14 @@ MoqtFetchResponseStream::MoqtFetchResponseStream(
     const MoqtControlMessageParser& message_parser,
     MoqtPublisher* absl_nonnull application,
     SessionErrorCallback session_error_callback,
+    ValidateRequestIdCallback validate_request_id,
     OpenStreamCallback open_stream_callback,
     GetSubscriptionCallback get_subscription_callback)
     : MoqtBidiStreamBase(framer, message_parser,
                          std::move(session_error_callback)),
       data_stream_(nullptr),
       application_(application),
+      validate_request_id_(std::move(validate_request_id)),
       open_stream_callback_(std::move(open_stream_callback)),
       get_subscription_callback_(std::move(get_subscription_callback)),
       weak_ptr_factory_(this) {}
@@ -246,6 +249,7 @@ absl::Status MoqtFetchResponseStream::OnControlMessage(
     return absl::InvalidArgumentError(
         "FETCH received on stream that already has a fetch");
   }
+  QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
   request_id_ = message.request_id;
   parameters_ = message.parameters;
   MoqtDeliveryOrder delivery_order =
@@ -383,6 +387,7 @@ absl::Status MoqtFetchResponseStream::OnControlMessage(
 
 absl::Status MoqtFetchResponseStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
+  QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
   if (data_stream_ != nullptr &&
       message.parameters.subscriber_priority.has_value()) {
     data_stream_->UpdatePriority(*message.parameters.subscriber_priority);

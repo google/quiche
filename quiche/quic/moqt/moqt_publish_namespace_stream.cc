@@ -15,6 +15,7 @@
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_parser.h"
+#include "quiche/common/quiche_status_utils.h"
 
 namespace moqt {
 
@@ -95,6 +96,7 @@ absl::Status MoqtPublishNamespaceResponseStream::OnControlMessage(
   if (add_callback_ == nullptr) {
     return absl::InvalidArgumentError("Two PUBLISH_NAMESPACE on one stream");
   }
+  QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
   if (message.track_namespace.DoesNotExist()) {
     add_callback_ = nullptr;
     remove_callback_ = nullptr;
@@ -131,6 +133,7 @@ absl::Status MoqtPublishNamespaceResponseStream::OnControlMessage(
 
 absl::Status MoqtPublishNamespaceResponseStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
+  QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
   if (!prefix_.has_value()) {
     return absl::InvalidArgumentError(
         "REQUEST_UPDATE before PUBLISH_NAMESPACE on a PN stream");

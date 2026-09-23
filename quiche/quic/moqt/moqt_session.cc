@@ -107,6 +107,7 @@ MoqtSession::MoqtSession(webtransport::Session* session,
   }
   if (parameters_.perspective == Perspective::IS_SERVER) {
     next_request_id_ = 1;
+    next_incoming_request_id_ = 0;
   }
   QUICHE_DCHECK(parameters_.moqt_implementation.empty());
   parameters_.moqt_implementation = kImplementationName;
@@ -630,6 +631,13 @@ bool MoqtSession::Publish(
         }
         session->Error(code, reason);
       },
+      [weak_session = GetWeakPtr()](uint64_t request_id) {
+        MoqtSession* session = MoqtSessionFromWeakPtr(weak_session);
+        if (session == nullptr) {
+          return absl::NotFoundError("Session is gone");
+        }
+        return session->ValidateNewIncomingRequestId(request_id);
+      },
       std::move(response_callback));
   auto publish_state = std::make_unique<LivePublisher>(
       framer_, publisher, stream_visitor.get(), next_request_id_,
@@ -903,16 +911,23 @@ void MoqtSession::OnCanCreateNewOutgoingUnidirectionalStream() {
   }
 }
 
-bool MoqtSession::ValidateRequestId(uint64_t request_id) {
+absl::Status MoqtSession::ValidateNewIncomingRequestId(uint64_t request_id) {
   if ((request_id % 2 == 0) !=
       (parameters_.perspective == Perspective::IS_SERVER)) {
-    QUICHE_DLOG(INFO) << ENDPOINT << "Request ID evenness incorrect";
+    QUIC_DLOG(INFO) << parameters_.perspective
+                    << "Request ID evenness incorrect";
     Error(MoqtError::kInvalidRequestId, "Request ID evenness incorrect");
-    return false;
+    return absl::InvalidArgumentError("Request ID evenness incorrect");
   }
-  // TODO(martinduke): Write new checks for duplicate request IDs. It's
-  // probably best to track the largest observed plus a set of holes.
-  return true;
+  // Check the one request ID map we have for the value. Most active request IDs
+  // are not tracked at the session level.
+  if (published_subscriptions_.contains(request_id)) {
+    QUIC_DLOG(INFO) << parameters_.perspective << "Duplicate Request ID";
+    Error(MoqtError::kInvalidRequestId, "Duplicate Request ID");
+    return absl::InvalidArgumentError("Duplicate Request ID");
+  }
+  next_incoming_request_id_ = request_id + 2;
+  return absl::OkStatus();
 }
 
 void MoqtSession::UnknownBidiStream::OnCanRead() {
@@ -958,6 +973,13 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
                 if (session != nullptr) {
                   session->Error(code, reason);
                 }
+              },
+              [weakptr = session_->GetWeakPtr()](uint64_t request_id) {
+                MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+                if (session == nullptr) {
+                  return absl::NotFoundError("Session is gone");
+                }
+                return session->ValidateNewIncomingRequestId(request_id);
               },
               session_->callbacks_.incoming_subscribe_namespace_callback);
       namespace_stream->BindStream(std::move(parser_));
@@ -1011,6 +1033,13 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
                   session->Error(code, reason);
                 }
               },
+              [weakptr = session_->GetWeakPtr()](uint64_t request_id) {
+                MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+                if (session == nullptr) {
+                  return absl::NotFoundError("Session is gone");
+                }
+                return session->ValidateNewIncomingRequestId(request_id);
+              },
               [weakptr = session_->GetWeakPtr()](
                   const TrackNamespace& track_namespace,
                   const MessageParameters* absl_nullable parameters,
@@ -1041,6 +1070,13 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
             if (session != nullptr) {
               session->Error(code, reason);
             }
+          },
+          [weakptr = session_->GetWeakPtr()](uint64_t request_id) {
+            MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+            if (session == nullptr) {
+              return absl::NotFoundError("Session is gone");
+            }
+            return session->ValidateNewIncomingRequestId(request_id);
           },
           &session_->callbacks_.incoming_publish_callback,
           [weakptr = session_->GetWeakPtr()](LiveSubscriber* track) {
@@ -1127,6 +1163,13 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
               session->Error(code, reason);
             }
           },
+          [weakptr = session_->GetWeakPtr()](uint64_t request_id) {
+            MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+            if (session == nullptr) {
+              return absl::NotFoundError("Session is gone");
+            }
+            return session->ValidateNewIncomingRequestId(request_id);
+          },
           session_->weak_ptr_factory_for_publishers_.Create());
       subscribe_stream->BindStream(std::move(parser_));
       MoqtSubscribeResponseStream* temp_stream = subscribe_stream.get();
@@ -1147,6 +1190,13 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
                   session->Error(code, reason);
                 }
               },
+              [weakptr = session_->GetWeakPtr()](uint64_t request_id) {
+                MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+                if (session == nullptr) {
+                  return absl::NotFoundError("Session is gone");
+                }
+                return session->ValidateNewIncomingRequestId(request_id);
+              },
               session_->weak_ptr_factory_for_publishers_.Create());
       track_status_stream->BindStream(std::move(parser_));
       MoqtTrackStatusResponseStream* temp_stream = track_status_stream.get();
@@ -1164,6 +1214,13 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
             if (session != nullptr) {
               session->Error(code, reason);
             }
+          },
+          [weakptr = session_->GetWeakPtr()](uint64_t request_id) {
+            MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
+            if (session == nullptr) {
+              return absl::NotFoundError("Session is gone");
+            }
+            return session->ValidateNewIncomingRequestId(request_id);
           },
           // OpenStreamCallback
           [weakptr = session_->GetWeakPtr()](webtransport::StreamId stream_id,

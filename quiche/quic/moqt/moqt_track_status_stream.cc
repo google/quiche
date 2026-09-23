@@ -22,6 +22,7 @@
 #include "quiche/quic/moqt/moqt_parser.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_status_utils.h"
 #include "quiche/common/quiche_weak_ptr.h"
 
 namespace moqt {
@@ -94,9 +95,11 @@ MoqtTrackStatusResponseStream::MoqtTrackStatusResponseStream(
     MoqtFramer* absl_nonnull framer,
     const MoqtControlMessageParser& message_parser,
     SessionErrorCallback session_error_callback,
+    ValidateRequestIdCallback validate_request_id,
     quiche::QuicheWeakPtr<SessionToPublisherInterface> session)
     : MoqtBidiStreamBase(framer, message_parser,
                          std::move(session_error_callback)),
+      validate_request_id_(std::move(validate_request_id)),
       session_(session) {}
 
 absl::Status MoqtTrackStatusResponseStream::OnRawControlMessage(
@@ -110,6 +113,7 @@ absl::Status MoqtTrackStatusResponseStream::OnControlMessage(
   if (request_id_.has_value()) {
     return absl::InvalidArgumentError("Duplicate TRACK_STATUS received");
   }
+  QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
   if (session() == nullptr) {
     return absl::InternalError("Session unavailable");
   }

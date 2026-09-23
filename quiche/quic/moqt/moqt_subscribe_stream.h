@@ -67,6 +67,7 @@ class MoqtSubscribeResponseStream : public MoqtBidiStreamBase {
       LivePublisher::AddCallback add_callback,
       LivePublisher::RemoveCallback remove_callback,
       SessionErrorCallback session_error_callback,
+      ValidateRequestIdCallback validate_request_id,
       quiche::QuicheWeakPtr<SessionToPublisherInterface> session);
   ~MoqtSubscribeResponseStream() {
     if (subscription_ != nullptr) {
@@ -98,6 +99,7 @@ class MoqtSubscribeResponseStream : public MoqtBidiStreamBase {
   std::unique_ptr<LivePublisher> subscription_;
   LivePublisher::AddCallback add_callback_;
   LivePublisher::RemoveCallback remove_callback_;
+  ValidateRequestIdCallback validate_request_id_;
   quiche::QuicheWeakPtr<SessionToPublisherInterface> session_;
 };
 

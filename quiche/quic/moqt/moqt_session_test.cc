@@ -49,6 +49,7 @@
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
+#include "quiche/common/test_tools/quiche_test_utils.h"
 #include "quiche/web_transport/test_tools/in_memory_stream.h"
 #include "quiche/web_transport/test_tools/mock_web_transport.h"
 #include "quiche/web_transport/web_transport.h"
@@ -873,10 +874,28 @@ TEST_F(MoqtSessionTest, UnsubscribeAllowsSecondSubscribe) {
 }
 
 TEST_F(MoqtSessionTest, RequestIdWrongLsb) {
-  // TODO(martinduke): Implement this test.
+  // Client session expects odd request IDs from the server.
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
+                           "Request ID evenness incorrect"));
+  EXPECT_FALSE(
+      MoqtSessionPeer::ValidateNewIncomingRequestId(&session_, 0).ok());
+
+  // Server session expects even request IDs from the client.
+  MoqtSessionParameters server_parameters(quic::Perspective::IS_SERVER);
+  MoqtSession server_session(&mock_session_, server_parameters,
+                             std::make_unique<quic::test::TestAlarmFactory>(),
+                             session_callbacks_.AsSessionCallbacks());
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
+                           "Request ID evenness incorrect"));
+  EXPECT_FALSE(
+      MoqtSessionPeer::ValidateNewIncomingRequestId(&server_session, 1).ok());
+  QUICHE_EXPECT_OK(
+      MoqtSessionPeer::ValidateNewIncomingRequestId(&server_session, 0));
 }
 
-TEST_F(MoqtSessionTest, SubscribeIdNotIncreasing) {
+TEST_F(MoqtSessionTest, RequestIdNotIncreasing) {
   MoqtSubscribe request = DefaultSubscribe();
   bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
       ResponseStream(kSubscribeByte));
@@ -892,8 +911,9 @@ TEST_F(MoqtSessionTest, SubscribeIdNotIncreasing) {
   webtransport::test::MockStream bidi_stream_2;
   auto bidi_wrapper_2 = std::make_unique<MoqtBidiStreamTestWrapper>(
       ResponseStream(kSubscribeByte, &bidi_stream_2));
-  EXPECT_CALL(bidi_stream_2,
-              Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
+                           "Duplicate Request ID"));
   bidi_wrapper_2->ReceiveMessage(request);
 }
 
@@ -2427,7 +2447,7 @@ TEST_F(MoqtSessionTest, IncomingTrackStatusBeforeSetup) {
   webtransport::test::InMemoryStreamWithWriteBuffer bidi_stream(0);
   MoqtFramer client_framer(session_parameters.using_webtrans,
                            quic::Perspective::IS_CLIENT);
-  MoqtTrackStatus track_status = DefaultSubscribe();
+  MoqtTrackStatus track_status = DefaultLocalSubscribe();
   quiche::QuicheBuffer serialized_track_status =
       client_framer.SerializeTrackStatus(track_status);
   bidi_stream.Receive(serialized_track_status.AsStringView(),

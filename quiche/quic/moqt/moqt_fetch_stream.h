@@ -107,6 +107,7 @@ class MoqtFetchResponseStream : public MoqtBidiStreamBase {
                           const MoqtControlMessageParser& message_parser,
                           MoqtPublisher* absl_nonnull application,
                           SessionErrorCallback session_error_callback,
+                          ValidateRequestIdCallback validate_request_id,
                           OpenStreamCallback open_stream_callback,
                           GetSubscriptionCallback get_subscription_callback);
   ~MoqtFetchResponseStream() {
@@ -135,6 +136,7 @@ class MoqtFetchResponseStream : public MoqtBidiStreamBase {
   MoqtPriority default_publisher_priority_ = kDefaultPublisherPriority;
   std::unique_ptr<MoqtFetchTask> fetch_;
   MoqtPublisher* absl_nonnull application_;
+  ValidateRequestIdCallback validate_request_id_;
   OpenStreamCallback open_stream_callback_;
   GetSubscriptionCallback get_subscription_callback_;
   quiche::QuicheWeakPtrFactory<MoqtFetchResponseStream> weak_ptr_factory_;
