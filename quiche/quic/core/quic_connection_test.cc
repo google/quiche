@@ -6737,7 +6737,6 @@ TEST_P(QuicConnectionTest, IetfStatelessReset) {
   QuicConfig config;
   QuicConfigPeer::SetReceivedStatelessResetToken(&config,
                                                  kTestStatelessResetToken);
-  SetQuicReloadableFlag(quic_check_alternate_reset_token, true);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
@@ -6760,7 +6759,6 @@ TEST_P(QuicConnectionTest, StatelessResetIgnoredIfFromUnknownAddress) {
   if (!VersionIsIetfQuic(connection_.version().transport_version)) {
     return;
   }
-  SetQuicReloadableFlag(quic_check_alternate_reset_token, true);
   PathProbeTestInit(Perspective::IS_CLIENT);
   QuicConfig config;
   QuicConfigPeer::SetReceivedStatelessResetToken(&config,
@@ -12168,7 +12166,6 @@ TEST_P(QuicConnectionTest, PathValidationReceivesStatelessReset) {
   if (!VersionIsIetfQuic(connection_.version().transport_version)) {
     return;
   }
-  SetQuicReloadableFlag(quic_check_alternate_reset_token, true);
   PathProbeTestInit(Perspective::IS_CLIENT);
   QuicConfig config;
   QuicConfigPeer::SetReceivedStatelessResetToken(&config,
@@ -13949,7 +13946,6 @@ TEST_P(QuicConnectionTest, MultiPortPathReceivesStatelessReset) {
   if (!version().IsIetfQuic()) {
     return;
   }
-  SetQuicReloadableFlag(quic_check_alternate_reset_token, true);
   connection_.CreateConnectionIdManager();
   connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
   connection_.OnHandshakeComplete();
