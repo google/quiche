@@ -1264,6 +1264,10 @@ void MoqtSession::UnknownUniStream::OnCanRead() {
     temp_stream->OnCanRead();
     return;
   }
+  if (!MoqtDataStreamType::FromValue(*type).has_value()) {
+    session->Error(MoqtError::kProtocolViolation, "Unknown stream type");
+    return;
+  }
   auto data_stream = std::make_unique<IncomingDataStream>(
       std::move(parser_), session, session->callbacks_.clock);
   IncomingDataStream* temp_stream = data_stream.get();

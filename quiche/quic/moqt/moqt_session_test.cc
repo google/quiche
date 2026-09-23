@@ -547,6 +547,23 @@ TEST_F(MoqtSessionTest, IncomingPaddingStream) {
   EXPECT_EQ(padding_stream.ReadableBytes(), 0);
 }
 
+TEST_F(MoqtSessionTest, IncomingUnknownStreamType) {
+  webtransport::test::InMemoryStream unknown_stream(/*stream_id=*/10);
+  char buffer[16];
+  quic::QuicDataWriter writer(sizeof(buffer), buffer);
+  ASSERT_TRUE(writer.WriteMoqVarInt(0x99));
+  unknown_stream.Receive(writer.data(), false);
+  EXPECT_CALL(mock_session_, AcceptIncomingUnidirectionalStream())
+      .WillOnce(Return(&unknown_stream))
+      .WillOnce(Return(nullptr));
+  EXPECT_CALL(mock_session_,
+              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
+                           "Unknown stream type"));
+  EXPECT_CALL(session_callbacks_.session_terminated_callback,
+              Call(absl::string_view("Unknown stream type")));
+  session_.OnIncomingUnidirectionalStreamAvailable();
+}
+
 TEST_F(MoqtSessionTest, PaddingDatagramDiscarded) {
   EXPECT_CALL(mock_session_, CloseSession).Times(0);
   EXPECT_CALL(session_callbacks_.session_terminated_callback, Call).Times(0);
