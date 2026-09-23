@@ -308,6 +308,16 @@ struct QUICHE_EXPORT ParameterizedMember {
   const InnerList* GetIfInnerList() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
   InnerList* GetIfInnerList() ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
+  template <typename Visitor>
+  auto Visit(Visitor&& visitor) const {
+    return std::visit(std::forward<Visitor>(visitor), value_);
+  }
+
+  template <typename Visitor>
+  auto Visit(Visitor&& visitor) {
+    return std::visit(std::forward<Visitor>(visitor), value_);
+  }
+
   QUICHE_EXPORT friend bool operator==(const ParameterizedMember&,
                                        const ParameterizedMember&);
 
@@ -320,10 +330,6 @@ struct QUICHE_EXPORT ParameterizedMember {
   ParameterizedMember();
 
  private:
-  friend class StructuredHeaderSerializer;
-
-  // TODO(apaseltiner): Remove `std::monostate` once all uses of the default
-  // constructor are gone, and then add a public `Visit` method.
   std::variant<std::monostate, ParameterizedItem, InnerList> value_;
 };
 

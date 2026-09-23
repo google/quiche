@@ -730,16 +730,14 @@ class StructuredHeaderSerializer {
   [[nodiscard]] bool WriteParameterizedMember(
       const ParameterizedMember& value) {
     // Serializes a parameterized member ([RFC8941] 4.1.1).
-    return std::visit(
-        absl::Overload{
-            [&](const ParameterizedItem& value) { return WriteItem(value); },
-            [&](const InnerList& value) { return WriteInnerList(value); },
-            [](std::monostate) {
-              QUICHE_CHECK(false);
-              return false;
-            },
+    return value.Visit(absl::Overload{
+        [&](const ParameterizedItem& value) { return WriteItem(value); },
+        [&](const InnerList& value) { return WriteInnerList(value); },
+        [](std::monostate) {
+          QUICHE_CHECK(false);
+          return false;
         },
-        value.value_);
+    });
   }
 
   [[nodiscard]] bool WriteInnerList(const InnerList& value) {
@@ -963,12 +961,8 @@ InnerList* ParameterizedMember::GetIfInnerList() {
   return std::get_if<InnerList>(&value_);
 }
 
-// Not defaulted to work around
-// https://github.com/llvm/llvm-project/issues/132249 in older Clang versions.
-bool operator==(const ParameterizedMember& lhs,
-                const ParameterizedMember& rhs) {
-  return lhs.value_ == rhs.value_;
-}
+bool operator==(const ParameterizedMember&,
+                const ParameterizedMember&) = default;
 
 ParameterisedIdentifier::ParameterisedIdentifier() = default;
 ParameterisedIdentifier::ParameterisedIdentifier(
