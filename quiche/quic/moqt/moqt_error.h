@@ -51,11 +51,14 @@ inline constexpr webtransport::StreamErrorCode kResetCodeInternalError = 0x00;
 inline constexpr webtransport::StreamErrorCode kResetCodeCancelled = 0x01;
 inline constexpr webtransport::StreamErrorCode kResetCodeDeliveryTimeout = 0x02;
 inline constexpr webtransport::StreamErrorCode kResetCodeSessionClosed = 0x03;
-inline constexpr webtransport::StreamErrorCode kResetCodeUnknownObjectStatus =
-    0x04;
-inline constexpr webtransport::StreamErrorCode kResetCodeMalformedTrack = 0x12;
-// Proposed in a PR post draft-16.
+inline constexpr webtransport::StreamErrorCode kResetCodeGoingAway = 0x04;
 inline constexpr webtransport::StreamErrorCode kResetCodeTooFarBehind = 0x05;
+inline constexpr webtransport::StreamErrorCode kResetCodeUnknownObjectStatus =
+    0x06;
+inline constexpr webtransport::StreamErrorCode kResetCodeExpiredAuthToken =
+    0x07;
+inline constexpr webtransport::StreamErrorCode kResetCodeExcessiveLoad = 0x09;
+inline constexpr webtransport::StreamErrorCode kResetCodeMalformedTrack = 0x12;
 
 // Used for SUBSCRIBE_ERROR, PUBLISH_NAMESPACE_ERROR, PUBLISH_NAMESPACE_CANCEL,
 // SUBSCRIBE_NAMESPACE_ERROR, and FETCH_ERROR.
