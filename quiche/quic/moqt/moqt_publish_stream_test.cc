@@ -379,6 +379,19 @@ TEST_F(MoqtPublishResponseStreamTest,
   QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
 }
 
+TEST_F(MoqtPublishResponseStreamTest, ReceivePublishReservedTrackName) {
+  MoqtPublish publish = DefaultPublish();
+  publish.full_track_name = FullTrackName(TrackNamespace({"."}), "track");
+  EXPECT_CALL(incoming_publish_callback_mock_, Call).Times(0);
+  EXPECT_CALL(mock_add_callback_, Call).Times(0);
+  MoqtRequestError expected_error{RequestErrorCode::kDoesNotExist,
+                                  /*retry_interval=*/std::nullopt,
+                                  "Reserved track name"};
+  EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_error), _))
+      .WillOnce(Return(absl::OkStatus()));
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
+}
+
 TEST_F(MoqtPublishResponseStreamTest, ReceivePublishAndReject) {
   MoqtPublish publish = DefaultPublish();
   // Callback returns nullptr (rejection).

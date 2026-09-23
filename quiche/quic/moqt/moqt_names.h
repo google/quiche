@@ -74,6 +74,17 @@ class TrackNamespace {
     return result;
   }
 
+  // Enforces Sec 3.2 of draft-18. If the first tuple is '.', it
+  // MUST NOT be requested and any request will receive REQUEST_ERROR with
+  // DOES_NOT_EXIST. '.session' is reserved for session-level tracks that are
+  // not reported to the application. Since there is no .session track current
+  // supported by MoqtSession, these also do not exist. In the future, certain
+  // track names including '.session' may become valid.
+  bool DoesNotExist() const {
+    return !tuple_.empty() &&
+           (tuple_.ValueAt(0) == "." || tuple_.ValueAt(0) == ".session");
+  }
+
   // Encodes the string representation of MOQT track namespace in the format
   // prescribed by the MOQT specification.
   std::string ToString() const;
@@ -133,6 +144,10 @@ class FullTrackName {
   const TrackNamespace& track_namespace() const { return namespace_; }
   absl::string_view name() const ABSL_ATTRIBUTE_LIFETIME_BOUND { return name_; }
   size_t length() const { return namespace_.total_length() + name_.length(); }
+
+  // Wrapper for TrackNamespace::DoesNotExist(). If .session tracks are later
+  // defined, it will return false on those tracks.
+  bool DoesNotExist() const { return namespace_.DoesNotExist(); }
 
   // Encodes the string representation of MOQT full track name in the format
   // prescribed by the MOQT specification.

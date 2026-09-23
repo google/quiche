@@ -110,9 +110,13 @@ absl::Status MoqtTrackStatusResponseStream::OnControlMessage(
   if (request_id_.has_value()) {
     return absl::InvalidArgumentError("Duplicate TRACK_STATUS received");
   }
-  request_id_ = message.request_id;
   if (session() == nullptr) {
     return absl::InternalError("Session unavailable");
+  }
+  request_id_ = message.request_id;
+  if (message.full_track_name.DoesNotExist()) {
+    return SendRequestError(RequestErrorCode::kDoesNotExist, std::nullopt,
+                            "Reserved track name");
   }
   publisher_ = session()->GetTrackPublisher(message.full_track_name);
   if (publisher_ == nullptr) {

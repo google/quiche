@@ -969,8 +969,11 @@ absl::Status MoqtControlMessageParser::ReadTrackNamespace(
     return absl::InvalidArgumentError(
         "Unable to parse the number of namespace elements");
   }
-  if (num_elements == 0 || num_elements > kMaxNamespaceElements) {
+  if (num_elements > kMaxNamespaceElements) {
     return absl::InvalidArgumentError("Invalid number of namespace elements");
+  }
+  if (num_elements == 0) {
+    return absl::OkStatus();
   }
   absl::FixedArray<absl::string_view> elements(num_elements);
   for (uint64_t i = 0; i < num_elements; ++i) {

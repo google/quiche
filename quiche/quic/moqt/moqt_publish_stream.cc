@@ -126,6 +126,13 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
     // Two PUBLISH messages for the same stream.
     return absl::InvalidArgumentError("Multiple PUBLISH on the same stream");
   }
+  if (message.full_track_name.DoesNotExist()) {
+    add_callback_ = nullptr;
+    remove_callback_ = nullptr;
+    return SendRequestError(RequestErrorCode::kDoesNotExist,
+                            /*retry_interval=*/std::nullopt,
+                            "Reserved track name");
+  }
   absl::Status mandatory_property_status =
       message.properties.CheckForUnknownMandatoryProperty();
   if (!mandatory_property_status.ok()) {

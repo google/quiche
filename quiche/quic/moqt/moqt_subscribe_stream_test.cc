@@ -297,6 +297,20 @@ TEST_F(MoqtSubscribeResponseStreamTest, ReceiveSubscribeDoesNotExist) {
   QUICHE_EXPECT_OK(stream_->OnControlMessage(subscribe));
 }
 
+TEST_F(MoqtSubscribeResponseStreamTest, ReceiveSubscribeReservedTrackName) {
+  EXPECT_CALL(visitor_, session).WillRepeatedly(Return(&webtrans_));
+  EXPECT_CALL(visitor_, GetTrackPublisher).Times(0);
+  EXPECT_CALL(mock_add_callback_, Call).Times(0);
+  MoqtRequestError expected_error{RequestErrorCode::kDoesNotExist, std::nullopt,
+                                  "reserved track name"};
+  EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_error), _))
+      .WillOnce(Return(absl::OkStatus()));
+
+  MoqtSubscribe subscribe(kRequestId,
+                          FullTrackName(TrackNamespace({"."}), "bar"));
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(subscribe));
+}
+
 TEST_F(MoqtSubscribeResponseStreamTest, ReceiveSubscribeDuplicate) {
   EXPECT_CALL(visitor_, session).WillRepeatedly(Return(&webtrans_));
   EXPECT_CALL(visitor_, GetTrackPublisher(kTrackName))

@@ -279,6 +279,11 @@ std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
                     << "Tried to send SUBSCRIBE_NAMESPACE after GOAWAY";
     return nullptr;
   }
+  if (prefix.DoesNotExist()) {
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Tried to subscribe to a reserved track namespace";
+    return nullptr;
+  }
   if (!outgoing_subscribe_namespace_.SubscribeNamespace(prefix)) {
     return nullptr;
   }
@@ -321,6 +326,11 @@ std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
 bool MoqtSession::SubscribeTracks(TrackNamespace& prefix,
                                   const MessageParameters& parameters,
                                   MoqtResponseCallback response_callback) {
+  if (prefix.DoesNotExist()) {
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Tried to subscribe to a reserved track namespace";
+    return false;
+  }
   return false;
 }
 
@@ -336,7 +346,11 @@ bool MoqtSession::TrackStatus(const FullTrackName& name,
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send TRACK_STATUS after GOAWAY";
     return false;
   }
-
+  if (name.DoesNotExist()) {
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Tried to get status of a reserved track name";
+    return false;
+  }
   webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
   if (stream == nullptr) {
     return false;
@@ -368,6 +382,10 @@ bool MoqtSession::PublishNamespace(
   if (received_goaway_ || sent_goaway_) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Tried to send PUBLISH_NAMESPACE after GOAWAY";
+    return false;
+  }
+  if (track_namespace.DoesNotExist()) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to publish a reserved namespace";
     return false;
   }
   webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
@@ -467,6 +485,11 @@ bool MoqtSession::Subscribe(const FullTrackName& name,
   }
   if (!session_->CanOpenNextOutgoingBidirectionalStream()) {
     return false;  // Do not retry opening a SUBSCRIBE stream.
+  }
+  if (name.DoesNotExist()) {
+    QUIC_DLOG(INFO) << ENDPOINT
+                    << "Tried to subscribe to a reserved track name";
+    return false;
   }
   auto stream_visitor = std::make_unique<MoqtSubscribeRequestStream>(
       &framer_, ControlMessageParser(), NextRequestId(),
@@ -571,6 +594,10 @@ bool MoqtSession::Publish(
   if (!session_->CanOpenNextOutgoingBidirectionalStream()) {
     return false;  // Do not retry opening a PUBLISH stream.
   }
+  if (name.DoesNotExist()) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to publish a reserved track name";
+    return false;
+  }
   auto it = subscribed_track_names_.find(name);
   if (it != subscribed_track_names_.end()) {
     if (it->second->established()) {
@@ -626,6 +653,10 @@ std::unique_ptr<MoqtFetchTask> MoqtSession::Fetch(
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH after GOAWAY";
     return nullptr;
   }
+  if (name.DoesNotExist()) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to fetch a reserved track name";
+    return nullptr;
+  }
   webtransport::Stream* stream = session_->OpenOutgoingBidirectionalStream();
   if (stream == nullptr) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH but no more streams";
@@ -664,6 +695,10 @@ bool MoqtSession::RelativeJoiningFetch(const FullTrackName& name,
                                        uint64_t num_previous_groups,
                                        const MessageParameters& parameters) {
   QUICHE_DCHECK(name.IsValid());
+  if (name.DoesNotExist()) {
+    QUIC_DLOG(INFO) << ENDPOINT << "Tried to fetch a reserved track name";
+    return false;
+  }
   std::unique_ptr<MoqtFetchTask> fetch_task = RelativeJoiningFetch(
       name, visitor, [](std::variant<FetchOkData, MoqtRequestErrorInfo>) {},
       num_previous_groups, parameters);

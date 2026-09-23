@@ -194,6 +194,26 @@ TEST_F(MoqtPublishNamespaceResponseStreamTest,
   QUICHE_EXPECT_OK(response_stream->OnControlMessage(message));
 }
 
+TEST_F(MoqtPublishNamespaceResponseStreamTest, PublishReservedNamespace) {
+  auto response_stream = std::make_unique<MoqtPublishNamespaceResponseStream>(
+      &framer_,
+      MoqtControlMessageParser(kDefaultMoqtVersion, /*webtransport=*/true,
+                               quic::Perspective::IS_SERVER),
+      add_callback_.AsStdFunction(), remove_callback_.AsStdFunction(),
+      session_error_callback_.AsStdFunction(), application_.AsStdFunction());
+  response_stream->BindStream(&mock_stream_);
+
+  MoqtPublishNamespace message(5, TrackNamespace({"."}));
+  EXPECT_CALL(add_callback_, Call).Times(0);
+  EXPECT_CALL(application_, Call).Times(0);
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));
+  MoqtRequestError expected_error = {RequestErrorCode::kDoesNotExist,
+                                     std::nullopt, "Reserved track namespace"};
+  EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_error), _))
+      .WillOnce(Return(absl::OkStatus()));
+  QUICHE_EXPECT_OK(response_stream->OnControlMessage(message));
+}
+
 TEST_F(MoqtPublishNamespaceResponseStreamTest,
        OnPublishNamespaceSuccessAndApplicationAccepts) {
   auto response_stream = std::make_unique<MoqtPublishNamespaceResponseStream>(

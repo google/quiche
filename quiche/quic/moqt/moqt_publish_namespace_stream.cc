@@ -95,6 +95,13 @@ absl::Status MoqtPublishNamespaceResponseStream::OnControlMessage(
   if (add_callback_ == nullptr) {
     return absl::InvalidArgumentError("Two PUBLISH_NAMESPACE on one stream");
   }
+  if (message.track_namespace.DoesNotExist()) {
+    add_callback_ = nullptr;
+    remove_callback_ = nullptr;
+    return SendRequestError(RequestErrorCode::kDoesNotExist,
+                            /*retry_interval=*/std::nullopt,
+                            "Reserved track namespace");
+  }
   request_id_ = message.request_id;
   if (!std::move(add_callback_)(message.track_namespace, this)) {
     add_callback_ = nullptr;

@@ -270,6 +270,23 @@ TEST_F(MoqtTrackStatusResponseStreamTest, TrackDoesNotExist) {
       GenericMessageToRawControlMessage(track_status)));
 }
 
+TEST_F(MoqtTrackStatusResponseStreamTest, TrackReservedTrackName) {
+  MoqtTrackStatusResponseStream stream = CreateStream();
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));
+  stream.BindStream(&mock_stream_);
+
+  EXPECT_CALL(session_, GetTrackPublisher).Times(0);
+  MoqtRequestError expected_error{RequestErrorCode::kDoesNotExist, std::nullopt,
+                                  "Reserved track name"};
+  EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_error), _))
+      .WillOnce(Return(absl::OkStatus()));
+
+  MoqtTrackStatus track_status;
+  track_status.request_id = kRequestId;
+  track_status.full_track_name = FullTrackName(TrackNamespace({"."}), "bar");
+  QUICHE_EXPECT_OK(stream.OnControlMessage(track_status));
+}
+
 TEST_F(MoqtTrackStatusResponseStreamTest, DuplicateTrackStatus) {
   MoqtTrackStatusResponseStream stream = CreateStream();
   EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));

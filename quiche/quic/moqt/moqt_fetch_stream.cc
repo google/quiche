@@ -274,6 +274,11 @@ absl::Status MoqtFetchResponseStream::OnControlMessage(
     const StandaloneFetch& standalone_fetch =
         std::get<StandaloneFetch>(message.fetch);
     FullTrackName track_name = standalone_fetch.full_track_name;
+    if (track_name.DoesNotExist()) {
+      return SendRequestError(RequestErrorCode::kDoesNotExist,
+                              /*retry_interval=*/std::nullopt,
+                              "Reserved track name");
+    }
     std::shared_ptr<MoqtTrackPublisher> track_publisher =
         application_->GetTrack(track_name);
     if (track_publisher == nullptr) {

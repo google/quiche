@@ -1449,9 +1449,9 @@ TEST_F(MoqtMessageSpecificTest, PaddingStream) {
   }
 }
 
-// All messages with TrackNamespace use ReadTrackNamespace too check this. Use
+// All messages with TrackNamespace use ReadTrackNamespace. Use
 // PUBLISH_NAMESPACE.
-TEST_F(MoqtMessageSpecificTest, NamespaceTooSmall) {
+TEST_F(MoqtMessageSpecificTest, EmptyNamespace) {
   char publish_namespace[7] = {
       0x06, 0x00, 0x04, 0x02,  // request_id = 2
       0x01, 0x00,              // one empty namespace element
@@ -1463,14 +1463,32 @@ TEST_F(MoqtMessageSpecificTest, NamespaceTooSmall) {
   ASSERT_TRUE(parsed.ok());
   ASSERT_EQ(parsed->size(), 1u);
 
-  --publish_namespace[2];  // Remove one element.
-  --publish_namespace[4];
+  --publish_namespace[2];  // Length is now 3.
+  --publish_namespace[4];  // 0 elements.
   parsed = ParseAllMessages(
       absl::string_view(publish_namespace, sizeof(publish_namespace) - 1),
       kDefaultMoqtVersion, /*uses_web_transport=*/false);
-  EXPECT_FALSE(parsed.ok());
-  EXPECT_THAT(parsed.status().message(),
-              HasSubstr("Invalid number of namespace elements"));
+  ASSERT_TRUE(parsed.ok());
+  ASSERT_EQ(parsed->size(), 1u);
+  EXPECT_TRUE(
+      std::get<MoqtPublishNamespace>(parsed->at(0)).track_namespace.empty());
+}
+
+TEST_F(MoqtMessageSpecificTest, FullTrackNameEmptyNamespace) {
+  char subscribe[] = {
+      0x03, 0x00, 0x08, 0x01,        // request_id = 1
+      0x00,                          // 0 namespace elements
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x00,                          // 0 parameters
+  };
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
+      ParseAllMessages(absl::string_view(subscribe, sizeof(subscribe)),
+                       kDefaultMoqtVersion, kRawQuic);
+  ASSERT_TRUE(parsed.ok());
+  ASSERT_EQ(parsed->size(), 1);
+  MoqtSubscribe message = std::get<MoqtSubscribe>((*parsed)[0]);
+  EXPECT_TRUE(message.full_track_name.track_namespace().empty());
+  EXPECT_EQ(message.full_track_name.name(), "abcd");
 }
 
 TEST_F(MoqtMessageSpecificTest, NamespaceTooLarge) {

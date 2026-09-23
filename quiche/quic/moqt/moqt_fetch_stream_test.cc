@@ -509,6 +509,19 @@ TEST_F(MoqtFetchResponseStreamTest, ReceiveFetchStandaloneTrackDoesNotExist) {
   QUICHE_EXPECT_OK(stream->OnControlMessage(fetch));
 }
 
+TEST_F(MoqtFetchResponseStreamTest, ReceiveFetchStandaloneReservedTrackName) {
+  std::unique_ptr<MoqtFetchResponseStream> stream = CreateAndBindStream();
+  FullTrackName reserved_track_name(TrackNamespace({"."}), "track");
+  EXPECT_CALL(mock_publisher_, GetTrack(reserved_track_name)).Times(0);
+  MoqtRequestError expected_error = {RequestErrorCode::kDoesNotExist,
+                                     std::nullopt, "Reserved track name"};
+  EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_error), _))
+      .WillOnce(Return(absl::OkStatus()));
+  MoqtFetch fetch(kRequestId,
+                  StandaloneFetch(reserved_track_name, kStart, kEnd));
+  QUICHE_EXPECT_OK(stream->OnControlMessage(fetch));
+}
+
 TEST_F(MoqtFetchResponseStreamTest,
        ReceiveFetchStandaloneErrorFromApplication) {
   std::unique_ptr<MoqtFetchResponseStream> stream = CreateAndBindStream();

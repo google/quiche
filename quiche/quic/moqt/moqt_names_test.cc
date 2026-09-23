@@ -119,6 +119,34 @@ TEST(MoqtNamesTest, TooManyNamespaceElements) {
                                        HasSubstr("33 elements")));
 }
 
+TEST(MoqtNamesTest, NamespaceZeroElements) {
+  absl::StatusOr<TrackNamespace> name =
+      TrackNamespace::Create(MoqtStringTuple());
+  QUICHE_ASSERT_OK(name);
+  EXPECT_EQ(name->number_of_elements(), 0);
+  EXPECT_TRUE(name->empty());
+}
+
+TEST(MoqtNamesTest, DoesNotExist) {
+  EXPECT_FALSE(TrackNamespace().DoesNotExist());
+  EXPECT_FALSE(TrackNamespace({"foo"}).DoesNotExist());
+  EXPECT_FALSE(TrackNamespace({"foo", "bar"}).DoesNotExist());
+  EXPECT_FALSE(TrackNamespace({"session"}).DoesNotExist());
+  EXPECT_FALSE(TrackNamespace({"foo", "."}).DoesNotExist());
+  EXPECT_FALSE(TrackNamespace({"foo", ".session"}).DoesNotExist());
+
+  EXPECT_TRUE(TrackNamespace({"."}).DoesNotExist());
+  EXPECT_TRUE(TrackNamespace({".", "foo"}).DoesNotExist());
+  EXPECT_TRUE(TrackNamespace({".session"}).DoesNotExist());
+  EXPECT_TRUE(TrackNamespace({".session", "foo"}).DoesNotExist());
+
+  EXPECT_FALSE(FullTrackName(TrackNamespace(), "track").DoesNotExist());
+  EXPECT_FALSE(FullTrackName(TrackNamespace({"foo"}), "track").DoesNotExist());
+  EXPECT_TRUE(FullTrackName(TrackNamespace({"."}), "track").DoesNotExist());
+  EXPECT_TRUE(
+      FullTrackName(TrackNamespace({".session"}), "track").DoesNotExist());
+}
+
 TEST(MoqtNamesTest, FullTrackNameTooLong) {
   char raw_name[kMaxFullTrackNameSize + 1];
   absl::string_view track_namespace(raw_name, kMaxFullTrackNameSize);

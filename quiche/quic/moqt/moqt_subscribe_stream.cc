@@ -195,13 +195,19 @@ absl::Status MoqtSubscribeResponseStream::OnRawControlMessage(
 
 absl::Status MoqtSubscribeResponseStream::OnControlMessage(
     const MoqtSubscribe& message) {
-  if (subscription_ != nullptr) {
+  if (add_callback_ == nullptr) {
     return absl::InvalidArgumentError(
         "SUBSCRIBE received on stream that already has a subscription");
   }
   QUIC_DLOG(INFO) << "Received a SUBSCRIBE for " << message.full_track_name;
   if (session() == nullptr) {
     return absl::OkStatus();
+  }
+  if (message.full_track_name.DoesNotExist()) {
+    add_callback_ = nullptr;
+    remove_callback_ = nullptr;
+    return SendRequestError(RequestErrorCode::kDoesNotExist, std::nullopt,
+                            "reserved track name");
   }
   std::shared_ptr<MoqtTrackPublisher> track_publisher =
       session()->GetTrackPublisher(message.full_track_name);

@@ -427,6 +427,17 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, RequestError) {
   ReceiveControlMessage(message);
 }
 
+TEST_F(MoqtSubscribeNamespaceResponseStreamTest, SubscribeReservedNamespace) {
+  MoqtSubscribeNamespace message(kRequestId, TrackNamespace({"."}));
+  EXPECT_CALL(add_callback_, Call).Times(0);
+  EXPECT_CALL(mock_application_, Call).Times(0);
+  MoqtRequestError expected_error = {RequestErrorCode::kDoesNotExist,
+                                     std::nullopt, "Reserved track namespace"};
+  EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_error), _))
+      .WillOnce(Return(absl::OkStatus()));
+  ReceiveControlMessage(message);
+}
+
 TEST_F(MoqtSubscribeNamespaceResponseStreamTest, RequestUpdateOk) {
   MoqtSubscribeNamespace message = {
       kRequestId,

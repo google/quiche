@@ -247,6 +247,13 @@ absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
   if (add_callback_ == nullptr) {
     return absl::InvalidArgumentError("Two SUBSCRIBE_NAMESPACE on one stream");
   }
+  if (message.track_namespace_prefix.DoesNotExist()) {
+    add_callback_ = nullptr;
+    remove_callback_ = nullptr;
+    return SendRequestError(RequestErrorCode::kDoesNotExist,
+                            /*retry_interval=*/std::nullopt,
+                            "Reserved track namespace");
+  }
   if (!std::move(add_callback_)(message.track_namespace_prefix)) {
     add_callback_ = nullptr;
     return SendRequestError(RequestErrorCode::kPrefixOverlap, std::nullopt, "");
