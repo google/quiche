@@ -732,6 +732,20 @@ TEST_F(LivePublisherTest, OnSubgroupAbandonedAfterGroupAbandoned) {
   publisher_->OnSubgroupAbandoned(1, 0, 1234);
 }
 
+// Repro for b/565145319. A new object arrives while the session is closing.
+TEST_F(LivePublisherTest, OnNewObjectAvailableSessionClosing) {
+  CreateStream(Location(1, 0), 0, 128);
+  // When MoqtSession::is_closing_ is true, session() returns nullptr.
+  EXPECT_CALL(visitor_, session).WillRepeatedly(Return(nullptr));
+  EXPECT_CALL(*track_publisher_,
+              GetCachedObject(1, std::make_optional<uint64_t>(0), 1, 0))
+      .Times(testing::AtMost(1))
+      .WillOnce(Return(DefaultPublishedObject(Location(1, 1), 0, 128)));
+  EXPECT_CALL(monitoring_interface_, OnNewObjectEnqueued(Location(1, 1)))
+      .Times(testing::AtMost(1));
+  publisher_->OnNewObjectAvailable(Location(1, 1), 0, 128);
+}
+
 }  // namespace
 
 }  // namespace moqt::test

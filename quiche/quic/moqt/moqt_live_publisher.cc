@@ -184,7 +184,7 @@ void LivePublisher::OnNewObjectAvailable(Location location,
   // TODO(vasilvv): This currently sends UINT64_MAX for datagram subgroups.
   // Maybe do something more satisfactory?
   SessionToPublisherInterface* session_info = visitor();
-  if (session_info == nullptr) {
+  if (session_info == nullptr || session_info->session() == nullptr) {
     return;  // Session is gone.
   }
   session_info->trace_recorder().RecordNewObjectAvaliable(
