@@ -722,6 +722,16 @@ TEST_F(LivePublisherTest, OnSubgroupAbandonedOutsideWindow) {
   publisher_->OnSubgroupAbandoned(1, 0, 1234);
 }
 
+// Repro for b/564069875. A relay could abandon a group and then receive a reset
+// for a stream in that group.
+TEST_F(LivePublisherTest, OnSubgroupAbandonedAfterGroupAbandoned) {
+  CreateStream(Location(1, 0), 0, 128);
+  EXPECT_CALL(mock_uni_stream_, ResetWithUserCode(kResetCodeDeliveryTimeout))
+      .WillOnce([&](webtransport::StreamErrorCode) { uni_stream_.reset(); });
+  publisher_->OnGroupAbandoned(1);
+  publisher_->OnSubgroupAbandoned(1, 0, 1234);
+}
+
 }  // namespace
 
 }  // namespace moqt::test

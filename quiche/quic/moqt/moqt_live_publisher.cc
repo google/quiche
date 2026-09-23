@@ -285,7 +285,7 @@ void LivePublisher::OnNewFinAvailable(Location location, uint64_t subgroup) {
 void LivePublisher::OnSubgroupAbandoned(
     uint64_t group, uint64_t subgroup,
     webtransport::StreamErrorCode error_code) {
-  if (!InWindow(group)) {
+  if (!InWindow(group) || group < first_active_group_) {
     return;
   }
   DataStreamIndex index(group, subgroup);
@@ -294,7 +294,6 @@ void LivePublisher::OnSubgroupAbandoned(
     return;
   }
   reset_subgroups_.insert(index);
-  QUICHE_DCHECK_GE(group, first_active_group_);
   std::optional<webtransport::StreamId> stream_id =
       stream_map_.GetStreamFor(index);
   if (!stream_id.has_value()) {
