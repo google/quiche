@@ -8,6 +8,7 @@
     "quiche/quic/test_tools/send_algorithm_test_result.proto"
   ],
   "quiche_core_hdrs": [
+    "quiche/common/abiding_object_pool.h",
     "quiche/common/btree_scheduler.h",
     "quiche/common/bug_utils.h",
     "quiche/common/bug_utils_test_helper.h",
@@ -1130,6 +1131,7 @@
     "quiche/balsa/header_properties_test.cc",
     "quiche/balsa/simple_buffer_test.cc",
     "quiche/binary_http/binary_http_message_test.cc",
+    "quiche/common/abiding_object_pool_test.cc",
     "quiche/common/btree_scheduler_test.cc",
     "quiche/common/bug_utils_test.cc",
     "quiche/common/capsule_test.cc",

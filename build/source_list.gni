@@ -9,6 +9,7 @@ protobuf_test_support = [
     "src/quiche/quic/test_tools/send_algorithm_test_result.proto",
 ]
 quiche_core_hdrs = [
+    "src/quiche/common/abiding_object_pool.h",
     "src/quiche/common/btree_scheduler.h",
     "src/quiche/common/bug_utils.h",
     "src/quiche/common/bug_utils_test_helper.h",
@@ -1131,6 +1132,7 @@ quiche_tests_srcs = [
     "src/quiche/balsa/header_properties_test.cc",
     "src/quiche/balsa/simple_buffer_test.cc",
     "src/quiche/binary_http/binary_http_message_test.cc",
+    "src/quiche/common/abiding_object_pool_test.cc",
     "src/quiche/common/btree_scheduler_test.cc",
     "src/quiche/common/bug_utils_test.cc",
     "src/quiche/common/capsule_test.cc",
