@@ -1860,7 +1860,7 @@ TEST_F(MoqtMessageSpecificTest, StreamTypeParserFinAfterType) {
 TEST_F(MoqtMessageSpecificTest, StreamTypeParserFinForPadding) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtStreamTypeParser type_parser(&stream);
-  char buffer[16];
+  char buffer[5];
   quic::QuicDataWriter writer(sizeof(buffer), buffer);
   ASSERT_TRUE(writer.WriteMoqVarInt(kPaddingStreamType));
   stream.Receive(writer.data(), true);
