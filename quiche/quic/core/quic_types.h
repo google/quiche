@@ -19,12 +19,13 @@
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "openssl/ssl.h"
-#include "quiche/quic/core/quic_connection_id.h"
-#include "quiche/quic/core/quic_error_codes.h"
+#include "quiche/quic/core/quic_connection_id.h"  // IWYU pragma: export
+#include "quiche/quic/core/quic_error_codes.h"    // IWYU pragma: export
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/platform/api/quic_flags.h"
+#include "quiche/quic/platform/api/quic_flags.h"  // IWYU pragma: export
 #include "quiche/common/platform/api/quiche_export.h"
+#include "quiche/common/quiche_types.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace quic {
@@ -43,7 +44,7 @@ using QuicStreamId = uint32_t;
 // Count of stream IDs. Used in MAX_STREAMS and STREAMS_BLOCKED frames.
 using QuicStreamCount = QuicStreamId;
 
-using QuicByteCount = uint64_t;
+using QuicByteCount = quiche::QuicheByteCount;
 using QuicPacketCount = uint64_t;
 using QuicPublicResetNonceProof = uint64_t;
 using QuicStreamOffset = uint64_t;
@@ -969,22 +970,11 @@ QUICHE_EXPORT bool operator==(const ParsedClientHello& a,
 QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                        const ParsedClientHello& parsed_chlo);
 
-// The two bits in the IP header for Explicit Congestion Notification can take
-// one of four values.
-enum QuicEcnCodepoint : uint8_t {
-  // The NOT-ECT codepoint, indicating the packet sender is not using (or the
-  // network has disabled) ECN.
-  ECN_NOT_ECT = 0,
-  // The ECT(1) codepoint, indicating the packet sender is using Low Latency,
-  // Low Loss, Scalable Throughput (L4S) ECN (RFC9330).
-  ECN_ECT1 = 1,
-  // The ECT(0) codepoint, indicating the packet sender is using classic ECN
-  // (RFC3168).
-  ECN_ECT0 = 2,
-  // The CE ("Congestion Experienced") codepoint, indicating the packet sender
-  // is using ECN, and a router is experiencing congestion.
-  ECN_CE = 3,
-};
+using QuicEcnCodepoint = quiche::QuicheEcnCodepoint;
+using quiche::ECN_CE;
+using quiche::ECN_ECT0;
+using quiche::ECN_ECT1;
+using quiche::ECN_NOT_ECT;
 
 QUICHE_EXPORT std::string EcnCodepointToString(QuicEcnCodepoint ecn);
 

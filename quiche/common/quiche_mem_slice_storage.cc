@@ -5,19 +5,23 @@
 #include "quiche/common/quiche_mem_slice_storage.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <utility>
 
-#include "quiche/quic/core/quic_utils.h"
+#include "quiche/common/platform/api/quiche_logging.h"
+#include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_mem_slice.h"
+#include "quiche/common/quiche_types.h"
 
 namespace quiche {
 
 QuicheMemSliceStorage::QuicheMemSliceStorage(
     const struct iovec* iov, int iov_count, QuicheBufferAllocator* allocator,
-    const quic::QuicByteCount max_slice_len) {
+    const QuicheByteCount max_slice_len) {
   if (iov == nullptr) {
     return;
   }
-  quic::QuicByteCount write_len = 0;
+  QuicheByteCount write_len = 0;
   for (int i = 0; i < iov_count; ++i) {
     write_len += iov[i].iov_len;
   }

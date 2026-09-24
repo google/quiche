@@ -64,6 +64,7 @@
     "quiche/common/quiche_status_utils.h",
     "quiche/common/quiche_string_tuple.h",
     "quiche/common/quiche_text_utils.h",
+    "quiche/common/quiche_types.h",
     "quiche/common/quiche_weak_ptr.h",
     "quiche/common/simple_buffer_allocator.h",
     "quiche/common/stable_block_list.h",

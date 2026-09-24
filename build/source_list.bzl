@@ -65,6 +65,7 @@ quiche_core_hdrs = [
     "common/quiche_status_utils.h",
     "common/quiche_string_tuple.h",
     "common/quiche_text_utils.h",
+    "common/quiche_types.h",
     "common/quiche_weak_ptr.h",
     "common/simple_buffer_allocator.h",
     "common/stable_block_list.h",

@@ -5,10 +5,13 @@
 #ifndef QUICHE_COMMON_PLATFORM_API_QUICHE_UDP_SOCKET_PLATFORM_API_H_
 #define QUICHE_COMMON_PLATFORM_API_QUICHE_UDP_SOCKET_PLATFORM_API_H_
 
+#include <cstddef>
+#include <cstdint>
+
 #include "quiche_platform_impl/quiche_udp_socket_platform_impl.h"
 
-#include "quiche/quic/core/quic_types.h"
 #include "quiche/common/quiche_ip_address_family.h"
+#include "quiche/common/quiche_types.h"
 
 namespace quiche {
 
@@ -35,7 +38,7 @@ inline void SetGoogleSocketOptions(int fd) { SetGoogleSocketOptionsImpl(fd); }
 // associated error code.
 inline int GetEcnCmsgArgsPreserveDscp(
     const int fd, const quiche::IpAddressFamily address_family,
-    quic::QuicEcnCodepoint ecn_codepoint, int& type, void* value,
+    QuicheEcnCodepoint ecn_codepoint, int& type, void* value,
     socklen_t& value_len) {
   return GetEcnCmsgArgsPreserveDscpImpl(
       fd, ToPlatformAddressFamily(address_family),
