@@ -198,6 +198,45 @@ TEST_F(QuicReceivedPacketManagerTest, TrimAckRangesEarly) {
   }
 }
 
+TEST_F(QuicReceivedPacketManagerTest, TrimmedAckRangesRemovedFromTimestamps) {
+  received_manager_.set_save_timestamps(true);
+  received_manager_.set_max_ack_ranges(2);
+
+  RecordPacketReceipt(3,
+                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1));
+  RecordPacketReceipt(5,
+                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(2));
+  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  EXPECT_EQ(2u, received_manager_.ack_frame().packets.NumIntervals());
+  EXPECT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
+
+  // Receiving packet 7 creates a 3rd interval, trimming interval [3, 4) and
+  // pruning packet 3's timestamp.
+  RecordPacketReceipt(7,
+                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(3));
+  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  EXPECT_EQ(2u, received_manager_.ack_frame().packets.NumIntervals());
+  EXPECT_EQ(QuicPacketNumber(5), received_manager_.ack_frame().packets.Min());
+  ASSERT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(QuicPacketNumber(5),
+            received_manager_.ack_frame().received_packet_times[0].first);
+  EXPECT_EQ(QuicPacketNumber(7),
+            received_manager_.ack_frame().received_packet_times[1].first);
+
+  // Receiving an out-of-order packet 1 creates a new smallest interval [1, 2)
+  // that is immediately trimmed along with its timestamp.
+  RecordPacketReceipt(1,
+                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(4));
+  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  EXPECT_EQ(2u, received_manager_.ack_frame().packets.NumIntervals());
+  EXPECT_EQ(QuicPacketNumber(5), received_manager_.ack_frame().packets.Min());
+  ASSERT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(QuicPacketNumber(5),
+            received_manager_.ack_frame().received_packet_times[0].first);
+  EXPECT_EQ(QuicPacketNumber(7),
+            received_manager_.ack_frame().received_packet_times[1].first);
+}
+
 TEST_F(QuicReceivedPacketManagerTest, IgnoreOutOfOrderTimestamps) {
   EXPECT_FALSE(received_manager_.ack_frame_updated());
   RecordPacketReceipt(1, QuicTime::Zero());

@@ -8,6 +8,7 @@
 #include <limits>
 #include <optional>
 #include <utility>
+#include <vector>
 
 #include "quiche/quic/core/congestion_control/rtt_stats.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
@@ -195,6 +196,14 @@ const QuicFrame QuicReceivedPacketManager::GetUpdatedAckFrame(
         << ", current_ack_ranges:" << ack_frame_.packets.NumIntervals()
         << " num_iterations:" << num_iterations;
     ack_frame_.packets.RemoveSmallestInterval();
+  }
+
+  // Remove timestamps for packets that got removed from the packet ranges.
+  if (!ack_frame_.received_packet_times.empty()) {
+    std::erase_if(ack_frame_.received_packet_times,
+                  [&](const std::pair<QuicPacketNumber, QuicTime>& entry) {
+                    return !ack_frame_.packets.Contains(entry.first);
+                  });
   }
 
 #if QUIC_FRAME_DEBUG

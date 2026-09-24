@@ -14,6 +14,7 @@
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
 #include "quiche/common/quiche_text_utils.h"
 
@@ -23,7 +24,10 @@ namespace {
 class QuicAckTimestampListTest : public quiche::test::QuicheTest {
  protected:
   QuicAckTimestampListTest()
-      : basis_(QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1000)) {}
+      : basis_(QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1000)) {
+    // Packets numbers higher than 1000 will trigger a QUIC_BUG.
+    ack_.packets.AddRange(QuicPacketNumber(1), QuicPacketNumber(1001));
+  }
 
   QuicTime TimePlus(uint64_t offset_us) {
     return basis_ + QuicTime::Delta::FromMicroseconds(offset_us);
@@ -374,6 +378,26 @@ TEST_F(QuicAckTimestampListTest, BufferTruncationMultipleRanges) {
     EXPECT_EQ(absl::BytesToHexString(absl::string_view(buffer.data(), 1)), "00")
         << "buf_len: " << buf_len;
   }
+}
+
+TEST_F(QuicAckTimestampListTest, UnacknowledgedPacketTriggersQuicBug) {
+  ack_.largest_acked = QuicPacketNumber(100);
+  ack_.packets.Clear();
+  ack_.packets.AddRange(QuicPacketNumber(99), QuicPacketNumber(101));
+  ack_.received_packet_times = {
+      {QuicPacketNumber(90), TimePlus(5)},
+      {QuicPacketNumber(99), TimePlus(10)},
+      {QuicPacketNumber(100), TimePlus(20)},
+  };
+
+  EXPECT_QUIC_BUG(
+      {
+        QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0,
+                                  basis_);
+        EXPECT_EQ(list.error(), "");
+        ExpectBinaryEncoding(list, "020002140a0a0105");
+      },
+      "Sending receive timestamp for unacknowledged packet 90");
 }
 
 }  // namespace

@@ -7608,7 +7608,7 @@ TEST_P(QuicFramerTest, IetfAckReceiveTimestampsAckRangeTruncation) {
                                    /*max_num_gaps=*/200,
                                    /*largest_acked=*/kMaxIetfVarInt);
   ack_frame.received_packet_times = PacketTimeVector{
-      {QuicPacketNumber(kMaxIetfVarInt) - 2, CreationTimePlus((0x29ff << 3))},
+      {QuicPacketNumber(kMaxIetfVarInt), CreationTimePlus((0x29ff << 3))},
   };
   QuicFrames frames = {QuicFrame(&ack_frame)};
   // Build an ACK packet.

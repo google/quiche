@@ -14,6 +14,7 @@
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
@@ -87,6 +88,19 @@ QuicAckTimestampList::QuicAckTimestampList(const QuicAckFrame& ack,
       error_ = "Packet number listed higher than largest_acked";
       return;
     }
+
+    // There is nothing in the logic below that depends on `ack.packets`
+    // actually containing the packet in question; furthermore, while the
+    // specification requires timestamped packets to be acknowledged, they don't
+    // have to be acknowledged in the same ACK packet, and due to memory
+    // limitations and reordering, this requirement is effectively not
+    // enforceable by the receiver of the ACK.
+    // Because of that, we merely log a bug instead of aborting serialization as
+    // with the preconditions above.
+    QUIC_BUG_IF(quic_ack_timestamp_not_in_ack_frame,
+                !ack.packets.Contains(packet_number))
+        << "Sending receive timestamp for unacknowledged packet "
+        << packet_number;
 
     bool should_open_new_range;
     if (i >= 1) {
