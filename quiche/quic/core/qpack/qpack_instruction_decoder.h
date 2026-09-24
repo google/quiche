@@ -125,13 +125,21 @@ class QUICHE_EXPORT QpackInstructionDecoder {
   Delegate* const delegate_;
 
   // Storage for decoded field values.
-  bool s_bit_;
   uint64_t varint_;
   uint64_t varint2_;
   std::string name_;
   std::string value_;
+  bool s_bit_;
   // Whether the currently decoded header name or value is Huffman encoded.
   bool is_huffman_encoded_;
+
+  // True if a decoding error has been detected by QpackInstructionDecoder.
+  // Only used in QUICHE_DCHECKs.
+  bool error_detected_;
+
+  // Decoding state.
+  State state_;
+
   // Length of string being read into |name_| or |value_|.
   size_t string_length_;
 
@@ -140,13 +148,6 @@ class QUICHE_EXPORT QpackInstructionDecoder {
 
   // Decoder instance for decoding Huffman encoded strings.
   http2::HpackHuffmanDecoder huffman_decoder_;
-
-  // True if a decoding error has been detected by QpackInstructionDecoder.
-  // Only used in QUICHE_DCHECKs.
-  bool error_detected_;
-
-  // Decoding state.
-  State state_;
 
   // Instruction currently being decoded.
   const QpackInstruction* instruction_;

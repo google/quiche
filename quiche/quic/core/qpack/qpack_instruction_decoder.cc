@@ -27,13 +27,13 @@ QpackInstructionDecoder::QpackInstructionDecoder(const QpackLanguage* language,
                                                  Delegate* delegate)
     : language_(language),
       delegate_(delegate),
-      s_bit_(false),
       varint_(0),
       varint2_(0),
+      s_bit_(false),
       is_huffman_encoded_(false),
-      string_length_(0),
       error_detected_(false),
-      state_(State::kStartInstruction) {}
+      state_(State::kStartInstruction),
+      string_length_(0) {}
 
 bool QpackInstructionDecoder::Decode(absl::string_view data) {
   QUICHE_DCHECK(!data.empty());
