@@ -1863,7 +1863,7 @@ TEST_F(MoqtMessageSpecificTest, StreamTypeParserFinForPadding) {
   char buffer[5];
   quic::QuicDataWriter writer(sizeof(buffer), buffer);
   ASSERT_TRUE(writer.WriteMoqVarInt(kPaddingStreamType));
-  stream.Receive(writer.data(), true);
+  stream.Receive(absl::string_view(writer.data(), writer.length()), true);
   absl::StatusOr<uint64_t> type = type_parser.ReadStreamType();
   EXPECT_THAT(type, IsOkAndHolds(kPaddingStreamType));
 }

@@ -537,7 +537,8 @@ TEST_F(MoqtSessionTest, IncomingPaddingStream) {
   quic::QuicDataWriter writer(sizeof(buffer), buffer);
   ASSERT_TRUE(writer.WriteMoqVarInt(kPaddingStreamType));
   ASSERT_TRUE(writer.WriteStringPiece("padding_data"));
-  padding_stream.Receive(writer.data(), true);
+  padding_stream.Receive(absl::string_view(writer.data(), writer.length()),
+                         true);
   EXPECT_CALL(mock_session_, AcceptIncomingUnidirectionalStream())
       .WillOnce(Return(&padding_stream))
       .WillOnce(Return(nullptr));
@@ -553,7 +554,8 @@ TEST_F(MoqtSessionTest, IncomingUnknownStreamType) {
   char buffer[16];
   quic::QuicDataWriter writer(sizeof(buffer), buffer);
   ASSERT_TRUE(writer.WriteMoqVarInt(0x99));
-  unknown_stream.Receive(writer.data(), false);
+  unknown_stream.Receive(absl::string_view(writer.data(), writer.length()),
+                         false);
   EXPECT_CALL(mock_session_, AcceptIncomingUnidirectionalStream())
       .WillOnce(Return(&unknown_stream))
       .WillOnce(Return(nullptr));
@@ -574,12 +576,14 @@ TEST_F(MoqtSessionTest, PaddingDatagramDiscarded) {
   quic::QuicDataWriter writer(sizeof(buffer), buffer);
   ASSERT_TRUE(writer.WriteMoqVarInt(kPaddingDatagramType));
   ASSERT_TRUE(writer.WriteStringPiece("padding_data"));
-  session_.OnDatagramReceived(writer.data());
+  session_.OnDatagramReceived(
+      absl::string_view(writer.data(), writer.length()));
 
   char empty_buffer[16];
   quic::QuicDataWriter empty_writer(sizeof(empty_buffer), empty_buffer);
   ASSERT_TRUE(empty_writer.WriteMoqVarInt(kPaddingDatagramType));
-  session_.OnDatagramReceived(empty_writer.data());
+  session_.OnDatagramReceived(
+      absl::string_view(empty_writer.data(), empty_writer.length()));
 }
 
 TEST_F(MoqtSessionTest, Error) {
