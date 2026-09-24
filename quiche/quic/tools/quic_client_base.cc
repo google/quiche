@@ -484,6 +484,14 @@ QuicConnectionId QuicClientBase::GetClientConnectionId() {
   return QuicUtils::CreateRandomConnectionId(client_connection_id_length_);
 }
 
+void QuicClientBase::set_client_connection_id_length(
+    uint8_t client_connection_id_length) {
+  QUICHE_DCHECK(!connected());
+  client_connection_id_length_ = client_connection_id_length;
+  connection_id_generator_.set_expected_connection_id_length(
+      client_connection_id_length);
+}
+
 bool QuicClientBase::CanReconnectWithDifferentVersion(
     ParsedQuicVersion* version) const {
   if (session_ == nullptr || session_->connection() == nullptr ||
