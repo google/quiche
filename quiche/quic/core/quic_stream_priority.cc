@@ -14,26 +14,26 @@
 namespace quic {
 
 std::string SerializePriorityFieldValue(HttpStreamPriority priority) {
-  quiche::structured_headers::Dictionary dictionary;
+  std::vector<quiche::structured_headers::DictionaryMember> members;
 
   if (priority.urgency != HttpStreamPriority::kDefaultUrgency &&
       priority.urgency >= HttpStreamPriority::kMinimumUrgency &&
       priority.urgency <= HttpStreamPriority::kMaximumUrgency) {
-    dictionary[HttpStreamPriority::kUrgencyKey] =
-        quiche::structured_headers::ParameterizedMember(
-            quiche::structured_headers::Item(
-                static_cast<int64_t>(priority.urgency)),
-            {});
+    members.emplace_back(HttpStreamPriority::kUrgencyKey,
+                         quiche::structured_headers::Item(
+                             static_cast<int64_t>(priority.urgency)));
   }
 
   if (priority.incremental != HttpStreamPriority::kDefaultIncremental) {
-    dictionary[HttpStreamPriority::kIncrementalKey] =
-        quiche::structured_headers::ParameterizedMember(
-            quiche::structured_headers::Item(priority.incremental), {});
+    members.emplace_back(
+        HttpStreamPriority::kIncrementalKey,
+        quiche::structured_headers::Item(priority.incremental));
   }
 
   std::optional<std::string> priority_field_value =
-      quiche::structured_headers::SerializeDictionary(dictionary);
+      quiche::structured_headers::SerializeDictionary(
+          quiche::structured_headers::Dictionary(std::move(members)));
+
   if (!priority_field_value.has_value()) {
     QUICHE_BUG(priority_field_value_serialization_failed);
     return "";
