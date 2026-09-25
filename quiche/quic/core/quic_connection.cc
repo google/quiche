@@ -6951,7 +6951,9 @@ void QuicConnection::ValidatePath(
     }
     if (!HasUnusedConnectionId()) {
       QUIC_DVLOG(1) << "Client cannot start new path validation as there is no "
-                       "requried connection ID is available.";
+                       "unused connection ID available.";
+      context->set_failure_reason(
+          PathValidationFailure::Reason::kNoAvailableConnectionId);
       result_delegate->OnPathValidationFailure(std::move(context));
       return;
     }

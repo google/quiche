@@ -12103,11 +12103,13 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
                   new_writer.last_write_source_address());
       });
   bool success = true;
+  std::optional<PathValidationFailure::Reason> failure_reason;
   connection_.ValidatePath(
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress, connection_.peer_address(), &new_writer),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress, connection_.peer_address(), &success),
+          &connection_, kNewSelfAddress, connection_.peer_address(), &success,
+          &failure_reason),
       PathValidationReason::kReasonUnknown);
   EXPECT_EQ(0u, writer_->packets_write_attempts());
 
@@ -12116,15 +12118,20 @@ TEST_P(QuicConnectionTest, NewPathValidationCancelsPreviousOne) {
   EXPECT_NE(kNewSelfAddress2, connection_.self_address());
   TestPacketWriter new_writer2(version(), &clock_, Perspective::IS_CLIENT);
   bool success2 = false;
+  std::optional<PathValidationFailure::Reason> failure_reason2;
   connection_.ValidatePath(
       std::make_unique<TestQuicPathValidationContext>(
           kNewSelfAddress2, connection_.peer_address(), &new_writer2),
       std::make_unique<TestValidationResultDelegate>(
-          &connection_, kNewSelfAddress2, connection_.peer_address(),
-          &success2),
+          &connection_, kNewSelfAddress2, connection_.peer_address(), &success2,
+          &failure_reason2),
       PathValidationReason::kReasonUnknown);
   EXPECT_FALSE(success);
-  // There is no pening path validation as there is no available connection ID.
+  EXPECT_EQ(failure_reason, PathValidationFailure::Reason::kNewerValidation);
+  EXPECT_FALSE(success2);
+  EXPECT_EQ(failure_reason2,
+            PathValidationFailure::Reason::kNoAvailableConnectionId);
+  // There is no pending path validation as there is no available connection ID.
   EXPECT_FALSE(connection_.HasPendingPathValidation());
 }
 

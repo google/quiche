@@ -45,12 +45,23 @@ enum class PathValidationReason {
 
 struct QUICHE_EXPORT PathValidationFailure {
   enum class Reason : uint8_t {
+    // Do not use this. Instead, create a new enum value specific to the new
+    // failure scenario.
     kUnknown = 0,
-    kStatelessReset = 1,   // The peer sent a stateless reset on the path.
-    kNewerValidation = 2,  // Starting validation on a new path.
-    kRetryTimeout = 3,     // The validation process hit the retry limit.
-    kNotConnected = 4,     // PATH_CHALLENGE can't be sent because the
-                           // connection is no longer active.
+    // The peer sent a stateless reset on the path.
+    kStatelessReset = 1,
+    // Starting validation on a new path.
+    kNewerValidation = 2,
+    // The validation process hit the retry limit.
+    kRetryTimeout = 3,
+    // PATH_CHALLENGE can't be sent because the connection is no longer active.
+    kNotConnected = 4,
+    // No unused connection ID was available, so validation could not start.
+    // No PATH_CHALLENGE was ever sent on this path.
+    kNoAvailableConnectionId = 5,
+    // Writing to the path failed. The writer belongs to the caller, so this is
+    // normally reported by the caller while cancelling its own validation.
+    kWriterError = 6,
   };
   Reason reason;
 };
