@@ -86,6 +86,18 @@ class QUICHE_EXPORT Item {
   };
   static constexpr byte_sequence_t byte_sequence{};
 
+  struct Token {
+    std::string value;
+
+    friend bool operator==(const Token&, const Token&) = default;
+  };
+
+  struct ByteSequence {
+    std::string value;
+
+    friend bool operator==(const ByteSequence&, const ByteSequence&) = default;
+  };
+
   Item();
   explicit Item(int64_t value);
   explicit Item(double value);
@@ -177,22 +189,17 @@ class QUICHE_EXPORT Item {
 
   ItemType Type() const { return static_cast<ItemType>(value_.index()); }
 
+  template <typename Visitor>
+  auto Visit(Visitor&& visitor) const {
+    return std::visit(std::forward<Visitor>(visitor), value_);
+  }
+
+  template <typename Visitor>
+  auto Visit(Visitor&& visitor) {
+    return std::visit(std::forward<Visitor>(visitor), value_);
+  }
+
  private:
-  friend class ItemView;
-
-  // Wrapper types to permit simplified use of `std::visit`.
-  struct Token {
-    std::string value;
-
-    friend bool operator==(const Token&, const Token&) = default;
-  };
-
-  struct ByteSequence {
-    std::string value;
-
-    friend bool operator==(const ByteSequence&, const ByteSequence&) = default;
-  };
-
   std::variant<std::monostate, int64_t, double, std::string, Token,
                ByteSequence, bool>
       value_;

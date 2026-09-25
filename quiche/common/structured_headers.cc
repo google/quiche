@@ -879,11 +879,7 @@ const bool* Item::GetIfBoolean() const { return std::get_if<bool>(&value_); }
 
 bool* Item::GetIfBoolean() { return std::get_if<bool>(&value_); }
 
-// Not defaulted to work around
-// https://github.com/llvm/llvm-project/issues/132249 in older Clang versions.
-bool operator==(const Item& lhs, const Item& rhs) {
-  return lhs.value_ == rhs.value_;
-}
+bool operator==(const Item&, const Item&) = default;
 
 ParameterizedItem::ParameterizedItem() = default;
 ParameterizedItem::ParameterizedItem(const ParameterizedItem&) = default;
@@ -1112,8 +1108,7 @@ ItemView::ItemView(byte_sequence_t, absl::string_view value)
     : value_(ByteSequence(value)) {}
 
 ItemView::ItemView(const Item& value)
-    : value_(std::visit([](const auto& value) { return Variant(value); },
-                        value.value_)) {}
+    : value_(value.Visit([](const auto& value) { return Variant(value); })) {}
 
 }  // namespace structured_headers
 }  // namespace quiche
