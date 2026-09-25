@@ -50,7 +50,9 @@ struct QUICHE_EXPORT PathValidationFailure {
     kUnknown = 0,
     // The peer sent a stateless reset on the path.
     kStatelessReset = 1,
-    // Starting validation on a new path.
+    // Do not use this, except for scenarios where the embedder triggers a new
+    // validation without having first canceled the previous one with a
+    // kNewerValidation* reason.
     kNewerValidation = 2,
     // The validation process hit the retry limit.
     kRetryTimeout = 3,
@@ -62,6 +64,21 @@ struct QUICHE_EXPORT PathValidationFailure {
     // Writing to the path failed. The writer belongs to the caller, so this is
     // normally reported by the caller while cancelling its own validation.
     kWriterError = 6,
+
+    // Canceled by a newer validation. This also encodes what triggered the new
+    // validation in the value itself. QUICHE embedders are expected to specify
+    // one of these, by explicitly cancelling the previous validation (via
+    // CancelPathValidation), prior to starting a newer validation.
+    kNewerValidationOnNetworkConnected = 7,
+    kNewerValidationOnNetworkDisconnected = 8,
+    kNewerValidationOnWriteError = 9,
+    kNewerValidationOnNetworkMadeDefault = 10,
+    kNewerValidationOnMigrateBackToDefaultNetwork = 11,
+    kNewerValidationOnChangeNetworkOnPathDegrading = 12,
+    kNewerValidationOnChangePortOnPathDegrading = 13,
+    kNewerValidationOnNewNetworkConnectedPostPathDegrading = 14,
+    kNewerValidationOnServerPreferredAddressAvailable = 15,
+    kNewerValidationOnMultiPortPath = 16,
   };
   Reason reason;
 };
