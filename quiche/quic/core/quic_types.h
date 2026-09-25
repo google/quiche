@@ -118,7 +118,7 @@ enum WriteStatus : int16_t {
   WRITE_STATUS_NUM_VALUES,
 };
 
-std::string HistogramEnumString(WriteStatus enum_value);
+absl::string_view HistogramEnumString(WriteStatus enum_value);
 QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                        const WriteStatus& status);
 

@@ -90,7 +90,7 @@ std::ostream& operator<<(std::ostream& os, const LostPacket& lost_packet) {
   return os;
 }
 
-std::string HistogramEnumString(WriteStatus enum_value) {
+absl::string_view HistogramEnumString(WriteStatus enum_value) {
   switch (enum_value) {
     case WRITE_STATUS_OK:
       return "OK";
