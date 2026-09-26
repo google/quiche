@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "absl/strings/string_view.h"
+#include "quiche/http2/hpack/hpack_constants.h"
 #include "quiche/http2/hpack/hpack_header_table.h"
 #include "quiche/http2/hpack/hpack_output_stream.h"
 #include "quiche/common/http/http_header_block.h"
@@ -95,6 +96,21 @@ class QUICHE_EXPORT HpackEncoder {
     should_index_ = std::move(policy);
   }
 
+  // This HpackEncoder will use |policy| to determine whether a header
+  // name-value pair must be encoded as a literal header field that is never
+  // indexed (RFC 7541 Section 6.2.3). Headers for which |policy| returns true
+  // are never inserted into the dynamic table and never emitted as indexed
+  // representations, and intermediaries are instructed not to index them
+  // either. This takes precedence over the policy set via SetIndexingPolicy().
+  // When cookie crumbling is enabled, the policy is evaluated once per cookie
+  // crumb. Note that the header name may still be represented by a table
+  // index, as permitted by RFC 7541 Section 6.2.3; only the value is always
+  // emitted as a literal. A name-value pair inserted into the dynamic table
+  // before the policy matched it remains in the table. A null (default
+  // constructed) |policy| restores the default behavior, in which no headers
+  // are never-indexed.
+  void SetNeverIndexingPolicy(IndexingPolicy policy);
+
   // |listener| will be invoked for each header name-value pair processed by
   // this encoder.
   void SetHeaderListener(HeaderListener listener) {
@@ -133,7 +149,14 @@ class QUICHE_EXPORT HpackEncoder {
   // Emits a literal representation (Section 7.2).
   void EmitIndexedLiteral(const Representation& representation);
   void EmitNonIndexedLiteral(const Representation& representation);
+  void EmitNeverIndexedLiteral(const Representation& representation);
   void EmitLiteral(const Representation& representation);
+
+  // Shared implementation for the literal representations that do not add to
+  // the dynamic table (Sections 6.2.2 and 6.2.3), which differ only in
+  // |opcode|.
+  void EmitLiteralWithoutIndexing(const Representation& representation,
+                                  HpackPrefix opcode);
 
   // Emits a Huffman or identity string (whichever is smaller).
   void EmitString(absl::string_view str);
@@ -157,6 +180,7 @@ class QUICHE_EXPORT HpackEncoder {
   size_t min_table_size_setting_received_;
   HeaderListener listener_;
   IndexingPolicy should_index_;
+  IndexingPolicy never_index_;
   bool enable_dynamic_table_;
   bool enable_huffman_;
   bool should_emit_table_size_;

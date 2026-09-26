@@ -112,6 +112,11 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   // sent.
   void StartGracefulShutdown();
 
+  // Headers for which |policy| returns true are encoded as literal header
+  // fields that are never indexed (RFC 7541 Section 6.2.3). See
+  // Http2Adapter::SetNeverIndexingPolicy().
+  void SetNeverIndexingPolicy(NeverIndexingPolicy policy);
+
   // Invokes the visitor's OnReadyToSend() method for serialized frames and
   // DataFrameSource::Send() for data frames.
   int Send();
