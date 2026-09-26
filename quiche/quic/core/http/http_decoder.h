@@ -33,7 +33,7 @@ class QUICHE_EXPORT HttpDecoder {
     virtual ~Visitor() {}
 
     // Called if an error is detected.
-    virtual void OnError(HttpDecoder* decoder) = 0;
+    virtual void OnError(HttpDecoder* _Nonnull decoder) = 0;
 
     // All the following methods return true to continue decoding,
     // and false to pause it.
@@ -145,13 +145,13 @@ class QUICHE_EXPORT HttpDecoder {
   // Paused processing can be resumed by calling ProcessInput() again with the
   // unprocessed portion of data.  Must not be called after an error has
   // occurred.
-  QuicByteCount ProcessInput(const char* data, QuicByteCount len);
+  QuicByteCount ProcessInput(const char* _Nonnull data, QuicByteCount len);
 
   // Decode settings frame from |data|.
   // Upon successful decoding, |frame| will be populated, and returns true.
   // This method is not used for regular processing of incoming data.
-  static bool DecodeSettings(const char* data, QuicByteCount len,
-                             SettingsFrame* frame);
+  static bool DecodeSettings(const char* _Nonnull data, QuicByteCount len,
+                             SettingsFrame* _Nonnull frame);
 
   // Returns an error code other than QUIC_NO_ERROR if and only if
   // Visitor::OnError() has been called.
@@ -268,7 +268,7 @@ class QUICHE_EXPORT HttpDecoder {
   QuicByteCount MaxFrameLength(uint64_t frame_type);
 
   // Visitor to invoke when messages are parsed.
-  Visitor* const visitor_;  // Unowned.
+  Visitor* _Nonnull const visitor_;  // Unowned.
   // Whether WEBTRANSPORT_STREAM should be parsed.
   bool allow_web_transport_stream_;
   // Current state of the parsing.
