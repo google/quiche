@@ -20,6 +20,17 @@ TEST(PacketHeaderFormatTest, Stringify) {
             "Unknown (255)");
 }
 
+TEST(QuicIetfFrameTypeStringTest, Stringify) {
+  EXPECT_EQ(QuicIetfFrameTypeString(IETF_ACK), "IETF_ACK");
+  EXPECT_EQ(QuicIetfFrameTypeString(IETF_ACK_ECN), "IETF_ACK_ECN");
+  EXPECT_EQ(QuicIetfFrameTypeString(IETF_ACK_RECEIVE_TIMESTAMPS),
+            "IETF_ACK_RECEIVE_TIMESTAMPS");
+  EXPECT_EQ(QuicIetfFrameTypeString(IETF_ACK_RECEIVE_TIMESTAMPS_ECN),
+            "IETF_ACK_RECEIVE_TIMESTAMPS_ECN");
+  EXPECT_EQ(QuicIetfFrameTypeString(static_cast<QuicIetfFrameType>(0x1234)),
+            "Private value (4660)");
+}
+
 TEST(QuicSSLConfigTest, Equality) {
   QuicSSLConfig config1;
   QuicSSLConfig config2;
