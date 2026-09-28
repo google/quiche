@@ -111,6 +111,17 @@ class QUICHE_NO_EXPORT AbidingObjectPool {
   size_t num_free_slots() const noexcept { return total_free_slots_; }
   bool empty() const noexcept { return total_free_slots_ == total_capacity(); }
 
+  // Allocate() and Deallocate() can be used in cases where existing systems
+  // manage objects via bare pointers, and migrating to smart pointers is
+  // infeasible.
+
+  // Returns the next available memory region that can hold an object of size T,
+  // allocating a new Slab if necessary.
+  void* Allocate();
+  // Deallocates a previously allocated memory region. May result in the owning
+  // Slab being freed.
+  void Deallocate(void* ptr) noexcept;
+
  private:
   // Intrusive node overlaid on unallocated slot memory.
   struct FreeNode {
@@ -211,103 +222,6 @@ class QUICHE_NO_EXPORT AbidingObjectPool {
     }
   }
 
-  // Returns the next available slot, allocating a new Slab if necessary.
-  void* Allocate() {
-    if (non_full_slabs_ == nullptr) {
-      Slab* slab = nullptr;
-      if (spare_empty_slab_ != nullptr) {
-        slab = spare_empty_slab_;
-        spare_empty_slab_ = nullptr;
-      } else {
-        slab = CreateSlab();
-      }
-      PushFront(non_full_slabs_, slab);
-    }
-    Slab* slab = non_full_slabs_;
-    void* slot = nullptr;
-
-    // 1. Reuse from intrusive freelist if available.
-    if (slab->free_head != nullptr) {
-      FreeNode* node = slab->free_head;
-
-#ifdef ABSL_HAVE_ADDRESS_SANITIZER
-      ASAN_UNPOISON_MEMORY_REGION(node, kSlotSize);
-#endif
-
-      slab->free_head = node->next;
-      slot = static_cast<void*>(node);
-    } else {
-      // 2. Bump-allocate from uninitialized slot range.
-      QUICHE_DCHECK(slab->allocated_high_watermark < kSlotsPerSlab);
-      slot = SlotAddress(slab, slab->allocated_high_watermark);
-
-#ifdef ABSL_HAVE_ADDRESS_SANITIZER
-      ASAN_UNPOISON_MEMORY_REGION(slot, kSlotSize);
-#endif
-
-      ++slab->allocated_high_watermark;
-    }
-
-    ++slab->live_objects;
-    --total_free_slots_;
-
-    // If slab reached capacity, move it to full_slabs_.
-    if (slab->live_objects == kSlotsPerSlab) {
-      RemoveFromList(non_full_slabs_, slab);
-      PushFront(full_slabs_, slab);
-    }
-
-    return slot;
-  }
-
-  // Deallocates a slot. May result in the owning Slab being freed.
-  void Deallocate(void* ptr) noexcept {
-    // The owning slab can be found with a simple bitmask operation.
-    Slab* slab = reinterpret_cast<Slab*>(reinterpret_cast<uintptr_t>(ptr) &
-                                         ~(SlabSizeBytes - 1));
-    QUICHE_DCHECK(slab != nullptr);
-
-    auto* node = static_cast<FreeNode*>(ptr);
-    node->next = slab->free_head;
-    slab->free_head = node;
-
-#ifdef ABSL_HAVE_ADDRESS_SANITIZER
-    ASAN_POISON_MEMORY_REGION(ptr, kSlotSize);
-#endif
-
-    const bool was_full = (slab->live_objects == kSlotsPerSlab);
-    --slab->live_objects;
-    ++total_free_slots_;
-
-    if (slab->live_objects == 0) {
-      // Slab has no more live objects.
-      if (was_full) {
-        RemoveFromList(full_slabs_, slab);
-      } else {
-        RemoveFromList(non_full_slabs_, slab);
-      }
-      if (spare_empty_slab_ == nullptr) {
-        spare_empty_slab_ = slab;
-      } else {
-        DestroySlab(slab);
-      }
-      return;
-    }
-
-    if (was_full) {
-      // Move from full_slabs_ to front of non_full_slabs_ (as the fullest
-      // partial slab).
-      RemoveFromList(full_slabs_, slab);
-      PushFront(non_full_slabs_, slab);
-    } else {
-      // Keep non_full_slabs_ ordered by descending live_objects.
-      while (slab->next != nullptr &&
-             slab->live_objects < slab->next->live_objects) {
-        SwapWithNext(non_full_slabs_, slab);
-      }
-    }
-  }
-
   // Allocates memory for and initializes a Slab.
   Slab* CreateSlab() {
     void* memory =
@@ -339,6 +253,108 @@ class QUICHE_NO_EXPORT AbidingObjectPool {
   size_t allocated_slabs_count_ = 0;
   size_t total_free_slots_ = 0;
 };
+
+// Returns the next available slot, allocating a new Slab if necessary.
+template <typename T, size_t SlabSizeBytes>
+void* AbidingObjectPool<T, SlabSizeBytes>::Allocate() {
+  if (non_full_slabs_ == nullptr) {
+    Slab* slab = nullptr;
+    if (spare_empty_slab_ != nullptr) {
+      slab = spare_empty_slab_;
+      spare_empty_slab_ = nullptr;
+    } else {
+      slab = CreateSlab();
+    }
+    PushFront(non_full_slabs_, slab);
+  }
+  Slab* slab = non_full_slabs_;
+  void* slot = nullptr;
+
+  // 1. Reuse from intrusive freelist if available.
+  if (slab->free_head != nullptr) {
+    FreeNode* node = slab->free_head;
+
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
+    ASAN_UNPOISON_MEMORY_REGION(node, kSlotSize);
+#endif
+
+    slab->free_head = node->next;
+    slot = static_cast<void*>(node);
+  } else {
+    // 2. Bump-allocate from uninitialized slot range.
+    QUICHE_DCHECK(slab->allocated_high_watermark < kSlotsPerSlab);
+    slot = SlotAddress(slab, slab->allocated_high_watermark);
+
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
+    ASAN_UNPOISON_MEMORY_REGION(slot, kSlotSize);
+#endif
+
+    ++slab->allocated_high_watermark;
+  }
+
+  ++slab->live_objects;
+  --total_free_slots_;
+
+  // If slab reached capacity, move it to full_slabs_.
+  if (slab->live_objects == kSlotsPerSlab) {
+    RemoveFromList(non_full_slabs_, slab);
+    PushFront(full_slabs_, slab);
+  }
+
+  return slot;
+}
+
+// Deallocates a slot. May result in the owning Slab being freed.
+template <typename T, size_t SlabSizeBytes>
+void AbidingObjectPool<T, SlabSizeBytes>::Deallocate(void* ptr) noexcept {
+  if (ptr == nullptr) {
+    return;
+  }
+  // The owning slab can be found with a simple bitmask operation.
+  Slab* slab = reinterpret_cast<Slab*>(reinterpret_cast<uintptr_t>(ptr) &
+                                       ~(SlabSizeBytes - 1));
+  QUICHE_DCHECK(slab != nullptr);
+
+  auto* node = static_cast<FreeNode*>(ptr);
+  node->next = slab->free_head;
+  slab->free_head = node;
+
+#ifdef ABSL_HAVE_ADDRESS_SANITIZER
+  ASAN_POISON_MEMORY_REGION(ptr, kSlotSize);
+#endif
+
+  const bool was_full = (slab->live_objects == kSlotsPerSlab);
+  --slab->live_objects;
+  ++total_free_slots_;
+
+  if (slab->live_objects == 0) {
+    // Slab has no more live objects.
+    if (was_full) {
+      RemoveFromList(full_slabs_, slab);
+    } else {
+      RemoveFromList(non_full_slabs_, slab);
+    }
+    if (spare_empty_slab_ == nullptr) {
+      spare_empty_slab_ = slab;
+    } else {
+      DestroySlab(slab);
+    }
+    return;
+  }
+
+  if (was_full) {
+    // Move from full_slabs_ to front of non_full_slabs_ (as the fullest
+    // partial slab).
+    RemoveFromList(full_slabs_, slab);
+    PushFront(non_full_slabs_, slab);
+  } else {
+    // Keep non_full_slabs_ ordered by descending live_objects.
+    while (slab->next != nullptr &&
+           slab->live_objects < slab->next->live_objects) {
+      SwapWithNext(non_full_slabs_, slab);
+    }
+  }
+}
 
 }  // namespace quiche
 
