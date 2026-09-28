@@ -809,31 +809,32 @@ bool IsValidToken(absl::string_view str) {
   return true;
 }
 
-Item::Item() = default;
-Item::Item(int64_t value) : value_(value) {}
-Item::Item(double value) : value_(value) {}
-Item::Item(bool value) : value_(value) {}
+Item::Item() noexcept = default;
+Item::Item(int64_t value) noexcept : value_(value) {}
+Item::Item(double value) noexcept : value_(value) {}
+Item::Item(bool value) noexcept : value_(value) {}
 
 Item::Item(string_t, const char* value) : value_(std::string(value)) {}
 Item::Item(string_t, absl::string_view value) : value_(std::string(value)) {}
-Item::Item(string_t, std::string value) : value_(std::move(value)) {}
+Item::Item(string_t, std::string value) noexcept : value_(std::move(value)) {}
 
 Item::Item(token_t, const char* value) : value_(Token(value)) {}
 Item::Item(token_t, absl::string_view value)
     : value_(Token(std::string(value))) {}
-Item::Item(token_t, std::string value) : value_(Token(std::move(value))) {}
+Item::Item(token_t, std::string value) noexcept
+    : value_(Token(std::move(value))) {}
 
 Item::Item(byte_sequence_t, const char* value) : value_(ByteSequence(value)) {}
 Item::Item(byte_sequence_t, absl::string_view value)
     : value_(ByteSequence(std::string(value))) {}
-Item::Item(byte_sequence_t, std::string value)
+Item::Item(byte_sequence_t, std::string value) noexcept
     : value_(ByteSequence(std::move(value))) {}
 
 Item::Item(const Item&) = default;
 Item& Item::operator=(const Item&) = default;
 
-Item::Item(Item&&) = default;
-Item& Item::operator=(Item&&) = default;
+Item::Item(Item&&) noexcept = default;
+Item& Item::operator=(Item&&) noexcept = default;
 
 Item::~Item() = default;
 
@@ -881,62 +882,67 @@ bool* Item::GetIfBoolean() { return std::get_if<bool>(&value_); }
 
 bool operator==(const Item&, const Item&) = default;
 
-ParameterizedItem::ParameterizedItem() = default;
+ParameterizedItem::ParameterizedItem() noexcept = default;
 ParameterizedItem::ParameterizedItem(const ParameterizedItem&) = default;
 ParameterizedItem& ParameterizedItem::operator=(const ParameterizedItem&) =
     default;
-ParameterizedItem::ParameterizedItem(ParameterizedItem&&) = default;
-ParameterizedItem& ParameterizedItem::operator=(ParameterizedItem&&) = default;
-ParameterizedItem::ParameterizedItem(Item item, Parameters params)
+ParameterizedItem::ParameterizedItem(ParameterizedItem&&) noexcept = default;
+ParameterizedItem& ParameterizedItem::operator=(ParameterizedItem&&) noexcept =
+    default;
+ParameterizedItem::ParameterizedItem(Item item, Parameters params) noexcept
     : item(std::move(item)), params(std::move(params)) {}
-ParameterizedItem::ParameterizedItem(Item item) : item(std::move(item)) {}
+ParameterizedItem::ParameterizedItem(Item item) noexcept
+    : item(std::move(item)) {}
 ParameterizedItem::~ParameterizedItem() = default;
 
-InnerList::InnerList() = default;
+InnerList::InnerList() noexcept = default;
 
-InnerList::InnerList(std::vector<ParameterizedItem> items)
+InnerList::InnerList(std::vector<ParameterizedItem> items) noexcept
     : items(std::move(items)) {}
 
-InnerList::InnerList(std::vector<ParameterizedItem> items, Parameters params)
+InnerList::InnerList(std::vector<ParameterizedItem> items,
+                     Parameters params) noexcept
     : items(std::move(items)), params(std::move(params)) {}
 
 InnerList::InnerList(const InnerList&) = default;
 
 InnerList& InnerList::operator=(const InnerList&) = default;
 
-InnerList::InnerList(InnerList&&) = default;
+InnerList::InnerList(InnerList&&) noexcept = default;
 
-InnerList& InnerList::operator=(InnerList&&) = default;
+InnerList& InnerList::operator=(InnerList&&) noexcept = default;
 
 InnerList::~InnerList() = default;
 
-ParameterizedMember::ParameterizedMember() = default;
+ParameterizedMember::ParameterizedMember() noexcept = default;
 ParameterizedMember::ParameterizedMember(const ParameterizedMember&) = default;
 ParameterizedMember& ParameterizedMember::operator=(
     const ParameterizedMember&) = default;
-ParameterizedMember::ParameterizedMember(ParameterizedMember&&) = default;
-ParameterizedMember& ParameterizedMember::operator=(ParameterizedMember&&) =
+ParameterizedMember::ParameterizedMember(ParameterizedMember&&) noexcept =
     default;
+ParameterizedMember& ParameterizedMember::operator=(
+    ParameterizedMember&&) noexcept = default;
 
 ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> items,
-                                         Parameters params)
+                                         Parameters params) noexcept
     : value_(std::in_place_type<InnerList>, std::move(items),
              std::move(params)) {}
 
-ParameterizedMember::ParameterizedMember(std::vector<ParameterizedItem> items)
+ParameterizedMember::ParameterizedMember(
+    std::vector<ParameterizedItem> items) noexcept
     : value_(std::in_place_type<InnerList>, std::move(items)) {}
 
-ParameterizedMember::ParameterizedMember(Item item, Parameters params)
+ParameterizedMember::ParameterizedMember(Item item, Parameters params) noexcept
     : value_(std::in_place_type<ParameterizedItem>, std::move(item),
              std::move(params)) {}
 
-ParameterizedMember::ParameterizedMember(Item item)
+ParameterizedMember::ParameterizedMember(Item item) noexcept
     : value_(std::in_place_type<ParameterizedItem>, std::move(item)) {}
 
-ParameterizedMember::ParameterizedMember(ParameterizedItem item)
+ParameterizedMember::ParameterizedMember(ParameterizedItem item) noexcept
     : value_(std::move(item)) {}
 
-ParameterizedMember::ParameterizedMember(InnerList inner_list)
+ParameterizedMember::ParameterizedMember(InnerList inner_list) noexcept
     : value_(std::move(inner_list)) {}
 
 ParameterizedMember::~ParameterizedMember() = default;
@@ -960,25 +966,26 @@ InnerList* ParameterizedMember::GetIfInnerList() {
 bool operator==(const ParameterizedMember&,
                 const ParameterizedMember&) = default;
 
-ParameterisedIdentifier::ParameterisedIdentifier() = default;
+ParameterisedIdentifier::ParameterisedIdentifier() noexcept = default;
 ParameterisedIdentifier::ParameterisedIdentifier(
     const ParameterisedIdentifier&) = default;
 ParameterisedIdentifier& ParameterisedIdentifier::operator=(
     const ParameterisedIdentifier&) = default;
-ParameterisedIdentifier::ParameterisedIdentifier(ParameterisedIdentifier&&) =
-    default;
+ParameterisedIdentifier::ParameterisedIdentifier(
+    ParameterisedIdentifier&&) noexcept = default;
 ParameterisedIdentifier& ParameterisedIdentifier::operator=(
-    ParameterisedIdentifier&&) = default;
-ParameterisedIdentifier::ParameterisedIdentifier(Item id, Parameters ps)
+    ParameterisedIdentifier&&) noexcept = default;
+ParameterisedIdentifier::ParameterisedIdentifier(Item id,
+                                                 Parameters ps) noexcept
     : identifier(std::move(id)), params(std::move(ps)) {}
 ParameterisedIdentifier::~ParameterisedIdentifier() = default;
 
-Dictionary::Dictionary() = default;
+Dictionary::Dictionary() noexcept = default;
 Dictionary::Dictionary(const Dictionary&) = default;
 Dictionary& Dictionary::operator=(const Dictionary&) = default;
-Dictionary::Dictionary(Dictionary&&) = default;
-Dictionary& Dictionary::operator=(Dictionary&&) = default;
-Dictionary::Dictionary(std::vector<DictionaryMember> members)
+Dictionary::Dictionary(Dictionary&&) noexcept = default;
+Dictionary& Dictionary::operator=(Dictionary&&) noexcept = default;
+Dictionary::Dictionary(std::vector<DictionaryMember> members) noexcept
     : members_(std::move(members)) {}
 Dictionary::~Dictionary() = default;
 Dictionary::iterator Dictionary::begin() { return members_.begin(); }
@@ -1095,19 +1102,21 @@ std::optional<std::string> SerializeDictionary(const Dictionary& value) {
   return std::nullopt;
 }
 
-ItemView::ItemView() = default;
-ItemView::ItemView(int64_t value) : value_(value) {}
-ItemView::ItemView(double value) : value_(value) {}
-ItemView::ItemView(bool value) : value_(value) {}
+ItemView::ItemView() noexcept = default;
+ItemView::ItemView(int64_t value) noexcept : value_(value) {}
+ItemView::ItemView(double value) noexcept : value_(value) {}
+ItemView::ItemView(bool value) noexcept : value_(value) {}
 
-ItemView::ItemView(string_t, absl::string_view value) : value_(value) {}
+ItemView::ItemView(string_t, absl::string_view value) noexcept
+    : value_(value) {}
 
-ItemView::ItemView(token_t, absl::string_view value) : value_(Token(value)) {}
+ItemView::ItemView(token_t, absl::string_view value) noexcept
+    : value_(Token(value)) {}
 
-ItemView::ItemView(byte_sequence_t, absl::string_view value)
+ItemView::ItemView(byte_sequence_t, absl::string_view value) noexcept
     : value_(ByteSequence(value)) {}
 
-ItemView::ItemView(const Item& value)
+ItemView::ItemView(const Item& value) noexcept
     : value_(value.Visit([](const auto& value) { return Variant(value); })) {}
 
 }  // namespace structured_headers

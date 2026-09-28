@@ -98,10 +98,10 @@ class QUICHE_EXPORT Item {
     friend bool operator==(const ByteSequence&, const ByteSequence&) = default;
   };
 
-  Item();
-  explicit Item(int64_t value);
-  explicit Item(double value);
-  explicit Item(bool value);
+  Item() noexcept;
+  explicit Item(int64_t value) noexcept;
+  explicit Item(double value) noexcept;
+  explicit Item(bool value) noexcept;
 
   // Prevent pointers from implicitly converting to bool.
   template <typename T>
@@ -110,21 +110,21 @@ class QUICHE_EXPORT Item {
 
   Item(string_t, const char* value);
   Item(string_t, absl::string_view value);
-  Item(string_t, std::string value);
+  Item(string_t, std::string value) noexcept;
 
   Item(token_t, const char* value);
   Item(token_t, absl::string_view value);
-  Item(token_t, std::string value);
+  Item(token_t, std::string value) noexcept;
 
   Item(byte_sequence_t, const char* value);
   Item(byte_sequence_t, absl::string_view value);
-  Item(byte_sequence_t, std::string value);
+  Item(byte_sequence_t, std::string value) noexcept;
 
   Item(const Item&);
   Item& operator=(const Item&);
 
-  Item(Item&&);
-  Item& operator=(Item&&);
+  Item(Item&&) noexcept;
+  Item& operator=(Item&&) noexcept;
 
   ~Item();
 
@@ -220,12 +220,12 @@ struct QUICHE_EXPORT ParameterisedIdentifier {
   Item identifier;
   Parameters params;
 
-  ParameterisedIdentifier();
+  ParameterisedIdentifier() noexcept;
   ParameterisedIdentifier(const ParameterisedIdentifier&);
   ParameterisedIdentifier& operator=(const ParameterisedIdentifier&);
-  ParameterisedIdentifier(ParameterisedIdentifier&&);
-  ParameterisedIdentifier& operator=(ParameterisedIdentifier&&);
-  ParameterisedIdentifier(Item, Parameters);
+  ParameterisedIdentifier(ParameterisedIdentifier&&) noexcept;
+  ParameterisedIdentifier& operator=(ParameterisedIdentifier&&) noexcept;
+  ParameterisedIdentifier(Item, Parameters) noexcept;
   ~ParameterisedIdentifier();
 
   friend bool operator==(const ParameterisedIdentifier&,
@@ -238,18 +238,18 @@ struct QUICHE_EXPORT ParameterizedItem {
   Item item;
   Parameters params;
 
-  ParameterizedItem();
+  ParameterizedItem() noexcept;
 
   // Convenience constructor for empty parameters.
-  explicit ParameterizedItem(Item);
+  explicit ParameterizedItem(Item) noexcept;
 
-  ParameterizedItem(Item, Parameters);
+  ParameterizedItem(Item, Parameters) noexcept;
 
   ParameterizedItem(const ParameterizedItem&);
   ParameterizedItem& operator=(const ParameterizedItem&);
 
-  ParameterizedItem(ParameterizedItem&&);
-  ParameterizedItem& operator=(ParameterizedItem&&);
+  ParameterizedItem(ParameterizedItem&&) noexcept;
+  ParameterizedItem& operator=(ParameterizedItem&&) noexcept;
 
   ~ParameterizedItem();
 
@@ -262,17 +262,17 @@ struct QUICHE_EXPORT InnerList {
   std::vector<ParameterizedItem> items;
   Parameters params;
 
-  InnerList();
+  InnerList() noexcept;
 
-  explicit InnerList(std::vector<ParameterizedItem> items);
+  explicit InnerList(std::vector<ParameterizedItem> items) noexcept;
 
-  InnerList(std::vector<ParameterizedItem> items, Parameters params);
+  InnerList(std::vector<ParameterizedItem> items, Parameters params) noexcept;
 
   InnerList(const InnerList&);
   InnerList& operator=(const InnerList&);
 
-  InnerList(InnerList&&);
-  InnerList& operator=(InnerList&&);
+  InnerList(InnerList&&) noexcept;
+  InnerList& operator=(InnerList&&) noexcept;
 
   ~InnerList();
 
@@ -284,28 +284,28 @@ struct QUICHE_EXPORT InnerList {
 // TODO(apaseltiner): Use `class` instead of `struct`, since some members are
 // private.
 struct QUICHE_EXPORT ParameterizedMember {
-  explicit ParameterizedMember(ParameterizedItem);
-  explicit ParameterizedMember(InnerList);
+  explicit ParameterizedMember(ParameterizedItem) noexcept;
+  explicit ParameterizedMember(InnerList) noexcept;
 
   // Constructor for a member that is an inner list.
-  ParameterizedMember(std::vector<ParameterizedItem>, Parameters);
+  ParameterizedMember(std::vector<ParameterizedItem>, Parameters) noexcept;
 
   // Convenience constructor for a member that is an inner list with empty
   // parameters.
-  explicit ParameterizedMember(std::vector<ParameterizedItem>);
+  explicit ParameterizedMember(std::vector<ParameterizedItem>) noexcept;
 
   // Constructor for a member that is a single Item.
-  ParameterizedMember(Item, Parameters);
+  ParameterizedMember(Item, Parameters) noexcept;
 
   // Convenience constructor for a member that is a single Item with empty
   // parameters.
-  explicit ParameterizedMember(Item);
+  explicit ParameterizedMember(Item) noexcept;
 
   ParameterizedMember(const ParameterizedMember&);
   ParameterizedMember& operator=(const ParameterizedMember&);
 
-  ParameterizedMember(ParameterizedMember&&);
-  ParameterizedMember& operator=(ParameterizedMember&&);
+  ParameterizedMember(ParameterizedMember&&) noexcept;
+  ParameterizedMember& operator=(ParameterizedMember&&) noexcept;
 
   ~ParameterizedMember();
 
@@ -334,7 +334,7 @@ struct QUICHE_EXPORT ParameterizedMember {
   // what the default should actually be, but it is convenient for code that
   // defers assignment. As is, it produces an invalid value where both
   // `GetIfItem()` and `GetIfInnerList()` return `nullptr`.
-  ParameterizedMember();
+  ParameterizedMember() noexcept;
 
  private:
   std::variant<std::monostate, ParameterizedItem, InnerList> value_;
@@ -351,13 +351,13 @@ class QUICHE_EXPORT Dictionary {
   using mapped_type = ParameterizedMember;
   using value_type = std::pair<const std::string, ParameterizedMember>;
 
-  Dictionary();
+  Dictionary() noexcept;
   Dictionary(const Dictionary&);
-  Dictionary(Dictionary&&);
-  explicit Dictionary(std::vector<DictionaryMember> members);
+  Dictionary(Dictionary&&) noexcept;
+  explicit Dictionary(std::vector<DictionaryMember> members) noexcept;
   ~Dictionary();
   Dictionary& operator=(const Dictionary&);
-  Dictionary& operator=(Dictionary&&);
+  Dictionary& operator=(Dictionary&&) noexcept;
 
   iterator begin();
   const_iterator begin() const;
@@ -463,30 +463,32 @@ class QUICHE_EXPORT ItemView final {
   static constexpr token_t token{};
   static constexpr byte_sequence_t byte_sequence{};
 
-  ItemView();
-  ItemView(int64_t value);
-  ItemView(double value);
-  ItemView(bool value);
+  ItemView() noexcept;
+  ItemView(int64_t value) noexcept;
+  ItemView(double value) noexcept;
+  ItemView(bool value) noexcept;
 
   // Prevent pointers from implicitly converting to bool.
   template <typename T>
   explicit ItemView(const T*) = delete;
   explicit ItemView(std::nullptr_t) = delete;
 
-  ItemView(string_t, absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND);
+  ItemView(string_t,
+           absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept;
 
-  ItemView(token_t, absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND);
+  ItemView(token_t,
+           absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept;
 
   ItemView(byte_sequence_t,
-           absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND);
+           absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept;
 
-  ItemView(const Item& value ABSL_ATTRIBUTE_LIFETIME_BOUND);
+  ItemView(const Item& value ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept;
 
-  ItemView(const ItemView&) = default;
-  ItemView& operator=(const ItemView&) = default;
+  ItemView(const ItemView&) noexcept = default;
+  ItemView& operator=(const ItemView&) noexcept = default;
 
-  ItemView(ItemView&&) = default;
-  ItemView& operator=(ItemView&&) = default;
+  ItemView(ItemView&&) noexcept = default;
+  ItemView& operator=(ItemView&&) noexcept = default;
 
   ~ItemView() = default;
 
@@ -497,20 +499,23 @@ class QUICHE_EXPORT ItemView final {
   struct Token {
     absl::string_view value;
 
-    explicit Token(absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND)
+    explicit Token(
+        absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept
         : value(value) {}
 
-    Token(const Item::Token& value ABSL_ATTRIBUTE_LIFETIME_BOUND)
+    Token(const Item::Token& value ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept
         : value(value.value) {}
   };
 
   struct ByteSequence {
     absl::string_view value;
 
-    explicit ByteSequence(absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND)
+    explicit ByteSequence(
+        absl::string_view value ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept
         : value(value) {}
 
-    ByteSequence(const Item::ByteSequence& value ABSL_ATTRIBUTE_LIFETIME_BOUND)
+    ByteSequence(
+        const Item::ByteSequence& value ABSL_ATTRIBUTE_LIFETIME_BOUND) noexcept
         : value(value.value) {}
   };
 
