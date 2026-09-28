@@ -223,8 +223,17 @@ class QuicConnectionPeer {
   static bool HasSelfIssuedConnectionIdToConsume(
       const QuicConnection* connection);
 
+  static QuicPeerIssuedConnectionIdManager* GetPeerIssuedConnectionIdManager(
+      QuicConnection* connection);
+
   static QuicSelfIssuedConnectionIdManager* GetSelfIssuedConnectionIdManager(
       QuicConnection* connection);
+
+  static size_t GetPeerIssuedConnectionIdLimit(
+      const QuicConnection* connection);
+
+  static size_t GetSelfIssuedConnectionIdLimit(
+      const QuicConnection* connection);
 
   static std::unique_ptr<QuicSelfIssuedConnectionIdManager>
   MakeSelfIssuedConnectionIdManager(QuicConnection* connection);

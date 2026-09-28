@@ -120,6 +120,8 @@ inline constexpr size_t kQuicVersionSize = 4;
 
 // Minimum number of active connection IDs that an end point can maintain.
 inline constexpr uint32_t kMinNumOfActiveConnectionIds = 2;
+// Maximum number of active connection IDs that an end point can maintain.
+inline constexpr uint32_t kMaxNumOfActiveConnectionIds = 5;
 
 // Length of the retry integrity tag in bytes.
 // https://tools.ietf.org/html/draft-ietf-quic-transport-25#section-17.2.5

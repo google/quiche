@@ -451,6 +451,27 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     spin_bit_enabled_ = ShouldEnableSpinBit();
   }
 
+  if (GetQuicReloadableFlag(quic_active_connection_id_limit) &&
+      version().IsIetfQuic()) {
+    if (perspective_ == Perspective::IS_CLIENT &&
+        peer_issued_cid_manager_ != nullptr &&
+        config.GetActiveConnectionIdLimitToSend() >
+            kMinNumOfActiveConnectionIds) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_active_connection_id_limit, 4, 5);
+      peer_issued_cid_manager_->set_active_connection_id_limit(
+          config.GetActiveConnectionIdLimitToSend());
+    } else if (perspective_ == Perspective::IS_SERVER &&
+               self_issued_cid_manager_ != nullptr &&
+               config.HasReceivedActiveConnectionIdLimit() &&
+               config.ReceivedActiveConnectionIdLimit() >
+                   kMinNumOfActiveConnectionIds) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_active_connection_id_limit, 5, 5);
+      self_issued_cid_manager_->set_active_connection_id_limit(
+          std::min<size_t>(config.ReceivedActiveConnectionIdLimit(),
+                           kMaxNumOfActiveConnectionIds));
+    }
+  }
+
   if (version().IsIetfQuic() &&
       config.HasReceivedPreferredAddressConnectionIdAndToken()) {
     QuicNewConnectionIdFrame frame;

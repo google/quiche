@@ -234,17 +234,31 @@ void QuicSession::Initialize() {
         connection_->version().IsIetfQuic()) {
       config()->SetMinAckDelayDraft10Ms(kDefaultMinAckDelayTimeMs);
     }
+    if (GetQuicReloadableFlag(quic_active_connection_id_limit) &&
+        connection_->version().IsIetfQuic()) {
+      if (config()->HasClientRequestedIndependentOption(k3CID, perspective_)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_active_connection_id_limit, 1, 5);
+        config()->SetActiveConnectionIdLimitToSend(3);
+      } else if (config()->HasClientRequestedIndependentOption(k4CID,
+                                                               perspective_)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_active_connection_id_limit, 2, 5);
+        config()->SetActiveConnectionIdLimitToSend(4);
+      } else if (config()->HasClientRequestedIndependentOption(k5CID,
+                                                               perspective_)) {
+        QUIC_RELOADABLE_FLAG_COUNT_N(quic_active_connection_id_limit, 3, 5);
+        config()->SetActiveConnectionIdLimitToSend(5);
+      }
+    }
   } else if (GetQuicReloadableFlag(quic_receive_ack_frequency) &&
              connection_->version().IsIetfQuic()) {
     config()->SetMinAckDelayDraft10Ms(kDefaultMinAckDelayTimeMs);
   }
+  connection_->CreateConnectionIdManager();
   connection_->SetFromConfig(*config());
   if (perspective() == Perspective::IS_SERVER &&
       connection_->version().IsIetfQuic()) {
     config()->SetStatelessResetTokenToSend(GetStatelessResetToken());
   }
-
-  connection_->CreateConnectionIdManager();
 
   // On the server side, version negotiation has been done by the dispatcher,
   // and the server session is created with the right version.

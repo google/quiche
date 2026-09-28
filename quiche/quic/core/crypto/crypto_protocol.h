@@ -553,6 +553,11 @@ DEFINE_STATIC_QUIC_TAG(CFLS);  // Enable flow-label-based blackhole avoidance on
 // Explicit connection close packet for max age timeout from server.
 DEFINE_STATIC_QUIC_TAG(ECCP);  // Deprecated and Default Enabled.
 
+// Active connection ID limit experiments.
+DEFINE_STATIC_QUIC_TAG(3CID);  // Send active_connection_id_limit of 3.
+DEFINE_STATIC_QUIC_TAG(4CID);  // Send active_connection_id_limit of 4.
+DEFINE_STATIC_QUIC_TAG(5CID);  // Send active_connection_id_limit of 5.
+
 #undef DEFINE_STATIC_QUIC_TAG
 
 // These tags have a special form so that they appear either at the beginning

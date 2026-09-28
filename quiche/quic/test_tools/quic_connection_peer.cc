@@ -506,10 +506,31 @@ bool QuicConnectionPeer::HasSelfIssuedConnectionIdToConsume(
 }
 
 // static
+QuicPeerIssuedConnectionIdManager*
+QuicConnectionPeer::GetPeerIssuedConnectionIdManager(
+    QuicConnection* connection) {
+  return connection->peer_issued_cid_manager_.get();
+}
+
+// static
 QuicSelfIssuedConnectionIdManager*
 QuicConnectionPeer::GetSelfIssuedConnectionIdManager(
     QuicConnection* connection) {
   return connection->self_issued_cid_manager_.get();
+}
+
+// static
+size_t QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(
+    const QuicConnection* connection) {
+  return QuicConnectionIdManagerPeer::GetActiveConnectionIdLimit(
+      connection->peer_issued_cid_manager_.get());
+}
+
+// static
+size_t QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(
+    const QuicConnection* connection) {
+  return QuicConnectionIdManagerPeer::GetActiveConnectionIdLimit(
+      connection->self_issued_cid_manager_.get());
 }
 
 // static

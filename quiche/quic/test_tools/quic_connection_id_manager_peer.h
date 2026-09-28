@@ -21,6 +21,16 @@ class QuicConnectionIdManagerPeer {
       QuicSelfIssuedConnectionIdManager* manager) {
     return manager->retire_connection_id_alarm_.get();
   }
+
+  static size_t GetActiveConnectionIdLimit(
+      const QuicPeerIssuedConnectionIdManager* manager) {
+    return manager->active_connection_id_limit_;
+  }
+
+  static size_t GetActiveConnectionIdLimit(
+      const QuicSelfIssuedConnectionIdManager* manager) {
+    return manager->active_connection_id_limit_;
+  }
 };
 
 }  // namespace test

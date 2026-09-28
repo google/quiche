@@ -1056,6 +1056,7 @@ void QuicConfig::SetDefaults() {
   SetAckDelayExponentToSend(kDefaultAckDelayExponent);
   SetMaxPacketSizeToSend(kMaxIncomingPacketSize);
   SetMaxDatagramFrameSizeToSend(kMaxAcceptedDatagramFrameSize);
+  SetActiveConnectionIdLimitToSend(kMinNumOfActiveConnectionIds);
   SetReliableStreamReset(false);
   scone_packet_interval_ = QuicTimeDelta::Zero();
   parse_scone_packets_ = false;

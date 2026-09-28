@@ -9276,6 +9276,28 @@ TEST_P(EndToEndTest, SpinBitEnableSafety) {
   SendSynchronousFooRequestAndCheckResponse();
 }
 
+TEST_P(EndToEndTest, ActiveConnectionIdLimit4CID) {
+  SetQuicReloadableFlag(quic_active_connection_id_limit, true);
+  client_config_.SetClientConnectionOptions(QuicTagVector{k4CID});
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) {
+    return;
+  }
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_NE(client_connection, nullptr);
+  EXPECT_EQ(
+      QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(client_connection),
+      4u);
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  ASSERT_NE(server_connection, nullptr);
+  EXPECT_EQ(
+      QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(server_connection),
+      4u);
+  server_thread_->Resume();
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

@@ -12,6 +12,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_enable_h3_origin_frame, false, true, "I
 QUICHE_FLAG(bool, quiche_reloadable_flag_hpack_huffman_decoder_optimizations, true, true, "If true, enables a few optimizations in HpackHuffmanDecoder.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_hpack_huffman_encoder_64bit_accumulator, false, false, "If true, use 64-bit bit accumulator for HPACK Huffman encoding.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_act_upon_invalid_header, true, true, "If true, reject or send error response code upon receiving invalid request or response headers.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_active_connection_id_limit, false, false, "If true, allow configuring active_connection_id_limit via 3CID, 4CID, and 5CID connection options on the client and use the received active_connection_id_limit up to 5 on the server.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_add_stream_info_to_idle_close_detail, false, true, "If true, include stream information in idle timeout connection close detail.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bandwidth_sampler_guard_rtt_subtraction, false, false, "When true, BandwidthSampler::OnPacketAcknowledgedInner() will return early rather than compute a negative RTT.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_bbr2_extra_acked_window, false, true, "When true, the BBR4 copt sets the extra_acked window to 20 RTTs and BBR5 sets it to 40 RTTs.")

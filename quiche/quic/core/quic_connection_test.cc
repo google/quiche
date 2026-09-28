@@ -19030,6 +19030,86 @@ TEST_P(QuicConnectionTest, SconeCanChangeServerConnectionId) {
   EXPECT_FALSE(connection_.OnUnauthenticatedPublicHeader(header));
 }
 
+TEST_P(QuicConnectionTest, ClientActiveConnectionIdLimit) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  set_perspective(Perspective::IS_CLIENT);
+  connection_.CreateConnectionIdManager();
+  ASSERT_NE(QuicConnectionPeer::GetPeerIssuedConnectionIdManager(&connection_),
+            nullptr);
+  EXPECT_EQ(QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(&connection_),
+            kMinNumOfActiveConnectionIds);
+
+  QuicConfig config;
+  config.SetActiveConnectionIdLimitToSend(4);
+
+  SetQuicReloadableFlag(quic_active_connection_id_limit, false);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(&connection_),
+            kMinNumOfActiveConnectionIds);
+
+  SetQuicReloadableFlag(quic_active_connection_id_limit, true);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(&connection_),
+            4u);
+}
+
+TEST_P(QuicConnectionTest, ServerActiveConnectionIdLimit) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  connection_.CreateConnectionIdManager();
+  ASSERT_NE(QuicConnectionPeer::GetSelfIssuedConnectionIdManager(&connection_),
+            nullptr);
+  EXPECT_EQ(QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(&connection_),
+            kMinNumOfActiveConnectionIds);
+
+  QuicConfig config;
+  TransportParameters params;
+  params.initial_source_connection_id = connection_.client_connection_id();
+  params.active_connection_id_limit.set_value(4);
+  std::string error_details;
+  ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
+                                                &error_details),
+              IsQuicNoError());
+
+  SetQuicReloadableFlag(quic_active_connection_id_limit, false);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(&connection_),
+            kMinNumOfActiveConnectionIds);
+
+  SetQuicReloadableFlag(quic_active_connection_id_limit, true);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(&connection_),
+            4u);
+
+  // Verify values above 5 are capped at kMaxNumOfActiveConnectionIds (5).
+  params.active_connection_id_limit.set_value(10);
+  ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
+                                                &error_details),
+              IsQuicNoError());
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(&connection_),
+            kMaxNumOfActiveConnectionIds);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
