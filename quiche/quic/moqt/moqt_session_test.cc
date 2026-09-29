@@ -2309,8 +2309,9 @@ TEST_F(MoqtSessionTest, DeliveryTimeoutParameter) {
 TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
   bidi_wrapper_ =
       MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);
-  EXPECT_CALL(session_callbacks_.goaway_received_callback, Call("foo"));
-  bidi_wrapper_->ReceiveMessage(MoqtGoAway("foo"));
+  EXPECT_CALL(session_callbacks_.goaway_received_callback, Call(""));
+  bidi_wrapper_->ReceiveMessage(MoqtGoAway("", quic::QuicTimeDelta::Zero(),
+                                           /*request_id=*/0));
   // New requests not allowed.
   EXPECT_CALL(mock_bidi_stream_, Writev).Times(0);
   MessageParameters parameters = SubscribeForTest();
@@ -2336,12 +2337,12 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
                            "Received multiple GOAWAY messages"))
       .Times(1);
   bool reported_error = false;
-  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
+  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call)
       .WillOnce([&](absl::string_view error_message) {
         reported_error = true;
         EXPECT_EQ(error_message, "Received multiple GOAWAY messages");
       });
-  bidi_wrapper_->ReceiveMessage(MoqtGoAway("foo"));
+  bidi_wrapper_->ReceiveMessage(MoqtGoAway(""));
 }
 
 TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
@@ -2413,30 +2414,6 @@ TEST_F(MoqtSessionTest, ClientCannotSendNewSessionUri) {
   // Client GOAWAY not sent.
   EXPECT_CALL(mock_bidi_stream_, Writev).Times(0);
   session_.GoAway("foo");
-}
-
-TEST_F(MoqtSessionTest, ServerCannotReceiveNewSessionUri) {
-  webtransport::test::MockSession mock_session;
-  MoqtSession session(&mock_session,
-                      MoqtSessionParameters(quic::Perspective::IS_SERVER),
-                      std::make_unique<quic::test::TestAlarmFactory>(),
-                      session_callbacks_.AsSessionCallbacks());
-  bidi_wrapper_ =
-      MoqtSessionPeer::CreateControlStream(&session, &mock_bidi_stream_);
-  EXPECT_CALL(
-      mock_session,
-      CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                   "Received GOAWAY with new_session_uri on the server"))
-      .Times(1);
-  bool reported_error = false;
-  EXPECT_CALL(session_callbacks_.session_terminated_callback, Call(_))
-      .WillOnce([&](absl::string_view error_message) {
-        reported_error = true;
-        EXPECT_EQ(error_message,
-                  "Received GOAWAY with new_session_uri on the server");
-      });
-  bidi_wrapper_->ReceiveMessage(MoqtGoAway("foo"));
-  EXPECT_TRUE(reported_error);
 }
 
 TEST_F(MoqtSessionTest, IncomingTrackStatusBeforeSetup) {

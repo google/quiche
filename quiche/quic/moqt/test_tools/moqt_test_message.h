@@ -1142,25 +1142,41 @@ class QUICHE_NO_EXPORT GoAwayMessage : public TestMessageBase {
   bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtGoAway>(values);
     if (cast.new_session_uri != goaway_.new_session_uri) {
-      QUIC_LOG(INFO) << "GOAWAY full track name mismatch";
+      QUIC_LOG(INFO) << "GOAWAY new session URI mismatch";
+      return false;
+    }
+    if (cast.timeout != goaway_.timeout) {
+      QUIC_LOG(INFO) << "GOAWAY timeout mismatch";
+      return false;
+    }
+    if (cast.request_id != goaway_.request_id) {
+      QUIC_LOG(INFO) << "GOAWAY request ID mismatch";
       return false;
     }
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("v---"); }
+  void RequestStreamMessage() {  // Remove the request ID.
+    raw_packet_[2] = 0x05;
+    SetWireImage(raw_packet_, sizeof(raw_packet_) - 1);
+    goaway_.request_id = std::nullopt;
+  }
+
+  void ExpandVarints() override { ExpandVarintsImpl("v---vv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(goaway_);
   }
 
  private:
-  uint8_t raw_packet_[7] = {
-      0x10, 0x00, 0x04, 0x03, 0x66, 0x6f, 0x6f,
+  uint8_t raw_packet_[9] = {
+      0x10, 0x00, 0x06, 0x03, 0x66, 0x6f, 0x6f, 0x03, 0x40,
   };
 
   MoqtGoAway goaway_ = {
       /*new_session_uri=*/"foo",
+      /*timeout=*/quic::QuicTimeDelta::FromMilliseconds(3),
+      /*request_id=*/64,
   };
 };
 

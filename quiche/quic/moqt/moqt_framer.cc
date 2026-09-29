@@ -20,6 +20,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -582,9 +583,22 @@ quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {
+  if (perspective_ == quic::Perspective::IS_CLIENT &&
+      !message.new_session_uri.empty()) {
+    QUICHE_BUG(QUICHE_BUG_serialize_go_away_01)
+        << "New session URI must be empty from client";
+    return quiche::QuicheBuffer();
+  }
+  if (message.new_session_uri.length() > kMaxNewSessionUriLength) {
+    QUICHE_BUG(QUICHE_BUG_serialize_go_away_02)
+        << "New session URI is too long";
+    return quiche::QuicheBuffer();
+  }
   return SerializeControlMessage(
       MoqtMessageType::kGoAway,
-      WireStringWithMoqVarIntLength(message.new_session_uri));
+      WireStringWithMoqVarIntLength(message.new_session_uri),
+      WireMoqVarInt(message.timeout.ToMilliseconds()),
+      WireOptional<WireMoqVarInt>(message.request_id));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespace(

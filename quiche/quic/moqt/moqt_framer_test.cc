@@ -13,6 +13,7 @@
 
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
@@ -69,6 +70,11 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
               message_type, uses_web_transport, perspective));
         }
       }
+    } else if (message_type == MoqtMessageType::kGoAway) {
+      // GoAwayMessage has a non-empty new_session_uri, which is only valid
+      // when sent by the server.
+      params.push_back(MoqtFramerTestParams(message_type, true,
+                                            quic::Perspective::IS_SERVER));
     } else {
       // All other types are processed the same for either perspective or
       // transport.
@@ -432,6 +438,38 @@ TEST_F(MoqtFramerSimpleTest, AbsoluteJoiningFetch) {
       framer_.SerializeFetch(std::get<MoqtFetch>(message.structured_data()));
   EXPECT_EQ(buffer.size(), message.total_message_size());
   EXPECT_EQ(buffer.AsStringView(), message.PacketSample());
+}
+
+TEST_F(MoqtFramerSimpleTest, GoAwayNewSessionUriTooLong) {
+  MoqtGoAway goaway = {
+      /*new_session_uri=*/std::string(kMaxNewSessionUriLength, 'a'),
+      /*timeout=*/quic::QuicTimeDelta::FromMilliseconds(3),
+      /*request_id=*/std::nullopt,
+  };
+  quiche::QuicheBuffer buffer = framer_.SerializeGoAway(goaway);
+  EXPECT_GT(buffer.size(), 0);
+
+  goaway.new_session_uri = std::string(kMaxNewSessionUriLength + 1, 'a');
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeGoAway(goaway),
+                  "New session URI is too long");
+  EXPECT_EQ(buffer.size(), 0);
+}
+
+TEST_F(MoqtFramerSimpleTest, GoAwayNewSessionUriFromClient) {
+  MoqtFramer client_framer(/*using_webtrans=*/true,
+                           quic::Perspective::IS_CLIENT);
+  MoqtGoAway goaway = {
+      /*new_session_uri=*/"",
+      /*timeout=*/quic::QuicTimeDelta::FromMilliseconds(3),
+      /*request_id=*/std::nullopt,
+  };
+  quiche::QuicheBuffer buffer = client_framer.SerializeGoAway(goaway);
+  EXPECT_GT(buffer.size(), 0);
+
+  goaway.new_session_uri = "foo";
+  EXPECT_QUIC_BUG(buffer = client_framer.SerializeGoAway(goaway),
+                  "New session URI must be empty from client");
+  EXPECT_EQ(buffer.size(), 0);
 }
 
 }  // namespace moqt::test

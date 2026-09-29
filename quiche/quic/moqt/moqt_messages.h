@@ -35,7 +35,8 @@ inline constexpr quic::ParsedQuicVersionVector GetMoqtSupportedQuicVersions() {
 // The maximum length of a message, excluding any OBJECT payload. This prevents
 // DoS attack via forcing the parser to buffer a large message (OBJECT payloads
 // are not buffered by the parser).
-inline constexpr size_t kMaxMessageHeaderSize = 2048;
+inline constexpr size_t kMaxMessageHeaderSize = 16384;
+static constexpr size_t kMaxNewSessionUriLength = 8192;
 
 inline constexpr uint64_t kPaddingStreamType = 0x132B3E28;
 inline constexpr uint64_t kPaddingDatagramType = 0x132B3E29;
@@ -406,6 +407,8 @@ struct QUICHE_EXPORT MoqtTrackStatus : public MoqtSubscribe {
 
 struct QUICHE_EXPORT MoqtGoAway {
   std::string new_session_uri;
+  quic::QuicTimeDelta timeout = quic::QuicTimeDelta::Zero();
+  std::optional<uint64_t> request_id;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeNamespace {

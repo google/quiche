@@ -100,6 +100,11 @@ std::vector<MoqtParserTestParams> GetMoqtParserTestParams() {
               message_type, uses_web_transport, perspective));
         }
       }
+    } else if (message_type == MoqtMessageType::kGoAway) {
+      // GoAwayMessage has a non-empty new_session_uri, which is only valid
+      // when received by the client.
+      params.push_back(MoqtParserTestParams(message_type, true,
+                                            quic::Perspective::IS_CLIENT));
     } else {
       // All other types are processed the same for either perspective or
       // transport.
@@ -408,6 +413,10 @@ TEST_P(MoqtParserTest, PayloadLengthTooShort) {
   }
   std::unique_ptr<TestMessageBase> message = MakeMessage();
   message->DecreasePayloadLengthByOne();
+  if (std::get<MoqtMessageType>(message_type_) == MoqtMessageType::kGoAway) {
+    // GOAWAY has a variant that is one byte shorter, so decrease by another.
+    message->DecreasePayloadLengthByOne();
+  }
   ProcessData(message->PacketSample(), false);
   EXPECT_EQ(messages_received(), 0);
   EXPECT_TRUE(parsing_error().has_value());
@@ -1285,11 +1294,11 @@ TEST_F(MoqtMessageSpecificTest, AllMessagesTogether) {
   std::string buffer;
   for (MoqtMessageType type : kMessageTypes) {
     std::unique_ptr<TestMessageBase> message =
-        CreateTestMessage(type, kRawQuic);
+        CreateTestMessage(type, kRawQuic, quic::Perspective::IS_SERVER);
     buffer += message->PacketSample();
   }
-  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
-      ParseAllMessages(buffer, kDefaultMoqtVersion, kRawQuic);
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed = ParseAllMessages(
+      buffer, kDefaultMoqtVersion, kRawQuic, quic::Perspective::IS_CLIENT);
   ASSERT_TRUE(parsed.ok());
 }
 
@@ -1875,6 +1884,64 @@ TEST_F(MoqtMessageSpecificTest, StreamTypeParserMovedFrom) {
   EXPECT_THAT(
       type_parser.ReadStreamType(),  // NOLINT(bugprone-use-after-move)
       StatusIs(absl::StatusCode::kInternal, HasSubstr("moved-from parser")));
+}
+
+TEST_F(MoqtMessageSpecificTest, ParseGoAwayWithoutRequestId) {
+  GoAwayMessage goaway_message;
+  goaway_message.RequestStreamMessage();
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
+      ParseAllMessages(goaway_message.PacketSample(), kDefaultMoqtVersion,
+                       kRawQuic, quic::Perspective::IS_CLIENT);
+  ASSERT_TRUE(parsed.ok());
+  ASSERT_EQ(parsed->size(), 1);
+  EXPECT_TRUE(
+      goaway_message.EqualFieldValues(std::get<MoqtGoAway>((*parsed)[0])));
+}
+
+TEST_F(MoqtMessageSpecificTest, GoAwayNewSessionUriFromClient) {
+  GoAwayMessage goaway_message;
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
+      ParseAllMessages(goaway_message.PacketSample(), kDefaultMoqtVersion,
+                       kWebTrans, quic::Perspective::IS_SERVER);
+  EXPECT_THAT(parsed,
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("New session URI must be empty from client")));
+}
+
+TEST_F(MoqtMessageSpecificTest, GoAwayNewSessionUriTooLong) {
+  auto make_goaway_packet = [](size_t uri_length) {
+    std::string uri(uri_length, 'a');
+    std::string buffer(kMaxMessageHeaderSize, '\0');
+    quic::QuicDataWriter writer(buffer.size(), buffer.data());
+    QUICHE_CHECK(
+        writer.WriteMoqVarInt(static_cast<uint64_t>(MoqtMessageType::kGoAway)));
+    // Payload is: 2-byte varint length (8192 or 8193) + URI bytes + 1-byte
+    // timeout.
+    uint16_t payload_length = 2 + uri.length() + 1;
+    QUICHE_CHECK(writer.WriteUInt16(payload_length));
+    QUICHE_CHECK(writer.WriteMoqVarInt(uri.length()));
+    QUICHE_CHECK(writer.WriteStringPiece(uri));
+    QUICHE_CHECK(writer.WriteMoqVarInt(0));
+    buffer.resize(writer.length());
+    return buffer;
+  };
+
+  // Exactly kMaxNewSessionUriLength succeeds.
+  std::string valid_packet = make_goaway_packet(kMaxNewSessionUriLength);
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
+      ParseAllMessages(valid_packet, kDefaultMoqtVersion, kWebTrans,
+                       quic::Perspective::IS_CLIENT);
+  ASSERT_TRUE(parsed.ok());
+  ASSERT_EQ(parsed->size(), 1);
+  EXPECT_EQ(std::get<MoqtGoAway>((*parsed)[0]).new_session_uri.length(),
+            kMaxNewSessionUriLength);
+
+  // kMaxNewSessionUriLength + 1 fails with "New session URI too long".
+  std::string invalid_packet = make_goaway_packet(kMaxNewSessionUriLength + 1);
+  parsed = ParseAllMessages(invalid_packet, kDefaultMoqtVersion, kWebTrans,
+                            quic::Perspective::IS_CLIENT);
+  EXPECT_THAT(parsed, StatusIs(absl::StatusCode::kInvalidArgument,
+                               HasSubstr("New session URI too long")));
 }
 
 }  // namespace moqt::test

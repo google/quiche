@@ -789,8 +789,29 @@ absl::StatusOr<MoqtGoAway> MoqtControlMessageParser::ProcessGoAway(
     absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtGoAway goaway;
+  uint64_t raw_timeout;
   if (!reader.ReadStringMoqVarInt(goaway.new_session_uri)) {
     return absl::InvalidArgumentError("Missing new session URI");
+  }
+  if (perspective_ == quic::Perspective::IS_SERVER &&
+      !goaway.new_session_uri.empty()) {
+    return absl::InvalidArgumentError(
+        "New session URI must be empty from client");
+  }
+  if (goaway.new_session_uri.length() > kMaxNewSessionUriLength) {
+    return absl::InvalidArgumentError("New session URI too long");
+  }
+  if (!reader.ReadMoqVarInt(&raw_timeout)) {
+    return absl::InvalidArgumentError("Missing GOAWAY timeout");
+  }
+  goaway.timeout = quic::QuicTimeDelta::TryFromMilliseconds(raw_timeout)
+                       .value_or(quic::QuicTimeDelta::Infinite());
+  if (!reader.IsDoneReading()) {
+    uint64_t request_id;
+    if (!reader.ReadMoqVarInt(&request_id)) {
+      return absl::InvalidArgumentError("Invalid GOAWAY request ID");
+    }
+    goaway.request_id = request_id;
   }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return goaway;
