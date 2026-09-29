@@ -133,5 +133,17 @@ TEST(InMemoryStreamTest, InMemoryStreamWithWriteBuffer) {
   EXPECT_FALSE(stream.CanWrite());
 }
 
+TEST(InMemoryStreamTest, AtomicWriteUnsupportedByDefault) {
+  InMemoryStreamWithWriteBuffer stream(0);
+  std::array write_vector = {quiche::QuicheMemSlice::Copy("foo")};
+  StreamWriteOptions options;
+  options.set_atomic_write(true);
+
+  EXPECT_FALSE(stream.SupportsAtomicWrites());
+  EXPECT_THAT(stream.Writev(absl::MakeSpan(write_vector), options),
+              StatusIs(absl::StatusCode::kUnimplemented));
+  EXPECT_TRUE(stream.write_buffer().empty());
+}
+
 }  // namespace
 }  // namespace webtransport::test

@@ -1316,6 +1316,7 @@ quiche_tests_srcs = [
     "quic/core/http/quic_spdy_stream_test.cc",
     "quic/core/http/spdy_utils_test.cc",
     "quic/core/http/web_transport_http3_test.cc",
+    "quic/core/http/web_transport_stream_adapter_test.cc",
     "quic/core/legacy_quic_stream_id_manager_test.cc",
     "quic/core/packet_number_indexed_queue_test.cc",
     "quic/core/qpack/new_qpack_blocking_manager_test.cc",

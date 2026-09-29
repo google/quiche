@@ -41,6 +41,7 @@ class QUICHE_EXPORT WebTransportStreamAdapter : public webtransport::Stream {
   ABSL_MUST_USE_RESULT ReadResult Read(std::string* output) override;
   absl::Status Writev(absl::Span<quiche::QuicheMemSlice> data,
                       const webtransport::StreamWriteOptions& options) override;
+  bool SupportsAtomicWrites() const override { return true; }
   bool CanWrite() const override;
   size_t ReadableBytes() const override;
   PeekResult PeekNextReadableRegion() const override;

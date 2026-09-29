@@ -73,14 +73,24 @@ absl::Status WebTransportStreamAdapter::Writev(
   const absl::Status initial_check_status = CheckBeforeStreamWrite();
   if (!initial_check_status.ok() &&
       !(initial_check_status.code() == absl::StatusCode::kUnavailable &&
-        options.buffer_unconditionally())) {
+        (options.buffer_unconditionally() || options.atomic_write()))) {
     return initial_check_status;
   }
 
-  size_t total_size = MemSliceSpanTotalSize(data);
+  const QuicByteCount total_size = MemSliceSpanTotalSize(data);
+  if (options.atomic_write()) {
+    const QuicByteCount buffered = stream_->BufferedDataBytes();
+    const QuicByteCount send_window = stream_->CalculateSendWindowSize();
+    if (buffered > send_window || total_size > send_window - buffered) {
+      return absl::ResourceExhaustedError(
+          "Insufficient flow control credit for atomic write");
+    }
+  }
+
   QuicConsumedData consumed = stream_->WriteMemSlices(
       data, /*fin=*/options.send_fin(),
-      /*buffer_unconditionally=*/options.buffer_unconditionally());
+      /*buffer_unconditionally=*/options.buffer_unconditionally() ||
+          options.atomic_write());
 
   if (consumed.bytes_consumed == total_size) {
     return absl::OkStatus();

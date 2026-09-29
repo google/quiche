@@ -623,6 +623,30 @@ TEST_F(EncapsulatedWebTransportTest, WriteWithFin) {
   EXPECT_FALSE(stream->CanWrite());
 }
 
+TEST_F(EncapsulatedWebTransportTest, AtomicWriteUnsupported) {
+  std::unique_ptr<EncapsulatedSession> session =
+      CreateTransport(Perspective::kClient);
+  DefaultHandshakeForClient(*session);
+  Stream* stream = session->OpenOutgoingUnidirectionalStream();
+  ASSERT_TRUE(stream != nullptr);
+
+  std::array slices = {quiche::QuicheMemSlice::Copy("test")};
+  StreamWriteOptions options;
+  options.set_atomic_write(true);
+  options.set_send_fin(true);
+  EXPECT_FALSE(stream->SupportsAtomicWrites());
+  EXPECT_THAT(stream->Writev(absl::MakeSpan(slices), options),
+              StatusIs(absl::StatusCode::kUnimplemented));
+
+  EXPECT_CALL(*this, OnCapsule(_)).WillOnce([](const Capsule& capsule) {
+    EXPECT_EQ(capsule.capsule_type(), CapsuleType::WT_STREAM);
+    EXPECT_EQ(capsule.web_transport_stream_data().data, "accepted");
+    return true;
+  });
+  EXPECT_THAT(WriteIntoStream(*stream, "accepted"),
+              StatusIs(absl::StatusCode::kOk));
+}
+
 TEST_F(EncapsulatedWebTransportTest, FinOnlyWrite) {
   std::unique_ptr<EncapsulatedSession> session =
       CreateTransport(Perspective::kClient);

@@ -610,6 +610,9 @@ bool EncapsulatedSession::InnerStream::SkipBytes(size_t bytes) {
 absl::Status EncapsulatedSession::InnerStream::Writev(
     const absl::Span<quiche::QuicheMemSlice> data,
     const StreamWriteOptions& options) {
+  if (options.atomic_write()) {
+    return absl::UnimplementedError("Atomic writes are not supported");
+  }
   if (write_side_closed_) {
     return absl::FailedPreconditionError(
         "Trying to write into an already-closed stream");

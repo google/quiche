@@ -179,9 +179,20 @@ class QUICHE_EXPORT StreamWriteOptions {
     buffer_unconditionally_ = value;
   }
 
+  // If atomic_write() is true, the write is accepted only if the ordered
+  // stream prefix through the end of `data` fits within the current stream and
+  // connection flow control windows. This is a snapshot check, not a
+  // reservation of connection credit. The write may bypass the normal
+  // buffering limit even when CanWrite() is false. If the check fails,
+  // Writev() returns RESOURCE_EXHAUSTED without consuming `data`.
+  // Implementations that do not support atomic writes return UNIMPLEMENTED.
+  bool atomic_write() const { return atomic_write_; }
+  void set_atomic_write(bool value) { atomic_write_ = value; }
+
  private:
   bool send_fin_ = false;
   bool buffer_unconditionally_ = false;
+  bool atomic_write_ = false;
 };
 
 inline constexpr StreamWriteOptions kDefaultStreamWriteOptions =
@@ -254,6 +265,9 @@ class QUICHE_EXPORT Stream {
   // users of this API should check `CanWrite()` before calling `Writev()`.
   virtual absl::Status Writev(absl::Span<quiche::QuicheMemSlice> data,
                               const StreamWriteOptions& options) = 0;
+
+  // Indicates whether Writev() supports StreamWriteOptions::atomic_write().
+  virtual bool SupportsAtomicWrites() const { return false; }
 
   // Indicates whether it is possible to write into stream right now.
   virtual bool CanWrite() const = 0;

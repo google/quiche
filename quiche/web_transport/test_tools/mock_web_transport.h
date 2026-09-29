@@ -43,6 +43,7 @@ class QUICHE_NO_EXPORT MockStream : public Stream {
               (absl::Span<quiche::QuicheMemSlice> data,
                const StreamWriteOptions& options),
               (override));
+  MOCK_METHOD(bool, SupportsAtomicWrites, (), (const, override));
   MOCK_METHOD(PeekResult, PeekNextReadableRegion, (), (const, override));
   MOCK_METHOD(bool, SkipBytes, (size_t bytes), (override));
   MOCK_METHOD(bool, CanWrite, (), (const, override));

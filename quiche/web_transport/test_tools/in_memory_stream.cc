@@ -60,6 +60,9 @@ bool InMemoryStream::SkipBytes(size_t bytes) {
 absl::Status InMemoryStream::Writev(
     absl::Span<quiche::QuicheMemSlice> data,
     const webtransport::StreamWriteOptions& options) {
+  if (options.atomic_write()) {
+    return absl::UnimplementedError("Atomic writes are not supported");
+  }
   absl::Status status = GetWriteStatusWithExtraChecks(/*is_write=*/true);
   if (!status.ok()) {
     return status;
