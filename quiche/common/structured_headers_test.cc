@@ -433,6 +433,8 @@ TEST(StructuredHeaderTest, ParseParameterisedList) {
       {"extra comma", "abc;a=1,def;b=1,", {}},
       {"leading semicolon", ";abc;a=1", {}},
       {"leading comma", ",abc;a=1", {}},
+      {"leading asterisk", "*abc;a=1", {}},
+      {"non-leading asterisk", "a*bc;a=1", {{Token("a*bc"), {Param("a", 1)}}}},
   };
   for (const auto& c : cases) {
     SCOPED_TRACE(c.name);

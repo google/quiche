@@ -374,9 +374,9 @@ class StructuredHeaderParser {
 
   // Parses a Token ([SH09] 4.2.10, [RFC8941] 4.2.6).
   std::optional<Item> ReadToken() {
-    if (input_.empty() ||
-        !(absl::ascii_isalpha(input_.front()) || input_.front() == '*')) {
-      LogParseError("ReadToken", "ALPHA");
+    if (input_.empty() || !(absl::ascii_isalpha(input_.front()) ||
+                            (version_ == kFinal && input_.front() == '*'))) {
+      LogParseError("ReadToken", version_ == kDraft09 ? "ALPHA" : "ALPHA | *");
       return std::nullopt;
     }
     size_t len = input_.find_first_not_of(version_ == kDraft09 ? kTokenChars09
