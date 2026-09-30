@@ -136,16 +136,11 @@ struct QUICHE_EXPORT QuicCryptoNegotiatedParameters
   // bytes of x coordinate, followed by 32 bytes of y coordinate. Both values
   // are big-endian and the pair is a P-256 public key.
   std::string channel_id;
-  QuicTag token_binding_key_param;
-
   // Used when generating proof signature when sending server config updates.
 
   // Used to generate cert chain when sending server config updates.
   std::string client_cached_cert_hashes;
-
-  // Default to false; set to true if the client indicates that it supports sct
-  // by sending CSCT tag with an empty value in client hello.
-  bool sct_supported_by_client;
+  QuicTag token_binding_key_param;
 
   // Parameters only populated for TLS handshakes. These will be 0 for
   // connections not using TLS, or if the TLS handshake is not finished yet.
@@ -155,6 +150,10 @@ struct QUICHE_EXPORT QuicCryptoNegotiatedParameters
   // TLS handshake.
   uint16_t signature_algorithm_used = 0;
   uint16_t peer_signature_algorithm = 0;
+
+  // Default to false; set to true if the client indicates that it supports sct
+  // by sending CSCT tag with an empty value in client hello.
+  bool sct_supported_by_client;
   bool encrypted_client_hello = false;
 
  protected:
