@@ -55,12 +55,9 @@ class QUICHE_EXPORT PragueSender : public TcpCubicSenderBytes {
  private:
   friend class test::PragueSenderPeer;
 
-  bool ect1_enabled_ = false;
-
   // Tracks the life of the connection to begin reducing RTT dependence of
   // congestion avoidance after 500 RTTs.
   QuicTime connection_start_time_;
-  bool reduce_rtt_dependence_ = false;
 
   // Alpha-related variables
   std::optional<float> prague_alpha_;
@@ -75,6 +72,9 @@ class QUICHE_EXPORT PragueSender : public TcpCubicSenderBytes {
   // loss responses.
   std::optional<QuicTime> last_congestion_response_time_;
   QuicByteCount last_congestion_response_size_;
+
+  bool ect1_enabled_ = false;
+  bool reduce_rtt_dependence_ = false;
 };
 
 }  // namespace quic
