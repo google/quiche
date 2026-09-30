@@ -578,7 +578,12 @@ bool QuicCryptoStream::IsFrameOutstanding(EncryptionLevel level, size_t offset,
     return false;
   }
   if (substreams_.empty()) {
-    ReportCryptoSubStreamResetBug();
+    // Due to retransmission, there can be multiple packets containing the last
+    // unacked crypto data sent to peer. After one of these packets is acked,
+    // the substreams can be reset, while other packets containing the same
+    // crypto data are still in flight.
+    QUIC_LOG(INFO)
+        << "IsFrameOutstanding is called after substreams are reset.";
     return false;
   }
   return substreams_[QuicUtils::GetPacketNumberSpace(level)]

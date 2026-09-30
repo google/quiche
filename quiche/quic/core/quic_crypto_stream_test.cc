@@ -122,6 +122,8 @@ class MockQuicCryptoStream : public QuicCryptoStream,
     }
   }
 
+  using QuicCryptoStream::ResetCryptoSubstreams;
+
  private:
   quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters> params_;
   std::vector<CryptoHandshakeMessage> messages_;
@@ -810,6 +812,29 @@ TEST_F(QuicCryptoStreamTest, EmptyCryptoFrame) {
   EXPECT_CALL(*connection_, CloseConnection(_, _, _)).Times(0);
   QuicCryptoFrame empty_crypto_frame(ENCRYPTION_INITIAL, 0, nullptr, 0);
   stream_->OnCryptoFrame(empty_crypto_frame);
+}
+
+// Regression test for b/566549350
+TEST_F(QuicCryptoStreamTest, OperationsAfterResetCryptoSubstreams) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
+    return;
+  }
+  std::string data(1350, 'a');
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 1350, 0))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  stream_->WriteCryptoData(ENCRYPTION_INITIAL, data);
+  EXPECT_TRUE(stream_->IsFrameOutstanding(ENCRYPTION_INITIAL, 0, 1350));
+
+  QuicCryptoFrame frame(ENCRYPTION_INITIAL, 0, 1350);
+  EXPECT_TRUE(stream_->OnCryptoFrameAcked(frame, QuicTime::Delta::Zero()));
+  EXPECT_FALSE(stream_->IsFrameOutstanding(ENCRYPTION_INITIAL, 0, 1350));
+
+  stream_->ResetCryptoSubstreams();
+
+  EXPECT_FALSE(stream_->IsFrameOutstanding(ENCRYPTION_INITIAL, 0, 1350));
+  EXPECT_FALSE(stream_->OnCryptoFrameAcked(frame, QuicTime::Delta::Zero()));
+  stream_->OnCryptoFrameLost(&frame);
 }
 
 }  // namespace
