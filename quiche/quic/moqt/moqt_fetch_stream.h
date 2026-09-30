@@ -76,6 +76,7 @@ class MoqtFetchRequestStream : public MoqtBidiStreamBase,
                       std::optional<DataStreamIndex> index) override;
 
   // MoqtBidiStreamBase overrides.
+  using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override;
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override;
@@ -118,6 +119,7 @@ class MoqtFetchResponseStream : public MoqtBidiStreamBase {
   }
 
   // MoqtBidiStreamBase overrides.
+  using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override { stream_parser()->set_allow_fin(true); }
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override;

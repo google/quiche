@@ -146,6 +146,8 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
     return stream() != nullptr ? stream()->GetStreamId() : 0;
   }
 
+  absl::Status OnControlMessage(const MoqtGoAway& message);
+
  protected:
   // Called when a WebTransport stream has been associated with the object.
   // Should be used to set the priority for the stream.
@@ -184,6 +186,7 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   MoqtRequestUpdateQueue request_update_queue_;
   SessionErrorCallback session_error_callback_;
   absl::Status stream_status_ = absl::OkStatus();
+  bool received_goaway_ = false;
 };
 
 // DispatchControlMessage is wrapped into a class so that the caller class can

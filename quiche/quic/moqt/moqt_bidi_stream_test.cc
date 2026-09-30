@@ -11,6 +11,7 @@
 
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
@@ -31,6 +32,7 @@ namespace moqt::test {
 class TestMoqtBidiStream : public MoqtBidiStreamBase {
  public:
   using MoqtBidiStreamBase::MoqtBidiStreamBase;
+  using MoqtBidiStreamBase::OnControlMessage;
 
   void OnStreamBound() override {}
   absl::Status OnRawControlMessage(
@@ -121,15 +123,27 @@ TEST_F(MoqtBidiStreamTest, DispatchControlMessage) {
   stream.Receive(framer.SerializeObjectAck(MoqtObjectAck()).AsStringView());
   stream_->OnCanRead();
 
-  stream.Receive(framer.SerializeGoAway(MoqtGoAway()).AsStringView());
+  stream.Receive(framer.SerializePublishDone(MoqtPublishDone()).AsStringView());
   EXPECT_CALL(error_callback_, Call)
       .WillOnce([](MoqtError error, absl::string_view message) {
         EXPECT_EQ(error, MoqtError::kProtocolViolation);
-        EXPECT_EQ(
-            message,
-            "Received an unexpected message of type GOAWAY on a test stream");
+        EXPECT_EQ(message,
+                  "Received an unexpected message of type PUBLISH_DONE on a "
+                  "test stream");
       });
   stream_->OnCanRead();
+}
+
+TEST_F(MoqtBidiStreamTest, ReceiveGoAway) {
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(
+      MoqtGoAway("", quic::QuicTimeDelta::Zero(), std::nullopt)));
+  EXPECT_TRUE(IsInvalidArgument(stream_->OnControlMessage(
+      MoqtGoAway("", quic::QuicTimeDelta::Zero(), std::nullopt))));
+}
+
+TEST_F(MoqtBidiStreamTest, ReceiveGoAwayWithRequestId) {
+  EXPECT_TRUE(IsInvalidArgument(stream_->OnControlMessage(
+      MoqtGoAway("", quic::QuicTimeDelta::Zero(), /*request_id=*/0))));
 }
 
 TEST_F(MoqtBidiStreamTest, SendRequestOk) {

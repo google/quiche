@@ -89,8 +89,8 @@ using TrackStatusResponseCallback = quiche::SingleUseCallback<void(
 using MoqtSessionEstablishedCallback = quiche::SingleUseCallback<void()>;
 
 // Called when a GOAWAY message is received from the server.
-using MoqtSessionGoAwayCallback =
-    quiche::SingleUseCallback<void(absl::string_view new_session_uri)>;
+using MoqtSessionGoAwayCallback = quiche::SingleUseCallback<void(
+    absl::string_view new_session_uri, quic::QuicTimeDelta timeout)>;
 
 // Called when the session is terminated.
 using MoqtSessionTerminatedCallback =
@@ -171,7 +171,7 @@ inline SubscribeVisitor* DefaultIncomingPublishCallback(
 struct MoqtSessionCallbacks {
   MoqtSessionEstablishedCallback session_established_callback = +[] {};
   MoqtSessionGoAwayCallback goaway_received_callback =
-      +[](absl::string_view) {};
+      +[](absl::string_view, quic::QuicTimeDelta) {};
   MoqtSessionTerminatedCallback session_terminated_callback =
       +[](absl::string_view) {};
   MoqtSessionDeletedCallback session_deleted_callback = +[] {};

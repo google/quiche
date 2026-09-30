@@ -40,7 +40,8 @@ namespace moqt::test {
 
 struct MockSessionCallbacks {
   testing::MockFunction<void()> session_established_callback;
-  testing::MockFunction<void(absl::string_view)> goaway_received_callback;
+  testing::MockFunction<void(absl::string_view, quic::QuicTimeDelta)>
+      goaway_received_callback;
   testing::MockFunction<void(absl::string_view)> session_terminated_callback;
   testing::MockFunction<void()> session_deleted_callback;
   testing::MockFunction<void(const TrackNamespace&,

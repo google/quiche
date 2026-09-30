@@ -26,6 +26,7 @@
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_default_clock.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
@@ -35,8 +36,6 @@
 #include "quiche/quic/moqt/moqt_outgoing_queue.h"
 #include "quiche/quic/moqt/moqt_session.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
-#include "quiche/quic/moqt/moqt_session_interface.h"
-#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/tools/moq_chat.h"
 #include "quiche/quic/moqt/tools/moqt_client.h"
 #include "quiche/quic/platform/api/quic_default_proof_providers.h"
@@ -146,9 +145,9 @@ ChatClient::ChatClient(const quic::QuicServerId& server_id,
     session_is_open_ = true;
   };
   session_callbacks_.goaway_received_callback =
-      [](absl::string_view new_session_uri) {
+      [](absl::string_view new_session_uri, quic::QuicTimeDelta timeout) {
         std::cout << "GoAway received, new session uri = " << new_session_uri
-                  << "\n";
+                  << ", timeout = " << timeout.ToMilliseconds() << "ms\n";
         // TODO (martinduke): Connect to the new session uri.
       };
   session_callbacks_.session_terminated_callback =

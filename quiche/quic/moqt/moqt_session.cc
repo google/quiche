@@ -99,10 +99,13 @@ MoqtSession::MoqtSession(webtransport::Session* session,
   if (parameters_.using_webtrans) {
     session_->SetOnDraining([this]() {
       QUICHE_DLOG(INFO) << "WebTransport session is draining";
-      received_goaway_ = true;
-      if (callbacks_.goaway_received_callback != nullptr) {
-        std::move(callbacks_.goaway_received_callback)(absl::string_view());
+      if (callbacks_.goaway_received_callback == nullptr) {
+        return;
       }
+      MoqtSessionGoAwayCallback callback =
+          std::move(callbacks_.goaway_received_callback);
+      callbacks_.goaway_received_callback = nullptr;
+      std::move(callback)(absl::string_view(), quic::QuicTimeDelta::Zero());
     });
   }
   if (parameters_.perspective == Perspective::IS_SERVER) {
@@ -780,13 +783,16 @@ void MoqtSession::GoAway(absl::string_view new_session_uri) {
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send multiple GOAWAY";
     return;
   }
-  if (!new_session_uri.empty() && !new_session_uri.empty()) {
+  if (!new_session_uri.empty() &&
+      parameters_.perspective == Perspective::IS_CLIENT) {
     QUIC_DLOG(INFO) << ENDPOINT
                     << "Client tried to send GOAWAY with new session URI";
     return;
   }
   MoqtGoAway message;
   message.new_session_uri = std::string(new_session_uri);
+  message.timeout = kDefaultGoAwayTimeout;
+  message.request_id = next_incoming_request_id_;
   SendControlMessage(framer_.SerializeGoAway(message));
   sent_goaway_ = true;
   goaway_timeout_alarm_ = absl::WrapUnique(
@@ -1443,21 +1449,29 @@ absl::Status MoqtSession::OnControlMessage(const MoqtSetup& message) {
 }
 
 absl::Status MoqtSession::OnControlMessage(const MoqtGoAway& message) {
-  if (!message.new_session_uri.empty() &&
-      perspective() == quic::Perspective::IS_SERVER) {
-    return absl::InvalidArgumentError(
-        "Received GOAWAY with new_session_uri on the server");
-  }
   if (received_goaway_) {
-    return absl::InvalidArgumentError("Received multiple GOAWAY messages");
+    return absl::InvalidArgumentError(
+        "Received multiple GOAWAY on control stream");
+  }
+  if (!message.request_id.has_value()) {
+    return absl::InvalidArgumentError("GOAWAY missing request ID");
+  }
+  if ((*message.request_id & 0x1) != (next_request_id_ & 0x1)) {
+    Error(MoqtError::kInvalidRequestId,
+          "GOAWAY request ID has incorrect parity");
+    return absl::OkStatus();
   }
   received_goaway_ = true;
-  if (callbacks_.goaway_received_callback != nullptr) {
-    std::move(callbacks_.goaway_received_callback)(message.new_session_uri);
+  if (callbacks_.goaway_received_callback == nullptr) {
+    // An HTTP/3 or WebTransport GOAWAY already invoked the callback.
+    return absl::OkStatus();
   }
+  MoqtSessionGoAwayCallback callback =
+      std::move(callbacks_.goaway_received_callback);
+  callbacks_.goaway_received_callback = nullptr;
+  std::move(callback)(message.new_session_uri, message.timeout);
   return absl::OkStatus();
 }
-
 
 void MoqtSession::OnMalformedTrack(ObjectSubscriber* track) {
   if (track->is_fetch()) {

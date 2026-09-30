@@ -43,6 +43,7 @@ class MoqtPublishRequestStream : public MoqtBidiStreamBase {
   ~MoqtPublishRequestStream();
 
   // MoqtBidiStreamBase overrides.
+  using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override;
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override;
@@ -93,6 +94,7 @@ class MoqtPublishResponseStream : public MoqtBidiStreamBase {
   ~MoqtPublishResponseStream() { Detach(); }
 
   // MoqtBidiStreamBase overrides.
+  using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override {
     stream_parser()->set_allow_fin(true);
     // TODO(martinduke): Set the priority for this stream.

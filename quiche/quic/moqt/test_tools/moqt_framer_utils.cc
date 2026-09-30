@@ -91,6 +91,8 @@ std::string SerializeGenericMessage(const AnyMoqtControlMessage& frame,
     if (!use_webtrans && !setup.options.path.has_value()) {
       perspective = quic::Perspective::IS_SERVER;
     }
+  } else if (std::holds_alternative<MoqtGoAway>(frame)) {
+    perspective = quic::Perspective::IS_SERVER;
   }
   MoqtFramer framer(use_webtrans, perspective);
   return std::string(std::visit(FramingVisitor{framer}, frame).AsStringView());

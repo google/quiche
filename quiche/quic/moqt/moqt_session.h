@@ -250,8 +250,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     ~UnknownBidiStream() {}
 
     // webtransport::StreamVisitor overrides.
-    void OnResetStreamReceived(webtransport::StreamErrorCode error) override {}
-    void OnStopSendingReceived(webtransport::StreamErrorCode error) override {}
+    void OnResetStreamReceived(webtransport::StreamErrorCode) override {}
+    void OnStopSendingReceived(webtransport::StreamErrorCode) override {}
     void OnWriteSideInDataRecvdState() override {}
     void OnCanRead() override;
     void OnCanWrite() override {}
@@ -272,8 +272,8 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
         : session_(session->GetWeakPtr()), stream_(stream), parser_(stream) {}
 
     // webtransport::StreamVisitor overrides.
-    void OnResetStreamReceived(webtransport::StreamErrorCode error) override {}
-    void OnStopSendingReceived(webtransport::StreamErrorCode error) override {}
+    void OnResetStreamReceived(webtransport::StreamErrorCode) override {}
+    void OnStopSendingReceived(webtransport::StreamErrorCode) override {}
     void OnWriteSideInDataRecvdState() override {}
     void OnCanRead() override;
     void OnCanWrite() override {}
@@ -293,7 +293,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     void OnCanRead() override;
     void OnCanWrite() override {}
     void OnResetStreamReceived(webtransport::StreamErrorCode error) override;
-    void OnStopSendingReceived(webtransport::StreamErrorCode error) override {
+    void OnStopSendingReceived(webtransport::StreamErrorCode) override {
       // Impossible for QUIC incoming unidirectional streams.
     }
     void OnWriteSideInDataRecvdState() override {}
@@ -320,7 +320,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
     void OnCanRead() override {}
     void OnCanWrite() override;
-    void OnResetStreamReceived(webtransport::StreamErrorCode error) override {
+    void OnResetStreamReceived(webtransport::StreamErrorCode) override {
       // Impossible for QUIC incoming unidirectional streams.
     }
     void OnStopSendingReceived(webtransport::StreamErrorCode error) override;
@@ -409,10 +409,7 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
 
   // Handlers for the control messages on the main control stream.
   absl::Status OnControlMessage(const MoqtSetup& message);
-
-  // TODO(martinduke): All of these should be moved to bidi streams or
-  // deleted.
-  absl::Status OnControlMessage(const MoqtGoAway& /*message*/);
+  absl::Status OnControlMessage(const MoqtGoAway& message);
 
   uint64_t NextRequestId() {
     uint64_t id = next_request_id_;

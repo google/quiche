@@ -40,6 +40,7 @@ class MoqtSubscribeRequestStream : public MoqtBidiStreamBase {
   ~MoqtSubscribeRequestStream() { Detach(); }
 
   // StreamBase overrides.
+  using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override;
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override;
@@ -77,6 +78,7 @@ class MoqtSubscribeResponseStream : public MoqtBidiStreamBase {
   }
 
   // MoqtBidiStreamBase overrides.
+  using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override { stream_parser()->set_allow_fin(true); }
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override;

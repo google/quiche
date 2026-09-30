@@ -41,6 +41,7 @@ class MoqtTrackStatusRequestStream : public MoqtBidiStreamBase {
   ~MoqtTrackStatusRequestStream() { Detach(); }
 
   // MoqtBidiStreamBase overrides.
+  using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override;
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override;
@@ -69,6 +70,7 @@ class MoqtTrackStatusResponseStream : public MoqtBidiStreamBase,
   ~MoqtTrackStatusResponseStream() { Detach(); }
 
   // MoqtBidiStreamBase overrides.
+  using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override { stream_parser()->set_allow_fin(true); }
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override;

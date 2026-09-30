@@ -48,6 +48,7 @@ class MoqtPublishNamespaceRequestStream : public MoqtBidiStreamBase {
   ~MoqtPublishNamespaceRequestStream() { Detach(); }
 
   // MoqtBidiStreamBase overrides.
+  using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override;
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override;
@@ -83,6 +84,7 @@ class MoqtPublishNamespaceResponseStream : public MoqtBidiStreamBase {
         weak_ptr_factory_(this) {}
   ~MoqtPublishNamespaceResponseStream() { Detach(); }
 
+  using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override {
     // TODO(martinduke): Set the priority for this stream.
   }

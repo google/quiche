@@ -17,6 +17,7 @@
 #include "quiche/quic/core/crypto/proof_verifier.h"
 #include "quiche/quic/core/io/quic_event_loop.h"
 #include "quiche/quic/core/quic_server_id.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_fetch_task.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
@@ -103,9 +104,10 @@ MoqtSessionCallbacks MoqtRelay::CreateClientCallbacks() {
     publisher_.SetDefaultUpstreamSession(session);
     SetNamespaceCallbacks(session);
   };
-  callbacks.goaway_received_callback = [](absl::string_view new_session_uri) {
-    QUICHE_LOG(INFO) << "GoAway received, new session uri = "
-                     << new_session_uri;
+  callbacks.goaway_received_callback = [](absl::string_view new_session_uri,
+                                          quic::QuicTimeDelta timeout) {
+    QUICHE_LOG(INFO) << "GoAway received, new session uri = " << new_session_uri
+                     << ", timeout = " << timeout;
     // There's no asynchronous means today to connect to a new URL.
     // Therefore, just ignore GOAWAY.
   };

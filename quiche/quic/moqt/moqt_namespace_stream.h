@@ -51,6 +51,7 @@ class MoqtSubscribeNamespaceRequestStream : public MoqtBidiStreamBase {
   ~MoqtSubscribeNamespaceRequestStream();
 
   // MoqtBidiStreamBase overrides.
+  using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override;
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override;
@@ -153,6 +154,7 @@ class MoqtSubscribeNamespaceResponseStream : public MoqtBidiStreamBase {
       MoqtIncomingSubscribeNamespaceCallback& application);
   ~MoqtSubscribeNamespaceResponseStream() { Detach(); }
 
+  using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override {
     // TODO(martinduke): Set the priority for this stream.
   }
