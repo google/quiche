@@ -36,6 +36,11 @@ int OnHeader(nghttp2_session* session, const nghttp2_frame* frame,
              nghttp2_rcbuf* name, nghttp2_rcbuf* value, uint8_t flags,
              void* user_data);
 
+// Callback once an invalid name-value header has been received.
+int OnInvalidHeader(nghttp2_session* session, const nghttp2_frame* frame,
+                    nghttp2_rcbuf* name, nghttp2_rcbuf* value, uint8_t flags,
+                    void* user_data);
+
 // Invoked immediately before sending a frame.
 int OnBeforeFrameSent(nghttp2_session* session, const nghttp2_frame* frame,
                       void* user_data);

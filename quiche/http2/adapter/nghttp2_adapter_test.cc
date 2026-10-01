@@ -3398,35 +3398,60 @@ TEST(NgHttp2AdapterTest, InitialWindowSettingCausesOverflow) {
   EXPECT_CALL(visitor, OnWindowUpdate(stream_id, 65536));
 
   EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
-  EXPECT_CALL(visitor, OnSettingsStart());
+  // In nghttp2 < 1.67.0, overflowing a stream window via
+  // SETTINGS_INITIAL_WINDOW_SIZE is a stream error (RST_STREAM); in nghttp2
+  // >= 1.67.0, it is a connection error (OnInvalidFrame + GOAWAY).
+  bool connection_error_on_overflow = false;
+  EXPECT_CALL(visitor,
+              OnInvalidFrame(
+                  0, Http2VisitorInterface::InvalidFrameError::kFlowControl))
+      .Times(testing::AtMost(1))
+      .WillOnce(
+          testing::DoAll(testing::Assign(&connection_error_on_overflow,
+          true),
+                         testing::Return(true)));
+  EXPECT_CALL(visitor, OnSettingsStart()).Times(testing::AtMost(1));
   EXPECT_CALL(visitor, OnSetting(Http2Setting{INITIAL_WINDOW_SIZE,
-                                              kLargeInitialWindow}));
-  EXPECT_CALL(visitor, OnSettingsEnd());
+                                              kLargeInitialWindow}))
+      .Times(testing::AtMost(1));
+  EXPECT_CALL(visitor, OnSettingsEnd()).Times(testing::AtMost(1));
 
   const int64_t read_result = adapter->ProcessBytes(frames);
   EXPECT_EQ(static_cast<size_t>(read_result), frames.size());
   EXPECT_TRUE(adapter->want_write());
 
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
-  EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
-  EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+  if (!connection_error_on_overflow) {
+    EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+    EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
+    EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, 0, 0x1));
+    EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, 0, 0x1, 0));
 
-  // The stream window update plus the SETTINGS frame with INITIAL_WINDOW_SIZE
-  // pushes the stream's flow control window outside of the acceptable range.
-  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, stream_id, 4, 0x0));
-  EXPECT_CALL(
-      visitor,
-      OnFrameSent(RST_STREAM, stream_id, 4, 0x0,
-                  static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
-  EXPECT_CALL(visitor,
-              OnCloseStream(stream_id, Http2ErrorCode::FLOW_CONTROL_ERROR));
+    // The stream window update plus the SETTINGS frame with INITIAL_WINDOW_SIZE
+    // pushes the stream's flow control window outside of the acceptable range.
+    EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, stream_id, 4, 0x0));
+    EXPECT_CALL(
+        visitor,
+        OnFrameSent(RST_STREAM, stream_id, 4, 0x0,
+                    static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
+    EXPECT_CALL(visitor,
+                OnCloseStream(stream_id, Http2ErrorCode::FLOW_CONTROL_ERROR));
+  } else {
+    EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, 8, 0x0));
+    EXPECT_CALL(
+        visitor,
+        OnFrameSent(GOAWAY, 0, 8, 0x0,
+                    static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
+  }
 
   int result = adapter->Send();
   EXPECT_EQ(0, result);
-  EXPECT_THAT(visitor.data(),
-              EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
-                            SpdyFrameType::RST_STREAM}));
+  if (!connection_error_on_overflow) {
+    EXPECT_THAT(visitor.data(),
+                EqualsFrames({SpdyFrameType::SETTINGS, SpdyFrameType::SETTINGS,
+                              SpdyFrameType::RST_STREAM}));
+  } else {
+    EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::GOAWAY}));
+  }
 }
 
 TEST(NgHttp2AdapterTest, ClientForbidsPushPromise) {
@@ -4780,23 +4805,44 @@ TEST(NgHttp2AdapterTest, ClientDisobeysStreamFlowControl) {
   EXPECT_CALL(visitor, OnDataForStream(1, _));
   EXPECT_CALL(visitor, OnFrameHeader(1, 16384, DATA, 0x0));
   EXPECT_CALL(visitor, OnBeginDataForStream(1, 16384));
-  EXPECT_CALL(visitor, OnDataForStream(1, _));
+  // In nghttp2 < 1.67.0, exceeding the stream receive window is a stream
+  // error and the payload is delivered before RST_STREAM; in
+  // nghttp2 >= 1.67.0, it is a connection error and the payload is ignored
+  // before GOAWAY.
+  bool data_delivered_on_overflow = false;
+  EXPECT_CALL(visitor, OnDataForStream(1, _))
+      .Times(testing::AtMost(1))
+      .WillOnce(
+          testing::DoAll(testing::Assign(&data_delivered_on_overflow, true),
+                         testing::Return(true)));
   // No further frame data or headers for stream 1 are delivered.
 
   result = adapter->ProcessBytes(more_frames);
   EXPECT_EQ(more_frames.size(), static_cast<size_t>(result));
 
   EXPECT_TRUE(adapter->want_write());
-  EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, 4, 0x0));
-  EXPECT_CALL(
-      visitor,
-      OnFrameSent(RST_STREAM, 1, 4, 0x0,
-                  static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
-  EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::FLOW_CONTROL_ERROR));
+  if (data_delivered_on_overflow) {
+    EXPECT_CALL(visitor, OnBeforeFrameSent(RST_STREAM, 1, 4, 0x0));
+    EXPECT_CALL(
+        visitor,
+        OnFrameSent(RST_STREAM, 1, 4, 0x0,
+                    static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
+    EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::FLOW_CONTROL_ERROR));
+  } else {
+    EXPECT_CALL(visitor, OnBeforeFrameSent(GOAWAY, 0, 8, 0x0));
+    EXPECT_CALL(
+        visitor,
+        OnFrameSent(GOAWAY, 0, 8, 0x0,
+                    static_cast<int>(Http2ErrorCode::FLOW_CONTROL_ERROR)));
+  }
 
   send_result = adapter->Send();
   EXPECT_EQ(0, send_result);
-  EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::RST_STREAM}));
+  if (data_delivered_on_overflow) {
+    EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::RST_STREAM}));
+  } else {
+    EXPECT_THAT(visitor.data(), EqualsFrames({SpdyFrameType::GOAWAY}));
+  }
 }
 
 TEST(NgHttp2AdapterTest, ServerErrorWhileHandlingHeaders) {

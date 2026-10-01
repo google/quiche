@@ -253,8 +253,13 @@ TEST_F(Nghttp2ServerTest, MismatchedContentLength) {
   EXPECT_CALL(mock_callbacks_, OnDataChunkRecv(NGHTTP2_FLAG_END_STREAM, 1,
                                                "Less than 50 bytes."));
 
-  // No OnFrameRecv() callback for the DATA frame, since there is a
-  // Content-Length mismatch error.
+  // Since there is a Content-Length mismatch error, nghttp2 does not invoke
+  // OnFrameRecv() for the DATA frame, and starting in 1.69.0 invokes
+  // OnInvalidFrameRecv() instead.
+  EXPECT_CALL(mock_callbacks_,
+              OnInvalidFrameRecv(IsData(1, _, NGHTTP2_FLAG_END_STREAM),
+                                 NGHTTP2_ERR_HTTP_MESSAGING))
+      .Times(testing::AtMost(1));
 
   ssize_t result = nghttp2_session_mem_recv(
       session_.get(), ToUint8Ptr(initial_frames.data()), initial_frames.size());

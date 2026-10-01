@@ -11,6 +11,8 @@
 #include "quiche/http2/adapter/nghttp2_data_provider.h"
 #include "quiche/http2/adapter/nghttp2_util.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_flag_utils.h"
+#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
 
@@ -206,6 +208,17 @@ int OnHeader(nghttp2_session* /* session */, const nghttp2_frame* frame,
   return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
 }
 
+int OnInvalidHeader(nghttp2_session* /* session */, const nghttp2_frame* frame,
+                    nghttp2_rcbuf* name, nghttp2_rcbuf* value,
+                    uint8_t /*flags*/, void* /*user_data*/) {
+  QUICHE_VLOG(2) << "callbacks::OnInvalidHeader(stream_id="
+                 << frame->hd.stream_id << ", name=["
+                 << absl::CEscape(ToStringView(name)) << "], value=["
+                 << absl::CEscape(ToStringView(value)) << "])";
+  QUICHE_RELOADABLE_FLAG_COUNT_N(http2_nghttp2_callback_compatibility, 2, 2);
+  return NGHTTP2_ERR_TEMPORAL_CALLBACK_FAILURE;
+}
+
 int OnBeforeFrameSent(nghttp2_session* /* session */,
                       const nghttp2_frame* frame, void* user_data) {
   QUICHE_VLOG(1) << "callbacks::OnBeforeFrameSent(stream_id="
@@ -262,6 +275,15 @@ int OnInvalidFrameReceived(nghttp2_session* /* session */,
   QUICHE_VLOG(1) << "callbacks::OnInvalidFrameReceived(stream_id="
                  << frame->hd.stream_id << ", InvalidFrameError="
                  << int(ToInvalidFrameError(lib_error_code)) << ")";
+
+  // Starting in nghttp2 1.69.0, Content-Length mismatches on DATA frames invoke
+  // this callback, breaking its documented non-DATA contract. Return early to
+  // avoid forwarding DATA frame errors to visitor->OnInvalidFrame().
+  if (frame->hd.type == NGHTTP2_DATA &&
+      GetQuicheReloadableFlag(http2_nghttp2_callback_compatibility)) {
+    QUICHE_RELOADABLE_FLAG_COUNT_N(http2_nghttp2_callback_compatibility, 1, 2);
+    return 0;
+  }
   QUICHE_CHECK_NE(user_data, nullptr);
   auto* visitor = static_cast<Http2VisitorInterface*>(user_data);
   const bool result = visitor->OnInvalidFrame(
@@ -363,6 +385,10 @@ nghttp2_session_callbacks_unique_ptr Create(
   nghttp2_session_callbacks_set_on_begin_headers_callback(callbacks,
                                                           &OnBeginHeaders);
   nghttp2_session_callbacks_set_on_header_callback2(callbacks, &OnHeader);
+  if (GetQuicheReloadableFlag(http2_nghttp2_callback_compatibility)) {
+    nghttp2_session_callbacks_set_on_invalid_header_callback2(callbacks,
+                                                              &OnInvalidHeader);
+  }
   nghttp2_session_callbacks_set_on_data_chunk_recv_callback(callbacks,
                                                             &OnDataChunk);
   nghttp2_session_callbacks_set_on_stream_close_callback(callbacks,
