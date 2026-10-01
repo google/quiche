@@ -232,6 +232,11 @@ void UberReceivedPacketManager::set_max_ack_ranges(size_t max_ack_ranges) {
 }
 
 void UberReceivedPacketManager::set_save_timestamps(bool save_timestamps) {
+  if (!supports_multiple_packet_number_spaces_ && save_timestamps) {
+    QUIC_BUG(recv_timestamps_with_gquic)
+        << "Trying to enable QUIC receive timestamps for non-IETF QUIC";
+    return;
+  }
   for (auto& received_packet_manager : received_packet_managers_) {
     received_packet_manager.set_save_timestamps(save_timestamps);
   }

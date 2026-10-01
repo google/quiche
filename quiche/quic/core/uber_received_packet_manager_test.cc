@@ -12,6 +12,7 @@
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 
@@ -55,7 +56,6 @@ class UberReceivedPacketManagerTest : public QuicTest {
     manager_ = std::make_unique<UberReceivedPacketManager>(&stats_);
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     rtt_stats_.UpdateRtt(kMinRttMs, QuicTime::Delta::Zero(), QuicTime::Zero());
-    manager_->set_save_timestamps(true);
   }
 
   void RecordPacketReceipt(uint64_t packet_number) {
@@ -152,6 +152,9 @@ TEST_F(UberReceivedPacketManagerTest, DontWaitForPacketsBefore) {
 }
 
 TEST_F(UberReceivedPacketManagerTest, GetUpdatedAckFrame) {
+  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_CLIENT);
+  manager_->set_save_timestamps(true);
+
   QuicTime two_ms = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(2);
   EXPECT_FALSE(manager_->IsAckFrameUpdated());
   RecordPacketReceipt(2, two_ms);
@@ -225,15 +228,26 @@ TEST_F(UberReceivedPacketManagerTest, LimitAckRanges) {
 }
 
 TEST_F(UberReceivedPacketManagerTest, IgnoreOutOfOrderTimestamps) {
+  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_CLIENT);
+  manager_->set_save_timestamps(true);
+
   EXPECT_FALSE(manager_->IsAckFrameUpdated());
   RecordPacketReceipt(1, QuicTime::Zero());
   EXPECT_TRUE(manager_->IsAckFrameUpdated());
-  EXPECT_EQ(1u, manager_->ack_frame().received_packet_times.size());
+  EXPECT_EQ(
+      1u, manager_->GetAckFrame(APPLICATION_DATA).received_packet_times.size());
   RecordPacketReceipt(2,
                       QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1));
-  EXPECT_EQ(2u, manager_->ack_frame().received_packet_times.size());
+  EXPECT_EQ(
+      2u, manager_->GetAckFrame(APPLICATION_DATA).received_packet_times.size());
   RecordPacketReceipt(3, QuicTime::Zero());
-  EXPECT_EQ(2u, manager_->ack_frame().received_packet_times.size());
+  EXPECT_EQ(
+      2u, manager_->GetAckFrame(APPLICATION_DATA).received_packet_times.size());
+}
+
+TEST_F(UberReceivedPacketManagerTest, CannotEnableTimestampsForNonIetfQuic) {
+  EXPECT_QUIC_BUG(manager_->set_save_timestamps(true),
+                  "Trying to enable QUIC receive timestamps for non-IETF QUIC");
 }
 
 TEST_F(UberReceivedPacketManagerTest, OutOfOrderReceiptCausesAckSent) {
