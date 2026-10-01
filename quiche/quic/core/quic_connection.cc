@@ -4413,6 +4413,12 @@ bool QuicConnection::HasUnusedConnectionId() const {
           peer_issued_cid_manager_->HasUnusedConnectionId());
 }
 
+size_t QuicConnection::NumUnusedPeerIssuedConnectionIds() const {
+  return peer_issued_cid_manager_ == nullptr
+             ? 0
+             : peer_issued_cid_manager_->NumUnusedConnectionIds();
+}
+
 void QuicConnection::OnRetransmissionAlarm() {
   QUICHE_DCHECK(connected());
   ScopedRetransmissionTimeoutIndicator indicator(this);

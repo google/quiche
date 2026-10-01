@@ -13642,6 +13642,39 @@ TEST_P(QuicConnectionTest, MigratePath) {
   }
 }
 
+TEST_P(QuicConnectionTest, NumUnusedPeerIssuedConnectionIds) {
+  if (!version().IsIetfQuic()) {
+    EXPECT_EQ(0u, connection_.NumUnusedPeerIssuedConnectionIds());
+    return;
+  }
+  EXPECT_EQ(0u, connection_.NumUnusedPeerIssuedConnectionIds());
+
+  connection_.CreateConnectionIdManager();
+  EXPECT_EQ(0u, connection_.NumUnusedPeerIssuedConnectionIds());
+
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_FORWARD_SECURE);
+  connection_.OnHandshakeComplete();
+  EXPECT_CALL(visitor_, GetHandshakeState())
+      .WillRepeatedly(Return(HANDSHAKE_CONFIRMED));
+
+  QuicNewConnectionIdFrame frame;
+  frame.connection_id = TestConnectionId(1234);
+  ASSERT_NE(frame.connection_id, connection_.connection_id());
+  frame.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame.connection_id);
+  frame.retire_prior_to = 0u;
+  frame.sequence_number = 1u;
+  EXPECT_TRUE(connection_.OnNewConnectionIdFrame(frame));
+  EXPECT_EQ(1u, connection_.NumUnusedPeerIssuedConnectionIds());
+
+  const QuicSocketAddress kNewSelfAddress(QuicIpAddress::Any4(), 12345);
+  TestPacketWriter new_writer(version(), &clock_, Perspective::IS_CLIENT);
+  EXPECT_TRUE(connection_.MigratePath(kNewSelfAddress,
+                                      connection_.peer_address(), &new_writer,
+                                      /*owns_writer=*/false));
+  EXPECT_EQ(0u, connection_.NumUnusedPeerIssuedConnectionIds());
+}
+
 TEST_P(QuicConnectionTest, MigrateToNewPathDuringProbing) {
   if (!VersionIsIetfQuic(connection_.version().transport_version)) {
     return;

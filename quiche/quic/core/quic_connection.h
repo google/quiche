@@ -1364,6 +1364,9 @@ class QUICHE_EXPORT QuicConnection
 
   bool HasUnusedConnectionId() const;
 
+  // Returns the number of unused peer-issued connection IDs.
+  size_t NumUnusedPeerIssuedConnectionIds() const;
+
   QuicPathValidationContext* GetPathValidationContext() const;
 
   // TODO(martinduke): Delete this deprecated method once non-QUICHE callers are

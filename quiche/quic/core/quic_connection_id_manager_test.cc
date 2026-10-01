@@ -110,6 +110,49 @@ class QuicPeerIssuedConnectionIdManagerTest : public QuicTest {
   bool duplicate_frame_ = false;
 };
 
+TEST_F(QuicPeerIssuedConnectionIdManagerTest, NumUnusedConnectionIds) {
+  EXPECT_EQ(0u, peer_issued_cid_manager_.NumUnusedConnectionIds());
+  EXPECT_FALSE(peer_issued_cid_manager_.HasUnusedConnectionId());
+
+  // Receives CID #1 from peer.
+  QuicNewConnectionIdFrame frame1;
+  frame1.connection_id = TestConnectionId(1);
+  frame1.sequence_number = 1u;
+  frame1.retire_prior_to = 0u;
+  frame1.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame1.connection_id);
+  ASSERT_THAT(peer_issued_cid_manager_.OnNewConnectionIdFrame(
+                  frame1, &error_details_, &duplicate_frame_),
+              IsQuicNoError());
+  EXPECT_EQ(1u, peer_issued_cid_manager_.NumUnusedConnectionIds());
+  EXPECT_TRUE(peer_issued_cid_manager_.HasUnusedConnectionId());
+
+  // Receives CID #2 from peer.
+  peer_issued_cid_manager_.set_active_connection_id_limit(3);
+  QuicNewConnectionIdFrame frame2;
+  frame2.connection_id = TestConnectionId(2);
+  frame2.sequence_number = 2u;
+  frame2.retire_prior_to = 0u;
+  frame2.stateless_reset_token =
+      QuicUtils::GenerateStatelessResetToken(frame2.connection_id);
+  ASSERT_THAT(peer_issued_cid_manager_.OnNewConnectionIdFrame(
+                  frame2, &error_details_, &duplicate_frame_),
+              IsQuicNoError());
+  EXPECT_EQ(2u, peer_issued_cid_manager_.NumUnusedConnectionIds());
+
+  // Consume one unused connection ID.
+  const QuicConnectionIdData* cid_data =
+      peer_issued_cid_manager_.ConsumeOneUnusedConnectionId();
+  ASSERT_THAT(cid_data, testing::NotNull());
+  EXPECT_EQ(1u, peer_issued_cid_manager_.NumUnusedConnectionIds());
+
+  // Consume the remaining unused connection ID.
+  cid_data = peer_issued_cid_manager_.ConsumeOneUnusedConnectionId();
+  ASSERT_THAT(cid_data, testing::NotNull());
+  EXPECT_EQ(0u, peer_issued_cid_manager_.NumUnusedConnectionIds());
+  EXPECT_FALSE(peer_issued_cid_manager_.HasUnusedConnectionId());
+}
+
 TEST_F(QuicPeerIssuedConnectionIdManagerTest,
        ConnectionIdSequenceWhenMigrationSucceed) {
   {

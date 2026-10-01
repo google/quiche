@@ -75,6 +75,10 @@ class QUICHE_EXPORT QuicPeerIssuedConnectionIdManager {
     return !unused_connection_id_data_.empty();
   }
 
+  size_t NumUnusedConnectionIds() const {
+    return unused_connection_id_data_.size();
+  }
+
   // Returns the data associated with an unused connection Id. After the call,
   // the Id is marked as used. Returns nullptr if there is no unused connection
   // Id.
