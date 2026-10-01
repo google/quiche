@@ -176,7 +176,8 @@ void MoqtSession::OnIncomingBidirectionalStreamAvailable() {
       // Immediately reject new requests with REQUEST_ERROR. If the stream
       // cannot be written, just reset it.
       if (!stream->CanWrite()) {
-        stream->ResetWithUserCode(kResetCodeSessionClosed);
+        stream->SendStopSending(kResetCodeGoingAway);
+        stream->ResetWithUserCode(kResetCodeGoingAway);
         continue;
       }
       webtransport::StreamWriteOptions options;
@@ -185,7 +186,8 @@ void MoqtSession::OnIncomingBidirectionalStreamAvailable() {
           quiche::QuicheMemSlice(framer_.SerializeRequestError(MoqtRequestError{
               RequestErrorCode::kGoingAway, std::nullopt, ""}))};
       if (!stream->Writev(absl::MakeSpan(write_vector), options).ok()) {
-        stream->ResetWithUserCode(kResetCodeSessionClosed);
+        stream->SendStopSending(kResetCodeGoingAway);
+        stream->ResetWithUserCode(kResetCodeGoingAway);
       };
       continue;
     }
@@ -949,6 +951,7 @@ void MoqtSession::UnknownBidiStream::OnCanRead() {
   if (!type.ok()) {
     // The result is neither of "OK", "no type available", or "parse error".
     // This is unexpected; treat it as an internal error, and reset the stream.
+    stream_->SendStopSending(kResetCodeInternalError);
     stream_->ResetWithUserCode(kResetCodeInternalError);
     return;
   }
@@ -1300,7 +1303,7 @@ void MoqtSession::UnknownUniStream::OnCanRead() {
     return;
   }
   if (!type.ok()) {
-    stream_->ResetWithUserCode(kResetCodeInternalError);
+    stream_->SendStopSending(kResetCodeInternalError);
     return;
   }
   if (*type == static_cast<uint64_t>(MoqtMessageType::kSetup)) {

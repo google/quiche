@@ -683,6 +683,7 @@ TEST_F(MoqtSessionTest, PublishNamespaceWithOkAndPublishNamespaceDone) {
           });
   bidi_wrapper_->ReceiveMessage(ok);
 
+  EXPECT_CALL(mock_bidi_stream_, SendStopSending);
   EXPECT_CALL(mock_bidi_stream_, ResetWithUserCode);
   session_.PublishNamespaceDone(TrackNamespace{"foo"});
   // State is gone.
@@ -1050,10 +1051,12 @@ TEST_F(MoqtSessionTest, Unsubscribe) {
               Writev(ControlMessageOfType(MoqtMessageType::kSubscribe), _));
   EXPECT_TRUE(
       session_.Subscribe(ftn, &remote_track_visitor_, MessageParameters()));
+  EXPECT_CALL(mock_bidi_stream_, SendStopSending);
   EXPECT_CALL(mock_bidi_stream_, ResetWithUserCode);
   EXPECT_CALL(remote_track_visitor_, OnPublishDone);
   session_.Unsubscribe(ftn);
   // Verify it was destroyed.
+  EXPECT_CALL(mock_bidi_stream_, SendStopSending).Times(0);
   EXPECT_CALL(mock_bidi_stream_, ResetWithUserCode).Times(0);
   EXPECT_CALL(remote_track_visitor_, OnPublishDone).Times(0);
   session_.Unsubscribe(ftn);
@@ -1168,6 +1171,7 @@ TEST_F(MoqtSessionTest, SubscribeNamespaceLifeCycle) {
       });
   bidi_wrapper_->ReceiveMessage(MoqtRequestOk());
   EXPECT_TRUE(got_callback);
+  EXPECT_CALL(mock_bidi_stream_, SendStopSending);
   EXPECT_CALL(mock_bidi_stream_, ResetWithUserCode);
 }
 
@@ -2098,6 +2102,7 @@ TEST_F(MoqtSessionTest, FetchThenOkThenCancel) {
   EXPECT_EQ(fetch_task->GetNextObject(object),
             MoqtFetchTask::GetNextObjectResult::kPending);
   // Cancel the fetch.
+  EXPECT_CALL(mock_bidi_stream_, SendStopSending(kResetCodeCancelled));
   EXPECT_CALL(mock_bidi_stream_, ResetWithUserCode(kResetCodeCancelled));
   fetch_task.reset();
 }
@@ -2411,6 +2416,7 @@ TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
       .WillOnce(Return(&new_request_stream_2))
       .WillOnce(Return(nullptr));
   EXPECT_CALL(new_request_stream_2, CanWrite()).WillOnce(Return(false));
+  EXPECT_CALL(new_request_stream_2, SendStopSending);
   EXPECT_CALL(new_request_stream_2, ResetWithUserCode);
   session_.OnIncomingBidirectionalStreamAvailable();
 
@@ -2887,6 +2893,7 @@ TEST_F(MoqtSessionTest, IncomingPublishAbortsPendingSubscribe) {
   std::unique_ptr<MoqtBidiStreamTestWrapper> publish_wrapper =
       std::make_unique<MoqtBidiStreamTestWrapper>(
           ResponseStream(kPublishByte, &publish_stream));
+  EXPECT_CALL(mock_bidi_stream_, SendStopSending(kResetCodeCancelled));
   EXPECT_CALL(mock_bidi_stream_, ResetWithUserCode(kResetCodeCancelled));
   MoqtRequestOk expected_request_ok;
   expected_request_ok.parameters = parameters;  // params from the SUBSCRIBE.

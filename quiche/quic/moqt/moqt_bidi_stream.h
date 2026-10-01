@@ -72,6 +72,7 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
 
   // webtransport::StreamVisitor implementation.
   void OnResetStreamReceived(webtransport::StreamErrorCode error) override {
+    stream_status_ = MoqtStreamErrorToStatus(error, "");
     Reset(error);
   }
   void OnStopSendingReceived(webtransport::StreamErrorCode error) override {
@@ -116,6 +117,9 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   }
   void Reset(webtransport::StreamErrorCode error) {
     if (stream() != nullptr) {
+      if (stream_status().ok()) {  // a Reset has not been received yet.
+        stream()->SendStopSending(error);
+      }
       stream()->ResetWithUserCode(error);
     }
     stream_status_ = MoqtStreamErrorToStatus(error, "");

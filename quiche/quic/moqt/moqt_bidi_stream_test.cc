@@ -80,6 +80,7 @@ class MoqtBidiStreamTest : public quiche::test::QuicheTest {
 
 TEST_F(MoqtBidiStreamTest, Reset) {
   stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, SendStopSending(1234));
   EXPECT_CALL(mock_stream_, ResetWithUserCode(1234));
   stream_->Reset(1234);
   EXPECT_TRUE(stream_->detached_);
@@ -87,6 +88,7 @@ TEST_F(MoqtBidiStreamTest, Reset) {
 
 TEST_F(MoqtBidiStreamTest, IncomingReset) {
   stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, SendStopSending).Times(0);
   EXPECT_CALL(mock_stream_, ResetWithUserCode(1234));
   stream_->OnResetStreamReceived(1234);
   EXPECT_TRUE(stream_->detached_);
@@ -100,6 +102,7 @@ TEST_F(MoqtBidiStreamTest, FinDetaches) {
 
 TEST_F(MoqtBidiStreamTest, IncomingStopSending) {
   stream_->BindStream(&mock_stream_);
+  EXPECT_CALL(mock_stream_, SendStopSending(1234));
   EXPECT_CALL(mock_stream_, ResetWithUserCode(1234));
   stream_->OnStopSendingReceived(1234);
   EXPECT_TRUE(stream_->detached_);
