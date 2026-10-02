@@ -871,6 +871,10 @@ class QUICHE_EXPORT QuicSession
     return notify_stream_soon_to_destroy_;
   }
 
+  bool bundle_retransmitted_crypto_frames() const {
+    return bundle_retransmitted_crypto_frames_;
+  }
+
  protected:
   using StreamMap =
       absl::flat_hash_map<QuicStreamId, std::unique_ptr<QuicStream>>;
@@ -1305,6 +1309,9 @@ class QUICHE_EXPORT QuicSession
   UberQuicStreamIdManager ietf_streamid_manager_;
 
   SavedConfig saved_config_;
+
+  bool bundle_retransmitted_crypto_frames_ =
+      GetQuicReloadableFlag(quic_bundle_crypto_retransmits);
 };
 
 }  // namespace quic

@@ -1139,7 +1139,8 @@ class EndToEndTest : public QuicTestWithParam<TestParams> {
   }
 
   void TestMultiPacketChaosProtection(int num_packets, bool drop_first_packet,
-                                      bool kyber = false);
+                                      bool kyber = false,
+                                      bool zero_rtt = false);
 
   quiche::test::ScopedEnvironmentForThreads environment_;
   bool initialized_;
@@ -7392,6 +7393,13 @@ TEST_P(EndToEndTest, TwoPacketChaosProtectionWithRetransmission) {
                                  /*drop_first_packet=*/true);
 }
 
+TEST_P(EndToEndTest, ZeroRttTwoPacketChaosProtectionWithRetransmission) {
+  TestMultiPacketChaosProtection(/*num_packets=*/2,
+                                 /*drop_first_packet=*/true,
+                                 /*kyber=*/false,
+                                 /*zero_rtt=*/true);
+}
+
 TEST_P(EndToEndTest, ThreePacketChaosProtection) {
   TestMultiPacketChaosProtection(/*num_packets=*/3,
                                  /*drop_first_packet=*/false);
@@ -7415,7 +7423,7 @@ TEST_P(EndToEndTest, FivePacketChaosProtection) {
 
 void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
                                                   bool drop_first_packet,
-                                                  bool kyber) {
+                                                  bool kyber, bool zero_rtt) {
   if (!version_.IsIetfQuic()) {
     ASSERT_TRUE(Initialize());
     return;
@@ -7427,14 +7435,34 @@ void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
     discard_length = 1216;
     enable_mlkem_in_client_ = true;
   } else {
-    discard_length = 1000 * num_packets;
+    discard_length = (zero_rtt ? 750 : 1000) * num_packets;
     client_config_.SetDiscardLengthToSend(discard_length);
   }
+  if (zero_rtt) {
+    client_config_.SetClientConnectionOptions({kBCFR});
+  }
   ASSERT_TRUE(Initialize());
-  auto copying_writer = new ChaosPacketWriter(version_, drop_first_packet);
-  delete client_writer_;
-  client_writer_ = copying_writer;
-  client_.reset(CreateQuicClient(client_writer_, /*connect=*/false));
+  ChaosPacketWriter* copying_writer = nullptr;
+  if (zero_rtt) {
+    client_.reset(CreateQuicClient(client_writer_, /*connect=*/true));
+    MockableQuicClient* client = client_->client();
+    QuicConnection* client_connection = GetClientConnection();
+    client_writer_->Initialize(
+        QuicConnectionPeer::GetHelper(client_connection),
+        QuicConnectionPeer::GetAlarmFactory(client_connection),
+        std::make_unique<ClientDelegate>(client));
+    EXPECT_TRUE(client->connected());
+    EXPECT_TRUE(SendSynchronousFooRequestAndCheckResponse());
+    client_->Disconnect();
+    copying_writer = new ChaosPacketWriter(version_, drop_first_packet);
+    client_writer_ = copying_writer;
+    client_->UseWriter(client_writer_);
+  } else {
+    copying_writer = new ChaosPacketWriter(version_, drop_first_packet);
+    delete client_writer_;
+    client_writer_ = copying_writer;
+    client_.reset(CreateQuicClient(client_writer_, /*connect=*/false));
+  }
   client_->UseConnectionId(TestConnectionId());
   client_->Connect();
   MockableQuicClient* client = client_->client();
@@ -7446,6 +7474,9 @@ void EndToEndTest::TestMultiPacketChaosProtection(int num_packets,
   EXPECT_TRUE(client->connected());
   // Make sure application data can be sent.
   EXPECT_TRUE(SendSynchronousFooRequestAndCheckResponse());
+  if (zero_rtt) {
+    EXPECT_TRUE(client->EarlyDataAccepted());
+  }
 
   // Make sure the first flight contains the entire client hello.
   QuicIntervalSet<QuicStreamOffset> crypto_data_intervals;

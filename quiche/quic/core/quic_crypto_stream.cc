@@ -7,6 +7,7 @@
 #include <algorithm>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -319,15 +320,32 @@ void QuicCryptoStream::WritePendingCryptoRetransmission() {
   QUIC_BUG_IF(quic_bug_12573_3,
               !VersionIsIetfQuic(session()->transport_version()))
       << "Versions less than 47 don't write CRYPTO frames";
+  std::optional<QuicConnection::ScopedPacketFlusher> retransmission_flusher;
+  if (session()->bundle_retransmitted_crypto_frames()) {
+    QUIC_RELOADABLE_FLAG_COUNT_N(quic_bundle_crypto_retransmits, 3, 3);
+    retransmission_flusher.emplace(session()->connection());
+  }
   for (uint8_t i = INITIAL_DATA; i <= APPLICATION_DATA; ++i) {
     auto packet_number_space = static_cast<PacketNumberSpace>(i);
     QuicStreamSendBufferInlining* send_buffer =
         &substreams_[packet_number_space].send_buffer;
+    if (!send_buffer->HasPendingRetransmission()) {
+      continue;
+    }
+    EncryptionLevel retransmission_encryption_level =
+        GetEncryptionLevelToSendCryptoDataOfSpace(packet_number_space);
+    std::optional<QuicConnection::ScopedEncryptionLevelContext>
+        encryption_level_context;
+    if (session()->bundle_retransmitted_crypto_frames()) {
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_bundle_crypto_retransmits, 2, 3);
+      encryption_level_context.emplace(session()->connection(),
+                                       retransmission_encryption_level);
+    }
     while (send_buffer->HasPendingRetransmission()) {
       auto pending = send_buffer->NextPendingRetransmission();
       size_t bytes_consumed = stream_delegate()->SendCryptoData(
-          GetEncryptionLevelToSendCryptoDataOfSpace(packet_number_space),
-          pending.length, pending.offset, HANDSHAKE_RETRANSMISSION);
+          retransmission_encryption_level, pending.length, pending.offset,
+          HANDSHAKE_RETRANSMISSION);
       send_buffer->OnStreamDataRetransmitted(pending.offset, bytes_consumed);
       if (bytes_consumed < pending.length) {
         return;
@@ -504,12 +522,12 @@ bool QuicCryptoStream::RetransmitData(QuicCryptoFrame* crypto_frame,
   if (retransmission.Empty()) {
     return true;
   }
-  for (const auto& interval : retransmission) {
+  EncryptionLevel retransmission_encryption_level =
+      GetEncryptionLevelToSendCryptoDataOfSpace(
+          QuicUtils::GetPacketNumberSpace(crypto_frame->level));
+  for (const QuicInterval<QuicStreamOffset>& interval : retransmission) {
     size_t retransmission_offset = interval.min();
     size_t retransmission_length = interval.max() - interval.min();
-    EncryptionLevel retransmission_encryption_level =
-        GetEncryptionLevelToSendCryptoDataOfSpace(
-            QuicUtils::GetPacketNumberSpace(crypto_frame->level));
     size_t bytes_consumed = stream_delegate()->SendCryptoData(
         retransmission_encryption_level, retransmission_length,
         retransmission_offset, type);

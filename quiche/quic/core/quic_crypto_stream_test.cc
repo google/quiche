@@ -29,7 +29,6 @@
 using testing::_;
 using testing::InSequence;
 using testing::Invoke;
-using testing::InvokeWithoutArgs;
 using testing::Return;
 
 namespace quic {
@@ -835,6 +834,91 @@ TEST_F(QuicCryptoStreamTest, OperationsAfterResetCryptoSubstreams) {
   EXPECT_FALSE(stream_->IsFrameOutstanding(ENCRYPTION_INITIAL, 0, 1350));
   EXPECT_FALSE(stream_->OnCryptoFrameAcked(frame, QuicTime::Delta::Zero()));
   stream_->OnCryptoFrameLost(&frame);
+}
+
+TEST_F(QuicCryptoStreamTest,
+       RetransmitFramesBundlesCryptoFramesWhenOptionEnabled) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
+    return;
+  }
+  session_.config()->SetClientConnectionOptions({kBCFR});
+  session_.Initialize();
+  EXPECT_TRUE(session_.bundle_retransmitted_crypto_frames());
+
+  InSequence s;
+  std::string data(1000, 'a');
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 1000, 0))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  stream_->WriteCryptoData(ENCRYPTION_INITIAL, data);
+
+  connection_->SetEncrypter(
+      ENCRYPTION_ZERO_RTT,
+      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  EXPECT_EQ(ENCRYPTION_ZERO_RTT, connection_->encryption_level());
+
+  QuicCryptoFrame frame1(ENCRYPTION_INITIAL, 0, 74);
+  QuicCryptoFrame frame2(ENCRYPTION_INITIAL, 500, 500);
+  QuicFrames frames;
+  frames.push_back(QuicFrame(&frame1));
+  frames.push_back(QuicFrame(&frame2));
+
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 74, 0))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 500, 500))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  // Both CRYPTO frames should be bundled into a single packet write.
+  EXPECT_CALL(*static_cast<MockPacketWriter*>(connection_->writer()),
+              WritePacket(_, _, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  EXPECT_TRUE(session_.RetransmitFrames(frames, PTO_RETRANSMISSION));
+  EXPECT_EQ(ENCRYPTION_ZERO_RTT, connection_->encryption_level());
+}
+
+TEST_F(QuicCryptoStreamTest,
+       WritePendingCryptoRetransmissionBundlesCryptoFramesWhenOptionEnabled) {
+  if (!VersionIsIetfQuic(connection_->transport_version())) {
+    return;
+  }
+  session_.config()->SetClientConnectionOptions({kBCFR});
+  session_.Initialize();
+  EXPECT_TRUE(session_.bundle_retransmitted_crypto_frames());
+
+  InSequence s;
+  std::string data(1000, 'a');
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 1000, 0))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  stream_->WriteCryptoData(ENCRYPTION_INITIAL, data);
+
+  connection_->SetEncrypter(
+      ENCRYPTION_ZERO_RTT,
+      std::make_unique<NullEncrypter>(Perspective::IS_CLIENT));
+  connection_->SetDefaultEncryptionLevel(ENCRYPTION_ZERO_RTT);
+  EXPECT_EQ(ENCRYPTION_ZERO_RTT, connection_->encryption_level());
+
+  QuicCryptoFrame lost_frame1(ENCRYPTION_INITIAL, 0, 74);
+  QuicCryptoFrame lost_frame2(ENCRYPTION_INITIAL, 500, 500);
+  stream_->OnCryptoFrameLost(&lost_frame1);
+  stream_->OnCryptoFrameLost(&lost_frame2);
+  EXPECT_TRUE(stream_->HasPendingCryptoRetransmission());
+
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 74, 0))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  EXPECT_CALL(*connection_, SendCryptoData(ENCRYPTION_INITIAL, 500, 500))
+      .WillOnce(Invoke(connection_,
+                       &MockQuicConnection::QuicConnection_SendCryptoData));
+  // Both lost CRYPTO frames should be bundled into a single packet write.
+  EXPECT_CALL(*static_cast<MockPacketWriter*>(connection_->writer()),
+              WritePacket(_, _, _, _, _, _))
+      .WillOnce(Return(WriteResult(WRITE_STATUS_OK, 0)));
+  stream_->WritePendingCryptoRetransmission();
+  EXPECT_FALSE(stream_->HasPendingCryptoRetransmission());
+  EXPECT_EQ(ENCRYPTION_ZERO_RTT, connection_->encryption_level());
 }
 
 }  // namespace
