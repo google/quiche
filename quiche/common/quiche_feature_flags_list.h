@@ -10,7 +10,7 @@
 
 QUICHE_FLAG(bool, quiche_reloadable_flag_enable_h3_origin_frame, false, true, "If true, enables support for parsing HTTP/3 ORIGIN frames.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_hpack_huffman_decoder_optimizations, true, true, "If true, enables a few optimizations in HpackHuffmanDecoder.")
-QUICHE_FLAG(bool, quiche_reloadable_flag_hpack_huffman_encoder_64bit_accumulator, false, false, "If true, use 64-bit bit accumulator for HPACK Huffman encoding.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_hpack_huffman_encoder_64bit_accumulator, false, true, "If true, use 64-bit bit accumulator for HPACK Huffman encoding.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_http2_nghttp2_callback_compatibility, false, true, "If true, add callbacks to preserve nghttp2 1.66.0 invalid header and invalid DATA frame callback behavior in NgHttp2Adapter.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_act_upon_invalid_header, true, true, "If true, reject or send error response code upon receiving invalid request or response headers.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_active_connection_id_limit, false, false, "If true, allow configuring active_connection_id_limit via 3CID, 4CID, and 5CID connection options on the client and use the received active_connection_id_limit up to 5 on the server.")
