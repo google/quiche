@@ -1,9 +1,12 @@
 #include "quiche/http2/adapter/oghttp2_adapter.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <limits>
 #include <memory>
+#include <optional>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "absl/strings/str_join.h"
@@ -3248,6 +3251,105 @@ TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSetting) {
               EqualsFrames({SpdyFrameType::HEADERS, SpdyFrameType::DATA,
                             SpdyFrameType::DATA, SpdyFrameType::DATA,
                             SpdyFrameType::DATA, SpdyFrameType::DATA}));
+}
+
+TEST(OgHttp2AdapterTest, MaxOutboundDataFramePayload) {
+  struct TestCase {
+    std::optional<uint32_t> max_outbound_data_frame_payload;
+    size_t expected_data_frame_size;
+  };
+  // SETTINGS_MAX_FRAME_SIZE advertised by the client.
+  const uint32_t kPeerMaxFrameSize = 64 * 1024;
+  const size_t kBodySize = 48 * 1024;
+  const std::vector<TestCase> test_cases = {
+      // Without the option, DATA frames are limited only by the peer max.
+      {std::nullopt, 48 * 1024},
+      // Zero is treated as unset.
+      {0u, 48 * 1024},
+      // The option caps DATA frames below the peer's MAX_FRAME_SIZE.
+      {16 * 1024, 16 * 1024},
+      {24 * 1024, 24 * 1024},
+  };
+
+  for (const TestCase& test_case : test_cases) {
+    TestVisitor visitor;
+    OgHttp2Adapter::Options options;
+    options.perspective = Perspective::kServer;
+    options.max_outbound_data_frame_payload =
+        test_case.max_outbound_data_frame_payload;
+    auto adapter = OgHttp2Adapter::Create(visitor, options);
+
+    testing::InSequence s;
+
+    const std::string frames =
+        TestFrameSequence()
+            .ClientPreface({{MAX_FRAME_SIZE, kPeerMaxFrameSize}})
+            .Headers(1,
+                     {{":method", "GET"},
+                      {":scheme", "https"},
+                      {":authority", "example.com"},
+                      {":path", "/this/is/request/one"}},
+                     /*fin=*/true)
+            .Serialize();
+    // Client preface (SETTINGS with MAX_FRAME_SIZE)
+    EXPECT_CALL(visitor, OnFrameHeader(0, 6, SETTINGS, 0));
+    EXPECT_CALL(visitor, OnSettingsStart());
+    EXPECT_CALL(visitor,
+                OnSetting(Http2Setting{MAX_FRAME_SIZE, kPeerMaxFrameSize}));
+    EXPECT_CALL(visitor, OnSettingsEnd());
+    // Stream 1
+    EXPECT_CALL(visitor, OnFrameHeader(1, _, HEADERS, 5));
+    EXPECT_CALL(visitor, OnBeginHeadersForStream(1));
+    EXPECT_CALL(visitor, OnHeaderForStream(1, ":method", "GET"));
+    EXPECT_CALL(visitor, OnHeaderForStream(1, ":scheme", "https"));
+    EXPECT_CALL(visitor, OnHeaderForStream(1, ":authority", "example.com"));
+    EXPECT_CALL(visitor, OnHeaderForStream(1, ":path", "/this/is/request/one"));
+    EXPECT_CALL(visitor, OnEndHeadersForStream(1));
+    EXPECT_CALL(visitor, OnEndStream(1));
+
+    const int64_t read_result = adapter->ProcessBytes(frames);
+    EXPECT_EQ(frames.size(), static_cast<size_t>(read_result));
+
+    // Server SETTINGS and SETTINGS ack.
+    EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, 0x0));
+    EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, 0x0, 0));
+    EXPECT_CALL(visitor, OnBeforeFrameSent(SETTINGS, 0, _, ACK_FLAG));
+    EXPECT_CALL(visitor, OnFrameSent(SETTINGS, 0, _, ACK_FLAG, 0));
+
+    int send_result = adapter->Send();
+    EXPECT_EQ(0, send_result);
+    visitor.Clear();
+
+    visitor.AppendPayloadForStream(1, std::string(kBodySize, 'c'));
+    visitor.SetEndData(1, true);
+    const int submit_result =
+        adapter->SubmitResponse(1, ToHeaders({{":status", "200"}}), false);
+    EXPECT_EQ(0, submit_result);
+
+    EXPECT_CALL(visitor, OnBeforeFrameSent(HEADERS, 1, _, 0x4));
+    EXPECT_CALL(visitor, OnFrameSent(HEADERS, 1, _, 0x4, 0));
+    const size_t num_data_frames =
+        kBodySize / test_case.expected_data_frame_size;
+    // Only the last DATA frame carries END_STREAM.
+    EXPECT_CALL(
+        visitor,
+        OnFrameSent(DATA, 1, test_case.expected_data_frame_size, 0x0, 0))
+        .Times(static_cast<int>(num_data_frames) - 1);
+    EXPECT_CALL(visitor,
+                OnFrameSent(DATA, 1, test_case.expected_data_frame_size,
+                            END_STREAM_FLAG, 0));
+    EXPECT_CALL(visitor, OnCloseStream(1, Http2ErrorCode::HTTP2_NO_ERROR));
+
+    send_result = adapter->Send();
+    EXPECT_EQ(0, send_result);
+    // The serialized bytes are HEADERS followed by the expected DATA frames.
+    std::vector<std::pair<SpdyFrameType, std::optional<size_t>>>
+        expected_frames = {{SpdyFrameType::HEADERS, std::nullopt}};
+    expected_frames.insert(
+        expected_frames.end(), num_data_frames,
+        {SpdyFrameType::DATA, test_case.expected_data_frame_size});
+    EXPECT_THAT(visitor.data(), EqualsFrames(expected_frames));
+  }
 }
 
 TEST(OgHttp2AdapterTest, ClientReceivesInitialWindowSettingAfterStreamStart) {

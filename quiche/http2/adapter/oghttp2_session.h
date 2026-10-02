@@ -93,6 +93,10 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
     bool crumble_cookies = false;
     // If true, allows a GOAWAY to be sent even when acting as a client.
     bool send_goaway_as_client = false;
+    // If set, caps the payload length of outbound DATA frames at this many
+    // bytes, even if the peer's SETTINGS_MAX_FRAME_SIZE allows larger frames.
+    // A value of zero is treated as unset.
+    std::optional<uint32_t> max_outbound_data_frame_payload;
     // Specifies the behavior of the HPACK encoder when compressing headers.
     enum CompressionOption : uint8_t {
       ENABLE_COMPRESSION,   // Dynamic table enabled, Huffman enabled.
@@ -477,6 +481,11 @@ class QUICHE_EXPORT OgHttp2Session : public Http2Session,
   DataFrameHeaderInfo GetDataFrameInfo(Http2StreamId stream_id,
                                        size_t flow_control_available,
                                        StreamState& stream_state);
+
+  // Returns the maximum payload length of an outbound DATA frame: the peer's
+  // SETTINGS_MAX_FRAME_SIZE, further capped by
+  // `Options::max_outbound_data_frame_payload` if set.
+  uint32_t MaxOutboundDataFramePayload() const;
 
   // Invokes the appropriate API to send a DATA frame header and payload.
   bool SendDataFrame(Http2StreamId stream_id, absl::string_view frame_header,

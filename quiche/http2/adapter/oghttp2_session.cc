@@ -898,7 +898,7 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
   bool wrote_data = false;
   int32_t available_window =
       std::min({connection_send_window_, state.send_window,
-                static_cast<int32_t>(max_frame_payload_)});
+                static_cast<int32_t>(MaxOutboundDataFramePayload())});
   while (connection_can_write == SendResult::SEND_OK && available_window > 0 &&
          IsReadyToWriteData(state)) {
     wrote_data = true;
@@ -939,8 +939,9 @@ OgHttp2Session::SendResult OgHttp2Session::WriteForStream(
       }
       connection_send_window_ -= info.payload_length;
       state.send_window -= info.payload_length;
-      available_window = std::min({connection_send_window_, state.send_window,
-                                   static_cast<int32_t>(max_frame_payload_)});
+      available_window =
+          std::min({connection_send_window_, state.send_window,
+                    static_cast<int32_t>(MaxOutboundDataFramePayload())});
       if (info.end_stream) {
         state.half_closed_local = true;
         MaybeFinWithRstStream(it);
@@ -2251,6 +2252,15 @@ OgHttp2Session::DataFrameHeaderInfo OgHttp2Session::GetDataFrameInfo(
   QUICHE_LOG(DFATAL) << "GetDataFrameInfo for stream " << stream_id
                      << " but no body available!";
   return {/*payload_length=*/0, /*end_data=*/true, /*end_stream=*/true};
+}
+
+uint32_t OgHttp2Session::MaxOutboundDataFramePayload() const {
+  if (options_.max_outbound_data_frame_payload.has_value() &&
+      *options_.max_outbound_data_frame_payload > 0) {
+    return std::min(max_frame_payload_,
+                    *options_.max_outbound_data_frame_payload);
+  }
+  return max_frame_payload_;
 }
 
 bool OgHttp2Session::SendDataFrame(Http2StreamId stream_id,
