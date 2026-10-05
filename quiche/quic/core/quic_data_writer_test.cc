@@ -58,6 +58,27 @@ INSTANTIATE_TEST_SUITE_P(QuicDataWriterTests, QuicDataWriterTest,
                          ::testing::ValuesIn(GetTestParams()),
                          ::testing::PrintToStringParamName());
 
+TEST_P(QuicDataWriterTest, SpanConstructors) {
+  char default_buffer[2] = {};
+  QuicDataWriter default_writer(absl::MakeSpan(default_buffer));
+  EXPECT_EQ(std::size(default_buffer), default_writer.capacity());
+  EXPECT_TRUE(default_writer.WriteUInt8(1));
+  EXPECT_EQ(1, default_buffer[0]);
+
+  char explicit_buffer[2] = {};
+  QuicDataWriter explicit_writer(absl::MakeSpan(explicit_buffer),
+                                 GetParam().endianness);
+  EXPECT_EQ(std::size(explicit_buffer), explicit_writer.capacity());
+  EXPECT_TRUE(explicit_writer.WriteUInt16(0x0102));
+  const char big_endian[] = {0x01, 0x02};
+  const char little_endian[] = {0x02, 0x01};
+  quiche::test::CompareCharArraysWithHexError(
+      "uint16_t", explicit_buffer, std::size(explicit_buffer),
+      GetParam().endianness == quiche::NETWORK_BYTE_ORDER ? big_endian
+                                                          : little_endian,
+      std::size(explicit_buffer));
+}
+
 TEST_P(QuicDataWriterTest, SanityCheckUFloat16Consts) {
   // Check the arithmetic on the constants - otherwise the values below make
   // no sense.

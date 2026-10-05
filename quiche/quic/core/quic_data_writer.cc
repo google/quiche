@@ -19,9 +19,16 @@ namespace quic {
 QuicDataWriter::QuicDataWriter(size_t size, char* buffer)
     : quiche::QuicheDataWriter(size, buffer) {}
 
+QuicDataWriter::QuicDataWriter(absl::Span<char> buffer)
+    : QuicDataWriter(buffer.size(), buffer.data()) {}
+
 QuicDataWriter::QuicDataWriter(size_t size, char* buffer,
                                quiche::Endianness endianness)
     : quiche::QuicheDataWriter(size, buffer, endianness) {}
+
+QuicDataWriter::QuicDataWriter(absl::Span<char> buffer,
+                               quiche::Endianness endianness)
+    : QuicDataWriter(buffer.size(), buffer.data(), endianness) {}
 
 QuicDataWriter::~QuicDataWriter() {}
 

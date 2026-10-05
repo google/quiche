@@ -9,6 +9,7 @@
 #include <cstdint>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/crypto/quic_random.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_export.h"
@@ -27,9 +28,11 @@ class QUICHE_EXPORT QuicDataWriter : public quiche::QuicheDataWriter {
   // Creates a QuicDataWriter where |buffer| is not owned
   // using NETWORK_BYTE_ORDER endianness.
   QuicDataWriter(size_t size, char* buffer);
+  explicit QuicDataWriter(absl::Span<char> buffer);
   // Creates a QuicDataWriter where |buffer| is not owned
   // using the specified endianness.
   QuicDataWriter(size_t size, char* buffer, quiche::Endianness endianness);
+  QuicDataWriter(absl::Span<char> buffer, quiche::Endianness endianness);
   QuicDataWriter(const QuicDataWriter&) = delete;
   QuicDataWriter& operator=(const QuicDataWriter&) = delete;
 
