@@ -17,17 +17,13 @@
 #define QUICHE_COMMON_QUICHE_LINKED_HASH_MAP_H_
 
 #include <functional>
-#include <list>
 #include <tuple>
 #include <type_traits>
 #include <utility>
-#include <variant>
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/hash/hash.h"
 #include "quiche/common/platform/api/quiche_export.h"
-#include "quiche/common/platform/api/quiche_flag_utils.h"
-#include "quiche/common/platform/api/quiche_flags.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/stable_block_list.h"
 
@@ -48,132 +44,21 @@ template <class Key,                      // QUICHE_NO_EXPORT
           size_t BlockSize = 16>          // QUICHE_NO_EXPORT
 class QuicheLinkedHashMap {               // QUICHE_NO_EXPORT
  private:
-  using StdList = std::list<std::pair<Key, Value>>;
-  using BlockList = quiche::StableBlockList<std::pair<Key, Value>, BlockSize>;
-  using ListType = std::variant<StdList, BlockList>;
+  using ListType = quiche::StableBlockList<std::pair<Key, Value>, BlockSize>;
+  using MapType =
+      absl::flat_hash_map<Key, typename ListType::iterator, Hash, Eq>;
 
  public:
-  class const_iterator;
+  using iterator = typename ListType::iterator;
+  using reverse_iterator = typename ListType::reverse_iterator;
+  using const_iterator = typename ListType::const_iterator;
+  using const_reverse_iterator = typename ListType::const_reverse_iterator;
+  using key_type = typename MapType::key_type;
+  using value_type = typename ListType::value_type;
+  using size_type = typename ListType::size_type;
 
-  class iterator {
-   public:
-    using iterator_category = std::bidirectional_iterator_tag;
-    using value_type = std::pair<Key, Value>;
-    using difference_type = std::ptrdiff_t;
-    using pointer = value_type*;
-    using reference = value_type&;
-
-    iterator() = default;
-    iterator(typename StdList::iterator it) : it_(it) {}
-    iterator(typename BlockList::iterator it) : it_(it) {}
-
-    reference operator*() const {
-      return std::visit([](auto&& it) -> reference { return *it; }, it_);
-    }
-    pointer operator->() const {
-      return std::visit([](auto&& it) -> pointer { return &*it; }, it_);
-    }
-    iterator& operator++() {
-      std::visit([](auto&& it) { ++it; }, it_);
-      return *this;
-    }
-    iterator operator++(int) {
-      iterator tmp = *this;
-      ++(*this);
-      return tmp;
-    }
-    iterator& operator--() {
-      std::visit([](auto&& it) { --it; }, it_);
-      return *this;
-    }
-    iterator operator--(int) {
-      iterator tmp = *this;
-      --(*this);
-      return tmp;
-    }
-    bool operator==(const iterator& other) const { return it_ == other.it_; }
-    bool operator!=(const iterator& other) const { return !(*this == other); }
-
-   private:
-    std::variant<typename StdList::iterator, typename BlockList::iterator> it_;
-    friend class QuicheLinkedHashMap;
-    friend class const_iterator;
-  };
-
-  class const_iterator {
-   public:
-    using iterator_category = std::bidirectional_iterator_tag;
-    using value_type = std::pair<Key, Value>;
-    using difference_type = std::ptrdiff_t;
-    using pointer = const value_type*;
-    using reference = const value_type&;
-
-    const_iterator() = default;
-    const_iterator(typename StdList::const_iterator it) : it_(it) {}
-    const_iterator(typename BlockList::const_iterator it) : it_(it) {}
-    const_iterator(const iterator& other) {
-      std::visit([this](auto&& it) { it_ = it; }, other.it_);
-    }
-
-    reference operator*() const {
-      return std::visit([](auto&& it) -> reference { return *it; }, it_);
-    }
-    pointer operator->() const {
-      return std::visit([](auto&& it) -> pointer { return &*it; }, it_);
-    }
-    const_iterator& operator++() {
-      std::visit([](auto&& it) { ++it; }, it_);
-      return *this;
-    }
-    const_iterator operator++(int) {
-      const_iterator tmp = *this;
-      ++(*this);
-      return tmp;
-    }
-    const_iterator& operator--() {
-      std::visit([](auto&& it) { --it; }, it_);
-      return *this;
-    }
-    const_iterator operator--(int) {
-      const_iterator tmp = *this;
-      --(*this);
-      return tmp;
-    }
-    bool operator==(const const_iterator& other) const {
-      return it_ == other.it_;
-    }
-    bool operator!=(const const_iterator& other) const {
-      return !(*this == other);
-    }
-
-   private:
-    std::variant<typename StdList::const_iterator,
-                 typename BlockList::const_iterator>
-        it_;
-    friend class QuicheLinkedHashMap;
-  };
-
-  using reverse_iterator = std::reverse_iterator<iterator>;
-  using const_reverse_iterator = std::reverse_iterator<const_iterator>;
-  using key_type = Key;
-  using value_type = std::pair<Key, Value>;
-  using size_type = size_t;
-
-  QuicheLinkedHashMap() {
-    if (GetQuicheReloadableFlag(quiche_linked_hash_map_use_stable_block_list)) {
-      list_.template emplace<BlockList>();
-      QUICHE_RELOADABLE_FLAG_COUNT(
-          quiche_linked_hash_map_use_stable_block_list);
-    }
-  }
-
-  explicit QuicheLinkedHashMap(size_type bucket_count) : map_(bucket_count) {
-    if (GetQuicheReloadableFlag(quiche_linked_hash_map_use_stable_block_list)) {
-      list_.template emplace<BlockList>();
-      QUICHE_RELOADABLE_FLAG_COUNT(
-          quiche_linked_hash_map_use_stable_block_list);
-    }
-  }
+  QuicheLinkedHashMap() = default;
+  explicit QuicheLinkedHashMap(size_type bucket_count) : map_(bucket_count) {}
 
   QuicheLinkedHashMap(const QuicheLinkedHashMap& other) = delete;
   QuicheLinkedHashMap& operator=(const QuicheLinkedHashMap& other) = delete;
@@ -182,71 +67,44 @@ class QuicheLinkedHashMap {               // QUICHE_NO_EXPORT
 
   // Returns an iterator to the first (insertion-ordered) element.  Like a map,
   // this can be dereferenced to a pair<Key, Value>.
-  iterator begin() {
-    return std::visit([](auto& list) -> iterator { return list.begin(); },
-                      list_);
-  }
-  const_iterator begin() const {
-    return std::visit([](auto& list) -> const_iterator { return list.begin(); },
-                      list_);
-  }
+  iterator begin() { return list_.begin(); }
+  const_iterator begin() const { return list_.begin(); }
 
   // Returns an iterator beyond the last element.
-  iterator end() {
-    return std::visit([](auto& list) -> iterator { return list.end(); }, list_);
-  }
-  const_iterator end() const {
-    return std::visit([](auto& list) -> const_iterator { return list.end(); },
-                      list_);
-  }
+  iterator end() { return list_.end(); }
+  const_iterator end() const { return list_.end(); }
 
   // Returns an iterator to the last (insertion-ordered) element.  Like a map,
   // this can be dereferenced to a pair<Key, Value>.
-  reverse_iterator rbegin() { return reverse_iterator(end()); }
-  const_reverse_iterator rbegin() const {
-    return const_reverse_iterator(end());
-  }
+  reverse_iterator rbegin() { return list_.rbegin(); }
+  const_reverse_iterator rbegin() const { return list_.rbegin(); }
 
   // Returns an iterator beyond the first element.
-  reverse_iterator rend() { return reverse_iterator(begin()); }
-  const_reverse_iterator rend() const {
-    return const_reverse_iterator(begin());
-  }
+  reverse_iterator rend() { return list_.rend(); }
+  const_reverse_iterator rend() const { return list_.rend(); }
 
   // Front and back accessors common to many stl containers.
 
   // Returns the earliest-inserted element
-  const value_type& front() const {
-    return std::visit(
-        [](auto& list) -> const value_type& { return list.front(); }, list_);
-  }
+  const value_type& front() const { return list_.front(); }
+
   // Returns the earliest-inserted element.
-  value_type& front() {
-    return std::visit([](auto& list) -> value_type& { return list.front(); },
-                      list_);
-  }
+  value_type& front() { return list_.front(); }
 
   // Returns the most-recently-inserted element.
-  const value_type& back() const {
-    return std::visit(
-        [](auto& list) -> const value_type& { return list.back(); }, list_);
-  }
+  const value_type& back() const { return list_.back(); }
+
   // Returns the most-recently-inserted element.
-  value_type& back() {
-    return std::visit([](auto& list) -> value_type& { return list.back(); },
-                      list_);
-  }
+  value_type& back() { return list_.back(); }
 
   // Clears the map of all values.
   void clear() {
     map_.clear();
-    std::visit([](auto& list) { list.clear(); }, list_);
+    list_.clear();
   }
 
   // Returns true iff the map is empty.
-  bool empty() const {
-    return std::visit([](auto& list) { return list.empty(); }, list_);
-  }
+  bool empty() const { return list_.empty(); }
 
   // Removes the first element from the list.
   void pop_front() { erase(begin()); }
@@ -259,12 +117,7 @@ class QuicheLinkedHashMap {               // QUICHE_NO_EXPORT
       return 0;
     }
 
-    if (auto* list = std::get_if<BlockList>(&list_)) {
-      list->erase(std::get<typename BlockList::iterator>(found->second.it_));
-    } else {
-      std::get<StdList>(list_).erase(
-          std::get<typename StdList::iterator>(found->second.it_));
-    }
+    list_.erase(found->second);
     map_.erase(found);
 
     return 1;
@@ -282,12 +135,7 @@ class QuicheLinkedHashMap {               // QUICHE_NO_EXPORT
            "invalid.";
 
     map_.erase(found);
-    if (auto* list = std::get_if<BlockList>(&list_)) {
-      return list->erase(std::get<typename BlockList::iterator>(position.it_));
-    } else {
-      return std::get<StdList>(list_).erase(
-          std::get<typename StdList::iterator>(position.it_));
-    }
+    return list_.erase(position);
   }
 
   // Erases all the items in the range [first, last).  Returns an iterator that
@@ -316,7 +164,7 @@ class QuicheLinkedHashMap {               // QUICHE_NO_EXPORT
     if (found == map_.end()) {
       return end();
     }
-    return const_iterator(found->second);
+    return found->second;
   }
 
   bool contains(const Key& key) const { return find(key) != end(); }
@@ -370,11 +218,7 @@ class QuicheLinkedHashMap {               // QUICHE_NO_EXPORT
     }
 
     // Otherwise, insert into the list, and set value in map.
-    iterator list_iter = std::visit(
-        [&pair](auto& list) -> iterator {
-          return iterator(list.insert(list.end(), std::forward<U>(pair)));
-        },
-        list_);
+    auto list_iter = list_.insert(list_.end(), std::forward<U>(pair));
     map_iter->second = list_iter;
 
     return {list_iter, true};
@@ -388,24 +232,20 @@ class QuicheLinkedHashMap {               // QUICHE_NO_EXPORT
       return {insert_result.first->second, false};
     }
 
-    iterator list_iter = std::visit(
-        [&insert_result, &args...](auto& list) -> iterator {
-          return iterator(
-              list.emplace(list.end(), std::piecewise_construct,
-                           std::forward_as_tuple(insert_result.first->first),
-                           std::forward_as_tuple(std::forward<Args>(args)...)));
-        },
-        list_);
+    auto list_iter =
+        list_.emplace(list_.end(), std::piecewise_construct,
+                      std::forward_as_tuple(insert_result.first->first),
+                      std::forward_as_tuple(std::forward<Args>(args)...));
 
     insert_result.first->second = list_iter;
     return {list_iter, true};
   }
 
-  // The list component, used for maintaining insertion order
-  ListType list_;
-  using MapType = absl::flat_hash_map<Key, iterator, Hash, Eq>;
   // The map component, used for speedy lookups
   MapType map_;
+
+  // The list component, used for maintaining insertion order
+  ListType list_;
 };
 
 }  // namespace quiche
