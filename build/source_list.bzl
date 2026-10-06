@@ -1577,24 +1577,32 @@ default_platform_impl_test_support_srcs = [
     "common/platform/default/quiche_platform_impl/quiche_test_impl.cc",
     "common/platform/default/quiche_platform_impl/quiche_test_loopback_impl.cc",
 ]
+load_balancer_test_hdrs = [
+]
+load_balancer_test_srcs = [
+    "quic/load_balancer/load_balancer_config_test.cc",
+    "quic/load_balancer/load_balancer_decoder_test.cc",
+    "quic/load_balancer/load_balancer_encoder_test.cc",
+    "quic/load_balancer/load_balancer_server_id_map_test.cc",
+    "quic/load_balancer/load_balancer_server_id_test.cc",
+]
+load_balancer_test_support_hdrs = [
+    "quic/test_tools/mock_load_balancer_encoder.h",
+]
+load_balancer_test_support_srcs = [
+]
 load_balancer_hdrs = [
     "quic/load_balancer/load_balancer_config.h",
     "quic/load_balancer/load_balancer_decoder.h",
     "quic/load_balancer/load_balancer_encoder.h",
     "quic/load_balancer/load_balancer_server_id.h",
     "quic/load_balancer/load_balancer_server_id_map.h",
-    "quic/test_tools/mock_load_balancer_encoder.h",
 ]
 load_balancer_srcs = [
     "quic/load_balancer/load_balancer_config.cc",
-    "quic/load_balancer/load_balancer_config_test.cc",
     "quic/load_balancer/load_balancer_decoder.cc",
-    "quic/load_balancer/load_balancer_decoder_test.cc",
     "quic/load_balancer/load_balancer_encoder.cc",
-    "quic/load_balancer/load_balancer_encoder_test.cc",
     "quic/load_balancer/load_balancer_server_id.cc",
-    "quic/load_balancer/load_balancer_server_id_map_test.cc",
-    "quic/load_balancer/load_balancer_server_id_test.cc",
 ]
 moqt_hdrs = [
     "quic/moqt/moqt_bidi_stream.h",
