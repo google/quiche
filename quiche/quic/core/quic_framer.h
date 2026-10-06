@@ -1157,8 +1157,6 @@ class QUICHE_EXPORT QuicFramer {
   bool process_reset_stream_at_;
   // The creation time of the connection, used to calculate timestamps.
   QuicTime creation_time_;
-  // The last timestamp received if local_max_receive_timestamps_per_ack_ > 0.
-  QuicTime::Delta last_timestamp_;
 
   // Whether IETF QUIC Key Update is supported on this connection.
   bool support_key_update_for_connection_;

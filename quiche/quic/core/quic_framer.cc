@@ -441,7 +441,6 @@ QuicFramer::QuicFramer(const ParsedQuicVersionVector& supported_versions,
       local_receive_timestamps_exponent_(0),
       process_reset_stream_at_(false),
       creation_time_(creation_time),
-      last_timestamp_(QuicTime::Delta::Zero()),
       support_key_update_for_connection_(false),
       current_key_phase_bit_(false),
       potential_peer_key_update_attempt_count_(0),
@@ -3856,6 +3855,7 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
   }
 
   uint64_t total_timestamp_count = 0;
+  std::optional<QuicTime::Delta> last_timestamp;
 
   // Iterate through all timestamp ranges, each of which represents a block of
   // contiguous packets for which receive timestamps are being reported. Each
@@ -3911,17 +3911,22 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
         return false;
       }
       timestamp_delta = timestamp_delta << local_receive_timestamps_exponent_;
-      if (i == 0 && j == 0) {
-        last_timestamp_ = QuicTime::Delta::FromMicroseconds(timestamp_delta);
+      if (!last_timestamp.has_value()) {
+        last_timestamp = QuicTime::Delta::FromMicroseconds(timestamp_delta);
       } else {
-        last_timestamp_ = last_timestamp_ -
-                          QuicTime::Delta::FromMicroseconds(timestamp_delta);
-        if (last_timestamp_ < QuicTime::Delta::Zero()) {
+        last_timestamp = *last_timestamp -
+                         QuicTime::Delta::FromMicroseconds(timestamp_delta);
+        if (*last_timestamp < QuicTime::Delta::Zero()) {
           set_detailed_error("Receive timestamp delta too high.");
           return false;
         }
       }
-      visitor_->OnAckTimestamp(packet_number, creation_time_ + last_timestamp_);
+      if (!visitor_->OnAckTimestamp(packet_number,
+                                    creation_time_ + *last_timestamp)) {
+        set_detailed_error(
+            "Visitor suppresses further processing of ACK frame.");
+        return false;
+      }
       packet_number--;
     }
   }
