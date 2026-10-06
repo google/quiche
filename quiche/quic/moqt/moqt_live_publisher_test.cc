@@ -34,6 +34,7 @@
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
+#include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
 #include "quiche/quic/moqt/test_tools/moqt_session_peer.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -83,6 +84,7 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
     return absl::OkStatus();
   }
   void Detach() override { detached_ = true; }
+  using MoqtBidiStreamBase::QueueIncomingUpdate;
   bool detached_ = false;
 };
 
@@ -291,6 +293,50 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedWithFilter) {
   publisher_->OnNewObjectAvailable(Location(1, 3), std::nullopt, 64);
 }
 
+TEST_F(LivePublisherTest, OnSubscribeAcceptedWithQueuedUpdates) {
+  MessageParameters update1;
+  update1.delivery_timeout = quic::QuicTimeDelta::FromSeconds(5);
+  update1.set_forward(false);
+  bidi_stream_.QueueIncomingUpdate(update1);
+
+  MessageParameters update2;
+  update2.set_forward(true);
+  update2.subscription_filter.emplace(MoqtFilterType::kLargestObject);
+  bidi_stream_.QueueIncomingUpdate(update2);
+
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(*track_publisher_, largest_location())
+      .WillOnce(Return(std::nullopt))
+      .WillOnce(Return(Location(1, 2)))
+      .WillOnce(Return(Location(2, 5)));
+  EXPECT_CALL(*track_publisher_, expiration)
+      .WillOnce(Return(quic::QuicTimeDelta::FromSeconds(10)));
+  EXPECT_CALL(*track_publisher_, properties)
+      .WillRepeatedly(ReturnRef(properties_));
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kSubscribeOk), _))
+      .WillOnce(Return(absl::OkStatus()));
+  MessageParameters expected_ok;
+  expected_ok.largest_object = Location(1, 2);
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk(expected_ok)), _))
+      .WillOnce(Return(absl::OkStatus()));
+  expected_ok.largest_object = Location(2, 5);
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk(expected_ok)), _))
+      .WillOnce(Return(absl::OkStatus()));
+
+  publisher_->OnSubscribeAccepted();
+  EXPECT_TRUE(publisher_->established());
+  EXPECT_EQ(publisher_->parameters().delivery_timeout,
+            quic::QuicTimeDelta::FromSeconds(5));
+  EXPECT_TRUE(publisher_->parameters().forward());
+  EXPECT_EQ(publisher_->parameters().largest_object, Location(2, 5));
+  ASSERT_TRUE(publisher_->parameters().subscription_filter.has_value());
+  EXPECT_EQ(publisher_->parameters().subscription_filter->start(),
+            Location(2, 6));
+}
+
 TEST_F(LivePublisherTest, OnSubscribeRejected) {
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_bidi_stream_,
@@ -303,19 +349,108 @@ TEST_F(LivePublisherTest, OnSubscribeRejected) {
 TEST_F(LivePublisherTest, Update) {
   MessageParameters new_params;
   new_params.delivery_timeout = quic::QuicTimeDelta::FromSeconds(5);
-  publisher_->Update(new_params);
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk()), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(new_params, false);
+  EXPECT_EQ(publisher_->parameters().delivery_timeout,
+            quic::QuicTimeDelta::FromSeconds(5));
 
   // Changing forward preference updates can_have_joining_fetch_
   new_params.set_forward(false);
-  publisher_->Update(new_params);
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk()), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(new_params, false);
   EXPECT_FALSE(publisher_->parameters().forward());
   EXPECT_FALSE(publisher_->can_have_joining_fetch());
+
+  // Setting a LargestObject filter while forward=false, then turning forward=
+  // true initializes the filter using the latest largest_location.
+  publisher_->parameters().subscription_filter =
+      SubscriptionFilter(MoqtFilterType::kLargestObject);
+  MessageParameters forward_on_params;
+  forward_on_params.set_forward(true);
+  EXPECT_CALL(*track_publisher_, largest_location())
+      .WillOnce(Return(Location(2, 4)));
+  MessageParameters expected_ok;
+  expected_ok.largest_object = Location(2, 4);
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk{expected_ok}), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(forward_on_params, false);
+  EXPECT_TRUE(publisher_->parameters().forward());
+  EXPECT_TRUE(publisher_->can_have_joining_fetch());
+  EXPECT_EQ(publisher_->parameters().largest_object, Location(2, 4));
+  ASSERT_TRUE(publisher_->parameters().subscription_filter.has_value());
+  EXPECT_EQ(publisher_->parameters().subscription_filter->start(),
+            Location(2, 5));
+}
+
+TEST_F(LivePublisherTest, UpdateSubscriptionFilterAndEndGroup) {
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+
+  // Adding a new kLargestObject filter when forward is already true initializes
+  // the filter and sends LARGEST_OBJECT in REQUEST_OK.
+  MessageParameters filter_params;
+  filter_params.subscription_filter.emplace(MoqtFilterType::kLargestObject);
+  EXPECT_CALL(*track_publisher_, largest_location())
+      .WillOnce(Return(Location(3, 1)));
+  MessageParameters expected_ok1;
+  expected_ok1.largest_object = Location(3, 1);
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk{expected_ok1}), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(filter_params, false);
+  ASSERT_TRUE(publisher_->parameters().subscription_filter.has_value());
+  EXPECT_EQ(publisher_->parameters().subscription_filter->start(),
+            Location(3, 2));
+
+  // Set an AbsoluteRange filter and then extend end_group.
+  publisher_->parameters().subscription_filter =
+      SubscriptionFilter(Location(1, 0), 5);
+  MessageParameters extend_params;
+  extend_params.subscription_filter = SubscriptionFilter(Location(1, 0), 8);
+  EXPECT_CALL(*track_publisher_, largest_location())
+      .WillOnce(Return(Location(4, 2)));
+  MessageParameters expected_ok2;
+  expected_ok2.largest_object = Location(4, 2);
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk{expected_ok2}), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(extend_params, false);
+  EXPECT_EQ(publisher_->parameters().subscription_filter->end_group(), 8);
+  EXPECT_EQ(publisher_->parameters().largest_object, Location(4, 2));
+}
+
+TEST_F(LivePublisherTest, UpdateRejectedByPublisher) {
+  MessageParameters new_params;
+  new_params.delivery_timeout = quic::QuicTimeDelta::FromSeconds(5);
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+
+  // When from_request_ok is false, sends REQUEST_ERROR.
+  EXPECT_CALL(*track_publisher_, UpdateObjectListener(publisher_.get(), _))
+      .WillOnce(Return(absl::InvalidArgumentError("invalid update")));
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(new_params, /*from_request_ok=*/false);
+  EXPECT_EQ(publisher_->parameters().delivery_timeout,
+            quic::QuicTimeDelta::FromSeconds(1));
+
+  // When from_request_ok is true, resets the bidi stream.
+  EXPECT_CALL(*track_publisher_, UpdateObjectListener(publisher_.get(), _))
+      .WillOnce(Return(absl::InvalidArgumentError("invalid update")));
+  EXPECT_CALL(mock_bidi_stream_, ResetWithUserCode);
+  EXPECT_CALL(mock_bidi_stream_, SendStopSending);
+  publisher_->Update(new_params, /*from_request_ok=*/true);
 }
 
 TEST_F(LivePublisherTest, UpdatePriorityNoStreams) {
   MessageParameters new_params;
   new_params.subscriber_priority = 20;
-  publisher_->Update(new_params);
+  publisher_->Update(new_params, true);
   EXPECT_EQ(publisher_->parameters().subscriber_priority, 20);
 }
 
@@ -329,7 +464,11 @@ TEST_F(LivePublisherTest, UpdatePriorityWithPendingStreams) {
                                             std::optional<MoqtTrackPriority>(
                                                 {subscriber_priority(), 64}),
                                             MoqtTrackPriority{20, 64}));
-  publisher_->Update(new_params);
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk()), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(new_params, false);
 }
 
 TEST_F(LivePublisherTest, UpdatePriorityWithActiveStreams) {
@@ -339,13 +478,17 @@ TEST_F(LivePublisherTest, UpdatePriorityWithActiveStreams) {
   MessageParameters new_params;
   new_params.subscriber_priority = 20;
   EXPECT_CALL(mock_uni_stream_, SetPriority);
-  publisher_->Update(new_params);
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk()), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(new_params, false);
 }
 
 TEST_F(LivePublisherTest, OnNewObjectAvailableNotInWindow) {
   MessageParameters params;
   params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
-  publisher_->Update(params);
+  publisher_->Update(params, true);
   EXPECT_CALL(*track_publisher_, GetCachedObject).Times(0);
   publisher_->OnNewObjectAvailable(Location(5, 0), 0, 128);
 }
@@ -373,13 +516,17 @@ TEST_F(LivePublisherTest, OnNewFinAvailableNoops) {
   // Not in window
   MessageParameters params;
   params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
-  publisher_->Update(params);
+  publisher_->Update(params, true);
   EXPECT_CALL(webtrans_, GetStreamById).Times(0);
   EXPECT_CALL(mock_uni_stream_, Writev).Times(0);
   publisher_->OnNewFinAvailable(Location(0, 0), 0);
 
   // In window but no stream
-  publisher_->Update(parameters_);
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk()), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(parameters_, false);
   EXPECT_CALL(webtrans_, GetStreamById).Times(0);
   EXPECT_CALL(mock_uni_stream_, Writev).Times(0);
   publisher_->OnNewFinAvailable(Location(10, 10), 0);
@@ -410,12 +557,16 @@ TEST_F(LivePublisherTest, OnSubgroupAbandonedNoEffect) {
   // Not in window
   MessageParameters params;
   params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
-  publisher_->Update(params);
+  publisher_->Update(params, true);
   EXPECT_CALL(webtrans_, GetStreamById).Times(0);
   publisher_->OnSubgroupAbandoned(1, 0, 17);
 
   // In window but no stream
-  publisher_->Update(parameters_);
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk()), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(parameters_, false);
   EXPECT_CALL(webtrans_, GetStreamById).Times(0);
   publisher_->OnSubgroupAbandoned(1, 0, 17);
 }
@@ -424,12 +575,16 @@ TEST_F(LivePublisherTest, OnGroupAbandoned) {
   // Not in window
   MessageParameters params;
   params.subscription_filter = SubscriptionFilter(Location(10, 0), 10);
-  publisher_->Update(params);
+  publisher_->Update(params, true);
   EXPECT_CALL(webtrans_, GetStreamById).Times(0);
   publisher_->OnGroupAbandoned(1);
 
   // In window
-  publisher_->Update(parameters_);
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk()), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(parameters_, false);
   EXPECT_CALL(webtrans_, GetStreamById).Times(0);
   publisher_->OnGroupAbandoned(1);
   EXPECT_CALL(*track_publisher_, GetCachedObject).Times(0);
@@ -448,7 +603,7 @@ TEST_F(LivePublisherTest, OnGroupAbandonedWithStreams) {
 TEST_F(LivePublisherTest, OnGroupAbandonedTooFarBehind) {
   // Set the delivery timeout to infinite so that TooFarBehind is possible.
   parameters_.delivery_timeout = quic::QuicTimeDelta::Infinite();
-  publisher_->Update(parameters_);
+  publisher_->Update(parameters_, true);
   CreateStream(Location(5, 0), 0, 128);
   struct MoqtPublishDone expected_publish_done = {
       /*request_id=*/kRequestId,
@@ -639,7 +794,11 @@ TEST_F(LivePublisherTest, OnDataStreamDestroyed) {
   // No entries in the stream map.
   EXPECT_CALL(webtrans_, GetStreamById).Times(0);
   parameters_.subscriber_priority = 20;
-  publisher_->Update(parameters_);
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk()), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(parameters_, false);
 }
 
 TEST_F(LivePublisherTest, OnObjectSentTwice) {
@@ -689,7 +848,11 @@ TEST_F(LivePublisherTest, IncomingUpdateTruncatesSubscription) {
   // Track gets to Group 5.
   CreateStream(Location(5, 0), 0, 128);
   parameters_.subscription_filter = SubscriptionFilter(Location(0, 0), 4);
-  publisher_->Update(parameters_);
+  EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk()), _))
+      .WillOnce(Return(absl::OkStatus()));
+  publisher_->Update(parameters_, false);
   EXPECT_CALL(*track_publisher_, GetCachedObject).Times(0);
   publisher_->OnNewObjectAvailable(Location(5, 1), 0, 128);
 }
@@ -717,7 +880,7 @@ TEST_F(LivePublisherTest, OnSubgroupAbandoned) {
 
 TEST_F(LivePublisherTest, OnSubgroupAbandonedOutsideWindow) {
   parameters_.subscription_filter = SubscriptionFilter(Location(20, 0));
-  publisher_->Update(parameters_);
+  publisher_->Update(parameters_, true);
   EXPECT_CALL(mock_uni_stream_, ResetWithUserCode).Times(0);
   publisher_->OnSubgroupAbandoned(1, 0, 1234);
 }

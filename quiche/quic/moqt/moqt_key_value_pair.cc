@@ -13,6 +13,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
@@ -54,19 +55,22 @@ void SubscriptionFilter::OnLargestObject(
   switch (type_) {
     case MoqtFilterType::kAbsoluteStart:
     case MoqtFilterType::kAbsoluteRange:
-      return;
+      break;
     case MoqtFilterType::kNextGroupStart:
       if (largest_object.has_value()) {
         start_ = Location(largest_object->group + 1, 0);
+      } else {
+        start_ = Location(0, 0);
       }
       break;
     case MoqtFilterType::kLargestObject:
       if (largest_object.has_value()) {
         start_ = largest_object->Next();
+      } else {
+        start_ = Location(0, 0);
       }
       break;
   }
-  type_ = MoqtFilterType::kAbsoluteStart;
 }
 
 void MessageParameters::Update(const MessageParameters& other) {

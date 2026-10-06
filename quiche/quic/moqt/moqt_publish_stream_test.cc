@@ -202,10 +202,9 @@ TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestUpdate) {
             request_update.parameters.subscriber_priority);
 
   // Verify filter was updated based on largest location (1, 2) -> (1, 3)
-  // AbsoluteStart
   ASSERT_TRUE(pub_params.subscription_filter.has_value());
   EXPECT_EQ(pub_params.subscription_filter->type(),
-            MoqtFilterType::kAbsoluteStart);
+            MoqtFilterType::kLargestObject);
   EXPECT_EQ(pub_params.subscription_filter->start(), Location(1, 3));
 }
 

@@ -29,6 +29,7 @@
 #include "quiche/quic/moqt/moqt_framer.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_known_track_publisher.h"
+#include "quiche/quic/moqt/moqt_live_publisher.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
@@ -1900,6 +1901,46 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetchForwardZero) {
               CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
                            "Joining Fetch for non-forwarding subscribe"))
       .Times(1);
+  fetch_wrapper->ReceiveMessage(fetch);
+}
+
+TEST_F(MoqtSessionTest, IncomingJoiningFetchAfterRequestUpdate) {
+  MoqtSubscribe subscribe = DefaultSubscribe();
+  subscribe.parameters.set_forward(false);
+  bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
+      ResponseStream(kSubscribeByte));
+  MockTrackPublisher* track = CreateTrackPublisher();
+  SetLargestId(track, Location(2, 10));
+  MoqtObjectListener* listener =
+      ReceiveSubscribeSynchronousOk(track, subscribe, bidi_wrapper_.get());
+  LivePublisher* subscription = absl::down_cast<LivePublisher*>(listener);
+  ASSERT_NE(subscription, nullptr);
+
+  SetLargestId(track, Location(4, 10));
+  MessageParameters update_parameters;
+  update_parameters.set_forward(true);
+  update_parameters.subscription_filter.emplace(MoqtFilterType::kLargestObject);
+  MessageParameters expected_ok_parameters;
+  expected_ok_parameters.largest_object = Location(4, 10);
+  EXPECT_CALL(
+      mock_bidi_stream_,
+      Writev(SerializedControlMessage(MoqtRequestOk{expected_ok_parameters}),
+             _));
+  bidi_wrapper_->ReceiveMessage(
+      MoqtRequestUpdate{3, subscribe.request_id, update_parameters});
+  ASSERT_TRUE(subscription->parameters().subscription_filter.has_value());
+  EXPECT_EQ(subscription->parameters().subscription_filter->start(),
+            Location(4, 11));
+
+  webtransport::test::MockStream fetch_stream;
+  std::unique_ptr<MoqtBidiStreamTestWrapper> fetch_wrapper =
+      std::make_unique<MoqtBidiStreamTestWrapper>(
+          ResponseStream(kFetchByte, &fetch_stream));
+  MoqtFetch fetch = DefaultFetch();
+  fetch.request_id = 5;
+  fetch.fetch = JoiningFetchRelative(subscribe.request_id, 2);
+  EXPECT_CALL(*track, StandaloneFetch(Location(2, 0), Location(4, 10), _, _))
+      .WillOnce(Return(std::make_unique<MockFetchTask>()));
   fetch_wrapper->ReceiveMessage(fetch);
 }
 

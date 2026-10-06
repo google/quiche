@@ -58,6 +58,9 @@ class TestMoqtBidiStream : public MoqtBidiStreamBase {
     }
     return status;
   }
+
+  using MoqtBidiStreamBase::IncomingUpdatesQueued;
+  using MoqtBidiStreamBase::QueueIncomingUpdate;
 };
 
 class MoqtBidiStreamTest : public quiche::test::QuicheTest {
@@ -226,6 +229,27 @@ TEST_F(MoqtBidiStreamTest, SendRequestUpdateAndReceiveError) {
 TEST_F(MoqtBidiStreamTest, QueueIsFull) {
   stream_->BindStream(&mock_stream_);
   EXPECT_FALSE(stream_->QueueIsFull());
+}
+
+TEST_F(MoqtBidiStreamTest, IncomingUpdateQueue) {
+  EXPECT_FALSE(stream_->IncomingUpdatesQueued());
+  EXPECT_EQ(stream_->NextIncomingUpdate(), std::nullopt);
+
+  MessageParameters update1;
+  update1.subscriber_priority = 10;
+  MessageParameters update2;
+  update2.subscriber_priority = 20;
+
+  stream_->QueueIncomingUpdate(update1);
+  EXPECT_TRUE(stream_->IncomingUpdatesQueued());
+  stream_->QueueIncomingUpdate(update2);
+  EXPECT_TRUE(stream_->IncomingUpdatesQueued());
+
+  EXPECT_EQ(stream_->NextIncomingUpdate(), update1);
+  EXPECT_TRUE(stream_->IncomingUpdatesQueued());
+  EXPECT_EQ(stream_->NextIncomingUpdate(), update2);
+  EXPECT_FALSE(stream_->IncomingUpdatesQueued());
+  EXPECT_EQ(stream_->NextIncomingUpdate(), std::nullopt);
 }
 
 }  // namespace moqt::test

@@ -178,8 +178,9 @@ class LivePublisher : public MoqtObjectListener, public LivePublisherInterface {
   // MoqtObjectPublisher implementation.
   void OnCanCreateNewUniStream();
 
-  // Called when the parameters_ needs an update.
-  void Update(const MessageParameters& parameters);
+  // Called when the parameters_ need an update and will generate REQUEST_OK or
+  // REQUEST_ERROR, unless from_request_ok is true (which requires no response).
+  void Update(const MessageParameters& parameters, bool from_request_ok);
 
   bool can_have_joining_fetch() const { return parameters_.forward(); }
 

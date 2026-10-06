@@ -96,6 +96,10 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   bool Subscribe(const FullTrackName& name,
                  SubscribeVisitor* absl_nonnull visitor,
                  const MessageParameters& parameters) override;
+  // TODO(martinduke): There is an edge case where the update moves the filter
+  // window to the right, and the new LARGEST_OBJECT indicates that there's a
+  // gap of objects that has be fetched. This requires a standalone FETCH that
+  // probably should have its objects reported via the SubscribeVisitor.
   bool SubscribeUpdate(const FullTrackName& name,
                        const MessageParameters& parameters,
                        MoqtResponseCallback response_callback) override;

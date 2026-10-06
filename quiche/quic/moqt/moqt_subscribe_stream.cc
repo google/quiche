@@ -245,8 +245,13 @@ absl::Status MoqtSubscribeResponseStream::OnControlMessage(
     return SendRequestError(RequestErrorCode::kInternalError, std::nullopt,
                             "no subscription");
   }
-  subscription_->Update(message.parameters);
-  return SendRequestOk(MessageParameters());
+  if (!subscription_->established() || IncomingUpdatesQueued()) {
+    // There are requests waiting in the queue. Buffer this one.
+    QueueIncomingUpdate(message.parameters);
+    return absl::OkStatus();
+  }
+  subscription_->Update(message.parameters, /*from_request_ok=*/false);
+  return absl::OkStatus();
 }
 
 void MoqtSubscribeResponseStream::Detach() {

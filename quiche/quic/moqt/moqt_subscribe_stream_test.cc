@@ -23,6 +23,7 @@
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object_subscriber.h"
 #include "quiche/quic/moqt/moqt_parser.h"
+#include "quiche/quic/moqt/moqt_publisher.h"
 #include "quiche/quic/moqt/moqt_session_callbacks.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
@@ -349,6 +350,52 @@ TEST_F(MoqtSubscribeResponseStreamTest, ReceiveRequestUpdate) {
   QUICHE_EXPECT_OK(stream_->OnControlMessage(update));
   // Test cleanup.
   EXPECT_CALL(mock_remove_callback_, Call(_));
+}
+
+TEST_F(MoqtSubscribeResponseStreamTest,
+       ReceiveRequestUpdateBeforeSubscribeAccepted) {
+  auto mock_track_publisher = std::make_shared<MockTrackPublisher>(kTrackName);
+  EXPECT_CALL(visitor_, session).WillRepeatedly(Return(&webtrans_));
+  EXPECT_CALL(visitor_, GetTrackPublisher(kTrackName))
+      .WillOnce(Return(mock_track_publisher));
+  EXPECT_CALL(mock_add_callback_, Call(testing::NotNull()))
+      .WillOnce(Return(true));
+  MoqtObjectListener* captured_listener = nullptr;
+  EXPECT_CALL(*mock_track_publisher, AddObjectListener)
+      .WillOnce([&](MoqtObjectListener* listener, const MessageParameters&) {
+        captured_listener = listener;
+      });
+
+  MoqtSubscribe subscribe;
+  subscribe.request_id = kRequestId;
+  subscribe.full_track_name = kTrackName;
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(subscribe));
+  ASSERT_NE(captured_listener, nullptr);
+
+  // REQUEST_UPDATE arrives before OnSubscribeAccepted(); it is queued and
+  // does not write REQUEST_OK yet.
+  EXPECT_CALL(mock_stream_, Writev).Times(0);
+  MoqtRequestUpdate update;
+  update.request_id = kRequestId + 2;
+  update.existing_request_id = kRequestId;
+  update.parameters.subscriber_priority = 10;
+  QUICHE_EXPECT_OK(stream_->OnControlMessage(update));
+
+  // Accepting the subscription sends SUBSCRIBE_OK followed by REQUEST_OK.
+  {
+    testing::InSequence seq;
+    EXPECT_CALL(mock_stream_,
+                Writev(ControlMessageOfType(MoqtMessageType::kSubscribeOk), _))
+        .WillOnce(Return(absl::OkStatus()));
+    EXPECT_CALL(mock_stream_,
+                Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _))
+        .WillOnce(Return(absl::OkStatus()));
+  }
+  captured_listener->OnSubscribeAccepted();
+
+  // Test cleanup.
+  EXPECT_CALL(*mock_track_publisher, RemoveObjectListener(captured_listener));
+  EXPECT_CALL(mock_remove_callback_, Call);
 }
 
 TEST_F(MoqtSubscribeResponseStreamTest, ReceiveObjectAck) {

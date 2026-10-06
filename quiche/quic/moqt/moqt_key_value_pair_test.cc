@@ -10,8 +10,8 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
-#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/common/test_tools/quiche_test_utils.h"
 
@@ -70,7 +70,7 @@ TEST_F(SubscriptionFilterTest, NextGroupStart) {
   EXPECT_FALSE(filter.WindowKnown());
   filter.OnLargestObject(Location(3, 6));
   EXPECT_TRUE(filter.WindowKnown());
-  EXPECT_EQ(filter.type(), (MoqtFilterType::kAbsoluteStart));
+  EXPECT_EQ(filter.type(), (MoqtFilterType::kNextGroupStart));
   EXPECT_TRUE(filter.InWindow(Location(4, 0)));
   EXPECT_FALSE(filter.InWindow(Location(3, 7)));
   EXPECT_TRUE(filter.InWindow(4));
@@ -82,7 +82,7 @@ TEST_F(SubscriptionFilterTest, LargestObject) {
   EXPECT_EQ(filter.type(), (MoqtFilterType::kLargestObject));
   EXPECT_FALSE(filter.WindowKnown());
   filter.OnLargestObject(Location(3, 6));
-  EXPECT_EQ(filter.type(), (MoqtFilterType::kAbsoluteStart));
+  EXPECT_EQ(filter.type(), (MoqtFilterType::kLargestObject));
   EXPECT_TRUE(filter.WindowKnown());
   EXPECT_TRUE(filter.InWindow(Location(4, 0)));
   EXPECT_TRUE(filter.InWindow(Location(3, 7)));
@@ -97,7 +97,7 @@ TEST_F(SubscriptionFilterTest, LargestObjectNoObjectsYet) {
   EXPECT_EQ(filter.type(), (MoqtFilterType::kLargestObject));
   EXPECT_FALSE(filter.WindowKnown());
   filter.OnLargestObject(std::nullopt);
-  EXPECT_EQ(filter.type(), (MoqtFilterType::kAbsoluteStart));
+  EXPECT_EQ(filter.type(), (MoqtFilterType::kLargestObject));
   EXPECT_TRUE(filter.WindowKnown());
   EXPECT_TRUE(filter.InWindow(Location(0, 0)));
   EXPECT_TRUE(filter.InWindow(0));

@@ -124,23 +124,20 @@ class QUICHE_EXPORT SubscriptionFilter {
   }
 
   MoqtFilterType type() const { return type_; }
-  Location start() const { return start_; }
+  Location start() const { return start_.value_or(Location(0, 0)); }
   uint64_t end_group() const { return end_group_; }
   // If true, the filter does not depend on knowing LargestObject, or we
   // already know LargestObject. A Subscriber cannot have an unknown window,
   // because it can't process an object without getting the track alias from
   // the SubscribeOk.
-  bool WindowKnown() const {
-    return type_ == MoqtFilterType::kAbsoluteStart ||
-           type_ == MoqtFilterType::kAbsoluteRange;
-  }
+  bool WindowKnown() const { return start_.has_value(); }
   // Publishers should not call InWindow() if !WindowKnown(), as they should
   // not forward objects without knowing the window.
   bool InWindow(Location location) const {
-    return location >= start_ && location.group <= end_group_;
+    return location >= start() && location.group <= end_group_;
   }
   bool InWindow(uint64_t group) const {
-    return group >= start_.group && group <= end_group_;
+    return (group >= start().group) && group <= end_group_;
   }
   // Update the filter when LargestObject is learned. If the type is
   // LargestObject or NextGroupStart, changes the type to AbsoluteStart.
@@ -150,8 +147,7 @@ class QUICHE_EXPORT SubscriptionFilter {
 
  private:
   MoqtFilterType type_;
-  // These could be std::optional, but it would just add to the class size.
-  Location start_ = Location(0, 0);
+  std::optional<Location> start_;
   uint64_t end_group_ = kMaxGroupId;
 };
 

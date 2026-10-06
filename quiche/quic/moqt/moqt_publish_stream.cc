@@ -75,28 +75,39 @@ absl::Status MoqtPublishRequestStream::OnControlMessage(
         absl::InvalidArgumentError("REQUEST_OK received with properties"));
     return absl::OkStatus();
   }
-  std::move(response_callback_)(message.parameters);
-  publisher_->Update(message.parameters);
-  return absl::OkStatus();
+  if (response_callback_ != nullptr) {
+    // PUBLISH_OK
+    publisher_->Update(message.parameters, /*from_request_ok=*/true);
+    MoqtResponseCallback callback = std::move(response_callback_);
+    response_callback_ = nullptr;
+    std::move(callback)(message.parameters);
+    return absl::OkStatus();
+  }
+  // REQUEST_UPDATE_OK
+  QUICHE_ASSIGN_OR_RETURN(MessageParameters parameters,
+                          request_update_queue().NextParameters());
+  // Apply the pending parameters to the subscription.
+  publisher_->Update(parameters, /*from_request_ok=*/true);
+  if (publisher_ != nullptr) {
+    // Apply any parameters from the REQUEST_OK.
+    publisher_->Update(message.parameters, /*from_request_ok=*/true);
+  }
+  return request_update_queue().OnControlMessage(message);
 }
 
 absl::Status MoqtPublishRequestStream::OnControlMessage(
     const MoqtRequestError& message) {
-  std::move(response_callback_)(message);
-  return absl::OkStatus();
+  if (response_callback_ != nullptr) {
+    std::move(response_callback_)(message);
+    return absl::OkStatus();
+  }
+  return request_update_queue().OnControlMessage(message);
 }
 
 absl::Status MoqtPublishRequestStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
   QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
-  MessageParameters in_parameters = message.parameters, out_parameters;
-  out_parameters.largest_object = publisher_->publisher().largest_location();
-  if (in_parameters.subscription_filter.has_value()) {
-    in_parameters.subscription_filter->OnLargestObject(
-        out_parameters.largest_object);
-  }
-  publisher_->Update(in_parameters);
-  CheckStatus(SendRequestOk(MessageParameters()));
+  publisher_->Update(message.parameters, /*from_request_ok=*/false);
   return absl::OkStatus();
 }
 

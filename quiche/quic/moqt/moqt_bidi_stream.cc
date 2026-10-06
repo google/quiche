@@ -86,7 +86,7 @@ absl::Status MoqtBidiStreamBase::SendRequestUpdate(
   request_update.request_id = request_id;
   request_update.existing_request_id = existing_request_id;
   request_update.parameters = parameters;
-  request_update_queue_.Enqueue(parameters, std::move(callback));
+  outgoing_update_queue_.Enqueue(parameters, std::move(callback));
   return SendOrBufferMessage(framer_->SerializeRequestUpdate(request_update),
                              /*fin=*/false);
 }

@@ -15,6 +15,7 @@
 #include "absl/base/nullability.h"
 #include "absl/container/btree_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/moqt/moqt_bidi_stream.h"
@@ -72,15 +73,39 @@ LivePublisher::~LivePublisher() {
   }
 }
 
-void LivePublisher::Update(const MessageParameters& parameters) {
-  if (!track_publisher_->UpdateObjectListener(this, parameters).ok()) {
+void LivePublisher::Update(const MessageParameters& parameters,
+                           bool from_request_ok) {
+  absl::Status pub_status =
+      track_publisher_->UpdateObjectListener(this, parameters);
+  if (!pub_status.ok()) {
+    if (!from_request_ok) {
+      bidi_stream_->CheckStatus(
+          bidi_stream_->SendRequestError(StatusToMoqtRequestError(pub_status)));
+    } else {
+      bidi_stream_->Reset(StatusToMoqtStreamError(pub_status));
+    }
     return;
   }
+  MessageParameters response;
   // TODO(martinduke): If the subscribe window has shrunk, close any streams
   // that are now outside the window. Also send PUBLISH_DONE if now done.
   MoqtPriority old_priority =
       parameters_.subscriber_priority.value_or(kDefaultSubscriberPriority);
+  // Does this update set forward to true?
+  bool forward_to_1 = !parameters_.forward() &&
+                      parameters.forward_has_value() && parameters.forward();
+  response.largest_object = track_publisher_->largest_location();
+  parameters_.largest_object = response.largest_object;
   parameters_.Update(parameters);
+  if (parameters_.subscription_filter.has_value() &&
+      parameters_.largest_object.has_value() &&
+      (!parameters_.subscription_filter->WindowKnown() || forward_to_1)) {
+    // Initialize the filter if:
+    // - Forward is going 0->1 (this could be a re-initialization)
+    // - This the first LARGEST_OBJECT sent.
+    // - There's a new filter that has to be initialized from LARGEST_OBJECT.
+    parameters_.subscription_filter->OnLargestObject(response.largest_object);
+  }
   if (parameters.subscriber_priority.has_value()) {  // priority changed.
     MoqtPriority new_priority = *parameters.subscriber_priority;
     // Reprioritize all active streams.
@@ -93,21 +118,19 @@ void LivePublisher::Update(const MessageParameters& parameters) {
           absl::down_cast<OutgoingSubgroupStream*>(stream->visitor());
       outgoing_stream->UpdatePriority(new_priority);
     }
-    if (pending_streams_.empty()) {
-      return;
+    if (!pending_streams_.empty() && visitor() != nullptr) {
+      // Tell the session that pending stream priority has changed.
+      MoqtPriority publisher_priority =
+          pending_streams_.rbegin()->second.publisher_priority.value_or(
+              track_publisher_->properties().default_publisher_priority());
+      MoqtTrackPriority old_track_priority = {old_priority, publisher_priority};
+      visitor()->UpdateTrackPriority(
+          track_publisher_->GetTrackName(), old_track_priority,
+          MoqtTrackPriority{new_priority, publisher_priority});
     }
-    // Tell the session that pending stream priority has changed.
-    MoqtPriority publisher_priority =
-        pending_streams_.rbegin()->second.publisher_priority.value_or(
-            track_publisher_->properties().default_publisher_priority());
-    MoqtTrackPriority old_track_priority = {old_priority, publisher_priority};
-    if (visitor() == nullptr) {
-      return;
-    }
-    visitor()->UpdateTrackPriority(
-        track_publisher_->GetTrackName(), old_track_priority,
-        MoqtTrackPriority{new_priority, publisher_priority});
-    // Don't bother to update all the pending stream send orders.
+  }
+  if (!from_request_ok) {
+    bidi_stream_->CheckStatus(bidi_stream_->SendRequestOk(response));
   }
 }
 
@@ -148,6 +171,19 @@ void LivePublisher::OnSubscribeAccepted() {
       subscribe_ok.properties.default_publisher_priority();
   bidi_stream_->SendOrBufferMessageOrFatal(
       framer_.SerializeSubscribeOk(subscribe_ok));
+  // It is now safe to process buffered REQUEST_UPDATEs.
+  std::optional<MessageParameters> next_update =
+      bidi_stream_->NextIncomingUpdate();
+  // Get a weak_pointer to LivePublisher in case it is destroyed by Update().
+  quiche::QuicheWeakPtr<LivePublisherInterface> self =
+      weak_ptr_factory_.Create();
+  while (self.IsValid() && next_update.has_value()) {
+    Update(*next_update, /*from_request_ok=*/false);
+    if (!self.IsValid()) {
+      return;
+    }
+    next_update = bidi_stream_->NextIncomingUpdate();
+  }
   // TODO(martinduke): If we buffer objects that arrived previously, the arrival
   // of the track alias disambiguates what subscription they belong to. Send
   // them.
