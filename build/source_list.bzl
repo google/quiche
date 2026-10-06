@@ -1505,7 +1505,6 @@ nghttp2_srcs = [
     "http2/adapter/nghttp2_callbacks.cc",
     "http2/adapter/nghttp2_data_provider.cc",
     "http2/adapter/nghttp2_session.cc",
-    "http2/adapter/nghttp2_test.cc",
     "http2/adapter/nghttp2_util.cc",
 ]
 nghttp2_test_support_hdrs = [
@@ -1524,6 +1523,7 @@ nghttp2_tests_srcs = [
     "http2/adapter/nghttp2_adapter_test.cc",
     "http2/adapter/nghttp2_data_provider_test.cc",
     "http2/adapter/nghttp2_session_test.cc",
+    "http2/adapter/nghttp2_test.cc",
 ]
 default_platform_impl_hdrs = [
     "common/platform/default/quiche_platform_impl/quiche_bug_tracker_impl.h",
