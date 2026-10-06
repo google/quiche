@@ -7,6 +7,7 @@
 
 #include "quiche/quic/core/frames/quic_ack_frequency_frame.h"
 #include "quiche/quic/core/quic_received_packet_manager.h"
+#include "quiche/quic/core/quic_types.h"
 
 namespace quic {
 

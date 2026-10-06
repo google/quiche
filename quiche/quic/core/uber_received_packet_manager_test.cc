@@ -11,6 +11,7 @@
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/quic_connection_stats.h"
 #include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -30,6 +31,10 @@ class UberReceivedPacketManagerPeer {
 };
 
 namespace {
+
+using ::testing::ElementsAre;
+using ::testing::IsEmpty;
+using ::testing::Pair;
 
 const bool kInstigateAck = true;
 const QuicTime::Delta kMinRttMs = QuicTime::Delta::FromMilliseconds(40);
@@ -593,6 +598,35 @@ TEST_F(UberReceivedPacketManagerTest, ImmediateAckFrameTriggersAck) {
                                   QuicPacketNumber(2), clock_.ApproximateNow(),
                                   clock_.ApproximateNow(), &rtt_stats_);
   CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+}
+
+TEST_F(UberReceivedPacketManagerTest,
+       SaveTimestampsOnlyForApplicationDataPacketNumberSpace) {
+  manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_SERVER);
+  manager_->set_save_timestamps(true);
+
+  const QuicTime initial_time =
+      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1);
+  const QuicTime handshake_time =
+      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(2);
+  const QuicTime zero_rtt_time =
+      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(3);
+  const QuicTime one_rtt_time =
+      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(4);
+  RecordPacketReceipt(ENCRYPTION_INITIAL, 1, initial_time);
+  RecordPacketReceipt(ENCRYPTION_HANDSHAKE, 1, handshake_time);
+  // 0-RTT packets are still recorded, since the ACKs for 0-RTT packets are sent
+  // in 1-RTT.
+  RecordPacketReceipt(ENCRYPTION_ZERO_RTT, 1, zero_rtt_time);
+  RecordPacketReceipt(ENCRYPTION_FORWARD_SECURE, 2, one_rtt_time);
+
+  EXPECT_THAT(manager_->GetAckFrame(INITIAL_DATA).received_packet_times,
+              IsEmpty());
+  EXPECT_THAT(manager_->GetAckFrame(HANDSHAKE_DATA).received_packet_times,
+              IsEmpty());
+  EXPECT_THAT(manager_->GetAckFrame(APPLICATION_DATA).received_packet_times,
+              ElementsAre(Pair(QuicPacketNumber(1), zero_rtt_time),
+                          Pair(QuicPacketNumber(2), one_rtt_time)));
 }
 
 }  // namespace

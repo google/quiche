@@ -237,9 +237,8 @@ void UberReceivedPacketManager::set_save_timestamps(bool save_timestamps) {
         << "Trying to enable QUIC receive timestamps for non-IETF QUIC";
     return;
   }
-  for (auto& received_packet_manager : received_packet_managers_) {
-    received_packet_manager.set_save_timestamps(save_timestamps);
-  }
+  received_packet_managers_[APPLICATION_DATA].set_save_timestamps(
+      save_timestamps);
 }
 
 void UberReceivedPacketManager::OnAckFrequencyFrame(
