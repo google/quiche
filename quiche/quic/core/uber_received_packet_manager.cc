@@ -6,6 +6,8 @@
 
 #include <algorithm>
 
+#include "quiche/quic/core/quic_received_packet_manager.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
@@ -239,6 +241,15 @@ void UberReceivedPacketManager::set_save_timestamps(bool save_timestamps) {
   }
   received_packet_managers_[APPLICATION_DATA].set_save_timestamps(
       save_timestamps);
+}
+
+void UberReceivedPacketManager::set_receive_timestamp_basis(
+    QuicTime receive_timestamp_basis) {
+  for (QuicReceivedPacketManager& received_packet_manager :
+       received_packet_managers_) {
+    received_packet_manager.set_receive_timestamp_basis(
+        receive_timestamp_basis);
+  }
 }
 
 void UberReceivedPacketManager::OnAckFrequencyFrame(

@@ -47,6 +47,7 @@ class QuicReceivedPacketManagerTest : public QuicTest {
   QuicReceivedPacketManagerTest() : received_manager_(&stats_) {
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     rtt_stats_.UpdateRtt(kMinRttMs, QuicTime::Delta::Zero(), QuicTime::Zero());
+    received_manager_.set_receive_timestamp_basis(clock_.ApproximateNow());
     received_manager_.set_save_timestamps(true);
   }
 
@@ -110,12 +111,13 @@ TEST_F(QuicReceivedPacketManagerTest, DontWaitForPacketsBefore) {
 TEST_F(QuicReceivedPacketManagerTest, GetUpdatedAckFrame) {
   QuicPacketHeader header;
   header.packet_number = QuicPacketNumber(2u);
-  QuicTime two_ms = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(2);
+  QuicTime two_ms =
+      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(2);
   EXPECT_FALSE(received_manager_.ack_frame_updated());
   received_manager_.RecordPacketReceived(header, two_ms, ECN_NOT_ECT);
   EXPECT_TRUE(received_manager_.ack_frame_updated());
 
-  QuicFrame ack = received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  QuicFrame ack = received_manager_.GetUpdatedAckFrame(clock_.ApproximateNow());
   received_manager_.ResetAckStates();
   EXPECT_FALSE(received_manager_.ack_frame_updated());
   // When UpdateReceivedPacketInfo with a time earlier than the time of the
@@ -123,7 +125,8 @@ TEST_F(QuicReceivedPacketManagerTest, GetUpdatedAckFrame) {
   EXPECT_EQ(QuicTime::Delta::Zero(), ack.ack_frame->ack_delay_time);
   EXPECT_EQ(1u, ack.ack_frame->received_packet_times.size());
 
-  QuicTime four_ms = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(4);
+  QuicTime four_ms =
+      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(4);
   ack = received_manager_.GetUpdatedAckFrame(four_ms);
   received_manager_.ResetAckStates();
   EXPECT_FALSE(received_manager_.ack_frame_updated());
@@ -202,19 +205,19 @@ TEST_F(QuicReceivedPacketManagerTest, TrimmedAckRangesRemovedFromTimestamps) {
   received_manager_.set_save_timestamps(true);
   received_manager_.set_max_ack_ranges(2);
 
-  RecordPacketReceipt(3,
-                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1));
-  RecordPacketReceipt(5,
-                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(2));
-  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  RecordPacketReceipt(
+      3, clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(1));
+  RecordPacketReceipt(
+      5, clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(2));
+  received_manager_.GetUpdatedAckFrame(clock_.ApproximateNow());
   EXPECT_EQ(2u, received_manager_.ack_frame().packets.NumIntervals());
   EXPECT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
 
   // Receiving packet 7 creates a 3rd interval, trimming interval [3, 4) and
   // pruning packet 3's timestamp.
-  RecordPacketReceipt(7,
-                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(3));
-  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  RecordPacketReceipt(
+      7, clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(3));
+  received_manager_.GetUpdatedAckFrame(clock_.ApproximateNow());
   EXPECT_EQ(2u, received_manager_.ack_frame().packets.NumIntervals());
   EXPECT_EQ(QuicPacketNumber(5), received_manager_.ack_frame().packets.Min());
   ASSERT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
@@ -225,9 +228,9 @@ TEST_F(QuicReceivedPacketManagerTest, TrimmedAckRangesRemovedFromTimestamps) {
 
   // Receiving an out-of-order packet 1 creates a new smallest interval [1, 2)
   // that is immediately trimmed along with its timestamp.
-  RecordPacketReceipt(1,
-                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(4));
-  received_manager_.GetUpdatedAckFrame(QuicTime::Zero());
+  RecordPacketReceipt(
+      1, clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(4));
+  received_manager_.GetUpdatedAckFrame(clock_.ApproximateNow());
   EXPECT_EQ(2u, received_manager_.ack_frame().packets.NumIntervals());
   EXPECT_EQ(QuicPacketNumber(5), received_manager_.ack_frame().packets.Min());
   ASSERT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
@@ -239,28 +242,44 @@ TEST_F(QuicReceivedPacketManagerTest, TrimmedAckRangesRemovedFromTimestamps) {
 
 TEST_F(QuicReceivedPacketManagerTest, IgnoreOutOfOrderTimestamps) {
   EXPECT_FALSE(received_manager_.ack_frame_updated());
-  RecordPacketReceipt(1, QuicTime::Zero());
+  RecordPacketReceipt(1, clock_.ApproximateNow());
   EXPECT_TRUE(received_manager_.ack_frame_updated());
   EXPECT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
-  RecordPacketReceipt(2,
-                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1));
+  RecordPacketReceipt(
+      2, clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(1));
   EXPECT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
-  RecordPacketReceipt(3, QuicTime::Zero());
+  RecordPacketReceipt(3, clock_.ApproximateNow());
   EXPECT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
+}
+
+TEST_F(QuicReceivedPacketManagerTest, IgnoreTimestampsEarlierThanBasis) {
+  const QuicTime basis =
+      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(10);
+  received_manager_.set_receive_timestamp_basis(basis);
+
+  // Timestamps before the basis are ignored.
+  RecordPacketReceipt(1, basis - QuicTime::Delta::FromMilliseconds(1));
+  EXPECT_TRUE(received_manager_.ack_frame().received_packet_times.empty());
+
+  // Timestamps after the basis are accepted.
+  RecordPacketReceipt(2, basis + QuicTime::Delta::FromMilliseconds(1));
+  ASSERT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
+  EXPECT_EQ(QuicPacketNumber(2),
+            received_manager_.ack_frame().received_packet_times[0].first);
 }
 
 TEST_F(QuicReceivedPacketManagerTest, SaveOutOfOrderPackets) {
   received_manager_.set_save_timestamps(true);
   EXPECT_FALSE(received_manager_.ack_frame_updated());
-  RecordPacketReceipt(1, QuicTime::Zero());
+  RecordPacketReceipt(1, clock_.ApproximateNow());
   EXPECT_TRUE(received_manager_.ack_frame_updated());
   EXPECT_EQ(1u, received_manager_.ack_frame().received_packet_times.size());
-  RecordPacketReceipt(4,
-                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1));
+  RecordPacketReceipt(
+      4, clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(1));
   EXPECT_EQ(2u, received_manager_.ack_frame().received_packet_times.size());
 
-  RecordPacketReceipt(3,
-                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(3));
+  RecordPacketReceipt(
+      3, clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(3));
   EXPECT_EQ(3u, received_manager_.ack_frame().received_packet_times.size());
 }
 

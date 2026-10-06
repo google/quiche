@@ -107,10 +107,20 @@ void QuicReceivedPacketManager::RecordPacketReceived(
   MaybeTrimAckRanges();
 
   if (save_timestamps_) {
-    // The QUIC framer can only serialize timestamps if they are provided in the
-    // receive time order.
-    if (!ack_frame_.received_packet_times.empty() &&
-        ack_frame_.received_packet_times.back().second > receipt_time) {
+    if (!receive_timestamp_basis_.IsInitialized()) {
+      QUIC_BUG(missing_receive_timestamp_basis)
+          << "`save_timestamps_` is set to true, but "
+             "`receive_timestamp_basis_` is not set";
+    }
+
+    if (receipt_time < receive_timestamp_basis_) {
+      QUIC_DLOG(WARNING) << "Receive time earlier than timestamp basis: "
+                         << receipt_time.ToDebuggingValue() << " < "
+                         << receive_timestamp_basis_.ToDebuggingValue();
+    } else if (!ack_frame_.received_packet_times.empty() &&
+               ack_frame_.received_packet_times.back().second > receipt_time) {
+      // The QUIC framer can only serialize timestamps if they are provided in
+      // the receive time order.
       QUIC_LOG(WARNING)
           << "Receive time went backwards from: "
           << ack_frame_.received_packet_times.back().second.ToDebuggingValue()

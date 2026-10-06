@@ -120,6 +120,10 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
     save_timestamps_ = save_timestamps;
   }
 
+  void set_receive_timestamp_basis(QuicTime receive_timestamp_basis) {
+    receive_timestamp_basis_ = receive_timestamp_basis;
+  }
+
   size_t min_received_before_ack_decimation() const {
     return min_received_before_ack_decimation_;
   }
@@ -233,6 +237,9 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
 
   // The expected sequence number of the next received AckFrequencyFrame.
   uint64_t next_ack_frequency_frame_sequence_number_ = 0;
+
+  // The minimum time that can be recorded in a receive timestamp.
+  QuicTime receive_timestamp_basis_ = QuicTime::Zero();
 };
 
 }  // namespace quic

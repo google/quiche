@@ -61,6 +61,7 @@ class UberReceivedPacketManagerTest : public QuicTest {
     manager_ = std::make_unique<UberReceivedPacketManager>(&stats_);
     clock_.AdvanceTime(QuicTime::Delta::FromSeconds(1));
     rtt_stats_.UpdateRtt(kMinRttMs, QuicTime::Delta::Zero(), QuicTime::Zero());
+    manager_->set_receive_timestamp_basis(clock_.ApproximateNow());
   }
 
   void RecordPacketReceipt(uint64_t packet_number) {
@@ -160,13 +161,14 @@ TEST_F(UberReceivedPacketManagerTest, GetUpdatedAckFrame) {
   manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_CLIENT);
   manager_->set_save_timestamps(true);
 
-  QuicTime two_ms = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(2);
+  QuicTime two_ms =
+      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(2);
   EXPECT_FALSE(manager_->IsAckFrameUpdated());
   RecordPacketReceipt(2, two_ms);
   EXPECT_TRUE(manager_->IsAckFrameUpdated());
 
   QuicFrame ack =
-      manager_->GetUpdatedAckFrame(APPLICATION_DATA, QuicTime::Zero());
+      manager_->GetUpdatedAckFrame(APPLICATION_DATA, clock_.ApproximateNow());
   manager_->ResetAckStates(ENCRYPTION_FORWARD_SECURE);
   EXPECT_FALSE(manager_->IsAckFrameUpdated());
   // When UpdateReceivedPacketInfo with a time earlier than the time of the
@@ -174,7 +176,8 @@ TEST_F(UberReceivedPacketManagerTest, GetUpdatedAckFrame) {
   EXPECT_EQ(QuicTime::Delta::Zero(), ack.ack_frame->ack_delay_time);
   EXPECT_EQ(1u, ack.ack_frame->received_packet_times.size());
 
-  QuicTime four_ms = QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(4);
+  QuicTime four_ms =
+      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(4);
   ack = manager_->GetUpdatedAckFrame(APPLICATION_DATA, four_ms);
   manager_->ResetAckStates(ENCRYPTION_FORWARD_SECURE);
   EXPECT_FALSE(manager_->IsAckFrameUpdated());
@@ -237,15 +240,15 @@ TEST_F(UberReceivedPacketManagerTest, IgnoreOutOfOrderTimestamps) {
   manager_->set_save_timestamps(true);
 
   EXPECT_FALSE(manager_->IsAckFrameUpdated());
-  RecordPacketReceipt(1, QuicTime::Zero());
+  RecordPacketReceipt(1, clock_.ApproximateNow());
   EXPECT_TRUE(manager_->IsAckFrameUpdated());
   EXPECT_EQ(
       1u, manager_->GetAckFrame(APPLICATION_DATA).received_packet_times.size());
-  RecordPacketReceipt(2,
-                      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1));
+  RecordPacketReceipt(
+      2, clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(1));
   EXPECT_EQ(
       2u, manager_->GetAckFrame(APPLICATION_DATA).received_packet_times.size());
-  RecordPacketReceipt(3, QuicTime::Zero());
+  RecordPacketReceipt(3, clock_.ApproximateNow());
   EXPECT_EQ(
       2u, manager_->GetAckFrame(APPLICATION_DATA).received_packet_times.size());
 }
@@ -606,13 +609,13 @@ TEST_F(UberReceivedPacketManagerTest,
   manager_->set_save_timestamps(true);
 
   const QuicTime initial_time =
-      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1);
+      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(1);
   const QuicTime handshake_time =
-      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(2);
+      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(2);
   const QuicTime zero_rtt_time =
-      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(3);
+      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(3);
   const QuicTime one_rtt_time =
-      QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(4);
+      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(4);
   RecordPacketReceipt(ENCRYPTION_INITIAL, 1, initial_time);
   RecordPacketReceipt(ENCRYPTION_HANDSHAKE, 1, handshake_time);
   // 0-RTT packets are still recorded, since the ACKs for 0-RTT packets are sent
