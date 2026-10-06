@@ -649,8 +649,9 @@ TEST_F(MoqtRelayTrackPublisherTest, NewGroupRequestFirstListener) {
   ok_parameters.largest_object = kLargestLocation;  // Location(3, 2)
   ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
   TrackProperties properties(
-      /*delivery_timeout=*/std::nullopt,
+      /*object_delivery_timeout=*/std::nullopt,
       /*max_cache_duration=*/std::nullopt,
+      /*subgroup_delivery_timeout=*/std::nullopt,
       /*publisher_priority=*/std::nullopt,
       /*group_order=*/std::nullopt,
       /*dynamic_groups=*/true,
@@ -801,8 +802,9 @@ TEST_F(MoqtRelayTrackPublisherTest, NewGroupRequestBeforeResponse) {
   ok_parameters.largest_object = Location(5, 2);
   ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
   TrackProperties properties(
-      /*delivery_timeout=*/std::nullopt,
+      /*object_delivery_timeout=*/std::nullopt,
       /*max_cache_duration=*/std::nullopt,
+      /*subgroup_delivery_timeout=*/std::nullopt,
       /*publisher_priority=*/std::nullopt,
       /*group_order=*/std::nullopt,
       /*dynamic_groups=*/true,
@@ -851,6 +853,7 @@ TEST_F(MoqtRelayTrackPublisherTest,
   TrackProperties properties(
       /*delivery_timeout=*/std::nullopt,
       /*max_cache_duration=*/std::nullopt,
+      /*subgroup_delivery_timeout=*/std::nullopt,
       /*publisher_priority=*/std::nullopt,
       /*group_order=*/std::nullopt,
       /*dynamic_groups=*/true,
@@ -974,8 +977,9 @@ TEST_F(MoqtRelayTrackPublisherTest,
   ok_parameters.largest_object = kLargestLocation;  // Location(3, 2)
   ok_parameters.expires = quic::QuicTimeDelta::FromSeconds(30);
   TrackProperties properties(
-      /*delivery_timeout=*/std::nullopt,
+      /*object_delivery_timeout=*/std::nullopt,
       /*max_cache_duration=*/std::nullopt,
+      /*subgroup_delivery_timeout=*/std::nullopt,
       /*publisher_priority=*/std::nullopt,
       /*group_order=*/std::nullopt,
       /*dynamic_groups=*/true,

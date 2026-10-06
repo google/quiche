@@ -7,6 +7,7 @@
 #ifndef QUICHE_QUIC_MOQT_MOQT_TRACK_H_
 #define QUICHE_QUIC_MOQT_MOQT_TRACK_H_
 
+#include <algorithm>
 #include <cstdint>
 #include <memory>
 #include <optional>
@@ -146,8 +147,21 @@ class LiveSubscriber : public ObjectSubscriber {
     return default_publisher_priority_;
   }
 
-  quic::QuicTimeDelta publisher_delivery_timeout() const {
-    return publisher_delivery_timeout_;
+  quic::QuicTimeDelta publisher_object_delivery_timeout() const {
+    return publisher_object_delivery_timeout_;
+  }
+  quic::QuicTimeDelta publisher_subgroup_delivery_timeout() const {
+    return publisher_subgroup_delivery_timeout_;
+  }
+  quic::QuicTimeDelta object_delivery_timeout() const {
+    return std::min(const_parameters().object_delivery_timeout.value_or(
+                        kDefaultDeliveryTimeout),
+                    publisher_object_delivery_timeout_);
+  }
+  quic::QuicTimeDelta subgroup_delivery_timeout() const {
+    return std::min(const_parameters().subgroup_delivery_timeout.value_or(
+                        kDefaultDeliveryTimeout),
+                    publisher_subgroup_delivery_timeout_);
   }
 
   SubscribeVisitor* visitor() const { return visitor_; }
@@ -192,7 +206,10 @@ class LiveSubscriber : public ObjectSubscriber {
   // is a protocol violation.
   bool error_is_allowed_ = true;
 
-  quic::QuicTimeDelta publisher_delivery_timeout_ = kDefaultDeliveryTimeout;
+  quic::QuicTimeDelta publisher_object_delivery_timeout_ =
+      kDefaultDeliveryTimeout;
+  quic::QuicTimeDelta publisher_subgroup_delivery_timeout_ =
+      kDefaultDeliveryTimeout;
   MoqtPriority default_publisher_priority_ = kDefaultPublisherPriority;
   bool dynamic_groups_ = kDefaultDynamicGroups;
   void FetchObjects();

@@ -305,22 +305,31 @@ KeyValuePairList SetupOptions::ToKeyValuePairList() const {
   return out;
 }
 
+uint64_t TimeDeltaToMilliseconds(const quic::QuicTimeDelta& time_delta) {
+  if (time_delta == quic::QuicTimeDelta::Infinite()) {
+    return 0ULL;
+  }
+  return std::max(time_delta.ToMilliseconds(), int64_t{1});
+}
+
 KeyValuePairList MessageParameters::ToKeyValuePairList() const {
   KeyValuePairList list;
-  if (delivery_timeout.has_value()) {
-    // Value cannot be zero.
-    int64_t milliseconds =
-        std::max(delivery_timeout->ToMilliseconds(), int64_t{1});
-    list.insert(static_cast<uint64_t>(MessageParameter::kDeliveryTimeout),
-                static_cast<uint64_t>(milliseconds));
+  if (object_delivery_timeout.has_value()) {
+    list.insert(static_cast<uint64_t>(MessageParameter::kObjectDeliveryTimeout),
+                TimeDeltaToMilliseconds(*object_delivery_timeout));
   }
   for (const AuthToken& token : authorization_tokens) {
     list.insert(static_cast<uint64_t>(MessageParameter::kAuthorizationToken),
                 SerializeAuthToken(token).AsStringView());
   }
+  if (subgroup_delivery_timeout.has_value()) {
+    list.insert(
+        static_cast<uint64_t>(MessageParameter::kSubgroupDeliveryTimeout),
+        TimeDeltaToMilliseconds(*subgroup_delivery_timeout));
+  }
   if (expires.has_value()) {
     list.insert(static_cast<uint64_t>(MessageParameter::kExpires),
-                static_cast<uint64_t>(expires->ToMilliseconds()));
+                TimeDeltaToMilliseconds(*expires));
   }
   if (largest_object.has_value()) {
     list.insert(static_cast<uint64_t>(MessageParameter::kLargestObject),

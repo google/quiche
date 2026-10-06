@@ -197,6 +197,9 @@ class TestTrackPublisher : public MoqtTrackPublisher {
       largest_location_ = location;
     }
     for (MoqtObjectListener* listener : listeners_) {
+      if (fin) {
+        listener->OnNewFinAvailable(location, subgroup);
+      }
       listener->OnNewObjectAvailable(location, subgroup, 128);
     }
   }

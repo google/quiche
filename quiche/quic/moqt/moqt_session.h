@@ -154,10 +154,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     return weak_ptr_factory_.Create();
   }
 
-  // SessionToPublisherInterface implementation.
-  bool alternate_delivery_timeout() const override {
-    return alternate_delivery_timeout_;
-  }
   // If |old_priority| is nullopt, the subscription does not have any pending
   // streams. If it has a value, |old_priority| is the old value to be replaced
   // by |new_priority|. Subgroup streams send |name| as the first argument.
@@ -233,8 +229,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
     session_->CloseSession(0, "Application closed");
     CleanUpState();
   }
-
-  void UseAlternateDeliveryTimeout() { alternate_delivery_timeout_ = true; }
 
  private:
   friend class ControlMessageDispatcher;
@@ -493,10 +487,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // Kill the session if the peer doesn't promptly close out the session after
   // a GOAWAY.
   std::unique_ptr<quic::QuicAlarm> goaway_timeout_alarm_;
-
-  // If true, use a non-standard design where a timer starts for group n when
-  // the first object of group n+1 arrives.
-  bool alternate_delivery_timeout_ = false;
 
   quiche::QuicheWeakPtrFactory<MoqtSessionInterface> weak_ptr_factory_;
   quiche::QuicheWeakPtrFactory<SessionToPublisherInterface>

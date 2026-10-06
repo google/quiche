@@ -96,9 +96,9 @@ class LivePublisherInterface {
  public:
   virtual ~LivePublisherInterface() = default;
   virtual bool InWindow(Location) = 0;
-  virtual bool alternate_delivery_timeout() = 0;
   virtual const quic::QuicClock* clock() = 0;
-  virtual quic::QuicTimeDelta delivery_timeout() = 0;
+  virtual quic::QuicTimeDelta object_delivery_timeout() = 0;
+  virtual quic::QuicTimeDelta subgroup_delivery_timeout() = 0;
   virtual quic::QuicAlarmFactory* alarm_factory() = 0;
   // Called when the first byte of an object is written to the stream.
   virtual void OnObjectSent(Location) = 0;
@@ -125,6 +125,14 @@ class QUICHE_EXPORT OutgoingSubgroupStream : public OutgoingUniStream {
   // webtransport::StreamVisitor overrides.
   void OnCanWrite() override;
   void OnStopSendingReceived(webtransport::StreamErrorCode error_code) override;
+  void OnWriteSideInDataRecvdState() override {
+    // Any SUBGROUP_DELIVERY_TIMEOUT should be cancelled, as everything is
+    // acknowledged.
+    if (delivery_timeout_alarm_ != nullptr) {
+      delivery_timeout_alarm_->Cancel();
+      delivery_timeout_alarm_ = nullptr;
+    }
+  }
 
   class DeliveryTimeoutDelegate
       : public quic::QuicAlarm::DelegateWithoutContext {

@@ -472,4 +472,44 @@ TEST_F(MoqtFramerSimpleTest, GoAwayNewSessionUriFromClient) {
   EXPECT_EQ(buffer.size(), 0);
 }
 
+TEST_F(MoqtFramerSimpleTest, MessageParametersTimeDeltaSerialization) {
+  MessageParameters params;
+  params.object_delivery_timeout = quic::QuicTimeDelta::Infinite();
+  params.subgroup_delivery_timeout = quic::QuicTimeDelta::FromMicroseconds(500);
+  params.expires = quic::QuicTimeDelta::Infinite();
+
+  KeyValuePairList list = params.ToKeyValuePairList();
+  std::optional<uint64_t> object_timeout;
+  std::optional<uint64_t> subgroup_timeout;
+  std::optional<uint64_t> expires;
+  list.ForEach(
+      [&](uint64_t key, std::variant<uint64_t, absl::string_view> value) {
+        if (key ==
+            static_cast<uint64_t>(MessageParameter::kObjectDeliveryTimeout)) {
+          object_timeout = std::get<uint64_t>(value);
+        } else if (key == static_cast<uint64_t>(
+                              MessageParameter::kSubgroupDeliveryTimeout)) {
+          subgroup_timeout = std::get<uint64_t>(value);
+        } else if (key == static_cast<uint64_t>(MessageParameter::kExpires)) {
+          expires = std::get<uint64_t>(value);
+        }
+        return true;
+      });
+  EXPECT_EQ(object_timeout, 0ULL);
+  EXPECT_EQ(subgroup_timeout, 1ULL);
+  EXPECT_EQ(expires, 0ULL);
+
+  params.expires = quic::QuicTimeDelta::FromMicroseconds(200);
+  list = params.ToKeyValuePairList();
+  expires.reset();
+  list.ForEach(
+      [&](uint64_t key, std::variant<uint64_t, absl::string_view> value) {
+        if (key == static_cast<uint64_t>(MessageParameter::kExpires)) {
+          expires = std::get<uint64_t>(value);
+        }
+        return true;
+      });
+  EXPECT_EQ(expires, 1ULL);
+}
+
 }  // namespace moqt::test

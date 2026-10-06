@@ -181,13 +181,22 @@ class MoqtSessionPeer {
     return session->goaway_timeout_alarm_.get();
   }
 
-  static quic::QuicTimeDelta GetDeliveryTimeout(MoqtSession* session,
-                                                uint64_t request_id) {
+  static quic::QuicTimeDelta GetObjectDeliveryTimeout(MoqtSession* session,
+                                                      uint64_t request_id) {
     auto it = session->published_subscriptions_.find(request_id);
     if (it == session->published_subscriptions_.end()) {
       return quic::QuicTimeDelta::Zero();
     }
-    return it->second->delivery_timeout();
+    return it->second->object_delivery_timeout();
+  }
+
+  static quic::QuicTimeDelta GetSubgroupDeliveryTimeout(MoqtSession* session,
+                                                        uint64_t request_id) {
+    auto it = session->published_subscriptions_.find(request_id);
+    if (it == session->published_subscriptions_.end()) {
+      return quic::QuicTimeDelta::Zero();
+    }
+    return it->second->subgroup_delivery_timeout();
   }
 
   static absl::string_view GetImplementationString(MoqtSession* session) {

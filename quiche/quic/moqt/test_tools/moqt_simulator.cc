@@ -306,9 +306,6 @@ void MoqtSimulator::Run() {
   if (parameters_.bitrate_adaptation) {
     client_session()->SetMonitoringInterfaceForTrack(TrackName(), &adjuster_);
   }
-  if (parameters_.alternative_timeout) {
-    client_session()->UseAlternateDeliveryTimeout();
-  }
   publisher_.Add(generator_.queue());
   modification_box_.OnBeforeSimulationStart();
 
@@ -323,7 +320,13 @@ void MoqtSimulator::Run() {
     subscription_parameters.oack_window_size = parameters_.deadline;
   }
   if (!parameters_.delivery_timeout.IsInfinite()) {
-    subscription_parameters.delivery_timeout = parameters_.delivery_timeout;
+    if (parameters_.alternative_timeout) {
+      subscription_parameters.subgroup_delivery_timeout =
+          parameters_.delivery_timeout;
+    } else {
+      subscription_parameters.object_delivery_timeout =
+          parameters_.delivery_timeout;
+    }
   }
   server_session()->RelativeJoiningFetch(TrackName(), &receiver_, 0,
                                          subscription_parameters);

@@ -51,6 +51,7 @@ class MoqtOutgoingQueue : public MoqtTrackPublisher {
       : clock_(clock),
         track_(std::move(track)),
         properties_(std::nullopt, std::nullopt, std::nullopt, std::nullopt,
+                    std::nullopt,
                     new_group_callback != nullptr ? std::optional<bool>(true)
                                                   : std::nullopt,
                     std::nullopt),

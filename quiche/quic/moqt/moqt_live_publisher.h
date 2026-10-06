@@ -75,7 +75,6 @@ class MoqtPublishingMonitorInterface {
 class QUICHE_EXPORT SessionToPublisherInterface {
  public:
   virtual ~SessionToPublisherInterface() = default;
-  virtual bool alternate_delivery_timeout() const = 0;
   // If |old_priority| is nullopt, the subscription does not have any pending
   // streams. If it has a value, |old_priority| is the old value to be
   // replaced by |new_priority|.
@@ -142,22 +141,21 @@ class LivePublisher : public MoqtObjectListener, public LivePublisherInterface {
             (parameters_.subscription_filter->WindowKnown() &&
              parameters_.subscription_filter->InWindow(location)));
   };
-  bool alternate_delivery_timeout() override {
-    if (visitor() == nullptr) {
-      return false;
-    }
-    return visitor()->alternate_delivery_timeout();
-  }
   const quic::QuicClock* clock() override {
     if (visitor() == nullptr) {
       return nullptr;
     }
     return visitor()->clock();
   }
-  quic::QuicTimeDelta delivery_timeout() override {
+  quic::QuicTimeDelta object_delivery_timeout() override {
     return std::min(
-        parameters_.delivery_timeout.value_or(kDefaultDeliveryTimeout),
-        publisher_delivery_timeout_.value_or(kDefaultDeliveryTimeout));
+        parameters_.object_delivery_timeout.value_or(kDefaultDeliveryTimeout),
+        publisher_object_delivery_timeout_);
+  }
+  quic::QuicTimeDelta subgroup_delivery_timeout() override {
+    return std::min(
+        parameters_.subgroup_delivery_timeout.value_or(kDefaultDeliveryTimeout),
+        publisher_subgroup_delivery_timeout_);
   }
   quic::QuicAlarmFactory* alarm_factory() override {
     if (visitor() == nullptr) {
@@ -168,9 +166,6 @@ class LivePublisher : public MoqtObjectListener, public LivePublisherInterface {
   void OnObjectSent(Location sequence) override;
   void OnStreamTimeout(DataStreamIndex index) override {
     reset_subgroups_.insert(index);
-    if (visitor()->alternate_delivery_timeout()) {
-      first_active_group_ = std::max(first_active_group_, index.group + 1);
-    }
   }
   // OnSubgroupAbandoned() is declared above with MoqtObjectListener.
   void OnDataStreamDestroyed(DataStreamIndex) override;
@@ -270,7 +265,10 @@ class LivePublisher : public MoqtObjectListener, public LivePublisherInterface {
   // group_order and largest_object may be updated by SUBSCRIBE_OK because
   // have no effect in a future REQUEST_UPDATE message.
   MessageParameters parameters_;
-  std::optional<quic::QuicTimeDelta> publisher_delivery_timeout_;
+  quic::QuicTimeDelta publisher_object_delivery_timeout_ =
+      kDefaultDeliveryTimeout;
+  quic::QuicTimeDelta publisher_subgroup_delivery_timeout_ =
+      kDefaultDeliveryTimeout;
   std::optional<MoqtPriority> default_publisher_priority_;
   uint64_t streams_opened_ = 0;
 

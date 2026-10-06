@@ -191,8 +191,9 @@ struct QUICHE_EXPORT SetupOptions {
 };
 
 enum class MessageParameter : uint64_t {
-  kDeliveryTimeout = 0x02,
+  kObjectDeliveryTimeout = 0x02,
   kAuthorizationToken = 0x03,
+  kSubgroupDeliveryTimeout = 0x06,
   kExpires = 0x08,
   kLargestObject = 0x09,
   kForward = 0x10,
@@ -223,7 +224,8 @@ struct MessageParameters {
   // with it. Otherwise, leave unchanged.
   void Update(const MessageParameters& other);
 
-  std::optional<quic::QuicTimeDelta> delivery_timeout;
+  std::optional<quic::QuicTimeDelta> subgroup_delivery_timeout;
+  std::optional<quic::QuicTimeDelta> object_delivery_timeout;
   std::vector<AuthToken> authorization_tokens;
   std::optional<quic::QuicTimeDelta> expires;
   std::optional<Location> largest_object;
@@ -253,8 +255,9 @@ struct MessageParameters {
 };
 
 enum class PropertyType : uint64_t {
-  kDeliveryTimeout = 0x02,
+  kObjectDeliveryTimeout = 0x02,
   kMaxCacheDuration = 0x04,
+  kSubgroupDeliveryTimeout = 0x06,
   kImmutableProperties = 0x0b,
   kDefaultPublisherPriority = 0x0e,
   kDefaultPublisherGroupOrder = 0x22,
@@ -275,8 +278,9 @@ class TrackProperties : public KeyValuePairList {
   TrackProperties() = default;
   TrackProperties(const TrackProperties&) = default;
   // Constructor for Original publishers to create their track properties.
-  TrackProperties(std::optional<quic::QuicTimeDelta> delivery_timeout,
+  TrackProperties(std::optional<quic::QuicTimeDelta> object_delivery_timeout,
                   std::optional<quic::QuicTimeDelta> max_cache_duration,
+                  std::optional<quic::QuicTimeDelta> subgroup_delivery_timeout,
                   std::optional<MoqtPriority> publisher_priority,
                   std::optional<MoqtDeliveryOrder> group_order,
                   std::optional<bool> dynamic_groups,
@@ -284,8 +288,9 @@ class TrackProperties : public KeyValuePairList {
 
   // If present and well-formed, returns the value of the property. Returns the
   // default value if missing or ill-formed.
-  quic::QuicTimeDelta delivery_timeout() const;
+  quic::QuicTimeDelta object_delivery_timeout() const;
   quic::QuicTimeDelta max_cache_duration() const;
+  quic::QuicTimeDelta subgroup_delivery_timeout() const;
   absl::string_view immutable_properties() const;
   MoqtPriority default_publisher_priority() const;
   MoqtDeliveryOrder default_publisher_group_order() const;

@@ -86,7 +86,7 @@ class MoqtPublishRequestStreamTest : public quiche::test::QuicheTest {
 
     // Construct the LivePublisher.
     parameters_.set_forward(true);
-    parameters_.delivery_timeout = quic::QuicTimeDelta::FromSeconds(1);
+    parameters_.object_delivery_timeout = quic::QuicTimeDelta::FromSeconds(1);
     parameters_.group_order = MoqtDeliveryOrder::kAscending;
 
     EXPECT_CALL(visitor_, session).WillRepeatedly(Return(&webtrans_));
@@ -133,7 +133,8 @@ TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestOk) {
   stream_->BindStream(&mock_stream_);  // Calls OnStreamBound
 
   MoqtRequestOk request_ok;
-  request_ok.parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(2);
+  request_ok.parameters.object_delivery_timeout =
+      quic::QuicTimeDelta::FromSeconds(2);
   request_ok.parameters.group_order = MoqtDeliveryOrder::kDescending;
   QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
 
@@ -141,15 +142,15 @@ TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestOk) {
   ASSERT_TRUE(response_.has_value());
   ASSERT_TRUE(std::holds_alternative<MessageParameters>(*response_));
   MessageParameters resp_params = std::get<MessageParameters>(*response_);
-  EXPECT_EQ(resp_params.delivery_timeout,
-            request_ok.parameters.delivery_timeout);
+  EXPECT_EQ(resp_params.object_delivery_timeout,
+            request_ok.parameters.object_delivery_timeout);
   EXPECT_EQ(resp_params.group_order, request_ok.parameters.group_order);
 
   // Verify publisher parameters were updated.
   const MessageParameters& pub_params =
       LivePublisherPeer::parameters(*publisher_);
-  EXPECT_EQ(pub_params.delivery_timeout,
-            request_ok.parameters.delivery_timeout);
+  EXPECT_EQ(pub_params.object_delivery_timeout,
+            request_ok.parameters.object_delivery_timeout);
   // Group order cannot be updated.
   EXPECT_EQ(pub_params.group_order, parameters_.group_order);
 }
@@ -183,7 +184,7 @@ TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestUpdate) {
   MoqtRequestUpdate request_update;
   request_update.request_id = kRequestId + 2;
   request_update.existing_request_id = kRequestId;
-  request_update.parameters.delivery_timeout =
+  request_update.parameters.object_delivery_timeout =
       quic::QuicTimeDelta::FromSeconds(3);
   request_update.parameters.subscriber_priority = 5;
   request_update.parameters.subscription_filter.emplace(
@@ -196,8 +197,8 @@ TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestUpdate) {
   // Verify publisher parameters were updated.
   const MessageParameters& pub_params =
       LivePublisherPeer::parameters(*publisher_);
-  EXPECT_EQ(pub_params.delivery_timeout,
-            request_update.parameters.delivery_timeout);
+  EXPECT_EQ(pub_params.object_delivery_timeout,
+            request_update.parameters.object_delivery_timeout);
   EXPECT_EQ(pub_params.subscriber_priority,
             request_update.parameters.subscriber_priority);
 
@@ -298,7 +299,8 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishAndAccept) {
         return true;
       });
   MoqtPublish publish = DefaultPublish();
-  publish.parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(1);
+  publish.parameters.object_delivery_timeout =
+      quic::QuicTimeDelta::FromSeconds(1);
   QUICHE_EXPECT_OK(stream_->OnControlMessage(publish));
 
   // Verify subscriber is created.
@@ -309,7 +311,8 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishAndAccept) {
   // Verify REQUEST_OK response was sent with new_group_request filtered out
   // because DYNAMIC_GROUPS is absent/false.
   MoqtRequestOk expected_ok;
-  expected_ok.parameters.delivery_timeout = quic::QuicTimeDelta::FromSeconds(2);
+  expected_ok.parameters.object_delivery_timeout =
+      quic::QuicTimeDelta::FromSeconds(2);
   EXPECT_CALL(mock_stream_, Writev(SerializedControlMessage(expected_ok), _))
       .WillOnce(Return(absl::OkStatus()));
   MessageParameters response_parameters = expected_ok.parameters;
@@ -320,7 +323,8 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishAndAccept) {
   // filtered out.
   const MessageParameters& sub_params =
       LiveSubscriberPeer::parameters(*captured_subscriber);
-  EXPECT_EQ(sub_params.delivery_timeout, response_parameters.delivery_timeout);
+  EXPECT_EQ(sub_params.object_delivery_timeout,
+            response_parameters.object_delivery_timeout);
   EXPECT_EQ(sub_params.new_group_request, std::nullopt);
   EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone);
 }
@@ -346,8 +350,9 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishWithDynamicGroups) {
       });
   MoqtPublish publish = DefaultPublish();
   publish.properties = TrackProperties(
-      /*delivery_timeout=*/std::nullopt,
+      /*object_delivery_timeout=*/std::nullopt,
       /*max_cache_duration=*/std::nullopt,
+      /*subgroup_delivery_timeout=*/std::nullopt,
       /*publisher_priority=*/std::nullopt,
       /*group_order=*/std::nullopt,
       /*dynamic_groups=*/true,
@@ -465,7 +470,7 @@ TEST_F(MoqtPublishResponseStreamTest, ReceiveRequestUpdate) {
   MoqtRequestUpdate request_update;
   request_update.request_id = kRequestId + 2;
   request_update.existing_request_id = kRequestId;
-  request_update.parameters.delivery_timeout =
+  request_update.parameters.object_delivery_timeout =
       quic::QuicTimeDelta::FromSeconds(3);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _))
@@ -476,8 +481,8 @@ TEST_F(MoqtPublishResponseStreamTest, ReceiveRequestUpdate) {
   ASSERT_NE(captured_subscriber, nullptr);
   const MessageParameters& sub_params =
       LiveSubscriberPeer::parameters(*captured_subscriber);
-  EXPECT_EQ(sub_params.delivery_timeout,
-            request_update.parameters.delivery_timeout);
+  EXPECT_EQ(sub_params.object_delivery_timeout,
+            request_update.parameters.object_delivery_timeout);
   EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
 }
 

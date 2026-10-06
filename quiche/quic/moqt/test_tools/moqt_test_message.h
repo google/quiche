@@ -92,7 +92,8 @@ inline std::vector<MoqtDataStreamType> AllMoqtDataStreamTypes() {
 
 inline MessageParameters SubscribeForTest() {
   MessageParameters parameters;
-  parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(10000);
+  parameters.object_delivery_timeout =
+      quic::QuicTimeDelta::FromMilliseconds(10000);
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
                                                "bar");
   parameters.set_forward(true);
@@ -734,11 +735,11 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
 
  private:
   uint8_t raw_packet_[36] = {
-      0x03, 0x00, 0x21, 0x01,                    // request_id = 1
-      0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
-      0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
-      0x06,                                      // 6 parameters
-      0x02, 0xa7, 0x10,                          // delivery_timeout = 10000 ms
+      0x03, 0x00, 0x21, 0x01,        // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x06,                          // 6 parameters
+      0x02, 0xa7, 0x10,              // object_delivery_timeout = 10000 ms
       0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
       0x0d, 0x01,                                // forward = true
       0x10, 0x20,                                // subscriber_priority = 0x20
@@ -789,8 +790,10 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       /*track_alias=*/2,
       MessageParameters(),  // Set in the constructor.
       TrackProperties(
-          /*delivery_timeout=*/quic::QuicTimeDelta::FromMilliseconds(10000),
+          /*object_delivery_timeout=*/
+          quic::QuicTimeDelta::FromMilliseconds(10000),
           /*max_cache_duration=*/quic::QuicTimeDelta::FromMilliseconds(10000),
+          /*subgroup_delivery_timeout=*/std::nullopt,
           /*publisher_priority=*/std::nullopt,
           /*group_order=*/MoqtDeliveryOrder::kDescending,
           /*dynamic_groups=*/std::nullopt,
@@ -803,7 +806,7 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
       0x08, 0x03,                    // expires = 3
       0x01, 0x02, 0x0c, 0x14,        // largest_location = (12, 20)
       // Properties
-      0x02, 0xa7, 0x10,  // delivery_timeout = 10000
+      0x02, 0xa7, 0x10,  // object_delivery_timeout = 10000
       0x02, 0xa7, 0x10,  // max_cache_duration = 10000
       0x1e, 0x02         // default_publisher_group_order = 2
   };
@@ -908,7 +911,7 @@ class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
  public:
   RequestUpdateMessage() : TestMessageBase() {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
-    request_update_.parameters.delivery_timeout =
+    request_update_.parameters.object_delivery_timeout =
         quic::QuicTimeDelta::FromMilliseconds(10000);
     request_update_.parameters.set_forward(true);
     request_update_.parameters.subscriber_priority = 0xaa;
@@ -942,7 +945,7 @@ class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
   uint8_t raw_packet_[20] = {
       0x02, 0x00, 0x11, 0x02, 0x00,        // request IDs 2 and 0
       0x04,                                // Four parameters
-      0x02, 0xa7, 0x10,                    // delivery_timeout = 10000
+      0x02, 0xa7, 0x10,                    // object_delivery_timeout = 10000
       0x0e, 0x01,                          // forward = true
       0x10, 0x80, 0xaa,                    // subscriber_priority = 0xaa
       0x01, 0x04, 0x04, 0x03, 0x01, 0x02,  // Absolute Range: (3, 1) to 5
@@ -1097,7 +1100,7 @@ class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
       0x01,                    // 1 parameter
       0x09, 0x02, 0x05, 0x01,  // Largest Object = (5, 1)
       // Properties
-      0x02, 0xa7, 0x10,  // delivery_timeout = 10000
+      0x02, 0xa7, 0x10,  // object_delivery_timeout = 10000
       0x02, 0xa7, 0x10,  // max_cache_duration = 10000
       0x1e, 0x02         // default_publisher_group_order = 2
   };
@@ -1105,8 +1108,10 @@ class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
   MoqtRequestOk request_ok_ = {
       MessageParameters(),  // Set in the constructor.
       TrackProperties(
-          /*delivery_timeout=*/quic::QuicTimeDelta::FromMilliseconds(10000),
+          /*object_delivery_timeout=*/
+          quic::QuicTimeDelta::FromMilliseconds(10000),
           /*max_cache_duration=*/quic::QuicTimeDelta::FromMilliseconds(10000),
+          /*subgroup_delivery_timeout=*/std::nullopt,
           /*publisher_priority=*/std::nullopt,
           /*group_order=*/MoqtDeliveryOrder::kDescending,
           /*dynamic_groups=*/std::nullopt,
@@ -1517,10 +1522,10 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
       /*end_of_track=*/false,
       /*end_location=*/Location{5, 3},
       MessageParameters(),
-      TrackProperties(std::nullopt,
-                      quic::QuicTimeDelta::FromMilliseconds(10000),
-                      std::nullopt, MoqtDeliveryOrder::kDescending,
-                      std::nullopt, std::nullopt),
+      TrackProperties(
+          std::nullopt, quic::QuicTimeDelta::FromMilliseconds(10000),
+          std::nullopt, std::nullopt, MoqtDeliveryOrder::kDescending,
+          std::nullopt, std::nullopt),
   };
 };
 
@@ -1585,7 +1590,7 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
       FullTrackName("foo", "bar"),
       /*track_alias=*/4,
       MessageParameters(),
-      TrackProperties(std::nullopt, std::nullopt, std::nullopt,
+      TrackProperties(std::nullopt, std::nullopt, std::nullopt, std::nullopt,
                       MoqtDeliveryOrder::kDescending, std::nullopt,
                       std::nullopt),
   };

@@ -354,16 +354,16 @@ absl::Status MessageParameters::FromKeyValuePairList(
                                      value) {
     last_key = key;
     switch (static_cast<MessageParameter>(key)) {
-      case MessageParameter::kDeliveryTimeout:
-        if (delivery_timeout.has_value()) {
+      case MessageParameter::kObjectDeliveryTimeout:
+        if (object_delivery_timeout.has_value()) {
           status = absl::InvalidArgumentError("Duplicate Message Parameter");
           return false;
         }
         if (std::get<uint64_t>(value) == 0) {
-          status = absl::InvalidArgumentError("DELIVERY_TIMEOUT cannot be 0");
-          return false;
+          object_delivery_timeout = quic::QuicTimeDelta::Infinite();
+          break;
         }
-        delivery_timeout =
+        object_delivery_timeout =
             quic::QuicTimeDelta::TryFromMilliseconds(std::get<uint64_t>(value))
                 .value_or(quic::QuicTimeDelta::Infinite());
         break;
@@ -373,6 +373,19 @@ absl::Status MessageParameters::FromKeyValuePairList(
           status = KeyValueFormatError("Malformed auth token parameter");
           return false;
         }
+        break;
+      case MessageParameter::kSubgroupDeliveryTimeout:
+        if (subgroup_delivery_timeout.has_value()) {
+          status = absl::InvalidArgumentError("Duplicate Message Parameter");
+          return false;
+        }
+        if (std::get<uint64_t>(value) == 0) {
+          subgroup_delivery_timeout = quic::QuicTimeDelta::Infinite();
+          break;
+        }
+        subgroup_delivery_timeout =
+            quic::QuicTimeDelta::TryFromMilliseconds(std::get<uint64_t>(value))
+                .value_or(quic::QuicTimeDelta::Infinite());
         break;
       case MessageParameter::kExpires:
         if (expires.has_value()) {

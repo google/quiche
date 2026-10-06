@@ -759,7 +759,7 @@ TEST_F(MoqtIntegrationTest, ObjectAcks) {
   EXPECT_THAT(ack_deltas, ElementsAre(-123, 456));
 }
 
-TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
+TEST_F(MoqtIntegrationTest, SubgroupDeliveryTimeout) {
   EstablishSession();
   // The loss is added after the handshake, to ensure that the connection has
   // enough congestion control window to work with for the further tests.
@@ -785,7 +785,8 @@ TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
   });
   MessageParameters parameters(MoqtFilterType::kLargestObject);
   // Set delivery timeout to ~ 1 RTT: any loss is fatal.
-  parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
+  parameters.subgroup_delivery_timeout =
+      quic::QuicTimeDelta::FromMilliseconds(100);
   client_->session()->Subscribe(full_track_name, &subscribe_visitor_,
                                 parameters);
   bool success =
@@ -812,13 +813,14 @@ TEST_F(MoqtIntegrationTest, DeliveryTimeout) {
   EXPECT_LT(bytes_received, 4000);
 }
 
-TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
+// An object arrives, but the session doesn't grant stream credit until it's
+// too late.
+TEST_F(MoqtIntegrationTest, ObjectDeliveryTimeout) {
   EstablishSession();
   FullTrackName full_track_name("foo", "bar");
 
   MoqtKnownTrackPublisher publisher;
   server_->session()->set_publisher(&publisher);
-  server_->session()->UseAlternateDeliveryTimeout();
   auto queue = std::make_shared<TestTrackPublisher>(full_track_name);
   auto track_publisher = std::make_shared<MockTrackPublisher>(full_track_name);
   publisher.Add(queue);
@@ -835,8 +837,9 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
     stream_reset = true;
   });
   MessageParameters parameters(MoqtFilterType::kLargestObject);
-  // Set delivery timeout to ~ 1 RTT: any loss is fatal.
-  parameters.delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
+  // Set delivery timeout to ~ 1 RTT.
+  parameters.object_delivery_timeout =
+      quic::QuicTimeDelta::FromMilliseconds(100);
   ON_CALL(*track_publisher, expiration)
       .WillByDefault(Return(quic::QuicTimeDelta::Zero()));
   client_->session()->Subscribe(full_track_name, &subscribe_visitor_,
@@ -846,7 +849,7 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
   EXPECT_TRUE(success);
   success = false;
 
-  std::string data(1000, '\0');
+  std::string data(65535, '\0');
   size_t bytes_received = 0;
   EXPECT_CALL(subscribe_visitor_, OnObjectFragment)
       .WillRepeatedly(
@@ -854,12 +857,21 @@ TEST_F(MoqtIntegrationTest, AlternateDeliveryTimeout) {
               absl::string_view object,
               uint64_t offset) { bytes_received += object.size(); });
   quic::QuicTime now = test_harness_.simulator().GetClock()->Now();
-  queue->AddObject(Location{0, 0}, 0, data, false, now);
-  queue->AddObject(Location{1, 0}, 0, data, false, now);
+  // Send a small object that allows the subscriber to register the stream with
+  // this subgroup.
+  queue->AddObject(Location{0, 0}, 0, absl::string_view(data.data(), 100),
+                   false, now);
+  // Send a huge object that will take more than 1 RTT to deliver. This clogs up
+  // the QUIC buffer and forces the next object to remain at the MOQT layer.
+  queue->AddObject(Location{0, 1}, 0, data, false, now);
+  // The third object will have to wait for an RTT, causing a timeout and reset.
+  queue->AddObject(Location{0, 2}, 0, absl::string_view(data.data(), 100), true,
+                   now);
   success =
       test_harness_.RunUntilWithDefaultTimeout([&]() { return stream_reset; });
   EXPECT_TRUE(success);
-  EXPECT_EQ(bytes_received, 2000);
+  // Partial object delivery is disabled, so only the first object is received.
+  EXPECT_EQ(bytes_received, 100);
   // On teardown, streams are destroyed in arbitrary order. If the uni stream
   // is destroyed before the bidi stream, there will be a second stream reset
   // notification to the visitor. If not, there won't be.

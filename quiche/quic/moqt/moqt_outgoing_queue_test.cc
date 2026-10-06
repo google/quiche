@@ -209,6 +209,7 @@ TEST(MoqtOutgoingQueue, TwoGroups) {
     EXPECT_CALL(queue, PublishObject(0, 0, "a"));
     EXPECT_CALL(queue, PublishObject(0, 1, "b"));
     EXPECT_CALL(queue, PublishObject(0, 2, "c"));
+    EXPECT_CALL(queue, OnNewFinAvailable(Location(0, 3), 0));
     EXPECT_CALL(queue, CloseStreamForGroup(0));
     EXPECT_CALL(queue, PublishObject(1, 0, "d"));
     EXPECT_CALL(queue, PublishObject(1, 1, "e"));

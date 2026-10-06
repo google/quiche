@@ -66,9 +66,9 @@ class MockLivePublisherInterface : public LivePublisherInterface {
   MockLivePublisherInterface() : weak_ptr_factory_(this) {}
 
   MOCK_METHOD(bool, InWindow, (Location), (override));
-  MOCK_METHOD(bool, alternate_delivery_timeout, (), (override));
   MOCK_METHOD(quic::QuicClock*, clock, (), (override));
-  MOCK_METHOD(quic::QuicTimeDelta, delivery_timeout, (), (override));
+  MOCK_METHOD(quic::QuicTimeDelta, object_delivery_timeout, (), (override));
+  MOCK_METHOD(quic::QuicTimeDelta, subgroup_delivery_timeout, (), (override));
   MOCK_METHOD(quic::QuicAlarmFactory*, alarm_factory, (), (override));
   MOCK_METHOD(void, OnObjectSent, (Location), (override));
   MOCK_METHOD(void, OnStreamTimeout, (DataStreamIndex), (override));
@@ -158,9 +158,8 @@ TEST_F(OutgoingSubgroupStreamTest, OnCanWriteCompleteFlow) {
   EXPECT_CALL(*track_publisher_, GetCachedObject(0, Optional(0), 0, 0))
       .WillOnce(Return(std::move(obj0)));
   EXPECT_CALL(visitor_, InWindow(Location(0, 0))).WillOnce(Return(true));
-  EXPECT_CALL(visitor_, delivery_timeout())
+  EXPECT_CALL(visitor_, object_delivery_timeout())
       .WillOnce(Return(quic::QuicTimeDelta::FromSeconds(1)));
-  EXPECT_CALL(visitor_, alternate_delivery_timeout()).WillOnce(Return(false));
   EXPECT_CALL(visitor_, clock()).WillOnce(Return(&mock_clock_));
   EXPECT_CALL(*track_publisher_, properties())
       .WillRepeatedly(ReturnRef(track_properties_));
@@ -186,9 +185,8 @@ TEST_F(OutgoingSubgroupStreamTest, OnCanWriteTimeout) {
   EXPECT_CALL(*track_publisher_, GetCachedObject(0, Optional(0), 0, 0))
       .WillOnce(Return(std::move(obj0)));
   EXPECT_CALL(visitor_, InWindow(Location(0, 0))).WillOnce(Return(true));
-  EXPECT_CALL(visitor_, delivery_timeout())
+  EXPECT_CALL(visitor_, object_delivery_timeout())
       .WillOnce(Return(quic::QuicTimeDelta::FromSeconds(1)));
-  EXPECT_CALL(visitor_, alternate_delivery_timeout()).WillOnce(Return(false));
   mock_clock_.AdvanceTime(quic::QuicTimeDelta::FromSeconds(2));
   EXPECT_CALL(visitor_, clock()).WillOnce(Return(&mock_clock_));
   EXPECT_CALL(visitor_, OnStreamTimeout(index_));
@@ -202,9 +200,8 @@ TEST_F(OutgoingSubgroupStreamTest, OnCanWriteWriteError) {
   EXPECT_CALL(*track_publisher_, GetCachedObject(0, Optional(0), 0, 0))
       .WillOnce(Return(std::move(obj0)));
   EXPECT_CALL(visitor_, InWindow(Location(0, 0))).WillOnce(Return(true));
-  EXPECT_CALL(visitor_, delivery_timeout())
+  EXPECT_CALL(visitor_, object_delivery_timeout())
       .WillOnce(Return(quic::QuicTimeDelta::FromSeconds(1)));
-  EXPECT_CALL(visitor_, alternate_delivery_timeout()).WillOnce(Return(false));
   EXPECT_CALL(visitor_, clock).WillOnce(Return(&mock_clock_));
   EXPECT_CALL(*track_publisher_, properties())
       .WillRepeatedly(ReturnRef(track_properties_));
@@ -217,44 +214,13 @@ TEST_F(OutgoingSubgroupStreamTest, OnCanWriteWriteError) {
       "status: INTERNAL: error");
 }
 
-TEST_F(OutgoingSubgroupStreamTest, OnCanWriteSetsAlarm) {
-  PublishedObject obj0 = DefaultObject();
-  obj0.fin_after_this = true;
-  EXPECT_CALL(mock_stream_, CanWrite())
-      .WillOnce(Return(true))
-      .WillOnce(Return(false));
-  EXPECT_CALL(*track_publisher_, GetCachedObject(0, Optional(0), 0, 0))
-      .WillOnce(Return(std::move(obj0)));
-  EXPECT_CALL(visitor_, InWindow(Location(0, 0))).WillOnce(Return(true));
-  EXPECT_CALL(visitor_, delivery_timeout())
-      .WillRepeatedly(Return(quic::QuicTimeDelta::FromSeconds(1)));
-  EXPECT_CALL(visitor_, alternate_delivery_timeout())
-      .WillRepeatedly(Return(false));
-  EXPECT_CALL(visitor_, clock).WillOnce(Return(&mock_clock_));
-
-  EXPECT_CALL(*track_publisher_, properties())
-      .WillRepeatedly(ReturnRef(track_properties_));
-  EXPECT_CALL(mock_stream_, Writev)
-      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
-                    const webtransport::StreamWriteOptions& options) {
-        EXPECT_TRUE(options.send_fin());
-        return absl::OkStatus();
-      });
-  EXPECT_CALL(visitor_, OnObjectSent(Location(0, 0)));
-  ExpectAlarm();
-  stream_->OnCanWrite();
-  EXPECT_CALL(mock_stream_, ResetWithUserCode(kResetCodeDeliveryTimeout));
-  EXPECT_CALL(visitor_, OnStreamTimeout(index_));
-  alarm_factory_.FireAlarm(OutgoingSubgroupStreamPeer::GetAlarm(stream_.get()));
-}
-
 TEST_F(OutgoingSubgroupStreamTest, Fin) {
   // Replace stream_ with one where next_object_ is 1.
   EXPECT_CALL(visitor_, OnDataStreamDestroyed(index_));
   CreateStream(1);
   // last_object.object < next_object: sends pure FIN
   ExpectFin();
-  EXPECT_CALL(visitor_, delivery_timeout())
+  EXPECT_CALL(visitor_, subgroup_delivery_timeout())
       .WillOnce(Return(quic::QuicTimeDelta::FromSeconds(1)));
   EXPECT_CALL(visitor_, clock()).WillOnce(Return(&mock_clock_));
   ExpectAlarm();
@@ -268,8 +234,12 @@ TEST_F(OutgoingSubgroupStreamTest, FinForFutureObject) {
   // Delivery is blocked.
   EXPECT_CALL(mock_stream_, CanWrite).WillOnce(Return(false));
   stream_->OnCanWrite();
-  // FIN does nothing because last object hasn't been sent. Rely on the cache
-  // to set object.fin_after_this.
+  // FIN does nothing except set the delivery timeout, because last object
+  // hasn't been sent. Rely on the cache to set object.fin_after_this.
+  EXPECT_CALL(visitor_, subgroup_delivery_timeout())
+      .WillOnce(Return(quic::QuicTimeDelta::FromSeconds(1)));
+  EXPECT_CALL(visitor_, clock()).WillOnce(Return(&mock_clock_));
+  ExpectAlarm();
   EXPECT_CALL(mock_stream_, Writev).Times(0);
   stream_->Fin(Location(0, 0));
 }
@@ -291,10 +261,10 @@ TEST_F(OutgoingSubgroupStreamTest, SendFragmentedObject) {
       .WillOnce(Return(std::move(obj0)));
   EXPECT_CALL(visitor_, InWindow).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));
-  EXPECT_CALL(visitor_, delivery_timeout())
+  EXPECT_CALL(visitor_, object_delivery_timeout())
       .WillRepeatedly(Return(quic::QuicTimeDelta::FromSeconds(1)));
-  EXPECT_CALL(visitor_, alternate_delivery_timeout())
-      .WillRepeatedly(Return(false));
+  EXPECT_CALL(visitor_, subgroup_delivery_timeout())
+      .WillRepeatedly(Return(quic::QuicTimeDelta::FromSeconds(1)));
   EXPECT_CALL(visitor_, clock()).WillRepeatedly(Return(&mock_clock_));
   EXPECT_CALL(*track_publisher_, properties())
       .WillRepeatedly(ReturnRef(track_properties_));
@@ -327,7 +297,6 @@ TEST_F(OutgoingSubgroupStreamTest, SendFragmentedObject) {
         return absl::OkStatus();
       });
   EXPECT_CALL(visitor_, OnObjectSent).Times(0);
-  ExpectAlarm();
   stream_->OnCanWrite();
 }
 

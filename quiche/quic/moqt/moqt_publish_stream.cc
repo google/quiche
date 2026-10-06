@@ -78,6 +78,9 @@ absl::Status MoqtPublishRequestStream::OnControlMessage(
   if (response_callback_ != nullptr) {
     // PUBLISH_OK
     publisher_->Update(message.parameters, /*from_request_ok=*/true);
+    // In draft-18, PUBLISH_OK can update the group order. This has been
+    // eliminated since. This is not implemented because it is likely to be
+    // buggy to change the group order mid-subscription.
     MoqtResponseCallback callback = std::move(response_callback_);
     response_callback_ = nullptr;
     std::move(callback)(message.parameters);

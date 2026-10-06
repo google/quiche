@@ -33,6 +33,7 @@
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_trace_recorder.h"
 #include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/quic/moqt/moqt_uni_stream.h"
 #include "quiche/quic/moqt/test_tools/mock_moqt_session.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
 #include "quiche/quic/moqt/test_tools/moqt_mock_visitor.h"
@@ -115,7 +116,8 @@ class LivePublisherTest : public quic::test::QuicTest {
         trace_recorder_(nullptr) {
     bidi_stream_.BindStream(&mock_bidi_stream_);
     parameters_.set_forward(true);
-    parameters_.delivery_timeout = quic::QuicTimeDelta::FromSeconds(1);
+    parameters_.object_delivery_timeout = quic::QuicTimeDelta::FromSeconds(1);
+    parameters_.subgroup_delivery_timeout = quic::QuicTimeDelta::FromSeconds(2);
     parameters_.group_order = MoqtDeliveryOrder::kAscending;
     EXPECT_CALL(monitoring_interface_, OnObjectAckSupportKnown)
         .Times(AtLeast(0));
@@ -126,7 +128,6 @@ class LivePublisherTest : public quic::test::QuicTest {
         framer_, track_publisher_, &bidi_stream_, kRequestId, kTrackAlias,
         parameters_, visitor_.weak_ptr_factory_.Create(),
         /*is_publish=*/false);
-    ON_CALL(visitor_, alternate_delivery_timeout).WillByDefault(Return(false));
     ON_CALL(webtrans_, GetStreamById(kStreamId))
         .WillByDefault(Return(&mock_uni_stream_));
     ON_CALL(visitor_, alarm_factory).WillByDefault(Return(&alarm_factory_));
@@ -256,7 +257,7 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedNoFilter) {
 TEST_F(LivePublisherTest, OnSubscribeAcceptedWithFilter) {
   publisher_->parameters().subscription_filter =
       SubscriptionFilter(MoqtFilterType::kLargestObject);
-  const TrackProperties properties(std::nullopt, std::nullopt,
+  const TrackProperties properties(std::nullopt, std::nullopt, std::nullopt,
                                    /*default_publisher_priority=*/64,
                                    std::nullopt, std::nullopt, std::nullopt);
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
@@ -295,7 +296,7 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedWithFilter) {
 
 TEST_F(LivePublisherTest, OnSubscribeAcceptedWithQueuedUpdates) {
   MessageParameters update1;
-  update1.delivery_timeout = quic::QuicTimeDelta::FromSeconds(5);
+  update1.object_delivery_timeout = quic::QuicTimeDelta::FromSeconds(5);
   update1.set_forward(false);
   bidi_stream_.QueueIncomingUpdate(update1);
 
@@ -328,7 +329,7 @@ TEST_F(LivePublisherTest, OnSubscribeAcceptedWithQueuedUpdates) {
 
   publisher_->OnSubscribeAccepted();
   EXPECT_TRUE(publisher_->established());
-  EXPECT_EQ(publisher_->parameters().delivery_timeout,
+  EXPECT_EQ(publisher_->parameters().object_delivery_timeout,
             quic::QuicTimeDelta::FromSeconds(5));
   EXPECT_TRUE(publisher_->parameters().forward());
   EXPECT_EQ(publisher_->parameters().largest_object, Location(2, 5));
@@ -348,13 +349,13 @@ TEST_F(LivePublisherTest, OnSubscribeRejected) {
 
 TEST_F(LivePublisherTest, Update) {
   MessageParameters new_params;
-  new_params.delivery_timeout = quic::QuicTimeDelta::FromSeconds(5);
+  new_params.object_delivery_timeout = quic::QuicTimeDelta::FromSeconds(5);
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
   EXPECT_CALL(mock_bidi_stream_,
               Writev(SerializedControlMessage(MoqtRequestOk()), _))
       .WillOnce(Return(absl::OkStatus()));
   publisher_->Update(new_params, false);
-  EXPECT_EQ(publisher_->parameters().delivery_timeout,
+  EXPECT_EQ(publisher_->parameters().object_delivery_timeout,
             quic::QuicTimeDelta::FromSeconds(5));
 
   // Changing forward preference updates can_have_joining_fetch_
@@ -426,7 +427,7 @@ TEST_F(LivePublisherTest, UpdateSubscriptionFilterAndEndGroup) {
 
 TEST_F(LivePublisherTest, UpdateRejectedByPublisher) {
   MessageParameters new_params;
-  new_params.delivery_timeout = quic::QuicTimeDelta::FromSeconds(5);
+  new_params.object_delivery_timeout = quic::QuicTimeDelta::FromSeconds(5);
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
 
   // When from_request_ok is false, sends REQUEST_ERROR.
@@ -436,7 +437,7 @@ TEST_F(LivePublisherTest, UpdateRejectedByPublisher) {
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
       .WillOnce(Return(absl::OkStatus()));
   publisher_->Update(new_params, /*from_request_ok=*/false);
-  EXPECT_EQ(publisher_->parameters().delivery_timeout,
+  EXPECT_EQ(publisher_->parameters().object_delivery_timeout,
             quic::QuicTimeDelta::FromSeconds(1));
 
   // When from_request_ok is true, resets the bidi stream.
@@ -602,7 +603,8 @@ TEST_F(LivePublisherTest, OnGroupAbandonedWithStreams) {
 
 TEST_F(LivePublisherTest, OnGroupAbandonedTooFarBehind) {
   // Set the delivery timeout to infinite so that TooFarBehind is possible.
-  parameters_.delivery_timeout = quic::QuicTimeDelta::Infinite();
+  parameters_.object_delivery_timeout = quic::QuicTimeDelta::Infinite();
+  parameters_.subgroup_delivery_timeout = quic::QuicTimeDelta::Infinite();
   publisher_->Update(parameters_, true);
   CreateStream(Location(5, 0), 0, 128);
   struct MoqtPublishDone expected_publish_done = {
@@ -635,14 +637,13 @@ TEST_F(LivePublisherTest, OnCanCreateNewUniStreamPendingCleanup) {
   publisher_->OnCanCreateNewUniStream();
 }
 
-TEST_F(LivePublisherTest, AlternateDeliveryTimeoutSetAlarm) {
-  ON_CALL(visitor_, alternate_delivery_timeout).WillByDefault(Return(true));
+TEST_F(LivePublisherTest, SubgroupDeliveryTimeoutSetAlarm) {
   // Create a stream for group 1.
   CreateStream(Location(1, 0), 0, 128);
   // Create a pending stream for group 2, which should start the timer but does
   // less work than an active stream.
   EXPECT_CALL(visitor_, alarm_factory).WillOnce(Return(&alarm_factory_));
-  CreatePendingStream(Location(2, 0), 0, 128);
+  publisher_->OnNewFinAvailable(Location(1, 7), 0);
 }
 
 TEST_F(LivePublisherTest, OnTrackPublisherGone) {
@@ -808,38 +809,19 @@ TEST_F(LivePublisherTest, OnObjectSentTwice) {
                   Location(1, 0));
 }
 
-TEST_F(LivePublisherTest, AlternateDeliveryTimeout) {
-  EXPECT_CALL(visitor_, alternate_delivery_timeout)
-      .WillRepeatedly(Return(true));
+TEST_F(LivePublisherTest, SubgroupDeliveryTimeout) {
   CreateStream(Location(0, 0), 0, 128);
-  // Save the visitor before it's overwritten.
-  std::unique_ptr<webtransport::StreamVisitor> uni_stream =
-      std::move(uni_stream_);
-  CreateStream(Location(0, 1), 1, 200);
-  std::unique_ptr<webtransport::StreamVisitor> uni_stream1 =
-      std::move(uni_stream_);
   // Timers aren't running.
   EXPECT_EQ(OutgoingSubgroupStreamPeer::GetAlarm(
-                absl::down_cast<OutgoingSubgroupStream*>(uni_stream.get())),
+                absl::down_cast<OutgoingSubgroupStream*>(uni_stream_.get())),
             nullptr);
-  EXPECT_EQ(OutgoingSubgroupStreamPeer::GetAlarm(
-                absl::down_cast<OutgoingSubgroupStream*>(uni_stream1.get())),
-            nullptr);
-  // Second group starts the timer.
+  // FIN starts the timer.
   EXPECT_CALL(mock_uni_stream_, visitor)
-      .WillOnce(Return(uni_stream.get()))
-      .WillOnce(Return(uni_stream1.get()))
+      .WillOnce(Return(uni_stream_.get()))
       .WillRepeatedly([&]() { return uni_stream_.get(); });
-  CreateStream(Location(1, 0), 0, 128);
+  publisher_->OnNewFinAvailable(Location(0, 7), 0);
   // Group 0 streams now have a timer running.
   EXPECT_NE(OutgoingSubgroupStreamPeer::GetAlarm(
-                absl::down_cast<OutgoingSubgroupStream*>(uni_stream.get())),
-            nullptr);
-  EXPECT_NE(OutgoingSubgroupStreamPeer::GetAlarm(
-                absl::down_cast<OutgoingSubgroupStream*>(uni_stream1.get())),
-            nullptr);
-  // No timer on group 1.
-  EXPECT_EQ(OutgoingSubgroupStreamPeer::GetAlarm(
                 absl::down_cast<OutgoingSubgroupStream*>(uni_stream_.get())),
             nullptr);
 }
@@ -907,6 +889,38 @@ TEST_F(LivePublisherTest, OnNewObjectAvailableSessionClosing) {
   EXPECT_CALL(monitoring_interface_, OnNewObjectEnqueued(Location(1, 1)))
       .Times(testing::AtMost(1));
   publisher_->OnNewObjectAvailable(Location(1, 1), 0, 128);
+}
+
+TEST_F(LivePublisherTest, PublishPropertiesAndTimeouts) {
+  TrackProperties properties(
+      /*object_delivery_timeout=*/quic::QuicTimeDelta::FromMilliseconds(250),
+      /*max_cache_duration=*/std::nullopt,
+      /*subgroup_delivery_timeout=*/quic::QuicTimeDelta::FromMilliseconds(500),
+      /*publisher_priority=*/42,
+      /*group_order=*/MoqtDeliveryOrder::kDescending,
+      /*dynamic_groups=*/std::nullopt,
+      /*immutable_properties=*/std::nullopt);
+  EXPECT_CALL(*track_publisher_, properties())
+      .WillRepeatedly(ReturnRef(properties));
+
+  MessageParameters publish_params;
+  publish_params.set_forward(true);
+  LivePublisher publish_publisher(framer_, track_publisher_, &bidi_stream_,
+                                  kRequestId, kTrackAlias, publish_params,
+                                  visitor_.weak_ptr_factory_.Create(),
+                                  /*is_publish=*/true);
+  EXPECT_EQ(publish_publisher.parameters().group_order,
+            MoqtDeliveryOrder::kDescending);
+
+  // OnSubscribeAccepted initializes publisher delivery timeouts and default
+  // priority without sending SUBSCRIBE_OK since established_ is already true.
+  EXPECT_CALL(mock_bidi_stream_, Writev).Times(0);
+  publish_publisher.OnSubscribeAccepted();
+  EXPECT_EQ(publish_publisher.subgroup_delivery_timeout(),
+            quic::QuicTimeDelta::FromMilliseconds(500));
+  EXPECT_EQ(publish_publisher.object_delivery_timeout(),
+            quic::QuicTimeDelta::FromMilliseconds(250));
+  EXPECT_CALL(*track_publisher_, RemoveObjectListener(&publish_publisher));
 }
 
 }  // namespace

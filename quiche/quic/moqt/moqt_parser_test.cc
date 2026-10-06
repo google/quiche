@@ -760,14 +760,14 @@ TEST_F(MoqtMessageSpecificTest, ServerSetupUnknownOptionIsOk) {
   EXPECT_EQ(message.options, SetupOptions());
 }
 
-TEST_F(MoqtMessageSpecificTest, SubscribeDeliveryTimeoutTwice) {
+TEST_F(MoqtMessageSpecificTest, SubscribeObjectDeliveryTimeoutTwice) {
   char subscribe[] = {
       0x03, 0x00, 0x12, 0x01, 0x01,
       0x03, 0x66, 0x6f, 0x6f,        // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
       0x02,                          // two params
-      0x02, 0x67, 0x10,              // delivery_timeout = 10000
-      0x00, 0x67, 0x10,              // delivery_timeout = 10000
+      0x02, 0x67, 0x10,              // object_delivery_timeout = 10000
+      0x00, 0x67, 0x10,              // object_delivery_timeout = 10000
   };
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
       ParseAllMessages(absl::string_view(subscribe, sizeof(subscribe)),
@@ -1121,7 +1121,8 @@ TEST_F(MoqtMessageSpecificTest, SubscribeNoParameters) {
   ASSERT_TRUE(parsed.ok());
   ASSERT_EQ(parsed->size(), 1);
   MoqtSubscribe message = std::get<MoqtSubscribe>((*parsed)[0]);
-  EXPECT_FALSE(message.parameters.delivery_timeout.has_value());
+  EXPECT_FALSE(message.parameters.object_delivery_timeout.has_value());
+  EXPECT_FALSE(message.parameters.subgroup_delivery_timeout.has_value());
   EXPECT_FALSE(message.parameters.forward_has_value());
   EXPECT_FALSE(message.parameters.subscription_filter.has_value());
   EXPECT_FALSE(message.parameters.group_order.has_value());

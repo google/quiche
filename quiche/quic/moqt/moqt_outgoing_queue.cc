@@ -91,6 +91,9 @@ void MoqtOutgoingQueue::AddRawObject(MoqtObjectStatus status,
   queue_.back().push_back(
       std::make_unique<CachedObject>(metadata, std::move(payload), fin));
   for (MoqtObjectListener* listener : listeners_) {
+    if (fin) {
+      listener->OnNewFinAvailable(sequence, 0);
+    }
     listener->OnNewObjectAvailable(sequence, /*subgroup=*/0,
                                    default_publisher_priority());
   }

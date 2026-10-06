@@ -162,7 +162,8 @@ TEST_F(MoqtSubscribeRequestStreamTest, RequestOkWithProperties) {
   MoqtRequestOk request_ok(
       MessageParameters(),
       TrackProperties(quic::QuicTimeDelta::FromSeconds(5), std::nullopt,
-                      std::nullopt, std::nullopt, std::nullopt, std::nullopt));
+                      std::nullopt, std::nullopt, std::nullopt, std::nullopt,
+                      std::nullopt));
   QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
   // Test cleanup.
   EXPECT_CALL(mock_remove_callback_, Call);

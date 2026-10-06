@@ -164,10 +164,9 @@ void OutgoingSubgroupStream::SendObjects() {
       return;
     }
 
-    quic::QuicTimeDelta delivery_timeout = visitor->delivery_timeout();
-    if (!visitor->alternate_delivery_timeout() &&
-        visitor->clock()->ApproximateNow() - object->metadata.arrival_time >
-            delivery_timeout) {
+    quic::QuicTimeDelta delivery_timeout = visitor->object_delivery_timeout();
+    if (visitor->clock()->ApproximateNow() - object->metadata.arrival_time >
+        delivery_timeout) {
       visitor->OnStreamTimeout(index_);
       stream().ResetWithUserCode(kResetCodeDeliveryTimeout);
       // No class access below this line.
@@ -223,15 +222,20 @@ void OutgoingSubgroupStream::SendObjects() {
     }
     ++next_object_;
     already_delivered_ = 0;
-    if (object->fin_after_this && !delivery_timeout.IsInfinite() &&
-        !visitor->alternate_delivery_timeout()) {
-      CreateAndSetAlarm(object->metadata.arrival_time + delivery_timeout);
-    }
   }
 }
 
 void OutgoingSubgroupStream::Fin(Location last_object) {
   QUICHE_DCHECK_EQ(last_object.group, index_.group);
+  LivePublisherInterface* visitor = visitor_.GetIfAvailable();
+  if (visitor != nullptr) {
+    quic::QuicTimeDelta subgroup_delivery_timeout =
+        visitor->subgroup_delivery_timeout();
+    if (!subgroup_delivery_timeout.IsInfinite()) {
+      CreateAndSetAlarm(visitor->clock()->ApproximateNow() +
+                        subgroup_delivery_timeout);
+    }
+  }
   if (next_object_ <= last_object.object) {
     // There is still data to send, do nothing.
     return;
@@ -240,14 +244,6 @@ void OutgoingSubgroupStream::Fin(Location last_object) {
   absl::Status status = webtransport::SendFinOnStream(stream());
   QUICHE_BUG_IF(OutgoingSubgroupStream_fin_failed, !status.ok())
       << "Writing pure FIN failed.";
-  LivePublisherInterface* visitor = visitor_.GetIfAvailable();
-  if (visitor == nullptr) {
-    return;
-  }
-  quic::QuicTimeDelta delivery_timeout = visitor->delivery_timeout();
-  if (!delivery_timeout.IsInfinite()) {
-    CreateAndSetAlarm(visitor->clock()->ApproximateNow() + delivery_timeout);
-  }
 }
 
 void OutgoingSubgroupStream::CreateAndSetAlarm(quic::QuicTime deadline) {

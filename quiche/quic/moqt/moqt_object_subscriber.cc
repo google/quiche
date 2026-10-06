@@ -53,7 +53,10 @@ void LiveSubscriber::OnObjectOrOk(const SubscribeOkData& data) {
     parameters().subscription_filter->OnLargestObject(
         data.parameters.largest_object);
   }
-  publisher_delivery_timeout_ = data.properties.delivery_timeout();
+  publisher_object_delivery_timeout_ =
+      data.properties.object_delivery_timeout();
+  publisher_subgroup_delivery_timeout_ =
+      data.properties.subgroup_delivery_timeout();
   // TODO(martinduke): Is there anything to do with EXPIRES?
   default_publisher_priority_ = data.properties.default_publisher_priority();
   dynamic_groups_ = data.properties.dynamic_groups();
@@ -110,9 +113,8 @@ void LiveSubscriber::OnPublishDone(uint64_t stream_count,
 void LiveSubscriber::MaybeSetPublishDoneAlarm() {
   if (currently_open_streams_ == 0 && total_streams_.has_value() &&
       clock_ != nullptr) {
-    quic::QuicTimeDelta timeout = std::min(
-        parameters().delivery_timeout.value_or(kDefaultDeliveryTimeout),
-        publisher_delivery_timeout_);
+    quic::QuicTimeDelta timeout =
+        std::max(object_delivery_timeout(), subgroup_delivery_timeout());
     timeout = std::min(timeout, kMaxPublishDoneTimeout);
     timeout = std::max(timeout, kMinPublishDoneTimeout);
     publish_done_alarm_->Set(clock_->ApproximateNow() + timeout);

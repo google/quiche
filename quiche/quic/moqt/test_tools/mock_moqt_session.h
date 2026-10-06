@@ -45,7 +45,6 @@ class MockSessionToPublisherInterface : public SessionToPublisherInterface {
  public:
   MockSessionToPublisherInterface() : weak_ptr_factory_(this) {}
   ~MockSessionToPublisherInterface() override = default;
-  MOCK_METHOD(bool, alternate_delivery_timeout, (), (const, override));
   MOCK_METHOD(void, UpdateTrackPriority,
               (const FullTrackName&, std::optional<MoqtTrackPriority>,
                MoqtTrackPriority),

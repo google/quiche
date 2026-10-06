@@ -47,9 +47,9 @@ class MoqtObjectListener {
   virtual void OnNewObjectAvailable(Location sequence,
                                     std::optional<uint64_t> subgroup,
                                     MoqtPriority publisher_priority) = 0;
-  // Notifies that a pure FIN has arrived following |sequence|. Should not be
-  // called unless all objects have already been delivered. If not delivered,
-  // instead set the fin_after_this flag in the PublishedObject.
+  // Notifies that a pure FIN has arrived following |sequence|. Listeners can
+  // also find out about FINs by later retrieving an object with fin_after_this
+  // set, so this doesn't have to be stored if the sender isn't ready for it.
   virtual void OnNewFinAvailable(Location final_object_in_subgroup,
                                  uint64_t subgroup_id) = 0;
   // Notifies that the a stream is being abandoned (via RESET_STREAM) before
@@ -59,7 +59,11 @@ class MoqtObjectListener {
       webtransport::StreamErrorCode error_code) = 0;
 
   // No further object will be published for the given group, usually due to a
-  // timeout. The owner of the Listener may want to reset the relevant streams.
+  // timeout. The owner of the Listener may want to reset the relevant streams,
+  // MoqtSession will ignore all groups <= |group_id|. MoqtSession is also
+  // dependent on the caller to periodically retire groups to clear state; state
+  // will be unbounded if streams are frequently reset and OnGroupAbandoned is
+  // never called.
   virtual void OnGroupAbandoned(uint64_t group_id) = 0;
 
   // Notifies that the Publisher is being destroyed, so no more objects are
