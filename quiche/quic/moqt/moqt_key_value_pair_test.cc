@@ -17,8 +17,6 @@
 
 namespace moqt::test {
 
-using ::quiche::test::StatusIs;
-
 class LocationTest : public quic::test::QuicTest {};
 
 TEST_F(LocationTest, LocationTests) {
@@ -133,103 +131,6 @@ TEST_F(SubscriptionFilterTest, AbsoluteRange) {
 }
 
 class MessageParametersTest : public quic::test::QuicTest {};
-
-TEST_F(MessageParametersTest, FromKeyValuePairList) {
-  KeyValuePairList list;
-  list.insert(static_cast<uint64_t>(MessageParameter::kObjectDeliveryTimeout),
-              1ULL);
-  list.insert(static_cast<uint64_t>(MessageParameter::kForward), 0ULL);
-  list.insert(static_cast<uint64_t>(MessageParameter::kOackWindowSize),
-              12345678ULL);
-  MessageParameters parameters;
-  QUICHE_EXPECT_OK(parameters.FromKeyValuePairList(list));
-  EXPECT_EQ(parameters.object_delivery_timeout,
-            quic::QuicTimeDelta::FromMilliseconds(1));
-  EXPECT_FALSE(parameters.forward());
-  EXPECT_EQ(parameters.oack_window_size,
-            quic::QuicTimeDelta::FromMicroseconds(12345678));
-}
-
-TEST_F(MessageParametersTest, IllegalKeyValuePairs) {
-  KeyValuePairList list;
-  MessageParameters parameters;
-  list.insert(static_cast<uint64_t>(MessageParameter::kForward), 2ULL);
-  EXPECT_THAT(parameters.FromKeyValuePairList(list),
-              StatusIs(absl::StatusCode::kInvalidArgument));
-  list.clear();
-  list.insert(static_cast<uint64_t>(MessageParameter::kSubscriberPriority),
-              256ULL);
-  EXPECT_THAT(parameters.FromKeyValuePairList(list),
-              StatusIs(absl::StatusCode::kInvalidArgument));
-  list.clear();
-  list.insert(static_cast<uint64_t>(MessageParameter::kGroupOrder), 0ULL);
-  EXPECT_THAT(parameters.FromKeyValuePairList(list),
-              StatusIs(absl::StatusCode::kInvalidArgument));
-  list.clear();
-  list.insert(static_cast<uint64_t>(MessageParameter::kGroupOrder), 3ULL);
-  EXPECT_THAT(parameters.FromKeyValuePairList(list),
-              StatusIs(absl::StatusCode::kInvalidArgument));
-  // Unknown MessageParameter.
-  list.clear();
-  list.insert(0x12345678, 12345678ULL);
-  EXPECT_THAT(parameters.FromKeyValuePairList(list),
-              StatusIs(absl::StatusCode::kInvalidArgument));
-}
-
-TEST_F(MessageParametersTest, DuplicateParameters) {
-  for (MessageParameter param :
-       {MessageParameter::kObjectDeliveryTimeout,
-        MessageParameter::kSubgroupDeliveryTimeout,
-        // Auth token can be repeated.
-        MessageParameter::kExpires, MessageParameter::kLargestObject,
-        MessageParameter::kForward, MessageParameter::kSubscriberPriority,
-        MessageParameter::kSubscriptionFilter, MessageParameter::kGroupOrder,
-        MessageParameter::kNewGroupRequest,
-        MessageParameter::kOackWindowSize}) {
-    KeyValuePairList list;
-    MessageParameters parameters;
-    switch (param) {
-      case MessageParameter::kLargestObject: {
-        char largest_object[] = {0x00, 0x01};
-        list.insert(static_cast<uint64_t>(param),
-                    absl::string_view(largest_object, 2));
-        largest_object[1] = 0x02;
-        list.insert(static_cast<uint64_t>(param),
-                    absl::string_view(largest_object, 2));
-        break;
-      }
-      case MessageParameter::kForward: {
-        list.insert(static_cast<uint64_t>(param), 0ULL);
-        list.insert(static_cast<uint64_t>(param), 1ULL);
-        break;
-      }
-      case MessageParameter::kSubscriberPriority: {
-        list.insert(static_cast<uint64_t>(param), 127ULL);
-        list.insert(static_cast<uint64_t>(param), 128ULL);
-        break;
-      }
-      case MessageParameter::kSubscriptionFilter: {
-        char filter[] = {0x01};  // kNextGroupStart
-        list.insert(static_cast<uint64_t>(param), absl::string_view(filter, 1));
-        filter[0] = 0x02;  // kLargestObject
-        list.insert(static_cast<uint64_t>(param), absl::string_view(filter, 1));
-        break;
-      }
-      case MessageParameter::kGroupOrder: {
-        list.insert(static_cast<uint64_t>(param), 1ULL);
-        list.insert(static_cast<uint64_t>(param), 2ULL);
-        break;
-      }
-      default: {
-        list.insert(static_cast<uint64_t>(param), 1024ULL);
-        list.insert(static_cast<uint64_t>(param), 2048ULL);
-        break;
-      }
-    }
-    EXPECT_THAT(parameters.FromKeyValuePairList(list),
-                StatusIs(absl::StatusCode::kInvalidArgument));
-  }
-}
 
 TEST_F(MessageParametersTest, Update) {
   MessageParameters p1;

@@ -250,11 +250,6 @@ class MoqtControlMessageParser {
                                  FullTrackName& full_track_name) const;
   absl::Status FillAndValidateSetupOptions(const KeyValuePairList& in,
                                            SetupOptions& out) const;
-  // |reader| points to the beginning of a KeyValuePairList. Returns false if
-  // there is any sort of error. (The function calls ParseError(), so the
-  // caller has no need to do so.)
-  absl::Status FillAndValidateMessageParameters(quic::QuicDataReader& reader,
-                                                MessageParameters& out) const;
 
   bool uses_web_transport_;
   const quic::Perspective perspective_;

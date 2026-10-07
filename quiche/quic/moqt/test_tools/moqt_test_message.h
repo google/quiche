@@ -608,12 +608,11 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
       // Should not send PATH or AUTHORITY.
       client_setup_.options.path = std::nullopt;
       client_setup_.options.authority = std::nullopt;
-      raw_packet_[3] -= 17;   // adjust payload length
-      raw_packet_[4] = 0x01;  // only one option
+      raw_packet_[3] -= 17;  // adjust payload length
       // Move MoqtImplementation up in the packet.
-      memmove(raw_packet_ + 5, raw_packet_ + 22,
+      memmove(raw_packet_ + 4, raw_packet_ + 21,
               kTestImplementationString.length() + 2);
-      raw_packet_[5] = 0x07;  // Diff from 0.
+      raw_packet_[4] = 0x07;  // Diff from 0.
       SetWireImage(raw_packet_, sizeof(raw_packet_) - 17);
     } else {
       SetWireImage(raw_packet_, sizeof(raw_packet_));
@@ -631,9 +630,9 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
 
   void ExpandVarints() override {
     if (client_setup_.options.path.has_value()) {
-      ExpandVarintsImpl("vvv----vv---------vv---------------------------");
+      ExpandVarintsImpl("vv----vv---------vv---------------------------");
     } else {
-      ExpandVarintsImpl("vvv---------------------------");
+      ExpandVarintsImpl("vv---------------------------");
     }
   }
 
@@ -646,9 +645,8 @@ class QUICHE_NO_EXPORT ClientSetupMessage : public TestMessageBase {
   // string options in order. Unfortunately, this means that
   // kMoqtImplementation goes last even though it is always present, while
   // kPath and KAuthority aren't.
-  uint8_t raw_packet_[52] = {
-      0xaf, 0x00, 0x00, 0x30,              // type, length
-      0x03,                                // 3 options
+  uint8_t raw_packet_[51] = {
+      0xaf, 0x00, 0x00, 0x2f,              // type, length
       0x01, 0x04, 0x70, 0x61, 0x74, 0x68,  // path = "path"
       0x04, 0x09, 0x61, 0x75, 0x74, 0x68, 0x6f, 0x72, 0x69, 0x74,
       0x79,  // authority = "authority"
@@ -677,16 +675,15 @@ class QUICHE_NO_EXPORT ServerSetupMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(server_setup_);
   }
 
  private:
-  uint8_t raw_packet_[35] = {0xaf, 0x00, 0x00, 0x1f,  // type, length
-                             0x01,                    // one option
-                             // moqt_implementation:
+  uint8_t raw_packet_[34] = {0xaf, 0x00, 0x00, 0x1e,  // type, length
+                                                      // moqt_implementation:
                              0x07, 0x1c, 0x4d, 0x6f, 0x71, 0x20, 0x54, 0x65,
                              0x73, 0x74, 0x20, 0x49, 0x6d, 0x70, 0x6c, 0x65,
                              0x6d, 0x65, 0x6e, 0x74, 0x61, 0x74, 0x69, 0x6f,
@@ -719,7 +716,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvv---v----vv--vv-----vvvvvv---vv");
+    ExpandVarintsImpl("vvv---v----vv--vv-----v-v-vv---v-");
   }
 
   MessageStructuredData structured_data() const override {
@@ -773,14 +770,14 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvvvv--v--v--vv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvvvv--v--vv"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_ok_);
   }
 
   void SetInvalidDeliveryOrder() {
-    raw_packet_[18] = 0x10;
+    raw_packet_[17] = 0x10;
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -801,10 +798,10 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
   };
 
  private:
-  uint8_t raw_packet_[19] = {
-      0x04, 0x00, 0x10, 0x02, 0x02,  // alias, 2 params
+  uint8_t raw_packet_[18] = {
+      0x04, 0x00, 0x0f, 0x02, 0x02,  // alias, 2 params
       0x08, 0x03,                    // expires = 3
-      0x01, 0x02, 0x0c, 0x14,        // largest_location = (12, 20)
+      0x01, 0x0c, 0x14,              // largest_location = (12, 20)
       // Properties
       0x02, 0xa7, 0x10,  // object_delivery_timeout = 10000
       0x02, 0xa7, 0x10,  // max_cache_duration = 10000
@@ -935,19 +932,19 @@ class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv--vvv--vv----"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv--v-v-vv----"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(request_update_);
   }
 
  private:
-  uint8_t raw_packet_[20] = {
-      0x02, 0x00, 0x11, 0x02, 0x00,        // request IDs 2 and 0
+  uint8_t raw_packet_[19] = {
+      0x02, 0x00, 0x10, 0x02, 0x00,        // request IDs 2 and 0
       0x04,                                // Four parameters
       0x02, 0xa7, 0x10,                    // object_delivery_timeout = 10000
       0x0e, 0x01,                          // forward = true
-      0x10, 0x80, 0xaa,                    // subscriber_priority = 0xaa
+      0x10, 0xaa,                          // subscriber_priority = 0xaa
       0x01, 0x04, 0x04, 0x03, 0x01, 0x02,  // Absolute Range: (3, 1) to 5
   };
 
@@ -1121,17 +1118,17 @@ class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv--v--v--vv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvv--v--v-"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(request_ok_);
   }
 
  private:
-  uint8_t raw_packet_[16] = {
-      0x07, 0x00, 0x0d,
-      0x01,                    // 1 parameter
-      0x09, 0x02, 0x05, 0x01,  // Largest Object = (5, 1)
+  uint8_t raw_packet_[15] = {
+      0x07, 0x00, 0x0c,
+      0x01,              // 1 parameter
+      0x09, 0x05, 0x01,  // Largest Object = (5, 1)
       // Properties
       0x02, 0xa7, 0x10,  // object_delivery_timeout = 10000
       0x02, 0xa7, 0x10,  // max_cache_duration = 10000
@@ -1245,7 +1242,7 @@ class QUICHE_NO_EXPORT SubscribeNamespaceMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv---vvv-----vv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv---vvv-----v-"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_namespace_);
@@ -1294,7 +1291,7 @@ class QUICHE_NO_EXPORT SubscribeTracksMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv---vvv-----vv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv---vvv-----v-"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_tracks_);
@@ -1343,7 +1340,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvvv---v---vvvvvvv-----vvvv");
+    ExpandVarintsImpl("vvvv---v---vvvvvvv-----v-v-");
   }
 
   MessageStructuredData structured_data() const override {
@@ -1421,7 +1418,7 @@ class QUICHE_NO_EXPORT RelativeJoiningFetchMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvvvvv-----vvvv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvvv-----v-v-"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(fetch_);
@@ -1479,7 +1476,7 @@ class QUICHE_NO_EXPORT AbsoluteJoiningFetchMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvvvvv-----vvvv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvvvv-----v-v-"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(fetch_);
@@ -1597,7 +1594,7 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvv---v---vvvv-----vv--vvvv");
+    ExpandVarintsImpl("vvv---v---vvvv-----vvvv-v-");
   }
 
   MessageStructuredData structured_data() const override {
@@ -1605,15 +1602,15 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[30] = {
-      0x1d, 0x00, 0x1b,
+  uint8_t raw_packet_[29] = {
+      0x1d, 0x00, 0x1a,
       0x01,                                      // request_id = 1
       0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
       0x03, 0x62, 0x61, 0x72,                    // track_name = "bar"
       0x04,                                      // track_alias = 4
       0x03,                                      // 3 parameters
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // token = "baz"
-      0x06, 0x02, 0x0a, 0x01,                    // largest_object = 10, 1
+      0x06, 0x0a, 0x01,                          // largest_object = 10, 1
       0x07, 0x01,                                // forward = 1
       0x22, 0x02,                                // group_order = kAscending
   };

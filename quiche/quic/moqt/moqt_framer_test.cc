@@ -43,15 +43,25 @@ struct MoqtFramerTestParams {
 std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
   std::vector<MoqtFramerTestParams> params;
   std::vector<MoqtMessageType> message_types = {
-      MoqtMessageType::kRequestOk,       MoqtMessageType::kRequestError,
-      MoqtMessageType::kSubscribe,       MoqtMessageType::kSubscribeOk,
-      MoqtMessageType::kPublishDone,     MoqtMessageType::kPublishNamespace,
-      MoqtMessageType::kNamespace,       MoqtMessageType::kNamespaceDone,
-      MoqtMessageType::kPublishSkipped,  MoqtMessageType::kTrackStatus,
-      MoqtMessageType::kGoAway,          MoqtMessageType::kSubscribeNamespace,
-      MoqtMessageType::kSubscribeTracks, MoqtMessageType::kFetch,
-      MoqtMessageType::kFetchOk,         MoqtMessageType::kPublish,
-      MoqtMessageType::kObjectAck,       MoqtMessageType::kSetup,
+      MoqtMessageType::kRequestOk,
+      MoqtMessageType::kRequestError,
+      MoqtMessageType::kSubscribe,
+      MoqtMessageType::kSubscribeOk,
+      MoqtMessageType::kRequestUpdate,
+      MoqtMessageType::kPublishDone,
+      MoqtMessageType::kPublishNamespace,
+      MoqtMessageType::kNamespace,
+      MoqtMessageType::kNamespaceDone,
+      MoqtMessageType::kPublishSkipped,
+      MoqtMessageType::kTrackStatus,
+      MoqtMessageType::kGoAway,
+      MoqtMessageType::kSubscribeNamespace,
+      MoqtMessageType::kSubscribeTracks,
+      MoqtMessageType::kFetch,
+      MoqtMessageType::kFetchOk,
+      MoqtMessageType::kPublish,
+      MoqtMessageType::kObjectAck,
+      MoqtMessageType::kSetup,
   };
   for (const MoqtMessageType message_type : message_types) {
     if (message_type == MoqtMessageType::kSetup) {
@@ -144,6 +154,10 @@ class MoqtFramerTest
       case MoqtMessageType::kSubscribeOk: {
         auto data = std::get<MoqtSubscribeOk>(structured_data);
         return framer_.SerializeSubscribeOk(data);
+      }
+      case MoqtMessageType::kRequestUpdate: {
+        auto data = std::get<MoqtRequestUpdate>(structured_data);
+        return framer_.SerializeRequestUpdate(data);
       }
       case MoqtMessageType::kPublishDone: {
         auto data = std::get<MoqtPublishDone>(structured_data);
@@ -474,38 +488,35 @@ TEST_F(MoqtFramerSimpleTest, MessageParametersTimeDeltaSerialization) {
   params.subgroup_delivery_timeout = quic::QuicTimeDelta::FromMicroseconds(500);
   params.expires = quic::QuicTimeDelta::Infinite();
 
-  KeyValuePairList list = params.ToKeyValuePairList();
-  std::optional<uint64_t> object_timeout;
-  std::optional<uint64_t> subgroup_timeout;
-  std::optional<uint64_t> expires;
-  list.ForEach(
-      [&](uint64_t key, std::variant<uint64_t, absl::string_view> value) {
-        if (key ==
-            static_cast<uint64_t>(MessageParameter::kObjectDeliveryTimeout)) {
-          object_timeout = std::get<uint64_t>(value);
-        } else if (key == static_cast<uint64_t>(
-                              MessageParameter::kSubgroupDeliveryTimeout)) {
-          subgroup_timeout = std::get<uint64_t>(value);
-        } else if (key == static_cast<uint64_t>(MessageParameter::kExpires)) {
-          expires = std::get<uint64_t>(value);
-        }
-        return true;
-      });
-  EXPECT_EQ(object_timeout, 0ULL);
-  EXPECT_EQ(subgroup_timeout, 1ULL);
-  EXPECT_EQ(expires, 0ULL);
+  quiche::QuicheBuffer buffer =
+      framer_.SerializeRequestOk(MoqtRequestOk{params, TrackProperties()});
+  const uint8_t expected_infinite_expires[] = {
+      0x07,        // MoqtMessageType::kRequestOk
+      0x00, 0x07,  // Payload length = 7
+      0x03,        // 3 parameters
+      0x02, 0x00,  // kObjectDeliveryTimeout (0x02): Infinite -> 0
+      0x04, 0x01,  // kSubgroupDeliveryTimeout (+0x04 = 0x06): 500us -> 1ms
+      0x02, 0x00,  // kExpires (+0x02 = 0x08): Infinite -> 0
+  };
+  quiche::test::CompareCharArraysWithHexError(
+      "frame encoding", buffer.data(), buffer.size(),
+      reinterpret_cast<const char*>(expected_infinite_expires),
+      sizeof(expected_infinite_expires));
 
   params.expires = quic::QuicTimeDelta::FromMicroseconds(200);
-  list = params.ToKeyValuePairList();
-  expires.reset();
-  list.ForEach(
-      [&](uint64_t key, std::variant<uint64_t, absl::string_view> value) {
-        if (key == static_cast<uint64_t>(MessageParameter::kExpires)) {
-          expires = std::get<uint64_t>(value);
-        }
-        return true;
-      });
-  EXPECT_EQ(expires, 1ULL);
+  buffer = framer_.SerializeRequestOk(MoqtRequestOk{params, TrackProperties()});
+  const uint8_t expected_clamped_expires[] = {
+      0x07,        // MoqtMessageType::kRequestOk
+      0x00, 0x07,  // Payload length = 7
+      0x03,        // 3 parameters
+      0x02, 0x00,  // kObjectDeliveryTimeout (0x02): Infinite -> 0
+      0x04, 0x01,  // kSubgroupDeliveryTimeout (+0x04 = 0x06): 500us -> 1ms
+      0x02, 0x01,  // kExpires (+0x02 = 0x08): 200us -> 1ms
+  };
+  quiche::test::CompareCharArraysWithHexError(
+      "frame encoding", buffer.data(), buffer.size(),
+      reinterpret_cast<const char*>(expected_clamped_expires),
+      sizeof(expected_clamped_expires));
 }
 
 }  // namespace moqt::test

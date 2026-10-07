@@ -25,7 +25,7 @@
 
 namespace moqt {
 
-// Encodes a list of key-value pairs common to both parameters and properties.
+// Encodes a list of key-value pairs common to both Options and Properties.
 // If the key is odd, it is a length-prefixed string (which may encode further
 // item-specific structure). If the key is even, it is a varint.
 // This class does not interpret the semantic meaning of the keys and values.
@@ -208,7 +208,6 @@ constexpr quic::QuicTimeDelta kDefaultDeliveryTimeout =
     quic::QuicTimeDelta::Infinite();
 constexpr quic::QuicTimeDelta kDefaultExpires = quic::QuicTimeDelta::Infinite();
 constexpr bool kDefaultForward = true;
-// TODO(martinduke): Refactor this to be more like TrackProperties.
 struct MessageParameters {
   MessageParameters() = default;
   MessageParameters(const MessageParameters&) = default;
@@ -240,13 +239,6 @@ struct MessageParameters {
   // QUICHE-specific parameters.
   std::optional<quic::QuicTimeDelta> oack_window_size;
   bool operator==(const MessageParameters& other) const = default;
-
-  // Defined in moqt_framer.cc.
-  KeyValuePairList ToKeyValuePairList() const;
-  // Defined in moqt_parser.cc.
-  // If the class is not initialized with the default constructor, it is likely
-  // to return an error if a non-default field duplicates what is in |list|.
-  absl::Status FromKeyValuePairList(const KeyValuePairList& list);
 
  private:
   // "if (forward)" is bug-prone because it returns forward_.has_value(). Make
