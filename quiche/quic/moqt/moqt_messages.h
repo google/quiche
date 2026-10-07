@@ -213,6 +213,7 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kPublishDone = 0x0b,
   kTrackStatus = 0x0d,
   kNamespaceDone = 0x0e,
+  kPublishSkipped = 0x0f,
   kGoAway = 0x10,
   kFetch = 0x16,
   kFetchOk = 0x18,
@@ -429,6 +430,10 @@ struct QUICHE_EXPORT MoqtNamespace {
 
 struct QUICHE_EXPORT MoqtNamespaceDone {
   TrackNamespace track_namespace_suffix;
+};
+
+struct QUICHE_EXPORT MoqtPublishSkipped {
+  FullTrackName name;
 };
 
 enum class QUICHE_EXPORT FetchType : uint64_t {

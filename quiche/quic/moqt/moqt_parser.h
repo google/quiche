@@ -164,6 +164,8 @@ class MoqtControlMessageParser {
   absl::StatusOr<MoqtNamespace> ProcessNamespace(absl::string_view data) const;
   absl::StatusOr<MoqtNamespaceDone> ProcessNamespaceDone(
       absl::string_view data) const;
+  absl::StatusOr<MoqtPublishSkipped> ProcessPublishSkipped(
+      absl::string_view data) const;
   absl::StatusOr<MoqtTrackStatus> ProcessTrackStatus(
       absl::string_view data) const;
   absl::StatusOr<MoqtGoAway> ProcessGoAway(absl::string_view data) const;
@@ -212,6 +214,8 @@ class MoqtControlMessageParser {
         return parse(&MoqtControlMessageParser::ProcessNamespace);
       case MoqtMessageType::kNamespaceDone:
         return parse(&MoqtControlMessageParser::ProcessNamespaceDone);
+      case MoqtMessageType::kPublishSkipped:
+        return parse(&MoqtControlMessageParser::ProcessPublishSkipped);
       case MoqtMessageType::kTrackStatus:
         return parse(&MoqtControlMessageParser::ProcessTrackStatus);
       case MoqtMessageType::kGoAway:

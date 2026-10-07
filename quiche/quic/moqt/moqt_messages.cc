@@ -91,6 +91,8 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "NAMESPACE";
     case MoqtMessageType::kNamespaceDone:
       return "NAMESPACE_DONE";
+    case MoqtMessageType::kPublishSkipped:
+      return "PUBLISH_SKIPPED";
     case MoqtMessageType::kRequestOk:
       return "REQUEST_OK";
     case MoqtMessageType::kGoAway:

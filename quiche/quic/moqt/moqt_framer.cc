@@ -586,6 +586,12 @@ quiche::QuicheBuffer MoqtFramer::SerializeNamespaceDone(
       WireTrackNamespace(message.track_namespace_suffix));
 }
 
+quiche::QuicheBuffer MoqtFramer::SerializePublishSkipped(
+    const MoqtPublishSkipped& message) {
+  return SerializeControlMessage(MoqtMessageType::kPublishSkipped,
+                                 WireFullTrackName(message.name));
+}
+
 quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(
     const MoqtTrackStatus& message) {
   return SerializeSubscribe(message, MoqtMessageType::kTrackStatus);

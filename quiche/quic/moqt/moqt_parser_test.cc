@@ -57,6 +57,7 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kPublishNamespace,
     MoqtMessageType::kNamespace,
     MoqtMessageType::kNamespaceDone,
+    MoqtMessageType::kPublishSkipped,
     MoqtMessageType::kGoAway,
     MoqtMessageType::kSubscribeNamespace,
     MoqtMessageType::kSubscribeTracks,

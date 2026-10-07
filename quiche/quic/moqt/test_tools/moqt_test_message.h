@@ -119,7 +119,7 @@ class QUICHE_NO_EXPORT TestMessageBase {
                    MoqtRequestUpdate, MoqtPublishNamespace, MoqtTrackStatus,
                    MoqtGoAway, MoqtSubscribeNamespace, MoqtSubscribeTracks,
                    MoqtFetch, MoqtFetchOk, MoqtPublish, MoqtNamespace,
-                   MoqtNamespaceDone, MoqtObjectAck>;
+                   MoqtNamespaceDone, MoqtPublishSkipped, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -1068,6 +1068,39 @@ class QUICHE_NO_EXPORT NamespaceDoneMessage : public TestMessageBase {
   };
 };
 
+class QUICHE_NO_EXPORT PublishSkippedMessage : public TestMessageBase {
+ public:
+  PublishSkippedMessage() : TestMessageBase() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+  }
+
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
+    auto cast = std::get<MoqtPublishSkipped>(values);
+    if (cast.name != publish_skipped_.name) {
+      QUIC_LOG(INFO) << "PUBLISH_SKIPPED name mismatch";
+      return false;
+    }
+    return true;
+  }
+
+  void ExpandVarints() override { ExpandVarintsImpl("vv---v---"); }
+
+  MessageStructuredData structured_data() const override {
+    return TestMessageBase::MessageStructuredData(publish_skipped_);
+  }
+
+ private:
+  uint8_t raw_packet_[12] = {
+      0x0f, 0x00, 0x09, 0x01,
+      0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x03, 0x62, 0x61, 0x72,  // track_name = "bar"
+  };
+
+  MoqtPublishSkipped publish_skipped_ = {
+      FullTrackName("foo", "bar"),
+  };
+};
+
 class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
  public:
   RequestOkMessage() : TestMessageBase() {
@@ -1662,6 +1695,8 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<NamespaceMessage>();
     case MoqtMessageType::kNamespaceDone:
       return std::make_unique<NamespaceDoneMessage>();
+    case MoqtMessageType::kPublishSkipped:
+      return std::make_unique<PublishSkippedMessage>();
     case MoqtMessageType::kTrackStatus:
       return std::make_unique<TrackStatusMessage>();
     case MoqtMessageType::kGoAway:

@@ -43,23 +43,15 @@ struct MoqtFramerTestParams {
 std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
   std::vector<MoqtFramerTestParams> params;
   std::vector<MoqtMessageType> message_types = {
-      MoqtMessageType::kRequestOk,
-      MoqtMessageType::kRequestError,
-      MoqtMessageType::kSubscribe,
-      MoqtMessageType::kSubscribeOk,
-      MoqtMessageType::kPublishDone,
-      MoqtMessageType::kPublishNamespace,
-      MoqtMessageType::kNamespace,
-      MoqtMessageType::kNamespaceDone,
-      MoqtMessageType::kTrackStatus,
-      MoqtMessageType::kGoAway,
-      MoqtMessageType::kSubscribeNamespace,
-      MoqtMessageType::kSubscribeTracks,
-      MoqtMessageType::kFetch,
-      MoqtMessageType::kFetchOk,
-      MoqtMessageType::kPublish,
-      MoqtMessageType::kObjectAck,
-      MoqtMessageType::kSetup,
+      MoqtMessageType::kRequestOk,       MoqtMessageType::kRequestError,
+      MoqtMessageType::kSubscribe,       MoqtMessageType::kSubscribeOk,
+      MoqtMessageType::kPublishDone,     MoqtMessageType::kPublishNamespace,
+      MoqtMessageType::kNamespace,       MoqtMessageType::kNamespaceDone,
+      MoqtMessageType::kPublishSkipped,  MoqtMessageType::kTrackStatus,
+      MoqtMessageType::kGoAway,          MoqtMessageType::kSubscribeNamespace,
+      MoqtMessageType::kSubscribeTracks, MoqtMessageType::kFetch,
+      MoqtMessageType::kFetchOk,         MoqtMessageType::kPublish,
+      MoqtMessageType::kObjectAck,       MoqtMessageType::kSetup,
   };
   for (const MoqtMessageType message_type : message_types) {
     if (message_type == MoqtMessageType::kSetup) {
@@ -168,6 +160,10 @@ class MoqtFramerTest
       case MoqtMessageType::kNamespaceDone: {
         auto data = std::get<MoqtNamespaceDone>(structured_data);
         return framer_.SerializeNamespaceDone(data);
+      }
+      case MoqtMessageType::kPublishSkipped: {
+        auto data = std::get<MoqtPublishSkipped>(structured_data);
+        return framer_.SerializePublishSkipped(data);
       }
       case moqt::MoqtMessageType::kTrackStatus: {
         auto data = std::get<MoqtTrackStatus>(structured_data);

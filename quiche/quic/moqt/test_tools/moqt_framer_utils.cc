@@ -52,6 +52,9 @@ struct FramingVisitor {
   quiche::QuicheBuffer operator()(const MoqtNamespaceDone& message) {
     return framer.SerializeNamespaceDone(message);
   }
+  quiche::QuicheBuffer operator()(const MoqtPublishSkipped& message) {
+    return framer.SerializePublishSkipped(message);
+  }
   quiche::QuicheBuffer operator()(const MoqtTrackStatus& message) {
     return framer.SerializeTrackStatus(message);
   }

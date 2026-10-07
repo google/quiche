@@ -778,6 +778,15 @@ MoqtControlMessageParser::ProcessNamespaceDone(absl::string_view data) const {
   return namespace_done;
 }
 
+absl::StatusOr<MoqtPublishSkipped>
+MoqtControlMessageParser::ProcessPublishSkipped(absl::string_view data) const {
+  quic::QuicDataReader reader(data);
+  MoqtPublishSkipped publish_skipped;
+  QUICHE_RETURN_IF_ERROR(ReadFullTrackName(reader, publish_skipped.name));
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return publish_skipped;
+}
+
 absl::StatusOr<MoqtRequestOk> MoqtControlMessageParser::ProcessRequestOk(
     absl::string_view data) const {
   quic::QuicDataReader reader(data);
