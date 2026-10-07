@@ -225,6 +225,9 @@ class WireMessageParameters {
       ++num_parameters_;
     }
     num_parameters_ += parameters_.authorization_tokens.size();
+    if (parameters_.rendezvous_timeout.has_value()) {
+      ++num_parameters_;
+    }
     if (parameters_.subgroup_delivery_timeout.has_value()) {
       ++num_parameters_;
     }
@@ -275,6 +278,12 @@ class WireMessageParameters {
       length += quiche::ComputeLengthOnWire(
           WireMoqVarInt(key_delta(MessageParameter::kAuthorizationToken)),
           WireMoqVarInt(wire_token.GetLengthOnWire()), wire_token);
+    }
+    if (parameters_.rendezvous_timeout.has_value()) {
+      length +=
+          WireKeyVarIntPair(key_delta(MessageParameter::kRendezvousTimeout),
+                            parameters_.rendezvous_timeout->ToMilliseconds())
+              .GetLengthOnWire();
     }
     if (parameters_.subgroup_delivery_timeout.has_value()) {
       length +=
@@ -355,6 +364,12 @@ class WireMessageParameters {
           writer,
           WireMoqVarInt(key_delta(MessageParameter::kAuthorizationToken)),
           WireMoqVarInt(wire_token.GetLengthOnWire()), wire_token));
+    }
+    if (parameters_.rendezvous_timeout.has_value()) {
+      QUICHE_RETURN_IF_ERROR(quiche::SerializeIntoWriter(
+          writer,
+          WireKeyVarIntPair(key_delta(MessageParameter::kRendezvousTimeout),
+                            parameters_.rendezvous_timeout->ToMilliseconds())));
     }
     if (parameters_.subgroup_delivery_timeout.has_value()) {
       QUICHE_RETURN_IF_ERROR(quiche::SerializeIntoWriter(

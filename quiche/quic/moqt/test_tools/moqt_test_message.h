@@ -96,6 +96,7 @@ inline MessageParameters SubscribeForTest() {
       quic::QuicTimeDelta::FromMilliseconds(10000);
   parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
                                                "bar");
+  parameters.rendezvous_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
   parameters.set_forward(true);
   parameters.subscriber_priority = 0x20;
   parameters.subscription_filter.emplace(Location(4, 1));
@@ -716,7 +717,7 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvv---v----vv--vv-----v-v-vv---v-");
+    ExpandVarintsImpl("vvv---v----vv--vv-----vvv-v-vv---v-");
   }
 
   MessageStructuredData structured_data() const override {
@@ -731,14 +732,15 @@ class QUICHE_NO_EXPORT SubscribeMessage : public TestMessageBase {
   };
 
  private:
-  uint8_t raw_packet_[36] = {
-      0x03, 0x00, 0x21, 0x01,        // request_id = 1
+  uint8_t raw_packet_[38] = {
+      0x03, 0x00, 0x23, 0x01,        // request_id = 1
       0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
       0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
-      0x06,                          // 6 parameters
+      0x07,                          // 7 parameters
       0x02, 0xa7, 0x10,              // object_delivery_timeout = 10000 ms
       0x01, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
-      0x0d, 0x01,                                // forward = true
+      0x01, 0x64,                                // rendezvous_timeout = 100 ms
+      0x0c, 0x01,                                // forward = true
       0x10, 0x20,                                // subscriber_priority = 0x20
       0x01, 0x03, 0x03, 0x04, 0x01,  // filter_type = kAbsoluteStart (4, 1)
       0x01, 0x02,                    // group_order = kDescending

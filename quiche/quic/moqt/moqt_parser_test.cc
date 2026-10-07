@@ -862,6 +862,23 @@ TEST_F(MoqtMessageSpecificTest, SubscribeInvalidFilter) {
             MoqtError::kProtocolViolation);
 }
 
+TEST_F(MoqtMessageSpecificTest, SubscribeMaxRendezvousTimeout) {
+  char subscribe[] = {
+      0x03, 0x00, 0x10, 0x01,        // id
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x01,                          // 1 parameter
+      0x04, 0xc0, 0xea, 0x60,        // rendezvous_timeout = 60000
+  };
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
+      ParseAllMessages(absl::string_view(subscribe, sizeof(subscribe)),
+                       kDefaultMoqtVersion, kRawQuic);
+  ASSERT_TRUE(parsed.ok());
+  ASSERT_EQ(parsed->size(), 1);
+  MoqtSubscribe message = std::get<MoqtSubscribe>((*parsed)[0]);
+  EXPECT_EQ(message.parameters.rendezvous_timeout, kMaxRendezvousTimeout);
+}
+
 TEST_F(MoqtMessageSpecificTest, PublishNamespaceAuthorizationTokenTwice) {
   char publish_namespace[] = {
       0x06, 0x00, 0x15, 0x02, 0x01, 0x03, 0x66,

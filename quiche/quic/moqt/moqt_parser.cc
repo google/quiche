@@ -235,6 +235,18 @@ absl::StatusOr<MessageParameters> ParseMessageParameters(
           return absl::InvalidArgumentError("Malformed auth token parameter");
         }
         break;
+      case MessageParameter::kRendezvousTimeout:
+        if (params.rendezvous_timeout.has_value()) {
+          return absl::InvalidArgumentError("Duplicate Message Parameter");
+        }
+        if (!reader.ReadMoqVarInt(&value64)) {
+          return absl::InvalidArgumentError("Parameter parsing error");
+        }
+        params.rendezvous_timeout =
+            std::min(kMaxRendezvousTimeout,
+                     quic::QuicTimeDelta::TryFromMilliseconds(value64).value_or(
+                         quic::QuicTimeDelta::Infinite()));
+        break;
       case MessageParameter::kSubgroupDeliveryTimeout:
         if (params.subgroup_delivery_timeout.has_value()) {
           return absl::InvalidArgumentError("Duplicate Message Parameter");

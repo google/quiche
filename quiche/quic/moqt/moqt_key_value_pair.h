@@ -193,6 +193,7 @@ struct QUICHE_EXPORT SetupOptions {
 enum class MessageParameter : uint64_t {
   kObjectDeliveryTimeout = 0x02,
   kAuthorizationToken = 0x03,
+  kRendezvousTimeout = 0x04,
   kSubgroupDeliveryTimeout = 0x06,
   kExpires = 0x08,
   kLargestObject = 0x09,
@@ -211,6 +212,11 @@ constexpr quic::QuicTimeDelta kDefaultExpires = quic::QuicTimeDelta::Infinite();
 constexpr bool kDefaultForward = true;
 constexpr quic::QuicTimeDelta kDefaultFillTimeout =
     quic::QuicTimeDelta::Infinite();
+constexpr quic::QuicTimeDelta kDefaultRendezvousTimeout =
+    quic::QuicTimeDelta::Zero();
+// Limit to prevent the publisher from waiting too long for a rendezvous.
+constexpr quic::QuicTimeDelta kMaxRendezvousTimeout =
+    quic::QuicTimeDelta::FromSeconds(30);
 struct MessageParameters {
   MessageParameters() = default;
   MessageParameters(const MessageParameters&) = default;
@@ -228,6 +234,7 @@ struct MessageParameters {
 
   std::optional<quic::QuicTimeDelta> subgroup_delivery_timeout;
   std::vector<AuthToken> authorization_tokens;
+  std::optional<quic::QuicTimeDelta> rendezvous_timeout;
   std::optional<quic::QuicTimeDelta> object_delivery_timeout;
   std::optional<quic::QuicTimeDelta> expires;
   std::optional<Location> largest_object;
