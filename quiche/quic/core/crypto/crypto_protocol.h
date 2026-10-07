@@ -515,6 +515,7 @@ DEFINE_STATIC_QUIC_TAG(PAD);  // Padding
 DEFINE_STATIC_QUIC_TAG(CHP1);  // 1-packet padding to CHLO.
 DEFINE_STATIC_QUIC_TAG(CHP2);  // 2-packet padding to CHLO.
 DEFINE_STATIC_QUIC_TAG(BCFR);  // Bundle CRYPTO frames when retransmitting.
+DEFINE_STATIC_QUIC_TAG(SAOW);  // Send ACKs after OnCanWrite.
 
 // Stats collection tags
 DEFINE_STATIC_QUIC_TAG(EPID);  // Endpoint identifier.

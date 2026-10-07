@@ -9329,6 +9329,15 @@ TEST_P(EndToEndTest, ActiveConnectionIdLimit4CID) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, SendAcksAfterOnCanWrite) {
+  SetQuicReloadableFlag(quic_send_acks_after_on_can_write, true);
+  client_extra_copts_.push_back(kSAOW);
+  SetPacketLossPercentage(30);
+  ASSERT_TRUE(Initialize());
+  EXPECT_TRUE(client_->client()->WaitForHandshakeConfirmed());
+  SendSynchronousFooRequestAndCheckResponse();
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic

@@ -62,6 +62,7 @@ QUICHE_FLAG(bool, quiche_reloadable_flag_quic_receive_ack_frequency, false, fals
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_reject_empty_cid_in_ncid, false, true, "If true, QUIC framer will reject NEW_CONNECTION_ID frames with empty connection IDs.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_reject_unusable_ech_config, false, true, "When true, calls SSL_set_reject_unusable_ech_config in TlsClientHandshaker.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_require_handshake_confirmation, true, true, "If true, require handshake confirmation for QUIC connections, functionally disabling 0-rtt handshakes.")
+QUICHE_FLAG(bool, quiche_reloadable_flag_quic_send_acks_after_on_can_write, false, false, "When true, QuicConnection::OnCanWrite() calls visitor_->OnCanWrite() before SendAllPendingAcks() so outgoing data frames can opportunistically bundle pending ACKs first.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_test_peer_addr_change_after_normalize, false, false, "If true, QuicConnection::ProcessValidatedPacket will use normalized address to test peer address changes.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_false, false, false, "A testonly reloadable flag that will always default to false.")
 QUICHE_FLAG(bool, quiche_reloadable_flag_quic_testonly_default_true, true, true, "A testonly reloadable flag that will always default to true.")

@@ -603,6 +603,12 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
   if (config.HasClientSentConnectionOption(kDFER, perspective_)) {
     defer_send_in_response_to_packets_ = false;
   }
+  if (GetQuicReloadableFlag(quic_send_acks_after_on_can_write) &&
+      version().IsIetfQuic() &&
+      config.HasClientSentConnectionOption(kSAOW, perspective_)) {
+    send_acks_after_on_can_write_ = true;
+  }
+
   if (perspective_ == Perspective::IS_CLIENT &&
       config.HasClientSentConnectionOption(kCDFR, perspective_)) {
     defer_send_in_response_to_packets_ = true;
@@ -2988,23 +2994,50 @@ void QuicConnection::OnCanWrite() {
   ScopedPacketFlusher flusher(this);
 
   WriteQueuedPackets();
-  const QuicTime ack_timeout =
-      uber_received_packet_manager_.GetEarliestAckTimeout();
-  if (ack_timeout.IsInitialized() && ack_timeout <= clock_->ApproximateNow()) {
-    // Send an ACK now because either 1) we were write blocked when we last
-    // tried to send an ACK, or 2) both ack alarm and send alarm were set to
-    // go off together.
-    SendAllPendingAcks();
-  }
+  if (send_acks_after_on_can_write_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_send_acks_after_on_can_write);
+    // Sending queued packets may have caused the socket to become write
+    // blocked, or the congestion manager to prohibit sending.
+    const bool can_write_retransmittable = CanWrite(HAS_RETRANSMITTABLE_DATA);
+    if (can_write_retransmittable) {
+      // Tell the session it can write.
+      visitor_->OnCanWrite();
+    }
+    if (!connected_) {
+      return;
+    }
+    const QuicTime ack_timeout =
+        uber_received_packet_manager_.GetEarliestAckTimeout();
+    if (ack_timeout.IsInitialized() &&
+        ack_timeout <= clock_->ApproximateNow()) {
+      // Send an ACK now because either 1) we were write blocked when we last
+      // tried to send an ACK, or 2) both ack alarm and send alarm were set to
+      // go off together.
+      SendAllPendingAcks();
+    }
+    if (!connected_ || !can_write_retransmittable) {
+      return;
+    }
+  } else {
+    const QuicTime ack_timeout =
+        uber_received_packet_manager_.GetEarliestAckTimeout();
+    if (ack_timeout.IsInitialized() &&
+        ack_timeout <= clock_->ApproximateNow()) {
+      // Send an ACK now because either 1) we were write blocked when we last
+      // tried to send an ACK, or 2) both ack alarm and send alarm were set to
+      // go off together.
+      SendAllPendingAcks();
+    }
 
-  // Sending queued packets may have caused the socket to become write blocked,
-  // or the congestion manager to prohibit sending.
-  if (!CanWrite(HAS_RETRANSMITTABLE_DATA)) {
-    return;
-  }
+    // Sending queued packets may have caused the socket to become write
+    // blocked, or the congestion manager to prohibit sending.
+    if (!CanWrite(HAS_RETRANSMITTABLE_DATA)) {
+      return;
+    }
 
-  // Tell the session it can write.
-  visitor_->OnCanWrite();
+    // Tell the session it can write.
+    visitor_->OnCanWrite();
+  }
 
   // After the visitor writes, it may have caused the socket to become write
   // blocked or the congestion manager to prohibit sending, so check again.

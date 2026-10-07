@@ -2583,6 +2583,7 @@ class QUICHE_EXPORT QuicConnection
   // True if spin bit is enabled for this connection.
   bool spin_bit_enabled_ : 1 = false;
   bool fix_mtu_discovery_ : 1 = GetQuicReloadableFlag(quic_fix_mtu_discovery);
+  bool send_acks_after_on_can_write_ : 1 = false;
 };
 
 }  // namespace quic

@@ -19143,6 +19143,83 @@ TEST_P(QuicConnectionTest, ServerActiveConnectionIdLimit) {
             kMaxNumOfActiveConnectionIds);
 }
 
+TEST_P(QuicConnectionTest,
+       SendAcksAfterOnCanWriteDisabledFlushesSeparateAckPacket) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_send_acks_after_on_can_write, false);
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kSAOW});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  EXPECT_EQ(0u, writer_->packets_write_attempts());
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(100));
+
+  std::string crypto_data(1000, 'a');
+  EXPECT_CALL(visitor_, OnCanWrite()).WillOnce([&]() {
+    QuicConnection::ScopedEncryptionLevelContext context(&connection_,
+                                                         ENCRYPTION_INITIAL);
+    connection_.SendCryptoDataWithString(crypto_data, 0, ENCRYPTION_INITIAL);
+  });
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(2);
+  connection_.OnCanWrite();
+
+  // When send_acks_after_on_can_write is false, SendAllPendingAcks() runs
+  // before visitor_->OnCanWrite() and flushes a standalone INITIAL ACK packet
+  // when switching back to ENCRYPTION_HANDSHAKE, resulting in 2 packets.
+  EXPECT_EQ(2u, writer_->packets_write_attempts());
+}
+
+TEST_P(QuicConnectionTest, SendAcksAfterOnCanWriteBundlesAckWithCryptoData) {
+  if (!connection_.SupportsMultiplePacketNumberSpaces()) {
+    return;
+  }
+  SetQuicReloadableFlag(quic_send_acks_after_on_can_write, true);
+  QuicConfig config;
+  config.SetConnectionOptionsToSend({kSAOW});
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+
+  connection_.SetEncrypter(ENCRYPTION_HANDSHAKE,
+                           std::make_unique<TaggingEncrypter>(0x02));
+  connection_.SetDefaultEncryptionLevel(ENCRYPTION_HANDSHAKE);
+
+  // Receive an INITIAL packet so an INITIAL ACK alarm is scheduled, then
+  // advance the clock so the ACK timeout is due when OnCanWrite() runs.
+  EXPECT_CALL(visitor_, OnCryptoFrame(_)).Times(1);
+  ProcessCryptoPacketAtLevel(1, ENCRYPTION_INITIAL);
+  EXPECT_EQ(0u, writer_->packets_write_attempts());
+  clock_.AdvanceTime(QuicTime::Delta::FromMilliseconds(100));
+
+  std::string crypto_data(1000, 'a');
+  EXPECT_CALL(visitor_, OnCanWrite()).WillOnce([&]() {
+    QuicConnection::ScopedEncryptionLevelContext context(&connection_,
+                                                         ENCRYPTION_INITIAL);
+    connection_.SendCryptoDataWithString(crypto_data, 0, ENCRYPTION_INITIAL);
+  });
+  EXPECT_CALL(*send_algorithm_, OnPacketSent(_, _, _, _, _)).Times(1);
+  connection_.OnCanWrite();
+
+  // Because visitor_->OnCanWrite() ran before SendAllPendingAcks(), the pending
+  // INITIAL ACK was bundled into the single INITIAL CRYPTO packet rather than
+  // flushed as a separate INITIAL ACK packet before visitor_->OnCanWrite().
+  EXPECT_EQ(1u, writer_->packets_write_attempts());
+  EXPECT_EQ(1u, writer_->ack_frames().size());
+  EXPECT_GE(writer_->crypto_frames().size(), 1u);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
