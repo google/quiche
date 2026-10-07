@@ -70,6 +70,9 @@ std::ostream& operator<<(std::ostream& os, const QuicConnectionStats& s) {
      << s.failed_to_validate_server_preferred_address;
   os << " num_duplicated_packets_sent_to_server_preferred_address: "
      << s.num_duplicated_packets_sent_to_server_preferred_address;
+  os << " application_data_packets_acked: " << s.application_data_packets_acked;
+  os << " application_data_packets_with_receive_timestamps_acked: "
+     << s.application_data_packets_with_receive_timestamps_acked;
   os << " }";
 
   return os;

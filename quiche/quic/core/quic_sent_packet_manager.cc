@@ -1473,6 +1473,12 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
     } else if (info->encryption_level == ENCRYPTION_FORWARD_SECURE) {
       one_rtt_packet_acked_ = true;
     }
+    if (packet_number_space == APPLICATION_DATA) {
+      ++stats_->application_data_packets_acked;
+      if (acked_packet.receive_timestamp.IsInitialized()) {
+        ++stats_->application_data_packets_with_receive_timestamps_acked;
+      }
+    }
     largest_packet_peer_knows_is_acked_.UpdateMax(info->largest_acked);
     if (supports_multiple_packet_number_spaces()) {
       largest_packets_peer_knows_is_acked_[packet_number_space].UpdateMax(

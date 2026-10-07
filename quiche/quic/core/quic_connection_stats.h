@@ -270,6 +270,12 @@ struct QUICHE_EXPORT QuicConnectionStats {
   // TODO: b/469371101 - this currently does not include datagrams, since we do
   // not retain the datagram length.
   QuicByteCount application_data_acked = 0;
+
+  // Total number of APPLICATION_DATA packets acknowledged on the connection.
+  QuicPacketCount application_data_packets_acked = 0;
+  // Number of APPLICATION_DATA packets acknowledged on the connection that had
+  // an associated receive timestamp.
+  QuicPacketCount application_data_packets_with_receive_timestamps_acked = 0;
 };
 
 }  // namespace quic

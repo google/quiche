@@ -1781,6 +1781,39 @@ TEST_P(EndToEndTest, SimpleRequestResponseWithAckExponentChange) {
   server_thread_->Resume();
 }
 
+TEST_P(EndToEndTest, ReceiveTimestampsStats) {
+  ASSERT_TRUE(Initialize());
+  if (!version_.IsIetfQuic()) {
+    return;
+  }
+
+  QuicConnection* client_connection = GetClientConnection();
+  ASSERT_NE(client_connection, nullptr);
+  client_connection->framer().set_local_max_receive_timestamps_per_ack(1024);
+  client_connection->received_packet_manager().set_save_timestamps(true);
+  client_connection->framer().set_peer_max_receive_timestamps_per_ack(1024);
+
+  server_thread_->Pause();
+  QuicConnection* server_connection = GetServerConnection();
+  if (server_connection != nullptr) {
+    server_connection->framer().set_local_max_receive_timestamps_per_ack(1024);
+    server_connection->received_packet_manager().set_save_timestamps(true);
+    server_connection->framer().set_peer_max_receive_timestamps_per_ack(1024);
+  } else {
+    ADD_FAILURE() << "Missing server connection";
+  }
+  server_thread_->Resume();
+
+  EXPECT_TRUE(SendSynchronousFooRequestAndCheckResponse());
+
+  const QuicConnectionStats& client_stats = client_connection->GetStats();
+  EXPECT_GT(client_stats.application_data_packets_acked, 0u);
+  EXPECT_GT(client_stats.application_data_packets_with_receive_timestamps_acked,
+            0u);
+  EXPECT_LE(client_stats.application_data_packets_with_receive_timestamps_acked,
+            client_stats.application_data_packets_acked);
+}
+
 TEST_P(EndToEndTest, SimpleRequestResponseForcedVersionNegotiation) {
   client_supported_versions_.insert(client_supported_versions_.begin(),
                                     QuicVersionReservedForNegotiation());

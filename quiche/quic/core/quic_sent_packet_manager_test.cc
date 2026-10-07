@@ -3732,6 +3732,61 @@ TEST_F(QuicSentPacketManagerTest, IgnoreNon1RttFrames) {
   EXPECT_NEAR(manager_.GetOverheadEstimate(), kDefaultOverhead, 1e-6);
 }
 
+TEST_F(QuicSentPacketManagerTest, ReceiveTimestampsStats) {
+  manager_.EnableMultiplePacketNumberSpacesSupport();
+  EXPECT_EQ(0u, stats_.application_data_packets_acked);
+  EXPECT_EQ(0u, stats_.application_data_packets_with_receive_timestamps_acked);
+
+  // Send and ack an INITIAL packet (Packet 1).
+  SendDataPacket(1, ENCRYPTION_INITIAL);
+  ExpectAck(1);
+  manager_.OnAckFrameStart(QuicPacketNumber(1), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(1), QuicPacketNumber(2));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(1),
+                                   ENCRYPTION_INITIAL, kEmptyCounts));
+  EXPECT_EQ(0u, stats_.application_data_packets_acked);
+  EXPECT_EQ(0u, stats_.application_data_packets_with_receive_timestamps_acked);
+
+  // Send and ack a HANDSHAKE packet (Packet 2).
+  SendDataPacket(2, ENCRYPTION_HANDSHAKE);
+  ExpectAck(2);
+  manager_.OnAckFrameStart(QuicPacketNumber(2), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(2), QuicPacketNumber(3));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(2),
+                                   ENCRYPTION_HANDSHAKE, kEmptyCounts));
+  EXPECT_EQ(0u, stats_.application_data_packets_acked);
+  EXPECT_EQ(0u, stats_.application_data_packets_with_receive_timestamps_acked);
+
+  // Send and ack a 1-RTT packet (Packet 3) without a receive timestamp.
+  SendDataPacket(3, ENCRYPTION_FORWARD_SECURE);
+  ExpectAck(3);
+  manager_.OnAckFrameStart(QuicPacketNumber(3), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(3), QuicPacketNumber(4));
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(3),
+                                   ENCRYPTION_FORWARD_SECURE, kEmptyCounts));
+  EXPECT_EQ(1u, stats_.application_data_packets_acked);
+  EXPECT_EQ(0u, stats_.application_data_packets_with_receive_timestamps_acked);
+
+  // Send and ack a 1-RTT packet (Packet 4) with a receive timestamp.
+  SendDataPacket(4, ENCRYPTION_FORWARD_SECURE);
+  ExpectAck(4);
+  manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
+                           clock_.Now());
+  manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(5));
+  manager_.OnAckTimestamp(QuicPacketNumber(4), clock_.Now());
+  EXPECT_EQ(PACKETS_NEWLY_ACKED,
+            manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(4),
+                                   ENCRYPTION_FORWARD_SECURE, kEmptyCounts));
+  EXPECT_EQ(2u, stats_.application_data_packets_acked);
+  EXPECT_EQ(1u, stats_.application_data_packets_with_receive_timestamps_acked);
+}
+
 }  // namespace
 }  // namespace test
 }  // namespace quic
