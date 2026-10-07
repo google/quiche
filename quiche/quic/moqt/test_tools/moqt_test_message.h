@@ -915,6 +915,7 @@ class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
     request_update_.parameters.set_forward(true);
     request_update_.parameters.subscriber_priority = 0xaa;
     request_update_.parameters.subscription_filter.emplace(Location(3, 1), 5);
+    request_update_.parameters.track_namespace_prefix = TrackNamespace({"bar"});
   }
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
@@ -934,20 +935,21 @@ class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv--v-v-vv----"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvvv--v-v-vv----vvv---"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(request_update_);
   }
 
  private:
-  uint8_t raw_packet_[19] = {
-      0x02, 0x00, 0x10, 0x02, 0x00,        // request IDs 2 and 0
-      0x04,                                // Four parameters
+  uint8_t raw_packet_[25] = {
+      0x02, 0x00, 0x16, 0x02, 0x00,        // request IDs 2 and 0
+      0x05,                                // Five parameters
       0x02, 0xa7, 0x10,                    // object_delivery_timeout = 10000
       0x0e, 0x01,                          // forward = true
       0x10, 0xaa,                          // subscriber_priority = 0xaa
       0x01, 0x04, 0x04, 0x03, 0x01, 0x02,  // Absolute Range: (3, 1) to 5
+      0x13, 0x01, 0x03, 0x62, 0x61, 0x72,  // prefix = "bar"
   };
 
   MoqtRequestUpdate request_update_ = {

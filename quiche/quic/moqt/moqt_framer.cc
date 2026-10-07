@@ -210,6 +210,31 @@ class WireSubscriptionFilter {
   const SubscriptionFilter& filter_;
 };
 
+class WireTrackNamespace {
+ public:
+  WireTrackNamespace(const TrackNamespace& name) : namespace_(name) {}
+
+  size_t GetLengthOnWire() {
+    absl::FixedArray<absl::string_view> tuple(namespace_.tuple().begin(),
+                                              namespace_.tuple().end());
+    return quiche::ComputeLengthOnWire(
+        WireMoqVarInt(namespace_.number_of_elements()),
+        WireSpan<WireStringWithMoqVarIntLength, absl::string_view>(
+            absl::MakeSpan(tuple)));
+  }
+  absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
+    absl::FixedArray<absl::string_view> tuple(namespace_.tuple().begin(),
+                                              namespace_.tuple().end());
+    return quiche::SerializeIntoWriter(
+        writer, WireMoqVarInt(namespace_.number_of_elements()),
+        WireSpan<WireStringWithMoqVarIntLength, absl::string_view>(
+            absl::MakeSpan(tuple)));
+  }
+
+ private:
+  const TrackNamespace& namespace_;
+};
+
 uint64_t TimeDeltaToMilliseconds(const quic::QuicTimeDelta& time_delta) {
   if (time_delta == quic::QuicTimeDelta::Infinite()) {
     return 0ULL;
@@ -253,6 +278,9 @@ class WireMessageParameters {
       ++num_parameters_;
     }
     if (parameters_.new_group_request.has_value()) {
+      ++num_parameters_;
+    }
+    if (parameters_.track_namespace_prefix.has_value()) {
       ++num_parameters_;
     }
     if (parameters_.oack_window_size.has_value()) {
@@ -332,6 +360,11 @@ class WireMessageParameters {
       length += WireKeyVarIntPair(key_delta(MessageParameter::kNewGroupRequest),
                                   *parameters_.new_group_request)
                     .GetLengthOnWire();
+    }
+    if (parameters_.track_namespace_prefix.has_value()) {
+      length += quiche::ComputeLengthOnWire(
+          WireMoqVarInt(key_delta(MessageParameter::kTrackNamespacePrefix)),
+          WireTrackNamespace(*parameters_.track_namespace_prefix));
     }
     if (parameters_.oack_window_size.has_value()) {
       length +=
@@ -424,6 +457,12 @@ class WireMessageParameters {
           WireKeyVarIntPair(key_delta(MessageParameter::kNewGroupRequest),
                             *parameters_.new_group_request)));
     }
+    if (parameters_.track_namespace_prefix.has_value()) {
+      QUICHE_RETURN_IF_ERROR(quiche::SerializeIntoWriter(
+          writer,
+          WireMoqVarInt(key_delta(MessageParameter::kTrackNamespacePrefix)),
+          WireTrackNamespace(*parameters_.track_namespace_prefix)));
+    }
     if (parameters_.oack_window_size.has_value()) {
       QUICHE_RETURN_IF_ERROR(quiche::SerializeIntoWriter(
           writer,
@@ -436,31 +475,6 @@ class WireMessageParameters {
  private:
   const MessageParameters& parameters_;
   uint64_t num_parameters_;
-};
-
-class WireTrackNamespace {
- public:
-  WireTrackNamespace(const TrackNamespace& name) : namespace_(name) {}
-
-  size_t GetLengthOnWire() {
-    absl::FixedArray<absl::string_view> tuple(namespace_.tuple().begin(),
-                                              namespace_.tuple().end());
-    return quiche::ComputeLengthOnWire(
-        WireMoqVarInt(namespace_.number_of_elements()),
-        WireSpan<WireStringWithMoqVarIntLength, absl::string_view>(
-            absl::MakeSpan(tuple)));
-  }
-  absl::Status SerializeIntoWriter(quiche::QuicheDataWriter& writer) {
-    absl::FixedArray<absl::string_view> tuple(namespace_.tuple().begin(),
-                                              namespace_.tuple().end());
-    return quiche::SerializeIntoWriter(
-        writer, WireMoqVarInt(namespace_.number_of_elements()),
-        WireSpan<WireStringWithMoqVarIntLength, absl::string_view>(
-            absl::MakeSpan(tuple)));
-  }
-
- private:
-  const TrackNamespace& namespace_;
 };
 
 class WireFullTrackName {

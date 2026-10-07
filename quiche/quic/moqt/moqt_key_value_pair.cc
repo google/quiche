@@ -102,6 +102,9 @@ void MessageParameters::Update(const MessageParameters& other) {
   if (other.new_group_request.has_value()) {
     new_group_request = other.new_group_request;
   }
+  if (other.track_namespace_prefix.has_value()) {
+    track_namespace_prefix = other.track_namespace_prefix;
+  }
   if (other.oack_window_size.has_value()) {
     oack_window_size = other.oack_window_size;
   }

@@ -240,14 +240,6 @@ class MoqtControlMessageParser {
   }
 
  private:
-  // Reads a TrackNamespace from the reader. Returns false if the namespace is
-  // too large. Sets a ParseError if the namespace is malformed.
-  absl::Status ReadTrackNamespace(quic::QuicDataReader& reader,
-                                  TrackNamespace& track_namespace) const;
-  // Reads a FullTrackName from the reader. Returns false if the name is too
-  // large. Sets a ParseError if the name is malformed.
-  absl::Status ReadFullTrackName(quic::QuicDataReader& reader,
-                                 FullTrackName& full_track_name) const;
   absl::Status FillAndValidateSetupOptions(const KeyValuePairList& in,
                                            SetupOptions& out) const;
 

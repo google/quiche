@@ -10,6 +10,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -139,12 +140,14 @@ TEST_F(MessageParametersTest, Update) {
   p1.set_forward(false);
   p1.subscriber_priority = 100;
   p1.new_group_request = 1;
+  p1.track_namespace_prefix = TrackNamespace({"foo"});
   MessageParameters p2;
   p2.object_delivery_timeout = quic::QuicTimeDelta::FromMilliseconds(20);
   p2.authorization_tokens.push_back(
       AuthToken(AuthTokenType::kOutOfBand, "token"));
   p2.set_forward(true);
   p2.group_order = MoqtDeliveryOrder::kDescending;
+  p2.track_namespace_prefix = TrackNamespace({"bar"});
   p1.Update(p2);
   EXPECT_EQ(p1.object_delivery_timeout,
             quic::QuicTimeDelta::FromMilliseconds(20));
@@ -156,6 +159,7 @@ TEST_F(MessageParametersTest, Update) {
   EXPECT_EQ(p1.subscriber_priority, 100);
   EXPECT_EQ(p1.group_order, std::nullopt);
   EXPECT_EQ(p1.new_group_request, 1);
+  EXPECT_EQ(p1.track_namespace_prefix, TrackNamespace({"bar"}));
 }
 
 class TrackPropertiesTest : public quic::test::QuicTest {};

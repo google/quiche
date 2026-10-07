@@ -17,6 +17,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
@@ -203,6 +204,7 @@ enum class MessageParameter : uint64_t {
   kSubscriptionFilter = 0x21,
   kGroupOrder = 0x22,
   kNewGroupRequest = 0x32,
+  kTrackNamespacePrefix = 0x34,
 
   kOackWindowSize = 0xbbF1438,
 };
@@ -246,6 +248,7 @@ struct MessageParameters {
   std::optional<SubscriptionFilter> subscription_filter;
   std::optional<MoqtDeliveryOrder> group_order;
   std::optional<uint64_t> new_group_request;
+  std::optional<TrackNamespace> track_namespace_prefix;
 
   // QUICHE-specific parameters.
   std::optional<quic::QuicTimeDelta> oack_window_size;

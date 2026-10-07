@@ -193,6 +193,49 @@ absl::Status ParseSubscriptionFilter(absl::string_view field,
   return absl::OkStatus();
 }
 
+absl::Status ReadTrackNamespace(quic::QuicDataReader& reader,
+                                TrackNamespace& track_namespace) {
+  QUICHE_DCHECK(track_namespace.empty());
+  uint64_t num_elements;
+  if (!reader.ReadMoqVarInt(&num_elements)) {
+    return absl::InvalidArgumentError(
+        "Unable to parse the number of namespace elements");
+  }
+  if (num_elements > kMaxNamespaceElements) {
+    return absl::InvalidArgumentError("Invalid number of namespace elements");
+  }
+  if (num_elements == 0) {
+    return absl::OkStatus();
+  }
+  absl::FixedArray<absl::string_view> elements(num_elements);
+  for (uint64_t i = 0; i < num_elements; ++i) {
+    if (!reader.ReadStringPieceMoqVarInt(&elements[i])) {
+      return absl::InvalidArgumentError(
+          "Namespace element shorter than specified");
+    }
+  }
+  if (!track_namespace.Append(elements)) {
+    return absl::InvalidArgumentError("Track namespace is too large");
+  }
+  return absl::OkStatus();
+}
+
+absl::Status ReadFullTrackName(quic::QuicDataReader& reader,
+                               FullTrackName& full_track_name) {
+  QUICHE_DCHECK(!full_track_name.IsValid());
+  TrackNamespace track_namespace;
+  QUICHE_RETURN_IF_ERROR(ReadTrackNamespace(reader, track_namespace));
+  absl::string_view name;
+  if (!reader.ReadStringPieceMoqVarInt(&name)) {
+    return absl::InvalidArgumentError("Unable to parse track name");
+  }
+  absl::StatusOr<FullTrackName> full_track_name_or =
+      FullTrackName::Create(std::move(track_namespace), std::string(name));
+  QUICHE_RETURN_IF_ERROR(full_track_name_or.status());
+  full_track_name = *std::move(full_track_name_or);
+  return absl::OkStatus();
+}
+
 absl::StatusOr<MessageParameters> ParseMessageParameters(
     quic::QuicDataReader& reader) {
   MessageParameters params;
@@ -350,6 +393,14 @@ absl::StatusOr<MessageParameters> ParseMessageParameters(
           return absl::InvalidArgumentError("Parameter parsing error");
         }
         params.new_group_request = value64;
+        break;
+      case MessageParameter::kTrackNamespacePrefix:
+        if (params.track_namespace_prefix.has_value()) {
+          return absl::InvalidArgumentError("Duplicate Message Parameter");
+        }
+        params.track_namespace_prefix.emplace();
+        QUICHE_RETURN_IF_ERROR(
+            ReadTrackNamespace(reader, *params.track_namespace_prefix));
         break;
       case MessageParameter::kOackWindowSize:
         if (params.oack_window_size.has_value()) {
@@ -985,49 +1036,6 @@ absl::StatusOr<MoqtObjectAck> MoqtControlMessageParser::ProcessObjectAck(
       SignedVarintUnserializedForm(raw_delta));
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return object_ack;
-}
-
-absl::Status MoqtControlMessageParser::ReadTrackNamespace(
-    quic::QuicDataReader& reader, TrackNamespace& track_namespace) const {
-  QUICHE_DCHECK(track_namespace.empty());
-  uint64_t num_elements;
-  if (!reader.ReadMoqVarInt(&num_elements)) {
-    return absl::InvalidArgumentError(
-        "Unable to parse the number of namespace elements");
-  }
-  if (num_elements > kMaxNamespaceElements) {
-    return absl::InvalidArgumentError("Invalid number of namespace elements");
-  }
-  if (num_elements == 0) {
-    return absl::OkStatus();
-  }
-  absl::FixedArray<absl::string_view> elements(num_elements);
-  for (uint64_t i = 0; i < num_elements; ++i) {
-    if (!reader.ReadStringPieceMoqVarInt(&elements[i])) {
-      return absl::InvalidArgumentError(
-          "Namespace element shorter than specified");
-    }
-  }
-  if (!track_namespace.Append(elements)) {
-    return absl::InvalidArgumentError("Track namespace is too large");
-  }
-  return absl::OkStatus();
-}
-
-absl::Status MoqtControlMessageParser::ReadFullTrackName(
-    quic::QuicDataReader& reader, FullTrackName& full_track_name) const {
-  QUICHE_DCHECK(!full_track_name.IsValid());
-  TrackNamespace track_namespace;
-  QUICHE_RETURN_IF_ERROR(ReadTrackNamespace(reader, track_namespace));
-  absl::string_view name;
-  if (!reader.ReadStringPieceMoqVarInt(&name)) {
-    return absl::InvalidArgumentError("Unable to parse track name");
-  }
-  absl::StatusOr<FullTrackName> full_track_name_or =
-      FullTrackName::Create(std::move(track_namespace), std::string(name));
-  QUICHE_RETURN_IF_ERROR(full_track_name_or.status());
-  full_track_name = *std::move(full_track_name_or);
-  return absl::OkStatus();
 }
 
 absl::Status MoqtControlMessageParser::FillAndValidateSetupOptions(

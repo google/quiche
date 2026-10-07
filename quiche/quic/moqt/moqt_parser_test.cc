@@ -1135,6 +1135,7 @@ TEST_F(MoqtMessageSpecificTest, SubscribeNoParameters) {
   EXPECT_FALSE(message.parameters.subscriber_priority);
   EXPECT_FALSE(message.parameters.largest_object.has_value());
   EXPECT_FALSE(message.parameters.new_group_request.has_value());
+  EXPECT_FALSE(message.parameters.track_namespace_prefix.has_value());
 }
 
 TEST_F(MoqtMessageSpecificTest, SubscribeUnknownParameter) {
