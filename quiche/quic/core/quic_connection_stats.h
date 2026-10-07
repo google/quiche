@@ -24,6 +24,7 @@ struct QUICHE_EXPORT QuicConnectionStats {
   QUICHE_EXPORT friend std::ostream& operator<<(std::ostream& os,
                                                 const QuicConnectionStats& s);
 
+  // 8-byte aligned fields.
   QuicByteCount bytes_sent = 0;  // Includes retransmissions.
   QuicPacketCount packets_sent = 0;
   // Number of ACK packets sent by the dispatcher on behalf of this connection,
@@ -52,26 +53,6 @@ struct QUICHE_EXPORT QuicConnectionStats {
   QuicPacketCount packets_lost = 0;
   QuicPacketCount packet_spuriously_detected_lost = 0;
 
-  // The sum of loss detection response times of all lost packets, in number of
-  // round trips.
-  // Given a packet detected as lost:
-  //   T(S)                            T(1Rtt)    T(D)
-  //     |_________________________________|_______|
-  // Where
-  //   T(S) is the time when the packet is sent.
-  //   T(1Rtt) is one rtt after T(S), using the rtt at the time of detection.
-  //   T(D) is the time of detection, i.e. when the packet is declared as lost.
-  // The loss detection response time is defined as
-  //     (T(D) - T(S)) / (T(1Rtt) - T(S))
-  //
-  // The average loss detection response time is this number divided by
-  // |packets_lost|. Smaller result means detection is faster.
-  float total_loss_detection_response_time = 0.0;
-
-  // Number of times this connection went through the slow start phase.
-  uint32_t slowstart_count = 0;
-  // Number of round trips spent in slow start.
-  uint32_t slowstart_num_rtts = 0;
   // Number of packets sent in slow start.
   QuicPacketCount slowstart_packets_sent = 0;
   // Number of bytes sent in slow start.
@@ -83,25 +64,11 @@ struct QUICHE_EXPORT QuicConnectionStats {
   // Time spent in slow start. Populated for BBRv1 and BBRv2.
   QuicTimeAccumulator slowstart_duration;
 
-  // Number of PROBE_BW cycles. Populated for BBRv1 and BBRv2.
-  uint32_t bbr_num_cycles = 0;
-  // Number of PROBE_BW cycles shortened for reno coexistence. BBRv2 only.
-  uint32_t bbr_num_short_cycles_for_reno_coexistence = 0;
-  // Whether BBR exited STARTUP due to excessive loss. Populated for BBRv1 and
-  // BBRv2.
-  bool bbr_exit_startup_due_to_loss = false;
-
   QuicPacketCount packets_dropped = 0;  // Duplicate or less than least unacked.
 
   // Packets that failed to decrypt when they were first received,
   // before the handshake was complete.
   QuicPacketCount undecryptable_packets_received_before_handshake_complete = 0;
-
-  uint32_t crypto_retransmit_count = 0;
-  // Count of times the loss detection alarm fired.  At least one packet should
-  // be lost when the alarm fires.
-  uint32_t loss_timeout_count = 0;
-  uint32_t pto_count = 0;
 
   int64_t min_rtt_us = 0;                 // Minimum RTT in microseconds.
   int64_t srtt_us = 0;                    // Smoothed RTT in microseconds.
@@ -130,28 +97,11 @@ struct QUICHE_EXPORT QuicConnectionStats {
   // but would have been if the reordering_shift increases by one.
   QuicPacketCount sent_packets_num_borderline_time_reorderings = 0;
 
-  // The following stats are used only in TcpCubicSender.
-  // The number of loss events from TCP's perspective.  Each loss event includes
-  // one or more lost packets.
-  uint32_t tcp_loss_events = 0;
-
   // Creation time, as reported by the QuicClock.
   QuicTime connection_creation_time = QuicTime::Zero();
 
   // Handshake completion time.
   QuicTime handshake_completion_time = QuicTime::Zero();
-
-  uint32_t blocked_frames_received = 0;
-  uint32_t blocked_frames_sent = 0;
-
-  // Number of connectivity probing packets received by this connection.
-  uint32_t num_connectivity_probing_received = 0;
-
-  // Number of PATH_RESPONSE frame received by this connection.
-  uint32_t num_path_response_received = 0;
-
-  // Whether a RETRY packet was successfully processed.
-  bool retry_packet_processed = false;
 
   // Number of received coalesced packets.
   uint64_t num_coalesced_packets_received = 0;
@@ -161,27 +111,8 @@ struct QUICHE_EXPORT QuicConnectionStats {
   // smaller this value, the more ack aggregation is going on.
   uint64_t num_ack_aggregation_epochs = 0;
 
-  // Whether overshooting is detected (and pacing rate decreases) during start
-  // up with network parameters adjusted.
-  bool overshooting_detected_with_network_parameters_adjusted = false;
-
-  // Whether there is any non app-limited bandwidth sample.
-  bool has_non_app_limited_sample = false;
-
   // Packet number of first decrypted packet.
   QuicPacketNumber first_decrypted_packet;
-
-  // Max consecutive retransmission timeout before making forward progress.
-  uint32_t max_consecutive_rto_with_forward_progress = 0;
-
-  // Number of times when the connection tries to send data but gets throttled
-  // by amplification factor.
-  uint32_t num_amplification_throttling = 0;
-
-  // Number of key phase updates that have occurred. In the case of a locally
-  // initiated key update, this is incremented when the keys are updated, before
-  // the peer has acknowledged the key update.
-  uint32_t key_update_count = 0;
 
   // Counts the number of undecryptable packets received across all keys. Does
   // not include packets where a decryption key for that level was absent.
@@ -200,12 +131,90 @@ struct QUICHE_EXPORT QuicConnectionStats {
   // Counts the number of ACK frames sent with ECN counts.
   QuicPacketCount num_ack_frames_sent_with_ecn = 0;
 
-  // True if address is validated via decrypting HANDSHAKE or 1-RTT packet.
-  bool address_validated_via_decrypting_packet = false;
+  struct QUICHE_EXPORT TlsServerOperationStats {
+    bool success = false;
+    // If the operation is performed asynchronously, how long did it take.
+    // Zero() for synchronous operations.
+    QuicTime::Delta async_latency = QuicTime::Delta::Zero();
+  };
 
-  // True if address is validated via validating token received in INITIAL
-  // packet.
-  bool address_validated_via_token = false;
+  // The TLS server op stats only have values when the corresponding operation
+  // is performed by TlsServerHandshaker. If an operation is done within
+  // BoringSSL, e.g. ticket decrypted without using
+  // TlsServerHandshaker::SessionTicketOpen, it will not be recorded here.
+  std::optional<TlsServerOperationStats> tls_server_select_cert_stats;
+  std::optional<TlsServerOperationStats> tls_server_compute_signature_stats;
+  std::optional<TlsServerOperationStats> tls_server_decrypt_ticket_stats;
+
+  // Total number of application data bytes acknowledged on the connection.
+  // TODO: b/469371101 - this currently does not include datagrams, since we do
+  // not retain the datagram length.
+  QuicByteCount application_data_acked = 0;
+
+  // Total number of APPLICATION_DATA packets acknowledged on the connection.
+  QuicPacketCount application_data_packets_acked = 0;
+  // Number of APPLICATION_DATA packets acknowledged on the connection that had
+  // an associated receive timestamp.
+  QuicPacketCount application_data_packets_with_receive_timestamps_acked = 0;
+
+  // 4-byte aligned fields.
+  // The sum of loss detection response times of all lost packets, in number of
+  // round trips.
+  // Given a packet detected as lost:
+  //   T(S)                            T(1Rtt)    T(D)
+  //     |_________________________________|_______|
+  // Where
+  //   T(S) is the time when the packet is sent.
+  //   T(1Rtt) is one rtt after T(S), using the rtt at the time of detection.
+  //   T(D) is the time of detection, i.e. when the packet is declared as lost.
+  // The loss detection response time is defined as
+  //     (T(D) - T(S)) / (T(1Rtt) - T(S))
+  //
+  // The average loss detection response time is this number divided by
+  // |packets_lost|. Smaller result means detection is faster.
+  float total_loss_detection_response_time = 0.0;
+
+  // Number of times this connection went through the slow start phase.
+  uint32_t slowstart_count = 0;
+  // Number of round trips spent in slow start.
+  uint32_t slowstart_num_rtts = 0;
+
+  // Number of PROBE_BW cycles. Populated for BBRv1 and BBRv2.
+  uint32_t bbr_num_cycles = 0;
+  // Number of PROBE_BW cycles shortened for reno coexistence. BBRv2 only.
+  uint32_t bbr_num_short_cycles_for_reno_coexistence = 0;
+
+  uint32_t crypto_retransmit_count = 0;
+  // Count of times the loss detection alarm fired.  At least one packet should
+  // be lost when the alarm fires.
+  uint32_t loss_timeout_count = 0;
+  uint32_t pto_count = 0;
+
+  // The following stats are used only in TcpCubicSender.
+  // The number of loss events from TCP's perspective.  Each loss event includes
+  // one or more lost packets.
+  uint32_t tcp_loss_events = 0;
+
+  uint32_t blocked_frames_received = 0;
+  uint32_t blocked_frames_sent = 0;
+
+  // Number of connectivity probing packets received by this connection.
+  uint32_t num_connectivity_probing_received = 0;
+
+  // Number of PATH_RESPONSE frame received by this connection.
+  uint32_t num_path_response_received = 0;
+
+  // Max consecutive retransmission timeout before making forward progress.
+  uint32_t max_consecutive_rto_with_forward_progress = 0;
+
+  // Number of times when the connection tries to send data but gets throttled
+  // by amplification factor.
+  uint32_t num_amplification_throttling = 0;
+
+  // Number of key phase updates that have occurred. In the case of a locally
+  // initiated key update, this is incremented when the keys are updated, before
+  // the peer has acknowledged the key update.
+  uint32_t key_update_count = 0;
 
   uint32_t ping_frames_sent = 0;
 
@@ -233,31 +242,14 @@ struct QUICHE_EXPORT QuicConnectionStats {
   uint32_t num_path_degrading = 0;
   // Number of forward progress made after path degrading.
   uint32_t num_forward_progress_after_path_degrading = 0;
-  // Number of path degrading.
+  // Number of flow label changes.
   uint32_t num_flow_label_changes = 0;
-  // Number of forward progress made after aflow label change.
+  // Number of forward progress made after a flow label change.
   uint32_t num_forward_progress_after_flow_label_change = 0;
 
-  bool server_preferred_address_validated = false;
-  bool failed_to_validate_server_preferred_address = false;
   // Number of duplicated packets that have been sent to server preferred
   // address while the validation is pending.
   uint32_t num_duplicated_packets_sent_to_server_preferred_address = 0;
-
-  struct QUICHE_EXPORT TlsServerOperationStats {
-    bool success = false;
-    // If the operation is performed asynchronously, how long did it take.
-    // Zero() for synchronous operations.
-    QuicTime::Delta async_latency = QuicTime::Delta::Zero();
-  };
-
-  // The TLS server op stats only have values when the corresponding operation
-  // is performed by TlsServerHandshaker. If an operation is done within
-  // BoringSSL, e.g. ticket decrypted without using
-  // TlsServerHandshaker::SessionTicketOpen, it will not be recorded here.
-  std::optional<TlsServerOperationStats> tls_server_select_cert_stats;
-  std::optional<TlsServerOperationStats> tls_server_compute_signature_stats;
-  std::optional<TlsServerOperationStats> tls_server_decrypt_ticket_stats;
 
   // The total number of streams which were pending from some time.
   uint32_t num_total_pending_streams = 0;
@@ -266,16 +258,30 @@ struct QUICHE_EXPORT QuicConnectionStats {
   uint32_t num_client_probing_attempts = 0;
   uint32_t num_stateless_resets_on_alternate_path = 0;
 
-  // Total number of application data bytes acknowledged on the connection.
-  // TODO: b/469371101 - this currently does not include datagrams, since we do
-  // not retain the datagram length.
-  QuicByteCount application_data_acked = 0;
+  // 1-byte aligned fields.
+  // Whether BBR exited STARTUP due to excessive loss. Populated for BBRv1 and
+  // BBRv2.
+  bool bbr_exit_startup_due_to_loss = false;
 
-  // Total number of APPLICATION_DATA packets acknowledged on the connection.
-  QuicPacketCount application_data_packets_acked = 0;
-  // Number of APPLICATION_DATA packets acknowledged on the connection that had
-  // an associated receive timestamp.
-  QuicPacketCount application_data_packets_with_receive_timestamps_acked = 0;
+  // Whether a RETRY packet was successfully processed.
+  bool retry_packet_processed = false;
+
+  // Whether overshooting is detected (and pacing rate decreases) during start
+  // up with network parameters adjusted.
+  bool overshooting_detected_with_network_parameters_adjusted = false;
+
+  // Whether there is any non app-limited bandwidth sample.
+  bool has_non_app_limited_sample = false;
+
+  // True if address is validated via decrypting HANDSHAKE or 1-RTT packet.
+  bool address_validated_via_decrypting_packet = false;
+
+  // True if address is validated via validating token received in INITIAL
+  // packet.
+  bool address_validated_via_token = false;
+
+  bool server_preferred_address_validated = false;
+  bool failed_to_validate_server_preferred_address = false;
 };
 
 }  // namespace quic
