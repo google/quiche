@@ -317,9 +317,10 @@ class QuicClientBase : public QuicSession::Visitor {
     server_connection_id_length_ = server_connection_id_length;
   }
 
-  void set_client_connection_id_length(uint8_t client_connection_id_length) {
-    client_connection_id_length_ = client_connection_id_length;
-  }
+  // Sets the length of the client connection IDs this client generates,
+  // including the ones self-issued after the handshake. Must be called before
+  // the connection is created.
+  void set_client_connection_id_length(uint8_t client_connection_id_length);
 
   bool HasPendingPathValidation();
 
