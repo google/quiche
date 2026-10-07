@@ -32,6 +32,7 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_buffer_allocator.h"
 #include "quiche/common/quiche_data_writer.h"
+#include "quiche/common/quiche_status_utils.h"
 #include "quiche/common/simple_buffer_allocator.h"
 #include "quiche/common/wire_serialization.h"
 
@@ -233,6 +234,9 @@ class WireMessageParameters {
     if (parameters_.largest_object.has_value()) {
       ++num_parameters_;
     }
+    if (parameters_.fill_timeout.has_value()) {
+      ++num_parameters_;
+    }
     if (parameters_.forward_has_value()) {
       ++num_parameters_;
     }
@@ -288,6 +292,11 @@ class WireMessageParameters {
       length += quiche::ComputeLengthOnWire(
           WireMoqVarInt(key_delta(MessageParameter::kLargestObject)),
           WireLocation(*parameters_.largest_object));
+    }
+    if (parameters_.fill_timeout.has_value()) {
+      length += WireKeyVarIntPair(key_delta(MessageParameter::kFillTimeout),
+                                  parameters_.fill_timeout->ToMilliseconds())
+                    .GetLengthOnWire();
     }
     if (parameters_.forward_has_value()) {
       length += quiche::ComputeLengthOnWire(
@@ -364,6 +373,12 @@ class WireMessageParameters {
       QUICHE_RETURN_IF_ERROR(quiche::SerializeIntoWriter(
           writer, WireMoqVarInt(key_delta(MessageParameter::kLargestObject)),
           WireLocation(*parameters_.largest_object)));
+    }
+    if (parameters_.fill_timeout.has_value()) {
+      QUICHE_RETURN_IF_ERROR(quiche::SerializeIntoWriter(
+          writer,
+          WireKeyVarIntPair(key_delta(MessageParameter::kFillTimeout),
+                            parameters_.fill_timeout->ToMilliseconds())));
     }
     if (parameters_.forward_has_value()) {
       QUICHE_RETURN_IF_ERROR(quiche::SerializeIntoWriter(

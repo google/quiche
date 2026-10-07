@@ -1320,6 +1320,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
     fetch_.parameters.authorization_tokens.push_back(
         AuthToken(AuthTokenType::kOutOfBand, "baz"));
     fetch_.parameters.group_order = MoqtDeliveryOrder::kAscending;
+    fetch_.parameters.fill_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
     fetch_.parameters.subscriber_priority = 2;
   }
   bool EqualFieldValues(const MessageStructuredData& values) const override {
@@ -1340,7 +1341,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
   }
 
   void ExpandVarints() override {
-    ExpandVarintsImpl("vvvv---v---vvvvvvv-----v-v-");
+    ExpandVarintsImpl("vvvv---v---vvvvvvv-----vvv-v-");
   }
 
   MessageStructuredData structured_data() const override {
@@ -1365,17 +1366,18 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
   }
 
  private:
-  uint8_t raw_packet_[30] = {
-      0x16, 0x00, 0x1b,
+  uint8_t raw_packet_[32] = {
+      0x16, 0x00, 0x1d,
       0x01,                                      // request_id = 1
       0x01,                                      // type = kStandalone
       0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
       0x03, 0x62, 0x61, 0x72,                    // track_name = "bar"
       0x01, 0x02,                                // start_location = 1, 2
       0x05, 0x07,                                // end_location = 5, 6
-      0x03,                                      // 3 parameters
+      0x04,                                      // 3 parameters
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x7a,  // token = "baz"
-      0x1d, 0x02,                                // priority = kHigh
+      0x07, 0x64,                                // fill_timeout = 100ms
+      0x16, 0x02,                                // priority = kHigh
       0x02, 0x01,                                // group_order = kAscending
   };
 

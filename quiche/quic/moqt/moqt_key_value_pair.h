@@ -196,6 +196,7 @@ enum class MessageParameter : uint64_t {
   kSubgroupDeliveryTimeout = 0x06,
   kExpires = 0x08,
   kLargestObject = 0x09,
+  kFillTimeout = 0x0a,
   kForward = 0x10,
   kSubscriberPriority = 0x20,
   kSubscriptionFilter = 0x21,
@@ -208,6 +209,8 @@ constexpr quic::QuicTimeDelta kDefaultDeliveryTimeout =
     quic::QuicTimeDelta::Infinite();
 constexpr quic::QuicTimeDelta kDefaultExpires = quic::QuicTimeDelta::Infinite();
 constexpr bool kDefaultForward = true;
+constexpr quic::QuicTimeDelta kDefaultFillTimeout =
+    quic::QuicTimeDelta::Infinite();
 struct MessageParameters {
   MessageParameters() = default;
   MessageParameters(const MessageParameters&) = default;
@@ -224,10 +227,11 @@ struct MessageParameters {
   void Update(const MessageParameters& other);
 
   std::optional<quic::QuicTimeDelta> subgroup_delivery_timeout;
-  std::optional<quic::QuicTimeDelta> object_delivery_timeout;
   std::vector<AuthToken> authorization_tokens;
+  std::optional<quic::QuicTimeDelta> object_delivery_timeout;
   std::optional<quic::QuicTimeDelta> expires;
   std::optional<Location> largest_object;
+  std::optional<quic::QuicTimeDelta> fill_timeout;
   bool forward() const { return forward_.value_or(kDefaultForward); }
   void set_forward(bool forward) { forward_ = forward; }
   bool forward_has_value() const { return forward_.has_value(); }

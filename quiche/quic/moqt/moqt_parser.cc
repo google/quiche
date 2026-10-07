@@ -275,6 +275,17 @@ absl::StatusOr<MessageParameters> ParseMessageParameters(
         params.largest_object = Location(group, object);
         break;
       }
+      case MessageParameter::kFillTimeout:
+        if (params.fill_timeout.has_value()) {
+          return absl::InvalidArgumentError("Duplicate Message Parameter");
+        }
+        if (!reader.ReadMoqVarInt(&value64)) {
+          return absl::InvalidArgumentError("Parameter parsing error");
+        }
+        params.fill_timeout =
+            quic::QuicTimeDelta::TryFromMilliseconds(value64).value_or(
+                quic::QuicTimeDelta::Infinite());
+        break;
       case MessageParameter::kForward:
         if (params.forward_has_value()) {
           return absl::InvalidArgumentError("Duplicate Message Parameter");
