@@ -172,8 +172,7 @@ MasqueServerSession::MasqueServerSession(
   (void)masque_mode_;
 }
 
-void MasqueServerSession::OnDatagramAcked(QuicDatagramId datagram_id,
-                                          QuicTime /*receive_timestamp*/) {
+void MasqueServerSession::OnDatagramAcked(QuicDatagramId datagram_id) {
   QUIC_DVLOG(1) << "Received ack for DATAGRAM frame " << datagram_id;
 }
 

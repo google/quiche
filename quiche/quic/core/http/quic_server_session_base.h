@@ -79,7 +79,6 @@ class QUICHE_EXPORT QuicServerSessionBase : public QuicSpdySession {
   // Override to reset the SSL when HANDSHAKE_DONE frame has been ACKed and
   // there is no unacked crypto data.
   bool OnFrameAcked(const QuicFrame& frame, QuicTime::Delta ack_delay_time,
-                    QuicTime receive_timestamp,
                     bool is_retransmission) override;
 
   // Override to ignore the crypto frame after resetting the SSL.

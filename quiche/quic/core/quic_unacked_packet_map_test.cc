@@ -472,7 +472,7 @@ TEST_P(QuicUnackedPacketMapTest, SendWithGap) {
 
 TEST_P(QuicUnackedPacketMapTest, AggregateContiguousAckedStreamFrames) {
   testing::InSequence s;
-  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _)).Times(0);
+  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(0);
   unacked_packets_.NotifyAggregatedStreamFrameAcked(QuicTime::Delta::Zero());
 
   SerializedPacket packet1(
@@ -505,20 +505,20 @@ TEST_P(QuicUnackedPacketMapTest, AggregateContiguousAckedStreamFrames) {
       unacked_packets_.GetMutableTransmissionInfo(QuicPacketNumber(4));
 
   // Verify stream frames are aggregated.
-  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _)).Times(0);
+  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(0);
   unacked_packets_.MaybeAggregateAckedStreamFrame(
-      QuicPacketNumber(1), QuicTime::Delta::Zero(), QuicTime::Zero(), info1);
-  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _)).Times(0);
+      QuicPacketNumber(1), QuicTime::Delta::Zero(), info1);
+  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(0);
   unacked_packets_.MaybeAggregateAckedStreamFrame(
-      QuicPacketNumber(2), QuicTime::Delta::Zero(), QuicTime::Zero(), info2);
-  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _)).Times(0);
+      QuicPacketNumber(2), QuicTime::Delta::Zero(), info2);
+  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(0);
   unacked_packets_.MaybeAggregateAckedStreamFrame(
-      QuicPacketNumber(3), QuicTime::Delta::Zero(), QuicTime::Zero(), info3);
+      QuicPacketNumber(3), QuicTime::Delta::Zero(), info3);
 
   // Verify aggregated stream frame gets acked since fin is acked.
-  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _)).Times(1);
+  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(1);
   unacked_packets_.MaybeAggregateAckedStreamFrame(
-      QuicPacketNumber(4), QuicTime::Delta::Zero(), QuicTime::Zero(), info4);
+      QuicPacketNumber(4), QuicTime::Delta::Zero(), info4);
 }
 
 // Regression test for b/112930090.
@@ -552,19 +552,17 @@ TEST_P(QuicUnackedPacketMapTest, CannotAggregateIfDataLengthOverflow) {
       if (aggregated_stream_frame.data_length + acked_stream_length <=
           kMaxAggregatedDataLength) {
         // Verify the acked stream frame can be aggregated.
-        EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _)).Times(0);
+        EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(0);
         unacked_packets_.MaybeAggregateAckedStreamFrame(
-            QuicPacketNumber(packet_number), QuicTime::Delta::Zero(),
-            QuicTime::Zero(), info);
+            QuicPacketNumber(packet_number), QuicTime::Delta::Zero(), info);
         aggregated_data_length += acked_stream_length;
         testing::Mock::VerifyAndClearExpectations(&notifier_);
       } else {
         // Verify the acked stream frame cannot be aggregated because
         // data_length is overflow.
-        EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _)).Times(1);
+        EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(1);
         unacked_packets_.MaybeAggregateAckedStreamFrame(
-            QuicPacketNumber(packet_number), QuicTime::Delta::Zero(),
-            QuicTime::Zero(), info);
+            QuicPacketNumber(packet_number), QuicTime::Delta::Zero(), info);
         aggregated_data_length = acked_stream_length;
         testing::Mock::VerifyAndClearExpectations(&notifier_);
       }
@@ -581,10 +579,9 @@ TEST_P(QuicUnackedPacketMapTest, CannotAggregateIfDataLengthOverflow) {
                                    true, ECN_NOT_ECT);
     QuicTransmissionInfo* info = unacked_packets_.GetMutableTransmissionInfo(
         QuicPacketNumber(packet_number));
-    EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _)).Times(1);
+    EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(1);
     unacked_packets_.MaybeAggregateAckedStreamFrame(
-        QuicPacketNumber(packet_number), QuicTime::Delta::Zero(),
-        QuicTime::Zero(), info);
+        QuicPacketNumber(packet_number), QuicTime::Delta::Zero(), info);
     testing::Mock::VerifyAndClearExpectations(&notifier_);
   }
 }
@@ -614,15 +611,15 @@ TEST_P(QuicUnackedPacketMapTest, CannotAggregateAckedControlFrames) {
       unacked_packets_.GetMutableTransmissionInfo(QuicPacketNumber(2));
 
   // Verify 2 contiguous stream frames are aggregated.
-  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _)).Times(1);
+  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(1);
   unacked_packets_.MaybeAggregateAckedStreamFrame(
-      QuicPacketNumber(1), QuicTime::Delta::Zero(), QuicTime::Zero(), info1);
+      QuicPacketNumber(1), QuicTime::Delta::Zero(), info1);
   // Verify aggregated stream frame gets acked.
-  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _)).Times(3);
+  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(3);
   unacked_packets_.MaybeAggregateAckedStreamFrame(
-      QuicPacketNumber(2), QuicTime::Delta::Zero(), QuicTime::Zero(), info2);
+      QuicPacketNumber(2), QuicTime::Delta::Zero(), info2);
 
-  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _)).Times(0);
+  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _)).Times(0);
   unacked_packets_.NotifyAggregatedStreamFrameAcked(QuicTime::Delta::Zero());
 }
 
@@ -647,8 +644,8 @@ TEST_P(QuicUnackedPacketMapTest, UpdateTransmissionInfoOnFrameAcked) {
   int last_padding_bytes =
       last_info->retransmittable_frames[0].padding_frame.num_padding_bytes;
 
-  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _, _))
-      .WillOnce([&](const QuicFrame& frame, QuicTime::Delta, QuicTime, bool) {
+  EXPECT_CALL(notifier_, OnFrameAcked(_, _, _))
+      .WillOnce([&](const QuicFrame& frame, QuicTime::Delta, bool) {
         EXPECT_EQ(frame.type, PADDING_FRAME);
         EXPECT_EQ(frame.padding_frame.num_padding_bytes, last_padding_bytes);
         // Append one more packet to the unacked packet map.
@@ -661,7 +658,7 @@ TEST_P(QuicUnackedPacketMapTest, UpdateTransmissionInfoOnFrameAcked) {
 
   QuicTransmissionInfo* last_info_updated = last_info;
   unacked_packets_.NotifyFramesAcked(largest_sent_packet_before_acked,
-                                     QuicTime::Delta::Zero(), QuicTime::Zero(),
+                                     QuicTime::Delta::Zero(),
                                      last_info_updated);
   EXPECT_NE(last_info, last_info_updated);
   EXPECT_EQ(unacked_packets_.GetMutableTransmissionInfo(

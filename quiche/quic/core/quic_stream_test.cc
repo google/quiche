@@ -967,7 +967,7 @@ TEST_P(QuicStreamTest, StreamWaitsForAcks) {
   EXPECT_TRUE(stream_->IsWaitingForAcks());
   QuicByteCount newly_acked_length = 0;
   EXPECT_TRUE(stream_->OnStreamFrameAcked(0, 9, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(9u, newly_acked_length);
   // Stream is not waiting for acks as all sent data is acked.
@@ -990,7 +990,7 @@ TEST_P(QuicStreamTest, StreamWaitsForAcks) {
 
   // kData2 is acked.
   EXPECT_TRUE(stream_->OnStreamFrameAcked(9, 9, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(9u, newly_acked_length);
   // Stream is waiting for acks as FIN is not acked.
@@ -1001,7 +1001,7 @@ TEST_P(QuicStreamTest, StreamWaitsForAcks) {
   // FIN is acked.
   EXPECT_CALL(*stream_, OnWriteSideInDataRecvdState());
   EXPECT_TRUE(stream_->OnStreamFrameAcked(18, 0, true, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(0u, newly_acked_length);
   EXPECT_FALSE(stream_->IsWaitingForAcks());
@@ -1023,19 +1023,19 @@ TEST_P(QuicStreamTest, StreamDataGetAckedOutOfOrder) {
   EXPECT_TRUE(session_->HasUnackedStreamData());
   QuicByteCount newly_acked_length = 0;
   EXPECT_TRUE(stream_->OnStreamFrameAcked(9, 9, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_TRUE(session_->HasUnackedStreamData());
   EXPECT_EQ(9u, newly_acked_length);
   EXPECT_EQ(3u, QuicStreamPeer::SendBuffer(stream_).size());
   EXPECT_TRUE(stream_->OnStreamFrameAcked(18, 9, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_TRUE(session_->HasUnackedStreamData());
   EXPECT_EQ(9u, newly_acked_length);
   EXPECT_EQ(3u, QuicStreamPeer::SendBuffer(stream_).size());
   EXPECT_TRUE(stream_->OnStreamFrameAcked(0, 9, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_TRUE(session_->HasUnackedStreamData());
   EXPECT_EQ(9u, newly_acked_length);
@@ -1045,7 +1045,7 @@ TEST_P(QuicStreamTest, StreamDataGetAckedOutOfOrder) {
   EXPECT_TRUE(session_->HasUnackedStreamData());
   EXPECT_CALL(*stream_, OnWriteSideInDataRecvdState());
   EXPECT_TRUE(stream_->OnStreamFrameAcked(27, 0, true, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(0u, newly_acked_length);
   EXPECT_FALSE(stream_->IsWaitingForAcks());
@@ -1408,19 +1408,19 @@ TEST_P(QuicStreamTest, StreamDataGetAckedMultipleTimes) {
   // Verify [0, 9) 9 bytes are acked.
   QuicByteCount newly_acked_length = 0;
   EXPECT_TRUE(stream_->OnStreamFrameAcked(0, 9, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(9u, newly_acked_length);
   EXPECT_EQ(2u, QuicStreamPeer::SendBuffer(stream_).size());
   // Verify [9, 22) 13 bytes are acked.
   EXPECT_TRUE(stream_->OnStreamFrameAcked(5, 17, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(13u, newly_acked_length);
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
   // Verify [22, 26) 4 bytes are acked.
   EXPECT_TRUE(stream_->OnStreamFrameAcked(18, 8, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(4u, newly_acked_length);
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
@@ -1429,7 +1429,7 @@ TEST_P(QuicStreamTest, StreamDataGetAckedMultipleTimes) {
 
   // Ack [0, 27). Verify [26, 27) 1 byte is acked.
   EXPECT_TRUE(stream_->OnStreamFrameAcked(26, 1, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(1u, newly_acked_length);
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
@@ -1439,7 +1439,7 @@ TEST_P(QuicStreamTest, StreamDataGetAckedMultipleTimes) {
   // Ack Fin.
   EXPECT_CALL(*stream_, OnWriteSideInDataRecvdState()).Times(1);
   EXPECT_TRUE(stream_->OnStreamFrameAcked(27, 0, true, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(0u, newly_acked_length);
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
@@ -1448,8 +1448,8 @@ TEST_P(QuicStreamTest, StreamDataGetAckedMultipleTimes) {
 
   // Ack [10, 27) and fin. No new data is acked.
   EXPECT_FALSE(stream_->OnStreamFrameAcked(
-      10, 17, true, QuicTime::Delta::Zero(), QuicTime::Zero(),
-      &newly_acked_length, /*is_retransmission=*/false));
+      10, 17, true, QuicTime::Delta::Zero(), &newly_acked_length,
+      /*is_retransmission=*/false));
   EXPECT_EQ(0u, newly_acked_length);
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
   EXPECT_FALSE(stream_->IsWaitingForAcks());
@@ -1504,7 +1504,7 @@ TEST_P(QuicStreamTest, OnStreamFrameLost) {
   // Ack [9, 18).
   QuicByteCount newly_acked_length = 0;
   EXPECT_TRUE(stream_->OnStreamFrameAcked(9, 9, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(9u, newly_acked_length);
   EXPECT_FALSE(stream_->IsStreamFrameOutstanding(9, 3, false));
@@ -1623,7 +1623,7 @@ TEST_P(QuicStreamTest, RetransmitStreamData) {
   // Ack [10, 13).
   QuicByteCount newly_acked_length = 0;
   stream_->OnStreamFrameAcked(10, 3, false, QuicTime::Delta::Zero(),
-                              QuicTime::Zero(), &newly_acked_length,
+                              &newly_acked_length,
                               /*is_retransmission=*/false);
   EXPECT_EQ(3u, newly_acked_length);
   // Retransmit [0, 18) with fin, and only [0, 8) is consumed.
@@ -1956,7 +1956,7 @@ TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfReset) {
   EXPECT_CALL(*stream_, OnWriteSideInDataRecvdState()).Times(1);
   EXPECT_CALL(*connection_, OnStreamReset(stream_->id(), _)).Times(1);
   stream_->OnStreamFrameAcked(0, 100, false, QuicTime::Delta::Zero(),
-                              QuicTime::Zero(), &newly_acked_length,
+                              &newly_acked_length,
                               /*is_retransmission=*/false);
   std::vector<std::unique_ptr<QuicStream>>* closed_streams =
       session_->ClosedStreams();
@@ -2000,7 +2000,7 @@ TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfResetAndRetransmitted) {
   EXPECT_CALL(*stream_, OnWriteSideInDataRecvdState()).Times(1);
   EXPECT_CALL(*connection_, OnStreamReset(stream_->id(), _)).Times(1);
   stream_->OnStreamFrameAcked(0, 100, false, QuicTime::Delta::Zero(),
-                              QuicTime::Zero(), &newly_acked_length,
+                              &newly_acked_length,
                               /*is_retransmission=*/false);
   std::vector<std::unique_ptr<QuicStream>>* closed_streams =
       session_->ClosedStreams();
@@ -2039,7 +2039,7 @@ TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfResetThenReadSideReset) {
   EXPECT_CALL(*stream_, OnWriteSideInDataRecvdState()).Times(1);
   EXPECT_CALL(*connection_, OnStreamReset(stream_->id(), _)).Times(1);
   stream_->OnStreamFrameAcked(0, 100, false, QuicTime::Delta::Zero(),
-                              QuicTime::Zero(), &newly_acked_length,
+                              &newly_acked_length,
                               /*is_retransmission=*/false);
   ASSERT_EQ(closed_streams->size(), 1);
   EXPECT_EQ((*(closed_streams->begin()))->id(), stream_->id());
@@ -2073,7 +2073,7 @@ TEST_P(QuicStreamTest, ReliableSizeNotAckedAtTimeOfResetThenReadSideFin) {
   EXPECT_CALL(*stream_, OnWriteSideInDataRecvdState()).Times(1);
   EXPECT_CALL(*connection_, OnStreamReset(stream_->id(), _)).Times(1);
   stream_->OnStreamFrameAcked(0, 100, false, QuicTime::Delta::Zero(),
-                              QuicTime::Zero(), &newly_acked_length,
+                              &newly_acked_length,
                               /*is_retransmission=*/false);
   ASSERT_TRUE(closed_streams->empty());
   // The rest of the stream arrives.
@@ -2105,7 +2105,7 @@ TEST_P(QuicStreamTest, ReliableSizeAckedAtTimeOfReset) {
   SendApplicationData(data, 100, false);
   QuicByteCount newly_acked_length = 0;
   stream_->OnStreamFrameAcked(0, 100, false, QuicTime::Delta::Zero(),
-                              QuicTime::Zero(), &newly_acked_length,
+                              &newly_acked_length,
                               /*is_retransmission=*/false);
   EXPECT_CALL(*session_, MaybeSendResetStreamAtFrame(_, _, _, _)).Times(1);
   EXPECT_TRUE(stream_->SetReliableSize());
@@ -2140,7 +2140,7 @@ TEST_P(QuicStreamTest, BufferedDataInReliableSize) {
   EXPECT_CALL(*connection_, OnStreamReset(stream_->id(), _)).Times(1);
   QuicByteCount newly_acked_length = 0;
   stream_->OnStreamFrameAcked(0, 100, false, QuicTime::Delta::Zero(),
-                              QuicTime::Zero(), &newly_acked_length,
+                              &newly_acked_length,
                               /*is_retransmission=*/false);
 }
 
@@ -2225,7 +2225,7 @@ TEST_P(QuicStreamTest, ResetStreamAtUnidirectionalWrite) {
   ;
   QuicByteCount newly_acked_length = 0;
   stream_ptr->OnStreamFrameAcked(0, 100, false, QuicTime::Delta::Zero(),
-                                 QuicTime::Zero(), &newly_acked_length,
+                                 &newly_acked_length,
                                  /*is_retransmission=*/false);
   std::vector<std::unique_ptr<QuicStream>>* closed_streams =
       session_->ClosedStreams();
@@ -2258,7 +2258,7 @@ TEST_P(QuicStreamTest, ResetStreamAtReadSideFin) {
   EXPECT_CALL(*connection_, OnStreamReset(stream_id, _)).Times(1);
   QuicByteCount newly_acked_length = 0;
   stream_->OnStreamFrameAcked(0, 100, false, QuicTime::Delta::Zero(),
-                              QuicTime::Zero(), &newly_acked_length,
+                              &newly_acked_length,
                               /*is_retransmission=*/false);
   std::vector<std::unique_ptr<QuicStream>>* closed_streams =
       session_->ClosedStreams();

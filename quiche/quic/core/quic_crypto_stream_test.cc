@@ -494,7 +494,7 @@ TEST_F(QuicCryptoStreamTest, RetransmitStreamData) {
   // Ack [2000, 2500).
   QuicByteCount newly_acked_length = 0;
   stream_->OnStreamFrameAcked(2000, 500, false, QuicTime::Delta::Zero(),
-                              QuicTime::Zero(), &newly_acked_length,
+                              &newly_acked_length,
                               /*is_retransmission=*/false);
   EXPECT_EQ(500u, newly_acked_length);
 

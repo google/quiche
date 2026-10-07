@@ -313,10 +313,9 @@ QuicSSLConfig QuicServerSessionBase::GetSSLConfig() const {
 
 bool QuicServerSessionBase::OnFrameAcked(const quic::QuicFrame& frame,
                                          quic::QuicTime::Delta ack_delay_time,
-                                         quic::QuicTime receive_timestamp,
                                          bool is_retransmission) {
-  bool result = QuicSpdySession::OnFrameAcked(
-      frame, ack_delay_time, receive_timestamp, is_retransmission);
+  bool result =
+      QuicSpdySession::OnFrameAcked(frame, ack_delay_time, is_retransmission);
   if (!reset_ssl_after_handshake_ || ssl_reset_) {
     return result;
   }

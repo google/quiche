@@ -1807,19 +1807,15 @@ TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
 
   EXPECT_CALL(*ack_listener1, OnPacketAcked(7, _));
   EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame1), QuicTime::Delta::Zero(),
-                                     QuicTime::Zero(),
                                      /*is_retransmission=*/false));
   EXPECT_CALL(*ack_listener1, OnPacketAcked(5, _));
   EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame2), QuicTime::Delta::Zero(),
-                                     QuicTime::Zero(),
                                      /*is_retransmission=*/false));
   EXPECT_CALL(*ack_listener2, OnPacketAcked(7, _));
   EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame3), QuicTime::Delta::Zero(),
-                                     QuicTime::Zero(),
                                      /*is_retransmission=*/false));
   EXPECT_CALL(*ack_listener2, OnPacketAcked(5, _));
   EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame4), QuicTime::Delta::Zero(),
-                                     QuicTime::Zero(),
                                      /*is_retransmission=*/false));
 }
 
@@ -1890,7 +1886,7 @@ TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(9, _));
   QuicByteCount newly_acked_length = 0;
   EXPECT_TRUE(stream_->OnStreamFrameAcked(0, 9, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   // Stream is not waiting for acks as all sent data is acked.
   EXPECT_FALSE(stream_->IsWaitingForAcks());
@@ -1912,7 +1908,7 @@ TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
   // kData2 is acked.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(9, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(9, 9, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   // Stream is waiting for acks as FIN is not acked.
   EXPECT_TRUE(stream_->IsWaitingForAcks());
@@ -1921,7 +1917,7 @@ TEST_P(QuicSpdyStreamTest, StreamWaitsForAcks) {
   // FIN is acked.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(0, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(18, 0, true, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_FALSE(stream_->IsWaitingForAcks());
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
@@ -1949,7 +1945,7 @@ TEST_P(QuicSpdyStreamTest, NotifyOnPacketAckedBeforeStreamDestroy) {
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(9, _));
   QuicByteCount newly_acked_length = 0;
   EXPECT_TRUE(stream_->OnStreamFrameAcked(0, 9, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   // Stream is not waiting for acks as all sent data is acked.
   EXPECT_FALSE(stream_->IsWaitingForAcks());
@@ -1964,7 +1960,7 @@ TEST_P(QuicSpdyStreamTest, NotifyOnPacketAckedBeforeStreamDestroy) {
   // kData2 is acked.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(9, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(9, 9, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   // Stream is waiting for acks as FIN is not acked.
   EXPECT_TRUE(stream_->IsWaitingForAcks());
@@ -1982,7 +1978,7 @@ TEST_P(QuicSpdyStreamTest, NotifyOnPacketAckedBeforeStreamDestroy) {
     }
   });
   EXPECT_TRUE(stream_->OnStreamFrameAcked(18, 0, true, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_FALSE(stream_->IsWaitingForAcks());
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
@@ -2005,19 +2001,19 @@ TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
   QuicByteCount newly_acked_length = 0;
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(9, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(0, 9, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(2u, QuicStreamPeer::SendBuffer(stream_).size());
   // Verify [9, 22) 13 bytes are acked.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(13, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(5, 17, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
   // Verify [22, 26) 4 bytes are acked.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(4, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(18, 8, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(1u, QuicStreamPeer::SendBuffer(stream_).size());
   EXPECT_TRUE(stream_->IsWaitingForAcks());
@@ -2026,7 +2022,7 @@ TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
   // Verify [26, 27) 1 byte is acked.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(1, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(26, 1, false, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
   EXPECT_TRUE(stream_->IsWaitingForAcks());
@@ -2034,7 +2030,7 @@ TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
   // Ack Fin. Verify OnPacketAcked is called.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(0, _));
   EXPECT_TRUE(stream_->OnStreamFrameAcked(27, 0, true, QuicTime::Delta::Zero(),
-                                          QuicTime::Zero(), &newly_acked_length,
+                                          &newly_acked_length,
                                           /*is_retransmission=*/false));
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
   EXPECT_FALSE(stream_->IsWaitingForAcks());
@@ -2043,8 +2039,8 @@ TEST_P(QuicSpdyStreamTest, StreamDataGetAckedMultipleTimes) {
   // No new data is acked, verify OnPacketAcked is not called.
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(_, _)).Times(0);
   EXPECT_FALSE(stream_->OnStreamFrameAcked(
-      10, 17, true, QuicTime::Delta::Zero(), QuicTime::Zero(),
-      &newly_acked_length, /*is_retransmission=*/false));
+      10, 17, true, QuicTime::Delta::Zero(), &newly_acked_length,
+      /*is_retransmission=*/false));
   EXPECT_EQ(0u, QuicStreamPeer::SendBuffer(stream_).size());
   EXPECT_FALSE(stream_->IsWaitingForAcks());
 }
@@ -2075,21 +2071,18 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteOrBufferBody) {
   QuicStreamFrame frame(stream_->id(), false, 0,
                         absl::StrCat(header.AsStringView(), body));
   EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame), QuicTime::Delta::Zero(),
-                                     QuicTime::Zero(),
                                      /*is_retransmission=*/false));
 
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(0, _));
   QuicStreamFrame frame2(stream_->id(), false, header.size() + body.length(),
                          header2.AsStringView());
   EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame2), QuicTime::Delta::Zero(),
-                                     QuicTime::Zero(),
                                      /*is_retransmission=*/false));
 
   EXPECT_CALL(*mock_ack_listener, OnPacketAcked(body2.length(), _));
   QuicStreamFrame frame3(stream_->id(), true,
                          header.size() + body.length() + header2.size(), body2);
   EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame3), QuicTime::Delta::Zero(),
-                                     QuicTime::Zero(),
                                      /*is_retransmission=*/false));
 
   EXPECT_TRUE(
@@ -2125,7 +2118,6 @@ TEST_P(QuicSpdyStreamTest, HeadersAckNotReportedWriteBodySlices) {
               OnPacketAcked(body1.length() + body2.length(), _));
   QuicStreamFrame frame(stream_->id(), true, 0, data1 + data2);
   EXPECT_TRUE(session_->OnFrameAcked(QuicFrame(frame), QuicTime::Delta::Zero(),
-                                     QuicTime::Zero(),
                                      /*is_retransmission=*/false));
 
   EXPECT_TRUE(

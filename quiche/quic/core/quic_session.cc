@@ -2580,10 +2580,9 @@ QuicStream* QuicSession::GetActiveStream(QuicStreamId id) const {
 
 bool QuicSession::OnFrameAcked(const QuicFrame& frame,
                                QuicTime::Delta ack_delay_time,
-                               QuicTime receive_timestamp,
                                bool is_retransmission) {
   if (frame.type == DATAGRAM_FRAME) {
-    OnDatagramAcked(frame.datagram_frame->datagram_id, receive_timestamp);
+    OnDatagramAcked(frame.datagram_frame->datagram_id);
     return true;
   }
   if (frame.type == CRYPTO_FRAME) {
@@ -2607,8 +2606,8 @@ bool QuicSession::OnFrameAcked(const QuicFrame& frame,
     QuicByteCount newly_acked_length = 0;
     new_stream_data_acked = stream->OnStreamFrameAcked(
         frame.stream_frame.offset, frame.stream_frame.data_length,
-        frame.stream_frame.fin, ack_delay_time, receive_timestamp,
-        &newly_acked_length, is_retransmission);
+        frame.stream_frame.fin, ack_delay_time, &newly_acked_length,
+        is_retransmission);
     connection_->mutable_stats().application_data_acked += newly_acked_length;
     if (!stream->HasPendingRetransmission()) {
       streams_with_pending_retransmission_.erase(stream->id());
@@ -2899,8 +2898,7 @@ DatagramResult QuicSession::SendDatagram(
   return {result, 0};
 }
 
-void QuicSession::OnDatagramAcked(QuicDatagramId datagram_id,
-                                  QuicTime /*receive_timestamp*/) {
+void QuicSession::OnDatagramAcked(QuicDatagramId datagram_id) {
   QUIC_DVLOG(1) << ENDPOINT << "datagram " << datagram_id << " gets acked.";
 }
 

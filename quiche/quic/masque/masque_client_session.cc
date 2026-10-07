@@ -87,8 +87,7 @@ MasqueClientSession::MasqueClientSession(
                             crypto_config),
       owner_(owner) {}
 
-void MasqueClientSession::OnDatagramAcked(QuicDatagramId datagram_id,
-                                          QuicTime /*receive_timestamp*/) {
+void MasqueClientSession::OnDatagramAcked(QuicDatagramId datagram_id) {
   QUIC_DVLOG(1) << "Received ack for DATAGRAM frame " << datagram_id;
 }
 

@@ -1049,13 +1049,15 @@ bool QuicSpdyStream::OnDataFrameEnd() {
 }
 
 // TODO(danzh): Remove this override once the flag is deprecated.
-bool QuicSpdyStream::OnStreamFrameAcked(
-    QuicStreamOffset offset, QuicByteCount data_length, bool fin_acked,
-    QuicTime::Delta ack_delay_time, QuicTime receive_timestamp,
-    QuicByteCount* newly_acked_length, bool is_retransmission) {
+bool QuicSpdyStream::OnStreamFrameAcked(QuicStreamOffset offset,
+                                        QuicByteCount data_length,
+                                        bool fin_acked,
+                                        QuicTime::Delta ack_delay_time,
+                                        QuicByteCount* newly_acked_length,
+                                        bool is_retransmission) {
   const bool new_data_acked = QuicStream::OnStreamFrameAcked(
-      offset, data_length, fin_acked, ack_delay_time, receive_timestamp,
-      newly_acked_length, is_retransmission);
+      offset, data_length, fin_acked, ack_delay_time, newly_acked_length,
+      is_retransmission);
 
   if (!notify_ack_listener_earlier()) {
     const QuicByteCount newly_acked_header_length =
@@ -1075,12 +1077,10 @@ bool QuicSpdyStream::OnStreamFrameAcked(
 void QuicSpdyStream::OnNewDataAcked(QuicStreamOffset offset,
                                     QuicByteCount data_length,
                                     QuicByteCount newly_acked_length,
-                                    QuicTime receive_timestamp,
                                     QuicTime::Delta ack_delay_time,
                                     bool is_retransmission) {
   QuicStream::OnNewDataAcked(offset, data_length, newly_acked_length,
-                             receive_timestamp, ack_delay_time,
-                             is_retransmission);
+                             ack_delay_time, is_retransmission);
   const QuicByteCount newly_acked_header_length =
       GetNumFrameHeadersInInterval(offset, data_length);
   QUICHE_DCHECK_LE(newly_acked_header_length, newly_acked_length);

@@ -1365,7 +1365,7 @@ TEST_P(QuicSessionTestServer, LimitMaxStreams) {
   EXPECT_CALL(*connection_, SendControlFrame(IsFrame(MAX_STREAMS_FRAME)))
       .WillOnce(&ClearControlFrame);
   session_.OnFrameAcked(QuicFrame(max_stream_frames[0]),
-                        QuicTime::Delta::Zero(), QuicTime::Zero(),
+                        QuicTime::Delta::Zero(),
                         /*is_retransmission=*/false);
   EXPECT_EQ(3 * kMaxStreams,
             QuicSessionPeer::ietf_streamid_manager(&session_)
@@ -1385,7 +1385,7 @@ TEST_P(QuicSessionTestServer, LimitMaxStreams) {
   // When the remaining outstanding MAX_STREAMS frame is ACK'd no new one
   // will be sent because the correct limit has already been advertised.
   session_.OnFrameAcked(QuicFrame(max_stream_frames[1]),
-                        QuicTime::Delta::Zero(), QuicTime::Zero(),
+                        QuicTime::Delta::Zero(),
                         /*is_retransmission=*/false);
 }
 
@@ -2786,7 +2786,7 @@ TEST_P(QuicSessionTestServer, SendDatagram) {
   EXPECT_FALSE(session_.IsFrameOutstanding(QuicFrame(&frame2)));
 
   // datagram 1 gets acked.
-  session_.OnDatagramAcked(1, QuicTime::Zero());
+  session_.OnDatagramAcked(1);
   EXPECT_FALSE(session_.IsFrameOutstanding(QuicFrame(&frame)));
 }
 

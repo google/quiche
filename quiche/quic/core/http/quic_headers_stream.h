@@ -40,7 +40,6 @@ class QUICHE_EXPORT QuicHeadersStream : public QuicStream {
 
   bool OnStreamFrameAcked(QuicStreamOffset offset, QuicByteCount data_length,
                           bool fin_acked, QuicTime::Delta ack_delay_time,
-                          QuicTime receive_timestamp,
                           QuicByteCount* newly_acked_length,
                           bool is_retransmission) override;
 

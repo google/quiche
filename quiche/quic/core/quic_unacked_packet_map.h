@@ -59,7 +59,7 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
   // to move, in that case, |info| will be updated to point to the new
   // QuicTransmissionInfo when the function returns.
   bool NotifyFramesAcked(QuicPacketNumber packet_number,
-                         QuicTime::Delta ack_delay, QuicTime receive_timestamp,
+                         QuicTime::Delta ack_delay,
                          QuicTransmissionInfo*& info);
 
   // Notifies session_notifier that frames in |info| are considered as lost.
@@ -197,7 +197,6 @@ class QUICHE_EXPORT QuicUnackedPacketMap {
   // QuicTransmissionInfo when the function returns.
   void MaybeAggregateAckedStreamFrame(QuicPacketNumber packet_number,
                                       QuicTime::Delta ack_delay,
-                                      QuicTime receive_timestamp,
                                       QuicTransmissionInfo*& info);
 
   // Notify the session notifier of any stream data aggregated in

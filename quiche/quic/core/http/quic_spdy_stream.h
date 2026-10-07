@@ -185,7 +185,6 @@ class QUICHE_EXPORT QuicSpdyStream
   // Override to report newly acked bytes via ack_listener_.
   bool OnStreamFrameAcked(QuicStreamOffset offset, QuicByteCount data_length,
                           bool fin_acked, QuicTime::Delta ack_delay_time,
-                          QuicTime receive_timestamp,
                           QuicByteCount* newly_acked_length,
                           bool is_retransmission) override;
 
@@ -431,7 +430,6 @@ class QUICHE_EXPORT QuicSpdyStream
   // Called when any new data is acked.
   void OnNewDataAcked(QuicStreamOffset offset, QuicByteCount data_length,
                       QuicByteCount newly_acked_length,
-                      QuicTime receive_timestamp,
                       QuicTime::Delta ack_delay_time,
                       bool is_retransmission) override;
 

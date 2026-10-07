@@ -369,7 +369,6 @@ class QUICHE_EXPORT QuicSession
 
   // SessionNotifierInterface methods:
   bool OnFrameAcked(const QuicFrame& frame, QuicTime::Delta ack_delay_time,
-                    QuicTime receive_timestamp,
                     bool is_retransmission) override;
   void OnStreamFrameRetransmitted(const QuicStreamFrame& frame) override;
   void OnFrameLost(const QuicFrame& frame) override;
@@ -430,8 +429,7 @@ class QUICHE_EXPORT QuicSession
   DatagramResult SendDatagram(quiche::QuicheMemSlice datagram);
 
   // Called when datagram with |datagram_id| gets acked.
-  virtual void OnDatagramAcked(QuicDatagramId datagram_id,
-                               QuicTime receive_timestamp);
+  virtual void OnDatagramAcked(QuicDatagramId datagram_id);
 
   // Called when datagram with |datagram_id| is considered as lost.
   virtual void OnDatagramLost(QuicDatagramId datagram_id);

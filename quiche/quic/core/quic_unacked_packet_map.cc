@@ -386,8 +386,7 @@ QuicUnackedPacketMap::NeuterUnencryptedPackets() {
       // send algorithm).
       // TODO(b/148868195): use NotifyFramesNeutered.
       QuicTransmissionInfo* info = &(*it);
-      NotifyFramesAcked(packet_number, QuicTime::Delta::Zero(),
-                        QuicTime::Zero(), info);
+      NotifyFramesAcked(packet_number, QuicTime::Delta::Zero(), info);
       QUICHE_DCHECK(!HasRetransmittableFrames(*info));
     }
   }
@@ -413,8 +412,7 @@ QuicUnackedPacketMap::NeuterHandshakePackets() {
       neutered_packets.push_back(packet_number);
       // TODO(b/148868195): use NotifyFramesNeutered.
       QuicTransmissionInfo* info = &(*it);
-      NotifyFramesAcked(packet_number, QuicTime::Delta::Zero(),
-                        QuicTime::Zero(), info);
+      NotifyFramesAcked(packet_number, QuicTime::Delta::Zero(), info);
     }
   }
   QUICHE_DCHECK(!supports_multiple_packet_number_spaces() ||
@@ -496,7 +494,6 @@ void QuicUnackedPacketMap::SetSessionNotifier(
 
 bool QuicUnackedPacketMap::NotifyFramesAcked(QuicPacketNumber packet_number,
                                              QuicTime::Delta ack_delay,
-                                             QuicTime receive_timestamp,
                                              QuicTransmissionInfo*& info) {
   if (session_notifier_ == nullptr) {
     return false;
@@ -532,8 +529,7 @@ bool QuicUnackedPacketMap::NotifyFramesAcked(QuicPacketNumber packet_number,
   };
 
   for (const QuicFrame& frame : *frames) {
-    if (session_notifier_->OnFrameAcked(frame, ack_delay, receive_timestamp,
-                                        is_retransmission)) {
+    if (session_notifier_->OnFrameAcked(frame, ack_delay, is_retransmission)) {
       new_data_acked = true;
     }
   }
@@ -554,7 +550,7 @@ bool QuicUnackedPacketMap::RetransmitFrames(const QuicFrames& frames,
 
 void QuicUnackedPacketMap::MaybeAggregateAckedStreamFrame(
     QuicPacketNumber packet_number, QuicTime::Delta ack_delay,
-    QuicTime receive_timestamp, QuicTransmissionInfo*& info) {
+    QuicTransmissionInfo*& info) {
   if (session_notifier_ == nullptr) {
     return;
   }
@@ -613,7 +609,7 @@ void QuicUnackedPacketMap::MaybeAggregateAckedStreamFrame(
 
     NotifyAggregatedStreamFrameAcked(ack_delay);
     if (frame.type != STREAM_FRAME || frame.stream_frame.fin) {
-      session_notifier_->OnFrameAcked(frame, ack_delay, receive_timestamp,
+      session_notifier_->OnFrameAcked(frame, ack_delay,
                                       /*is_retransmission=*/false);
       continue;
     }
@@ -634,12 +630,10 @@ void QuicUnackedPacketMap::NotifyAggregatedStreamFrameAcked(
     // Aggregated stream frame is empty.
     return;
   }
-  // Note: there is no receive_timestamp for an aggregated stream frame.  The
-  // frames that are aggregated may not have been received at the same time.
   // We only aggregate stream frames that are not retransmissions.
-  session_notifier_->OnFrameAcked(
-      QuicFrame(aggregated_stream_frame_), ack_delay,
-      /*receive_timestamp=*/QuicTime::Zero(), /*is_retransmission=*/false);
+  session_notifier_->OnFrameAcked(QuicFrame(aggregated_stream_frame_),
+                                  ack_delay,
+                                  /*is_retransmission=*/false);
   // Clear aggregated stream frame.
   aggregated_stream_frame_.stream_id = -1;
 }

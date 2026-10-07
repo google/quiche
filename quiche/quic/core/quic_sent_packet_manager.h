@@ -569,7 +569,6 @@ class QUICHE_EXPORT QuicSentPacketManager {
   void MarkPacketHandled(QuicPacketNumber packet_number,
                          QuicTime ack_receive_time,
                          QuicTime::Delta ack_delay_time,
-                         QuicTime receive_timestamp,
                          QuicTransmissionInfo*& info);
 
   // Request that |packet_number| be retransmitted after the other pending

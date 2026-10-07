@@ -134,8 +134,7 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
   MasqueClientSession& operator=(const MasqueClientSession&) = delete;
 
   // From QuicSession.
-  void OnDatagramAcked(QuicDatagramId datagram_id,
-                       QuicTime receive_timestamp) override;
+  void OnDatagramAcked(QuicDatagramId datagram_id) override;
   void OnDatagramLost(QuicDatagramId datagram_id) override;
   void OnConnectionClosed(const QuicConnectionCloseFrame& frame,
                           ConnectionCloseSource source) override;
