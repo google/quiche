@@ -438,6 +438,7 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   bool encryption_established_ = false;
   bool valid_alpn_received_ = false;
   bool can_disable_resumption_ = true;
+  bool cert_matched_sni_ = false;
   quiche::QuicheReferenceCountedPointer<QuicCryptoNegotiatedParameters>
       crypto_negotiated_params_;
   TlsServerConnection tls_connection_;
@@ -446,8 +447,7 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   mutable std::unique_ptr<CachedNetworkParameters>
       last_received_cached_network_params_;
 
-  bool cert_matched_sni_ = false;
-  TransportParameters server_params_;
+  std::unique_ptr<TransportParameters> server_params_;
 
   // Functor for performing ALPN.  Unset if not using handshake hints.
   ALPNSelectFunc select_alpn_;

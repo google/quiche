@@ -226,7 +226,8 @@ TlsServerHandshaker::TlsServerHandshaker(
       pre_shared_key_(crypto_config->pre_shared_key()),
       crypto_negotiated_params_(new QuicCryptoNegotiatedParameters),
       tls_connection_(crypto_config->ssl_ctx(), this, session->GetSSLConfig()),
-      crypto_config_(crypto_config) {
+      crypto_config_(crypto_config),
+      server_params_(std::make_unique<TransportParameters>()) {
   QUIC_DVLOG(1) << "TlsServerHandshaker:  client_cert_mode initial value: "
                 << client_cert_mode();
 
@@ -559,24 +560,24 @@ TlsServerHandshaker::SetTransportParameters() {
   SetTransportParametersResult result;
   QUICHE_DCHECK(!result.success);
 
-  server_params_.perspective = Perspective::IS_SERVER;
-  server_params_.version_information =
+  server_params_->perspective = Perspective::IS_SERVER;
+  server_params_->version_information =
       TransportParameters::VersionInformation();
-  server_params_.version_information->chosen_version =
+  server_params_->version_information->chosen_version =
       CreateQuicVersionLabel(session()->version());
-  server_params_.version_information->other_versions =
+  server_params_->version_information->other_versions =
       CreateQuicVersionLabelVector(session()->supported_versions());
 
-  if (!handshaker_delegate()->FillTransportParameters(&server_params_)) {
+  if (!handshaker_delegate()->FillTransportParameters(server_params_.get())) {
     return result;
   }
 
   // Notify QuicConnectionDebugVisitor.
-  session()->connection()->OnTransportParametersSent(server_params_);
+  session()->connection()->OnTransportParametersSent(*server_params_);
 
   {  // Ensure |server_params_bytes| is not accessed out of the scope.
     std::vector<uint8_t> server_params_bytes;
-    if (!SerializeTransportParameters(server_params_, &server_params_bytes) ||
+    if (!SerializeTransportParameters(*server_params_, &server_params_bytes) ||
         SSL_set_quic_transport_params(ssl(), server_params_bytes.data(),
                                       server_params_bytes.size()) != 1) {
       return result;
@@ -587,7 +588,7 @@ TlsServerHandshaker::SetTransportParameters() {
   if (application_state_) {
     std::vector<uint8_t> early_data_context;
     if (!SerializeTransportParametersForTicket(
-            server_params_, *application_state_, &early_data_context)) {
+            *server_params_, *application_state_, &early_data_context)) {
       QUIC_BUG(quic_bug_10341_4)
           << "Failed to serialize Transport Parameters for ticket.";
       result.early_data_context = std::vector<uint8_t>();
@@ -604,6 +605,10 @@ TlsServerHandshaker::SetTransportParameters() {
 
 bool TlsServerHandshaker::TransportParametersMatch(
     absl::Span<const uint8_t> serialized_params) const {
+  if (server_params_ == nullptr) {
+    QUIC_BUG(quic_tls_server_params_is_null);
+    return false;
+  }
   TransportParameters params;
   std::string error_details;
 
@@ -617,7 +622,7 @@ bool TlsServerHandshaker::TransportParametersMatch(
 
   DegreaseTransportParameters(params);
 
-  return params == server_params_;
+  return params == *server_params_;
 }
 
 void TlsServerHandshaker::SetWriteSecret(
