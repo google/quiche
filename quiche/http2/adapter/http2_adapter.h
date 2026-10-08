@@ -48,6 +48,23 @@ class QUICHE_EXPORT Http2Adapter {
   // Submits a PING on the connection.
   virtual void SubmitPing(Http2PingId ping_id) = 0;
 
+  // Sets a policy for deciding whether individual header fields should be
+  // encoded as HPACK "Literal Header Field Never Indexed" (RFC 7541 Section
+  // 6.2.3). Headers for which |policy| returns true are never inserted into
+  // the HPACK dynamic table and are encoded with the never-indexed literal
+  // representation, which also instructs downstream intermediaries not to
+  // index them. This is typically used for high-entropy header values (e.g.
+  // request IDs, trace IDs) that would churn the dynamic table without
+  // compression benefit, or for sensitive values. The policy applies to
+  // headers submitted after this call via SubmitRequest(), SubmitResponse()
+  // and SubmitTrailer(), and takes precedence over any other indexing
+  // behavior. Note that per RFC 7541 Section 6.2.3, the header *name* may
+  // still be represented by a table index; only the value is always emitted
+  // as a literal. When cookie crumbling is enabled, the policy may be
+  // evaluated once per cookie crumb. The default implementation ignores the
+  // policy; NgHttp2Adapter and OgHttp2Adapter both honor it.
+  virtual void SetNeverIndexingPolicy(NeverIndexingPolicy /*policy*/) {}
+
   // Starts a graceful shutdown. A no-op for clients.
   virtual void SubmitShutdownNotice() = 0;
 
