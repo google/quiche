@@ -1540,6 +1540,10 @@ class QUICHE_EXPORT QuicConnection
   // participation guidance.
   bool ShouldEnableSpinBit() const;
 
+  ConnectionIdGeneratorInterface& connection_id_generator() const {
+    return connection_id_generator_;
+  }
+
  protected:
   // Calls cancel() on all the alarms owned by this connection.
   void CancelAllAlarms();
@@ -1596,10 +1600,6 @@ class QUICHE_EXPORT QuicConnection
 
   bool defer_send_in_response_to_packets() const {
     return defer_send_in_response_to_packets_;
-  }
-
-  ConnectionIdGeneratorInterface& connection_id_generator() const {
-    return connection_id_generator_;
   }
 
  private:
