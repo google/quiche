@@ -113,7 +113,7 @@ class QUIC_EXPORT_PRIVATE LoadBalancerEncoder
   // Returns true if there is an active configuration.
   virtual bool IsEncoding() const { return config_.has_value(); }
   // Returns true if there is an active configuration that uses encryption.
-  virtual bool IsEncrypted() const {
+  bool IsEncrypted() const override {
     return config_.has_value() && config_->IsEncrypted();
   }
   virtual bool len_self_encoded() const { return len_self_encoded_; }

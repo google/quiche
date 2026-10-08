@@ -30,6 +30,7 @@ class QUICHE_EXPORT DeterministicConnectionIdGenerator
   uint8_t ConnectionIdLength(uint8_t /*first_byte*/) const override {
     return expected_connection_id_length_;
   }
+  bool IsEncrypted() const override { return false; }
 
  private:
   const uint8_t expected_connection_id_length_;

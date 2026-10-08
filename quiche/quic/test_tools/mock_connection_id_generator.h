@@ -31,6 +31,8 @@ class MockConnectionIdGenerator : public quic::ConnectionIdGeneratorInterface {
 
   MOCK_METHOD(uint8_t, ConnectionIdLength, (uint8_t first_byte),
               (const, override));
+
+  MOCK_METHOD(bool, IsEncrypted, (), (const, override));
 };
 
 }  // namespace test
