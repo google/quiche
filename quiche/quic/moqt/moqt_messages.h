@@ -381,7 +381,6 @@ struct QUICHE_EXPORT MoqtSubscribeOk {
 };
 
 struct QUICHE_EXPORT MoqtPublishDone {
-  uint64_t request_id;
   PublishDoneCode status_code;
   uint64_t stream_count;
   std::string error_reason;

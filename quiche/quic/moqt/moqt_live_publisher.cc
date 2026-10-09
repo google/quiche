@@ -82,6 +82,7 @@ void LivePublisher::Update(const MessageParameters& parameters,
       track_publisher_->UpdateObjectListener(this, parameters);
   if (!pub_status.ok()) {
     if (!from_request_ok) {
+      PublishIsDone(PublishDoneCode::kUpdateFailed, "Update failed");
       bidi_stream_->CheckStatus(
           bidi_stream_->SendRequestError(StatusToMoqtRequestError(pub_status)));
     } else {
@@ -434,7 +435,6 @@ webtransport::Stream* absl_nullable LivePublisher::OpenDataStream(
 void LivePublisher::PublishIsDone(PublishDoneCode code,
                                   absl::string_view error_reason) {
   MoqtPublishDone publish_done;
-  publish_done.request_id = request_id_;
   publish_done.status_code = code;
   publish_done.stream_count = streams_opened_;
   publish_done.error_reason = error_reason;
@@ -444,7 +444,9 @@ void LivePublisher::PublishIsDone(PublishDoneCode code,
   QUICHE_DLOG(INFO) << "Sending PUBLISH_DONE message for "
                     << track_publisher_->GetTrackName();
   bidi_stream_->SendOrBufferMessageOrFatal(
-      framer_.SerializePublishDone(publish_done), /*fin=*/true);
+      framer_.SerializePublishDone(publish_done),
+      // Don't send FIN if the UPDATE failed; REQUEST_ERROR will follow.
+      /*fin=*/code != PublishDoneCode::kUpdateFailed);
   // sending FIN will delete the class.
 }
 

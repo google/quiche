@@ -499,7 +499,6 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishDone) {
 
   // Now receive PUBLISH_DONE.
   MoqtPublishDone publish_done;
-  publish_done.request_id = kRequestId;
   publish_done.status_code = PublishDoneCode::kTrackEnded;
   publish_done.stream_count = 0;  // Trigger immediate Destroy
   EXPECT_CALL(mock_stream_, Writev)
@@ -556,7 +555,6 @@ TEST_F(MoqtPublishResponseStreamTest, ReceivePublishDoneOnRejectedStream) {
 
   // Now receive PUBLISH_DONE.
   MoqtPublishDone publish_done;
-  publish_done.request_id = kRequestId;
   publish_done.status_code = PublishDoneCode::kTrackEnded;
   publish_done.stream_count = 0;
   QUICHE_EXPECT_OK(stream_->OnControlMessage(publish_done));

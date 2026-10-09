@@ -233,7 +233,6 @@ TEST_F(MoqtSubscribeRequestStreamTest, ReceiveRequestError) {
 
 TEST_F(MoqtSubscribeRequestStreamTest, ReceivePublishDone) {
   MoqtPublishDone publish_done;
-  publish_done.request_id = kRequestId;
   publish_done.stream_count = 5;
   EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(track_name_));
   QUICHE_EXPECT_OK(stream_->OnControlMessage(publish_done));

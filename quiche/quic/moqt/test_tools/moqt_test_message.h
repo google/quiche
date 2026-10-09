@@ -869,10 +869,6 @@ class QUICHE_NO_EXPORT PublishDoneMessage : public TestMessageBase {
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
     auto cast = std::get<MoqtPublishDone>(values);
-    if (cast.request_id != publish_done_.request_id) {
-      QUIC_LOG(INFO) << "PUBLISH_DONE request ID mismatch";
-      return false;
-    }
     if (cast.status_code != publish_done_.status_code) {
       QUIC_LOG(INFO) << "PUBLISH_DONE status code mismatch";
       return false;
@@ -889,22 +885,21 @@ class QUICHE_NO_EXPORT PublishDoneMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv--"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv--"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(publish_done_);
   }
 
  private:
-  uint8_t raw_packet_[9] = {
-      0x0b, 0x00, 0x06, 0x02, 0x02,  // request_id = 2, error_code = 2,
-      0x05,                          // stream_count = 5
-      0x02, 0x68, 0x69,              // error_reason = "hi"
+  uint8_t raw_packet_[8] = {
+      0x0b, 0x00, 0x05, 0x02,  // status_code = 2
+      0x05,                    // stream_count = 5
+      0x02, 0x68, 0x69,        // error_reason = "hi"
   };
 
   MoqtPublishDone publish_done_ = {
-      /*request_id=*/2,
-      /*error_code=*/PublishDoneCode::kTrackEnded,
+      /*status_code=*/PublishDoneCode::kTrackEnded,
       /*stream_count=*/5,
       /*error_reason=*/"hi",
   };

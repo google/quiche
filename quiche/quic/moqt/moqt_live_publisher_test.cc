@@ -430,12 +430,32 @@ TEST_F(LivePublisherTest, UpdateRejectedByPublisher) {
   new_params.object_delivery_timeout = quic::QuicTimeDelta::FromSeconds(5);
   EXPECT_CALL(mock_bidi_stream_, CanWrite()).WillRepeatedly(Return(true));
 
-  // When from_request_ok is false, sends REQUEST_ERROR.
+  // When from_request_ok is false, sends PUBLISH_DONE (no FIN) followed by
+  // REQUEST_ERROR (with FIN).
   EXPECT_CALL(*track_publisher_, UpdateObjectListener(publisher_.get(), _))
       .WillOnce(Return(absl::InvalidArgumentError("invalid update")));
-  EXPECT_CALL(mock_bidi_stream_,
-              Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
-      .WillOnce(Return(absl::OkStatus()));
+  {
+    testing::InSequence seq;
+    MoqtPublishDone expected_publish_done = {
+        PublishDoneCode::kUpdateFailed,
+        /*stream_count=*/0,
+        /*error_reason=*/"Update failed",
+    };
+    EXPECT_CALL(mock_bidi_stream_,
+                Writev(SerializedControlMessage(expected_publish_done), _))
+        .WillOnce([](absl::Span<quiche::QuicheMemSlice> data,
+                     const webtransport::StreamWriteOptions& options) {
+          EXPECT_FALSE(options.send_fin());
+          return absl::OkStatus();
+        });
+    EXPECT_CALL(mock_bidi_stream_,
+                Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _))
+        .WillOnce([](absl::Span<quiche::QuicheMemSlice> data,
+                     const webtransport::StreamWriteOptions& options) {
+          EXPECT_TRUE(options.send_fin());
+          return absl::OkStatus();
+        });
+  }
   publisher_->Update(new_params, /*from_request_ok=*/false);
   EXPECT_EQ(publisher_->parameters().object_delivery_timeout,
             quic::QuicTimeDelta::FromSeconds(1));
@@ -608,7 +628,6 @@ TEST_F(LivePublisherTest, OnGroupAbandonedTooFarBehind) {
   publisher_->Update(parameters_, true);
   CreateStream(Location(5, 0), 0, 128);
   struct MoqtPublishDone expected_publish_done = {
-      /*request_id=*/kRequestId,
       PublishDoneCode::kTooFarBehind,
       /*stream_count=*/1,
       /*error_reason=*/"",

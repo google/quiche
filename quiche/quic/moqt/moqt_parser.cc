@@ -779,8 +779,7 @@ absl::StatusOr<MoqtPublishDone> MoqtControlMessageParser::ProcessPublishDone(
   quic::QuicDataReader reader(data);
   MoqtPublishDone publish_done;
   uint64_t value;
-  if (!reader.ReadMoqVarInt(&publish_done.request_id) ||
-      !reader.ReadMoqVarInt(&value) ||
+  if (!reader.ReadMoqVarInt(&value) ||
       !reader.ReadMoqVarInt(&publish_done.stream_count) ||
       !reader.ReadStringMoqVarInt(publish_done.error_reason)) {
     return absl::InvalidArgumentError("Message missing fields");

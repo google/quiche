@@ -804,8 +804,8 @@ quiche::QuicheBuffer MoqtFramer::SerializeRequestError(
 quiche::QuicheBuffer MoqtFramer::SerializePublishDone(
     const MoqtPublishDone& message) {
   return SerializeControlMessage(
-      MoqtMessageType::kPublishDone, WireMoqVarInt(message.request_id),
-      WireMoqVarInt(message.status_code), WireMoqVarInt(message.stream_count),
+      MoqtMessageType::kPublishDone, WireMoqVarInt(message.status_code),
+      WireMoqVarInt(message.stream_count),
       WireStringWithMoqVarIntLength(message.error_reason));
 }
 

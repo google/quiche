@@ -90,9 +90,10 @@ enum class QUICHE_EXPORT PublishDoneCode : uint64_t {
   kTrackEnded = 0x2,
   kSubscriptionEnded = 0x3,
   kGoingAway = 0x4,
-  kExpired = 0x5,
-  kTooFarBehind = 0x6,
+  kTooFarBehind = 0x5,
+  kExpired = 0x6,
   kUpdateFailed = 0x8,
+  kExcessiveLoad = 0x9,
   kMalformedTrack = 0x12,
 };
 
