@@ -266,6 +266,9 @@ class QUICHE_EXPORT IncomingDataStream : public webtransport::StreamVisitor,
   void MaybeReadOneObject();
 
   virtual void set_fetch_task(UpstreamFetchTask* fetch_task);
+  void set_group_order(MoqtDeliveryOrder group_order) {
+    parser_.SetGroupOrder(group_order);
+  }
 
  private:
   friend class test::MoqtSessionPeer;

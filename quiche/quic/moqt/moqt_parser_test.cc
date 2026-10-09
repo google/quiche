@@ -26,6 +26,7 @@
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
@@ -156,6 +157,7 @@ class MoqtParserTest
     // The default object has priority 0x07, so setting this will let the
     // parser set the correct value when absent.
     data_parser_.set_default_publisher_priority(0x07);
+    data_parser_.SetGroupOrder(MoqtDeliveryOrder::kAscending);
   }
 
   bool IsDataStream() const {
@@ -1570,7 +1572,9 @@ TEST_F(MoqtMessageSpecificTest, ParseKeyValuePairListIntegerOverflow) {
 class MoqtDataParserStateMachineTest : public quic::test::QuicTest {
  protected:
   MoqtDataParserStateMachineTest()
-      : stream_(/*stream_id=*/0), parser_(&stream_, &visitor_) {}
+      : stream_(/*stream_id=*/0), parser_(&stream_, &visitor_) {
+    parser_.SetGroupOrder(MoqtDeliveryOrder::kAscending);
+  }
 
   webtransport::test::InMemoryStream stream_;
   MoqtParserTestVisitor visitor_;
@@ -1634,6 +1638,7 @@ TEST_F(MoqtDataParserStateMachineTest, ReadTypeThenObjectsFetch) {
     MoqtParserTestVisitor visitor;
     webtransport::test::InMemoryStream stream(/*stream_id=*/0);
     MoqtDataParser parser(&stream, &visitor);
+    parser.SetGroupOrder(MoqtDeliveryOrder::kAscending);
     StreamHeaderFetchMessage header;
     StreamMiddlerFetchMessage middler(serialization);
     stream.Receive(header.PacketSample());
@@ -1661,6 +1666,7 @@ TEST_F(MoqtDataParserStateMachineTest, StreamHeaderFetchRefersToPrior) {
     MoqtParserTestVisitor visitor;
     webtransport::test::InMemoryStream stream(/*stream_id=*/0);
     MoqtDataParser parser(&stream, &visitor);
+    parser.SetGroupOrder(MoqtDeliveryOrder::kAscending);
     stream.Receive(absl::string_view(data, sizeof(data)));
     parser.ReadStreamType();
     parser.ReadAtMostOneObject();
@@ -1679,6 +1685,7 @@ TEST_F(MoqtDataParserStateMachineTest, DatagramThenPriorSubgroupId) {
     MoqtParserTestVisitor visitor;
     webtransport::test::InMemoryStream stream(/*stream_id=*/0);
     MoqtDataParser parser(&stream, &visitor);
+    parser.SetGroupOrder(MoqtDeliveryOrder::kAscending);
     stream.Receive(absl::string_view(data, sizeof(data)));
     parser.ReadStreamType();
     parser.ReadAtMostOneObject();
@@ -1786,6 +1793,79 @@ TEST_F(MoqtDataParserStateMachineTest, FetchFirstObjectMissing) {
   ASSERT_EQ(visitor_.messages_received(), 1);
   ASSERT_TRUE(visitor_.last_message().has_value());
   EXPECT_FALSE(visitor_.last_message()->first_object_in_subgroup.has_value());
+}
+
+TEST_F(MoqtDataParserStateMachineTest, FetchDescendingGroupOrder) {
+  webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+  MoqtParserTestVisitor visitor;
+  MoqtDataParser parser(&stream, &visitor);
+  parser.SetGroupOrder(MoqtDeliveryOrder::kDescending);
+
+  // Header has group_id = 5, object_id = 6.
+  StreamHeaderFetchMessage header;
+  stream.Receive(header.PacketSample());
+  // Next object: kHasGroupId | kIsDatagram = 0x48, group delta = 1 -> group =
+  // 5 - (1 + 1) = 3, omitted object_id -> object_id = 7, payload = "bar".
+  // Third object: kHasGroupId | kIsDatagram = 0x48, group delta = 3 ->
+  // underflow (3 - (3 + 1) < 0).
+  char data[] = {0x48, 0x01, 0x03, 'b', 'a', 'r', 0x48, 0x03};
+  stream.Receive(absl::string_view(data, sizeof(data)));
+
+  parser.ReadStreamType();
+  parser.ReadAtMostOneObject();
+  ASSERT_EQ(visitor.messages_received(), 1);
+  EXPECT_EQ(visitor.last_message()->group_id, 5);
+
+  parser.ReadAtMostOneObject();
+  ASSERT_EQ(visitor.messages_received(), 2);
+  EXPECT_EQ(visitor.last_message()->group_id, 3);
+  EXPECT_EQ(visitor.last_message()->object_id, 7);
+
+  parser.ReadAtMostOneObject();
+  EXPECT_EQ(visitor.parsing_error(), "Integer overflow when parsing group ID");
+}
+
+TEST_F(MoqtDataParserStateMachineTest,
+       FetchObjectIdDeltaAfterImplicitIncrement) {
+  // Header has group_id = 5, object_id = 6.
+  StreamHeaderFetchMessage header;
+  stream_.Receive(header.PacketSample());
+  // Object 2: kIsDatagram = 0x40 (omits group ID and object ID) -> group_id =
+  // 5, object_id = 7, payload = "bar".
+  // Object 3: kIsDatagram | kHasObjectId = 0x44, object ID delta = 3 ->
+  // group_id = 5, object_id = 7 + 3 = 10, payload = "baz".
+  char data[] = {0x40, 0x03, 'b', 'a', 'r', 0x44, 0x03, 0x03, 'b', 'a', 'z'};
+  stream_.Receive(absl::string_view(data, sizeof(data)), /*fin=*/true);
+
+  parser_.ReadAllData();
+  ASSERT_EQ(visitor_.messages_received(), 3);
+  EXPECT_EQ(visitor_.last_message()->group_id, 5);
+  EXPECT_EQ(visitor_.last_message()->object_id, 10);
+  EXPECT_EQ(visitor_.parsing_error(), std::nullopt);
+}
+
+TEST_F(MoqtDataParserStateMachineTest, FetchZeroObjectIdDelta) {
+  // Header has group_id = 5, object_id = 6.
+  StreamHeaderFetchMessage header;
+  stream_.Receive(header.PacketSample());
+  // Object 2: kIsDatagram | kHasGroupId | kHasObjectId = 0x4c, group delta = 0,
+  // explicit object ID = 0 -> valid (group_id = 6, object_id = 0).
+  // Object 3: kIsDatagram | kHasObjectId = 0x44, object ID delta = 0 ->
+  // duplicate object ID in same group -> parse error.
+  char data[] = {0x4c, 0x00, 0x00, 0x03, 'b', 'a', 'r', 0x44, 0x00};
+  stream_.Receive(absl::string_view(data, sizeof(data)));
+
+  parser_.ReadStreamType();
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received(), 1);
+
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received(), 2);
+  EXPECT_EQ(visitor_.last_message()->group_id, 6);
+  EXPECT_EQ(visitor_.last_message()->object_id, 0);
+
+  parser_.ReadAtMostOneObject();
+  EXPECT_EQ(visitor_.parsing_error(), "Duplicate object ID in FETCH stream");
 }
 
 TEST_F(MoqtMessageSpecificTest, StreamTypeParserToControlStream) {

@@ -627,13 +627,27 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
           MoqtFetchSerialization(message, *previous_object_in_stream);
     }
     if (serialization.has_group_id()) {
-      group_id = message.group_id;
+      if (is_first_in_stream) {
+        group_id = message.group_id;
+      } else {
+        group_id =
+            (message.group_id > previous_object_in_stream->location.group)
+                ? (message.group_id -
+                   previous_object_in_stream->location.group - 1)
+                : (previous_object_in_stream->location.group -
+                   message.group_id - 1);
+      }
     }
     if (serialization.has_subgroup_id()) {
       subgroup_id = message.subgroup_id;
     }
     if (serialization.has_object_id()) {
-      object_id = message.object_id;
+      if (is_first_in_stream || serialization.has_group_id()) {
+        object_id = message.object_id;
+      } else {
+        object_id =
+            message.object_id - previous_object_in_stream->location.object;
+      }
     }
     if (serialization.has_priority()) {
       publisher_priority = message.publisher_priority;

@@ -1275,7 +1275,11 @@ MoqtDataParser::NextInput MoqtDataParser::AdvanceParserState() {
         if (fetch_serialization_.has_object_id()) {
           return kObjectId;
         }
-        ++metadata_.object_id;
+        if (!quiche::SafeIncrementBy<uint64_t>(metadata_.object_id, 1)) {
+          ParseError("Integer overflow when parsing object ID");
+          return kFailed;
+        }
+        last_object_id_ = metadata_.object_id;
         [[fallthrough]];
       case kObjectId:
         if (fetch_serialization_.end_of_non_existent_range() ||
@@ -1413,17 +1417,40 @@ void MoqtDataParser::ParseNextItemFromStream() {
     }
 
     case kGroupId: {
-      std::optional<uint64_t> value_read = ReadMoqVarIntNoFin();
-      if (value_read.has_value()) {
-        if (type_.IsFetch() ||
-            !fetch_serialization_.end_of_non_existent_range() ||
-            !fetch_serialization_.end_of_unknown_range()) {
-          // Do not record range indicator group IDs because it will corrupt
-          // references to the previous object.
-          metadata_.group_id = *value_read;
-        }
-        next_input_ = AdvanceParserState();
+      if (type_.IsFetch() && !group_order_.has_value()) {
+        // Check before reading the group ID to avoid wrecking parser state.
+        QUICHE_BUG(MoqtDataParser_no_group_order)
+            << "Data parser group order not set";
+        return;
       }
+      std::optional<uint64_t> value_read = ReadMoqVarIntNoFin();
+      if (!value_read.has_value()) {
+        return;
+      }
+      if (type_.IsFetch() && last_group_id_.has_value()) {
+        std::optional<uint64_t> new_group_id;
+        if (!group_order_.has_value()) {
+          // Exit to satisfy ClangTidy.
+          return;
+        }
+        if (*group_order_ == MoqtDeliveryOrder::kAscending) {
+          new_group_id =
+              quiche::SafeSum<uint64_t>({*value_read, *last_group_id_, 1});
+        } else {
+          new_group_id = (*value_read < *last_group_id_)
+                             ? (*last_group_id_ - *value_read - 1)
+                             : std::optional<uint64_t>();
+        }
+        if (!new_group_id.has_value()) {
+          ParseError("Integer overflow when parsing group ID");
+          return;
+        }
+        metadata_.group_id = *new_group_id;
+      } else {
+        metadata_.group_id = *value_read;
+      }
+      last_group_id_ = metadata_.group_id;
+      next_input_ = AdvanceParserState();
       return;
     }
 
@@ -1447,27 +1474,28 @@ void MoqtDataParser::ParseNextItemFromStream() {
 
     case kObjectId: {
       std::optional<uint64_t> value_read = ReadMoqVarIntNoFin();
-      if (value_read.has_value()) {
-        if (type_.IsFetch() ||
-            !fetch_serialization_.end_of_non_existent_range() ||
-            !fetch_serialization_.end_of_unknown_range()) {
-          // Do not record range indicator object IDs because it will corrupt
-          // references to the previous object.
-          if (type_.IsSubgroup() && last_object_id_.has_value()) {
-            std::optional<uint64_t> new_object_id =
-                quiche::SafeSum<uint64_t>({*value_read, *last_object_id_, 1});
-            if (!new_object_id.has_value()) {
-              ParseError("Integer overflow when parsing object ID");
-              return;
-            }
-            metadata_.object_id = *new_object_id;
-          } else {
-            metadata_.object_id = *value_read;
-          }
-        }
-        last_object_id_ = metadata_.object_id;
-        next_input_ = AdvanceParserState();
+      if (!value_read.has_value()) {
+        return;
       }
+      if (last_object_id_.has_value() &&
+          (type_.IsSubgroup() || !fetch_serialization_.has_group_id())) {
+        if (type_.IsFetch() && *value_read == 0) {
+          ParseError("Duplicate object ID in FETCH stream");
+          return;
+        }
+        std::optional<uint64_t> new_object_id = quiche::SafeSum<uint64_t>(
+            {*value_read, *last_object_id_,
+             type_.IsSubgroup() ? uint64_t{1} : uint64_t{0}});
+        if (!new_object_id.has_value()) {
+          ParseError("Integer overflow when parsing object ID");
+          return;
+        }
+        metadata_.object_id = *new_object_id;
+      } else {
+        metadata_.object_id = *value_read;
+      }
+      last_object_id_ = metadata_.object_id;
+      next_input_ = AdvanceParserState();
       // TODO(martinduke): Report something if the fetch serialization is an end
       // of range indicator.
       return;

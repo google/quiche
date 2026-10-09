@@ -277,6 +277,13 @@ class QUICHE_EXPORT MoqtDataParser {
   void ReadTrackAlias();
   void ReadAtMostOneObject();
 
+  void SetGroupOrder(MoqtDeliveryOrder group_order) {
+    if (group_order_.has_value()) {
+      return;
+    }
+    group_order_ = group_order;
+  }
+
   // Returns the type of the unidirectional stream, if already known.
   std::optional<MoqtDataStreamType> stream_type() const {
     if (next_input_ == kStreamType) {
@@ -362,10 +369,12 @@ class QUICHE_EXPORT MoqtDataParser {
 
   std::string buffered_message_;
 
+  std::optional<MoqtDeliveryOrder> group_order_;
   MoqtDataStreamType type_;
   MoqtFetchSerialization fetch_serialization_;
   NextInput next_input_ = kStreamType;
   MoqtObject metadata_;
+  std::optional<uint64_t> last_group_id_;
   std::optional<uint64_t> last_object_id_;
   size_t payload_length_remaining_ = 0;
   size_t num_objects_read_ = 0;

@@ -8,7 +8,9 @@
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
 #include "absl/strings/string_view.h"
+#include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_parser.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/test_tools/moqt_parser_test_visitor.h"
 #include "quiche/common/platform/api/quiche_fuzztest.h"
@@ -28,6 +30,7 @@ void MoqtControlParserNeverCrashes(bool is_data_stream, bool uses_web_transport,
   MoqtControlMessageParser control_message_parser(
       kDefaultMoqtVersion, uses_web_transport, perspective);
   MoqtDataParser data_parser(&stream, &visitor);
+  data_parser.SetGroupOrder(MoqtDeliveryOrder::kAscending);
 
   if (is_data_stream) {
     stream.Receive(stream_data, /*fin=*/fin);

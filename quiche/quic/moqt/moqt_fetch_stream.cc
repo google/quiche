@@ -102,7 +102,10 @@ void MoqtFetchRequestStream::OnStreamOpened(
   // Interactions with the task will now be mediated through the uni stream.
   // If the uni stream closes, so will the bidi stream.
   task_ = nullptr;
-  absl::down_cast<IncomingDataStream*>(stream)->set_fetch_task(task);
+  auto* data_stream = absl::down_cast<IncomingDataStream*>(stream);
+  data_stream->set_group_order(
+      const_parameters().group_order.value_or(MoqtDeliveryOrder::kAscending));
+  data_stream->set_fetch_task(task);
 }
 
 void MoqtFetchRequestStream::OnStreamClosed(absl::Status status,

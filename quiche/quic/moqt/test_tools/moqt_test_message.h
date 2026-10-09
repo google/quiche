@@ -531,7 +531,7 @@ class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
     size_t length = 0;
     raw_packet_[length++] = static_cast<uint8_t>(serialization.value());
     if (serialization.has_group_id()) {
-      raw_packet_[length++] = 0x06;  // group ID
+      raw_packet_[length++] = 0x00;  // group ID delta = 0 (group ID = 6)
       object_.group_id = 6;
     }
     if (serialization.zero_subgroup_id()) {
@@ -550,7 +550,11 @@ class QUICHE_NO_EXPORT StreamMiddlerFetchMessage : public ObjectMessage {
       object_.subgroup_id = std::nullopt;
     }  // If prior_subgroup_id, subgroup_id is already set properly.
     if (serialization.has_object_id()) {
-      raw_packet_[length++] = 0x0a;
+      if (serialization.has_group_id()) {
+        raw_packet_[length++] = 0x0a;  // explicit object ID = 10
+      } else {
+        raw_packet_[length++] = 0x04;  // object ID delta = 4 (object ID = 10)
+      }
       object_.object_id = 10;
     } else {
       ++object_.object_id;
