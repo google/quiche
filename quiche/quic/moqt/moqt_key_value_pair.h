@@ -247,7 +247,7 @@ struct MessageParameters {
   bool forward_has_value() const { return forward_.has_value(); }
   std::optional<MoqtPriority> subscriber_priority;
   std::optional<SubscriptionFilter> subscription_filter;
-  std::optional<MoqtDeliveryOrder> group_order;
+  std::optional<MoqtGroupOrder> group_order;
   std::optional<uint64_t> new_group_request;
   std::optional<TrackNamespace> track_namespace_prefix;
 
@@ -275,8 +275,7 @@ enum class PropertyType : uint64_t {
 inline constexpr quic::QuicTimeDelta kDefaultMaxCacheDuration =
     quic::QuicTimeDelta::Infinite();
 inline constexpr bool kDefaultImmutableProperties = false;
-inline constexpr MoqtDeliveryOrder kDefaultGroupOrder =
-    MoqtDeliveryOrder::kAscending;
+inline constexpr MoqtGroupOrder kDefaultGroupOrder = MoqtGroupOrder::kAscending;
 inline constexpr bool kDefaultDynamicGroups = false;
 inline constexpr uint64_t kMinMandatoryTrackProperty = 0x4000;
 inline constexpr uint64_t kMaxMandatoryTrackProperty = 0x7FFF;
@@ -289,7 +288,7 @@ class TrackProperties : public KeyValuePairList {
                   std::optional<quic::QuicTimeDelta> max_cache_duration,
                   std::optional<quic::QuicTimeDelta> subgroup_delivery_timeout,
                   std::optional<MoqtPriority> publisher_priority,
-                  std::optional<MoqtDeliveryOrder> group_order,
+                  std::optional<MoqtGroupOrder> group_order,
                   std::optional<bool> dynamic_groups,
                   std::optional<absl::string_view> immutable_properties);
 
@@ -300,7 +299,7 @@ class TrackProperties : public KeyValuePairList {
   quic::QuicTimeDelta subgroup_delivery_timeout() const;
   absl::string_view immutable_properties() const;
   MoqtPriority default_publisher_priority() const;
-  MoqtDeliveryOrder default_publisher_group_order() const;
+  MoqtGroupOrder default_publisher_group_order() const;
   bool dynamic_groups() const;
   bool empty() const { return size() == 0; }
 

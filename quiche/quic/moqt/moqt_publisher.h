@@ -118,16 +118,15 @@ class MoqtTrackPublisher {
   // Performs a fetch for the specified range of objects. Should also be used
   // for joining fetches where Largest Location is known.
   virtual std::unique_ptr<MoqtFetchTask> StandaloneFetch(
-      Location start, Location end, MoqtDeliveryOrder order,
+      Location start, Location end, MoqtGroupOrder order,
       FetchResponseCallback callback) = 0;
   // Use only when the subscription is pending, so that Largest Location is
   // unknown.
   virtual std::unique_ptr<MoqtFetchTask> RelativeFetch(
-      uint64_t group_diff, MoqtDeliveryOrder order,
+      uint64_t group_diff, MoqtGroupOrder order,
       FetchResponseCallback callback) = 0;
   virtual std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
-      uint64_t group, MoqtDeliveryOrder order,
-      FetchResponseCallback callback) = 0;
+      uint64_t group, MoqtGroupOrder order, FetchResponseCallback callback) = 0;
 
   // Returns an optional monitoring interface for tracking delivery and object
   // ACKs for this track.  Note that this only works if there is one subscriber

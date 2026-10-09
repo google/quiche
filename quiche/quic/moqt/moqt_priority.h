@@ -26,14 +26,14 @@ static constexpr MoqtPriority kDefaultSubscriberPriority = 128;
 
 // Indicates the desired order of delivering groups associated with a given
 // track.
-enum class MoqtDeliveryOrder : uint8_t {
+enum class MoqtGroupOrder : uint8_t {
   kAscending = 0x01,
   kDescending = 0x02,
 };
-static constexpr uint64_t kMinMoqtDeliveryOrder =
-    static_cast<uint64_t>(MoqtDeliveryOrder::kAscending);
-static constexpr uint64_t kMaxMoqtDeliveryOrder =
-    static_cast<uint64_t>(MoqtDeliveryOrder::kDescending);
+static constexpr uint64_t kMinMoqtGroupOrder =
+    static_cast<uint64_t>(MoqtGroupOrder::kAscending);
+static constexpr uint64_t kMaxMoqtGroupOrder =
+    static_cast<uint64_t>(MoqtGroupOrder::kDescending);
 
 // The session weighs pending streams solely on the subscriber_priority and the
 // highest of all pending publisher_priorities.
@@ -47,12 +47,12 @@ struct MoqtTrackPriority {
 // parameters.
 QUICHE_EXPORT webtransport::SendOrder SendOrderForStream(
     MoqtPriority subscriber_priority, MoqtPriority publisher_priority,
-    uint64_t group_id, uint64_t subgroup_id, MoqtDeliveryOrder delivery_order);
+    uint64_t group_id, uint64_t subgroup_id, MoqtGroupOrder group_order);
 // This is just a wrapper for SendOrderForStream, that uses the object ID where
 // the subgroup ID would normally go.
 QUICHE_EXPORT webtransport::SendOrder SendOrderForDatagram(
     MoqtPriority subscriber_priority, MoqtPriority publisher_priority,
-    uint64_t group_id, uint64_t object_id, MoqtDeliveryOrder delivery_order);
+    uint64_t group_id, uint64_t object_id, MoqtGroupOrder group_order);
 // Determine the send order for FETCH. As all objects are on one stream, only
 // subscriber priority matters.
 QUICHE_EXPORT webtransport::SendOrder SendOrderForFetch(

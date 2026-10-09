@@ -277,7 +277,7 @@ class QUICHE_EXPORT MoqtDataParser {
   void ReadTrackAlias();
   void ReadAtMostOneObject();
 
-  void SetGroupOrder(MoqtDeliveryOrder group_order) {
+  void SetGroupOrder(MoqtGroupOrder group_order) {
     if (group_order_.has_value()) {
       return;
     }
@@ -369,7 +369,7 @@ class QUICHE_EXPORT MoqtDataParser {
 
   std::string buffered_message_;
 
-  std::optional<MoqtDeliveryOrder> group_order_;
+  std::optional<MoqtGroupOrder> group_order_;
   MoqtDataStreamType type_;
   MoqtFetchSerialization fetch_serialization_;
   NextInput next_input_ = kStreamType;

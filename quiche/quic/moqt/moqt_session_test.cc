@@ -102,7 +102,7 @@ MessageParameters SubscribeForTest() {
   parameters.set_forward(true);
   parameters.subscriber_priority = 0x20;
   parameters.subscription_filter.emplace(Location(4, 1));
-  parameters.group_order = MoqtDeliveryOrder::kDescending;
+  parameters.group_order = MoqtGroupOrder::kDescending;
   return parameters;
 }
 
@@ -1578,7 +1578,7 @@ TEST_F(MoqtSessionTest, ProcessFetchGetEverythingFromUpstream) {
 
   FetchResponseCallback fetch_response_callback;
   EXPECT_CALL(*track, StandaloneFetch)
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         fetch_response_callback = std::move(callback);
         return std::move(fetch_task_ptr);
@@ -1613,7 +1613,7 @@ TEST_F(MoqtSessionTest, ProcessFetchWholeRangeIsPresent) {
   auto fetch_task_ptr = std::make_unique<MockFetchTask>(true);
   MockFetchTask* fetch_task = fetch_task_ptr.get();
   EXPECT_CALL(*track, StandaloneFetch)
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         std::move(callback)(expected_ok);
         return std::move(fetch_task_ptr);
@@ -1644,7 +1644,7 @@ TEST_F(MoqtSessionTest, SendFragmentedFetchObject) {
   MockFetchTask* fetch_task = fetch_task_ptr.get();
   FetchResponseCallback fetch_response_callback;
   EXPECT_CALL(*track, StandaloneFetch)
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         fetch_response_callback = std::move(callback);
         return std::move(fetch_task_ptr);
@@ -1722,7 +1722,7 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeOk) {
   MockFetchTask* fetch_task = fetch_task_ptr.get();
   FetchResponseCallback fetch_response_callback;
   EXPECT_CALL(*track, StandaloneFetch)
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         fetch_response_callback = std::move(callback);
         return std::move(fetch_task_ptr);
@@ -1751,7 +1751,7 @@ TEST_F(MoqtSessionTest, FetchReturnsObjectBeforeError) {
   MockFetchTask* fetch_task = fetch_task_ptr.get();
   FetchResponseCallback fetch_response_callback;
   EXPECT_CALL(*track, StandaloneFetch)
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         fetch_response_callback = std::move(callback);
         return std::move(fetch_task_ptr);
@@ -1794,7 +1794,7 @@ TEST_F(MoqtSessionTest, FetchFails) {
 
   auto fetch_task_ptr = std::make_unique<MockFetchTask>();
   EXPECT_CALL(*track, StandaloneFetch)
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         std::move(callback)(MoqtRequestErrorInfo(
             RequestErrorCode::kDoesNotExist, std::nullopt, "foo"));

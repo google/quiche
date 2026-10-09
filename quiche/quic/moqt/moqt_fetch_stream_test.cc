@@ -483,8 +483,8 @@ TEST_F(MoqtFetchResponseStreamTest, ReceiveFetchStandaloneSuccess) {
   EXPECT_CALL(mock_publisher_, GetTrack(kTrackName))
       .WillOnce(Return(track_publisher_));
   EXPECT_CALL(*track_publisher_,
-              StandaloneFetch(kStart, kEnd, MoqtDeliveryOrder::kAscending, _))
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+              StandaloneFetch(kStart, kEnd, MoqtGroupOrder::kAscending, _))
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         FetchOkData ok_data(true, kEnd);
         std::move(callback)(ok_data);
@@ -536,8 +536,8 @@ TEST_F(MoqtFetchResponseStreamTest,
   MoqtRequestError expected_error = {RequestErrorCode::kInternalError,
                                      std::nullopt, "Application error"};
   EXPECT_CALL(*track_publisher_,
-              StandaloneFetch(kStart, kEnd, MoqtDeliveryOrder::kAscending, _))
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+              StandaloneFetch(kStart, kEnd, MoqtGroupOrder::kAscending, _))
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         std::move(callback)(expected_error);
         return nullptr;
@@ -557,8 +557,8 @@ TEST_F(MoqtFetchResponseStreamTest, ReceiveDuplicateFetch) {
   EXPECT_CALL(mock_publisher_, GetTrack(kTrackName))
       .WillOnce(Return(track_publisher_));
   EXPECT_CALL(*track_publisher_,
-              StandaloneFetch(kStart, kEnd, MoqtDeliveryOrder::kAscending, _))
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+              StandaloneFetch(kStart, kEnd, MoqtGroupOrder::kAscending, _))
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         FetchOkData ok_data(true, kEnd);
         std::move(callback)(ok_data);
@@ -584,8 +584,8 @@ TEST_F(MoqtFetchResponseStreamTest,
   EXPECT_CALL(mock_publisher_, GetTrack(kTrackName))
       .WillOnce(Return(track_publisher_));
   EXPECT_CALL(*track_publisher_,
-              StandaloneFetch(kStart, kEnd, MoqtDeliveryOrder::kAscending, _))
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+              StandaloneFetch(kStart, kEnd, MoqtGroupOrder::kAscending, _))
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         FetchOkData ok_data(true, kEnd);
         auto task = std::make_unique<MockFetchTask>();
@@ -632,8 +632,8 @@ TEST_F(MoqtFetchResponseStreamTest,
   EXPECT_CALL(mock_publisher_, GetTrack(kTrackName))
       .WillOnce(Return(track_publisher_));
   EXPECT_CALL(*track_publisher_,
-              StandaloneFetch(kStart, kEnd, MoqtDeliveryOrder::kAscending, _))
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+              StandaloneFetch(kStart, kEnd, MoqtGroupOrder::kAscending, _))
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         FetchOkData ok_data(true, kEnd);
         auto task = std::make_unique<MockFetchTask>(true);
@@ -678,8 +678,8 @@ TEST_F(MoqtFetchResponseStreamTest, OnDataStreamOpenCleanAsyncTeardown) {
   EXPECT_CALL(mock_publisher_, GetTrack(kTrackName))
       .WillOnce(Return(track_publisher_));
   EXPECT_CALL(*track_publisher_,
-              StandaloneFetch(kStart, kEnd, MoqtDeliveryOrder::kAscending, _))
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+              StandaloneFetch(kStart, kEnd, MoqtGroupOrder::kAscending, _))
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         FetchOkData ok_data(true, kEnd);
         auto task = std::make_unique<MockFetchTask>(true);
@@ -728,8 +728,8 @@ TEST_F(MoqtFetchResponseStreamTest, OnDataStreamOpenCleanSyncTeardown) {
   EXPECT_CALL(mock_publisher_, GetTrack(kTrackName))
       .WillOnce(Return(track_publisher_));
   EXPECT_CALL(*track_publisher_,
-              StandaloneFetch(kStart, kEnd, MoqtDeliveryOrder::kAscending, _))
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+              StandaloneFetch(kStart, kEnd, MoqtGroupOrder::kAscending, _))
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         FetchOkData ok_data(true, kEnd);
         auto task = std::make_unique<MockFetchTask>(true);
@@ -767,8 +767,8 @@ TEST_F(MoqtFetchResponseStreamTest, OnDataStreamOpenErrorTeardown) {
   EXPECT_CALL(mock_publisher_, GetTrack(kTrackName))
       .WillOnce(Return(track_publisher_));
   EXPECT_CALL(*track_publisher_,
-              StandaloneFetch(kStart, kEnd, MoqtDeliveryOrder::kAscending, _))
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+              StandaloneFetch(kStart, kEnd, MoqtGroupOrder::kAscending, _))
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         FetchOkData ok_data(true, kEnd);
         auto task = std::make_unique<MockFetchTask>();
@@ -808,8 +808,8 @@ TEST_F(MoqtFetchResponseStreamTest, ReceiveRequestUpdate) {
   EXPECT_CALL(mock_publisher_, GetTrack(kTrackName))
       .WillOnce(Return(track_publisher_));
   EXPECT_CALL(*track_publisher_,
-              StandaloneFetch(kStart, kEnd, MoqtDeliveryOrder::kAscending, _))
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+              StandaloneFetch(kStart, kEnd, MoqtGroupOrder::kAscending, _))
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         FetchOkData ok_data(true, kEnd);
         std::move(callback)(ok_data);
@@ -838,8 +838,8 @@ TEST_F(MoqtFetchResponseStreamTest, OnRawControlMessage) {
   EXPECT_CALL(mock_publisher_, GetTrack(kTrackName))
       .WillOnce(Return(track_publisher_));
   EXPECT_CALL(*track_publisher_,
-              StandaloneFetch(kStart, kEnd, MoqtDeliveryOrder::kAscending, _))
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+              StandaloneFetch(kStart, kEnd, MoqtGroupOrder::kAscending, _))
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         FetchOkData ok_data(true, kEnd);
         std::move(callback)(ok_data);
@@ -901,8 +901,8 @@ TEST_F(MoqtFetchResponseStreamTest, DetachResetsDataStream) {
   EXPECT_CALL(mock_publisher_, GetTrack(kTrackName))
       .WillOnce(Return(track_publisher_));
   EXPECT_CALL(*track_publisher_,
-              StandaloneFetch(kStart, kEnd, MoqtDeliveryOrder::kAscending, _))
-      .WillOnce([&](Location, Location, MoqtDeliveryOrder,
+              StandaloneFetch(kStart, kEnd, MoqtGroupOrder::kAscending, _))
+      .WillOnce([&](Location, Location, MoqtGroupOrder,
                     FetchResponseCallback callback) {
         FetchOkData ok_data(true, kEnd);
         auto task = std::make_unique<MockFetchTask>();

@@ -49,7 +49,7 @@ void SetSubscriptionFilter(MessageParameters& p) {
   p.subscription_filter = SubscriptionFilter(MoqtFilterType::kNextGroupStart);
 }
 void SetGroupOrder(MessageParameters& p) {
-  p.group_order = MoqtDeliveryOrder::kAscending;
+  p.group_order = MoqtGroupOrder::kAscending;
 }
 void SetNewGroupRequest(MessageParameters& p) { p.new_group_request = 9; }
 void SetTrackNamespacePrefix(MessageParameters& p) {

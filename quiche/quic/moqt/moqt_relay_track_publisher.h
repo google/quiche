@@ -114,7 +114,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
     oack_window_size_ = oack_window_size;
   }
   std::unique_ptr<MoqtFetchTask> StandaloneFetch(
-      Location /*start*/, Location /*end*/, MoqtDeliveryOrder,
+      Location /*start*/, Location /*end*/, MoqtGroupOrder,
       FetchResponseCallback callback) override {
     std::move(callback)(
         MoqtRequestErrorInfo(RequestErrorCode::kNotSupported, std::nullopt,
@@ -122,7 +122,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
     return nullptr;
   }
   std::unique_ptr<MoqtFetchTask> RelativeFetch(
-      uint64_t /*group_diff*/, MoqtDeliveryOrder,
+      uint64_t /*group_diff*/, MoqtGroupOrder,
       FetchResponseCallback callback) override {
     std::move(callback)(MoqtRequestErrorInfo(RequestErrorCode::kNotSupported,
                                              std::nullopt,
@@ -130,7 +130,7 @@ class MoqtRelayTrackPublisher : public MoqtTrackPublisher,
     return nullptr;
   }
   std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
-      uint64_t /*group*/, MoqtDeliveryOrder,
+      uint64_t /*group*/, MoqtGroupOrder,
       FetchResponseCallback callback) override {
     std::move(callback)(MoqtRequestErrorInfo(RequestErrorCode::kNotSupported,
                                              std::nullopt,

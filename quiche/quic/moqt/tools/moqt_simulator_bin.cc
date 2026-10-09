@@ -48,7 +48,7 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     "Duration of the simulation");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
-    std::string, delivery_order, "desc",
+    std::string, group_order, "desc",
     "Delivery order used for the MoQT track simulated ('asc' or 'desc').");
 
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
@@ -135,14 +135,14 @@ int main(int argc, char** argv) {
         absl::ToDoubleSeconds(group_duration) * parameters.fps;
   }
 
-  std::string raw_delivery_order = absl::AsciiStrToLower(
-      quiche::GetQuicheCommandLineFlag(FLAGS_delivery_order));
-  if (raw_delivery_order == "asc") {
-    parameters.delivery_order = moqt::MoqtDeliveryOrder::kAscending;
-  } else if (raw_delivery_order == "desc") {
-    parameters.delivery_order = moqt::MoqtDeliveryOrder::kDescending;
+  std::string raw_group_order = absl::AsciiStrToLower(
+      quiche::GetQuicheCommandLineFlag(FLAGS_group_order));
+  if (raw_group_order == "asc") {
+    parameters.group_order = moqt::MoqtGroupOrder::kAscending;
+  } else if (raw_group_order == "desc") {
+    parameters.group_order = moqt::MoqtGroupOrder::kDescending;
   } else {
-    std::cerr << "--delivery_order must be 'asc' or 'desc'." << std::endl;
+    std::cerr << "--group_order must be 'asc' or 'desc'." << std::endl;
     return 1;
   }
 

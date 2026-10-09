@@ -536,14 +536,14 @@ QuicheBuffer SerializeControlMessage(MoqtMessageType type, Ts... data) {
 }
 
 [[maybe_unused]] WireUint8 WireDeliveryOrder(
-    std::optional<MoqtDeliveryOrder> delivery_order) {
-  if (!delivery_order.has_value()) {
+    std::optional<MoqtGroupOrder> group_order) {
+  if (!group_order.has_value()) {
     return WireUint8(0x00);
   }
-  switch (*delivery_order) {
-    case MoqtDeliveryOrder::kAscending:
+  switch (*group_order) {
+    case MoqtGroupOrder::kAscending:
       return WireUint8(0x01);
-    case MoqtDeliveryOrder::kDescending:
+    case MoqtGroupOrder::kDescending:
       return WireUint8(0x02);
   }
   QUICHE_NOTREACHED();

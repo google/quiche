@@ -146,7 +146,7 @@ TEST_F(MessageParametersTest, Update) {
   p2.authorization_tokens.push_back(
       AuthToken(AuthTokenType::kOutOfBand, "token"));
   p2.set_forward(true);
-  p2.group_order = MoqtDeliveryOrder::kDescending;
+  p2.group_order = MoqtGroupOrder::kDescending;
   p2.track_namespace_prefix = TrackNamespace({"bar"});
   p1.Update(p2);
   EXPECT_EQ(p1.object_delivery_timeout,
@@ -179,7 +179,7 @@ TEST_F(TrackPropertiesTest, AllProperties) {
   TrackProperties properties(quic::QuicTimeDelta::FromMilliseconds(1),
                              quic::QuicTimeDelta::FromMilliseconds(2),
                              quic::QuicTimeDelta::FromMilliseconds(3),
-                             MoqtPriority(10), MoqtDeliveryOrder::kDescending,
+                             MoqtPriority(10), MoqtGroupOrder::kDescending,
                              true, "properties");
   EXPECT_TRUE(properties.Validate());
   EXPECT_EQ(properties.object_delivery_timeout(),
@@ -190,7 +190,7 @@ TEST_F(TrackPropertiesTest, AllProperties) {
             quic::QuicTimeDelta::FromMilliseconds(3));
   EXPECT_EQ(properties.default_publisher_priority(), MoqtPriority(10));
   EXPECT_EQ(properties.default_publisher_group_order(),
-            MoqtDeliveryOrder::kDescending);
+            MoqtGroupOrder::kDescending);
   EXPECT_TRUE(properties.dynamic_groups());
   EXPECT_EQ(properties.immutable_properties(), "properties");
 }

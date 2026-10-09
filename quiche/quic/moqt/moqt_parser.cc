@@ -379,11 +379,11 @@ absl::StatusOr<MessageParameters> ParseMessageParameters(
         if (!reader.ReadUInt8(&value8)) {
           return absl::InvalidArgumentError("Parameter parsing error");
         }
-        if (value8 > kMaxMoqtDeliveryOrder || value8 < kMinMoqtDeliveryOrder) {
+        if (value8 > kMaxMoqtGroupOrder || value8 < kMinMoqtGroupOrder) {
           return absl::InvalidArgumentError(
               "GROUP_ORDER is outside the valid range");
         }
-        params.group_order = static_cast<MoqtDeliveryOrder>(value8);
+        params.group_order = static_cast<MoqtGroupOrder>(value8);
         break;
       case MessageParameter::kNewGroupRequest:
         if (params.new_group_request.has_value()) {
@@ -1428,12 +1428,13 @@ void MoqtDataParser::ParseNextItemFromStream() {
         return;
       }
       if (type_.IsFetch() && last_group_id_.has_value()) {
+        // Diff-encoded group ID.
         std::optional<uint64_t> new_group_id;
         if (!group_order_.has_value()) {
           // Exit to satisfy ClangTidy.
           return;
         }
-        if (*group_order_ == MoqtDeliveryOrder::kAscending) {
+        if (*group_order_ == MoqtGroupOrder::kAscending) {
           new_group_id =
               quiche::SafeSum<uint64_t>({*value_read, *last_group_id_, 1});
         } else {

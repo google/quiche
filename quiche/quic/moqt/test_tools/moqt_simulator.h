@@ -57,7 +57,7 @@ struct SimulationParameters {
   // they were generated.
   quic::QuicTimeDelta deadline = quic::QuicTimeDelta::FromSeconds(2);
   // Delivery order used by the publisher.
-  MoqtDeliveryOrder delivery_order = MoqtDeliveryOrder::kDescending;
+  MoqtGroupOrder group_order = MoqtGroupOrder::kDescending;
   // Delivery timeout for the subscription.  This is mechanically independent
   // from `deadline`, which is an accounting-only parameter (in practice, those
   // should probably be close).

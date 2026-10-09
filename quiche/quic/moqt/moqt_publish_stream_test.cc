@@ -87,7 +87,7 @@ class MoqtPublishRequestStreamTest : public quiche::test::QuicheTest {
     // Construct the LivePublisher.
     parameters_.set_forward(true);
     parameters_.object_delivery_timeout = quic::QuicTimeDelta::FromSeconds(1);
-    parameters_.group_order = MoqtDeliveryOrder::kAscending;
+    parameters_.group_order = MoqtGroupOrder::kAscending;
 
     EXPECT_CALL(visitor_, session).WillRepeatedly(Return(&webtrans_));
     auto publisher = std::make_unique<LivePublisher>(
@@ -135,7 +135,7 @@ TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestOk) {
   MoqtRequestOk request_ok;
   request_ok.parameters.object_delivery_timeout =
       quic::QuicTimeDelta::FromSeconds(2);
-  request_ok.parameters.group_order = MoqtDeliveryOrder::kDescending;
+  request_ok.parameters.group_order = MoqtGroupOrder::kDescending;
   QUICHE_EXPECT_OK(stream_->OnControlMessage(request_ok));
 
   // Verify response callback was called.

@@ -100,7 +100,7 @@ inline MessageParameters SubscribeForTest() {
   parameters.set_forward(true);
   parameters.subscriber_priority = 0x20;
   parameters.subscription_filter.emplace(Location(4, 1));
-  parameters.group_order = MoqtDeliveryOrder::kDescending;
+  parameters.group_order = MoqtGroupOrder::kDescending;
   return parameters;
 }
 
@@ -798,7 +798,7 @@ class QUICHE_NO_EXPORT SubscribeOkMessage : public TestMessageBase {
           /*max_cache_duration=*/quic::QuicTimeDelta::FromMilliseconds(10000),
           /*subgroup_delivery_timeout=*/std::nullopt,
           /*publisher_priority=*/std::nullopt,
-          /*group_order=*/MoqtDeliveryOrder::kDescending,
+          /*group_order=*/MoqtGroupOrder::kDescending,
           /*dynamic_groups=*/std::nullopt,
           /*immutable_properties=*/std::nullopt),
   };
@@ -1145,7 +1145,7 @@ class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
           /*max_cache_duration=*/quic::QuicTimeDelta::FromMilliseconds(10000),
           /*subgroup_delivery_timeout=*/std::nullopt,
           /*publisher_priority=*/std::nullopt,
-          /*group_order=*/MoqtDeliveryOrder::kDescending,
+          /*group_order=*/MoqtGroupOrder::kDescending,
           /*dynamic_groups=*/std::nullopt,
           /*immutable_properties=*/std::nullopt),
   };
@@ -1348,7 +1348,7 @@ class QUICHE_NO_EXPORT FetchMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     fetch_.parameters.authorization_tokens.push_back(
         AuthToken(AuthTokenType::kOutOfBand, "baz"));
-    fetch_.parameters.group_order = MoqtDeliveryOrder::kAscending;
+    fetch_.parameters.group_order = MoqtGroupOrder::kAscending;
     fetch_.parameters.fill_timeout = quic::QuicTimeDelta::FromMilliseconds(100);
     fetch_.parameters.subscriber_priority = 2;
   }
@@ -1429,7 +1429,7 @@ class QUICHE_NO_EXPORT RelativeJoiningFetchMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     fetch_.parameters.authorization_tokens.push_back(
         AuthToken(AuthTokenType::kOutOfBand, "baz"));
-    fetch_.parameters.group_order = MoqtDeliveryOrder::kAscending;
+    fetch_.parameters.group_order = MoqtGroupOrder::kAscending;
     fetch_.parameters.subscriber_priority = 2;
   }
   bool EqualFieldValues(const MessageStructuredData& values) const override {
@@ -1487,7 +1487,7 @@ class QUICHE_NO_EXPORT AbsoluteJoiningFetchMessage : public TestMessageBase {
     SetWireImage(raw_packet_, sizeof(raw_packet_));
     fetch_.parameters.authorization_tokens.push_back(
         AuthToken(AuthTokenType::kOutOfBand, "baz"));
-    fetch_.parameters.group_order = MoqtDeliveryOrder::kAscending;
+    fetch_.parameters.group_order = MoqtGroupOrder::kAscending;
     fetch_.parameters.subscriber_priority = 2;
   }
   bool EqualFieldValues(const MessageStructuredData& values) const override {
@@ -1583,10 +1583,10 @@ class QUICHE_NO_EXPORT FetchOkMessage : public TestMessageBase {
       /*end_of_track=*/false,
       /*end_location=*/Location{5, 3},
       MessageParameters(),
-      TrackProperties(
-          std::nullopt, quic::QuicTimeDelta::FromMilliseconds(10000),
-          std::nullopt, std::nullopt, MoqtDeliveryOrder::kDescending,
-          std::nullopt, std::nullopt),
+      TrackProperties(std::nullopt,
+                      quic::QuicTimeDelta::FromMilliseconds(10000),
+                      std::nullopt, std::nullopt, MoqtGroupOrder::kDescending,
+                      std::nullopt, std::nullopt),
   };
 };
 
@@ -1652,8 +1652,7 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
       /*track_alias=*/4,
       MessageParameters(),
       TrackProperties(std::nullopt, std::nullopt, std::nullopt, std::nullopt,
-                      MoqtDeliveryOrder::kDescending, std::nullopt,
-                      std::nullopt),
+                      MoqtGroupOrder::kDescending, std::nullopt, std::nullopt),
   };
 };
 

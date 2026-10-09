@@ -109,9 +109,10 @@ class TestMoqtOutgoingQueue : public MoqtOutgoingQueue,
               (override));
 };
 
-absl::StatusOr<std::vector<std::string>> FetchToVector(
-    MoqtOutgoingQueue& queue, Location start, Location end,
-    MoqtDeliveryOrder order) {
+absl::StatusOr<std::vector<std::string>> FetchToVector(MoqtOutgoingQueue& queue,
+                                                       Location start,
+                                                       Location end,
+                                                       MoqtGroupOrder order) {
   std::optional<std::variant<FetchOkData, MoqtRequestErrorInfo>> response;
   std::unique_ptr<MoqtFetchTask> fetch = queue.StandaloneFetch(
       start, end, order,
@@ -327,7 +328,7 @@ TEST(MoqtOutgoingQueue, FiveGroupsPastSubscribe) {
 TEST(MoqtOutgoingQueue, StandaloneFetch) {
   TestMoqtOutgoingQueue queue;
   EXPECT_THAT(FetchToVector(queue, Location{0, 0}, Location{2, 0},
-                            MoqtDeliveryOrder::kAscending),
+                            MoqtGroupOrder::kAscending),
               StatusIs(absl::StatusCode::kOutOfRange));
 
   queue.AddObject(quiche::QuicheMemSlice::Copy("a"), true);
@@ -337,40 +338,40 @@ TEST(MoqtOutgoingQueue, StandaloneFetch) {
   queue.AddObject(quiche::QuicheMemSlice::Copy("e"), true);
 
   EXPECT_THAT(FetchToVector(queue, Location{0, 0}, Location{2, 0},
-                            MoqtDeliveryOrder::kAscending),
+                            MoqtGroupOrder::kAscending),
               IsOkAndHolds(ElementsAre("a", "b", "c", "d", "e")));
   EXPECT_THAT(FetchToVector(queue, Location{0, 100}, Location{0, 1000},
-                            MoqtDeliveryOrder::kAscending),
+                            MoqtGroupOrder::kAscending),
               StatusIs(absl::StatusCode::kOutOfRange));
   EXPECT_THAT(FetchToVector(queue, Location{0, 0}, Location{2, 0},
-                            MoqtDeliveryOrder::kDescending),
+                            MoqtGroupOrder::kDescending),
               IsOkAndHolds(ElementsAre("e", "c", "d", "a", "b")));
   EXPECT_THAT(FetchToVector(queue, Location{0, 0}, Location{1, 0},
-                            MoqtDeliveryOrder::kAscending),
+                            MoqtGroupOrder::kAscending),
               IsOkAndHolds(ElementsAre("a", "b", "c")));
   EXPECT_THAT(FetchToVector(queue, Location{0, 0}, Location{1, 0},
-                            MoqtDeliveryOrder::kAscending),
+                            MoqtGroupOrder::kAscending),
               IsOkAndHolds(ElementsAre("a", "b", "c")));
   EXPECT_THAT(FetchToVector(queue, Location{1, 0}, Location{5, kMaxObjectId},
-                            MoqtDeliveryOrder::kAscending),
+                            MoqtGroupOrder::kAscending),
               IsOkAndHolds(ElementsAre("c", "d", "e")));
   EXPECT_THAT(FetchToVector(queue, Location{3, 0}, Location{5, kMaxObjectId},
-                            MoqtDeliveryOrder::kAscending),
+                            MoqtGroupOrder::kAscending),
               StatusIs(absl::StatusCode::kOutOfRange));
 
   queue.AddObject(quiche::QuicheMemSlice::Copy("f"), true);
   queue.AddObject(quiche::QuicheMemSlice::Copy("g"), false);
   EXPECT_THAT(FetchToVector(queue, Location{0, 0}, Location{0, 1},
-                            MoqtDeliveryOrder::kAscending),
+                            MoqtGroupOrder::kAscending),
               StatusIs(absl::StatusCode::kOutOfRange));
   EXPECT_THAT(FetchToVector(queue, Location{0, 0}, Location{2, 0},
-                            MoqtDeliveryOrder::kAscending),
+                            MoqtGroupOrder::kAscending),
               IsOkAndHolds(ElementsAre("c", "d", "e")));
   EXPECT_THAT(FetchToVector(queue, Location{1, 0}, Location{5, kMaxObjectId},
-                            MoqtDeliveryOrder::kAscending),
+                            MoqtGroupOrder::kAscending),
               IsOkAndHolds(ElementsAre("c", "d", "e", "f", "g")));
   EXPECT_THAT(FetchToVector(queue, Location{3, 0}, Location{5, kMaxObjectId},
-                            MoqtDeliveryOrder::kAscending),
+                            MoqtGroupOrder::kAscending),
               IsOkAndHolds(ElementsAre("f", "g")));
 }
 
@@ -378,7 +379,7 @@ TEST(MoqtOutgoingQueue, RelativeJoiningFetch) {
   TestMoqtOutgoingQueue queue;
   EXPECT_QUICHE_BUG(
       queue.RelativeFetch(
-          1, MoqtDeliveryOrder::kAscending,
+          1, MoqtGroupOrder::kAscending,
           [](std::variant<FetchOkData, MoqtRequestErrorInfo>) {}),
       "Calling RelativeFetch\\(\\) on an established subscription");
 }
@@ -387,7 +388,7 @@ TEST(MoqtOutgoingQueue, AbsoluteJoiningFetch) {
   TestMoqtOutgoingQueue queue;
   EXPECT_QUICHE_BUG(
       queue.AbsoluteFetch(
-          1, MoqtDeliveryOrder::kAscending,
+          1, MoqtGroupOrder::kAscending,
           [](std::variant<FetchOkData, MoqtRequestErrorInfo>) {}),
       "Calling AbsoluteFetch\\(\\) on an established subscription");
 }
@@ -401,10 +402,10 @@ TEST(MoqtOutgoingQueue, ObjectsGoneWhileFetching) {
   queue.AddObject(quiche::QuicheMemSlice::Copy("e"), true);
 
   EXPECT_THAT(FetchToVector(queue, Location{0, 0}, Location{5, 0},
-                            MoqtDeliveryOrder::kAscending),
+                            MoqtGroupOrder::kAscending),
               IsOkAndHolds(ElementsAre("c", "d", "e")));
   std::unique_ptr<MoqtFetchTask> deferred_fetch = queue.StandaloneFetch(
-      Location{0, 0}, Location{5, 0}, MoqtDeliveryOrder::kAscending,
+      Location{0, 0}, Location{5, 0}, MoqtGroupOrder::kAscending,
       [](std::variant<FetchOkData, MoqtRequestErrorInfo>) {});
 
   queue.AddObject(quiche::QuicheMemSlice::Copy("f"), true);
@@ -435,7 +436,7 @@ TEST(MoqtOutgoingQueue, EndOfTrack) {
   // end_of_track is false before Close() is called.
   FetchOkData expected_ok(false, Location(1, 0));
   std::unique_ptr<MoqtFetchTask> fetch = queue.StandaloneFetch(
-      Location{0, 0}, Location{5, kMaxObjectId}, MoqtDeliveryOrder::kAscending,
+      Location{0, 0}, Location{5, kMaxObjectId}, MoqtGroupOrder::kAscending,
       [&](std::variant<FetchOkData, MoqtRequestErrorInfo> arg) {
         ++responses;
         EXPECT_EQ(std::get<FetchOkData>(arg), expected_ok);
@@ -445,7 +446,7 @@ TEST(MoqtOutgoingQueue, EndOfTrack) {
   // end_of_track is false if the fetch does not include the last object.
   expected_ok.end_location = Location(1, kMaxObjectId);
   fetch = queue.StandaloneFetch(
-      Location{0, 0}, Location{1, kMaxObjectId}, MoqtDeliveryOrder::kAscending,
+      Location{0, 0}, Location{1, kMaxObjectId}, MoqtGroupOrder::kAscending,
       [&](std::variant<FetchOkData, MoqtRequestErrorInfo> arg) {
         ++responses;
         EXPECT_EQ(std::get<FetchOkData>(arg), expected_ok);
@@ -453,7 +454,7 @@ TEST(MoqtOutgoingQueue, EndOfTrack) {
   // end_of_track is true if the fetch includes the last object.
   expected_ok = FetchOkData(true, Location(2, 0));
   fetch = queue.StandaloneFetch(
-      Location{0, 0}, Location{5, kMaxObjectId}, MoqtDeliveryOrder::kAscending,
+      Location{0, 0}, Location{5, kMaxObjectId}, MoqtGroupOrder::kAscending,
       [&](std::variant<FetchOkData, MoqtRequestErrorInfo> arg) {
         ++responses;
         EXPECT_EQ(std::get<FetchOkData>(arg), expected_ok);

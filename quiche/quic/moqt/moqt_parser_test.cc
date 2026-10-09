@@ -157,7 +157,7 @@ class MoqtParserTest
     // The default object has priority 0x07, so setting this will let the
     // parser set the correct value when absent.
     data_parser_.set_default_publisher_priority(0x07);
-    data_parser_.SetGroupOrder(MoqtDeliveryOrder::kAscending);
+    data_parser_.SetGroupOrder(MoqtGroupOrder::kAscending);
   }
 
   bool IsDataStream() const {
@@ -1573,7 +1573,7 @@ class MoqtDataParserStateMachineTest : public quic::test::QuicTest {
  protected:
   MoqtDataParserStateMachineTest()
       : stream_(/*stream_id=*/0), parser_(&stream_, &visitor_) {
-    parser_.SetGroupOrder(MoqtDeliveryOrder::kAscending);
+    parser_.SetGroupOrder(MoqtGroupOrder::kAscending);
   }
 
   webtransport::test::InMemoryStream stream_;
@@ -1638,7 +1638,7 @@ TEST_F(MoqtDataParserStateMachineTest, ReadTypeThenObjectsFetch) {
     MoqtParserTestVisitor visitor;
     webtransport::test::InMemoryStream stream(/*stream_id=*/0);
     MoqtDataParser parser(&stream, &visitor);
-    parser.SetGroupOrder(MoqtDeliveryOrder::kAscending);
+    parser.SetGroupOrder(MoqtGroupOrder::kAscending);
     StreamHeaderFetchMessage header;
     StreamMiddlerFetchMessage middler(serialization);
     stream.Receive(header.PacketSample());
@@ -1666,7 +1666,7 @@ TEST_F(MoqtDataParserStateMachineTest, StreamHeaderFetchRefersToPrior) {
     MoqtParserTestVisitor visitor;
     webtransport::test::InMemoryStream stream(/*stream_id=*/0);
     MoqtDataParser parser(&stream, &visitor);
-    parser.SetGroupOrder(MoqtDeliveryOrder::kAscending);
+    parser.SetGroupOrder(MoqtGroupOrder::kAscending);
     stream.Receive(absl::string_view(data, sizeof(data)));
     parser.ReadStreamType();
     parser.ReadAtMostOneObject();
@@ -1685,7 +1685,7 @@ TEST_F(MoqtDataParserStateMachineTest, DatagramThenPriorSubgroupId) {
     MoqtParserTestVisitor visitor;
     webtransport::test::InMemoryStream stream(/*stream_id=*/0);
     MoqtDataParser parser(&stream, &visitor);
-    parser.SetGroupOrder(MoqtDeliveryOrder::kAscending);
+    parser.SetGroupOrder(MoqtGroupOrder::kAscending);
     stream.Receive(absl::string_view(data, sizeof(data)));
     parser.ReadStreamType();
     parser.ReadAtMostOneObject();
@@ -1799,7 +1799,7 @@ TEST_F(MoqtDataParserStateMachineTest, FetchDescendingGroupOrder) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtParserTestVisitor visitor;
   MoqtDataParser parser(&stream, &visitor);
-  parser.SetGroupOrder(MoqtDeliveryOrder::kDescending);
+  parser.SetGroupOrder(MoqtGroupOrder::kDescending);
 
   // Header has group_id = 5, object_id = 6.
   StreamHeaderFetchMessage header;

@@ -30,7 +30,7 @@ void MoqtControlParserNeverCrashes(bool is_data_stream, bool uses_web_transport,
   MoqtControlMessageParser control_message_parser(
       kDefaultMoqtVersion, uses_web_transport, perspective);
   MoqtDataParser data_parser(&stream, &visitor);
-  data_parser.SetGroupOrder(MoqtDeliveryOrder::kAscending);
+  data_parser.SetGroupOrder(MoqtGroupOrder::kAscending);
 
   if (is_data_stream) {
     stream.Receive(stream_data, /*fin=*/fin);

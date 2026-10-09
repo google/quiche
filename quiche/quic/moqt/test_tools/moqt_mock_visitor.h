@@ -99,12 +99,12 @@ class MockTrackPublisher : public MoqtTrackPublisher {
   MOCK_METHOD(std::optional<quic::QuicTimeDelta>, expiration, (),
               (const, override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, StandaloneFetch,
-              (Location, Location, MoqtDeliveryOrder, FetchResponseCallback),
+              (Location, Location, MoqtGroupOrder, FetchResponseCallback),
               (override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, RelativeFetch,
-              (uint64_t, MoqtDeliveryOrder, FetchResponseCallback), (override));
+              (uint64_t, MoqtGroupOrder, FetchResponseCallback), (override));
   MOCK_METHOD(std::unique_ptr<MoqtFetchTask>, AbsoluteFetch,
-              (uint64_t, MoqtDeliveryOrder, FetchResponseCallback), (override));
+              (uint64_t, MoqtGroupOrder, FetchResponseCallback), (override));
 
  private:
   FullTrackName track_name_;
@@ -148,7 +148,7 @@ class TestTrackPublisher : public MoqtTrackPublisher {
   }
   // TODO(martinduke): Support Fetch
   std::unique_ptr<MoqtFetchTask> StandaloneFetch(
-      Location start, Location end, MoqtDeliveryOrder delivery_order,
+      Location start, Location end, MoqtGroupOrder group_order,
       FetchResponseCallback callback) override {
     std::move(callback)(MoqtRequestErrorInfo{
         .error_code = RequestErrorCode::kDoesNotExist,
@@ -157,7 +157,7 @@ class TestTrackPublisher : public MoqtTrackPublisher {
     return nullptr;
   }
   std::unique_ptr<MoqtFetchTask> RelativeFetch(
-      uint64_t offset, MoqtDeliveryOrder delivery_order,
+      uint64_t offset, MoqtGroupOrder group_order,
       FetchResponseCallback callback) override {
     std::move(callback)(MoqtRequestErrorInfo{
         .error_code = RequestErrorCode::kDoesNotExist,
@@ -166,7 +166,7 @@ class TestTrackPublisher : public MoqtTrackPublisher {
     return nullptr;
   }
   std::unique_ptr<MoqtFetchTask> AbsoluteFetch(
-      uint64_t offset, MoqtDeliveryOrder delivery_order,
+      uint64_t offset, MoqtGroupOrder group_order,
       FetchResponseCallback callback) override {
     std::move(callback)(MoqtRequestErrorInfo{
         .error_code = RequestErrorCode::kDoesNotExist,

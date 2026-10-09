@@ -104,7 +104,7 @@ void MoqtFetchRequestStream::OnStreamOpened(
   task_ = nullptr;
   auto* data_stream = absl::down_cast<IncomingDataStream*>(stream);
   data_stream->set_group_order(
-      const_parameters().group_order.value_or(MoqtDeliveryOrder::kAscending));
+      const_parameters().group_order.value_or(MoqtGroupOrder::kAscending));
   data_stream->set_fetch_task(task);
 }
 
@@ -270,8 +270,8 @@ absl::Status MoqtFetchResponseStream::OnControlMessage(
   QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
   request_id_ = message.request_id;
   parameters_ = message.parameters;
-  MoqtDeliveryOrder delivery_order =
-      message.parameters.group_order.value_or(MoqtDeliveryOrder::kAscending);
+  MoqtGroupOrder group_order =
+      message.parameters.group_order.value_or(MoqtGroupOrder::kAscending);
   std::unique_ptr<MoqtFetchTask> fetch;
   FetchResponseCallback response_callback =
       [weak_ptr = weak_ptr_factory_.Create()](
@@ -313,7 +313,7 @@ absl::Status MoqtFetchResponseStream::OnControlMessage(
     QUIC_DLOG(INFO) << "Received a StandaloneFETCH for " << track_name;
     fetch = track_publisher->StandaloneFetch(
         standalone_fetch.start_location, standalone_fetch.end_location,
-        delivery_order, std::move(response_callback));
+        group_order, std::move(response_callback));
   } else {
     // Joining Fetch.
     // TODO(martinduke): There are some gaps in this implementation that are
@@ -387,18 +387,18 @@ absl::Status MoqtFetchResponseStream::OnControlMessage(
         }
       }
       fetch = subscription->publisher().StandaloneFetch(
-          Location{start_group, 0}, *largest_object, delivery_order,
+          Location{start_group, 0}, *largest_object, group_order,
           std::move(response_callback));
     } else {
       // Subscription is in PENDING state.
       if (std::holds_alternative<JoiningFetchRelative>(message.fetch)) {
         fetch = subscription->publisher().RelativeFetch(
             std::get<JoiningFetchRelative>(message.fetch).joining_start,
-            delivery_order, std::move(response_callback));
+            group_order, std::move(response_callback));
       } else {
         fetch = subscription->publisher().AbsoluteFetch(
             std::get<JoiningFetchAbsolute>(message.fetch).joining_start,
-            delivery_order, std::move(response_callback));
+            group_order, std::move(response_callback));
       }
     }
   }

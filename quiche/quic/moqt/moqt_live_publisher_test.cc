@@ -118,7 +118,7 @@ class LivePublisherTest : public quic::test::QuicTest {
     parameters_.set_forward(true);
     parameters_.object_delivery_timeout = quic::QuicTimeDelta::FromSeconds(1);
     parameters_.subgroup_delivery_timeout = quic::QuicTimeDelta::FromSeconds(2);
-    parameters_.group_order = MoqtDeliveryOrder::kAscending;
+    parameters_.group_order = MoqtGroupOrder::kAscending;
     EXPECT_CALL(monitoring_interface_, OnObjectAckSupportKnown)
         .Times(AtLeast(0));
     EXPECT_CALL(visitor_, session).WillRepeatedly(Return(&webtrans_));
@@ -916,7 +916,7 @@ TEST_F(LivePublisherTest, PublishPropertiesAndTimeouts) {
       /*max_cache_duration=*/std::nullopt,
       /*subgroup_delivery_timeout=*/quic::QuicTimeDelta::FromMilliseconds(500),
       /*publisher_priority=*/42,
-      /*group_order=*/MoqtDeliveryOrder::kDescending,
+      /*group_order=*/MoqtGroupOrder::kDescending,
       /*dynamic_groups=*/std::nullopt,
       /*immutable_properties=*/std::nullopt);
   EXPECT_CALL(*track_publisher_, properties())
@@ -929,7 +929,7 @@ TEST_F(LivePublisherTest, PublishPropertiesAndTimeouts) {
                                   visitor_.weak_ptr_factory_.Create(),
                                   /*is_publish=*/true);
   EXPECT_EQ(publish_publisher.parameters().group_order,
-            MoqtDeliveryOrder::kDescending);
+            MoqtGroupOrder::kDescending);
 
   // OnSubscribeAccepted initializes publisher delivery timeouts and default
   // priority without sending SUBSCRIBE_OK since established_ is already true.

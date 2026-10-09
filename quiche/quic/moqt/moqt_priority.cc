@@ -36,12 +36,12 @@ webtransport::SendOrder SendOrderForStream(MoqtPriority subscriber_priority,
                                            MoqtPriority publisher_priority,
                                            uint64_t group_id,
                                            uint64_t subgroup_id,
-                                           MoqtDeliveryOrder delivery_order) {
+                                           MoqtGroupOrder group_order) {
   const int64_t track_bits = (Flip<8>(subscriber_priority) << 54) |
                              (Flip<8>(publisher_priority) << 46);
   group_id = OnlyLowestNBits<26>(group_id);
   subgroup_id = OnlyLowestNBits<20>(subgroup_id);
-  if (delivery_order == MoqtDeliveryOrder::kAscending) {
+  if (group_order == MoqtGroupOrder::kAscending) {
     group_id = Flip<26>(group_id);
   }
   subgroup_id = Flip<20>(subgroup_id);
@@ -52,9 +52,9 @@ webtransport::SendOrder SendOrderForDatagram(MoqtPriority subscriber_priority,
                                              MoqtPriority publisher_priority,
                                              uint64_t group_id,
                                              uint64_t object_id,
-                                             MoqtDeliveryOrder delivery_order) {
+                                             MoqtGroupOrder group_order) {
   return SendOrderForStream(subscriber_priority, publisher_priority, group_id,
-                            object_id, delivery_order);
+                            object_id, group_order);
 }
 
 webtransport::SendOrder SendOrderForFetch(MoqtPriority subscriber_priority) {

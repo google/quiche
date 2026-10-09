@@ -115,7 +115,7 @@ TrackProperties::TrackProperties(
     std::optional<quic::QuicTimeDelta> max_cache_duration,
     std::optional<quic::QuicTimeDelta> subgroup_delivery_timeout,
     std::optional<MoqtPriority> publisher_priority,
-    std::optional<MoqtDeliveryOrder> group_order,
+    std::optional<MoqtGroupOrder> group_order,
     std::optional<bool> dynamic_groups,
     std::optional<absl::string_view> immutable_properties) {
   if (object_delivery_timeout.has_value() &&
@@ -189,13 +189,13 @@ MoqtPriority TrackProperties::default_publisher_priority() const {
              ? kDefaultPublisherPriority
              : static_cast<MoqtPriority>(*value);
 }
-MoqtDeliveryOrder TrackProperties::default_publisher_group_order() const {
+MoqtGroupOrder TrackProperties::default_publisher_group_order() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kDefaultPublisherGroupOrder);
-  return (!value.has_value() || *value > kMaxMoqtDeliveryOrder ||
-          *value < kMinMoqtDeliveryOrder)
+  return (!value.has_value() || *value > kMaxMoqtGroupOrder ||
+          *value < kMinMoqtGroupOrder)
              ? kDefaultGroupOrder
-             : static_cast<MoqtDeliveryOrder>(*value);
+             : static_cast<MoqtGroupOrder>(*value);
 }
 bool TrackProperties::dynamic_groups() const {
   std::optional<uint64_t> value =
@@ -216,7 +216,7 @@ bool TrackProperties::Validate() const {
           ValidateInner(PropertyType::kDefaultPublisherPriority, std::nullopt,
                         kMaxPriority) &&
           ValidateInner(PropertyType::kDefaultPublisherGroupOrder,
-                        kMinMoqtDeliveryOrder, kMaxMoqtDeliveryOrder) &&
+                        kMinMoqtGroupOrder, kMaxMoqtGroupOrder) &&
           ValidateInner(PropertyType::kDynamicGroups, 0, 1) &&
           count(static_cast<uint64_t>(PropertyType::kImmutableProperties)) <=
               1);
