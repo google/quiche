@@ -309,13 +309,13 @@ TEST_F(MoqtFramerSimpleTest, FetchMiddler) {
 
 TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
   MoqtObject object = {
-      // Invalid: DoesNotExist with non-zero payload length.
+      // Invalid: EndOfTrack with non-zero payload length.
       /*track_alias=*/4,
       /*group_id=*/5,
       /*object_id=*/6,
       /*publisher_priority=*/7,
       std::string(kDefaultPropertyBlob.data(), kDefaultPropertyBlob.size()),
-      /*object_status=*/MoqtObjectStatus::kObjectDoesNotExist,
+      /*object_status=*/MoqtObjectStatus::kEndOfTrack,
       /*subgroup_id=*/8,
       /*first_object_in_subgroup=*/true,
       /*payload_length=*/3,
@@ -345,7 +345,7 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
   };
   quiche::QuicheBuffer buffer;
 
-  object.object_status = MoqtObjectStatus::kObjectDoesNotExist;
+  object.object_status = MoqtObjectStatus::kEndOfTrack;
   EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(
                       object, "foo", kDefaultPublisherPriority),
                   "Object metadata is invalid");

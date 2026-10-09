@@ -352,7 +352,7 @@ TEST_F(OutgoingFetchStreamTest, OnCanWriteSuccess) {
 
 TEST_F(OutgoingFetchStreamTest, OnCanWriteNonNormalStatus) {
   PublishedObject obj = DefaultObject();
-  obj.metadata.status = MoqtObjectStatus::kObjectDoesNotExist;
+  obj.metadata.status = MoqtObjectStatus::kEndOfGroup;
   EXPECT_CALL(mock_stream_, CanWrite())
       .WillOnce(Return(true))
       .WillOnce(Return(false));

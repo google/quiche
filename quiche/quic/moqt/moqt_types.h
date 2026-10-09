@@ -54,7 +54,6 @@ H AbslHashValue(H h, const Location& m) {
 
 enum class QUICHE_EXPORT MoqtObjectStatus : uint64_t {
   kNormal = 0x0,
-  kObjectDoesNotExist = 0x1,
   kEndOfGroup = 0x3,
   kEndOfTrack = 0x4,
   kInvalidObjectStatus = 0x5,

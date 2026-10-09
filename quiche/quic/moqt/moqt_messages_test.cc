@@ -4,6 +4,7 @@
 
 #include "quiche/quic/moqt/moqt_messages.h"
 
+#include <cstdint>
 #include <initializer_list>
 #include <optional>
 
@@ -334,6 +335,17 @@ TEST(MoqtMessagesTest, RedirectAllowedByRequestError) {
         EXPECT_FALSE(RedirectAllowedByRequestError(no_redirect, invalid_type)),
         "Unexpected request type for REQUEST_ERROR");
   }
+}
+
+TEST(MoqtMessagesTest, IntegerToObjectStatus) {
+  EXPECT_EQ(IntegerToObjectStatus(0), MoqtObjectStatus::kNormal);
+  EXPECT_EQ(IntegerToObjectStatus(1), MoqtObjectStatus::kInvalidObjectStatus);
+  EXPECT_EQ(IntegerToObjectStatus(2), MoqtObjectStatus::kInvalidObjectStatus);
+  EXPECT_EQ(IntegerToObjectStatus(3), MoqtObjectStatus::kEndOfGroup);
+  EXPECT_EQ(IntegerToObjectStatus(4), MoqtObjectStatus::kEndOfTrack);
+  EXPECT_EQ(IntegerToObjectStatus(5), MoqtObjectStatus::kInvalidObjectStatus);
+  EXPECT_EQ(IntegerToObjectStatus(UINT64_MAX),
+            MoqtObjectStatus::kInvalidObjectStatus);
 }
 
 }  // namespace

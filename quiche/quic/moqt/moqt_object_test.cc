@@ -70,7 +70,7 @@ TEST(PublishedObjectMetadataTest, IsMalformed) {
   EXPECT_TRUE(metadata.IsMalformed(other));
   other = metadata;
 
-  other.status = MoqtObjectStatus::kObjectDoesNotExist;
+  other.status = MoqtObjectStatus::kEndOfGroup;
   EXPECT_TRUE(metadata.IsMalformed(other));
   other = metadata;
 
@@ -111,7 +111,7 @@ TEST(PublishedObjectMetadataTest, Equality) {
   EXPECT_NE(metadata, other);
   other = metadata;
 
-  other.status = MoqtObjectStatus::kObjectDoesNotExist;
+  other.status = MoqtObjectStatus::kEndOfGroup;
   EXPECT_NE(metadata, other);
   other = metadata;
 

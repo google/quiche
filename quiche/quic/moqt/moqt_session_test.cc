@@ -1516,8 +1516,6 @@ void ExpectSendObject(MockFetchTask* fetch_task,
                       MoqtObjectStatus status, Location location,
                       absl::string_view payload,
                       MoqtFetchTask::GetNextObjectResult second_result) {
-  // Nothing is sent for status = kObjectDoesNotExist. Do not use this function.
-  QUICHE_DCHECK(status != MoqtObjectStatus::kObjectDoesNotExist);
   QUICHE_DCHECK(second_result != MoqtFetchTask::GetNextObjectResult::kSuccess);
   EXPECT_CALL(data_stream, CanWrite).WillRepeatedly(Return(true));
   EXPECT_CALL(*fetch_task, GetNextObject)

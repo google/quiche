@@ -69,8 +69,7 @@ class MoqtFetchTask {
     kError,
   };
 
-  // Returns the next object received via the fetch, if available. MUST NOT
-  // return an object with status kObjectDoesNotExist.
+  // Returns the next object received via the fetch, if available.
   virtual GetNextObjectResult GetNextObject(PublishedObject& output) = 0;
 
   // Sets the callback that is called when GetNextObject() has previously

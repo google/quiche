@@ -266,11 +266,16 @@ void ApplyAllowedParameters(MessageParameters& parameters,
 }  // namespace
 
 MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
-  if (integer >=
-      static_cast<uint64_t>(MoqtObjectStatus::kInvalidObjectStatus)) {
-    return MoqtObjectStatus::kInvalidObjectStatus;
+  switch (integer) {
+    case 0x0:
+      return MoqtObjectStatus::kNormal;
+    case 0x3:
+      return MoqtObjectStatus::kEndOfGroup;
+    case 0x4:
+      return MoqtObjectStatus::kEndOfTrack;
+    default:
+      return MoqtObjectStatus::kInvalidObjectStatus;
   }
-  return static_cast<MoqtObjectStatus>(integer);
 }
 
 MoqtError SetupOptionsAllowedByMessage(const SetupOptions& options,

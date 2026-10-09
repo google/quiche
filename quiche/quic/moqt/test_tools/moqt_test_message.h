@@ -297,7 +297,7 @@ class QUICHE_NO_EXPORT ObjectDatagramMessage : public ObjectMessage {
       : ObjectMessage(), datagram_type_(datagram_type) {
     // Update ObjectMessage::object_ to match the datagram type.
     if (datagram_type.has_status()) {
-      object_.object_status = MoqtObjectStatus::kObjectDoesNotExist;
+      object_.object_status = MoqtObjectStatus::kEndOfTrack;
       object_.payload_length = 0;
     } else {
       object_.object_status = datagram_type.end_of_group()
