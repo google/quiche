@@ -470,8 +470,8 @@ TEST_F(MoqtPublishResponseStreamTest, ReceiveRequestUpdate) {
   MoqtRequestUpdate request_update;
   request_update.request_id = kRequestId + 2;
   request_update.existing_request_id = kRequestId;
-  request_update.parameters.object_delivery_timeout =
-      quic::QuicTimeDelta::FromSeconds(3);
+  request_update.parameters.authorization_tokens.emplace_back(
+      AuthTokenType::kOutOfBand, "token");
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _))
       .WillOnce(Return(absl::OkStatus()));
@@ -481,8 +481,8 @@ TEST_F(MoqtPublishResponseStreamTest, ReceiveRequestUpdate) {
   ASSERT_NE(captured_subscriber, nullptr);
   const MessageParameters& sub_params =
       LiveSubscriberPeer::parameters(*captured_subscriber);
-  EXPECT_EQ(sub_params.object_delivery_timeout,
-            request_update.parameters.object_delivery_timeout);
+  EXPECT_EQ(sub_params.authorization_tokens,
+            request_update.parameters.authorization_tokens);
   EXPECT_CALL(mock_subscribe_visitor_, OnPublishDone(kTrackName));
 }
 

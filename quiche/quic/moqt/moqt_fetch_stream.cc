@@ -171,6 +171,11 @@ absl::Status MoqtFetchRequestStream::OnControlMessage(
         "REQUEST_UPDATE_OK received with properties"));
     return absl::OkStatus();
   }
+  if (!ParametersAllowedByRequestOk(message.parameters,
+                                    MoqtMessageType::kRequestUpdate)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_OK contains invalid parameters for REQUEST_UPDATE");
+  }
   absl::StatusOr<MessageParameters> old_parameters =
       request_update_queue().NextParameters();
   if (!old_parameters.ok()) {
@@ -263,9 +268,10 @@ absl::Status MoqtFetchResponseStream::OnControlMessage(
           return;
         }
         if (std::holds_alternative<FetchOkData>(result)) {
-          const auto& ok_data = std::get<FetchOkData>(result);
+          auto& ok_data = std::get<FetchOkData>(result);
           stream->default_publisher_priority_ =
               ok_data.properties.default_publisher_priority();
+          SanitizeParameters(ok_data.parameters, MoqtMessageType::kFetchOk);
           stream->parameters_.Update(ok_data.parameters);
           stream->SendOrBufferMessageOrFatal(
               stream->framer()->SerializeFetchOk(ok_data));
@@ -407,11 +413,16 @@ absl::Status MoqtFetchResponseStream::OnControlMessage(
 absl::Status MoqtFetchResponseStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
   QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
+  if (!ParametersAllowedByRequestUpdate(message.parameters,
+                                        MoqtMessageType::kFetch)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_UPDATE contains invalid parameters for FETCH");
+  }
   if (data_stream_ != nullptr &&
       message.parameters.subscriber_priority.has_value()) {
     data_stream_->UpdatePriority(*message.parameters.subscriber_priority);
   }
-  return SendRequestOk(MessageParameters());
+  return SendRequestOk(MessageParameters(), MoqtMessageType::kRequestUpdate);
 }
 
 void MoqtFetchResponseStream::OnDataStreamOpen(

@@ -163,7 +163,7 @@ class MockBidiStream : public MoqtBidiStreamBase {
   MOCK_METHOD(absl::Status, SendRequestUpdate,
               (uint64_t request_id, uint64_t existing_request_id,
                const MessageParameters& parameters,
-               MoqtResponseCallback callback),
+               MoqtResponseCallback callback, MoqtMessageType updated_type),
               (override));
   MOCK_METHOD(void, Detach, (), (override));
   MOCK_METHOD(void, OnStreamBound, (), (override));

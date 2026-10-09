@@ -53,13 +53,12 @@ void MoqtPublishRequestStream::OnStreamBound() {
   publisher_->parameters().largest_object =
       publisher_->publisher().largest_location();
   publisher_->parameters().expires = publisher_->publisher().expiration();
-  SendOrBufferMessageOrFatal(framer()->SerializePublish(MoqtPublish{
-      publisher_->request_id(), publisher_->publisher().GetTrackName(),
-      publisher_->track_alias(), publisher_->parameters(),
-      publisher_->publisher().properties()}));
-  // Use the default group order.
-  publisher_->parameters().group_order =
-      publisher_->publisher().properties().default_publisher_group_order();
+  MoqtPublish publish{publisher_->request_id(),
+                      publisher_->publisher().GetTrackName(),
+                      publisher_->track_alias(), publisher_->parameters(),
+                      publisher_->publisher().properties()};
+  publish.parameters.group_order.reset();
+  SendOrBufferMessageOrFatal(framer()->SerializePublish(publish));
 }
 
 absl::Status MoqtPublishRequestStream::OnRawControlMessage(
@@ -77,6 +76,11 @@ absl::Status MoqtPublishRequestStream::OnControlMessage(
   }
   if (response_callback_ != nullptr) {
     // PUBLISH_OK
+    if (!ParametersAllowedByRequestOk(message.parameters,
+                                      MoqtMessageType::kPublish)) {
+      return absl::InvalidArgumentError(
+          "REQUEST_OK contains invalid parameters for PUBLISH");
+    }
     publisher_->Update(message.parameters, /*from_request_ok=*/true);
     // In draft-18, PUBLISH_OK can update the group order. This has been
     // eliminated since. This is not implemented because it is likely to be
@@ -87,6 +91,11 @@ absl::Status MoqtPublishRequestStream::OnControlMessage(
     return absl::OkStatus();
   }
   // REQUEST_UPDATE_OK
+  if (!ParametersAllowedByRequestOk(message.parameters,
+                                    MoqtMessageType::kRequestUpdate)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_OK contains invalid parameters for REQUEST_UPDATE");
+  }
   QUICHE_ASSIGN_OR_RETURN(MessageParameters parameters,
                           request_update_queue().NextParameters());
   // Apply the pending parameters to the subscription.
@@ -110,6 +119,11 @@ absl::Status MoqtPublishRequestStream::OnControlMessage(
 absl::Status MoqtPublishRequestStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
   QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
+  if (!ParametersAllowedByRequestUpdate(message.parameters,
+                                        MoqtMessageType::kRequestOk)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_UPDATE contains invalid parameters for PUBLISH_OK");
+  }
   publisher_->Update(message.parameters, /*from_request_ok=*/false);
   return absl::OkStatus();
 }
@@ -190,8 +204,8 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
                       update_parameters.new_group_request.reset();
                     }
                     response_stream->subscriber_->Update(update_parameters);
-                    response_stream->CheckStatus(
-                        response_stream->SendRequestOk(update_parameters));
+                    response_stream->CheckStatus(response_stream->SendRequestOk(
+                        update_parameters, MoqtMessageType::kPublish));
                   },
                   [response_stream =
                        stream](const MoqtRequestErrorInfo& error_info) {
@@ -203,7 +217,8 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
   } else {
     // Since the application already called SUBSCRIBE, there will be no
     // invocation of the request callback. Send REQUEST_OK immediately.
-    CheckStatus(SendRequestOk(subscriber_->const_parameters()));
+    CheckStatus(SendRequestOk(subscriber_->const_parameters(),
+                              MoqtMessageType::kPublish));
   }
   incoming_publish_callback_ = nullptr;
   if (subscriber_->visitor() == nullptr) {
@@ -221,12 +236,18 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
 absl::Status MoqtPublishResponseStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
   QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
+  if (!ParametersAllowedByRequestUpdate(message.parameters,
+                                        MoqtMessageType::kPublish)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_UPDATE contains invalid parameters for PUBLISH");
+  }
   if (subscriber_ == nullptr) {
     // Stream is already closing.
     return absl::OkStatus();
   }
   subscriber_->Update(message.parameters);
-  CheckStatus(SendRequestOk(MessageParameters()));
+  CheckStatus(
+      SendRequestOk(MessageParameters(), MoqtMessageType::kRequestUpdate));
   return absl::OkStatus();
 }
 
@@ -236,6 +257,11 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
     OnFatalError(
         absl::InvalidArgumentError("REQUEST_OK received with properties"));
     return absl::OkStatus();
+  }
+  if (!ParametersAllowedByRequestOk(message.parameters,
+                                    MoqtMessageType::kRequestUpdate)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_OK contains invalid parameters for REQUEST_UPDATE");
   }
   // TODO(martinduke): Process REQUEST_OK parameters.
   return request_update_queue().OnControlMessage(message);

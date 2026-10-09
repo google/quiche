@@ -25,6 +25,7 @@
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_session_interface.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_framer_utils.h"
@@ -1946,6 +1947,108 @@ TEST_F(MoqtMessageSpecificTest, GoAwayNewSessionUriTooLong) {
                             quic::Perspective::IS_CLIENT);
   EXPECT_THAT(parsed, StatusIs(absl::StatusCode::kInvalidArgument,
                                HasSubstr("New session URI too long")));
+}
+
+TEST_F(MoqtMessageSpecificTest, DisallowedParameters) {
+  char subscribe[] = {
+      0x03, 0x00, 0x0e, 0x01,        // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x01, 0x08, 0x01,              // expires = 1
+  };
+  EXPECT_EQ(
+      ExtractMoqtErrorForStatus(
+          ParseAllMessages(absl::string_view(subscribe, sizeof(subscribe)))
+              .status()),
+      MoqtError::kProtocolViolation);
+
+  char subscribe_ok[] = {
+      0x04, 0x00, 0x04, 0x01,  // track_alias = 1
+      0x01, 0x10, 0x01,        // forward = 1
+  };
+  EXPECT_EQ(ExtractMoqtErrorForStatus(
+                ParseAllMessages(
+                    absl::string_view(subscribe_ok, sizeof(subscribe_ok)))
+                    .status()),
+            MoqtError::kProtocolViolation);
+
+  char publish_namespace[] = {
+      0x06, 0x00, 0x09, 0x01,        // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x01, 0x10, 0x01,              // forward = 1
+  };
+  EXPECT_EQ(ExtractMoqtErrorForStatus(
+                ParseAllMessages(absl::string_view(publish_namespace,
+                                                   sizeof(publish_namespace)))
+                    .status()),
+            MoqtError::kProtocolViolation);
+
+  char track_status[] = {
+      0x0d, 0x00, 0x0e, 0x01,        // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x01, 0x10, 0x01,              // forward = 1
+  };
+  EXPECT_EQ(ExtractMoqtErrorForStatus(
+                ParseAllMessages(
+                    absl::string_view(track_status, sizeof(track_status)))
+                    .status()),
+            MoqtError::kProtocolViolation);
+
+  char subscribe_namespace[] = {
+      0x50, 0x00, 0x09, 0x01,        // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x01, 0x10, 0x01,              // forward = 1
+  };
+  EXPECT_EQ(ExtractMoqtErrorForStatus(
+                ParseAllMessages(absl::string_view(subscribe_namespace,
+                                                   sizeof(subscribe_namespace)))
+                    .status()),
+            MoqtError::kProtocolViolation);
+
+  char subscribe_tracks[] = {
+      0x51, 0x00, 0x09, 0x01,        // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x01, 0x08, 0x01,              // expires = 1
+  };
+  EXPECT_EQ(ExtractMoqtErrorForStatus(
+                ParseAllMessages(absl::string_view(subscribe_tracks,
+                                                   sizeof(subscribe_tracks)))
+                    .status()),
+            MoqtError::kProtocolViolation);
+
+  char fetch[] = {
+      0x16, 0x00, 0x07, 0x01,  // request_id = 1
+      0x02, 0x02, 0x02,        // kRelativeJoining, joining_request_id = 2, 2
+      0x01, 0x10, 0x01,        // forward = 1
+  };
+  EXPECT_EQ(
+      ExtractMoqtErrorForStatus(
+          ParseAllMessages(absl::string_view(fetch, sizeof(fetch))).status()),
+      MoqtError::kProtocolViolation);
+
+  char fetch_ok[] = {
+      0x18, 0x00, 0x06,
+      0x00,              // end_of_track = false
+      0x05, 0x04,        // end_location = 5, 3
+      0x01, 0x10, 0x01,  // forward = 1
+  };
+  EXPECT_EQ(ExtractMoqtErrorForStatus(
+                ParseAllMessages(absl::string_view(fetch_ok, sizeof(fetch_ok)))
+                    .status()),
+            MoqtError::kProtocolViolation);
+
+  char publish[] = {
+      0x1d, 0x00, 0x0f, 0x01,        // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+      0x04,                          // track_alias = 4
+      0x01, 0x20, 0x01,              // subscriber_priority = 1
+  };
+  EXPECT_EQ(ExtractMoqtErrorForStatus(
+                ParseAllMessages(absl::string_view(publish, sizeof(publish)))
+                    .status()),
+            MoqtError::kProtocolViolation);
 }
 
 }  // namespace moqt::test

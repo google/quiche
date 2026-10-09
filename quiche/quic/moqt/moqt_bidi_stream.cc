@@ -59,9 +59,10 @@ void MoqtBidiStreamBase::OnCanWrite() {
 }
 
 absl::Status MoqtBidiStreamBase::SendRequestOk(
-    const MessageParameters& parameters) {
-  return SendOrBufferMessage(
-      framer_->SerializeRequestOk(MoqtRequestOk(parameters)), false);
+    const MessageParameters& parameters, MoqtMessageType type_of_ok) {
+  MoqtRequestOk request_ok(parameters);
+  SanitizeRequestOkParameters(request_ok.parameters, type_of_ok);
+  return SendOrBufferMessage(framer_->SerializeRequestOk(request_ok), false);
 }
 
 absl::Status MoqtBidiStreamBase::SendRequestError(
@@ -81,12 +82,15 @@ absl::Status MoqtBidiStreamBase::SendRequestError(
 
 absl::Status MoqtBidiStreamBase::SendRequestUpdate(
     uint64_t request_id, uint64_t existing_request_id,
-    const MessageParameters& parameters, MoqtResponseCallback callback) {
+    const MessageParameters& parameters, MoqtResponseCallback callback,
+    MoqtMessageType updated_type) {
   MoqtRequestUpdate request_update;
   request_update.request_id = request_id;
   request_update.existing_request_id = existing_request_id;
   request_update.parameters = parameters;
-  outgoing_update_queue_.Enqueue(parameters, std::move(callback));
+  SanitizeUpdateParameters(request_update.parameters, updated_type);
+  outgoing_update_queue_.Enqueue(request_update.parameters,
+                                 std::move(callback));
   return SendOrBufferMessage(framer_->SerializeRequestUpdate(request_update),
                              /*fin=*/false);
 }

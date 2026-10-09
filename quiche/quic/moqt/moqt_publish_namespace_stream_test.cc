@@ -126,20 +126,23 @@ TEST_F(MoqtPublishNamespaceRequestStreamTest, SendRequestUpdateAndReceiveOk) {
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestUpdate), _));
   MessageParameters parameters;
-  parameters.subscriber_priority = 50;
+  parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
+                                               "token");
   bool update_callback_called = false;
   MoqtResponseCallback update_callback =
       [&](std::variant<MessageParameters, MoqtRequestErrorInfo> res) {
         update_callback_called = true;
         ASSERT_TRUE(std::holds_alternative<MessageParameters>(res));
-        EXPECT_EQ(std::get<MessageParameters>(res).subscriber_priority, 50);
+        EXPECT_EQ(std::get<MessageParameters>(res).expires,
+                  quic::QuicTimeDelta::FromSeconds(10));
       };
   QUICHE_EXPECT_OK(request_stream->SendRequestUpdate(
-      11, 0, parameters, std::move(update_callback)));
+      11, 0, parameters, std::move(update_callback),
+      MoqtMessageType::kPublishNamespace));
 
   // Receive OK for update.
   MoqtRequestOk ok;
-  ok.parameters.subscriber_priority = 50;
+  ok.parameters.expires = quic::QuicTimeDelta::FromSeconds(10);
   QUICHE_EXPECT_OK(request_stream->OnControlMessage(ok));
   EXPECT_TRUE(update_callback_called);
 }
@@ -360,7 +363,8 @@ TEST_F(MoqtPublishNamespaceResponseStreamTest, OnRequestUpdateSuccess) {
   // Now send a RequestUpdate.
   MoqtRequestUpdate update;
   update.request_id = 12;
-  update.parameters.subscriber_priority = 40;
+  update.parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
+                                                      "token");
 
   MoqtResponseCallback update_callback;
   EXPECT_CALL(application_,
@@ -415,7 +419,8 @@ TEST_F(MoqtPublishNamespaceResponseStreamTest, OnRequestUpdateRejected) {
   // Now send a RequestUpdate.
   MoqtRequestUpdate update;
   update.request_id = 12;
-  update.parameters.subscriber_priority = 40;
+  update.parameters.authorization_tokens.emplace_back(AuthTokenType::kOutOfBand,
+                                                      "token");
 
   MoqtResponseCallback update_callback;
   EXPECT_CALL(application_,

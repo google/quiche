@@ -436,16 +436,16 @@ TEST_F(MoqtFramerSimpleTest, FetchOkWholeGroup) {
 
 TEST_F(MoqtFramerSimpleTest, RelativeJoiningFetch) {
   RelativeJoiningFetchMessage message;
-  quiche::QuicheBuffer buffer =
-      framer_.SerializeFetch(std::get<MoqtFetch>(message.structured_data()));
+  MoqtFetch fetch = std::get<MoqtFetch>(message.structured_data());
+  quiche::QuicheBuffer buffer = framer_.SerializeFetch(fetch);
   EXPECT_EQ(buffer.size(), message.total_message_size());
   EXPECT_EQ(buffer.AsStringView(), message.PacketSample());
 }
 
 TEST_F(MoqtFramerSimpleTest, AbsoluteJoiningFetch) {
   AbsoluteJoiningFetchMessage message;
-  quiche::QuicheBuffer buffer =
-      framer_.SerializeFetch(std::get<MoqtFetch>(message.structured_data()));
+  MoqtFetch fetch = std::get<MoqtFetch>(message.structured_data());
+  quiche::QuicheBuffer buffer = framer_.SerializeFetch(fetch);
   EXPECT_EQ(buffer.size(), message.total_message_size());
   EXPECT_EQ(buffer.AsStringView(), message.PacketSample());
 }

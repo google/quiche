@@ -193,8 +193,9 @@ TEST_F(MoqtSubscribeRequestStreamTest, ReceiveRequestOk) {
                   quic::QuicTimeDelta::FromSeconds(30));
       };
   parameters_.subscriber_priority = 20;
-  QUICHE_EXPECT_OK(stream_->SendRequestUpdate(
-      kRequestId, kRequestId, parameters_, std::move(callback)));
+  QUICHE_EXPECT_OK(stream_->SendRequestUpdate(kRequestId, kRequestId,
+                                              parameters_, std::move(callback),
+                                              MoqtMessageType::kSubscribe));
   // Params not yet updated.
   EXPECT_EQ(stream_->track()->const_parameters().subscriber_priority,
             std::nullopt);

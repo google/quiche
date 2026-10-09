@@ -1153,23 +1153,52 @@ class QUICHE_NO_EXPORT RequestOkMessage : public TestMessageBase {
   };
 };
 
-class QUICHE_NO_EXPORT TrackStatusMessage : public SubscribeMessage {
+class QUICHE_NO_EXPORT TrackStatusMessage : public TestMessageBase {
  public:
-  TrackStatusMessage() : SubscribeMessage() {
-    SetByte(0, static_cast<uint8_t>(MoqtMessageType::kTrackStatus));
+  TrackStatusMessage() : TestMessageBase() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+    track_status_.parameters = MessageParameters();
+    track_status_.parameters.authorization_tokens.emplace_back(
+        AuthTokenType::kOutOfBand, "bar");
   }
 
   bool EqualFieldValues(const MessageStructuredData& values) const override {
-    auto value = std::get<MoqtTrackStatus>(values);
-    auto* subscribe = reinterpret_cast<MoqtSubscribe*>(&value);
-    MessageStructuredData structured_data =
-        TestMessageBase::MessageStructuredData(*subscribe);
-    return SubscribeMessage::EqualFieldValues(structured_data);
+    auto cast = std::get<MoqtTrackStatus>(values);
+    if (cast.request_id != track_status_.request_id) {
+      QUIC_LOG(INFO) << "TRACK_STATUS request_id mismatch";
+      return false;
+    }
+    if (cast.full_track_name != track_status_.full_track_name) {
+      QUIC_LOG(INFO) << "TRACK_STATUS full_track_name mismatch";
+      return false;
+    }
+    if (cast.parameters != track_status_.parameters) {
+      QUIC_LOG(INFO) << "TRACK_STATUS parameters mismatch";
+      return false;
+    }
+    return true;
   }
 
+  void ExpandVarints() override { ExpandVarintsImpl("vvv---v----vvv-----"); }
+
   MessageStructuredData structured_data() const override {
-    return TestMessageBase::MessageStructuredData(MoqtTrackStatus(subscribe_));
+    return TestMessageBase::MessageStructuredData(track_status_);
   }
+
+ private:
+  MoqtTrackStatus track_status_ = {
+      /*request_id=*/1,
+      FullTrackName("foo", "abcd"),
+      MessageParameters(),  // Set in the constructor.
+  };
+
+  uint8_t raw_packet_[22] = {
+      0x0d, 0x00, 0x13, 0x01,                    // request_id = 1
+      0x01, 0x03, 0x66, 0x6f, 0x6f,              // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,              // track_name = "abcd"
+      0x01,                                      // 1 parameter
+      0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
+  };
 };
 
 class QUICHE_NO_EXPORT GoAwayMessage : public TestMessageBase {
@@ -1224,7 +1253,6 @@ class QUICHE_NO_EXPORT SubscribeNamespaceMessage : public TestMessageBase {
   SubscribeNamespaceMessage() : TestMessageBase() {
     subscribe_namespace_.parameters.authorization_tokens.push_back(
         AuthToken(AuthTokenType::kOutOfBand, "bar"));
-    subscribe_namespace_.parameters.set_forward(true);
     SetWireImage(raw_packet_, sizeof(raw_packet_));
   }
 
@@ -1246,19 +1274,18 @@ class QUICHE_NO_EXPORT SubscribeNamespaceMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvv---vvv-----v-"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv---vvv-----"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(subscribe_namespace_);
   }
 
  private:
-  uint8_t raw_packet_[19] = {
-      0x50, 0x00, 0x10, 0x01,                    // request_id = 1
+  uint8_t raw_packet_[17] = {
+      0x50, 0x00, 0x0e, 0x01,                    // request_id = 1
       0x01, 0x03, 0x66, 0x6f, 0x6f,              // namespace = "foo"
-      0x02,                                      // 2 parameters
+      0x01,                                      // 1 parameter
       0x03, 0x05, 0x03, 0x00, 0x62, 0x61, 0x72,  // authorization_tag = "bar"
-      0x0d, 0x01,                                // forward = true
   };
 
   MoqtSubscribeNamespace subscribe_namespace_ = {

@@ -4,12 +4,117 @@
 
 #include "quiche/quic/moqt/moqt_messages.h"
 
+#include <initializer_list>
 #include <optional>
 
+#include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_key_value_pair.h"
+#include "quiche/quic/moqt/moqt_names.h"
+#include "quiche/quic/moqt/moqt_priority.h"
+#include "quiche/quic/moqt/moqt_types.h"
+#include "quiche/common/platform/api/quiche_expect_bug.h"
 #include "quiche/common/platform/api/quiche_test.h"
 
 namespace moqt::test {
 namespace {
+
+using ParameterMutator = void (*)(MessageParameters&);
+
+void SetSubgroupDeliveryTimeout(MessageParameters& p) {
+  p.subgroup_delivery_timeout = quic::QuicTimeDelta::FromSeconds(1);
+}
+void SetAuthorizationTokens(MessageParameters& p) {
+  p.authorization_tokens = {AuthToken(AuthTokenType::kOutOfBand, "token")};
+}
+void SetRendezvousTimeout(MessageParameters& p) {
+  p.rendezvous_timeout = quic::QuicTimeDelta::FromSeconds(2);
+}
+void SetObjectDeliveryTimeout(MessageParameters& p) {
+  p.object_delivery_timeout = quic::QuicTimeDelta::FromSeconds(3);
+}
+void SetExpires(MessageParameters& p) {
+  p.expires = quic::QuicTimeDelta::FromSeconds(4);
+}
+void SetLargestObject(MessageParameters& p) {
+  p.largest_object = Location(5, 6);
+}
+void SetFillTimeout(MessageParameters& p) {
+  p.fill_timeout = quic::QuicTimeDelta::FromSeconds(7);
+}
+void SetForward(MessageParameters& p) { p.set_forward(true); }
+void SetSubscriberPriority(MessageParameters& p) { p.subscriber_priority = 8; }
+void SetSubscriptionFilter(MessageParameters& p) {
+  p.subscription_filter = SubscriptionFilter(MoqtFilterType::kNextGroupStart);
+}
+void SetGroupOrder(MessageParameters& p) {
+  p.group_order = MoqtDeliveryOrder::kAscending;
+}
+void SetNewGroupRequest(MessageParameters& p) { p.new_group_request = 9; }
+void SetTrackNamespacePrefix(MessageParameters& p) {
+  p.track_namespace_prefix = TrackNamespace({"foo"});
+}
+void SetOackWindowSize(MessageParameters& p) {
+  p.oack_window_size = quic::QuicTimeDelta::FromSeconds(10);
+}
+
+constexpr ParameterMutator kAllParameterMutators[] = {
+    SetSubgroupDeliveryTimeout,
+    SetAuthorizationTokens,
+    SetRendezvousTimeout,
+    SetObjectDeliveryTimeout,
+    SetExpires,
+    SetLargestObject,
+    SetFillTimeout,
+    SetForward,
+    SetSubscriberPriority,
+    SetSubscriptionFilter,
+    SetGroupOrder,
+    SetNewGroupRequest,
+    SetTrackNamespacePrefix,
+    SetOackWindowSize,
+};
+
+MessageParameters MakeParameters(
+    std::initializer_list<ParameterMutator> mutators) {
+  MessageParameters params;
+  for (ParameterMutator mutate : mutators) {
+    mutate(params);
+  }
+  return params;
+}
+
+MessageParameters AllParameters() {
+  MessageParameters params;
+  for (ParameterMutator mutate : kAllParameterMutators) {
+    mutate(params);
+  }
+  return params;
+}
+
+template <typename AllowedFn, typename SanitizeFn>
+void VerifyParameterHandling(MoqtMessageType type,
+                             const MessageParameters& expected,
+                             AllowedFn allowed_fn, SanitizeFn sanitize_fn) {
+  SCOPED_TRACE(MoqtMessageTypeToString(type));
+  MessageParameters sanitized = AllParameters();
+  // No message can accept all parameters.
+  EXPECT_FALSE(allowed_fn(sanitized, type));
+  sanitize_fn(sanitized, type);
+  EXPECT_EQ(sanitized, expected);
+  EXPECT_TRUE(allowed_fn(MessageParameters(), type));
+  EXPECT_TRUE(allowed_fn(expected, type));
+
+  for (ParameterMutator mutate : kAllParameterMutators) {
+    MessageParameters single_param;
+    mutate(single_param);
+
+    MessageParameters with_param = expected;
+    mutate(with_param);
+    const bool is_allowed = (with_param == expected);
+    EXPECT_EQ(allowed_fn(single_param, type), is_allowed);
+    EXPECT_EQ(allowed_fn(with_param, type), is_allowed);
+  }
+}
 
 TEST(MoqtMessagesTest, MoqtDatagramType) {
   for (bool payload : {false, true}) {
@@ -34,6 +139,152 @@ TEST(MoqtMessagesTest, MoqtDatagramType) {
         }
       }
     }
+  }
+}
+
+TEST(MoqtMessagesTest, ParametersAllowedAndSanitizedByMessage) {
+  VerifyParameterHandling(
+      MoqtMessageType::kSubscribe,
+      MakeParameters({SetSubgroupDeliveryTimeout, SetAuthorizationTokens,
+                      SetRendezvousTimeout, SetObjectDeliveryTimeout,
+                      SetForward, SetSubscriberPriority, SetSubscriptionFilter,
+                      SetGroupOrder, SetNewGroupRequest, SetOackWindowSize}),
+      ParametersAllowedByMessage, SanitizeParameters);
+
+  VerifyParameterHandling(MoqtMessageType::kSubscribeOk,
+                          MakeParameters({SetExpires, SetLargestObject}),
+                          ParametersAllowedByMessage, SanitizeParameters);
+
+  VerifyParameterHandling(MoqtMessageType::kPublish,
+                          MakeParameters({SetAuthorizationTokens, SetExpires,
+                                          SetLargestObject, SetForward}),
+                          ParametersAllowedByMessage, SanitizeParameters);
+
+  VerifyParameterHandling(
+      MoqtMessageType::kFetch,
+      MakeParameters({SetAuthorizationTokens, SetFillTimeout,
+                      SetSubscriberPriority, SetGroupOrder}),
+      ParametersAllowedByMessage, SanitizeParameters);
+
+  VerifyParameterHandling(MoqtMessageType::kFetchOk, MessageParameters(),
+                          ParametersAllowedByMessage, SanitizeParameters);
+
+  VerifyParameterHandling(MoqtMessageType::kSubscribeTracks,
+                          MakeParameters({SetAuthorizationTokens, SetForward}),
+                          ParametersAllowedByMessage, SanitizeParameters);
+
+  for (MoqtMessageType type :
+       {MoqtMessageType::kTrackStatus, MoqtMessageType::kPublishNamespace,
+        MoqtMessageType::kSubscribeNamespace}) {
+    VerifyParameterHandling(type, MakeParameters({SetAuthorizationTokens}),
+                            ParametersAllowedByMessage, SanitizeParameters);
+  }
+
+  for (MoqtMessageType invalid_type :
+       {MoqtMessageType::kRequestUpdate, MoqtMessageType::kRequestError,
+        MoqtMessageType::kRequestOk, MoqtMessageType::kNamespace,
+        MoqtMessageType::kPublishDone, MoqtMessageType::kNamespaceDone,
+        MoqtMessageType::kPublishSkipped, MoqtMessageType::kGoAway,
+        MoqtMessageType::kSetup, MoqtMessageType::kObjectAck}) {
+    MessageParameters params = AllParameters();
+    EXPECT_QUICHE_BUG(
+        EXPECT_FALSE(ParametersAllowedByMessage(params, invalid_type)),
+        "Unexpected message type");
+    EXPECT_QUICHE_BUG(SanitizeParameters(params, invalid_type),
+                      "Unexpected message type");
+    EXPECT_EQ(params, MessageParameters());
+  }
+}
+
+TEST(MoqtMessagesTest, ParametersAllowedAndSanitizedByRequestUpdate) {
+  for (MoqtMessageType type :
+       {MoqtMessageType::kSubscribe, MoqtMessageType::kRequestOk}) {
+    VerifyParameterHandling(
+        type,
+        MakeParameters({SetSubgroupDeliveryTimeout, SetAuthorizationTokens,
+                        SetObjectDeliveryTimeout, SetForward,
+                        SetSubscriberPriority, SetSubscriptionFilter,
+                        SetNewGroupRequest, SetOackWindowSize}),
+        ParametersAllowedByRequestUpdate, SanitizeUpdateParameters);
+  }
+
+  VerifyParameterHandling(
+      MoqtMessageType::kFetch,
+      MakeParameters({SetAuthorizationTokens, SetSubscriberPriority}),
+      ParametersAllowedByRequestUpdate, SanitizeUpdateParameters);
+
+  for (MoqtMessageType type :
+       {MoqtMessageType::kPublish, MoqtMessageType::kPublishNamespace}) {
+    VerifyParameterHandling(type, MakeParameters({SetAuthorizationTokens}),
+                            ParametersAllowedByRequestUpdate,
+                            SanitizeUpdateParameters);
+  }
+
+  for (MoqtMessageType type : {MoqtMessageType::kSubscribeNamespace,
+                               MoqtMessageType::kSubscribeTracks}) {
+    VerifyParameterHandling(
+        type, MakeParameters({SetAuthorizationTokens, SetTrackNamespacePrefix}),
+        ParametersAllowedByRequestUpdate, SanitizeUpdateParameters);
+  }
+
+  for (MoqtMessageType invalid_type :
+       {MoqtMessageType::kRequestUpdate, MoqtMessageType::kSubscribeOk,
+        MoqtMessageType::kRequestError, MoqtMessageType::kNamespace,
+        MoqtMessageType::kPublishDone, MoqtMessageType::kTrackStatus,
+        MoqtMessageType::kNamespaceDone, MoqtMessageType::kPublishSkipped,
+        MoqtMessageType::kGoAway, MoqtMessageType::kFetchOk,
+        MoqtMessageType::kSetup, MoqtMessageType::kObjectAck}) {
+    MessageParameters params = AllParameters();
+    EXPECT_QUICHE_BUG(
+        EXPECT_FALSE(ParametersAllowedByRequestUpdate(params, invalid_type)),
+        "Unexpected updated message type");
+    EXPECT_QUICHE_BUG(SanitizeUpdateParameters(params, invalid_type),
+                      "Unexpected updated message type");
+    EXPECT_EQ(params, MessageParameters());
+  }
+}
+
+TEST(MoqtMessagesTest, ParametersAllowedAndSanitizedByRequestOk) {
+  VerifyParameterHandling(
+      MoqtMessageType::kPublish,
+      MakeParameters({SetSubgroupDeliveryTimeout, SetObjectDeliveryTimeout,
+                      SetExpires, SetForward, SetSubscriberPriority,
+                      SetSubscriptionFilter, SetGroupOrder, SetNewGroupRequest,
+                      SetOackWindowSize}),
+      ParametersAllowedByRequestOk, SanitizeRequestOkParameters);
+
+  VerifyParameterHandling(MoqtMessageType::kRequestUpdate,
+                          MakeParameters({SetExpires, SetLargestObject}),
+                          ParametersAllowedByRequestOk,
+                          SanitizeRequestOkParameters);
+
+  VerifyParameterHandling(
+      MoqtMessageType::kTrackStatus, MakeParameters({SetLargestObject}),
+      ParametersAllowedByRequestOk, SanitizeRequestOkParameters);
+
+  for (MoqtMessageType type : {MoqtMessageType::kPublishNamespace,
+                               MoqtMessageType::kSubscribeNamespace,
+                               MoqtMessageType::kSubscribeTracks}) {
+    VerifyParameterHandling(type, MessageParameters(),
+                            ParametersAllowedByRequestOk,
+                            SanitizeRequestOkParameters);
+  }
+
+  for (MoqtMessageType invalid_type :
+       {MoqtMessageType::kSubscribe, MoqtMessageType::kSubscribeOk,
+        MoqtMessageType::kRequestError, MoqtMessageType::kRequestOk,
+        MoqtMessageType::kNamespace, MoqtMessageType::kPublishDone,
+        MoqtMessageType::kNamespaceDone, MoqtMessageType::kPublishSkipped,
+        MoqtMessageType::kGoAway, MoqtMessageType::kFetch,
+        MoqtMessageType::kFetchOk, MoqtMessageType::kSetup,
+        MoqtMessageType::kObjectAck}) {
+    MessageParameters params = AllParameters();
+    EXPECT_QUICHE_BUG(
+        EXPECT_FALSE(ParametersAllowedByRequestOk(params, invalid_type)),
+        "Unexpected request type for REQUEST_OK");
+    EXPECT_QUICHE_BUG(SanitizeRequestOkParameters(params, invalid_type),
+                      "Unexpected request type for REQUEST_OK");
+    EXPECT_EQ(params, MessageParameters());
   }
 }
 

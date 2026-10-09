@@ -243,6 +243,7 @@ struct MessageParameters {
   std::optional<quic::QuicTimeDelta> fill_timeout;
   bool forward() const { return forward_.value_or(kDefaultForward); }
   void set_forward(bool forward) { forward_ = forward; }
+  void clear_forward() { forward_.reset(); }
   bool forward_has_value() const { return forward_.has_value(); }
   std::optional<MoqtPriority> subscriber_priority;
   std::optional<SubscriptionFilter> subscription_filter;

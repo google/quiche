@@ -101,7 +101,8 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
 
   // Do not use for TRACK_STATUS_OK because that should also contain
   // TrackProperties.
-  absl::Status SendRequestOk(const MessageParameters& parameters);
+  absl::Status SendRequestOk(const MessageParameters& parameters,
+                             MoqtMessageType type_of_ok);
   absl::Status SendRequestError(
       RequestErrorCode error_code,
       std::optional<quic::QuicTimeDelta> retry_interval,
@@ -111,7 +112,8 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   virtual absl::Status SendRequestUpdate(uint64_t request_id,
                                          uint64_t existing_request_id,
                                          const MessageParameters& parameters,
-                                         MoqtResponseCallback callback);
+                                         MoqtResponseCallback callback,
+                                         MoqtMessageType updated_type);
   void Fin() {
     CheckStatus(outgoing_message_queue_.Fin());
     Detach();

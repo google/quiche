@@ -325,6 +325,7 @@ std::unique_ptr<MoqtNamespaceTask> MoqtSession::SubscribeNamespace(
   message.request_id = NextRequestId();
   message.track_namespace_prefix = prefix;
   message.parameters = parameters;
+  SanitizeParameters(message.parameters, MoqtMessageType::kSubscribeNamespace);
   state_ptr->SendOrBufferMessageOrFatal(
       framer_.SerializeSubscribeNamespace(message));
   QUIC_DLOG(INFO) << ENDPOINT << "Sent SUBSCRIBE_NAMESPACE message for "
@@ -365,9 +366,11 @@ bool MoqtSession::TrackStatus(const FullTrackName& name,
     return false;
   }
 
+  MessageParameters sanitized_parameters = parameters;
+  SanitizeParameters(sanitized_parameters, MoqtMessageType::kTrackStatus);
   uint64_t request_id = NextRequestId();
   auto stream_visitor = std::make_unique<MoqtTrackStatusRequestStream>(
-      &framer_, ControlMessageParser(), request_id, name, parameters,
+      &framer_, ControlMessageParser(), request_id, name, sanitized_parameters,
       [session_weak = GetWeakPtr()](MoqtError code, absl::string_view reason) {
         MoqtSession* session = MoqtSessionFromWeakPtr(session_weak);
         if (session != nullptr) {
@@ -401,8 +404,10 @@ bool MoqtSession::PublishNamespace(
   if (stream == nullptr) {
     return false;
   }
+  MessageParameters sanitized_parameters = parameters;
+  SanitizeParameters(sanitized_parameters, MoqtMessageType::kPublishNamespace);
   auto stream_visitor = std::make_unique<MoqtPublishNamespaceRequestStream>(
-      track_namespace, parameters, &framer_, ControlMessageParser(),
+      track_namespace, sanitized_parameters, &framer_, ControlMessageParser(),
       NextRequestId(),
       [weakptr = GetWeakPtr(), callback = std::move(cancel_callback)](
           const TrackNamespace& prefix) mutable {
@@ -442,7 +447,8 @@ bool MoqtSession::PublishNamespaceUpdate(
     return false;
   }
   it->second->CheckStatus(it->second->SendRequestUpdate(
-      NextRequestId(), 0, parameters, std::move(response_callback)));
+      NextRequestId(), 0, parameters, std::move(response_callback),
+      MoqtMessageType::kPublishNamespace));
   return true;
 }
 
@@ -500,6 +506,8 @@ bool MoqtSession::Subscribe(const FullTrackName& name,
                     << "Tried to subscribe to a reserved track name";
     return false;
   }
+  MessageParameters sanitized_parameters = parameters;
+  SanitizeParameters(sanitized_parameters, MoqtMessageType::kSubscribe);
   auto stream_visitor = std::make_unique<MoqtSubscribeRequestStream>(
       &framer_, ControlMessageParser(), NextRequestId(),
       [weak_session = GetWeakPtr()](MoqtError code, absl::string_view reason) {
@@ -509,7 +517,7 @@ bool MoqtSession::Subscribe(const FullTrackName& name,
         }
         session->Error(code, reason);
       },
-      name, visitor, parameters,
+      name, visitor, sanitized_parameters,
       [weakptr = GetWeakPtr()](LiveSubscriber* track) {
         MoqtSession* session = MoqtSessionFromWeakPtr(weakptr);
         if (session == nullptr || !track->track_alias().has_value()) {
@@ -567,7 +575,8 @@ bool MoqtSession::SubscribeUpdate(const FullTrackName& name,
   // sending zero because related request ID is ignored for SUBSCRIBE.
   return it->second->request_stream()
       ->SendRequestUpdate(NextRequestId(), 0, update_parameters,
-                          std::move(response_callback))
+                          std::move(response_callback),
+                          MoqtMessageType::kSubscribe)
       .ok();
 }
 
@@ -644,9 +653,11 @@ bool MoqtSession::Publish(
         return session->ValidateNewIncomingRequestId(request_id);
       },
       std::move(response_callback));
+  MessageParameters sanitized_parameters = parameters;
+  SanitizeParameters(sanitized_parameters, MoqtMessageType::kPublish);
   auto publish_state = std::make_unique<LivePublisher>(
       framer_, publisher, stream_visitor.get(), next_request_id_,
-      next_local_track_alias_, parameters,
+      next_local_track_alias_, sanitized_parameters,
       weak_ptr_factory_for_publishers_.Create(), true);
   LivePublisher* publisher_ptr = publish_state.get();
   stream_visitor->SetPublisher(std::move(publish_state));
@@ -656,7 +667,7 @@ bool MoqtSession::Publish(
   stream_visitor_ptr->BindStream(stream);
   next_request_id_ += 2;
   ++next_local_track_alias_;
-  publisher->AddObjectListener(publisher_ptr, parameters);
+  publisher->AddObjectListener(publisher_ptr, sanitized_parameters);
   return true;
 }
 
@@ -678,12 +689,14 @@ std::unique_ptr<MoqtFetchTask> MoqtSession::Fetch(
     QUIC_DLOG(INFO) << ENDPOINT << "Tried to send FETCH but no more streams";
     return nullptr;
   }
+  MessageParameters sanitized_parameters = parameters;
+  SanitizeParameters(sanitized_parameters, MoqtMessageType::kFetch);
   uint64_t request_id = NextRequestId();
   auto task = std::make_unique<UpstreamFetchTask>();
   auto fetch = std::make_unique<MoqtFetchRequestStream>(
       &framer_, ControlMessageParser(), request_id, name, start,
-      Location(end_group, end_object.value_or(kMaxObjectId)), parameters,
-      task.get(),
+      Location(end_group, end_object.value_or(kMaxObjectId)),
+      sanitized_parameters, task.get(),
       [weak_session = GetWeakPtr()](MoqtError code, absl::string_view reason) {
         MoqtSession* session = MoqtSessionFromWeakPtr(weak_session);
         if (session == nullptr) {
@@ -753,11 +766,13 @@ std::unique_ptr<MoqtFetchTask> MoqtSession::RelativeJoiningFetch(
     return nullptr;
   }
   QUIC_DLOG(INFO) << ENDPOINT << "Sent Joining FETCH message for " << name;
+  MessageParameters fetch_parameters = parameters;
+  SanitizeParameters(fetch_parameters, MoqtMessageType::kFetch);
   uint64_t request_id = NextRequestId();
   auto task = std::make_unique<UpstreamFetchTask>();
   auto fetch = std::make_unique<MoqtFetchRequestStream>(
       &framer_, ControlMessageParser(), request_id, name, subscribe_request_id,
-      num_previous_groups, /*relative=*/true, parameters, task.get(),
+      num_previous_groups, /*relative=*/true, fetch_parameters, task.get(),
       [weak_session = GetWeakPtr()](MoqtError code, absl::string_view reason) {
         MoqtSession* session = MoqtSessionFromWeakPtr(weak_session);
         if (session == nullptr) {

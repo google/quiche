@@ -60,6 +60,11 @@ absl::Status MoqtTrackStatusRequestStream::OnControlMessage(
   if (response_callback_ == nullptr) {
     return absl::InvalidArgumentError("Duplicate REQUEST_OK");
   }
+  if (!ParametersAllowedByRequestOk(message.parameters,
+                                    MoqtMessageType::kTrackStatus)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_OK contains invalid parameters for TRACK_STATUS");
+  }
   TrackStatusResponseCallback callback = std::move(response_callback_);
   response_callback_ = nullptr;
   Fin();
@@ -139,7 +144,6 @@ void MoqtTrackStatusResponseStream::OnSubscribeAccepted() {
     return;
   }
   MessageParameters parameters;
-  parameters.expires = publisher_->expiration();
   parameters.largest_object = publisher_->largest_location();
   // Since `fin` is true, this will also reset `publisher_`.
   CheckStatus(SendRequestOk(parameters, publisher_->properties()));
@@ -171,9 +175,11 @@ void MoqtTrackStatusResponseStream::Detach() {
 
 absl::Status MoqtTrackStatusResponseStream::SendRequestOk(
     const MessageParameters& parameters, const TrackProperties& properties) {
-  return SendOrBufferMessage(
-      framer()->SerializeRequestOk(MoqtRequestOk(parameters, properties)),
-      /*fin=*/true);
+  MoqtRequestOk request_ok(parameters, properties);
+  SanitizeRequestOkParameters(request_ok.parameters,
+                              MoqtMessageType::kTrackStatus);
+  return SendOrBufferMessage(framer()->SerializeRequestOk(request_ok),
+                             /*fin=*/true);
 }
 
 }  // namespace moqt

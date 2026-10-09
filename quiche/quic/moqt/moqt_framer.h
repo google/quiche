@@ -48,12 +48,8 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeRequestOk(const MoqtRequestOk& message);
   quiche::QuicheBuffer SerializeRequestError(const MoqtRequestError& message);
   // Returns an empty buffer if there is an illegal combination of locations.
-  quiche::QuicheBuffer SerializeSubscribe(
-      const MoqtSubscribe& message,
-      MoqtMessageType message_type = MoqtMessageType::kSubscribe);
-  quiche::QuicheBuffer SerializeSubscribeOk(
-      const MoqtSubscribeOk& message,
-      MoqtMessageType message_type = MoqtMessageType::kSubscribeOk);
+  quiche::QuicheBuffer SerializeSubscribe(const MoqtSubscribe& message);
+  quiche::QuicheBuffer SerializeSubscribeOk(const MoqtSubscribeOk& message);
   quiche::QuicheBuffer SerializePublishDone(const MoqtPublishDone& message);
   quiche::QuicheBuffer SerializeRequestUpdate(const MoqtRequestUpdate& message);
   quiche::QuicheBuffer SerializePublishNamespace(

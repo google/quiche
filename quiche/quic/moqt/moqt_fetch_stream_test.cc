@@ -312,18 +312,21 @@ TEST_F(MoqtFetchRequestStreamTest, SendRequestUpdateAndReceiveOk) {
       [&](std::variant<MessageParameters, MoqtRequestErrorInfo> res) {
         update_callback_called = true;
         ASSERT_TRUE(std::holds_alternative<MessageParameters>(res));
-        EXPECT_EQ(std::get<MessageParameters>(res).subscriber_priority, 50);
+        EXPECT_EQ(std::get<MessageParameters>(res).expires,
+                  quic::QuicTimeDelta::FromSeconds(10));
       };
   QUICHE_EXPECT_OK(stream->SendRequestUpdate(
       /*request_id=*/2, /*joining_start=*/0, update_params,
-      std::move(update_callback)));
+      std::move(update_callback), MoqtMessageType::kFetch));
 
   // Receive REQUEST_OK for the update.
   MoqtRequestOk request_ok;
-  request_ok.parameters.subscriber_priority = 50;
+  request_ok.parameters.expires = quic::QuicTimeDelta::FromSeconds(10);
   QUICHE_EXPECT_OK(stream->OnControlMessage(request_ok));
   EXPECT_TRUE(update_callback_called);
   EXPECT_EQ(stream->const_parameters().subscriber_priority, 50);
+  EXPECT_EQ(stream->const_parameters().expires,
+            quic::QuicTimeDelta::FromSeconds(10));
 }
 
 TEST_F(MoqtFetchRequestStreamTest, ReceiveRequestOkWithoutPendingUpdate) {
@@ -365,7 +368,7 @@ TEST_F(MoqtFetchRequestStreamTest, SendRequestUpdateAndReceiveError) {
       };
   QUICHE_EXPECT_OK(stream->SendRequestUpdate(
       /*request_id=*/2, /*joining_start=*/0, update_params,
-      std::move(update_callback)));
+      std::move(update_callback), MoqtMessageType::kFetch));
 
   ExpectFin(mock_stream_);
   QUICHE_EXPECT_OK(stream->OnControlMessage(request_error));

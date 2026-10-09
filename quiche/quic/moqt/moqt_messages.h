@@ -401,9 +401,10 @@ struct QUICHE_EXPORT MoqtPublishNamespace {
 
 using MoqtRequestOk = TrackStatusOkData;
 
-struct QUICHE_EXPORT MoqtTrackStatus : public MoqtSubscribe {
-  MoqtTrackStatus() = default;
-  MoqtTrackStatus(MoqtSubscribe subscribe) : MoqtSubscribe(subscribe) {}
+struct QUICHE_EXPORT MoqtTrackStatus {
+  uint64_t request_id;
+  FullTrackName full_track_name;
+  MessageParameters parameters;
 };
 
 struct QUICHE_EXPORT MoqtGoAway {
@@ -510,6 +511,40 @@ struct QUICHE_EXPORT MoqtObjectAck {
 MoqtError SetupOptionsAllowedByMessage(const SetupOptions& options,
                                        quic::Perspective sender_perspective,
                                        bool webtrans);
+// Returns false if |parameters| cannot be in |message_type|. Will trigger
+// QUICHE_BUG if |message_type| is REQUEST_OK, REQUEST_UPDATE, or a message
+// without parameters. Called by MoqtParser.
+bool ParametersAllowedByMessage(const MessageParameters& parameters,
+                                MoqtMessageType message_type);
+// Will remove from |parameters| any parameters that are not allowed in
+// |message_type|. Will trigger QUICHE_BUG if |message_type| is REQUEST_OK,
+// REQUEST_UPDATE, or a message without parameters. Called by MoqtParser.
+void SanitizeParameters(MessageParameters& parameters,
+                        MoqtMessageType message_type);
+// Returns false if |parameters| cannot be in a REQUEST_UPDATE for
+// |updated_type|. Called by the bidi stream visitor. If |updated_type| is
+// REQUEST_OK, that corresponds to PUBLISH_OK (as other OK messages cannot be
+// updated).
+bool ParametersAllowedByRequestUpdate(const MessageParameters& parameters,
+                                      MoqtMessageType updated_type);
+// Will remove from |parameters| any parameters that are not allowed in a
+// REQUEST_UPDATE for |updated_type|. Will trigger QUICHE_BUG if |updated_type|
+// is REQUEST_OK or a message without parameters. Called by the bidi stream
+// visitor. If |updated_type| is REQUEST_OK, that corresponds to PUBLISH_OK (as
+// other OK messages cannot be updated).
+void SanitizeUpdateParameters(MessageParameters& parameters,
+                              MoqtMessageType updated_type);
+// Returns false if |parameters| cannot be in a REQUEST_OK in response to
+// |request_type|. Called by the bidi stream visitor. SUBSCRIBE_OK and FETCH_OK
+// are distinct message types to be handled by ParametersAllowedByMessage().
+bool ParametersAllowedByRequestOk(const MessageParameters& parameters,
+                                  MoqtMessageType type_of_ok);
+// Will remove from |parameters| any parameters that are not allowed in a
+// REQUEST_OK in response to |type_of_ok|. Called by the bidi stream visitor.
+// SUBSCRIBE_OK and FETCH_OK are distinct message types to be handled by
+// SanitizeParameters().
+void SanitizeRequestOkParameters(MessageParameters& parameters,
+                                 MoqtMessageType type_of_ok);
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);
 std::string MoqtDataStreamTypeToString(MoqtDataStreamType type);

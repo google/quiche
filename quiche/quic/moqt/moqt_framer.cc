@@ -749,21 +749,21 @@ quiche::QuicheBuffer MoqtFramer::SerializeRequestOk(
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribe(
-    const MoqtSubscribe& message, MoqtMessageType message_type) {
-  return SerializeControlMessage(message_type,
+    const MoqtSubscribe& message) {
+  return SerializeControlMessage(MoqtMessageType::kSubscribe,
                                  WireMoqVarInt(message.request_id),
                                  WireFullTrackName(message.full_track_name),
                                  WireMessageParameters(message.parameters));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
-    const MoqtSubscribeOk& message, MoqtMessageType message_type) {
+    const MoqtSubscribeOk& message) {
   if (!message.properties.Validate()) {
     QUICHE_BUG(QUICHE_BUG_serialize_subscribe_ok_01)
         << "Subscribe OK properties are ill-formed";
     return quiche::QuicheBuffer();
   }
-  return SerializeControlMessage(message_type,
+  return SerializeControlMessage(MoqtMessageType::kSubscribeOk,
                                  WireMoqVarInt(message.track_alias),
                                  WireMessageParameters(message.parameters),
                                  WireKeyValuePairList(message.properties));
@@ -825,7 +825,10 @@ quiche::QuicheBuffer MoqtFramer::SerializePublishSkipped(
 
 quiche::QuicheBuffer MoqtFramer::SerializeTrackStatus(
     const MoqtTrackStatus& message) {
-  return SerializeSubscribe(message, MoqtMessageType::kTrackStatus);
+  return SerializeControlMessage(MoqtMessageType::kTrackStatus,
+                                 WireMoqVarInt(message.request_id),
+                                 WireFullTrackName(message.full_track_name),
+                                 WireMessageParameters(message.parameters));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {
@@ -915,7 +918,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeFetchOk(const MoqtFetchOk& message) {
       WireMessageParameters(message.parameters),
       WireKeyValuePairList(message.properties));
 }
-
 
 quiche::QuicheBuffer MoqtFramer::SerializePublish(const MoqtPublish& message) {
   return SerializeControlMessage(MoqtMessageType::kPublish,

@@ -709,6 +709,10 @@ absl::StatusOr<MoqtSubscribe> MoqtControlMessageParser::ProcessSubscribe(
   }
   QUICHE_RETURN_IF_ERROR(ReadFullTrackName(reader, subscribe.full_track_name));
   QUICHE_ASSIGN_OR_RETURN(subscribe.parameters, ParseMessageParameters(reader));
+  if (!ParametersAllowedByMessage(subscribe.parameters,
+                                  MoqtMessageType::kSubscribe)) {
+    return absl::InvalidArgumentError("Invalid SUBSCRIBE message parameters");
+  }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return subscribe;
 }
@@ -722,6 +726,11 @@ absl::StatusOr<MoqtSubscribeOk> MoqtControlMessageParser::ProcessSubscribeOk(
   }
   QUICHE_ASSIGN_OR_RETURN(subscribe_ok.parameters,
                           ParseMessageParameters(reader));
+  if (!ParametersAllowedByMessage(subscribe_ok.parameters,
+                                  MoqtMessageType::kSubscribeOk)) {
+    return absl::InvalidArgumentError(
+        "Invalid SUBSCRIBE_OK message parameters");
+  }
   QUICHE_RETURN_IF_ERROR(
       ParseKeyValuePairList(reader, subscribe_ok.properties));
   if (!subscribe_ok.properties.Validate()) {
@@ -794,6 +803,11 @@ MoqtControlMessageParser::ProcessPublishNamespace(
       ReadTrackNamespace(reader, publish_namespace.track_namespace));
   QUICHE_ASSIGN_OR_RETURN(publish_namespace.parameters,
                           ParseMessageParameters(reader));
+  if (!ParametersAllowedByMessage(publish_namespace.parameters,
+                                  MoqtMessageType::kPublishNamespace)) {
+    return absl::InvalidArgumentError(
+        "Invalid PUBLISH_NAMESPACE message parameters");
+  }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return publish_namespace;
 }
@@ -843,7 +857,22 @@ absl::StatusOr<MoqtRequestOk> MoqtControlMessageParser::ProcessRequestOk(
 
 absl::StatusOr<MoqtTrackStatus> MoqtControlMessageParser::ProcessTrackStatus(
     absl::string_view data) const {
-  return ProcessSubscribe(data);
+  quic::QuicDataReader reader(data);
+  MoqtTrackStatus track_status;
+  if (!reader.ReadMoqVarInt(&track_status.request_id)) {
+    return absl::InvalidArgumentError("Failed to read request ID");
+  }
+  QUICHE_RETURN_IF_ERROR(
+      ReadFullTrackName(reader, track_status.full_track_name));
+  QUICHE_ASSIGN_OR_RETURN(track_status.parameters,
+                          ParseMessageParameters(reader));
+  if (!ParametersAllowedByMessage(track_status.parameters,
+                                  MoqtMessageType::kTrackStatus)) {
+    return absl::InvalidArgumentError(
+        "Invalid TRACK_STATUS message parameters");
+  }
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return track_status;
 }
 
 absl::StatusOr<MoqtGoAway> MoqtControlMessageParser::ProcessGoAway(
@@ -890,6 +919,11 @@ MoqtControlMessageParser::ProcessSubscribeNamespace(
       ReadTrackNamespace(reader, subscribe_namespace.track_namespace_prefix));
   QUICHE_ASSIGN_OR_RETURN(subscribe_namespace.parameters,
                           ParseMessageParameters(reader));
+  if (!ParametersAllowedByMessage(subscribe_namespace.parameters,
+                                  MoqtMessageType::kSubscribeNamespace)) {
+    return absl::InvalidArgumentError(
+        "Invalid SUBSCRIBE_NAMESPACE message parameters");
+  }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return subscribe_namespace;
 }
@@ -905,6 +939,11 @@ MoqtControlMessageParser::ProcessSubscribeTracks(absl::string_view data) const {
       ReadTrackNamespace(reader, subscribe_tracks.track_namespace_prefix));
   QUICHE_ASSIGN_OR_RETURN(subscribe_tracks.parameters,
                           ParseMessageParameters(reader));
+  if (!ParametersAllowedByMessage(subscribe_tracks.parameters,
+                                  MoqtMessageType::kSubscribeTracks)) {
+    return absl::InvalidArgumentError(
+        "Invalid SUBSCRIBE_TRACKS message parameters");
+  }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return subscribe_tracks;
 }
@@ -969,6 +1008,9 @@ absl::StatusOr<MoqtFetch> MoqtControlMessageParser::ProcessFetch(
       return absl::InvalidArgumentError("Invalid FETCH type");
   }
   QUICHE_ASSIGN_OR_RETURN(fetch.parameters, ParseMessageParameters(reader));
+  if (!ParametersAllowedByMessage(fetch.parameters, MoqtMessageType::kFetch)) {
+    return absl::InvalidArgumentError("Invalid FETCH message parameters");
+  }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return fetch;
 }
@@ -993,6 +1035,10 @@ absl::StatusOr<MoqtFetchOk> MoqtControlMessageParser::ProcessFetchOk(
   }
   fetch_ok.end_of_track = end_of_track == 1;
   QUICHE_ASSIGN_OR_RETURN(fetch_ok.parameters, ParseMessageParameters(reader));
+  if (!ParametersAllowedByMessage(fetch_ok.parameters,
+                                  MoqtMessageType::kFetchOk)) {
+    return absl::InvalidArgumentError("Invalid FETCH_OK message parameters");
+  }
   QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(reader, fetch_ok.properties));
   if (!fetch_ok.properties.Validate()) {
     return absl::InvalidArgumentError("Invalid FETCH_OK track properties");
@@ -1014,6 +1060,10 @@ absl::StatusOr<MoqtPublish> MoqtControlMessageParser::ProcessPublish(
     return absl::InvalidArgumentError("Track alias missing");
   }
   QUICHE_ASSIGN_OR_RETURN(publish.parameters, ParseMessageParameters(reader));
+  if (!ParametersAllowedByMessage(publish.parameters,
+                                  MoqtMessageType::kPublish)) {
+    return absl::InvalidArgumentError("Invalid PUBLISH message parameters");
+  }
   QUICHE_RETURN_IF_ERROR(ParseKeyValuePairList(reader, publish.properties));
   if (!publish.properties.Validate()) {
     return absl::InvalidArgumentError("Invalid PUBLISH track properties");

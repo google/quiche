@@ -50,9 +50,9 @@ MoqtSubscribeRequestStream::MoqtSubscribeRequestStream(
 
 void MoqtSubscribeRequestStream::OnStreamBound() {
   stream_parser()->set_allow_fin(true);
-  SendOrBufferMessageOrFatal(framer()->SerializeSubscribe(
-      MoqtSubscribe{track_->request_id(), track_->full_track_name(),
-                    track_->const_parameters()}));
+  MoqtSubscribe subscribe{track_->request_id(), track_->full_track_name(),
+                          track_->const_parameters()};
+  SendOrBufferMessageOrFatal(framer()->SerializeSubscribe(subscribe));
 }
 
 absl::Status MoqtSubscribeRequestStream::OnRawControlMessage(
@@ -113,6 +113,11 @@ absl::Status MoqtSubscribeRequestStream::OnControlMessage(
     OnFatalError(absl::InvalidArgumentError(
         "REQUEST_UPDATE_OK received with properties"));
     return absl::OkStatus();
+  }
+  if (!ParametersAllowedByRequestOk(message.parameters,
+                                    MoqtMessageType::kRequestUpdate)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_OK contains invalid parameters for REQUEST_UPDATE");
   }
   absl::StatusOr<MessageParameters> old_parameters =
       request_update_queue().NextParameters();
@@ -240,6 +245,11 @@ absl::Status MoqtSubscribeResponseStream::OnControlMessage(
 absl::Status MoqtSubscribeResponseStream::OnControlMessage(
     const MoqtRequestUpdate& message) {
   QUICHE_RETURN_IF_ERROR(validate_request_id_(message.request_id));
+  if (!ParametersAllowedByRequestUpdate(message.parameters,
+                                        MoqtMessageType::kSubscribe)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_UPDATE contains invalid parameters for SUBSCRIBE");
+  }
   if (subscription_ == nullptr) {
     QUICHE_BUG(INFO) << "Received REQUEST_UPDATE, no subscription state";
     return SendRequestError(RequestErrorCode::kInternalError, std::nullopt,

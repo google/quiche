@@ -133,7 +133,8 @@ void LivePublisher::Update(const MessageParameters& parameters,
     }
   }
   if (!from_request_ok) {
-    bidi_stream_->CheckStatus(bidi_stream_->SendRequestOk(response));
+    bidi_stream_->CheckStatus(
+        bidi_stream_->SendRequestOk(response, MoqtMessageType::kRequestUpdate));
   }
 }
 

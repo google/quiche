@@ -12,9 +12,257 @@
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_types.h"
-#include "quiche/quic/platform/api/quic_bug_tracker.h"
+#include "quiche/common/platform/api/quiche_bug_tracker.h"
 
 namespace moqt {
+
+namespace {
+
+struct AllowedParameters {
+  bool subgroup_delivery_timeout = false;
+  bool authorization_tokens = false;
+  bool rendezvous_timeout = false;
+  bool object_delivery_timeout = false;
+  bool expires = false;
+  bool largest_object = false;
+  bool fill_timeout = false;
+  bool forward = false;
+  bool subscriber_priority = false;
+  bool subscription_filter = false;
+  bool group_order = false;
+  bool new_group_request = false;
+  bool track_namespace_prefix = false;
+  bool oack_window_size = false;
+};
+
+constexpr AllowedParameters kCommonSubscriberParameters{
+    .subgroup_delivery_timeout = true,
+    .object_delivery_timeout = true,
+    .forward = true,
+    .subscriber_priority = true,
+    .subscription_filter = true,
+    .new_group_request = true,
+    .oack_window_size = true,
+};
+
+AllowedParameters GetAllowedParametersForMessage(MoqtMessageType message_type) {
+  switch (message_type) {
+    case MoqtMessageType::kSubscribe: {
+      AllowedParameters allowed = kCommonSubscriberParameters;
+      allowed.authorization_tokens = true;
+      allowed.rendezvous_timeout = true;
+      allowed.group_order = true;
+      return allowed;
+    }
+    case MoqtMessageType::kSubscribeOk:
+      return AllowedParameters{
+          .expires = true,
+          .largest_object = true,
+      };
+    case MoqtMessageType::kPublish:
+      return AllowedParameters{
+          .authorization_tokens = true,
+          .expires = true,
+          .largest_object = true,
+          .forward = true,
+      };
+    case MoqtMessageType::kFetch:
+      return AllowedParameters{
+          .authorization_tokens = true,
+          .fill_timeout = true,
+          .subscriber_priority = true,
+          .group_order = true,
+      };
+    case MoqtMessageType::kFetchOk:
+      return AllowedParameters{};
+    case MoqtMessageType::kSubscribeTracks:
+      return AllowedParameters{
+          .authorization_tokens = true,
+          .forward = true,
+      };
+    case MoqtMessageType::kTrackStatus:
+    case MoqtMessageType::kPublishNamespace:
+    case MoqtMessageType::kSubscribeNamespace:
+      return AllowedParameters{
+          .authorization_tokens = true,
+      };
+    case MoqtMessageType::kRequestUpdate:
+    case MoqtMessageType::kRequestError:
+    case MoqtMessageType::kRequestOk:
+    case MoqtMessageType::kNamespace:
+    case MoqtMessageType::kPublishDone:
+    case MoqtMessageType::kNamespaceDone:
+    case MoqtMessageType::kPublishSkipped:
+    case MoqtMessageType::kGoAway:
+    case MoqtMessageType::kSetup:
+    case MoqtMessageType::kObjectAck:
+      QUICHE_BUG(moqt_sanitize_parameters_invalid_type)
+          << "Unexpected message type: "
+          << MoqtMessageTypeToString(message_type);
+      return AllowedParameters{};
+  }
+  return AllowedParameters{};
+}
+
+AllowedParameters GetAllowedParametersForUpdate(MoqtMessageType updated_type) {
+  switch (updated_type) {
+    case MoqtMessageType::kSubscribe:
+    case MoqtMessageType::kRequestOk: {  // PUBLISH_OK
+      AllowedParameters allowed = kCommonSubscriberParameters;
+      allowed.authorization_tokens = true;
+      return allowed;
+    }
+    case MoqtMessageType::kFetch:
+      return AllowedParameters{
+          .authorization_tokens = true,
+          .subscriber_priority = true,
+      };
+    case MoqtMessageType::kPublish:
+    case MoqtMessageType::kPublishNamespace:
+      return AllowedParameters{
+          .authorization_tokens = true,
+      };
+    case MoqtMessageType::kSubscribeNamespace:
+    case MoqtMessageType::kSubscribeTracks:
+      return AllowedParameters{
+          .authorization_tokens = true,
+          .track_namespace_prefix = true,
+      };
+    case MoqtMessageType::kRequestUpdate:
+    case MoqtMessageType::kSubscribeOk:
+    case MoqtMessageType::kRequestError:
+    case MoqtMessageType::kNamespace:
+    case MoqtMessageType::kPublishDone:
+    case MoqtMessageType::kTrackStatus:
+    case MoqtMessageType::kNamespaceDone:
+    case MoqtMessageType::kPublishSkipped:
+    case MoqtMessageType::kGoAway:
+    case MoqtMessageType::kFetchOk:
+    case MoqtMessageType::kSetup:
+    case MoqtMessageType::kObjectAck:
+      QUICHE_BUG(moqt_sanitize_update_parameters_invalid_type)
+          << "Unexpected updated message type: "
+          << MoqtMessageTypeToString(updated_type);
+      return AllowedParameters{};
+  }
+  return AllowedParameters{};
+}
+
+AllowedParameters GetAllowedParametersForRequestOk(MoqtMessageType type_of_ok) {
+  switch (type_of_ok) {
+    case MoqtMessageType::kPublish: {
+      AllowedParameters allowed = kCommonSubscriberParameters;
+      allowed.expires = true;
+      allowed.group_order = true;
+      return allowed;
+    }
+    case MoqtMessageType::kRequestUpdate:
+      return AllowedParameters{
+          .expires = true,
+          .largest_object = true,
+      };
+    case MoqtMessageType::kTrackStatus:
+      return AllowedParameters{
+          .largest_object = true,
+      };
+    case MoqtMessageType::kPublishNamespace:
+    case MoqtMessageType::kSubscribeNamespace:
+    case MoqtMessageType::kSubscribeTracks:
+      return AllowedParameters{};
+    case MoqtMessageType::kSubscribe:
+    case MoqtMessageType::kSubscribeOk:
+    case MoqtMessageType::kRequestError:
+    case MoqtMessageType::kRequestOk:
+    case MoqtMessageType::kNamespace:
+    case MoqtMessageType::kPublishDone:
+    case MoqtMessageType::kNamespaceDone:
+    case MoqtMessageType::kPublishSkipped:
+    case MoqtMessageType::kGoAway:
+    case MoqtMessageType::kFetch:
+    case MoqtMessageType::kFetchOk:
+    case MoqtMessageType::kSetup:
+    case MoqtMessageType::kObjectAck:
+      QUICHE_BUG(moqt_sanitize_request_ok_parameters_invalid_type)
+          << "Unexpected request type for REQUEST_OK: "
+          << MoqtMessageTypeToString(type_of_ok);
+      return AllowedParameters{};
+  }
+  return AllowedParameters{};
+}
+
+bool CheckAllowedParameters(const MessageParameters& parameters,
+                            const AllowedParameters& allowed) {
+  return (allowed.subgroup_delivery_timeout ||
+          !parameters.subgroup_delivery_timeout.has_value()) &&
+         (allowed.authorization_tokens ||
+          parameters.authorization_tokens.empty()) &&
+         (allowed.rendezvous_timeout ||
+          !parameters.rendezvous_timeout.has_value()) &&
+         (allowed.object_delivery_timeout ||
+          !parameters.object_delivery_timeout.has_value()) &&
+         (allowed.expires || !parameters.expires.has_value()) &&
+         (allowed.largest_object || !parameters.largest_object.has_value()) &&
+         (allowed.fill_timeout || !parameters.fill_timeout.has_value()) &&
+         (allowed.forward || !parameters.forward_has_value()) &&
+         (allowed.subscriber_priority ||
+          !parameters.subscriber_priority.has_value()) &&
+         (allowed.subscription_filter ||
+          !parameters.subscription_filter.has_value()) &&
+         (allowed.group_order || !parameters.group_order.has_value()) &&
+         (allowed.new_group_request ||
+          !parameters.new_group_request.has_value()) &&
+         (allowed.track_namespace_prefix ||
+          !parameters.track_namespace_prefix.has_value()) &&
+         (allowed.oack_window_size || !parameters.oack_window_size.has_value());
+}
+
+void ApplyAllowedParameters(MessageParameters& parameters,
+                            const AllowedParameters& allowed) {
+  if (!allowed.subgroup_delivery_timeout) {
+    parameters.subgroup_delivery_timeout.reset();
+  }
+  if (!allowed.authorization_tokens) {
+    parameters.authorization_tokens.clear();
+  }
+  if (!allowed.rendezvous_timeout) {
+    parameters.rendezvous_timeout.reset();
+  }
+  if (!allowed.object_delivery_timeout) {
+    parameters.object_delivery_timeout.reset();
+  }
+  if (!allowed.expires) {
+    parameters.expires.reset();
+  }
+  if (!allowed.largest_object) {
+    parameters.largest_object.reset();
+  }
+  if (!allowed.fill_timeout) {
+    parameters.fill_timeout.reset();
+  }
+  if (!allowed.forward) {
+    parameters.clear_forward();
+  }
+  if (!allowed.subscriber_priority) {
+    parameters.subscriber_priority.reset();
+  }
+  if (!allowed.subscription_filter) {
+    parameters.subscription_filter.reset();
+  }
+  if (!allowed.group_order) {
+    parameters.group_order.reset();
+  }
+  if (!allowed.new_group_request) {
+    parameters.new_group_request.reset();
+  }
+  if (!allowed.track_namespace_prefix) {
+    parameters.track_namespace_prefix.reset();
+  }
+  if (!allowed.oack_window_size) {
+    parameters.oack_window_size.reset();
+  }
+}
+
+}  // namespace
 
 MoqtObjectStatus IntegerToObjectStatus(uint64_t integer) {
   if (integer >=
@@ -38,36 +286,41 @@ MoqtError SetupOptionsAllowedByMessage(const SetupOptions& options,
   return MoqtError::kNoError;
 }
 
-// Parameter types are not enforced by message in draft-16, but apparently this
-// is coming back later.
-#if 0
-const std::array<MoqtMessageType, 9> kAllowsAuthorization = {
-    MoqtMessageType::kClientSetup,
-    MoqtMessageType::kServerSetup,
-    MoqtMessageType::kPublish,
-    MoqtMessageType::kSubscribe,
-    MoqtMessageType::kRequestUpdate,
-    MoqtMessageType::kSubscribeNamespace,
-    MoqtMessageType::kPublishNamespace,
-    MoqtMessageType::kTrackStatus,
-    MoqtMessageType::kFetch};
-const std::array<MoqtMessageType, 6> kAllowsDeliveryTimeout = {
-    MoqtMessageType::kTrackStatus,  MoqtMessageType::kRequestOk,
-    MoqtMessageType::kPublish,      MoqtMessageType::kSubscribe,
-    MoqtMessageType::kSubscribeOk,  MoqtMessageType::kRequestUpdate};
-bool MessageParametersAllowedByMessage(
-    const MessageParameters& parameters, MoqtMessageType message_type) {
-  if (!parameters.authorization_tokens.empty() &&
-      !absl::c_linear_search(kAllowsAuthorization, message_type)) {
-    return false;
-  }
-  if (parameters.delivery_timeout != quic::QuicTimeDelta::Infinite() &&
-      !absl::c_linear_search(kAllowsDeliveryTimeout, message_type)) {
-    return false;
-  }
-  return true;
+bool ParametersAllowedByMessage(const MessageParameters& parameters,
+                                MoqtMessageType message_type) {
+  return CheckAllowedParameters(parameters,
+                                GetAllowedParametersForMessage(message_type));
 }
-#endif
+
+void SanitizeParameters(MessageParameters& parameters,
+                        MoqtMessageType message_type) {
+  ApplyAllowedParameters(parameters,
+                         GetAllowedParametersForMessage(message_type));
+}
+
+bool ParametersAllowedByRequestUpdate(const MessageParameters& parameters,
+                                      MoqtMessageType updated_type) {
+  return CheckAllowedParameters(parameters,
+                                GetAllowedParametersForUpdate(updated_type));
+}
+
+void SanitizeUpdateParameters(MessageParameters& parameters,
+                              MoqtMessageType updated_type) {
+  ApplyAllowedParameters(parameters,
+                         GetAllowedParametersForUpdate(updated_type));
+}
+
+bool ParametersAllowedByRequestOk(const MessageParameters& parameters,
+                                  MoqtMessageType type_of_ok) {
+  return CheckAllowedParameters(parameters,
+                                GetAllowedParametersForRequestOk(type_of_ok));
+}
+
+void SanitizeRequestOkParameters(MessageParameters& parameters,
+                                 MoqtMessageType type_of_ok) {
+  ApplyAllowedParameters(parameters,
+                         GetAllowedParametersForRequestOk(type_of_ok));
+}
 
 std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
   switch (message_type) {
@@ -135,7 +388,7 @@ std::string MoqtForwardingPreferenceToString(
     case MoqtForwardingPreference::kSubgroup:
       return "SUBGROUP";
   }
-  QUIC_BUG(quic_bug_bad_moqt_message_type_01)
+  QUICHE_BUG(quic_bug_bad_moqt_message_type_01)
       << "Unknown preference " << std::to_string(static_cast<int>(preference));
   return "Unknown preference " + std::to_string(static_cast<int>(preference));
 }
