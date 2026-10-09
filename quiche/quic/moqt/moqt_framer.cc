@@ -771,6 +771,28 @@ quiche::QuicheBuffer MoqtFramer::SerializeSubscribeOk(
 
 quiche::QuicheBuffer MoqtFramer::SerializeRequestError(
     const MoqtRequestError& message) {
+  if ((message.error_code == RequestErrorCode::kRedirect) !=
+      message.redirect.has_value()) {
+    QUICHE_BUG(QUICHE_BUG_serialize_request_error_01)
+        << "Redirect presence must match kRedirect error code";
+    return quiche::QuicheBuffer();
+  }
+  if (message.redirect.has_value()) {
+    if (perspective_ == quic::Perspective::IS_CLIENT &&
+        !message.redirect->connect_uri.empty()) {
+      QUICHE_BUG(QUICHE_BUG_serialize_request_error_02)
+          << "Connect URI must be empty from client";
+      return quiche::QuicheBuffer();
+    }
+    return SerializeControlMessage(
+        MoqtMessageType::kRequestError, WireMoqVarInt(message.error_code),
+        WireMoqVarInt(message.retry_interval.has_value()
+                          ? message.retry_interval->ToMilliseconds() + 1
+                          : 0),
+        WireStringWithMoqVarIntLength(message.reason_phrase),
+        WireStringWithMoqVarIntLength(message.redirect->connect_uri),
+        WireFullTrackName(message.redirect->full_track_name));
+  }
   return SerializeControlMessage(
       MoqtMessageType::kRequestError, WireMoqVarInt(message.error_code),
       WireMoqVarInt(message.retry_interval.has_value()

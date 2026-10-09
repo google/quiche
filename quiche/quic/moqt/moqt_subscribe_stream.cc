@@ -140,18 +140,26 @@ absl::Status MoqtSubscribeRequestStream::OnControlMessage(
 
 absl::Status MoqtSubscribeRequestStream::OnControlMessage(
     const MoqtRequestError& message) {
-  MoqtRequestErrorInfo error_info{message.error_code, message.retry_interval,
-                                  message.reason_phrase};
   if (track_->ErrorIsAllowed()) {
+    if (!RedirectAllowedByRequestError(message.redirect,
+                                       MoqtMessageType::kSubscribe)) {
+      return absl::InvalidArgumentError(
+          "REQUEST_ERROR contains invalid redirect for SUBSCRIBE");
+    }
     // The REQUEST_ERROR is a response to the SUBSCRIBE message.
     if (track_->visitor() != nullptr) {
-      track_->visitor()->OnReply(track_->full_track_name(), error_info);
+      track_->visitor()->OnReply(track_->full_track_name(), message);
     }
     Fin();
     return absl::OkStatus();
   }
 
   // The REQUEST_ERROR is a response to the REQUEST_UPDATE message.
+  if (!RedirectAllowedByRequestError(message.redirect,
+                                     MoqtMessageType::kRequestUpdate)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_ERROR contains invalid redirect for REQUEST_UPDATE");
+  }
   absl::Status status = request_update_queue().OnControlMessage(message);
   if (status.ok()) {
     Fin();

@@ -115,6 +115,28 @@ TEST_F(MoqtPublishNamespaceRequestStreamTest, OnControlMessageError) {
   EXPECT_TRUE(callback_called);
 }
 
+TEST_F(MoqtPublishNamespaceRequestStreamTest, OnControlMessageErrorRedirect) {
+  std::unique_ptr<MoqtPublishNamespaceRequestStream> request_stream =
+      CreateAndBindStream();
+  MoqtRequestError invalid_redirect(
+      RequestErrorCode::kRedirect, std::nullopt, "redirect",
+      Redirect{"moqt://example.com", FullTrackName("foo", "bar")});
+  EXPECT_THAT(request_stream->OnControlMessage(invalid_redirect),
+              quiche::test::StatusIs(absl::StatusCode::kInvalidArgument));
+
+  MoqtRequestError valid_redirect(
+      RequestErrorCode::kRedirect, std::nullopt, "redirect",
+      Redirect{"moqt://example.com",
+               FullTrackName(TrackNamespace({"foo"}), "")});
+  EXPECT_CALL(response_callback_, Call(_))
+      .WillOnce([&](std::variant<MessageParameters, MoqtRequestErrorInfo> res) {
+        ASSERT_TRUE(std::holds_alternative<MoqtRequestErrorInfo>(res));
+        EXPECT_EQ(std::get<MoqtRequestErrorInfo>(res), valid_redirect);
+      });
+  ExpectFin(mock_stream_);
+  QUICHE_EXPECT_OK(request_stream->OnControlMessage(valid_redirect));
+}
+
 TEST_F(MoqtPublishNamespaceRequestStreamTest, SendRequestUpdateAndReceiveOk) {
   std::unique_ptr<MoqtPublishNamespaceRequestStream> request_stream =
       CreateAndBindStream();

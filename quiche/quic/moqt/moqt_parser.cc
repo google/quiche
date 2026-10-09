@@ -757,6 +757,19 @@ absl::StatusOr<MoqtRequestError> MoqtControlMessageParser::ProcessRequestError(
           ? std::nullopt
           : std::make_optional(
                 quic::QuicTimeDelta::FromMilliseconds(raw_interval - 1));
+  if (request_error.error_code == RequestErrorCode::kRedirect) {
+    request_error.redirect.emplace();
+    if (!reader.ReadStringMoqVarInt(request_error.redirect->connect_uri)) {
+      return absl::InvalidArgumentError("Redirect missing connect URI");
+    }
+    if (perspective_ == quic::Perspective::IS_SERVER &&
+        !request_error.redirect->connect_uri.empty()) {
+      return absl::InvalidArgumentError(
+          "Connect URI must be empty from client");
+    }
+    QUICHE_RETURN_IF_ERROR(
+        ReadFullTrackName(reader, request_error.redirect->full_track_name));
+  }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return request_error;
 }

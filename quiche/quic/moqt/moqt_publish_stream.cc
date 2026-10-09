@@ -110,8 +110,18 @@ absl::Status MoqtPublishRequestStream::OnControlMessage(
 absl::Status MoqtPublishRequestStream::OnControlMessage(
     const MoqtRequestError& message) {
   if (response_callback_ != nullptr) {
+    if (!RedirectAllowedByRequestError(message.redirect,
+                                       MoqtMessageType::kPublish)) {
+      return absl::InvalidArgumentError(
+          "REQUEST_ERROR contains invalid redirect for PUBLISH");
+    }
     std::move(response_callback_)(message);
     return absl::OkStatus();
+  }
+  if (!RedirectAllowedByRequestError(message.redirect,
+                                     MoqtMessageType::kRequestUpdate)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_ERROR contains invalid redirect for REQUEST_UPDATE");
   }
   return request_update_queue().OnControlMessage(message);
 }
@@ -269,7 +279,11 @@ absl::Status MoqtPublishResponseStream::OnControlMessage(
 
 absl::Status MoqtPublishResponseStream::OnControlMessage(
     const MoqtRequestError& message) {
-  // TODO(martinduke): Process REQUEST_OK parameters.
+  if (!RedirectAllowedByRequestError(message.redirect,
+                                     MoqtMessageType::kRequestUpdate)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_ERROR contains invalid redirect for REQUEST_UPDATE");
+  }
   absl::Status status = request_update_queue().OnControlMessage(message);
   if (status.ok()) {
     Fin();

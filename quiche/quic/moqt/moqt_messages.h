@@ -545,6 +545,10 @@ bool ParametersAllowedByRequestOk(const MessageParameters& parameters,
 // SanitizeParameters().
 void SanitizeRequestOkParameters(MessageParameters& parameters,
                                  MoqtMessageType type_of_ok);
+// Returns false if |redirect| cannot be in a REQUEST_ERROR in response to
+// |request_type|. Called by the bidi stream visitor.
+bool RedirectAllowedByRequestError(const std::optional<Redirect>& redirect,
+                                   MoqtMessageType request_type);
 
 std::string MoqtMessageTypeToString(MoqtMessageType message_type);
 std::string MoqtDataStreamTypeToString(MoqtDataStreamType type);

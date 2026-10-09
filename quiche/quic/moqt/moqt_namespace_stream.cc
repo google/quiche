@@ -82,9 +82,19 @@ absl::Status MoqtSubscribeNamespaceRequestStream::OnControlMessage(
 absl::Status MoqtSubscribeNamespaceRequestStream::OnControlMessage(
     const MoqtRequestError& message) {
   if (response_callback_ != nullptr) {
+    if (!RedirectAllowedByRequestError(message.redirect,
+                                       MoqtMessageType::kSubscribeNamespace)) {
+      return absl::InvalidArgumentError(
+          "REQUEST_ERROR contains invalid redirect for SUBSCRIBE_NAMESPACE");
+    }
     std::move(response_callback_)(message);
     response_callback_ = nullptr;
     return absl::OkStatus();
+  }
+  if (!RedirectAllowedByRequestError(message.redirect,
+                                     MoqtMessageType::kRequestUpdate)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_ERROR contains invalid redirect for REQUEST_UPDATE");
   }
   NamespaceTask* task = task_.GetIfAvailable();
   if (task == nullptr) {

@@ -71,6 +71,11 @@ absl::Status MoqtPublishNamespaceRequestStream::OnControlMessage(
 absl::Status MoqtPublishNamespaceRequestStream::OnControlMessage(
     const MoqtRequestError& message) {
   if (response_callback_ != nullptr) {
+    if (!RedirectAllowedByRequestError(message.redirect,
+                                       MoqtMessageType::kPublishNamespace)) {
+      return absl::InvalidArgumentError(
+          "REQUEST_ERROR contains invalid redirect for PUBLISH_NAMESPACE");
+    }
     // Response to the initial PUBLISH_NAMESPACE.
     auto callback = std::move(response_callback_);
     response_callback_ = nullptr;
@@ -79,6 +84,11 @@ absl::Status MoqtPublishNamespaceRequestStream::OnControlMessage(
     return absl::OkStatus();
   }
   // The REQUEST_ERROR is a response to the REQUEST_UPDATE message.
+  if (!RedirectAllowedByRequestError(message.redirect,
+                                     MoqtMessageType::kRequestUpdate)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_ERROR contains invalid redirect for REQUEST_UPDATE");
+  }
   absl::Status status = request_update_queue().OnControlMessage(message);
   if (status.ok()) {
     Fin();

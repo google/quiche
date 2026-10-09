@@ -77,13 +77,15 @@ absl::Status MoqtTrackStatusRequestStream::OnControlMessage(
   if (response_callback_ == nullptr) {
     return absl::InvalidArgumentError("Duplicate REQUEST_ERROR");
   }
+  if (!RedirectAllowedByRequestError(message.redirect,
+                                     MoqtMessageType::kTrackStatus)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_ERROR contains invalid redirect for TRACK_STATUS");
+  }
   TrackStatusResponseCallback callback = std::move(response_callback_);
   response_callback_ = nullptr;
   Fin();
-  // `message.request_id` is ignored, since request IDs in REQUEST_ERROR are
-  // deprecated and not present in draft-18.
-  std::move(callback)(MoqtRequestErrorInfo{
-      message.error_code, message.retry_interval, message.reason_phrase});
+  std::move(callback)(message);
   return absl::OkStatus();
 }
 

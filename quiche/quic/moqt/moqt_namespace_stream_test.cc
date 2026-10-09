@@ -97,6 +97,17 @@ TEST_F(MoqtSubscribeNamespaceRequestStreamTest, RequestError) {
                        quic::QuicTimeDelta::FromMilliseconds(100), "bar"));
 }
 
+TEST_F(MoqtSubscribeNamespaceRequestStreamTest, RequestErrorRedirect) {
+  MoqtRequestError invalid_redirect(
+      RequestErrorCode::kRedirect, std::nullopt, "redirect",
+      Redirect{"moqt://example.com", FullTrackName("foo", "bar")});
+  EXPECT_CALL(
+      error_callback_,
+      Call(MoqtError::kProtocolViolation,
+           "REQUEST_ERROR contains invalid redirect for SUBSCRIBE_NAMESPACE"));
+  ReceiveControlMessage(invalid_redirect);
+}
+
 TEST_F(MoqtSubscribeNamespaceRequestStreamTest, NamespaceBeforeResponse) {
   EXPECT_CALL(error_callback_,
               Call(MoqtError::kProtocolViolation,

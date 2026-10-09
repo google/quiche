@@ -15,6 +15,7 @@
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
@@ -517,6 +518,53 @@ TEST_F(MoqtFramerSimpleTest, MessageParametersTimeDeltaSerialization) {
       "frame encoding", buffer.data(), buffer.size(),
       reinterpret_cast<const char*>(expected_clamped_expires),
       sizeof(expected_clamped_expires));
+}
+
+TEST_F(MoqtFramerSimpleTest, RequestErrorRedirect) {
+  MoqtRequestError error = {
+      RequestErrorCode::kRedirect,
+      std::nullopt,
+      "bar",
+      Redirect{"uri", FullTrackName("foo", "abcd")},
+  };
+  quiche::QuicheBuffer buffer = framer_.SerializeRequestError(error);
+  const uint8_t expected[] = {
+      0x05, 0x00, 0x14,
+      0x34,                          // error_code = kRedirect (0x34)
+      0x00,                          // retry_interval = 0
+      0x03, 0x62, 0x61, 0x72,        // reason_phrase = "bar"
+      0x03, 0x75, 0x72, 0x69,        // connect_uri = "uri"
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+  };
+  EXPECT_EQ(buffer.size(), sizeof(expected));
+  quiche::test::CompareCharArraysWithHexError(
+      "frame encoding", buffer.data(), buffer.size(),
+      reinterpret_cast<const char*>(expected), sizeof(expected));
+
+  // Client cannot send non-empty connect_uri.
+  MoqtFramer client_framer(/*using_webtrans=*/true,
+                           quic::Perspective::IS_CLIENT);
+  EXPECT_QUIC_BUG(buffer = client_framer.SerializeRequestError(error),
+                  "Connect URI must be empty from client");
+  EXPECT_EQ(buffer.size(), 0);
+
+  error.redirect->connect_uri = "";
+  buffer = client_framer.SerializeRequestError(error);
+  EXPECT_GT(buffer.size(), 0);
+
+  // kRedirect without redirect struct fails.
+  error.redirect = std::nullopt;
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeRequestError(error),
+                  "Redirect presence must match kRedirect error code");
+  EXPECT_EQ(buffer.size(), 0);
+
+  // Non-kRedirect with redirect struct fails.
+  error.error_code = RequestErrorCode::kInternalError;
+  error.redirect = Redirect{"", FullTrackName()};
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeRequestError(error),
+                  "Redirect presence must match kRedirect error code");
+  EXPECT_EQ(buffer.size(), 0);
 }
 
 }  // namespace moqt::test

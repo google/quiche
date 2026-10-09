@@ -831,6 +831,10 @@ class QUICHE_NO_EXPORT RequestErrorMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "REQUEST_ERROR reason phrase mismatch";
       return false;
     }
+    if (cast.redirect != request_error_.redirect) {
+      QUIC_LOG(INFO) << "REQUEST_ERROR redirect mismatch";
+      return false;
+    }
     return true;
   }
 

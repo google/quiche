@@ -5,6 +5,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 
 #include <cstdint>
+#include <optional>
 #include <string>
 
 #include "absl/strings/str_cat.h"
@@ -320,6 +321,39 @@ void SanitizeRequestOkParameters(MessageParameters& parameters,
                                  MoqtMessageType type_of_ok) {
   ApplyAllowedParameters(parameters,
                          GetAllowedParametersForRequestOk(type_of_ok));
+}
+
+bool RedirectAllowedByRequestError(const std::optional<Redirect>& redirect,
+                                   MoqtMessageType request_type) {
+  switch (request_type) {
+    case MoqtMessageType::kPublishNamespace:
+    case MoqtMessageType::kSubscribeNamespace:
+      return !redirect.has_value() || redirect->full_track_name.name().empty();
+    case MoqtMessageType::kSubscribe:
+    case MoqtMessageType::kFetch:
+    case MoqtMessageType::kTrackStatus:
+      return true;
+    case MoqtMessageType::kPublish:
+    case MoqtMessageType::kRequestUpdate:
+    case MoqtMessageType::kSubscribeTracks:
+      return !redirect.has_value();
+    case MoqtMessageType::kSubscribeOk:
+    case MoqtMessageType::kRequestError:
+    case MoqtMessageType::kRequestOk:
+    case MoqtMessageType::kNamespace:
+    case MoqtMessageType::kPublishDone:
+    case MoqtMessageType::kNamespaceDone:
+    case MoqtMessageType::kPublishSkipped:
+    case MoqtMessageType::kGoAway:
+    case MoqtMessageType::kFetchOk:
+    case MoqtMessageType::kSetup:
+    case MoqtMessageType::kObjectAck:
+      QUICHE_BUG(moqt_redirect_allowed_invalid_type)
+          << "Unexpected request type for REQUEST_ERROR: "
+          << MoqtMessageTypeToString(request_type);
+      return false;
+  }
+  return false;
 }
 
 std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {

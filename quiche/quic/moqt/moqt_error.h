@@ -12,6 +12,7 @@
 #include "absl/status/status.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/web_transport/web_transport.h"
 
@@ -70,15 +71,17 @@ enum class QUICHE_EXPORT RequestErrorCode : uint64_t {
   kMalformedAuthToken = 0x4,
   kExpiredAuthToken = 0x5,
   kGoingAway = 0x6,
+  kExcessiveLoad = 0x9,
   kDoesNotExist = 0x10,
   kInvalidRange = 0x11,
   kMalformedTrack = 0x12,
   kDuplicateSubscription = 0x19,
   kUninterested = 0x20,
-  kNamespacePrefixUnknown = 0x21,
   kPrefixOverlap = 0x30,
+  kNamespaceTooLarge = 0x31,
   kInvalidJoiningRequestId = 0x32,
   kUnsupportedExtension = 0x33,
+  kRedirect = 0x34,
 };
 
 enum class QUICHE_EXPORT PublishDoneCode : uint64_t {
@@ -93,10 +96,17 @@ enum class QUICHE_EXPORT PublishDoneCode : uint64_t {
   kMalformedTrack = 0x12,
 };
 
+struct Redirect {
+  std::string connect_uri;
+  FullTrackName full_track_name;
+  bool operator==(const Redirect& other) const = default;
+};
+
 struct MoqtRequestErrorInfo {
   RequestErrorCode error_code;
   std::optional<quic::QuicTimeDelta> retry_interval;
   std::string reason_phrase;
+  std::optional<Redirect> redirect = std::nullopt;
   bool operator==(const MoqtRequestErrorInfo& other) const = default;
 };
 

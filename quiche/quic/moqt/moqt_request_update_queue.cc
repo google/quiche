@@ -48,8 +48,7 @@ absl::Status MoqtRequestUpdateQueue::OnControlMessage(
   if (pending_responses_.empty()) {
     return absl::OkStatus();
   }
-  std::move(pending_responses_.front())(MoqtRequestErrorInfo{
-      message.error_code, message.retry_interval, message.reason_phrase});
+  std::move(pending_responses_.front())(message);
   Clear();
   return absl::OkStatus();
 }

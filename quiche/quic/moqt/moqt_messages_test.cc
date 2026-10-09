@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "quiche/quic/core/quic_time.h"
+#include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
@@ -285,6 +286,53 @@ TEST(MoqtMessagesTest, ParametersAllowedAndSanitizedByRequestOk) {
     EXPECT_QUICHE_BUG(SanitizeRequestOkParameters(params, invalid_type),
                       "Unexpected request type for REQUEST_OK");
     EXPECT_EQ(params, MessageParameters());
+  }
+}
+
+TEST(MoqtMessagesTest, RedirectAllowedByRequestError) {
+  std::optional<Redirect> no_redirect = std::nullopt;
+  std::optional<Redirect> empty_redirect = Redirect{"", FullTrackName()};
+  std::optional<Redirect> namespace_only_redirect = Redirect{
+      "moqt://example.com", FullTrackName(TrackNamespace({"foo"}), "")};
+  std::optional<Redirect> full_track_redirect =
+      Redirect{"moqt://example.com", FullTrackName("foo", "bar")};
+
+  for (MoqtMessageType type : {MoqtMessageType::kPublishNamespace,
+                               MoqtMessageType::kSubscribeNamespace}) {
+    EXPECT_TRUE(RedirectAllowedByRequestError(no_redirect, type));
+    EXPECT_TRUE(RedirectAllowedByRequestError(empty_redirect, type));
+    EXPECT_TRUE(RedirectAllowedByRequestError(namespace_only_redirect, type));
+    EXPECT_FALSE(RedirectAllowedByRequestError(full_track_redirect, type));
+  }
+
+  for (MoqtMessageType type :
+       {MoqtMessageType::kSubscribe, MoqtMessageType::kFetch,
+        MoqtMessageType::kTrackStatus}) {
+    EXPECT_TRUE(RedirectAllowedByRequestError(no_redirect, type));
+    EXPECT_TRUE(RedirectAllowedByRequestError(empty_redirect, type));
+    EXPECT_TRUE(RedirectAllowedByRequestError(namespace_only_redirect, type));
+    EXPECT_TRUE(RedirectAllowedByRequestError(full_track_redirect, type));
+  }
+
+  for (MoqtMessageType type :
+       {MoqtMessageType::kPublish, MoqtMessageType::kRequestUpdate,
+        MoqtMessageType::kSubscribeTracks}) {
+    EXPECT_TRUE(RedirectAllowedByRequestError(no_redirect, type));
+    EXPECT_FALSE(RedirectAllowedByRequestError(empty_redirect, type));
+    EXPECT_FALSE(RedirectAllowedByRequestError(namespace_only_redirect, type));
+    EXPECT_FALSE(RedirectAllowedByRequestError(full_track_redirect, type));
+  }
+
+  for (MoqtMessageType invalid_type :
+       {MoqtMessageType::kSubscribeOk, MoqtMessageType::kRequestError,
+        MoqtMessageType::kRequestOk, MoqtMessageType::kNamespace,
+        MoqtMessageType::kPublishDone, MoqtMessageType::kNamespaceDone,
+        MoqtMessageType::kPublishSkipped, MoqtMessageType::kGoAway,
+        MoqtMessageType::kFetchOk, MoqtMessageType::kSetup,
+        MoqtMessageType::kObjectAck}) {
+    EXPECT_QUICHE_BUG(
+        EXPECT_FALSE(RedirectAllowedByRequestError(no_redirect, invalid_type)),
+        "Unexpected request type for REQUEST_ERROR");
   }
 }
 

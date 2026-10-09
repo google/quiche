@@ -2051,4 +2051,82 @@ TEST_F(MoqtMessageSpecificTest, DisallowedParameters) {
             MoqtError::kProtocolViolation);
 }
 
+TEST_F(MoqtMessageSpecificTest, RequestErrorRedirect) {
+  // Valid redirect from server with connect_uri and full_track_name.
+  char redirect_from_server[] = {
+      0x05, 0x00, 0x14,
+      0x34,                          // error_code = kRedirect (0x34)
+      0x00,                          // retry_interval = 0 (nullopt)
+      0x03, 0x62, 0x61, 0x72,        // reason_phrase = "bar"
+      0x03, 0x75, 0x72, 0x69,        // connect_uri = "uri"
+      0x01, 0x03, 0x66, 0x6f, 0x6f,  // track_namespace = "foo"
+      0x04, 0x61, 0x62, 0x63, 0x64,  // track_name = "abcd"
+  };
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed = ParseAllMessages(
+      absl::string_view(redirect_from_server, sizeof(redirect_from_server)),
+      kDefaultMoqtVersion, kWebTrans, quic::Perspective::IS_CLIENT);
+  ASSERT_TRUE(parsed.ok());
+  ASSERT_EQ(parsed->size(), 1);
+  MoqtRequestError expected = {
+      RequestErrorCode::kRedirect,
+      std::nullopt,
+      "bar",
+      Redirect{"uri", FullTrackName("foo", "abcd")},
+  };
+  EXPECT_EQ(std::get<MoqtRequestError>((*parsed)[0]), expected);
+
+  // Same message from client fails because connect_uri is not empty.
+  parsed = ParseAllMessages(
+      absl::string_view(redirect_from_server, sizeof(redirect_from_server)),
+      kDefaultMoqtVersion, kWebTrans, quic::Perspective::IS_SERVER);
+  EXPECT_THAT(parsed,
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       HasSubstr("Connect URI must be empty from client")));
+
+  // Valid redirect from client with empty connect_uri and empty FullTrackName.
+  char redirect_from_client[] = {
+      0x05, 0x00, 0x09,
+      0x34,                    // error_code = kRedirect (0x34)
+      0x00,                    // retry_interval = 0
+      0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
+      0x00,                    // connect_uri = ""
+      0x00, 0x00,              // track_namespace = {}, track_name = ""
+  };
+  parsed = ParseAllMessages(
+      absl::string_view(redirect_from_client, sizeof(redirect_from_client)),
+      kDefaultMoqtVersion, kWebTrans, quic::Perspective::IS_SERVER);
+  ASSERT_TRUE(parsed.ok());
+  ASSERT_EQ(parsed->size(), 1);
+  expected.redirect = Redirect{"", FullTrackName()};
+  EXPECT_EQ(std::get<MoqtRequestError>((*parsed)[0]), expected);
+
+  // Redirect missing when error_code == kRedirect.
+  char missing_redirect[] = {
+      0x05, 0x00, 0x06,
+      0x34,                    // error_code = kRedirect (0x34)
+      0x00,                    // retry_interval = 0
+      0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
+  };
+  parsed = ParseAllMessages(
+      absl::string_view(missing_redirect, sizeof(missing_redirect)),
+      kDefaultMoqtVersion, kWebTrans, quic::Perspective::IS_CLIENT);
+  EXPECT_THAT(parsed, StatusIs(absl::StatusCode::kInvalidArgument,
+                               HasSubstr("Redirect missing connect URI")));
+
+  // Redirect present when error_code != kRedirect.
+  char unexpected_redirect[] = {
+      0x05, 0x00, 0x09,
+      0x11,                    // error_code = kInvalidRange
+      0x00,                    // retry_interval = 0
+      0x03, 0x62, 0x61, 0x72,  // reason_phrase = "bar"
+      0x00,                    // connect_uri = ""
+      0x00, 0x00,              // track_namespace = {}, track_name = ""
+  };
+  parsed = ParseAllMessages(
+      absl::string_view(unexpected_redirect, sizeof(unexpected_redirect)),
+      kDefaultMoqtVersion, kWebTrans, quic::Perspective::IS_CLIENT);
+  EXPECT_THAT(parsed, StatusIs(absl::StatusCode::kInvalidArgument,
+                               HasSubstr("Control message has excess data")));
+}
+
 }  // namespace moqt::test

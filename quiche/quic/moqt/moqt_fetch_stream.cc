@@ -189,6 +189,11 @@ absl::Status MoqtFetchRequestStream::OnControlMessage(
 absl::Status MoqtFetchRequestStream::OnControlMessage(
     const MoqtRequestError& message) {
   if (response_callback_ != nullptr) {
+    if (!RedirectAllowedByRequestError(message.redirect,
+                                       MoqtMessageType::kFetch)) {
+      return absl::InvalidArgumentError(
+          "REQUEST_ERROR contains invalid redirect for FETCH");
+    }
     FetchResponseCallback response_callback = std::move(response_callback_);
     response_callback_ = nullptr;
     std::move(response_callback)(message);
@@ -202,6 +207,11 @@ absl::Status MoqtFetchRequestStream::OnControlMessage(
     return absl::OkStatus();
   }
   // Response to REQUEST_UPDATE.
+  if (!RedirectAllowedByRequestError(message.redirect,
+                                     MoqtMessageType::kRequestUpdate)) {
+    return absl::InvalidArgumentError(
+        "REQUEST_ERROR contains invalid redirect for REQUEST_UPDATE");
+  }
   absl::Status status = request_update_queue().OnControlMessage(message);
   if (status.ok()) {
     Fin();
