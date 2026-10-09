@@ -447,7 +447,7 @@ bool MoqtSession::PublishNamespaceUpdate(
     return false;
   }
   it->second->CheckStatus(it->second->SendRequestUpdate(
-      NextRequestId(), 0, parameters, std::move(response_callback),
+      NextRequestId(), parameters, std::move(response_callback),
       MoqtMessageType::kPublishNamespace));
   return true;
 }
@@ -572,9 +572,8 @@ bool MoqtSession::SubscribeUpdate(const FullTrackName& name,
     // include DYNAMIC_GROUPS.
     update_parameters.new_group_request.reset();
   }
-  // sending zero because related request ID is ignored for SUBSCRIBE.
   return it->second->request_stream()
-      ->SendRequestUpdate(NextRequestId(), 0, update_parameters,
+      ->SendRequestUpdate(NextRequestId(), update_parameters,
                           std::move(response_callback),
                           MoqtMessageType::kSubscribe)
       .ok();

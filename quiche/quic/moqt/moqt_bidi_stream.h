@@ -110,7 +110,6 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   absl::Status SendRequestError(const MoqtRequestErrorInfo& info);
   // Can be overridden for message-specific constraints.
   virtual absl::Status SendRequestUpdate(uint64_t request_id,
-                                         uint64_t existing_request_id,
                                          const MessageParameters& parameters,
                                          MoqtResponseCallback callback,
                                          MoqtMessageType updated_type);

@@ -194,8 +194,8 @@ void MoqtSubscribeNamespaceRequestStream::NamespaceTask::Update(
     return;
   }
   state_->CheckStatus(state_->SendRequestUpdate(
-      next_request_id_, state_->request_id_, parameters,
-      std::move(response_callback), MoqtMessageType::kSubscribeNamespace));
+      next_request_id_, parameters, std::move(response_callback),
+      MoqtMessageType::kSubscribeNamespace));
   next_request_id_ += 2;
 }
 

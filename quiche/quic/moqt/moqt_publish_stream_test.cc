@@ -183,7 +183,6 @@ TEST_F(MoqtPublishRequestStreamTest, ReceiveRequestUpdate) {
 
   MoqtRequestUpdate request_update;
   request_update.request_id = kRequestId + 2;
-  request_update.existing_request_id = kRequestId;
   request_update.parameters.object_delivery_timeout =
       quic::QuicTimeDelta::FromSeconds(3);
   request_update.parameters.subscriber_priority = 5;
@@ -469,7 +468,6 @@ TEST_F(MoqtPublishResponseStreamTest, ReceiveRequestUpdate) {
   // Now receive REQUEST_UPDATE.
   MoqtRequestUpdate request_update;
   request_update.request_id = kRequestId + 2;
-  request_update.existing_request_id = kRequestId;
   request_update.parameters.authorization_tokens.emplace_back(
       AuthTokenType::kOutOfBand, "token");
   EXPECT_CALL(mock_stream_,

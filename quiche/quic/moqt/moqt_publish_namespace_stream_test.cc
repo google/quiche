@@ -159,7 +159,7 @@ TEST_F(MoqtPublishNamespaceRequestStreamTest, SendRequestUpdateAndReceiveOk) {
                   quic::QuicTimeDelta::FromSeconds(10));
       };
   QUICHE_EXPECT_OK(request_stream->SendRequestUpdate(
-      11, 0, parameters, std::move(update_callback),
+      11, parameters, std::move(update_callback),
       MoqtMessageType::kPublishNamespace));
 
   // Receive OK for update.

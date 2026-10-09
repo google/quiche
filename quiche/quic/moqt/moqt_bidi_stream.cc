@@ -81,12 +81,10 @@ absl::Status MoqtBidiStreamBase::SendRequestError(
 }
 
 absl::Status MoqtBidiStreamBase::SendRequestUpdate(
-    uint64_t request_id, uint64_t existing_request_id,
-    const MessageParameters& parameters, MoqtResponseCallback callback,
-    MoqtMessageType updated_type) {
+    uint64_t request_id, const MessageParameters& parameters,
+    MoqtResponseCallback callback, MoqtMessageType updated_type) {
   MoqtRequestUpdate request_update;
   request_update.request_id = request_id;
-  request_update.existing_request_id = existing_request_id;
   request_update.parameters = parameters;
   SanitizeUpdateParameters(request_update.parameters, updated_type);
   outgoing_update_queue_.Enqueue(request_update.parameters,

@@ -389,7 +389,6 @@ struct QUICHE_EXPORT MoqtPublishDone {
 
 struct QUICHE_EXPORT MoqtRequestUpdate {
   uint64_t request_id;
-  uint64_t existing_request_id;
   MessageParameters parameters;
 };
 

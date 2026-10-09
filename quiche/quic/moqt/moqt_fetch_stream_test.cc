@@ -316,8 +316,8 @@ TEST_F(MoqtFetchRequestStreamTest, SendRequestUpdateAndReceiveOk) {
                   quic::QuicTimeDelta::FromSeconds(10));
       };
   QUICHE_EXPECT_OK(stream->SendRequestUpdate(
-      /*request_id=*/2, /*joining_start=*/0, update_params,
-      std::move(update_callback), MoqtMessageType::kFetch));
+      /*request_id=*/2, update_params, std::move(update_callback),
+      MoqtMessageType::kFetch));
 
   // Receive REQUEST_OK for the update.
   MoqtRequestOk request_ok;
@@ -367,8 +367,8 @@ TEST_F(MoqtFetchRequestStreamTest, SendRequestUpdateAndReceiveError) {
         EXPECT_EQ(request_error, std::get<MoqtRequestErrorInfo>(res));
       };
   QUICHE_EXPECT_OK(stream->SendRequestUpdate(
-      /*request_id=*/2, /*joining_start=*/0, update_params,
-      std::move(update_callback), MoqtMessageType::kFetch));
+      /*request_id=*/2, update_params, std::move(update_callback),
+      MoqtMessageType::kFetch));
 
   ExpectFin(mock_stream_);
   QUICHE_EXPECT_OK(stream->OnControlMessage(request_error));

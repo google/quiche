@@ -813,7 +813,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeRequestUpdate(
     const MoqtRequestUpdate& message) {
   return SerializeControlMessage(MoqtMessageType::kRequestUpdate,
                                  WireMoqVarInt(message.request_id),
-                                 WireMoqVarInt(message.existing_request_id),
                                  WireMessageParameters(message.parameters));
 }
 

@@ -794,9 +794,8 @@ absl::StatusOr<MoqtRequestUpdate>
 MoqtControlMessageParser::ProcessRequestUpdate(absl::string_view data) const {
   quic::QuicDataReader reader(data);
   MoqtRequestUpdate request_update;
-  if (!reader.ReadMoqVarInt(&request_update.request_id) ||
-      !reader.ReadMoqVarInt(&request_update.existing_request_id)) {
-    return absl::InvalidArgumentError("Message missing request IDs");
+  if (!reader.ReadMoqVarInt(&request_update.request_id)) {
+    return absl::InvalidArgumentError("Request ID missing");
   }
   QUICHE_ASSIGN_OR_RETURN(request_update.parameters,
                           ParseMessageParameters(reader));

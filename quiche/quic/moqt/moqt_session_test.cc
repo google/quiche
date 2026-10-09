@@ -1945,8 +1945,7 @@ TEST_F(MoqtSessionTest, IncomingJoiningFetchAfterRequestUpdate) {
       mock_bidi_stream_,
       Writev(SerializedControlMessage(MoqtRequestOk{expected_ok_parameters}),
              _));
-  bidi_wrapper_->ReceiveMessage(
-      MoqtRequestUpdate{3, subscribe.request_id, update_parameters});
+  bidi_wrapper_->ReceiveMessage(MoqtRequestUpdate{3, update_parameters});
   ASSERT_TRUE(subscription->parameters().subscription_filter.has_value());
   EXPECT_EQ(subscription->parameters().subscription_filter->start(),
             Location(4, 11));
@@ -2811,7 +2810,7 @@ TEST_F(MoqtSessionTest, IncomingRequestUpdateTriggersRequestOk) {
   ReceiveSubscribeSynchronousOk(track, subscribe, bidi_wrapper_.get(), 0);
   EXPECT_CALL(mock_bidi_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestOk), _));
-  bidi_wrapper_->ReceiveMessage(MoqtRequestUpdate{3, 1, MessageParameters()});
+  bidi_wrapper_->ReceiveMessage(MoqtRequestUpdate{3, MessageParameters()});
 }
 
 TEST_F(MoqtSessionTest, IncomingRequestUpdateTriggersRequestError) {
@@ -2819,9 +2818,9 @@ TEST_F(MoqtSessionTest, IncomingRequestUpdateTriggersRequestError) {
       ResponseStream(kSubscribeByte));
   EXPECT_CALL(mock_bidi_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
-  EXPECT_QUICHE_BUG(bidi_wrapper_->ReceiveMessage(
-                        MoqtRequestUpdate{3, 1, MessageParameters()}),
-                    "Received REQUEST_UPDATE, no subscription state");
+  EXPECT_QUICHE_BUG(
+      bidi_wrapper_->ReceiveMessage(MoqtRequestUpdate{3, MessageParameters()}),
+      "Received REQUEST_UPDATE, no subscription state");
 }
 
 TEST_F(MoqtSessionTest, StopSendingBlocksSubgroup) {

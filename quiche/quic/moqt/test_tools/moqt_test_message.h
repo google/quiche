@@ -928,10 +928,6 @@ class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "REQUEST_UPDATE request ID mismatch";
       return false;
     }
-    if (cast.existing_request_id != request_update_.existing_request_id) {
-      QUIC_LOG(INFO) << "REQUEST_UPDATE existing request ID mismatch";
-      return false;
-    }
     if (cast.parameters != request_update_.parameters) {
       QUIC_LOG(INFO) << "REQUEST_UPDATE parameter mismatch";
       return false;
@@ -939,15 +935,15 @@ class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
     return true;
   }
 
-  void ExpandVarints() override { ExpandVarintsImpl("vvvv--v-v-vv----vvv---"); }
+  void ExpandVarints() override { ExpandVarintsImpl("vvv--v-v-vv----vvv---"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(request_update_);
   }
 
  private:
-  uint8_t raw_packet_[25] = {
-      0x02, 0x00, 0x16, 0x02, 0x00,        // request IDs 2 and 0
+  uint8_t raw_packet_[24] = {
+      0x02, 0x00, 0x15, 0x02,              // request_id = 2
       0x05,                                // Five parameters
       0x02, 0xa7, 0x10,                    // object_delivery_timeout = 10000
       0x0e, 0x01,                          // forward = true
@@ -958,7 +954,6 @@ class QUICHE_NO_EXPORT RequestUpdateMessage : public TestMessageBase {
 
   MoqtRequestUpdate request_update_ = {
       /*request_id=*/2,
-      /*existing_request_id=*/0,
       MessageParameters(),  // Set in the constructor.
   };
 };

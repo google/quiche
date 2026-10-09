@@ -476,11 +476,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, RequestUpdateOk) {
   ASSERT_TRUE(task_ptr != nullptr);
 
   // Now send RequestUpdate
-  MoqtRequestUpdate update_message = {
-      kRequestId + 2,
-      kRequestId,
-      MessageParameters(),
-  };
+  MoqtRequestUpdate update_message(kRequestId + 2, MessageParameters());
   update_message.parameters.track_namespace_prefix =
       TrackNamespace({"foo", "bar"});
   MoqtRequestOk ok_response;
@@ -518,11 +514,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, RequestUpdateError) {
   ASSERT_TRUE(task_ptr != nullptr);
 
   // Now send RequestUpdate
-  MoqtRequestUpdate update_message = {
-      kRequestId + 2,
-      kRequestId,
-      MessageParameters(),
-  };
+  MoqtRequestUpdate update_message(kRequestId + 2, MessageParameters());
   update_message.parameters.track_namespace_prefix =
       TrackNamespace({"foo", "bar"});
   EXPECT_CALL(*task_ptr, Update(_, _))

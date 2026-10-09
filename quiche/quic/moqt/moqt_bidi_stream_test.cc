@@ -184,7 +184,6 @@ TEST_F(MoqtBidiStreamTest, SendRequestUpdateAndReceiveOk) {
   EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(testing::Return(true));
   MoqtRequestUpdate expected_update;
   expected_update.request_id = 1;
-  expected_update.existing_request_id = 0;
   expected_update.parameters.subscriber_priority = 20;
   EXPECT_CALL(mock_stream_,
               Writev(SerializedControlMessage(expected_update), testing::_));
@@ -200,7 +199,7 @@ TEST_F(MoqtBidiStreamTest, SendRequestUpdateAndReceiveOk) {
         EXPECT_EQ(std::get<MessageParameters>(res).subscriber_priority, 30);
       };
   QUICHE_EXPECT_OK(stream_->SendRequestUpdate(
-      1, 0, parameters, std::move(callback), MoqtMessageType::kSubscribe));
+      1, parameters, std::move(callback), MoqtMessageType::kSubscribe));
   // Simulate receiving RequestOk
   MoqtRequestOk request_ok;
   request_ok.parameters.subscriber_priority = 30;
@@ -225,7 +224,7 @@ TEST_F(MoqtBidiStreamTest, SendRequestUpdateAndReceiveError) {
                   RequestErrorCode::kUnauthorized);
       };
   QUICHE_EXPECT_OK(stream_->SendRequestUpdate(
-      1, 0, parameters, std::move(callback), MoqtMessageType::kSubscribe));
+      1, parameters, std::move(callback), MoqtMessageType::kSubscribe));
   // Simulate receiving RequestError
   MoqtRequestError request_error(RequestErrorCode::kUnauthorized, std::nullopt,
                                  "unauthorized");
