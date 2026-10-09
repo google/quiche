@@ -275,6 +275,14 @@ class QUICHE_EXPORT MoqtFetchSerialization {
   MoqtFetchSerialization() = default;
   // Serialization for the first object in a stream.
   MoqtFetchSerialization(const MoqtObject& object) {
+    if (object.object_status == MoqtObjectStatus::kEndOfNonExistentRange) {
+      value_ |= kEndOfNonExistentRange;
+      return;
+    }
+    if (object.object_status == MoqtObjectStatus::kEndOfUnknownRange) {
+      value_ |= kEndOfUnknownRange;
+      return;
+    }
     if (!object.subgroup_id.has_value()) {
       value_ |= kIsDatagram;
     } else {
@@ -292,6 +300,14 @@ class QUICHE_EXPORT MoqtFetchSerialization {
   // Serialization for a subsequent object in a stream.
   MoqtFetchSerialization(const MoqtObject& object,
                          const PublishedObjectMetadata& previous_object) {
+    if (object.object_status == MoqtObjectStatus::kEndOfNonExistentRange) {
+      value_ |= kEndOfNonExistentRange;
+      return;
+    }
+    if (object.object_status == MoqtObjectStatus::kEndOfUnknownRange) {
+      value_ |= kEndOfUnknownRange;
+      return;
+    }
     uint64_t value = 0;
     if (!object.subgroup_id.has_value()) {
       value |= kIsDatagram;

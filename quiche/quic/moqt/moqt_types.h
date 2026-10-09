@@ -57,6 +57,11 @@ enum class QUICHE_EXPORT MoqtObjectStatus : uint64_t {
   kEndOfGroup = 0x3,
   kEndOfTrack = 0x4,
   kInvalidObjectStatus = 0x5,
+  // These are invalid statuses on the wire and the parser will return an error
+  // if encoded in the status field. However, when objects are delivered in
+  // MoqtFetchTask, it is useful to encode fetch ranges as an object status.
+  kEndOfNonExistentRange = 0x8c,
+  kEndOfUnknownRange = 0x10c,
 };
 
 // A tuple uniquely identifying a WebTransport data stream associated with a

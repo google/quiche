@@ -20,12 +20,10 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/types/span.h"
-#include "quiche/quic/core/quic_data_reader.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/moqt/moqt_error.h"
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 #include "quiche/quic/moqt/moqt_messages.h"
-#include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -378,6 +376,9 @@ class QUICHE_EXPORT MoqtDataParser {
   std::optional<uint64_t> last_object_id_;
   size_t payload_length_remaining_ = 0;
   size_t num_objects_read_ = 0;
+  // Set to true if a non-range object has been read. This is useful for
+  // validating past object references.
+  bool non_fetch_range_object_read_ = false;
 
   bool processing_ = false;  // True if currently in ProcessData(), to prevent
                              // re-entrancy.

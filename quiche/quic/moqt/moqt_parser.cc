@@ -1256,7 +1256,9 @@ MoqtDataParser::NextInput MoqtDataParser::AdvanceParserState() {
       case kGroupId:
         if (fetch_serialization_.is_datagram()) {
           metadata_.subgroup_id = std::nullopt;
-        } else {
+        } else if (!fetch_serialization_.end_of_non_existent_range() &&
+                   !fetch_serialization_.end_of_unknown_range()) {
+          // Object ranges do not set the subgroup.
           if (fetch_serialization_.has_subgroup_id()) {
             return kSubgroupId;
           }
@@ -1405,13 +1407,18 @@ void MoqtDataParser::ParseNextItemFromStream() {
           ParseError("Invalid serialization flags");
           return;
         }
-        if (num_objects_read_ == 0 &&
+        if (num_objects_read_ == 0 && (!serialization->has_object_id() ||
+                                       !serialization->has_group_id())) {
+          ParseError("Invalid serialization flags for first object");
+          return;
+        }
+        if (!non_fetch_range_object_read_ &&
+            !serialization->end_of_non_existent_range() &&
+            !serialization->end_of_unknown_range() &&
             (serialization->prior_subgroup_id() ||
              serialization->prior_subgroup_id_plus_one() ||
-             !serialization->has_object_id() ||
-             !serialization->has_group_id() ||
              !serialization->has_priority())) {
-          ParseError("Invalid serialization flags for first object");
+          ParseError("Invalid reference to prior object");
           return;
         }
         fetch_serialization_ = *serialization;
@@ -1478,8 +1485,13 @@ void MoqtDataParser::ParseNextItemFromStream() {
     }
 
     case kObjectId: {
-      std::optional<uint64_t> value_read = ReadMoqVarIntNoFin();
+      bool fin_read = false;
+      std::optional<uint64_t> value_read =
+          ReadMoqVarIntFromStream(stream_, fin_read);
       if (!value_read.has_value()) {
+        if (fin_read) {
+          ParseError("FIN received at an unexpected point in the stream");
+        }
         return;
       }
       if (last_object_id_.has_value() &&
@@ -1500,9 +1512,23 @@ void MoqtDataParser::ParseNextItemFromStream() {
         metadata_.object_id = *value_read;
       }
       last_object_id_ = metadata_.object_id;
+      if (type_.IsFetch() &&
+          (fetch_serialization_.end_of_non_existent_range() ||
+           fetch_serialization_.end_of_unknown_range())) {
+        metadata_.object_status =
+            static_cast<MoqtObjectStatus>(fetch_serialization_.value());
+        visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
+        ++num_objects_read_;
+        if (fin_read) {
+          visitor_.OnFin();
+          no_more_data_ = true;
+          return;
+        }
+      } else if (fin_read) {
+        ParseError("FIN received at an unexpected point in the stream");
+        return;
+      }
       next_input_ = AdvanceParserState();
-      // TODO(martinduke): Report something if the fetch serialization is an end
-      // of range indicator.
       return;
     }
 
@@ -1554,6 +1580,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
         // spec. Don't bother to signal this for now; just ignore that the
         // stream was supposed to conclude with kEndOfGroup and end it with the
         // encoded status instead.
+        non_fetch_range_object_read_ = true;
         visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
         next_input_ = AdvanceParserState();
       }
@@ -1593,6 +1620,7 @@ void MoqtDataParser::ParseNextItemFromStream() {
               done = false;
             }
           }
+          non_fetch_range_object_read_ = true;
           visitor_.OnObjectMessage(
               metadata_, peek_result.peeked_data.substr(0, chunk_size), done);
           if (done) {
@@ -1663,6 +1691,7 @@ bool MoqtDataParser::CheckForFinWithoutData() {
   if (!stream_.PeekNextReadableRegion().fin_next) {
     if (next_input_ == kAwaitingNextByte) {
       // Data arrived; the last object was not EndOfGroup.
+      non_fetch_range_object_read_ = true;
       visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
       next_input_ = AdvanceParserState();
       ++num_objects_read_;
@@ -1679,6 +1708,7 @@ bool MoqtDataParser::CheckForFinWithoutData() {
     return true;
   }
   if (next_input_ == kAwaitingNextByte) {
+    non_fetch_range_object_read_ = true;
     metadata_.object_status = MoqtObjectStatus::kEndOfGroup;
     visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
   }

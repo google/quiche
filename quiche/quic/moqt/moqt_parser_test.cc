@@ -1660,8 +1660,7 @@ TEST_F(MoqtDataParserStateMachineTest, ReadTypeThenObjectsFetch) {
 
 TEST_F(MoqtDataParserStateMachineTest, StreamHeaderFetchRefersToPrior) {
   char data[] = {0x05, 0x01, 0x00};
-  // Iterate through the 5 serializations that refer to the prior object.
-  for (char value : {0x0f, 0x17, 0x1b, 0x1d, 0x1e}) {
+  for (char value : {0x17, 0x1b}) {
     data[2] = value;
     MoqtParserTestVisitor visitor;
     webtransport::test::InMemoryStream stream(/*stream_id=*/0);
@@ -1672,6 +1671,17 @@ TEST_F(MoqtDataParserStateMachineTest, StreamHeaderFetchRefersToPrior) {
     parser.ReadAtMostOneObject();
     EXPECT_EQ(visitor.parsing_error(),
               "Invalid serialization flags for first object");
+  }
+  for (char value : {0x0f, 0x1d, 0x1e}) {
+    data[2] = value;
+    MoqtParserTestVisitor visitor;
+    webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+    MoqtDataParser parser(&stream, &visitor);
+    parser.SetGroupOrder(MoqtGroupOrder::kAscending);
+    stream.Receive(absl::string_view(data, sizeof(data)));
+    parser.ReadStreamType();
+    parser.ReadAtMostOneObject();
+    EXPECT_EQ(visitor.parsing_error(), "Invalid reference to prior object");
   }
 }
 
@@ -1711,21 +1721,77 @@ TEST_F(MoqtDataParserStateMachineTest, InvalidNonexistentRangeUnknownRange) {
   EXPECT_EQ(visitor_.parsing_error(), "Invalid serialization flags");
 }
 
-TEST_F(MoqtDataParserStateMachineTest, IgnoresEndRangeIndicators) {
-  // Header, Range Indicator, Middler
+TEST_F(MoqtDataParserStateMachineTest, EndRangeIndicators) {
+  // Header (group 5, subgroup 8, object 6), Range Indicators, Middler
   stream_.Receive(StreamHeaderFetchMessage().PacketSample());
-  char data[] = {0x80, 0x8c, 0x05, 0x07,   // non-existent range
-                 0x81, 0x0c, 0x05, 0x09};  // unknown range
+  char data[] = {0x80, 0x8c, 0x05, 0x07,   // non-existent range -> (11, 7)
+                 0x81, 0x0c, 0x05, 0x09};  // unknown range -> (17, 9)
   stream_.Receive(absl::string_view(data, sizeof(data)));
   std::optional<MoqtFetchSerialization> serialization =
-      MoqtFetchSerialization::FromValue(0x40);  // Datagram + explicit object ID
+      MoqtFetchSerialization::FromValue(0x01);
+  // Prior subgroup ID + implicit next object ID.
   ASSERT_TRUE(serialization.has_value());
   StreamMiddlerFetchMessage middler(*serialization);
   stream_.Receive(middler.PacketSample(), /*fin=*/true);
+
+  parser_.ReadStreamType();
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received(), 1);
+
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received(), 2);
+  EXPECT_EQ(visitor_.last_message()->group_id, 11);
+  EXPECT_EQ(visitor_.last_message()->object_id, 7);
+  EXPECT_EQ(visitor_.last_message()->object_status,
+            MoqtObjectStatus::kEndOfNonExistentRange);
+
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received(), 3);
+  EXPECT_EQ(visitor_.last_message()->group_id, 17);
+  EXPECT_EQ(visitor_.last_message()->object_id, 9);
+  EXPECT_EQ(visitor_.last_message()->object_status,
+            MoqtObjectStatus::kEndOfUnknownRange);
+
+  parser_.ReadAtMostOneObject();
+  ASSERT_EQ(visitor_.messages_received(), 4);
+  EXPECT_EQ(visitor_.last_message()->group_id, 17);
+  EXPECT_EQ(visitor_.last_message()->object_id, 10);
+  // Subgroup ID and publisher priority from the real object before the range
+  // indicators are preserved.
+  EXPECT_EQ(visitor_.last_message()->subgroup_id, 8);
+  EXPECT_EQ(visitor_.last_message()->publisher_priority, 7);
+  EXPECT_EQ(visitor_.last_message()->object_status, MoqtObjectStatus::kNormal);
+  EXPECT_EQ(visitor_.parsing_error(), std::nullopt);
+  EXPECT_TRUE(visitor_.fin_received());
+}
+
+TEST_F(MoqtDataParserStateMachineTest, FetchStartsWithEndOfRange) {
+  // Stream starts with FETCH header (0x05, request_id = 4), followed by
+  // kEndOfNonExistentRange (0x8c) at (group 5, object 7) + FIN.
+  char data[] = {0x05, 0x04, 0x80, 0x8c, 0x05, 0x07};
+  stream_.Receive(absl::string_view(data, sizeof(data)), /*fin=*/true);
   parser_.ReadAllData();
-  EXPECT_EQ(visitor_.messages_received(), 2);
-  // TODO(martinduke): Once Issue #1506 is resolved, check that the values
-  // are reported correctly.
+  ASSERT_EQ(visitor_.messages_received(), 1);
+  EXPECT_EQ(visitor_.last_message()->group_id, 5);
+  EXPECT_EQ(visitor_.last_message()->object_id, 7);
+  EXPECT_EQ(visitor_.last_message()->object_status,
+            MoqtObjectStatus::kEndOfNonExistentRange);
+  EXPECT_EQ(visitor_.parsing_error(), std::nullopt);
+  EXPECT_TRUE(visitor_.fin_received());
+
+  // If a subsequent object after an initial End-of-Range tries to reference a
+  // prior priority or subgroup ID, it must fail with "Invalid reference to
+  // prior object".
+  for (char bad_flags : {0x00, 0x01, 0x02}) {
+    char stream_bytes[] = {0x05, 0x04, 0x80, 0x8c, 0x05, 0x07, bad_flags};
+    MoqtParserTestVisitor visitor;
+    webtransport::test::InMemoryStream stream(/*stream_id=*/0);
+    MoqtDataParser parser(&stream, &visitor);
+    parser.SetGroupOrder(MoqtGroupOrder::kAscending);
+    stream.Receive(absl::string_view(stream_bytes, sizeof(stream_bytes)));
+    parser.ReadAllData();
+    EXPECT_EQ(visitor.parsing_error(), "Invalid reference to prior object");
+  }
 }
 
 TEST_F(MoqtDataParserStateMachineTest, IntegerOverflowObjectId) {

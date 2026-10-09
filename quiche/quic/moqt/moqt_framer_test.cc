@@ -407,6 +407,67 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
                       object, "foobar", kDefaultPublisherPriority),
                   "Payload length does not match payload");
   EXPECT_TRUE(buffer.empty());
+
+  // Range indicators cannot be sent in datagrams.
+  object.properties = "";
+  object.payload_length = 0;
+  object.object_status = MoqtObjectStatus::kEndOfNonExistentRange;
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(
+                      object, "", kDefaultPublisherPriority),
+                  "Object metadata is invalid");
+  EXPECT_TRUE(buffer.empty());
+}
+
+TEST_F(MoqtFramerSimpleTest, FetchEndOfRangeSerialization) {
+  MoqtObject object = {
+      /*track_alias=*/4,
+      /*group_id=*/5,
+      /*object_id=*/7,
+      /*publisher_priority=*/0,
+      /*properties=*/"",
+      /*object_status=*/MoqtObjectStatus::kEndOfNonExistentRange,
+      /*subgroup_id=*/std::nullopt,
+      /*first_object_in_subgroup=*/std::nullopt,
+      /*payload_length=*/0,
+  };
+  quiche::QuicheBuffer buffer;
+  std::optional<PublishedObjectMetadata> previous;
+
+  // Range indicators are disallowed on Subgroup streams.
+  object.subgroup_id = 0;
+  EXPECT_QUIC_BUG(
+      buffer = framer_.SerializeObjectHeader(
+          object, MoqtDataStreamType::Subgroup(0, 0, true, false, true),
+          previous),
+      "Object metadata is invalid");
+  EXPECT_TRUE(buffer.empty());
+  object.subgroup_id = std::nullopt;
+
+  // Range indicators cannot have non-empty payload or properties even in FETCH.
+  object.payload_length = 3;
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectHeader(
+                      object, MoqtDataStreamType::Fetch(), previous),
+                  "Object metadata is invalid");
+  EXPECT_TRUE(buffer.empty());
+  object.payload_length = 0;
+
+  // First item in FETCH: 0x05 (Fetch), 0x04 (id), 0x808c, group 5, object 7.
+  buffer = framer_.SerializeObjectHeader(object, MoqtDataStreamType::Fetch(),
+                                         previous);
+  constexpr absl::string_view kExpectedFirst("\x05\x04\x80\x8c\x05\x07", 6);
+  EXPECT_EQ(buffer.AsStringView(), kExpectedFirst);
+
+  // Second item in FETCH: kEndOfUnknownRange at (group 8, object 2) ->
+  // 0x810c, group delta = 8 - 5 - 1 = 2, explicit object ID = 2.
+  previous.emplace();
+  previous->location = Location(5, 7);
+  object.group_id = 8;
+  object.object_id = 2;
+  object.object_status = MoqtObjectStatus::kEndOfUnknownRange;
+  buffer = framer_.SerializeObjectHeader(object, MoqtDataStreamType::Fetch(),
+                                         previous);
+  constexpr absl::string_view kExpectedSecond("\x81\x0c\x02\x02", 4);
+  EXPECT_EQ(buffer.AsStringView(), kExpectedSecond);
 }
 
 TEST_F(MoqtFramerSimpleTest, AllDatagramTypes) {

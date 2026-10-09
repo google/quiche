@@ -79,7 +79,8 @@ class QUICHE_EXPORT MoqtFramer {
   // |alternate_end_of_group_encoding| is true, then the stream/datagram can
   // encode EndOfGroup without using the explicit status field.
   static bool ValidateObjectMetadata(const MoqtObject& object,
-                                     bool alternate_end_of_group_encoding);
+                                     bool alternate_end_of_group_encoding,
+                                     bool is_fetch);
   const bool using_webtrans_;
   const quic::Perspective perspective_;
 };

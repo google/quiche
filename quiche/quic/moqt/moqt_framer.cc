@@ -598,7 +598,8 @@ KeyValuePairList SetupOptions::ToKeyValuePairList() const {
 quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
     const MoqtObject& message, MoqtDataStreamType message_type,
     std::optional<PublishedObjectMetadata>& previous_object_in_stream) {
-  if (!ValidateObjectMetadata(message, message_type.EndOfGroupInStream())) {
+  if (!ValidateObjectMetadata(message, message_type.EndOfGroupInStream(),
+                              message_type.IsFetch())) {
     QUICHE_BUG(QUICHE_BUG_serialize_object_header_01)
         << "Object metadata is invalid";
     return quiche::QuicheBuffer();
@@ -612,7 +613,6 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
   std::optional<uint64_t> object_id;
   std::optional<uint8_t> publisher_priority;
   std::optional<absl::string_view> properties;
-  uint64_t payload_length = message.payload_length;
   bool is_first_in_stream = !previous_object_in_stream.has_value();
   if (is_first_in_stream) {
     stream_type = message_type.value();
@@ -620,6 +620,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
   }
   if (message_type.IsFetch()) {
     MoqtFetchSerialization serialization;
+    std::optional<uint64_t> payload_length;
     if (is_first_in_stream) {
       serialization = MoqtFetchSerialization(message);
     } else {
@@ -655,6 +656,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
     if (serialization.has_properties()) {
       properties = message.properties;
     }
+    if (!serialization.end_of_non_existent_range() &&
+        !serialization.end_of_unknown_range()) {
+      payload_length = message.payload_length;
+    }
     return Serialize(WireOptional<WireMoqVarInt>(stream_type),
                      WireOptional<WireMoqVarInt>(track_id),
                      WireMoqVarInt(serialization.value()),
@@ -663,7 +668,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
                      WireOptional<WireMoqVarInt>(object_id),
                      WireOptional<WireUint8>(publisher_priority),
                      WireOptional<WireStringWithMoqVarIntLength>(properties),
-                     WireMoqVarInt(payload_length));
+                     WireOptional<WireMoqVarInt>(payload_length));
   }
   // Subgroup stream.
   if (!message.subgroup_id.has_value()) {
@@ -688,7 +693,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
     properties = message.properties;
   }
   std::optional<uint64_t> object_status;
-  if (payload_length == 0) {
+  if (message.payload_length == 0) {
     object_status = static_cast<uint64_t>(message.object_status);
   }
   return Serialize(WireOptional<WireMoqVarInt>(stream_type),
@@ -705,8 +710,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
 quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
     const MoqtObject& message, absl::string_view payload,
     MoqtPriority default_priority) {
-  // Any datagram can support an alternate end-of-group encoding.
-  if (!ValidateObjectMetadata(message, true) ||
+  // Any datagram can support an alternate end-of-group encoding, and it is
+  // never a FETCH.
+  if (!ValidateObjectMetadata(message, true, false) ||
       message.subgroup_id.has_value()) {
     QUICHE_BUG(QUICHE_BUG_serialize_object_datagram_01)
         << "Object metadata is invalid";
@@ -990,7 +996,8 @@ bool MoqtFramer::FillAndValidateSetupOptions(const SetupOptions& options,
 
 // static
 bool MoqtFramer::ValidateObjectMetadata(const MoqtObject& object,
-                                        bool alternate_end_of_group_encoding) {
+                                        bool alternate_end_of_group_encoding,
+                                        bool is_fetch) {
   switch (object.object_status) {
     case MoqtObjectStatus::kNormal:
       return true;
@@ -999,6 +1006,10 @@ bool MoqtFramer::ValidateObjectMetadata(const MoqtObject& object,
              (object.payload_length == 0 && object.properties.empty());
     case MoqtObjectStatus::kEndOfTrack:
       return object.payload_length == 0 && object.properties.empty();
+    case MoqtObjectStatus::kEndOfNonExistentRange:
+    case MoqtObjectStatus::kEndOfUnknownRange:
+      return is_fetch && object.payload_length == 0 &&
+             object.properties.empty();
     default:
       QUICHE_NOTREACHED();
       return false;
