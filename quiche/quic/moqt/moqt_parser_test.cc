@@ -1868,6 +1868,34 @@ TEST_F(MoqtDataParserStateMachineTest, FetchZeroObjectIdDelta) {
   EXPECT_EQ(visitor_.parsing_error(), "Duplicate object ID in FETCH stream");
 }
 
+TEST_F(MoqtDataParserStateMachineTest, SubgroupObjectHasStatusAndProperties) {
+  MoqtDataStreamType type =
+      MoqtDataStreamType::Subgroup(0, 1, /*no_properties=*/false,
+                                   /*default_priority=*/false,
+                                   /*has_first_object=*/true);
+  // StreamHeaderSubgroupMessage with payload_length = 0 followed by status =
+  // kEndOfGroup (0x03) while properties are non-empty.
+  StreamHeaderSubgroupMessage header(type);
+  ASSERT_TRUE(header.SetPayloadLength(0));
+  stream_.Receive(header.PacketSample());
+  stream_.Receive("\x03", /*fin=*/true);
+  parser_.ReadAllData();
+  EXPECT_EQ(visitor_.parsing_error(), "Object has status and properties");
+}
+
+TEST_F(MoqtMessageSpecificTest, DatagramHasStatusAndProperties) {
+  // Type 0x21 (kStatus | kProperties), track_alias = 4, group_id = 5,
+  // object_id = 6, priority = 7, 1-byte property blob, status = kEndOfTrack
+  // (0x04).
+  constexpr absl::string_view kBadDatagram(
+      "\x21\x04\x05\x06\x07\x02\x02\x00\x04", 9);
+  MoqtObject object;
+  bool use_default_priority = false;
+  EXPECT_THAT(ParseDatagram(kBadDatagram, object, use_default_priority),
+              StatusIs(absl::StatusCode::kInvalidArgument,
+                       "Datagram has status and properties"));
+}
+
 TEST_F(MoqtMessageSpecificTest, StreamTypeParserToControlStream) {
   webtransport::test::InMemoryStream stream(/*stream_id=*/0);
   MoqtStreamTypeParser type_parser(&stream);

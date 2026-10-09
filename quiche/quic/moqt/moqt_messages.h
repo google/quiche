@@ -148,25 +148,8 @@ class QUICHE_EXPORT MoqtDatagramType {
   MoqtDatagramType(bool payload, bool properties, bool end_of_group,
                    bool default_priority, bool zero_object_id)
       : value_(0) {
-    // Avoid illegal types. Status cannot coexist with the zero-object-id flag
-    // or the end-of-group flag.
-    if (!payload && !end_of_group) {
-      // The only way to express non-normal, non-end-of-group with no payload is
-      // with an explicit status, so we cannot utilize object ID compression.
-      zero_object_id = false;
-    } else if (zero_object_id) {
-      // zero-object-id saves a byte; no-payload does not.
-      payload = true;
-    } else if (!payload) {
-      // If it's an empty end-of-group object, use the explict status because
-      // it's more readable.
-      end_of_group = false;
-    }
     if (properties) {
       value_ |= kProperties;
-    }
-    if (end_of_group) {
-      value_ |= kEndOfGroup;
     }
     if (zero_object_id) {
       value_ |= kZeroObjectId;
@@ -174,8 +157,10 @@ class QUICHE_EXPORT MoqtDatagramType {
     if (default_priority) {
       value_ |= kDefaultPriority;
     }
-    if (!payload) {
+    if (!payload && !properties) {
       value_ |= kStatus;
+    } else if (end_of_group) {
+      value_ |= kEndOfGroup;
     }
   }
   static std::optional<MoqtDatagramType> FromValue(uint64_t value) {
@@ -250,6 +235,11 @@ MoqtObjectStatus IntegerToObjectStatus(uint64_t integer);
 
 // The data contained in every Object message, although the message type
 // implies some of the values.
+// On the wire, objects cannot carry status and payload/properties. However, all
+// objects can implicity have Normal status and payload/properties. Furthermore,
+// when passed in internal APIs, an EndOfGroup status can indicate that a
+// datagram, or last object in a stream, was encoded as being the last object in
+// its group.
 struct QUICHE_EXPORT MoqtObject {
   uint64_t track_alias;  // For FETCH, this is the subscribe ID.
   uint64_t group_id;

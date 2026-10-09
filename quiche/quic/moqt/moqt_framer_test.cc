@@ -20,6 +20,7 @@
 #include "quiche/quic/moqt/moqt_messages.h"
 #include "quiche/quic/moqt/moqt_names.h"
 #include "quiche/quic/moqt/moqt_object.h"
+#include "quiche/quic/moqt/moqt_priority.h"
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/quic/moqt/test_tools/moqt_test_message.h"
 #include "quiche/quic/platform/api/quic_expect_bug.h"
@@ -328,6 +329,36 @@ TEST_F(MoqtFramerSimpleTest, BadObjectInput) {
           previous),
       "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
+  // kEndOfTrack with empty payload and non-empty properties is still invalid,
+  // even when EndOfGroupInStream is set.
+  object.payload_length = 0;
+  EXPECT_QUIC_BUG(
+      buffer = framer_.SerializeObjectHeader(
+          object, MoqtDataStreamType::Subgroup(8, 0, false, false, true, true),
+          previous),
+      "Object metadata is invalid");
+  EXPECT_TRUE(buffer.empty());
+  // kEndOfGroup with payload or properties is disallowed unless
+  // EndOfGroupInStream is set.
+  object.object_status = MoqtObjectStatus::kEndOfGroup;
+  EXPECT_QUIC_BUG(
+      buffer = framer_.SerializeObjectHeader(
+          object, MoqtDataStreamType::Subgroup(8, 0, false, false, true, false),
+          previous),
+      "Object metadata is invalid");
+  EXPECT_TRUE(buffer.empty());
+  // If EndOfGroupInStream is set, kEndOfGroup is allowed with non-empty
+  // payload and properties.
+  buffer = framer_.SerializeObjectHeader(
+      object, MoqtDataStreamType::Subgroup(8, 0, false, false, true, true),
+      previous);
+  EXPECT_FALSE(buffer.empty());
+  previous.reset();
+  object.payload_length = 3;
+  buffer = framer_.SerializeObjectHeader(
+      object, MoqtDataStreamType::Subgroup(8, 0, false, false, true, true),
+      previous);
+  EXPECT_FALSE(buffer.empty());
 }
 
 TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
@@ -350,6 +381,19 @@ TEST_F(MoqtFramerSimpleTest, BadDatagramInput) {
                       object, "foo", kDefaultPublisherPriority),
                   "Object metadata is invalid");
   EXPECT_TRUE(buffer.empty());
+  // kEndOfTrack with empty payload and non-empty properties is invalid.
+  object.payload_length = 0;
+  EXPECT_QUIC_BUG(buffer = framer_.SerializeObjectDatagram(
+                      object, "", kDefaultPublisherPriority),
+                  "Object metadata is invalid");
+  EXPECT_TRUE(buffer.empty());
+  // kEndOfGroup with empty payload and non-empty properties is valid via the
+  // datagram kEndOfGroup flag.
+  object.object_status = MoqtObjectStatus::kEndOfGroup;
+  buffer =
+      framer_.SerializeObjectDatagram(object, "", kDefaultPublisherPriority);
+  EXPECT_FALSE(buffer.empty());
+  object.payload_length = 3;
   object.object_status = MoqtObjectStatus::kNormal;
 
   object.subgroup_id = 8;

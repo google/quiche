@@ -75,8 +75,11 @@ class QUICHE_EXPORT MoqtFramer {
   // Returns true if the parameters are valid for the message type.
   bool FillAndValidateSetupOptions(const SetupOptions& options,
                                    KeyValuePairList& out);
-  // Returns true if the metadata is internally consistent.
-  static bool ValidateObjectMetadata(const MoqtObject& object);
+  // Returns true if the metadata is internally consistent. If
+  // |alternate_end_of_group_encoding| is true, then the stream/datagram can
+  // encode EndOfGroup without using the explicit status field.
+  static bool ValidateObjectMetadata(const MoqtObject& object,
+                                     bool alternate_end_of_group_encoding);
   const bool using_webtrans_;
   const quic::Perspective perspective_;
 };

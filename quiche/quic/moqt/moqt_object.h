@@ -23,6 +23,8 @@
 
 namespace moqt {
 
+// See the "MoqtObject" comment in moqt_messages.h for how status can interact
+// with payload and priority.
 struct PublishedObjectMetadata {
   Location location;
   std::optional<uint64_t> subgroup;  // nullopt for datagrams.

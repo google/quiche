@@ -126,13 +126,12 @@ TEST(MoqtMessagesTest, MoqtDatagramType) {
           for (bool zero_object_id : {false, true}) {
             MoqtDatagramType type(payload, properties, end_of_group,
                                   default_priority, zero_object_id);
-            EXPECT_EQ(type.has_status(),
-                      !payload && (!end_of_group || !zero_object_id));
+            EXPECT_EQ(type.has_status(), !payload && !properties);
             EXPECT_EQ(type.has_properties(), properties);
             EXPECT_EQ(type.end_of_group(),
-                      end_of_group && (payload || zero_object_id));
-            EXPECT_EQ(type.has_object_id(),
-                      !zero_object_id || (!payload && !end_of_group));
+                      end_of_group && (payload || properties));
+            EXPECT_EQ(type.has_object_id(), !zero_object_id);
+            EXPECT_EQ(type.has_default_priority(), default_priority);
             // The constructor should always produce a valid value.
             std::optional<MoqtDatagramType> from_value =
                 MoqtDatagramType::FromValue(type.value());

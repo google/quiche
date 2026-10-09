@@ -598,7 +598,7 @@ KeyValuePairList SetupOptions::ToKeyValuePairList() const {
 quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
     const MoqtObject& message, MoqtDataStreamType message_type,
     std::optional<PublishedObjectMetadata>& previous_object_in_stream) {
-  if (!ValidateObjectMetadata(message)) {
+  if (!ValidateObjectMetadata(message, message_type.EndOfGroupInStream())) {
     QUICHE_BUG(QUICHE_BUG_serialize_object_header_01)
         << "Object metadata is invalid";
     return quiche::QuicheBuffer();
@@ -705,7 +705,9 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectHeader(
 quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
     const MoqtObject& message, absl::string_view payload,
     MoqtPriority default_priority) {
-  if (!ValidateObjectMetadata(message) || message.subgroup_id.has_value()) {
+  // Any datagram can support an alternate end-of-group encoding.
+  if (!ValidateObjectMetadata(message, true) ||
+      message.subgroup_id.has_value()) {
     QUICHE_BUG(QUICHE_BUG_serialize_object_datagram_01)
         << "Object metadata is invalid";
     return quiche::QuicheBuffer();
@@ -731,9 +733,10 @@ quiche::QuicheBuffer MoqtFramer::SerializeObjectDatagram(
           ? std::optional<absl::string_view>(message.properties)
           : std::nullopt;
   std::optional<uint64_t> object_status =
-      payload.empty() ? std::optional<uint64_t>(
-                            static_cast<uint64_t>(message.object_status))
-                      : std::nullopt;
+      datagram_type.has_status()
+          ? std::optional<uint64_t>(
+                static_cast<uint64_t>(message.object_status))
+          : std::nullopt;
   std::optional<absl::string_view> raw_payload =
       payload.empty() ? std::nullopt
                       : std::optional<absl::string_view>(payload);
@@ -986,10 +989,20 @@ bool MoqtFramer::FillAndValidateSetupOptions(const SetupOptions& options,
 }
 
 // static
-bool MoqtFramer::ValidateObjectMetadata(const MoqtObject& object) {
-  return (object.object_status == MoqtObjectStatus::kNormal ||
-          object.object_status == MoqtObjectStatus::kEndOfGroup ||
-          object.payload_length == 0);
+bool MoqtFramer::ValidateObjectMetadata(const MoqtObject& object,
+                                        bool alternate_end_of_group_encoding) {
+  switch (object.object_status) {
+    case MoqtObjectStatus::kNormal:
+      return true;
+    case MoqtObjectStatus::kEndOfGroup:
+      return alternate_end_of_group_encoding ||
+             (object.payload_length == 0 && object.properties.empty());
+    case MoqtObjectStatus::kEndOfTrack:
+      return object.payload_length == 0 && object.properties.empty();
+    default:
+      QUICHE_NOTREACHED();
+      return false;
+  }
 }
 
 }  // namespace moqt

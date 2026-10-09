@@ -1191,6 +1191,10 @@ absl::StatusOr<absl::string_view> ParseDatagram(absl::string_view data,
       return absl::InvalidArgumentError("Failed to parse datagram");
     }
     object_metadata.object_status = IntegerToObjectStatus(object_status_raw);
+    if (datagram_type->has_properties() &&
+        object_metadata.object_status != MoqtObjectStatus::kNormal) {
+      return absl::InvalidArgumentError("Datagram has status and properties");
+    }
     return "";
   }
   absl::string_view payload = reader.ReadRemainingPayload();
@@ -1538,7 +1542,11 @@ void MoqtDataParser::ParseNextItemFromStream() {
           ParseError("Invalid object status provided");
           return;
         }
-
+        if (metadata_.object_status != MoqtObjectStatus::kNormal &&
+            !metadata_.properties.empty()) {
+          ParseError("Object has status and properties");
+          return;
+        }
         ++num_objects_read_;
         // TODO(martinduke): If contains_end_of_group_ && fin_read, the track is
         // malformed. There is no API to signal this to the session yet, but the
