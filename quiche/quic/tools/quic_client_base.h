@@ -10,6 +10,7 @@
 
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <string>
 
 #include "absl/base/attributes.h"
@@ -79,6 +80,12 @@ class QuicClientBase : public QuicSession::Visitor {
 
     // Creates a packet writer to be used for the next connection.
     virtual QuicPacketWriter* CreateQuicPacketWriter() = 0;
+
+    // Returns the number of dropped packets if supported by the network helper
+    // implementation.
+    virtual std::optional<QuicPacketCount> packets_dropped() const {
+      return std::nullopt;
+    }
   };
 
   QuicClientBase(const QuicServerId& server_id,
@@ -288,6 +295,11 @@ class QuicClientBase : public QuicSession::Visitor {
 
   NetworkHelper* network_helper();
   const NetworkHelper* network_helper() const;
+
+  std::optional<QuicPacketCount> packets_dropped() const {
+    return network_helper() == nullptr ? std::nullopt
+                                       : network_helper()->packets_dropped();
+  }
 
   bool initialized() const { return initialized_; }
 

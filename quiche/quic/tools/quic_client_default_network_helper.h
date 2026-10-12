@@ -89,6 +89,13 @@ class QuicClientDefaultNetworkHelper : public QuicClientBase::NetworkHelper,
   void CleanUpAllUDPSockets() override;
   QuicSocketAddress GetLatestClientAddress() const override;
   QuicPacketWriter* CreateQuicPacketWriter() override;
+  // If overflow_supported_ is true, returns the cumulative count of dropped
+  // packets due to socket buffer overflow.
+  std::optional<QuicPacketCount> packets_dropped() const override {
+    return overflow_supported_
+               ? std::optional<QuicPacketCount>(packets_dropped_)
+               : std::nullopt;
+  }
 
   // Accessors provided for convenience, not part of any interface.
   QuicEventLoop* event_loop() { return event_loop_; }
