@@ -1308,7 +1308,6 @@ MoqtDataParser::NextInput MoqtDataParser::AdvanceParserState() {
         return kSerializationFlags;
       case kTrackAlias:
       case kObjectPayloadLength:
-      case kAwaitingNextByte:
       case kStatus:
       case kFailed:
       case kPropertiesSize:
@@ -1357,7 +1356,6 @@ MoqtDataParser::NextInput MoqtDataParser::AdvanceParserState() {
       return kObjectPayloadLength;
     case kStatus:
     case kData:
-    case kAwaitingNextByte:
       return kObjectId;
     case kRequestId:
     case kSerializationFlags:
@@ -1611,14 +1609,10 @@ void MoqtDataParser::ParseNextItemFromStream() {
             ParseError("FIN received at an unexpected point in the stream");
             return;
           }
-          if (contains_end_of_group_) {
-            if (no_more_data_) {
-              metadata_.object_status = MoqtObjectStatus::kEndOfGroup;
-            } else if (done) {
-              // Don't signal done until the next byte arrives.
-              next_input_ = kAwaitingNextByte;
-              done = false;
-            }
+          if (contains_end_of_group_ && no_more_data_) {
+            // It's OK to change status mid-object because it's a convenience
+            // signal for the parser, not immutable metadata.
+            metadata_.object_status = MoqtObjectStatus::kEndOfGroup;
           }
           non_fetch_range_object_read_ = true;
           visitor_.OnObjectMessage(
@@ -1655,11 +1649,6 @@ void MoqtDataParser::ParseNextItemFromStream() {
       return;
     }
 
-    case kAwaitingNextByte: {
-      QUICHE_NOTREACHED();  // CheckForFinWithoutData() should have handled it.
-      return;
-    }
-
     case kPadding:
       no_more_data_ |= stream_.SkipBytes(stream_.ReadableBytes());
       return;
@@ -1688,14 +1677,10 @@ void MoqtDataParser::ReadAtMostOneObject() {
 }
 
 bool MoqtDataParser::CheckForFinWithoutData() {
+  if (no_more_data_) {
+    return true;
+  }
   if (!stream_.PeekNextReadableRegion().fin_next) {
-    if (next_input_ == kAwaitingNextByte) {
-      // Data arrived; the last object was not EndOfGroup.
-      non_fetch_range_object_read_ = true;
-      visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
-      next_input_ = AdvanceParserState();
-      ++num_objects_read_;
-    }
     return false;
   }
   no_more_data_ = true;
@@ -1707,10 +1692,23 @@ bool MoqtDataParser::CheckForFinWithoutData() {
     ParseError("FIN received at an unexpected point in the stream");
     return true;
   }
-  if (next_input_ == kAwaitingNextByte) {
-    non_fetch_range_object_read_ = true;
-    metadata_.object_status = MoqtObjectStatus::kEndOfGroup;
-    visitor_.OnObjectMessage(metadata_, "", /*end_of_message=*/true);
+  if (contains_end_of_group_ && last_object_id_.has_value() &&
+      *last_object_id_ < kMaxObjectId &&
+      metadata_.object_status == MoqtObjectStatus::kNormal) {
+    // Send a synthetic END_OF_GROUP object.
+    MoqtObject object = {
+        .track_alias = metadata_.track_alias,
+        .group_id = metadata_.group_id,
+        .object_id = *last_object_id_ + 1,
+        .publisher_priority = metadata_.publisher_priority,
+        .properties = "",
+        .object_status = MoqtObjectStatus::kEndOfGroup,
+        .subgroup_id = metadata_.subgroup_id,
+        .first_object_in_subgroup = false,
+        .payload_length = 0,
+    };
+    ++num_objects_read_;
+    visitor_.OnObjectMessage(object, "", /*end_of_message=*/true);
   }
   visitor_.OnFin();
   return stream_.SkipBytes(0);

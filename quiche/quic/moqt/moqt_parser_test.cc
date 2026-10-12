@@ -1949,6 +1949,106 @@ TEST_F(MoqtDataParserStateMachineTest, SubgroupObjectHasStatusAndProperties) {
   EXPECT_EQ(visitor_.parsing_error(), "Object has status and properties");
 }
 
+TEST_F(MoqtDataParserStateMachineTest, EndOfGroupFinArrivesLater) {
+  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(
+      /*subgroup_id=*/8, /*first_object_id=*/6, /*no_properties=*/false,
+      /*default_priority=*/false, /*has_first_object=*/true,
+      /*end_of_group=*/true);
+  StreamHeaderSubgroupMessage header(type);
+  stream_.Receive(header.PacketSample(), /*fin=*/false);
+  parser_.ReadAllData();
+  ASSERT_EQ(visitor_.messages_received(), 1);
+  EXPECT_TRUE(visitor_.end_of_message());
+  EXPECT_FALSE(visitor_.fin_received());
+  ASSERT_TRUE(visitor_.last_message().has_value());
+  EXPECT_EQ(visitor_.last_message()->object_status, MoqtObjectStatus::kNormal);
+  EXPECT_EQ(visitor_.last_message()->object_id, 6);
+  EXPECT_EQ(visitor_.last_message()->subgroup_id, 8);
+  EXPECT_FALSE(visitor_.last_message()->properties.empty());
+  EXPECT_EQ(visitor_.object_payload(), "foo");
+
+  // When FIN arrives with no additional object, a new empty kEndOfGroup object
+  // with object_id = 7, subgroup_id = 8, and no properties is delivered.
+  stream_.Receive("", /*fin=*/true);
+  parser_.ReadAllData();
+  ASSERT_EQ(visitor_.messages_received(), 2);
+  EXPECT_TRUE(visitor_.end_of_message());
+  EXPECT_TRUE(visitor_.fin_received());
+  EXPECT_EQ(visitor_.parsing_error(), std::nullopt);
+  ASSERT_TRUE(visitor_.last_message().has_value());
+  EXPECT_EQ(visitor_.last_message()->track_alias, 4);
+  EXPECT_EQ(visitor_.last_message()->group_id, 5);
+  EXPECT_EQ(visitor_.last_message()->object_id, 7);
+  EXPECT_EQ(visitor_.last_message()->subgroup_id, 8);
+  EXPECT_EQ(visitor_.last_message()->publisher_priority, 7);
+  EXPECT_EQ(visitor_.last_message()->properties, "");
+  EXPECT_EQ(visitor_.last_message()->object_status,
+            MoqtObjectStatus::kEndOfGroup);
+  EXPECT_EQ(visitor_.last_message()->first_object_in_subgroup, false);
+  EXPECT_EQ(visitor_.last_message()->payload_length, 0);
+  EXPECT_EQ(visitor_.object_payloads().back(), "");
+}
+
+TEST_F(MoqtDataParserStateMachineTest,
+       EndOfGroupFollowedByAnotherObjectThenFin) {
+  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(
+      /*subgroup_id=*/8, /*first_object_id=*/6, /*no_properties=*/false,
+      /*default_priority=*/false, /*has_first_object=*/true,
+      /*end_of_group=*/true);
+  StreamHeaderSubgroupMessage header(type);
+  stream_.Receive(header.PacketSample(), /*fin=*/false);
+  parser_.ReadAllData();
+  ASSERT_EQ(visitor_.messages_received(), 1);
+  EXPECT_EQ(visitor_.last_message()->object_status, MoqtObjectStatus::kNormal);
+  EXPECT_EQ(visitor_.last_message()->object_id, 6);
+
+  StreamMiddlerSubgroupMessage middler(type);
+  stream_.Receive(middler.PacketSample(), /*fin=*/false);
+  parser_.ReadAllData();
+  ASSERT_EQ(visitor_.messages_received(), 2);
+  EXPECT_EQ(visitor_.last_message()->object_status, MoqtObjectStatus::kNormal);
+  uint64_t second_object_id = visitor_.last_message()->object_id;
+
+  stream_.Receive("", /*fin=*/true);
+  parser_.ReadAllData();
+  ASSERT_EQ(visitor_.messages_received(), 3);
+  EXPECT_TRUE(visitor_.fin_received());
+  EXPECT_EQ(visitor_.parsing_error(), std::nullopt);
+  EXPECT_EQ(visitor_.last_message()->object_id, second_object_id + 1);
+  EXPECT_EQ(visitor_.last_message()->subgroup_id, 8);
+  EXPECT_EQ(visitor_.last_message()->properties, "");
+  EXPECT_EQ(visitor_.last_message()->payload_length, 0);
+  EXPECT_EQ(visitor_.last_message()->object_status,
+            MoqtObjectStatus::kEndOfGroup);
+}
+
+TEST_F(MoqtDataParserStateMachineTest, EndOfGroupMaxObjectIdOverflowOnFin) {
+  MoqtDataStreamType type = MoqtDataStreamType::Subgroup(
+      /*subgroup_id=*/8, /*first_object_id=*/6, /*no_properties=*/true,
+      /*default_priority=*/true, /*has_first_object=*/true,
+      /*end_of_group=*/true);
+  parser_.set_default_publisher_priority(7);
+  char buffer[64];
+  quic::QuicDataWriter writer(sizeof(buffer), buffer);
+  ASSERT_TRUE(writer.WriteMoqVarInt(type.value()));
+  ASSERT_TRUE(writer.WriteMoqVarInt(4));             // track_alias
+  ASSERT_TRUE(writer.WriteMoqVarInt(5));             // group_id
+  ASSERT_TRUE(writer.WriteMoqVarInt(8));             // subgroup_id
+  ASSERT_TRUE(writer.WriteMoqVarInt(kMaxObjectId));  // object_id
+  ASSERT_TRUE(writer.WriteMoqVarInt(3));             // payload_length
+  ASSERT_TRUE(writer.WriteStringPiece("foo"));
+  stream_.Receive(absl::string_view(buffer, writer.length()), /*fin=*/false);
+  parser_.ReadAllData();
+  ASSERT_EQ(visitor_.messages_received(), 1);
+  EXPECT_EQ(visitor_.last_message()->object_id, kMaxObjectId);
+  EXPECT_EQ(visitor_.last_message()->object_status, MoqtObjectStatus::kNormal);
+
+  stream_.Receive("", /*fin=*/true);
+  parser_.ReadAllData();
+  EXPECT_EQ(visitor_.messages_received(), 1);
+  EXPECT_TRUE(visitor_.fin_received());
+}
+
 TEST_F(MoqtMessageSpecificTest, DatagramHasStatusAndProperties) {
   // Type 0x21 (kStatus | kProperties), track_alias = 4, group_id = 5,
   // object_id = 6, priority = 7, 1-byte property blob, status = kEndOfTrack

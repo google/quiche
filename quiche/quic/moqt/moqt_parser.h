@@ -320,7 +320,6 @@ class QUICHE_EXPORT MoqtDataParser {
     kObjectPayloadLength,
     kStatus,
     kData,
-    kAwaitingNextByte,  // Can't determine status until the next byte arrives.
     kPadding,
     kFailed,
   };
