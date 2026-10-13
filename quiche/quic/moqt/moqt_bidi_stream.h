@@ -60,6 +60,7 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   void BindStream(MoqtStreamTypeParser parser) {
     QUICHE_DCHECK(!stream_parser_.has_value());
     stream_parser_.emplace(std::move(parser));
+    stream_parser_->set_allow_fin(true);
     outgoing_message_queue_.SetStream(stream_parser_->stream());
     OnStreamBound();
   }
@@ -67,6 +68,7 @@ class MoqtBidiStreamBase : public webtransport::StreamVisitor {
   void BindStream(webtransport::Stream* absl_nonnull stream) {
     QUICHE_DCHECK(!stream_parser_.has_value());
     stream_parser_.emplace(stream);
+    stream_parser_->set_allow_fin(true);
     outgoing_message_queue_.SetStream(stream);
     OnStreamBound();
   }

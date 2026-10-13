@@ -49,7 +49,6 @@ MoqtSubscribeRequestStream::MoqtSubscribeRequestStream(
       alarm_factory_(alarm_factory) {}
 
 void MoqtSubscribeRequestStream::OnStreamBound() {
-  stream_parser()->set_allow_fin(true);
   MoqtSubscribe subscribe{track_->request_id(), track_->full_track_name(),
                           track_->const_parameters()};
   SendOrBufferMessageOrFatal(framer()->SerializeSubscribe(subscribe));

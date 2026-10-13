@@ -118,7 +118,6 @@ void MoqtFetchRequestStream::OnStreamClosed(absl::Status status,
 }
 
 void MoqtFetchRequestStream::OnStreamBound() {
-  stream_parser()->set_allow_fin(true);
   // TODO(martinduke): Set the priority for this stream.
   MoqtFetch fetch;
   fetch.request_id = request_id();

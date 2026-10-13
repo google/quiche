@@ -49,7 +49,6 @@ MoqtPublishRequestStream::~MoqtPublishRequestStream() {
 }
 
 void MoqtPublishRequestStream::OnStreamBound() {
-  stream_parser()->set_allow_fin(true);
   publisher_->parameters().largest_object =
       publisher_->publisher().largest_location();
   publisher_->parameters().expires = publisher_->publisher().expiration();

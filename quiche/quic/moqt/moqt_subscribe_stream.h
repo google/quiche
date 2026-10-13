@@ -79,7 +79,7 @@ class MoqtSubscribeResponseStream : public MoqtBidiStreamBase {
 
   // MoqtBidiStreamBase overrides.
   using MoqtBidiStreamBase::OnControlMessage;
-  void OnStreamBound() override { stream_parser()->set_allow_fin(true); }
+  void OnStreamBound() override {}
   absl::Status OnRawControlMessage(
       const MoqtRawControlMessage& message) override;
 

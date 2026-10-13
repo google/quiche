@@ -24,7 +24,6 @@ void MoqtPublishNamespaceRequestStream::OnStreamBound() {
   MoqtPublishNamespace message{request_id_, prefix_, parameters_};
   SendOrBufferMessageOrFatal(framer()->SerializePublishNamespace(message),
                              false);
-  stream_parser()->set_allow_fin(true);
   QUIC_DLOG(INFO) << "Sent PUBLISH_NAMESPACE message for " << prefix_;
 }
 

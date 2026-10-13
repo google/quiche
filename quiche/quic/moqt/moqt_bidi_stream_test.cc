@@ -103,6 +103,26 @@ TEST_F(MoqtBidiStreamTest, FinDetaches) {
   EXPECT_TRUE(stream_->detached_);
 }
 
+TEST_F(MoqtBidiStreamTest, ReceiveFin) {
+  webtransport::test::InMemoryStream stream(0);
+  stream_->BindStream(&stream);
+  MoqtFramer framer(/*using_webtrans=*/true, quic::Perspective::IS_SERVER);
+  stream.Receive(framer.SerializeObjectAck(MoqtObjectAck()).AsStringView(),
+                 /*fin=*/true);
+  stream_->OnCanRead();
+}
+
+TEST_F(MoqtBidiStreamTest, ReceiveFinWithTypeParser) {
+  webtransport::test::InMemoryStream stream(0);
+  MoqtFramer framer(/*using_webtrans=*/true, quic::Perspective::IS_SERVER);
+  stream.Receive(framer.SerializeObjectAck(MoqtObjectAck()).AsStringView(),
+                 /*fin=*/true);
+  MoqtStreamTypeParser parser(&stream);
+  QUICHE_ASSERT_OK(parser.ReadStreamType().status());
+  stream_->BindStream(std::move(parser));
+  stream_->OnCanRead();
+}
+
 TEST_F(MoqtBidiStreamTest, IncomingStopSending) {
   stream_->BindStream(&mock_stream_);
   EXPECT_CALL(mock_stream_, SendStopSending(1234));

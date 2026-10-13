@@ -41,7 +41,6 @@ MoqtTrackStatusRequestStream::MoqtTrackStatusRequestStream(
       response_callback_(std::move(response_callback)) {}
 
 void MoqtTrackStatusRequestStream::OnStreamBound() {
-  stream_parser()->set_allow_fin(true);
   MoqtTrackStatus message;
   message.request_id = request_id_;
   message.full_track_name = full_track_name_;

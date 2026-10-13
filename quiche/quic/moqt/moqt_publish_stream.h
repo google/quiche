@@ -96,7 +96,6 @@ class MoqtPublishResponseStream : public MoqtBidiStreamBase {
   // MoqtBidiStreamBase overrides.
   using MoqtBidiStreamBase::OnControlMessage;
   void OnStreamBound() override {
-    stream_parser()->set_allow_fin(true);
     // TODO(martinduke): Set the priority for this stream.
   }
   absl::Status OnRawControlMessage(
