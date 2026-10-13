@@ -31,6 +31,7 @@
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/quiche_buffer_allocator.h"
+#include "quiche/common/quiche_checked_math.h"
 #include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
 #include "quiche/web_transport/stream_helpers.h"
@@ -55,7 +56,18 @@ bool OutgoingUniStream::WriteObjectToStream(PublishedObject& object,
   header.properties = object.metadata.properties;
   header.object_status = object.metadata.status;
   header.payload_length = object.metadata.payload_length;
-
+  bool separate_end_of_group = false;
+  if (type.IsSubgroup() && !type.EndOfGroupInStream() &&
+      object.fin_after_this &&
+      object.metadata.status == MoqtObjectStatus::kEndOfGroup &&
+      (object.metadata.payload_length > 0 ||
+       !object.metadata.properties.empty())) {
+    // Handle the special case where an EndOfGroup is encoded in an object with
+    // payload or properties. It cannot be expressed that way on the wire;
+    // create a notional object instead.
+    separate_end_of_group = true;
+    header.object_status = MoqtObjectStatus::kNormal;
+  }
   quiche::QuicheBuffer serialized_header =
       framer_.SerializeObjectHeader(header, type, last_object_);
   std::vector<quiche::QuicheMemSlice> write_vector;
@@ -63,6 +75,18 @@ bool OutgoingUniStream::WriteObjectToStream(PublishedObject& object,
   write_vector.push_back(quiche::QuicheMemSlice(std::move(serialized_header)));
   for (auto& slice : object.payload) {
     write_vector.push_back(std::move(slice));
+  }
+  if (separate_end_of_group) {
+    last_object_ = object.metadata;
+    if (quiche::SafeIncrementBy<uint64_t>(header.object_id, 1)) {
+      header.object_status = MoqtObjectStatus::kEndOfGroup;
+      header.payload_length = 0;
+      header.properties.clear();
+      serialized_header =
+          framer_.SerializeObjectHeader(header, type, last_object_);
+      write_vector.push_back(
+          quiche::QuicheMemSlice(std::move(serialized_header)));
+    }
   }
   webtransport::StreamWriteOptions options;
   options.set_send_fin(!type.IsFetch() && object.fin_after_this);
@@ -76,8 +100,7 @@ bool OutgoingUniStream::WriteObjectToStream(PublishedObject& object,
     return false;
   }
   QUIC_DVLOG(1) << "Stream " << stream_.GetStreamId() << " successfully wrote "
-                << object.metadata.location
-                << ", fin = " << object.fin_after_this;
+                << object.metadata.location;
   return true;
 }
 
