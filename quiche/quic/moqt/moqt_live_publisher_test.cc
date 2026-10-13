@@ -529,6 +529,31 @@ TEST_F(LivePublisherTest, OnNewObjectAvailableDatagram) {
   publisher_->OnNewObjectAvailable(Location(1, 0), std::nullopt, 128);
 }
 
+TEST_F(LivePublisherTest, OnNewObjectAvailableStatusDatagram) {
+  PublishedObjectMetadata metadata{Location(1, 0),
+                                   /*subgroup=*/std::nullopt,
+                                   /*properties=*/"",
+                                   MoqtObjectStatus::kEndOfGroup,
+                                   /*publisher_priority=*/128,
+                                   /*first_object_in_subgroup=*/std::nullopt,
+                                   /*payload_length=*/0};
+  EXPECT_CALL(*track_publisher_,
+              GetCachedObject(1, std::optional<uint64_t>(), 0, 0))
+      .WillOnce(Return(PublishedObject{metadata, {}, false}))
+      .WillOnce(Return(PublishedObject{metadata, {}, false}));
+  EXPECT_CALL(webtrans_, SendOrQueueDatagram)
+      .WillOnce([](absl::string_view datagram) {
+        MoqtObject message;
+        bool use_default_priority;
+        absl::StatusOr<absl::string_view> payload =
+            ParseDatagram(datagram, message, use_default_priority);
+        EXPECT_TRUE(payload.ok() && payload->empty());
+        EXPECT_EQ(message.object_status, MoqtObjectStatus::kEndOfGroup);
+        return DatagramStatus(DatagramStatusCode::kSuccess, "");
+      });
+  publisher_->OnNewObjectAvailable(Location(1, 0), std::nullopt, 128);
+}
+
 TEST_F(LivePublisherTest, OnNewObjectAvailableStreamCreationBlocked) {
   CreatePendingStream(Location(1, 0), 0, 128);
 }

@@ -382,9 +382,16 @@ void LivePublisher::SendDatagram(Location sequence) {
   QUICHE_BUG_IF(LivePublisher_SendDatagram_partial_payload,
                 object->payload.size() > 1)
       << "Datagram is split into multiple slices";
-  quiche::QuicheBuffer datagram = framer_.SerializeObjectDatagram(
-      header, object->payload[0].AsStringView(),
-      default_publisher_priority_.value_or(kDefaultPublisherPriority));
+  quiche::QuicheBuffer datagram;
+  if (object->payload.empty()) {
+    datagram = framer_.SerializeObjectDatagram(
+        header, "",
+        default_publisher_priority_.value_or(kDefaultPublisherPriority));
+  } else {
+    datagram = framer_.SerializeObjectDatagram(
+        header, object->payload[0].AsStringView(),
+        default_publisher_priority_.value_or(kDefaultPublisherPriority));
+  }
   if (visitor() == nullptr) {
     return;
   }
