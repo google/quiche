@@ -170,7 +170,6 @@ class MoqtSubscribeNamespaceResponseStream : public MoqtBidiStreamBase {
   MoqtResponseCallback ResponseCallback(MoqtMessageType type_of_ok);
 
   uint64_t request_id_;
-  TrackNamespace prefix_;
   AddPrefixCallback add_callback_;
   RemovePrefixCallback remove_callback_;
   ValidateRequestIdCallback validate_request_id_;

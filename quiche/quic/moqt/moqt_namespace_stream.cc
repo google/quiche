@@ -278,6 +278,7 @@ absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
   }
   if (!std::move(add_callback_)(message.track_namespace_prefix)) {
     add_callback_ = nullptr;
+    remove_callback_ = nullptr;
     return SendRequestError(RequestErrorCode::kPrefixOverlap, std::nullopt, "");
   }
   add_callback_ = nullptr;
@@ -286,6 +287,10 @@ absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
                        ResponseCallback(MoqtMessageType::kSubscribeNamespace));
   if (task_ != nullptr) {
     task_->SetObjectsAvailableCallback([this]() { ProcessNamespaces(); });
+  } else if (remove_callback_ != nullptr) {
+    RemovePrefixCallback callback = std::move(remove_callback_);
+    remove_callback_ = nullptr;
+    std::move(callback)(message.track_namespace_prefix);
   }
   return absl::OkStatus();
 }
@@ -308,10 +313,20 @@ absl::Status MoqtSubscribeNamespaceResponseStream::OnControlMessage(
 }
 
 void MoqtSubscribeNamespaceResponseStream::Detach() {
-  if (remove_callback_ != nullptr) {
-    std::move(remove_callback_)(prefix_);
-    remove_callback_ = nullptr;
+  if (task_ == nullptr) {
+    return;
   }
+  if (remove_callback_ != nullptr) {
+    RemovePrefixCallback callback = std::move(remove_callback_);
+    remove_callback_ = nullptr;
+    std::move(callback)(task_->prefix());
+  }
+  // In general, a remove_callback should not be followed by further operations
+  // on class members. But in this case, the remove_callback merely removes the
+  // prefix from SessionNamespaceTree; it doesn't destroy the class. If task_
+  // is destroyed first, it would have to make an expensive copy of
+  // TrackNamespace to send to the remove_callback.
+  task_.reset();
 }
 
 void MoqtSubscribeNamespaceResponseStream::ProcessNamespaces() {

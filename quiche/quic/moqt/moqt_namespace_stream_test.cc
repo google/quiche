@@ -418,7 +418,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, SubscribeUnsubscribe) {
   ASSERT_TRUE(task_ptr != nullptr);
   EXPECT_EQ(task_ptr->prefix(), message.track_namespace_prefix);
   // Unsubscribe.
-  EXPECT_CALL(remove_callback_, Call);
+  EXPECT_CALL(remove_callback_, Call(TrackNamespace({"foo"})));
   stream_.OnResetStreamReceived(kResetCodeCancelled);
 }
 
@@ -439,6 +439,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, RequestError) {
       });
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
+  EXPECT_CALL(remove_callback_, Call(TrackNamespace({"foo"})));
   ReceiveControlMessage(message);
 }
 
@@ -538,6 +539,7 @@ TEST_F(MoqtSubscribeNamespaceResponseStreamTest, SubscribePrefixOverlap) {
   };
   // The namespace tree already has a subscriber for a prefix of "foo".
   EXPECT_CALL(add_callback_, Call).WillOnce(Return(false));
+  EXPECT_CALL(remove_callback_, Call).Times(0);
   EXPECT_CALL(mock_stream_,
               Writev(ControlMessageOfType(MoqtMessageType::kRequestError), _));
   ReceiveControlMessage(message);

@@ -2072,8 +2072,28 @@ TEST_F(MoqtSessionTest, IncomingSubscribeNamespace) {
   task.GetIfAvailable()->InvokeCallback();
 
   // Unsubscribe
-  bidi_wrapper_.reset();
+  bidi_wrapper_->stream().OnResetStreamReceived(kResetCodeCancelled);
   EXPECT_FALSE(task.IsValid());
+  bidi_wrapper_.reset();
+
+  // Resubscribing to the same prefix should succeed.
+  subscribe_namespace.request_id += 2;
+  EXPECT_CALL(session_callbacks_.incoming_subscribe_namespace_callback,
+              Call(prefix, parameters, _))
+      .WillOnce([&](const TrackNamespace& prefix, const MessageParameters&,
+                    MoqtResponseCallback response_callback) {
+        std::move(response_callback)(ok_params);
+        auto task_ptr = std::make_unique<MockNamespaceTask>(prefix);
+        task = task_ptr->GetWeakPtr();
+        return task_ptr;
+      });
+  bidi_wrapper_ = std::make_unique<MoqtBidiStreamTestWrapper>(
+      ResponseStream(kSubscribeNamespaceByte));
+  EXPECT_CALL(mock_bidi_stream_,
+              Writev(SerializedControlMessage(MoqtRequestOk()), _))
+      .WillOnce(Return(absl::OkStatus()));
+  bidi_wrapper_->ReceiveMessage(subscribe_namespace);
+  EXPECT_TRUE(task.IsValid());
 }
 
 TEST_F(MoqtSessionTest, IncomingSubscribeNamespaceWithSynchronousError) {
