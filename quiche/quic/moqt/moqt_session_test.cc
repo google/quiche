@@ -1277,14 +1277,14 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
       /*group_sequence=*/0,
       /*object_sequence=*/0,
       /*publisher_priority=*/0,
-      /*properties=*/"",
+      /*properties=*/"foo",
       /*object_status=*/MoqtObjectStatus::kNormal,
       /*subgroup_id=*/std::nullopt,
       /*first_object_in_subgroup=*/std::nullopt,
       /*payload_length=*/8,
   };
-  char datagram[] = {0x00, 0x02, 0x00, 0x00, 0x00, 0x64, 0x65,
-                     0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
+  char datagram[] = {0x01, 0x02, 0x00, 0x00, 0x00, 0x03, 0x66, 0x6f, 0x6f,
+                     0x64, 0x65, 0x61, 0x64, 0x62, 0x65, 0x65, 0x66};
   EXPECT_CALL(remote_track_visitor_, OnObjectFragment)
       .WillOnce([&](const FullTrackName& track_name,
                     const PublishedObjectMetadata& metadata,
@@ -1293,6 +1293,7 @@ TEST_F(MoqtSessionTest, ReceiveDatagram) {
         EXPECT_EQ(metadata.location,
                   Location(object.group_id, object.object_id));
         EXPECT_EQ(metadata.subgroup, object.subgroup_id);
+        EXPECT_EQ(metadata.properties, object.properties);
         EXPECT_EQ(metadata.publisher_priority, object.publisher_priority);
         EXPECT_EQ(metadata.status, object.object_status);
         EXPECT_EQ(metadata.payload_length, payload.length());

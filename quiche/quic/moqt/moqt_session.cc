@@ -240,10 +240,10 @@ void MoqtSession::OnDatagramReceived(absl::string_view datagram) {
   QUICHE_CHECK(!track->is_fetch());
   SubscribeVisitor* visitor = track->visitor();
   if (visitor != nullptr) {
-    // TODO(martinduke): Handle properties.
     PublishedObjectMetadata metadata;
     metadata.location = Location(message.group_id, message.object_id);
     metadata.subgroup = std::nullopt;
+    metadata.properties = message.properties;
     metadata.status = message.object_status;
     metadata.publisher_priority = message.publisher_priority;
     metadata.payload_length = payload->size();
