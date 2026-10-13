@@ -242,7 +242,7 @@ class LivePublisher : public MoqtObjectListener, public LivePublisherInterface {
   }
 
   webtransport::Stream* GetStreamById(webtransport::StreamId stream_id) {
-    if (visitor() != nullptr) {
+    if (visitor() != nullptr && visitor()->session() != nullptr) {
       return visitor()->session()->GetStreamById(stream_id);
     }
     return nullptr;
