@@ -158,20 +158,24 @@ quic::QuicTimeDelta TrackProperties::object_delivery_timeout() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kObjectDeliveryTimeout);
   return (value.has_value() && *value > 0)
-             ? quic::QuicTimeDelta::FromMilliseconds(*value)
+             ? quic::QuicTimeDelta::TryFromMilliseconds(*value).value_or(
+                   quic::QuicTimeDelta::Infinite())
              : kDefaultDeliveryTimeout;
 }
 quic::QuicTimeDelta TrackProperties::max_cache_duration() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kMaxCacheDuration);
-  return value.has_value() ? quic::QuicTimeDelta::FromMilliseconds(*value)
-                           : kDefaultMaxCacheDuration;
+  return value.has_value()
+             ? quic::QuicTimeDelta::TryFromMilliseconds(*value).value_or(
+                   quic::QuicTimeDelta::Infinite())
+             : kDefaultMaxCacheDuration;
 }
 quic::QuicTimeDelta TrackProperties::subgroup_delivery_timeout() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kSubgroupDeliveryTimeout);
   return (value.has_value() && *value > 0)
-             ? quic::QuicTimeDelta::FromMilliseconds(*value)
+             ? quic::QuicTimeDelta::TryFromMilliseconds(*value).value_or(
+                   quic::QuicTimeDelta::Infinite())
              : kDefaultDeliveryTimeout;
 }
 absl::string_view TrackProperties::immutable_properties() const {
