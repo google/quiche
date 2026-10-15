@@ -2403,4 +2403,26 @@ TEST_F(MoqtMessageSpecificTest, RequestErrorRedirect) {
                                HasSubstr("Control message has excess data")));
 }
 
+TEST_F(MoqtMessageSpecificTest, RequestErrorOversizedRetryInterval) {
+  // retry_interval is a peer-supplied millisecond varint that is converted to
+  // microseconds (a multiply by 1000). A value whose conversion overflows
+  // int64 must collapse to an infinite delta rather than trigger signed
+  // overflow.
+  char request_error[] = {
+      0x05, 0x00, 0x0b,                          // type = REQUEST_ERROR, size
+      0x11,                                      // error_code (non-redirect)
+      0xff, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00,  // retry_interval = 2^60 as a
+      0x00, 0x00,                                //   9-byte MoqVarInt
+      0x00,                                      // reason_phrase = ""
+  };
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed = ParseAllMessages(
+      absl::string_view(request_error, sizeof(request_error)),
+      kDefaultMoqtVersion, kWebTrans, quic::Perspective::IS_CLIENT);
+  ASSERT_TRUE(parsed.ok()) << parsed.status();
+  ASSERT_EQ(parsed->size(), 1u);
+  const MoqtRequestError& error = std::get<MoqtRequestError>((*parsed)[0]);
+  ASSERT_TRUE(error.retry_interval.has_value());
+  EXPECT_EQ(*error.retry_interval, quic::QuicTimeDelta::Infinite());
+}
+
 }  // namespace moqt::test
