@@ -1341,6 +1341,10 @@ void TlsServerHandshaker::ResetSsl() {
       .alpn = std::string(Alpn()),
       .sni = std::string(Sni()),
   });
+  if (GetQuicReloadableFlag(quic_reset_server_params_in_reset_ssl)) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_reset_server_params_in_reset_ssl);
+    server_params_.reset();
+  }
   tls_connection_.ResetSsl();
   ResetCryptoSubstreams();
 }

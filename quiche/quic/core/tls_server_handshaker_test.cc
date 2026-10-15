@@ -69,6 +69,14 @@ using testing::VariantWith;
 namespace quic {
 namespace test {
 
+class TlsServerHandshakerPeer {
+ public:
+  static const TransportParameters* GetServerParams(
+      const TlsServerHandshaker* handshaker) {
+    return handshaker->server_params_.get();
+  }
+};
+
 namespace {
 
 const char kServerHostname[] = "test.example.com";
@@ -1776,6 +1784,7 @@ TEST_P(TlsServerHandshakerTest, GetCredentialExData) {
 }
 
 TEST_P(TlsServerHandshakerTest, CachedSslInfoAfterResetSsl) {
+  SetQuicReloadableFlag(quic_reset_server_params_in_reset_ssl, true);
   CompleteCryptoHandshake();
   ExpectHandshakeSuccessful();
 
@@ -1797,6 +1806,7 @@ TEST_P(TlsServerHandshakerTest, CachedSslInfoAfterResetSsl) {
   // Call ResetSsl. This should cache the SSL info.
   TlsServerHandshaker* handshaker =
       static_cast<TlsServerHandshaker*>(server_stream());
+  EXPECT_NE(TlsServerHandshakerPeer::GetServerParams(handshaker), nullptr);
   handshaker->ResetSsl();
 
   // Verify that the info is still available from the cache.
@@ -1808,6 +1818,7 @@ TEST_P(TlsServerHandshakerTest, CachedSslInfoAfterResetSsl) {
   EXPECT_EQ(server_stream()->CiphersuiteString(), cipher_string);
   EXPECT_EQ(server_stream()->TlsGroupId(), tls_group_id);
   EXPECT_EQ(server_stream()->TlsGroupString(), tls_group_string);
+  EXPECT_EQ(TlsServerHandshakerPeer::GetServerParams(handshaker), nullptr);
 }
 
 }  // namespace

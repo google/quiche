@@ -44,6 +44,9 @@
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
+namespace test {
+class TlsServerHandshakerPeer;
+}  // namespace test
 
 // An implementation of QuicCryptoServerStreamBase which uses
 // TLS 1.3 for the crypto handshake protocol.
@@ -239,6 +242,8 @@ class QUICHE_EXPORT TlsServerHandshaker : public TlsHandshaker,
   }
 
  private:
+  friend class test::TlsServerHandshakerPeer;
+
   class QUICHE_EXPORT DecryptCallback : public ProofSource::DecryptCallback {
    public:
     explicit DecryptCallback(TlsServerHandshaker* handshaker);
