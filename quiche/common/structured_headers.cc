@@ -8,9 +8,9 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
-#include <sstream>
 #include <string>
 #include <utility>
+#include <variant>
 #include <vector>
 
 #include "absl/algorithm/container.h"
@@ -20,9 +20,9 @@
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
 #include "absl/strings/numbers.h"
+#include "absl/strings/str_cat.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
-#include "absl/types/span.h"
 #include "quiche/common/platform/api/quiche_client_stats.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
@@ -36,21 +36,22 @@ namespace {
 #define UCALPHA "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 #define TCHAR DIGIT LCALPHA UCALPHA "!#$%&'*+-.^_`|~"
 // https://tools.ietf.org/html/draft-ietf-httpbis-header-structure-09#section-3.9
-constexpr char kTokenChars09[] = DIGIT UCALPHA LCALPHA "_-.:%*/";
+constexpr absl::string_view kTokenChars09 = DIGIT UCALPHA LCALPHA "_-.:%*/";
 // https://www.rfc-editor.org/rfc/rfc8941.html#section-3.3.4
-constexpr char kTokenChars[] = TCHAR ":/";
+constexpr absl::string_view kTokenChars = TCHAR ":/";
 // https://tools.ietf.org/html/draft-ietf-httpbis-header-structure-09#section-3.1
-constexpr char kKeyChars09[] = DIGIT LCALPHA "_-";
+constexpr absl::string_view kKeyChars09 = DIGIT LCALPHA "_-";
 // https://www.rfc-editor.org/rfc/rfc8941.html#section-3.1.2
-constexpr char kKeyChars[] = DIGIT LCALPHA "_-.*";
-constexpr char kSP[] = " ";
-constexpr char kOWS[] = " \t";
+constexpr absl::string_view kKeyChars = DIGIT LCALPHA "_-.*";
+constexpr char kSP = ' ';
+constexpr absl::string_view kOWS = " \t";
 // https://www.rfc-editor.org/rfc/rfc8941.html#section-4.2.7
 // https://datatracker.ietf.org/doc/html/draft-ietf-httpbis-header-structure-09#section-4.2.11
-constexpr char kBase64Chars[] = DIGIT UCALPHA LCALPHA "+/=";
+constexpr absl::string_view kBase64Chars = DIGIT UCALPHA LCALPHA "+/=";
 #undef DIGIT
 #undef LCALPHA
 #undef UCALPHA
+#undef TCHAR
 
 // Decodes a base64-encoded string, synthesizing padding if necessary.
 // https://www.rfc-editor.org/rfc/rfc8941.html#section-4.2.7
@@ -88,7 +89,8 @@ constexpr int64_t kMinInteger = -999'999'999'999'999L;
 constexpr double kTooLargeDecimal = 1e12 - 0.0005;
 
 // Removes characters in remove from the beginning of s.
-void StripLeft(absl::string_view& s, absl::string_view remove) {
+template <typename T>
+void StripLeft(absl::string_view& s, T remove) {
   size_t i = s.find_first_not_of(remove);
   if (i == absl::string_view::npos) {
     i = s.size();
@@ -289,8 +291,7 @@ class StructuredHeaderParser {
     } else {
       auto item = ReadItem();
       if (!item) return std::nullopt;
-      return ParameterizedMember(std::move(item->item),
-                                 std::move(item->params));
+      return ParameterizedMember(*std::move(item));
     }
   }
 
@@ -345,8 +346,6 @@ class StructuredHeaderParser {
       if (input_.empty() || (input_.front() != ' ' && input_.front() != ')'))
         return std::nullopt;
     }
-    QUICHE_NOTREACHED();
-    return std::nullopt;
   }
 
   // Parses a Key ([SH09] 4.2.2, [RFC8941] 4.2.3.3).
@@ -363,9 +362,10 @@ class StructuredHeaderParser {
         return std::nullopt;
       }
     }
-    const char* allowed_chars =
+    absl::string_view allowed_chars =
         (version_ == kDraft09 ? kKeyChars09 : kKeyChars);
-    size_t len = input_.find_first_not_of(allowed_chars);
+    // Start at index 1 since the first character has already been validated.
+    size_t len = input_.find_first_not_of(allowed_chars, 1);
     if (len == absl::string_view::npos) len = input_.size();
     absl::string_view key = input_.substr(0, len);
     input_.remove_prefix(len);
@@ -379,8 +379,9 @@ class StructuredHeaderParser {
       LogParseError("ReadToken", version_ == kDraft09 ? "ALPHA" : "ALPHA | *");
       return std::nullopt;
     }
-    size_t len = input_.find_first_not_of(version_ == kDraft09 ? kTokenChars09
-                                                               : kTokenChars);
+    // Start at index 1 since the first character has already been validated.
+    size_t len = input_.find_first_not_of(
+        version_ == kDraft09 ? kTokenChars09 : kTokenChars, 1);
     if (len == absl::string_view::npos) len = input_.size();
     absl::string_view token = input_.substr(0, len);
     input_.remove_prefix(len);
@@ -529,8 +530,7 @@ class StructuredHeaderParser {
                       << encoded;
       return std::nullopt;
     }
-    input_.remove_prefix(len);
-    ConsumeChar(delimiter);
+    input_.remove_prefix(len + 1);
     return Item(Item::byte_sequence, *std::move(binary));
   }
 
@@ -596,13 +596,13 @@ class StructuredHeaderSerializer {
   StructuredHeaderSerializer& operator=(const StructuredHeaderSerializer&) =
       delete;
 
-  std::string Output() && { return std::move(output_).str(); }
+  std::string Output() && { return std::move(output_); }
 
   // Serializes a List ([RFC8941] 4.1.1).
   [[nodiscard]] bool WriteList(const List& value) {
     bool first = true;
     for (const auto& member : value) {
-      if (!first) output_ << ", ";
+      if (!first) output_.append(", ");
       if (!WriteParameterizedMember(member)) return false;
       first = false;
     }
@@ -621,13 +621,13 @@ class StructuredHeaderSerializer {
         absl::Overload{
             [&](absl::string_view string) {
               // Serializes a String ([RFC8941] 4.1.6).
-              output_ << "\"";
+              output_.push_back('"');
               for (const char c : string) {
                 if (!absl::ascii_isprint(c)) return false;
-                if (c == '\\' || c == '\"') output_ << "\\";
-                output_ << c;
+                if (c == '\\' || c == '"') output_.push_back('\\');
+                output_.push_back(c);
               }
-              output_ << "\"";
+              output_.push_back('"');
               return true;
             },
             [&](const ItemView::Token& token) {
@@ -635,20 +635,19 @@ class StructuredHeaderSerializer {
               if (!IsValidToken(token.value)) {
                 return false;
               }
-              output_ << token.value;
+              output_.append(token.value);
               return true;
             },
             [&](const ItemView::ByteSequence& byte_sequence) {
               // Serializes a Byte Sequence ([RFC8941] 4.1.8).
-              output_ << ":";
-              output_ << absl::Base64Escape(byte_sequence.value);
-              output_ << ":";
+              absl::StrAppend(&output_, ":",
+                              absl::Base64Escape(byte_sequence.value), ":");
               return true;
             },
             [&](int64_t value) {
               // Serializes an Integer ([RFC8941] 4.1.4).
               if (value > kMaxInteger || value < kMinInteger) return false;
-              output_ << value;
+              absl::StrAppend(&output_, value);
               return true;
             },
             [&](double decimal_value) {
@@ -658,7 +657,7 @@ class StructuredHeaderSerializer {
                 return false;
 
               // Handle sign separately to simplify the rest of the formatting.
-              if (decimal_value < 0) output_ << "-";
+              if (decimal_value < 0) output_.push_back('-');
               // Unconditionally take absolute value to ensure that -0 is
               // serialized as "0.0", with no negative sign, as required by
               // spec. (4.1.5, step 2).
@@ -690,12 +689,12 @@ class StructuredHeaderSerializer {
               absl::string_view formatted_number(buffer);
               auto truncate_index = formatted_number.find_last_not_of('0');
               if (formatted_number[truncate_index] == '.') truncate_index++;
-              output_ << formatted_number.substr(0, truncate_index + 1);
+              output_.append(formatted_number.substr(0, truncate_index + 1));
               return true;
             },
             [&](bool value) {
               // Serializes a Boolean ([RFC8941] 4.1.9).
-              output_ << (value ? "?1" : "?0");
+              output_.append(value ? "?1" : "?0");
               return true;
             },
             [](std::monostate) { return false; },
@@ -707,14 +706,14 @@ class StructuredHeaderSerializer {
   [[nodiscard]] bool WriteDictionary(const Dictionary& value) {
     bool first = true;
     for (const auto& [dict_key, dict_value] : value) {
-      if (!first) output_ << ", ";
+      if (!first) output_.append(", ");
       if (!WriteKey(dict_key)) return false;
       first = false;
       if (const auto* item = dict_value.GetIfItem();
           item && IsBooleanTrue(item->item)) {
         if (!WriteParameters(item->params)) return false;
       } else {
-        output_ << "=";
+        output_.push_back('=');
         if (!WriteParameterizedMember(dict_value)) return false;
       }
     }
@@ -742,39 +741,42 @@ class StructuredHeaderSerializer {
 
   [[nodiscard]] bool WriteInnerList(const InnerList& value) {
     // Serializes an inner list ([RFC8941] 4.1.1.1).
-    output_ << "(";
+    output_.push_back('(');
     bool first = true;
     for (const ParameterizedItem& member : value.items) {
-      if (!first) output_ << " ";
+      if (!first) output_.push_back(' ');
       if (!WriteItem(member)) return false;
       first = false;
     }
-    output_ << ")";
+    output_.push_back(')');
     return WriteParameters(value.params);
   }
 
   [[nodiscard]] bool WriteParameters(const Parameters& value) {
     // Serializes a parameter list ([RFC8941] 4.1.1.2).
     for (const auto& [param_name, param_value] : value) {
-      output_ << ";";
+      output_.push_back(';');
       if (!WriteKey(param_name)) return false;
       if (param_value.is_null() || IsBooleanTrue(param_value)) continue;
-      output_ << "=";
+      output_.push_back('=');
       if (!WriteBareItem(param_value)) return false;
     }
     return true;
   }
 
-  [[nodiscard]] bool WriteKey(const std::string& value) {
+  [[nodiscard]] bool WriteKey(absl::string_view value) {
     // Serializes a Key ([RFC8941] 4.1.1.3).
-    if (value.empty()) return false;
-    if (value.find_first_not_of(kKeyChars) != std::string::npos) return false;
-    if (!absl::ascii_islower(value[0]) && value[0] != '*') return false;
-    output_ << value;
+    // Start `find_first_not_of` at index 1 since the first character has
+    // already been validated.
+    if (value.empty() || (!absl::ascii_islower(value[0]) && value[0] != '*') ||
+        value.find_first_not_of(kKeyChars, 1) != absl::string_view::npos) {
+      return false;
+    }
+    output_.append(value);
     return true;
   }
 
-  std::ostringstream output_;
+  std::string output_;
 };
 
 absl::string_view ItemTypeToString(Item::ItemType type) {
@@ -803,10 +805,8 @@ bool IsValidToken(absl::string_view str) {
       !(absl::ascii_isalpha(str.front()) || str.front() == '*')) {
     return false;
   }
-  if (str.find_first_not_of(kTokenChars) != std::string::npos) {
-    return false;
-  }
-  return true;
+  // Start at index 1 since the first character has already been validated.
+  return str.find_first_not_of(kTokenChars, 1) == absl::string_view::npos;
 }
 
 Item::Item() noexcept = default;
@@ -814,17 +814,20 @@ Item::Item(int64_t value) noexcept : value_(value) {}
 Item::Item(double value) noexcept : value_(value) {}
 Item::Item(bool value) noexcept : value_(value) {}
 
-Item::Item(string_t, const char* value) : value_(std::string(value)) {}
+Item::Item(string_t, const char* value)
+    : Item(string, absl::string_view(value)) {}
 Item::Item(string_t, absl::string_view value) : value_(std::string(value)) {}
 Item::Item(string_t, std::string value) noexcept : value_(std::move(value)) {}
 
-Item::Item(token_t, const char* value) : value_(Token(value)) {}
+Item::Item(token_t, const char* value)
+    : Item(token, absl::string_view(value)) {}
 Item::Item(token_t, absl::string_view value)
     : value_(Token(std::string(value))) {}
 Item::Item(token_t, std::string value) noexcept
     : value_(Token(std::move(value))) {}
 
-Item::Item(byte_sequence_t, const char* value) : value_(ByteSequence(value)) {}
+Item::Item(byte_sequence_t, const char* value)
+    : Item(byte_sequence, absl::string_view(value)) {}
 Item::Item(byte_sequence_t, absl::string_view value)
     : value_(ByteSequence(std::string(value))) {}
 Item::Item(byte_sequence_t, std::string value) noexcept

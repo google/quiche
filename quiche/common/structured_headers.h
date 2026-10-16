@@ -10,7 +10,6 @@
 #include <map>
 #include <optional>
 #include <string>
-#include <tuple>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -349,7 +348,7 @@ class QUICHE_EXPORT Dictionary {
   using const_iterator = std::vector<DictionaryMember>::const_iterator;
   using key_type = std::string;
   using mapped_type = ParameterizedMember;
-  using value_type = std::pair<const std::string, ParameterizedMember>;
+  using value_type = DictionaryMember;
 
   Dictionary() noexcept;
   Dictionary(const Dictionary&);
@@ -359,27 +358,33 @@ class QUICHE_EXPORT Dictionary {
   Dictionary& operator=(const Dictionary&);
   Dictionary& operator=(Dictionary&&) noexcept;
 
-  iterator begin();
-  const_iterator begin() const;
-  iterator end();
-  const_iterator end() const;
+  iterator begin() ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  const_iterator begin() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  iterator end() ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  const_iterator end() const ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
   // operator[](size_t) and at(size_t) will both abort the program in case of
   // out of bounds access.
-  ParameterizedMember& operator[](std::size_t idx);
-  const ParameterizedMember& operator[](std::size_t idx) const;
-  ParameterizedMember& at(std::size_t idx);
-  const ParameterizedMember& at(std::size_t idx) const;
+  ParameterizedMember& operator[](std::size_t idx)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  const ParameterizedMember& operator[](std::size_t idx) const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  ParameterizedMember& at(std::size_t idx) ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  const ParameterizedMember& at(std::size_t idx) const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
   // Consistent with std::map, if |key| does not exist in the Dictionary, then
   // operator[](absl::string_view) will create an entry for it, but at() will
   // abort the entire program.
-  ParameterizedMember& operator[](absl::string_view key);
-  ParameterizedMember& at(absl::string_view key);
-  const ParameterizedMember& at(absl::string_view key) const;
+  ParameterizedMember& operator[](absl::string_view key)
+      ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  ParameterizedMember& at(absl::string_view key) ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  const ParameterizedMember& at(absl::string_view key) const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
-  const_iterator find(absl::string_view key) const;
-  iterator find(absl::string_view key);
+  const_iterator find(absl::string_view key) const
+      ABSL_ATTRIBUTE_LIFETIME_BOUND;
+  iterator find(absl::string_view key) ABSL_ATTRIBUTE_LIFETIME_BOUND;
 
   void clear();
 
