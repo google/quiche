@@ -43,6 +43,8 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
   // this method to originate PINGs. See nghttp2_option_set_no_auto_ping_ack().
   void SubmitPing(Http2PingId ping_id) override;
 
+  void SetNeverIndexingPolicy(NeverIndexingPolicy policy) override;
+
   void SubmitShutdownNotice() override;
   void SubmitGoAway(Http2StreamId last_accepted_stream_id,
                     Http2ErrorCode error_code,
@@ -136,6 +138,7 @@ class QUICHE_EXPORT NgHttp2Adapter : public Http2Adapter {
   Http2VisitorInterface& visitor_;
   const nghttp2_option* options_;
   Perspective perspective_;
+  NeverIndexingPolicy never_indexing_policy_;
 
   using MetadataSourceVec =
       absl::InlinedVector<std::unique_ptr<MetadataSource>, 2>;
