@@ -301,6 +301,57 @@ TEST_F(OutgoingSubgroupStreamTest, SendFragmentedObject) {
   stream_->OnCanWrite();
 }
 
+TEST_F(OutgoingSubgroupStreamTest, SendFragmentedObjectEndOfGroup) {
+  PublishedObject obj0 = DefaultObject();
+  obj0.metadata.payload_length = 15;
+  obj0.payload.clear();
+  obj0.payload.push_back(quiche::QuicheMemSlice::Copy("part1"));
+  obj0.payload.push_back(quiche::QuicheMemSlice::Copy("part2"));
+  obj0.fin_after_this = false;
+  EXPECT_CALL(*track_publisher_, GetCachedObject(0, Optional(0), 0, 0))
+      .WillOnce(Return(std::move(obj0)));
+  EXPECT_CALL(visitor_, InWindow).WillRepeatedly(Return(true));
+  EXPECT_CALL(mock_stream_, CanWrite).WillRepeatedly(Return(true));
+  EXPECT_CALL(visitor_, object_delivery_timeout())
+      .WillRepeatedly(Return(quic::QuicTimeDelta::FromSeconds(1)));
+  EXPECT_CALL(visitor_, subgroup_delivery_timeout())
+      .WillRepeatedly(Return(quic::QuicTimeDelta::FromSeconds(1)));
+  EXPECT_CALL(visitor_, clock()).WillRepeatedly(Return(&mock_clock_));
+  EXPECT_CALL(*track_publisher_, properties())
+      .WillRepeatedly(ReturnRef(track_properties_));
+  EXPECT_CALL(mock_stream_, Writev)
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
+                    const webtransport::StreamWriteOptions& options) {
+        EXPECT_EQ(data.size(), 3);
+        EXPECT_EQ(data[1].AsStringView(), "part1");
+        EXPECT_EQ(data[2].AsStringView(), "part2");
+        EXPECT_FALSE(options.send_fin());
+        return absl::OkStatus();
+      });
+  EXPECT_CALL(visitor_, OnObjectSent(Location(0, 0)));
+  stream_->OnCanWrite();
+  PublishedObject obj1 = DefaultObject();
+  obj1.metadata.payload_length = 15;
+  obj1.metadata.status = MoqtObjectStatus::kEndOfGroup;
+  obj1.payload.clear();
+  obj1.payload.push_back(quiche::QuicheMemSlice::Copy("part3"));
+  obj1.fin_after_this = true;
+  EXPECT_CALL(*track_publisher_, GetCachedObject(0, Optional(0), 0, 10))
+      .WillOnce(Return(std::move(obj1)));
+  EXPECT_CALL(*track_publisher_, GetCachedObject(0, Optional(0), 1, 0))
+      .WillOnce(Return(std::nullopt));
+  EXPECT_CALL(mock_stream_, Writev)
+      .WillOnce([&](absl::Span<quiche::QuicheMemSlice> data,
+                    const webtransport::StreamWriteOptions& options) {
+        EXPECT_EQ(data.size(), 2);
+        EXPECT_EQ(data[0].AsStringView(), "part3");
+        EXPECT_TRUE(options.send_fin());
+        return absl::OkStatus();
+      });
+  EXPECT_CALL(visitor_, OnObjectSent).Times(0);
+  stream_->OnCanWrite();
+}
+
 TEST_F(OutgoingSubgroupStreamTest, EndOfGroupWithPayload) {
   PublishedObject obj0 = DefaultObject();
   obj0.metadata.status = MoqtObjectStatus::kEndOfGroup;

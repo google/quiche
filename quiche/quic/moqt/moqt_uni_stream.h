@@ -10,6 +10,7 @@
 #include <optional>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/nullability.h"
 #include "absl/status/status.h"
@@ -31,8 +32,8 @@
 #include "quiche/quic/moqt/moqt_types.h"
 #include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_callbacks.h"
+#include "quiche/common/quiche_mem_slice.h"
 #include "quiche/common/quiche_weak_ptr.h"
-#include "quiche/web_transport/stream_helpers.h"
 #include "quiche/web_transport/web_transport.h"
 
 namespace moqt {
@@ -79,6 +80,12 @@ class OutgoingUniStream : public webtransport::StreamVisitor {
   // Writes an object to the stream. Returns false if the write failed. The
   // caller should reset the stream if that happens.
   bool WriteObjectToStream(PublishedObject& object, MoqtDataStreamType type);
+
+  // Appends a notional empty EndOfGroup object header to `write_vector`,
+  // incrementing the object ID from `last_object_`.
+  void SendNotionalEndOfGroup(
+      MoqtDataStreamType type,
+      std::vector<quiche::QuicheMemSlice>& write_vector);
 
  private:
   webtransport::Stream& stream_;  // Always valid because it owns this object.

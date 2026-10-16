@@ -78,15 +78,7 @@ bool OutgoingUniStream::WriteObjectToStream(PublishedObject& object,
   }
   if (separate_end_of_group) {
     last_object_ = object.metadata;
-    if (quiche::SafeIncrementBy<uint64_t>(header.object_id, 1)) {
-      header.object_status = MoqtObjectStatus::kEndOfGroup;
-      header.payload_length = 0;
-      header.properties.clear();
-      serialized_header =
-          framer_.SerializeObjectHeader(header, type, last_object_);
-      write_vector.push_back(
-          quiche::QuicheMemSlice(std::move(serialized_header)));
-    }
+    SendNotionalEndOfGroup(type, write_vector);
   }
   webtransport::StreamWriteOptions options;
   options.set_send_fin(!type.IsFetch() && object.fin_after_this);
@@ -102,6 +94,30 @@ bool OutgoingUniStream::WriteObjectToStream(PublishedObject& object,
   QUIC_DVLOG(1) << "Stream " << stream_.GetStreamId() << " successfully wrote "
                 << object.metadata.location;
   return true;
+}
+
+void OutgoingUniStream::SendNotionalEndOfGroup(
+    MoqtDataStreamType type,
+    std::vector<quiche::QuicheMemSlice>& write_vector) {
+  QUICHE_DCHECK(last_object_.has_value());
+  if (!last_object_.has_value()) {
+    return;
+  }
+  MoqtObject header;
+  header.track_alias = track_identifier_;
+  header.group_id = last_object_->location.group;
+  header.subgroup_id = last_object_->subgroup;
+  header.object_id = last_object_->location.object;
+  header.publisher_priority = last_object_->publisher_priority;
+  if (quiche::SafeIncrementBy<uint64_t>(header.object_id, 1)) {
+    header.object_status = MoqtObjectStatus::kEndOfGroup;
+    header.payload_length = 0;
+    header.properties.clear();
+    quiche::QuicheBuffer serialized_header =
+        framer_.SerializeObjectHeader(header, type, last_object_);
+    write_vector.push_back(
+        quiche::QuicheMemSlice(std::move(serialized_header)));
+  }
 }
 
 OutgoingSubgroupStream::OutgoingSubgroupStream(
@@ -216,6 +232,10 @@ void OutgoingSubgroupStream::SendObjects() {
         QUICHE_BUG(OutgoingDataStream_empty_payload)
             << "Empty payload for partial object " << object->metadata.location;
         return;
+      }
+      if (!type_.EndOfGroupInStream() && object->fin_after_this &&
+          object->metadata.status == MoqtObjectStatus::kEndOfGroup) {
+        SendNotionalEndOfGroup(type_, object->payload);
       }
       webtransport::StreamWriteOptions options;
       options.set_send_fin(object->fin_after_this);

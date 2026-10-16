@@ -224,6 +224,11 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
       if (!duplicate_object->Append(offset, object)) {
         return;
       }
+      if ((duplicate_object->payload_received() ==
+           duplicate_object->metadata().payload_length) &&
+          group.next_object == metadata.location.object) {
+        group.next_object = metadata.location.object + 1;
+      }
       // Data added to the object. Notify listeners.
       for (MoqtObjectListener* listener : listeners_) {
         listener->OnNewObjectAvailable(metadata.location, metadata.subgroup,
@@ -242,7 +247,9 @@ void MoqtRelayTrackPublisher::OnObjectFragment(
     }
     next_location_ = metadata.location.Next();
   }
-  if (metadata.location.object >= group.next_object) {
+  if (metadata.location.object > group.next_object ||
+      (metadata.location.object == group.next_object &&
+       offset + object.length() == metadata.payload_length)) {
     group.next_object = metadata.location.object + 1;
   }
   switch (metadata.status) {

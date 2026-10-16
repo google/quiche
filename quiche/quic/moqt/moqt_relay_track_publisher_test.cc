@@ -461,7 +461,7 @@ TEST_F(MoqtRelayTrackPublisherTest, DatagramPreference) {
 
 TEST_F(MoqtRelayTrackPublisherTest, ObjectArrivalInFragments) {
   SubscribeAndOk();
-  Location location = kLargestLocation.Next();
+  Location location(4, 0);
   uint64_t subgroup = 0;
   // Total size is 15 bytes.
   PublishedObjectMetadata metadata = {location, subgroup,
@@ -489,7 +489,7 @@ TEST_F(MoqtRelayTrackPublisherTest, ObjectArrivalInFragments) {
   }
   EXPECT_EQ(payload, "frag1frag2");
 
-  // Fragment 3 arrives.
+  // Fragment 3 arrives, completing (4, 0) and advancing next_object to 1.
   EXPECT_CALL(listener_,
               OnNewObjectAvailable(location, Optional(subgroup), 128));
   publisher_.OnObjectFragment(kTrackName, metadata, "frag3", 10);
@@ -503,6 +503,30 @@ TEST_F(MoqtRelayTrackPublisherTest, ObjectArrivalInFragments) {
     payload += std::string(slice.AsStringView());
   }
   EXPECT_EQ(payload, "frag3");
+
+  // Next object (4, 1) arrives in two fragments on an EndOfGroup stream:
+  // first fragment has kNormal, final fragment has kEndOfGroup.
+  location = location.Next();
+  metadata = {location, subgroup, "", MoqtObjectStatus::kNormal,
+              128,      false,    10};
+  EXPECT_CALL(listener_,
+              OnNewObjectAvailable(location, Optional(subgroup), 128));
+  publisher_.OnObjectFragment(kTrackName, metadata, "frag4", 0);
+
+  metadata.status = MoqtObjectStatus::kEndOfGroup;
+  EXPECT_CALL(listener_,
+              OnNewObjectAvailable(location, Optional(subgroup), 128));
+  publisher_.OnObjectFragment(kTrackName, metadata, "frag5", 5);
+  EXPECT_FALSE(track_deleted_);
+
+  // Verify next_object was updated to 2 by sending an EndOfGroup at (4, 1) on
+  // another subgroup, which now fails the object < next_object check.
+  metadata.subgroup = 1;
+  metadata.payload_length = 0;
+  EXPECT_CALL(listener_, OnTrackPublisherGone);
+  EXPECT_CALL(*session_, Unsubscribe(kTrackName));
+  publisher_.OnObjectFragment(kTrackName, metadata, "", 0);
+  EXPECT_TRUE(track_deleted_);
 }
 
 TEST_F(MoqtRelayTrackPublisherTest, IncompleteDatagram) {
