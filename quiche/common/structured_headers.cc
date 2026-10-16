@@ -15,7 +15,7 @@
 
 #include "absl/algorithm/container.h"
 #include "absl/base/attributes.h"
-#include "absl/container/flat_hash_set.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/functional/overload.h"
 #include "absl/strings/ascii.h"
 #include "absl/strings/escaping.h"
@@ -211,7 +211,10 @@ class StructuredHeaderParser {
   // Parses a Dictionary ([RFC8941] 4.2.2).
   std::optional<Dictionary> ReadDictionary() {
     QUICHE_CHECK_EQ(version_, kFinal);
-    Dictionary members;
+    std::vector<DictionaryMember> members;
+    // Maps each key to its index in `members` so duplicate keys can overwrite
+    // the existing value in O(1) time while preserving insertion order.
+    absl::flat_hash_map<absl::string_view, size_t> keys;
     while (!input_.empty()) {
       std::optional<absl::string_view> key(ReadKey());
       if (!key) return std::nullopt;
@@ -224,14 +227,19 @@ class StructuredHeaderParser {
         if (!parameters) return std::nullopt;
         member = ParameterizedMember(Item(true), std::move(*parameters));
       }
-      members[*key] = std::move(*member);
+      auto [it, inserted] = keys.try_emplace(*key, members.size());
+      if (inserted) {
+        members.emplace_back(*key, *std::move(member));
+      } else {
+        members[it->second].second = *std::move(member);
+      }
       SkipOWS();
       if (input_.empty()) break;
       if (!ConsumeChar(',')) return std::nullopt;
       SkipOWS();
       if (input_.empty()) return std::nullopt;
     }
-    return members;
+    return Dictionary(std::move(members));
   }
 
   // Parses a Parameterised List ([SH09] 4.2.5).
@@ -298,14 +306,16 @@ class StructuredHeaderParser {
   // Parses Parameters ([RFC8941] 4.2.3.2)
   std::optional<Parameters> ReadParameters() {
     Parameters parameters;
-    absl::flat_hash_set<absl::string_view> keys;
+    // Maps each parameter name to its index in `parameters` so duplicate keys
+    // can overwrite the existing value in O(1) time while preserving insertion
+    // order.
+    absl::flat_hash_map<absl::string_view, size_t> keys;
 
     while (ConsumeChar(';')) {
       SkipWhitespaces();
 
       std::optional<absl::string_view> name = ReadKey();
       if (!name) return std::nullopt;
-      bool is_duplicate_key = !keys.insert(*name).second;
 
       Item value{true};
       if (ConsumeChar('=')) {
@@ -313,15 +323,11 @@ class StructuredHeaderParser {
         if (!item) return std::nullopt;
         value = std::move(*item);
       }
-      if (is_duplicate_key) {
-        for (auto& param : parameters) {
-          if (param.first == name) {
-            param.second = std::move(value);
-            break;
-          }
-        }
-      } else {
+      auto [it, inserted] = keys.try_emplace(*name, parameters.size());
+      if (inserted) {
         parameters.emplace_back(*name, std::move(value));
+      } else {
+        parameters[it->second].second = std::move(value);
       }
     }
     return parameters;
