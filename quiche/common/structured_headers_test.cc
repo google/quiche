@@ -660,6 +660,7 @@ TEST(StructuredHeaderTest, UnserializableLists) {
     const char* name;
     const List value;
   } bad_lists[] = {
+      {"Default-constructed member", {ParameterizedMember()}},
       {"Null item as member", {{Item(), {}}}},
       {"Unserializable item as member", {{Token("\n"), {}}}},
       {"Key is empty", {{Token("abc"), {Param("", 1)}}}},
@@ -669,6 +670,7 @@ TEST(StructuredHeaderTest, UnserializableLists) {
        {{Token("abc"), {Param("a\x7f", 1)}}}},
       {"Key contains disallowed characters",
        {{Token("abc"), {Param("a:", 1)}}}},
+      {"Param value is null", {{Token("abc"), {NullParam("a")}}}},
       {"Param value is unserializable", {{Token("abc"), {{"a", Token("\n")}}}}},
       {"Inner list contains unserializable item",
        {{std::vector<ParameterizedItem>{{Token("\n"), {}}}, {}}}},
@@ -784,9 +786,13 @@ TEST(StructuredHeaderTest, UnserializableDictionary) {
     const char* name;
     const Dictionary value;
   } bad_dictionaries[] = {
+      {"Default-constructed member",
+       Dictionary{{{"abc", ParameterizedMember()}}}},
       {"Unserializable dict key", Dictionary{{{"ABC", {Token("abc"), {}}}}}},
       {"Dictionary item is unserializable",
        Dictionary{{{"abc", {Token("abc="), {}}}}}},
+      {"Param value is null",
+       Dictionary{{{"abc", {Token("abc"), {NullParam("a")}}}}}},
       {"Param value is unserializable",
        Dictionary{{{"abc", {Token("abc"), {{"a", Token("\n")}}}}}}},
       {"Dictionary inner-list contains unserializable item",

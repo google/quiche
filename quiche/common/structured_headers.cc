@@ -738,10 +738,7 @@ class StructuredHeaderSerializer {
     return value.Visit(absl::Overload{
         [&](const ParameterizedItem& value) { return WriteItem(value); },
         [&](const InnerList& value) { return WriteInnerList(value); },
-        [](std::monostate) {
-          QUICHE_CHECK(false);
-          return false;
-        },
+        [](std::monostate) { return false; },
     });
   }
 
@@ -763,7 +760,7 @@ class StructuredHeaderSerializer {
     for (const auto& [param_name, param_value] : value) {
       output_.push_back(';');
       if (!WriteKey(param_name)) return false;
-      if (param_value.is_null() || IsBooleanTrue(param_value)) continue;
+      if (IsBooleanTrue(param_value)) continue;
       output_.push_back('=');
       if (!WriteBareItem(param_value)) return false;
     }
