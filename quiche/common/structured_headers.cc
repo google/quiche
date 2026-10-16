@@ -1001,9 +1001,11 @@ Dictionary::const_iterator Dictionary::begin() const {
 Dictionary::iterator Dictionary::end() { return members_.end(); }
 Dictionary::const_iterator Dictionary::end() const { return members_.end(); }
 ParameterizedMember& Dictionary::operator[](std::size_t idx) {
+  QUICHE_CHECK_LT(idx, members_.size());
   return members_[idx].second;
 }
 const ParameterizedMember& Dictionary::operator[](std::size_t idx) const {
+  QUICHE_CHECK_LT(idx, members_.size());
   return members_[idx].second;
 }
 ParameterizedMember& Dictionary::at(std::size_t idx) { return (*this)[idx]; }
