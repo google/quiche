@@ -247,8 +247,21 @@ TlsServerHandshaker::TlsServerHandshaker(
     tls_connection_.EnableInfoCallback();
   }
   if (!crypto_config->preferred_groups().empty()) {
-    SSL_set1_group_ids(ssl(), crypto_config->preferred_groups().data(),
-                       crypto_config->preferred_groups().size());
+    QUICHE_DCHECK(crypto_config->preferred_groups().size() ==
+                  crypto_config->preferred_groups_flags().size());
+    // If preferred_groups_flags() contains all zeros, then
+    // SSL_set1_group_ids_with_flags() and SSL_set1_group_ids() are equivalent.
+    // TODO(chlily): Simplify this code by always calling
+    // SSL_set1_group_ids_with_flags().
+    if (crypto_config->preferred_groups_has_equipreference()) {
+      SSL_set1_group_ids_with_flags(
+          ssl(), crypto_config->preferred_groups().data(),
+          crypto_config->preferred_groups_flags().data(),
+          crypto_config->preferred_groups().size());
+    } else {
+      SSL_set1_group_ids(ssl(), crypto_config->preferred_groups().data(),
+                         crypto_config->preferred_groups().size());
+    }
   }
 
 #if BORINGSSL_API_VERSION >= 41

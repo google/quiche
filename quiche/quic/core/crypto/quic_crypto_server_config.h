@@ -17,6 +17,7 @@
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
 #include "openssl/base.h"
+#include "openssl/ssl.h"
 #include "quiche/quic/core/crypto/crypto_handshake.h"
 #include "quiche/quic/core/crypto/crypto_handshake_message.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
@@ -32,6 +33,7 @@
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_export.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/platform/api/quiche_reference_counted.h"
 
 namespace quic {
@@ -447,11 +449,47 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
     return preferred_groups_;
   }
 
+  // Flags associated with each group in |preferred_groups()|.
+  const std::vector<uint32_t>& preferred_groups_flags() const {
+    return preferred_groups_flags_;
+  }
+
+  // Returns whether the preferred groups list specified by |preferred_groups()|
+  // and |preferred_groups_flags()| has equipreference groups.
+  bool preferred_groups_has_equipreference() const {
+    return preferred_groups_has_equipreference_;
+  }
+
   // Sets the preferred groups that will be used in the TLS handshake. Values
   // in the |preferred_groups| vector are NamedGroup enum codepoints from
   // https://datatracker.ietf.org/doc/html/rfc8446#section-4.2.7.
+  // This sets the preferred groups list to each of the given groups in strictly
+  // decreasing preference order. If equipreference groups are desired, use
+  // |append_equally_preferred_groups| instead.
   void set_preferred_groups(const std::vector<uint16_t>& preferred_groups) {
     preferred_groups_ = preferred_groups;
+    preferred_groups_flags_.clear();
+    preferred_groups_flags_.resize(preferred_groups_.size(), 0);
+    preferred_groups_has_equipreference_ = false;
+  }
+
+  // Appends the given groups to the end of the preferred groups list, with
+  // equal preference to each other.
+  void append_equally_preferred_groups(
+      const std::vector<uint16_t>& equally_preferred_groups) {
+    if (equally_preferred_groups.empty()) {
+      return;
+    }
+    preferred_groups_.insert(preferred_groups_.end(),
+                             equally_preferred_groups.begin(),
+                             equally_preferred_groups.end());
+    preferred_groups_has_equipreference_ = true;
+    for (size_t i = 0; i < equally_preferred_groups.size() - 1; ++i) {
+      preferred_groups_flags_.push_back(
+          SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT);
+    }
+    preferred_groups_flags_.push_back(0);
+    QUICHE_DCHECK(preferred_groups_.size() == preferred_groups_flags_.size());
   }
 
   // Pre-shared key used during the handshake.
@@ -916,6 +954,18 @@ class QUICHE_EXPORT QuicCryptoServerConfig {
 
   // The groups to use for key exchange in the TLS handshake;
   std::vector<uint16_t> preferred_groups_;
+  // Flags associated with each group in |preferred_groups_|. Each element is a
+  // bit set consisting of |SSL_GROUP_FLAG_*| values OR'ed together.
+  // Invariant: |preferred_groups_flags_| is always the same size as
+  // |preferred_groups_|.
+  std::vector<uint32_t> preferred_groups_flags_;
+  // Whether the preferred groups list specified by |preferred_groups_| and
+  // |preferred_groups_flags_| may contain groups with equal preference. This is
+  // only true if |append_equally_preferred_groups| was called.
+  // This boolean is always true when |preferred_groups_flags_|
+  // contains any non-zero values, though it may also be true when all the
+  // flags are zero.
+  bool preferred_groups_has_equipreference_ = false;
 
   // These fields store configuration values. See the comments for their
   // respective setter functions.

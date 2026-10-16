@@ -1646,6 +1646,134 @@ TEST_P(TlsServerHandshakerTest, EnableMLKEM) {
             SSL_get_group_id(server_stream()->GetSsl()));
 }
 
+TEST_P(TlsServerHandshakerTest, SetPreferredGroups) {
+  // The server has a strictly ordered list of preferred groups. The negotiated
+  // group is the first one in the list that is supported by the client.
+  server_crypto_config_->set_preferred_groups(
+      {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_MLKEM1024, SSL_GROUP_X25519});
+
+  EXPECT_THAT(server_crypto_config_->preferred_groups(),
+              ElementsAre(SSL_GROUP_X25519_MLKEM768, SSL_GROUP_MLKEM1024,
+                          SSL_GROUP_X25519));
+  EXPECT_THAT(server_crypto_config_->preferred_groups_flags(),
+              ElementsAre(0, 0, 0));
+  EXPECT_FALSE(server_crypto_config_->preferred_groups_has_equipreference());
+
+  client_crypto_config_->set_preferred_groups(
+      {SSL_GROUP_X25519, SSL_GROUP_MLKEM1024, SSL_GROUP_X25519_MLKEM768});
+
+  InitializeServer();
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_TRUE(server_stream()->version().IsIetfQuic());
+  EXPECT_EQ(SSL_GROUP_X25519_MLKEM768,
+            SSL_get_group_id(server_stream()->GetSsl()));
+}
+
+TEST_P(TlsServerHandshakerTest, AppendEquallyPreferredGroupsStrictlyOrdered) {
+  // The server's preferred groups are equivalent to the test case above, but
+  // configured using append_equally_preferred_groups() with single-element
+  // equipreference groups.
+  server_crypto_config_->append_equally_preferred_groups(
+      {SSL_GROUP_X25519_MLKEM768});
+  server_crypto_config_->append_equally_preferred_groups({SSL_GROUP_MLKEM1024});
+  server_crypto_config_->append_equally_preferred_groups({SSL_GROUP_X25519});
+
+  EXPECT_THAT(server_crypto_config_->preferred_groups(),
+              ElementsAre(SSL_GROUP_X25519_MLKEM768, SSL_GROUP_MLKEM1024,
+                          SSL_GROUP_X25519));
+  EXPECT_THAT(server_crypto_config_->preferred_groups_flags(),
+              ElementsAre(0, 0, 0));
+  // This is true because append_equally_preferred_groups() was called, even
+  // though all groups in the list are strictly ordered.
+  EXPECT_TRUE(server_crypto_config_->preferred_groups_has_equipreference());
+
+  client_crypto_config_->set_preferred_groups(
+      {SSL_GROUP_X25519, SSL_GROUP_MLKEM1024, SSL_GROUP_X25519_MLKEM768});
+
+  InitializeServer();
+  InitializeFakeClient();
+  CompleteCryptoHandshake();
+  ExpectHandshakeSuccessful();
+  EXPECT_TRUE(server_stream()->version().IsIetfQuic());
+  EXPECT_EQ(SSL_GROUP_X25519_MLKEM768,
+            SSL_get_group_id(server_stream()->GetSsl()));
+}
+
+TEST_P(TlsServerHandshakerTest, AppendEquallyPreferredGroupsEquipreference) {
+  // The server has two equally preferred groups. Between them, the client's
+  // preference determines the one chosen.
+  server_crypto_config_->append_equally_preferred_groups(
+      {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_MLKEM1024});
+  server_crypto_config_->append_equally_preferred_groups({SSL_GROUP_X25519});
+
+  EXPECT_THAT(server_crypto_config_->preferred_groups(),
+              ElementsAre(SSL_GROUP_X25519_MLKEM768, SSL_GROUP_MLKEM1024,
+                          SSL_GROUP_X25519));
+  EXPECT_THAT(server_crypto_config_->preferred_groups_flags(),
+              ElementsAre(SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT, 0, 0));
+  EXPECT_TRUE(server_crypto_config_->preferred_groups_has_equipreference());
+
+  struct {
+    std::vector<uint16_t> client_preferred_groups;
+    uint16_t expected_negotiated_group;
+  } kTestCases[] = {
+      {{SSL_GROUP_X25519, SSL_GROUP_MLKEM1024, SSL_GROUP_X25519_MLKEM768},
+       SSL_GROUP_MLKEM1024},
+      {{SSL_GROUP_X25519, SSL_GROUP_X25519_MLKEM768, SSL_GROUP_MLKEM1024},
+       SSL_GROUP_X25519_MLKEM768},
+  };
+  for (const auto& test : kTestCases) {
+    client_crypto_config_->set_preferred_groups(test.client_preferred_groups);
+    InitializeServer();
+    InitializeFakeClient();
+    CompleteCryptoHandshake();
+    ExpectHandshakeSuccessful();
+    EXPECT_TRUE(server_stream()->version().IsIetfQuic());
+    EXPECT_EQ(test.expected_negotiated_group,
+              SSL_get_group_id(server_stream()->GetSsl()));
+  }
+}
+
+TEST_P(TlsServerHandshakerTest, SetPreferredGroupsFollowedByEquipreference) {
+  // Test that mixing the two config setters works as expected.
+  server_crypto_config_->set_preferred_groups(
+      {SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519});
+  server_crypto_config_->append_equally_preferred_groups(
+      {SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1});
+
+  EXPECT_THAT(server_crypto_config_->preferred_groups(),
+              ElementsAre(SSL_GROUP_X25519_MLKEM768, SSL_GROUP_X25519,
+                          SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1));
+  EXPECT_THAT(server_crypto_config_->preferred_groups_flags(),
+              ElementsAre(0, 0, SSL_GROUP_FLAG_EQUAL_PREFERENCE_WITH_NEXT, 0));
+  EXPECT_TRUE(server_crypto_config_->preferred_groups_has_equipreference());
+
+  struct {
+    std::vector<uint16_t> client_preferred_groups;
+    uint16_t expected_negotiated_group;
+  } kTestCases[] = {
+      {{SSL_GROUP_SECP384R1, SSL_GROUP_SECP256R1, SSL_GROUP_X25519_MLKEM768,
+        SSL_GROUP_X25519},
+       SSL_GROUP_X25519_MLKEM768},
+      {{SSL_GROUP_SECP384R1, SSL_GROUP_SECP256R1, SSL_GROUP_X25519},
+       SSL_GROUP_X25519},
+      {{SSL_GROUP_SECP384R1, SSL_GROUP_SECP256R1}, SSL_GROUP_SECP384R1},
+      {{SSL_GROUP_SECP256R1, SSL_GROUP_SECP384R1}, SSL_GROUP_SECP256R1},
+  };
+  for (const auto& test : kTestCases) {
+    client_crypto_config_->set_preferred_groups(test.client_preferred_groups);
+    InitializeServer();
+    InitializeFakeClient();
+    CompleteCryptoHandshake();
+    ExpectHandshakeSuccessful();
+    EXPECT_TRUE(server_stream()->version().IsIetfQuic());
+    EXPECT_EQ(test.expected_negotiated_group,
+              SSL_get_group_id(server_stream()->GetSsl()));
+  }
+}
+
 TEST_P(TlsServerHandshakerTest, AlpsUseNewCodepoint) {
   const struct {
     bool client_use_alps_new_codepoint;
