@@ -117,7 +117,7 @@ class SimpleFramerVisitor : public QuicFramerVisitorInterface {
   }
 
   bool OnAckTimestamp(QuicPacketNumber /*packet_number*/,
-                      QuicTime /*timestamp*/) override {
+                      QuicReceiveTime /*timestamp*/) override {
     return true;
   }
 

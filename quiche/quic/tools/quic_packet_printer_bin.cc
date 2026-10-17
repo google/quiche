@@ -123,7 +123,7 @@ class QuicPacketPrinter : public QuicFramerVisitorInterface {
     return true;
   }
   bool OnAckTimestamp(QuicPacketNumber packet_number,
-                      QuicTime timestamp) override {
+                      QuicReceiveTime timestamp) override {
     std::cerr << "OnAckTimestamp: [" << packet_number << ", "
               << timestamp.ToDebuggingValue() << ")";
     return true;

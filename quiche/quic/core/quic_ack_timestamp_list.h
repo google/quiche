@@ -25,8 +25,7 @@ class QUICHE_EXPORT QuicAckTimestampList {
   // Constructs the ACK timestamp list from the provided `ack` frame.  If an
   // error is encountered, `error()` will be set to a non-empty string.
   explicit QuicAckTimestampList(const QuicAckFrame& ack, uint32_t max_ack_count,
-                                uint32_t exponent,
-                                QuicTime receive_timestamp_basis);
+                                uint32_t exponent);
 
   // Avoid moving QuicAckTimestampList.  It should always be allocated on the
   // stack, since all of the data here is transient.

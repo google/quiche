@@ -390,7 +390,7 @@ bool NoOpFramerVisitor::OnAckRange(QuicPacketNumber /*start*/,
 }
 
 bool NoOpFramerVisitor::OnAckTimestamp(QuicPacketNumber /*packet_number*/,
-                                       QuicTime /*timestamp*/) {
+                                       QuicReceiveTime /*timestamp*/) {
   return true;
 }
 

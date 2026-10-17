@@ -31,6 +31,7 @@
 #include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_receive_time.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_utils.h"
@@ -383,7 +384,7 @@ class TestQuicVisitor : public QuicFramerVisitorInterface {
   }
 
   bool OnAckTimestamp(QuicPacketNumber packet_number,
-                      QuicTime timestamp) override {
+                      QuicReceiveTime timestamp) override {
     ack_frames_[ack_frames_.size() - 1]->received_packet_times.push_back(
         std::make_pair(packet_number, timestamp));
     if (VersionIsIetfQuic(transport_version_)) {
@@ -934,9 +935,9 @@ class QuicFramerTest : public QuicTestWithParam<ParsedQuicVersion> {
            ((n - 1) * QuicUtils::StreamIdDelta(transport_version));
   }
 
-  QuicTime CreationTimePlus(uint64_t offset_us) {
-    return framer_.creation_time() +
-           QuicTime::Delta::FromMicroseconds(offset_us);
+  QuicReceiveTime CreationTimePlus(uint64_t offset_us) {
+    return *QuicReceiveTime::FromPeerTime(
+        QuicTime::Delta::FromMicroseconds(offset_us));
   }
 
   // Returns the size of the provided frame list when serialized, excluding the

@@ -22,6 +22,7 @@
 #include "quiche/quic/core/quic_connection_id.h"  // IWYU pragma: export
 #include "quiche/quic/core/quic_error_codes.h"    // IWYU pragma: export
 #include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_receive_time.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/platform/api/quic_flags.h"  // IWYU pragma: export
 #include "quiche/common/platform/api/quiche_export.h"
@@ -49,7 +50,8 @@ using QuicPacketCount = uint64_t;
 using QuicPublicResetNonceProof = uint64_t;
 using QuicStreamOffset = uint64_t;
 using DiversificationNonce = std::array<char, 32>;
-using PacketTimeVector = std::vector<std::pair<QuicPacketNumber, QuicTime>>;
+using PacketTimeVector =
+    std::vector<std::pair<QuicPacketNumber, QuicReceiveTime>>;
 
 inline constexpr size_t kStatelessResetTokenLength = 16;
 using StatelessResetToken = std::array<char, kStatelessResetTokenLength>;
@@ -611,7 +613,7 @@ void AbslStringify(Sink& sink, PacketHeaderFormat format) {
 struct QUICHE_EXPORT AckedPacket {
   constexpr AckedPacket(QuicPacketNumber packet_number,
                         QuicPacketLength bytes_acked,
-                        QuicTime receive_timestamp)
+                        std::optional<QuicReceiveTime> receive_timestamp)
       : packet_number(packet_number),
         bytes_acked(bytes_acked),
         receive_timestamp(receive_timestamp) {}
@@ -627,8 +629,8 @@ struct QUICHE_EXPORT AckedPacket {
   bool spurious_loss = false;
   // The time |packet_number| was received by the peer, according to the
   // optional timestamp the peer included in the ACK frame which acknowledged
-  // |packet_number|. Zero if no timestamp was available for this packet.
-  QuicTime receive_timestamp;
+  // |packet_number|. Nullopt if no timestamp was available for this packet.
+  std::optional<QuicReceiveTime> receive_timestamp;
 };
 
 // A vector of acked packets.

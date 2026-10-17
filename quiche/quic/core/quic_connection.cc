@@ -1634,7 +1634,7 @@ bool QuicConnection::OnAckRange(QuicPacketNumber start, QuicPacketNumber end) {
 }
 
 bool QuicConnection::OnAckTimestamp(QuicPacketNumber packet_number,
-                                    QuicTime timestamp) {
+                                    QuicReceiveTime timestamp) {
   QUIC_BUG_IF(quic_bug_10511_7, !connected_)
       << "Processing ACK frame time stamp when connection is closed. Received "
          "packet info: "

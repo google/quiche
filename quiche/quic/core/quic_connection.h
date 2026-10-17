@@ -86,6 +86,7 @@
 #include "quiche/quic/core/quic_packets.h"
 #include "quiche/quic/core/quic_path_validator.h"
 #include "quiche/quic/core/quic_ping_manager.h"
+#include "quiche/quic/core/quic_receive_time.h"
 #include "quiche/quic/core/quic_sent_packet_manager.h"
 #include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_time.h"
@@ -775,7 +776,7 @@ class QUICHE_EXPORT QuicConnection
                        QuicTime::Delta ack_delay_time) override;
   bool OnAckRange(QuicPacketNumber start, QuicPacketNumber end) override;
   bool OnAckTimestamp(QuicPacketNumber packet_number,
-                      QuicTime timestamp) override;
+                      QuicReceiveTime timestamp) override;
   bool OnAckFrameEnd(QuicPacketNumber start,
                      const std::optional<QuicEcnCounts>& ecn_counts) override;
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override;

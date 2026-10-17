@@ -54,8 +54,7 @@ QuicByteCount VarintSize(uint64_t value) {
 
 QuicAckTimestampList::QuicAckTimestampList(const QuicAckFrame& ack,
                                            uint32_t max_ack_count,
-                                           uint32_t exponent,
-                                           QuicTime receive_timestamp_basis)
+                                           uint32_t exponent)
     : timestamps_(
           std::min<size_t>(ack.received_packet_times.size(), max_ack_count)) {
   if (exponent > kMaxExponent) {
@@ -68,7 +67,7 @@ QuicAckTimestampList::QuicAckTimestampList(const QuicAckFrame& ack,
   // Since the timestamps are delta-encoded and rounded, we need to keep track
   // of what is the latest timestamp written as it would be computed by the
   // decoder.
-  QuicTime effective_previous_time = QuicTime::Zero();
+  QuicTimeDelta effective_previous_time = QuicTimeDelta::Zero();
 
   for (uint32_t i = 0; i < timestamps_.size(); ++i) {
     // `i` is the index into the output timestamp list; `i_src` is the index
@@ -80,10 +79,6 @@ QuicAckTimestampList::QuicAckTimestampList(const QuicAckFrame& ack,
     const size_t i_src = ack.received_packet_times.size() - i - 1;
     const auto [packet_number, timestamp] = ack.received_packet_times[i_src];
 
-    if (timestamp < receive_timestamp_basis) {
-      error_ = "Packet is received earlier than framer creation time";
-      return;
-    }
     if (packet_number > ack.largest_acked) {
       error_ = "Packet number listed higher than largest_acked";
       return;
@@ -104,7 +99,6 @@ QuicAckTimestampList::QuicAckTimestampList(const QuicAckFrame& ack,
 
     bool should_open_new_range;
     if (i >= 1) {
-      QUICHE_DCHECK(effective_previous_time.IsInitialized());
       const auto [prev_packet_number, prev_timestamp] =
           ack.received_packet_times[i_src + 1];
       if (timestamp > prev_timestamp) {
@@ -114,16 +108,14 @@ QuicAckTimestampList::QuicAckTimestampList(const QuicAckFrame& ack,
       }
 
       should_open_new_range = prev_packet_number != (packet_number + 1);
-      timestamps_[i] = encoder.Encode(effective_previous_time - timestamp);
+      timestamps_[i] =
+          encoder.Encode(effective_previous_time - timestamp.raw_value());
       effective_previous_time =
           effective_previous_time - encoder.Decode(timestamps_[i]);
     } else {
-      QUICHE_DCHECK(!effective_previous_time.IsInitialized());
       should_open_new_range = true;
-      timestamps_[i] =
-          encoder.EncodeWhileRoundingUp(timestamp - receive_timestamp_basis);
-      effective_previous_time =
-          receive_timestamp_basis + encoder.Decode(timestamps_[i]);
+      timestamps_[i] = encoder.EncodeWhileRoundingUp(timestamp.raw_value());
+      effective_previous_time = encoder.Decode(timestamps_[i]);
     }
 
     if (should_open_new_range) {

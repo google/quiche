@@ -83,7 +83,7 @@ class PragueSenderTest : public QuicTest {
       ++acked_packet_number_;
       acked_packets.push_back(
           AckedPacket(QuicPacketNumber(acked_packet_number_), kDefaultTCPMSS,
-                      QuicTime::Zero()));
+                      std::nullopt));
     }
     sender_.OnCongestionEvent(true, bytes_in_flight_, clock_.Now(),
                               acked_packets, lost_packets, n - ce, ce);

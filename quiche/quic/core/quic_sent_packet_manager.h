@@ -24,6 +24,7 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_receive_time.h"
 #include "quiche/quic/core/quic_sustained_bandwidth_recorder.h"
 #include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_time.h"
@@ -372,7 +373,8 @@ class QUICHE_EXPORT QuicSentPacketManager {
 
   // Called when a timestamp is processed.  If it's present in packets_acked_,
   // the timestamp field is set.  Otherwise, the timestamp is ignored.
-  void OnAckTimestamp(QuicPacketNumber packet_number, QuicTime timestamp);
+  void OnAckTimestamp(QuicPacketNumber packet_number,
+                      QuicReceiveTime timestamp);
 
   // Called when an ack frame is parsed completely.
   AckResult OnAckFrameEnd(QuicTime ack_receive_time,

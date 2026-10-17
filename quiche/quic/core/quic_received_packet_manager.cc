@@ -113,21 +113,23 @@ void QuicReceivedPacketManager::RecordPacketReceived(
              "`receive_timestamp_basis_` is not set";
     }
 
-    if (receipt_time < receive_timestamp_basis_) {
+    std::optional<QuicReceiveTime> receive_time =
+        QuicReceiveTime::FromLocalTime(receipt_time, receive_timestamp_basis_);
+    if (!receive_time.has_value()) {
       QUIC_DLOG(WARNING) << "Receive time earlier than timestamp basis: "
                          << receipt_time.ToDebuggingValue() << " < "
                          << receive_timestamp_basis_.ToDebuggingValue();
     } else if (!ack_frame_.received_packet_times.empty() &&
-               ack_frame_.received_packet_times.back().second > receipt_time) {
+               ack_frame_.received_packet_times.back().second > *receive_time) {
       // The QUIC framer can only serialize timestamps if they are provided in
       // the receive time order.
       QUIC_LOG(WARNING)
           << "Receive time went backwards from: "
           << ack_frame_.received_packet_times.back().second.ToDebuggingValue()
-          << " to " << receipt_time.ToDebuggingValue();
+          << " to " << receive_time->ToDebuggingValue();
     } else {
       ack_frame_.received_packet_times.push_back(
-          std::make_pair(packet_number, receipt_time));
+          std::make_pair(packet_number, *receive_time));
     }
   }
 
@@ -210,10 +212,11 @@ const QuicFrame QuicReceivedPacketManager::GetUpdatedAckFrame(
 
   // Remove timestamps for packets that got removed from the packet ranges.
   if (!ack_frame_.received_packet_times.empty()) {
-    std::erase_if(ack_frame_.received_packet_times,
-                  [&](const std::pair<QuicPacketNumber, QuicTime>& entry) {
-                    return !ack_frame_.packets.Contains(entry.first);
-                  });
+    std::erase_if(
+        ack_frame_.received_packet_times,
+        [&](const std::pair<QuicPacketNumber, QuicReceiveTime>& entry) {
+          return !ack_frame_.packets.Contains(entry.first);
+        });
   }
 
 #if QUIC_FRAME_DEBUG

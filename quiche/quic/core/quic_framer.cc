@@ -3855,7 +3855,7 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
   }
 
   uint64_t total_timestamp_count = 0;
-  std::optional<QuicTime::Delta> last_timestamp;
+  std::optional<QuicTimeDelta> last_timestamp;
 
   // Iterate through all timestamp ranges, each of which represents a block of
   // contiguous packets for which receive timestamps are being reported. Each
@@ -3901,7 +3901,7 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
       // The IETF draft does not allow exponents above 20; this ensures that the
       // bitshifts below are always valid.
       QUICHE_DCHECK_LE(local_receive_timestamps_exponent_, 20u);
-      // The first timestamp delta is relative to framer creation time; whereas
+      // The first timestamp delta is relative to peer's reference time; whereas
       // subsequent deltas are relative to the previous delta in decreasing
       // packet order.
       if (timestamp_delta >
@@ -3916,13 +3916,14 @@ bool QuicFramer::ProcessIetfTimestampsInAckFrame(
       } else {
         last_timestamp = *last_timestamp -
                          QuicTime::Delta::FromMicroseconds(timestamp_delta);
-        if (*last_timestamp < QuicTime::Delta::Zero()) {
-          set_detailed_error("Receive timestamp delta too high.");
-          return false;
-        }
       }
-      if (!visitor_->OnAckTimestamp(packet_number,
-                                    creation_time_ + *last_timestamp)) {
+      std::optional<QuicReceiveTime> receive_time =
+          QuicReceiveTime::FromPeerTime(*last_timestamp);
+      if (!receive_time.has_value()) {
+        set_detailed_error("Receive timestamp delta too high.");
+        return false;
+      }
+      if (!visitor_->OnAckTimestamp(packet_number, *receive_time)) {
         set_detailed_error(
             "Visitor suppresses further processing of ACK frame.");
         return false;
@@ -4809,8 +4810,7 @@ size_t QuicFramer::GetIetfAckFrameSize(const QuicAckFrame& frame) {
 size_t QuicFramer::GetIetfAckFrameTimestampSize(const QuicAckFrame& ack) {
   QUICHE_DCHECK(!ack.received_packet_times.empty());
   QuicAckTimestampList timestamp_list(ack, peer_max_receive_timestamps_per_ack_,
-                                      peer_receive_timestamps_exponent_,
-                                      creation_time_);
+                                      peer_receive_timestamps_exponent_);
   if (!timestamp_list.error().empty()) {
     QUIC_BUG(quic_framer_ack_ts_list_error) << timestamp_list.error();
     return 0;
@@ -5467,9 +5467,9 @@ bool QuicFramer::AppendAckFrameAndTypeByte(const QuicAckFrame& frame,
 bool QuicFramer::AppendIetfTimestampsToAckFrame(const QuicAckFrame& frame,
                                                 QuicDataWriter* writer) {
   QUICHE_DCHECK(!frame.received_packet_times.empty());
-  QuicAckTimestampList timestamp_list(
-      frame, peer_max_receive_timestamps_per_ack_,
-      peer_receive_timestamps_exponent_, creation_time_);
+  QuicAckTimestampList timestamp_list(frame,
+                                      peer_max_receive_timestamps_per_ack_,
+                                      peer_receive_timestamps_exponent_);
   if (!timestamp_list.error().empty()) {
     QUIC_BUG(quic_framer_ack_ts_list_error) << timestamp_list.error();
     set_detailed_error(timestamp_list.error());

@@ -28,6 +28,7 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_receive_time.h"
 #include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_transmission_info.h"
@@ -1342,7 +1343,7 @@ void QuicSentPacketManager::OnAckRange(QuicPacketNumber start,
          --acked) {
       // Check if end is above the current range. If so add newly acked packets
       // in descending order.
-      packets_acked_.push_back(AckedPacket(acked, 0, QuicTime::Zero()));
+      packets_acked_.push_back(AckedPacket(acked, 0, std::nullopt));
       if (acked == FirstSendingPacketNumber()) {
         break;
       }
@@ -1358,7 +1359,7 @@ void QuicSentPacketManager::OnAckRange(QuicPacketNumber start,
 }
 
 void QuicSentPacketManager::OnAckTimestamp(QuicPacketNumber packet_number,
-                                           QuicTime timestamp) {
+                                           QuicReceiveTime timestamp) {
   last_ack_frame_.received_packet_times.push_back({packet_number, timestamp});
   for (AckedPacket& packet : packets_acked_) {
     if (packet.packet_number == packet_number) {
@@ -1474,7 +1475,7 @@ AckResult QuicSentPacketManager::OnAckFrameEnd(
     }
     if (packet_number_space == APPLICATION_DATA) {
       ++stats_->application_data_packets_acked;
-      if (acked_packet.receive_timestamp.IsInitialized()) {
+      if (acked_packet.receive_timestamp.has_value()) {
         ++stats_->application_data_packets_with_receive_timestamps_acked;
       }
     }

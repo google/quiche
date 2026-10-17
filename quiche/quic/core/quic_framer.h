@@ -165,7 +165,7 @@ class QUICHE_EXPORT QuicFramerVisitorInterface {
 
   // Called when a timestamp in the AckFrame has been parsed.
   virtual bool OnAckTimestamp(QuicPacketNumber packet_number,
-                              QuicTime timestamp) = 0;
+                              QuicReceiveTime timestamp) = 0;
 
   // Called after the last ack range in an AckFrame has been parsed.
   // |start| is the starting value of the last ack range. |ecn_counts| are

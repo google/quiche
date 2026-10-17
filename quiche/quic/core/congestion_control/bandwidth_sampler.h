@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_CORE_CONGESTION_CONTROL_BANDWIDTH_SAMPLER_H_
 
 #include <cstdint>
+#include <optional>
 #include <ostream>
 
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
@@ -13,6 +14,7 @@
 #include "quiche/quic/core/packet_number_indexed_queue.h"
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_receive_time.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_unacked_packet_map.h"
@@ -394,13 +396,13 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
   // AckPoint represents a point on the ack line.
   struct QUICHE_EXPORT AckPoint {
     QuicTime ack_time = QuicTime::Zero();
-    QuicTime receive_time = QuicTime::Zero();
+    std::optional<QuicReceiveTime> receive_time = std::nullopt;
     QuicByteCount total_bytes_acked = 0;
 
     friend QUICHE_EXPORT std::ostream& operator<<(std::ostream& os,
                                                   const AckPoint& ack_point) {
-      if (ack_point.receive_time.IsInitialized()) {
-        return os << ack_point.ack_time << "(" << ack_point.receive_time
+      if (ack_point.receive_time.has_value()) {
+        return os << ack_point.ack_time << "(" << *ack_point.receive_time
                   << "):" << ack_point.total_bytes_acked;
       }
       return os << ack_point.ack_time << ":" << ack_point.total_bytes_acked;
@@ -410,7 +412,7 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
   // RecentAckPoints maintains the most recent 2 ack points at distinct times.
   class QUICHE_EXPORT RecentAckPoints {
    public:
-    void Update(QuicTime ack_time, QuicTime receive_time,
+    void Update(QuicTime ack_time, std::optional<QuicReceiveTime> receive_time,
                 QuicByteCount total_bytes_acked) {
       QUICHE_DCHECK_GE(total_bytes_acked, ack_points_[1].total_bytes_acked);
 
@@ -486,7 +488,7 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
 
     // The value of |last_acked_packet_receive_time_| at the time the packet was
     // sent.
-    QuicTime last_acked_packet_receive_time() const {
+    std::optional<QuicReceiveTime> last_acked_packet_receive_time() const {
       return last_acked_packet_receive_time_;
     }
 
@@ -533,7 +535,8 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
     QuicByteCount total_bytes_sent_at_last_acked_packet_ = 0;
     QuicTime last_acked_packet_sent_time_ = QuicTime::Zero();
     QuicTime last_acked_packet_ack_time_ = QuicTime::Zero();
-    QuicTime last_acked_packet_receive_time_ = QuicTime::Zero();
+    std::optional<QuicReceiveTime> last_acked_packet_receive_time_ =
+        std::nullopt;
     SendTimeState send_time_state_;
   };
 
@@ -585,9 +588,9 @@ class QUICHE_EXPORT BandwidthSampler : public BandwidthSamplerInterface {
   // The time at which the most recent packet was acknowledged.
   QuicTime last_acked_packet_ack_time_ = QuicTime::Zero();
 
-  // The peer-specified receive time of the most recent packet.  Zero if receive
-  // timestamps are not supported.
-  QuicTime last_acked_packet_receive_time_ = QuicTime::Zero();
+  // The peer-specified receive time of the most recent packet.  std::nullopt if
+  // receive timestamps are not supported.
+  std::optional<QuicReceiveTime> last_acked_packet_receive_time_ = std::nullopt;
 
   // The most recently sent packet.
   QuicPacketNumber last_sent_packet_;

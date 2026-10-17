@@ -23,14 +23,14 @@ namespace {
 
 class QuicAckTimestampListTest : public quiche::test::QuicheTest {
  protected:
-  QuicAckTimestampListTest()
-      : basis_(QuicTime::Zero() + QuicTime::Delta::FromMilliseconds(1000)) {
+  QuicAckTimestampListTest() {
     // Packets numbers higher than 1000 will trigger a QUIC_BUG.
     ack_.packets.AddRange(QuicPacketNumber(1), QuicPacketNumber(1001));
   }
 
-  QuicTime TimePlus(uint64_t offset_us) {
-    return basis_ + QuicTime::Delta::FromMicroseconds(offset_us);
+  QuicReceiveTime TimePlus(uint64_t offset_us) {
+    return *QuicReceiveTime::FromPeerTime(
+        QuicTime::Delta::FromMicroseconds(offset_us));
   }
 
   void ExpectBinaryEncoding(const QuicAckTimestampList& list,
@@ -48,13 +48,11 @@ class QuicAckTimestampListTest : public quiche::test::QuicheTest {
   }
 
   QuicAckFrame ack_;
-  QuicTime basis_;
 };
 
 TEST_F(QuicAckTimestampListTest, EmptyList) {
   ack_.largest_acked = QuicPacketNumber(100);
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/100, /*exponent=*/0,
-                            basis_);
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/100, /*exponent=*/0);
   EXPECT_EQ(list.error(), "");
   ExpectBinaryEncoding(list,
                        // Range count = 0
@@ -77,8 +75,7 @@ TEST_F(QuicAckTimestampListTest, DraftExampleTable1) {
       {QuicPacketNumber(100), TimePlus(380)},
   };
 
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/100, /*exponent=*/0,
-                            basis_);
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/100, /*exponent=*/0);
   EXPECT_EQ(list.error(), "");
   ExpectBinaryEncoding(list,
                        "02"            // Range count = 2
@@ -113,8 +110,7 @@ TEST_F(QuicAckTimestampListTest, DraftExampleTable2OutOfOrder) {
       {QuicPacketNumber(95), TimePlus(395)},
   };
 
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/100, /*exponent=*/0,
-                            basis_);
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/100, /*exponent=*/0);
   EXPECT_EQ(list.error(), "");
   ExpectBinaryEncoding(list,
                        "03"          // Range count = 3
@@ -150,8 +146,7 @@ TEST_F(QuicAckTimestampListTest, InspiredByFramerTestMultipleRanges) {
       {QuicPacketNumber(998), TimePlus(400)},
   };
 
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/100, /*exponent=*/0,
-                            basis_);
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/100, /*exponent=*/0);
   EXPECT_EQ(list.error(), "");
   ExpectBinaryEncoding(list,
                        "03"        // Range count = 3
@@ -183,7 +178,7 @@ TEST_F(QuicAckTimestampListTest, MaxAckCountTruncation) {
   };
 
   // Only the 3 newest timestamps (packets 10, 9, 8) should be included.
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/3, /*exponent=*/0, basis_);
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/3, /*exponent=*/0);
   EXPECT_EQ(list.error(), "");
   ExpectBinaryEncoding(list,
                        "01"        // Range count = 1
@@ -212,7 +207,7 @@ TEST_F(QuicAckTimestampListTest, ExponentAndRounding) {
   // Third delta:
   //         (32 - 17) >> 3 = 1
   //         Effective time = 24.
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/3, basis_);
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/3);
   EXPECT_EQ(list.error(), "");
   ExpectBinaryEncoding(list,
                        "01"      // Range count = 1
@@ -226,12 +221,12 @@ TEST_F(QuicAckTimestampListTest, ExponentAndRounding) {
 TEST_F(QuicAckTimestampListTest, EncodeWhileRoundingUpZeroDelta) {
   ack_.largest_acked = QuicPacketNumber(3);
   ack_.received_packet_times = {
-      {QuicPacketNumber(1), basis_},
-      {QuicPacketNumber(2), basis_},
-      {QuicPacketNumber(3), basis_},
+      {QuicPacketNumber(1), TimePlus(0)},
+      {QuicPacketNumber(2), TimePlus(0)},
+      {QuicPacketNumber(3), TimePlus(0)},
   };
 
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/3, basis_);
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/3);
   EXPECT_EQ(list.error(), "");
   ExpectBinaryEncoding(list,
                        "01"      // Range count = 1
@@ -242,24 +237,13 @@ TEST_F(QuicAckTimestampListTest, EncodeWhileRoundingUpZeroDelta) {
   );
 }
 
-TEST_F(QuicAckTimestampListTest, ErrorPacketEarlierThanBasis) {
-  ack_.largest_acked = QuicPacketNumber(10);
-  ack_.received_packet_times = {
-      {QuicPacketNumber(10), basis_ - QuicTime::Delta::FromMicroseconds(1)},
-  };
-
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0, basis_);
-  EXPECT_EQ(list.error(),
-            "Packet is received earlier than framer creation time");
-}
-
 TEST_F(QuicAckTimestampListTest, ErrorPacketNumberHigherThanLargestAcked) {
   ack_.largest_acked = QuicPacketNumber(50);
   ack_.received_packet_times = {
       {QuicPacketNumber(51), TimePlus(100)},
   };
 
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0, basis_);
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0);
   EXPECT_EQ(list.error(), "Packet number listed higher than largest_acked");
 }
 
@@ -270,7 +254,7 @@ TEST_F(QuicAckTimestampListTest, ErrorTimestampsNotMonotonicallyAscending) {
       {QuicPacketNumber(10), TimePlus(90)},
   };
 
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0, basis_);
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0);
   EXPECT_EQ(list.error(),
             "Receive timestamps have to be in monotonically ascending order.");
 }
@@ -281,12 +265,11 @@ TEST_F(QuicAckTimestampListTest, ErrorExponentTooLarge) {
       {QuicPacketNumber(10), TimePlus(100)},
   };
 
-  QuicAckTimestampList valid_list(ack_, /*max_ack_count=*/10, /*exponent=*/20,
-                                  basis_);
+  QuicAckTimestampList valid_list(ack_, /*max_ack_count=*/10, /*exponent=*/20);
   EXPECT_EQ(valid_list.error(), "");
 
-  QuicAckTimestampList invalid_list(ack_, /*max_ack_count=*/10, /*exponent=*/21,
-                                    basis_);
+  QuicAckTimestampList invalid_list(ack_, /*max_ack_count=*/10,
+                                    /*exponent=*/21);
   EXPECT_EQ(
       invalid_list.error(),
       "The specified exponent exceeds the one allowed by the specification");
@@ -299,7 +282,7 @@ TEST_F(QuicAckTimestampListTest, BufferTooSmall) {
       {QuicPacketNumber(100), TimePlus(20)},
   };
 
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0, basis_);
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0);
   EXPECT_EQ(list.error(), "");
 
   // Any buffer of the size at least one byte should let serialization succeed.
@@ -318,7 +301,7 @@ TEST_F(QuicAckTimestampListTest, BufferTruncationSingleRange) {
       {QuicPacketNumber(100), TimePlus(20)},
   };
 
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0, basis_);
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0);
   EXPECT_EQ(list.error(), "");
   EXPECT_EQ(list.MaxEncodedSize(), 6u);
 
@@ -340,7 +323,7 @@ TEST_F(QuicAckTimestampListTest, BufferTruncationMultipleRanges) {
       {QuicPacketNumber(100), TimePlus(20)},
   };
 
-  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0, basis_);
+  QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0);
   EXPECT_EQ(list.error(), "");
   EXPECT_EQ(list.MaxEncodedSize(), 8u);
 
@@ -392,8 +375,7 @@ TEST_F(QuicAckTimestampListTest, UnacknowledgedPacketTriggersQuicBug) {
 
   EXPECT_QUIC_BUG(
       {
-        QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0,
-                                  basis_);
+        QuicAckTimestampList list(ack_, /*max_ack_count=*/10, /*exponent=*/0);
         EXPECT_EQ(list.error(), "");
         ExpectBinaryEncoding(list, "020002140a0a0105");
       },

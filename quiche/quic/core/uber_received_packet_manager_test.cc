@@ -608,14 +608,11 @@ TEST_F(UberReceivedPacketManagerTest,
   manager_->EnableMultiplePacketNumberSpacesSupport(Perspective::IS_SERVER);
   manager_->set_save_timestamps(true);
 
-  const QuicTime initial_time =
-      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(1);
-  const QuicTime handshake_time =
-      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(2);
-  const QuicTime zero_rtt_time =
-      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(3);
-  const QuicTime one_rtt_time =
-      clock_.ApproximateNow() + QuicTime::Delta::FromMilliseconds(4);
+  const QuicTime basis = clock_.ApproximateNow();
+  const QuicTime initial_time = basis + QuicTime::Delta::FromMilliseconds(1);
+  const QuicTime handshake_time = basis + QuicTime::Delta::FromMilliseconds(2);
+  const QuicTime zero_rtt_time = basis + QuicTime::Delta::FromMilliseconds(3);
+  const QuicTime one_rtt_time = basis + QuicTime::Delta::FromMilliseconds(4);
   RecordPacketReceipt(ENCRYPTION_INITIAL, 1, initial_time);
   RecordPacketReceipt(ENCRYPTION_HANDSHAKE, 1, handshake_time);
   // 0-RTT packets are still recorded, since the ACKs for 0-RTT packets are sent
@@ -627,9 +624,12 @@ TEST_F(UberReceivedPacketManagerTest,
               IsEmpty());
   EXPECT_THAT(manager_->GetAckFrame(HANDSHAKE_DATA).received_packet_times,
               IsEmpty());
-  EXPECT_THAT(manager_->GetAckFrame(APPLICATION_DATA).received_packet_times,
-              ElementsAre(Pair(QuicPacketNumber(1), zero_rtt_time),
-                          Pair(QuicPacketNumber(2), one_rtt_time)));
+  EXPECT_THAT(
+      manager_->GetAckFrame(APPLICATION_DATA).received_packet_times,
+      ElementsAre(Pair(QuicPacketNumber(1),
+                       *QuicReceiveTime::FromLocalTime(zero_rtt_time, basis)),
+                  Pair(QuicPacketNumber(2),
+                       *QuicReceiveTime::FromLocalTime(one_rtt_time, basis))));
 }
 
 }  // namespace

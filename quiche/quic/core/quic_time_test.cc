@@ -8,7 +8,9 @@
 #include <cstdint>
 #include <limits>
 #include <optional>
+#include <sstream>
 
+#include "quiche/quic/core/quic_receive_time.h"
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/test_tools/mock_clock.h"
 
@@ -222,6 +224,60 @@ TEST_F(QuicTimeTest, LE) {
   EXPECT_TRUE(zero <= one);
   EXPECT_TRUE(one <= one);
   EXPECT_FALSE(one <= zero);
+}
+
+class QuicReceiveTimeTest : public QuicTest {};
+
+TEST_F(QuicReceiveTimeTest, FromPeerTime) {
+  EXPECT_EQ(QuicReceiveTime::FromPeerTime(QuicTimeDelta::FromMicroseconds(-1)),
+            std::nullopt);
+  std::optional<QuicReceiveTime> zero =
+      QuicReceiveTime::FromPeerTime(QuicTimeDelta::Zero());
+  ASSERT_TRUE(zero.has_value());
+  EXPECT_EQ(zero->raw_value(), QuicTimeDelta::Zero());
+  EXPECT_EQ(zero->ToDebuggingValue(), 0);
+
+  std::optional<QuicReceiveTime> ts =
+      QuicReceiveTime::FromPeerTime(QuicTimeDelta::FromMicroseconds(12345));
+  ASSERT_TRUE(ts.has_value());
+  EXPECT_EQ(ts->raw_value(), QuicTimeDelta::FromMicroseconds(12345));
+  EXPECT_EQ(ts->ToDebuggingValue(), 12345);
+}
+
+TEST_F(QuicReceiveTimeTest, FromLocalTime) {
+  const QuicTime basis =
+      QuicTime::Zero() + QuicTimeDelta::FromMicroseconds(1000);
+  EXPECT_EQ(QuicReceiveTime::FromLocalTime(
+                basis - QuicTimeDelta::FromMicroseconds(1), basis),
+            std::nullopt);
+  std::optional<QuicReceiveTime> zero =
+      QuicReceiveTime::FromLocalTime(basis, basis);
+  ASSERT_TRUE(zero.has_value());
+  EXPECT_EQ(zero->raw_value(), QuicTimeDelta::Zero());
+
+  std::optional<QuicReceiveTime> ts = QuicReceiveTime::FromLocalTime(
+      basis + QuicTimeDelta::FromMicroseconds(500), basis);
+  ASSERT_TRUE(ts.has_value());
+  EXPECT_EQ(ts->raw_value(), QuicTimeDelta::FromMicroseconds(500));
+}
+
+TEST_F(QuicReceiveTimeTest, OperatorsAndFormatting) {
+  QuicReceiveTime t1 =
+      *QuicReceiveTime::FromPeerTime(QuicTimeDelta::FromMicroseconds(1000));
+  QuicReceiveTime t2 =
+      *QuicReceiveTime::FromPeerTime(QuicTimeDelta::FromMicroseconds(2500));
+  EXPECT_LT(t1, t2);
+  EXPECT_LE(t1, t2);
+  EXPECT_GT(t2, t1);
+  EXPECT_GE(t2, t1);
+  EXPECT_EQ(t1, t1);
+  EXPECT_NE(t1, t2);
+  EXPECT_EQ(t2 - t1, QuicTimeDelta::FromMicroseconds(1500));
+  EXPECT_EQ(t1 - t2, QuicTimeDelta::FromMicroseconds(-1500));
+
+  std::ostringstream oss;
+  oss << t2;
+  EXPECT_EQ(oss.str(), "2500us");
 }
 
 }  // namespace test

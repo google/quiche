@@ -31,6 +31,7 @@
 #include "quiche/quic/core/quic_constants.h"
 #include "quiche/quic/core/quic_packet_number.h"
 #include "quiche/quic/core/quic_packets.h"
+#include "quiche/quic/core/quic_receive_time.h"
 #include "quiche/quic/core/quic_tag.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
@@ -3777,7 +3778,9 @@ TEST_F(QuicSentPacketManagerTest, ReceiveTimestampsStats) {
   manager_.OnAckFrameStart(QuicPacketNumber(4), QuicTime::Delta::Infinite(),
                            clock_.Now());
   manager_.OnAckRange(QuicPacketNumber(4), QuicPacketNumber(5));
-  manager_.OnAckTimestamp(QuicPacketNumber(4), clock_.Now());
+  manager_.OnAckTimestamp(
+      QuicPacketNumber(4),
+      *QuicReceiveTime::FromLocalTime(clock_.Now(), QuicTime::Zero()));
   EXPECT_EQ(PACKETS_NEWLY_ACKED,
             manager_.OnAckFrameEnd(clock_.Now(), QuicPacketNumber(4),
                                    ENCRYPTION_FORWARD_SECURE, kEmptyCounts));

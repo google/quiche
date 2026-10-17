@@ -62,7 +62,7 @@ class UberLossAlgorithmTest : public QuicTest {
     for (uint64_t acked : packets_acked) {
       unacked_packets_->RemoveFromInFlight(QuicPacketNumber(acked));
       packets_acked_.push_back(AckedPacket(
-          QuicPacketNumber(acked), kMaxOutgoingPacketSize, QuicTime::Zero()));
+          QuicPacketNumber(acked), kMaxOutgoingPacketSize, std::nullopt));
     }
   }
 

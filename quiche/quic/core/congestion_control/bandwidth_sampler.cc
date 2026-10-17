@@ -6,11 +6,13 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 #include <ostream>
 
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/quic_bandwidth.h"
 #include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_receive_time.h"
 #include "quiche/quic/core/quic_time.h"
 #include "quiche/quic/core/quic_types.h"
 #include "quiche/quic/core/quic_unacked_packet_map.h"
@@ -197,11 +199,10 @@ void BandwidthSampler::OnPacketSent(
     // `sent_time` here.  Fortunately, since setting A_0 time to `sent_time`
     // inherently underestimates bandwidth, the resulting sample should be fine
     // without the anti-overestimation effect of receive timestamps.
-    last_acked_packet_receive_time_ = QuicTime::Zero();
+    last_acked_packet_receive_time_ = std::nullopt;
     if (overestimate_avoidance_) {
       recent_ack_points_.Clear();
-      recent_ack_points_.Update(sent_time, QuicTime::Zero(),
-                                total_bytes_acked_);
+      recent_ack_points_.Update(sent_time, std::nullopt, total_bytes_acked_);
       a0_candidates_.clear();
       a0_candidates_.push_back(recent_ack_points_.MostRecentPoint());
     }
@@ -478,12 +479,13 @@ BandwidthSample BandwidthSampler::OnPacketAcknowledgedInner(
   // bandwidth sample.  Those generally should not be trusted for increasing
   // the bandwidth estimate to avoid "speculative ACK"-style attacks, but they
   // do work as a reasonable signal to compute an upper bound.
-  const QuicTime recv_time1 = acked_packet.receive_timestamp;
-  const QuicTime recv_time0 = a0.receive_time;
-  if (recv_time0.IsInitialized() && recv_time1.IsInitialized() &&
-      recv_time0 < recv_time1) {
+  const std::optional<QuicReceiveTime> recv_time1 =
+      acked_packet.receive_timestamp;
+  const std::optional<QuicReceiveTime> recv_time0 = a0.receive_time;
+  if (recv_time0.has_value() && recv_time1.has_value() &&
+      *recv_time0 < *recv_time1) {
     const QuicBandwidth recv_rate = QuicBandwidth::FromBytesAndTimeDelta(
-        total_bytes_acked_ - a0.total_bytes_acked, recv_time1 - recv_time0);
+        total_bytes_acked_ - a0.total_bytes_acked, *recv_time1 - *recv_time0);
     sample.bandwidth = std::min(sample.bandwidth, recv_rate);
   }
 

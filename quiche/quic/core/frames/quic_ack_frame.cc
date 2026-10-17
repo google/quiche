@@ -9,6 +9,7 @@
 
 #include "quiche/quic/core/quic_interval.h"
 #include "quiche/quic/core/quic_packet_number.h"
+#include "quiche/quic/core/quic_receive_time.h"
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 
 namespace quic {
@@ -33,7 +34,7 @@ std::ostream& operator<<(std::ostream& os, const QuicAckFrame& ack_frame) {
      << ", ack_delay_time: " << ack_frame.ack_delay_time.ToMicroseconds()
      << ", packets: [ " << ack_frame.packets << " ]"
      << ", received_packets: [ ";
-  for (const std::pair<QuicPacketNumber, QuicTime>& p :
+  for (const std::pair<QuicPacketNumber, QuicReceiveTime>& p :
        ack_frame.received_packet_times) {
     os << p.first << " at " << p.second.ToDebuggingValue() << " ";
   }

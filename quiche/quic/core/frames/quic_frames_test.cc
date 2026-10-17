@@ -41,7 +41,7 @@ TEST_F(QuicFramesTest, AckFrameToString) {
   frame.packets.Add(QuicPacketNumber(5));
   frame.received_packet_times = {
       {QuicPacketNumber(6),
-       QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(7)}};
+       *QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromMicroseconds(7))}};
   std::ostringstream stream;
   stream << frame;
   EXPECT_EQ(
@@ -63,7 +63,7 @@ TEST_F(QuicFramesTest, AckFrameToStringMultipleIntervals) {
   frame.packets.Add(QuicPacketNumber(6));
   frame.received_packet_times = {
       {QuicPacketNumber(7),
-       QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(7)}};
+       *QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromMicroseconds(7))}};
   std::ostringstream stream;
   stream << frame;
   EXPECT_EQ(
@@ -83,7 +83,7 @@ TEST_F(QuicFramesTest, AckFrameToStringMultipleIntervalsSinglePacketRange) {
   frame.packets.Add(QuicPacketNumber(6));
   frame.received_packet_times = {
       {QuicPacketNumber(7),
-       QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(7)}};
+       *QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromMicroseconds(7))}};
   std::ostringstream stream;
   stream << frame;
   EXPECT_EQ(
@@ -101,7 +101,7 @@ TEST_F(QuicFramesTest, BigAckFrameToString) {
   frame.packets.AddRange(QuicPacketNumber(4), QuicPacketNumber(501));
   frame.received_packet_times = {
       {QuicPacketNumber(500),
-       QuicTime::Zero() + QuicTime::Delta::FromMicroseconds(7)}};
+       *QuicReceiveTime::FromPeerTime(QuicTime::Delta::FromMicroseconds(7))}};
   std::ostringstream stream;
   stream << frame;
   EXPECT_EQ(

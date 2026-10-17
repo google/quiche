@@ -86,7 +86,7 @@ class TcpCubicSenderBytesTest : public QuicTest {
       ++acked_packet_number_;
       acked_packets.push_back(
           AckedPacket(QuicPacketNumber(acked_packet_number_), kDefaultTCPMSS,
-                      QuicTime::Zero()));
+                      std::nullopt));
     }
     sender_->OnCongestionEvent(true, bytes_in_flight_, clock_.Now(),
                                acked_packets, lost_packets, 0, 0);
@@ -791,7 +791,7 @@ TEST_F(TcpCubicSenderBytesTest, DefaultMaxCwnd) {
   for (uint64_t i = 1; i < max_congestion_window; ++i) {
     acked_packets.clear();
     acked_packets.push_back(
-        AckedPacket(QuicPacketNumber(i), 1350, QuicTime::Zero()));
+        AckedPacket(QuicPacketNumber(i), 1350, std::nullopt));
     sender->OnCongestionEvent(true, sender->GetCongestionWindow(), clock_.Now(),
                               acked_packets, missing_packets, 0, 0);
   }

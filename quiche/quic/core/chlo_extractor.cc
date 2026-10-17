@@ -61,7 +61,7 @@ class ChloFramerVisitor : public QuicFramerVisitorInterface,
                        QuicTime::Delta ack_delay_time) override;
   bool OnAckRange(QuicPacketNumber start, QuicPacketNumber end) override;
   bool OnAckTimestamp(QuicPacketNumber packet_number,
-                      QuicTime timestamp) override;
+                      QuicReceiveTime timestamp) override;
   bool OnAckFrameEnd(QuicPacketNumber start,
                      const std::optional<QuicEcnCounts>& ecn_counts) override;
   bool OnStopWaitingFrame(const QuicStopWaitingFrame& frame) override;
@@ -226,7 +226,7 @@ bool ChloFramerVisitor::OnAckRange(QuicPacketNumber /*start*/,
 }
 
 bool ChloFramerVisitor::OnAckTimestamp(QuicPacketNumber /*packet_number*/,
-                                       QuicTime /*timestamp*/) {
+                                       QuicReceiveTime /*timestamp*/) {
   return true;
 }
 

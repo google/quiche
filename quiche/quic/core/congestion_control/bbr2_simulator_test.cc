@@ -1724,7 +1724,7 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeUpAdaptInflightHiGradually) {
       sender_unacked_map()->GetLeastUnacked();
   for (auto& info : *sender_unacked_map()) {
     acked_packets.emplace_back(acked_packet_number++, info.bytes_sent,
-                               SimulatedNow());
+                               std::nullopt);
   }
 
   // Advance time significantly so the OnCongestionEvent enters PROBE_REFILL.
@@ -1742,8 +1742,9 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeUpAdaptInflightHiGradually) {
   now = now + params.RTT();
   sender_->OnCongestionEvent(
       /*rtt_updated=*/true, kDefaultMaxPacketSize, now,
-      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize, now)}, {}, 0,
-      0);
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
+      {}, 0, 0);
   ASSERT_EQ(ProbePhase::PROBE_UP, sender_->ExportDebugState().probe_bw.phase);
 
   // Send 2 packets and lose the first one(50% loss) to exit PROBE_UP.
@@ -1755,7 +1756,8 @@ TEST_F(Bbr2DefaultTopologyTest, ProbeUpAdaptInflightHiGradually) {
   now = now + params.RTT();
   sender_->OnCongestionEvent(
       /*rtt_updated=*/true, 2 * kDefaultMaxPacketSize, now,
-      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize, now)},
+      {AckedPacket(next_packet_number - 1, kDefaultMaxPacketSize,
+                   std::nullopt)},
       {LostPacket(next_packet_number - 2, kDefaultMaxPacketSize)}, 0, 0);
 
   QuicByteCount inflight_hi = sender_->ExportDebugState().inflight_hi;
@@ -1836,7 +1838,7 @@ TEST_F(Bbr2DefaultTopologyTest, SpuriousLossEvent) {
   // Pretend the first lost packet number is acked.
   now = now + params.RTT() * 0.5;
   AckedPacketVector acked_packets;
-  acked_packets.emplace_back(lost_packets[0].packet_number, 0, now);
+  acked_packets.emplace_back(lost_packets[0].packet_number, 0, std::nullopt);
   acked_packets.back().spurious_loss = true;
   EXPECT_EQ(sender_unacked_map()->bytes_in_flight(), 0);
   sender_->OnCongestionEvent(false, sender_unacked_map()->bytes_in_flight(),
@@ -1965,8 +1967,8 @@ TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
 
   // Ack 1 & 2.
   AckedPacketVector acked = {
-      AckedPacket(QuicPacketNumber(1), /*bytes_acked=*/0, QuicTime::Zero()),
-      AckedPacket(QuicPacketNumber(2), /*bytes_acked=*/0, QuicTime::Zero()),
+      AckedPacket(QuicPacketNumber(1), /*bytes_acked=*/0, std::nullopt),
+      AckedPacket(QuicPacketNumber(2), /*bytes_acked=*/0, std::nullopt),
   };
   now = now + QuicTime::Delta::FromMilliseconds(2000);
   sender_->OnCongestionEvent(true, bytes_in_flight, now, acked, {}, 0, 0);
@@ -1981,7 +1983,7 @@ TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
 
   // Ack 3.
   acked = {
-      AckedPacket(QuicPacketNumber(3), /*bytes_acked=*/0, QuicTime::Zero()),
+      AckedPacket(QuicPacketNumber(3), /*bytes_acked=*/0, std::nullopt),
   };
   now = now + QuicTime::Delta::FromMilliseconds(2000);
   sender_->OnCongestionEvent(true, bytes_in_flight, now, acked, {}, 0, 0);
@@ -1994,10 +1996,10 @@ TEST_F(Bbr2DefaultTopologyTest, SwitchToBbr2MidConnection) {
 
   // Ack 4-7.
   acked = {
-      AckedPacket(QuicPacketNumber(4), /*bytes_acked=*/0, QuicTime::Zero()),
-      AckedPacket(QuicPacketNumber(5), /*bytes_acked=*/0, QuicTime::Zero()),
-      AckedPacket(QuicPacketNumber(6), /*bytes_acked=*/767, QuicTime::Zero()),
-      AckedPacket(QuicPacketNumber(7), /*bytes_acked=*/1350, QuicTime::Zero()),
+      AckedPacket(QuicPacketNumber(4), /*bytes_acked=*/0, std::nullopt),
+      AckedPacket(QuicPacketNumber(5), /*bytes_acked=*/0, std::nullopt),
+      AckedPacket(QuicPacketNumber(6), /*bytes_acked=*/767, std::nullopt),
+      AckedPacket(QuicPacketNumber(7), /*bytes_acked=*/1350, std::nullopt),
   };
   now = now + QuicTime::Delta::FromMilliseconds(2000);
   sender_->OnCongestionEvent(true, bytes_in_flight, now, acked, {}, 0, 0);

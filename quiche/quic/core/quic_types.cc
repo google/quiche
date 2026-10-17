@@ -80,7 +80,10 @@ std::ostream& operator<<(
 std::ostream& operator<<(std::ostream& os, const AckedPacket& acked_packet) {
   os << "{ packet_number: " << acked_packet.packet_number
      << ", bytes_acked: " << acked_packet.bytes_acked << ", receive_timestamp: "
-     << acked_packet.receive_timestamp.ToDebuggingValue() << "} ";
+     << (acked_packet.receive_timestamp.has_value()
+             ? absl::StrCat(acked_packet.receive_timestamp->ToDebuggingValue())
+             : "none")
+     << "} ";
   return os;
 }
 

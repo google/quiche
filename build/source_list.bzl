@@ -367,6 +367,7 @@ quiche_core_hdrs = [
     "quic/core/quic_ping_manager.h",
     "quic/core/quic_process_packet_interface.h",
     "quic/core/quic_queue_alarm_factory.h",
+    "quic/core/quic_receive_time.h",
     "quic/core/quic_received_packet_manager.h",
     "quic/core/quic_sent_packet_manager.h",
     "quic/core/quic_server_id.h",
