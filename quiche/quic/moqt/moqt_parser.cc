@@ -756,8 +756,12 @@ absl::StatusOr<MoqtRequestError> MoqtControlMessageParser::ProcessRequestError(
       (raw_interval == 0)
           ? std::nullopt
           : std::make_optional(
-                quic::QuicTimeDelta::TryFromMilliseconds(raw_interval - 1)
-                    .value_or(quic::QuicTimeDelta::Infinite()));
+                (raw_interval - 1 >
+                 static_cast<uint64_t>(std::numeric_limits<int64_t>::max()))
+                    ? quic::QuicTimeDelta::Infinite()
+                    : quic::QuicTimeDelta::TryFromMilliseconds(
+                          static_cast<int64_t>(raw_interval - 1))
+                          .value_or(quic::QuicTimeDelta::Infinite()));
   if (request_error.error_code == RequestErrorCode::kRedirect) {
     request_error.redirect.emplace();
     if (!reader.ReadStringMoqVarInt(request_error.redirect->connect_uri)) {

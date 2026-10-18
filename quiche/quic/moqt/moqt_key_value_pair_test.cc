@@ -214,22 +214,26 @@ TEST_F(TrackPropertiesTest, OversizedTimeoutsDoNotOverflow) {
   // Timeout properties carry a peer-supplied millisecond value that is turned
   // into microseconds by a multiply by 1000. Values whose conversion would
   // overflow int64 must collapse to an infinite delta rather than trigger
-  // signed overflow. Validate() places no upper bound on these keys.
-  constexpr uint64_t kOverflowingMs = uint64_t{1} << 62;
-  TrackProperties properties;
-  properties.insert(static_cast<uint64_t>(PropertyType::kObjectDeliveryTimeout),
-                    kOverflowingMs);
-  properties.insert(static_cast<uint64_t>(PropertyType::kMaxCacheDuration),
-                    kOverflowingMs);
-  properties.insert(
-      static_cast<uint64_t>(PropertyType::kSubgroupDeliveryTimeout),
-      kOverflowingMs);
-  EXPECT_TRUE(properties.Validate());
-  EXPECT_EQ(properties.object_delivery_timeout(),
-            quic::QuicTimeDelta::Infinite());
-  EXPECT_EQ(properties.max_cache_duration(), quic::QuicTimeDelta::Infinite());
-  EXPECT_EQ(properties.subgroup_delivery_timeout(),
-            quic::QuicTimeDelta::Infinite());
+  // signed overflow. Values above INT64_MAX must not wrap to a negative
+  // delta. Validate() places no upper bound on these keys.
+  for (uint64_t overflowing_ms : {uint64_t{1} << 62, UINT64_MAX}) {
+    TrackProperties properties;
+    properties.insert(
+        static_cast<uint64_t>(PropertyType::kObjectDeliveryTimeout),
+        overflowing_ms);
+    properties.insert(static_cast<uint64_t>(PropertyType::kMaxCacheDuration),
+                      overflowing_ms);
+    properties.insert(
+        static_cast<uint64_t>(PropertyType::kSubgroupDeliveryTimeout),
+        overflowing_ms);
+    EXPECT_TRUE(properties.Validate());
+    EXPECT_EQ(properties.object_delivery_timeout(),
+              quic::QuicTimeDelta::Infinite());
+    EXPECT_EQ(properties.max_cache_duration(),
+              quic::QuicTimeDelta::Infinite());
+    EXPECT_EQ(properties.subgroup_delivery_timeout(),
+              quic::QuicTimeDelta::Infinite());
+  }
 }
 
 TEST_F(TrackPropertiesTest, Validate) {

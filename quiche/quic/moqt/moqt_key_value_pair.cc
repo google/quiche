@@ -5,6 +5,7 @@
 #include "quiche/quic/moqt/moqt_key_value_pair.h"
 
 #include <cstdint>
+#include <limits>
 #include <optional>
 #include <string>
 #include <variant>
@@ -18,6 +19,20 @@
 #include "quiche/common/platform/api/quiche_logging.h"
 
 namespace moqt {
+
+namespace {
+
+// Converts a peer-supplied millisecond count to a QuicTimeDelta. Values that
+// don't fit in int64 microseconds collapse to an infinite delta.
+quic::QuicTimeDelta MillisecondsToTimeDelta(uint64_t ms) {
+  if (ms > static_cast<uint64_t>(std::numeric_limits<int64_t>::max())) {
+    return quic::QuicTimeDelta::Infinite();
+  }
+  return quic::QuicTimeDelta::TryFromMilliseconds(static_cast<int64_t>(ms))
+      .value_or(quic::QuicTimeDelta::Infinite());
+}
+
+}  // namespace
 
 void KeyValuePairList::insert(uint64_t key,
                               std::variant<uint64_t, absl::string_view> value) {
@@ -158,24 +173,21 @@ quic::QuicTimeDelta TrackProperties::object_delivery_timeout() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kObjectDeliveryTimeout);
   return (value.has_value() && *value > 0)
-             ? quic::QuicTimeDelta::TryFromMilliseconds(*value).value_or(
-                   quic::QuicTimeDelta::Infinite())
+             ? MillisecondsToTimeDelta(*value)
              : kDefaultDeliveryTimeout;
 }
 quic::QuicTimeDelta TrackProperties::max_cache_duration() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kMaxCacheDuration);
   return value.has_value()
-             ? quic::QuicTimeDelta::TryFromMilliseconds(*value).value_or(
-                   quic::QuicTimeDelta::Infinite())
+             ? MillisecondsToTimeDelta(*value)
              : kDefaultMaxCacheDuration;
 }
 quic::QuicTimeDelta TrackProperties::subgroup_delivery_timeout() const {
   std::optional<uint64_t> value =
       GetValueIfExactlyOne(PropertyType::kSubgroupDeliveryTimeout);
   return (value.has_value() && *value > 0)
-             ? quic::QuicTimeDelta::TryFromMilliseconds(*value).value_or(
-                   quic::QuicTimeDelta::Infinite())
+             ? MillisecondsToTimeDelta(*value)
              : kDefaultDeliveryTimeout;
 }
 absl::string_view TrackProperties::immutable_properties() const {

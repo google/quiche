@@ -2425,4 +2425,23 @@ TEST_F(MoqtMessageSpecificTest, RequestErrorOversizedRetryInterval) {
   EXPECT_EQ(*error.retry_interval, quic::QuicTimeDelta::Infinite());
 }
 
+TEST_F(MoqtMessageSpecificTest, RequestErrorMaxRetryIntervalDoesNotWrap) {
+  // A retry_interval above INT64_MAX must not wrap to a negative delta.
+  char request_error[] = {
+      0x05, 0x00, 0x0b,                          // type = REQUEST_ERROR, size
+      0x11,                                      // error_code (non-redirect)
+      0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff,  // retry_interval = UINT64_MAX
+      0xff, 0xff,                                //   as a 9-byte MoqVarInt
+      0x00,                                      // reason_phrase = ""
+  };
+  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed = ParseAllMessages(
+      absl::string_view(request_error, sizeof(request_error)),
+      kDefaultMoqtVersion, kWebTrans, quic::Perspective::IS_CLIENT);
+  ASSERT_TRUE(parsed.ok()) << parsed.status();
+  ASSERT_EQ(parsed->size(), 1u);
+  const MoqtRequestError& error = std::get<MoqtRequestError>((*parsed)[0]);
+  ASSERT_TRUE(error.retry_interval.has_value());
+  EXPECT_EQ(*error.retry_interval, quic::QuicTimeDelta::Infinite());
+}
+
 }  // namespace moqt::test
