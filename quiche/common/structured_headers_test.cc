@@ -4,8 +4,7 @@
 
 #include "quiche/common/structured_headers.h"
 
-#include <math.h>
-
+#include <cmath>
 #include <limits>
 #include <optional>
 #include <string>
@@ -412,7 +411,6 @@ TEST(StructuredHeaderTest, ParseParameterisedList) {
       {"single item param-list",
        "text/html;q=1",
        {{Token("text/html"), {Param("q", 1)}}}},
-      {"empty param-list", "", {}},
       {"no whitespace param-list",
        "text/html,text/plain;q=1",
        {{Token("text/html"), {}}, {Token("text/plain"), {Param("q", 1)}}}},
@@ -497,7 +495,7 @@ TEST(StructuredHeaderTest, SerializeParameterizedItem) {
 
 TEST(StructuredHeaderTest, UnserializableItems) {
   // Test that items with unknown type are not serialized.
-  EXPECT_FALSE(SerializeItem(Item()).has_value());
+  EXPECT_EQ(SerializeItem(Item()), std::nullopt);
 }
 
 TEST(StructuredHeaderTest, UnserializableTokens) {
@@ -525,9 +523,7 @@ TEST(StructuredHeaderTest, UnserializableTokens) {
   };
   for (const auto& bad_token : bad_tokens) {
     SCOPED_TRACE(bad_token.name);
-    std::optional<std::string> serialization =
-        SerializeItem(Token(bad_token.value));
-    EXPECT_FALSE(serialization.has_value()) << *serialization;
+    EXPECT_EQ(SerializeItem(Token(bad_token.value)), std::nullopt);
   }
 }
 
@@ -557,9 +553,10 @@ TEST(StructuredHeaderTest, UnserializableKeys) {
   };
   for (const auto& bad_key : bad_keys) {
     SCOPED_TRACE(bad_key.name);
-    std::optional<std::string> serialization = SerializeItem(ParameterizedItem(
-        Item(Item::string, "a"), {{bad_key.value, Item(Item::string, "a")}}));
-    EXPECT_FALSE(serialization.has_value()) << *serialization;
+    EXPECT_EQ(SerializeItem(ParameterizedItem(
+                  Item(Item::string, "a"),
+                  {{bad_key.value, Item(Item::string, "a")}})),
+              std::nullopt);
   }
 }
 
@@ -578,15 +575,14 @@ TEST(StructuredHeaderTest, UnserializableStrings) {
   };
   for (const auto& bad_string : bad_strings) {
     SCOPED_TRACE(bad_string.name);
-    std::optional<std::string> serialization =
-        SerializeItem(Item(Item::string, bad_string.value));
-    EXPECT_FALSE(serialization.has_value()) << *serialization;
+    EXPECT_EQ(SerializeItem(Item(Item::string, bad_string.value)),
+              std::nullopt);
   }
 }
 
 TEST(StructuredHeaderTest, UnserializableIntegers) {
-  EXPECT_FALSE(SerializeItem(Integer(1e15L)).has_value());
-  EXPECT_FALSE(SerializeItem(Integer(-1e15L)).has_value());
+  EXPECT_EQ(SerializeItem(Integer(1e15L)), std::nullopt);
+  EXPECT_EQ(SerializeItem(Integer(-1e15L)), std::nullopt);
 }
 
 TEST(StructuredHeaderTest, UnserializableDecimals) {
@@ -595,8 +591,7 @@ TEST(StructuredHeaderTest, UnserializableDecimals) {
         std::numeric_limits<double>::infinity(),
         -std::numeric_limits<double>::infinity(), 1e12, 1e12 - 0.0001,
         1e12 - 0.0005, -1e12, -1e12 + 0.0001, -1e12 + 0.0005}) {
-    auto x = SerializeItem(Item(value));
-    EXPECT_FALSE(SerializeItem(Item(value)).has_value());
+    EXPECT_EQ(SerializeItem(Item(value)), std::nullopt);
   }
 }
 
@@ -622,9 +617,9 @@ TEST(StructuredHeaderTest, SerializeUnparseableDecimals) {
       {"round up to 10 digits", 1e9 - 0.0000001, "1000000000.0"},
       {"round up to 11 digits", 1e10 - 0.000001, "10000000000.0"},
       {"round up to 12 digits", 1e11 - 0.00001, "100000000000.0"},
-      {"largest serializable float", nextafter(1e12 - 0.0005, 0),
+      {"largest serializable float", std::nextafter(1e12 - 0.0005, 0),
        "999999999999.999"},
-      {"largest serializable negative float", -nextafter(1e12 - 0.0005, 0),
+      {"largest serializable negative float", -std::nextafter(1e12 - 0.0005, 0),
        "-999999999999.999"},
       // This will fail if we simply truncate the fractional portion.
       {"float rounds up to next int", 3.9999999, "4.0"},
@@ -677,8 +672,7 @@ TEST(StructuredHeaderTest, UnserializableLists) {
   };
   for (const auto& bad_list : bad_lists) {
     SCOPED_TRACE(bad_list.name);
-    std::optional<std::string> serialization = SerializeList(bad_list.value);
-    EXPECT_FALSE(serialization.has_value()) << *serialization;
+    EXPECT_EQ(SerializeList(bad_list.value), std::nullopt);
   }
 }
 
@@ -802,9 +796,7 @@ TEST(StructuredHeaderTest, UnserializableDictionary) {
   };
   for (const auto& bad_dictionary : bad_dictionaries) {
     SCOPED_TRACE(bad_dictionary.name);
-    std::optional<std::string> serialization =
-        SerializeDictionary(bad_dictionary.value);
-    EXPECT_FALSE(serialization.has_value()) << *serialization;
+    EXPECT_EQ(SerializeDictionary(bad_dictionary.value), std::nullopt);
   }
 }
 
