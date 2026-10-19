@@ -26,6 +26,7 @@ class MockConnectionAlarmsDelegate : public QuicConnectionAlarmsDelegate {
   MOCK_METHOD(void, OnIdleDetectorAlarm, (), (override));
   MOCK_METHOD(void, OnNetworkBlackholeDetectorAlarm, (), (override));
   MOCK_METHOD(void, OnPingAlarm, (), (override));
+  MOCK_METHOD(void, OnConnectionIdRotationAlarm, (), (override));
 
   QuicConnectionContext* context() override { return nullptr; }
   const QuicClock* clock() const override { return &clock_; }

@@ -111,6 +111,8 @@ class QuicConnectionPeer {
       QuicConnection* connection);
   static QuicAlarm* GetRetireSelfIssuedConnectionIdAlarm(
       QuicConnection* connection);
+  static QuicAlarmProxy GetConnectionIdRotationAlarm(
+      QuicConnection* connection);
 
   static QuicPacketWriter* GetWriter(QuicConnection* connection);
   // If |owns_writer| is true, takes ownership of |writer|.

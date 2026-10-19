@@ -11,6 +11,7 @@
 #define QUICHE_QUIC_CORE_QUIC_CONNECTION_ID_MANAGER_H_
 
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 #include <optional>
 
@@ -23,7 +24,7 @@
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_interval_set.h"
 #include "quiche/quic/core/quic_types.h"
-#include "quiche/quic/platform/api/quic_export.h"
+#include "quiche/common/platform/api/quiche_export.h"
 
 namespace quic {
 
@@ -160,6 +161,18 @@ class QUICHE_EXPORT QuicSelfIssuedConnectionIdManager {
 
   // Sends new connection IDs if more can be sent.
   void MaybeSendNewConnectionIds();
+
+  // Issues active_connection_id_limit_ new connection IDs, each incrementing
+  // retire_prior_to by one.
+  void RetireAndSendNewConnectionIds();
+
+  size_t num_active_connection_ids() const {
+    return active_connection_ids_.size();
+  }
+
+  size_t active_connection_id_limit() const {
+    return active_connection_id_limit_;
+  }
 
   // The two functions are called on the client side to associate a client
   // connection ID with a new probing/migration path when client uses

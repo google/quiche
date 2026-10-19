@@ -11,6 +11,7 @@
 #include <utility>
 #include <vector>
 
+#include "quiche/quic/core/frames/quic_new_connection_id_frame.h"
 #include "quiche/quic/core/quic_clock.h"
 #include "quiche/quic/core/quic_connection_id.h"
 #include "quiche/quic/core/quic_error_codes.h"
@@ -321,7 +322,16 @@ QuicSelfIssuedConnectionIdManager::MaybeIssueNewConnectionId() {
       QuicUtils::GenerateStatelessResetToken(frame.connection_id);
   active_connection_ids_.emplace_back(frame.connection_id,
                                       frame.sequence_number);
-  frame.retire_prior_to = active_connection_ids_.front().second;
+  if (!GetQuicRestartFlag(quic_lb_dev)) {
+    frame.retire_prior_to = active_connection_ids_.front().second;
+  } else {
+    QUIC_RESTART_FLAG_COUNT_N(quic_lb_dev, 8, 8);
+    const size_t num_active = active_connection_ids_.size();
+    const size_t oldest_to_keep = num_active > active_connection_id_limit_
+                                      ? num_active - active_connection_id_limit_
+                                      : 0;
+    frame.retire_prior_to = active_connection_ids_[oldest_to_keep].second;
+  }
   last_connection_id_ = frame.connection_id;
   return frame;
 }
@@ -429,6 +439,24 @@ void QuicSelfIssuedConnectionIdManager::MaybeSendNewConnectionIds() {
     if (!frame.has_value()) {
       break;
     }
+    if (!visitor_->SendNewConnectionId(*frame)) {
+      break;
+    }
+  }
+}
+
+void QuicSelfIssuedConnectionIdManager::RetireAndSendNewConnectionIds() {
+  if (active_connection_ids_.empty()) {
+    QUIC_BUG(quic_bug_no_active_self_issued_connection_ids)
+        << "No active self-issued connection IDs";
+    return;
+  }
+  for (size_t i = 0; i < active_connection_id_limit_; ++i) {
+    std::optional<QuicNewConnectionIdFrame> frame = MaybeIssueNewConnectionId();
+    if (!frame.has_value()) {
+      break;
+    }
+
     if (!visitor_->SendNewConnectionId(*frame)) {
       break;
     }

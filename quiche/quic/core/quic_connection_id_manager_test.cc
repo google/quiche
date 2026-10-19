@@ -1102,5 +1102,35 @@ TEST_F(QuicSelfIssuedConnectionIdManagerTest,
       << error_details;
 }
 
+TEST_F(QuicSelfIssuedConnectionIdManagerTest, RetireAndSendNewConnectionIds) {
+  SetQuicRestartFlag(quic_lb_dev, true);
+  QuicConnectionId cid0 = initial_connection_id_;
+  QuicConnectionId cid1 = CheckGenerate(cid0);
+  QuicConnectionId cid2 = CheckGenerate(cid1);
+  QuicConnectionId cid3 = CheckGenerate(cid2);
+
+  EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid1))
+      .WillOnce(Return(true));
+  EXPECT_CALL(cid_manager_visitor_,
+              SendNewConnectionId(ExpectedNewConnectionIdFrame(cid1, 1u, 0u)))
+      .WillOnce(Return(true));
+  cid_manager_.MaybeSendNewConnectionIds();
+  EXPECT_EQ(cid_manager_.num_active_connection_ids(), 2u);
+  EXPECT_EQ(cid_manager_.active_connection_id_limit(), 2u);
+
+  EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid2))
+      .WillOnce(Return(true));
+  EXPECT_CALL(cid_manager_visitor_,
+              SendNewConnectionId(ExpectedNewConnectionIdFrame(cid2, 2u, 1u)))
+      .WillOnce(Return(true));
+  EXPECT_CALL(cid_manager_visitor_, MaybeReserveConnectionId(cid3))
+      .WillOnce(Return(true));
+  EXPECT_CALL(cid_manager_visitor_,
+              SendNewConnectionId(ExpectedNewConnectionIdFrame(cid3, 3u, 2u)))
+      .WillOnce(Return(true));
+  cid_manager_.RetireAndSendNewConnectionIds();
+  EXPECT_EQ(cid_manager_.num_active_connection_ids(), 4u);
+}
+
 }  // namespace
 }  // namespace quic::test

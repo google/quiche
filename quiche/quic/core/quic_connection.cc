@@ -4999,6 +4999,40 @@ void QuicConnection::TearDownLocalConnectionState(
   self_issued_cid_manager_.reset();
 }
 
+void QuicConnection::SetConnectionIdRotationAlarm(QuicTime::Delta interval) {
+  cid_rotation_interval_ = interval;
+  if (connection_id_rotation_alarm().IsSet()) {
+    if (interval.IsZero()) {
+      connection_id_rotation_alarm().Cancel();
+    }
+    return;
+  }
+  connection_id_rotation_alarm().Set(clock_->ApproximateNow() + interval);
+}
+
+void QuicConnection::OnConnectionIdRotationAlarm() {
+  if (!connected_) {
+    return;
+  }
+  if (self_issued_cid_manager_ != nullptr) {
+    if (self_issued_cid_manager_->num_active_connection_ids() >
+        self_issued_cid_manager_->active_connection_id_limit()) {
+      CloseConnection(QUIC_CONNECTION_ID_LIMIT_ERROR,
+                      "Peer failed to retire connection IDs.",
+                      ConnectionCloseBehavior::SEND_CONNECTION_CLOSE_PACKET);
+      return;
+    }
+    if (connection_id_generator_.IsEncrypted()) {
+      ScopedPacketFlusher flusher(this);
+      self_issued_cid_manager_->RetireAndSendNewConnectionIds();
+    }
+  }
+  if (connected_) {
+    connection_id_rotation_alarm().Set(clock_->ApproximateNow() +
+                                       cid_rotation_interval_);
+  }
+}
+
 void QuicConnection::CancelAllAlarms() {
   QUIC_DVLOG(1) << "Cancelling all QuicConnection alarms.";
 
@@ -5017,6 +5051,7 @@ void QuicConnection::CancelAllAlarms() {
   multi_port_probing_alarm().PermanentCancel();
   blackhole_detector_.StopDetection(/*permanent=*/true);
   idle_network_detector_.StopDetection();
+  connection_id_rotation_alarm().PermanentCancel();
 }
 
 QuicByteCount QuicConnection::max_packet_length() const {

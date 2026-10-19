@@ -37,6 +37,7 @@ class QUICHE_EXPORT QuicConnectionAlarmsDelegate {
   virtual void OnIdleDetectorAlarm() = 0;
   virtual void OnNetworkBlackholeDetectorAlarm() = 0;
   virtual void OnPingAlarm() = 0;
+  virtual void OnConnectionIdRotationAlarm() = 0;
 
   virtual QuicConnectionContext* context() = 0;
   virtual const QuicClock* clock() const = 0;
@@ -75,6 +76,8 @@ enum class QuicAlarmSlot : uint8_t {
   kNetworkBlackholeDetector,
   // An alarm for QuicPingManager.
   kPing,
+  // An alarm for QuicConnectionIdManager.
+  kConnectionIdRotation,
 
   // Must be the last element.
   kSlotCount

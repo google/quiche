@@ -197,6 +197,13 @@ QuicAlarm* QuicConnectionPeer::GetRetireSelfIssuedConnectionIdAlarm(
 }
 
 // static
+QuicAlarmProxy QuicConnectionPeer::GetConnectionIdRotationAlarm(
+    QuicConnection* connection) {
+  return QuicAlarmProxy(&connection->alarms_,
+                        QuicAlarmSlot::kConnectionIdRotation);
+}
+
+// static
 QuicPacketWriter* QuicConnectionPeer::GetWriter(QuicConnection* connection) {
   return connection->writer_;
 }
