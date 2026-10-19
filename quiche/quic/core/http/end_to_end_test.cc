@@ -4880,16 +4880,26 @@ class SconePacketWriter : public PacketDroppingTestWriter {
     char new_buffer[kMaxOutgoingPacketSize];
     int next_scone_index =
         (last_report_index_.value_or(-1) + 1) % kMaxSconeReports;
-    if (!MaybeUpdateSconePacket(buffer, new_buffer, buf_len,
-                                kReportedValues[next_scone_index].first)) {
+    bool is_scone = MaybeUpdateSconePacket(
+        buffer, new_buffer, buf_len, kReportedValues[next_scone_index].first);
+    if (!is_scone) {
       return PacketDroppingTestWriter::WritePacket(
           buffer, buf_len, self_address, peer_address, options, params);
     }
     last_report_index_ = next_scone_index;
+    if (fake_drop_first_n_scone_packets_ > 0) {
+      --fake_drop_first_n_scone_packets_;
+      return WriteResult(WRITE_STATUS_OK, buf_len);
+    }
     // We have observed the SCONE indicator for this flow, so we can write
     // bandwidth values into it.
     return PacketDroppingTestWriter::WritePacket(
         new_buffer, buf_len, self_address, peer_address, options, params);
+  }
+
+  void set_fake_drop_first_n_scone_packets(
+      int32_t fake_drop_first_n_scone_packets) {
+    fake_drop_first_n_scone_packets_ = fake_drop_first_n_scone_packets;
   }
 
   std::optional<QuicBandwidth> last_bandwidth_report() const {
@@ -4916,6 +4926,7 @@ class SconePacketWriter : public PacketDroppingTestWriter {
 
   // If nullopt, no packet has been processed by the writer.
   std::optional<bool> saw_scone_indicator_;
+  int32_t fake_drop_first_n_scone_packets_ = 0;
 };
 
 class SconeServerTrackingSession : public QuicSimpleServerSession {
@@ -5117,9 +5128,9 @@ TEST_P(EndToEndTest, SconeProtocolServerToClientAsynchronousWithPacketLoss) {
   server_writer_ = new SconePacketWriter();
   delete client_writer_;
   client_writer_ = new SconePacketWriter();
-  // Drop the first server packet.
+  // Drop the first server SCONE packet.
   absl::down_cast<SconePacketWriter*>(server_writer_)
-      ->set_fake_drop_first_n_packets(1);
+      ->set_fake_drop_first_n_scone_packets(1);
 
   ASSERT_TRUE(Initialize());
   EXPECT_TRUE(client_->client()->WaitForOneRttKeysAvailable());
