@@ -17,8 +17,8 @@
 // being automatically translated from the JSON source to C++ unit tests. Please
 // do not modify, as the contents will be overwritten when this is re-generated.
 
-// Generated on 2026-09-16 from structured-field-tests.git @
-// 00462dd7938b43bf596cb2af6a373d9c928a6cbe.
+// Generated on 2026-10-21 from structured-field-tests.git @
+// 3c6d77618d9d4c73e107fd7b90f15026675457b1.
 
 namespace quiche {
 namespace structured_headers {
@@ -8115,6 +8115,7 @@ const struct SerializationOnlyItemTestCase {
     {"0x7f starting a token - serialise only",
      {Item(Item::token, "\177a"), {}},
      std::nullopt},
+    {"empty token - serialise only", {Item(Item::token, ""), {}}, std::nullopt},
 };
 
 const struct SerializationOnlyListTestCase {
@@ -8690,6 +8691,9 @@ const struct SerializationOnlyListTestCase {
     {"0x7f starting a parameterised list key",
      {{Item(Item::token, "foo"), {Param("\177a", 1)}}},
      std::nullopt},
+    {"empty parameterised list key - serialise only",
+     {{Item(Item::token, "foo"), {Param("", 1)}}},
+     std::nullopt},
 };
 
 const struct SerializationOnlyDictionaryTestCase {
@@ -9076,6 +9080,8 @@ const struct SerializationOnlyDictionaryTestCase {
      Dictionary{{{"~a", {Integer(1), {}}}}}, std::nullopt},
     {"0x7f starting a dictionary key - serialise only",
      Dictionary{{{"\177a", {Integer(1), {}}}}}, std::nullopt},
+    {"empty dictionary key - serialise only",
+     Dictionary{{{"", {Integer(1), {}}}}}, std::nullopt},
 };
 
 }  // namespace
