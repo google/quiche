@@ -8,6 +8,9 @@
 #include <linux/if_tun.h>
 #include <sys/ioctl.h>
 
+#include <cstdint>
+#include <cstring>
+
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/platform/mock_kernel.h"
 
@@ -84,6 +87,17 @@ class TunDeviceTest : public QuicTest {
           EXPECT_THAT(ifr->ifr_name, StrEq(kDeviceName));
           return 0;
         });
+    if (is_tap) {
+      EXPECT_CALL(mock_kernel_, ioctl(_, SIOCGIFHWADDR, _))
+          .Times(AnyNumber())
+          .WillRepeatedly([](Unused, Unused, void* argp) {
+            auto* ifr = reinterpret_cast<struct ifreq*>(argp);
+            constexpr uint8_t kMac[ETH_ALEN] = {0x00, 0x11, 0x22,
+                                                0x33, 0x44, 0x55};
+            std::memcpy(ifr->ifr_hwaddr.sa_data, kMac, ETH_ALEN);
+            return 0;
+          });
+    }
   }
 
   // Expect that Up() will be called. Force the call to fail when fail == true.

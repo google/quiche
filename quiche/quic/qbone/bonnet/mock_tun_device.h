@@ -5,6 +5,8 @@
 #ifndef QUICHE_QUIC_QBONE_BONNET_MOCK_TUN_DEVICE_H_
 #define QUICHE_QUIC_QBONE_BONNET_MOCK_TUN_DEVICE_H_
 
+#include <optional>
+
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/bonnet/tun_device_interface.h"
 
@@ -24,6 +26,8 @@ class MockTunDevice : public TunDeviceInterface {
   MOCK_METHOD(int, GetWriteFileDescriptor, (), (const, override));
 
   MOCK_METHOD(int, OpenQueue, (), (override));
+
+  MOCK_METHOD(std::optional<ethhdr>, eth_hdr, (), (const, override));
 };
 
 }  // namespace quic

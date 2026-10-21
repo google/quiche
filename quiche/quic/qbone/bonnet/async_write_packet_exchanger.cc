@@ -7,6 +7,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <optional>
 #include <queue>
 #include <thread>  // NOLINT (for open-sourceable thread ID)
 #include <utility>
@@ -22,8 +23,8 @@
 #include "absl/types/span.h"
 #include "quiche/quic/platform/api/quic_thread.h"
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
+#include "quiche/quic/qbone/bonnet/tun_device_packet_exchanger.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
-#include "quiche/quic/qbone/platform/netlink_interface.h"
 #include "quiche/common/platform/api/quiche_bug_tracker.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 
@@ -232,8 +233,7 @@ class AsyncWritePacketExchanger::IntermediateVisitor : public Visitor {
 
 AsyncWritePacketExchanger::AsyncWritePacketExchanger(
     size_t mtu, KernelInterface* absl_nonnull kernel,
-    NetlinkInterface* absl_nonnull netlink, Visitor* absl_nonnull visitor,
-    bool is_tap, absl::string_view ifname, int64_t max_buffer_size_bytes,
+    Visitor* absl_nonnull visitor, int64_t max_buffer_size_bytes,
     int64_t max_result_buffer_size_bytes,
     absl_nonnull std::unique_ptr<SiloExecutor> silo_executor)
     : max_buffer_size_bytes_(max_buffer_size_bytes),
@@ -241,8 +241,7 @@ AsyncWritePacketExchanger::AsyncWritePacketExchanger(
       silo_executor_(std::move(silo_executor)),
       visitor_(*visitor),
       intermediate_visitor_(std::make_unique<IntermediateVisitor>(this)),
-      thread_local_exchanger_(mtu, kernel, netlink, intermediate_visitor_.get(),
-                              is_tap, ifname) {}
+      thread_local_exchanger_(mtu, kernel, intermediate_visitor_.get()) {}
 
 AsyncWritePacketExchanger::~AsyncWritePacketExchanger() {
   QUICHE_DCHECK(silo_executor_->IsOnSiloThread());
@@ -255,14 +254,15 @@ AsyncWritePacketExchanger::~AsyncWritePacketExchanger() {
 
 void AsyncWritePacketExchanger::Start(
     int read_fd, int write_fd,
-    QboneClientPacketExchanger* absl_nullable exchanger) {
+    QboneClientPacketExchanger* absl_nullable exchanger,
+    std::optional<ethhdr> eth_hdr) {
   QUICHE_DCHECK(silo_executor_->IsOnSiloThread());
 
   if (exchanger == nullptr) {
     exchanger = this;
   }
 
-  thread_local_exchanger_.Start(read_fd, write_fd, exchanger);
+  thread_local_exchanger_.Start(read_fd, write_fd, exchanger, eth_hdr);
 
   // Allow idempotent Start() calls (assuming `thread_local_exchanger_`
   // validates same inputs).

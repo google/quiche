@@ -5,14 +5,16 @@
 #ifndef QUICHE_QUIC_QBONE_QBONE_PACKET_EXCHANGER_H_
 #define QUICHE_QUIC_QBONE_QBONE_PACKET_EXCHANGER_H_
 
+#include <linux/if_ether.h>
+
 #include <cstddef>
+#include <optional>
 #include <vector>
 
 #include "absl/base/nullability.h"
 #include "absl/status/statusor.h"
 #include "absl/time/time.h"
 #include "absl/types/span.h"
-#include "quiche/common/quiche_callbacks.h"
 
 namespace quic {
 
@@ -45,8 +47,12 @@ class QboneClientPacketExchanger {
   //
   // If `exchanger` is not null, it will be used instead of `this` to handle any
   // underlying-triggered read/write operations.
+  //
+  // In TAP mode, `eth_hdr` provides the Ethernet header to prepend on writes
+  // and validate on reads. In TUN mode, `eth_hdr` is std::nullopt.
   virtual void Start(int read_fd, int write_fd,
-                     QboneClientPacketExchanger* absl_nullable exchanger) = 0;
+                     QboneClientPacketExchanger* absl_nullable exchanger,
+                     std::optional<ethhdr> eth_hdr = std::nullopt) = 0;
 
   // Uninitializes the exchanger and blocks until all pending read/write
   // operations (on- or off-thread) are complete. No Visitor callbacks will be

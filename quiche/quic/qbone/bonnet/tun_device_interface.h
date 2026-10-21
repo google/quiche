@@ -5,6 +5,10 @@
 #ifndef QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_INTERFACE_H_
 #define QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_INTERFACE_H_
 
+#include <linux/if_ether.h>
+
+#include <optional>
+
 namespace quic {
 
 // An interface with methods for interacting with a TUN device.
@@ -34,6 +38,10 @@ class TunDeviceInterface {
   // Opens the next sequential queue file descriptor for this multiqueue device.
   // Returns the open queue FD on success, or -1 on failure.
   virtual int OpenQueue() = 0;
+
+  // In TAP mode, returns the Ethernet header configured for this device once
+  // opened. In TUN mode or prior to Init(), returns std::nullopt.
+  virtual std::optional<ethhdr> eth_hdr() const { return std::nullopt; }
 };
 
 }  // namespace quic

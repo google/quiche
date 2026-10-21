@@ -5,13 +5,16 @@
 #include "quiche/quic/qbone/bonnet/tun_device.h"
 
 #include <fcntl.h>
+#include <linux/if_ether.h>
 #include <linux/if_tun.h>
 #include <net/if.h>
 #include <sys/ioctl.h>
 #include <sys/socket.h>
 
+#include <cstdint>
 #include <cstring>
 #include <ios>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -19,11 +22,21 @@
 #include "quiche/quic/platform/api/quic_bug_tracker.h"
 #include "quiche/quic/platform/api/quic_logging.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
+#include "quiche/common/quiche_endian.h"
 
 ABSL_FLAG(std::string, qbone_client_tun_device_path, "/dev/net/tun",
           "The path to the QBONE client's TUN device.");
 
 namespace quic {
+
+ethhdr CreateTapEthHdr(const uint8_t mac[ETH_ALEN]) {
+  ethhdr hdr{};
+  memcpy(&hdr.h_dest, mac, ETH_ALEN);
+  memcpy(&hdr.h_source, mac, ETH_ALEN);
+  // Assume ipv6 for now
+  hdr.h_proto = quiche::QuicheEndian::HostToNet16(ETH_P_IPV6);
+  return hdr;
+}
 
 const int kInvalidFd = -1;
 
@@ -57,6 +70,20 @@ bool TunTapDevice::Init() {
 
   if (!ConfigureInterface()) {
     return false;
+  }
+
+  if (is_tap_) {
+    struct ifreq if_request;
+    memset(&if_request, 0, sizeof(if_request));
+    interface_name_.copy(if_request.ifr_name, IFNAMSIZ);
+    if (!NetdeviceIoctl(SIOCGIFHWADDR, &if_request)) {
+      QUIC_LOG(ERROR) << "Failed to get hardware address for TAP device: "
+                      << interface_name_;
+      CloseDevice();
+      return false;
+    }
+    eth_hdr_ = CreateTapEthHdr(
+        reinterpret_cast<const uint8_t*>(if_request.ifr_hwaddr.sa_data));
   }
 
   return true;
@@ -232,6 +259,7 @@ void TunTapDevice::CloseDevice() {
     kernel_.close(fd);
   }
   file_descriptors_.clear();
+  eth_hdr_ = std::nullopt;
 }
 
 }  // namespace quic

@@ -5,9 +5,11 @@
 #ifndef QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_H_
 #define QUICHE_QUIC_QBONE_BONNET_TUN_DEVICE_H_
 
+#include <linux/if_ether.h>
 #include <net/if.h>
 
-#include <cstddef>
+#include <cstdint>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -15,6 +17,9 @@
 #include "quiche/quic/qbone/platform/kernel_interface.h"
 
 namespace quic {
+
+// Builds an ethhdr for a TAP device from the given hardware MAC address.
+ethhdr CreateTapEthHdr(const uint8_t mac[ETH_ALEN]);
 
 class TunTapDevice : public TunDeviceInterface {
  public:
@@ -64,6 +69,8 @@ class TunTapDevice : public TunDeviceInterface {
   // Returns the open queue FD on success, or -1 on failure.
   int OpenQueue() override;
 
+  std::optional<ethhdr> eth_hdr() const override { return eth_hdr_; }
+
   static bool CheckFeatures(KernelInterface& kernel, int tun_device_fd);
   static bool OpenFileDescriptor(KernelInterface& kernel,
                                  const std::string& path, ifreq if_request,
@@ -88,6 +95,7 @@ class TunTapDevice : public TunDeviceInterface {
   KernelInterface& kernel_;
 
   std::vector<int> file_descriptors_;
+  std::optional<ethhdr> eth_hdr_;
 };
 
 }  // namespace quic

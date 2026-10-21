@@ -6,6 +6,7 @@
 #define QUICHE_QUIC_QBONE_MOCK_QBONE_PACKET_EXCHANGER_H_
 
 #include <cstddef>
+#include <optional>
 #include <vector>
 
 #include "absl/base/nullability.h"
@@ -32,7 +33,8 @@ class MockQboneClientPacketExchanger : public QboneClientPacketExchanger {
 
   MOCK_METHOD(void, Start,
               (int read_fd, int write_fd,
-               QboneClientPacketExchanger* absl_nullable exchanger),
+               QboneClientPacketExchanger* absl_nullable exchanger,
+               std::optional<ethhdr> eth_hdr),
               (override));
   MOCK_METHOD(void, Stop, (), (override));
   MOCK_METHOD(int, OnReadFromNetworkReady, (int max_packets_to_read),

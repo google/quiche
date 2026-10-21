@@ -13,11 +13,11 @@
 #include <cstddef>
 #include <cstring>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
 
-#include "absl/base/macros.h"
 #include "absl/base/nullability.h"
 #include "absl/status/status.h"
 #include "absl/status/statusor.h"
@@ -32,26 +32,20 @@
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/platform/icmp_packet.h"
 #include "quiche/quic/qbone/platform/kernel_interface.h"
-#include "quiche/quic/qbone/platform/netlink_interface.h"
 #include "quiche/quic/qbone/qbone_constants.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_endian.h"
 
 namespace quic {
 
-using ::quiche::QuicheEndian;
-
 TunDevicePacketExchanger::TunDevicePacketExchanger(
-    size_t mtu, KernelInterface* kernel, NetlinkInterface* netlink,
-    Visitor* absl_nonnull visitor, bool is_tap, absl::string_view ifname)
+    size_t mtu, KernelInterface* absl_nonnull kernel,
+    Visitor* absl_nonnull visitor)
     : kernel_(kernel),
-      netlink_(netlink),
       visitor_(*visitor),
-      ifname_(ifname),
       // Reading on a TUN device returns a packet at a time. If the packet is
       // longer than the buffer, it's truncated.
-      read_buffer_(mtu),
-      is_tap_(is_tap) {}
+      read_buffer_(mtu) {}
 
 TunDevicePacketExchanger::~TunDevicePacketExchanger() {
   QUIC_BUG_IF(bonnet_tun_device_packet_exchanger_not_stopped,
@@ -60,10 +54,14 @@ TunDevicePacketExchanger::~TunDevicePacketExchanger() {
 
 void TunDevicePacketExchanger::Start(
     int read_fd, int write_fd,
-    QboneClientPacketExchanger* absl_nullable exchanger) {
+    QboneClientPacketExchanger* absl_nullable exchanger,
+    std::optional<ethhdr> eth_hdr) {
   if (exchanger == nullptr) {
     exchanger = this;
   }
+
+  is_tap_ = eth_hdr.has_value();
+  eth_hdr_ = eth_hdr.value_or(ethhdr{});
 
   // Allow idempotent Start() calls with the same file descriptors, but
   // otherwise it's a bug to try starting an already started exchanger.
@@ -86,6 +84,8 @@ void TunDevicePacketExchanger::Stop() {
   read_fd_ = -1;
   write_fd_ = -1;
   exchanger_ = nullptr;
+  is_tap_ = false;
+  eth_hdr_ = {};
 }
 
 int TunDevicePacketExchanger::OnReadFromNetworkReady(int max_packets_to_read) {
@@ -123,9 +123,6 @@ void TunDevicePacketExchanger::WritePacketToNetwork(
     return;
   }
 
-  if (is_tap_ && !eth_hdr_initialized_) {
-    InitializeEthHdr();
-  }
   struct iovec iov[2];
   iov[0].iov_base = is_tap_ ? &eth_hdr_ : nullptr;
   iov[0].iov_len = is_tap_ ? ETH_HLEN : 0;
@@ -224,28 +221,10 @@ bool TunDevicePacketExchanger::ReadAndExchangeSinglePacket(
   return true;
 }
 
-void TunDevicePacketExchanger::InitializeEthHdr() {
-  if (!eth_hdr_initialized_) {
-    NetlinkInterface::LinkInfo link_info{};
-    if (netlink_->GetLinkInfo(ifname_, &link_info)) {
-      // Set src & dst to my own address
-      memcpy(&eth_hdr_.h_dest, link_info.hardware_address, ETH_ALEN);
-      memcpy(&eth_hdr_.h_source, link_info.hardware_address, ETH_ALEN);
-      // Assume ipv6 for now
-      // TODO(b/195113643): Support additional protocols.
-      eth_hdr_.h_proto = QuicheEndian::HostToNet16(ETH_P_IPV6);
-      eth_hdr_initialized_ = true;
-    } else {
-      QUIC_LOG_EVERY_N_SEC(ERROR, 30)
-          << "Unable to get link info for: " << ifname_;
-    }
-  }
-}
-
 TunDevicePacketExchanger::L2ValidationResult
 TunDevicePacketExchanger::ValidateL2Headers(
     const ethhdr& eth_header, absl::Span<const std::byte> packet) {
-  if (eth_header.h_proto != QuicheEndian::HostToNet16(ETH_P_IPV6)) {
+  if (eth_header.h_proto != quiche::QuicheEndian::HostToNet16(ETH_P_IPV6)) {
     return L2ValidationResult::kInvalid;
   }
   constexpr auto kIp6PrefixLen = sizeof(ip6_hdr);
@@ -269,10 +248,6 @@ TunDevicePacketExchanger::ValidateL2Headers(
   }
 
   if (is_neighbor_solicit) {
-    // We need the local interface MAC address to respond.
-    if (!eth_hdr_initialized_) {
-      InitializeEthHdr();
-    }
     // If we've received a neighbor solicitation, craft an advertisement to
     // respond with and write it back to the local interface.
     absl::Span<const std::byte> icmp6_payload = packet.subspan(kIcmp6PrefixLen);

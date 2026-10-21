@@ -21,9 +21,8 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/bonnet/mock_qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
+#include "quiche/quic/qbone/bonnet/tun_device.h"
 #include "quiche/quic/qbone/platform/mock_kernel.h"
-#include "quiche/quic/qbone/platform/mock_netlink.h"
-#include "quiche/quic/qbone/platform/netlink_interface.h"
 #include "quiche/quic/qbone/qbone_constants.h"
 #include "quiche/common/quiche_endian.h"
 
@@ -33,6 +32,7 @@ namespace {
 const size_t kMtu = 1000;
 const int kReadFd = 15;
 const int kWriteFd = 16;
+constexpr uint8_t kTestMac[ETH_ALEN] = {0x12, 0x12, 0x12, 0x12, 0x12, 0x12};
 
 using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
@@ -49,8 +49,7 @@ using ::testing::StrictMock;
 class TunDevicePacketExchangerTest : public QuicTest {
  protected:
   TunDevicePacketExchangerTest()
-      : exchanger_(kMtu, &mock_kernel_, nullptr, &mock_visitor_, false,
-                   absl::string_view()) {}
+      : exchanger_(kMtu, &mock_kernel_, &mock_visitor_) {}
 
   ~TunDevicePacketExchangerTest() override = default;
 
@@ -165,24 +164,13 @@ TEST_F(TunDevicePacketExchangerTest, WritePacketSuccessfulWrite) {
 
 TEST_F(TunDevicePacketExchangerTest, TapWritePacketSuccessful) {
   StrictMock<MockKernel> mock_kernel;
-  StrictMock<MockNetlink> mock_netlink;
   StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor;
-  TunDevicePacketExchanger tap_exchanger(kMtu, &mock_kernel, &mock_netlink,
-                                         &mock_visitor, /*is_tap=*/true,
-                                         "tap0");
-  tap_exchanger.Start(kReadFd, kWriteFd, &delegate_exchanger_);
+  uint8_t mac[ETH_ALEN] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
+  TunDevicePacketExchanger tap_exchanger(kMtu, &mock_kernel, &mock_visitor);
+  tap_exchanger.Start(kReadFd, kWriteFd, &delegate_exchanger_,
+                      CreateTapEthHdr(mac));
 
   std::string packet = "fake packet";
-
-  // Expectations on Netlink to get the hardware address when writing the
-  // first packet
-  EXPECT_CALL(mock_netlink, GetLinkInfo("tap0", _))
-      .WillOnce([](const std::string& ifname,
-                   NetlinkInterface::LinkInfo* link_info) -> bool {
-        uint8_t mac[ETH_ALEN] = {0x00, 0x11, 0x22, 0x33, 0x44, 0x55};
-        memcpy(link_info->hardware_address, mac, ETH_ALEN);
-        return true;
-      });
 
   // iov[0] should contain the Ethernet header populated by InitializeEthHdr
   EXPECT_CALL(mock_kernel, writev(kWriteFd, _, 2))
@@ -383,20 +371,19 @@ TEST_F(TunDevicePacketExchangerTest,
 class TunDevicePacketExchangerTapTest : public QuicTest {
  protected:
   TunDevicePacketExchangerTapTest()
-      : exchanger_(kMtu, &mock_kernel_, &mock_netlink_, &mock_visitor_, true,
-                   "tap0") {}
+      : exchanger_(kMtu, &mock_kernel_, &mock_visitor_) {}
 
-  ~TunDevicePacketExchangerTapTest() override = default;
+  ~TunDevicePacketExchangerTapTest() override { exchanger_.Stop(); }
 
   MockKernel mock_kernel_;
-  StrictMock<MockNetlink> mock_netlink_;
   StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor_;
   TunDevicePacketExchanger exchanger_;
   StrictMock<MockQboneClientPacketExchanger> delegate_exchanger_;
 };
 
 TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapSuccess) {
-  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_,
+                   CreateTapEthHdr(kTestMac));
 
   ip6_hdr ip_hdr{};
   ip_hdr.ip6_vfc = 0x60;  // Version 6
@@ -432,7 +419,8 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapSuccess) {
 }
 
 TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapInvalidL2) {
-  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_,
+                   CreateTapEthHdr(kTestMac));
 
   ethhdr eth_hdr{};
   eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_ARP);  // Non-IPv6
@@ -450,7 +438,8 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapInvalidL2) {
 }
 
 TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
-  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_,
+                   CreateTapEthHdr(kTestMac));
 
   ip6_hdr ip_hdr{};
   ip_hdr.ip6_vfc = 0x60;  // Version 6
@@ -478,14 +467,6 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
             memcpy(iov[0].iov_base, &eth_hdr, ETH_HLEN);
             memcpy(iov[1].iov_base, l3_packet.data(), l3_packet.size());
             return ETH_HLEN + l3_packet.size();
-          });
-
-  // Expect GetLinkInfo to populate ethhdr on writing neighbor solicit response.
-  EXPECT_CALL(mock_netlink_, GetLinkInfo("tap0", _))
-      .WillOnce(
-          [](const std::string& ifname, NetlinkInterface::LinkInfo* link_info) {
-            memset(link_info->hardware_address, 0x12, ETH_ALEN);
-            return true;
           });
 
   // Expect neighbor solicitation response to be sent via delegate exchanger.
@@ -503,7 +484,8 @@ TEST_F(TunDevicePacketExchangerTapTest, ReadPacketTapNeighborSolicitation) {
 // requests.
 TEST_F(TunDevicePacketExchangerTapTest,
        ReadPacketTapNeighborSolicitationSameExchanger) {
-  exchanger_.Start(kReadFd, kWriteFd, /*exchanger=*/nullptr);
+  exchanger_.Start(kReadFd, kWriteFd, /*exchanger=*/nullptr,
+                   CreateTapEthHdr(kTestMac));
 
   ip6_hdr ip_hdr{};
   ip_hdr.ip6_vfc = 0x60;  // Version 6
@@ -533,14 +515,6 @@ TEST_F(TunDevicePacketExchangerTapTest,
             return ETH_HLEN + l3_packet.size();
           });
 
-  // Expect GetLinkInfo to populate ethhdr on writing neighbor solicit response.
-  EXPECT_CALL(mock_netlink_, GetLinkInfo("tap0", _))
-      .WillOnce(
-          [](const std::string& ifname, NetlinkInterface::LinkInfo* link_info) {
-            memset(link_info->hardware_address, 0x12, ETH_ALEN);
-            return true;
-          });
-
   // Expect neighbor solicitation response to be written out.
   EXPECT_CALL(mock_kernel_, writev(kWriteFd, _, 2))
       .WillOnce([](int fd, const struct iovec* iov, int iovcnt) -> ssize_t {
@@ -556,7 +530,8 @@ TEST_F(TunDevicePacketExchangerTapTest,
 }
 
 TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidSizeShort) {
-  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_,
+                   CreateTapEthHdr(kTestMac));
 
   ip6_hdr ip_hdr{};
   ip_hdr.ip6_vfc = 0x60;  // Version 6
@@ -598,7 +573,8 @@ TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidSizeShort) {
 }
 
 TEST_F(TunDevicePacketExchangerTapTest, MultiReadInvalidL2) {
-  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_);
+  exchanger_.Start(kReadFd, kWriteFd, &delegate_exchanger_,
+                   CreateTapEthHdr(kTestMac));
 
   ethhdr invalid_eth_hdr{};
   invalid_eth_hdr.h_proto = QuicheEndian::HostToNet16(ETH_P_ARP);  // Non-IPv6

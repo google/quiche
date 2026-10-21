@@ -26,8 +26,8 @@
 #include "quiche/quic/platform/api/quic_test.h"
 #include "quiche/quic/qbone/bonnet/mock_qbone_client_packet_exchanger.h"
 #include "quiche/quic/qbone/bonnet/qbone_client_packet_exchanger.h"
+#include "quiche/quic/qbone/bonnet/tun_device.h"
 #include "quiche/quic/qbone/platform/mock_kernel.h"
-#include "quiche/quic/qbone/platform/mock_netlink.h"
 #include "quiche/quic/qbone/qbone_constants.h"
 #include "quiche/common/platform/api/quiche_logging.h"
 #include "quiche/common/quiche_callbacks.h"
@@ -41,6 +41,7 @@ constexpr int kReadFd = 15;
 constexpr int kWriteFd = 16;
 constexpr int64_t kMaxBufferSizeBytes = 1024 * 1024;
 constexpr int64_t kMaxResultsBufferSizeBytes = kMaxBufferSizeBytes;
+constexpr uint8_t kTestMac[ETH_ALEN] = {0x12, 0x12, 0x12, 0x12, 0x12, 0x12};
 
 using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
@@ -133,9 +134,8 @@ class AsyncWritePacketExchangerTest : public QuicTest {
     auto executor = std::make_unique<TestExecutor>();
     executor_ = executor.get();
     exchanger_ = std::make_unique<AsyncWritePacketExchanger>(
-        kMtu, &mock_kernel_, &mock_netlink_, &mock_visitor_, /*is_tap=*/false,
-        "ifname", kMaxBufferSizeBytes, kMaxResultsBufferSizeBytes,
-        std::move(executor));
+        kMtu, &mock_kernel_, &mock_visitor_, kMaxBufferSizeBytes,
+        kMaxResultsBufferSizeBytes, std::move(executor));
   }
 
   ~AsyncWritePacketExchangerTest() override = default;
@@ -151,7 +151,6 @@ class AsyncWritePacketExchangerTest : public QuicTest {
   const std::thread::id thread_id_ = std::this_thread::get_id();
 
   StrictMock<MockKernel> mock_kernel_;
-  NiceMock<MockNetlink> mock_netlink_;
   StrictMock<MockQboneClientPacketExchanger::MockVisitor> mock_visitor_;
   TestExecutor* executor_;
   std::unique_ptr<AsyncWritePacketExchanger> exchanger_;
@@ -324,8 +323,7 @@ TEST_F(AsyncWritePacketExchangerTest, WriteBufferFull) {
 
   // Create an exchanger with a very small buffer.
   exchanger_ = std::make_unique<AsyncWritePacketExchanger>(
-      kMtu, &mock_kernel_, &mock_netlink_, &mock_visitor_, false,
-      absl::string_view(), /*max_buffer_size_bytes=*/5,
+      kMtu, &mock_kernel_, &mock_visitor_, /*max_buffer_size_bytes=*/5,
       kMaxResultsBufferSizeBytes, std::move(executor));
   exchanger_->Start(kReadFd, kWriteFd, /*exchanger=*/nullptr);
 
@@ -348,8 +346,7 @@ TEST_F(AsyncWritePacketExchangerTest, WriteResultBufferFull) {
 
   // Create an exchanger with a very small response buffer.
   exchanger_ = std::make_unique<AsyncWritePacketExchanger>(
-      kMtu, &mock_kernel_, &mock_netlink_, &mock_visitor_, false,
-      absl::string_view(), kMaxBufferSizeBytes,
+      kMtu, &mock_kernel_, &mock_visitor_, kMaxBufferSizeBytes,
       /*max_result_buffer_size_bytes=*/5, std::move(executor));
   exchanger_->Start(kReadFd, kWriteFd, /*exchanger=*/nullptr);
 
@@ -427,11 +424,11 @@ TEST_F(AsyncWritePacketExchangerTest, ReadNeighborSolicitationPacket) {
 
   // Create an exchanger with TAP enabled.
   exchanger_ = std::make_unique<AsyncWritePacketExchanger>(
-      kMtu, &mock_kernel_, &mock_netlink_, &mock_visitor_, /*is_tap=*/true,
-      absl::string_view(), kMaxBufferSizeBytes, kMaxResultsBufferSizeBytes,
-      std::move(executor));
+      kMtu, &mock_kernel_, &mock_visitor_, kMaxBufferSizeBytes,
+      kMaxResultsBufferSizeBytes, std::move(executor));
 
-  exchanger_->Start(kReadFd, kWriteFd, /*exchanger=*/nullptr);
+  exchanger_->Start(kReadFd, kWriteFd, /*exchanger=*/nullptr,
+                    CreateTapEthHdr(kTestMac));
 
   ip6_hdr ip_hdr{};
   ip_hdr.ip6_vfc = 0x60;  // Version 6
@@ -494,12 +491,12 @@ TEST_F(AsyncWritePacketExchangerTest,
 
   // Create an exchanger with TAP enabled.
   exchanger_ = std::make_unique<AsyncWritePacketExchanger>(
-      kMtu, &mock_kernel_, &mock_netlink_, &mock_visitor_, /*is_tap=*/true,
-      absl::string_view(), kMaxBufferSizeBytes, kMaxResultsBufferSizeBytes,
-      std::move(executor));
+      kMtu, &mock_kernel_, &mock_visitor_, kMaxBufferSizeBytes,
+      kMaxResultsBufferSizeBytes, std::move(executor));
 
   StrictMock<MockQboneClientPacketExchanger> mock_outer_exchanger;
-  exchanger_->Start(kReadFd, kWriteFd, &mock_outer_exchanger);
+  exchanger_->Start(kReadFd, kWriteFd, &mock_outer_exchanger,
+                    CreateTapEthHdr(kTestMac));
 
   ip6_hdr ip_hdr{};
   ip_hdr.ip6_vfc = 0x60;  // Version 6
