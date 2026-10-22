@@ -17,7 +17,11 @@ namespace quic {
 class QUICHE_EXPORT DeterministicConnectionIdGenerator
     : public ConnectionIdGeneratorInterface {
  public:
-  DeterministicConnectionIdGenerator(uint8_t expected_connection_id_length);
+  explicit DeterministicConnectionIdGenerator(
+      uint8_t expected_connection_id_length);
+
+  // Sets the length of the connection IDs generated from now on.
+  void set_expected_connection_id_length(uint8_t expected_connection_id_length);
 
   // Hashes |original| to create a new connection ID.
   std::optional<QuicConnectionId> GenerateNextConnectionId(
@@ -33,7 +37,7 @@ class QUICHE_EXPORT DeterministicConnectionIdGenerator
   bool IsEncrypted() const override { return false; }
 
  private:
-  const uint8_t expected_connection_id_length_;
+  uint8_t expected_connection_id_length_;
 };
 
 }  // namespace quic
