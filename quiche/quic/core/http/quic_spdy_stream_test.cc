@@ -572,8 +572,7 @@ INSTANTIATE_TEST_SUITE_P(Tests, QuicSpdyStreamTest,
 TEST_P(QuicSpdyStreamTest, ProcessHeaderList) {
   Initialize(kShouldProcessData);
 
-  stream_->OnStreamHeadersPriority(
-      spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  stream_->OnStreamPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
   ProcessHeaders(false, headers_);
   EXPECT_EQ("", stream_->data());
   EXPECT_FALSE(stream_->header_list().empty());
@@ -585,8 +584,7 @@ TEST_P(QuicSpdyStreamTest, ProcessTooLargeHeaderList) {
 
   if (!IsIetfQuic()) {
     QuicHeaderList headers;
-    stream_->OnStreamHeadersPriority(
-        spdy::SpdyStreamPrecedence(kV3HighestPriority));
+    stream_->OnStreamPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
 
     EXPECT_CALL(
         *session_,
@@ -646,8 +644,7 @@ TEST_P(QuicSpdyStreamTest, ProcessHeaderListWithFin) {
     headers.OnHeader(p.first, p.second);
     total_bytes += p.first.size() + p.second.size();
   }
-  stream_->OnStreamHeadersPriority(
-      spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  stream_->OnStreamPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
   stream_->OnStreamHeaderList(true, total_bytes, headers);
   EXPECT_EQ("", stream_->data());
   EXPECT_FALSE(stream_->header_list().empty());
@@ -1298,8 +1295,7 @@ TEST_P(QuicSpdyStreamTest, ReceivingTrailersViaHeaderList) {
     total_bytes += p.first.size() + p.second.size();
   }
 
-  stream_->OnStreamHeadersPriority(
-      spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  stream_->OnStreamPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
   stream_->OnStreamHeaderList(/*fin=*/false, total_bytes, headers);
   stream_->ConsumeHeaderList();
 
@@ -1819,15 +1815,15 @@ TEST_P(QuicSpdyStreamTest, HeaderStreamNotiferCorrespondingSpdyStream) {
                                      /*is_retransmission=*/false));
 }
 
-TEST_P(QuicSpdyStreamTest, OnPriorityFrame) {
+TEST_P(QuicSpdyStreamTest, OnStreamPriority) {
   Initialize(kShouldProcessData);
-  stream_->OnPriorityFrame(spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  stream_->OnStreamPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
   EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{
                 kV3HighestPriority, HttpStreamPriority::kDefaultIncremental}),
             stream_->priority());
 }
 
-TEST_P(QuicSpdyStreamTest, OnPriorityFrameAfterSendingData) {
+TEST_P(QuicSpdyStreamTest, OnStreamPriorityAfterSendingData) {
   Initialize(kShouldProcessData);
   testing::InSequence seq;
 
@@ -1836,7 +1832,7 @@ TEST_P(QuicSpdyStreamTest, OnPriorityFrameAfterSendingData) {
   }
   EXPECT_CALL(*session_, WritevData(_, 4, _, FIN, _, _));
   stream_->WriteOrBufferBody("data", true);
-  stream_->OnPriorityFrame(spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  stream_->OnStreamPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
   EXPECT_EQ(QuicStreamPriority(HttpStreamPriority{
                 kV3HighestPriority, HttpStreamPriority::kDefaultIncremental}),
             stream_->priority());
@@ -3474,8 +3470,7 @@ TEST_P(QuicSpdyStreamTest, ProcessWebTransportHeadersAsServer) {
   headers_[":protocol"] = "webtransport";
   headers_["wt-available-protocols"] = R"("moqt-00", "moqt-01"; a=b)";
 
-  stream_->OnStreamHeadersPriority(
-      spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  stream_->OnStreamPriority(spdy::SpdyStreamPrecedence(kV3HighestPriority));
   ProcessHeaders(false, headers_);
   EXPECT_EQ("", stream_->data());
   EXPECT_FALSE(stream_->header_list().empty());

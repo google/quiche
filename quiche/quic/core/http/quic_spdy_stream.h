@@ -133,20 +133,16 @@ class QUICHE_EXPORT QuicSpdyStream
   // Override to maybe close the write side after writing.
   void OnCanWrite() override;
 
-  // Called by the session when headers with a priority have been received
-  // for this stream.  This method will only be called for server streams.
-  virtual void OnStreamHeadersPriority(
-      const spdy::SpdyStreamPrecedence& precedence);
+  // Called by the session when headers with a priority or a PRIORITY frame have
+  // been received for this stream. This method will only be called for server
+  // streams.
+  void OnStreamPriority(const spdy::SpdyStreamPrecedence& precedence);
 
   // Called by the session when decompressed headers have been completely
   // delivered to this stream.  If |fin| is true, then this stream
   // should be closed; no more data will be sent by the peer.
   virtual void OnStreamHeaderList(bool fin, size_t frame_len,
                                   const QuicHeaderList& header_list);
-
-  // Called by the session when a PRIORITY frame has been been received for this
-  // stream. This method will only be called for server streams.
-  void OnPriorityFrame(const spdy::SpdyStreamPrecedence& precedence);
 
   // Override the base class to not discard response when receiving
   // QUIC_STREAM_NO_ERROR.

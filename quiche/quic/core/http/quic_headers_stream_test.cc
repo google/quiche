@@ -410,7 +410,7 @@ TEST_P(QuicHeadersStreamTest, ProcessRawData) {
           headers_frame.set_has_priority(true);
           headers_frame.set_weight(Spdy3PriorityToHttp2Weight(0));
           frame = framer_->SerializeFrame(headers_frame);
-          EXPECT_CALL(session_, OnStreamHeadersPriority(
+          EXPECT_CALL(session_, OnStreamPriority(
                                     stream_id, spdy::SpdyStreamPrecedence(0)));
         } else {
           SpdyHeadersIR headers_frame(stream_id, headers_.Clone());
@@ -471,7 +471,7 @@ TEST_P(QuicHeadersStreamTest, ProcessPriorityFrame) {
       } else {
         EXPECT_CALL(
             session_,
-            OnPriorityFrame(stream_id, spdy::SpdyStreamPrecedence(priority)))
+            OnStreamPriority(stream_id, spdy::SpdyStreamPrecedence(priority)))
             .Times(1);
       }
       stream_frame_.data_buffer = frame.data();
@@ -520,7 +520,7 @@ TEST_P(QuicHeadersStreamTest, ProcessLargeRawData) {
           headers_frame.set_has_priority(true);
           headers_frame.set_weight(Spdy3PriorityToHttp2Weight(0));
           frame = framer_->SerializeFrame(headers_frame);
-          EXPECT_CALL(session_, OnStreamHeadersPriority(
+          EXPECT_CALL(session_, OnStreamPriority(
                                     stream_id, spdy::SpdyStreamPrecedence(0)));
         } else {
           SpdyHeadersIR headers_frame(stream_id, headers_.Clone());

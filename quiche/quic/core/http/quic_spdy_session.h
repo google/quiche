@@ -184,10 +184,11 @@ class QUICHE_EXPORT QuicSpdySession
   void OnEncoderStreamError(QuicErrorCode error_code,
                             absl::string_view error_message) override;
 
-  // Called by |headers_stream_| when headers with a priority have been
-  // received for a stream.  This method will only be called for server streams.
-  virtual void OnStreamHeadersPriority(
-      QuicStreamId stream_id, const spdy::SpdyStreamPrecedence& precedence);
+  // Called by |headers_stream_| when headers with a priority or a PRIORITY
+  // frame have been received for a stream. This method will only be called for
+  // server streams.
+  virtual void OnStreamPriority(QuicStreamId stream_id,
+                                const spdy::SpdyStreamPrecedence& precedence);
 
   // Called by |headers_stream_| when headers have been completely received
   // for a stream.  |fin| will be true if the fin flag was set in the headers
@@ -195,11 +196,6 @@ class QUICHE_EXPORT QuicSpdySession
   virtual void OnStreamHeaderList(QuicStreamId stream_id, bool fin,
                                   size_t frame_len,
                                   const QuicHeaderList& header_list);
-
-  // Called by |headers_stream_| when a PRIORITY frame has been received for a
-  // stream. This method will only be called for server streams.
-  virtual void OnPriorityFrame(QuicStreamId stream_id,
-                               const spdy::SpdyStreamPrecedence& precedence);
 
   // Called when an HTTP/3 PRIORITY_UPDATE frame has been received for a request
   // stream.  Returns false and closes connection if |stream_id| is invalid.

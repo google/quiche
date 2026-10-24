@@ -543,7 +543,7 @@ void QuicSpdyStream::ConsumeHeaderList() {
   }
 }
 
-void QuicSpdyStream::OnStreamHeadersPriority(
+void QuicSpdyStream::OnStreamPriority(
     const spdy::SpdyStreamPrecedence& precedence) {
   QUICHE_DCHECK_EQ(Perspective::IS_SERVER,
                    session()->connection()->perspective());
@@ -751,14 +751,6 @@ void QuicSpdyStream::RegisterMetadataVisitor(MetadataVisitor* visitor) {
 
 void QuicSpdyStream::UnregisterMetadataVisitor() {
   metadata_visitor_ = nullptr;
-}
-
-void QuicSpdyStream::OnPriorityFrame(
-    const spdy::SpdyStreamPrecedence& precedence) {
-  QUICHE_DCHECK_EQ(Perspective::IS_SERVER,
-                   session()->connection()->perspective());
-  SetPriority(QuicStreamPriority(HttpStreamPriority{
-      precedence.spdy3_priority(), HttpStreamPriority::kDefaultIncremental}));
 }
 
 void QuicSpdyStream::OnStreamReset(const QuicRstStreamFrame& frame) {

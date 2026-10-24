@@ -675,14 +675,15 @@ void QuicSpdySession::OnEncoderStreamError(QuicErrorCode error_code,
       error_code, absl::StrCat("Encoder stream error: ", error_message));
 }
 
-void QuicSpdySession::OnStreamHeadersPriority(
+void QuicSpdySession::OnStreamPriority(
     QuicStreamId stream_id, const spdy::SpdyStreamPrecedence& precedence) {
   QuicSpdyStream* stream = GetOrCreateSpdyDataStream(stream_id);
   if (!stream) {
-    // It's quite possible to receive headers after a stream has been reset.
+    // It's quite possible to receive headers or a PRIORITY frame after a stream
+    // has been reset.
     return;
   }
-  stream->OnStreamHeadersPriority(precedence);
+  stream->OnStreamPriority(precedence);
 }
 
 void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id, bool fin,
@@ -721,17 +722,6 @@ void QuicSpdySession::OnStreamHeaderList(QuicStreamId stream_id, bool fin,
     return;
   }
   stream->OnStreamHeaderList(fin, frame_len, header_list);
-}
-
-void QuicSpdySession::OnPriorityFrame(
-    QuicStreamId stream_id, const spdy::SpdyStreamPrecedence& precedence) {
-  QuicSpdyStream* stream = GetOrCreateSpdyDataStream(stream_id);
-  if (!stream) {
-    // It's quite possible to receive a PRIORITY frame after a stream has been
-    // reset.
-    return;
-  }
-  stream->OnPriorityFrame(precedence);
 }
 
 bool QuicSpdySession::OnPriorityUpdateForRequestStream(
@@ -1468,7 +1458,7 @@ void QuicSpdySession::OnHeaders(SpdyStreamId stream_id, bool has_priority,
                                  "Server must not send priorities.");
       return;
     }
-    OnStreamHeadersPriority(stream_id, precedence);
+    OnStreamPriority(stream_id, precedence);
   } else {
     if (perspective() == Perspective::IS_SERVER) {
       CloseConnectionWithDetails(QUIC_INVALID_HEADERS_STREAM_DATA,
@@ -1491,7 +1481,7 @@ void QuicSpdySession::OnPriority(SpdyStreamId stream_id,
                                "Server must not send PRIORITY frames.");
     return;
   }
-  OnPriorityFrame(stream_id, precedence);
+  OnStreamPriority(stream_id, precedence);
 }
 
 void QuicSpdySession::OnHeaderList(const QuicHeaderList& header_list) {

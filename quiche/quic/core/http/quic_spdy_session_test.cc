@@ -2302,12 +2302,12 @@ TEST_P(QuicSpdySessionTestServer, RetransmitFrames) {
   session_->RetransmitFrames(frames, PTO_RETRANSMISSION);
 }
 
-TEST_P(QuicSpdySessionTestServer, OnPriorityFrame) {
+TEST_P(QuicSpdySessionTestServer, OnStreamPriority) {
   Initialize();
   QuicStreamId stream_id = GetNthClientInitiatedBidirectionalId(0);
   TestStream* stream = session_->CreateIncomingStream(stream_id);
-  session_->OnPriorityFrame(stream_id,
-                            spdy::SpdyStreamPrecedence(kV3HighestPriority));
+  session_->OnStreamPriority(stream_id,
+                             spdy::SpdyStreamPrecedence(kV3HighestPriority));
 
   EXPECT_EQ((QuicStreamPriority(HttpStreamPriority{
                 kV3HighestPriority, HttpStreamPriority::kDefaultIncremental})),

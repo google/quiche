@@ -996,16 +996,13 @@ class MockQuicSpdySession : public QuicSpdySession {
               (QuicStreamId id, QuicStreamOffset byte_offset), (override));
   MOCK_METHOD(void, SendBlocked,
               (QuicStreamId id, QuicStreamOffset byte_offset), (override));
-  MOCK_METHOD(void, OnStreamHeadersPriority,
+  MOCK_METHOD(void, OnStreamPriority,
               (QuicStreamId stream_id,
                const spdy::SpdyStreamPrecedence& precedence),
               (override));
   MOCK_METHOD(void, OnStreamHeaderList,
               (QuicStreamId stream_id, bool fin, size_t frame_len,
                const QuicHeaderList& header_list),
-              (override));
-  MOCK_METHOD(void, OnPriorityFrame,
-              (QuicStreamId id, const spdy::SpdyStreamPrecedence& precedence),
               (override));
   MOCK_METHOD(void, OnCongestionWindowChange, (QuicTime now), (override));
 

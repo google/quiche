@@ -176,7 +176,7 @@ class MockQuicSimpleServerSession : public QuicSimpleServerSession {
               (QuicStreamId stream_id, bool fin, size_t frame_len,
                const QuicHeaderList& header_list),
               (override));
-  MOCK_METHOD(void, OnStreamHeadersPriority,
+  MOCK_METHOD(void, OnStreamPriority,
               (QuicStreamId stream_id,
                const spdy::SpdyStreamPrecedence& precedence),
               (override));
