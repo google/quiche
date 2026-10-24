@@ -492,10 +492,13 @@ TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimation) {
 
 TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimationMin1ms) {
   EXPECT_FALSE(HasPendingAck());
-  // Seed the min_rtt with a kAlarmGranularity signal.
+  // Seed the min_rtt with a kAlarmGranularity signal, while smoothed_rtt
+  // remains above 1ms (from the initial 40ms sample in the fixture).
   rtt_stats_.UpdateRtt(kAlarmGranularity, QuicTime::Delta::Zero(),
                        clock_.ApproximateNow());
-  // The ack time should be based on kAlarmGranularity, since the RTT is 1ms.
+  ASSERT_GT(rtt_stats_.smoothed_rtt(), kAlarmGranularity);
+  // The ack time should be based on kAlarmGranularity, since min_rtt * 0.25 is
+  // less than 1ms and smoothed_rtt > 1ms.
   QuicTime ack_time = clock_.ApproximateNow() + kAlarmGranularity;
 
   // Process all the packets in order so there aren't missing packets.
@@ -516,6 +519,108 @@ TEST_F(QuicReceivedPacketManagerTest, SendDelayedAckDecimationMin1ms) {
   CheckAckTimeout(ack_time);
 
   // The 10th received packet causes an ack to be sent.
+  for (uint64_t i = 1; i < 10; ++i) {
+    RecordPacketReceipt(kFirstDecimatedPacket + i, clock_.ApproximateNow());
+    MaybeUpdateAckTimeout(kInstigateAck, kFirstDecimatedPacket + i);
+  }
+  CheckAckTimeout(clock_.ApproximateNow());
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       SendDelayedAckDecimationSubMsSmoothedRtt) {
+  EXPECT_FALSE(HasPendingAck());
+  rtt_stats_.OnConnectionMigration();
+  const QuicTime::Delta kSubMsRtt = QuicTime::Delta::FromMicroseconds(400);
+  rtt_stats_.UpdateRtt(kSubMsRtt, QuicTime::Delta::Zero(),
+                       clock_.ApproximateNow());
+  ASSERT_EQ(rtt_stats_.smoothed_rtt(), kSubMsRtt);
+
+  // Process all the packets in order so there aren't missing packets.
+  uint64_t kFirstDecimatedPacket = 101;
+  for (uint64_t i = 1; i < kFirstDecimatedPacket; ++i) {
+    RecordPacketReceipt(i, clock_.ApproximateNow());
+    MaybeUpdateAckTimeout(kInstigateAck, i);
+    if (i % 2 == 0) {
+      // Ack every 2 packets by default.
+      CheckAckTimeout(clock_.ApproximateNow());
+    } else {
+      CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+    }
+  }
+
+  // Without kAKDF, the floor is 1ms (kAlarmGranularity) even when the flag is
+  // true.
+  SetQuicReloadableFlag(quic_ack_delay_floor_smoothed_rtt, true);
+  RecordPacketReceipt(kFirstDecimatedPacket, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, kFirstDecimatedPacket);
+  CheckAckTimeout(clock_.ApproximateNow() + kAlarmGranularity);
+  for (uint64_t i = 1; i < 10; ++i) {
+    RecordPacketReceipt(kFirstDecimatedPacket + i, clock_.ApproximateNow());
+    MaybeUpdateAckTimeout(kInstigateAck, kFirstDecimatedPacket + i);
+  }
+  CheckAckTimeout(clock_.ApproximateNow());
+
+  // On the server, when kAKDF is received and the flag is false, the floor
+  // remains 1ms (kAlarmGranularity).
+  SetQuicReloadableFlag(quic_ack_delay_floor_smoothed_rtt, false);
+  QuicConfig server_config;
+  server_config.SetInitialReceivedConnectionOptions({kAKDF});
+  received_manager_.SetFromConfig(server_config, Perspective::IS_SERVER);
+  uint64_t kSecondDecimatedBatch = kFirstDecimatedPacket + 10;
+  RecordPacketReceipt(kSecondDecimatedBatch, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, kSecondDecimatedBatch);
+  CheckAckTimeout(clock_.ApproximateNow() + kAlarmGranularity);
+  for (uint64_t i = 1; i < 10; ++i) {
+    RecordPacketReceipt(kSecondDecimatedBatch + i, clock_.ApproximateNow());
+    MaybeUpdateAckTimeout(kInstigateAck, kSecondDecimatedBatch + i);
+  }
+  CheckAckTimeout(clock_.ApproximateNow());
+
+  // On the server, when kAKDF is received and the flag is true, the floor is
+  // min(1ms, SmoothedRTT) = 400us.
+  SetQuicReloadableFlag(quic_ack_delay_floor_smoothed_rtt, true);
+  received_manager_.SetFromConfig(server_config, Perspective::IS_SERVER);
+  uint64_t kThirdDecimatedBatch = kSecondDecimatedBatch + 10;
+  RecordPacketReceipt(kThirdDecimatedBatch, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, kThirdDecimatedBatch);
+  CheckAckTimeout(clock_.ApproximateNow() + kSubMsRtt);
+  for (uint64_t i = 1; i < 10; ++i) {
+    RecordPacketReceipt(kThirdDecimatedBatch + i, clock_.ApproximateNow());
+    MaybeUpdateAckTimeout(kInstigateAck, kThirdDecimatedBatch + i);
+  }
+  CheckAckTimeout(clock_.ApproximateNow());
+}
+
+TEST_F(QuicReceivedPacketManagerTest,
+       SendDelayedAckDecimationSubMsSmoothedRttClient) {
+  EXPECT_FALSE(HasPendingAck());
+  // On the client, kAKDF enables the min(1ms, SmoothedRTT) floor even when the
+  // server reloadable flag is false.
+  SetQuicReloadableFlag(quic_ack_delay_floor_smoothed_rtt, false);
+  QuicConfig client_config;
+  client_config.SetConnectionOptionsToSend({kAKDF});
+  received_manager_.SetFromConfig(client_config, Perspective::IS_CLIENT);
+
+  rtt_stats_.OnConnectionMigration();
+  const QuicTime::Delta kSubMsRtt = QuicTime::Delta::FromMicroseconds(400);
+  rtt_stats_.UpdateRtt(kSubMsRtt, QuicTime::Delta::Zero(),
+                       clock_.ApproximateNow());
+  ASSERT_EQ(rtt_stats_.smoothed_rtt(), kSubMsRtt);
+
+  uint64_t kFirstDecimatedPacket = 101;
+  for (uint64_t i = 1; i < kFirstDecimatedPacket; ++i) {
+    RecordPacketReceipt(i, clock_.ApproximateNow());
+    MaybeUpdateAckTimeout(kInstigateAck, i);
+    if (i % 2 == 0) {
+      CheckAckTimeout(clock_.ApproximateNow());
+    } else {
+      CheckAckTimeout(clock_.ApproximateNow() + kDelayedAckTime);
+    }
+  }
+
+  RecordPacketReceipt(kFirstDecimatedPacket, clock_.ApproximateNow());
+  MaybeUpdateAckTimeout(kInstigateAck, kFirstDecimatedPacket);
+  CheckAckTimeout(clock_.ApproximateNow() + kSubMsRtt);
   for (uint64_t i = 1; i < 10; ++i) {
     RecordPacketReceipt(kFirstDecimatedPacket + i, clock_.ApproximateNow());
     MaybeUpdateAckTimeout(kInstigateAck, kFirstDecimatedPacket + i);

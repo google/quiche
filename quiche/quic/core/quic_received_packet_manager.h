@@ -202,6 +202,9 @@ class QUICHE_EXPORT QuicReceivedPacketManager {
   // When true, removes ack decimation's max number of packets(10) before
   // sending an ack.
   bool unlimited_ack_decimation_;
+  // When true, the minimum delayed ack timer during ack decimation is
+  // min(1ms, SmoothedRTT) instead of 1ms.
+  bool ack_delay_floor_smoothed_rtt_ = false;
   // When true, only send 1 immediate ACK when reordering is detected.
   bool one_immediate_ack_;
   // If the largest unacked packet has a packet number that is

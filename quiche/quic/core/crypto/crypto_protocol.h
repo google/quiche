@@ -215,6 +215,8 @@ DEFINE_STATIC_QUIC_TAG(AKD3);  // Ack decimation style acking
                                // with 1/8 RTT acks.
 DEFINE_STATIC_QUIC_TAG(AKDU);  // Unlimited number of packets
                                // received before acking
+DEFINE_STATIC_QUIC_TAG(AKDF);  // Use min(1ms, SmoothedRTT) as the ack
+                               // decimation delay floor.
 DEFINE_STATIC_QUIC_TAG(AFF1);  // Use SRTT in building
                                // AckFrequencyFrame.
 DEFINE_STATIC_QUIC_TAG(AFF2);  // Send AckFrequencyFrame upon

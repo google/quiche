@@ -68,6 +68,11 @@ void QuicReceivedPacketManager::SetFromConfig(const QuicConfig& config,
   if (config.HasClientSentConnectionOption(kAKDU, perspective)) {
     unlimited_ack_decimation_ = true;
   }
+  if (config.HasClientSentConnectionOption(kAKDF, perspective) &&
+      (perspective == Perspective::IS_CLIENT ||
+       GetQuicReloadableFlag(quic_ack_delay_floor_smoothed_rtt))) {
+    ack_delay_floor_smoothed_rtt_ = true;
+  }
   if (config.HasClientSentConnectionOption(k1ACK, perspective)) {
     one_immediate_ack_ = true;
   }
@@ -264,6 +269,11 @@ QuicTime::Delta QuicReceivedPacketManager::GetMaxAckDelay(
   // before sending an ack.
   QuicTime::Delta ack_delay = std::min(
       local_max_ack_delay_, rtt_stats.min_rtt() * ack_decimation_delay_);
+  if (ack_delay_floor_smoothed_rtt_) {
+    QUIC_RELOADABLE_FLAG_COUNT(quic_ack_delay_floor_smoothed_rtt);
+    return std::max(ack_delay, std::min(kAlarmGranularity,
+                                        rtt_stats.SmoothedOrInitialRtt()));
+  }
   return std::max(ack_delay, kAlarmGranularity);
 }
 
