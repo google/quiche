@@ -453,24 +453,27 @@ void QuicConnection::SetFromConfig(const QuicConfig& config) {
     spin_bit_enabled_ = ShouldEnableSpinBit();
   }
 
-  if (GetQuicReloadableFlag(quic_active_connection_id_limit) &&
-      version().IsIetfQuic()) {
+  if (version().IsIetfQuic()) {
     if (perspective_ == Perspective::IS_CLIENT &&
         peer_issued_cid_manager_ != nullptr &&
         config.GetActiveConnectionIdLimitToSend() >
             kMinNumOfActiveConnectionIds) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_active_connection_id_limit, 4, 5);
       peer_issued_cid_manager_->set_active_connection_id_limit(
           config.GetActiveConnectionIdLimitToSend());
     } else if (perspective_ == Perspective::IS_SERVER &&
+               GetQuicReloadableFlag(quic_active_connection_id_limit2) &&
                self_issued_cid_manager_ != nullptr &&
+               // Ensure the client is not using a CID.
+               peer_issued_cid_manager_ == nullptr &&
+               config.max_num_of_active_connection_ids() >
+                   kMinNumOfActiveConnectionIds &&
                config.HasReceivedActiveConnectionIdLimit() &&
                config.ReceivedActiveConnectionIdLimit() >
                    kMinNumOfActiveConnectionIds) {
-      QUIC_RELOADABLE_FLAG_COUNT_N(quic_active_connection_id_limit, 5, 5);
+      QUIC_RELOADABLE_FLAG_COUNT_N(quic_active_connection_id_limit2, 1, 2);
       self_issued_cid_manager_->set_active_connection_id_limit(
           std::min<size_t>(config.ReceivedActiveConnectionIdLimit(),
-                           kMaxNumOfActiveConnectionIds));
+                           config.max_num_of_active_connection_ids()));
     }
   }
 

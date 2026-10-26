@@ -19077,15 +19077,6 @@ TEST_P(QuicConnectionTest, ClientActiveConnectionIdLimit) {
   QuicConfig config;
   config.SetActiveConnectionIdLimitToSend(4);
 
-  SetQuicReloadableFlag(quic_active_connection_id_limit, false);
-  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
-  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
-  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
-  connection_.SetFromConfig(config);
-  EXPECT_EQ(QuicConnectionPeer::GetPeerIssuedConnectionIdLimit(&connection_),
-            kMinNumOfActiveConnectionIds);
-
-  SetQuicReloadableFlag(quic_active_connection_id_limit, true);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
@@ -19114,7 +19105,7 @@ TEST_P(QuicConnectionTest, ServerActiveConnectionIdLimit) {
                                                 &error_details),
               IsQuicNoError());
 
-  SetQuicReloadableFlag(quic_active_connection_id_limit, false);
+  SetQuicReloadableFlag(quic_active_connection_id_limit2, false);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
@@ -19122,7 +19113,24 @@ TEST_P(QuicConnectionTest, ServerActiveConnectionIdLimit) {
   EXPECT_EQ(QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(&connection_),
             kMinNumOfActiveConnectionIds);
 
-  SetQuicReloadableFlag(quic_active_connection_id_limit, true);
+  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  // Default max_num_of_active_connection_ids is kMinNumOfActiveConnectionIds.
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(&connection_),
+            kMinNumOfActiveConnectionIds);
+
+  config.set_max_num_of_active_connection_ids(3);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(&connection_),
+            3u);
+
+  config.set_max_num_of_active_connection_ids(kMaxNumOfActiveConnectionIds);
   EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
   EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
   EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
@@ -19141,6 +19149,38 @@ TEST_P(QuicConnectionTest, ServerActiveConnectionIdLimit) {
   connection_.SetFromConfig(config);
   EXPECT_EQ(QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(&connection_),
             kMaxNumOfActiveConnectionIds);
+}
+
+TEST_P(QuicConnectionTest,
+       ServerActiveConnectionIdLimitIgnoredWithClientConnectionId) {
+  if (!version().IsIetfQuic()) {
+    return;
+  }
+  set_perspective(Perspective::IS_SERVER);
+  connection_.set_client_connection_id(TestConnectionId(1));
+  connection_.CreateConnectionIdManager();
+  ASSERT_NE(QuicConnectionPeer::GetSelfIssuedConnectionIdManager(&connection_),
+            nullptr);
+  ASSERT_NE(QuicConnectionPeer::GetPeerIssuedConnectionIdManager(&connection_),
+            nullptr);
+
+  QuicConfig config;
+  config.set_max_num_of_active_connection_ids(kMaxNumOfActiveConnectionIds);
+  TransportParameters params;
+  params.initial_source_connection_id = connection_.client_connection_id();
+  params.active_connection_id_limit.set_value(4);
+  std::string error_details;
+  ASSERT_THAT(config.ProcessTransportParameters(params, /*is_resumption=*/false,
+                                                &error_details),
+              IsQuicNoError());
+
+  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
+  EXPECT_CALL(*send_algorithm_, SetFromConfig(_, _));
+  EXPECT_CALL(*send_algorithm_, EnableECT1()).WillOnce(Return(false));
+  EXPECT_CALL(*send_algorithm_, EnableECT0()).WillOnce(Return(false));
+  connection_.SetFromConfig(config);
+  EXPECT_EQ(QuicConnectionPeer::GetSelfIssuedConnectionIdLimit(&connection_),
+            kMinNumOfActiveConnectionIds);
 }
 
 TEST_P(QuicConnectionTest,

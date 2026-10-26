@@ -433,6 +433,7 @@ QuicConfig::QuicConfig()
       max_time_before_crypto_handshake_(QuicTime::Delta::Zero()),
       max_idle_time_before_crypto_handshake_(QuicTime::Delta::Zero()),
       max_undecryptable_packets_(0),
+      max_num_of_active_connection_ids_(kMinNumOfActiveConnectionIds),
       connection_options_(kCOPT, PRESENCE_OPTIONAL),
       client_connection_options_(kCLOP, PRESENCE_OPTIONAL),
       max_idle_timeout_to_send_(QuicTime::Delta::Infinite()),
@@ -1049,6 +1050,7 @@ void QuicConfig::SetDefaults() {
   max_idle_time_before_crypto_handshake_ =
       QuicTime::Delta::FromSeconds(kInitialIdleTimeoutSecs);
   max_undecryptable_packets_ = kDefaultMaxUndecryptablePackets;
+  max_num_of_active_connection_ids_ = kMinNumOfActiveConnectionIds;
 
   SetInitialStreamFlowControlWindowToSend(kMinimumFlowControlSendWindow);
   SetInitialSessionFlowControlWindowToSend(kMinimumFlowControlSendWindow);

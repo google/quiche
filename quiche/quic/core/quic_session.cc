@@ -237,18 +237,15 @@ void QuicSession::Initialize() {
     if (config()->HasClientRequestedIndependentOption(kBCFR, perspective_)) {
       bundle_retransmitted_crypto_frames_ = true;
     }
-    if (GetQuicReloadableFlag(quic_active_connection_id_limit) &&
+    if (perspective_ == Perspective::IS_CLIENT &&
         connection_->version().IsIetfQuic()) {
       if (config()->HasClientRequestedIndependentOption(k3CID, perspective_)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_active_connection_id_limit, 1, 5);
         config()->SetActiveConnectionIdLimitToSend(3);
       } else if (config()->HasClientRequestedIndependentOption(k4CID,
                                                                perspective_)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_active_connection_id_limit, 2, 5);
         config()->SetActiveConnectionIdLimitToSend(4);
       } else if (config()->HasClientRequestedIndependentOption(k5CID,
                                                                perspective_)) {
-        QUIC_RELOADABLE_FLAG_COUNT_N(quic_active_connection_id_limit, 3, 5);
         config()->SetActiveConnectionIdLimitToSend(5);
       }
     }

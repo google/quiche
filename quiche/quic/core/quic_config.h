@@ -534,6 +534,15 @@ class QUICHE_EXPORT QuicConfig {
   bool HasReceivedActiveConnectionIdLimit() const;
   uint64_t ReceivedActiveConnectionIdLimit() const;
 
+  void set_max_num_of_active_connection_ids(
+      size_t max_num_of_active_connection_ids) {
+    max_num_of_active_connection_ids_ = max_num_of_active_connection_ids;
+  }
+
+  size_t max_num_of_active_connection_ids() const {
+    return max_num_of_active_connection_ids_;
+  }
+
   // Initial source connection ID.
   void SetInitialSourceConnectionIdToSend(
       const QuicConnectionId& initial_source_connection_id);
@@ -610,6 +619,8 @@ class QUICHE_EXPORT QuicConfig {
   QuicTime::Delta max_idle_time_before_crypto_handshake_;
   // Maximum number of undecryptable packets stored before CHLO/SHLO.
   size_t max_undecryptable_packets_;
+  // Maximum number of active connection IDs that this endpoint will issue.
+  size_t max_num_of_active_connection_ids_;
 
   // Connection options which affect the server side.  May also affect the
   // client side in cases when identical behavior is desirable.

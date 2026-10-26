@@ -9352,8 +9352,10 @@ TEST_P(EndToEndTest, SpinBitEnableSafety) {
 }
 
 TEST_P(EndToEndTest, ActiveConnectionIdLimit4CID) {
-  SetQuicReloadableFlag(quic_active_connection_id_limit, true);
+  SetQuicReloadableFlag(quic_active_connection_id_limit2, true);
   client_config_.SetClientConnectionOptions(QuicTagVector{k4CID});
+  server_config_.set_max_num_of_active_connection_ids(
+      kMaxNumOfActiveConnectionIds);
   ASSERT_TRUE(Initialize());
   if (!version_.IsIetfQuic()) {
     return;
