@@ -17,8 +17,8 @@
 // being automatically translated from the JSON source to C++ unit tests. Please
 // do not modify, as the contents will be overwritten when this is re-generated.
 
-// Generated on 2026-10-21 from structured-field-tests.git @
-// 3c6d77618d9d4c73e107fd7b90f15026675457b1.
+// Generated on 2026-10-27 from structured-field-tests.git @
+// 2f9d4579ff621a10a947cda73c9f8dc8b6f22edc.
 
 namespace quiche {
 namespace structured_headers {
@@ -1702,6 +1702,20 @@ const struct ParameterizedItemTestCase {
     {"too long integer", "1234567890123456", 16, std::nullopt, nullptr},
     {"negative too long integer", "-1234567890123456", 17, std::nullopt,
      nullptr},
+    {"too long integer with leading zeros", "0000000000000001", 16,
+     std::nullopt, nullptr},
+    {"negative too long integer with leading zeros", "-0000000000000001", 17,
+     std::nullopt, nullptr},
+    {"15 digit integer with leading zeros",
+     "000000000000001",
+     15,
+     {{Integer(1), {}}},
+     "1"},
+    {"15 digit negative integer with leading zeros",
+     "-000000000000001",
+     16,
+     {{Integer(-1), {}}},
+     "-1"},
     {"simple decimal", "1.23", 4, {{Item(1.23), {}}}, nullptr},
     {"negative decimal", "-1.23", 5, {{Item(-1.23), {}}}, nullptr},
     {"decimal, whitespace after decimal", "1. 23", 5, std::nullopt, nullptr},
@@ -1733,6 +1747,10 @@ const struct ParameterizedItemTestCase {
      std::nullopt, nullptr},
     {"negative decimal with thirteen integer digits", "-1234567890123.0", 16,
      std::nullopt, nullptr},
+    {"decimal with thirteen integer digits and no fractional digits",
+     "1234567890123.", 14, std::nullopt, nullptr},
+    {"negative decimal with thirteen integer digits and no fractional digits",
+     "-1234567890123.", 15, std::nullopt, nullptr},
     {"decimal with 1 significant digit and 1 insignificant digit",
      "1.20",
      4,
@@ -1748,6 +1766,9 @@ const struct ParameterizedItemTestCase {
      5,
      {{Item(1.23), {}}},
      "1.23"},
+    // param-list.json
+    {"parameter value with thirteen integer digits and no fractional digits",
+     "1;a=1234567890123.", 18, std::nullopt, nullptr},
     // string-generated.json
     {"0x00 in string", "\" \000 \"", 5, std::nullopt, nullptr},
     {"0x01 in string", "\" \001 \"", 5, std::nullopt, nullptr},
@@ -5751,6 +5772,8 @@ const struct ListTestCase {
      nullptr},
     {"too long integer followed by comma", "1234567890123456, 1", 19,
      std::nullopt, nullptr},
+    {"too long integer with leading zeros followed by comma",
+     "0777777777777775, 1", 19, std::nullopt, nullptr},
     {"decimal, followed by comma",
      "123456789012.123, 1.1",
      21,
@@ -7615,12 +7638,16 @@ const struct DictionaryTestCase {
      nullptr},
     {"empty item parameterised list", "a=b; q=1.0,,c=d", 15, std::nullopt,
      nullptr},
+    {"dictionary parameter value with thirteen integer digits and no "
+     "fractional digits",
+     "a;b=1111111111111.", 18, std::nullopt, nullptr},
 };
 
 const struct SerializationOnlyItemTestCase {
   const char* name;
   const ParameterizedItem expected;
   const std::optional<std::string> canonical;
+  const char* known_bug = nullptr;
 } serialization_only_item_test_cases[] = {
     // serialisation-tests/number.json
     {"too big positive integer - serialize",
@@ -7635,6 +7662,12 @@ const struct SerializationOnlyItemTestCase {
     {"too big negative decimal - serialize",
      {Item(-1000000000000.1), {}},
      std::nullopt},
+    {"decimal rounds up to too many integer digits - serialize",
+     {Item(999999999999.9996), {}},
+     std::nullopt},
+    {"decimal with 12 integer digits and no rounding - serialize",
+     {Item(999999999999.999), {}},
+     "999999999999.999"},
     {"round positive odd decimal - serialize", {Item(0.0015), {}}, "0.002"},
     {"round positive even decimal - serialize", {Item(0.0025), {}}, "0.002"},
     {"round negative odd decimal - serialize", {Item(-0.0015), {}}, "-0.002"},
@@ -7642,6 +7675,22 @@ const struct SerializationOnlyItemTestCase {
     {"decimal round up to integer part - serialize",
      {Item(9.9995), {}},
      "10.0"},
+    {"round tie to even, below the midpoint as a float - serialize",
+     {Item(0.5015), {}},
+     "0.502",
+     "b/578430312"},
+    {"round negative tie to even, below the midpoint as a float - serialize",
+     {Item(-0.5015), {}},
+     "-0.502",
+     "b/578430312"},
+    {"round tie to even, second below-midpoint witness - serialize",
+     {Item(0.5035), {}},
+     "0.504",
+     "b/578430312"},
+    {"round tie to even, above the midpoint as a float - serialize",
+     {Item(2.0005), {}},
+     "2.0",
+     "b/578430312"},
     // serialisation-tests/string-generated.json
     {"0x00 in string - serialise only",
      {Item(Item::string, std::string("\000", 1)), {}},
@@ -8122,6 +8171,7 @@ const struct SerializationOnlyListTestCase {
   const char* name;
   const List expected;
   const std::optional<std::string> canonical;
+  const char* known_bug = nullptr;
 } serialization_only_list_test_cases[] = {
     // serialisation-tests/key-generated.json
     {"0x00 in parameterised list key - serialise only",
@@ -8700,6 +8750,7 @@ const struct SerializationOnlyDictionaryTestCase {
   const char* name;
   const Dictionary expected;
   const std::optional<std::string> canonical;
+  const char* known_bug = nullptr;
 } serialization_only_dictionary_test_cases[] = {
     // serialisation-tests/key-generated.json
     {"0x00 in dictionary key - serialise only",
@@ -9219,7 +9270,15 @@ TEST(StructuredHeaderGeneratedTest, SerializationOnlyItem) {
   for (const auto& c : serialization_only_item_test_cases) {
     SCOPED_TRACE(c.name);
     std::optional<std::string> result = SerializeItem(c.expected);
-    EXPECT_EQ(result, c.canonical);
+    if (c.known_bug) {
+      if (result == c.canonical) {
+        ADD_FAILURE() << "Test " << c.name
+                      << " passed serialization but was expected to fail ("
+                      << c.known_bug << "); please remove from KNOWN_BUGS";
+      }
+    } else {
+      EXPECT_EQ(result, c.canonical);
+    }
   }
 }
 
@@ -9227,7 +9286,15 @@ TEST(StructuredHeaderGeneratedTest, SerializationOnlyList) {
   for (const auto& c : serialization_only_list_test_cases) {
     SCOPED_TRACE(c.name);
     std::optional<std::string> result = SerializeList(c.expected);
-    EXPECT_EQ(result, c.canonical);
+    if (c.known_bug) {
+      if (result == c.canonical) {
+        ADD_FAILURE() << "Test " << c.name
+                      << " passed serialization but was expected to fail ("
+                      << c.known_bug << "); please remove from KNOWN_BUGS";
+      }
+    } else {
+      EXPECT_EQ(result, c.canonical);
+    }
   }
 }
 
@@ -9235,7 +9302,15 @@ TEST(StructuredHeaderGeneratedTest, SerializationOnlyDictionary) {
   for (const auto& c : serialization_only_dictionary_test_cases) {
     SCOPED_TRACE(c.name);
     std::optional<std::string> result = SerializeDictionary(c.expected);
-    EXPECT_EQ(result, c.canonical);
+    if (c.known_bug) {
+      if (result == c.canonical) {
+        ADD_FAILURE() << "Test " << c.name
+                      << " passed serialization but was expected to fail ("
+                      << c.known_bug << "); please remove from KNOWN_BUGS";
+      }
+    } else {
+      EXPECT_EQ(result, c.canonical);
+    }
   }
 }
 
