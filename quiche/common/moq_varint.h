@@ -20,6 +20,7 @@
 #include <cstdint>
 #include <optional>
 
+#include "quiche/common/platform/api/quiche_export.h"
 #include "quiche/common/quiche_data_reader.h"
 #include "quiche/common/quiche_data_writer.h"
 
@@ -32,25 +33,26 @@ size_t GetEbmlVarintLengthForFirstByte(char first_byte);
 
 // From a value, determine the length of the minimal encoding of that value as a
 // varint.
-size_t GetMoqVarintLengthForValue(uint64_t value);
-std::optional<size_t> GetEbmlVarintLengthForValue(uint64_t value);
+QUICHE_EXPORT size_t GetMoqVarintLengthForValue(uint64_t value);
+QUICHE_EXPORT std::optional<size_t> GetEbmlVarintLengthForValue(uint64_t value);
 
 // Reads the varint from `reader`.  If successful, the varint is removed from
 // `data`, and the parsed value is returned.  If unsuccessful, `data` is
 // unchanged and std::nullopt is returned.
-std::optional<uint64_t> ReadMoqVarint(QuicheDataReader& reader);
-std::optional<uint64_t> ReadEbmlVarint(QuicheDataReader& reader);
+QUICHE_EXPORT std::optional<uint64_t> ReadMoqVarint(QuicheDataReader& reader);
+QUICHE_EXPORT std::optional<uint64_t> ReadEbmlVarint(QuicheDataReader& reader);
 
 // Writes the varint into `writer`.  Returns true on success.
-[[nodiscard]] bool WriteMoqVarint(QuicheDataWriter& writer, uint64_t value);
-[[nodiscard]] bool WriteEbmlVarint(QuicheDataWriter& writer, uint64_t value);
+[[nodiscard]] QUICHE_EXPORT bool WriteMoqVarint(QuicheDataWriter& writer,
+                                                uint64_t value);
+[[nodiscard]] QUICHE_EXPORT bool WriteEbmlVarint(QuicheDataWriter& writer,
+                                                 uint64_t value);
 
 // Writes the varint with the specified length instead of internally computed.
 // Primarily meant to be used for testing.  If the `value` is too large to fit
 // into a varint of length `length`, the result is undefined.
-[[nodiscard]] bool WriteMoqVarintWithCustomLength(QuicheDataWriter& writer,
-                                                  uint64_t value,
-                                                  size_t length);
+[[nodiscard]] QUICHE_EXPORT bool WriteMoqVarintWithCustomLength(
+    QuicheDataWriter& writer, uint64_t value, size_t length);
 
 }  // namespace quiche
 
