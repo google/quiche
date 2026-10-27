@@ -1022,6 +1022,16 @@ balsa_srcs = [
     "src/quiche/balsa/simple_buffer.cc",
     "src/quiche/balsa/standard_header_map.cc",
 ]
+balsa_tests_hdrs = [
+
+]
+balsa_tests_srcs = [
+    "src/quiche/balsa/balsa_frame_test.cc",
+    "src/quiche/balsa/balsa_headers_sequence_test.cc",
+    "src/quiche/balsa/balsa_headers_test.cc",
+    "src/quiche/balsa/header_properties_test.cc",
+    "src/quiche/balsa/simple_buffer_test.cc",
+]
 masque_test_hdrs = [
 
 ]
@@ -1128,11 +1138,6 @@ quiche_tests_hdrs = [
 
 ]
 quiche_tests_srcs = [
-    "src/quiche/balsa/balsa_frame_test.cc",
-    "src/quiche/balsa/balsa_headers_sequence_test.cc",
-    "src/quiche/balsa/balsa_headers_test.cc",
-    "src/quiche/balsa/header_properties_test.cc",
-    "src/quiche/balsa/simple_buffer_test.cc",
     "src/quiche/binary_http/binary_http_message_test.cc",
     "src/quiche/common/abiding_object_pool_test.cc",
     "src/quiche/common/btree_scheduler_test.cc",

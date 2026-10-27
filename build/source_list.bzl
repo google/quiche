@@ -1022,6 +1022,15 @@ balsa_srcs = [
     "balsa/simple_buffer.cc",
     "balsa/standard_header_map.cc",
 ]
+balsa_tests_hdrs = [
+]
+balsa_tests_srcs = [
+    "balsa/balsa_frame_test.cc",
+    "balsa/balsa_headers_sequence_test.cc",
+    "balsa/balsa_headers_test.cc",
+    "balsa/header_properties_test.cc",
+    "balsa/simple_buffer_test.cc",
+]
 masque_test_hdrs = [
 ]
 masque_test_srcs = [
@@ -1126,11 +1135,6 @@ io_test_support_srcs = [
 quiche_tests_hdrs = [
 ]
 quiche_tests_srcs = [
-    "balsa/balsa_frame_test.cc",
-    "balsa/balsa_headers_sequence_test.cc",
-    "balsa/balsa_headers_test.cc",
-    "balsa/header_properties_test.cc",
-    "balsa/simple_buffer_test.cc",
     "binary_http/binary_http_message_test.cc",
     "common/abiding_object_pool_test.cc",
     "common/btree_scheduler_test.cc",

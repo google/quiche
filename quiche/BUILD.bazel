@@ -6,6 +6,7 @@ load(
     "//build:source_list.bzl",
     "balsa_hdrs",
     "balsa_srcs",
+    "balsa_tests_srcs",
     "binary_http_hdrs",
     "binary_http_srcs",
     "default_platform_impl_hdrs",
@@ -351,6 +352,22 @@ test_suite_from_source_list(
         "@com_google_absl//absl/strings:str_format",
         "@com_google_absl//absl/synchronization",
         "@com_google_absl//absl/types:span",
+        "@com_google_googletest//:gtest_main",
+    ],
+)
+
+test_suite_from_source_list(
+    name = "balsa_tests",
+    srcs = balsa_tests_srcs,
+    deps = [
+        ":balsa",
+        ":quiche_core",
+        ":quiche_test_support",
+        ":quiche_tool_support",
+        "@com_google_absl//absl/base:core_headers",
+        "@com_google_absl//absl/container:flat_hash_set",
+        "@com_google_absl//absl/strings",
+        "@com_google_absl//absl/strings:str_format",
         "@com_google_googletest//:gtest_main",
     ],
 )
