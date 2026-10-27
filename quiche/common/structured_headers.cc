@@ -668,18 +668,21 @@ class StructuredHeaderSerializer {
               // serialized as "0.0", with no negative sign, as required by
               // spec. (4.1.5, step 2).
               decimal_value = fabs(decimal_value);
-              double remainder = fmod(decimal_value, 0.002);
-              if (remainder == 0.0005) {
-                // Value ended in exactly 0.0005, 0.0025, 0.0045, etc. Round
-                // down.
-                decimal_value -= 0.0005;
-              } else if (remainder == 0.0015) {
-                // Value ended in exactly 0.0015, 0.0035, 0,0055, etc. Round up.
-                decimal_value += 0.0005;
-              } else {
-                // Standard rounding will work in all other cases.
-                decimal_value = round(decimal_value * 1000.0) / 1000.0;
-              }
+              // Exact decimal ties like 0.5015 and 2.0005 are not exact in
+              // binary floating point, so `decimal_value * 1000.0` can land 1
+              // ULP below or above the half-integer midpoint. Because both
+              // `midpoint = floor + 0.5` and `1000.0` are exact in `double` for
+              // all in-range decimals (`< 1e12`), IEEE 754 division
+              // `midpoint / 1000.0` produces the exact same `double` as the
+              // decimal tie `(floor + 0.5) / 1000`.
+              // See
+              // https://github.com/httpwg/structured-field-tests/issues/113.
+              const double scaled = decimal_value * 1000.0;
+              const double midpoint = std::floor(scaled) + 0.5;
+              decimal_value =
+                  std::nearbyint(midpoint / 1000.0 == decimal_value ? midpoint
+                                                                    : scaled) /
+                  1000.0;
 
               // Use standard library functions to write the decimal, and then
               // truncate if necessary to conform to spec.
