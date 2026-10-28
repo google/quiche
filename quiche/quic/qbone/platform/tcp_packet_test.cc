@@ -5,8 +5,11 @@
 #include "quiche/quic/qbone/platform/tcp_packet.h"
 
 #include <netinet/ip6.h>
+#include <netinet/tcp.h>
 
 #include <cstdint>
+#include <cstring>
+#include <string>
 
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_test.h"
@@ -108,10 +111,58 @@ TEST(TcpPacketTest, CreatedPacketMatchesReference) {
   absl::string_view expected_packet =
       absl::string_view(reinterpret_cast<const char*>(kReferenceTCPRSTPacket),
                         sizeof(kReferenceTCPRSTPacket));
-  CreateTcpResetPacket(syn, [&expected_packet](absl::string_view packet) {
+  bool callback_called = false;
+  CreateTcpResetPacket(syn, [&](absl::string_view packet) {
+    callback_called = true;
     QUIC_LOG(INFO) << quiche::QuicheTextUtils::HexDump(packet);
     ASSERT_EQ(packet, expected_packet);
   });
+  EXPECT_TRUE(callback_called);
+}
+
+TEST(TcpPacketTest, PacketTooShortForTcpHeaderDoesNotGenerateReset) {
+  absl::string_view truncated_packet(
+      reinterpret_cast<const char*>(kReferenceTCPSYNPacket),
+      sizeof(ip6_hdr) + sizeof(tcphdr) - 1);
+  bool callback_called = false;
+  CreateTcpResetPacket(truncated_packet,
+                       [&](absl::string_view) { callback_called = true; });
+  EXPECT_FALSE(callback_called);
+}
+
+TEST(TcpPacketTest, ResetForPacketWithAckTakesSequenceFromAckSeq) {
+  std::string packet(reinterpret_cast<const char*>(kReferenceTCPSYNPacket),
+                     sizeof(kReferenceTCPSYNPacket));
+  ip6_hdr ip6;
+  memcpy(&ip6, packet.data(), sizeof(ip6_hdr));
+  ip6.ip6_dst.s6_addr[15] = 2;
+  memcpy(packet.data(), &ip6, sizeof(ip6_hdr));
+
+  tcphdr tcp_hdr;
+  memcpy(&tcp_hdr, packet.data() + sizeof(ip6_hdr), sizeof(tcphdr));
+  tcp_hdr.ack = 1;
+  tcp_hdr.ack_seq = 0x12345678;
+  memcpy(packet.data() + sizeof(ip6_hdr), &tcp_hdr, sizeof(tcphdr));
+
+  bool callback_called = false;
+  CreateTcpResetPacket(packet, [&](absl::string_view rst_packet) {
+    callback_called = true;
+    ASSERT_EQ(rst_packet.size(), sizeof(ip6_hdr) + sizeof(tcphdr));
+
+    ip6_hdr rst_ip6;
+    memcpy(&rst_ip6, rst_packet.data(), sizeof(ip6_hdr));
+    EXPECT_EQ(rst_ip6.ip6_src.s6_addr[15], 2);
+    EXPECT_EQ(rst_ip6.ip6_dst.s6_addr[15], 1);
+
+    tcphdr rst_tcp;
+    memcpy(&rst_tcp, rst_packet.data() + sizeof(ip6_hdr), sizeof(tcphdr));
+    EXPECT_EQ(rst_tcp.rst, 1);
+    EXPECT_EQ(rst_tcp.ack, 0);
+    EXPECT_EQ(rst_tcp.seq, 0x12345678);
+    EXPECT_EQ(rst_tcp.source, tcp_hdr.dest);
+    EXPECT_EQ(rst_tcp.dest, tcp_hdr.source);
+  });
+  EXPECT_TRUE(callback_called);
 }
 
 }  // namespace quic

@@ -6,6 +6,8 @@
 
 #include <netinet/ip6.h>
 
+#include <cstring>
+
 #include "absl/base/optimization.h"
 #include "absl/strings/string_view.h"
 #include "quiche/quic/platform/api/quic_logging.h"
@@ -41,18 +43,24 @@ void CreateTcpResetPacket(
   if (ABSL_PREDICT_FALSE(original_packet.size() < sizeof(ip6_hdr))) {
     return;
   }
-  auto* ip6_header = reinterpret_cast<const ip6_hdr*>(original_packet.data());
-  if (ABSL_PREDICT_FALSE(ip6_header->ip6_vfc >> 4 != 6)) {
+  ip6_hdr ip6_header;
+  memcpy(&ip6_header, original_packet.data(), sizeof(ip6_hdr));
+  if (ABSL_PREDICT_FALSE(ip6_header.ip6_vfc >> 4 != 6)) {
     return;
   }
-  if (ABSL_PREDICT_FALSE(ip6_header->ip6_nxt != IPPROTO_TCP)) {
+  if (ABSL_PREDICT_FALSE(ip6_header.ip6_nxt != IPPROTO_TCP)) {
     return;
   }
   if (ABSL_PREDICT_FALSE(quiche::QuicheEndian::NetToHost16(
-                             ip6_header->ip6_plen) < sizeof(tcphdr))) {
+                             ip6_header.ip6_plen) < sizeof(tcphdr))) {
     return;
   }
-  auto* tcp_header = reinterpret_cast<const tcphdr*>(ip6_header + 1);
+  if (ABSL_PREDICT_FALSE(original_packet.size() <
+                         sizeof(ip6_hdr) + sizeof(tcphdr))) {
+    return;
+  }
+  tcphdr tcp_header;
+  memcpy(&tcp_header, original_packet.data() + sizeof(ip6_hdr), sizeof(tcphdr));
 
   // Now that the original packet has been confirmed to be well-formed, it's
   // time to make the TCP RST packet.
@@ -69,12 +77,12 @@ void CreateTcpResetPacket(
   tcp_packet.ip_header.ip6_hops = kTcpTtl;
   // Since the TCP RST is impersonating the endpoint, flip the source and
   // destination addresses from the original packet.
-  tcp_packet.ip_header.ip6_src = ip6_header->ip6_dst;
-  tcp_packet.ip_header.ip6_dst = ip6_header->ip6_src;
+  tcp_packet.ip_header.ip6_src = ip6_header.ip6_dst;
+  tcp_packet.ip_header.ip6_dst = ip6_header.ip6_src;
 
   // The same is true about the TCP ports
-  tcp_packet.tcp_header.dest = tcp_header->source;
-  tcp_packet.tcp_header.source = tcp_header->dest;
+  tcp_packet.tcp_header.dest = tcp_header.source;
+  tcp_packet.tcp_header.source = tcp_header.dest;
 
   // There are no extensions in this header, so size is trivial
   tcp_packet.tcp_header.doff = sizeof(tcphdr) >> 2;
@@ -95,15 +103,15 @@ void CreateTcpResetPacket(
 
   // If the incoming segment has an ACK field, the reset takes its sequence
   // number from the ACK field of the segment,
-  if (tcp_header->ack) {
-    tcp_packet.tcp_header.seq = tcp_header->ack_seq;
+  if (tcp_header.ack) {
+    tcp_packet.tcp_header.seq = tcp_header.ack_seq;
   } else {
     // Otherwise the reset has sequence number zero and the ACK field is set to
     // the sum of the sequence number and segment length of the incoming segment
     tcp_packet.tcp_header.ack = 1;
     tcp_packet.tcp_header.seq = 0;
     tcp_packet.tcp_header.ack_seq = quiche::QuicheEndian::HostToNet32(
-        quiche::QuicheEndian::NetToHost32(tcp_header->seq) + 1);
+        quiche::QuicheEndian::NetToHost32(tcp_header.seq) + 1);
   }
 
   TCPv6PseudoHeader pseudo_header{};
