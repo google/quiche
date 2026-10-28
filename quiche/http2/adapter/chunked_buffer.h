@@ -22,7 +22,7 @@ class QUICHE_EXPORT ChunkedBuffer {
   void Append(std::unique_ptr<char[]> data, size_t size);
 
   // A region of memory into which data may be written by the caller.
-  class AppendRegion {
+  class QUICHE_EXPORT AppendRegion {
    public:
     // Data may be written here.
     char* data;
