@@ -15,6 +15,7 @@
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/http2/core/http2_frame_decoder_adapter.h"
 #include "quiche/quic/core/http/http_frames.h"
 #include "quiche/quic/core/http/quic_header_list.h"
@@ -263,10 +264,13 @@ class QUICHE_EXPORT QuicSpdySession
 
   const QuicHeadersStream* headers_stream() const { return headers_stream_; }
 
-  // Called when the control stream receives HTTP/3 SETTINGS.
-  // Returns false in case of 0-RTT if received settings are incompatible with
-  // cached values, true otherwise.
-  virtual bool OnSettingsFrame(const SettingsFrame& frame);
+  // Called when the control stream receives HTTP/3 SETTINGS. |wire_order|
+  // holds the setting identifiers in the order they appeared on the wire
+  // (SettingsFrame::values is unordered) and is only valid for the duration of
+  // the call. Returns false in case of 0-RTT if received settings are
+  // incompatible with cached values, true otherwise.
+  virtual bool OnSettingsFrame(const SettingsFrame& frame,
+                               absl::Span<const uint64_t> wire_order);
 
   // Called when an HTTP/3 SETTINGS frame is received via ALPS.
   // Returns an error message if an error has occurred, or nullopt otherwise.

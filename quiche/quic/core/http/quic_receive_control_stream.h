@@ -5,6 +5,7 @@
 #ifndef QUICHE_QUIC_CORE_HTTP_QUIC_RECEIVE_CONTROL_STREAM_H_
 #define QUICHE_QUIC_CORE_HTTP_QUIC_RECEIVE_CONTROL_STREAM_H_
 
+#include "absl/types/span.h"
 #include "quiche/quic/core/http/http_decoder.h"
 #include "quiche/quic/core/quic_stream.h"
 #include "quiche/quic/core/quic_types.h"
@@ -37,7 +38,8 @@ class QUICHE_EXPORT QuicReceiveControlStream : public QuicStream,
   bool OnMaxPushIdFrame() override;
   bool OnGoAwayFrame(const GoAwayFrame& frame) override;
   bool OnSettingsFrameStart(QuicByteCount header_length) override;
-  bool OnSettingsFrame(const SettingsFrame& frame) override;
+  bool OnSettingsFrame(const SettingsFrame& frame,
+                       absl::Span<const uint64_t> wire_order) override;
   bool OnDataFrameStart(QuicByteCount header_length,
                         QuicByteCount payload_length) override;
   bool OnDataFramePayload(absl::string_view payload) override;

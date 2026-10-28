@@ -592,9 +592,10 @@ void MasqueClientSession::OnStreamClosed(QuicStreamId stream_id) {
   QuicSpdyClientSession::OnStreamClosed(stream_id);
 }
 
-bool MasqueClientSession::OnSettingsFrame(const SettingsFrame& frame) {
+bool MasqueClientSession::OnSettingsFrame(
+    const SettingsFrame& frame, absl::Span<const uint64_t> wire_order) {
   QUIC_DLOG(INFO) << connection_id() << " Received SETTINGS: " << frame;
-  if (!QuicSpdyClientSession::OnSettingsFrame(frame)) {
+  if (!QuicSpdyClientSession::OnSettingsFrame(frame, wire_order)) {
     QUIC_DLOG(ERROR) << "Failed to parse received settings";
     return false;
   }

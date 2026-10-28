@@ -3497,7 +3497,7 @@ TEST_P(QuicSpdyStreamTest, IncomingWebTransportStreamWhenUnsupported) {
   // Support WebTransport locally, but not by the peer.
   session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
   session_->EnableWebTransport();
-  session_->OnSettingsFrame(SettingsFrame());
+  session_->OnSettingsFrame(SettingsFrame(), /*wire_order=*/{});
 
   StrictMock<MockHttp3DebugVisitor> debug_visitor;
   session_->set_debug_visitor(&debug_visitor);
@@ -3524,7 +3524,7 @@ TEST_P(QuicSpdyStreamTest, IncomingWebTransportStream) {
   SettingsFrame settings;
   settings.values[SETTINGS_WEBTRANS_MAX_SESSIONS_DRAFT07] = 10;
   settings.values[SETTINGS_H3_DATAGRAM] = 1;
-  session_->OnSettingsFrame(settings);
+  session_->OnSettingsFrame(settings, /*wire_order=*/{});
 
   std::string webtransport_stream_frame;
   ASSERT_TRUE(absl::HexStringToBytes("404110", &webtransport_stream_frame));
@@ -3547,7 +3547,7 @@ TEST_P(QuicSpdyStreamTest, IncomingWebTransportStreamWithPaddingDraft02) {
   SettingsFrame settings;
   settings.values[SETTINGS_WEBTRANS_DRAFT00] = 1;
   settings.values[SETTINGS_H3_DATAGRAM] = 1;
-  session_->OnSettingsFrame(settings);
+  session_->OnSettingsFrame(settings, /*wire_order=*/{});
 
   std::string webtransport_stream_frame;
   ASSERT_TRUE(absl::HexStringToBytes("2100404110", &webtransport_stream_frame));
@@ -3570,7 +3570,7 @@ TEST_P(QuicSpdyStreamTest, IncomingWebTransportStreamWithPaddingDraft07) {
   SettingsFrame settings;
   settings.values[SETTINGS_WEBTRANS_MAX_SESSIONS_DRAFT07] = 10;
   settings.values[SETTINGS_H3_DATAGRAM] = 1;
-  session_->OnSettingsFrame(settings);
+  session_->OnSettingsFrame(settings, /*wire_order=*/{});
 
   std::string webtransport_stream_frame;
   ASSERT_TRUE(absl::HexStringToBytes("2100404110", &webtransport_stream_frame));
@@ -3670,7 +3670,7 @@ TEST_P(QuicSpdyStreamTest, SendHttpDatagramWithoutPeerSupport) {
   session_->set_local_http_datagram_support(HttpDatagramSupport::kRfc);
   SettingsFrame settings;
   settings.values[SETTINGS_H3_DATAGRAM] = 0;
-  session_->OnSettingsFrame(settings);
+  session_->OnSettingsFrame(settings, /*wire_order=*/{});
 
   std::string http_datagram_payload = {1, 2, 3, 4, 5, 6};
   EXPECT_EQ(stream_->SendHttp3Datagram(http_datagram_payload),

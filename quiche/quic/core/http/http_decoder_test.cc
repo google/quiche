@@ -27,6 +27,7 @@ using ::testing::AnyNumber;
 using ::testing::ElementsAre;
 using ::testing::Eq;
 using ::testing::InSequence;
+using ::testing::IsEmpty;
 using ::testing::Return;
 
 namespace quic {
@@ -47,7 +48,7 @@ class HttpDecoderTest : public QuicTest {
     ON_CALL(visitor_, OnMaxPushIdFrame()).WillByDefault(Return(true));
     ON_CALL(visitor_, OnGoAwayFrame(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnSettingsFrameStart(_)).WillByDefault(Return(true));
-    ON_CALL(visitor_, OnSettingsFrame(_)).WillByDefault(Return(true));
+    ON_CALL(visitor_, OnSettingsFrame(_, _)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnDataFrameStart(_, _)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnDataFramePayload(_)).WillByDefault(Return(true));
     ON_CALL(visitor_, OnDataFrameEnd()).WillByDefault(Return(true));
@@ -241,7 +242,8 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
   EXPECT_EQ(2u, processed_bytes);
   remaining_input = remaining_input.substr(processed_bytes);
 
-  EXPECT_CALL(visitor_, OnSettingsFrame(frame)).WillOnce(Return(false));
+  EXPECT_CALL(visitor_, OnSettingsFrame(frame, ElementsAre(1, 6, 256)))
+      .WillOnce(Return(false));
   processed_bytes = ProcessInputWithGarbageAppended(remaining_input);
   EXPECT_EQ(remaining_input.size(), processed_bytes);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
@@ -250,7 +252,7 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
 
   // Process the full frame.
   EXPECT_CALL(visitor_, OnSettingsFrameStart(2));
-  EXPECT_CALL(visitor_, OnSettingsFrame(frame));
+  EXPECT_CALL(visitor_, OnSettingsFrame(frame, ElementsAre(1, 6, 256)));
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
@@ -258,11 +260,44 @@ TEST_F(HttpDecoderTest, SettingsFrame) {
 
   // Process the frame incrementally.
   EXPECT_CALL(visitor_, OnSettingsFrameStart(2));
-  EXPECT_CALL(visitor_, OnSettingsFrame(frame));
+  EXPECT_CALL(visitor_, OnSettingsFrame(frame, ElementsAre(1, 6, 256)));
   ProcessInputCharByChar(input);
   EXPECT_THAT(decoder_.error(), IsQuicNoError());
   EXPECT_EQ("", decoder_.error_detail());
   EXPECT_THAT(decoder_.decoded_frame_types(), ElementsAre(4, 4, 4));
+}
+
+TEST_F(HttpDecoderTest, SettingsFrameWireOrder) {
+  // Identifiers are deliberately not in ascending order; |wire_order| must
+  // report them as they appeared on the wire, while |values| is unordered.
+  std::string input;
+  ASSERT_TRUE(absl::HexStringToBytes(
+      "04"    // type (SETTINGS)
+      "07"    // length
+      "06"    // identifier (SETTINGS_MAX_HEADER_LIST_SIZE)
+      "05"    // content
+      "4100"  // identifier, encoded on 2 bytes (0x40), value is 256 (0x100)
+      "04"    // content
+      "01"    // identifier (SETTINGS_QPACK_MAX_TABLE_CAPACITY)
+      "02",   // content
+      &input));
+
+  SettingsFrame frame;
+  frame.values[1] = 2;
+  frame.values[6] = 5;
+  frame.values[256] = 4;
+
+  // Process the full frame.
+  EXPECT_CALL(visitor_, OnSettingsFrameStart(2));
+  EXPECT_CALL(visitor_, OnSettingsFrame(frame, ElementsAre(6, 256, 1)));
+  EXPECT_EQ(input.size(), ProcessInput(input));
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
+
+  // Process the frame incrementally.
+  EXPECT_CALL(visitor_, OnSettingsFrameStart(2));
+  EXPECT_CALL(visitor_, OnSettingsFrame(frame, ElementsAre(6, 256, 1)));
+  ProcessInputCharByChar(input);
+  EXPECT_THAT(decoder_.error(), IsQuicNoError());
 }
 
 TEST_F(HttpDecoderTest, CorruptSettingsFrame) {
@@ -828,7 +863,7 @@ TEST_F(HttpDecoderTest, EmptySettingsFrame) {
   EXPECT_CALL(visitor_, OnSettingsFrameStart(2));
 
   SettingsFrame empty_frame;
-  EXPECT_CALL(visitor_, OnSettingsFrame(empty_frame));
+  EXPECT_CALL(visitor_, OnSettingsFrame(empty_frame, IsEmpty()));
 
   EXPECT_EQ(input.size(), ProcessInput(input));
   EXPECT_THAT(decoder_.error(), IsQuicNoError());

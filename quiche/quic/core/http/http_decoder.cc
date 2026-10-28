@@ -8,6 +8,7 @@
 #include <cstdint>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "absl/base/attributes.h"
 #include "absl/strings/string_view.h"
@@ -557,10 +558,11 @@ bool HttpDecoder::ParseEntirePayload(QuicDataReader& reader) {
     }
     case static_cast<uint64_t>(HttpFrameType::SETTINGS): {
       SettingsFrame frame;
-      if (!ParseSettingsFrame(reader, frame)) {
+      std::vector<uint64_t> wire_order;
+      if (!ParseSettingsFrame(reader, frame, wire_order)) {
         return false;
       }
-      return visitor_->OnSettingsFrame(frame);
+      return visitor_->OnSettingsFrame(frame, wire_order);
     }
     case static_cast<uint64_t>(HttpFrameType::GOAWAY): {
       GoAwayFrame frame;
@@ -646,7 +648,8 @@ void HttpDecoder::RaiseError(QuicErrorCode error, std::string error_detail) {
 }
 
 bool HttpDecoder::ParseSettingsFrame(QuicDataReader& reader,
-                                     SettingsFrame& frame) {
+                                     SettingsFrame& frame,
+                                     std::vector<uint64_t>& wire_order) {
   while (!reader.IsDoneReading()) {
     uint64_t id;
     if (!reader.ReadVarInt62(&id)) {
@@ -664,6 +667,7 @@ bool HttpDecoder::ParseSettingsFrame(QuicDataReader& reader,
                  "Duplicate setting identifier.");
       return false;
     }
+    wire_order.push_back(id);
   }
   return true;
 }

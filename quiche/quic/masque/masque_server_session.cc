@@ -930,9 +930,10 @@ bool MasqueServerSession::HandleConnectEthernetSocketEvent(
   return true;
 }
 
-bool MasqueServerSession::OnSettingsFrame(const SettingsFrame& frame) {
+bool MasqueServerSession::OnSettingsFrame(
+    const SettingsFrame& frame, absl::Span<const uint64_t> wire_order) {
   QUIC_DLOG(INFO) << "Received SETTINGS: " << frame;
-  if (!QuicSimpleServerSession::OnSettingsFrame(frame)) {
+  if (!QuicSimpleServerSession::OnSettingsFrame(frame, wire_order)) {
     return false;
   }
   if (!SupportsH3Datagram()) {

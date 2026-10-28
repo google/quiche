@@ -13,6 +13,7 @@
 #include <memory>
 
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/crypto/quic_compressed_certs_cache.h"
 #include "quiche/quic/core/crypto/quic_crypto_server_config.h"
 #include "quiche/quic/core/frames/quic_connection_close_frame.h"
@@ -245,7 +246,8 @@ class QUIC_NO_EXPORT MasqueServerSession
   };
 
   // From QuicSpdySession.
-  bool OnSettingsFrame(const SettingsFrame& frame) override;
+  bool OnSettingsFrame(const SettingsFrame& frame,
+                       absl::Span<const uint64_t> wire_order) override;
   HttpDatagramSupport LocalHttpDatagramSupport() override {
     return HttpDatagramSupport::kRfc;
   }

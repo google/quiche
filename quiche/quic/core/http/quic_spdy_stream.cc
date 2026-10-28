@@ -16,6 +16,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/http2/adapter/header_validator.h"
 #include "quiche/http2/core/http2_constants.h"
 #include "quiche/http2/core/spdy_protocol.h"
@@ -81,7 +82,8 @@ class QuicSpdyStream::HttpDecoderVisitor : public HttpDecoder::Visitor {
     return false;
   }
 
-  bool OnSettingsFrame(const SettingsFrame& /*frame*/) override {
+  bool OnSettingsFrame(const SettingsFrame& /*frame*/,
+                       absl::Span<const uint64_t> /*wire_order*/) override {
     CloseConnectionOnWrongFrame("Settings");
     return false;
   }

@@ -3753,7 +3753,7 @@ TEST_P(QuicSpdySessionTestClient, ReceiveSpdySettingInHttp3) {
 
   EXPECT_CALL(*connection_,
               CloseConnection(QUIC_HTTP_RECEIVE_SPDY_SETTING, _, _));
-  session_->OnSettingsFrame(frame);
+  session_->OnSettingsFrame(frame, /*wire_order=*/{});
 }
 
 TEST_P(QuicSpdySessionTestClient, ReceiveAcceptChFrame) {

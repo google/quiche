@@ -80,7 +80,8 @@ class QUICHE_EXPORT WebTransportOnlyServerSession
   std::unique_ptr<QuicCryptoServerStreamBase> CreateQuicCryptoServerStream(
       const QuicCryptoServerConfig* crypto_config,
       QuicCompressedCertsCache* compressed_certs_cache) override;
-  bool OnSettingsFrame(const SettingsFrame& frame) override;
+  bool OnSettingsFrame(const SettingsFrame& frame,
+                       absl::Span<const uint64_t> wire_order) override;
 
   QuicSpdyStream* CreateIncomingStream(QuicStreamId id) override;
   QuicSpdyStream* CreateOutgoingBidirectionalStream() override;

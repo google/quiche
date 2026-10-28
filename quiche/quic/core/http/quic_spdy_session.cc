@@ -18,6 +18,7 @@
 #include "absl/strings/numbers.h"
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/http2/core/http2_frame_decoder_adapter.h"
 #include "quiche/quic/core/crypto/crypto_protocol.h"
 #include "quiche/quic/core/http/http_constants.h"
@@ -93,7 +94,8 @@ class AlpsFrameDecoder : public HttpDecoder::Visitor {
   bool OnSettingsFrameStart(QuicByteCount /*header_length*/) override {
     return true;
   }
-  bool OnSettingsFrame(const SettingsFrame& frame) override {
+  bool OnSettingsFrame(const SettingsFrame& frame,
+                       absl::Span<const uint64_t> /*wire_order*/) override {
     if (settings_frame_received_via_alps_) {
       error_detail_ = "multiple SETTINGS frames";
       return false;
@@ -1104,7 +1106,8 @@ void QuicSpdySession::OnAcceptChFrameReceivedViaAlps(
   }
 }
 
-bool QuicSpdySession::OnSettingsFrame(const SettingsFrame& frame) {
+bool QuicSpdySession::OnSettingsFrame(
+    const SettingsFrame& frame, absl::Span<const uint64_t> /*wire_order*/) {
   QUICHE_DCHECK(VersionIsIetfQuic(transport_version()));
   if (debug_visitor_ != nullptr) {
     debug_visitor_->OnSettingsFrameReceived(frame);

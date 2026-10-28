@@ -92,8 +92,8 @@ QuicStream* WebTransportOnlyServerSession::ProcessBidirectionalPendingStream(
 }
 
 bool WebTransportOnlyServerSession::OnSettingsFrame(
-    const SettingsFrame& frame) {
-  if (!QuicServerSessionBase::OnSettingsFrame(frame)) {
+    const SettingsFrame& frame, absl::Span<const uint64_t> wire_order) {
+  if (!QuicServerSessionBase::OnSettingsFrame(frame, wire_order)) {
     return false;
   }
   if (!SupportsWebTransport()) {

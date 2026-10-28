@@ -184,7 +184,7 @@ class QuicSpdyClientSessionTest : public QuicTestWithParam<ParsedQuicVersion> {
       settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
       settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
       settings.values[256] = 4;  // unknown setting
-      session_->OnSettingsFrame(settings);
+      session_->OnSettingsFrame(settings, /*wire_order=*/{});
     }
   }
 
@@ -573,7 +573,7 @@ TEST_P(QuicSpdyClientSessionTest, OnSettingsFrame) {
                               0x04};
   ApplicationState expected(std::begin(application_state),
                             std::end(application_state));
-  session_->OnSettingsFrame(settings);
+  session_->OnSettingsFrame(settings, /*wire_order=*/{});
   EXPECT_EQ(expected, *client_session_cache_
                            ->Lookup(QuicServerId(kServerHostname, kPort),
                                     session_->GetClock()->WallNow(), nullptr)
@@ -664,7 +664,7 @@ TEST_P(QuicSpdyClientSessionTest, IetfZeroRttSetup) {
     settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 2;
     settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
     settings.values[256] = 4;  // unknown setting
-    session_->OnSettingsFrame(settings);
+    session_->OnSettingsFrame(settings, /*wire_order=*/{});
   }
 }
 
@@ -881,7 +881,7 @@ TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRttResumption) {
   settings.values[SETTINGS_QPACK_MAX_TABLE_CAPACITY] = 1;
   settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 5;
   settings.values[256] = 4;  // unknown setting
-  session_->OnSettingsFrame(settings);
+  session_->OnSettingsFrame(settings, /*wire_order=*/{});
 }
 
 TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRttRejection) {
@@ -912,7 +912,7 @@ TEST_P(QuicSpdyClientSessionTest, BadSettingsInZeroRttRejection) {
   // setting on SETTINGS_MAX_FIELD_SECTION_SIZE is reduced.
   settings.values[SETTINGS_MAX_FIELD_SECTION_SIZE] = 4;
   settings.values[256] = 4;  // unknown setting
-  session_->OnSettingsFrame(settings);
+  session_->OnSettingsFrame(settings, /*wire_order=*/{});
 }
 
 TEST_P(QuicSpdyClientSessionTest, ServerAcceptsZeroRttButOmitSetting) {
@@ -937,7 +937,7 @@ TEST_P(QuicSpdyClientSessionTest, ServerAcceptsZeroRttButOmitSetting) {
   // Intentionally omit SETTINGS_MAX_FIELD_SECTION_SIZE which was previously
   // sent with a non-zero value.
   settings.values[256] = 4;  // unknown setting
-  session_->OnSettingsFrame(settings);
+  session_->OnSettingsFrame(settings, /*wire_order=*/{});
 }
 
 }  // namespace

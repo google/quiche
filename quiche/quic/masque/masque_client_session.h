@@ -12,6 +12,7 @@
 
 #include "absl/container/flat_hash_map.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/crypto/quic_crypto_client_config.h"
 #include "quiche/quic/core/frames/quic_connection_close_frame.h"
 #include "quiche/quic/core/http/http_frames.h"
@@ -141,7 +142,8 @@ class QUIC_NO_EXPORT MasqueClientSession : public QuicSpdyClientSession,
   void OnStreamClosed(QuicStreamId stream_id) override;
 
   // From QuicSpdySession.
-  bool OnSettingsFrame(const SettingsFrame& frame) override;
+  bool OnSettingsFrame(const SettingsFrame& frame,
+                       absl::Span<const uint64_t> wire_order) override;
 
   // Send encapsulated UDP packet. |packet| contains the UDP payload.
   void SendPacket(absl::string_view packet,

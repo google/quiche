@@ -20,6 +20,7 @@
 #include "absl/strings/str_cat.h"
 #include "absl/strings/string_view.h"
 #include "absl/synchronization/mutex.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/congestion_control/loss_detection_interface.h"
 #include "quiche/quic/core/congestion_control/send_algorithm_interface.h"
 #include "quiche/quic/core/crypto/transport_parameters.h"
@@ -1504,7 +1505,10 @@ class MockHttpDecoderVisitor : public HttpDecoder::Visitor {
   MOCK_METHOD(bool, OnGoAwayFrame, (const GoAwayFrame& frame), (override));
   MOCK_METHOD(bool, OnSettingsFrameStart, (QuicByteCount header_length),
               (override));
-  MOCK_METHOD(bool, OnSettingsFrame, (const SettingsFrame& frame), (override));
+  MOCK_METHOD(bool, OnSettingsFrame,
+              (const SettingsFrame& frame,
+               absl::Span<const uint64_t> wire_order),
+              (override));
 
   MOCK_METHOD(bool, OnDataFrameStart,
               (QuicByteCount header_length, QuicByteCount payload_length),

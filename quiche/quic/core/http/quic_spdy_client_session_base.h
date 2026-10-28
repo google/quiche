@@ -8,6 +8,7 @@
 #include <string>
 
 #include "absl/container/flat_hash_map.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/http/quic_spdy_session.h"
 #include "quiche/quic/core/quic_crypto_client_stream.h"
 #include "quiche/quic/platform/api/quic_export.h"
@@ -44,7 +45,8 @@ class QUICHE_EXPORT QuicSpdyClientSessionBase
   bool ShouldKeepConnectionAlive() const override;
 
   // Override to serialize the settings and pass it down to the handshaker.
-  bool OnSettingsFrame(const SettingsFrame& frame) override;
+  bool OnSettingsFrame(const SettingsFrame& frame,
+                       absl::Span<const uint64_t> wire_order) override;
 };
 
 }  // namespace quic

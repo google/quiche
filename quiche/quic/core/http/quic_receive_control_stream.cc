@@ -86,10 +86,11 @@ bool QuicReceiveControlStream::OnSettingsFrameStart(
   return ValidateFrameType(HttpFrameType::SETTINGS);
 }
 
-bool QuicReceiveControlStream::OnSettingsFrame(const SettingsFrame& frame) {
+bool QuicReceiveControlStream::OnSettingsFrame(
+    const SettingsFrame& frame, absl::Span<const uint64_t> wire_order) {
   QUIC_DVLOG(1) << "Control Stream " << id()
                 << " received settings frame: " << frame;
-  return spdy_session_->OnSettingsFrame(frame);
+  return spdy_session_->OnSettingsFrame(frame, wire_order);
 }
 
 bool QuicReceiveControlStream::OnDataFrameStart(QuicByteCount /*header_length*/,

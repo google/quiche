@@ -46,7 +46,8 @@ bool QuicSpdyClientSessionBase::ShouldKeepConnectionAlive() const {
          num_outgoing_draining_streams() > 0;
 }
 
-bool QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
+bool QuicSpdyClientSessionBase::OnSettingsFrame(
+    const SettingsFrame& frame, absl::Span<const uint64_t> wire_order) {
   if (!was_zero_rtt_rejected()) {
     if (max_outbound_header_list_size() != std::numeric_limits<size_t>::max() &&
         frame.values.find(SETTINGS_MAX_FIELD_SECTION_SIZE) ==
@@ -79,7 +80,7 @@ bool QuicSpdyClientSessionBase::OnSettingsFrame(const SettingsFrame& frame) {
     }
   }
 
-  if (!QuicSpdySession::OnSettingsFrame(frame)) {
+  if (!QuicSpdySession::OnSettingsFrame(frame, wire_order)) {
     return false;
   }
   std::string settings_frame = HttpEncoder::SerializeSettingsFrame(frame);

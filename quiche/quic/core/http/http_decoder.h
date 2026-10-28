@@ -6,9 +6,11 @@
 #define QUICHE_QUIC_CORE_HTTP_HTTP_DECODER_H_
 
 #include <cstdint>
+#include <vector>
 
 #include "absl/base/nullability.h"
 #include "absl/strings/string_view.h"
+#include "absl/types/span.h"
 #include "quiche/quic/core/http/http_frames.h"
 #include "quiche/quic/core/quic_error_codes.h"
 #include "quiche/quic/core/quic_types.h"
@@ -49,8 +51,12 @@ class QUICHE_EXPORT HttpDecoder {
     // Called when a SETTINGS frame has been received.
     virtual bool OnSettingsFrameStart(QuicByteCount header_length) = 0;
 
-    // Called when a SETTINGS frame has been successfully parsed.
-    virtual bool OnSettingsFrame(const SettingsFrame& frame) = 0;
+    // Called when a SETTINGS frame has been successfully parsed. |wire_order|
+    // holds the setting identifiers in the order they appeared on the wire;
+    // SettingsFrame::values is unordered. |wire_order| is only valid for the
+    // duration of the call.
+    virtual bool OnSettingsFrame(const SettingsFrame& frame,
+                                 absl::Span<const uint64_t> wire_order) = 0;
 
     // Called when a DATA frame has been received.
     // |header_length| and |payload_length| are the length of DATA frame header
@@ -250,8 +256,10 @@ class QUICHE_EXPORT HttpDecoder {
   // Sets |error_| and |error_detail_| accordingly.
   void RaiseError(QuicErrorCode error, std::string error_detail);
 
-  // Parses the payload of a SETTINGS frame from |reader| into |frame|.
-  bool ParseSettingsFrame(QuicDataReader& reader, SettingsFrame& frame);
+  // Parses the payload of a SETTINGS frame from |reader| into |frame|, and
+  // appends each setting identifier to |wire_order| in the order it was read.
+  bool ParseSettingsFrame(QuicDataReader& reader, SettingsFrame& frame,
+                          std::vector<uint64_t>& wire_order);
 
   // Parses the payload of a PRIORITY_UPDATE frame (draft-02, type 0xf0700)
   // from |reader| into |frame|.
