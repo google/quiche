@@ -449,8 +449,6 @@ class QUICHE_EXPORT MoqtSession : public MoqtSessionInterface,
   // The next request ID that the local endpoint can send. Use NextRequestId()
   // to obtain a value and automatically increment the next value.
   uint64_t next_request_id_ = 0;
-  // The next expected incoming request ID, used to compose draft-18 GOAWAY.
-  uint64_t next_incoming_request_id_ = 1;
 
   // All open incoming subscriptions, indexed by track name, used to check for
   // duplicates.

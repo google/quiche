@@ -98,15 +98,12 @@ absl::Status MoqtBidiStreamBase::SendRequestUpdate(
 // resolving which child classes of MoqtBidiStreamBase should handle them. For
 // now, we just handle them silently, as in draft-18 they are all allowed, to
 // avoid changing the application API twice. However, it will return an error if
-// the message is incorrectly formatted or there is more than one.
-absl::Status MoqtBidiStreamBase::OnControlMessage(const MoqtGoAway& message) {
+// there is more than one.
+absl::Status MoqtBidiStreamBase::OnControlMessage(
+    const MoqtGoAway& /*message*/) {
   if (received_goaway_) {
     return absl::InvalidArgumentError(
         "Received multiple GOAWAY on a bidi stream");
-  }
-  if (message.request_id.has_value()) {
-    return absl::InvalidArgumentError(
-        "GOAWAY with request ID on a bidi stream");
   }
   received_goaway_ = true;
   return absl::OkStatus();

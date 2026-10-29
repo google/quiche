@@ -161,15 +161,10 @@ TEST_F(MoqtBidiStreamTest, DispatchControlMessage) {
 }
 
 TEST_F(MoqtBidiStreamTest, ReceiveGoAway) {
-  QUICHE_EXPECT_OK(stream_->OnControlMessage(
-      MoqtGoAway("", quic::QuicTimeDelta::Zero(), std::nullopt)));
-  EXPECT_TRUE(IsInvalidArgument(stream_->OnControlMessage(
-      MoqtGoAway("", quic::QuicTimeDelta::Zero(), std::nullopt))));
-}
-
-TEST_F(MoqtBidiStreamTest, ReceiveGoAwayWithRequestId) {
-  EXPECT_TRUE(IsInvalidArgument(stream_->OnControlMessage(
-      MoqtGoAway("", quic::QuicTimeDelta::Zero(), /*request_id=*/0))));
+  QUICHE_EXPECT_OK(
+      stream_->OnControlMessage(MoqtGoAway("", quic::QuicTimeDelta::Zero())));
+  EXPECT_TRUE(IsInvalidArgument(
+      stream_->OnControlMessage(MoqtGoAway("", quic::QuicTimeDelta::Zero()))));
 }
 
 TEST_F(MoqtBidiStreamTest, SendRequestOk) {

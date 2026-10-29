@@ -110,7 +110,6 @@ MoqtSession::MoqtSession(webtransport::Session* session,
   }
   if (parameters_.perspective == Perspective::IS_SERVER) {
     next_request_id_ = 1;
-    next_incoming_request_id_ = 0;
   }
   QUICHE_DCHECK(parameters_.moqt_implementation.empty());
   parameters_.moqt_implementation = kImplementationName;
@@ -808,7 +807,6 @@ void MoqtSession::GoAway(absl::string_view new_session_uri) {
   MoqtGoAway message;
   message.new_session_uri = std::string(new_session_uri);
   message.timeout = kDefaultGoAwayTimeout;
-  message.request_id = next_incoming_request_id_;
   SendControlMessage(framer_.SerializeGoAway(message));
   sent_goaway_ = true;
   goaway_timeout_alarm_ = absl::WrapUnique(
@@ -948,7 +946,6 @@ absl::Status MoqtSession::ValidateNewIncomingRequestId(uint64_t request_id) {
     Error(MoqtError::kInvalidRequestId, "Duplicate Request ID");
     return absl::InvalidArgumentError("Duplicate Request ID");
   }
-  next_incoming_request_id_ = request_id + 2;
   return absl::OkStatus();
 }
 
@@ -1469,14 +1466,6 @@ absl::Status MoqtSession::OnControlMessage(const MoqtGoAway& message) {
   if (received_goaway_) {
     return absl::InvalidArgumentError(
         "Received multiple GOAWAY on control stream");
-  }
-  if (!message.request_id.has_value()) {
-    return absl::InvalidArgumentError("GOAWAY missing request ID");
-  }
-  if ((*message.request_id & 0x1) != (next_request_id_ & 0x1)) {
-    Error(MoqtError::kInvalidRequestId,
-          "GOAWAY request ID has incorrect parity");
-    return absl::OkStatus();
   }
   received_goaway_ = true;
   if (callbacks_.goaway_received_callback == nullptr) {

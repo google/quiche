@@ -26,7 +26,7 @@ using AnyMoqtControlMessage =
                  MoqtPublishNamespace, MoqtTrackStatus, MoqtGoAway,
                  MoqtSubscribeNamespace, MoqtSubscribeTracks, MoqtFetch,
                  MoqtFetchOk, MoqtPublish, MoqtNamespace, MoqtNamespaceDone,
-                 MoqtPublishSkipped, MoqtObjectAck>;
+                 MoqtPublishSkipped, MoqtPublishStateNotify, MoqtObjectAck>;
 
 std::string SerializeGenericMessage(const AnyMoqtControlMessage& frame,
                                     bool use_webtrans = false);

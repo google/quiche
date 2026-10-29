@@ -113,13 +113,12 @@ class QUICHE_NO_EXPORT TestMessageBase {
  public:
   virtual ~TestMessageBase() = default;
 
-  using MessageStructuredData =
-      std::variant<MoqtSetup, MoqtObject, MoqtRequestOk, MoqtRequestError,
-                   MoqtSubscribe, MoqtSubscribeOk, MoqtPublishDone,
-                   MoqtRequestUpdate, MoqtPublishNamespace, MoqtTrackStatus,
-                   MoqtGoAway, MoqtSubscribeNamespace, MoqtSubscribeTracks,
-                   MoqtFetch, MoqtFetchOk, MoqtPublish, MoqtNamespace,
-                   MoqtNamespaceDone, MoqtPublishSkipped, MoqtObjectAck>;
+  using MessageStructuredData = std::variant<
+      MoqtSetup, MoqtObject, MoqtRequestOk, MoqtRequestError, MoqtSubscribe,
+      MoqtSubscribeOk, MoqtPublishDone, MoqtRequestUpdate, MoqtPublishNamespace,
+      MoqtTrackStatus, MoqtGoAway, MoqtSubscribeNamespace, MoqtSubscribeTracks,
+      MoqtFetch, MoqtFetchOk, MoqtPublish, MoqtNamespace, MoqtNamespaceDone,
+      MoqtPublishSkipped, MoqtPublishStateNotify, MoqtObjectAck>;
 
   // The total actual size of the message.
   size_t total_message_size() const { return wire_image_size_; }
@@ -1216,34 +1215,23 @@ class QUICHE_NO_EXPORT GoAwayMessage : public TestMessageBase {
       QUIC_LOG(INFO) << "GOAWAY timeout mismatch";
       return false;
     }
-    if (cast.request_id != goaway_.request_id) {
-      QUIC_LOG(INFO) << "GOAWAY request ID mismatch";
-      return false;
-    }
     return true;
   }
 
-  void RequestStreamMessage() {  // Remove the request ID.
-    raw_packet_[2] = 0x05;
-    SetWireImage(raw_packet_, sizeof(raw_packet_) - 1);
-    goaway_.request_id = std::nullopt;
-  }
-
-  void ExpandVarints() override { ExpandVarintsImpl("v---vv"); }
+  void ExpandVarints() override { ExpandVarintsImpl("v---v"); }
 
   MessageStructuredData structured_data() const override {
     return TestMessageBase::MessageStructuredData(goaway_);
   }
 
  private:
-  uint8_t raw_packet_[9] = {
-      0x10, 0x00, 0x06, 0x03, 0x66, 0x6f, 0x6f, 0x03, 0x40,
+  uint8_t raw_packet_[8] = {
+      0x10, 0x00, 0x05, 0x03, 0x66, 0x6f, 0x6f, 0x03,
   };
 
   MoqtGoAway goaway_ = {
       /*new_session_uri=*/"foo",
       /*timeout=*/quic::QuicTimeDelta::FromMilliseconds(3),
-      /*request_id=*/64,
   };
 };
 
@@ -1657,6 +1645,45 @@ class QUICHE_NO_EXPORT PublishMessage : public TestMessageBase {
   };
 };
 
+class QUICHE_NO_EXPORT PublishStateNotifyMessage : public TestMessageBase {
+ public:
+  PublishStateNotifyMessage() : TestMessageBase() {
+    SetWireImage(raw_packet_, sizeof(raw_packet_));
+    publish_state_notify_.parameters.largest_object = Location(10, 1);
+    publish_state_notify_.parameters.set_forward(true);
+    publish_state_notify_.parameters.subscription_filter.emplace(Location(3, 1),
+                                                                 5);
+  }
+
+  bool EqualFieldValues(const MessageStructuredData& values) const override {
+    auto cast = std::get<MoqtPublishStateNotify>(values);
+    if (cast.parameters != publish_state_notify_.parameters) {
+      QUIC_LOG(INFO) << "PUBLISH_STATE_NOTIFY parameter mismatch";
+      return false;
+    }
+    return true;
+  }
+
+  void ExpandVarints() override { ExpandVarintsImpl("vvvvv-vv----"); }
+
+  MessageStructuredData structured_data() const override {
+    return TestMessageBase::MessageStructuredData(publish_state_notify_);
+  }
+
+ private:
+  uint8_t raw_packet_[15] = {
+      0x22, 0x00, 0x0c,
+      0x03,                                // 3 parameters
+      0x09, 0x0a, 0x01,                    // largest_object = (10, 1)
+      0x07, 0x01,                          // forward = true
+      0x11, 0x04, 0x04, 0x03, 0x01, 0x02,  // Absolute Range: (3, 1) to 5
+  };
+
+  MoqtPublishStateNotify publish_state_notify_ = {
+      MessageParameters(),  // Set in the constructor.
+  };
+};
+
 class QUICHE_NO_EXPORT ObjectAckMessage : public TestMessageBase {
  public:
   ObjectAckMessage() : TestMessageBase() {
@@ -1739,6 +1766,8 @@ static inline std::unique_ptr<TestMessageBase> CreateTestMessage(
       return std::make_unique<FetchOkMessage>();
     case MoqtMessageType::kPublish:
       return std::make_unique<PublishMessage>();
+    case MoqtMessageType::kPublishStateNotify:
+      return std::make_unique<PublishStateNotifyMessage>();
     case MoqtMessageType::kObjectAck:
       return std::make_unique<ObjectAckMessage>();
     case MoqtMessageType::kSetup:

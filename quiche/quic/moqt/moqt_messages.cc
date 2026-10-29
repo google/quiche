@@ -67,6 +67,12 @@ AllowedParameters GetAllowedParametersForMessage(MoqtMessageType message_type) {
           .largest_object = true,
           .forward = true,
       };
+    case MoqtMessageType::kPublishStateNotify:
+      return AllowedParameters{
+          .largest_object = true,
+          .forward = true,
+          .subscription_filter = true,
+      };
     case MoqtMessageType::kFetch:
       return AllowedParameters{
           .authorization_tokens = true,
@@ -139,6 +145,7 @@ AllowedParameters GetAllowedParametersForUpdate(MoqtMessageType updated_type) {
     case MoqtMessageType::kPublishSkipped:
     case MoqtMessageType::kGoAway:
     case MoqtMessageType::kFetchOk:
+    case MoqtMessageType::kPublishStateNotify:
     case MoqtMessageType::kSetup:
     case MoqtMessageType::kObjectAck:
       QUICHE_BUG(moqt_sanitize_update_parameters_invalid_type)
@@ -181,6 +188,7 @@ AllowedParameters GetAllowedParametersForRequestOk(MoqtMessageType type_of_ok) {
     case MoqtMessageType::kGoAway:
     case MoqtMessageType::kFetch:
     case MoqtMessageType::kFetchOk:
+    case MoqtMessageType::kPublishStateNotify:
     case MoqtMessageType::kSetup:
     case MoqtMessageType::kObjectAck:
       QUICHE_BUG(moqt_sanitize_request_ok_parameters_invalid_type)
@@ -351,6 +359,7 @@ bool RedirectAllowedByRequestError(const std::optional<Redirect>& redirect,
     case MoqtMessageType::kPublishSkipped:
     case MoqtMessageType::kGoAway:
     case MoqtMessageType::kFetchOk:
+    case MoqtMessageType::kPublishStateNotify:
     case MoqtMessageType::kSetup:
     case MoqtMessageType::kObjectAck:
       QUICHE_BUG(moqt_redirect_allowed_invalid_type)
@@ -395,6 +404,8 @@ std::string MoqtMessageTypeToString(const MoqtMessageType message_type) {
       return "SUBSCRIBE_TRACKS";
     case MoqtMessageType::kPublish:
       return "PUBLISH";
+    case MoqtMessageType::kPublishStateNotify:
+      return "PUBLISH_STATE_NOTIFY";
     case MoqtMessageType::kFetch:
       return "FETCH";
     case MoqtMessageType::kFetchOk:

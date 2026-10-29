@@ -174,6 +174,8 @@ class MoqtControlMessageParser {
   absl::StatusOr<MoqtFetch> ProcessFetch(absl::string_view data) const;
   absl::StatusOr<MoqtFetchOk> ProcessFetchOk(absl::string_view data) const;
   absl::StatusOr<MoqtPublish> ProcessPublish(absl::string_view data) const;
+  absl::StatusOr<MoqtPublishStateNotify> ProcessPublishStateNotify(
+      absl::string_view data) const;
   absl::StatusOr<MoqtObjectAck> ProcessObjectAck(absl::string_view data) const;
 
   // Parse a raw message and call a callback on it if successful.
@@ -228,6 +230,8 @@ class MoqtControlMessageParser {
         return parse(&MoqtControlMessageParser::ProcessFetchOk);
       case MoqtMessageType::kPublish:
         return parse(&MoqtControlMessageParser::ProcessPublish);
+      case MoqtMessageType::kPublishStateNotify:
+        return parse(&MoqtControlMessageParser::ProcessPublishStateNotify);
       case MoqtMessageType::kObjectAck:
         return parse(&MoqtControlMessageParser::ProcessObjectAck);
       default:

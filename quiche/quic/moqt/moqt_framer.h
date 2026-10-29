@@ -67,6 +67,8 @@ class QUICHE_EXPORT MoqtFramer {
   quiche::QuicheBuffer SerializeFetch(const MoqtFetch& message);
   quiche::QuicheBuffer SerializeFetchOk(const MoqtFetchOk& message);
   quiche::QuicheBuffer SerializePublish(const MoqtPublish& message);
+  quiche::QuicheBuffer SerializePublishStateNotify(
+      const MoqtPublishStateNotify& message);
   quiche::QuicheBuffer SerializeObjectAck(const MoqtObjectAck& message);
 
   bool using_webtrans() const { return using_webtrans_; }

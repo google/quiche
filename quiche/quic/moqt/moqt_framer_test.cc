@@ -62,6 +62,7 @@ std::vector<MoqtFramerTestParams> GetMoqtFramerTestParams() {
       MoqtMessageType::kFetch,
       MoqtMessageType::kFetchOk,
       MoqtMessageType::kPublish,
+      MoqtMessageType::kPublishStateNotify,
       MoqtMessageType::kObjectAck,
       MoqtMessageType::kSetup,
   };
@@ -208,6 +209,10 @@ class MoqtFramerTest
       case moqt::MoqtMessageType::kPublish: {
         auto data = std::get<MoqtPublish>(structured_data);
         return framer_.SerializePublish(data);
+      }
+      case moqt::MoqtMessageType::kPublishStateNotify: {
+        auto data = std::get<MoqtPublishStateNotify>(structured_data);
+        return framer_.SerializePublishStateNotify(data);
       }
       case moqt::MoqtMessageType::kObjectAck: {
         auto data = std::get<MoqtObjectAck>(structured_data);
@@ -560,7 +565,6 @@ TEST_F(MoqtFramerSimpleTest, GoAwayNewSessionUriTooLong) {
   MoqtGoAway goaway = {
       /*new_session_uri=*/std::string(kMaxNewSessionUriLength, 'a'),
       /*timeout=*/quic::QuicTimeDelta::FromMilliseconds(3),
-      /*request_id=*/std::nullopt,
   };
   quiche::QuicheBuffer buffer = framer_.SerializeGoAway(goaway);
   EXPECT_GT(buffer.size(), 0);
@@ -577,7 +581,6 @@ TEST_F(MoqtFramerSimpleTest, GoAwayNewSessionUriFromClient) {
   MoqtGoAway goaway = {
       /*new_session_uri=*/"",
       /*timeout=*/quic::QuicTimeDelta::FromMilliseconds(3),
-      /*request_id=*/std::nullopt,
   };
   quiche::QuicheBuffer buffer = client_framer.SerializeGoAway(goaway);
   EXPECT_GT(buffer.size(), 0);

@@ -907,13 +907,6 @@ absl::StatusOr<MoqtGoAway> MoqtControlMessageParser::ProcessGoAway(
   }
   goaway.timeout = quic::QuicTimeDelta::TryFromMilliseconds(raw_timeout)
                        .value_or(quic::QuicTimeDelta::Infinite());
-  if (!reader.IsDoneReading()) {
-    uint64_t request_id;
-    if (!reader.ReadMoqVarInt(&request_id)) {
-      return absl::InvalidArgumentError("Invalid GOAWAY request ID");
-    }
-    goaway.request_id = request_id;
-  }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return goaway;
 }
@@ -1081,6 +1074,22 @@ absl::StatusOr<MoqtPublish> MoqtControlMessageParser::ProcessPublish(
   }
   QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
   return publish;
+}
+
+absl::StatusOr<MoqtPublishStateNotify>
+MoqtControlMessageParser::ProcessPublishStateNotify(
+    absl::string_view data) const {
+  quic::QuicDataReader reader(data);
+  MoqtPublishStateNotify publish_state_notify;
+  QUICHE_ASSIGN_OR_RETURN(publish_state_notify.parameters,
+                          ParseMessageParameters(reader));
+  if (!ParametersAllowedByMessage(publish_state_notify.parameters,
+                                  MoqtMessageType::kPublishStateNotify)) {
+    return absl::InvalidArgumentError(
+        "Invalid PUBLISH_STATE_NOTIFY message parameters");
+  }
+  QUICHE_RETURN_IF_ERROR(CheckForTrailingData(reader));
+  return publish_state_notify;
 }
 
 absl::StatusOr<MoqtObjectAck> MoqtControlMessageParser::ProcessObjectAck(

@@ -66,6 +66,7 @@ constexpr std::array kMessageTypes{
     MoqtMessageType::kFetch,
     MoqtMessageType::kFetchOk,
     MoqtMessageType::kPublish,
+    MoqtMessageType::kPublishStateNotify,
     MoqtMessageType::kObjectAck,
     MoqtMessageType::kSetup,
 };
@@ -417,10 +418,6 @@ TEST_P(MoqtParserTest, PayloadLengthTooShort) {
   }
   std::unique_ptr<TestMessageBase> message = MakeMessage();
   message->DecreasePayloadLengthByOne();
-  if (std::get<MoqtMessageType>(message_type_) == MoqtMessageType::kGoAway) {
-    // GOAWAY has a variant that is one byte shorter, so decrease by another.
-    message->DecreasePayloadLengthByOne();
-  }
   ProcessData(message->PacketSample(), false);
   EXPECT_EQ(messages_received(), 0);
   EXPECT_TRUE(parsing_error().has_value());
@@ -2165,18 +2162,6 @@ TEST_F(MoqtMessageSpecificTest, StreamTypeParserMovedFrom) {
       StatusIs(absl::StatusCode::kInternal, HasSubstr("moved-from parser")));
 }
 
-TEST_F(MoqtMessageSpecificTest, ParseGoAwayWithoutRequestId) {
-  GoAwayMessage goaway_message;
-  goaway_message.RequestStreamMessage();
-  absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
-      ParseAllMessages(goaway_message.PacketSample(), kDefaultMoqtVersion,
-                       kRawQuic, quic::Perspective::IS_CLIENT);
-  ASSERT_TRUE(parsed.ok());
-  ASSERT_EQ(parsed->size(), 1);
-  EXPECT_TRUE(
-      goaway_message.EqualFieldValues(std::get<MoqtGoAway>((*parsed)[0])));
-}
-
 TEST_F(MoqtMessageSpecificTest, GoAwayNewSessionUriFromClient) {
   GoAwayMessage goaway_message;
   absl::StatusOr<std::vector<AnyMoqtControlMessage>> parsed =
@@ -2323,6 +2308,16 @@ TEST_F(MoqtMessageSpecificTest, DisallowedParameters) {
                 ParseAllMessages(absl::string_view(publish, sizeof(publish)))
                     .status()),
             MoqtError::kProtocolViolation);
+
+  char publish_state_notify[] = {
+      0x22, 0x00, 0x03, 0x01, 0x20, 0x01,  // subscriber_priority = 1
+  };
+  EXPECT_EQ(
+      ExtractMoqtErrorForStatus(
+          ParseAllMessages(absl::string_view(publish_state_notify,
+                                             sizeof(publish_state_notify)))
+              .status()),
+      MoqtError::kProtocolViolation);
 }
 
 TEST_F(MoqtMessageSpecificTest, RequestErrorRedirect) {

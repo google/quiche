@@ -55,6 +55,9 @@ struct FramingVisitor {
   quiche::QuicheBuffer operator()(const MoqtPublishSkipped& message) {
     return framer.SerializePublishSkipped(message);
   }
+  quiche::QuicheBuffer operator()(const MoqtPublishStateNotify& message) {
+    return framer.SerializePublishStateNotify(message);
+  }
   quiche::QuicheBuffer operator()(const MoqtTrackStatus& message) {
     return framer.SerializeTrackStatus(message);
   }

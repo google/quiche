@@ -890,8 +890,7 @@ quiche::QuicheBuffer MoqtFramer::SerializeGoAway(const MoqtGoAway& message) {
   return SerializeControlMessage(
       MoqtMessageType::kGoAway,
       WireStringWithMoqVarIntLength(message.new_session_uri),
-      WireMoqVarInt(message.timeout.ToMilliseconds()),
-      WireOptional<WireMoqVarInt>(message.request_id));
+      WireMoqVarInt(message.timeout.ToMilliseconds()));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeSubscribeNamespace(
@@ -970,6 +969,12 @@ quiche::QuicheBuffer MoqtFramer::SerializePublish(const MoqtPublish& message) {
                                  WireMoqVarInt(message.track_alias),
                                  WireMessageParameters(message.parameters),
                                  WireKeyValuePairList(message.properties));
+}
+
+quiche::QuicheBuffer MoqtFramer::SerializePublishStateNotify(
+    const MoqtPublishStateNotify& message) {
+  return SerializeControlMessage(MoqtMessageType::kPublishStateNotify,
+                                 WireMessageParameters(message.parameters));
 }
 
 quiche::QuicheBuffer MoqtFramer::SerializeObjectAck(

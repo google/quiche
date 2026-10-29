@@ -2395,8 +2395,7 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
       MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);
   EXPECT_CALL(session_callbacks_.goaway_received_callback,
               Call("", quic::QuicTimeDelta::Zero()));
-  bidi_wrapper_->ReceiveMessage(
-      MoqtGoAway("", quic::QuicTimeDelta::Zero(), /*request_id=*/0));
+  bidi_wrapper_->ReceiveMessage(MoqtGoAway("", quic::QuicTimeDelta::Zero()));
   // New requests not allowed.
   EXPECT_CALL(mock_bidi_stream_, Writev).Times(0);
   MessageParameters parameters = SubscribeForTest();
@@ -2427,43 +2426,7 @@ TEST_F(MoqtSessionTest, ReceiveGoAwayEnforcement) {
         reported_error = true;
         EXPECT_EQ(error_message, "Received multiple GOAWAY on control stream");
       });
-  bidi_wrapper_->ReceiveMessage(
-      MoqtGoAway{"", quic::QuicTimeDelta::Zero(), /*request_id=*/0});
-}
-
-TEST_F(MoqtSessionTest, GoAwayMissingRequestId) {
-  bidi_wrapper_ =
-      MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);
-  EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kProtocolViolation),
-                           "GOAWAY missing request ID"));
-  bidi_wrapper_->ReceiveMessage(
-      MoqtGoAway{"", quic::QuicTimeDelta::Zero(), std::nullopt});
-}
-
-TEST_F(MoqtSessionTest, GoAwayRequestIdWrongParity) {
-  // Client session has even next_request_id_, so odd request_id fails.
-  bidi_wrapper_ =
-      MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);
-  EXPECT_CALL(mock_session_,
-              CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
-                           "GOAWAY request ID has incorrect parity"));
-  bidi_wrapper_->ReceiveMessage(
-      MoqtGoAway{"", quic::QuicTimeDelta::Zero(), /*request_id=*/1});
-
-  // Server session has odd next_request_id_, so even request_id fails.
-  webtransport::test::MockSession mock_server_session;
-  MoqtSession server_session(
-      &mock_server_session, MoqtSessionParameters(quic::Perspective::IS_SERVER),
-      std::make_unique<quic::test::TestAlarmFactory>(),
-      session_callbacks_.AsSessionCallbacks());
-  auto server_control_stream =
-      MoqtSessionPeer::CreateControlStream(&server_session, &mock_bidi_stream_);
-  EXPECT_CALL(mock_server_session,
-              CloseSession(static_cast<uint64_t>(MoqtError::kInvalidRequestId),
-                           "GOAWAY request ID has incorrect parity"));
-  server_control_stream->ReceiveMessage(
-      MoqtGoAway{"", quic::QuicTimeDelta::Zero(), /*request_id=*/0});
+  bidi_wrapper_->ReceiveMessage(MoqtGoAway{"", quic::QuicTimeDelta::Zero()});
 }
 
 TEST_F(MoqtSessionTest, SendGoAwayEnforcement) {
@@ -2931,7 +2894,6 @@ TEST_F(MoqtSessionTest, PublishAfterGoaway) {
       MoqtSessionPeer::CreateControlStream(&session_, &mock_bidi_stream_);
   MoqtGoAway goaway;
   goaway.new_session_uri = "";
-  goaway.request_id = 0;
   bidi_wrapper_->ReceiveMessage(goaway);
   CreateTrackPublisher();
   std::shared_ptr<MoqtTrackPublisher> track_publisher =

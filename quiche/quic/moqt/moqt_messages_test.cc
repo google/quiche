@@ -162,6 +162,11 @@ TEST(MoqtMessagesTest, ParametersAllowedAndSanitizedByMessage) {
                           ParametersAllowedByMessage, SanitizeParameters);
 
   VerifyParameterHandling(
+      MoqtMessageType::kPublishStateNotify,
+      MakeParameters({SetLargestObject, SetForward, SetSubscriptionFilter}),
+      ParametersAllowedByMessage, SanitizeParameters);
+
+  VerifyParameterHandling(
       MoqtMessageType::kFetch,
       MakeParameters({SetAuthorizationTokens, SetFillTimeout,
                       SetSubscriberPriority, SetGroupOrder}),
@@ -234,7 +239,8 @@ TEST(MoqtMessagesTest, ParametersAllowedAndSanitizedByRequestUpdate) {
         MoqtMessageType::kPublishDone, MoqtMessageType::kTrackStatus,
         MoqtMessageType::kNamespaceDone, MoqtMessageType::kPublishSkipped,
         MoqtMessageType::kGoAway, MoqtMessageType::kFetchOk,
-        MoqtMessageType::kSetup, MoqtMessageType::kObjectAck}) {
+        MoqtMessageType::kPublishStateNotify, MoqtMessageType::kSetup,
+        MoqtMessageType::kObjectAck}) {
     MessageParameters params = AllParameters();
     EXPECT_QUICHE_BUG(
         EXPECT_FALSE(ParametersAllowedByRequestUpdate(params, invalid_type)),
@@ -277,8 +283,8 @@ TEST(MoqtMessagesTest, ParametersAllowedAndSanitizedByRequestOk) {
         MoqtMessageType::kNamespace, MoqtMessageType::kPublishDone,
         MoqtMessageType::kNamespaceDone, MoqtMessageType::kPublishSkipped,
         MoqtMessageType::kGoAway, MoqtMessageType::kFetch,
-        MoqtMessageType::kFetchOk, MoqtMessageType::kSetup,
-        MoqtMessageType::kObjectAck}) {
+        MoqtMessageType::kFetchOk, MoqtMessageType::kPublishStateNotify,
+        MoqtMessageType::kSetup, MoqtMessageType::kObjectAck}) {
     MessageParameters params = AllParameters();
     EXPECT_QUICHE_BUG(
         EXPECT_FALSE(ParametersAllowedByRequestOk(params, invalid_type)),
@@ -328,8 +334,8 @@ TEST(MoqtMessagesTest, RedirectAllowedByRequestError) {
         MoqtMessageType::kRequestOk, MoqtMessageType::kNamespace,
         MoqtMessageType::kPublishDone, MoqtMessageType::kNamespaceDone,
         MoqtMessageType::kPublishSkipped, MoqtMessageType::kGoAway,
-        MoqtMessageType::kFetchOk, MoqtMessageType::kSetup,
-        MoqtMessageType::kObjectAck}) {
+        MoqtMessageType::kFetchOk, MoqtMessageType::kPublishStateNotify,
+        MoqtMessageType::kSetup, MoqtMessageType::kObjectAck}) {
     EXPECT_QUICHE_BUG(
         EXPECT_FALSE(RedirectAllowedByRequestError(no_redirect, invalid_type)),
         "Unexpected request type for REQUEST_ERROR");

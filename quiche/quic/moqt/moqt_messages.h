@@ -203,6 +203,7 @@ enum class QUICHE_EXPORT MoqtMessageType : uint64_t {
   kFetch = 0x16,
   kFetchOk = 0x18,
   kPublish = 0x1d,
+  kPublishStateNotify = 0x22,
   kSubscribeNamespace = 0x50,
   kSubscribeTracks = 0x51,
   kSetup = 0x2f00,
@@ -414,7 +415,6 @@ struct QUICHE_EXPORT MoqtTrackStatus {
 struct QUICHE_EXPORT MoqtGoAway {
   std::string new_session_uri;
   quic::QuicTimeDelta timeout = quic::QuicTimeDelta::Zero();
-  std::optional<uint64_t> request_id;
 };
 
 struct QUICHE_EXPORT MoqtSubscribeNamespace {
@@ -499,6 +499,10 @@ struct QUICHE_EXPORT MoqtPublish {
   uint64_t track_alias;
   MessageParameters parameters;
   TrackProperties properties;
+};
+
+struct QUICHE_EXPORT MoqtPublishStateNotify {
+  MessageParameters parameters;
 };
 
 // All of the three values in this message are encoded as varints.
